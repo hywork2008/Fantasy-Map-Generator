@@ -40,6 +40,7 @@ import type {
   CharacterSkills,
   Gender
 } from "./characterTypes";
+import { applyDemonInfernalSkillBoost, applyOvertDemonSupremacy } from "./demonExperience";
 import {
   expectedChildrenEpisodic,
   expectedChildrenFromFertility,
@@ -195,6 +196,8 @@ export interface CreatePersonOptions {
   raceOverride?: number;
   /** Explicit player-authored character only; generated High Fantasy people never expose Demon race. */
   allowOpenDemon?: boolean;
+  /** If true, character is generated as an infiltrator's true form rather than an overt demon lord. */
+  isInfiltratorTrueForm?: boolean;
   /**
    * Opt-in directorial skew — omit (or "none") for the existing fully-random rolls. When set,
    * overrides age (young-adult band, even over a caller-supplied `ageOverride`), Appearance
@@ -720,6 +723,14 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     character.arcane = arcane;
     if (infernalFlavor) {
       character.arcaneLineage = { kind: "infernal_atavism", flavor: infernalFlavor };
+    }
+  }
+
+  if (raceDef?.key === "demon" && usesCk3Systems) {
+    if (options.isInfiltratorTrueForm) {
+      applyDemonInfernalSkillBoost(character, age);
+    } else {
+      applyOvertDemonSupremacy(character, { roleClass: skillRoleClass, primarySkill });
     }
   }
 

@@ -167,6 +167,19 @@ export interface DemonSocietyExperience {
   arcaneGrowthMilestones: number;
 }
 
+/**
+ * Abyssal dominion and infernal supremacy accumulated by an overt Demon who walks undisguised.
+ * Rather than mimicking human society, overt demons cultivate terror, martial dread, and ancient abyssal mastery.
+ */
+export interface DemonDominionExperience {
+  /** Whole years lived openly as a Demon. */
+  years: number;
+  /** Dread / terror dominion rating (0–100) reflecting awe, fear, and infernal presence. */
+  dreadDominion: number;
+  /** Number of 50-year abyssal awakening milestones achieved. */
+  abyssalMilestones: number;
+}
+
 export interface CharacterPersonality {
   /** Willingness to accept risk, not a desire for war. */
   boldness: number;
@@ -522,6 +535,8 @@ export interface Character {
   race?: number;
   /** Present only on a Demon covertly passing as Human. */
   demonInfiltration?: DemonInfiltration;
+  /** Present on an overt Demon living undisguised, tracking abyssal supremacy and dread. */
+  demonDominion?: DemonDominionExperience;
   /**
    * Array (not a single field) so a future personal union — one character
    * holding titles over multiple states — needs no schema change. Phase 1

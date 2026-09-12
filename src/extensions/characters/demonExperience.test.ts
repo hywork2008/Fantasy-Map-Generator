@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Character } from "./characterTypes";
 import {
+  advanceDemonDominionExperience,
   advanceDemonSocietyExperience,
+  applyOvertDemonSupremacy,
   effectiveDemonSecretSkill,
+  effectiveDemonSkill,
   inheritDemonCoverSkills,
   initializeDemonSocietyExperience
 } from "./demonExperience";
@@ -103,5 +106,58 @@ describe("Demon human-society experience", () => {
     expect(effectiveDemonSecretSkill(infiltrator, "martial")).toBeGreaterThanOrEqual(85);
     expect(effectiveDemonSecretSkill(infiltrator, "stewardship")).toBeGreaterThanOrEqual(75);
     expect(effectiveDemonSecretSkill(infiltrator, "intrigue")).toBeGreaterThanOrEqual(90);
+  });
+
+  describe("Overt Demon Abyssal Dominion & Supremacy", () => {
+    it("endows overt demon with overwhelming prowess, martial, learning and arcane", () => {
+      const overtDemon = character({
+        race: 4,
+        age: 300,
+        demonInfiltration: undefined
+      });
+
+      applyOvertDemonSupremacy(overtDemon, { roleClass: "ruler" });
+
+      expect(overtDemon.demonDominion).toBeDefined();
+      expect(overtDemon.demonDominion?.years).toBe(300);
+      expect(overtDemon.skills.prowess).toBeGreaterThanOrEqual(88);
+      expect(overtDemon.skills.martial).toBeGreaterThanOrEqual(85);
+      expect(overtDemon.skills.learning).toBeGreaterThanOrEqual(78);
+      expect(overtDemon.skills.stewardship).toBeGreaterThanOrEqual(70);
+      expect(overtDemon.skills.intrigue).toBeGreaterThanOrEqual(75);
+      expect(overtDemon.arcane).toBeGreaterThanOrEqual(90);
+      expect(overtDemon.personality.confidence).toBeGreaterThanOrEqual(80);
+      expect(overtDemon.personality.compassion).toBeLessThanOrEqual(15);
+    });
+
+    it("advances abyssal dominion with time rather than mimicking mortals", () => {
+      const overtDemon = character({
+        race: 4,
+        age: 100,
+        demonInfiltration: undefined
+      });
+      applyOvertDemonSupremacy(overtDemon);
+
+      const initialProwess = overtDemon.skills.prowess;
+      advanceDemonDominionExperience(overtDemon, 150, () => 0); // 3 milestones
+
+      expect(overtDemon.demonDominion?.years).toBe(250);
+      expect(overtDemon.demonDominion?.abyssalMilestones).toBe(5);
+      expect(overtDemon.skills.prowess).toBeGreaterThanOrEqual(initialProwess);
+      expect(overtDemon.demonDominion?.dreadDominion).toBeGreaterThan(50);
+    });
+
+    it("returns effectiveDemonSkill with dread dominion bonus for overt demons", () => {
+      const overtDemon = character({
+        race: 4,
+        demonInfiltration: undefined
+      });
+      applyOvertDemonSupremacy(overtDemon);
+      overtDemon.demonDominion!.dreadDominion = 80;
+
+      const effectiveProwess = effectiveDemonSkill(overtDemon, "prowess");
+      expect(effectiveProwess).toBeGreaterThanOrEqual(overtDemon.skills.prowess);
+      expect(effectiveProwess).toBeLessThanOrEqual(100);
+    });
   });
 });

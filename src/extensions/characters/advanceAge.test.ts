@@ -554,4 +554,35 @@ describe("prowess lifestyle decline", () => {
       } as never)
     ).toBe("labor");
   });
+
+  describe("Overt demon aging and dominion progression", () => {
+    it("advances abyssal dominion milestones without prowess decline", () => {
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      vi.spyOn(Math, "random").mockReturnValue(0);
+      const races = [{ i: 4, key: "demon", lifespan: 1200, maxLifespan: 1500 }];
+      worldContext.pack.races = races as never;
+
+      const overtDemon = {
+        i: 1,
+        age: 100,
+        race: 4,
+        dead: false,
+        appearance: 70,
+        skills: { prowess: 85, martial: 80, learning: 75, intrigue: 65, stewardship: 60 } as never,
+        personality: { confidence: 85, boldness: 80 } as never,
+        titles: [],
+        pastTitles: [],
+        demonDominion: { years: 100, dreadDominion: 80, abyssalMilestones: 2 }
+      };
+      worldContext.pack.characters = [overtDemon as never];
+
+      advanceCharacterAging(100);
+
+      expect(overtDemon.age).toBe(200);
+      expect(overtDemon.demonDominion.years).toBe(200);
+      expect(overtDemon.demonDominion.abyssalMilestones).toBe(4);
+      expect(overtDemon.skills.prowess).toBeGreaterThanOrEqual(85);
+      vi.restoreAllMocks();
+    });
+  });
 });

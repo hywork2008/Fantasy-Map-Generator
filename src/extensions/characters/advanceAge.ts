@@ -23,7 +23,12 @@ import {
   isCk3Character,
   type RaisedIn
 } from "./characterTypes";
-import { advanceDemonSocietyExperience, inheritDemonCoverSkills } from "./demonExperience";
+import {
+  advanceDemonDominionExperience,
+  advanceDemonSocietyExperience,
+  inheritDemonCoverSkills,
+  initializeDemonDominionExperience
+} from "./demonExperience";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /**
@@ -169,13 +174,14 @@ export function raceIgnoresAgeDecline(lifespan: number | undefined | null): bool
 }
 
 export function characterIgnoresAgeDecline(
-  character: Pick<Character, "race" | "culture" | "demonInfiltration">
+  character: Pick<Character, "race" | "culture" | "demonInfiltration" | "demonDominion">
 ): boolean {
-  if (character.demonInfiltration) return true;
+  if (character.demonInfiltration || character.demonDominion) return true;
   if (!hasCharactersContext()) return false;
   try {
     const raceId = resolveCharacterRaceId(character);
     const race = getRaceById(getWorldContext().pack.races, raceId);
+    if (race?.key === "demon") return true;
     return raceIgnoresAgeDecline(race?.lifespan);
   } catch {
     return false;
@@ -304,6 +310,18 @@ export function advanceCharacterAging(deltaYears: number): void {
         character.demonInfiltration.demonIdentity.age = character.demonInfiltration.actualAge;
       }
       advanceDemonSocietyExperience(character, wholeYears);
+    } else {
+      let raceKey: string | undefined;
+      try {
+        const races = hasCharactersContext() ? getWorldContext().pack.races : undefined;
+        raceKey = getRaceById(races, resolveCharacterRaceId(character))?.key;
+      } catch {
+        /* ignore when race service not bound */
+      }
+      if (raceKey === "demon" || character.demonDominion) {
+        initializeDemonDominionExperience(character);
+        advanceDemonDominionExperience(character, wholeYears);
+      }
     }
     character.ageFraction = accumulated - wholeYears;
     replaceAgedDemonCover(character, characters, getCurrentYear());

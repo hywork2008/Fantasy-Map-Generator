@@ -338,6 +338,25 @@ describe("createPerson fantasy race appearance", () => {
       useOptionsState.setState({ culturesSet: previousSet });
     }
   });
+
+  it("endows overt Demons with supreme prowess, martial, arcane, and abyssal dominion", () => {
+    const races = createDefaultRaces();
+    const demon = races.find(race => race.key === "demon")!;
+    const overtDemon = createPerson(0, 1, {
+      homeStateId: 1,
+      raceOverride: demon.i,
+      roleClass: "ruler",
+      allowOpenDemon: true
+    });
+
+    expect(overtDemon.race).toBe(demon.i);
+    expect(overtDemon.demonDominion).toBeDefined();
+    expect(overtDemon.skills.prowess).toBeGreaterThanOrEqual(88);
+    expect(overtDemon.skills.martial).toBeGreaterThanOrEqual(85);
+    expect(overtDemon.skills.learning).toBeGreaterThanOrEqual(78);
+    expect(overtDemon.arcane).toBeGreaterThanOrEqual(90);
+    expect(overtDemon.demonInfiltration).toBeUndefined();
+  });
 });
 
 describe("createPerson Arcane on fantasy maps", () => {

@@ -28,7 +28,7 @@ import {
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
-import { effectiveDemonSecretSkill } from "../../demonExperience";
+import { effectiveDemonSecretSkill, effectiveOvertDemonSkill } from "../../demonExperience";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { serviceStartYearForDisplay } from "../../militaryWarRecord";
@@ -1477,15 +1477,60 @@ export const CharacterDetailsDialog: React.FC = () => {
             {character.skills ? (
               <RadarChart
                 data={[
-                  { axis: t("characters.artistry"), value: character.skills.artistry },
-                  { axis: t("characters.diplomacy"), value: character.skills.diplomacy },
-                  { axis: t("characters.engineering"), value: character.skills.engineering },
-                  { axis: t("characters.geography"), value: character.skills.geography },
-                  { axis: t("characters.intrigue"), value: character.skills.intrigue },
-                  { axis: t("characters.learning"), value: character.skills.learning },
-                  { axis: t("characters.martial"), value: character.skills.martial },
-                  { axis: t("characters.prowess"), value: character.skills.prowess },
-                  { axis: t("characters.stewardship"), value: character.skills.stewardship }
+                  {
+                    axis: t("characters.artistry"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "artistry")
+                      : character.skills.artistry
+                  },
+                  {
+                    axis: t("characters.diplomacy"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "diplomacy")
+                      : character.skills.diplomacy
+                  },
+                  {
+                    axis: t("characters.engineering"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "engineering")
+                      : character.skills.engineering
+                  },
+                  {
+                    axis: t("characters.geography"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "geography")
+                      : character.skills.geography
+                  },
+                  {
+                    axis: t("characters.intrigue"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "intrigue")
+                      : character.skills.intrigue
+                  },
+                  {
+                    axis: t("characters.learning"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "learning")
+                      : character.skills.learning
+                  },
+                  {
+                    axis: t("characters.martial"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "martial")
+                      : character.skills.martial
+                  },
+                  {
+                    axis: t("characters.prowess"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "prowess")
+                      : character.skills.prowess
+                  },
+                  {
+                    axis: t("characters.stewardship"),
+                    value: character.demonDominion
+                      ? effectiveOvertDemonSkill(character, "stewardship")
+                      : character.skills.stewardship
+                  }
                 ]}
                 overlayData={
                   demonIdentity
