@@ -864,6 +864,17 @@ class CulturesModule {
           sort: (i: number) => n(i) / bd(i, [3, 4, 6, 7, 8], 8),
           shield: "fantasy4",
           raceKey: "beastfolk"
+        },
+        // Dark Fantasy alone permits an open Demon realm. High Fantasy Demons
+        // remain stateless infiltrators (or unaffiliated wanderers).
+        {
+          name: "Nethrakan",
+          base: 41,
+          personNameBase: 23, // Mesopotamian / infernal naming sphere
+          odd: 0.45,
+          sort: (i: number) => (t[i] - s[i]) / bd(i, [1, 2, 10, 11]),
+          shield: "fantasy3",
+          raceKey: "demon"
         }
       ];
     }

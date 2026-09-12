@@ -3,6 +3,7 @@
  *
  * - **diplomatic** (human, elf, dwarf): can war *or* ally; rare mixed polities.
  * - **distant** (dark elf, giant, draconic, amazones, demon, beastfolk): civilized but keep distance; mono.
+ *   Dark Fantasy adds a mono-racial Demon culture-state; High Fantasy keeps Demons stateless.
  * - **enemy_colony** (goblin, orc, arachnid): own colonies/lairs; hostile ecology; mono war courts.
  * - **bound** (wyrmkin, half_elf): no free polities; only under a host race (see raceBoundServitors).
  *

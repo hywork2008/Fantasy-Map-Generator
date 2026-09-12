@@ -9,7 +9,7 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 
 1. **Most realms are mono-racial.** Each folk keeps its own colonies, holds, forests, or nests. Multi-folk *states* are **rare** exceptions, not the map default.
 2. **Human, elf, and dwarf** are the diplomatic core: they fight each other and also **form alliances**. Relative to everyone else, they are still “people you can talk to.”
-3. **Dark elf, giant, draconic, Amazones, Beastfolk** keep **distance** — not open enemy, not open melting-pot. Strong cultures, closed doors. **Demons hold no states** and pass as Humans inside mortal society.
+3. **Dark elf, giant, draconic, Amazones, Beastfolk** keep **distance** — not open enemy, not open melting-pot. Strong cultures, closed doors. In **High Fantasy**, Demons hold no states and pass as Humans inside mortal society; in **Dark Fantasy**, they may also rule an open Demon realm.
 4. **Goblin, orc, arachnid** live in **enemy colonies** (raids, war-clans, predatory nests). They do not staff mixed courts or peaceful markets.
 5. **Wyrmkin** are **bound servitors** of **draconic** realms only — no free kingdoms. They run markets, craft halls, and desk work dragons will not do themselves.
 6. **Half Elves** are **bound slave-folk** of **elf** realms only — no free kingdoms. They appear as named ordinary folk at the same rarity as Human 「青い血」 (0.6%). Human–Elf children are sterile (liger-like).
@@ -23,7 +23,7 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 | :--- | :--- | :--- | :--- |
 | **Diplomatic core** | Human, Elf, Dwarf | Mostly mono; **rare** mixed (~10–18%) | War *or* alliance; trade and treaties normal |
 | **Distant** | Dark Elf, Giant, Draconic, Amazones, Beastfolk | Always mono | Formal distance; trade possible, mixed cities rare/absent |
-| **Covert** | Demon | Never independent | Human guise; dispersed infiltration, usually acting alone |
+| **Covert / distant** | Demon | High Fantasy: never independent. Dark Fantasy: mono-racial Demon realm permitted | Human guise and unaffiliated wanderers in both; Dark Fantasy also has open Demon courts |
 | **Enemy colony** | Goblin, Orc, Arachnid | Always mono; war/nest courts only | Hostile ecology; containment, not co-citizenship |
 | **Bound** | Wyrmkin, Half Elf | Never independent | Live only under a host race (draconic / elf); thrall or slave stock |
 
@@ -60,7 +60,7 @@ Coexistence with them means **frontiers, fortresses, and seasonal war**, not sha
 - **Giant** (god-line / Yotunn): cyclopean builders with draconic-level personal might and **deep-time longevity** (typical ~800 years, under high elves only slightly, well under dragons). They keep lesser folk out with **secrecy, intermediaries, and controlled access** (Intrigue for non-involvement — not dark-elf succession games). Little interest in mortal scholarship. Personality: low sociability/compassion, high guile and confidence, restrained greed. Sparse named courts and near-replacement births match millennial mono realms.
 - **Draconic**: power and pride; keep lesser folk at arm’s length by apex presence more than scheming. **Named merchants and craft masters are almost never dragons** — those desks belong to **Wyrmkin**.
 - **Amazones**: strong female-led warrior culture; other peoples find the social order hard to live under, so contact stays limited.
-- **Demon**: no culture-state template and no infernal realm. Their number matches the number of living states; they pass as Humans across rulers, soldiers, influential professions, and commoners. Roughly 40% of states have none, while the remainder may hold several. Most act alone to provoke lethal human conflict; only about 15% currently cooperate in small pairs.
+- **Demon**: **High Fantasy** has no Demon culture-state template or infernal realm. Demons pass as Humans across rulers, soldiers, influential professions, and commoners; unaffiliated wanderers may also exist. Roughly 40% of states have none, while the remainder may hold several. Most act alone to provoke lethal human conflict; only about 15% currently cooperate in small pairs. **Dark Fantasy** retains those covert and unaffiliated Demons, and additionally permits the mono-racial Nethrakan Demon culture to form states, courts, and openly Demon-led institutions.
 - **Beastfolk** (Veldan cultures): short-lived wild clans of mixed animal ancestry. Forest and grassland holds. Energetic and sociable among their own; thin book-learning; keep other folk at a neighbor’s distance.
 
 The non-Demon distant folk get full (non-merchant-war-only) mono courts — civilizations, just not cosmopolitans.

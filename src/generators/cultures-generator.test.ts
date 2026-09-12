@@ -36,12 +36,12 @@ describe("fantasy culture templates", () => {
     expect(cultures).toHaveLength(18);
   });
 
-  it("keeps Demon stateless and includes Beastfolk cultures in Dark Fantasy", () => {
+  it("includes an independent Demon culture alongside Beastfolk cultures in Dark Fantasy", () => {
     stubMapData();
     useOptionsState.setState({ culturesSet: "darkFantasy" });
     const cultures = Cultures.getDefault();
-    expect(cultures.map(c => c.raceKey)).not.toContain("demon");
+    expect(cultures.find(c => c.raceKey === "demon")?.name).toBe("Nethrakan");
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
-    expect(cultures).toHaveLength(35);
+    expect(cultures).toHaveLength(36);
   });
 });
