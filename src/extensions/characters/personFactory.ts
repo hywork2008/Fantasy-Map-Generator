@@ -1,7 +1,7 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
 import type { RaceFertility } from "../../types/models";
 import { APPEARANCE_AXIS_IDS } from "../../types/models";
-import { Names } from "../hostCore";
+import { Names, useOptionsState } from "../hostCore";
 import {
   DEFAULT_RACE_KEY,
   getRaceBeautyIdeal,
@@ -193,6 +193,8 @@ export interface CreatePersonOptions {
    * Drives looks, fertility, gender policy, and Character.race.
    */
   raceOverride?: number;
+  /** Explicit player-authored character only; generated High Fantasy people never expose Demon race. */
+  allowOpenDemon?: boolean;
   /**
    * Opt-in directorial skew — omit (or "none") for the existing fully-random rolls. When set,
    * overrides age (young-adult band, even over a caller-supplied `ageOverride`), Appearance
@@ -542,6 +544,16 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     race = HUMAN_RACE_ID;
   }
   race = resolveAllowedCharacterRaceId(race, packRaces);
+  // High Fantasy allows covert Demons, seeded separately as Human covers. A normal
+  // generated person must never expose Demon as their public race, even if an old
+  // culture or a restrictive race allow-list resolves to Demon.
+  if (
+    !options.allowOpenDemon &&
+    useOptionsState.getState().culturesSet === "highFantasy" &&
+    packRaces?.find(candidate => candidate.i === race)?.key === "demon"
+  ) {
+    race = HUMAN_RACE_ID;
+  }
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
   const gender: Gender = resolvePersonGender(cultureId, genderOverride, race, generationBias);
   // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).

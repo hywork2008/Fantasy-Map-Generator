@@ -323,6 +323,21 @@ describe("createPerson fantasy race appearance", () => {
       expect(beastfolk.raceAppearance.furryScale).toBeLessThanOrEqual(10);
     }
   });
+
+  it("does not generate an exposed Demon on High Fantasy maps", () => {
+    const previousSet = useOptionsState.getState().culturesSet;
+    useOptionsState.setState({ culturesSet: "highFantasy" });
+
+    try {
+      const person = createPerson(0, 1, { homeStateId: 1 });
+      const human = createDefaultRaces().find(race => race.key === "human")!;
+      expect(person.race).toBe(human.i);
+      expect(person.raceAppearance).toBeUndefined();
+      expect(person.demonInfiltration).toBeUndefined();
+    } finally {
+      useOptionsState.setState({ culturesSet: previousSet });
+    }
+  });
 });
 
 describe("createPerson Arcane on fantasy maps", () => {
