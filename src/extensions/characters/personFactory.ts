@@ -49,6 +49,7 @@ import {
   rollFirstMarriageAge,
   sampleLitter
 } from "./fertility";
+import { mayCreateLichRuler, raceKeyForId, undeadAgeCap, youngestLichAge } from "./lichPolicy";
 import {
   FEUDAL_MALE_SHARE,
   isRaceMinor,
@@ -211,6 +212,11 @@ export interface CreatePersonOptions {
    * see getCharacterGenerationBias() in src/extensions/nobility/nobilityContext.ts.
    */
   generationBias?: CharacterGenerationBias;
+  /**
+   * Roster already generated in this batch. Supplying it keeps map-wide Lich
+   * limits deterministic without publishing a partially-built roster to `pack`.
+   */
+  existingCharacters?: readonly Character[];
 }
 
 /**
@@ -564,22 +570,22 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   ) {
     race = HUMAN_RACE_ID;
   }
-  // Lich is strictly reserved for state rulers of Lich realms, and max 2 across the entire map.
-  const currentRaceKey = packRaces?.find(candidate => candidate.i === race)?.key;
+  // Lich is strictly reserved for state rulers of Lich realms, and capped map-wide.
+  const currentRaceKey = raceKeyForId(packRaces, race);
   if (currentRaceKey === "lich") {
     const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
-    const existingLiches = (pack?.characters ?? []).filter(c => pack?.races?.[c.race]?.key === "lich");
     const state = homeStateId !== undefined ? pack?.states?.[homeStateId] : undefined;
-    const stateCulture = state?.culture !== undefined ? pack?.cultures?.[state.culture] : undefined;
-    const isStateLichCulture = stateCulture
-      ? pack?.races?.[stateCulture.race]?.key === "lich"
-      : pack?.races?.[cultureHostRace]?.key === "lich";
-
-    const isLichPermitted =
-      skillRoleClass === "ruler" &&
-      (options.raceOverride !== undefined || isStateLichCulture) &&
-      existingLiches.length < 2;
-    if (!isLichPermitted) {
+    const stateRaceId = state?.culture === undefined ? cultureHostRace : pack?.cultures?.[state.culture]?.race;
+    const existingCharacters = options.existingCharacters ?? pack?.characters ?? [];
+    if (
+      !mayCreateLichRuler({
+        roleClass: skillRoleClass,
+        stateRaceId,
+        isExplicitRaceOverride: options.raceOverride !== undefined,
+        existingCharacters,
+        races: packRaces
+      })
+    ) {
       const zombieId = packRaces ? raceIdByKey(packRaces, "zombie") : undefined;
       const skeletonId = packRaces ? raceIdByKey(packRaces, "skeleton") : undefined;
       if (zombieId && packRaces?.[zombieId]?.key === "zombie") {
@@ -593,7 +599,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   }
 
   let originalRace: number | undefined;
-  const effectiveRaceKey = packRaces?.find(candidate => candidate.i === race)?.key;
+  const effectiveRaceKey = raceKeyForId(packRaces, race);
   if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
     if (options.originalRaceOverride !== undefined) {
       originalRace = options.originalRaceOverride;
@@ -627,22 +633,10 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
     const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
     const isClose = isStateCloseToLivingRealm(homeStateId, pack);
-    const allLiches = (pack?.characters ?? []).filter(c => pack?.races?.[c.race]?.key === "lich");
-    const ruler = homeStateId !== undefined ? allLiches.find(c => c.state === homeStateId) : undefined;
-
-    let lichAge: number;
-    if (ruler?.age) {
-      lichAge = ruler.age;
-    } else if (allLiches.length > 0) {
-      lichAge = Math.min(...allLiches.map(l => l.age));
-    } else {
-      lichAge = Math.min(2000, rollRulerAge(pack?.races ? raceIdByKey(pack.races, "lich") : undefined));
-    }
-
-    if (allLiches.length > 0) {
-      const minLichAge = Math.min(...allLiches.map(l => l.age));
-      lichAge = Math.min(lichAge, minLichAge);
-    }
+    const existingCharacters = options.existingCharacters ?? pack?.characters ?? [];
+    const lichAge =
+      youngestLichAge(existingCharacters, packRaces) ??
+      Math.min(2000, rollRulerAge(packRaces ? raceIdByKey(packRaces, "lich") : undefined));
 
     age = rollUndeadAge({
       raceKey: effectiveRaceKey,
@@ -653,7 +647,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
 
     // If a custom player character ageOverride was supplied, ensure it still cannot exceed lichAge
     if (ageOverride !== undefined && options.roleClass !== "commander" && options.roleClass !== "province_lord") {
-      age = Math.min(ageOverride, Math.max(1, lichAge - 1));
+      age = Math.min(ageOverride, undeadAgeCap(lichAge));
     }
   } else if (isYoungBiased) {
     age = rollYoungAdultAge(race);

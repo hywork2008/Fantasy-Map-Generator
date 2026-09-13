@@ -16,6 +16,7 @@ import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
+import { isLichRaceId } from "../../characters/lichPolicy";
 import { seedMilitaryWarRecordForPeer, seedMilitaryWarRecords } from "../../characters/militaryWarRecord";
 import {
   combineStateWarlike,
@@ -162,7 +163,8 @@ function generate(options: { randomSeed?: string | number } = {}): void {
       isReligiousRole: isReligiousForm(state),
       roleClass: "ruler",
       raceOverride: rulerIds.raceId,
-      generationBias
+      generationBias,
+      existingCharacters: characters
     });
     enforcePerfectAppearanceCap(ruler, characters);
     ruler.location = state.capital;
@@ -182,13 +184,12 @@ function generate(options: { randomSeed?: string | number } = {}): void {
       birthBurgId: state.capital
     });
     characters.push(ruler);
-    pack.characters = characters;
     setRulerId(state, ruler.i);
 
     // Lich realms: Only the immortal Lich ruler holds actual awareness and will.
     // Officials, ministers and commanders are mindless skeletons and zombies acting out
     // routine habits; skip individual character creation (Plan A).
-    const isLichState = pack.races?.[rulerIds.raceId]?.key === "lich";
+    const isLichState = isLichRaceId(pack.races, rulerIds.raceId);
     if (isLichState) {
       continue;
     }
@@ -216,7 +217,8 @@ function generate(options: { randomSeed?: string | number } = {}): void {
         isReligiousRole: religious,
         roleClass: officerRoleClass,
         raceOverride: ids.raceId,
-        generationBias
+        generationBias,
+        existingCharacters: characters
       });
       enforcePerfectAppearanceCap(officer, characters);
       officer.location = state.capital;

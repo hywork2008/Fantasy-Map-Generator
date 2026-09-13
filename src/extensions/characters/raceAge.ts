@@ -7,7 +7,8 @@
  *
  * Spec intent: population-sim + fantasy maturity (elf ~100, dwarf ~40, …).
  */
-import type { Pack, State } from "../../types/models";
+import type { State } from "../../types/models";
+import type { PackedGraph } from "../../types/PackedGraph";
 import {
   getDefaultRaceFertility,
   getDefaultRaceLifespan,
@@ -19,6 +20,7 @@ import { rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 import { raceCatalog, raceCatalogEntry } from "./data/raceCatalog";
+import { isLichRaceId, undeadAgeCap, youngestLichAge } from "./lichPolicy";
 
 /** Human reference used when authoring role age bands. */
 export const REFERENCE_HUMAN_LIFESPAN = 75;
@@ -310,7 +312,7 @@ export function raceUsesEpisodicPairing(raceId: number | undefined): boolean {
  * Determines whether a given state is geographically close to a realm of the living.
  * "Close" means directly bordering a living state, or having a capital within close proximity (<= 300 map units).
  */
-export function isStateCloseToLivingRealm(stateId: number | undefined, pack?: Pack): boolean {
+export function isStateCloseToLivingRealm(stateId: number | undefined, pack?: PackedGraph): boolean {
   if (!pack || !stateId) return false;
   const state = pack.states?.[stateId];
   if (!state || state.removed) return false;
@@ -318,8 +320,7 @@ export function isStateCloseToLivingRealm(stateId: number | undefined, pack?: Pa
   const isLiving = (s: State | undefined): boolean => {
     if (!s || s.i === 0 || s.removed) return false;
     const culture = pack.cultures?.[s.culture];
-    const race = pack.races?.find(r => r.i === culture?.race) ?? pack.races?.[culture?.race];
-    return race?.key !== "lich";
+    return !isLichRaceId(pack.races, culture?.race);
   };
 
   // 1. Direct border neighbors
@@ -394,19 +395,15 @@ export function rollUndeadAge(options: RollUndeadAgeOptions): number {
  * Enforces that all Zombie and Skeleton characters across the roster are strictly
  * younger than their sovereign Lich and any Lich on the map.
  */
-export function enforceUndeadAgeLimits(characters: Character[], pack: Pack): void {
+export function enforceUndeadAgeLimits(characters: Character[], pack: PackedGraph): void {
   if (!characters?.length || !pack?.races?.length) return;
-  const liches = characters.filter(c => pack.races?.[c.race]?.key === "lich");
-  if (liches.length === 0) return;
-
-  const minLichAge = Math.min(...liches.map(l => l.age));
+  const minimumLichAge = youngestLichAge(characters, pack.races);
+  if (minimumLichAge === undefined) return;
   for (const character of characters) {
-    const raceKey = pack.races?.[character.race]?.key;
+    const raceKey = pack.races.find(race => race.i === character.race)?.key;
     if (raceKey === "zombie" || raceKey === "skeleton") {
-      const stateLich = character.state !== undefined ? liches.find(l => l.state === character.state) : undefined;
-      const effectiveLimit = stateLich ? Math.min(stateLich.age, minLichAge) : minLichAge;
-      if (character.age >= effectiveLimit) {
-        character.age = Math.max(1, effectiveLimit - 1);
+      if (character.age >= minimumLichAge) {
+        character.age = undeadAgeCap(minimumLichAge);
       }
     }
   }

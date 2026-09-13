@@ -16,6 +16,7 @@ import {
   isSnowBiome
 } from "../data/biomeCatalog";
 import { getRaceById } from "../data/races";
+import { isLichRaceId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
@@ -825,7 +826,7 @@ class BurgModule {
 
       const isLichCultureId = (cultureId: number): boolean => {
         const culture = pack.cultures?.[cultureId];
-        return pack.races?.[culture?.race ?? -1]?.key === "lich";
+        return isLichRaceId(pack.races, culture?.race);
       };
 
       let attempts = 0;
@@ -854,7 +855,7 @@ class BurgModule {
           ? burgs.some(b => b?.cell !== undefined && cells.culture[b.cell] === cultureId)
           : false;
 
-        if (!isLich || (!hasCultureCapital && currentLichCount < 2)) {
+        if (!isLich || (!hasCultureCapital && currentLichCount < MAX_LICHES_PER_MAP)) {
           const [x, y] = cells.p[cell];
 
           if (burgsQuadtree.find(x, y, spacing) === undefined) {
@@ -988,15 +989,14 @@ class BurgModule {
       if (!pack.cultures?.length) return;
       const lichCultures = pack.cultures.filter(c => {
         if (!c.i || c.removed) return false;
-        const race = pack.races?.[c.race];
-        return race?.key === "lich";
+        return isLichRaceId(pack.races, c.race);
       });
 
       for (const culture of lichCultures) {
         const currentLichCapitals = burgs.filter(
-          b => b.i && b.capital && pack.races?.[cells.culture[b.cell]]?.key === "lich"
+          b => b.i && b.capital && isLichRaceId(pack.races, pack.cultures?.[cells.culture[b.cell]]?.race)
         ).length;
-        if (currentLichCapitals >= 2) break;
+        if (currentLichCapitals >= MAX_LICHES_PER_MAP) break;
         if (burgs.some(burg => burg.i && burg.capital && cells.culture[burg.cell] === culture.i)) continue;
         const centerCell = culture.center;
         if (centerCell === undefined || centerCell < 0) continue;
