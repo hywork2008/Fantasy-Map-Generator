@@ -49,6 +49,10 @@ export interface CellInfoData {
   state: string;
   province: string;
   culture: string;
+  /** Dominant funeral custom of the cell's culture, or "n/a". */
+  funeralRite: string;
+  /** Raisable burial remains still in this cell (headcount), or "n/a". */
+  funeralRemains: string;
   religion: string;
   burg: string;
   danger: string;
@@ -101,6 +105,8 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   state: "n/a",
   province: "n/a",
   culture: "n/a",
+  funeralRite: "n/a",
+  funeralRemains: "n/a",
   religion: "n/a",
   burg: "n/a",
   danger: "n/a",

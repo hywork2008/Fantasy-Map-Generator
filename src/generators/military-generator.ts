@@ -1,6 +1,7 @@
 import { sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -33,6 +34,7 @@ import { constrainRegimentUnits, requestFleetCapacity, requestMountedCapacity } 
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
 import { getTechnologyAdoptionShare } from "./technologyProgress";
+import { ensureUndeadMilitaryUnits, reinjectRaisedUndead, snapshotRisenRegiments } from "./undeadRaising";
 
 /** At most this many consolidated field armies per state (plus one capital guard, plus one fleet). */
 const MAX_FIELD_ARMIES = 21;
@@ -114,6 +116,7 @@ class MilitaryModule {
     const { pack, options } = state;
     const biomesData = state.biomesData ?? this.worldContext.biomesData;
     TIME && console.time("generateMilitary");
+    snapshotRisenRegiments();
     const { cells, states } = pack;
     const { p } = cells;
     // Return previous under-arms to civilians before wiping regiments (avoids double-deduct).
@@ -122,6 +125,7 @@ class MilitaryModule {
     }
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
+    options.military = ensureUndeadMilitaryUnits(options.military);
     const military = options.military.filter(
       unit => unit.enabled !== false && (isGunpowderEraEnabled(options) || !isGunpowderEraMilitaryUnit(unit))
     );
@@ -981,6 +985,8 @@ class MilitaryModule {
       reconcileAllStatesManpower(pack, populationRate);
     }
 
+    reinjectRaisedUndead();
+
     TIME && console.timeEnd("generateMilitary");
   }
 
@@ -1191,6 +1197,26 @@ class MilitaryModule {
         power: rn(fleetCrew * NAVAL_MELEE_PENALTY),
         type: "naval",
         separate: 1
+      },
+      {
+        icon: "💀",
+        name: "skeletons",
+        rural: 0,
+        urban: 0,
+        crew: 1,
+        power: 0.7,
+        type: "melee",
+        separate: 0
+      },
+      {
+        icon: "🧟",
+        name: "zombies",
+        rural: 0,
+        urban: 0,
+        crew: 1,
+        power: 0.55,
+        type: "melee",
+        separate: 0
       }
     ];
   }
@@ -1268,6 +1294,7 @@ class MilitaryModule {
     const cells = pack.cells;
 
     if (r.isCapitalGuard) return `${pack.states[r.state].name} Royal Guard`;
+    if (r.isRisen) return `${pack.states[r.state].name} Risen Host`;
 
     const proper = r.n
       ? null
@@ -1371,11 +1398,17 @@ class MilitaryModule {
           const noteIndex = worldContext.notes.findIndex(n => n.id === id);
           if (noteIndex !== -1) worldContext.notes.splice(noteIndex, 1);
 
+          if (r.isRisen && simulationContext.funeral?.raisedByCell) {
+            delete simulationContext.funeral.raisedByCell[r.cell];
+          }
+
           military.splice(i, 1);
           continue;
         }
 
         // 2. Reinforcement — when simManpower is on, tickManpower() already fills from civilians.
+        // Risen undead are not recruited from the living and do not regenerate on their own.
+        if (r.isRisen) continue;
         if (useLedger) continue;
 
         if (r.a < r.t) {

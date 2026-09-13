@@ -13,6 +13,7 @@ import {
 } from "./demographicTransfer";
 import { replacementAwareBirths } from "./demographyBirths";
 import { getSanitationDemographicMultipliers } from "./frontierGovernance";
+import { flushFuneralDemand, processFuneralDeaths } from "./funeralRites";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -158,6 +159,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const effectiveChildMortalityRate = demographicChildMortalityRate * childMortalityMultiplier;
     const childDeaths = children * (effectiveChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
     addLoss(naturalPts, stateId, elderDeaths + childDeaths);
+    processFuneralDeaths(i, (elderDeaths + childDeaths) * populationRate);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
     maleAdults = Math.max(0, maleAdults + childrenToAdults / 2 - adultsToEldersMale);
@@ -226,6 +228,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
         femaleAdults *= 1 - starvationRate;
         elders *= 1 - starvationRate;
         addLoss(faminePts, stateId, before - (children + maleAdults + femaleAdults + elders));
+        processFuneralDeaths(i, (before - (children + maleAdults + femaleAdults + elders)) * populationRate);
       }
     }
 
@@ -237,6 +240,9 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     pack.cells.elders[i] = elders;
     pack.cells.pop[i] = newPop;
   }
+
+  // Urban cohorts are population points, scaled by urbanization as well as populationRate.
+  const urbanPopulationRate = populationRate * (worldContext.urbanization || 1);
 
   // 2. Process Urban Burgs
   for (const burg of pack.burgs) {
@@ -266,6 +272,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const effectiveChildMortalityRate = demographicChildMortalityRate * childMortalityMultiplier;
     const childDeaths = children * (effectiveChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
     addLoss(naturalPts, stateId, elderDeaths + childDeaths);
+    processFuneralDeaths(burg.cell, (elderDeaths + childDeaths) * urbanPopulationRate);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
     maleAdults = Math.max(0, maleAdults + childrenToAdults / 2 - adultsToEldersMale);
@@ -318,6 +325,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       femaleAdults *= 1 - starvationRate;
       elders *= 1 - starvationRate;
       addLoss(faminePts, stateId, before - (children + maleAdults + femaleAdults + elders));
+      processFuneralDeaths(burg.cell, (before - (children + maleAdults + femaleAdults + elders)) * urbanPopulationRate);
     }
 
     // Ledger-driven famine: independent of carrying-capacity starvation above. Economy
@@ -333,6 +341,10 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       femaleAdults *= 1 - famineRate;
       elders *= 1 - famineRate;
       addLoss(faminePts, stateId, beforeFamine - (children + maleAdults + femaleAdults + elders));
+      processFuneralDeaths(
+        burg.cell,
+        (beforeFamine - (children + maleAdults + femaleAdults + elders)) * urbanPopulationRate
+      );
     }
 
     // Epidemic mortality: independent of food supply/roomForGrowth above — a well-fed, growing
@@ -349,6 +361,10 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       femaleAdults *= 1 - epidemicRate;
       elders *= 1 - epidemicRate;
       addLoss(epidemicPts, stateId, beforeEpidemic - (children + maleAdults + femaleAdults + elders));
+      processFuneralDeaths(
+        burg.cell,
+        (beforeEpidemic - (children + maleAdults + femaleAdults + elders)) * urbanPopulationRate
+      );
     }
 
     const newPop = children + maleAdults + femaleAdults + elders;
@@ -380,6 +396,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     recordDeaths(stateId, pts * populationRate, "disease");
   }
 
+  flushFuneralDemand();
   return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
 }
 
@@ -533,6 +550,10 @@ export function applyDemographicCasualties(stateId: number, deadTroops: number, 
 
   // Overview tally first — independent of pack readiness / manpower mode
   recordDeaths(stateId, deadTroops, "combat", cellId !== undefined ? { cellId } : undefined);
+  if (cellId !== undefined) {
+    processFuneralDeaths(cellId, deadTroops);
+    flushFuneralDemand();
+  }
 
   const { pack, populationRate } = worldContext;
   if (!pack?.cells || !pack.burgs) return;

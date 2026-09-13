@@ -266,7 +266,7 @@ export const BattleResolutionGenerator = {
           survivors += reg.u[unit];
         }
         reg.a = survivors;
-        attackerDead += Math.max(0, before - survivors);
+        if (!reg.isRisen) attackerDead += Math.max(0, before - survivors);
       }
     }
 
@@ -290,7 +290,7 @@ export const BattleResolutionGenerator = {
             survivors += reg.u[unit];
           }
           reg.a = survivors;
-          defenderDead += Math.max(0, before - survivors);
+          if (!reg.isRisen) defenderDead += Math.max(0, before - survivors);
         }
       }
     } else if (targetState.military) {

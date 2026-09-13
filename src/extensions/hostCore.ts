@@ -1,6 +1,6 @@
 export { createLayerCanvas } from "../canvas/map-canvas";
 export { appServices } from "../context/appServices";
-export type { IntelligenceReport, StrategicGoal } from "../context/simulationContext";
+export type { FuneralMaterialDemand, IntelligenceReport, StrategicGoal } from "../context/simulationContext";
 export { addFrontierApplicants, simulationContext } from "../context/simulationContext";
 export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
@@ -22,6 +22,10 @@ export {
   mergeFrontiers
 } from "../generators/frontierAnalysis";
 export { advanceFrontierGovernance } from "../generators/frontierGovernance";
+export {
+  FUNERAL_DEMAND_EVENT,
+  takePendingFuneralMaterials
+} from "../generators/funeralRites";
 export { buildLandRouteGraph, findLandRouteDistance } from "../generators/landRouteGraph";
 export {
   ANNUAL_DRAFT_SHARE,

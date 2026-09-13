@@ -4,6 +4,7 @@ import { ARCTIC_CIRCLE_LATITUDE_DEG } from "../data/earthConfig";
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
 import { evaluateCellFireSpiritStatus } from "../generators/fireSpirits";
 import { getForestClearingRate } from "../generators/forestStock";
+import { getFuneralRemainsAtCell } from "../generators/funeralRites";
 import { evaluateStateGremlinStatus } from "../generators/gremlins";
 import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
 import { getRiverCellHydrology } from "../generators/riverHydrology";
@@ -14,6 +15,7 @@ import { useOptionsState } from "../store/optionsState";
 import { usePopulationOverviewState } from "../store/populationOverviewState";
 import type { PackedGraphFeature } from "../types/models";
 import { getLatitude, getLongitude } from "../utils/commonUtils";
+import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { depthToMeters, heightToMeters } from "../utils/height";
@@ -79,6 +81,13 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
       ? `${worldContext.pack.provinces[cells.province[i]].fullName} (${cells.province[i]})`
       : "no",
     culture: cells.culture?.[i] ? `${worldContext.pack.cultures[cells.culture[i]].name} (${cells.culture[i]})` : "no",
+    funeralRite: (() => {
+      const cultureId = cells.culture?.[i];
+      if (!cultureId) return "n/a";
+      const rite = getCultureFuneralRite(worldContext.pack.cultures[cultureId]);
+      return rite ?? "n/a";
+    })(),
+    funeralRemains: cells.h[i] < 20 ? "n/a" : si(Math.round(getFuneralRemainsAtCell(i))),
     religion: cells.religion?.[i]
       ? `${worldContext.pack.religions[cells.religion[i]].name} (${cells.religion[i]})`
       : "no",

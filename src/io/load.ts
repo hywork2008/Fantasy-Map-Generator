@@ -17,11 +17,13 @@ import {
 } from "../data/races";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
+import { ensureFuneralRemainsSeeded } from "../generators/funeralRites";
 import { OceanCurrents } from "../generators/oceanCurrents";
 import { refreshAllRiverHydrology } from "../generators/riverHydrology";
 import { Routes } from "../generators/routes-generator";
 import { advanceSeasonalClimate } from "../generators/seasonalClimate";
 import { initSimulationClock } from "../generators/timeEngine";
+import { raiseUndeadWhereLichPresent } from "../generators/undeadRaising";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
@@ -801,6 +803,8 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   // the previous map is still installed leaves cellStages at the wrong length
   // and prevents the staged document from passing archive validation.
   initSimulationClock();
+  ensureFuneralRemainsSeeded();
+  raiseUndeadWhereLichPresent();
   // Legacy .map saves predate grid.cells.seasonalTemp; compute it once for the
   // freshly-loaded calendar month. (.fmg archive loads restore an already-consistent
   // seasonalTemp/lastSeasonalTempBucket pair via the generic world.replace snapshot, so

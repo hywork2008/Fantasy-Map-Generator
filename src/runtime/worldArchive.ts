@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import {
   createEmptyFrontierSimulationState,
+  createEmptyFuneralSimulationState,
   createEmptyWildernessEcologyState,
   FRONTIER_INVESTMENTS,
   type SimulationContext
@@ -647,6 +648,69 @@ function assertAndNormalizePopulationLoss(simulation: Record<string, unknown>): 
   }
 }
 
+function assertAndNormalizeFuneral(simulation: Record<string, unknown>): void {
+  if (simulation.funeral === undefined) {
+    simulation.funeral = createEmptyFuneralSimulationState();
+    return;
+  }
+  if (!isRecord(simulation.funeral)) {
+    throw new Error("Archive simulation.funeral must be a record");
+  }
+  const funeral = simulation.funeral;
+  if (funeral.seeded !== undefined && typeof funeral.seeded !== "boolean") {
+    throw new Error("Archive simulation.funeral.seeded must be a boolean when present");
+  }
+  if (funeral.seeded === undefined) funeral.seeded = false;
+  if (funeral.remainsByCell === undefined) funeral.remainsByCell = {};
+  else assertFiniteNonNegativeNumberRecord(funeral.remainsByCell, "simulation.funeral.remainsByCell");
+  if (funeral.pendingMaterialsByCell === undefined) funeral.pendingMaterialsByCell = {};
+  else {
+    if (!isRecord(funeral.pendingMaterialsByCell)) {
+      throw new Error("Archive simulation.funeral.pendingMaterialsByCell must be a record");
+    }
+    for (const [rawId, entry] of Object.entries(funeral.pendingMaterialsByCell)) {
+      const id = Number(rawId);
+      if (!Number.isInteger(id) || id < 0 || String(id) !== rawId) {
+        throw new Error(`Archive simulation.funeral.pendingMaterialsByCell has invalid key ${rawId}`);
+      }
+      if (!isRecord(entry)) {
+        throw new Error(`Archive simulation.funeral.pendingMaterialsByCell.${rawId} must be a record`);
+      }
+      for (const key of ["wood", "stone", "linen"] as const) {
+        if (!isFiniteNumber(entry[key]) || (entry[key] as number) < 0) {
+          throw new Error(
+            `Archive simulation.funeral.pendingMaterialsByCell.${rawId}.${key} must be a non-negative finite number`
+          );
+        }
+      }
+    }
+  }
+  if (funeral.raisedByCell === undefined) funeral.raisedByCell = {};
+  else {
+    if (!isRecord(funeral.raisedByCell)) {
+      throw new Error("Archive simulation.funeral.raisedByCell must be a record");
+    }
+    for (const [rawId, entry] of Object.entries(funeral.raisedByCell)) {
+      const id = Number(rawId);
+      if (!Number.isInteger(id) || id < 0 || String(id) !== rawId) {
+        throw new Error(`Archive simulation.funeral.raisedByCell has invalid key ${rawId}`);
+      }
+      if (!isRecord(entry)) {
+        throw new Error(`Archive simulation.funeral.raisedByCell.${rawId} must be a record`);
+      }
+      if (!isFiniteNumber(entry.stateId) || !Number.isInteger(entry.stateId) || (entry.stateId as number) < 0) {
+        throw new Error(`Archive simulation.funeral.raisedByCell.${rawId}.stateId must be a non-negative integer`);
+      }
+      if (!isFiniteNumber(entry.skeletons) || (entry.skeletons as number) < 0) {
+        throw new Error(`Archive simulation.funeral.raisedByCell.${rawId}.skeletons must be non-negative`);
+      }
+      if (!isFiniteNumber(entry.zombies) || (entry.zombies as number) < 0) {
+        throw new Error(`Archive simulation.funeral.raisedByCell.${rawId}.zombies must be non-negative`);
+      }
+    }
+  }
+}
+
 function assertAndNormalizeNavalTechBonus(simulation: Record<string, unknown>): void {
   if (simulation.navalTechBonus === undefined) {
     simulation.navalTechBonus = {};
@@ -1002,6 +1066,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   // Module-local tick tallies promoted into SimulationContext (P2-8). Older archives
   // omit them; empty defaults keep overview/heatmap/naval bonus state consistent.
   assertAndNormalizePopulationLoss(simulation);
+  assertAndNormalizeFuneral(simulation);
   assertAndNormalizeNavalTechBonus(simulation);
   assertAndNormalizeTechnology(simulation);
   assertAndNormalizeWilderness(simulation);

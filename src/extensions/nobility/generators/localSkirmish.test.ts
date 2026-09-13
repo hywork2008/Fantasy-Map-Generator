@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
+import * as demography from "../../../generators/demography-simulator";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
@@ -43,11 +44,13 @@ describe("LocalSkirmishGenerator.resolve", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     clearNobilityContext();
     simulationContext.strategicGoals = {};
   });
 
-  it("annihilates an isolated garrison overwhelmed by a co-located hostile army, and captures its burg", () => {
+  it.each([false, true])("annihilates a garrison (risen=%s) and only records living casualties", isRisen => {
+    const casualties = vi.spyOn(demography, "applyDemographicCasualties").mockImplementation(() => {});
     // Mirrors the reported scenario: a tiny exclave garrison (868 troops) shares a cell with
     // a much larger enemy division (58,133 troops), both already at declared war, but
     // the state-level tension clock would take years to ever resolve it.
@@ -71,6 +74,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
             {
               i: 0,
               a: 868,
+              isRisen,
               x: 620,
               y: 570,
               u: { infantry: 859, cavalry: 9 },
@@ -96,6 +100,8 @@ describe("LocalSkirmishGenerator.resolve", () => {
     const occurred = skirmish.resolve(0, 0, 1);
 
     expect(occurred).toBe(true);
+    const defenderDeaths = casualties.mock.calls.filter(([stateId]) => stateId === 5);
+    expect(defenderDeaths).toEqual(isRisen ? [] : [[5, 868, 0]]);
     const defender = worldContext.pack.states[5] as unknown as { military: { a: number }[] };
     const attacker = worldContext.pack.states[13] as unknown as { military: { a: number }[] };
     expect(defender.military[0].a).toBe(0);

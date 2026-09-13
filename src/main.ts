@@ -48,6 +48,7 @@ import { Features } from "./generators/features";
 import { initializeForestStock } from "./generators/forestStock";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { getPreferredDispersedFrontierStarts } from "./generators/frontierStartPlacement";
+import { ensureFuneralRemainsSeeded } from "./generators/funeralRites";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -68,6 +69,7 @@ import { States } from "./generators/states-generator";
 import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
+import { raiseUndeadWhereLichPresent } from "./generators/undeadRaising";
 import { establishVassalage } from "./generators/vassalage";
 import { assignWildLandTags } from "./generators/wildLandTags";
 import { Zones } from "./generators/zones-generator";
@@ -1234,6 +1236,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
       // each cell's static forest capacity and settlement generation has finished.
       initializeForestStock(worldContext.pack.cells);
       initSimulationClock();
+      ensureFuneralRemainsSeeded();
+      raiseUndeadWhereLichPresent();
       advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
       bindSimulationBurgState(worldContext, simulationContext);
       bindSimulationStateState(worldContext, simulationContext);

@@ -16,6 +16,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openAlert } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
+import { rollCultureFuneralRite } from "../utils/cultureFuneralRite";
 import { rollCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 import { rollCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
 import { ERROR, TIME, WARN } from "../utils/debug";
@@ -1415,6 +1416,10 @@ class CulturesModule {
         if (typeof c.modernizationAffinity !== "number" || !Number.isFinite(c.modernizationAffinity)) {
           c.modernizationAffinity = rollCultureModernizationAffinity(c.type);
         }
+        if (!c.funeralRite) {
+          const raceKey = pack.races?.[c.race ?? 0]?.key;
+          c.funeralRite = rollCultureFuneralRite(c.type, Math.random, raceKey);
+        }
         return;
       }
 
@@ -1430,6 +1435,7 @@ class CulturesModule {
       c.type = defineCultureType(center);
       c.knowledgeValue = rollCultureKnowledgeValue(c.type);
       c.modernizationAffinity = rollCultureModernizationAffinity(c.type);
+      c.funeralRite = rollCultureFuneralRite(c.type, Math.random, c.raceKey ?? pack.races?.[c.race ?? 0]?.key);
       c.expansionism = defineCultureExpansionism(c.type);
       c.origins = [0];
       c.code = abbreviate(c.name, codes);
@@ -1521,7 +1527,8 @@ class CulturesModule {
       origins: [pack.cells.culture[center]],
       code,
       shield: emblemShape === "random" ? this.getRandomShield() : "",
-      race: resolvedRace
+      race: resolvedRace,
+      funeralRite: rollCultureFuneralRite("Generic", Math.random, raceKey)
     });
   }
 

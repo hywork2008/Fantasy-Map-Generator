@@ -1,4 +1,12 @@
 {
+  "funeralRites": {
+    "inhumation": "土葬",
+    "cremation": "火葬",
+    "skyBurial": "鳥葬",
+    "waterBurial": "水葬",
+    "mummification": "ミイラ化",
+    "exposure": "風葬"
+  },
   "uiSettings": {
     "intro": "地図に影響しないツール設定です。変更はすぐに適用されます。",
     "heading": "ジェネレーター設定：",
@@ -2817,9 +2825,17 @@
       "state": "国家",
       "province": "州",
       "culture": "文化",
+      "funeral": "葬儀の風習",
+      "funeralTip": "この文化が死者をどう葬るかです。土葬・ミイラ化は遺体が残り、リッチが蘇らせられます。",
+      "funeralRemains": "埋葬された遺体",
+      "funeralRemainsTip": "このセルに蓄積した、蘇りうる死者です。土葬文化の地域にリッチが出ると、スケルトンやゾンビの兵士になります。",
       "religion": "宗教",
       "burg": "都市",
       "danger": "危険度"
+    },
+    "culturesEditor": {
+      "funeral": "葬儀",
+      "funeralTip": "死体の処分法です。死者が出るたびに薪・石・麻布を消費します。土葬文化はリッチが蘇らせられる遺体を残します。"
     },
     "regenerate": {
       "title": "{{feature}} を再生成",

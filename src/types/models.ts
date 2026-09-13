@@ -28,6 +28,20 @@ export const DEFAULT_CULTURE_TYPE: CultureType = "Generic";
 export type CultureType = (typeof CULTURE_TYPES)[number];
 
 /**
+ * Dominant corpse-disposal custom of a living culture. Assigned once at generation from
+ * CultureType / race priors (src/data/funeralRites.ts). Wildlands (culture 0) omit it.
+ */
+export const FUNERAL_RITES = [
+  "inhumation",
+  "cremation",
+  "skyBurial",
+  "waterBurial",
+  "mummification",
+  "exposure"
+] as const;
+export type FuneralRite = (typeof FUNERAL_RITES)[number];
+
+/**
  * How character generation rolls sex for people of this race (nobility / createPerson).
  * - male_dominant: historical feudal court bias (~90% male)
  * - female_only: Amazones-style all-female polities
@@ -558,6 +572,12 @@ export interface Culture {
    * settled culture forced onto that lifestyle can regain a high value once it resettles.
    */
   modernizationAffinity?: number;
+  /**
+   * Dominant funeral / corpse-disposal custom. Rolled once at generation from the culture's
+   * type and race (src/utils/cultureFuneralRite.ts). Read via `getCultureFuneralRite()` so
+   * legacy saves without the field fall back to the type's modal rite. Wildlands omit it.
+   */
+  funeralRite?: FuneralRite;
 }
 
 export interface PackedGraphFeature {
@@ -1386,6 +1406,12 @@ export interface MilitaryRegiment {
   quality?: number;
   /** True for the state's dedicated capital guard regiment (never merged with field armies). */
   isCapitalGuard?: boolean;
+  /**
+   * Raised from burial remains by a Lich, not recruited from the living. Excluded from the
+   * manpower ledger (src/generators/manpower.ts's landRegiments) so undead headcount does
+   * not draft or demobilize civilians.
+   */
+  isRisen?: boolean;
   /** pack.characters id of the officer commanding this regiment, if one has been assigned. */
   commanderId?: number;
   /**

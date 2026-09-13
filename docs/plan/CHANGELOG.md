@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-13
+
+- docs/simulation/funeral-rites.md
+
 2026-09-11
 
 - docs/plan/characters/craft-skills-expansion.md

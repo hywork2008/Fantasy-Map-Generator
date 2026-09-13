@@ -295,6 +295,39 @@ export function createEmptyPopulationLossState(): PopulationLossState {
   return { simDay: 0, history: [] };
 }
 
+/** Goods demanded by funerals in one cell, waiting for Economy to debit market stock. */
+export interface FuneralMaterialDemand {
+  wood: number;
+  stone: number;
+  linen: number;
+}
+
+/** Raised undead parked on a cell so Military.generate can restore them after a rebuild. */
+export interface RaisedUndeadAtCell {
+  stateId: number;
+  skeletons: number;
+  zombies: number;
+}
+
+/**
+ * Cumulative funeral remains and undead-raising bookkeeping.
+ * Owned by the host simulation slice so archive / world.replace round-trips keep graveyards.
+ */
+export interface FuneralSimulationState {
+  /** True after historical graves have been seeded (or an archive restored them). */
+  seeded: boolean;
+  /** cellId → raisable corpse-equivalents still in the ground (display people). */
+  remainsByCell: Record<number, number>;
+  /** cellId → Wood/Stone/Linen demanded by funerals this tick, consumed by Economy. */
+  pendingMaterialsByCell: Record<number, FuneralMaterialDemand>;
+  /** cellId → risen undead belonging to a Lich state. Survives Military.generate rebuilds. */
+  raisedByCell: Record<number, RaisedUndeadAtCell>;
+}
+
+export function createEmptyFuneralSimulationState(): FuneralSimulationState {
+  return { seeded: false, remainsByCell: {}, pendingMaterialsByCell: {}, raisedByCell: {} };
+}
+
 export interface SimulationContext {
   /** In-world calendar year, advanced by src/generators/timeEngine.ts's advanceTime(). */
   currentYear: number;
@@ -346,6 +379,11 @@ export interface SimulationContext {
    * removed so archive / world.replace round-trips keep overview and heatmap data.
    */
   populationLoss: PopulationLossState;
+  /**
+   * Cumulative burial remains, funeral material demand, and Lich-raised undead.
+   * Seeded after generation; older archives normalize to empty then seed on first tick.
+   */
+  funeral: FuneralSimulationState;
   /**
    * Naval strength multipliers keyed by stable state id (default 1 when absent).
    * Grown by Shipbuilding completion events; host-owned so military regen survives save/load.
@@ -399,6 +437,7 @@ export const simulationContext: SimulationContext = {
   intelligence: {},
   strategicGoals: {},
   populationLoss: createEmptyPopulationLossState(),
+  funeral: createEmptyFuneralSimulationState(),
   navalTechBonus: {},
   frontier: createEmptyFrontierSimulationState(),
   wilderness: createEmptyWildernessEcologyState(),

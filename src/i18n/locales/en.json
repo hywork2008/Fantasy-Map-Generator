@@ -1,4 +1,12 @@
 {
+  "funeralRites": {
+    "inhumation": "Burial",
+    "cremation": "Cremation",
+    "skyBurial": "Sky burial",
+    "waterBurial": "Water burial",
+    "mummification": "Mummification",
+    "exposure": "Exposure"
+  },
   "uiSettings": {
     "intro": "Tool settings that don't affect maps. Changes are applied immediately.",
     "heading": "Generator settings:",
@@ -2817,9 +2825,17 @@
       "state": "State",
       "province": "Province",
       "culture": "Culture",
+      "funeral": "Funeral rite",
+      "funeralTip": "How this culture disposes of the dead. Burial and mummification leave remains a Lich can raise.",
+      "funeralRemains": "Burial remains",
+      "funeralRemainsTip": "Accumulated raisable dead in this cell. A Lich in a burial-culture region raises them as skeleton and zombie soldiers.",
       "religion": "Religion",
       "burg": "Burg",
       "danger": "Danger"
+    },
+    "culturesEditor": {
+      "funeral": "Funeral",
+      "funeralTip": "Corpse-disposal custom. Deaths consume wood, stone, or linen. Burial cultures leave remains a Lich can raise."
     },
     "regenerate": {
       "title": "Regenerate {{feature}}",

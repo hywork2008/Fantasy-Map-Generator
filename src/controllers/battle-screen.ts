@@ -822,7 +822,7 @@ export class Battle {
 
       // Apply casualties to the underlying demographic populations (battlefield = this engagement)
       const totalDead = Math.abs(sum(Object.values(r.casualties) as number[]));
-      if (totalDead > 0) {
+      if (totalDead > 0 && !r.isRisen) {
         applyDemographicCasualties(r.state, totalDead, battlefieldCell);
       }
     }

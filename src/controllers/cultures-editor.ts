@@ -15,10 +15,11 @@ import type { CultureRowData, NameBaseOption } from "../store/culturesEditorStat
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
 import { useOptionsState } from "../store/optionsState";
 import type { HierarchyElement } from "../types/HierarchyTree";
-import type { Burg, Culture, CultureType, NameBase, Province, Race, State } from "../types/models";
-import { CULTURE_TYPES } from "../types/models";
+import type { Burg, Culture, CultureType, FuneralRite, NameBase, Province, Race, State } from "../types/models";
+import { CULTURE_TYPES, FUNERAL_RITES } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
+import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -131,6 +132,7 @@ export const culturesEditorActions = {
           name: c.name,
           color: c.color ?? "",
           type: c.type ?? "",
+          funeralRite: getCultureFuneralRite(c) ?? "",
           race: c.race ?? (c.i === 0 ? 0 : HUMAN_RACE_ID),
           base: c.base,
           cells: c.cells ?? 0,
@@ -289,6 +291,14 @@ export const culturesEditorActions = {
   changeType(i: number, type: string): void {
     (worldContext.pack.cultures[i] as Culture).type = type as CultureType;
     recalculateCultures();
+  },
+
+  changeFuneralRite(i: number, rite: string): void {
+    const culture = worldContext.pack.cultures[i] as Culture;
+    if (!culture || culture.i === 0) return;
+    if (!(FUNERAL_RITES as readonly string[]).includes(rite)) return;
+    culture.funeralRite = rite as FuneralRite;
+    culturesEditorActions.refresh();
   },
 
   changeBase(i: number, base: number): void {
@@ -480,7 +490,7 @@ export const culturesEditorActions = {
 
   downloadCulturesCsv(): void {
     const unit = getAreaUnit("2");
-    const headers = `Id,Name,Color,Cells,Expansionism,Type,Area ${unit},Population,Namesbase,Emblems Shape,Origins`;
+    const headers = `Id,Name,Color,Cells,Expansionism,Type,Funeral,Area ${unit},Population,Namesbase,Emblems Shape,Origins`;
 
     const { cultures, nameBases } = getCulturesEditorState();
     const lines = cultures
@@ -499,6 +509,7 @@ export const culturesEditorActions = {
           c.cells,
           c.expansionism,
           c.type,
+          c.funeralRite,
           c.area,
           c.population,
           namesbase,
@@ -519,6 +530,7 @@ export const culturesEditorActions = {
       color: d.Color,
       expansionism: +d.Expansionism,
       type: d.Type,
+      funeralRite: d.Funeral,
       population: +d.Population,
       emblemsShape: d["Emblems Shape"],
       origins: d.Origins ?? "",
@@ -568,6 +580,9 @@ export const culturesEditorActions = {
         current.expansionism = +culture.expansionism;
         if (cultureTypes.includes(culture.type!)) current.type = culture.type as CultureType;
         else current.type = "Generic" as CultureType;
+        if (culture.funeralRite && (FUNERAL_RITES as readonly string[]).includes(culture.funeralRite)) {
+          current.funeralRite = culture.funeralRite as FuneralRite;
+        }
       }
 
       const restoreOrigins = (originsString: string) => {

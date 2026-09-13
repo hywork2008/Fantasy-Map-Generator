@@ -60,7 +60,7 @@ export interface MaleDraftOptions {
 }
 
 export function landRegiments(state: State): MilitaryRegiment[] {
-  return (state.military ?? []).filter(r => !r.n);
+  return (state.military ?? []).filter(r => !r.n && !r.isRisen);
 }
 
 export function currentLandTroops(state: State): number {

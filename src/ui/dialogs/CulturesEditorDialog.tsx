@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { culturesEditorActions } from "../../controllers/cultures-editor";
 import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
-import { CULTURE_TYPES } from "../../types/models";
+import { CULTURE_TYPES, FUNERAL_RITES } from "../../types/models";
 import { capitalize, rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
@@ -57,6 +57,9 @@ export const CulturesEditorDialog: React.FC = () => {
       if (sortBy === "type") {
         valA = a.type;
         valB = b.type;
+      } else if (sortBy === "funeralRite") {
+        valA = a.funeralRite;
+        valB = b.funeralRite;
       } else if (sortBy === "race") {
         valA = raceNameById.get(a.race) ?? a.race;
         valB = raceNameById.get(b.race) ?? b.race;
@@ -143,6 +146,12 @@ export const CulturesEditorDialog: React.FC = () => {
               <tr id="culturesHeader">
                 <SortHeader label="Culture" col="name" tip="Click to sort by culture name" width="10em" />
                 <SortHeader label="Type" col="type" tip="Click to sort by type" width="7em" />
+                <SortHeader
+                  label={t("dialogs.culturesEditor.funeral")}
+                  col="funeralRite"
+                  tip={t("dialogs.culturesEditor.funeralTip")}
+                  width="8em"
+                />
                 <SortHeader
                   label="Race"
                   col="race"
@@ -253,6 +262,22 @@ export const CulturesEditorDialog: React.FC = () => {
                         {cultureTypes.map(t => (
                           <option key={t} value={t}>
                             {t}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        data-tip={isNeutral ? undefined : t("dialogs.culturesEditor.funeralTip")}
+                        className={`cultureFuneral${isNeutral ? " placeholder" : ""}`}
+                        value={c.funeralRite}
+                        disabled={isNeutral}
+                        onChange={e => culturesEditorActions.changeFuneralRite(c.i, e.target.value)}
+                      >
+                        {isNeutral && <option value="">—</option>}
+                        {FUNERAL_RITES.map(rite => (
+                          <option key={rite} value={rite}>
+                            {t(`funeralRites.${rite}`)}
                           </option>
                         ))}
                       </select>

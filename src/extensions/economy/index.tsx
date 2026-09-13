@@ -4,6 +4,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import {
   FAST_ADVANCE_COARSE_GATE_DAYS,
+  FUNERAL_DEMAND_EVENT,
   isStateInActiveConflict,
   resolveFastAdvanceRates,
   useOptionsState
@@ -109,6 +110,7 @@ import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption
 import { FoodProduction } from "./generators/foodProduction";
 import { registerLogHarvest, tickForestRegrowth } from "./generators/forestStock";
 import { FortificationMastery } from "./generators/fortificationMastery";
+import { consumeFuneralMaterialsFromPending } from "./generators/funeralGoodsConsumption";
 import { GasPowerStations } from "./generators/gasPowerStations";
 import {
   type Good,
@@ -650,6 +652,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
 let _unsubscribe: (() => void) | null = null;
 let _unregisterMapReadyTask: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
+let _funeralDemandHandler: ((e: Event) => void) | null = null;
 let _materialsRequestedHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementDemandHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementStatusHandler: ((e: Event) => void) | null = null;
@@ -2836,6 +2839,12 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
 
+  _funeralDemandHandler = () => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    consumeFuneralMaterialsFromPending();
+  };
+  document.addEventListener(FUNERAL_DEMAND_EVENT, _funeralDemandHandler);
+
   // Shipbuilding asks synchronously so it can only advance construction work that this
   // market can fund with every required material. No direct Shipbuilding import: the
   // mutable CustomEvent detail is the extension boundary.
@@ -3816,6 +3825,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_logHarvestedHandler) {
     document.removeEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
     _logHarvestedHandler = null;
+  }
+  if (_funeralDemandHandler) {
+    document.removeEventListener(FUNERAL_DEMAND_EVENT, _funeralDemandHandler);
+    _funeralDemandHandler = null;
   }
   if (_materialsRequestedHandler) {
     document.removeEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);

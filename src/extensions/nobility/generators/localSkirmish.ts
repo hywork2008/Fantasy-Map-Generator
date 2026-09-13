@@ -249,14 +249,13 @@ export class LocalSkirmishGenerator {
             const annihilateB = powerA >= powerB * ANNIHILATION_RATIO;
 
             let totalA = 0;
-            let deadA = 0;
+            const livingBeforeA = regsA.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
             for (const r of regsA) {
               if (annihilateA) {
-                deadA += r.a;
                 for (const unit in r.u) r.u[unit] = 0;
                 r.a = 0;
               } else {
-                deadA += applyCasualties(r, casualtiesA);
+                applyCasualties(r, casualtiesA);
               }
               fought.add(r);
               r.actionStatus = "battled";
@@ -264,14 +263,13 @@ export class LocalSkirmishGenerator {
             }
 
             let totalB = 0;
-            let deadB = 0;
+            const livingBeforeB = regsB.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
             for (const r of regsB) {
               if (annihilateB) {
-                deadB += r.a;
                 for (const unit in r.u) r.u[unit] = 0;
                 r.a = 0;
               } else {
-                deadB += applyCasualties(r, casualtiesB);
+                applyCasualties(r, casualtiesB);
               }
               fought.add(r);
               r.actionStatus = "battled";
@@ -316,11 +314,15 @@ export class LocalSkirmishGenerator {
                 rand,
                 kind: "daily"
               });
-              if (workingA) deadB += applyHeadcountCasualties(regsB, workingA.casualties);
-              if (workingB) deadA += applyHeadcountCasualties(regsA, workingB.casualties);
+              if (workingA) applyHeadcountCasualties(regsB, workingA.casualties);
+              if (workingB) applyHeadcountCasualties(regsA, workingB.casualties);
               totalA = regsA.reduce((sum, r) => sum + r.a, 0);
               totalB = regsB.reduce((sum, r) => sum + r.a, 0);
             }
+            // Count living losses after both mundane and arcane damage. Risen losses
+            // must never create graves or return to the civilian population as wounded.
+            const deadA = livingBeforeA - regsA.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
+            const deadB = livingBeforeB - regsB.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
             if (deadA > 0) applyDemographicCasualties(stateA.i, deadA, battlefieldCell);
             if (deadB > 0) applyDemographicCasualties(stateB.i, deadB, battlefieldCell);
 

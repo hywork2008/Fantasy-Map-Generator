@@ -53,6 +53,7 @@ import {
 import { applyHistoryStubFunding } from "./fastAdvance/historyStubFunding";
 import { advanceFireSpirits } from "./fireSpirits";
 import { advanceFrontierExpansion, snapshotFrontierBudgets } from "./frontierExpansion";
+import { resetFuneralState } from "./funeralRites";
 import { advanceGremlins } from "./gremlins";
 import { advanceIndependentBurgDiplomacy } from "./independentBurgIncorporation";
 import { tickManpower } from "./manpower";
@@ -65,6 +66,7 @@ import { createSimulationSystemRegistry, type SimulationStepContext, type Simula
 import { buildStateSignals, seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
+import { runUndeadRaising } from "./undeadRaising";
 import { advanceUndergroundEcology } from "./undergroundEcology";
 import { advanceWildernessEcology } from "./wildernessEcology";
 
@@ -456,6 +458,18 @@ registerSimulationSystem({
 
 // High Fantasy / Dark Fantasy Fire Spirits: spontaneous ignition of stored gunpowder/ammo unless warded by elves
 registerSimulationSystem({
+  id: "undead-raising.tick",
+  phase: "military",
+  reads: ["map.politics", "simulation.cells", "simulation.military"],
+  writes: ["simulation.military", "map.politics"],
+  cadence: { every: 1 },
+  profileLabel: "undeadRaising",
+  run: (_context, writer) => {
+    if (runUndeadRaising()) writer.markChanged("simulation.military", "map.politics");
+  }
+});
+
+registerSimulationSystem({
   id: "fire-spirits.tick",
   phase: "politics",
   reads: ["map.politics", "simulation.cells", "simulation.military", "simulation.states"],
@@ -563,6 +577,7 @@ export function initSimulationClock(): void {
   simulationContext.technology = createEmptyTechnologySimulationState();
   seedTechnologyStartProfile(simulationContext.currentYear);
   resetPopulationLossTracker();
+  resetFuneralState();
 }
 
 // Economy seeds state.treasury during map-ready tasks, after initSimulationClock.

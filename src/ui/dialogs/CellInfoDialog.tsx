@@ -179,6 +179,22 @@ export const CellInfoDialog: React.FC = () => {
             <td>{info.culture}</td>
           </tr>
           <tr>
+            <th scope="row" data-tip={t("dialogs.cellInfo.funeralTip")}>
+              {t("dialogs.cellInfo.funeral")}
+            </th>
+            <td>
+              {info.funeralRite === "n/a"
+                ? "n/a"
+                : t(`funeralRites.${info.funeralRite}`, { defaultValue: info.funeralRite })}
+            </td>
+          </tr>
+          <tr>
+            <th scope="row" data-tip={t("dialogs.cellInfo.funeralRemainsTip")}>
+              {t("dialogs.cellInfo.funeralRemains")}
+            </th>
+            <td>{info.funeralRemains}</td>
+          </tr>
+          <tr>
             <th scope="row">{t("dialogs.cellInfo.religion")}</th>
             <td>{info.religion}</td>
           </tr>

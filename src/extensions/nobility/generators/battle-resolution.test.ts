@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StrategicGoal } from "../../../context/simulationContext";
+import * as demography from "../../../generators/demography-simulator";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
@@ -101,6 +102,29 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
 
     // Same 100 vs 90 raw troops, but the +50% commander bonus pushes the ratio past 1.5.
     expect(pack.burgs[5].state).toBe(1);
+  });
+
+  it.each([1, 2])("excludes risen losses on side %i of a mixed siege army", risenState => {
+    makeEvenFightPack();
+    const casualties = vi.spyOn(demography, "applyDemographicCasualties").mockImplementation(() => {});
+    const risen = {
+      ...worldContext.pack.states[risenState].military![0],
+      i: 1,
+      isRisen: true,
+      u: { infantry: 100 },
+      a: 100
+    };
+    worldContext.pack.states[risenState].military!.push(risen);
+    const before = worldContext.pack.states.slice(1).map(state => state.military![0].a);
+
+    BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
+
+    expect(risen.a).toBeLessThan(100);
+    for (const state of worldContext.pack.states.slice(1)) {
+      const livingLoss = before[state.i - 1] - state.military![0].a;
+      const recorded = casualties.mock.calls.filter(([id]) => id === state.i);
+      expect(recorded).toEqual(livingLoss > 0 ? [[state.i, livingLoss, 0]] : []);
+    }
   });
 
   function makeEvenFightPack() {

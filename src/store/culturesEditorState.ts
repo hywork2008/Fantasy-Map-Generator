@@ -12,6 +12,8 @@ export interface CultureRowData {
   type: string;
   /** pack.races id for this culture's dominant folk. */
   race: number;
+  /** Dominant corpse-disposal custom; empty for Wildlands. */
+  funeralRite: string;
   base: number;
   cells: number;
   expansionism: number;
