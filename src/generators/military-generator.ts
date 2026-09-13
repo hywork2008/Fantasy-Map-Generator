@@ -36,7 +36,12 @@ import {
   reconcileAllStatesManpower,
   removeCivilianMalePeople
 } from "./manpower";
-import { constrainRegimentUnits, requestFleetCapacity, requestMountedCapacity } from "./militaryAssetCapacity";
+import {
+  constrainRegimentUnits,
+  reconcileFleetUnits,
+  requestFleetCapacity,
+  requestMountedCapacity
+} from "./militaryAssetCapacity";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
 import { getTechnologyAdoptionShare } from "./technologyProgress";
@@ -946,7 +951,7 @@ class MilitaryModule {
       const fleetUnitNames = new Set(military.filter(unit => unit.type === "naval").map(unit => unit.name));
       const fleetCapacity = requestFleetCapacity(s.i);
       if (fleetCapacity !== undefined && fleetUnitNames.size) {
-        constrainRegimentUnits(s, fleetUnitNames, fleetCapacity);
+        reconcileFleetUnits(s, fleetUnitNames, fleetCapacity, pack);
       }
 
       // Physical positioning (marching toward a threatened frontier) is no longer done here —
@@ -1243,20 +1248,21 @@ class MilitaryModule {
    */
   refreshFleetCapacity(stateId: number): boolean {
     const state = this.worldContext.pack.states[stateId];
-    if (!state?.i || state.removed || !state.military?.length) return false;
+    if (!state?.i || state.removed) return false;
     const fleetUnitNames = new Set(
       (this.worldContext.options.military ?? []).filter(unit => unit.type === "naval").map(unit => unit.name)
     );
     const capacity = requestFleetCapacity(stateId);
     if (capacity === undefined || !fleetUnitNames.size) return false;
-    const changed = constrainRegimentUnits(state, fleetUnitNames, capacity);
+    const changed = reconcileFleetUnits(state, fleetUnitNames, capacity, this.worldContext.pack);
     if (!changed) return false;
 
-    for (const regiment of state.military) {
+    for (const regiment of state.military ?? []) {
       regiment.icon = this.getEmblem(regiment);
       regiment.name = this.getName(regiment, state.military);
       this.generateNote(regiment, state);
     }
+    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
     return true;
   }
 

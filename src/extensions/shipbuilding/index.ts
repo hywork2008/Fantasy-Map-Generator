@@ -37,7 +37,7 @@ import {
   clearShipyardQueues,
   getHulls,
   getInitialStateOwnedDemand,
-  getStateNavalCrewCapacity,
+  getStateNavyHullsCount,
   isStateAtWar,
   releaseMerchantHullsFromCargo,
   releaseStateHullsFromOverseasEscort,
@@ -151,8 +151,7 @@ export function init(api: ExtensionAPI): void {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     const detail = (event as CustomEvent<unknown>).detail;
     if (!isFleetCapacityRequest(detail)) return;
-    const fleetCrew = getWorldContext().options.military?.find(unit => unit.name === "fleet")?.crew ?? 100;
-    detail.capacity = Math.floor(getStateNavalCrewCapacity(detail.stateId) / Math.max(1, fleetCrew));
+    detail.capacity = getStateNavyHullsCount(detail.stateId);
     detail.handled = true;
   };
   document.addEventListener("fmg:shipbuilding-fleet-capacity-request", _fleetCapacityRequestHandler);

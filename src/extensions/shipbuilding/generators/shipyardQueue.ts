@@ -79,6 +79,12 @@ export function getStateNavalCrewCapacity(stateId: number): number {
   }, 0);
 }
 
+/** Number of completed, serviceable state-navy hulls belonging to a state. */
+export function getStateNavyHullsCount(stateId: number): number {
+  return getHulls().filter(hull => hull.owner === "state" && hull.ownerId === stateId && hull.status !== "maintenance")
+    .length;
+}
+
 export function setHullStatus(hullId: number, status: ShipHullStatus): void {
   const hull = getShipbuildingRuntimeState().hulls[hullId];
   if (!hull) return;
