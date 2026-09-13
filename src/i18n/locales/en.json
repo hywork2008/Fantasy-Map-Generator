@@ -729,6 +729,48 @@
         "unscrupulous_merchant": "Farmed taxes and dear credit taught the city this name.",
         "able_minister": "Ledgers and envoys both answer to this one.",
         "default": "Known as {{epithet}}."
+      },
+      "lich": {
+        "ancient_tomb_desecrated": {
+          "1": "Ignorant maggots who know not the sanctity of my silence—redeem it with your fleeting lives.",
+          "2": "Once, I might have granted thee a glimpse of the abyss's secrets... but now, my bones brim only with wrath for my defiled slumber.",
+          "3": "How dreadfully loud is the breath of the living... Now, fall silent forever."
+        },
+        "young_overlord": {
+          "1": "Kneel. I grant you the honor of looking upon one who cast off mortal shackles and ascended to godhood.",
+          "2": "I shall grant you eternal life as well... as silent cobblestones upholding my glorious empire.",
+          "3": "Frail mortals, rejoice—today is the supreme anniversary of your submission to a new absolute master."
+        },
+        "young_avenger": {
+          "1": "Behold, these are the ashes of the city that once ridiculed me! Your laughter, too, shall soon turn to melodious shrieks.",
+          "2": "Today is a fine day to die—for every single living thing save myself.",
+          "3": "Every drop of despair you inflicted upon me, I shall return tenfold with an eternal curse."
+        },
+        "zealot_savior": {
+          "1": "Pitiable creature... still shivering with cold and pain in that fragile flesh? Let me release you at once.",
+          "2": "Behold my people: neither starving nor betraying, resting in eternal serenity. You, too, shall join this exquisite harmony.",
+          "3": "Death is no end. It is the sole salvation from the cruel prison of life."
+        },
+        "truth_seeker": {
+          "1": "The noise of the living clouds my contemplation. Begone, or lie still as a specimen.",
+          "2": "Ten thousand souls were a trivial price. Only beyond the threshold of death could I observe the true weave of arcane currents.",
+          "3": "The sanctity of life, you say? ...I wonder from which gland that curious sentiment is secreted upon dissection?"
+        },
+        "nihilistic_mourner": {
+          "1": "I can no longer recall the taste of wine or the scent of a rose... I envy the fleeting warmth of your blood, if only a little.",
+          "2": "This boundless chill is all I bought with the massacre of my kin... Why did no one stay my hand?",
+          "3": "I pray you are the one to deliver me from this eternal prison. ...If not, crumble into dust like the rest."
+        },
+        "immortal_magistrate": {
+          "1": "Law-breaking living soul: in my domain, the chaotic squirming of mortal life is a capital offense against the crown.",
+          "2": "Living subjects waver and yield to sloth. But the dead never break a pact—they pay taxes for all eternity.",
+          "3": "I saved my realm. ...Even bereft of breathing subjects, the dignity and law of the kingdom endure forever."
+        },
+        "aesthetic_taxidermist": {
+          "1": "How fleeting, and how grotesque. Why suffer your skin to wrinkle and rot when perfection awaits?",
+          "2": "You are magnificent as you are. ...That is precisely why your breath must be stilled and preserved for eternity.",
+          "3": "Admire the statues of my capital. Spared the horror of aging, do they not smile in everlasting glory?"
+        }
       }
     },
     "epithetNames": {

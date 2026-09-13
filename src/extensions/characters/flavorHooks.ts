@@ -3,6 +3,7 @@
  * See docs/plan/characters/flavor-text.md.
  */
 import type { TFunction } from "i18next";
+import type { Race } from "../../types/models";
 import { inferRoleClass } from "./backstoryProfile";
 import type {
   Character,
@@ -13,6 +14,7 @@ import type {
   SocialStratum
 } from "./characterTypes";
 import { formatEpithetLabel, hasOccupationEpithet } from "./epithetCatalog";
+import { selectLichFlavorHook } from "./lichFlavor";
 
 function topTastes(tastes: CharacterTaste[], polarity: "like" | "dislike", n = 2): CharacterTaste[] {
   return tastes
@@ -78,7 +80,7 @@ export function hasStratumRoleContrast(stratum: SocialStratum | "unknown", role:
 /**
  * Build structured identity, taste, relationship, and lineage hooks (ids + params). Text is resolved via i18n in the UI.
  */
-export function generateCharacterHooks(character: Character): CharacterFlavorHook[] {
+export function generateCharacterHooks(character: Character, packRaces?: readonly Race[]): CharacterFlavorHook[] {
   const hooks: CharacterFlavorHook[] = [];
   const origin = character.backstory?.origin;
   const tastes = character.backstory?.tastes ?? [];
@@ -142,13 +144,18 @@ export function generateCharacterHooks(character: Character): CharacterFlavorHoo
     hooks.push({ id: `epithet.${militaryEpithetId}` });
   }
 
+  const lichHook = selectLichFlavorHook(character, packRaces);
+  if (lichHook) {
+    hooks.push(lichHook);
+  }
+
   // Keep relationship and lineage hooks; truncation used to discard them after three generic lines.
   return hooks;
 }
 
-export function applyCharacterHooks(character: Character): void {
+export function applyCharacterHooks(character: Character, packRaces?: readonly Race[]): void {
   if (!character.backstory) return;
-  character.backstory.hooks = generateCharacterHooks(character);
+  character.backstory.hooks = generateCharacterHooks(character, packRaces);
 }
 
 function formatTasteList(idsCsv: string | undefined, t: TFunction): string {
