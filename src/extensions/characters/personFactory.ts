@@ -52,10 +52,13 @@ import {
 import {
   FEUDAL_MALE_SHARE,
   isRaceMinor,
+  isStateCloseToLivingRealm,
   maleShareForRace,
   raceLateMarriageThresholds,
   raceUsesEpisodicPairing,
   rollDefaultAdultAge,
+  rollRulerAge,
+  rollUndeadAge,
   rollYoungAdultAge
 } from "./raceAge";
 import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "./raceBoundServitors";
@@ -196,6 +199,8 @@ export interface CreatePersonOptions {
   raceOverride?: number;
   /** Explicit player-authored character only; generated High Fantasy people never expose Demon race. */
   allowOpenDemon?: boolean;
+  /** Explicit mortal base race for undead characters (Zombie / Skeleton). */
+  originalRaceOverride?: number;
   /** If true, character is generated as an infiltrator's true form rather than an overt demon lord. */
   isInfiltratorTrueForm?: boolean;
   /**
@@ -559,6 +564,45 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   ) {
     race = HUMAN_RACE_ID;
   }
+  // Lich is strictly reserved for state rulers. Non-ruler roles fall back to undead servitors or human.
+  const currentRaceKey = packRaces?.find(candidate => candidate.i === race)?.key;
+  if (currentRaceKey === "lich" && skillRoleClass !== "ruler") {
+    const zombieId = packRaces ? raceIdByKey(packRaces, "zombie") : undefined;
+    const skeletonId = packRaces ? raceIdByKey(packRaces, "skeleton") : undefined;
+    if (zombieId && packRaces?.[zombieId]?.key === "zombie") {
+      race = zombieId;
+    } else if (skeletonId && packRaces?.[skeletonId]?.key === "skeleton") {
+      race = skeletonId;
+    } else {
+      race = HUMAN_RACE_ID;
+    }
+  }
+
+  let originalRace: number | undefined;
+  const effectiveRaceKey = packRaces?.find(candidate => candidate.i === race)?.key;
+  if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
+    if (options.originalRaceOverride !== undefined) {
+      originalRace = options.originalRaceOverride;
+    } else {
+      // Exclude Demon, Fallen Angel, Lich, Zombie, Skeleton, and Unknown from mortal base candidates
+      const mortalCandidates = (packRaces ?? []).filter(
+        r =>
+          r.i > 0 &&
+          !r.removed &&
+          r.key !== "demon" &&
+          r.key !== "fallen_angel" &&
+          r.key !== "lich" &&
+          r.key !== "zombie" &&
+          r.key !== "skeleton" &&
+          r.key !== "unknown"
+      );
+      if (mortalCandidates.length > 0) {
+        originalRace = mortalCandidates[Math.floor(Math.random() * mortalCandidates.length)]!.i;
+      } else {
+        originalRace = HUMAN_RACE_ID;
+      }
+    }
+  }
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
   const gender: Gender = resolvePersonGender(cultureId, genderOverride, race, generationBias);
   // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).
@@ -566,11 +610,26 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // (e.g. Nobility's rollOfficerAge/rollRulerAge/rollHereditaryHeirAge pre-rolls) — only Nobility
   // ever passes generationBias, so this never surprises any other createPerson caller.
   const isYoungBiased = generationBias === "youngMaleHeavy" || generationBias === "youngFemaleHeavy";
-  const age = isYoungBiased
-    ? rollYoungAdultAge(race)
-    : ageOverride !== undefined
-      ? ageOverride
-      : rollDefaultAdultAge(race);
+  let age: number;
+  if (isYoungBiased) {
+    age = rollYoungAdultAge(race);
+  } else if (ageOverride !== undefined) {
+    age = ageOverride;
+  } else if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
+    const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
+    const isClose = isStateCloseToLivingRealm(homeStateId, pack);
+    const ruler = pack?.characters?.find(c => c.state === homeStateId && pack.races?.[c.race]?.key === "lich");
+    const lichAge = ruler?.age ?? rollRulerAge(pack?.races ? raceIdByKey(pack.races, "lich") : undefined);
+
+    age = rollUndeadAge({
+      raceKey: effectiveRaceKey,
+      originalRaceId: originalRace,
+      isCloseToLivingState: isClose,
+      lichAge
+    });
+  } else {
+    age = rollDefaultAdultAge(race);
+  }
 
   // Long-lived races (elf, dwarf, …) take no human mid-life age penalties on looks/prowess.
   const raceLifespan = (() => {
@@ -690,6 +749,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     gender,
     culture: cultureId,
     race,
+    ...(originalRace !== undefined ? { originalRace } : {}),
     looks,
     ...(raceAppearance ? { raceAppearance } : {}),
     appearance,
@@ -702,9 +762,11 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     skills,
     personality,
     // D&D characters do not receive a CK3-style age-derived household roll.
-    family: usesCk3Systems
-      ? generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race)
-      : { ...EMPTY_FAMILY, spouseIds: [], childIds: [] },
+    // Undead (Lich, Zombie, Skeleton) do not marry or reproduce.
+    family:
+      usesCk3Systems && effectiveRaceKey !== "lich" && effectiveRaceKey !== "zombie" && effectiveRaceKey !== "skeleton"
+        ? generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race)
+        : { ...EMPTY_FAMILY, spouseIds: [], childIds: [] },
     pastTitles: [],
     state: homeStateId,
     // New characters start in full health; characterHealth.ts's tick pass takes over from here.

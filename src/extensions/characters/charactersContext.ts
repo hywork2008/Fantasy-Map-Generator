@@ -41,8 +41,11 @@ function resolveInitialAllowedRaceKeys(): string[] {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => (parsed as unknown[]).includes(key));
-          if (valid.length > 0) return valid;
+          const storedSet = new Set(parsed as unknown[]);
+          const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => storedSet.has(key));
+          const newCatalogKeys = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => !storedSet.has(key));
+          const merged = [...valid, ...newCatalogKeys];
+          if (merged.length > 0) return merged;
         }
       }
     }
@@ -235,10 +238,10 @@ export function isCharacterRaceAllowed(race: Pick<Race, "key"> | undefined): boo
   return race !== undefined && getAllowedCharacterRaceKeys().includes(race.key);
 }
 
-/** Filter live map races to the extension-wide character roster. */
+/** Filter live map races to the extension-wide character roster. Lich is strictly a state ruler and excluded from the general pool. */
 export function filterAllowedCharacterRaces(races: readonly Race[]): Race[] {
   const allowed = new Set(getAllowedCharacterRaceKeys());
-  return races.filter(race => race.i > 0 && !race.removed && allowed.has(race.key));
+  return races.filter(race => race.i > 0 && !race.removed && allowed.has(race.key) && race.key !== "lich");
 }
 
 /**
@@ -256,9 +259,13 @@ export function filterAllowedCharacterRaces(races: readonly Race[]): Race[] {
 export function resolveAllowedCharacterRaceId(raceId: number, races: readonly Race[] | null | undefined): number {
   if (!races?.length) return raceId;
   const requested = races.find(race => race.i === raceId);
-  // Bound servitors (wyrmkin, half_elf, fallen_angel) are generated through explicit host demographic rules.
+  // Bound servitors (wyrmkin, half_elf, fallen_angel, skeleton, zombie) are generated through explicit host demographic rules.
   // They should never be randomized away by character race allow-lists.
   if (requested && !requested.removed && isBoundServitorRaceKey(requested.key)) {
+    return requested.i;
+  }
+  // Lich ruler is preserved when explicitly requested for ruler positions.
+  if (requested && !requested.removed && requested.key === "lich") {
     return requested.i;
   }
   const allowed = new Set(getAllowedCharacterRaceKeys());

@@ -94,8 +94,12 @@ export function roleUsesBoundServitor(
 ): boolean {
   if (!roleClass) return false;
   if (hostRaceKey === "demon") {
-    // Under Demon realm: commanders (fallen angels), merchants and ordinary artisans/civilians (humans/fallen angels)
+    // Under Demon realm: commanders, merchants and ordinary civilians
     return roleClass === "commander" || roleClass === "merchant" || roleClass === "ordinary";
+  }
+  if (hostRaceKey === "lich") {
+    // Under Lich realm: strictly only state rulers are pure Lich. All other roles are undead servitors.
+    return roleClass !== "ruler";
   }
   // Commerce and everyday craft/desk work — the face of a dragon realm to outsiders.
   // Half Elf rare spawn also uses `ordinary` (see spec.roles).
@@ -153,6 +157,28 @@ export function resolveRaceIdWithBoundServitor(
     }
 
     return hostRaceId;
+  }
+
+  // Lich realms have undead thrall role stratifications:
+  // - Rulers: pure Lich (strictly limited to state rulers, max 2 across map)
+  // - All other roles (commanders, province lords, merchants, ordinary, officers): majority Zombie (~65%), balance Skeleton (~35%)
+  if (host?.key === "lich") {
+    const skeletonId = raceIdByKey(races, "skeleton");
+    const zombieId = raceIdByKey(races, "zombie");
+    const hasSkeleton = races[skeletonId]?.key === "skeleton";
+    const hasZombie = races[zombieId]?.key === "zombie";
+
+    if (roleClass === "ruler") {
+      return hostRaceId;
+    }
+
+    if (hasZombie && chanceRoll(0.65)) {
+      return zombieId;
+    }
+    if (hasSkeleton) {
+      return skeletonId;
+    }
+    return hasZombie ? zombieId : hostRaceId;
   }
 
   const spec = boundServitorSpecForHost(host?.key);

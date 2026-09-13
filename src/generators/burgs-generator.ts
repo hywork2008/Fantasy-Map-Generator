@@ -903,6 +903,7 @@ class BurgModule {
 
     generateCapitals();
     ensureGiantSourceCapital(giantHighlandOikoumene);
+    ensureLichCapitals();
     if (!isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) || preservesLegacyCandidates) {
       generateTowns();
     }
@@ -958,6 +959,56 @@ class BurgModule {
       });
       cells.burg[giant.sourceCell] = displaced.i;
       burgsQuadtree = quadtree(burgs.filter(burg => burg.i).map(burg => [burg.x, burg.y] as [number, number]));
+    }
+
+    /** Ensure any Lich culture has a sovereign capital (docs/plan §Lich realms). */
+    function ensureLichCapitals(): void {
+      if (!pack.cultures?.length) return;
+      const lichCultures = pack.cultures.filter(c => {
+        if (!c.i || c.removed) return false;
+        const race = pack.races?.[c.race];
+        return race?.key === "lich";
+      });
+
+      for (const culture of lichCultures) {
+        if (burgs.some(burg => burg.i && burg.capital && cells.culture[burg.cell] === culture.i)) continue;
+        const centerCell = culture.center;
+        if (centerCell === undefined || centerCell < 0) continue;
+
+        const targetCell =
+          cells.culture[centerCell] === culture.i
+            ? centerCell
+            : (populatedCells.find(i => cells.culture[i] === culture.i) ?? centerCell);
+
+        if (burgs.some(burg => burg.i && burg.cell === targetCell)) {
+          const existing = burgs.find(burg => burg.i && burg.cell === targetCell)!;
+          existing.capital = 1;
+          existing.culture = culture.i;
+          continue;
+        }
+
+        const displaced = burgs.at(-1);
+        const burgId = displaced?.i ?? burgs.length;
+        if (displaced?.i) {
+          burgs.pop();
+          cells.burg[displaced.cell] = 0;
+        }
+
+        const [x, y] = cells.p[targetCell];
+        burgs.push({
+          i: burgId,
+          state: burgId,
+          cell: targetCell,
+          x,
+          y,
+          culture: culture.i,
+          name: Names.getCultureShort(worldContext, viewContext, appServices, culture.i),
+          feature: cells.f[targetCell],
+          capital: 1
+        });
+        cells.burg[targetCell] = burgId;
+        burgsQuadtree = quadtree(burgs.filter(burg => burg.i).map(burg => [burg.x, burg.y] as [number, number]));
+      }
     }
 
     function getTownsNumber() {

@@ -1076,7 +1076,10 @@ export function computeUrbanWaterSystem(args: {
       wellHygiene * 0.08
   );
 
-  const sanitationBurden = clamp01(
+  const isUndeadState = raceKeyForBurgState(burg) === "lich";
+  const undeadZombieShare = isUndeadState ? (typeof burg?.zombieShare === "number" ? burg.zombieShare : 0.75) : 0;
+
+  const baseSanitationBurden = clamp01(
     0.18 +
       wasteDeficit * 0.5 +
       stormDeficit * 0.18 +
@@ -1090,12 +1093,14 @@ export function computeUrbanWaterSystem(args: {
       tier * 0.03 +
       clogging * 0.1
   );
+  // Undead realms: undead do not eat or excrete, so sewers are unnecessary and sanitation burden is absent.
+  const sanitationBurden = isUndeadState ? 0 : baseSanitationBurden;
 
   const floodExposure = clamp01(
     geography.naturalFloodRisk * 0.65 + stormDeficit * 0.45 - stormwaterDrainageCapacity * 0.25
   );
   const muddiness = clamp01(stormDeficit * 0.55 + rainFactor * 0.25 + (geography.isWetland ? 0.2 : 0) - tier * 0.05);
-  const odor = clamp01(
+  const baseOdor = clamp01(
     sanitationBurden * 0.45 +
       wasteDeficit * 0.25 +
       organic.organicStreetLoad * 0.25 +
@@ -1105,6 +1110,8 @@ export function computeUrbanWaterSystem(args: {
       // in its own right, not just a downstream-export penalty (§3.1's "sludge putrefaction, odor…").
       (wastewaterTreatmentTier >= 2 ? clamp01(sludgeBacklog) * 0.15 : 0)
   );
+  // Undead realms: Lich and Skeletons emit no odor (0%), but Zombies create sewer-level putrid stench scaled by zombie share.
+  const odor = isUndeadState ? clamp01(undeadZombieShare * 0.85) : baseOdor;
 
   const tierDrinkBonus = tierDrinkingHealthBonus({
     tier,

@@ -183,6 +183,14 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     characters.push(ruler);
     setRulerId(state, ruler.i);
 
+    // Lich realms: Only the immortal Lich ruler holds actual awareness and will.
+    // Officials, ministers and commanders are mindless skeletons and zombies acting out
+    // routine habits; skip individual character creation (Plan A).
+    const isLichState = pack.races?.[rulerIds.raceId]?.key === "lich";
+    if (isLichState) {
+      continue;
+    }
+
     // Long-lived mono polities field thinner courts (scarce elders / heirs).
     // Goblin (enemy-dedicated) courts: martial offices only — no peaceful desks.
     let offices = selectCentralOffices(CENTRAL_OFFICES, density);

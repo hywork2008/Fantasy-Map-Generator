@@ -533,6 +533,8 @@ export interface Character {
    * Usually mirrors the culture's race at creation; may diverge later (adoption, etc.).
    */
   race?: number;
+  /** pack.races id of the mortal race before death (for undead servitors like Zombie / Skeleton). */
+  originalRace?: number;
   /** Present only on a Demon covertly passing as Human. */
   demonInfiltration?: DemonInfiltration;
   /** Present on an overt Demon living undisguised, tracking abyssal supremacy and dread. */

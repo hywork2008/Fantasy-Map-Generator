@@ -7,6 +7,7 @@
  *
  * Spec intent: population-sim + fantasy maturity (elf ~100, dwarf ~40, …).
  */
+import type { Pack, State } from "../../types/models";
 import {
   getDefaultRaceFertility,
   getDefaultRaceLifespan,
@@ -302,4 +303,83 @@ export function raceUsesEpisodicPairing(raceId: number | undefined): boolean {
   const catalog = raceCatalog[raceId];
   if (catalog?.continuousMonogamy) return false;
   return true;
+}
+
+/**
+ * Determines whether a given state is geographically close to a realm of the living.
+ * "Close" means directly bordering a living state, or having a capital within close proximity (<= 300 map units).
+ */
+export function isStateCloseToLivingRealm(stateId: number | undefined, pack?: Pack): boolean {
+  if (!pack || !stateId) return false;
+  const state = pack.states?.[stateId];
+  if (!state || state.removed) return false;
+
+  const isLiving = (s: State | undefined): boolean => {
+    if (!s || s.i === 0 || s.removed) return false;
+    const culture = pack.cultures?.[s.culture];
+    const race = pack.races?.find(r => r.i === culture?.race) ?? pack.races?.[culture?.race];
+    return race?.key !== "lich";
+  };
+
+  // 1. Direct border neighbors
+  if (state.neighbors?.some(nId => nId !== state.i && isLiving(pack.states?.[nId]))) {
+    return true;
+  }
+
+  // 2. Capital distance fallback
+  const capital = pack.burgs?.[state.capital];
+  if (!capital) return false;
+
+  const CLOSE_DISTANCE_THRESHOLD = 300;
+  for (const s of pack.states) {
+    if (!s || s.i === state.i || !isLiving(s)) continue;
+    const otherCapital = pack.burgs?.[s.capital];
+    if (!otherCapital) continue;
+    const d = Math.hypot(capital.x - otherCapital.x, capital.y - otherCapital.y);
+    if (d <= CLOSE_DISTANCE_THRESHOLD) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export interface RollUndeadAgeOptions {
+  raceKey: string;
+  originalRaceId?: number;
+  isCloseToLivingState: boolean;
+  lichAge?: number;
+}
+
+/**
+ * Rolls age for undead servitors (Zombie / Skeleton).
+ * - Close to living realms: fresh corpses with ages similar to the living.
+ * - Distant / isolated: ancient remains strictly younger than their Lich master.
+ */
+export function rollUndeadAge(options: RollUndeadAgeOptions): number {
+  const { raceKey, originalRaceId, isCloseToLivingState, lichAge = 3000 } = options;
+
+  if (isCloseToLivingState) {
+    // Near living realm: similar to living adults
+    if (raceKey === "zombie") {
+      // Zombies still have decaying flesh — recent deceased adults (20-55 human equivalent)
+      return rollRaceAgeFromHumanBand(originalRaceId, 20, 55);
+    }
+    // Skeletons are fleshless but still relatively recent remains (25-70 human equivalent)
+    return rollRaceAgeFromHumanBand(originalRaceId, 25, 70);
+  }
+
+  // Distant / isolated: ancient thralls strictly younger than the Lich master
+  const safeLichAge = Math.max(100, lichAge);
+  if (raceKey === "skeleton") {
+    // Skeletons are older remains (e.g. 30% to 95% of Lich age)
+    const minAge = Math.max(80, Math.floor(safeLichAge * 0.3));
+    const maxAge = Math.max(minAge + 10, Math.floor(safeLichAge * 0.95));
+    return rand(minAge, maxAge);
+  }
+
+  // Zombies: sustained by ancient necromancy (e.g. 10% to 75% of Lich age)
+  const minAge = Math.max(40, Math.floor(safeLichAge * 0.1));
+  const maxAge = Math.max(minAge + 10, Math.floor(safeLichAge * 0.75));
+  return rand(minAge, maxAge);
 }

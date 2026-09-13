@@ -60,6 +60,12 @@ export type RaceKey =
   | "half_elf"
   /** Bound slave-warriors and thralls of demon realms — no free polities (see raceBoundServitors). */
   | "fallen_angel"
+  /** Immortal ruler of the undead realm. */
+  | "lich"
+  /** Animated skeletal remains serving the undead realm. */
+  | "skeleton"
+  /** Animated decaying remains serving the undead realm. */
+  | "zombie"
   | "arachnid"
   | "amazones"
   | (string & {});
@@ -352,6 +358,8 @@ export interface Burg {
    * queued construction target (PR-12 domainWorksTarget).
    */
   domainWorksProgress?: number;
+  /** Share of undead population in this burg that is Zombie (vs Skeleton), 0..1. Decays over time as flesh rots into bone. */
+  zombieShare?: number;
   /**
    * PR-12 next fortify completion target: walls | citadel | plaza.
    */

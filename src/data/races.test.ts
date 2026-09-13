@@ -41,7 +41,7 @@ describe("races catalog", () => {
       expect(race.looksBaseline?.stature).toBeDefined();
       expect(race.beautyIdeal?.weights).toBeDefined();
       expect(race.fertility?.interbirthYears).toBeGreaterThan(0);
-      if (race.key === "half_elf") {
+      if (race.key === "half_elf" || race.key === "lich" || race.key === "skeleton" || race.key === "zombie") {
         expect(race.fertility!.litterMean).toBe(0);
         expect(race.fertility!.litterMax).toBe(0);
       } else {
@@ -99,7 +99,7 @@ describe("races catalog", () => {
     const elf = races.find(r => r.key === "elf")!;
     const halfElf = races.find(r => r.key === "half_elf")!;
     expect(halfElf.i).toBeGreaterThan(elf.i);
-    expect(halfElf.i).toBe(races.length - 1);
+    expect(halfElf.i).toBeGreaterThan(human.i);
 
     for (const axis of ["stature", "build", "symmetry", "refinement", "vitality", "ornament"] as const) {
       const h = human.looksBaseline![axis]!;

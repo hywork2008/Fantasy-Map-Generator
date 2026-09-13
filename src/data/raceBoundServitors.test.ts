@@ -110,6 +110,32 @@ describe("raceBoundServitors", () => {
     expect(resolveRaceIdWithBoundServitor(demon, "province_lord", races, () => true)).toBe(demon);
   });
 
+  it("strictly restricts Lich to rulers and delegates all other roles to undead servitors", () => {
+    const races = createDefaultRaces();
+    const lich = raceIdByKey(races, "lich");
+    const zombie = raceIdByKey(races, "zombie");
+    const skeleton = raceIdByKey(races, "skeleton");
+
+    // Only ruler stays Lich
+    expect(resolveRaceIdWithBoundServitor(lich, "ruler", races, () => true)).toBe(lich);
+    expect(roleUsesBoundServitor("ruler", "lich")).toBe(false);
+
+    // Province lords, commanders, merchants, ordinary, officers become Zombie or Skeleton
+    expect(resolveRaceIdWithBoundServitor(lich, "province_lord", races, () => true)).toBe(zombie);
+    expect(resolveRaceIdWithBoundServitor(lich, "province_lord", races, () => false)).toBe(skeleton);
+    expect(resolveRaceIdWithBoundServitor(lich, "commander", races, () => true)).toBe(zombie);
+    expect(resolveRaceIdWithBoundServitor(lich, "commander", races, () => false)).toBe(skeleton);
+    expect(resolveRaceIdWithBoundServitor(lich, "merchant", races, () => true)).toBe(zombie);
+    expect(resolveRaceIdWithBoundServitor(lich, "merchant", races, () => false)).toBe(skeleton);
+    expect(resolveRaceIdWithBoundServitor(lich, "ordinary", races, () => true)).toBe(zombie);
+    expect(resolveRaceIdWithBoundServitor(lich, "central_officer", races, () => true)).toBe(zombie);
+
+    expect(roleUsesBoundServitor("province_lord", "lich")).toBe(true);
+    expect(roleUsesBoundServitor("commander", "lich")).toBe(true);
+    expect(roleUsesBoundServitor("merchant", "lich")).toBe(true);
+    expect(roleUsesBoundServitor("ordinary", "lich")).toBe(true);
+  });
+
   it("classifies wyrmkin and half_elf as bound and bars mixed courts", () => {
     expect(raceCivicStance("wyrmkin")).toBe("bound");
     expect(raceCivicStance("half_elf")).toBe("bound");

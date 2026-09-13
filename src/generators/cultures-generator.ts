@@ -595,6 +595,16 @@ class CulturesModule {
           sort: (i: number) => n(i) / bd(i, [3, 4, 6, 7, 8], 8),
           shield: "fantasy4",
           raceKey: "beastfolk"
+        },
+        // Undead realm ruled by an immortal Lich: ~5% chance in High Fantasy.
+        {
+          name: "Morbane",
+          base: 41,
+          personNameBase: 23,
+          odd: 0.05,
+          sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
+          shield: "gothic",
+          raceKey: "lich"
         }
       ];
     }
@@ -875,6 +885,25 @@ class CulturesModule {
           sort: (i: number) => (t[i] - s[i]) / bd(i, [1, 2, 10, 11]),
           shield: "fantasy3",
           raceKey: "demon"
+        },
+        // Undead realm ruled by an immortal Lich: 1 is typical (guaranteed at least 1 in Dark Fantasy), 2 is extremely rare.
+        {
+          name: "Morbane",
+          base: 41,
+          personNameBase: 23,
+          odd: 1,
+          sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
+          shield: "gothic",
+          raceKey: "lich"
+        },
+        {
+          name: "Ossuaria",
+          base: 41,
+          personNameBase: 23,
+          odd: 0.05,
+          sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
+          shield: "gothic",
+          raceKey: "lich"
         }
       ];
     }
@@ -1202,6 +1231,20 @@ class CulturesModule {
         cultures.push(culture);
         defaultCultures.splice(rnd, 1);
       }
+
+      // Dark Fantasy guarantees at least one undead Lich realm.
+      if (useOptionsState.getState().culturesSet === "darkFantasy" && !cultures.some(c => c.raceKey === "lich")) {
+        const morbaneIndex = defaultCultures.findIndex(c => c.raceKey === "lich");
+        if (morbaneIndex !== -1) {
+          const morbane = defaultCultures[morbaneIndex] as Culture;
+          defaultCultures.splice(morbaneIndex, 1);
+          if (cultures.length >= culturesNumber) {
+            cultures.pop();
+          }
+          cultures.push(morbane);
+        }
+      }
+
       return cultures;
     };
 

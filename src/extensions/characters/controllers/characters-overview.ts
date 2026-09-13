@@ -27,7 +27,7 @@ export interface CharacterRowData {
 
 export function resolveCharacterRaceName(
   character: Character,
-  races?: readonly Pick<Race, "i" | "name" | "removed">[] | null,
+  races?: readonly (Pick<Race, "i" | "name" | "removed"> & { key?: string })[] | null,
   cultures?: readonly Pick<Culture, "i" | "race">[] | null
 ): string {
   const raceId = character.race ?? cultures?.[character.culture]?.race;
@@ -36,7 +36,7 @@ export function resolveCharacterRaceName(
     const human = races?.find(r => r.i === 1) ?? races?.[1];
     return human?.name && !human.removed ? human.name : "Human";
   }
-  const race = races?.[raceId];
+  const race = races?.find(r => r.i === raceId) ?? races?.[raceId];
   if (!race || race.removed) {
     const human = races?.find(r => r.i === 1) ?? races?.[1];
     return human?.name && !human.removed ? human.name : "Human";
@@ -46,7 +46,18 @@ export function resolveCharacterRaceName(
     const human = races?.find(r => r.i === 1) ?? races?.[1];
     return human?.name && !human.removed ? human.name : "Human";
   }
-  return race.name || "Human";
+  const baseName = race.name || "Human";
+  if (race.key === "zombie" || race.key === "skeleton") {
+    const origRaceId = character.originalRace;
+    const origRace =
+      origRaceId !== undefined && origRaceId !== null
+        ? (races?.find(r => r.i === origRaceId) ?? races?.[origRaceId])
+        : undefined;
+    const origName =
+      origRace && !origRace.removed && origRace.name && origRace.name !== "Unknown" ? origRace.name : "Human";
+    return `${baseName} (${origName})`;
+  }
+  return baseName;
 }
 
 export function filterAndSortCharacters(

@@ -417,13 +417,49 @@ export class Battle {
       dogfight: { melee: 0, ranged: 0.1, mounted: 0, machinery: 0.1, naval: 0, armored: 0, aviation: 2, magical: 0.1 }
     };
 
+    const opponentSide: BattleSide = side === "attackers" ? "defenders" : "attackers";
+    const opponentIsUndead = this.isUndeadSide(opponentSide);
+
     const forces = this.getJoinedForces(this[side].regiments);
     const phase = this[side].phase!;
     const adjuster = Math.max(worldContext.populationRate / 10, 10);
     this[side].power =
-      sum(getAvailableMilitaryUnits().map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
+      sum(
+        getAvailableMilitaryUnits().map(u => {
+          const unitCount = forces[u.name] || 0;
+          if (!unitCount) return 0;
+          // Undead host: arrows and ranged missiles pierce fleshless bones or dead flesh without effect;
+          // only melee violence, siege machinery / artillery, or magical / arcane arts shatter them.
+          if (opponentIsUndead && u.type === "ranged") {
+            return 0;
+          }
+          return unitCount * u.power * scheme[phase][u.type];
+        })
+      ) / adjuster;
 
     getBattleScreenState().setSidePower(side, this[side].power ? Math.max(this[side].power | 0, 1) : 0);
+  }
+
+  isUndeadSide(side: BattleSide): boolean {
+    const { pack } = worldContext;
+    if (!pack) return false;
+    return this[side].regiments.some(r => {
+      const state = pack.states?.[r.state];
+      const culture = pack.cultures?.[state?.culture ?? 0];
+      const race = pack.races?.[culture?.race ?? 0];
+      return race?.key === "lich";
+    });
+  }
+
+  isInfernalSide(side: BattleSide): boolean {
+    const { pack } = worldContext;
+    if (!pack) return false;
+    return this[side].regiments.some(r => {
+      const state = pack.states?.[r.state];
+      const culture = pack.cultures?.[state?.culture ?? 0];
+      const race = pack.races?.[culture?.race ?? 0];
+      return race?.key === "demon" || race?.key === "fallen_angel";
+    });
   }
 
   getInitialMorale(): void {
@@ -662,12 +698,36 @@ export class Battle {
   }
 
   calculateCasualties(side: BattleSide, casualties: number): void {
+    const opponentSide: BattleSide = side === "attackers" ? "defenders" : "attackers";
+    const opponentIsUndead = this.isUndeadSide(opponentSide);
+    const sideIsInfernal = this.isInfernalSide(side);
+    const sideIsUndead = this.isUndeadSide(side);
+
+    let newlyRaisedZombies = 0;
+
     for (const r of this[side].regiments) {
       for (const unit in r.u) {
         const randVal = 0.8 + Math.random() * 0.4;
         const died = Math.min(Pint(r.u[unit] * casualties * randVal), r.survivors[unit]);
         r.casualties[unit] -= died;
         r.survivors[unit] -= died;
+
+        // Slain mortal soldiers (non-demon, non-fallen-angel) are immediately raised as zombies into the undead army
+        if (opponentIsUndead && !sideIsUndead && !sideIsInfernal && died > 0) {
+          newlyRaisedZombies += died;
+        }
+      }
+    }
+
+    if (newlyRaisedZombies > 0 && this[opponentSide].regiments.length > 0) {
+      const targetRegiment = this[opponentSide].regiments[0];
+      const raiseUnitName =
+        targetRegiment.u.infantry !== undefined ? "infantry" : Object.keys(targetRegiment.u)[0] || "infantry";
+
+      targetRegiment.u[raiseUnitName] = (targetRegiment.u[raiseUnitName] || 0) + newlyRaisedZombies;
+      targetRegiment.survivors[raiseUnitName] = (targetRegiment.survivors[raiseUnitName] || 0) + newlyRaisedZombies;
+      if (targetRegiment.casualties[raiseUnitName] === undefined) {
+        targetRegiment.casualties[raiseUnitName] = 0;
       }
     }
   }

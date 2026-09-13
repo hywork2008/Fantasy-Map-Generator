@@ -510,4 +510,20 @@ describe("createPerson Arcane on fantasy maps", () => {
     expect(person.arcane).toBeGreaterThanOrEqual(0);
     expect(person.arcane).toBeLessThanOrEqual(95);
   });
+
+  it("rolls Lich Arcane strictly between 92 and 100 on High Fantasy when roleClass is ruler, and restricts non-rulers", () => {
+    useOptionsState.setState({ culturesSet: "highFantasy" });
+    const lichRace = createDefaultRaces().find(r => r.key === "lich")!;
+    for (let i = 0; i < 20; i++) {
+      const ruler = createPerson(i, 1, { homeStateId: 1, raceOverride: lichRace.i, roleClass: "ruler" });
+      expect(ruler.race).toBe(lichRace.i);
+      expect(ruler.arcane).toBeDefined();
+      expect(ruler.arcane).toBeGreaterThanOrEqual(92);
+      expect(ruler.arcane).toBeLessThanOrEqual(100);
+    }
+
+    // Non-ruler must never be Lich
+    const civilian = createPerson(99, 1, { homeStateId: 1, raceOverride: lichRace.i, roleClass: "ordinary" });
+    expect(civilian.race).not.toBe(lichRace.i);
+  });
 });

@@ -7,8 +7,10 @@ import {
   HUMAN_DEFAULT_ADULT_MAX,
   HUMAN_DEFAULT_ADULT_MIN,
   isRaceMinor,
+  isStateCloseToLivingRealm,
   resolveRaceAgeProfile,
   rollDefaultAdultAge,
+  rollUndeadAge,
   scaleHumanAgeToRace,
   scaleHumanDurationToRace,
   scaleRaceDurationToHuman
@@ -70,5 +72,98 @@ describe("raceAge scaling", () => {
     const elf = createDefaultRaces().find(r => r.key === "elf")!;
     expect(isRaceMinor(40, elf.i)).toBe(true);
     expect(isRaceMinor(120, elf.i)).toBe(false);
+  });
+
+  describe("rollUndeadAge", () => {
+    const human = createDefaultRaces().find(r => r.key === "human")!;
+
+    it("rolls living-equivalent adult ages when close to living realms", () => {
+      for (let i = 0; i < 30; i++) {
+        const zombieAge = rollUndeadAge({
+          raceKey: "zombie",
+          originalRaceId: human.i,
+          isCloseToLivingState: true
+        });
+        expect(zombieAge).toBeGreaterThanOrEqual(20);
+        expect(zombieAge).toBeLessThanOrEqual(55);
+
+        const skeletonAge = rollUndeadAge({
+          raceKey: "skeleton",
+          originalRaceId: human.i,
+          isCloseToLivingState: true
+        });
+        expect(skeletonAge).toBeGreaterThanOrEqual(25);
+        expect(skeletonAge).toBeLessThanOrEqual(70);
+      }
+    });
+
+    it("rolls ancient ages strictly younger than Lich master when distant from living realms", () => {
+      const lichMasterAge = 3000;
+      for (let i = 0; i < 30; i++) {
+        const zombieAge = rollUndeadAge({
+          raceKey: "zombie",
+          originalRaceId: human.i,
+          isCloseToLivingState: false,
+          lichAge: lichMasterAge
+        });
+        expect(zombieAge).toBeGreaterThanOrEqual(40);
+        expect(zombieAge).toBeLessThan(lichMasterAge);
+        expect(zombieAge).toBeLessThanOrEqual(Math.floor(lichMasterAge * 0.75));
+
+        const skeletonAge = rollUndeadAge({
+          raceKey: "skeleton",
+          originalRaceId: human.i,
+          isCloseToLivingState: false,
+          lichAge: lichMasterAge
+        });
+        expect(skeletonAge).toBeGreaterThanOrEqual(80);
+        expect(skeletonAge).toBeLessThan(lichMasterAge);
+        expect(skeletonAge).toBeLessThanOrEqual(Math.floor(lichMasterAge * 0.95));
+      }
+    });
+  });
+
+  describe("isStateCloseToLivingRealm", () => {
+    it("returns true when bordering a living state", () => {
+      const pack = {
+        states: [
+          { i: 0, removed: true },
+          { i: 1, culture: 1, neighbors: [2] }, // Lich state
+          { i: 2, culture: 2, neighbors: [1] } // Living state
+        ],
+        cultures: [
+          { i: 0 },
+          { i: 1, race: 16 }, // Lich
+          { i: 2, race: 1 } // Human
+        ],
+        races: [{ i: 0 }, { i: 1, key: "human" }, { i: 16, key: "lich" }],
+        burgs: []
+      } as never;
+
+      expect(isStateCloseToLivingRealm(1, pack)).toBe(true);
+    });
+
+    it("returns false when distant and not bordering living states", () => {
+      const pack = {
+        states: [
+          { i: 0, removed: true },
+          { i: 1, culture: 1, neighbors: [0], capital: 1 }, // Lich state
+          { i: 2, culture: 2, neighbors: [0], capital: 2 } // Far living state
+        ],
+        cultures: [
+          { i: 0 },
+          { i: 1, race: 16 }, // Lich
+          { i: 2, race: 1 } // Human
+        ],
+        races: [{ i: 0 }, { i: 1, key: "human" }, { i: 16, key: "lich" }],
+        burgs: [
+          null,
+          { i: 1, x: 100, y: 100 },
+          { i: 2, x: 800, y: 800 } // distance > 300
+        ]
+      } as never;
+
+      expect(isStateCloseToLivingRealm(1, pack)).toBe(false);
+    });
   });
 });

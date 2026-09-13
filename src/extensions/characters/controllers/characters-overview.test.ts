@@ -86,6 +86,24 @@ describe("resolveCharacterRaceName", () => {
     const c = baseCharacter({ i: 1, name: "Merchant", race: 0, culture: 0 });
     expect(resolveCharacterRaceName(c, races, cultures)).toBe("Human");
   });
+
+  it("appends mortal originalRace in parentheses for Zombie and Skeleton", () => {
+    const racesWithUndead = [
+      { i: 0, name: "Unknown" },
+      { i: 1, name: "Human", key: "human" },
+      { i: 2, name: "Elf", key: "elf" },
+      { i: 17, name: "Skeleton", key: "skeleton" },
+      { i: 18, name: "Zombie", key: "zombie" }
+    ];
+    const cZombie = baseCharacter({ i: 10, name: "Rotwalker", race: 18, culture: 1, originalRace: 1 });
+    expect(resolveCharacterRaceName(cZombie, racesWithUndead, cultures)).toBe("Zombie (Human)");
+
+    const cSkeleton = baseCharacter({ i: 11, name: "Boneclatter", race: 17, culture: 1, originalRace: 2 });
+    expect(resolveCharacterRaceName(cSkeleton, racesWithUndead, cultures)).toBe("Skeleton (Elf)");
+
+    const cZombieFallback = baseCharacter({ i: 12, name: "Wight", race: 18, culture: 1 });
+    expect(resolveCharacterRaceName(cZombieFallback, racesWithUndead, cultures)).toBe("Zombie (Human)");
+  });
 });
 
 describe("filterAndSortCharacters role class filter", () => {

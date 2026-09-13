@@ -81,7 +81,10 @@ const stableKeys = [
   "demon",
   "beastfolk",
   "half_elf",
-  "fallen_angel"
+  "fallen_angel",
+  "lich",
+  "skeleton",
+  "zombie"
 ];
 
 /** RFC 4180 records, including BOM, CRLF, escaped quotes and embedded newlines. */
@@ -320,6 +323,10 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
       fail("bound_servitor_key must reference another bound race from a non-bound host");
     if (boundTargets.has(spec.raceKey)) fail("a bound servitor race can only have one host");
     boundTargets.add(spec.raceKey);
+  }
+  // Lich commands both skeleton and zombie as undead thralls
+  if (definitions.some(d => d.key === "lich")) {
+    boundTargets.add("zombie");
   }
   for (const { def, fail } of entries)
     if (def.civicStance === "bound" && !boundTargets.has(def.key)) fail("bound race requires a host");

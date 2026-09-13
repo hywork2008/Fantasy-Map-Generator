@@ -84,6 +84,16 @@ function isLiveFrontierExpeditionCell(cellId: number): boolean {
   );
 }
 
+function isUndeadState(stateId: number | undefined): boolean {
+  if (!stateId || !worldContext.pack) return false;
+  const state = worldContext.pack.states?.[stateId];
+  if (!state?.culture) return false;
+  const culture = worldContext.pack.cultures?.[state.culture];
+  if (!culture?.race) return false;
+  const race = worldContext.pack.races?.[culture.race];
+  return race?.key === "lich";
+}
+
 /**
  * Simulates population dynamics (aging, births, starvation/disease) using a logistic growth model.
  * Handles both rural populations (pack.cells) and urban populations (pack.burgs).
@@ -127,6 +137,11 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       continue;
     }
     if (pack.cells.pop[i] <= 0) continue;
+    if (isUndeadState(stateId)) {
+      // Undead populations experience neither natural mortality (aging, disease, famine)
+      // nor natural increase (reproduction). Population remains static until disrupted by war.
+      continue;
+    }
     const capacity = getCellSubsistenceCapacity(pack.cells, i);
     let children = pack.cells.children[i];
     let maleAdults = pack.cells.maleAdults[i];
@@ -231,6 +246,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     if (!burg?.population || !burg.demographics) continue;
 
     const stateId = burg.state ?? 0;
+    if (isUndeadState(stateId)) {
+      // Undead urban populations experience neither natural mortality nor births.
+      // Flesh rots over time into bone: decay zombieShare towards skeletal state.
+      burg.zombieShare = Math.max(0.05, (burg.zombieShare ?? 0.75) - deltaYears * 0.02);
+      continue;
+    }
     const { capacity } = burg.demographics;
     // Economy's food-import network may temporarily raise a burg's carrying capacity.
     // Older saved maps have no effectiveCapacity, so retain the base-capacity behavior.

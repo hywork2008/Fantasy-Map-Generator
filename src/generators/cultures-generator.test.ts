@@ -27,21 +27,25 @@ describe("fantasy culture templates", () => {
     worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
   }
 
-  it("keeps Demon stateless and includes Beastfolk cultures in High Fantasy", () => {
+  it("keeps Demon stateless and includes Beastfolk and Lich cultures in High Fantasy", () => {
     stubMapData();
     useOptionsState.setState({ culturesSet: "highFantasy" });
     const cultures = Cultures.getDefault();
     expect(cultures.map(c => c.raceKey)).not.toContain("demon");
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
-    expect(cultures).toHaveLength(18);
+    expect(cultures.find(c => c.raceKey === "lich")?.name).toBe("Morbane");
+    expect(cultures.find(c => c.raceKey === "lich")?.odd).toBe(0.05);
+    expect(cultures).toHaveLength(19);
   });
 
-  it("includes an independent Demon culture alongside Beastfolk cultures in Dark Fantasy", () => {
+  it("includes an independent Demon culture alongside Beastfolk and Lich cultures in Dark Fantasy", () => {
     stubMapData();
     useOptionsState.setState({ culturesSet: "darkFantasy" });
     const cultures = Cultures.getDefault();
     expect(cultures.find(c => c.raceKey === "demon")?.name).toBe("Nethrakan");
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
-    expect(cultures).toHaveLength(36);
+    expect(cultures.find(c => c.name === "Morbane")?.odd).toBe(1);
+    expect(cultures.find(c => c.name === "Ossuaria")?.odd).toBe(0.05);
+    expect(cultures).toHaveLength(38);
   });
 });

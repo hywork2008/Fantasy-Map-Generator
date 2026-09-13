@@ -144,8 +144,100 @@ describe("Battle — armored/aviation combat resolution (docs/plan/military-era-
     shellingContext.calculateStrength("attackers");
 
     // armored's own scheme column: melee=2 (its strongest phase) vs. shelling=0 (armor is inert
-    // under bombardment in this model) — confirms the "armored" column is live, not a stray 0/1.
     expect(armoredContext.attackers.power).toBeGreaterThan(0);
     expect(shellingContext.attackers.power).toBe(0);
+  });
+
+  it("negates ranged damage against an undead army while allowing melee, machinery, and magic", () => {
+    const races: any[] = [];
+    races[16] = { i: 16, key: "lich", name: "Lich" };
+    races[1] = { i: 1, key: "human", name: "Human" };
+
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", race: 0 },
+        { i: 1, name: "Human Culture", race: 1 },
+        { i: 2, name: "Undead Realm", race: 16 }
+      ],
+      states: [
+        { i: 0, name: "Neutral" },
+        { i: 1, name: "Human Kingdom", culture: 1 },
+        { i: 2, name: "Undead Empire", culture: 2 }
+      ]
+    } as any;
+
+    const context = makeBattleContext();
+    // Defenders: Undead state 2
+    context.defenders.regiments = [makeRegiment({ infantry: 100 }, { state: 2 })];
+
+    // Attackers: Human kingdom state 1 with archers and infantry
+    context.attackers.regiments = [makeRegiment({ archers: 50, infantry: 50 }, { state: 1 })];
+    context.attackers.phase = "skirmish";
+    context.calculateStrength("attackers");
+
+    // Archers must produce 0 power against undead defenders in skirmish phase
+    const forces = context.getJoinedForces(context.attackers.regiments);
+    expect(forces.archers).toBe(50);
+    expect(context.attackers.power).toBeGreaterThan(0); // infantry has some melee power
+
+    // Compare with pure archers vs undead: should be exactly 0
+    const archerOnlyContext = makeBattleContext();
+    archerOnlyContext.defenders.regiments = [makeRegiment({ infantry: 100 }, { state: 2 })];
+    archerOnlyContext.attackers.regiments = [makeRegiment({ archers: 100 }, { state: 1 })];
+    archerOnlyContext.attackers.phase = "skirmish";
+    archerOnlyContext.calculateStrength("attackers");
+    expect(archerOnlyContext.attackers.power).toBe(0); // Arrows are completely ineffective
+
+    // Melee / machinery / magic remain effective:
+    const meleeContext = makeBattleContext();
+    meleeContext.defenders.regiments = [makeRegiment({ infantry: 100 }, { state: 2 })];
+    meleeContext.attackers.regiments = [makeRegiment({ infantry: 100 }, { state: 1 })];
+    meleeContext.attackers.phase = "melee";
+    meleeContext.calculateStrength("attackers");
+    expect(meleeContext.attackers.power).toBeGreaterThan(0);
+  });
+
+  it("raises slain mortal soldiers as zombies into the undead army", () => {
+    const races: any[] = [];
+    races[16] = { i: 16, key: "lich", name: "Lich" };
+    races[1] = { i: 1, key: "human", name: "Human" };
+
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", race: 0 },
+        { i: 1, name: "Human Culture", race: 1 },
+        { i: 2, name: "Undead Realm", race: 16 }
+      ],
+      states: [
+        { i: 0, name: "Neutral" },
+        { i: 1, name: "Human Kingdom", culture: 1 },
+        { i: 2, name: "Undead Empire", culture: 2 }
+      ]
+    } as any;
+
+    const context = makeBattleContext();
+    // Attackers: Undead army
+    const undeadRegiment = makeRegiment({ infantry: 50 }, { state: 2 });
+    (undeadRegiment as any).casualties = { infantry: 0 };
+    context.attackers.regiments = [undeadRegiment];
+
+    // Defenders: Mortal Human army
+    const humanRegiment = makeRegiment({ infantry: 100 }, { state: 1 });
+    (humanRegiment as any).casualties = { infantry: 0 };
+    context.defenders.regiments = [humanRegiment];
+
+    const initialUndeadSurvivors = undeadRegiment.survivors.infantry;
+    const initialHumanSurvivors = humanRegiment.survivors.infantry;
+
+    // Apply casualties to defenders (humans taking casualties)
+    context.calculateCasualties("defenders", 0.5);
+
+    const humanDied = initialHumanSurvivors - humanRegiment.survivors.infantry;
+    expect(humanDied).toBeGreaterThan(0);
+
+    // Undead army should have received the newly raised zombies into their ranks!
+    expect(undeadRegiment.survivors.infantry).toBe(initialUndeadSurvivors + humanDied);
   });
 });

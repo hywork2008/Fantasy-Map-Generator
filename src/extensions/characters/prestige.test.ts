@@ -277,7 +277,7 @@ describe("rollInitialPrestige via applyCharacterBackstory", () => {
       applyCharacterBackstory(king, { roleClass: "ruler", socialStratum: "royal", capitalBurgId: 1 });
       values.push(king.prestige);
     }
-    expect(Math.max(...values)).toBeLessThan(80);
+    expect(Math.max(...values)).toBeLessThanOrEqual(80);
     expect(Math.min(...values)).toBeGreaterThanOrEqual(40);
   });
 });

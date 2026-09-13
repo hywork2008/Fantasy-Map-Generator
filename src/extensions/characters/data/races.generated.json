@@ -339,5 +339,98 @@
       "zeal": 4,
       "confidence": 8
     }
+  },
+  {
+    "key": "lich",
+    "skillBias": {
+      "artistry": 0,
+      "diplomacy": -15,
+      "engineering": 0,
+      "geography": 5,
+      "intrigue": 12,
+      "learning": 18,
+      "martial": 4,
+      "prowess": 6,
+      "stewardship": -20
+    },
+    "personalityBias": {
+      "boldness": 6,
+      "compassion": -15,
+      "greed": 4,
+      "honor": -10,
+      "rationality": 14,
+      "sociability": -15,
+      "vengefulness": 10,
+      "zeal": 8,
+      "energy": 2,
+      "piety": -8,
+      "guile": 12,
+      "confidence": 12
+    },
+    "boundServitor": {
+      "chance": 1,
+      "raceKey": "skeleton",
+      "roles": [
+        "commander",
+        "merchant",
+        "ordinary"
+      ]
+    }
+  },
+  {
+    "key": "skeleton",
+    "skillBias": {
+      "artistry": -20,
+      "diplomacy": -25,
+      "engineering": -20,
+      "geography": -20,
+      "intrigue": -20,
+      "learning": -25,
+      "martial": -12,
+      "prowess": -10,
+      "stewardship": -25
+    },
+    "personalityBias": {
+      "boldness": 0,
+      "compassion": -20,
+      "greed": -20,
+      "honor": 0,
+      "rationality": 0,
+      "sociability": -20,
+      "vengefulness": 0,
+      "zeal": 0,
+      "energy": 0,
+      "piety": 0,
+      "guile": 0,
+      "confidence": 0
+    }
+  },
+  {
+    "key": "zombie",
+    "skillBias": {
+      "artistry": -20,
+      "diplomacy": -25,
+      "engineering": -20,
+      "geography": -20,
+      "intrigue": -20,
+      "learning": -25,
+      "martial": -12,
+      "prowess": -10,
+      "stewardship": -25
+    },
+    "personalityBias": {
+      "boldness": 0,
+      "compassion": -20,
+      "greed": -20,
+      "honor": 0,
+      "rationality": 0,
+      "sociability": -20,
+      "vengefulness": 0,
+      "zeal": 0,
+      "energy": 0,
+      "piety": 0,
+      "guile": 0,
+      "confidence": 0
+    }
   }
 ]

@@ -22,7 +22,7 @@ import {
 import type { Culture, Race, RaceSupernatural, State } from "../../types/models";
 import { useOptionsState } from "../hostCore";
 import { getRaceById, HUMAN_SUPERNATURAL, isFantasyCulturesSet, supernaturalForRaceKey } from "../hostRaces";
-import { gauss, P } from "../hostUtils";
+import { gauss, P, rand } from "../hostUtils";
 import type { Character, InfernalAtavismFlavor } from "./characterTypes";
 import { raceCatalogEntry } from "./data/raceCatalog";
 import { skillStddevForRace } from "./raceSkillBias";
@@ -88,6 +88,10 @@ export function rollCharacterArcane(options: {
   const profile = options.supernatural ?? supernaturalForRaceKey(options.raceKey);
   const cap = Math.max(0, Math.round(profile.arcaneCap));
   if (cap <= 0) return 0;
+  if (options.raceKey === "lich") {
+    // Lich Arcane is supreme mastery, guaranteed between 92 and 100
+    return Math.floor(rand(92, 100));
+  }
   const median = Math.max(0, Math.min(cap, profile.arcaneMedian));
   const raceStd = skillStddevForRace(options.lifespan);
   const stddev = Math.min(raceStd, Math.max(1, cap * 0.35));

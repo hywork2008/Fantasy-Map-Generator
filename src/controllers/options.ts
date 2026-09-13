@@ -13,6 +13,7 @@ import {
 import { convertLegacyLatitudeToGeographic, earthRegionFitGraph } from "../data/earthConfig";
 import { getEarthRegion } from "../data/earthRegions";
 import {
+  DEFAULT_ALLOWED_RACE_KEYS,
   parseAllowedRaceKeys,
   parseRacePersonNameMapping,
   resolveRacePersonNameMapping
@@ -675,8 +676,11 @@ export function applyStoredOptions(): void {
   if (stored("allowedRaceKeys")) {
     const parsed = parseAllowedRaceKeys(stored("allowedRaceKeys"));
     if (parsed) {
-      optionsStore.setOption("allowedRaceKeys", parsed);
-      setAllowedCharacterRaceKeys(parsed);
+      const known = new Set(parsed);
+      const newKeys = (DEFAULT_ALLOWED_RACE_KEYS as readonly string[]).filter(k => !known.has(k));
+      const full = newKeys.length ? [...parsed, ...newKeys] : parsed;
+      optionsStore.setOption("allowedRaceKeys", full);
+      setAllowedCharacterRaceKeys(full);
     }
   }
 

@@ -58,5 +58,14 @@
   },
   {
     "key": "fallen_angel"
+  },
+  {
+    "key": "lich"
+  },
+  {
+    "key": "skeleton"
+  },
+  {
+    "key": "zombie"
   }
 ]

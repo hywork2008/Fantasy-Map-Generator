@@ -1794,5 +1794,37 @@ describe("UrbanWater module", () => {
       expect(capital.drinkingTreatmentTier).toBe(0);
       expect(capital.wastewaterTreatmentTier).toBe(0);
     });
+
+    it("exempts Lich undead realm burgs from sanitation burden and generates odor based on zombie share", () => {
+      const races: any[] = [];
+      races[16] = { i: 16, key: "lich", name: "Lich" };
+      worldContext.pack.races = races;
+      worldContext.pack.cultures = [
+        { i: 0, name: "Wildlands", race: 0 },
+        { i: 1, name: "Morbane", race: 16 }
+      ] as any;
+      worldContext.pack.states = [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Morbane Realm", culture: 1 }
+      ] as any;
+
+      // Burg 1: Undead with Zombie majority (zombieShare 0.8)
+      worldContext.pack.burgs[1]!.state = 1;
+      worldContext.pack.burgs[1]!.zombieShare = 0.8;
+
+      UrbanWater.generate();
+      const zombieCity = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(zombieCity.sanitationBurden).toBe(0); // Sewers unnecessary
+      expect(zombieCity.odor).toBeGreaterThan(0.5); // High stench from rotting zombies
+
+      // Burg 2: Undead with Skeleton only (zombieShare 0)
+      worldContext.pack.burgs[2]!.state = 1;
+      worldContext.pack.burgs[2]!.zombieShare = 0;
+
+      UrbanWater.generate();
+      const skeletonCity = getUrbanWaterSystems().find(s => s.burgId === 2)!;
+      expect(skeletonCity.sanitationBurden).toBe(0); // Sewers unnecessary
+      expect(skeletonCity.odor).toBe(0); // Skeletons and Lich emit no odor
+    });
   });
 });

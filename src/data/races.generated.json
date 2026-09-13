@@ -773,5 +773,147 @@
     "civicStance": "bound",
     "key": "fallen_angel",
     "name": "Fallen Angel"
+  },
+  {
+    "personNameSpheres": {
+      "primary": 23,
+      "alternate": 42
+    },
+    "supernatural": {
+      "arcaneCap": 100,
+      "arcaneMedian": 96,
+      "arcaneInclination": 0.95,
+      "durability": 3
+    },
+    "mixedPolityChance": 0,
+    "lifespan": 9999,
+    "maxLifespan": 9999,
+    "fertility": {
+      "fertilityStart": 0,
+      "fertilityEnd": 0,
+      "interbirthYears": 100,
+      "litterMean": 0,
+      "litterMax": 0
+    },
+    "looksBaseline": {
+      "stature": 50,
+      "build": 30,
+      "symmetry": 50,
+      "refinement": 40,
+      "vitality": 5,
+      "ornament": 30
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0.1,
+        "build": -0.5,
+        "symmetry": 0.5,
+        "refinement": 0.8,
+        "vitality": -1,
+        "ornament": 0.2
+      }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.1,
+      "foodIndependent": true,
+      "temperatureIndependent": true
+    },
+    "civicStance": "distant",
+    "key": "lich",
+    "name": "Lich"
+  },
+  {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 0,
+      "arcaneMedian": 0,
+      "arcaneInclination": 0,
+      "durability": 2
+    },
+    "mixedPolityChance": 0,
+    "lifespan": 9999,
+    "maxLifespan": 9999,
+    "fertility": {
+      "fertilityStart": 0,
+      "fertilityEnd": 0,
+      "interbirthYears": 100,
+      "litterMean": 0,
+      "litterMax": 0
+    },
+    "looksBaseline": {
+      "stature": 50,
+      "build": 15,
+      "symmetry": 45,
+      "refinement": 20,
+      "vitality": 5,
+      "ornament": 5
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0,
+        "build": 0,
+        "symmetry": 0.5,
+        "refinement": 0,
+        "vitality": 0,
+        "ornament": 0
+      }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.5,
+      "foodIndependent": true,
+      "temperatureIndependent": true
+    },
+    "civicStance": "bound",
+    "key": "skeleton",
+    "name": "Skeleton"
+  },
+  {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 0,
+      "arcaneMedian": 0,
+      "arcaneInclination": 0,
+      "durability": 2.5
+    },
+    "mixedPolityChance": 0,
+    "lifespan": 9999,
+    "maxLifespan": 9999,
+    "fertility": {
+      "fertilityStart": 0,
+      "fertilityEnd": 0,
+      "interbirthYears": 100,
+      "litterMean": 0,
+      "litterMax": 0
+    },
+    "looksBaseline": {
+      "stature": 50,
+      "build": 40,
+      "symmetry": 30,
+      "refinement": 10,
+      "vitality": 10,
+      "ornament": 5
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0,
+        "build": 0,
+        "symmetry": 0.5,
+        "refinement": 0,
+        "vitality": 0,
+        "ornament": 0
+      }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.5,
+      "foodIndependent": true,
+      "temperatureIndependent": true
+    },
+    "civicStance": "bound",
+    "key": "zombie",
+    "name": "Zombie"
   }
 ]
