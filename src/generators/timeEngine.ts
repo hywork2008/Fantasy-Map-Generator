@@ -7,7 +7,7 @@ import {
   simulationContext
 } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
-import { durationToCalendarDays } from "../runtime/calendarDuration";
+import { durationToCalendarDays, MEAN_DAYS_PER_YEAR } from "../runtime/calendarDuration";
 import {
   runWithSystemRng,
   type SimulationRngState,
@@ -26,7 +26,7 @@ import {
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
-import { isFastAdvanceActive, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
+import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
@@ -35,7 +35,14 @@ import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { isStateInActiveConflict } from "./activeConflict";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
 import { advanceDungeonEcology } from "./dungeonEcology";
-import { applyFastForwardPopulation } from "./fastAdvance/fastAdvancePopulation";
+import { FAST_ADVANCE_COARSE_GATE_DAYS } from "./fastAdvance/fastAdvanceMath";
+import { applyFastForwardPopulation, emptyFastForwardDemographicsResult } from "./fastAdvance/fastAdvancePopulation";
+import {
+  beginFastAdvanceRun,
+  endFastAdvanceRun,
+  getActiveFastAdvanceRun,
+  isFastAdvanceRunActive
+} from "./fastAdvance/fastAdvanceRun";
 import { strideStepDays } from "./fastAdvance/historyModeProfiles";
 import {
   beginHistoryModeRun,
@@ -62,7 +69,7 @@ import { advanceUndergroundEcology } from "./undergroundEcology";
 import { advanceWildernessEcology } from "./wildernessEcology";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
-const DAYS_PER_YEAR = 365.2425;
+const DAYS_PER_YEAR = MEAN_DAYS_PER_YEAR;
 const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
 /**
@@ -231,16 +238,13 @@ registerSimulationSystem({
  * manpower body actually executes does.
  */
 const MANPOWER_GATE_DAYS = 7;
-/**
- * Fast-Forward (docs/plan/advance-time-fast-forward.md §8 Phase 4): a coarser manpower gate while a
- * Fast-Forward bulk advance is running. `tickManpower` closes a fixed fraction of the draft/
- * demobilization gap per year scaled by deltaYears, so a monthly slice (39.7% annual draft) is
- * within ~0.4pp of the weekly slice (39.3%) — negligible for an already-approximate mode — while
- * running the O(states × (cells + burgs)) body ~4× less often (the single largest surviving
- * per-tick cost once Phase 1-3 removed the monthly production cluster).
- */
-const MANPOWER_FAST_ADVANCE_GATE_DAYS = 30;
 let manpowerDaysAccumulated = 0;
+/**
+ * Fast-Forward population injection is associative in deltaYears, so it accrues days and applies
+ * once per coarse gate (and flushes any remainder when the batch ends) instead of walking every
+ * cell every simulated day.
+ */
+let fastAdvancePopulationDaysAccumulated = 0;
 
 registerSimulationSystem({
   id: "manpower.tick",
@@ -260,7 +264,7 @@ registerSimulationSystem({
 
     const { years, months, days } = context.delta;
     manpowerDaysAccumulated += years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
-    const gateDays = isFastAdvanceActive(context.isBulkAdvance) ? MANPOWER_FAST_ADVANCE_GATE_DAYS : MANPOWER_GATE_DAYS;
+    const gateDays = context.fastAdvanceRates ? FAST_ADVANCE_COARSE_GATE_DAYS : MANPOWER_GATE_DAYS;
     if (manpowerDaysAccumulated < gateDays) return;
 
     const dueDeltaYears = manpowerDaysAccumulated / DAYS_PER_YEAR;
@@ -770,6 +774,8 @@ let activeDayBatchTotalDays = 1;
 
 /** True when the outermost batch opened a history-mode bracket that its exit must close. */
 let dayBatchOpenedHistoryRun = false;
+/** True when the outermost batch opened a Fast-Forward bracket that its exit must close. */
+let dayBatchOpenedFastAdvanceRun = false;
 
 function enterDayBatch(totalDays = 1): void {
   dayBatchDepth++;
@@ -778,13 +784,26 @@ function enterDayBatch(totalDays = 1): void {
     dayBatchCommittedDays = 0;
     activeDayBatchTotalDays = totalDays;
     // Every multi-day entry point (advanceTime, the UI rAF loop, headless runDaily) opens its
-    // batch here, so this is the one place that has to resolve history mode. A lone Advance Day
-    // never qualifies, which is what keeps single-day stepping identical to before
-    // (docs/plan/advance-time-history-mode.md §3.1, §9.2).
+    // batch here, so this is the one place that has to resolve Fast-Forward and history mode.
+    // A lone Advance Day never qualifies, which is what keeps single-day stepping identical
+    // to before (docs/plan/advance-time-fast-forward.md §4.2,
+    // docs/plan/advance-time-history-mode.md §3.1, §9.2).
+    const fastAdvance = totalDays > 1 && getFastAdvanceState().enabled ? resolveFastAdvanceRates() : null;
+    dayBatchOpenedFastAdvanceRun = fastAdvance !== null;
+    if (fastAdvance) beginFastAdvanceRun(fastAdvance);
     const profile = totalDays > 1 ? resolveHistoryModeProfile() : null;
     dayBatchOpenedHistoryRun = profile !== null;
     if (profile) beginHistoryModeRun(profile);
   }
+}
+
+function flushFastAdvancePopulationRemainder(): void {
+  if (!(fastAdvancePopulationDaysAccumulated > 0)) return;
+  const years = fastAdvancePopulationDaysAccumulated / DAYS_PER_YEAR;
+  fastAdvancePopulationDaysAccumulated = 0;
+  if (!useOptionsState.getState().simDemographics) return;
+  const rates = getActiveFastAdvanceRun()?.rates ?? resolveFastAdvanceRates();
+  applyFastForwardPopulation(years, rates, appServices.rng);
 }
 
 function exitDayBatch(): void {
@@ -792,6 +811,12 @@ function exitDayBatch(): void {
   if (dayBatchDepth === 0) {
     activeDayBatchSnapshot = null;
     activeDayBatchTotalDays = 1;
+    if (dayBatchOpenedFastAdvanceRun) {
+      // Apply any days that didn't fill a coarse gate, then drop the captured rates.
+      flushFastAdvancePopulationRemainder();
+      endFastAdvanceRun();
+      dayBatchOpenedFastAdvanceRun = false;
+    }
     if (dayBatchOpenedHistoryRun) {
       endHistoryModeRun();
       dayBatchOpenedHistoryRun = false;
@@ -811,6 +836,9 @@ function isBulkTimeAdvance(): boolean {
 
 function exitDayBatchAfterFailure(): void {
   const isOutermost = dayBatchDepth === 1;
+  // The snapshot has already restored the batch's population and RNG. Discard
+  // growth owed by rolled-back days before normal cleanup can flush it again.
+  fastAdvancePopulationDaysAccumulated = 0;
   exitDayBatch();
   if (isOutermost && dayBatchCommittedDays > 0) publishDayBatchRollbackCorrection();
 }
@@ -994,13 +1022,18 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     topics.push("simulation.cells", "simulation.states", "simulation.burgs");
     // Fast-Forward (docs/plan/advance-time-fast-forward.md §4.3(a)): during a multi-day batch with
     // Fast-Forward enabled, replace the real cohort-aging/births/migration model with a flat
-    // annual growth rate. isBulkTimeAdvance() is already defined above this point in the file (the
-    // `bulkAdvance` local a few lines down hasn't been computed yet), so call it directly here.
-    result = measureTickStep("core:demographics", () =>
-      isFastAdvanceActive(isBulkTimeAdvance())
-        ? applyFastForwardPopulation(effectiveDeltaYears, resolveFastAdvanceRates(), appServices.rng)
-        : simulateDemographics(effectiveDeltaYears)
-    );
+    // annual growth rate. Accrue days and apply on the shared coarse gate so a year is O(cells)
+    // once per ~month rather than every calendar day; remainder flushes in exitDayBatch.
+    result = measureTickStep("core:demographics", () => {
+      if (!isFastAdvanceRunActive()) return simulateDemographics(effectiveDeltaYears);
+      fastAdvancePopulationDaysAccumulated += effectiveDeltaDays;
+      if (fastAdvancePopulationDaysAccumulated < FAST_ADVANCE_COARSE_GATE_DAYS) {
+        return emptyFastForwardDemographicsResult();
+      }
+      const years = fastAdvancePopulationDaysAccumulated / DAYS_PER_YEAR;
+      fastAdvancePopulationDaysAccumulated = 0;
+      return applyFastForwardPopulation(years, resolveFastAdvanceRates(), appServices.rng);
+    });
   }
 
   if (result.bordersChanged) topics.push("map.politics");
@@ -1024,7 +1057,8 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   const systemContextBase = {
     tick: simulationContext.tickCount,
     delta: { years: deltaYears, months: deltaMonths, days: deltaDays },
-    isBulkAdvance: bulkAdvance
+    isBulkAdvance: bulkAdvance,
+    fastAdvanceRates: getActiveFastAdvanceRun()?.rates ?? null
   };
   const executedSystems = timeTickSystems.run(
     // Placeholder rng is replaced per system inside runWithSystemRng.

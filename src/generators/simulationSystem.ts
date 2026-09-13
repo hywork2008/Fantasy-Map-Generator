@@ -1,6 +1,7 @@
 import { createTransactionWriter, type TransactionWriter } from "../runtime/transactionWriter";
 import type { DataTopic } from "../runtime/worldRuntime";
 import type { RNGService } from "../utils/probabilityUtils";
+import type { FastAdvanceRates } from "./fastAdvance/fastAdvancePresets";
 
 /** Fixed execution order for one simulation tick. */
 export const simulationPhases = [
@@ -51,6 +52,12 @@ export interface SimulationStepContext {
    * per-day resolution during a large fast-forward without changing daily-granularity behavior.
    */
   readonly isBulkAdvance: boolean;
+  /**
+   * Captured Fast-Forward rates for this batch, or `null` when Fast-Forward is off / this is a
+   * lone Advance Day. Set from the same `enterDayBatch` bracket as `isBulkAdvance`. Systems that
+   * have a context should read this instead of re-checking the zustand store.
+   */
+  readonly fastAdvanceRates: FastAdvanceRates | null;
 }
 
 /**

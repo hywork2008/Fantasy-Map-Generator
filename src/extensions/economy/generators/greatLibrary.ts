@@ -1,6 +1,11 @@
 import type { RNGService } from "../../../context/appServices";
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
-import { getCultureKnowledgeValue, isStateInActiveConflict, stateHasEnemy } from "../../hostCore";
+import {
+  getCultureKnowledgeValue,
+  isFastAdvanceRunActive,
+  isStateInActiveConflict,
+  stateHasEnemy
+} from "../../hostCore";
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
@@ -18,7 +23,7 @@ import {
   setGreatLibraryProjects,
   settleAnnualOnce
 } from "../economyContext";
-import { isFastForwardTickActive } from "./fastAdvanceEconomyGuard";
+
 import {
   checkGreatLibraryEligibility,
   checkGreatLibraryMaintain,
@@ -379,7 +384,7 @@ export class GreatLibraryModule {
     // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): keep spend/coverage
     // scaling with the preset-driven treasury (the project keeps building) but leave the treasury
     // balance to applyFastForwardEconomySettlement()'s preset rate.
-    if (!isFastForwardTickActive()) state.treasury = rn(Math.max(0, availableTreasury - spend), 2);
+    if (!isFastAdvanceRunActive()) state.treasury = rn(Math.max(0, availableTreasury - spend), 2);
 
     const coverage = spend / GREAT_LIBRARY_TARGET_ANNUAL_SPEND;
     const wartimeFactor = isStateInActiveConflict(state.i) ? GREAT_LIBRARY_WARTIME_PROGRESS_FACTOR : 1;
@@ -460,7 +465,7 @@ export class GreatLibraryModule {
     const spend = Math.min(availableTreasury, spendCap);
     // Fast-Forward: see the matching guard in settleBuilding() above — endowment coverage still
     // tracks the preset-driven treasury, the balance itself is the preset's to move.
-    if (spend > 0 && !isFastForwardTickActive()) state.treasury = rn(availableTreasury - spend, 2);
+    if (spend > 0 && !isFastAdvanceRunActive()) state.treasury = rn(availableTreasury - spend, 2);
 
     // Same EWMA shape as Academy/StateSecret's investment-driven stocks: coverage=1 (full upkeep
     // funded) nudges endowment toward 1, coverage=0 (treasury can't afford it) decays it toward 0.

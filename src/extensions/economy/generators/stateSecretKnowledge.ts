@@ -1,3 +1,4 @@
+import { isFastAdvanceRunActive } from "../../hostCore";
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
   ANNUAL_GATE,
@@ -7,7 +8,6 @@ import {
   setStateSecretStocks,
   settleAnnualOnce
 } from "../economyContext";
-import { isFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import type { StateSecretDomain, StateSecretStock } from "./stateSecretTypes";
 
 /**
@@ -72,7 +72,7 @@ export class StateSecretKnowledgeModule {
       // math (spend/coverage still scale with the preset-driven treasury, so pyrotechnics knowledge
       // keeps progressing) but let applyFastForwardEconomySettlement()'s preset rate own the
       // treasury balance instead of draining it here on top of that.
-      if (spend > 0 && !isFastForwardTickActive()) state.treasury = rn((state.treasury || 0) - spend, 2);
+      if (spend > 0 && !isFastAdvanceRunActive()) state.treasury = rn((state.treasury || 0) - spend, 2);
 
       const coverageThisYear = spend / STATE_SECRET_TARGET_ANNUAL_SPEND;
       const stock = rn(applyKnowledgeEwma(previousStock, coverageThisYear, STATE_SECRET_ADOPTION_RATE), 4);

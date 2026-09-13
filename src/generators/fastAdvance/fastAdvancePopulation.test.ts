@@ -17,11 +17,29 @@ function makePack(): PackedGraph {
   };
   const burgs: Burg[] = [
     { cell: 0, x: 0, y: 0 },
-    { i: 1, cell: 1, x: 1, y: 1, state: 1, population: 200 },
+    {
+      i: 1,
+      cell: 1,
+      x: 1,
+      y: 1,
+      state: 1,
+      population: 200,
+      demographics: { children: 50, maleAdults: 60, femaleAdults: 70, elders: 20, capacity: 1000 }
+    },
     { i: 2, cell: 2, x: 2, y: 2, state: 1, population: 0 },
-    { i: 3, cell: 3, x: 3, y: 3, state: 1, population: 50, removed: true }
+    { i: 3, cell: 3, x: 3, y: 3, state: 1, population: 50, removed: true },
+    { i: 4, cell: 4, x: 4, y: 4, state: 1, population: 80 }
   ];
   return { cells, burgs, states: [{ i: 0 }, { i: 1 }] } as unknown as PackedGraph;
+}
+
+function ruralTotal(pack: PackedGraph, cellId: number): number {
+  return (
+    pack.cells.children[cellId] +
+    pack.cells.maleAdults[cellId] +
+    pack.cells.femaleAdults[cellId] +
+    pack.cells.elders[cellId]
+  );
 }
 
 const NO_JITTER_RNG = createRNGService(() => 0.5); // rand()*2-1 === 0
@@ -43,6 +61,21 @@ describe("applyFastForwardPopulation", () => {
     expect(pack.cells.children[1]).toBeCloseTo(40 * growth, 3);
     expect(pack.cells.elders[1]).toBeCloseTo(15 * growth, 3);
     expect(pack.burgs[1]?.population).toBeCloseTo(200 * growth, 6);
+    expect(pack.burgs[1]?.demographics?.children).toBeCloseTo(50 * growth, 6);
+    expect(pack.burgs[1]?.demographics?.maleAdults).toBeCloseTo(60 * growth, 6);
+    expect(pack.burgs[1]?.demographics?.femaleAdults).toBeCloseTo(70 * growth, 6);
+    expect(pack.burgs[1]?.demographics?.elders).toBeCloseTo(20 * growth, 6);
+    // Cached totals stay in lockstep with the four buckets (setCellDemographics / setBurgDemographics).
+    expect(pack.cells.pop[1]).toBeCloseTo(ruralTotal(pack, 1), 3);
+    expect(pack.burgs[1]?.population).toBeCloseTo(
+      (pack.burgs[1]?.demographics?.children ?? 0) +
+        (pack.burgs[1]?.demographics?.maleAdults ?? 0) +
+        (pack.burgs[1]?.demographics?.femaleAdults ?? 0) +
+        (pack.burgs[1]?.demographics?.elders ?? 0),
+      6
+    );
+    // Stubs without a demographics object still scale population alone.
+    expect(pack.burgs[4]?.population).toBeCloseTo(80 * growth, 6);
 
     // Returns the same empty-result shape simulateDemographics() would for a no-op tick — Fast
     // Forward never grows new burgs, shifts borders, or adds routes.

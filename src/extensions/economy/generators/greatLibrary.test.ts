@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { FAST_ADVANCE_PRESETS } from "../../../generators/fastAdvance/fastAdvancePresets";
+import { beginFastAdvanceRun, resetFastAdvanceRunForTests } from "../../../generators/fastAdvance/fastAdvanceRun";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { worldContext } from "../../hostCore";
@@ -10,7 +12,6 @@ import {
   initEconomyContext,
   setGreatLibraryProjects
 } from "../economyContext";
-import { setFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import { GreatLibrary } from "./greatLibrary";
 import {
   GREAT_LIBRARY_BUILD_POINTS,
@@ -108,6 +109,7 @@ describe("GreatLibraryModule.settleAnnual", () => {
   });
 
   afterEach(() => {
+    resetFastAdvanceRunForTests();
     clearEconomyContext();
     clearCharactersContext();
   });
@@ -172,14 +174,14 @@ describe("GreatLibraryModule.settleAnnual", () => {
     GreatLibrary.settleAnnual(NO_FIRE_RNG); // year 500: planning (no spend)
     const treasuryBeforeBuilding = state().treasury;
 
-    setFastForwardTickActive(true);
+    beginFastAdvanceRun(FAST_ADVANCE_PRESETS.steady);
     try {
       for (let year = 501; year <= 505; year++) {
         worldContext.options = { year };
         GreatLibrary.settleAnnual(NO_FIRE_RNG);
       }
     } finally {
-      setFastForwardTickActive(false);
+      resetFastAdvanceRunForTests();
     }
 
     // Five building years elapsed and progressed (coverage math untouched)...

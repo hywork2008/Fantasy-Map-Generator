@@ -126,7 +126,13 @@ describe("simulation registry filter", () => {
     cadence: { every: 1 },
     run: () => {}
   });
-  const context = { tick: 1, delta: { years: 0, months: 0, days: 1 }, rng: {} as never, isBulkAdvance: true };
+  const context = {
+    tick: 1,
+    delta: { years: 0, months: 0, days: 1 },
+    rng: {} as never,
+    isBulkAdvance: true,
+    fastAdvanceRates: null
+  };
 
   it("skips a masked system entirely — it does not run and draws no RNG", () => {
     const registry = createSimulationSystemRegistry();

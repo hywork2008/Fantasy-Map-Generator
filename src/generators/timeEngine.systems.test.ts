@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { initRng } from "../context/appServices";
 import { createEmptyFrontierSimulationState, simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import { exportLiveSimulationRng } from "../runtime/simulationRng";
 import { runDaily } from "../runtime/simulationRunner";
 import { stepDaySimulation } from "../runtime/worldRuntime";
 import { useFastAdvanceState } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
+import { isFastAdvanceRunActive, resetFastAdvanceRunForTests } from "./fastAdvance/fastAdvanceRun";
 import { Routes } from "./routes-generator";
 import { listRegisteredSimulationSystemIds, registerSimulationSystem, registerTimeTickHook } from "./timeEngine";
 
@@ -20,6 +22,7 @@ describe("timeEngine simulation system registration (P2-7)", () => {
         // Dependent systems may block removal; tests clean in reverse dependency order.
       }
     }
+    resetFastAdvanceRunForTests();
   });
 
   it("registerSimulationSystem exposes phase-ordered ids via listRegisteredSimulationSystemIds", () => {
@@ -382,6 +385,154 @@ describe("timeEngine simulation system registration (P2-7)", () => {
       runDaily(3, { notify: false });
       expect(worldContext.pack.cells.maleAdults[1]).toBe(beforeBulk);
     } finally {
+      useFastAdvanceState.setState({ enabled: false, preset: "steady" });
+    }
+  });
+
+  function setupFastAdvancePopulation(): void {
+    worldContext.seed = "fast-advance-pop-sync";
+    worldContext.options = { year: 1000, month: 1, day: 1, era: "Test" } as never;
+    worldContext.nameBases = [];
+    worldContext.biomesData = { habitability: [0] } as never;
+    worldContext.notes = [];
+    worldContext.grid = {} as never;
+    worldContext.mapCoordinates = { latN: 40, latS: 20 } as never;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.pack = {
+      states: [
+        { i: 0, diplomacy: [] },
+        { i: 1, diplomacy: [] }
+      ],
+      burgs: [
+        { cell: 0, x: 0, y: 0 },
+        {
+          i: 1,
+          cell: 1,
+          x: 1,
+          y: 1,
+          state: 1,
+          population: 100,
+          demographics: { children: 25, maleAdults: 30, femaleAdults: 30, elders: 15, capacity: 500 }
+        }
+      ],
+      routes: [],
+      cells: {
+        i: [0, 1],
+        state: [0, 1],
+        province: [0, 5],
+        pop: [0, 100],
+        maleAdults: new Float32Array([0, 22]),
+        femaleAdults: new Float32Array([0, 23]),
+        children: new Float32Array([0, 40]),
+        elders: new Float32Array([0, 15]),
+        capacity: [0, 500],
+        h: new Uint8Array([25, 25]),
+        f: new Uint16Array([1, 1]),
+        c: [[], []],
+        p: [
+          [0, 0],
+          [1, 1]
+        ]
+      }
+    } as never;
+
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 1;
+    simulationContext.currentDay = 1;
+    simulationContext.tickCount = 0;
+    simulationContext.frontier = createEmptyFrontierSimulationState();
+    simulationContext.populationLoss = { simDay: 0, history: [] };
+    simulationContext.intelligence = {};
+    simulationContext.strategicGoals = {};
+    simulationContext.navalTechBonus = {};
+    initRng("fast-advance-pop-sync");
+    useOptionsState.setState({ simDemographics: true, simManpower: false, simMilitaryRecovery: false });
+    useFastAdvanceState.setState({
+      enabled: true,
+      preset: "custom",
+      customRates: {
+        populationGrowthPctPerYear: 100,
+        priceInflationPctPerYear: 0,
+        goodsStockGrowthPctPerYear: 0,
+        treasuryGrowthPctPerYear: 0,
+        variancePct: 0,
+        stockFloorMultiplier: 0.2,
+        stockCapMultiplier: 5.0
+      }
+    });
+  }
+
+  it("Fast-Forward remainder-flushes population at batch end and keeps cells.pop in sync with cohorts", () => {
+    setupFastAdvancePopulation();
+
+    try {
+      // 3 days is below the 30-day coarse gate, so growth is applied once on batch exit.
+      runDaily(3, { notify: false });
+      const cells = worldContext.pack.cells;
+      const ruralTotal = cells.children[1] + cells.maleAdults[1] + cells.femaleAdults[1] + cells.elders[1];
+      expect(ruralTotal).toBeGreaterThan(100);
+      expect(cells.pop[1]).toBeCloseTo(ruralTotal, 5);
+      const burg = worldContext.pack.burgs[1];
+      const urbanTotal =
+        (burg.demographics?.children ?? 0) +
+        (burg.demographics?.maleAdults ?? 0) +
+        (burg.demographics?.femaleAdults ?? 0) +
+        (burg.demographics?.elders ?? 0);
+      expect(burg.population).toBeCloseTo(urbanTotal, 5);
+      expect(burg.population).toBeGreaterThan(100);
+    } finally {
+      useFastAdvanceState.setState({ enabled: false, preset: "steady" });
+    }
+  });
+
+  it("flushes only completed Fast-Forward days when manually stopped", () => {
+    setupFastAdvancePopulation();
+    try {
+      const result = runDaily(10, {
+        notify: false,
+        shouldStop: () => simulationContext.tickCount >= 3
+      });
+      expect(result).toMatchObject({ daysCompleted: 3, stopped: true });
+      expect(worldContext.pack.burgs[1].population).toBeCloseTo(100 * 2 ** (3 / 365.2425), 8);
+      expect(isFastAdvanceRunActive()).toBe(false);
+    } finally {
+      useFastAdvanceState.setState({ enabled: false, preset: "steady" });
+    }
+  });
+
+  it.each([1, 3, 31])("discards Fast-Forward population growth after a failure on tick %i", failOnTick => {
+    setupFastAdvancePopulation();
+    const cellsBefore = structuredClone(worldContext.pack.cells);
+    const burgsBefore = structuredClone(worldContext.pack.burgs);
+    const rngBefore = exportLiveSimulationRng();
+    let calls = 0;
+    const unregister = registerSimulationSystem({
+      id: "test.fast-forward-failure",
+      phase: "economy",
+      reads: [],
+      writes: [],
+      cadence: { every: 1 },
+      run: () => {
+        if (++calls === failOnTick) throw new Error("Fast-Forward test failure");
+      }
+    });
+
+    try {
+      expect(() => runDaily(33, { notify: false })).toThrow("Fast-Forward test failure");
+      expect(simulationContext.currentDay).toBe(1);
+      expect(simulationContext.tickCount).toBe(0);
+      expect(worldContext.pack.cells).toEqual(cellsBefore);
+      expect(worldContext.pack.burgs).toEqual(burgsBefore);
+      expect(exportLiveSimulationRng()).toEqual(rngBefore);
+      expect(isFastAdvanceRunActive()).toBe(false);
+
+      // A new successful batch must accrue only its own three days.
+      unregister();
+      runDaily(3, { notify: false });
+      expect(worldContext.pack.burgs[1].population).toBeCloseTo(100 * 2 ** (3 / 365.2425), 8);
+    } finally {
+      unregister();
       useFastAdvanceState.setState({ enabled: false, preset: "steady" });
     }
   });

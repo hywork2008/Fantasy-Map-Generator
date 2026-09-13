@@ -8,7 +8,8 @@ const stubContext = (tick: number): SimulationStepContext => ({
   tick,
   delta: { years: 0, months: 0, days: 1 },
   rng: stubRng,
-  isBulkAdvance: false
+  isBulkAdvance: false,
+  fastAdvanceRates: null
 });
 
 function system(

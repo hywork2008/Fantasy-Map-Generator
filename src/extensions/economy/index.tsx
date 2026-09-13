@@ -1,7 +1,13 @@
+import { MEAN_DAYS_PER_MONTH, MEAN_DAYS_PER_YEAR } from "../../runtime/calendarDuration";
 import type { DataTopic } from "../../runtime/worldRuntime";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
-import { isFastAdvanceActive, isStateInActiveConflict, resolveFastAdvanceRates, useOptionsState } from "../hostCore";
+import {
+  FAST_ADVANCE_COARSE_GATE_DAYS,
+  isStateInActiveConflict,
+  resolveFastAdvanceRates,
+  useOptionsState
+} from "../hostCore";
 import {
   isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
@@ -92,7 +98,6 @@ import { clearEscortHireState, rebuildEscortJobPostings, tickEscortJobBoard } fr
 import { ExperimentalWorkshops } from "./generators/experimentalWorkshops";
 import { ExportStaging } from "./generators/exportStaging";
 import { applyFastForwardEconomySettlement } from "./generators/fastAdvanceEconomy";
-import { setFastForwardTickActive } from "./generators/fastAdvanceEconomyGuard";
 import {
   clearFaunaPopulation,
   recordQuarterlyNonFoodDemand,
@@ -673,7 +678,6 @@ let _unregisterMarketAddCommand: (() => void) | null = null;
 let _unregisterMarketRemoveCommand: (() => void) | null = null;
 let _unregisterMarketColorCommand: (() => void) | null = null;
 let _unregisterProductionSettlementCommand: (() => void) | null = null;
-let _unregisterProductionSettlementFastForwardCommand: (() => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
 let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
 let _unregisterMineProspectingCommand: (() => void) | null = null;
@@ -827,6 +831,16 @@ function isMarketIdRequest(value: unknown): value is { readonly marketId: number
 function isFastForwardSettlementPayload(value: unknown): value is { readonly monthsElapsed: number } {
   const monthsElapsed = (value as { monthsElapsed?: unknown } | null)?.monthsElapsed;
   return typeof monthsElapsed === "number" && Number.isFinite(monthsElapsed) && monthsElapsed > 0;
+}
+
+function isSkipFoodConsumptionPayload(value: unknown): value is { readonly skipFoodConsumption: true } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 1 &&
+    (value as Record<string, unknown>).skipFoodConsumption === true
+  );
 }
 
 function isPlayerMarketTradeRequest(value: unknown): value is {
@@ -1100,12 +1114,20 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
         throw new Error("Economy must be enabled to settle production");
       }
-      const skipFoodConsumption =
-        typeof value === "object" &&
-        value !== null &&
-        !Array.isArray(value) &&
-        Object.keys(value).length === 1 &&
-        (value as Record<string, unknown>).skipFoodConsumption === true;
+      // Fast-Forward path (docs/plan/advance-time-fast-forward.md §4.3(b), §4.5): one payload
+      // shape on the same command, rather than a parallel `production.settleFastForward`.
+      // Replaces Production.produce()/MetallurgWork.*/Taxes.collectTaxes() with a flat annual
+      // rate. refreshStateEconomySummaries()/synchronizePlayerCommerce() still run for real so
+      // Overview dialogs reflect the new treasury/stock (§4.6).
+      if (isFastForwardSettlementPayload(value)) {
+        measureTickStep("production:fastForward", () =>
+          applyFastForwardEconomySettlement(value.monthsElapsed, resolveFastAdvanceRates(), api.appServices.rng)
+        );
+        measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
+        measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
+        return { changed: true };
+      }
+      const skipFoodConsumption = isSkipFoodConsumptionPayload(value);
       if (value !== undefined && !skipFoodConsumption) {
         throw new Error("economy.production.settle does not accept a payload");
       }
@@ -1123,29 +1145,6 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
       }
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
-      measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
-      measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
-      return { changed: true };
-    }
-  });
-  // Fast-Forward's replacement for "production.settle" (docs/plan/advance-time-fast-forward.md
-  // §4.3(b), §4.5) — dispatched instead of the real command by runOneFastForwardSettlement() above
-  // when the due settlements being flushed were accrued during a Fast-Forward-eligible batch.
-  // Deliberately does not call Production.produce()/MetallurgWork.*/Taxes.collectTaxes() etc. — it
-  // replaces the whole pipeline with a flat annual rate (applyFastForwardEconomySettlement), not
-  // just the tax step. refreshStateEconomySummaries()/synchronizePlayerCommerce() still run for
-  // real so Overview dialogs reflect the new treasury/stock (§4.6).
-  _unregisterProductionSettlementFastForwardCommand = api.registerExtensionCommand({
-    extensionId: ECONOMY_EXTENSION_ID,
-    name: "production.settleFastForward",
-    execute: value => {
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
-        throw new Error("Economy must be enabled to fast-forward production");
-      }
-      const monthsElapsed = isFastForwardSettlementPayload(value) ? value.monthsElapsed : 1;
-      measureTickStep("production:produce", () =>
-        applyFastForwardEconomySettlement(monthsElapsed, resolveFastAdvanceRates(), api.appServices.rng)
-      );
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
       return { changed: true };
@@ -2726,22 +2725,20 @@ export function init(api: ExtensionAPI): void {
   let foodSettlementsAlreadyApplied = 0;
   // Fast-Forward (docs/plan/advance-time-fast-forward.md §4.3(b)): captures whether the due months
   // accumulated for the settlement this microtask is about to flush were accrued during a
-  // Fast-Forward-eligible batch. Set from economy.foodCalendar's run(context, writer) — the only
-  // place in this scheduling chain that still has the SimulationStepContext (and therefore
-  // isBulkAdvance) needed to evaluate isFastAdvanceActive(); the microtask below runs after that
-  // context has gone out of scope, so the decision has to be captured ahead of time. `||=` so a
-  // mixed batch (partly Fast-Forward, partly not — shouldn't normally happen within one flush, but
-  // isn't assumed) stays Fast-Forward once any contributing tick asked for it.
+  // Fast-Forward-eligible batch. Set from economy.foodCalendar's run(context, writer) — the
+  // microtask below runs after that context has gone out of scope, so `context.fastAdvanceRates`
+  // has to be captured ahead of time. `||=` so a mixed batch stays Fast-Forward once any
+  // contributing tick asked for it.
   let productionSettlementsFastForward = false;
   // Fast-Forward (docs/plan/advance-time-fast-forward.md §8 Phase 4): accumulated simulated days the
   // economy.dailyHiring body still owes. While a Fast-Forward bulk advance runs, that body (job-board
   // lag, cull/escort hiring, urban pregnancy — all driven by an `effectiveDays` argument, so
   // batching is exactly the code path an Advance Month step already exercises) runs once every
-  // ~30 accumulated days instead of every simulated day, the same coarsening manpower.tick uses.
+  // FAST_ADVANCE_COARSE_GATE_DAYS instead of every simulated day, the same coarsening
+  // manpower.tick and applyFastForwardPopulation use.
   // Left at 0 and unused outside Fast-Forward, where the gate below is 1 day (i.e. every tick, no
   // deferral — identical to the pre-Phase-4 behavior).
   let hiringDaysAccumulated = 0;
-  const HIRING_FAST_ADVANCE_GATE_DAYS = 30;
 
   const markProductionDirty = () => {
     productionDirty = true;
@@ -2767,7 +2764,7 @@ export function init(api: ExtensionAPI): void {
     measureTickStep("production:settle", () => {
       const commit = api.dispatchExtensionCommand({
         extensionId: ECONOMY_EXTENSION_ID,
-        name: "production.settleFastForward",
+        name: "production.settle",
         payload: { monthsElapsed }
       });
       if (!commit) return;
@@ -3044,18 +3041,7 @@ export function init(api: ExtensionAPI): void {
         profileLabel: id.replace("economy.", "economy:"),
         run: (context, writer) => {
           if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-          // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): while this tick
-          // runs as part of an active Fast-Forward bulk advance, the systematic annual treasury
-          // spenders inside it (chemMedCommon.debitTreasury() family, StateSecretKnowledge,
-          // GreatLibrary) skip only their treasury mutation — applyFastForwardEconomySettlement()
-          // owns the treasury trajectory in that mode. Reset in finally so a throwing system can't
-          // leave the flag stuck on for the next (non-Fast-Forward) tick.
-          setFastForwardTickActive(isFastAdvanceActive(context.isBulkAdvance));
-          try {
-            run(context, writer);
-          } finally {
-            setFastForwardTickActive(false);
-          }
+          run(context, writer);
           // Compatibility mutations are still direct. Preserve the previous per-tick
           // Economy/State invalidation, but only for a system that declares that topic.
           const compatibilityWrites = topics.writes.filter(
@@ -3201,21 +3187,21 @@ export function init(api: ExtensionAPI): void {
 
   registerEconomyTickSystem("economy.dailyHiring", (context, writer) => {
     const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
-    const tickDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    const tickDays = deltaDays + deltaMonths * MEAN_DAYS_PER_MONTH + deltaYears * MEAN_DAYS_PER_YEAR;
     // Fast-Forward Phase 4 (docs/plan/advance-time-fast-forward.md §8): defer the hire-board body to
     // a ~monthly cadence during a Fast-Forward bulk advance. Outside Fast-Forward nothing changes —
     // `effectiveDays`/`effectiveDeltaYears` keep their exact previous expressions and the body runs
     // every tick. Everything below is scaled by `effectiveDays`, so one batched call is the same
     // shape an Advance Month step already produces.
-    const ffActive = isFastAdvanceActive(context.isBulkAdvance);
+    const ffActive = context.fastAdvanceRates !== null;
     if (ffActive) {
       hiringDaysAccumulated += tickDays;
-      if (hiringDaysAccumulated < HIRING_FAST_ADVANCE_GATE_DAYS) return;
+      if (hiringDaysAccumulated < FAST_ADVANCE_COARSE_GATE_DAYS) return;
     }
     const effectiveDays = ffActive ? hiringDaysAccumulated : tickDays;
     const effectiveDeltaYears = ffActive
-      ? hiringDaysAccumulated / 365.2425
-      : deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      ? hiringDaysAccumulated / MEAN_DAYS_PER_YEAR
+      : deltaYears + deltaMonths / 12 + deltaDays / MEAN_DAYS_PER_YEAR;
     if (ffActive) hiringDaysAccumulated = 0;
     // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
     // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
@@ -3253,7 +3239,7 @@ export function init(api: ExtensionAPI): void {
     // applyFastForwardPopulation() already wrote. Skip it entirely instead; reconcileAnnual
     // BasicEmploymentWorkers()/ConstructionOperations.constrainEffectiveCapacity() below are
     // naturally skipped too since they're gated on `urbanMobility` being non-null.
-    const urbanMobility = isFastAdvanceActive(context.isBulkAdvance)
+    const urbanMobility = context.fastAdvanceRates
       ? null
       : UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
     const settledAdultsFromMobility = urbanMobility?.settledAdults ?? 0;
@@ -3493,7 +3479,7 @@ export function init(api: ExtensionAPI): void {
       // scheduleProductionSettlement()'s microtask to read once it flushes. Food consumption
       // above is unaffected either way — it already ran for real, per due month, regardless of
       // Fast-Forward.
-      productionSettlementsFastForward ||= isFastAdvanceActive(context.isBulkAdvance);
+      productionSettlementsFastForward ||= context.fastAdvanceRates !== null;
       // Queue after all synchronous simulation systems have run, so logging events from
       // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
       scheduleProductionSettlement();
@@ -3769,8 +3755,6 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterMarketColorCommand = null;
   _unregisterProductionSettlementCommand?.();
   _unregisterProductionSettlementCommand = null;
-  _unregisterProductionSettlementFastForwardCommand?.();
-  _unregisterProductionSettlementFastForwardCommand = null;
   _unregisterRegenerateCommand?.();
   _unregisterRegenerateCommand = null;
   _unregisterGunpowderRefreshCommand?.();

@@ -7,6 +7,7 @@ import {
   type FastAdvanceRates,
   getNamedPresetRates
 } from "../generators/fastAdvance/fastAdvancePresets";
+import { getActiveFastAdvanceRun, isFastAdvanceRunActive } from "../generators/fastAdvance/fastAdvanceRun";
 import {
   DEFAULT_CUSTOM_HISTORY_PROFILE,
   DEFAULT_HISTORY_MODE_PROFILE,
@@ -98,20 +99,31 @@ export const useFastAdvanceState = create<FastAdvanceState>()(
 
 export const getFastAdvanceState = useFastAdvanceState.getState;
 
-/** Resolves the active preset's rates, or the user's custom vector when preset === "custom". */
+/**
+ * Resolves the active preset's rates, or the user's custom vector when preset === "custom".
+ * During a bracketed Fast-Forward run the rates captured at batch start win, so a ⚙ change
+ * mid-advance cannot mix two presets into one batch.
+ */
 export function resolveFastAdvanceRates(): FastAdvanceRates {
+  const captured = getActiveFastAdvanceRun()?.rates;
+  if (captured) return captured;
   const { preset, customRates } = getFastAdvanceState();
   return preset === "custom" ? customRates : getNamedPresetRates(preset);
 }
 
 /**
- * The single gating condition Fast-Forward uses everywhere it hooks in (§4.2): the user must have
- * explicitly enabled it, AND this must be part of a multi-day batch (Advance Week/Month/Year, or
- * any multi-day advanceTime()/runDaily() call) — never a lone Advance Day. Reuses the existing
- * `isBulkAdvance` flag (docs/plan/advance-time-loop-reduction.md Phase 1b) rather than inventing a
- * new threshold, so enabling Fast-Forward never changes single-day-step behavior.
+ * The single gating condition Fast-Forward uses everywhere it hooks in (§4.2).
+ *
+ * Inside a multi-day batch, timeEngine opens a Fast-Forward run when the opt-in is on, and that
+ * run is the source of truth — callers with no `isBulkAdvance` (debitTreasury, etc.) consult it
+ * via `isFastAdvanceRunActive()`. Outside a run this falls back to `enabled && isBulkAdvance` so
+ * unit tests that do not go through `enterDayBatch` still work.
+ *
+ * A lone Advance Day never opens a run and should pass `isBulkAdvance === false`, so enabling
+ * Fast-Forward never changes single-day-step behavior.
  */
-export function isFastAdvanceActive(isBulkAdvance: boolean): boolean {
+export function isFastAdvanceActive(isBulkAdvance = isFastAdvanceRunActive()): boolean {
+  if (isFastAdvanceRunActive()) return true;
   return getFastAdvanceState().enabled && isBulkAdvance;
 }
 

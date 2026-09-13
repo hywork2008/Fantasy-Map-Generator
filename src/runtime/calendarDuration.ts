@@ -1,5 +1,13 @@
 import { getDaysInMonth, isLeapYear } from "../utils/seasonUtils";
 
+/**
+ * Mean Gregorian year length used to convert a count of simulated calendar days into
+ * `deltaYears` for rate-driven systems (manpower, Fast-Forward growth, hiring). Distinct
+ * from `durationToCalendarDays`, which walks the real civil calendar including leap days.
+ */
+export const MEAN_DAYS_PER_YEAR = 365.2425;
+export const MEAN_DAYS_PER_MONTH = MEAN_DAYS_PER_YEAR / 12;
+
 export interface CalendarDuration {
   readonly years?: number;
   readonly months?: number;

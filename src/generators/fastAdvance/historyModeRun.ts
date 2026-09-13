@@ -1,7 +1,7 @@
 /**
  * The "a history-mode advance is in progress" flag (docs/plan/advance-time-history-mode.md §5).
  *
- * Same shape as fastAdvanceEconomyGuard.ts's tick flag, and for the same reason: the places that
+ * Same shape as fastAdvanceRun.ts's Fast-Forward bracket, and for the same reason: the places that
  * need to know — the simulation registry's system filter, `shouldSuppressConflictAdvance()`,
  * `mayAdvanceAutonomousConflict()`, the stub-funding step — sit at very different depths and most
  * of them have no `SimulationStepContext` to consult. timeEngine brackets each run instead, so

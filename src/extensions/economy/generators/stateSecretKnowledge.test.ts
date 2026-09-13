@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { FAST_ADVANCE_PRESETS } from "../../../generators/fastAdvance/fastAdvancePresets";
+import { beginFastAdvanceRun, resetFastAdvanceRunForTests } from "../../../generators/fastAdvance/fastAdvanceRun";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import {
@@ -7,7 +9,6 @@ import {
   initEconomyContext,
   setMilitaryResourceLedgers
 } from "../economyContext";
-import { setFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import {
   getStateSecretMaterialMultiplier,
   STATE_SECRET_TARGET_ANNUAL_SPEND,
@@ -23,7 +24,10 @@ describe("StateSecretKnowledgeModule", () => {
     } as unknown as PackedGraph;
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    resetFastAdvanceRunForTests();
+    clearEconomyContext();
+  });
 
   function ledger(overrides: { stateId?: number; gunpowder?: number } = {}) {
     return {
@@ -56,11 +60,11 @@ describe("StateSecretKnowledgeModule", () => {
 
   it("under Fast-Forward, still grows the stock but leaves treasury to the preset rate", () => {
     setMilitaryResourceLedgers([ledger()]);
-    setFastForwardTickActive(true);
+    beginFastAdvanceRun(FAST_ADVANCE_PRESETS.steady);
     try {
       StateSecretKnowledge.settleAnnual();
     } finally {
-      setFastForwardTickActive(false);
+      resetFastAdvanceRunForTests();
     }
 
     // Coverage math is unchanged (stock still advances) — only the treasury debit is suppressed

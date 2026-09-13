@@ -6,6 +6,7 @@ import { runDaily } from "../runtime/simulationRunner";
 import { stepDaySimulation } from "../runtime/worldRuntime";
 import { useFastAdvanceState } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
+import { resetFastAdvanceRunForTests } from "./fastAdvance/fastAdvanceRun";
 import { resetHistoryModeRunForTests } from "./fastAdvance/historyModeRun";
 import { registerSimulationSystem } from "./timeEngine";
 
@@ -86,6 +87,7 @@ describe("Advance Time history mode", () => {
     }
     useFastAdvanceState.setState({ enabled: false, preset: "steady", historyProfile: "off" });
     resetHistoryModeRunForTests();
+    resetFastAdvanceRunForTests();
   });
 
   it("leaves an ordinary advance at one tick per day when the profile is off", () => {

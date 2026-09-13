@@ -1,14 +1,24 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FAST_ADVANCE_PRESETS } from "../generators/fastAdvance/fastAdvancePresets";
+import {
+  beginFastAdvanceRun,
+  endFastAdvanceRun,
+  resetFastAdvanceRunForTests
+} from "../generators/fastAdvance/fastAdvanceRun";
 import { isFastAdvanceActive, resolveFastAdvanceRates, useFastAdvanceState } from "./fastAdvanceState";
 
 describe("fastAdvanceState", () => {
   beforeEach(() => {
+    resetFastAdvanceRunForTests();
     useFastAdvanceState.setState({
       enabled: false,
       preset: "steady",
       customRates: { ...FAST_ADVANCE_PRESETS.steady }
     });
+  });
+
+  afterEach(() => {
+    resetFastAdvanceRunForTests();
   });
 
   it("defaults to disabled with the steady preset", () => {
@@ -52,5 +62,20 @@ describe("fastAdvanceState", () => {
     expect(isFastAdvanceActive(true)).toBe(true);
     // Enabling Fast-Forward never changes a lone Advance Day step's behavior.
     expect(isFastAdvanceActive(false)).toBe(false);
+  });
+
+  it("returns captured rates for the duration of a Fast-Forward run, ignoring mid-run preset edits", () => {
+    useFastAdvanceState.getState().setEnabled(true);
+    useFastAdvanceState.getState().setPreset("steady");
+    beginFastAdvanceRun(FAST_ADVANCE_PRESETS.boom);
+
+    useFastAdvanceState.getState().setPreset("collapse");
+    expect(resolveFastAdvanceRates()).toEqual(FAST_ADVANCE_PRESETS.boom);
+    expect(isFastAdvanceActive()).toBe(true);
+    expect(isFastAdvanceActive(false)).toBe(true);
+
+    endFastAdvanceRun();
+    expect(resolveFastAdvanceRates()).toEqual(FAST_ADVANCE_PRESETS.collapse);
+    expect(isFastAdvanceActive()).toBe(false);
   });
 });

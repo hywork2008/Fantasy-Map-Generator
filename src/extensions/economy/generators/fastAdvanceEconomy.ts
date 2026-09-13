@@ -1,3 +1,4 @@
+import { annualGrowthFactor, jitterFactor } from "../../../generators/fastAdvance/fastAdvanceMath";
 import type { FastAdvanceRates } from "../../../generators/fastAdvance/fastAdvancePresets";
 import type { RNGService } from "../../../utils/probabilityUtils";
 import { isHistoryModeRunActive } from "../../hostCore";
@@ -40,24 +41,14 @@ export function applyFastForwardEconomySettlement(
 ): void {
   if (!(monthsElapsed > 0)) return;
   const yearsElapsed = monthsElapsed / 12;
-  // Scaled by sqrt(yearsElapsed) for the same reason fastAdvancePopulation.ts scales its jitter by
-  // sqrt(deltaYears): this function can be called repeatedly for the same Good/market over a long
-  // Fast-Forward run (once per due-settlement flush — typically ~12x/year, but every call still
-  // draws an independent jitter), and compounding many independent mean-1 multiplicative jitters
-  // without this correction drives most values toward collapse while a rare few explode (docs/plan/
-  // advance-time-fast-forward.md §9 finding, first observed via population's identical bug before
-  // this file's jitter was corrected the same way). Scaling keeps the variance of the fully
-  // compounded result consistent with a single one-shot annual draw at variancePct, regardless of
-  // how many flushes a given year's due settlements end up split across.
-  const jitterAmplitude = (rates.variancePct / 100) * Math.sqrt(yearsElapsed);
-  const priceFactor = (1 + rates.priceInflationPctPerYear / 100) ** yearsElapsed;
-  const stockFactorRaw = (1 + rates.goodsStockGrowthPctPerYear / 100) ** yearsElapsed;
+  const priceFactor = annualGrowthFactor(rates.priceInflationPctPerYear, yearsElapsed);
+  const stockFactorRaw = annualGrowthFactor(rates.goodsStockGrowthPctPerYear, yearsElapsed);
 
   for (const market of getMarkets()) {
     for (const goodIdKey of Object.keys(market.goods)) {
       const entry = market.goods[Number(goodIdKey)];
       if (!entry) continue;
-      const jitter = 1 + (rng.rand() * 2 - 1) * jitterAmplitude;
+      const jitter = jitterFactor(rng, rates.variancePct, yearsElapsed);
       entry.price = Math.max(0.01, rn(entry.price * priceFactor * jitter, 2));
 
       const baselineStock = entry.stock ?? 0;
@@ -73,7 +64,7 @@ export function applyFastForwardEconomySettlement(
   // moment the user drops back out of history mode.
   if (isHistoryModeRunActive()) return;
 
-  const treasuryFactor = (1 + rates.treasuryGrowthPctPerYear / 100) ** yearsElapsed;
+  const treasuryFactor = annualGrowthFactor(rates.treasuryGrowthPctPerYear, yearsElapsed);
   const { pack } = getWorldContext();
   for (const state of pack.states ?? []) {
     if (!state?.i || state.removed) continue;
