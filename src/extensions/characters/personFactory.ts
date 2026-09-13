@@ -49,7 +49,17 @@ import {
   rollFirstMarriageAge,
   sampleLitter
 } from "./fertility";
-import { mayCreateLichRuler, raceKeyForId, undeadAgeCap, youngestLichAge } from "./lichPolicy";
+import {
+  fallbackRaceIdWhenLichDisallowed,
+  isEligibleMortalBaseRace,
+  isLichRaceKey,
+  isUndeadRaceKey,
+  isUndeadThrallRaceKey,
+  mayCreateLichRuler,
+  raceKeyForId,
+  undeadAgeCap,
+  youngestLichAge
+} from "./lichPolicy";
 import {
   FEUDAL_MALE_SHARE,
   isRaceMinor,
@@ -65,6 +75,7 @@ import {
 import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "./raceBoundServitors";
 import { rollCharacterPersonality } from "./racePersonalityBias";
 import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
+import { isReligiousFormName } from "./religiousForms";
 import { rollCharacterSkills } from "./skillGeneration";
 import { generateSpecializations } from "./specializations";
 
@@ -165,7 +176,6 @@ const PERMANENT_UNMARRIED_RATE: Record<MarriageExpectation, number> = {
 };
 
 const RELIGIOUS_UNMARRIED_RATE = 0.2;
-const RELIGIOUS_FORMS = new Set(["Theocracy", "Holy State", "Bishopric"]);
 
 export interface CreatePersonOptions {
   /**
@@ -324,7 +334,7 @@ export function getUnmarriedChance(
   const { maturity, early, mid, established } = raceLateMarriageThresholds(raceId);
   if (age < maturity) return 1;
 
-  const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
+  const isReligious = isReligiousRole || isReligiousFormName(formName);
   const permanentRate = isReligious ? RELIGIOUS_UNMARRIED_RATE : PERMANENT_UNMARRIED_RATE[marriageExpectation];
 
   // Human baseline: mid-to-late twenties; race-scaled via raceLateMarriageThresholds.
@@ -362,7 +372,7 @@ export function getEpisodicCurrentlyPairedChance(
   children: number,
   fertility: RaceFertility
 ): number {
-  const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
+  const isReligious = isReligiousRole || isReligiousFormName(formName);
   if (isReligious) return 0.05;
   if (age < fertility.fertilityStart) return 0;
 
@@ -485,7 +495,7 @@ function generateEpisodicFamily(
   isReligiousRole: boolean,
   fertility: RaceFertility
 ): CharacterFamily {
-  const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
+  const isReligious = isReligiousRole || isReligiousFormName(formName);
   const neverParentRate = isReligious ? 0.35 : NEVER_PARENT_RATE[marriageExpectation];
 
   let children = 0;
@@ -538,7 +548,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     }
   })();
   let race: number;
-  const hostRaceKey = packRaces?.[cultureHostRace]?.key;
+  const hostRaceKey = raceKeyForId(packRaces, cultureHostRace);
   if (roleUsesBoundServitor(skillRoleClass, hostRaceKey)) {
     // Always key off the culture’s majority race so draconic markets never spawn dragon merchants,
     // and demon realms staff commanders primarily with fallen angels and civilians with humans.
@@ -549,13 +559,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     // Rare bound overlays (Half Elf under Elf) may apply to non-merchant desks too.
     race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces, P);
   }
-  const peekRaceKey = (() => {
-    try {
-      return getRaceById(getWorldContext().pack.races, race)?.key;
-    } catch {
-      return undefined;
-    }
-  })();
+  const peekRaceKey = raceKeyForId(packRaces, race);
   if (isEnemyDedicatedRaceKey(peekRaceKey) && !isEnemyDedicatedRole(skillRoleClass, primarySkill)) {
     race = HUMAN_RACE_ID;
   }
@@ -566,13 +570,13 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   if (
     !options.allowOpenDemon &&
     useOptionsState.getState().culturesSet === "highFantasy" &&
-    packRaces?.find(candidate => candidate.i === race)?.key === "demon"
+    raceKeyForId(packRaces, race) === "demon"
   ) {
     race = HUMAN_RACE_ID;
   }
   // Lich is strictly reserved for state rulers of Lich realms, and capped map-wide.
   const currentRaceKey = raceKeyForId(packRaces, race);
-  if (currentRaceKey === "lich") {
+  if (isLichRaceKey(currentRaceKey)) {
     const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
     const state = homeStateId !== undefined ? pack?.states?.[homeStateId] : undefined;
     const stateRaceId = state?.culture === undefined ? cultureHostRace : pack?.cultures?.[state.culture]?.race;
@@ -586,36 +590,17 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
         races: packRaces
       })
     ) {
-      const zombieId = packRaces ? raceIdByKey(packRaces, "zombie") : undefined;
-      const skeletonId = packRaces ? raceIdByKey(packRaces, "skeleton") : undefined;
-      if (zombieId && packRaces?.[zombieId]?.key === "zombie") {
-        race = zombieId;
-      } else if (skeletonId && packRaces?.[skeletonId]?.key === "skeleton") {
-        race = skeletonId;
-      } else {
-        race = HUMAN_RACE_ID;
-      }
+      race = fallbackRaceIdWhenLichDisallowed(packRaces, HUMAN_RACE_ID);
     }
   }
 
   let originalRace: number | undefined;
   const effectiveRaceKey = raceKeyForId(packRaces, race);
-  if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
+  if (isUndeadThrallRaceKey(effectiveRaceKey)) {
     if (options.originalRaceOverride !== undefined) {
       originalRace = options.originalRaceOverride;
     } else {
-      // Exclude Demon, Fallen Angel, Lich, Zombie, Skeleton, and Unknown from mortal base candidates
-      const mortalCandidates = (packRaces ?? []).filter(
-        r =>
-          r.i > 0 &&
-          !r.removed &&
-          r.key !== "demon" &&
-          r.key !== "fallen_angel" &&
-          r.key !== "lich" &&
-          r.key !== "zombie" &&
-          r.key !== "skeleton" &&
-          r.key !== "unknown"
-      );
+      const mortalCandidates = (packRaces ?? []).filter(isEligibleMortalBaseRace);
       if (mortalCandidates.length > 0) {
         originalRace = mortalCandidates[Math.floor(Math.random() * mortalCandidates.length)]!.i;
       } else {
@@ -630,7 +615,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // (e.g. Nobility's rollOfficerAge/rollRulerAge/rollHereditaryHeirAge pre-rolls) — only Nobility
   const isYoungBiased = generationBias === "youngMaleHeavy" || generationBias === "youngFemaleHeavy";
   let age: number;
-  if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
+  if (isUndeadThrallRaceKey(effectiveRaceKey)) {
     const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
     const isClose = isStateCloseToLivingRealm(homeStateId, pack);
     const existingCharacters = options.existingCharacters ?? pack?.characters ?? [];
@@ -790,7 +775,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     // D&D characters do not receive a CK3-style age-derived household roll.
     // Undead (Lich, Zombie, Skeleton) do not marry or reproduce.
     family:
-      usesCk3Systems && effectiveRaceKey !== "lich" && effectiveRaceKey !== "zombie" && effectiveRaceKey !== "skeleton"
+      usesCk3Systems && !isUndeadRaceKey(effectiveRaceKey)
         ? generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race)
         : { ...EMPTY_FAMILY, spouseIds: [], childIds: [] },
     pastTitles: [],

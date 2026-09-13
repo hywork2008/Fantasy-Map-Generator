@@ -20,7 +20,7 @@ import { rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 import { raceCatalog, raceCatalogEntry } from "./data/raceCatalog";
-import { isLichRaceId, undeadAgeCap, youngestLichAge } from "./lichPolicy";
+import { isLichRaceId, isUndeadThrallRaceKey, raceKeyForId, undeadAgeCap, youngestLichAge } from "./lichPolicy";
 
 /** Human reference used when authoring role age bands. */
 export const REFERENCE_HUMAN_LIFESPAN = 75;
@@ -400,8 +400,7 @@ export function enforceUndeadAgeLimits(characters: Character[], pack: PackedGrap
   const minimumLichAge = youngestLichAge(characters, pack.races);
   if (minimumLichAge === undefined) return;
   for (const character of characters) {
-    const raceKey = pack.races.find(race => race.i === character.race)?.key;
-    if (raceKey === "zombie" || raceKey === "skeleton") {
+    if (isUndeadThrallRaceKey(raceKeyForId(pack.races, character.race))) {
       if (character.age >= minimumLichAge) {
         character.age = undeadAgeCap(minimumLichAge);
       }

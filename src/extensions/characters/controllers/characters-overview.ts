@@ -2,6 +2,7 @@ import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../hostRaces";
 import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
+import { isUndeadThrallRaceKey } from "../lichPolicy";
 import { getAbilityValue } from "../personFactory";
 import { useCharactersUiState } from "../ui/charactersUiState";
 import {
@@ -25,36 +26,43 @@ export interface CharacterRowData {
   raceName: string;
 }
 
+type RaceNameRef = Pick<Race, "i" | "name" | "removed"> & { key?: string };
+
+function raceById(
+  races: readonly RaceNameRef[] | null | undefined,
+  raceId: number | undefined | null
+): RaceNameRef | undefined {
+  if (raceId === undefined || raceId === null) return undefined;
+  return races?.find(r => r.i === raceId) ?? races?.[raceId];
+}
+
+function humanRaceDisplayName(races: readonly RaceNameRef[] | null | undefined): string {
+  const human = raceById(races, 1);
+  return human?.name && !human.removed ? human.name : "Human";
+}
+
+function livingRaceDisplayName(
+  race: RaceNameRef | undefined,
+  races: readonly RaceNameRef[] | null | undefined
+): string {
+  if (!race || race.removed || race.i === 0 || race.name === "Unknown") return humanRaceDisplayName(races);
+  return race.name || "Human";
+}
+
 export function resolveCharacterRaceName(
   character: Character,
-  races?: readonly (Pick<Race, "i" | "name" | "removed"> & { key?: string })[] | null,
+  races?: readonly RaceNameRef[] | null,
   cultures?: readonly Pick<Culture, "i" | "race">[] | null
 ): string {
   const raceId = character.race ?? cultures?.[character.culture]?.race;
   // Wildlands / catalog Unknown (0) is not a playable folk — display as Human.
   if (raceId === undefined || raceId === null || raceId === 0) {
-    const human = races?.find(r => r.i === 1) ?? races?.[1];
-    return human?.name && !human.removed ? human.name : "Human";
+    return humanRaceDisplayName(races);
   }
-  const race = races?.find(r => r.i === raceId) ?? races?.[raceId];
-  if (!race || race.removed) {
-    const human = races?.find(r => r.i === 1) ?? races?.[1];
-    return human?.name && !human.removed ? human.name : "Human";
-  }
-  // Catalog slot 0 is literally named "Unknown"
-  if (race.i === 0 || race.name === "Unknown") {
-    const human = races?.find(r => r.i === 1) ?? races?.[1];
-    return human?.name && !human.removed ? human.name : "Human";
-  }
-  const baseName = race.name || "Human";
-  if (race.key === "zombie" || race.key === "skeleton") {
-    const origRaceId = character.originalRace;
-    const origRace =
-      origRaceId !== undefined && origRaceId !== null
-        ? (races?.find(r => r.i === origRaceId) ?? races?.[origRaceId])
-        : undefined;
-    const origName =
-      origRace && !origRace.removed && origRace.name && origRace.name !== "Unknown" ? origRace.name : "Human";
+  const race = raceById(races, raceId);
+  const baseName = livingRaceDisplayName(race, races);
+  if (isUndeadThrallRaceKey(race?.key)) {
+    const origName = livingRaceDisplayName(raceById(races, character.originalRace), races);
     return `${baseName} (${origName})`;
   }
   return baseName;

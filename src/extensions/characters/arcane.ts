@@ -25,6 +25,7 @@ import { getRaceById, HUMAN_SUPERNATURAL, isFantasyCulturesSet, supernaturalForR
 import { gauss, P, rand } from "../hostUtils";
 import type { Character, InfernalAtavismFlavor } from "./characterTypes";
 import { raceCatalogEntry } from "./data/raceCatalog";
+import { isLichRaceKey } from "./lichPolicy";
 import { skillStddevForRace } from "./raceSkillBias";
 
 /** Named-character chance a Human is rolled on the infernal-atavism Arcane table. */
@@ -88,7 +89,7 @@ export function rollCharacterArcane(options: {
   const profile = options.supernatural ?? supernaturalForRaceKey(options.raceKey);
   const cap = Math.max(0, Math.round(profile.arcaneCap));
   if (cap <= 0) return 0;
-  if (options.raceKey === "lich") {
+  if (isLichRaceKey(options.raceKey)) {
     // Lich Arcane is supreme mastery, guaranteed between 92 and 100
     return Math.floor(rand(92, 100));
   }

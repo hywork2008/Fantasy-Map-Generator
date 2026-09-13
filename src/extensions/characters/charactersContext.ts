@@ -14,6 +14,7 @@ import { ck3Preset, dnd5ePreset } from "./abilityPresets";
 import { migrateDemonAges } from "./characterAge";
 import type { AbilityPreset, Character } from "./characterTypes";
 import { raceCatalog } from "./data/raceCatalog";
+import { isLichRaceKey } from "./lichPolicy";
 import {
   buildLoadoutGoodsCatalog,
   FALLBACK_LOADOUT_GOOD_IDS,
@@ -241,7 +242,7 @@ export function isCharacterRaceAllowed(race: Pick<Race, "key"> | undefined): boo
 /** Filter live map races to the extension-wide character roster. Lich is strictly a state ruler and excluded from the general pool. */
 export function filterAllowedCharacterRaces(races: readonly Race[]): Race[] {
   const allowed = new Set(getAllowedCharacterRaceKeys());
-  return races.filter(race => race.i > 0 && !race.removed && allowed.has(race.key) && race.key !== "lich");
+  return races.filter(race => race.i > 0 && !race.removed && allowed.has(race.key) && !isLichRaceKey(race.key));
 }
 
 /**
@@ -265,7 +266,7 @@ export function resolveAllowedCharacterRaceId(raceId: number, races: readonly Ra
     return requested.i;
   }
   // Lich ruler is preserved when explicitly requested for ruler positions.
-  if (requested && !requested.removed && requested.key === "lich") {
+  if (requested && !requested.removed && isLichRaceKey(requested.key)) {
     return requested.i;
   }
   const allowed = new Set(getAllowedCharacterRaceKeys());

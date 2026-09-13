@@ -1,4 +1,5 @@
 import type { Character } from "../../characters/characterTypes";
+import { isLichState } from "../../characters/lichPolicy";
 import type { MilitaryRegiment } from "../../hostTypes";
 import { P } from "../../hostUtils";
 import { getWorldContext } from "../nobilityContext";
@@ -82,9 +83,7 @@ export function assignOfficers(): void {
 
   for (const state of states) {
     if (!state.military?.length) continue;
-    const culture = pack.cultures?.[state.culture];
-    const isLichState = pack.races?.[culture?.race ?? -1]?.key === "lich";
-    if (isLichState) continue;
+    if (isLichState(pack.races, pack.cultures, state)) continue;
 
     const marshal = characters.find(
       c => !c.dead && c.titles.some(t => t.entityType === "state" && t.entityId === state.i && t.title === "Marshal")

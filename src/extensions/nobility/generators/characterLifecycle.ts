@@ -16,7 +16,7 @@ import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
-import { isLichRaceId } from "../../characters/lichPolicy";
+import { isLichState } from "../../characters/lichPolicy";
 import { seedMilitaryWarRecordForPeer, seedMilitaryWarRecords } from "../../characters/militaryWarRecord";
 import {
   combineStateWarlike,
@@ -42,6 +42,7 @@ import {
   selectCentralOffices
 } from "../../characters/raceRoster";
 import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
+import { isReligiousStateForm } from "../../characters/religiousForms";
 import { EXPERTISE_TASKS, evaluateExpertise, specializationScore } from "../../characters/specializations";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import { isEconomyContextReady } from "../../economy/economyContext";
@@ -121,11 +122,7 @@ function isReligiousForm(
   stateData: { form?: string; formName?: string },
   primarySkill?: keyof CharacterSkills
 ): boolean {
-  return (
-    stateData.form === "Theocracy" ||
-    (!!stateData.formName && ["Theocracy", "Holy State", "Bishopric"].includes(stateData.formName)) ||
-    primarySkill === "learning"
-  );
+  return isReligiousStateForm(stateData) || primarySkill === "learning";
 }
 
 function generate(options: { randomSeed?: string | number } = {}): void {
@@ -189,8 +186,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     // Lich realms: Only the immortal Lich ruler holds actual awareness and will.
     // Officials, ministers and commanders are mindless skeletons and zombies acting out
     // routine habits; skip individual character creation (Plan A).
-    const isLichState = isLichRaceId(pack.races, rulerIds.raceId);
-    if (isLichState) {
+    if (isLichState(pack.races, pack.cultures, state)) {
       continue;
     }
 

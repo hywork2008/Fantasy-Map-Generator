@@ -1,6 +1,7 @@
 import type { Race } from "../../types/models";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type { Character, CharacterFlavorHook } from "./characterTypes";
+import { isLichRaceId } from "./lichPolicy";
 
 export type LichPersonalityType =
   | "ancient_tomb_desecrated"
@@ -66,8 +67,7 @@ export function isLichCharacter(character: Character, packRaces?: readonly Race[
   if (!races && hasCharactersContext()) {
     races = getWorldContext().pack?.races;
   }
-  const raceDef = races?.find(r => r.i === character.race) ?? races?.[character.race];
-  return raceDef?.key === "lich";
+  return isLichRaceId(races, character.race);
 }
 
 /**

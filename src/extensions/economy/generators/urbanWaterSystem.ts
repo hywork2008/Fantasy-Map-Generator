@@ -16,6 +16,7 @@
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import i18n from "../../../i18n";
+import { isLichRaceKey } from "../../characters/lichPolicy";
 import { getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
@@ -1076,7 +1077,7 @@ export function computeUrbanWaterSystem(args: {
       wellHygiene * 0.08
   );
 
-  const isUndeadState = raceKeyForBurgState(burg) === "lich";
+  const isUndeadState = isLichRaceKey(raceKeyForBurgState(burg));
   const undeadZombieShare = isUndeadState ? (typeof burg?.zombieShare === "number" ? burg.zombieShare : 0.75) : 0;
 
   const baseSanitationBurden = clamp01(

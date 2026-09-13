@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { isLichRaceKey, raceKeyForId } from "../extensions/characters/lichPolicy";
 import { applyDemographicCasualties } from "../generators/demography-simulator";
 import { CombatDeathsRenderer, moveRegiment } from "../renderers/index";
 import { createMarker } from "../runtime/worldRuntime";
@@ -440,25 +441,22 @@ export class Battle {
     getBattleScreenState().setSidePower(side, this[side].power ? Math.max(this[side].power | 0, 1) : 0);
   }
 
-  isUndeadSide(side: BattleSide): boolean {
+  private sideRaceKey(regiment: { state?: number }): string | undefined {
     const { pack } = worldContext;
-    if (!pack) return false;
-    return this[side].regiments.some(r => {
-      const state = pack.states?.[r.state];
-      const culture = pack.cultures?.[state?.culture ?? 0];
-      const race = pack.races?.[culture?.race ?? 0];
-      return race?.key === "lich";
-    });
+    if (!pack) return undefined;
+    const state = pack.states?.[regiment.state ?? 0];
+    const culture = pack.cultures?.[state?.culture ?? 0];
+    return raceKeyForId(pack.races, culture?.race);
+  }
+
+  isUndeadSide(side: BattleSide): boolean {
+    return this[side].regiments.some(r => isLichRaceKey(this.sideRaceKey(r)));
   }
 
   isInfernalSide(side: BattleSide): boolean {
-    const { pack } = worldContext;
-    if (!pack) return false;
     return this[side].regiments.some(r => {
-      const state = pack.states?.[r.state];
-      const culture = pack.cultures?.[state?.culture ?? 0];
-      const race = pack.races?.[culture?.race ?? 0];
-      return race?.key === "demon" || race?.key === "fallen_angel";
+      const key = this.sideRaceKey(r);
+      return key === "demon" || key === "fallen_angel";
     });
   }
 

@@ -1,6 +1,7 @@
 import type { SimulationContext } from "../context/simulationContext";
 import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
+import { isLichState } from "../extensions/characters/lichPolicy";
 import { useOptionsState } from "../store/optionsState";
 import { getBirthFloorProvider } from "./birthModifiers";
 import { Burgs } from "./burgs-generator";
@@ -86,12 +87,8 @@ function isLiveFrontierExpeditionCell(cellId: number): boolean {
 
 function isUndeadState(stateId: number | undefined): boolean {
   if (!stateId || !worldContext.pack) return false;
-  const state = worldContext.pack.states?.[stateId];
-  if (!state?.culture) return false;
-  const culture = worldContext.pack.cultures?.[state.culture];
-  if (!culture?.race) return false;
-  const race = worldContext.pack.races?.[culture.race];
-  return race?.key === "lich";
+  const { pack } = worldContext;
+  return isLichState(pack.races, pack.cultures, pack.states?.[stateId]);
 }
 
 /**

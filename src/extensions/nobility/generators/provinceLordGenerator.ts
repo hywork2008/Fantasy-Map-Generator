@@ -1,3 +1,4 @@
+import { isLichState } from "../../characters/lichPolicy";
 import { densityForState, shouldGenerateSparseRole } from "../../characters/raceRoster";
 import { analyzeFrontiers, getProvinceThreats } from "../../hostCore";
 import { getCurrentYear, getWorldContext } from "../nobilityContext";
@@ -24,9 +25,7 @@ export function assignProvinceLords(): void {
   const frontierMap = analyzeFrontiers(pack, currentYear);
 
   for (const state of states) {
-    const culture = pack.cultures?.[state.culture];
-    const isLichState = pack.races?.[culture?.race ?? -1]?.key === "lich";
-    if (isLichState) continue;
+    if (isLichState(pack.races, pack.cultures, state)) continue;
 
     const segments = frontierMap.get(state.i);
     if (!segments?.length) continue;

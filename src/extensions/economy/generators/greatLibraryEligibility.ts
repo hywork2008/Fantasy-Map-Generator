@@ -7,6 +7,7 @@
  */
 
 import type { CharacterCommitment, CommitmentKind } from "../../characters/characterTypes";
+import { isReligiousStateForm } from "../../characters/religiousForms";
 import {
   GREAT_LIBRARY_BUDGET_SHARE,
   GREAT_LIBRARY_CULTURE_MIN,
@@ -72,14 +73,12 @@ export function commitmentScholarshipAffinity(commitment: CharacterCommitment | 
 
 /**
  * True for state forms whose central patronage should weigh piety alongside rationality
- * (docs/plan/great-library.md KD-3, r4 product decision). Deliberately mirrors only the
- * form/formName branches of characterLifecycle.ts's isReligiousForm — its `primarySkill ===
- * "learning"` branch is for central-office personality rolls, not state-form classification.
+ * (docs/plan/great-library.md KD-3, r4 product decision). Uses the shared form/formName
+ * classifier; characterLifecycle.ts's extra `primarySkill === "learning"` branch is for
+ * central-office personality rolls, not state-form classification.
  */
 export function isGreatLibraryTheocracyState(state: { form?: string; formName?: string }): boolean {
-  if (state.form === "Theocracy") return true;
-  if (state.formName && ["Theocracy", "Holy State", "Bishopric"].includes(state.formName)) return true;
-  return false;
+  return isReligiousStateForm(state);
 }
 
 export interface GreatLibraryRulerScoreInput {

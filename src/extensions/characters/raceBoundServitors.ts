@@ -20,6 +20,7 @@
 import type { Race, RaceKey } from "../../types/models";
 import { raceIdByKey } from "../hostRaces";
 import { raceCatalog } from "./data/raceCatalog";
+import { isLichRaceKey } from "./lichPolicy";
 
 export interface BoundServitorSpec {
   raceKey: string;
@@ -97,7 +98,7 @@ export function roleUsesBoundServitor(
     // Under Demon realm: commanders, merchants and ordinary civilians
     return roleClass === "commander" || roleClass === "merchant" || roleClass === "ordinary";
   }
-  if (hostRaceKey === "lich") {
+  if (isLichRaceKey(hostRaceKey)) {
     // Under Lich realm: strictly only state rulers are pure Lich. All other roles are undead servitors.
     return roleClass !== "ruler";
   }
@@ -160,9 +161,9 @@ export function resolveRaceIdWithBoundServitor(
   }
 
   // Lich realms have undead thrall role stratifications:
-  // - Rulers: pure Lich (strictly limited to state rulers, max 2 across map)
+  // - Rulers: pure Lich (strictly limited to state rulers; map-wide cap is lichPolicy.MAX_LICHES_PER_MAP)
   // - All other roles (commanders, province lords, merchants, ordinary, officers): majority Zombie (~65%), balance Skeleton (~35%)
-  if (host?.key === "lich") {
+  if (isLichRaceKey(host?.key)) {
     const skeletonId = raceIdByKey(races, "skeleton");
     const zombieId = raceIdByKey(races, "zombie");
     const hasSkeleton = races[skeletonId]?.key === "skeleton";

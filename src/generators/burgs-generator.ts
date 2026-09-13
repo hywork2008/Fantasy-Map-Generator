@@ -16,7 +16,7 @@ import {
   isSnowBiome
 } from "../data/biomeCatalog";
 import { getRaceById } from "../data/races";
-import { isLichRaceId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
+import { isLichCultureId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
@@ -824,10 +824,7 @@ class BurgModule {
       const capitalsNumber = getCapitalsNumber();
       let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / capitalsNumber; // min distance between capitals
 
-      const isLichCultureId = (cultureId: number): boolean => {
-        const culture = pack.cultures?.[cultureId];
-        return isLichRaceId(pack.races, culture?.race);
-      };
+      const cultureIsLich = (cultureId: number): boolean => isLichCultureId(pack.races, pack.cultures, cultureId);
 
       let attempts = 0;
       for (let i = 0; burgs.length <= capitalsNumber; i++) {
@@ -847,9 +844,9 @@ class BurgModule {
 
         const cell = sorted[i];
         const cultureId = cells.culture[cell];
-        const isLich = isLichCultureId(cultureId);
+        const isLich = cultureIsLich(cultureId);
         const currentLichCount = isLich
-          ? burgs.filter(b => b?.cell !== undefined && isLichCultureId(cells.culture[b.cell])).length
+          ? burgs.filter(b => b?.cell !== undefined && cultureIsLich(cells.culture[b.cell])).length
           : 0;
         const hasCultureCapital = isLich
           ? burgs.some(b => b?.cell !== undefined && cells.culture[b.cell] === cultureId)
@@ -989,12 +986,12 @@ class BurgModule {
       if (!pack.cultures?.length) return;
       const lichCultures = pack.cultures.filter(c => {
         if (!c.i || c.removed) return false;
-        return isLichRaceId(pack.races, c.race);
+        return isLichCultureId(pack.races, pack.cultures, c.i);
       });
 
       for (const culture of lichCultures) {
         const currentLichCapitals = burgs.filter(
-          b => b.i && b.capital && isLichRaceId(pack.races, pack.cultures?.[cells.culture[b.cell]]?.race)
+          b => b.i && b.capital && isLichCultureId(pack.races, pack.cultures, cells.culture[b.cell])
         ).length;
         if (currentLichCapitals >= MAX_LICHES_PER_MAP) break;
         if (burgs.some(burg => burg.i && burg.capital && cells.culture[burg.cell] === culture.i)) continue;
