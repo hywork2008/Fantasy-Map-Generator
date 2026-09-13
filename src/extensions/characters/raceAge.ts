@@ -17,6 +17,7 @@ import {
 } from "../hostRaces";
 import { rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
+import type { Character } from "./characterTypes";
 import { raceCatalog, raceCatalogEntry } from "./data/raceCatalog";
 
 /** Human reference used when authoring role age bands. */
@@ -358,28 +359,55 @@ export interface RollUndeadAgeOptions {
  */
 export function rollUndeadAge(options: RollUndeadAgeOptions): number {
   const { raceKey, originalRaceId, isCloseToLivingState, lichAge = 3000 } = options;
+  const safeLichAge = Math.max(10, lichAge);
 
   if (isCloseToLivingState) {
     // Near living realm: similar to living adults
+    let age: number;
     if (raceKey === "zombie") {
       // Zombies still have decaying flesh — recent deceased adults (20-55 human equivalent)
-      return rollRaceAgeFromHumanBand(originalRaceId, 20, 55);
+      age = rollRaceAgeFromHumanBand(originalRaceId, 20, 55);
+    } else {
+      // Skeletons are fleshless but still relatively recent remains (25-70 human equivalent)
+      age = rollRaceAgeFromHumanBand(originalRaceId, 25, 70);
     }
-    // Skeletons are fleshless but still relatively recent remains (25-70 human equivalent)
-    return rollRaceAgeFromHumanBand(originalRaceId, 25, 70);
+    return Math.min(age, safeLichAge - 1);
   }
 
   // Distant / isolated: ancient thralls strictly younger than the Lich master
-  const safeLichAge = Math.max(100, lichAge);
   if (raceKey === "skeleton") {
-    // Skeletons are older remains (e.g. 30% to 95% of Lich age)
-    const minAge = Math.max(80, Math.floor(safeLichAge * 0.3));
-    const maxAge = Math.max(minAge + 10, Math.floor(safeLichAge * 0.95));
-    return rand(minAge, maxAge);
+    // Skeletons are older remains (e.g. 20% to 90% of Lich age)
+    const minAge = Math.max(15, Math.floor(safeLichAge * 0.2));
+    const maxAge = Math.max(minAge + 1, Math.floor(safeLichAge * 0.9));
+    const age = rand(minAge, maxAge);
+    return Math.min(age, safeLichAge - 1);
   }
 
-  // Zombies: sustained by ancient necromancy (e.g. 10% to 75% of Lich age)
-  const minAge = Math.max(40, Math.floor(safeLichAge * 0.1));
-  const maxAge = Math.max(minAge + 10, Math.floor(safeLichAge * 0.75));
-  return rand(minAge, maxAge);
+  // Zombies: sustained by ancient necromancy (e.g. 10% to 70% of Lich age)
+  const minAge = Math.max(10, Math.floor(safeLichAge * 0.1));
+  const maxAge = Math.max(minAge + 1, Math.floor(safeLichAge * 0.7));
+  const age = rand(minAge, maxAge);
+  return Math.min(age, safeLichAge - 1);
+}
+
+/**
+ * Enforces that all Zombie and Skeleton characters across the roster are strictly
+ * younger than their sovereign Lich and any Lich on the map.
+ */
+export function enforceUndeadAgeLimits(characters: Character[], pack: Pack): void {
+  if (!characters?.length || !pack?.races?.length) return;
+  const liches = characters.filter(c => pack.races?.[c.race]?.key === "lich");
+  if (liches.length === 0) return;
+
+  const minLichAge = Math.min(...liches.map(l => l.age));
+  for (const character of characters) {
+    const raceKey = pack.races?.[character.race]?.key;
+    if (raceKey === "zombie" || raceKey === "skeleton") {
+      const stateLich = character.state !== undefined ? liches.find(l => l.state === character.state) : undefined;
+      const effectiveLimit = stateLich ? Math.min(stateLich.age, minLichAge) : minLichAge;
+      if (character.age >= effectiveLimit) {
+        character.age = Math.max(1, effectiveLimit - 1);
+      }
+    }
+  }
 }

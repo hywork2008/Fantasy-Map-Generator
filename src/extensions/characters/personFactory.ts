@@ -564,17 +564,31 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   ) {
     race = HUMAN_RACE_ID;
   }
-  // Lich is strictly reserved for state rulers. Non-ruler roles fall back to undead servitors or human.
+  // Lich is strictly reserved for state rulers of Lich realms, and max 2 across the entire map.
   const currentRaceKey = packRaces?.find(candidate => candidate.i === race)?.key;
-  if (currentRaceKey === "lich" && skillRoleClass !== "ruler") {
-    const zombieId = packRaces ? raceIdByKey(packRaces, "zombie") : undefined;
-    const skeletonId = packRaces ? raceIdByKey(packRaces, "skeleton") : undefined;
-    if (zombieId && packRaces?.[zombieId]?.key === "zombie") {
-      race = zombieId;
-    } else if (skeletonId && packRaces?.[skeletonId]?.key === "skeleton") {
-      race = skeletonId;
-    } else {
-      race = HUMAN_RACE_ID;
+  if (currentRaceKey === "lich") {
+    const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
+    const existingLiches = (pack?.characters ?? []).filter(c => pack?.races?.[c.race]?.key === "lich");
+    const state = homeStateId !== undefined ? pack?.states?.[homeStateId] : undefined;
+    const stateCulture = state?.culture !== undefined ? pack?.cultures?.[state.culture] : undefined;
+    const isStateLichCulture = stateCulture
+      ? pack?.races?.[stateCulture.race]?.key === "lich"
+      : pack?.races?.[cultureHostRace]?.key === "lich";
+
+    const isLichPermitted =
+      skillRoleClass === "ruler" &&
+      (options.raceOverride !== undefined || isStateLichCulture) &&
+      existingLiches.length < 2;
+    if (!isLichPermitted) {
+      const zombieId = packRaces ? raceIdByKey(packRaces, "zombie") : undefined;
+      const skeletonId = packRaces ? raceIdByKey(packRaces, "skeleton") : undefined;
+      if (zombieId && packRaces?.[zombieId]?.key === "zombie") {
+        race = zombieId;
+      } else if (skeletonId && packRaces?.[skeletonId]?.key === "skeleton") {
+        race = skeletonId;
+      } else {
+        race = HUMAN_RACE_ID;
+      }
     }
   }
 
@@ -608,18 +622,27 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).
   // A generationBias request always wins the age roll, even over a caller-supplied ageOverride
   // (e.g. Nobility's rollOfficerAge/rollRulerAge/rollHereditaryHeirAge pre-rolls) — only Nobility
-  // ever passes generationBias, so this never surprises any other createPerson caller.
   const isYoungBiased = generationBias === "youngMaleHeavy" || generationBias === "youngFemaleHeavy";
   let age: number;
-  if (isYoungBiased) {
-    age = rollYoungAdultAge(race);
-  } else if (ageOverride !== undefined) {
-    age = ageOverride;
-  } else if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
+  if (effectiveRaceKey === "zombie" || effectiveRaceKey === "skeleton") {
     const pack = hasCharactersContext() ? getWorldContext().pack : undefined;
     const isClose = isStateCloseToLivingRealm(homeStateId, pack);
-    const ruler = pack?.characters?.find(c => c.state === homeStateId && pack.races?.[c.race]?.key === "lich");
-    const lichAge = ruler?.age ?? rollRulerAge(pack?.races ? raceIdByKey(pack.races, "lich") : undefined);
+    const allLiches = (pack?.characters ?? []).filter(c => pack?.races?.[c.race]?.key === "lich");
+    const ruler = homeStateId !== undefined ? allLiches.find(c => c.state === homeStateId) : undefined;
+
+    let lichAge: number;
+    if (ruler?.age) {
+      lichAge = ruler.age;
+    } else if (allLiches.length > 0) {
+      lichAge = Math.min(...allLiches.map(l => l.age));
+    } else {
+      lichAge = Math.min(2000, rollRulerAge(pack?.races ? raceIdByKey(pack.races, "lich") : undefined));
+    }
+
+    if (allLiches.length > 0) {
+      const minLichAge = Math.min(...allLiches.map(l => l.age));
+      lichAge = Math.min(lichAge, minLichAge);
+    }
 
     age = rollUndeadAge({
       raceKey: effectiveRaceKey,
@@ -627,6 +650,15 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
       isCloseToLivingState: isClose,
       lichAge
     });
+
+    // If a custom player character ageOverride was supplied, ensure it still cannot exceed lichAge
+    if (ageOverride !== undefined && options.roleClass !== "commander" && options.roleClass !== "province_lord") {
+      age = Math.min(ageOverride, Math.max(1, lichAge - 1));
+    }
+  } else if (isYoungBiased) {
+    age = rollYoungAdultAge(race);
+  } else if (ageOverride !== undefined) {
+    age = ageOverride;
   } else {
     age = rollDefaultAdultAge(race);
   }

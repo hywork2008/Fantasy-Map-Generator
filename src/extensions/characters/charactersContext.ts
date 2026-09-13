@@ -233,9 +233,9 @@ export function setAllowedCharacterRaceKeys(keys: Iterable<string>, persist = tr
   return true;
 }
 
-/** Whether a race is enabled for new character creation and NPC appearance. */
+/** Whether a race is enabled for new character creation and NPC appearance. Lich is strictly excluded from the general pool. */
 export function isCharacterRaceAllowed(race: Pick<Race, "key"> | undefined): boolean {
-  return race !== undefined && getAllowedCharacterRaceKeys().includes(race.key);
+  return race !== undefined && race.key !== "lich" && getAllowedCharacterRaceKeys().includes(race.key);
 }
 
 /** Filter live map races to the extension-wide character roster. Lich is strictly a state ruler and excluded from the general pool. */

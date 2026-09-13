@@ -297,4 +297,110 @@ describe("Lich undead realms generation", () => {
     clearNobilityContext();
     clearCharactersContext();
   });
+
+  it("prevents over-generating Lich capitals even when Lich territory has widespread high-suitability cells", () => {
+    stubGraphData();
+    // Cells 1-50 are Lich culture with highest suitability
+    for (let i = 1; i <= 50; i++) {
+      worldContext.pack.cells.culture[i] = 1; // Lich culture Morbane
+      worldContext.pack.cells.s[i] = 100; // top suitability
+    }
+    // Cells 51-100 are Human culture with high suitability
+    for (let i = 51; i <= 100; i++) {
+      worldContext.pack.cells.culture[i] = 2; // Human culture
+      worldContext.pack.cells.s[i] = 80;
+    }
+    useOptionsState.setState({ statesNumber: 5, culturesSet: "darkFantasy" });
+
+    Burgs.generate(worldContext, viewContext, appServices, {
+      pack: worldContext.pack,
+      grid: worldContext.grid
+    } as never);
+
+    const lichCapitals = worldContext.pack.burgs.filter(
+      b => b.i && b.capital && worldContext.pack.cells.culture[b.cell] === 1
+    );
+    // Must strictly be capped at 1 for this culture (max 2 across the map)
+    expect(lichCapitals.length).toBe(1);
+  });
+
+  it("ensures undead age is strictly younger than the Lich master and maximum Lich age when multiple Liches exist", () => {
+    stubGraphData();
+    const races = worldContext.pack.races;
+    const lichRaceId = raceIdByKey(races, "lich");
+
+    // Add a second Lich culture (Ossuaria)
+    worldContext.pack.cultures.push({
+      i: 3,
+      name: "Ossuaria",
+      race: lichRaceId,
+      center: 200,
+      shield: ""
+    });
+    worldContext.pack.cells.culture[200] = 3;
+    worldContext.pack.cells.s[200] = 80;
+
+    useOptionsState.setState({ statesNumber: 5, culturesSet: "darkFantasy" });
+
+    Burgs.generate(worldContext, viewContext, appServices, {
+      pack: worldContext.pack,
+      grid: worldContext.grid
+    } as never);
+    worldContext.pack.states = (States as any).createStates();
+
+    const api = { worldContext, simulationContext: { extensions: {} } } as unknown as ExtensionAPI;
+    initNobilityContext(api);
+    initCharactersContext(api);
+
+    Characters.generate({ randomSeed: 12345 });
+
+    const lichCharacters = (worldContext.pack.characters ?? []).filter(
+      c => worldContext.pack.races?.[c.race]?.key === "lich"
+    );
+    expect(lichCharacters.length).toBeGreaterThanOrEqual(1);
+    expect(lichCharacters.length).toBeLessThanOrEqual(2);
+
+    const _maxLichAge = Math.max(...lichCharacters.map(l => l.age));
+    const minLichAge = Math.min(...lichCharacters.map(l => l.age));
+    const lichState1 = worldContext.pack.states.find(s => s.culture === 1);
+    const lich1Ruler = lichCharacters.find(l => l.state === lichState1?.i);
+
+    // Isolate Lich realm
+    if (lichState1) {
+      lichState1.neighbors = [0];
+      for (const s of worldContext.pack.states) {
+        if (s.i !== lichState1.i && worldContext.pack.burgs?.[s.capital]) {
+          worldContext.pack.burgs[s.capital].x = 9000;
+          worldContext.pack.burgs[s.capital].y = 9000;
+        }
+      }
+
+      // Generate several undead thralls in Lich state 1
+      for (let i = 0; i < 20; i++) {
+        const undead = createPerson(2000 + i, lichState1.culture, {
+          homeStateId: lichState1.i,
+          roleClass: "ordinary"
+        });
+        expect(["zombie", "skeleton"]).toContain(worldContext.pack.races?.[undead.race]?.key);
+        // Must be younger than its own state's Lich master
+        if (lich1Ruler) {
+          expect(undead.age).toBeLessThan(lich1Ruler.age);
+        }
+        // Must never exceed any Lich across the map, even if caller passed high ageOverride
+        expect(undead.age).toBeLessThan(minLichAge);
+      }
+
+      // Even if created with a massive ageOverride (e.g. from rollOfficerAge/rollRulerAge), undead age is clamped
+      const commanderUndead = createPerson(3000, lichState1.culture, {
+        homeStateId: lichState1.i,
+        roleClass: "commander",
+        ageOverride: 8500
+      });
+      expect(["zombie", "skeleton"]).toContain(worldContext.pack.races?.[commanderUndead.race]?.key);
+      expect(commanderUndead.age).toBeLessThan(minLichAge);
+    }
+
+    clearNobilityContext();
+    clearCharactersContext();
+  });
 });

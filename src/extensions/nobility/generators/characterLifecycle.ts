@@ -27,6 +27,7 @@ import { createPerson, enforcePerfectAppearanceCap } from "../../characters/pers
 import {
   careerStartAge,
   directChildAgeGap,
+  enforceUndeadAgeLimits,
   isRaceMinor,
   rollElectedAdultAge,
   rollHereditaryHeirAge,
@@ -181,6 +182,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
       birthBurgId: state.capital
     });
     characters.push(ruler);
+    pack.characters = characters;
     setRulerId(state, ruler.i);
 
     // Lich realms: Only the immortal Lich ruler holds actual awareness and will.
@@ -252,6 +254,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   });
   pack.dynasties = dynasties;
 
+  enforceUndeadAgeLimits(characters, pack);
   pack.characters = characters;
   if (isEconomyContextReady()) FortificationMastery.generate();
   TIME && console.timeEnd("generateCharacters");

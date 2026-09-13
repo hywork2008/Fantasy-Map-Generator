@@ -823,22 +823,44 @@ class BurgModule {
       const capitalsNumber = getCapitalsNumber();
       let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / capitalsNumber; // min distance between capitals
 
+      const isLichCultureId = (cultureId: number): boolean => {
+        const culture = pack.cultures?.[cultureId];
+        return pack.races?.[culture?.race ?? -1]?.key === "lich";
+      };
+
+      let attempts = 0;
       for (let i = 0; burgs.length <= capitalsNumber; i++) {
-        const cell = sorted[i];
-        const [x, y] = cells.p[cell];
-
-        if (burgsQuadtree.find(x, y, spacing) === undefined) {
-          burgs.push({ cell, x, y });
-          burgsQuadtree.add([x, y]);
-        }
-
-        // reset if all cells were checked
-        if (i === sorted.length - 1) {
+        if (i >= sorted.length - 1) {
+          attempts++;
+          if (attempts > 15 || spacing < 1) {
+            WARN && console.warn("Cannot place more capitals even with reduced spacing. Stopping placement.");
+            break;
+          }
           WARN && console.warn("Cannot place capitals with current spacing. Trying again with reduced spacing");
           burgsQuadtree = quadtree();
           i = -1;
           burgs = [0 as unknown as Burg];
           spacing /= 1.2;
+          continue;
+        }
+
+        const cell = sorted[i];
+        const cultureId = cells.culture[cell];
+        const isLich = isLichCultureId(cultureId);
+        const currentLichCount = isLich
+          ? burgs.filter(b => b?.cell !== undefined && isLichCultureId(cells.culture[b.cell])).length
+          : 0;
+        const hasCultureCapital = isLich
+          ? burgs.some(b => b?.cell !== undefined && cells.culture[b.cell] === cultureId)
+          : false;
+
+        if (!isLich || (!hasCultureCapital && currentLichCount < 2)) {
+          const [x, y] = cells.p[cell];
+
+          if (burgsQuadtree.find(x, y, spacing) === undefined) {
+            burgs.push({ cell, x, y });
+            burgsQuadtree.add([x, y]);
+          }
         }
       }
 
@@ -971,6 +993,10 @@ class BurgModule {
       });
 
       for (const culture of lichCultures) {
+        const currentLichCapitals = burgs.filter(
+          b => b.i && b.capital && pack.races?.[cells.culture[b.cell]]?.key === "lich"
+        ).length;
+        if (currentLichCapitals >= 2) break;
         if (burgs.some(burg => burg.i && burg.capital && cells.culture[burg.cell] === culture.i)) continue;
         const centerCell = culture.center;
         if (centerCell === undefined || centerCell < 0) continue;
