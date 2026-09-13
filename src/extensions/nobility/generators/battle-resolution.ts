@@ -1,3 +1,4 @@
+import { getFormationMatchupFactor, resolveBattleFormations } from "../../../data/militaryFormations";
 import {
   isFantasySupernaturalEnabled,
   mundaneIncomingCasualtyFactor,
@@ -21,10 +22,12 @@ import {
   captureBurg,
   commanderPowerMultiplier,
   fortificationAttackRatio,
+  getClusterCommander,
   isBurgFortified,
   occupyingDisciplineMultiplier,
   regimentDistanceTo,
-  regimentReinforcementRadius
+  regimentReinforcementRadius,
+  sumClusterTroops
 } from "./localDefense";
 import { getRegimentCommander } from "./officerAssignment";
 
@@ -130,6 +133,20 @@ export const BattleResolutionGenerator = {
       }
     }
 
+    const troopsA = sumClusterTroops(attackingRegiments);
+    const troopsB = sumClusterTroops(arrivedDefendingRegiments);
+    troopsB.infantry = (troopsB.infantry ?? 0) + cityGarrison;
+    const formations = resolveBattleFormations(
+      getClusterCommander(characters, attackingRegiments),
+      troopsA,
+      getClusterCommander(characters, arrivedDefendingRegiments),
+      troopsB,
+      () => appServices.rng.rand()
+    );
+    const militiaOnly = defendingForceArrived <= cityGarrison * 1.5;
+    attackerPower *= getFormationMatchupFactor(formations.formationA, formations.formationB, troopsA, troopsB);
+    defendingForceArrived *= getFormationMatchupFactor(formations.formationB, formations.formationA, troopsB, troopsA);
+
     // Snapshot the actual participants before casualties change their troop mix or command scale.
     const participants = [...attackingRegiments, ...arrivedDefendingRegiments].map(regiment => ({
       regiment,
@@ -148,7 +165,7 @@ export const BattleResolutionGenerator = {
     let cityCaptured = false;
 
     // A bloodless fall requires the defenders to be caught off-guard (militia only) AND the attackers to be overwhelmingly stronger
-    if (defendingForceArrived <= cityGarrison * 1.5 && attackerPower >= Math.max(1, defendingForceArrived) * 1.5) {
+    if (militiaOnly && attackerPower >= Math.max(1, defendingForceArrived) * 1.5) {
       // BLOODLESS FALL: Only the local militia was there, and they surrender to overwhelming force.
       console.warn(
         `⚔️ BLOODLESS FALL! The siege on ${targetBurg.name} was a total surprise. Defenders couldn't arrive in time.`

@@ -8,6 +8,7 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { ensureBiomeCatalogFields } from "../data/biomeCatalog";
+import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
 import type { BiomesData } from "../types/WorldState";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
@@ -440,6 +441,9 @@ function migrateWorldOptions(world: unknown): void {
   world.options.frontierStartMode = normalizeFrontierStartMode(world.options.frontierStartMode);
   world.options.frontierPolitySpacing = normalizeFrontierPolitySpacing(world.options.frontierPolitySpacing);
   delete world.options.initialPolityScope;
+  if (Array.isArray(world.options.military)) {
+    world.options.military = ensureCoreMilitaryUnits(world.options.military);
+  }
 }
 
 /**

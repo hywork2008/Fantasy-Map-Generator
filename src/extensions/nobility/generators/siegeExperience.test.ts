@@ -15,6 +15,9 @@ vi.mock("../../hostCore", () => ({
   applyDemographicCasualties: vi.fn()
 }));
 vi.mock("./localDefense", () => ({
+  // This test isolates experience recording from tactical outcomes.
+  getClusterCommander: () => undefined,
+  sumClusterTroops: (regiments: MilitaryRegiment[]) => ({ infantry: regiments.reduce((sum, r) => sum + r.a, 0) }),
   calculateEffectiveSiegePower: (regiment: MilitaryRegiment) => regiment.a,
   captureBurg: vi.fn(),
   commanderPowerMultiplier: () => 1,

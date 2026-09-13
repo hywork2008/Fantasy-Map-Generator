@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MilitaryUnit } from "../types/models";
+import type { MilitaryFormation, MilitaryUnit } from "../types/models";
 
 export type BattleSide = "attackers" | "defenders";
 
@@ -24,6 +24,9 @@ export interface BattleForcesDisplay {
   power: number;
   phase: string;
   die: number;
+  formation?: MilitaryFormation;
+  commanderName?: string;
+  advantage?: "advantaged" | "disadvantaged" | "even";
 }
 
 interface BattleScreenState {
@@ -40,6 +43,7 @@ interface BattleScreenStore extends BattleScreenState {
   setBattleState: (patch: Partial<BattleScreenState>) => void;
   setSideDie: (side: BattleSide, die: number) => void;
   setSidePhase: (side: BattleSide, phase: string) => void;
+  setSideFormation: (side: BattleSide, formation: MilitaryFormation) => void;
   setSideMorale: (side: BattleSide, morale: number) => void;
   setSidePower: (side: BattleSide, power: number) => void;
   addRegimentToSide: (side: BattleSide, regiment: BattleRegimentDisplay) => void;
@@ -83,6 +87,11 @@ export const useBattleScreenState = create<BattleScreenStore>()(set => ({
   setSidePhase: (side, phase) =>
     set(state => ({
       [side]: { ...state[side], phase }
+    })),
+
+  setSideFormation: (side, formation) =>
+    set(state => ({
+      [side]: { ...state[side], formation }
     })),
 
   setSideMorale: (side, morale) =>

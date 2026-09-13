@@ -127,6 +127,14 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
     }
   });
 
+  it("applies spear-square counters to the outcome of an automatic siege", () => {
+    makeEvenFightPack();
+    // Raw 100:90 cannot reach the 1.5 capture threshold; square vs wedge can.
+    worldContext.pack.states[1].military![0].u = { spearmen: 100 };
+    BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
+    expect(worldContext.pack.burgs[5].state).toBe(1);
+  });
+
   function makeEvenFightPack() {
     worldContext.pack = {
       cells: {

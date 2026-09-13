@@ -60,7 +60,6 @@ const SOVEREIGN_STEM_BY_TITLE: Readonly<Record<string, SovereignEpithetStem>> = 
 
 const WAR_GOD_TITLE_RE = /^(Marshal|General|Minister of War|Commander|Admiral|Warlord|Shogun)$/i;
 const WAR_CONDUCT_TITLE_RE = /^(Marshal|General|Minister of War|Commander|Admiral|Warlord|Shogun)$/i;
-const _SPY_TITLE_RE = /spymaster|spy\b|intelligence|secretar.*state|whisper/i;
 const INFLECTED_IDS = new Set(["wise_king", "foolish_king"]);
 
 export function isSovereignRuler(character: Pick<Character, "titles">): boolean {

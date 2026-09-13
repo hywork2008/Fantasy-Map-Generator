@@ -1,3 +1,4 @@
+import { getFormationMatchupFactor, resolveBattleFormations } from "../../../data/militaryFormations";
 import {
   isFantasySupernaturalEnabled,
   mundaneIncomingCasualtyFactor,
@@ -20,9 +21,11 @@ import {
   canOccupyBurg,
   captureBurg,
   commanderPowerMultiplier,
+  getClusterCommander,
   occupyingDisciplineMultiplier,
   regimentDistanceTo,
-  regimentReinforcementRadius
+  regimentReinforcementRadius,
+  sumClusterTroops
 } from "./localDefense";
 
 /**
@@ -214,6 +217,28 @@ export class LocalSkirmishGenerator {
             let powerB = 0;
             for (const r of regsB)
               powerB += calculateRegimentPower(r, militaryOptions) * commanderPowerMultiplier(characters, r);
+
+            const clusterTroopsA = sumClusterTroops(regsA);
+            const clusterTroopsB = sumClusterTroops(regsB);
+            const cmdA = getClusterCommander(characters, regsA);
+            const cmdB = getClusterCommander(characters, regsB);
+            const formations = resolveBattleFormations(cmdA, clusterTroopsA, cmdB, clusterTroopsB, () =>
+              appServices.rng.rand()
+            );
+            const factorA = getFormationMatchupFactor(
+              formations.formationA,
+              formations.formationB,
+              clusterTroopsA,
+              clusterTroopsB
+            );
+            const factorB = getFormationMatchupFactor(
+              formations.formationB,
+              formations.formationA,
+              clusterTroopsB,
+              clusterTroopsA
+            );
+            powerA *= factorA;
+            powerB *= factorB;
 
             // Isolation protection: if the weaker side of this matchup still has reinforcement
             // reachable from the rest of its state's army, leave the encounter to the formal

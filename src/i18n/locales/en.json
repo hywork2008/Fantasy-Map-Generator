@@ -5004,5 +5004,22 @@
         "seagrassMeadow": "Seagrass meadow"
       }
     }
+  },
+  "militaryFormations": {
+    "commander": "Commander: {{name}}",
+    "noCommander": "No commander",
+    "noCommanderDesc": "Without a commander, troops are more likely to be outmaneuvered.",
+    "square": "Square",
+    "wedge": "Wedge",
+    "line": "Line",
+    "loose": "Loose Order",
+    "squareDesc": "Defensive formation. Counters wedge shock and cavalry charges, but vulnerable to line envelopment. Spearmen greatly enhance defense.",
+    "wedgeDesc": "Shock penetration formation. Counters line fronts with concentrated punch, but repulsed with heavy loss by square hedgehogs.",
+    "lineDesc": "Linear firepower formation. Envelops and barrages squares, but vulnerable to wedge spearhead breakthroughs.",
+    "looseDesc": "Skirmishing flexible formation. Harasses and probes squares, but vulnerable to line firepower and wedge shock.",
+    "advantaged": "Advantaged",
+    "disadvantaged": "Disadvantaged",
+    "even": "Even",
+    "spearmen": "Spearmen"
   }
 }

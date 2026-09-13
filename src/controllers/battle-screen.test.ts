@@ -241,3 +241,42 @@ describe("Battle — armored/aviation combat resolution (docs/plan/military-era-
     expect(undeadRegiment.survivors.infantry).toBe(initialUndeadSurvivors + humanDied);
   });
 });
+
+describe("Battle formation refresh", () => {
+  it("updates the opponent's spear bonus after cavalry reinforcements", () => {
+    worldContext.options = { military: Military.getDefaultOptions() } as never;
+    worldContext.populationRate = 1;
+    worldContext.pack = { states: [], characters: [] } as never;
+    const battle = makeBattleContext();
+    battle.attackers.regiments = [makeRegiment({ spearmen: 100 })] as never;
+    battle.defenders.regiments = [makeRegiment({ infantry: 100 })] as never;
+    battle.attackers.formation = "square";
+    battle.defenders.formation = "line";
+    battle.attackers.phase = battle.defenders.phase = "melee";
+    battle.refreshForces();
+    const before = battle.attackers.power;
+    battle.defenders.regiments.push(makeRegiment({ cavalry: 100 }) as never);
+    battle.refreshForces();
+    expect(battle.attackers.power).toBeGreaterThan(before);
+    expect(battle.attackers.advantage).toBe("even");
+  });
+
+  it("recognizes a reinforcing commander and drops one whose troops are gone", () => {
+    const commander = { i: 9, name: "General", skills: { martial: 90 }, dead: false };
+    worldContext.pack = { states: [], characters: [commander] } as never;
+    const battle = makeBattleContext();
+    battle.attackers.regiments = [makeRegiment({ infantry: 100 })] as never;
+    battle.defenders.regiments = [makeRegiment({ spearmen: 100 })] as never;
+    battle.attackers.phase = battle.defenders.phase = "melee";
+    battle.initFormations();
+    expect(battle.attackers.commander).toBeUndefined();
+    const reinforcement = makeRegiment({ infantry: 100 }, { commanderId: 9 });
+    battle.attackers.regiments.push(reinforcement as never);
+    battle.refreshForces();
+    expect(battle.attackers.commander?.name).toBe("General");
+    expect(battle.attackers.advantage).toBe("advantaged");
+    (reinforcement as any).survivors.infantry = 0;
+    battle.refreshForces();
+    expect(battle.attackers.commander).toBeUndefined();
+  });
+});

@@ -7,6 +7,7 @@ import {
   battleAction_addSide,
   battleAction_applyResults,
   battleAction_cancelResults,
+  battleAction_changeFormation,
   battleAction_changeName,
   battleAction_changePhase,
   battleAction_changePlace,
@@ -19,11 +20,13 @@ import {
   battleAction_showNameSection,
   battleAction_wiki
 } from "../../controllers/battle-screen";
+import { FORMATION_INFO } from "../../data/militaryFormations";
 import { tip } from "../../services/tooltipService";
 import type { BattleRegimentDisplay, BattleSide } from "../../store/battleScreenState";
 import { useBattleScreenState } from "../../store/battleScreenState";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
+import type { MilitaryFormation } from "../../types/models";
 import { applySorting } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
@@ -159,6 +162,102 @@ const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhas
   );
 };
 
+const FORMATION_OPTIONS = Object.values(FORMATION_INFO);
+
+interface FormationPickerProps {
+  side: BattleSide;
+  currentFormation?: MilitaryFormation;
+  advantage?: "advantaged" | "disadvantaged" | "even";
+}
+
+const FormationPicker: React.FC<FormationPickerProps> = ({ side, currentFormation = "line", advantage = "even" }) => {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const current = FORMATION_INFO[currentFormation];
+
+  const handleToggle = (ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    setOpen(prev => !prev);
+  };
+
+  const handleSelect = (formation: MilitaryFormation) => {
+    battleAction_changeFormation(side, formation);
+    setOpen(false);
+  };
+
+  const advBadge = (
+    <span
+      style={{
+        color: advantage === "advantaged" ? "#4caf50" : advantage === "disadvantaged" ? "#f44336" : "#aaa",
+        marginLeft: 4
+      }}
+    >
+      {advantage === "advantaged" ? "▲" : advantage === "disadvantaged" ? "▼" : "−"}
+      {t(`militaryFormations.${advantage}`)}
+    </span>
+  );
+
+  return (
+    <div className="d-inline-block" style={{ position: "relative", marginLeft: 4, verticalAlign: "middle" }}>
+      <button
+        type="button"
+        style={{
+          padding: "2px 6px",
+          borderRadius: 4,
+          border:
+            advantage === "advantaged"
+              ? "1px solid #4caf50"
+              : advantage === "disadvantaged"
+                ? "1px solid #f44336"
+                : "1px solid #666",
+          background: "#222",
+          color: "#fff",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4
+        }}
+        data-tip={t(current.descKey)}
+        onClick={handleToggle}
+      >
+        <span>{current.icon}</span>
+        <span>{t(current.nameKey)}</span>
+        {advBadge}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 100,
+            background: "#1a1a1a",
+            border: "1px solid #444",
+            borderRadius: 4,
+            padding: 4,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+            whiteSpace: "nowrap"
+          }}
+        >
+          {FORMATION_OPTIONS.map(opt => (
+            <div
+              key={opt.id}
+              style={{
+                padding: "4px 8px",
+                cursor: "pointer",
+                background: opt.id === currentFormation ? "#333" : "transparent",
+                color: "#fff"
+              }}
+              data-tip={t(opt.descKey)}
+              onClick={() => handleSelect(opt.id)}
+            >
+              {opt.icon} {t(opt.nameKey)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface SideHeaderProps {
   label: string;
   side: BattleSide;
@@ -167,107 +266,148 @@ interface SideHeaderProps {
   phase: string;
   die: number;
   battleType: string;
+  formation?: MilitaryFormation;
+  advantage?: "advantaged" | "disadvantaged" | "even";
+  commanderName?: string;
 }
 
-const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, phase, die, battleType }) => (
-  <div>
-    <span>{label}</span>
+const SideHeader: React.FC<SideHeaderProps> = ({
+  label,
+  side,
+  morale,
+  power,
+  phase,
+  die,
+  battleType,
+  formation,
+  advantage,
+  commanderName
+}) => {
+  const { t } = useTranslation();
+  return (
     <div>
-      <meter data-tip={`${label} morale: ${morale}`} min={0} max={100} low={33} high={66} optimum={80} value={morale} />
-      <div
-        data-tip={`${label} strength during this phase. Strength defines dealt damage`}
-        className="d-inline-block icon-button-power"
-      >
-        {power}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+        <span style={{ fontWeight: "bold" }}>{label}</span>
+        <span
+          style={{ fontSize: "0.85em", color: commanderName ? "#ffd700" : "#888" }}
+          data-tip={
+            commanderName
+              ? t("militaryFormations.commander", { name: commanderName })
+              : t("militaryFormations.noCommanderDesc")
+          }
+        >
+          {commanderName ? `👑 ${commanderName}` : `⚠️ ${t("militaryFormations.noCommander")}`}
+        </span>
       </div>
-      <PhasePicker side={side} battleType={battleType} currentPhase={phase} />
-      <button
-        type="button"
-        data-tip={`Random factor for ${label.toLowerCase()}. Click to re-roll`}
-        className="icon-button-die"
-        onClick={() => battleAction_rollDie(side)}
-      >
-        {die}
-      </button>
+      <div>
+        <meter
+          data-tip={`${label} morale: ${morale}`}
+          min={0}
+          max={100}
+          low={33}
+          high={66}
+          optimum={80}
+          value={morale}
+        />
+        <div
+          data-tip={`${label} strength during this phase. Strength defines dealt damage`}
+          className="d-inline-block icon-button-power"
+        >
+          {power}
+        </div>
+        <PhasePicker side={side} battleType={battleType} currentPhase={phase} />
+        <FormationPicker side={side} currentFormation={formation} advantage={advantage} />
+        <button
+          type="button"
+          data-tip={`Random factor for ${label.toLowerCase()}. Click to re-roll`}
+          className="icon-button-die"
+          onClick={() => battleAction_rollDie(side)}
+        >
+          {die}
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface RegimentTableProps {
   regiments: BattleRegimentDisplay[];
   militaryUnitNames: Array<{ name: string; icon: string }>;
 }
 
-const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNames }) => (
-  <table>
-    <thead>
-      <tr>
-        <th />
-        <th />
-        {militaryUnitNames.map(u => {
-          const isExternal = u.icon.startsWith("http") || u.icon.startsWith("data:image");
-          return (
-            <th key={u.name} data-tip={u.name}>
-              {isExternal ? <img src={u.icon} width="15" height="15" alt={u.name} /> : u.icon}
-            </th>
-          );
-        })}
-        <th data-tip="Total military">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {regiments.map(r => {
-        const isExternal = r.icon.startsWith("http") || r.icon.startsWith("data:image");
-        const iconHtml = isExternal
-          ? `<image href="${r.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
-          : `<text x="50%" y="1em" style="text-anchor: middle">${r.icon}</text>`;
-        const svgIcon = `<svg width="1.4em" height="1.4em" style="stroke: #333">
+const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNames }) => {
+  const { t } = useTranslation();
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th />
+          <th />
+          {militaryUnitNames.map(u => {
+            const isExternal = u.icon.startsWith("http") || u.icon.startsWith("data:image");
+            return (
+              <th key={u.name} data-tip={u.name === "spearmen" ? t("militaryFormations.spearmen") : u.name}>
+                {isExternal ? <img src={u.icon} width="15" height="15" alt={u.name} /> : u.icon}
+              </th>
+            );
+          })}
+          <th data-tip="Total military">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {regiments.map(r => {
+          const isExternal = r.icon.startsWith("http") || r.icon.startsWith("data:image");
+          const iconHtml = isExternal
+            ? `<image href="${r.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
+            : `<text x="50%" y="1em" style="text-anchor: middle">${r.icon}</text>`;
+          const svgIcon = `<svg width="1.4em" height="1.4em" style="stroke: #333">
           <rect x="0" y="0" width="100%" height="100%" fill="${r.stateColor}"></rect>${iconHtml}</svg>`;
 
-        const totalCasualties = sum(Object.values(r.casualties));
-        const totalSurvivors = sum(Object.values(r.survivors));
+          const totalCasualties = sum(Object.values(r.casualties));
+          const totalSurvivors = sum(Object.values(r.survivors));
 
-        return (
-          <React.Fragment key={r.key}>
-            <tr className="battleInitial">
-              {/* biome-ignore lint/security/noDangerouslySetInnerHtml: SVG icon requires raw HTML */}
-              <td dangerouslySetInnerHTML={{ __html: svgIcon }} />
-              <td className="regiment" data-tip={r.regimentName}>
-                {r.regimentName.slice(0, 24)}
-              </td>
-              {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Initial forces">
-                  {r.initialUnits[u.name] || 0}
+          return (
+            <React.Fragment key={r.key}>
+              <tr className="battleInitial">
+                {/* biome-ignore lint/security/noDangerouslySetInnerHtml: SVG icon requires raw HTML */}
+                <td dangerouslySetInnerHTML={{ __html: svgIcon }} />
+                <td className="regiment" data-tip={r.regimentName}>
+                  {r.regimentName.slice(0, 24)}
                 </td>
-              ))}
-              <td data-tip="Initial forces">{r.initialTotal}</td>
-            </tr>
-            <tr className="battleCasualties">
-              <td />
-              <td data-tip={r.stateFullName}>{r.stateFullName.slice(0, 26)}</td>
-              {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Casualties">
-                  {r.casualties[u.name] || 0}
-                </td>
-              ))}
-              <td data-tip="Casualties">{totalCasualties}</td>
-            </tr>
-            <tr className="battleSurvivors">
-              <td />
-              <td data-tip="Supply line length, affects morale">Distance to base: {r.distanceLabel}</td>
-              {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Survivors">
-                  {r.survivors[u.name] || 0}
-                </td>
-              ))}
-              <td data-tip="Survivors">{totalSurvivors}</td>
-            </tr>
-          </React.Fragment>
-        );
-      })}
-    </tbody>
-  </table>
-);
+                {militaryUnitNames.map(u => (
+                  <td key={u.name} data-tip="Initial forces">
+                    {r.initialUnits[u.name] || 0}
+                  </td>
+                ))}
+                <td data-tip="Initial forces">{r.initialTotal}</td>
+              </tr>
+              <tr className="battleCasualties">
+                <td />
+                <td data-tip={r.stateFullName}>{r.stateFullName.slice(0, 26)}</td>
+                {militaryUnitNames.map(u => (
+                  <td key={u.name} data-tip="Casualties">
+                    {r.casualties[u.name] || 0}
+                  </td>
+                ))}
+                <td data-tip="Casualties">{totalCasualties}</td>
+              </tr>
+              <tr className="battleSurvivors">
+                <td />
+                <td data-tip="Supply line length, affects morale">Distance to base: {r.distanceLabel}</td>
+                {militaryUnitNames.map(u => (
+                  <td key={u.name} data-tip="Survivors">
+                    {r.survivors[u.name] || 0}
+                  </td>
+                ))}
+                <td data-tip="Survivors">{totalSurvivors}</td>
+              </tr>
+            </React.Fragment>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+};
 
 // ── Regiment selector dialog ────────────────────────────────────────────────
 
@@ -427,6 +567,9 @@ export const BattleScreenDialog: React.FC = () => {
               phase={attackers.phase}
               die={attackers.die}
               battleType={type}
+              formation={attackers.formation}
+              advantage={attackers.advantage}
+              commanderName={attackers.commanderName}
             />
             <RegimentTable regiments={attackers.regiments} militaryUnitNames={unitNames} />
 
@@ -438,6 +581,9 @@ export const BattleScreenDialog: React.FC = () => {
               phase={defenders.phase}
               die={defenders.die}
               battleType={type}
+              formation={defenders.formation}
+              advantage={defenders.advantage}
+              commanderName={defenders.commanderName}
             />
             <RegimentTable regiments={defenders.regiments} militaryUnitNames={unitNames} />
           </div>

@@ -7,6 +7,7 @@ export type {
   ChronicleEvent,
   Culture,
   CultureType,
+  FrontierFort,
   MilitaryRegiment,
   MilitaryUnit,
   Province,

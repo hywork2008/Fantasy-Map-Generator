@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import * as appearance from "../../characters/appearance";
 import { worldContext } from "../../hostCore";
 import {
   allocateDemonHostStates,
@@ -188,6 +189,7 @@ describe("demon infiltration allocation", () => {
   });
 
   it("endows the demon true form with heightened infernal skills and the appropriate role class", () => {
+    const rollLooks = vi.spyOn(appearance, "rollLooksForRace");
     worldContext.pack = {
       cultures: [
         { i: 0, base: 0 },
@@ -241,8 +243,13 @@ describe("demon infiltration allocation", () => {
     // Ruler cover grants ruler role class + intrigue primary, plus infernal boost
     expect(demonIdentity?.skills.intrigue).toBeGreaterThan(55);
     expect(demonIdentity?.skills.learning).toBeGreaterThan(50);
-    // True form appearance must not be crushed by human age decline (should be in normal 30-90 range)
-    expect(infiltrator.demonInfiltration?.trueForm?.appearance).toBeGreaterThan(30);
-    expect(infiltrator.demonInfiltration?.trueForm?.looks?.vitality).toBeGreaterThan(30);
+    // Verify age decline is disabled, without imposing a minimum on random beauty rolls.
+    const trueFormRoll = rollLooks.mock.calls.findIndex(
+      ([race, , threshold]) => race === 4 && threshold === Number.POSITIVE_INFINITY
+    );
+    expect(trueFormRoll).toBeGreaterThanOrEqual(0);
+    expect(rollLooks.mock.calls[trueFormRoll][2]).toBe(Number.POSITIVE_INFINITY);
+    expect(infiltrator.demonInfiltration?.trueForm).toMatchObject(rollLooks.mock.results[trueFormRoll].value);
+    rollLooks.mockRestore();
   });
 });

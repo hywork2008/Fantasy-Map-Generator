@@ -1,3 +1,4 @@
+import { getTacticalSkill } from "../../../data/militaryFormations";
 import type { Character } from "../../characters/characterTypes";
 import { EXPERTISE_TASKS, evaluateExpertise } from "../../characters/specializations";
 import type { SpecializationTarget } from "../../characters/specializationTypes";
@@ -258,4 +259,30 @@ export function calculateEffectiveSiegePower(
     power += amount * multiplier;
   }
   return power * quality;
+}
+
+export function getClusterCommander(characters: Character[], cluster: MilitaryRegiment[]): Character | undefined {
+  let best: Character | undefined;
+  let bestMartial = -1;
+  for (const reg of cluster) {
+    const cmd = getRegimentCommander(characters, reg);
+    if (cmd && !cmd.dead) {
+      const martial = getTacticalSkill(cmd);
+      if (martial > bestMartial) {
+        bestMartial = martial;
+        best = cmd;
+      }
+    }
+  }
+  return best;
+}
+
+export function sumClusterTroops(cluster: MilitaryRegiment[]): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const reg of cluster) {
+    for (const [unit, count] of Object.entries(reg.u ?? {})) {
+      result[unit] = (result[unit] || 0) + count;
+    }
+  }
+  return result;
 }

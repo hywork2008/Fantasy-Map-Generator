@@ -331,3 +331,18 @@ describe("character expertise archive", () => {
     await expect(codec.encode(wrongCulture)).rejects.toThrow(/cultureId/);
   });
 });
+
+it("migrates saved infantry recruitment into infantry and spearmen on archive decode", async () => {
+  const world = sampleWorld();
+  world.options = {
+    military: [{ name: "infantry", icon: "", rural: 0.15, urban: 0.12, power: 1, crew: 1, type: "melee", separate: 0 }]
+  } as never;
+  const codec = new ChunkedWorldCodecAdapter();
+  const document = createWorldDocument(world, sampleSimulation(), createPresentationData(), []);
+  const encoded = await codec.encode(document);
+  const staged = await codec.decode({ blob: encoded, header: new Uint8Array(await encoded.slice(0, 4).arrayBuffer()) });
+  const units = staged.document.world.options.military!;
+  expect(units.map(u => u.name)).toEqual(["infantry", "spearmen"]);
+  expect(units.reduce((n, u) => n + u.rural, 0)).toBeCloseTo(0.15);
+  expect(units.reduce((n, u) => n + u.urban, 0)).toBeCloseTo(0.12);
+});

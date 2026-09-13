@@ -1,3 +1,7 @@
+import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+
+export { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+
 import { sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -7,6 +11,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { getTroopPreferredFormation } from "../data/militaryFormations";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -125,6 +130,7 @@ class MilitaryModule {
     }
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
+    options.military = ensureCoreMilitaryUnits(options.military);
     options.military = ensureUndeadMilitaryUnits(options.military);
     const military = options.military.filter(
       unit => unit.enabled !== false && (isGunpowderEraEnabled(options) || !isGunpowderEraMilitaryUnit(unit))
@@ -618,7 +624,8 @@ class MilitaryModule {
         // Manpower fill prefers this province (cells.province; 0 = statewide)
         homeProvince: pack.cells.province?.[anchor.cell] ?? 0,
         // Standing forces start trained; green recruits dilute this on fill
-        quality: 1
+        quality: 1,
+        formation: getTroopPreferredFormation(units)
       };
     };
 
@@ -1002,12 +1009,19 @@ class MilitaryModule {
       {
         icon: "⚔️",
         name: "infantry",
-        // Rural/urban cut from the pre-Muskets 0.25/0.2 (40%/40% moved to "musketeers" below):
-        // Age of Exploration levies were already substantially pike-and-shot, not pure melee.
-        // See "musketeers" below — the split keeps the combined melee+firearm recruitment pool
-        // (and therefore total army size) unchanged, it only reallocates the mix.
-        rural: 0.15,
-        urban: 0.12,
+        // Rural/urban (0.08/0.06) plus spearmen below (0.07/0.06) preserves the combined 0.15/0.12 melee pool.
+        rural: 0.08,
+        urban: 0.06,
+        crew: 1,
+        power: 1,
+        type: "melee",
+        separate: 0
+      },
+      {
+        icon: "🔱",
+        name: "spearmen",
+        rural: 0.07,
+        urban: 0.06,
         crew: 1,
         power: 1,
         type: "melee",

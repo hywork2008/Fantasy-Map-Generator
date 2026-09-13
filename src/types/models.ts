@@ -1333,6 +1333,8 @@ export interface SubterraneanDomain {
   voidVolume: number;
 }
 
+export type MilitaryFormation = "square" | "wedge" | "line" | "loose";
+
 export interface MilitaryUnit {
   icon: string;
   name: string;
@@ -1414,6 +1416,8 @@ export interface MilitaryRegiment {
   isRisen?: boolean;
   /** pack.characters id of the officer commanding this regiment, if one has been assigned. */
   commanderId?: number;
+  /** Tactical formation adopted by this regiment. */
+  formation?: MilitaryFormation;
   /**
    * Movement (docs/plan/military-movement.md Phase 2), all set together by
    * regimentMovement.ts and cleared together once the destination is reached or abandoned.

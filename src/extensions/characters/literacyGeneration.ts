@@ -331,7 +331,7 @@ export function gatherLiteracyInfluences(character: Character): LiteracyInfluenc
     const origin = character.backstory?.origin;
     const burgId = origin?.birthBurgId ?? origin?.homeBurgId ?? character.location;
     const burg = typeof burgId === "number" ? pack.burgs?.[burgId] : undefined;
-    if (burg && !burg.removed) {
+    if (typeof burgId === "number" && burg && !burg.removed) {
       const economy = getApi().simulationContext?.extensions?.economy as Record<string, unknown> | undefined;
       influences.local = {
         monastery: burg.group === "monastery",

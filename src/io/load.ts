@@ -18,6 +18,7 @@ import {
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { ensureFuneralRemainsSeeded } from "../generators/funeralRites";
+import { ensureCoreMilitaryUnits, Military } from "../generators/military-generator";
 import { OceanCurrents } from "../generators/oceanCurrents";
 import { refreshAllRiverHydrology } from "../generators/riverHydrology";
 import { Routes } from "../generators/routes-generator";
@@ -552,6 +553,9 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
 
     useOptionsState.getState().setOptions(updates);
     if (settings[19]) worldContext.options = JSON.parse(settings[19]);
+    worldContext.options.military = ensureCoreMilitaryUnits(
+      worldContext.options.military ?? Military.getDefaultOptions()
+    );
     // Older saves predate the axialTilt option; fall back to Earth's own tilt.
     if (typeof worldContext.options.axialTilt !== "number" || !Number.isFinite(worldContext.options.axialTilt)) {
       worldContext.options.axialTilt = EARTH_AXIAL_TILT_DEG;

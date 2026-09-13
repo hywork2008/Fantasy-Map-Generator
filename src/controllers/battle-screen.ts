@@ -7,6 +7,8 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { getFormationMatchupFactor, getTacticalSkill, resolveBattleFormations } from "../data/militaryFormations";
+import type { Character } from "../extensions/characters/characterTypes";
 import { isLichRaceKey, raceKeyForId } from "../extensions/characters/lichPolicy";
 import { applyDemographicCasualties } from "../generators/demography-simulator";
 import { CombatDeathsRenderer, moveRegiment } from "../renderers/index";
@@ -17,7 +19,7 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import type { BattleRegimentDisplay, BattleSide } from "../store/battleScreenState";
 import { getBattleScreenState } from "../store/battleScreenState";
 import { useOptionsState } from "../store/optionsState";
-import type { MilitaryRegiment } from "../types/models";
+import type { MilitaryFormation, MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
@@ -38,6 +40,9 @@ interface BattleForces {
   power: number;
   phase?: string;
   die?: number;
+  formation?: MilitaryFormation;
+  commander?: Character;
+  advantage?: "advantaged" | "disadvantaged" | "even";
 }
 
 function getAvailableMilitaryUnits() {
@@ -85,6 +90,7 @@ export class Battle {
     this.place = this.definePlace();
     this.defineType();
     this.name = this.defineName();
+    this.initFormations();
     this.randomize();
     this.calculateStrength("attackers");
     this.calculateStrength("defenders");
@@ -236,6 +242,83 @@ export class Battle {
       }
       return a;
     }, {});
+  }
+
+  getSideCommander(side: BattleSide): Character | undefined {
+    const characters = worldContext.pack?.characters || [];
+    return this[side].regiments
+      .filter(r => Object.values(r.survivors).some(count => count > 0))
+      .map(r => characters.find(c => c.i === r.commanderId && !c.dead))
+      .filter((c): c is Character => Boolean(c))
+      .sort((a, b) => getTacticalSkill(b) - getTacticalSkill(a))[0];
+  }
+
+  initFormations(): void {
+    const commanderA = this.getSideCommander("attackers");
+    const commanderB = this.getSideCommander("defenders");
+    const troopsA = this.getJoinedForces(this.attackers.regiments);
+    const troopsB = this.getJoinedForces(this.defenders.regiments);
+
+    const result = resolveBattleFormations(commanderA, troopsA, commanderB, troopsB);
+    this.attackers.formation = result.formationA;
+    this.defenders.formation = result.formationB;
+    this.attackers.advantage = result.advantageA;
+    this.defenders.advantage = result.advantageB;
+    this.attackers.commander = commanderA;
+    this.defenders.commander = commanderB;
+
+    const store = getBattleScreenState();
+    store.setBattleState({
+      attackers: {
+        ...store.attackers,
+        formation: result.formationA,
+        advantage: result.advantageA,
+        commanderName: commanderA?.name
+      },
+      defenders: {
+        ...store.defenders,
+        formation: result.formationB,
+        advantage: result.advantageB,
+        commanderName: commanderB?.name
+      }
+    });
+  }
+
+  refreshForces(): void {
+    if (
+      this.getSideCommander("attackers")?.i !== this.attackers.commander?.i ||
+      this.getSideCommander("defenders")?.i !== this.defenders.commander?.i
+    )
+      this.initFormations();
+    this.updateAdvantages();
+    this.calculateStrength("attackers");
+    this.calculateStrength("defenders");
+  }
+
+  updateAdvantages(): void {
+    const oppSide = (s: BattleSide): BattleSide => (s === "attackers" ? "defenders" : "attackers");
+    const store = getBattleScreenState();
+    for (const side of ["attackers", "defenders"] as const) {
+      const opp = oppSide(side);
+      const fMy = this[side].formation || "line";
+      const fOpp = this[opp].formation || "line";
+      const myTroops = this.getJoinedForces(this[side].regiments);
+      const oppTroops = this.getJoinedForces(this[opp].regiments);
+      const factor = getFormationMatchupFactor(fMy, fOpp, myTroops, oppTroops);
+      this[side].advantage = factor > 1.15 ? "advantaged" : factor < 0.85 ? "disadvantaged" : "even";
+    }
+    store.setBattleState({
+      attackers: { ...store.attackers, formation: this.attackers.formation, advantage: this.attackers.advantage },
+      defenders: { ...store.defenders, formation: this.defenders.formation, advantage: this.defenders.advantage }
+    });
+  }
+
+  changeFormation(side: BattleSide, formation: MilitaryFormation): void {
+    this[side].formation = formation;
+    getBattleScreenState().setSideFormation(side, formation);
+    this.updateAdvantages();
+    this.calculateStrength("attackers");
+    this.calculateStrength("defenders");
   }
 
   calculateStrength(side: BattleSide): void {
@@ -422,10 +505,15 @@ export class Battle {
     const opponentIsUndead = this.isUndeadSide(opponentSide);
 
     const forces = this.getJoinedForces(this[side].regiments);
+    const oppForces = this.getJoinedForces(this[opponentSide].regiments);
     const phase = this[side].phase!;
     const adjuster = Math.max(worldContext.populationRate / 10, 10);
+    const myFormation = this[side].formation || "line";
+    const oppFormation = this[opponentSide].formation || "line";
+    const formationFactor = getFormationMatchupFactor(myFormation, oppFormation, forces, oppForces);
+
     this[side].power =
-      sum(
+      (sum(
         getAvailableMilitaryUnits().map(u => {
           const unitCount = forces[u.name] || 0;
           if (!unitCount) return 0;
@@ -436,7 +524,9 @@ export class Battle {
           }
           return unitCount * u.power * scheme[phase][u.type];
         })
-      ) / adjuster;
+      ) /
+        adjuster) *
+      formationFactor;
 
     getBattleScreenState().setSidePower(side, this[side].power ? Math.max(this[side].power | 0, 1) : 0);
   }
@@ -689,8 +779,7 @@ export class Battle {
 
     this.iteration += 1;
     this.selectPhase();
-    this.calculateStrength("attackers");
-    this.calculateStrength("defenders");
+    this.refreshForces();
     this.updateMorale("attackers");
     this.updateMorale("defenders");
   }
@@ -912,6 +1001,10 @@ export function battleAction_changePhase(side: BattleSide, phase: string): void 
   Battle.context?.changePhase(side, phase);
 }
 
+export function battleAction_changeFormation(side: BattleSide, formation: MilitaryFormation): void {
+  Battle.context?.changeFormation(side, formation);
+}
+
 export function battleAction_changeName(value: string): void {
   Battle.context?.changeName(value);
 }
@@ -945,7 +1038,7 @@ export function battleAction_addRegimentToSide(side: BattleSide, stateI: number,
   if (!regiment) return;
 
   context.addRegiment(side, regiment);
-  context.calculateStrength(side);
+  context.refreshForces();
   context.getInitialMorale();
 
   const defenders = context.defenders.regiments;

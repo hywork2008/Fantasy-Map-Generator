@@ -140,7 +140,7 @@ export function generateCharacterHooks(character: Character, packRaces?: readonl
   }
   const militaryEpithetId = character.militaryRecord?.epithetId;
   const suppressGuardian = hasOccupationEpithet(character, "war_god") && militaryEpithetId === "guardian";
-  if (militaryEpithetId && militaryEpithetId !== courtEpithetId && !suppressGuardian) {
+  if (militaryEpithetId && !suppressGuardian) {
     hooks.push({ id: `epithet.${militaryEpithetId}` });
   }
 
