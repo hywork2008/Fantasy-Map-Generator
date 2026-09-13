@@ -24,6 +24,7 @@ import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogServi
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { layerIsOn } from "../utils/nodeUtils";
+import { isUndeadMilitaryUnit } from "../utils/regimentPopulation";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -910,7 +911,13 @@ export class Battle {
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
 
       // Apply casualties to the underlying demographic populations (battlefield = this engagement)
-      const totalDead = Math.abs(sum(Object.values(r.casualties) as number[]));
+      const totalDead = Math.abs(
+        sum(
+          Object.entries(r.casualties)
+            .filter(([name]) => !isUndeadMilitaryUnit(name))
+            .map(([, count]) => count)
+        )
+      );
       if (totalDead > 0 && !r.isRisen) {
         applyDemographicCasualties(r.state, totalDead, battlefieldCell);
       }

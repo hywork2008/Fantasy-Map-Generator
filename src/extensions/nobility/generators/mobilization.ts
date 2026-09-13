@@ -1,6 +1,7 @@
 import {
   ANNUAL_DRAFT_SHARE,
   isManpowerSimEnabled,
+  livingTroops,
   PEACE_TARGET_MOBILIZATION,
   simulationContext,
   WAR_TARGET_MOBILIZATION
@@ -20,12 +21,12 @@ function statePopulation(state: State): number {
 
 /** Sum of every land regiment's current headcount. */
 function currentLandTroops(state: State): number {
-  return (state.military ?? []).filter(r => !r.n).reduce((sum, r) => sum + r.a, 0);
+  return (state.military ?? []).filter(r => !r.n && !r.isRisen).reduce((sum, r) => sum + livingTroops(r), 0);
 }
 
 /** Sum of every land regiment's capacity (`t`). */
 function currentLandCapacity(state: State): number {
-  return (state.military ?? []).filter(r => !r.n).reduce((sum, r) => sum + r.t, 0);
+  return (state.military ?? []).filter(r => !r.n && !r.isRisen).reduce((sum, r) => sum + r.t, 0);
 }
 
 /** Combined estimated military power of every declared Enemy. */
@@ -51,7 +52,7 @@ export class MobilizationGenerator {
 
     for (const state of pack.states) {
       if (!state.i || state.removed) continue;
-      const landRegiments = (state.military ?? []).filter(r => !r.n);
+      const landRegiments = (state.military ?? []).filter(r => !r.n && !r.isRisen);
       if (!landRegiments.length) continue;
 
       const population = statePopulation(state);

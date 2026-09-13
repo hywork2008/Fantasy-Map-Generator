@@ -7,7 +7,13 @@ import {
 } from "../../characters/arcane";
 import type { Character } from "../../characters/characterTypes";
 import { recordSpecializationExperience, specializationScore } from "../../characters/specializations";
-import { applyDemographicCasualties, appServices, buildSeaRouteGraph, type StrategicGoal } from "../../hostCore";
+import {
+  applyDemographicCasualties,
+  appServices,
+  buildSeaRouteGraph,
+  livingTroops,
+  type StrategicGoal
+} from "../../hostCore";
 import type { ChronicleEvent, MilitaryRegiment } from "../../hostTypes";
 import {
   getApi,
@@ -276,14 +282,14 @@ export const BattleResolutionGenerator = {
     if (attackerCasualties > 0 && attackingRegiments.length > 0) {
       const reductionRatio = Math.max(0, 1 - attackerCasualties / attackerPower);
       for (const reg of attackingRegiments) {
-        const before = reg.a;
+        const before = livingTroops(reg);
         let survivors = 0;
         for (const unit in reg.u) {
           reg.u[unit] = Math.floor(reg.u[unit] * reductionRatio);
           survivors += reg.u[unit];
         }
         reg.a = survivors;
-        if (!reg.isRisen) attackerDead += Math.max(0, before - survivors);
+        attackerDead += Math.max(0, before - livingTroops(reg));
       }
     }
 
@@ -300,14 +306,14 @@ export const BattleResolutionGenerator = {
         if (arrives) {
           reg.actionStatus = "battled";
           const reductionRatio = Math.max(0, 1 - defenderCasualties / defendingForceArrived);
-          const before = reg.a;
+          const before = livingTroops(reg);
           let survivors = 0;
           for (const unit in reg.u) {
             reg.u[unit] = Math.floor(reg.u[unit] * reductionRatio);
             survivors += reg.u[unit];
           }
           reg.a = survivors;
-          if (!reg.isRisen) defenderDead += Math.max(0, before - survivors);
+          defenderDead += Math.max(0, before - livingTroops(reg));
         }
       }
     } else if (targetState.military) {

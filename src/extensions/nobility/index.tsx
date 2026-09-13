@@ -7,7 +7,7 @@ import { getSelectedAbilityPresetId } from "../characters/charactersContext";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
-import { advanceAllRegimentMovement, advanceFrontierGovernance, Military } from "../hostCore";
+import { advanceAllRegimentMovement, advanceFrontierGovernance, Military, raiseUndeadOnCellEntered } from "../hostCore";
 import { tip } from "../hostServices";
 import { openDialog, type RegenerateConfirmConfig } from "../hostUi";
 import { measureGenerationStep } from "../hostUtils";
@@ -442,6 +442,7 @@ export function init(api: ExtensionAPI): void {
       tickYears(context),
       (r, cell) => {
         if (!canAdvanceConflict) return;
+        raiseUndeadOnCellEntered(r, cell);
         if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
       },
       canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined

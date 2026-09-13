@@ -12,7 +12,8 @@ vi.mock("../nobilityContext", () => ({
 vi.mock("../../hostCore", () => ({
   appServices: { rng: { rand: random } },
   buildSeaRouteGraph: () => ({}),
-  applyDemographicCasualties: vi.fn()
+  applyDemographicCasualties: vi.fn(),
+  livingTroops: (regiment: MilitaryRegiment) => regiment.a
 }));
 vi.mock("./localDefense", () => ({
   // This test isolates experience recording from tactical outcomes.

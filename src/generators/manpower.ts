@@ -16,6 +16,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import { isUndeadMilitaryUnit, livingTroops, undeadTroops } from "../utils/regimentPopulation";
 import { isStateInActiveConflict } from "./activeConflict";
 import { recordDeaths } from "./populationLossTracker";
 
@@ -64,7 +65,7 @@ export function landRegiments(state: State): MilitaryRegiment[] {
 }
 
 export function currentLandTroops(state: State): number {
-  return landRegiments(state).reduce((sum, r) => sum + r.a, 0);
+  return landRegiments(state).reduce((sum, r) => sum + livingTroops(r), 0);
 }
 
 export function currentLandCapacity(state: State): number {
@@ -451,15 +452,17 @@ export function tickManpower(
       const surplus = (capacity - target) * DEMOBILIZATION_SHARE_PEACE * deltaYears;
       const scale = Math.max(0, 1 - surplus / capacity);
       for (const r of regiments) {
-        const newT = Math.max(r.a * 0.5, r.t * scale);
+        const living = livingTroops(r);
+        const undead = undeadTroops(r);
+        const newT = Math.max(living * 0.5, r.t * scale);
         let releasedTroops = 0;
-        if (r.a > newT) {
-          releasedTroops = r.a - newT;
-          const ratio = newT / r.a;
-          for (const u of Object.keys(r.u)) r.u[u] = (r.u[u] ?? 0) * ratio;
-          r.a = newT;
+        if (living > newT) {
+          releasedTroops = living - newT;
+          const ratio = newT / living;
+          for (const u of Object.keys(r.u)) if (!isUndeadMilitaryUnit(u)) r.u[u] = (r.u[u] ?? 0) * ratio;
+          r.a = newT + undead;
         }
-        r.t = Math.max(newT, r.a);
+        r.t = Math.max(newT, livingTroops(r));
         if (releasedTroops > 0) {
           addCivilianMalePeople(pack, state.i, releasedTroops, { preferredProvince: r.homeProvince }, populationRate);
         }
@@ -469,13 +472,14 @@ export function tickManpower(
     // Peacetime wastage (disease / desertion) — dead, not returned to civilian pool
     if (!atWar && ANNUAL_NATURAL_WASTAGE > 0) {
       for (const r of regiments) {
-        if (r.a <= 0) continue;
-        const loss = r.a * ANNUAL_NATURAL_WASTAGE * deltaYears;
+        const living = livingTroops(r);
+        if (living <= 0) continue;
+        const loss = living * ANNUAL_NATURAL_WASTAGE * deltaYears;
         if (loss < 0.5) continue;
-        const keep = Math.max(0, r.a - loss) / r.a;
-        for (const u of Object.keys(r.u)) r.u[u] = (r.u[u] ?? 0) * keep;
-        const dead = r.a * (1 - keep);
-        r.a *= keep;
+        const keep = Math.max(0, living - loss) / living;
+        for (const u of Object.keys(r.u)) if (!isUndeadMilitaryUnit(u)) r.u[u] = (r.u[u] ?? 0) * keep;
+        const dead = living * (1 - keep);
+        r.a -= dead;
         if (dead > 0) recordDeaths(state.i, dead, "other");
       }
     }
@@ -498,7 +502,8 @@ export function fillRegimentFromManpower(
   deltaYears: number,
   populationRate = worldContext.populationRate
 ): void {
-  if (r.n || r.a >= r.t || deltaYears <= 0) return;
+  const living = livingTroops(r);
+  if (r.n || r.isRisen || living >= r.t || deltaYears <= 0) return;
 
   // Ensure home province is set for older regiments
   if (r.homeProvince === undefined && pack.cells.province) {
@@ -506,7 +511,7 @@ export function fillRegimentFromManpower(
   }
 
   const eff = getDraftEfficiency(state);
-  const want = Math.min(r.t - r.a, r.t * RECOVERY_RATE_PER_YEAR * deltaYears * eff);
+  const want = Math.min(r.t - living, r.t * RECOVERY_RATE_PER_YEAR * deltaYears * eff);
   if (want <= 0) return;
 
   const needPeople = want;
@@ -536,26 +541,26 @@ export function fillRegimentFromManpower(
   // Blend quality: veterans keep strength, green recruits pull it down
   if (useOptionsState.getState().recruitQualityEnabled) {
     const oldQ = r.quality ?? 1;
-    const oldA = Math.max(0, r.a);
+    const oldA = living;
     r.quality = (oldQ * oldA + GREEN_RECRUIT_QUALITY * got) / (oldA + got);
   }
 
   // Distribute into unit composition by current ratios (or dump into a single key)
-  const unitKeys = Object.keys(r.u);
-  if (!unitKeys.length || r.a <= 0) {
+  const unitKeys = Object.keys(r.u).filter(key => !isUndeadMilitaryUnit(key));
+  if (!unitKeys.length || living <= 0) {
     const key = unitKeys[0] ?? "infantry";
     r.u[key] = (r.u[key] ?? 0) + got;
   } else {
     for (const key of unitKeys) {
-      const ratio = (r.u[key] ?? 0) / r.a;
+      const ratio = (r.u[key] ?? 0) / living;
       r.u[key] = (r.u[key] ?? 0) + got * ratio;
     }
   }
   r.a += got;
-  if (r.a > r.t) {
-    const scale = r.t / r.a;
-    for (const key of Object.keys(r.u)) r.u[key] = (r.u[key] ?? 0) * scale;
-    r.a = r.t;
+  if (livingTroops(r) > r.t) {
+    const scale = r.t / livingTroops(r);
+    for (const key of unitKeys) r.u[key] = (r.u[key] ?? 0) * scale;
+    r.a = r.t + undeadTroops(r);
   }
 }
 
@@ -697,11 +702,12 @@ export function scaleLandMilitary(state: State, multiplier: number): void {
   if (!state.military || multiplier >= 1) return;
   const m = Math.max(0, multiplier);
   for (const r of state.military) {
-    if (r.n) continue;
+    if (r.n || r.isRisen) continue;
+    const living = livingTroops(r);
     for (const u of Object.keys(r.u)) {
-      r.u[u] = (r.u[u] ?? 0) * m;
+      if (!isUndeadMilitaryUnit(u)) r.u[u] = (r.u[u] ?? 0) * m;
     }
-    r.a *= m;
+    r.a = living * m + undeadTroops(r);
     r.t *= m;
   }
 }

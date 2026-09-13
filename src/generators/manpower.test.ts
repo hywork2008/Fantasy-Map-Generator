@@ -87,6 +87,26 @@ function makePack(): PackedGraph {
 }
 
 describe("manpower ledger", () => {
+  it("fills only living units in a mixed army and never drafts replacements for undead", () => {
+    const pack = makePack();
+    const state = pack.states[1];
+    const r = state.military![0];
+    r.u = { infantry: 50, skeletons: 500, zombies: 300 };
+    r.a = 850;
+    r.t = 100;
+    expect(currentLandTroops(state)).toBe(50);
+    expect(currentLandCapacity(state)).toBe(100);
+    fillRegimentFromManpower(pack, state, r, 10, 1000);
+    expect(r.u.infantry).toBe(100);
+    expect(r.a).toBe(900);
+    expect(r.u.skeletons).toBe(500);
+    expect(r.u.zombies).toBe(300);
+    r.u.zombies = 0;
+    r.a = 600;
+    fillRegimentFromManpower(pack, state, r, 10, 1000);
+    expect(r.a).toBe(600);
+  });
+
   beforeEach(() => {
     worldContext.populationRate = 1000;
     worldContext.urbanization = 2;

@@ -66,7 +66,6 @@ import { createSimulationSystemRegistry, type SimulationStepContext, type Simula
 import { buildStateSignals, seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
-import { runUndeadRaising } from "./undeadRaising";
 import { advanceUndergroundEcology } from "./undergroundEcology";
 import { advanceWildernessEcology } from "./wildernessEcology";
 
@@ -457,18 +456,6 @@ registerSimulationSystem({
 });
 
 // High Fantasy / Dark Fantasy Fire Spirits: spontaneous ignition of stored gunpowder/ammo unless warded by elves
-registerSimulationSystem({
-  id: "undead-raising.tick",
-  phase: "military",
-  reads: ["map.politics", "simulation.cells", "simulation.military"],
-  writes: ["simulation.military", "map.politics"],
-  cadence: { every: 1 },
-  profileLabel: "undeadRaising",
-  run: (_context, writer) => {
-    if (runUndeadRaising()) writer.markChanged("simulation.military", "map.politics");
-  }
-});
-
 registerSimulationSystem({
   id: "fire-spirits.tick",
   phase: "politics",

@@ -15,6 +15,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, lerp, minmax } from "../utils";
 import { normalizeHeightExponent } from "../utils/height";
 import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
+import { isUndeadMilitaryUnit } from "../utils/regimentPopulation";
 import { getCurrentDirection } from "../utils/seasonUtils";
 import { isRegimentLockedForBattle } from "./battleLock";
 import {
@@ -860,11 +861,15 @@ function splitDetachment(
   const takenTotal = sum(Object.values(detachmentUnits));
   if (!takenTotal) return null;
   r.a -= takenTotal;
-  r.t -= takenTotal;
+  const takenCapacity = r.isRisen
+    ? takenTotal
+    : Object.entries(detachmentUnits).reduce((sum, [name, count]) => sum + (isUndeadMilitaryUnit(name) ? 0 : count), 0);
+  r.t -= takenCapacity;
 
   const detachment: MilitaryRegiment = {
     i: military.length,
-    t: takenTotal,
+    t: takenCapacity,
+    isRisen: r.isRisen,
     a: takenTotal,
     s: r.s,
     cell: r.cell,
@@ -1114,6 +1119,7 @@ export function advanceAllRegimentMovement(
   const days = deltaYears * 365;
   const hierarchyEnabled = useOptionsState.getState().militaryHierarchy === "dynamic";
 
+  const initialRegiments = new Set(pack.states.flatMap(state => state?.military ?? []));
   let anyMoved = false;
 
   for (const state of pack.states) {
@@ -1148,6 +1154,7 @@ export function advanceAllRegimentMovement(
     const freshlySplit = new Set<MilitaryRegiment>();
 
     for (const r of military) {
+      if (!initialRegiments.has(r) || r.a <= 0) continue;
       if (r.isCapitalGuard) continue;
       if (freshlySplit.has(r)) continue; // already given its mission order + movement budget below, this same tick
 

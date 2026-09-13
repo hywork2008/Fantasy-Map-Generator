@@ -10,6 +10,7 @@ import {
   applyDemographicCasualties,
   appServices,
   buildSeaRouteGraph,
+  livingTroops,
   regimentQualityMultiplier,
   type SeaRouteGraph,
   simulationContext
@@ -274,7 +275,7 @@ export class LocalSkirmishGenerator {
             const annihilateB = powerA >= powerB * ANNIHILATION_RATIO;
 
             let totalA = 0;
-            const livingBeforeA = regsA.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
+            const livingBeforeA = regsA.reduce((sum, r) => sum + livingTroops(r), 0);
             for (const r of regsA) {
               if (annihilateA) {
                 for (const unit in r.u) r.u[unit] = 0;
@@ -288,7 +289,7 @@ export class LocalSkirmishGenerator {
             }
 
             let totalB = 0;
-            const livingBeforeB = regsB.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
+            const livingBeforeB = regsB.reduce((sum, r) => sum + livingTroops(r), 0);
             for (const r of regsB) {
               if (annihilateB) {
                 for (const unit in r.u) r.u[unit] = 0;
@@ -346,8 +347,8 @@ export class LocalSkirmishGenerator {
             }
             // Count living losses after both mundane and arcane damage. Risen losses
             // must never create graves or return to the civilian population as wounded.
-            const deadA = livingBeforeA - regsA.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
-            const deadB = livingBeforeB - regsB.reduce((sum, r) => sum + (r.isRisen ? 0 : r.a), 0);
+            const deadA = livingBeforeA - regsA.reduce((sum, r) => sum + livingTroops(r), 0);
+            const deadB = livingBeforeB - regsB.reduce((sum, r) => sum + livingTroops(r), 0);
             if (deadA > 0) applyDemographicCasualties(stateA.i, deadA, battlefieldCell);
             if (deadB > 0) applyDemographicCasualties(stateB.i, deadB, battlefieldCell);
 

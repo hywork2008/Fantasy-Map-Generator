@@ -115,13 +115,18 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
       a: 100
     };
     worldContext.pack.states[risenState].military!.push(risen);
-    const before = worldContext.pack.states.slice(1).map(state => state.military![0].a);
+    // Both sides also have undead within their living regiment.
+    for (const state of worldContext.pack.states.slice(1)) {
+      state.military![0].u.skeletons = 50;
+      state.military![0].a += 50;
+    }
+    const before = worldContext.pack.states.slice(1).map(state => state.military![0].u.infantry);
 
     BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
 
     expect(risen.a).toBeLessThan(100);
     for (const state of worldContext.pack.states.slice(1)) {
-      const livingLoss = before[state.i - 1] - state.military![0].a;
+      const livingLoss = before[state.i - 1] - state.military![0].u.infantry;
       const recorded = casualties.mock.calls.filter(([id]) => id === state.i);
       expect(recorded).toEqual(livingLoss > 0 ? [[state.i, livingLoss, 0]] : []);
     }

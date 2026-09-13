@@ -1,4 +1,5 @@
 import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+import { isUndeadMilitaryUnit, livingTroops, undeadTroops } from "../utils/regimentPopulation";
 
 export { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
 
@@ -1425,11 +1426,16 @@ class MilitaryModule {
         if (r.isRisen) continue;
         if (useLedger) continue;
 
-        if (r.a < r.t) {
+        const living = livingTroops(r);
+        if (living < r.t) {
           const recoveryAmount = r.t * RECOVERY_RATE_PER_YEAR * deltaYears;
           let totalRecovered = 0;
           for (const [unitName, currentAmount] of Object.entries(r.u)) {
-            const ratio = r.a > 0 ? currentAmount / r.a : 1 / Math.max(1, Object.keys(r.u).length);
+            if (isUndeadMilitaryUnit(unitName)) continue;
+            const ratio =
+              living > 0
+                ? currentAmount / living
+                : 1 / Math.max(1, Object.keys(r.u).filter(key => !isUndeadMilitaryUnit(key)).length);
             const recovered = Math.round(recoveryAmount * ratio);
             if (recovered > 0) {
               r.u[unitName] = currentAmount + recovered;
@@ -1438,12 +1444,12 @@ class MilitaryModule {
           }
 
           r.a += totalRecovered;
-          if (r.a > r.t) {
-            const scale = r.t / r.a;
+          if (livingTroops(r) > r.t) {
+            const scale = r.t / livingTroops(r);
             for (const unitName in r.u) {
-              r.u[unitName] = Math.floor(r.u[unitName] * scale);
+              if (!isUndeadMilitaryUnit(unitName)) r.u[unitName] = Math.floor(r.u[unitName] * scale);
             }
-            r.a = r.t;
+            r.a = r.t + undeadTroops(r);
           }
         }
       }

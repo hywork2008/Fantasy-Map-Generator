@@ -24,7 +24,6 @@ import { refreshAllRiverHydrology } from "../generators/riverHydrology";
 import { Routes } from "../generators/routes-generator";
 import { advanceSeasonalClimate } from "../generators/seasonalClimate";
 import { initSimulationClock } from "../generators/timeEngine";
-import { raiseUndeadWhereLichPresent } from "../generators/undeadRaising";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
@@ -808,7 +807,6 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   // and prevents the staged document from passing archive validation.
   initSimulationClock();
   ensureFuneralRemainsSeeded();
-  raiseUndeadWhereLichPresent();
   // Legacy .map saves predate grid.cells.seasonalTemp; compute it once for the
   // freshly-loaded calendar month. (.fmg archive loads restore an already-consistent
   // seasonalTemp/lastSeasonalTempBucket pair via the generic world.replace snapshot, so

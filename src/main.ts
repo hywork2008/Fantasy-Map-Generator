@@ -69,7 +69,6 @@ import { States } from "./generators/states-generator";
 import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
-import { raiseUndeadWhereLichPresent } from "./generators/undeadRaising";
 import { establishVassalage } from "./generators/vassalage";
 import { assignWildLandTags } from "./generators/wildLandTags";
 import { Zones } from "./generators/zones-generator";
@@ -1237,7 +1236,6 @@ function getGenerationStages(): Array<() => Promise<void>> {
       initializeForestStock(worldContext.pack.cells);
       initSimulationClock();
       ensureFuneralRemainsSeeded();
-      raiseUndeadWhereLichPresent();
       advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
       bindSimulationBurgState(worldContext, simulationContext);
       bindSimulationStateState(worldContext, simulationContext);

@@ -1373,6 +1373,7 @@ export interface MilitaryUnit {
 
 export interface MilitaryRegiment {
   i: number;
+  /** Recruitment ceiling; excludes undead units in a mixed regiment. */
   t: number;
   name: string;
   a: number;

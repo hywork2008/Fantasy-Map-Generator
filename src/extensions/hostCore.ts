@@ -58,6 +58,7 @@ export {
   reconcileSubsistenceCapacityFromFood
 } from "../generators/subsistenceCapacity";
 export { getAtmosphericSteamPumpingEffect, getFourCourseRotationEffect } from "../generators/technologyProgress";
+export { raiseUndeadOnCellEntered } from "../generators/undeadRaising";
 export type { Point } from "../generators/voronoi";
 export { BordersRenderer } from "../renderers/draw-borders";
 export { MilitaryRenderer } from "../renderers/draw-military";
@@ -66,3 +67,4 @@ export { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvan
 export { useOptionsState } from "../store/optionsState";
 export { getCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 export { getCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
+export { isUndeadMilitaryUnit, livingTroops } from "../utils/regimentPopulation";
