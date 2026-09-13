@@ -46,12 +46,15 @@ export function drawHistoryArrows(events: ChronicleEvent[]) {
     if (!fromCoords || !toCoords) return;
 
     // Only draw arrows for actual combat events
-    const combatActions = [
-      "declared a war on its rival",
-      "joined the war on attackers side",
-      "joined the war on defenders side"
-    ];
-    if (!combatActions.includes(event.action)) return;
+    const isCombatAction = (action: string) =>
+      action.startsWith("declared a war") ||
+      action.startsWith("declared a holy war") ||
+      action.startsWith("declared a trade war") ||
+      action.startsWith("launched a") ||
+      action === "joined the war on attackers side" ||
+      action === "joined the war on defenders side";
+
+    if (!isCombatAction(event.action)) return;
 
     // Introduce curvature to prevent straight lines from perfectly overlapping
     const dx = toCoords[0] - fromCoords[0];

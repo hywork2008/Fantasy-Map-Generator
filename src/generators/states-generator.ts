@@ -34,6 +34,7 @@ import { enforceGiantWaterSourceSovereignty } from "./giantWaterSourceSovereignt
 import { populateAllIndependentBurgs } from "./independentBurgGovernance";
 import { assignInitialPolities, clearUnclaimedOikoumenePopulation } from "./initialPolities";
 import { Names } from "./names-generator";
+import { generateWarCasusBelli } from "./warCasusBelli";
 
 class StatesModule {
   worldContext: WorldContext = worldContext;
@@ -535,32 +536,6 @@ class StatesModule {
     let eventIdCounter = 0;
     const warCounts = new Map<string, number>();
 
-    const romanize = (num: number) => {
-      const lookup: { [key: string]: number } = {
-        M: 1000,
-        CM: 900,
-        D: 500,
-        CD: 400,
-        C: 100,
-        XC: 90,
-        L: 50,
-        XL: 40,
-        X: 10,
-        IX: 9,
-        V: 5,
-        IV: 4,
-        I: 1
-      };
-      let roman = "";
-      for (const i in lookup) {
-        while (num >= lookup[i]) {
-          roman += i;
-          num -= lookup[i];
-        }
-      }
-      return roman;
-    };
-
     const getEventEndpoints = (from: number, to: number) => {
       const fromBurgs = pack.burgs.filter(b => b.state === from && !b.removed);
       const toBurgs = pack.burgs.filter(b => b.state === to && !b.removed);
@@ -668,8 +643,28 @@ class StatesModule {
         warCounts.set(pairKey, count);
 
         // start an ongoing war
-        const baseName = `The ${an}-${trimVowels(dn)}ian War`;
-        const name = count === 1 ? baseName : `${baseName} ${romanize(count)}`;
+        const { toBurg } = getEventEndpoints(attacker, defender);
+        const targetBurg = toBurg ? pack.burgs[toBurg] : undefined;
+
+        const attackerRelId = cells.religion?.[states[attacker].center];
+        const defenderRelId = cells.religion?.[states[defender].center];
+        const attackerReligionName = attackerRelId != null ? pack.religions?.[attackerRelId]?.name : undefined;
+        const defenderReligionName = defenderRelId != null ? pack.religions?.[defenderRelId]?.name : undefined;
+        const attackerCultureName = pack.cultures?.[states[attacker].culture]?.name;
+        const defenderCultureName = pack.cultures?.[states[defender].culture]?.name;
+
+        const casusBelli = generateWarCasusBelli({
+          attacker: states[attacker],
+          defender: states[defender],
+          attackerReligionName,
+          defenderReligionName,
+          attackerCultureName,
+          defenderCultureName,
+          warCount: count,
+          targetBurg
+        });
+
+        const name = casusBelli.warName;
         console.log(`WAR START: ${name} (count: ${count}, attempt: ${attempt})`);
         // Base yearsAgo on the attempt to ensure chronological order (War I is older than War II).
         // Segment the 100-year history by the number of attempts.
@@ -685,14 +680,14 @@ class StatesModule {
         );
 
         const createEvent = (from: number, to: number, action: string, rawText: string) => {
-          const { fromBurg, toBurg } = getEventEndpoints(from, to);
+          const endpoints = getEventEndpoints(from, to);
           return {
             id: `war-${attacker}-${defender}-${eventIdCounter++}`,
             yearsAgo: yearsAgo,
             from,
             to,
-            fromBurg,
-            toBurg,
+            fromBurg: endpoints.fromBurg,
+            toBurg: endpoints.toBurg,
             action,
             rawText
           };
@@ -700,9 +695,7 @@ class StatesModule {
 
         // biome-ignore lint/suspicious/noExplicitAny: mixed array
         const war: any[] = [name];
-        war.push(
-          createEvent(attacker, defender, "declared a war on its rival", `${an} declared a war on its rival ${dn}`)
-        );
+        war.push(createEvent(attacker, defender, casusBelli.action, casusBelli.rawText));
 
         const start = options.year! - yearsAgo;
         const campaign = { name, start, attacker, defender };

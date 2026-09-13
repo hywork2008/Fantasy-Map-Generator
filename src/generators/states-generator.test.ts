@@ -213,3 +213,130 @@ describe("States.expandStates", () => {
     }
   });
 });
+
+describe("States.generateDiplomacy", () => {
+  it("generates diplomacy without crashing when cells.religion is undefined", () => {
+    const mockWorldContext = {
+      options: { year: 1000 },
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1]),
+          h: new Uint8Array([25, 25]),
+          state: new Uint16Array([1, 2]),
+          area: new Float32Array([100, 100]),
+          f: new Uint16Array([0, 0]),
+          c: [[1], [0]],
+          p: [
+            [0, 0],
+            [10, 10]
+          ]
+          // religion is intentionally omitted/undefined (pre-Religions.generate)
+        },
+        states: [
+          { i: 0, name: "Neutrals", diplomacy: [] },
+          {
+            i: 1,
+            name: "Alpha",
+            center: 0,
+            culture: 1,
+            type: "Generic",
+            neighbors: [2],
+            diplomacy: [],
+            campaigns: []
+          },
+          {
+            i: 2,
+            name: "Beta",
+            center: 1,
+            culture: 1,
+            type: "Generic",
+            neighbors: [1],
+            diplomacy: [],
+            campaigns: []
+          }
+        ],
+        burgs: [
+          { i: 0 },
+          { i: 1, state: 1, name: "Alpha Burg", x: 0, y: 0 },
+          { i: 2, state: 2, name: "Beta Burg", x: 10, y: 10 }
+        ],
+        cultures: [
+          { i: 0, name: "Wild" },
+          { i: 1, name: "Culture A" }
+        ],
+        religions: undefined
+      }
+    } as unknown as WorldContext;
+
+    States.worldContext = mockWorldContext;
+    expect(() => States.generateDiplomacy()).not.toThrow();
+    expect(mockWorldContext.pack.states[0].diplomacy).toBeDefined();
+    expect(mockWorldContext.pack.states[1].diplomacy?.[2]).toBeDefined();
+  });
+
+  it("generates diplomacy with casus belli when cells.religion and religions are present", () => {
+    const mockWorldContext = {
+      options: { year: 1000 },
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1]),
+          h: new Uint8Array([25, 25]),
+          state: new Uint16Array([1, 2]),
+          area: new Float32Array([100, 100]),
+          f: new Uint16Array([0, 0]),
+          c: [[1], [0]],
+          p: [
+            [0, 0],
+            [10, 10]
+          ],
+          religion: new Uint16Array([1, 2])
+        },
+        states: [
+          { i: 0, name: "Neutrals", diplomacy: [] },
+          {
+            i: 1,
+            name: "Alpha",
+            center: 0,
+            culture: 1,
+            type: "Generic",
+            form: "Theocracy",
+            formName: "Holy Empire",
+            neighbors: [2],
+            diplomacy: [],
+            campaigns: []
+          },
+          {
+            i: 2,
+            name: "Beta",
+            center: 1,
+            culture: 1,
+            type: "Generic",
+            form: "Theocracy",
+            formName: "Holy Empire",
+            neighbors: [1],
+            diplomacy: [],
+            campaigns: []
+          }
+        ],
+        burgs: [
+          { i: 0 },
+          { i: 1, state: 1, name: "Alpha Burg", x: 0, y: 0 },
+          { i: 2, state: 2, name: "Beta Burg", x: 10, y: 10 }
+        ],
+        cultures: [
+          { i: 0, name: "Wild" },
+          { i: 1, name: "Culture A" }
+        ],
+        religions: [
+          { i: 0, name: "No religion" },
+          { i: 1, name: "Solar Orthodoxy" },
+          { i: 2, name: "Lunar Heresy" }
+        ]
+      }
+    } as unknown as WorldContext;
+
+    States.worldContext = mockWorldContext;
+    expect(() => States.generateDiplomacy()).not.toThrow();
+    expect(mockWorldContext.pack.states[0].diplomacy).toBeDefined();
+  });
+});

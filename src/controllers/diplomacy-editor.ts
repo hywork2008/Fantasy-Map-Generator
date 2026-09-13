@@ -6,7 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
+import { generateWarCasusBelli } from "../generators/warCasusBelli";
 import { StatesRenderer } from "../renderers";
 import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
@@ -225,7 +225,21 @@ export function editDiplomacy(): void {
       `Relations severance`,
       `${subjectName} recalled their ambassadors and wiped all the records about ${objectName}`
     ];
-    const war = (): [string, string] => [`War declaration`, `${subjectName} declared a war on its enemy ${objectName}`];
+    const war = (): [string, string] => {
+      const pack = worldContext.pack;
+      const attackerRelId = pack.cells.religion?.[states[subjectId].center] ?? 0;
+      const defenderRelId = pack.cells.religion?.[states[objectId].center] ?? 0;
+      const cb = generateWarCasusBelli({
+        attacker: states[subjectId],
+        defender: states[objectId],
+        attackerReligionName: pack.religions?.[attackerRelId]?.name,
+        defenderReligionName: pack.religions?.[defenderRelId]?.name,
+        attackerCultureName: pack.cultures?.[states[subjectId].culture]?.name,
+        defenderCultureName: pack.cultures?.[states[objectId].culture]?.name,
+        warCount: 1
+      });
+      return [`War declaration`, `${subjectName} declared war on ${objectName}, ${cb.reason}`];
+    };
     const peace = (): [string, string, string] => {
       const treaty = `${subjectName} and ${objectName} agreed to cease fire and signed a peace treaty`;
       const changed =
