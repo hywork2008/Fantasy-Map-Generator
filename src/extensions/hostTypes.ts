@@ -15,6 +15,11 @@ export type {
   RaceKey,
   Route,
   State,
+  WarDetails,
+  WarForces,
+  WarNonBelligerent,
+  WarParticipant,
+  WarPledge,
   Zone
 } from "../types/models";
 export { CHARACTER_GENDER_MODES, DEFAULT_CULTURE_TYPE } from "../types/models";

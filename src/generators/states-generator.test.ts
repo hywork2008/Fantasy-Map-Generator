@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 import { States } from "./states-generator";
@@ -338,5 +339,114 @@ describe("States.generateDiplomacy", () => {
     States.worldContext = mockWorldContext;
     expect(() => States.generateDiplomacy()).not.toThrow();
     expect(mockWorldContext.pack.states[0].diplomacy).toBeDefined();
+  });
+
+  it("generates WarDetails with mobilized forces and motivation pledges for coalition wars", () => {
+    const prevAttempts = useOptionsState.getState().diplomacyHistoryAttempts;
+    useOptionsState.setState({ diplomacyHistoryAttempts: 5 });
+
+    const mockWorldContext = {
+      options: { year: 1000 },
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1, 2]),
+          h: new Uint8Array([25, 25, 25]),
+          state: new Uint16Array([1, 2, 3]),
+          area: new Float32Array([100, 500, 100]),
+          f: new Uint16Array([0, 0, 0]),
+          c: [[1], [0, 2], [1]],
+          p: [
+            [0, 0],
+            [10, 10],
+            [20, 20]
+          ],
+          religion: new Uint16Array([1, 1, 1])
+        },
+        states: [
+          { i: 0, name: "Neutrals", diplomacy: [] },
+          {
+            i: 1,
+            name: "Alpha",
+            center: 0,
+            culture: 1,
+            type: "Generic",
+            expansionism: 0.5,
+            neighbors: [2],
+            diplomacy: [undefined, "x", "Rival", "Neutral"],
+            campaigns: []
+          },
+          {
+            i: 2,
+            name: "Beta",
+            center: 1,
+            culture: 1,
+            type: "Generic",
+            expansionism: 10.0,
+            neighbors: [1, 3],
+            diplomacy: [undefined, "Rival", "x", "Ally"],
+            campaigns: []
+          },
+          {
+            i: 3,
+            name: "Gamma",
+            center: 2,
+            culture: 1,
+            type: "Generic",
+            expansionism: 1.0,
+            neighbors: [2],
+            diplomacy: [undefined, "Neutral", "Ally", "x"],
+            campaigns: []
+          }
+        ],
+        burgs: [
+          { i: 0 },
+          { i: 1, state: 1, name: "Alpha Port", x: 0, y: 0, port: 1 },
+          { i: 2, state: 2, name: "Beta Keep", x: 10, y: 10 },
+          { i: 3, state: 3, name: "Gamma Port", x: 20, y: 20, port: 1 }
+        ],
+        cultures: [
+          { i: 0, name: "Wild" },
+          { i: 1, name: "Culture A" }
+        ],
+        religions: [
+          { i: 0, name: "No religion" },
+          { i: 1, name: "Common Faith" }
+        ]
+      }
+    } as unknown as WorldContext;
+
+    worldContext.pack = mockWorldContext.pack;
+    worldContext.options = mockWorldContext.options;
+    States.worldContext = mockWorldContext;
+    States.generateDiplomacy();
+
+    // Check that wars have attached WarDetails
+    const stateWithCampaign = mockWorldContext.pack.states.find(s => s.campaigns && s.campaigns.length > 0);
+    expect(stateWithCampaign).toBeDefined();
+
+    const campaign = stateWithCampaign!.campaigns![0];
+    expect(campaign.details).toBeDefined();
+    const details = campaign.details!;
+    expect(details.id).toBeDefined();
+    expect(details.name).toBe(campaign.name);
+    expect(details.participants.length).toBeGreaterThanOrEqual(2);
+
+    // Verify forces are populated
+    for (const p of details.participants) {
+      expect(p.forces.total).toBeGreaterThan(0);
+      expect(p.forces.infantry).toBeGreaterThan(0);
+      expect(p.transitType).toBeDefined();
+      expect(p.transitDetail).toBeDefined();
+    }
+
+    // Chronicle event must have warId attached
+    const chronicle = mockWorldContext.pack.states[0].diplomacy as any[][];
+    expect(chronicle.length).toBeGreaterThan(0);
+    const firstWarGroup = chronicle[0];
+    const event = firstWarGroup.find(e => typeof e === "object");
+    expect(event).toBeDefined();
+    expect(event.warId).toBeDefined();
+
+    useOptionsState.setState({ diplomacyHistoryAttempts: prevAttempts });
   });
 });

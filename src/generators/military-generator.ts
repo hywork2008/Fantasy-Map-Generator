@@ -1259,7 +1259,7 @@ class MilitaryModule {
 
     for (const regiment of state.military ?? []) {
       regiment.icon = this.getEmblem(regiment);
-      regiment.name = this.getName(regiment, state.military);
+      regiment.name = this.getName(regiment, state.military ?? []);
       this.generateNote(regiment, state);
     }
     document.dispatchEvent(new CustomEvent("fmg:refresh-military"));

@@ -847,12 +847,64 @@ export interface Route {
   traffic?: number;
 }
 
+export interface WarForces {
+  infantry: number;
+  cavalry?: number;
+  naval?: number;
+  total: number;
+}
+
+export interface WarPledge {
+  type: "burg_cession" | "war_subsidies" | "trade_privilege" | "none";
+  burgId?: number;
+  burgName?: string;
+  amount?: number;
+  description: string;
+}
+
+export interface WarParticipant {
+  stateId: number;
+  side: "attacker" | "defender";
+  role: "leader" | "ally" | "vassal";
+  motivation?: string;
+  motivationLabel?: string;
+  pledge?: WarPledge;
+  transitType?: "naval_expedition" | "military_transit" | "direct_border";
+  transitDetail?: string;
+  vesselsUsed?: number;
+  forces: WarForces;
+}
+
+export interface WarNonBelligerent {
+  stateId: number;
+  targetStateId?: number;
+  action: "severed_defense_pact" | "avoided_war";
+  reason: string;
+}
+
+export interface WarDetails {
+  id: string;
+  name: string;
+  casusBelliCategory: string;
+  casusBelliAction: string;
+  casusBelliReason: string;
+  startYear: number;
+  endYear?: number;
+  attackerLeader: number;
+  defenderLeader: number;
+  targetBurgId?: number;
+  participants: WarParticipant[];
+  nonBelligerents?: WarNonBelligerent[];
+  outcome?: string;
+}
+
 export interface Campaign {
   name: string;
   start: number;
   end?: number;
   attacker: number;
   defender: number;
+  details?: WarDetails;
 }
 
 export interface ChronicleEvent {
@@ -864,6 +916,7 @@ export interface ChronicleEvent {
   toBurg?: number;
   action: string;
   rawText: string;
+  warId?: string;
 }
 
 /** How races compose a polity — derived from culture.monoRacial on generation. */

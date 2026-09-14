@@ -9,7 +9,15 @@ import { worldContext } from "../context/worldContext";
 import { isForestBiome } from "../data/biomeCatalog";
 import { HeightThreshold } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
-import type { State } from "../types/models";
+import type {
+  Campaign,
+  State,
+  WarDetails,
+  WarForces,
+  WarNonBelligerent,
+  WarParticipant,
+  WarPledge
+} from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import {
   each,
@@ -679,6 +687,7 @@ class StatesModule {
           Math.min(100, Math.floor(minYears + Math.random() ** 1.5 * (maxYears - minYears)))
         );
 
+        const warId = `war-${attacker}-${defender}-${count}-${options.year! - yearsAgo}`;
         const createEvent = (from: number, to: number, action: string, rawText: string) => {
           const endpoints = getEventEndpoints(from, to);
           return {
@@ -689,8 +698,52 @@ class StatesModule {
             fromBurg: endpoints.fromBurg,
             toBurg: endpoints.toBurg,
             action,
-            rawText
+            rawText,
+            warId
           };
+        };
+
+        const stateHasPorts = (stateId: number): boolean => {
+          return pack.burgs?.some(b => b.state === stateId && b.port) ?? false;
+        };
+        const getStatePorts = (stateId: number) => {
+          return (pack.burgs || []).filter(b => b.state === stateId && b.port);
+        };
+
+        const estimateForces = (
+          stateId: number,
+          role: "leader" | "ally" | "vassal",
+          transitType: "naval_expedition" | "military_transit" | "direct_border",
+          vesselsUsed?: number
+        ): WarForces => {
+          let rawPop = 0;
+          for (const i of cells.i) {
+            if (cells.h[i] >= 20 && cells.state[i] === stateId) {
+              rawPop += cells.pop?.[i] || 0;
+              if (cells.burg?.[i] && pack.burgs) {
+                rawPop += pack.burgs[cells.burg[i]]?.population || 0;
+              }
+            }
+          }
+          const populationRate = this.worldContext.populationRate ?? 1000;
+          const totalPop = rawPop > 0 ? rawPop * populationRate : (stateAreas[stateId] || 50) * 800;
+
+          // Historical total military pool is ~1.2% - 1.5% of population (e.g. 2M pop -> ~27k army)
+          const totalMilitaryPool = Math.max(300, Math.round(totalPop * 0.0135));
+
+          // Belligerent deployment share of total military pool
+          const mobilizationRate = role === "leader" ? 0.6 : role === "ally" ? 0.22 : 0.38;
+          const mobilizedTotal = Math.max(
+            150,
+            Math.round(totalMilitaryPool * mobilizationRate * (0.85 + Math.random() * 0.3))
+          );
+
+          const cavRatio = 0.18;
+          const cavalry = Math.round(mobilizedTotal * cavRatio);
+          const navalForces = transitType === "naval_expedition" ? (vesselsUsed ? vesselsUsed * 30 : 600) : undefined;
+          const infantry = Math.max(100, mobilizedTotal - cavalry);
+          const total = infantry + cavalry + (navalForces || 0);
+          return { infantry, cavalry, naval: navalForces, total };
         };
 
         // biome-ignore lint/suspicious/noExplicitAny: mixed array
@@ -698,14 +751,46 @@ class StatesModule {
         war.push(createEvent(attacker, defender, casusBelli.action, casusBelli.rawText));
 
         const start = options.year! - yearsAgo;
-        const campaign = { name, start, attacker, defender };
-        states[attacker].campaigns!.push(campaign);
-        states[defender].campaigns!.push(campaign);
+        const campaign: Campaign = { name, start, attacker, defender };
+
+        const participants: WarParticipant[] = [
+          {
+            stateId: attacker,
+            side: "attacker",
+            role: "leader",
+            motivation: casusBelli.category,
+            motivationLabel: casusBelli.category.toUpperCase(),
+            transitType: "direct_border",
+            transitDetail: "Main offensive front",
+            forces: estimateForces(attacker, "leader", "direct_border")
+          },
+          {
+            stateId: defender,
+            side: "defender",
+            role: "leader",
+            motivation: "defense",
+            motivationLabel: "Territorial Defense",
+            transitType: "direct_border",
+            transitDetail: "Homeland defensive operations",
+            forces: estimateForces(defender, "leader", "direct_border")
+          }
+        ];
+        const nonBelligerents: WarNonBelligerent[] = [];
 
         // attacker vassals join the war
         ad.forEach((r, d) => {
           if (r === "Suzerain" && states[d].neighbors!.includes(defender) && !isPathBlocked(d, defender)) {
             attackers.push(d);
+            participants.push({
+              stateId: d,
+              side: "attacker",
+              role: "vassal",
+              motivation: "vassal_duty",
+              motivationLabel: "Feudal military levy",
+              transitType: "direct_border",
+              transitDetail: "Suzerain service deployment",
+              forces: estimateForces(d, "vassal", "direct_border")
+            });
             war.push(
               createEvent(
                 d,
@@ -721,6 +806,16 @@ class StatesModule {
         dd.forEach((r, d) => {
           if (r === "Suzerain" && states[d].neighbors!.includes(attacker) && !isPathBlocked(d, attacker)) {
             defenders.push(d);
+            participants.push({
+              stateId: d,
+              side: "defender",
+              role: "vassal",
+              motivation: "vassal_duty",
+              motivationLabel: "Feudal military levy",
+              transitType: "direct_border",
+              transitDetail: "Suzerain service deployment",
+              forces: estimateForces(d, "vassal", "direct_border")
+            });
             war.push(
               createEvent(
                 d,
@@ -737,16 +832,33 @@ class StatesModule {
 
         // defender allies join
         dd.forEach((r, d) => {
-          if (
-            r !== "Ally" ||
-            states[d].diplomacy!.includes("Vassal") ||
-            !states[d].neighbors!.includes(attacker) ||
-            isPathBlocked(d, attacker)
-          )
-            return;
+          if (r !== "Ally" || states[d].diplomacy!.includes("Vassal")) return;
+
+          const isDirect = states[d].neighbors!.includes(attacker) && !isPathBlocked(d, attacker);
+          const hasNaval = !isDirect && stateHasPorts(d) && stateHasPorts(attacker);
+          const hasTransit =
+            !isDirect &&
+            !hasNaval &&
+            states[defender].neighbors!.includes(attacker) &&
+            states[d].neighbors!.includes(defender) &&
+            !isPathBlocked(d, defender) &&
+            !isPathBlocked(defender, attacker);
+
+          if (!isDirect && !hasNaval && !hasTransit) return;
+
           if (states[d].diplomacy![attacker] !== "Rival") {
             if (ap / dp > gauss(1.5, 0.5, 0, 10, 2)) {
-              const reason = states[d].diplomacy!.includes("Enemy") ? "Being already at war," : `Frightened by ${an},`;
+              const isAtWar = states[d].diplomacy!.includes("Enemy");
+              const reason = isAtWar ? "Being already at war," : `Frightened by ${an},`;
+              const reasonText = isAtWar
+                ? `Already engaged in other wars, severed defense pact with ${dn}`
+                : `Frightened by ${an}'s superior forces, severed defense pact with ${dn}`;
+              nonBelligerents.push({
+                stateId: d,
+                targetStateId: defender,
+                action: "severed_defense_pact",
+                reason: reasonText
+              });
               war.push(
                 createEvent(
                   d,
@@ -759,6 +871,12 @@ class StatesModule {
               return;
             }
             if (P(0.4)) {
+              nonBelligerents.push({
+                stateId: d,
+                targetStateId: defender,
+                action: "avoided_war",
+                reason: `Avoided entering the war to assist ${dn}`
+              });
               war.push(
                 createEvent(
                   d,
@@ -770,16 +888,40 @@ class StatesModule {
               return;
             }
           }
+
           defenders.push(d);
           dp += stateAreas[d] * states[d].expansionism;
-          war.push(
-            createEvent(
-              d,
-              attacker,
-              "joined the war on defenders side",
-              `${dn}'s ally ${states[d].name} joined the war on defenders side`
-            )
-          );
+
+          let transitType: "naval_expedition" | "military_transit" | "direct_border" = "direct_border";
+          let transitDetail = "Direct defensive border mobilization";
+          let vesselsUsed: number | undefined;
+          let allyText = `${dn}'s ally ${states[d].name} joined the war on defenders side`;
+
+          if (hasNaval) {
+            transitType = "naval_expedition";
+            vesselsUsed = Math.min(50, Math.max(8, Math.round(getStatePorts(d).length * 7 + Math.random() * 10)));
+            transitDetail = `Naval expedition fleet (${vesselsUsed} vessels, coastal defense & counter-blockade)`;
+            allyText = `${dn}'s ally ${states[d].name} dispatched a relief fleet (${vesselsUsed} ships) to defend against ${an}`;
+          } else if (hasTransit) {
+            transitType = "military_transit";
+            transitDetail = `Forward deployment through ${dn}'s transit corridor`;
+            allyText = `${dn}'s ally ${states[d].name} deployed reinforcements through ${dn}'s territory`;
+          }
+
+          const allyForces = estimateForces(d, "ally", transitType, vesselsUsed);
+          participants.push({
+            stateId: d,
+            side: "defender",
+            role: "ally",
+            motivation: "defense_pact",
+            motivationLabel: "Mutual Defense Pact",
+            transitType,
+            transitDetail,
+            vesselsUsed,
+            forces: allyForces
+          });
+
+          war.push(createEvent(d, attacker, "joined the war on defenders side", allyText));
 
           // ally vassals join
           states[d]
@@ -790,6 +932,16 @@ class StatesModule {
             .forEach(v => {
               defenders.push(v);
               dp += stateAreas[v] * states[v].expansionism;
+              participants.push({
+                stateId: v,
+                side: "defender",
+                role: "vassal",
+                motivation: "vassal_duty",
+                motivationLabel: "Feudal military levy",
+                transitType: "direct_border",
+                transitDetail: "Suzerain service deployment",
+                forces: estimateForces(v, "vassal", "direct_border")
+              });
               war.push(
                 createEvent(
                   v,
@@ -803,16 +955,28 @@ class StatesModule {
 
         // attacker allies join if the defender is their rival or joined power > defenders power and defender is not an ally
         ad.forEach((r, d) => {
-          if (
-            r !== "Ally" ||
-            states[d].diplomacy!.includes("Vassal") ||
-            defenders.includes(d) ||
-            !states[d].neighbors!.includes(defender) ||
-            isPathBlocked(d, defender)
-          )
-            return;
+          if (r !== "Ally" || states[d].diplomacy!.includes("Vassal") || defenders.includes(d)) return;
+
+          const isDirect = states[d].neighbors!.includes(defender) && !isPathBlocked(d, defender);
+          const hasNaval = !isDirect && stateHasPorts(d) && stateHasPorts(defender);
+          const hasTransit =
+            !isDirect &&
+            !hasNaval &&
+            states[attacker].neighbors!.includes(defender) &&
+            states[d].neighbors!.includes(attacker) &&
+            !isPathBlocked(d, attacker) &&
+            !isPathBlocked(attacker, defender);
+
+          if (!isDirect && !hasNaval && !hasTransit) return;
+
           const nameStateD = states[d].name;
           if (states[d].diplomacy![defender] !== "Rival" && (P(0.7) || ap <= dp * 1.5)) {
+            nonBelligerents.push({
+              stateId: d,
+              targetStateId: attacker,
+              action: "avoided_war",
+              reason: `Avoided entering the war alongside ${an}`
+            });
             war.push(
               createEvent(
                 d,
@@ -825,6 +989,12 @@ class StatesModule {
           }
           const allies = states[d].diplomacy!.map((r, d) => (r === "Ally" ? d : 0)).filter(d => d);
           if (allies.some(ally => defenders.includes(ally))) {
+            nonBelligerents.push({
+              stateId: d,
+              targetStateId: attacker,
+              action: "avoided_war",
+              reason: `Refused to join as its allies are at war on both sides`
+            });
             war.push(
               createEvent(
                 d,
@@ -838,14 +1008,100 @@ class StatesModule {
 
           attackers.push(d);
           ap += stateAreas[d] * states[d].expansionism;
-          war.push(
-            createEvent(
-              d,
-              defender,
-              "joined the war on attackers side",
-              `${an}'s ally ${nameStateD} joined the war on attackers side`
-            )
-          );
+
+          let transitType: "naval_expedition" | "military_transit" | "direct_border" = "direct_border";
+          let transitDetail = "Direct advance across shared border";
+          let motivation = "balance_of_power";
+          let motivationLabel = "Balance of Power";
+          let pledge: WarPledge = { type: "none", description: `Preserving regional balance of power against ${dn}` };
+          let vesselsUsed: number | undefined;
+          let allyText = `${an}'s ally ${nameStateD} joined the war on attackers side`;
+
+          if (hasNaval) {
+            transitType = "naval_expedition";
+            vesselsUsed = Math.min(60, Math.max(10, Math.round(getStatePorts(d).length * 8 + Math.random() * 12)));
+            transitDetail = `Naval expedition fleet (${vesselsUsed} vessels, naval blockade & landing force)`;
+            const defenderPorts = getStatePorts(defender);
+            if (defenderPorts.length > 0 && Math.random() < 0.6) {
+              const targetPort = defenderPorts[Math.floor(Math.random() * defenderPorts.length)];
+              motivation = "territorial_pledge";
+              motivationLabel = "Promised port cession";
+              pledge = {
+                type: "burg_cession",
+                burgId: targetPort.i,
+                burgName: targetPort.name,
+                description: `Promised cession of the strategic port city of ${targetPort.name}`
+              };
+              allyText = `${an}'s ally ${nameStateD} launched a naval expedition (${vesselsUsed} ships), promised the port of ${targetPort.name}`;
+            } else {
+              motivation = "trade_concession";
+              motivationLabel = "Maritime trade privileges";
+              pledge = {
+                type: "trade_privilege",
+                description: `Exclusive commercial rights and toll exemptions in ${dn}'s waters`
+              };
+              allyText = `${an}'s ally ${nameStateD} dispatched an expedition fleet (${vesselsUsed} ships) for regional trade privileges`;
+            }
+          } else if (hasTransit) {
+            transitType = "military_transit";
+            transitDetail = `Military transit corridor through ${an} (secured by diplomatic hostages and supply guarantees)`;
+            if (Math.random() < 0.65) {
+              const subsidy = Math.round(800 + Math.random() * 1200);
+              motivation = "war_subsidies";
+              motivationLabel = "War subsidies agreement";
+              pledge = {
+                type: "war_subsidies",
+                amount: subsidy,
+                description: `Subsidized with ${subsidy} gold pieces by ${an} for military expedition costs`
+              };
+              allyText = `${an}'s ally ${nameStateD} marched through ${an}'s corridor under transit pact, funded by ${subsidy} gold in subsidies`;
+            } else {
+              motivation = "balance_of_power";
+              motivationLabel = "Regional containment";
+              pledge = {
+                type: "none",
+                description: `Strategic intervention through ${an}'s territory to curb ${dn}`
+              };
+              allyText = `${an}'s ally ${nameStateD} marched through ${an} under hostage-backed transit rights to check ${dn}`;
+            }
+          } else {
+            if (states[d].diplomacy![defender] === "Rival" || states[d].diplomacy![defender] === "Enemy") {
+              motivation = "blood_feud";
+              motivationLabel = "Historical rivalry";
+              pledge = { type: "none", description: `Avenging past territorial conflicts with ${dn}` };
+              allyText = `${an}'s ally ${nameStateD} joined the war to settle ancient scores with ${dn}`;
+            } else if (Math.random() < 0.5) {
+              const defenderBurgs = (pack.burgs || []).filter(b => b.state === defender);
+              if (defenderBurgs.length > 0) {
+                const targetBurg = defenderBurgs[Math.floor(Math.random() * defenderBurgs.length)];
+                motivation = "territorial_pledge";
+                motivationLabel = "Territorial partition";
+                pledge = {
+                  type: "burg_cession",
+                  burgId: targetBurg.i,
+                  burgName: targetBurg.name,
+                  description: `Promised territorial annexation of ${targetBurg.name}`
+                };
+                allyText = `${an}'s ally ${nameStateD} joined the offensive, promised the partition of ${targetBurg.name}`;
+              }
+            }
+          }
+
+          const allyForces = estimateForces(d, "ally", transitType, vesselsUsed);
+          participants.push({
+            stateId: d,
+            side: "attacker",
+            role: "ally",
+            motivation,
+            motivationLabel,
+            pledge,
+            transitType,
+            transitDetail,
+            vesselsUsed,
+            forces: allyForces
+          });
+
+          war.push(createEvent(d, defender, "joined the war on attackers side", allyText));
 
           // ally vassals join
           states[d]
@@ -856,6 +1112,16 @@ class StatesModule {
             .forEach(v => {
               attackers.push(v);
               ap += stateAreas[v] * states[v].expansionism;
+              participants.push({
+                stateId: v,
+                side: "attacker",
+                role: "vassal",
+                motivation: "vassal_duty",
+                motivationLabel: "Feudal military levy",
+                transitType: "direct_border",
+                transitDetail: "Suzerain service deployment",
+                forces: estimateForces(v, "vassal", "direct_border")
+              });
               war.push(
                 createEvent(
                   v,
@@ -865,6 +1131,30 @@ class StatesModule {
                 )
               );
             });
+        });
+
+        const warDetails: WarDetails = {
+          id: warId,
+          name,
+          casusBelliCategory: casusBelli.category,
+          casusBelliAction: casusBelli.action,
+          casusBelliReason: casusBelli.reason,
+          startYear: start,
+          attackerLeader: attacker,
+          defenderLeader: defender,
+          targetBurgId: targetBurg?.i,
+          participants,
+          nonBelligerents: nonBelligerents.length > 0 ? nonBelligerents : undefined
+        };
+        campaign.details = warDetails;
+
+        const allParticipantStates = Array.from(new Set([...attackers, ...defenders]));
+        allParticipantStates.forEach(sId => {
+          if (states[sId]?.campaigns) {
+            if (!states[sId].campaigns!.some(c => c.name === name && c.start === start)) {
+              states[sId].campaigns!.push(campaign);
+            }
+          }
         });
 
         // change relations to Enemy for all participants

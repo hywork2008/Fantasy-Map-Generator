@@ -86,9 +86,9 @@ import { TechnologyOverviewDialog } from "./TechnologyOverviewDialog";
 import { TemperatureGraphDialog } from "./TemperatureGraphDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
 import { TextureUrlDialog } from "./TextureUrlDialog";
-
 import { TransformToolDialog } from "./TransformToolDialog";
 import { UnitsEditorDialog } from "./UnitsEditorDialog";
+import { WarDetailsDialog } from "./WarDetailsDialog";
 import { WorldConfiguratorDialog } from "./WorldConfiguratorDialog";
 
 export const DialogsContainer: React.FC = () => {
@@ -126,6 +126,7 @@ export const DialogsContainer: React.FC = () => {
           <ColorPickerDialog />
           <CulturesEditorDialog />
           <DiplomacyHistoryDialog />
+          <WarDetailsDialog />
           <DiplomacyMatrixDialog />
           <DiplomacyRelationDialog />
           <DirectionsDialog />

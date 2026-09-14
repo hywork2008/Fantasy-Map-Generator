@@ -12,7 +12,8 @@ import {
 } from "../../controllers/diplomacy-history-renderer";
 import { dialogStore } from "../../store/dialogState";
 import { diplomacyHistoryDialogStore, useDiplomacyHistoryDialogState } from "../../store/diplomacyHistoryDialogState";
-import type { ChronicleEvent } from "../../types/models";
+import { warDetailsDialogStore } from "../../store/warDetailsDialogState";
+import type { ChronicleEvent, WarDetails } from "../../types/models";
 import { Dialog } from "./Dialog";
 
 const DIALOG_ID = "diplomacyHistory";
@@ -65,8 +66,22 @@ export const DiplomacyHistoryDialog: React.FC = () => {
         if (typeof line === "object") {
           eventNumber += 1;
           result.push({ kind: "event", groupIdx, entryIdx, event: line, number: eventNumber });
-        } else {
+        } else if (entryIdx === 0) {
           result.push({ kind: "header", groupIdx, entryIdx, text: line });
+        } else {
+          // If a non-header line became a string in legacy/modified data, recover it as an event
+          eventNumber += 1;
+          const prevEvent = group.find((item): item is ChronicleEvent => typeof item === "object");
+          const recoveredEvent: ChronicleEvent = {
+            id: `recovered-${groupIdx}-${entryIdx}`,
+            yearsAgo: prevEvent?.yearsAgo ?? 1,
+            from: prevEvent?.from ?? 0,
+            to: prevEvent?.to ?? 0,
+            action: "diplomatic action",
+            rawText: line,
+            warId: prevEvent?.warId
+          };
+          result.push({ kind: "event", groupIdx, entryIdx, event: recoveredEvent, number: eventNumber });
         }
       });
     });
@@ -120,6 +135,41 @@ export const DiplomacyHistoryDialog: React.FC = () => {
       return `${number}\t${year}\t${from}\t${to}\t${event.rawText}`;
     });
     return ["#\tEra & Year\tFrom\tTo\tAction", ...lines].join("\n");
+  };
+
+  const findWarDetails = (row: HistoryRow): WarDetails | undefined => {
+    const states = worldContext.pack.states;
+    let targetWarId = row.kind === "event" ? row.event.warId : undefined;
+    if (!targetWarId) {
+      const group = chronicle[row.groupIdx];
+      if (group) {
+        const foundEvent = group.find((item): item is ChronicleEvent => typeof item === "object" && !!item.warId);
+        if (foundEvent) targetWarId = foundEvent.warId;
+      }
+    }
+
+    if (targetWarId) {
+      for (const s of states) {
+        if (!s.i || s.removed || !s.campaigns) continue;
+        const c = s.campaigns.find(camp => camp.details?.id === targetWarId);
+        if (c?.details) return c.details;
+      }
+    }
+
+    const warName =
+      row.kind === "header"
+        ? row.text
+        : typeof chronicle[row.groupIdx]?.[0] === "string"
+          ? (chronicle[row.groupIdx][0] as string)
+          : undefined;
+    if (warName) {
+      for (const s of states) {
+        if (!s.i || s.removed || !s.campaigns) continue;
+        const c = s.campaigns.find(camp => camp.name === warName && camp.details);
+        if (c?.details) return c.details;
+      }
+    }
+    return undefined;
   };
 
   const save = () => {
@@ -179,6 +229,8 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                   const row = rows[virtualRow.index];
                   const isEvent = row.kind === "event";
                   const rawText = isEvent ? row.event.rawText : row.text;
+                  const warDetails = findWarDetails(row);
+
                   const textCell = (
                     <div
                       contentEditable
@@ -204,8 +256,39 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                       <td>{isEvent ? worldContext.pack.states[row.event.from]?.name || row.event.from : "-"}</td>
                       <td>{isEvent ? worldContext.pack.states[row.event.to]?.name || row.event.to : "-"}</td>
                       <td>
-                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           <div style={{ flex: 1 }}>{textCell}</div>
+                          {!isEvent && warDetails && (
+                            <button
+                              type="button"
+                              title="View War Details & Coalition Forces"
+                              style={{
+                                padding: "2px 8px",
+                                fontSize: "0.78em",
+                                cursor: "pointer",
+                                background: "#3182ce",
+                                color: "#ffffff",
+                                border: "none",
+                                borderRadius: "4px",
+                                whiteSpace: "nowrap",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}
+                              onClick={() => warDetailsDialogStore.getState().open(warDetails)}
+                            >
+                              ⚔️ Details
+                            </button>
+                          )}
+                          {isEvent && warDetails && (
+                            <span
+                              title="View War Details"
+                              style={{ cursor: "pointer", opacity: 0.8, fontSize: "0.9em" }}
+                              onClick={() => warDetailsDialogStore.getState().open(warDetails)}
+                            >
+                              ⚔️
+                            </span>
+                          )}
                           {isEvent && row.event.toBurg !== undefined && (
                             <span
                               className="icon-search"

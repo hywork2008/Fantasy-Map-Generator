@@ -254,4 +254,44 @@ describe("applyMilitaryWarRecord", () => {
     const expected = 60 + record!.services.reduce((sum, s) => sum + prestigeDeltaForConduct(s.conduct), 0);
     expect(marshal.prestige).toBe(Math.max(1, Math.min(100, expected)));
   });
+
+  it("persists warId and supports ally participants from campaign details", () => {
+    const campaignWithDetails: Campaign = {
+      name: "Grand Coalition War",
+      start: 1025,
+      end: 1030,
+      attacker: 1,
+      defender: 2,
+      details: {
+        id: "war-1-2-grand",
+        name: "Grand Coalition War",
+        casusBelliCategory: "territorial",
+        casusBelliAction: "declared war",
+        casusBelliReason: "disputed frontier",
+        startYear: 1025,
+        attackerLeader: 1,
+        defenderLeader: 2,
+        participants: [
+          {
+            stateId: 3,
+            side: "attacker",
+            role: "ally",
+            forces: { infantry: 500, total: 500 }
+          }
+        ]
+      }
+    };
+
+    // Officer of ally state 3
+    let allyOfficer = character({ state: 3, i: 10 });
+    let record = applyMilitaryWarRecord(allyOfficer, [campaignWithDetails], 1040);
+    for (let i = 11; i < 90 && !record; i++) {
+      allyOfficer = character({ state: 3, i });
+      record = applyMilitaryWarRecord(allyOfficer, [campaignWithDetails], 1040);
+    }
+    expect(record).toBeDefined();
+    expect(record!.services[0].warId).toBe("war-1-2-grand");
+    expect(record!.services[0].side).toBe("attacker");
+    expect(record!.services[0].opponentStateId).toBe(2);
+  });
 });

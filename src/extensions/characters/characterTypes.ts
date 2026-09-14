@@ -50,6 +50,7 @@ export interface CharacterEpithet {
 }
 
 export interface CharacterWarService {
+  warId?: string;
   campaignName: string;
   /** Year the campaign began. Kept so a long-running war remains identifiable. */
   year: number;

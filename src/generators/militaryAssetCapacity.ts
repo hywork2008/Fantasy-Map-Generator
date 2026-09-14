@@ -1,4 +1,5 @@
-import type { MilitaryRegiment, PackedGraph, State } from "../types/models";
+import type { MilitaryRegiment, State } from "../types/models";
+import type { PackedGraph } from "../types/PackedGraph";
 
 export interface MountedCapacityRequest {
   stateId: number;

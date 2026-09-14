@@ -206,11 +206,22 @@ export function reconstructMilitaryWarRecord(
   const services: CharacterWarService[] = [];
 
   wars.forEach((campaign, index) => {
-    if (campaign.attacker !== character.state && campaign.defender !== character.state) return;
+    const participant = campaign.details?.participants.find(p => p.stateId === character.state);
+    const isMainBelligerent = campaign.attacker === character.state || campaign.defender === character.state;
+    if (!isMainBelligerent && !participant) return;
     if (!campaignOverlapsTenure(campaign, tenureStart, currentYear)) return;
+
     const serveRoll = unitFromSeed(character.i * 10007 + Math.round(campaign.start) * 17 + index);
     if (serveRoll > chance) return;
-    const isDefender = campaign.defender === character.state;
+
+    const side: "attacker" | "defender" = participant
+      ? participant.side
+      : campaign.defender === character.state
+        ? "defender"
+        : "attacker";
+    const isDefender = side === "defender";
+    const opponentStateId = isDefender ? campaign.attacker : campaign.defender;
+
     const conduct = chooseWarConduct(
       character,
       isDefender,
@@ -218,11 +229,12 @@ export function reconstructMilitaryWarRecord(
     );
     if (conduct === "cautious_avoid") return;
     services.push({
+      warId: campaign.details?.id,
       campaignName: campaign.name,
       year: Math.round(campaign.start),
       serviceStartYear: Math.max(Math.round(campaign.start), Math.round(tenureStart)),
-      opponentStateId: isDefender ? campaign.attacker : campaign.defender,
-      side: isDefender ? "defender" : "attacker",
+      opponentStateId,
+      side,
       conduct
     });
   });

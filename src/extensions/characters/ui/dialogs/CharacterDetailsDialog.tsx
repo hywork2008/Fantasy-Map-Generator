@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { warDetailsDialogStore } from "../../../../store/warDetailsDialogState";
 import { useOptionsState } from "../../../hostCore";
 import { getRaceById, isFantasyCulturesSet } from "../../../hostRaces";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
@@ -611,6 +612,30 @@ export const CharacterDetailsDialog: React.FC = () => {
           conduct
         });
   };
+
+  const findWarDetailsForService = (service: NonNullable<Character["militaryRecord"]>["services"][number]) => {
+    const ctx = getWorldContext();
+    if (!ctx?.pack) return undefined;
+    const { pack } = ctx;
+
+    if (service.warId) {
+      for (const s of pack.states || []) {
+        for (const c of s.campaigns || []) {
+          if (c.details?.id === service.warId) return c.details;
+        }
+      }
+    }
+
+    for (const s of pack.states || []) {
+      for (const c of s.campaigns || []) {
+        if (c.details && c.name === service.campaignName && Math.abs(c.start - service.year) <= 2) {
+          return c.details;
+        }
+      }
+    }
+
+    return undefined;
+  };
   const demonTrueHorns =
     demonTrueForm?.raceAppearance?.kind === "demon"
       ? t("characters.demonHorns", { animal: demonTrueForm.raceAppearance.hornAnimal })
@@ -853,11 +878,38 @@ export const CharacterDetailsDialog: React.FC = () => {
             <td>
               {t("characters.warRecordWars", { count: character.militaryRecord.wars })}
               <ul style={{ margin: "4px 0 0", paddingLeft: "1.2em" }}>
-                {character.militaryRecord.services.map(service => (
-                  <li key={`${service.year}-${service.campaignName}-${service.opponentStateId}`}>
-                    {formatWarService(service)}
-                  </li>
-                ))}
+                {character.militaryRecord.services.map(service => {
+                  const warDetails = findWarDetailsForService(service);
+                  return (
+                    <li
+                      key={`${service.year}-${service.campaignName}-${service.opponentStateId}`}
+                      style={{ marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <span>{formatWarService(service)}</span>
+                      {warDetails && (
+                        <button
+                          type="button"
+                          onClick={() => warDetailsDialogStore.getState().open(warDetails)}
+                          title={t("characters.viewWarDetails")}
+                          style={{
+                            background: "var(--color-bg-secondary, rgba(0, 0, 0, 0.15))",
+                            border: "1px solid var(--color-border, rgba(255, 255, 255, 0.2))",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "0.85em",
+                            padding: "1px 6px",
+                            color: "var(--color-text, inherit)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px"
+                          }}
+                        >
+                          ⚔️ <span style={{ fontSize: "0.85em" }}>{t("common.details") || "Details"}</span>
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </td>
           </tr>

@@ -460,10 +460,19 @@ export function openRelationsHistory(): void {
     },
     onChange: (groupIdx: number, entryIdx: number, value: string) => {
       legacyMutation(() => {
-        const group = (neutralState.diplomacy as unknown as string[][])[groupIdx];
+        // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
+        const group = (neutralState.diplomacy as any[])[groupIdx];
         if (!group) return { result: undefined, topics: [] };
-        if (value === "") group.splice(entryIdx, 1);
-        else group[entryIdx] = value;
+        if (value === "") {
+          group.splice(entryIdx, 1);
+        } else {
+          const current = group[entryIdx];
+          if (typeof current === "object" && current !== null) {
+            current.rawText = value;
+          } else {
+            group[entryIdx] = value;
+          }
+        }
         return { result: undefined, topics: ["map.politics"] };
       });
     }
