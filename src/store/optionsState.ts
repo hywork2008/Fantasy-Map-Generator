@@ -265,6 +265,7 @@ export interface OptionsState {
    * Wars with disparity exceeding this threshold are skipped to preserve small states.
    */
   maxWarDisparityRatio: number;
+  maxWarDisparityRatioEnabled: boolean;
 
   // Danger settings
   /**
@@ -469,6 +470,7 @@ export const GENERATION_OPTION_KEYS = [
   "conflictAutonomy",
   "warFrequency",
   "maxWarDisparityRatio",
+  "maxWarDisparityRatioEnabled",
   "economyStartMode",
   "ironDepositsPerState",
   "ruralEcosystemDetail",
@@ -568,6 +570,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   technologyRequirementEase: 1,
   diplomacyHistoryAttempts: 1,
   maxWarDisparityRatio: 8,
+  maxWarDisparityRatioEnabled: true,
 
   dangerEnabled: false,
   dangerRarity5Min: 1,
@@ -647,4 +650,19 @@ export const useOptionsState = create<OptionsState>(set => ({
 /** Snapshot of generation options from Zustand, suitable for JSON export. */
 export function getGenerationOptions(state: OptionsValues = useOptionsState.getState()): GenerationOptions {
   return Object.fromEntries(GENERATION_OPTION_KEYS.map(key => [key, state[key]])) as GenerationOptions;
+}
+
+/**
+ * Default maximum war power disparity multiplier (always 8).
+ */
+export function getDefaultMaxWarDisparityRatio(_culturesSet?: string | null): number {
+  return 8;
+}
+
+/**
+ * Whether maximum war power disparity check is enabled by default.
+ * Disabled (false) for High Fantasy and Dark Fantasy; enabled (true) otherwise.
+ */
+export function getDefaultMaxWarDisparityRatioEnabled(culturesSet?: string | null): boolean {
+  return culturesSet !== "highFantasy" && culturesSet !== "darkFantasy";
 }

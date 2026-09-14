@@ -9,7 +9,7 @@ import { worldContext } from "../context/worldContext";
 import { isForestBiome } from "../data/biomeCatalog";
 import { HeightThreshold } from "../data/constants";
 import { findWarRouteCells } from "../services/warRouteFinder";
-import { useOptionsState } from "../store/optionsState";
+import { getDefaultMaxWarDisparityRatioEnabled, useOptionsState } from "../store/optionsState";
 import type {
   Campaign,
   State,
@@ -36,6 +36,7 @@ import {
   trimVowels
 } from "../utils";
 import { TIME } from "../utils/debug";
+import { locked } from "../utils/domUtils";
 import { generateWorldLanguages } from "../utils/worldLanguages";
 import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";
@@ -657,7 +658,17 @@ class StatesModule {
     };
 
     const diplomacyHistoryAttempts = useOptionsState.getState().diplomacyHistoryAttempts ?? 1;
-    const maxWarDisparityRatio = useOptionsState.getState().maxWarDisparityRatio ?? 8;
+    const culturesSet = worldContext.options?.culturesSet ?? useOptionsState.getState().culturesSet;
+    const defaultDisparityEnabled = getDefaultMaxWarDisparityRatioEnabled(culturesSet);
+    const maxWarDisparityRatioEnabled =
+      worldContext.options?.maxWarDisparityRatioEnabled ??
+      (worldContext.options?.culturesSet &&
+      worldContext.options.culturesSet !== useOptionsState.getState().culturesSet &&
+      !locked("maxWarDisparityRatioEnabled")
+        ? defaultDisparityEnabled
+        : (useOptionsState.getState().maxWarDisparityRatioEnabled ?? defaultDisparityEnabled));
+    const maxWarDisparityRatio =
+      worldContext.options?.maxWarDisparityRatio ?? useOptionsState.getState().maxWarDisparityRatio ?? 8;
     for (let attempt = 0; attempt < diplomacyHistoryAttempts; attempt++) {
       for (let attacker = 1; attacker < states.length; attacker++) {
         const ad = states[attacker].diplomacy as string[]; // attacker relations;
@@ -694,7 +705,7 @@ class StatesModule {
             dp = stateAreas[d] * states[d].expansionism;
             // The power check works correctly now that Enemies are not filtered out
             if (ap >= dp * gauss(1.6, 0.8, 0, 10, 2)) {
-              if (maxWarDisparityRatio > 0) {
+              if (maxWarDisparityRatioEnabled && maxWarDisparityRatio > 0) {
                 const attackerForce = estimateForces(attacker, "leader", "direct_border").total;
                 const defenderForce = estimateForces(d, "leader", "direct_border").total;
                 const forceRatio = Math.max(
@@ -1311,6 +1322,7 @@ class StatesModule {
           .reduce((sum, p) => sum + p.forces.total, 0);
 
         if (
+          maxWarDisparityRatioEnabled &&
           maxWarDisparityRatio > 0 &&
           Math.max(
             totalAttackerForces / Math.max(1, totalDefenderForces),

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { useOptionsState } from "../store/optionsState";
+import {
+  getDefaultMaxWarDisparityRatio,
+  getDefaultMaxWarDisparityRatioEnabled,
+  useOptionsState
+} from "../store/optionsState";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 import { States } from "./states-generator";
 
@@ -666,5 +670,88 @@ describe("States.generateDiplomacy", () => {
       maxWarDisparityRatio: prevDisparity,
       diplomacyHistoryAttempts: prevAttempts
     });
+  });
+
+  it("defaults maxWarDisparityRatio to 8 always, and maxWarDisparityRatioEnabled to false for High/Dark Fantasy", () => {
+    expect(getDefaultMaxWarDisparityRatio("highFantasy")).toBe(8);
+    expect(getDefaultMaxWarDisparityRatio("darkFantasy")).toBe(8);
+    expect(getDefaultMaxWarDisparityRatio("world")).toBe(8);
+    expect(getDefaultMaxWarDisparityRatio("european")).toBe(8);
+    expect(getDefaultMaxWarDisparityRatio(undefined)).toBe(8);
+    expect(getDefaultMaxWarDisparityRatio(null)).toBe(8);
+
+    expect(getDefaultMaxWarDisparityRatioEnabled("highFantasy")).toBe(false);
+    expect(getDefaultMaxWarDisparityRatioEnabled("darkFantasy")).toBe(false);
+    expect(getDefaultMaxWarDisparityRatioEnabled("world")).toBe(true);
+    expect(getDefaultMaxWarDisparityRatioEnabled("european")).toBe(true);
+    expect(getDefaultMaxWarDisparityRatioEnabled(undefined)).toBe(true);
+    expect(getDefaultMaxWarDisparityRatioEnabled(null)).toBe(true);
+  });
+
+  it("disables disparity check by default for High Fantasy so war can be declared", () => {
+    const prevAttempts = useOptionsState.getState().diplomacyHistoryAttempts;
+    useOptionsState.setState({ diplomacyHistoryAttempts: 10 });
+
+    // State 1 has area 200, State 2 has area 100 -> ratio = 2.0x
+    const fantasyWorldContext = {
+      options: { year: 100, culturesSet: "highFantasy" },
+      pack: {
+        cells: {
+          i: [0, 1],
+          h: [20, 20],
+          area: [200, 100],
+          state: [1, 2],
+          pop: [200, 100],
+          burg: [1, 2],
+          p: [
+            [0, 0],
+            [10, 0]
+          ],
+          c: [[1], [0]],
+          f: [0, 0]
+        },
+        states: [
+          { i: 0, name: "Neutrals", removed: true },
+          { i: 1, name: "Realm A", expansionism: 1, neighbors: [2], campaigns: [], center: 0 },
+          { i: 2, name: "Realm B", expansionism: 1, neighbors: [1], campaigns: [], center: 1 }
+        ],
+        burgs: [
+          { i: 0, name: "None", state: 0, cell: 0, x: 0, y: 0, population: 0 },
+          { i: 1, name: "City A", state: 1, cell: 0, x: 0, y: 0, port: 0, population: 2000 },
+          { i: 2, name: "City B", state: 2, cell: 1, x: 10, y: 0, port: 0, population: 1000 }
+        ],
+        routes: []
+      }
+    } as unknown as WorldContext;
+
+    worldContext.pack = fantasyWorldContext.pack;
+    worldContext.options = fantasyWorldContext.options;
+    States.worldContext = fantasyWorldContext;
+
+    let warGenerated = false;
+    for (let run = 0; run < 10; run++) {
+      fantasyWorldContext.pack.states[1].campaigns = [];
+      fantasyWorldContext.pack.states[2].campaigns = [];
+      States.generateDiplomacy();
+      const chronicle = fantasyWorldContext.pack.states[0].diplomacy as any[][];
+      if (chronicle.length > 0) {
+        warGenerated = true;
+        break;
+      }
+    }
+    expect(warGenerated).toBe(true);
+
+    // If maxWarDisparityRatioEnabled is explicitly turned on with limit 1, 2x disparity skips war
+    fantasyWorldContext.options.maxWarDisparityRatioEnabled = true;
+    fantasyWorldContext.options.maxWarDisparityRatio = 1;
+    for (let run = 0; run < 10; run++) {
+      fantasyWorldContext.pack.states[1].campaigns = [];
+      fantasyWorldContext.pack.states[2].campaigns = [];
+      States.generateDiplomacy();
+      const chronicle = fantasyWorldContext.pack.states[0].diplomacy as any[][];
+      expect(chronicle.length).toBe(0);
+    }
+
+    useOptionsState.setState({ diplomacyHistoryAttempts: prevAttempts });
   });
 });

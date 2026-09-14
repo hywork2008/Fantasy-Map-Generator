@@ -63,7 +63,8 @@ const BOOLEAN_KEYS = [
   "gunpowderEraEnabled",
   "initialFirearmsUnstocked",
   "forceIndustrialCultures",
-  "dangerEnabled"
+  "dangerEnabled",
+  "maxWarDisparityRatioEnabled"
 ] as const;
 
 const STRING_KEYS = ["seed", "mapName", "era", "template", "culturesSet", "emblemShape"] as const;
@@ -99,6 +100,7 @@ const NUMBER_KEYS = [
   "diplomacyHistoryAttempts",
   "warFrequency",
   "maxWarDisparityRatio",
+  "maxWarDisparityRatioEnabled",
   "ironDepositsPerState",
   "populationRate",
   "distanceScale",

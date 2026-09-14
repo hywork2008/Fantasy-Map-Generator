@@ -116,6 +116,23 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip={t("simulation.maxWarDisparityRatioEnabledTip")}>
+            <td>
+              <LockIconButton id="maxWarDisparityRatioEnabled" />
+            </td>
+            <td>
+              <label htmlFor="maxWarDisparityRatioEnabled">{t("simulation.maxWarDisparityRatioEnabled")}</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="maxWarDisparityRatioEnabled"
+                type="checkbox"
+                checked={options.maxWarDisparityRatioEnabled}
+                onChange={e => updateOptionAndLock("maxWarDisparityRatioEnabled", e.target.checked)}
+              />
+            </td>
+          </tr>
+
           <tr data-tip={t("simulation.maxWarDisparityRatioTip")}>
             <td>
               <LockIconButton id="maxWarDisparityRatio" />
@@ -127,6 +144,7 @@ export const SimulationSettingsTab: React.FC = () => {
                 max="20"
                 step="0.5"
                 value={options.maxWarDisparityRatio}
+                disabled={!options.maxWarDisparityRatioEnabled}
                 onChange={v => updateOptionAndLock("maxWarDisparityRatio", Number(v))}
               />
             </td>

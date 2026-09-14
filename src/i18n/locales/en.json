@@ -1968,6 +1968,8 @@
     "playerDirected": "Player-directed",
     "warFrequency": "War Frequency",
     "warFrequencyTip": "Multiplier for how quickly autonomous wars mature. 1.0 is default (wars take roughly a generation to brew). 0.0 prevents autonomous escalation. 2.0 means frequent wars.",
+    "maxWarDisparityRatioEnabled": "Limit War Power Disparity",
+    "maxWarDisparityRatioEnabledTip": "Enable maximum power disparity limitation for historical wars. When disabled (default for High and Dark Fantasy), wars between states of vastly unequal military forces can occur.",
     "maxWarDisparityRatio": "Max War Power Disparity",
     "maxWarDisparityRatioTip": "Maximum power ratio between attacker and defender for historical wars. Wars exceeding this multiplier (default: 8) are skipped so the survival of small states is left to the player's judgment.",
     "technologyDevelopmentSpeed": "Technology development speed",

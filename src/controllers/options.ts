@@ -288,7 +288,17 @@ function changeCultureSet(): void {
   // Always rewrite these values (and lock storage if present) so switching to High Fantasy
   // after experimenting with Frontier does not leave a sticky locked "frontier" setting.
   const { culturesSet } = useOptionsState.getState();
-  if (!culturesSetUsesFrontierSettlement(culturesSet)) return;
+  const isFantasy = culturesSetUsesFrontierSettlement(culturesSet);
+
+  if (!isFantasy) {
+    if (!locked("maxWarDisparityRatioEnabled") && !useOptionsState.getState().maxWarDisparityRatioEnabled) {
+      useOptionsState.getState().setOption("maxWarDisparityRatioEnabled", true);
+    }
+    if (!locked("maxWarDisparityRatio") && useOptionsState.getState().maxWarDisparityRatio === 1) {
+      useOptionsState.getState().setOption("maxWarDisparityRatio", 8);
+    }
+    return;
+  }
 
   const threatDefaults = getThreatOptionDefaults(culturesSet);
   useOptionsState.getState().setOptions({
@@ -300,6 +310,10 @@ function changeCultureSet(): void {
     dangerEnabled: true,
     fireSpiritsEnabled: true,
     gremlinsEnabled: true,
+    ...(!locked("maxWarDisparityRatioEnabled") ? { maxWarDisparityRatioEnabled: false } : {}),
+    ...(!locked("maxWarDisparityRatio") && useOptionsState.getState().maxWarDisparityRatio === 1
+      ? { maxWarDisparityRatio: 8 }
+      : {}),
     ...(threatDefaults ?? {})
   });
   // Keep lock keys in sync with the new fantasy defaults when they were already locked.
@@ -532,6 +546,7 @@ export function applyStoredOptions(): void {
     "silverToCopperRate",
     "warFrequency",
     "maxWarDisparityRatio",
+    "maxWarDisparityRatioEnabled",
     "technologyDevelopmentSpeed",
     "technologyRequirementEase",
     "threatCalculation",
@@ -574,7 +589,8 @@ export function applyStoredOptions(): void {
         key === "initialFirearmsUnstocked" ||
         key === "forceIndustrialCultures" ||
         key === "fireSpiritsEnabled" ||
-        key === "gremlinsEnabled"
+        key === "gremlinsEnabled" ||
+        key === "maxWarDisparityRatioEnabled"
           ? value === "true"
           : Number.isNaN(+value)
             ? value
@@ -1186,6 +1202,13 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   // View mode / 3D handled via React
 }
 
-export { changeZoomExtent, restoreDefaultCanvasSize, restoreDefaultZoomExtent, testSpeaker, toggleTranslateExtent };
+export {
+  changeCultureSet,
+  changeZoomExtent,
+  restoreDefaultCanvasSize,
+  restoreDefaultZoomExtent,
+  testSpeaker,
+  toggleTranslateExtent
+};
 
 document.addEventListener("fmg:show-export-pane", () => showExportPane());
