@@ -67,5 +67,14 @@
   },
   {
     "key": "zombie"
+  },
+  {
+    "key": "vampire"
+  },
+  {
+    "key": "dhampir"
+  },
+  {
+    "key": "lesser_vampire"
   }
 ]

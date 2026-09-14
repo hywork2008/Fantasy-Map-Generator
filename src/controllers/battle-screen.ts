@@ -551,6 +551,13 @@ export class Battle {
     });
   }
 
+  isVampireSide(side: BattleSide): boolean {
+    return this[side].regiments.some(r => {
+      const key = this.sideRaceKey(r);
+      return key === "vampire" || key === "lesser_vampire";
+    });
+  }
+
   getInitialMorale(): void {
     const powerFee = (diff: number) => minmax(100 - diff ** 1.5 * 10 + 10, 50, 100);
     const distanceFee = (dist: number[]) => Math.min((mean(dist) || 0) / 50, 15);
@@ -788,10 +795,13 @@ export class Battle {
   calculateCasualties(side: BattleSide, casualties: number): void {
     const opponentSide: BattleSide = side === "attackers" ? "defenders" : "attackers";
     const opponentIsUndead = this.isUndeadSide(opponentSide);
+    const opponentIsVampire = this.isVampireSide(opponentSide);
     const sideIsInfernal = this.isInfernalSide(side);
     const sideIsUndead = this.isUndeadSide(side);
+    const sideIsVampire = this.isVampireSide(side);
 
     let newlyRaisedZombies = 0;
+    let newlyTurnedLesserVampires = 0;
 
     for (const r of this[side].regiments) {
       for (const unit in r.u) {
@@ -800,9 +810,17 @@ export class Battle {
         r.casualties[unit] -= died;
         r.survivors[unit] -= died;
 
-        // Slain mortal soldiers (non-demon, non-fallen-angel) are immediately raised as zombies into the undead army
-        if (opponentIsUndead && !sideIsUndead && !sideIsInfernal && died > 0) {
+        // Slain mortal soldiers (non-demon, non-fallen-angel, non-undead, non-vampire)
+        const isMortalEnemy = !sideIsUndead && !sideIsInfernal && !sideIsVampire;
+        if (opponentIsUndead && isMortalEnemy && died > 0) {
+          // Lich raises 100% of slain mortal soldiers as zombies
           newlyRaisedZombies += died;
+        } else if (opponentIsVampire && isMortalEnemy && died > 0) {
+          // Vampires turn slain mortal soldiers into Lesser Vampires at a measured rate (~25%)
+          const turned = Pint(died * 0.25);
+          if (turned > 0) {
+            newlyTurnedLesserVampires += turned;
+          }
         }
       }
     }
@@ -814,6 +832,19 @@ export class Battle {
 
       targetRegiment.u[raiseUnitName] = (targetRegiment.u[raiseUnitName] || 0) + newlyRaisedZombies;
       targetRegiment.survivors[raiseUnitName] = (targetRegiment.survivors[raiseUnitName] || 0) + newlyRaisedZombies;
+      if (targetRegiment.casualties[raiseUnitName] === undefined) {
+        targetRegiment.casualties[raiseUnitName] = 0;
+      }
+    }
+
+    if (newlyTurnedLesserVampires > 0 && this[opponentSide].regiments.length > 0) {
+      const targetRegiment = this[opponentSide].regiments[0];
+      const raiseUnitName =
+        targetRegiment.u.infantry !== undefined ? "infantry" : Object.keys(targetRegiment.u)[0] || "infantry";
+
+      targetRegiment.u[raiseUnitName] = (targetRegiment.u[raiseUnitName] || 0) + newlyTurnedLesserVampires;
+      targetRegiment.survivors[raiseUnitName] =
+        (targetRegiment.survivors[raiseUnitName] || 0) + newlyTurnedLesserVampires;
       if (targetRegiment.casualties[raiseUnitName] === undefined) {
         targetRegiment.casualties[raiseUnitName] = 0;
       }

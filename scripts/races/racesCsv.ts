@@ -84,7 +84,10 @@ const stableKeys = [
   "fallen_angel",
   "lich",
   "skeleton",
-  "zombie"
+  "zombie",
+  "vampire",
+  "dhampir",
+  "lesser_vampire"
 ];
 
 /** RFC 4180 records, including BOM, CRLF, escaped quotes and embedded newlines. */

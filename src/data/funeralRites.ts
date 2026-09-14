@@ -91,7 +91,8 @@ export const FUNERAL_RITE_RACE_WEIGHT_MULTIPLIERS: Record<string, Partial<Record
   beastfolk: { exposure: 1.5, skyBurial: 1.2, inhumation: 0.8 },
   amazones: { inhumation: 1.1, cremation: 1.1 },
   giant: { inhumation: 1.2, exposure: 1.2 },
-  lich: { inhumation: 1.4, mummification: 1.2, cremation: 0.2 }
+  lich: { inhumation: 1.4, mummification: 1.2, cremation: 0.2 },
+  vampire: { inhumation: 1.6, mummification: 1.3, cremation: 0.1 }
 };
 
 const EMPTY_MATERIALS: FuneralMaterialNeed = { wood: 0, stone: 0, linen: 0 };

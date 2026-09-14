@@ -35,10 +35,12 @@ describe("fantasy culture templates", () => {
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
     expect(cultures.find(c => c.raceKey === "lich")?.name).toBe("Morbane");
     expect(cultures.find(c => c.raceKey === "lich")?.odd).toBe(0.05);
-    expect(cultures).toHaveLength(19);
+    expect(cultures.find(c => c.raceKey === "vampire")?.name).toBe("Sanguinia");
+    expect(cultures.find(c => c.raceKey === "vampire")?.odd).toBe(0.05);
+    expect(cultures).toHaveLength(20);
   });
 
-  it("includes an independent Demon culture alongside Beastfolk and Lich cultures in Dark Fantasy", () => {
+  it("includes an independent Demon culture alongside Beastfolk, Lich, and Vampire cultures in Dark Fantasy", () => {
     stubMapData();
     useOptionsState.setState({ culturesSet: "darkFantasy" });
     const cultures = Cultures.getDefault();
@@ -46,6 +48,8 @@ describe("fantasy culture templates", () => {
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
     expect(cultures.find(c => c.name === "Morbane")?.odd).toBe(1);
     expect(cultures.find(c => c.name === "Ossuaria")?.odd).toBe(0.05);
-    expect(cultures).toHaveLength(38);
+    expect(cultures.find(c => c.raceKey === "vampire")?.name).toBe("Sanguinia");
+    expect(cultures.find(c => c.raceKey === "vampire")?.odd).toBe(0.5);
+    expect(cultures).toHaveLength(39);
   });
 });

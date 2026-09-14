@@ -915,5 +915,168 @@
     "civicStance": "bound",
     "key": "zombie",
     "name": "Zombie"
+  },
+  {
+    "personNameSpheres": {
+      "primary": 1,
+      "alternate": 23
+    },
+    "supernatural": {
+      "arcaneCap": 95,
+      "arcaneMedian": 50,
+      "arcaneInclination": 0.65,
+      "durability": 2.5
+    },
+    "mixedPolityChance": 0,
+    "lifespan": 9999,
+    "maxLifespan": 9999,
+    "fertility": {
+      "fertilityStart": 20,
+      "fertilityEnd": 9999,
+      "interbirthYears": 50,
+      "litterMean": 0.5,
+      "litterMax": 1
+    },
+    "looksBaseline": {
+      "stature": 50,
+      "build": 50,
+      "symmetry": 50,
+      "refinement": 55,
+      "vitality": 50,
+      "ornament": 50
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0.3,
+        "build": 0.2,
+        "symmetry": 1.2,
+        "refinement": 1,
+        "vitality": 0.8,
+        "ornament": 0.4
+      }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.1,
+      "foodIndependent": true,
+      "temperatureIndependent": true
+    },
+    "civicStance": "distant",
+    "key": "vampire",
+    "name": "Vampire"
+  },
+  {
+    "personNameSpheres": {
+      "primary": 1
+    },
+    "mixedPolityChance": 0,
+    "fertility": {
+      "fertilityStart": 16,
+      "fertilityEnd": 60,
+      "interbirthYears": 4,
+      "litterMean": 1,
+      "litterMax": 2
+    },
+    "civicStance": "distant",
+    "key": "dhampir",
+    "name": "Dhampir",
+    "lifespan": 75,
+    "maxLifespan": 9999,
+    "looksBaseline": {
+      "stature": 50,
+      "build": 50,
+      "symmetry": 50,
+      "refinement": 50,
+      "vitality": 50,
+      "ornament": 45
+    },
+    "looksRange": {
+      "stature": {
+        "min": 50,
+        "max": 50
+      },
+      "build": {
+        "min": 50,
+        "max": 50
+      },
+      "symmetry": {
+        "min": 50,
+        "max": 50
+      },
+      "refinement": {
+        "min": 50,
+        "max": 55
+      },
+      "vitality": {
+        "min": 50,
+        "max": 55
+      },
+      "ornament": {
+        "min": 45,
+        "max": 50
+      }
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0.3,
+        "build": 0.2,
+        "symmetry": 1.2,
+        "refinement": 0.8,
+        "vitality": 0.8,
+        "ornament": 0.2
+      }
+    },
+    "supernatural": {
+      "arcaneCap": 95,
+      "arcaneMedian": 3,
+      "arcaneInclination": 0.12,
+      "durability": 1
+    }
+  },
+  {
+    "personNameSpheres": {
+      "primary": 1
+    },
+    "supernatural": {
+      "arcaneCap": 40,
+      "arcaneMedian": 15,
+      "arcaneInclination": 0.3,
+      "durability": 1.8
+    },
+    "mixedPolityChance": 0,
+    "lifespan": 9999,
+    "maxLifespan": 9999,
+    "fertility": {
+      "fertilityStart": 0,
+      "fertilityEnd": 0,
+      "interbirthYears": 100,
+      "litterMean": 0,
+      "litterMax": 0
+    },
+    "looksBaseline": {
+      "stature": 50,
+      "build": 50,
+      "symmetry": 48,
+      "refinement": 45,
+      "vitality": 35,
+      "ornament": 35
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0.2,
+        "build": 0.2,
+        "symmetry": 0.8,
+        "refinement": 0.5,
+        "vitality": 0.5,
+        "ornament": 0.1
+      }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.3,
+      "foodIndependent": true,
+      "temperatureIndependent": true
+    },
+    "civicStance": "bound",
+    "key": "lesser_vampire",
+    "name": "Lesser Vampire"
   }
 ]

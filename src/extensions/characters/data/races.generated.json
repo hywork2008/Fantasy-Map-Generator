@@ -432,5 +432,69 @@
       "guile": 0,
       "confidence": 0
     }
+  },
+  {
+    "key": "vampire",
+    "skillBias": {
+      "artistry": 4,
+      "diplomacy": 6,
+      "intrigue": 14,
+      "learning": 8,
+      "martial": 4,
+      "prowess": 10,
+      "stewardship": 4
+    },
+    "personalityBias": {
+      "boldness": 6,
+      "compassion": -12,
+      "greed": 4,
+      "honor": 0,
+      "rationality": 10,
+      "sociability": 4,
+      "vengefulness": 8,
+      "zeal": -4,
+      "energy": 6,
+      "piety": -10,
+      "guile": 12,
+      "confidence": 8
+    },
+    "boundServitor": {
+      "chance": 1,
+      "raceKey": "lesser_vampire",
+      "roles": [
+        "commander",
+        "merchant",
+        "ordinary"
+      ]
+    }
+  },
+  {
+    "key": "dhampir",
+    "hybridParents": [
+      "human",
+      "vampire"
+    ],
+    "skillBias": {},
+    "personalityBias": {
+      "compassion": -12,
+      "zeal": -4,
+      "piety": -10
+    }
+  },
+  {
+    "key": "lesser_vampire",
+    "skillBias": {
+      "intrigue": -2,
+      "learning": -4,
+      "martial": 4,
+      "prowess": 8
+    },
+    "personalityBias": {
+      "boldness": 4,
+      "compassion": -10,
+      "honor": -4,
+      "rationality": -2,
+      "guile": 2
+    }
   }
 ]

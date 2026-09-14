@@ -15,6 +15,7 @@ import {
 import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
+import { resolveChildRaceId } from "../../characters/hybridChild";
 import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
 import { isLichState } from "../../characters/lichPolicy";
 import { seedMilitaryWarRecordForPeer, seedMilitaryWarRecords } from "../../characters/militaryWarRecord";
@@ -715,8 +716,18 @@ function processSuccessions(): void {
 
       // Setup Heir relationships if possible
       if (currentRuler && isHereditary) {
+        // If ruler has a spouse of another race (e.g. human x vampire), resolve hybrid child race (dhampir)
+        const spouseId = currentRuler.family.spouseIds?.[0];
+        const spouse = spouseId !== undefined ? pack.characters.find(c => c.i === spouseId) : undefined;
+        if (spouse) {
+          const resolvedRace = resolveChildRaceId(currentRuler.race, spouse.race, pack.races);
+          if (resolvedRace !== undefined && resolvedRace !== heir.race) {
+            heir.race = resolvedRace;
+          }
+        }
+
         // If the heir is young enough, assume they are a direct child
-        const childGap = directChildAgeGap(heirIds.raceId);
+        const childGap = directChildAgeGap(heir.race);
         if (heir.age < currentRuler.age - childGap) {
           heir.family.fatherId = currentRuler.gender === "male" ? currentRuler.i : undefined;
           heir.family.motherId = currentRuler.gender === "female" ? currentRuler.i : undefined;

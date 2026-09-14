@@ -240,6 +240,54 @@ describe("Battle — armored/aviation combat resolution (docs/plan/military-era-
     // Undead army should have received the newly raised zombies into their ranks!
     expect(undeadRegiment.survivors.infantry).toBe(initialUndeadSurvivors + humanDied);
   });
+
+  it("turns slain mortal soldiers into Lesser Vampires at a measured rate rather than Lich's 100%", () => {
+    const races: any[] = [];
+    races[19] = { i: 19, key: "vampire", name: "Vampire" };
+    races[1] = { i: 1, key: "human", name: "Human" };
+
+    const cultures: any[] = [];
+    cultures[0] = { i: 0, name: "Wildlands", race: 0 };
+    cultures[1] = { i: 1, name: "Human Culture", race: 1 };
+    cultures[3] = { i: 3, name: "Vampire Realm", race: 19 };
+
+    const states: any[] = [];
+    states[0] = { i: 0, name: "Neutral" };
+    states[1] = { i: 1, name: "Human Kingdom", culture: 1 };
+    states[3] = { i: 3, name: "Vampire Dominion", culture: 3 };
+
+    worldContext.pack = {
+      races,
+      cultures,
+      states
+    } as any;
+
+    const context = makeBattleContext();
+    // Attackers: Vampire army
+    const vampireRegiment = makeRegiment({ infantry: 50 }, { state: 3 });
+    (vampireRegiment as any).casualties = { infantry: 0 };
+    context.attackers.regiments = [vampireRegiment];
+
+    // Defenders: Mortal Human army
+    const humanRegiment = makeRegiment({ infantry: 100 }, { state: 1 });
+    (humanRegiment as any).casualties = { infantry: 0 };
+    context.defenders.regiments = [humanRegiment];
+
+    const initialVampireSurvivors = vampireRegiment.survivors.infantry;
+    const initialHumanSurvivors = humanRegiment.survivors.infantry;
+
+    // Apply casualties to defenders (humans taking casualties)
+    context.calculateCasualties("defenders", 0.5);
+
+    const humanDied = initialHumanSurvivors - humanRegiment.survivors.infantry;
+    expect(humanDied).toBeGreaterThan(0);
+
+    // Vampire army should receive turned lesser vampires at ~25% rate (less than total died, unlike Lich)
+    const gained = vampireRegiment.survivors.infantry - initialVampireSurvivors;
+    expect(gained).toBeGreaterThan(0);
+    expect(gained).toBeLessThan(humanDied);
+    expect(gained).toBeCloseTo(Math.round(humanDied * 0.25), -1);
+  });
 });
 
 describe("Battle formation refresh", () => {

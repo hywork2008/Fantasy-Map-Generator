@@ -39,7 +39,7 @@ export function raceKeyForId(
   if (raceId === undefined || !races) return undefined;
   const indexed = races[raceId];
   if (indexed?.i === raceId) return indexed.key;
-  return races.find(race => race.i === raceId)?.key;
+  return races.find(race => race?.i === raceId)?.key;
 }
 
 export function isLichRaceId(races: readonly RaceIdentity[] | undefined, raceId: number | undefined): boolean {

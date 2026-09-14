@@ -606,6 +606,16 @@ class CulturesModule {
           sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
           shield: "gothic",
           raceKey: "lich"
+        },
+        // Aristocratic Vampire realm: rare in High Fantasy (~5% chance).
+        {
+          name: "Sanguinia",
+          base: 1,
+          personNameBase: 1,
+          odd: 0.05,
+          sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
+          shield: "gothic",
+          raceKey: "vampire"
         }
       ];
     }
@@ -905,6 +915,16 @@ class CulturesModule {
           sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
           shield: "gothic",
           raceKey: "lich"
+        },
+        // Aristocratic Vampire realm: hidden lords ruling over living subjects and thralls
+        {
+          name: "Sanguinia",
+          base: 1,
+          personNameBase: 1,
+          odd: 0.5,
+          sort: (i: number) => (td(i, -1) * h[i]) / bd(i, [1, 2, 10, 11]),
+          shield: "gothic",
+          raceKey: "vampire"
         }
       ];
     }

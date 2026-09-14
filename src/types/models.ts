@@ -82,6 +82,12 @@ export type RaceKey =
   | "zombie"
   | "arachnid"
   | "amazones"
+  /** Immortal aristocratic predator passing among mortals. */
+  | "vampire"
+  /** Half-human offspring of human and vampire. */
+  | "dhampir"
+  /** Bound thrall created through vampiric turning. */
+  | "lesser_vampire"
   | (string & {});
 
 /** Phenotype axes for character looks (1–100). Not beauty scores. */

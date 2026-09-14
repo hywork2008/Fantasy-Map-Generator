@@ -28,3 +28,15 @@ demon,fallen_angel,0.85
 fallen_angel,demon,0.8
 human,fallen_angel,0.75
 fallen_angel,human,0.4
+human,vampire,1
+human,dhampir,1
+human,lesser_vampire,0.75
+vampire,human,1
+vampire,dhampir,1
+vampire,lesser_vampire,0.9
+dhampir,human,1
+dhampir,vampire,1
+dhampir,lesser_vampire,0.85
+lesser_vampire,vampire,0.85
+lesser_vampire,human,0.75
+lesser_vampire,dhampir,0.8

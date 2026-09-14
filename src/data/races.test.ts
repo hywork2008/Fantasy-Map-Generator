@@ -41,7 +41,13 @@ describe("races catalog", () => {
       expect(race.looksBaseline?.stature).toBeDefined();
       expect(race.beautyIdeal?.weights).toBeDefined();
       expect(race.fertility?.interbirthYears).toBeGreaterThan(0);
-      if (race.key === "half_elf" || race.key === "lich" || race.key === "skeleton" || race.key === "zombie") {
+      if (
+        race.key === "half_elf" ||
+        race.key === "lich" ||
+        race.key === "skeleton" ||
+        race.key === "zombie" ||
+        race.key === "lesser_vampire"
+      ) {
         expect(race.fertility!.litterMean).toBe(0);
         expect(race.fertility!.litterMax).toBe(0);
       } else {
@@ -109,5 +115,31 @@ describe("races catalog", () => {
     }
     expect(halfElf.lifespan).toBe(Math.min(human.lifespan!, elf.lifespan!));
     expect(halfElf.maxLifespan).toBe(Math.max(human.maxLifespan!, elf.maxLifespan!));
+  });
+
+  it("appends Vampire, Dhampir, and Lesser Vampire with human-like appearance and hybrid inheritance", () => {
+    const races = createDefaultRaces();
+    const human = races.find(r => r.key === "human")!;
+    const vampire = races.find(r => r.key === "vampire")!;
+    const dhampir = races.find(r => r.key === "dhampir")!;
+    const lesserVampire = races.find(r => r.key === "lesser_vampire")!;
+
+    expect(vampire).toBeDefined();
+    expect(dhampir).toBeDefined();
+    expect(lesserVampire).toBeDefined();
+
+    // Vampire is immortal, distant, human-like appearance (no demon/beastfolk kind)
+    expect(vampire.lifespan).toBe(9999);
+    expect(vampire.characterAppearance?.kind).toBeUndefined();
+    expect(RACE_DEFINITIONS.find(r => r.key === "vampire")?.civicStance).toBe("distant");
+
+    // Dhampir derives traits from Human x Vampire
+    expect(dhampir.lifespan).toBe(Math.min(human.lifespan!, vampire.lifespan!));
+    expect(dhampir.maxLifespan).toBe(Math.max(human.maxLifespan!, vampire.maxLifespan!));
+    expect(RACE_DEFINITIONS.find(r => r.key === "dhampir")?.civicStance).toBe("distant");
+
+    // Lesser Vampire is bound thrall of Vampire
+    expect(RACE_DEFINITIONS.find(r => r.key === "lesser_vampire")?.civicStance).toBe("bound");
+    expect(lesserVampire.fertility?.litterMean).toBe(0);
   });
 });

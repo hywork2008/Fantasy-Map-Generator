@@ -136,10 +136,40 @@ describe("raceBoundServitors", () => {
     expect(roleUsesBoundServitor("ordinary", "lich")).toBe(true);
   });
 
-  it("classifies wyrmkin and half_elf as bound and bars mixed courts", () => {
+  it("classifies wyrmkin, half_elf, and lesser_vampire as bound and bars mixed courts", () => {
     expect(raceCivicStance("wyrmkin")).toBe("bound");
     expect(raceCivicStance("half_elf")).toBe("bound");
+    expect(raceCivicStance("lesser_vampire")).toBe("bound");
     expect(canAppearInMixedCourt("wyrmkin")).toBe(false);
     expect(canAppearInMixedCourt("half_elf")).toBe(false);
+    expect(canAppearInMixedCourt("lesser_vampire")).toBe(false);
+  });
+
+  it("handles Vampire realm roles with Lesser Vampire and living human servitors", () => {
+    const races = createDefaultRaces();
+    const vampire = raceIdByKey(races, "vampire");
+    const lesserVampire = raceIdByKey(races, "lesser_vampire");
+    const human = raceIdByKey(races, "human");
+
+    expect(BOUND_SERVITOR_BY_HOST.vampire?.raceKey).toBe("lesser_vampire");
+    expect(isBoundServitorRaceKey("lesser_vampire")).toBe(true);
+
+    // Ruler and province lord stay pure Vampire
+    expect(resolveRaceIdWithBoundServitor(vampire, "ruler", races, () => true)).toBe(vampire);
+    expect(resolveRaceIdWithBoundServitor(vampire, "province_lord", races, () => true)).toBe(vampire);
+    expect(roleUsesBoundServitor("ruler", "vampire")).toBe(false);
+
+    // Commander is majority Lesser Vampire (~70%), balance Vampire (~30%)
+    expect(resolveRaceIdWithBoundServitor(vampire, "commander", races, () => true)).toBe(lesserVampire);
+    expect(resolveRaceIdWithBoundServitor(vampire, "commander", races, () => false)).toBe(vampire);
+    expect(roleUsesBoundServitor("commander", "vampire")).toBe(true);
+
+    // Merchants and ordinary civilians are majority Lesser Vampire (~60%), balance living humans (~40%)
+    expect(resolveRaceIdWithBoundServitor(vampire, "merchant", races, () => true)).toBe(lesserVampire);
+    expect(resolveRaceIdWithBoundServitor(vampire, "merchant", races, () => false)).toBe(human);
+    expect(resolveRaceIdWithBoundServitor(vampire, "ordinary", races, () => true)).toBe(lesserVampire);
+    expect(resolveRaceIdWithBoundServitor(vampire, "ordinary", races, () => false)).toBe(human);
+    expect(roleUsesBoundServitor("merchant", "vampire")).toBe(true);
+    expect(roleUsesBoundServitor("ordinary", "vampire")).toBe(true);
   });
 });

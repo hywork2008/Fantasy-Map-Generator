@@ -45,6 +45,21 @@
     "readability": 0.9
   },
   {
+    "observerKey": "dhampir",
+    "targetKey": "human",
+    "readability": 1
+  },
+  {
+    "observerKey": "dhampir",
+    "targetKey": "lesser_vampire",
+    "readability": 0.85
+  },
+  {
+    "observerKey": "dhampir",
+    "targetKey": "vampire",
+    "readability": 1
+  },
+  {
     "observerKey": "dwarf",
     "targetKey": "elf",
     "readability": 0.1
@@ -121,6 +136,11 @@
   },
   {
     "observerKey": "human",
+    "targetKey": "dhampir",
+    "readability": 1
+  },
+  {
+    "observerKey": "human",
     "targetKey": "dwarf",
     "readability": 0.18
   },
@@ -141,7 +161,47 @@
   },
   {
     "observerKey": "human",
+    "targetKey": "lesser_vampire",
+    "readability": 0.75
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "vampire",
+    "readability": 1
+  },
+  {
+    "observerKey": "human",
     "targetKey": "wyrmkin",
     "readability": 0.12
+  },
+  {
+    "observerKey": "lesser_vampire",
+    "targetKey": "dhampir",
+    "readability": 0.8
+  },
+  {
+    "observerKey": "lesser_vampire",
+    "targetKey": "human",
+    "readability": 0.75
+  },
+  {
+    "observerKey": "lesser_vampire",
+    "targetKey": "vampire",
+    "readability": 0.85
+  },
+  {
+    "observerKey": "vampire",
+    "targetKey": "dhampir",
+    "readability": 1
+  },
+  {
+    "observerKey": "vampire",
+    "targetKey": "human",
+    "readability": 1
+  },
+  {
+    "observerKey": "vampire",
+    "targetKey": "lesser_vampire",
+    "readability": 0.9
   }
 ]

@@ -49,6 +49,12 @@ export const DEMON_CIVILIAN_DEMON_CHANCE = 0.03;
 /** Fallen Angel merchants/artisans are occasional/rare (~15%). */
 export const DEMON_CIVILIAN_FALLEN_ANGEL_CHANCE = 0.15;
 
+/** Majority of Vampire realm commanders are Lesser Vampires (~70%); occasional Vampire (~30%). */
+export const VAMPIRE_COMMANDER_LESSER_VAMPIRE_CHANCE = 0.7;
+
+/** Lesser Vampire civilians (~60%), remainder living human thralls (~40%). */
+export const VAMPIRE_CIVILIAN_LESSER_VAMPIRE_CHANCE = 0.6;
+
 const DEFAULT_BOUND_SERVITOR_ROLES = ["merchant", "ordinary"] as const;
 
 /** Host race key → bound servitor spec. */
@@ -96,6 +102,10 @@ export function roleUsesBoundServitor(
   if (!roleClass) return false;
   if (hostRaceKey === "demon") {
     // Under Demon realm: commanders, merchants and ordinary civilians
+    return roleClass === "commander" || roleClass === "merchant" || roleClass === "ordinary";
+  }
+  if (hostRaceKey === "vampire") {
+    // Under Vampire realm: commanders, merchants and ordinary civilians (thralls and living servants)
     return roleClass === "commander" || roleClass === "merchant" || roleClass === "ordinary";
   }
   if (isLichRaceKey(hostRaceKey)) {
@@ -155,6 +165,36 @@ export function resolveRaceIdWithBoundServitor(
         return humanId;
       }
       return raceIdByKey(races, "human");
+    }
+
+    return hostRaceId;
+  }
+
+  // Vampire realms have thrall role stratifications:
+  // - Rulers, province lords: pure Vampire
+  // - Commanders: majority Lesser Vampire (~70%), balance pure Vampire (~30%)
+  // - Merchants / ordinary civilians: majority Lesser Vampire thralls (~60%), balance living Human subjects (~40%)
+  if (host?.key === "vampire") {
+    const lesserVampireId = raceIdByKey(races, "lesser_vampire");
+    const humanId = raceIdByKey(races, "human");
+    const hasLesserVampire = races[lesserVampireId]?.key === "lesser_vampire";
+    const hasHuman = races[humanId]?.key === "human";
+
+    if (roleClass === "commander") {
+      if (hasLesserVampire && chanceRoll(VAMPIRE_COMMANDER_LESSER_VAMPIRE_CHANCE)) {
+        return lesserVampireId;
+      }
+      return hostRaceId;
+    }
+
+    if (roleClass === "merchant" || roleClass === "ordinary") {
+      if (hasLesserVampire && chanceRoll(VAMPIRE_CIVILIAN_LESSER_VAMPIRE_CHANCE)) {
+        return lesserVampireId;
+      }
+      if (hasHuman) {
+        return humanId;
+      }
+      return hasLesserVampire ? lesserVampireId : hostRaceId;
     }
 
     return hostRaceId;
