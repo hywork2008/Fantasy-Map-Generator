@@ -242,6 +242,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
             <VirtualTableBody
               items={lines}
               scrollElementRef={parentRef}
+              estimateSize={24}
               renderRow={l => (
                 <tr
                   key={l.id}

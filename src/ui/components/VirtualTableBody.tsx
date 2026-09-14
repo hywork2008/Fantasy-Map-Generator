@@ -1,4 +1,4 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { measureElement as defaultMeasureElement, useVirtualizer } from "@tanstack/react-virtual";
 import React, { useEffect, useState } from "react";
 
 export interface VirtualTableBodyProps<T> {
@@ -23,8 +23,25 @@ export function VirtualTableBody<T>({
     count: items.length,
     getScrollElement: () => scrollElementRef.current,
     estimateSize: () => estimateSize,
-    overscan: 10
+    overscan: 10,
+    measureElement: (element, entry, instance) => {
+      // If entry has blockSize <= 0 (e.g. element is inside display: "none" container or not laid out),
+      // do not overwrite any previously recorded valid size with 0.
+      if (entry?.borderBoxSize) {
+        const box = entry.borderBoxSize[0];
+        if (box && box.blockSize <= 0) {
+          const index = instance.indexFromElement(element);
+          const key = instance.options.getItemKey(index);
+          return instance.itemSizeCache.get(key) ?? instance.options.estimateSize(index);
+        }
+      }
+      return defaultMeasureElement(element, entry, instance);
+    }
   });
+
+  // Table rows in overview dialogs are static list items and do not need reverse-scroll dynamic anchoring
+  // (which causes phantom scroll offsets when items grow from 0 inside display:none to their real size).
+  rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = () => false;
 
   // On a fresh mount (a dialog opening for the first time rather than being
   // revealed from a persistent, already-mounted hidden state), the virtualizer's
@@ -37,8 +54,16 @@ export function VirtualTableBody<T>({
     forceRenderAfterMount(n => n + 1);
   }, []);
 
+  const scrollElement = scrollElementRef.current;
+  const isAtTop = (scrollElement?.scrollTop ?? 0) <= 0;
+  if (isAtTop && rowVirtualizer.scrollOffset !== 0) {
+    rowVirtualizer.scrollOffset = 0;
+    rowVirtualizer.scrollToOffset(0);
+  }
+
   const virtualItems = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualItems.length > 0 ? virtualItems[0]?.start || 0 : 0;
+  // When at the top (scrollTop <= 0), there must never be a top spacer.
+  const paddingTop = !isAtTop && virtualItems.length > 0 ? virtualItems[0]?.start || 0 : 0;
   const paddingBottom =
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - (virtualItems[virtualItems.length - 1]?.end || 0) : 0;
 
