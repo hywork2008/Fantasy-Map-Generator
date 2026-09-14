@@ -78,6 +78,9 @@ export function drawHistoryArrows(events: ChronicleEvent[]) {
       textX = points[midIdx][0];
       textY = points[midIdx][1];
     } else {
+      // Disallow drawing straight/parabolic arrows across land for naval expeditions
+      if (event.transitType === "naval_expedition") return;
+
       // Fallback coordinate lookup if no route was resolved
       const getCoords = (stateId: number, burgId?: number) => {
         if (burgId !== undefined) {

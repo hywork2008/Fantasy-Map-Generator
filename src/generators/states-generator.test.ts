@@ -608,9 +608,9 @@ describe("States.generateDiplomacy", () => {
         cells: {
           i: [0, 1],
           h: [20, 20],
-          area: [2000, 50],
+          area: [600, 500],
           state: [1, 2],
-          pop: [200, 2],
+          pop: [500, 1],
           burg: [1, 2],
           p: [
             [0, 0],
@@ -625,8 +625,9 @@ describe("States.generateDiplomacy", () => {
           { i: 2, name: "MicroState", expansionism: 1, neighbors: [1], campaigns: [], center: 1 }
         ],
         burgs: [
-          { i: 1, name: "Imperial Capital", state: 1, cell: 0, x: 0, y: 0, port: 0, population: 500 },
-          { i: 2, name: "Border Hamlet", state: 2, cell: 1, x: 10, y: 0, port: 0, population: 5 }
+          { i: 0, name: "None", state: 0, cell: 0, x: 0, y: 0, population: 0 },
+          { i: 1, name: "Imperial Capital", state: 1, cell: 0, x: 0, y: 0, port: 0, population: 5000 },
+          { i: 2, name: "Border Hamlet", state: 2, cell: 1, x: 10, y: 0, port: 0, population: 1 }
         ],
         routes: []
       }
@@ -646,8 +647,8 @@ describe("States.generateDiplomacy", () => {
       expect(mockWorldContext.pack.states[1].campaigns!.length).toBe(0);
     }
 
-    // When maxWarDisparityRatio is set high (e.g. 100), war can be generated
-    useOptionsState.setState({ maxWarDisparityRatio: 100 });
+    // When maxWarDisparityRatio is disabled (0) or high (e.g. 1000), war can be generated
+    useOptionsState.setState({ maxWarDisparityRatio: 0 });
     let warOccurredWithHighRatio = false;
     for (let run = 0; run < 15; run++) {
       mockWorldContext.pack.states[1].campaigns = [];

@@ -483,10 +483,13 @@ function registerMapFileInput(): void {
     target.value = "";
     if (!file) return;
 
-    if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
-      openAlert("Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded", {
-        title: "Invalid file format"
-      });
+    if (!file.name.endsWith(".map") && !file.name.endsWith(".gz") && !file.name.endsWith(".fmg")) {
+      openAlert(
+        "Please upload a map file (<i>.fmg</i>, <i>.map</i>, or <i>.gz</i> formats) you have previously downloaded",
+        {
+          title: "Invalid file format"
+        }
+      );
       return;
     }
 
@@ -977,10 +980,13 @@ void (function addDragToUpload() {
     const file = e.dataTransfer.items[0].getAsFile();
     if (!file) return;
 
-    if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
-      openAlert("Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded", {
-        title: "Invalid file format"
-      });
+    if (!file.name.endsWith(".map") && !file.name.endsWith(".gz") && !file.name.endsWith(".fmg")) {
+      openAlert(
+        "Please upload a map file (<i>.fmg</i>, <i>.map</i>, or <i>.gz</i> formats) you have previously downloaded",
+        {
+          title: "Invalid file format"
+        }
+      );
       return;
     }
 

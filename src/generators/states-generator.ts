@@ -607,7 +607,17 @@ class StatesModule {
     };
 
     const getStatePorts = (stateId: number) => {
-      return (pack.burgs || []).filter(b => b.state === stateId && b.port);
+      const ports = (pack.burgs || []).filter(b => b.state === stateId && b.port);
+      return ports.sort((a, b) => {
+        const aHaven = cells.haven?.[a.cell];
+        const bHaven = cells.haven?.[b.cell];
+        const aCoastal =
+          (aHaven !== undefined && aHaven > 0 && cells.h[aHaven] < 20) || cells.c[a.cell].some(n => cells.h[n] < 20);
+        const bCoastal =
+          (bHaven !== undefined && bHaven > 0 && cells.h[bHaven] < 20) || cells.c[b.cell].some(n => cells.h[n] < 20);
+        if (aCoastal !== bCoastal) return aCoastal ? -1 : 1;
+        return (cells.harbor?.[b.cell] ?? 0) - (cells.harbor?.[a.cell] ?? 0);
+      });
     };
 
     const estimateForces = (

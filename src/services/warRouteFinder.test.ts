@@ -109,4 +109,60 @@ describe("warRouteFinder", () => {
     // Should avoid State 3 (cell 1) and detour through allowed state (cell 2)
     expect(path).toEqual([0, 2, 3]);
   });
+
+  describe("naval expedition routing", () => {
+    // Layout:
+    // Cell 0: Inland river port burg (h: 25, r: 1, f: 1)
+    // Cell 1: River mouth land cell (h: 22, r: 1, f: 1)
+    // Cell 2: Ocean water cell (h: 10, f: 1)
+    // Cell 3: Ocean water cell (h: 8, f: 1)
+    // Cell 4: Coastal destination port burg (h: 20, haven: 3, f: 1)
+    const navalPack: PackedGraph = {
+      cells: {
+        i: [0, 1, 2, 3, 4],
+        h: [25, 22, 10, 8, 20],
+        f: [1, 1, 1, 1, 1],
+        r: [1, 1, 0, 0, 0],
+        haven: [0, 2, 0, 0, 3],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [30, 0],
+          [40, 0]
+        ],
+        c: [
+          [1], // 0 -> 1
+          [0, 2], // 1 -> 0, 2
+          [1, 3], // 2 -> 1, 3
+          [2, 4], // 3 -> 2, 4
+          [3] // 4 -> 3
+        ]
+      } as any,
+      burgs: [
+        { i: 10, name: "Inland Port", cell: 0, x: 0, y: 0, port: 1 } as Burg,
+        { i: 20, name: "Coastal Port", cell: 4, x: 40, y: 0, port: 1 } as Burg
+      ],
+      routes: []
+    } as unknown as PackedGraph;
+
+    it("finds naval expedition route starting from inland river port navigating out to sea", () => {
+      const route = findWarRouteCells(navalPack, 10, 20, "naval_expedition");
+      expect(route).toEqual([0, 1, 2, 3, 4]);
+    });
+
+    it("returns null for naval expedition between disconnected water bodies without land fallback", () => {
+      // Create disconnected pack where destination port is on feature 2 (lake)
+      const disconnectedPack: PackedGraph = {
+        ...navalPack,
+        cells: {
+          ...navalPack.cells,
+          f: [1, 1, 1, 2, 2] // Cell 3, 4 on feature 2
+        } as any
+      } as unknown as PackedGraph;
+
+      const route = findWarRouteCells(disconnectedPack, 10, 20, "naval_expedition");
+      expect(route).toBeNull();
+    });
+  });
 });
