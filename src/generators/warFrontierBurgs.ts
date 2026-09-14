@@ -1,3 +1,4 @@
+import { findNavalExpeditionRoute } from "../services/warRouteFinder";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { buildSeaRouteGraph, findSeaRouteDistance } from "./seaRouteGraph";
@@ -29,7 +30,11 @@ export function areStatesSeaConnected(pack: PackedGraph, stateA: number, stateB:
       for (const pb of portsB) {
         if (!seaGraph.adjacency.has(pb.cell)) continue;
         const dist = findSeaRouteDistance(seaGraph, pa.cell, pb.cell);
-        if (dist !== null) return true;
+        if (dist !== null) {
+          const directDist = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+          if (directDist > 0 && dist / directDist > 2.2) continue;
+          return true;
+        }
       }
     }
     return false;
@@ -59,9 +64,28 @@ export function areStatesSeaConnected(pack: PackedGraph, stateA: number, stateB:
 
   for (const fId of featuresA) {
     if (featuresB.has(fId)) {
-      // Ignore small freshwater lakes unless large ocean/sea
       const feat = pack.features?.[fId];
-      if (!feat || feat.type === "ocean") return true;
+      if (feat && feat.type === "lake") {
+        if (feat.cells >= 12) return true;
+        continue;
+      }
+      // For ocean water: verify at least one pair of candidate ports has a plausible maritime route
+      // without an absurd circumnavigational detour (e.g. sailing around an entire continent).
+      let minDirect = Infinity;
+      let closestPair: [(typeof portsA)[0], (typeof portsB)[0]] | null = null;
+      for (const pa of portsA) {
+        for (const pb of portsB) {
+          const d = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+          if (d < minDirect) {
+            minDirect = d;
+            closestPair = [pa, pb];
+          }
+        }
+      }
+      if (closestPair) {
+        const route = findNavalExpeditionRoute(pack, closestPair[0], closestPair[1]);
+        if (route !== null) return true;
+      }
     }
   }
 

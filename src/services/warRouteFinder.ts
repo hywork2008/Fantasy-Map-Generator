@@ -45,9 +45,10 @@ export function findOffRoadLandPath(
     const dh = Math.abs(cells.h[next] - cells.h[current]);
     terrainCost += dh * 3;
 
-    const dx = cells.p[next][0] - cells.p[current][0];
-    const dy = cells.p[next][1] - cells.p[current][1];
-    return Math.hypot(dx, dy) * terrainCost;
+    const pNext = cells.p?.[next];
+    const pCurrent = cells.p?.[current];
+    const d = pNext && pCurrent ? Math.hypot(pNext[0] - pCurrent[0], pNext[1] - pCurrent[1]) : 1.0;
+    return d * terrainCost;
   };
   return findPath(start, id => id === end, getCost, pack);
 }
@@ -61,9 +62,9 @@ export function findOffRoadSeaPath(pack: PackedGraph, start: number, end: number
   const getCost = (current: number, next: number) => {
     // Both endpoints can be ports/coastal land, but intermediate cells must be water
     if (next !== end && cells.h[next] >= 20) return Infinity;
-    const dx = cells.p[next][0] - cells.p[current][0];
-    const dy = cells.p[next][1] - cells.p[current][1];
-    return Math.hypot(dx, dy);
+    const pNext = cells.p?.[next];
+    const pCurrent = cells.p?.[current];
+    return pNext && pCurrent ? Math.hypot(pNext[0] - pCurrent[0], pNext[1] - pCurrent[1]) : 1.0;
   };
   return findPath(start, id => id === end, getCost, pack);
 }
@@ -158,8 +159,9 @@ export function findWaterExitPath(pack: PackedGraph, burg: { cell: number; port?
  */
 export function findNavalExpeditionRoute(
   pack: PackedGraph,
-  fromBurg: { cell: number; port?: number },
-  toBurg: { cell: number; port?: number }
+  fromBurg: { cell: number; port?: number; x?: number; y?: number },
+  toBurg: { cell: number; port?: number; x?: number; y?: number },
+  options?: { maxDetourRatio?: number; maxCells?: number }
 ): number[] | null {
   const fromWaterPath = findWaterExitPath(pack, fromBurg);
   const toWaterPath = findWaterExitPath(pack, toBurg);
@@ -204,7 +206,9 @@ export function findNavalExpeditionRoute(
       // Water traversal must stay in the same water body
       if (next !== toWater && (cells.h[next] >= 20 || cells.f[next] !== featureId)) continue;
 
-      const d = Math.hypot(cells.p[next][0] - cells.p[curr][0], cells.p[next][1] - cells.p[curr][1]);
+      const pCurr = cells.p?.[curr];
+      const pNext = cells.p?.[next];
+      const d = pCurr && pNext ? Math.hypot(pNext[0] - pCurr[0], pNext[1] - pCurr[1]) : 1.0;
       // Charted sea lanes get a significant discount to guide fleets through realistic lanes
       const weight = seaRouteCells.has(next) ? 0.35 : 1.0;
       const total = currentDist + d * weight;
@@ -235,6 +239,36 @@ export function findNavalExpeditionRoute(
       result.push(c);
     }
   }
+
+  // Enforce reasonable naval expedition limits:
+  // 1. Max cell length: military fleets cannot maintain overseas supply indefinitely
+  const maxCells = options?.maxCells ?? 90;
+  if (result.length > maxCells) return null;
+
+  // 2. Circuitous Detour Ratio: reject absurd circumnavigations around entire continents (e.g. Cape Horn)
+  const maxDetourRatio = options?.maxDetourRatio ?? 2.2;
+  if (maxDetourRatio > 0 && cells.p) {
+    const fromX = fromBurg.x ?? cells.p[fromBurg.cell]?.[0] ?? 0;
+    const fromY = fromBurg.y ?? cells.p[fromBurg.cell]?.[1] ?? 0;
+    const toX = toBurg.x ?? cells.p[toBurg.cell]?.[0] ?? 0;
+    const toY = toBurg.y ?? cells.p[toBurg.cell]?.[1] ?? 0;
+    const directDist = Math.hypot(toX - fromX, toY - fromY);
+
+    if (directDist > 0) {
+      let navalDist = 0;
+      for (let i = 0; i < result.length - 1; i++) {
+        const p1 = cells.p[result[i]];
+        const p2 = cells.p[result[i + 1]];
+        if (p1 && p2) {
+          navalDist += Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+        }
+      }
+      if (navalDist > 0 && navalDist / directDist > maxDetourRatio) {
+        return null;
+      }
+    }
+  }
+
   return result;
 }
 
@@ -349,7 +383,7 @@ export function getWarRouteCoordinates(
     return [];
   }
 
-  const points: [number, number][] = cells.map(c => [pack.cells.p[c][0], pack.cells.p[c][1]]);
+  const points: [number, number][] = cells.map(c => [pack.cells.p?.[c]?.[0] ?? 0, pack.cells.p?.[c]?.[1] ?? 0]);
 
   // Snap the exact endpoints to the burg positions for visual precision
   if (fromBurg) points[0] = [fromBurg.x, fromBurg.y];

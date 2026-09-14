@@ -140,6 +140,32 @@ describe("warFrontierBurgs", () => {
     } as unknown as PackedGraph;
 
     expect(areStatesSeaConnected(isolatedLakePack, 1, 2)).toBe(false);
+
+    // Detour test: two ports separated by land isthmus (direct dist = 10), but sea route goes way around (detour > 2.2)
+    const detourSeaPack = {
+      ...seaPack,
+      cells: {
+        i: [0, 1, 2, 3, 4],
+        h: [25, 10, 10, 10, 25],
+        f: [1, 2, 2, 2, 3],
+        c: [[1], [0, 2], [1, 3], [2, 4], [3]],
+        state: [1, 0, 0, 0, 2],
+        haven: [1, 0, 0, 0, 3],
+        p: [
+          [0, 0],
+          [0, -30],
+          [10, -30],
+          [10, -5],
+          [10, 0]
+        ]
+      },
+      burgs: [
+        { i: 1, name: "Port 1", state: 1, cell: 0, port: 1, x: 0, y: 0 },
+        { i: 2, name: "Port 2", state: 2, cell: 4, port: 1, x: 10, y: 0 }
+      ]
+    } as unknown as PackedGraph;
+
+    expect(areStatesSeaConnected(detourSeaPack, 1, 2)).toBe(false);
   });
 
   it("selects nearest staging burg to target rather than interior capital", () => {

@@ -918,7 +918,23 @@ class StatesModule {
             !isPathBlocked(d, defender) &&
             !isPathBlocked(defender, attacker);
 
-          if (!isDirect && !hasNaval && !hasTransit) return;
+          if (!isDirect && !hasNaval && !hasTransit) {
+            nonBelligerents.push({
+              stateId: d,
+              targetStateId: defender,
+              action: "avoided_war",
+              reason: `No viable land or maritime route to assist ${dn}`
+            });
+            war.push(
+              createEvent(
+                d,
+                attacker,
+                "avoided entering the war",
+                `${dn}'s ally ${states[d].name} avoided entering the war due to lack of a viable transit route`
+              )
+            );
+            return;
+          }
 
           if (states[d].diplomacy![attacker] !== "Rival") {
             if (ap / dp > gauss(1.5, 0.5, 0, 10, 2)) {
@@ -1061,13 +1077,29 @@ class StatesModule {
         ad.forEach((r, d) => {
           if (r !== "Ally" || states[d].diplomacy!.includes("Vassal") || defenders.includes(d)) return;
 
+          const nameStateD = states[d].name;
           const isDirect = states[d].neighbors!.includes(defender) && !isPathBlocked(d, defender);
           const hasNaval = !isDirect && areStatesSeaConnected(pack, d, defender);
 
           // If marching requires crossing another country by land, ally MUST use sea route
-          if (!isDirect && !hasNaval) return;
+          if (!isDirect && !hasNaval) {
+            nonBelligerents.push({
+              stateId: d,
+              targetStateId: attacker,
+              action: "avoided_war",
+              reason: `No viable land or maritime route to reach ${dn}`
+            });
+            war.push(
+              createEvent(
+                d,
+                attacker,
+                "avoided entering the war",
+                `${an}'s ally ${nameStateD} avoided entering the war due to lack of a viable transit route`
+              )
+            );
+            return;
+          }
 
-          const nameStateD = states[d].name;
           if (states[d].diplomacy![defender] !== "Rival" && (P(0.7) || ap <= dp * 1.5)) {
             nonBelligerents.push({
               stateId: d,

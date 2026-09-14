@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import {
+  findNavalExpeditionRoute,
   findOffRoadLandPath,
   findWarRouteCells,
   generateWarRouteSvgPath,
@@ -163,6 +164,49 @@ describe("warRouteFinder", () => {
 
       const route = findWarRouteCells(disconnectedPack, 10, 20, "naval_expedition");
       expect(route).toBeNull();
+    });
+
+    it("rejects naval expedition route if circumnavigational detour ratio exceeds maxDetourRatio (e.g. Cape Horn / Ecuador problem)", () => {
+      // Port A at (0, 0), Port B at (10, 0) -> direct distance is 10
+      // Sea path has to detour through (0, -30) -> (10, -30) -> total path ~ 60+ (ratio > 6)
+      const detourPack: PackedGraph = {
+        cells: {
+          i: [0, 1, 2, 3, 4],
+          h: [20, 10, 10, 10, 20], // 0: port A, 1..3: sea detour, 4: port B
+          f: [1, 1, 1, 1, 1],
+          haven: [1, 0, 0, 0, 3],
+          p: [
+            [0, 0], // port A
+            [0, -30], // deep sea detour south
+            [10, -30],
+            [10, -5],
+            [10, 0] // port B (just across the isthmus)
+          ],
+          c: [[1], [0, 2], [1, 3], [2, 4], [3]]
+        } as any,
+        burgs: [
+          { i: 1, name: "Port A", cell: 0, x: 0, y: 0, port: 1 } as Burg,
+          { i: 2, name: "Port B", cell: 4, x: 10, y: 0, port: 1 } as Burg
+        ],
+        routes: []
+      } as unknown as PackedGraph;
+
+      // With default maxDetourRatio (2.2), this detour (~60 / 10 = 6.0) is rejected
+      const route = findNavalExpeditionRoute(detourPack, detourPack.burgs[0], detourPack.burgs[1]);
+      expect(route).toBeNull();
+
+      // If we permit a high detour ratio (e.g. 10.0), it is accepted
+      const permissiveRoute = findNavalExpeditionRoute(detourPack, detourPack.burgs[0], detourPack.burgs[1], {
+        maxDetourRatio: 10.0
+      });
+      expect(permissiveRoute).toEqual([0, 1, 2, 3, 4]);
+    });
+
+    it("rejects naval expedition route if length exceeds maxCells limit", () => {
+      const longRoute = findNavalExpeditionRoute(navalPack, navalPack.burgs[0], navalPack.burgs[1], {
+        maxCells: 3
+      });
+      expect(longRoute).toBeNull();
     });
   });
 });
