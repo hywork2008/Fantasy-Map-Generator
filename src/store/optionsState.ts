@@ -260,6 +260,11 @@ export interface OptionsState {
    */
   technologyRequirementEase: number;
   diplomacyHistoryAttempts: number;
+  /**
+   * Maximum power/force ratio between attacker and defender for historical wars.
+   * Wars with disparity exceeding this threshold are skipped to preserve small states.
+   */
+  maxWarDisparityRatio: number;
 
   // Danger settings
   /**
@@ -463,6 +468,7 @@ export const GENERATION_OPTION_KEYS = [
   "diplomacyHistoryAttempts",
   "conflictAutonomy",
   "warFrequency",
+  "maxWarDisparityRatio",
   "economyStartMode",
   "ironDepositsPerState",
   "ruralEcosystemDetail",
@@ -561,6 +567,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   technologyDevelopmentSpeed: 1,
   technologyRequirementEase: 1,
   diplomacyHistoryAttempts: 1,
+  maxWarDisparityRatio: 8,
 
   dangerEnabled: false,
   dangerRarity5Min: 1,

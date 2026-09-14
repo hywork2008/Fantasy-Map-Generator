@@ -606,7 +606,48 @@ class StatesModule {
       return false;
     };
 
+    const getStatePorts = (stateId: number) => {
+      return (pack.burgs || []).filter(b => b.state === stateId && b.port);
+    };
+
+    const estimateForces = (
+      stateId: number,
+      role: "leader" | "ally" | "vassal",
+      transitType: "naval_expedition" | "military_transit" | "direct_border",
+      vesselsUsed?: number
+    ): WarForces => {
+      let rawPop = 0;
+      for (const i of cells.i) {
+        if (cells.h[i] >= 20 && cells.state[i] === stateId) {
+          rawPop += cells.pop?.[i] || 0;
+          if (cells.burg?.[i] && pack.burgs) {
+            rawPop += pack.burgs[cells.burg[i]]?.population || 0;
+          }
+        }
+      }
+      const populationRate = this.worldContext.populationRate ?? 1000;
+      const totalPop = rawPop > 0 ? rawPop * populationRate : (stateAreas[stateId] || 50) * 800;
+
+      // Historical total military pool is ~1.2% - 1.5% of population (e.g. 2M pop -> ~27k army)
+      const totalMilitaryPool = Math.max(300, Math.round(totalPop * 0.0135));
+
+      // Belligerent deployment share of total military pool
+      const mobilizationRate = role === "leader" ? 0.6 : role === "ally" ? 0.22 : 0.38;
+      const mobilizedTotal = Math.max(
+        150,
+        Math.round(totalMilitaryPool * mobilizationRate * (0.85 + Math.random() * 0.3))
+      );
+
+      const cavRatio = 0.18;
+      const cavalry = Math.round(mobilizedTotal * cavRatio);
+      const navalForces = transitType === "naval_expedition" ? (vesselsUsed ? vesselsUsed * 30 : 600) : undefined;
+      const infantry = Math.max(100, mobilizedTotal - cavalry);
+      const total = infantry + cavalry + (navalForces || 0);
+      return { infantry, cavalry, naval: navalForces, total };
+    };
+
     const diplomacyHistoryAttempts = useOptionsState.getState().diplomacyHistoryAttempts ?? 1;
+    const maxWarDisparityRatio = useOptionsState.getState().maxWarDisparityRatio ?? 8;
     for (let attempt = 0; attempt < diplomacyHistoryAttempts; attempt++) {
       for (let attacker = 1; attacker < states.length; attacker++) {
         const ad = states[attacker].diplomacy as string[]; // attacker relations;
@@ -643,12 +684,21 @@ class StatesModule {
             dp = stateAreas[d] * states[d].expansionism;
             // The power check works correctly now that Enemies are not filtered out
             if (ap >= dp * gauss(1.6, 0.8, 0, 10, 2)) {
+              if (maxWarDisparityRatio > 0) {
+                const attackerForce = estimateForces(attacker, "leader", "direct_border").total;
+                const defenderForce = estimateForces(d, "leader", "direct_border").total;
+                const forceRatio = Math.max(
+                  attackerForce / Math.max(1, defenderForce),
+                  defenderForce / Math.max(1, attackerForce)
+                );
+                if (forceRatio > maxWarDisparityRatio) continue;
+              }
               defender = d;
               break;
             }
           }
         }
-        if (!defender) continue; // all paths blocked or defenders too strong
+        if (!defender) continue; // all paths blocked or defenders too strong / disparity too large
 
         const an = states[attacker].name;
         const dn = states[defender].name; // names
@@ -658,7 +708,6 @@ class StatesModule {
 
         const pairKey = [attacker, defender].sort((a, b) => a - b).join("-");
         const count = (warCounts.get(pairKey) || 0) + 1;
-        warCounts.set(pairKey, count);
 
         // start an ongoing war with border burg endpoints
         const leaderEndpoints = resolveLeaderWarEndpoints(pack, attacker, defender);
@@ -725,46 +774,6 @@ class StatesModule {
             transitType,
             routeCells
           };
-        };
-
-        const getStatePorts = (stateId: number) => {
-          return (pack.burgs || []).filter(b => b.state === stateId && b.port);
-        };
-
-        const estimateForces = (
-          stateId: number,
-          role: "leader" | "ally" | "vassal",
-          transitType: "naval_expedition" | "military_transit" | "direct_border",
-          vesselsUsed?: number
-        ): WarForces => {
-          let rawPop = 0;
-          for (const i of cells.i) {
-            if (cells.h[i] >= 20 && cells.state[i] === stateId) {
-              rawPop += cells.pop?.[i] || 0;
-              if (cells.burg?.[i] && pack.burgs) {
-                rawPop += pack.burgs[cells.burg[i]]?.population || 0;
-              }
-            }
-          }
-          const populationRate = this.worldContext.populationRate ?? 1000;
-          const totalPop = rawPop > 0 ? rawPop * populationRate : (stateAreas[stateId] || 50) * 800;
-
-          // Historical total military pool is ~1.2% - 1.5% of population (e.g. 2M pop -> ~27k army)
-          const totalMilitaryPool = Math.max(300, Math.round(totalPop * 0.0135));
-
-          // Belligerent deployment share of total military pool
-          const mobilizationRate = role === "leader" ? 0.6 : role === "ally" ? 0.22 : 0.38;
-          const mobilizedTotal = Math.max(
-            150,
-            Math.round(totalMilitaryPool * mobilizationRate * (0.85 + Math.random() * 0.3))
-          );
-
-          const cavRatio = 0.18;
-          const cavalry = Math.round(mobilizedTotal * cavRatio);
-          const navalForces = transitType === "naval_expedition" ? (vesselsUsed ? vesselsUsed * 30 : 600) : undefined;
-          const infantry = Math.max(100, mobilizedTotal - cavalry);
-          const total = infantry + cavalry + (navalForces || 0);
-          return { infantry, cavalry, naval: navalForces, total };
         };
 
         // biome-ignore lint/suspicious/noExplicitAny: mixed array
@@ -1252,6 +1261,24 @@ class StatesModule {
           participants,
           nonBelligerents: nonBelligerents.length > 0 ? nonBelligerents : undefined
         };
+        const totalAttackerForces = participants
+          .filter(p => p.side === "attacker")
+          .reduce((sum, p) => sum + p.forces.total, 0);
+        const totalDefenderForces = participants
+          .filter(p => p.side === "defender")
+          .reduce((sum, p) => sum + p.forces.total, 0);
+
+        if (
+          maxWarDisparityRatio > 0 &&
+          Math.max(
+            totalAttackerForces / Math.max(1, totalDefenderForces),
+            totalDefenderForces / Math.max(1, totalAttackerForces)
+          ) > maxWarDisparityRatio
+        ) {
+          continue;
+        }
+
+        warCounts.set(pairKey, count);
         campaign.details = warDetails;
 
         const allParticipantStates = Array.from(new Set([...attackers, ...defenders]));

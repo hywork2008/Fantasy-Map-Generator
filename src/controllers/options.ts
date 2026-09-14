@@ -531,6 +531,7 @@ export function applyStoredOptions(): void {
     "goldToSilverRate",
     "silverToCopperRate",
     "warFrequency",
+    "maxWarDisparityRatio",
     "technologyDevelopmentSpeed",
     "technologyRequirementEase",
     "threatCalculation",

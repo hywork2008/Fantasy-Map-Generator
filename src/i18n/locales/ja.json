@@ -1968,6 +1968,8 @@
     "playerDirected": "プレイヤー主導",
     "warFrequency": "戦争の頻度",
     "warFrequencyTip": "自律戦争が熟す速さの倍率です。1.0 が既定（おおよそ一代かけて醸成）。0.0 は自律的な激化を止めます。2.0 は頻繁な戦争です。",
+    "maxWarDisparityRatio": "戦争戦力差の上限倍率",
+    "maxWarDisparityRatioTip": "歴史上の戦争が発生する攻撃側と防衛側の戦力差の上限倍率です。この倍率（既定: 8）を超える戦争は発生せず、小国の存亡はゲーム開始時の情勢におけるプレイヤーの判断に委ねられます。",
     "technologyDevelopmentSpeed": "技術の発展速度",
     "technologyDevelopmentSpeedTip": "シミュレーション1年あたりに進む知識・技術蓄積の年数です。1倍が歴史的なペースです。ギルド・学院・国家機密の蓄積と技術の普及がこの倍率に従います。鉱山・試作年数・国庫などの証拠条件は下げません。それらは「技術要件の緩和」で設定します。",
     "technologyRequirementEase": "技術要件の緩和",

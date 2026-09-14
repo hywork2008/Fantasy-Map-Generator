@@ -98,6 +98,7 @@ const NUMBER_KEYS = [
   "statesGrowthRate",
   "diplomacyHistoryAttempts",
   "warFrequency",
+  "maxWarDisparityRatio",
   "ironDepositsPerState",
   "populationRate",
   "distanceScale",

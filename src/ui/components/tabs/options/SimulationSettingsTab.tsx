@@ -116,6 +116,22 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip={t("simulation.maxWarDisparityRatioTip")}>
+            <td>
+              <LockIconButton id="maxWarDisparityRatio" />
+            </td>
+            <td>{t("simulation.maxWarDisparityRatio")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="1"
+                max="20"
+                step="0.5"
+                value={options.maxWarDisparityRatio}
+                onChange={v => updateOptionAndLock("maxWarDisparityRatio", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip={t("simulation.technologyDevelopmentSpeedTip")}>
             <td>
               <LockIconButton id="technologyDevelopmentSpeed" />

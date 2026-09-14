@@ -1968,6 +1968,8 @@
     "playerDirected": "Player-directed",
     "warFrequency": "War Frequency",
     "warFrequencyTip": "Multiplier for how quickly autonomous wars mature. 1.0 is default (wars take roughly a generation to brew). 0.0 prevents autonomous escalation. 2.0 means frequent wars.",
+    "maxWarDisparityRatio": "Max War Power Disparity",
+    "maxWarDisparityRatioTip": "Maximum power ratio between attacker and defender for historical wars. Wars exceeding this multiplier (default: 8) are skipped so the survival of small states is left to the player's judgment.",
     "technologyDevelopmentSpeed": "Technology development speed",
     "technologyDevelopmentSpeedTip": "How many years of knowledge and technology accumulation each simulation year represents. 1× is the historical pace. Guild, academy, and state-secret stocks, plus technology diffusion, all scale with this multiplier. It does not lower mine, trial-year, or treasury gates — use Technology requirement ease for those.",
     "technologyRequirementEase": "Technology requirement ease",
