@@ -824,6 +824,7 @@
     "dishonoredPacts": "参戦拒否・同盟破棄国",
     "participatingOfficers": "従軍武官",
     "noOfficersFound": "従軍記録のある武官はいません",
+    "officer": "武官",
     "severedDefensePact": "防衛協定破棄",
     "avoidedWar": "参戦回避",
     "warConduct": {
@@ -1155,6 +1156,8 @@
       "ministerOfFinance": "財務大臣",
       "directorOfIntelligence": "情報局長",
       "commander": "指揮官",
+      "general": "将軍",
+      "knight": "騎士",
       "admiral": "提督",
       "regent": "摂政",
       "patrician": "貴族"

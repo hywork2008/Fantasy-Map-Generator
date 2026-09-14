@@ -13,11 +13,15 @@ afterEach(async () => {
 });
 
 describe("character labels", () => {
-  it("localizes saved political titles, including regencies", async () => {
+  it("localizes saved political titles, including regencies and military ranks", async () => {
     await i18n.changeLanguage("ja");
 
     expect(getCharacterTitleLabel("Queen")).toBe("女王");
     expect(getCharacterTitleLabel("King (Under Regency)")).toBe("王（摂政統治下）");
+    expect(getCharacterTitleLabel("General")).toBe("将軍");
+    expect(getCharacterTitleLabel("Commander")).toBe("指揮官");
+    expect(getCharacterTitleLabel("Knight")).toBe("騎士");
+    expect(getCharacterTitleLabel("Marshal")).toBe("元帥");
   });
 
   it("uses stable role kinds and preserves custom role labels", async () => {
@@ -25,6 +29,8 @@ describe("character labels", () => {
 
     expect(getCharacterRoleLabel({ kind: "guildMaster", label: "Guild Master" })).toBe("ギルド親方");
     expect(getCharacterRoleLabel({ kind: "customRole", label: "Court Astrologer" })).toBe("Court Astrologer");
+    expect(getCharacterRoleLabel({ kind: "officer", label: "Commander" })).toBe("指揮官");
+    expect(i18n.t("characters.officer")).toBe("武官");
   });
 
   it("localizes semantic role class filter labels", async () => {

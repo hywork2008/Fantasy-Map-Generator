@@ -917,6 +917,9 @@ export interface ChronicleEvent {
   action: string;
   rawText: string;
   warId?: string;
+  transitType?: "naval_expedition" | "military_transit" | "direct_border";
+  tacticalRole?: "concentrated" | "divide" | "leader";
+  routeCells?: number[];
 }
 
 /** How races compose a polity — derived from culture.monoRacial on generation. */

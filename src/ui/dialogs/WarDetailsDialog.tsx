@@ -5,6 +5,7 @@ import { zoomTo } from "../../actions";
 import { worldContext } from "../../context/worldContext";
 import { getCharacters } from "../../extensions/characters/charactersContext";
 import { useCharactersUiState } from "../../extensions/characters/ui/charactersUiState";
+import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../extensions/characters/utils/characterLabels";
 import { dialogStore } from "../../store/dialogState";
 import { useWarDetailsDialogState, warDetailsDialogStore } from "../../store/warDetailsDialogState";
 import type { WarNonBelligerent, WarParticipant } from "../../types/models";
@@ -28,10 +29,10 @@ export const WarDetailsDialog: React.FC = () => {
     };
   }, [isOpen, close]);
 
-  if (!warDetails) return null;
+  if (!isOpen || !warDetails) return null;
 
-  const states = worldContext.pack.states;
-  const burgs = worldContext.pack.burgs;
+  const states = worldContext.pack?.states ?? [];
+  const burgs = worldContext.pack?.burgs ?? [];
 
   const attackers = warDetails.participants.filter(p => p.side === "attacker");
   const defenders = warDetails.participants.filter(p => p.side === "defender");
@@ -305,7 +306,13 @@ export const WarDetailsDialog: React.FC = () => {
                     (s.campaignName === warDetails.name && Math.abs(s.year - warDetails.startYear) <= 2)
                 );
                 const conductLabel = service ? t(`characters.warConduct.${service.conduct}`) : "";
-                const title = officer.titles?.[0]?.title || officer.roles?.[0]?.label || "Officer";
+                const holding = officer.titles?.[0];
+                const role = officer.roles?.[0];
+                const title = holding
+                  ? getCharacterTitleLabel(holding.title)
+                  : role
+                    ? getCharacterRoleLabel(role)
+                    : t("characters.officer");
                 return (
                   <div
                     key={officer.i}

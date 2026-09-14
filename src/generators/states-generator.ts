@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome } from "../data/biomeCatalog";
 import { HeightThreshold } from "../data/constants";
+import { findWarRouteCells } from "../services/warRouteFinder";
 import { useOptionsState } from "../store/optionsState";
 import type {
   Campaign,
@@ -43,6 +44,14 @@ import { populateAllIndependentBurgs } from "./independentBurgGovernance";
 import { assignInitialPolities, clearUnclaimedOikoumenePopulation } from "./initialPolities";
 import { Names } from "./names-generator";
 import { generateWarCasusBelli } from "./warCasusBelli";
+import {
+  areStatesSeaConnected,
+  findBorderBurgs,
+  findFrontlineTargetBurg,
+  findStagingBurg,
+  resolveAlliedAttackerTarget,
+  resolveLeaderWarEndpoints
+} from "./warFrontierBurgs";
 
 class StatesModule {
   worldContext: WorldContext = worldContext;
@@ -496,6 +505,9 @@ class StatesModule {
           if (inherited === "Suzerain") inherited = "Ally";
           else if ((inherited === "Rival" || inherited === "Enemy") && !states[f].neighbors!.includes(i))
             inherited = "Suspicion";
+          if (inherited === "Ally" && !states[f].neighbors!.includes(i) && !areStatesSeaConnected(pack, f, i)) {
+            inherited = "Friendly";
+          }
           states[f].diplomacy![i] = inherited;
 
           for (let e = 1; e < states.length; e++) {
@@ -504,6 +516,9 @@ class StatesModule {
             let relEToF = states[e].diplomacy![suzerain];
             if ((relEToF === "Rival" || relEToF === "Enemy") && !states[e].neighbors!.includes(f))
               relEToF = "Suspicion";
+            if (relEToF === "Ally" && !states[e].neighbors!.includes(f) && !areStatesSeaConnected(pack, e, f)) {
+              relEToF = "Friendly";
+            }
             states[e].diplomacy![f] = relEToF;
           }
         }
@@ -518,6 +533,9 @@ class StatesModule {
           let inherited = states[f].diplomacy![suzerain];
           if ((inherited === "Rival" || inherited === "Enemy") && !states[f].neighbors!.includes(t))
             inherited = "Suspicion";
+          if (inherited === "Ally" && !states[f].neighbors!.includes(t) && !areStatesSeaConnected(pack, f, t)) {
+            inherited = "Friendly";
+          }
           states[f].diplomacy![t] = inherited;
           continue;
         }
@@ -535,6 +553,16 @@ class StatesModule {
         // add Vassal
         if (neib && P(0.8) && stateAreas[f] > areaMean && stateAreas[t] < areaMean && stateAreas[f] / stateAreas[t] > 2)
           status = "Vassal";
+
+        // Prohibit defense pact (Ally) if neither direct land neighbors nor sea-connected
+        if (status === "Ally") {
+          const isDirect = states[f].neighbors!.includes(t);
+          const isSea = areStatesSeaConnected(pack, f, t);
+          if (!isDirect && !isSea) {
+            status = "Friendly";
+          }
+        }
+
         states[f].diplomacy![t] = status === "Vassal" ? "Suzerain" : status;
         states[t].diplomacy![f] = status;
       }
@@ -545,29 +573,11 @@ class StatesModule {
     const warCounts = new Map<string, number>();
 
     const getEventEndpoints = (from: number, to: number) => {
-      const fromBurgs = pack.burgs.filter(b => b.state === from && !b.removed);
-      const toBurgs = pack.burgs.filter(b => b.state === to && !b.removed);
-      let fromBurg: number | undefined;
-      let toBurg: number | undefined;
-      if (fromBurgs.length && toBurgs.length) {
-        let minDist = Infinity;
-        for (const fb of fromBurgs) {
-          for (const tb of toBurgs) {
-            const dx = fb.x - tb.x;
-            const dy = fb.y - tb.y;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < minDist) {
-              minDist = distSq;
-              fromBurg = fb.i;
-              toBurg = tb.i;
-            }
-          }
-        }
-      } else {
-        if (fromBurgs.length) fromBurg = fromBurgs[0].i;
-        if (toBurgs.length) toBurg = toBurgs[0].i;
-      }
-      return { fromBurg, toBurg };
+      const endpoints = resolveLeaderWarEndpoints(pack, from, to);
+      return {
+        fromBurg: endpoints.fromBurg?.i,
+        toBurg: endpoints.toBurg?.i
+      };
     };
 
     const isPathBlocked = (from: number, to: number) => {
@@ -650,9 +660,11 @@ class StatesModule {
         const count = (warCounts.get(pairKey) || 0) + 1;
         warCounts.set(pairKey, count);
 
-        // start an ongoing war
-        const { toBurg } = getEventEndpoints(attacker, defender);
-        const targetBurg = toBurg ? pack.burgs[toBurg] : undefined;
+        // start an ongoing war with border burg endpoints
+        const leaderEndpoints = resolveLeaderWarEndpoints(pack, attacker, defender);
+        const primaryFromBurg = leaderEndpoints.fromBurg;
+        const primaryTargetBurg = leaderEndpoints.toBurg;
+        const targetBurg = primaryTargetBurg;
 
         const attackerRelId = cells.religion?.[states[attacker].center];
         const defenderRelId = cells.religion?.[states[defender].center];
@@ -688,8 +700,17 @@ class StatesModule {
         );
 
         const warId = `war-${attacker}-${defender}-${count}-${options.year! - yearsAgo}`;
-        const createEvent = (from: number, to: number, action: string, rawText: string) => {
-          const endpoints = getEventEndpoints(from, to);
+        const createEvent = (
+          from: number,
+          to: number,
+          action: string,
+          rawText: string,
+          customEndpoints?: { fromBurg?: number; toBurg?: number },
+          tacticalRole?: "concentrated" | "divide" | "leader",
+          transitType?: "naval_expedition" | "military_transit" | "direct_border"
+        ) => {
+          const endpoints = customEndpoints ?? getEventEndpoints(from, to);
+          const routeCells = findWarRouteCells(pack, endpoints.fromBurg, endpoints.toBurg, transitType) ?? undefined;
           return {
             id: `war-${attacker}-${defender}-${eventIdCounter++}`,
             yearsAgo: yearsAgo,
@@ -699,13 +720,13 @@ class StatesModule {
             toBurg: endpoints.toBurg,
             action,
             rawText,
-            warId
+            warId,
+            tacticalRole,
+            transitType,
+            routeCells
           };
         };
 
-        const stateHasPorts = (stateId: number): boolean => {
-          return pack.burgs?.some(b => b.state === stateId && b.port) ?? false;
-        };
         const getStatePorts = (stateId: number) => {
           return (pack.burgs || []).filter(b => b.state === stateId && b.port);
         };
@@ -748,7 +769,17 @@ class StatesModule {
 
         // biome-ignore lint/suspicious/noExplicitAny: mixed array
         const war: any[] = [name];
-        war.push(createEvent(attacker, defender, casusBelli.action, casusBelli.rawText));
+        war.push(
+          createEvent(
+            attacker,
+            defender,
+            casusBelli.action,
+            casusBelli.rawText,
+            { fromBurg: primaryFromBurg?.i, toBurg: primaryTargetBurg?.i },
+            "leader",
+            "direct_border"
+          )
+        );
 
         const start = options.year! - yearsAgo;
         const campaign: Campaign = { name, start, attacker, defender };
@@ -791,12 +822,26 @@ class StatesModule {
               transitDetail: "Suzerain service deployment",
               forces: estimateForces(d, "vassal", "direct_border")
             });
+            const vassalTarget = resolveAlliedAttackerTarget(pack, d, defender, primaryTargetBurg);
+            const fromStr = vassalTarget.fromBurg ? `from ${vassalTarget.fromBurg.name} ` : "";
+            const toStr = vassalTarget.toBurg ? vassalTarget.toBurg.name : "";
+            const roleDetail =
+              vassalTarget.tacticalRole === "divide"
+                ? `opening a second front at ${toStr || "the frontier"} to divide defenses`
+                : `concentrating forces on ${toStr || "the frontline"}`;
+            const vassalText = `${an}'s vassal ${states[d].name} marched ${fromStr}to join the war, ${roleDetail}`
+              .trim()
+              .replace(/\s+/g, " ");
+
             war.push(
               createEvent(
                 d,
                 defender,
                 "joined the war on attackers side",
-                `${an}'s vassal ${states[d].name} joined the war on attackers side`
+                vassalText,
+                { fromBurg: vassalTarget.fromBurg?.i, toBurg: vassalTarget.toBurg?.i },
+                vassalTarget.tacticalRole,
+                "direct_border"
               )
             );
           }
@@ -816,12 +861,22 @@ class StatesModule {
               transitDetail: "Suzerain service deployment",
               forces: estimateForces(d, "vassal", "direct_border")
             });
+            const endpoints = resolveLeaderWarEndpoints(pack, d, attacker);
+            const fromStr = endpoints.fromBurg ? `from ${endpoints.fromBurg.name} ` : "";
+            const toStr = endpoints.toBurg ? `against ${endpoints.toBurg.name}` : "";
+            const vassalText = `${dn}'s vassal ${states[d].name} mobilized ${fromStr}to defend ${dn}'s borders ${toStr}`
+              .trim()
+              .replace(/\s+/g, " ");
+
             war.push(
               createEvent(
                 d,
                 attacker,
                 "joined the war on defenders side",
-                `${dn}'s vassal ${states[d].name} joined the war on defenders side`
+                vassalText,
+                { fromBurg: endpoints.fromBurg?.i, toBurg: endpoints.toBurg?.i },
+                undefined,
+                "direct_border"
               )
             );
           }
@@ -835,7 +890,7 @@ class StatesModule {
           if (r !== "Ally" || states[d].diplomacy!.includes("Vassal")) return;
 
           const isDirect = states[d].neighbors!.includes(attacker) && !isPathBlocked(d, attacker);
-          const hasNaval = !isDirect && stateHasPorts(d) && stateHasPorts(attacker);
+          const hasNaval = !isDirect && areStatesSeaConnected(pack, d, defender);
           const hasTransit =
             !isDirect &&
             !hasNaval &&
@@ -895,17 +950,33 @@ class StatesModule {
           let transitType: "naval_expedition" | "military_transit" | "direct_border" = "direct_border";
           let transitDetail = "Direct defensive border mobilization";
           let vesselsUsed: number | undefined;
+          let allyEndpoints: { fromBurg?: number; toBurg?: number } = {};
           let allyText = `${dn}'s ally ${states[d].name} joined the war on defenders side`;
+          let targetStateForEvent = attacker;
 
           if (hasNaval) {
             transitType = "naval_expedition";
             vesselsUsed = Math.min(50, Math.max(8, Math.round(getStatePorts(d).length * 7 + Math.random() * 10)));
+            const dPorts = getStatePorts(d);
+            const defenderPorts = getStatePorts(defender);
+            const fromPort = dPorts.length > 0 ? dPorts[0] : undefined;
+            const toPort = defenderPorts.length > 0 ? defenderPorts[0] : undefined;
+            allyEndpoints = { fromBurg: fromPort?.i, toBurg: toPort?.i };
             transitDetail = `Naval expedition fleet (${vesselsUsed} vessels, coastal defense & counter-blockade)`;
-            allyText = `${dn}'s ally ${states[d].name} dispatched a relief fleet (${vesselsUsed} ships) to defend against ${an}`;
+            const fromStr = fromPort ? ` from ${fromPort.name}` : "";
+            const toStr = toPort ? ` to relieve ${toPort.name}` : "";
+            allyText = `${dn}'s ally ${states[d].name} dispatched a relief fleet (${vesselsUsed} ships)${fromStr} across sea lanes${toStr} to defend against ${an}`;
+            targetStateForEvent = defender; // Route to ally's port for defensive relief
           } else if (hasTransit) {
             transitType = "military_transit";
+            const borderBurgs = findBorderBurgs(pack, d, defender);
+            const targetBorderBurgs = findBorderBurgs(pack, attacker, defender);
+            allyEndpoints = { fromBurg: borderBurgs[0]?.i, toBurg: targetBorderBurgs[0]?.i };
             transitDetail = `Forward deployment through ${dn}'s transit corridor`;
             allyText = `${dn}'s ally ${states[d].name} deployed reinforcements through ${dn}'s territory`;
+          } else {
+            const borderEndpoints = resolveLeaderWarEndpoints(pack, d, attacker);
+            allyEndpoints = { fromBurg: borderEndpoints.fromBurg?.i, toBurg: borderEndpoints.toBurg?.i };
           }
 
           const allyForces = estimateForces(d, "ally", transitType, vesselsUsed);
@@ -921,7 +992,17 @@ class StatesModule {
             forces: allyForces
           });
 
-          war.push(createEvent(d, attacker, "joined the war on defenders side", allyText));
+          war.push(
+            createEvent(
+              d,
+              targetStateForEvent,
+              "joined the war on defenders side",
+              allyText,
+              allyEndpoints,
+              undefined,
+              transitType
+            )
+          );
 
           // ally vassals join
           states[d]
@@ -942,12 +1023,16 @@ class StatesModule {
                 transitDetail: "Suzerain service deployment",
                 forces: estimateForces(v, "vassal", "direct_border")
               });
+              const vassalEndpoints = resolveLeaderWarEndpoints(pack, v, attacker);
               war.push(
                 createEvent(
                   v,
                   attacker,
                   "joined the war on defenders side",
-                  `${states[d].name}'s vassal ${states[v].name} joined the war on defenders side`
+                  `${states[d].name}'s vassal ${states[v].name} joined the war on defenders side`,
+                  { fromBurg: vassalEndpoints.fromBurg?.i, toBurg: vassalEndpoints.toBurg?.i },
+                  undefined,
+                  "direct_border"
                 )
               );
             });
@@ -958,16 +1043,10 @@ class StatesModule {
           if (r !== "Ally" || states[d].diplomacy!.includes("Vassal") || defenders.includes(d)) return;
 
           const isDirect = states[d].neighbors!.includes(defender) && !isPathBlocked(d, defender);
-          const hasNaval = !isDirect && stateHasPorts(d) && stateHasPorts(defender);
-          const hasTransit =
-            !isDirect &&
-            !hasNaval &&
-            states[attacker].neighbors!.includes(defender) &&
-            states[d].neighbors!.includes(attacker) &&
-            !isPathBlocked(d, attacker) &&
-            !isPathBlocked(attacker, defender);
+          const hasNaval = !isDirect && areStatesSeaConnected(pack, d, defender);
 
-          if (!isDirect && !hasNaval && !hasTransit) return;
+          // If marching requires crossing another country by land, ally MUST use sea route
+          if (!isDirect && !hasNaval) return;
 
           const nameStateD = states[d].name;
           if (states[d].diplomacy![defender] !== "Rival" && (P(0.7) || ap <= dp * 1.5)) {
@@ -1015,15 +1094,20 @@ class StatesModule {
           let motivationLabel = "Balance of Power";
           let pledge: WarPledge = { type: "none", description: `Preserving regional balance of power against ${dn}` };
           let vesselsUsed: number | undefined;
+          let allyEndpoints: { fromBurg?: number; toBurg?: number } = {};
+          let tacticalRole: "concentrated" | "divide" | undefined;
           let allyText = `${an}'s ally ${nameStateD} joined the war on attackers side`;
 
           if (hasNaval) {
             transitType = "naval_expedition";
             vesselsUsed = Math.min(60, Math.max(10, Math.round(getStatePorts(d).length * 8 + Math.random() * 12)));
             transitDetail = `Naval expedition fleet (${vesselsUsed} vessels, naval blockade & landing force)`;
-            const defenderPorts = getStatePorts(defender);
-            if (defenderPorts.length > 0 && Math.random() < 0.6) {
-              const targetPort = defenderPorts[Math.floor(Math.random() * defenderPorts.length)];
+            const targetPort = findFrontlineTargetBurg(pack, defender, d);
+            const fromPort = findStagingBurg(pack, d, targetPort, true);
+            tacticalRole =
+              primaryTargetBurg && targetPort && primaryTargetBurg.i === targetPort.i ? "concentrated" : "divide";
+
+            if (targetPort && Math.random() < 0.6) {
               motivation = "territorial_pledge";
               motivationLabel = "Promised port cession";
               pledge = {
@@ -1032,7 +1116,7 @@ class StatesModule {
                 burgName: targetPort.name,
                 description: `Promised cession of the strategic port city of ${targetPort.name}`
               };
-              allyText = `${an}'s ally ${nameStateD} launched a naval expedition (${vesselsUsed} ships), promised the port of ${targetPort.name}`;
+              allyText = `${an}'s ally ${nameStateD} launched a naval expedition (${vesselsUsed} ships) from ${fromPort?.name || "its ports"}, promised the port of ${targetPort.name}`;
             } else {
               motivation = "trade_concession";
               motivationLabel = "Maritime trade privileges";
@@ -1040,50 +1124,47 @@ class StatesModule {
                 type: "trade_privilege",
                 description: `Exclusive commercial rights and toll exemptions in ${dn}'s waters`
               };
-              allyText = `${an}'s ally ${nameStateD} dispatched an expedition fleet (${vesselsUsed} ships) for regional trade privileges`;
+              allyText = `${an}'s ally ${nameStateD} dispatched an expedition fleet (${vesselsUsed} ships) from ${fromPort?.name || "its ports"} across sea lanes for regional trade privileges`;
             }
-          } else if (hasTransit) {
-            transitType = "military_transit";
-            transitDetail = `Military transit corridor through ${an} (secured by diplomatic hostages and supply guarantees)`;
-            if (Math.random() < 0.65) {
-              const subsidy = Math.round(800 + Math.random() * 1200);
-              motivation = "war_subsidies";
-              motivationLabel = "War subsidies agreement";
-              pledge = {
-                type: "war_subsidies",
-                amount: subsidy,
-                description: `Subsidized with ${subsidy} gold pieces by ${an} for military expedition costs`
-              };
-              allyText = `${an}'s ally ${nameStateD} marched through ${an}'s corridor under transit pact, funded by ${subsidy} gold in subsidies`;
-            } else {
-              motivation = "balance_of_power";
-              motivationLabel = "Regional containment";
-              pledge = {
-                type: "none",
-                description: `Strategic intervention through ${an}'s territory to curb ${dn}`
-              };
-              allyText = `${an}'s ally ${nameStateD} marched through ${an} under hostage-backed transit rights to check ${dn}`;
-            }
+            allyEndpoints = { fromBurg: fromPort?.i, toBurg: targetPort?.i };
           } else {
+            const alliedTarget = resolveAlliedAttackerTarget(pack, d, defender, primaryTargetBurg);
+            tacticalRole = alliedTarget.tacticalRole;
+            allyEndpoints = { fromBurg: alliedTarget.fromBurg?.i, toBurg: alliedTarget.toBurg?.i };
+            const fromStr = alliedTarget.fromBurg ? `from ${alliedTarget.fromBurg.name}` : "";
+            const toStr = alliedTarget.toBurg ? alliedTarget.toBurg.name : "the frontier";
+
+            // Direct border offensive
             if (states[d].diplomacy![defender] === "Rival" || states[d].diplomacy![defender] === "Enemy") {
               motivation = "blood_feud";
               motivationLabel = "Historical rivalry";
               pledge = { type: "none", description: `Avenging past territorial conflicts with ${dn}` };
-              allyText = `${an}'s ally ${nameStateD} joined the war to settle ancient scores with ${dn}`;
+              const roleDesc =
+                tacticalRole === "divide"
+                  ? `attacking ${toStr} to divide ${dn}'s army`
+                  : `concentrating with ${an} on ${toStr}`;
+              allyText = `${an}'s ally ${nameStateD} advanced ${fromStr} to settle ancient scores with ${dn}, ${roleDesc}`;
             } else if (Math.random() < 0.5) {
-              const defenderBurgs = (pack.burgs || []).filter(b => b.state === defender);
-              if (defenderBurgs.length > 0) {
-                const targetBurg = defenderBurgs[Math.floor(Math.random() * defenderBurgs.length)];
-                motivation = "territorial_pledge";
-                motivationLabel = "Territorial partition";
-                pledge = {
-                  type: "burg_cession",
-                  burgId: targetBurg.i,
-                  burgName: targetBurg.name,
-                  description: `Promised territorial annexation of ${targetBurg.name}`
-                };
-                allyText = `${an}'s ally ${nameStateD} joined the offensive, promised the partition of ${targetBurg.name}`;
-              }
+              const targetBurg = alliedTarget.toBurg;
+              motivation = "territorial_pledge";
+              motivationLabel = "Territorial partition";
+              pledge = {
+                type: "burg_cession",
+                burgId: targetBurg?.i,
+                burgName: targetBurg?.name,
+                description: `Promised territorial annexation of ${targetBurg?.name || toStr}`
+              };
+              const roleDesc =
+                tacticalRole === "divide"
+                  ? `opening a second front to partition ${toStr}`
+                  : `concentrating the assault to capture ${toStr}`;
+              allyText = `${an}'s ally ${nameStateD} joined the offensive ${fromStr}, ${roleDesc}`;
+            } else {
+              const roleDesc =
+                tacticalRole === "divide"
+                  ? `advanced ${fromStr} against ${toStr} to divide ${dn}'s defensive forces`
+                  : `advanced ${fromStr} to join the siege of ${toStr}, concentrating allied forces`;
+              allyText = `${an}'s ally ${nameStateD} ${roleDesc}`;
             }
           }
 
@@ -1101,7 +1182,17 @@ class StatesModule {
             forces: allyForces
           });
 
-          war.push(createEvent(d, defender, "joined the war on attackers side", allyText));
+          war.push(
+            createEvent(
+              d,
+              defender,
+              "joined the war on attackers side",
+              allyText,
+              allyEndpoints,
+              tacticalRole,
+              transitType
+            )
+          );
 
           // ally vassals join
           states[d]
@@ -1122,12 +1213,27 @@ class StatesModule {
                 transitDetail: "Suzerain service deployment",
                 forces: estimateForces(v, "vassal", "direct_border")
               });
+              const vassalTarget = resolveAlliedAttackerTarget(pack, v, defender, primaryTargetBurg);
+              const fromStr = vassalTarget.fromBurg ? `from ${vassalTarget.fromBurg.name} ` : "";
+              const toStr = vassalTarget.toBurg ? vassalTarget.toBurg.name : "";
+              const roleDesc =
+                vassalTarget.tacticalRole === "divide"
+                  ? `opening a second front at ${toStr || "the frontier"} to divide defenders`
+                  : `concentrating forces on ${toStr || "the frontline"}`;
+              const vassalText =
+                `${states[d].name}'s vassal ${states[v].name} marched ${fromStr}to join the assault, ${roleDesc}`
+                  .trim()
+                  .replace(/\s+/g, " ");
+
               war.push(
                 createEvent(
                   v,
                   defender,
                   "joined the war on attackers side",
-                  `${states[d].name}'s vassal ${states[v].name} joined the war on attackers side`
+                  vassalText,
+                  { fromBurg: vassalTarget.fromBurg?.i, toBurg: vassalTarget.toBurg?.i },
+                  vassalTarget.tacticalRole,
+                  "direct_border"
                 )
               );
             });

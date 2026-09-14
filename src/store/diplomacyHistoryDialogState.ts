@@ -25,7 +25,7 @@ export const diplomacyHistoryDialogStore = createStore<DiplomacyHistoryDialogSta
   onClear: () => {},
   onChange: () => {},
   open: opts => set({ isOpen: true, ...opts }),
-  close: () => set({ isOpen: false })
+  close: () => set({ isOpen: false, chronicle: [] })
 }));
 
 export const useDiplomacyHistoryDialogState = <T>(selector: (s: DiplomacyHistoryDialogState) => T) =>

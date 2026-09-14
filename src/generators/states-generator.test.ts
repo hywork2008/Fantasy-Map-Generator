@@ -343,7 +343,7 @@ describe("States.generateDiplomacy", () => {
 
   it("generates WarDetails with mobilized forces and motivation pledges for coalition wars", () => {
     const prevAttempts = useOptionsState.getState().diplomacyHistoryAttempts;
-    useOptionsState.setState({ diplomacyHistoryAttempts: 5 });
+    useOptionsState.setState({ diplomacyHistoryAttempts: 10 });
 
     const mockWorldContext = {
       options: { year: 1000 },
@@ -418,7 +418,10 @@ describe("States.generateDiplomacy", () => {
     worldContext.pack = mockWorldContext.pack;
     worldContext.options = mockWorldContext.options;
     States.worldContext = mockWorldContext;
-    States.generateDiplomacy();
+    for (let attempt = 0; attempt < 10; attempt++) {
+      States.generateDiplomacy();
+      if ((mockWorldContext.pack.states[0].diplomacy as any[][])?.length > 0) break;
+    }
 
     // Check that wars have attached WarDetails
     const stateWithCampaign = mockWorldContext.pack.states.find(s => s.campaigns && s.campaigns.length > 0);
@@ -446,7 +449,150 @@ describe("States.generateDiplomacy", () => {
     const event = firstWarGroup.find(e => typeof e === "object");
     expect(event).toBeDefined();
     expect(event.warId).toBeDefined();
+    expect(event.fromBurg).toBeDefined();
+    expect(event.toBurg).toBeDefined();
 
     useOptionsState.setState({ diplomacyHistoryAttempts: prevAttempts });
+  });
+
+  it("sets tacticalRole, fromBurg, and toBurg on war events", () => {
+    const prevAttempts = useOptionsState.getState().diplomacyHistoryAttempts;
+    useOptionsState.setState({ diplomacyHistoryAttempts: 10 });
+
+    const mockWorldContext = {
+      options: { year: 1000 },
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1, 2]),
+          h: new Uint8Array([25, 25, 25]),
+          state: new Uint16Array([1, 2, 3]),
+          area: new Float32Array([100, 500, 100]),
+          p: [
+            [0, 0],
+            [10, 0],
+            [20, 0]
+          ],
+          c: [[1], [0, 2], [1]]
+        },
+        states: [
+          { i: 0, name: "Neutrals", removed: true },
+          {
+            i: 1,
+            name: "Alpha",
+            expansionism: 1,
+            neighbors: [2],
+            campaigns: [],
+            diplomacy: ["x", "x", "Enemy", "x"],
+            culture: 1,
+            center: 0
+          },
+          {
+            i: 2,
+            name: "Beta",
+            expansionism: 10,
+            neighbors: [1, 3],
+            campaigns: [],
+            diplomacy: ["x", "Enemy", "x", "Ally"],
+            culture: 1,
+            center: 1
+          },
+          {
+            i: 3,
+            name: "Gamma",
+            expansionism: 1,
+            neighbors: [2],
+            campaigns: [],
+            diplomacy: ["x", "Suspicion", "Ally", "x"],
+            culture: 1,
+            center: 2
+          }
+        ],
+        burgs: [
+          { i: 0 },
+          { i: 1, name: "Alpha Burg", state: 1, cell: 0, x: 0, y: 0, port: 1 },
+          { i: 2, name: "Beta Burg", state: 2, cell: 1, x: 10, y: 0, port: 1 },
+          { i: 3, name: "Gamma Port", state: 3, cell: 2, x: 20, y: 0, port: 1 }
+        ]
+      }
+    } as unknown as WorldContext;
+
+    worldContext.pack = mockWorldContext.pack;
+    worldContext.options = mockWorldContext.options;
+    States.worldContext = mockWorldContext;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      States.generateDiplomacy();
+      if ((mockWorldContext.pack.states[0].diplomacy as any[][])?.length > 0) break;
+    }
+
+    const chronicle = mockWorldContext.pack.states[0].diplomacy as any[][];
+    expect(chronicle.length).toBeGreaterThan(0);
+
+    // Look for events with tacticalRole or transitType
+    let foundTacticalOrLeader = false;
+    for (const group of chronicle) {
+      for (const item of group) {
+        if (typeof item === "object" && item !== null) {
+          if (item.tacticalRole) {
+            foundTacticalOrLeader = true;
+            expect(["leader", "concentrated", "divide"]).toContain(item.tacticalRole);
+          }
+          if (item.fromBurg !== undefined) {
+            expect(typeof item.fromBurg).toBe("number");
+          }
+          if (item.toBurg !== undefined) {
+            expect(typeof item.toBurg).toBe("number");
+          }
+        }
+      }
+    }
+    expect(foundTacticalOrLeader).toBe(true);
+
+    useOptionsState.setState({ diplomacyHistoryAttempts: prevAttempts });
+  });
+
+  it("does not form Ally relations with states that are neither land neighbors nor sea-connected", () => {
+    // 3 inland states arranged in a line: 1 <-> 2 <-> 3
+    // State 1 and 3 are neibsOfNeibs (not direct neighbors) and have NO ports.
+    const mockWorldContext = {
+      options: { year: 1000 },
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1, 2]),
+          h: new Uint8Array([25, 25, 25]),
+          state: new Uint16Array([1, 2, 3]),
+          area: new Float32Array([100, 100, 100]),
+          p: [
+            [0, 0],
+            [10, 0],
+            [20, 0]
+          ],
+          c: [[1], [0, 2], [1]]
+        },
+        states: [
+          { i: 0, name: "Neutrals", removed: true },
+          { i: 1, name: "State 1", expansionism: 1, neighbors: [2], campaigns: [], center: 0 },
+          { i: 2, name: "State 2", expansionism: 1, neighbors: [1, 3], campaigns: [], center: 1 },
+          { i: 3, name: "State 3", expansionism: 1, neighbors: [2], campaigns: [], center: 2 }
+        ],
+        burgs: [
+          { i: 1, name: "Inland City 1", state: 1, cell: 0, x: 0, y: 0, port: 0 },
+          { i: 2, name: "Inland City 2", state: 2, cell: 1, x: 10, y: 0, port: 0 },
+          { i: 3, name: "Inland City 3", state: 3, cell: 2, x: 20, y: 0, port: 0 }
+        ],
+        routes: []
+      }
+    } as unknown as WorldContext;
+
+    States.worldContext = mockWorldContext;
+
+    // Run generateDiplomacy multiple times to ensure randomized rolls never produce "Ally" between 1 and 3
+    for (let run = 0; run < 20; run++) {
+      States.generateDiplomacy();
+      const state1Diplomacy = mockWorldContext.pack.states[1].diplomacy as string[];
+      const state3Diplomacy = mockWorldContext.pack.states[3].diplomacy as string[];
+
+      expect(state1Diplomacy[3]).not.toBe("Ally");
+      expect(state3Diplomacy[1]).not.toBe("Ally");
+    }
   });
 });

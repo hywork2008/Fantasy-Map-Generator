@@ -59,6 +59,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
   // only the event rows. This is both what the virtualizer indexes and the single source of truth
   // for the "#" column, so the table row numbers stay aligned with drawHistoryArrows()'s numbering.
   const rows = useMemo(() => {
+    if (!isOpen) return [];
     const result: HistoryRow[] = [];
     let eventNumber = 0;
     chronicle.forEach((group, groupIdx) => {
@@ -86,7 +87,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
       });
     });
     return result;
-  }, [chronicle]);
+  }, [chronicle, isOpen]);
 
   const validEvents = useMemo(
     () => rows.filter((row): row is Extract<HistoryRow, { kind: "event" }> => row.kind === "event").map(r => r.event),
@@ -126,19 +127,22 @@ export const DiplomacyHistoryDialog: React.FC = () => {
   // virtualization only the visible rows are ever mounted, so reading containerRef.innerText
   // would silently drop every row currently scrolled out of view.
   const buildHistoryText = () => {
+    const states = worldContext.pack?.states;
     const lines = rows.map(row => {
       if (row.kind === "header") return `\t-\t-\t-\t${row.text}`;
       const { event, number } = row;
       const year = `${(currentYear ?? 100) - event.yearsAgo} ${currentEraShort}`;
-      const from = worldContext.pack.states[event.from]?.name || event.from;
-      const to = worldContext.pack.states[event.to]?.name || event.to;
+      const from = states?.[event.from]?.name || event.from;
+      const to = states?.[event.to]?.name || event.to;
       return `${number}\t${year}\t${from}\t${to}\t${event.rawText}`;
     });
     return ["#\tEra & Year\tFrom\tTo\tAction", ...lines].join("\n");
   };
 
   const findWarDetails = (row: HistoryRow): WarDetails | undefined => {
-    const states = worldContext.pack.states;
+    const states = worldContext.pack?.states;
+    if (!Array.isArray(states)) return undefined;
+
     let targetWarId = row.kind === "event" ? row.event.warId : undefined;
     if (!targetWarId) {
       const group = chronicle[row.groupIdx];
@@ -150,7 +154,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
 
     if (targetWarId) {
       for (const s of states) {
-        if (!s.i || s.removed || !s.campaigns) continue;
+        if (!s?.i || s.removed || !s.campaigns) continue;
         const c = s.campaigns.find(camp => camp.details?.id === targetWarId);
         if (c?.details) return c.details;
       }
@@ -164,7 +168,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
           : undefined;
     if (warName) {
       for (const s of states) {
-        if (!s.i || s.removed || !s.campaigns) continue;
+        if (!s?.i || s.removed || !s.campaigns) continue;
         const c = s.campaigns.find(camp => camp.name === warName && camp.details);
         if (c?.details) return c.details;
       }
@@ -182,6 +186,8 @@ export const DiplomacyHistoryDialog: React.FC = () => {
     onClear();
     close();
   };
+
+  if (!isOpen) return null;
 
   return (
     <Dialog
@@ -253,8 +259,8 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                     >
                       <td className="numeric">{isEvent ? row.number : ""}</td>
                       <td>{isEvent ? `${(currentYear ?? 100) - row.event.yearsAgo} ${currentEraShort}` : "-"}</td>
-                      <td>{isEvent ? worldContext.pack.states[row.event.from]?.name || row.event.from : "-"}</td>
-                      <td>{isEvent ? worldContext.pack.states[row.event.to]?.name || row.event.to : "-"}</td>
+                      <td>{isEvent ? worldContext.pack?.states?.[row.event.from]?.name || row.event.from : "-"}</td>
+                      <td>{isEvent ? worldContext.pack?.states?.[row.event.to]?.name || row.event.to : "-"}</td>
                       <td>
                         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           <div style={{ flex: 1 }}>{textCell}</div>
@@ -292,11 +298,14 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                           {isEvent && row.event.toBurg !== undefined && (
                             <span
                               className="icon-search"
-                              title="Zoom to city"
+                              title={
+                                worldContext.pack?.burgs?.[row.event.toBurg]
+                                  ? `Zoom to target city (${worldContext.pack.burgs[row.event.toBurg].name})`
+                                  : "Zoom to city"
+                              }
                               style={{ cursor: "pointer" }}
                               onClick={() => {
-                                // Guarded by the `toBurg !== undefined` check above.
-                                const burg = worldContext.pack.burgs[row.event.toBurg!];
+                                const burg = worldContext.pack?.burgs?.[row.event.toBurg!];
                                 if (burg) zoomTo(burg.x, burg.y, 8, 1000);
                               }}
                             />

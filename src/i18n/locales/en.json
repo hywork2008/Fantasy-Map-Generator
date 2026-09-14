@@ -824,6 +824,7 @@
     "dishonoredPacts": "Dishonored Pacts & Non-Belligerents",
     "participatingOfficers": "Participating Officers",
     "noOfficersFound": "No recorded officers",
+    "officer": "Officer",
     "severedDefensePact": "Severed Defense Pact",
     "avoidedWar": "Avoided War",
     "warConduct": {
@@ -1155,6 +1156,8 @@
       "ministerOfFinance": "Minister of Finance",
       "directorOfIntelligence": "Director of Intelligence",
       "commander": "Commander",
+      "general": "General",
+      "knight": "Knight",
       "admiral": "Admiral",
       "regent": "Regent",
       "patrician": "Patrician"

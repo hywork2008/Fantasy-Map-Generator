@@ -92,6 +92,8 @@ const TITLE_KEY_BY_ENGLISH: Readonly<Record<string, string>> = {
   "Minister of Finance": "ministerOfFinance",
   "Director of Intelligence": "directorOfIntelligence",
   Commander: "commander",
+  General: "general",
+  Knight: "knight",
   Admiral: "admiral",
   Regent: "regent",
   Patrician: "patrician"
@@ -138,7 +140,10 @@ export function getCharacterTitleLabel(title: string): string {
 /** Resolves stable role kinds first, preserving custom extension labels as a fallback. */
 export function getCharacterRoleLabel(role: Pick<CharacterRole, "kind" | "label">): string {
   const roleKey = ROLE_KEY_BY_KIND[role.kind] ?? ROLE_KEY_BY_LABEL[role.label];
-  return roleKey ? i18n.t(`characters.roleNames.${roleKey}`) : role.label;
+  if (roleKey) return i18n.t(`characters.roleNames.${roleKey}`);
+  const titleKey = TITLE_KEY_BY_ENGLISH[role.label];
+  if (titleKey) return i18n.t(`characters.titleNames.${titleKey}`);
+  return role.label;
 }
 
 /**
