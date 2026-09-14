@@ -66,6 +66,16 @@ test.describe("burg-to-burg Directions dialog", () => {
     await expect(enabledTab).toBeEnabled();
     await expect(page.locator("#ruler .directions-route-highlight")).toHaveCount(1);
 
+    // Toggling "prefer sea travel" unchecks avoidSea and recomputes.
+    const preferSea = dialog.getByRole("checkbox", { name: "Prefer sea travel" });
+    await expect(preferSea).toBeVisible();
+    await expect(preferSea).not.toBeChecked();
+    await preferSea.check();
+    await expect(preferSea).toBeChecked();
+    await expect(avoidSea).not.toBeChecked();
+    await expect(enabledTab).toBeEnabled();
+    await expect(page.locator("#ruler .directions-route-highlight")).toHaveCount(1);
+
     // Closing the dialog clears the highlight.
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
     await expect(dialog).toBeHidden();

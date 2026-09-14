@@ -118,7 +118,9 @@
       "minutes": "{{minutes}}分"
     },
     "avoidSea": "船を避ける",
+    "preferSea": "可能な限り海路を使う",
     "seaRequiredNote": "このルートは海路が必須です。陸路網ではこれらの都市を結べないため、「船を避ける」は無視されました。",
+    "preferSeaNoEffectNote": "これらの都市を結ぶ海路網がないため、「可能な限り海路を使う」は無視されました。",
     "distanceSplit": "陸路 {{land}}{{distanceUnit}} ・ 海路 {{sea}}{{distanceUnit}}",
     "gradeSummary": "最大勾配: {{maxGrade}}% ・ 登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}} ・ 難易度: {{difficulty}}",
     "landGradeSummary": "登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}}(陸路区間のみ)",

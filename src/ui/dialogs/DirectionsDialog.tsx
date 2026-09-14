@@ -41,8 +41,19 @@ function formatDuration(days: number, t: Translate): string {
 export const DirectionsDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("directions"));
-  const { fromBurgId, toBurgId, fromName, toName, result, selectedMode, avoidSea, selectMode, applyAvoidSea, reset } =
-    useDirectionsDialogState();
+  const {
+    fromBurgId,
+    toBurgId,
+    fromName,
+    toName,
+    result,
+    selectedMode,
+    avoidSea,
+    preferSea,
+    selectMode,
+    applySeaOptions,
+    reset
+  } = useDirectionsDialogState();
   const heightUnit = useOptionsState(s => s.heightUnit);
   const distanceUnit = useOptionsState(s => s.distanceUnit);
 
@@ -102,11 +113,19 @@ export const DirectionsDialog: React.FC = () => {
   }
 
   function handleAvoidSeaChange(checked: boolean): void {
-    // Availability never changes with avoidSea (computeDirections falls back to a sea-inclusive
-    // route rather than failing), so the selected mode tab stays put — only its route changes.
-    const recomputed = computeDirections(fromBurgId, toBurgId, checked);
+    const nextAvoid = checked;
+    const nextPrefer = checked ? false : preferSea;
+    const recomputed = computeDirections(fromBurgId, toBurgId, { avoidSea: nextAvoid, preferSea: nextPrefer });
     if (!recomputed) return;
-    applyAvoidSea(checked, recomputed, selectedMode);
+    applySeaOptions({ avoidSea: nextAvoid, preferSea: nextPrefer }, recomputed, selectedMode);
+  }
+
+  function handlePreferSeaChange(checked: boolean): void {
+    const nextPrefer = checked;
+    const nextAvoid = checked ? false : avoidSea;
+    const recomputed = computeDirections(fromBurgId, toBurgId, { avoidSea: nextAvoid, preferSea: nextPrefer });
+    if (!recomputed) return;
+    applySeaOptions({ avoidSea: nextAvoid, preferSea: nextPrefer }, recomputed, selectedMode);
   }
 
   return (
@@ -117,10 +136,24 @@ export const DirectionsDialog: React.FC = () => {
     >
       {result && (
         <div className="directions-dialog">
-          <label className="directions-avoid-sea">
-            <input type="checkbox" checked={avoidSea} onChange={event => handleAvoidSeaChange(event.target.checked)} />
-            {t("directions.avoidSea")}
-          </label>
+          <div className="directions-sea-options">
+            <label className="directions-sea-option directions-avoid-sea">
+              <input
+                type="checkbox"
+                checked={avoidSea}
+                onChange={event => handleAvoidSeaChange(event.target.checked)}
+              />
+              {t("directions.avoidSea")}
+            </label>
+            <label className="directions-sea-option directions-prefer-sea">
+              <input
+                type="checkbox"
+                checked={preferSea}
+                onChange={event => handlePreferSeaChange(event.target.checked)}
+              />
+              {t("directions.preferSea")}
+            </label>
+          </div>
 
           <div className="directions-modes" role="tablist">
             {TRAVEL_MODES.map(mode => {
@@ -151,6 +184,10 @@ export const DirectionsDialog: React.FC = () => {
 
           {selectedRoute?.seaRequiredDespiteAvoid && (
             <div className="directions-sea-note">{t("directions.seaRequiredNote")}</div>
+          )}
+
+          {selectedRoute?.preferSeaNoEffect && (
+            <div className="directions-sea-note">{t("directions.preferSeaNoEffectNote")}</div>
           )}
 
           {selectedRoute?.composition === "mixed" && (

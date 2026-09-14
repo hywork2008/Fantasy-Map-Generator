@@ -63,6 +63,14 @@ export interface DirectionsRoute {
   /** True when "avoid sea" was requested but no land-only path existed, so this route still
    * includes a sea leg anyway. */
   seaRequiredDespiteAvoid: boolean;
+  /** True when "prefer sea" was requested but no connecting sea path could be used, so this route
+   * uses only land legs. */
+  preferSeaNoEffect: boolean;
+}
+
+export interface DirectionsOptions {
+  avoidSea?: boolean;
+  preferSea?: boolean;
 }
 
 export type ModeResult =
@@ -140,6 +148,8 @@ function findMergedRoutePath(
   seaGraph: SeaRouteGraph | null,
   start: number,
   end: number,
+  landSearchCost: (from: number, to: number, planarDist: number) => number,
+  seaSearchCost: (planarDist: number) => number,
   landDayCost: (from: number, to: number, planarDist: number) => number,
   seaDayCost: (planarDist: number) => number
 ): MergedPathResult | null {
@@ -164,7 +174,7 @@ function findMergedRoutePath(
     if (landNeighbors) {
       for (const [next, planarDist] of landNeighbors) {
         if (settled.has(next)) continue;
-        const step = landDayCost(current, next, planarDist);
+        const step = landSearchCost(current, next, planarDist);
         if (!Number.isFinite(step) || step < 0) continue;
         const total = currentDist + step;
         if (total < (dist.get(next) ?? Infinity)) {
@@ -179,7 +189,7 @@ function findMergedRoutePath(
     if (seaNeighbors) {
       for (const [next, planarDist] of seaNeighbors) {
         if (settled.has(next)) continue;
-        const step = seaDayCost(planarDist);
+        const step = seaSearchCost(planarDist);
         if (!Number.isFinite(step) || step < 0) continue;
         const total = currentDist + step;
         if (total < (dist.get(next) ?? Infinity)) {
@@ -191,8 +201,7 @@ function findMergedRoutePath(
     }
   }
 
-  const totalDays = dist.get(end);
-  if (totalDays === undefined) return null;
+  if (!dist.has(end)) return null;
 
   const cells = [end];
   const kinds: HopKind[] = [];
@@ -206,6 +215,19 @@ function findMergedRoutePath(
   cells.reverse();
   kinds.reverse();
 
+  const p = worldContext.pack.cells.p;
+  let totalDays = 0;
+  for (let i = 0; i < kinds.length; i++) {
+    const [x1, y1] = p[cells[i]];
+    const [x2, y2] = p[cells[i + 1]];
+    const hopDist = Math.hypot(x2 - x1, y2 - y1);
+    if (kinds[i] === "land") {
+      totalDays += landDayCost(cells[i], cells[i + 1], hopDist);
+    } else {
+      totalDays += seaDayCost(hopDist);
+    }
+  }
+
   return { cells, kinds, days: totalDays };
 }
 
@@ -213,7 +235,7 @@ function buildDirectionsRoute(
   mode: TravelMode,
   pathResult: MergedPathResult,
   ctx: { distanceScale: number; heightExponent: number; heights: ArrayLike<number> },
-  seaRequiredDespiteAvoid: boolean
+  flags: { seaRequiredDespiteAvoid: boolean; preferSeaNoEffect: boolean }
 ): DirectionsRoute {
   const { cells, kinds } = pathResult;
   const p = worldContext.pack.cells.p;
@@ -269,7 +291,8 @@ function buildDirectionsRoute(
     ascentM: gradeProfile ? gradeProfile.totalAscentM : ascentM,
     descentM: gradeProfile ? gradeProfile.totalDescentM : descentM,
     gradeProfile,
-    seaRequiredDespiteAvoid
+    seaRequiredDespiteAvoid: flags.seaRequiredDespiteAvoid,
+    preferSeaNoEffect: flags.preferSeaNoEffect
   };
 }
 
@@ -277,7 +300,7 @@ function computeModeRoute(
   mode: TravelMode,
   fromCell: number,
   toCell: number,
-  avoidSea: boolean,
+  options: { avoidSea: boolean; preferSea: boolean },
   graphs: { land: LandRouteGraph; sea: SeaRouteGraph },
   ctx: { distanceScale: number; heightExponent: number; heights: ArrayLike<number> }
 ): ModeResult {
@@ -295,24 +318,50 @@ function computeModeRoute(
   };
   const seaDayCost = (planarDist: number) => (planarDist * ctx.distanceScale) / SHIP_KM_PER_DAY;
 
+  const { avoidSea, preferSea } = options;
   let seaRequiredDespiteAvoid = false;
+  let preferSeaNoEffect = false;
+
+  const landSearchCost = preferSea
+    ? (from: number, to: number, dist: number) => landDayCost(from, to, dist) * 1000
+    : landDayCost;
+  const seaSearchCost = seaDayCost;
+
   let result = findMergedRoutePath(
     graphs.land,
     avoidSea ? null : graphs.sea,
     fromCell,
     toCell,
+    landSearchCost,
+    seaSearchCost,
     landDayCost,
     seaDayCost
   );
 
   if (!result && avoidSea) {
-    result = findMergedRoutePath(graphs.land, graphs.sea, fromCell, toCell, landDayCost, seaDayCost);
+    result = findMergedRoutePath(
+      graphs.land,
+      graphs.sea,
+      fromCell,
+      toCell,
+      landDayCost,
+      seaDayCost,
+      landDayCost,
+      seaDayCost
+    );
     if (result) seaRequiredDespiteAvoid = true;
   }
 
   if (!result) return { available: false, reasonKey: "noRoute" };
 
-  return { available: true, route: buildDirectionsRoute(mode, result, ctx, seaRequiredDespiteAvoid) };
+  if (preferSea && !result.kinds.includes("sea")) {
+    preferSeaNoEffect = true;
+  }
+
+  return {
+    available: true,
+    route: buildDirectionsRoute(mode, result, ctx, { seaRequiredDespiteAvoid, preferSeaNoEffect })
+  };
 }
 
 /** Resolves a burg id to a live, non-removed Burg, or null. */
@@ -326,11 +375,16 @@ export function resolveBurg(burgId: number | null | undefined): Burg | null {
 /**
  * Computes directions between two burgs for every transport mode. Each mode searches the
  * combined land+sea network for its fastest route (see module doc comment) — a sea leg is used
- * automatically when it's part of the fastest path, and `avoidSea` restricts the search to land
+ * automatically when it's part of the fastest path, `avoidSea` restricts the search to land
  * only (falling back to a sea-inclusive route, flagged via `seaRequiredDespiteAvoid`, if no
- * land-only path exists at all).
+ * land-only path exists at all), and `preferSea` heavily penalizes land travel to prioritize
+ * maritime routes wherever feasible.
  */
-export function computeDirections(fromBurgId: number, toBurgId: number, avoidSea = false): DirectionsResult | null {
+export function computeDirections(
+  fromBurgId: number,
+  toBurgId: number,
+  optionsOrAvoidSea: DirectionsOptions | boolean = false
+): DirectionsResult | null {
   const fromBurg = resolveBurg(fromBurgId);
   const toBurg = resolveBurg(toBurgId);
   if (!fromBurg || !toBurg) return null;
@@ -343,6 +397,10 @@ export function computeDirections(fromBurgId: number, toBurgId: number, avoidSea
     return { foot: sameLocation, mounted: sameLocation, wagon: sameLocation };
   }
 
+  const options = typeof optionsOrAvoidSea === "boolean" ? { avoidSea: optionsOrAvoidSea } : optionsOrAvoidSea;
+  const avoidSea = !!options.avoidSea;
+  const preferSea = !avoidSea && !!options.preferSea;
+
   const graphs = { land: buildLandRouteGraph(worldContext.pack), sea: buildSeaRouteGraph(worldContext.pack) };
   const ctx = {
     distanceScale: resolveDistanceScale(),
@@ -350,10 +408,12 @@ export function computeDirections(fromBurgId: number, toBurgId: number, avoidSea
     heights: worldContext.pack.cells.h
   };
 
+  const parsedOptions = { avoidSea, preferSea };
+
   return {
-    foot: computeModeRoute("foot", fromCell, toCell, avoidSea, graphs, ctx),
-    mounted: computeModeRoute("mounted", fromCell, toCell, avoidSea, graphs, ctx),
-    wagon: computeModeRoute("wagon", fromCell, toCell, avoidSea, graphs, ctx)
+    foot: computeModeRoute("foot", fromCell, toCell, parsedOptions, graphs, ctx),
+    mounted: computeModeRoute("mounted", fromCell, toCell, parsedOptions, graphs, ctx),
+    wagon: computeModeRoute("wagon", fromCell, toCell, parsedOptions, graphs, ctx)
   };
 }
 

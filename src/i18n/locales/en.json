@@ -118,7 +118,9 @@
       "minutes": "{{minutes}}m"
     },
     "avoidSea": "Avoid sea travel",
+    "preferSea": "Prefer sea travel",
     "seaRequiredNote": "This route requires a sea crossing — no road network connects these settlements, so \"Avoid sea travel\" is ignored here.",
+    "preferSeaNoEffectNote": "No charted sea lane connects these settlements, so \"Prefer sea travel\" had no effect.",
     "distanceSplit": "{{land}} {{distanceUnit}} by land · {{sea}} {{distanceUnit}} by sea",
     "gradeSummary": "Max grade: {{maxGrade}}% · Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} · Difficulty: {{difficulty}}",
     "landGradeSummary": "Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} (land legs only)",

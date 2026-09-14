@@ -12,22 +12,29 @@ interface DirectionsDialogOpenData {
 
 interface DirectionsDialogState extends DirectionsDialogOpenData {
   avoidSea: boolean;
+  preferSea: boolean;
   open: (data: DirectionsDialogOpenData) => void;
   selectMode: (mode: TravelMode) => void;
-  /** Applied after the caller recomputes `computeDirections(fromBurgId, toBurgId, avoidSea)` —
-   * this store holds state, it doesn't run the pathfinder itself. */
+  /** Applied after the caller recomputes directions with avoidSea/preferSea options. */
+  applySeaOptions: (
+    options: { avoidSea: boolean; preferSea: boolean },
+    result: DirectionsResult,
+    selectedMode: TravelMode | null
+  ) => void;
+  /** Backwards compatibility alias for applySeaOptions({ avoidSea, preferSea: false }, ...) */
   applyAvoidSea: (avoidSea: boolean, result: DirectionsResult, selectedMode: TravelMode | null) => void;
   reset: () => void;
 }
 
-const EMPTY_STATE: DirectionsDialogOpenData & { avoidSea: boolean } = {
+const EMPTY_STATE: DirectionsDialogOpenData & { avoidSea: boolean; preferSea: boolean } = {
   fromBurgId: 0,
   toBurgId: 0,
   fromName: "",
   toName: "",
   result: null as unknown as DirectionsResult,
   selectedMode: null,
-  avoidSea: false
+  avoidSea: false,
+  preferSea: false
 };
 
 /**
@@ -38,8 +45,10 @@ const EMPTY_STATE: DirectionsDialogOpenData & { avoidSea: boolean } = {
  */
 export const useDirectionsDialogState = create<DirectionsDialogState>(set => ({
   ...EMPTY_STATE,
-  open: data => set({ ...data, avoidSea: false }),
+  open: data => set({ ...data, avoidSea: false, preferSea: false }),
   selectMode: mode => set({ selectedMode: mode }),
-  applyAvoidSea: (avoidSea, result, selectedMode) => set({ avoidSea, result, selectedMode }),
+  applySeaOptions: (options, result, selectedMode) =>
+    set({ avoidSea: options.avoidSea, preferSea: options.preferSea, result, selectedMode }),
+  applyAvoidSea: (avoidSea, result, selectedMode) => set({ avoidSea, preferSea: false, result, selectedMode }),
   reset: () => set({ ...EMPTY_STATE })
 }));

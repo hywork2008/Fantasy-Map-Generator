@@ -14,6 +14,8 @@ import { computeDirections, pickDefaultMode, resolveBurg, splitTravelDuration } 
 //   Tests automatic sea use and the avoidSea fallback.
 // - Burg PortE(13) / PortF(15): linked only by a sea route via water cell 14. Tests
 //   seaRequiredDespiteAvoid when avoidSea can't be honored at all.
+// - Burg G(16) / H(17): linked by a short direct road (50km) and a longer sea detour
+//   via ports 18 and 19 (10 land + 100 sea + 10 land). Tests preferSea.
 function makePack(): PackedGraph {
   const cells = {
     p: [
@@ -32,9 +34,13 @@ function makePack(): PackedGraph {
       [400, 700], // 12: W2, long land detour waypoint
       [0, 50], // 13: burg PortE
       [10, 50], // 14: water waypoint
-      [20, 50] // 15: burg PortF
+      [20, 50], // 15: burg PortF
+      [0, 2000], // 16: burg G
+      [40, 2000], // 17: burg H
+      [0, 2010], // 18: port near G
+      [40, 2010] // 19: port near H
     ],
-    h: [25, 95, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 10, 25]
+    h: [25, 95, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 10, 25, 25, 25, 10, 10]
   };
 
   const burgs = [
@@ -46,7 +52,9 @@ function makePack(): PackedGraph {
     { cell: 9, x: 0, y: 1000, name: "A2" },
     { cell: 10, x: 400, y: 1000, name: "B2" },
     { cell: 13, x: 0, y: 50, name: "PortE" },
-    { cell: 15, x: 20, y: 50, name: "PortF" }
+    { cell: 15, x: 20, y: 50, name: "PortF" },
+    { cell: 16, x: 0, y: 2000, name: "G" },
+    { cell: 17, x: 40, y: 2000, name: "H" }
   ];
 
   const routes = [
@@ -117,6 +125,42 @@ function makePack(): PackedGraph {
         [0, 50, 13],
         [10, 50, 14],
         [20, 50, 15]
+      ]
+    },
+    {
+      i: 7,
+      group: "roads",
+      feature: 1,
+      points: [
+        [0, 2000, 16],
+        [40, 2000, 17]
+      ]
+    },
+    {
+      i: 8,
+      group: "roads",
+      feature: 1,
+      points: [
+        [0, 2000, 16],
+        [0, 2010, 18]
+      ]
+    },
+    {
+      i: 9,
+      group: "roads",
+      feature: 1,
+      points: [
+        [40, 2010, 19],
+        [40, 2000, 17]
+      ]
+    },
+    {
+      i: 10,
+      group: "searoutes",
+      feature: 1,
+      points: [
+        [0, 2010, 18],
+        [40, 2010, 19]
       ]
     }
   ];
@@ -201,6 +245,40 @@ describe("computeDirections", () => {
     if (avoided.wagon.available) {
       expect(avoided.wagon.route.composition).toBe("sea");
       expect(avoided.wagon.route.seaRequiredDespiteAvoid).toBe(true);
+    }
+  });
+
+  it("prioritizes sea travel over a faster direct road when preferSea is set", () => {
+    // Default (fastest) picks the direct road: 40km @ 32km/day = 1.25 days.
+    const defaultRoute = computeDirections(9, 10)!.wagon;
+    expect(defaultRoute.available).toBe(true);
+    if (defaultRoute.available) {
+      expect(defaultRoute.route.composition).toBe("land");
+      expect(defaultRoute.route.cells).toEqual([16, 17]);
+      expect(defaultRoute.route.distanceKm).toBeCloseTo(40, 6);
+      expect(defaultRoute.route.durationDays).toBeCloseTo(40 / 32, 6);
+    }
+
+    // preferSea picks the sea detour: 10km land + 40km sea + 10km land + 4-day port penalty.
+    const seaRoute = computeDirections(9, 10, { preferSea: true })!.wagon;
+    expect(seaRoute.available).toBe(true);
+    if (seaRoute.available) {
+      expect(seaRoute.route.composition).toBe("mixed");
+      expect(seaRoute.route.cells).toEqual([16, 18, 19, 17]);
+      expect(seaRoute.route.kinds).toEqual(["land", "sea", "land"]);
+      expect(seaRoute.route.landDistanceKm).toBeCloseTo(20, 6);
+      expect(seaRoute.route.seaDistanceKm).toBeCloseTo(40, 6);
+      expect(seaRoute.route.durationDays).toBeCloseTo(20 / 32 + 40 / 60 + 4, 6);
+      expect(seaRoute.route.preferSeaNoEffect).toBe(false);
+    }
+  });
+
+  it("sets preferSeaNoEffect when preferSea is requested but only land routes connect the burgs", () => {
+    const result = computeDirections(1, 2, { preferSea: true })!.wagon;
+    expect(result.available).toBe(true);
+    if (result.available) {
+      expect(result.route.composition).toBe("land");
+      expect(result.route.preferSeaNoEffect).toBe(true);
     }
   });
 
