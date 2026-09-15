@@ -55,7 +55,17 @@ import type {
 import { DEFAULT_WALL_PLAN } from "./gen/types";
 import { assignWards } from "./gen/wards";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
-import { kindEdgeIds, openBarrierPassage, openGeneratedPassages } from "./passages";
+import {
+  addBridge,
+  joinWallRiverCrossings,
+  kindEdgeIds,
+  openBarrierPassage,
+  openGeneratedPassages,
+  throughEdgesAt,
+  validGeneratedCrossings,
+  vertexHasCrossing,
+  vertexHasKindPassage
+} from "./passages";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "./types";
 
 export type { CityFeatureSet, SiteConfig } from "./gen/site/siteConfig";
@@ -180,8 +190,8 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
 
 /**
  * Recompute the plan up to `stageStep` on `document`'s own mesh and return a new
- * document with the result written in. Stages ①–④ leave the mesh topology
- * untouched. From ⑤, vertices where a road meets a wall or river may be merged
+ * document with the result written in. Stages ①–③ leave the mesh topology
+ * untouched. From ④, vertices where a road meets a wall or river may be merged
  * or split so the meeting becomes a 4-way gate/bridge (opposite edges); river,
  * road and wall still never share an edge. `null` if the result fails validation.
  * Deterministic in `(document, settings, seed, stageStep)`.
@@ -201,12 +211,23 @@ export function generateStageOnDocument(
 }
 
 /** Complete an editable town on the current grid, including intramural streets
- * and geometric finishing. The six diagnostic stages retain their raw mesh. */
+ * and geometric finishing. The diagnostic stages omit smoothing but prepare valid gate junctions. */
 export function generateCityOnDocument(
   document: CityDocument,
   settings: GenerationSettings,
   seed: string
 ): CityDocument | null {
+  // Some coast/river layouts cannot form valid crossings on this grid. Try
+  // another deterministic layout with the same requested settings, always
+  // starting from the untouched input rather than accumulating failed merges.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const result = generateCityAttempt(document, settings, attempt ? `${seed}:junction-retry:${attempt}` : seed);
+    if (result) return result;
+  }
+  return null;
+}
+
+function generateCityAttempt(document: CityDocument, settings: GenerationSettings, seed: string): CityDocument | null {
   if (Object.keys(document.mesh.faces).length < 3) return null;
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
   const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 6, true);
@@ -243,7 +264,8 @@ export function generateCityOnDocument(
   );
   if (!next) return null;
   next.appearance = "town";
-  return resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(next) : next;
+  const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(next) : next;
+  return validGeneratedCrossings(finished) ? finished : null;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
@@ -840,7 +862,6 @@ function applyPlan(
     let wallIndex = 0;
     const openEdges = new Set<Id>();
     if (complete) {
-      for (const id of kindEdgeIds(next, "river")) openEdges.add(id);
       if (plan.avoidSea && program.wallPlan?.coast !== "seaWall") {
         for (const edge of Object.values(mesh.edges)) {
           if ([edge.leftFace, edge.rightFace].some(id => id && mesh.faces[id].properties.water !== "land"))
@@ -868,6 +889,10 @@ function applyPlan(
     });
   }
   if (stageStep >= 4) {
+    if (complete) {
+      next = joinWallRiverCrossings(next);
+      mesh = next.mesh;
+    }
     const wallVertices = new Set<Id>();
     for (const group of next.featureGroups) {
       if (group.kind !== "wall") continue;
@@ -877,12 +902,21 @@ function applyPlan(
       }
     }
     plan.gates.forEach((gate, i) => {
-      const vertexId = nearest(gate.point, wallVertices);
+      const vertexId = nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters))(
+        gate.point,
+        wallVertices
+      );
       if (complete && vertexId) {
         const point = mesh.vertices[vertexId].point;
         if (Math.hypot(point[0] - gate.point[0], point[1] - gate.point[1]) > 0.1) return;
       }
-      if (vertexId) next.gates.push({ id: `${GEN_PREFIX}gate-${i}`, vertexId, locked: false });
+      if (vertexId) {
+        const opened = openBarrierPassage(next, vertexId, "wall");
+        if (!opened) return;
+        next = opened;
+        mesh = next.mesh;
+        next.gates.push({ id: `${GEN_PREFIX}gate-${i}`, vertexId, locked: false });
+      }
     });
     // Reserved precinct landmarks as point-anchored elements.
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
@@ -906,19 +940,32 @@ function applyPlan(
       // Open a real crossing before routing, keeping roads off river edges.
       const rivers = next.featureGroups.filter(g => g.kind === "river");
       const center = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
-      for (const river of rivers) {
+      for (const [riverIndex, river] of rivers.entries()) {
         if (river.kind !== "river") continue;
-        const candidates = river.vertices.slice(1, -1).filter(id => next.mesh.vertices[id]);
+        const candidates = river.vertices
+          .slice(1, -1)
+          .filter(
+            id =>
+              next.mesh.vertices[id] &&
+              Object.values(next.mesh.edges).some(
+                e =>
+                  (e.a === id || e.b === id) &&
+                  [e.leftFace, e.rightFace].some(fid => fid && next.mesh.faces[fid].properties.buildable)
+              )
+          );
         candidates.sort((a, b) => {
           const p = next.mesh.vertices[a].point;
           const q = next.mesh.vertices[b].point;
           return Math.hypot(p[0] - center[0], p[1] - center[1]) - Math.hypot(q[0] - center[0], q[1] - center[1]);
         });
-        for (const id of candidates.slice(0, 8)) {
+        for (const id of candidates) {
           const opened = openBarrierPassage(next, id, "river");
           if (opened) {
-            next = opened;
-            break;
+            const bridged = addBridge(opened, id, `${GEN_PREFIX}bridge-${riverIndex}`);
+            if (bridged) {
+              next = bridged;
+              break;
+            }
           }
         }
       }
@@ -960,6 +1007,9 @@ function applyPlan(
 
   // A gate must sit on a drawn wall — drop any that no longer does.
   next.gates = next.gates.filter(gate => {
+    if (gate.id.startsWith(GEN_PREFIX) && !vertexHasKindPassage(next, gate.vertexId, "wall")) return false;
+    if (complete && gate.id.startsWith(GEN_PREFIX) && !vertexHasCrossing(next, gate.vertexId, "wall", "road"))
+      return false;
     const point = mesh.vertices[gate.vertexId]?.point;
     if (!point) return false;
     return next.featureGroups.some(
@@ -1000,6 +1050,16 @@ function completeRoadRouter(
     edgeFor.set(`${Math.min(a, b)},${Math.max(a, b)}`, edge);
   }
   const urban = new Set([...plan.urban].map(i => faceIdOf[i]));
+  const restricted = new Map<Id, Set<Id>>();
+  for (const kind of ["wall", "river"] as const) {
+    const edges = kindEdgeIds(document, kind);
+    const vertices = new Set([...edges].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
+    for (const id of vertices) {
+      const allowed = new Set(throughEdgesAt(document, id, kind).map(e => e.id));
+      const previous = restricted.get(id);
+      restricted.set(id, previous ? new Set([...allowed].filter(e => previous.has(e))) : allowed);
+    }
+  }
   const gateIds = new Set(document.gates.map(g => g.vertexId));
   const endpoint = (p: Point): Id | null => {
     const gate = nearest(p, gateIds);
@@ -1017,6 +1077,7 @@ function completeRoadRouter(
     const path = aStar(graph, indexOf.get(start)!, indexOf.get(end)!, (a, b, w) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
       if (banned.has(edge.id)) return Infinity;
+      for (const id of [edge.a, edge.b]) if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
       const faces = [edge.leftFace, edge.rightFace].filter((id): id is Id => id !== null);
       if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land")) return Infinity;
       const inTown = faces.some(id => urban.has(id));

@@ -1,5 +1,5 @@
 import { buildCityBuildings } from "../core/gen/buildingLots";
-import { pointInPolygon, polygonCentroid } from "../core/gen/geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
@@ -116,7 +116,11 @@ export function renderEditorSvg(
   svg.appendChild(edges);
 
   const features = element("g", { class: "ce-features" });
-  for (const group of document.featureGroups) {
+  const order = { wall: 0, river: 1, road: 2, plank: 3 };
+  const renderGroups = town
+    ? [...document.featureGroups].sort((a, b) => order[a.kind] - order[b.kind])
+    : document.featureGroups;
+  for (const group of renderGroups) {
     const active = selection.groupId === group.id;
     const points =
       group.kind === "river"
@@ -298,6 +302,12 @@ function renderTownQuays(document: CityDocument): SVGGElement {
 
 function renderTownFortifications(document: CityDocument): SVGGElement {
   const layer = element("g", { class: "ce-fortifications", "pointer-events": "none" }) as SVGGElement;
+  const rivers = document.featureGroups
+    .filter(g => g.kind === "river")
+    .map(g => ({
+      points: g.vertices.map(id => document.mesh.vertices[id].point),
+      width: g.style.widthMeters
+    }));
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
     const points = edgeGroupPoints(document, group.segments);
@@ -309,6 +319,11 @@ function renderTownFortifications(document: CityDocument): SVGGElement {
       const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
       while (untilTower < length) {
         const t = untilTower / length;
+        const position: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+        if (rivers.some(r => nearestOnPolyline(position, r.points).dist < r.width / 2 + group.style.widthMeters)) {
+          untilTower += spacing;
+          continue;
+        }
         layer.appendChild(
           element("circle", {
             cx: String(a[0] + (b[0] - a[0]) * t),

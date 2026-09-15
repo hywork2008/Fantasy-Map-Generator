@@ -4,7 +4,7 @@ import { featureGroupVertices } from "../features";
 import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
-import { kindEdgeIds } from "../passages";
+import { kindEdgeIds, vertexHasCrossing } from "../passages";
 import type { CityDocument, Point } from "../types";
 import { buildCityBuildings, insetConvexKernel } from "./buildingLots";
 import { pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
@@ -25,6 +25,17 @@ function roughness(document: CityDocument, kind: "wall" | "road"): number {
 
 describe("complete editable city", () => {
   const base = createSizedDocument("small", "preview");
+  it("retries a bay layout with an unusable crossing without weakening the crossing rules", () => {
+    const grid = createGridDocument({ size: "small", grid: "hex", seed: "junction-check" });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "bay";
+    settings.config.rivers = ["through"];
+    settings.config.features.port = true;
+    const city = generateCityOnDocument(grid, settings, "junction-6")!;
+    expect(city).not.toBeNull();
+    for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
+    expect(generateCityOnDocument(grid, settings, "junction-6")).toEqual(city);
+  });
   for (const coast of ["none", "straight", "bay", "cape"] as const) {
     for (const seed of ["reference-town", "complete-b", "complete-c"]) {
       it(`${coast}, ${seed}: buildings stay on land, routes remain on distinct mesh edges`, () => {
@@ -38,6 +49,19 @@ describe("complete editable city", () => {
         expect(city.frame).toEqual(base.frame);
         const rivers = kindEdgeIds(city, "river");
         const walls = kindEdgeIds(city, "wall");
+        for (const gate of city.gates)
+          expect(vertexHasCrossing(city, gate.vertexId, "wall", "road"), gate.vertexId).toBe(true);
+        for (const id of walls) expect(rivers.has(id), `shared wall/river ${id}`).toBe(false);
+        const wallVertices = new Set([...walls].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
+        const riverVertices = new Set([...rivers].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
+        for (const id of wallVertices)
+          if (riverVertices.has(id)) expect(vertexHasCrossing(city, id, "wall", "river"), id).toBe(true);
+        if (coast === "none") expect(city.featureGroups.some(g => g.id.startsWith("gc:bridge-"))).toBe(true);
+        for (const bridge of city.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
+          const ids = featureGroupVertices(city, bridge);
+          expect(ids).toHaveLength(3);
+          expect(vertexHasCrossing(city, ids[1], "river", "road"), bridge.id).toBe(true);
+        }
         for (const id of kindEdgeIds(city, "road")) {
           expect(rivers.has(id) || walls.has(id)).toBe(false);
           const edge = city.mesh.edges[id];

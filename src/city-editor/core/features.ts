@@ -215,7 +215,10 @@ export function toggleGate(document: CityDocument, vertexId: Id): CityDocument |
   const gates = next.gates;
   const index = gates.findIndex(gate => gate.vertexId === vertexId);
   if (index >= 0) gates.splice(index, 1);
-  else gates.push({ id: nextId(next, "gate"), vertexId, locked: false });
+  else {
+    if (!vertexHasWallPassage(document, vertexId)) return null;
+    gates.push({ id: nextId(next, "gate"), vertexId, locked: false });
+  }
   return next;
 }
 

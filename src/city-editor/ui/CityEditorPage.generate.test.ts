@@ -148,10 +148,10 @@ describe("Generate panel", () => {
     expect(bearings?.closest("label")?.style.display).not.toBe("none");
   });
 
-  it("never rebuilds the block mesh on ①–④ — the reported bug", () => {
+  it("preserves the base mesh on ①–③; prepares junctions from ④", () => {
     const before = meshFingerprint();
     expect(count(".ce-cells .ce-face")).toBeGreaterThan(0);
-    for (const label of ["①", "②", "③", "④"]) {
+    for (const label of ["①", "②", "③"]) {
       stageButton(label).click();
       expect(meshFingerprint(), `mesh changed after ${label}`).toBe(before);
     }

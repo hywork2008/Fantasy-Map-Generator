@@ -73,9 +73,9 @@ describe("generateStageOnDocument", () => {
             if (!out) return;
             expect(validate(out)).toEqual([]);
             expect(out.frame).toEqual(base.frame);
-            // ①–④ must not rebuild the grid. ⑤–⑥ may merge/split a vertex to
+            // ①–③ must not rebuild the grid. ④–⑥ may merge/split a vertex to
             // open a 4-way gate or bridge, so the skeleton may change.
-            if (step < S.streets) expect(meshSkeleton(out)).toBe(baseline);
+            if (step < S.walls) expect(meshSkeleton(out)).toBe(baseline);
           });
         }
 
@@ -536,11 +536,10 @@ describe("generateRiverWalkStep — per-loop ② river-walk scrub", () => {
 
 describe("generateGateStep — per-loop ④ gate-placement scrub", () => {
   const base = createSizedDocument("small", "mesh-fixture");
-  const baseline = meshSkeleton(base);
   const walled = SCENARIOS["landlocked, one river, walls + citadel"];
   const open = SCENARIOS["bay, no walls"];
 
-  it("valid document, mesh & frame untouched, for the first/middle/last gate", () => {
+  it("valid document, gate topology prepared & frame untouched, for the first/middle/last gate", () => {
     for (const seed of SEEDS) {
       const { total } = generateGateStep(base, walled, seed, 0);
       expect(total).toBeGreaterThan(0);
@@ -549,7 +548,8 @@ describe("generateGateStep — per-loop ④ gate-placement scrub", () => {
         expect(step.document, `gate ${idx} returned null`).not.toBeNull();
         if (!step.document) continue;
         expect(validate(step.document)).toEqual([]);
-        expect(meshSkeleton(step.document)).toBe(baseline);
+        for (const gate of step.document.gates)
+          expect(incidentEdges(step.document.mesh, gate.vertexId).length).toBeGreaterThanOrEqual(4);
         expect(step.document.frame).toEqual(base.frame);
       }
     }

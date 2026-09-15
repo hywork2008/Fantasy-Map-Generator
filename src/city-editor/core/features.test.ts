@@ -175,6 +175,10 @@ describe("gates", () => {
     };
 
     expect(vertexHasWallPassage(document, "centre")).toBe(true);
+    const gated = toggleGate(document, "centre")!;
+    expect(gated.gates).toHaveLength(1);
+    expect(toggleGate(gated, "centre")!.gates).toEqual([]);
+    expect(removeGroup(gated, "wall-1").gates).toEqual([]);
 
     const cornerWall = structuredClone(document);
     const wall = cornerWall.featureGroups[0];
@@ -190,15 +194,9 @@ describe("gates", () => {
     expect(vertexHasWallPassage(threeWay, "centre")).toBe(false);
   });
 
-  it("anchors gates to wall vertices and toggles them there", () => {
+  it("rejects gate placement without a four-way wall passage", () => {
     const document = routeDocument();
-    const first = toggleGate(document, "a");
-    expect(first?.gates).toEqual([{ id: "gate-1", vertexId: "a", locked: false }]);
-
-    const second = first ? toggleGate(first, "a") : null;
-    expect(second?.gates).toEqual([]);
-    const withGate = toggleGate(document, "a");
-    expect(withGate ? removeGroup(withGate, "wall-1").gates : []).toEqual([]);
+    expect(toggleGate(document, "a")).toBeNull();
     expect(toggleGate(document, "d")).toBeNull();
   });
 
@@ -214,7 +212,7 @@ describe("gates", () => {
           w2: { id: "w2", point: [10, 0], locked: false },
           w0: { id: "w0", point: [-20, 0], locked: false },
           p: { id: "p", point: [0, 10], locked: false },
-          a: { id: "a", point: [-10, 10], locked: false }
+          a: { id: "a", point: [-10, -10], locked: false }
         },
         edges: {
           wallA: { id: "wallA", a: "g", b: "w1", leftFace: null, rightFace: null, locked: false },
