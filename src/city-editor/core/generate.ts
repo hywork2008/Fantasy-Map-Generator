@@ -978,7 +978,14 @@ function applyPlan(
     const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
     const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
     const routeComplete = complete ? completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned) : null;
+    // A complete city supplies one approach road and one interior street for
+    // every planned gate. Gate placement is allowed to fail (for example when
+    // the matching wall run was removed at the coast), so never materialize
+    // either route for a gate that did not actually make it onto the mesh.
+    const approachRoadCount = plan.roads.length - plan.streets.length;
     plan.roads.forEach((polyline, i) => {
+      const gateIndex = i < approachRoadCount ? i : i - approachRoadCount;
+      if (complete && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`)) return;
       const segments = routeComplete
         ? routeComplete(polyline, i < plan.roads.length - plan.streets.length)
         : longestUnbannedRun(polylineToEdgeRefs(mesh, polyline, nearestAfter), banned);
@@ -1021,6 +1028,19 @@ function applyPlan(
         })
     );
   });
+
+  // A route can still fail after its gate was placed (for instance when A* has
+  // no legal approach through the post-junction topology). Remove its paired
+  // route as well; otherwise the road visibly terminates at a closed wall.
+  if (complete && plan.gates.length) {
+    const activeGateIds = new Set(next.gates.filter(gate => gate.id.startsWith(GEN_PREFIX)).map(gate => gate.id));
+    next.featureGroups = next.featureGroups.filter(group => {
+      if (group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
+      const routeIndex = Number(group.id.slice(`${GEN_PREFIX}road-`.length));
+      if (!Number.isInteger(routeIndex)) return true;
+      return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
+    });
+  }
 
   return validate(next).length === 0 ? next : null;
 }

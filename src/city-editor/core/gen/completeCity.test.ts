@@ -49,10 +49,19 @@ describe("complete editable city", () => {
         expect(city.frame).toEqual(base.frame);
         const rivers = kindEdgeIds(city, "river");
         const walls = kindEdgeIds(city, "wall");
+        const wallVertices = new Set([...walls].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
         for (const gate of city.gates)
           expect(vertexHasCrossing(city, gate.vertexId, "wall", "road"), gate.vertexId).toBe(true);
+        const gateVertices = new Set(city.gates.map(gate => gate.vertexId));
+        for (const road of city.featureGroups.filter(
+          group => group.kind === "road" && group.id.startsWith("gc:road-")
+        )) {
+          const vertices = featureGroupVertices(city, road);
+          for (const endpoint of [vertices[0], vertices.at(-1)!]) {
+            if (wallVertices.has(endpoint)) expect(gateVertices.has(endpoint), `${road.id} at ${endpoint}`).toBe(true);
+          }
+        }
         for (const id of walls) expect(rivers.has(id), `shared wall/river ${id}`).toBe(false);
-        const wallVertices = new Set([...walls].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
         const riverVertices = new Set([...rivers].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
         for (const id of wallVertices)
           if (riverVertices.has(id)) expect(vertexHasCrossing(city, id, "wall", "river"), id).toBe(true);
