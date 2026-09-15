@@ -181,6 +181,7 @@ type RecordPatch<T> = Record<Id, T | null>;
  */
 interface DocPatch {
   frame?: CityDocument["frame"];
+  appearance?: CityDocument["appearance"] | null;
   vertices?: RecordPatch<Vertex>;
   edges?: RecordPatch<Edge>;
   faces?: RecordPatch<Face>;
@@ -219,6 +220,7 @@ function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatc
 function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
   if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
+  if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
   const vertices = diffRecord(previous.mesh.vertices, next.mesh.vertices);
   if (vertices) patch.vertices = vertices;
   const edges = diffRecord(previous.mesh.edges, next.mesh.edges);
@@ -246,6 +248,8 @@ function applyRecord<T>(map: Record<Id, T>, patch: RecordPatch<T> | undefined): 
 
 function applyPatch(document: CityDocument, patch: DocPatch): void {
   if (patch.frame) document.frame = clone(patch.frame);
+  if (patch.appearance === null) delete document.appearance;
+  else if (patch.appearance) document.appearance = patch.appearance;
   applyRecord(document.mesh.vertices, patch.vertices);
   applyRecord(document.mesh.edges, patch.edges);
   applyRecord(document.mesh.faces, patch.faces);

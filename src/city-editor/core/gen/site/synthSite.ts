@@ -167,7 +167,9 @@ function synthCoast(rng: Rng, shape: CoastShape, half: number, R: number): BurgS
   const apexAz = baseAz + rng.range(-55, 55);
   const apex = azimuthToVec(((apexAz % 360) + 360) % 360); // town → arc centre
 
-  const standoff = R * (shape === "straight" ? rng.range(0.6, 1.4) : rng.range(0.0, 0.5));
+  // A coastal town must actually reach its waterfront. Offsets larger than
+  // the city radius put the harbour in the countryside or beyond the frame.
+  const standoff = R * (shape === "straight" ? rng.range(0.15, 0.5) : rng.range(0.0, 0.5));
   let curvature: number;
   let waterInside: boolean;
   if (shape === "straight") {

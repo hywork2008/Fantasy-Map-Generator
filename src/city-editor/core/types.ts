@@ -97,6 +97,8 @@ export interface CityDocument {
   format: "fmg-city-editor";
   version: 1;
   frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
+  /** Completed cities open in the building/ink view; editing uses the same mesh. */
+  appearance?: "town";
   /** A non-editable source image, for example an imported MFCG SVG. */
   referenceImage?: { href: string; width: number; height: number };
   mesh: Mesh;

@@ -1,3 +1,5 @@
+import { buildCityBuildings } from "../core/gen/buildingLots";
+import { pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
@@ -49,9 +51,16 @@ export function renderEditorSvg(
    * subpath so unrelated walks never draw a connecting line between them. */
   stepWalkPaths: readonly (readonly Point[])[] | null = null,
   /** Document panel "Grid evolution" scrub overlay (Phase G1). */
-  gridOverlay: GridOverlay | null = null
+  gridOverlay: GridOverlay | null = null,
+  showBlockMesh = false
 ): SVGSVGElement {
-  const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
+  const town =
+    document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
+  const svg = element("svg", {
+    viewBox,
+    class: `ce-svg${town ? " ce-svg--town" : ""}`,
+    "aria-label": "City editor canvas"
+  }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
   if (backdrop) {
     const { href, width, height } = backdrop;
@@ -79,6 +88,20 @@ export function renderEditorSvg(
   }
   svg.appendChild(cells);
 
+  if (town) {
+    const buildings = element("g", { class: "ce-buildings", "pointer-events": "none" });
+    for (const lot of buildCityBuildings(document)) {
+      buildings.appendChild(
+        element("path", {
+          d: polygon(lot.polygon),
+          class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}`,
+          "data-building-face": lot.faceId
+        })
+      );
+    }
+    svg.appendChild(buildings);
+  }
+
   const edges = element("g", { class: "ce-edges" });
   for (const edge of Object.values(document.mesh.edges)) {
     const [a, b] = [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point];
@@ -100,11 +123,29 @@ export function renderEditorSvg(
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
         : edgeGroupPoints(document, group.segments);
     if (points.length < 2) continue;
+    if (town && group.kind === "road") {
+      features.appendChild(
+        element("path", {
+          d: line(points),
+          class: "ce-road-casing",
+          fill: "none",
+          stroke: "#57534b",
+          "stroke-width": String(group.style.widthMeters + 1.4),
+          "pointer-events": "none"
+        })
+      );
+    }
     features.appendChild(
       element("path", {
         d: line(points),
         class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}`,
-        stroke: group.style.color,
+        stroke: town
+          ? group.kind === "road"
+            ? "#d5cfbf"
+            : group.kind === "river"
+              ? "#85857d"
+              : "#292a26"
+          : group.style.color,
         "stroke-width": String(group.style.widthMeters),
         "data-group": group.id,
         // Once selected, let the mesh edges below receive clicks so individual
@@ -114,19 +155,23 @@ export function renderEditorSvg(
     );
   }
   svg.appendChild(features);
+  if (town) {
+    svg.appendChild(renderTownQuays(document));
+    svg.appendChild(renderTownFortifications(document));
+  }
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
   const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
   for (const face of Object.values(document.mesh.faces)) {
     const marker = renderFaceWardLandmark(document.mesh, face);
-    if (marker) wardLandmarks.appendChild(marker);
+    if (marker && !town) wardLandmarks.appendChild(marker);
   }
   svg.appendChild(wardLandmarks);
 
   const gates = element("g", { class: "ce-gates", "pointer-events": "none" });
   for (const gate of document.gates ?? []) {
     const point = document.mesh.vertices[gate.vertexId]?.point;
-    if (point) gates.appendChild(cityElementMarker(point, "gate", gate.id));
+    if (point && !town) gates.appendChild(cityElementMarker(point, "gate", gate.id));
   }
   svg.appendChild(gates);
 
@@ -136,6 +181,30 @@ export function renderEditorSvg(
     // imported data here so the document has one source of truth per cell.
     if (!cityElement.point) continue;
     const p = cityElement.point;
+    if (town && cityElement.id.startsWith("gc:")) {
+      if (cityElement.kind === "plaza")
+        elements.appendChild(
+          element("circle", {
+            cx: String(p[0]),
+            cy: String(-p[1]),
+            r: "2.5",
+            fill: "#292a26",
+            "pointer-events": "none"
+          })
+        );
+      if (cityElement.kind === "temple")
+        elements.appendChild(
+          element("rect", {
+            x: String(p[0] - 9),
+            y: String(-p[1] - 6),
+            width: "18",
+            height: "12",
+            fill: "#292a26",
+            "pointer-events": "none"
+          })
+        );
+      continue;
+    }
     if (cityElement.kind === "tree") {
       elements.appendChild(tree(p, cityElement.sizeMeters ?? 8, cityElement.id));
       continue;
@@ -193,6 +262,110 @@ export function renderEditorSvg(
   // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
   return svg;
+}
+
+function renderTownQuays(document: CityDocument): SVGGElement {
+  const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
+  if (!document.elements.some(e => e.kind === "harbor")) return layer;
+  for (const edge of Object.values(document.mesh.edges)) {
+    const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
+    const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
+    if (!left || !right || (left.properties.water === "land") === (right.properties.water === "land")) continue;
+    const land = left.properties.water === "land" ? left : right;
+    const water = land === left ? right : left;
+    if (!land.properties.buildable) continue;
+    const a = document.mesh.vertices[edge.a].point;
+    const b = document.mesh.vertices[edge.b].point;
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const ring = facePoints(document.mesh, water);
+    const center = polygonCentroid(ring);
+    let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
+    if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+    for (let distance = 12; distance < length - 4; distance += 24) {
+      const start: Point = [a[0] + ((b[0] - a[0]) * distance) / length, a[1] + ((b[1] - a[1]) * distance) / length];
+      const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
+      if (!pointInPolygon(end, ring)) continue;
+      layer.appendChild(
+        element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" })
+      );
+      layer.appendChild(
+        element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" })
+      );
+    }
+  }
+  return layer;
+}
+
+function renderTownFortifications(document: CityDocument): SVGGElement {
+  const layer = element("g", { class: "ce-fortifications", "pointer-events": "none" }) as SVGGElement;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "wall") continue;
+    const points = edgeGroupPoints(document, group.segments);
+    const spacing = Math.max(45, document.frame.blockSizeMeters * 1.4);
+    let untilTower = spacing / 2;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      while (untilTower < length) {
+        const t = untilTower / length;
+        layer.appendChild(
+          element("circle", {
+            cx: String(a[0] + (b[0] - a[0]) * t),
+            cy: String(-a[1] - (b[1] - a[1]) * t),
+            r: String(group.style.widthMeters * 0.8),
+            fill: "#292a26"
+          })
+        );
+        untilTower += spacing;
+      }
+      untilTower -= length;
+    }
+  }
+  for (const gate of document.gates) {
+    const p = document.mesh.vertices[gate.vertexId]?.point;
+    if (!p) continue;
+    const wall = document.featureGroups.find(
+      g =>
+        g.kind === "wall" &&
+        g.segments.some(s => {
+          const e = document.mesh.edges[s.edgeId];
+          return e.a === gate.vertexId || e.b === gate.vertexId;
+        })
+    );
+    if (wall?.kind !== "wall") continue;
+    const ref = wall.segments.find(s => {
+      const e = document.mesh.edges[s.edgeId];
+      return e.a === gate.vertexId || e.b === gate.vertexId;
+    })!;
+    const e = document.mesh.edges[ref.edgeId];
+    const q = document.mesh.vertices[e.a === gate.vertexId ? e.b : e.a].point;
+    const angle = (-Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
+    const width = wall.style.widthMeters;
+    const opening = Math.max(9, width * 1.6);
+    const marker = element("g", { class: "ce-town-gate", transform: `translate(${p[0]} ${-p[1]}) rotate(${angle})` });
+    marker.appendChild(
+      element("rect", {
+        x: String(-opening / 2),
+        y: String(-width),
+        width: String(opening),
+        height: String(width * 2),
+        fill: "#d5cfbf"
+      })
+    );
+    for (const sign of [-1, 1])
+      marker.appendChild(
+        element("rect", {
+          x: String((sign * opening) / 2 - width / 2),
+          y: String(-width),
+          width: String(width),
+          height: String(width * 2),
+          fill: "#292a26"
+        })
+      );
+    layer.appendChild(marker);
+  }
+  return layer;
 }
 
 /** The translucent "Grid evolution" scrub layer: Voronoi cells, Delaunay edges

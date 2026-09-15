@@ -91,6 +91,38 @@ function seedRichTown(tries = 16): void {
 }
 
 describe("Generate panel", () => {
+  it("generates a complete illustrated city in one click, supports mesh view and Undo/Redo", () => {
+    const before = meshFingerprint();
+    panelButton("都市を一括生成").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-fortifications")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    const finished = root.querySelector("svg.ce-svg")!.innerHTML;
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+    const toggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("街区の編集表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    toggle.click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    expect(count(".ce-edge")).toBeGreaterThan(0);
+    toggle.click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    iconButton("Undo").click();
+    expect(meshFingerprint()).toBe(before);
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    iconButton("Redo").click();
+    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+  });
+
+  it("the first new-town click creates a city without requiring stage buttons", () => {
+    panelButton("新しい都市").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-feature--road")).toBe(true);
+  });
+
   it("renders six ordered process buttons (no grid step) and no seed / size field", () => {
     const labels = [...root.querySelectorAll(".ce-generate-stages button")].map(b => b.textContent);
     expect(labels).toEqual(["① 海岸線と海", "② 河川", "③ 市街地コア", "④ 城壁・門・城郭", "⑤ 街路", "⑥ 地区割り当て"]);

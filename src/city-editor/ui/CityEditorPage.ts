@@ -35,6 +35,7 @@ import {
   type GenerationSettings,
   type GenerationStage,
   type GenerationStepResult,
+  generateCityOnDocument,
   generateCoastWalkStep,
   generateGateStep,
   generateRiverWalkStep,
@@ -187,6 +188,9 @@ export function mountCityEditor(root: HTMLElement): void {
   // solely by the "🎲 新しい都市" button; every stage regenerates THIS town so
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
+  let completeSource: CityDocument | null = null;
+  let completeResult: CityDocument | null = null;
+  let showBlockMesh = false;
   let lastGeneratedStep: number | null = null;
   // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
   // WHICHEVER of the six processes was last activated (by pressing its stage
@@ -306,7 +310,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const size = select(Object.keys(CITY_SIZE_PRESETS), "small");
   for (const option of [...size.options]) {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
-    option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km · ${preset.cellsAcross}×${preset.cellsAcross} · ~${preset.buildingTarget} buildings`;
+    option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km`;
   }
   const gridKindSelect = select(["hex", "voronoi", "evolution"], "hex");
   gridKindSelect.className = "ce-grid-kind";
@@ -640,7 +644,15 @@ export function mountCityEditor(root: HTMLElement): void {
   stepRow.append(stepPrevButton, stepStatus, stepNextButton);
 
   generatePanel.content.append(
+    makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
     makeButton("🎲 新しい都市", () => rollNewTown()),
+    toggleLabel(
+      "街区の編集表示",
+      checkbox(false, checked => {
+        showBlockMesh = checked;
+        redrawMap();
+      })
+    ),
     divider(),
     label("Coast", coastSelect),
     label("Rivers", riversSelect),
@@ -657,7 +669,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }),
     divider(),
     text(
-      "Works on the CURRENT block mesh (make it in the Document panel first) — it never rebuilds the grid or resizes the map. Press ① then ② … in order; each writes the plan up to that process onto the mesh, clearing the generated layers first. Pressing a stage again is idempotent; use 「🎲 新しい都市」 for a different town. Coast / Rivers / Features are kept."
+      "一括生成で城壁・街路を整え、建物を配置します。地形と現在の格子を使用します。①〜⑥は各工程の確認用です。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。"
     ),
     stageButtons,
     divider(),
@@ -1333,7 +1345,8 @@ export function mountCityEditor(root: HTMLElement): void {
       referenceImage,
       urbanCoreHighlight,
       stepOverlayPaths,
-      gridOverlayForRender()
+      gridOverlayForRender(),
+      showBlockMesh
     );
     map.replaceChildren(svg);
     // Index the per-face nodes this pass just built so a later ward/sea paint
@@ -2276,17 +2289,58 @@ export function mountCityEditor(root: HTMLElement): void {
     stepIndex = -1;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
-    if (lastGeneratedStep === null) {
-      showNotice("New town rolled — press ① to build it");
+    if (lastGeneratedStep === null || documentState.appearance === "town") {
+      runCompleteGeneration();
       return;
     }
     rerunLastStage();
   }
 
   function rerunLastStage(): void {
+    if (documentState.appearance === "town") {
+      runCompleteGeneration();
+      return;
+    }
     if (lastGeneratedStep === null) return;
     const stage = GENERATION_STAGES.find(s => s.step === lastGeneratedStep);
     if (stage) runGenerationStage(stage);
+  }
+
+  function runCompleteGeneration(): void {
+    // Reuse the input grid for successive rolls, preventing accumulated shrink
+    // from finishing an already finished town. A real edit becomes a new input.
+    if (
+      !completeSource ||
+      (documentState !== completeResult && JSON.stringify(documentState) !== JSON.stringify(completeResult))
+    )
+      completeSource = documentState;
+    let next: CityDocument | null = null;
+    try {
+      next = generateCityOnDocument(completeSource, generateSettings, generateSeed);
+    } catch (error) {
+      console.error(error);
+    }
+    if (!next) {
+      showNotice("都市の生成に失敗しました");
+      return;
+    }
+    if (JSON.stringify(next) === JSON.stringify(documentState)) {
+      showNotice("同じ都市を表示しています");
+      return;
+    }
+    documentState = history.commit(next, "Generate complete city");
+    completeResult = documentState;
+    lastGeneratedStep = 6;
+    activeStepStage = null;
+    stepIndex = -1;
+    stepStatus.textContent = "";
+    urbanCoreHighlight = null;
+    stepOverlayPaths = null;
+    referenceImage = null;
+    selection = emptySelection();
+    activeGroupId = null;
+    rebuildEditorIndexes();
+    showNotice("都市を生成しました — 城壁・街路・建物");
   }
 
   function runGenerationStage(stage: GenerationStage): void {

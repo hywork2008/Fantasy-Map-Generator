@@ -417,7 +417,7 @@ function link(adjacency: Map<string, Set<string>>, from: string, to: string): vo
  * When `avoidSea` is on and that aim lands in the water, replace it with the
  * `goal→gate` × shoreline intersection, one `cellSize` landward (§3.E.1).
  */
-function farNodeFor(
+export function farNodeFor(
   gate: Gate,
   geo: CityGeography,
   half: number,

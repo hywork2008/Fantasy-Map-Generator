@@ -26,7 +26,7 @@ export interface UrbanClassification {
 }
 
 const GATE_CONE_DEG = 22;
-const GATE_PULL = 0.35;
+const GATE_PULL = 0.12;
 const RIBBON_CONE_DEG = 15;
 const RIBBON_REACH = 1.6;
 /** Elliptical reach when a shoreline tangent is known: along-shore vs inland. */
@@ -71,7 +71,10 @@ export function classifyUrban(
     if (roadBearings.length === 0) return 0;
     const az = vecToAzimuth(c.centroid[0], c.centroid[1]);
     const nearest = Math.min(...roadBearings.map(b => azimuthDelta(az, b)));
-    return nearest <= GATE_CONE_DEG ? cityRadiusMeters * GATE_PULL : 0;
+    // A continuous, modest pull avoids rectangular fingers at the cone edge.
+    return nearest < GATE_CONE_DEG
+      ? (cityRadiusMeters * GATE_PULL * (1 + Math.cos((nearest / GATE_CONE_DEG) * Math.PI))) / 2
+      : 0;
   };
   const cost = (c: Cell): number => reach(c) - gatePull(c);
 
