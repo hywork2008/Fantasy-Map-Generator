@@ -1,6 +1,7 @@
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
+import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
@@ -70,8 +71,10 @@ export function renderEditorSvg(
   stepWalkPaths: readonly (readonly Point[])[] | null = null,
   /** Document panel "Grid evolution" scrub overlay (Phase G1). */
   gridOverlay: GridOverlay | null = null,
-  showBlockMesh = false
+  showBlockMesh = false,
+  observer?: GenerationObserver
 ): SVGSVGElement {
+  const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
   const svg = element("svg", {
@@ -107,7 +110,7 @@ export function renderEditorSvg(
       elevation: face.properties.elevation,
       ward: face.properties.ward ?? null,
       site: face.site,
-      center: face.center,
+      center: polygonCentroid(facePoints(document.mesh, face)),
       neighbors: faceNeighbors(document.mesh, face.id),
       vertices: faceVertices(document.mesh, face)
     };
@@ -127,15 +130,18 @@ export function renderEditorSvg(
       class: "ce-buildings",
       "pointer-events": tool === "select" ? "all" : "none"
     });
-    for (const lot of buildCityBuildings(document)) {
+    mark("svg-base");
+    const lots = buildCityBuildings(document);
+    mark("buildings", { buildings: lots.length });
+    for (const lot of lots) {
       const bldId = `bld-${lot.faceId}`;
       const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
       const pickInfo: SvgPickInfo = {
         layer: "buildings",
         kind: "building",
         id: bldId,
-        label: `${lot.ward} building #${lot.faceId}`,
-        ward: lot.ward,
+        label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+        ward: document.mesh.faces[lot.faceId].properties.ward,
         faceId: lot.faceId,
         landmark: !!lot.landmark
       };
@@ -163,7 +169,7 @@ export function renderEditorSvg(
       label: `edge #${edge.id}`,
       a: edge.a,
       b: edge.b,
-      faces: [edge.f1, edge.f2].filter((f): f is Id => f != null)
+      faces: [edge.leftFace, edge.rightFace].filter((f): f is Id => f != null)
     };
     edges.appendChild(
       element("path", {
@@ -396,6 +402,7 @@ export function renderEditorSvg(
   // pointermove without rebuilding every cell/edge/vertex node. Populated by
   // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
+  mark("svg-details");
   return svg;
 }
 

@@ -48,6 +48,8 @@ import {
   riversForCount,
   type SiteConfig
 } from "../core/generate";
+import type { GenerationSample } from "../core/generationDiagnostics";
+import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
 import {
   clone,
@@ -193,6 +195,26 @@ export function mountCityEditor(root: HTMLElement): void {
   let generateSeed = randomSeed();
   let completeSource: CityDocument | null = null;
   let completeResult: CityDocument | null = null;
+  let generationJob: ReturnType<typeof startCityGeneration> | null = null;
+  let generationSamples: GenerationSample[] = [];
+  const generationProgress = document.createElement("output");
+  generationProgress.className = "ce-generation-progress";
+  generationProgress.setAttribute("aria-live", "polite");
+  const cancelGeneration = makeButton("生成をキャンセル", () => generationJob?.cancel());
+  cancelGeneration.hidden = true;
+  // Keep the document and settings stable until the result is committed.
+  for (const eventName of ["click", "pointerdown", "change", "input", "keydown"]) {
+    root.addEventListener(
+      eventName,
+      event => {
+        if (!generationJob || event.target === cancelGeneration) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true
+    );
+  }
+
   let showBlockMesh = false;
   let lastGeneratedStep: number | null = null;
   // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
@@ -587,8 +609,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const urbanNPatchesInput = numberInput("", "1", "1");
   urbanNPatchesInput.className = "ce-generate-npatches";
   urbanNPatchesInput.placeholder = "auto";
-  urbanNPatchesInput.title =
-    "Cap ③'s flood-fill to the first N cells instead of the auto count (city area / mean cell area)";
+  urbanNPatchesInput.title = "Cap ③'s flood-fill to the first N cells instead of the actual city-area budget";
   urbanNPatchesInput.addEventListener("change", () => {
     const raw = urbanNPatchesInput.value.trim();
     if (raw === "") {
@@ -667,6 +688,8 @@ export function mountCityEditor(root: HTMLElement): void {
   });
 
   generatePanel.content.append(
+    generationProgress,
+    cancelGeneration,
     makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
     makeButton("🎲 新しい都市", () => rollNewTown()),
     toggleLabel("街区の編集表示", blockMeshInput),
@@ -1204,12 +1227,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     const activeGroup = activeGroupId ? documentState.featureGroups.find(group => group.id === activeGroupId) : null;
-    if (
-      edgeId &&
-      activeGroup &&
-      !activeGroup.locked &&
-      (tool === "select" || (activeGroup.kind !== "plank" && tool === activeGroup.kind))
-    ) {
+    if (edgeId && activeGroup && !activeGroup.locked && activeGroup.kind !== "plank" && tool === activeGroup.kind) {
       if (groupUsesEdge(documentState, activeGroup, edgeId)) {
         selection = { ...selection, edgeId, faceId: null, vertexId: null };
         refresh();
@@ -1360,6 +1378,7 @@ export function mountCityEditor(root: HTMLElement): void {
     { passive: false }
   );
   window.addEventListener("keydown", event => {
+    if (generationJob) return;
     if (event.code === "Space") isSpacePressed = true;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
@@ -1588,7 +1607,8 @@ export function mountCityEditor(root: HTMLElement): void {
       urbanCoreHighlight,
       stepOverlayPaths,
       gridOverlayForRender(),
-      showBlockMesh
+      showBlockMesh,
+      sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample }))
     );
     map.replaceChildren(svg);
     // Index the per-face nodes this pass just built so a later ward/sea paint
@@ -2637,12 +2657,69 @@ export function mountCityEditor(root: HTMLElement): void {
       (documentState !== completeResult && JSON.stringify(documentState) !== JSON.stringify(completeResult))
     )
       completeSource = documentState;
-    let next: CityDocument | null = null;
+    if (generationJob) return;
+    generationSamples = [];
+    const onProgress = (sample: GenerationSample) => {
+      generationSamples.push(sample);
+      generationProgress.textContent = `生成中 — ${sample.attempt}/4案目 · ${phaseLabel(sample.phase)}`;
+    };
+    if (typeof Worker !== "undefined") {
+      const input = documentState;
+      const before = JSON.stringify(input);
+      generationProgress.textContent = "都市を生成しています…";
+      cancelGeneration.hidden = false;
+      root.setAttribute("aria-busy", "true");
+      try {
+        const job = startCityGeneration(
+          { document: completeSource, settings: generateSettings, seed: generateSeed },
+          onProgress
+        );
+        generationJob = job;
+        const observer = new MutationObserver(() => {
+          if (!root.isConnected) job.cancel();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        void job.result
+          .then(next => {
+            if (!root.isConnected || input !== documentState || before !== JSON.stringify(documentState)) return;
+            acceptCompleteGeneration(next);
+          })
+          .catch(error => {
+            if (root.isConnected) {
+              if (error instanceof Error && error.name === "AbortError")
+                generationProgress.textContent = "生成をキャンセルしました";
+              else {
+                console.error(error);
+                generationProgress.textContent = "都市の生成に失敗しました";
+              }
+            }
+          })
+          .finally(() => {
+            observer.disconnect();
+            if (generationJob === job) generationJob = null;
+            cancelGeneration.hidden = true;
+            root.removeAttribute("aria-busy");
+          });
+      } catch (error) {
+        console.error(error);
+        cancelGeneration.hidden = true;
+        root.removeAttribute("aria-busy");
+        generationProgress.textContent = "都市の生成を開始できませんでした";
+      }
+      return;
+    }
+    // Non-worker hosts (including jsdom) retain the synchronous API.
     try {
-      next = generateCityOnDocument(completeSource, generateSettings, generateSeed);
+      acceptCompleteGeneration(generateCityOnDocument(completeSource, generateSettings, generateSeed, onProgress));
     } catch (error) {
       console.error(error);
+      generationProgress.textContent = "都市の生成に失敗しました";
     }
+  }
+
+  function acceptCompleteGeneration(next: CityDocument | null): void {
+    generationProgress.textContent = next ? "生成完了" : "都市の生成に失敗しました";
+    root.dispatchEvent(new CustomEvent("city-generation-diagnostics", { detail: generationSamples.slice() }));
     if (!next) {
       showNotice("都市の生成に失敗しました");
       return;
@@ -3122,4 +3199,14 @@ function circleIntersectsPolygon(center: Point, radius: number, polygon: Point[]
 
 function vertexPairKey(a: Id, b: Id): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function phaseLabel(phase: string): string {
+  if (phase.includes("coast") || phase.includes("river") || phase.includes("terrain")) return "地形";
+  if (phase === "urban") return "市街地";
+  if (phase.includes("wall")) return "城壁・門";
+  if (phase.includes("street") || phase.includes("route")) return "街道・橋";
+  if (phase.includes("rectify") || phase.includes("geometry")) return "形状の仕上げ";
+  if (phase.includes("validation")) return "接続の検証";
+  return "都市の構成";
 }

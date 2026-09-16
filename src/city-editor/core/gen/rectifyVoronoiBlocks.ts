@@ -46,12 +46,19 @@ function topology(mesh: Mesh) {
 /** Shape the internal shared mesh, after major-route finishing. The original
  * Voronoi topology is retained except for selected pairs of short-linked T/Y
  * junctions that can form a well-shaped four-way crossing. */
-export function rectifyVoronoiBlocks(source: CityDocument, seed: string): CityDocument {
+export function rectifyVoronoiBlocks(
+  source: CityDocument,
+  seed: string,
+  areaReference: CityDocument = source
+): CityDocument {
   let next = clone(source);
   let mesh = next.mesh;
   let { neighbors, facesAt } = topology(mesh);
   const original = new Map(Object.values(mesh.vertices).map(v => [v.id, v.point]));
   const areas = new Map(Object.values(mesh.faces).map(f => [f.id, polygonArea(facePoints(mesh, f))]));
+  const referenceAreas = new Map(
+    Object.values(areaReference.mesh.faces).map(f => [f.id, polygonArea(facePoints(areaReference.mesh, f))])
+  );
   const pinned = new Set<Id>();
   const barriers = new Set<Id>();
   const roads = new Set<Id>();
@@ -166,7 +173,10 @@ export function rectifyVoronoiBlocks(source: CityDocument, seed: string): CityDo
   const validFaces = (candidate: Mesh, fids: Iterable<Id>): boolean => {
     for (const fid of fids) {
       const points = facePoints(candidate, candidate.faces[fid]);
-      if (polygonArea(points) / areas.get(fid)! < 0.4 || !convex(points)) return false;
+      const referenceArea = referenceAreas.get(fid) ?? areas.get(fid)!;
+      // Preserve a cumulative area floor across smoothing and rectification.
+      if (polygonArea(points) / areas.get(fid)! < 0.4 || polygonArea(points) / referenceArea < 0.12 || !convex(points))
+        return false;
       for (let i = 0; i < points.length; i++) {
         if (distance(points[i], points[(i + 1) % points.length]) < 1.01) return false;
         for (let j = i + 2; j < points.length; j++) {

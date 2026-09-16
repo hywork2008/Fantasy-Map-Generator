@@ -314,7 +314,7 @@ export function straightenRiverCrossing(document: CityDocument, aId: Id, midId: 
  */
 export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocument {
   const bridge = document.featureGroups.find(g => g.id === bridgeId);
-  if (bridge?.segments.length !== 2) return document;
+  if (bridge?.kind !== "road" || bridge.segments.length !== 2) return document;
 
   const { mesh } = document;
   const e0 = mesh.edges[bridge.segments[0].edgeId];

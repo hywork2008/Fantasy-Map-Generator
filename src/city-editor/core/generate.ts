@@ -56,6 +56,7 @@ import type {
 } from "./gen/types";
 import { DEFAULT_WALL_PLAN } from "./gen/types";
 import { assignWards } from "./gen/wards";
+import { type GenerationObserver, generationTimer } from "./generationDiagnostics";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
 import {
   addBridge,
@@ -122,8 +123,8 @@ export interface GenerationSettings {
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
    * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
-   * nPatches") instead of the default `π R² / mean cell area` count. Unset =
-   * that area-derived count. See docs/city-generator/towngen-comparison.md §2.1.
+   * nPatches") instead of the default accumulated polygon-area budget. Unset =
+   * actual area up to π R². See docs/city-generator/towngen-comparison.md §2.1.
    */
   urbanNPatches?: number;
   /** Phase G2 street-extension / sea-avoidance knobs. Unset = `defaultStreetSettings()`. */
@@ -218,22 +219,53 @@ export function generateStageOnDocument(
 export function generateCityOnDocument(
   document: CityDocument,
   settings: GenerationSettings,
-  seed: string
+  seed: string,
+  observer?: GenerationObserver
 ): CityDocument | null {
   // Some coast/river layouts cannot form valid crossings on this grid. Try
   // another deterministic layout with the same requested settings, always
   // starting from the untouched input rather than accumulating failed merges.
   for (let attempt = 0; attempt < 4; attempt++) {
-    const result = generateCityAttempt(document, settings, attempt ? `${seed}:junction-retry:${attempt}` : seed);
+    const result = generateCityAttempt(
+      document,
+      settings,
+      attempt ? `${seed}:junction-retry:${attempt}` : seed,
+      observer,
+      attempt + 1
+    );
     if (result) return result;
   }
   return null;
 }
 
-function generateCityAttempt(document: CityDocument, settings: GenerationSettings, seed: string): CityDocument | null {
+function generateCityAttempt(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  observer?: GenerationObserver,
+  attempt = 1
+): CityDocument | null {
+  const mark = generationTimer(observer, attempt);
   if (Object.keys(document.mesh.faces).length < 3) return null;
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 6, true);
+  mark("prepare", { faces: cells.length, edges: Object.keys(document.mesh.edges).length });
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    6,
+    true,
+    observer,
+    attempt
+  );
+  mark("plan-total");
   const wards = new Map(plan.wards);
   for (const [id, kind] of wards) {
     if (["slum", "gate", "shanty", "military"].includes(kind)) wards.set(id, "craftsmen");
@@ -263,16 +295,28 @@ function generateCityAttempt(document: CityDocument, settings: GenerationSetting
     { ...plan, wards, streets, roads: [...roads, ...streets] },
     program,
     6,
-    true
+    true,
+    observer,
+    attempt
   );
+  mark("apply-total");
   if (!next) return null;
   next.appearance = "town";
   const hexagonal = isHexagonalDocument(document);
   const rectified = hexagonal ? rectifyHexBlocks(next, seed) : next;
+  mark("rectify-hex");
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
-  const shaped = hexagonal ? finished : rectifyVoronoiBlocks(finished, seed);
+  mark("finish-geometry");
+  const shaped = hexagonal ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
+  mark("rectify-voronoi");
   const settled = straightenBridges(shaped);
-  return validGeneratedCrossings(settled) ? settled : null;
+  const valid = validGeneratedCrossings(settled);
+  mark("crossing-validation", {
+    valid: Number(valid),
+    faces: Object.keys(settled.mesh.faces).length,
+    edges: Object.keys(settled.mesh.edges).length
+  });
+  return valid ? settled : null;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
@@ -314,7 +358,11 @@ export function generateUrbanPatchStep(
   }
   const index = Math.max(0, Math.min(stepIndex, total - 1));
   const stage = plan.urbanStages[index];
-  const stepped: Plan = { ...plan, urban: new Set(stage.urban), outskirts: new Set() };
+  const stepped: Plan = {
+    ...plan,
+    urban: new Set(plan.urbanStages.slice(0, index + 1).map(s => s.cellId)),
+    outskirts: new Set()
+  };
   return {
     document: applyPlan(document, cells, faceIdOf, stepped, program, 3),
     total,
@@ -571,8 +619,11 @@ function runPlan(
   cellSize: number,
   settings: GenerationSettings,
   stageStep: number,
-  complete = false
+  complete = false,
+  observer?: GenerationObserver,
+  attempt = 1
 ): Plan {
+  const mark = generationTimer(observer, attempt);
   const streetOpts = resolveStreetSettings(settings);
   const empty: Plan = {
     sea: new Set(),
@@ -596,6 +647,7 @@ function runPlan(
   if (!cells.length) return empty;
   const graph = buildEdgeGraph(cells);
   if (!graph.points.length) return empty;
+  mark("edge-graph");
 
   // S1 — coast. `coast.shoreline` is the raw graph walk in walked order — the
   // ① per-loop scrub in `generateCoastWalkStep` steps through it directly, no
@@ -616,6 +668,7 @@ function runPlan(
   const coastPath = coast?.shoreline ?? [];
   const waterPolygon = coast?.waterPolygon ?? null;
   const sea = new Set<number>(coasts.flatMap(c => [...c.sea]));
+  mark("coast");
   if (stageStep < 2) return { ...empty, sea, coastPath, waterPolygon };
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
@@ -638,10 +691,11 @@ function runPlan(
     sea,
     rivers.map(band => ({ edgePoints: band.edgePoints }))
   );
+  mark("river");
   if (stageStep < 3) return { ...empty, sea, coastPath, waterPolygon, rivers };
 
   // S3 — urban core. `params.urbanNPatches` (debug/tuning override) caps the
-  // fill to a fixed cell count; unset derives N from π R² / mean cell area.
+  // fill to a fixed cell count; otherwise accumulate actual area up to π R².
   // `urbanStages` records each admitted cell in fill order for
   // `generateUrbanPatchStep`'s per-loop scrub.
   const shoreTangent = coast ? shorelineTangentAt(coast.shoreline) : null;
@@ -658,8 +712,10 @@ function runPlan(
     urbanRadius,
     complete ? null : shoreTangent,
     params.urbanNPatches ?? null,
-    params.cellSizeMeters
+    params.cellSizeMeters,
+    !complete && stageStep === 3
   );
+  mark("urban", { urbanFaces: urban.size, recordedStages: urbanStages.length });
   if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages };
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
@@ -678,6 +734,7 @@ function runPlan(
     program.port
   );
   const gates = streetOpts.avoidSea ? markSeaSurroundedGates(placed, waterPolygon, cellSize) : placed;
+  mark("wall-plan");
   if (stageStep < 5) {
     return {
       ...empty,
@@ -736,6 +793,7 @@ function runPlan(
     };
     routedGates = remakeUnreachableLandGates(routedGates, roads, cellSize);
   }
+  mark("street-plan");
   if (stageStep < 6) {
     return {
       ...empty,
@@ -770,6 +828,7 @@ function runPlan(
     shoreline: coast?.shoreline ?? null,
     waterPolygon
   });
+  mark("wards");
   return {
     sea,
     coastPath,
@@ -800,8 +859,11 @@ function applyPlan(
   plan: Plan,
   program: CityProgram,
   stageStep: number,
-  complete = false
+  complete = false,
+  observer?: GenerationObserver,
+  attempt = 1
 ): CityDocument | null {
+  const mark = generationTimer(observer, attempt);
   let next = clone(source);
   delete next.appearance;
   let mesh = next.mesh;
@@ -862,6 +924,7 @@ function applyPlan(
     });
   }
 
+  mark("apply-terrain");
   // ④ walls + gates + plaza / citadel. When avoidSea is on, drop edges whose
   // midpoint sits in the water so the sea side is left open (§3.E.2), splitting
   // the remainder into contiguous runs (`validate` requires that).
@@ -938,6 +1001,7 @@ function applyPlan(
     }
   }
 
+  mark("wall-junctions");
   // ⑤ roads. First open 4-way wall passages at gates (merge nearest wall
   // neighbour or split a cell) so a road can pass through on opposite edges.
   // Then snap roads, never onto a river or wall edge. Finally open river
@@ -1008,6 +1072,32 @@ function applyPlan(
     });
     next = complete ? straightenBridges(next) : openGeneratedPassages(next);
     mesh = next.mesh;
+    if (!complete) {
+      // A diagnostic route may reach a river where a passage cannot be opened.
+      // Keep its longest safe run instead of leaving a false river junction.
+      const roadVertices = new Set(
+        next.featureGroups.flatMap(group =>
+          group.kind === "road"
+            ? group.segments.flatMap(ref => [mesh.edges[ref.edgeId].a, mesh.edges[ref.edgeId].b])
+            : []
+        )
+      );
+      const blockedVertices = new Set(
+        next.featureGroups
+          .flatMap(group => (group.kind === "river" ? group.vertices : []))
+          .filter(id => roadVertices.has(id) && !vertexHasKindPassage(next, id, "river"))
+      );
+      const blockedEdges = new Set(
+        Object.values(mesh.edges)
+          .filter(edge => blockedVertices.has(edge.a) || blockedVertices.has(edge.b))
+          .map(edge => edge.id)
+      );
+      next.featureGroups = next.featureGroups.flatMap(group => {
+        if (group.kind !== "road" || !group.id.startsWith(GEN_PREFIX)) return [group];
+        const segments = longestUnbannedRun(group.segments, blockedEdges);
+        return segments.length ? [{ ...group, segments }] : [];
+      });
+    }
   }
 
   // ⑥ wards
@@ -1019,6 +1109,7 @@ function applyPlan(
     }
   }
 
+  mark("route-junctions");
   // A gate must sit on a drawn wall — drop any that no longer does.
   next.gates = next.gates.filter(gate => {
     if (gate.id.startsWith(GEN_PREFIX) && !vertexHasKindPassage(next, gate.vertexId, "wall")) return false;
@@ -1055,7 +1146,7 @@ function applyPlan(
   if (complete && program.walls && next.featureGroups.some(g => g.kind === "wall")) {
     const activeGateVertices = new Set(next.gates.map(gate => gate.vertexId));
     const roadEdges = new Set(
-      next.featureGroups.filter(g => g.kind === "road").flatMap(g => g.segments.map(s => s.edgeId))
+      next.featureGroups.flatMap(g => (g.kind === "road" ? g.segments.map(s => s.edgeId) : []))
     );
     for (let cellId = 0; cellId < cells.length; cellId++) {
       if (plan.urban.has(cellId)) continue;
@@ -1075,7 +1166,9 @@ function applyPlan(
     }
   }
 
-  return validate(next).length === 0 ? next : null;
+  const errors = validate(next);
+  mark("apply-validation", { errors: errors.length });
+  return errors.length === 0 ? next : null;
 }
 
 /** Re-route against the topology AFTER gates have been opened. Snapping each

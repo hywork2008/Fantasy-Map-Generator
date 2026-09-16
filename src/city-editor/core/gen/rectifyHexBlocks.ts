@@ -1,5 +1,5 @@
-import { clone, edgeBetween, facePoints, faceVertices } from "../mesh";
-import type { CityDocument, Face, Id, Mesh, Point, Vertex } from "../types";
+import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
+import type { CityDocument, Id, Point } from "../types";
 import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { makeRng } from "./prng";
 
@@ -38,13 +38,14 @@ export function rectifyHexBlocks(source: CityDocument, seed: string): CityDocume
 
   const next = clone(source);
   const { mesh } = next;
+  const edgeIndex = indexMeshEdges(mesh);
 
   // 1. Identify road/wall/river barrier edges
   const barrierEdges = new Set<Id>();
   for (const group of next.featureGroups) {
     if (group.kind === "river") {
       for (let i = 1; i < group.vertices.length; i++) {
-        const edge = edgeBetween(mesh, group.vertices[i - 1], group.vertices[i]);
+        const edge = edgeIndex.between(group.vertices[i - 1], group.vertices[i]);
         if (edge) barrierEdges.add(edge.id);
       }
     } else {

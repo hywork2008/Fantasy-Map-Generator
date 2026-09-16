@@ -3,6 +3,7 @@ import { classifyUrban } from "./classifyUrban";
 import { polygonArea } from "./geom";
 import { buildGrid } from "./grid";
 import { buildHexGrid } from "./hexGrid";
+import { buildPatchCells, DEFAULT_PATCH_PARAMS } from "./patches";
 import { makeRng } from "./prng";
 import type { Cell, CityGeography, CityParams } from "./types";
 
@@ -13,9 +14,6 @@ const EMPTY_GEO: CityGeography = { coast: null, rivers: [], roadBearings: [] };
 
 const urbanArea = (cells: Cell[], urban: Set<number>): number =>
   cells.reduce((sum, cell) => (urban.has(cell.id) ? sum + Math.abs(polygonArea(cell.polygon)) : sum), 0);
-
-const meanArea = (cells: Cell[]): number =>
-  cells.reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0) / cells.length;
 
 const voronoiCells = (seed = "urban-area"): Cell[] => {
   const params: CityParams = {
@@ -28,12 +26,37 @@ const voronoiCells = (seed = "urban-area"): Cell[] => {
   return buildGrid(params, EMPTY_GEO, makeRng(seed)).at(-1)?.cells ?? [];
 };
 
-describe("classifyUrban — auto N from mean cell area", () => {
-  it("defaults N to round(π R² / mean cell area)", () => {
+describe("classifyUrban — accumulated area", () => {
+  for (const grid of ["hex", "voronoi", "evolution"] as const) {
+    it(`${grid}: reaches the area budget with at most one cell of overshoot`, () => {
+      const cells =
+        grid === "hex"
+          ? buildHexGrid(EXTENT, 50)
+          : grid === "voronoi"
+            ? voronoiCells()
+            : buildPatchCells({ extentMeters: EXTENT, ...DEFAULT_PATCH_PARAMS }, makeRng("analysis-grid"));
+      const result = classifyUrban(cells, DRY, [], CITY_R);
+      const actual = urbanArea(cells, result.urban);
+      const target = Math.PI * CITY_R ** 2;
+      const last = cells.find(c => c.id === result.stages.at(-1)!.cellId)!;
+      expect(actual).toBeGreaterThanOrEqual(target);
+      expect(actual - Math.abs(polygonArea(last.polygon))).toBeLessThan(target);
+      expect(result.stages.map(s => s.cellId)).toEqual([...result.urban]);
+      expect(classifyUrban(cells, DRY, [], CITY_R, null, null, 50, false)).toEqual({ ...result, stages: [] });
+    });
+  }
+
+  it("stops at the connected eligible land when the area is unattainable", () => {
     const cells = buildHexGrid(EXTENT, 50);
-    const { urban } = classifyUrban(cells, DRY, [], CITY_R);
-    const expected = Math.round((Math.PI * CITY_R * CITY_R) / meanArea(cells));
-    expect(urban.size).toBe(expected);
+    const available = new Set([cells[0].id]);
+    const ctx = {
+      sea: new Set(cells.filter(c => !available.has(c.id)).map(c => c.id)),
+      bank: new Map<number, number>()
+    };
+    expect(classifyUrban(cells, ctx, [], EXTENT).urban).toEqual(available);
+    expect(
+      classifyUrban(cells, { sea: new Set(), bank: new Map(cells.map(c => [c.id, 1])) }, [], EXTENT).urban.size
+    ).toBe(0);
   });
 
   it("ignores cellSizeMeters when polygons have area — same mesh, same N", () => {

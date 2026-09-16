@@ -86,6 +86,26 @@ export function edgePoints(mesh: Mesh, edge: Edge): [Point, Point] {
   return [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point];
 }
 
+/** A phase-local topology snapshot. Rebuild after adding/removing/rewiring edges.
+ * Never cache by Mesh identity: editor operations may mutate it in place. */
+export function indexMeshEdges(mesh: Mesh) {
+  const byEnds = new Map<string, Edge>();
+  const byVertex = new Map<Id, Edge[]>();
+  for (const edge of Object.values(mesh.edges)) {
+    const key = edgeKey(edge.a, edge.b);
+    if (!byEnds.has(key)) byEnds.set(key, edge);
+    for (const id of new Set([edge.a, edge.b])) {
+      const edges = byVertex.get(id) ?? [];
+      edges.push(edge);
+      byVertex.set(id, edges);
+    }
+  }
+  return {
+    between: (a: Id, b: Id): Edge | null => byEnds.get(edgeKey(a, b)) ?? null,
+    incident: (id: Id): readonly Edge[] => byVertex.get(id) ?? []
+  };
+}
+
 export function edgeBetween(mesh: Mesh, a: Id, b: Id): Edge | null {
   for (const edge of Object.values(mesh.edges))
     if ((edge.a === a && edge.b === b) || (edge.a === b && edge.b === a)) return edge;

@@ -22,7 +22,7 @@ export interface CityParams {
    * Debug/tuning override for S3's urban-core growth (`classifyUrban`): cap the
    * flood-fill to the first N cells in ascending-cost fill order — the
    * TownGeneratorTS "first nPatches" approach — instead of the default
-   * `π R² / mean cell area` count. Unset = that area-derived count.
+   * actual polygon-area budget `π R²`. Unset = area-based growth.
    * See docs/city-generator/towngen-comparison.md §2.1 (A-1).
    */
   urbanNPatches?: number;
@@ -51,7 +51,7 @@ export interface GridStage {
 
 /**
  * One flood-fill iteration of S3's urban-core growth (`classifyUrban`): the
- * cell admitted this step and the cumulative urban set so far, in
+ * cell admitted this step, in
  * ascending-cost fill order. A debug slider steps through these to check the
  * growing shape "one loop at a time" while tuning the cost function / the
  * `urbanNPatches` cutoff. See docs/city-generator/towngen-comparison.md §2.1.
@@ -59,8 +59,6 @@ export interface GridStage {
 export interface UrbanStage {
   /** The cell id admitted to `urban` at this step. */
   cellId: number;
-  /** Cumulative admitted cell ids through this step (fill order preserved). */
-  urban: number[];
 }
 
 /** Classification a cell carries in a pipeline snapshot. The river is drawn as a

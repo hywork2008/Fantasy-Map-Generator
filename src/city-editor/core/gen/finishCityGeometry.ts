@@ -1,7 +1,7 @@
 // MIT implementation based on City Editor's shared mesh and reference output.
 // No TownGeneratorTS / GPL source is used.
 import { featureGroupVertices } from "../features";
-import { clone, edgeBetween, facePoints, faceVertices } from "../mesh";
+import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
 import { straightenBridges } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
 import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
@@ -13,6 +13,7 @@ import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 export function finishCityGeometry(source: CityDocument): CityDocument {
   const next = clone(source);
   const { mesh } = next;
+  const edgeIndex = indexMeshEdges(mesh);
   const original = new Map(Object.values(mesh.vertices).map(v => [v.id, v.point]));
   const desired = new Map<Id, Point>(original);
   const pinned = new Set<Id>();
@@ -55,7 +56,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       group.kind === "wall" ? walls : group.kind === "road" ? roads : group.kind === "river" ? rivers : null;
     if (!edges) continue;
     for (let i = 1; i < ids.length; i++) {
-      const edge = edgeBetween(mesh, ids[i - 1], ids[i]);
+      const edge = edgeIndex.between(ids[i - 1], ids[i]);
       if (edge) edges.add(edge.id);
     }
   }

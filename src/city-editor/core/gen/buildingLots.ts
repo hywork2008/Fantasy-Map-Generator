@@ -1,7 +1,7 @@
 // MIT, independently implemented from the reference city's output geometry.
-import { edgeBetween, facePoints } from "../mesh";
+import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
-import { nearestOnPolyline, polygonArea } from "./geom";
+import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { makeRng } from "./prng";
 
 export interface BuildingLot {
@@ -19,6 +19,7 @@ interface RiverMargin {
 /** Buildings are derived from the edited mesh, never a second source of street
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
 export function buildCityBuildings(document: CityDocument): BuildingLot[] {
+  const edgeIndex = indexMeshEdges(document.mesh);
   const clearance = new Map<Id, number>();
   const rivers: RiverMargin[] = [];
   for (const group of document.featureGroups) {
@@ -35,7 +36,7 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
     const edgeIds =
       group.kind === "river"
         ? group.vertices.slice(1).flatMap((id, i) => {
-            const edge = edgeBetween(document.mesh, group.vertices[i], id);
+            const edge = edgeIndex.between(group.vertices[i], id);
             return edge ? [edge.id] : [];
           })
         : group.segments.map(s => s.edgeId);
@@ -67,7 +68,7 @@ function buildFaceLots(
   let block = insetConvexKernel(polygon, setbacks);
   if (block.length < 3 || Math.abs(polygonArea(block)) < 65) return [];
   if (rivers.length > 0) {
-    block = clipBlockWithRivers(block, polygon, face.site, rivers);
+    block = clipBlockWithRivers(block, polygon, face.site ?? polygonCentroid(polygon), rivers);
     if (block.length < 3 || Math.abs(polygonArea(block)) < 65) return [];
   }
   const rng = makeRng(`lots:${face.id}:${ward}`);
