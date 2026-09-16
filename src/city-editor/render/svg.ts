@@ -18,11 +18,29 @@ export interface GridOverlay {
 const REFERENCE_LABEL_EXTENT_METERS = 1200;
 const REFERENCE_LABEL_FONT_SIZE = 14;
 
+export interface SvgPickInfo {
+  layer: string;
+  kind: string;
+  id?: number | string;
+  label: string;
+  [key: string]: unknown;
+}
+
+export function parsePickInfo(raw: string | null): SvgPickInfo | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(raw)) as SvgPickInfo;
+  } catch {
+    return null;
+  }
+}
+
 export interface RenderSelection {
   faceId: Id | null;
   edgeId: Id | null;
   vertexId: Id | null;
   groupId: Id | null;
+  inspectedId?: number | string | null;
   hoverGroupId?: Id | null;
   hoverVertexId?: Id | null;
   hoverEdgeId?: Id | null;
@@ -78,26 +96,57 @@ export function renderEditorSvg(
   }
   const cells = element("g", { class: "ce-cells" });
   for (const face of Object.values(document.mesh.faces)) {
+    const isSelected = selection.faceId === face.id;
+    const isPickSelected = selection.inspectedId === face.id || selection.inspectedId === `cell-${face.id}`;
+    const pickInfo: SvgPickInfo = {
+      layer: "cells",
+      kind: "cell",
+      id: face.id,
+      label: `cell #${face.id}`,
+      water: face.properties.water,
+      elevation: face.properties.elevation,
+      ward: face.properties.ward ?? null,
+      site: face.site,
+      center: face.center,
+      neighbors: faceNeighbors(document.mesh, face.id),
+      vertices: faceVertices(document.mesh, face)
+    };
     cells.appendChild(
       element("path", {
         d: polygon(facePoints(document.mesh, face)),
-        class: faceClassName(face, selection.faceId === face.id, urbanCoreHighlight?.has(face.id) ?? false),
-        "data-face": face.id
+        class: `${faceClassName(face, isSelected, urbanCoreHighlight?.has(face.id) ?? false)}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+        "data-face": face.id,
+        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
       })
     );
   }
   svg.appendChild(cells);
 
   if (town) {
-    const buildings = element("g", { class: "ce-buildings", "pointer-events": "none" });
+    const buildings = element("g", {
+      class: "ce-buildings",
+      "pointer-events": tool === "select" ? "all" : "none"
+    });
     for (const lot of buildCityBuildings(document)) {
-      buildings.appendChild(
-        element("path", {
-          d: polygon(lot.polygon),
-          class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}`,
-          "data-building-face": lot.faceId
-        })
-      );
+      const bldId = `bld-${lot.faceId}`;
+      const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
+      const pickInfo: SvgPickInfo = {
+        layer: "buildings",
+        kind: "building",
+        id: bldId,
+        label: `${lot.ward} building #${lot.faceId}`,
+        ward: lot.ward,
+        faceId: lot.faceId,
+        landmark: !!lot.landmark
+      };
+      const bldNode = element("path", {
+        d: polygon(lot.polygon),
+        class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+        "data-building-face": lot.faceId,
+        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
+      });
+      if (tool === "select") bldNode.style.cursor = "pointer";
+      buildings.appendChild(bldNode);
     }
     svg.appendChild(buildings);
   }
@@ -105,11 +154,23 @@ export function renderEditorSvg(
   const edges = element("g", { class: "ce-edges" });
   for (const edge of Object.values(document.mesh.edges)) {
     const [a, b] = [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point];
+    const isSelected = selection.edgeId === edge.id;
+    const isPickSelected = selection.inspectedId === edge.id || selection.inspectedId === `edge-${edge.id}`;
+    const pickInfo: SvgPickInfo = {
+      layer: "edges",
+      kind: "edge",
+      id: edge.id,
+      label: `edge #${edge.id}`,
+      a: edge.a,
+      b: edge.b,
+      faces: [edge.f1, edge.f2].filter((f): f is Id => f != null)
+    };
     edges.appendChild(
       element("path", {
         d: line([a, b]),
-        class: `ce-edge${selection.edgeId === edge.id ? " ce-selected" : ""}`,
-        "data-edge": edge.id
+        class: `ce-edge${isSelected ? " ce-selected" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+        "data-edge": edge.id,
+        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
       })
     );
   }
@@ -122,6 +183,7 @@ export function renderEditorSvg(
     : document.featureGroups;
   for (const group of renderGroups) {
     const active = selection.groupId === group.id;
+    const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
     const points =
       group.kind === "river"
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
@@ -139,10 +201,21 @@ export function renderEditorSvg(
         })
       );
     }
+    const pickInfo: SvgPickInfo = {
+      layer: "features",
+      kind: group.kind,
+      id: group.id,
+      label: `${group.kind} (${group.name})`,
+      name: group.name,
+      locked: group.locked,
+      widthMeters: group.style.widthMeters,
+      color: group.style.color,
+      segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
+    };
     features.appendChild(
       element("path", {
         d: line(points),
-        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}`,
+        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
         stroke: town
           ? group.kind === "road"
             ? "#d5cfbf"
@@ -152,6 +225,7 @@ export function renderEditorSvg(
           : group.style.color,
         "stroke-width": String(group.style.widthMeters),
         "data-group": group.id,
+        "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
         // Once selected, let the mesh edges below receive clicks so individual
         // route segments can be added and removed.
         "pointer-events": active ? "none" : "stroke"
@@ -161,7 +235,7 @@ export function renderEditorSvg(
   svg.appendChild(features);
   if (town) {
     svg.appendChild(renderTownQuays(document));
-    svg.appendChild(renderTownFortifications(document));
+    svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
   }
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
@@ -172,10 +246,28 @@ export function renderEditorSvg(
   }
   svg.appendChild(wardLandmarks);
 
-  const gates = element("g", { class: "ce-gates", "pointer-events": "none" });
+  const gates = element("g", { class: "ce-gates", "pointer-events": tool === "select" ? "all" : "none" });
   for (const gate of document.gates ?? []) {
     const point = document.mesh.vertices[gate.vertexId]?.point;
-    if (point && !town) gates.appendChild(cityElementMarker(point, "gate", gate.id));
+    if (point && !town) {
+      const isPickSelected = selection.inspectedId === gate.id;
+      const pickInfo: SvgPickInfo = {
+        layer: "gates",
+        kind: "gate",
+        id: gate.id,
+        label: `gate #${gate.id}`,
+        vertexId: gate.vertexId,
+        point
+      };
+      const marker = cityElementMarker(point, "gate", gate.id);
+      marker.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (isPickSelected) marker.classList.add("ce-is-selected", "cg-is-selected");
+      if (tool === "select") {
+        marker.style.pointerEvents = "all";
+        marker.style.cursor = "pointer";
+      }
+      gates.appendChild(marker);
+    }
   }
   svg.appendChild(gates);
 
@@ -185,35 +277,66 @@ export function renderEditorSvg(
     // imported data here so the document has one source of truth per cell.
     if (!cityElement.point) continue;
     const p = cityElement.point;
+    const isPickSelected = selection.inspectedId === cityElement.id;
+    const pickInfo: SvgPickInfo = {
+      layer: "elements",
+      kind: cityElement.kind,
+      id: cityElement.id,
+      label: `${cityElement.kind} element #${cityElement.id}`,
+      point: p,
+      sizeMeters: cityElement.sizeMeters ?? 8
+    };
     if (town && cityElement.id.startsWith("gc:")) {
-      if (cityElement.kind === "plaza")
-        elements.appendChild(
-          element("circle", {
-            cx: String(p[0]),
-            cy: String(-p[1]),
-            r: "2.5",
-            fill: "#292a26",
-            "pointer-events": "none"
-          })
-        );
-      if (cityElement.kind === "temple")
-        elements.appendChild(
-          element("rect", {
-            x: String(p[0] - 9),
-            y: String(-p[1] - 6),
-            width: "18",
-            height: "12",
-            fill: "#292a26",
-            "pointer-events": "none"
-          })
-        );
+      if (cityElement.kind === "plaza") {
+        const plazaCircle = element("circle", {
+          cx: String(p[0]),
+          cy: String(-p[1]),
+          r: "2.5",
+          fill: "#292a26",
+          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          "data-element": cityElement.id,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+          "pointer-events": tool === "select" ? "all" : "none"
+        });
+        if (tool === "select") plazaCircle.style.cursor = "pointer";
+        elements.appendChild(plazaCircle);
+      }
+      if (cityElement.kind === "temple") {
+        const templeRect = element("rect", {
+          x: String(p[0] - 9),
+          y: String(-p[1] - 6),
+          width: "18",
+          height: "12",
+          fill: "#292a26",
+          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          "data-element": cityElement.id,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+          "pointer-events": tool === "select" ? "all" : "none"
+        });
+        if (tool === "select") templeRect.style.cursor = "pointer";
+        elements.appendChild(templeRect);
+      }
       continue;
     }
     if (cityElement.kind === "tree") {
-      elements.appendChild(tree(p, cityElement.sizeMeters ?? 8, cityElement.id));
+      const treeNode = tree(p, cityElement.sizeMeters ?? 8, cityElement.id);
+      treeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (isPickSelected) treeNode.classList.add("ce-is-selected", "cg-is-selected");
+      if (tool === "select") {
+        treeNode.style.pointerEvents = "all";
+        treeNode.style.cursor = "pointer";
+      }
+      elements.appendChild(treeNode);
       continue;
     }
-    elements.appendChild(cityElementMarker(p, cityElement.kind, cityElement.id));
+    const elemMarker = cityElementMarker(p, cityElement.kind, cityElement.id);
+    elemMarker.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+    if (isPickSelected) elemMarker.classList.add("ce-is-selected", "cg-is-selected");
+    if (tool === "select") {
+      elemMarker.style.pointerEvents = "all";
+      elemMarker.style.cursor = "pointer";
+    }
+    elements.appendChild(elemMarker);
   }
   svg.appendChild(elements);
 
@@ -225,13 +348,23 @@ export function renderEditorSvg(
     const vertices = element("g", { class: "ce-vertices" });
     for (const vertex of Object.values(document.mesh.vertices)) {
       if (!showAllVertices && !visibleVertexIds.has(vertex.id)) continue;
+      const isSelected = selection.vertexId === vertex.id;
+      const isPickSelected = selection.inspectedId === vertex.id || selection.inspectedId === `vertex-${vertex.id}`;
+      const pickInfo: SvgPickInfo = {
+        layer: "vertices",
+        kind: "vertex",
+        id: vertex.id,
+        label: `vertex #${vertex.id}`,
+        point: vertex.point
+      };
       vertices.appendChild(
         element("circle", {
           cx: String(vertex.point[0]),
           cy: String(-vertex.point[1]),
           r: String(vertexHandleRadius(zoom)),
-          class: `ce-vertex${selection.vertexId === vertex.id ? " ce-selected" : ""}`,
-          "data-vertex": vertex.id
+          class: `ce-vertex${isSelected ? " ce-selected" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          "data-vertex": vertex.id,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
         })
       );
     }
@@ -300,8 +433,15 @@ function renderTownQuays(document: CityDocument): SVGGElement {
   return layer;
 }
 
-function renderTownFortifications(document: CityDocument): SVGGElement {
-  const layer = element("g", { class: "ce-fortifications", "pointer-events": "none" }) as SVGGElement;
+function renderTownFortifications(
+  document: CityDocument,
+  tool: Tool = "select",
+  inspectedId: number | string | null = null
+): SVGGElement {
+  const layer = element("g", {
+    class: "ce-fortifications",
+    "pointer-events": tool === "select" ? "all" : "none"
+  }) as SVGGElement;
   const rivers = document.featureGroups
     .filter(g => g.kind === "river")
     .map(g => ({
@@ -324,14 +464,26 @@ function renderTownFortifications(document: CityDocument): SVGGElement {
           untilTower += spacing;
           continue;
         }
-        layer.appendChild(
-          element("circle", {
-            cx: String(a[0] + (b[0] - a[0]) * t),
-            cy: String(-a[1] - (b[1] - a[1]) * t),
-            r: String(group.style.widthMeters * 0.8),
-            fill: "#292a26"
-          })
-        );
+        const towerId = `tower-${group.id}-${i}-${Math.round(untilTower)}`;
+        const isPickSelected = inspectedId === towerId;
+        const towerPickInfo: SvgPickInfo = {
+          layer: "fortifications",
+          kind: "tower",
+          id: towerId,
+          label: `wall tower (${group.name})`,
+          wallId: group.id,
+          point: position
+        };
+        const towerNode = element("circle", {
+          cx: String(a[0] + (b[0] - a[0]) * t),
+          cy: String(-a[1] - (b[1] - a[1]) * t),
+          r: String(group.style.widthMeters * 0.8),
+          fill: "#292a26",
+          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          "data-pick": encodeURIComponent(JSON.stringify(towerPickInfo))
+        });
+        if (tool === "select") towerNode.style.cursor = "pointer";
+        layer.appendChild(towerNode);
         untilTower += spacing;
       }
       untilTower -= length;
@@ -358,7 +510,22 @@ function renderTownFortifications(document: CityDocument): SVGGElement {
     const angle = (-Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
     const width = wall.style.widthMeters;
     const opening = Math.max(9, width * 1.6);
-    const marker = element("g", { class: "ce-town-gate", transform: `translate(${p[0]} ${-p[1]}) rotate(${angle})` });
+    const isPickSelected = inspectedId === gate.id;
+    const gatePickInfo: SvgPickInfo = {
+      layer: "gates",
+      kind: "gate",
+      id: gate.id,
+      label: `gate #${gate.id}`,
+      vertexId: gate.vertexId,
+      wallId: wall.id,
+      point: p
+    };
+    const marker = element("g", {
+      class: `ce-town-gate${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+      transform: `translate(${p[0]} ${-p[1]}) rotate(${angle})`,
+      "data-pick": encodeURIComponent(JSON.stringify(gatePickInfo))
+    });
+    if (tool === "select") marker.style.cursor = "pointer";
     marker.appendChild(
       element("rect", {
         x: String(-opening / 2),

@@ -3,6 +3,7 @@ import { createDocument } from "../core/document";
 import { faceNeighbors, faceVertices } from "../core/mesh";
 import {
   faceClassName,
+  parsePickInfo,
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
@@ -216,5 +217,33 @@ describe("face selection labels", () => {
 
     expect(label).toBeDefined();
     expect(Number(label?.getAttribute("x"))).not.toBe(document.mesh.vertices[vertexId].point[0]);
+  });
+});
+
+describe("renderEditorSvg data-pick metadata", () => {
+  it("attaches parseable metadata to cells, edges, and features in select mode", () => {
+    const document = createDocument("pick-metadata", 400);
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const svg = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1);
+
+    const cell = svg.querySelector<SVGPathElement>(".ce-cells path[data-pick]");
+    expect(cell).not.toBeNull();
+    const cellInfo = parsePickInfo(cell?.getAttribute("data-pick") ?? null);
+    expect(cellInfo?.kind).toBe("cell");
+    expect(cellInfo?.layer).toBe("cells");
+    expect(cellInfo?.id).toBe(cell?.getAttribute("data-face"));
+
+    const edge = svg.querySelector<SVGPathElement>(".ce-edges path[data-pick]");
+    expect(edge).not.toBeNull();
+    const edgeInfo = parsePickInfo(edge?.getAttribute("data-pick") ?? null);
+    expect(edgeInfo?.kind).toBe("edge");
+    expect(edgeInfo?.layer).toBe("edges");
+    expect(edgeInfo?.id).toBe(edge?.getAttribute("data-edge"));
+  });
+
+  it("handles invalid or null raw data-pick cleanly", () => {
+    expect(parsePickInfo(null)).toBeNull();
+    expect(parsePickInfo("")).toBeNull();
+    expect(parsePickInfo("not-json")).toBeNull();
   });
 });

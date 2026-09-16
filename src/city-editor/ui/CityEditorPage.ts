@@ -71,11 +71,13 @@ import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from ".
 import {
   faceClassName,
   type GridOverlay,
+  parsePickInfo,
   type RenderSelection,
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
-  renderRoutePreview
+  renderRoutePreview,
+  type SvgPickInfo
 } from "../render/svg";
 
 const TOOLS: Array<[Tool, string, string]> = [
@@ -146,7 +148,8 @@ export function mountCityEditor(root: HTMLElement): void {
   // renderer separately.
   let referenceImage: CityDocument["referenceImage"] | null = null;
   let tool: Tool = "select";
-  let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+  let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
+  let inspectedInfo: SvgPickInfo | null = null;
   let activeGroupId: Id | null = null;
   let dragBefore: CityDocument | null = null;
   let dragMergeCandidateId: Id | null = null;
@@ -285,6 +288,10 @@ export function mountCityEditor(root: HTMLElement): void {
   for (const [id, label, icon] of TOOLS) {
     const button = makeIconButton(icon, label, () => {
       tool = id;
+      if (id !== "select") {
+        inspectedInfo = null;
+        selection.inspectedId = null;
+      }
       refresh();
     });
     toolButtons.set(id, button);
@@ -295,6 +302,8 @@ export function mountCityEditor(root: HTMLElement): void {
   const paintGrid = div("ce-icon-row");
   for (const { kind, label: paintLabel } of PAINT_BRUSHES) {
     const paintButton = makeButton(paintLabel, () => {
+      inspectedInfo = null;
+      selection.inspectedId = null;
       if (kind === "sea") tool = "sea";
       else {
         wardBrush = kind === "erase" ? null : kind;
@@ -951,6 +960,97 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
+    const target = event.target instanceof Element ? event.target : null;
+    const pickHost = target?.closest<SVGElement>("[data-pick]");
+    const selectedPick = pickHost && map.contains(pickHost) ? pickHost : null;
+
+    if (tool === "select") {
+      const activeGroup = activeGroupId ? documentState.featureGroups.find(group => group.id === activeGroupId) : null;
+      const edgeId = targetId(event, "edge");
+      if (edgeId && activeGroup && !activeGroup.locked) {
+        if (groupUsesEdge(documentState, activeGroup, edgeId)) {
+          selection = { ...selection, edgeId, faceId: null, vertexId: null, inspectedId: edgeId };
+          const pickInfo = selectedPick ? parsePickInfo(selectedPick.getAttribute("data-pick")) : null;
+          inspectedInfo = pickInfo ?? {
+            layer: "edges",
+            kind: "edge",
+            id: edgeId,
+            label: `edge #${edgeId}`,
+            a: documentState.mesh.edges[edgeId]?.a,
+            b: documentState.mesh.edges[edgeId]?.b
+          };
+          refresh();
+          return;
+        }
+        if (activeGroup.kind !== "river") {
+          const next = appendEdge(documentState, activeGroup.id, edgeId);
+          if (next) commit(next, `Extend ${activeGroup.name}`);
+          else showNotice("Choose an unused edge beside a route endpoint");
+          return;
+        }
+      }
+
+      if (selectedPick) {
+        const rawPick = selectedPick.getAttribute("data-pick");
+        const info = parsePickInfo(rawPick);
+        if (info) {
+          inspectedInfo = info;
+          const infoId = (info.id ?? null) as Id | null;
+          if (info.layer === "cells" || info.kind === "cell") {
+            selection = {
+              ...selection,
+              faceId: infoId,
+              edgeId: null,
+              vertexId: null,
+              groupId: null,
+              inspectedId: infoId
+            };
+            activeGroupId = null;
+          } else if (info.layer === "buildings" || info.kind === "building") {
+            const faceId = (info.faceId as Id) ?? null;
+            selection = { ...selection, faceId, edgeId: null, vertexId: null, groupId: null, inspectedId: infoId };
+            activeGroupId = null;
+          } else if (info.layer === "features") {
+            selection = {
+              ...selection,
+              groupId: infoId,
+              faceId: null,
+              edgeId: null,
+              vertexId: null,
+              inspectedId: infoId
+            };
+            activeGroupId = infoId;
+          } else if (info.layer === "edges" || info.kind === "edge") {
+            selection = { ...selection, edgeId: infoId, faceId: null, vertexId: null, inspectedId: infoId };
+          } else if (info.layer === "vertices" || info.kind === "vertex") {
+            selection = {
+              ...selection,
+              vertexId: infoId,
+              faceId: null,
+              edgeId: null,
+              groupId: null,
+              inspectedId: infoId
+            };
+            activeGroupId = null;
+          } else if (info.layer === "gates" || info.kind === "gate") {
+            const vertexId = (info.vertexId as Id) ?? null;
+            selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null, inspectedId: infoId };
+            activeGroupId = null;
+          } else {
+            selection = { ...selection, inspectedId: infoId };
+          }
+          refresh();
+          return;
+        }
+      }
+
+      inspectedInfo = null;
+      selection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
+      activeGroupId = null;
+      refresh();
+      return;
+    }
+
     const vertexId = targetId(event, "vertex");
     const edgeId = targetId(event, "edge");
     const faceId = targetId(event, "face");
@@ -1426,12 +1526,11 @@ export function mountCityEditor(root: HTMLElement): void {
     return documentState.frame.extentMeters / 2 / halfView;
   }
 
-  function renderInspector(): void {
-    inspector.content.replaceChildren();
+  function populateInspectorEditControls(container: HTMLElement): void {
     if (activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
-        inspector.content.appendChild(
+        container.appendChild(
           text(
             group.locked
               ? `${group.name} is locked`
@@ -1444,7 +1543,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
-        inspector.content.append(
+        container.append(
           text(`Selected edge ${selection.edgeId} in ${group.name}`),
           makeIconButton("×", "Delete selected edge", () => {
             const next = removeEdgeFromGroup(documentState, group.id, selection.edgeId as Id);
@@ -1496,7 +1595,7 @@ export function mountCityEditor(root: HTMLElement): void {
         }
       );
       gateButton.disabled = !wallVertex;
-      inspector.content.append(
+      container.append(
         text(`Vertex ${vertex.id}`),
         text(
           wallVertex
@@ -1507,53 +1606,95 @@ export function mountCityEditor(root: HTMLElement): void {
       );
       return;
     }
-    if (!selection.faceId) {
-      inspector.content.appendChild(text("Select a cell to set water, a ward, or an urban element."));
+    if (selection.faceId) {
+      const face = documentState.mesh.faces[selection.faceId];
+      if (!face) return;
+      const water = select(["land", "sea", "lake", "openWater"], face.properties.water);
+      water.addEventListener("change", () =>
+        commit(setFaceWater(documentState, face.id, water.value as WaterKind), `Set water ${water.value}`)
+      );
+      const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
+      elevation.addEventListener("change", () =>
+        commit(setFaceElevation(documentState, face.id, Number(elevation.value)), "Set elevation")
+      );
+      const ward = select(
+        ["", "market", "castle", "merchant", "craftsmen", "harbor", "park", "empty"],
+        face.properties.ward ?? ""
+      );
+      ward.addEventListener("change", () => {
+        const next = clone(documentState);
+        next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
+        commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
+      });
+      const vertices = faceVertices(documentState.mesh, face);
+      const splitFrom = select(vertices, vertices[0]);
+      const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);
+      const neighbors = faceNeighbors(documentState.mesh, face.id);
+      const mergeWith = select(neighbors, neighbors[0] ?? "");
+      container.append(
+        label("Elevation", elevation),
+        label("Water", water),
+        label("Ward", ward),
+        text("Ward automatically controls the landmark drawn in this cell."),
+        divider(),
+        label("Split from", splitFrom),
+        label("Split to", splitTo),
+        makeIconButton("✂", "Split cell", () => {
+          const next = splitFace(documentState, face.id, splitFrom.value, splitTo.value);
+          if (next) commit(next, "Split cell");
+        }),
+        label("Merge with", mergeWith),
+        makeIconButton("⊕", "Merge cell", () => {
+          if (!mergeWith.value) return;
+          const next = mergeFaces(documentState, face.id, mergeWith.value);
+          if (next) commit(next, "Merge cells");
+        })
+      );
+    }
+  }
+
+  function renderInspector(): void {
+    inspector.content.replaceChildren();
+
+    if (inspectedInfo) {
+      const kind = document.createElement("strong");
+      kind.className = "ce-inspector-kind cg-inspector-kind";
+      kind.textContent = inspectedInfo.label;
+
+      const content = document.createElement("pre");
+      content.className = "ce-inspector-content cg-inspector-content";
+      content.textContent = JSON.stringify(inspectedInfo, null, 2);
+
+      const clearButton = makeButton("Clear selection", () => {
+        inspectedInfo = null;
+        selection = {
+          faceId: null,
+          edgeId: null,
+          vertexId: null,
+          groupId: null,
+          inspectedId: null
+        };
+        activeGroupId = null;
+        refresh();
+      });
+
+      inspector.content.append(kind, content, clearButton);
+
+      const editSection = div("ce-inspector-edit-section");
+      populateInspectorEditControls(editSection);
+      if (editSection.hasChildNodes()) {
+        inspector.content.append(divider(), editSection);
+      }
       return;
     }
-    const face = documentState.mesh.faces[selection.faceId];
-    if (!face) return;
-    const water = select(["land", "sea", "lake", "openWater"], face.properties.water);
-    water.addEventListener("change", () =>
-      commit(setFaceWater(documentState, face.id, water.value as WaterKind), `Set water ${water.value}`)
-    );
-    const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
-    elevation.addEventListener("change", () =>
-      commit(setFaceElevation(documentState, face.id, Number(elevation.value)), "Set elevation")
-    );
-    const ward = select(
-      ["", "market", "castle", "merchant", "craftsmen", "harbor", "park", "empty"],
-      face.properties.ward ?? ""
-    );
-    ward.addEventListener("change", () => {
-      const next = clone(documentState);
-      next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
-      commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
-    });
-    const vertices = faceVertices(documentState.mesh, face);
-    const splitFrom = select(vertices, vertices[0]);
-    const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);
-    const neighbors = faceNeighbors(documentState.mesh, face.id);
-    const mergeWith = select(neighbors, neighbors[0] ?? "");
-    inspector.content.append(
-      label("Elevation", elevation),
-      label("Water", water),
-      label("Ward", ward),
-      text("Ward automatically controls the landmark drawn in this cell."),
-      divider(),
-      label("Split from", splitFrom),
-      label("Split to", splitTo),
-      makeIconButton("✂", "Split cell", () => {
-        const next = splitFace(documentState, face.id, splitFrom.value, splitTo.value);
-        if (next) commit(next, "Split cell");
-      }),
-      label("Merge with", mergeWith),
-      makeIconButton("⊕", "Merge cell", () => {
-        if (!mergeWith.value) return;
-        const next = mergeFaces(documentState, face.id, mergeWith.value);
-        if (next) commit(next, "Merge cells");
-      })
-    );
+
+    const editSection = div("ce-inspector-edit-section");
+    populateInspectorEditControls(editSection);
+    if (editSection.hasChildNodes()) {
+      inspector.content.append(editSection);
+    } else {
+      inspector.content.appendChild(text("Select a cell to set water, a ward, or an urban element."));
+    }
   }
 
   function renderGroups(): void {
