@@ -314,5 +314,29 @@ describe("openBarrierPassage", () => {
       // Dot product should be 1.0 (straight line)
       expect(dot).toBeGreaterThan(0.999);
     });
+
+    it("straightens the L-shaped road crossing in reference file ce-20260916-185939.json", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const filePath = path.resolve("temp/ce-20260916-185939.json");
+      if (!fs.existsSync(filePath)) return;
+
+      const raw = JSON.parse(fs.readFileSync(filePath, "utf-8")) as CityDocument;
+      const straightened = straightenBridges(raw);
+
+      const pA = straightened.mesh.vertices.v148.point;
+      const pM = straightened.mesh.vertices.v147.point;
+      const pB = straightened.mesh.vertices.v138.point;
+
+      // Check alignment of v148 -> v147 and v147 -> v138
+      const vA = [pM[0] - pA[0], pM[1] - pA[1]];
+      const vB = [pB[0] - pM[0], pB[1] - pM[1]];
+      const lenA = Math.hypot(vA[0], vA[1]);
+      const lenB = Math.hypot(vB[0], vB[1]);
+      const dot = (vA[0] * vB[0] + vA[1] * vB[1]) / (lenA * lenB);
+
+      // Dot product should be 1.0 (straight line, was 0.395 / 66.7 degrees)
+      expect(dot).toBeGreaterThan(0.999);
+    });
   });
 });

@@ -1006,7 +1006,7 @@ function applyPlan(
         locked: false
       });
     });
-    if (!complete) next = openGeneratedPassages(next);
+    next = complete ? straightenBridges(next) : openGeneratedPassages(next);
     mesh = next.mesh;
   }
 

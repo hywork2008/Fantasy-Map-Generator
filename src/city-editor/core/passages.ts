@@ -217,27 +217,10 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
 }
 
 /**
- * Straighten a river bridge and align its crossing to the shortest path
- * (perpendicular to the river), resolving L-shaped or V-shaped bent bridges.
+ * Straighten a river crossing (A -> M -> B) so it crosses perpendicular and straight,
+ * resolving L-shaped and V-shaped bends.
  */
-export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocument {
-  const bridge = document.featureGroups.find(g => g.id === bridgeId);
-  if (bridge?.segments.length !== 2) return document;
-
-  const { mesh } = document;
-  const e0 = mesh.edges[bridge.segments[0].edgeId];
-  const e1 = mesh.edges[bridge.segments[1].edgeId];
-  if (!e0 || !e1) return document;
-
-  const v0 = [e0.a, e0.b];
-  const v1 = [e1.a, e1.b];
-  const midId = v0.find(id => v1.includes(id));
-  if (!midId) return document;
-
-  const aId = v0.find(id => id !== midId);
-  const bId = v1.find(id => id !== midId);
-  if (!aId || !bId) return document;
-
+export function straightenRiverCrossing(document: CityDocument, aId: Id, midId: Id, bId: Id): CityDocument {
   let next = document;
   let A = next.mesh.vertices[aId]?.point;
   let M = next.mesh.vertices[midId]?.point;
@@ -326,10 +309,59 @@ export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocu
   return next;
 }
 
+/**
+ * Straighten a specific river bridge feature.
+ */
+export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocument {
+  const bridge = document.featureGroups.find(g => g.id === bridgeId);
+  if (bridge?.segments.length !== 2) return document;
+
+  const { mesh } = document;
+  const e0 = mesh.edges[bridge.segments[0].edgeId];
+  const e1 = mesh.edges[bridge.segments[1].edgeId];
+  if (!e0 || !e1) return document;
+
+  const v0 = [e0.a, e0.b];
+  const v1 = [e1.a, e1.b];
+  const midId = v0.find(id => v1.includes(id));
+  if (!midId) return document;
+
+  const aId = v0.find(id => id !== midId);
+  const bId = v1.find(id => id !== midId);
+  if (!aId || !bId) return document;
+
+  return straightenRiverCrossing(document, aId, midId, bId);
+}
+
+/**
+ * Straighten all road crossings over rivers (both explicit bridge features and road segments crossing rivers)
+ * so that they cross the river along the shortest perpendicular path, eliminating L-shapes and V-shapes.
+ */
 export function straightenBridges(document: CityDocument): CityDocument {
   let next = document;
-  for (const bridge of next.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
-    next = straightenBridge(next, bridge.id);
+  const riverVertices = new Set<Id>();
+  for (const group of next.featureGroups) {
+    if (group.kind === "river") {
+      for (const vid of group.vertices) riverVertices.add(vid);
+    }
+  }
+  if (riverVertices.size === 0) return next;
+
+  const processed = new Set<string>();
+
+  for (const group of next.featureGroups) {
+    if (group.kind !== "road") continue;
+    const vids = featureGroupVertices(next, group);
+    for (let i = 1; i < vids.length - 1; i++) {
+      const midId = vids[i];
+      if (!riverVertices.has(midId)) continue;
+      const aId = vids[i - 1];
+      const bId = vids[i + 1];
+      const key = `${midId}:${aId < bId ? `${aId},${bId}` : `${bId},${aId}`}`;
+      if (processed.has(key)) continue;
+      processed.add(key);
+      next = straightenRiverCrossing(next, aId, midId, bId);
+    }
   }
   return next;
 }
