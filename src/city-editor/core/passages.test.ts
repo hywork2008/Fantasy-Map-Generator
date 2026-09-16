@@ -6,6 +6,8 @@ import {
   kindEdgeIds,
   openBarrierPassage,
   orderedIncidentEdges,
+  straightenBridge,
+  straightenBridges,
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
@@ -171,5 +173,146 @@ describe("openBarrierPassage", () => {
     expect(incidentEdges(next.mesh, "a")).toHaveLength(4);
     expect(vertexHasCrossing(next, "a", "wall", "river")).toBe(true);
     expect(document.mesh.vertices.b).toBeDefined();
+  });
+
+  describe("straightenBridges", () => {
+    it("straightens an L-shaped river bridge along the perpendicular crossing arm", () => {
+      // River runs south-to-north along x = 0: (0, -20) -> (0, 0) -> (0, 20)
+      // Arm A approaches perpendicular from west: (-15, 0) -> (0, 0)
+      // Arm B bends along the river northward: (0, 0) -> (5, 15)  (L-shaped)
+      const document: CityDocument = {
+        format: "fmg-city-editor",
+        version: 1,
+        frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+        mesh: {
+          vertices: {
+            s: { id: "s", point: [0, -20], locked: false },
+            m: { id: "m", point: [0, 0], locked: false },
+            n: { id: "n", point: [0, 20], locked: false },
+            a: { id: "a", point: [-15, 0], locked: false },
+            b: { id: "b", point: [5, 15], locked: false }
+          },
+          edges: {
+            r1: { id: "r1", a: "s", b: "m", leftFace: null, rightFace: null, locked: false },
+            r2: { id: "r2", a: "m", b: "n", leftFace: null, rightFace: null, locked: false },
+            b1: { id: "b1", a: "a", b: "m", leftFace: null, rightFace: null, locked: false },
+            b2: { id: "b2", a: "m", b: "b", leftFace: null, rightFace: null, locked: false }
+          },
+          faces: {}
+        },
+        featureGroups: [
+          {
+            id: "gc:river-1",
+            kind: "river",
+            name: "River",
+            locked: false,
+            style: { widthMeters: 8, color: "blue" },
+            vertices: ["s", "m", "n"],
+            source: null,
+            mouth: null
+          },
+          {
+            id: "gc:bridge-1",
+            kind: "road",
+            name: "Bridge",
+            locked: false,
+            style: { widthMeters: 4, color: "#735238" },
+            segments: [
+              { edgeId: "b1", forward: true },
+              { edgeId: "b2", forward: true }
+            ]
+          }
+        ],
+        gates: [],
+        elements: []
+      };
+
+      const straightened = straightenBridge(document, "gc:bridge-1");
+      const ptB = straightened.mesh.vertices.b.point;
+      // b should be straightened to the east along the vector from a -> m (y ≈ 0, x > 0)
+      expect(ptB[0]).toBeGreaterThan(10);
+      expect(Math.abs(ptB[1])).toBeLessThan(0.1);
+    });
+
+    it("straightens a V-shaped river bridge by projecting the junction onto the line connecting endpoints", () => {
+      // River runs south-to-north: (0, -20) -> (3, 0) -> (0, 20) with a slight bend at m (3, 0)
+      // Endpoints A (-15, 0) and B (15, 0)
+      // Crossing vertex m is at (3, 3), forming a V-shape
+      const document: CityDocument = {
+        format: "fmg-city-editor",
+        version: 1,
+        frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+        mesh: {
+          vertices: {
+            s: { id: "s", point: [0, -20], locked: false },
+            m: { id: "m", point: [2, 6], locked: false },
+            n: { id: "n", point: [0, 20], locked: false },
+            a: { id: "a", point: [-15, 0], locked: false },
+            b: { id: "b", point: [15, 0], locked: false }
+          },
+          edges: {
+            r1: { id: "r1", a: "s", b: "m", leftFace: null, rightFace: null, locked: false },
+            r2: { id: "r2", a: "m", b: "n", leftFace: null, rightFace: null, locked: false },
+            b1: { id: "b1", a: "a", b: "m", leftFace: null, rightFace: null, locked: false },
+            b2: { id: "b2", a: "m", b: "b", leftFace: null, rightFace: null, locked: false }
+          },
+          faces: {}
+        },
+        featureGroups: [
+          {
+            id: "gc:river-1",
+            kind: "river",
+            name: "River",
+            locked: false,
+            style: { widthMeters: 8, color: "blue" },
+            vertices: ["s", "m", "n"],
+            source: null,
+            mouth: null
+          },
+          {
+            id: "gc:bridge-1",
+            kind: "road",
+            name: "Bridge",
+            locked: false,
+            style: { widthMeters: 4, color: "#735238" },
+            segments: [
+              { edgeId: "b1", forward: true },
+              { edgeId: "b2", forward: true }
+            ]
+          }
+        ],
+        gates: [],
+        elements: []
+      };
+
+      const straightened = straightenBridges(document);
+      const ptM = straightened.mesh.vertices.m.point;
+      // m should be projected onto the line from a (-15, 0) to b (15, 0), so y ≈ 0
+      expect(Math.abs(ptM[1])).toBeLessThan(0.1);
+    });
+
+    it("straightens the L-shaped bridge in reference file ce-20260916-142259.json", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const filePath = path.resolve("temp/ce-20260916-142259.json");
+      if (!fs.existsSync(filePath)) return;
+
+      const raw = JSON.parse(fs.readFileSync(filePath, "utf-8")) as CityDocument;
+      const straightened = straightenBridges(raw);
+
+      const pA = straightened.mesh.vertices.v289.point;
+      const pM = straightened.mesh.vertices.v316.point;
+      const pB = straightened.mesh.vertices.v346.point;
+
+      // Check alignment of v289 -> v316 and v316 -> v346
+      const vA = [pM[0] - pA[0], pM[1] - pA[1]];
+      const vB = [pB[0] - pM[0], pB[1] - pM[1]];
+      const lenA = Math.hypot(vA[0], vA[1]);
+      const lenB = Math.hypot(vB[0], vB[1]);
+      const dot = (vA[0] * vB[0] + vA[1] * vB[1]) / (lenA * lenB);
+
+      // Dot product should be 1.0 (straight line)
+      expect(dot).toBeGreaterThan(0.999);
+    });
   });
 });

@@ -17,7 +17,7 @@ import {
   moveVertex,
   splitFace
 } from "./mesh";
-import type { CityDocument, Edge, FeatureGroup, Id } from "./types";
+import type { CityDocument, Edge, FeatureGroup, Id, Point } from "./types";
 
 export type BarrierKind = Extract<FeatureGroup["kind"], "wall" | "river">;
 
@@ -93,18 +93,38 @@ export function vertexHasCrossing(
   return false;
 }
 
-/** One non-barrier arm on each side; no same-side fallback is permitted. */
+/** One non-barrier arm on each side; no same-side fallback is permitted. Prefers the pair closest to a straight 180° line. */
 export function throughEdgesAt(document: CityDocument, vertexId: Id, barrier: BarrierKind): Edge[] {
   const ordered = orderedIncidentEdges(document, vertexId);
   const banned = kindEdgeIds(document, barrier);
   const used = ordered.filter(edge => banned.has(edge.id)).map(edge => edge.id);
   const free = ordered.filter(edge => !banned.has(edge.id));
+  const origin = document.mesh.vertices[vertexId]?.point;
+  let bestPair: [Edge, Edge] | null = null;
+  let bestStraightness = 1; // want minimum dot product (closest to -1)
+
   for (let i = 0; i < free.length; i++) {
     for (let j = i + 1; j < free.length; j++) {
-      if (alternatingPairs(ordered, used, [free[i].id, free[j].id])) return [free[i], free[j]];
+      if (alternatingPairs(ordered, used, [free[i].id, free[j].id])) {
+        if (!origin) return [free[i], free[j]];
+        const p1 = document.mesh.vertices[free[i].a === vertexId ? free[i].b : free[i].a]?.point;
+        const p2 = document.mesh.vertices[free[j].a === vertexId ? free[j].b : free[j].a]?.point;
+        if (!p1 || !p2) return [free[i], free[j]];
+        const dx1 = p1[0] - origin[0];
+        const dy1 = p1[1] - origin[1];
+        const dx2 = p2[0] - origin[0];
+        const dy2 = p2[1] - origin[1];
+        const l1 = Math.hypot(dx1, dy1) || 1;
+        const l2 = Math.hypot(dx2, dy2) || 1;
+        const dot = (dx1 * dx2 + dy1 * dy2) / (l1 * l2);
+        if (dot < bestStraightness) {
+          bestStraightness = dot;
+          bestPair = [free[i], free[j]];
+        }
+      }
     }
   }
-  return [];
+  return bestPair ? [bestPair[0], bestPair[1]] : [];
 }
 
 /**
@@ -181,6 +201,136 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
     ],
     style: { widthMeters: Math.max(4, document.frame.blockSizeMeters * 0.16), color: "#735238" }
   });
+  return straightenBridge(next, id);
+}
+
+function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): CityDocument {
+  const v = document.mesh.vertices[vertexId];
+  if (!v || v.locked) return document;
+  const start = v.point;
+  for (let s = 1.0; s >= 0.125; s /= 2) {
+    const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
+    const moved = moveVertex(document, vertexId, candidate);
+    if (moved) return moved;
+  }
+  return document;
+}
+
+/**
+ * Straighten a river bridge and align its crossing to the shortest path
+ * (perpendicular to the river), resolving L-shaped or V-shaped bent bridges.
+ */
+export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocument {
+  const bridge = document.featureGroups.find(g => g.id === bridgeId);
+  if (bridge?.segments.length !== 2) return document;
+
+  const { mesh } = document;
+  const e0 = mesh.edges[bridge.segments[0].edgeId];
+  const e1 = mesh.edges[bridge.segments[1].edgeId];
+  if (!e0 || !e1) return document;
+
+  const v0 = [e0.a, e0.b];
+  const v1 = [e1.a, e1.b];
+  const midId = v0.find(id => v1.includes(id));
+  if (!midId) return document;
+
+  const aId = v0.find(id => id !== midId);
+  const bId = v1.find(id => id !== midId);
+  if (!aId || !bId) return document;
+
+  let next = document;
+  let A = next.mesh.vertices[aId]?.point;
+  let M = next.mesh.vertices[midId]?.point;
+  let B = next.mesh.vertices[bId]?.point;
+  if (!A || !M || !B) return document;
+
+  // Find local river tangent & normal at M
+  const rivers = next.featureGroups.filter(g => g.kind === "river");
+  let riverTangent: Point | null = null;
+  for (const river of rivers) {
+    const idx = river.vertices.indexOf(midId);
+    if (idx !== -1) {
+      const prevId = river.vertices[Math.max(0, idx - 1)];
+      const nextId = river.vertices[Math.min(river.vertices.length - 1, idx + 1)];
+      const pPrev = next.mesh.vertices[prevId]?.point;
+      const pNext = next.mesh.vertices[nextId]?.point;
+      if (pPrev && pNext) {
+        const tx = pNext[0] - pPrev[0];
+        const ty = pNext[1] - pPrev[1];
+        const len = Math.hypot(tx, ty) || 1;
+        riverTangent = [tx / len, ty / len];
+        break;
+      }
+    }
+  }
+  if (!riverTangent) return document;
+
+  // Unit normal to river tangent pointing generally from A to B
+  let normal: Point = [-riverTangent[1], riverTangent[0]];
+  const ab = [B[0] - A[0], B[1] - A[1]];
+  if (normal[0] * ab[0] + normal[1] * ab[1] < 0) {
+    normal = [-normal[0], -normal[1]];
+  }
+
+  const vA = [M[0] - A[0], M[1] - A[1]];
+  const lenA = Math.hypot(vA[0], vA[1]);
+  const uA: Point = [vA[0] / lenA, vA[1] / lenA];
+
+  const vB = [B[0] - M[0], B[1] - M[1]];
+  const lenB = Math.hypot(vB[0], vB[1]);
+  const uB: Point = [vB[0] / lenB, vB[1] / lenB];
+
+  const vAB = [B[0] - A[0], B[1] - A[1]];
+  const lenAB = Math.hypot(vAB[0], vAB[1]) || 1;
+  const uAB: Point = [vAB[0] / lenAB, vAB[1] / lenAB];
+  const chordAlignment = uAB[0] * normal[0] + uAB[1] * normal[1];
+
+  const dotAB = uA[0] * uB[0] + uA[1] * uB[1];
+  const cA = uA[0] * normal[0] + uA[1] * normal[1];
+  const cB = uB[0] * normal[0] + uB[1] * normal[1];
+
+  // Step 1: L-shape alignment
+  // If the bridge bends significantly and one arm deviates along the river, straighten that arm
+  if (dotAB < 0.98) {
+    if (cA > cB + 0.15) {
+      // Arm A is well aligned to river normal; extend it to position B
+      const targetB: Point = [M[0] + uA[0] * lenB, M[1] + uA[1] * lenB];
+      next = tryMoveVertex(next, bId, targetB);
+    } else if (cB > cA + 0.15) {
+      // Arm B is well aligned; extend backwards to position A
+      const targetA: Point = [M[0] - uB[0] * lenA, M[1] - uB[1] * lenA];
+      next = tryMoveVertex(next, aId, targetA);
+    } else if (chordAlignment < 0.7) {
+      // Both arms and overall chord deviate from perpendicular; align both along river normal
+      next = tryMoveVertex(next, aId, [M[0] - normal[0] * lenA, M[1] - normal[1] * lenA]);
+      next = tryMoveVertex(next, bId, [M[0] + normal[0] * lenB, M[1] + normal[1] * lenB]);
+    }
+  }
+
+  // Step 2: V-shape projection of M onto the line A-B
+  A = next.mesh.vertices[aId]?.point;
+  M = next.mesh.vertices[midId]?.point;
+  B = next.mesh.vertices[bId]?.point;
+  if (A && M && B) {
+    const dirAB = [B[0] - A[0], B[1] - A[1]];
+    const lenABsq = dirAB[0] * dirAB[0] + dirAB[1] * dirAB[1];
+    if (lenABsq > 0) {
+      const t = ((M[0] - A[0]) * dirAB[0] + (M[1] - A[1]) * dirAB[1]) / lenABsq;
+      if (t > 0.05 && t < 0.95) {
+        const targetM: Point = [A[0] + t * dirAB[0], A[1] + t * dirAB[1]];
+        next = tryMoveVertex(next, midId, targetM);
+      }
+    }
+  }
+
+  return next;
+}
+
+export function straightenBridges(document: CityDocument): CityDocument {
+  let next = document;
+  for (const bridge of next.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
+    next = straightenBridge(next, bridge.id);
+  }
   return next;
 }
 
@@ -233,7 +383,8 @@ export function openGeneratedPassages(document: CityDocument): CityDocument {
     const opened = openBarrierPassage(next, vertexId, "river");
     if (opened) next = opened;
   }
-  return extendRoadsThroughPassages(next);
+  next = extendRoadsThroughPassages(next);
+  return straightenBridges(next);
 }
 
 function mergeNearestBarrierNeighbour(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {

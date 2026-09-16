@@ -63,6 +63,7 @@ import {
   kindEdgeIds,
   openBarrierPassage,
   openGeneratedPassages,
+  straightenBridges,
   throughEdgesAt,
   validGeneratedCrossings,
   vertexHasCrossing,
@@ -270,7 +271,8 @@ function generateCityAttempt(document: CityDocument, settings: GenerationSetting
   const rectified = hexagonal ? rectifyHexBlocks(next, seed) : next;
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
   const shaped = hexagonal ? finished : rectifyVoronoiBlocks(finished, seed);
-  return validGeneratedCrossings(shaped) ? shaped : null;
+  const settled = straightenBridges(shaped);
+  return validGeneratedCrossings(settled) ? settled : null;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */

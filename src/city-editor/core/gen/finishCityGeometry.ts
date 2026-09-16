@@ -2,6 +2,7 @@
 // No TownGeneratorTS / GPL source is used.
 import { featureGroupVertices } from "../features";
 import { clone, edgeBetween, facePoints, faceVertices } from "../mesh";
+import { straightenBridges } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
 import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 
@@ -154,5 +155,5 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     const face = mesh.faces[element.faceIds[0]];
     if (face) element.point = polygonCentroid(facePoints(mesh, face));
   }
-  return next;
+  return straightenBridges(next);
 }
