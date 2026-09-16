@@ -291,6 +291,8 @@ export function mountCityEditor(root: HTMLElement): void {
       if (id !== "select") {
         inspectedInfo = null;
         selection.inspectedId = null;
+      } else {
+        showBlockMesh = false;
       }
       refresh();
     });
@@ -652,16 +654,18 @@ export function mountCityEditor(root: HTMLElement): void {
   const stepRow = div("ce-icon-row");
   stepRow.append(stepPrevButton, stepStatus, stepNextButton);
 
+  const blockMeshInput = checkbox(false, checked => {
+    showBlockMesh = checked;
+    if (!checked && tool !== "select") {
+      tool = "select";
+    }
+    refresh();
+  });
+
   generatePanel.content.append(
     makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
     makeButton("🎲 新しい都市", () => rollNewTown()),
-    toggleLabel(
-      "街区の編集表示",
-      checkbox(false, checked => {
-        showBlockMesh = checked;
-        redrawMap();
-      })
-    ),
+    toggleLabel("街区の編集表示", blockMeshInput),
     divider(),
     label("Coast", coastSelect),
     label("Rivers", riversSelect),
@@ -1521,6 +1525,7 @@ export function mountCityEditor(root: HTMLElement): void {
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
+    blockMeshInput.checked = showBlockMesh || tool !== "select";
     for (const [kind, button] of paintButtons) {
       button.classList.toggle(
         "is-active",
@@ -2644,6 +2649,8 @@ export function mountCityEditor(root: HTMLElement): void {
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
+    tool = "select";
+    showBlockMesh = false;
     rebuildEditorIndexes();
     showNotice("都市を生成しました — 城壁・街路・建物");
   }

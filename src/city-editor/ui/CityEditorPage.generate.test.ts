@@ -123,6 +123,39 @@ describe("Generate panel", () => {
     expect(has(".ce-feature--road")).toBe(true);
   });
 
+  it("restores building display when unchecking 街区の編集表示 after Clean short junctions tool", () => {
+    panelButton("新しい都市").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+
+    const blockMeshToggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("街区の編集表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    expect(blockMeshToggle.checked).toBe(false);
+
+    // Switch to Clean short junctions tool
+    iconButton("Clean short junctions").click();
+    expect(blockMeshToggle.checked).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+
+    // Uncheck 街区の編集表示 to return to completed town appearance
+    blockMeshToggle.click();
+    expect(blockMeshToggle.checked).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
+
+    // If an edit tool is selected and user rolls a new town, it should reset to select with buildings
+    iconButton("Clean short junctions").click();
+    expect(blockMeshToggle.checked).toBe(true);
+    panelButton("新しい都市").click();
+    expect(blockMeshToggle.checked).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
+  });
+
   it("renders six ordered process buttons (no grid step) and no seed / size field", () => {
     const labels = [...root.querySelectorAll(".ce-generate-stages button")].map(b => b.textContent);
     expect(labels).toEqual(["① 海岸線と海", "② 河川", "③ 市街地コア", "④ 城壁・門・城郭", "⑤ 街路", "⑥ 地区割り当て"]);
