@@ -374,6 +374,10 @@ export function mountCityEditor(root: HTMLElement): void {
     urbanCoreHighlight = null;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
+    lastGeneratedStep = null;
+    completeSource = null;
+    completeResult = null;
+    showBlockMesh = false;
     clearGridEvo();
     rebuildEditorIndexes();
     refresh();
@@ -2556,6 +2560,15 @@ export function mountCityEditor(root: HTMLElement): void {
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
+    activeStepStage = null;
+    stepIndex = -1;
+    urbanCoreHighlight = null;
+    stepOverlayPaths = null;
+    stepStatus.textContent = "";
+    lastGeneratedStep = null;
+    completeSource = null;
+    completeResult = null;
+    showBlockMesh = false;
     clearGridEvo();
     halfView = parsed.document.frame.extentMeters / 2;
     viewCenter = [0, 0];
@@ -2640,7 +2653,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     documentState = history.commit(next, "Generate complete city");
     completeResult = documentState;
-    lastGeneratedStep = 6;
+    lastGeneratedStep = null;
     activeStepStage = null;
     stepIndex = -1;
     stepStatus.textContent = "";
@@ -2812,6 +2825,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     const next: CityDocument = { ...documentState, mesh, featureGroups: [], gates: [], elements: [] };
+    delete next.appearance;
     if (validate(next).length) {
       showNotice("The rebuilt grid failed validation");
       return;
@@ -2826,6 +2840,10 @@ export function mountCityEditor(root: HTMLElement): void {
     urbanCoreHighlight = null;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
+    lastGeneratedStep = null;
+    completeSource = null;
+    completeResult = null;
+    showBlockMesh = false;
     rebuildEditorIndexes();
     refresh();
     showNotice(`Grid rebuilt · ${Object.keys(mesh.faces).length} cells`);

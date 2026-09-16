@@ -420,4 +420,42 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     nextStep();
     expect(root.querySelector(".ce-status")?.textContent).toContain("Press a stage button");
   });
+
+  it("generates a complete town after changing grid to voronoi and generating a new grid", () => {
+    // 1. "新しい都市"ボタンを押して都市を生成する
+    panelButton("新しい都市").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+
+    const blockMeshToggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("街区の編集表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    expect(blockMeshToggle.checked).toBe(false);
+
+    // 2. GridをVoronoiに設定
+    const gridKindSelect = root.querySelector<HTMLSelectElement>("select.ce-grid-kind")!;
+    gridKindSelect.value = "voronoi";
+    gridKindSelect.dispatchEvent(new Event("change"));
+
+    // 3. Generate a new gridボタンを押す
+    iconButton("Generate a new grid").click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+
+    // 4. "新しい都市"ボタンを押して都市を生成する
+    panelButton("新しい都市").click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(blockMeshToggle.checked).toBe(false);
+
+    // Toggling "街区の編集表示" switches between block mesh and complete town appearance
+    blockMeshToggle.click();
+    expect(blockMeshToggle.checked).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+
+    blockMeshToggle.click();
+    expect(blockMeshToggle.checked).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+  });
 });
