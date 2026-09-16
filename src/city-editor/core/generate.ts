@@ -35,6 +35,7 @@ import {
   splitDryWallRuns
 } from "./gen/plausibility";
 import { makeRng } from "./gen/prng";
+import { rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
@@ -264,7 +265,8 @@ function generateCityAttempt(document: CityDocument, settings: GenerationSetting
   );
   if (!next) return null;
   next.appearance = "town";
-  const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(next) : next;
+  const rectified = rectifyHexBlocks(next, seed);
+  const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
   return validGeneratedCrossings(finished) ? finished : null;
 }
 
