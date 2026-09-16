@@ -35,7 +35,8 @@ import {
   splitDryWallRuns
 } from "./gen/plausibility";
 import { makeRng } from "./gen/prng";
-import { rectifyHexBlocks } from "./gen/rectifyHexBlocks";
+import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
+import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
@@ -265,9 +266,11 @@ function generateCityAttempt(document: CityDocument, settings: GenerationSetting
   );
   if (!next) return null;
   next.appearance = "town";
-  const rectified = rectifyHexBlocks(next, seed);
+  const hexagonal = isHexagonalDocument(document);
+  const rectified = hexagonal ? rectifyHexBlocks(next, seed) : next;
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
-  return validGeneratedCrossings(finished) ? finished : null;
+  const shaped = hexagonal ? finished : rectifyVoronoiBlocks(finished, seed);
+  return validGeneratedCrossings(shaped) ? shaped : null;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
