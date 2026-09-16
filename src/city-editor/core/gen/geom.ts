@@ -158,12 +158,32 @@ export function sideOfPolyline(p: Point, poly: Point[]): number {
   return t[0] * (p[1] - hit.point[1]) - t[1] * (p[0] - hit.point[0]);
 }
 
+function onSegment(p: Point, a: Point, b: Point, eps = 1e-9): boolean {
+  return (
+    p[0] >= Math.min(a[0], b[0]) - eps &&
+    p[0] <= Math.max(a[0], b[0]) + eps &&
+    p[1] >= Math.min(a[1], b[1]) - eps &&
+    p[1] <= Math.max(a[1], b[1]) + eps
+  );
+}
+
 export function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
   const d1 = cross(b2, b1, a1);
   const d2 = cross(b2, b1, a2);
   const d3 = cross(a2, a1, b1);
   const d4 = cross(a2, a1, b2);
-  return (d1 > 0 !== d2 > 0 || d1 === 0 || d2 === 0) && (d3 > 0 !== d4 > 0 || d3 === 0 || d4 === 0);
+
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true;
+  }
+
+  const eps = 1e-9;
+  if (Math.abs(d1) <= eps && onSegment(a1, b1, b2, eps)) return true;
+  if (Math.abs(d2) <= eps && onSegment(a2, b1, b2, eps)) return true;
+  if (Math.abs(d3) <= eps && onSegment(b1, a1, a2, eps)) return true;
+  if (Math.abs(d4) <= eps && onSegment(b2, a1, a2, eps)) return true;
+
+  return false;
 }
 
 /** Intersection of two finite segments. Null when they miss or are parallel. `t` is
