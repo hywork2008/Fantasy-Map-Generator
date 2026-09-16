@@ -1049,6 +1049,32 @@ function applyPlan(
     });
   }
 
+  // Clean up extramural cells that were reserved as gate wards but whose gate
+  // was dropped or never connected to a road. Without a valid gate or road,
+  // extramural residential/craftsmen lots visibly strand buildings in empty fields.
+  if (complete && program.walls && next.featureGroups.some(g => g.kind === "wall")) {
+    const activeGateVertices = new Set(next.gates.map(gate => gate.vertexId));
+    const roadEdges = new Set(
+      next.featureGroups.filter(g => g.kind === "road").flatMap(g => g.segments.map(s => s.edgeId))
+    );
+    for (let cellId = 0; cellId < cells.length; cellId++) {
+      if (plan.urban.has(cellId)) continue;
+      const face = faceFor(cellId);
+      if (!face || face.properties.locked || face.properties.water !== "land") continue;
+      if (!face.properties.ward || face.properties.ward === "empty" || face.properties.ward === "park") continue;
+
+      const hasRoad = face.boundary.some(b => roadEdges.has(b.edgeId));
+      const hasGate = face.boundary.some(b => {
+        const edge = next.mesh.edges[b.edgeId];
+        return edge && (activeGateVertices.has(edge.a) || activeGateVertices.has(edge.b));
+      });
+      if (!hasRoad && !hasGate) {
+        face.properties.ward = "empty";
+        face.properties.buildable = false;
+      }
+    }
+  }
+
   return validate(next).length === 0 ? next : null;
 }
 

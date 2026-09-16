@@ -236,4 +236,54 @@ describe("building setbacks", () => {
       // File may not exist in CI environment
     }
   });
+
+  it("verifies extramural wards are never stranded without a gate or road", () => {
+    const grid = createGridDocument({ size: "small", grid: "voronoi", seed: "preview" });
+    const settings = defaultGenerationSettings();
+    settings.config.features.walls = true;
+    const city = generateCityOnDocument(grid, settings, "reference-town");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    const wallGroups = city.featureGroups.filter(g => g.kind === "wall");
+    if (!wallGroups.length) return;
+    const wallEdges = new Set(wallGroups.flatMap(g => g.segments.map(s => s.edgeId)));
+    const roadEdges = new Set(
+      city.featureGroups.filter(g => g.kind === "road").flatMap(g => g.segments.map(s => s.edgeId))
+    );
+    const gateVertices = new Set(city.gates.map(g => g.vertexId));
+
+    const plaza = city.elements.find(e => e.kind === "plaza");
+    if (!plaza) return;
+    const insideFaces = new Set([...plaza.faceIds]);
+    const queue = [...plaza.faceIds];
+    while (queue.length) {
+      const curr = queue.shift()!;
+      const f = city.mesh.faces[curr];
+      for (const b of f.boundary) {
+        if (wallEdges.has(b.edgeId)) continue;
+        const edge = city.mesh.edges[b.edgeId];
+        const other = edge.leftFace === curr ? edge.rightFace : edge.leftFace;
+        if (other && !insideFaces.has(other)) {
+          insideFaces.add(other);
+          queue.push(other);
+        }
+      }
+    }
+
+    for (const [id, face] of Object.entries(city.mesh.faces)) {
+      if (insideFaces.has(id)) continue;
+      if (!face.properties.ward || face.properties.ward === "empty" || face.properties.ward === "park") continue;
+      if (!face.properties.buildable) continue;
+
+      const hasRoad = face.boundary.some(b => roadEdges.has(b.edgeId));
+      const hasGate = face.boundary.some(b => {
+        const edge = city.mesh.edges[b.edgeId];
+        return edge && (gateVertices.has(edge.a) || gateVertices.has(edge.b));
+      });
+      expect(hasRoad || hasGate, `Extramural face ${id} has ward ${face.properties.ward} without gate or road`).toBe(
+        true
+      );
+    }
+  });
 });
