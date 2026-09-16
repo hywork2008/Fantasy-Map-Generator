@@ -226,9 +226,7 @@ export function renderEditorSvg(
         "stroke-width": String(group.style.widthMeters),
         "data-group": group.id,
         "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-        // Once selected, let the mesh edges below receive clicks so individual
-        // route segments can be added and removed.
-        "pointer-events": active ? "none" : "stroke"
+        "pointer-events": "stroke"
       })
     );
   }

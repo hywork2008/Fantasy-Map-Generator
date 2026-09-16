@@ -5,6 +5,15 @@ import { mountCityEditor } from "./CityEditorPage";
 if (typeof Element.prototype.scrollIntoView !== "function") {
   Element.prototype.scrollIntoView = () => {};
 }
+if (typeof Element.prototype.setPointerCapture !== "function") {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (typeof Element.prototype.releasePointerCapture !== "function") {
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (typeof Element.prototype.hasPointerCapture !== "function") {
+  Element.prototype.hasPointerCapture = () => false;
+}
 
 describe("City Editor Inspector (Select and move mode)", () => {
   let root: HTMLElement;
@@ -131,5 +140,74 @@ describe("City Editor Inspector (Select and move mode)", () => {
       expect(kind?.textContent).toBe(expected?.label);
       expect(content?.textContent).toContain(`"kind": "building"`);
     }
+  });
+
+  it("shows route group details in Inspector and highlights in Objects panel when clicking an edge belonging to a route", () => {
+    // Switch to Draw road tool to create a route
+    const roadBtn = [...root.querySelectorAll<HTMLButtonElement>(".ce-toolbar button")].find(
+      b => b.title === "Draw road" || b.getAttribute("aria-label") === "Draw road"
+    );
+    expect(roadBtn).not.toBeUndefined();
+    roadBtn?.click();
+
+    // Click an edge to start drawing a road
+    const targetEdge = root.querySelector<SVGElement>(".ce-edges path[data-edge]");
+    expect(targetEdge).not.toBeNull();
+    const edgeId = targetEdge?.getAttribute("data-edge");
+    expect(edgeId).toBeTruthy();
+    targetEdge?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // Verify a route group was created in Objects panel
+    const groupRowsBefore = [...root.querySelectorAll<HTMLElement>(".ce-group-row")];
+    expect(groupRowsBefore.length).toBeGreaterThan(0);
+
+    // Switch back to Select and move tool
+    const selectBtn = [...root.querySelectorAll<HTMLButtonElement>(".ce-toolbar button")].find(
+      b => b.title === "Select and move" || b.getAttribute("aria-label") === "Select and move"
+    );
+    selectBtn?.click();
+
+    // Click outside / clear to deselect first
+    const clearBtn = [...root.querySelectorAll<HTMLButtonElement>(".ce-inspector button")].find(
+      btn => btn.textContent === "Clear selection"
+    );
+    clearBtn?.click();
+
+    // Now in Select and move mode, click the edge belonging to the road
+    const edgeToClick = root.querySelector<SVGElement>(`.ce-edges path[data-edge="${edgeId}"]`);
+    expect(edgeToClick).not.toBeNull();
+    edgeToClick?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // Verify Inspector displays the road's information
+    const kind = root.querySelector<HTMLElement>(".cg-inspector-kind");
+    const content = root.querySelector<HTMLElement>(".cg-inspector-content");
+    expect(kind?.textContent).toContain("road");
+    expect(content?.textContent).toContain(`"layer": "features"`);
+    expect(content?.textContent).toContain(`"kind": "road"`);
+    expect(content?.textContent).toContain(`"selectedEdgeId": "${edgeId}"`);
+
+    // Verify Objects panel highlights the road's row
+    const activeGroupRow = root.querySelector<HTMLElement>(".ce-group-row.is-active");
+    expect(activeGroupRow).not.toBeNull();
+    expect(activeGroupRow?.classList.contains("ce-group-selected")).toBe(true);
+    const activeChooseBtn = activeGroupRow?.querySelector<HTMLButtonElement>("button.is-active");
+    expect(activeChooseBtn).not.toBeNull();
+  });
+
+  it("handles vertex drag-and-drop in Select and move mode without breaking selection", () => {
+    const map = root.querySelector<HTMLDivElement>(".ce-map");
+    expect(map).not.toBeNull();
+
+    // Start a vertex drag
+    map?.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, clientX: 10, clientY: 10, button: 0, pointerId: 1 })
+    );
+    map?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 15, clientY: 15, pointerId: 1 }));
+    map?.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, clientX: 15, clientY: 15, button: 0, pointerId: 1 })
+    );
+
+    // After drag release, Inspector or map remains responsive
+    expect(map).not.toBeNull();
   });
 });

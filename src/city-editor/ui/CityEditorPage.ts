@@ -762,33 +762,87 @@ export function mountCityEditor(root: HTMLElement): void {
         return;
       }
     }
-    const vertexId = targetId(event, "vertex") ?? (tool === "select" ? closestVertexId(point) : null);
+    if (tool === "select") {
+      const nearestVertexId = closestVertexId(point);
+      const v = nearestVertexId ? documentState.mesh.vertices[nearestVertexId] : null;
+      const vDist = v ? Math.hypot(v.point[0] - point[0], v.point[1] - point[1]) : Number.POSITIVE_INFINITY;
+      const vertexGrabRadius = routeHitRadius(14);
+
+      if (nearestVertexId && v && vDist <= vertexGrabRadius) {
+        event.preventDefault();
+        dragBefore = clone(documentState);
+        isVertexDragging = true;
+        dragMergeCandidateId = null;
+        selection = {
+          faceId: null,
+          edgeId: null,
+          groupId: null,
+          vertexId: nearestVertexId,
+          inspectedId: nearestVertexId
+        };
+        activeGroupId = null;
+        inspectedInfo = {
+          layer: "vertices",
+          kind: "vertex",
+          id: nearestVertexId,
+          label: `vertex #${nearestVertexId}`,
+          point: v.point
+        };
+        map.setPointerCapture(event.pointerId);
+        return;
+      }
+
+      const route = routeAtEvent(event, point, true, true);
+      if (route) {
+        event.preventDefault();
+        const routeGroup = documentState.featureGroups.find(g => g.id === route.groupId);
+        if (routeGroup) {
+          activeGroupId = routeGroup.id;
+          selection = {
+            faceId: null,
+            vertexId: null,
+            groupId: routeGroup.id,
+            edgeId: route.edgeId,
+            inspectedId: routeGroup.id
+          };
+          inspectedInfo = {
+            layer: "features",
+            kind: routeGroup.kind,
+            id: routeGroup.id,
+            label: `${routeGroup.kind} (${routeGroup.name})`,
+            name: routeGroup.name,
+            selectedEdgeId: route.edgeId,
+            locked: routeGroup.locked,
+            widthMeters: routeGroup.style.widthMeters,
+            color: routeGroup.style.color,
+            segmentCount: routeGroup.kind === "river" ? routeGroup.vertices.length : routeGroup.segments.length
+          };
+          if (!routeGroup.locked) {
+            routeDrag = { ...route, startX: event.clientX, startY: event.clientY, moved: false };
+          }
+          map.setPointerCapture(event.pointerId);
+          return;
+        }
+      }
+    }
+
+    const vertexId = targetId(event, "vertex") ?? (tool === "vertex" ? closestVertexId(point) : null);
     if (vertexId && tool === "vertex") {
       event.preventDefault();
-      selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null };
+      selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null, inspectedId: vertexId };
       activeGroupId = null;
+      const v = documentState.mesh.vertices[vertexId];
+      if (v) {
+        inspectedInfo = {
+          layer: "vertices",
+          kind: "vertex",
+          id: vertexId,
+          label: `vertex #${vertexId}`,
+          point: v.point
+        };
+      }
       suppressNextClick = true;
       refresh();
-      return;
-    }
-    if (vertexId && tool === "select") {
-      event.preventDefault();
-      dragBefore = clone(documentState);
-      isVertexDragging = true;
-      dragMergeCandidateId = null;
-      selection.vertexId = vertexId;
-      map.setPointerCapture(event.pointerId);
-      return;
-    }
-    const route = tool === "select" ? routeAtEvent(event, point, true) : null;
-    if (route) {
-      event.preventDefault();
-      routeDrag = { ...route, startX: event.clientX, startY: event.clientY, moved: false };
-      selection.groupId = route.groupId;
-      selection.edgeId = route.edgeId;
-      activeGroupId = route.groupId;
-      tool = "select";
-      map.setPointerCapture(event.pointerId);
       return;
     }
   });
@@ -876,6 +930,9 @@ export function mountCityEditor(root: HTMLElement): void {
     )
       return;
     const wasVertexDragging = isVertexDragging;
+    const vertexMoved = Boolean(
+      wasVertexDragging && dragBefore && JSON.stringify(dragBefore) !== JSON.stringify(documentState)
+    );
     const wasWardPainting = isWardPainting;
     const wasJunctionPainting = isJunctionPainting;
     const circle = circularWallStroke;
@@ -902,7 +959,7 @@ export function mountCityEditor(root: HTMLElement): void {
       const merged = mergeVertices(documentState, selection.vertexId, mergeCandidateId);
       if (merged) documentState = merged;
     }
-    if (wasVertexDragging && dragBefore && JSON.stringify(dragBefore) !== JSON.stringify(documentState)) {
+    if (wasVertexDragging && vertexMoved) {
       history.commit(documentState, mergeCandidateId ? "Merge vertices" : "Move vertex");
       rebuildEditorIndexes();
     }
@@ -927,7 +984,7 @@ export function mountCityEditor(root: HTMLElement): void {
     paintedWardFaceIds.clear();
     paintedEdgeIds.clear();
     if (draggedRoute) {
-      suppressNextClick = draggedRoute.moved;
+      suppressNextClick = true;
       if (event.type !== "pointercancel" && draggedRoute.moved && preview && previewFaceId) {
         selection.vertexId = null;
         selection.edgeId = null;
@@ -936,8 +993,42 @@ export function mountCityEditor(root: HTMLElement): void {
         });
         if (next) commit(next, "Reroute across cell");
       }
-      selection.vertexId = null;
-      selection.edgeId = null;
+      if (draggedRoute.moved) {
+        selection.vertexId = null;
+        selection.edgeId = null;
+      }
+    }
+    if (wasVertexDragging) {
+      suppressNextClick = true;
+      if (!vertexMoved) {
+        const point = localPoint(event);
+        const route = routeAtEvent(event, point, true, true);
+        if (route) {
+          const routeGroup = documentState.featureGroups.find(g => g.id === route.groupId);
+          if (routeGroup) {
+            activeGroupId = routeGroup.id;
+            selection = {
+              faceId: null,
+              vertexId: null,
+              groupId: routeGroup.id,
+              edgeId: route.edgeId,
+              inspectedId: routeGroup.id
+            };
+            inspectedInfo = {
+              layer: "features",
+              kind: routeGroup.kind,
+              id: routeGroup.id,
+              label: `${routeGroup.kind} (${routeGroup.name})`,
+              name: routeGroup.name,
+              selectedEdgeId: route.edgeId,
+              locked: routeGroup.locked,
+              widthMeters: routeGroup.style.widthMeters,
+              color: routeGroup.style.color,
+              segmentCount: routeGroup.kind === "river" ? routeGroup.vertices.length : routeGroup.segments.length
+            };
+          }
+        }
+      }
     }
     if (event.type === "pointercancel") suppressNextClick = false;
     // Cell-only painting patches its faces live. Edge erasing changes route
@@ -945,7 +1036,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (wasWardPainting) {
       if (edgePaintChanged) refresh();
       else refreshUiOnly();
-    } else if (wasVertexDragging || wasJunctionPainting || circle || stroke) refresh();
+    } else if (wasVertexDragging || wasJunctionPainting || circle || stroke || draggedRoute) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -960,32 +1051,62 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
-    const target = event.target instanceof Element ? event.target : null;
+    let target = event.target instanceof Element ? event.target : null;
+    if (target === map || target?.tagName.toLowerCase() === "svg") {
+      const under =
+        typeof document.elementFromPoint === "function"
+          ? document.elementFromPoint(event.clientX, event.clientY)
+          : null;
+      if (under && map.contains(under) && under !== map) {
+        target = under;
+      }
+    }
     const pickHost = target?.closest<SVGElement>("[data-pick]");
     const selectedPick = pickHost && map.contains(pickHost) ? pickHost : null;
 
     if (tool === "select") {
+      const point = localPoint(event as PointerEvent);
       const activeGroup = activeGroupId ? documentState.featureGroups.find(group => group.id === activeGroupId) : null;
       const edgeId = targetId(event, "edge");
-      if (edgeId && activeGroup && !activeGroup.locked) {
-        if (groupUsesEdge(documentState, activeGroup, edgeId)) {
-          selection = { ...selection, edgeId, faceId: null, vertexId: null, inspectedId: edgeId };
-          const pickInfo = selectedPick ? parsePickInfo(selectedPick.getAttribute("data-pick")) : null;
-          inspectedInfo = pickInfo ?? {
-            layer: "edges",
-            kind: "edge",
-            id: edgeId,
-            label: `edge #${edgeId}`,
-            a: documentState.mesh.edges[edgeId]?.a,
-            b: documentState.mesh.edges[edgeId]?.b
-          };
-          refresh();
+      if (
+        edgeId &&
+        activeGroup &&
+        !activeGroup.locked &&
+        activeGroup.kind !== "river" &&
+        !groupUsesEdge(documentState, activeGroup, edgeId)
+      ) {
+        const next = appendEdge(documentState, activeGroup.id, edgeId);
+        if (next) {
+          commit(next, `Extend ${activeGroup.name}`);
           return;
         }
-        if (activeGroup.kind !== "river") {
-          const next = appendEdge(documentState, activeGroup.id, edgeId);
-          if (next) commit(next, `Extend ${activeGroup.name}`);
-          else showNotice("Choose an unused edge beside a route endpoint");
+      }
+
+      const route = routeAtEvent(event, point, true, true);
+      if (route) {
+        const routeGroup = documentState.featureGroups.find(g => g.id === route.groupId);
+        if (routeGroup) {
+          activeGroupId = routeGroup.id;
+          selection = {
+            faceId: null,
+            vertexId: null,
+            groupId: routeGroup.id,
+            edgeId: route.edgeId,
+            inspectedId: routeGroup.id
+          };
+          inspectedInfo = {
+            layer: "features",
+            kind: routeGroup.kind,
+            id: routeGroup.id,
+            label: `${routeGroup.kind} (${routeGroup.name})`,
+            name: routeGroup.name,
+            selectedEdgeId: route.edgeId,
+            locked: routeGroup.locked,
+            widthMeters: routeGroup.style.widthMeters,
+            color: routeGroup.style.color,
+            segmentCount: routeGroup.kind === "river" ? routeGroup.vertices.length : routeGroup.segments.length
+          };
+          refresh();
           return;
         }
       }
@@ -1034,8 +1155,20 @@ export function mountCityEditor(root: HTMLElement): void {
             activeGroupId = null;
           } else if (info.layer === "gates" || info.kind === "gate") {
             const vertexId = (info.vertexId as Id) ?? null;
-            selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null, inspectedId: infoId };
-            activeGroupId = null;
+            const wallId = (info.wallId as Id) ?? null;
+            selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: wallId, inspectedId: infoId };
+            activeGroupId = wallId;
+          } else if (info.layer === "fortifications" || info.kind === "tower") {
+            const wallId = (info.wallId as Id) ?? null;
+            selection = {
+              ...selection,
+              faceId: null,
+              edgeId: null,
+              vertexId: null,
+              groupId: wallId,
+              inspectedId: infoId
+            };
+            activeGroupId = wallId;
           } else {
             selection = { ...selection, inspectedId: infoId };
           }
@@ -1527,19 +1660,6 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function populateInspectorEditControls(container: HTMLElement): void {
-    if (activeGroupId) {
-      const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
-      if (group) {
-        container.appendChild(
-          text(
-            group.locked
-              ? `${group.name} is locked`
-              : "Route drawing: in River, Road, or Wall mode, left-drag from a nearby edge to lay a connected route. In Select mode, left-drag a highlighted route edge through a cell to reroute it; right-click to delete; click an unused edge at an endpoint to extend it."
-          )
-        );
-        return;
-      }
-    }
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
@@ -1552,6 +1672,19 @@ export function mountCityEditor(root: HTMLElement): void {
               commit(next, `Delete edge in ${group.name}`);
             }
           })
+        );
+        return;
+      }
+    }
+    if (activeGroupId) {
+      const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
+      if (group) {
+        container.appendChild(
+          text(
+            group.locked
+              ? `${group.name} is locked`
+              : "Route drawing: in River, Road, or Wall mode, left-drag from a nearby edge to lay a connected route. In Select mode, left-drag a highlighted route edge through a cell to reroute it; right-click to delete; click an unused edge at an endpoint to extend it."
+          )
         );
         return;
       }
@@ -1699,19 +1832,35 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function renderGroups(): void {
     groups.content.replaceChildren();
+    let selectedRowEl: HTMLElement | null = null;
     for (const group of documentState.featureGroups) {
-      const row = div("ce-group-row");
+      const isSelected = group.id === activeGroupId;
+      const row = div(`ce-group-row${isSelected ? " is-active ce-group-selected" : ""}`);
+      row.setAttribute("data-group-row", group.id);
+      if (isSelected) selectedRowEl = row;
       const choose = makeIconButton(
         group.kind === "river" ? "〰" : group.kind === "road" ? "╱" : "▥",
         `Select ${group.name}`,
         () => {
           activeGroupId = group.id;
           selection.groupId = group.id;
+          selection.inspectedId = group.id;
+          inspectedInfo = {
+            layer: "features",
+            kind: group.kind,
+            id: group.id,
+            label: `${group.kind} (${group.name})`,
+            name: group.name,
+            locked: group.locked,
+            widthMeters: group.style.widthMeters,
+            color: group.style.color,
+            segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
+          };
           tool = "select";
           refresh();
         }
       );
-      choose.classList.toggle("is-active", group.id === activeGroupId);
+      choose.classList.toggle("is-active", isSelected);
       row.append(
         choose,
         text(group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`)
@@ -1730,11 +1879,15 @@ export function mountCityEditor(root: HTMLElement): void {
           if (activeGroupId === group.id) {
             activeGroupId = null;
             selection.groupId = null;
+            if (inspectedInfo?.id === group.id) inspectedInfo = null;
           }
           commit(removeGroup(documentState, group.id), `Delete ${name}`);
         })
       );
       groups.content.appendChild(row);
+    }
+    if (selectedRowEl && typeof selectedRowEl.scrollIntoView === "function") {
+      selectedRowEl.scrollIntoView({ block: "nearest" });
     }
     if (activeGroupId)
       groups.content.appendChild(
@@ -2296,7 +2449,12 @@ export function mountCityEditor(root: HTMLElement): void {
     return ((halfView * 2) / Math.max(map.getBoundingClientRect().width, 1)) * pixels;
   }
 
-  function routeAtEvent(event: Event, point: Point, allowNearby: boolean): { groupId: Id; edgeId: Id } | null {
+  function routeAtEvent(
+    event: Event,
+    point: Point,
+    allowNearby: boolean,
+    allowLocked = false
+  ): { groupId: Id; edgeId: Id } | null {
     const directGroupId = targetId(event, "group");
     const directEdgeId = targetId(event, "edge");
     const activeGroup = activeGroupId ? documentState.featureGroups.find(group => group.id === activeGroupId) : null;
@@ -2308,8 +2466,8 @@ export function mountCityEditor(root: HTMLElement): void {
         : directEdgeId
           ? documentState.featureGroups.find(candidate => candidate.id === directEdgeGroups[0])
           : null;
-    if (!group) return allowNearby ? closestRouteAtPoint(point) : null;
-    if (group.locked) return null;
+    if (!group) return allowNearby ? closestRouteAtPoint(point, allowLocked) : null;
+    if (group.locked && !allowLocked) return null;
     const edgeId =
       directEdgeId && routeEdgesByGroup.get(group.id)?.includes(directEdgeId)
         ? directEdgeId
@@ -2317,13 +2475,13 @@ export function mountCityEditor(root: HTMLElement): void {
     return edgeId ? { groupId: group.id, edgeId } : null;
   }
 
-  function closestRouteAtPoint(point: Point): { groupId: Id; edgeId: Id } | null {
+  function closestRouteAtPoint(point: Point, allowLocked = false): { groupId: Id; edgeId: Id } | null {
     const metersPerPixel = (halfView * 2) / Math.max(map.getBoundingClientRect().width, 1);
     let closest: { groupId: Id; edgeId: Id } | null = null;
     let nearestRatio = Number.POSITIVE_INFINITY;
     for (const group of documentState.featureGroups) {
-      if (group.locked) continue;
-      const hitRadius = group.style.widthMeters / 2 + metersPerPixel * 8;
+      if (group.locked && !allowLocked) continue;
+      const hitRadius = Math.max(group.style.widthMeters / 2 + metersPerPixel * 8, metersPerPixel * 12);
       for (const edgeId of routeEdgesByGroup.get(group.id) ?? []) {
         const edge = documentState.mesh.edges[edgeId];
         if (!edge) continue;
@@ -2360,8 +2518,14 @@ export function mountCityEditor(root: HTMLElement): void {
   function localPointAt(clientX: number, clientY: number): [number, number] {
     const svg = map.querySelector("svg");
     if (!svg) return [0, 0];
-    const point = new DOMPoint(clientX, clientY).matrixTransform(svg.getScreenCTM()?.inverse());
-    return [point.x, -point.y];
+    if (typeof DOMPoint !== "undefined" && typeof svg.getScreenCTM === "function") {
+      const ctm = svg.getScreenCTM();
+      if (ctm) {
+        const point = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
+        return [point.x, -point.y];
+      }
+    }
+    return [clientX, -clientY];
   }
 
   async function importDocument(): Promise<void> {
