@@ -2,7 +2,8 @@
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types";
 import type { BuildingLot } from "./buildingLots";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { frontageBuildings } from "./frontageBuildings";
+import { nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
 import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import { makeRng } from "./prng";
 
@@ -213,7 +214,7 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     const build = !!face.properties.ward && !["park", "farm", "empty"].includes(face.properties.ward) && !reserved;
     const key = options
       ? JSON.stringify([
-          "district-infill-v2",
+          "district-infill-v3",
           options.seed,
           id,
           face.properties,
@@ -268,10 +269,26 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
           const edge = mesh.edges[ref.edgeId];
           return [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point];
         });
-      fillPart(face, safe, portals, roadFrontages, build, local, parameters, options?.seed);
+      const frontageEdges = safe.flatMap((a, i) => {
+        const b = safe[(i + 1) % safe.length];
+        const length = distance(a, b);
+        const facing = roadFrontages.some(([c, d]) => {
+          const roadLength = distance(c, d);
+          return (
+            length > 1e-6 &&
+            roadLength > 1e-6 &&
+            Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-6 &&
+            nearestOnPolyline(mid(a, b), [c, d]).dist <= Math.max(...setbacks) + 0.1
+          );
+        });
+        return facing ? [[a, b]] : [];
+      });
+      fillPart(face, safe, portals, frontageEdges, build, local, parameters, options?.seed);
     }
     local.buildings = local.buildings.filter(
-      b => !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
+      b =>
+        b.polygon.every(p => pointInPolygon(p, polygon)) &&
+        !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
     );
     options?.cache.set(key, local);
     fabric.buildings.push(...local.buildings);
@@ -308,154 +325,123 @@ function fillPart(
   parameters?: DistrictParameters,
   seed?: string
 ): void {
-  const rng = makeRng(`${seed ?? "block-infill-v1"}:${face.id}:${face.properties.ward}:${polygon[0].join(",")}`);
+  const rng = makeRng(`${seed ?? "block-infill-v3"}:${face.id}:${face.properties.ward}:${polygon[0].join(",")}`);
   const laneWidth = parameters?.laneWidth ?? 3;
-  const center = polygonCentroid(polygon);
-  const lanes: InfillLane[] = [];
-  const addLane = (points: Point[], widthMeters: number) => {
-    const lane = { faceId: face.id, points, widthMeters };
-    lanes.push(lane);
-    fabric.lanes.push(lane);
-    return lane;
-  };
-  let regions: Point[][] = [polygon];
-  if (parameters) {
-    // A district-wide orthogonal layout grows from a connected perimeter lane.
-    // This avoids a new radial starburst at each convex piece's centroid.
-    addLane(boundary(polygon), laneWidth);
-    for (const entry of entries) addLane([entry, nearestOnPolyline(entry, boundary(polygon)).point], laneWidth);
-    regions = [
-      insetConvexKernel(
-        polygon,
-        polygon.map(() => laneWidth / 2 + 0.4)
-      )
-    ].filter(p => p.length >= 3);
-  } else {
-    for (const entry of entries) {
-      const anchor = nearestOnPolyline(entry, boundary(polygon)).point;
-      const length = distance(anchor, center);
-      if (length < 1) continue;
-      const normal: Point = [(anchor[1] - center[1]) / length, (center[0] - anchor[0]) / length];
-      const offset = dot(center, normal);
-      const line = chord(polygon, normal, offset);
-      if (!line) continue;
-      addLane([entry, anchor, center], laneWidth);
-      addLane(line, laneWidth);
-      regions = regions
-        .flatMap(poly => [
-          clipHalfPlane(poly, normal, offset - laneWidth / 2 - 0.5),
-          clipHalfPlane(poly, [-normal[0], -normal[1]], -offset - laneWidth / 2 - 0.5)
-        ])
-        .filter(poly => poly.length >= 3 && Math.abs(polygonArea(poly)) >= 65);
-    }
-  }
-  if (!build) return;
   const landmark = face.properties.ward === "castle";
   const target = parameters?.lotArea ?? (landmark ? 1200 : face.properties.ward === "merchant" ? 220 : 150);
   const outskirts = face.properties.settlement === "outskirts";
-  const subdivide = (poly: Point[], access: InfillLane[], depth: number) => {
-    const area = Math.abs(polygonArea(poly));
-    if (area < 65) return;
-    const frontage = poly
-      .map((a, i) => {
-        const b = poly[(i + 1) % poly.length];
-        const lane = access.find(l => nearestOnPolyline(mid(a, b), l.points).dist <= l.widthMeters / 2 + 0.6);
-        return { a, b, lane, length: distance(a, b) };
-      })
-      .filter(e => e.lane)
-      .sort((a, b) => b.length - a.length)[0];
-    if (!frontage) return;
-    if (depth < 14 && area > target * rng.range(1.2, 1.8) && frontage.length > 12) {
-      let normal: Point = [
-        (frontage.b[0] - frontage.a[0]) / frontage.length,
-        (frontage.b[1] - frontage.a[1]) / frontage.length
-      ];
-      if (parameters) {
-        const axis: Point = [Math.cos(parameters.orientation), Math.sin(parameters.orientation)];
-        const across: Point = [-axis[1], axis[0]];
-        normal = Math.abs(dot(normal, axis)) >= Math.abs(dot(normal, across)) ? axis : across;
+  const access: InfillLane[] = roadFrontages.map(points => ({ faceId: face.id, points, widthMeters: 0 }));
+  const lanes: InfillLane[] = [];
+  const addLane = (points: Point[]) => {
+    if (distance(points[0], points[points.length - 1]) < 1e-6) return;
+    const lane = { faceId: face.id, points, widthMeters: laneWidth };
+    lanes.push(lane);
+    fabric.lanes.push(lane);
+    access.push(lane);
+  };
+  const split = (poly: Point[], normal: Point, offset: number) =>
+    [
+      clipHalfPlane(poly, normal, offset - laneWidth / 2 - 0.35),
+      clipHalfPlane(poly, [-normal[0], -normal[1]], -offset - laneWidth / 2 - 0.35)
+    ].filter(p => p.length >= 3 && Math.abs(polygonArea(p)) >= 65);
+  const preferredNormal = (tangent: Point): Point => {
+    if (!parameters) return tangent;
+    const axis: Point = [Math.cos(parameters.orientation), Math.sin(parameters.orientation)];
+    const across: Point = [-axis[1], axis[0]];
+    return Math.abs(dot(tangent, axis)) >= Math.abs(dot(tangent, across)) ? axis : across;
+  };
+  let regions = [polygon];
+  // A trunk enters perpendicular to its frontage. Subsequent portals connect
+  // to it, instead of drawing an unconditional road around the entire block.
+  for (const entry of entries) {
+    const hit = nearestOnPolyline(entry, boundary(polygon));
+    const anchor = hit.point;
+    const a = polygon[hit.segIndex],
+      b = polygon[(hit.segIndex + 1) % polygon.length];
+    const length = distance(a, b);
+    if (length < 1e-6) continue;
+    let normal = preferredNormal([(b[0] - a[0]) / length, (b[1] - a[1]) / length]);
+    if (lanes.length) {
+      const nearest = lanes.map(l => nearestOnPolyline(anchor, l.points)).sort((a, b) => a.dist - b.dist)[0];
+      if (nearest.dist < 1e-5) {
+        addLane([entry, anchor]);
+        continue;
       }
+      normal = [(nearest.point[1] - anchor[1]) / nearest.dist, (anchor[0] - nearest.point[0]) / nearest.dist];
+    }
+    const offset = dot(anchor, normal);
+    const line = chord(polygon, normal, offset);
+    if (!line) continue;
+    addLane([entry, anchor]);
+    addLane(line);
+    regions = regions.flatMap(poly => split(poly, normal, offset));
+  }
+  if (!build) return;
+  const frontages = (poly: Point[], roads: InfillLane[]) =>
+    poly.flatMap((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      const length = distance(a, b);
+      if (length < 1e-6) return [];
+      const lane = roads.find(l => {
+        const limit = l.widthMeters / 2 + 0.36;
+        // At an oblique junction, an offset edge's endpoint can extend past
+        // the centreline endpoint. Test the parallel frontage at its midpoint
+        // rather than rejecting the entire row because of that corner.
+        const hit = nearestOnPolyline(mid(a, b), l.points);
+        const c = l.points[hit.segIndex],
+          d = l.points[hit.segIndex + 1];
+        const roadLength = distance(c, d);
+        return (
+          hit.dist <= limit &&
+          roadLength > 1e-6 &&
+          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-5
+        );
+      });
+      return lane ? [{ i, a, b, length }] : [];
+    });
+  // Only coarse divisions create streets. Each resulting block is packed with
+  // frontage lots without drawing roads between neighbouring houses.
+  const subdivide = (poly: Point[], roads: InfillLane[], depth: number): void => {
+    const fronts = frontages(poly, roads).sort((a, b) => b.length - a.length);
+    if (!fronts.length) return;
+    const area = Math.abs(polygonArea(poly));
+    const front = fronts[0];
+    if (depth < 12 && area > target * (outskirts ? 18 : 12) && front.length > Math.sqrt(target) * 2.5) {
+      const normal = preferredNormal([
+        (front.b[0] - front.a[0]) / front.length,
+        (front.b[1] - front.a[1]) / front.length
+      ]);
       const t = rng.range(0.4, 0.6);
       const offset = dot(
-        [frontage.a[0] + (frontage.b[0] - frontage.a[0]) * t, frontage.a[1] + (frontage.b[1] - frontage.a[1]) * t],
+        [front.a[0] + (front.b[0] - front.a[0]) * t, front.a[1] + (front.b[1] - front.a[1]) * t],
         normal
       );
       const line = chord(poly, normal, offset);
-      const width = area > 5000 ? laneWidth : laneWidth * 0.6;
-      const a = clipHalfPlane(poly, normal, offset - width / 2 - 0.4);
-      const b = clipHalfPlane(poly, [-normal[0], -normal[1]], -offset - width / 2 - 0.4);
-      if (line && a.length >= 3 && b.length >= 3 && Math.min(Math.abs(polygonArea(a)), Math.abs(polygonArea(b))) > 65) {
-        // Extend across the setback into the parent lane, making the T junction real.
+      const parts = split(poly, normal, offset);
+      if (line && parts.length === 2 && parts.every(p => Math.abs(polygonArea(p)) > target * 2)) {
         const points = line.map(p => {
-          const near = access.map(l => ({ l, ...nearestOnPolyline(p, l.points) })).sort((a, b) => a.dist - b.dist)[0];
-          return near && near.dist <= near.l.widthMeters / 2 + 0.7 ? near.point : p;
+          const near = roads.map(l => ({ l, ...nearestOnPolyline(p, l.points) })).sort((a, b) => a.dist - b.dist)[0];
+          return near && near.dist <= near.l.widthMeters / 2 + 0.36 ? near.point : p;
         });
-        const lane = addLane(points, width);
-        subdivide(a, [...access, lane], depth + 1);
-        subdivide(b, [...access, lane], depth + 1);
+        addLane(points);
+        const childAccess = [...roads, lanes[lanes.length - 1]];
+        for (const part of parts) subdivide(part, childAccess, depth + 1);
         return;
       }
     }
-    // Outskirts leave the back of a coarse cell open; dense cores retain occasional courtyards.
-    if (outskirts && !roadFrontages.some(line => nearestOnPolyline(polygonCentroid(poly), line).dist < 45)) return;
-    if (
-      !landmark &&
-      (parameters || area < 800) &&
-      rng() < (parameters ? 1 - parameters.occupancy : outskirts ? 0.18 : 0.035)
-    )
-      return;
-    let footprint = insetConvexKernel(
+    const footprints = frontageBuildings(
       poly,
-      poly.map(() => 0.45)
+      fronts.map(f => f.i),
+      {
+        lotArea: target,
+        coverage: parameters?.coverage ?? 0.75,
+        occupancy: landmark ? 1 : (parameters?.occupancy ?? (outskirts ? 0.82 : 0.965)),
+        outskirts
+      },
+      rng
     );
-    // A residual triangular lot can host a smaller rectangular house; never
-    // turn every wedge between access lanes into a triangular building.
-    if (parameters || footprint.length === 3) {
-      const axis: Point = parameters
-        ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
-        : [(frontage.b[0] - frontage.a[0]) / frontage.length, (frontage.b[1] - frontage.a[1]) / frontage.length];
-      const normal: Point = [-axis[1], axis[0]];
-      const center = polygonCentroid(footprint);
-      const extent = (n: Point) =>
-        Math.min(
-          Math.max(...footprint.map(p => dot(p, n))) - dot(center, n),
-          dot(center, n) - Math.min(...footprint.map(p => dot(p, n)))
-        );
-      const x = extent(axis),
-        y = extent(normal);
-      const rectangle = (scale: number): Point[] =>
-        [
-          [-1, -1],
-          [1, -1],
-          [1, 1],
-          [-1, 1]
-        ].map(([dx, dy]) => [
-          center[0] + scale * (dx * x * axis[0] + dy * y * normal[0]),
-          center[1] + scale * (dx * x * axis[1] + dy * y * normal[1])
-        ]);
-      let lo = 0,
-        hi = 1;
-      for (let i = 0; i < 12; i++) {
-        const t = (lo + hi) / 2;
-        if (rectangle(t).every(p => pointInPolygon(p, footprint))) lo = t;
-        else hi = t;
-      }
-      footprint = rectangle(lo);
-    }
-    if (parameters && footprint.length >= 3) {
-      const scale = Math.min(1, Math.sqrt((area * parameters.coverage) / Math.abs(polygonArea(footprint))));
-      const center = polygonCentroid(footprint);
-      footprint = footprint.map(p => [center[0] + (p[0] - center[0]) * scale, center[1] + (p[1] - center[1]) * scale]);
-    }
-    if (footprint.length < 3 || Math.abs(polygonArea(footprint)) < 50) return;
-    // Keep long unpartitioned slivers and oversized recursion leftovers empty.
-    const perimeter = footprint.reduce((s, p, i) => s + distance(p, footprint[(i + 1) % footprint.length]), 0);
-    if (Math.abs(polygonArea(footprint)) / perimeter < 1.6 || (!landmark && area > target * 4)) return;
-    if (!footprint.every(p => pointInPolygon(p, polygon))) return;
-    fabric.buildings.push({ faceId: face.id, polygon: footprint, landmark });
+    for (const footprint of footprints) fabric.buildings.push({ faceId: face.id, polygon: footprint, landmark });
   };
-  // Each region inherits only the entry network. Sibling regions' lot alleys
-  // are unrelated; accumulating them here makes dense-cell infill quadratic.
-  const entryLanes = lanes.slice();
-  for (const region of regions) subdivide(region, entryLanes, 0);
+  const initialAccess = access.slice();
+  for (const region of regions) subdivide(region, initialAccess, 0);
 }

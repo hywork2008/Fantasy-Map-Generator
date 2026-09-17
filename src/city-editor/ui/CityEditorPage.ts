@@ -1814,7 +1814,7 @@ export function mountCityEditor(root: HTMLElement): void {
           ["coverage", "Building coverage (%)", parameters.coverage * 100, 15, 100, 1],
           ["lotArea", "Target lot area (m²)", parameters.lotArea, 80, 3000, 10],
           ["laneWidth", "Lane width (m)", parameters.laneWidth, 1, 12, 0.2],
-          ["orientation", "Building direction (°)", (parameters.orientation * 180) / Math.PI, -180, 180, 1]
+          ["orientation", "Local street direction (°)", (parameters.orientation * 180) / Math.PI, -180, 180, 1]
         ] as const;
         for (const [key, title, value, min, max, step] of fields) {
           const input = numberInput(String(Math.round(value * 100) / 100), String(min), String(step));

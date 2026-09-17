@@ -78,13 +78,23 @@ describe("coarse-cell infill", () => {
     for (const building of fabric.buildings) {
       expect(building.polygon.every(p => pointInPolygon(p, rect))).toBe(true);
       expect(Math.min(...building.polygon.map(p => p[0]))).toBeGreaterThan(7);
-      expect(Math.min(...building.polygon.flatMap(p => segments.map(s => nearestOnPolyline(p, s).dist)))).toBeLessThan(
-        3
-      );
+      // Houses may front either an internal lane or the real road at x=0.
+      const laneDistance = Math.min(...building.polygon.flatMap(p => segments.map(s => nearestOnPolyline(p, s).dist)));
+      const roadDistance = Math.min(...building.polygon.map(p => p[0] - 4));
+      expect(laneDistance < 3 || roadDistance < 3.2).toBe(true);
       for (const lane of fabric.lanes)
         for (const p of building.polygon)
           expect(nearestOnPolyline(p, lane.points).dist).toBeGreaterThanOrEqual(lane.widthMeters / 2 - 1e-5);
     }
+  });
+  it("packs lots without a street per house and builds along outskirts lanes beyond the major road", () => {
+    const document = fixture([rect]);
+    document.mesh.faces.f0.properties.settlement = "outskirts";
+    const fabric = buildBlockFabric(document);
+    expect(fabric.buildings.length).toBeGreaterThan(fabric.lanes.length * 5);
+    expect(fabric.buildings.filter(b => polygonCentroid(b.polygon)[0] > 80).length).toBeGreaterThan(20);
+    const { segments, seen } = connectedLaneSegments(fabric);
+    expect(seen.size).toBe(segments.length);
   });
   it("connects across a shared dry boundary but never opens a wall", () => {
     const document = fixture([

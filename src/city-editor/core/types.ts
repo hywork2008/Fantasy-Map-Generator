@@ -102,6 +102,7 @@ export interface DistrictParameters {
   coverage: number;
   lotArea: number;
   laneWidth: number;
+  /** Preferred local street axes; buildings follow their actual frontage. */
   orientation: number;
 }
 export interface FabricDistrict {
