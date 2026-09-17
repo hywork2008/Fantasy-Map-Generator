@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createGridDocument, createSizedDocument } from "./document";
+import { createGridDocument, createSizedDocument, sizePresetForExtent } from "./document";
 import { featureGroupVertices } from "./features";
 import { polygonArea } from "./gen/geom";
+import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
+import { synthSite } from "./gen/site/synthSite";
 import {
   defaultGenerationSettings,
   GENERATION_STAGES,
@@ -728,5 +730,71 @@ describe("riversForCount", () => {
   it("keeps every river inland when landlocked", () => {
     const config = { ...defaultGenerationSettings().config, coast: "none" as const };
     expect(riversForCount(config, 2)).toEqual(["meander", "meander"]);
+  });
+});
+
+describe("FMG descriptor geography", () => {
+  const grid = createGridDocument({ size: "small", grid: "hex", seed: "fmg-grid" });
+  const descriptor = JSON.parse(
+    JSON.stringify(
+      synthSite(
+        "largeTown",
+        {
+          ...DEFAULT_SITE_CONFIG,
+          coast: "bay",
+          rivers: ["toCoast"],
+          features: { ...DEFAULT_SITE_CONFIG.features, port: true, walls: true }
+        },
+        "fmg-site",
+        { extentMeters: 1200, cityRadiusMeters: 396 }
+      )
+    )
+  );
+
+  it("uses the descriptor's coast even when SiteConfig is landlocked", () => {
+    const settings = defaultGenerationSettings();
+    settings.descriptor = descriptor;
+    const imported = generateStageOnDocument(grid, settings, "fmg-layout", 1);
+    expect(imported).not.toBeNull();
+    expect(Object.values(imported!.mesh.faces).some(face => face.properties.water !== "land")).toBe(true);
+    const synth = generateStageOnDocument(grid, defaultGenerationSettings(), "fmg-layout", 1);
+    expect(Object.values(synth!.mesh.faces).every(face => face.properties.water === "land")).toBe(true);
+  });
+
+  it("routes a descriptor river onto the mesh when SiteConfig has no rivers", () => {
+    const settings = defaultGenerationSettings();
+    settings.config.rivers = [];
+    settings.descriptor = descriptor;
+    const out = generateStageOnDocument(grid, settings, "fmg-layout", 2);
+    expect(out?.featureGroups.some(group => group.kind === "river")).toBe(true);
+  });
+
+  it("is deterministic in (document, descriptor, seed)", () => {
+    const settings = defaultGenerationSettings();
+    settings.descriptor = descriptor;
+    const a = generateStageOnDocument(grid, settings, "fmg-det", 2);
+    const b = generateStageOnDocument(grid, settings, "fmg-det", 2);
+    expect(a).toEqual(b);
+  });
+});
+
+describe("sizePresetForExtent / custom frame", () => {
+  it("picks the closest Small / Medium / Large window", () => {
+    expect(sizePresetForExtent(1200)).toBe("small");
+    expect(sizePresetForExtent(1500)).toBe("small");
+    expect(sizePresetForExtent(3000)).toBe("medium");
+    expect(sizePresetForExtent(4500)).toBe("large");
+  });
+
+  it("createGridDocument honours an FMG descriptor frame", () => {
+    const document = createGridDocument({
+      size: "small",
+      grid: "hex",
+      extentMeters: 1800,
+      cityRadiusMeters: 300
+    });
+    expect(document.frame.extentMeters).toBe(1800);
+    expect(document.frame.cityRadiusMeters).toBe(300);
+    expect(validate(document)).toEqual([]);
   });
 });

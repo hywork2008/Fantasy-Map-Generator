@@ -575,6 +575,13 @@ export const BurgEditorDialog: React.FC = () => {
             ></button>
             <button
               type="button"
+              id="burgOpenCityEditor"
+              data-tip="Open the City Editor for this burg (hands off its local site descriptor: shape, roads, rivers)"
+              className="icon-pencil"
+              onClick={() => burgEditorActions.openCityEditor()}
+            ></button>
+            <button
+              type="button"
               id="burgLocate"
               data-tip="Zoom map and center view in the burg"
               className="icon-target"

@@ -6,7 +6,8 @@ import { createFabricPlan } from "./gen/fabricDistricts";
 // and builders run ON THE DOCUMENT'S EXISTING MESH; it never rebuilds the block
 // grid (that is the Document panel's job) and never resizes the map. Each stage
 // button recomputes
-// the plan up to its own process from an internal random seed and writes only the
+// the plan up to its own process from a seed (shown in the Generate panel, and
+// encoded in a shareable `city-editor/#…` link) and writes only the
 // visible result back onto a clone of the current document:
 //
 //   ① coast   → face.water on sea cells
@@ -17,9 +18,10 @@ import { createFabricPlan } from "./gen/fabricDistricts";
 //   ⑥ wards   → face.ward per urban cell + temple / harbour landmarks
 //
 // A press clears every "gc:*" layer and non-locked face tag first, so the stages
-// read as a scrub through the drawing process. The seed is internal (never shown
-// or persisted); "🎲 新しい都市" rolls a new one. Coast / Rivers / Features are
-// the deliberate inputs and are kept across presses.
+// read as a scrub through the drawing process. The seed is shown in the Generate
+// panel and encoded in a shareable link; "🎲 新しい都市" rolls a new one. Coast /
+// Rivers / Features (or a real FMG descriptor) are the deliberate inputs and
+// are kept across presses.
 
 import { orderedBoundaryLoops, shortestPath } from "./features";
 import { classifyRiver } from "./gen/classifyRiver";
@@ -41,6 +43,7 @@ import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import { resolveWalledAreaShare, splitUrbanCore } from "./gen/settlementExtent";
+import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
@@ -135,6 +138,10 @@ export interface GenerationSettings {
   urbanNPatches?: number;
   /** Phase G2 street-extension / sea-avoidance knobs. Unset = `defaultStreetSettings()`. */
   streets?: Partial<StreetSettings>;
+  /** Real FMG (or shared) site. When set, geography and programme come from this
+   * instead of `synthSite(config, seed)`. The document frame should match
+   * `descriptor.frame` so corridors sit on the mesh. */
+  descriptor?: BurgSiteDescriptor;
 }
 
 export function defaultStreetSettings(): StreetSettings {
@@ -176,10 +183,12 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
   const frame = document.frame;
   const half = frame.extentMeters / 2;
   const cellSize = Math.max(1, frame.blockSizeMeters);
-  const descriptor = synthSite(NOMINAL_PRESET, settings.config, seed, {
-    extentMeters: frame.extentMeters,
-    cityRadiusMeters: frame.cityRadiusMeters
-  });
+  const descriptor =
+    settings.descriptor ??
+    synthSite(NOMINAL_PRESET, settings.config, seed, {
+      extentMeters: frame.extentMeters,
+      cityRadiusMeters: frame.cityRadiusMeters
+    });
   const geo = siteToGeography(descriptor);
   const baseProgram = siteToProgram(descriptor);
   const program: CityProgram = {
@@ -189,7 +198,7 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
   const params: CityParams = {
     seed,
     extentMeters: frame.extentMeters,
-    cityRadiusMeters: frame.cityRadiusMeters,
+    cityRadiusMeters: settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters,
     cellSizeMeters: cellSize,
     lloydPasses: 1,
     urbanNPatches: settings.urbanNPatches
@@ -808,7 +817,11 @@ function runPlan(
   let streetResult = buildStreets(streetInput);
   let routedGates = gates;
   let streetGeo = geo;
-  if (streetOpts.avoidSea && majorityLandGatesUnserved(routedGates, streetResult.roads, cellSize)) {
+  if (
+    streetOpts.avoidSea &&
+    majorityLandGatesUnserved(routedGates, streetResult.roads, cellSize) &&
+    !settings.descriptor
+  ) {
     const retry = synthSite(NOMINAL_PRESET, settings.config, `${seed}:roads-retry`, {
       extentMeters: params.extentMeters,
       cityRadiusMeters: params.cityRadiusMeters

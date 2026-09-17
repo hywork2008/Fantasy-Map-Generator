@@ -32,6 +32,23 @@ export interface CreateGridOptions {
   hexSizeMeters?: number;
   /** Spiral-scatter parameters. Used when `grid` is `"evolution"`. */
   patchParams?: Omit<PatchParams, "extentMeters">;
+  /** Override the preset window so an FMG descriptor's frame is used as-is. */
+  extentMeters?: number;
+  cityRadiusMeters?: number;
+}
+
+/** Closest Small / Medium / Large preset to a descriptor (or share) window. */
+export function sizePresetForExtent(extentMeters: number): CitySizePreset {
+  let best: CitySizePreset = "small";
+  let bestDelta = Infinity;
+  for (const id of Object.keys(CITY_SIZE_PRESETS) as CitySizePreset[]) {
+    const delta = Math.abs(CITY_SIZE_PRESETS[id].extentMeters - extentMeters);
+    if (delta < bestDelta) {
+      best = id;
+      bestDelta = delta;
+    }
+  }
+  return best;
 }
 
 /** A Voronoi cell is one macro block. The presets all retain a 50 m block target. */
@@ -61,8 +78,8 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
   const seed = options.seed ?? randomSeed();
   const grid = options.grid ?? "hex";
   const preset = CITY_SIZE_PRESETS[options.size];
-  const extentMeters = preset.extentMeters;
-  const cityRadiusMeters = extentMeters * 0.33;
+  const extentMeters = options.extentMeters ?? preset.extentMeters;
+  const cityRadiusMeters = options.cityRadiusMeters ?? extentMeters * 0.33;
   const hexSizeMeters = options.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
   const patchParams = options.patchParams ?? DEFAULT_PATCH_PARAMS;
 

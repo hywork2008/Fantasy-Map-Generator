@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
+import { synthSite } from "../core/gen/site/synthSite";
+import { buildShare, decodeShare, encodeShare } from "../io/incomingCity";
 import { mountCityEditor } from "./CityEditorPage";
 
 // jsdom has no layout engine; the History panel calls this after every commit.
@@ -16,6 +19,12 @@ beforeEach(() => {
 
 afterEach(() => {
   root.remove();
+  try {
+    sessionStorage.removeItem("fmg.citySite");
+  } catch {
+    /* jsdom without storage */
+  }
+  if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
 });
 
 function stageButton(label: string): HTMLButtonElement {
@@ -156,15 +165,15 @@ describe("Generate panel", () => {
     expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
   });
 
-  it("renders six ordered process buttons (no grid step) and no seed / size field", () => {
+  it("renders six ordered process buttons, a seed field, and no map-size control", () => {
     const labels = [...root.querySelectorAll(".ce-generate-stages button")].map(b => b.textContent);
     expect(labels).toEqual(["① 海岸線と海", "② 河川", "③ 市街地コア", "④ 城壁・門・城郭", "⑤ 街路", "⑥ 地区割り当て"]);
-    // No seed / size field — nPatches is the count cutoff; G2 adds a hidden
-    // bearings text field that only shows for "Manual bearings".
     expect(nPatchesInput().placeholder).toBe("auto");
     expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
     expect(root.querySelector(".ce-generate-farnode")).toBeTruthy();
-    expect([...root.querySelectorAll(".ce-generate label")].some(l => l.textContent?.includes("Size"))).toBe(false);
+    expect(root.querySelector(".ce-generate-seed")).toBeTruthy();
+    expect(panelButton("Copy shareable link")).toBeTruthy();
+    expect([...root.querySelectorAll(".ce-generate label")].some(l => l.textContent?.includes("Map size"))).toBe(false);
     expect(panelButton("新しい都市")).toBeTruthy();
   });
 
@@ -508,5 +517,68 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(blockMeshToggle.checked).toBe(false);
     expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
     expect(has(".ce-buildings .ce-building")).toBe(true);
+  });
+});
+
+describe("shareable link and FMG site", () => {
+  function remount(): void {
+    root.remove();
+    root = document.createElement("div");
+    document.body.append(root);
+    mountCityEditor(root);
+  }
+
+  it("copies a share that round-trips seed, grid and geography", async () => {
+    const writes: string[] = [];
+    Object.assign(navigator, {
+      clipboard: { writeText: async (value: string) => writes.push(value) }
+    });
+    const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    seedInput.value = "share-seed";
+    seedInput.dispatchEvent(new Event("input", { bubbles: true }));
+    panelButton("Copy shareable link").click();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    const token = writes[0].slice(writes[0].indexOf("#") + 1);
+    const share = decodeShare(token);
+    expect(share?.seed).toBe("share-seed");
+    expect(share?.grid).toBe("hex");
+    expect(share?.size).toBe("small");
+    expect(share?.descriptor).toBeUndefined();
+  });
+
+  it("reproduces a hashed city and hides synth geography when a site is imported", () => {
+    const descriptor = JSON.parse(
+      JSON.stringify(
+        synthSite(
+          "largeTown",
+          {
+            ...DEFAULT_SITE_CONFIG,
+            coast: "bay",
+            rivers: ["toCoast"],
+            features: { ...DEFAULT_SITE_CONFIG.features, port: true }
+          },
+          "ui-fmg",
+          { extentMeters: 1200, cityRadiusMeters: 396 }
+        )
+      )
+    );
+    const share = buildShare({
+      seed: "ui-fmg-layout",
+      grid: "hex",
+      size: "small",
+      hexSizeMeters: 50,
+      gridSeed: "ui-fmg-grid",
+      settings: { config: DEFAULT_SITE_CONFIG },
+      descriptor
+    });
+    window.history.replaceState(null, "", `${location.pathname}#${encodeShare(share)}`);
+    remount();
+    expect(root.querySelector(".ce-imported")?.hidden).toBe(false);
+    expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(true);
+    expect(root.querySelector(".ce-imported-body")?.textContent).toContain("From shared link");
+    expect(root.querySelector<HTMLInputElement>(".ce-generate-seed")?.value).toBe("ui-fmg-layout");
+    panelButton("Use standalone site").click();
+    expect(root.querySelector(".ce-imported")?.hidden).toBe(true);
+    expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(false);
   });
 });

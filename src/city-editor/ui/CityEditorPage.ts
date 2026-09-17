@@ -28,6 +28,7 @@ import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } fro
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
+import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
 import {
   type CityFeatureSet,
   defaultGenerationSettings,
@@ -72,6 +73,15 @@ import {
 } from "../core/mesh";
 import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
+import {
+  buildShare,
+  type CityEditorShare,
+  cityLinkFor,
+  encodeShare,
+  forgetIncomingCity,
+  type IncomingOrigin,
+  readIncomingCity
+} from "../io/incomingCity";
 import {
   faceClassName,
   type GridOverlay,
@@ -192,10 +202,12 @@ export function mountCityEditor(root: HTMLElement): void {
   let closeContextMenuOnPointerMove = false;
   let notice = "";
   const generateSettings: GenerationSettings = defaultGenerationSettings();
-  // The current random town. Internal only — never shown or typed. Re-rolled
-  // solely by the "🎲 新しい都市" button; every stage regenerates THIS town so
+  // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
+  // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
+  let gridSeed = randomSeed();
+  let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
   let completeResult: CityDocument | null = null;
   let generationJob: ReturnType<typeof startCityGeneration> | null = null;
@@ -381,11 +393,14 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   syncGridKindUi();
   const newButton = makeIconButton("🆕", "Generate a new grid", () => {
+    gridSeed = randomSeed();
     documentState = createGridDocument({
       size: size.value as CitySizePreset,
       grid: gridKind,
+      seed: gridSeed,
       hexSizeMeters,
-      patchParams: { ...gridEvoParams }
+      patchParams: { ...gridEvoParams },
+      ...importedFrame()
     });
     history = new DocumentHistory(documentState, "New grid");
     referenceImage = null;
@@ -707,32 +722,64 @@ export function mountCityEditor(root: HTMLElement): void {
     refresh();
   });
 
-  generatePanel.content.append(
-    generationProgress,
-    cancelGeneration,
-    makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
-    makeButton("🎲 新しい都市", () => rollNewTown()),
-    toggleLabel("街区の編集表示", blockMeshInput),
-    divider(),
+  const importedBox = div("ce-imported");
+  const importedText = div("ce-imported-body");
+  const standaloneButton = makeButton("Use standalone site", () => useStandaloneSite());
+  importedBox.append(importedText, standaloneButton);
+  importedBox.hidden = true;
+
+  const seedInput = document.createElement("input");
+  seedInput.type = "text";
+  seedInput.className = "ce-generate-seed";
+  seedInput.spellcheck = false;
+  seedInput.value = generateSeed;
+  seedInput.addEventListener("input", () => {
+    generateSeed = seedInput.value;
+  });
+  seedInput.addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (!generateSeed.trim()) generateSeed = randomSeed();
+    seedInput.value = generateSeed;
+    runCompleteGeneration();
+  });
+  const seedLabel = label("Seed", seedInput);
+  const copyLinkButton = makeButton("Copy shareable link", () => void copyShareLink(copyLinkButton));
+
+  const synthControls = div("ce-generate-synth");
+  synthControls.append(
     label("Coast", coastSelect),
     label("Rivers", riversSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
     text("Features"),
     featureGrid,
-    label("城壁内の市街地面積（%）", walledShareInput),
-    text("空欄は Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
-    housingSummary,
     makeButton("🎲 Randomize geography", () => {
       generateSettings.config = randomGeography();
-      syncGenerateControls();
       generateSeed = randomSeed();
+      syncGenerateControls();
       stepIndex = -1;
       rerunLastStage();
       showNotice("Geography randomized");
-    }),
+    })
+  );
+
+  generatePanel.content.append(
+    generationProgress,
+    cancelGeneration,
+    makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
+    makeButton("🎲 新しい都市", () => rollNewTown()),
+    copyLinkButton,
+    seedLabel,
+    toggleLabel("街区の編集表示", blockMeshInput),
+    divider(),
+    importedBox,
+    synthControls,
+    label("城壁内の市街地面積（%）", walledShareInput),
+    text("空欄は Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
+    housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。地形と現在の格子を使用します。①〜⑥は各工程の確認用です。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。"
+      "一括生成で城壁・街路を整え、建物を配置します。地形と現在の格子を使用します。①〜⑥は各工程の確認用です。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
     stageButtons,
     divider(),
@@ -1433,7 +1480,9 @@ export function mountCityEditor(root: HTMLElement): void {
   window.addEventListener("resize", refreshScaleBar);
 
   rebuildEditorIndexes();
-  refresh();
+  const incoming = readIncomingCity();
+  if (incoming) applyShare(incoming.share, incoming.origin);
+  else refresh();
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     let next = documentState;
@@ -2674,7 +2723,12 @@ export function mountCityEditor(root: HTMLElement): void {
     completeResult = recipe ? documentState : null;
     if (recipe) {
       generateSeed = recipe.seed;
-      Object.assign(generateSettings, { walledAreaShare: undefined }, clone(recipe.settings));
+      Object.assign(generateSettings, { walledAreaShare: undefined, descriptor: undefined }, clone(recipe.settings));
+      importedOrigin = generateSettings.descriptor ? (importedOrigin ?? "link") : null;
+      syncGenerateControls();
+    } else {
+      delete generateSettings.descriptor;
+      importedOrigin = null;
       syncGenerateControls();
     }
     showBlockMesh = false;
@@ -2701,6 +2755,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function syncGenerateControls(): void {
+    seedInput.value = generateSeed;
     coastSelect.value = generateSettings.config.coast;
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     reliefInput.checked = generateSettings.config.relief;
@@ -2715,11 +2770,107 @@ export function mountCityEditor(root: HTMLElement): void {
     farNodeSelect.value = generateSettings.streets.farNode ?? "descriptorEnd";
     bearingsInput.value = generateSettings.streets.manualBearings?.map(n => String(n)).join(", ") ?? "";
     bearingsLabel.style.display = farNodeSelect.value === "manualBearings" ? "" : "none";
+    const imported = generateSettings.descriptor != null;
+    importedBox.hidden = !imported;
+    synthControls.hidden = imported;
+    if (imported && generateSettings.descriptor) {
+      importedText.replaceChildren(...describeImportedSite(generateSettings.descriptor, importedOrigin));
+    }
+  }
+
+  function importedFrame(): { extentMeters?: number; cityRadiusMeters?: number } {
+    const descriptor = generateSettings.descriptor;
+    return descriptor
+      ? { extentMeters: descriptor.frame.extentMeters, cityRadiusMeters: descriptor.frame.cityRadiusMeters }
+      : {};
+  }
+
+  function currentShare(): CityEditorShare {
+    return buildShare({
+      seed: generateSeed,
+      grid: gridKind,
+      size: size.value as CitySizePreset,
+      hexSizeMeters: gridKind === "hex" ? hexSizeMeters : undefined,
+      gridSeed,
+      patchParams: gridKind === "evolution" ? { ...gridEvoParams } : undefined,
+      settings: generateSettings,
+      descriptor: generateSettings.descriptor
+    });
+  }
+
+  async function copyShareLink(button: HTMLButtonElement): Promise<void> {
+    const share = currentShare();
+    const url = cityLinkFor(share);
+    try {
+      await navigator.clipboard.writeText(url);
+      window.history.replaceState(null, "", `${location.pathname}${location.search}#${encodeShare(share)}`);
+      const label = button.textContent;
+      button.textContent = "Link copied";
+      window.setTimeout(() => {
+        if (button.textContent === "Link copied") button.textContent = label;
+      }, 1400);
+      showNotice("Shareable link copied");
+    } catch {
+      showNotice("Copy failed");
+    }
+  }
+
+  function useStandaloneSite(): void {
+    delete generateSettings.descriptor;
+    importedOrigin = null;
+    forgetIncomingCity();
+    syncGenerateControls();
+    showNotice("Standalone site — geography controls unlocked");
+  }
+
+  function applyShare(share: CityEditorShare, origin: IncomingOrigin): void {
+    generateSeed = share.seed;
+    gridSeed = share.gridSeed ?? share.seed;
+    gridKind = share.grid;
+    hexSizeMeters = share.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
+    if (share.patchParams) Object.assign(gridEvoParams, share.patchParams);
+    size.value = share.size;
+    gridKindSelect.value = gridKind;
+    hexSizeInput.value = String(hexSizeMeters);
+    hexSizeValue.textContent = formatDistance(hexSizeMeters);
+    syncGridKindUi();
+    Object.assign(generateSettings, defaultGenerationSettings(), structuredClone(share.settings));
+    generateSettings.descriptor = share.descriptor;
+    importedOrigin = share.descriptor ? origin : null;
+    documentState = createGridDocument({
+      size: share.size,
+      grid: share.grid,
+      seed: gridSeed,
+      hexSizeMeters,
+      patchParams: { ...gridEvoParams },
+      extentMeters: share.descriptor?.frame.extentMeters,
+      cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters
+    });
+    history = new DocumentHistory(documentState, share.descriptor ? "Imported site" : "Shared city");
+    referenceImage = null;
+    selection = emptySelection();
+    activeGroupId = null;
+    completeSource = documentState;
+    completeResult = null;
+    halfView = documentState.frame.extentMeters / 2;
+    viewCenter = [0, 0];
+    activeStepStage = null;
+    stepIndex = -1;
+    urbanCoreHighlight = null;
+    stepOverlayPaths = null;
+    stepStatus.textContent = "";
+    lastGeneratedStep = null;
+    showBlockMesh = false;
+    clearGridEvo();
+    syncGenerateControls();
+    rebuildEditorIndexes();
+    runCompleteGeneration();
   }
 
   /** Roll a new random town, then re-show it at whatever stage is on screen. */
   function rollNewTown(): void {
     generateSeed = randomSeed();
+    syncGenerateControls();
     stepIndex = -1;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
@@ -3075,6 +3226,38 @@ function buildableLandFaceIds(document: CityDocument): Set<Id> {
     if (face.properties.water === "land" && face.properties.buildable) ids.add(face.id);
   }
   return ids;
+}
+
+function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOrigin | null): Node[] {
+  const water = descriptor.waterbody
+    ? `${descriptor.waterbody.kind}${descriptor.waterbody.isPort ? " · port" : ""}`
+    : "none";
+  const yesNo = (value: boolean): string => (value ? "Yes" : "No");
+  const source = origin === "world" ? "From world map" : origin === "link" ? "From shared link" : "Imported site";
+  const roads = descriptor.roads.filter(road => road.group !== "searoutes");
+  const rows: [string, string][] = [
+    [source, descriptor.burg.name || "(unnamed burg)"],
+    ["Population", descriptor.burg.population.toLocaleString()],
+    ["Radius", `${Math.round(descriptor.frame.cityRadiusMeters)} m`],
+    ["Coast", water],
+    ["Rivers", String(descriptor.rivers.length)],
+    ["Roads", String(roads.length)],
+    ["Gates", String(descriptor.suggestedGates)],
+    ["Walls", yesNo(descriptor.burg.walls)],
+    ["Citadel", yesNo(descriptor.burg.citadel)],
+    ["Plaza / Temple", `${yesNo(descriptor.burg.plaza)} · ${yesNo(descriptor.burg.temple)}`],
+    ["Port", descriptor.burg.port ? (descriptor.waterbody ? "Yes" : "Yes (no waterbody)") : "No"]
+  ];
+  return rows.map(([key, value]) => {
+    const line = document.createElement("div");
+    line.className = "ce-imported-row";
+    const labelNode = document.createElement("span");
+    labelNode.textContent = key;
+    const valueNode = document.createElement("strong");
+    valueNode.textContent = value;
+    line.append(labelNode, valueNode);
+    return line;
+  });
 }
 
 function emptySelection(): RenderSelection {
