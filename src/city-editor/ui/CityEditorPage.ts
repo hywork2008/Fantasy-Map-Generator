@@ -27,6 +27,7 @@ import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvo
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
+import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import {
   type CityFeatureSet,
   defaultGenerationSettings,
@@ -626,6 +627,23 @@ export function mountCityEditor(root: HTMLElement): void {
     generateSettings.urbanNPatches = n;
   });
 
+  const walledShareInput = numberInput("", "5", "5");
+  walledShareInput.max = "100";
+  walledShareInput.className = "ce-generate-walled-share";
+  walledShareInput.title =
+    "住宅容量の目安として市街地面積を配分します。城壁外にも小道と住宅を生成します。空欄はサイズ別の既定値です。";
+  walledShareInput.addEventListener("change", () => {
+    const raw = walledShareInput.value.trim();
+    const n = Number(raw);
+    if (!raw) generateSettings.walledAreaShare = undefined;
+    else if (Number.isFinite(n) && n >= 5 && n <= 100) generateSettings.walledAreaShare = n / 100;
+    walledShareInput.value =
+      generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
+  });
+  const housingSummary = document.createElement("output");
+  housingSummary.className = "ce-generate-housing-summary";
+  housingSummary.title = "中心部／外縁部の地区別建物数（商業等も含む）。人口や住戸数とは異なります。";
+
   if (!generateSettings.streets)
     generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
   const streets = generateSettings.streets;
@@ -701,6 +719,9 @@ export function mountCityEditor(root: HTMLElement): void {
     toggleLabel("Relief (hilltop)", reliefInput),
     text("Features"),
     featureGrid,
+    label("城壁内の市街地面積（%）", walledShareInput),
+    text("空欄は Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
+    housingSummary,
     makeButton("🎲 Randomize geography", () => {
       generateSettings.config = randomGeography();
       syncGenerateControls();
@@ -1547,6 +1568,7 @@ export function mountCityEditor(root: HTMLElement): void {
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
+    walledShareInput.placeholder = `auto (${defaultWalledAreaShare(documentState.frame.extentMeters) * 100}%)`;
     map.classList.toggle("ce-map--select", tool === "select");
     map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
@@ -1616,6 +1638,18 @@ export function mountCityEditor(root: HTMLElement): void {
       sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample }))
     );
     map.replaceChildren(svg);
+    let coreBuildings = 0,
+      outerBuildings = 0;
+    for (const building of svg.querySelectorAll(".ce-building")) {
+      const face = documentState.mesh.faces[building.getAttribute("data-building-face") ?? ""];
+      if (face?.properties.settlement === "core") coreBuildings++;
+      else if (face?.properties.settlement === "outskirts") outerBuildings++;
+    }
+    const buildingCount = coreBuildings + outerBuildings;
+    housingSummary.hidden = buildingCount === 0;
+    housingSummary.textContent = buildingCount
+      ? `建物：中心部 ${coreBuildings.toLocaleString()}棟 / 外縁部 ${outerBuildings.toLocaleString()}棟（${Math.round((outerBuildings / buildingCount) * 100)}%）`
+      : "";
     // Index the per-face nodes this pass just built so a later ward/sea paint
     // can patch just the touched faces (patchFaceRender) instead of forcing
     // another full pass over the whole mesh.
@@ -2640,7 +2674,7 @@ export function mountCityEditor(root: HTMLElement): void {
     completeResult = recipe ? documentState : null;
     if (recipe) {
       generateSeed = recipe.seed;
-      Object.assign(generateSettings, clone(recipe.settings));
+      Object.assign(generateSettings, { walledAreaShare: undefined }, clone(recipe.settings));
       syncGenerateControls();
     }
     showBlockMesh = false;
@@ -2672,6 +2706,8 @@ export function mountCityEditor(root: HTMLElement): void {
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
+    walledShareInput.value =
+      generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
     if (!generateSettings.streets) {
       generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
     }

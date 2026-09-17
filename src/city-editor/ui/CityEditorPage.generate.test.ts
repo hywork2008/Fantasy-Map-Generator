@@ -431,9 +431,23 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(count(".ce-infill-lane")).toBeGreaterThan(100);
     expect(count(".ce-feature--road")).toBeLessThan(30);
     expect(count(".ce-face")).toBeLessThan(170);
+    expect(root.querySelector(".ce-generate-housing-summary")?.textContent).toContain("外縁部");
     const finished = root.querySelector("svg.ce-svg")!.innerHTML;
     panelButton("都市を一括生成").click();
     expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+  });
+
+  it("accepts wall capacity percentages and restores auto or the previous value for invalid input", () => {
+    const input = root.querySelector<HTMLInputElement>(".ce-generate-walled-share")!;
+    expect(input.placeholder).toContain("100%");
+    setInputValue(input, "25");
+    expect(input.value).toBe("25");
+    setInputValue(input, "101");
+    expect(input.value).toBe("25");
+    setInputValue(input, "0");
+    expect(input.value).toBe("25");
+    setInputValue(input, "");
+    expect(input.value).toBe("");
   });
 
   it("edits a district's density through the inspector and restores it with Undo", () => {

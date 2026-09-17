@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDocument } from "../core/document";
-import { faceNeighbors, faceVertices } from "../core/mesh";
+import { faceNeighbors, faceVertices, meshFromCells } from "../core/mesh";
+import type { CityDocument, Point } from "../core/types";
 import {
   faceClassName,
   parsePickInfo,
@@ -10,6 +11,54 @@ import {
   selectionLabelFontSize,
   vertexHandleRadius
 } from "./svg";
+
+describe("extramural trails", () => {
+  it("shows the outer access network even before houses occupy it, without adding core centrelines", () => {
+    const polygon: Point[] = [
+      [0, 0],
+      [120, 0],
+      [120, 120],
+      [0, 120]
+    ];
+    const mesh = meshFromCells([
+      { id: 0, polygon, site: [60, 60], centroid: [60, 60], neighbors: [], onBorder: false }
+    ]);
+    const face = mesh.faces.f0;
+    Object.assign(face.properties, { water: "land", buildable: true, ward: "empty", settlement: "outskirts" });
+    const doc: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      gridKind: "evolution",
+      appearance: "town",
+      mesh,
+      frame: { extentMeters: 200, cityRadiusMeters: 60, blockSizeMeters: 50 },
+      featureGroups: [
+        {
+          id: "road",
+          kind: "road",
+          name: "Road",
+          segments: [face.boundary[0]],
+          style: { widthMeters: 6, color: "black" },
+          locked: false
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const outer = renderEditorSvg(doc, "select", selection, "0 0 120 120", 1);
+    expect(outer.querySelectorAll(".ce-building")).toHaveLength(0);
+    expect(outer.querySelectorAll(".ce-infill-trail").length).toBeGreaterThan(0);
+    for (const trail of outer.querySelectorAll(".ce-infill-trail")) {
+      expect(trail.getAttribute("data-infill-face")).toBe("f0");
+      expect(Number(trail.getAttribute("stroke-width"))).toBeLessThan(1);
+    }
+    face.properties.settlement = "core";
+    const core = renderEditorSvg(doc, "select", selection, "0 0 120 120", 1);
+    expect(core.querySelectorAll(".ce-infill-trail")).toHaveLength(0);
+    expect(core.querySelectorAll(".ce-infill-lane").length).toBeGreaterThan(0);
+  });
+});
 
 describe("vertexHandleRadius", () => {
   it("keeps r=2 at every zoom level", () => {

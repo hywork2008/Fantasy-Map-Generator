@@ -40,6 +40,7 @@ import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
+import { resolveWalledAreaShare, splitUrbanCore } from "./gen/settlementExtent";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
@@ -122,6 +123,9 @@ export interface StreetSettings {
 
 export interface GenerationSettings {
   config: SiteConfig;
+  /** Approximate fraction of built-up area enclosed by the main wall (0.05–1).
+   * Unset: small 100%, medium 45%, large 20%. Ignored when walls are disabled. */
+  walledAreaShare?: number;
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
    * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
@@ -239,7 +243,15 @@ export function generateCityOnDocument(
       if (result.fabric) {
         const input = clone(document);
         delete input.fabric;
-        result.fabric.generation = { algorithm: "evolution-city-v3", seed, settings: structuredClone(settings), input };
+        result.fabric.generation = {
+          algorithm: "evolution-city-v3",
+          seed,
+          settings: {
+            ...structuredClone(settings),
+            walledAreaShare: resolveWalledAreaShare(settings.walledAreaShare, document.frame.extentMeters)
+          },
+          input
+        };
       }
       return result;
     }
@@ -718,11 +730,7 @@ function runPlan(
   const shoreTangent = coast ? shorelineTangentAt(coast.shoreline) : null;
   const urbanRadius = program.walls ? params.cityRadiusMeters * 0.92 : params.cityRadiusMeters;
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
-  const {
-    urban,
-    outskirts,
-    stages: urbanStages
-  } = classifyUrban(
+  const classification = classifyUrban(
     cells,
     { sea, bank: complete ? new Map() : river.bank },
     urbanBearings,
@@ -732,6 +740,15 @@ function runPlan(
     params.cellSizeMeters,
     !complete && stageStep === 3
   );
+  // City extent and wall capacity are independent. The outer residential
+  // belt retains the rest of the same flood-fill, including its connectivity.
+  const { urban, residentialOutskirts } = splitUrbanCore(
+    cells,
+    classification.urban,
+    program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1
+  );
+  const outskirts = new Set([...classification.outskirts, ...residentialOutskirts]);
+  const urbanStages = classification.stages.filter(stage => urban.has(stage.cellId));
   mark("urban", { urbanFaces: urban.size, recordedStages: urbanStages.length });
   if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages };
 
@@ -835,6 +852,7 @@ function runPlan(
     cells,
     urban,
     outskirts,
+    residentialOutskirts,
     sea,
     borders: genBorders,
     gates: routedGates,
@@ -1173,14 +1191,46 @@ function applyPlan(
     });
   }
 
-  // Clean up extramural cells that were reserved as gate wards but whose gate
-  // was dropped or never connected to a road. Without a valid gate or road,
-  // extramural residential/craftsmen lots visibly strand buildings in empty fields.
+  // Keep connected suburban districts, including those reached through local
+  // lanes. Requiring every face to touch a major road would erase the outer
+  // residential belt before buildLocalFabric can create its access network.
   if (complete && program.walls && next.featureGroups.some(g => g.kind === "wall")) {
     const activeGateVertices = new Set(next.gates.map(gate => gate.vertexId));
     const roadEdges = new Set(
       next.featureGroups.flatMap(g => (g.kind === "road" ? g.segments.map(s => s.edgeId) : []))
     );
+    const reachable = new Set<Id>();
+    if (next.gridKind === "evolution") {
+      const barriers = new Set([...kindEdgeIds(next, "wall"), ...kindEdgeIds(next, "river")]);
+      const land = new Set(
+        Object.values(mesh.faces)
+          .filter(f => f.properties.water === "land" && f.properties.buildable && f.properties.ward !== "farm")
+          .map(f => f.id)
+      );
+      const queue = [...land].filter(id =>
+        mesh.faces[id].boundary.some(ref => roadEdges.has(ref.edgeId) && !barriers.has(ref.edgeId))
+      );
+      for (const id of queue) reachable.add(id);
+      for (let i = 0; i < queue.length; i++) {
+        const face = mesh.faces[queue[i]];
+        for (const ref of face.boundary) {
+          const edge = mesh.edges[ref.edgeId];
+          const other = edge.leftFace === face.id ? edge.rightFace : edge.leftFace;
+          if (
+            !other ||
+            !land.has(other) ||
+            reachable.has(other) ||
+            barriers.has(edge.id) ||
+            edge.locked ||
+            face.properties.locked ||
+            mesh.faces[other].properties.locked
+          )
+            continue;
+          reachable.add(other);
+          queue.push(other);
+        }
+      }
+    }
     for (let cellId = 0; cellId < cells.length; cellId++) {
       if (plan.urban.has(cellId)) continue;
       const face = faceFor(cellId);
@@ -1198,7 +1248,7 @@ function applyPlan(
         const edge = next.mesh.edges[b.edgeId];
         return edge && (activeGateVertices.has(edge.a) || activeGateVertices.has(edge.b));
       });
-      if (!hasRoad && !hasGate) {
+      if (!hasRoad && !hasGate && !reachable.has(face.id)) {
         face.properties.ward = "empty";
         face.properties.buildable = false;
       }

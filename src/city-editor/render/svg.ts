@@ -158,7 +158,8 @@ export function renderEditorSvg(
       }
       svg.appendChild(farms);
       const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
-      for (const lane of fabric.lanes)
+      const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
+      for (const lane of fabric.lanes) {
         lanes.appendChild(
           element("path", {
             d: line(lane.points),
@@ -170,7 +171,23 @@ export function renderEditorSvg(
             "data-infill-face": lane.faceId
           })
         );
+        // Outside the core, expose the access network even where a house has
+        // not been placed. This is a thin trail centreline, not a building shadow.
+        if (document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts")
+          trails.appendChild(
+            element("path", {
+              d: line(lane.points),
+              class: "ce-infill-trail",
+              fill: "none",
+              stroke: "#7b7567",
+              "stroke-width": "0.35",
+              "stroke-linecap": "round",
+              "data-infill-face": lane.faceId
+            })
+          );
+      }
       svg.appendChild(lanes);
+      svg.appendChild(trails);
     }
     mark("buildings", { buildings: lots.length });
     for (const lot of lots) {

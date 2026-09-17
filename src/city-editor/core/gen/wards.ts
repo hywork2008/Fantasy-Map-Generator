@@ -98,6 +98,8 @@ export interface WardInputs {
   cells: Cell[];
   urban: Set<number>;
   outskirts: Set<number>;
+  /** Former urban flood-fill cells outside the chosen wall capacity. */
+  residentialOutskirts?: Set<number>;
   sea: Set<number>;
   borders: BorderLoop[];
   gates: Gate[];
@@ -209,8 +211,12 @@ export function assignWards(input: WardInputs): WardResult {
   // 7. Remaining outskirts: compact + 20% → Farm, else empty Ward.
   for (const cell of cells) {
     if (!outskirts.has(cell.id) || occupied.has(cell.id) || sea.has(cell.id)) continue;
-    const farm = rng() < FARM_CHANCE && polygonCompactness(cell.polygon) >= FARM_COMPACTNESS;
-    take(cell.id, farm ? "farm" : "empty");
+    if (input.residentialOutskirts?.has(cell.id)) {
+      take(cell.id, rng() < 0.12 ? "merchant" : "craftsmen");
+    } else {
+      const farm = rng() < FARM_CHANCE && polygonCompactness(cell.polygon) >= FARM_COMPACTNESS;
+      take(cell.id, farm ? "farm" : "empty");
+    }
   }
 
   // 8. Extramural shanty — retags 3–6 cells just outside the border.

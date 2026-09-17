@@ -210,6 +210,10 @@ export function validFabricPlan(plan: FabricPlan): boolean {
     config = g.settings?.config;
   return (
     g.algorithm === "evolution-city-v3" &&
+    (g.settings?.walledAreaShare === undefined ||
+      (Number.isFinite(g.settings.walledAreaShare) &&
+        g.settings.walledAreaShare >= 0.05 &&
+        g.settings.walledAreaShare <= 1)) &&
     typeof g.seed === "string" &&
     !!g.input &&
     !!config &&
