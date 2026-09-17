@@ -187,6 +187,8 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
     site: face.site ? [face.site[0], face.site[1]] : undefined,
     properties: clone(face.properties)
   };
+  const district = next.fabric?.districts.find(d => d.faceIds.includes(faceId));
+  if (district) district.faceIds.push(newFaceId);
   rebuildFaceSides(next.mesh);
   return validate(next).length ? null : next;
 }
@@ -217,6 +219,15 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
   for (const element of next.elements) {
     element.faceIds = [...new Set(element.faceIds.map(id => (id === removeFaceId ? keepFaceId : id)))];
   }
+  if (next.fabric) {
+    const owner =
+      next.fabric.districts.find(d => d.faceIds.includes(keepFaceId)) ??
+      next.fabric.districts.find(d => d.faceIds.includes(removeFaceId));
+    for (const district of next.fabric.districts)
+      district.faceIds = district.faceIds.filter(id => id !== removeFaceId && id !== keepFaceId);
+    if (owner) owner.faceIds.push(keepFaceId);
+    next.fabric.districts = next.fabric.districts.filter(d => d.faceIds.length);
+  }
   rebuildFaceSides(next.mesh);
   return validate(next).length ? null : next;
 }
@@ -238,6 +249,7 @@ export function rebuildFaceSides(mesh: Mesh): void {
 
 export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKind): CityDocument {
   const current = document.mesh.faces[faceId];
+  if (current?.properties.locked) return document;
   // Re-applying the same water class (and its forced sea-level elevation) is a
   // no-op; return the original so the caller can skip a history snapshot.
   if (current && current.properties.water === water && (water === "land" || current.properties.elevation === 0)) {
@@ -253,7 +265,7 @@ export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKin
 }
 
 export function setFaceElevation(document: CityDocument, faceId: Id, elevation: number): CityDocument {
-  if (!Number.isFinite(elevation)) return document;
+  if (!Number.isFinite(elevation) || document.mesh.faces[faceId]?.properties.locked) return document;
   const next = clone(document);
   const face = next.mesh.faces[faceId];
   if (!face) return next;
@@ -262,7 +274,17 @@ export function setFaceElevation(document: CityDocument, faceId: Id, elevation: 
   return next;
 }
 
+function protectedVertex(document: CityDocument, id: Id): boolean {
+  const edges = incidentEdges(document.mesh, id);
+  return (
+    !!document.mesh.vertices[id]?.locked ||
+    incidentFaces(document.mesh, id).some(f => f.properties.locked) ||
+    edges.some(e => e.locked || document.featureGroups.some(g => g.locked && groupUsesEdge(document, g, e.id)))
+  );
+}
+
 export function moveVertex(document: CityDocument, vertexId: Id, point: Point): CityDocument | null {
+  if (protectedVertex(document, vertexId)) return null;
   const next = clone(document);
   const vertex = next.mesh.vertices[vertexId];
   if (!vertex || vertex.locked) return null;
@@ -277,7 +299,12 @@ export function moveVertex(document: CityDocument, vertexId: Id, point: Point): 
  * incident edges. Faces and feature references are rebuilt around the survivor.
  */
 export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVertexId: Id): CityDocument | null {
-  if (keepVertexId === removeVertexId) return null;
+  if (
+    keepVertexId === removeVertexId ||
+    protectedVertex(document, keepVertexId) ||
+    protectedVertex(document, removeVertexId)
+  )
+    return null;
   const joiningEdge = edgeBetween(document.mesh, keepVertexId, removeVertexId);
   if (!joiningEdge) return null;
   if (document.featureGroups.some(group => group.locked && groupUsesEdge(document, group, joiningEdge.id))) return null;

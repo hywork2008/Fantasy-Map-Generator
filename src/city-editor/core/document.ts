@@ -1,3 +1,4 @@
+import { validFabricPlan } from "./gen/fabricDistricts";
 import { buildGrid } from "./gen/grid";
 import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
@@ -108,6 +109,9 @@ export function parseDocument(text: string): CityDocument | null {
   try {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
+    if (value.fabric !== undefined && !validFabricPlan(value.fabric)) return null;
+    const recipe = value.fabric?.generation;
+    if (recipe && (!isDocument(recipe.input) || "fabric" in recipe.input || validate(recipe.input).length)) return null;
     // Version-1 files saved before the scale-bar addition lack this descriptive
     // field; their geometry was already based on the same 50 m default.
     if (!Number.isFinite(value.frame.blockSizeMeters)) value.frame.blockSizeMeters = BLOCK_SIZE_METERS;

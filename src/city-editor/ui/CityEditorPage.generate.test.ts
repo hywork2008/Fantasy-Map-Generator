@@ -436,6 +436,28 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
   });
 
+  it("edits a district's density through the inspector and restores it with Undo", () => {
+    const grid = root.querySelector<HTMLSelectElement>("select.ce-grid-kind")!;
+    grid.value = "evolution";
+    grid.dispatchEvent(new Event("change"));
+    iconButton("Generate a new grid").click();
+    panelButton("都市を一括生成").click();
+    const building = root.querySelector<SVGPathElement>(".ce-building")!;
+    building.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const input = root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]');
+    expect(input).not.toBeNull();
+    const before = input!.value;
+    setInputValue(input!, "500");
+    expect(root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]')!.value).toBe("500");
+    iconButton("Undo").click();
+    root
+      .querySelector<SVGPathElement>(
+        `.ce-building[data-building-face="${building.getAttribute("data-building-face")}"]`
+      )!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]')!.value).toBe(before);
+  });
+
   it("generates a complete town after changing grid to voronoi and generating a new grid", () => {
     // 1. "新しい都市"ボタンを押して都市を生成する
     panelButton("新しい都市").click();

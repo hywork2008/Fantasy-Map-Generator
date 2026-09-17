@@ -60,7 +60,7 @@ function buildFaceLots(
   rivers: RiverMargin[]
 ): BuildingLot[] {
   const { water, ward, buildable } = face.properties;
-  if (water !== "land" || !buildable || !ward || ward === "empty" || ward === "park") return [];
+  if (water !== "land" || !buildable || !ward || ward === "empty" || ward === "park" || ward === "farm") return [];
   if (document.elements.some(e => (e.kind === "plaza" || e.kind === "temple") && e.faceIds.includes(face.id)))
     return [];
   const polygon = facePoints(document.mesh, face);

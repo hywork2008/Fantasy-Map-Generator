@@ -1,3 +1,4 @@
+import { createFabricPlan } from "./gen/fabricDistricts";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -71,7 +72,7 @@ import {
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
-import type { CityDocument, EdgeRef, Id, Mesh, Point } from "./types";
+import type { CityDocument, EdgeRef, FeatureGroup, Id, Mesh, Point } from "./types";
 
 export type { CityFeatureSet, SiteConfig } from "./gen/site/siteConfig";
 export type { FarNodeMode };
@@ -140,7 +141,7 @@ export function resolveStreetSettings(settings: GenerationSettings): StreetSetti
   return { ...defaultStreetSettings(), ...settings.streets };
 }
 
-/** A random internal seed for one town. Never shown, typed, or persisted. */
+/** A random internal seed for one town; completed evolution maps retain it for replay. */
 export function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
 }
@@ -234,7 +235,14 @@ export function generateCityOnDocument(
       observer,
       attempt + 1
     );
-    if (result) return result;
+    if (result) {
+      if (result.fabric) {
+        const input = clone(document);
+        delete input.fabric;
+        result.fabric.generation = { algorithm: "evolution-city-v3", seed, settings: structuredClone(settings), input };
+      }
+      return result;
+    }
   }
   return null;
 }
@@ -322,6 +330,9 @@ function generateCityAttempt(
     faces: Object.keys(settled.mesh.faces).length,
     edges: Object.keys(settled.mesh.edges).length
   });
+  if (valid && coarse) {
+    settled.fabric = createFabricPlan(settled, seed);
+  }
   return valid ? settled : null;
 }
 
@@ -876,9 +887,9 @@ function applyPlan(
 
   // Clear this module's previous output + every non-locked face tag, so the
   // stages read as a scrub through the process rather than an accumulation.
-  next.featureGroups = next.featureGroups.filter(group => !group.id.startsWith(GEN_PREFIX));
-  next.gates = (next.gates ?? []).filter(gate => !gate.id.startsWith(GEN_PREFIX));
-  next.elements = next.elements.filter(element => !element.id.startsWith(GEN_PREFIX));
+  next.featureGroups = next.featureGroups.filter(group => group.locked || !group.id.startsWith(GEN_PREFIX));
+  next.gates = (next.gates ?? []).filter(gate => gate.locked || !gate.id.startsWith(GEN_PREFIX));
+  next.elements = next.elements.filter(element => element.locked || !element.id.startsWith(GEN_PREFIX));
   for (const face of Object.values(mesh.faces)) {
     if (face.properties.locked) continue;
     face.properties.water = "land";
@@ -887,6 +898,11 @@ function applyPlan(
     face.properties.ward = null;
     delete face.properties.settlement;
   }
+
+  const appendGeneratedGroup = (group: FeatureGroup) => {
+    if (!next.featureGroups.some(existing => existing.id === group.id && existing.locked))
+      next.featureGroups.push(group);
+  };
 
   const faceFor = (cellId: number): (typeof mesh.faces)[string] | undefined => mesh.faces[faceIdOf[cellId]];
   const nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
@@ -920,7 +936,7 @@ function applyPlan(
       const vertices = polylineToVertexPath(mesh, band.edgePoints, nearest);
       if (vertices.length < 2) return;
       const width = band.widths.length ? band.widths.reduce((s, w) => s + w, 0) / band.widths.length : 12;
-      next.featureGroups.push({
+      appendGeneratedGroup({
         id: `${GEN_PREFIX}river-${i}`,
         kind: "river",
         name: `River ${i + 1}`,
@@ -955,7 +971,7 @@ function applyPlan(
           : [loop.segments];
       for (const segments of runs.flatMap(run => unbannedRuns(run, openEdges))) {
         if (segments.length < 1) continue;
-        next.featureGroups.push({
+        appendGeneratedGroup({
           id: `${GEN_PREFIX}wall-${wallIndex}`,
           kind: "wall",
           name: `Wall ${wallIndex + 1}`,
@@ -981,6 +997,7 @@ function applyPlan(
       }
     }
     plan.gates.forEach((gate, i) => {
+      if (next.gates.some(g => g.id === `${GEN_PREFIX}gate-${i}` && g.locked)) return;
       const vertexId = nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters))(
         gate.point,
         wallVertices
@@ -1000,6 +1017,7 @@ function applyPlan(
     // Reserved precinct landmarks as point-anchored elements.
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
       if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;
+      if (next.elements.some(e => e.id === `${GEN_PREFIX}${precinct.kind}` && e.locked)) continue;
       next.elements.push({
         id: `${GEN_PREFIX}${precinct.kind}`,
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
@@ -1021,7 +1039,11 @@ function applyPlan(
       const rivers = next.featureGroups.filter(g => g.kind === "river");
       const center = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
       for (const [riverIndex, river] of rivers.entries()) {
-        if (river.kind !== "river") continue;
+        if (
+          river.kind !== "river" ||
+          next.featureGroups.some(g => g.id === `${GEN_PREFIX}bridge-${riverIndex}` && g.locked)
+        )
+          continue;
         const candidates = river.vertices
           .slice(1, -1)
           .filter(
@@ -1051,6 +1073,7 @@ function applyPlan(
       }
     }
     for (const gate of next.gates ?? []) {
+      if (gate.locked) continue;
       const opened = openBarrierPassage(next, gate.vertexId, "wall");
       if (opened) next = opened;
     }
@@ -1070,7 +1093,7 @@ function applyPlan(
         ? routeComplete(polyline, i < plan.roads.length - plan.streets.length)
         : longestUnbannedRun(polylineToEdgeRefs(mesh, polyline, nearestAfter), banned);
       if (segments.length < 1) return;
-      next.featureGroups.push({
+      appendGeneratedGroup({
         id: `${GEN_PREFIX}road-${i}`,
         kind: "road",
         name: `Road ${i + 1}`,
@@ -1102,7 +1125,7 @@ function applyPlan(
           .map(edge => edge.id)
       );
       next.featureGroups = next.featureGroups.flatMap(group => {
-        if (group.kind !== "road" || !group.id.startsWith(GEN_PREFIX)) return [group];
+        if (group.locked || group.kind !== "road" || !group.id.startsWith(GEN_PREFIX)) return [group];
         const segments = longestUnbannedRun(group.segments, blockedEdges);
         return segments.length ? [{ ...group, segments }] : [];
       });
@@ -1113,7 +1136,7 @@ function applyPlan(
   if (stageStep >= 6) {
     for (const [cellId, kind] of plan.wards) {
       const face = faceFor(cellId);
-      const editor = editorWard(kind);
+      const editor = kind === "farm" && next.gridKind === "evolution" ? "farm" : editorWard(kind);
       if (face && !face.properties.locked && editor) face.properties.ward = editor;
     }
   }
@@ -1121,6 +1144,7 @@ function applyPlan(
   mark("route-junctions");
   // A gate must sit on a drawn wall — drop any that no longer does.
   next.gates = next.gates.filter(gate => {
+    if (gate.locked) return true;
     if (gate.id.startsWith(GEN_PREFIX) && !vertexHasKindPassage(next, gate.vertexId, "wall")) return false;
     if (complete && gate.id.startsWith(GEN_PREFIX) && !vertexHasCrossing(next, gate.vertexId, "wall", "road"))
       return false;
@@ -1142,7 +1166,7 @@ function applyPlan(
   if (complete && plan.gates.length) {
     const activeGateIds = new Set(next.gates.filter(gate => gate.id.startsWith(GEN_PREFIX)).map(gate => gate.id));
     next.featureGroups = next.featureGroups.filter(group => {
-      if (group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
+      if (group.locked || group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
       const routeIndex = Number(group.id.slice(`${GEN_PREFIX}road-`.length));
       if (!Number.isInteger(routeIndex)) return true;
       return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
@@ -1161,7 +1185,13 @@ function applyPlan(
       if (plan.urban.has(cellId)) continue;
       const face = faceFor(cellId);
       if (!face || face.properties.locked || face.properties.water !== "land") continue;
-      if (!face.properties.ward || face.properties.ward === "empty" || face.properties.ward === "park") continue;
+      if (
+        !face.properties.ward ||
+        face.properties.ward === "empty" ||
+        face.properties.ward === "park" ||
+        face.properties.ward === "farm"
+      )
+        continue;
 
       const hasRoad = face.boundary.some(b => roadEdges.has(b.edgeId));
       const hasGate = face.boundary.some(b => {

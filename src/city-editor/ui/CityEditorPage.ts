@@ -22,6 +22,7 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import { defaultDistrictParameters, resolveDistricts, setDistrictParameters } from "../core/gen/fabricDistricts";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
@@ -100,6 +101,7 @@ const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> 
   { kind: "craftsmen", label: "🛠️" },
   { kind: "harbor", label: "⚓" },
   { kind: "park", label: "🌳" },
+  { kind: "farm", label: "🌾" },
   { kind: "empty", label: "󠁪󠁪 " },
   { kind: "erase", label: "🧹" },
   { kind: "sea", label: "🌊" }
@@ -1113,7 +1115,9 @@ export function mountCityEditor(root: HTMLElement): void {
         }
       }
 
-      const route = routeAtEvent(event, point, true, true);
+      // A building is an explicit district selection, even near a wide street.
+      const pickedBuilding = selectedPick?.classList.contains("ce-building") ?? false;
+      const route = routeAtEvent(event, point, !pickedBuilding, true);
       if (route) {
         const routeGroup = documentState.featureGroups.find(g => g.id === route.groupId);
         if (routeGroup) {
@@ -1550,6 +1554,7 @@ export function mountCityEditor(root: HTMLElement): void {
     redoButton.disabled = !history.canRedo;
     blockMeshInput.checked = showBlockMesh || tool !== "select";
     for (const [kind, button] of paintButtons) {
+      if (kind === "farm") button.hidden = documentState.gridKind !== "evolution";
       button.classList.toggle(
         "is-active",
         kind === "sea"
@@ -1780,14 +1785,58 @@ export function mountCityEditor(root: HTMLElement): void {
         commit(setFaceElevation(documentState, face.id, Number(elevation.value)), "Set elevation")
       );
       const ward = select(
-        ["", "market", "castle", "merchant", "craftsmen", "harbor", "park", "empty"],
+        [
+          "",
+          "market",
+          "castle",
+          "merchant",
+          "craftsmen",
+          "harbor",
+          "park",
+          ...(documentState.gridKind === "evolution" ? ["farm"] : []),
+          "empty"
+        ],
         face.properties.ward ?? ""
       );
+      water.disabled = elevation.disabled = ward.disabled = face.properties.locked;
       ward.addEventListener("change", () => {
+        if (face.properties.locked) return;
         const next = clone(documentState);
         next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
         commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
       });
+      if (documentState.gridKind === "evolution") {
+        const district = resolveDistricts(documentState, documentState.fabric).find(d => d.faceIds.includes(face.id));
+        const parameters = district?.parameters ?? defaultDistrictParameters(face, documentState);
+        container.append(text(`District · ${district?.faceIds.length ?? 1} cells`));
+        const fields = [
+          ["occupancy", "Lot occupancy (%)", parameters.occupancy * 100, 0, 100, 1],
+          ["coverage", "Building coverage (%)", parameters.coverage * 100, 15, 100, 1],
+          ["lotArea", "Target lot area (m²)", parameters.lotArea, 80, 3000, 10],
+          ["laneWidth", "Lane width (m)", parameters.laneWidth, 1, 12, 0.2],
+          ["orientation", "Building direction (°)", (parameters.orientation * 180) / Math.PI, -180, 180, 1]
+        ] as const;
+        for (const [key, title, value, min, max, step] of fields) {
+          const input = numberInput(String(Math.round(value * 100) / 100), String(min), String(step));
+          input.max = String(max);
+          input.setAttribute("aria-label", title);
+          input.disabled = face.properties.locked;
+          input.addEventListener("change", () => {
+            const number = Number(input.value);
+            const value =
+              key === "occupancy" || key === "coverage"
+                ? number / 100
+                : key === "orientation"
+                  ? (number * Math.PI) / 180
+                  : number;
+            const next = setDistrictParameters(documentState, face.id, { [key]: value });
+            if (next) commit(next, "Edit district density");
+            else showNotice("Enter a value within the district setting range");
+          });
+          container.append(label(title, input));
+        }
+        container.append(divider());
+      }
       const vertices = faceVertices(documentState.mesh, face);
       const splitFrom = select(vertices, vertices[0]);
       const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);
@@ -2151,7 +2200,7 @@ export function mountCityEditor(root: HTMLElement): void {
       if (paintedWardFaceIds.has(faceId)) continue;
       paintedWardFaceIds.add(faceId);
       const face = documentState.mesh.faces[faceId];
-      if (!face) continue;
+      if (!face || face.properties.locked) continue;
       if (tool === "sea") {
         if (face.properties.water === "sea" && face.properties.elevation === 0) continue;
       } else if (face.properties.ward === wardBrush) continue;
@@ -2586,8 +2635,14 @@ export function mountCityEditor(root: HTMLElement): void {
     stepOverlayPaths = null;
     stepStatus.textContent = "";
     lastGeneratedStep = null;
-    completeSource = null;
-    completeResult = null;
+    const recipe = documentState.fabric?.generation;
+    completeSource = recipe ? clone(recipe.input) : null;
+    completeResult = recipe ? documentState : null;
+    if (recipe) {
+      generateSeed = recipe.seed;
+      Object.assign(generateSettings, clone(recipe.settings));
+      syncGenerateControls();
+    }
     showBlockMesh = false;
     clearGridEvo();
     halfView = parsed.document.frame.extentMeters / 2;

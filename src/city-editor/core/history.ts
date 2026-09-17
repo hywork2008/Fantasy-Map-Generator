@@ -182,6 +182,9 @@ type RecordPatch<T> = Record<Id, T | null>;
 interface DocPatch {
   frame?: CityDocument["frame"];
   appearance?: CityDocument["appearance"] | null;
+  fabric?: CityDocument["fabric"] | null;
+  gridKind?: CityDocument["gridKind"] | null;
+  referenceImage?: CityDocument["referenceImage"] | null;
   vertices?: RecordPatch<Vertex>;
   edges?: RecordPatch<Edge>;
   faces?: RecordPatch<Face>;
@@ -221,6 +224,10 @@ function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
   if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
   if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
+  if (!equal(previous.fabric, next.fabric)) patch.fabric = next.fabric ? clone(next.fabric) : null;
+  if (previous.gridKind !== next.gridKind) patch.gridKind = next.gridKind ?? null;
+  if (!equal(previous.referenceImage, next.referenceImage))
+    patch.referenceImage = next.referenceImage ? clone(next.referenceImage) : null;
   const vertices = diffRecord(previous.mesh.vertices, next.mesh.vertices);
   if (vertices) patch.vertices = vertices;
   const edges = diffRecord(previous.mesh.edges, next.mesh.edges);
@@ -250,6 +257,12 @@ function applyPatch(document: CityDocument, patch: DocPatch): void {
   if (patch.frame) document.frame = clone(patch.frame);
   if (patch.appearance === null) delete document.appearance;
   else if (patch.appearance) document.appearance = patch.appearance;
+  if (patch.fabric === null) delete document.fabric;
+  else if (patch.fabric) document.fabric = clone(patch.fabric);
+  if (patch.gridKind === null) delete document.gridKind;
+  else if (patch.gridKind) document.gridKind = patch.gridKind;
+  if (patch.referenceImage === null) delete document.referenceImage;
+  else if (patch.referenceImage) document.referenceImage = clone(patch.referenceImage);
   applyRecord(document.mesh.vertices, patch.vertices);
   applyRecord(document.mesh.edges, patch.edges);
   applyRecord(document.mesh.faces, patch.faces);

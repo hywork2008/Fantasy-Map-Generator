@@ -135,6 +135,28 @@ export function renderEditorSvg(
     const fabric = document.gridKind === "evolution" ? buildBlockFabric(document) : null;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     if (fabric) {
+      const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
+      for (const farm of fabric.farms) {
+        farms.appendChild(
+          element("path", {
+            d: polygon(farm.polygon),
+            fill: "#c6c19f",
+            stroke: "#aaa783",
+            "stroke-width": "1",
+            "data-farm-face": farm.faceId
+          })
+        );
+        farms.appendChild(
+          element("path", {
+            d: farm.rows.map(row => line(row)).join(" "),
+            fill: "none",
+            stroke: "#a6a079",
+            "stroke-width": "1",
+            class: "ce-farm-rows"
+          })
+        );
+      }
+      svg.appendChild(farms);
       const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
       for (const lane of fabric.lanes)
         lanes.appendChild(

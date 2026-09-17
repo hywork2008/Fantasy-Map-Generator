@@ -5,6 +5,7 @@ import { DocumentHistory } from "../history";
 import { facePoints, validate } from "../mesh";
 import { kindEdgeIds, validGeneratedCrossings, vertexHasCrossing } from "../passages";
 import { buildBlockFabric } from "./blockInfill";
+import { districtDocument, resolveDistricts } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./geom";
 
 describe("evolution complete city", () => {
@@ -38,8 +39,11 @@ describe("evolution complete city", () => {
         const skeleton = JSON.stringify(city.mesh);
         const fabric = buildBlockFabric(city);
         expect(fabric.buildings.length).toBeGreaterThan(300);
+        const districts = resolveDistricts(city, city.fabric);
+        const merged = districtDocument(city, districts);
         for (const building of fabric.buildings) {
-          const polygon = facePoints(city.mesh, city.mesh.faces[building.faceId]);
+          const district = districts.find(d => d.faceIds.includes(building.faceId))!;
+          const polygon = facePoints(merged.mesh, merged.mesh.faces[district.id]);
           expect(building.polygon.every(p => pointInPolygon(p, polygon))).toBe(true);
           for (const river of city.featureGroups) {
             if (river.kind !== "river") continue;
@@ -75,6 +79,9 @@ describe("evolution complete city", () => {
     const city = generateCityOnDocument(input, settings, "persist")!;
     const loaded = parseDocument(JSON.stringify(city))!;
     expect(loaded.gridKind).toBe("evolution");
+    const recipe = loaded.fabric!.generation!;
+    expect(recipe.input).toEqual(input);
+    expect(generateCityOnDocument(recipe.input, recipe.settings, recipe.seed)).toEqual(city);
     expect(buildBlockFabric(loaded)).toEqual(buildBlockFabric(city));
     expect(generateCityOnDocument(input, settings, "persist")).toEqual(city);
     const history = new DocumentHistory(input);
