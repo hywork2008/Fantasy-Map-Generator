@@ -82,7 +82,9 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
     };
     cells = buildGrid(params, EMPTY_GEO, makeRng(seed)).at(-1)?.cells ?? [];
   }
-  return documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters);
+  const document = documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters);
+  document.gridKind = grid;
+  return document;
 }
 
 function documentFromCells(
@@ -124,6 +126,7 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     doc.version === 1 &&
+    (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&

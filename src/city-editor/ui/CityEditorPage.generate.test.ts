@@ -421,6 +421,21 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(root.querySelector(".ce-status")?.textContent).toContain("Press a stage button");
   });
 
+  it("generates evolution infill lanes without turning them into editable road groups", () => {
+    const grid = root.querySelector<HTMLSelectElement>("select.ce-grid-kind")!;
+    grid.value = "evolution";
+    grid.dispatchEvent(new Event("change"));
+    iconButton("Generate a new grid").click();
+    panelButton("都市を一括生成").click();
+    expect(has(".ce-building")).toBe(true);
+    expect(count(".ce-infill-lane")).toBeGreaterThan(100);
+    expect(count(".ce-feature--road")).toBeLessThan(30);
+    expect(count(".ce-face")).toBeLessThan(170);
+    const finished = root.querySelector("svg.ce-svg")!.innerHTML;
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+  });
+
   it("generates a complete town after changing grid to voronoi and generating a new grid", () => {
     // 1. "新しい都市"ボタンを押して都市を生成する
     panelButton("新しい都市").click();

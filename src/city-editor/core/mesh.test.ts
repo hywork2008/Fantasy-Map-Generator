@@ -4,6 +4,7 @@ import { appendEdge, createGroup } from "./features";
 import {
   faceNeighbors,
   faceVertices,
+  insertEdgeVertex,
   mergeFaces,
   mergeVertices,
   optimizeJunctions,
@@ -184,5 +185,48 @@ describe("manual city mesh", () => {
     const sea = setFaceWater(document, landFaceId, "sea");
     expect(sea).not.toBe(document);
     expect(setFaceWater(sea, landFaceId, "sea")).toBe(sea);
+  });
+});
+
+describe("local edge insertion", () => {
+  it("preserves both face directions and feature paths without changing face count", () => {
+    const document = createDocument("edge-insert", 900, 110);
+    const edge = Object.values(document.mesh.edges).find(e => e.leftFace && e.rightFace)!;
+    document.featureGroups.push(
+      {
+        id: "road",
+        kind: "road",
+        name: "Road",
+        locked: false,
+        style: { widthMeters: 4, color: "black" },
+        segments: [{ edgeId: edge.id, forward: false }]
+      },
+      {
+        id: "river",
+        kind: "river",
+        name: "River",
+        locked: false,
+        style: { widthMeters: 8, color: "blue" },
+        vertices: [edge.a, edge.b],
+        source: null,
+        mouth: null
+      }
+    );
+    const before = JSON.stringify(document);
+    const result = insertEdgeVertex(document, edge.id, 0.3)!;
+    expect(result).not.toBeNull();
+    expect(validate(result.document)).toEqual([]);
+    expect(Object.keys(result.document.mesh.faces)).toHaveLength(Object.keys(document.mesh.faces).length);
+    for (const id of [edge.leftFace!, edge.rightFace!])
+      expect(faceVertices(result.document.mesh, result.document.mesh.faces[id])).toContain(result.vertexId);
+    const [road, river] = result.document.featureGroups;
+    expect(road.kind !== "river" && road.segments.map(ref => ref.forward)).toEqual([false, false]);
+    expect(river.kind === "river" && river.vertices).toEqual([edge.a, result.vertexId, edge.b]);
+    expect(JSON.stringify(document)).toBe(before);
+    document.featureGroups[0].locked = true;
+    expect(insertEdgeVertex(document, edge.id, 0.3)).toBeNull();
+    document.featureGroups[0].locked = false;
+    document.mesh.faces[edge.leftFace!].properties.locked = true;
+    expect(insertEdgeVertex(document, edge.id, 0.3)).toBeNull();
   });
 });

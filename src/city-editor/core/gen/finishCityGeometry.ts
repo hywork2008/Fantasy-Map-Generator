@@ -12,6 +12,7 @@ import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
  * collapsed edges, inverted faces and self-intersections. */
 export function finishCityGeometry(source: CityDocument): CityDocument {
   const next = clone(source);
+  const coarse = source.gridKind === "evolution";
   const { mesh } = next;
   const edgeIndex = indexMeshEdges(mesh);
   const original = new Map(Object.values(mesh.vertices).map(v => [v.id, v.point]));
@@ -90,10 +91,10 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     }
     for (const id of neighbors.keys()) constrained.add(id);
   };
-  smoothNetwork(water, 12);
-  smoothNetwork(rivers, 12);
-  smoothNetwork(walls, 32);
-  smoothNetwork(roads, 48);
+  smoothNetwork(water, coarse ? 3 : 12);
+  smoothNetwork(rivers, coarse ? 3 : 12);
+  smoothNetwork(walls, coarse ? 4 : 32);
+  smoothNetwork(roads, coarse ? 6 : 48);
 
   // Extend boundary displacements into nearby blocks instead of dragging one
   // vertex through an otherwise frozen Voronoi tessellation.
@@ -122,7 +123,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     for (const fid of facesAt.get(id) ?? []) {
       const points = faceRings.get(fid)!.map(v => mesh.vertices[v].point);
       const before = areas.get(fid)!;
-      if (polygonArea(points) / before < 0.12) return false;
+      if (polygonArea(points) / before < (coarse ? 0.5 : 0.12)) return false;
       for (let i = 0; i < points.length; i++) {
         for (let j = i + 2; j < points.length; j++) {
           if (i === 0 && j === points.length - 1) continue;

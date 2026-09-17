@@ -2901,7 +2901,14 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("This stage has too few cells to use as a grid");
       return;
     }
-    const next: CityDocument = { ...documentState, mesh, featureGroups: [], gates: [], elements: [] };
+    const next: CityDocument = {
+      ...documentState,
+      gridKind: "evolution",
+      mesh,
+      featureGroups: [],
+      gates: [],
+      elements: []
+    };
     delete next.appearance;
     if (validate(next).length) {
       showNotice("The rebuilt grid failed validation");

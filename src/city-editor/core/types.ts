@@ -5,6 +5,8 @@ export type WaterKind = "land" | "sea" | "lake" | "openWater";
 export type WardKind = "market" | "castle" | "merchant" | "craftsmen" | "harbor" | "park" | "empty";
 
 export interface FaceProperties {
+  /** Generated land-use extent; local infill never changes mesh topology. */
+  settlement?: "core" | "outskirts";
   /** Metres relative to sea level. `0` and below are water. */
   elevation: number;
   water: WaterKind;
@@ -96,6 +98,8 @@ export interface CityGate {
 export interface CityDocument {
   format: "fmg-city-editor";
   version: 1;
+  /** Absent on legacy documents, which keep their existing generation behavior. */
+  gridKind?: "hex" | "voronoi" | "evolution";
   frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
   /** Completed cities open in the building/ink view; editing uses the same mesh. */
   appearance?: "town";

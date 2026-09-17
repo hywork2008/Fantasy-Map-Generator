@@ -26,8 +26,9 @@ import { type CoastResult, classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
-import { polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
+import { isSimplePolygon, polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
+import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
   clipPolylinesToLand,
   majorityLandGatesUnserved,
@@ -302,15 +303,20 @@ function generateCityAttempt(
   mark("apply-total");
   if (!next) return null;
   next.appearance = "town";
-  const hexagonal = isHexagonalDocument(document);
-  const rectified = hexagonal ? rectifyHexBlocks(next, seed) : next;
+  const coarse = document.gridKind === "evolution";
+  const hexagonal = !coarse && isHexagonalDocument(document);
+  const routed = coarse ? shortcutMajorRoads(next) : next;
+  mark("major-road-shortcuts");
+  const rectified = hexagonal ? rectifyHexBlocks(routed, seed) : routed;
   mark("rectify-hex");
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
   mark("finish-geometry");
-  const shaped = hexagonal ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
+  const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenBridges(shaped);
-  const valid = validGeneratedCrossings(settled);
+  const valid =
+    validGeneratedCrossings(settled) &&
+    (!coarse || Object.values(settled.mesh.faces).every(f => isSimplePolygon(facePoints(settled.mesh, f))));
   mark("crossing-validation", {
     valid: Number(valid),
     faces: Object.keys(settled.mesh.faces).length,
@@ -879,6 +885,7 @@ function applyPlan(
     if (face.properties.elevation <= 0) face.properties.elevation = 1;
     face.properties.buildable = true;
     face.properties.ward = null;
+    delete face.properties.settlement;
   }
 
   const faceFor = (cellId: number): (typeof mesh.faces)[string] | undefined => mesh.faces[faceIdOf[cellId]];
@@ -901,6 +908,8 @@ function applyPlan(
       const face = faceFor(id);
       if (face && !face.properties.locked && face.properties.water === "land") {
         face.properties.buildable = built.has(id);
+        if (source.gridKind === "evolution" && built.has(id))
+          face.properties.settlement = plan.urban.has(id) ? "core" : "outskirts";
       }
     }
   }
@@ -1412,9 +1421,9 @@ function nearestVertexLookup(mesh: Mesh, bucket: number): NearestVertex {
         }
       }
     }
-    if (best || !among) return best;
+    if (best) return best;
     // Widen once for a constrained search (e.g. gate → wall vertex).
-    for (const id of among) {
+    for (const id of among ?? Object.keys(mesh.vertices)) {
       const v = mesh.vertices[id];
       if (!v) continue;
       const d = Math.hypot(v.point[0] - p[0], v.point[1] - p[1]);

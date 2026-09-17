@@ -1,3 +1,4 @@
+import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
@@ -131,7 +132,24 @@ export function renderEditorSvg(
       "pointer-events": tool === "select" ? "all" : "none"
     });
     mark("svg-base");
-    const lots = buildCityBuildings(document);
+    const fabric = document.gridKind === "evolution" ? buildBlockFabric(document) : null;
+    const lots = fabric?.buildings ?? buildCityBuildings(document);
+    if (fabric) {
+      const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
+      for (const lane of fabric.lanes)
+        lanes.appendChild(
+          element("path", {
+            d: line(lane.points),
+            class: "ce-infill-lane",
+            fill: "none",
+            stroke: "#d5cfbf",
+            "stroke-width": String(lane.widthMeters),
+            "stroke-linecap": "round",
+            "data-infill-face": lane.faceId
+          })
+        );
+      svg.appendChild(lanes);
+    }
     mark("buildings", { buildings: lots.length });
     for (const lot of lots) {
       const bldId = `bld-${lot.faceId}`;

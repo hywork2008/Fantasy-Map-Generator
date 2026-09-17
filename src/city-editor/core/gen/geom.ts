@@ -544,3 +544,16 @@ export function perpDistanceToLine(p: Point, a: Point, b: Point): number {
   if (len < 1e-9) return Math.hypot(p[0] - a[0], p[1] - a[1]);
   return Math.abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / len;
 }
+
+/** A simple non-degenerate polygon, including non-convex edited blocks. */
+export function isSimplePolygon(points: Point[]): boolean {
+  if (points.length < 3 || !Number.isFinite(polygonArea(points)) || Math.abs(polygonArea(points)) < 1) return false;
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 2; j < points.length; j++) {
+      if (i === 0 && j === points.length - 1) continue;
+      if (segmentsIntersect(points[i], points[(i + 1) % points.length], points[j], points[(j + 1) % points.length]))
+        return false;
+    }
+  }
+  return true;
+}

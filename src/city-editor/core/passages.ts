@@ -1,3 +1,4 @@
+import { isSimplePolygon, pointInPolygon, polygonArea, segmentSegmentHit } from "./gen/geom";
 // 4-way passages (gates / bridges) for generated routes.
 //
 // River, road and wall must not share an edge (Phase G7). They MAY share a
@@ -10,9 +11,11 @@ import { appendEdge, featureGroupVertices, groupUsesEdge } from "./features";
 import {
   clone,
   edgeBetween,
+  facePoints,
   faceVertices,
   incidentEdges,
   incidentFaces,
+  insertEdgeVertex,
   mergeVertices,
   moveVertex,
   splitFace
@@ -137,6 +140,12 @@ export function openBarrierPassage(document: CityDocument, vertexId: Id, barrier
   let next = document;
   for (let attempt = 0; attempt < 3; attempt++) {
     if (vertexHasKindPassage(next, vertexId, barrier)) return next === document ? document : next;
+    // Coarse cells can provide an opposite arm without dragging a distant
+    // barrier vertex into the gate/bridge. Only accept a geometrically valid split.
+    if (document.gridKind === "evolution") {
+      const split = splitCoarsePassage(next, vertexId, barrier);
+      if (split) return split;
+    }
     const merged = mergeNearestBarrierNeighbour(next, vertexId, barrier);
     if (merged) {
       next = merged;
@@ -188,8 +197,23 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
     )
   )
     return null;
-  const next = clone(document);
-  const [a, b] = through;
+  let next = clone(document);
+  let [a, b] = through;
+  if (document.gridKind === "evolution") {
+    const river = document.featureGroups.find(g => g.kind === "river" && g.vertices.includes(vertexId));
+    const radius = (river?.style.widthMeters ?? 12) / 2 + 6;
+    const arms: Edge[] = [];
+    for (const edge of through) {
+      const origin = next.mesh.vertices[vertexId].point;
+      const other = next.mesh.vertices[edge.a === vertexId ? edge.b : edge.a].point;
+      const t = Math.min(0.45, radius / Math.hypot(other[0] - origin[0], other[1] - origin[1]));
+      const split = insertEdgeVertex(next, edge.id, edge.a === vertexId ? t : 1 - t);
+      if (!split) return null;
+      next = split.document;
+      arms.push(edgeBetween(next.mesh, vertexId, split.vertexId)!);
+    }
+    [a, b] = arms;
+  }
   next.featureGroups.push({
     id,
     kind: "road",
@@ -211,7 +235,20 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
   for (let s = 1.0; s >= 0.125; s /= 2) {
     const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
     const moved = moveVertex(document, vertexId, candidate);
-    if (moved) return moved;
+    if (!moved) continue;
+    if (
+      document.gridKind === "evolution" &&
+      incidentFaces(document.mesh, vertexId).some(face => {
+        const points = facePoints(moved.mesh, moved.mesh.faces[face.id]);
+        return (
+          face.properties.locked ||
+          !isSimplePolygon(points) ||
+          polygonArea(points) / polygonArea(facePoints(document.mesh, face)) < 0.5
+        );
+      })
+    )
+      continue;
+    return moved;
   }
   return document;
 }
@@ -437,6 +474,35 @@ function mergeNearestBarrierNeighbour(document: CityDocument, vertexId: Id, barr
     }
   }
   return best ? mergeVertices(document, vertexId, best) : null;
+}
+
+function splitCoarsePassage(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {
+  const a = document.mesh.vertices[vertexId].point;
+  for (const face of incidentFaces(document.mesh, vertexId)) {
+    if (face.properties.locked || face.properties.water !== "land") continue;
+    const ids = faceVertices(document.mesh, face);
+    const polygon = facePoints(document.mesh, face);
+    for (const target of ids) {
+      if (target === vertexId || document.mesh.vertices[target].locked || edgeBetween(document.mesh, vertexId, target))
+        continue;
+      const b = document.mesh.vertices[target].point;
+      if (!pointInPolygon([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], polygon)) continue;
+      if (
+        polygon.some((p, i) => {
+          if ([vertexId, target].includes(ids[i]) || [vertexId, target].includes(ids[(i + 1) % ids.length]))
+            return false;
+          return !!segmentSegmentHit(a, b, p, polygon[(i + 1) % polygon.length]);
+        })
+      )
+        continue;
+      const split = splitFace(document, face.id, vertexId, target);
+      if (!split || !vertexHasKindPassage(split, vertexId, barrier)) continue;
+      const pieces = Object.values(split.mesh.faces).filter(f => f.id === face.id || !document.mesh.faces[f.id]);
+      if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < 80)) continue;
+      return split;
+    }
+  }
+  return null;
 }
 
 function splitLargestIncidentFace(document: CityDocument, vertexId: Id): CityDocument | null {

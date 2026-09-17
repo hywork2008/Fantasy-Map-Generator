@@ -460,6 +460,61 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
   return validate(next).length ? null : next;
 }
 
+/** Insert a collinear vertex while preserving directed face and feature paths. */
+export function insertEdgeVertex(
+  document: CityDocument,
+  edgeId: Id,
+  fraction: number
+): { document: CityDocument; vertexId: Id } | null {
+  const edge = document.mesh.edges[edgeId];
+  if (
+    !edge ||
+    edge.locked ||
+    !Number.isFinite(fraction) ||
+    fraction <= 0 ||
+    fraction >= 1 ||
+    [edge.leftFace, edge.rightFace].some(id => id && document.mesh.faces[id].properties.locked) ||
+    document.featureGroups.some(group => group.locked && groupUsesEdge(document, group, edgeId))
+  )
+    return null;
+  const a = document.mesh.vertices[edge.a].point;
+  const b = document.mesh.vertices[edge.b].point;
+  if (distance(a, b) * Math.min(fraction, 1 - fraction) < 1) return null;
+  const next = clone(document);
+  const vertexId = nextNumericId(next.mesh.vertices, "v");
+  const newEdgeId = nextNumericId(next.mesh.edges, "e");
+  next.mesh.vertices[vertexId] = {
+    id: vertexId,
+    point: [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction],
+    locked: false
+  };
+  next.mesh.edges[edgeId].b = vertexId;
+  next.mesh.edges[newEdgeId] = { ...edge, id: newEdgeId, a: vertexId };
+  const expand = (ref: EdgeRef): EdgeRef[] =>
+    ref.edgeId !== edgeId
+      ? [ref]
+      : ref.forward
+        ? [
+            { edgeId, forward: true },
+            { edgeId: newEdgeId, forward: true }
+          ]
+        : [
+            { edgeId: newEdgeId, forward: false },
+            { edgeId, forward: false }
+          ];
+  for (const face of Object.values(next.mesh.faces)) face.boundary = face.boundary.flatMap(expand);
+  for (const group of next.featureGroups) {
+    if (group.kind !== "river") group.segments = group.segments.flatMap(expand);
+    else
+      group.vertices = group.vertices.flatMap((id, i, ids) =>
+        i + 1 < ids.length && ((id === edge.a && ids[i + 1] === edge.b) || (id === edge.b && ids[i + 1] === edge.a))
+          ? [id, vertexId]
+          : [id]
+      );
+  }
+  return validate(next).length ? null : { document: next, vertexId };
+}
+
 export function validate(document: CityDocument): string[] {
   const errors: string[] = [];
   const { mesh } = document;
