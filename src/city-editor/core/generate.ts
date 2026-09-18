@@ -226,6 +226,7 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
     seed,
     extentMeters: frame.extentMeters,
     cityRadiusMeters: settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters,
+    dwellings: descriptor.burg.dwellings,
     cellSizeMeters: cellSize,
     lloydPasses: 1,
     urbanNPatches: settings.urbanNPatches

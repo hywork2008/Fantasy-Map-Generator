@@ -90,6 +90,8 @@ export interface BurgSiteDescriptor {
     type: string;
     seed: string;
     population: number;
+    /** Required dwellings supplied as a city-generation input. */
+    dwellings: number;
     capital: boolean;
     port: boolean;
     citadel: boolean;

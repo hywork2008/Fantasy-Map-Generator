@@ -4,6 +4,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
+import { getUrbanDwellings } from "../utils/urbanDwellings";
 
 /**
  * Burg site descriptor — the machine-readable "site survey" of a burg's local
@@ -135,6 +136,8 @@ export interface BurgSiteDescriptor {
     seed: string;
     /** Absolute number of inhabitants (population points × populationRate × urbanization). */
     population: number;
+    /** Required dwellings derived from the absolute population. */
+    dwellings: number;
     capital: boolean;
     port: boolean;
     citadel: boolean;
@@ -221,6 +224,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       type: burg.type ?? "Generic",
       seed: String(burg.MFCG ?? worldContext.seed + String(burg.i).padStart(4, "0")),
       population,
+      dwellings: getUrbanDwellings(population),
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
       citadel: Boolean(burg.citadel),

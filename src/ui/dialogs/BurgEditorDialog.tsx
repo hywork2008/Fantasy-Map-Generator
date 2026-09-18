@@ -261,6 +261,12 @@ export const BurgEditorDialog: React.FC = () => {
                     <span id="burgElevation">{burgData.elevation}</span> {t("dialogs.burgEditor.aboveSeaLevel")}
                   </td>
                 </tr>
+                <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
+                  <td>
+                    <span id="burgDwellings">{burgData.dwellings}</span>
+                  </td>
+                </tr>
                 {isEconomyEnabled && (
                   <>
                     <tr data-tip={t("dialogs.burgEditor.productionTip")}>
@@ -352,12 +358,6 @@ export const BurgEditorDialog: React.FC = () => {
                         >
                           {burgData.employmentComposition}
                         </span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
-                      <td>
-                        <span id="burgDwellings">{burgData.dwellings}</span>
                       </td>
                     </tr>
                     <tr data-tip={t("dialogs.burgEditor.housingGapTip")}>

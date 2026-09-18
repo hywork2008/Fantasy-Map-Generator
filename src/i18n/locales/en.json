@@ -2289,7 +2289,7 @@
       "laborLedger": "Labor ledger",
       "laborLedgerTip": "Labor: compact employment composition (adults, care, assigned, residual, focus). Display-only.",
       "dwellings": "Dwellings",
-      "dwellingsTip": "Housing: built permanent dwellings vs required (household size 4.5; people = population × populationRate). Requires Economy and a market burg.",
+      "dwellingsTip": "Required urban dwellings (city population ÷ 4.5 residents per dwelling).",
       "housingGap": "Housing gap",
       "housingGapTip": "Housing: share of required dwellings still unbuilt. Raises mason/carpenter jobs and Stone/Brick/Wood demand.",
       "underConstruction": "Under construction",

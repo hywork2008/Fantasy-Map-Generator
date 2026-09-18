@@ -3,6 +3,7 @@
 // without the world map. Deterministic in (preset, config, seed). M3 replaces
 // this path with a real FMG descriptor; the pipeline downstream is identical.
 
+import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { azimuthToVec, nearestOnPolyline, segmentsIntersect, sideOfPolyline, vecToAzimuth } from "../core/geom";
 import { makeRng, type Rng } from "../core/prng";
 import type { Point } from "../core/types";
@@ -126,6 +127,7 @@ export function synthSite(
       type: "Generic",
       seed,
       population,
+      dwellings: getUrbanDwellings(population),
       capital: false,
       port: features.port && waterbody !== null,
       citadel: features.citadel,

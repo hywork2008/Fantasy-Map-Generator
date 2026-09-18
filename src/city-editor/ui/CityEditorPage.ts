@@ -1,3 +1,4 @@
+import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { CITY_SIZE_PRESETS, type CitySizePreset, createGridDocument, type GridKind } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
 import {
@@ -3236,9 +3237,11 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
   const yesNo = (value: boolean): string => (value ? "Yes" : "No");
   const source = origin === "world" ? "From world map" : origin === "link" ? "From shared link" : "Imported site";
   const roads = descriptor.roads.filter(road => road.group !== "searoutes");
+  const dwellings = descriptor.burg.dwellings ?? getUrbanDwellings(descriptor.burg.population);
   const rows: [string, string][] = [
     [source, descriptor.burg.name || "(unnamed burg)"],
     ["Population", descriptor.burg.population.toLocaleString()],
+    ["Dwellings", dwellings.toLocaleString()],
     ["Radius", `${Math.round(descriptor.frame.cityRadiusMeters)} m`],
     ["Coast", water],
     ["Rivers", String(descriptor.rivers.length)],

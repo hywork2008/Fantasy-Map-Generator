@@ -14,6 +14,8 @@ export interface CityParams {
   extentMeters: number;
   /** Built-up radius derived from population, meters. */
   cityRadiusMeters: number;
+  /** Required dwellings from the source city, when available. */
+  dwellings?: number;
   /** Target Voronoi cell size (≈ edge length), meters. */
   cellSizeMeters: number;
   /** Number of Lloyd relaxation passes applied after the initial scatter. */

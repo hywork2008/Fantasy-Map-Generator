@@ -576,6 +576,7 @@ describe("shareable link and FMG site", () => {
     expect(root.querySelector(".ce-imported")?.hidden).toBe(false);
     expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(true);
     expect(root.querySelector(".ce-imported-body")?.textContent).toContain("From shared link");
+    expect(root.querySelector(".ce-imported-body")?.textContent).toContain("Dwellings889");
     expect(root.querySelector<HTMLInputElement>(".ce-generate-seed")?.value).toBe("ui-fmg-layout");
     panelButton("Use standalone site").click();
     expect(root.querySelector(".ce-imported")?.hidden).toBe(true);

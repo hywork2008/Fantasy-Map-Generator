@@ -21,6 +21,7 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
@@ -142,6 +143,7 @@ const burgEditorInternal = {
     COArenderer.trigger(coaID, b.coa!);
 
     const economySummary = burgEconomyExtensions.getBurgEconomySummary?.(burgId);
+    const population = rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
 
     getBurgEditorState().setBurgData({
       id: burgId,
@@ -151,7 +153,7 @@ const burgEditorInternal = {
       group: b.group ?? "",
       type: b.type || "Generic",
       culture: b.culture ?? 0,
-      population: rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
+      population,
       children: b.demographics?.children
         ? rn(b.demographics.children * worldContext.populationRate * worldContext.urbanization)
         : 0,
@@ -179,7 +181,7 @@ const burgEditorInternal = {
       marketFoodStock: economySummary?.marketFoodStock ?? "—",
       basicEmploymentDemand: economySummary?.basicEmploymentDemand ?? "—",
       serviceEmploymentDemand: economySummary?.serviceEmploymentDemand ?? "—",
-      dwellings: economySummary?.dwellings ?? "—",
+      dwellings: String(getUrbanDwellings(population)),
       housingGap: economySummary?.housingGap ?? "—",
       underConstruction: economySummary?.underConstruction ?? "—",
       constructionWorkers: economySummary?.constructionWorkers ?? "—",
