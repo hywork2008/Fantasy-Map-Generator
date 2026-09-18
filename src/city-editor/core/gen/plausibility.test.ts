@@ -18,6 +18,7 @@ import {
 import {
   buildingOverWater,
   clipPolylinesToLand,
+  countFrameReachingPolylines,
   filterBuildingsOverWater,
   landwardFarNode,
   majorityLandGatesUnserved,
@@ -88,6 +89,20 @@ describe("plausibility filters", () => {
     expect(pointInPolygon(landed, sea)).toBe(false);
     expect(landed[0]).toBeCloseTo(1, 5);
     expect(landed[1]).toBeCloseTo(5, 5);
+  });
+
+  it("countFrameReachingPolylines counts only lines that leave the window", () => {
+    const half = 100;
+    const toEdge: Point[] = [
+      [0, 0],
+      [99, 0]
+    ];
+    const interior: Point[] = [
+      [0, 0],
+      [20, 0]
+    ];
+    expect(countFrameReachingPolylines([toEdge, interior], half, 10)).toBe(1);
+    expect(countFrameReachingPolylines([interior], half, 10)).toBe(0);
   });
 
   it("clipPolylinesToLand drops a fully wet line and keeps a dry one", () => {

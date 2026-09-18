@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createGridDocument, createSizedDocument, parseDocument } from "../document";
 import { featureGroupVertices } from "../features";
-import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
+import { countExternalApproachRoads, defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
 import { kindEdgeIds, vertexHasCrossing } from "../passages";
 import type { CityDocument, Point } from "../types";
 import { buildCityBuildings, insetConvexKernel } from "./buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
+import { minExternalRoadsForExtent } from "./settlementExtent";
 
 function roughness(document: CityDocument, kind: "wall" | "road"): number {
   let total = 0;
@@ -47,6 +48,9 @@ describe("complete editable city", () => {
         expect(city).not.toBeNull();
         expect(validate(city)).toEqual([]);
         expect(city.frame).toEqual(base.frame);
+        expect(countExternalApproachRoads(city)).toBeGreaterThanOrEqual(
+          minExternalRoadsForExtent(city.frame.extentMeters)
+        );
         const rivers = kindEdgeIds(city, "river");
         const walls = kindEdgeIds(city, "wall");
         const wallVertices = new Set([...walls].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
@@ -121,12 +125,24 @@ describe("complete editable city", () => {
     for (const grid of [base, createGridDocument({ size: "small", grid: "hex", seed: "preview" })]) {
       const city = generateCityOnDocument(grid, settings, "reference-town")!;
       expect(city.gates.length).toBeGreaterThanOrEqual(2);
+      expect(countExternalApproachRoads(city)).toBeGreaterThanOrEqual(2);
       for (const gate of city.gates) {
         const roads = city.featureGroups.filter(
           g => g.kind === "road" && featureGroupVertices(city, g).includes(gate.vertexId)
         );
         expect(roads.length, gate.vertexId).toBeGreaterThanOrEqual(2);
       }
+    }
+  });
+
+  it("keeps at least two map-edge approach roads on Small cities, including unwalled towns", () => {
+    for (const walls of [true, false]) {
+      const settings = defaultGenerationSettings();
+      settings.config.rivers = [];
+      settings.config.features.walls = walls;
+      const city = generateCityOnDocument(base, settings, "roads-two")!;
+      expect(city, `walls=${walls}`).not.toBeNull();
+      expect(countExternalApproachRoads(city)).toBeGreaterThanOrEqual(2);
     }
   });
 

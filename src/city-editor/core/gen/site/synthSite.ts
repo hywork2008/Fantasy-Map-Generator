@@ -5,6 +5,7 @@
 
 import { azimuthToVec, nearestOnPolyline, segmentsIntersect, sideOfPolyline, vecToAzimuth } from "../geom";
 import { makeRng, type Rng } from "../prng";
+import { MIN_CITY_EXTERNAL_ROADS } from "../settlementExtent";
 import type { Point } from "../types";
 import type {
   BurgSiteArchetype,
@@ -111,7 +112,11 @@ export function synthSite(
   const riverSpan = half * 1.12;
   const rivers = placements.map((p, i) => synthRiver(rng, p, i + 1, half, cityRadiusMeters, waterbody, riverSpan));
 
-  const roads = synthRoads(rng, half, roadBearings(rng, config, waterbody?.shoreAzimuthDeg ?? null, rivers));
+  const roads = synthRoads(
+    rng,
+    half,
+    roadBearings(rng, config, waterbody?.shoreAzimuthDeg ?? null, rivers, MIN_CITY_EXTERNAL_ROADS)
+  );
 
   // Features come straight from the SiteConfig toggles — no population heuristics.
   // `port` still needs somewhere to dock, so it collapses to false without water.
@@ -493,11 +498,18 @@ function synthRiver(
 
 // --- roads / terrain -------------------------------------------------------------
 
-function roadBearings(rng: Rng, config: SiteConfig, shoreAz: number | null, rivers: BurgSiteRiver[]): number[] {
+function roadBearings(
+  rng: Rng,
+  config: SiteConfig,
+  shoreAz: number | null,
+  rivers: BurgSiteRiver[],
+  minCount: number
+): number[] {
   const bearings =
     shoreAz !== null ? landwardBearings(shoreAz, 3) : spreadBearings(rng, config.rivers.length > 0 ? 3 : 4);
   const through = rivers.find(r => r.crossesSite);
   if (through) bearings.push((through.axisAzimuthDeg + 90) % 360, (through.axisAzimuthDeg + 270) % 360);
+  while (bearings.length < minCount) bearings.push((bearings.length * 360) / Math.max(minCount, 1));
   return bearings;
 }
 

@@ -23,7 +23,7 @@ import { createFabricPlan } from "./gen/fabricDistricts";
 // Rivers / Features (or a real FMG descriptor) are the deliberate inputs and
 // are kept across presses.
 
-import { orderedBoundaryLoops, shortestPath } from "./features";
+import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
 import { classifyRiver } from "./gen/classifyRiver";
 import { type CoastResult, classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
@@ -42,7 +42,7 @@ import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
-import { resolveWalledAreaShare, splitUrbanCore } from "./gen/settlementExtent";
+import { minExternalRoadsForExtent, resolveWalledAreaShare, splitUrbanCore } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
@@ -161,6 +161,33 @@ export function defaultGenerationSettings(): GenerationSettings {
   return { config: structuredClone(DEFAULT_SITE_CONFIG), streets: defaultStreetSettings() };
 }
 
+/** `gc:road-*` groups that leave the built-up area. Intramural streets run
+ * gate → plaza (one end near the origin) and are ignored. Cape land may never
+ * reach the window edge, so "outward from the town" is the test, not the frame. */
+export function countExternalApproachRoads(document: CityDocument): number {
+  const cellSize = Math.max(1, document.frame.blockSizeMeters);
+  const core = document.frame.cityRadiusMeters * 0.25;
+  let count = 0;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.locked || !group.id.startsWith(`${GEN_PREFIX}road-`)) continue;
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 2) continue;
+    const start = document.mesh.vertices[ids[0]]?.point;
+    const end = document.mesh.vertices[ids.at(-1)!]?.point;
+    if (!start || !end) continue;
+    const near = Math.min(Math.hypot(start[0], start[1]), Math.hypot(end[0], end[1]));
+    const far = Math.max(Math.hypot(start[0], start[1]), Math.hypot(end[0], end[1]));
+    if (near >= core && far >= near + cellSize * 0.5) count++;
+  }
+  return count;
+}
+
+/** Standalone random cities must keep the size's minimum; an FMG descriptor
+ * already carries the world's own road count. */
+function requiredExternalRoads(settings: GenerationSettings, extentMeters: number): number {
+  return settings.descriptor ? 0 : minExternalRoadsForExtent(extentMeters);
+}
+
 /** A fresh coherent random coast / rivers / relief / feature combination. */
 export function randomGeography(): SiteConfig {
   return randomSiteConfig(makeRng(randomSeed()));
@@ -229,6 +256,10 @@ export function generateStageOnDocument(
   return applyPlan(document, cells, faceIdOf, plan, program, stageStep);
 }
 
+/** Junction / approach-road retries for a complete town. Enough to keep Small /
+ * Medium / Large cities on at least two external roads. */
+export const COMPLETE_CITY_ATTEMPTS = 8;
+
 /** Complete an editable town on the current grid, including intramural streets
  * and geometric finishing. The diagnostic stages omit smoothing but prepare valid gate junctions. */
 export function generateCityOnDocument(
@@ -237,10 +268,11 @@ export function generateCityOnDocument(
   seed: string,
   observer?: GenerationObserver
 ): CityDocument | null {
-  // Some coast/river layouts cannot form valid crossings on this grid. Try
-  // another deterministic layout with the same requested settings, always
-  // starting from the untouched input rather than accumulating failed merges.
-  for (let attempt = 0; attempt < 4; attempt++) {
+  // Some coast/river layouts cannot form valid crossings, or enough external
+  // approach roads, on this grid. Try another deterministic layout with the
+  // same requested settings, always starting from the untouched input rather
+  // than accumulating failed merges.
+  for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const result = generateCityAttempt(
       document,
       settings,
@@ -331,6 +363,8 @@ function generateCityAttempt(
   );
   mark("apply-total");
   if (!next) return null;
+  const minRoads = requiredExternalRoads(settings, document.frame.extentMeters);
+  if (minRoads > 0 && countExternalApproachRoads(next) < minRoads) return null;
   next.appearance = "town";
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
@@ -343,8 +377,10 @@ function generateCityAttempt(
   const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenBridges(shaped);
+  const roadsOk = minRoads === 0 || countExternalApproachRoads(settled) >= minRoads;
   const valid =
     validGeneratedCrossings(settled) &&
+    roadsOk &&
     (!coarse || Object.values(settled.mesh.faces).every(f => isSimplePolygon(facePoints(settled.mesh, f))));
   mark("crossing-validation", {
     valid: Number(valid),
@@ -817,12 +853,13 @@ function runPlan(
   let streetResult = buildStreets(streetInput);
   let routedGates = gates;
   let streetGeo = geo;
-  if (
-    streetOpts.avoidSea &&
-    majorityLandGatesUnserved(routedGates, streetResult.roads, cellSize) &&
-    !settings.descriptor
-  ) {
-    const retry = synthSite(NOMINAL_PRESET, settings.config, `${seed}:roads-retry`, {
+  const minRoads = requiredExternalRoads(settings, params.extentMeters);
+  const needsBetterRoads = (): boolean =>
+    (streetOpts.avoidSea && majorityLandGatesUnserved(routedGates, streetResult.roads, cellSize)) ||
+    (minRoads > 0 && streetResult.roads.length < minRoads);
+  for (let roadAttempt = 0; roadAttempt < 3 && needsBetterRoads() && !settings.descriptor; roadAttempt++) {
+    const retrySeed = roadAttempt === 0 ? `${seed}:roads-retry` : `${seed}:roads-retry:${roadAttempt}`;
+    const retry = synthSite(NOMINAL_PRESET, settings.config, retrySeed, {
       extentMeters: params.extentMeters,
       cityRadiusMeters: params.cityRadiusMeters
     });
@@ -1111,7 +1148,9 @@ function applyPlan(
     mesh = next.mesh;
     const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
     const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
-    const routeComplete = complete ? completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned) : null;
+    const routeComplete = complete
+      ? completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned, !program.walls)
+      : null;
     // A complete city supplies one approach road and one interior street for
     // every planned gate. Gate placement is allowed to fail (for example when
     // the matching wall run was removed at the coast), so never materialize
@@ -1119,7 +1158,9 @@ function applyPlan(
     const approachRoadCount = plan.roads.length - plan.streets.length;
     plan.roads.forEach((polyline, i) => {
       const gateIndex = i < approachRoadCount ? i : i - approachRoadCount;
-      if (complete && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`)) return;
+      // Walled towns drop a route whose gate never made it onto the mesh.
+      // Unwalled towns have no gates; still draw the planned approach roads.
+      if (complete && program.walls && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`)) return;
       const segments = routeComplete
         ? routeComplete(polyline, i < plan.roads.length - plan.streets.length)
         : longestUnbannedRun(polylineToEdgeRefs(mesh, polyline, nearestAfter), banned);
@@ -1194,7 +1235,7 @@ function applyPlan(
   // A route can still fail after its gate was placed (for instance when A* has
   // no legal approach through the post-junction topology). Remove its paired
   // route as well; otherwise the road visibly terminates at a closed wall.
-  if (complete && plan.gates.length) {
+  if (complete && plan.gates.length && program.walls) {
     const activeGateIds = new Set(next.gates.filter(gate => gate.id.startsWith(GEN_PREFIX)).map(gate => gate.id));
     next.featureGroups = next.featureGroups.filter(group => {
       if (group.locked || group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
@@ -1280,7 +1321,8 @@ function completeRoadRouter(
   plan: Plan,
   faceIdOf: string[],
   nearest: NearestVertex,
-  banned: Set<Id>
+  banned: Set<Id>,
+  openRim = false
 ): (polyline: Point[], outside: boolean) => EdgeRef[] {
   const { mesh } = document;
   const ids = Object.keys(mesh.vertices);
@@ -1322,14 +1364,21 @@ function completeRoadRouter(
     const start = endpoint(polyline[0]);
     const end = endpoint(polyline.at(-1)!);
     if (!start || !end) return [];
-    const path = aStar(graph, indexOf.get(start)!, indexOf.get(end)!, (a, b, w) => {
+    const startIdx = indexOf.get(start)!;
+    const endIdx = indexOf.get(end)!;
+    const path = aStar(graph, startIdx, endIdx, (a, b, w) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
       if (banned.has(edge.id)) return Infinity;
       for (const id of [edge.a, edge.b]) if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
       const faces = [edge.leftFace, edge.rightFace].filter((id): id is Id => id !== null);
       if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land")) return Infinity;
       const inTown = faces.some(id => urban.has(id));
-      return outside === inTown ? Infinity : w;
+      if (outside === inTown) {
+        // Unwalled towns have no gate passage; allow the last hop onto the rim.
+        if (outside && openRim && (a === endIdx || b === endIdx)) return w;
+        return Infinity;
+      }
+      return w;
     });
     if (!path) return [];
     if (outside) {

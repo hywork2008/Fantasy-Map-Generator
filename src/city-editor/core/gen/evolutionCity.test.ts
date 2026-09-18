@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createGridDocument, parseDocument } from "../document";
-import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
+import { countExternalApproachRoads, defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, validate } from "../mesh";
 import { kindEdgeIds, validGeneratedCrossings, vertexHasCrossing } from "../passages";
 import { buildBlockFabric } from "./blockInfill";
 import { districtDocument, resolveDistricts } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./geom";
+import { minExternalRoadsForExtent } from "./settlementExtent";
 
 describe("evolution complete city", () => {
   for (const seed of ["phase2-reference", "phase2-b", "phase2-c"])
@@ -23,6 +24,9 @@ describe("evolution complete city", () => {
         expect(validate(city)).toEqual([]);
         expect(validGeneratedCrossings(city)).toBe(true);
         expect(city.gates.length).toBeGreaterThan(0);
+        expect(countExternalApproachRoads(city)).toBeGreaterThanOrEqual(
+          minExternalRoadsForExtent(city.frame.extentMeters)
+        );
         for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
         const roads = kindEdgeIds(city, "road"),
           walls = kindEdgeIds(city, "wall"),
@@ -57,6 +61,19 @@ describe("evolution complete city", () => {
         expect(JSON.stringify(input)).toBe(before);
       });
     }
+  it("Small / Medium / Large cities keep at least two map-edge approach roads", () => {
+    const settings = defaultGenerationSettings();
+    settings.config.rivers = [];
+    for (const size of ["small", "medium", "large"] as const) {
+      const input = createGridDocument({ size, grid: "evolution", seed: "roads-two" });
+      const city = generateCityOnDocument(input, settings, "roads-two")!;
+      expect(city, size).not.toBeNull();
+      expect(countExternalApproachRoads(city), size).toBeGreaterThanOrEqual(
+        minExternalRoadsForExtent(city.frame.extentMeters)
+      );
+    }
+  });
+
   it("keeps the same initial cell count across sizes while increasing internal detail", () => {
     const settings = defaultGenerationSettings();
     settings.config.rivers = [];

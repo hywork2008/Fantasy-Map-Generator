@@ -6,7 +6,14 @@ import { validGeneratedCrossings } from "../passages";
 import type { CityDocument } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { polygonArea } from "./geom";
-import { defaultWalledAreaShare, resolveWalledAreaShare } from "./settlementExtent";
+import {
+  defaultWalledAreaShare,
+  MIN_CITY_EXTERNAL_ROADS,
+  MIN_FORT_EXTERNAL_ROADS,
+  minExternalRoadsForExtent,
+  resolveWalledAreaShare,
+  SMALL_CITY_EXTENT_METERS
+} from "./settlementExtent";
 
 function settledArea(document: CityDocument, kind?: "core" | "outskirts") {
   return Object.values(document.mesh.faces)
@@ -15,6 +22,16 @@ function settledArea(document: CityDocument, kind?: "core" | "outskirts") {
 }
 
 describe("wall capacity and extramural housing", () => {
+  it("requires two map-edge roads for current city sizes and one for a future tiny/fort", () => {
+    expect(SMALL_CITY_EXTENT_METERS).toBe(1200);
+    expect([1200, 2400, 4800].map(minExternalRoadsForExtent)).toEqual([
+      MIN_CITY_EXTERNAL_ROADS,
+      MIN_CITY_EXTERNAL_ROADS,
+      MIN_CITY_EXTERNAL_ROADS
+    ]);
+    expect(minExternalRoadsForExtent(SMALL_CITY_EXTENT_METERS - 1)).toBe(MIN_FORT_EXTERNAL_ROADS);
+  });
+
   it("uses size-dependent defaults and bounds explicit capacity", () => {
     expect([1200, 2400, 4800].map(defaultWalledAreaShare)).toEqual([1, 0.45, 0.2]);
     expect(resolveWalledAreaShare(undefined, 4800)).toBe(0.2);

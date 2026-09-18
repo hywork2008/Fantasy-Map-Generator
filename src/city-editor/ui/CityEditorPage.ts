@@ -31,6 +31,7 @@ import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
 import {
   type CityFeatureSet,
+  COMPLETE_CITY_ATTEMPTS,
   defaultGenerationSettings,
   type FarNodeMode,
   FEATURE_KEYS,
@@ -2903,7 +2904,7 @@ export function mountCityEditor(root: HTMLElement): void {
     generationSamples = [];
     const onProgress = (sample: GenerationSample) => {
       generationSamples.push(sample);
-      generationProgress.textContent = `生成中 — ${sample.attempt}/4案目 · ${phaseLabel(sample.phase)}`;
+      generationProgress.textContent = `生成中 — ${sample.attempt}/${COMPLETE_CITY_ATTEMPTS}案目 · ${phaseLabel(sample.phase)}`;
     };
     if (typeof Worker !== "undefined") {
       const input = documentState;

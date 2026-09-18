@@ -13,10 +13,12 @@ export const BLOCK_SIZE_METERS = 50;
  * mean cell width. This calibration keeps a 50 m macro block near its target. */
 const BLOCK_SITE_SPACING_METERS = 44.8;
 
+/** `minExternalRoads` is the standalone random-city floor (see
+ * `minExternalRoadsForExtent`). A future tiny/fort size would use 1. */
 export const CITY_SIZE_PRESETS = {
-  small: { label: "Small", extentMeters: 1200, cellsAcross: 24, buildingTarget: 300 },
-  medium: { label: "Medium", extentMeters: 2400, cellsAcross: 48, buildingTarget: 1600 },
-  large: { label: "Large", extentMeters: 4800, cellsAcross: 96, buildingTarget: 14000 }
+  small: { label: "Small", extentMeters: 1200, cellsAcross: 24, buildingTarget: 300, minExternalRoads: 2 },
+  medium: { label: "Medium", extentMeters: 2400, cellsAcross: 48, buildingTarget: 1600, minExternalRoads: 2 },
+  large: { label: "Large", extentMeters: 4800, cellsAcross: 96, buildingTarget: 14000, minExternalRoads: 2 }
 } as const;
 
 export type CitySizePreset = keyof typeof CITY_SIZE_PRESETS;

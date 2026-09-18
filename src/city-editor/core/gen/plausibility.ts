@@ -43,6 +43,23 @@ export function landwardFarNode(
   return gate;
 }
 
+/** How close to the window edge a vertex may sit and still count as leaving the map.
+ * Coarse evolution cells often stop a block inward of the exact frame. */
+export function frameReachSlack(halfExtent: number, cellSize: number): number {
+  return Math.max(cellSize * 2, halfExtent * 0.12);
+}
+
+export function polylineReachesFrame(line: Point[], halfExtent: number, slack: number): boolean {
+  const limit = halfExtent - slack;
+  return line.some(p => Math.abs(p[0]) >= limit || Math.abs(p[1]) >= limit);
+}
+
+/** Approach roads that actually leave the window, not intramural streets. */
+export function countFrameReachingPolylines(lines: Point[][], halfExtent: number, cellSize: number): number {
+  const slack = frameReachSlack(halfExtent, cellSize);
+  return lines.filter(line => polylineReachesFrame(line, halfExtent, slack)).length;
+}
+
 /** Keep the longest dry stretch of each polyline; drop a line that is entirely wet. */
 export function clipPolylinesToLand(lines: Point[][], waterPolygon: Point[] | null): Point[][] {
   if (!waterPolygon || waterPolygon.length < 3) return lines.map(line => line.map(p => [p[0], p[1]] as Point));
