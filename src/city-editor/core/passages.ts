@@ -437,6 +437,47 @@ export function validGeneratedCrossings(document: CityDocument): boolean {
   return true;
 }
 
+/** Human-readable "how" for a rejected complete city: every broken gate, shared
+ * edge, or unbridged town-dividing river. Empty when crossings are valid. */
+export function explainGeneratedCrossingFailures(document: CityDocument): string[] {
+  const details: string[] = [];
+  for (const gate of document.gates) {
+    if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road"))
+      details.push(`門 ${gate.id}（頂点 ${gate.vertexId}）に城壁と道路の十字交差がない`);
+  }
+  const walls = kindEdgeIds(document, "wall");
+  const rivers = kindEdgeIds(document, "river");
+  for (const id of walls) if (rivers.has(id)) details.push(`城壁と河川が辺 ${id} を共有している`);
+  const wallVertices = new Set([...walls].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
+  const riverVertices = new Set([...rivers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
+  for (const id of wallVertices)
+    if (riverVertices.has(id) && !vertexHasCrossing(document, id, "wall", "river"))
+      details.push(`頂点 ${id} で城壁と河川が交わるが十字交差になっていない`);
+  for (const bridge of document.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
+    const vertices = featureGroupVertices(document, bridge);
+    if (vertices.length !== 3)
+      details.push(`橋 ${bridge.id} の頂点数が ${vertices.length} で、3（道路–河川–道路）ではない`);
+    else if (!vertexHasCrossing(document, vertices[1], "river", "road"))
+      details.push(`橋 ${bridge.id}（頂点 ${vertices[1]}）に河川と道路の十字交差がない`);
+  }
+  for (const river of document.featureGroups) {
+    if (river.kind !== "river" || !river.id.startsWith("gc:")) continue;
+    const dividesTown = river.vertices.slice(1).some((id, i) => {
+      const edge = edgeBetween(document.mesh, river.vertices[i], id);
+      return (
+        edge &&
+        [edge.leftFace, edge.rightFace].every(
+          fid =>
+            fid && document.mesh.faces[fid].properties.water === "land" && document.mesh.faces[fid].properties.buildable
+        )
+      );
+    });
+    if (dividesTown && !river.vertices.some(id => vertexHasCrossing(document, id, "river", "road")))
+      details.push(`河川 ${river.id} が市街地を分断しているが橋がない`);
+  }
+  return details;
+}
+
 /** Open wall passages at every gate, then river bridges at every road–river meeting. */
 export function openGeneratedPassages(document: CityDocument): CityDocument {
   let next = document;

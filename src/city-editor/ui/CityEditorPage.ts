@@ -53,7 +53,7 @@ import {
   riversForCount,
   type SiteConfig
 } from "../core/generate";
-import type { GenerationSample } from "../core/generationDiagnostics";
+import { type GenerationSample, generationPhaseLabel, logGenerationFailures } from "../core/generationDiagnostics";
 import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
 import {
@@ -2905,7 +2905,11 @@ export function mountCityEditor(root: HTMLElement): void {
     generationSamples = [];
     const onProgress = (sample: GenerationSample) => {
       generationSamples.push(sample);
-      generationProgress.textContent = `生成中 — ${sample.attempt}/${COMPLETE_CITY_ATTEMPTS}案目 · ${phaseLabel(sample.phase)}`;
+      if (sample.failure) {
+        generationProgress.textContent = `案${sample.attempt} 不採用 — ${generationPhaseLabel(sample.phase)}: ${sample.failure.message}`;
+        return;
+      }
+      generationProgress.textContent = `生成中 — ${sample.attempt}/${COMPLETE_CITY_ATTEMPTS}案目 · ${generationPhaseLabel(sample.phase)}`;
     };
     if (typeof Worker !== "undefined") {
       const input = documentState;
@@ -2965,6 +2969,21 @@ export function mountCityEditor(root: HTMLElement): void {
     generationProgress.textContent = next ? "生成完了" : "都市の生成に失敗しました";
     root.dispatchEvent(new CustomEvent("city-generation-diagnostics", { detail: generationSamples.slice() }));
     if (!next) {
+      const source = completeSource ?? documentState;
+      const context = {
+        seed: generateSeed,
+        grid: source.gridKind ?? gridKind,
+        size: size.value,
+        extentMeters: source.frame.extentMeters,
+        cityRadiusMeters: source.frame.cityRadiusMeters,
+        faces: Object.keys(source.mesh.faces).length
+      };
+      if (generationSamples.some(sample => sample.failure)) logGenerationFailures(generationSamples, context);
+      else
+        console.error("[City Editor] 都市の生成に失敗しました（不採用理由は記録されていない）", {
+          ...context,
+          samples: generationSamples
+        });
       showNotice("都市の生成に失敗しました");
       return;
     }
@@ -3484,14 +3503,4 @@ function circleIntersectsPolygon(center: Point, radius: number, polygon: Point[]
 
 function vertexPairKey(a: Id, b: Id): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
-}
-
-function phaseLabel(phase: string): string {
-  if (phase.includes("coast") || phase.includes("river") || phase.includes("terrain")) return "地形";
-  if (phase === "urban") return "市街地";
-  if (phase.includes("wall")) return "城壁・門";
-  if (phase.includes("street") || phase.includes("route")) return "街道・橋";
-  if (phase.includes("rectify") || phase.includes("geometry")) return "形状の仕上げ";
-  if (phase.includes("validation")) return "接続の検証";
-  return "都市の構成";
 }

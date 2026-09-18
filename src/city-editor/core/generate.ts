@@ -62,17 +62,23 @@ import type {
 } from "./gen/types";
 import { DEFAULT_WALL_PLAN } from "./gen/types";
 import { assignWards } from "./gen/wards";
-import { type GenerationObserver, generationTimer } from "./generationDiagnostics";
+import {
+  type GenerationObserver,
+  type GenerationSample,
+  generationTimer,
+  logGenerationFailures,
+  reportGenerationFailure
+} from "./generationDiagnostics";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
 import {
   addBridge,
+  explainGeneratedCrossingFailures,
   joinWallRiverCrossings,
   kindEdgeIds,
   openBarrierPassage,
   openGeneratedPassages,
   straightenBridges,
   throughEdgesAt,
-  validGeneratedCrossings,
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
@@ -250,7 +256,13 @@ export function generateStageOnDocument(
   stageStep: number
 ): CityDocument | null {
   const faces = Object.values(document.mesh.faces);
-  if (faces.length < 3) return null;
+  if (faces.length < 3) {
+    reportGenerationFailure(undefined, 1, "prepare", "too-few-faces", `格子の面が3未満 (${faces.length})`, {
+      faces: faces.length,
+      stageStep
+    });
+    return null;
+  }
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
   const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, stageStep);
@@ -273,12 +285,17 @@ export function generateCityOnDocument(
   // approach roads, on this grid. Try another deterministic layout with the
   // same requested settings, always starting from the untouched input rather
   // than accumulating failed merges.
+  const failures: GenerationSample[] = [];
+  const observe: GenerationObserver = sample => {
+    if (sample.failure) failures.push(sample);
+    observer?.(sample);
+  };
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const result = generateCityAttempt(
       document,
       settings,
       attempt ? `${seed}:junction-retry:${attempt}` : seed,
-      observer,
+      observe,
       attempt + 1
     );
     if (result) {
@@ -298,6 +315,29 @@ export function generateCityOnDocument(
       return result;
     }
   }
+  observe({
+    phase: "complete",
+    elapsedMs: 0,
+    attempt: COMPLETE_CITY_ATTEMPTS,
+    counts: { attempts: COMPLETE_CITY_ATTEMPTS, rejected: failures.length },
+    failure: {
+      reason: "all-attempts-rejected",
+      message: `${COMPLETE_CITY_ATTEMPTS}案すべてが不採用になった`,
+      details: failures.map(
+        sample => `案${sample.attempt}: ${sample.failure?.message ?? sample.phase}（${sample.phase}）`
+      )
+    }
+  });
+  const context = {
+    seed,
+    grid: document.gridKind ?? "unspecified",
+    extentMeters: document.frame.extentMeters,
+    cityRadiusMeters: document.frame.cityRadiusMeters,
+    faces: Object.keys(document.mesh.faces).length
+  };
+  // Callers that pass an observer (UI / worker progress) log from the samples
+  // they already collected. Direct calls still need a console report.
+  if (!observer) logGenerationFailures(failures, context);
   return null;
 }
 
@@ -309,7 +349,18 @@ function generateCityAttempt(
   attempt = 1
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
-  if (Object.keys(document.mesh.faces).length < 3) return null;
+  const reject = (
+    phase: string,
+    reason: string,
+    message: string,
+    counts?: Record<string, number>,
+    details?: string[]
+  ): null => {
+    reportGenerationFailure(observer, attempt, phase, reason, message, counts, [`seed=${seed}`, ...(details ?? [])]);
+    return null;
+  };
+  const faceCount = Object.keys(document.mesh.faces).length;
+  if (faceCount < 3) return reject("prepare", "too-few-faces", `格子の面が3未満 (${faceCount})`, { faces: faceCount });
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
   mark("prepare", { faces: cells.length, edges: Object.keys(document.mesh.edges).length });
   const plan = runPlan(
@@ -336,7 +387,33 @@ function generateCityAttempt(
   const urbanArea = cells
     .filter(cell => plan.urban.has(cell.id))
     .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
-  if (urbanArea < minimumUrbanArea) return null;
+  if (urbanArea < minimumUrbanArea) {
+    const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+    const builtUpArea = cells
+      .filter(cell => plan.urban.has(cell.id) || plan.outskirts.has(cell.id))
+      .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
+    const targetArea = Math.PI * params.cityRadiusMeters ** 2;
+    return reject(
+      "urban",
+      "urban-area-too-small",
+      `城壁内の市街地面積 ${Math.round(urbanArea)} m² が最低 ${Math.round(minimumUrbanArea)} m²（πR²の45%）に届かない`,
+      {
+        urbanArea: Math.round(urbanArea),
+        builtUpArea: Math.round(builtUpArea),
+        minimumUrbanArea: Math.round(minimumUrbanArea),
+        targetArea: Math.round(targetArea),
+        urbanFaces: plan.urban.size,
+        outskirts: plan.outskirts.size,
+        cityRadiusMeters: Math.round(params.cityRadiusMeters),
+        walledSharePercent: Math.round(walledShare * 100)
+      },
+      [
+        `R=${params.cityRadiusMeters} m, πR²=${Math.round(targetArea)} m²`,
+        `城壁内シェア ${Math.round(walledShare * 100)}%（Walls ${program.walls ? "on" : "off"}）`,
+        `flood-fill後の市街地 ${Math.round(builtUpArea)} m² / 城壁内 ${Math.round(urbanArea)} m²`
+      ]
+    );
+  }
   const wards = new Map(plan.wards);
   for (const [id, kind] of wards) {
     if (["slum", "gate", "shanty", "military"].includes(kind)) wards.set(id, "craftsmen");
@@ -373,7 +450,14 @@ function generateCityAttempt(
   mark("apply-total");
   if (!next) return null;
   const minRoads = requiredExternalRoads(settings, document.frame.extentMeters);
-  if (minRoads > 0 && countExternalApproachRoads(next) < minRoads) return null;
+  const roadsBeforeFinish = countExternalApproachRoads(next);
+  if (minRoads > 0 && roadsBeforeFinish < minRoads)
+    return reject(
+      "street-plan",
+      "too-few-external-roads",
+      `仕上げ前の外縁道路が ${roadsBeforeFinish} 本で、最低 ${minRoads} 本に届かない`,
+      { roads: roadsBeforeFinish, minRoads, gates: next.gates.length }
+    );
   next.appearance = "town";
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
@@ -386,20 +470,47 @@ function generateCityAttempt(
   const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenBridges(shaped);
-  const roadsOk = minRoads === 0 || countExternalApproachRoads(settled) >= minRoads;
-  const valid =
-    validGeneratedCrossings(settled) &&
-    roadsOk &&
-    (!coarse || Object.values(settled.mesh.faces).every(f => isSimplePolygon(facePoints(settled.mesh, f))));
+  const roadsAfterFinish = countExternalApproachRoads(settled);
+  const crossingDetails = explainGeneratedCrossingFailures(settled);
+  const tangled = coarse
+    ? Object.values(settled.mesh.faces)
+        .filter(f => !isSimplePolygon(facePoints(settled.mesh, f)))
+        .map(f => f.id)
+    : [];
+  const valid = !crossingDetails.length && (minRoads === 0 || roadsAfterFinish >= minRoads) && !tangled.length;
   mark("crossing-validation", {
     valid: Number(valid),
     faces: Object.keys(settled.mesh.faces).length,
-    edges: Object.keys(settled.mesh.edges).length
+    edges: Object.keys(settled.mesh.edges).length,
+    roads: roadsAfterFinish,
+    crossingIssues: crossingDetails.length,
+    selfIntersectingFaces: tangled.length
   });
-  if (valid && coarse) {
-    settled.fabric = createFabricPlan(settled, seed);
-  }
-  return valid ? settled : null;
+  if (crossingDetails.length)
+    return reject(
+      "crossing-validation",
+      "invalid-crossings",
+      `門・橋の交差が不正（${crossingDetails.length}件）`,
+      { issues: crossingDetails.length, gates: settled.gates.length, roads: roadsAfterFinish },
+      crossingDetails.slice(0, 20)
+    );
+  if (minRoads > 0 && roadsAfterFinish < minRoads)
+    return reject(
+      "crossing-validation",
+      "too-few-external-roads",
+      `仕上げ後の外縁道路が ${roadsAfterFinish} 本で、最低 ${minRoads} 本に届かない`,
+      { roads: roadsAfterFinish, minRoads, gates: settled.gates.length }
+    );
+  if (tangled.length)
+    return reject(
+      "crossing-validation",
+      "self-intersecting-faces",
+      `evolution格子に自己交差する街区が ${tangled.length} 面ある`,
+      { faces: tangled.length },
+      tangled.slice(0, 12)
+    );
+  if (coarse) settled.fabric = createFabricPlan(settled, seed);
+  return settled;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
@@ -1324,7 +1435,19 @@ function applyPlan(
 
   const errors = validate(next);
   mark("apply-validation", { errors: errors.length });
-  return errors.length === 0 ? next : null;
+  if (errors.length) {
+    reportGenerationFailure(
+      observer,
+      attempt,
+      "apply-validation",
+      "invalid-mesh",
+      `メッシュ検証が ${errors.length} 件のエラーで失敗`,
+      { errors: errors.length },
+      errors.slice(0, 20)
+    );
+    return null;
+  }
+  return next;
 }
 
 /** Re-route against the topology AFTER gates have been opened. Snapping each
