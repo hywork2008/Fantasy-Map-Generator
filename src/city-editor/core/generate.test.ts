@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import { createGridDocument, createSizedDocument, sizePresetForExtent } from "./document";
 import { featureGroupVertices } from "./features";
 import { polygonArea } from "./gen/geom";
+import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
+import { siteToGeography } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
 import {
   defaultGenerationSettings,
   GENERATION_STAGES,
   type GenerationSettings,
+  generateCityOnDocument,
   generateCoastWalkStep,
   generateGateStep,
   generateRiverWalkStep,
@@ -60,6 +63,178 @@ const SCENARIOS: Record<string, GenerationSettings> = {
 };
 
 const SEEDS = ["ce-gen-a", "ce-gen-b", "ce-gen-c"];
+
+// Regression descriptor captured from Kakaia / Shiqsh (2026-09-18). The full
+// FMG archive is deliberately not a test dependency; this is the local survey
+// data that used to classify 117 of 120 cells as sea.
+const SHIQSH: BurgSiteDescriptor = {
+  version: 2,
+  burg: {
+    id: 6,
+    name: "Shiqsh",
+    group: "capital",
+    type: "Naval",
+    seed: "5252245400006",
+    population: 2720,
+    dwellings: 605,
+    capital: true,
+    port: true,
+    citadel: true,
+    plaza: true,
+    walls: true,
+    temple: false,
+    shanty: false
+  },
+  frame: { originMapUnits: [705.08, 504.29], metersPerMapUnit: 3112.39, extentMeters: 1500, cityRadiusMeters: 240 },
+  climate: { temperatureC: 18, biomeId: 22 },
+  terrain: {
+    elevationMeters: 3,
+    downhillAzimuthDeg: null,
+    gradePercent: 0,
+    heightfield: { size: 0, spacingMeters: 0, elevationsMeters: [], waterMask: [] }
+  },
+  rivers: [
+    {
+      riverId: 169,
+      name: "Chilbor",
+      type: "River",
+      widthMeters: 435.7,
+      axisAzimuthDeg: 215.4,
+      offsetMeters: 289.8,
+      offsetRatio: 1.21,
+      cityBank: "left",
+      crossesSite: false,
+      throughBurgCell: true,
+      rawOffsetMeters: 13475.1,
+      snappedToBank: true,
+      segments: [
+        {
+          points: [
+            [433.6, 750],
+            [95.1, 273.8]
+          ],
+          widthsMeters: [613.7, 622.5]
+        }
+      ],
+      parentRiverId: null,
+      leftBankSegments: [
+        [
+          [750, 667.5],
+          [348.7, 93.5]
+        ]
+      ],
+      rightBankSegments: [
+        [
+          [55.3, 750],
+          [-158.6, 454.2]
+        ]
+      ],
+      downstream: { terminal: "unknown", distanceMeters: 0, bearingDeg: 19.1 }
+    },
+    {
+      riverId: 37,
+      name: "Chiaqo",
+      type: "River",
+      widthMeters: 840.3,
+      axisAzimuthDeg: 194.1,
+      offsetMeters: 492.1,
+      offsetRatio: 2.05,
+      cityBank: "right",
+      crossesSite: false,
+      throughBurgCell: true,
+      rawOffsetMeters: 1192.5,
+      snappedToBank: true,
+      segments: [
+        {
+          points: [
+            [695.3, 750],
+            [319.4, -750]
+          ],
+          widthsMeters: [865.8, 868.9]
+        }
+      ],
+      parentRiverId: null,
+      leftBankSegments: [],
+      rightBankSegments: [
+        [
+          [268, 750],
+          [-116.8, -750]
+        ]
+      ],
+      downstream: { terminal: "ocean", distanceMeters: 30293, bearingDeg: 173.7 }
+    }
+  ],
+  waterbody: {
+    kind: "ocean",
+    isPort: true,
+    shoreAzimuthDeg: 173.7,
+    shoreline: [
+      [
+        [-750, -528.3],
+        [136.6, -750]
+      ]
+    ]
+  },
+  roads: [
+    {
+      routeId: 11,
+      group: "roads",
+      entryAzimuthDeg: 100.9,
+      reachesEdge: true,
+      path: [
+        [0, 0],
+        [750, -144.4]
+      ],
+      nextBurg: { id: 393, name: "Yeezohes", distanceMeters: 46048 }
+    },
+    {
+      routeId: 10,
+      group: "roads",
+      entryAzimuthDeg: 350.7,
+      reachesEdge: true,
+      path: [
+        [0, 0],
+        [-123.3, 750]
+      ],
+      nextBurg: { id: 695, name: "Rhialraq", distanceMeters: 92465 }
+    }
+  ],
+  suggestedGates: 3,
+  suggestedArchetype: "harbor"
+};
+
+describe("FMG harbour-site regression — Shiqsh", () => {
+  it("keeps a central dry town, a real sea shore, and kilometre rivers unbridged", () => {
+    const geo = siteToGeography(SHIQSH);
+    expect(geo.coast?.waterAzimuthDeg).toBe(173.7);
+    expect(geo.waterAreas).toHaveLength(1);
+    expect(geo.rivers).toHaveLength(2);
+    expect(geo.rivers.every(river => !river.bridgeAllowed)).toBe(true);
+
+    const source = createGridDocument({
+      size: "medium",
+      grid: "evolution",
+      seed: SHIQSH.burg.seed,
+      extentMeters: SHIQSH.frame.extentMeters,
+      cityRadiusMeters: SHIQSH.frame.cityRadiusMeters
+    });
+    const imported = defaultGenerationSettings();
+    imported.descriptor = SHIQSH;
+    const city = generateCityOnDocument(source, imported, SHIQSH.burg.seed);
+
+    expect(city).not.toBeNull();
+    if (!city) return;
+    const faces = Object.values(city.mesh.faces);
+    expect(faces.filter(face => face.properties.water === "sea").length).toBeLessThan(faces.length / 4);
+    expect(faces.filter(face => face.properties.buildable).length).toBeGreaterThan(20);
+    const centre = faces.filter(face => face.site).sort((a, b) => Math.hypot(...a.site!) - Math.hypot(...b.site!))[0];
+    expect(centre.properties.water).toBe("land");
+    expect(centre.properties.buildable).toBe(true);
+    expect(city.elements.some(element => element.kind === "harbor")).toBe(true);
+    expect(city.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(true);
+    expect(city.featureGroups.some(group => group.kind === "plank")).toBe(false);
+  });
+});
 
 describe("generateStageOnDocument", () => {
   const base = createSizedDocument("small", "mesh-fixture");

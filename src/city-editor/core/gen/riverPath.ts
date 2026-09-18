@@ -27,6 +27,8 @@ export interface RoutedRiver {
   widths: number[];
   /** True when the river could not be walked onto the grid (offshore / degenerate). */
   fallback: boolean;
+  /** Whether the site permits a road bridge across this physical channel. */
+  bridgeAllowed: boolean;
 }
 
 // Two passes, not three: on the coarse ward-scale grid the walked `edgePoints`
@@ -42,9 +44,17 @@ export function walkRiver(
   shoreline: Point[] | null,
   cellSizeMeters: number,
   halfExtentMeters: number,
-  rng: Rng
+  rng: Rng,
+  bridgeAllowed = true
 ): RoutedRiver {
-  const dead: RoutedRiver = { edgePoints: [], smoothPoints: [], foldedPoints: [], widths: [], fallback: true };
+  const dead: RoutedRiver = {
+    edgePoints: [],
+    smoothPoints: [],
+    foldedPoints: [],
+    widths: [],
+    fallback: true,
+    bridgeAllowed
+  };
   if (corridor.length < 2 || graph.points.length === 0) return dead;
 
   // Start from the first corridor point on land; bail if the whole river is offshore.
@@ -149,7 +159,8 @@ export function walkRiver(
     smoothPoints,
     foldedPoints: clamped,
     widths: resampleWidths(smoothPoints, corridor, widths),
-    fallback: false
+    fallback: false,
+    bridgeAllowed
   };
 }
 

@@ -108,6 +108,8 @@ export interface BurgSiteDescriptor {
   };
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
+  /** Optional on v2 saves; absent means the conservative 50 m legacy cap. */
+  transport?: { maxBridgeSpanMeters: number };
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];

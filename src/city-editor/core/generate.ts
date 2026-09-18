@@ -29,7 +29,7 @@ import { type CoastResult, classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
-import { isSimplePolygon, polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
+import { isSimplePolygon, polygonArea, polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -329,6 +329,14 @@ function generateCityAttempt(
     attempt
   );
   mark("plan-total");
+  // Do not save a nominally successful town when imported water has consumed
+  // its centre. This is deliberately checked before walls, roads and fabric
+  // make a handful of surviving cells look like a settlement.
+  const minimumUrbanArea = Math.PI * params.cityRadiusMeters ** 2 * 0.45;
+  const urbanArea = cells
+    .filter(cell => plan.urban.has(cell.id))
+    .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
+  if (urbanArea < minimumUrbanArea) return null;
   const wards = new Map(plan.wards);
   for (const [id, kind] of wards) {
     if (["slum", "gate", "shanty", "military"].includes(kind)) wards.set(id, "craftsmen");
@@ -757,7 +765,8 @@ function runPlan(
         coast?.shoreline ?? null,
         cellSize,
         half,
-        makeRng(`${seed}:river:${i}`)
+        makeRng(`${seed}:river:${i}`),
+        r.bridgeAllowed
       )
     )
     .filter(band => !band.fallback && band.edgePoints.length >= 2);
@@ -1012,7 +1021,9 @@ function applyPlan(
         vertices,
         source: null,
         mouth: null,
-        style: { widthMeters: Math.max(6, complete ? width * 2.4 : width), color: "#4f8aad" },
+        // Imported widths are physical. The former completed-view multiplier
+        // turned a broad border river into water over the town itself.
+        style: { widthMeters: Math.max(6, width), color: "#4f8aad" },
         locked: false
       });
     });
@@ -1110,6 +1121,7 @@ function applyPlan(
       for (const [riverIndex, river] of rivers.entries()) {
         if (
           river.kind !== "river" ||
+          !plan.rivers[riverIndex]?.bridgeAllowed ||
           next.featureGroups.some(g => g.id === `${GEN_PREFIX}bridge-${riverIndex}` && g.locked)
         )
           continue;

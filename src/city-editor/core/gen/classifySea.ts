@@ -68,7 +68,12 @@ function closeToWaterPolygon(shoreline: Point[], half: number, waterAzimuthDeg: 
   const shore: Point[] = [startB, ...shoreline.slice(1, -1), endB];
 
   const wd = azimuthToVec(waterAzimuthDeg);
-  const probe: Point = [clampN(wd[0] * half * 4, half * 0.95), clampN(wd[1] * half * 4, half * 0.95)];
+  // Probe virtually on the requested water edge, *along the azimuth ray*.
+  // Component-wise clamping turns a 174° probe into the bottom-right corner
+  // instead of the nearly-south point where that ray meets the frame. For a
+  // diagonal shore this selected the complement and flooded the whole city.
+  const probeScale = (half * 0.999) / Math.max(Math.abs(wd[0]), Math.abs(wd[1]), 1e-9);
+  const probe: Point = [wd[0] * probeScale, wd[1] * probeScale];
 
   for (const dir of [1, -1] as const) {
     const poly = [...shore, ...perimeterPath(endB, startB, dir, half)];

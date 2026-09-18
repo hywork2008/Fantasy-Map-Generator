@@ -157,6 +157,9 @@ export interface BurgSiteDescriptor {
   };
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
+  /** Local transport constraint for City Editor. Legacy maps use the
+   * conservative medieval value rather than inventing a long bridge. */
+  transport?: { maxBridgeSpanMeters: number };
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];
@@ -244,12 +247,27 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       biomeId: pack.cells.biomeCode[burg.cell]
     },
     terrain,
+    transport: { maxBridgeSpanMeters: bridgeSpanForPeriod(worldContext.options.historicalPeriod) },
     rivers,
     waterbody,
     roads,
     suggestedGates: roadLegCount,
     suggestedArchetype
   };
+}
+
+/** A road bridge over a wider channel becomes a ferry or a port connection.
+ * Only explicitly industrial periods are allowed a kilometre-scale span. */
+function bridgeSpanForPeriod(period: typeof worldContext.options.historicalPeriod): number {
+  switch (period) {
+    case "steamEra":
+    case "industrialChemistryEra":
+    case "petroleumEra":
+    case "rocketryEra":
+      return 1000;
+    default:
+      return 50;
+  }
 }
 
 /** Number of land route legs radiating from the burg — used as the watabou `gates` hint. */
