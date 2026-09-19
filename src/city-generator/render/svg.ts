@@ -29,11 +29,14 @@ const NS = "http://www.w3.org/2000/svg";
 
 export interface RenderOptions {
   /** Which family of `<g>` groups is visible. */
-  family: "grid" | "step";
+  family: "grid" | "step" | "urban";
   /** Grid stage to show (index into result.gridStages); < 0 hides the grid family. */
   gridIndex: number;
   /** Drawing-process step to show (index into result.steps). */
   stepIndex: number;
+  /** Urban-core flood-fill iteration to show (index into result.urbanStages);
+   * < 0 hides the urban-evolution family. */
+  urbanIndex: number;
   showSites: boolean;
   showRadius: boolean;
 }
@@ -121,6 +124,50 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
   // overlay, and the earlier stages show the offset the fold closed.
   gridWrap.appendChild(riverTrackOverlay(result, half, opts.showSites));
   viewport.appendChild(gridWrap);
+
+  // --- urban-core evolution family (S3 flood-fill sub-stages) ---
+  // Steps `classifyUrban`'s cost-ordered growth one admitted cell at a time —
+  // the debug slider for tuning the S3 cost function / `urbanNPatches` cutoff
+  // by eye (docs/city-generator/towngen-comparison.md §2.1).
+  const urbanWrap = el("g", { class: "cg-urbanwrap" });
+  urbanWrap.style.display = opts.family === "urban" ? "inline" : "none";
+  // S1's snapshot is the exact `rawCells` array `classifyUrban` grew over, so
+  // ids line up precisely with `urbanStages`.
+  const urbanBaseCells = result.steps[1]?.cells ?? result.steps[0].cells;
+  result.urbanStages.forEach((stage, i) => {
+    const g = el("g", { class: "cg-ustage", "data-ustage": String(i) });
+    g.style.display = i === opts.urbanIndex ? "inline" : "none";
+    const admitted = new Set(stage.urban);
+    for (const cell of urbanBaseCells) {
+      const fill = admitted.has(cell.id) ? TAG_FILL.urban : cell.tag === "sea" ? TAG_FILL.sea : PALETTE.cell;
+      g.appendChild(
+        pickable(cellPath(cell.polygon, fill, half), {
+          layer: "urban-evolution",
+          kind: "cell",
+          id: cell.id,
+          label: `${admitted.has(cell.id) ? "urban" : cell.tag} cell #${cell.id}`,
+          stage: `urban step ${i + 1}/${result.urbanStages.length}`,
+          justAdded: cell.id === stage.cellId
+        })
+      );
+    }
+    // Ring the cell admitted THIS iteration so the growth direction reads clearly
+    // while scrubbing.
+    const added = urbanBaseCells.find(c => c.id === stage.cellId);
+    if (added) {
+      g.appendChild(
+        el("path", {
+          d: polygonData(added.polygon),
+          fill: "none",
+          stroke: PALETTE.site,
+          "stroke-width": half / 140,
+          "stroke-linejoin": "round"
+        })
+      );
+    }
+    urbanWrap.appendChild(g);
+  });
+  viewport.appendChild(urbanWrap);
 
   // --- drawing-process family (S0 grid → S3 urban) ---
   const stepWrap = el("g", { class: "cg-stepwrap" });
@@ -281,9 +328,10 @@ export function bindCityInspector(svg: SVGSVGElement, onPick: SvgPickHandler): v
   });
 }
 
-export function showFamily(svg: SVGSVGElement, family: "grid" | "step"): void {
+export function showFamily(svg: SVGSVGElement, family: "grid" | "step" | "urban"): void {
   setDisplay(svg.querySelector(".cg-gridwrap"), family === "grid");
   setDisplay(svg.querySelector(".cg-stepwrap"), family === "step");
+  setDisplay(svg.querySelector(".cg-urbanwrap"), family === "urban");
 }
 
 export function showGridStage(svg: SVGSVGElement, gridIndex: number): void {
@@ -295,6 +343,12 @@ export function showGridStage(svg: SVGSVGElement, gridIndex: number): void {
 export function showStep(svg: SVGSVGElement, stepIndex: number): void {
   for (const g of svg.querySelectorAll<SVGGElement>(".cg-step")) {
     g.style.display = g.dataset.step === String(stepIndex) ? "inline" : "none";
+  }
+}
+
+export function showUrbanStage(svg: SVGSVGElement, urbanIndex: number): void {
+  for (const g of svg.querySelectorAll<SVGGElement>(".cg-ustage")) {
+    g.style.display = g.dataset.ustage === String(urbanIndex) ? "inline" : "none";
   }
 }
 

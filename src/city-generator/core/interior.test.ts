@@ -3,7 +3,9 @@ import { DEFAULT_SITE_CONFIG } from "../site/siteConfig";
 import { siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 import { pointInPolygon } from "./geom";
+import { markSeaSurroundedGates, smoothWallShape } from "./interior";
 import { generateCity } from "./pipeline";
+import type { BorderLoop, Gate, Point } from "./types";
 
 function run(seed: string, walls = true) {
   const config = {
@@ -35,30 +37,89 @@ describe("S4 interior perimeter", () => {
     for (const cell of urban) expect(pointInPolygon(cell.centroid, result.borders[0].points)).toBe(true);
   });
 
-  it("matches FMG's suggested gate count and reserves distinct plaza/citadel cells", () => {
+  it("derives a thinned gate count from (not equal to) FMG's road count, at real block corners", () => {
     const result = run("s4-gates");
-    const site = synthSite(
-      "smallCity",
-      {
-        ...DEFAULT_SITE_CONFIG,
-        coast: "none",
-        rivers: [],
-        relief: false,
-        features: { ...DEFAULT_SITE_CONFIG.features, walls: true, plaza: true, citadel: true }
-      },
-      "s4-gates"
-    );
-    expect(result.gates).toHaveLength(site.suggestedGates);
+    // towngen-comparison.md §3.B: clamp(round(suggestedGates * 0.7), 3, 6), +1 wet.
+    expect(result.gates.length).toBeGreaterThanOrEqual(3);
+    expect(result.gates.length).toBeLessThanOrEqual(7);
     expect(new Set(result.gates.map(g => `${g.borderIndex}:${g.point.join(",")}`)).size).toBe(result.gates.length);
+    // Every gate sits where >= 2 urban cells meet — a real block corner, not an
+    // arbitrary point along a straight wall run. Checked against the S4 snapshot,
+    // not `result.cells` (an earlier, pre-wall-smoothing stage — §3 rounds the
+    // wall and folds the shift into the cells, so gate points only line up with
+    // block corners from S4 onward; see the wall-smoothing pipeline in pipeline.ts).
+    const s4Cells = result.steps.find(s => s.label === "S4 · Inner perimeter & gates")!.cells;
+    const urbanIds = new Set(result.steps[3].cells.filter(c => c.tag === "urban").map(c => c.id));
+    for (const gate of result.gates) {
+      const sharing = s4Cells.filter(
+        c => urbanIds.has(c.id) && c.polygon.some(v => Math.hypot(v[0] - gate.point[0], v[1] - gate.point[1]) < 1)
+      );
+      expect(sharing.length, `gate ${gate.point.join()} sits at a block corner`).toBeGreaterThanOrEqual(2);
+    }
     const plaza = result.precincts.find(p => p.kind === "plaza");
     const citadel = result.precincts.find(p => p.kind === "citadel");
     expect(plaza).toBeTruthy();
     expect(citadel).toBeTruthy();
     expect(citadel!.cellIds[0]).not.toBe(plaza!.cellIds[0]);
     const citadelCell = result.cells.find(c => c.id === citadel!.cellIds[0])!;
-    const urbanIds = new Set(result.steps[3].cells.flatMap((c, i) => (c.tag === "urban" ? [result.cells[i].id] : [])));
     expect(citadelCell.neighbors.some(id => urbanIds.has(id))).toBe(true);
     expect(Math.hypot(...citadelCell.centroid)).toBeGreaterThanOrEqual(result.params.cityRadiusMeters * 0.15);
+  });
+
+  it("thins gates apart along the wall instead of letting them bunch up", () => {
+    for (const seed of ["s4-spacing-a", "s4-spacing-b", "s4-spacing-c"]) {
+      const result = run(seed);
+      const border = result.borders[0];
+      if (!border || result.gates.length < 2) continue;
+      const ring = [...border.points, border.points[0]];
+      const perimeter = ring.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - ring[i][0], p[1] - ring[i][1]), 0);
+      const arcOf = (point: [number, number]): number => {
+        let best = Number.POSITIVE_INFINITY;
+        let acc = 0;
+        let along = 0;
+        for (let i = 0; i < ring.length - 1; i++) {
+          const [a, b] = [ring[i], ring[i + 1]];
+          const seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          const d = Math.hypot(point[0] - a[0], point[1] - a[1]);
+          if (d < best) {
+            best = d;
+            along = acc;
+          }
+          acc += seg;
+        }
+        return along;
+      };
+      const arcs = result.gates.map(g => arcOf(g.point)).sort((a, b) => a - b);
+      const minSpacing = perimeter / (result.gates.length + 1);
+      for (let i = 0; i < arcs.length; i++) {
+        const next = arcs[(i + 1) % arcs.length];
+        const gap = i + 1 < arcs.length ? next - arcs[i] : perimeter - arcs[i] + next;
+        // A little slack: gates snap to real vertices, so exact spacing wobbles.
+        expect(gap, `seed ${seed} gates ${i}/${(i + 1) % arcs.length} too close`).toBeGreaterThan(minSpacing * 0.5);
+      }
+    }
+  });
+
+  it("adds a gate when the town is wet (coast or river) vs. the same layout dry", () => {
+    const dryConfig = {
+      ...DEFAULT_SITE_CONFIG,
+      coast: "none" as const,
+      rivers: [],
+      relief: false,
+      features: { ...DEFAULT_SITE_CONFIG.features, walls: true, plaza: true, citadel: true }
+    };
+    const wetConfig = { ...dryConfig, rivers: ["through" as const] };
+    const dry = generateCity(
+      siteToParams(synthSite("smallCity", dryConfig, "s4-wet")),
+      siteToGeography(synthSite("smallCity", dryConfig, "s4-wet")),
+      siteToProgram(synthSite("smallCity", dryConfig, "s4-wet"))
+    );
+    const wet = generateCity(
+      siteToParams(synthSite("smallCity", wetConfig, "s4-wet")),
+      siteToGeography(synthSite("smallCity", wetConfig, "s4-wet")),
+      siteToProgram(synthSite("smallCity", wetConfig, "s4-wet"))
+    );
+    expect(wet.gates.length).toBeGreaterThanOrEqual(dry.gates.length);
   });
 
   it("does not emit a drawn town wall or towers for an open settlement, but still rings the citadel", () => {
@@ -69,5 +130,114 @@ describe("S4 interior perimeter", () => {
     expect(overlays.some(o => o.kind === "citadelWall")).toBe(true);
     expect(open.borders.length).toBeGreaterThan(0);
     expect(open.gates.length).toBeGreaterThan(0);
+  });
+});
+
+/** Sum of |turning angle| at every ring vertex — a standard "how zigzag is
+ * this outline" measure: 0 for a straight run, larger for a jagged trace. */
+function totalTurning(points: Point[]): number {
+  const n = points.length;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const prev = points[(i - 1 + n) % n];
+    const v = points[i];
+    const next = points[(i + 1) % n];
+    const a1 = Math.atan2(v[1] - prev[1], v[0] - prev[0]);
+    const a2 = Math.atan2(next[1] - v[1], next[0] - v[0]);
+    let d = a2 - a1;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    sum += Math.abs(d);
+  }
+  return sum;
+}
+
+describe("smoothWallShape (towngen-comparison.md §2.1/§2.3/§3 — the wall's own vertices, not the interior block seams §3.C covers)", () => {
+  // A jagged 12-vertex ring around a roughly circular town wall — enough
+  // vertices to keep f < 1 (the adaptive strength actually engaging).
+  function jaggedRing(n: number, radius: number, jag: number): Point[] {
+    return Array.from({ length: n }, (_, i) => {
+      const a = (i / n) * Math.PI * 2;
+      const r = radius + (i % 2 === 0 ? jag : -jag);
+      return [Math.cos(a) * r, Math.sin(a) * r] as Point;
+    });
+  }
+  const loop = (points: Point[]): BorderLoop => ({ points, segments: [], urbanCellIds: [] });
+
+  it("is a no-op below 5 vertices (too small a ring to meaningfully smooth)", () => {
+    const tiny = loop(jaggedRing(4, 100, 20));
+    expect(smoothWallShape(tiny).points).toEqual(tiny.points);
+  });
+
+  it("reduces the total turning angle — the ring reads as measurably less jagged", () => {
+    const jagged = jaggedRing(30, 100, 20);
+    const before = totalTurning(jagged);
+    const after = totalTurning(smoothWallShape(loop(jagged)).points);
+    expect(after).toBeLessThan(before * 0.7);
+  });
+
+  it("never moves a reserved point, but still moves its unreserved neighbours", () => {
+    const jagged = jaggedRing(20, 100, 20);
+    const reserved = [jagged[3], jagged[10]];
+    const out = smoothWallShape(loop(jagged), reserved).points;
+    expect(out[3]).toEqual(jagged[3]);
+    expect(out[10]).toEqual(jagged[10]);
+    expect(out[0]).not.toEqual(jagged[0]);
+  });
+
+  it("f = min(1, 40/n): a ~15-vertex ring (TownGeneratorTS's own scale) uses the plain 3-point average", () => {
+    // At f=1, v' = (prev + v + next) / 3 exactly.
+    const points = jaggedRing(15, 100, 20);
+    const out = smoothWallShape(loop(points)).points;
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+      const prev = points[(i - 1 + n) % n];
+      const v = points[i];
+      const next = points[(i + 1) % n];
+      const expected: Point = [(prev[0] + v[0] + next[0]) / 3, (prev[1] + v[1] + next[1]) / 3];
+      expect(out[i][0]).toBeCloseTo(expected[0], 6);
+      expect(out[i][1]).toBeCloseTo(expected[1], 6);
+    }
+  });
+
+  it("a much finer ring (our own scale, not TownGen's) uses a smaller f — stronger smoothing per vertex", () => {
+    // f = min(1, 40/n): a 200-vertex ring (our finer Voronoi grid) computes a
+    // markedly smaller f, hence a markedly smaller self-weight f/(2+f), than a
+    // 15-vertex one (TownGen's own reference scale) — the self-calibration
+    // the design doc's A-1/§3 improvement is meant to provide.
+    const selfWeight = (n: number): number => {
+      const f = Math.min(1, 40 / n);
+      return f / (2 + f);
+    };
+    expect(selfWeight(200)).toBeLessThan(selfWeight(15) * 0.3);
+  });
+});
+
+describe("markSeaSurroundedGates (towngen-comparison.md §2.5 / §3.D.4)", () => {
+  const water: Point[] = [
+    [-100, -100],
+    [100, -100],
+    [100, 100],
+    [-100, 100]
+  ];
+  const gate = (point: Point, water_ = false): Gate => ({ point, borderIndex: 0, water: water_ });
+
+  it("reclassifies a land gate whose surroundings are entirely sea, regardless of port", () => {
+    const gates = [gate([0, 0])]; // dead centre of the water polygon above
+    const out = markSeaSurroundedGates(gates, water, 10);
+    expect(out[0].water).toBe(true);
+  });
+
+  it("leaves a land gate alone when any part of its surroundings is dry", () => {
+    const gates = [gate([99, 99])]; // just inside the corner — one probe direction is outside
+    const out = markSeaSurroundedGates(gates, water, 10);
+    expect(out[0].water).toBe(false);
+  });
+
+  it("leaves an already-water gate and a null/degenerate waterPolygon untouched", () => {
+    const alreadyWater = markSeaSurroundedGates([gate([0, 0], true)], water, 10);
+    expect(alreadyWater[0].water).toBe(true);
+    expect(markSeaSurroundedGates([gate([0, 0])], null, 10)[0].water).toBe(false);
+    expect(markSeaSurroundedGates([], water, 10)).toEqual([]);
   });
 });

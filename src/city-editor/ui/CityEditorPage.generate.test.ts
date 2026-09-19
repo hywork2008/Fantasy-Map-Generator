@@ -1,0 +1,597 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
+import { synthSite } from "../core/gen/site/synthSite";
+import { buildShare, decodeShare, encodeShare } from "../io/incomingCity";
+import { mountCityEditor } from "./CityEditorPage";
+
+// jsdom has no layout engine; the History panel calls this after every commit.
+if (typeof Element.prototype.scrollIntoView !== "function") {
+  Element.prototype.scrollIntoView = () => {};
+}
+
+let root: HTMLElement;
+
+beforeEach(() => {
+  root = document.createElement("div");
+  document.body.append(root);
+  mountCityEditor(root);
+});
+
+afterEach(() => {
+  root.remove();
+  try {
+    sessionStorage.removeItem("fmg.citySite");
+  } catch {
+    /* jsdom without storage */
+  }
+  if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
+});
+
+function stageButton(label: string): HTMLButtonElement {
+  const button = [...root.querySelectorAll<HTMLButtonElement>(".ce-generate-stages button")].find(candidate =>
+    candidate.textContent?.startsWith(label)
+  );
+  if (!button) throw new Error(`stage button "${label}" not found`);
+  return button;
+}
+
+function panelButton(fragment: string): HTMLButtonElement {
+  const button = [...root.querySelectorAll<HTMLButtonElement>(".ce-generate button")].find(candidate =>
+    candidate.textContent?.includes(fragment)
+  );
+  if (!button) throw new Error(`panel button "${fragment}" not found`);
+  return button;
+}
+
+function iconButton(title: string): HTMLButtonElement {
+  const button = root.querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+  if (!button) throw new Error(`icon button "${title}" not found`);
+  return button;
+}
+
+const nPatchesInput = (): HTMLInputElement =>
+  root.querySelector<HTMLInputElement>(".ce-generate-npatches") as HTMLInputElement;
+const stepStatusText = (): string => root.querySelector(".ce-generate-step-status")?.textContent ?? "";
+/** The panel starts landlocked (DEFAULT_SITE_CONFIG.coast === "none") — the ①
+ * coastline tests need an actual coast, found by the option only Coast has. */
+function setCoastal(): void {
+  const select = [...root.querySelectorAll<HTMLSelectElement>(".ce-generate select")].find(s =>
+    [...s.options].some(o => o.value === "straight")
+  );
+  if (!select) throw new Error("coast select not found");
+  select.value = "straight";
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+const setInputValue = (input: HTMLInputElement, value: string): void => {
+  input.value = value;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+};
+const prevStep = (): void => iconButton("Previous step").click();
+const nextStep = (): void => iconButton("Next step").click();
+
+const has = (selector: string): boolean =>
+  (root.querySelector("svg.ce-svg")?.querySelectorAll(selector).length ?? 0) > 0;
+const count = (selector: string): number => root.querySelector("svg.ce-svg")?.querySelectorAll(selector).length ?? 0;
+/** A fingerprint of the block mesh only — face fills / feature groups excluded. */
+const meshFingerprint = (): string => {
+  const svg = root.querySelector("svg.ce-svg");
+  const edges = [...(svg?.querySelectorAll(".ce-edges .ce-edge") ?? [])].map(e => e.getAttribute("d")).join("|");
+  return `${count(".ce-cells .ce-face")}#${edges}`;
+};
+
+/** Roll new towns until one has a river, a wall, gates, approach roads and wards. */
+function seedRichTown(tries = 16): void {
+  for (let i = 0; i < tries; i++) {
+    if (i > 0) panelButton("新しい都市").click();
+    stageButton("⑥").click();
+    if (
+      has(".ce-feature--river") &&
+      has(".ce-feature--wall") &&
+      has(".ce-feature--road") &&
+      has(".ce-gates > *") &&
+      [...root.querySelectorAll("svg.ce-svg .ce-face")].some(
+        f => f.classList.contains("ce-face--land") && !f.classList.contains("ce-face--ward-unassigned")
+      )
+    ) {
+      return;
+    }
+  }
+  throw new Error("no sufficiently rich town in the roll budget");
+}
+
+describe("Generate panel", () => {
+  it("generates a complete illustrated city in one click, supports mesh view and Undo/Redo", () => {
+    const before = meshFingerprint();
+    panelButton("都市を一括生成").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-fortifications")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    const finished = root.querySelector("svg.ce-svg")!.innerHTML;
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+    const toggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("街区の編集表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    toggle.click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    expect(count(".ce-edge")).toBeGreaterThan(0);
+    toggle.click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    iconButton("Undo").click();
+    expect(meshFingerprint()).toBe(before);
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    iconButton("Redo").click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-fortifications")).toBe(true);
+  });
+
+  it("the first new-town click creates a city without requiring stage buttons", () => {
+    panelButton("新しい都市").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-feature--road")).toBe(true);
+  });
+
+  it("opens on Tiny / Grid evolution and generates a complete city from those defaults", () => {
+    expect(root.querySelector<HTMLSelectElement>("select.ce-map-size")?.value).toBe("tiny");
+    expect(root.querySelector<HTMLSelectElement>("select.ce-grid-kind")?.value).toBe("evolution");
+    panelButton("都市を一括生成").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-feature--road")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(count(".ce-buildings .ce-building")).toBeGreaterThan(20);
+    expect(count(".ce-infill-lane")).toBeGreaterThan(20);
+  });
+
+  it("restores building display when unchecking 街区の編集表示 after Clean short junctions tool", () => {
+    panelButton("新しい都市").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+
+    const blockMeshToggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("街区の編集表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    expect(blockMeshToggle.checked).toBe(false);
+
+    // Switch to Clean short junctions tool
+    iconButton("Clean short junctions").click();
+    expect(blockMeshToggle.checked).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+
+    // Uncheck 街区の編集表示 to return to completed town appearance
+    blockMeshToggle.click();
+    expect(blockMeshToggle.checked).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
+
+    // If an edit tool is selected and user rolls a new town, it should reset to select with buildings
+    iconButton("Clean short junctions").click();
+    expect(blockMeshToggle.checked).toBe(true);
+    panelButton("新しい都市").click();
+    expect(blockMeshToggle.checked).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
+  });
+
+  it("renders six ordered process buttons, a seed field, and no map-size control", () => {
+    const labels = [...root.querySelectorAll(".ce-generate-stages button")].map(b => b.textContent);
+    expect(labels).toEqual(["① 海岸線と海", "② 河川", "③ 市街地コア", "④ 城壁・門・城郭", "⑤ 街路", "⑥ 地区割り当て"]);
+    expect(nPatchesInput().placeholder).toBe("auto");
+    expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
+    expect(root.querySelector(".ce-generate-farnode")).toBeTruthy();
+    expect(root.querySelector(".ce-generate-seed")).toBeTruthy();
+    expect(panelButton("Copy shareable link")).toBeTruthy();
+    expect([...root.querySelectorAll(".ce-generate label")].some(l => l.textContent?.includes("Map size"))).toBe(false);
+    expect(panelButton("新しい都市")).toBeTruthy();
+  });
+
+  it("exposes Avoid sea and the three far-end modes (Phase G2)", () => {
+    const avoid = root.querySelector<HTMLInputElement>(".ce-generate-avoidsea");
+    expect(avoid?.checked).toBe(true);
+    const far = root.querySelector<HTMLSelectElement>(".ce-generate-farnode");
+    expect([...(far?.options ?? [])].map(o => o.value)).toEqual(["descriptorEnd", "radial", "manualBearings"]);
+    const bearings = root.querySelector<HTMLInputElement>(".ce-generate-bearings");
+    expect(bearings).toBeTruthy();
+    expect(bearings?.closest("label")?.style.display).toBe("none");
+    far!.value = "manualBearings";
+    far!.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(bearings?.closest("label")?.style.display).not.toBe("none");
+  });
+
+  it("preserves the base mesh on ①–③; prepares junctions from ④", () => {
+    const before = meshFingerprint();
+    expect(count(".ce-cells .ce-face")).toBeGreaterThan(0);
+    for (const label of ["①", "②", "③"]) {
+      stageButton(label).click();
+      expect(meshFingerprint(), `mesh changed after ${label}`).toBe(before);
+    }
+    // ⑤–⑥ may merge or split a vertex to open a 4-way gate/bridge; they must
+    // not replace the grid wholesale (face count stays in the same ballpark).
+    const facesBefore = count(".ce-cells .ce-face");
+    stageButton("⑤").click();
+    const facesAfter = count(".ce-cells .ce-face");
+    expect(facesAfter).toBeGreaterThan(facesBefore * 0.5);
+    expect(facesAfter).toBeLessThan(facesBefore * 2 + 30);
+  });
+
+  it("shows one consistent town, one process at a time", () => {
+    seedRichTown();
+
+    stageButton("②").click(); // river
+    expect(has(".ce-feature--river")).toBe(true);
+    expect(has(".ce-feature--wall")).toBe(false); // walls come at ④
+
+    stageButton("④").click(); // walls
+    expect(has(".ce-feature--wall")).toBe(true);
+    expect(has(".ce-gates > *")).toBe(true);
+
+    stageButton("⑥").click(); // wards
+    expect(
+      [...root.querySelectorAll("svg.ce-svg .ce-face")].some(
+        f => f.classList.contains("ce-face--land") && !f.classList.contains("ce-face--ward-unassigned")
+      )
+    ).toBe(true);
+    expect(root.querySelector(".ce-status")?.textContent).toContain("Generated up to ⑥");
+  });
+
+  it("keeps the same plan when a stage is pressed again", () => {
+    stageButton("③").click();
+    const first = root.querySelector("svg.ce-svg")?.innerHTML;
+    expect(first?.length).toBeGreaterThan(0);
+    stageButton("③").click();
+    expect(root.querySelector("svg.ce-svg")?.innerHTML).toBe(first);
+    stageButton("③").click();
+    expect(root.querySelector(".ce-status")?.textContent).toContain("Already at");
+  });
+
+  it("🎲 新しい都市 rolls a different plan and re-shows the current stage", () => {
+    stageButton("③").click();
+    const plans = new Set<string>([root.querySelector("svg.ce-svg .ce-cells")?.parentElement?.outerHTML ?? ""]);
+    for (let i = 0; i < 6; i++) {
+      panelButton("新しい都市").click();
+      plans.add(root.querySelector("svg.ce-svg")?.innerHTML ?? String(i));
+    }
+    expect(plans.size).toBeGreaterThan(1);
+  });
+
+  it("randomize geography keeps the panel in sync and does not throw", () => {
+    stageButton("③").click();
+    panelButton("Randomize geography").click();
+    expect(count(".ce-cells .ce-face")).toBeGreaterThan(0);
+    expect(root.querySelector(".ce-status")?.textContent).not.toContain("failed");
+  });
+});
+
+describe("③ urban-core patch tuning (towngen-comparison.md §2.1)", () => {
+  it("③ tints its buildable cells; any other stage clears the tint", () => {
+    // A few small towns can have zero eligible land inside the roll budget; retry.
+    let tinted = 0;
+    for (let i = 0; i < 12 && tinted === 0; i++) {
+      if (i > 0) panelButton("新しい都市").click();
+      stageButton("③").click();
+      tinted = count(".ce-face--urban-step");
+    }
+    expect(tinted).toBeGreaterThan(0);
+
+    stageButton("④").click();
+    expect(count(".ce-face--urban-step")).toBe(0);
+  });
+
+  it("nPatches caps ③'s tinted core to fewer cells than the auto count", () => {
+    let uncapped = 0;
+    for (let i = 0; i < 12 && uncapped < 8; i++) {
+      if (i > 0) panelButton("新しい都市").click();
+      stageButton("③").click();
+      uncapped = count(".ce-face--urban-step");
+    }
+    expect(uncapped).toBeGreaterThanOrEqual(8);
+
+    setInputValue(nPatchesInput(), "5");
+    stageButton("③").click();
+    expect(count(".ce-face--urban-step")).toBeLessThan(uncapped);
+    expect(count(".ce-face--urban-step")).toBeGreaterThan(0);
+
+    // Clearing the field falls back to the (larger) area-derived auto count.
+    setInputValue(nPatchesInput(), "");
+    stageButton("③").click();
+    expect(count(".ce-face--urban-step")).toBe(uncapped);
+  });
+});
+
+describe("step-by-step process scrub — all six stages (towngen-comparison.md)", () => {
+  it("◀ / ▶ do nothing (with a notice) until a stage button has activated one", () => {
+    nextStep();
+    expect(root.querySelector(".ce-status")?.textContent).toContain("Press a stage button");
+    expect(stepStatusText()).toBe("");
+  });
+
+  it("③ ▶ / ◀ scrub the flood-fill one admitted cell at a time (needs its stage pressed first)", () => {
+    // Some tiny meshes have no eligible land at all for the first roll; retry.
+    let total = 0;
+    for (let i = 0; i < 12 && total < 2; i++) {
+      if (i > 0) panelButton("新しい都市").click();
+      stageButton("③").click();
+      nextStep();
+      total = Number(stepStatusText().match(/(\d+)\/(\d+)/)?.[2] ?? 0);
+    }
+    expect(total).toBeGreaterThanOrEqual(2);
+    expect(count(".ce-face--urban-step")).toBe(1);
+    expect(stepStatusText()).toMatch(/^③ 市街地コア: cell #\d+ — 1\/\d+$/);
+
+    nextStep();
+    expect(count(".ce-face--urban-step")).toBe(2);
+    expect(stepStatusText()).toMatch(/^③ 市街地コア: cell #\d+ — 2\/\d+$/);
+
+    prevStep();
+    expect(count(".ce-face--urban-step")).toBe(1);
+    expect(stepStatusText()).toMatch(/^③ 市街地コア: cell #\d+ — 1\/\d+$/);
+  });
+
+  it("① reveals the coastline walk as a growing dotted trail, not sea cells", () => {
+    setCoastal(); // the panel starts landlocked
+    let seen = 0;
+    for (let i = 0; i < 12 && seen < 2; i++) {
+      if (i > 0) panelButton("新しい都市").click();
+      stageButton("①").click();
+      nextStep();
+      seen = count(".ce-step-path-point");
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(has(".ce-face--sea")).toBe(false); // scrubbing shows the walk, not the classified result
+    expect(stepStatusText()).toMatch(/^① 海岸線と海: vertex 1\/\d+$/);
+
+    nextStep();
+    expect(count(".ce-step-path-point")).toBe(seen + 1);
+  });
+
+  /** Click ▶ exactly enough times to reach the last step, reading the total /
+   * current position straight from the status text (no guessed iteration cap). */
+  function advanceToLastStep(): number {
+    const match = stepStatusText().match(/(\d+)\/(\d+)$/);
+    const current = match ? Number(match[1]) : 1;
+    const total = match ? Number(match[2]) : 1;
+    for (let i = current; i < total; i++) nextStep();
+    return total;
+  }
+
+  it("② reveals the river walk the same way, and ④/⑤/⑥ scrub the document itself", () => {
+    seedRichTown();
+
+    stageButton("②").click();
+    nextStep();
+    expect(count(".ce-step-path-point")).toBeGreaterThan(0);
+    expect(stepStatusText()).toMatch(/^② 河川: .*vertex 1\/\d+$/);
+
+    // ④ gates: scrubbing to the end must match pressing ④ directly (same
+    // seed/mesh ⇒ deterministic), and the overlay path is unused for this stage.
+    stageButton("④").click();
+    nextStep();
+    expect(count(".ce-step-path-point")).toBe(0);
+    expect(stepStatusText()).toMatch(/^④ 城壁・門・城郭: gate 1\/\d+$/);
+    advanceToLastStep();
+    const scrubbedGates = root.querySelectorAll(".ce-gates > *").length;
+    stageButton("④").click(); // the ordinary button press, for comparison
+    expect(scrubbedGates).toBeGreaterThan(0);
+    expect(root.querySelectorAll(".ce-gates > *").length).toBeGreaterThan(0);
+
+    // ⑤ roads: same "scrubbed end == direct press" check.
+    stageButton("⑤").click();
+    nextStep();
+    expect(stepStatusText()).toMatch(/^⑤ 街路: road 1\/\d+$/);
+    advanceToLastStep();
+    const scrubbedRoads = count(".ce-feature--road");
+    stageButton("⑤").click();
+    expect(scrubbedRoads).toBe(count(".ce-feature--road"));
+    expect(scrubbedRoads).toBeGreaterThan(0);
+
+    // ⑥ wards: a "small" town can have hundreds of cells (too slow to scrub to
+    // the very end here — that exact-growth property is already covered at the
+    // core level, generate.test.ts), so just check a handful of steps grow the
+    // coloured-ward count and each reports a sensible status line.
+    const wardedCount = (): number =>
+      [...root.querySelectorAll("svg.ce-svg .ce-face")].filter(
+        f => f.classList.contains("ce-face--land") && !f.classList.contains("ce-face--ward-unassigned")
+      ).length;
+    // ⑥'s direct press shows the FULL set; pressing ⑥ then ▶ scrubs down to a
+    // partial one (step 0's single cell), same "subset while scrubbing" rule
+    // as ③ — so growth is tracked from 0, not from the full press's count.
+    stageButton("⑥").click();
+    let prevWarded = 0;
+    for (let i = 0; i < 5; i++) {
+      nextStep();
+      expect(stepStatusText()).toMatch(new RegExp(`^⑥ 地区割り当て: .* — ${i + 1}/\\d+$`));
+      expect(wardedCount()).toBeGreaterThanOrEqual(prevWarded);
+      prevWarded = wardedCount();
+    }
+  });
+
+  it("pressing a stage button resets the scrub to step 0 and re-targets it", () => {
+    seedRichTown();
+    stageButton("③").click();
+    nextStep();
+    nextStep();
+    expect(stepStatusText()).toContain("2/");
+
+    stageButton("③").click(); // same stage again — still resets to "not stepped"
+    expect(stepStatusText()).toBe("");
+    nextStep();
+    expect(stepStatusText()).toMatch(/^③ 市街地コア: .* — 1\/\d+$/);
+  });
+
+  it("🆕 a brand new grid drops any stale tint / overlay and deactivates the scrub", () => {
+    let hadTint = false;
+    for (let i = 0; i < 12 && !hadTint; i++) {
+      if (i > 0) iconButton("Generate a new grid").click();
+      stageButton("③").click();
+      nextStep();
+      hadTint = count(".ce-face--urban-step") > 0;
+    }
+    expect(hadTint).toBe(true);
+    expect(stepStatusText()).not.toBe("");
+
+    iconButton("Generate a new grid").click();
+    expect(count(".ce-face--urban-step")).toBe(0);
+    expect(stepStatusText()).toBe("");
+
+    // The scrub is deactivated, not just reset to step 0 — ▶ needs a stage press again.
+    nextStep();
+    expect(root.querySelector(".ce-status")?.textContent).toContain("Press a stage button");
+  });
+
+  it("generates evolution infill lanes without turning them into editable road groups", () => {
+    const grid = root.querySelector<HTMLSelectElement>("select.ce-grid-kind")!;
+    grid.value = "evolution";
+    grid.dispatchEvent(new Event("change"));
+    iconButton("Generate a new grid").click();
+    panelButton("都市を一括生成").click();
+    expect(has(".ce-building")).toBe(true);
+    expect(count(".ce-infill-lane")).toBeGreaterThan(100);
+    expect(count(".ce-feature--road")).toBeLessThan(30);
+    expect(count(".ce-face")).toBeLessThan(170);
+    expect(root.querySelector(".ce-generate-housing-summary")?.textContent).toContain("外縁部");
+    const finished = root.querySelector("svg.ce-svg")!.innerHTML;
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+  });
+
+  it("accepts wall capacity percentages and restores auto or the previous value for invalid input", () => {
+    const input = root.querySelector<HTMLInputElement>(".ce-generate-walled-share")!;
+    expect(input.placeholder).toContain("100%");
+    setInputValue(input, "25");
+    expect(input.value).toBe("25");
+    setInputValue(input, "101");
+    expect(input.value).toBe("25");
+    setInputValue(input, "0");
+    expect(input.value).toBe("25");
+    setInputValue(input, "");
+    expect(input.value).toBe("");
+  });
+
+  it("edits a district's density through the inspector and restores it with Undo", () => {
+    const grid = root.querySelector<HTMLSelectElement>("select.ce-grid-kind")!;
+    grid.value = "evolution";
+    grid.dispatchEvent(new Event("change"));
+    iconButton("Generate a new grid").click();
+    panelButton("都市を一括生成").click();
+    const building = root.querySelector<SVGPathElement>(".ce-building")!;
+    building.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const input = root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]');
+    expect(input).not.toBeNull();
+    const before = input!.value;
+    setInputValue(input!, "500");
+    expect(root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]')!.value).toBe("500");
+    iconButton("Undo").click();
+    root
+      .querySelector<SVGPathElement>(
+        `.ce-building[data-building-face="${building.getAttribute("data-building-face")}"]`
+      )!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]')!.value).toBe(before);
+  });
+
+  it("generates a complete town after changing grid to voronoi and generating a new grid", () => {
+    // 1. "新しい都市"ボタンを押して都市を生成する
+    panelButton("新しい都市").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+
+    const blockMeshToggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("街区の編集表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    expect(blockMeshToggle.checked).toBe(false);
+
+    // 2. GridをVoronoiに設定
+    const gridKindSelect = root.querySelector<HTMLSelectElement>("select.ce-grid-kind")!;
+    gridKindSelect.value = "voronoi";
+    gridKindSelect.dispatchEvent(new Event("change"));
+
+    // 3. Generate a new gridボタンを押す
+    iconButton("Generate a new grid").click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+
+    // 4. "新しい都市"ボタンを押して都市を生成する
+    panelButton("新しい都市").click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(blockMeshToggle.checked).toBe(false);
+
+    // Toggling "街区の編集表示" switches between block mesh and complete town appearance
+    blockMeshToggle.click();
+    expect(blockMeshToggle.checked).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeNull();
+
+    blockMeshToggle.click();
+    expect(blockMeshToggle.checked).toBe(false);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+  });
+});
+
+describe("shareable link and FMG site", () => {
+  function remount(): void {
+    root.remove();
+    root = document.createElement("div");
+    document.body.append(root);
+    mountCityEditor(root);
+  }
+
+  it("copies a share that round-trips seed, grid and geography", async () => {
+    const writes: string[] = [];
+    Object.assign(navigator, {
+      clipboard: { writeText: async (value: string) => writes.push(value) }
+    });
+    const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    seedInput.value = "share-seed";
+    seedInput.dispatchEvent(new Event("input", { bubbles: true }));
+    panelButton("Copy shareable link").click();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    const token = writes[0].slice(writes[0].indexOf("#") + 1);
+    const share = decodeShare(token);
+    expect(share?.seed).toBe("share-seed");
+    expect(share?.grid).toBe("evolution");
+    expect(share?.size).toBe("tiny");
+    expect(share?.descriptor).toBeUndefined();
+  });
+
+  it("reproduces a hashed city and hides synth geography when a site is imported", () => {
+    const descriptor = JSON.parse(
+      JSON.stringify(
+        synthSite(
+          "largeTown",
+          {
+            ...DEFAULT_SITE_CONFIG,
+            coast: "bay",
+            rivers: ["toCoast"],
+            features: { ...DEFAULT_SITE_CONFIG.features, port: true }
+          },
+          "ui-fmg",
+          { extentMeters: 1200, cityRadiusMeters: 396 }
+        )
+      )
+    );
+    const share = buildShare({
+      seed: "ui-fmg-layout",
+      grid: "hex",
+      size: "small",
+      hexSizeMeters: 50,
+      gridSeed: "ui-fmg-grid",
+      settings: { config: DEFAULT_SITE_CONFIG },
+      descriptor
+    });
+    window.history.replaceState(null, "", `${location.pathname}#${encodeShare(share)}`);
+    remount();
+    expect(root.querySelector(".ce-imported")?.hidden).toBe(false);
+    expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(true);
+    expect(root.querySelector(".ce-imported-body")?.textContent).toContain("From shared link");
+    expect(root.querySelector(".ce-imported-body")?.textContent).toContain("Dwellings889");
+    expect(root.querySelector<HTMLInputElement>(".ce-generate-seed")?.value).toBe("ui-fmg-layout");
+    panelButton("Use standalone site").click();
+    expect(root.querySelector(".ce-imported")?.hidden).toBe(true);
+    expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(false);
+  });
+});

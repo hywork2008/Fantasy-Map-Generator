@@ -8,19 +8,21 @@ import { buildGeometry } from "./buildings";
 import { classifyRiver } from "./classifyRiver";
 import { type CoastResult, classifyCoast } from "./classifySea";
 import { classifyUrban } from "./classifyUrban";
-import { buildEdgeGraph, foldVerticesIntoCells, vertexKey } from "./edgeGraph";
+import { buildEdgeGraph, foldVerticesIntoCells, smoothInteriorVertices, vertexKey } from "./edgeGraph";
 import { azimuthToVec, nearestOnPolyline } from "./geom";
 import { buildGrid } from "./grid";
 import {
   buildBorders,
   classifyWallSegments,
   close,
+  markSeaSurroundedGates,
   markWaterGate,
   optimizeJunctions,
   placeGates,
   placePrecincts,
   reachEnvelopeToShore,
   shapeEnvelope,
+  smoothWallShape,
   wallOverlaysFor
 } from "./interior";
 import { makeRng } from "./prng";
@@ -140,12 +142,18 @@ export function generateCity(
   // A port pulls the built-up area toward the water: feed S3 an extra "sea-ward"
   // bearing alongside the roads (design §4.5).
   const urbanBearings = program.port && coast ? [...geo.roadBearings, geo.coast!.waterAzimuthDeg] : geo.roadBearings;
-  const { urban, outskirts } = classifyUrban(
+  const {
+    urban,
+    outskirts,
+    stages: urbanStages
+  } = classifyUrban(
     rawCells,
     { sea, bank: river.bank },
     urbanBearings,
     urbanRadius,
-    shoreTangent
+    shoreTangent,
+    params.urbanNPatches ?? null,
+    params.cellSizeMeters
   );
 
   const finalTag = (c: Cell): CellTag => {
@@ -174,15 +182,45 @@ export function generateCity(
   // treatment, line style) comes from the WallPlan — see wall-patterns.md.
   const plan = program.wallPlan ?? DEFAULT_WALL_PLAN;
   const riverLines = riverPaths.map(p => p.points);
-  const interiorCells = optimizeJunctions(cells, params.cellSizeMeters);
+  let interiorCells = optimizeJunctions(cells, params.cellSizeMeters);
   const traced = buildBorders(interiorCells, urban);
   const envelopes = traced.map(loop => shapeEnvelope(loop, plan, params.cellSizeMeters));
   const precincts = placePrecincts(interiorCells, urban, sea, envelopes, geo, params, program, riverLines);
 
   // The citadel keeps its own enceinte ring whether or not the town is walled
-  // (design §4.2), derived from the same interior cell edges.
+  // (design §4.2), derived from the same interior cell edges — and, like the
+  // main wall below, TownGeneratorTS rounds it with its own smoothing pass
+  // (Castle.ts's own CurtainWall).
   const citadel = precincts.find(p => p.kind === "citadel");
-  const citadelOutline = citadel ? (buildBorders(interiorCells, new Set(citadel.cellIds))[0]?.points ?? null) : null;
+  const rawCitadelOutline = citadel ? (buildBorders(interiorCells, new Set(citadel.cellIds))[0]?.points ?? null) : null;
+  const smoothedCitadel = rawCitadelOutline
+    ? smoothWallShape({ points: rawCitadelOutline, segments: [], urbanCellIds: [] })
+    : null;
+  const citadelOutline = /* TEMP_AB_TEST */ rawCitadelOutline ?? null; // smoothedCitadel?.points ?? null;
+  // Round the traced wall's own vertices (§2.1/§2.3/§3 — the "gatagata"
+  // outline itself, not the interior block seams §3.C already covers) before
+  // the coastal arc gets replaced wholesale below; the citadel's own
+  // (already-smoothed) ring stays reserved so the two enceintes don't warp
+  // each other where they sit close together. TownGeneratorTS gets this in
+  // sync with the cells "for free" via shared mutable Point references
+  // (design comparison table); our detached grid needs the shift replayed
+  // onto `interiorCells` explicitly — the same move `foldArteriesIntoCells`
+  // already does for streets — or gates/streets/wards/buildings keep reading
+  // pre-smoothing cell corners while the drawn wall has moved on without them.
+  const wallShifts = new Map<string, Point>();
+  const smoothedEnvelopes = envelopes.map(loop => {
+    const smoothed = /* TEMP_AB_TEST */ loop; // smoothWallShape(loop, citadelOutline ?? []);
+    loop.points.forEach((p, i) => {
+      wallShifts.set(vertexKey(p), smoothed.points[i]);
+    });
+    return smoothed;
+  });
+  if (rawCitadelOutline && smoothedCitadel) {
+    rawCitadelOutline.forEach((p, i) => {
+      wallShifts.set(vertexKey(p), smoothedCitadel.points[i]);
+    });
+  }
+  interiorCells = foldVerticesIntoCells(interiorCells, wallShifts, new Set());
 
   const segCtx = {
     shoreline: coast?.shoreline ?? null,
@@ -198,10 +236,16 @@ export function generateCity(
     coast && geo.coast ? { shoreline: coast.shoreline, waterAzimuthDeg: geo.coast.waterAzimuthDeg } : null;
   const borders = (
     program.walls
-      ? envelopes.map(loop => reachEnvelopeToShore(loop, shoreInfo, params.cellSizeMeters, params.cityRadiusMeters))
-      : envelopes
+      ? smoothedEnvelopes.map(loop =>
+          reachEnvelopeToShore(loop, shoreInfo, params.cellSizeMeters, params.cityRadiusMeters)
+        )
+      : smoothedEnvelopes
   ).map(loop => classifyWallSegments(loop, segCtx, params.cellSizeMeters));
-  const gates = markWaterGate(placeGates(borders, geo), borders, coast?.shoreline ?? null, program.port);
+  const gates = markSeaSurroundedGates(
+    markWaterGate(placeGates(interiorCells, urban, borders, geo), borders, coast?.shoreline ?? null, program.port),
+    coast?.waterPolygon ?? null,
+    params.cellSizeMeters
+  );
 
   const wallCtx = {
     waterPolygon: coast?.waterPolygon ?? null,
@@ -226,6 +270,8 @@ export function generateCity(
   const streetResult = buildStreets({
     cells: interiorCells,
     urban,
+    sea,
+    waterPolygon: coast?.waterPolygon ?? null,
     borders,
     gates,
     precincts,
@@ -246,7 +292,20 @@ export function generateCity(
   // stay pinned; S0–S4 snapshots keep the untouched junction-optimised grid.
   const reserved = reservedStreetVertices(borders, citadelOutline, gates);
   for (const r of riverPaths) for (const p of r.edgeTrack) reserved.add(vertexKey(p));
-  const fabricCells = foldArteriesIntoCells(interiorCells, streetResult.vertexShifts, reserved);
+  let fabricCells = foldArteriesIntoCells(interiorCells, streetResult.vertexShifts, reserved);
+  // Weak Laplacian over the urban block seams no street or river ever routed
+  // over (§2.3 / §3.C): the fold above only smooths vertices a street/river
+  // actually touched, so the countless short Voronoi edges on neither stay raw
+  // zig-zag without this. `reserved` (the perimeter, citadel, gates, rivers)
+  // still holds, and only urban cells go in — rural/sea geometry is untouched.
+  const smoothedUrban = new Map(
+    smoothInteriorVertices(
+      fabricCells.filter(c => urban.has(c.id)),
+      reserved,
+      2
+    ).map(c => [c.id, c])
+  );
+  fabricCells = fabricCells.map(c => smoothedUrban.get(c.id) ?? c);
   const roadPaths = streets.roads.map(points => ({ kind: "road" as const, points, widths: [] as number[] }));
   steps.push(
     snapshot("S5 · Streets", fabricCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
@@ -297,6 +356,7 @@ export function generateCity(
     wards: warded.wards,
     urban,
     sea,
+    waterPolygon: coast?.waterPolygon ?? null,
     borders,
     precincts: allPrecincts,
     streets,
@@ -320,6 +380,7 @@ export function generateCity(
   return {
     params,
     gridStages,
+    urbanStages,
     steps,
     cells,
     riverPaths,

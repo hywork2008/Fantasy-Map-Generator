@@ -18,6 +18,8 @@ export default defineConfig({
                 main: path.resolve(__dirname, 'src/index.html'),
                 // Standalone City Generator page — see docs/city-generator/design.md
                 city: path.resolve(__dirname, 'src/city/index.html'),
+                // Manual City Editor — deliberately isolated from the world map.
+                cityEditor: path.resolve(__dirname, 'src/city-editor/index.html'),
             },
         },
     },

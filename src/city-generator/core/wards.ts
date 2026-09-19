@@ -112,13 +112,21 @@ export interface WardInputs {
 
 export interface WardResult {
   wards: WardAssignment[];
+  /**
+   * `wards`, but in decision order (harbour → temple → gate wards → the mix
+   * loop → outer gate wards → outskirts → shanty) instead of sorted by cell id.
+   * A debug slider steps through these to watch assignment unfold "one cell at
+   * a time" — the S6 counterpart of `UrbanStage`. See
+   * docs/city-generator/towngen-comparison.md.
+   */
+  assignmentOrder: WardAssignment[];
   /** Newly placed S6 precincts (`temple` / `harbor`). */
   precincts: Precinct[];
   overlays: Overlay[];
   shanty: Set<number>;
 }
 
-const EMPTY: WardResult = { wards: [], precincts: [], overlays: [], shanty: new Set() };
+const EMPTY: WardResult = { wards: [], assignmentOrder: [], precincts: [], overlays: [], shanty: new Set() };
 
 /** Pure. Same interior geometry + programme ⇒ identical wards (dedicated RNG streams). */
 export function assignWards(input: WardInputs): WardResult {
@@ -215,10 +223,11 @@ export function assignWards(input: WardInputs): WardResult {
     }
   }
 
-  const wards: WardAssignment[] = [...assigned.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([cellId, kind]) => ({ cellId, kind }));
-  return { wards, precincts: extraPrecincts, overlays, shanty };
+  // `assigned` is a Map, so its iteration order is insertion order — exactly the
+  // decision order phases 1-8 ran in (Map/Set iteration order is a JS guarantee).
+  const assignmentOrder: WardAssignment[] = [...assigned.entries()].map(([cellId, kind]) => ({ cellId, kind }));
+  const wards = assignmentOrder.slice().sort((a, b) => a.cellId - b.cellId);
+  return { wards, assignmentOrder, precincts: extraPrecincts, overlays, shanty };
 }
 
 function fillInner(

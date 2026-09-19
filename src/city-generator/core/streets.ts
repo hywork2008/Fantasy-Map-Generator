@@ -38,6 +38,12 @@ export interface StreetInputs {
   cells: Cell[];
   /** Ids of the S3 urban cells (the street graph's passable area). */
   urban: Set<number>;
+  /** Ids of the S1 sea cells — a road may never step onto one of their vertices
+   * (towngen-comparison.md §2.4 / §3.D: the "road across the bay" bug). */
+  sea: Set<number>;
+  /** Closed water polygon, same source as `sea`. Used to keep a road's far aim
+   * point on dry land instead of straight out in open water. */
+  waterPolygon: Point[] | null;
   borders: BorderLoop[];
   gates: Gate[];
   precincts: Precinct[];
@@ -65,7 +71,19 @@ const EMPTY: StreetResult = { streets: [], roads: [], arteries: [], vertexShifts
 
 /** Pure. Same interior geometry ⇒ identical network (A* is deterministic; no RNG). */
 export function buildStreets(input: StreetInputs): StreetResult {
-  const { cells, urban, borders, gates, precincts, citadelOutline, geo, cellSizeMeters, halfExtentMeters } = input;
+  const {
+    cells,
+    urban,
+    sea,
+    waterPolygon,
+    borders,
+    gates,
+    precincts,
+    citadelOutline,
+    geo,
+    cellSizeMeters,
+    halfExtentMeters
+  } = input;
   if (!gates.length || !cells.length) return EMPTY;
 
   const graph = buildEdgeGraph(cells);
@@ -98,15 +116,39 @@ export function buildStreets(input: StreetInputs): StreetResult {
       if (id !== undefined) borderNodes.add(id);
     }
   }
+  // Sea-cell vertices — a road must never step onto one (§2.4 / §3.D).
+  const seaNodes = new Set<number>();
+  for (const c of cells) {
+    if (!sea.has(c.id)) continue;
+    for (const v of c.polygon) {
+      const id = nodeAt.get(qk(v));
+      if (id !== undefined) seaNodes.add(id);
+    }
+  }
+  const crossesSea = (a: number, b: number): boolean => seaNodes.has(a) || seaNodes.has(b);
 
   /** `weight` returns a multiplier on the edge length: `Infinity` bars the edge,
    * `> 1` discourages it, `1` is neutral. Edges incident to the route's own
-   * endpoints are always free. */
-  const route = (from: Point, to: Point, weight: (a: number, b: number) => number): Point[] | null => {
+   * endpoints are exempt from `weight` (so a spur-shaped gate can still make its
+   * first hop off a wall/border vertex). `hardBar`, when given, is a SEPARATE
+   * never-exempted bar — for a constraint that must hold even on that first/last
+   * hop (the citadel enceinte; a water body for D.1's road fix): without this,
+   * a gate placed right at the edge of one lets the route's very first step
+   * cross it, since it inherits the endpoint exemption meant for urban/wall
+   * masking. See towngen-comparison.md — the citadel-crossing street this fixed. */
+  const route = (
+    from: Point,
+    to: Point,
+    weight: (a: number, b: number) => number,
+    hardBar?: (a: number, b: number) => boolean
+  ): Point[] | null => {
     const s = nearestNode(graph, from);
     const g = nearestNode(graph, to);
     if (s === g) return null;
-    const ids = aStar(graph, s, g, (a, b, w) => (a === s || b === s || a === g || b === g ? w : w * weight(a, b)));
+    const ids = aStar(graph, s, g, (a, b, w) => {
+      if (hardBar?.(a, b)) return Number.POSITIVE_INFINITY;
+      return a === s || b === s || a === g || b === g ? w : w * weight(a, b);
+    });
     if (!ids || ids.length < 2) return null;
     return ids.map(id => [graph.points[id][0], graph.points[id][1]] as Point);
   };
@@ -130,19 +172,22 @@ export function buildStreets(input: StreetInputs): StreetResult {
     .sort((p, q) => Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]))[0] ?? [0, 0];
 
   const streetWeight = (a: number, b: number): number => {
-    if (!(urbanNodes.has(a) && urbanNodes.has(b)) || !clearOfCitadel(a, b)) return Number.POSITIVE_INFINITY;
+    if (!(urbanNodes.has(a) && urbanNodes.has(b))) return Number.POSITIVE_INFINITY;
     return borderNodes.has(a) || borderNodes.has(b) ? 1.6 : 1;
   };
+  const crossesCitadel = (a: number, b: number): boolean => !clearOfCitadel(a, b);
   const streets: Point[][] = [];
   for (const gate of gates) {
-    const line = route(gate.point, streetTarget, streetWeight);
+    const line = route(gate.point, streetTarget, streetWeight, crossesCitadel);
     if (line) streets.push(line);
   }
 
   // --- roads: window edge → land gate. A road may not enter the built-up area
-  // (`urban`) — "outside the wall" follows because the wall wraps it. Routing
-  // stops one step outside the gate (its own vertex is shared with urban cells,
-  // so A* can't peel off it) and a short radial stub closes onto the gate.
+  // (`urban`) — "outside the wall" follows because the wall wraps it — or step
+  // on a sea-cell vertex (§2.4 / §3.D: this used to let a landward road cut
+  // straight across a bay). Routing stops one step outside the gate (its own
+  // vertex is shared with urban cells, so A* can't peel off it) and a short
+  // radial stub closes onto the gate.
   const nonUrban = (a: number, b: number): number =>
     urbanNodes.has(a) || urbanNodes.has(b) ? Number.POSITIVE_INFINITY : 1;
   const roads: Point[][] = [];
@@ -154,8 +199,9 @@ export function buildStreets(input: StreetInputs): StreetResult {
       halfExtentMeters
     );
     const apronNode = nearestNode(graph, apron);
-    if (urbanNodes.has(apronNode)) continue;
-    const legs = route(farNodeFor(gate, geo, halfExtentMeters), graph.points[apronNode], nonUrban);
+    if (urbanNodes.has(apronNode) || seaNodes.has(apronNode)) continue;
+    const goal = farNodeFor(gate, geo, halfExtentMeters, waterPolygon);
+    const legs = route(goal, graph.points[apronNode], nonUrban, crossesSea);
     if (legs) roads.push([...legs, [gate.point[0], gate.point[1]]]);
   }
 
@@ -299,7 +345,16 @@ function link(adjacency: Map<string, Set<string>>, from: string, to: string): vo
  * road whose entry azimuth matches the gate when there is one, else straight out
  * along the gate's own radius.
  */
-function farNodeFor(gate: Gate, geo: CityGeography, half: number): Point {
+/**
+ * A far aim point in the gate's bearing, clamped to the window: the descriptor
+ * road whose entry azimuth matches the gate when there is one, else straight
+ * out along the gate's own radius. When that straight-out aim lands in the
+ * water (a shore-facing gate), walk it back along the SAME bearing to just
+ * short of the water instead — so the road still reaches the gate along dry
+ * land (§2.4 / §3.D.1) rather than aiming at a goal `crossesSea` can never
+ * let the A* search reach, which silently drops the road.
+ */
+function farNodeFor(gate: Gate, geo: CityGeography, half: number, waterPolygon: Point[] | null): Point {
   const gateAz = vecToAzimuth(gate.point[0], gate.point[1]);
   const best = (geo.roadPaths ?? [])
     .filter(p => p.length >= 2)
@@ -308,10 +363,14 @@ function farNodeFor(gate: Gate, geo: CityGeography, half: number): Point {
   const dir = best && azimuthDelta(best.az, gateAz) < 45 ? unit(best.end) : unit(gate.point);
   const m = half * 0.985;
   const reach = half * 1.6;
-  return [
-    Math.max(-m, Math.min(m, gate.point[0] + dir[0] * reach)),
-    Math.max(-m, Math.min(m, gate.point[1] + dir[1] * reach))
-  ];
+  const clamp = (p: Point): Point => [Math.max(-m, Math.min(m, p[0])), Math.max(-m, Math.min(m, p[1]))];
+  const raw: Point = [gate.point[0] + dir[0] * reach, gate.point[1] + dir[1] * reach];
+  if (!waterPolygon || waterPolygon.length < 3 || !pointInPolygon(raw, waterPolygon)) return clamp(raw);
+  for (let t = 0.9; t > 0; t -= 0.05) {
+    const p: Point = [gate.point[0] + dir[0] * reach * t, gate.point[1] + dir[1] * reach * t];
+    if (!pointInPolygon(p, waterPolygon)) return clamp(p);
+  }
+  return gate.point; // fully surrounded by water — route() sees s === g and skips it
 }
 
 function unit(p: Point): Point {

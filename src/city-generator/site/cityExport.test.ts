@@ -3,6 +3,7 @@
 //   • the digest counts line up with the GenerationResult it was built from.
 
 import { describe, expect, it } from "vitest";
+import { parseDocument } from "../../city-editor/core/document";
 import { generateCity } from "../core/pipeline";
 import { DEFAULT_WALL_PLAN } from "../core/types";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "./burgSiteDescriptor";
@@ -191,6 +192,14 @@ describe("buildCityExport — standalone", () => {
     );
     expect(JSON.stringify(again)).toBe(JSON.stringify(data));
     expect(JSON.parse(JSON.stringify(data)).kind).toBe(CITY_EXPORT_KIND);
+  });
+
+  it("opens directly as a native City Editor document", () => {
+    const imported = parseDocument(JSON.stringify(data));
+    expect(imported).not.toBeNull();
+    expect(imported?.format).toBe("fmg-city-editor");
+    expect(Object.keys(imported?.mesh.faces ?? {})).toHaveLength(src.result.steps.at(-1)?.cells.length ?? 0);
+    expect(imported?.featureGroups.some(group => group.kind === "river")).toBe(true);
   });
 });
 

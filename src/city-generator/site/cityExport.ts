@@ -11,9 +11,8 @@
 //     tally, the walked river centre-lines, the shoreline, the wall loops, the
 //     gates and the reserved precincts.
 //
-// Deliberately omits the raw Voronoi mesh (`gridStages` / `steps` / `cells`):
-// thousands of polygons, useless as chat context and fully reproducible from
-// `settings.resolved`.
+// It also embeds a City Editor-native mesh at the root, so the same download
+// can be opened as an editable map in `src/city-editor`.
 
 import { polylineLength, vecToAzimuth } from "../core/geom";
 import type {
@@ -26,6 +25,7 @@ import type {
   WallSegmentKind
 } from "../core/types";
 import { type BurgSiteArchetype, type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "./burgSiteDescriptor";
+import { buildCityEditorDocument, type CityEditorDocumentExport } from "./cityEditorExport";
 import type { IncomingOrigin } from "./incomingSite";
 import { PRESETS, type PresetId, presetPopulation } from "./presets";
 import type { SiteConfig } from "./siteConfig";
@@ -123,7 +123,7 @@ export interface CityDigest {
   buildingCount: number;
 }
 
-export interface CityExport {
+export interface CityExport extends CityEditorDocumentExport {
   kind: typeof CITY_EXPORT_KIND;
   exportVersion: number;
   descriptorVersion: number;
@@ -160,8 +160,10 @@ export function buildCityExport(src: CityExportSource): CityExport {
   }
 
   const city = digestCity(src.descriptor, src.params, src.geography, src.result);
+  const editorDocument = buildCityEditorDocument(src.result, src.program);
 
   return {
+    ...editorDocument,
     kind: CITY_EXPORT_KIND,
     exportVersion: CITY_EXPORT_VERSION,
     descriptorVersion: DESCRIPTOR_VERSION,
@@ -170,7 +172,7 @@ export function buildCityExport(src: CityExportSource): CityExport {
     about:
       "Feed settings.resolved.{params, geography, program} to generateCity() to reproduce this town exactly; " +
       "settings.descriptor is the upstream BurgSiteDescriptor those were derived from. " +
-      "The raw Voronoi mesh is omitted. Coordinates are local metres: origin = town centre, +X = east, " +
+      "An editable City Editor mesh is included at the document root. Coordinates are local metres: origin = town centre, +X = east, " +
       "+Y = north; azimuths are compass degrees (0 = north, 90 = east).",
     description: describeCity(settings, city),
     settings,

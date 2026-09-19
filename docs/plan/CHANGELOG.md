@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-15
+
+- docs/city-editor/random-generation.md
+
 2026-08-23
 
 - docs/plan/burg-directions.md

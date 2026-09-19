@@ -4,6 +4,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
+import { getUrbanDwellings } from "../utils/urbanDwellings";
 
 /**
  * Burg site descriptor — the machine-readable "site survey" of a burg's local
@@ -135,6 +136,8 @@ export interface BurgSiteDescriptor {
     seed: string;
     /** Absolute number of inhabitants (population points × populationRate × urbanization). */
     population: number;
+    /** Required dwellings derived from the absolute population. */
+    dwellings: number;
     capital: boolean;
     port: boolean;
     citadel: boolean;
@@ -154,6 +157,9 @@ export interface BurgSiteDescriptor {
   };
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
+  /** Local transport constraint for City Editor. Legacy maps use the
+   * conservative medieval value rather than inventing a long bridge. */
+  transport?: { maxBridgeSpanMeters: number };
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];
@@ -221,6 +227,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       type: burg.type ?? "Generic",
       seed: String(burg.MFCG ?? worldContext.seed + String(burg.i).padStart(4, "0")),
       population,
+      dwellings: getUrbanDwellings(population),
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
       citadel: Boolean(burg.citadel),
@@ -240,12 +247,27 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       biomeId: pack.cells.biomeCode[burg.cell]
     },
     terrain,
+    transport: { maxBridgeSpanMeters: bridgeSpanForPeriod(worldContext.options.historicalPeriod) },
     rivers,
     waterbody,
     roads,
     suggestedGates: roadLegCount,
     suggestedArchetype
   };
+}
+
+/** A road bridge over a wider channel becomes a ferry or a port connection.
+ * Only explicitly industrial periods are allowed a kilometre-scale span. */
+function bridgeSpanForPeriod(period: typeof worldContext.options.historicalPeriod): number {
+  switch (period) {
+    case "steamEra":
+    case "industrialChemistryEra":
+    case "petroleumEra":
+    case "rocketryEra":
+      return 1000;
+    default:
+      return 50;
+  }
 }
 
 /** Number of land route legs radiating from the burg — used as the watabou `gates` hint. */

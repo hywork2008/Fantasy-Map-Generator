@@ -14,10 +14,20 @@ export interface CityParams {
   extentMeters: number;
   /** Built-up radius derived from population, meters. */
   cityRadiusMeters: number;
+  /** Required dwellings from the source city, when available. */
+  dwellings?: number;
   /** Target Voronoi cell size (≈ edge length), meters. */
   cellSizeMeters: number;
   /** Number of Lloyd relaxation passes applied after the initial scatter. */
   lloydPasses: number;
+  /**
+   * Debug/tuning override for S3's urban-core growth (`classifyUrban`): cap the
+   * flood-fill to the first N cells in ascending-cost fill order — the
+   * TownGeneratorTS "first nPatches" approach — instead of stopping at
+   * `cityRadiusMeters`. Unset = the existing radius cutoff (default, unchanged
+   * behaviour). See docs/city-generator/towngen-comparison.md §2.1 (A-1).
+   */
+  urbanNPatches?: number;
 }
 
 /** One Voronoi cell of the macro grid, clipped to the generation window. */
@@ -39,6 +49,20 @@ export interface Cell {
 export interface GridStage {
   label: string;
   cells: Cell[];
+}
+
+/**
+ * One flood-fill iteration of S3's urban-core growth (`classifyUrban`): the
+ * cell admitted this step and the cumulative urban set so far, in
+ * ascending-cost fill order. A debug slider steps through these to check the
+ * growing shape "one loop at a time" while tuning the cost function / the
+ * `urbanNPatches` cutoff. See docs/city-generator/towngen-comparison.md §2.1.
+ */
+export interface UrbanStage {
+  /** The cell id admitted to `urban` at this step. */
+  cellId: number;
+  /** Cumulative admitted cell ids through this step (fill order preserved). */
+  urban: number[];
 }
 
 /** Classification a cell carries in a pipeline snapshot. The river is drawn as a
@@ -277,6 +301,9 @@ export interface GenerationResult {
   params: CityParams;
   /** S0 evolution: [0] = initial scatter, last = relaxed grid. */
   gridStages: GridStage[];
+  /** S3 evolution: one entry per cell admitted to the urban core, in
+   * ascending-cost fill order. See `UrbanStage`. */
+  urbanStages: UrbanStage[];
   /** Drawing-process stages, [0] = base grid, last = urban core. */
   steps: Snapshot[];
   /** Final cells (identical to `gridStages.at(-1).cells` — Lloyd, or the

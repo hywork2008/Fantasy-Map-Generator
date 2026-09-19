@@ -90,6 +90,8 @@ export interface BurgSiteDescriptor {
     type: string;
     seed: string;
     population: number;
+    /** Required dwellings supplied as a city-generation input. */
+    dwellings: number;
     capital: boolean;
     port: boolean;
     citadel: boolean;
@@ -106,6 +108,8 @@ export interface BurgSiteDescriptor {
   };
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
+  /** Optional City Editor transport constraint; ignored by this generator. */
+  transport?: { maxBridgeSpanMeters: number };
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];

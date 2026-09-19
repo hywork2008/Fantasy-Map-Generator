@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SITE_CONFIG } from "../site/siteConfig";
 import { siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
+import { smoothInteriorVertices, vertexKey } from "./edgeGraph";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { close } from "./interior";
 import { generateCity } from "./pipeline";
@@ -96,6 +97,79 @@ describe("S5 streets", () => {
     expect(s5?.label).toBe("S5 · Streets");
     expect(s5?.paths.filter(p => p.kind === "road")).toHaveLength(r.streets.roads.length);
     expect(s5?.paths.some(p => p.kind === "street")).toBe(false);
+  });
+});
+
+function runCoastal(seed: string, coast: "straight" | "bay" | "cape", riverThrough = false) {
+  const config = {
+    ...DEFAULT_SITE_CONFIG,
+    coast,
+    rivers: riverThrough ? (["through"] as const) : [],
+    relief: false,
+    features: { ...DEFAULT_SITE_CONFIG.features, walls: true, plaza: true, citadel: false, port: true }
+  };
+  const site = synthSite("smallCity", config, seed);
+  return generateCity(siteToParams(site), siteToGeography(site), siteToProgram(site));
+}
+
+describe("roads never cross water (towngen-comparison.md §2.4 / §3.D — the most important bug)", () => {
+  const COASTS = ["straight", "bay", "cape"] as const;
+  const SEEDS = ["d1-a", "d1-b", "d1-c", "d1-d", "d1-e", "d1-f"];
+
+  it("no road segment's midpoint ever falls inside the water polygon", () => {
+    let checked = 0;
+    for (const coast of COASTS) {
+      for (const seed of SEEDS) {
+        const r = runCoastal(seed, coast);
+        if (!r.waterPolygon || r.waterPolygon.length < 3) continue;
+        for (const road of r.streets.roads) {
+          checked++;
+          for (let i = 0; i + 1 < road.length; i++) {
+            const m = mid(road[i], road[i + 1]);
+            expect(pointInPolygon(m, r.waterPolygon), `${coast}/${seed} road segment ${i} crosses the water`).toBe(
+              false
+            );
+          }
+        }
+      }
+    }
+    expect(checked, "no coastal scenario produced any road to check").toBeGreaterThan(0);
+  });
+
+  it("also holds with a river crossing the site (a second water source for the same gates)", () => {
+    let checked = 0;
+    for (const seed of SEEDS) {
+      const r = runCoastal(seed, "bay", true);
+      if (!r.waterPolygon || r.waterPolygon.length < 3) continue;
+      for (const road of r.streets.roads) {
+        checked++;
+        for (let i = 0; i + 1 < road.length; i++) {
+          expect(pointInPolygon(mid(road[i], road[i + 1]), r.waterPolygon)).toBe(false);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("a gate whose only reach would cross water is dropped, not routed through the sea", () => {
+    // Every land gate either has a road that stays dry, or no road at all —
+    // never a road forced through the exemption loophole at its own endpoint.
+    for (const coast of COASTS) {
+      for (const seed of SEEDS) {
+        const r = runCoastal(seed, coast);
+        if (!r.waterPolygon) continue;
+        const landGates = r.gates.filter(g => !g.water);
+        for (const gate of landGates) {
+          const road = r.streets.roads.find(
+            line => near(line.at(-1) as Point, gate.point) < r.params.cellSizeMeters * 1.5
+          );
+          if (!road) continue; // dropped — acceptable, never drawn through water
+          for (let i = 0; i + 1 < road.length; i++) {
+            expect(pointInPolygon(mid(road[i], road[i + 1]), r.waterPolygon)).toBe(false);
+          }
+        }
+      }
+    }
   });
 });
 
@@ -243,7 +317,7 @@ describe("S5 streets fold into the fabric (TownGeneratorTS 2.4)", () => {
   const s4Of = (r: ReturnType<typeof run>) =>
     new Map(r.steps.find(s => s.label === "S4 · Inner perimeter & gates")!.cells.map(c => [c.id, c.polygon] as const));
 
-  it("moves only street-adjacent vertices, onto a street route, without inverting cells", () => {
+  it("moves a vertex only near a street route (fold) or a small local nudge (§3.C smooth), never wildly, without inverting cells", () => {
     const r = run("s5-fold");
     const cs = r.params.cellSizeMeters;
     const s4 = s4Of(r);
@@ -262,7 +336,12 @@ describe("S5 streets fold into the fabric (TownGeneratorTS 2.4)", () => {
       expect(ratio).toBeLessThan(1.4);
       for (const p of c.polygon) {
         if (before.some(q => near(p, q) < 1e-6)) continue; // vertex did not move
-        expect(Math.min(...routes.map(a => nearestOnPolyline(p, a).dist))).toBeLessThan(cs);
+        // Either the S5 street/river fold moved it onto a drawn route, or the
+        // §3.C interior Laplacian nudged it a little from wherever it started —
+        // either way it must not have jumped far from every one of its old positions.
+        const onRoute = Math.min(...routes.map(a => nearestOnPolyline(p, a).dist)) < cs;
+        const smallNudge = Math.min(...before.map(q => near(p, q))) < cs * 2;
+        expect(onRoute || smallNudge, `vertex ${p.join()} moved without a route or a small nudge`).toBe(true);
       }
     }
   });
@@ -279,5 +358,110 @@ describe("S5 streets fold into the fabric (TownGeneratorTS 2.4)", () => {
     expect(JSON.stringify(run("s5-fold-det").steps.at(-1)!.cells)).toEqual(
       JSON.stringify(run("s5-fold-det").steps.at(-1)!.cells)
     );
+  });
+
+  it("also smooths interior block seams no street or river ever touched (§2.3 / §3.C)", () => {
+    const r = run("s5-fold-interior");
+    const s4 = s4Of(r);
+    const routes = [...r.streets.streets, ...r.streets.arteries];
+    const cs = r.params.cellSizeMeters;
+    const urbanIds = new Set(r.steps[3].cells.filter(c => c.tag === "urban").map(c => c.id));
+    const finalCells = r.steps.at(-1)!.cells;
+
+    // At least one urban vertex moved despite sitting nowhere near a drawn
+    // street/artery/river/wall route — the fold alone could never have moved it.
+    let movedFarFromAnyRoute = 0;
+    for (const c of finalCells) {
+      if (!urbanIds.has(c.id)) continue;
+      const before = s4.get(c.id);
+      if (!before) continue;
+      for (const p of c.polygon) {
+        if (before.some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-6)) continue; // did not move
+        if (Math.min(...routes.map(a => nearestOnPolyline(p, a).dist)) > cs) movedFarFromAnyRoute++;
+      }
+    }
+    expect(movedFarFromAnyRoute).toBeGreaterThan(0);
+  });
+});
+
+describe("smoothInteriorVertices (towngen-comparison.md §2.3 / §3.C)", () => {
+  // A 3x3 grid of unit squares, sharing edges/vertices like real cells.
+  function unitCell(id: number, x: number, y: number, neighbors: number[]): Cell {
+    const polygon: Point[] = [
+      [x, y],
+      [x + 1, y],
+      [x + 1, y + 1],
+      [x, y + 1]
+    ];
+    return { id, polygon, site: [x + 0.5, y + 0.5], centroid: [x + 0.5, y + 0.5], neighbors, onBorder: false };
+  }
+  const grid3x3 = (): Cell[] => {
+    const at = (x: number, y: number): number => y * 3 + x;
+    const cells: Cell[] = [];
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < 3; x++) {
+        const n: number[] = [];
+        if (x > 0) n.push(at(x - 1, y));
+        if (x < 2) n.push(at(x + 1, y));
+        if (y > 0) n.push(at(x, y - 1));
+        if (y < 2) n.push(at(x, y + 1));
+        cells.push(unitCell(at(x, y), x, y, n));
+      }
+    }
+    return cells;
+  };
+
+  it("is a no-op at 0 passes, and when nothing is free (all reserved)", () => {
+    const cells = grid3x3();
+    const zeroPasses = smoothInteriorVertices(cells, new Set(), 0);
+    expect(JSON.stringify(zeroPasses)).toBe(JSON.stringify(cells));
+    const allReserved = new Set(cells.flatMap(c => c.polygon.map(vertexKey)));
+    const nothingFree = smoothInteriorVertices(cells, allReserved, 2);
+    expect(JSON.stringify(nothingFree)).toBe(JSON.stringify(cells));
+  });
+
+  it("never moves a reserved vertex, and only ever moves an interior one toward its neighbours", () => {
+    const cells = grid3x3();
+    // Reserve the outer ring (x=0, x=3, y=0, y=3) — only the interior lattice
+    // point at (1,1)/(2,1)/(1,2)/(2,2) etc. stays free to move.
+    const reserved = new Set<string>();
+    for (const c of cells) {
+      for (const p of c.polygon) if (p[0] === 0 || p[0] === 3 || p[1] === 0 || p[1] === 3) reserved.add(vertexKey(p));
+    }
+    const out = smoothInteriorVertices(cells, reserved, 1);
+    for (const c of out) {
+      for (const p of c.polygon) {
+        if (p[0] === 0 || p[0] === 3 || p[1] === 0 || p[1] === 3) {
+          expect(reserved.has(vertexKey(p))).toBe(true); // still on the border — untouched
+        }
+      }
+    }
+    // The one interior vertex, (1,1)-(2,2) etc., is already the mean of its own
+    // neighbours on a regular grid, so it should not have moved either — the
+    // real assertion is that NOTHING here produced NaN / degenerate geometry.
+    for (const c of out) {
+      for (const p of c.polygon) {
+        expect(Number.isFinite(p[0])).toBe(true);
+        expect(Number.isFinite(p[1])).toBe(true);
+      }
+    }
+  });
+
+  it("pulls a displaced free vertex toward the mean of its neighbours", () => {
+    const cells = grid3x3();
+    // Nudge the shared vertex (1,1) off-grid on every cell that has it.
+    const nudged = cells.map(c => ({
+      ...c,
+      polygon: c.polygon.map(p => (p[0] === 1 && p[1] === 1 ? ([1.5, 1.5] as Point) : p))
+    }));
+    const reserved = new Set<string>();
+    for (const c of nudged) {
+      for (const p of c.polygon) if (p[0] === 0 || p[0] === 3 || p[1] === 0 || p[1] === 3) reserved.add(vertexKey(p));
+    }
+    const out = smoothInteriorVertices(nudged, reserved, 3);
+    const moved = out.flatMap(c => c.polygon).find(p => Math.abs(p[0] - 1.5) < 1e-6 && Math.abs(p[1] - 1.5) < 1e-6);
+    expect(moved).toBeUndefined(); // the outlier position itself is gone
+    const settled = out.flatMap(c => c.polygon).filter(p => Math.hypot(p[0] - 1, p[1] - 1) < 0.5);
+    expect(settled.length).toBeGreaterThan(0); // pulled back toward (1,1)
   });
 });
