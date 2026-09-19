@@ -17,6 +17,11 @@ export function minExternalRoadsForExtent(extentMeters: number): number {
   return extentMeters < SMALL_CITY_EXTENT_METERS ? MIN_FORT_EXTERNAL_ROADS : MIN_CITY_EXTERNAL_ROADS;
 }
 
+/** Floor for the whole flood-fill settlement, as a fraction of πR². Independent
+ * of wall capacity (Small 100% / Medium 45% / Large 20%). Sites where water has
+ * eaten the centre fall short of this. */
+export const MIN_SETTLEMENT_AREA_SHARE = 0.45;
+
 /** Area is a capacity proxy, not an exact household/population count. */
 export function defaultWalledAreaShare(extentMeters: number): number {
   return extentMeters >= 4800 ? 0.2 : extentMeters >= 2400 ? 0.45 : 1;

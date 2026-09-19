@@ -42,7 +42,12 @@ import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
-import { minExternalRoadsForExtent, resolveWalledAreaShare, splitUrbanCore } from "./gen/settlementExtent";
+import {
+  MIN_SETTLEMENT_AREA_SHARE,
+  minExternalRoadsForExtent,
+  resolveWalledAreaShare,
+  splitUrbanCore
+} from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
@@ -381,36 +386,39 @@ function generateCityAttempt(
   );
   mark("plan-total");
   // Do not save a nominally successful town when imported water has consumed
-  // its centre. This is deliberately checked before walls, roads and fabric
-  // make a handful of surviving cells look like a settlement.
-  const minimumUrbanArea = Math.PI * params.cityRadiusMeters ** 2 * 0.45;
-  const urbanArea = cells
-    .filter(cell => plan.urban.has(cell.id))
+  // its centre. Measure the flood-fill settlement, not the walled core — wall
+  // capacity (Medium 45% / Large 20%) is a later split of the same fill.
+  const targetArea = Math.PI * params.cityRadiusMeters ** 2;
+  const minimumUrbanArea = targetArea * MIN_SETTLEMENT_AREA_SHARE;
+  const settlementArea = cells
+    .filter(cell => plan.builtUp.has(cell.id))
     .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
-  if (urbanArea < minimumUrbanArea) {
+  if (settlementArea < minimumUrbanArea) {
     const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
-    const builtUpArea = cells
-      .filter(cell => plan.urban.has(cell.id) || plan.outskirts.has(cell.id))
+    const walledArea = cells
+      .filter(cell => plan.urban.has(cell.id))
       .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
-    const targetArea = Math.PI * params.cityRadiusMeters ** 2;
+    const floorPercent = Math.round(MIN_SETTLEMENT_AREA_SHARE * 100);
+    const sharePercent = Math.round(walledShare * 100);
     return reject(
       "urban",
       "urban-area-too-small",
-      `城壁内の市街地面積 ${Math.round(urbanArea)} m² が最低 ${Math.round(minimumUrbanArea)} m²（πR²の45%）に届かない`,
+      `市街地面積 ${Math.round(settlementArea)} m² が最低 ${Math.round(minimumUrbanArea)} m²（目標πR²の${floorPercent}%）に届かない`,
       {
-        urbanArea: Math.round(urbanArea),
-        builtUpArea: Math.round(builtUpArea),
+        settlementArea: Math.round(settlementArea),
+        walledArea: Math.round(walledArea),
         minimumUrbanArea: Math.round(minimumUrbanArea),
         targetArea: Math.round(targetArea),
         urbanFaces: plan.urban.size,
-        outskirts: plan.outskirts.size,
+        builtUpFaces: plan.builtUp.size,
         cityRadiusMeters: Math.round(params.cityRadiusMeters),
-        walledSharePercent: Math.round(walledShare * 100)
+        walledSharePercent: sharePercent,
+        settlementFloorPercent: floorPercent
       },
       [
         `R=${params.cityRadiusMeters} m, πR²=${Math.round(targetArea)} m²`,
-        `城壁内シェア ${Math.round(walledShare * 100)}%（Walls ${program.walls ? "on" : "off"}）`,
-        `flood-fill後の市街地 ${Math.round(builtUpArea)} m² / 城壁内 ${Math.round(urbanArea)} m²`
+        `市街地下限 ${floorPercent}% は城壁シェアとは別（海に中心を食われた都市の下限）`,
+        `城壁内シェア ${sharePercent}%（Walls ${program.walls ? "on" : "off"}）→ 城壁内 ${Math.round(walledArea)} m²`
       ]
     );
   }
@@ -777,6 +785,9 @@ interface Plan {
   rivers: RoutedRiver[];
   urban: Set<number>;
   outskirts: Set<number>;
+  /** S3 flood-fill before the wall-capacity split. The settlement-area floor
+   * is measured against this, not the walled core in `urban`. */
+  builtUp: Set<number>;
   /** S3 flood-fill in fill order, one entry per cell admitted to `urban`. Empty
    * before S3 runs. See `UrbanPatchStep`. */
   urbanStages: UrbanStage[];
@@ -827,6 +838,7 @@ function runPlan(
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
+    builtUp: new Set(),
     urbanStages: [],
     borderLoops: [],
     gates: [],
@@ -915,8 +927,9 @@ function runPlan(
   );
   const outskirts = new Set([...classification.outskirts, ...residentialOutskirts]);
   const urbanStages = classification.stages.filter(stage => urban.has(stage.cellId));
-  mark("urban", { urbanFaces: urban.size, recordedStages: urbanStages.length });
-  if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages };
+  const builtUp = classification.urban;
+  mark("urban", { urbanFaces: urban.size, recordedStages: urbanStages.length, builtUpFaces: builtUp.size });
+  if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages, builtUp };
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
   const riverLines = rivers.map(band => band.smoothPoints);
@@ -945,6 +958,7 @@ function runPlan(
       urban,
       outskirts,
       urbanStages,
+      builtUp,
       borderLoops,
       gates,
       precincts,
@@ -1009,6 +1023,7 @@ function runPlan(
       urban,
       outskirts,
       urbanStages,
+      builtUp,
       borderLoops,
       gates: routedGates,
       precincts,
@@ -1044,6 +1059,7 @@ function runPlan(
     urban,
     outskirts,
     urbanStages,
+    builtUp,
     borderLoops,
     gates: routedGates,
     precincts,

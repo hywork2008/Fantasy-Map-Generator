@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSizedDocument } from "./document";
+import { createGridDocument, createSizedDocument } from "./document";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import {
   formatGenerationFailureLog,
@@ -25,8 +25,8 @@ describe("generation failure diagnostics", () => {
         counts: { urbanArea: 100, minimumUrbanArea: 200 },
         failure: {
           reason: "urban-area-too-small",
-          message: "城壁内の市街地面積 100 m² が最低 200 m² に届かない",
-          details: ["R=792 m"]
+          message: "市街地面積 100 m² が最低 200 m²（目標πR²の45%）に届かない",
+          details: ["城壁内シェア 20%"]
         }
       }
     ];
@@ -35,7 +35,7 @@ describe("generation failure diagnostics", () => {
     expect(log).toContain("grid=hex");
     expect(log).toContain("案1 · 市街地（urban）· urban-area-too-small");
     expect(log).toContain("urbanArea=100");
-    expect(log).toContain("R=792 m");
+    expect(log).toContain("城壁内シェア 20%");
   });
 
   it("reports too-few-faces with stage, reason, and counts", () => {
@@ -52,6 +52,23 @@ describe("generation failure diagnostics", () => {
     expect(failures[0].failure?.message).toContain("格子の面が3未満");
     expect(failures[0].counts?.faces).toBe(2);
     expect(samples.some(sample => sample.failure?.reason === "all-attempts-rejected")).toBe(true);
+  });
+
+  it("keeps Large wall share at 20% and does not treat it as the 45% settlement floor", () => {
+    const document = createGridDocument({ size: "large", grid: "evolution", seed: "diag-share" });
+    const settings = defaultGenerationSettings();
+    settings.urbanNPatches = 1;
+    const samples: GenerationSample[] = [];
+    const city = generateCityOnDocument(document, settings, "diag-share", sample => samples.push(sample));
+    expect(city).toBeNull();
+    const failure = samples.find(sample => sample.failure?.reason === "urban-area-too-small");
+    expect(failure).toBeTruthy();
+    expect(failure!.counts?.walledSharePercent).toBe(20);
+    expect(failure!.counts?.settlementFloorPercent).toBe(45);
+    expect(failure!.failure?.message).toContain("市街地面積");
+    expect(failure!.failure?.message).toContain("目標πR²の45%");
+    expect(failure!.failure?.message).not.toContain("城壁内の市街地面積");
+    expect(failure!.failure?.details?.some(line => line.includes("城壁内シェア 20%"))).toBe(true);
   });
 
   it("logs a grouped console error with expandable per-attempt objects", () => {

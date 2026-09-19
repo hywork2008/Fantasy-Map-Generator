@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createGridDocument, parseDocument } from "../document";
 import { defaultGenerationSettings, generateCityOnDocument, generateStageOnDocument } from "../generate";
+import type { GenerationSample } from "../generationDiagnostics";
 import { facePoints, validate } from "../mesh";
 import { validGeneratedCrossings } from "../passages";
 import type { CityDocument } from "../types";
@@ -10,6 +11,7 @@ import {
   defaultWalledAreaShare,
   MIN_CITY_EXTERNAL_ROADS,
   MIN_FORT_EXTERNAL_ROADS,
+  MIN_SETTLEMENT_AREA_SHARE,
   minExternalRoadsForExtent,
   resolveWalledAreaShare,
   SMALL_CITY_EXTENT_METERS
@@ -38,6 +40,23 @@ describe("wall capacity and extramural housing", () => {
     expect(resolveWalledAreaShare(Number.NaN, 4800)).toBe(0.2);
     expect(resolveWalledAreaShare(0, 4800)).toBe(0.05);
     expect(resolveWalledAreaShare(2, 4800)).toBe(1);
+    expect(MIN_SETTLEMENT_AREA_SHARE).toBe(0.45);
+    expect(MIN_SETTLEMENT_AREA_SHARE).not.toBe(defaultWalledAreaShare(4800));
+  });
+
+  it("does not reject Medium or Large for wall share versus the settlement-area floor", () => {
+    const settings = defaultGenerationSettings();
+    for (const size of ["medium", "large"] as const) {
+      const input = createGridDocument({ size, grid: "evolution", seed: "share-floor" });
+      const samples: GenerationSample[] = [];
+      const city = generateCityOnDocument(input, settings, "share-floor", sample => samples.push(sample));
+      expect(
+        samples.filter(sample => sample.failure?.reason === "urban-area-too-small"),
+        size
+      ).toEqual([]);
+      expect(city, size).not.toBeNull();
+      expect(city!.fabric!.generation!.settings.walledAreaShare).toBe(size === "medium" ? 0.45 : 0.2);
+    }
   });
 
   it("changes the core capacity without reducing the total built-up area, and ignores it without walls", () => {
