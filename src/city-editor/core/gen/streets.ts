@@ -3,9 +3,9 @@
 // Everything is routed with A* over the SAME Voronoi cell-edge graph the river
 // and coastline use (core/edgeGraph.ts). Two kinds come out of it:
 //
-//   • streets — gate → plaza (or the town centre when there is no plaza), run
-//     INSIDE the perimeter. Deliberately NOT drawn: they resurface in S7 as the
-//     setback gaps between blocks.
+//   • streets — intramural arteries. Tiny maps keep gate → plaza; Small and
+//     larger use through-axes, parallel ribs, and a wall-hugging ring. They are
+//     drawn as major roads on the mesh. Local alleys stay derived infill.
 //   • roads   — a far node in the gate's bearing → the gate, run OUTSIDE the
 //     perimeter. These ARE drawn, as a double line.
 //
@@ -33,6 +33,7 @@ import { azimuthDelta, azimuthToVec, nearestOnPolyline, pointInPolygon, vecToAzi
 import { clampToWindow } from "./graphWalk";
 import { close } from "./interior";
 import { landwardFarNode } from "./plausibility";
+import { SMALL_CITY_EXTENT_METERS } from "./settlementExtent";
 import type { BorderLoop, Cell, CityGeography, Gate, Point, Precinct, StreetNetwork } from "./types";
 
 /** How `farNodeFor` picks the extramural road's window-edge aim (Phase G2). */
@@ -204,11 +205,9 @@ export function buildStreets(input: StreetInputs): StreetResult {
     return !pointInPolygon([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], citadelRing);
   };
 
-  // --- streets: gate → plaza / town centre --------------------------------
+  // --- streets: Tiny keeps gate → plaza; Small+ uses through-axes, ribs, ring
   const plaza = precincts.find(p => p.kind === "plaza");
   const plazaPolys: Point[][] = (plaza?.cellIds ?? []).flatMap(id => (byId.has(id) ? [byId.get(id)!.polygon] : []));
-  // TownGenerator's street endpoint is the plaza's vertex nearest the centre
-  // (the centre itself when there is no plaza).
   const plazaVertices: Point[] = [];
   for (const poly of plazaPolys) for (const v of poly) plazaVertices.push(v);
   const streetTarget: Point = plazaVertices
@@ -219,12 +218,77 @@ export function buildStreets(input: StreetInputs): StreetResult {
     if (!(urbanNodes.has(a) && urbanNodes.has(b))) return Number.POSITIVE_INFINITY;
     return borderNodes.has(a) || borderNodes.has(b) ? 1.6 : 1;
   };
+  const ringWeight = (a: number, b: number): number => {
+    if (!(urbanNodes.has(a) && urbanNodes.has(b))) return Number.POSITIVE_INFINITY;
+    if (borderNodes.has(a) && borderNodes.has(b)) return 0.45;
+    if (borderNodes.has(a) || borderNodes.has(b)) return 0.75;
+    return 2.2;
+  };
   const crossesCitadel = (a: number, b: number): boolean => !clearOfCitadel(a, b);
   const streetsHardBar = (a: number, b: number): boolean => crossesCitadel(a, b) || onRiver(a, b);
   const streets: Point[][] = [];
-  for (const gate of gates) {
-    const line = route(gate.point, streetTarget, streetWeight, streetsHardBar);
-    if (line) streets.push(line);
+  const addStreet = (line: Point[] | null): boolean => {
+    if (!line || line.length < 2) return false;
+    if (streets.some(existing => sameCorridor(existing, line))) return false;
+    streets.push(line);
+    return true;
+  };
+  const tiny = halfExtentMeters * 2 < SMALL_CITY_EXTENT_METERS;
+  for (const gate of gates) addStreet(route(gate.point, streetTarget, streetWeight, streetsHardBar));
+  if (!tiny && gates.length >= 2) {
+    const pairs = oppositeGatePairs(gates, streetTarget);
+    const axes: Point[][] = [];
+    for (const [a, b] of pairs) {
+      const line = route(a.point, b.point, streetWeight, streetsHardBar);
+      if (addStreet(line) && line) axes.push(line);
+    }
+    const used = new Set(pairs.flat());
+    for (const gate of gates) {
+      if (used.has(gate)) continue;
+      const hitch = nearestOnStreets(gate.point, axes.length ? axes : streets);
+      if (hitch && Math.hypot(hitch[0] - streetTarget[0], hitch[1] - streetTarget[1]) > cellSizeMeters)
+        addStreet(route(gate.point, hitch, streetWeight, streetsHardBar));
+    }
+    const span = urbanSpan(cells, urban);
+    const spacing = Math.max(50, Math.min(80, cellSizeMeters * 1.4));
+    const offsets = Math.min(2, Math.max(0, Math.floor(span / (2 * spacing))));
+    for (const axis of axes) {
+      const start = axis[0],
+        end = axis[axis.length - 1];
+      const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
+      if (length < spacing * 2) continue;
+      const tangent: Point = [(end[0] - start[0]) / length, (end[1] - start[1]) / length];
+      const normal: Point = [-tangent[1], tangent[0]];
+      const origin = dot(start, normal);
+      const corridor = (offset: number) => {
+        const a: number = origin + offset;
+        return (u: number, v: number): number => {
+          if (!(urbanNodes.has(u) && urbanNodes.has(v))) return Number.POSITIVE_INFINITY;
+          const mid: Point = [
+            (graph.points[u][0] + graph.points[v][0]) / 2,
+            (graph.points[u][1] + graph.points[v][1]) / 2
+          ];
+          const d = Math.abs(dot(mid, normal) - a);
+          return 1 + (d / spacing) ** 2;
+        };
+      };
+      for (let k = 1; k <= offsets; k++) {
+        for (const sign of [-1, 1]) {
+          const offset = sign * k * spacing;
+          const ends = urbanChordEnds(graph, urbanNodes, borderNodes, tangent, normal, origin + offset, spacing * 0.45);
+          if (!ends || Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) < spacing * 1.6) continue;
+          const line = route(ends[0], ends[1], corridor(offset), streetsHardBar);
+          if (!line || pathFollowsExisting(line, streets, spacing * 0.45)) continue;
+          addStreet(line);
+        }
+      }
+    }
+    if (!riverPolylines.length) {
+      for (const [from, to] of consecutiveGates(gates, borders)) {
+        if (pairs.some(([a, b]) => sameEnds(from.point, to.point, a.point, b.point))) continue;
+        addStreet(route(from.point, to.point, ringWeight, streetsHardBar));
+      }
+    }
   }
 
   // --- roads: window edge → land gate. A road may not enter the built-up area
@@ -395,6 +459,140 @@ export function reservedStreetVertices(
  */
 export function foldArteriesIntoCells(cells: Cell[], vertexShifts: Map<string, Point>, reserved: Set<string>): Cell[] {
   return foldVerticesIntoCells(cells, vertexShifts, reserved);
+}
+
+const near = (a: Point, b: Point, limit = 8): boolean => Math.hypot(a[0] - b[0], a[1] - b[1]) < limit;
+const dot = (a: Point, b: Point): number => a[0] * b[0] + a[1] * b[1];
+
+function sameEnds(a0: Point, a1: Point, b0: Point, b1: Point): boolean {
+  return (near(a0, b0) && near(a1, b1)) || (near(a0, b1) && near(a1, b0));
+}
+
+function sameCorridor(a: Point[], b: Point[]): boolean {
+  return sameEnds(a[0], a[a.length - 1], b[0], b[b.length - 1]);
+}
+
+function oppositeGatePairs(gates: Gate[], plaza: Point): [Gate, Gate][] {
+  if (gates.length < 2) return [];
+  const az = (g: Gate) => vecToAzimuth(g.point[0] - plaza[0], g.point[1] - plaza[1]);
+  const used = new Set<Gate>();
+  const pairs: [Gate, Gate][] = [];
+  const axisAz = (pair: [Gate, Gate]) =>
+    vecToAzimuth(pair[1].point[0] - pair[0].point[0], pair[1].point[1] - pair[0].point[1]);
+  while (pairs.length < 2) {
+    let best: [Gate, Gate] | null = null;
+    let bestScore = 0;
+    for (let i = 0; i < gates.length; i++) {
+      if (used.has(gates[i])) continue;
+      for (let j = i + 1; j < gates.length; j++) {
+        if (used.has(gates[j])) continue;
+        const opposite = 1 - Math.abs(azimuthDelta(az(gates[i]), az(gates[j])) - 180) / 180;
+        if (opposite < 0.4) continue;
+        if (pairs.length === 1) {
+          const turn = azimuthDelta(axisAz(pairs[0]), axisAz([gates[i], gates[j]]));
+          if (turn < 50 || turn > 130) continue;
+        }
+        const dist = Math.hypot(gates[i].point[0] - gates[j].point[0], gates[i].point[1] - gates[j].point[1]);
+        const score = opposite * dist;
+        if (score > bestScore) {
+          bestScore = score;
+          best = [gates[i], gates[j]];
+        }
+      }
+    }
+    if (!best) break;
+    pairs.push(best);
+    used.add(best[0]);
+    used.add(best[1]);
+  }
+  return pairs;
+}
+
+function consecutiveGates(gates: Gate[], borders: BorderLoop[]): [Gate, Gate][] {
+  const pairs: [Gate, Gate][] = [];
+  for (let borderIndex = 0; borderIndex < borders.length; borderIndex++) {
+    const loop = borders[borderIndex];
+    if (loop.points.length < 3) continue;
+    const closed = [...loop.points, loop.points[0]];
+    const members = gates.filter(g => g.borderIndex === borderIndex);
+    if (members.length < 2) continue;
+    const ordered = members
+      .map(g => ({ g, hit: nearestOnPolyline(g.point, closed) }))
+      .sort((a, b) => a.hit.segIndex + a.hit.t - (b.hit.segIndex + b.hit.t))
+      .map(item => item.g);
+    for (let i = 0; i < ordered.length; i++) pairs.push([ordered[i], ordered[(i + 1) % ordered.length]]);
+  }
+  return pairs;
+}
+
+function urbanSpan(cells: Cell[], urban: Set<number>): number {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const cell of cells) {
+    if (!urban.has(cell.id)) continue;
+    for (const [x, y] of cell.polygon) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!Number.isFinite(minX)) return 0;
+  return Math.max(maxX - minX, maxY - minY);
+}
+
+function urbanChordEnds(
+  graph: { points: Point[] },
+  urbanNodes: Set<number>,
+  borderNodes: Set<number>,
+  tangent: Point,
+  normal: Point,
+  offset: number,
+  bandwidth: number
+): [Point, Point] | null {
+  let minAlong = Infinity,
+    maxAlong = -Infinity;
+  let minPt: Point | null = null,
+    maxPt: Point | null = null;
+  for (const id of urbanNodes) {
+    if (borderNodes.has(id)) continue;
+    const p = graph.points[id];
+    if (Math.abs(dot(p, normal) - offset) > bandwidth) continue;
+    const along = dot(p, tangent);
+    if (along < minAlong) {
+      minAlong = along;
+      minPt = p;
+    }
+    if (along > maxAlong) {
+      maxAlong = along;
+      maxPt = p;
+    }
+  }
+  return minPt && maxPt && minPt !== maxPt ? [minPt, maxPt] : null;
+}
+
+function nearestOnStreets(p: Point, streets: Point[][]): Point | null {
+  let best: Point | null = null,
+    bestDist = Infinity;
+  for (const street of streets) {
+    const hit = nearestOnPolyline(p, street);
+    if (hit.dist < bestDist) {
+      best = hit.point;
+      bestDist = hit.dist;
+    }
+  }
+  return best;
+}
+
+function pathFollowsExisting(line: Point[], streets: Point[][], limit: number): boolean {
+  if (line.length < 2 || !streets.length) return false;
+  let near = 0;
+  for (const p of line) {
+    if (streets.some(street => nearestOnPolyline(p, street).dist < limit)) near++;
+  }
+  return near / line.length > 0.55;
 }
 
 function link(adjacency: Map<string, Set<string>>, from: string, to: string): void {

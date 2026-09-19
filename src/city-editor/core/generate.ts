@@ -427,9 +427,19 @@ function generateCityAttempt(
     if (["slum", "gate", "shanty", "military"].includes(kind)) wards.set(id, "craftsmen");
     if (["patriciate", "administration"].includes(kind)) wards.set(id, "merchant");
   }
-  const plaza = plan.precincts.find(p => p.kind === "plaza");
-  const streets: Point[][] = plan.gates.map(g => [g.point, plaza?.anchor ?? [0, 0]]);
   const streetOptions = resolveStreetSettings(settings);
+  const plaza = plan.precincts.find(p => p.kind === "plaza");
+  const plazaPoint: Point = plaza?.anchor ?? [0, 0];
+  const star = plan.gates.map(g => [g.point, plazaPoint] as Point[]);
+  const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
+  const extras = plan.streets
+    .filter(line => {
+      const a = line[0],
+        b = line[line.length - 1];
+      return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
+    })
+    .map(line => [line[0], line[line.length - 1]] as Point[]);
+  const streets = [...star, ...extras];
   const roads: Point[][] = plan.gates.map((gate, i) => [
     farNodeFor(
       gate,
@@ -1513,12 +1523,21 @@ function completeRoadRouter(
   };
   return (polyline, outside) => {
     if (polyline.length < 2) return [];
-    const start = endpoint(polyline[0]);
-    const end = endpoint(polyline.at(-1)!);
-    if (!start || !end) return [];
-    const startIdx = indexOf.get(start)!;
-    const endIdx = indexOf.get(end)!;
-    const path = aStar(graph, startIdx, endIdx, (a, b, w) => {
+    const snap = (p: Point, end: boolean) => (end ? endpoint(p) : nearest(p));
+    const sampled: Point[] = [];
+    const stride = Math.max(1, Math.ceil((polyline.length - 1) / 8));
+    for (let i = 0; i < polyline.length; i += stride) sampled.push(polyline[i]);
+    if (sampled.at(-1) !== polyline.at(-1)) sampled.push(polyline[polyline.length - 1]);
+    const waypoints: number[] = [];
+    for (let i = 0; i < sampled.length; i++) {
+      const id = snap(sampled[i], i === 0 || i === sampled.length - 1);
+      const idx = id ? indexOf.get(id) : undefined;
+      if (idx === undefined || waypoints.at(-1) === idx) continue;
+      waypoints.push(idx);
+    }
+    if (waypoints.length < 2) return [];
+    const hopEndOf = waypoints[waypoints.length - 1];
+    const weight = (a: number, b: number, w: number, hopEnd: number) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
       if (banned.has(edge.id)) return Infinity;
       for (const id of [edge.a, edge.b]) if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
@@ -1527,22 +1546,31 @@ function completeRoadRouter(
       const inTown = faces.some(id => urban.has(id));
       if (outside === inTown) {
         // Unwalled towns have no gate passage; allow the last hop onto the rim.
-        if (outside && openRim && (a === endIdx || b === endIdx)) return w;
+        if (outside && openRim && (a === hopEnd || b === hopEnd)) return w;
         return Infinity;
       }
       return w;
-    });
-    if (!path) return [];
+    };
+    const stitch = (points: number[]): number[] | null => {
+      const nodes: number[] = [points[0]];
+      for (let i = 0; i < points.length - 1; i++) {
+        const hopEnd = points[i + 1];
+        const hop = aStar(graph, nodes.at(-1)!, hopEnd, (a, b, w) => weight(a, b, w, hopEnd));
+        if (!hop || hop.length < 2) return null;
+        nodes.push(...hop.slice(1));
+      }
+      return nodes.length >= 2 ? nodes : null;
+    };
+    const nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+    if (!nodes) return [];
     if (outside) {
       const half = document.frame.extentMeters / 2;
       const onFrame = (node: number) => graph.points[node].some(value => Math.abs(value) >= half - 0.01);
-      // The entry is where the road leaves the frame. A* may otherwise trace
-      // its pinned border for several edges and leave a visible right angle.
-      while (path.length > 2 && onFrame(path[0]) && onFrame(path[1])) path.shift();
+      while (nodes.length > 2 && onFrame(nodes[0]) && onFrame(nodes[1])) nodes.shift();
     }
-    return path.slice(1).map((b, i) => {
-      const edge = edgeFor.get(`${Math.min(path[i], b)},${Math.max(path[i], b)}`)!;
-      return { edgeId: edge.id, forward: edge.a === ids[path[i]] };
+    return nodes.slice(1).map((b, i) => {
+      const edge = edgeFor.get(`${Math.min(nodes[i], b)},${Math.max(nodes[i], b)}`)!;
+      return { edgeId: edge.id, forward: edge.a === ids[nodes[i]] };
     });
   };
 }

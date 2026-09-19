@@ -188,13 +188,12 @@ export interface Gate {
  * S5 street network, all routed with A* over the Voronoi cell-edge graph
  * (design §4.2 S5, TownGeneratorTS 2.4 `buildStreets`).
  *
- * `streets` run gate → plaza (or the town centre when there is no plaza) INSIDE
- * the perimeter; they are deliberately NOT drawn — they resurface in S7 as the
- * setback gaps between blocks. `roads` run a far node in the gate's bearing → the
- * gate OUTSIDE the perimeter and ARE drawn, as a double line. `arteries` is the
- * tidied union of both (plaza edges dropped, chains split at every junction,
- * interior vertices smoothed with the endpoints — gates / junctions — fixed):
- * the "streets" S7 sets buildings back from.
+ * `streets` run INSIDE the perimeter: Tiny maps keep gate → plaza; Small and
+ * larger use through-axes, parallel ribs, and a wall-hugging ring. City Editor
+ * draws them as major-road feature groups. `roads` run a far node in the gate's
+ * bearing → the gate OUTSIDE the perimeter. `arteries` is the tidied union of
+ * both (plaza edges dropped, chains split at every junction, interior vertices
+ * smoothed with the endpoints — gates / junctions — fixed).
  */
 export interface StreetNetwork {
   streets: Point[][];

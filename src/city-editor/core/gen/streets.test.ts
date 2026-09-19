@@ -230,3 +230,89 @@ describe("buildStreets — Phase G2 sea hard bar and farNode modes", () => {
     expect(vecToAzimuth(far[0] - gate[0], far[1] - gate[1])).toBeCloseTo(0, 0);
   });
 });
+
+/** 10×10 squares covering [-100, 100]². Inner 6×6 is urban. Four NESW gates. */
+function walledTown(over: Partial<StreetInputs> = {}): StreetInputs {
+  const s = 20;
+  const cells = grid(10, 10, s, [-100, -100]);
+  const urban = new Set<number>();
+  for (let j = 2; j < 8; j++) for (let i = 2; i < 8; i++) urban.add(j * 10 + i);
+  const border = [
+    [60, -60],
+    [60, 60],
+    [-60, 60],
+    [-60, -60]
+  ] as Point[];
+  return {
+    cells,
+    urban,
+    sea: new Set(),
+    waterPolygon: null,
+    borders: [{ points: border, segments: ["land", "land", "land", "land"], urbanCellIds: [...urban] }],
+    gates: [
+      { point: [60, 0], borderIndex: 0, water: false },
+      { point: [-60, 0], borderIndex: 0, water: false },
+      { point: [0, 60], borderIndex: 0, water: false },
+      { point: [0, -60], borderIndex: 0, water: false }
+    ],
+    precincts: [{ kind: "plaza", cellIds: [44, 45, 54, 55], anchor: [0, 0], label: "Plaza" }],
+    citadelOutline: null,
+    geo: { coast: null, rivers: [], roadBearings: [0, 90, 180, 270] },
+    cellSizeMeters: s,
+    halfExtentMeters: 800,
+    ...over
+  };
+}
+
+describe("buildStreets — intramural through-axes, ribs, and ring", () => {
+  it("keeps Tiny maps as a gate-to-plaza star", () => {
+    const result = buildStreets(townInputs());
+    expect(result.streets).toHaveLength(1);
+    const street = result.streets[0];
+    expect(nearPoint(street[0], [20, 0]) || nearPoint(street[street.length - 1], [20, 0])).toBe(true);
+    expect(nearPoint(street[0], [0, 0], 25) || nearPoint(street[street.length - 1], [0, 0], 25)).toBe(true);
+  });
+
+  it("routes Small+ opposite gates through the town instead of only to the plaza", () => {
+    const result = buildStreets(walledTown());
+    expect(result.streets.length).toBeGreaterThan(4);
+    const through = result.streets.filter(street => {
+      const a = street[0],
+        b = street[street.length - 1];
+      const gates = walledTown().gates.map(g => g.point);
+      const hits = gates.filter(g => nearPoint(a, g, 12) || nearPoint(b, g, 12));
+      return hits.length >= 2 && Math.hypot(a[0] - b[0], a[1] - b[1]) > 80;
+    });
+    expect(through.length).toBeGreaterThanOrEqual(2);
+    const eastWest = through.some(street => Math.abs(street[0][1]) < 25 && Math.abs(street.at(-1)![1]) < 25);
+    const northSouth = through.some(street => Math.abs(street[0][0]) < 25 && Math.abs(street.at(-1)![0]) < 25);
+    expect(eastWest && northSouth).toBe(true);
+  });
+
+  it("adds a wall-hugging ring between consecutive gates", () => {
+    const result = buildStreets(walledTown());
+    const ring = result.streets.filter(street => {
+      const a = street[0],
+        b = street[street.length - 1];
+      const gates = walledTown().gates.map(g => g.point);
+      const from = gates.find(g => nearPoint(a, g, 12));
+      const to = gates.find(g => nearPoint(b, g, 12));
+      if (!from || !to || from === to) return false;
+      const mid = street[Math.floor(street.length / 2)];
+      return Math.max(Math.abs(mid[0]), Math.abs(mid[1])) > 35;
+    });
+    expect(ring.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("still hard-bars intramural arteries off walked river edges", () => {
+    const open = buildStreets(walledTown());
+    const river = open.streets.find(s => Math.hypot(s[0][0] - s.at(-1)![0], s[0][1] - s.at(-1)![1]) > 80)!;
+    const banned = undirectedPairs(river);
+    const blocked = buildStreets(walledTown({ rivers: [river] }));
+    expect(usesPairs(blocked.streets, banned)).toBe(false);
+  });
+});
+
+function nearPoint(a: Point, b: Point, limit = 8): boolean {
+  return Math.hypot(a[0] - b[0], a[1] - b[1]) < limit;
+}
