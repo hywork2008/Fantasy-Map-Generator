@@ -954,7 +954,9 @@ describe("FMG descriptor geography", () => {
 });
 
 describe("sizePresetForExtent / custom frame", () => {
-  it("picks the closest Small / Medium / Large window", () => {
+  it("picks the closest Tiny / Small / Medium / Large window", () => {
+    expect(sizePresetForExtent(600)).toBe("tiny");
+    expect(sizePresetForExtent(400)).toBe("tiny");
     expect(sizePresetForExtent(1200)).toBe("small");
     expect(sizePresetForExtent(1500)).toBe("small");
     expect(sizePresetForExtent(3000)).toBe("medium");

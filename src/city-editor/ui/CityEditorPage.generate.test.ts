@@ -132,6 +132,19 @@ describe("Generate panel", () => {
     expect(has(".ce-feature--road")).toBe(true);
   });
 
+  it("generates a complete Tiny city from the Document map-size control", () => {
+    const sizeSelect = root.querySelector<HTMLSelectElement>("select.ce-map-size");
+    if (!sizeSelect) throw new Error("map-size select not found");
+    sizeSelect.value = "tiny";
+    sizeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    iconButton("Generate a new grid").click();
+    panelButton("都市を一括生成").click();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-feature--road")).toBe(true);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(count(".ce-buildings .ce-building")).toBeGreaterThan(20);
+  });
+
   it("restores building display when unchecking 街区の編集表示 after Clean short junctions tool", () => {
     panelButton("新しい都市").click();
     expect(has(".ce-buildings .ce-building")).toBe(true);

@@ -358,6 +358,7 @@ export function mountCityEditor(root: HTMLElement): void {
     paintGrid.appendChild(paintButton);
   }
   const size = select(Object.keys(CITY_SIZE_PRESETS), "small");
+  size.className = "ce-map-size";
   for (const option of [...size.options]) {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
     option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km`;
@@ -777,7 +778,7 @@ export function mountCityEditor(root: HTMLElement): void {
     importedBox,
     synthControls,
     label("城壁内の市街地面積（%）", walledShareInput),
-    text("空欄は Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
+    text("空欄は Tiny/Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
     housingSummary,
     divider(),
     text(

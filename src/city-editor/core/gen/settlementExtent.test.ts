@@ -24,9 +24,10 @@ function settledArea(document: CityDocument, kind?: "core" | "outskirts") {
 }
 
 describe("wall capacity and extramural housing", () => {
-  it("requires two map-edge roads for current city sizes and one for a future tiny/fort", () => {
+  it("requires two map-edge roads for city sizes and one for Tiny / fort maps", () => {
     expect(SMALL_CITY_EXTENT_METERS).toBe(1200);
-    expect([1200, 2400, 4800].map(minExternalRoadsForExtent)).toEqual([
+    expect([600, 1200, 2400, 4800].map(minExternalRoadsForExtent)).toEqual([
+      MIN_FORT_EXTERNAL_ROADS,
       MIN_CITY_EXTERNAL_ROADS,
       MIN_CITY_EXTERNAL_ROADS,
       MIN_CITY_EXTERNAL_ROADS
@@ -35,7 +36,7 @@ describe("wall capacity and extramural housing", () => {
   });
 
   it("uses size-dependent defaults and bounds explicit capacity", () => {
-    expect([1200, 2400, 4800].map(defaultWalledAreaShare)).toEqual([1, 0.45, 0.2]);
+    expect([600, 1200, 2400, 4800].map(defaultWalledAreaShare)).toEqual([1, 1, 0.45, 0.2]);
     expect(resolveWalledAreaShare(undefined, 4800)).toBe(0.2);
     expect(resolveWalledAreaShare(Number.NaN, 4800)).toBe(0.2);
     expect(resolveWalledAreaShare(0, 4800)).toBe(0.05);

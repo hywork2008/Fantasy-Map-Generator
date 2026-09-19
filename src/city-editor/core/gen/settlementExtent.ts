@@ -1,18 +1,18 @@
 import { polygonArea } from "./geom";
 import type { Cell } from "./types";
 
-/** Matches `CITY_SIZE_PRESETS.small.extentMeters`. Windows below this are a
- * future tiny map / fort, not a current Small/Medium/Large city. */
+/** Matches `CITY_SIZE_PRESETS.small.extentMeters`. Windows below this are
+ * Tiny maps / forts (`CITY_SIZE_PRESETS.tiny` is 600 m). */
 export const SMALL_CITY_EXTENT_METERS = 1200;
 /** Small / Medium / Large cities keep at least two map-edge approach roads so
  * they are not a single-road dead end. */
 export const MIN_CITY_EXTERNAL_ROADS = 2;
-/** Future tiny maps and forts: one last-stand approach (背水の陣). */
+/** Tiny maps and forts: one last-stand approach (背水の陣). */
 export const MIN_FORT_EXTERNAL_ROADS = 1;
 
 /** Minimum map-edge approach roads a generated settlement must keep.
- * Current Small / Medium / Large cities: 2. A window smaller than Small is
- * treated as a future tiny/fort and may keep 1. FMG descriptors are exempt. */
+ * Small / Medium / Large cities: 2. Tiny maps (smaller than Small) may keep 1.
+ * FMG descriptors are exempt. */
 export function minExternalRoadsForExtent(extentMeters: number): number {
   return extentMeters < SMALL_CITY_EXTENT_METERS ? MIN_FORT_EXTERNAL_ROADS : MIN_CITY_EXTERNAL_ROADS;
 }

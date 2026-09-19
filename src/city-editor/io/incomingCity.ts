@@ -11,7 +11,7 @@
 // copy in core/gen/site/burgSiteDescriptor (DESCRIPTOR_VERSION gates incompatible
 // payloads). Keep CITY_SITE_KEY in sync with src/controllers/burg-editor.ts.
 
-import { type CitySizePreset, type GridKind, sizePresetForExtent } from "../core/document";
+import { type CitySizePreset, type GridKind, isCitySizePreset, sizePresetForExtent } from "../core/document";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
@@ -251,7 +251,7 @@ function isGridKind(v: unknown): v is GridKind {
 }
 
 function isSize(v: unknown): v is CitySizePreset {
-  return v === "small" || v === "medium" || v === "large";
+  return isCitySizePreset(v);
 }
 
 function safeSessionGet(key: string): string | null {

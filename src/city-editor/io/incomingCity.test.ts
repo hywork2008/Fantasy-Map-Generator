@@ -69,6 +69,16 @@ describe("share codec", () => {
     expect(decodeShare(token)).toEqual(JSON.parse(JSON.stringify(share)));
   });
 
+  it("round-trips a Tiny map-size share", () => {
+    const share = buildShare({
+      seed: "tiny-town",
+      grid: "evolution",
+      size: "tiny",
+      settings: { config: DEFAULT_SITE_CONFIG }
+    });
+    expect(decodeShare(encodeShare(share))).toEqual(JSON.parse(JSON.stringify(share)));
+  });
+
   it("wraps a City Generator descriptor token as a share", () => {
     const decoded = decodeShare(encodeJson(sample));
     expect(decoded).not.toBeNull();

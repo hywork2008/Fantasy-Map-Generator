@@ -6,7 +6,7 @@
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
 import { azimuthToVec, nearestOnPolyline, segmentsIntersect, sideOfPolyline, vecToAzimuth } from "../geom";
 import { makeRng, type Rng } from "../prng";
-import { MIN_CITY_EXTERNAL_ROADS } from "../settlementExtent";
+import { minExternalRoadsForExtent } from "../settlementExtent";
 import type { Point } from "../types";
 import type {
   BurgSiteArchetype,
@@ -116,7 +116,7 @@ export function synthSite(
   const roads = synthRoads(
     rng,
     half,
-    roadBearings(rng, config, waterbody?.shoreAzimuthDeg ?? null, rivers, MIN_CITY_EXTERNAL_ROADS)
+    roadBearings(rng, config, waterbody?.shoreAzimuthDeg ?? null, rivers, minExternalRoadsForExtent(extentMeters))
   );
 
   // Features come straight from the SiteConfig toggles — no population heuristics.

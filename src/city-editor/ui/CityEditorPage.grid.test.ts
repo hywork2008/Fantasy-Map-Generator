@@ -154,6 +154,25 @@ describe("Document panel — new-city grid kind", () => {
       pathPointCount(el.getAttribute("d") ?? "")
     );
 
+  it("lists Tiny (half of Small) before Small / Medium / Large", () => {
+    const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
+    expect([...sizeSelect.options].map(option => option.value)).toEqual(["tiny", "small", "medium", "large"]);
+    expect(sizeSelect.value).toBe("small");
+    expect(sizeSelect.selectedOptions[0]?.textContent).toContain("1.2 km");
+    expect([...sizeSelect.options].find(option => option.value === "tiny")?.textContent).toContain("0.6 km");
+  });
+
+  it("🆕 at Tiny builds a window about a quarter of Small's cell count", () => {
+    const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
+    const smallFaces = faceCount();
+    sizeSelect.value = "tiny";
+    sizeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    newGrid();
+    const tinyFaces = faceCount();
+    expect(tinyFaces).toBeGreaterThan(20);
+    expect(tinyFaces).toBeLessThan(smallFaces * 0.5);
+  });
+
   it("defaults to hexagonal, with the hex-size slider visible", () => {
     expect(gridKindSelect().value).toBe("hex");
     expect(hexSizeLabel().hidden).toBe(false);

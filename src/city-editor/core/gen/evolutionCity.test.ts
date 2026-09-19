@@ -61,10 +61,10 @@ describe("evolution complete city", () => {
         expect(JSON.stringify(input)).toBe(before);
       });
     }
-  it("Small / Medium / Large cities keep at least two map-edge approach roads", () => {
+  it("Tiny / Small / Medium / Large cities keep the size's minimum map-edge approach roads", () => {
     const settings = defaultGenerationSettings();
     settings.config.rivers = [];
-    for (const size of ["small", "medium", "large"] as const) {
+    for (const size of ["tiny", "small", "medium", "large"] as const) {
       const input = createGridDocument({ size, grid: "evolution", seed: "roads-two" });
       const city = generateCityOnDocument(input, settings, "roads-two")!;
       expect(city, size).not.toBeNull();

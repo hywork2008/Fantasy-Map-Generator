@@ -6,6 +6,7 @@ import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
 import { kindEdgeIds, vertexHasCrossing } from "../passages";
 import type { CityDocument, Point } from "../types";
+import { buildBlockFabric } from "./blockInfill";
 import { buildCityBuildings, insetConvexKernel } from "./buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
 import { minExternalRoadsForExtent } from "./settlementExtent";
@@ -143,6 +144,25 @@ describe("complete editable city", () => {
       const city = generateCityOnDocument(base, settings, "roads-two")!;
       expect(city, `walls=${walls}`).not.toBeNull();
       expect(countExternalApproachRoads(city)).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("generates a complete Tiny city on hex, Voronoi and Grid evolution", () => {
+    const settings = defaultGenerationSettings();
+    settings.config.rivers = [];
+    for (const grid of ["hex", "voronoi", "evolution"] as const) {
+      const input = createGridDocument({ size: "tiny", grid, seed: "tiny-city" });
+      expect(input.frame.extentMeters, grid).toBe(600);
+      const city = generateCityOnDocument(input, settings, "tiny-city")!;
+      expect(city, grid).not.toBeNull();
+      expect(validate(city), grid).toEqual([]);
+      expect(city.frame.extentMeters, grid).toBe(600);
+      expect(countExternalApproachRoads(city), grid).toBeGreaterThanOrEqual(
+        minExternalRoadsForExtent(city.frame.extentMeters)
+      );
+      expect(city.gates.length, grid).toBeGreaterThan(0);
+      const buildings = grid === "evolution" ? buildBlockFabric(city).buildings : buildCityBuildings(city);
+      expect(buildings.length, grid).toBeGreaterThan(20);
     }
   });
 

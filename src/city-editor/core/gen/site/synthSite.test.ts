@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_CITY_EXTERNAL_ROADS } from "../settlementExtent";
+import { MIN_CITY_EXTERNAL_ROADS, MIN_FORT_EXTERNAL_ROADS } from "../settlementExtent";
 import { DEFAULT_SITE_CONFIG } from "./siteConfig";
 import { synthSite } from "./synthSite";
 
@@ -16,5 +16,14 @@ describe("synthSite approach roads", () => {
       const roads = site.roads.filter(road => road.group !== "searoutes");
       expect(roads.length, JSON.stringify(config)).toBeGreaterThanOrEqual(MIN_CITY_EXTERNAL_ROADS);
     }
+  });
+
+  it("emits at least one land road for Tiny / fort sites", () => {
+    const site = synthSite("smallTown", DEFAULT_SITE_CONFIG, "roads-tiny", {
+      extentMeters: 600,
+      cityRadiusMeters: 198
+    });
+    const roads = site.roads.filter(road => road.group !== "searoutes");
+    expect(roads.length).toBeGreaterThanOrEqual(MIN_FORT_EXTERNAL_ROADS);
   });
 });

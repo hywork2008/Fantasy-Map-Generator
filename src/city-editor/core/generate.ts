@@ -138,7 +138,7 @@ export interface StreetSettings {
 export interface GenerationSettings {
   config: SiteConfig;
   /** Approximate fraction of built-up area enclosed by the main wall (0.05–1).
-   * Unset: small 100%, medium 45%, large 20%. Ignored when walls are disabled. */
+   * Unset: tiny/small 100%, medium 45%, large 20%. Ignored when walls are disabled. */
   walledAreaShare?: number;
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
@@ -275,7 +275,7 @@ export function generateStageOnDocument(
 }
 
 /** Junction / approach-road retries for a complete town. Enough to keep Small /
- * Medium / Large cities on at least two external roads. */
+ * Medium / Large cities on at least two external roads, and Tiny maps on one. */
 export const COMPLETE_CITY_ATTEMPTS = 8;
 
 /** Complete an editable town on the current grid, including intramural streets

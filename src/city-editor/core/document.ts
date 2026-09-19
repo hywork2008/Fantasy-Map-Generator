@@ -14,8 +14,9 @@ export const BLOCK_SIZE_METERS = 50;
 const BLOCK_SITE_SPACING_METERS = 44.8;
 
 /** `minExternalRoads` is the standalone random-city floor (see
- * `minExternalRoadsForExtent`). A future tiny/fort size would use 1. */
+ * `minExternalRoadsForExtent`). Tiny / fort maps use 1; cities use 2. */
 export const CITY_SIZE_PRESETS = {
+  tiny: { label: "Tiny", extentMeters: 600, cellsAcross: 12, buildingTarget: 75, minExternalRoads: 1 },
   small: { label: "Small", extentMeters: 1200, cellsAcross: 24, buildingTarget: 300, minExternalRoads: 2 },
   medium: { label: "Medium", extentMeters: 2400, cellsAcross: 48, buildingTarget: 1600, minExternalRoads: 2 },
   large: { label: "Large", extentMeters: 4800, cellsAcross: 96, buildingTarget: 14000, minExternalRoads: 2 }
@@ -39,7 +40,11 @@ export interface CreateGridOptions {
   cityRadiusMeters?: number;
 }
 
-/** Closest Small / Medium / Large preset to a descriptor (or share) window. */
+export function isCitySizePreset(value: unknown): value is CitySizePreset {
+  return typeof value === "string" && Object.hasOwn(CITY_SIZE_PRESETS, value);
+}
+
+/** Closest Tiny / Small / Medium / Large preset to a descriptor (or share) window. */
 export function sizePresetForExtent(extentMeters: number): CitySizePreset {
   let best: CitySizePreset = "small";
   let bestDelta = Infinity;
