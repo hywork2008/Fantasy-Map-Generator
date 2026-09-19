@@ -261,6 +261,12 @@ export const BurgEditorDialog: React.FC = () => {
                     <span id="burgElevation">{burgData.elevation}</span> {t("dialogs.burgEditor.aboveSeaLevel")}
                   </td>
                 </tr>
+                <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
+                  <td>
+                    <span id="burgDwellings">{burgData.dwellings}</span>
+                  </td>
+                </tr>
                 {isEconomyEnabled && (
                   <>
                     <tr data-tip={t("dialogs.burgEditor.productionTip")}>
@@ -352,12 +358,6 @@ export const BurgEditorDialog: React.FC = () => {
                         >
                           {burgData.employmentComposition}
                         </span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
-                      <td>
-                        <span id="burgDwellings">{burgData.dwellings}</span>
                       </td>
                     </tr>
                     <tr data-tip={t("dialogs.burgEditor.housingGapTip")}>
@@ -565,6 +565,20 @@ export const BurgEditorDialog: React.FC = () => {
               data-tip="Copy the City Generator site input (local terrain, river course, road entries) as JSON"
               className="icon-docs"
               onClick={() => burgEditorActions.copyCityGeneratorInput()}
+            ></button>
+            <button
+              type="button"
+              id="burgOpenCityGenerator"
+              data-tip="Open the City Generator page for this burg (hands off its local site descriptor)"
+              className="icon-sitemap"
+              onClick={() => burgEditorActions.openCityGenerator()}
+            ></button>
+            <button
+              type="button"
+              id="burgOpenCityEditor"
+              data-tip="Open the City Editor for this burg (hands off its local site descriptor: shape, roads, rivers)"
+              className="icon-pencil"
+              onClick={() => burgEditorActions.openCityEditor()}
             ></button>
             <button
               type="button"
