@@ -34,8 +34,32 @@ export const TEMPLE_FOOTPRINT_M: Record<CivicSize, { length: number; width: numb
   large: { length: 68, width: 36 }
 };
 
+/** Side length (m) of the reserved market square, before street setbacks. */
+export const PLAZA_FOOTPRINT_M: Record<CivicSize, number> = {
+  tiny: 36,
+  small: 48,
+  medium: 64,
+  large: 88
+};
+
+/** Clearance (m) around the temple nave / plaza statue so roads and houses stay off it. */
+export const CIVIC_YARD_M: Record<CivicSize, number> = {
+  tiny: 8,
+  small: 10,
+  medium: 12,
+  large: 14
+};
+
 export function templeFootprintMeters(extentMeters: number): { length: number; width: number } {
   return TEMPLE_FOOTPRINT_M[civicSizeForExtent(extentMeters)];
+}
+
+export function plazaFootprintMeters(extentMeters: number): number {
+  return PLAZA_FOOTPRINT_M[civicSizeForExtent(extentMeters)];
+}
+
+export function civicYardMeters(extentMeters: number): number {
+  return CIVIC_YARD_M[civicSizeForExtent(extentMeters)];
 }
 
 /** Mesh cells reserved for the temple precinct. */

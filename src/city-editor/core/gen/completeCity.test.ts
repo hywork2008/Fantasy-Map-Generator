@@ -7,8 +7,10 @@ import { facePoints, faceVertices, validate } from "../mesh";
 import { kindEdgeIds, vertexHasCrossing } from "../passages";
 import type { CityDocument, Point } from "../types";
 import { buildBlockFabric } from "./blockInfill";
-import { buildCityBuildings, insetConvexKernel } from "./buildingLots";
+import { buildCityBuildings, buildingHitsCivicLandmark, insetConvexKernel } from "./buildingLots";
+import { orientedRectPolylineDistance, pointInOrientedRect, templeRectForElement } from "./civicPlacement";
 import { nearestOnPolyline, pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
+import { civicYardMeters } from "./housing";
 import { minExternalRoadsForExtent } from "./settlementExtent";
 
 function roughness(document: CityDocument, kind: "wall" | "road"): number {
@@ -213,6 +215,94 @@ describe("building setbacks", () => {
     expect(Math.max(...inset.map(p => p[0]))).toBeCloseTo(80);
     const reversed = insetConvexKernel([...square].reverse(), [8, 20, 8, 8]);
     expect(Math.abs(polygonArea(reversed))).toBeCloseTo(72 * 84);
+  });
+
+  it("generates a Tiny walled town with a through-river instead of stalling on approach roads", () => {
+    const grid = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "1428fb3",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+    settings.config.features.citadel = false;
+    settings.config.features.port = false;
+    settings.config.features.shanty = true;
+    const city = generateCityOnDocument(grid, settings, "2rxiu8");
+    expect(city).not.toBeNull();
+    if (!city) return;
+    expect(city.gates.length).toBeGreaterThan(0);
+    expect(countExternalApproachRoads(city)).toBeGreaterThanOrEqual(1);
+    const temple = city.elements.find(e => e.kind === "temple");
+    expect(temple?.point).toBeTruthy();
+    if (temple?.point) {
+      const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, city.frame.extentMeters);
+      for (const group of city.featureGroups) {
+        if (group.kind !== "road") continue;
+        const points = featureGroupVertices(city, group).map(id => city.mesh.vertices[id].point);
+        if (points.length < 2) continue;
+        expect(orientedRectPolylineDistance(nave, points)).toBeGreaterThanOrEqual(group.style.widthMeters / 2 + 1.5);
+      }
+    }
+  });
+
+  it("keeps a Tiny temple and plaza off rivers, houses, and precinct interiors", () => {
+    const grid = createGridDocument({ size: "tiny", grid: "evolution", seed: "tiny-city" });
+    const settings = defaultGenerationSettings();
+    settings.config.rivers = ["through"];
+    settings.config.features.walls = false;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+    const city = generateCityOnDocument(grid, settings, "tiny-city");
+    expect(city).not.toBeNull();
+    if (!city) return;
+    const plaza = city.elements.find(e => e.kind === "plaza");
+    const temple = city.elements.find(e => e.kind === "temple");
+    expect(plaza).toBeTruthy();
+    expect(temple).toBeTruthy();
+    expect(plaza!.faceIds.length).toBeGreaterThan(0);
+    expect(temple!.faceIds.length).toBeGreaterThan(0);
+    expect(temple!.rotation).toEqual(expect.any(Number));
+    const buildings = buildBlockFabric(city).buildings;
+    for (const building of buildings) {
+      expect(buildingHitsCivicLandmark(city, building.polygon)).toBe(false);
+      expect(plaza!.faceIds.includes(building.faceId)).toBe(false);
+      expect(temple!.faceIds.includes(building.faceId)).toBe(false);
+    }
+    const river = city.featureGroups.find(g => g.kind === "river");
+    if (river && temple?.point) {
+      const rect = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, city.frame.extentMeters);
+      const yard = civicYardMeters(city.frame.extentMeters);
+      const padded = { ...rect, length: rect.length + yard, width: rect.width + yard };
+      for (const id of river.vertices) {
+        expect(pointInOrientedRect(city.mesh.vertices[id].point, padded)).toBe(false);
+      }
+    }
+    if (temple?.point) {
+      const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, city.frame.extentMeters);
+      for (const group of city.featureGroups) {
+        if (group.kind !== "road") continue;
+        const points = featureGroupVertices(city, group).map(id => city.mesh.vertices[id].point);
+        if (points.length < 2) continue;
+        expect(orientedRectPolylineDistance(nave, points)).toBeGreaterThanOrEqual(group.style.widthMeters / 2 + 1.5);
+      }
+    }
+    const roadEdges = new Set(
+      city.featureGroups.filter(g => g.kind === "road").flatMap(g => g.segments.map(s => s.edgeId))
+    );
+    for (const precinct of [plaza, temple]) {
+      const members = new Set(precinct!.faceIds);
+      for (const edge of Object.values(city.mesh.edges)) {
+        if (edge.leftFace && edge.rightFace && members.has(edge.leftFace) && members.has(edge.rightFace)) {
+          expect(roadEdges.has(edge.id)).toBe(false);
+        }
+      }
+    }
   });
 
   it("omits water, empty districts and plazas instead of filling them with buildings", () => {

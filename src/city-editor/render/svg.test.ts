@@ -281,7 +281,9 @@ describe("generated temple footprint", () => {
       point: [0, 0],
       locked: false
     });
-    const tinyRect = renderEditorSvg(tiny, "select", selection, "-200 -200 400 400", 1).querySelector("rect");
+    const tinyRect = renderEditorSvg(tiny, "select", selection, "-200 -200 400 400", 1).querySelector(
+      '[data-element="gc:temple"]'
+    );
     expect(tinyRect).not.toBeNull();
     expect(Number(tinyRect?.getAttribute("width"))).toBe(28);
     expect(Number(tinyRect?.getAttribute("height"))).toBe(16);
@@ -296,9 +298,29 @@ describe("generated temple footprint", () => {
       sizeMeters: 68,
       locked: false
     });
-    const largeRect = renderEditorSvg(large, "select", selection, "-200 -200 400 400", 1).querySelector("rect");
+    const largeRect = renderEditorSvg(large, "select", selection, "-200 -200 400 400", 1).querySelector(
+      '[data-element="gc:temple"]'
+    );
     expect(Number(largeRect?.getAttribute("width"))).toBe(68);
     expect(Number(largeRect?.getAttribute("height"))).toBe(36);
+  });
+
+  it("rotates the church to match the stored long-axis angle", () => {
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const document = createDocument("temple-rotated", 600);
+    document.appearance = "town";
+    document.elements.push({
+      id: "gc:temple",
+      kind: "temple",
+      faceIds: [],
+      point: [10, 5],
+      rotation: Math.PI / 4,
+      locked: false
+    });
+    const rect = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1).querySelector(
+      '[data-element="gc:temple"]'
+    );
+    expect(rect?.getAttribute("transform")).toBe("translate(10 -5) rotate(-45)");
   });
 });
 

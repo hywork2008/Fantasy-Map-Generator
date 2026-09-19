@@ -1,7 +1,7 @@
 // Local street/lot geometry. None of these subdivisions become mesh edges.
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, DistrictParameters, EdgeRef, Face, Id, Point } from "../types";
-import type { BuildingLot } from "./buildingLots";
+import { type BuildingLot, buildingHitsCivicLandmark, laneHitsCivicLandmark } from "./buildingLots";
 import { districtBoundary } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea } from "./housing";
@@ -202,6 +202,8 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     if (grouped.has(id)) continue;
     paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options });
   }
+  fabric.buildings = fabric.buildings.filter(b => !buildingHitsCivicLandmark(document, b.polygon));
+  fabric.lanes = fabric.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
   return fabric;
 }
 
@@ -371,6 +373,10 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
         reserved
       ])
     : "";
+  if (reserved) {
+    if (key) ctx.options?.cache.set(key, { buildings: [], lanes: [], entrances: new Map() });
+    return;
+  }
   const cached = ctx.options?.cache.get(key);
   if (cached) {
     fabric.buildings.push(...cached.buildings);

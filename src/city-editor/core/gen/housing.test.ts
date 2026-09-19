@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { CITY_SIZE_PRESETS } from "../document";
-import { DWELLING_LOT_M2, TEMPLE_FOOTPRINT_M, templeCellCount, templeFootprintMeters } from "./housing";
+import {
+  DWELLING_LOT_M2,
+  PLAZA_FOOTPRINT_M,
+  plazaFootprintMeters,
+  TEMPLE_FOOTPRINT_M,
+  templeCellCount,
+  templeFootprintMeters
+} from "./housing";
 
 describe("temple scale", () => {
   it("steps footprint with map size and stays well above a dwelling plot", () => {
@@ -22,5 +29,15 @@ describe("temple scale", () => {
     expect(templeCellCount(4800, false)).toBe(3);
     expect(templeCellCount(600, true)).toBe(2);
     expect(templeCellCount(4800, true)).toBe(3);
+  });
+
+  it("steps the market square with map size and stays larger than the Tiny nave", () => {
+    const tiny = plazaFootprintMeters(CITY_SIZE_PRESETS.tiny.extentMeters);
+    const large = plazaFootprintMeters(CITY_SIZE_PRESETS.large.extentMeters);
+    expect(tiny).toBe(PLAZA_FOOTPRINT_M.tiny);
+    expect(tiny).toBeGreaterThan(TEMPLE_FOOTPRINT_M.tiny.length);
+    expect(large).toBeGreaterThan(tiny * 2);
+    expect(plazaFootprintMeters(CITY_SIZE_PRESETS.small.extentMeters)).toBeGreaterThan(tiny);
+    expect(plazaFootprintMeters(CITY_SIZE_PRESETS.medium.extentMeters)).toBeLessThan(large);
   });
 });

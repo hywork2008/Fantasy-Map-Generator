@@ -1,5 +1,11 @@
+import {
+  placeAndClearTempleRect,
+  polygonHitsOrientedRect,
+  templeHazards,
+  templeRectForElement
+} from "./gen/civicPlacement";
 import { createFabricPlan } from "./gen/fabricDistricts";
-import { templeFootprintMeters } from "./gen/housing";
+import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -30,7 +36,7 @@ import { type CoastResult, classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
-import { isSimplePolygon, polygonArea, polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
+import { isSimplePolygon, pointInPolygon, polygonArea, polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -430,8 +436,9 @@ function generateCityAttempt(
   }
   const streetOptions = resolveStreetSettings(settings);
   const plaza = plan.precincts.find(p => p.kind === "plaza");
-  const plazaPoint: Point = plaza?.anchor ?? [0, 0];
-  const star = plan.gates.map(g => [g.point, plazaPoint] as Point[]);
+  const star = plan.gates.map(
+    g => [g.point, plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0]] as Point[]
+  );
   const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
   const extras = plan.streets
     .filter(line => {
@@ -489,6 +496,7 @@ function generateCityAttempt(
   const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenBridges(shaped);
+  settleTempleOnDocument(settled);
   const roadsAfterFinish = countExternalApproachRoads(settled);
   const crossingDetails = explainGeneratedCrossingFailures(settled);
   const tangled = coarse
@@ -1058,7 +1066,9 @@ function runPlan(
     params,
     program,
     shoreline: coast?.shoreline ?? null,
-    waterPolygon
+    waterPolygon,
+    streets: [...streetResult.streets, ...roads],
+    rivers: rivers.map(band => band.edgePoints)
   });
   mark("wards");
   return {
@@ -1241,7 +1251,13 @@ function applyPlan(
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
         faceIds: precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean),
         point: [precinct.anchor[0], precinct.anchor[1]],
-        sizeMeters: precinct.kind === "temple" ? templeFootprintMeters(next.frame.extentMeters).length : undefined,
+        sizeMeters:
+          precinct.kind === "temple"
+            ? templeFootprintMeters(next.frame.extentMeters).length
+            : precinct.kind === "plaza"
+              ? plazaFootprintMeters(next.frame.extentMeters)
+              : undefined,
+        rotation: precinct.rotation,
         locked: false
       });
     }
@@ -1299,7 +1315,11 @@ function applyPlan(
     }
     mesh = next.mesh;
     const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
-    const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
+    const plazaFaces = new Set(next.elements.find(e => e.kind === "plaza")?.faceIds ?? []);
+    const internalPlazaEdges = Object.values(mesh.edges)
+      .filter(e => e.leftFace && e.rightFace && plazaFaces.has(e.leftFace) && plazaFaces.has(e.rightFace))
+      .map(e => e.id);
+    const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...internalPlazaEdges]);
     const routeComplete = complete
       ? completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned, !program.walls)
       : null;
@@ -1460,6 +1480,8 @@ function applyPlan(
       }
     }
   }
+
+  if (stageStep >= 6) settleTempleOnDocument(next);
 
   const errors = validate(next);
   mark("apply-validation", { errors: errors.length });
@@ -1782,6 +1804,111 @@ function polylineToVertexPath(mesh: Mesh, polyline: Point[], nearest: NearestVer
     else break; // give up cleanly at the first unbridgeable gap
   }
   return out;
+}
+
+/** Push the temple nave off finished roads and rivers, then re-align it. */
+function settleTempleOnDocument(document: CityDocument): void {
+  const temple = document.elements.find(element => element.kind === "temple" && element.point);
+  if (!temple?.point) return;
+  const roads: Point[][] = [];
+  const rivers: Point[][] = [];
+  const hazards: { points: Point[]; clearance: number }[] = [];
+  for (const group of document.featureGroups) {
+    if (group.kind === "road") {
+      const points = featureGroupVertices(document, group)
+        .map(id => document.mesh.vertices[id]?.point)
+        .filter((p): p is Point => !!p);
+      if (points.length < 2) continue;
+      roads.push(points);
+      hazards.push({ points, clearance: group.style.widthMeters / 2 + 2.2 });
+    } else if (group.kind === "river") {
+      const points = group.vertices.map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
+      if (points.length < 2) continue;
+      rivers.push(points);
+      hazards.push({ points, clearance: group.style.widthMeters / 2 + 2 });
+    }
+  }
+  const plazaGuides: Point[][] = [];
+  const plaza = document.elements.find(element => element.kind === "plaza");
+  if (plaza) {
+    for (const id of plaza.faceIds) {
+      const face = document.mesh.faces[id];
+      if (!face) continue;
+      const ring = facePoints(document.mesh, face);
+      if (ring.length >= 3) plazaGuides.push([...ring, ring[0]]);
+    }
+  }
+  const guides = [...roads, ...plazaGuides];
+  const rect = placeAndClearTempleRect(
+    temple.point,
+    document.frame.extentMeters,
+    guides,
+    hazards.length ? hazards : templeHazards(roads, rivers, document.frame.extentMeters)
+  );
+  temple.point = rect.center;
+  temple.rotation = rect.rotation;
+
+  const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, document.frame.extentMeters);
+  const hitFaces = Object.values(document.mesh.faces).filter(face => {
+    const poly = facePoints(document.mesh, face);
+    return pointInPolygon(temple.point!, poly) || polygonHitsOrientedRect(poly, nave);
+  });
+  if (hitFaces.length) {
+    temple.faceIds = hitFaces.map(f => f.id);
+  }
+}
+
+/** A plaza-outline vertex, so gate→plaza streets meet the square instead of cutting through it. */
+function plazaApproachPoint(cells: Cell[], plaza: Precinct | undefined, from?: Point): Point | null {
+  if (!plaza) return null;
+  const byId = new Map(cells.map(c => [c.id, c]));
+  const members = plaza.cellIds.map(id => byId.get(id)).filter((c): c is Cell => !!c);
+  if (!members.length) return null;
+  const memberSet = new Set(members.map(m => m.id));
+
+  const isShared = (u: Point, v: Point, currentCell: Cell): boolean => {
+    for (const otherId of currentCell.neighbors) {
+      if (!memberSet.has(otherId)) continue;
+      const other = byId.get(otherId);
+      if (!other) return false;
+      const m = other.polygon.length;
+      for (let j = 0; j < m; j++) {
+        const pu = other.polygon[j];
+        const pv = other.polygon[(j + 1) % m];
+        if (
+          (Math.hypot(u[0] - pu[0], u[1] - pu[1]) < 0.1 && Math.hypot(v[0] - pv[0], v[1] - pv[1]) < 0.1) ||
+          (Math.hypot(u[0] - pv[0], u[1] - pv[1]) < 0.1 && Math.hypot(v[0] - pu[0], v[1] - pu[1]) < 0.1)
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const perimeterVertices: Point[] = [];
+  for (const cell of members) {
+    const n = cell.polygon.length;
+    for (let i = 0; i < n; i++) {
+      const a = cell.polygon[i];
+      const b = cell.polygon[(i + 1) % n];
+      if (!isShared(a, b, cell)) {
+        perimeterVertices.push(a, b);
+      }
+    }
+  }
+  if (!perimeterVertices.length) return plaza.anchor;
+
+  let best: Point | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const p of perimeterVertices) {
+    const d = from ? Math.hypot(p[0] - from[0], p[1] - from[1]) : Math.hypot(p[0], p[1]);
+    if (d < bestDist) {
+      bestDist = d;
+      best = p;
+    }
+  }
+  return best ?? plaza.anchor;
 }
 
 /** Keep the longest contiguous run whose `edgeId`s are not in `banned`. */

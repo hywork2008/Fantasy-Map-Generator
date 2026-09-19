@@ -1,5 +1,6 @@
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
+import { laneHitsCivicLandmark } from "./buildingLots";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
@@ -10,10 +11,16 @@ export { convexInfillParts, FabricCache } from "./localInfill";
 export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
 }
-const defaultCache = new FabricCache();
+let defaultCache: FabricCache | null = null;
+function getDefaultCache(): FabricCache {
+  if (!defaultCache) {
+    defaultCache = new FabricCache();
+  }
+  return defaultCache;
+}
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
-export function buildBlockFabric(document: CityDocument, cache = defaultCache): DistrictFabric {
+export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
   if (!document.fabric) return { ...buildLocalFabric(document), farms: [] };
   const plan = upgradeFabricPlan(document)!;
   const districts = resolveDistricts(document, plan);
@@ -30,7 +37,9 @@ export function buildBlockFabric(document: CityDocument, cache = defaultCache): 
     return ids.find(id => pointInPolygon(p, polygons.get(id)!)) ?? ids[0];
   };
   const buildings = local.buildings.map(b => ({ ...b, faceId: owner(b.faceId, polygonCentroid(b.polygon)) }));
-  const lanes = local.lanes.map(l => ({ ...l, faceId: owner(l.faceId, l.points[0]) }));
+  const lanes = local.lanes
+    .filter(l => !laneHitsCivicLandmark(document, l.points))
+    .map(l => ({ ...l, faceId: owner(l.faceId, l.points[0]) }));
   const entrances = new Map<Id, Point[]>();
   for (const [id, points] of local.entrances)
     for (const p of points) {

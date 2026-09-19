@@ -6,7 +6,9 @@ export { insetConvexKernel } from "./lotGeometry";
 // MIT, independently implemented from the reference city's output geometry.
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
+import { orientedRectPolylineDistance, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
+import { civicYardMeters } from "./housing";
 import { makeRng } from "./prng";
 
 export interface BuildingLot {
@@ -50,7 +52,38 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   }
   const lots: BuildingLot[] = [];
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
-  return lots;
+  return lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon));
+}
+
+export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {
+  const yard = civicYardMeters(document.frame.extentMeters);
+  for (const element of document.elements) {
+    if (element.kind === "temple" && element.point) {
+      const rect = templeRectForElement(
+        element.point,
+        element.sizeMeters,
+        element.rotation,
+        document.frame.extentMeters
+      );
+      if (polygonHitsTempleYard(polygon, rect, Math.max(2, yard * 0.25))) return true;
+    }
+  }
+  return false;
+}
+
+export function laneHitsCivicLandmark(document: CityDocument, points: Point[]): boolean {
+  for (const element of document.elements) {
+    if (element.kind === "temple" && element.point) {
+      const rect = templeRectForElement(
+        element.point,
+        element.sizeMeters,
+        element.rotation,
+        document.frame.extentMeters
+      );
+      if (orientedRectPolylineDistance(rect, points) < 1.8) return true;
+    }
+  }
+  return false;
 }
 
 function buildFaceLots(

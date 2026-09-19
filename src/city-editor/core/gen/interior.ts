@@ -4,6 +4,7 @@
 // enclose, how to draw the line, whether to wall the sea front) is a separate
 // layer — see docs/city-generator/wall-patterns.md.
 
+import { placePlazaCluster } from "./civicPlacement";
 import {
   azimuthDelta,
   azimuthToVec,
@@ -297,17 +298,22 @@ export function placePrecincts(
   const cellSize = params.cellSizeMeters;
   const urbanCells = cells.filter(c => urban.has(c.id));
   let plazaCell: Cell | null = null;
+  const plazaIds = new Set<number>();
   if (program.plaza) {
-    const candidates = urbanCells.filter(c => Math.hypot(...c.centroid) <= R * 0.28);
-    const pick = (candidates.length ? candidates : urbanCells)
-      .slice()
-      .sort((a, b) => plazaScore(a, geo) - plazaScore(b, geo) || a.id - b.id)[0];
-    if (pick) {
-      plazaCell = pick;
-      // A capital's market square spreads onto one neighbouring urban cell (design §4.3).
-      const extra = program.capital ? pick.neighbors.find(n => urban.has(n)) : undefined;
-      const cellIds = extra === undefined ? [pick.id] : [pick.id, extra];
-      precincts.push({ kind: "plaza", cellIds, anchor: pick.centroid, label: "Market square" });
+    const placed = placePlazaCluster(
+      cells,
+      urban,
+      sea,
+      new Set(),
+      rivers,
+      params.extentMeters,
+      cellSize,
+      program.capital
+    );
+    if (placed) {
+      plazaCell = cells.find(c => c.id === placed.cellIds[0]) ?? null;
+      for (const id of placed.cellIds) plazaIds.add(id);
+      precincts.push({ kind: "plaza", cellIds: placed.cellIds, anchor: placed.anchor, label: "Market square" });
     }
   }
   if (program.citadel) {
@@ -316,7 +322,7 @@ export function placePrecincts(
     const outer = cells.filter(c => !urban.has(c.id) && !sea.has(c.id) && c.neighbors.some(n => borderUrban.has(n)));
     const pool = outer.length ? outer : urbanCells.filter(c => c.neighbors.some(n => !urbanById.has(n)));
     const pick = pool
-      .filter(c => c.id !== plazaCell?.id)
+      .filter(c => !plazaIds.has(c.id))
       .slice()
       .sort(
         (a, b) =>
@@ -331,12 +337,6 @@ export function placePrecincts(
     }
   }
   return precincts;
-}
-
-function plazaScore(cell: Cell, geo: CityGeography): number {
-  const az = vecToAzimuth(cell.centroid[0], cell.centroid[1]);
-  const aligned = geo.roadBearings.filter(b => azimuthDelta(az, b) <= 22).length;
-  return Math.hypot(...cell.centroid) - aligned * 40;
 }
 
 /** Circular mean of compass bearings; null when there are none. */

@@ -85,6 +85,8 @@ export interface CityElement {
   /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
   point?: Point;
   sizeMeters?: number;
+  /** Long-axis angle in radians, CCW from +X. Temples use this. */
+  rotation?: number;
   locked: boolean;
 }
 

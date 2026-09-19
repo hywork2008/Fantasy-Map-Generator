@@ -367,12 +367,14 @@ export function renderEditorSvg(
         const footprint = templeFootprintMeters(document.frame.extentMeters);
         const length = cityElement.sizeMeters && cityElement.sizeMeters > 0 ? cityElement.sizeMeters : footprint.length;
         const width = length * (footprint.width / footprint.length);
+        const deg = (-(cityElement.rotation ?? 0) * 180) / Math.PI;
         const templeRect = element("rect", {
-          x: String(p[0] - length / 2),
-          y: String(-p[1] - width / 2),
+          x: String(-length / 2),
+          y: String(-width / 2),
           width: String(length),
           height: String(width),
           fill: "#292a26",
+          transform: `translate(${p[0]} ${-p[1]}) rotate(${deg})`,
           class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
           "data-element": cityElement.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),

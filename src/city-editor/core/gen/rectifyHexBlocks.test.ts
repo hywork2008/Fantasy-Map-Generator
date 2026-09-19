@@ -3,7 +3,7 @@ import { createGridDocument } from "../document";
 import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { facePoints, faceVertices } from "../mesh";
 import { polygonArea, polygonCentroid } from "./geom";
-import { isHexagonalDocument, rectifyHexBlocks } from "./rectifyHexBlocks";
+import { isHexagonalDocument } from "./rectifyHexBlocks";
 
 describe("rectifyHexBlocks", () => {
   const hexDoc = createGridDocument({ size: "small", grid: "hex", seed: "hex-test" });

@@ -207,12 +207,78 @@ export function buildStreets(input: StreetInputs): StreetResult {
 
   // --- streets: Tiny keeps gate → plaza; Small+ uses through-axes, ribs, ring
   const plaza = precincts.find(p => p.kind === "plaza");
+  const plazaCellIds = new Set(plaza?.cellIds ?? []);
+  const internalPlazaEdges = new Set<string>();
+  for (const c of cells) {
+    if (!plazaCellIds.has(c.id)) continue;
+    const n = c.polygon.length;
+    for (let i = 0; i < n; i++) {
+      const u = c.polygon[i];
+      const v = c.polygon[(i + 1) % n];
+      if (
+        c.neighbors.some(otherId => {
+          if (!plazaCellIds.has(otherId)) return false;
+          const other = byId.get(otherId);
+          if (!other) return false;
+          const m = other.polygon.length;
+          for (let j = 0; j < m; j++) {
+            const pu = other.polygon[j];
+            const pv = other.polygon[(j + 1) % m];
+            if (
+              (Math.hypot(u[0] - pu[0], u[1] - pu[1]) < 0.1 && Math.hypot(v[0] - pv[0], v[1] - pv[1]) < 0.1) ||
+              (Math.hypot(u[0] - pv[0], u[1] - pv[1]) < 0.1 && Math.hypot(v[0] - pu[0], v[1] - pu[1]) < 0.1)
+            )
+              return true;
+          }
+          return false;
+        })
+      ) {
+        const na = nodeAt.get(qk(u));
+        const nb = nodeAt.get(qk(v));
+        if (na !== undefined && nb !== undefined && na !== nb) {
+          internalPlazaEdges.add(undirectedKey(na, nb));
+        }
+      }
+    }
+  }
+
+  const plazaPerimeterNodes = new Set<number>();
+  for (const c of cells) {
+    if (!plazaCellIds.has(c.id)) continue;
+    const n = c.polygon.length;
+    for (let i = 0; i < n; i++) {
+      const u = c.polygon[i];
+      const v = c.polygon[(i + 1) % n];
+      const na = nodeAt.get(qk(u));
+      const nb = nodeAt.get(qk(v));
+      if (na === undefined || nb === undefined || na === nb) continue;
+      if (!internalPlazaEdges.has(undirectedKey(na, nb))) {
+        plazaPerimeterNodes.add(na);
+        plazaPerimeterNodes.add(nb);
+      }
+    }
+  }
+
   const plazaPolys: Point[][] = (plaza?.cellIds ?? []).flatMap(id => (byId.has(id) ? [byId.get(id)!.polygon] : []));
   const plazaVertices: Point[] = [];
   for (const poly of plazaPolys) for (const v of poly) plazaVertices.push(v);
   const streetTarget: Point = plazaVertices
     .slice()
     .sort((p, q) => Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]))[0] ?? [0, 0];
+
+  const targetForGate = (gatePoint: Point): Point => {
+    let bestDist = Number.POSITIVE_INFINITY;
+    let bestNode = -1;
+    for (const node of plazaPerimeterNodes) {
+      const pt = graph.points[node];
+      const d = Math.hypot(pt[0] - gatePoint[0], pt[1] - gatePoint[1]);
+      if (d < bestDist) {
+        bestDist = d;
+        bestNode = node;
+      }
+    }
+    return bestNode >= 0 ? graph.points[bestNode] : streetTarget;
+  };
 
   const streetWeight = (a: number, b: number): number => {
     if (!(urbanNodes.has(a) && urbanNodes.has(b))) return Number.POSITIVE_INFINITY;
@@ -225,7 +291,9 @@ export function buildStreets(input: StreetInputs): StreetResult {
     return 2.2;
   };
   const crossesCitadel = (a: number, b: number): boolean => !clearOfCitadel(a, b);
-  const streetsHardBar = (a: number, b: number): boolean => crossesCitadel(a, b) || onRiver(a, b);
+  const onInternalPlaza = (a: number, b: number): boolean => internalPlazaEdges.has(undirectedKey(a, b));
+  const streetsHardBar = (a: number, b: number): boolean =>
+    crossesCitadel(a, b) || onRiver(a, b) || onInternalPlaza(a, b);
   const streets: Point[][] = [];
   const addStreet = (line: Point[] | null): boolean => {
     if (!line || line.length < 2) return false;
@@ -234,7 +302,7 @@ export function buildStreets(input: StreetInputs): StreetResult {
     return true;
   };
   const tiny = halfExtentMeters * 2 < SMALL_CITY_EXTENT_METERS;
-  for (const gate of gates) addStreet(route(gate.point, streetTarget, streetWeight, streetsHardBar));
+  for (const gate of gates) addStreet(route(gate.point, targetForGate(gate.point), streetWeight, streetsHardBar));
   if (!tiny && gates.length >= 2) {
     const pairs = oppositeGatePairs(gates, streetTarget);
     const axes: Point[][] = [];
