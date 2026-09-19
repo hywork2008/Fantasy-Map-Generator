@@ -206,89 +206,112 @@ export function buildPerimeterBlocks(
   const cross: Point = [-axis[1], axis[0]];
   const xs = ring.map(p => dot(p, axis)),
     ys = ring.map(p => dot(p, cross));
-  const minX = Math.min(...xs),
-    maxX = Math.max(...xs),
+  const _minX = Math.min(...xs),
+    _maxX = Math.max(...xs),
     minY = Math.min(...ys),
     maxY = Math.max(...ys);
-  const totalSpan = maxY - minY;
-  const _totalLength = maxX - minX;
 
-  // Ribbon-based block subdivision:
-  // Medieval European towns (e.g. Rothenburg ob der Tauber) subdivide larger
-  // super-blocks along their primary street axis into ribbon strips of width 25-38m
-  // (two dwelling depths back-to-back), rather than isotropic Voronoi honeycomb cells.
   const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
-  const stripCount = Math.max(1, Math.min(16, Math.round(totalSpan / targetRibbonWidth)));
 
-  let blocksToFill: Point[][] = [ring];
-
-  // 1. Primary longitudinal cuts along the street axis (Ribbon strips)
-  if (stripCount > 1) {
-    const nextBlocks: Point[][] = [];
-    for (const poly of blocksToFill) {
-      let currentPieces = [poly];
-      for (let k = 1; k < stripCount; k++) {
-        const nominalY = minY + (totalSpan * k) / stripCount;
-        const jitterAngle = rng.range(-0.06, 0.06);
-        const cosJ = Math.cos(jitterAngle),
-          sinJ = Math.sin(jitterAngle);
-        const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
-        const offset = nominalY + rng.range(-1.2, 1.2);
-        const split: Point[][] = [];
-        for (const piece of currentPieces) {
-          const upper = clipStreetBlocks(piece, normal, offset);
-          const lower = clipStreetBlocks(piece, [-normal[0], -normal[1]], -offset);
-          if (upper.length && lower.length) {
-            split.push(...upper, ...lower);
-          } else {
-            split.push(piece);
-          }
-        }
-        currentPieces = split;
-      }
-      nextBlocks.push(...currentPieces);
+  // 1. Organic longitudinal ribbons with irregular widths and slight orientation drift:
+  // Medieval urban ribbons have varying corridor widths (23m - 34m) and subtle angle wander,
+  // preventing mechanical orthogonal grids.
+  const splitOffsets: { y: number; normal: Point }[] = [];
+  let curY = minY;
+  while (curY + targetRibbonWidth * 1.25 < maxY) {
+    const step = rng.range(23, 34);
+    curY += step;
+    if (curY < maxY - 15) {
+      const jitterAngle = rng.range(-0.04, 0.04);
+      const cosJ = Math.cos(jitterAngle),
+        sinJ = Math.sin(jitterAngle);
+      const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
+      splitOffsets.push({ y: curY, normal });
     }
-    blocksToFill = nextBlocks.filter(p => area(p) > 30);
   }
 
-  // 2. Transverse cross-cuts (Cross-alleys / T-junctions) for elongated strips
+  let blocksToFill: Point[][] = [ring];
+  for (const { y, normal } of splitOffsets) {
+    const next: Point[][] = [];
+    for (const piece of blocksToFill) {
+      const upper = clipStreetBlocks(piece, normal, y);
+      const lower = clipStreetBlocks(piece, [-normal[0], -normal[1]], -y);
+      if (upper.length && lower.length) {
+        next.push(...upper, ...lower);
+      } else {
+        next.push(piece);
+      }
+    }
+    blocksToFill = next;
+  }
+  blocksToFill = blocksToFill.filter(p => area(p) > 30);
+
+  // 2. Transverse cross-cuts with anti-alignment against previous strip cuts:
+  // Each ribbon strip places its cross-alleys independently with random block lengths (38m - 62m),
+  // while strictly enforcing >= 12m stagger from neighboring strip cuts to completely prevent
+  // 4-way crossroads and eliminate repeating brick patterns.
   const finalBlocks: Point[][] = [];
   const maxBlockLength = Math.max(40, Math.min(65, spanLimit * 1.6));
-  for (let bIndex = 0; bIndex < blocksToFill.length; bIndex++) {
-    const poly = blocksToFill[bIndex];
-    const polyXs = poly.map(p => dot(p, axis));
-    const polyMinX = Math.min(...polyXs),
-      polyMaxX = Math.max(...polyXs);
-    const polyLength = polyMaxX - polyMinX;
-    const cuts = Math.max(1, Math.min(16, Math.round(polyLength / maxBlockLength)));
-    if (cuts <= 1) {
-      finalBlocks.push(poly);
+  let prevStripCuts: number[] = [];
+
+  for (let sIdx = 0; sIdx < blocksToFill.length; sIdx++) {
+    const strip = blocksToFill[sIdx];
+    const sXs = strip.map(p => dot(p, axis));
+    const sMinX = Math.min(...sXs),
+      sMaxX = Math.max(...sXs);
+    const sLen = sMaxX - sMinX;
+
+    if (sLen <= maxBlockLength) {
+      finalBlocks.push(strip);
+      prevStripCuts = [];
       continue;
     }
-    let currentPieces = [poly];
-    // Stagger transverse cuts across adjacent strips to prevent 4-way crossroads,
-    // producing authentic medieval 3-way T-junctions.
-    const stripStagger = (bIndex % 2 === 0 ? 0.08 : -0.08) * polyLength;
-    for (let c = 1; c < cuts; c++) {
-      const nominalX = polyMinX + (polyLength * c) / cuts + stripStagger;
-      const jitterAngle = rng.range(-0.06, 0.06);
+
+    const _cuts = Math.max(1, Math.min(16, Math.round(sLen / maxBlockLength)));
+    const currentStripCuts: number[] = [];
+    let curX = sMinX;
+    while (curX + maxBlockLength * 0.8 < sMaxX) {
+      const step = rng.range(38, Math.min(62, maxBlockLength * 1.1));
+      let candidateX = curX + step;
+      if (candidateX >= sMaxX - 25) break;
+
+      for (const prevX of prevStripCuts) {
+        if (Math.abs(candidateX - prevX) < 12) {
+          candidateX = candidateX < prevX ? prevX - 12 : prevX + 12;
+        }
+      }
+      if (candidateX >= sMaxX - 22 || candidateX <= curX + 22) continue;
+
+      currentStripCuts.push(candidateX);
+      curX = candidateX;
+    }
+
+    if (currentStripCuts.length === 0) {
+      finalBlocks.push(strip);
+      prevStripCuts = [];
+      continue;
+    }
+
+    let pieces = [strip];
+    for (const cutX of currentStripCuts) {
+      const jitterAngle = rng.range(-0.05, 0.05);
       const cosJ = Math.cos(jitterAngle),
         sinJ = Math.sin(jitterAngle);
       const normal: Point = [axis[0] * cosJ - axis[1] * sinJ, axis[0] * sinJ + axis[1] * cosJ];
-      const offset = nominalX + rng.range(-1.5, 1.5);
-      const split: Point[][] = [];
-      for (const piece of currentPieces) {
-        const right = clipStreetBlocks(piece, normal, offset);
-        const left = clipStreetBlocks(piece, [-normal[0], -normal[1]], -offset);
+      const nextPieces: Point[][] = [];
+      for (const piece of pieces) {
+        const right = clipStreetBlocks(piece, normal, cutX);
+        const left = clipStreetBlocks(piece, [-normal[0], -normal[1]], -cutX);
         if (right.length && left.length) {
-          split.push(...right, ...left);
+          nextPieces.push(...right, ...left);
         } else {
-          split.push(piece);
+          nextPieces.push(piece);
         }
       }
-      currentPieces = split;
+      pieces = nextPieces;
     }
-    finalBlocks.push(...currentPieces.filter(p => area(p) > 30));
+    finalBlocks.push(...pieces.filter(p => area(p) > 30));
+    prevStripCuts = currentStripCuts;
   }
 
   const streets = new Set<string>();
@@ -335,6 +358,7 @@ export function buildPerimeterBlocks(
           c1 = connections[1];
         const pA = c0.other,
           pB = c1.other;
+        if (distance(pA, pB) < 1e-5) continue;
         const keep = Math.min(c0.index, c1.index);
         const remove = Math.max(c0.index, c1.index);
         mergedLanes[keep] = { ...mergedLanes[keep], points: [pA, pB] };
@@ -344,7 +368,7 @@ export function buildPerimeterBlocks(
       }
     }
   }
-  fabric.lanes = [...boundaryLanes, ...mergedLanes];
+  fabric.lanes = [...boundaryLanes, ...mergedLanes.filter(l => distance(l.points[0], l.points[1]) > 1e-4)];
 
   return fabric;
 }

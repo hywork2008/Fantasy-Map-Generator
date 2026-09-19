@@ -351,11 +351,10 @@ export function buildStreets(input: StreetInputs): StreetResult {
         }
       }
     }
-    if (!riverPolylines.length) {
-      for (const [from, to] of consecutiveGates(gates, borders)) {
-        if (pairs.some(([a, b]) => sameEnds(from.point, to.point, a.point, b.point))) continue;
-        addStreet(route(from.point, to.point, ringWeight, streetsHardBar));
-      }
+    for (const [from, to] of consecutiveGates(gates, borders)) {
+      if (pairs.some(([a, b]) => sameEnds(from.point, to.point, a.point, b.point))) continue;
+      const line = route(from.point, to.point, ringWeight, streetsHardBar);
+      if (line) addStreet(line);
     }
   }
 
