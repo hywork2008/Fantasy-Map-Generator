@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { meshFromCells } from "../mesh";
 import type { CityDocument, Point } from "../types";
 import { buildBlockFabric, convexInfillParts } from "./blockInfill";
+import { createFabricPlan } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 
 function fixture(polygons: Point[][]): CityDocument {
@@ -139,6 +140,55 @@ describe("coarse-cell infill", () => {
     const { segments, seen } = connectedLaneSegments(fabric);
     expect(seen.size).toBe(segments.length);
     expect(Object.keys(document.mesh.faces)).toHaveLength(1);
+  });
+  it("grows extra-mural collectors across a dry cell boundary and still stops at a wall", () => {
+    const left = rect;
+    const right: Point[] = [
+      [240, 0],
+      [480, 0],
+      [480, 180],
+      [240, 180]
+    ];
+    const document = fixture([left, right]);
+    for (const face of Object.values(document.mesh.faces)) face.properties.settlement = "outskirts";
+    const before = JSON.stringify(document);
+    const fabric = buildBlockFabric(document);
+    expect(JSON.stringify(document)).toBe(before);
+    expect(fabric.buildings.some(b => b.faceId === "f1")).toBe(true);
+    expect(
+      fabric.lanes.some(l => {
+        const xs = l.points.map(p => p[0]);
+        return Math.min(...xs) < 230 && Math.max(...xs) > 250;
+      })
+    ).toBe(true);
+    const shared = Object.values(document.mesh.edges).find(e => e.leftFace && e.rightFace)!;
+    document.featureGroups.push({
+      id: "wall",
+      kind: "wall",
+      name: "Wall",
+      segments: [{ edgeId: shared.id, forward: true }],
+      style: { widthMeters: 6, color: "black" },
+      locked: false
+    });
+    const walled = buildBlockFabric(document);
+    expect(walled.buildings.some(b => b.faceId === "f1")).toBe(false);
+    expect(
+      walled.lanes.some(l => {
+        const xs = l.points.map(p => p[0]);
+        return Math.min(...xs) < 230 && Math.max(...xs) > 250;
+      })
+    ).toBe(false);
+    const planned = fixture([left, right]);
+    for (const face of Object.values(planned.mesh.faces)) face.properties.settlement = "outskirts";
+    planned.fabric = createFabricPlan(planned, "outskirts-merge");
+    expect(planned.fabric.districts.map(d => d.faceIds.length)).toEqual([2]);
+    const merged = buildBlockFabric(planned);
+    expect(
+      merged.lanes.some(l => {
+        const xs = l.points.map(p => p[0]);
+        return Math.min(...xs) < 230 && Math.max(...xs) > 250;
+      })
+    ).toBe(true);
   });
   it("leaves inaccessible land and water empty", () => {
     const document = fixture([rect]);

@@ -86,7 +86,8 @@ export function resolveDistricts(document: CityDocument, plan?: FabricPlan): Fab
         for (const ref of document.mesh.faces[ids[i]].boundary) {
           const edge = document.mesh.edges[ref.edgeId];
           const otherId = edge.leftFace === ids[i] ? edge.rightFace : edge.leftFace;
-          if (!otherId || !pending.has(otherId) || blocked.has(edge.id) || (!plan && ids.length >= 6)) continue;
+          const mergeCap = face.properties.settlement === "outskirts" ? Number.POSITIVE_INFINITY : 6;
+          if (!otherId || !pending.has(otherId) || blocked.has(edge.id) || (!plan && ids.length >= mergeCap)) continue;
           const other = document.mesh.faces[otherId];
           if (
             other.properties.locked ||
