@@ -3,6 +3,7 @@
 import type { Point } from "../types";
 import { frontageBuildings } from "./frontageBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
+import { intramuralBlockSpan } from "./housing";
 import { clipHalfPlane } from "./lotGeometry";
 import type { Rng } from "./prng";
 
@@ -36,10 +37,9 @@ export interface OutskirtsInfill {
 
 /** Street-to-street spacing: two house rows, a lane, and a shared yard. */
 export function blockSpan(lotArea: number, laneWidth: number, kind: "core" | "outskirts" = "outskirts"): number {
-  const row = Math.sqrt(Math.max(80, lotArea)) * (kind === "core" ? 1.65 : 1.15);
-  return kind === "core"
-    ? Math.min(70, Math.max(40, 2 * row + laneWidth + 8))
-    : Math.min(88, Math.max(42, 2 * row + laneWidth + 20));
+  if (kind === "core") return intramuralBlockSpan(lotArea, laneWidth);
+  const row = Math.sqrt(Math.max(40, lotArea)) * 1.15;
+  return Math.min(56, Math.max(32, 2 * row + laneWidth + 16));
 }
 
 export function outskirtsBlockSpan(lotArea: number, laneWidth: number): number {

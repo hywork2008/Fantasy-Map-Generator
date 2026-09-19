@@ -93,7 +93,9 @@ describe("wall capacity and extramural housing", () => {
       expect(city.gates.length).toBeGreaterThan(0);
       const fabric = buildBlockFabric(city);
       const outer = fabric.buildings.filter(b => city.mesh.faces[b.faceId].properties.settlement === "outskirts");
-      expect(outer.length / fabric.buildings.length).toBeGreaterThan(0.6);
+      // Core plots are Tiny-scale and fully terraced, so they hold more houses
+      // per hectare than the outer belt. Building count still follows the wall.
+      expect(outer.length / fabric.buildings.length).toBeGreaterThan(0.55);
       expect(
         fabric.lanes.filter(l => city.mesh.faces[l.faceId].properties.settlement === "outskirts").length
       ).toBeGreaterThan(100);

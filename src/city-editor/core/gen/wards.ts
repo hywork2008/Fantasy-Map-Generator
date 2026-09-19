@@ -29,6 +29,7 @@ import {
   polylineTangent,
   vecToAzimuth
 } from "./geom";
+import { templeCellCount } from "./housing";
 import { makeRng, type Rng } from "./prng";
 import type {
   BorderLoop,
@@ -179,7 +180,18 @@ export function assignWards(input: WardInputs): WardResult {
   // 3. Temple / Cathedral next to the plaza.
   if (program.temple) {
     const templeRng = makeRng(`${params.seed}:program:temple`);
-    const temple = placeTemple(cells, urban, occupied, plaza, citadelIds, R, cellSize, program.capital, templeRng);
+    const temple = placeTemple(
+      cells,
+      urban,
+      occupied,
+      plaza,
+      citadelIds,
+      R,
+      cellSize,
+      program.capital,
+      params.extentMeters,
+      templeRng
+    );
     if (temple) {
       extraPrecincts.push(temple);
       for (const id of temple.cellIds) take(id, "cathedral");
@@ -413,6 +425,7 @@ function placeTemple(
   R: number,
   cellSize: number,
   capital: boolean,
+  extentMeters: number,
   rng: Rng
 ): Precinct | null {
   const plazaAnchor = plaza?.anchor ?? ([0, 0] as Point);
@@ -432,13 +445,18 @@ function placeTemple(
     return s;
   };
   const pick = pool.slice().sort((a, b) => score(a) - score(b) || a.id - b.id)[0];
+  const wanted = templeCellCount(extentMeters, capital);
+  const taken = new Set([pick.id]);
   const cellIds = [pick.id];
-  if (capital) {
-    const extra = pick.neighbors
+  while (cellIds.length < wanted) {
+    const extra = cellIds
+      .flatMap(id => cells.find(c => c.id === id)?.neighbors ?? [])
       .map(id => cells.find(c => c.id === id))
-      .filter((c): c is Cell => !!c && eligible(c))
+      .filter((c): c is Cell => !!c && eligible(c) && !taken.has(c.id))
       .sort((a, b) => a.id - b.id)[0];
-    if (extra) cellIds.push(extra.id);
+    if (!extra) break;
+    taken.add(extra.id);
+    cellIds.push(extra.id);
   }
   // Keep the temple RNG stream in the contract even when capital adds no cell.
   rng();

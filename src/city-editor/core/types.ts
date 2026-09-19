@@ -98,7 +98,7 @@ export interface CityGate {
 export interface DistrictParameters {
   /** Fraction of eligible lots retained, not a guaranteed area coverage. */
   occupancy: number;
-  /** Maximum footprint fraction within each local lot. */
+  /** Core: footprint fraction of each street block; outskirts: fraction of each lot. */
   coverage: number;
   lotArea: number;
   laneWidth: number;
@@ -111,7 +111,8 @@ export interface FabricDistrict {
   parameters: DistrictParameters;
 }
 export interface FabricPlan {
-  version: 2;
+  /** v4 groups residential cells into road-bounded perimeter blocks. */
+  version: 2 | 3 | 4;
   seed: string;
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */

@@ -269,6 +269,39 @@ describe("face selection labels", () => {
   });
 });
 
+describe("generated temple footprint", () => {
+  it("draws a Tiny church larger than a house plot, and a Large church larger still", () => {
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const tiny = createDocument("temple-tiny", 600);
+    tiny.appearance = "town";
+    tiny.elements.push({
+      id: "gc:temple",
+      kind: "temple",
+      faceIds: [],
+      point: [0, 0],
+      locked: false
+    });
+    const tinyRect = renderEditorSvg(tiny, "select", selection, "-200 -200 400 400", 1).querySelector("rect");
+    expect(tinyRect).not.toBeNull();
+    expect(Number(tinyRect?.getAttribute("width"))).toBe(28);
+    expect(Number(tinyRect?.getAttribute("height"))).toBe(16);
+
+    const large = createDocument("temple-large", 4800);
+    large.appearance = "town";
+    large.elements.push({
+      id: "gc:temple",
+      kind: "temple",
+      faceIds: [],
+      point: [0, 0],
+      sizeMeters: 68,
+      locked: false
+    });
+    const largeRect = renderEditorSvg(large, "select", selection, "-200 -200 400 400", 1).querySelector("rect");
+    expect(Number(largeRect?.getAttribute("width"))).toBe(68);
+    expect(Number(largeRect?.getAttribute("height"))).toBe(36);
+  });
+});
+
 describe("renderEditorSvg data-pick metadata", () => {
   it("attaches parseable metadata to cells, edges, and features in select mode", () => {
     const document = createDocument("pick-metadata", 400);

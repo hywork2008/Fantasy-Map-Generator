@@ -1,4 +1,5 @@
 import { createFabricPlan } from "./gen/fabricDistricts";
+import { templeFootprintMeters } from "./gen/housing";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -1240,6 +1241,7 @@ function applyPlan(
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
         faceIds: precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean),
         point: [precinct.anchor[0], precinct.anchor[1]],
+        sizeMeters: precinct.kind === "temple" ? templeFootprintMeters(next.frame.extentMeters).length : undefined,
         locked: false
       });
     }

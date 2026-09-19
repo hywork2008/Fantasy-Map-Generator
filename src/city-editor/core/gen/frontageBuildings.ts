@@ -1,6 +1,6 @@
 import type { Point } from "../types";
-import { polygonArea } from "./geom";
-import { clipHalfPlane } from "./lotGeometry";
+import { polygonArea, polygonCentroid } from "./geom";
+import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import type { Rng } from "./prng";
 
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
@@ -14,6 +14,8 @@ export interface FrontageOptions {
   coverage: number;
   occupancy: number;
   outskirts: boolean;
+  /** Coverage applies to the complete block, leaving one compact courtyard. */
+  perimeter?: boolean;
 }
 
 type Front = { a: Point; axis: Point; inward: Point; length: number; offset: number };
@@ -41,6 +43,7 @@ export function frontageBuildings(
     .filter(f => f.length >= 5);
   const buildings: Point[][] = [];
   const rowDepth = Math.sqrt(options.lotArea) * (options.outskirts ? 1.15 : 1.65);
+  if (options.perimeter) return packPerimeter(block, fronts, options, rng);
   if (!options.outskirts) return packStreetWall(block, fronts, options, rowDepth, rng);
   for (const front of fronts) {
     let sector = block;
@@ -184,6 +187,138 @@ export function frontageBuildings(
 
 const FRONT_Y = 0.15;
 const PARTY_GAP = 0.02;
+
+function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions, rng: Rng): Point[][] {
+  const buildings: Point[][] = [];
+  let rowDepth = Math.sqrt(options.lotArea) * 1.65;
+  let low = 0,
+    high = Math.sqrt(area(block));
+  const yardArea = area(block) * (1 - options.coverage);
+  for (let i = 0; i < 24; i++) {
+    const depth = (low + high) / 2;
+    if (
+      area(
+        insetConvexKernel(
+          block,
+          block.map(() => depth)
+        )
+      ) > yardArea
+    )
+      low = depth;
+    else high = depth;
+  }
+  rowDepth = high;
+  const ordered = fronts.slice().sort((a, b) => b.length - a.length);
+  const first = ordered[0];
+  if (first) {
+    const opposite = ordered.slice(1).sort((a, b) => dot(a.inward, first.inward) - dot(b.inward, first.inward))[0];
+    if (opposite) ordered.splice(1, 0, ordered.splice(ordered.indexOf(opposite), 1)[0]);
+  }
+  let unassigned = block;
+  for (const front of ordered) {
+    const sector = unassigned;
+    const local = sector.map(p => {
+      const delta: Point = [p[0] - front.a[0], p[1] - front.a[1]];
+      return [dot(delta, front.axis), dot(delta, front.inward)] as Point;
+    });
+    const band = clipHalfPlane(local, [0, 1], rowDepth);
+    if (band.length < 3 || area(band) < 35) continue;
+    const depth = Math.max(...band.map(p => p[1]));
+    const frontY = 1e-5;
+    const streetXs = band.filter(p => Math.abs(p[1]) < 1e-6).map(p => p[0]);
+    if (streetXs.length < 2) continue;
+    unassigned = clipHalfPlane(unassigned, [-front.inward[0], -front.inward[1]], -front.offset - rowDepth);
+    const streetStart = Math.min(...band.map(p => p[0]));
+    const streetLength = Math.max(...band.map(p => p[0])) - streetStart;
+    const width = Math.max(
+      5,
+      Math.min(Math.sqrt(options.lotArea) * 0.6, depth / 1.65, options.lotArea / Math.max(6, depth))
+    );
+    const count = Math.max(1, Math.min(256, Math.round(streetLength / width)));
+    const weights = Array.from({ length: count }, () => rng.range(0.8, 1.2));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let start = streetStart;
+    for (let i = 0; i < weights.length; i++) {
+      const end = start + (streetLength * weights[i]) / total;
+      const lo = start + (i === 0 ? 1e-5 : 0),
+        hi = end - (i === weights.length - 1 ? 1e-5 : 0);
+      start = end;
+      const occupied = rng() < options.occupancy;
+      rng();
+      if (!occupied || hi - lo < 3) continue;
+      let lot = clipHalfPlane(band, [-1, 0], -lo);
+      lot = clipHalfPlane(lot, [1, 0], hi);
+      lot = clipHalfPlane(lot, [0, -1], -frontY);
+      if (lot.length < 3 || area(lot) < 12) continue;
+      const rear = Math.max(...lot.map(p => p[1]));
+      const outline = (back: number): Point[] => {
+        let template: Point[] = [
+          [lo, frontY],
+          [hi, frontY],
+          [hi, back],
+          [lo, back]
+        ];
+        const winding = -Math.sign(polygonArea(lot));
+        for (let j = 0; j < lot.length; j++) {
+          const a = lot[j],
+            b = lot[(j + 1) % lot.length];
+          const normal: Point = [winding * (b[1] - a[1]), winding * (a[0] - b[0])];
+          template = clipHalfPlane(template, normal, dot(a, normal));
+        }
+        return template;
+      };
+      let loD = frontY,
+        hiD = rear;
+      for (let j = 0; j < 18; j++) {
+        const back = (loD + hiD) / 2;
+        if (area(outline(back)) <= area(lot)) loD = back;
+        else hiD = back;
+      }
+      const shapePoints = outline(loD);
+      if (shapePoints.length < 3 || area(shapePoints) < 12 || loD - frontY < 3) continue;
+      const frontXs = shapePoints.filter(p => Math.abs(p[1] - frontY) < 1e-5).map(p => p[0]);
+      if (frontXs.length < 2 || Math.max(...frontXs) - Math.min(...frontXs) < 3) {
+        const exterior = block.map(p => {
+          const delta: Point = [p[0] - front.a[0], p[1] - front.a[1]];
+          return [dot(delta, front.axis), dot(delta, front.inward)] as Point;
+        });
+        const hasCornerFront = exterior.some((a, j) => {
+          const b = exterior[(j + 1) % exterior.length];
+          const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          const onLine = (p: Point) =>
+            Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / length < 1e-4;
+          return shapePoints.some((p, k) => {
+            const q = shapePoints[(k + 1) % shapePoints.length];
+            return onLine(p) && onLine(q) && Math.hypot(q[0] - p[0], q[1] - p[1]) >= 3;
+          });
+        });
+        if (!hasCornerFront) continue;
+      }
+      const distinct = shapePoints.filter((p, j) => {
+        const next = shapePoints[(j + 1) % shapePoints.length];
+        return Math.hypot(p[0] - next[0], p[1] - next[1]) > 1e-6;
+      });
+      const clean = distinct.filter((p, j) => {
+        const prev = distinct[(j + distinct.length - 1) % distinct.length];
+        const next = distinct[(j + 1) % distinct.length];
+        const a: Point = [p[0] - prev[0], p[1] - prev[1]];
+        const b: Point = [next[0] - p[0], next[1] - p[1]];
+        return Math.abs(a[0] * b[1] - a[1] * b[0]) > 1e-7 || dot(a, b) < 0;
+      });
+      if (clean.length < 3) continue;
+      const center = polygonCentroid(clean);
+      buildings.push(
+        clean
+          .map(p => [p[0] + (center[0] - p[0]) * 1e-7, p[1] + (center[1] - p[1]) * 1e-7] as Point)
+          .map(([x, y]) => [
+            front.a[0] + x * front.axis[0] + y * front.inward[0],
+            front.a[1] + x * front.axis[1] + y * front.inward[1]
+          ])
+      );
+    }
+  }
+  return buildings;
+}
 
 function packStreetWall(
   block: Point[],

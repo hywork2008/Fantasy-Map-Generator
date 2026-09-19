@@ -61,8 +61,10 @@ describe("outskirts street growth", () => {
   });
 
   it("keeps block spacing in a house-row range", () => {
-    expect(outskirtsBlockSpan(150, 3)).toBeGreaterThan(40);
+    expect(outskirtsBlockSpan(150, 3)).toBeGreaterThan(32);
     expect(outskirtsBlockSpan(150, 3)).toBeLessThan(90);
+    expect(blockSpan(80, 3, "core")).toBeGreaterThan(35);
+    expect(blockSpan(80, 3, "core")).toBeLessThan(50);
     expect(blockSpan(150, 3, "core")).toBeGreaterThanOrEqual(40);
     expect(blockSpan(150, 3, "core")).toBeLessThanOrEqual(70);
   });

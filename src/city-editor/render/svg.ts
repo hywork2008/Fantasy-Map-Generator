@@ -2,6 +2,7 @@ import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
+import { templeFootprintMeters } from "../core/gen/housing";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
@@ -363,11 +364,14 @@ export function renderEditorSvg(
         elements.appendChild(plazaCircle);
       }
       if (cityElement.kind === "temple") {
+        const footprint = templeFootprintMeters(document.frame.extentMeters);
+        const length = cityElement.sizeMeters && cityElement.sizeMeters > 0 ? cityElement.sizeMeters : footprint.length;
+        const width = length * (footprint.width / footprint.length);
         const templeRect = element("rect", {
-          x: String(p[0] - 9),
-          y: String(-p[1] - 6),
-          width: "18",
-          height: "12",
+          x: String(p[0] - length / 2),
+          y: String(-p[1] - width / 2),
+          width: String(length),
+          height: String(width),
           fill: "#292a26",
           class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
           "data-element": cityElement.id,

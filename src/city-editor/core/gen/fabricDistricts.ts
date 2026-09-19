@@ -1,5 +1,6 @@
 import { clone, edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, DistrictParameters, EdgeRef, FabricDistrict, FabricPlan, Face, Id } from "../types";
+import { dwellingLotArea } from "./housing";
 import { longestFrame } from "./lotGeometry";
 import {
   COAST_SHAPES,
@@ -13,9 +14,9 @@ import {
 export function defaultDistrictParameters(face: Face, document: CityDocument): DistrictParameters {
   const axis = longestFrame(facePoints(document.mesh, face)).axis;
   return {
-    coverage: 0.75,
-    occupancy: face.properties.settlement === "outskirts" ? 0.82 : 0.965,
-    lotArea: face.properties.ward === "castle" ? 1200 : face.properties.ward === "merchant" ? 220 : 150,
+    coverage: face.properties.settlement === "outskirts" ? 0.75 : 0.9,
+    occupancy: face.properties.settlement === "outskirts" ? 0.82 : 1,
+    lotArea: dwellingLotArea(face.properties.ward),
     laneWidth: 3,
     orientation: Math.atan2(axis[1], axis[0])
   };
@@ -67,7 +68,10 @@ function protectedEdges(document: CityDocument): Set<Id> {
   return ids;
 }
 
-/** Saved membership is stable; edits can split it at new constraints but never regroup remote districts. */
+/** Saved membership is stable; edits can split it at new constraints but never regroup remote districts.
+ * New plans use actual roads, walls and water as block boundaries. A ward is a
+ * land-use label, not a street: a merchant row can continue into a craftsmen
+ * row when no road separates them. */
 export function resolveDistricts(document: CityDocument, plan?: FabricPlan): FabricDistrict[] {
   const blocked = protectedEdges(document);
   const reserved = new Set(document.elements.flatMap(e => e.faceIds));
@@ -86,14 +90,13 @@ export function resolveDistricts(document: CityDocument, plan?: FabricPlan): Fab
         for (const ref of document.mesh.faces[ids[i]].boundary) {
           const edge = document.mesh.edges[ref.edgeId];
           const otherId = edge.leftFace === ids[i] ? edge.rightFace : edge.leftFace;
-          const mergeCap = face.properties.settlement === "outskirts" ? Number.POSITIVE_INFINITY : 6;
-          if (!otherId || !pending.has(otherId) || blocked.has(edge.id) || (!plan && ids.length >= mergeCap)) continue;
+          if (!otherId || !pending.has(otherId) || blocked.has(edge.id)) continue;
           const other = document.mesh.faces[otherId];
           if (
             other.properties.locked ||
             reserved.has(otherId) ||
             other.properties.water !== "land" ||
-            other.properties.ward !== face.properties.ward ||
+            landUse(other) !== landUse(face) ||
             other.properties.buildable !== face.properties.buildable ||
             other.properties.settlement !== face.properties.settlement ||
             (plan && saved.get(otherId)?.id !== original?.id) ||
@@ -116,8 +119,24 @@ export function resolveDistricts(document: CityDocument, plan?: FabricPlan): Fab
   return result;
 }
 
+/** Commercial and residential rows may share a block; parks, farms, vacant
+ * land and landmarks must retain their own outlines even in saved v4 plans. */
+function landUse(face: Face): string {
+  const ward = face.properties.ward;
+  return ward && !["park", "farm", "empty", "castle"].includes(ward) ? "urban" : (ward ?? "empty");
+}
+
 export function createFabricPlan(document: CityDocument, seed: string): FabricPlan {
-  return { version: 2, seed, districts: resolveDistricts(document) };
+  return { version: 4, seed, districts: resolveDistricts(document) };
+}
+
+/** Derive the road-bounded v4 plan without mutating an open legacy document. */
+export function upgradeFabricPlan(document: CityDocument): FabricPlan | undefined {
+  const plan = document.fabric;
+  if (!plan || plan.version === 4) return plan;
+  const upgraded = createFabricPlan(document, plan.seed);
+  if (plan.generation) upgraded.generation = plan.generation;
+  return upgraded;
 }
 
 /** A disposable union mesh for drawing only. Source edges, faces and feature references remain untouched. */
@@ -158,6 +177,7 @@ export function setDistrictParameters(
   if (document.gridKind !== "evolution" || !document.mesh.faces[faceId]) return null;
   const next = clone(document);
   next.fabric ??= createFabricPlan(next, "manual");
+  next.fabric = upgradeFabricPlan(next)!;
   next.fabric.districts = resolveDistricts(next, next.fabric);
   const district = next.fabric.districts.find(d => d.faceIds.includes(faceId));
   if (!district || district.faceIds.some(id => next.mesh.faces[id].properties.locked)) return null;
@@ -187,7 +207,12 @@ export function validDistrictParameters(p: DistrictParameters): boolean {
 }
 
 export function validFabricPlan(plan: FabricPlan): boolean {
-  if (plan?.version !== 2 || typeof plan.seed !== "string" || !Array.isArray(plan.districts)) return false;
+  if (
+    (plan?.version !== 2 && plan?.version !== 3 && plan?.version !== 4) ||
+    typeof plan.seed !== "string" ||
+    !Array.isArray(plan.districts)
+  )
+    return false;
   const faces = new Set<Id>(),
     ids = new Set<Id>();
   for (const d of plan.districts) {

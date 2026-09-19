@@ -1,6 +1,6 @@
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
-import { districtDocument, resolveDistricts } from "./fabricDistricts";
+import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
@@ -15,10 +15,11 @@ const defaultCache = new FabricCache();
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(document: CityDocument, cache = defaultCache): DistrictFabric {
   if (!document.fabric) return { ...buildLocalFabric(document), farms: [] };
-  const districts = resolveDistricts(document, document.fabric);
+  const plan = upgradeFabricPlan(document)!;
+  const districts = resolveDistricts(document, plan);
   const merged = districtDocument(document, districts);
   const local = buildLocalFabric(merged, {
-    seed: document.fabric.seed,
+    seed: plan.seed,
     parameters: new Map(districts.map(d => [d.id, d.parameters])),
     cache
   });

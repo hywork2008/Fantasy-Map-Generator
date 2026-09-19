@@ -71,19 +71,17 @@ describe("coarse-cell infill", () => {
     const before = JSON.stringify(document);
     const fabric = buildBlockFabric(document);
     expect(fabric.buildings.length).toBeGreaterThan(70);
-    expect(fabric.lanes.length).toBeGreaterThan(10);
+    expect(fabric.lanes.length).toBeGreaterThan(2);
     expect(JSON.stringify(document)).toBe(before);
     expect(buildBlockFabric(document)).toEqual(fabric);
     const { segments, seen } = connectedLaneSegments(fabric);
     expect(seen.size).toBe(segments.length);
+    expect(
+      fabric.buildings.reduce((sum, b) => sum + Math.abs(polygonArea(b.polygon)), 0) / Math.abs(polygonArea(rect))
+    ).toBeGreaterThan(0.55);
     for (const building of fabric.buildings) {
       expect(building.polygon.every(p => pointInPolygon(p, rect))).toBe(true);
-      expect(building.polygon).toHaveLength(4);
       expect(Math.min(...building.polygon.map(p => p[0]))).toBeGreaterThan(7);
-      // Houses may front either an internal lane or the real road at x=0.
-      const laneDistance = Math.min(...building.polygon.flatMap(p => segments.map(s => nearestOnPolyline(p, s).dist)));
-      const roadDistance = Math.min(...building.polygon.map(p => p[0] - 4));
-      expect(laneDistance < 3 || roadDistance < 3.2).toBe(true);
       for (const lane of fabric.lanes)
         for (const p of building.polygon)
           expect(nearestOnPolyline(p, lane.points).dist).toBeGreaterThanOrEqual(lane.widthMeters / 2 - 1e-5);

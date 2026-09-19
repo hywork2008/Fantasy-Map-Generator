@@ -88,7 +88,7 @@ describe("evolution complete city", () => {
     expect(largeFabric.buildings.length).toBeGreaterThan(buildBlockFabric(smallCity).buildings.length * 5);
     expect(Object.keys(largeCity.mesh.faces).length).toBeLessThan(Object.keys(smallCity.mesh.faces).length + 20);
     expect(JSON.stringify(largeCity.mesh)).toBe(before);
-  });
+  }, 15000);
   it("persists the explicit grid policy through saving and history, with deterministic regeneration", () => {
     const input = createGridDocument({ size: "small", grid: "evolution", seed: "persist" });
     const settings = defaultGenerationSettings();

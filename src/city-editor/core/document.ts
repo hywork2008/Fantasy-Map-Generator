@@ -1,4 +1,4 @@
-import { validFabricPlan } from "./gen/fabricDistricts";
+import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
 import { buildGrid } from "./gen/grid";
 import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
@@ -138,6 +138,7 @@ export function parseDocument(text: string): CityDocument | null {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
     if (value.fabric !== undefined && !validFabricPlan(value.fabric)) return null;
+    if (value.fabric && value.fabric.version !== 4) value.fabric = upgradeFabricPlan(value);
     const recipe = value.fabric?.generation;
     if (recipe && (!isDocument(recipe.input) || "fabric" in recipe.input || validate(recipe.input).length)) return null;
     // Version-1 files saved before the scale-bar addition lack this descriptive

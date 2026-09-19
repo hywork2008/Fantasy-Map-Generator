@@ -4,7 +4,9 @@ import type { CityDocument, DistrictParameters, EdgeRef, Face, Id, Point } from 
 import type { BuildingLot } from "./buildingLots";
 import { districtBoundary } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { dwellingLotArea } from "./housing";
 import { insetConvexKernel } from "./lotGeometry";
+import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
 import { infillCore, infillOutskirts } from "./streetGrowth";
 
@@ -193,12 +195,12 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     barriers,
     !document.fabric
   )) {
-    if (paintOutskirtsUnion(document, ids, fabric, { document, roads, clearance, rivers, options }))
+    if (paintOutskirtsUnion(document, ids, fabric, { document, roads, barriers, clearance, rivers, options }))
       for (const id of ids) grouped.add(id);
   }
   for (const id of queue) {
     if (grouped.has(id)) continue;
-    paintFace(document, id, fabric, { document, roads, clearance, rivers, options });
+    paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options });
   }
   return fabric;
 }
@@ -264,6 +266,7 @@ function nearbyRiversOf(
 interface PaintContext {
   document: CityDocument;
   roads: Set<Id>;
+  barriers: Set<Id>;
   clearance: Map<Id, number>;
   rivers: { points: Point[]; width: number }[];
   options?: InfillOptions;
@@ -290,7 +293,7 @@ function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabr
   });
   const key = ctx.options
     ? JSON.stringify([
-        "outskirts-union-v2",
+        "outskirts-union-v3",
         ctx.options.seed,
         ids,
         ids.map(id => mesh.faces[id].properties),
@@ -356,7 +359,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   });
   const key = ctx.options
     ? JSON.stringify([
-        outskirts ? "outskirts-face-v2" : "district-infill-v7",
+        outskirts ? "outskirts-face-v3" : "district-voronoi-perimeter-v3",
         ctx.options.seed,
         id,
         face.properties,
@@ -374,20 +377,44 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     fabric.lanes.push(...cached.lanes);
     return;
   }
-  const local: CityFabric = { buildings: [], lanes: [], entrances: new Map() };
-  fillPolygon(
-    face,
-    polygon,
-    face.boundary,
-    entries,
-    outskirts,
-    local,
-    parameters,
-    ctx,
-    buildableFace(face) && !reserved,
-    [id],
-    ctx.options?.seed
-  );
+  const local: CityFabric =
+    !outskirts && face.properties.ward !== "castle"
+      ? buildPerimeterBlocks(
+          face,
+          polygon,
+          face.boundary.map((ref, i) => {
+            const edge = mesh.edges[ref.edgeId];
+            const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+            return {
+              a: polygon[i],
+              b: polygon[(i + 1) % polygon.length],
+              setback: Math.max(
+                (parameters?.laneWidth ?? 3) / 2 + 0.35,
+                ctx.clearance.get(ref.edgeId) ?? 0,
+                other && other.properties.water !== "land" ? 6 : 0
+              ),
+              feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId)
+            };
+          }),
+          parameters,
+          ctx.options?.seed ?? "block-infill",
+          buildableFace(face) && !reserved
+        )
+      : { buildings: [], lanes: [], entrances: new Map() };
+  if (outskirts || face.properties.ward === "castle")
+    fillPolygon(
+      face,
+      polygon,
+      face.boundary,
+      entries,
+      outskirts,
+      local,
+      parameters,
+      ctx,
+      buildableFace(face) && !reserved,
+      [id],
+      ctx.options?.seed
+    );
   local.buildings = local.buildings.filter(
     b =>
       b.polygon.every(p => pointInPolygon(p, polygon)) &&
@@ -490,9 +517,7 @@ function fillPolygon(
       frontageEdges,
       portals,
       {
-        lotArea:
-          parameters?.lotArea ??
-          (face.properties.ward === "castle" ? 1200 : face.properties.ward === "merchant" ? 220 : 150),
+        lotArea: parameters?.lotArea ?? dwellingLotArea(face.properties.ward),
         laneWidth: parameters?.laneWidth ?? 3,
         coverage: parameters?.coverage ?? 0.75,
         occupancy: parameters?.occupancy ?? (outskirts ? 0.82 : 0.965),
