@@ -84,7 +84,7 @@ function infillBlocks(
     const sa = snap(a, lanes, laneWidth) ?? a;
     const sb = snap(b, lanes, laneWidth) ?? b;
     if (distance(sa, sb) < 8) return null;
-    if (parallelDuplicate([sa, sb], lanes, span * 0.48)) return null;
+    if (parallelDuplicate([sa, sb], lanes, span * 0.36)) return null;
     const lane = [sa, sb];
     lanes.push(lane);
     return lane;
@@ -94,6 +94,16 @@ function infillBlocks(
     const axis: Point = [Math.cos(orientation), Math.sin(orientation)];
     const across: Point = [-axis[1], axis[0]];
     return Math.abs(dot(tangent, axis)) >= Math.abs(dot(tangent, across)) ? axis : across;
+  };
+  const rotate = (tangent: Point, angle: number): Point => {
+    const c = Math.cos(angle),
+      s = Math.sin(angle);
+    return [tangent[0] * c - tangent[1] * s, tangent[0] * s + tangent[1] * c];
+  };
+  const biasTangent = (tangent: Point): Point => {
+    if (orientation === undefined) return tangent;
+    const snapped = gridTangent(tangent);
+    return unit(add(scale(tangent, 0.72), scale(snapped, 0.28)));
   };
 
   let regions = [polygon];
@@ -106,12 +116,22 @@ function infillBlocks(
     const end = hit && distance(start, hit) > 8 ? hit : far;
     if (pushLane(start, end)) regions = partition(regions, lanes[lanes.length - 1], laneWidth, lotArea);
   };
+  // One grain street follows the inspector axis; the rest wander so the cell
+  // does not become a regular lattice.
+  let grain = true;
   for (const seed of seeds) {
-    const tangent = gridTangent(seed.tangent);
-    const count = Math.max(1, Math.floor((seed.length - 8) / span));
-    for (let i = 0; i < count; i++) {
-      const t = count === 1 ? 0.5 : (i + 0.38 + rng.range(0, 0.24)) / count;
-      const origin = add(seed.a, scale(sub(seed.b, seed.a), Math.min(0.86, Math.max(0.14, t))));
+    const stops: number[] = [];
+    for (
+      let x = rng.range(span * 0.38, span * 0.92);
+      x < seed.length - span * 0.32;
+      x += rng.range(span * 0.58, span * 1.42)
+    )
+      stops.push(Math.min(0.86, Math.max(0.14, x / seed.length)));
+    if (!stops.length) stops.push(0.5);
+    for (const t of stops) {
+      const origin = add(seed.a, scale(sub(seed.b, seed.a), t));
+      const tangent = grain ? gridTangent(seed.tangent) : rotate(biasTangent(seed.tangent), rng.range(-0.08, 0.08));
+      grain = false;
       cutFrom(origin, tangent, seed.inward);
     }
   }
@@ -125,7 +145,10 @@ function infillBlocks(
   if (!roadFrontages.length && interior.length >= 2) {
     const xs = polygon.map(p => p[0]),
       ys = polygon.map(p => p[1]);
-    const axis = gridTangent(Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? [0, 1] : [1, 0]);
+    const axis = rotate(
+      gridTangent(Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? [0, 1] : [1, 0]),
+      rng.range(-0.12, 0.12)
+    );
     const line = chord(polygon, axis, dot(polygonCentroid(polygon), axis));
     if (line && distance(line[0], line[1]) >= 8 && pushLane(line[0], line[1]))
       regions = partition(regions, lanes[lanes.length - 1], laneWidth, lotArea);
@@ -153,16 +176,18 @@ function infillBlocks(
 
   const collectors = lanes.slice();
   const strips = regions.slice();
+  let stripIndex = 0;
   for (const region of strips) {
     const fronts = regionFronts(region, collectors, roadFrontages, laneWidth);
     if (!fronts.length) continue;
     const long = fronts.sort((a, b) => b.length - a.length)[0];
-    const axis = gridTangent(unit(sub(long.b, long.a)));
+    const axis = rotate(unit(sub(long.b, long.a)), rng.range(-0.06, 0.06));
     const depth = Math.abs(polygonArea(region)) / Math.max(long.length, 1);
-    if (depth < span * (core ? 0.7 : 0.55)) continue;
-    const stubCount = Math.max(0, Math.floor((long.length - 8) / span));
+    if (depth < span * (core ? 0.58 : 0.5)) continue;
+    const stubCount = Math.max(0, Math.floor((long.length - 8) / (span * rng.range(0.7, 1.25))));
+    const stagger = stripIndex++ % 2 === 1 ? 0.5 : 0;
     for (let i = 1; i <= stubCount; i++) {
-      const t = (i + rng.range(-0.12, 0.12)) / (stubCount + 1);
+      const t = (i + stagger + rng.range(-0.28, 0.28)) / (stubCount + 1);
       if (t <= 0.08 || t >= 0.92) continue;
       const origin = add(long.a, scale(sub(long.b, long.a), t));
       if (!core) {
@@ -178,6 +203,37 @@ function infillBlocks(
       if (pushLane(snapped[0], snapped[1])) regions = partition(regions, lanes[lanes.length - 1], laneWidth, lotArea);
     }
   }
+
+  for (const lane of lanes) {
+    const a0 = lane[0],
+      a1 = lane[lane.length - 1];
+    const axis = unit(sub(a1, a0));
+    for (const i of [0, lane.length - 1]) {
+      let best: Point | null = null,
+        bestDist = 6;
+      for (const other of lanes) {
+        if (other === lane || other.length < 2) continue;
+        const otherAxis = unit(sub(other[other.length - 1], other[0]));
+        if (Math.abs(dot(axis, otherAxis)) > 0.92) continue;
+        if (distance(a0, a1) > distance(other[0], other[other.length - 1]) + 4) continue;
+        const hit = nearestOnPolyline(lane[i], other);
+        if (hit.dist < bestDist) {
+          best = hit.point;
+          bestDist = hit.dist;
+        }
+      }
+      if (best) lane[i] = best;
+    }
+    if (distance(lane[0], lane[lane.length - 1]) < 6) {
+      lane[0] = a0;
+      lane[lane.length - 1] = a1;
+    }
+  }
+  for (let i = lanes.length - 1; i >= 0; i--)
+    if (distance(lanes[i][0], lanes[i][lanes[i].length - 1]) < 1) lanes.splice(i, 1);
+  joinStreetComponents(lanes, span);
+  regions = [polygon];
+  for (const lane of lanes) regions = partition(regions, lane, laneWidth, lotArea);
 
   if (!build) return { lanes, buildings: [] };
   const access = [
@@ -201,7 +257,14 @@ function infillBlocks(
       { lotArea, coverage, occupancy: localOccupancy, outskirts: !core },
       rng
     )) {
-      if (streetFront(footprint, access)) buildings.push(footprint);
+      if (!streetFront(footprint, access)) continue;
+      if (
+        access.some(
+          l => l.widthMeters > 0 && footprint.some(p => nearestOnPolyline(p, l.points).dist < l.widthMeters / 2 - 1e-4)
+        )
+      )
+        continue;
+      buildings.push(footprint);
     }
   }
   return { lanes, buildings };
@@ -343,6 +406,46 @@ function parallelDuplicate(line: Point[], lanes: Point[][], minDist: number): bo
   });
 }
 
+function joinStreetComponents(lanes: Point[][], limit: number): void {
+  const linked = (a: Point[], b: Point[]) =>
+    !!segmentSegmentHit(a[0], a[a.length - 1], b[0], b[b.length - 1]) ||
+    a.some(p => nearestOnPolyline(p, b).dist < 1e-5) ||
+    b.some(p => nearestOnPolyline(p, a).dist < 1e-5);
+  const components = () => {
+    const seen = new Set<number>();
+    const groups: number[][] = [];
+    for (let i = 0; i < lanes.length; i++) {
+      if (seen.has(i) || lanes[i].length < 2) continue;
+      const q = [i];
+      seen.add(i);
+      for (let k = 0; k < q.length; k++)
+        for (let j = 0; j < lanes.length; j++)
+          if (!seen.has(j) && lanes[j].length >= 2 && linked(lanes[q[k]], lanes[j])) {
+            seen.add(j);
+            q.push(j);
+          }
+      groups.push(q);
+    }
+    return groups;
+  };
+  for (let n = 0; n < 12; n++) {
+    const groups = components();
+    if (groups.length <= 1) return;
+    let best: { a: Point; b: Point; dist: number } | null = null;
+    for (let i = 0; i < groups.length; i++)
+      for (let j = i + 1; j < groups.length; j++)
+        for (const ia of groups[i])
+          for (const ib of groups[j])
+            for (const p of [lanes[ia][0], lanes[ia][lanes[ia].length - 1]]) {
+              const hit = nearestOnPolyline(p, lanes[ib]);
+              if (hit.dist > 1e-5 && hit.dist < (best ? best.dist : limit) && distance(p, hit.point) >= 1)
+                best = { a: p, b: hit.point, dist: hit.dist };
+            }
+    if (!best) return;
+    lanes.push([best.a, best.b]);
+  }
+}
+
 function farther(a: Point, b: Point, origin: Point, dir: Point): Point {
   return dot(sub(a, origin), dir) >= dot(sub(b, origin), dir) ? a : b;
 }
@@ -361,11 +464,23 @@ function regionFronts(
     ...roads.map(points => ({ points, widthMeters: 0 })),
     ...collectors.map(points => ({ points, widthMeters: laneWidth }))
   ];
-  return accessibleFronts(region, access).map(i => {
+  const fronts: { a: Point; b: Point; length: number }[] = [];
+  for (let i = 0; i < region.length; i++) {
     const a = region[i],
       b = region[(i + 1) % region.length];
-    return { a, b, length: distance(a, b) };
-  });
+    const length = distance(a, b);
+    if (length < 8) continue;
+    const facing = access.some(l => {
+      const hit = nearestOnPolyline(mid(a, b), l.points);
+      const c = l.points[hit.segIndex],
+        d = l.points[hit.segIndex + 1];
+      const roadLength = distance(c, d);
+      if (hit.dist > l.widthMeters / 2 + 1.2 || roadLength < 1e-6) return false;
+      return Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 0.08;
+    });
+    if (facing) fronts.push({ a, b, length });
+  }
+  return fronts;
 }
 
 function streetFront(poly: Point[], roads: { points: Point[]; widthMeters: number }[]): boolean {

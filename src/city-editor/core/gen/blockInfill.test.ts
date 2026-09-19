@@ -78,6 +78,7 @@ describe("coarse-cell infill", () => {
     expect(seen.size).toBe(segments.length);
     for (const building of fabric.buildings) {
       expect(building.polygon.every(p => pointInPolygon(p, rect))).toBe(true);
+      expect(building.polygon).toHaveLength(4);
       expect(Math.min(...building.polygon.map(p => p[0]))).toBeGreaterThan(7);
       // Houses may front either an internal lane or the real road at x=0.
       const laneDistance = Math.min(...building.polygon.flatMap(p => segments.map(s => nearestOnPolyline(p, s).dist)));

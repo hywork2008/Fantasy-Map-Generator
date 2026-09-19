@@ -290,7 +290,7 @@ function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabr
   });
   const key = ctx.options
     ? JSON.stringify([
-        "outskirts-union-v1",
+        "outskirts-union-v2",
         ctx.options.seed,
         ids,
         ids.map(id => mesh.faces[id].properties),
@@ -356,7 +356,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   });
   const key = ctx.options
     ? JSON.stringify([
-        outskirts ? "outskirts-face-v1" : "district-infill-v5",
+        outskirts ? "outskirts-face-v2" : "district-infill-v7",
         ctx.options.seed,
         id,
         face.properties,

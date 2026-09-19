@@ -198,9 +198,9 @@ describe("multi-cell district fabric", () => {
           // segment endpoint; both ends still lie on the same offset line.
           const middle: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
           return (
-            Math.abs(offset(a) - offset(b)) < 1e-5 &&
-            Math.abs(offset(a) - l.widthMeters / 2 - 0.5) < 1e-5 &&
-            nearestOnPolyline(middle, l.points).dist < l.widthMeters / 2 + 0.6
+            Math.abs(offset(a) - offset(b)) < 0.08 &&
+            Math.abs(offset(a) - l.widthMeters / 2 - 0.5) < 0.45 &&
+            nearestOnPolyline(middle, l.points).dist < l.widthMeters / 2 + 0.8
           );
         });
       });
