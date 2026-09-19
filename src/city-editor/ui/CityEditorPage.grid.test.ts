@@ -93,7 +93,8 @@ describe("Document panel — Grid evolution (Phase G1)", () => {
 
   it("「採用」 replaces the mesh with the shown stage and undo restores the old grid", () => {
     const before = faceCount();
-    preview();
+    drag(paramSlider(0), "8");
+    expect(gridSlider().disabled).toBe(false);
     docButton("この格子を採用").click();
     const after = faceCount();
     expect(after).toBeGreaterThan(3);
@@ -154,32 +155,34 @@ describe("Document panel — new-city grid kind", () => {
       pathPointCount(el.getAttribute("d") ?? "")
     );
 
-  it("lists Tiny (half of Small) before Small / Medium / Large", () => {
+  it("lists Tiny (half of Small) before Small / Medium / Large and selects Tiny", () => {
     const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
     expect([...sizeSelect.options].map(option => option.value)).toEqual(["tiny", "small", "medium", "large"]);
-    expect(sizeSelect.value).toBe("small");
-    expect(sizeSelect.selectedOptions[0]?.textContent).toContain("1.2 km");
-    expect([...sizeSelect.options].find(option => option.value === "tiny")?.textContent).toContain("0.6 km");
+    expect(sizeSelect.value).toBe("tiny");
+    expect(sizeSelect.selectedOptions[0]?.textContent).toContain("0.6 km");
+    expect([...sizeSelect.options].find(option => option.value === "small")?.textContent).toContain("1.2 km");
   });
 
-  it("🆕 at Tiny builds a window about a quarter of Small's cell count", () => {
+  it("🆕 at Small hex builds a window with several times Tiny hex's cells", () => {
     const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
-    const smallFaces = faceCount();
-    sizeSelect.value = "tiny";
-    sizeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    chooseGrid("hex");
     newGrid();
     const tinyFaces = faceCount();
+    sizeSelect.value = "small";
+    sizeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    newGrid();
+    const smallFaces = faceCount();
     expect(tinyFaces).toBeGreaterThan(20);
-    expect(tinyFaces).toBeLessThan(smallFaces * 0.5);
+    expect(smallFaces).toBeGreaterThan(tinyFaces * 2);
   });
 
-  it("defaults to hexagonal, with the hex-size slider visible", () => {
-    expect(gridKindSelect().value).toBe("hex");
-    expect(hexSizeLabel().hidden).toBe(false);
-    expect(hexSizeSlider().value).toBe("50");
-    const counts = facePointCounts();
-    const hexes = counts.filter(n => n === 6).length;
-    expect(hexes).toBeGreaterThan(counts.length * 0.5);
+  it("defaults to Grid evolution, with the hex-size slider hidden", () => {
+    expect(gridKindSelect().value).toBe("evolution");
+    expect(hexSizeLabel().hidden).toBe(true);
+    expect(getComputedStyle(hexSizeLabel()).display).toBe("none");
+    const faces = faceCount();
+    expect(faces).toBeGreaterThan(20);
+    expect(faces).toBeLessThan(200);
   });
 
   it("hides the hex-size slider for Voronoi and Grid evolution", () => {
@@ -194,27 +197,30 @@ describe("Document panel — new-city grid kind", () => {
     expect(getComputedStyle(hexSizeLabel()).display).not.toBe("none");
   });
 
-  it("🆕 with Voronoi replaces the hex mesh with an irregular grid", () => {
-    const hexFaces = faceCount();
+  it("🆕 with Voronoi replaces the evolution mesh with an irregular grid", () => {
+    const before = faceCount();
     chooseGrid("voronoi");
     newGrid();
     const after = faceCount();
-    expect(after).toBeGreaterThan(400);
-    expect(after).not.toBe(hexFaces);
+    expect(after).toBeGreaterThan(20);
+    expect(after).not.toBe(before);
     const counts = facePointCounts();
     const hexes = counts.filter(n => n === 6).length;
     expect(hexes).toBeLessThan(counts.length * 0.5);
   });
 
-  it("🆕 with Grid evolution uses the spiral-scatter mesh (same family as 「採用」)", () => {
-    chooseGrid("evolution");
+  it("🆕 with Hexagonal tiles regular flat-top hexes", () => {
+    chooseGrid("hex");
     newGrid();
-    const after = faceCount();
-    expect(after).toBeGreaterThan(20);
-    expect(after).toBeLessThan(200);
+    expect(hexSizeLabel().hidden).toBe(false);
+    expect(hexSizeSlider().value).toBe("50");
+    const counts = facePointCounts();
+    const hexes = counts.filter(n => n === 6).length;
+    expect(hexes).toBeGreaterThan(counts.length * 0.5);
   });
 
   it("the hex-size slider changes generated cell count", () => {
+    chooseGrid("hex");
     drag(hexSizeSlider(), "80");
     newGrid();
     const coarse = faceCount();

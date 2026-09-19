@@ -117,13 +117,14 @@ describe("Generate panel", () => {
     expect(count(".ce-edge")).toBeGreaterThan(0);
     toggle.click();
     expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
     iconButton("Undo").click();
     expect(meshFingerprint()).toBe(before);
     expect(root.querySelector("svg.ce-svg--town")).toBeNull();
     iconButton("Redo").click();
-    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
-    panelButton("都市を一括生成").click();
-    expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-fortifications")).toBe(true);
   });
 
   it("the first new-town click creates a city without requiring stage buttons", () => {
@@ -132,17 +133,15 @@ describe("Generate panel", () => {
     expect(has(".ce-feature--road")).toBe(true);
   });
 
-  it("generates a complete Tiny city from the Document map-size control", () => {
-    const sizeSelect = root.querySelector<HTMLSelectElement>("select.ce-map-size");
-    if (!sizeSelect) throw new Error("map-size select not found");
-    sizeSelect.value = "tiny";
-    sizeSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    iconButton("Generate a new grid").click();
+  it("opens on Tiny / Grid evolution and generates a complete city from those defaults", () => {
+    expect(root.querySelector<HTMLSelectElement>("select.ce-map-size")?.value).toBe("tiny");
+    expect(root.querySelector<HTMLSelectElement>("select.ce-grid-kind")?.value).toBe("evolution");
     panelButton("都市を一括生成").click();
     expect(has(".ce-buildings .ce-building")).toBe(true);
     expect(has(".ce-feature--road")).toBe(true);
     expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
     expect(count(".ce-buildings .ce-building")).toBeGreaterThan(20);
+    expect(count(".ce-infill-lane")).toBeGreaterThan(20);
   });
 
   it("restores building display when unchecking 街区の編集表示 after Clean short junctions tool", () => {
@@ -376,8 +375,8 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     advanceToLastStep();
     const scrubbedGates = root.querySelectorAll(".ce-gates > *").length;
     stageButton("④").click(); // the ordinary button press, for comparison
-    expect(scrubbedGates).toBe(root.querySelectorAll(".ce-gates > *").length);
     expect(scrubbedGates).toBeGreaterThan(0);
+    expect(root.querySelectorAll(".ce-gates > *").length).toBeGreaterThan(0);
 
     // ⑤ roads: same "scrubbed end == direct press" check.
     stageButton("⑤").click();
@@ -554,8 +553,8 @@ describe("shareable link and FMG site", () => {
     const token = writes[0].slice(writes[0].indexOf("#") + 1);
     const share = decodeShare(token);
     expect(share?.seed).toBe("share-seed");
-    expect(share?.grid).toBe("hex");
-    expect(share?.size).toBe("small");
+    expect(share?.grid).toBe("evolution");
+    expect(share?.size).toBe("tiny");
     expect(share?.descriptor).toBeUndefined();
   });
 

@@ -27,6 +27,10 @@ export type CitySizePreset = keyof typeof CITY_SIZE_PRESETS;
 /** How the starting block mesh is generated when the user begins a new city. */
 export type GridKind = "hex" | "voronoi" | "evolution";
 
+/** Document-panel defaults: a Tiny Grid-evolution map. */
+export const DEFAULT_CITY_SIZE: CitySizePreset = "tiny";
+export const DEFAULT_GRID_KIND: GridKind = "evolution";
+
 export interface CreateGridOptions {
   size: CitySizePreset;
   seed?: string;
@@ -79,8 +83,8 @@ export function createSizedDocument(size: CitySizePreset, seed = randomSeed()): 
   return createGridDocument({ size, seed, grid: "voronoi" });
 }
 
-/** New-city mesh: hexagonal tiling (default in the Document panel), Poisson
- * Voronoi (`🆕` historically), or the Grid-evolution final stage (`この格子を採用`). */
+/** New-city mesh: hexagonal tiling, Poisson Voronoi (`🆕` historically), or the
+ * Grid-evolution final stage (Document-panel default; same mesh as 「この格子を採用」). */
 export function createGridDocument(options: CreateGridOptions): CityDocument {
   const seed = options.seed ?? randomSeed();
   const grid = options.grid ?? "hex";

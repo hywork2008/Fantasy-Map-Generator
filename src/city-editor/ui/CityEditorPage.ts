@@ -1,5 +1,12 @@
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
-import { CITY_SIZE_PRESETS, type CitySizePreset, createGridDocument, type GridKind } from "../core/document";
+import {
+  CITY_SIZE_PRESETS,
+  type CitySizePreset,
+  createGridDocument,
+  DEFAULT_CITY_SIZE,
+  DEFAULT_GRID_KIND,
+  type GridKind
+} from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
 import {
   appendEdge,
@@ -155,8 +162,8 @@ interface FloatingWindow {
 }
 
 export function mountCityEditor(root: HTMLElement): void {
-  let documentState = createGridDocument({ size: "small", grid: "hex" });
-  let gridKind: GridKind = "hex";
+  let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND });
+  let gridKind: GridKind = DEFAULT_GRID_KIND;
   let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
   let history = new DocumentHistory(documentState);
   // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
@@ -357,13 +364,13 @@ export function mountCityEditor(root: HTMLElement): void {
     paintButtons.set(kind, paintButton);
     paintGrid.appendChild(paintButton);
   }
-  const size = select(Object.keys(CITY_SIZE_PRESETS), "small");
+  const size = select(Object.keys(CITY_SIZE_PRESETS), DEFAULT_CITY_SIZE);
   size.className = "ce-map-size";
   for (const option of [...size.options]) {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
     option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km`;
   }
-  const gridKindSelect = select(["hex", "voronoi", "evolution"], "hex");
+  const gridKindSelect = select(["hex", "voronoi", "evolution"], DEFAULT_GRID_KIND);
   gridKindSelect.className = "ce-grid-kind";
   for (const option of [...gridKindSelect.options]) {
     option.textContent =
