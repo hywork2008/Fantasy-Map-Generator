@@ -210,24 +210,51 @@ function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions
   rowDepth = high;
   const ordered = fronts.slice().sort((a, b) => b.length - a.length);
   const first = ordered[0];
+  let opposite: Front | undefined;
   if (first) {
-    const opposite = ordered.slice(1).sort((a, b) => dot(a.inward, first.inward) - dot(b.inward, first.inward))[0];
-    if (opposite) ordered.splice(1, 0, ordered.splice(ordered.indexOf(opposite), 1)[0]);
+    const candidates = ordered.slice(1).sort((a, b) => dot(a.inward, first.inward) - dot(b.inward, first.inward));
+    if (candidates.length && dot(candidates[0].inward, first.inward) < -0.35) {
+      opposite = candidates[0];
+      ordered.splice(ordered.indexOf(opposite), 1);
+      ordered.splice(1, 0, opposite);
+    }
   }
+  const localY = first ? block.map(p => dot([p[0] - first.a[0], p[1] - first.a[1]], first.inward)) : [0];
+  const span = Math.max(...localY);
+  const backToBack = Boolean(opposite && span <= 45);
+
   let unassigned = block;
   for (const front of ordered) {
-    const sector = unassigned;
+    let sector = unassigned;
+    let targetDepth = rowDepth;
+    if (backToBack && (front === first || front === opposite)) {
+      // In ribbon blocks, pair opposite street fronts along their Voronoi bisector.
+      // Buildings meet back-to-back in the block interior instead of hollowing out
+      // an artificial central donut hole.
+      const other = front === first ? opposite! : first!;
+      const normal: Point = [front.inward[0] - other.inward[0], front.inward[1] - other.inward[1]];
+      const offset = front.offset - other.offset;
+      sector = clipHalfPlane(sector, normal, offset);
+      targetDepth = span;
+    }
     const local = sector.map(p => {
       const delta: Point = [p[0] - front.a[0], p[1] - front.a[1]];
       return [dot(delta, front.axis), dot(delta, front.inward)] as Point;
     });
-    const band = clipHalfPlane(local, [0, 1], rowDepth);
+    const band = clipHalfPlane(local, [0, 1], targetDepth);
     if (band.length < 3 || area(band) < 35) continue;
     const depth = Math.max(...band.map(p => p[1]));
     const frontY = 1e-5;
     const streetXs = band.filter(p => Math.abs(p[1]) < 1e-6).map(p => p[0]);
     if (streetXs.length < 2) continue;
-    unassigned = clipHalfPlane(unassigned, [-front.inward[0], -front.inward[1]], -front.offset - rowDepth);
+    if (backToBack && (front === first || front === opposite)) {
+      const other = front === first ? opposite! : first!;
+      const normal: Point = [other.inward[0] - front.inward[0], other.inward[1] - front.inward[1]];
+      const offset = other.offset - front.offset;
+      unassigned = clipHalfPlane(unassigned, normal, offset);
+    } else {
+      unassigned = clipHalfPlane(unassigned, [-front.inward[0], -front.inward[1]], -front.offset - targetDepth);
+    }
     const streetStart = Math.min(...band.map(p => p[0]));
     const streetLength = Math.max(...band.map(p => p[0])) - streetStart;
     const width = Math.max(

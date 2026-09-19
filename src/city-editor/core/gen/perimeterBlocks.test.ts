@@ -131,6 +131,31 @@ describe("dense perimeter blocks", () => {
     }
   });
 
+  it("packs ribbon blocks back-to-back across the spine without leaving a central donut hole", () => {
+    // A typical medieval ribbon block: 70m long, 30m wide (thickness for two houses back-to-back)
+    const ribbon: Point[] = [
+      [0, 0],
+      [70, 0],
+      [70, 30],
+      [0, 30]
+    ];
+    const buildings = houses(ribbon);
+    // Center point of the ribbon block: (35, 15).
+    // In a donut packing, the center (35, 15) would fall in a hollow open courtyard.
+    // In back-to-back packing, buildings meet along the spine (y = 15).
+    const topRow = buildings.filter(p => p.some(q => q[1] > 15));
+    const bottomRow = buildings.filter(p => p.some(q => q[1] < 15));
+    expect(topRow.length).toBeGreaterThan(4);
+    expect(bottomRow.length).toBeGreaterThan(4);
+    // Buildings should reach right up to the central spine (y ≈ 15) from both sides
+    const maxBottomDepth = Math.max(...bottomRow.flatMap(p => p.map(q => q[1])));
+    const minTopDepth = Math.min(...topRow.flatMap(p => p.map(q => q[1])));
+    expect(maxBottomDepth).toBeGreaterThanOrEqual(14.5);
+    expect(minTopDepth).toBeLessThanOrEqual(15.5);
+    // No central open donut cavity across the block width
+    expect(buildings.reduce((sum, p) => sum + area(p), 0) / area(ribbon)).toBeGreaterThan(0.75);
+  });
+
   it("retains density, containment and non-overlap on rotated and oblique blocks of either winding", () => {
     const oblique: Point[] = [
       [0, 0],
