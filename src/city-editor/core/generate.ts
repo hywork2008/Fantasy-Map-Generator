@@ -440,13 +440,11 @@ function generateCityAttempt(
     g => [g.point, plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0]] as Point[]
   );
   const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
-  const extras = plan.streets
-    .filter(line => {
-      const a = line[0],
-        b = line[line.length - 1];
-      return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
-    })
-    .map(line => [line[0], line[line.length - 1]] as Point[]);
+  const extras = plan.streets.filter(line => {
+    const a = line[0],
+      b = line[line.length - 1];
+    return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
+  });
   const streets = [...star, ...extras];
   const roads: Point[][] = plan.gates.map((gate, i) => [
     farNodeFor(
@@ -1329,14 +1327,55 @@ function applyPlan(
     // either route for a gate that did not actually make it onto the mesh.
     const approachRoadCount = plan.roads.length - plan.streets.length;
     plan.roads.forEach((polyline, i) => {
-      const gateIndex = i < approachRoadCount ? i : i - approachRoadCount;
-      // Walled towns drop a route whose gate never made it onto the mesh.
-      // Unwalled towns have no gates; still draw the planned approach roads.
-      if (complete && program.walls && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`)) return;
+      const isApproach = i < approachRoadCount;
+      if (isApproach) {
+        // Walled towns drop a route whose gate never made it onto the mesh.
+        // Unwalled towns have no gates; still draw the planned approach roads.
+        if (complete && program.walls && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${i}`)) return;
+      }
       const segments = routeComplete
-        ? routeComplete(polyline, i < plan.roads.length - plan.streets.length)
+        ? routeComplete(polyline, isApproach)
         : longestUnbannedRun(polylineToEdgeRefs(mesh, polyline, nearestAfter), banned);
       if (segments.length < 1) return;
+      if (!isApproach && program.walls) {
+        const wallEdges = kindEdgeIds(next, "wall");
+        const wallVertices = new Set([...wallEdges].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
+        const gateVertices = new Set(next.gates.map(g => g.vertexId));
+        const segStart = (seg: (typeof segments)[0]) => {
+          const e = mesh.edges[seg.edgeId];
+          return seg.forward ? e.a : e.b;
+        };
+        const segEnd = (seg: (typeof segments)[0]) => {
+          const e = mesh.edges[seg.edgeId];
+          return seg.forward ? e.b : e.a;
+        };
+        while (segments.length > 1) {
+          const startV = segStart(segments[0]);
+          if (wallVertices.has(startV) && !gateVertices.has(startV)) {
+            segments.shift();
+          } else {
+            break;
+          }
+        }
+        while (segments.length > 1) {
+          const endV = segEnd(segments[segments.length - 1]);
+          if (wallVertices.has(endV) && !gateVertices.has(endV)) {
+            segments.pop();
+          } else {
+            break;
+          }
+        }
+        if (segments.length === 1) {
+          const startV = segStart(segments[0]);
+          const endV = segEnd(segments[0]);
+          if (
+            (wallVertices.has(startV) && !gateVertices.has(startV)) ||
+            (wallVertices.has(endV) && !gateVertices.has(endV))
+          ) {
+            return;
+          }
+        }
+      }
       appendGeneratedGroup({
         id: `${GEN_PREFIX}road-${i}`,
         kind: "road",
@@ -1413,7 +1452,47 @@ function applyPlan(
       if (group.locked || group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
       const routeIndex = Number(group.id.slice(`${GEN_PREFIX}road-`.length));
       if (!Number.isInteger(routeIndex)) return true;
-      return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
+      if (routeIndex < plan.gates.length * 2) {
+        return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
+      }
+      return true;
+    });
+  }
+
+  // Trim or remove any road endpoints that terminate on curtain wall vertices without a gate.
+  if (complete && program.walls) {
+    const wallEdges = kindEdgeIds(next, "wall");
+    const wallVertices = new Set([...wallEdges].flatMap(id => [next.mesh.edges[id].a, next.mesh.edges[id].b]));
+    const gateVertices = new Set(next.gates.map(g => g.vertexId));
+
+    next.featureGroups = next.featureGroups.flatMap(group => {
+      if (group.locked || group.kind !== "road" || !group.id.startsWith(GEN_PREFIX)) return [group];
+      const segments = [...group.segments];
+      const segStart = (seg: (typeof segments)[0]) => {
+        const e = next.mesh.edges[seg.edgeId];
+        return seg.forward ? e.a : e.b;
+      };
+      const segEnd = (seg: (typeof segments)[0]) => {
+        const e = next.mesh.edges[seg.edgeId];
+        return seg.forward ? e.b : e.a;
+      };
+      while (segments.length > 0) {
+        const startV = segStart(segments[0]);
+        if (wallVertices.has(startV) && !gateVertices.has(startV)) {
+          segments.shift();
+        } else {
+          break;
+        }
+      }
+      while (segments.length > 0) {
+        const endV = segEnd(segments[segments.length - 1]);
+        if (wallVertices.has(endV) && !gateVertices.has(endV)) {
+          segments.pop();
+        } else {
+          break;
+        }
+      }
+      return segments.length > 0 ? [{ ...group, segments }] : [];
     });
   }
 

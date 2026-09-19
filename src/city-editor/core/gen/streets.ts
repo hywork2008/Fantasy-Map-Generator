@@ -319,7 +319,7 @@ export function buildStreets(input: StreetInputs): StreetResult {
     }
     const span = urbanSpan(cells, urban);
     const spacing = Math.max(50, Math.min(80, cellSizeMeters * 1.4));
-    const offsets = Math.min(2, Math.max(0, Math.floor(span / (2 * spacing))));
+    const offsets = Math.min(4, Math.max(0, Math.floor(span / (2 * spacing))));
     for (const axis of axes) {
       const start = axis[0],
         end = axis[axis.length - 1];
