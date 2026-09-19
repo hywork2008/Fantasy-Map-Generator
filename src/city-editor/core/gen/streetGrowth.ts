@@ -1,5 +1,5 @@
-// Extra-mural collectors and stubs. These lines never become mesh edges: they
-// only split a working polygon so frontage packing can treat the pieces as blocks.
+// Collector and stub streets. These lines never become mesh edges: they only
+// split a working polygon so frontage packing can treat the pieces as blocks.
 import type { Point } from "../types";
 import { frontageBuildings } from "./frontageBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
@@ -17,13 +17,17 @@ const unit = (a: Point): Point => {
   return [a[0] / n, a[1] / n];
 };
 
-export interface OutskirtsInfillOptions {
+export interface BlockInfillOptions {
   lotArea: number;
   laneWidth: number;
   coverage: number;
   occupancy: number;
   build: boolean;
+  kind?: "core" | "outskirts";
+  orientation?: number;
 }
+
+export type OutskirtsInfillOptions = BlockInfillOptions;
 
 export interface OutskirtsInfill {
   lanes: Point[][];
@@ -31,21 +35,48 @@ export interface OutskirtsInfill {
 }
 
 /** Street-to-street spacing: two house rows, a lane, and a shared yard. */
+export function blockSpan(lotArea: number, laneWidth: number, kind: "core" | "outskirts" = "outskirts"): number {
+  const row = Math.sqrt(Math.max(80, lotArea)) * (kind === "core" ? 1.65 : 1.15);
+  return kind === "core"
+    ? Math.min(70, Math.max(40, 2 * row + laneWidth + 8))
+    : Math.min(88, Math.max(42, 2 * row + laneWidth + 20));
+}
+
 export function outskirtsBlockSpan(lotArea: number, laneWidth: number): number {
-  const row = Math.sqrt(Math.max(80, lotArea)) * 1.15;
-  return Math.min(88, Math.max(42, 2 * row + laneWidth + 20));
+  return blockSpan(lotArea, laneWidth, "outskirts");
 }
 
 export function infillOutskirts(
   polygon: Point[],
   roadFrontages: Point[][],
   entries: Point[],
-  options: OutskirtsInfillOptions,
+  options: BlockInfillOptions,
   rng: Rng
 ): OutskirtsInfill {
-  const { lotArea, laneWidth, coverage, occupancy, build } = options;
+  return infillBlocks(polygon, roadFrontages, entries, { ...options, kind: "outskirts" }, rng);
+}
+
+export function infillCore(
+  polygon: Point[],
+  roadFrontages: Point[][],
+  entries: Point[],
+  options: BlockInfillOptions,
+  rng: Rng
+): OutskirtsInfill {
+  return infillBlocks(polygon, roadFrontages, entries, { ...options, kind: "core" }, rng);
+}
+
+function infillBlocks(
+  polygon: Point[],
+  roadFrontages: Point[][],
+  entries: Point[],
+  options: BlockInfillOptions,
+  rng: Rng
+): OutskirtsInfill {
+  const { lotArea, laneWidth, coverage, occupancy, build, orientation } = options;
+  const core = options.kind === "core";
   if (polygon.length < 3 || Math.abs(polygonArea(polygon)) < 65) return { lanes: [], buildings: [] };
-  const span = outskirtsBlockSpan(lotArea, laneWidth);
+  const span = blockSpan(lotArea, laneWidth, core ? "core" : "outskirts");
   const seeds = seedEdges(polygon, roadFrontages, entries);
   const lanes: Point[][] = [];
   const pushLane = (a: Point, b: Point): Point[] | null => {
@@ -58,21 +89,66 @@ export function infillOutskirts(
     lanes.push(lane);
     return lane;
   };
+  const gridTangent = (tangent: Point): Point => {
+    if (orientation === undefined) return tangent;
+    const axis: Point = [Math.cos(orientation), Math.sin(orientation)];
+    const across: Point = [-axis[1], axis[0]];
+    return Math.abs(dot(tangent, axis)) >= Math.abs(dot(tangent, across)) ? axis : across;
+  };
 
   let regions = [polygon];
+  const cutFrom = (origin: Point, tangent: Point, inward: Point): void => {
+    const line = chord(polygon, tangent, dot(origin, tangent));
+    if (!line) return;
+    const far = farther(line[0], line[1], origin, inward);
+    const start = nearer(line[0], line[1], origin);
+    const hit = firstHit(start, far, lanes, 6);
+    const end = hit && distance(start, hit) > 8 ? hit : far;
+    if (pushLane(start, end)) regions = partition(regions, lanes[lanes.length - 1], laneWidth, lotArea);
+  };
   for (const seed of seeds) {
+    const tangent = gridTangent(seed.tangent);
     const count = Math.max(1, Math.floor((seed.length - 8) / span));
     for (let i = 0; i < count; i++) {
       const t = count === 1 ? 0.5 : (i + 0.38 + rng.range(0, 0.24)) / count;
       const origin = add(seed.a, scale(sub(seed.b, seed.a), Math.min(0.86, Math.max(0.14, t))));
-      const line = chord(polygon, seed.tangent, dot(origin, seed.tangent));
-      if (!line) continue;
-      const far = farther(line[0], line[1], origin, seed.inward);
-      const start = nearer(line[0], line[1], origin);
-      const hit = firstHit(start, far, lanes, 6);
-      const end = hit && distance(start, hit) > 8 ? hit : far;
-      if (pushLane(start, end)) regions = partition(regions, lanes[lanes.length - 1], laneWidth, lotArea);
+      cutFrom(origin, tangent, seed.inward);
     }
+  }
+
+  const ring = [...polygon, polygon[0]];
+  const onRoad = (p: Point) => roadFrontages.some(r => nearestOnPolyline(p, r).dist < 2);
+  const interior = entries.filter(e => !onRoad(nearestOnPolyline(e, ring).point));
+  // A part reached only through seams has no road-seeded grid. One street along
+  // the long axis lets multiple portals share a collector instead of two short
+  // perpendicular stubs that never meet.
+  if (!roadFrontages.length && interior.length >= 2) {
+    const xs = polygon.map(p => p[0]),
+      ys = polygon.map(p => p[1]);
+    const axis = gridTangent(Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? [0, 1] : [1, 0]);
+    const line = chord(polygon, axis, dot(polygonCentroid(polygon), axis));
+    if (line && distance(line[0], line[1]) >= 8 && pushLane(line[0], line[1]))
+      regions = partition(regions, lanes[lanes.length - 1], laneWidth, lotArea);
+  }
+
+  // Seam portals join the local grid and keep the shared midpoint as an endpoint
+  // so neighbouring convex pieces meet. Road-frontage entries already open onto
+  // a major road and must not add a dangling setback stub.
+  const grid = seeds[0] ? gridTangent(seeds[0].tangent) : undefined;
+  for (const entry of interior) {
+    const hit = nearestOnPolyline(entry, ring);
+    const a = polygon[hit.segIndex],
+      b = polygon[(hit.segIndex + 1) % polygon.length];
+    const along = edgeSeed(a, b, polygon);
+    const tangent = grid ?? (along ? gridTangent(along.tangent) : undefined);
+    if (tangent && along && !lanes.some(l => nearestOnPolyline(hit.point, l).dist < 8))
+      cutFrom(hit.point, tangent, along.inward);
+    const attach =
+      snap(hit.point, lanes, 8) ??
+      snap(entry, lanes, span) ??
+      (lanes.length ? nearestOnPolyline(entry, lanes[0]).point : hit.point);
+    if (distance(entry, attach) >= 1e-5 && !lanes.some(l => nearestOnPolyline(entry, l).dist < 1e-5))
+      lanes.push([entry, attach]);
   }
 
   const collectors = lanes.slice();
@@ -81,19 +157,21 @@ export function infillOutskirts(
     const fronts = regionFronts(region, collectors, roadFrontages, laneWidth);
     if (!fronts.length) continue;
     const long = fronts.sort((a, b) => b.length - a.length)[0];
-    const axis = unit(sub(long.b, long.a));
+    const axis = gridTangent(unit(sub(long.b, long.a)));
     const depth = Math.abs(polygonArea(region)) / Math.max(long.length, 1);
-    if (depth < span * 0.55) continue;
+    if (depth < span * (core ? 0.7 : 0.55)) continue;
     const stubCount = Math.max(0, Math.floor((long.length - 8) / span));
     for (let i = 1; i <= stubCount; i++) {
       const t = (i + rng.range(-0.12, 0.12)) / (stubCount + 1);
       if (t <= 0.08 || t >= 0.92) continue;
       const origin = add(long.a, scale(sub(long.b, long.a), t));
-      const fromRoad = roadFrontages.length
-        ? Math.min(...roadFrontages.map(r => nearestOnPolyline(origin, r).dist))
-        : 0;
-      const keep = 0.42 + 0.5 / (1 + Math.max(0, fromRoad - span) / (span * 3));
-      if (rng() > keep) continue;
+      if (!core) {
+        const fromRoad = roadFrontages.length
+          ? Math.min(...roadFrontages.map(r => nearestOnPolyline(origin, r).dist))
+          : 0;
+        const keep = 0.42 + 0.5 / (1 + Math.max(0, fromRoad - span) / (span * 3));
+        if (rng() > keep) continue;
+      }
       const line = chord(region, axis, dot(origin, axis));
       if (!line || distance(line[0], line[1]) < 8) continue;
       const snapped = line.map(p => snap(p, [...collectors, ...roadFrontages], laneWidth + 0.4) ?? p) as [Point, Point];
@@ -110,13 +188,21 @@ export function infillOutskirts(
   for (const region of regions) {
     const fronts = accessibleFronts(region, access);
     if (!fronts.length) continue;
-    const centroid = polygonCentroid(region);
-    const far = roadFrontages.length ? Math.min(...roadFrontages.map(r => nearestOnPolyline(centroid, r).dist)) : 0;
-    const fall = 1 / (1 + Math.max(0, far - span) / (span * 3.2));
-    const localOccupancy = Math.max(0.22, occupancy * (0.38 + 0.62 * fall));
-    buildings.push(
-      ...frontageBuildings(region, fronts, { lotArea, coverage, occupancy: localOccupancy, outskirts: true }, rng)
-    );
+    let localOccupancy = occupancy;
+    if (!core) {
+      const centroid = polygonCentroid(region);
+      const far = roadFrontages.length ? Math.min(...roadFrontages.map(r => nearestOnPolyline(centroid, r).dist)) : 0;
+      const fall = 1 / (1 + Math.max(0, far - span) / (span * 3.2));
+      localOccupancy = Math.max(0.22, occupancy * (0.38 + 0.62 * fall));
+    }
+    for (const footprint of frontageBuildings(
+      region,
+      fronts,
+      { lotArea, coverage, occupancy: localOccupancy, outskirts: !core },
+      rng
+    )) {
+      if (streetFront(footprint, access)) buildings.push(footprint);
+    }
   }
   return { lanes, buildings };
 }
@@ -280,6 +366,30 @@ function regionFronts(
       b = region[(i + 1) % region.length];
     return { a, b, length: distance(a, b) };
   });
+}
+
+function streetFront(poly: Point[], roads: { points: Point[]; widthMeters: number }[]): boolean {
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i],
+      b = poly[(i + 1) % poly.length];
+    if (distance(a, b) < 3) continue;
+    if (
+      roads.some(l => {
+        const limit = l.widthMeters / 2 + 0.6;
+        const hit = nearestOnPolyline(mid(a, b), l.points);
+        const c = l.points[hit.segIndex],
+          d = l.points[hit.segIndex + 1];
+        const roadLength = distance(c, d);
+        if (hit.dist > limit || roadLength < 1e-6) return false;
+        const parallel =
+          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (distance(a, b) * roadLength) <
+          1e-4;
+        return parallel;
+      })
+    )
+      return true;
+  }
+  return false;
 }
 
 function accessibleFronts(poly: Point[], roads: { points: Point[]; widthMeters: number }[]): number[] {

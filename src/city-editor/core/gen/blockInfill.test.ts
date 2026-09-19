@@ -66,7 +66,7 @@ function connectedLaneSegments(fabric: ReturnType<typeof buildBlockFabric>) {
 }
 
 describe("coarse-cell infill", () => {
-  it("creates connected lanes and frontage buildings without adding mesh edges", () => {
+  it("splits a core cell into closed street blocks without adding mesh edges", () => {
     const document = fixture([rect]);
     const before = JSON.stringify(document);
     const fabric = buildBlockFabric(document);

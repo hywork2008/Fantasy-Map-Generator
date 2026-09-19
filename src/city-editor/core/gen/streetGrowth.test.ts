@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Point } from "../types";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { makeRng } from "./prng";
-import { infillOutskirts, outskirtsBlockSpan } from "./streetGrowth";
+import { blockSpan, infillCore, infillOutskirts, outskirtsBlockSpan } from "./streetGrowth";
 
 const block: Point[] = [
   [7, 3],
@@ -16,7 +16,13 @@ const road: Point[][] = [
     [7, 177]
   ]
 ];
-const options = { lotArea: 150, laneWidth: 3, coverage: 0.75, occupancy: 0.82, build: true };
+const options = {
+  lotArea: 150,
+  laneWidth: 3,
+  coverage: 0.75,
+  occupancy: 0.82,
+  build: true
+};
 
 describe("outskirts street growth", () => {
   it("cuts collectors and T-junction stubs without filling every house gap", () => {
@@ -53,5 +59,40 @@ describe("outskirts street growth", () => {
   it("keeps block spacing in a house-row range", () => {
     expect(outskirtsBlockSpan(150, 3)).toBeGreaterThan(40);
     expect(outskirtsBlockSpan(150, 3)).toBeLessThan(90);
+    expect(blockSpan(150, 3, "core")).toBeGreaterThanOrEqual(40);
+    expect(blockSpan(150, 3, "core")).toBeLessThanOrEqual(70);
+  });
+});
+
+describe("core closed-block infill", () => {
+  const coreOptions = {
+    lotArea: 150,
+    laneWidth: 3,
+    coverage: 0.75,
+    occupancy: 0.965,
+    build: true
+  };
+  it("keeps every stub so strips become closed blocks, without thinning", () => {
+    const core = infillCore(block, road, [[7, 90]], coreOptions, makeRng("core-blocks"));
+    const outer = infillOutskirts(block, road, [[7, 90]], options, makeRng("core-blocks"));
+    expect(core.lanes.length).toBeGreaterThan(outer.lanes.length);
+    const closed = core.lanes.filter(lane => {
+      const onOther = (p: Point) => core.lanes.some(other => other !== lane && nearestOnPolyline(p, other).dist < 0.5);
+      return onOther(lane[0]) && onOther(lane[lane.length - 1]);
+    });
+    expect(closed.length).toBeGreaterThan(0);
+    expect(core.buildings.length).toBeGreaterThan(70);
+    expect(core.buildings.every(p => p.every(q => q[0] > 7))).toBe(true);
+  });
+
+  it("snaps the local grid to an inspector orientation", () => {
+    const grown = infillCore(block, road, [[7, 90]], { ...coreOptions, orientation: 0.3 }, makeRng("core-orientation"));
+    expect(
+      grown.lanes.some(l => {
+        const a = l[0],
+          b = l[l.length - 1];
+        return Math.abs(Math.sin(2 * (Math.atan2(b[1] - a[1], b[0] - a[0]) - 0.3))) < 1e-6;
+      })
+    ).toBe(true);
   });
 });
