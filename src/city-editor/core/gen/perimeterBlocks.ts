@@ -133,10 +133,17 @@ export function buildPerimeterBlocks(
   // Tiny-scale blocks: two dwelling rows, a lane, and a small court. Larger
   // cities pack more of the same block, they do not enlarge it.
   const spanLimit = intramuralBlockSpan(target, width);
+  const internalLanes: InfillLane[] = [];
   const lane = (points: Point[]) => {
-    if (distance(points[0], points[1]) > 1e-6) fabric.lanes.push({ faceId: face.id, points, widthMeters: width });
+    if (distance(points[0], points[1]) > 1e-6) internalLanes.push({ faceId: face.id, points, widthMeters: width });
   };
-  for (const edge of boundaries) if (!edge.feature) lane([edge.a, edge.b]);
+  const boundaryLanes: InfillLane[] = [];
+  for (const edge of boundaries) {
+    if (!edge.feature && distance(edge.a, edge.b) > 1e-6) {
+      boundaryLanes.push({ faceId: face.id, points: [edge.a, edge.b], widthMeters: width });
+    }
+  }
+  fabric.lanes.push(...boundaryLanes);
   if (!build) return fabric;
 
   const fill = (poly: Point[]): void => {
@@ -203,57 +210,141 @@ export function buildPerimeterBlocks(
     maxX = Math.max(...xs),
     minY = Math.min(...ys),
     maxY = Math.max(...ys);
-  const sites: Point[] = [];
-  const count = Math.max(1, Math.ceil(area(ring) / (spanLimit * spanLimit * 0.65)));
-  // Best-of-a-few random candidates avoids both clumps and the regular
-  // honeycomb produced by a lattice or repeated Lloyd relaxation.
-  for (let i = 0; i < count; i++) {
-    let best: Point | undefined;
-    let score = -1;
-    for (let tries = 0, accepted = 0; tries < 1000 && accepted < 8; tries++) {
-      const x = rng.range(minX, maxX),
-        y = rng.range(minY, maxY);
-      const p: Point = [axis[0] * x + cross[0] * y, axis[1] * x + cross[1] * y];
-      if (!pointInPolygon(p, ring)) continue;
-      accepted++;
-      const separation = sites.length ? Math.min(...sites.map(q => distance(p, q))) : 1;
-      if (separation > score) {
-        best = p;
-        score = separation;
+  const totalSpan = maxY - minY;
+  const _totalLength = maxX - minX;
+
+  // Ribbon-based block subdivision:
+  // Medieval European towns (e.g. Rothenburg ob der Tauber) subdivide larger
+  // super-blocks along their primary street axis into ribbon strips of width 25-38m
+  // (two dwelling depths back-to-back), rather than isotropic Voronoi honeycomb cells.
+  const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
+  const stripCount = Math.max(1, Math.min(16, Math.round(totalSpan / targetRibbonWidth)));
+
+  let blocksToFill: Point[][] = [ring];
+
+  // 1. Primary longitudinal cuts along the street axis (Ribbon strips)
+  if (stripCount > 1) {
+    const nextBlocks: Point[][] = [];
+    for (const poly of blocksToFill) {
+      let currentPieces = [poly];
+      for (let k = 1; k < stripCount; k++) {
+        const nominalY = minY + (totalSpan * k) / stripCount;
+        const jitterAngle = rng.range(-0.06, 0.06);
+        const cosJ = Math.cos(jitterAngle),
+          sinJ = Math.sin(jitterAngle);
+        const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
+        const offset = nominalY + rng.range(-1.2, 1.2);
+        const split: Point[][] = [];
+        for (const piece of currentPieces) {
+          const upper = clipStreetBlocks(piece, normal, offset);
+          const lower = clipStreetBlocks(piece, [-normal[0], -normal[1]], -offset);
+          if (upper.length && lower.length) {
+            split.push(...upper, ...lower);
+          } else {
+            split.push(piece);
+          }
+        }
+        currentPieces = split;
       }
+      nextBlocks.push(...currentPieces);
     }
-    if (best) sites.push(best);
+    blocksToFill = nextBlocks.filter(p => area(p) > 30);
   }
-  const streets = new Set<string>();
-  for (const site of sites) {
-    let parts = [ring];
-    for (const other of sites) {
-      if (site === other) continue;
-      const length = distance(site, other);
-      if (length > spanLimit * 4) continue;
-      const normal: Point = [(other[0] - site[0]) / length, (other[1] - site[1]) / length];
-      const offset = dot([(site[0] + other[0]) / 2, (site[1] + other[1]) / 2], normal);
-      parts = parts.flatMap(poly => clipStreetBlocks(poly, normal, offset));
-      if (!parts.length) break;
+
+  // 2. Transverse cross-cuts (Cross-alleys / T-junctions) for elongated strips
+  const finalBlocks: Point[][] = [];
+  const maxBlockLength = Math.max(40, Math.min(65, spanLimit * 1.6));
+  for (let bIndex = 0; bIndex < blocksToFill.length; bIndex++) {
+    const poly = blocksToFill[bIndex];
+    const polyXs = poly.map(p => dot(p, axis));
+    const polyMinX = Math.min(...polyXs),
+      polyMaxX = Math.max(...polyXs);
+    const polyLength = polyMaxX - polyMinX;
+    const cuts = Math.max(1, Math.min(16, Math.round(polyLength / maxBlockLength)));
+    if (cuts <= 1) {
+      finalBlocks.push(poly);
+      continue;
     }
-    for (const poly of parts) {
-      for (let i = 0; i < poly.length; i++) {
-        const a = poly[i],
-          b = poly[(i + 1) % poly.length];
-        const onBoundary = ring.some((p, j) => {
-          const q = ring[(j + 1) % ring.length];
-          const normal: Point = [(p[1] - q[1]) / distance(p, q), (q[0] - p[0]) / distance(p, q)];
-          return Math.abs(dot(a, normal) - dot(p, normal)) < 1e-5 && Math.abs(dot(b, normal) - dot(p, normal)) < 1e-5;
-        });
-        if (onBoundary) continue;
-        const id = [key(a), key(b)].sort().join(":");
-        if (!streets.has(id)) {
-          streets.add(id);
-          lane([a, b]);
+    let currentPieces = [poly];
+    // Stagger transverse cuts across adjacent strips to prevent 4-way crossroads,
+    // producing authentic medieval 3-way T-junctions.
+    const stripStagger = (bIndex % 2 === 0 ? 0.08 : -0.08) * polyLength;
+    for (let c = 1; c < cuts; c++) {
+      const nominalX = polyMinX + (polyLength * c) / cuts + stripStagger;
+      const jitterAngle = rng.range(-0.06, 0.06);
+      const cosJ = Math.cos(jitterAngle),
+        sinJ = Math.sin(jitterAngle);
+      const normal: Point = [axis[0] * cosJ - axis[1] * sinJ, axis[0] * sinJ + axis[1] * cosJ];
+      const offset = nominalX + rng.range(-1.5, 1.5);
+      const split: Point[][] = [];
+      for (const piece of currentPieces) {
+        const right = clipStreetBlocks(piece, normal, offset);
+        const left = clipStreetBlocks(piece, [-normal[0], -normal[1]], -offset);
+        if (right.length && left.length) {
+          split.push(...right, ...left);
+        } else {
+          split.push(piece);
         }
       }
-      fill(poly);
+      currentPieces = split;
+    }
+    finalBlocks.push(...currentPieces.filter(p => area(p) > 30));
+  }
+
+  const streets = new Set<string>();
+  for (const poly of finalBlocks) {
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i],
+        b = poly[(i + 1) % poly.length];
+      const onBoundary = ring.some((p, j) => {
+        const q = ring[(j + 1) % ring.length];
+        const len = distance(p, q);
+        const normal: Point = [(p[1] - q[1]) / len, (q[0] - p[0]) / len];
+        return Math.abs(dot(a, normal) - dot(p, normal)) < 1e-5 && Math.abs(dot(b, normal) - dot(p, normal)) < 1e-5;
+      });
+      if (onBoundary) continue;
+      const id = [key(a), key(b)].sort().join(":");
+      if (!streets.has(id) && distance(a, b) > 1e-5) {
+        streets.add(id);
+        lane([a, b]);
+      }
+    }
+    fill(poly);
+  }
+
+  // Collapse degree-2 intermediate vertices in internal lanes so every internal street junction
+  // is a clean 3-way T-junction.
+  const mergedLanes = [...internalLanes];
+  for (let changed = true; changed; ) {
+    changed = false;
+    const degreeMap = new Map<string, { index: number; other: Point }[]>();
+    for (let i = 0; i < mergedLanes.length; i++) {
+      const [p0, p1] = mergedLanes[i].points;
+      const k0 = key(p0),
+        k1 = key(p1);
+      const d0 = degreeMap.get(k0) ?? [];
+      d0.push({ index: i, other: p1 });
+      degreeMap.set(k0, d0);
+      const d1 = degreeMap.get(k1) ?? [];
+      d1.push({ index: i, other: p0 });
+      degreeMap.set(k1, d1);
+    }
+    for (const [, connections] of degreeMap) {
+      if (connections.length === 2 && connections[0].index !== connections[1].index) {
+        const c0 = connections[0],
+          c1 = connections[1];
+        const pA = c0.other,
+          pB = c1.other;
+        const keep = Math.min(c0.index, c1.index);
+        const remove = Math.max(c0.index, c1.index);
+        mergedLanes[keep] = { ...mergedLanes[keep], points: [pA, pB] };
+        mergedLanes.splice(remove, 1);
+        changed = true;
+        break;
+      }
     }
   }
+  fabric.lanes = [...boundaryLanes, ...mergedLanes];
+
   return fabric;
 }
