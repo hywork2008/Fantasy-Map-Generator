@@ -40,9 +40,9 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     document.fabric?.generation?.settings?.layout ??
     document.fabric?.generation?.settings?.config?.layout;
   const isBram = layout === "bram";
-  const isCirculadeVoronoi = layout === "circuladeCoreVoronoi";
+  const isCirculade = layout === "circulade";
 
-  if (isCirculadeVoronoi) {
+  if (isBram) {
     const plazaElem = document.elements.find(e => e.kind === "plaza");
     const hub: Point = plazaElem?.point ?? [0, 0];
     const plan = document.fabric ? upgradeFabricPlan(document) : null;
@@ -131,7 +131,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     };
   }
 
-  if (isBram) {
+  if (isCirculade) {
     const plazaElem = document.elements.find(e => e.kind === "plaza");
     const hub: Point = plazaElem?.point ?? [0, 0];
     const plan = document.fabric ? upgradeFabricPlan(document) : null;

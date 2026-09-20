@@ -27,12 +27,12 @@ export type WallCoastChoice = "auto" | "open" | "seaWall";
 export type WallLineChoice = "auto" | "polygonal" | "organic";
 
 /** Urban morphological layout pattern:
- * - `auto`: resolved from size/seed (tiny maps roll Bram or Organic)
+ * - `auto`: resolved from size/seed (tiny maps roll Circulade, Bram or Organic)
  * - `organic`: traditional irregular medieval cranked-block layout
- * - `bram`: Languedoc circulade concentric-ring village with core plaza, attached church, and concentric houses
- * - `circuladeCoreVoronoi`: Polygonal circulade core (3 rings, ~240m) with peripheral Voronoi blocks */
-export type CityLayout = "auto" | "organic" | "bram" | "circuladeCoreVoronoi";
-export const CITY_LAYOUTS: CityLayout[] = ["auto", "organic", "bram", "circuladeCoreVoronoi"];
+ * - `circulade`: Languedoc circulade concentric-ring village with core plaza, attached church, and concentric houses
+ * - `bram`: Polygonal circulade core (3 rings, ~240m) with peripheral Voronoi blocks */
+export type CityLayout = "auto" | "organic" | "circulade" | "bram";
+export const CITY_LAYOUTS: CityLayout[] = ["auto", "organic", "circulade", "bram"];
 
 export interface WallChoice {
   envelope: WallEnvelopeChoice;

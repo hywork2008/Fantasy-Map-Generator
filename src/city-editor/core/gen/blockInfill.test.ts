@@ -197,9 +197,9 @@ describe("coarse-cell infill", () => {
     expect(buildBlockFabric(document).lanes).toEqual([]);
   });
 
-  it("generates hybrid fabric for circuladeCoreVoronoi layout", () => {
+  it("generates hybrid fabric for bram layout", () => {
     const document = fixture([rect]);
-    document.layout = "circuladeCoreVoronoi";
+    document.layout = "bram";
     const fabric = buildBlockFabric(document);
     expect(fabric.buildings.length).toBeGreaterThan(0);
     expect(fabric.lanes.length).toBeGreaterThan(0);

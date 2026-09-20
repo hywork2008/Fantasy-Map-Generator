@@ -387,10 +387,10 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     fabric.lanes.push(...cached.lanes);
     return;
   }
-  const isBram = ctx.options?.layout === "bram";
+  const isCirculade = ctx.options?.layout === "circulade";
   const local: CityFabric =
     !outskirts && face.properties.ward !== "castle"
-      ? isBram
+      ? isCirculade
         ? buildCirculadeBlocks(
             face,
             polygon,

@@ -421,8 +421,8 @@ describe("building setbacks", () => {
       patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
     });
     const settings = defaultGenerationSettings();
-    settings.layout = "bram";
-    settings.config.layout = "bram";
+    settings.layout = "circulade";
+    settings.config.layout = "circulade";
     settings.config.coast = "none";
     settings.config.rivers = [];
     settings.config.features.walls = true;
@@ -433,7 +433,7 @@ describe("building setbacks", () => {
     expect(city).not.toBeNull();
     if (!city) return;
 
-    expect(city.layout).toBe("bram");
+    expect(city.layout).toBe("circulade");
     expect(city.gates.length).toBeGreaterThan(0);
     expect(city.fabric).toBeDefined();
 
@@ -473,7 +473,7 @@ describe("building setbacks", () => {
     }
   });
 
-  it("generates a complete circuladeCoreVoronoi town with polygonal core and peripheral blocks", () => {
+  it("generates a complete Bram town with polygonal core and peripheral blocks", () => {
     const grid = createGridDocument({
       size: "tiny",
       grid: "evolution",
@@ -481,8 +481,8 @@ describe("building setbacks", () => {
       patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
     });
     const settings = defaultGenerationSettings();
-    settings.layout = "circuladeCoreVoronoi";
-    settings.config.layout = "circuladeCoreVoronoi";
+    settings.layout = "bram";
+    settings.config.layout = "bram";
     settings.config.coast = "none";
     settings.config.rivers = [];
     settings.config.features.walls = true;
@@ -493,7 +493,7 @@ describe("building setbacks", () => {
     expect(city).not.toBeNull();
     if (!city) return;
 
-    expect(city.layout).toBe("circuladeCoreVoronoi");
+    expect(city.layout).toBe("bram");
     expect(city.gates.length).toBeGreaterThan(0);
 
     const plaza = city.elements.find(e => e.kind === "plaza");
@@ -530,8 +530,8 @@ describe("building setbacks", () => {
       patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
     });
     const settings = defaultGenerationSettings();
-    settings.layout = "circuladeCoreVoronoi";
-    settings.config.layout = "circuladeCoreVoronoi";
+    settings.layout = "bram";
+    settings.config.layout = "bram";
     settings.config.coast = "none";
     settings.config.rivers = [];
     settings.config.relief = false;

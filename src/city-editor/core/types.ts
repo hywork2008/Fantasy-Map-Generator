@@ -142,7 +142,7 @@ export interface CityDocument {
   gates: CityGate[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
-  /** Urban morphology layout (bram circulade or organic) */
+  /** Urban morphology layout (circulade, bram or organic) */
   layout?: import("./gen/site/siteConfig").CityLayout;
 }
 

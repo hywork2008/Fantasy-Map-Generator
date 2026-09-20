@@ -103,24 +103,24 @@ export { CITY_LAYOUTS, FEATURE_KEYS } from "./gen/site/siteConfig";
 export type { FarNodeMode };
 
 /** Resolve effective morphology layout:
- * - "circuladeCoreVoronoi" -> "circuladeCoreVoronoi"
+ * - "circulade" -> "circulade"
  * - "bram" -> "bram"
  * - "organic" -> "organic"
- * - "auto" -> deterministically roll Bram, CirculadeCoreVoronoi, or Organic for tiny maps (<= 700m)
+ * - "auto" -> deterministically roll Circulade, Bram, or Organic for tiny maps (<= 700m)
  */
 export function resolveEffectiveLayout(
   layout: import("./gen/site/siteConfig").CityLayout | undefined,
   extentMeters: number,
   seed: string
-): "organic" | "bram" | "circuladeCoreVoronoi" {
-  if (layout === "circuladeCoreVoronoi") return "circuladeCoreVoronoi";
+): "organic" | "circulade" | "bram" {
+  if (layout === "circulade") return "circulade";
   if (layout === "bram") return "bram";
   if (layout === "organic") return "organic";
   if (extentMeters <= 700) {
     const rng = makeRng(`${seed}:effective-layout`);
     const roll = rng();
-    if (roll < 0.33) return "bram";
-    if (roll < 0.66) return "circuladeCoreVoronoi";
+    if (roll < 0.33) return "circulade";
+    if (roll < 0.66) return "bram";
     return "organic";
   }
   return "organic";
@@ -474,7 +474,7 @@ function generateCityAttempt(
   const hub: Point = plaza?.anchor ?? [0, 0];
   const star = plan.gates.map(g => {
     let target = plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
-    if (effectiveLayout === "circuladeCoreVoronoi") {
+    if (effectiveLayout === "bram") {
       const angle = Math.atan2(g.point[1] - hub[1], g.point[0] - hub[0]);
       target = [hub[0] + Math.cos(angle) * 123, hub[1] + Math.sin(angle) * 123];
     }
@@ -495,7 +495,7 @@ function generateCityAttempt(
   };
   const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
   const extras =
-    effectiveLayout === "bram" || effectiveLayout === "circuladeCoreVoronoi"
+    effectiveLayout === "circulade" || effectiveLayout === "bram"
       ? []
       : plan.streets.filter(line => {
           if (isGateToPlaza(line)) return false;
@@ -503,8 +503,8 @@ function generateCityAttempt(
             b = line[line.length - 1];
           return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
         });
-  const isCirculadeVoronoiUnwalled = effectiveLayout === "circuladeCoreVoronoi" && !program.walls;
-  const streets = isCirculadeVoronoiUnwalled ? [] : [...star, ...extras];
+  const isBramVoronoiUnwalled = effectiveLayout === "bram" && !program.walls;
+  const streets = isBramVoronoiUnwalled ? [] : [...star, ...extras];
   const roads: Point[][] = plan.gates.map((gate, i) => [
     farNodeFor(
       gate,
@@ -849,7 +849,7 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
-  layout?: "organic" | "bram" | "circuladeCoreVoronoi";
+  layout?: "organic" | "circulade" | "bram";
   sea: Set<number>;
   /** S1's raw graph walk (upstream → downstream), before it is closed into
    * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
@@ -1023,7 +1023,7 @@ function runPlan(
 
   let circuladePlan: import("./gen/circuladeLayout").CirculadeLayoutPlan | null = null;
   let polygonalCirculadePlan: import("./gen/polygonalCirculadeLayout").PolygonalCirculadePlan | null = null;
-  if (effectiveLayout === "bram") {
+  if (effectiveLayout === "circulade") {
     const urbanCells = cells.filter(c => urban.has(c.id));
     const hub: Point = urbanCells.length
       ? (urbanCells
@@ -1036,7 +1036,7 @@ function runPlan(
     precincts = precincts.filter(p => p.kind !== "plaza" && p.kind !== "temple");
     if (program.plaza) precincts.push(circuladePlan.plaza);
     if (program.temple && circuladePlan.temple) precincts.push(circuladePlan.temple);
-  } else if (effectiveLayout === "circuladeCoreVoronoi") {
+  } else if (effectiveLayout === "bram") {
     const urbanCells = cells.filter(c => urban.has(c.id));
     const hub: Point = urbanCells.length
       ? (urbanCells
@@ -1058,11 +1058,11 @@ function runPlan(
   );
   let gates = streetOpts.avoidSea ? markSeaSurroundedGates(placed, waterPolygon, cellSize) : placed;
 
-  // For Bram circulade or circuladeCoreVoronoi, snap gates to recommended opposed positions along the border
+  // For pure circulade or Bram, snap gates to recommended opposed positions along the border
   const recommendedGates =
-    effectiveLayout === "bram" && circuladePlan
+    effectiveLayout === "circulade" && circuladePlan
       ? circuladePlan.recommendedGates
-      : effectiveLayout === "circuladeCoreVoronoi" && polygonalCirculadePlan
+      : effectiveLayout === "bram" && polygonalCirculadePlan
         ? polygonalCirculadePlan.recommendedGates
         : null;
 
@@ -1448,7 +1448,7 @@ function applyPlan(
       .map(e => e.id);
     const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...internalPlazaEdges]);
     const layout = plan.layout ?? source.layout;
-    if (layout === "circuladeCoreVoronoi") {
+    if (layout === "bram") {
       const plazaElem = next.elements.find(e => e.kind === "plaza");
       const hub: Point = plazaElem?.point ?? [0, 0];
       for (const e of Object.values(mesh.edges)) {

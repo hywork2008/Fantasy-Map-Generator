@@ -134,7 +134,7 @@ export function renderEditorSvg(
     });
     mark("svg-base");
     const fabric =
-      document.gridKind === "evolution" || document.layout === "bram" || document.layout === "circuladeCoreVoronoi"
+      document.gridKind === "evolution" || document.layout === "circulade" || document.layout === "bram"
         ? buildBlockFabric(document)
         : null;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
