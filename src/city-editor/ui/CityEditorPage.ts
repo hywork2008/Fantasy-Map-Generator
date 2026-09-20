@@ -38,7 +38,9 @@ import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
 import {
+  CITY_LAYOUTS,
   type CityFeatureSet,
+  type CityLayout,
   COMPLETE_CITY_ATTEMPTS,
   defaultGenerationSettings,
   type FarNodeMode,
@@ -604,6 +606,22 @@ export function mountCityEditor(root: HTMLElement): void {
   );
   syncGridEvoUi();
 
+  const layoutSelect = select(CITY_LAYOUTS, generateSettings.layout ?? generateSettings.config.layout ?? "auto");
+  layoutSelect.className = "ce-generate-layout";
+  for (const option of [...layoutSelect.options]) {
+    option.textContent =
+      option.value === "auto"
+        ? "自動 / ランダム (Auto)"
+        : option.value === "organic"
+          ? "通常・有機的 (Organic)"
+          : "Bram型・同心円 (Bram / Circulade)";
+  }
+  layoutSelect.addEventListener("change", () => {
+    const val = layoutSelect.value as CityLayout;
+    generateSettings.layout = val;
+    generateSettings.config.layout = val;
+  });
+
   const coastSelect = select(["none", "straight", "bay", "cape"], generateSettings.config.coast);
   coastSelect.addEventListener("change", () => {
     generateSettings.config.coast = coastSelect.value as SiteConfig["coast"];
@@ -758,6 +776,7 @@ export function mountCityEditor(root: HTMLElement): void {
 
   const synthControls = div("ce-generate-synth");
   synthControls.append(
+    label("都市形態", layoutSelect),
     label("Coast", coastSelect),
     label("Rivers", riversSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
@@ -2766,6 +2785,7 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function syncGenerateControls(): void {
     seedInput.value = generateSeed;
+    layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     reliefInput.checked = generateSettings.config.relief;

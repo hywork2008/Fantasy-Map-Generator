@@ -412,4 +412,64 @@ describe("building setbacks", () => {
       );
     }
   });
+
+  it("generates a complete Bram circulade town with concentric fabric and opposed gates", () => {
+    const grid = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "bram-test-grid",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.layout = "bram";
+    settings.config.layout = "bram";
+    settings.config.coast = "none";
+    settings.config.rivers = [];
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+
+    const city = generateCityOnDocument(grid, settings, "bram-seed-1");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    expect(city.layout).toBe("bram");
+    expect(city.gates.length).toBeGreaterThan(0);
+    expect(city.fabric).toBeDefined();
+
+    const localFabric = buildBlockFabric(city);
+    expect(localFabric.buildings.length).toBeGreaterThan(10);
+
+    const plaza = city.elements.find(e => e.kind === "plaza");
+    expect(plaza).toBeDefined();
+
+    const temple = city.elements.find(e => e.kind === "temple");
+    expect(temple).toBeDefined();
+
+    if (temple?.point) {
+      const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, city.frame.extentMeters);
+      for (const group of city.featureGroups) {
+        if (group.kind !== "road") continue;
+        const points = featureGroupVertices(city, group)
+          .map(id => city.mesh.vertices[id]?.point)
+          .filter((p): p is Point => !!p);
+        if (points.length < 2) continue;
+        const dist = orientedRectPolylineDistance(nave, points);
+        if (dist < group.style.widthMeters / 2 + 1.5) {
+          console.log("[FAILING ROAD]", group.id, "dist:", dist, "points:", points, "nave:", nave);
+        }
+        expect(dist).toBeGreaterThanOrEqual(group.style.widthMeters / 2 + 1.5);
+      }
+    }
+
+    // Verify no two generated roads share edges (no duplicate overlapping roads)
+    const roads = city.featureGroups.filter(g => g.kind === "road" && g.id.startsWith("gc:road-"));
+    for (let i = 0; i < roads.length; i++) {
+      for (let j = i + 1; j < roads.length; j++) {
+        const set1 = new Set(roads[i].segments.map(s => s.edgeId));
+        const shared = roads[j].segments.filter(s => set1.has(s.edgeId));
+        expect(shared.length).toBe(0);
+      }
+    }
+  });
 });

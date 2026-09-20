@@ -154,6 +154,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   }
   for (const element of next.elements) {
     if (!element.id.startsWith("gc:") || element.locked || !element.faceIds.length) continue;
+    if (element.kind === "temple") continue;
     const face = mesh.faces[element.faceIds[0]];
     if (face) element.point = polygonCentroid(facePoints(mesh, face));
   }

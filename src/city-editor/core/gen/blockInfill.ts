@@ -1,6 +1,7 @@
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
+import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
@@ -21,14 +22,82 @@ function getDefaultCache(): FabricCache {
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
-  if (!document.fabric) return { ...buildLocalFabric(document), farms: [] };
+  const layout =
+    document.layout ??
+    document.fabric?.generation?.settings?.layout ??
+    document.fabric?.generation?.settings?.config?.layout;
+  const isBram = layout === "bram";
+
+  if (isBram) {
+    const plazaElem = document.elements.find(e => e.kind === "plaza");
+    const hub: Point = plazaElem ? plazaElem.point : [0, 0];
+    const plan = document.fabric ? upgradeFabricPlan(document) : null;
+    const seed = plan?.seed ?? "circulade-seed";
+
+    const coreFabric = buildCirculadeTownFabric(document, { seed, hub });
+
+    const outskirtsFaces = Object.values(document.mesh.faces).filter(
+      f => f.properties.settlement === "outskirts" && f.properties.water === "land"
+    );
+    let outskirtsFabric: CityFabric = { buildings: [], lanes: [], entrances: new Map(), blocks: [] };
+
+    if (outskirtsFaces.length > 0) {
+      const local = buildLocalFabric(document, {
+        seed,
+        parameters: new Map(),
+        cache,
+        layout: "organic",
+        hub
+      });
+      const outskirtsSet = new Set(outskirtsFaces.map(f => f.id));
+      outskirtsFabric = {
+        buildings: local.buildings.filter(b => outskirtsSet.has(b.faceId)),
+        lanes: local.lanes.filter(l => outskirtsSet.has(l.faceId)),
+        entrances: new Map([...local.entrances.entries()].filter(([id]) => outskirtsSet.has(id)))
+      };
+    }
+
+    const lanes = [...coreFabric.lanes, ...outskirtsFabric.lanes].filter(
+      l => !laneHitsCivicLandmark(document, l.points)
+    );
+    const entrances = new Map<Id, Point[]>();
+    for (const [id, pts] of [...coreFabric.entrances, ...outskirtsFabric.entrances]) {
+      entrances.set(id, [...(entrances.get(id) ?? []), ...pts]);
+    }
+
+    return {
+      buildings: [...coreFabric.buildings, ...outskirtsFabric.buildings],
+      lanes,
+      entrances,
+      farms: []
+    };
+  }
+
+  if (!document.fabric) {
+    const plazaElem = document.elements.find(e => e.kind === "plaza");
+    const hub: Point = plazaElem ? plazaElem.point : [0, 0];
+    const local = buildLocalFabric(document, {
+      seed: "fabric-seed",
+      parameters: new Map(),
+      cache,
+      layout: "organic",
+      hub
+    });
+    const lanes = local.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
+    return { ...local, lanes, farms: [] };
+  }
+
   const plan = upgradeFabricPlan(document)!;
   const districts = resolveDistricts(document, plan);
   const merged = districtDocument(document, districts);
+  const plazaElem = document.elements.find(e => e.kind === "plaza");
+  const hub: Point = plazaElem ? plazaElem.point : [0, 0];
   const local = buildLocalFabric(merged, {
     seed: plan.seed,
     parameters: new Map(districts.map(d => [d.id, d.parameters])),
-    cache
+    cache,
+    layout: "organic",
+    hub
   });
   const members = new Map(districts.map(d => [d.id, d.faceIds]));
   const polygons = new Map(Object.values(document.mesh.faces).map(f => [f.id, facePoints(document.mesh, f)]));

@@ -285,6 +285,7 @@ export function rectifyVoronoiBlocks(
   }
   for (const element of next.elements) {
     if (element.locked || !element.id.startsWith("gc:") || !element.faceIds.length) continue;
+    if (element.kind === "temple") continue;
     const face = mesh.faces[element.faceIds[0]];
     if (face) element.point = polygonCentroid(facePoints(mesh, face));
   }

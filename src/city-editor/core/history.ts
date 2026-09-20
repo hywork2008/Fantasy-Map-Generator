@@ -184,6 +184,7 @@ interface DocPatch {
   appearance?: CityDocument["appearance"] | null;
   fabric?: CityDocument["fabric"] | null;
   gridKind?: CityDocument["gridKind"] | null;
+  layout?: CityDocument["layout"] | null;
   referenceImage?: CityDocument["referenceImage"] | null;
   vertices?: RecordPatch<Vertex>;
   edges?: RecordPatch<Edge>;
@@ -226,6 +227,7 @@ function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
   if (!equal(previous.fabric, next.fabric)) patch.fabric = next.fabric ? clone(next.fabric) : null;
   if (previous.gridKind !== next.gridKind) patch.gridKind = next.gridKind ?? null;
+  if (previous.layout !== next.layout) patch.layout = next.layout ?? null;
   if (!equal(previous.referenceImage, next.referenceImage))
     patch.referenceImage = next.referenceImage ? clone(next.referenceImage) : null;
   const vertices = diffRecord(previous.mesh.vertices, next.mesh.vertices);
@@ -261,6 +263,8 @@ function applyPatch(document: CityDocument, patch: DocPatch): void {
   else if (patch.fabric) document.fabric = clone(patch.fabric);
   if (patch.gridKind === null) delete document.gridKind;
   else if (patch.gridKind) document.gridKind = patch.gridKind;
+  if (patch.layout === null) delete document.layout;
+  else if (patch.layout) document.layout = patch.layout;
   if (patch.referenceImage === null) delete document.referenceImage;
   else if (patch.referenceImage) document.referenceImage = clone(patch.referenceImage);
   applyRecord(document.mesh.vertices, patch.vertices);

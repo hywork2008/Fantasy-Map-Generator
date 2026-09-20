@@ -142,6 +142,8 @@ export interface CityDocument {
   gates: CityGate[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
+  /** Urban morphology layout (bram circulade or organic) */
+  layout?: import("./gen/site/siteConfig").CityLayout;
 }
 
 export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "wardWall" | "junction" | "face";

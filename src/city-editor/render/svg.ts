@@ -133,7 +133,7 @@ export function renderEditorSvg(
       "pointer-events": tool === "select" ? "all" : "none"
     });
     mark("svg-base");
-    const fabric = document.gridKind === "evolution" ? buildBlockFabric(document) : null;
+    const fabric = document.gridKind === "evolution" || document.layout === "bram" ? buildBlockFabric(document) : null;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });

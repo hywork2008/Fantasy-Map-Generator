@@ -182,7 +182,10 @@ export function assignWards(input: WardInputs): WardResult {
   }
 
   // 3. Temple / Cathedral next to the plaza.
-  if (program.temple) {
+  const existingTemple = precincts.find(p => p.kind === "temple");
+  if (existingTemple) {
+    for (const id of existingTemple.cellIds) take(id, "cathedral");
+  } else if (program.temple) {
     const templeRng = makeRng(`${params.seed}:program:temple`);
     const temple = placeTemple(
       cells,

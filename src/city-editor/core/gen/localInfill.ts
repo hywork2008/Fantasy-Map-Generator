@@ -2,12 +2,14 @@
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, DistrictParameters, EdgeRef, Face, Id, Point } from "../types";
 import { type BuildingLot, buildingHitsCivicLandmark, laneHitsCivicLandmark } from "./buildingLots";
+import { buildCirculadeBlocks } from "./circuladeFabric";
 import { districtBoundary } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea } from "./housing";
 import { insetConvexKernel } from "./lotGeometry";
 import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
+import type { CityLayout } from "./site/siteConfig";
 import { infillCore, infillOutskirts } from "./streetGrowth";
 
 export interface InfillLane {
@@ -55,6 +57,8 @@ export interface InfillOptions {
   seed: string;
   parameters: Map<Id, DistrictParameters>;
   cache: FabricCache;
+  layout?: CityLayout;
+  hub?: Point;
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -383,29 +387,53 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     fabric.lanes.push(...cached.lanes);
     return;
   }
+  const isBram = ctx.options?.layout === "bram";
   const local: CityFabric =
     !outskirts && face.properties.ward !== "castle"
-      ? buildPerimeterBlocks(
-          face,
-          polygon,
-          face.boundary.map((ref, i) => {
-            const edge = mesh.edges[ref.edgeId];
-            const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
-            return {
-              a: polygon[i],
-              b: polygon[(i + 1) % polygon.length],
-              setback: Math.max(
-                (parameters?.laneWidth ?? 3) / 2 + 0.35,
-                ctx.clearance.get(ref.edgeId) ?? 0,
-                other && other.properties.water !== "land" ? 6 : 0
-              ),
-              feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId)
-            };
-          }),
-          parameters,
-          ctx.options?.seed ?? "block-infill",
-          buildableFace(face) && !reserved
-        )
+      ? isBram
+        ? buildCirculadeBlocks(
+            face,
+            polygon,
+            face.boundary.map((ref, i) => {
+              const edge = mesh.edges[ref.edgeId];
+              const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+              return {
+                a: polygon[i],
+                b: polygon[(i + 1) % polygon.length],
+                setback: Math.max(
+                  (parameters?.laneWidth ?? 3) / 2 + 0.35,
+                  ctx.clearance.get(ref.edgeId) ?? 0,
+                  other && other.properties.water !== "land" ? 6 : 0
+                ),
+                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId)
+              };
+            }),
+            parameters,
+            ctx.options?.seed ?? "circulade-infill",
+            buildableFace(face) && !reserved,
+            ctx.options?.hub ?? [0, 0]
+          )
+        : buildPerimeterBlocks(
+            face,
+            polygon,
+            face.boundary.map((ref, i) => {
+              const edge = mesh.edges[ref.edgeId];
+              const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+              return {
+                a: polygon[i],
+                b: polygon[(i + 1) % polygon.length],
+                setback: Math.max(
+                  (parameters?.laneWidth ?? 3) / 2 + 0.35,
+                  ctx.clearance.get(ref.edgeId) ?? 0,
+                  other && other.properties.water !== "land" ? 6 : 0
+                ),
+                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId)
+              };
+            }),
+            parameters,
+            ctx.options?.seed ?? "block-infill",
+            buildableFace(face) && !reserved
+          )
       : { buildings: [], lanes: [], entrances: new Map() };
   if (outskirts || face.properties.ward === "castle")
     fillPolygon(
