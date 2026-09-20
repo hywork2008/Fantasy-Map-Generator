@@ -395,3 +395,29 @@ describe("renderMeasureOverlay", () => {
     expect(text.textContent).toBe("223.6 m");
   });
 });
+
+describe("renderEditorSvg showGridLines", () => {
+  it("applies ce-svg--show-grid class when showGridLines is true", () => {
+    const document = createDocument("grid-lines", 400);
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+
+    const svgNormal = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1);
+    expect(svgNormal.classList.contains("ce-svg--show-grid")).toBe(false);
+
+    const svgGrid = renderEditorSvg(
+      document,
+      "select",
+      selection,
+      "-200 -200 400 400",
+      1,
+      false,
+      null,
+      null,
+      null,
+      null,
+      false,
+      true
+    );
+    expect(svgGrid.classList.contains("ce-svg--show-grid")).toBe(true);
+  });
+});

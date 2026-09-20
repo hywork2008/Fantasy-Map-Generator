@@ -74,14 +74,18 @@ export function renderEditorSvg(
   /** Document panel "Grid evolution" scrub overlay (Phase G1). */
   gridOverlay: GridOverlay | null = null,
   showBlockMesh = false,
+  showGridLines = false,
   observer?: GenerationObserver
 ): SVGSVGElement {
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
+  const classes = ["ce-svg"];
+  if (town) classes.push("ce-svg--town");
+  if (showGridLines) classes.push("ce-svg--show-grid");
   const svg = element("svg", {
     viewBox,
-    class: `ce-svg${town ? " ce-svg--town" : ""}`,
+    class: classes.join(" "),
     "aria-label": "City editor canvas"
   }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;

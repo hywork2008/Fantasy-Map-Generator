@@ -127,6 +127,25 @@ describe("Generate panel", () => {
     expect(has(".ce-fortifications")).toBe(true);
   });
 
+  it("toggles grid lines visibility even when block mesh edit view is off", () => {
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(root.querySelector("svg.ce-svg--show-grid")).toBeNull();
+
+    const gridToggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("グリッド線表示"))!
+      .querySelector<HTMLInputElement>("input")!;
+    expect(gridToggle.checked).toBe(false);
+
+    gridToggle.click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(root.querySelector("svg.ce-svg--show-grid")).toBeTruthy();
+
+    gridToggle.click();
+    expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
+    expect(root.querySelector("svg.ce-svg--show-grid")).toBeNull();
+  });
+
   it("the first new-town click creates a city without requiring stage buttons", () => {
     panelButton("新しい都市").click();
     expect(has(".ce-buildings .ce-building")).toBe(true);

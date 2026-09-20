@@ -250,6 +250,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   let showBlockMesh = false;
+  let showGridLines = false;
   let lastGeneratedStep: number | null = null;
   // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
   // WHICHEVER of the six processes was last activated (by pressing its stage
@@ -763,6 +764,14 @@ export function mountCityEditor(root: HTMLElement): void {
     refresh();
   });
 
+  const gridLinesInput = checkbox(false, checked => {
+    showGridLines = checked;
+    redrawMap();
+  });
+
+  const meshToggleRow = div("ce-icon-row");
+  meshToggleRow.append(toggleLabel("街区の編集表示", blockMeshInput), toggleLabel("グリッド線表示", gridLinesInput));
+
   const importedBox = div("ce-imported");
   const importedText = div("ce-imported-body");
   const standaloneButton = makeButton("Use standalone site", () => useStandaloneSite());
@@ -812,7 +821,7 @@ export function mountCityEditor(root: HTMLElement): void {
     makeButton("🎲 新しい都市", () => rollNewTown()),
     copyLinkButton,
     seedLabel,
-    toggleLabel("街区の編集表示", blockMeshInput),
+    meshToggleRow,
     divider(),
     importedBox,
     synthControls,
@@ -1750,6 +1759,7 @@ export function mountCityEditor(root: HTMLElement): void {
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
     blockMeshInput.checked = showBlockMesh || tool !== "select";
+    gridLinesInput.checked = showGridLines;
     for (const [kind, button] of paintButtons) {
       if (kind === "farm") button.hidden = documentState.gridKind !== "evolution";
       button.classList.toggle(
@@ -1810,6 +1820,7 @@ export function mountCityEditor(root: HTMLElement): void {
       stepOverlayPaths,
       gridOverlayForRender(),
       showBlockMesh,
+      showGridLines,
       sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample }))
     );
     map.replaceChildren(svg);
