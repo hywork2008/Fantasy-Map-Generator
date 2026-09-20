@@ -8,6 +8,7 @@ import type { CityDocument } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { polygonArea } from "./geom";
 import {
+  defaultRoadWidthMeters,
   defaultWalledAreaShare,
   MIN_CITY_EXTERNAL_ROADS,
   MIN_FORT_EXTERNAL_ROADS,
@@ -43,6 +44,14 @@ describe("wall capacity and extramural housing", () => {
     expect(resolveWalledAreaShare(2, 4800)).toBe(1);
     expect(MIN_SETTLEMENT_AREA_SHARE).toBe(0.45);
     expect(MIN_SETTLEMENT_AREA_SHARE).not.toBe(defaultWalledAreaShare(4800));
+  });
+
+  it("scales road width with medieval standards across city size presets", () => {
+    expect([600, 1200, 2400, 4800].map(defaultRoadWidthMeters)).toEqual([3.5, 4.5, 6.0, 7.5]);
+    expect(defaultRoadWidthMeters(500)).toBe(3.5);
+    expect(defaultRoadWidthMeters(1000)).toBe(4.5);
+    expect(defaultRoadWidthMeters(2000)).toBe(6.0);
+    expect(defaultRoadWidthMeters(5000)).toBe(7.5);
   });
 
   it("does not reject Medium or Large for wall share versus the settlement-area floor", () => {

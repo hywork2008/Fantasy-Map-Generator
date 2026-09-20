@@ -1,4 +1,5 @@
 import { isSimplePolygon, pointInPolygon, polygonArea, segmentSegmentHit } from "./gen/geom";
+import { defaultRoadWidthMeters } from "./gen/settlementExtent";
 // 4-way passages (gates / bridges) for generated routes.
 //
 // River, road and wall must not share an edge (Phase G7). They MAY share a
@@ -223,7 +224,7 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
       { edgeId: a.id, forward: a.b === vertexId },
       { edgeId: b.id, forward: b.a === vertexId }
     ],
-    style: { widthMeters: Math.max(4, document.frame.blockSizeMeters * 0.16), color: "#735238" }
+    style: { widthMeters: defaultRoadWidthMeters(document.frame.extentMeters), color: "#735238" }
   });
   return straightenBridge(next, id);
 }

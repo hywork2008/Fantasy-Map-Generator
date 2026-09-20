@@ -52,6 +52,7 @@ import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import {
+  defaultRoadWidthMeters,
   MIN_SETTLEMENT_AREA_SHARE,
   minExternalRoadsForExtent,
   resolveWalledAreaShare,
@@ -1529,7 +1530,7 @@ function applyPlan(
         kind: "road",
         name: `Road ${i + 1}`,
         segments,
-        style: { widthMeters: Math.max(4, source.frame.blockSizeMeters * 0.16), color: "#735238" },
+        style: { widthMeters: defaultRoadWidthMeters(source.frame.extentMeters), color: "#735238" },
         locked: false
       });
     });
