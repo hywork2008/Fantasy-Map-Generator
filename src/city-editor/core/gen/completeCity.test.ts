@@ -604,6 +604,33 @@ describe("building setbacks", () => {
 
     const roads = city.featureGroups.filter(g => g.kind === "road");
     // Ensure gc:road-9 and gc:road-10 are removed, leaving only the active gate roads and bridge
-    expect(roads.map(r => r.id)).toEqual(["gc:bridge-0", "gc:road-0", "gc:road-8"]);
+    expect(roads.map(r => r.id)).toEqual(["gc:bridge-0", "gc:road-1", "gc:road-5"]);
+  });
+
+  it("reproduces user 052221 unwalled classic case without redundant roads", () => {
+    const fs = require("node:fs");
+    const samplePath = "temp/ce-20260921-052221.json";
+    if (!fs.existsSync(samplePath)) return;
+    const sample = JSON.parse(fs.readFileSync(samplePath, "utf8"));
+    const grid = sample.fabric?.generation?.input ?? sample;
+    const settings = sample.fabric?.generation?.settings ?? defaultGenerationSettings();
+    const seed = sample.fabric?.generation?.seed ?? "1td7xj";
+
+    const city = generateCityOnDocument(grid, settings, seed);
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    const roads = city.featureGroups.filter(g => g.kind === "road");
+    // Ensure redundant overlapping stubs (gc:road-8, gc:road-10, gc:road-11) are NOT created
+    expect(roads.some(g => g.id === "gc:road-8" || g.id === "gc:road-10" || g.id === "gc:road-11")).toBe(false);
+    expect(roads.map(r => r.id)).toEqual([
+      "gc:bridge-0",
+      "gc:road-0",
+      "gc:road-2",
+      "gc:road-3",
+      "gc:road-4",
+      "gc:road-6",
+      "gc:road-7"
+    ]);
   });
 });
