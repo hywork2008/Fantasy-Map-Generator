@@ -99,7 +99,9 @@ export interface Precinct {
   kind: PrecinctKind;
   cellIds: number[];
   anchor: Point;
-  label: string;
+  label?: string;
+  polygon?: Point[];
+  radiusMeters?: number;
   /** Long-axis angle in radians, CCW from +X. Temples use this. */
   rotation?: number;
 }

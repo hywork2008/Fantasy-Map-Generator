@@ -26,7 +26,8 @@ interface RiverMargin {
 /** Buildings are derived from the edited mesh, never a second source of street
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
 export function buildCityBuildings(document: CityDocument): BuildingLot[] {
-  if (document.gridKind === "evolution" || document.layout === "bram") return buildBlockFabric(document).buildings;
+  if (document.gridKind === "evolution" || document.layout === "bram" || document.layout === "circuladeCoreVoronoi")
+    return buildBlockFabric(document).buildings;
   const edgeIndex = indexMeshEdges(document.mesh);
   const clearance = new Map<Id, number>();
   const rivers: RiverMargin[] = [];

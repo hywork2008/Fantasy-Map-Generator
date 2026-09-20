@@ -472,4 +472,82 @@ describe("building setbacks", () => {
       }
     }
   });
+
+  it("generates a complete circuladeCoreVoronoi town with polygonal core and peripheral blocks", () => {
+    const grid = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "core-voronoi-grid",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.layout = "circuladeCoreVoronoi";
+    settings.config.layout = "circuladeCoreVoronoi";
+    settings.config.coast = "none";
+    settings.config.rivers = [];
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+
+    const city = generateCityOnDocument(grid, settings, "core-voronoi-seed-1");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    expect(city.layout).toBe("circuladeCoreVoronoi");
+    expect(city.gates.length).toBeGreaterThan(0);
+
+    const plaza = city.elements.find(e => e.kind === "plaza");
+    expect(plaza).toBeDefined();
+
+    const temple = city.elements.find(e => e.kind === "temple");
+    expect(temple).toBeDefined();
+
+    const localFabric = buildBlockFabric(city);
+    expect(localFabric.buildings.length).toBeGreaterThan(20);
+    expect(localFabric.lanes.length).toBeGreaterThan(5);
+
+    const hub = plaza!.point;
+    // Verify that no mesh-edge roads cut into the interior of the circulade core (<118m)
+    for (const group of city.featureGroups) {
+      if (group.kind === "road") {
+        for (const seg of group.segments) {
+          const edge = city.mesh.edges[seg.edgeId];
+          const pa = city.mesh.vertices[edge.a].point;
+          const pb = city.mesh.vertices[edge.b].point;
+          expect(
+            Math.min(Math.hypot(pa[0] - hub[0], pa[1] - hub[1]), Math.hypot(pb[0] - hub[0], pb[1] - hub[1]))
+          ).toBeGreaterThanOrEqual(118);
+        }
+      }
+    }
+  });
+
+  it("reproduces user share case with evolution grid and no walls", () => {
+    const grid = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "1ky0kcc",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.layout = "circuladeCoreVoronoi";
+    settings.config.layout = "circuladeCoreVoronoi";
+    settings.config.coast = "none";
+    settings.config.rivers = [];
+    settings.config.relief = false;
+    settings.config.features.walls = false;
+    settings.config.features.plaza = false;
+    settings.config.features.temple = false;
+    settings.config.features.citadel = false;
+    settings.config.features.port = false;
+
+    const city = generateCityOnDocument(grid, settings, "1ddhnpv");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    const roads = city.featureGroups.filter(g => g.kind === "road");
+    // Ensure only the clean external approach roads exist without redundant overlapping stubs (gc:road-2, gc:road-3)
+    expect(roads.map(g => g.id)).toEqual(["gc:road-0", "gc:road-1"]);
+    expect(city.featureGroups.some(g => g.id === "gc:road-2" || g.id === "gc:road-3")).toBe(false);
+  });
 });

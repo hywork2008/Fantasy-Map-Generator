@@ -623,7 +623,9 @@ export function mountCityEditor(root: HTMLElement): void {
         ? "自動 / ランダム (Auto)"
         : option.value === "organic"
           ? "通常・有機的 (Organic)"
-          : "Bram型・同心円 (Bram / Circulade)";
+          : option.value === "bram"
+            ? "Bram型・同心円 (Bram / Circulade)"
+            : "Bram型コア＋ボロノイ外周 (Circulade Core + Voronoi)";
   }
   layoutSelect.addEventListener("change", () => {
     const val = layoutSelect.value as CityLayout;

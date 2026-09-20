@@ -46,6 +46,7 @@ import {
   remakeUnreachableLandGates,
   splitDryWallRuns
 } from "./gen/plausibility";
+import { planPolygonalCirculadeLayout } from "./gen/polygonalCirculadeLayout";
 import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
@@ -57,7 +58,7 @@ import {
   splitUrbanCore
 } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
-import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
+import { DEFAULT_SITE_CONFIG, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
 import { buildStreets, type FarNodeMode, farNodeFor } from "./gen/streets";
@@ -102,20 +103,25 @@ export { CITY_LAYOUTS, FEATURE_KEYS } from "./gen/site/siteConfig";
 export type { FarNodeMode };
 
 /** Resolve effective morphology layout:
+ * - "circuladeCoreVoronoi" -> "circuladeCoreVoronoi"
  * - "bram" -> "bram"
  * - "organic" -> "organic"
- * - "auto" -> deterministically roll Bram or Organic for tiny maps (<= 700m)
+ * - "auto" -> deterministically roll Bram, CirculadeCoreVoronoi, or Organic for tiny maps (<= 700m)
  */
 export function resolveEffectiveLayout(
   layout: import("./gen/site/siteConfig").CityLayout | undefined,
   extentMeters: number,
   seed: string
-): "organic" | "bram" {
+): "organic" | "bram" | "circuladeCoreVoronoi" {
+  if (layout === "circuladeCoreVoronoi") return "circuladeCoreVoronoi";
   if (layout === "bram") return "bram";
   if (layout === "organic") return "organic";
   if (extentMeters <= 700) {
     const rng = makeRng(`${seed}:effective-layout`);
-    return rng() < 0.5 ? "bram" : "organic";
+    const roll = rng();
+    if (roll < 0.33) return "bram";
+    if (roll < 0.66) return "circuladeCoreVoronoi";
+    return "organic";
   }
   return "organic";
 }
@@ -464,10 +470,16 @@ function generateCityAttempt(
   }
   const streetOptions = resolveStreetSettings(settings);
   const plaza = plan.precincts.find(p => p.kind === "plaza");
-  const star = plan.gates.map(
-    g => [g.point, plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0]] as Point[]
-  );
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
+  const hub: Point = plaza?.anchor ?? [0, 0];
+  const star = plan.gates.map(g => {
+    let target = plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
+    if (effectiveLayout === "circuladeCoreVoronoi") {
+      const angle = Math.atan2(g.point[1] - hub[1], g.point[0] - hub[0]);
+      target = [hub[0] + Math.cos(angle) * 123, hub[1] + Math.sin(angle) * 123];
+    }
+    return [g.point, target] as Point[];
+  });
   const isGate = (p: Point) => plan.gates.some(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < 15);
   const isPlaza = (p: Point) => {
     if (!plaza) return Math.hypot(p[0], p[1]) < 40;
@@ -483,7 +495,7 @@ function generateCityAttempt(
   };
   const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
   const extras =
-    effectiveLayout === "bram"
+    effectiveLayout === "bram" || effectiveLayout === "circuladeCoreVoronoi"
       ? []
       : plan.streets.filter(line => {
           if (isGateToPlaza(line)) return false;
@@ -491,7 +503,8 @@ function generateCityAttempt(
             b = line[line.length - 1];
           return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
         });
-  const streets = [...star, ...extras];
+  const isCirculadeVoronoiUnwalled = effectiveLayout === "circuladeCoreVoronoi" && !program.walls;
+  const streets = isCirculadeVoronoiUnwalled ? [] : [...star, ...extras];
   const roads: Point[][] = plan.gates.map((gate, i) => [
     farNodeFor(
       gate,
@@ -510,7 +523,7 @@ function generateCityAttempt(
     document,
     cells,
     faceIdOf,
-    { ...plan, wards, streets, roads: [...roads, ...streets] },
+    { ...plan, layout: effectiveLayout, wards, streets, roads: [...roads, ...streets] },
     program,
     6,
     true,
@@ -836,6 +849,7 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  layout?: "organic" | "bram" | "circuladeCoreVoronoi";
   sea: Set<number>;
   /** S1's raw graph walk (upstream → downstream), before it is closed into
    * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
@@ -894,7 +908,9 @@ function runPlan(
 ): Plan {
   const mark = generationTimer(observer, attempt);
   const streetOpts = resolveStreetSettings(settings);
+  const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    layout: effectiveLayout,
     sea: new Set(),
     coastPath: [],
     waterPolygon: null,
@@ -996,7 +1012,6 @@ function runPlan(
   if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages, builtUp };
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
-  const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const riverLines = rivers.map(band => band.smoothPoints);
   const borderLoops = componentBorderLoops(mesh, faceIdOf, urban);
   const genBorders = borderLoops.map(loop => toGeneratorBorder(loop));
@@ -1007,6 +1022,7 @@ function runPlan(
     : null;
 
   let circuladePlan: import("./gen/circuladeLayout").CirculadeLayoutPlan | null = null;
+  let polygonalCirculadePlan: import("./gen/polygonalCirculadeLayout").PolygonalCirculadePlan | null = null;
   if (effectiveLayout === "bram") {
     const urbanCells = cells.filter(c => urban.has(c.id));
     const hub: Point = urbanCells.length
@@ -1020,6 +1036,18 @@ function runPlan(
     precincts = precincts.filter(p => p.kind !== "plaza" && p.kind !== "temple");
     if (program.plaza) precincts.push(circuladePlan.plaza);
     if (program.temple && circuladePlan.temple) precincts.push(circuladePlan.temple);
+  } else if (effectiveLayout === "circuladeCoreVoronoi") {
+    const urbanCells = cells.filter(c => urban.has(c.id));
+    const hub: Point = urbanCells.length
+      ? (urbanCells
+          .reduce<Point>((sum, c) => [sum[0] + c.centroid[0], sum[1] + c.centroid[1]], [0, 0])
+          .map(v => v / urbanCells.length) as Point)
+      : [0, 0];
+    polygonalCirculadePlan = planPolygonalCirculadeLayout(hub, seed, 120, program.temple, 16);
+
+    precincts = precincts.filter(p => p.kind !== "plaza" && p.kind !== "temple");
+    if (program.plaza) precincts.push(polygonalCirculadePlan.plaza);
+    if (program.temple && polygonalCirculadePlan.temple) precincts.push(polygonalCirculadePlan.temple);
   }
 
   const placed = markWaterGate(
@@ -1030,10 +1058,17 @@ function runPlan(
   );
   let gates = streetOpts.avoidSea ? markSeaSurroundedGates(placed, waterPolygon, cellSize) : placed;
 
-  // For Bram circulade, snap gates to recommended opposed positions along the border
-  if (effectiveLayout === "bram" && circuladePlan && genBorders.length) {
-    const bramGates: Gate[] = [];
-    for (const rec of circuladePlan.recommendedGates) {
+  // For Bram circulade or circuladeCoreVoronoi, snap gates to recommended opposed positions along the border
+  const recommendedGates =
+    effectiveLayout === "bram" && circuladePlan
+      ? circuladePlan.recommendedGates
+      : effectiveLayout === "circuladeCoreVoronoi" && polygonalCirculadePlan
+        ? polygonalCirculadePlan.recommendedGates
+        : null;
+
+  if (recommendedGates && genBorders.length) {
+    const customGates: Gate[] = [];
+    for (const rec of recommendedGates) {
       let bestDist = Infinity;
       let bestPt: Point | null = null;
       let bestBIdx = 0;
@@ -1047,12 +1082,12 @@ function runPlan(
           }
         }
       });
-      if (bestPt && !bramGates.some(g => Math.hypot(g.point[0] - bestPt![0], g.point[1] - bestPt![1]) < 12)) {
-        bramGates.push({ point: bestPt, borderIndex: bestBIdx, water: false });
+      if (bestPt && !customGates.some(g => Math.hypot(g.point[0] - bestPt![0], g.point[1] - bestPt![1]) < 12)) {
+        customGates.push({ point: bestPt, borderIndex: bestBIdx, water: false });
       }
     }
-    if (bramGates.length >= 2) {
-      gates = bramGates;
+    if (customGates.length >= 2) {
+      gates = customGates;
     }
   }
 
@@ -1163,6 +1198,7 @@ function runPlan(
   });
   mark("wards");
   return {
+    layout: effectiveLayout,
     sea,
     coastPath,
     waterPolygon,
@@ -1411,6 +1447,22 @@ function applyPlan(
       .filter(e => e.leftFace && e.rightFace && plazaFaces.has(e.leftFace) && plazaFaces.has(e.rightFace))
       .map(e => e.id);
     const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...internalPlazaEdges]);
+    const layout = plan.layout ?? source.layout;
+    if (layout === "circuladeCoreVoronoi") {
+      const plazaElem = next.elements.find(e => e.kind === "plaza");
+      const hub: Point = plazaElem?.point ?? [0, 0];
+      for (const e of Object.values(mesh.edges)) {
+        const pa = mesh.vertices[e.a]?.point;
+        const pb = mesh.vertices[e.b]?.point;
+        if (
+          pa &&
+          pb &&
+          (Math.hypot(pa[0] - hub[0], pa[1] - hub[1]) < 118 || Math.hypot(pb[0] - hub[0], pb[1] - hub[1]) < 118)
+        ) {
+          banned.add(e.id);
+        }
+      }
+    }
     const routeComplete = complete
       ? completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned, !program.walls)
       : null;
@@ -2034,7 +2086,7 @@ function settleTempleOnDocument(document: CityDocument): void {
 function plazaApproachPoint(cells: Cell[], plaza: Precinct | undefined, from?: Point): Point | null {
   if (!plaza) return null;
   if (!plaza.cellIds || !plaza.cellIds.length) {
-    if (plaza.polygon.length && from) {
+    if (plaza.polygon && plaza.polygon.length && from) {
       let bestDist = Infinity;
       let bestPt: Point | null = null;
       for (const p of plaza.polygon) {

@@ -196,4 +196,12 @@ describe("coarse-cell infill", () => {
     document.mesh.faces.f0.properties.water = "sea";
     expect(buildBlockFabric(document).lanes).toEqual([]);
   });
+
+  it("generates hybrid fabric for circuladeCoreVoronoi layout", () => {
+    const document = fixture([rect]);
+    document.layout = "circuladeCoreVoronoi";
+    const fabric = buildBlockFabric(document);
+    expect(fabric.buildings.length).toBeGreaterThan(0);
+    expect(fabric.lanes.length).toBeGreaterThan(0);
+  });
 });
