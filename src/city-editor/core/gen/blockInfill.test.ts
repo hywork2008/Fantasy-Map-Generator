@@ -204,4 +204,15 @@ describe("coarse-cell infill", () => {
     expect(fabric.buildings.length).toBeGreaterThan(0);
     expect(fabric.lanes.length).toBeGreaterThan(0);
   });
+
+  it("generates classic street growth and frontage fabric for classic layout", () => {
+    const document = fixture([rect]);
+    document.layout = "classic";
+    const fabric = buildBlockFabric(document);
+    expect(fabric.buildings.length).toBeGreaterThan(50);
+    expect(fabric.lanes.length).toBeGreaterThan(2);
+    for (const building of fabric.buildings) {
+      expect(building.polygon.every(p => pointInPolygon(p, rect))).toBe(true);
+    }
+  });
 });

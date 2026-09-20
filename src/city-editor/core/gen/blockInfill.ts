@@ -176,6 +176,8 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     };
   }
 
+  const effectiveSubLayout = layout === "classic" ? "classic" : "organic";
+
   if (!document.fabric) {
     const plazaElem = document.elements.find(e => e.kind === "plaza");
     const hub: Point = plazaElem?.point ?? [0, 0];
@@ -183,7 +185,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       seed: "fabric-seed",
       parameters: new Map(),
       cache,
-      layout: "organic",
+      layout: effectiveSubLayout,
       hub
     });
     const lanes = local.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
@@ -199,7 +201,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     seed: plan.seed,
     parameters: new Map(districts.map(d => [d.id, d.parameters])),
     cache,
-    layout: "organic",
+    layout: effectiveSubLayout,
     hub
   });
   const members = new Map(districts.map(d => [d.id, d.faceIds]));

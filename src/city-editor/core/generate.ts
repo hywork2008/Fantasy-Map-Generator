@@ -106,13 +106,15 @@ export type { FarNodeMode };
  * - "circulade" -> "circulade"
  * - "bram" -> "bram"
  * - "organic" -> "organic"
+ * - "classic" -> "classic"
  * - "auto" -> deterministically roll Circulade, Bram, or Organic for tiny maps (<= 700m)
  */
 export function resolveEffectiveLayout(
   layout: import("./gen/site/siteConfig").CityLayout | undefined,
   extentMeters: number,
   seed: string
-): "organic" | "circulade" | "bram" {
+): "organic" | "circulade" | "bram" | "classic" {
+  if (layout === "classic") return "classic";
   if (layout === "circulade") return "circulade";
   if (layout === "bram") return "bram";
   if (layout === "organic") return "organic";
@@ -472,39 +474,55 @@ function generateCityAttempt(
   const plaza = plan.precincts.find(p => p.kind === "plaza");
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const hub: Point = plaza?.anchor ?? [0, 0];
-  const star = plan.gates.map(g => {
-    let target = plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
-    if (effectiveLayout === "bram") {
-      const angle = Math.atan2(g.point[1] - hub[1], g.point[0] - hub[0]);
-      target = [hub[0] + Math.cos(angle) * 123, hub[1] + Math.sin(angle) * 123];
-    }
-    return [g.point, target] as Point[];
-  });
-  const isGate = (p: Point) => plan.gates.some(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < 15);
-  const isPlaza = (p: Point) => {
-    if (!plaza) return Math.hypot(p[0], p[1]) < 40;
-    if (plaza.anchor && Math.hypot(p[0] - plaza.anchor[0], p[1] - plaza.anchor[1]) < (plaza.radiusMeters ?? 20) + 25)
-      return true;
-    if (plaza.polygon?.some(pt => Math.hypot(p[0] - pt[0], p[1] - pt[1]) < 25)) return true;
-    return Math.hypot(p[0], p[1]) < 40;
-  };
-  const isGateToPlaza = (line: Point[]) => {
-    const a = line[0],
-      b = line[line.length - 1];
-    return (isGate(a) && isPlaza(b)) || (isGate(b) && isPlaza(a));
-  };
   const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
-  const extras =
-    effectiveLayout === "circulade" || effectiveLayout === "bram"
-      ? []
-      : plan.streets.filter(line => {
-          if (isGateToPlaza(line)) return false;
-          const a = line[0],
-            b = line[line.length - 1];
-          return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
-        });
-  const isBramVoronoiUnwalled = effectiveLayout === "bram" && !program.walls;
-  const streets = isBramVoronoiUnwalled ? [] : [...star, ...extras];
+
+  let streets: Point[][];
+  if (effectiveLayout === "classic") {
+    // 323b5638: direct radial streets from gates to plaza center
+    const plazaPoint: Point = plaza?.anchor ?? [0, 0];
+    const star = plan.gates.map(g => [g.point, plazaPoint] as Point[]);
+    const extras = plan.streets
+      .filter(line => {
+        const a = line[0],
+          b = line[line.length - 1];
+        return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
+      })
+      .map(line => [line[0], line[line.length - 1]] as Point[]);
+    streets = [...star, ...extras];
+  } else {
+    const star = plan.gates.map(g => {
+      let target = plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
+      if (effectiveLayout === "bram") {
+        const angle = Math.atan2(g.point[1] - hub[1], g.point[0] - hub[0]);
+        target = [hub[0] + Math.cos(angle) * 123, hub[1] + Math.sin(angle) * 123];
+      }
+      return [g.point, target] as Point[];
+    });
+    const isGate = (p: Point) => plan.gates.some(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < 15);
+    const isPlaza = (p: Point) => {
+      if (!plaza) return Math.hypot(p[0], p[1]) < 40;
+      if (plaza.anchor && Math.hypot(p[0] - plaza.anchor[0], p[1] - plaza.anchor[1]) < (plaza.radiusMeters ?? 20) + 25)
+        return true;
+      if (plaza.polygon?.some(pt => Math.hypot(p[0] - pt[0], p[1] - pt[1]) < 25)) return true;
+      return Math.hypot(p[0], p[1]) < 40;
+    };
+    const isGateToPlaza = (line: Point[]) => {
+      const a = line[0],
+        b = line[line.length - 1];
+      return (isGate(a) && isPlaza(b)) || (isGate(b) && isPlaza(a));
+    };
+    const extras =
+      effectiveLayout === "circulade" || effectiveLayout === "bram"
+        ? []
+        : plan.streets.filter(line => {
+            if (isGateToPlaza(line)) return false;
+            const a = line[0],
+              b = line[line.length - 1];
+            return !star.some(s => (sameEnd(s[0], a) && sameEnd(s[1], b)) || (sameEnd(s[0], b) && sameEnd(s[1], a)));
+          });
+    const isBramVoronoiUnwalled = effectiveLayout === "bram" && !program.walls;
+    streets = isBramVoronoiUnwalled ? [] : [...star, ...extras];
+  }
   const roads: Point[][] = plan.gates.map((gate, i) => [
     farNodeFor(
       gate,
@@ -849,7 +867,7 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
-  layout?: "organic" | "circulade" | "bram";
+  layout?: "organic" | "circulade" | "bram" | "classic";
   sea: Set<number>;
   /** S1's raw graph walk (upstream → downstream), before it is closed into
    * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
@@ -1597,6 +1615,9 @@ function applyPlan(
       if (group.locked || group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
       const routeIndex = Number(group.id.slice(`${GEN_PREFIX}road-`.length));
       if (!Number.isInteger(routeIndex)) return true;
+      if (plan.layout === "classic") {
+        return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
+      }
       if (routeIndex < plan.gates.length * 2) {
         return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
       }

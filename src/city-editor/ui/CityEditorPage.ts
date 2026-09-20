@@ -625,7 +625,9 @@ export function mountCityEditor(root: HTMLElement): void {
           ? "Organic"
           : option.value === "circulade"
             ? "Circulade"
-            : "Bram";
+            : option.value === "bram"
+              ? "Bram"
+              : "Classic";
   }
   layoutSelect.addEventListener("change", () => {
     const val = layoutSelect.value as CityLayout;

@@ -26,6 +26,7 @@ export interface BlockInfillOptions {
   build: boolean;
   kind?: "core" | "outskirts";
   orientation?: number;
+  classic?: boolean;
 }
 
 export type OutskirtsInfillOptions = BlockInfillOptions;
@@ -36,7 +37,18 @@ export interface OutskirtsInfill {
 }
 
 /** Street-to-street spacing: two house rows, a lane, and a shared yard. */
-export function blockSpan(lotArea: number, laneWidth: number, kind: "core" | "outskirts" = "outskirts"): number {
+export function blockSpan(
+  lotArea: number,
+  laneWidth: number,
+  kind: "core" | "outskirts" = "outskirts",
+  classic = false
+): number {
+  if (classic) {
+    const row = Math.sqrt(Math.max(80, lotArea)) * (kind === "core" ? 1.65 : 1.15);
+    return kind === "core"
+      ? Math.min(70, Math.max(40, 2 * row + laneWidth + 8))
+      : Math.min(88, Math.max(42, 2 * row + laneWidth + 20));
+  }
   if (kind === "core") return intramuralBlockSpan(lotArea, laneWidth);
   const row = Math.sqrt(Math.max(40, lotArea)) * 1.15;
   return Math.min(56, Math.max(32, 2 * row + laneWidth + 16));
@@ -76,7 +88,7 @@ function infillBlocks(
   const { lotArea, laneWidth, coverage, occupancy, build, orientation } = options;
   const core = options.kind === "core";
   if (polygon.length < 3 || Math.abs(polygonArea(polygon)) < 65) return { lanes: [], buildings: [] };
-  const span = blockSpan(lotArea, laneWidth, core ? "core" : "outskirts");
+  const span = blockSpan(lotArea, laneWidth, core ? "core" : "outskirts", options.classic);
   const seeds = seedEdges(polygon, roadFrontages, entries);
   const lanes: Point[][] = [];
   const pushLane = (a: Point, b: Point): Point[] | null => {

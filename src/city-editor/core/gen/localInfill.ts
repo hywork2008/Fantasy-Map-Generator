@@ -363,9 +363,11 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
     return [ctx.roads.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
   });
+  const isCirculade = ctx.options?.layout === "circulade";
+  const isClassic = ctx.options?.layout === "classic";
   const key = ctx.options
     ? JSON.stringify([
-        outskirts ? "outskirts-face-v3" : "district-voronoi-perimeter-v3",
+        outskirts ? "outskirts-face-v3" : isClassic ? "district-infill-classic-v1" : "district-voronoi-perimeter-v3",
         ctx.options.seed,
         id,
         face.properties,
@@ -387,9 +389,8 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     fabric.lanes.push(...cached.lanes);
     return;
   }
-  const isCirculade = ctx.options?.layout === "circulade";
   const local: CityFabric =
-    !outskirts && face.properties.ward !== "castle"
+    !outskirts && face.properties.ward !== "castle" && !isClassic
       ? isCirculade
         ? buildCirculadeBlocks(
             face,
@@ -435,7 +436,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
             buildableFace(face) && !reserved
           )
       : { buildings: [], lanes: [], entrances: new Map() };
-  if (outskirts || face.properties.ward === "castle")
+  if (outskirts || face.properties.ward === "castle" || isClassic)
     fillPolygon(
       face,
       polygon,
@@ -447,7 +448,8 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
       ctx,
       buildableFace(face) && !reserved,
       [id],
-      ctx.options?.seed
+      ctx.options?.seed,
+      isClassic
     );
   local.buildings = local.buildings.filter(
     b =>
@@ -488,7 +490,8 @@ function fillPolygon(
   ctx: PaintContext,
   build: boolean,
   memberIds: Id[],
-  seed?: string
+  seed?: string,
+  classic = false
 ): void {
   const { mesh } = ctx.document;
   const members = new Set(memberIds);
@@ -546,17 +549,27 @@ function fillPolygon(
     const rng = makeRng(
       `${seed ?? (outskirts ? "outskirts-v1" : "core-blocks-v1")}:${face.id}:${face.properties.ward}:${part[0].join(",")}`
     );
+    const lotArea =
+      parameters?.lotArea ??
+      (classic
+        ? face.properties.ward === "castle"
+          ? 1200
+          : face.properties.ward === "merchant"
+            ? 220
+            : 150
+        : dwellingLotArea(face.properties.ward));
     const grown = (outskirts ? infillOutskirts : infillCore)(
       safe,
       frontageEdges,
       portals,
       {
-        lotArea: parameters?.lotArea ?? dwellingLotArea(face.properties.ward),
+        lotArea,
         laneWidth: parameters?.laneWidth ?? 3,
         coverage: parameters?.coverage ?? 0.75,
         occupancy: parameters?.occupancy ?? (outskirts ? 0.82 : 0.965),
         build,
-        orientation: parameters?.orientation
+        orientation: parameters?.orientation,
+        classic
       },
       rng
     );

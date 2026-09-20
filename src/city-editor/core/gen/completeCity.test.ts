@@ -550,4 +550,60 @@ describe("building setbacks", () => {
     expect(roads.map(g => g.id)).toEqual(["gc:road-0", "gc:road-1"]);
     expect(city.featureGroups.some(g => g.id === "gc:road-2" || g.id === "gc:road-3")).toBe(false);
   });
+
+  it("generates a complete city with classic layout (323b5638 street growth and frontage buildings)", () => {
+    const grid = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "classic-test-grid",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.layout = "classic";
+    settings.config.layout = "classic";
+    settings.config.coast = "none";
+    settings.config.rivers = [];
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+
+    const city = generateCityOnDocument(grid, settings, "classic-seed");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    expect(city.layout).toBe("classic");
+    expect(validate(city)).toEqual([]);
+
+    const fabric = buildBlockFabric(city);
+    expect(fabric.buildings.length).toBeGreaterThan(30);
+    expect(fabric.lanes.length).toBeGreaterThan(2);
+
+    for (const building of fabric.buildings) {
+      expect(building.polygon.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("reproduces user nanum6 classic case without redundant roads", () => {
+    const fs = require("node:fs");
+    const samplePath = "temp/ce-20260921-043609.json";
+    if (!fs.existsSync(samplePath)) return;
+    const sample = JSON.parse(fs.readFileSync(samplePath, "utf8"));
+    const grid = sample.fabric?.generation?.input ?? sample;
+    const settings = defaultGenerationSettings();
+    settings.layout = "classic";
+    settings.config.layout = "classic";
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+
+    const city = generateCityOnDocument(grid, settings, "nanum6");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    const roads = city.featureGroups.filter(g => g.kind === "road");
+    // Ensure gc:road-9 and gc:road-10 are removed, leaving only the active gate roads and bridge
+    expect(roads.map(r => r.id)).toEqual(["gc:bridge-0", "gc:road-0", "gc:road-8"]);
+  });
 });
