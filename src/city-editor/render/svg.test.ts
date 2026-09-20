@@ -8,6 +8,7 @@ import {
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
+  renderMeasureOverlay,
   selectionLabelFontSize,
   vertexHandleRadius
 } from "./svg";
@@ -349,5 +350,48 @@ describe("renderEditorSvg data-pick metadata", () => {
     expect(parsePickInfo(null)).toBeNull();
     expect(parsePickInfo("")).toBeNull();
     expect(parsePickInfo("not-json")).toBeNull();
+  });
+});
+
+describe("renderMeasureOverlay", () => {
+  it("returns empty array when from is null", () => {
+    expect(renderMeasureOverlay(null, null, 1)).toEqual([]);
+  });
+
+  it("renders a start point circle when from is set but to is null", () => {
+    const nodes = renderMeasureOverlay([10, 20], null, 1);
+    expect(nodes).toHaveLength(1);
+    const circle = nodes[0] as SVGCircleElement;
+    expect(circle.getAttribute("class")).toContain("ce-measure-point--start");
+    expect(circle.getAttribute("cx")).toBe("10");
+    expect(circle.getAttribute("cy")).toBe("-20");
+  });
+
+  it("renders a line, two point circles, and distance label when from and to are set", () => {
+    const nodes = renderMeasureOverlay([0, 0], [100, 200], 1, "223.6 m");
+    expect(nodes).toHaveLength(4);
+
+    const line = nodes[0] as SVGLineElement;
+    expect(line.getAttribute("class")).toBe("ce-measure-line");
+    expect(line.getAttribute("x1")).toBe("0");
+    expect(line.getAttribute("y1")).toBe("0");
+    expect(line.getAttribute("x2")).toBe("100");
+    expect(line.getAttribute("y2")).toBe("-200");
+
+    const p1 = nodes[1] as SVGCircleElement;
+    expect(p1.getAttribute("class")).toBe("ce-measure-point");
+    expect(p1.getAttribute("cx")).toBe("0");
+    expect(p1.getAttribute("cy")).toBe("0");
+
+    const p2 = nodes[2] as SVGCircleElement;
+    expect(p2.getAttribute("class")).toBe("ce-measure-point");
+    expect(p2.getAttribute("cx")).toBe("100");
+    expect(p2.getAttribute("cy")).toBe("-200");
+
+    const text = nodes[3] as SVGTextElement;
+    expect(text.getAttribute("class")).toBe("ce-measure-label");
+    expect(text.getAttribute("x")).toBe("50");
+    expect(text.getAttribute("y")).toBe("-100");
+    expect(text.textContent).toBe("223.6 m");
   });
 });

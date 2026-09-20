@@ -465,6 +465,7 @@ export function renderEditorSvg(
   // pointermove without rebuilding every cell/edge/vertex node. Populated by
   // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
+  svg.appendChild(element("g", { class: "ce-measure-layer", "pointer-events": "none" }));
   mark("svg-details");
   return svg;
 }
@@ -704,6 +705,86 @@ export function renderHoverOverlay(document: CityDocument, selection: RenderSele
       );
     }
   }
+  return nodes;
+}
+
+/**
+ * Renders the measure overlay elements:
+ * - A single circle for the pending start point if only `from` is set.
+ * - A straight line, start/end point circles, and distance label if both `from` and `to` are set.
+ */
+export function renderMeasureOverlay(
+  from: [number, number] | null,
+  to: [number, number] | null,
+  metersPerPixel: number,
+  formattedDistance?: string
+): SVGElement[] {
+  if (!from) return [];
+  if (!to) {
+    const r = String(Math.max(2, 4 * metersPerPixel));
+    return [
+      element("circle", {
+        cx: String(from[0]),
+        cy: String(-from[1]),
+        r,
+        class: "ce-measure-point ce-measure-point--start",
+        "pointer-events": "none"
+      })
+    ];
+  }
+
+  const nodes: SVGElement[] = [];
+  const lineEl = element("line", {
+    x1: String(from[0]),
+    y1: String(-from[1]),
+    x2: String(to[0]),
+    y2: String(-to[1]),
+    class: "ce-measure-line",
+    "pointer-events": "none"
+  });
+  nodes.push(lineEl);
+
+  const r = String(Math.max(2, 3.5 * metersPerPixel));
+  nodes.push(
+    element("circle", {
+      cx: String(from[0]),
+      cy: String(-from[1]),
+      r,
+      class: "ce-measure-point",
+      "pointer-events": "none"
+    })
+  );
+  nodes.push(
+    element("circle", {
+      cx: String(to[0]),
+      cy: String(-to[1]),
+      r,
+      class: "ce-measure-point",
+      "pointer-events": "none"
+    })
+  );
+
+  if (formattedDistance) {
+    const midX = (from[0] + to[0]) / 2;
+    const midY = (-from[1] + -to[1]) / 2;
+    const fontSize = Math.max(8, 12 * metersPerPixel);
+    const textEl = element(
+      "text",
+      {
+        x: String(midX),
+        y: String(midY),
+        "font-size": String(fontSize),
+        "stroke-width": String(Math.max(1, fontSize * 0.25)),
+        "text-anchor": "middle",
+        dy: String(-fontSize * 0.6),
+        class: "ce-measure-label",
+        "pointer-events": "all"
+      },
+      formattedDistance
+    );
+    nodes.push(textEl);
+  }
+
   return nodes;
 }
 

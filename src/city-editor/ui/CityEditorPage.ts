@@ -1,3 +1,5 @@
+import i18n from "../../i18n";
+import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import {
   CITY_SIZE_PRESETS,
@@ -101,6 +103,7 @@ import {
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
+  renderMeasureOverlay,
   renderRoutePreview,
   type SvgPickInfo
 } from "../render/svg";
@@ -133,6 +136,9 @@ interface ContextMenuAction {
   label: string;
   run: () => void;
   highlight?: { vertexId: Id; edgeId: Id };
+  disabled?: boolean;
+  title?: string;
+  isSeparator?: boolean;
 }
 
 type RoutePaintKind = "river" | "road" | "wall";
@@ -212,6 +218,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let viewCenter: [number, number] = [0, 0];
   let closeContextMenuOnPointerMove = false;
   let notice = "";
+  let measureFrom: [number, number] | null = null;
+  let measureTo: [number, number] | null = null;
   const generateSettings: GenerationSettings = defaultGenerationSettings();
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
@@ -431,6 +439,7 @@ export function mountCityEditor(root: HTMLElement): void {
     completeResult = null;
     showBlockMesh = false;
     clearGridEvo();
+    clearMeasurement();
     rebuildEditorIndexes();
     refresh();
   });
@@ -1460,6 +1469,31 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
 
+    const clickPoint: [number, number] = [rn(localPoint(event)[0], 1), rn(localPoint(event)[1], 1)];
+    const hasPriorActions = actions.length > 0;
+
+    actions.push({
+      label: i18n.t("mapContextMenu.distanceFromHere") || "Distance from here",
+      isSeparator: hasPriorActions,
+      run: () => setDistanceFromHere(clickPoint)
+    });
+
+    actions.push({
+      label: i18n.t("mapContextMenu.distanceToHere") || "Distance to here",
+      disabled: !measureFrom,
+      title: !measureFrom
+        ? i18n.t("mapContextMenu.distanceToHereDisabled") || 'Set a starting point with "Distance from here" first'
+        : undefined,
+      run: () => setDistanceToHere(clickPoint)
+    });
+
+    if (measureFrom || measureTo) {
+      actions.push({
+        label: i18n.language === "ja" ? "計測をクリア" : "Clear measurement",
+        run: () => clearMeasurement()
+      });
+    }
+
     showContextMenu(event, actions);
   });
   map.addEventListener(
@@ -1491,6 +1525,7 @@ export function mountCityEditor(root: HTMLElement): void {
       selection = emptySelection();
       activeGroupId = null;
       hideContextMenu();
+      clearMeasurement();
       refresh();
     }
   });
@@ -1581,7 +1616,17 @@ export function mountCityEditor(root: HTMLElement): void {
     contextMenu.replaceChildren();
     if (actions.length) {
       for (const action of actions) {
-        const button = makeButton(action.label, action.run);
+        if (action.isSeparator) {
+          const hr = document.createElement("hr");
+          contextMenu.appendChild(hr);
+        }
+        const button = makeButton(action.label, () => {
+          if (!action.disabled) action.run();
+        });
+        if (action.disabled) {
+          button.disabled = true;
+          if (action.title) button.title = action.title;
+        }
         const highlight = action.highlight;
         if (highlight) {
           button.addEventListener("pointerenter", () => setContextHighlight(highlight));
@@ -1618,6 +1663,54 @@ export function mountCityEditor(root: HTMLElement): void {
     selection.hoverVertexId = null;
     selection.hoverEdgeId = null;
     updateHoverOverlay();
+  }
+
+  function setDistanceFromHere(point: [number, number]): void {
+    measureFrom = point;
+    measureTo = null;
+    hideContextMenu();
+    updateMeasureOverlay();
+    showNotice(i18n.language === "ja" ? "開始位置を設定しました" : "Starting point set");
+  }
+
+  function setDistanceToHere(point: [number, number]): void {
+    if (!measureFrom) {
+      hideContextMenu();
+      return;
+    }
+    measureTo = point;
+    hideContextMenu();
+    updateMeasureOverlay();
+    const dist = Math.hypot(measureTo[0] - measureFrom[0], measureTo[1] - measureFrom[1]);
+    showNotice(i18n.language === "ja" ? `距離: ${formatDistance(dist)}` : `Distance: ${formatDistance(dist)}`);
+  }
+
+  function clearMeasurement(): void {
+    measureFrom = null;
+    measureTo = null;
+    hideContextMenu();
+    updateMeasureOverlay();
+  }
+
+  function updateMeasureOverlay(): void {
+    const layer = map.querySelector<SVGGElement>(".ce-measure-layer");
+    if (!layer) return;
+    const width = Math.max(map.getBoundingClientRect().width, 1);
+    const metersPerPixel = (halfView * 2) / width;
+    const dist =
+      measureFrom && measureTo ? Math.hypot(measureTo[0] - measureFrom[0], measureTo[1] - measureFrom[1]) : 0;
+    const label = measureFrom && measureTo ? formatDistance(dist) : "";
+    const nodes = renderMeasureOverlay(measureFrom, measureTo, metersPerPixel, label);
+    layer.replaceChildren(...nodes);
+    const textEl = layer.querySelector<SVGTextElement>(".ce-measure-label");
+    if (textEl) {
+      textEl.style.cursor = "pointer";
+      textEl.setAttribute("role", "button");
+      textEl.setAttribute("title", i18n.language === "ja" ? "クリックして計測を消去" : "Click to clear measurement");
+      textEl.addEventListener("click", () => {
+        clearMeasurement();
+      });
+    }
   }
 
   function restore(next: CityDocument | null): void {
@@ -1743,6 +1836,7 @@ export function mountCityEditor(root: HTMLElement): void {
     );
     updateRoutePreview();
     updateHoverOverlay();
+    updateMeasureOverlay();
   }
 
   /**
@@ -3487,7 +3581,8 @@ function niceScale(targetMeters: number): number {
 }
 
 function formatDistance(meters: number): string {
-  return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+  const rounded = meters >= 1000 ? rn(meters / 1000, 2) : rn(meters, 1);
+  return meters >= 1000 ? `${rounded} km` : `${rounded} m`;
 }
 
 function formatClock(time: number): string {
