@@ -1027,7 +1027,7 @@ function runPlan(
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
   const classification = classifyUrban(
     cells,
-    { sea, bank: complete ? new Map() : river.bank },
+    { sea, bank: river.bank },
     urbanBearings,
     urbanRadius,
     complete ? null : shoreTangent,

@@ -54,9 +54,41 @@ describe("classifyUrban — accumulated area", () => {
       bank: new Map<number, number>()
     };
     expect(classifyUrban(cells, ctx, [], EXTENT).urban).toEqual(available);
-    expect(
-      classifyUrban(cells, { sea: new Set(), bank: new Map(cells.map(c => [c.id, 1])) }, [], EXTENT).urban.size
-    ).toBe(0);
+    expect(classifyUrban(cells, { sea: new Set(cells.map(c => c.id)), bank: new Map() }, [], EXTENT).urban.size).toBe(
+      0
+    );
+  });
+
+  it("expands across rivers onto the opposite bank without bloating total area", () => {
+    const cells = buildHexGrid(EXTENT, 50);
+    // Split grid into city side (x <= 0) and opposite bank (x > 0)
+    const bank = new Map<number, number>(cells.map(c => [c.id, c.centroid[0] > 0 ? 1 : 0]));
+    const ctx = { sea: new Set<number>(), bank };
+    const _dryResult = classifyUrban(cells, DRY, [], CITY_R);
+    const riverResult = classifyUrban(cells, ctx, [], CITY_R);
+
+    // Both achieve approximately the same target area (at most 1 cell of overshoot)
+    const target = Math.PI * CITY_R ** 2;
+    const riverArea = urbanArea(cells, riverResult.urban);
+    const last = cells.find(c => c.id === riverResult.stages.at(-1)!.cellId)!;
+    expect(riverArea).toBeGreaterThanOrEqual(target);
+    expect(riverArea - Math.abs(polygonArea(last.polygon))).toBeLessThan(target);
+
+    // River result includes cells on the opposite bank (x > 0)
+    const oppositeBankCells = [...riverResult.urban].filter(id => (bank.get(id) ?? 0) > 0);
+    expect(oppositeBankCells.length).toBeGreaterThan(0);
+
+    // Because opposite bank cells are included, city side cells do not stretch as far into negative x
+    // compared to when the river completely blocked expansion to the opposite bank.
+    const blockedBankResult = classifyUrban(
+      cells,
+      { sea: new Set(cells.filter(c => c.centroid[0] > 0).map(c => c.id)), bank: new Map() },
+      [],
+      CITY_R
+    );
+    const minXRiver = Math.min(...[...riverResult.urban].map(id => cells.find(c => c.id === id)!.centroid[0]));
+    const minXBlocked = Math.min(...[...blockedBankResult.urban].map(id => cells.find(c => c.id === id)!.centroid[0]));
+    expect(minXRiver).toBeGreaterThan(minXBlocked);
   });
 
   it("ignores cellSizeMeters when polygons have area — same mesh, same N", () => {
