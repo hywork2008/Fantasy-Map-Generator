@@ -9,7 +9,10 @@ import {
   renderFaceWardLandmark,
   renderHoverOverlay,
   renderMeasureOverlay,
+  renderStandaloneCitySvg,
+  STANDALONE_SVG_STYLE,
   selectionLabelFontSize,
+  serializeCitySvg,
   vertexHandleRadius
 } from "./svg";
 
@@ -427,5 +430,70 @@ describe("renderEditorSvg showGridLines", () => {
       true
     );
     expect(svgGrid.classList.contains("ce-svg--show-grid")).toBe(true);
+  });
+});
+
+describe("renderStandaloneCitySvg / serializeCitySvg", () => {
+  it("creates a standalone SVG with appropriate attributes, background, and embedded style", () => {
+    const document = createDocument("standalone-test", 600);
+    const svg = renderStandaloneCitySvg(document);
+
+    expect(svg.getAttribute("xmlns")).toBe("http://www.w3.org/2000/svg");
+    expect(svg.getAttribute("xmlns:xlink")).toBe("http://www.w3.org/1999/xlink");
+    expect(svg.getAttribute("version")).toBe("1.1");
+    expect(svg.getAttribute("width")).toBe("600");
+    expect(svg.getAttribute("height")).toBe("600");
+    expect(svg.getAttribute("viewBox")).toBe("-300 -300 600 600");
+
+    // Defs and style
+    const style = svg.querySelector("defs > style");
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toContain(".ce-building");
+    expect(style?.textContent).toContain(".ce-face--land");
+
+    // Background rect
+    const bg = svg.querySelector("rect.ce-background");
+    expect(bg).not.toBeNull();
+    expect(bg?.getAttribute("fill")).toBe("#e1dfd4");
+    expect(bg?.getAttribute("width")).toBe("600");
+    expect(bg?.getAttribute("height")).toBe("600");
+
+    // Cleaned up layers and data-pick
+    expect(svg.querySelectorAll(".ce-hover-layer, .ce-measure-layer, .ce-route-preview-layer")).toHaveLength(0);
+    expect(svg.querySelectorAll("[data-pick]")).toHaveLength(0);
+  });
+
+  it("applies town background and classes when appearance is town", () => {
+    const document = createDocument("town-test", 800);
+    document.appearance = "town";
+    const svg = renderStandaloneCitySvg(document);
+
+    expect(svg.classList.contains("ce-svg--town")).toBe(true);
+    const bg = svg.querySelector("rect.ce-background");
+    expect(bg?.getAttribute("fill")).toBe("#d5cfbf");
+  });
+
+  it("serializeCitySvg produces a valid XML document string with xml declaration", () => {
+    const document = createDocument("xml-test", 500);
+    const xml = serializeCitySvg(document);
+
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')).toBe(true);
+    expect(xml).toContain('<svg xmlns="http://www.w3.org/2000/svg"');
+    expect(xml).toContain("</svg>");
+    expect(xml).toContain('class="ce-background"');
+  });
+
+  it("includes xlink:href on image elements for reference images", () => {
+    const document = createDocument("ref-test", 400);
+    document.referenceImage = {
+      href: "data:image/png;base64,fake",
+      width: 200,
+      height: 200
+    };
+    const svg = renderStandaloneCitySvg(document);
+    const img = svg.querySelector("image");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("href")).toBe("data:image/png;base64,fake");
+    expect(img?.getAttribute("xlink:href")).toBe("data:image/png;base64,fake");
   });
 });

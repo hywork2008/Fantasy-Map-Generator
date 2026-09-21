@@ -1047,3 +1047,123 @@ function tree(point: Point, radius: number, id: Id): SVGElement {
   );
   return crown;
 }
+
+export const STANDALONE_SVG_STYLE = `
+  .ce-svg { background: transparent; }
+  .ce-reference-image { opacity: 0.82; }
+  .ce-svg--town { background: #d5cfbf; }
+  .ce-svg.ce-svg--town .ce-face--land { fill: #d5cfbf; }
+  .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--lake, .ce-svg--town .ce-face--openWater { fill: #85857d; }
+  .ce-svg--town .ce-edge { stroke: transparent; }
+  .ce-svg--town .ce-feature { opacity: 1; }
+  .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
+  .ce-building { fill: #b2afa2; stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
+  .ce-building--landmark { fill: #373831; }
+  .ce-road-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-face { stroke: none; fill: #e1dfd4; }
+  .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill: #91c8d3; }
+  .ce-face--land.ce-face--ward-unassigned { fill: #e1dfd4; }
+  .ce-face--land.ce-face--ward-market { fill: #edcf7a; }
+  .ce-face--land.ce-face--ward-castle { fill: #bca7ce; }
+  .ce-face--land.ce-face--ward-merchant { fill: #dfa184; }
+  .ce-face--land.ce-face--ward-craftsmen { fill: #d1a46e; }
+  .ce-face--land.ce-face--ward-harbor { fill: #e3b66d; }
+  .ce-face--land.ce-face--ward-park { fill: #99c187; }
+  .ce-face--land.ce-face--ward-farm { fill: #c6c19f; }
+  .ce-face--land.ce-face--ward-empty { fill: #f2ead2; }
+  .ce-face--land.ce-face--urban-step { fill: #d9662b; }
+  .ce-edge { fill: none; stroke: #738083; stroke-width: 1px; }
+  .ce-feature { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+  .ce-feature--wall { stroke-dasharray: 2 2; }
+  .ce-feature--plank { filter: drop-shadow(0 0 1px #332b22); }
+  .ce-element { color: #263c42; }
+  .ce-element-halo { fill: rgb(255 253 244 / 82%); stroke: #d0d6ce; stroke-width: 1px; }
+  .ce-element-mark { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-element--harbor { color: #0e6f83; }
+  .ce-element--citadel { color: #5f4b70; }
+  .ce-element--temple { color: #79572c; }
+  .ce-tree-crown { fill: #697d64; stroke: #394b40; stroke-width: 1px; }
+  .ce-tree-trunk { fill: none; stroke: #514538; stroke-linecap: round; }
+`;
+
+export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
+  const extent = document.frame.extentMeters;
+  const viewBox = `${-extent / 2} ${-extent / 2} ${extent} ${extent}`;
+  const emptySel: RenderSelection = {
+    faceId: null,
+    edgeId: null,
+    vertexId: null,
+    groupId: null,
+    inspectedId: null,
+    hoverGroupId: null,
+    hoverVertexId: null,
+    hoverEdgeId: null
+  };
+  const svg = renderEditorSvg(
+    document,
+    "select",
+    emptySel,
+    viewBox,
+    1,
+    false,
+    document.referenceImage ?? null,
+    null,
+    null,
+    null,
+    false,
+    false
+  );
+
+  svg.setAttribute("xmlns", NS);
+  svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  svg.setAttribute("version", "1.1");
+  svg.setAttribute("width", String(extent));
+  svg.setAttribute("height", String(extent));
+
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = element("defs", {}) as SVGDefsElement;
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  const style = element("style", { type: "text/css" }, STANDALONE_SVG_STYLE);
+  defs.appendChild(style);
+
+  const bgColor = document.appearance === "town" ? "#d5cfbf" : "#e1dfd4";
+  const bgRect = element("rect", {
+    x: String(-extent / 2),
+    y: String(-extent / 2),
+    width: String(extent),
+    height: String(extent),
+    fill: bgColor,
+    class: "ce-background"
+  });
+  if (defs.nextSibling) {
+    svg.insertBefore(bgRect, defs.nextSibling);
+  } else {
+    svg.appendChild(bgRect);
+  }
+
+  for (const img of svg.querySelectorAll("image")) {
+    const href = img.getAttribute("href");
+    if (href && !img.hasAttribute("xlink:href")) {
+      img.setAttribute("xlink:href", href);
+    }
+  }
+
+  for (const layer of svg.querySelectorAll(".ce-hover-layer, .ce-measure-layer, .ce-route-preview-layer")) {
+    layer.remove();
+  }
+  for (const el of svg.querySelectorAll("[data-pick]")) {
+    el.removeAttribute("data-pick");
+  }
+  for (const el of svg.querySelectorAll<SVGElement>("[style*='cursor']")) {
+    el.style.removeProperty("cursor");
+  }
+
+  return svg;
+}
+
+export function serializeCitySvg(document: CityDocument): string {
+  const svg = renderStandaloneCitySvg(document);
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(svg)}`;
+}

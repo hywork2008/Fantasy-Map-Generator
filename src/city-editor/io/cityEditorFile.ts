@@ -1,5 +1,6 @@
 import { parseDocument } from "../core/document";
 import type { CityDocument } from "../core/types";
+import { serializeCitySvg } from "../render/svg";
 import { importMfcgJson, importMfcgSvg } from "./mfcgImport";
 
 export const CITY_EDITOR_FILE_EXTENSION = ".fmg-city-editor.json";
@@ -16,6 +17,18 @@ export function exportCityMap(cityDocument: CityDocument): void {
   const link = document.createElement("a");
   link.href = url;
   link.download = `ce-${formatExportTimestamp(new Date())}.json`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Download a rendered standalone SVG map snapshot. */
+export function exportCitySvg(cityDocument: CityDocument): void {
+  const svg = serializeCitySvg(cityDocument);
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `ce-${formatExportTimestamp(new Date())}.svg`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

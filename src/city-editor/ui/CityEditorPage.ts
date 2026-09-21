@@ -86,7 +86,7 @@ import {
 } from "../core/mesh";
 import { openGatePassage } from "../core/passages";
 import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
-import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
+import { exportCityMap, exportCitySvg, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import {
   buildShare,
   type CityEditorShare,
@@ -449,9 +449,13 @@ export function mountCityEditor(root: HTMLElement): void {
   sizeLabel.className = "ce-size-choice";
   const undoButton = makeIconButton("🔙", "Undo", () => restore(history.undo(documentState)));
   const redoButton = makeIconButton("➜]", "Redo", () => restore(history.redo(documentState)));
-  const exportButton = makeIconButton("📥", "Export editable city map", () => {
+  const exportButton = makeIconButton("📥", "Export editable city map (JSON)", () => {
     exportCityMap(referenceImage ? { ...documentState, referenceImage } : documentState);
     showNotice("Map exported");
+  });
+  const exportSvgButton = makeIconButton("🗺️", "Export city map as SVG", () => {
+    exportCitySvg(referenceImage ? { ...documentState, referenceImage } : documentState);
+    showNotice("SVG exported");
   });
   const importButton = makeIconButton("📤", "Import city map or SVG reference", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
@@ -517,7 +521,7 @@ export function mountCityEditor(root: HTMLElement): void {
     else showNotice("No movable River, Road, or Wall vertices to smooth");
   });
   const actions = div("ce-icon-row");
-  actions.append(undoButton, redoButton, importButton, exportButton);
+  actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton);
   toolbar.content.append(
     divider(),
     actions,
