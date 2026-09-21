@@ -213,16 +213,16 @@ export function buildPerimeterBlocks(
 
   const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
 
-  // 1. Organic longitudinal ribbons with irregular widths and slight orientation drift:
-  // Medieval urban ribbons have varying corridor widths (23m - 34m) and subtle angle wander,
-  // preventing mechanical orthogonal grids.
+  // 1. Organic longitudinal ribbons with irregular widths and natural orientation drift:
+  // Medieval urban ribbons have varying corridor widths (23m - 35m) and organic angle wander,
+  // preventing mechanical orthogonal grids while producing trapezoidal and wedged parcels.
   const splitOffsets: { y: number; normal: Point }[] = [];
   let curY = minY;
   while (curY + targetRibbonWidth * 1.25 < maxY) {
-    const step = rng.range(23, 34);
+    const step = rng.range(24, 35);
     curY += step;
     if (curY < maxY - 15) {
-      const jitterAngle = rng.range(-0.04, 0.04);
+      const jitterAngle = rng.range(-0.08, 0.08);
       const cosJ = Math.cos(jitterAngle),
         sinJ = Math.sin(jitterAngle);
       const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
@@ -247,9 +247,9 @@ export function buildPerimeterBlocks(
   blocksToFill = blocksToFill.filter(p => area(p) > 30);
 
   // 2. Transverse cross-cuts with anti-alignment against previous strip cuts:
-  // Each ribbon strip places its cross-alleys independently with random block lengths (38m - 62m),
-  // while strictly enforcing >= 12m stagger from neighboring strip cuts to completely prevent
-  // 4-way crossroads and eliminate repeating brick patterns.
+  // Each ribbon strip places its cross-alleys independently with random block lengths (36m - 64m),
+  // with organic angle jitter and strictly enforced >= 12m stagger from neighboring strip cuts
+  // to prevent 4-way crossroads and eliminate repeating grid patterns.
   const finalBlocks: Point[][] = [];
   const maxBlockLength = Math.max(40, Math.min(65, spanLimit * 1.6));
   let prevStripCuts: number[] = [];
@@ -271,7 +271,7 @@ export function buildPerimeterBlocks(
     const currentStripCuts: number[] = [];
     let curX = sMinX;
     while (curX + maxBlockLength * 0.8 < sMaxX) {
-      const step = rng.range(38, Math.min(62, maxBlockLength * 1.1));
+      const step = rng.range(36, Math.min(64, maxBlockLength * 1.15));
       let candidateX = curX + step;
       if (candidateX >= sMaxX - 25) break;
 
@@ -294,7 +294,7 @@ export function buildPerimeterBlocks(
 
     let pieces = [strip];
     for (const cutX of currentStripCuts) {
-      const jitterAngle = rng.range(-0.05, 0.05);
+      const jitterAngle = rng.range(-0.09, 0.09);
       const cosJ = Math.cos(jitterAngle),
         sinJ = Math.sin(jitterAngle);
       const normal: Point = [axis[0] * cosJ - axis[1] * sinJ, axis[0] * sinJ + axis[1] * cosJ];

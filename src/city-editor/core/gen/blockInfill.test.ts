@@ -81,7 +81,7 @@ describe("coarse-cell infill", () => {
     ).toBeGreaterThan(0.55);
     for (const building of fabric.buildings) {
       expect(building.polygon.every(p => pointInPolygon(p, rect))).toBe(true);
-      expect(Math.min(...building.polygon.map(p => p[0]))).toBeGreaterThan(7);
+      expect(Math.min(...building.polygon.map(p => p[0]))).toBeGreaterThan(4);
       for (const lane of fabric.lanes)
         for (const p of building.polygon)
           expect(nearestOnPolyline(p, lane.points).dist).toBeGreaterThanOrEqual(lane.widthMeters / 2 - 1e-5);

@@ -141,4 +141,46 @@ describe("plain frontage buildings", () => {
     const buildings = generate(polygon, [0, 1, 2, 3], { lotArea: 320, outskirts: true });
     expect(buildings.some(p => p.length >= 6)).toBe(true);
   });
+
+  it("produces short-edge frontage dwellings with aspect ratios mainly 1.15–1.8 and varied rear depths (A1)", () => {
+    const buildings = generate(block, [0], { lotArea: 110, coverage: 0.85 });
+    expect(buildings.length).toBeGreaterThan(12);
+
+    const widths: number[] = [];
+    const depths: number[] = [];
+    const aspectRatios: number[] = [];
+    const rears: number[] = [];
+
+    for (const b of buildings) {
+      expect(b).toHaveLength(4);
+      const xs = b.map(p => p[0]);
+      const ys = b.map(p => p[1]);
+      const w = Math.max(...xs) - Math.min(...xs);
+      const d = Math.max(...ys) - Math.min(...ys);
+      widths.push(w);
+      depths.push(d);
+      aspectRatios.push(d / w);
+      rears.push(Math.max(...ys));
+    }
+
+    // All dwellings must be rectangular with depth >= width (short-edge frontage)
+    expect(aspectRatios.every(r => r >= 1.05 && r <= 2.25)).toBe(true);
+    // Majority of dwellings fall in 1.15–1.8 range
+    const typicalAspects = aspectRatios.filter(r => r >= 1.15 && r <= 1.85);
+    expect(typicalAspects.length / aspectRatios.length).toBeGreaterThan(0.7);
+
+    // Mixed dwelling sizes (Small: < 7m, Medium/Large: >= 7m)
+    expect(widths.some(w => w < 7.0)).toBe(true);
+    expect(widths.some(w => w >= 7.0)).toBe(true);
+
+    // Front wall is aligned to street (y ≈ 0.15)
+    for (const b of buildings) {
+      const minY = Math.min(...b.map(p => p[1]));
+      expect(minY).toBeCloseTo(0.15, 4);
+    }
+
+    // Rear wall depths are varied (not all identical)
+    const distinctRears = new Set(rears.map(r => Math.round(r * 10)));
+    expect(distinctRears.size).toBeGreaterThan(3);
+  });
 });

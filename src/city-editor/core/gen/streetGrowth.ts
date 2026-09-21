@@ -44,10 +44,10 @@ export function blockSpan(
   classic = false
 ): number {
   if (classic) {
-    const row = Math.sqrt(Math.max(80, lotArea)) * (kind === "core" ? 1.65 : 1.15);
+    const row = Math.sqrt(Math.max(60, lotArea)) * (kind === "core" ? 1.25 : 1.15);
     return kind === "core"
-      ? Math.min(70, Math.max(40, 2 * row + laneWidth + 8))
-      : Math.min(88, Math.max(42, 2 * row + laneWidth + 20));
+      ? Math.min(50, Math.max(30, 2 * row + laneWidth + 6))
+      : Math.min(72, Math.max(38, 2 * row + laneWidth + 16));
   }
   if (kind === "core") return intramuralBlockSpan(lotArea, laneWidth);
   const row = Math.sqrt(Math.max(40, lotArea)) * 1.15;
@@ -253,9 +253,28 @@ function infillBlocks(
     ...lanes.map(points => ({ points, widthMeters: laneWidth }))
   ];
   const buildings: Point[][] = [];
+  const roadAccess = access.filter(l => l.widthMeters === 0);
   for (const region of regions) {
     const fronts = accessibleFronts(region, access);
     if (!fronts.length) continue;
+    const isRoadFacing = (idx: number) => {
+      const a = region[idx],
+        b = region[(idx + 1) % region.length];
+      const len = distance(a, b);
+      if (len < 1e-6) return false;
+      return roadAccess.some(l => {
+        const hit = nearestOnPolyline(mid(a, b), l.points);
+        const c = l.points[hit.segIndex],
+          d = l.points[hit.segIndex + 1];
+        const rlen = distance(c, d);
+        return (
+          hit.dist <= 1.5 &&
+          rlen > 1e-6 &&
+          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (len * rlen) < 1e-4
+        );
+      });
+    };
+    const prioritizedFronts = fronts.slice().sort((a, b) => (isRoadFacing(b) ? 1 : 0) - (isRoadFacing(a) ? 1 : 0));
     let localOccupancy = occupancy;
     if (!core) {
       const centroid = polygonCentroid(region);
@@ -265,7 +284,7 @@ function infillBlocks(
     }
     for (const footprint of frontageBuildings(
       region,
-      fronts,
+      prioritizedFronts,
       { lotArea, coverage, occupancy: localOccupancy, outskirts: !core },
       rng
     )) {
@@ -527,7 +546,7 @@ function accessibleFronts(poly: Point[], roads: { points: Point[]; widthMeters: 
     const length = distance(a, b);
     if (length < 1e-6) continue;
     const facing = roads.some(l => {
-      const limit = l.widthMeters / 2 + 0.36;
+      const limit = l.widthMeters > 0 ? l.widthMeters / 2 + 0.36 : 1.2;
       const hit = nearestOnPolyline(mid(a, b), l.points);
       const c = l.points[hit.segIndex],
         d = l.points[hit.segIndex + 1];
@@ -535,7 +554,7 @@ function accessibleFronts(poly: Point[], roads: { points: Point[]; widthMeters: 
       return (
         hit.dist <= limit &&
         roadLength > 1e-6 &&
-        Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-5
+        Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-4
       );
     });
     if (facing) fronts.push(i);

@@ -148,9 +148,13 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
           })
         : group.segments.map(s => s.edgeId);
     for (const id of ids) {
-      if (group.kind === "road") roads.add(id);
-      if (group.kind === "river" || group.kind === "wall") barriers.add(id);
-      clearance.set(id, Math.max(clearance.get(id) ?? 0, group.style.widthMeters / 2 + 3));
+      if (group.kind === "road") {
+        roads.add(id);
+        clearance.set(id, Math.max(clearance.get(id) ?? 0, group.style.widthMeters / 2 + 0.2));
+      } else {
+        if (group.kind === "river" || group.kind === "wall") barriers.add(id);
+        clearance.set(id, Math.max(clearance.get(id) ?? 0, group.style.widthMeters / 2 + 3));
+      }
     }
     if (group.kind === "river")
       for (let i = 1; i < group.vertices.length; i++)
@@ -522,6 +526,10 @@ function fillPolygon(
       const shared = mesh.edges[edge.edgeId];
       const otherId = members.has(shared.leftFace ?? "") ? shared.rightFace : shared.leftFace;
       const other = otherId ? mesh.faces[otherId] : null;
+      const isRoad = ctx.roads.has(edge.edgeId);
+      if (isRoad) {
+        return Math.max(ctx.clearance.get(edge.edgeId) ?? 1.5, other && other.properties.water !== "land" ? 6 : 0);
+      }
       return Math.max(3, ctx.clearance.get(edge.edgeId) ?? 0, other && other.properties.water !== "land" ? 6 : 0);
     });
     const safe = insetConvexKernel(part, setbacks);
@@ -540,8 +548,8 @@ function fillPolygon(
         return (
           length > 1e-6 &&
           roadLength > 1e-6 &&
-          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-6 &&
-          nearestOnPolyline(mid(a, b), [c, d]).dist <= Math.max(...setbacks) + 0.1
+          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-4 &&
+          nearestOnPolyline(mid(a, b), [c, d]).dist <= Math.max(...setbacks) + 1.0
         );
       });
       return facing ? [[a, b]] : [];

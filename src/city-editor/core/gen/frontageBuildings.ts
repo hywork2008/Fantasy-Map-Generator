@@ -243,7 +243,6 @@ function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions
     });
     const band = clipHalfPlane(local, [0, 1], targetDepth);
     if (band.length < 3 || area(band) < 35) continue;
-    const depth = Math.max(...band.map(p => p[1]));
     const frontY = 1e-5;
     const streetXs = band.filter(p => Math.abs(p[1]) < 1e-6).map(p => p[0]);
     if (streetXs.length < 2) continue;
@@ -257,12 +256,27 @@ function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions
     }
     const streetStart = Math.min(...band.map(p => p[0]));
     const streetLength = Math.max(...band.map(p => p[0])) - streetStart;
-    const width = Math.max(
-      5,
-      Math.min(Math.sqrt(options.lotArea) * 0.6, depth / 1.65, options.lotArea / Math.max(6, depth))
-    );
-    const count = Math.max(1, Math.min(256, Math.round(streetLength / width)));
-    const weights = Array.from({ length: count }, () => rng.range(0.8, 1.2));
+    const nominalWidth = Math.max(5.5, Math.min(10.5, Math.sqrt(options.lotArea / 1.45)));
+    const count = Math.max(1, Math.min(256, Math.round(streetLength / nominalWidth)));
+    const weights: number[] = [];
+    const lotScales: number[] = [];
+    const lotAspects: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const roll = rng.range(0, 1);
+      if (roll < 0.35) {
+        weights.push(nominalWidth * 0.78);
+        lotScales.push(0.75);
+        lotAspects.push(1.35);
+      } else if (roll < 0.8) {
+        weights.push(nominalWidth * 1.0);
+        lotScales.push(1.0);
+        lotAspects.push(1.48);
+      } else {
+        weights.push(nominalWidth * 1.28);
+        lotScales.push(1.32);
+        lotAspects.push(1.58);
+      }
+    }
     const total = weights.reduce((a, b) => a + b, 0);
     let start = streetStart;
     for (let i = 0; i < weights.length; i++) {
@@ -397,40 +411,61 @@ function packStreetWall(
     });
     const band = clipHalfPlane(local, [0, 1], rowDepth);
     if (band.length < 3 || area(band) < 35) continue;
-    const depth = Math.max(...band.map(p => p[1]));
-    const width = Math.max(5, Math.min(Math.max(12, Math.sqrt(options.lotArea)), options.lotArea / Math.max(6, depth)));
+    const nominalWidth = Math.max(5.5, Math.min(11, Math.sqrt(options.lotArea / 1.45)));
     for (const [spanLo, spanHi] of openSpans(front.length, reserved[f])) {
-      if (spanHi - spanLo < 5) continue;
-      const count = Math.max(1, Math.min(256, Math.round((spanHi - spanLo) / width)));
-      const weights = Array.from({ length: count }, () => rng.range(0.68, 1.42));
+      const span = spanHi - spanLo;
+      if (span < 4.5) continue;
+      const count = Math.max(1, Math.min(256, Math.round(span / nominalWidth)));
+      const weights: number[] = [];
+      const lotScales: number[] = [];
+      const lotAspects: number[] = [];
+      for (let i = 0; i < count; i++) {
+        const roll = rng.range(0, 1);
+        if (roll < 0.35) {
+          weights.push(Math.max(4.8, nominalWidth * 0.68));
+          lotScales.push(0.75);
+          lotAspects.push(1.35);
+        } else if (roll < 0.8) {
+          weights.push(nominalWidth * 0.95);
+          lotScales.push(1.0);
+          lotAspects.push(1.48);
+        } else {
+          weights.push(Math.min(12.2, nominalWidth * 1.2));
+          lotScales.push(1.25);
+          lotAspects.push(1.58);
+        }
+      }
       const total = weights.reduce((a, b) => a + b, 0);
       let start = spanLo;
       for (let i = 0; i < count; i++) {
-        const end = start + ((spanHi - spanLo) * weights[i]) / total;
+        const end = start + (span * weights[i]) / total;
         const lo = start + PARTY_GAP,
           hi = end - PARTY_GAP;
         start = end;
         const occupied = rng() < options.occupancy;
-        rng();
+        const shapeRoll = rng();
         if (!occupied || hi - lo < 3) continue;
         const fitted = fitRectangle(band, lo, hi, FRONT_Y);
         if (!fitted) continue;
         const x0 = fitted.lo,
           x1 = fitted.hi;
-        const budget = (x1 - x0) * (fitted.back - FRONT_Y) * options.coverage;
-        let low = FRONT_Y,
-          high = fitted.back;
-        for (let k = 0; k < 18; k++) {
-          const mid = (low + high) / 2;
-          if ((x1 - x0) * (mid - FRONT_Y) <= budget) low = mid;
-          else high = mid;
-        }
-        if (low - FRONT_Y < 3 || x1 - x0 < 3) continue;
+        const w = x1 - x0;
+        if (w < 3) continue;
+
+        const availDepth = fitted.back - FRONT_Y;
+        if (availDepth < 3) continue;
+
+        const baseAspect = lotAspects[i] + (shapeRoll - 0.5) * 0.25;
+        const effectiveAspect = Math.max(1.15, Math.min(2.1, baseAspect * (options.coverage / 0.75)));
+        const desiredDepth = w * effectiveAspect;
+        const actualDepth = Math.max(3.5, Math.min(desiredDepth, availDepth));
+        const houseBack = FRONT_Y + actualDepth;
+
         const rect: Point[] = [
           toWorld(front, x0, FRONT_Y),
           toWorld(front, x1, FRONT_Y),
-          toWorld(front, x1, low),
-          toWorld(front, x0, low)
+          toWorld(front, x1, houseBack),
+          toWorld(front, x0, houseBack)
         ];
         if (buildings.some(b => overlapArea(rect, b) > 1e-4)) continue;
         buildings.push(rect);
