@@ -138,7 +138,10 @@ export function renderEditorSvg(
     });
     mark("svg-base");
     const fabric =
-      document.gridKind === "evolution" || document.layout === "circulade" || document.layout === "bram"
+      document.gridKind === "evolution" ||
+      document.layout === "circulade" ||
+      document.layout === "bram" ||
+      document.layout === "classic"
         ? buildBlockFabric(document)
         : null;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
@@ -181,7 +184,8 @@ export function renderEditorSvg(
         );
         // Outside the core, expose the access network even where a house has
         // not been placed. This is a thin trail centreline, not a building shadow.
-        if (document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts")
+        // For classic layout, also expose the interior core lanes as trails.
+        if (document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts" || document.layout === "classic")
           trails.appendChild(
             element("path", {
               d: line(lane.points),
