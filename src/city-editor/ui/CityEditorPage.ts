@@ -227,6 +227,9 @@ export function mountCityEditor(root: HTMLElement): void {
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
   let gridSeed = randomSeed();
+  let hideBuildings = false;
+  let currentStageStep = 9;
+  let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
   let completeResult: CityDocument | null = null;
@@ -662,12 +665,66 @@ export function mountCityEditor(root: HTMLElement): void {
     featureInputs.set(key, input);
     featureGrid.appendChild(toggleLabel(key, input));
   }
-  const stageButtons = div("ce-generate-stages");
-  for (const stage of GENERATION_STAGES) {
-    const button = makeButton(stage.label, () => runGenerationStage(stage));
-    button.title = stage.hint;
-    stageButtons.appendChild(button);
-  }
+  const stageContainer = div("ce-generate-stages");
+  const stageHeader = div("ce-generate-stage-header");
+  const stageBadge = document.createElement("span");
+  stageBadge.className = "ce-generate-stage-badge";
+  const stageProgress = document.createElement("span");
+  stageProgress.className = "ce-generate-stage-num";
+  stageHeader.append(stageBadge, stageProgress);
+
+  const stageHint = div("ce-generate-stage-hint");
+
+  const stageSlider = document.createElement("input");
+  stageSlider.type = "range";
+  stageSlider.className = "ce-generate-stage-slider";
+  stageSlider.min = "1";
+  stageSlider.max = String(GENERATION_STAGES.length);
+  stageSlider.step = "1";
+  stageSlider.value = String(currentStageStep);
+  stageSlider.setAttribute("aria-label", "生成工程スライダー");
+
+  const stagePrevBtn = makeIconButton("◀", "前の工程", () => changeStageStep(-1));
+  stagePrevBtn.className += " ce-stage-prev";
+  const stageNextBtn = makeIconButton("▶", "次の工程", () => changeStageStep(1));
+  stageNextBtn.className += " ce-stage-next";
+  const stageSliderRow = div("ce-generate-slider-row");
+  stageSliderRow.append(stagePrevBtn, stageSlider, stageNextBtn);
+
+  stageContainer.append(stageHeader, stageSliderRow, stageHint);
+
+  syncStageUi = (step: number) => {
+    currentStageStep = step;
+    const stage = GENERATION_STAGES.find(s => s.step === step);
+    if (!stage) return;
+    stageBadge.textContent = stage.label;
+    stageProgress.textContent = `${step}/${GENERATION_STAGES.length}`;
+    stageHint.textContent = stage.hint;
+    stageSlider.value = String(step);
+    stagePrevBtn.disabled = step <= 1;
+    stageNextBtn.disabled = step >= GENERATION_STAGES.length;
+  };
+
+  const changeStageStep = (delta: number) => {
+    const target = Math.max(1, Math.min(GENERATION_STAGES.length, currentStageStep + delta));
+    if (target !== currentStageStep) {
+      setStageStep(target);
+    }
+  };
+
+  const setStageStep = (step: number) => {
+    const stage = GENERATION_STAGES.find(s => s.step === step);
+    if (!stage) return;
+    syncStageUi(step);
+    runGenerationStage(stage);
+  };
+
+  stageSlider.addEventListener("input", () => {
+    const step = Number(stageSlider.value);
+    setStageStep(step);
+  });
+
+  syncStageUi(currentStageStep);
 
   // ③'s nPatches count cutoff (towngen-comparison.md §2.1) — the one tunable
   // knob among the six processes so far; the ◀/▶ scrub below applies to all six.
@@ -835,9 +892,9 @@ export function mountCityEditor(root: HTMLElement): void {
     housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。地形と現在の格子を使用します。①〜⑥は各工程の確認用です。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
+      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑨までの全工程を順番に確認できます。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
-    stageButtons,
+    stageContainer,
     divider(),
     label("③ nPatches (blank = auto)", urbanNPatchesInput),
     toggleLabel("Avoid sea", avoidSeaInput),
@@ -1826,7 +1883,8 @@ export function mountCityEditor(root: HTMLElement): void {
       gridOverlayForRender(),
       showBlockMesh,
       showGridLines,
-      sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample }))
+      sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample })),
+      hideBuildings
     );
     map.replaceChildren(svg);
     let coreBuildings = 0,
@@ -3030,11 +3088,10 @@ export function mountCityEditor(root: HTMLElement): void {
     stepIndex = -1;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
-    if (lastGeneratedStep === null || documentState.appearance === "town") {
-      runCompleteGeneration();
-      return;
-    }
-    rerunLastStage();
+    lastGeneratedStep = null;
+    currentStageStep = 9;
+    syncStageUi(9);
+    runCompleteGeneration();
   }
 
   function rerunLastStage(): void {
@@ -3052,7 +3109,9 @@ export function mountCityEditor(root: HTMLElement): void {
     // from finishing an already finished town. A real edit becomes a new input.
     if (
       !completeSource ||
-      (documentState !== completeResult && JSON.stringify(documentState) !== JSON.stringify(completeResult))
+      (documentState !== completeResult &&
+        JSON.stringify(documentState) !== JSON.stringify(completeResult) &&
+        lastGeneratedStep === null)
     )
       completeSource = documentState;
     if (generationJob) return;
@@ -3141,6 +3200,13 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("都市の生成に失敗しました");
       return;
     }
+    if (next.generationSeed) {
+      generateSeed = next.generationSeed;
+      syncGenerateControls();
+    }
+    if (next.fabric?.generation?.input) {
+      completeSource = clone(next.fabric.generation.input);
+    }
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
       showNotice("同じ都市を表示しています");
       return;
@@ -3158,16 +3224,47 @@ export function mountCityEditor(root: HTMLElement): void {
     activeGroupId = null;
     tool = "select";
     showBlockMesh = false;
+    hideBuildings = false;
+    syncStageUi(9);
     rebuildEditorIndexes();
     showNotice("都市を生成しました — 城壁・街路・建物");
   }
 
   function runGenerationStage(stage: GenerationStage): void {
-    // Recompute the plan up to this process ON the current mesh (the Document
-    // panel owns the grid; generation never rebuilds it or resizes the map).
+    if (!completeSource) {
+      completeSource = documentState.fabric?.generation?.input
+        ? clone(documentState.fabric.generation.input)
+        : clone(documentState);
+    }
+    const source = completeSource;
+    const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
+
     let next: CityDocument | null = null;
     try {
-      next = generateStageOnDocument(documentState, generateSettings, generateSeed, stage.step);
+      if (
+        stage.step === 9 &&
+        completeResult &&
+        (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
+      ) {
+        next = clone(completeResult);
+      } else if (
+        stage.step === 8 &&
+        completeResult &&
+        (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
+      ) {
+        next = clone(completeResult);
+      } else if (
+        stage.step === 7 &&
+        completeResult &&
+        (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
+      ) {
+        const s7 = clone(completeResult);
+        delete s7.appearance;
+        delete s7.fabric;
+        next = s7;
+      } else {
+        next = generateStageOnDocument(source, generateSettings, effectiveSeed, stage.step);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -3175,7 +3272,12 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice(`Generation failed at ${stage.label}`);
       return;
     }
+    if (stage.step === 9 && !completeResult) {
+      completeResult = next;
+    }
     lastGeneratedStep = stage.step;
+    currentStageStep = stage.step;
+    syncStageUi(stage.step);
     // This stage becomes the ◀/▶ scrub's target, reset to "not stepped yet".
     activeStepStage = stage.id;
     stepIndex = -1;
@@ -3185,10 +3287,12 @@ export function mountCityEditor(root: HTMLElement): void {
     // own visual cue (river / walls+gates / roads / ward colours) and needs none.
     urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
     stepOverlayPaths = null;
+    hideBuildings = stage.step === 8;
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
       showNotice(`Already at ${stage.label}`);
+      redrawMap();
       return;
     }
     documentState = history.commit(next, `Generate ${stage.label}`);
@@ -3209,9 +3313,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     const stage = activeStepStage;
     const label = GENERATION_STAGES.find(s => s.id === stage)?.label ?? "";
+    const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
+    const source = completeSource ?? documentState;
     let result: UiStepResult;
     try {
-      result = STEP_FNS[stage](documentState, generateSettings, generateSeed, stepIndex + delta);
+      result = STEP_FNS[stage](source, generateSettings, effectiveSeed, stepIndex + delta);
     } catch (error) {
       console.error(error);
       showNotice("Step failed");
@@ -3390,7 +3496,19 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
   },
   walls: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
   streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
-  wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx))
+  wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx)),
+  geometry: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 7);
+    return { document: d, total: 1, index: 0, detail: "幾何平滑化完了" };
+  },
+  blocks: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 8);
+    return { document: d, total: 1, index: 0, detail: "街区・小道生成完了" };
+  },
+  buildings: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 9);
+    return { document: d, total: 1, index: 0, detail: "住居配置完了" };
+  }
 };
 
 /** The exact land faces a Generate press just marked buildable — the ③ urban-

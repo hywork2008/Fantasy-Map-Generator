@@ -27,12 +27,37 @@ afterEach(() => {
   if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
 });
 
-function stageButton(label: string): HTMLButtonElement {
-  const button = [...root.querySelectorAll<HTMLButtonElement>(".ce-generate-stages button")].find(candidate =>
-    candidate.textContent?.startsWith(label)
-  );
-  if (!button) throw new Error(`stage button "${label}" not found`);
-  return button;
+function selectStage(labelOrStep: string | number): void {
+  const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
+  if (!slider) throw new Error("stage slider not found");
+  const step =
+    typeof labelOrStep === "number"
+      ? labelOrStep
+      : labelOrStep.startsWith("①")
+        ? 1
+        : labelOrStep.startsWith("②")
+          ? 2
+          : labelOrStep.startsWith("③")
+            ? 3
+            : labelOrStep.startsWith("④")
+              ? 4
+              : labelOrStep.startsWith("⑤")
+                ? 5
+                : labelOrStep.startsWith("⑥")
+                  ? 6
+                  : labelOrStep.startsWith("⑦")
+                    ? 7
+                    : labelOrStep.startsWith("⑧")
+                      ? 8
+                      : 9;
+  slider.value = String(step);
+  slider.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function stageButton(label: string): { click: () => void } {
+  return {
+    click: () => selectStage(label)
+  };
 }
 
 function panelButton(fragment: string): HTMLButtonElement {
@@ -196,9 +221,13 @@ describe("Generate panel", () => {
     expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
   });
 
-  it("renders six ordered process buttons, a seed field, and no map-size control", () => {
-    const labels = [...root.querySelectorAll(".ce-generate-stages button")].map(b => b.textContent);
-    expect(labels).toEqual(["① 海岸線と海", "② 河川", "③ 市街地コア", "④ 城壁・門・城郭", "⑤ 街路", "⑥ 地区割り当て"]);
+  it("renders a 9-stage process slider, a seed field, and no map-size control", () => {
+    const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
+    expect(slider).toBeTruthy();
+    expect(slider?.min).toBe("1");
+    expect(slider?.max).toBe("9");
+    expect(slider?.value).toBe("9");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑨ 住居・完成都市");
     expect(nPatchesInput().placeholder).toBe("auto");
     expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
     expect(root.querySelector(".ce-generate-farnode")).toBeTruthy();
@@ -612,5 +641,89 @@ describe("shareable link and FMG site", () => {
     panelButton("Use standalone site").click();
     expect(root.querySelector(".ce-imported")?.hidden).toBe(true);
     expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(false);
+  });
+
+  it("stages 7, 8, 9 step through geometry smoothing, lanes, and dwellings, and 新しい都市 generates dwellings", () => {
+    // Stage 4: walls placed
+    selectStage(4);
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("④ 城壁・門・城郭");
+
+    // Stage 7: geometry smoothed
+    selectStage(7);
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑦ 幾何平滑化");
+    expect(has(".ce-infill-lane")).toBe(false);
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+
+    // Stage 8: lanes visible, buildings hidden
+    selectStage(8);
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑧ 街区・小道");
+    expect(has(".ce-infill-lane")).toBe(true);
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+
+    // Stage 9: dwellings visible
+    selectStage(9);
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑨ 住居・完成都市");
+    expect(has(".ce-infill-lane")).toBe(true);
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+
+    // Back to stage 4, then press "新しい都市"
+    selectStage(4);
+    expect(has(".ce-buildings .ce-building")).toBe(false);
+    panelButton("新しい都市").click();
+
+    // After "新しい都市", dwellings must be generated and slider reset to stage 9
+    const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
+    expect(slider?.value).toBe("9");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑨ 住居・完成都市");
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+  });
+
+  it("slider scrubbing back and forth maintains deterministic river geometry without swapping", () => {
+    // Ensure site has a coast and river
+    setCoastal();
+    const riverSelect = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
+      .find(l => l.textContent?.includes("Rivers"))
+      ?.querySelector<HTMLSelectElement>("select");
+    if (riverSelect) {
+      riverSelect.value = "1";
+      riverSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    panelButton("都市を一括生成").click();
+
+    const getRiverPaths = () =>
+      [...root.querySelectorAll(".ce-feature--river")].map(p => p.getAttribute("d") ?? "").join(";");
+
+    const stage9River = getRiverPaths();
+    expect(stage9River.length).toBeGreaterThan(0);
+
+    // Move to stage 2 (River)
+    selectStage(2);
+    const stage2River = getRiverPaths();
+    expect(stage2River.length).toBeGreaterThan(0);
+
+    // Move to stage 5 (Streets)
+    selectStage(5);
+    const stage5River = getRiverPaths();
+    expect(stage5River).toBe(stage2River);
+
+    // Move to stage 9 (Complete)
+    selectStage(9);
+    expect(getRiverPaths()).toBe(stage9River);
+
+    // Move back to stage 2 (River)
+    selectStage(2);
+    expect(getRiverPaths()).toBe(stage2River);
+
+    // Move forward to stage 7 (Geometry)
+    selectStage(7);
+    expect(getRiverPaths()).toBe(stage9River);
+
+    // Move back to stage 2 again
+    selectStage(2);
+    expect(getRiverPaths()).toBe(stage2River);
+
+    // Move back to stage 9
+    selectStage(9);
+    expect(getRiverPaths()).toBe(stage9River);
   });
 });

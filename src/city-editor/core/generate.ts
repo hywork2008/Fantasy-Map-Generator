@@ -140,8 +140,8 @@ const NOMINAL_PRESET = "largeTown" as const;
 /** One runnable process, in order. `step` is the S-index it recomputes up to;
  * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
 export interface GenerationStage {
-  id: "coast" | "river" | "urban" | "walls" | "streets" | "wards";
-  step: 1 | 2 | 3 | 4 | 5 | 6;
+  id: "coast" | "river" | "urban" | "walls" | "streets" | "wards" | "geometry" | "blocks" | "buildings";
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   label: string;
   hint: string;
 }
@@ -157,7 +157,25 @@ export const GENERATION_STAGES: GenerationStage[] = [
     hint: "Wall the urban outline, place gates, plaza & citadel (needs Walls)"
   },
   { id: "streets", step: 5, label: "⑤ 街路", hint: "Approach roads to the gates" },
-  { id: "wards", step: 6, label: "⑥ 地区割り当て", hint: "Assign a district type to each urban cell" }
+  { id: "wards", step: 6, label: "⑥ 地区割り当て", hint: "Assign a district type to each urban cell" },
+  {
+    id: "geometry",
+    step: 7,
+    label: "⑦ 幾何平滑化",
+    hint: "Smooth walls and streets into rounded shapes (finishCityGeometry)"
+  },
+  {
+    id: "blocks",
+    step: 8,
+    label: "⑧ 街区・小道",
+    hint: "Form interior blocks and secondary access lanes"
+  },
+  {
+    id: "buildings",
+    step: 9,
+    label: "⑨ 住居・完成都市",
+    hint: "Place residential and civic buildings"
+  }
 ];
 
 /** The deliberate inputs the user picks. Neither the seed nor the map size is
@@ -307,11 +325,30 @@ export function generateStageOnDocument(
     return null;
   }
 
+  if (stageStep >= 7) {
+    const full = generateCityAttempt(document, settings, seed) ?? generateCityOnDocument(document, settings, seed);
+    if (!full) return null;
+    if (stageStep === 7) {
+      const res = clone(full);
+      delete res.appearance;
+      delete res.fabric;
+      res.generationSeed = full.generationSeed ?? seed;
+      return res;
+    }
+    if (stageStep === 8) {
+      const res = clone(full);
+      res.generationSeed = full.generationSeed ?? seed;
+      return res;
+    }
+    return full;
+  }
+
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
   const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, stageStep);
   const res = applyPlan(document, cells, faceIdOf, plan, program, stageStep);
   if (res) {
     res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
+    res.generationSeed = seed;
   }
   return res;
 }
@@ -338,20 +375,16 @@ export function generateCityOnDocument(
     observer?.(sample);
   };
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
-    const result = generateCityAttempt(
-      document,
-      settings,
-      attempt ? `${seed}:junction-retry:${attempt}` : seed,
-      observe,
-      attempt + 1
-    );
+    const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
+    const result = generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1);
     if (result) {
+      result.generationSeed = attemptSeed;
       if (result.fabric) {
         const input = clone(document);
         delete input.fabric;
         result.fabric.generation = {
           algorithm: "evolution-city-v3",
-          seed,
+          seed: attemptSeed,
           settings: {
             ...structuredClone(settings),
             layout: result.layout,

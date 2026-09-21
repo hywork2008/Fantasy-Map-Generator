@@ -144,6 +144,8 @@ export interface CityDocument {
   elements: CityElement[];
   /** Urban morphology layout (circulade, bram, organic or classic) */
   layout?: import("./gen/site/siteConfig").CityLayout;
+  /** The effective seed that succeeded in generation (including junction retries) */
+  generationSeed?: string;
 }
 
 export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "wardWall" | "junction" | "face";

@@ -75,7 +75,8 @@ export function renderEditorSvg(
   gridOverlay: GridOverlay | null = null,
   showBlockMesh = false,
   showGridLines = false,
-  observer?: GenerationObserver
+  observer?: GenerationObserver,
+  hideBuildings = false
 ): SVGSVGElement {
   const mark = generationTimer(observer);
   const town =
@@ -202,28 +203,30 @@ export function renderEditorSvg(
       svg.appendChild(trails);
     }
     mark("buildings", { buildings: lots.length });
-    for (const lot of lots) {
-      const bldId = `bld-${lot.faceId}`;
-      const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
-      const pickInfo: SvgPickInfo = {
-        layer: "buildings",
-        kind: "building",
-        id: bldId,
-        label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
-        ward: document.mesh.faces[lot.faceId].properties.ward,
-        faceId: lot.faceId,
-        landmark: !!lot.landmark
-      };
-      const bldNode = element("path", {
-        d: polygon(lot.polygon),
-        class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-        "data-building-face": lot.faceId,
-        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
-      });
-      if (tool === "select") bldNode.style.cursor = "pointer";
-      buildings.appendChild(bldNode);
+    if (!hideBuildings) {
+      for (const lot of lots) {
+        const bldId = `bld-${lot.faceId}`;
+        const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
+        const pickInfo: SvgPickInfo = {
+          layer: "buildings",
+          kind: "building",
+          id: bldId,
+          label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+          ward: document.mesh.faces[lot.faceId].properties.ward,
+          faceId: lot.faceId,
+          landmark: !!lot.landmark
+        };
+        const bldNode = element("path", {
+          d: polygon(lot.polygon),
+          class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          "data-building-face": lot.faceId,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
+        });
+        if (tool === "select") bldNode.style.cursor = "pointer";
+        buildings.appendChild(bldNode);
+      }
+      svg.appendChild(buildings);
     }
-    svg.appendChild(buildings);
   }
 
   const edges = element("g", { class: "ce-edges" });
