@@ -44,10 +44,10 @@ export function blockSpan(
   classic = false
 ): number {
   if (classic) {
-    const row = Math.sqrt(Math.max(80, lotArea)) * (kind === "core" ? 1.65 : 1.15);
+    const row = Math.sqrt(Math.max(70, lotArea)) * (kind === "core" ? 1.3 : 1.0);
     return kind === "core"
-      ? Math.min(70, Math.max(40, 2 * row + laneWidth + 8))
-      : Math.min(88, Math.max(42, 2 * row + laneWidth + 20));
+      ? Math.min(56, Math.max(30, 2 * row + laneWidth + 6))
+      : Math.min(68, Math.max(34, 2 * row + laneWidth + 12));
   }
   if (kind === "core") return intramuralBlockSpan(lotArea, laneWidth);
   const row = Math.sqrt(Math.max(40, lotArea)) * 1.15;
@@ -266,7 +266,7 @@ function infillBlocks(
     for (const footprint of frontageBuildings(
       region,
       fronts,
-      { lotArea, coverage, occupancy: localOccupancy, outskirts: !core },
+      { lotArea, coverage, occupancy: localOccupancy, outskirts: !core, compact: options.classic },
       rng
     )) {
       if (!streetFront(footprint, access)) continue;

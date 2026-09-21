@@ -93,6 +93,19 @@ describe("plain frontage buildings", () => {
     }
   });
 
+  it("makes classic frontages into varied, compact rectangular houses", () => {
+    const buildings = generate(block, [0], { compact: true, coverage: 0.96 });
+    const ratios = buildings.map(p => {
+      const face = front(p);
+      const width = face[1][0] - face[0][0];
+      const depth = Math.max(...p.map(q => q[1])) - 0.15;
+      return depth / width;
+    });
+    expect(Math.max(...ratios)).toBeLessThanOrEqual(2.15 * 0.96 + 1e-4);
+    expect(Math.max(...ratios) - Math.min(...ratios)).toBeGreaterThan(0.25);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
+  });
+
   it("fills a right-angled corner with a square that fronts both streets", () => {
     const buildings = generate(block, [0, 1, 2, 3]);
     expect(buildings.every(p => p.length === 4)).toBe(true);

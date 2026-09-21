@@ -150,7 +150,11 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     for (const id of ids) {
       if (group.kind === "road") roads.add(id);
       if (group.kind === "river" || group.kind === "wall") barriers.add(id);
-      clearance.set(id, Math.max(clearance.get(id) ?? 0, group.style.widthMeters / 2 + 3));
+      // Roads are represented by their centre line. Houses belong at the road
+      // edge, whereas walls and rivers need their own protective clearance.
+      const clearanceMeters =
+        group.kind === "road" ? group.style.widthMeters / 2 + 0.35 : group.style.widthMeters / 2 + 3;
+      clearance.set(id, Math.max(clearance.get(id) ?? 0, clearanceMeters));
     }
     if (group.kind === "river")
       for (let i = 1; i < group.vertices.length; i++)
@@ -555,8 +559,8 @@ function fillPolygon(
         ? face.properties.ward === "castle"
           ? 1200
           : face.properties.ward === "merchant"
-            ? 220
-            : 150
+            ? 140
+            : 110
         : dwellingLotArea(face.properties.ward));
     const grown = (outskirts ? infillOutskirts : infillCore)(
       safe,

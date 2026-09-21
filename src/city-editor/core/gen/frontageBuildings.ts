@@ -16,6 +16,8 @@ export interface FrontageOptions {
   outskirts: boolean;
   /** Coverage applies to the complete block, leaving one compact courtyard. */
   perimeter?: boolean;
+  /** Compact town houses: vary shallow rectangular footprints along a street wall. */
+  compact?: boolean;
 }
 
 type Front = { a: Point; axis: Point; inward: Point; length: number; offset: number };
@@ -417,9 +419,14 @@ function packStreetWall(
         if (!fitted) continue;
         const x0 = fitted.lo,
           x1 = fitted.hi;
-        const budget = (x1 - x0) * (fitted.back - FRONT_Y) * options.coverage;
+        const fullDepth = fitted.back - FRONT_Y;
+        // Classic fabric represents the built house, not the whole burgage
+        // holding. Keep the frontage continuous while varying the shallow
+        // rectangular house behind it.
+        const compactDepth = options.compact ? Math.min(fullDepth, (x1 - x0) * rng.range(1.25, 2.15)) : fullDepth;
+        const budget = (x1 - x0) * compactDepth * options.coverage;
         let low = FRONT_Y,
-          high = fitted.back;
+          high = FRONT_Y + compactDepth;
         for (let k = 0; k < 18; k++) {
           const mid = (low + high) / 2;
           if ((x1 - x0) * (mid - FRONT_Y) <= budget) low = mid;

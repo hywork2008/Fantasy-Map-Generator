@@ -213,13 +213,13 @@ export function buildPerimeterBlocks(
 
   const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
 
-  // 1. Organic longitudinal ribbons with irregular widths and slight orientation drift:
-  // Medieval urban ribbons have varying corridor widths (23m - 34m) and subtle angle wander,
-  // preventing mechanical orthogonal grids.
+  // 1. Organic longitudinal ribbons use slight directional drift. Cross-cuts
+  // below are staggered, so these form T-junctioned streets instead of a
+  // repeated rectangular lattice.
   const splitOffsets: { y: number; normal: Point }[] = [];
   let curY = minY;
   while (curY + targetRibbonWidth * 1.25 < maxY) {
-    const step = rng.range(23, 34);
+    const step = rng.range(20, 38);
     curY += step;
     if (curY < maxY - 15) {
       const jitterAngle = rng.range(-0.04, 0.04);
@@ -246,12 +246,10 @@ export function buildPerimeterBlocks(
   }
   blocksToFill = blocksToFill.filter(p => area(p) > 30);
 
-  // 2. Transverse cross-cuts with anti-alignment against previous strip cuts:
-  // Each ribbon strip places its cross-alleys independently with random block lengths (38m - 62m),
-  // while strictly enforcing >= 12m stagger from neighboring strip cuts to completely prevent
-  // 4-way crossroads and eliminate repeating brick patterns.
+  // 2. Cross-cuts are chosen independently for each ribbon. Their stagger
+  // prevents four-way grid intersections while preserving compact blocks.
   const finalBlocks: Point[][] = [];
-  const maxBlockLength = Math.max(40, Math.min(65, spanLimit * 1.6));
+  const maxBlockLength = Math.max(36, Math.min(72, spanLimit * 1.9));
   let prevStripCuts: number[] = [];
 
   for (let sIdx = 0; sIdx < blocksToFill.length; sIdx++) {
@@ -271,7 +269,7 @@ export function buildPerimeterBlocks(
     const currentStripCuts: number[] = [];
     let curX = sMinX;
     while (curX + maxBlockLength * 0.8 < sMaxX) {
-      const step = rng.range(38, Math.min(62, maxBlockLength * 1.1));
+      const step = rng.range(32, Math.min(68, maxBlockLength * 1.1));
       let candidateX = curX + step;
       if (candidateX >= sMaxX - 25) break;
 
