@@ -50,6 +50,7 @@ import { planPolygonalCirculadeLayout } from "./gen/polygonalCirculadeLayout";
 import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
+import { resolveRiverBoundaryOverlaps } from "./gen/resolveRiverOverlaps";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import {
   defaultRoadWidthMeters,
@@ -92,6 +93,7 @@ import {
   kindEdgeIds,
   openBarrierPassage,
   openGeneratedPassages,
+  orderedIncidentEdges,
   straightenBridges,
   throughEdgesAt,
   vertexHasCrossing,
@@ -422,7 +424,7 @@ export function generateCityOnDocument(
   return null;
 }
 
-function generateCityAttempt(
+export function generateCityAttempt(
   document: CityDocument,
   settings: GenerationSettings,
   seed: string,
@@ -465,14 +467,22 @@ function generateCityAttempt(
   // Do not save a nominally successful town when imported water has consumed
   // its centre. Measure the flood-fill settlement, not the walled core — wall
   // capacity (Medium 45% / Large 20%) is a later split of the same fill.
+  const activeCells = plan.cells ?? cells;
+  const activeFaceIdOf = plan.faceIdOf ?? faceIdOf;
+  if (seed.startsWith("ll4jz5")) {
+    const uFaces = [...plan.urban].map(id => activeFaceIdOf[id]);
+    console.log("uFaces contains f87?", uFaces.includes("f87"), "f65?", uFaces.includes("f65"));
+    const bEdges = plan.borderLoops.flatMap(l => l.segments.map(s => s.edgeId));
+    console.log("bEdges contains e218?", bEdges.includes("e218"));
+  }
   const targetArea = Math.PI * params.cityRadiusMeters ** 2;
   const minimumUrbanArea = targetArea * MIN_SETTLEMENT_AREA_SHARE;
-  const settlementArea = cells
+  const settlementArea = activeCells
     .filter(cell => plan.builtUp.has(cell.id))
     .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
   if (settlementArea < minimumUrbanArea) {
     const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
-    const walledArea = cells
+    const walledArea = activeCells
       .filter(cell => plan.urban.has(cell.id))
       .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
     const floorPercent = Math.round(MIN_SETTLEMENT_AREA_SHARE * 100);
@@ -524,7 +534,7 @@ function generateCityAttempt(
   const sameEnd = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 8;
 
   const star = plan.gates.map(g => {
-    let target = plazaApproachPoint(cells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
+    let target = plazaApproachPoint(activeCells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
     if (effectiveLayout === "bram") {
       const angle = Math.atan2(g.point[1] - hub[1], g.point[0] - hub[0]);
       target = [hub[0] + Math.cos(angle) * 123, hub[1] + Math.sin(angle) * 123];
@@ -558,8 +568,8 @@ function generateCityAttempt(
   ]);
   const next = applyPlan(
     document,
-    cells,
-    faceIdOf,
+    activeCells,
+    activeFaceIdOf,
     { ...plan, layout: effectiveLayout, wards, streets, roads: [...roads, ...streets] },
     program,
     6,
@@ -579,20 +589,45 @@ function generateCityAttempt(
       { roads: roadsBeforeFinish, minRoads, gates: next.gates.length }
     );
   next.appearance = "town";
+  console.log("Phase applyPlan crossing issues:", explainGeneratedCrossingFailures(next));
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
   const routed = coarse ? shortcutMajorRoads(next) : next;
   mark("major-road-shortcuts");
+  console.log("Phase shortcutMajorRoads crossing issues:", explainGeneratedCrossingFailures(routed));
   const rectified = hexagonal ? rectifyHexBlocks(routed, seed) : routed;
   mark("rectify-hex");
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
   mark("finish-geometry");
+  console.log("Phase finishCityGeometry crossing issues:", explainGeneratedCrossingFailures(finished));
   const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenBridges(shaped);
+  console.log("Phase straightenBridges crossing issues:", explainGeneratedCrossingFailures(settled));
   settleTempleOnDocument(settled);
   const roadsAfterFinish = countExternalApproachRoads(settled);
   const crossingDetails = explainGeneratedCrossingFailures(settled);
+  if (crossingDetails.length) {
+    console.log("Crossing details:", crossingDetails);
+    for (const d of crossingDetails) {
+      const match = d.match(/頂点 (v\d+) で城壁と河川が交わるが十字交差になっていない/);
+      if (match) {
+        const vid = match[1];
+        const ord = orderedIncidentEdges(settled, vid);
+        const wEdges = kindEdgeIds(settled, "wall");
+        const rEdges = kindEdgeIds(settled, "river");
+        console.log(
+          `Incident edges for ${vid}:`,
+          ord.map(e => ({
+            id: e.id,
+            wall: wEdges.has(e.id),
+            river: rEdges.has(e.id),
+            faces: [e.leftFace, e.rightFace]
+          }))
+        );
+      }
+    }
+  }
   const tangled = coarse
     ? Object.values(settled.mesh.faces)
         .filter(f => !isSimplePolygon(facePoints(settled.mesh, f)))
@@ -667,7 +702,23 @@ export function generateUrbanPatchStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, cellId: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 3);
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    3,
+    false,
+    undefined,
+    1,
+    false
+  );
   const total = plan.urbanStages.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 3), total: 0, index: -1, cellId: null };
@@ -676,6 +727,9 @@ export function generateUrbanPatchStep(
   const stage = plan.urbanStages[index];
   const stepped: Plan = {
     ...plan,
+    mesh: undefined,
+    faceIdOf: undefined,
+    cells: undefined,
     urban: new Set(plan.urbanStages.slice(0, index + 1).map(s => s.cellId)),
     outskirts: new Set()
   };
@@ -917,6 +971,9 @@ interface Plan {
    * before S6 runs. See `generateWardStep`. */
   wardOrder: WardAssignment[];
   templeHarbor: Precinct[];
+  mesh?: Mesh;
+  faceIdOf?: string[];
+  cells?: Cell[];
 }
 
 /** An urban-component outline: the exact mesh edges (for a Wall group) and their
@@ -927,7 +984,7 @@ interface MeshBorderLoop {
   cellIds: number[];
 }
 
-function runPlan(
+export function runPlan(
   mesh: Mesh,
   faceIdOf: string[],
   cells: Cell[],
@@ -941,7 +998,8 @@ function runPlan(
   stageStep: number,
   complete = false,
   observer?: GenerationObserver,
-  attempt = 1
+  attempt = 1,
+  resolveRiverSplit = true
 ): Plan {
   const mark = generationTimer(observer, attempt);
   const streetOpts = resolveStreetSettings(settings);
@@ -1046,22 +1104,105 @@ function runPlan(
   const urbanStages = classification.stages.filter(stage => urban.has(stage.cellId));
   const builtUp = classification.urban;
   mark("urban", { urbanFaces: urban.size, recordedStages: urbanStages.length, builtUpFaces: builtUp.size });
-  if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages, builtUp };
+
+  let currentMesh = mesh;
+  let currentFaceIdOf = faceIdOf;
+  let currentCells = cells;
+  let currentUrban = urban;
+  let currentBuiltUp = builtUp;
+  let currentOutskirts = outskirts;
+  let meshModified = false;
+
+  if (resolveRiverSplit && stageStep >= 3 && rivers.length > 0 && currentUrban.size > 0) {
+    const nearest = nearestVertexLookup(currentMesh, Math.max(1, cellSize));
+    const tempDoc: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: half * 2, cityRadiusMeters: params.cityRadiusMeters, blockSizeMeters: cellSize },
+      mesh: clone(currentMesh),
+      featureGroups: rivers.map((r, i) => ({
+        id: `temp-river-${i}`,
+        kind: "river",
+        name: `River ${i + 1}`,
+        vertices: polylineToVertexPath(currentMesh, r.edgePoints, nearest),
+        source: null,
+        mouth: null,
+        style: { widthMeters: 10, color: "#4f8aad" },
+        locked: false
+      })),
+      gates: [],
+      elements: []
+    };
+    for (const cellId of sea) {
+      const fid = currentFaceIdOf[cellId];
+      if (fid && tempDoc.mesh.faces[fid]) {
+        tempDoc.mesh.faces[fid].properties.water = "sea";
+        tempDoc.mesh.faces[fid].properties.buildable = false;
+      }
+    }
+    for (const cellId of currentUrban) {
+      const fid = currentFaceIdOf[cellId];
+      if (fid && tempDoc.mesh.faces[fid]) {
+        tempDoc.mesh.faces[fid].properties.settlement = "core";
+        tempDoc.mesh.faces[fid].properties.buildable = true;
+      }
+    }
+    const resolved = resolveRiverBoundaryOverlaps(tempDoc);
+    if (Object.keys(resolved.mesh.faces).length !== Object.keys(currentMesh.faces).length) {
+      meshModified = true;
+      currentMesh = resolved.mesh;
+      const refreshed = cellsFromMesh(currentMesh, half);
+      currentCells = refreshed.cells;
+      currentFaceIdOf = refreshed.faceIdOf;
+      const coreFaceIds = new Set(
+        Object.values(currentMesh.faces)
+          .filter(f => f.properties.settlement === "core")
+          .map(f => f.id)
+      );
+      currentUrban = new Set(
+        currentFaceIdOf.map((fid, idx) => (coreFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
+      );
+      currentBuiltUp = new Set(currentUrban);
+      const outskirtFaceIds = new Set(
+        [...outskirts].map(idx => faceIdOf[idx]).filter((fid): fid is string => Boolean(fid && !coreFaceIds.has(fid)))
+      );
+      currentOutskirts = new Set(
+        currentFaceIdOf.map((fid, idx) => (outskirtFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
+      );
+    }
+  }
+
+  if (stageStep < 4) {
+    return {
+      ...empty,
+      sea,
+      coastPath,
+      waterPolygon,
+      rivers,
+      urban: currentUrban,
+      outskirts: currentOutskirts,
+      urbanStages,
+      builtUp: currentBuiltUp,
+      mesh: meshModified ? currentMesh : undefined,
+      faceIdOf: meshModified ? currentFaceIdOf : undefined,
+      cells: meshModified ? currentCells : undefined
+    };
+  }
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
   const riverLines = rivers.map(band => band.smoothPoints);
-  const borderLoops = componentBorderLoops(mesh, faceIdOf, urban);
+  const borderLoops = componentBorderLoops(currentMesh, currentFaceIdOf, currentUrban);
   const genBorders = borderLoops.map(loop => toGeneratorBorder(loop));
-  let precincts = placePrecincts(cells, urban, sea, genBorders, geo, params, program, riverLines);
+  let precincts = placePrecincts(currentCells, currentUrban, sea, genBorders, geo, params, program, riverLines);
   const citadel = precincts.find(p => p.kind === "citadel");
   const citadelOutline = citadel
-    ? (componentBorderLoops(mesh, faceIdOf, new Set(citadel.cellIds))[0]?.points ?? null)
+    ? (componentBorderLoops(currentMesh, currentFaceIdOf, new Set(citadel.cellIds))[0]?.points ?? null)
     : null;
 
   let circuladePlan: import("./gen/circuladeLayout").CirculadeLayoutPlan | null = null;
   let polygonalCirculadePlan: import("./gen/polygonalCirculadeLayout").PolygonalCirculadePlan | null = null;
   if (effectiveLayout === "circulade") {
-    const urbanCells = cells.filter(c => urban.has(c.id));
+    const urbanCells = currentCells.filter(c => currentUrban.has(c.id));
     const hub: Point = urbanCells.length
       ? (urbanCells
           .reduce<Point>((sum, c) => [sum[0] + c.centroid[0], sum[1] + c.centroid[1]], [0, 0])
@@ -1074,7 +1215,7 @@ function runPlan(
     if (program.plaza) precincts.push(circuladePlan.plaza);
     if (program.temple && circuladePlan.temple) precincts.push(circuladePlan.temple);
   } else if (effectiveLayout === "bram") {
-    const urbanCells = cells.filter(c => urban.has(c.id));
+    const urbanCells = currentCells.filter(c => currentUrban.has(c.id));
     const hub: Point = urbanCells.length
       ? (urbanCells
           .reduce<Point>((sum, c) => [sum[0] + c.centroid[0], sum[1] + c.centroid[1]], [0, 0])
@@ -1088,7 +1229,7 @@ function runPlan(
   }
 
   const placed = markWaterGate(
-    placeGates(cells, urban, genBorders, geo),
+    placeGates(currentCells, currentUrban, genBorders, geo),
     genBorders,
     coast?.shoreline ?? null,
     program.port
@@ -1136,21 +1277,24 @@ function runPlan(
       coastPath,
       waterPolygon,
       rivers,
-      urban,
-      outskirts,
+      urban: currentUrban,
+      outskirts: currentOutskirts,
       urbanStages,
-      builtUp,
+      builtUp: currentBuiltUp,
       borderLoops,
       gates,
       precincts,
-      citadelOutline
+      citadelOutline,
+      mesh: meshModified ? currentMesh : undefined,
+      faceIdOf: meshModified ? currentFaceIdOf : undefined,
+      cells: meshModified ? currentCells : undefined
     };
   }
 
   // S5 — approach roads (raw A* on the same graph; not smoothed into the mesh).
   const streetInput = {
-    cells,
-    urban,
+    cells: currentCells,
+    urban: currentUrban,
     sea,
     waterPolygon,
     shoreline: coast?.shoreline ?? null,
@@ -1202,24 +1346,27 @@ function runPlan(
       coastPath,
       waterPolygon,
       rivers,
-      urban,
-      outskirts,
+      urban: currentUrban,
+      outskirts: currentOutskirts,
       urbanStages,
-      builtUp,
+      builtUp: currentBuiltUp,
       borderLoops,
       gates: routedGates,
       precincts,
       citadelOutline,
       roads,
-      streets: streetResult.streets
+      streets: streetResult.streets,
+      mesh: meshModified ? currentMesh : undefined,
+      faceIdOf: meshModified ? currentFaceIdOf : undefined,
+      cells: meshModified ? currentCells : undefined
     };
   }
 
   // S6 — wards.
   const warded = assignWards({
-    cells,
-    urban,
-    outskirts,
+    cells: currentCells,
+    urban: currentUrban,
+    outskirts: currentOutskirts,
     residentialOutskirts,
     sea,
     borders: genBorders,
@@ -1241,10 +1388,10 @@ function runPlan(
     waterPolygon,
     avoidSea: streetOpts.avoidSea,
     rivers,
-    urban,
-    outskirts,
+    urban: currentUrban,
+    outskirts: currentOutskirts,
     urbanStages,
-    builtUp,
+    builtUp: currentBuiltUp,
     borderLoops,
     gates: routedGates,
     precincts,
@@ -1253,7 +1400,10 @@ function runPlan(
     streets: streetResult.streets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
-    templeHarbor: warded.precincts
+    templeHarbor: warded.precincts,
+    mesh: meshModified ? currentMesh : undefined,
+    faceIdOf: meshModified ? currentFaceIdOf : undefined,
+    cells: meshModified ? currentCells : undefined
   };
 }
 
@@ -1272,6 +1422,11 @@ function applyPlan(
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
+  if (plan.mesh) {
+    next.mesh = clone(plan.mesh);
+    cells = plan.cells!;
+    faceIdOf = plan.faceIdOf!;
+  }
   delete next.appearance;
   let mesh = next.mesh;
 
@@ -1376,10 +1531,8 @@ function applyPlan(
     });
   }
   if (stageStep >= 4) {
-    if (complete) {
-      next = joinWallRiverCrossings(next);
-      mesh = next.mesh;
-    }
+    // joinWallRiverCrossings is obsolete because resolveRiverBoundaryOverlaps
+    // resolves river-wall edge sharing during phase 3 via proper cell splitting.
     const wallVertices = new Set<Id>();
     for (const group of next.featureGroups) {
       if (group.kind !== "wall") continue;
@@ -1886,12 +2039,7 @@ function cellsFromMesh(mesh: Mesh, half: number): { cells: Cell[]; faceIdOf: str
   return { cells, faceIdOf: faces.map(f => f.id) };
 }
 
-/** Connected components of urban faces, each outlined along its own mesh edges
- * (the largest loop — the outer circumference). No mesh mutation. */
-function componentBorderLoops(mesh: Mesh, faceIdOf: string[], urbanCellIds: Set<number>): MeshBorderLoop[] {
-  const cellIdOf = new Map(faceIdOf.map((fid, i) => [fid, i]));
-  const urbanFaces = new Set<Id>();
-  for (const id of urbanCellIds) if (faceIdOf[id]) urbanFaces.add(faceIdOf[id]);
+function borderLoopsForFaces(mesh: Mesh, urbanFaces: Set<Id>, cellIdOf?: Map<string, number>): MeshBorderLoop[] {
   if (!urbanFaces.size) return [];
 
   const seen = new Set<Id>();
@@ -1926,10 +2074,19 @@ function componentBorderLoops(mesh: Mesh, faceIdOf: string[], urbanCellIds: Set<
     loops.push({
       segments: outer,
       points: loopPoints(mesh, outer),
-      cellIds: [...component].map(fid => cellIdOf.get(fid)).filter((n): n is number => n !== undefined)
+      cellIds: cellIdOf ? [...component].map(fid => cellIdOf.get(fid)).filter((n): n is number => n !== undefined) : []
     });
   }
   return loops;
+}
+
+/** Component border loops on the mesh edges bounding each connected urban blob
+ * (the largest loop — the outer circumference). No mesh mutation. */
+function componentBorderLoops(mesh: Mesh, faceIdOf: string[], urbanCellIds: Set<number>): MeshBorderLoop[] {
+  const cellIdOf = new Map(faceIdOf.map((fid, i) => [fid, i]));
+  const urbanFaces = new Set<Id>();
+  for (const id of urbanCellIds) if (faceIdOf[id]) urbanFaces.add(faceIdOf[id]);
+  return borderLoopsForFaces(mesh, urbanFaces, cellIdOf);
 }
 
 /** `orderedBoundaryLoops`, but tolerant of pinch vertices (a boundary vertex with

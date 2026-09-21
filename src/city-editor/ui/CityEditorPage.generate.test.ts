@@ -250,16 +250,19 @@ describe("Generate panel", () => {
     expect(bearings?.closest("label")?.style.display).not.toBe("none");
   });
 
-  it("preserves the base mesh on ①–③; prepares junctions from ④", () => {
+  it("preserves the base mesh on ①–②; prepares junctions and river core splits from ③", () => {
     const before = meshFingerprint();
-    expect(count(".ce-cells .ce-face")).toBeGreaterThan(0);
-    for (const label of ["①", "②", "③"]) {
+    const facesBefore = count(".ce-cells .ce-face");
+    expect(facesBefore).toBeGreaterThan(0);
+    for (const label of ["①", "②"]) {
       stageButton(label).click();
       expect(meshFingerprint(), `mesh changed after ${label}`).toBe(before);
     }
+    stageButton("③").click();
+    // ③ may subdivide opposite-bank cells along river overlaps to prevent river edges from becoming the core boundary
+    expect(count(".ce-cells .ce-face")).toBeGreaterThanOrEqual(facesBefore);
     // ⑤–⑥ may merge or split a vertex to open a 4-way gate/bridge; they must
     // not replace the grid wholesale (face count stays in the same ballpark).
-    const facesBefore = count(".ce-cells .ce-face");
     stageButton("⑤").click();
     const facesAfter = count(".ce-cells .ce-face");
     expect(facesAfter).toBeGreaterThan(facesBefore * 0.5);

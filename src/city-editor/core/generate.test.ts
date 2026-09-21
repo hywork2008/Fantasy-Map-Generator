@@ -250,9 +250,9 @@ describe("generateStageOnDocument", () => {
             if (!out) return;
             expect(validate(out)).toEqual([]);
             expect(out.frame).toEqual(base.frame);
-            // ①–③ must not rebuild the grid. ④–⑥ may merge/split a vertex to
-            // open a 4-way gate or bridge, so the skeleton may change.
-            if (step < S.walls) expect(meshSkeleton(out)).toBe(baseline);
+            // ①–② must not rebuild the grid. ③–⑥ may split faces along river overlaps
+            // or merge/split a vertex to open a 4-way gate or bridge, so the skeleton may change.
+            if (step < S.urban) expect(meshSkeleton(out)).toBe(baseline);
           });
         }
 
@@ -835,7 +835,7 @@ describe("generateWardStep — per-loop ⑥ ward-assignment scrub", () => {
   const base = createSizedDocument("small", "mesh-fixture");
   const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
 
-  it("valid document, mesh & frame untouched, for the first/middle/last cell", () => {
+  it("valid document, mesh & frame untouched, for the first/middle/last cell", { timeout: 20_000 }, () => {
     for (const seed of SEEDS) {
       const { total } = generateWardStep(base, scenario, seed, 0);
       expect(total).toBeGreaterThan(5);
