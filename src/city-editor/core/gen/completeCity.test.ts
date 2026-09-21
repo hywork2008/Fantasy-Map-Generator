@@ -604,7 +604,16 @@ describe("building setbacks", () => {
 
     const roads = city.featureGroups.filter(g => g.kind === "road");
     // Ensure gc:road-9 and gc:road-10 are removed, leaving only the active gate roads and bridge
-    expect(roads.map(r => r.id)).toEqual(["gc:bridge-0", "gc:road-1", "gc:road-5"]);
+    expect(roads.map(r => r.id)).toEqual([
+      "gc:bridge-0",
+      "gc:road-1",
+      "gc:road-2",
+      "gc:road-3",
+      "gc:road-5",
+      "gc:road-6",
+      "gc:road-7"
+    ]);
+    expect(roads.some(r => r.id === "gc:road-9" || r.id === "gc:road-10")).toBe(false);
   });
 
   it("reproduces user 052221 unwalled classic case without redundant roads", () => {

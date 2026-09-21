@@ -1,4 +1,4 @@
-import { isSimplePolygon, pointInPolygon, polygonArea, segmentSegmentHit } from "./gen/geom";
+import { isSimplePolygon, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./gen/geom";
 import { defaultRoadWidthMeters } from "./gen/settlementExtent";
 // 4-way passages (gates / bridges) for generated routes.
 //
@@ -8,7 +8,7 @@ import { defaultRoadWidthMeters } from "./gen/settlementExtent";
 // of degree < 4, raise the degree by merging the nearest neighbour on the
 // barrier, or by splitting an incident cell, then thread the road through.
 
-import { appendEdge, featureGroupVertices, groupUsesEdge } from "./features";
+import { appendEdge, createGroup, featureGroupVertices, groupUsesEdge } from "./features";
 import {
   clone,
   edgeBetween,
@@ -132,29 +132,43 @@ export function throughEdgesAt(document: CityDocument, vertexId: Id, barrier: Ba
 }
 
 /**
- * Raise a meeting vertex to a 4-way passage for `barrier`. Prefers merging the
- * geometrically nearest neighbour that already sits on the barrier; falls back
- * to splitting the largest incident cell along a diagonal from this vertex.
+ * Raise a meeting vertex to a 4-way passage for `barrier`. Prefers splitting
+ * incident cells along opposite diagonals to create a 4-way passage without
+ * altering the barrier geometry.
  */
 export function openBarrierPassage(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {
   if (!document.mesh.vertices[vertexId]) return null;
   let next = document;
   for (let attempt = 0; attempt < 3; attempt++) {
     if (vertexHasKindPassage(next, vertexId, barrier)) return next === document ? document : next;
-    // Coarse cells can provide an opposite arm without dragging a distant
-    // barrier vertex into the gate/bridge. Only accept a geometrically valid split.
-    if (document.gridKind === "evolution") {
-      const split = splitCoarsePassage(next, vertexId, barrier);
-      if (split) return split;
-    }
-    const merged = mergeNearestBarrierNeighbour(next, vertexId, barrier);
-    if (merged) {
-      next = merged;
-      continue;
-    }
-    const split = splitLargestIncidentFace(next, vertexId);
+
+    // Prioritize cell splitting so gates and passages become 4-way junctions without merging vertices
+    const split = splitBarrierPassageFace(next, vertexId, barrier);
     if (split) {
       next = split;
+      if (vertexHasKindPassage(next, vertexId, barrier)) return next;
+      continue;
+    }
+
+    if (document.gridKind === "evolution") {
+      const coarseSplit = splitCoarsePassage(next, vertexId, barrier);
+      if (coarseSplit) return coarseSplit;
+    }
+
+    // For walls, do NOT merge when faces exist (gates must not collapse wall geometry).
+    // Only fall back to merge for river crossings or if faces topology is empty (legacy test mocks).
+    const hasFaces = Object.keys(next.mesh.faces).length > 0;
+    if (barrier !== "wall" || !hasFaces) {
+      const merged = mergeNearestBarrierNeighbour(next, vertexId, barrier);
+      if (merged) {
+        next = merged;
+        continue;
+      }
+    }
+
+    const faceSplit = splitLargestIncidentFace(next, vertexId);
+    if (faceSplit) {
+      next = faceSplit;
       continue;
     }
     break;
@@ -237,18 +251,24 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
     const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
     const moved = moveVertex(document, vertexId, candidate);
     if (!moved) continue;
-    if (
-      document.gridKind === "evolution" &&
-      incidentFaces(document.mesh, vertexId).some(face => {
-        const points = facePoints(moved.mesh, moved.mesh.faces[face.id]);
-        return (
-          face.properties.locked ||
-          !isSimplePolygon(points) ||
-          polygonArea(points) / polygonArea(facePoints(document.mesh, face)) < 0.5
-        );
-      })
-    )
-      continue;
+    const invalid = incidentFaces(document.mesh, vertexId).some(face => {
+      const movedFace = moved.mesh.faces[face.id];
+      if (!movedFace) return true;
+      const points = facePoints(moved.mesh, movedFace);
+      if (face.properties.locked || !isSimplePolygon(points)) return true;
+      const origArea = polygonArea(facePoints(document.mesh, face));
+      const newArea = polygonArea(points);
+      if (origArea !== 0 && newArea / origArea < (document.gridKind === "evolution" ? 0.5 : 0.12)) return true;
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 2; j < points.length; j++) {
+          if (i === 0 && j === points.length - 1) continue;
+          if (segmentSegmentHit(points[i], points[(i + 1) % points.length], points[j], points[(j + 1) % points.length]))
+            return true;
+        }
+      }
+      return false;
+    });
+    if (invalid) continue;
     return moved;
   }
   return document;
@@ -631,4 +651,323 @@ function extendRoadThrough(document: CityDocument, vertexId: Id, barrier: Barrie
     }
   }
   return changed ? next : null;
+}
+
+/**
+ * Subdivide/split incident cells at a barrier vertex so that the vertex acquires
+ * through-arms on both sides of the barrier without moving or merging any vertices.
+ */
+function splitBarrierPassageFace(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {
+  const v = document.mesh.vertices[vertexId];
+  if (!v || v.locked) return null;
+  const origin = v.point;
+
+  const barrierEdges = kindEdgeIds(document, barrier);
+  const incident = incidentEdges(document.mesh, vertexId);
+  const barrierIncident = incident.filter(e => barrierEdges.has(e.id));
+  if (barrierIncident.length < 2) return null;
+
+  let e0 = barrierIncident[0];
+  let e1 = barrierIncident[1];
+  if (barrierIncident.length > 2) {
+    let bestDot = 1;
+    for (let i = 0; i < barrierIncident.length; i++) {
+      for (let j = i + 1; j < barrierIncident.length; j++) {
+        const edgeI = barrierIncident[i];
+        const edgeJ = barrierIncident[j];
+        const pI = document.mesh.vertices[edgeI.a === vertexId ? edgeI.b : edgeI.a]?.point;
+        const pJ = document.mesh.vertices[edgeJ.a === vertexId ? edgeJ.b : edgeJ.a]?.point;
+        if (!pI || !pJ) continue;
+        const dxI = pI[0] - origin[0],
+          dyI = pI[1] - origin[1];
+        const dxJ = pJ[0] - origin[0],
+          dyJ = pJ[1] - origin[1];
+        const dot = (dxI * dxJ + dyI * dyJ) / ((Math.hypot(dxI, dyI) || 1) * (Math.hypot(dxJ, dyJ) || 1));
+        if (dot < bestDot) {
+          bestDot = dot;
+          e0 = edgeI;
+          e1 = edgeJ;
+        }
+      }
+    }
+  }
+
+  const p0 = document.mesh.vertices[e0.a === vertexId ? e0.b : e0.a]?.point;
+  const p1 = document.mesh.vertices[e1.a === vertexId ? e1.b : e1.a]?.point;
+  if (!p0 || !p1) return null;
+
+  const a0 = (Math.atan2(p0[1] - origin[1], p0[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+  const a1 = (Math.atan2(p1[1] - origin[1], p1[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+  const alpha = Math.min(a0, a1);
+  const beta = Math.max(a0, a1);
+
+  const span1 = beta - alpha;
+  const span2 = 2 * Math.PI - span1;
+  const mid1 = alpha + span1 / 2;
+  const mid2 = (beta + span2 / 2) % (2 * Math.PI);
+
+  const inSector1 = (th: number): boolean => th > alpha + 1e-3 && th < beta - 1e-3;
+  const inSector2 = (th: number): boolean => th > beta + 1e-3 || th < alpha - 1e-3;
+
+  const nonBarrierEdges = incident.filter(e => !barrierEdges.has(e.id));
+  const s1Edges: Edge[] = [];
+  const s2Edges: Edge[] = [];
+  for (const edge of nonBarrierEdges) {
+    const pt = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a]?.point;
+    if (!pt) continue;
+    const th = (Math.atan2(pt[1] - origin[1], pt[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+    if (inSector1(th)) s1Edges.push(edge);
+    else if (inSector2(th)) s2Edges.push(edge);
+  }
+
+  if (s1Edges.length > 0 && s2Edges.length > 0) {
+    return document;
+  }
+
+  let next = document;
+
+  const splitInSector = (doc: CityDocument, sector: 1 | 2, existingOppositeEdge?: Edge): CityDocument | null => {
+    const sectorBisector = sector === 1 ? mid1 : mid2;
+    let baseAngle = sectorBisector;
+
+    if (existingOppositeEdge) {
+      const oppPt =
+        doc.mesh.vertices[existingOppositeEdge.a === vertexId ? existingOppositeEdge.b : existingOppositeEdge.a]?.point;
+      if (oppPt) {
+        const straightAngle = (Math.atan2(origin[1] - oppPt[1], origin[0] - oppPt[0]) + 2 * Math.PI) % (2 * Math.PI);
+        const inTarget = sector === 1 ? inSector1(straightAngle) : inSector2(straightAngle);
+        if (inTarget) {
+          const dAlpha = Math.abs(straightAngle - alpha);
+          const dBeta = Math.abs(straightAngle - beta);
+          const margin = Math.min(dAlpha, 2 * Math.PI - dAlpha, dBeta, 2 * Math.PI - dBeta);
+          if (margin > 0.15) baseAngle = straightAngle;
+        }
+      }
+    }
+
+    const testAngles = [baseAngle];
+    for (let offset = 0.15; offset <= 0.6; offset += 0.15) {
+      const aPlus = (baseAngle + offset + 2 * Math.PI) % (2 * Math.PI);
+      const aMinus = (baseAngle - offset + 2 * Math.PI) % (2 * Math.PI);
+      if (sector === 1 ? inSector1(aPlus) : inSector2(aPlus)) testAngles.push(aPlus);
+      if (sector === 1 ? inSector1(aMinus) : inSector2(aMinus)) testAngles.push(aMinus);
+    }
+
+    const faces = incidentFaces(doc.mesh, vertexId).filter(f => !f.properties.locked && f.properties.water !== "sea");
+    if (!faces.length) return null;
+
+    for (const targetAngle of testAngles) {
+      const probeDir: Point = [Math.cos(targetAngle), Math.sin(targetAngle)];
+
+      let targetFace = faces.find(f => {
+        const pts = facePoints(doc.mesh, f);
+        return (
+          pointInPolygon([origin[0] + 0.5 * probeDir[0], origin[1] + 0.5 * probeDir[1]], pts) ||
+          pointInPolygon([origin[0] + 0.1 * probeDir[0], origin[1] + 0.1 * probeDir[1]], pts)
+        );
+      });
+
+      if (!targetFace) {
+        const bisectDir: Point = [Math.cos(sectorBisector), Math.sin(sectorBisector)];
+        targetFace = faces.find(f => {
+          const pts = facePoints(doc.mesh, f);
+          return (
+            pointInPolygon([origin[0] + 0.5 * bisectDir[0], origin[1] + 0.5 * bisectDir[1]], pts) ||
+            pointInPolygon([origin[0] + 0.1 * bisectDir[0], origin[1] + 0.1 * bisectDir[1]], pts)
+          );
+        });
+      }
+
+      if (!targetFace) continue;
+
+      const fVids = faceVertices(doc.mesh, targetFace);
+      const fPts = facePoints(doc.mesh, targetFace);
+      const fIdx = fVids.indexOf(vertexId);
+      if (fIdx < 0) continue;
+      const origArea = Math.abs(polygonArea(fPts));
+
+      // Strategy 1: Check existing non-adjacent vertices
+      const candidates: Array<{ vid: Id; score: number }> = [];
+      for (let i = 0; i < fVids.length; i++) {
+        const vid = fVids[i];
+        if (vid === vertexId) continue;
+        const step = Math.abs(i - fIdx);
+        if (step === 1 || step === fVids.length - 1) continue;
+        if (edgeBetween(doc.mesh, vertexId, vid)) continue;
+        const pt = doc.mesh.vertices[vid]?.point;
+        if (!pt || doc.mesh.vertices[vid]?.locked) continue;
+
+        const vAngle = (Math.atan2(pt[1] - origin[1], pt[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+        const inSec = sector === 1 ? inSector1(vAngle) : inSector2(vAngle);
+        if (!inSec) continue;
+
+        const midPt: Point = [(origin[0] + pt[0]) / 2, (origin[1] + pt[1]) / 2];
+        if (!pointInPolygon(midPt, fPts)) continue;
+
+        const hits = fPts.some((p, k) => {
+          const nextK = (k + 1) % fPts.length;
+          if ([vertexId, vid].includes(fVids[k]) || [vertexId, vid].includes(fVids[nextK])) return false;
+          return !!segmentSegmentHit(origin, pt, p, fPts[nextK]);
+        });
+        if (hits) continue;
+
+        const dx = pt[0] - origin[0];
+        const dy = pt[1] - origin[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const dot = (dx * Math.cos(targetAngle) + dy * Math.sin(targetAngle)) / len;
+        candidates.push({ vid, score: dot });
+      }
+
+      candidates.sort((a, b) => b.score - a.score);
+      for (const cand of candidates) {
+        if (cand.score < 0.3) break;
+        const split = splitFace(doc, targetFace.id, vertexId, cand.vid);
+        if (!split) continue;
+        const pieces = Object.values(split.mesh.faces).filter(f => f.id === targetFace!.id || !doc.mesh.faces[f.id]);
+        if (pieces.some(f => !isSimplePolygon(facePoints(split.mesh, f)))) continue;
+        if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < Math.min(20, origArea * 0.1))) continue;
+        for (const f of pieces) f.site = polygonCentroid(facePoints(split.mesh, f));
+        return split;
+      }
+
+      // Strategy 2: Ray-cast against opposite edges of targetFace
+      let bestHit: { edgeId: Id; fraction: number; dist: number } | null = null;
+      for (let eIdx = 0; eIdx < targetFace.boundary.length; eIdx++) {
+        const ref = targetFace.boundary[eIdx];
+        const edge = doc.mesh.edges[ref.edgeId];
+        if (!edge || edge.a === vertexId || edge.b === vertexId) continue;
+        const pA = doc.mesh.vertices[edge.a]?.point;
+        const pB = doc.mesh.vertices[edge.b]?.point;
+        if (!pA || !pB) continue;
+
+        const dx = pB[0] - pA[0];
+        const dy = pB[1] - pA[1];
+        const det = probeDir[0] * -dy - probeDir[1] * -dx;
+        if (Math.abs(det) < 1e-6) continue;
+
+        const rhsX = pA[0] - origin[0];
+        const rhsY = pA[1] - origin[1];
+        const s = (rhsX * -dy - rhsY * -dx) / det;
+        const t = (probeDir[0] * rhsY - probeDir[1] * rhsX) / det;
+
+        if (s > 0.5 && t >= 0 && t <= 1) {
+          const hitPt: Point = [origin[0] + s * probeDir[0], origin[1] + s * probeDir[1]];
+          const midPt: Point = [(origin[0] + hitPt[0]) / 2, (origin[1] + hitPt[1]) / 2];
+          if (!pointInPolygon(midPt, fPts)) continue;
+
+          // Ensure ray segment does not intersect any other boundary of the face
+          const hitsOther = fPts.some((p, k) => {
+            const nextK = (k + 1) % fPts.length;
+            if (k === eIdx) return false;
+            if ([fVids[k], fVids[nextK]].includes(vertexId)) return false;
+            return !!segmentSegmentHit(origin, hitPt, p, fPts[nextK]);
+          });
+          if (hitsOther) continue;
+
+          if (!bestHit || s < bestHit.dist) {
+            bestHit = { edgeId: edge.id, fraction: t, dist: s };
+          }
+        }
+      }
+
+      if (bestHit) {
+        const edge = doc.mesh.edges[bestHit.edgeId];
+        const pA = doc.mesh.vertices[edge.a].point;
+        const pB = doc.mesh.vertices[edge.b].point;
+        const edgeLen = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]);
+
+        if (edgeLen < 2.05) {
+          for (const endVid of [edge.a, edge.b]) {
+            const step = Math.abs(fVids.indexOf(endVid) - fIdx);
+            if (step !== 1 && step !== fVids.length - 1 && !edgeBetween(doc.mesh, vertexId, endVid)) {
+              const split = splitFace(doc, targetFace.id, vertexId, endVid);
+              if (split) {
+                const pieces = Object.values(split.mesh.faces).filter(
+                  f => f.id === targetFace!.id || !doc.mesh.faces[f.id]
+                );
+                if (pieces.some(f => !isSimplePolygon(facePoints(split.mesh, f)))) continue;
+                if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < Math.min(20, origArea * 0.1)))
+                  continue;
+                for (const f of pieces) f.site = polygonCentroid(facePoints(split.mesh, f));
+                return split;
+              }
+            }
+          }
+        } else {
+          const minMargin = 1.05 / edgeLen;
+          const clampedT = Math.max(minMargin, Math.min(1 - minMargin, bestHit.fraction));
+          const inserted = insertEdgeVertex(doc, bestHit.edgeId, clampedT);
+          if (inserted) {
+            const split = splitFace(inserted.document, targetFace.id, vertexId, inserted.vertexId);
+            if (split) {
+              const pieces = Object.values(split.mesh.faces).filter(
+                f => f.id === targetFace!.id || !doc.mesh.faces[f.id]
+              );
+              if (pieces.some(f => !isSimplePolygon(facePoints(split.mesh, f)))) continue;
+              if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < Math.min(20, origArea * 0.1)))
+                continue;
+              for (const f of pieces) f.site = polygonCentroid(facePoints(split.mesh, f));
+              return split;
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  if (s1Edges.length === 0 && s2Edges.length > 0) {
+    const split = splitInSector(next, 1, s2Edges[0]);
+    if (split) next = split;
+  } else if (s2Edges.length === 0 && s1Edges.length > 0) {
+    const split = splitInSector(next, 2, s1Edges[0]);
+    if (split) next = split;
+  } else if (s1Edges.length === 0 && s2Edges.length === 0) {
+    const split1 = splitInSector(next, 1);
+    if (split1) {
+      next = split1;
+      const newIncident = incidentEdges(next.mesh, vertexId).filter(e => !barrierEdges.has(e.id));
+      const newS1 = newIncident.filter(e => {
+        const pt = next.mesh.vertices[e.a === vertexId ? e.b : e.a]?.point;
+        if (!pt) return false;
+        const th = (Math.atan2(pt[1] - origin[1], pt[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+        return inSector1(th);
+      });
+      const split2 = splitInSector(next, 2, newS1[0]);
+      if (split2) next = split2;
+    }
+  }
+
+  return next === document ? null : next;
+}
+
+/**
+ * Open a gate passage at `gateVertexId` via cell splitting (no vertex merging),
+ * materializing the through-road across the wall and registering the gate.
+ */
+export function openGatePassage(document: CityDocument, gateVertexId: Id): CityDocument | null {
+  const opened = openBarrierPassage(document, gateVertexId, "wall");
+  if (!opened) return null;
+  const through = throughEdgesAt(opened, gateVertexId, "wall");
+  if (through.length !== 2) return null;
+  let next = createGroup(opened, "road");
+  const roadId = next.featureGroups.at(-1)?.id;
+  if (!roadId) return null;
+  for (const edge of through) {
+    const appended = appendEdge(next, roadId, edge.id);
+    if (!appended) return null;
+    next = appended;
+  }
+  const existingGates = next.gates ?? [];
+  let max = 0;
+  for (const g of existingGates) {
+    const m = g.id.match(/\d+$/);
+    if (m) {
+      const n = parseInt(m[0], 10);
+      if (n > max) max = n;
+    }
+  }
+  next.gates = [...existingGates, { id: `gate-${max + 1}`, vertexId: gateVertexId, locked: false }];
+  return next;
 }

@@ -70,6 +70,104 @@ describe("openBarrierPassage", () => {
     expect(vertexHasKindPassage(sameSide, "g", "wall")).toBe(false);
   });
 
+  it("splits the incident cell instead of merging neighbours so a 3-way gate vertex becomes a 4-way passage", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+      mesh: {
+        vertices: {
+          w1: { id: "w1", point: [-20, 0], locked: false },
+          g: { id: "g", point: [0, 0], locked: false },
+          w2: { id: "w2", point: [20, 0], locked: false },
+          p: { id: "p", point: [0, 20], locked: false },
+          t1: { id: "t1", point: [-20, 20], locked: false },
+          t2: { id: "t2", point: [20, 20], locked: false },
+          b1: { id: "b1", point: [-20, -20], locked: false },
+          b2: { id: "b2", point: [20, -20], locked: false }
+        },
+        edges: {
+          eWall1: { id: "eWall1", a: "w1", b: "g", leftFace: "fIn1", rightFace: "fOut", locked: false },
+          eWall2: { id: "eWall2", a: "g", b: "w2", leftFace: "fIn2", rightFace: "fOut", locked: false },
+          eInMid: { id: "eInMid", a: "g", b: "p", leftFace: "fIn2", rightFace: "fIn1", locked: false },
+          eInTop1: { id: "eInTop1", a: "w1", b: "t1", leftFace: "fIn1", rightFace: null, locked: false },
+          eInTop2: { id: "eInTop2", a: "t1", b: "p", leftFace: "fIn1", rightFace: null, locked: false },
+          eInTop3: { id: "eInTop3", a: "p", b: "t2", leftFace: "fIn2", rightFace: null, locked: false },
+          eInTop4: { id: "eInTop4", a: "t2", b: "w2", leftFace: "fIn2", rightFace: null, locked: false },
+          eOutR: { id: "eOutR", a: "w2", b: "b2", leftFace: "fOut", rightFace: null, locked: false },
+          eOutB: { id: "eOutB", a: "b2", b: "b1", leftFace: "fOut", rightFace: null, locked: false },
+          eOutL: { id: "eOutL", a: "b1", b: "w1", leftFace: "fOut", rightFace: null, locked: false }
+        },
+        faces: {
+          fIn1: {
+            id: "fIn1",
+            boundary: [
+              { edgeId: "eWall1", forward: true },
+              { edgeId: "eInMid", forward: true },
+              { edgeId: "eInTop2", forward: false },
+              { edgeId: "eInTop1", forward: false }
+            ],
+            properties: { water: "land", buildable: true, locked: false }
+          },
+          fIn2: {
+            id: "fIn2",
+            boundary: [
+              { edgeId: "eInMid", forward: false },
+              { edgeId: "eWall2", forward: true },
+              { edgeId: "eInTop4", forward: false },
+              { edgeId: "eInTop3", forward: false }
+            ],
+            properties: { water: "land", buildable: true, locked: false }
+          },
+          fOut: {
+            id: "fOut",
+            boundary: [
+              { edgeId: "eWall2", forward: false },
+              { edgeId: "eWall1", forward: false },
+              { edgeId: "eOutL", forward: false },
+              { edgeId: "eOutB", forward: false },
+              { edgeId: "eOutR", forward: false }
+            ],
+            properties: { water: "land", buildable: true, locked: false }
+          }
+        }
+      },
+      featureGroups: [
+        {
+          id: "wall-1",
+          kind: "wall",
+          name: "Wall #1",
+          segments: [
+            { edgeId: "eWall1", forward: true },
+            { edgeId: "eWall2", forward: true }
+          ],
+          style: { widthMeters: 7, color: "#342a22" },
+          locked: false
+        }
+      ],
+      gates: [{ id: "gate-1", vertexId: "g", locked: false }],
+      elements: []
+    };
+
+    expect(incidentEdges(document.mesh, "g")).toHaveLength(3);
+    expect(vertexHasKindPassage(document, "g", "wall")).toBe(false);
+
+    const next = openBarrierPassage(document, "g", "wall");
+    expect(next).not.toBeNull();
+    if (!next) return;
+
+    // Both wall neighbors must NOT be merged or deleted
+    expect(next.mesh.vertices.w1).toBeDefined();
+    expect(next.mesh.vertices.w2).toBeDefined();
+    expect(next.mesh.vertices.w1.point).toEqual([-20, 0]);
+    expect(next.mesh.vertices.w2.point).toEqual([20, 0]);
+
+    // The gate vertex g must have degree >= 4
+    expect(incidentEdges(next.mesh, "g").length).toBeGreaterThanOrEqual(4);
+    // It must form a valid 4-way wall passage (alternating pairs)
+    expect(vertexHasKindPassage(next, "g", "wall")).toBe(true);
+  });
+
   it("raises a 3-way river vertex to 4+ edges by merging the nearest river neighbour", () => {
     const document: CityDocument = {
       format: "fmg-city-editor",

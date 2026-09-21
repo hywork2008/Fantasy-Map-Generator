@@ -84,6 +84,7 @@ import {
   splitFace,
   validate
 } from "../core/mesh";
+import { openGatePassage } from "../core/passages";
 import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import {
@@ -1958,6 +1959,18 @@ export function mountCityEditor(root: HTMLElement): void {
             if (next) commit(next, "Remove gate");
             return;
           }
+          if (vertexHasWallPassage(documentState, vertex.id)) {
+            const next = toggleGate(documentState, vertex.id);
+            if (next) {
+              commit(next, "Place gate");
+              return;
+            }
+          }
+          const splitOpened = openGatePassage(documentState, vertex.id);
+          if (splitOpened) {
+            commit(splitOpened, "Place gate");
+            return;
+          }
           const candidates = gateOpeningCandidates(documentState, vertex.id);
           if (candidates.length === 1) {
             const next = placeGateOpening(documentState, vertex.id, candidates[0].vertexId);
@@ -1987,7 +2000,7 @@ export function mountCityEditor(root: HTMLElement): void {
         text(`Vertex ${vertex.id}`),
         text(
           wallVertex
-            ? "Place a gate to merge a neighboring wall vertex and create a road through the wall."
+            ? "Place a gate to split adjacent cells and create a road through the wall."
             : "Draw an outer wall through this vertex before placing a gate."
         ),
         gateButton
