@@ -1,3 +1,4 @@
+import { connectDryCellInteriors, openWallRiverMouths } from "./gateApproaches";
 import {
   placeAndClearTempleRect,
   polygonHitsOrientedRect,
@@ -85,7 +86,7 @@ import {
   logGenerationFailures,
   reportGenerationFailure
 } from "./generationDiagnostics";
-import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
+import { clone, edgeBetween, edgeEnd, faceNeighbors, facePoints, validate } from "./mesh";
 import {
   addBridge,
   explainGeneratedCrossingFailures,
@@ -439,7 +440,6 @@ export function generateCityAttempt(
     counts?: Record<string, number>,
     details?: string[]
   ): null => {
-    console.log(`[DEBUG REJECT attempt ${attempt}] phase: ${phase}, reason: ${reason}, message: ${message}`);
     reportGenerationFailure(observer, attempt, phase, reason, message, counts, [`seed=${seed}`, ...(details ?? [])]);
     return null;
   };
@@ -902,6 +902,13 @@ export function generateRoadStep(
   };
 }
 
+let wardStepCache: {
+  key: string;
+  document: CityDocument | null;
+  order: WardAssignment[];
+  stepOfFace: Map<Id, number>;
+} | null = null;
+
 /**
  * Step through ⑥'s district assignment one cell at a time, in
  * `assignWards`'s actual decision order (harbour → temple → gate wards → the
@@ -919,21 +926,45 @@ export function generateWardStep(
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
-  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 6);
-  const total = plan.wardOrder.length;
-  if (total === 0) {
-    return { document: applyPlan(document, cells, faceIdOf, plan, program, 6), total: 0, index: -1, detail: null };
+  // Scrubbing wards changes only their visibility. Keep the repaired road
+  // topology fixed instead of rebuilding gates and splitting cells per click.
+  // A content key also invalidates this bounded cache after in-place edits.
+  const key = JSON.stringify([document, settings, seed]);
+  if (wardStepCache?.key !== key) {
+    const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+    const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 6);
+    const result = applyPlan(document, cells, faceIdOf, plan, program, 6);
+    const activeCells = plan.cells ?? cells;
+    const activeIds = plan.faceIdOf ?? faceIdOf;
+    const stepOfCell = new Map(plan.wardOrder.map((ward, index) => [ward.cellId, index]));
+    const cellOfFace = new Map(activeIds.map((id, index) => [id, index]));
+    const stepOfFace = new Map<Id, number>();
+    for (const face of Object.values(result?.mesh.faces ?? {})) {
+      let cellId = cellOfFace.get(face.id);
+      if (cellId === undefined && result) {
+        const center = polygonCentroid(facePoints(result.mesh, face));
+        cellId = activeCells.find(cell => pointInPolygon(center, cell.polygon))?.id;
+      }
+      const step = cellId === undefined ? undefined : stepOfCell.get(cellId);
+      if (step !== undefined) stepOfFace.set(face.id, step);
+    }
+    wardStepCache = { key, document: result, order: plan.wardOrder, stepOfFace };
   }
-  const index = Math.max(0, Math.min(stepIndex, total - 1));
-  const prefix = plan.wardOrder.slice(0, index + 1);
-  const stepped: Plan = { ...plan, wards: new Map(prefix.map(w => [w.cellId, w.kind])) };
-  const last = prefix[index];
+  const { order, stepOfFace } = wardStepCache;
+  const total = order.length;
+  const index = total ? Math.max(0, Math.min(stepIndex, total - 1)) : -1;
+  const result = wardStepCache.document ? clone(wardStepCache.document) : null;
+  if (result && total) {
+    for (const face of Object.values(result.mesh.faces)) {
+      if (!face.properties.locked && (stepOfFace.get(face.id) ?? Infinity) > index) face.properties.ward = null;
+    }
+  }
+  const last = order[index];
   return {
-    document: applyPlan(document, cells, faceIdOf, stepped, program, 6),
+    document: result,
     total,
     index,
-    detail: `${last.kind} · cell #${last.cellId} — ${index + 1}/${total}`
+    detail: last ? `${last.kind} · cell #${last.cellId} — ${index + 1}/${total}` : null
   };
 }
 
@@ -1080,7 +1111,6 @@ export function runPlan(
   // fill to a fixed cell count; otherwise accumulate actual area up to π R².
   // `urbanStages` records each admitted cell in fill order for
   // `generateUrbanPatchStep`'s per-loop scrub.
-  const shoreTangent = coast ? shorelineTangentAt(coast.shoreline) : null;
   const urbanRadius = program.walls ? params.cityRadiusMeters * 0.92 : params.cityRadiusMeters;
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
   const classification = classifyUrban(
@@ -1088,7 +1118,7 @@ export function runPlan(
     { sea, bank: river.bank },
     urbanBearings,
     urbanRadius,
-    complete ? null : shoreTangent,
+    null,
     params.urbanNPatches ?? null,
     params.cellSizeMeters,
     !complete && stageStep === 3
@@ -1133,6 +1163,9 @@ export function runPlan(
       gates: [],
       elements: []
     };
+    for (const face of Object.values(tempDoc.mesh.faces)) {
+      delete face.properties.settlement;
+    }
     for (const cellId of sea) {
       const fid = currentFaceIdOf[cellId];
       if (fid && tempDoc.mesh.faces[fid]) {
@@ -1162,13 +1195,13 @@ export function runPlan(
       currentUrban = new Set(
         currentFaceIdOf.map((fid, idx) => (coreFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
       );
-      currentBuiltUp = new Set(currentUrban);
       const outskirtFaceIds = new Set(
         [...outskirts].map(idx => faceIdOf[idx]).filter((fid): fid is string => Boolean(fid && !coreFaceIds.has(fid)))
       );
       currentOutskirts = new Set(
         currentFaceIdOf.map((fid, idx) => (outskirtFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
       );
+      currentBuiltUp = new Set([...currentUrban, ...currentOutskirts]);
     }
   }
 
@@ -1229,7 +1262,15 @@ export function runPlan(
   }
 
   const placed = markWaterGate(
-    placeGates(currentCells, currentUrban, genBorders, geo),
+    placeGates(currentCells, currentUrban, genBorders, {
+      ...geo,
+      rivers: rivers.map(river => ({
+        corridor: river.edgePoints,
+        widths: river.widths,
+        cityBank: "left" as const,
+        bridgeAllowed: river.bridgeAllowed
+      }))
+    }),
     genBorders,
     coast?.shoreline ?? null,
     program.port
@@ -1338,6 +1379,31 @@ export function runPlan(
     routedGates = remakeUnreachableLandGates(routedGates, roads, cellSize);
   }
 
+  // Materialize routes only after opening passages on the actual mesh. Keep
+  // one stable slot per gate even when the preliminary edge walk was blocked.
+  roads = routedGates.map((gate, i) => [
+    farNodeFor(
+      gate,
+      streetGeo,
+      half,
+      waterPolygon,
+      coast?.shoreline ?? null,
+      cellSize,
+      streetOpts.avoidSea,
+      streetOpts.farNode,
+      streetOpts.manualBearings?.[i]
+    ),
+    gate.point
+  ]);
+  const gateStreets = routedGates.map(gate => [
+    gate.point,
+    plazaApproachPoint(
+      currentCells,
+      precincts.find(p => p.kind === "plaza"),
+      gate.point
+    ) ?? ([0, 0] as Point)
+  ]);
+
   mark("street-plan");
   if (stageStep < 6) {
     return {
@@ -1355,7 +1421,7 @@ export function runPlan(
       precincts,
       citadelOutline,
       roads,
-      streets: streetResult.streets,
+      streets: [],
       mesh: meshModified ? currentMesh : undefined,
       faceIdOf: meshModified ? currentFaceIdOf : undefined,
       cells: meshModified ? currentCells : undefined
@@ -1396,8 +1462,8 @@ export function runPlan(
     gates: routedGates,
     precincts,
     citadelOutline,
-    roads,
-    streets: streetResult.streets,
+    roads: complete ? roads : [...roads, ...gateStreets],
+    streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
     templeHarbor: warded.precincts,
@@ -1451,6 +1517,10 @@ function applyPlan(
 
   const faceFor = (cellId: number): (typeof mesh.faces)[string] | undefined => mesh.faces[faceIdOf[cellId]];
   const nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
+  const urbanRegions = [...plan.urban]
+    .map(id => faceFor(id))
+    .filter(face => !!face)
+    .map(face => facePoints(mesh, face));
 
   // ① sea
   for (const cellId of plan.sea) {
@@ -1496,6 +1566,15 @@ function applyPlan(
     });
   }
 
+  // Assign stage-six wards before passage splits so every child inherits its district.
+  if (stageStep >= 6) {
+    for (const [cellId, kind] of plan.wards) {
+      const face = faceFor(cellId);
+      const editor = kind === "farm" && next.gridKind === "evolution" ? "farm" : editorWard(kind);
+      if (face && !face.properties.locked && editor) face.properties.ward = editor;
+    }
+  }
+
   mark("apply-terrain");
   // ④ walls + gates + plaza / citadel. When avoidSea is on, drop edges whose
   // midpoint sits in the water so the sea side is left open (§3.E.2), splitting
@@ -1503,12 +1582,10 @@ function applyPlan(
   if (stageStep >= 4 && program.walls) {
     let wallIndex = 0;
     const openEdges = new Set<Id>();
-    if (complete) {
-      if (plan.avoidSea && program.wallPlan?.coast !== "seaWall") {
-        for (const edge of Object.values(mesh.edges)) {
-          if ([edge.leftFace, edge.rightFace].some(id => id && mesh.faces[id].properties.water !== "land"))
-            openEdges.add(edge.id);
-        }
+    if (plan.avoidSea && program.wallPlan?.coast !== "seaWall") {
+      for (const edge of Object.values(mesh.edges)) {
+        if ([edge.leftFace, edge.rightFace].some(id => id && mesh.faces[id].properties.water !== "land"))
+          openEdges.add(edge.id);
       }
     }
     plan.borderLoops.forEach(loop => {
@@ -1531,8 +1608,11 @@ function applyPlan(
     });
   }
   if (stageStep >= 4) {
-    // joinWallRiverCrossings is obsolete because resolveRiverBoundaryOverlaps
-    // resolves river-wall edge sharing during phase 3 via proper cell splitting.
+    // Cell splitting handles ordinary bank overlaps. Resolve any residual
+    // coastal span before placing gates, so later junction repairs cannot
+    // consume an already published gate vertex.
+    next = openWallRiverMouths(joinWallRiverCrossings(next));
+    mesh = next.mesh;
     const wallVertices = new Set<Id>();
     for (const group of next.featureGroups) {
       if (group.kind !== "wall") continue;
@@ -1541,22 +1621,69 @@ function applyPlan(
         if (edge) wallVertices.add(edge.a).add(edge.b);
       }
     }
+    // Reserve gates only on banks whose exterior land reaches the frame.
+    // The cell graph deliberately ignores dry-corner bottlenecks: those can
+    // be repaired by splitting cells without changing the gate later.
+    const coreIds = new Set([...plan.urban].map(id => faceIdOf[id]));
+    const riverEdges = kindEdgeIds(next, "river");
+    const reachable = new Set<Id>();
+    const queue: Id[] = [];
+    for (const edge of Object.values(mesh.edges)) {
+      if (edge.leftFace && edge.rightFace) continue;
+      const id = edge.leftFace ?? edge.rightFace;
+      if (!id || coreIds.has(id) || mesh.faces[id].properties.water !== "land" || reachable.has(id)) continue;
+      reachable.add(id);
+      queue.push(id);
+    }
+    for (const id of queue) {
+      for (const ref of mesh.faces[id].boundary) {
+        if (riverEdges.has(ref.edgeId)) continue;
+        const edge = mesh.edges[ref.edgeId];
+        const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+        if (!other || coreIds.has(other) || mesh.faces[other].properties.water !== "land" || reachable.has(other))
+          continue;
+        reachable.add(other);
+        queue.push(other);
+      }
+    }
+    const exteriorRegions = [...reachable].map(id => facePoints(mesh, mesh.faces[id]));
     plan.gates.forEach((gate, i) => {
       if (next.gates.some(g => g.id === `${GEN_PREFIX}gate-${i}` && g.locked)) return;
-      const vertexId = nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters))(
-        gate.point,
-        wallVertices
+      const riverVertices = new Set(
+        [...kindEdgeIds(next, "river")].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b])
       );
-      if (complete && vertexId) {
-        const point = mesh.vertices[vertexId].point;
-        if (Math.hypot(point[0] - gate.point[0], point[1] - gate.point[1]) > 0.1) return;
-      }
-      if (vertexId) {
+      const occupied = new Set(next.gates.map(g => g.vertexId));
+      const candidates = [...wallVertices].filter(id => !occupied.has(id) && !riverVertices.has(id));
+      candidates.sort((a, b) => {
+        const p = mesh.vertices[a].point,
+          q = mesh.vertices[b].point;
+        return (
+          Math.hypot(p[0] - gate.point[0], p[1] - gate.point[1]) -
+          Math.hypot(q[0] - gate.point[0], q[1] - gate.point[1])
+        );
+      });
+      for (const vertexId of candidates) {
         const opened = openBarrierPassage(next, vertexId, "wall");
-        if (!opened) return;
+        if (!opened) continue;
+        if (
+          throughEdgesAt(opened, vertexId, "wall").some(edge =>
+            [edge.leftFace, edge.rightFace].some(id => id && opened.mesh.faces[id].properties.water !== "land")
+          )
+        )
+          continue;
+        const arms = throughEdgesAt(opened, vertexId, "wall");
+        const inRegion = (edge: (typeof arms)[number], regions: Point[][]) =>
+          [edge.leftFace, edge.rightFace].some(id => {
+            if (!id) return false;
+            const center = polygonCentroid(facePoints(opened.mesh, opened.mesh.faces[id]));
+            return regions.some(region => pointInPolygon(center, region));
+          });
+        if (!arms.some(edge => inRegion(edge, urbanRegions)) || !arms.some(edge => inRegion(edge, exteriorRegions)))
+          continue;
         next = opened;
         mesh = next.mesh;
         next.gates.push({ id: `${GEN_PREFIX}gate-${i}`, vertexId, locked: false });
+        break;
       }
     });
     // Reserved precinct landmarks as point-anchored elements.
@@ -1586,7 +1713,7 @@ function applyPlan(
   // Then snap roads, never onto a river or wall edge. Finally open river
   // bridges at remaining road–river meetings and thread the road through.
   if (stageStep >= 5) {
-    if (complete) {
+    {
       // Open a real crossing before routing, keeping roads off river edges.
       const rivers = next.featureGroups.filter(g => g.kind === "river");
       const center = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
@@ -1630,6 +1757,22 @@ function applyPlan(
       const opened = openBarrierPassage(next, gate.vertexId, "wall");
       if (opened) next = opened;
     }
+    {
+      const preliminaryBans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
+      const probe = completeRoadRouter(
+        next,
+        plan,
+        faceIdOf,
+        nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters)),
+        preliminaryBans,
+        !program.walls,
+        urbanRegions
+      );
+      const approaches = plan.roads.length - plan.streets.length;
+      if (plan.roads.some((line, i) => i < plan.gates.length * 2 && !probe(line, i < approaches).length)) {
+        next = connectDryCellInteriors(next);
+      }
+    }
     mesh = next.mesh;
     const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
     const plazaFaces = new Set(next.elements.find(e => e.kind === "plaza")?.faceIds ?? []);
@@ -1653,9 +1796,7 @@ function applyPlan(
         }
       }
     }
-    const routeComplete = complete
-      ? completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned, !program.walls)
-      : null;
+    const routeComplete = completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned, !program.walls, urbanRegions);
     // A complete city supplies one approach road and one interior street for
     // every planned gate. Gate placement is allowed to fail (for example when
     // the matching wall run was removed at the coast), so never materialize
@@ -1668,9 +1809,7 @@ function applyPlan(
         // Unwalled towns have no gates; still draw the planned approach roads.
         if (complete && program.walls && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${i}`)) return;
       }
-      const segments = routeComplete
-        ? routeComplete(polyline, isApproach)
-        : longestUnbannedRun(polylineToEdgeRefs(mesh, polyline, nearestAfter), banned);
+      const segments = routeComplete(polyline, isApproach);
       if (segments.length < 1) return;
       if (!isApproach && program.walls) {
         const wallEdges = kindEdgeIds(next, "wall");
@@ -1750,48 +1889,27 @@ function applyPlan(
     }
   }
 
-  // ⑥ wards
-  if (stageStep >= 6) {
-    for (const [cellId, kind] of plan.wards) {
-      const face = faceFor(cellId);
-      const editor = kind === "farm" && next.gridKind === "evolution" ? "farm" : editorWard(kind);
-      if (face && !face.properties.locked && editor) face.properties.ward = editor;
-    }
-  }
-
   mark("route-junctions");
-  // A gate must sit on a drawn wall — drop any that no longer does.
-  next.gates = next.gates.filter(gate => {
-    if (gate.locked) return true;
-    if (gate.id.startsWith(GEN_PREFIX) && !vertexHasKindPassage(next, gate.vertexId, "wall")) return false;
-    if (complete && gate.id.startsWith(GEN_PREFIX) && !vertexHasCrossing(next, gate.vertexId, "wall", "road"))
-      return false;
-    const point = mesh.vertices[gate.vertexId]?.point;
-    if (!point) return false;
-    return next.featureGroups.some(
-      group =>
-        group.kind === "wall" &&
-        group.segments.some(segment => {
-          const edge = mesh.edges[segment.edgeId];
-          return edge && (edge.a === gate.vertexId || edge.b === gate.vertexId);
-        })
+  // Accepted gates are an invariant. Never make an incomplete route look
+  // successful by deleting its gate (and then deleting its paired roads).
+  const disconnected = next.gates.filter(
+    gate =>
+      !gate.locked &&
+      gate.id.startsWith(GEN_PREFIX) &&
+      (!vertexHasKindPassage(next, gate.vertexId, "wall") ||
+        ((complete || stageStep >= 6) && !vertexHasCrossing(next, gate.vertexId, "wall", "road")))
+  );
+  if (disconnected.length) {
+    reportGenerationFailure(
+      observer,
+      attempt,
+      "gate-routing",
+      "unconnected-gates",
+      `門 ${disconnected.length} 箇所の道路接続を確保できない`,
+      { gates: next.gates.length, disconnected: disconnected.length },
+      disconnected.map(gate => `${gate.id}: ${gate.vertexId}`)
     );
-  });
-
-  // A route can still fail after its gate was placed (for instance when A* has
-  // no legal approach through the post-junction topology). Remove its paired
-  // route as well; otherwise the road visibly terminates at a closed wall.
-  if (complete && plan.gates.length && program.walls) {
-    const activeGateIds = new Set(next.gates.filter(gate => gate.id.startsWith(GEN_PREFIX)).map(gate => gate.id));
-    next.featureGroups = next.featureGroups.filter(group => {
-      if (group.locked || group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}road-`)) return true;
-      const routeIndex = Number(group.id.slice(`${GEN_PREFIX}road-`.length));
-      if (!Number.isInteger(routeIndex)) return true;
-      if (routeIndex < plan.gates.length * 2) {
-        return activeGateIds.has(`${GEN_PREFIX}gate-${routeIndex % plan.gates.length}`);
-      }
-      return true;
-    });
+    return null;
   }
 
   // Trim or remove any road endpoints that terminate on curtain wall vertices without a gate.
@@ -1922,7 +2040,8 @@ function completeRoadRouter(
   faceIdOf: string[],
   nearest: NearestVertex,
   banned: Set<Id>,
-  openRim = false
+  openRim = false,
+  urbanRegions: Point[][] = []
 ): (polyline: Point[], outside: boolean) => EdgeRef[] {
   const { mesh } = document;
   const ids = Object.keys(mesh.vertices);
@@ -1940,6 +2059,13 @@ function completeRoadRouter(
     edgeFor.set(`${Math.min(a, b)},${Math.max(a, b)}`, edge);
   }
   const urban = new Set([...plan.urban].map(i => faceIdOf[i]));
+  // Passage splitting inherits the parent region, including newly allocated faces.
+  const originalFaces = new Set(faceIdOf);
+  for (const face of Object.values(mesh.faces)) {
+    if (originalFaces.has(face.id)) continue;
+    const center = polygonCentroid(facePoints(mesh, face));
+    if (urbanRegions.some(region => pointInPolygon(center, region))) urban.add(face.id);
+  }
   const restricted = new Map<Id, Set<Id>>();
   for (const kind of ["wall", "river"] as const) {
     const edges = kindEdgeIds(document, kind);
@@ -1952,6 +2078,11 @@ function completeRoadRouter(
   }
   const gateIds = new Set(document.gates.map(g => g.vertexId));
   const endpoint = (p: Point): Id | null => {
+    const plannedIndex = plan.gates.findIndex(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < 0.01);
+    if (plannedIndex >= 0) {
+      const placed = document.gates.find(g => g.id === `${GEN_PREFIX}gate-${plannedIndex}`);
+      if (placed) return placed.vertexId;
+    }
     const gate = nearest(p, gateIds);
     if (gate) {
       const q = mesh.vertices[gate].point;
@@ -1961,19 +2092,19 @@ function completeRoadRouter(
   };
   return (polyline, outside) => {
     if (polyline.length < 2) return [];
-    const snap = (p: Point, end: boolean) => (end ? endpoint(p) : nearest(p));
+    const snap = (p: Point, gateEnd: boolean) => (gateEnd ? endpoint(p) : nearest(p));
     const sampled: Point[] = [];
     const stride = Math.max(1, Math.ceil((polyline.length - 1) / 8));
     for (let i = 0; i < polyline.length; i += stride) sampled.push(polyline[i]);
     if (sampled.at(-1) !== polyline.at(-1)) sampled.push(polyline[polyline.length - 1]);
     const waypoints: number[] = [];
     for (let i = 0; i < sampled.length; i++) {
-      const id = snap(sampled[i], i === 0 || i === sampled.length - 1);
+      const id = snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
       const idx = id ? indexOf.get(id) : undefined;
       if (idx === undefined || waypoints.at(-1) === idx) continue;
       waypoints.push(idx);
     }
-    if (waypoints.length < 2) return [];
+    if (!waypoints.length || (!outside && waypoints.length < 2)) return [];
     const hopEndOf = waypoints[waypoints.length - 1];
     const weight = (a: number, b: number, w: number, hopEnd: number) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
@@ -1999,7 +2130,52 @@ function completeRoadRouter(
       }
       return nodes.length >= 2 ? nodes : null;
     };
-    const nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+    let nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+    if (
+      outside &&
+      (!nodes || graph.points[nodes[0]].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01))
+    ) {
+      // The bearing can snap to an unusable river mouth. Search dry frame
+      // exits in bearing order before giving up the already placed gate.
+      const half = document.frame.extentMeters / 2;
+      const target = graph.points[waypoints[0]];
+      const exits = ids.map((_, i) => i).filter(i => graph.points[i].some(v => Math.abs(v) >= half - 0.01));
+      exits.sort(
+        (a, b) =>
+          Math.hypot(graph.points[a][0] - target[0], graph.points[a][1] - target[1]) -
+          Math.hypot(graph.points[b][0] - target[0], graph.points[b][1] - target[1])
+      );
+      for (const exit of exits) {
+        const extended = stitch([exit, hopEndOf]);
+        if (extended) {
+          nodes = extended;
+          break;
+        }
+      }
+    }
+    if (!nodes && !outside && gateIds.has(ids[waypoints[0]])) {
+      // A coastal plaza corner may itself touch water or a wall. Connect to
+      // another vertex of the same square instead of dropping the gate road.
+      const plaza = document.elements.find(element => element.kind === "plaza");
+      const targets = new Set(
+        (plaza?.faceIds ?? []).flatMap(id =>
+          (mesh.faces[id]?.boundary ?? []).flatMap(ref => {
+            const edge = mesh.edges[ref.edgeId];
+            return [indexOf.get(edge.a)!, indexOf.get(edge.b)!];
+          })
+        )
+      );
+      const target = graph.points[hopEndOf];
+      const candidates = [...targets].sort(
+        (a, b) =>
+          Math.hypot(graph.points[a][0] - target[0], graph.points[a][1] - target[1]) -
+          Math.hypot(graph.points[b][0] - target[0], graph.points[b][1] - target[1])
+      );
+      for (const candidate of candidates) {
+        nodes = stitch([waypoints[0], candidate]);
+        if (nodes) break;
+      }
+    }
     if (!nodes) return [];
     if (outside) {
       const half = document.frame.extentMeters / 2;
@@ -2279,8 +2455,8 @@ function settleTempleOnDocument(document: CityDocument): void {
 /** A plaza-outline vertex, so gate→plaza streets meet the square instead of cutting through it. */
 function plazaApproachPoint(cells: Cell[], plaza: Precinct | undefined, from?: Point): Point | null {
   if (!plaza) return null;
-  if (!plaza.cellIds || !plaza.cellIds.length) {
-    if (plaza.polygon && plaza.polygon.length && from) {
+  if (!plaza.cellIds?.length) {
+    if (plaza.polygon?.length && from) {
       let bestDist = Infinity;
       let bestPt: Point | null = null;
       for (const p of plaza.polygon) {
@@ -2371,38 +2547,7 @@ function unbannedRuns(segments: EdgeRef[], banned: Set<Id>): EdgeRef[][] {
   return runs;
 }
 
-/** Generator polyline → contiguous mesh EdgeRefs (for a road). Truncates at the
- * first gap that cannot be bridged in a few hops rather than failing. */
-function polylineToEdgeRefs(mesh: Mesh, polyline: Point[], nearest: NearestVertex): EdgeRef[] {
-  const path = polylineToVertexPath(mesh, polyline, nearest);
-  const refs: EdgeRef[] = [];
-  for (let i = 1; i < path.length; i++) {
-    const edge = edgeBetween(mesh, path[i - 1], path[i]);
-    if (!edge) break;
-    const ref = edgeRefFor(mesh, edge.id, path[i - 1]);
-    if (!ref) break;
-    refs.push(ref);
-  }
-  return refs;
-}
-
 // --- misc -------------------------------------------------------------------
-
-function shorelineTangentAt(shoreline: Point[]): Point {
-  let bestI = 0;
-  let bestD = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < shoreline.length - 1; i++) {
-    const d = Math.hypot(shoreline[i][0], shoreline[i][1]);
-    if (d < bestD) {
-      bestD = d;
-      bestI = i;
-    }
-  }
-  const a = shoreline[bestI];
-  const b = shoreline[Math.min(bestI + 1, shoreline.length - 1)];
-  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-  return [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
-}
 
 function toGeneratorBorder(loop: MeshBorderLoop): {
   points: Point[];

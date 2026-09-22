@@ -265,7 +265,222 @@ export function placeGates(cells: Cell[], urban: Set<number>, borders: BorderLoo
         circularArcDelta(c.arc, choice.arc, loopLength[choice.borderIndex]) >= spacing
     );
   }
-  return gates;
+  return shiftRiverCrossingGates(
+    gates,
+    cells,
+    urban,
+    borders,
+    geo.rivers.map(river => river.corridor)
+  );
+}
+
+/**
+ * When a gate is placed directly on a river-wall intersection, shift it to an
+ * adjacent wall vertex away from the water.
+ * To maintain a proper balance of gates per urban cell count across river-divided
+ * districts, compare the gate-to-cell ratio of each bank and shift toward the
+ * bank with fewer gates per cell.
+ */
+export function shiftRiverCrossingGates(
+  gates: Gate[],
+  cells: Cell[],
+  urban: Set<number>,
+  borders: BorderLoop[],
+  riverPolylines: Point[][]
+): Gate[] {
+  if (!gates.length || !borders.length || !riverPolylines.length) return gates;
+
+  const riverEdges: [Point, Point][] = [];
+  for (const poly of riverPolylines) {
+    for (let i = 0; i < poly.length; i++) {
+      if (i + 1 < poly.length) riverEdges.push([poly[i], poly[i + 1]]);
+    }
+  }
+  if (!riverEdges.length) return gates;
+
+  const distToSeg = (p: Point, a: Point, b: Point): number => {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq < 1e-6) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq));
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+  };
+
+  const isPointOnRiver = (p: Point, eps = 0.5): boolean => {
+    return riverEdges.some(([a, b]) => distToSeg(p, a, b) < eps);
+  };
+
+  const isRiverEdge = (p1: Point, p2: Point, eps = 0.5): boolean => {
+    for (const [a, b] of riverEdges) {
+      const d1 = Math.hypot(p1[0] - a[0], p1[1] - a[1]);
+      const d2 = Math.hypot(p2[0] - b[0], p2[1] - b[1]);
+      const d3 = Math.hypot(p1[0] - b[0], p1[1] - b[1]);
+      const d4 = Math.hypot(p2[0] - a[0], p2[1] - a[1]);
+      if ((d1 < eps && d2 < eps) || (d3 < eps && d4 < eps)) return true;
+    }
+    return false;
+  };
+
+  // Find connected components of urban cells divided by the river
+  const cellById = new Map(cells.map(c => [c.id, c]));
+  const urbanCellList = cells.filter(c => urban.has(c.id));
+  const visited = new Set<number>();
+  const components: number[][] = [];
+  const componentOfCell = new Map<number, number>();
+
+  for (const c of urbanCellList) {
+    if (visited.has(c.id)) continue;
+    const compIdx = components.length;
+    const comp: number[] = [];
+    const queue = [c.id];
+    visited.add(c.id);
+
+    while (queue.length > 0) {
+      const curId = queue.shift()!;
+      comp.push(curId);
+      componentOfCell.set(curId, compIdx);
+      const curCell = cellById.get(curId);
+      if (!curCell) continue;
+
+      for (const neighborId of curCell.neighbors) {
+        if (!urban.has(neighborId) || visited.has(neighborId)) continue;
+        const neighbor = cellById.get(neighborId);
+        if (!neighbor) continue;
+
+        let sharedIsRiver = false;
+        const n1 = curCell.polygon.length;
+        const n2 = neighbor.polygon.length;
+        for (let i = 0; i < n1 && !sharedIsRiver; i++) {
+          const p1 = curCell.polygon[i];
+          const p2 = curCell.polygon[(i + 1) % n1];
+          for (let j = 0; j < n2; j++) {
+            const q1 = neighbor.polygon[j];
+            const q2 = neighbor.polygon[(j + 1) % n2];
+            if (
+              (Math.hypot(p1[0] - q1[0], p1[1] - q1[1]) < 0.8 && Math.hypot(p2[0] - q2[0], p2[1] - q2[1]) < 0.8) ||
+              (Math.hypot(p1[0] - q2[0], p1[1] - q2[1]) < 0.8 && Math.hypot(p2[0] - q1[0], p2[1] - q1[1]) < 0.8)
+            ) {
+              if (isRiverEdge(p1, p2)) {
+                sharedIsRiver = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!sharedIsRiver) {
+          visited.add(neighborId);
+          queue.push(neighborId);
+        }
+      }
+    }
+    components.push(comp);
+  }
+
+  const componentsTouchingPoint = (pt: Point): Set<number> => {
+    const touching = new Set<number>();
+    for (const c of urbanCellList) {
+      if (c.polygon.some(v => Math.hypot(v[0] - pt[0], v[1] - pt[1]) < 1.0)) {
+        const comp = componentOfCell.get(c.id);
+        if (comp !== undefined) touching.add(comp);
+      }
+    }
+    return touching;
+  };
+
+  const gateCountPerComp = components.map(() => 0);
+  for (const g of gates) {
+    if (isPointOnRiver(g.point)) continue;
+    const comps = componentsTouchingPoint(g.point);
+    for (const cIdx of comps) {
+      gateCountPerComp[cIdx]++;
+    }
+  }
+
+  const occupied = new Set(gates.map(gate => pointKey(gate.point)));
+  return gates.map(gate => {
+    if (!isPointOnRiver(gate.point)) return gate;
+
+    const border = borders[gate.borderIndex] ?? borders[0];
+    if (!border?.points.length) return gate;
+
+    const pts = border.points;
+    const N = pts.length;
+    let bestDist = Infinity;
+    let gateIdx = 0;
+    for (let i = 0; i < N; i++) {
+      const d = Math.hypot(pts[i][0] - gate.point[0], pts[i][1] - gate.point[1]);
+      if (d < bestDist) {
+        bestDist = d;
+        gateIdx = i;
+      }
+    }
+
+    let prevIdx = -1;
+    for (let step = 1; step < N; step++) {
+      const i = (gateIdx - step + N) % N;
+      if (!isPointOnRiver(pts[i]) && !occupied.has(pointKey(pts[i])) && border.segments?.[i] !== "coast") {
+        prevIdx = i;
+        break;
+      }
+    }
+
+    let nextIdx = -1;
+    for (let step = 1; step < N; step++) {
+      const i = (gateIdx + step) % N;
+      if (!isPointOnRiver(pts[i]) && !occupied.has(pointKey(pts[i])) && border.segments?.[i] !== "coast") {
+        nextIdx = i;
+        break;
+      }
+    }
+
+    if (prevIdx < 0 && nextIdx < 0) return gate;
+    if (prevIdx < 0) prevIdx = nextIdx;
+    if (nextIdx < 0) nextIdx = prevIdx;
+
+    const prevComps = componentsTouchingPoint(pts[prevIdx]);
+    const nextComps = componentsTouchingPoint(pts[nextIdx]);
+
+    const compPrev = prevComps.size ? [...prevComps][0] : -1;
+    const compNext = nextComps.size ? [...nextComps][0] : -1;
+
+    let chosenIdx = prevIdx;
+    if (compPrev >= 0 && compNext >= 0 && compPrev !== compNext) {
+      const nPrev = components[compPrev].length;
+      const nNext = components[compNext].length;
+      const gPrev = gateCountPerComp[compPrev];
+      const gNext = gateCountPerComp[compNext];
+
+      const rPrev1 = (gPrev + 1) / Math.max(1, nPrev);
+      const rNext1 = gNext / Math.max(1, nNext);
+      const diff1 = Math.abs(rPrev1 - rNext1);
+
+      const rPrev2 = gPrev / Math.max(1, nPrev);
+      const rNext2 = (gNext + 1) / Math.max(1, nNext);
+      const diff2 = Math.abs(rPrev2 - rNext2);
+
+      if (diff1 < diff2) {
+        chosenIdx = prevIdx;
+      } else if (diff2 < diff1) {
+        chosenIdx = nextIdx;
+      } else {
+        chosenIdx = nPrev >= nNext ? prevIdx : nextIdx;
+      }
+    } else {
+      const dPrev = Math.hypot(pts[prevIdx][0] - gate.point[0], pts[prevIdx][1] - gate.point[1]);
+      const dNext = Math.hypot(pts[nextIdx][0] - gate.point[0], pts[nextIdx][1] - gate.point[1]);
+      chosenIdx = dPrev <= dNext ? prevIdx : nextIdx;
+    }
+
+    const chosenPt = pts[chosenIdx];
+    occupied.delete(pointKey(gate.point));
+    occupied.add(pointKey(chosenPt));
+    const chosenComps = componentsTouchingPoint(chosenPt);
+    for (const c of chosenComps) gateCountPerComp[c]++;
+
+    return { ...gate, point: chosenPt };
+  });
 }
 
 /** `points[i]`'s distance along the OPEN polyline from `points[0]`. */

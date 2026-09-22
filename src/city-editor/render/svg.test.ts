@@ -10,7 +10,6 @@ import {
   renderHoverOverlay,
   renderMeasureOverlay,
   renderStandaloneCitySvg,
-  STANDALONE_SVG_STYLE,
   selectionLabelFontSize,
   serializeCitySvg,
   vertexHandleRadius

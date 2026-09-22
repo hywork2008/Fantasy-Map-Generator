@@ -201,9 +201,12 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     queue.filter(id => mesh.faces[id].properties.settlement === "outskirts"),
     mesh,
     barriers,
-    !document.fabric
+    !document.fabric && options?.layout !== "classic"
   )) {
-    if (paintOutskirtsUnion(document, ids, fabric, { document, roads, barriers, clearance, rivers, options }))
+    if (
+      options?.layout !== "classic" &&
+      paintOutskirtsUnion(document, ids, fabric, { document, roads, barriers, clearance, rivers, options })
+    )
       for (const id of ids) grouped.add(id);
   }
   for (const id of queue) {
@@ -299,7 +302,7 @@ function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabr
   const dependencies = ring.refs.map(ref => {
     const edge = mesh.edges[ref.edgeId];
     const other = mesh.faces[(edge.leftFace && ids.includes(edge.leftFace) ? edge.rightFace : edge.leftFace) ?? ""];
-    return [ctx.roads.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
+    return [ctx.roads.has(edge.id), ctx.barriers.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
   });
   const key = ctx.options
     ? JSON.stringify([
@@ -365,13 +368,13 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   const dependencies = face.boundary.map(ref => {
     const edge = mesh.edges[ref.edgeId];
     const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
-    return [ctx.roads.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
+    return [ctx.roads.has(edge.id), ctx.barriers.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
   });
   const isCirculade = ctx.options?.layout === "circulade";
   const isClassic = ctx.options?.layout === "classic";
   const key = ctx.options
     ? JSON.stringify([
-        outskirts ? "outskirts-face-v3" : isClassic ? "district-infill-classic-v1" : "district-voronoi-perimeter-v3",
+        isClassic ? "district-infill-classic-v3" : outskirts ? "outskirts-face-v3" : "district-voronoi-perimeter-v3",
         ctx.options.seed,
         id,
         face.properties,
@@ -394,7 +397,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     return;
   }
   const local: CityFabric =
-    !outskirts && face.properties.ward !== "castle" && !isClassic
+    isClassic || (!outskirts && face.properties.ward !== "castle")
       ? isCirculade
         ? buildCirculadeBlocks(
             face,
@@ -410,7 +413,8 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
                   ctx.clearance.get(ref.edgeId) ?? 0,
                   other && other.properties.water !== "land" ? 6 : 0
                 ),
-                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId)
+                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId),
+                barrier: ctx.barriers.has(ref.edgeId) || (!!other && other.properties.water !== "land")
               };
             }),
             parameters,
@@ -432,15 +436,17 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
                   ctx.clearance.get(ref.edgeId) ?? 0,
                   other && other.properties.water !== "land" ? 6 : 0
                 ),
-                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId)
+                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId),
+                barrier: ctx.barriers.has(ref.edgeId) || (!!other && other.properties.water !== "land")
               };
             }),
             parameters,
             ctx.options?.seed ?? "block-infill",
-            buildableFace(face) && !reserved
+            buildableFace(face) && !reserved,
+            isClassic
           )
       : { buildings: [], lanes: [], entrances: new Map() };
-  if (outskirts || face.properties.ward === "castle" || isClassic)
+  if (!isClassic && (outskirts || face.properties.ward === "castle"))
     fillPolygon(
       face,
       polygon,

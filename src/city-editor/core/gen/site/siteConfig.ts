@@ -31,7 +31,7 @@ export type WallLineChoice = "auto" | "polygonal" | "organic";
  * - `organic`: traditional irregular medieval cranked-block layout
  * - `circulade`: Languedoc circulade concentric-ring village with core plaza, attached church, and concentric houses
  * - `bram`: Polygonal circulade core (3 rings, ~240m) with peripheral Voronoi blocks
- * - `classic`: street growth with party-wall buildings (git hash 323b5638) */
+ * - `classic`: boundary-aligned Voronoi blocks with compact attached houses */
 export type CityLayout = "auto" | "organic" | "circulade" | "bram" | "classic";
 export const CITY_LAYOUTS: CityLayout[] = ["auto", "organic", "circulade", "bram", "classic"];
 

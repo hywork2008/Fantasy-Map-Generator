@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCirculadeLayout, sampleRingPoint, sampleRingPolyline } from "./circuladeLayout";
+import { planCirculadeLayout } from "./circuladeLayout";
 
 describe("planCirculadeLayout", () => {
   it("creates a Bram circulade plan with core plaza, temple, concentric ring roads, and radial roads", () => {

@@ -7,9 +7,8 @@
 // - 2-3 concentric ring roads with subtle organic harmonics (not machine circles)
 // - Radial connecting venelles / spokes
 
-import type { Rng } from "./prng";
 import { makeRng } from "./prng";
-import type { Gate, Point, Precinct } from "./types";
+import type { Point, Precinct } from "./types";
 
 export interface RingHarmonic {
   frequency: number;

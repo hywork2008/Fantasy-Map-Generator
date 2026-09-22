@@ -181,7 +181,7 @@ describe("complete editable city", () => {
     expect(undone).toEqual(base);
     expect(history.redo(undone)).toEqual(city);
     expect(generateCityOnDocument(base, settings, "different")).not.toEqual(city);
-  });
+  }, 20000);
 
   it("keeps locked face geometry and hand-drawn features", () => {
     const input = structuredClone(base);

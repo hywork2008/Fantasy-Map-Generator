@@ -124,33 +124,6 @@ export function resolveRiverBoundaryOverlaps(document: CityDocument): CityDocume
       let startVertIdx = firstEdgeIdx;
       let endVertIdx = (lastEdgeIdx + 1) % N;
 
-      // Helper to check if an edge on oppFace is adjacent to a core cell
-      const isEdgeCoreAdjacent = (edgeIdx: number) => {
-        const v1 = fVerts[edgeIdx];
-        const v2 = fVerts[(edgeIdx + 1) % N];
-        const edge = Object.values(current.mesh.edges).find(
-          ed => (ed.a === v1 && ed.b === v2) || (ed.a === v2 && ed.b === v1)
-        );
-        if (!edge) return false;
-        const otherFid = edge.leftFace === oppFace.id ? edge.rightFace : edge.leftFace;
-        return !!otherFid && current.mesh.faces[otherFid]?.properties.settlement === "core";
-      };
-
-      // If the edge preceding firstEdge is adjacent to a core cell,
-      // expand startVert backward to encompass it, so the wall does not touch
-      // the river at fVerts[firstEdgeIdx].
-      const prevEdgeIdx = (firstEdgeIdx - 1 + N) % N;
-      if (isEdgeCoreAdjacent(prevEdgeIdx)) {
-        startVertIdx = prevEdgeIdx;
-      }
-
-      // If the edge following lastEdge is adjacent to a core cell,
-      // expand endVert forward to encompass it.
-      const nextEdgeIdx = (lastEdgeIdx + 1) % N;
-      if (isEdgeCoreAdjacent(nextEdgeIdx)) {
-        endVertIdx = (lastEdgeIdx + 2) % N;
-      }
-
       const isRiverCrossingEndpoint = (vid: Id): boolean => {
         for (const fg of riverFgs) {
           const idx = fg.vertices.indexOf(vid);
@@ -180,6 +153,33 @@ export function resolveRiverBoundaryOverlaps(document: CityDocument): CityDocume
         return false;
       };
 
+      // Helper to check if an edge on oppFace is adjacent to a core cell
+      const isEdgeCoreAdjacent = (edgeIdx: number) => {
+        const v1 = fVerts[edgeIdx];
+        const v2 = fVerts[(edgeIdx + 1) % N];
+        const edge = Object.values(current.mesh.edges).find(
+          ed => (ed.a === v1 && ed.b === v2) || (ed.a === v2 && ed.b === v1)
+        );
+        if (!edge) return false;
+        const otherFid = edge.leftFace === oppFace.id ? edge.rightFace : edge.leftFace;
+        return !!otherFid && current.mesh.faces[otherFid]?.properties.settlement === "core";
+      };
+
+      // If the edge preceding firstEdge is adjacent to a core cell,
+      // expand startVert backward to encompass it, so the wall does not touch
+      // the river at fVerts[firstEdgeIdx].
+      const prevEdgeIdx = (firstEdgeIdx - 1 + N) % N;
+      if (isEdgeCoreAdjacent(prevEdgeIdx)) {
+        startVertIdx = prevEdgeIdx;
+      }
+
+      // If the edge following lastEdge is adjacent to a core cell,
+      // expand endVert forward to encompass it.
+      const nextEdgeIdx = (lastEdgeIdx + 1) % N;
+      if (isEdgeCoreAdjacent(nextEdgeIdx)) {
+        endVertIdx = (lastEdgeIdx + 2) % N;
+      }
+
       // A vertex on the river cannot be a chord endpoint unless it is a valid
       // entrance/exit of the river into the core (where wall and river cross).
       // If startVert is on the river but NOT a crossing endpoint, walk backward to land.
@@ -198,10 +198,14 @@ export function resolveRiverBoundaryOverlaps(document: CityDocument): CityDocume
 
       // If neither side was expanded and chord is degenerate (e.g. single river edge):
       if (startVertIdx === firstEdgeIdx && endVertIdx === (lastEdgeIdx + 1) % N && longestRun.length < 2) {
-        if (!allRiverVerts.has(fVerts[prevEdgeIdx])) {
+        if (isEdgeCoreAdjacent(nextEdgeIdx) && !allRiverVerts.has(fVerts[(lastEdgeIdx + 2) % N])) {
+          endVertIdx = (lastEdgeIdx + 2) % N;
+        } else if (isEdgeCoreAdjacent(prevEdgeIdx) && !allRiverVerts.has(fVerts[prevEdgeIdx])) {
           startVertIdx = prevEdgeIdx;
         } else if (!allRiverVerts.has(fVerts[(lastEdgeIdx + 2) % N])) {
           endVertIdx = (lastEdgeIdx + 2) % N;
+        } else if (!allRiverVerts.has(fVerts[prevEdgeIdx])) {
+          startVertIdx = prevEdgeIdx;
         }
       }
 

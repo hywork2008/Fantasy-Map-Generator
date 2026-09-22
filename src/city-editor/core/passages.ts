@@ -663,6 +663,12 @@ function splitBarrierPassageFace(document: CityDocument, vertexId: Id, barrier: 
   const origin = v.point;
 
   const barrierEdges = kindEdgeIds(document, barrier);
+  const riverEdges = kindEdgeIds(document, "river");
+  const riverVertices = new Set(
+    [...riverEdges].flatMap(id =>
+      document.mesh.edges[id] ? [document.mesh.edges[id].a, document.mesh.edges[id].b] : []
+    )
+  );
   const incident = incidentEdges(document.mesh, vertexId);
   const barrierIncident = incident.filter(e => barrierEdges.has(e.id));
   if (barrierIncident.length < 2) return null;
@@ -756,6 +762,24 @@ function splitBarrierPassageFace(document: CityDocument, vertexId: Id, barrier: 
     const faces = incidentFaces(doc.mesh, vertexId).filter(f => !f.properties.locked && f.properties.water !== "sea");
     if (!faces.length) return null;
 
+    if (barrier === "wall") {
+      for (const face of faces) {
+        for (const ref of face.boundary) {
+          const edge = doc.mesh.edges[ref.edgeId];
+          if (!edge || edge.a === vertexId || edge.b === vertexId) continue;
+          if (riverEdges.has(edge.id)) continue;
+          const pA = doc.mesh.vertices[edge.a]?.point;
+          const pB = doc.mesh.vertices[edge.b]?.point;
+          if (!pA || !pB) continue;
+          const mid: Point = [(pA[0] + pB[0]) / 2, (pA[1] + pB[1]) / 2];
+          const ang = (Math.atan2(mid[1] - origin[1], mid[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+          if (sector === 1 ? inSector1(ang) : inSector2(ang)) {
+            if (!testAngles.some(ta => Math.abs(ta - ang) < 0.05)) testAngles.push(ang);
+          }
+        }
+      }
+    }
+
     for (const targetAngle of testAngles) {
       const probeDir: Point = [Math.cos(targetAngle), Math.sin(targetAngle)];
 
@@ -791,6 +815,7 @@ function splitBarrierPassageFace(document: CityDocument, vertexId: Id, barrier: 
       for (let i = 0; i < fVids.length; i++) {
         const vid = fVids[i];
         if (vid === vertexId) continue;
+        if (barrier === "wall" && riverVertices.has(vid)) continue;
         const step = Math.abs(i - fIdx);
         if (step === 1 || step === fVids.length - 1) continue;
         if (edgeBetween(doc.mesh, vertexId, vid)) continue;
@@ -836,6 +861,7 @@ function splitBarrierPassageFace(document: CityDocument, vertexId: Id, barrier: 
         const ref = targetFace.boundary[eIdx];
         const edge = doc.mesh.edges[ref.edgeId];
         if (!edge || edge.a === vertexId || edge.b === vertexId) continue;
+        if (barrier === "wall" && riverEdges.has(edge.id)) continue;
         const pA = doc.mesh.vertices[edge.a]?.point;
         const pB = doc.mesh.vertices[edge.b]?.point;
         if (!pA || !pB) continue;

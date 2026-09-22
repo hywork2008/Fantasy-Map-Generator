@@ -1,7 +1,6 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { faceVertices } from "../mesh";
 import type { CityDocument, Id } from "../types";
 import { resolveRiverBoundaryOverlaps } from "./resolveRiverOverlaps";
 
@@ -52,11 +51,11 @@ describe("resolveRiverBoundaryOverlaps", () => {
     );
     expect(edge98_100).toBeDefined();
 
-    // Verify f68 was split by v114 and v116
-    const edge114_116 = Object.values(resolved.mesh.edges).find(
-      e => (e.a === "v114" && e.b === "v116") || (e.a === "v116" && e.b === "v114")
+    // Verify f68 was split by v113 and v116
+    const edge113_116 = Object.values(resolved.mesh.edges).find(
+      e => (e.a === "v113" && e.b === "v116") || (e.a === "v116" && e.b === "v113")
     );
-    expect(edge114_116).toBeDefined();
+    expect(edge113_116).toBeDefined();
   });
 
   it("leaves documents without river overlaps untouched", () => {

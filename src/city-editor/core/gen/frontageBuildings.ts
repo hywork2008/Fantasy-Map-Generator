@@ -18,9 +18,13 @@ export interface FrontageOptions {
   perimeter?: boolean;
   /** Compact town houses: vary shallow rectangular footprints along a street wall. */
   compact?: boolean;
+  /** Short attached houses; shallow opposing rows share their rear boundary. */
+  attached?: boolean;
+  /** Main-road fronts are occupied before secondary lanes. */
+  primaryEdges?: number[];
 }
 
-type Front = { a: Point; axis: Point; inward: Point; length: number; offset: number };
+type Front = { a: Point; axis: Point; inward: Point; length: number; offset: number; primary: boolean };
 
 /** Pack a convex block from its accessible edges. Lot cuts never become roads.
  * Nearest-frontage half-planes allocate corners before placing buildings, so
@@ -40,11 +44,12 @@ export function frontageBuildings(
       const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
       const axis: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
       const inward: Point = [-sign * axis[1], sign * axis[0]];
-      return { a, axis, inward, length, offset: dot(a, inward) };
+      return { a, axis, inward, length, offset: dot(a, inward), primary: options.primaryEdges?.includes(i) ?? false };
     })
-    .filter(f => f.length >= 5);
+    .filter(f => f.length >= (options.attached ? 2.5 : 5));
   const buildings: Point[][] = [];
   const rowDepth = Math.sqrt(options.lotArea) * (options.outskirts ? 1.15 : 1.65);
+  if (options.attached) return packAttachedHouses(block, fronts, options, rng);
   if (options.perimeter) return packPerimeter(block, fronts, options, rng);
   if (!options.outskirts) return packStreetWall(block, fronts, options, rowDepth, rng);
   for (const front of fronts) {
@@ -189,6 +194,96 @@ export function frontageBuildings(
 
 const FRONT_Y = 0.15;
 const PARTY_GAP = 0.02;
+
+/** Compact houses, not elongated burgage holdings. Shared frontage sectors
+ * partition the block without overlap; their common back line is not an alley.
+ * Each house stays rectangular. Acute corners and tapering remainders remain
+ * visibly open instead of becoming triangular buildings. */
+function packAttachedHouses(block: Point[], fronts: Front[], options: FrontageOptions, rng: Rng): Point[][] {
+  if (options.coverage <= 0 || options.occupancy <= 0) return [];
+  const buildings: Point[][] = [];
+  const houseWidth = Math.max(7, Math.min(11, Math.sqrt(options.lotArea) * 0.95));
+  for (const front of fronts) {
+    let sector = block;
+    for (const other of fronts) {
+      if (other === front) continue;
+      sector = clipHalfPlane(
+        sector,
+        [front.inward[0] - other.inward[0], front.inward[1] - other.inward[1]],
+        front.offset - other.offset
+      );
+    }
+    if (sector.length < 3) continue;
+    const local = sector.map(p => {
+      const delta: Point = [p[0] - front.a[0], p[1] - front.a[1]];
+      return [dot(delta, front.axis), dot(delta, front.inward)] as Point;
+    });
+    const count = Math.max(1, Math.min(256, Math.round(front.length / houseWidth)));
+    const weights = Array.from({ length: count }, () => rng.range(0.88, 1.12));
+    const total = weights.reduce((sum, w) => sum + w, 0);
+    const cuts = [0];
+    for (const weight of weights) cuts.push(cuts[cuts.length - 1] + (front.length * weight) / total);
+    const plot = (lo: number, hi: number) => clipHalfPlane(clipHalfPlane(local, [-1, 0], -lo), [1, 0], hi);
+    // Absorb unusably small corner remnants into the next house, not an empty
+    // frontage. No gaps are inserted between adjacent houses in a row.
+    for (let i = 0; i < cuts.length - 1 && cuts.length > 2; ) {
+      const lot = plot(cuts[i], cuts[i + 1]);
+      if (lot.length < 3 || area(lot) < 16) {
+        cuts.splice(i === cuts.length - 2 ? i : i + 1, 1);
+        i = Math.max(0, i - 1);
+      } else i++;
+    }
+    for (let i = 0; i < cuts.length - 1; i++) {
+      const lo = cuts[i],
+        hi = cuts[i + 1];
+      const occupied = rng() < options.occupancy;
+      // A low occupancy removes secondary-lane houses first; it must not
+      // randomly punch holes into the principal commercial street wall.
+      if (!front.primary && !occupied) continue;
+      const lot = plot(lo, hi);
+      if (lot.length < 3 || area(lot) < 12) continue;
+      // Fitting the rectangle before choosing its depth is essential at a
+      // wedge-shaped block corner: clipping a facade rectangle to the wedge
+      // would turn the house into a triangle.
+      const fitted = fitRectangle(lot, lo, hi, 0);
+      if (!fitted) continue;
+      const rear = fitted.back;
+      // MFCG-like proportions: typically 7–11m wide, at most 16m deep and
+      // never extend a narrow house more than 1.8 times its frontage width.
+      const depthLimit = Math.min(16, (hi - lo) * 1.8);
+      const paired = !options.outskirts && options.coverage >= 0.85 && rear <= depthLimit;
+      let depth = Math.min(rear, depthLimit);
+      if (!paired) {
+        // Lower density and deeper blocks leave space behind the house. Keep
+        // the full street frontage; do not shrink all four sides of each lot.
+        const fittedLot: Point[] = [
+          [fitted.lo, 0],
+          [fitted.hi, 0],
+          [fitted.hi, depth],
+          [fitted.lo, depth]
+        ];
+        const budget = area(fittedLot) * Math.min(1, options.coverage);
+        let low = 0,
+          high = depth;
+        for (let step = 0; step < 18; step++) {
+          const candidate = (low + high) / 2;
+          if ((fitted.hi - fitted.lo) * candidate <= budget) low = candidate;
+          else high = candidate;
+        }
+        depth = low;
+      }
+      if (depth < 2.5 || fitted.hi - fitted.lo < 2.5) continue;
+      const rectangle: Point[] = [
+        [fitted.lo, 0],
+        [fitted.hi, 0],
+        [fitted.hi, depth],
+        [fitted.lo, depth]
+      ];
+      buildings.push(rectangle.map(([x, y]) => toWorld(front, x, y)));
+    }
+  }
+  return buildings;
+}
 
 function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions, rng: Rng): Point[][] {
   const buildings: Point[][] = [];

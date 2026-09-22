@@ -2,9 +2,10 @@ import type { DistrictParameters, Face, Point } from "../types";
 import { frontageBuildings } from "./frontageBuildings";
 import { pointInPolygon, polygonArea } from "./geom";
 import { dwellingLotArea, intramuralBlockSpan } from "./housing";
-import type { CityFabric } from "./localInfill";
+import type { CityFabric, InfillLane } from "./localInfill";
 import { insetConvexKernel, longestFrame } from "./lotGeometry";
-import { makeRng } from "./prng";
+import { makeRng, type Rng } from "./prng";
+import { computeDelaunayEdges } from "./voronoi";
 
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const area = (p: Point[]) => Math.abs(polygonArea(p));
@@ -106,6 +107,8 @@ export interface BlockBoundary {
   setback: number;
   /** Existing roads, walls and water already provide the perimeter corridor. */
   feature: boolean;
+  /** Keep lane endpoints clear of walls and water, which cannot be used as access. */
+  barrier?: boolean;
 }
 
 export interface PerimeterFabric extends CityFabric {
@@ -121,7 +124,8 @@ export function buildPerimeterBlocks(
   boundaries: BlockBoundary[],
   parameters: DistrictParameters | undefined,
   seed: string,
-  build: boolean
+  build: boolean,
+  classic = false
 ): PerimeterFabric {
   const fabric: PerimeterFabric = { buildings: [], lanes: [], entrances: new Map(), blocks: [] };
   const rng = makeRng(`${seed}:perimeter:${face.id}`);
@@ -139,7 +143,7 @@ export function buildPerimeterBlocks(
   };
   const boundaryLanes: InfillLane[] = [];
   for (const edge of boundaries) {
-    if (!edge.feature && distance(edge.a, edge.b) > 1e-6) {
+    if (!edge.feature && !(classic && edge.barrier) && distance(edge.a, edge.b) > 1e-6) {
       boundaryLanes.push({ faceId: face.id, points: [edge.a, edge.b], widthMeters: width });
     }
   }
@@ -169,147 +173,160 @@ export function buildPerimeterBlocks(
       for (const part of parts) fill(part);
       return;
     }
+    const sides = poly.map((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      const length = distance(a, b);
+      const normal: Point = [(-winding * (b[1] - a[1])) / length, (winding * (b[0] - a[0])) / length];
+      const offset = dot(a, normal);
+      // A cleaned side may cover several collinear editing edges.
+      const matches = boundaries.filter(
+        e => Math.abs(dot(e.a, normal) - offset) <= 1e-5 && Math.abs(dot(e.b, normal) - offset) <= 1e-5
+      );
+      const setback = Math.max(width / 2 + 0.35, ...matches.map(e => e.setback));
+      return {
+        normal,
+        offset: offset + setback,
+        setback,
+        barrier: matches.some(e => e.barrier),
+        primary: matches.some(e => e.feature && !e.barrier)
+      };
+    });
     const safe = insetConvexKernel(
       poly,
-      poly.map((a, i) => {
-        const b = poly[(i + 1) % poly.length];
-        const length = distance(a, b);
-        const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
-        const normal: Point = [-tangent[1], tangent[0]];
-        const offset = dot(a, normal);
-        // Cleaning a collinear junction can join several mesh edges into one
-        // side. Retain the widest road/bank setback on that supporting line.
-        const matches = boundaries.filter(
-          e => Math.abs(dot(e.a, normal) - offset) <= 1e-5 && Math.abs(dot(e.b, normal) - offset) <= 1e-5
-        );
-        return Math.max(width / 2 + 0.35, ...matches.map(e => e.setback));
-      })
+      sides.map(side => side.setback)
     );
     if (safe.length < 3 || area(safe) < 40) return;
     const block = clean(safe);
     fabric.blocks.push(block);
+    const frontageSides = block.map((a, i) => {
+      const b = block[(i + 1) % block.length];
+      return sides.find(
+        side => Math.abs(dot(a, side.normal) - side.offset) < 1e-4 && Math.abs(dot(b, side.normal) - side.offset) < 1e-4
+      );
+    });
     const footprints = frontageBuildings(
       block,
-      block.map((_, i) => i),
+      block.flatMap((_, i) => (classic && frontageSides[i]?.barrier ? [] : [i])),
       {
         lotArea: target,
         coverage: parameters?.coverage ?? 0.9,
         occupancy: parameters?.occupancy ?? 1,
-        outskirts: false,
-        perimeter: true
+        outskirts: classic && face.properties.settlement === "outskirts",
+        perimeter: !classic,
+        attached: classic,
+        primaryEdges: frontageSides.flatMap((side, i) => (side?.primary ? [i] : []))
       },
       makeRng(`${seed}:houses:${face.id}:${JSON.stringify(block)}`)
     );
     fabric.buildings.push(...footprints.map(polygon => ({ faceId: face.id, polygon, landmark: false })));
   };
   const ring = clean(outline);
-  const cross: Point = [-axis[1], axis[0]];
-  const xs = ring.map(p => dot(p, axis)),
-    ys = ring.map(p => dot(p, cross));
-  const _minX = Math.min(...xs),
-    _maxX = Math.max(...xs),
-    minY = Math.min(...ys),
-    maxY = Math.max(...ys);
-
-  const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
-
-  // 1. Organic longitudinal ribbons use slight directional drift. Cross-cuts
-  // below are staggered, so these form T-junctioned streets instead of a
-  // repeated rectangular lattice.
-  const splitOffsets: { y: number; normal: Point }[] = [];
-  let curY = minY;
-  while (curY + targetRibbonWidth * 1.25 < maxY) {
-    const step = rng.range(20, 38);
-    curY += step;
-    if (curY < maxY - 15) {
-      const jitterAngle = rng.range(-0.04, 0.04);
-      const cosJ = Math.cos(jitterAngle),
-        sinJ = Math.sin(jitterAngle);
-      const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
-      splitOffsets.push({ y: curY, normal });
-    }
-  }
-
-  let blocksToFill: Point[][] = [ring];
-  for (const { y, normal } of splitOffsets) {
-    const next: Point[][] = [];
-    for (const piece of blocksToFill) {
-      const upper = clipStreetBlocks(piece, normal, y);
-      const lower = clipStreetBlocks(piece, [-normal[0], -normal[1]], -y);
-      if (upper.length && lower.length) {
-        next.push(...upper, ...lower);
-      } else {
-        next.push(piece);
-      }
-    }
-    blocksToFill = next;
-  }
-  blocksToFill = blocksToFill.filter(p => area(p) > 30);
-
-  // 2. Cross-cuts are chosen independently for each ribbon. Their stagger
-  // prevents four-way grid intersections while preserving compact blocks.
   const finalBlocks: Point[][] = [];
-  const maxBlockLength = Math.max(36, Math.min(72, spanLimit * 1.9));
-  let prevStripCuts: number[] = [];
+  if (classic) finalBlocks.push(...classicStreetBlocks(ring, boundaries, axis, spanLimit, rng));
+  else {
+    const cross: Point = [-axis[1], axis[0]];
+    const ys = ring.map(p => dot(p, cross));
+    const minY = Math.min(...ys),
+      maxY = Math.max(...ys);
 
-  for (let sIdx = 0; sIdx < blocksToFill.length; sIdx++) {
-    const strip = blocksToFill[sIdx];
-    const sXs = strip.map(p => dot(p, axis));
-    const sMinX = Math.min(...sXs),
-      sMaxX = Math.max(...sXs);
-    const sLen = sMaxX - sMinX;
+    const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
 
-    if (sLen <= maxBlockLength) {
-      finalBlocks.push(strip);
-      prevStripCuts = [];
-      continue;
-    }
-
-    const _cuts = Math.max(1, Math.min(16, Math.round(sLen / maxBlockLength)));
-    const currentStripCuts: number[] = [];
-    let curX = sMinX;
-    while (curX + maxBlockLength * 0.8 < sMaxX) {
-      const step = rng.range(32, Math.min(68, maxBlockLength * 1.1));
-      let candidateX = curX + step;
-      if (candidateX >= sMaxX - 25) break;
-
-      for (const prevX of prevStripCuts) {
-        if (Math.abs(candidateX - prevX) < 12) {
-          candidateX = candidateX < prevX ? prevX - 12 : prevX + 12;
-        }
+    // 1. Organic longitudinal ribbons use slight directional drift. Cross-cuts
+    // below are staggered, so these form T-junctioned streets instead of a
+    // repeated rectangular lattice.
+    const splitOffsets: { y: number; normal: Point }[] = [];
+    let curY = minY;
+    while (curY + targetRibbonWidth * 1.25 < maxY) {
+      const step = rng.range(20, 38);
+      curY += step;
+      if (curY < maxY - 15) {
+        const jitterAngle = rng.range(-0.04, 0.04);
+        const cosJ = Math.cos(jitterAngle),
+          sinJ = Math.sin(jitterAngle);
+        const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
+        splitOffsets.push({ y: curY, normal });
       }
-      if (candidateX >= sMaxX - 22 || candidateX <= curX + 22) continue;
-
-      currentStripCuts.push(candidateX);
-      curX = candidateX;
     }
 
-    if (currentStripCuts.length === 0) {
-      finalBlocks.push(strip);
-      prevStripCuts = [];
-      continue;
-    }
-
-    let pieces = [strip];
-    for (const cutX of currentStripCuts) {
-      const jitterAngle = rng.range(-0.05, 0.05);
-      const cosJ = Math.cos(jitterAngle),
-        sinJ = Math.sin(jitterAngle);
-      const normal: Point = [axis[0] * cosJ - axis[1] * sinJ, axis[0] * sinJ + axis[1] * cosJ];
-      const nextPieces: Point[][] = [];
-      for (const piece of pieces) {
-        const right = clipStreetBlocks(piece, normal, cutX);
-        const left = clipStreetBlocks(piece, [-normal[0], -normal[1]], -cutX);
-        if (right.length && left.length) {
-          nextPieces.push(...right, ...left);
+    let blocksToFill: Point[][] = [ring];
+    for (const { y, normal } of splitOffsets) {
+      const next: Point[][] = [];
+      for (const piece of blocksToFill) {
+        const upper = clipStreetBlocks(piece, normal, y);
+        const lower = clipStreetBlocks(piece, [-normal[0], -normal[1]], -y);
+        if (upper.length && lower.length) {
+          next.push(...upper, ...lower);
         } else {
-          nextPieces.push(piece);
+          next.push(piece);
         }
       }
-      pieces = nextPieces;
+      blocksToFill = next;
     }
-    finalBlocks.push(...pieces.filter(p => area(p) > 30));
-    prevStripCuts = currentStripCuts;
+    blocksToFill = blocksToFill.filter(p => area(p) > 30);
+
+    // 2. Cross-cuts are chosen independently for each ribbon. Their stagger
+    // prevents four-way grid intersections while preserving compact blocks.
+    const maxBlockLength = Math.max(36, Math.min(72, spanLimit * 1.9));
+    let prevStripCuts: number[] = [];
+
+    for (let sIdx = 0; sIdx < blocksToFill.length; sIdx++) {
+      const strip = blocksToFill[sIdx];
+      const sXs = strip.map(p => dot(p, axis));
+      const sMinX = Math.min(...sXs),
+        sMaxX = Math.max(...sXs);
+      const sLen = sMaxX - sMinX;
+
+      if (sLen <= maxBlockLength) {
+        finalBlocks.push(strip);
+        prevStripCuts = [];
+        continue;
+      }
+
+      const currentStripCuts: number[] = [];
+      let curX = sMinX;
+      while (curX + maxBlockLength * 0.8 < sMaxX) {
+        const step = rng.range(32, Math.min(68, maxBlockLength * 1.1));
+        let candidateX = curX + step;
+        if (candidateX >= sMaxX - 25) break;
+
+        for (const prevX of prevStripCuts) {
+          if (Math.abs(candidateX - prevX) < 12) {
+            candidateX = candidateX < prevX ? prevX - 12 : prevX + 12;
+          }
+        }
+        if (candidateX >= sMaxX - 22 || candidateX <= curX + 22) continue;
+
+        currentStripCuts.push(candidateX);
+        curX = candidateX;
+      }
+
+      if (currentStripCuts.length === 0) {
+        finalBlocks.push(strip);
+        prevStripCuts = [];
+        continue;
+      }
+
+      let pieces = [strip];
+      for (const cutX of currentStripCuts) {
+        const jitterAngle = rng.range(-0.05, 0.05);
+        const cosJ = Math.cos(jitterAngle),
+          sinJ = Math.sin(jitterAngle);
+        const normal: Point = [axis[0] * cosJ - axis[1] * sinJ, axis[0] * sinJ + axis[1] * cosJ];
+        const nextPieces: Point[][] = [];
+        for (const piece of pieces) {
+          const right = clipStreetBlocks(piece, normal, cutX);
+          const left = clipStreetBlocks(piece, [-normal[0], -normal[1]], -cutX);
+          if (right.length && left.length) {
+            nextPieces.push(...right, ...left);
+          } else {
+            nextPieces.push(piece);
+          }
+        }
+        pieces = nextPieces;
+      }
+      finalBlocks.push(...pieces.filter(p => area(p) > 30));
+      prevStripCuts = currentStripCuts;
+    }
   }
 
   const streets = new Set<string>();
@@ -336,7 +353,7 @@ export function buildPerimeterBlocks(
   // Collapse degree-2 intermediate vertices in internal lanes so every internal street junction
   // is a clean 3-way T-junction.
   const mergedLanes = [...internalLanes];
-  for (let changed = true; changed; ) {
+  for (let changed = !classic; changed; ) {
     changed = false;
     const degreeMap = new Map<string, { index: number; other: Point }[]>();
     for (let i = 0; i < mergedLanes.length; i++) {
@@ -368,5 +385,126 @@ export function buildPerimeterBlocks(
   }
   fabric.lanes = [...boundaryLanes, ...mergedLanes.filter(l => distance(l.points[0], l.points[1]) > 1e-4)];
 
+  if (classic) {
+    // Trim the ends against real barriers, never join unrelated lanes across them.
+    fabric.lanes = fabric.lanes.flatMap(lane => {
+      const [a, b] = lane.points;
+      let lo = 0,
+        hi = 1;
+      for (const edge of boundaries.filter(e => e.barrier)) {
+        const length = distance(edge.a, edge.b);
+        if (length < 1e-6) continue;
+        const normal: Point = [(edge.a[1] - edge.b[1]) / length, (edge.b[0] - edge.a[0]) / length];
+        const da = Math.abs(dot(a, normal) - dot(edge.a, normal));
+        const db = Math.abs(dot(b, normal) - dot(edge.a, normal));
+        if (onBoundarySegment(a, edge) && db > da) lo = Math.max(lo, edge.setback / (db - da));
+        if (onBoundarySegment(b, edge) && da > db) hi = Math.min(hi, 1 - edge.setback / (da - db));
+      }
+      return hi > lo
+        ? [
+            {
+              ...lane,
+              points: [
+                [a[0] + (b[0] - a[0]) * lo, a[1] + (b[1] - a[1]) * lo] as Point,
+                [a[0] + (b[0] - a[0]) * hi, a[1] + (b[1] - a[1]) * hi] as Point
+              ]
+            }
+          ]
+        : [];
+    });
+  }
   return fabric;
+}
+
+function onBoundarySegment(p: Point, edge: BlockBoundary): boolean {
+  return Math.abs(distance(edge.a, p) + distance(p, edge.b) - distance(edge.a, edge.b)) < 1e-5;
+}
+
+/** Boundary-following site rows give parallel lanes and perpendicular side streets.
+ * Staggered interior sites join these into irregular closed blocks with three-way
+ * junctions. Only shared cell edges become streets; no independent random stubs. */
+function classicStreetBlocks(
+  ring: Point[],
+  boundaries: BlockBoundary[],
+  axis: Point,
+  span: number,
+  rng: Rng
+): Point[][] {
+  const sites: Point[] = [];
+  const sign = -Math.sign(polygonArea(ring));
+  // Two short house rows, rather than deep burgage plots: about 28–36m
+  // between lane centrelines, including their width and facade clearances.
+  const spacing = Math.max(28, Math.min(36, span * 0.78));
+  const addSite = (p: Point) => {
+    if (pointInPolygon(p, ring) && sites.every(q => distance(p, q) >= spacing * 0.68)) sites.push(p);
+  };
+  // Cleaned sides, rather than mesh edges, make extra collinear editing vertices
+  // irrelevant. Give actual roads, riverbanks and walls priority over dry seams.
+  const sides = ring
+    .map((a, i) => {
+      const b = ring[(i + 1) % ring.length];
+      return {
+        a,
+        b,
+        length: distance(a, b),
+        feature: boundaries.some(
+          e =>
+            e.feature &&
+            onBoundarySegment(e.a, { a, b, setback: 0, feature: false }) &&
+            onBoundarySegment(e.b, { a, b, setback: 0, feature: false })
+        )
+      };
+    })
+    .sort((a, b) => Number(b.feature) - Number(a.feature) || b.length - a.length);
+  for (const { a, b, length } of sides) {
+    const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    const inward: Point = [-sign * tangent[1], sign * tangent[0]];
+    const count = Math.max(1, Math.round(length / spacing));
+    const depth = spacing * rng.range(0.42, 0.52);
+    for (let i = 0; i < count; i++) {
+      const along = (length * (i + 0.5 + rng.range(-0.1, 0.1))) / count;
+      addSite([a[0] + tangent[0] * along + inward[0] * depth, a[1] + tangent[1] * along + inward[1] * depth]);
+    }
+  }
+  const across: Point = [-axis[1], axis[0]];
+  const xs = ring.map(p => dot(p, axis)),
+    ys = ring.map(p => dot(p, across));
+  const minX = Math.min(...xs),
+    maxX = Math.max(...xs),
+    minY = Math.min(...ys),
+    maxY = Math.max(...ys);
+  const rows = Math.max(1, Math.round((maxY - minY) / spacing));
+  const cols = Math.max(1, Math.round((maxX - minX) / spacing));
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = minX + ((col + 0.5 + (row % 2) * 0.35 + rng.range(-0.12, 0.12)) * (maxX - minX)) / cols;
+      const y = minY + ((row + 0.5 + rng.range(-0.12, 0.12)) * (maxY - minY)) / rows;
+      addSite([axis[0] * x + across[0] * y, axis[1] * x + across[1] * y]);
+    }
+  }
+  if (sites.length < 2) return [ring];
+  const neighbors = sites.map(() => new Set<number>());
+  for (const [a, b] of computeDelaunayEdges(sites)) {
+    neighbors[a].add(b);
+    neighbors[b].add(a);
+  }
+  // Two sites or collinear sites have no triangles, but still need bisectors.
+  if (neighbors.every(n => !n.size)) {
+    sites.forEach((_, i) => {
+      sites.forEach((_, j) => {
+        if (i !== j) neighbors[i].add(j);
+      });
+    });
+  }
+  return sites.flatMap((site, i) => {
+    let pieces = [ring];
+    for (const j of neighbors[i]) {
+      const other = sites[j],
+        length = distance(site, other);
+      const normal: Point = [(other[0] - site[0]) / length, (other[1] - site[1]) / length];
+      const offset = dot([(site[0] + other[0]) / 2, (site[1] + other[1]) / 2], normal);
+      pieces = pieces.flatMap(poly => clipStreetBlocks(poly, normal, offset));
+    }
+    return pieces;
+  });
 }

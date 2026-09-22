@@ -7,7 +7,6 @@
 import { facePoints } from "../mesh";
 import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types";
 import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
-import type { InfillLane } from "./localInfill";
 import type { BlockBoundary, PerimeterFabric } from "./perimeterBlocks";
 import { makeRng } from "./prng";
 
@@ -463,7 +462,7 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
             // 5. Civic / reserved faces and water faces
             const ownerId = findOwner(c);
             const ownerFace = document.mesh.faces[ownerId];
-            if (!ownerFace || ownerFace.properties.water !== "land") continue;
+            if (ownerFace?.properties.water !== "land") continue;
             if (reservedFaces.has(ownerId)) continue;
 
             fabric.buildings.push({ faceId: ownerId, polygon: [q1, q2, q3, q4], landmark: false });
