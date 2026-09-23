@@ -208,6 +208,32 @@ describe("faceClassName / renderFaceWardLandmark", () => {
     expect(renderFaceWardLandmark(document.mesh, plain)).toBeNull();
     expect(renderFaceWardLandmark(document.mesh, submerged)).toBeNull();
   });
+
+  it("uses r=7.5 halo for all city element markers (half of the original r=15)", () => {
+    const document = createDocument("all-markers-half-size", 400);
+    const [facePark, faceMarket] = Object.values(document.mesh.faces);
+    facePark.properties.ward = "park";
+    faceMarket.properties.ward = "market";
+    const vertex = Object.values(document.mesh.vertices)[0];
+    document.gates.push({ id: 99, vertexId: vertex.id });
+
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+
+    const parkHalo = svg.querySelector(`.ce-ward-landmarks [data-element="ward-${facePark.id}"] .ce-element-halo`);
+    expect(parkHalo?.getAttribute("r")).toBe("7.5");
+
+    const gateHalo = svg.querySelector(`.ce-gates [data-element="99"] .ce-element-halo`);
+    expect(gateHalo?.getAttribute("r")).toBe("7.5");
+
+    const marketHalo = svg.querySelector(`.ce-ward-landmarks [data-element="ward-${faceMarket.id}"] .ce-element-halo`);
+    expect(marketHalo?.getAttribute("r")).toBe("7.5");
+  });
 });
 
 describe("face selection labels", () => {

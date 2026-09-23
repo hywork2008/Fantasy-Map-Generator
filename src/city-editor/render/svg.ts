@@ -955,40 +955,42 @@ function cityElementMarker(point: Point, kind: string, id: Id): SVGElement {
     transform: `translate(${point[0]} ${-point[1]})`,
     "pointer-events": "none"
   });
-  marker.appendChild(element("circle", { r: "15", class: "ce-element-halo" }));
-  const common = { class: "ce-element-mark", fill: "none", stroke: "currentColor", "stroke-width": "2.4" };
+  marker.appendChild(element("circle", { r: "7.5", class: "ce-element-halo" }));
+  const common = { class: "ce-element-mark", fill: "none", stroke: "currentColor", "stroke-width": "1.2" };
 
   switch (kind) {
     case "plaza":
-      marker.appendChild(element("rect", { ...common, x: "-8", y: "-8", width: "16", height: "16", rx: "1" }));
+      marker.appendChild(element("rect", { ...common, x: "-4", y: "-4", width: "8", height: "8", rx: "0.5" }));
       break;
     case "citadel":
-      marker.appendChild(element("path", { ...common, d: "M-10 9V-8H-6V-12H-2V-8H2V-12H6V-8H10V9ZM-10 1H10" }));
+      marker.appendChild(element("path", { ...common, d: "M-5 4.5V-4H-3V-6H-1V-4H1V-6H3V-4H5V4.5ZM-5 0.5H5" }));
       break;
     case "temple":
-      marker.appendChild(element("path", { ...common, d: "M0-12V12M-6-6H6M-9 10H9" }));
+      marker.appendChild(element("path", { ...common, d: "M0-6V6M-3-3H3M-4.5 5H4.5" }));
       break;
     case "harbor":
       marker.append(
-        element("circle", { ...common, cx: "0", cy: "-7", r: "3" }),
-        element("path", { ...common, d: "M0-4V8M-8 2H8M-11 8C-7 15 7 15 11 8M-11 8L-7 12M11 8L7 12" })
+        element("circle", { ...common, cx: "0", cy: "-3.5", r: "1.5" }),
+        element("path", { ...common, d: "M0-2V4M-4 1H4M-5.5 4C-3.5 7.5 3.5 7.5 5.5 4M-5.5 4L-3.5 6M5.5 4L3.5 6" })
       );
       break;
     case "park":
       marker.append(
-        element("circle", { ...common, cx: "-5", cy: "-2", r: "5" }),
-        element("circle", { ...common, cx: "5", cy: "-2", r: "5" }),
-        element("path", { ...common, d: "M0 1V11M-8 11H8" })
+        element("circle", { ...common, cx: "-2.5", cy: "-1", r: "2.5" }),
+        element("circle", { ...common, cx: "2.5", cy: "-1", r: "2.5" }),
+        element("path", { ...common, d: "M0 0.5V5.5M-4 5.5H4" })
       );
       break;
     case "gate":
-      marker.appendChild(element("path", { ...common, d: "M-10 10V0A10 10 0 0 1 10 0V10M-13 10H13" }));
+      marker.appendChild(element("path", { ...common, d: "M-5 5V0A5 5 0 0 1 5 0V5M-6.5 5H6.5" }));
       break;
     case "tower":
-      marker.appendChild(element("path", { ...common, d: "M-7 11V-9H-4V-12H-1V-9H1V-12H4V-9H7V11ZM-10 11H10" }));
+      marker.appendChild(
+        element("path", { ...common, d: "M-3.5 5.5V-4.5H-2V-6H-0.5V-4.5H0.5V-6H2V-4.5H3.5V5.5ZM-5 5.5H5" })
+      );
       break;
     default:
-      marker.appendChild(element("circle", { ...common, r: "7" }));
+      marker.appendChild(element("circle", { ...common, r: "3.5" }));
   }
   return marker;
 }
