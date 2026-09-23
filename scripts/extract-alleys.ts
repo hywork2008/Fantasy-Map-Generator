@@ -42,13 +42,58 @@ function pointInPoly(pt: Point2D, poly: Point2D[]): boolean {
   return inside;
 }
 
+// Split at every polygon-boundary intersection, then inspect each open interval.
+// This detects even a short crossing near a segment endpoint, unlike midpoint sampling.
+export function segmentIntersectsInterior(a: Point2D, b: Point2D, poly: Point2D[]): boolean {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const cuts = [0, 1];
+  const epsilon = 1e-9;
+  for (let i = 0; i < poly.length; i++) {
+    const u = poly[i];
+    const v = poly[(i + 1) % poly.length];
+    const ex = v[0] - u[0];
+    const ey = v[1] - u[1];
+    const determinant = dx * ey - dy * ex;
+    if (Math.abs(determinant) < epsilon) continue;
+    const ux = u[0] - a[0];
+    const uy = u[1] - a[1];
+    const t = (ux * ey - uy * ex) / determinant;
+    const q = (ux * dy - uy * dx) / determinant;
+    if (t > 0 && t < 1 && q >= -epsilon && q <= 1 + epsilon) cuts.push(t);
+  }
+  cuts.sort((x, y) => x - y);
+  for (let i = 1; i < cuts.length; i++) {
+    if (cuts[i] - cuts[i - 1] < epsilon) continue;
+    const t = (cuts[i] + cuts[i - 1]) / 2;
+    const p: Point2D = [a[0] + t * dx, a[1] + t * dy];
+    // Touching a corner or following a wall is not crossing the filled interior.
+    const onBoundary = poly.some((u, j) => {
+      const v = poly[(j + 1) % poly.length];
+      const ex = v[0] - u[0];
+      const ey = v[1] - u[1];
+      const length = Math.hypot(ex, ey);
+      if (length === 0) return false;
+      return Math.abs(ex * (p[1] - u[1]) - ey * (p[0] - u[0])) <= epsilon * length &&
+        p[0] >= Math.min(u[0], v[0]) - epsilon && p[0] <= Math.max(u[0], v[0]) + epsilon &&
+        p[1] >= Math.min(u[1], v[1]) - epsilon && p[1] <= Math.max(u[1], v[1]) + epsilon;
+    });
+    if (!onBoundary && pointInPoly(p, poly)) return true;
+  }
+  return false;
+}
+
 function edgeKey(p1: Point2D, p2: Point2D): string {
   const k1 = `${p1[0].toFixed(2)},${p1[1].toFixed(2)}`;
   const k2 = `${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
   return k1 < k2 ? `${k1}_${k2}` : `${k2}_${k1}`;
 }
 
-function simplifyPolyline(points: Point2D[], tol: number): Point2D[] {
+export function simplifyPolyline(
+  points: Point2D[],
+  tol: number,
+  isBlocked: (a: Point2D, b: Point2D) => boolean = () => false
+): Point2D[] {
   if (points.length <= 2) return points;
   let maxD = 0;
   let idx = 0;
@@ -73,9 +118,10 @@ function simplifyPolyline(points: Point2D[], tol: number): Point2D[] {
     }
   }
 
-  if (maxD > tol) {
-    const r1 = simplifyPolyline(points.slice(0, idx + 1), tol);
-    const r2 = simplifyPolyline(points.slice(idx), tol);
+  if (maxD > tol || isBlocked(p1, p2)) {
+    if (idx === 0) idx = Math.floor(points.length / 2);
+    const r1 = simplifyPolyline(points.slice(0, idx + 1), tol, isBlocked);
+    const r2 = simplifyPolyline(points.slice(idx), tol, isBlocked);
     return r1.slice(0, -1).concat(r2);
   }
   return [p1, p2];
@@ -144,6 +190,24 @@ export function extractAlleys(options: ExtractAlleysOptions): {
     return { id: idx, pts, cx, cy };
   });
   console.log(`[extract-alleys] Found ${buildings.length} total buildings`);
+
+  // All building footprints are obstacles, including buildings whose centroid is
+  // outside the wall. Bounding boxes keep exact polygon tests local and inexpensive.
+  const obstacles = buildings.map(b => ({
+    pts: b.pts,
+    minX: Math.min(...b.pts.map(p => p[0])),
+    maxX: Math.max(...b.pts.map(p => p[0])),
+    minY: Math.min(...b.pts.map(p => p[1])),
+    maxY: Math.max(...b.pts.map(p => p[1]))
+  }));
+  const isBlocked = (a: Point2D, b: Point2D): boolean => {
+    const minX = Math.min(a[0], b[0]);
+    const maxX = Math.max(a[0], b[0]);
+    const minY = Math.min(a[1], b[1]);
+    const maxY = Math.max(a[1], b[1]);
+    return obstacles.some(o => o.maxX >= minX && o.minX <= maxX &&
+      o.maxY >= minY && o.minY <= maxY && segmentIntersectsInterior(a, b, o.pts));
+  };
 
   // 3. Parse walls: <path ... stroke-width="1.9" ...>
   const wallMatch = svg.match(/<path[^>]+stroke-width="1\.9"[^>]*>/);
@@ -299,7 +363,8 @@ export function extractAlleys(options: ExtractAlleysOptions): {
         if (
           edgeLen < 12 &&
           pointInPoly(c1, sortedWall) &&
-          pointInPoly(c2, sortedWall)
+          pointInPoly(c2, sortedWall) &&
+          !isBlocked(c1, c2)
         ) {
           rawSegs.push([c1, c2]);
         }
@@ -392,7 +457,8 @@ export function extractAlleys(options: ExtractAlleysOptions): {
   rawSegs.forEach((_, segIdx) => {
     const u = ptFind(segIdx * 2);
     const v = ptFind(segIdx * 2 + 1);
-    addEdge(u, v);
+    // Clustering can move endpoints; validate the actual graph edge as well.
+    if (!isBlocked(clusterCentroid.get(u)!, clusterCentroid.get(v)!)) addEdge(u, v);
   });
 
   // 8. Trace polylines through the alley graph
@@ -437,7 +503,7 @@ export function extractAlleys(options: ExtractAlleysOptions): {
 
   // 9. Simplify polylines and filter short noisy branches
   const simplifiedPolylines = polylines
-    .map(p => simplifyPolyline(p, simplifyTolerance))
+    .map(p => simplifyPolyline(p, simplifyTolerance, isBlocked))
     .filter(p => {
       let l = 0;
       for (let i = 0; i < p.length - 1; i++) {
@@ -464,7 +530,20 @@ export function extractAlleys(options: ExtractAlleysOptions): {
     for (let i = 1; i < points.length; i++) {
       const start = points[i - 1];
       const end = points[i];
-      const d = ` M ${(start[0] * sx + tx).toFixed(2)},${(start[1] * sy + ty).toFixed(2)} L ${(end[0] * sx + tx).toFixed(2)},${(end[1] * sy + ty).toFixed(2)}`;
+      // Keep the usual compact coordinates unless rounding would move the line
+      // into a building. Check exactly the coordinates that will be written.
+      const screenPoint = (p: Point2D, digits: number): [number, number] => [
+        Number((p[0] * sx + tx).toFixed(digits)), Number((p[1] * sy + ty).toFixed(digits))
+      ];
+      const mapPoint = (p: Point2D): Point2D => [(p[0] - tx) / sx, (p[1] - ty) / sy];
+      let screenStart = screenPoint(start, 2);
+      let screenEnd = screenPoint(end, 2);
+      if (isBlocked(mapPoint(screenStart), mapPoint(screenEnd))) {
+        screenStart = screenPoint(start, 10);
+        screenEnd = screenPoint(end, 10);
+      }
+      if (isBlocked(mapPoint(screenStart), mapPoint(screenEnd))) continue;
+      const d = ` M ${screenStart.join(",")} L ${screenEnd.join(",")}`;
       const id = `alley-${polylineIndex + 1}-segment-${i}`;
       segmentPaths.push(
         `    <path id="${id}" data-polyline="${polylineIndex + 1}" d="${d}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><title>${id}</title></path>`

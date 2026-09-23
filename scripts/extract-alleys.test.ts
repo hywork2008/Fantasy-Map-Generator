@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { extractAlleys } from "./extract-alleys";
+import { extractAlleys, segmentIntersectsInterior, simplifyPolyline } from "./extract-alleys";
 
 // Two perimeter blocks separated by a 0.6-unit alley, 60 units long.
 // Z deliberately closes the buildings without a repeated first vertex.
@@ -34,7 +34,7 @@ for (const sampleStep of [0.5, 0.2]) {
       assert.equal(new Set(elements.map(m => m[1])).size, elements.length);
       const paths = elements.map(([, , d]) => {
         assert.match(d, /^ M [-\d.]+,[-\d.]+ L [-\d.]+,[-\d.]+$/);
-        return [...d.matchAll(/(-?\d+\.\d+),(-?\d+\.\d+)/g)].map(m => [Number(m[1]), Number(m[2])]);
+        return [...d.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map(m => [Number(m[1]), Number(m[2])]);
       });
       assert.ok(paths.some(points => {
         const center = points.filter(([x]) => Math.abs(x - 40.6) < 0.1);
@@ -45,3 +45,22 @@ for (const sampleStep of [0.5, 0.2]) {
     }
   });
 }
+
+const square: [number, number][] = [[0, 0], [2, 0], [2, 2], [0, 2]];
+test("rejects crossings, including short intersections and vertex-to-vertex cuts", () => {
+  assert.ok(segmentIntersectsInterior([-100, 1], [0.1, 1], square));
+  assert.ok(segmentIntersectsInterior([-1, -1], [3, 3], square));
+  assert.ok(segmentIntersectsInterior([0.5, 0.5], [1.5, 1.5], square));
+  assert.ok(!segmentIntersectsInterior([-1, 1], [1, 3], square));
+  assert.ok(!segmentIntersectsInterior([-1, 0], [3, 0], square));
+});
+
+test("simplification keeps a detour around a building even with a large tolerance", () => {
+  const detour: [number, number][] = [[-1, 1], [-1, 3], [3, 3], [3, 1]];
+  const blocked = (a: {0: number; 1: number}, b: {0: number; 1: number}) => segmentIntersectsInterior(a, b, square);
+  const simplified = simplifyPolyline(detour, 100, blocked);
+  assert.ok(simplified.length > 2);
+  for (let i = 1; i < simplified.length; i++) {
+    assert.ok(!segmentIntersectsInterior(simplified[i - 1], simplified[i], square));
+  }
+});
