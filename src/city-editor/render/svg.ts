@@ -285,7 +285,11 @@ export function renderEditorSvg(
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
         : edgeGroupPoints(document, group.segments);
     if (points.length < 2) continue;
-    const runs = concealWall && group.kind === "road" ? clipPolylineToExterior(points, concealWall) : [points];
+    // gc:bridge-* is only the short deck across the river. The gate-to-plaza
+    // road that shares the crossing is a separate group and stays hidden.
+    const bridgeDeck = group.kind === "road" && group.id.startsWith("gc:bridge-");
+    const runs =
+      concealWall && group.kind === "road" && !bridgeDeck ? clipPolylineToExterior(points, concealWall) : [points];
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,

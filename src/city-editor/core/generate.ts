@@ -184,7 +184,7 @@ export const GENERATION_STAGES: GenerationStage[] = [
     id: "conceal",
     step: 10,
     label: "⑩ 道路・小道を隠す",
-    hint: "Hide roads between the centre and the outer wall, and the lanes that divide blocks"
+    hint: "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
   }
 ];
 
