@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { incidentEdges } from "./mesh";
 import {
   addBridge,
+  gateRoadDeviationDegrees,
   joinWallRiverCrossings,
   kindEdgeIds,
   openBarrierPassage,
   orderedIncidentEdges,
   straightenBridge,
   straightenBridges,
+  straightenGateCrossings,
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
@@ -436,5 +438,78 @@ describe("openBarrierPassage", () => {
       // Dot product should be 1.0 (straight line, was 0.395 / 66.7 degrees)
       expect(dot).toBeGreaterThan(0.999);
     });
+  });
+});
+
+function gateOnStraightWall(inner: [number, number], outer: [number, number], locked = false): CityDocument {
+  return {
+    format: "fmg-city-editor",
+    version: 1,
+    frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+    mesh: {
+      vertices: {
+        w1: { id: "w1", point: [-40, 0], locked: false },
+        g: { id: "g", point: [0, 0], locked: false },
+        w2: { id: "w2", point: [40, 0], locked: false },
+        rin: { id: "rin", point: inner, locked: false },
+        rout: { id: "rout", point: outer, locked: false }
+      },
+      edges: {
+        wallA: { id: "wallA", a: "w1", b: "g", leftFace: null, rightFace: null, locked: false },
+        wallB: { id: "wallB", a: "g", b: "w2", leftFace: null, rightFace: null, locked: false },
+        roadIn: { id: "roadIn", a: "g", b: "rin", leftFace: null, rightFace: null, locked: false },
+        roadOut: { id: "roadOut", a: "g", b: "rout", leftFace: null, rightFace: null, locked: false }
+      },
+      faces: {}
+    },
+    featureGroups: [
+      {
+        id: "wall-1",
+        kind: "wall",
+        name: "Wall",
+        segments: [
+          { edgeId: "wallA", forward: true },
+          { edgeId: "wallB", forward: true }
+        ],
+        style: { widthMeters: 7, color: "#342a22" },
+        locked: false
+      },
+      {
+        id: "road-1",
+        kind: "road",
+        name: "Road",
+        segments: [
+          { edgeId: "roadOut", forward: false },
+          { edgeId: "roadIn", forward: true }
+        ],
+        style: { widthMeters: 3.5, color: "#735238" },
+        locked: false
+      }
+    ],
+    gates: [{ id: "gate-1", vertexId: "g", locked }],
+    elements: [{ id: "plaza", kind: "plaza", faceIds: [], point: [0, 60], locked: false }]
+  };
+}
+
+describe("straightenGateCrossings", () => {
+  it("slides the gate along the wall so an oblique street meets it nearly square-on", () => {
+    const document = gateOnStraightWall([18, 22], [0, -40]);
+    expect(gateRoadDeviationDegrees(document, "g")).toBeGreaterThan(30);
+    const next = straightenGateCrossings(document);
+    expect(next.mesh.vertices.w1.point).toEqual([-40, 0]);
+    expect(next.mesh.vertices.w2.point).toEqual([40, 0]);
+    expect(gateRoadDeviationDegrees(next, "g")).toBeLessThan(10);
+  });
+
+  it("leaves a crossing that is already perpendicular", () => {
+    const document = gateOnStraightWall([0, 30], [0, -40]);
+    const next = straightenGateCrossings(document);
+    expect(next.mesh.vertices.g.point).toEqual([0, 0]);
+  });
+
+  it("does not move a locked gate", () => {
+    const document = gateOnStraightWall([18, 22], [0, -40], true);
+    const next = straightenGateCrossings(document);
+    expect(next.mesh.vertices.g.point).toEqual([0, 0]);
   });
 });

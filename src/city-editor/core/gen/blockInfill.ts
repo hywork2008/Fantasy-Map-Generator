@@ -3,6 +3,7 @@ import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
+import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
@@ -31,6 +32,10 @@ function distToSegment(p: Point, a: Point, b: Point): number {
   const projX = a[0] + t * dx;
   const projY = a[1] + t * dy;
   return Math.hypot(p[0] - projX, p[1] - projY);
+}
+
+function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+  return { ...fabric, buildings: relieveGatePlazaBuildings(document, fabric.buildings) };
 }
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
@@ -123,12 +128,12 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       entrances.set(id, [...(entrances.get(id) ?? []), ...pts]);
     }
 
-    return {
+    return finishFabric(document, {
       buildings: [...coreFabric.buildings, ...peripheralFabric.buildings],
       lanes,
       entrances,
       farms: []
-    };
+    });
   }
 
   if (isCirculade) {
@@ -168,12 +173,12 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       entrances.set(id, [...(entrances.get(id) ?? []), ...pts]);
     }
 
-    return {
+    return finishFabric(document, {
       buildings: [...coreFabric.buildings, ...outskirtsFabric.buildings],
       lanes,
       entrances,
       farms: []
-    };
+    });
   }
 
   const effectiveSubLayout = layout === "classic" ? "classic" : "organic";
@@ -189,7 +194,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       hub
     });
     const lanes = local.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
-    return { ...local, lanes, farms: [] };
+    return finishFabric(document, { ...local, lanes, farms: [] });
   }
 
   const plan = upgradeFabricPlan(document)!;
@@ -303,5 +308,5 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });
     farms.push(...plots);
   }
-  return { buildings, lanes, entrances, farms };
+  return finishFabric(document, { buildings, lanes, entrances, farms });
 }

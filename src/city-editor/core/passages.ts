@@ -274,6 +274,282 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
   return document;
 }
 
+/** Wall-polyline neighbours of a gate. A closed ring wraps; an endpoint has none. */
+function wallNeighbourIds(document: CityDocument, vertexId: Id): [Id, Id] | null {
+  for (const group of document.featureGroups) {
+    if (group.kind !== "wall") continue;
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 2) continue;
+    const closed = ids.length > 3 && ids[0] === ids[ids.length - 1];
+    const ring = closed ? ids.slice(0, -1) : ids;
+    const index = ring.indexOf(vertexId);
+    if (index < 0) continue;
+    if (!closed && (index === 0 || index === ring.length - 1)) continue;
+    const prev = ring[(index - 1 + ring.length) % ring.length];
+    const next = ring[(index + 1) % ring.length];
+    if (prev && next && prev !== vertexId && next !== vertexId && prev !== next) return [prev, next];
+  }
+  return null;
+}
+
+/** The road vertices that actually pass through the gate, when the junction alternates. */
+function throughRoadNeighbourIds(document: CityDocument, vertexId: Id): Id[] {
+  return throughEdgesAt(document, vertexId, "wall").map(edge => (edge.a === vertexId ? edge.b : edge.a));
+}
+
+function unit(x: number, y: number): Point | null {
+  const len = Math.hypot(x, y);
+  return len > 1e-6 ? [x / len, y / len] : null;
+}
+
+/** Degrees away from a right angle between each road arm and the wall tangent. 0 = perpendicular. */
+function roadDeviationDegrees(gate: Point, roads: Point[], tangent: Point): number {
+  let worst = 0;
+  for (const road of roads) {
+    const vx = road[0] - gate[0];
+    const vy = road[1] - gate[1];
+    const len = Math.hypot(vx, vy);
+    if (len < 0.5) return 90;
+    const along = Math.abs(vx * tangent[0] + vy * tangent[1]) / len;
+    const across = Math.abs(-tangent[1] * vx + tangent[0] * vy) / len;
+    worst = Math.max(worst, (Math.atan2(along, across) * 180) / Math.PI);
+  }
+  return worst;
+}
+
+function townCenter(document: CityDocument): Point {
+  const plaza = document.elements.find(element => element.kind === "plaza" && element.point);
+  if (plaza?.point) return plaza.point;
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const face of Object.values(document.mesh.faces)) {
+    if (face.properties.water !== "land" || !face.properties.buildable) continue;
+    const point = face.site ?? polygonCentroid(facePoints(document.mesh, face));
+    x += point[0];
+    y += point[1];
+    count++;
+  }
+  return count ? [x / count, y / count] : [0, 0];
+}
+
+/** Square gate tower side is the round curtain tower's diameter (1.6 × wall thickness). */
+export const GATE_TOWER_SCALE = 1.6;
+/** Semicircular gate plaza, as a multiple of the tower side, on each side of the curtain. */
+export const GATE_PLAZA_SCALE = 1.35;
+
+export function gatePlazaRadiusMeters(wallWidthMeters: number): number {
+  return wallWidthMeters * GATE_TOWER_SCALE * GATE_PLAZA_SCALE;
+}
+
+/** Both gate plazas together are a disk centred on the gate. Buildings must stay outside it. */
+export function gatePlazaDisks(document: CityDocument): { center: Point; radius: number }[] {
+  const disks: { center: Point; radius: number }[] = [];
+  for (const gate of document.gates) {
+    const frame = gateCrossingFrame(document, gate.vertexId);
+    if (!frame) continue;
+    const wall = document.featureGroups.find(
+      group => group.kind === "wall" && featureGroupVertices(document, group).includes(gate.vertexId)
+    );
+    if (wall?.kind !== "wall") continue;
+    disks.push({ center: frame.point, radius: gatePlazaRadiusMeters(wall.style.widthMeters) });
+  }
+  return disks;
+}
+
+export interface GateCrossingFrame {
+  point: Point;
+  /** Unit vector along the wall at the gate. */
+  tangent: Point;
+  /** Unit vector toward the town, perpendicular to `tangent`. */
+  inward: Point;
+  roads: Point[];
+}
+
+/**
+ * Orientation of the gatehouse: along the wall, facing the town. Uses the chord
+ * of the two wall neighbours when the curtain is nearly straight, and the
+ * corner bisector when the gate sits on a bend.
+ */
+export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCrossingFrame | null {
+  const gate = document.mesh.vertices[vertexId];
+  if (!gate) return null;
+  const neighbours = wallNeighbourIds(document, vertexId);
+  const roads = throughRoadNeighbourIds(document, vertexId)
+    .map(id => document.mesh.vertices[id]?.point)
+    .filter((point): point is Point => !!point);
+  let tangent: Point | null = null;
+  if (neighbours) {
+    const a = document.mesh.vertices[neighbours[0]]?.point;
+    const b = document.mesh.vertices[neighbours[1]]?.point;
+    if (a && b) {
+      const u = unit(a[0] - gate.point[0], a[1] - gate.point[1]);
+      const v = unit(b[0] - gate.point[0], b[1] - gate.point[1]);
+      const chord = unit(b[0] - a[0], b[1] - a[1]);
+      if (u && v && chord && u[0] * v[0] + u[1] * v[1] < -0.5) tangent = chord;
+      else if (u && v) {
+        const bisector = unit(u[0] + v[0], u[1] + v[1]);
+        if (bisector) tangent = [-bisector[1], bisector[0]];
+      }
+      tangent ??= chord;
+    }
+  }
+  if (!tangent) {
+    for (const edge of incidentEdges(document.mesh, vertexId)) {
+      if (!kindEdgeIds(document, "wall").has(edge.id)) continue;
+      const other = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a]?.point;
+      if (!other) continue;
+      tangent = unit(other[0] - gate.point[0], other[1] - gate.point[1]);
+      if (tangent) break;
+    }
+  }
+  if (!tangent) return null;
+  let inward = unit(-tangent[1], tangent[0]);
+  if (!inward) return null;
+  const center = townCenter(document);
+  const toward = unit(center[0] - gate.point[0], center[1] - gate.point[1]);
+  if (toward && inward[0] * toward[0] + inward[1] * toward[1] < 0) inward = [-inward[0], -inward[1]];
+  return { point: gate.point, tangent, inward, roads };
+}
+
+/** Worst through-road deviation from a right angle with the wall, in degrees. */
+export function gateRoadDeviationDegrees(document: CityDocument, vertexId: Id): number | null {
+  const frame = gateCrossingFrame(document, vertexId);
+  if (!frame || frame.roads.length === 0) return null;
+  return roadDeviationDegrees(frame.point, frame.roads, frame.tangent);
+}
+
+const PERPENDICULAR_GATE_DEGREES = 10;
+
+/** Pull the more oblique road arm onto the wall normal so the street leaves the gate square-on. */
+function swingObliqueGateArm(
+  document: CityDocument,
+  gateVertexId: Id,
+  roadIds: Id[],
+  tangent: Point,
+  riverVertices: Set<Id>
+): CityDocument {
+  const gatePoint = document.mesh.vertices[gateVertexId]?.point;
+  if (!gatePoint) return document;
+  const placed = roadIds
+    .map(id => ({ id, point: document.mesh.vertices[id]?.point }))
+    .filter((arm): arm is { id: Id; point: Point } => !!arm.point);
+  if (
+    roadDeviationDegrees(
+      gatePoint,
+      placed.map(arm => arm.point),
+      tangent
+    ) <= PERPENDICULAR_GATE_DEGREES
+  )
+    return document;
+  let worse = placed[0];
+  let worseDev = -1;
+  for (const arm of placed) {
+    const dev = roadDeviationDegrees(gatePoint, [arm.point], tangent);
+    if (dev > worseDev) {
+      worseDev = dev;
+      worse = arm;
+    }
+  }
+  const road = document.mesh.vertices[worse.id];
+  if (!road || road.locked || riverVertices.has(worse.id)) return document;
+  if (document.gates.some(gate => gate.vertexId === worse.id)) return document;
+  if (incidentEdges(document.mesh, worse.id).length > 5) return document;
+  const vx = worse.point[0] - gatePoint[0];
+  const vy = worse.point[1] - gatePoint[1];
+  const dist = Math.hypot(vx, vy);
+  if (dist < 1) return document;
+  const sign = vx * -tangent[1] + vy * tangent[0] >= 0 ? 1 : -1;
+  const target: Point = [gatePoint[0] + -tangent[1] * sign * dist, gatePoint[1] + tangent[0] * sign * dist];
+  const moved = tryMoveVertex(document, worse.id, target);
+  if (moved === document) return document;
+  for (const face of incidentFaces(moved.mesh, worse.id)) {
+    if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+  }
+  return moved;
+}
+
+/**
+ * Square each gate to the road that passes through it. The gate vertex slides
+ * along the curtain first. When that cannot bring both arms under a right
+ * angle, the more oblique arm swings onto the wall normal so the gatehouse
+ * does not cover the street.
+ */
+export function straightenGateCrossings(document: CityDocument): CityDocument {
+  let next = document;
+  const riverVertices = new Set<Id>();
+  for (const group of next.featureGroups) {
+    if (group.kind === "river") for (const id of group.vertices) riverVertices.add(id);
+  }
+  for (const gate of next.gates) {
+    if (gate.locked || riverVertices.has(gate.vertexId)) continue;
+    const vertex = next.mesh.vertices[gate.vertexId];
+    if (!vertex || vertex.locked) continue;
+    const neighbours = wallNeighbourIds(next, gate.vertexId);
+    if (!neighbours) continue;
+    const wallA = next.mesh.vertices[neighbours[0]]?.point;
+    const wallB = next.mesh.vertices[neighbours[1]]?.point;
+    const roadIds = throughRoadNeighbourIds(next, gate.vertexId);
+    const roads = roadIds.map(id => next.mesh.vertices[id]?.point).filter((point): point is Point => !!point);
+    if (!wallA || !wallB || roads.length < 2) continue;
+    const fromGateA = unit(wallA[0] - vertex.point[0], wallA[1] - vertex.point[1]);
+    const fromGateB = unit(wallB[0] - vertex.point[0], wallB[1] - vertex.point[1]);
+    // A sharp curtain corner has no single slide line; leave the bend alone.
+    if (!fromGateA || !fromGateB || fromGateA[0] * fromGateB[0] + fromGateA[1] * fromGateB[1] >= -0.5) continue;
+    const chordX = wallB[0] - wallA[0];
+    const chordY = wallB[1] - wallA[1];
+    const chordLen = Math.hypot(chordX, chordY);
+    const tangent = unit(chordX, chordY);
+    if (!tangent || chordLen < 8) continue;
+    const project = (point: Point) =>
+      ((point[0] - wallA[0]) * chordX + (point[1] - wallA[1]) * chordY) / (chordLen * chordLen);
+    const margin = Math.min(0.35, Math.max(4, Math.min(8, chordLen * 0.18)) / chordLen);
+    const at = (t: number): Point => [wallA[0] + chordX * t, wallA[1] + chordY * t];
+    let cursor = next;
+    const currentScore = roadDeviationDegrees(vertex.point, roads, tangent);
+    if (currentScore > PERPENDICULAR_GATE_DEGREES) {
+      let bestT = Math.max(margin, Math.min(1 - margin, project(vertex.point)));
+      let bestScore = roadDeviationDegrees(at(bestT), roads, tangent);
+      for (let i = 0; i <= 32; i++) {
+        const t = margin + ((1 - 2 * margin) * i) / 32;
+        const score = roadDeviationDegrees(at(t), roads, tangent);
+        if (score + 0.75 < bestScore) {
+          bestScore = score;
+          bestT = t;
+        }
+      }
+      // Sliding alone can square both arms. Otherwise park the gate on the
+      // squarer arm and swing the other arm onto that normal afterwards.
+      let chosenT = bestT;
+      if (bestScore > PERPENDICULAR_GATE_DEGREES) {
+        let anchor = roads[0];
+        let anchorDev = Infinity;
+        for (const road of roads) {
+          const dev = roadDeviationDegrees(vertex.point, [road], tangent);
+          if (dev < anchorDev) {
+            anchorDev = dev;
+            anchor = road;
+          }
+        }
+        chosenT = Math.max(margin, Math.min(1 - margin, project(anchor)));
+      }
+      const target = at(chosenT);
+      if (Math.hypot(target[0] - vertex.point[0], target[1] - vertex.point[1]) >= 0.8) {
+        const moved = tryMoveVertex(cursor, gate.vertexId, target);
+        if (moved !== cursor) {
+          for (const face of incidentFaces(moved.mesh, gate.vertexId)) {
+            if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+          }
+          cursor = moved;
+        }
+      }
+      cursor = swingObliqueGateArm(cursor, gate.vertexId, roadIds, tangent, riverVertices);
+    }
+    next = cursor;
+  }
+  return next;
+}
+
 /**
  * Straighten a river crossing (A -> M -> B) so it crosses perpendicular and straight,
  * resolving L-shaped and V-shaped bends.

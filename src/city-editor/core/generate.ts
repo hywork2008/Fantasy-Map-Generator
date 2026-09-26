@@ -96,6 +96,7 @@ import {
   openGeneratedPassages,
   orderedIncidentEdges,
   straightenBridges,
+  straightenGateCrossings,
   throughEdgesAt,
   vertexHasCrossing,
   vertexHasKindPassage
@@ -602,7 +603,7 @@ export function generateCityAttempt(
   console.log("Phase finishCityGeometry crossing issues:", explainGeneratedCrossingFailures(finished));
   const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
   mark("rectify-voronoi");
-  const settled = straightenBridges(shaped);
+  const settled = straightenGateCrossings(straightenBridges(shaped));
   console.log("Phase straightenBridges crossing issues:", explainGeneratedCrossingFailures(settled));
   settleTempleOnDocument(settled);
   const roadsAfterFinish = countExternalApproachRoads(settled);

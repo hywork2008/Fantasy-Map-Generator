@@ -1,10 +1,13 @@
+import { featureGroupVertices } from "../core/features";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
+import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
+import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -553,6 +556,16 @@ function renderTownFortifications(
           untilTower += spacing;
           continue;
         }
+        const gateClear = group.style.widthMeters * 3;
+        if (
+          (document.gates ?? []).some(gate => {
+            const gatePoint = document.mesh.vertices[gate.vertexId]?.point;
+            return gatePoint && Math.hypot(gatePoint[0] - position[0], gatePoint[1] - position[1]) < gateClear;
+          })
+        ) {
+          untilTower += spacing;
+          continue;
+        }
         const towerId = `tower-${group.id}-${i}-${Math.round(untilTower)}`;
         const isPickSelected = inspectedId === towerId;
         const towerPickInfo: SvgPickInfo = {
@@ -579,26 +592,25 @@ function renderTownFortifications(
     }
   }
   for (const gate of document.gates) {
-    const p = document.mesh.vertices[gate.vertexId]?.point;
-    if (!p) continue;
+    const frame = gateCrossingFrame(document, gate.vertexId);
+    if (!frame) continue;
     const wall = document.featureGroups.find(
-      g =>
-        g.kind === "wall" &&
-        g.segments.some(s => {
-          const e = document.mesh.edges[s.edgeId];
-          return e.a === gate.vertexId || e.b === gate.vertexId;
-        })
+      g => g.kind === "wall" && featureGroupVertices(document, g).includes(gate.vertexId)
     );
     if (wall?.kind !== "wall") continue;
-    const ref = wall.segments.find(s => {
-      const e = document.mesh.edges[s.edgeId];
-      return e.a === gate.vertexId || e.b === gate.vertexId;
-    })!;
-    const e = document.mesh.edges[ref.edgeId];
-    const q = document.mesh.vertices[e.a === gate.vertexId ? e.b : e.a].point;
-    const angle = (-Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
     const width = wall.style.widthMeters;
-    const opening = Math.max(9, width * 1.6);
+    let roadWidth = defaultRoadWidthMeters(document.frame.extentMeters);
+    for (const group of document.featureGroups) {
+      if (group.kind === "road" && featureGroupVertices(document, group).includes(gate.vertexId))
+        roadWidth = Math.max(roadWidth, group.style.widthMeters);
+    }
+    // Square flank towers match the round curtain towers (diameter = 1.6 × wall).
+    // The opening clears the road. A semicircular plaza sits on both sides of the gate.
+    const side = width * GATE_TOWER_SCALE;
+    const deviation = gateRoadDeviationDegrees(document, gate.vertexId) ?? 0;
+    const slant = Math.tan((Math.min(deviation, 20) * Math.PI) / 180);
+    const opening = Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
+    const plazaRadius = gatePlazaRadiusMeters(width);
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
       layer: "gates",
@@ -607,30 +619,43 @@ function renderTownFortifications(
       label: `gate #${gate.id}`,
       vertexId: gate.vertexId,
       wallId: wall.id,
-      point: p
+      point: frame.point
     };
+    const [tx, ty] = frame.tangent;
+    const [ix, iy] = frame.inward;
     const marker = element("g", {
       class: `ce-town-gate${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-      transform: `translate(${p[0]} ${-p[1]}) rotate(${angle})`,
+      transform: `matrix(${tx} ${-ty} ${ix} ${-iy} ${frame.point[0]} ${-frame.point[1]})`,
       "data-pick": encodeURIComponent(JSON.stringify(gatePickInfo))
     });
     if (tool === "select") marker.style.cursor = "pointer";
+    for (const sweep of [1, 0])
+      marker.appendChild(
+        element("path", {
+          d: `M ${-plazaRadius} 0 A ${plazaRadius} ${plazaRadius} 0 0 ${sweep} ${plazaRadius} 0 Z`,
+          class: "ce-gate-plaza",
+          fill: "#d5cfbf",
+          "pointer-events": "none"
+        })
+      );
     marker.appendChild(
       element("rect", {
         x: String(-opening / 2),
-        y: String(-width),
+        y: String(-side / 2),
         width: String(opening),
-        height: String(width * 2),
-        fill: "#d5cfbf"
+        height: String(side),
+        fill: "#d5cfbf",
+        "pointer-events": "none"
       })
     );
     for (const sign of [-1, 1])
       marker.appendChild(
         element("rect", {
-          x: String((sign * opening) / 2 - width / 2),
-          y: String(-width),
-          width: String(width),
-          height: String(width * 2),
+          x: String(sign < 0 ? -opening / 2 - side : opening / 2),
+          y: String(-side / 2),
+          width: String(side),
+          height: String(side),
+          class: "ce-gate-tower",
           fill: "#292a26"
         })
       );

@@ -7,6 +7,7 @@ export { insetConvexKernel } from "./lotGeometry";
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
 import { orientedRectPolylineDistance, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
+import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { civicYardMeters } from "./housing";
 import { makeRng } from "./prng";
@@ -58,7 +59,10 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   }
   const lots: BuildingLot[] = [];
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
-  return lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon));
+  return relieveGatePlazaBuildings(
+    document,
+    lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
+  );
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {

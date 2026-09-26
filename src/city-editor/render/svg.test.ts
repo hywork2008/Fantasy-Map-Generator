@@ -244,6 +244,71 @@ describe("faceClassName / renderFaceWardLandmark", () => {
   });
 });
 
+describe("town gatehouse", () => {
+  it("draws square flank towers and a semicircular plaza on both sides of the gate", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      appearance: "town",
+      frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+      mesh: {
+        vertices: {
+          w1: { id: "w1", point: [-40, 0], locked: false },
+          g: { id: "g", point: [0, 0], locked: false },
+          w2: { id: "w2", point: [40, 0], locked: false }
+        },
+        edges: {
+          wallA: { id: "wallA", a: "w1", b: "g", leftFace: null, rightFace: null, locked: false },
+          wallB: { id: "wallB", a: "g", b: "w2", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "wall-1",
+          kind: "wall",
+          name: "Wall",
+          segments: [
+            { edgeId: "wallA", forward: true },
+            { edgeId: "wallB", forward: true }
+          ],
+          style: { widthMeters: 10, color: "#342a22" },
+          locked: false
+        }
+      ],
+      gates: [{ id: "gate-1", vertexId: "g", locked: false }],
+      elements: [{ id: "plaza", kind: "plaza", faceIds: [], point: [0, 50], locked: false }]
+    };
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-100 -100 200 200",
+      1
+    );
+    const towers = [...svg.querySelectorAll(".ce-gate-tower")];
+    expect(towers).toHaveLength(2);
+    for (const tower of towers) {
+      expect(tower.getAttribute("width")).toBe(tower.getAttribute("height"));
+      expect(Number(tower.getAttribute("width"))).toBeCloseTo(16);
+    }
+    const plazas = [...svg.querySelectorAll(".ce-gate-plaza")].map(plaza => plaza.getAttribute("d"));
+    expect(plazas).toHaveLength(2);
+    expect(plazas.some(d => d?.includes(" 0 0 1 "))).toBe(true);
+    expect(plazas.some(d => d?.includes(" 0 0 0 "))).toBe(true);
+    const transform = svg.querySelector(".ce-town-gate")?.getAttribute("transform") ?? "";
+    // Local +Y is townward. With the curtain along +X and the town at +Y, the
+    // screen matrix sends local +Y to math +Y (screen −Y).
+    expect(transform.startsWith("matrix(")).toBe(true);
+    const parts = transform
+      .slice("matrix(".length, -1)
+      .split(/[\s,]+/)
+      .map(Number);
+    expect(parts[2]).toBeCloseTo(0);
+    expect(parts[3]).toBeCloseTo(-1);
+  });
+});
+
 describe("face selection labels", () => {
   it("keeps labels at the small-map display size when an imported map has a larger extent", () => {
     expect(selectionLabelFontSize(1200, 1)).toBe(14);

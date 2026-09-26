@@ -2,7 +2,7 @@
 // No TownGeneratorTS / GPL source is used.
 import { featureGroupVertices } from "../features";
 import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
-import { straightenBridges } from "../passages";
+import { straightenBridges, straightenGateCrossings } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
 import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 
@@ -149,14 +149,18 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       }
     }
   }
-  for (const face of Object.values(mesh.faces)) {
-    if (!face.properties.locked) face.site = polygonCentroid(facePoints(mesh, face));
+  // Smoothing rounds the curtain and leaves short street stubs oblique to it.
+  // Slide the gate along the wall before sites are taken from the faces.
+  const aligned = straightenGateCrossings(next);
+  const alignedMesh = aligned.mesh;
+  for (const face of Object.values(alignedMesh.faces)) {
+    if (!face.properties.locked) face.site = polygonCentroid(facePoints(alignedMesh, face));
   }
-  for (const element of next.elements) {
+  for (const element of aligned.elements) {
     if (!element.id.startsWith("gc:") || element.locked || !element.faceIds.length) continue;
     if (element.kind === "temple") continue;
-    const face = mesh.faces[element.faceIds[0]];
-    if (face) element.point = polygonCentroid(facePoints(mesh, face));
+    const face = alignedMesh.faces[element.faceIds[0]];
+    if (face) element.point = polygonCentroid(facePoints(alignedMesh, face));
   }
-  return straightenBridges(next);
+  return straightenBridges(aligned);
 }
