@@ -37,6 +37,7 @@ const rotate = (v: Point, angle: number): Point => [
 ];
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
 const pointKey = (p: Point) => `${Math.round(p[0] * 1e6)},${Math.round(p[1] * 1e6)}`;
+export const ORGANIC_LANE_FACADE_CLEARANCE = 0.0;
 
 /** Organic streets are a subdivision of connected public space, not rows of
  * rectangles. First join the district perimeter around the hub; then split
@@ -155,7 +156,7 @@ export function buildOrganicBlocks(
       const b = poly[(i + 1) % poly.length];
       const matches = overlappingBoundaries(a, b, perimeter);
       return {
-        setback: Math.max(width / 2 + 0.35, ...matches.map(edge => edge.setback)),
+        setback: Math.max(width / 2 + ORGANIC_LANE_FACADE_CLEARANCE, ...matches.map(edge => edge.setback)),
         primary: matches.some(edge => edge.feature && !edge.barrier)
       };
     });
@@ -206,7 +207,10 @@ export function buildOrganicBlocks(
             // Corner mitres can leave less room than the nominal inset on
             // one side. Keep the facade clear of every generated lane.
             p.every(point =>
-              roads.every(lane => nearestOnPolyline(point, lane.points).dist >= lane.widthMeters / 2 + 0.05)
+              roads.every(
+                lane =>
+                  nearestOnPolyline(point, lane.points).dist >= lane.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
+              )
             )
         )
         .map(polygon => ({
@@ -478,7 +482,9 @@ function corridorDomains(
         b: ring[(i + 1) % ring.length],
         feature: edge.original?.feature ?? false,
         barrier: edge.original?.barrier ?? false,
-        setback: edge.original?.barrier ? width / 2 + 0.35 : (edge.original?.setback ?? width / 2 + 0.35)
+        setback: edge.original?.barrier
+          ? width / 2 + ORGANIC_LANE_FACADE_CLEARANCE
+          : (edge.original?.setback ?? width / 2 + ORGANIC_LANE_FACADE_CLEARANCE)
       }))
     }
   ];

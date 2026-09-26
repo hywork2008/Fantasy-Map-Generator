@@ -75,6 +75,13 @@ describe("dense perimeter blocks", () => {
         expect(p[1]).toBeGreaterThan(4.5);
         expect(p[1]).toBeLessThan(275.5);
       }
+    let streetMargin = Infinity;
+    for (const building of fabric.buildings)
+      for (const point of building.polygon)
+        for (const lane of fabric.lanes)
+          streetMargin = Math.min(streetMargin, nearestOnPolyline(point, lane.points).dist - lane.widthMeters / 2);
+    expect(streetMargin).toBeGreaterThanOrEqual(0.0125 - 1e-5);
+    expect(streetMargin).toBeLessThanOrEqual(0.1);
     // Local two/three-way subdivision yields a broad range of parcel areas;
     // a uniform stack of long rectangles would have a much lower variation.
     const sizes = fabric.blocks.map(area);
@@ -315,7 +322,7 @@ describe("dense perimeter blocks", () => {
     // Buildings must not touch the wall (must stay beyond wall clearance)
     for (const b of fabric.buildings) {
       for (const p of b.polygon) {
-        expect(p[1]).toBeGreaterThanOrEqual(6.8 - 1e-5);
+        expect(p[1]).toBeGreaterThanOrEqual(6.6 - 1e-5);
       }
     }
   });

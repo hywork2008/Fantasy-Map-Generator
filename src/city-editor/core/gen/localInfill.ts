@@ -8,6 +8,7 @@ import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from 
 import { dwellingLotArea } from "./housing";
 import { insetConvexKernel } from "./lotGeometry";
 import type { OrganicBlockContext } from "./organicBlocks";
+import { ORGANIC_LANE_FACADE_CLEARANCE } from "./organicBlocks";
 import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
 import type { CityLayout } from "./site/siteConfig";
@@ -426,7 +427,11 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   const isClassic = ctx.options?.layout === "classic";
   const key = ctx.options
     ? JSON.stringify([
-        isClassic ? "district-infill-classic-v3" : outskirts ? "outskirts-face-v3" : "district-organic-network-v1",
+        isClassic
+          ? "district-infill-classic-v3"
+          : outskirts
+            ? "outskirts-face-v3"
+            : ["district-organic-network-v2", ORGANIC_LANE_FACADE_CLEARANCE],
         ctx.options.seed,
         id,
         face.properties,
