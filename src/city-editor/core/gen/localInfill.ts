@@ -7,6 +7,7 @@ import { districtBoundary } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea } from "./housing";
 import { insetConvexKernel } from "./lotGeometry";
+import type { OrganicBlockContext } from "./organicBlocks";
 import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
 import type { CityLayout } from "./site/siteConfig";
@@ -139,6 +140,17 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     barriers = new Set<Id>();
   const clearance = new Map<Id, number>();
   const rivers: { points: Point[]; width: number }[] = [];
+  const organicContext: OrganicBlockContext = {
+    hub: options?.hub ?? document.elements.find(e => e.kind === "plaza")?.point ?? [0, 0],
+    walls: document.featureGroups.flatMap(g =>
+      g.kind === "wall"
+        ? g.segments.flatMap(ref => {
+            const edge = mesh.edges[ref.edgeId];
+            return edge ? [[mesh.vertices[edge.a].point, mesh.vertices[edge.b].point] as [Point, Point]] : [];
+          })
+        : []
+    )
+  };
   for (const group of document.featureGroups) {
     const ids =
       group.kind === "river"
@@ -205,13 +217,30 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
   )) {
     if (
       options?.layout !== "classic" &&
-      paintOutskirtsUnion(document, ids, fabric, { document, roads, barriers, clearance, rivers, options })
+      paintOutskirtsUnion(document, ids, fabric, {
+        document,
+        roads,
+        barriers,
+        clearance,
+        rivers,
+        options,
+        organicContext
+      })
     )
       for (const id of ids) grouped.add(id);
   }
   for (const id of queue) {
     if (grouped.has(id)) continue;
-    paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options });
+    paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options, organicContext });
+  }
+  // Reserved squares need their public perimeter even when they are excluded
+  // from the buildable-face reachability queue.
+  if (options?.layout === "organic") {
+    const plazas = new Set(document.elements.filter(e => e.kind === "plaza").flatMap(e => e.faceIds));
+    for (const id of plazas) {
+      if (reached.has(id) || !mesh.faces[id] || mesh.faces[id].properties.water !== "land") continue;
+      paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options, organicContext });
+    }
   }
   fabric.buildings = fabric.buildings.filter(b => !buildingHitsCivicLandmark(document, b.polygon));
   fabric.lanes = fabric.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
@@ -283,6 +312,7 @@ interface PaintContext {
   clearance: Map<Id, number>;
   rivers: { points: Point[]; width: number }[];
   options?: InfillOptions;
+  organicContext: OrganicBlockContext;
 }
 
 function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabric, ctx: PaintContext): boolean {
@@ -366,6 +396,27 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   const entries = fabric.entrances.get(id) ?? [];
   const reserved = document.elements.some(e => ["plaza", "temple"].includes(e.kind) && e.faceIds.includes(id));
   const outskirts = face.properties.settlement === "outskirts";
+  const boundaries = face.boundary.map((ref, i) => {
+    const edge = mesh.edges[ref.edgeId];
+    const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+    const plazaFront =
+      ctx.options?.layout === "organic" &&
+      !!other &&
+      document.elements.some(e => e.kind === "plaza" && e.faceIds.includes(other.id));
+    return {
+      a: polygon[i],
+      b: polygon[(i + 1) % polygon.length],
+      setback: Math.max(
+        (parameters?.laneWidth ?? 3) / 2 + 0.35,
+        ctx.clearance.get(ref.edgeId) ?? 0,
+        other && other.properties.water !== "land" ? 6 : 0
+      ),
+      // The square emits its own perimeter once. Adjacent houses still treat
+      // it as public frontage, and internal seams of multi-face squares vanish.
+      feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId) || plazaFront,
+      barrier: ctx.barriers.has(ref.edgeId) || (!!other && other.properties.water !== "land")
+    };
+  });
   const dependencies = face.boundary.map(ref => {
     const edge = mesh.edges[ref.edgeId];
     const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
@@ -375,7 +426,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   const isClassic = ctx.options?.layout === "classic";
   const key = ctx.options
     ? JSON.stringify([
-        isClassic ? "district-infill-classic-v3" : outskirts ? "outskirts-face-v3" : "district-voronoi-perimeter-v3",
+        isClassic ? "district-infill-classic-v3" : outskirts ? "outskirts-face-v3" : "district-organic-network-v1",
         ctx.options.seed,
         id,
         face.properties,
@@ -383,14 +434,32 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
         entries,
         parameters,
         dependencies,
+        boundaries,
         nearbyRivers,
-        reserved
+        reserved,
+        !isClassic && !outskirts ? ctx.organicContext : null
       ])
     : "";
   if (reserved) {
-    if (key) ctx.options?.cache.set(key, { buildings: [], lanes: [], entrances: new Map() });
+    const plaza = document.elements.some(e => e.kind === "plaza" && e.faceIds.includes(id));
+    const perimeter =
+      plaza && !isClassic && !isCirculade
+        ? buildPerimeterBlocks(
+            face,
+            polygon,
+            boundaries,
+            parameters,
+            ctx.options?.seed ?? "plaza-infill",
+            false,
+            false,
+            ctx.organicContext
+          )
+        : { buildings: [], lanes: [], entrances: new Map() };
+    if (key) ctx.options?.cache.set(key, perimeter);
+    fabric.lanes.push(...perimeter.lanes);
     return;
   }
+
   const cached = ctx.options?.cache.get(key);
   if (cached) {
     fabric.buildings.push(...cached.buildings);
@@ -403,21 +472,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
         ? buildCirculadeBlocks(
             face,
             polygon,
-            face.boundary.map((ref, i) => {
-              const edge = mesh.edges[ref.edgeId];
-              const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
-              return {
-                a: polygon[i],
-                b: polygon[(i + 1) % polygon.length],
-                setback: Math.max(
-                  (parameters?.laneWidth ?? 3) / 2 + 0.35,
-                  ctx.clearance.get(ref.edgeId) ?? 0,
-                  other && other.properties.water !== "land" ? 6 : 0
-                ),
-                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId),
-                barrier: ctx.barriers.has(ref.edgeId) || (!!other && other.properties.water !== "land")
-              };
-            }),
+            boundaries,
             parameters,
             ctx.options?.seed ?? "circulade-infill",
             buildableFace(face) && !reserved,
@@ -426,25 +481,12 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
         : buildPerimeterBlocks(
             face,
             polygon,
-            face.boundary.map((ref, i) => {
-              const edge = mesh.edges[ref.edgeId];
-              const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
-              return {
-                a: polygon[i],
-                b: polygon[(i + 1) % polygon.length],
-                setback: Math.max(
-                  (parameters?.laneWidth ?? 3) / 2 + 0.35,
-                  ctx.clearance.get(ref.edgeId) ?? 0,
-                  other && other.properties.water !== "land" ? 6 : 0
-                ),
-                feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId),
-                barrier: ctx.barriers.has(ref.edgeId) || (!!other && other.properties.water !== "land")
-              };
-            }),
+            boundaries,
             parameters,
             ctx.options?.seed ?? "block-infill",
             buildableFace(face) && !reserved,
-            isClassic
+            isClassic,
+            ctx.organicContext
           )
       : { buildings: [], lanes: [], entrances: new Map() };
   if (!isClassic && (outskirts || face.properties.ward === "castle"))

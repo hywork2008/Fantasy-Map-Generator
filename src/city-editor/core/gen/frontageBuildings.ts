@@ -22,6 +22,8 @@ export interface FrontageOptions {
   attached?: boolean;
   /** Main-road fronts are occupied before secondary lanes. */
   primaryEdges?: number[];
+  /** Organic streets and houses use the same dwelling-depth scale. */
+  rowDepth?: number;
 }
 
 type Front = { a: Point; axis: Point; inward: Point; length: number; offset: number; primary: boolean };
@@ -304,7 +306,7 @@ function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions
       low = depth;
     else high = depth;
   }
-  rowDepth = high;
+  rowDepth = options.rowDepth === undefined ? high : Math.min(high, options.rowDepth);
   const ordered = fronts.slice().sort((a, b) => {
     if (a.primary !== b.primary) return a.primary ? -1 : 1;
     return b.length - a.length;
@@ -325,7 +327,9 @@ function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions
   // 街区が背中合わせ型（back-to-back: 2d）か中庭型（courtyard block: 2d + c）かの判定:
   // - 街区厚み span が 32m 以下かつ coverage >= 0.82 の細長い街区は背中合わせ型
   // - 街区厚み span が 32m 超（中庭型街区）または coverage < 0.82 の街区は、中央に中庭（空地）を残す
-  const backToBack = Boolean(opposite && span <= 32 && (options.coverage ?? 0.9) >= 0.82);
+  const backToBack = Boolean(
+    opposite && span <= (options.rowDepth === undefined ? 32 : options.rowDepth * 2 + 3) && options.coverage >= 0.82
+  );
 
   let unassigned = block;
   for (const front of ordered) {

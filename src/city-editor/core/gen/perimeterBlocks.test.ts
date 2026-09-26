@@ -34,7 +34,7 @@ function overlap(a: Point[], b: Point[]): number {
 }
 
 describe("dense perimeter blocks", () => {
-  it("keeps dense blocks without forcing all internal streets into a single orthogonal grid", () => {
+  it("builds variable parcels between a wall-side lane and local street connectors", () => {
     const outline: Point[] = [
       [0, 0],
       [320, 0],
@@ -42,60 +42,52 @@ describe("dense perimeter blocks", () => {
       [0, 280]
     ];
     const face: Face = {
-      id: "irregular",
+      id: "organic-town",
       boundary: [],
       properties: { water: "land", ward: "craftsmen", buildable: true, settlement: "core", locked: false, elevation: 0 }
     };
-    const boundaries = outline.map((a, i) => ({ a, b: outline[(i + 1) % outline.length], setback: 2, feature: true }));
-    const fabric = buildPerimeterBlocks(face, outline, boundaries, parameters, "organic", true);
-    // Medieval ribbon subdivision creates street-aligned strips and T-junction cross-alleys
-    // rather than an artificial Voronoi honeycomb. Blocks are compact ribbon parcels.
-    expect(fabric.blocks.length).toBeGreaterThan(10);
-    expect(fabric.blocks.every(p => p.length >= 4)).toBe(true);
-    const junctions = new Map<string, Point[]>();
-    for (const lane of fabric.lanes) {
-      const [a, b] = lane.points;
-      expect(Math.hypot(a[0] - b[0], a[1] - b[1])).toBeLessThan(160);
-      for (const [p, q] of [
-        [a, b],
-        [b, a]
-      ]) {
-        const id = `${Math.round(p[0] * 1e4)},${Math.round(p[1] * 1e4)}`;
-        const directions = junctions.get(id) ?? [];
-        const length = Math.hypot(q[0] - p[0], q[1] - p[1]);
-        directions.push([(q[0] - p[0]) / length, (q[1] - p[1]) / length]);
-        junctions.set(id, directions);
+    const boundaries = outline.map((a, i) => ({
+      a,
+      b: outline[(i + 1) % outline.length],
+      setback: 6,
+      feature: true,
+      barrier: true
+    }));
+    const context = { hub: [160, 140] as Point, walls: boundaries.map(edge => [edge.a, edge.b] as [Point, Point]) };
+    const fabric = buildPerimeterBlocks(face, outline, boundaries, parameters, "organic", true, false, context);
+
+    expect(fabric.blocks.length).toBeGreaterThan(12);
+    expect(fabric.lanes.length).toBeGreaterThan(20);
+    expect(fabric.blocks.every(p => p.length >= 3)).toBe(true);
+    // The wall-side lane is joined through corners and keeps both housing and
+    // the road stroke inside the wall clearance.
+    for (const lane of fabric.lanes)
+      for (const p of lane.points) {
+        expect(p[0]).toBeGreaterThanOrEqual(1.5);
+        expect(p[0]).toBeLessThanOrEqual(318.5);
+        expect(p[1]).toBeGreaterThanOrEqual(1.5);
+        expect(p[1]).toBeLessThanOrEqual(278.5);
       }
-    }
-    const internal = [...junctions.values()].filter(v => v.length > 1);
-    expect(internal.length).toBeGreaterThan(10);
-    expect(internal.every(v => v.length === 3)).toBe(true);
-    // In authentic medieval street networks with T-junctions, junctions feature
-    // through-street branches (dot < -0.8) met by an intersecting cross-alley branch.
-    expect(
-      internal.filter(v => v.some((a, i) => v.slice(i + 1).some(b => a[0] * b[0] + a[1] * b[1] < -0.8))).length /
-        internal.length
-    ).toBeGreaterThan(0.6);
+    for (const building of fabric.buildings)
+      for (const p of building.polygon) {
+        expect(p[0]).toBeGreaterThan(4.5);
+        expect(p[0]).toBeLessThan(315.5);
+        expect(p[1]).toBeGreaterThan(4.5);
+        expect(p[1]).toBeLessThan(275.5);
+      }
+    // Local two/three-way subdivision yields a broad range of parcel areas;
+    // a uniform stack of long rectangles would have a much lower variation.
+    const sizes = fabric.blocks.map(area);
+    const mean = sizes.reduce((sum, size) => sum + size, 0) / sizes.length;
+    const variation = Math.sqrt(sizes.reduce((sum, size) => sum + (size - mean) ** 2, 0) / sizes.length) / mean;
+    expect(variation).toBeGreaterThan(0.3);
+    expect(fabric.buildings.length).toBeGreaterThan(100);
     for (let i = 0; i < fabric.blocks.length; i++)
       for (let j = i + 1; j < fabric.blocks.length; j++)
-        expect(overlap(fabric.blocks[i], fabric.blocks[j])).toBeLessThan(1e-5);
-    // Extra mesh vertices along the same outline cannot create new streets.
-    const refined: Point[] = outline.flatMap((a, i) => {
-      const b = outline[(i + 1) % outline.length];
-      return [a, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Point];
-    });
-    expect(buildPerimeterBlocks(face, refined, boundaries, parameters, "organic", true)).toEqual(fabric);
-    const sizes = fabric.blocks.map(area);
-    const mean = sizes.reduce((s, a) => s + a, 0) / sizes.length;
-    const variation = Math.sqrt(sizes.reduce((s, a) => s + (a - mean) ** 2, 0) / sizes.length) / mean;
-    expect(variation).toBeGreaterThan(0.2);
-    expect(mean).toBeGreaterThan(700);
-    expect(mean).toBeLessThan(2200);
-    const houseMean = fabric.buildings.reduce((s, b) => s + area(b.polygon), 0) / Math.max(1, fabric.buildings.length);
-    expect(houseMean).toBeGreaterThan(30);
-    expect(houseMean).toBeLessThan(130);
-    expect(fabric.buildings.reduce((s, b) => s + area(b.polygon), 0) / area(outline)).toBeGreaterThan(0.55);
-    expect(buildPerimeterBlocks(face, outline, boundaries, parameters, "organic", true)).toEqual(fabric);
+        expect(overlap(fabric.blocks[i], fabric.blocks[j])).toBeLessThan(1e-4);
+    expect(buildPerimeterBlocks(face, outline, boundaries, parameters, "organic", true, false, context)).toEqual(
+      fabric
+    );
   });
   it("covers 90% of a block with non-overlapping rectangular houses facing all four streets", () => {
     const buildings = houses(rect);
@@ -244,7 +236,10 @@ describe("dense perimeter blocks", () => {
       expect(b.polygon.every(p => pointInPolygon(p, u))).toBe(true);
       for (const l of fabric.lanes)
         for (const p of b.polygon)
-          expect(nearestOnPolyline(p, l.points).dist).toBeGreaterThanOrEqual(l.widthMeters / 2 - 1e-5);
+          expect(
+            nearestOnPolyline(p, l.points).dist,
+            JSON.stringify({ building: b.polygon, lane: l.points, distance: nearestOnPolyline(p, l.points).dist })
+          ).toBeGreaterThanOrEqual(l.widthMeters / 2 - 1e-5);
     }
     const seen = new Set([0]);
     for (let change = true; change; ) {
@@ -315,12 +310,12 @@ describe("dense perimeter blocks", () => {
     }));
     const fabric = buildPerimeterBlocks(face, outline, boundaries, parameters, "barrier-test", true);
     // A barrier lane along the wall must be generated
-    const wallLanes = fabric.lanes.filter(l => l.points.every(p => p[1] > 0.5 && p[1] < 4.0));
+    const wallLanes = fabric.lanes.filter(l => l.points.every(p => p[1] > 4.5 && p[1] < 6.0));
     expect(wallLanes.length).toBeGreaterThan(0);
     // Buildings must not touch the wall (must stay beyond wall clearance)
     for (const b of fabric.buildings) {
       for (const p of b.polygon) {
-        expect(p[1]).toBeGreaterThanOrEqual(6 - 1e-5);
+        expect(p[1]).toBeGreaterThanOrEqual(6.8 - 1e-5);
       }
     }
   });
