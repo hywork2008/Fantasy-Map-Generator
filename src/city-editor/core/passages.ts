@@ -550,96 +550,104 @@ export function straightenGateCrossings(document: CityDocument): CityDocument {
   return next;
 }
 
+/** Local river direction at a crossing, and the drawn channel width. */
+function riverCrossingFrame(document: CityDocument, midId: Id): { tangent: Point; width: number } | null {
+  const mid = document.mesh.vertices[midId]?.point;
+  if (!mid) return null;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "river") continue;
+    const index = group.vertices.indexOf(midId);
+    if (index < 0) continue;
+    let tx = 0;
+    let ty = 0;
+    const prev = index > 0 ? document.mesh.vertices[group.vertices[index - 1]]?.point : null;
+    const next = index + 1 < group.vertices.length ? document.mesh.vertices[group.vertices[index + 1]]?.point : null;
+    if (prev) {
+      const toward = unit(mid[0] - prev[0], mid[1] - prev[1]);
+      if (toward) {
+        tx += toward[0];
+        ty += toward[1];
+      }
+    }
+    if (next) {
+      const toward = unit(next[0] - mid[0], next[1] - mid[1]);
+      if (toward) {
+        tx += toward[0];
+        ty += toward[1];
+      }
+    }
+    const length = Math.hypot(tx, ty);
+    if (length < 1e-6) continue;
+    return { tangent: [tx / length, ty / length], width: Math.max(1, group.style.widthMeters) };
+  }
+  return null;
+}
+
+/** A bridge arm may slide. The river vertex, gates, and wall vertices stay put. */
+function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
+  const vertex = document.mesh.vertices[id];
+  if (!vertex || vertex.locked) return true;
+  if (document.gates.some(gate => gate.vertexId === id)) return true;
+  for (const group of document.featureGroups) {
+    if (group.kind === "river" && group.vertices.includes(id)) return true;
+    if (group.kind !== "wall") continue;
+    if (
+      group.segments.some(segment => {
+        const edge = document.mesh.edges[segment.edgeId];
+        return edge && (edge.a === id || edge.b === id);
+      })
+    )
+      return true;
+  }
+  return false;
+}
+
+function moveBridgeArm(document: CityDocument, id: Id, target: Point): CityDocument {
+  const current = document.mesh.vertices[id]?.point;
+  if (!current || Math.hypot(target[0] - current[0], target[1] - current[1]) < 0.4) return document;
+  const moved = tryMoveVertex(document, id, target);
+  if (moved === document) return document;
+  for (const face of incidentFaces(moved.mesh, id)) {
+    if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+  }
+  return moved;
+}
+
 /**
- * Straighten a river crossing (A -> M -> B) so it crosses perpendicular and straight,
- * resolving L-shaped and V-shaped bends.
+ * Slide the two road vertices beside a river crossing onto the river normal.
+ * The crossing vertex stays on the channel. Each arm keeps its across-river
+ * distance when that already clears the bank, and is pushed out to the bank
+ * when it was running along the channel, so the bridge is the short perpendicular.
  */
 export function straightenRiverCrossing(document: CityDocument, aId: Id, midId: Id, bId: Id): CityDocument {
+  const frame = riverCrossingFrame(document, midId);
+  const origin = document.mesh.vertices[midId]?.point;
+  const a = document.mesh.vertices[aId]?.point;
+  const b = document.mesh.vertices[bId]?.point;
+  if (!frame || !origin || !a || !b) return document;
+  const normal: Point = [-frame.tangent[1], frame.tangent[0]];
+  const across = (point: Point) => (point[0] - origin[0]) * normal[0] + (point[1] - origin[1]) * normal[1];
+  const signOf = (value: number) => (value > 0.05 ? 1 : value < -0.05 ? -1 : 0);
+  let signA = signOf(across(a));
+  let signB = signOf(across(b));
+  if (signA === 0 && signB === 0) {
+    signA = -1;
+    signB = 1;
+  } else if (signA === 0) signA = -signB;
+  else if (signB === 0) signB = -signA;
+  else if (signA === signB) {
+    if (Math.abs(across(a)) >= Math.abs(across(b))) signB = -signA;
+    else signA = -signB;
+  }
+  const half = frame.width / 2;
+  const targetFor = (point: Point, sign: number): Point => {
+    const offset = across(point);
+    const distance = Math.max(Math.abs(sign === signOf(offset) ? offset : 0), half);
+    return [origin[0] + normal[0] * sign * distance, origin[1] + normal[1] * sign * distance];
+  };
   let next = document;
-  let A = next.mesh.vertices[aId]?.point;
-  let M = next.mesh.vertices[midId]?.point;
-  let B = next.mesh.vertices[bId]?.point;
-  if (!A || !M || !B) return document;
-
-  // Find local river tangent & normal at M
-  const rivers = next.featureGroups.filter(g => g.kind === "river");
-  let riverTangent: Point | null = null;
-  for (const river of rivers) {
-    const idx = river.vertices.indexOf(midId);
-    if (idx !== -1) {
-      const prevId = river.vertices[Math.max(0, idx - 1)];
-      const nextId = river.vertices[Math.min(river.vertices.length - 1, idx + 1)];
-      const pPrev = next.mesh.vertices[prevId]?.point;
-      const pNext = next.mesh.vertices[nextId]?.point;
-      if (pPrev && pNext) {
-        const tx = pNext[0] - pPrev[0];
-        const ty = pNext[1] - pPrev[1];
-        const len = Math.hypot(tx, ty) || 1;
-        riverTangent = [tx / len, ty / len];
-        break;
-      }
-    }
-  }
-  if (!riverTangent) return document;
-
-  // Unit normal to river tangent pointing generally from A to B
-  let normal: Point = [-riverTangent[1], riverTangent[0]];
-  const ab = [B[0] - A[0], B[1] - A[1]];
-  if (normal[0] * ab[0] + normal[1] * ab[1] < 0) {
-    normal = [-normal[0], -normal[1]];
-  }
-
-  const vA = [M[0] - A[0], M[1] - A[1]];
-  const lenA = Math.hypot(vA[0], vA[1]);
-  const uA: Point = [vA[0] / lenA, vA[1] / lenA];
-
-  const vB = [B[0] - M[0], B[1] - M[1]];
-  const lenB = Math.hypot(vB[0], vB[1]);
-  const uB: Point = [vB[0] / lenB, vB[1] / lenB];
-
-  const vAB = [B[0] - A[0], B[1] - A[1]];
-  const lenAB = Math.hypot(vAB[0], vAB[1]) || 1;
-  const uAB: Point = [vAB[0] / lenAB, vAB[1] / lenAB];
-  const chordAlignment = uAB[0] * normal[0] + uAB[1] * normal[1];
-
-  const dotAB = uA[0] * uB[0] + uA[1] * uB[1];
-  const cA = uA[0] * normal[0] + uA[1] * normal[1];
-  const cB = uB[0] * normal[0] + uB[1] * normal[1];
-
-  // Step 1: L-shape alignment
-  // If the bridge bends significantly and one arm deviates along the river, straighten that arm
-  if (dotAB < 0.98) {
-    if (cA > cB + 0.15) {
-      // Arm A is well aligned to river normal; extend it to position B
-      const targetB: Point = [M[0] + uA[0] * lenB, M[1] + uA[1] * lenB];
-      next = tryMoveVertex(next, bId, targetB);
-    } else if (cB > cA + 0.15) {
-      // Arm B is well aligned; extend backwards to position A
-      const targetA: Point = [M[0] - uB[0] * lenA, M[1] - uB[1] * lenA];
-      next = tryMoveVertex(next, aId, targetA);
-    } else if (chordAlignment < 0.7) {
-      // Both arms and overall chord deviate from perpendicular; align both along river normal
-      next = tryMoveVertex(next, aId, [M[0] - normal[0] * lenA, M[1] - normal[1] * lenA]);
-      next = tryMoveVertex(next, bId, [M[0] + normal[0] * lenB, M[1] + normal[1] * lenB]);
-    }
-  }
-
-  // Step 2: V-shape projection of M onto the line A-B
-  A = next.mesh.vertices[aId]?.point;
-  M = next.mesh.vertices[midId]?.point;
-  B = next.mesh.vertices[bId]?.point;
-  if (A && M && B) {
-    const dirAB = [B[0] - A[0], B[1] - A[1]];
-    const lenABsq = dirAB[0] * dirAB[0] + dirAB[1] * dirAB[1];
-    if (lenABsq > 0) {
-      const t = ((M[0] - A[0]) * dirAB[0] + (M[1] - A[1]) * dirAB[1]) / lenABsq;
-      if (t > 0.05 && t < 0.95) {
-        const targetM: Point = [A[0] + t * dirAB[0], A[1] + t * dirAB[1]];
-        next = tryMoveVertex(next, midId, targetM);
-      }
-    }
-  }
-
+  if (!bridgeArmIsFixed(next, aId)) next = moveBridgeArm(next, aId, targetFor(a, signA));
+  if (!bridgeArmIsFixed(next, bId)) next = moveBridgeArm(next, bId, targetFor(b, signB));
   return next;
 }
 
@@ -668,8 +676,10 @@ export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocu
 }
 
 /**
- * Straighten all road crossings over rivers (both explicit bridge features and road segments crossing rivers)
- * so that they cross the river along the shortest perpendicular path, eliminating L-shapes and V-shapes.
+ * Square every road that bridges a river. The river vertex stays put. The road
+ * vertices on either side slide onto the river normal, which is the shortest
+ * crossing. Runs again after block rectification so a later merge cannot leave
+ * an oblique span.
  */
 export function straightenBridges(document: CityDocument): CityDocument {
   let next = document;

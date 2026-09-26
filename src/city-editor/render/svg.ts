@@ -1,3 +1,4 @@
+import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
@@ -79,7 +80,9 @@ export function renderEditorSvg(
   showBlockMesh = false,
   showGridLines = false,
   observer?: GenerationObserver,
-  hideBuildings = false
+  hideBuildings = false,
+  /** Stage ⑩. Drop roads inside the outer wall, and the lanes that divide blocks. */
+  hideStreetLines = false
 ): SVGSVGElement {
   const mark = generationTimer(observer);
   const town =
@@ -172,44 +175,48 @@ export function renderEditorSvg(
         );
       }
       svg.appendChild(farms);
-      const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
-      const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
-      for (const lane of fabric.lanes) {
-        lanes.appendChild(
-          element("path", {
-            d: line(lane.points),
-            class: "ce-infill-lane",
-            fill: "none",
-            stroke: "#d5cfbf",
-            "stroke-width": String(lane.widthMeters),
-            "stroke-linecap": "round",
-            "data-infill-face": lane.faceId
-          })
-        );
-        // Outside the core, expose the access network even where a house has
-        // not been placed. This is a thin trail centreline, not a building shadow.
-        // For classic and organic layouts, also expose the interior core lanes as trails.
-        // When buildings are hidden (e.g. stage 8 "Blocks and lanes"), expose lanes as trails as well.
-        if (
-          document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts" ||
-          document.layout === "classic" ||
-          document.layout === "organic" ||
-          hideBuildings
-        )
-          trails.appendChild(
+      // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
+      // the ground colour still reads as the gap between them.
+      if (!hideStreetLines) {
+        const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
+        const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
+        for (const lane of fabric.lanes) {
+          lanes.appendChild(
             element("path", {
               d: line(lane.points),
-              class: "ce-infill-trail",
+              class: "ce-infill-lane",
               fill: "none",
-              stroke: "#7b7567",
-              "stroke-width": "0.35",
+              stroke: "#d5cfbf",
+              "stroke-width": String(lane.widthMeters),
               "stroke-linecap": "round",
               "data-infill-face": lane.faceId
             })
           );
+          // Outside the core, expose the access network even where a house has
+          // not been placed. This is a thin trail centreline, not a building shadow.
+          // For classic and organic layouts, also expose the interior core lanes as trails.
+          // When buildings are hidden (e.g. stage 8 "Blocks and lanes"), expose lanes as trails as well.
+          if (
+            document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts" ||
+            document.layout === "classic" ||
+            document.layout === "organic" ||
+            hideBuildings
+          )
+            trails.appendChild(
+              element("path", {
+                d: line(lane.points),
+                class: "ce-infill-trail",
+                fill: "none",
+                stroke: "#7b7567",
+                "stroke-width": "0.35",
+                "stroke-linecap": "round",
+                "data-infill-face": lane.faceId
+              })
+            );
+        }
+        svg.appendChild(lanes);
+        svg.appendChild(trails);
       }
-      svg.appendChild(lanes);
-      svg.appendChild(trails);
     }
     mark("buildings", { buildings: lots.length });
     if (!hideBuildings) {
@@ -268,6 +275,8 @@ export function renderEditorSvg(
   const renderGroups = town
     ? [...document.featureGroups].sort((a, b) => order[a.kind] - order[b.kind])
     : document.featureGroups;
+  // One ring for the whole pass. Roads inside it are the centre-to-wall streets.
+  const concealWall = town && hideStreetLines ? outerWallRing(document) : null;
   for (const group of renderGroups) {
     const active = selection.groupId === group.id;
     const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
@@ -276,18 +285,7 @@ export function renderEditorSvg(
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
         : edgeGroupPoints(document, group.segments);
     if (points.length < 2) continue;
-    if (town && group.kind === "road") {
-      features.appendChild(
-        element("path", {
-          d: line(points),
-          class: "ce-road-casing",
-          fill: "none",
-          stroke: "#57534b",
-          "stroke-width": String(group.style.widthMeters + 1.4),
-          "pointer-events": "none"
-        })
-      );
-    }
+    const runs = concealWall && group.kind === "road" ? clipPolylineToExterior(points, concealWall) : [points];
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
@@ -299,23 +297,38 @@ export function renderEditorSvg(
       color: group.style.color,
       segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
     };
-    features.appendChild(
-      element("path", {
-        d: line(points),
-        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-        stroke: town
-          ? group.kind === "road"
-            ? "#d5cfbf"
-            : group.kind === "river"
-              ? "#85857d"
-              : "#292a26"
-          : group.style.color,
-        "stroke-width": String(group.style.widthMeters),
-        "data-group": group.id,
-        "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-        "pointer-events": "stroke"
-      })
-    );
+    for (const run of runs) {
+      if (run.length < 2) continue;
+      if (town && group.kind === "road") {
+        features.appendChild(
+          element("path", {
+            d: line(run),
+            class: "ce-road-casing",
+            fill: "none",
+            stroke: "#57534b",
+            "stroke-width": String(group.style.widthMeters + 1.4),
+            "pointer-events": "none"
+          })
+        );
+      }
+      features.appendChild(
+        element("path", {
+          d: line(run),
+          class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          stroke: town
+            ? group.kind === "road"
+              ? "#d5cfbf"
+              : group.kind === "river"
+                ? "#85857d"
+                : "#292a26"
+            : group.style.color,
+          "stroke-width": String(group.style.widthMeters),
+          "data-group": group.id,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+          "pointer-events": "stroke"
+        })
+      );
+    }
   }
   svg.appendChild(features);
   if (town) {

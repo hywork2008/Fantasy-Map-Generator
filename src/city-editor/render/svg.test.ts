@@ -76,6 +76,26 @@ describe("extramural trails", () => {
       expect(trail.getAttribute("data-infill-face")).toBe("f0");
       expect(Number(trail.getAttribute("stroke-width"))).toBeLessThan(1);
     }
+
+    const concealed = renderEditorSvg(
+      doc,
+      "select",
+      selection,
+      "0 0 120 120",
+      1,
+      false,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      undefined,
+      false,
+      true
+    );
+    expect(concealed.querySelectorAll(".ce-infill-lane")).toHaveLength(0);
+    expect(concealed.querySelectorAll(".ce-infill-trail")).toHaveLength(0);
   });
 });
 

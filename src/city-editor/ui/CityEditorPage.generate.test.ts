@@ -221,11 +221,11 @@ describe("Generate panel", () => {
     expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
   });
 
-  it("renders a 9-stage process slider, a seed field, and no map-size control", () => {
+  it("renders a 10-stage process slider, a seed field, and no map-size control", () => {
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
     expect(slider).toBeTruthy();
     expect(slider?.min).toBe("1");
-    expect(slider?.max).toBe("9");
+    expect(slider?.max).toBe("10");
     expect(slider?.value).toBe("9");
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑨ 住居・完成都市");
     expect(nPatchesInput().placeholder).toBe("auto");
@@ -664,11 +664,30 @@ describe("shareable link and FMG site", () => {
     expect(has(".ce-infill-trail")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(false);
 
-    // Stage 9: dwellings visible
+    // Stage 9: dwellings visible, roads and block lanes still drawn
     selectStage(9);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑨ 住居・完成都市");
     expect(has(".ce-infill-lane")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(true);
+    const roadsAt9 = count(".ce-feature--road");
+    const lanesAt9 = count(".ce-infill-lane");
+    expect(roadsAt9).toBeGreaterThan(0);
+
+    // Stage 10: same town, intramural roads and block-lane lines hidden
+    selectStage(10);
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑩ 道路・小道を隠す");
+    expect(count(".ce-infill-lane")).toBe(0);
+    expect(count(".ce-infill-trail")).toBe(0);
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-feature--wall")).toBe(true);
+    const roadsAt10 = count(".ce-feature--road");
+    expect(roadsAt10).toBeGreaterThan(0);
+    expect(roadsAt10).toBeLessThan(roadsAt9);
+
+    // Back to stage 9 restores the roads and lanes
+    selectStage(9);
+    expect(count(".ce-infill-lane")).toBe(lanesAt9);
+    expect(count(".ce-feature--road")).toBe(roadsAt9);
 
     // Back to stage 4, then press "新しい都市"
     selectStage(4);

@@ -328,13 +328,74 @@ describe("openBarrierPassage", () => {
       };
 
       const straightened = straightenBridge(document, "gc:bridge-1");
+      const ptM = straightened.mesh.vertices.m.point;
+      const ptA = straightened.mesh.vertices.a.point;
       const ptB = straightened.mesh.vertices.b.point;
-      // b should be straightened to the east along the vector from a -> m (y ≈ 0, x > 0)
-      expect(ptB[0]).toBeGreaterThan(10);
+      // The river vertex stays on the channel. Both arms lie on its normal,
+      // and the along-river arm is pulled in to the short perpendicular.
+      expect(ptM).toEqual([0, 0]);
+      expect(ptA[0]).toBeCloseTo(-15);
+      expect(Math.abs(ptA[1])).toBeLessThan(0.1);
+      expect(ptB[0]).toBeCloseTo(5);
       expect(Math.abs(ptB[1])).toBeLessThan(0.1);
     });
 
-    it("straightens a V-shaped river bridge by projecting the junction onto the line connecting endpoints", () => {
+    it("pulls an arm that runs along the river out to the bank, on the perpendicular", () => {
+      const document: CityDocument = {
+        format: "fmg-city-editor",
+        version: 1,
+        frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+        mesh: {
+          vertices: {
+            s: { id: "s", point: [0, -20], locked: false },
+            m: { id: "m", point: [0, 0], locked: false },
+            n: { id: "n", point: [0, 20], locked: false },
+            a: { id: "a", point: [-15, 0], locked: false },
+            b: { id: "b", point: [0.5, 18], locked: false }
+          },
+          edges: {
+            r1: { id: "r1", a: "s", b: "m", leftFace: null, rightFace: null, locked: false },
+            r2: { id: "r2", a: "m", b: "n", leftFace: null, rightFace: null, locked: false },
+            b1: { id: "b1", a: "a", b: "m", leftFace: null, rightFace: null, locked: false },
+            b2: { id: "b2", a: "m", b: "b", leftFace: null, rightFace: null, locked: false }
+          },
+          faces: {}
+        },
+        featureGroups: [
+          {
+            id: "gc:river-1",
+            kind: "river",
+            name: "River",
+            locked: false,
+            style: { widthMeters: 8, color: "blue" },
+            vertices: ["s", "m", "n"],
+            source: null,
+            mouth: null
+          },
+          {
+            id: "gc:bridge-1",
+            kind: "road",
+            name: "Bridge",
+            locked: false,
+            style: { widthMeters: 4, color: "#735238" },
+            segments: [
+              { edgeId: "b1", forward: true },
+              { edgeId: "b2", forward: true }
+            ]
+          }
+        ],
+        gates: [],
+        elements: []
+      };
+      const straightened = straightenBridge(document, "gc:bridge-1");
+      const ptB = straightened.mesh.vertices.b.point;
+      expect(straightened.mesh.vertices.m.point).toEqual([0, 0]);
+      expect(ptB[0]).toBeCloseTo(4);
+      expect(Math.abs(ptB[1])).toBeLessThan(0.1);
+      expect(Math.hypot(ptB[0], ptB[1])).toBeLessThan(Math.hypot(0.5, 18));
+    });
+
+    it("squares a V-shaped river bridge by sliding the road arms, leaving the channel bend in place", () => {
       // River runs south-to-north: (0, -20) -> (3, 0) -> (0, 20) with a slight bend at m (3, 0)
       // Endpoints A (-15, 0) and B (15, 0)
       // Crossing vertex m is at (3, 3), forming a V-shape
@@ -387,8 +448,16 @@ describe("openBarrierPassage", () => {
 
       const straightened = straightenBridges(document);
       const ptM = straightened.mesh.vertices.m.point;
-      // m should be projected onto the line from a (-15, 0) to b (15, 0), so y ≈ 0
-      expect(Math.abs(ptM[1])).toBeLessThan(0.1);
+      const ptA = straightened.mesh.vertices.a.point;
+      const ptB = straightened.mesh.vertices.b.point;
+      // The bend in the river stays. The road vertices slide onto the normal
+      // through that bend instead of dragging the channel onto the road.
+      expect(ptM[0]).toBeCloseTo(2);
+      expect(ptM[1]).toBeCloseTo(6);
+      expect(ptA[0]).toBeLessThan(ptM[0]);
+      expect(ptB[0]).toBeGreaterThan(ptM[0]);
+      expect(Math.abs(ptA[1] - ptM[1])).toBeLessThan(1);
+      expect(Math.abs(ptB[1] - ptM[1])).toBeLessThan(1);
     });
 
     it("straightens the L-shaped bridge in reference file ce-20260916-142259.json", async () => {

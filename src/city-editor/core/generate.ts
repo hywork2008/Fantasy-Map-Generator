@@ -144,8 +144,8 @@ const NOMINAL_PRESET = "largeTown" as const;
 /** One runnable process, in order. `step` is the S-index it recomputes up to;
  * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
 export interface GenerationStage {
-  id: "coast" | "river" | "urban" | "walls" | "streets" | "wards" | "geometry" | "blocks" | "buildings";
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  id: "coast" | "river" | "urban" | "walls" | "streets" | "wards" | "geometry" | "blocks" | "buildings" | "conceal";
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   label: string;
   hint: string;
 }
@@ -179,6 +179,12 @@ export const GENERATION_STAGES: GenerationStage[] = [
     step: 9,
     label: "⑨ 住居・完成都市",
     hint: "Place residential and civic buildings"
+  },
+  {
+    id: "conceal",
+    step: 10,
+    label: "⑩ 道路・小道を隠す",
+    hint: "Hide roads between the centre and the outer wall, and the lanes that divide blocks"
   }
 ];
 
@@ -601,7 +607,11 @@ export function generateCityAttempt(
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
   mark("finish-geometry");
   console.log("Phase finishCityGeometry crossing issues:", explainGeneratedCrossingFailures(finished));
-  const shaped = hexagonal || coarse ? finished : rectifyVoronoiBlocks(finished, seed, rectified);
+  // Square each bridge immediately after smoothing, before block rectification
+  // pins the road vertices. The crossing stays on the river; its two road
+  // neighbours slide onto the normal so the span is the short perpendicular.
+  const squared = straightenBridges(finished);
+  const shaped = hexagonal || coarse ? squared : rectifyVoronoiBlocks(squared, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenGateCrossings(straightenBridges(shaped));
   console.log("Phase straightenBridges crossing issues:", explainGeneratedCrossingFailures(settled));

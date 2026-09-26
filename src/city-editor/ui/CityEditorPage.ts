@@ -228,6 +228,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let generateSeed = randomSeed();
   let gridSeed = randomSeed();
   let hideBuildings = false;
+  /** Stage ⑩. Same document as ⑨; the town drawing omits intramural roads and block lanes. */
+  let hideStreetLines = false;
   let currentStageStep = 9;
   let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
@@ -892,7 +894,7 @@ export function mountCityEditor(root: HTMLElement): void {
     housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑨までの全工程を順番に確認できます。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
+      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑩までの全工程を順番に確認できます。⑩では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
     stageContainer,
     divider(),
@@ -1884,7 +1886,8 @@ export function mountCityEditor(root: HTMLElement): void {
       showBlockMesh,
       showGridLines,
       sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample })),
-      hideBuildings
+      hideBuildings,
+      hideStreetLines
     );
     map.replaceChildren(svg);
     let coreBuildings = 0,
@@ -3225,6 +3228,7 @@ export function mountCityEditor(root: HTMLElement): void {
     tool = "select";
     showBlockMesh = false;
     hideBuildings = false;
+    hideStreetLines = false;
     syncStageUi(9);
     rebuildEditorIndexes();
     showNotice("都市を生成しました — 城壁・街路・建物");
@@ -3241,24 +3245,14 @@ export function mountCityEditor(root: HTMLElement): void {
 
     let next: CityDocument | null = null;
     try {
-      if (
-        stage.step === 9 &&
-        completeResult &&
-        (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
-      ) {
-        next = clone(completeResult);
-      } else if (
-        stage.step === 8 &&
-        completeResult &&
-        (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
-      ) {
-        next = clone(completeResult);
-      } else if (
-        stage.step === 7 &&
-        completeResult &&
-        (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
-      ) {
-        const s7 = clone(completeResult);
+      const finished =
+        completeResult && (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
+          ? completeResult
+          : null;
+      if (finished && (stage.step === 8 || stage.step === 9 || stage.step === 10)) {
+        next = clone(finished);
+      } else if (finished && stage.step === 7) {
+        const s7 = clone(finished);
         delete s7.appearance;
         delete s7.fabric;
         next = s7;
@@ -3272,7 +3266,7 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice(`Generation failed at ${stage.label}`);
       return;
     }
-    if (stage.step === 9 && !completeResult) {
+    if ((stage.step === 9 || stage.step === 10) && !completeResult) {
       completeResult = next;
     }
     lastGeneratedStep = stage.step;
@@ -3288,6 +3282,7 @@ export function mountCityEditor(root: HTMLElement): void {
     urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
     stepOverlayPaths = null;
     hideBuildings = stage.step === 8;
+    hideStreetLines = stage.step === 10;
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
@@ -3508,6 +3503,10 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
   buildings: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 9);
     return { document: d, total: 1, index: 0, detail: "住居配置完了" };
+  },
+  conceal: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 10);
+    return { document: d, total: 1, index: 0, detail: "道路・小道を非表示" };
   }
 };
 
