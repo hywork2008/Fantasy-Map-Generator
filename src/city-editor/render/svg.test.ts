@@ -68,6 +68,14 @@ describe("extramural trails", () => {
       expect(trail.getAttribute("data-infill-face")).toBe("f0");
       expect(Number(trail.getAttribute("stroke-width"))).toBeLessThan(1);
     }
+
+    doc.layout = "organic";
+    const organicCore = renderEditorSvg(doc, "select", selection, "0 0 120 120", 1);
+    expect(organicCore.querySelectorAll(".ce-infill-trail").length).toBeGreaterThan(0);
+    for (const trail of organicCore.querySelectorAll(".ce-infill-trail")) {
+      expect(trail.getAttribute("data-infill-face")).toBe("f0");
+      expect(Number(trail.getAttribute("stroke-width"))).toBeLessThan(1);
+    }
   });
 });
 

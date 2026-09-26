@@ -292,4 +292,235 @@ describe("dense perimeter blocks", () => {
     expect(fabric.buildings.length).toBeGreaterThan(5);
     for (const b of fabric.buildings) for (const p of b.polygon) expect(p[0]).toBeGreaterThanOrEqual(14 - 1e-5);
   });
+
+  it("creates barrier lanes along walls and rivers and keeps clearance for buildings", () => {
+    const outline: Point[] = [
+      [0, 0],
+      [120, 0],
+      [120, 100],
+      [0, 100]
+    ];
+    const face: Face = {
+      id: "wall-face",
+      boundary: [],
+      properties: { water: "land", ward: "craftsmen", buildable: true, settlement: "core", locked: false, elevation: 0 }
+    };
+    // Edge 0 (y=0) is a wall barrier
+    const boundaries = outline.map((a, i) => ({
+      a,
+      b: outline[(i + 1) % outline.length],
+      setback: i === 0 ? 6 : 2,
+      feature: i === 0,
+      barrier: i === 0
+    }));
+    const fabric = buildPerimeterBlocks(face, outline, boundaries, parameters, "barrier-test", true);
+    // A barrier lane along the wall must be generated
+    const wallLanes = fabric.lanes.filter(l => l.points.every(p => p[1] > 0.5 && p[1] < 4.0));
+    expect(wallLanes.length).toBeGreaterThan(0);
+    // Buildings must not touch the wall (must stay beyond wall clearance)
+    for (const b of fabric.buildings) {
+      for (const p of b.polygon) {
+        expect(p[1]).toBeGreaterThanOrEqual(6 - 1e-5);
+      }
+    }
+  });
+
+  it("only produces rectangular, trapezoidal, and triangular building footprints without pentagons or higher n-gons", () => {
+    const obliqueBlocks: Point[][] = [
+      rect,
+      [
+        [0, 0],
+        [80, 15],
+        [70, 75],
+        [-10, 60]
+      ],
+      [
+        [10, 10],
+        [90, 20],
+        [60, 80],
+        [0, 50]
+      ]
+    ];
+    for (const block of obliqueBlocks) {
+      const blds = houses(block);
+      expect(blds.length).toBeGreaterThan(4);
+      for (const b of blds) {
+        // Must be strictly 3 (triangle) or 4 (rectangle or trapezoid) vertices
+        expect([3, 4]).toContain(b.length);
+      }
+    }
+  });
+
+  it("produces townhouse-style rectangular buildings along primary roads with short side facing the road", () => {
+    const outline: Point[] = [
+      [0, 0],
+      [100, 0],
+      [100, 80],
+      [0, 80]
+    ];
+    const face: Face = {
+      id: "main-street-face",
+      boundary: [],
+      properties: { water: "land", ward: "craftsmen", buildable: true, settlement: "core", locked: false, elevation: 0 }
+    };
+    // Edge 0 (y=0, from [0,0] to [100,0]) is the primary wide road
+    const boundaries = outline.map((a, i) => ({
+      a,
+      b: outline[(i + 1) % outline.length],
+      setback: i === 0 ? 5 : 2,
+      feature: i === 0,
+      barrier: false
+    }));
+    const fabric = buildPerimeterBlocks(face, outline, boundaries, undefined, "primary-townhouse-test", true);
+    expect(fabric.buildings.length).toBeGreaterThan(8);
+
+    // Filter buildings along the primary road (y ≈ 5m setback)
+    const primaryBuildings = fabric.buildings.filter(b => b.polygon.some(p => Math.abs(p[1] - 5.0) < 0.2));
+    expect(primaryBuildings.length).toBeGreaterThan(5);
+
+    for (const b of primaryBuildings) {
+      // Must be 4 vertices (rectangular/trapezoidal)
+      expect(b.polygon.length).toBe(4);
+      const xs = b.polygon.map(p => p[0]);
+      const ys = b.polygon.map(p => p[1]);
+      const frontageWidth = Math.max(...xs) - Math.min(...xs);
+      const depth = Math.max(...ys) - Math.min(...ys);
+
+      // Must be short-side frontage (depth >= frontageWidth)
+      expect(depth).toBeGreaterThanOrEqual(frontageWidth * 0.95);
+      if (frontageWidth < 3.5) {
+        console.log("Failed building:", JSON.stringify(b.polygon), "frontageWidth:", frontageWidth, "depth:", depth);
+      }
+      expect(frontageWidth).toBeGreaterThanOrEqual(3.5);
+      expect(frontageWidth).toBeLessThanOrEqual(7.5);
+    }
+  });
+
+  it("produces courtyard-type blocks with central open courtyard enclosed by buildings", () => {
+    // A single wide block (80m x 40m) designed to form a courtyard block
+    const block: Point[] = [
+      [0, 0],
+      [80, 0],
+      [80, 40],
+      [0, 40]
+    ];
+    const buildings = frontageBuildings(
+      block,
+      [0, 1, 2, 3],
+      {
+        lotArea: 100,
+        coverage: 0.75, // Leaves ~25% central yard
+        perimeter: true,
+        occupancy: 1,
+        outskirts: false
+      },
+      makeRng("courtyard-test")
+    );
+    expect(buildings.length).toBeGreaterThan(8);
+
+    // Buildings must strictly be 4 vertices (rectangles / trapezoids) along straight grid
+    for (const b of buildings) {
+      expect(b.length).toBe(4);
+    }
+
+    // The center of the block [40, 20] must remain open as a courtyard
+    const centerPoint: Point = [40, 20];
+    const buildingsAtCenter = buildings.filter(b => pointInPolygon(centerPoint, b));
+    expect(buildingsAtCenter).toHaveLength(0);
+
+    // Buildings along both opposing long edges (y=0 and y=40)
+    const southBuildings = buildings.filter(b => b.some(p => Math.abs(p[1]) < 1e-4));
+    const northBuildings = buildings.filter(b => b.some(p => Math.abs(p[1] - 40) < 1e-4));
+    expect(southBuildings.length).toBeGreaterThan(3);
+    expect(northBuildings.length).toBeGreaterThan(3);
+
+    // The gap between opposing rows in the center must be a substantial courtyard (>= 8m)
+    const southMaxY = Math.max(...southBuildings.flatMap(b => b.map(p => p[1])));
+    const northMinY = Math.min(...northBuildings.flatMap(b => b.map(p => p[1])));
+    expect(northMinY - southMaxY).toBeGreaterThanOrEqual(8.0);
+  });
+
+  it("inspects road frontage aspect ratio in organic city", async () => {
+    const { createGridDocument } = await import("../document");
+    const { defaultGenerationSettings, generateCityOnDocument } = await import("../generate");
+    const { buildBlockFabric } = await import("./blockInfill");
+
+    const grid = createGridDocument({ size: "small", grid: "hex", seed: "test-organic" });
+    const settings = defaultGenerationSettings();
+    settings.layout = "organic";
+    const city = generateCityOnDocument(grid, settings, "test-organic");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    const fabric = buildBlockFabric(city);
+
+    // Find roads inside walls
+    const { kindEdgeIds } = await import("../passages");
+    const { nearestOnPolyline } = await import("./geom");
+    const roads = kindEdgeIds(city, "road");
+    const walls = kindEdgeIds(city, "wall");
+    const _wallVertices = new Set([...walls].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
+
+    // Road segments
+    const roadSegments: [Point, Point][] = [];
+    for (const rId of roads) {
+      const e = city.mesh.edges[rId];
+      roadSegments.push([city.mesh.vertices[e.a].point, city.mesh.vertices[e.b].point]);
+    }
+
+    let roadBuildingsCount = 0;
+    let _wideFrontageCount = 0; // frontage > depth (長辺接道)
+    let narrowFrontageCount = 0; // depth >= frontage (短辺接道)
+
+    for (const b of fabric.buildings) {
+      const face = city.mesh.faces[b.faceId];
+      if (face?.properties.settlement === "outskirts") continue; // only inside wall / core
+
+      // Check distance of building edges to nearest road segment
+      for (let i = 0; i < b.polygon.length; i++) {
+        const p1 = b.polygon[i];
+        const p2 = b.polygon[(i + 1) % b.polygon.length];
+        const edgeLen = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+        if (edgeLen < 1.0) continue;
+        const mid: Point = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+
+        // Is this edge very close to a road segment?
+        let minDist = Infinity;
+        let roadDir: Point | null = null;
+        for (const [rA, rB] of roadSegments) {
+          const hit = nearestOnPolyline(mid, [rA, rB]);
+          if (hit.dist < minDist) {
+            minDist = hit.dist;
+            const rLen = Math.hypot(rB[0] - rA[0], rB[1] - rA[1]);
+            roadDir = [(rB[0] - rA[0]) / rLen, (rB[1] - rA[1]) / rLen];
+          }
+        }
+
+        // If edge is parallel to road and within road setback (~3-6m)
+        if (minDist <= 5.5 && roadDir) {
+          const edgeDir: Point = [(p2[0] - p1[0]) / edgeLen, (p2[1] - p1[1]) / edgeLen];
+          const dotProd = Math.abs(edgeDir[0] * roadDir[0] + edgeDir[1] * roadDir[1]);
+          if (dotProd > 0.85) {
+            // This edge p1-p2 is facing the road!
+            roadBuildingsCount++;
+            // Calculate depth perpendicular to edge
+            const normal: Point = [-edgeDir[1], edgeDir[0]];
+            const depths = b.polygon.map(p => Math.abs((p[0] - p1[0]) * normal[0] + (p[1] - p1[1]) * normal[1]));
+            const maxDepth = Math.max(...depths);
+
+            if (edgeLen > maxDepth * 1.05) {
+              _wideFrontageCount++;
+            } else {
+              narrowFrontageCount++;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // 城壁内の道路沿い住宅の 90% 以上が短辺接道（間口 <= 奥行き）であること
+    expect(roadBuildingsCount).toBeGreaterThan(500);
+    expect(narrowFrontageCount / roadBuildingsCount).toBeGreaterThan(0.9);
+  });
 });

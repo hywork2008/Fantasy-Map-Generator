@@ -661,6 +661,7 @@ describe("shareable link and FMG site", () => {
     selectStage(8);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑧ 街区・小道");
     expect(has(".ce-infill-lane")).toBe(true);
+    expect(has(".ce-infill-trail")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(false);
 
     // Stage 9: dwellings visible

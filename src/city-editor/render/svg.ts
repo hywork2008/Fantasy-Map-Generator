@@ -185,8 +185,14 @@ export function renderEditorSvg(
         );
         // Outside the core, expose the access network even where a house has
         // not been placed. This is a thin trail centreline, not a building shadow.
-        // For classic layout, also expose the interior core lanes as trails.
-        if (document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts" || document.layout === "classic")
+        // For classic and organic layouts, also expose the interior core lanes as trails.
+        // When buildings are hidden (e.g. stage 8 "Blocks and lanes"), expose lanes as trails as well.
+        if (
+          document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts" ||
+          document.layout === "classic" ||
+          document.layout === "organic" ||
+          hideBuildings
+        )
           trails.appendChild(
             element("path", {
               d: line(lane.points),

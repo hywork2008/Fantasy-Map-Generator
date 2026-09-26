@@ -341,9 +341,10 @@ function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabr
   );
   const owner = (p: Point) => ids.find(id => pointInPolygon(p, polygons.get(id)!)) ?? ids[0];
   local.buildings = local.buildings
-    .map(b => ({ ...b, faceId: owner(polygonCentroid(b.polygon)) }))
+    .map(b => ({ ...b, faceId: owner(polygonCentroid(b.polygon)), polygon: cleanBuildingPolygon(b.polygon) }))
     .filter(
       b =>
+        b.polygon.length >= 4 &&
         !reserved.has(b.faceId) &&
         buildableFace(mesh.faces[b.faceId]) &&
         b.polygon.every(p => pointInPolygon(p, ring.points)) &&
@@ -461,14 +462,27 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
       ctx.options?.seed,
       isClassic
     );
-  local.buildings = local.buildings.filter(
-    b =>
-      b.polygon.every(p => pointInPolygon(p, polygon)) &&
-      !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
-  );
+  local.buildings = local.buildings
+    .map(b => ({ ...b, polygon: cleanBuildingPolygon(b.polygon) }))
+    .filter(
+      b =>
+        b.polygon.length >= 4 &&
+        b.polygon.every(p => pointInPolygon(p, polygon)) &&
+        !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
+    );
   ctx.options?.cache.set(key, local);
   fabric.buildings.push(...local.buildings);
   fabric.lanes.push(...local.lanes);
+}
+
+function cleanBuildingPolygon(polygon: Point[]): Point[] {
+  const merged: Point[] = [];
+  for (const p of polygon) {
+    if (!merged.some(u => distance(u, p) < 0.35)) {
+      merged.push(p);
+    }
+  }
+  return merged.length >= 3 ? merged : polygon;
 }
 
 function buildableFace(face: Face): boolean {

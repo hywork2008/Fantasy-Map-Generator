@@ -1,9 +1,9 @@
 import type { DistrictParameters, Face, Point } from "../types";
 import { frontageBuildings } from "./frontageBuildings";
-import { pointInPolygon, polygonArea } from "./geom";
+import { pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea, intramuralBlockSpan } from "./housing";
 import type { CityFabric, InfillLane } from "./localInfill";
-import { insetConvexKernel, longestFrame } from "./lotGeometry";
+import { clipHalfPlane, insetConvexKernel, longestFrame } from "./lotGeometry";
 import { makeRng, type Rng } from "./prng";
 import { computeDelaunayEdges } from "./voronoi";
 
@@ -131,9 +131,7 @@ export function buildPerimeterBlocks(
   const rng = makeRng(`${seed}:perimeter:${face.id}`);
   const target = parameters?.lotArea ?? dwellingLotArea(face.properties.ward);
   const width = parameters?.laneWidth ?? 3;
-  const axis: Point = parameters
-    ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
-    : longestFrame(outline).axis;
+  const axis: Point = resolveDistrictAxis(outline, boundaries, parameters);
   // Tiny-scale blocks: two dwelling rows, a lane, and a small court. Larger
   // cities pack more of the same block, they do not enlarge it.
   const spanLimit = intramuralBlockSpan(target, width);
@@ -142,9 +140,21 @@ export function buildPerimeterBlocks(
     if (distance(points[0], points[1]) > 1e-6) internalLanes.push({ faceId: face.id, points, widthMeters: width });
   };
   const boundaryLanes: InfillLane[] = [];
+  const outlineWinding = -Math.sign(polygonArea(clean(outline)));
   for (const edge of boundaries) {
-    if (!edge.feature && !(classic && edge.barrier) && distance(edge.a, edge.b) > 1e-6) {
+    if (distance(edge.a, edge.b) <= 1e-6) continue;
+    if (!edge.feature && !(classic && edge.barrier)) {
       boundaryLanes.push({ faceId: face.id, points: [edge.a, edge.b], widthMeters: width });
+    } else if (!classic && edge.barrier) {
+      // 城壁沿い・川沿いの通行帯（小道）:
+      // 壁・川から安全マージン（setbackの約半分〜通路幅分）内側に沿って小道を引く
+      const len = distance(edge.a, edge.b);
+      const tangent: Point = [(edge.b[0] - edge.a[0]) / len, (edge.b[1] - edge.a[1]) / len];
+      const inward: Point = [-outlineWinding * tangent[1], outlineWinding * tangent[0]];
+      const laneOffset = Math.max(1.5, Math.min(width, edge.setback * 0.5));
+      const pA: Point = [edge.a[0] + inward[0] * laneOffset, edge.a[1] + inward[1] * laneOffset];
+      const pB: Point = [edge.b[0] + inward[0] * laneOffset, edge.b[1] + inward[1] * laneOffset];
+      boundaryLanes.push({ faceId: face.id, points: [pA, pB], widthMeters: width });
     }
   }
   fabric.lanes.push(...boundaryLanes);
@@ -200,9 +210,49 @@ export function buildPerimeterBlocks(
     fabric.blocks.push(block);
     const frontageSides = block.map((a, i) => {
       const b = block[(i + 1) % block.length];
-      return sides.find(
-        side => Math.abs(dot(a, side.normal) - side.offset) < 1e-4 && Math.abs(dot(b, side.normal) - side.offset) < 1e-4
+      const edgeLen = distance(a, b);
+      if (edgeLen < 1e-6) return undefined;
+      const edgeNormal: Point = [(-winding * (b[1] - a[1])) / edgeLen, (winding * (b[0] - a[0])) / edgeLen];
+
+      // 1. sides とのマッチング
+      const matched = sides.find(
+        side =>
+          dot(edgeNormal, side.normal) > 0.95 &&
+          Math.abs(dot(a, side.normal) - side.offset) < 0.25 &&
+          Math.abs(dot(b, side.normal) - side.offset) < 0.25
       );
+
+      // 2. 幾何学的に boundaries の road（feature && !barrier）に面しているかを直接判定
+      const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const eDir: Point = [(b[0] - a[0]) / edgeLen, (b[1] - a[1]) / edgeLen];
+
+      let isRoadFront = false;
+      let isBarrierFront = false;
+
+      for (const bnd of boundaries) {
+        const bLen = distance(bnd.a, bnd.b);
+        if (bLen < 2.0) continue;
+        const bDir: Point = [(bnd.b[0] - bnd.a[0]) / bLen, (bnd.b[1] - bnd.a[1]) / bLen];
+        // 道路または境界線とほぼ平行
+        const par = Math.abs(eDir[0] * bDir[0] + eDir[1] * bDir[1]);
+        const bNorm: Point = [-bDir[1], bDir[0]];
+        const dist = Math.abs((mid[0] - bnd.a[0]) * bNorm[0] + (mid[1] - bnd.a[1]) * bNorm[1]);
+        const t = ((mid[0] - bnd.a[0]) * bDir[0] + (mid[1] - bnd.a[1]) * bDir[1]) / bLen;
+
+        if (par < 0.82) continue;
+        if (dist > bnd.setback + 3.5 || dist < Math.max(0.5, bnd.setback - 3.5)) continue;
+        if (t >= -0.2 && t <= 1.2) {
+          if (bnd.feature && !bnd.barrier) isRoadFront = true;
+          if (bnd.barrier) isBarrierFront = true;
+        }
+      }
+
+      const isPrimary = Boolean(matched?.primary || isRoadFront);
+      const isBarrier = Boolean(matched?.barrier || isBarrierFront);
+      return {
+        barrier: isBarrier,
+        primary: isPrimary
+      };
     });
     const footprints = frontageBuildings(
       block,
@@ -218,29 +268,59 @@ export function buildPerimeterBlocks(
       },
       makeRng(`${seed}:houses:${face.id}:${JSON.stringify(block)}`)
     );
-    fabric.buildings.push(...footprints.map(polygon => ({ faceId: face.id, polygon, landmark: false })));
+    const adaptedFootprints = classic ? footprints : enforceFrontageTaxationAlongRoads(footprints, boundaries);
+    const validFootprints = adaptedFootprints
+      .map(p => (p.length === 3 ? ensureQuadSlice(p, [1, 0]) : p))
+      .filter(p => p.length >= 4 && area(p) >= 10);
+    fabric.buildings.push(...validFootprints.map(polygon => ({ faceId: face.id, polygon, landmark: false })));
   };
   const ring = clean(outline);
   const finalBlocks: Point[][] = [];
   if (classic) finalBlocks.push(...classicStreetBlocks(ring, boundaries, axis, spanLimit, rng));
   else {
-    const cross: Point = [-axis[1], axis[0]];
+    const primaryEdge = boundaries
+      .filter(e => e.feature && !e.barrier && distance(e.a, e.b) > 4)
+      .sort((a, b) => distance(b.a, b.b) - distance(a.a, a.b))[0];
+    let cross: Point = [-axis[1], axis[0]];
+    const center = polygonCentroid(ring);
+    if (primaryEdge && !parameters) {
+      // 幹線道路（太い道）がある場合、太い道から区画内側を向く法線を cross とする
+      const inward: Point = [-outlineWinding * axis[1], outlineWinding * axis[0]];
+      if (dot([center[0] - primaryEdge.a[0], center[1] - primaryEdge.a[1]], inward) < 0) {
+        inward[0] = -inward[0];
+        inward[1] = -inward[1];
+      }
+      cross = inward;
+    }
     const ys = ring.map(p => dot(p, cross));
     const minY = Math.min(...ys),
       maxY = Math.max(...ys);
 
-    const targetRibbonWidth = Math.max(24, Math.min(32, spanLimit * 0.78));
-
-    // 1. Organic longitudinal ribbons use slight directional drift. Cross-cuts
-    // below are staggered, so these form T-junctioned streets instead of a
-    // repeated rectangular lattice.
+    // 街区の厚み B ≈ 2d + c:
+    // サンプルの実測値分析（greyfield: 幅16.2m, 長さ23.5m / blackwell: 幅15.0m, 長さ22.8m）
+    // 背中合わせ型（幅14.5〜17.5m）と中庭型（幅26〜32m）を混在させる
     const splitOffsets: { y: number; normal: Point }[] = [];
-    let curY = minY;
-    while (curY + targetRibbonWidth * 1.25 < maxY) {
-      const step = rng.range(20, 38);
+    let startY = minY;
+    if (primaryEdge && !parameters) {
+      const yEdge = dot(primaryEdge.a, cross);
+      if (Math.abs(yEdge - minY) < Math.abs(yEdge - maxY)) {
+        startY = Math.max(minY, yEdge);
+      }
+    }
+    const minStep = parameters ? 22 : 14.5;
+    let curY = startY;
+    while (curY + minStep < maxY) {
+      const isCourtyardBlock = parameters ? rng() < 0.35 : rng() < 0.25 && maxY - curY > 34;
+      const step = parameters
+        ? isCourtyardBlock
+          ? rng.range(33, 44)
+          : rng.range(22, 28)
+        : isCourtyardBlock
+          ? rng.range(26, 32)
+          : rng.range(14.5, 17.5);
       curY += step;
-      if (curY < maxY - 15) {
-        const jitterAngle = rng.range(-0.04, 0.04);
+      if (curY < maxY - (parameters ? 14 : 10)) {
+        const jitterAngle = rng.range(-0.03, 0.03);
         const cosJ = Math.cos(jitterAngle),
           sinJ = Math.sin(jitterAngle);
         const normal: Point = [cross[0] * cosJ - cross[1] * sinJ, cross[0] * sinJ + cross[1] * cosJ];
@@ -262,11 +342,13 @@ export function buildPerimeterBlocks(
       }
       blocksToFill = next;
     }
-    blocksToFill = blocksToFill.filter(p => area(p) > 30);
+    blocksToFill = blocksToFill.filter(p => area(p) > 25);
 
-    // 2. Cross-cuts are chosen independently for each ribbon. Their stagger
-    // prevents four-way grid intersections while preserving compact blocks.
-    const maxBlockLength = Math.max(36, Math.min(72, spanLimit * 1.9));
+    // 2. 長辺を分割して横道（T字路）を配置
+    // サンプル実測値（中央値22.8〜23.5m、アスペクト比約1.5）に基づきブロック長さを設定
+    const maxBlockLength = parameters
+      ? Math.max(40, Math.min(68, spanLimit * 1.8))
+      : Math.max(20, Math.min(27, spanLimit * 0.95));
     let prevStripCuts: number[] = [];
 
     for (let sIdx = 0; sIdx < blocksToFill.length; sIdx++) {
@@ -276,28 +358,28 @@ export function buildPerimeterBlocks(
         sMaxX = Math.max(...sXs);
       const sLen = sMaxX - sMinX;
 
-      if (sLen <= maxBlockLength) {
+      if (sLen <= maxBlockLength * 1.1) {
         finalBlocks.push(strip);
         prevStripCuts = [];
         continue;
       }
 
+      // 等分割の計算
+      const n = Math.max(2, Math.round(sLen / maxBlockLength));
       const currentStripCuts: number[] = [];
-      let curX = sMinX;
-      while (curX + maxBlockLength * 0.8 < sMaxX) {
-        const step = rng.range(32, Math.min(68, maxBlockLength * 1.1));
-        let candidateX = curX + step;
-        if (candidateX >= sMaxX - 25) break;
+      for (let i = 1; i < n; i++) {
+        const baseCut = sMinX + (sLen * i) / n;
+        let candidateX = baseCut + rng.range(-1.5, 1.5);
 
         for (const prevX of prevStripCuts) {
-          if (Math.abs(candidateX - prevX) < 12) {
-            candidateX = candidateX < prevX ? prevX - 12 : prevX + 12;
+          const minDist = parameters ? 12 : 8;
+          if (Math.abs(candidateX - prevX) < minDist) {
+            candidateX = candidateX < prevX ? prevX - minDist : prevX + minDist;
           }
         }
-        if (candidateX >= sMaxX - 22 || candidateX <= curX + 22) continue;
-
+        const margin = parameters ? 20 : 12;
+        if (candidateX >= sMaxX - margin || candidateX <= sMinX + margin) continue;
         currentStripCuts.push(candidateX);
-        curX = candidateX;
       }
 
       if (currentStripCuts.length === 0) {
@@ -308,7 +390,7 @@ export function buildPerimeterBlocks(
 
       let pieces = [strip];
       for (const cutX of currentStripCuts) {
-        const jitterAngle = rng.range(-0.05, 0.05);
+        const jitterAngle = rng.range(-0.04, 0.04);
         const cosJ = Math.cos(jitterAngle),
           sinJ = Math.sin(jitterAngle);
         const normal: Point = [axis[0] * cosJ - axis[1] * sinJ, axis[0] * sinJ + axis[1] * cosJ];
@@ -507,4 +589,181 @@ function classicStreetBlocks(
     }
     return pieces;
   });
+}
+
+/**
+ * 街区の帯（ribbon）を走らせる基準軸を決定:
+ * 1. parameters.orientation があればそれを優先
+ * 2. 幹線道路（primary feature road）があればその向きを最優先（太い道に沿って連続frontageを形成）
+ * 3. 城壁・河川（barrier）があればその向き
+ * 4. なければ外形全体の最長軸
+ */
+function resolveDistrictAxis(
+  outline: Point[],
+  boundaries: BlockBoundary[],
+  parameters: DistrictParameters | undefined
+): Point {
+  if (parameters) {
+    return [Math.cos(parameters.orientation), Math.sin(parameters.orientation)];
+  }
+  const primaryEdge = boundaries
+    .filter(e => e.feature && !e.barrier && distance(e.a, e.b) > 5)
+    .sort((a, b) => distance(b.a, b.b) - distance(a.a, a.b))[0];
+  if (primaryEdge) {
+    const len = distance(primaryEdge.a, primaryEdge.b);
+    return [(primaryEdge.b[0] - primaryEdge.a[0]) / len, (primaryEdge.b[1] - primaryEdge.a[1]) / len];
+  }
+  const barrierEdge = boundaries
+    .filter(e => e.barrier && distance(e.a, e.b) > 8)
+    .sort((a, b) => distance(b.a, b.b) - distance(a.a, a.b))[0];
+  if (barrierEdge) {
+    const len = distance(barrierEdge.a, barrierEdge.b);
+    return [(barrierEdge.b[0] - barrierEdge.a[0]) / len, (barrierEdge.b[1] - barrierEdge.a[1]) / len];
+  }
+  return longestFrame(outline).axis;
+}
+
+/**
+ * 中世ヨーロッパのフロンテージ課税（間口税）に基づく住宅の短辺接道化:
+ * 外壁の内側にある道路（road）に面する住宅のうち、
+ * 道路に面する辺（間口幅 W）が道路に直角な奥行き（D）より長い住宅（長辺接道住宅）を、
+ * 道路に対して直角に細分化（短冊型分割）し、すべての住宅が短辺で道路に接するようにする。
+ */
+function enforceFrontageTaxationAlongRoads(buildings: Point[][], boundaries: BlockBoundary[]): Point[][] {
+  const roadBoundaries = boundaries.filter(b => b.feature && !b.barrier && distance(b.a, b.b) > 2.0);
+  if (roadBoundaries.length === 0) return buildings;
+
+  const result: Point[][] = [];
+
+  for (const poly of buildings) {
+    if (poly.length < 3) continue;
+
+    // この住宅が道路に面しているか、および道路に面する辺を探索
+    let bestHit: {
+      edgeIndex: number;
+      edgeLen: number;
+      depth: number;
+      edgeDir: Point;
+      bnd: BlockBoundary;
+    } | null = null;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < poly.length; i++) {
+      const p1 = poly[i];
+      const p2 = poly[(i + 1) % poly.length];
+      const edgeLen = distance(p1, p2);
+      if (edgeLen < 1.5) continue;
+      const mid: Point = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+      const eDir: Point = [(p2[0] - p1[0]) / edgeLen, (p2[1] - p1[1]) / edgeLen];
+
+      for (const bnd of roadBoundaries) {
+        const bLen = distance(bnd.a, bnd.b);
+        const bDir: Point = [(bnd.b[0] - bnd.a[0]) / bLen, (bnd.b[1] - bnd.a[1]) / bLen];
+        // 道路とほぼ平行（内積の絶対値が 0.80 以上）
+        if (Math.abs(eDir[0] * bDir[0] + eDir[1] * bDir[1]) < 0.8) continue;
+
+        // 道路への垂直距離がセットバック付近（道路沿い）
+        const bNorm: Point = [-bDir[1], bDir[0]];
+        const dist = Math.abs((mid[0] - bnd.a[0]) * bNorm[0] + (mid[1] - bnd.a[1]) * bNorm[1]);
+        if (dist > bnd.setback + 5.0) continue;
+
+        // 奥行き（道路に直角な方向の寸法）を計算
+        const depths = poly.map(p => Math.abs((p[0] - p1[0]) * bNorm[0] + (p[1] - p1[1]) * bNorm[1]));
+        const depth = Math.max(...depths);
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          bestHit = { edgeIndex: i, edgeLen, depth, edgeDir: eDir, bnd };
+        }
+      }
+    }
+
+    // 道路に面していて、かつ間口幅が奥行きより広い（長辺接道: edgeLen > depth * 0.95）場合
+    if (bestHit && bestHit.edgeLen > bestHit.depth * 0.95 && bestHit.depth >= 2.5) {
+      // 道路に対して短辺で接する（1戸あたり間口幅 3.6m〜5.5m）ように分割
+      const targetUnitWidth = Math.max(3.6, Math.min(5.5, bestHit.depth * 0.85));
+      let numUnits = Math.max(1, Math.round(bestHit.edgeLen / targetUnitWidth));
+      while (numUnits > 1 && bestHit.edgeLen / numUnits < 3.55) {
+        numUnits--;
+      }
+      if (numUnits <= 1) {
+        result.push(poly);
+        continue;
+      }
+
+      // 住宅多角形を道路に沿って numUnits 個にスライス
+      const p1 = poly[bestHit.edgeIndex];
+      const eDir = bestHit.edgeDir;
+      const step = bestHit.edgeLen / numUnits;
+
+      let remaining = poly;
+      for (let u = 0; u < numUnits - 1; u++) {
+        const cutDist = (u + 1) * step;
+        const cutOrigin: Point = [p1[0] + eDir[0] * cutDist, p1[1] + eDir[1] * cutDist];
+        const cutNormal: Point = eDir; // 切断線の法線ベクトルを道路に平行にすることで、切断線を道路に直角にする
+        const cutOffset = dot(cutOrigin, cutNormal);
+
+        // 切断線で remaining を 2 つに分割
+        const rawPieceA = clipHalfPlane(remaining, cutNormal, cutOffset);
+        const rawPieceB = clipHalfPlane(remaining, [-cutNormal[0], -cutNormal[1]], -cutOffset);
+        const pieceA = ensureQuadSlice(clean(rawPieceA), eDir);
+        const pieceB = clean(rawPieceB);
+
+        if (pieceA.length >= 4 && pieceB.length >= 3 && area(pieceA) >= 8) {
+          result.push(pieceA);
+          remaining = pieceB;
+        }
+      }
+      const cleanRemaining = ensureQuadSlice(clean(remaining), eDir);
+      if (cleanRemaining.length >= 4 && area(cleanRemaining) >= 8) {
+        result.push(cleanRemaining);
+      }
+    } else {
+      if (poly.length === 3) {
+        const fixed = ensureQuadSlice(poly, bestHit?.edgeDir ?? [1, 0]);
+        if (fixed.length >= 4) result.push(fixed);
+      } else {
+        result.push(poly);
+      }
+    }
+  }
+
+  return result;
+}
+
+function ensureQuadSlice(piece: Point[], eDir: Point): Point[] {
+  // 近接頂点をマージ
+  const deduped: Point[] = [];
+  for (const p of piece) {
+    if (!deduped.some(u => distance(u, p) < 0.35)) {
+      deduped.push(p);
+    }
+  }
+  if (deduped.length === 4) return deduped;
+  if (deduped.length !== 3) return piece;
+
+  // 3頂点（三角形）の場合: 道路に平行な最長辺を底辺とし、
+  // 奥の尖った頂点の手前（74%）でカットして4頂点の台形にする
+  let bestEdgeIdx = 0;
+  let maxDot = -1;
+  for (let i = 0; i < 3; i++) {
+    const a = deduped[i],
+      b = deduped[(i + 1) % 3];
+    const len = distance(a, b);
+    if (len < 0.5) continue;
+    const dir: Point = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+    const d = Math.abs(dir[0] * eDir[0] + dir[1] * eDir[1]);
+    if (d > maxDot) {
+      maxDot = d;
+      bestEdgeIdx = i;
+    }
+  }
+
+  const pFL = deduped[bestEdgeIdx];
+  const pFR = deduped[(bestEdgeIdx + 1) % 3];
+  const apex = deduped[(bestEdgeIdx + 2) % 3];
+  const cutRatio = 0.74;
+  const bL: Point = [pFL[0] + (apex[0] - pFL[0]) * cutRatio, pFL[1] + (apex[1] - pFL[1]) * cutRatio];
+  const bR: Point = [pFR[0] + (apex[0] - pFR[0]) * cutRatio, pFR[1] + (apex[1] - pFR[1]) * cutRatio];
+  return [pFL, pFR, bR, bL];
 }
