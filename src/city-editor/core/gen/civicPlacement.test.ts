@@ -291,4 +291,68 @@ describe("user URL reproduction", () => {
       }
     }
   });
+
+  it("places temple without overlapping roads for user share seed 1m8r7jf:junction-retry:3", async () => {
+    const { createGridDocument } = await import("../document");
+    const { defaultGenerationSettings, generateCityOnDocument } = await import("../generate");
+    const { featureGroupVertices } = await import("../features");
+    const { templeRectForElement, orientedRectPolylineDistance } = await import("./civicPlacement");
+
+    const grid = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "1s5qkgh",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.relief = false;
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+    settings.config.features.citadel = false;
+    settings.config.features.port = false;
+    settings.config.features.shanty = true;
+    settings.config.wall = {
+      envelope: "auto",
+      coast: "auto",
+      line: "auto"
+    };
+    settings.streets = {
+      farNode: "descriptorEnd",
+      avoidSea: true,
+      foldSmoothing: true
+    };
+    const city = generateCityOnDocument(grid, settings, "1m8r7jf:junction-retry:3");
+    expect(city).not.toBeNull();
+    const temple = city!.elements.find(e => e.kind === "temple");
+    expect(temple).toBeDefined();
+    expect(temple!.point).toBeDefined();
+
+    const nave = templeRectForElement(temple!.point!, temple!.sizeMeters, temple!.rotation, city!.frame.extentMeters);
+
+    // Verify temple faces do not contain internal road segments
+    const templeFaces = new Set(temple!.faceIds);
+    const internalTempleEdges = new Set(
+      Object.values(city!.mesh.edges)
+        .filter(e => e.leftFace && e.rightFace && templeFaces.has(e.leftFace) && templeFaces.has(e.rightFace))
+        .map(e => e.id)
+    );
+
+    const roadGroups = city!.featureGroups.filter(g => g.kind === "road");
+    for (const rg of roadGroups) {
+      for (const seg of rg.segments) {
+        expect(internalTempleEdges.has(seg.edgeId)).toBe(false);
+      }
+      const segPoints = featureGroupVertices(city!, rg)
+        .map(id => city!.mesh.vertices[id]?.point)
+        .filter((p): p is [number, number] => !!p);
+      if (segPoints.length < 2) continue;
+      const distToNave = orientedRectPolylineDistance(nave, segPoints);
+      // Carriageway half-width must not touch the temple nave
+      const minClearance = rg.style.widthMeters / 2;
+      expect(distToNave).toBeGreaterThan(minClearance);
+    }
+  });
 });

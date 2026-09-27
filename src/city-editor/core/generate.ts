@@ -1,5 +1,6 @@
 import { connectDryCellInteriors, openWallRiverMouths } from "./gateApproaches";
 import {
+  orientedRectPolylineDistance,
   placeAndClearTempleRect,
   polygonHitsOrientedRect,
   templeHazards,
@@ -2001,7 +2002,31 @@ function applyPlan(
     const internalPlazaEdges = Object.values(mesh.edges)
       .filter(e => e.leftFace && e.rightFace && plazaFaces.has(e.leftFace) && plazaFaces.has(e.rightFace))
       .map(e => e.id);
-    const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...internalPlazaEdges]);
+    const templeElem = next.elements.find(e => e.kind === "temple");
+    const templeFaces = new Set(templeElem?.faceIds ?? []);
+    const internalTempleEdges = Object.values(mesh.edges)
+      .filter(e => e.leftFace && e.rightFace && templeFaces.has(e.leftFace) && templeFaces.has(e.rightFace))
+      .map(e => e.id);
+    const templeNave = templeElem?.point
+      ? templeRectForElement(templeElem.point, templeElem.sizeMeters, templeElem.rotation, next.frame.extentMeters)
+      : null;
+    const templeBlockedEdges = new Set<Id>(internalTempleEdges);
+    if (templeNave) {
+      for (const edge of Object.values(mesh.edges)) {
+        const pa = mesh.vertices[edge.a]?.point;
+        const pb = mesh.vertices[edge.b]?.point;
+        if (!pa || !pb) continue;
+        if (orientedRectPolylineDistance(templeNave, [pa, pb]) <= 0) {
+          templeBlockedEdges.add(edge.id);
+        }
+      }
+    }
+    const banned = new Set<Id>([
+      ...kindEdgeIds(next, "river"),
+      ...kindEdgeIds(next, "wall"),
+      ...internalPlazaEdges,
+      ...templeBlockedEdges
+    ]);
     const layout = plan.layout ?? source.layout;
     if (layout === "bram") {
       const plazaElem = next.elements.find(e => e.kind === "plaza");

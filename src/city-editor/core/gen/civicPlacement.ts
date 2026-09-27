@@ -87,18 +87,57 @@ export function orientedRectBoundarySamples(rect: OrientedRect, perEdge = 8): Po
   return samples;
 }
 
-/** Distance from the rectangle to an open polyline. 0 when they intersect. */
+/** Distance from the rectangle to an open polyline. Negative (signed penetration) when intersecting. */
 export function orientedRectPolylineDistance(rect: OrientedRect, line: Point[]): number {
   if (line.length < 2) return Number.POSITIVE_INFINITY;
   const corners = orientedRectCorners(rect);
+  let intersects = false;
+  let maxPenetration = 0;
+
+  const hx = rect.length / 2;
+  const hy = rect.width / 2;
+  const cos = Math.cos(-rect.rotation);
+  const sin = Math.sin(-rect.rotation);
+
+  const getPenetration = (pt: Point): number => {
+    const dx = pt[0] - rect.center[0];
+    const dy = pt[1] - rect.center[1];
+    const x = Math.abs(dx * cos - dy * sin);
+    const y = Math.abs(dx * sin + dy * cos);
+    if (x <= hx && y <= hy) {
+      return Math.min(hx - x, hy - y);
+    }
+    return 0;
+  };
+
   for (let i = 0; i + 1 < line.length; i++) {
     const a = line[i];
     const b = line[i + 1];
-    if (pointInOrientedRect(a, rect)) return 0;
+    const penA = getPenetration(a);
+    if (penA > 0) {
+      intersects = true;
+      maxPenetration = Math.max(maxPenetration, penA);
+    }
+    const penB = getPenetration(b);
+    if (penB > 0) {
+      intersects = true;
+      maxPenetration = Math.max(maxPenetration, penB);
+    }
     for (let k = 0; k < corners.length; k++) {
-      if (segmentsIntersect(a, b, corners[k], corners[(k + 1) % corners.length])) return 0;
+      if (segmentsIntersect(a, b, corners[k], corners[(k + 1) % corners.length])) {
+        intersects = true;
+      }
+    }
+    if (intersects && maxPenetration === 0) {
+      const hit = nearestOnPolyline(rect.center, [a, b]);
+      const penMid = getPenetration(hit.point);
+      if (penMid > 0) maxPenetration = Math.max(maxPenetration, penMid);
+      else maxPenetration = 0.5;
     }
   }
+
+  if (intersects) return -Math.max(0.1, maxPenetration);
+
   let min = Number.POSITIVE_INFINITY;
   for (const p of orientedRectBoundarySamples(rect)) min = Math.min(min, nearestOnPolyline(p, line).dist);
   return min;
@@ -118,7 +157,7 @@ function hazardGap(rect: OrientedRect, hazards: PolylineHazard[]): number {
   return min;
 }
 
-/** Slide a rectangle off nearby polylines along the local outward normal. */
+/** Slide a rectangle off nearby polylines along the local outward normal or tangent. */
 export function nudgeRectOffPolylines(rect: OrientedRect, hazards: PolylineHazard[], maxShift = 48): OrientedRect {
   let current: OrientedRect = { ...rect, center: [rect.center[0], rect.center[1]] };
   const origin = current.center;
@@ -130,7 +169,7 @@ export function nudgeRectOffPolylines(rect: OrientedRect, hazards: PolylineHazar
       const samples = [current.center, ...orientedRectBoundarySamples(current, dist < hazard.clearance ? 16 : 8)];
       for (const p of samples) {
         const hit = nearestOnPolyline(p, hazard.points);
-        const sampleGap = (dist === 0 ? 0 : hit.dist) - hazard.clearance;
+        const sampleGap = (dist <= 0 ? dist : hit.dist) - hazard.clearance;
         if (worst !== null && sampleGap >= worst.gap) continue;
         let dx = current.center[0] - hit.point[0];
         let dy = current.center[1] - hit.point[1];
@@ -148,11 +187,17 @@ export function nudgeRectOffPolylines(rect: OrientedRect, hazards: PolylineHazar
       }
     }
     if (!worst || worst.gap >= -0.05) return current;
-    const step = Math.min(8, Math.max(1.2, -worst.gap + 0.8));
-    const candidates: Point[] = [
-      [current.center[0] + worst.nx * step, current.center[1] + worst.ny * step],
-      [current.center[0] - worst.nx * step, current.center[1] - worst.ny * step]
-    ];
+    const baseStep = Math.min(8, Math.max(1.2, -worst.gap + 0.8));
+    const candidates: Point[] = [];
+    for (const factor of [1, 0.5, 0.25]) {
+      const step = baseStep * factor;
+      candidates.push(
+        [current.center[0] + worst.nx * step, current.center[1] + worst.ny * step],
+        [current.center[0] - worst.nx * step, current.center[1] - worst.ny * step],
+        [current.center[0] - worst.ny * step, current.center[1] + worst.nx * step],
+        [current.center[0] + worst.ny * step, current.center[1] - worst.nx * step]
+      );
+    }
     let best = current;
     let bestGap = hazardGap(current, hazards);
     for (const center of candidates) {
