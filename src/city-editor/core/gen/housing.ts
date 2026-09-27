@@ -17,9 +17,11 @@ export function intramuralBlockSpan(lotArea: number, laneWidth: number): number 
   return Math.max(28, Math.min(52, 2 * row + laneWidth + 8));
 }
 
-export type CivicSize = "tiny" | "small" | "medium" | "large";
+export type CivicSize = "micro" | "tiny" | "small" | "medium" | "large";
 
+/** Midpoints between preset windows: 300 / 600 / 1,200 / 2,400 / 4,800 m. */
 export function civicSizeForExtent(extentMeters: number): CivicSize {
+  if (extentMeters < 450) return "micro";
   if (extentMeters < 900) return "tiny";
   if (extentMeters < 1800) return "small";
   if (extentMeters < 3600) return "medium";
@@ -28,6 +30,7 @@ export function civicSizeForExtent(extentMeters: number): CivicSize {
 
 /** Nave length × aisle width (m). Stepped by map size, not by population. */
 export const TEMPLE_FOOTPRINT_M: Record<CivicSize, { length: number; width: number }> = {
+  micro: { length: 14, width: 8 },
   tiny: { length: 28, width: 16 },
   small: { length: 40, width: 22 },
   medium: { length: 54, width: 28 },
@@ -36,6 +39,7 @@ export const TEMPLE_FOOTPRINT_M: Record<CivicSize, { length: number; width: numb
 
 /** Side length (m) of the reserved market square, before street setbacks. */
 export const PLAZA_FOOTPRINT_M: Record<CivicSize, number> = {
+  micro: 18,
   tiny: 36,
   small: 48,
   medium: 64,
@@ -44,6 +48,7 @@ export const PLAZA_FOOTPRINT_M: Record<CivicSize, number> = {
 
 /** Clearance (m) around the temple nave / plaza statue so roads and houses stay off it. */
 export const CIVIC_YARD_M: Record<CivicSize, number> = {
+  micro: 4,
   tiny: 8,
   small: 10,
   medium: 12,
@@ -64,6 +69,6 @@ export function civicYardMeters(extentMeters: number): number {
 
 /** Mesh cells reserved for the temple precinct. */
 export function templeCellCount(extentMeters: number, capital: boolean): number {
-  const bySize = { tiny: 1, small: 1, medium: 2, large: 3 }[civicSizeForExtent(extentMeters)];
+  const bySize = { micro: 1, tiny: 1, small: 1, medium: 2, large: 3 }[civicSizeForExtent(extentMeters)];
   return Math.max(bySize, capital ? 2 : 1);
 }

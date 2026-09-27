@@ -14,8 +14,10 @@ export const BLOCK_SIZE_METERS = 50;
 const BLOCK_SITE_SPACING_METERS = 44.8;
 
 /** `minExternalRoads` is the standalone random-city floor (see
- * `minExternalRoadsForExtent`). Tiny / fort maps use 1; cities use 2. */
+ * `minExternalRoadsForExtent`). Micro / Tiny / fort maps use 1; cities use 2.
+ * Each window is half the side of the next larger preset. */
 export const CITY_SIZE_PRESETS = {
+  micro: { label: "Micro", extentMeters: 300, cellsAcross: 6, buildingTarget: 19, minExternalRoads: 1 },
   tiny: { label: "Tiny", extentMeters: 600, cellsAcross: 12, buildingTarget: 75, minExternalRoads: 1 },
   small: { label: "Small", extentMeters: 1200, cellsAcross: 24, buildingTarget: 300, minExternalRoads: 2 },
   medium: { label: "Medium", extentMeters: 2400, cellsAcross: 48, buildingTarget: 1600, minExternalRoads: 2 },
@@ -48,7 +50,7 @@ export function isCitySizePreset(value: unknown): value is CitySizePreset {
   return typeof value === "string" && Object.hasOwn(CITY_SIZE_PRESETS, value);
 }
 
-/** Closest Tiny / Small / Medium / Large preset to a descriptor (or share) window. */
+/** Closest Micro / Tiny / Small / Medium / Large preset to a descriptor (or share) window. */
 export function sizePresetForExtent(extentMeters: number): CitySizePreset {
   let best: CitySizePreset = "small";
   let bestDelta = Infinity;

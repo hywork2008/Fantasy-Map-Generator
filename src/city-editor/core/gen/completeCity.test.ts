@@ -205,6 +205,28 @@ describe("complete editable city", () => {
     }
   });
 
+  it("generates a complete Micro city, half a Tiny window, on hex, Voronoi and Grid evolution", () => {
+    const settings = defaultGenerationSettings();
+    settings.config.rivers = [];
+    for (const grid of ["hex", "voronoi", "evolution"] as const) {
+      const input = createGridDocument({ size: "micro", grid, seed: "micro-city" });
+      expect(input.frame.extentMeters, grid).toBe(300);
+      expect(input.frame.cityRadiusMeters, grid).toBeCloseTo(99, 5);
+      const city = generateCityOnDocument(input, settings, "micro-city")!;
+      expect(city, grid).not.toBeNull();
+      expect(validate(city), grid).toEqual([]);
+      expect(city.frame.extentMeters, grid).toBe(300);
+      expect(countExternalApproachRoads(city), grid).toBeGreaterThanOrEqual(
+        minExternalRoadsForExtent(city.frame.extentMeters)
+      );
+      expect(city.gates.length, grid).toBeGreaterThan(0);
+      const buildings = grid === "evolution" ? buildBlockFabric(city).buildings : buildCityBuildings(city);
+      expect(buildings.length, grid).toBeGreaterThan(grid === "evolution" ? 40 : 8);
+      expect(city.elements.some(element => element.kind === "temple")).toBe(true);
+      expect(city.elements.some(element => element.kind === "plaza")).toBe(true);
+    }
+  });
+
   it("is deterministic, preserves input, round-trips files and restores presentation on Undo/Redo", () => {
     const settings = defaultGenerationSettings();
     const original = JSON.stringify(base);

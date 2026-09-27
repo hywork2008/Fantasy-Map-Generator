@@ -25,9 +25,10 @@ function settledArea(document: CityDocument, kind?: "core" | "outskirts") {
 }
 
 describe("wall capacity and extramural housing", () => {
-  it("requires two map-edge roads for city sizes and one for Tiny / fort maps", () => {
+  it("requires two map-edge roads for city sizes and one for Micro / Tiny / fort maps", () => {
     expect(SMALL_CITY_EXTENT_METERS).toBe(1200);
-    expect([600, 1200, 2400, 4800].map(minExternalRoadsForExtent)).toEqual([
+    expect([300, 600, 1200, 2400, 4800].map(minExternalRoadsForExtent)).toEqual([
+      MIN_FORT_EXTERNAL_ROADS,
       MIN_FORT_EXTERNAL_ROADS,
       MIN_CITY_EXTERNAL_ROADS,
       MIN_CITY_EXTERNAL_ROADS,
@@ -47,7 +48,7 @@ describe("wall capacity and extramural housing", () => {
   });
 
   it("scales road width with medieval standards across city size presets", () => {
-    expect([600, 1200, 2400, 4800].map(defaultRoadWidthMeters)).toEqual([3.5, 4.5, 6.0, 7.5]);
+    expect([300, 600, 1200, 2400, 4800].map(defaultRoadWidthMeters)).toEqual([3.5, 3.5, 4.5, 6.0, 7.5]);
     expect(defaultRoadWidthMeters(500)).toBe(3.5);
     expect(defaultRoadWidthMeters(1000)).toBe(4.5);
     expect(defaultRoadWidthMeters(2000)).toBe(6.0);

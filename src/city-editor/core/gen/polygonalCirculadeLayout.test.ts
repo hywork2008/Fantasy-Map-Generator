@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { planPolygonalCirculadeLayout } from "./polygonalCirculadeLayout";
+import {
+  BRAM_NOMINAL_CORE_RADIUS_METERS,
+  bramCoreRadiusForCity,
+  bramPeripheryBufferMeters,
+  bramRoadBanRadiusMeters,
+  bramSpokeRadiusMeters,
+  planPolygonalCirculadeLayout
+} from "./polygonalCirculadeLayout";
 
 describe("planPolygonalCirculadeLayout", () => {
   it("creates a 3-tier polygonal Bram circulade core plan", () => {
@@ -26,6 +33,22 @@ describe("planPolygonalCirculadeLayout", () => {
     // Radius checks
     const outerDist = Math.hypot(plan.outerBoundary[0][0], plan.outerBoundary[0][1]);
     expect(outerDist).toBeCloseTo(120, 0);
+  });
+
+  it("keeps the 120 m core on Tiny and larger maps and halves it on a Micro map", () => {
+    expect(bramCoreRadiusForCity(600 * 0.33, true)).toBe(BRAM_NOMINAL_CORE_RADIUS_METERS);
+    expect(bramCoreRadiusForCity(1200 * 0.33, true)).toBe(BRAM_NOMINAL_CORE_RADIUS_METERS);
+    expect(bramCoreRadiusForCity(300 * 0.33, true)).toBeCloseTo(BRAM_NOMINAL_CORE_RADIUS_METERS / 2, 6);
+    const microCore = bramCoreRadiusForCity(300 * 0.33, true);
+    expect(bramRoadBanRadiusMeters(microCore)).toBeCloseTo(microCore - 2, 6);
+    expect(bramSpokeRadiusMeters(BRAM_NOMINAL_CORE_RADIUS_METERS)).toBe(123);
+    expect(bramPeripheryBufferMeters(BRAM_NOMINAL_CORE_RADIUS_METERS)).toBe(123.5);
+    const plan = planPolygonalCirculadeLayout([0, 0], "micro-core", microCore, true, 16);
+    expect(plan.rings[0].radius).toBeCloseTo((48 * microCore) / BRAM_NOMINAL_CORE_RADIUS_METERS, 5);
+    expect(plan.rings[2].radius).toBeCloseTo(microCore, 5);
+    expect(plan.temple?.radiusMeters).toBeCloseTo(8, 5);
+    const outer = Math.hypot(plan.outerBoundary[0][0], plan.outerBoundary[0][1]);
+    expect(outer).toBeCloseTo(microCore, 0);
   });
 
   it("is deterministic for identical seeds", () => {

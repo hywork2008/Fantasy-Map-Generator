@@ -155,10 +155,11 @@ describe("Document panel — new-city grid kind", () => {
       pathPointCount(el.getAttribute("d") ?? "")
     );
 
-  it("lists Tiny (half of Small) before Small / Medium / Large and selects Tiny", () => {
+  it("lists Micro (half of Tiny) before Tiny / Small / Medium / Large and selects Tiny", () => {
     const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
-    expect([...sizeSelect.options].map(option => option.value)).toEqual(["tiny", "small", "medium", "large"]);
+    expect([...sizeSelect.options].map(option => option.value)).toEqual(["micro", "tiny", "small", "medium", "large"]);
     expect(sizeSelect.value).toBe("tiny");
+    expect([...sizeSelect.options].find(option => option.value === "micro")?.textContent).toContain("0.3 km");
     expect(sizeSelect.selectedOptions[0]?.textContent).toContain("0.6 km");
     expect([...sizeSelect.options].find(option => option.value === "small")?.textContent).toContain("1.2 km");
   });

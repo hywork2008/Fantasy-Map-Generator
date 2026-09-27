@@ -47,7 +47,14 @@ import {
   remakeUnreachableLandGates,
   splitDryWallRuns
 } from "./gen/plausibility";
-import { planPolygonalCirculadeLayout } from "./gen/polygonalCirculadeLayout";
+import {
+  bramCoreRadiusForCity,
+  bramCoreRadiusMeters,
+  bramRoadBanRadiusMeters,
+  bramSpokeRadiusMeters,
+  planPolygonalCirculadeLayout,
+  urbanDiskRadiusMeters
+} from "./gen/polygonalCirculadeLayout";
 import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
@@ -544,7 +551,8 @@ export function generateCityAttempt(
     let target = plazaApproachPoint(activeCells, plaza, g.point) ?? plaza?.anchor ?? [0, 0];
     if (effectiveLayout === "bram") {
       const angle = Math.atan2(g.point[1] - hub[1], g.point[0] - hub[0]);
-      target = [hub[0] + Math.cos(angle) * 123, hub[1] + Math.sin(angle) * 123];
+      const spoke = bramSpokeRadiusMeters(bramCoreRadiusForCity(params.cityRadiusMeters, program.walls));
+      target = [hub[0] + Math.cos(angle) * spoke, hub[1] + Math.sin(angle) * spoke];
     }
     return [g.point, target] as Point[];
   });
@@ -1122,7 +1130,7 @@ export function runPlan(
   // fill to a fixed cell count; otherwise accumulate actual area up to π R².
   // `urbanStages` records each admitted cell in fill order for
   // `generateUrbanPatchStep`'s per-loop scrub.
-  const urbanRadius = program.walls ? params.cityRadiusMeters * 0.92 : params.cityRadiusMeters;
+  const urbanRadius = urbanDiskRadiusMeters(params.cityRadiusMeters, program.walls);
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
   const classification = classifyUrban(
     cells,
@@ -1265,7 +1273,13 @@ export function runPlan(
           .reduce<Point>((sum, c) => [sum[0] + c.centroid[0], sum[1] + c.centroid[1]], [0, 0])
           .map(v => v / urbanCells.length) as Point)
       : [0, 0];
-    polygonalCirculadePlan = planPolygonalCirculadeLayout(hub, seed, 120, program.temple, 16);
+    polygonalCirculadePlan = planPolygonalCirculadeLayout(
+      hub,
+      seed,
+      bramCoreRadiusMeters(urbanRadius),
+      program.temple,
+      16
+    );
 
     precincts = precincts.filter(p => p.kind !== "plaza" && p.kind !== "temple");
     if (program.plaza) precincts.push(polygonalCirculadePlan.plaza);
@@ -1795,13 +1809,15 @@ function applyPlan(
     if (layout === "bram") {
       const plazaElem = next.elements.find(e => e.kind === "plaza");
       const hub: Point = plazaElem?.point ?? [0, 0];
+      const banRadius = bramRoadBanRadiusMeters(bramCoreRadiusForCity(source.frame.cityRadiusMeters, program.walls));
       for (const e of Object.values(mesh.edges)) {
         const pa = mesh.vertices[e.a]?.point;
         const pb = mesh.vertices[e.b]?.point;
         if (
           pa &&
           pb &&
-          (Math.hypot(pa[0] - hub[0], pa[1] - hub[1]) < 118 || Math.hypot(pb[0] - hub[0], pb[1] - hub[1]) < 118)
+          (Math.hypot(pa[0] - hub[0], pa[1] - hub[1]) < banRadius ||
+            Math.hypot(pb[0] - hub[0], pb[1] - hub[1]) < banRadius)
         ) {
           banned.add(e.id);
         }

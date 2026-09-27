@@ -8,7 +8,11 @@ import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from 
 import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
 import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
-import { planPolygonalCirculadeLayout } from "./polygonalCirculadeLayout";
+import {
+  bramCoreRadiusForCity,
+  bramPeripheryBufferMeters,
+  planPolygonalCirculadeLayout
+} from "./polygonalCirculadeLayout";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
@@ -54,11 +58,13 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     const seed = plan?.seed ?? "circulade-voronoi-seed";
     const templeElem = document.elements.find(e => e.kind === "temple");
 
-    const corePlan = planPolygonalCirculadeLayout(hub, seed, 120, !!templeElem, 16);
+    const walled = document.featureGroups.some(group => group.kind === "wall");
+    const coreRadius = bramCoreRadiusForCity(document.frame.cityRadiusMeters, walled);
+    const corePlan = planPolygonalCirculadeLayout(hub, seed, coreRadius, !!templeElem, 16);
     const coreFabric = buildPolygonalCirculadeFabric(document, { seed, plan: corePlan });
 
-    // Buffer zone: ring road has width 4.2m at R=120m, plus safety margin -> 123.5m
-    const coreBufferRadius = 123.5;
+    // Stay clear of the outer ring road (4.2 m at the nominal 120 m core).
+    const coreBufferRadius = bramPeripheryBufferMeters(coreRadius);
     const isInsideCore = (p: Point): boolean => {
       if (Math.hypot(p[0] - hub[0], p[1] - hub[1]) < coreBufferRadius) return true;
       if (pointInPolygon(p, corePlan.outerBoundary)) return true;
