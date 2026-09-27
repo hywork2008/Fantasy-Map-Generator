@@ -5,8 +5,9 @@ import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
-import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
+import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
+import { openFieldPlots } from "./openField";
 import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
 import {
   bramCoreRadiusForCity,
@@ -270,7 +271,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       );
     });
     const key = JSON.stringify([
-      "farm-v2",
+      "farm-v3",
       district.id,
       outline,
       district.parameters,
@@ -297,19 +298,12 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
         })
       );
       if (polygon.length < 3 || Math.abs(polygonArea(polygon)) < 150) continue;
-      const normal: Point = [Math.cos(district.parameters.orientation), Math.sin(district.parameters.orientation)];
-      const values = polygon.map(p => p[0] * normal[0] + p[1] * normal[1]);
-      const min = Math.min(...values),
-        max = Math.max(...values);
-      const rows: Point[][] = [];
-      // At most 100 strokes per plot, independent of city dimensions.
-      const spacing = Math.max(6, (max - min) / 100);
-      for (let offset = min + spacing; offset < max; offset += spacing) {
-        const row = chord(polygon, normal, offset);
-        if (row && !nearby.some(r => row.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 4)))
-          rows.push(row);
+      for (const field of openFieldPlots(polygon, district.parameters.orientation, `${district.id}:open-field`)) {
+        const rows = field.rows.filter(
+          row => !nearby.some(river => row.some(p => nearestOnPolyline(p, river.points).dist < river.width / 2 + 4))
+        );
+        if (rows.length >= 2) plots.push({ faceId: district.faceIds[0], polygon: field.polygon, rows });
       }
-      plots.push({ faceId: district.faceIds[0], polygon, rows });
     }
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });
     farms.push(...plots);

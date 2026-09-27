@@ -155,13 +155,14 @@ export function renderEditorSvg(
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
-      for (const farm of fabric.farms) {
+      fabric.farms.forEach((farm, index) => {
+        const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
         farms.appendChild(
           element("path", {
             d: polygon(farm.polygon),
-            fill: "#c6c19f",
-            stroke: "#aaa783",
-            "stroke-width": "1",
+            fill: tone ? "#d4ceb2" : "#c4bf9a",
+            stroke: "#8f8a74",
+            "stroke-width": "0.6",
             "data-farm-face": farm.faceId
           })
         );
@@ -169,12 +170,12 @@ export function renderEditorSvg(
           element("path", {
             d: farm.rows.map(row => line(row)).join(" "),
             fill: "none",
-            stroke: "#a6a079",
-            "stroke-width": "1",
+            stroke: "#5e5948",
+            "stroke-width": "0.65",
             class: "ce-farm-rows"
           })
         );
-      }
+      });
       svg.appendChild(farms);
       // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
       // the ground colour still reads as the gap between them.
