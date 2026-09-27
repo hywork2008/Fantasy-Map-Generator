@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { renderStandaloneCitySvg } from "../../render/svg";
+import { bridgeDecks } from "../bridgeDeck";
 import { createGridDocument, createSizedDocument, parseDocument } from "../document";
 import { featureGroupVertices } from "../features";
 import { countExternalApproachRoads, defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
-import { kindEdgeIds, vertexHasCrossing } from "../passages";
+import { kindEdgeIds, minGateSpacingMeters, vertexHasCrossing } from "../passages";
 import type { CityDocument, Point } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { buildCityBuildings, buildingHitsCivicLandmark, insetConvexKernel } from "./buildingLots";
@@ -12,6 +14,53 @@ import { orientedRectPolylineDistance, pointInOrientedRect, templeRectForElement
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { civicYardMeters } from "./housing";
 import { minExternalRoadsForExtent } from "./settlementExtent";
+
+function capeMicroCity(coast: "auto" | "open" | "seaWall" | "opening"): CityDocument | null {
+  const input = createGridDocument({
+    size: "micro",
+    grid: "evolution",
+    seed: "fotmhy",
+    patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+  });
+  const settings = defaultGenerationSettings();
+  settings.layout = "organic";
+  settings.config.coast = "cape";
+  settings.config.rivers = ["straight"];
+  settings.config.relief = false;
+  settings.config.features = {
+    walls: true,
+    citadel: true,
+    plaza: true,
+    temple: false,
+    port: true,
+    shanty: false
+  };
+  settings.config.wall = { envelope: "auto", coast, line: "auto" };
+  settings.config.layout = "auto";
+  settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+  return generateCityOnDocument(input, settings, "1vt05rm");
+}
+
+/** Length of buildable sea-front edges that are not part of a wall group. */
+function unwalledSeaFront(city: CityDocument): number {
+  const walled = new Set(
+    city.featureGroups.flatMap(group => (group.kind === "wall" ? group.segments.map(segment => segment.edgeId) : []))
+  );
+  let length = 0;
+  for (const edge of Object.values(city.mesh.edges)) {
+    const left = edge.leftFace ? city.mesh.faces[edge.leftFace] : null;
+    const right = edge.rightFace ? city.mesh.faces[edge.rightFace] : null;
+    if (!left || !right) continue;
+    if (left.properties.water !== "sea" && right.properties.water !== "sea") continue;
+    if (left.properties.water !== "land" && right.properties.water !== "land") continue;
+    if (!left.properties.buildable && !right.properties.buildable) continue;
+    if (walled.has(edge.id)) continue;
+    const a = city.mesh.vertices[edge.a].point;
+    const b = city.mesh.vertices[edge.b].point;
+    length += Math.hypot(b[0] - a[0], b[1] - a[1]);
+  }
+  return length;
+}
 
 /** Degrees by which a bridge arm leans away from a right angle with the river. Null when the channel has no direction. */
 function bridgeSkewDegrees(document: CityDocument, aId: string, midId: string, bId: string): number | null {
@@ -243,6 +292,32 @@ describe("complete editable city", () => {
       expect(city.gates.length, seed).toBeLessThanOrEqual(3);
       expect(countExternalApproachRoads(city), seed).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("spaces Micro cape gates so their plazas do not meet, and does not bridge the sea wall", () => {
+    const city = capeMicroCity("auto");
+    expect(city).not.toBeNull();
+    if (!city) return;
+    expect(validate(city)).toEqual([]);
+    expect(city.gates).toHaveLength(2);
+    const wall = city.featureGroups.find(group => group.kind === "wall");
+    expect(wall?.kind).toBe("wall");
+    if (wall?.kind !== "wall") return;
+    const spacing = minGateSpacingMeters(wall.style.widthMeters);
+    const points = city.gates.map(gate => city.mesh.vertices[gate.vertexId].point);
+    expect(Math.hypot(points[0][0] - points[1][0], points[0][1] - points[1][1])).toBeGreaterThanOrEqual(spacing);
+    for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
+    expect(bridgeDecks(city)).toHaveLength(1);
+    expect(renderStandaloneCitySvg(city).querySelectorAll(".ce-quays path")).toHaveLength(0);
+
+    const opened = capeMicroCity("opening");
+    const cleared = capeMicroCity("open");
+    expect(opened && cleared).toBeTruthy();
+    if (!opened || !cleared) return;
+    const gap = unwalledSeaFront(opened) - unwalledSeaFront(city);
+    expect(gap).toBeGreaterThan(8);
+    expect(gap).toBeLessThan(45);
+    expect(unwalledSeaFront(cleared)).toBeGreaterThan(unwalledSeaFront(opened) + 80);
   });
 
   it("draws houses in a concave Micro craftsmen ward left empty by the convex kernel", () => {

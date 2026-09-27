@@ -23,7 +23,8 @@ export type CityFeatureSet = Omit<CityProgram, "capital" | "wallPlan">;
 /** Standalone wall-pattern overrides; "auto" defers to the wall-patterns.md §8
  * matrix (`siteInput.ts` `siteToWallPlan`). M4b exposes the implemented members. */
 export type WallEnvelopeChoice = "auto" | "hull" | "notchFilled";
-export type WallCoastChoice = "auto" | "open" | "seaWall";
+/** `opening` keeps the sea wall and leaves a single gap at the harbour. */
+export type WallCoastChoice = "auto" | "open" | "seaWall" | "opening";
 export type WallLineChoice = "auto" | "polygonal" | "organic";
 
 /** Urban morphological layout pattern:
@@ -62,7 +63,7 @@ export const COAST_SHAPES: CoastShape[] = ["none", "straight", "bay", "cape"];
 export const RIVER_SHAPES: RiverShape[] = ["through", "beside", "toCoast", "straight", "meander", "greatBend"];
 export const FEATURE_KEYS: (keyof CityFeatureSet)[] = ["port", "walls", "citadel", "plaza", "temple", "shanty"];
 export const WALL_ENVELOPE_CHOICES: WallEnvelopeChoice[] = ["auto", "hull", "notchFilled"];
-export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall"];
+export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall", "opening"];
 export const WALL_LINE_CHOICES: WallLineChoice[] = ["auto", "polygonal", "organic"];
 
 /** Plausible initial check state from population — the user is free to change

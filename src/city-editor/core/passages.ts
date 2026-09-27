@@ -342,6 +342,14 @@ export function gatePlazaRadiusMeters(wallWidthMeters: number): number {
   return wallWidthMeters * GATE_TOWER_SCALE * GATE_PLAZA_SCALE;
 }
 
+/**
+ * Two plaza disks closer than this cover the curtain between the gates.
+ * The extra wall thickness leaves a visible stub of masonry between the circles.
+ */
+export function minGateSpacingMeters(wallWidthMeters: number): number {
+  return gatePlazaRadiusMeters(wallWidthMeters) * 2 + wallWidthMeters;
+}
+
 /** Both gate plazas together are a disk centred on the gate. Buildings must stay outside it. */
 export function gatePlazaDisks(document: CityDocument): { center: Point; radius: number }[] {
   const disks: { center: Point; radius: number }[] = [];

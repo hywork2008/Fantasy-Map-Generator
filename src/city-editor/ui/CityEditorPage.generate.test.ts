@@ -125,6 +125,18 @@ function seedRichTown(tries = 16): void {
 }
 
 describe("Generate panel", () => {
+  it("offers a sea-wall control with a full wall, no wall, and one opening", () => {
+    const select = root.querySelector<HTMLSelectElement>(".ce-generate-seawall");
+    expect(select).toBeTruthy();
+    expect([...(select?.options ?? [])].map(option => option.textContent)).toEqual([
+      "自動",
+      "全面あり",
+      "全面なし",
+      "1箇所開放"
+    ]);
+    expect(select?.value).toBe("auto");
+  });
+
   it("generates a complete illustrated city in one click, supports mesh view and Undo/Redo", () => {
     const before = meshFingerprint();
     panelButton("都市を一括生成").click();

@@ -154,7 +154,7 @@ export type WallSegmentKind = "land" | "coast" | "river" | "citadel";
  */
 export interface WallPlan {
   envelope: "hull" | "notchFilled" | "sectorPolygon" | "denseCore" | "expanded";
-  coast: "open" | "quayWall" | "seaWall" | "harborBasin" | "setBack";
+  coast: "open" | "quayWall" | "seaWall" | "harborBasin" | "setBack" | "opening";
   line: "organic" | "polygonal" | "geometric";
   extent: "full" | "landwardOnly" | "rampart" | "none";
   /** Bridge any inward pocket deeper than this × cellSize (envelope step). */

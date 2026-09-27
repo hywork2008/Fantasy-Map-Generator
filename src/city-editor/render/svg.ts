@@ -557,33 +557,58 @@ export function renderEditorSvg(
 
 function renderTownQuays(document: CityDocument): SVGGElement {
   const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
-  if (!document.elements.some(e => e.kind === "harbor")) return layer;
+  const harbor = document.elements.find(entry => entry.kind === "harbor");
+  if (!harbor) return layer;
+  // A solid sea wall is masonry, not a river bank. Piers belong only on an
+  // unwalled edge of the harbour itself — otherwise every sea-front cell grows
+  // a span that reads as a bridge into the water.
+  const harborFaces = new Set(harbor.faceIds);
+  const walled = new Set(
+    document.featureGroups.flatMap(group =>
+      group.kind === "wall" ? group.segments.map(segment => segment.edgeId) : []
+    )
+  );
+  const harborLand = (faceId: Id | null): boolean => {
+    if (!faceId || !document.mesh.faces[faceId]) return false;
+    if (harborFaces.has(faceId)) return true;
+    return document.mesh.faces[faceId].boundary.some(ref => {
+      const edge = document.mesh.edges[ref.edgeId];
+      const other = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
+      return !!other && harborFaces.has(other);
+    });
+  };
+  let best: { a: Point; b: Point; waterRing: Point[]; length: number } | null = null;
+  let bestDist = Infinity;
+  const harborPoint = harbor.point;
   for (const edge of Object.values(document.mesh.edges)) {
+    if (walled.has(edge.id)) continue;
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
     if (!left || !right || (left.properties.water === "land") === (right.properties.water === "land")) continue;
     const land = left.properties.water === "land" ? left : right;
     const water = land === left ? right : left;
-    if (!land.properties.buildable) continue;
+    if (!land.properties.buildable || water.properties.water !== "sea" || !harborLand(land.id)) continue;
     const a = document.mesh.vertices[edge.a].point;
     const b = document.mesh.vertices[edge.b].point;
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const ring = facePoints(document.mesh, water);
-    const center = polygonCentroid(ring);
-    let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
-    if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
-    for (let distance = 12; distance < length - 4; distance += 24) {
-      const start: Point = [a[0] + ((b[0] - a[0]) * distance) / length, a[1] + ((b[1] - a[1]) * distance) / length];
-      const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
-      if (!pointInPolygon(end, ring)) continue;
-      layer.appendChild(
-        element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" })
-      );
-      layer.appendChild(
-        element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" })
-      );
+    if (length < 1) continue;
+    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const dist = harborPoint ? Math.hypot(mid[0] - harborPoint[0], mid[1] - harborPoint[1]) : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = { a, b, waterRing: facePoints(document.mesh, water), length };
     }
   }
+  if (!best) return layer;
+  const { a, b, waterRing, length } = best;
+  const center = polygonCentroid(waterRing);
+  let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
+  if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+  const start: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
+  if (!pointInPolygon(end, waterRing)) return layer;
+  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" }));
+  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" }));
   return layer;
 }
 

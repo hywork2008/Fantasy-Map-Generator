@@ -39,6 +39,7 @@ import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
+import { WALL_COAST_CHOICES, type WallCoastChoice } from "../core/gen/site/siteConfig";
 import {
   CITY_LAYOUTS,
   type CityFeatureSet,
@@ -651,6 +652,26 @@ export function mountCityEditor(root: HTMLElement): void {
     generateSettings.config.coast = coastSelect.value as SiteConfig["coast"];
     generateSettings.config.rivers = riversForCount(generateSettings.config, generateSettings.config.rivers.length);
   });
+  const SEA_WALL_LABELS: Record<WallCoastChoice, string> = {
+    auto: "自動",
+    seaWall: "全面あり",
+    open: "全面なし",
+    opening: "1箇所開放"
+  };
+  const seaWallSelect = document.createElement("select");
+  seaWallSelect.className = "ce-generate-seawall";
+  const seaWallOrder: WallCoastChoice[] = ["auto", "seaWall", "open", "opening"];
+  for (const value of seaWallOrder) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = SEA_WALL_LABELS[value];
+    seaWallSelect.appendChild(option);
+  }
+  seaWallSelect.value = generateSettings.config.wall.coast;
+  seaWallSelect.title = "海に面した城壁。1箇所開放は港の前だけ壁を欠きます。";
+  seaWallSelect.addEventListener("change", () => {
+    generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
+  });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
     generateSettings.config.rivers = riversForCount(generateSettings.config, Number(riversSelect.value));
@@ -864,6 +885,7 @@ export function mountCityEditor(root: HTMLElement): void {
   synthControls.append(
     label("都市形態", layoutSelect),
     label("Coast", coastSelect),
+    label("海側の城壁", seaWallSelect),
     label("Rivers", riversSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
     text("Features"),
@@ -2974,6 +2996,12 @@ export function mountCityEditor(root: HTMLElement): void {
     seedInput.value = generateSeed;
     layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
+    if (!generateSettings.config.wall) {
+      generateSettings.config.wall = { envelope: "auto", coast: "auto", line: "auto" };
+    }
+    seaWallSelect.value = WALL_COAST_CHOICES.includes(generateSettings.config.wall.coast)
+      ? generateSettings.config.wall.coast
+      : "auto";
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];

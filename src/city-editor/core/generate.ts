@@ -100,6 +100,7 @@ import {
   explainGeneratedCrossingFailures,
   joinWallRiverCrossings,
   kindEdgeIds,
+  minGateSpacingMeters,
   openBarrierPassage,
   openGeneratedPassages,
   orderedIncidentEdges,
@@ -1614,10 +1615,21 @@ function applyPlan(
   if (stageStep >= 4 && program.walls) {
     let wallIndex = 0;
     const openEdges = new Set<Id>();
-    if (plan.avoidSea && program.wallPlan?.coast !== "seaWall") {
+    const coastMode = program.wallPlan?.coast ?? "open";
+    // `opening` keeps the sea wall and drops a single harbour gap below.
+    const keepSeaWall = coastMode === "seaWall" || coastMode === "opening";
+    if (plan.avoidSea && !keepSeaWall) {
       for (const edge of Object.values(mesh.edges)) {
         if ([edge.leftFace, edge.rightFace].some(id => id && mesh.faces[id].properties.water !== "land"))
           openEdges.add(edge.id);
+      }
+    }
+    if (coastMode === "opening") {
+      const harbor =
+        plan.templeHarbor.find(precinct => precinct.kind === "harbor") ??
+        plan.precincts.find(precinct => precinct.kind === "harbor");
+      for (const id of seaOpeningEdgeIds(mesh, plan.borderLoops, plan.waterPolygon, harbor?.anchor ?? null)) {
+        openEdges.add(id);
       }
     }
     plan.borderLoops.forEach(loop => {
@@ -1679,7 +1691,42 @@ function applyPlan(
       }
     }
     const exteriorRegions = [...reachable].map(id => facePoints(mesh, mesh.faces[id]));
+    const wallWidth = Math.max(4, source.frame.blockSizeMeters * 0.14);
+    const minGateSpacing = minGateSpacingMeters(wallWidth);
+    // A cape or island keeps most of its curtain on the water. Gate count follows
+    // the landward share of the built edge, so two gates are not planted on the
+    // same short land neck. Inland towns (little or no sea front) are unchanged.
+    let seaFront = 0;
+    let landFront = 0;
+    for (const edge of Object.values(mesh.edges)) {
+      const left = edge.leftFace ? mesh.faces[edge.leftFace] : null;
+      const right = edge.rightFace ? mesh.faces[edge.rightFace] : null;
+      if (!left || !right) continue;
+      if (!left.properties.buildable && !right.properties.buildable) continue;
+      const sea = left.properties.water === "sea" || right.properties.water === "sea";
+      const outer = sea || !left.properties.buildable || !right.properties.buildable;
+      if (!outer) continue;
+      const a = mesh.vertices[edge.a]?.point;
+      const b = mesh.vertices[edge.b]?.point;
+      if (!a || !b) continue;
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (sea) seaFront += length;
+      else landFront += length;
+    }
+    const frontTotal = seaFront + landFront;
+    const seaShare = frontTotal > 0 ? seaFront / frontTotal : 0;
+    const gateBudget =
+      seaShare >= 0.3
+        ? Math.max(1, Math.min(plan.gates.length, Math.round(plan.gates.length * (1 - seaShare))))
+        : plan.gates.length;
+    const placedPoints: Point[] = next.gates.flatMap(gate => {
+      const point = mesh.vertices[gate.vertexId]?.point;
+      return point ? [[point[0], point[1]] as Point] : [];
+    });
+    const tooCloseToGate = (point: Point): boolean =>
+      placedPoints.some(placed => Math.hypot(placed[0] - point[0], placed[1] - point[1]) < minGateSpacing);
     plan.gates.forEach((gate, i) => {
+      if (next.gates.length >= gateBudget) return;
       if (next.gates.some(g => g.id === `${GEN_PREFIX}gate-${i}` && g.locked)) return;
       const riverVertices = new Set(
         [...kindEdgeIds(next, "river")].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b])
@@ -1695,6 +1742,8 @@ function applyPlan(
         );
       });
       for (const vertexId of candidates) {
+        const point = mesh.vertices[vertexId]?.point;
+        if (!point || tooCloseToGate(point)) continue;
         const opened = openBarrierPassage(next, vertexId, "wall");
         if (!opened) continue;
         if (
@@ -1714,6 +1763,8 @@ function applyPlan(
           continue;
         next = opened;
         mesh = next.mesh;
+        const placed = mesh.vertices[vertexId]?.point ?? point;
+        placedPoints.push([placed[0], placed[1]]);
         next.gates.push({ id: `${GEN_PREFIX}gate-${i}`, vertexId, locked: false });
         break;
       }
@@ -1838,11 +1889,17 @@ function applyPlan(
     const approachRoadCount = plan.roads.length - plan.streets.length;
     plan.roads.forEach((polyline, i) => {
       const isApproach = i < approachRoadCount;
-      if (isApproach) {
-        // Walled towns drop a route whose gate never made it onto the mesh.
-        // Unwalled towns have no gates; still draw the planned approach roads.
-        if (complete && program.walls && !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${i}`)) return;
-      }
+      // Approaches and the matching gate-to-plaza streets share a gate index.
+      // Later streets are extras and are not paired with a planned gate.
+      const gateIndex = isApproach ? i : i - approachRoadCount;
+      if (
+        complete &&
+        program.walls &&
+        gateIndex >= 0 &&
+        gateIndex < approachRoadCount &&
+        !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`)
+      )
+        return;
       const segments = routeComplete(polyline, isApproach);
       if (segments.length < 1) return;
       if (!isApproach && program.walls) {
@@ -2566,6 +2623,85 @@ function longestUnbannedRun(segments: EdgeRef[], banned: Set<Id>): EdgeRef[] {
     } else current.push(segment);
   }
   return current.length > best.length ? current : best;
+}
+
+/**
+ * One sea-wall gap, centred on the shore edge nearest the harbour. Grows along
+ * neighbouring sea edges only until the gap is wide enough for a boat (~16 m).
+ */
+function seaOpeningEdgeIds(
+  mesh: Mesh,
+  loops: MeshBorderLoop[],
+  waterPolygon: Point[] | null,
+  anchor: Point | null
+): Set<Id> {
+  const open = new Set<Id>();
+  interface SeaEdge {
+    id: Id;
+    mid: Point;
+    length: number;
+  }
+  const seaEdges: SeaEdge[] = [];
+  for (const loop of loops) {
+    const runs =
+      waterPolygon && waterPolygon.length >= 3
+        ? splitDryWallRuns(loop.points, loop.segments, waterPolygon)
+        : [loop.segments];
+    for (const run of runs) {
+      for (const segment of run) {
+        const edge = mesh.edges[segment.edgeId];
+        if (!edge) continue;
+        const waters = [edge.leftFace, edge.rightFace]
+          .filter((id): id is Id => !!id)
+          .map(id => mesh.faces[id]?.properties.water);
+        if (!waters.includes("sea") || !waters.includes("land")) continue;
+        const a = mesh.vertices[edge.a]?.point;
+        const b = mesh.vertices[edge.b]?.point;
+        if (!a || !b) continue;
+        seaEdges.push({
+          id: segment.edgeId,
+          mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+          length: Math.hypot(b[0] - a[0], b[1] - a[1])
+        });
+      }
+    }
+  }
+  if (!seaEdges.length) return open;
+  const target = anchor ?? [0, 0];
+  const distanceTo = (edge: SeaEdge) => Math.hypot(edge.mid[0] - target[0], edge.mid[1] - target[1]);
+  seaEdges.sort((a, b) => distanceTo(a) - distanceTo(b) || a.id.localeCompare(b.id));
+  const seed = seaEdges[0];
+  const byId = new Map(seaEdges.map(edge => [edge.id, edge]));
+  const atVertex = new Map<Id, Id[]>();
+  for (const seaEdge of seaEdges) {
+    const edge = mesh.edges[seaEdge.id];
+    for (const vertexId of [edge.a, edge.b]) {
+      const list = atVertex.get(vertexId) ?? [];
+      list.push(seaEdge.id);
+      atVertex.set(vertexId, list);
+    }
+  }
+  const MIN_GAP = 16;
+  open.add(seed.id);
+  let length = seed.length;
+  while (length < MIN_GAP) {
+    const frontier: Id[] = [];
+    for (const id of open) {
+      const edge = mesh.edges[id];
+      for (const vertexId of [edge.a, edge.b]) {
+        for (const next of atVertex.get(vertexId) ?? []) {
+          if (!open.has(next)) frontier.push(next);
+        }
+      }
+    }
+    const next = [...new Set(frontier)].sort(
+      (a, b) => distanceTo(byId.get(a)!) - distanceTo(byId.get(b)!) || a.localeCompare(b)
+    )[0];
+    if (!next) break;
+    open.add(next);
+    length += byId.get(next)!.length;
+  }
+  return open;
 }
 
 function unbannedRuns(segments: EdgeRef[], banned: Set<Id>): EdgeRef[][] {

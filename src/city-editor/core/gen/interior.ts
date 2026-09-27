@@ -906,7 +906,8 @@ export function buildWallDraw(
   if (plan.extent === "none") return { wallRuns: [], towers: [] };
   const reserved = new Set(gates.map(g => pointKey(g.point)));
 
-  const coastDrawn = plan.coast === "seaWall" || plan.coast === "quayWall" || plan.coast === "harborBasin";
+  const coastDrawn =
+    plan.coast === "seaWall" || plan.coast === "opening" || plan.coast === "quayWall" || plan.coast === "harborBasin";
   const drawnKind = (kind: WallSegmentKind): boolean => {
     if (kind === "citadel") return true; // fused into the town wall (wall-patterns.md §6)
     if (plan.extent === "landwardOnly") return kind === "land";
