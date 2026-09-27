@@ -6,7 +6,7 @@ import { buildCirculadeBlocks } from "./circuladeFabric";
 import { districtBoundary } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea } from "./housing";
-import { insetConvexKernel } from "./lotGeometry";
+import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
 import type { OrganicBlockContext } from "./organicBlocks";
 import { ORGANIC_LANE_FACADE_CLEARANCE } from "./organicBlocks";
 import { buildPerimeterBlocks } from "./perimeterBlocks";
@@ -66,71 +66,9 @@ export interface InfillOptions {
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const dot = (p: Point, n: Point) => p[0] * n[0] + p[1] * n[1];
-const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
 
-/** Convex pieces of a simple polygon; triangulation seams remain local to infill. */
-export function convexInfillParts(polygon: Point[]): Point[][] {
-  const sign = -Math.sign(polygonArea(polygon));
-  if (!sign || polygon.length < 3) return [];
-  const convex = (ids: number[]) =>
-    ids.every(
-      (v, i) =>
-        sign * cross(polygon[ids[(i + ids.length - 1) % ids.length]], polygon[v], polygon[ids[(i + 1) % ids.length]]) >=
-        -1e-7
-    );
-  const remaining = polygon.map((_, i) => i);
-  if (convex(remaining)) return [polygon];
-  const pieces: number[][] = [];
-  while (remaining.length > 3) {
-    const ear = remaining.findIndex((b, i) => {
-      const a = remaining[(i + remaining.length - 1) % remaining.length],
-        c = remaining[(i + 1) % remaining.length];
-      if (sign * cross(polygon[a], polygon[b], polygon[c]) <= 1e-7) return false;
-      return !remaining.some(
-        v =>
-          v !== a &&
-          v !== b &&
-          v !== c &&
-          sign * cross(polygon[a], polygon[b], polygon[v]) >= -1e-7 &&
-          sign * cross(polygon[b], polygon[c], polygon[v]) >= -1e-7 &&
-          sign * cross(polygon[c], polygon[a], polygon[v]) >= -1e-7
-      );
-    });
-    if (ear < 0) return []; // Invalid/degenerate edited polygon: don't draw across its exterior.
-    pieces.push([
-      remaining[(ear + remaining.length - 1) % remaining.length],
-      remaining[ear],
-      remaining[(ear + 1) % remaining.length]
-    ]);
-    remaining.splice(ear, 1);
-  }
-  pieces.push(remaining);
-  // Merge triangles into broad convex regions rather than exposing triangulation in the buildings.
-  for (let changed = true; changed; ) {
-    changed = false;
-    outer: for (let i = 0; i < pieces.length; i++)
-      for (let j = i + 1; j < pieces.length; j++) {
-        const edges = [...pieces[i], ...pieces[j]];
-        if (new Set(edges).size !== edges.length - 2) continue;
-        const directed = [pieces[i], pieces[j]].flatMap(ids => ids.map((a, k) => [a, ids[(k + 1) % ids.length]]));
-        const border = directed.filter(([a, b]) => !directed.some(([c, d]) => a === d && b === c));
-        if (!border.length) continue;
-        const ring = [border[0][0]];
-        while (ring.length < border.length) {
-          const edge = border.find(([a]) => a === ring.at(-1));
-          if (!edge || ring.includes(edge[1])) break;
-          ring.push(edge[1]);
-        }
-        if (ring.length !== border.length || !convex(ring)) continue;
-        pieces[i] = ring;
-        pieces.splice(j, 1);
-        changed = true;
-        break outer;
-      }
-  }
-  return pieces.map(ids => ids.map(i => polygon[i]));
-}
+export { convexInfillParts } from "./lotGeometry";
 
 /** Reachable face portals form a forest rooted at real major-road frontages. */
 export function buildLocalFabric(document: CityDocument, options?: InfillOptions): CityFabric {
@@ -143,6 +81,7 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
   const rivers: { points: Point[]; width: number }[] = [];
   const organicContext: OrganicBlockContext = {
     hub: options?.hub ?? document.elements.find(e => e.kind === "plaza")?.point ?? [0, 0],
+    extentMeters: document.frame.extentMeters,
     walls: document.featureGroups.flatMap(g =>
       g.kind === "wall"
         ? g.segments.flatMap(ref => {
@@ -431,7 +370,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
           ? "district-infill-classic-v3"
           : outskirts
             ? "outskirts-face-v3"
-            : ["district-organic-network-v2", ORGANIC_LANE_FACADE_CLEARANCE],
+            : ["district-organic-network-v4", ORGANIC_LANE_FACADE_CLEARANCE],
         ctx.options.seed,
         id,
         face.properties,

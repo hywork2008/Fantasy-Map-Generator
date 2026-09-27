@@ -9,7 +9,7 @@ import type { CityDocument, Point } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { buildCityBuildings, buildingHitsCivicLandmark, insetConvexKernel } from "./buildingLots";
 import { orientedRectPolylineDistance, pointInOrientedRect, templeRectForElement } from "./civicPlacement";
-import { nearestOnPolyline, pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { civicYardMeters } from "./housing";
 import { minExternalRoadsForExtent } from "./settlementExtent";
 
@@ -242,6 +242,42 @@ describe("complete editable city", () => {
       expect(city.gates.length, seed).toBeGreaterThan(0);
       expect(city.gates.length, seed).toBeLessThanOrEqual(3);
       expect(countExternalApproachRoads(city), seed).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("draws houses in a concave Micro craftsmen ward left empty by the convex kernel", () => {
+    const settings = defaultGenerationSettings();
+    settings.layout = "organic";
+    settings.config.layout = "organic";
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.relief = false;
+    settings.config.features.walls = true;
+    settings.config.features.plaza = true;
+    settings.config.features.temple = true;
+    settings.config.features.citadel = false;
+    settings.config.features.port = false;
+    settings.config.features.shanty = true;
+    const input = createGridDocument({
+      size: "micro",
+      grid: "evolution",
+      seed: "2ojrm7",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const city = generateCityOnDocument(input, settings, "7erakc");
+    expect(city).not.toBeNull();
+    if (!city) return;
+    const fabric = buildBlockFabric(city);
+    for (const id of ["f22", "f35", "f36", "f120"]) {
+      const face = city.mesh.faces[id];
+      expect(face?.properties.ward, id).toBe("craftsmen");
+      expect(Math.abs(polygonArea(facePoints(city.mesh, face))), id).toBeGreaterThan(200);
+      const houses = fabric.buildings.filter(building => building.faceId === id);
+      expect(houses.length, id).toBeGreaterThan(0);
+      const outline = facePoints(city.mesh, face);
+      for (const house of houses) {
+        expect(pointInPolygon(polygonCentroid(house.polygon), outline), id).toBe(true);
+      }
     }
   });
 

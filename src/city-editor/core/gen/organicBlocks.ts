@@ -8,7 +8,7 @@ import {
   polygonArea,
   polygonCentroid
 } from "./geom";
-import { dwellingLotArea } from "./housing";
+import { civicSizeForExtent, dwellingLotArea } from "./housing";
 import type { InfillLane } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
 import { makeRng, type Rng } from "./prng";
@@ -16,12 +16,15 @@ import { type BlockBoundary, cleanStreetRing, type PerimeterFabric, streetChords
 
 export interface OrganicBlockContext {
   hub: Point;
+  /** Older callers without a frame retain the Tiny-and-larger morphology. */
+  extentMeters?: number;
   /** The city wall supplies local directions even to districts away from it. */
   walls: [Point, Point][];
 }
 
 type Split = { parts: [Point[], Point[]]; path: Point[] };
 type Frame = { axis: Point; lo: number; hi: number; short: number };
+type CompactSplit = { laneWidth: number; houseDepth: number; lotArea: number };
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const sub = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1]];
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -58,6 +61,8 @@ export function buildOrganicBlocks(
   const lotArea = parameters?.lotArea ?? dwellingLotArea(face.properties.ward);
   const houseDepth = Math.sqrt(Math.max(40, lotArea)) * 1.1;
   const pairedSpan = 2 * houseDepth + width + 0.7;
+  const micro = context?.extentMeters !== undefined && civicSizeForExtent(context.extentMeters) === "micro";
+  const compact: CompactSplit | undefined = micro ? { laneWidth: width, houseDepth, lotArea } : undefined;
   const hub = context?.hub ?? polygonCentroid(outline);
   const preferredAxis: Point | undefined = parameters
     ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
@@ -68,7 +73,7 @@ export function buildOrganicBlocks(
   // Boundary edges are offset as one joined ring, including the intersections
   // with road centrelines at gates/bridges. The water/wall itself is never a
   // street endpoint. Different banks are handled on their respective land side.
-  const domains = corridorDomains(outline, boundaries, width);
+  const domains = corridorDomains(outline, boundaries, width, pairedSpan);
   for (const domain of domains) {
     for (const edge of domain.boundaries) {
       if (!edge.feature || edge.barrier) addStreet([edge.a, edge.b]);
@@ -84,7 +89,14 @@ export function buildOrganicBlocks(
       // Only coarse districts get circumferential links. Never march an offset
       // through the entire face: the independently chosen attachment points on
       // either side of an arterial need not line up into a complete ring.
-      if (level < 3 && frame.short > pairedSpan * 2.1 && area(poly) > pairedSpan ** 2 * 7) {
+      // A Micro sector can hold a connector and two blocks without holding
+      // the seven block areas required by the large-district hierarchy. Give
+      // it one circumferential connection before local parcel subdivision.
+      if (
+        level < (micro ? 1 : 3) &&
+        frame.short > pairedSpan * (micro ? 1.1 : 2.1) &&
+        area(poly) > pairedSpan ** 2 * (micro ? 2.2 : 7)
+      ) {
         const center = polygonCentroid(poly);
         const radial = unit(sub(center, hub));
         const wall = nearestWall(center, context?.walls ?? []);
@@ -93,10 +105,7 @@ export function buildOrganicBlocks(
         // Blend a local wall normal with the direction away from the plaza.
         // This follows polygonal walls without imposing a city-wide grid.
         normal = unit([normal[0] * 0.65 + radial[0] * 0.35, normal[1] * 0.65 + radial[1] * 0.35]);
-        const split = chooseSplit(poly, normal, rng, pairedSpan, domain.boundaries, {
-          hub,
-          outward: normal
-        });
+        const split = chooseSplit(poly, normal, rng, pairedSpan, domain.boundaries, { hub, outward: normal }, compact);
         if (split) {
           addStreet(split.path);
           for (const child of split.parts) connectDistrict(child, level + 1);
@@ -112,8 +121,11 @@ export function buildOrganicBlocks(
       // Back-to-back rows and courts share the same house depth. Their size
       // distribution belongs to each parcel, never to a district-wide strip.
       const courtyard = rng() < 0.32;
-      const shortLimit = pairedSpan + (courtyard ? houseDepth * rng.range(0.65, 1.4) : rng.range(0, 3));
-      const longLimit = pairedSpan * rng.range(1.65, 2.6);
+      // Keep real house depths and lane widths. A smaller town has shorter
+      // frontages and smaller courts, not houses scaled down with the map.
+      const shortLimit =
+        pairedSpan + (courtyard ? houseDepth * rng.range(micro ? 0.3 : 0.65, micro ? 0.8 : 1.4) : rng.range(0, 3));
+      const longLimit = pairedSpan * rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6);
       const kernel = insetConvexKernel(
         poly,
         poly.map(() => 0)
@@ -129,7 +141,7 @@ export function buildOrganicBlocks(
       // Recompute the frame from each child's actual edges. Alternating axes
       // and independent half/third positions produce branching T junctions,
       // trapezoids and tapered blocks, without a stack of parallel ribbons.
-      let split = chooseSplit(poly, frame.axis, rng, pairedSpan, domain.boundaries);
+      let split = chooseSplit(poly, frame.axis, rng, pairedSpan, domain.boundaries, undefined, compact);
       if (!split && deepNotch) split = splitReflex(poly, pairedSpan * pairedSpan * 0.18);
       if (!split) {
         parcels.push(poly);
@@ -152,14 +164,7 @@ export function buildOrganicBlocks(
   }
 
   function fill(poly: Point[], perimeter: BlockBoundary[]): void {
-    const sides = poly.map((a, i) => {
-      const b = poly[(i + 1) % poly.length];
-      const matches = overlappingBoundaries(a, b, perimeter);
-      return {
-        setback: Math.max(width / 2 + ORGANIC_LANE_FACADE_CLEARANCE, ...matches.map(edge => edge.setback)),
-        primary: matches.some(edge => edge.feature && !edge.barrier)
-      };
-    });
+    const sides = parcelSides(poly, perimeter, width);
     // Mild bends leave a court/yard on their concave side. Deep notches have
     // already been divided by a real lane, so a convex kernel cannot erase an
     // entire arm of the district as it did in the previous strip generator.
@@ -277,7 +282,8 @@ function chooseSplit(
   rng: Rng,
   span: number,
   boundaries: BlockBoundary[],
-  bend?: { hub: Point; outward: Point }
+  bend?: { hub: Point; outward: Point },
+  compact?: CompactSplit
 ): Split | null {
   let best: Split | null = null;
   let bestScore = Infinity;
@@ -293,7 +299,7 @@ function chooseSplit(
       const length = distance(...chord);
       if (length < span * 0.65) continue;
       let path: Point[] = chord;
-      if (bend && length > span * 2) {
+      if (bend && length > span * (compact ? 1.25 : 2)) {
         const radius = Math.max(span, distance(polygonCentroid(poly), bend.hub));
         const sag = Math.min(length * 0.13, (length * length) / (8 * radius));
         // A pair of gentle bends follows the wall around the square. Endpoints
@@ -314,6 +320,22 @@ function chooseSplit(
       if (Math.min(...sizes) < span * span * 0.32) continue;
       const frames = candidate.parts.map(p => localFrame(p));
       if (frames.some(f => f.short < span * 0.52)) continue;
+      // At Micro scale, a wide arterial can consume much of a small parcel.
+      // Judge the same inset that will be passed to housing, not just the
+      // untrimmed bounding box. Never add an alley that leaves an empty sliver.
+      if (
+        compact &&
+        candidate.parts.some(part => {
+          const block = insetConvexKernel(
+            part,
+            parcelSides(part, boundaries, compact.laneWidth).map(s => s.setback)
+          );
+          return (
+            block.length < 3 || area(block) < compact.lotArea * 1.1 || localFrame(block).short < compact.houseDepth
+          );
+        })
+      )
+        continue;
       // Reject slivers/acute intersections, preserve multiple house frontages
       // between junctions, and prefer arterial-to-arterial coarse connections.
       const roadEnds = chord.filter(p =>
@@ -431,10 +453,21 @@ function overlappingBoundaries(a: Point, b: Point, boundaries: BlockBoundary[]):
   });
 }
 
+function parcelSides(poly: Point[], perimeter: BlockBoundary[], laneWidth: number) {
+  return poly.map((a, i) => {
+    const matches = overlappingBoundaries(a, poly[(i + 1) % poly.length], perimeter);
+    return {
+      setback: Math.max(laneWidth / 2 + ORGANIC_LANE_FACADE_CLEARANCE, ...matches.map(edge => edge.setback)),
+      primary: matches.some(edge => edge.feature && !edge.barrier)
+    };
+  });
+}
+
 function corridorDomains(
   outline: Point[],
   boundaries: BlockBoundary[],
   width: number,
+  span: number,
   depth = 0
 ): { ring: Point[]; boundaries: BlockBoundary[] }[] {
   const sign = -Math.sign(polygonArea(outline));
@@ -468,11 +501,27 @@ function corridorDomains(
         Math.max(width, edges[i].offset, edges[(i + edges.length - 1) % edges.length].offset) * 5
     );
   if (!valid) {
-    // A narrow concave neck can collapse under an inset. Divide at its notch
-    // before offsetting; never use the whole polygon's convex kernel as a
-    // replacement for the buildable district.
-    const split = depth < 10 ? splitReflex(outline, width * width * 2) : null;
-    return split ? split.parts.flatMap(part => corridorDomains(part, boundaries, width, depth + 1)) : [];
+    // An ear-clipping decomposition is not a street plan: its diagonals can
+    // all converge on one wall vertex, producing a fan of unbuildable wedges.
+    // Resolve a failed offset with transverse streets between parent edges.
+    // Each child is offset independently, keeping its original wall/bank
+    // clearances. The cuts use the same house-scale limits as normal streets.
+    if (depth < 10) {
+      const frame = localFrame(outline);
+      const rng = makeRng(`organic-corridor:${JSON.stringify(outline)}`);
+      // A river/arterial strip may be narrower than two house rows and still
+      // need a continuous bank path. Repair its offset at corridor scale;
+      // housing is still admitted later using the full facade setbacks.
+      const repairSpan = Math.min(span, Math.max(width * 2, frame.short * 0.8));
+      const axes: Point[] = [frame.axis, [-frame.axis[1], frame.axis[0]]];
+      for (const axis of axes) {
+        const split = chooseSplit(outline, axis, rng, repairSpan, boundaries);
+        if (!split) continue;
+        const domains = split.parts.flatMap(part => corridorDomains(part, boundaries, width, span, depth + 1));
+        if (domains.length) return domains;
+      }
+    }
+    return [];
   }
   return [
     {
