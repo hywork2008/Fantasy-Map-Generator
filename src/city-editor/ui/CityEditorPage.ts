@@ -1,3 +1,5 @@
+import i18n from "../../i18n";
+import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import {
   CITY_SIZE_PRESETS,
@@ -37,8 +39,11 @@ import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
+import { WALL_COAST_CHOICES, type WallCoastChoice } from "../core/gen/site/siteConfig";
 import {
+  CITY_LAYOUTS,
   type CityFeatureSet,
+  type CityLayout,
   COMPLETE_CITY_ATTEMPTS,
   defaultGenerationSettings,
   type FarNodeMode,
@@ -80,8 +85,9 @@ import {
   splitFace,
   validate
 } from "../core/mesh";
+import { openGatePassage } from "../core/passages";
 import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
-import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
+import { exportCityMap, exportCitySvg, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import {
   buildShare,
   type CityEditorShare,
@@ -99,6 +105,7 @@ import {
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
+  renderMeasureOverlay,
   renderRoutePreview,
   type SvgPickInfo
 } from "../render/svg";
@@ -131,6 +138,9 @@ interface ContextMenuAction {
   label: string;
   run: () => void;
   highlight?: { vertexId: Id; edgeId: Id };
+  disabled?: boolean;
+  title?: string;
+  isSeparator?: boolean;
 }
 
 type RoutePaintKind = "river" | "road" | "wall";
@@ -210,12 +220,19 @@ export function mountCityEditor(root: HTMLElement): void {
   let viewCenter: [number, number] = [0, 0];
   let closeContextMenuOnPointerMove = false;
   let notice = "";
+  let measureFrom: [number, number] | null = null;
+  let measureTo: [number, number] | null = null;
   const generateSettings: GenerationSettings = defaultGenerationSettings();
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
   let gridSeed = randomSeed();
+  let hideBuildings = false;
+  /** Stage ⑩. Same document as ⑨; the town drawing omits intramural roads and block lanes. */
+  let hideStreetLines = false;
+  let currentStageStep = 9;
+  let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
   let completeResult: CityDocument | null = null;
@@ -240,6 +257,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   let showBlockMesh = false;
+  let showGridLines = false;
   let lastGeneratedStep: number | null = null;
   // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
   // WHICHEVER of the six processes was last activated (by pressing its stage
@@ -429,6 +447,7 @@ export function mountCityEditor(root: HTMLElement): void {
     completeResult = null;
     showBlockMesh = false;
     clearGridEvo();
+    clearMeasurement();
     rebuildEditorIndexes();
     refresh();
   });
@@ -436,9 +455,13 @@ export function mountCityEditor(root: HTMLElement): void {
   sizeLabel.className = "ce-size-choice";
   const undoButton = makeIconButton("🔙", "Undo", () => restore(history.undo(documentState)));
   const redoButton = makeIconButton("➜]", "Redo", () => restore(history.redo(documentState)));
-  const exportButton = makeIconButton("📥", "Export editable city map", () => {
+  const exportButton = makeIconButton("📥", "Export editable city map (JSON)", () => {
     exportCityMap(referenceImage ? { ...documentState, referenceImage } : documentState);
     showNotice("Map exported");
+  });
+  const exportSvgButton = makeIconButton("🗺️", "Export city map as SVG", () => {
+    exportCitySvg(referenceImage ? { ...documentState, referenceImage } : documentState);
+    showNotice("SVG exported");
   });
   const importButton = makeIconButton("📤", "Import city map or SVG reference", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
@@ -504,7 +527,7 @@ export function mountCityEditor(root: HTMLElement): void {
     else showNotice("No movable River, Road, or Wall vertices to smooth");
   });
   const actions = div("ce-icon-row");
-  actions.append(undoButton, redoButton, importButton, exportButton);
+  actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton);
   toolbar.content.append(
     divider(),
     actions,
@@ -604,10 +627,50 @@ export function mountCityEditor(root: HTMLElement): void {
   );
   syncGridEvoUi();
 
+  const layoutSelect = select(CITY_LAYOUTS, generateSettings.layout ?? generateSettings.config.layout ?? "auto");
+  layoutSelect.className = "ce-generate-layout";
+  for (const option of [...layoutSelect.options]) {
+    option.textContent =
+      option.value === "auto"
+        ? "Auto"
+        : option.value === "organic"
+          ? "Organic"
+          : option.value === "circulade"
+            ? "Circulade"
+            : option.value === "bram"
+              ? "Bram"
+              : "Classic";
+  }
+  layoutSelect.addEventListener("change", () => {
+    const val = layoutSelect.value as CityLayout;
+    generateSettings.layout = val;
+    generateSettings.config.layout = val;
+  });
+
   const coastSelect = select(["none", "straight", "bay", "cape"], generateSettings.config.coast);
   coastSelect.addEventListener("change", () => {
     generateSettings.config.coast = coastSelect.value as SiteConfig["coast"];
     generateSettings.config.rivers = riversForCount(generateSettings.config, generateSettings.config.rivers.length);
+  });
+  const SEA_WALL_LABELS: Record<WallCoastChoice, string> = {
+    auto: "自動",
+    seaWall: "全面あり",
+    open: "全面なし",
+    opening: "1箇所開放"
+  };
+  const seaWallSelect = document.createElement("select");
+  seaWallSelect.className = "ce-generate-seawall";
+  const seaWallOrder: WallCoastChoice[] = ["auto", "seaWall", "open", "opening"];
+  for (const value of seaWallOrder) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = SEA_WALL_LABELS[value];
+    seaWallSelect.appendChild(option);
+  }
+  seaWallSelect.value = generateSettings.config.wall.coast;
+  seaWallSelect.title = "海に面した城壁。1箇所開放は港の前だけ壁を欠きます。";
+  seaWallSelect.addEventListener("change", () => {
+    generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
   });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
@@ -625,12 +688,66 @@ export function mountCityEditor(root: HTMLElement): void {
     featureInputs.set(key, input);
     featureGrid.appendChild(toggleLabel(key, input));
   }
-  const stageButtons = div("ce-generate-stages");
-  for (const stage of GENERATION_STAGES) {
-    const button = makeButton(stage.label, () => runGenerationStage(stage));
-    button.title = stage.hint;
-    stageButtons.appendChild(button);
-  }
+  const stageContainer = div("ce-generate-stages");
+  const stageHeader = div("ce-generate-stage-header");
+  const stageBadge = document.createElement("span");
+  stageBadge.className = "ce-generate-stage-badge";
+  const stageProgress = document.createElement("span");
+  stageProgress.className = "ce-generate-stage-num";
+  stageHeader.append(stageBadge, stageProgress);
+
+  const stageHint = div("ce-generate-stage-hint");
+
+  const stageSlider = document.createElement("input");
+  stageSlider.type = "range";
+  stageSlider.className = "ce-generate-stage-slider";
+  stageSlider.min = "1";
+  stageSlider.max = String(GENERATION_STAGES.length);
+  stageSlider.step = "1";
+  stageSlider.value = String(currentStageStep);
+  stageSlider.setAttribute("aria-label", "生成工程スライダー");
+
+  const stagePrevBtn = makeIconButton("◀", "前の工程", () => changeStageStep(-1));
+  stagePrevBtn.className += " ce-stage-prev";
+  const stageNextBtn = makeIconButton("▶", "次の工程", () => changeStageStep(1));
+  stageNextBtn.className += " ce-stage-next";
+  const stageSliderRow = div("ce-generate-slider-row");
+  stageSliderRow.append(stagePrevBtn, stageSlider, stageNextBtn);
+
+  stageContainer.append(stageHeader, stageSliderRow, stageHint);
+
+  syncStageUi = (step: number) => {
+    currentStageStep = step;
+    const stage = GENERATION_STAGES.find(s => s.step === step);
+    if (!stage) return;
+    stageBadge.textContent = stage.label;
+    stageProgress.textContent = `${step}/${GENERATION_STAGES.length}`;
+    stageHint.textContent = stage.hint;
+    stageSlider.value = String(step);
+    stagePrevBtn.disabled = step <= 1;
+    stageNextBtn.disabled = step >= GENERATION_STAGES.length;
+  };
+
+  const changeStageStep = (delta: number) => {
+    const target = Math.max(1, Math.min(GENERATION_STAGES.length, currentStageStep + delta));
+    if (target !== currentStageStep) {
+      setStageStep(target);
+    }
+  };
+
+  const setStageStep = (step: number) => {
+    const stage = GENERATION_STAGES.find(s => s.step === step);
+    if (!stage) return;
+    syncStageUi(step);
+    runGenerationStage(stage);
+  };
+
+  stageSlider.addEventListener("input", () => {
+    const step = Number(stageSlider.value);
+    setStageStep(step);
+  });
+
+  syncStageUi(currentStageStep);
 
   // ③'s nPatches count cutoff (towngen-comparison.md §2.1) — the one tunable
   // knob among the six processes so far; the ◀/▶ scrub below applies to all six.
@@ -732,6 +849,14 @@ export function mountCityEditor(root: HTMLElement): void {
     refresh();
   });
 
+  const gridLinesInput = checkbox(false, checked => {
+    showGridLines = checked;
+    redrawMap();
+  });
+
+  const meshToggleRow = div("ce-icon-row");
+  meshToggleRow.append(toggleLabel("街区の編集表示", blockMeshInput), toggleLabel("グリッド線表示", gridLinesInput));
+
   const importedBox = div("ce-imported");
   const importedText = div("ce-imported-body");
   const standaloneButton = makeButton("Use standalone site", () => useStandaloneSite());
@@ -758,7 +883,9 @@ export function mountCityEditor(root: HTMLElement): void {
 
   const synthControls = div("ce-generate-synth");
   synthControls.append(
+    label("都市形態", layoutSelect),
     label("Coast", coastSelect),
+    label("海側の城壁", seaWallSelect),
     label("Rivers", riversSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
     text("Features"),
@@ -780,7 +907,7 @@ export function mountCityEditor(root: HTMLElement): void {
     makeButton("🎲 新しい都市", () => rollNewTown()),
     copyLinkButton,
     seedLabel,
-    toggleLabel("街区の編集表示", blockMeshInput),
+    meshToggleRow,
     divider(),
     importedBox,
     synthControls,
@@ -789,9 +916,9 @@ export function mountCityEditor(root: HTMLElement): void {
     housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。地形と現在の格子を使用します。①〜⑥は各工程の確認用です。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
+      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑩までの全工程を順番に確認できます。⑩では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
-    stageButtons,
+    stageContainer,
     divider(),
     label("③ nPatches (blank = auto)", urbanNPatchesInput),
     toggleLabel("Avoid sea", avoidSeaInput),
@@ -1441,6 +1568,31 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
 
+    const clickPoint: [number, number] = [rn(localPoint(event)[0], 1), rn(localPoint(event)[1], 1)];
+    const hasPriorActions = actions.length > 0;
+
+    actions.push({
+      label: i18n.t("mapContextMenu.distanceFromHere") || "Distance from here",
+      isSeparator: hasPriorActions,
+      run: () => setDistanceFromHere(clickPoint)
+    });
+
+    actions.push({
+      label: i18n.t("mapContextMenu.distanceToHere") || "Distance to here",
+      disabled: !measureFrom,
+      title: !measureFrom
+        ? i18n.t("mapContextMenu.distanceToHereDisabled") || 'Set a starting point with "Distance from here" first'
+        : undefined,
+      run: () => setDistanceToHere(clickPoint)
+    });
+
+    if (measureFrom || measureTo) {
+      actions.push({
+        label: i18n.language === "ja" ? "計測をクリア" : "Clear measurement",
+        run: () => clearMeasurement()
+      });
+    }
+
     showContextMenu(event, actions);
   });
   map.addEventListener(
@@ -1472,6 +1624,7 @@ export function mountCityEditor(root: HTMLElement): void {
       selection = emptySelection();
       activeGroupId = null;
       hideContextMenu();
+      clearMeasurement();
       refresh();
     }
   });
@@ -1562,7 +1715,17 @@ export function mountCityEditor(root: HTMLElement): void {
     contextMenu.replaceChildren();
     if (actions.length) {
       for (const action of actions) {
-        const button = makeButton(action.label, action.run);
+        if (action.isSeparator) {
+          const hr = document.createElement("hr");
+          contextMenu.appendChild(hr);
+        }
+        const button = makeButton(action.label, () => {
+          if (!action.disabled) action.run();
+        });
+        if (action.disabled) {
+          button.disabled = true;
+          if (action.title) button.title = action.title;
+        }
         const highlight = action.highlight;
         if (highlight) {
           button.addEventListener("pointerenter", () => setContextHighlight(highlight));
@@ -1601,6 +1764,54 @@ export function mountCityEditor(root: HTMLElement): void {
     updateHoverOverlay();
   }
 
+  function setDistanceFromHere(point: [number, number]): void {
+    measureFrom = point;
+    measureTo = null;
+    hideContextMenu();
+    updateMeasureOverlay();
+    showNotice(i18n.language === "ja" ? "開始位置を設定しました" : "Starting point set");
+  }
+
+  function setDistanceToHere(point: [number, number]): void {
+    if (!measureFrom) {
+      hideContextMenu();
+      return;
+    }
+    measureTo = point;
+    hideContextMenu();
+    updateMeasureOverlay();
+    const dist = Math.hypot(measureTo[0] - measureFrom[0], measureTo[1] - measureFrom[1]);
+    showNotice(i18n.language === "ja" ? `距離: ${formatDistance(dist)}` : `Distance: ${formatDistance(dist)}`);
+  }
+
+  function clearMeasurement(): void {
+    measureFrom = null;
+    measureTo = null;
+    hideContextMenu();
+    updateMeasureOverlay();
+  }
+
+  function updateMeasureOverlay(): void {
+    const layer = map.querySelector<SVGGElement>(".ce-measure-layer");
+    if (!layer) return;
+    const width = Math.max(map.getBoundingClientRect().width, 1);
+    const metersPerPixel = (halfView * 2) / width;
+    const dist =
+      measureFrom && measureTo ? Math.hypot(measureTo[0] - measureFrom[0], measureTo[1] - measureFrom[1]) : 0;
+    const label = measureFrom && measureTo ? formatDistance(dist) : "";
+    const nodes = renderMeasureOverlay(measureFrom, measureTo, metersPerPixel, label);
+    layer.replaceChildren(...nodes);
+    const textEl = layer.querySelector<SVGTextElement>(".ce-measure-label");
+    if (textEl) {
+      textEl.style.cursor = "pointer";
+      textEl.setAttribute("role", "button");
+      textEl.setAttribute("title", i18n.language === "ja" ? "クリックして計測を消去" : "Click to clear measurement");
+      textEl.addEventListener("click", () => {
+        clearMeasurement();
+      });
+    }
+  }
+
   function restore(next: CityDocument | null): void {
     if (!next) return;
     documentState = next;
@@ -1634,6 +1845,7 @@ export function mountCityEditor(root: HTMLElement): void {
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
     blockMeshInput.checked = showBlockMesh || tool !== "select";
+    gridLinesInput.checked = showGridLines;
     for (const [kind, button] of paintButtons) {
       if (kind === "farm") button.hidden = documentState.gridKind !== "evolution";
       button.classList.toggle(
@@ -1694,7 +1906,10 @@ export function mountCityEditor(root: HTMLElement): void {
       stepOverlayPaths,
       gridOverlayForRender(),
       showBlockMesh,
-      sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample }))
+      showGridLines,
+      sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample })),
+      hideBuildings,
+      hideStreetLines
     );
     map.replaceChildren(svg);
     let coreBuildings = 0,
@@ -1724,6 +1939,7 @@ export function mountCityEditor(root: HTMLElement): void {
     );
     updateRoutePreview();
     updateHoverOverlay();
+    updateMeasureOverlay();
   }
 
   /**
@@ -1830,6 +2046,18 @@ export function mountCityEditor(root: HTMLElement): void {
             if (next) commit(next, "Remove gate");
             return;
           }
+          if (vertexHasWallPassage(documentState, vertex.id)) {
+            const next = toggleGate(documentState, vertex.id);
+            if (next) {
+              commit(next, "Place gate");
+              return;
+            }
+          }
+          const splitOpened = openGatePassage(documentState, vertex.id);
+          if (splitOpened) {
+            commit(splitOpened, "Place gate");
+            return;
+          }
           const candidates = gateOpeningCandidates(documentState, vertex.id);
           if (candidates.length === 1) {
             const next = placeGateOpening(documentState, vertex.id, candidates[0].vertexId);
@@ -1859,7 +2087,7 @@ export function mountCityEditor(root: HTMLElement): void {
         text(`Vertex ${vertex.id}`),
         text(
           wallVertex
-            ? "Place a gate to merge a neighboring wall vertex and create a road through the wall."
+            ? "Place a gate to split adjacent cells and create a road through the wall."
             : "Draw an outer wall through this vertex before placing a gate."
         ),
         gateButton
@@ -2766,7 +2994,14 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function syncGenerateControls(): void {
     seedInput.value = generateSeed;
+    layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
+    if (!generateSettings.config.wall) {
+      generateSettings.config.wall = { envelope: "auto", coast: "auto", line: "auto" };
+    }
+    seaWallSelect.value = WALL_COAST_CHOICES.includes(generateSettings.config.wall.coast)
+      ? generateSettings.config.wall.coast
+      : "auto";
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
@@ -2884,11 +3119,10 @@ export function mountCityEditor(root: HTMLElement): void {
     stepIndex = -1;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
-    if (lastGeneratedStep === null || documentState.appearance === "town") {
-      runCompleteGeneration();
-      return;
-    }
-    rerunLastStage();
+    lastGeneratedStep = null;
+    currentStageStep = 9;
+    syncStageUi(9);
+    runCompleteGeneration();
   }
 
   function rerunLastStage(): void {
@@ -2906,7 +3140,9 @@ export function mountCityEditor(root: HTMLElement): void {
     // from finishing an already finished town. A real edit becomes a new input.
     if (
       !completeSource ||
-      (documentState !== completeResult && JSON.stringify(documentState) !== JSON.stringify(completeResult))
+      (documentState !== completeResult &&
+        JSON.stringify(documentState) !== JSON.stringify(completeResult) &&
+        lastGeneratedStep === null)
     )
       completeSource = documentState;
     if (generationJob) return;
@@ -2995,6 +3231,13 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("都市の生成に失敗しました");
       return;
     }
+    if (next.generationSeed) {
+      generateSeed = next.generationSeed;
+      syncGenerateControls();
+    }
+    if (next.fabric?.generation?.input) {
+      completeSource = clone(next.fabric.generation.input);
+    }
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
       showNotice("同じ都市を表示しています");
       return;
@@ -3012,16 +3255,38 @@ export function mountCityEditor(root: HTMLElement): void {
     activeGroupId = null;
     tool = "select";
     showBlockMesh = false;
+    hideBuildings = false;
+    hideStreetLines = false;
+    syncStageUi(9);
     rebuildEditorIndexes();
     showNotice("都市を生成しました — 城壁・街路・建物");
   }
 
   function runGenerationStage(stage: GenerationStage): void {
-    // Recompute the plan up to this process ON the current mesh (the Document
-    // panel owns the grid; generation never rebuilds it or resizes the map).
+    if (!completeSource) {
+      completeSource = documentState.fabric?.generation?.input
+        ? clone(documentState.fabric.generation.input)
+        : clone(documentState);
+    }
+    const source = completeSource;
+    const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
+
     let next: CityDocument | null = null;
     try {
-      next = generateStageOnDocument(documentState, generateSettings, generateSeed, stage.step);
+      const finished =
+        completeResult && (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
+          ? completeResult
+          : null;
+      if (finished && (stage.step === 8 || stage.step === 9 || stage.step === 10)) {
+        next = clone(finished);
+      } else if (finished && stage.step === 7) {
+        const s7 = clone(finished);
+        delete s7.appearance;
+        delete s7.fabric;
+        next = s7;
+      } else {
+        next = generateStageOnDocument(source, generateSettings, effectiveSeed, stage.step);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -3029,7 +3294,12 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice(`Generation failed at ${stage.label}`);
       return;
     }
+    if ((stage.step === 9 || stage.step === 10) && !completeResult) {
+      completeResult = next;
+    }
     lastGeneratedStep = stage.step;
+    currentStageStep = stage.step;
+    syncStageUi(stage.step);
     // This stage becomes the ◀/▶ scrub's target, reset to "not stepped yet".
     activeStepStage = stage.id;
     stepIndex = -1;
@@ -3039,10 +3309,13 @@ export function mountCityEditor(root: HTMLElement): void {
     // own visual cue (river / walls+gates / roads / ward colours) and needs none.
     urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
     stepOverlayPaths = null;
+    hideBuildings = stage.step === 8;
+    hideStreetLines = stage.step === 10;
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
       showNotice(`Already at ${stage.label}`);
+      redrawMap();
       return;
     }
     documentState = history.commit(next, `Generate ${stage.label}`);
@@ -3063,9 +3336,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     const stage = activeStepStage;
     const label = GENERATION_STAGES.find(s => s.id === stage)?.label ?? "";
+    const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
+    const source = completeSource ?? documentState;
     let result: UiStepResult;
     try {
-      result = STEP_FNS[stage](documentState, generateSettings, generateSeed, stepIndex + delta);
+      result = STEP_FNS[stage](source, generateSettings, effectiveSeed, stepIndex + delta);
     } catch (error) {
       console.error(error);
       showNotice("Step failed");
@@ -3244,7 +3519,23 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
   },
   walls: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
   streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
-  wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx))
+  wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx)),
+  geometry: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 7);
+    return { document: d, total: 1, index: 0, detail: "幾何平滑化完了" };
+  },
+  blocks: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 8);
+    return { document: d, total: 1, index: 0, detail: "街区・小道生成完了" };
+  },
+  buildings: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 9);
+    return { document: d, total: 1, index: 0, detail: "住居配置完了" };
+  },
+  conceal: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 10);
+    return { document: d, total: 1, index: 0, detail: "道路・小道を非表示" };
+  }
 };
 
 /** The exact land faces a Generate press just marked buildable — the ③ urban-
@@ -3467,7 +3758,8 @@ function niceScale(targetMeters: number): number {
 }
 
 function formatDistance(meters: number): string {
-  return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+  const rounded = meters >= 1000 ? rn(meters / 1000, 2) : rn(meters, 1);
+  return meters >= 1000 ? `${rounded} km` : `${rounded} m`;
 }
 
 function formatClock(time: number): string {

@@ -43,7 +43,7 @@ export function classifyUrban(
   const outskirts = new Set<number>();
   const stages: UrbanStage[] = [];
 
-  const eligible = (c: Cell): boolean => !ctx.sea.has(c.id) && (ctx.bank.get(c.id) ?? 0) === 0;
+  const eligible = (c: Cell): boolean => !ctx.sea.has(c.id);
 
   // Distance metric: circular inland, elliptical (shore-elongated) on a coast.
   const reach = (c: Cell): number => {
@@ -62,10 +62,17 @@ export function classifyUrban(
       ? (cityRadiusMeters * GATE_PULL * (1 + Math.cos((nearest / GATE_CONE_DEG) * Math.PI))) / 2
       : 0;
   };
-  const cost = (c: Cell): number => reach(c) - gatePull(c);
+  const bankPenalty = (c: Cell): number => {
+    const bank = ctx.bank.get(c.id) ?? 0;
+    return bank > 0 ? cityRadiusMeters * 0.22 : 0;
+  };
+  const cost = (c: Cell): number => reach(c) + bankPenalty(c) - gatePull(c);
 
   const byId = new Map(cells.map(c => [c.id, c]));
-  const center = cells.filter(eligible).sort((a, b) => reach(a) - reach(b))[0];
+  const citySideCells = cells.filter(c => eligible(c) && (ctx.bank.get(c.id) ?? 0) === 0);
+  const center = (citySideCells.length > 0 ? citySideCells : cells.filter(eligible)).sort(
+    (a, b) => reach(a) - reach(b)
+  )[0];
   if (!center) return { urban, outskirts, stages };
 
   const targetArea = Math.PI * Math.max(0, cityRadiusMeters) ** 2;

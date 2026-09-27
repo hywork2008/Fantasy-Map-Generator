@@ -20,6 +20,7 @@
 // Algorithms are taken from TownGeneratorTS/docs/** and the public description
 // of rateLocation preferences — not from the GPL sources.
 
+import { placeTempleFootprint } from "./civicPlacement";
 import {
   azimuthDelta,
   nearestOnPolyline,
@@ -110,6 +111,10 @@ export interface WardInputs {
   program: CityProgram;
   shoreline: Point[] | null;
   waterPolygon: Point[] | null;
+  /** Intramural streets and approach roads, used to site and orient the temple. */
+  streets?: Point[][];
+  /** River centerlines, used to keep the temple off the water. */
+  rivers?: Point[][];
 }
 
 export interface WardResult {
@@ -177,9 +182,25 @@ export function assignWards(input: WardInputs): WardResult {
   }
 
   // 3. Temple / Cathedral next to the plaza.
-  if (program.temple) {
+  const existingTemple = precincts.find(p => p.kind === "temple");
+  if (existingTemple) {
+    for (const id of existingTemple.cellIds) take(id, "cathedral");
+  } else if (program.temple) {
     const templeRng = makeRng(`${params.seed}:program:temple`);
-    const temple = placeTemple(cells, urban, occupied, plaza, citadelIds, R, cellSize, program.capital, templeRng);
+    const temple = placeTemple(
+      cells,
+      urban,
+      occupied,
+      plaza,
+      citadelIds,
+      R,
+      cellSize,
+      program.capital,
+      params.extentMeters,
+      templeRng,
+      input.streets ?? [],
+      input.rivers ?? []
+    );
     if (temple) {
       extraPrecincts.push(temple);
       for (const id of temple.cellIds) take(id, "cathedral");
@@ -410,39 +431,36 @@ function placeTemple(
   occupied: Set<number>,
   plaza: Precinct | null,
   citadelIds: Set<number>,
-  R: number,
+  _R: number,
   cellSize: number,
   capital: boolean,
-  rng: Rng
+  extentMeters: number,
+  rng: Rng,
+  streets: Point[][],
+  rivers: Point[][]
 ): Precinct | null {
-  const plazaAnchor = plaza?.anchor ?? ([0, 0] as Point);
-  const plazaIds = new Set(plaza?.cellIds ?? []);
-  const inBand = (c: Cell): boolean => {
-    const d = Math.hypot(...c.centroid);
-    return d >= R * 0.12 && d <= R * 0.4;
-  };
-  const eligible = (c: Cell): boolean => urban.has(c.id) && !occupied.has(c.id) && !plazaIds.has(c.id);
-  const band = cells.filter(c => eligible(c) && inBand(c));
-  const pool = band.length ? band : cells.filter(eligible);
-  if (!pool.length) return null;
-
-  const score = (c: Cell): number => {
-    let s = dist(c.centroid, plazaAnchor);
-    if (c.neighbors.some(n => citadelIds.has(n))) s += cellSize; // citadel crowding penalty
-    return s;
-  };
-  const pick = pool.slice().sort((a, b) => score(a) - score(b) || a.id - b.id)[0];
-  const cellIds = [pick.id];
-  if (capital) {
-    const extra = pick.neighbors
-      .map(id => cells.find(c => c.id === id))
-      .filter((c): c is Cell => !!c && eligible(c))
-      .sort((a, b) => a.id - b.id)[0];
-    if (extra) cellIds.push(extra.id);
-  }
+  const placed = placeTempleFootprint(
+    cells,
+    urban,
+    occupied,
+    plaza,
+    citadelIds,
+    extentMeters,
+    cellSize,
+    capital,
+    streets,
+    rivers
+  );
   // Keep the temple RNG stream in the contract even when capital adds no cell.
   rng();
-  return { kind: "temple", cellIds, anchor: pick.centroid, label: "Cathedral" };
+  if (!placed) return null;
+  return {
+    kind: "temple",
+    cellIds: placed.cellIds,
+    anchor: placed.anchor,
+    label: "Cathedral",
+    rotation: placed.rotation
+  };
 }
 
 function pickShanty(

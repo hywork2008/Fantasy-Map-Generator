@@ -704,7 +704,7 @@ function edgeGroupLabel(kind: EdgeFeatureGroup["kind"]): string {
 
 function edgeGroupStyle(kind: EdgeFeatureGroup["kind"]): EdgeFeatureGroup["style"] {
   return {
-    road: { widthMeters: 10, color: "#6b5137" },
+    road: { widthMeters: 4.5, color: "#6b5137" },
     wall: { widthMeters: 7, color: "#342a22" },
     plank: { widthMeters: 4, color: "#d8d0c0" }
   }[kind];

@@ -1,26 +1,219 @@
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
-import { districtDocument, resolveDistricts } from "./fabricDistricts";
+import { laneHitsCivicLandmark } from "./buildingLots";
+import { buildCirculadeTownFabric } from "./circuladeFabric";
+import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
+import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { buildLocalFabric, type CityFabric, chord, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
+import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
+import {
+  bramCoreRadiusForCity,
+  bramPeripheryBufferMeters,
+  planPolygonalCirculadeLayout
+} from "./polygonalCirculadeLayout";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
 export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
 }
-const defaultCache = new FabricCache();
+let defaultCache: FabricCache | null = null;
+function getDefaultCache(): FabricCache {
+  if (!defaultCache) {
+    defaultCache = new FabricCache();
+  }
+  return defaultCache;
+}
+
+function distToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq < 1e-9) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq));
+  const projX = a[0] + t * dx;
+  const projY = a[1] + t * dy;
+  return Math.hypot(p[0] - projX, p[1] - projY);
+}
+
+function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+  return { ...fabric, buildings: relieveGatePlazaBuildings(document, fabric.buildings) };
+}
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
-export function buildBlockFabric(document: CityDocument, cache = defaultCache): DistrictFabric {
-  if (!document.fabric) return { ...buildLocalFabric(document), farms: [] };
-  const districts = resolveDistricts(document, document.fabric);
+export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
+  const layout =
+    document.layout ??
+    document.fabric?.generation?.settings?.layout ??
+    document.fabric?.generation?.settings?.config?.layout;
+  const isBram = layout === "bram";
+  const isCirculade = layout === "circulade";
+
+  if (isBram) {
+    const plazaElem = document.elements.find(e => e.kind === "plaza");
+    const hub: Point = plazaElem?.point ?? [0, 0];
+    const plan = document.fabric ? upgradeFabricPlan(document) : null;
+    const seed = plan?.seed ?? "circulade-voronoi-seed";
+    const templeElem = document.elements.find(e => e.kind === "temple");
+
+    const walled = document.featureGroups.some(group => group.kind === "wall");
+    const coreRadius = bramCoreRadiusForCity(document.frame.cityRadiusMeters, walled);
+    const corePlan = planPolygonalCirculadeLayout(hub, seed, coreRadius, !!templeElem, 16);
+    const coreFabric = buildPolygonalCirculadeFabric(document, { seed, plan: corePlan });
+
+    // Stay clear of the outer ring road (4.2 m at the nominal 120 m core).
+    const coreBufferRadius = bramPeripheryBufferMeters(coreRadius);
+    const isInsideCore = (p: Point): boolean => {
+      if (Math.hypot(p[0] - hub[0], p[1] - hub[1]) < coreBufferRadius) return true;
+      if (pointInPolygon(p, corePlan.outerBoundary)) return true;
+      return false;
+    };
+
+    // Peripheral faces: buildable land faces outside the core
+    const peripheralFaces = Object.values(document.mesh.faces).filter(f => {
+      if (f.properties.water !== "land" || !f.properties.buildable) return false;
+      const pts = facePoints(document.mesh, f);
+      if (pts.every(isInsideCore)) return false;
+      const c = polygonCentroid(pts);
+      return !isInsideCore(c);
+    });
+
+    let peripheralFabric: CityFabric = { buildings: [], lanes: [], entrances: new Map() };
+    if (peripheralFaces.length > 0) {
+      const local = buildLocalFabric(document, {
+        seed,
+        parameters: new Map(),
+        cache,
+        layout: "organic",
+        hub
+      });
+      const peripheralSet = new Set(peripheralFaces.map(f => f.id));
+
+      // Strictly exclude any peripheral Voronoi building that enters or touches the core
+      const safeBuildings = local.buildings.filter(b => {
+        if (!peripheralSet.has(b.faceId)) return false;
+        for (const pt of b.polygon) {
+          if (isInsideCore(pt)) return false;
+        }
+        for (let i = 0; i < b.polygon.length; i++) {
+          const p1 = b.polygon[i];
+          const p2 = b.polygon[(i + 1) % b.polygon.length];
+          if (distToSegment(hub, p1, p2) < coreBufferRadius) return false;
+        }
+        const c = polygonCentroid(b.polygon);
+        if (isInsideCore(c)) return false;
+        return true;
+      });
+
+      // Strictly exclude any peripheral Voronoi lane that enters or crosses the core
+      const safeLanes = local.lanes.filter(l => {
+        if (!peripheralSet.has(l.faceId)) return false;
+        for (const pt of l.points) {
+          if (isInsideCore(pt)) return false;
+        }
+        for (let i = 0; i < l.points.length - 1; i++) {
+          if (distToSegment(hub, l.points[i], l.points[i + 1]) < coreBufferRadius) return false;
+        }
+        return true;
+      });
+
+      peripheralFabric = {
+        buildings: safeBuildings,
+        lanes: safeLanes,
+        entrances: new Map([...local.entrances.entries()].filter(([id]) => peripheralSet.has(id)))
+      };
+    }
+
+    const lanes = [...coreFabric.lanes, ...peripheralFabric.lanes].filter(
+      l => !laneHitsCivicLandmark(document, l.points)
+    );
+    const entrances = new Map<Id, Point[]>();
+    for (const [id, pts] of [...coreFabric.entrances, ...peripheralFabric.entrances]) {
+      entrances.set(id, [...(entrances.get(id) ?? []), ...pts]);
+    }
+
+    return finishFabric(document, {
+      buildings: [...coreFabric.buildings, ...peripheralFabric.buildings],
+      lanes,
+      entrances,
+      farms: []
+    });
+  }
+
+  if (isCirculade) {
+    const plazaElem = document.elements.find(e => e.kind === "plaza");
+    const hub: Point = plazaElem?.point ?? [0, 0];
+    const plan = document.fabric ? upgradeFabricPlan(document) : null;
+    const seed = plan?.seed ?? "circulade-seed";
+
+    const coreFabric = buildCirculadeTownFabric(document, { seed, hub });
+
+    const outskirtsFaces = Object.values(document.mesh.faces).filter(
+      f => f.properties.settlement === "outskirts" && f.properties.water === "land"
+    );
+    let outskirtsFabric: CityFabric = { buildings: [], lanes: [], entrances: new Map() };
+
+    if (outskirtsFaces.length > 0) {
+      const local = buildLocalFabric(document, {
+        seed,
+        parameters: new Map(),
+        cache,
+        layout: "organic",
+        hub
+      });
+      const outskirtsSet = new Set(outskirtsFaces.map(f => f.id));
+      outskirtsFabric = {
+        buildings: local.buildings.filter(b => outskirtsSet.has(b.faceId)),
+        lanes: local.lanes.filter(l => outskirtsSet.has(l.faceId)),
+        entrances: new Map([...local.entrances.entries()].filter(([id]) => outskirtsSet.has(id)))
+      };
+    }
+
+    const lanes = [...coreFabric.lanes, ...outskirtsFabric.lanes].filter(
+      l => !laneHitsCivicLandmark(document, l.points)
+    );
+    const entrances = new Map<Id, Point[]>();
+    for (const [id, pts] of [...coreFabric.entrances, ...outskirtsFabric.entrances]) {
+      entrances.set(id, [...(entrances.get(id) ?? []), ...pts]);
+    }
+
+    return finishFabric(document, {
+      buildings: [...coreFabric.buildings, ...outskirtsFabric.buildings],
+      lanes,
+      entrances,
+      farms: []
+    });
+  }
+
+  const effectiveSubLayout = layout === "classic" ? "classic" : "organic";
+
+  if (!document.fabric) {
+    const plazaElem = document.elements.find(e => e.kind === "plaza");
+    const hub: Point = plazaElem?.point ?? [0, 0];
+    const local = buildLocalFabric(document, {
+      seed: "fabric-seed",
+      parameters: new Map(),
+      cache,
+      layout: effectiveSubLayout,
+      hub
+    });
+    const lanes = local.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
+    return finishFabric(document, { ...local, lanes, farms: [] });
+  }
+
+  const plan = upgradeFabricPlan(document)!;
+  const districts = resolveDistricts(document, plan);
   const merged = districtDocument(document, districts);
+  const plazaElem = document.elements.find(e => e.kind === "plaza");
+  const hub: Point = plazaElem?.point ?? [0, 0];
   const local = buildLocalFabric(merged, {
-    seed: document.fabric.seed,
+    seed: plan.seed,
     parameters: new Map(districts.map(d => [d.id, d.parameters])),
-    cache
+    cache,
+    layout: effectiveSubLayout,
+    hub
   });
   const members = new Map(districts.map(d => [d.id, d.faceIds]));
   const polygons = new Map(Object.values(document.mesh.faces).map(f => [f.id, facePoints(document.mesh, f)]));
@@ -29,7 +222,9 @@ export function buildBlockFabric(document: CityDocument, cache = defaultCache): 
     return ids.find(id => pointInPolygon(p, polygons.get(id)!)) ?? ids[0];
   };
   const buildings = local.buildings.map(b => ({ ...b, faceId: owner(b.faceId, polygonCentroid(b.polygon)) }));
-  const lanes = local.lanes.map(l => ({ ...l, faceId: owner(l.faceId, l.points[0]) }));
+  const lanes = local.lanes
+    .filter(l => !laneHitsCivicLandmark(document, l.points))
+    .map(l => ({ ...l, faceId: owner(l.faceId, l.points[0]) }));
   const entrances = new Map<Id, Point[]>();
   for (const [id, points] of local.entrances)
     for (const p of points) {
@@ -119,5 +314,5 @@ export function buildBlockFabric(document: CityDocument, cache = defaultCache): 
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });
     farms.push(...plots);
   }
-  return { buildings, lanes, entrances, farms };
+  return finishFabric(document, { buildings, lanes, entrances, farms });
 }

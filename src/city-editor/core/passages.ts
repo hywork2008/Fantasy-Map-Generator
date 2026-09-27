@@ -1,4 +1,5 @@
-import { isSimplePolygon, pointInPolygon, polygonArea, segmentSegmentHit } from "./gen/geom";
+import { isSimplePolygon, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./gen/geom";
+import { defaultRoadWidthMeters } from "./gen/settlementExtent";
 // 4-way passages (gates / bridges) for generated routes.
 //
 // River, road and wall must not share an edge (Phase G7). They MAY share a
@@ -7,7 +8,7 @@ import { isSimplePolygon, pointInPolygon, polygonArea, segmentSegmentHit } from 
 // of degree < 4, raise the degree by merging the nearest neighbour on the
 // barrier, or by splitting an incident cell, then thread the road through.
 
-import { appendEdge, featureGroupVertices, groupUsesEdge } from "./features";
+import { appendEdge, createGroup, featureGroupVertices, groupUsesEdge } from "./features";
 import {
   clone,
   edgeBetween,
@@ -131,29 +132,43 @@ export function throughEdgesAt(document: CityDocument, vertexId: Id, barrier: Ba
 }
 
 /**
- * Raise a meeting vertex to a 4-way passage for `barrier`. Prefers merging the
- * geometrically nearest neighbour that already sits on the barrier; falls back
- * to splitting the largest incident cell along a diagonal from this vertex.
+ * Raise a meeting vertex to a 4-way passage for `barrier`. Prefers splitting
+ * incident cells along opposite diagonals to create a 4-way passage without
+ * altering the barrier geometry.
  */
 export function openBarrierPassage(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {
   if (!document.mesh.vertices[vertexId]) return null;
   let next = document;
   for (let attempt = 0; attempt < 3; attempt++) {
     if (vertexHasKindPassage(next, vertexId, barrier)) return next === document ? document : next;
-    // Coarse cells can provide an opposite arm without dragging a distant
-    // barrier vertex into the gate/bridge. Only accept a geometrically valid split.
-    if (document.gridKind === "evolution") {
-      const split = splitCoarsePassage(next, vertexId, barrier);
-      if (split) return split;
-    }
-    const merged = mergeNearestBarrierNeighbour(next, vertexId, barrier);
-    if (merged) {
-      next = merged;
-      continue;
-    }
-    const split = splitLargestIncidentFace(next, vertexId);
+
+    // Prioritize cell splitting so gates and passages become 4-way junctions without merging vertices
+    const split = splitBarrierPassageFace(next, vertexId, barrier);
     if (split) {
       next = split;
+      if (vertexHasKindPassage(next, vertexId, barrier)) return next;
+      continue;
+    }
+
+    if (document.gridKind === "evolution") {
+      const coarseSplit = splitCoarsePassage(next, vertexId, barrier);
+      if (coarseSplit) return coarseSplit;
+    }
+
+    // For walls, do NOT merge when faces exist (gates must not collapse wall geometry).
+    // Only fall back to merge for river crossings or if faces topology is empty (legacy test mocks).
+    const hasFaces = Object.keys(next.mesh.faces).length > 0;
+    if (barrier !== "wall" || !hasFaces) {
+      const merged = mergeNearestBarrierNeighbour(next, vertexId, barrier);
+      if (merged) {
+        next = merged;
+        continue;
+      }
+    }
+
+    const faceSplit = splitLargestIncidentFace(next, vertexId);
+    if (faceSplit) {
+      next = faceSplit;
       continue;
     }
     break;
@@ -223,7 +238,7 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
       { edgeId: a.id, forward: a.b === vertexId },
       { edgeId: b.id, forward: b.a === vertexId }
     ],
-    style: { widthMeters: Math.max(4, document.frame.blockSizeMeters * 0.16), color: "#735238" }
+    style: { widthMeters: defaultRoadWidthMeters(document.frame.extentMeters), color: "#735238" }
   });
   return straightenBridge(next, id);
 }
@@ -236,113 +251,411 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
     const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
     const moved = moveVertex(document, vertexId, candidate);
     if (!moved) continue;
-    if (
-      document.gridKind === "evolution" &&
-      incidentFaces(document.mesh, vertexId).some(face => {
-        const points = facePoints(moved.mesh, moved.mesh.faces[face.id]);
-        return (
-          face.properties.locked ||
-          !isSimplePolygon(points) ||
-          polygonArea(points) / polygonArea(facePoints(document.mesh, face)) < 0.5
-        );
-      })
-    )
-      continue;
+    const invalid = incidentFaces(document.mesh, vertexId).some(face => {
+      const movedFace = moved.mesh.faces[face.id];
+      if (!movedFace) return true;
+      const points = facePoints(moved.mesh, movedFace);
+      if (face.properties.locked || !isSimplePolygon(points)) return true;
+      const origArea = polygonArea(facePoints(document.mesh, face));
+      const newArea = polygonArea(points);
+      if (origArea !== 0 && newArea / origArea < (document.gridKind === "evolution" ? 0.5 : 0.12)) return true;
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 2; j < points.length; j++) {
+          if (i === 0 && j === points.length - 1) continue;
+          if (segmentSegmentHit(points[i], points[(i + 1) % points.length], points[j], points[(j + 1) % points.length]))
+            return true;
+        }
+      }
+      return false;
+    });
+    if (invalid) continue;
     return moved;
   }
   return document;
 }
 
+/** Wall-polyline neighbours of a gate. A closed ring wraps; an endpoint has none. */
+function wallNeighbourIds(document: CityDocument, vertexId: Id): [Id, Id] | null {
+  for (const group of document.featureGroups) {
+    if (group.kind !== "wall") continue;
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 2) continue;
+    const closed = ids.length > 3 && ids[0] === ids[ids.length - 1];
+    const ring = closed ? ids.slice(0, -1) : ids;
+    const index = ring.indexOf(vertexId);
+    if (index < 0) continue;
+    if (!closed && (index === 0 || index === ring.length - 1)) continue;
+    const prev = ring[(index - 1 + ring.length) % ring.length];
+    const next = ring[(index + 1) % ring.length];
+    if (prev && next && prev !== vertexId && next !== vertexId && prev !== next) return [prev, next];
+  }
+  return null;
+}
+
+/** The road vertices that actually pass through the gate, when the junction alternates. */
+function throughRoadNeighbourIds(document: CityDocument, vertexId: Id): Id[] {
+  return throughEdgesAt(document, vertexId, "wall").map(edge => (edge.a === vertexId ? edge.b : edge.a));
+}
+
+function unit(x: number, y: number): Point | null {
+  const len = Math.hypot(x, y);
+  return len > 1e-6 ? [x / len, y / len] : null;
+}
+
+/** Degrees away from a right angle between each road arm and the wall tangent. 0 = perpendicular. */
+function roadDeviationDegrees(gate: Point, roads: Point[], tangent: Point): number {
+  let worst = 0;
+  for (const road of roads) {
+    const vx = road[0] - gate[0];
+    const vy = road[1] - gate[1];
+    const len = Math.hypot(vx, vy);
+    if (len < 0.5) return 90;
+    const along = Math.abs(vx * tangent[0] + vy * tangent[1]) / len;
+    const across = Math.abs(-tangent[1] * vx + tangent[0] * vy) / len;
+    worst = Math.max(worst, (Math.atan2(along, across) * 180) / Math.PI);
+  }
+  return worst;
+}
+
+function townCenter(document: CityDocument): Point {
+  const plaza = document.elements.find(element => element.kind === "plaza" && element.point);
+  if (plaza?.point) return plaza.point;
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const face of Object.values(document.mesh.faces)) {
+    if (face.properties.water !== "land" || !face.properties.buildable) continue;
+    const point = face.site ?? polygonCentroid(facePoints(document.mesh, face));
+    x += point[0];
+    y += point[1];
+    count++;
+  }
+  return count ? [x / count, y / count] : [0, 0];
+}
+
+/** Square gate tower side is the round curtain tower's diameter (1.6 × wall thickness). */
+export const GATE_TOWER_SCALE = 1.6;
+/** Semicircular gate plaza, as a multiple of the tower side, on each side of the curtain. */
+export const GATE_PLAZA_SCALE = 1.35 * 0.7;
+
+export function gatePlazaRadiusMeters(wallWidthMeters: number): number {
+  return wallWidthMeters * GATE_TOWER_SCALE * GATE_PLAZA_SCALE;
+}
+
 /**
- * Straighten a river crossing (A -> M -> B) so it crosses perpendicular and straight,
- * resolving L-shaped and V-shaped bends.
+ * Two plaza disks closer than this cover the curtain between the gates.
+ * The extra wall thickness leaves a visible stub of masonry between the circles.
+ */
+export function minGateSpacingMeters(wallWidthMeters: number): number {
+  return gatePlazaRadiusMeters(wallWidthMeters) * 2 + wallWidthMeters;
+}
+
+/** Both gate plazas together are a disk centred on the gate. Buildings must stay outside it. */
+export function gatePlazaDisks(document: CityDocument): { center: Point; radius: number }[] {
+  const disks: { center: Point; radius: number }[] = [];
+  for (const gate of document.gates) {
+    const frame = gateCrossingFrame(document, gate.vertexId);
+    if (!frame) continue;
+    const wall = document.featureGroups.find(
+      group => group.kind === "wall" && featureGroupVertices(document, group).includes(gate.vertexId)
+    );
+    if (wall?.kind !== "wall") continue;
+    disks.push({ center: frame.point, radius: gatePlazaRadiusMeters(wall.style.widthMeters) });
+  }
+  return disks;
+}
+
+export interface GateCrossingFrame {
+  point: Point;
+  /** Unit vector along the wall at the gate. */
+  tangent: Point;
+  /** Unit vector toward the town, perpendicular to `tangent`. */
+  inward: Point;
+  roads: Point[];
+}
+
+/**
+ * Orientation of the gatehouse: along the wall, facing the town. Uses the chord
+ * of the two wall neighbours when the curtain is nearly straight, and the
+ * corner bisector when the gate sits on a bend.
+ */
+export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCrossingFrame | null {
+  const gate = document.mesh.vertices[vertexId];
+  if (!gate) return null;
+  const neighbours = wallNeighbourIds(document, vertexId);
+  const roads = throughRoadNeighbourIds(document, vertexId)
+    .map(id => document.mesh.vertices[id]?.point)
+    .filter((point): point is Point => !!point);
+  let tangent: Point | null = null;
+  if (neighbours) {
+    const a = document.mesh.vertices[neighbours[0]]?.point;
+    const b = document.mesh.vertices[neighbours[1]]?.point;
+    if (a && b) {
+      const u = unit(a[0] - gate.point[0], a[1] - gate.point[1]);
+      const v = unit(b[0] - gate.point[0], b[1] - gate.point[1]);
+      const chord = unit(b[0] - a[0], b[1] - a[1]);
+      if (u && v && chord && u[0] * v[0] + u[1] * v[1] < -0.5) tangent = chord;
+      else if (u && v) {
+        const bisector = unit(u[0] + v[0], u[1] + v[1]);
+        if (bisector) tangent = [-bisector[1], bisector[0]];
+      }
+      tangent ??= chord;
+    }
+  }
+  if (!tangent) {
+    for (const edge of incidentEdges(document.mesh, vertexId)) {
+      if (!kindEdgeIds(document, "wall").has(edge.id)) continue;
+      const other = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a]?.point;
+      if (!other) continue;
+      tangent = unit(other[0] - gate.point[0], other[1] - gate.point[1]);
+      if (tangent) break;
+    }
+  }
+  if (!tangent) return null;
+  let inward = unit(-tangent[1], tangent[0]);
+  if (!inward) return null;
+  const center = townCenter(document);
+  const toward = unit(center[0] - gate.point[0], center[1] - gate.point[1]);
+  if (toward && inward[0] * toward[0] + inward[1] * toward[1] < 0) inward = [-inward[0], -inward[1]];
+  return { point: gate.point, tangent, inward, roads };
+}
+
+/** Worst through-road deviation from a right angle with the wall, in degrees. */
+export function gateRoadDeviationDegrees(document: CityDocument, vertexId: Id): number | null {
+  const frame = gateCrossingFrame(document, vertexId);
+  if (!frame || frame.roads.length === 0) return null;
+  return roadDeviationDegrees(frame.point, frame.roads, frame.tangent);
+}
+
+const PERPENDICULAR_GATE_DEGREES = 10;
+
+/** Pull the more oblique road arm onto the wall normal so the street leaves the gate square-on. */
+function swingObliqueGateArm(
+  document: CityDocument,
+  gateVertexId: Id,
+  roadIds: Id[],
+  tangent: Point,
+  riverVertices: Set<Id>
+): CityDocument {
+  const gatePoint = document.mesh.vertices[gateVertexId]?.point;
+  if (!gatePoint) return document;
+  const placed = roadIds
+    .map(id => ({ id, point: document.mesh.vertices[id]?.point }))
+    .filter((arm): arm is { id: Id; point: Point } => !!arm.point);
+  if (
+    roadDeviationDegrees(
+      gatePoint,
+      placed.map(arm => arm.point),
+      tangent
+    ) <= PERPENDICULAR_GATE_DEGREES
+  )
+    return document;
+  let worse = placed[0];
+  let worseDev = -1;
+  for (const arm of placed) {
+    const dev = roadDeviationDegrees(gatePoint, [arm.point], tangent);
+    if (dev > worseDev) {
+      worseDev = dev;
+      worse = arm;
+    }
+  }
+  const road = document.mesh.vertices[worse.id];
+  if (!road || road.locked || riverVertices.has(worse.id)) return document;
+  if (document.gates.some(gate => gate.vertexId === worse.id)) return document;
+  if (incidentEdges(document.mesh, worse.id).length > 5) return document;
+  const vx = worse.point[0] - gatePoint[0];
+  const vy = worse.point[1] - gatePoint[1];
+  const dist = Math.hypot(vx, vy);
+  if (dist < 1) return document;
+  const sign = vx * -tangent[1] + vy * tangent[0] >= 0 ? 1 : -1;
+  const target: Point = [gatePoint[0] + -tangent[1] * sign * dist, gatePoint[1] + tangent[0] * sign * dist];
+  const moved = tryMoveVertex(document, worse.id, target);
+  if (moved === document) return document;
+  for (const face of incidentFaces(moved.mesh, worse.id)) {
+    if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+  }
+  return moved;
+}
+
+/**
+ * Square each gate to the road that passes through it. The gate vertex slides
+ * along the curtain first. When that cannot bring both arms under a right
+ * angle, the more oblique arm swings onto the wall normal so the gatehouse
+ * does not cover the street.
+ */
+export function straightenGateCrossings(document: CityDocument): CityDocument {
+  let next = document;
+  const riverVertices = new Set<Id>();
+  for (const group of next.featureGroups) {
+    if (group.kind === "river") for (const id of group.vertices) riverVertices.add(id);
+  }
+  for (const gate of next.gates) {
+    if (gate.locked || riverVertices.has(gate.vertexId)) continue;
+    const vertex = next.mesh.vertices[gate.vertexId];
+    if (!vertex || vertex.locked) continue;
+    const neighbours = wallNeighbourIds(next, gate.vertexId);
+    if (!neighbours) continue;
+    const wallA = next.mesh.vertices[neighbours[0]]?.point;
+    const wallB = next.mesh.vertices[neighbours[1]]?.point;
+    const roadIds = throughRoadNeighbourIds(next, gate.vertexId);
+    const roads = roadIds.map(id => next.mesh.vertices[id]?.point).filter((point): point is Point => !!point);
+    if (!wallA || !wallB || roads.length < 2) continue;
+    const fromGateA = unit(wallA[0] - vertex.point[0], wallA[1] - vertex.point[1]);
+    const fromGateB = unit(wallB[0] - vertex.point[0], wallB[1] - vertex.point[1]);
+    // A sharp curtain corner has no single slide line; leave the bend alone.
+    if (!fromGateA || !fromGateB || fromGateA[0] * fromGateB[0] + fromGateA[1] * fromGateB[1] >= -0.5) continue;
+    const chordX = wallB[0] - wallA[0];
+    const chordY = wallB[1] - wallA[1];
+    const chordLen = Math.hypot(chordX, chordY);
+    const tangent = unit(chordX, chordY);
+    if (!tangent || chordLen < 8) continue;
+    const project = (point: Point) =>
+      ((point[0] - wallA[0]) * chordX + (point[1] - wallA[1]) * chordY) / (chordLen * chordLen);
+    const margin = Math.min(0.35, Math.max(4, Math.min(8, chordLen * 0.18)) / chordLen);
+    const at = (t: number): Point => [wallA[0] + chordX * t, wallA[1] + chordY * t];
+    let cursor = next;
+    const currentScore = roadDeviationDegrees(vertex.point, roads, tangent);
+    if (currentScore > PERPENDICULAR_GATE_DEGREES) {
+      let bestT = Math.max(margin, Math.min(1 - margin, project(vertex.point)));
+      let bestScore = roadDeviationDegrees(at(bestT), roads, tangent);
+      for (let i = 0; i <= 32; i++) {
+        const t = margin + ((1 - 2 * margin) * i) / 32;
+        const score = roadDeviationDegrees(at(t), roads, tangent);
+        if (score + 0.75 < bestScore) {
+          bestScore = score;
+          bestT = t;
+        }
+      }
+      // Sliding alone can square both arms. Otherwise park the gate on the
+      // squarer arm and swing the other arm onto that normal afterwards.
+      let chosenT = bestT;
+      if (bestScore > PERPENDICULAR_GATE_DEGREES) {
+        let anchor = roads[0];
+        let anchorDev = Infinity;
+        for (const road of roads) {
+          const dev = roadDeviationDegrees(vertex.point, [road], tangent);
+          if (dev < anchorDev) {
+            anchorDev = dev;
+            anchor = road;
+          }
+        }
+        chosenT = Math.max(margin, Math.min(1 - margin, project(anchor)));
+      }
+      const target = at(chosenT);
+      if (Math.hypot(target[0] - vertex.point[0], target[1] - vertex.point[1]) >= 0.8) {
+        const moved = tryMoveVertex(cursor, gate.vertexId, target);
+        if (moved !== cursor) {
+          for (const face of incidentFaces(moved.mesh, gate.vertexId)) {
+            if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+          }
+          cursor = moved;
+        }
+      }
+      cursor = swingObliqueGateArm(cursor, gate.vertexId, roadIds, tangent, riverVertices);
+    }
+    next = cursor;
+  }
+  return next;
+}
+
+/** Local river direction at a crossing, and the drawn channel width. */
+function riverCrossingFrame(document: CityDocument, midId: Id): { tangent: Point; width: number } | null {
+  const mid = document.mesh.vertices[midId]?.point;
+  if (!mid) return null;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "river") continue;
+    const index = group.vertices.indexOf(midId);
+    if (index < 0) continue;
+    let tx = 0;
+    let ty = 0;
+    const prev = index > 0 ? document.mesh.vertices[group.vertices[index - 1]]?.point : null;
+    const next = index + 1 < group.vertices.length ? document.mesh.vertices[group.vertices[index + 1]]?.point : null;
+    if (prev) {
+      const toward = unit(mid[0] - prev[0], mid[1] - prev[1]);
+      if (toward) {
+        tx += toward[0];
+        ty += toward[1];
+      }
+    }
+    if (next) {
+      const toward = unit(next[0] - mid[0], next[1] - mid[1]);
+      if (toward) {
+        tx += toward[0];
+        ty += toward[1];
+      }
+    }
+    const length = Math.hypot(tx, ty);
+    if (length < 1e-6) continue;
+    return { tangent: [tx / length, ty / length], width: Math.max(1, group.style.widthMeters) };
+  }
+  return null;
+}
+
+/** A bridge arm may slide. The river vertex, gates, and wall vertices stay put. */
+function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
+  const vertex = document.mesh.vertices[id];
+  if (!vertex || vertex.locked) return true;
+  if (document.gates.some(gate => gate.vertexId === id)) return true;
+  for (const group of document.featureGroups) {
+    if (group.kind === "river" && group.vertices.includes(id)) return true;
+    if (group.kind !== "wall") continue;
+    if (
+      group.segments.some(segment => {
+        const edge = document.mesh.edges[segment.edgeId];
+        return edge && (edge.a === id || edge.b === id);
+      })
+    )
+      return true;
+  }
+  return false;
+}
+
+function moveBridgeArm(document: CityDocument, id: Id, target: Point): CityDocument {
+  const current = document.mesh.vertices[id]?.point;
+  if (!current || Math.hypot(target[0] - current[0], target[1] - current[1]) < 0.4) return document;
+  const moved = tryMoveVertex(document, id, target);
+  if (moved === document) return document;
+  for (const face of incidentFaces(moved.mesh, id)) {
+    if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+  }
+  return moved;
+}
+
+/**
+ * Slide the two road vertices beside a river crossing onto the river normal.
+ * The crossing vertex stays on the channel. Each arm keeps its across-river
+ * distance when that already clears the bank, and is pushed out to the bank
+ * when it was running along the channel, so the bridge is the short perpendicular.
  */
 export function straightenRiverCrossing(document: CityDocument, aId: Id, midId: Id, bId: Id): CityDocument {
+  const frame = riverCrossingFrame(document, midId);
+  const origin = document.mesh.vertices[midId]?.point;
+  const a = document.mesh.vertices[aId]?.point;
+  const b = document.mesh.vertices[bId]?.point;
+  if (!frame || !origin || !a || !b) return document;
+  const normal: Point = [-frame.tangent[1], frame.tangent[0]];
+  const across = (point: Point) => (point[0] - origin[0]) * normal[0] + (point[1] - origin[1]) * normal[1];
+  const signOf = (value: number) => (value > 0.05 ? 1 : value < -0.05 ? -1 : 0);
+  let signA = signOf(across(a));
+  let signB = signOf(across(b));
+  if (signA === 0 && signB === 0) {
+    signA = -1;
+    signB = 1;
+  } else if (signA === 0) signA = -signB;
+  else if (signB === 0) signB = -signA;
+  else if (signA === signB) {
+    if (Math.abs(across(a)) >= Math.abs(across(b))) signB = -signA;
+    else signA = -signB;
+  }
+  const half = frame.width / 2;
+  const targetFor = (point: Point, sign: number): Point => {
+    const offset = across(point);
+    const distance = Math.max(Math.abs(sign === signOf(offset) ? offset : 0), half);
+    return [origin[0] + normal[0] * sign * distance, origin[1] + normal[1] * sign * distance];
+  };
   let next = document;
-  let A = next.mesh.vertices[aId]?.point;
-  let M = next.mesh.vertices[midId]?.point;
-  let B = next.mesh.vertices[bId]?.point;
-  if (!A || !M || !B) return document;
-
-  // Find local river tangent & normal at M
-  const rivers = next.featureGroups.filter(g => g.kind === "river");
-  let riverTangent: Point | null = null;
-  for (const river of rivers) {
-    const idx = river.vertices.indexOf(midId);
-    if (idx !== -1) {
-      const prevId = river.vertices[Math.max(0, idx - 1)];
-      const nextId = river.vertices[Math.min(river.vertices.length - 1, idx + 1)];
-      const pPrev = next.mesh.vertices[prevId]?.point;
-      const pNext = next.mesh.vertices[nextId]?.point;
-      if (pPrev && pNext) {
-        const tx = pNext[0] - pPrev[0];
-        const ty = pNext[1] - pPrev[1];
-        const len = Math.hypot(tx, ty) || 1;
-        riverTangent = [tx / len, ty / len];
-        break;
-      }
-    }
-  }
-  if (!riverTangent) return document;
-
-  // Unit normal to river tangent pointing generally from A to B
-  let normal: Point = [-riverTangent[1], riverTangent[0]];
-  const ab = [B[0] - A[0], B[1] - A[1]];
-  if (normal[0] * ab[0] + normal[1] * ab[1] < 0) {
-    normal = [-normal[0], -normal[1]];
-  }
-
-  const vA = [M[0] - A[0], M[1] - A[1]];
-  const lenA = Math.hypot(vA[0], vA[1]);
-  const uA: Point = [vA[0] / lenA, vA[1] / lenA];
-
-  const vB = [B[0] - M[0], B[1] - M[1]];
-  const lenB = Math.hypot(vB[0], vB[1]);
-  const uB: Point = [vB[0] / lenB, vB[1] / lenB];
-
-  const vAB = [B[0] - A[0], B[1] - A[1]];
-  const lenAB = Math.hypot(vAB[0], vAB[1]) || 1;
-  const uAB: Point = [vAB[0] / lenAB, vAB[1] / lenAB];
-  const chordAlignment = uAB[0] * normal[0] + uAB[1] * normal[1];
-
-  const dotAB = uA[0] * uB[0] + uA[1] * uB[1];
-  const cA = uA[0] * normal[0] + uA[1] * normal[1];
-  const cB = uB[0] * normal[0] + uB[1] * normal[1];
-
-  // Step 1: L-shape alignment
-  // If the bridge bends significantly and one arm deviates along the river, straighten that arm
-  if (dotAB < 0.98) {
-    if (cA > cB + 0.15) {
-      // Arm A is well aligned to river normal; extend it to position B
-      const targetB: Point = [M[0] + uA[0] * lenB, M[1] + uA[1] * lenB];
-      next = tryMoveVertex(next, bId, targetB);
-    } else if (cB > cA + 0.15) {
-      // Arm B is well aligned; extend backwards to position A
-      const targetA: Point = [M[0] - uB[0] * lenA, M[1] - uB[1] * lenA];
-      next = tryMoveVertex(next, aId, targetA);
-    } else if (chordAlignment < 0.7) {
-      // Both arms and overall chord deviate from perpendicular; align both along river normal
-      next = tryMoveVertex(next, aId, [M[0] - normal[0] * lenA, M[1] - normal[1] * lenA]);
-      next = tryMoveVertex(next, bId, [M[0] + normal[0] * lenB, M[1] + normal[1] * lenB]);
-    }
-  }
-
-  // Step 2: V-shape projection of M onto the line A-B
-  A = next.mesh.vertices[aId]?.point;
-  M = next.mesh.vertices[midId]?.point;
-  B = next.mesh.vertices[bId]?.point;
-  if (A && M && B) {
-    const dirAB = [B[0] - A[0], B[1] - A[1]];
-    const lenABsq = dirAB[0] * dirAB[0] + dirAB[1] * dirAB[1];
-    if (lenABsq > 0) {
-      const t = ((M[0] - A[0]) * dirAB[0] + (M[1] - A[1]) * dirAB[1]) / lenABsq;
-      if (t > 0.05 && t < 0.95) {
-        const targetM: Point = [A[0] + t * dirAB[0], A[1] + t * dirAB[1]];
-        next = tryMoveVertex(next, midId, targetM);
-      }
-    }
-  }
-
+  if (!bridgeArmIsFixed(next, aId)) next = moveBridgeArm(next, aId, targetFor(a, signA));
+  if (!bridgeArmIsFixed(next, bId)) next = moveBridgeArm(next, bId, targetFor(b, signB));
   return next;
 }
 
@@ -371,8 +684,10 @@ export function straightenBridge(document: CityDocument, bridgeId: Id): CityDocu
 }
 
 /**
- * Straighten all road crossings over rivers (both explicit bridge features and road segments crossing rivers)
- * so that they cross the river along the shortest perpendicular path, eliminating L-shapes and V-shapes.
+ * Square every road that bridges a river. The river vertex stays put. The road
+ * vertices on either side slide onto the river normal, which is the shortest
+ * crossing. Runs again after block rectification so a later merge cannot leave
+ * an oblique span.
  */
 export function straightenBridges(document: CityDocument): CityDocument {
   let next = document;
@@ -630,4 +945,349 @@ function extendRoadThrough(document: CityDocument, vertexId: Id, barrier: Barrie
     }
   }
   return changed ? next : null;
+}
+
+/**
+ * Subdivide/split incident cells at a barrier vertex so that the vertex acquires
+ * through-arms on both sides of the barrier without moving or merging any vertices.
+ */
+function splitBarrierPassageFace(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {
+  const v = document.mesh.vertices[vertexId];
+  if (!v || v.locked) return null;
+  const origin = v.point;
+
+  const barrierEdges = kindEdgeIds(document, barrier);
+  const riverEdges = kindEdgeIds(document, "river");
+  const riverVertices = new Set(
+    [...riverEdges].flatMap(id =>
+      document.mesh.edges[id] ? [document.mesh.edges[id].a, document.mesh.edges[id].b] : []
+    )
+  );
+  const incident = incidentEdges(document.mesh, vertexId);
+  const barrierIncident = incident.filter(e => barrierEdges.has(e.id));
+  if (barrierIncident.length < 2) return null;
+
+  let e0 = barrierIncident[0];
+  let e1 = barrierIncident[1];
+  if (barrierIncident.length > 2) {
+    let bestDot = 1;
+    for (let i = 0; i < barrierIncident.length; i++) {
+      for (let j = i + 1; j < barrierIncident.length; j++) {
+        const edgeI = barrierIncident[i];
+        const edgeJ = barrierIncident[j];
+        const pI = document.mesh.vertices[edgeI.a === vertexId ? edgeI.b : edgeI.a]?.point;
+        const pJ = document.mesh.vertices[edgeJ.a === vertexId ? edgeJ.b : edgeJ.a]?.point;
+        if (!pI || !pJ) continue;
+        const dxI = pI[0] - origin[0],
+          dyI = pI[1] - origin[1];
+        const dxJ = pJ[0] - origin[0],
+          dyJ = pJ[1] - origin[1];
+        const dot = (dxI * dxJ + dyI * dyJ) / ((Math.hypot(dxI, dyI) || 1) * (Math.hypot(dxJ, dyJ) || 1));
+        if (dot < bestDot) {
+          bestDot = dot;
+          e0 = edgeI;
+          e1 = edgeJ;
+        }
+      }
+    }
+  }
+
+  const p0 = document.mesh.vertices[e0.a === vertexId ? e0.b : e0.a]?.point;
+  const p1 = document.mesh.vertices[e1.a === vertexId ? e1.b : e1.a]?.point;
+  if (!p0 || !p1) return null;
+
+  const a0 = (Math.atan2(p0[1] - origin[1], p0[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+  const a1 = (Math.atan2(p1[1] - origin[1], p1[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+  const alpha = Math.min(a0, a1);
+  const beta = Math.max(a0, a1);
+
+  const span1 = beta - alpha;
+  const span2 = 2 * Math.PI - span1;
+  const mid1 = alpha + span1 / 2;
+  const mid2 = (beta + span2 / 2) % (2 * Math.PI);
+
+  const inSector1 = (th: number): boolean => th > alpha + 1e-3 && th < beta - 1e-3;
+  const inSector2 = (th: number): boolean => th > beta + 1e-3 || th < alpha - 1e-3;
+
+  const nonBarrierEdges = incident.filter(e => !barrierEdges.has(e.id));
+  const s1Edges: Edge[] = [];
+  const s2Edges: Edge[] = [];
+  for (const edge of nonBarrierEdges) {
+    const pt = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a]?.point;
+    if (!pt) continue;
+    const th = (Math.atan2(pt[1] - origin[1], pt[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+    if (inSector1(th)) s1Edges.push(edge);
+    else if (inSector2(th)) s2Edges.push(edge);
+  }
+
+  if (s1Edges.length > 0 && s2Edges.length > 0) {
+    return document;
+  }
+
+  let next = document;
+
+  const splitInSector = (doc: CityDocument, sector: 1 | 2, existingOppositeEdge?: Edge): CityDocument | null => {
+    const sectorBisector = sector === 1 ? mid1 : mid2;
+    let baseAngle = sectorBisector;
+
+    if (existingOppositeEdge) {
+      const oppPt =
+        doc.mesh.vertices[existingOppositeEdge.a === vertexId ? existingOppositeEdge.b : existingOppositeEdge.a]?.point;
+      if (oppPt) {
+        const straightAngle = (Math.atan2(origin[1] - oppPt[1], origin[0] - oppPt[0]) + 2 * Math.PI) % (2 * Math.PI);
+        const inTarget = sector === 1 ? inSector1(straightAngle) : inSector2(straightAngle);
+        if (inTarget) {
+          const dAlpha = Math.abs(straightAngle - alpha);
+          const dBeta = Math.abs(straightAngle - beta);
+          const margin = Math.min(dAlpha, 2 * Math.PI - dAlpha, dBeta, 2 * Math.PI - dBeta);
+          if (margin > 0.15) baseAngle = straightAngle;
+        }
+      }
+    }
+
+    const testAngles = [baseAngle];
+    for (let offset = 0.15; offset <= 0.6; offset += 0.15) {
+      const aPlus = (baseAngle + offset + 2 * Math.PI) % (2 * Math.PI);
+      const aMinus = (baseAngle - offset + 2 * Math.PI) % (2 * Math.PI);
+      if (sector === 1 ? inSector1(aPlus) : inSector2(aPlus)) testAngles.push(aPlus);
+      if (sector === 1 ? inSector1(aMinus) : inSector2(aMinus)) testAngles.push(aMinus);
+    }
+
+    const faces = incidentFaces(doc.mesh, vertexId).filter(f => !f.properties.locked && f.properties.water !== "sea");
+    if (!faces.length) return null;
+
+    if (barrier === "wall") {
+      for (const face of faces) {
+        for (const ref of face.boundary) {
+          const edge = doc.mesh.edges[ref.edgeId];
+          if (!edge || edge.a === vertexId || edge.b === vertexId) continue;
+          if (riverEdges.has(edge.id)) continue;
+          const pA = doc.mesh.vertices[edge.a]?.point;
+          const pB = doc.mesh.vertices[edge.b]?.point;
+          if (!pA || !pB) continue;
+          const mid: Point = [(pA[0] + pB[0]) / 2, (pA[1] + pB[1]) / 2];
+          const ang = (Math.atan2(mid[1] - origin[1], mid[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+          if (sector === 1 ? inSector1(ang) : inSector2(ang)) {
+            if (!testAngles.some(ta => Math.abs(ta - ang) < 0.05)) testAngles.push(ang);
+          }
+        }
+      }
+    }
+
+    for (const targetAngle of testAngles) {
+      const probeDir: Point = [Math.cos(targetAngle), Math.sin(targetAngle)];
+
+      let targetFace = faces.find(f => {
+        const pts = facePoints(doc.mesh, f);
+        return (
+          pointInPolygon([origin[0] + 0.5 * probeDir[0], origin[1] + 0.5 * probeDir[1]], pts) ||
+          pointInPolygon([origin[0] + 0.1 * probeDir[0], origin[1] + 0.1 * probeDir[1]], pts)
+        );
+      });
+
+      if (!targetFace) {
+        const bisectDir: Point = [Math.cos(sectorBisector), Math.sin(sectorBisector)];
+        targetFace = faces.find(f => {
+          const pts = facePoints(doc.mesh, f);
+          return (
+            pointInPolygon([origin[0] + 0.5 * bisectDir[0], origin[1] + 0.5 * bisectDir[1]], pts) ||
+            pointInPolygon([origin[0] + 0.1 * bisectDir[0], origin[1] + 0.1 * bisectDir[1]], pts)
+          );
+        });
+      }
+
+      if (!targetFace) continue;
+
+      const fVids = faceVertices(doc.mesh, targetFace);
+      const fPts = facePoints(doc.mesh, targetFace);
+      const fIdx = fVids.indexOf(vertexId);
+      if (fIdx < 0) continue;
+      const origArea = Math.abs(polygonArea(fPts));
+
+      // Strategy 1: Check existing non-adjacent vertices
+      const candidates: Array<{ vid: Id; score: number }> = [];
+      for (let i = 0; i < fVids.length; i++) {
+        const vid = fVids[i];
+        if (vid === vertexId) continue;
+        if (barrier === "wall" && riverVertices.has(vid)) continue;
+        const step = Math.abs(i - fIdx);
+        if (step === 1 || step === fVids.length - 1) continue;
+        if (edgeBetween(doc.mesh, vertexId, vid)) continue;
+        const pt = doc.mesh.vertices[vid]?.point;
+        if (!pt || doc.mesh.vertices[vid]?.locked) continue;
+
+        const vAngle = (Math.atan2(pt[1] - origin[1], pt[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+        const inSec = sector === 1 ? inSector1(vAngle) : inSector2(vAngle);
+        if (!inSec) continue;
+
+        const midPt: Point = [(origin[0] + pt[0]) / 2, (origin[1] + pt[1]) / 2];
+        if (!pointInPolygon(midPt, fPts)) continue;
+
+        const hits = fPts.some((p, k) => {
+          const nextK = (k + 1) % fPts.length;
+          if ([vertexId, vid].includes(fVids[k]) || [vertexId, vid].includes(fVids[nextK])) return false;
+          return !!segmentSegmentHit(origin, pt, p, fPts[nextK]);
+        });
+        if (hits) continue;
+
+        const dx = pt[0] - origin[0];
+        const dy = pt[1] - origin[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const dot = (dx * Math.cos(targetAngle) + dy * Math.sin(targetAngle)) / len;
+        candidates.push({ vid, score: dot });
+      }
+
+      candidates.sort((a, b) => b.score - a.score);
+      for (const cand of candidates) {
+        if (cand.score < 0.3) break;
+        const split = splitFace(doc, targetFace.id, vertexId, cand.vid);
+        if (!split) continue;
+        const pieces = Object.values(split.mesh.faces).filter(f => f.id === targetFace!.id || !doc.mesh.faces[f.id]);
+        if (pieces.some(f => !isSimplePolygon(facePoints(split.mesh, f)))) continue;
+        if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < Math.min(20, origArea * 0.1))) continue;
+        for (const f of pieces) f.site = polygonCentroid(facePoints(split.mesh, f));
+        return split;
+      }
+
+      // Strategy 2: Ray-cast against opposite edges of targetFace
+      let bestHit: { edgeId: Id; fraction: number; dist: number } | null = null;
+      for (let eIdx = 0; eIdx < targetFace.boundary.length; eIdx++) {
+        const ref = targetFace.boundary[eIdx];
+        const edge = doc.mesh.edges[ref.edgeId];
+        if (!edge || edge.a === vertexId || edge.b === vertexId) continue;
+        if (barrier === "wall" && riverEdges.has(edge.id)) continue;
+        const pA = doc.mesh.vertices[edge.a]?.point;
+        const pB = doc.mesh.vertices[edge.b]?.point;
+        if (!pA || !pB) continue;
+
+        const dx = pB[0] - pA[0];
+        const dy = pB[1] - pA[1];
+        const det = probeDir[0] * -dy - probeDir[1] * -dx;
+        if (Math.abs(det) < 1e-6) continue;
+
+        const rhsX = pA[0] - origin[0];
+        const rhsY = pA[1] - origin[1];
+        const s = (rhsX * -dy - rhsY * -dx) / det;
+        const t = (probeDir[0] * rhsY - probeDir[1] * rhsX) / det;
+
+        if (s > 0.5 && t >= 0 && t <= 1) {
+          const hitPt: Point = [origin[0] + s * probeDir[0], origin[1] + s * probeDir[1]];
+          const midPt: Point = [(origin[0] + hitPt[0]) / 2, (origin[1] + hitPt[1]) / 2];
+          if (!pointInPolygon(midPt, fPts)) continue;
+
+          // Ensure ray segment does not intersect any other boundary of the face
+          const hitsOther = fPts.some((p, k) => {
+            const nextK = (k + 1) % fPts.length;
+            if (k === eIdx) return false;
+            if ([fVids[k], fVids[nextK]].includes(vertexId)) return false;
+            return !!segmentSegmentHit(origin, hitPt, p, fPts[nextK]);
+          });
+          if (hitsOther) continue;
+
+          if (!bestHit || s < bestHit.dist) {
+            bestHit = { edgeId: edge.id, fraction: t, dist: s };
+          }
+        }
+      }
+
+      if (bestHit) {
+        const edge = doc.mesh.edges[bestHit.edgeId];
+        const pA = doc.mesh.vertices[edge.a].point;
+        const pB = doc.mesh.vertices[edge.b].point;
+        const edgeLen = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]);
+
+        if (edgeLen < 2.05) {
+          for (const endVid of [edge.a, edge.b]) {
+            const step = Math.abs(fVids.indexOf(endVid) - fIdx);
+            if (step !== 1 && step !== fVids.length - 1 && !edgeBetween(doc.mesh, vertexId, endVid)) {
+              const split = splitFace(doc, targetFace.id, vertexId, endVid);
+              if (split) {
+                const pieces = Object.values(split.mesh.faces).filter(
+                  f => f.id === targetFace!.id || !doc.mesh.faces[f.id]
+                );
+                if (pieces.some(f => !isSimplePolygon(facePoints(split.mesh, f)))) continue;
+                if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < Math.min(20, origArea * 0.1)))
+                  continue;
+                for (const f of pieces) f.site = polygonCentroid(facePoints(split.mesh, f));
+                return split;
+              }
+            }
+          }
+        } else {
+          const minMargin = 1.05 / edgeLen;
+          const clampedT = Math.max(minMargin, Math.min(1 - minMargin, bestHit.fraction));
+          const inserted = insertEdgeVertex(doc, bestHit.edgeId, clampedT);
+          if (inserted) {
+            const split = splitFace(inserted.document, targetFace.id, vertexId, inserted.vertexId);
+            if (split) {
+              const pieces = Object.values(split.mesh.faces).filter(
+                f => f.id === targetFace!.id || !doc.mesh.faces[f.id]
+              );
+              if (pieces.some(f => !isSimplePolygon(facePoints(split.mesh, f)))) continue;
+              if (pieces.some(f => Math.abs(polygonArea(facePoints(split.mesh, f))) < Math.min(20, origArea * 0.1)))
+                continue;
+              for (const f of pieces) f.site = polygonCentroid(facePoints(split.mesh, f));
+              return split;
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  if (s1Edges.length === 0 && s2Edges.length > 0) {
+    const split = splitInSector(next, 1, s2Edges[0]);
+    if (split) next = split;
+  } else if (s2Edges.length === 0 && s1Edges.length > 0) {
+    const split = splitInSector(next, 2, s1Edges[0]);
+    if (split) next = split;
+  } else if (s1Edges.length === 0 && s2Edges.length === 0) {
+    const split1 = splitInSector(next, 1);
+    if (split1) {
+      next = split1;
+      const newIncident = incidentEdges(next.mesh, vertexId).filter(e => !barrierEdges.has(e.id));
+      const newS1 = newIncident.filter(e => {
+        const pt = next.mesh.vertices[e.a === vertexId ? e.b : e.a]?.point;
+        if (!pt) return false;
+        const th = (Math.atan2(pt[1] - origin[1], pt[0] - origin[0]) + 2 * Math.PI) % (2 * Math.PI);
+        return inSector1(th);
+      });
+      const split2 = splitInSector(next, 2, newS1[0]);
+      if (split2) next = split2;
+    }
+  }
+
+  return next === document ? null : next;
+}
+
+/**
+ * Open a gate passage at `gateVertexId` via cell splitting (no vertex merging),
+ * materializing the through-road across the wall and registering the gate.
+ */
+export function openGatePassage(document: CityDocument, gateVertexId: Id): CityDocument | null {
+  const opened = openBarrierPassage(document, gateVertexId, "wall");
+  if (!opened) return null;
+  const through = throughEdgesAt(opened, gateVertexId, "wall");
+  if (through.length !== 2) return null;
+  let next = createGroup(opened, "road");
+  const roadId = next.featureGroups.at(-1)?.id;
+  if (!roadId) return null;
+  for (const edge of through) {
+    const appended = appendEdge(next, roadId, edge.id);
+    if (!appended) return null;
+    next = appended;
+  }
+  const existingGates = next.gates ?? [];
+  let max = 0;
+  for (const g of existingGates) {
+    const m = g.id.match(/\d+$/);
+    if (m) {
+      const n = parseInt(m[0], 10);
+      if (n > max) max = n;
+    }
+  }
+  next.gates = [...existingGates, { id: `gate-${max + 1}`, vertexId: gateVertexId, locked: false }];
+  return next;
 }

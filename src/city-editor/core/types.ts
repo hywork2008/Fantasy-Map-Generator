@@ -85,6 +85,8 @@ export interface CityElement {
   /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
   point?: Point;
   sizeMeters?: number;
+  /** Long-axis angle in radians, CCW from +X. Temples use this. */
+  rotation?: number;
   locked: boolean;
 }
 
@@ -98,7 +100,7 @@ export interface CityGate {
 export interface DistrictParameters {
   /** Fraction of eligible lots retained, not a guaranteed area coverage. */
   occupancy: number;
-  /** Maximum footprint fraction within each local lot. */
+  /** Core: footprint fraction of each street block; outskirts: fraction of each lot. */
   coverage: number;
   lotArea: number;
   laneWidth: number;
@@ -111,7 +113,8 @@ export interface FabricDistrict {
   parameters: DistrictParameters;
 }
 export interface FabricPlan {
-  version: 2;
+  /** v4 groups residential cells into road-bounded perimeter blocks. */
+  version: 2 | 3 | 4;
   seed: string;
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
@@ -139,6 +142,10 @@ export interface CityDocument {
   gates: CityGate[];
   /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
+  /** Urban morphology layout (circulade, bram, organic or classic) */
+  layout?: import("./gen/site/siteConfig").CityLayout;
+  /** The effective seed that succeeded in generation (including junction retries) */
+  generationSeed?: string;
 }
 
 export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "wardWall" | "junction" | "face";

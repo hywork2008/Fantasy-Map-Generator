@@ -1,9 +1,15 @@
+import { bridgeDecks, clipPolylineOutsideRivers, riverRibbons } from "../core/bridgeDeck";
+import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
+import { featureGroupVertices } from "../core/features";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
+import { templeFootprintMeters } from "../core/gen/housing";
+import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
+import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -73,14 +79,21 @@ export function renderEditorSvg(
   /** Document panel "Grid evolution" scrub overlay (Phase G1). */
   gridOverlay: GridOverlay | null = null,
   showBlockMesh = false,
-  observer?: GenerationObserver
+  showGridLines = false,
+  observer?: GenerationObserver,
+  hideBuildings = false,
+  /** Stage ⑩. Drop roads inside the outer wall, and the lanes that divide blocks. */
+  hideStreetLines = false
 ): SVGSVGElement {
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
+  const classes = ["ce-svg"];
+  if (town) classes.push("ce-svg--town");
+  if (showGridLines) classes.push("ce-svg--show-grid");
   const svg = element("svg", {
     viewBox,
-    class: `ce-svg${town ? " ce-svg--town" : ""}`,
+    class: classes.join(" "),
     "aria-label": "City editor canvas"
   }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
@@ -132,7 +145,13 @@ export function renderEditorSvg(
       "pointer-events": tool === "select" ? "all" : "none"
     });
     mark("svg-base");
-    const fabric = document.gridKind === "evolution" ? buildBlockFabric(document) : null;
+    const fabric =
+      document.gridKind === "evolution" ||
+      document.layout === "circulade" ||
+      document.layout === "bram" ||
+      document.layout === "classic"
+        ? buildBlockFabric(document)
+        : null;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
@@ -157,61 +176,74 @@ export function renderEditorSvg(
         );
       }
       svg.appendChild(farms);
-      const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
-      const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
-      for (const lane of fabric.lanes) {
-        lanes.appendChild(
-          element("path", {
-            d: line(lane.points),
-            class: "ce-infill-lane",
-            fill: "none",
-            stroke: "#d5cfbf",
-            "stroke-width": String(lane.widthMeters),
-            "stroke-linecap": "round",
-            "data-infill-face": lane.faceId
-          })
-        );
-        // Outside the core, expose the access network even where a house has
-        // not been placed. This is a thin trail centreline, not a building shadow.
-        if (document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts")
-          trails.appendChild(
+      // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
+      // the ground colour still reads as the gap between them.
+      if (!hideStreetLines) {
+        const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
+        const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
+        for (const lane of fabric.lanes) {
+          lanes.appendChild(
             element("path", {
               d: line(lane.points),
-              class: "ce-infill-trail",
+              class: "ce-infill-lane",
               fill: "none",
-              stroke: "#7b7567",
-              "stroke-width": "0.35",
+              stroke: "#d5cfbf",
+              "stroke-width": String(lane.widthMeters),
               "stroke-linecap": "round",
               "data-infill-face": lane.faceId
             })
           );
+          // Outside the core, expose the access network even where a house has
+          // not been placed. This is a thin trail centreline, not a building shadow.
+          // For classic and organic layouts, also expose the interior core lanes as trails.
+          // When buildings are hidden (e.g. stage 8 "Blocks and lanes"), expose lanes as trails as well.
+          if (
+            document.mesh.faces[lane.faceId]?.properties.settlement === "outskirts" ||
+            document.layout === "classic" ||
+            document.layout === "organic" ||
+            hideBuildings
+          )
+            trails.appendChild(
+              element("path", {
+                d: line(lane.points),
+                class: "ce-infill-trail",
+                fill: "none",
+                stroke: "#7b7567",
+                "stroke-width": "0.35",
+                "stroke-linecap": "round",
+                "data-infill-face": lane.faceId
+              })
+            );
+        }
+        svg.appendChild(lanes);
+        svg.appendChild(trails);
       }
-      svg.appendChild(lanes);
-      svg.appendChild(trails);
     }
     mark("buildings", { buildings: lots.length });
-    for (const lot of lots) {
-      const bldId = `bld-${lot.faceId}`;
-      const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
-      const pickInfo: SvgPickInfo = {
-        layer: "buildings",
-        kind: "building",
-        id: bldId,
-        label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
-        ward: document.mesh.faces[lot.faceId].properties.ward,
-        faceId: lot.faceId,
-        landmark: !!lot.landmark
-      };
-      const bldNode = element("path", {
-        d: polygon(lot.polygon),
-        class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-        "data-building-face": lot.faceId,
-        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
-      });
-      if (tool === "select") bldNode.style.cursor = "pointer";
-      buildings.appendChild(bldNode);
+    if (!hideBuildings) {
+      for (const lot of lots) {
+        const bldId = `bld-${lot.faceId}`;
+        const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
+        const pickInfo: SvgPickInfo = {
+          layer: "buildings",
+          kind: "building",
+          id: bldId,
+          label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+          ward: document.mesh.faces[lot.faceId].properties.ward,
+          faceId: lot.faceId,
+          landmark: !!lot.landmark
+        };
+        const bldNode = element("path", {
+          d: polygon(lot.polygon),
+          class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          "data-building-face": lot.faceId,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
+        });
+        if (tool === "select") bldNode.style.cursor = "pointer";
+        buildings.appendChild(bldNode);
+      }
+      svg.appendChild(buildings);
     }
-    svg.appendChild(buildings);
   }
 
   const edges = element("g", { class: "ce-edges" });
@@ -244,6 +276,9 @@ export function renderEditorSvg(
   const renderGroups = town
     ? [...document.featureGroups].sort((a, b) => order[a.kind] - order[b.kind])
     : document.featureGroups;
+  // One ring for the whole pass. Roads inside it are the centre-to-wall streets.
+  const concealWall = town && hideStreetLines ? outerWallRing(document) : null;
+  const ribbons = town ? riverRibbons(document) : [];
   for (const group of renderGroups) {
     const active = selection.groupId === group.id;
     const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
@@ -252,17 +287,15 @@ export function renderEditorSvg(
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
         : edgeGroupPoints(document, group.segments);
     if (points.length < 2) continue;
+    // A generated bridge group is only the mesh span. Town view replaces it
+    // with a deck as long as the river. Other roads stop at the bank.
+    let runs = [points];
     if (town && group.kind === "road") {
-      features.appendChild(
-        element("path", {
-          d: line(points),
-          class: "ce-road-casing",
-          fill: "none",
-          stroke: "#57534b",
-          "stroke-width": String(group.style.widthMeters + 1.4),
-          "pointer-events": "none"
-        })
-      );
+      if (group.id.startsWith("gc:bridge-")) runs = [];
+      else {
+        runs = ribbons.length ? clipPolylineOutsideRivers(points, ribbons) : [points];
+        if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
+      }
     }
     const pickInfo: SvgPickInfo = {
       layer: "features",
@@ -275,23 +308,76 @@ export function renderEditorSvg(
       color: group.style.color,
       segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
     };
-    features.appendChild(
-      element("path", {
-        d: line(points),
-        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-        stroke: town
-          ? group.kind === "road"
-            ? "#d5cfbf"
-            : group.kind === "river"
-              ? "#85857d"
-              : "#292a26"
-          : group.style.color,
-        "stroke-width": String(group.style.widthMeters),
-        "data-group": group.id,
-        "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-        "pointer-events": "stroke"
-      })
-    );
+    for (const run of runs) {
+      if (run.length < 2) continue;
+      if (town && group.kind === "road") {
+        features.appendChild(
+          element("path", {
+            d: line(run),
+            class: "ce-road-casing",
+            fill: "none",
+            stroke: "#57534b",
+            "stroke-width": String(group.style.widthMeters + 1.4),
+            "pointer-events": "none"
+          })
+        );
+      }
+      features.appendChild(
+        element("path", {
+          d: line(run),
+          class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          stroke: town
+            ? group.kind === "road"
+              ? "#d5cfbf"
+              : group.kind === "river"
+                ? "#85857d"
+                : "#292a26"
+            : group.style.color,
+          "stroke-width": String(group.style.widthMeters),
+          "data-group": group.id,
+          "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+          "pointer-events": "stroke"
+        })
+      );
+    }
+  }
+  if (town) {
+    for (const deck of bridgeDecks(document)) {
+      const pickInfo: SvgPickInfo = {
+        layer: "features",
+        kind: "road",
+        id: deck.groupId,
+        label: `bridge (${deck.name})`,
+        name: deck.name,
+        widthMeters: deck.widthMeters,
+        segmentCount: 2
+      };
+      const encoded = encodeURIComponent(JSON.stringify(pickInfo));
+      features.appendChild(
+        element("path", {
+          d: line(deck.points),
+          class: "ce-bridge-outline",
+          fill: "none",
+          stroke: "#1A1917",
+          "stroke-width": String(deck.widthMeters + 1.4),
+          "stroke-linecap": "butt",
+          "pointer-events": "none"
+        })
+      );
+      features.appendChild(
+        element("path", {
+          d: line(deck.points),
+          class: "ce-bridge-deck",
+          fill: "none",
+          stroke: "#d5cfbf",
+          "stroke-width": String(deck.widthMeters),
+          "stroke-linecap": "butt",
+          "data-group": deck.groupId,
+          "data-pick": encoded,
+          "pointer-events": "stroke"
+        })
+      );
+    }
   }
   svg.appendChild(features);
   if (town) {
@@ -363,12 +449,17 @@ export function renderEditorSvg(
         elements.appendChild(plazaCircle);
       }
       if (cityElement.kind === "temple") {
+        const footprint = templeFootprintMeters(document.frame.extentMeters);
+        const length = cityElement.sizeMeters && cityElement.sizeMeters > 0 ? cityElement.sizeMeters : footprint.length;
+        const width = length * (footprint.width / footprint.length);
+        const deg = (-(cityElement.rotation ?? 0) * 180) / Math.PI;
         const templeRect = element("rect", {
-          x: String(p[0] - 9),
-          y: String(-p[1] - 6),
-          width: "18",
-          height: "12",
+          x: String(-length / 2),
+          y: String(-width / 2),
+          width: String(length),
+          height: String(width),
           fill: "#292a26",
+          transform: `translate(${p[0]} ${-p[1]}) rotate(${deg})`,
           class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
           "data-element": cityElement.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
@@ -459,39 +550,65 @@ export function renderEditorSvg(
   // pointermove without rebuilding every cell/edge/vertex node. Populated by
   // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
+  svg.appendChild(element("g", { class: "ce-measure-layer", "pointer-events": "none" }));
   mark("svg-details");
   return svg;
 }
 
 function renderTownQuays(document: CityDocument): SVGGElement {
   const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
-  if (!document.elements.some(e => e.kind === "harbor")) return layer;
+  const harbor = document.elements.find(entry => entry.kind === "harbor");
+  if (!harbor) return layer;
+  // A solid sea wall is masonry, not a river bank. Piers belong only on an
+  // unwalled edge of the harbour itself — otherwise every sea-front cell grows
+  // a span that reads as a bridge into the water.
+  const harborFaces = new Set(harbor.faceIds);
+  const walled = new Set(
+    document.featureGroups.flatMap(group =>
+      group.kind === "wall" ? group.segments.map(segment => segment.edgeId) : []
+    )
+  );
+  const harborLand = (faceId: Id | null): boolean => {
+    if (!faceId || !document.mesh.faces[faceId]) return false;
+    if (harborFaces.has(faceId)) return true;
+    return document.mesh.faces[faceId].boundary.some(ref => {
+      const edge = document.mesh.edges[ref.edgeId];
+      const other = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
+      return !!other && harborFaces.has(other);
+    });
+  };
+  let best: { a: Point; b: Point; waterRing: Point[]; length: number } | null = null;
+  let bestDist = Infinity;
+  const harborPoint = harbor.point;
   for (const edge of Object.values(document.mesh.edges)) {
+    if (walled.has(edge.id)) continue;
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
     if (!left || !right || (left.properties.water === "land") === (right.properties.water === "land")) continue;
     const land = left.properties.water === "land" ? left : right;
     const water = land === left ? right : left;
-    if (!land.properties.buildable) continue;
+    if (!land.properties.buildable || water.properties.water !== "sea" || !harborLand(land.id)) continue;
     const a = document.mesh.vertices[edge.a].point;
     const b = document.mesh.vertices[edge.b].point;
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const ring = facePoints(document.mesh, water);
-    const center = polygonCentroid(ring);
-    let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
-    if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
-    for (let distance = 12; distance < length - 4; distance += 24) {
-      const start: Point = [a[0] + ((b[0] - a[0]) * distance) / length, a[1] + ((b[1] - a[1]) * distance) / length];
-      const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
-      if (!pointInPolygon(end, ring)) continue;
-      layer.appendChild(
-        element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" })
-      );
-      layer.appendChild(
-        element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" })
-      );
+    if (length < 1) continue;
+    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const dist = harborPoint ? Math.hypot(mid[0] - harborPoint[0], mid[1] - harborPoint[1]) : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = { a, b, waterRing: facePoints(document.mesh, water), length };
     }
   }
+  if (!best) return layer;
+  const { a, b, waterRing, length } = best;
+  const center = polygonCentroid(waterRing);
+  let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
+  if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+  const start: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
+  if (!pointInPolygon(end, waterRing)) return layer;
+  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" }));
+  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" }));
   return layer;
 }
 
@@ -526,6 +643,16 @@ function renderTownFortifications(
           untilTower += spacing;
           continue;
         }
+        const gateClear = group.style.widthMeters * 3;
+        if (
+          (document.gates ?? []).some(gate => {
+            const gatePoint = document.mesh.vertices[gate.vertexId]?.point;
+            return gatePoint && Math.hypot(gatePoint[0] - position[0], gatePoint[1] - position[1]) < gateClear;
+          })
+        ) {
+          untilTower += spacing;
+          continue;
+        }
         const towerId = `tower-${group.id}-${i}-${Math.round(untilTower)}`;
         const isPickSelected = inspectedId === towerId;
         const towerPickInfo: SvgPickInfo = {
@@ -552,26 +679,25 @@ function renderTownFortifications(
     }
   }
   for (const gate of document.gates) {
-    const p = document.mesh.vertices[gate.vertexId]?.point;
-    if (!p) continue;
+    const frame = gateCrossingFrame(document, gate.vertexId);
+    if (!frame) continue;
     const wall = document.featureGroups.find(
-      g =>
-        g.kind === "wall" &&
-        g.segments.some(s => {
-          const e = document.mesh.edges[s.edgeId];
-          return e.a === gate.vertexId || e.b === gate.vertexId;
-        })
+      g => g.kind === "wall" && featureGroupVertices(document, g).includes(gate.vertexId)
     );
     if (wall?.kind !== "wall") continue;
-    const ref = wall.segments.find(s => {
-      const e = document.mesh.edges[s.edgeId];
-      return e.a === gate.vertexId || e.b === gate.vertexId;
-    })!;
-    const e = document.mesh.edges[ref.edgeId];
-    const q = document.mesh.vertices[e.a === gate.vertexId ? e.b : e.a].point;
-    const angle = (-Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
     const width = wall.style.widthMeters;
-    const opening = Math.max(9, width * 1.6);
+    let roadWidth = defaultRoadWidthMeters(document.frame.extentMeters);
+    for (const group of document.featureGroups) {
+      if (group.kind === "road" && featureGroupVertices(document, group).includes(gate.vertexId))
+        roadWidth = Math.max(roadWidth, group.style.widthMeters);
+    }
+    // Square flank towers match the round curtain towers (diameter = 1.6 × wall).
+    // The opening clears the road. A semicircular plaza sits on both sides of the gate.
+    const side = width * GATE_TOWER_SCALE;
+    const deviation = gateRoadDeviationDegrees(document, gate.vertexId) ?? 0;
+    const slant = Math.tan((Math.min(deviation, 20) * Math.PI) / 180);
+    const opening = Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
+    const plazaRadius = gatePlazaRadiusMeters(width);
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
       layer: "gates",
@@ -580,30 +706,43 @@ function renderTownFortifications(
       label: `gate #${gate.id}`,
       vertexId: gate.vertexId,
       wallId: wall.id,
-      point: p
+      point: frame.point
     };
+    const [tx, ty] = frame.tangent;
+    const [ix, iy] = frame.inward;
     const marker = element("g", {
       class: `ce-town-gate${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-      transform: `translate(${p[0]} ${-p[1]}) rotate(${angle})`,
+      transform: `matrix(${tx} ${-ty} ${ix} ${-iy} ${frame.point[0]} ${-frame.point[1]})`,
       "data-pick": encodeURIComponent(JSON.stringify(gatePickInfo))
     });
     if (tool === "select") marker.style.cursor = "pointer";
+    for (const sweep of [1, 0])
+      marker.appendChild(
+        element("path", {
+          d: `M ${-plazaRadius} 0 A ${plazaRadius} ${plazaRadius} 0 0 ${sweep} ${plazaRadius} 0 Z`,
+          class: "ce-gate-plaza",
+          fill: "#d5cfbf",
+          "pointer-events": "none"
+        })
+      );
     marker.appendChild(
       element("rect", {
         x: String(-opening / 2),
-        y: String(-width),
+        y: String(-side / 2),
         width: String(opening),
-        height: String(width * 2),
-        fill: "#d5cfbf"
+        height: String(side),
+        fill: "#d5cfbf",
+        "pointer-events": "none"
       })
     );
     for (const sign of [-1, 1])
       marker.appendChild(
         element("rect", {
-          x: String((sign * opening) / 2 - width / 2),
-          y: String(-width),
-          width: String(width),
-          height: String(width * 2),
+          x: String(sign < 0 ? -opening / 2 - side : opening / 2),
+          y: String(-side / 2),
+          width: String(side),
+          height: String(side),
+          class: "ce-gate-tower",
           fill: "#292a26"
         })
       );
@@ -698,6 +837,86 @@ export function renderHoverOverlay(document: CityDocument, selection: RenderSele
       );
     }
   }
+  return nodes;
+}
+
+/**
+ * Renders the measure overlay elements:
+ * - A single circle for the pending start point if only `from` is set.
+ * - A straight line, start/end point circles, and distance label if both `from` and `to` are set.
+ */
+export function renderMeasureOverlay(
+  from: [number, number] | null,
+  to: [number, number] | null,
+  metersPerPixel: number,
+  formattedDistance?: string
+): SVGElement[] {
+  if (!from) return [];
+  if (!to) {
+    const r = String(Math.max(2, 4 * metersPerPixel));
+    return [
+      element("circle", {
+        cx: String(from[0]),
+        cy: String(-from[1]),
+        r,
+        class: "ce-measure-point ce-measure-point--start",
+        "pointer-events": "none"
+      })
+    ];
+  }
+
+  const nodes: SVGElement[] = [];
+  const lineEl = element("line", {
+    x1: String(from[0]),
+    y1: String(-from[1]),
+    x2: String(to[0]),
+    y2: String(-to[1]),
+    class: "ce-measure-line",
+    "pointer-events": "none"
+  });
+  nodes.push(lineEl);
+
+  const r = String(Math.max(2, 3.5 * metersPerPixel));
+  nodes.push(
+    element("circle", {
+      cx: String(from[0]),
+      cy: String(-from[1]),
+      r,
+      class: "ce-measure-point",
+      "pointer-events": "none"
+    })
+  );
+  nodes.push(
+    element("circle", {
+      cx: String(to[0]),
+      cy: String(-to[1]),
+      r,
+      class: "ce-measure-point",
+      "pointer-events": "none"
+    })
+  );
+
+  if (formattedDistance) {
+    const midX = (from[0] + to[0]) / 2;
+    const midY = (-from[1] + -to[1]) / 2;
+    const fontSize = Math.max(8, 12 * metersPerPixel);
+    const textEl = element(
+      "text",
+      {
+        x: String(midX),
+        y: String(midY),
+        "font-size": String(fontSize),
+        "stroke-width": String(Math.max(1, fontSize * 0.25)),
+        "text-anchor": "middle",
+        dy: String(-fontSize * 0.6),
+        class: "ce-measure-label",
+        "pointer-events": "all"
+      },
+      formattedDistance
+    );
+    nodes.push(textEl);
+  }
+
   return nodes;
 }
 
@@ -854,40 +1073,42 @@ function cityElementMarker(point: Point, kind: string, id: Id): SVGElement {
     transform: `translate(${point[0]} ${-point[1]})`,
     "pointer-events": "none"
   });
-  marker.appendChild(element("circle", { r: "15", class: "ce-element-halo" }));
-  const common = { class: "ce-element-mark", fill: "none", stroke: "currentColor", "stroke-width": "2.4" };
+  marker.appendChild(element("circle", { r: "7.5", class: "ce-element-halo" }));
+  const common = { class: "ce-element-mark", fill: "none", stroke: "currentColor", "stroke-width": "1.2" };
 
   switch (kind) {
     case "plaza":
-      marker.appendChild(element("rect", { ...common, x: "-8", y: "-8", width: "16", height: "16", rx: "1" }));
+      marker.appendChild(element("rect", { ...common, x: "-4", y: "-4", width: "8", height: "8", rx: "0.5" }));
       break;
     case "citadel":
-      marker.appendChild(element("path", { ...common, d: "M-10 9V-8H-6V-12H-2V-8H2V-12H6V-8H10V9ZM-10 1H10" }));
+      marker.appendChild(element("path", { ...common, d: "M-5 4.5V-4H-3V-6H-1V-4H1V-6H3V-4H5V4.5ZM-5 0.5H5" }));
       break;
     case "temple":
-      marker.appendChild(element("path", { ...common, d: "M0-12V12M-6-6H6M-9 10H9" }));
+      marker.appendChild(element("path", { ...common, d: "M0-6V6M-3-3H3M-4.5 5H4.5" }));
       break;
     case "harbor":
       marker.append(
-        element("circle", { ...common, cx: "0", cy: "-7", r: "3" }),
-        element("path", { ...common, d: "M0-4V8M-8 2H8M-11 8C-7 15 7 15 11 8M-11 8L-7 12M11 8L7 12" })
+        element("circle", { ...common, cx: "0", cy: "-3.5", r: "1.5" }),
+        element("path", { ...common, d: "M0-2V4M-4 1H4M-5.5 4C-3.5 7.5 3.5 7.5 5.5 4M-5.5 4L-3.5 6M5.5 4L3.5 6" })
       );
       break;
     case "park":
       marker.append(
-        element("circle", { ...common, cx: "-5", cy: "-2", r: "5" }),
-        element("circle", { ...common, cx: "5", cy: "-2", r: "5" }),
-        element("path", { ...common, d: "M0 1V11M-8 11H8" })
+        element("circle", { ...common, cx: "-2.5", cy: "-1", r: "2.5" }),
+        element("circle", { ...common, cx: "2.5", cy: "-1", r: "2.5" }),
+        element("path", { ...common, d: "M0 0.5V5.5M-4 5.5H4" })
       );
       break;
     case "gate":
-      marker.appendChild(element("path", { ...common, d: "M-10 10V0A10 10 0 0 1 10 0V10M-13 10H13" }));
+      marker.appendChild(element("path", { ...common, d: "M-5 5V0A5 5 0 0 1 5 0V5M-6.5 5H6.5" }));
       break;
     case "tower":
-      marker.appendChild(element("path", { ...common, d: "M-7 11V-9H-4V-12H-1V-9H1V-12H4V-9H7V11ZM-10 11H10" }));
+      marker.appendChild(
+        element("path", { ...common, d: "M-3.5 5.5V-4.5H-2V-6H-0.5V-4.5H0.5V-6H2V-4.5H3.5V5.5ZM-5 5.5H5" })
+      );
       break;
     default:
-      marker.appendChild(element("circle", { ...common, r: "7" }));
+      marker.appendChild(element("circle", { ...common, r: "3.5" }));
   }
   return marker;
 }
@@ -948,4 +1169,125 @@ function tree(point: Point, radius: number, id: Id): SVGElement {
     })
   );
   return crown;
+}
+
+export const STANDALONE_SVG_STYLE = `
+  .ce-svg { background: transparent; }
+  .ce-reference-image { opacity: 0.82; }
+  .ce-svg--town { background: #d5cfbf; }
+  .ce-svg.ce-svg--town .ce-face--land { fill: #d5cfbf; }
+  .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--lake, .ce-svg--town .ce-face--openWater { fill: #85857d; }
+  .ce-svg--town .ce-edge { stroke: transparent; }
+  .ce-svg--town .ce-feature { opacity: 1; }
+  .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
+  .ce-building { fill: #b2afa2; stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
+  .ce-building--landmark { fill: #373831; }
+  .ce-road-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-bridge-outline, .ce-bridge-deck { fill: none; stroke-linecap: butt; }
+  .ce-face { stroke: none; fill: #e1dfd4; }
+  .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill: #91c8d3; }
+  .ce-face--land.ce-face--ward-unassigned { fill: #e1dfd4; }
+  .ce-face--land.ce-face--ward-market { fill: #edcf7a; }
+  .ce-face--land.ce-face--ward-castle { fill: #bca7ce; }
+  .ce-face--land.ce-face--ward-merchant { fill: #dfa184; }
+  .ce-face--land.ce-face--ward-craftsmen { fill: #d1a46e; }
+  .ce-face--land.ce-face--ward-harbor { fill: #e3b66d; }
+  .ce-face--land.ce-face--ward-park { fill: #99c187; }
+  .ce-face--land.ce-face--ward-farm { fill: #c6c19f; }
+  .ce-face--land.ce-face--ward-empty { fill: #f2ead2; }
+  .ce-face--land.ce-face--urban-step { fill: #d9662b; }
+  .ce-edge { fill: none; stroke: #738083; stroke-width: 1px; }
+  .ce-feature { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+  .ce-feature--wall { stroke-dasharray: 2 2; }
+  .ce-feature--plank { filter: drop-shadow(0 0 1px #332b22); }
+  .ce-element { color: #263c42; }
+  .ce-element-halo { fill: rgb(255 253 244 / 82%); stroke: #d0d6ce; stroke-width: 1px; }
+  .ce-element-mark { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-element--harbor { color: #0e6f83; }
+  .ce-element--citadel { color: #5f4b70; }
+  .ce-element--temple { color: #79572c; }
+  .ce-tree-crown { fill: #697d64; stroke: #394b40; stroke-width: 1px; }
+  .ce-tree-trunk { fill: none; stroke: #514538; stroke-linecap: round; }
+`;
+
+export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
+  const extent = document.frame.extentMeters;
+  const viewBox = `${-extent / 2} ${-extent / 2} ${extent} ${extent}`;
+  const emptySel: RenderSelection = {
+    faceId: null,
+    edgeId: null,
+    vertexId: null,
+    groupId: null,
+    inspectedId: null,
+    hoverGroupId: null,
+    hoverVertexId: null,
+    hoverEdgeId: null
+  };
+  const svg = renderEditorSvg(
+    document,
+    "select",
+    emptySel,
+    viewBox,
+    1,
+    false,
+    document.referenceImage ?? null,
+    null,
+    null,
+    null,
+    false,
+    false
+  );
+
+  svg.setAttribute("xmlns", NS);
+  svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  svg.setAttribute("version", "1.1");
+  svg.setAttribute("width", String(extent));
+  svg.setAttribute("height", String(extent));
+
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = element("defs", {}) as SVGDefsElement;
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  const style = element("style", { type: "text/css" }, STANDALONE_SVG_STYLE);
+  defs.appendChild(style);
+
+  const bgColor = document.appearance === "town" ? "#d5cfbf" : "#e1dfd4";
+  const bgRect = element("rect", {
+    x: String(-extent / 2),
+    y: String(-extent / 2),
+    width: String(extent),
+    height: String(extent),
+    fill: bgColor,
+    class: "ce-background"
+  });
+  if (defs.nextSibling) {
+    svg.insertBefore(bgRect, defs.nextSibling);
+  } else {
+    svg.appendChild(bgRect);
+  }
+
+  for (const img of svg.querySelectorAll("image")) {
+    const href = img.getAttribute("href");
+    if (href && !img.hasAttribute("xlink:href")) {
+      img.setAttribute("xlink:href", href);
+    }
+  }
+
+  for (const layer of svg.querySelectorAll(".ce-hover-layer, .ce-measure-layer, .ce-route-preview-layer")) {
+    layer.remove();
+  }
+  for (const el of svg.querySelectorAll("[data-pick]")) {
+    el.removeAttribute("data-pick");
+  }
+  for (const el of svg.querySelectorAll<SVGElement>("[style*='cursor']")) {
+    el.style.removeProperty("cursor");
+  }
+
+  return svg;
+}
+
+export function serializeCitySvg(document: CityDocument): string {
+  const svg = renderStandaloneCitySvg(document);
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(svg)}`;
 }

@@ -1,6 +1,70 @@
 import type { Point } from "../types";
 import { polygonArea } from "./geom";
 
+const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+
+/** Convex pieces of a simple polygon. Seams stay inside the original outline. */
+export function convexInfillParts(polygon: Point[]): Point[][] {
+  const sign = -Math.sign(polygonArea(polygon));
+  if (!sign || polygon.length < 3) return [];
+  const convex = (ids: number[]) =>
+    ids.every(
+      (v, i) =>
+        sign * cross(polygon[ids[(i + ids.length - 1) % ids.length]], polygon[v], polygon[ids[(i + 1) % ids.length]]) >=
+        -1e-7
+    );
+  const remaining = polygon.map((_, i) => i);
+  if (convex(remaining)) return [polygon];
+  const pieces: number[][] = [];
+  while (remaining.length > 3) {
+    const ear = remaining.findIndex((b, i) => {
+      const a = remaining[(i + remaining.length - 1) % remaining.length],
+        c = remaining[(i + 1) % remaining.length];
+      if (sign * cross(polygon[a], polygon[b], polygon[c]) <= 1e-7) return false;
+      return !remaining.some(
+        v =>
+          v !== a &&
+          v !== b &&
+          v !== c &&
+          sign * cross(polygon[a], polygon[b], polygon[v]) >= -1e-7 &&
+          sign * cross(polygon[b], polygon[c], polygon[v]) >= -1e-7 &&
+          sign * cross(polygon[c], polygon[a], polygon[v]) >= -1e-7
+      );
+    });
+    if (ear < 0) return [];
+    pieces.push([
+      remaining[(ear + remaining.length - 1) % remaining.length],
+      remaining[ear],
+      remaining[(ear + 1) % remaining.length]
+    ]);
+    remaining.splice(ear, 1);
+  }
+  pieces.push(remaining);
+  for (let changed = true; changed; ) {
+    changed = false;
+    outer: for (let i = 0; i < pieces.length; i++)
+      for (let j = i + 1; j < pieces.length; j++) {
+        const edges = [...pieces[i], ...pieces[j]];
+        if (new Set(edges).size !== edges.length - 2) continue;
+        const directed = [pieces[i], pieces[j]].flatMap(ids => ids.map((a, k) => [a, ids[(k + 1) % ids.length]]));
+        const border = directed.filter(([a, b]) => !directed.some(([c, d]) => a === d && b === c));
+        if (!border.length) continue;
+        const ring = [border[0][0]];
+        while (ring.length < border.length) {
+          const edge = border.find(([a]) => a === ring.at(-1));
+          if (!edge || ring.includes(edge[1])) break;
+          ring.push(edge[1]);
+        }
+        if (ring.length !== border.length || !convex(ring)) continue;
+        pieces[i] = ring;
+        pieces.splice(j, 1);
+        changed = true;
+        break outer;
+      }
+  }
+  return pieces.map(ids => ids.map(i => polygon[i]));
+}
+
 /** Intersect inward offset half-planes. The result remains inside even a
  * concave edited face; an empty/narrow kernel simply receives no buildings. */
 export function insetConvexKernel(poly: Point[], distances: number[]): Point[] {

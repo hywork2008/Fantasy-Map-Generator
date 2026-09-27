@@ -14,6 +14,21 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
       const road = next.featureGroups.find(g => g.id === roadId);
       if (road?.kind !== "road" || road.locked) break;
       const vertices = featureGroupVertices(next, road);
+      const gateVertices = new Set(next.gates.map(g => g.vertexId));
+      if (vertices.length >= 3 && gateVertices.has(vertices[0]) && gateVertices.has(vertices[vertices.length - 1])) {
+        const chord = Math.hypot(
+          next.mesh.vertices[vertices[0]].point[0] - next.mesh.vertices[vertices[vertices.length - 1]].point[0],
+          next.mesh.vertices[vertices[0]].point[1] - next.mesh.vertices[vertices[vertices.length - 1]].point[1]
+        );
+        const pathLength = vertices.slice(1).reduce((sum, id, i) => {
+          const p = next.mesh.vertices[vertices[i]].point;
+          const q = next.mesh.vertices[id].point;
+          return sum + Math.hypot(p[0] - q[0], p[1] - q[1]);
+        }, 0);
+        // Wall-hugging ring arcs are longer than the chord; cutting diagonals
+        // onto the curtain wall / river is not a useful major-road shortcut.
+        if (chord > 4 && pathLength > chord * 1.25) break;
+      }
       const protectedVertices = new Set<Id>(next.gates.map(g => g.vertexId));
       for (const group of next.featureGroups) {
         if (group.id !== roadId) for (const id of featureGroupVertices(next, group)) protectedVertices.add(id);

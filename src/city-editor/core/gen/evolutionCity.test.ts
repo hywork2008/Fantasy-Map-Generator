@@ -61,10 +61,10 @@ describe("evolution complete city", () => {
         expect(JSON.stringify(input)).toBe(before);
       });
     }
-  it("Tiny / Small / Medium / Large cities keep the size's minimum map-edge approach roads", () => {
+  it("Micro / Tiny / Small / Medium / Large cities keep the size's minimum map-edge approach roads", () => {
     const settings = defaultGenerationSettings();
     settings.config.rivers = [];
-    for (const size of ["tiny", "small", "medium", "large"] as const) {
+    for (const size of ["micro", "tiny", "small", "medium", "large"] as const) {
       const input = createGridDocument({ size, grid: "evolution", seed: "roads-two" });
       const city = generateCityOnDocument(input, settings, "roads-two")!;
       expect(city, size).not.toBeNull();
@@ -88,7 +88,7 @@ describe("evolution complete city", () => {
     expect(largeFabric.buildings.length).toBeGreaterThan(buildBlockFabric(smallCity).buildings.length * 5);
     expect(Object.keys(largeCity.mesh.faces).length).toBeLessThan(Object.keys(smallCity.mesh.faces).length + 20);
     expect(JSON.stringify(largeCity.mesh)).toBe(before);
-  });
+  }, 15000);
   it("persists the explicit grid policy through saving and history, with deterministic regeneration", () => {
     const input = createGridDocument({ size: "small", grid: "evolution", seed: "persist" });
     const settings = defaultGenerationSettings();

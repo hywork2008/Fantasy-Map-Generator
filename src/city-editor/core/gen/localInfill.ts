@@ -1,11 +1,18 @@
 // Local street/lot geometry. None of these subdivisions become mesh edges.
 import { facePoints, indexMeshEdges } from "../mesh";
-import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types";
-import type { BuildingLot } from "./buildingLots";
-import { frontageBuildings } from "./frontageBuildings";
-import { nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
-import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
+import type { CityDocument, DistrictParameters, EdgeRef, Face, Id, Point } from "../types";
+import { type BuildingLot, buildingHitsCivicLandmark, laneHitsCivicLandmark } from "./buildingLots";
+import { buildCirculadeBlocks } from "./circuladeFabric";
+import { districtBoundary } from "./fabricDistricts";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { dwellingLotArea } from "./housing";
+import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
+import type { OrganicBlockContext } from "./organicBlocks";
+import { ORGANIC_LANE_FACADE_CLEARANCE } from "./organicBlocks";
+import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
+import type { CityLayout } from "./site/siteConfig";
+import { infillCore, infillOutskirts } from "./streetGrowth";
 
 export interface InfillLane {
   faceId: Id;
@@ -52,77 +59,16 @@ export interface InfillOptions {
   seed: string;
   parameters: Map<Id, DistrictParameters>;
   cache: FabricCache;
+  layout?: CityLayout;
+  hub?: Point;
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const dot = (p: Point, n: Point) => p[0] * n[0] + p[1] * n[1];
-const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
-const boundary = (poly: Point[]) => [...poly, poly[0]];
 
-/** Convex pieces of a simple polygon; triangulation seams remain local to infill. */
-export function convexInfillParts(polygon: Point[]): Point[][] {
-  const sign = -Math.sign(polygonArea(polygon));
-  if (!sign || polygon.length < 3) return [];
-  const convex = (ids: number[]) =>
-    ids.every(
-      (v, i) =>
-        sign * cross(polygon[ids[(i + ids.length - 1) % ids.length]], polygon[v], polygon[ids[(i + 1) % ids.length]]) >=
-        -1e-7
-    );
-  const remaining = polygon.map((_, i) => i);
-  if (convex(remaining)) return [polygon];
-  const pieces: number[][] = [];
-  while (remaining.length > 3) {
-    const ear = remaining.findIndex((b, i) => {
-      const a = remaining[(i + remaining.length - 1) % remaining.length],
-        c = remaining[(i + 1) % remaining.length];
-      if (sign * cross(polygon[a], polygon[b], polygon[c]) <= 1e-7) return false;
-      return !remaining.some(
-        v =>
-          v !== a &&
-          v !== b &&
-          v !== c &&
-          sign * cross(polygon[a], polygon[b], polygon[v]) >= -1e-7 &&
-          sign * cross(polygon[b], polygon[c], polygon[v]) >= -1e-7 &&
-          sign * cross(polygon[c], polygon[a], polygon[v]) >= -1e-7
-      );
-    });
-    if (ear < 0) return []; // Invalid/degenerate edited polygon: don't draw across its exterior.
-    pieces.push([
-      remaining[(ear + remaining.length - 1) % remaining.length],
-      remaining[ear],
-      remaining[(ear + 1) % remaining.length]
-    ]);
-    remaining.splice(ear, 1);
-  }
-  pieces.push(remaining);
-  // Merge triangles into broad convex regions rather than exposing triangulation in the buildings.
-  for (let changed = true; changed; ) {
-    changed = false;
-    outer: for (let i = 0; i < pieces.length; i++)
-      for (let j = i + 1; j < pieces.length; j++) {
-        const edges = [...pieces[i], ...pieces[j]];
-        if (new Set(edges).size !== edges.length - 2) continue;
-        const directed = [pieces[i], pieces[j]].flatMap(ids => ids.map((a, k) => [a, ids[(k + 1) % ids.length]]));
-        const border = directed.filter(([a, b]) => !directed.some(([c, d]) => a === d && b === c));
-        if (!border.length) continue;
-        const ring = [border[0][0]];
-        while (ring.length < border.length) {
-          const edge = border.find(([a]) => a === ring.at(-1));
-          if (!edge || ring.includes(edge[1])) break;
-          ring.push(edge[1]);
-        }
-        if (ring.length !== border.length || !convex(ring)) continue;
-        pieces[i] = ring;
-        pieces.splice(j, 1);
-        changed = true;
-        break outer;
-      }
-  }
-  return pieces.map(ids => ids.map(i => polygon[i]));
-}
+export { convexInfillParts } from "./lotGeometry";
 
 /** Reachable face portals form a forest rooted at real major-road frontages. */
 export function buildLocalFabric(document: CityDocument, options?: InfillOptions): CityFabric {
@@ -133,6 +79,18 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     barriers = new Set<Id>();
   const clearance = new Map<Id, number>();
   const rivers: { points: Point[]; width: number }[] = [];
+  const organicContext: OrganicBlockContext = {
+    hub: options?.hub ?? document.elements.find(e => e.kind === "plaza")?.point ?? [0, 0],
+    extentMeters: document.frame.extentMeters,
+    walls: document.featureGroups.flatMap(g =>
+      g.kind === "wall"
+        ? g.segments.flatMap(ref => {
+            const edge = mesh.edges[ref.edgeId];
+            return edge ? [[mesh.vertices[edge.a].point, mesh.vertices[edge.b].point] as [Point, Point]] : [];
+          })
+        : []
+    )
+  };
   for (const group of document.featureGroups) {
     const ids =
       group.kind === "river"
@@ -144,7 +102,11 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     for (const id of ids) {
       if (group.kind === "road") roads.add(id);
       if (group.kind === "river" || group.kind === "wall") barriers.add(id);
-      clearance.set(id, Math.max(clearance.get(id) ?? 0, group.style.widthMeters / 2 + 3));
+      // Roads are represented by their centre line. Houses belong at the road
+      // edge, whereas walls and rivers need their own protective clearance.
+      const clearanceMeters =
+        group.kind === "road" ? group.style.widthMeters / 2 + 0.35 : group.style.widthMeters / 2 + 3;
+      clearance.set(id, Math.max(clearance.get(id) ?? 0, clearanceMeters));
     }
     if (group.kind === "river")
       for (let i = 1; i < group.vertices.length; i++)
@@ -186,115 +148,446 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
       queue.push(other);
     }
   }
+  const grouped = new Set<Id>();
+  for (const ids of outskirtsComponents(
+    queue.filter(id => mesh.faces[id].properties.settlement === "outskirts"),
+    mesh,
+    barriers,
+    !document.fabric && options?.layout !== "classic"
+  )) {
+    if (
+      options?.layout !== "classic" &&
+      paintOutskirtsUnion(document, ids, fabric, {
+        document,
+        roads,
+        barriers,
+        clearance,
+        rivers,
+        options,
+        organicContext
+      })
+    )
+      for (const id of ids) grouped.add(id);
+  }
   for (const id of queue) {
-    const face = mesh.faces[id];
-    const polygon = facePoints(mesh, face);
-    const parts = convexInfillParts(polygon);
-    const parameters = options?.parameters.get(id);
-    const xs = polygon.map(p => p[0]),
-      ys = polygon.map(p => p[1]);
-    const nearbyRivers = rivers.filter(r => {
-      const rx = r.points.map(p => p[0]),
-        ry = r.points.map(p => p[1]),
-        margin = r.width / 2 + 2;
-      return (
-        Math.min(...rx) <= Math.max(...xs) + margin &&
-        Math.max(...rx) >= Math.min(...xs) - margin &&
-        Math.min(...ry) <= Math.max(...ys) + margin &&
-        Math.max(...ry) >= Math.min(...ys) - margin
-      );
-    });
-    const dependencies = face.boundary.map(ref => {
-      const edge = mesh.edges[ref.edgeId];
-      const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
-      return [roads.has(edge.id), clearance.get(edge.id), other?.properties.water];
-    });
-    const entries = fabric.entrances.get(id)!;
-    const reserved = document.elements.some(e => ["plaza", "temple"].includes(e.kind) && e.faceIds.includes(id));
-    const build = !!face.properties.ward && !["park", "farm", "empty"].includes(face.properties.ward) && !reserved;
-    const key = options
-      ? JSON.stringify([
-          "district-infill-v3",
-          options.seed,
-          id,
-          face.properties,
-          polygon,
-          entries,
-          parameters,
-          dependencies,
-          nearbyRivers,
-          reserved
-        ])
-      : "";
-    const cached = options?.cache.get(key);
-    if (cached) {
-      fabric.buildings.push(...cached.buildings);
-      fabric.lanes.push(...cached.lanes);
-      continue;
+    if (grouped.has(id)) continue;
+    paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options, organicContext });
+  }
+  // Reserved squares need their public perimeter even when they are excluded
+  // from the buildable-face reachability queue.
+  if (options?.layout === "organic") {
+    const plazas = new Set(document.elements.filter(e => e.kind === "plaza").flatMap(e => e.faceIds));
+    for (const id of plazas) {
+      if (reached.has(id) || !mesh.faces[id] || mesh.faces[id].properties.water !== "land") continue;
+      paintFace(document, id, fabric, { document, roads, barriers, clearance, rivers, options, organicContext });
     }
-    const local: CityFabric = { buildings: [], lanes: [], entrances: new Map() };
-    for (const part of parts) {
-      const portals = entries.filter(p => part.some((a, i) => onSegment(p, a, part[(i + 1) % part.length])));
-      // Shared convex-piece seams also carry access, without modifying the face.
-      for (let i = 0; i < part.length; i++) {
-        const a = part[i],
-          b = part[(i + 1) % part.length];
-        if (
-          parts.some(
-            other =>
-              other !== part &&
-              other.some((c, j) => distance(a, other[(j + 1) % other.length]) < 1e-5 && distance(b, c) < 1e-5)
-          )
-        )
-          portals.push(mid(a, b));
-      }
-      if (!portals.length) continue;
-      const setbacks = part.map((a, i) => {
-        const b = part[(i + 1) % part.length];
-        const edge = face.boundary.find(
-          (_, k) =>
-            onSegment(a, polygon[k], polygon[(k + 1) % polygon.length]) &&
-            onSegment(b, polygon[k], polygon[(k + 1) % polygon.length])
-        );
-        if (!edge) return 0;
-        const shared = mesh.edges[edge.edgeId];
-        const other = mesh.faces[(shared.leftFace === id ? shared.rightFace : shared.leftFace) ?? ""];
-        return Math.max(3, clearance.get(edge.edgeId) ?? 0, other && other.properties.water !== "land" ? 6 : 0);
-      });
-      const safe = insetConvexKernel(part, setbacks);
-      if (safe.length < 3 || Math.abs(polygonArea(safe)) < 65) continue;
-      const roadFrontages = face.boundary
-        .filter(ref => roads.has(ref.edgeId))
-        .map(ref => {
+  }
+  fabric.buildings = fabric.buildings.filter(b => !buildingHitsCivicLandmark(document, b.polygon));
+  fabric.lanes = fabric.lanes.filter(l => !laneHitsCivicLandmark(document, l.points));
+  return fabric;
+}
+
+function outskirtsComponents(
+  ids: Id[],
+  mesh: CityDocument["mesh"],
+  barriers: Set<Id>,
+  mergeNeighbors: boolean
+): Id[][] {
+  const pending = new Set(ids);
+  const groups: Id[][] = [];
+  while (pending.size) {
+    const first = pending.values().next().value as Id;
+    const group = [first];
+    pending.delete(first);
+    if (mergeNeighbors) {
+      for (let i = 0; i < group.length; i++) {
+        for (const ref of mesh.faces[group[i]].boundary) {
           const edge = mesh.edges[ref.edgeId];
-          return [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point];
-        });
-      const frontageEdges = safe.flatMap((a, i) => {
-        const b = safe[(i + 1) % safe.length];
-        const length = distance(a, b);
-        const facing = roadFrontages.some(([c, d]) => {
-          const roadLength = distance(c, d);
-          return (
-            length > 1e-6 &&
-            roadLength > 1e-6 &&
-            Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-6 &&
-            nearestOnPolyline(mid(a, b), [c, d]).dist <= Math.max(...setbacks) + 0.1
-          );
-        });
-        return facing ? [[a, b]] : [];
-      });
-      fillPart(face, safe, portals, frontageEdges, build, local, parameters, options?.seed);
+          const other = edge.leftFace === group[i] ? edge.rightFace : edge.leftFace;
+          if (!other || !pending.has(other) || barriers.has(edge.id)) continue;
+          if (edge.locked || mesh.faces[group[i]].properties.locked || mesh.faces[other].properties.locked) continue;
+          pending.delete(other);
+          group.push(other);
+        }
+      }
     }
-    local.buildings = local.buildings.filter(
+    groups.push(group.sort());
+  }
+  return groups;
+}
+
+function unionRing(document: CityDocument, ids: Id[]): { points: Point[]; refs: EdgeRef[] } | null {
+  const refs = districtBoundary(document, ids);
+  if (!refs) return null;
+  const points = refs.map(ref => {
+    const e = document.mesh.edges[ref.edgeId];
+    return document.mesh.vertices[ref.forward ? e.a : e.b].point;
+  });
+  return points.length >= 3 ? { points, refs } : null;
+}
+
+function nearbyRiversOf(
+  polygon: Point[],
+  rivers: { points: Point[]; width: number }[]
+): { points: Point[]; width: number }[] {
+  const xs = polygon.map(p => p[0]),
+    ys = polygon.map(p => p[1]);
+  return rivers.filter(r => {
+    const rx = r.points.map(p => p[0]),
+      ry = r.points.map(p => p[1]),
+      margin = r.width / 2 + 2;
+    return (
+      Math.min(...rx) <= Math.max(...xs) + margin &&
+      Math.max(...rx) >= Math.min(...xs) - margin &&
+      Math.min(...ry) <= Math.max(...ys) + margin &&
+      Math.max(...ry) >= Math.min(...ys) - margin
+    );
+  });
+}
+
+interface PaintContext {
+  document: CityDocument;
+  roads: Set<Id>;
+  barriers: Set<Id>;
+  clearance: Map<Id, number>;
+  rivers: { points: Point[]; width: number }[];
+  options?: InfillOptions;
+  organicContext: OrganicBlockContext;
+}
+
+function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabric, ctx: PaintContext): boolean {
+  const ring = unionRing(document, ids);
+  if (!ring) return false;
+  const { mesh } = document;
+  const polygons = new Map(ids.map(id => [id, facePoints(mesh, mesh.faces[id])]));
+  const entries = ids.flatMap(id => fabric.entrances.get(id) ?? []);
+  const outerEntries = entries.filter(p =>
+    ring.points.some((a, i) => onSegment(p, a, ring.points[(i + 1) % ring.points.length]))
+  );
+  const parameters = pickParameters(ids, document, ctx.options);
+  const nearbyRivers = nearbyRiversOf(ring.points, ctx.rivers);
+  const reserved = new Set(
+    ids.filter(id => document.elements.some(e => ["plaza", "temple"].includes(e.kind) && e.faceIds.includes(id)))
+  );
+  const dependencies = ring.refs.map(ref => {
+    const edge = mesh.edges[ref.edgeId];
+    const other = mesh.faces[(edge.leftFace && ids.includes(edge.leftFace) ? edge.rightFace : edge.leftFace) ?? ""];
+    return [ctx.roads.has(edge.id), ctx.barriers.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
+  });
+  const key = ctx.options
+    ? JSON.stringify([
+        "outskirts-union-v3",
+        ctx.options.seed,
+        ids,
+        ids.map(id => mesh.faces[id].properties),
+        ring.points,
+        outerEntries,
+        parameters,
+        dependencies,
+        nearbyRivers,
+        [...reserved]
+      ])
+    : "";
+  const cached = ctx.options?.cache.get(key);
+  if (cached) {
+    fabric.buildings.push(...cached.buildings);
+    fabric.lanes.push(...cached.lanes);
+    return true;
+  }
+  const host = mesh.faces[ids[0]];
+  const local: CityFabric = { buildings: [], lanes: [], entrances: new Map() };
+  fillPolygon(
+    host,
+    ring.points,
+    ring.refs,
+    outerEntries,
+    true,
+    local,
+    parameters,
+    ctx,
+    ids.some(id => buildableFace(mesh.faces[id]) && !reserved.has(id)),
+    ids,
+    ctx.options?.seed
+  );
+  const owner = (p: Point) => ids.find(id => pointInPolygon(p, polygons.get(id)!)) ?? ids[0];
+  local.buildings = local.buildings
+    .map(b => ({ ...b, faceId: owner(polygonCentroid(b.polygon)), polygon: cleanBuildingPolygon(b.polygon) }))
+    .filter(
       b =>
+        b.polygon.length >= 4 &&
+        !reserved.has(b.faceId) &&
+        buildableFace(mesh.faces[b.faceId]) &&
+        b.polygon.every(p => pointInPolygon(p, ring.points)) &&
+        !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
+    );
+  local.lanes = local.lanes.map(l => ({ ...l, faceId: owner(l.points[0]) }));
+  ctx.options?.cache.set(key, local);
+  fabric.buildings.push(...local.buildings);
+  fabric.lanes.push(...local.lanes);
+  return true;
+}
+
+function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: PaintContext): void {
+  const { mesh } = document;
+  const face = mesh.faces[id];
+  const polygon = facePoints(mesh, face);
+  const parameters = ctx.options?.parameters.get(id);
+  const nearbyRivers = nearbyRiversOf(polygon, ctx.rivers);
+  const entries = fabric.entrances.get(id) ?? [];
+  const reserved = document.elements.some(e => ["plaza", "temple"].includes(e.kind) && e.faceIds.includes(id));
+  const outskirts = face.properties.settlement === "outskirts";
+  const boundaries = face.boundary.map((ref, i) => {
+    const edge = mesh.edges[ref.edgeId];
+    const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+    const plazaFront =
+      ctx.options?.layout === "organic" &&
+      !!other &&
+      document.elements.some(e => e.kind === "plaza" && e.faceIds.includes(other.id));
+    return {
+      a: polygon[i],
+      b: polygon[(i + 1) % polygon.length],
+      setback: Math.max(
+        (parameters?.laneWidth ?? 3) / 2 + 0.35,
+        ctx.clearance.get(ref.edgeId) ?? 0,
+        other && other.properties.water !== "land" ? 6 : 0
+      ),
+      // The square emits its own perimeter once. Adjacent houses still treat
+      // it as public frontage, and internal seams of multi-face squares vanish.
+      feature: ctx.roads.has(ref.edgeId) || ctx.barriers.has(ref.edgeId) || plazaFront,
+      barrier: ctx.barriers.has(ref.edgeId) || (!!other && other.properties.water !== "land")
+    };
+  });
+  const dependencies = face.boundary.map(ref => {
+    const edge = mesh.edges[ref.edgeId];
+    const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+    return [ctx.roads.has(edge.id), ctx.barriers.has(edge.id), ctx.clearance.get(edge.id), other?.properties.water];
+  });
+  const isCirculade = ctx.options?.layout === "circulade";
+  const isClassic = ctx.options?.layout === "classic";
+  const key = ctx.options
+    ? JSON.stringify([
+        isClassic
+          ? "district-infill-classic-v3"
+          : outskirts
+            ? "outskirts-face-v3"
+            : ["district-organic-network-v4", ORGANIC_LANE_FACADE_CLEARANCE],
+        ctx.options.seed,
+        id,
+        face.properties,
+        polygon,
+        entries,
+        parameters,
+        dependencies,
+        boundaries,
+        nearbyRivers,
+        reserved,
+        !isClassic && !outskirts ? ctx.organicContext : null
+      ])
+    : "";
+  if (reserved) {
+    const plaza = document.elements.some(e => e.kind === "plaza" && e.faceIds.includes(id));
+    const perimeter =
+      plaza && !isClassic && !isCirculade
+        ? buildPerimeterBlocks(
+            face,
+            polygon,
+            boundaries,
+            parameters,
+            ctx.options?.seed ?? "plaza-infill",
+            false,
+            false,
+            ctx.organicContext
+          )
+        : { buildings: [], lanes: [], entrances: new Map() };
+    if (key) ctx.options?.cache.set(key, perimeter);
+    fabric.lanes.push(...perimeter.lanes);
+    return;
+  }
+
+  const cached = ctx.options?.cache.get(key);
+  if (cached) {
+    fabric.buildings.push(...cached.buildings);
+    fabric.lanes.push(...cached.lanes);
+    return;
+  }
+  const local: CityFabric =
+    isClassic || (!outskirts && face.properties.ward !== "castle")
+      ? isCirculade
+        ? buildCirculadeBlocks(
+            face,
+            polygon,
+            boundaries,
+            parameters,
+            ctx.options?.seed ?? "circulade-infill",
+            buildableFace(face) && !reserved,
+            ctx.options?.hub ?? [0, 0]
+          )
+        : buildPerimeterBlocks(
+            face,
+            polygon,
+            boundaries,
+            parameters,
+            ctx.options?.seed ?? "block-infill",
+            buildableFace(face) && !reserved,
+            isClassic,
+            ctx.organicContext
+          )
+      : { buildings: [], lanes: [], entrances: new Map() };
+  if (!isClassic && (outskirts || face.properties.ward === "castle"))
+    fillPolygon(
+      face,
+      polygon,
+      face.boundary,
+      entries,
+      outskirts,
+      local,
+      parameters,
+      ctx,
+      buildableFace(face) && !reserved,
+      [id],
+      ctx.options?.seed,
+      isClassic
+    );
+  local.buildings = local.buildings
+    .map(b => ({ ...b, polygon: cleanBuildingPolygon(b.polygon) }))
+    .filter(
+      b =>
+        b.polygon.length >= 4 &&
         b.polygon.every(p => pointInPolygon(p, polygon)) &&
         !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
     );
-    options?.cache.set(key, local);
-    fabric.buildings.push(...local.buildings);
-    fabric.lanes.push(...local.lanes);
+  ctx.options?.cache.set(key, local);
+  fabric.buildings.push(...local.buildings);
+  fabric.lanes.push(...local.lanes);
+}
+
+function cleanBuildingPolygon(polygon: Point[]): Point[] {
+  const merged: Point[] = [];
+  for (const p of polygon) {
+    if (!merged.some(u => distance(u, p) < 0.35)) {
+      merged.push(p);
+    }
   }
-  return fabric;
+  return merged.length >= 3 ? merged : polygon;
+}
+
+function buildableFace(face: Face): boolean {
+  return !!face.properties.ward && !["park", "farm", "empty"].includes(face.properties.ward);
+}
+
+function pickParameters(ids: Id[], document: CityDocument, options?: InfillOptions): DistrictParameters | undefined {
+  let best: DistrictParameters | undefined;
+  let bestArea = -1;
+  for (const id of ids) {
+    const area = Math.abs(polygonArea(facePoints(document.mesh, document.mesh.faces[id])));
+    const parameters = options?.parameters.get(id);
+    if (area > bestArea) {
+      bestArea = area;
+      best = parameters;
+    }
+  }
+  return best;
+}
+
+function fillPolygon(
+  face: Face,
+  polygon: Point[],
+  boundary: EdgeRef[],
+  entries: Point[],
+  outskirts: boolean,
+  local: CityFabric,
+  parameters: DistrictParameters | undefined,
+  ctx: PaintContext,
+  build: boolean,
+  memberIds: Id[],
+  seed?: string,
+  classic = false
+): void {
+  const { mesh } = ctx.document;
+  const members = new Set(memberIds);
+  const parts = convexInfillParts(polygon);
+  for (const part of parts) {
+    const portals = entries.filter(p => part.some((a, i) => onSegment(p, a, part[(i + 1) % part.length])));
+    for (let i = 0; i < part.length; i++) {
+      const a = part[i],
+        b = part[(i + 1) % part.length];
+      if (
+        parts.some(
+          other =>
+            other !== part &&
+            other.some((c, j) => distance(a, other[(j + 1) % other.length]) < 1e-5 && distance(b, c) < 1e-5)
+        )
+      )
+        portals.push(mid(a, b));
+    }
+    if (!portals.length) continue;
+    const setbacks = part.map((a, i) => {
+      const b = part[(i + 1) % part.length];
+      const edge = boundary.find(
+        (_, k) =>
+          onSegment(a, polygon[k], polygon[(k + 1) % polygon.length]) &&
+          onSegment(b, polygon[k], polygon[(k + 1) % polygon.length])
+      );
+      if (!edge) return 0;
+      const shared = mesh.edges[edge.edgeId];
+      const otherId = members.has(shared.leftFace ?? "") ? shared.rightFace : shared.leftFace;
+      const other = otherId ? mesh.faces[otherId] : null;
+      return Math.max(3, ctx.clearance.get(edge.edgeId) ?? 0, other && other.properties.water !== "land" ? 6 : 0);
+    });
+    const safe = insetConvexKernel(part, setbacks);
+    if (safe.length < 3 || Math.abs(polygonArea(safe)) < 65) continue;
+    const roadFrontages = boundary
+      .filter(ref => ctx.roads.has(ref.edgeId))
+      .map(ref => {
+        const edge = mesh.edges[ref.edgeId];
+        return [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point] as Point[];
+      });
+    const frontageEdges = safe.flatMap((a, i) => {
+      const b = safe[(i + 1) % safe.length];
+      const length = distance(a, b);
+      const facing = roadFrontages.some(([c, d]) => {
+        const roadLength = distance(c, d);
+        return (
+          length > 1e-6 &&
+          roadLength > 1e-6 &&
+          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-6 &&
+          nearestOnPolyline(mid(a, b), [c, d]).dist <= Math.max(...setbacks) + 0.1
+        );
+      });
+      return facing ? [[a, b]] : [];
+    });
+    const rng = makeRng(
+      `${seed ?? (outskirts ? "outskirts-v1" : "core-blocks-v1")}:${face.id}:${face.properties.ward}:${part[0].join(",")}`
+    );
+    const lotArea =
+      parameters?.lotArea ??
+      (classic
+        ? face.properties.ward === "castle"
+          ? 1200
+          : face.properties.ward === "merchant"
+            ? 140
+            : 110
+        : dwellingLotArea(face.properties.ward));
+    const grown = (outskirts ? infillOutskirts : infillCore)(
+      safe,
+      frontageEdges,
+      portals,
+      {
+        lotArea,
+        laneWidth: parameters?.laneWidth ?? 3,
+        coverage: parameters?.coverage ?? 0.75,
+        occupancy: parameters?.occupancy ?? (outskirts ? 0.82 : 0.965),
+        build,
+        orientation: parameters?.orientation,
+        classic
+      },
+      rng
+    );
+    for (const points of grown.lanes)
+      local.lanes.push({ faceId: face.id, points, widthMeters: parameters?.laneWidth ?? 3 });
+    const landmark = face.properties.ward === "castle";
+    for (const outline of grown.buildings) local.buildings.push({ faceId: face.id, polygon: outline, landmark });
+  }
 }
 
 export function chord(poly: Point[], normal: Point, offset: number): [Point, Point] | null {
@@ -313,135 +606,4 @@ export function chord(poly: Point[], normal: Point, offset: number): [Point, Poi
   let best: [Point, Point] | null = null;
   for (const a of hits) for (const b of hits) if (distance(a, b) > (best ? distance(...best) : 1e-5)) best = [a, b];
   return best;
-}
-
-function fillPart(
-  face: Face,
-  polygon: Point[],
-  entries: Point[],
-  roadFrontages: Point[][],
-  build: boolean,
-  fabric: CityFabric,
-  parameters?: DistrictParameters,
-  seed?: string
-): void {
-  const rng = makeRng(`${seed ?? "block-infill-v3"}:${face.id}:${face.properties.ward}:${polygon[0].join(",")}`);
-  const laneWidth = parameters?.laneWidth ?? 3;
-  const landmark = face.properties.ward === "castle";
-  const target = parameters?.lotArea ?? (landmark ? 1200 : face.properties.ward === "merchant" ? 220 : 150);
-  const outskirts = face.properties.settlement === "outskirts";
-  const access: InfillLane[] = roadFrontages.map(points => ({ faceId: face.id, points, widthMeters: 0 }));
-  const lanes: InfillLane[] = [];
-  const addLane = (points: Point[]) => {
-    if (distance(points[0], points[points.length - 1]) < 1e-6) return;
-    const lane = { faceId: face.id, points, widthMeters: laneWidth };
-    lanes.push(lane);
-    fabric.lanes.push(lane);
-    access.push(lane);
-  };
-  const split = (poly: Point[], normal: Point, offset: number) =>
-    [
-      clipHalfPlane(poly, normal, offset - laneWidth / 2 - 0.35),
-      clipHalfPlane(poly, [-normal[0], -normal[1]], -offset - laneWidth / 2 - 0.35)
-    ].filter(p => p.length >= 3 && Math.abs(polygonArea(p)) >= 65);
-  const preferredNormal = (tangent: Point): Point => {
-    if (!parameters) return tangent;
-    const axis: Point = [Math.cos(parameters.orientation), Math.sin(parameters.orientation)];
-    const across: Point = [-axis[1], axis[0]];
-    return Math.abs(dot(tangent, axis)) >= Math.abs(dot(tangent, across)) ? axis : across;
-  };
-  let regions = [polygon];
-  // A trunk enters perpendicular to its frontage. Subsequent portals connect
-  // to it, instead of drawing an unconditional road around the entire block.
-  for (const entry of entries) {
-    const hit = nearestOnPolyline(entry, boundary(polygon));
-    const anchor = hit.point;
-    const a = polygon[hit.segIndex],
-      b = polygon[(hit.segIndex + 1) % polygon.length];
-    const length = distance(a, b);
-    if (length < 1e-6) continue;
-    let normal = preferredNormal([(b[0] - a[0]) / length, (b[1] - a[1]) / length]);
-    if (lanes.length) {
-      const nearest = lanes.map(l => nearestOnPolyline(anchor, l.points)).sort((a, b) => a.dist - b.dist)[0];
-      if (nearest.dist < 1e-5) {
-        addLane([entry, anchor]);
-        continue;
-      }
-      normal = [(nearest.point[1] - anchor[1]) / nearest.dist, (anchor[0] - nearest.point[0]) / nearest.dist];
-    }
-    const offset = dot(anchor, normal);
-    const line = chord(polygon, normal, offset);
-    if (!line) continue;
-    addLane([entry, anchor]);
-    addLane(line);
-    regions = regions.flatMap(poly => split(poly, normal, offset));
-  }
-  if (!build) return;
-  const frontages = (poly: Point[], roads: InfillLane[]) =>
-    poly.flatMap((a, i) => {
-      const b = poly[(i + 1) % poly.length];
-      const length = distance(a, b);
-      if (length < 1e-6) return [];
-      const lane = roads.find(l => {
-        const limit = l.widthMeters / 2 + 0.36;
-        // At an oblique junction, an offset edge's endpoint can extend past
-        // the centreline endpoint. Test the parallel frontage at its midpoint
-        // rather than rejecting the entire row because of that corner.
-        const hit = nearestOnPolyline(mid(a, b), l.points);
-        const c = l.points[hit.segIndex],
-          d = l.points[hit.segIndex + 1];
-        const roadLength = distance(c, d);
-        return (
-          hit.dist <= limit &&
-          roadLength > 1e-6 &&
-          Math.abs((b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])) / (length * roadLength) < 1e-5
-        );
-      });
-      return lane ? [{ i, a, b, length }] : [];
-    });
-  // Only coarse divisions create streets. Each resulting block is packed with
-  // frontage lots without drawing roads between neighbouring houses.
-  const subdivide = (poly: Point[], roads: InfillLane[], depth: number): void => {
-    const fronts = frontages(poly, roads).sort((a, b) => b.length - a.length);
-    if (!fronts.length) return;
-    const area = Math.abs(polygonArea(poly));
-    const front = fronts[0];
-    if (depth < 12 && area > target * (outskirts ? 18 : 12) && front.length > Math.sqrt(target) * 2.5) {
-      const normal = preferredNormal([
-        (front.b[0] - front.a[0]) / front.length,
-        (front.b[1] - front.a[1]) / front.length
-      ]);
-      const t = rng.range(0.4, 0.6);
-      const offset = dot(
-        [front.a[0] + (front.b[0] - front.a[0]) * t, front.a[1] + (front.b[1] - front.a[1]) * t],
-        normal
-      );
-      const line = chord(poly, normal, offset);
-      const parts = split(poly, normal, offset);
-      if (line && parts.length === 2 && parts.every(p => Math.abs(polygonArea(p)) > target * 2)) {
-        const points = line.map(p => {
-          const near = roads.map(l => ({ l, ...nearestOnPolyline(p, l.points) })).sort((a, b) => a.dist - b.dist)[0];
-          return near && near.dist <= near.l.widthMeters / 2 + 0.36 ? near.point : p;
-        });
-        addLane(points);
-        const childAccess = [...roads, lanes[lanes.length - 1]];
-        for (const part of parts) subdivide(part, childAccess, depth + 1);
-        return;
-      }
-    }
-    const footprints = frontageBuildings(
-      poly,
-      fronts.map(f => f.i),
-      {
-        lotArea: target,
-        coverage: parameters?.coverage ?? 0.75,
-        occupancy: landmark ? 1 : (parameters?.occupancy ?? (outskirts ? 0.82 : 0.965)),
-        outskirts
-      },
-      rng
-    );
-    for (const footprint of footprints) fabric.buildings.push({ faceId: face.id, polygon: footprint, landmark });
-  };
-  const initialAccess = access.slice();
-  for (const region of regions) subdivide(region, initialAccess, 0);
 }

@@ -43,7 +43,8 @@ describe("plain frontage buildings", () => {
         return [points[0][0], points[1][0]];
       })
       .sort((a, b) => a[0] - b[0]);
-    for (let i = 1; i < intervals.length; i++) expect(intervals[i][0] - intervals[i - 1][1]).toBeCloseTo(0.16, 6);
+    for (let i = 1; i < intervals.length; i++) expect(intervals[i][0] - intervals[i - 1][1]).toBeCloseTo(0.04, 6);
+    for (const p of buildings) expect(p).toHaveLength(4);
     expect(buildings.reduce((sum, p) => sum + area(p), 0)).toBeGreaterThan(160 * 15);
   });
 
@@ -76,7 +77,50 @@ describe("plain frontage buildings", () => {
     }
   });
 
-  it("allocates angled corners without overlapping rows or self-intersecting L/U footprints", () => {
+  it("packs rectangular party-wall lots along a street, 5–12 m frontage", () => {
+    const buildings = generate();
+    expect(buildings.length).toBeGreaterThan(10);
+    for (const p of buildings) {
+      expect(p).toHaveLength(4);
+      const face = front(p);
+      expect(face[1][0] - face[0][0]).toBeGreaterThanOrEqual(3.5);
+      expect(face[1][0] - face[0][0]).toBeLessThanOrEqual(14);
+      const sides = [
+        Math.hypot(p[1][0] - p[2][0], p[1][1] - p[2][1]),
+        Math.hypot(p[0][0] - p[3][0], p[0][1] - p[3][1])
+      ];
+      expect(Math.abs(sides[0] - sides[1])).toBeLessThan(1e-6);
+    }
+  });
+
+  it("makes classic frontages into varied, compact rectangular houses", () => {
+    const buildings = generate(block, [0], { compact: true, coverage: 0.96 });
+    const ratios = buildings.map(p => {
+      const face = front(p);
+      const width = face[1][0] - face[0][0];
+      const depth = Math.max(...p.map(q => q[1])) - 0.15;
+      return depth / width;
+    });
+    expect(Math.max(...ratios)).toBeLessThanOrEqual(2.15 * 0.96 + 1e-4);
+    expect(Math.max(...ratios) - Math.min(...ratios)).toBeGreaterThan(0.25);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
+  });
+
+  it("fills a right-angled corner with a square that fronts both streets", () => {
+    const buildings = generate(block, [0, 1, 2, 3]);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
+    expect(
+      buildings.some(p => {
+        const xs = p.map(q => q[0]),
+          ys = p.map(q => q[1]);
+        const onSouth = Math.min(...ys) < 1 && Math.max(...xs) > 150;
+        const onEast = Math.max(...xs) > 159 && Math.min(...ys) < 20;
+        return onSouth && onEast;
+      })
+    ).toBe(true);
+  });
+
+  it("allocates angled corners as non-overlapping rectangles inside the block", () => {
     const polygon: Point[] = [
       [0, 0],
       [130, 0],
@@ -84,8 +128,8 @@ describe("plain frontage buildings", () => {
       [20, 110]
     ];
     const buildings = generate(polygon, [0, 1, 2, 3], { lotArea: 320 });
-    expect(buildings.some(p => p.length >= 6)).toBe(true);
-    expect(buildings.some(p => p.length >= 8)).toBe(true);
+    expect(buildings.length).toBeGreaterThan(8);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
     const pieces = buildings.map(p => {
       expect(p.every(v => pointInPolygon(v, polygon))).toBe(true);
       for (let i = 0; i < p.length; i++)
@@ -93,12 +137,83 @@ describe("plain frontage buildings", () => {
           if (i === 0 && j === p.length - 1) continue;
           expect(segmentSegmentHit(p[i], p[(i + 1) % p.length], p[j], p[(j + 1) % p.length])).toBeNull();
         }
-      const parts = convexInfillParts(p);
-      expect(parts.reduce((sum, part) => sum + area(part), 0)).toBeCloseTo(area(p), 5);
-      return parts;
+      return convexInfillParts(p);
     });
     for (let i = 0; i < pieces.length; i++)
       for (let j = i + 1; j < pieces.length; j++)
         for (const a of pieces[i]) for (const b of pieces[j]) expect(intersectionArea(a, b)).toBeLessThan(1e-6);
+  });
+
+  it("keeps L/U wings on outskirts lots", () => {
+    const polygon: Point[] = [
+      [0, 0],
+      [130, 0],
+      [150, 80],
+      [20, 110]
+    ];
+    const buildings = generate(polygon, [0, 1, 2, 3], { lotArea: 320, outskirts: true });
+    expect(buildings.some(p => p.length >= 6)).toBe(true);
+  });
+
+  it("produces rectangular houses facing primary edges with short side facing the road and longer depth", () => {
+    // 80m x 25m block, edge 0 is on the primary road (y = 0)
+    const block: Point[] = [
+      [0, 0],
+      [80, 0],
+      [80, 25],
+      [0, 25]
+    ];
+    const buildings = generate(block, [0, 1, 2, 3], {
+      lotArea: 100,
+      perimeter: true,
+      primaryEdges: [0]
+    });
+    expect(buildings.length).toBeGreaterThan(6);
+
+    // Buildings facing edge 0 (primary road, y=0)
+    const primaryHouses = buildings.filter(b => b.some(p => Math.abs(p[1]) < 1e-4));
+    expect(primaryHouses.length).toBeGreaterThan(4);
+
+    for (const house of primaryHouses) {
+      // Must be rectangular (4 vertices)
+      expect(house.length).toBe(4);
+
+      // Road frontage span (width along x-axis) vs depth into the block (span along y-axis)
+      const xs = house.map(p => p[0]);
+      const ys = house.map(p => p[1]);
+      const width = Math.max(...xs) - Math.min(...xs);
+      const depth = Math.max(...ys) - Math.min(...ys);
+
+      // Short-side frontage: depth must be greater than width
+      expect(depth).toBeGreaterThanOrEqual(width);
+      // Width is reasonably compact (4m to 7.5m)
+      expect(width).toBeGreaterThanOrEqual(4.0);
+      expect(width).toBeLessThanOrEqual(7.5);
+    }
+  });
+
+  it("ensures houses in straight rectangular blocks are strictly rectangular without erratic triangles", () => {
+    // Both back-to-back blocks and courtyard blocks
+    for (const [width, height] of [
+      [70, 26],
+      [80, 36]
+    ]) {
+      const block: Point[] = [
+        [0, 0],
+        [width, 0],
+        [width, height],
+        [0, height]
+      ];
+      const buildings = generate(block, [0, 1, 2, 3], {
+        lotArea: 100,
+        perimeter: true,
+        coverage: 0.85
+      });
+      expect(buildings.length).toBeGreaterThan(6);
+      // In straight rectangular blocks, there must be NO triangular houses
+      for (const house of buildings) {
+        expect(house.length).toBe(4);
+      }
+    }
   });
 });

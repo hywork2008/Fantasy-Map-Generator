@@ -1,4 +1,4 @@
-import { validFabricPlan } from "./gen/fabricDistricts";
+import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
 import { buildGrid } from "./gen/grid";
 import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
@@ -14,12 +14,45 @@ export const BLOCK_SIZE_METERS = 50;
 const BLOCK_SITE_SPACING_METERS = 44.8;
 
 /** `minExternalRoads` is the standalone random-city floor (see
- * `minExternalRoadsForExtent`). Tiny / fort maps use 1; cities use 2. */
+ * `minExternalRoadsForExtent`). Micro / Tiny / fort maps use 1; cities use 2.
+ * `maxWallGates` caps the outer wall. Micro stays at 3: a fifth gate on that
+ * short curtain tends to sit on the river and breaks the trunk road. Larger
+ * presets keep the historical ceiling (6, plus one when the site is wet).
+ * Each window is half the side of the next larger preset. */
 export const CITY_SIZE_PRESETS = {
-  tiny: { label: "Tiny", extentMeters: 600, cellsAcross: 12, buildingTarget: 75, minExternalRoads: 1 },
-  small: { label: "Small", extentMeters: 1200, cellsAcross: 24, buildingTarget: 300, minExternalRoads: 2 },
-  medium: { label: "Medium", extentMeters: 2400, cellsAcross: 48, buildingTarget: 1600, minExternalRoads: 2 },
-  large: { label: "Large", extentMeters: 4800, cellsAcross: 96, buildingTarget: 14000, minExternalRoads: 2 }
+  micro: {
+    label: "Micro",
+    extentMeters: 300,
+    cellsAcross: 6,
+    buildingTarget: 19,
+    minExternalRoads: 1,
+    maxWallGates: 3
+  },
+  tiny: { label: "Tiny", extentMeters: 600, cellsAcross: 12, buildingTarget: 75, minExternalRoads: 1, maxWallGates: 7 },
+  small: {
+    label: "Small",
+    extentMeters: 1200,
+    cellsAcross: 24,
+    buildingTarget: 300,
+    minExternalRoads: 2,
+    maxWallGates: 7
+  },
+  medium: {
+    label: "Medium",
+    extentMeters: 2400,
+    cellsAcross: 48,
+    buildingTarget: 1600,
+    minExternalRoads: 2,
+    maxWallGates: 7
+  },
+  large: {
+    label: "Large",
+    extentMeters: 4800,
+    cellsAcross: 96,
+    buildingTarget: 14000,
+    minExternalRoads: 2,
+    maxWallGates: 7
+  }
 } as const;
 
 export type CitySizePreset = keyof typeof CITY_SIZE_PRESETS;
@@ -48,7 +81,7 @@ export function isCitySizePreset(value: unknown): value is CitySizePreset {
   return typeof value === "string" && Object.hasOwn(CITY_SIZE_PRESETS, value);
 }
 
-/** Closest Tiny / Small / Medium / Large preset to a descriptor (or share) window. */
+/** Closest Micro / Tiny / Small / Medium / Large preset to a descriptor (or share) window. */
 export function sizePresetForExtent(extentMeters: number): CitySizePreset {
   let best: CitySizePreset = "small";
   let bestDelta = Infinity;
@@ -60,6 +93,11 @@ export function sizePresetForExtent(extentMeters: number): CitySizePreset {
     }
   }
   return best;
+}
+
+/** Outer-wall gate ceiling for the preset nearest to this window. */
+export function maxWallGatesForExtent(extentMeters: number): number {
+  return CITY_SIZE_PRESETS[sizePresetForExtent(extentMeters)].maxWallGates;
 }
 
 /** A Voronoi cell is one macro block. The presets all retain a 50 m block target. */
@@ -138,6 +176,7 @@ export function parseDocument(text: string): CityDocument | null {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
     if (value.fabric !== undefined && !validFabricPlan(value.fabric)) return null;
+    if (value.fabric && value.fabric.version !== 4) value.fabric = upgradeFabricPlan(value);
     const recipe = value.fabric?.generation;
     if (recipe && (!isDocument(recipe.input) || "fabric" in recipe.input || validate(recipe.input).length)) return null;
     // Version-1 files saved before the scale-bar addition lack this descriptive

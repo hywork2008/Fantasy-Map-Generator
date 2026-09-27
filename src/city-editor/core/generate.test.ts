@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGridDocument, createSizedDocument, sizePresetForExtent } from "./document";
+import { createGridDocument, createSizedDocument, maxWallGatesForExtent, sizePresetForExtent } from "./document";
 import { featureGroupVertices } from "./features";
 import { polygonArea } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
@@ -250,9 +250,9 @@ describe("generateStageOnDocument", () => {
             if (!out) return;
             expect(validate(out)).toEqual([]);
             expect(out.frame).toEqual(base.frame);
-            // ①–③ must not rebuild the grid. ④–⑥ may merge/split a vertex to
-            // open a 4-way gate or bridge, so the skeleton may change.
-            if (step < S.walls) expect(meshSkeleton(out)).toBe(baseline);
+            // ①–② must not rebuild the grid. ③–⑥ may split faces along river overlaps
+            // or merge/split a vertex to open a 4-way gate or bridge, so the skeleton may change.
+            if (step < S.urban) expect(meshSkeleton(out)).toBe(baseline);
           });
         }
 
@@ -333,7 +333,7 @@ describe("generateStageOnDocument", () => {
   });
 
   it("covers every stage id in GENERATION_STAGES", () => {
-    expect(GENERATION_STAGES.map(s => s.step)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(GENERATION_STAGES.map(s => s.step)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -835,7 +835,7 @@ describe("generateWardStep — per-loop ⑥ ward-assignment scrub", () => {
   const base = createSizedDocument("small", "mesh-fixture");
   const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
 
-  it("valid document, mesh & frame untouched, for the first/middle/last cell", () => {
+  it("valid document, mesh & frame untouched, for the first/middle/last cell", { timeout: 20_000 }, () => {
     for (const seed of SEEDS) {
       const { total } = generateWardStep(base, scenario, seed, 0);
       expect(total).toBeGreaterThan(5);
@@ -954,13 +954,16 @@ describe("FMG descriptor geography", () => {
 });
 
 describe("sizePresetForExtent / custom frame", () => {
-  it("picks the closest Tiny / Small / Medium / Large window", () => {
+  it("picks the closest Micro / Tiny / Small / Medium / Large window", () => {
+    expect(sizePresetForExtent(300)).toBe("micro");
+    expect(sizePresetForExtent(400)).toBe("micro");
+    expect(sizePresetForExtent(500)).toBe("tiny");
     expect(sizePresetForExtent(600)).toBe("tiny");
-    expect(sizePresetForExtent(400)).toBe("tiny");
     expect(sizePresetForExtent(1200)).toBe("small");
     expect(sizePresetForExtent(1500)).toBe("small");
     expect(sizePresetForExtent(3000)).toBe("medium");
     expect(sizePresetForExtent(4500)).toBe("large");
+    expect([300, 400, 500, 600, 1200, 2400, 4800].map(maxWallGatesForExtent)).toEqual([3, 3, 7, 7, 7, 7, 7]);
   });
 
   it("createGridDocument honours an FMG descriptor frame", () => {

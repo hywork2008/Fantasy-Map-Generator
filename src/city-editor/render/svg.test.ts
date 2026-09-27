@@ -8,7 +8,10 @@ import {
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
+  renderMeasureOverlay,
+  renderStandaloneCitySvg,
   selectionLabelFontSize,
+  serializeCitySvg,
   vertexHandleRadius
 } from "./svg";
 
@@ -57,8 +60,135 @@ describe("extramural trails", () => {
     const core = renderEditorSvg(doc, "select", selection, "0 0 120 120", 1);
     expect(core.querySelectorAll(".ce-infill-trail")).toHaveLength(0);
     expect(core.querySelectorAll(".ce-infill-lane").length).toBeGreaterThan(0);
+
+    doc.layout = "classic";
+    const classicCore = renderEditorSvg(doc, "select", selection, "0 0 120 120", 1);
+    expect(classicCore.querySelectorAll(".ce-infill-trail").length).toBeGreaterThan(0);
+    for (const trail of classicCore.querySelectorAll(".ce-infill-trail")) {
+      expect(trail.getAttribute("data-infill-face")).toBe("f0");
+      expect(Number(trail.getAttribute("stroke-width"))).toBeLessThan(1);
+    }
+
+    doc.layout = "organic";
+    const organicCore = renderEditorSvg(doc, "select", selection, "0 0 120 120", 1);
+    expect(organicCore.querySelectorAll(".ce-infill-trail").length).toBeGreaterThan(0);
+    for (const trail of organicCore.querySelectorAll(".ce-infill-trail")) {
+      expect(trail.getAttribute("data-infill-face")).toBe("f0");
+      expect(Number(trail.getAttribute("stroke-width"))).toBeLessThan(1);
+    }
+
+    const concealed = renderEditorSvg(
+      doc,
+      "select",
+      selection,
+      "0 0 120 120",
+      1,
+      false,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      undefined,
+      false,
+      true
+    );
+    expect(concealed.querySelectorAll(".ce-infill-lane")).toHaveLength(0);
+    expect(concealed.querySelectorAll(".ce-infill-trail")).toHaveLength(0);
   });
 });
+
+describe("river bridge deck", () => {
+  it("draws a butt-capped deck as long as the river and stops the road at the bank", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      appearance: "town",
+      frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+      mesh: {
+        vertices: {
+          s: { id: "s", point: [0, -30], locked: false },
+          m: { id: "m", point: [0, 0], locked: false },
+          n: { id: "n", point: [0, 30], locked: false },
+          a: { id: "a", point: [-40, 0], locked: false },
+          b: { id: "b", point: [40, 0], locked: false }
+        },
+        edges: {
+          r1: { id: "r1", a: "s", b: "m", leftFace: null, rightFace: null, locked: false },
+          r2: { id: "r2", a: "m", b: "n", leftFace: null, rightFace: null, locked: false },
+          e1: { id: "e1", a: "a", b: "m", leftFace: null, rightFace: null, locked: false },
+          e2: { id: "e2", a: "m", b: "b", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "river",
+          kind: "river",
+          name: "River",
+          locked: false,
+          style: { widthMeters: 10, color: "#85857d" },
+          vertices: ["s", "m", "n"],
+          source: null,
+          mouth: null
+        },
+        {
+          id: "road",
+          kind: "road",
+          name: "Road",
+          locked: false,
+          style: { widthMeters: 6, color: "#735238" },
+          segments: [
+            { edgeId: "e1", forward: true },
+            { edgeId: "e2", forward: true }
+          ]
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-50 -50 100 100",
+      1
+    );
+    const deck = svg.querySelector(".ce-bridge-deck");
+    const outline = svg.querySelector(".ce-bridge-outline");
+    expect(deck?.getAttribute("stroke-linecap")).toBe("butt");
+    expect(outline?.getAttribute("stroke-linecap")).toBe("butt");
+    expect(deck?.getAttribute("stroke")).toBe("#d5cfbf");
+    expect(Number(outline?.getAttribute("stroke-width"))).toBeGreaterThan(Number(deck?.getAttribute("stroke-width")));
+    const deckLength = pathLength(deck?.getAttribute("d") ?? "");
+    expect(deckLength).toBeGreaterThan(10);
+    expect(deckLength).toBeLessThan(14);
+    const roads = [...svg.querySelectorAll(".ce-feature--road")].map(node => pathPoints(node.getAttribute("d") ?? ""));
+    expect(roads.length).toBeGreaterThan(0);
+    for (const points of roads) {
+      const xs = points.map(point => point[0]);
+      const crosses = Math.min(...xs) < -1 && Math.max(...xs) > 1;
+      expect(crosses).toBe(false);
+    }
+    expect(svg.querySelectorAll(".ce-bridge-deck")).toHaveLength(1);
+  });
+});
+
+function pathPoints(d: string): Point[] {
+  const nums = d.match(/-?\d*\.?\d+/g)?.map(Number) ?? [];
+  const points: Point[] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) points.push([nums[i], nums[i + 1]]);
+  return points;
+}
+
+function pathLength(d: string): number {
+  const points = pathPoints(d);
+  let length = 0;
+  for (let i = 1; i < points.length; i++)
+    length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  return length;
+}
 
 describe("vertexHandleRadius", () => {
   it("keeps r=2 at every zoom level", () => {
@@ -197,6 +327,97 @@ describe("faceClassName / renderFaceWardLandmark", () => {
     expect(renderFaceWardLandmark(document.mesh, plain)).toBeNull();
     expect(renderFaceWardLandmark(document.mesh, submerged)).toBeNull();
   });
+
+  it("uses r=7.5 halo for all city element markers (half of the original r=15)", () => {
+    const document = createDocument("all-markers-half-size", 400);
+    const [facePark, faceMarket] = Object.values(document.mesh.faces);
+    facePark.properties.ward = "park";
+    faceMarket.properties.ward = "market";
+    const vertex = Object.values(document.mesh.vertices)[0];
+    document.gates.push({ id: 99, vertexId: vertex.id });
+
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+
+    const parkHalo = svg.querySelector(`.ce-ward-landmarks [data-element="ward-${facePark.id}"] .ce-element-halo`);
+    expect(parkHalo?.getAttribute("r")).toBe("7.5");
+
+    const gateHalo = svg.querySelector(`.ce-gates [data-element="99"] .ce-element-halo`);
+    expect(gateHalo?.getAttribute("r")).toBe("7.5");
+
+    const marketHalo = svg.querySelector(`.ce-ward-landmarks [data-element="ward-${faceMarket.id}"] .ce-element-halo`);
+    expect(marketHalo?.getAttribute("r")).toBe("7.5");
+  });
+});
+
+describe("town gatehouse", () => {
+  it("draws square flank towers and a semicircular plaza on both sides of the gate", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      appearance: "town",
+      frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+      mesh: {
+        vertices: {
+          w1: { id: "w1", point: [-40, 0], locked: false },
+          g: { id: "g", point: [0, 0], locked: false },
+          w2: { id: "w2", point: [40, 0], locked: false }
+        },
+        edges: {
+          wallA: { id: "wallA", a: "w1", b: "g", leftFace: null, rightFace: null, locked: false },
+          wallB: { id: "wallB", a: "g", b: "w2", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "wall-1",
+          kind: "wall",
+          name: "Wall",
+          segments: [
+            { edgeId: "wallA", forward: true },
+            { edgeId: "wallB", forward: true }
+          ],
+          style: { widthMeters: 10, color: "#342a22" },
+          locked: false
+        }
+      ],
+      gates: [{ id: "gate-1", vertexId: "g", locked: false }],
+      elements: [{ id: "plaza", kind: "plaza", faceIds: [], point: [0, 50], locked: false }]
+    };
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-100 -100 200 200",
+      1
+    );
+    const towers = [...svg.querySelectorAll(".ce-gate-tower")];
+    expect(towers).toHaveLength(2);
+    for (const tower of towers) {
+      expect(tower.getAttribute("width")).toBe(tower.getAttribute("height"));
+      expect(Number(tower.getAttribute("width"))).toBeCloseTo(16);
+    }
+    const plazas = [...svg.querySelectorAll(".ce-gate-plaza")].map(plaza => plaza.getAttribute("d"));
+    expect(plazas).toHaveLength(2);
+    expect(plazas.some(d => d?.includes(" 0 0 1 "))).toBe(true);
+    expect(plazas.some(d => d?.includes(" 0 0 0 "))).toBe(true);
+    const transform = svg.querySelector(".ce-town-gate")?.getAttribute("transform") ?? "";
+    // Local +Y is townward. With the curtain along +X and the town at +Y, the
+    // screen matrix sends local +Y to math +Y (screen −Y).
+    expect(transform.startsWith("matrix(")).toBe(true);
+    const parts = transform
+      .slice("matrix(".length, -1)
+      .split(/[\s,]+/)
+      .map(Number);
+    expect(parts[2]).toBeCloseTo(0);
+    expect(parts[3]).toBeCloseTo(-1);
+  });
 });
 
 describe("face selection labels", () => {
@@ -269,6 +490,61 @@ describe("face selection labels", () => {
   });
 });
 
+describe("generated temple footprint", () => {
+  it("draws a Tiny church larger than a house plot, and a Large church larger still", () => {
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const tiny = createDocument("temple-tiny", 600);
+    tiny.appearance = "town";
+    tiny.elements.push({
+      id: "gc:temple",
+      kind: "temple",
+      faceIds: [],
+      point: [0, 0],
+      locked: false
+    });
+    const tinyRect = renderEditorSvg(tiny, "select", selection, "-200 -200 400 400", 1).querySelector(
+      '[data-element="gc:temple"]'
+    );
+    expect(tinyRect).not.toBeNull();
+    expect(Number(tinyRect?.getAttribute("width"))).toBe(28);
+    expect(Number(tinyRect?.getAttribute("height"))).toBe(16);
+
+    const large = createDocument("temple-large", 4800);
+    large.appearance = "town";
+    large.elements.push({
+      id: "gc:temple",
+      kind: "temple",
+      faceIds: [],
+      point: [0, 0],
+      sizeMeters: 68,
+      locked: false
+    });
+    const largeRect = renderEditorSvg(large, "select", selection, "-200 -200 400 400", 1).querySelector(
+      '[data-element="gc:temple"]'
+    );
+    expect(Number(largeRect?.getAttribute("width"))).toBe(68);
+    expect(Number(largeRect?.getAttribute("height"))).toBe(36);
+  });
+
+  it("rotates the church to match the stored long-axis angle", () => {
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const document = createDocument("temple-rotated", 600);
+    document.appearance = "town";
+    document.elements.push({
+      id: "gc:temple",
+      kind: "temple",
+      faceIds: [],
+      point: [10, 5],
+      rotation: Math.PI / 4,
+      locked: false
+    });
+    const rect = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1).querySelector(
+      '[data-element="gc:temple"]'
+    );
+    expect(rect?.getAttribute("transform")).toBe("translate(10 -5) rotate(-45)");
+  });
+});
+
 describe("renderEditorSvg data-pick metadata", () => {
   it("attaches parseable metadata to cells, edges, and features in select mode", () => {
     const document = createDocument("pick-metadata", 400);
@@ -294,5 +570,139 @@ describe("renderEditorSvg data-pick metadata", () => {
     expect(parsePickInfo(null)).toBeNull();
     expect(parsePickInfo("")).toBeNull();
     expect(parsePickInfo("not-json")).toBeNull();
+  });
+});
+
+describe("renderMeasureOverlay", () => {
+  it("returns empty array when from is null", () => {
+    expect(renderMeasureOverlay(null, null, 1)).toEqual([]);
+  });
+
+  it("renders a start point circle when from is set but to is null", () => {
+    const nodes = renderMeasureOverlay([10, 20], null, 1);
+    expect(nodes).toHaveLength(1);
+    const circle = nodes[0] as SVGCircleElement;
+    expect(circle.getAttribute("class")).toContain("ce-measure-point--start");
+    expect(circle.getAttribute("cx")).toBe("10");
+    expect(circle.getAttribute("cy")).toBe("-20");
+  });
+
+  it("renders a line, two point circles, and distance label when from and to are set", () => {
+    const nodes = renderMeasureOverlay([0, 0], [100, 200], 1, "223.6 m");
+    expect(nodes).toHaveLength(4);
+
+    const line = nodes[0] as SVGLineElement;
+    expect(line.getAttribute("class")).toBe("ce-measure-line");
+    expect(line.getAttribute("x1")).toBe("0");
+    expect(line.getAttribute("y1")).toBe("0");
+    expect(line.getAttribute("x2")).toBe("100");
+    expect(line.getAttribute("y2")).toBe("-200");
+
+    const p1 = nodes[1] as SVGCircleElement;
+    expect(p1.getAttribute("class")).toBe("ce-measure-point");
+    expect(p1.getAttribute("cx")).toBe("0");
+    expect(p1.getAttribute("cy")).toBe("0");
+
+    const p2 = nodes[2] as SVGCircleElement;
+    expect(p2.getAttribute("class")).toBe("ce-measure-point");
+    expect(p2.getAttribute("cx")).toBe("100");
+    expect(p2.getAttribute("cy")).toBe("-200");
+
+    const text = nodes[3] as SVGTextElement;
+    expect(text.getAttribute("class")).toBe("ce-measure-label");
+    expect(text.getAttribute("x")).toBe("50");
+    expect(text.getAttribute("y")).toBe("-100");
+    expect(text.textContent).toBe("223.6 m");
+  });
+});
+
+describe("renderEditorSvg showGridLines", () => {
+  it("applies ce-svg--show-grid class when showGridLines is true", () => {
+    const document = createDocument("grid-lines", 400);
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+
+    const svgNormal = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1);
+    expect(svgNormal.classList.contains("ce-svg--show-grid")).toBe(false);
+
+    const svgGrid = renderEditorSvg(
+      document,
+      "select",
+      selection,
+      "-200 -200 400 400",
+      1,
+      false,
+      null,
+      null,
+      null,
+      null,
+      false,
+      true
+    );
+    expect(svgGrid.classList.contains("ce-svg--show-grid")).toBe(true);
+  });
+});
+
+describe("renderStandaloneCitySvg / serializeCitySvg", () => {
+  it("creates a standalone SVG with appropriate attributes, background, and embedded style", () => {
+    const document = createDocument("standalone-test", 600);
+    const svg = renderStandaloneCitySvg(document);
+
+    expect(svg.getAttribute("xmlns")).toBe("http://www.w3.org/2000/svg");
+    expect(svg.getAttribute("xmlns:xlink")).toBe("http://www.w3.org/1999/xlink");
+    expect(svg.getAttribute("version")).toBe("1.1");
+    expect(svg.getAttribute("width")).toBe("600");
+    expect(svg.getAttribute("height")).toBe("600");
+    expect(svg.getAttribute("viewBox")).toBe("-300 -300 600 600");
+
+    // Defs and style
+    const style = svg.querySelector("defs > style");
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toContain(".ce-building");
+    expect(style?.textContent).toContain(".ce-face--land");
+
+    // Background rect
+    const bg = svg.querySelector("rect.ce-background");
+    expect(bg).not.toBeNull();
+    expect(bg?.getAttribute("fill")).toBe("#e1dfd4");
+    expect(bg?.getAttribute("width")).toBe("600");
+    expect(bg?.getAttribute("height")).toBe("600");
+
+    // Cleaned up layers and data-pick
+    expect(svg.querySelectorAll(".ce-hover-layer, .ce-measure-layer, .ce-route-preview-layer")).toHaveLength(0);
+    expect(svg.querySelectorAll("[data-pick]")).toHaveLength(0);
+  });
+
+  it("applies town background and classes when appearance is town", () => {
+    const document = createDocument("town-test", 800);
+    document.appearance = "town";
+    const svg = renderStandaloneCitySvg(document);
+
+    expect(svg.classList.contains("ce-svg--town")).toBe(true);
+    const bg = svg.querySelector("rect.ce-background");
+    expect(bg?.getAttribute("fill")).toBe("#d5cfbf");
+  });
+
+  it("serializeCitySvg produces a valid XML document string with xml declaration", () => {
+    const document = createDocument("xml-test", 500);
+    const xml = serializeCitySvg(document);
+
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')).toBe(true);
+    expect(xml).toContain('<svg xmlns="http://www.w3.org/2000/svg"');
+    expect(xml).toContain("</svg>");
+    expect(xml).toContain('class="ce-background"');
+  });
+
+  it("includes xlink:href on image elements for reference images", () => {
+    const document = createDocument("ref-test", 400);
+    document.referenceImage = {
+      href: "data:image/png;base64,fake",
+      width: 200,
+      height: 200
+    };
+    const svg = renderStandaloneCitySvg(document);
+    const img = svg.querySelector("image");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("href")).toBe("data:image/png;base64,fake");
+    expect(img?.getAttribute("xlink:href")).toBe("data:image/png;base64,fake");
   });
 });

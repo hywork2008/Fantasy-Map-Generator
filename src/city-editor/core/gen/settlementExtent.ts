@@ -2,19 +2,31 @@ import { polygonArea } from "./geom";
 import type { Cell } from "./types";
 
 /** Matches `CITY_SIZE_PRESETS.small.extentMeters`. Windows below this are
- * Tiny maps / forts (`CITY_SIZE_PRESETS.tiny` is 600 m). */
+ * Micro / Tiny maps and forts (`CITY_SIZE_PRESETS.micro` is 300 m,
+ * `CITY_SIZE_PRESETS.tiny` is 600 m). */
 export const SMALL_CITY_EXTENT_METERS = 1200;
 /** Small / Medium / Large cities keep at least two map-edge approach roads so
  * they are not a single-road dead end. */
 export const MIN_CITY_EXTERNAL_ROADS = 2;
-/** Tiny maps and forts: one last-stand approach (背水の陣). */
+/** Micro / Tiny maps and forts: one last-stand approach (背水の陣). */
 export const MIN_FORT_EXTERNAL_ROADS = 1;
 
 /** Minimum map-edge approach roads a generated settlement must keep.
- * Small / Medium / Large cities: 2. Tiny maps (smaller than Small) may keep 1.
+ * Small / Medium / Large cities: 2. Micro / Tiny maps (smaller than Small) may keep 1.
  * FMG descriptors are exempt. */
 export function minExternalRoadsForExtent(extentMeters: number): number {
   return extentMeters < SMALL_CITY_EXTENT_METERS ? MIN_FORT_EXTERNAL_ROADS : MIN_CITY_EXTERNAL_ROADS;
+}
+
+/**
+ * Road width in meters scaled by settlement extent, aligning with medieval European
+ * street width standards (Tiny/village: ~3.5m, Small town: ~4.5m, Medium city: ~6m, Large city: ~7.5m).
+ */
+export function defaultRoadWidthMeters(extentMeters: number): number {
+  if (extentMeters <= 600) return 3.5;
+  if (extentMeters <= 1200) return 4.5;
+  if (extentMeters <= 2400) return 6.0;
+  return 7.5;
 }
 
 /** Floor for the whole flood-fill settlement, as a fraction of πR². Independent

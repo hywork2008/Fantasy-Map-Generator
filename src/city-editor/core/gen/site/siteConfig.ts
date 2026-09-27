@@ -23,8 +23,18 @@ export type CityFeatureSet = Omit<CityProgram, "capital" | "wallPlan">;
 /** Standalone wall-pattern overrides; "auto" defers to the wall-patterns.md §8
  * matrix (`siteInput.ts` `siteToWallPlan`). M4b exposes the implemented members. */
 export type WallEnvelopeChoice = "auto" | "hull" | "notchFilled";
-export type WallCoastChoice = "auto" | "open" | "seaWall";
+/** `opening` keeps the sea wall and leaves a single gap at the harbour. */
+export type WallCoastChoice = "auto" | "open" | "seaWall" | "opening";
 export type WallLineChoice = "auto" | "polygonal" | "organic";
+
+/** Urban morphological layout pattern:
+ * - `auto`: resolved from size/seed (tiny maps roll Circulade, Bram or Organic)
+ * - `organic`: traditional irregular medieval cranked-block layout
+ * - `circulade`: Languedoc circulade concentric-ring village with core plaza, attached church, and concentric houses
+ * - `bram`: Polygonal circulade core (3 rings, ~240m) with peripheral Voronoi blocks
+ * - `classic`: boundary-aligned Voronoi blocks with compact attached houses */
+export type CityLayout = "auto" | "organic" | "circulade" | "bram" | "classic";
+export const CITY_LAYOUTS: CityLayout[] = ["auto", "organic", "circulade", "bram", "classic"];
 
 export interface WallChoice {
   envelope: WallEnvelopeChoice;
@@ -45,13 +55,15 @@ export interface SiteConfig {
   features: CityFeatureSet;
   /** Wall-pattern overrides applied on top of the matrix plan (S4 only). */
   wall: WallChoice;
+  /** Urban morphology layout (Bram circulade or Organic). Default is "auto". */
+  layout?: CityLayout;
 }
 
 export const COAST_SHAPES: CoastShape[] = ["none", "straight", "bay", "cape"];
 export const RIVER_SHAPES: RiverShape[] = ["through", "beside", "toCoast", "straight", "meander", "greatBend"];
 export const FEATURE_KEYS: (keyof CityFeatureSet)[] = ["port", "walls", "citadel", "plaza", "temple", "shanty"];
 export const WALL_ENVELOPE_CHOICES: WallEnvelopeChoice[] = ["auto", "hull", "notchFilled"];
-export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall"];
+export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall", "opening"];
 export const WALL_LINE_CHOICES: WallLineChoice[] = ["auto", "polygonal", "organic"];
 
 /** Plausible initial check state from population — the user is free to change
@@ -73,7 +85,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   rivers: ["through"],
   relief: false,
   features: defaultFeatures(presetPopulation("smallCity")),
-  wall: { ...DEFAULT_WALL_CHOICE }
+  wall: { ...DEFAULT_WALL_CHOICE },
+  layout: "auto"
 };
 
 /** A stable string form for RNG seeding / display. Deliberately omits `features`
@@ -103,5 +116,5 @@ export function randomSiteConfig(rng: Rng): SiteConfig {
   // Wall pattern stays on "auto" (the matrix): Randomize varies the SITE, not the
   // draw style — and `wall` is out of `siteConfigKey`, so rolling it here would
   // not even be reproducible.
-  return { coast, rivers, relief: rng() < 0.3, features, wall: { ...DEFAULT_WALL_CHOICE } };
+  return { coast, rivers, relief: rng() < 0.3, features, wall: { ...DEFAULT_WALL_CHOICE }, layout: "auto" };
 }

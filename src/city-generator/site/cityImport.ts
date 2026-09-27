@@ -52,17 +52,27 @@ export function parseCityExport(json: string): CityExport | null {
 
 function parseParams(value: unknown): CityParams | null {
   if (!isRecord(value)) return null;
-  const { seed, extentMeters, cityRadiusMeters, cellSizeMeters, lloydPasses } = value;
+  const { seed, extentMeters, cityRadiusMeters, dwellings, cellSizeMeters, lloydPasses, urbanNPatches } = value;
   if (
     typeof seed !== "string" ||
     !positive(extentMeters) ||
     !positive(cityRadiusMeters) ||
     !positive(cellSizeMeters) ||
-    !nonNegativeInteger(lloydPasses)
+    !nonNegativeInteger(lloydPasses) ||
+    (dwellings !== undefined && !positive(dwellings)) ||
+    (urbanNPatches !== undefined && !nonNegativeInteger(urbanNPatches))
   ) {
     return null;
   }
-  return { seed, extentMeters, cityRadiusMeters, cellSizeMeters, lloydPasses };
+  return {
+    seed,
+    extentMeters,
+    cityRadiusMeters,
+    ...(dwellings !== undefined ? { dwellings: dwellings as number } : {}),
+    cellSizeMeters,
+    lloydPasses,
+    ...(urbanNPatches !== undefined ? { urbanNPatches: urbanNPatches as number } : {})
+  };
 }
 
 function parseGeography(value: unknown): CityGeography | null {
