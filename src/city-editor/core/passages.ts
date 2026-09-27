@@ -294,7 +294,16 @@ function wallNeighbourIds(document: CityDocument, vertexId: Id): [Id, Id] | null
 
 /** The road vertices that actually pass through the gate, when the junction alternates. */
 function throughRoadNeighbourIds(document: CityDocument, vertexId: Id): Id[] {
-  return throughEdgesAt(document, vertexId, "wall").map(edge => (edge.a === vertexId ? edge.b : edge.a));
+  const roads = kindEdgeIds(document, "road");
+  const walls = kindEdgeIds(document, "wall");
+  const ordered = orderedIncidentEdges(document, vertexId);
+  const barrier = ordered.filter(edge => walls.has(edge.id)).map(edge => edge.id);
+  const arms = ordered.filter(edge => roads.has(edge.id) && !walls.has(edge.id));
+  for (let i = 0; i < arms.length; i++)
+    for (let j = i + 1; j < arms.length; j++)
+      if (alternatingPairs(ordered, barrier, [arms[i].id, arms[j].id]))
+        return [arms[i], arms[j]].map(edge => (edge.a === vertexId ? edge.b : edge.a));
+  return [];
 }
 
 function unit(x: number, y: number): Point | null {
@@ -462,10 +471,10 @@ function swingObliqueGateArm(
   const road = document.mesh.vertices[worse.id];
   if (!road || road.locked || riverVertices.has(worse.id)) return document;
   if (document.gates.some(gate => gate.vertexId === worse.id)) return document;
-  if (incidentEdges(document.mesh, worse.id).length > 5) return document;
+  if (bridgeArmIsFixed(document, worse.id)) return document;
   const vx = worse.point[0] - gatePoint[0];
   const vy = worse.point[1] - gatePoint[1];
-  const dist = Math.hypot(vx, vy);
+  const dist = Math.max(4, Math.abs(vx * -tangent[1] + vy * tangent[0]));
   if (dist < 1) return document;
   const sign = vx * -tangent[1] + vy * tangent[0] >= 0 ? 1 : -1;
   const target: Point = [gatePoint[0] + -tangent[1] * sign * dist, gatePoint[1] + tangent[0] * sign * dist];
@@ -503,7 +512,19 @@ export function straightenGateCrossings(document: CityDocument): CityDocument {
     const fromGateA = unit(wallA[0] - vertex.point[0], wallA[1] - vertex.point[1]);
     const fromGateB = unit(wallB[0] - vertex.point[0], wallB[1] - vertex.point[1]);
     // A sharp curtain corner has no single slide line; leave the bend alone.
-    if (!fromGateA || !fromGateB || fromGateA[0] * fromGateB[0] + fromGateA[1] * fromGateB[1] >= -0.5) continue;
+    if (!fromGateA || !fromGateB) continue;
+    if (fromGateA[0] * fromGateB[0] + fromGateA[1] * fromGateB[1] >= -0.5) {
+      // A corner cannot slide along a single curtain chord, but its road arms
+      // can still be squared to the same bisector used by the gate renderer.
+      for (let pass = 0; pass < 16; pass++) {
+        const frame = gateCrossingFrame(next, gate.vertexId);
+        if (!frame) break;
+        const moved = swingObliqueGateArm(next, gate.vertexId, roadIds, frame.tangent, riverVertices);
+        if (moved === next) break;
+        next = moved;
+      }
+      continue;
+    }
     const chordX = wallB[0] - wallA[0];
     const chordY = wallB[1] - wallA[1];
     const chordLen = Math.hypot(chordX, chordY);
@@ -511,47 +532,66 @@ export function straightenGateCrossings(document: CityDocument): CityDocument {
     if (!tangent || chordLen < 8) continue;
     const project = (point: Point) =>
       ((point[0] - wallA[0]) * chordX + (point[1] - wallA[1]) * chordY) / (chordLen * chordLen);
-    const margin = Math.min(0.35, Math.max(4, Math.min(8, chordLen * 0.18)) / chordLen);
+    const endpointMargin = Math.min(0.35, Math.max(4, Math.min(8, chordLen * 0.18)) / chordLen);
+    let tMin = endpointMargin;
+    let tMax = 1 - endpointMargin;
+    // A river at one end of the chord keeps the clearance the gate already has.
+    // The usual end margin still applies on the other side.
+    const holdRiverEnd = (neighborId: Id, neighbor: Point, atStart: boolean) => {
+      if (!riverVertices.has(neighborId)) return;
+      const clearance = Math.hypot(vertex.point[0] - neighbor[0], vertex.point[1] - neighbor[1]) / chordLen;
+      if (atStart) tMin = Math.max(tMin, clearance);
+      else tMax = Math.min(tMax, 1 - clearance);
+    };
+    holdRiverEnd(neighbours[0], wallA, true);
+    holdRiverEnd(neighbours[1], wallB, false);
     const at = (t: number): Point => [wallA[0] + chordX * t, wallA[1] + chordY * t];
     let cursor = next;
     const currentScore = roadDeviationDegrees(vertex.point, roads, tangent);
     if (currentScore > PERPENDICULAR_GATE_DEGREES) {
-      let bestT = Math.max(margin, Math.min(1 - margin, project(vertex.point)));
-      let bestScore = roadDeviationDegrees(at(bestT), roads, tangent);
-      for (let i = 0; i <= 32; i++) {
-        const t = margin + ((1 - 2 * margin) * i) / 32;
-        const score = roadDeviationDegrees(at(t), roads, tangent);
-        if (score + 0.75 < bestScore) {
-          bestScore = score;
-          bestT = t;
-        }
-      }
-      // Sliding alone can square both arms. Otherwise park the gate on the
-      // squarer arm and swing the other arm onto that normal afterwards.
-      let chosenT = bestT;
-      if (bestScore > PERPENDICULAR_GATE_DEGREES) {
-        let anchor = roads[0];
-        let anchorDev = Infinity;
-        for (const road of roads) {
-          const dev = roadDeviationDegrees(vertex.point, [road], tangent);
-          if (dev < anchorDev) {
-            anchorDev = dev;
-            anchor = road;
+      if (tMin <= tMax) {
+        let bestT = Math.max(tMin, Math.min(tMax, project(vertex.point)));
+        let bestScore = roadDeviationDegrees(at(bestT), roads, tangent);
+        for (let i = 0; i <= 32; i++) {
+          const t = tMin + ((tMax - tMin) * i) / 32;
+          const score = roadDeviationDegrees(at(t), roads, tangent);
+          if (score + 0.75 < bestScore) {
+            bestScore = score;
+            bestT = t;
           }
         }
-        chosenT = Math.max(margin, Math.min(1 - margin, project(anchor)));
-      }
-      const target = at(chosenT);
-      if (Math.hypot(target[0] - vertex.point[0], target[1] - vertex.point[1]) >= 0.8) {
-        const moved = tryMoveVertex(cursor, gate.vertexId, target);
-        if (moved !== cursor) {
-          for (const face of incidentFaces(moved.mesh, gate.vertexId)) {
-            if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+        // Sliding alone can square both arms. Otherwise park the gate on the
+        // squarer arm and swing the other arm onto that normal afterwards.
+        let chosenT = bestT;
+        if (bestScore > PERPENDICULAR_GATE_DEGREES) {
+          let anchor = roads[0];
+          let anchorDev = Infinity;
+          for (const road of roads) {
+            const dev = roadDeviationDegrees(vertex.point, [road], tangent);
+            if (dev < anchorDev) {
+              anchorDev = dev;
+              anchor = road;
+            }
           }
-          cursor = moved;
+          chosenT = Math.max(tMin, Math.min(tMax, project(anchor)));
+        }
+        const target = at(chosenT);
+        if (Math.hypot(target[0] - vertex.point[0], target[1] - vertex.point[1]) >= 0.8) {
+          const moved = tryMoveVertex(cursor, gate.vertexId, target);
+          if (moved !== cursor) {
+            for (const face of incidentFaces(moved.mesh, gate.vertexId)) {
+              if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+            }
+            cursor = moved;
+          }
         }
       }
-      cursor = swingObliqueGateArm(cursor, gate.vertexId, roadIds, tangent, riverVertices);
+      for (let pass = 0; pass < 16; pass++) {
+        const frame = gateCrossingFrame(cursor, gate.vertexId);
+        const moved = swingObliqueGateArm(cursor, gate.vertexId, roadIds, frame?.tangent ?? tangent, riverVertices);
+        if (moved === cursor) break;
+        cursor = moved;
+      }
     }
     next = cursor;
   }
@@ -598,7 +638,7 @@ function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
   if (document.gates.some(gate => gate.vertexId === id)) return true;
   for (const group of document.featureGroups) {
     if (group.kind === "river" && group.vertices.includes(id)) return true;
-    if (group.kind !== "wall") continue;
+    if (group.kind !== "wall" && !group.locked) continue;
     if (
       group.segments.some(segment => {
         const edge = document.mesh.edges[segment.edgeId];
@@ -650,12 +690,21 @@ export function straightenRiverCrossing(document: CityDocument, aId: Id, midId: 
   const half = frame.width / 2;
   const targetFor = (point: Point, sign: number): Point => {
     const offset = across(point);
-    const distance = Math.max(Math.abs(sign === signOf(offset) ? offset : 0), half);
+    const clearance = Math.abs(sign === signOf(offset) ? offset : 0);
+    const distance = clearance > half ? clearance : half + 1.4;
     return [origin[0] + normal[0] * sign * distance, origin[1] + normal[1] * sign * distance];
   };
   let next = document;
-  if (!bridgeArmIsFixed(next, aId)) next = moveBridgeArm(next, aId, targetFor(a, signA));
-  if (!bridgeArmIsFixed(next, bId)) next = moveBridgeArm(next, bId, targetFor(b, signB));
+  // A valid partial move must not be treated as a completed crossing. Repeat
+  // the local line search, preserving mesh topology and face orientation.
+  const targetA = targetFor(a, signA);
+  const targetB = targetFor(b, signB);
+  for (let pass = 0; pass < 16; pass++) {
+    const before = next;
+    if (!bridgeArmIsFixed(next, aId)) next = moveBridgeArm(next, aId, targetA);
+    if (!bridgeArmIsFixed(next, bId)) next = moveBridgeArm(next, bId, targetB);
+    if (next === before) break;
+  }
   return next;
 }
 

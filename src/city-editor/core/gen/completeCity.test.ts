@@ -6,7 +6,7 @@ import { featureGroupVertices } from "../features";
 import { countExternalApproachRoads, defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
-import { kindEdgeIds, minGateSpacingMeters, vertexHasCrossing } from "../passages";
+import { gateRoadDeviationDegrees, kindEdgeIds, minGateSpacingMeters, vertexHasCrossing } from "../passages";
 import type { CityDocument, Point } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { buildCityBuildings, buildingHitsCivicLandmark, insetConvexKernel } from "./buildingLots";
@@ -403,6 +403,35 @@ describe("building setbacks", () => {
     expect(Math.max(...inset.map(p => p[0]))).toBeCloseTo(80);
     const reversed = insetConvexKernel([...square].reverse(), [8, 20, 8, 8]);
     expect(Math.abs(polygonArea(reversed))).toBeCloseTo(72 * 84);
+  });
+
+  it("keeps the 4rcc9 bridge junction dry and the actual v96 roads clear of gate towers", () => {
+    const grid = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "1txjevo",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.relief = false;
+    settings.config.layout = "organic";
+    settings.config.features = { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true };
+    settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+    const city = generateCityOnDocument(grid, settings, "4rcc9")!;
+    expect(city).not.toBeNull();
+    const river = city.featureGroups.find(group => group.kind === "river")!;
+    const ribbon = featureGroupVertices(city, river).map(id => city.mesh.vertices[id].point);
+    expect(nearestOnPolyline(city.mesh.vertices.v113.point, ribbon).dist).toBeGreaterThan(river.style.widthMeters / 2);
+    expect(bridgeSkewDegrees(city, "v110", "v112", "v113")).toBeLessThan(12);
+    expect(vertexHasCrossing(city, "v112", "river", "road")).toBe(true);
+    expect(gateRoadDeviationDegrees(city, "v96")).toBeLessThan(10);
+    for (const id of ["gc:road-0", "gc:road-1", "gc:road-4"]) {
+      const road = city.featureGroups.find(group => group.id === id)!;
+      const ids = featureGroupVertices(city, road);
+      expect(ids.slice(ids.indexOf("v112"), ids.indexOf("v112") + 2)).toEqual(["v112", "v113"]);
+    }
   });
 
   it("generates a Tiny walled town with a through-river instead of stalling on approach roads", () => {

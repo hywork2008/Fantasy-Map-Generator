@@ -232,6 +232,8 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     ? (raw.config as unknown as GenerationSettings["config"])
     : structuredClone(DEFAULT_SITE_CONFIG);
   const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
+    settings.layout = raw.layout as GenerationSettings["layout"];
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (isFiniteNumber(raw.urbanNPatches)) settings.urbanNPatches = raw.urbanNPatches;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];

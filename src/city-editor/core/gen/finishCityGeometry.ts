@@ -47,8 +47,10 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   const walls = new Set<Id>();
   const roads = new Set<Id>();
   const rivers = new Set<Id>();
+  const riverVertices = new Set<Id>();
   for (const group of next.featureGroups) {
     const ids = featureGroupVertices(next, group);
+    if (group.kind === "river") for (const id of ids) riverVertices.add(id);
     if (group.locked || !group.id.startsWith("gc:")) {
       for (const id of ids) pinned.add(id);
       continue;
@@ -62,6 +64,30 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     }
   }
   for (const gate of next.gates) if (gate.locked || !gate.id.startsWith("gc:")) pinned.add(gate.vertexId);
+  // A gate and a river that already share a wall edge keep that spacing.
+  // Either end may still move away; neither may close the gap.
+  const gateVertices = new Set(next.gates.map(gate => gate.vertexId));
+  const gateRiverGap = new Map<Id, { anchor: Point; minDist: number }[]>();
+  const rememberGap = (id: Id, anchor: Point, minDist: number) => {
+    const holds = gateRiverGap.get(id) ?? [];
+    holds.push({ anchor, minDist });
+    gateRiverGap.set(id, holds);
+  };
+  for (const edgeId of walls) {
+    const edge = mesh.edges[edgeId];
+    const hold = (gateId: Id, riverId: Id) => {
+      if (!gateVertices.has(gateId) || !riverVertices.has(riverId)) return;
+      const gate = original.get(gateId);
+      const river = original.get(riverId);
+      if (!gate || !river) return;
+      const minDist = Math.hypot(gate[0] - river[0], gate[1] - river[1]);
+      if (minDist < 1) return;
+      rememberGap(gateId, river, minDist);
+      rememberGap(riverId, gate, minDist);
+    };
+    hold(edge.a, edge.b);
+    hold(edge.b, edge.a);
+  }
   for (const element of next.elements) {
     if (!element.locked) continue;
     for (const fid of element.faceIds) for (const id of faceRings.get(fid) ?? []) pinned.add(id);
@@ -94,6 +120,14 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   smoothNetwork(water, coarse ? 3 : 12);
   smoothNetwork(rivers, coarse ? 3 : 12);
   smoothNetwork(walls, coarse ? 4 : 32);
+  // The vertex where a road leaves a gate stays put. A short stub beyond it
+  // would otherwise pull that approach back onto the gate; squaring still
+  // swings the arm afterwards.
+  for (const edgeId of roads) {
+    const edge = mesh.edges[edgeId];
+    if (gateVertices.has(edge.a)) constrained.add(edge.b);
+    if (gateVertices.has(edge.b)) constrained.add(edge.a);
+  }
   smoothNetwork(roads, coarse ? 6 : 48);
 
   // Extend boundary displacements into nearby blocks instead of dragging one
@@ -134,6 +168,13 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     }
     return true;
   };
+  const keepsGateRiverGap = (id: Id, point: Point): boolean => {
+    const holds = gateRiverGap.get(id);
+    if (!holds) return true;
+    for (const hold of holds)
+      if (Math.hypot(point[0] - hold.anchor[0], point[1] - hold.anchor[1]) < hold.minDist - 1e-3) return false;
+    return true;
+  };
   // Several small sweeps let neighbouring vertices move together; a difficult
   // local corner must not reduce the smoothing strength of the entire town.
   for (let pass = 0; pass < 10; pass++) {
@@ -144,7 +185,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       if (Math.hypot(target[0] - p[0], target[1] - p[1]) < 0.01) continue;
       for (let strength = 0.5; strength >= 1 / 128; strength /= 2) {
         v.point = [p[0] + (target[0] - p[0]) * strength, p[1] + (target[1] - p[1]) * strength];
-        if (validAt(id)) break;
+        if (validAt(id) && keepsGateRiverGap(id, v.point)) break;
         v.point = p;
       }
     }

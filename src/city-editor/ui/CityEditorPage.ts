@@ -172,7 +172,8 @@ interface FloatingWindow {
 }
 
 export function mountCityEditor(root: HTMLElement): void {
-  let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND });
+  let gridSeed = randomSeed();
+  let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND, seed: gridSeed });
   let gridKind: GridKind = DEFAULT_GRID_KIND;
   let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
   let history = new DocumentHistory(documentState);
@@ -227,7 +228,6 @@ export function mountCityEditor(root: HTMLElement): void {
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
-  let gridSeed = randomSeed();
   let hideBuildings = false;
   /** Stage ⑩. Same document as ⑨; the town drawing omits intramural roads and block lanes. */
   let hideStreetLines = false;
@@ -2982,13 +2982,15 @@ export function mountCityEditor(root: HTMLElement): void {
     );
   }
 
-  function showNotice(value: string): void {
+  function showNotice(value: string, redraw = true): void {
     notice = value;
-    refresh();
+    if (redraw) refresh();
+    else refreshUiOnly();
     window.setTimeout(() => {
       if (notice !== value) return;
       notice = "";
-      refresh();
+      if (redraw) refresh();
+      else refreshUiOnly();
     }, 1800);
   }
 
@@ -3038,7 +3040,7 @@ export function mountCityEditor(root: HTMLElement): void {
       hexSizeMeters: gridKind === "hex" ? hexSizeMeters : undefined,
       gridSeed,
       patchParams: gridKind === "evolution" ? { ...gridEvoParams } : undefined,
-      settings: generateSettings,
+      settings: documentState.fabric?.generation?.settings ?? generateSettings,
       descriptor: generateSettings.descriptor
     });
   }
@@ -3054,9 +3056,10 @@ export function mountCityEditor(root: HTMLElement): void {
       window.setTimeout(() => {
         if (button.textContent === "Link copied") button.textContent = label;
       }, 1400);
-      showNotice("Shareable link copied");
+      // Copying is a UI-only operation; preserve the current SVG and selection.
+      showNotice("Shareable link copied", false);
     } catch {
-      showNotice("Copy failed");
+      showNotice("Copy failed", false);
     }
   }
 

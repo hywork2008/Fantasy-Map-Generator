@@ -69,6 +69,16 @@ describe("share codec", () => {
     expect(decodeShare(token)).toEqual(JSON.parse(JSON.stringify(share)));
   });
 
+  it.each(["auto", "organic", "classic", "circulade", "bram"] as const)("preserves the %s morphology", layout => {
+    const share = buildShare({
+      seed: "morphology",
+      grid: "evolution",
+      size: "tiny",
+      settings: { config: DEFAULT_SITE_CONFIG, layout }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.layout).toBe(layout);
+  });
+
   it("round-trips a Tiny map-size share", () => {
     const share = buildShare({
       seed: "tiny-town",

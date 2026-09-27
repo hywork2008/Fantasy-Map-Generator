@@ -390,7 +390,7 @@ describe("openBarrierPassage", () => {
       const straightened = straightenBridge(document, "gc:bridge-1");
       const ptB = straightened.mesh.vertices.b.point;
       expect(straightened.mesh.vertices.m.point).toEqual([0, 0]);
-      expect(ptB[0]).toBeCloseTo(4);
+      expect(ptB[0]).toBeCloseTo(5.4);
       expect(Math.abs(ptB[1])).toBeLessThan(0.1);
       expect(Math.hypot(ptB[0], ptB[1])).toBeLessThan(Math.hypot(0.5, 18));
     });
@@ -580,5 +580,34 @@ describe("straightenGateCrossings", () => {
     const document = gateOnStraightWall([18, 22], [0, -40], true);
     const next = straightenGateCrossings(document);
     expect(next.mesh.vertices.g.point).toEqual([0, 0]);
+  });
+
+  it("does not slide a gate closer to a river at the end of its wall chord", () => {
+    const document = gateOnStraightWall([-36, 12], [0, -50]);
+    document.mesh.vertices.w1.point = [-80, 0];
+    document.mesh.vertices.w2.point = [80, 0];
+    document.mesh.vertices.up = { id: "up", point: [-80, 40], locked: false };
+    document.mesh.vertices.down = { id: "down", point: [-80, -40], locked: false };
+    document.mesh.edges.r1 = { id: "r1", a: "up", b: "w1", leftFace: null, rightFace: null, locked: false };
+    document.mesh.edges.r2 = { id: "r2", a: "w1", b: "down", leftFace: null, rightFace: null, locked: false };
+    document.featureGroups.push({
+      id: "river-1",
+      kind: "river",
+      name: "River",
+      vertices: ["up", "w1", "down"],
+      source: { vertexId: "up", kind: "spring" },
+      mouth: { vertexId: "down", kind: "mapBoundary" },
+      style: { widthMeters: 8, color: "#4f8aad" },
+      locked: false
+    });
+    const before = Math.hypot(
+      document.mesh.vertices.g.point[0] - document.mesh.vertices.w1.point[0],
+      document.mesh.vertices.g.point[1] - document.mesh.vertices.w1.point[1]
+    );
+    const next = straightenGateCrossings(document);
+    const gate = next.mesh.vertices.g.point;
+    const river = next.mesh.vertices.w1.point;
+    expect(Math.hypot(gate[0] - river[0], gate[1] - river[1])).toBeGreaterThanOrEqual(before - 0.05);
+    expect(gate[0]).toBeGreaterThanOrEqual(-0.05);
   });
 });

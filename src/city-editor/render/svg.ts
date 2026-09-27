@@ -1,4 +1,4 @@
-import { bridgeDecks, clipPolylineOutsideRivers, riverRibbons } from "../core/bridgeDeck";
+import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import { buildBlockFabric } from "../core/gen/blockInfill";
@@ -294,7 +294,7 @@ export function renderEditorSvg(
     if (town && group.kind === "road") {
       if (group.id.startsWith("gc:bridge-")) runs = [];
       else {
-        runs = ribbons.length ? clipPolylineOutsideRivers(points, ribbons) : [points];
+        runs = ribbons.length ? roadRunsOutsideRivers(points, ribbons, group.style.widthMeters) : [points];
         if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
       }
     }
