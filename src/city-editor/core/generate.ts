@@ -31,7 +31,7 @@ import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 // Rivers / Features (or a real FMG descriptor) are the deliberate inputs and
 // are kept across presses.
 
-import { maxWallGatesForExtent } from "./document";
+import { maxWallGatesForExtent, sizePresetForExtent } from "./document";
 import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
@@ -63,6 +63,8 @@ import { resolveRiverBoundaryOverlaps } from "./gen/resolveRiverOverlaps";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import {
   defaultRoadWidthMeters,
+  evolutionWallInsetRings,
+  insetWalledCore,
   MIN_SETTLEMENT_AREA_SHARE,
   minExternalRoadsForExtent,
   resolveWalledAreaShare,
@@ -213,7 +215,10 @@ export interface GenerationSettings {
   /** Urban morphology layout (Bram circulade or Organic). Unset = config.layout or "auto". */
   layout?: import("./gen/site/siteConfig").CityLayout;
   /** Approximate fraction of built-up area enclosed by the main wall (0.05–1).
-   * Unset: tiny/small 100%, medium 45%, large 20%. Ignored when walls are disabled. */
+   * Unset: tiny/small 100%, medium 45%, large 20%. Ignored when walls are disabled.
+   * Grid evolution still pulls a tiny curtain in by one cell, and a small curtain
+   * in by one or two cells, so houses can sit outside that line. Bram keeps the
+   * settlement edge so its spoke roads can reach the gates. */
   walledAreaShare?: number;
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
@@ -363,7 +368,24 @@ export function generateStageOnDocument(
   }
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, stageStep);
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    stageStep,
+    false,
+    undefined,
+    1,
+    true,
+    document.gridKind
+  );
   const res = applyPlan(document, cells, faceIdOf, plan, program, stageStep);
   if (res) {
     res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
@@ -477,7 +499,9 @@ export function generateCityAttempt(
     6,
     true,
     observer,
-    attempt
+    attempt,
+    true,
+    document.gridKind
   );
   mark("plan-total");
   // Do not save a nominally successful town when imported water has consumed
@@ -738,7 +762,8 @@ export function generateUrbanPatchStep(
     false,
     undefined,
     1,
-    false
+    false,
+    document.gridKind
   );
   const total = plan.urbanStages.length;
   if (total === 0) {
@@ -805,7 +830,24 @@ export function generateCoastWalkStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 1);
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    1,
+    false,
+    undefined,
+    1,
+    true,
+    document.gridKind
+  );
   const shownDoc = applyPlan(document, cells, faceIdOf, { ...plan, sea: new Set() }, program, 1);
   const total = plan.coastPath.length;
   if (total === 0) return { document: shownDoc, total: 0, index: -1, detail: null, overlayPaths: [] };
@@ -836,7 +878,24 @@ export function generateRiverWalkStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 2);
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    2,
+    false,
+    undefined,
+    1,
+    true,
+    document.gridKind
+  );
   const shownDoc = applyPlan(document, cells, faceIdOf, { ...plan, rivers: [] }, program, 2);
   const lengths = plan.rivers.map(r => r.edgePoints.length);
   const total = lengths.reduce((sum, n) => sum + n, 0);
@@ -881,7 +940,24 @@ export function generateGateStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 4);
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    4,
+    false,
+    undefined,
+    1,
+    true,
+    document.gridKind
+  );
   const total = plan.gates.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 4), total: 0, index: -1, detail: null };
@@ -908,7 +984,24 @@ export function generateRoadStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 5);
+  const plan = runPlan(
+    document.mesh,
+    faceIdOf,
+    cells,
+    geo,
+    program,
+    params,
+    seed,
+    half,
+    cellSize,
+    settings,
+    5,
+    false,
+    undefined,
+    1,
+    true,
+    document.gridKind
+  );
   const total = plan.roads.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 5), total: 0, index: -1, detail: null };
@@ -953,7 +1046,24 @@ export function generateWardStep(
   const key = JSON.stringify([document, settings, seed]);
   if (wardStepCache?.key !== key) {
     const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-    const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 6);
+    const plan = runPlan(
+      document.mesh,
+      faceIdOf,
+      cells,
+      geo,
+      program,
+      params,
+      seed,
+      half,
+      cellSize,
+      settings,
+      6,
+      false,
+      undefined,
+      1,
+      true,
+      document.gridKind
+    );
     const result = applyPlan(document, cells, faceIdOf, plan, program, 6);
     const activeCells = plan.cells ?? cells;
     const activeIds = plan.faceIdOf ?? faceIdOf;
@@ -1051,7 +1161,8 @@ export function runPlan(
   complete = false,
   observer?: GenerationObserver,
   attempt = 1,
-  resolveRiverSplit = true
+  resolveRiverSplit = true,
+  gridKind?: "hex" | "voronoi" | "evolution"
 ): Plan {
   const mark = generationTimer(observer, attempt);
   const streetOpts = resolveStreetSettings(settings);
@@ -1146,13 +1257,13 @@ export function runPlan(
   );
   // City extent and wall capacity are independent. The outer residential
   // belt retains the rest of the same flood-fill, including its connectivity.
-  const { urban, residentialOutskirts } = splitUrbanCore(
-    cells,
-    classification.urban,
-    program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1
-  );
+  // Grid evolution then pulls a tiny/small curtain in by one or two cells.
+  const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+  const split = splitUrbanCore(cells, classification.urban, walledShare);
+  const urban = split.urban;
+  let residentialOutskirts = split.residentialOutskirts;
   const outskirts = new Set([...classification.outskirts, ...residentialOutskirts]);
-  const urbanStages = classification.stages.filter(stage => urban.has(stage.cellId));
+  let urbanStages = classification.stages.filter(stage => urban.has(stage.cellId));
   const builtUp = classification.urban;
   mark("urban", { urbanFaces: urban.size, recordedStages: urbanStages.length, builtUpFaces: builtUp.size });
 
@@ -1213,6 +1324,9 @@ export function runPlan(
           .filter(f => f.properties.settlement === "core")
           .map(f => f.id)
       );
+      const residentialFaceIds = new Set(
+        [...residentialOutskirts].map(idx => faceIdOf[idx]).filter((fid): fid is string => Boolean(fid))
+      );
       currentUrban = new Set(
         currentFaceIdOf.map((fid, idx) => (coreFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
       );
@@ -1222,7 +1336,32 @@ export function runPlan(
       currentOutskirts = new Set(
         currentFaceIdOf.map((fid, idx) => (outskirtFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
       );
+      residentialOutskirts = new Set(
+        currentFaceIdOf
+          .map((fid, idx) => (residentialFaceIds.has(fid) && !coreFaceIds.has(fid) ? idx : -1))
+          .filter(idx => idx >= 0)
+      );
       currentBuiltUp = new Set([...currentUrban, ...currentOutskirts]);
+    }
+  }
+
+  // Bram's spoke roads have to meet a curtain outside the 120 m core. A
+  // one-cell peel on this coarse mesh drops that curtain onto the spoke and
+  // leaves the gates unroutable, so Bram keeps the settlement-edge curtain.
+  const insetRings =
+    effectiveLayout === "bram"
+      ? 0
+      : evolutionWallInsetRings(sizePresetForExtent(params.extentMeters), seed, gridKind, program.walls, walledShare);
+  if (insetRings > 0 && currentUrban.size > 0) {
+    const inset = insetWalledCore(currentCells, currentUrban, insetRings);
+    if (inset.peeled.size) {
+      currentUrban = inset.urban;
+      for (const id of inset.peeled) {
+        residentialOutskirts.add(id);
+        currentOutskirts.add(id);
+      }
+      // River splits renumber cells, so the flood-fill stages no longer match.
+      if (!meshModified) urbanStages = classification.stages.filter(stage => currentUrban.has(stage.cellId));
     }
   }
 

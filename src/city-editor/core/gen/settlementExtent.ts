@@ -1,4 +1,5 @@
 import { polygonArea } from "./geom";
+import { makeRng } from "./prng";
 import type { Cell } from "./types";
 
 /** Matches `CITY_SIZE_PRESETS.small.extentMeters`. Windows below this are
@@ -66,4 +67,86 @@ export function splitUrbanCore(cells: Cell[], builtUp: Set<number>, share: numbe
     }
   }
   return { urban, residentialOutskirts };
+}
+
+/** Grid-evolution curtain inset, in cell rings, measured inward from the
+ * settlement edge. Tiny moves one cell. Small moves one or two, from the seed.
+ * Micro and Medium / Large stay put (those already use an area share). Other
+ * grids, unwalled towns, and an explicit capacity below the whole settlement
+ * keep the current line. */
+export function evolutionWallInsetRings(
+  preset: "micro" | "tiny" | "small" | "medium" | "large",
+  seed: string,
+  gridKind: string | undefined,
+  walls: boolean,
+  walledShare: number
+): number {
+  if (!walls || gridKind !== "evolution" || !(walledShare >= 1)) return 0;
+  if (preset === "tiny") return 1;
+  if (preset === "small") return makeRng(`${seed}:evolution-wall-inset`).int(1, 3);
+  return 0;
+}
+
+/** Pull `urban` in by `rings` cells from its boundary. Peeled cells leave the
+ * curtain and stay in the town. A ring that would erase the core is skipped.
+ * When a ring splits the remainder, the largest component stays walled. */
+export function insetWalledCore(
+  cells: Cell[],
+  urban: Set<number>,
+  rings: number
+): { urban: Set<number>; peeled: Set<number> } {
+  const peeled = new Set<number>();
+  let core = new Set(urban);
+  const steps = Number.isFinite(rings) ? Math.max(0, Math.floor(rings)) : 0;
+  if (!steps || !core.size) return { urban: core, peeled };
+  const byId = new Map(cells.map(cell => [cell.id, cell]));
+  for (let step = 0; step < steps; step++) {
+    const boundary: number[] = [];
+    for (const id of core) {
+      const cell = byId.get(id);
+      if (!cell) {
+        boundary.push(id);
+        continue;
+      }
+      if (!cell.neighbors.length || cell.neighbors.some(neighbor => !core.has(neighbor))) boundary.push(id);
+    }
+    if (!boundary.length) break;
+    const next = new Set(core);
+    for (const id of boundary) next.delete(id);
+    if (!next.size) break;
+    const components = connectedCellComponents(byId, next);
+    let kept = components[0];
+    for (const component of components) {
+      if (component.size > kept.size) kept = component;
+    }
+    for (const id of core) {
+      if (!kept.has(id)) peeled.add(id);
+    }
+    core = kept;
+  }
+  return { urban: core, peeled };
+}
+
+function connectedCellComponents(byId: Map<number, Cell>, ids: Set<number>): Set<number>[] {
+  const unseen = new Set(ids);
+  const components: Set<number>[] = [];
+  for (const start of ids) {
+    if (!unseen.has(start)) continue;
+    const component = new Set<number>();
+    const queue = [start];
+    unseen.delete(start);
+    while (queue.length) {
+      const id = queue.pop() as number;
+      component.add(id);
+      const cell = byId.get(id);
+      if (!cell) continue;
+      for (const neighbor of cell.neighbors) {
+        if (!unseen.has(neighbor)) continue;
+        unseen.delete(neighbor);
+        queue.push(neighbor);
+      }
+    }
+    components.push(component);
+  }
+  return components;
 }
