@@ -227,6 +227,24 @@ describe("complete editable city", () => {
     }
   });
 
+  it("keeps a Micro town's outer wall to at most three gates when a river crosses it", () => {
+    const settings = defaultGenerationSettings();
+    settings.layout = "organic";
+    settings.config.layout = "organic";
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.features.walls = true;
+    for (const seed of ["micro-gates-a", "micro-gates-b"]) {
+      const input = createGridDocument({ size: "micro", grid: "evolution", seed });
+      const city = generateCityOnDocument(input, settings, seed);
+      expect(city, seed).not.toBeNull();
+      if (!city) continue;
+      expect(city.gates.length, seed).toBeGreaterThan(0);
+      expect(city.gates.length, seed).toBeLessThanOrEqual(3);
+      expect(countExternalApproachRoads(city), seed).toBeGreaterThanOrEqual(1);
+    }
+  });
+
   it("is deterministic, preserves input, round-trips files and restores presentation on Undo/Redo", () => {
     const settings = defaultGenerationSettings();
     const original = JSON.stringify(base);

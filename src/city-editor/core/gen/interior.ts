@@ -208,7 +208,13 @@ function sameKey(a: Point, b: Point): boolean {
  * (not equal to) `suggestedGates`, and greedy bearing-match selection that
  * thins out anything too close, along the wall, to an already-chosen gate.
  */
-export function placeGates(cells: Cell[], urban: Set<number>, borders: BorderLoop[], geo: CityGeography): Gate[] {
+export function placeGates(
+  cells: Cell[],
+  urban: Set<number>,
+  borders: BorderLoop[],
+  geo: CityGeography,
+  maxGates?: number
+): Gate[] {
   if (!borders.length) return [];
 
   // A block corner: >= 2 urban cells share this wall vertex (a Voronoi vertex
@@ -240,7 +246,10 @@ export function placeGates(cells: Cell[], urban: Set<number>, borders: BorderLoo
 
   const wet = !!geo.coast || (geo.waterAreas?.length ?? 0) > 0 || geo.rivers.length > 0;
   const suggested = geo.suggestedGates ?? geo.roadBearings.length;
-  const target = Math.max(3, Math.min(6, Math.round(suggested * 0.7))) + (wet ? 1 : 0);
+  // clamp(round(suggested * 0.7), 3, 6), plus one on a wet site. A map-size
+  // ceiling (Micro: 3) wins, so the wet bonus cannot open a fifth gate.
+  let target = Math.max(3, Math.min(6, Math.round(suggested * 0.7))) + (wet ? 1 : 0);
+  if (maxGates !== undefined && Number.isFinite(maxGates)) target = Math.min(target, Math.max(1, Math.floor(maxGates)));
 
   const bearings = geo.roadPaths?.filter(p => p.length >= 2).map(p => vecToAzimuth(p.at(-1)![0], p.at(-1)![1])) ?? [];
   const targets = bearings.length ? bearings : geo.roadBearings;

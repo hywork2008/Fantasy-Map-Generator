@@ -31,6 +31,7 @@ import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 // Rivers / Features (or a real FMG descriptor) are the deliberate inputs and
 // are kept across presses.
 
+import { maxWallGatesForExtent } from "./document";
 import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
@@ -1287,15 +1288,21 @@ export function runPlan(
   }
 
   const placed = markWaterGate(
-    placeGates(currentCells, currentUrban, genBorders, {
-      ...geo,
-      rivers: rivers.map(river => ({
-        corridor: river.edgePoints,
-        widths: river.widths,
-        cityBank: "left" as const,
-        bridgeAllowed: river.bridgeAllowed
-      }))
-    }),
+    placeGates(
+      currentCells,
+      currentUrban,
+      genBorders,
+      {
+        ...geo,
+        rivers: rivers.map(river => ({
+          corridor: river.edgePoints,
+          widths: river.widths,
+          cityBank: "left" as const,
+          bridgeAllowed: river.bridgeAllowed
+        }))
+      },
+      maxWallGatesForExtent(params.extentMeters)
+    ),
     genBorders,
     coast?.shoreline ?? null,
     program.port

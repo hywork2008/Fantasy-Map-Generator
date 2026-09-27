@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGridDocument, createSizedDocument, sizePresetForExtent } from "./document";
+import { createGridDocument, createSizedDocument, maxWallGatesForExtent, sizePresetForExtent } from "./document";
 import { featureGroupVertices } from "./features";
 import { polygonArea } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
@@ -963,6 +963,7 @@ describe("sizePresetForExtent / custom frame", () => {
     expect(sizePresetForExtent(1500)).toBe("small");
     expect(sizePresetForExtent(3000)).toBe("medium");
     expect(sizePresetForExtent(4500)).toBe("large");
+    expect([300, 400, 500, 600, 1200, 2400, 4800].map(maxWallGatesForExtent)).toEqual([3, 3, 7, 7, 7, 7, 7]);
   });
 
   it("createGridDocument honours an FMG descriptor frame", () => {
