@@ -10,6 +10,7 @@ import {
   straightenBridge,
   straightenBridges,
   straightenGateCrossings,
+  throughEdgesAt,
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
@@ -609,5 +610,119 @@ describe("straightenGateCrossings", () => {
     const river = next.mesh.vertices.w1.point;
     expect(Math.hypot(gate[0] - river[0], gate[1] - river[1])).toBeGreaterThanOrEqual(before - 0.05);
     expect(gate[0]).toBeGreaterThanOrEqual(-0.05);
+  });
+
+  it("squares a gate without pulling the bridge arm off the river normal", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+      mesh: {
+        vertices: {
+          s: { id: "s", point: [-40, 0], locked: false },
+          m: { id: "m", point: [0, 0], locked: false },
+          n: { id: "n", point: [40, 0], locked: false },
+          b: { id: "b", point: [0, 20], locked: false },
+          g: { id: "g", point: [30, 40], locked: false },
+          w1: { id: "w1", point: [0, 40], locked: false },
+          w2: { id: "w2", point: [60, 40], locked: false },
+          o: { id: "o", point: [30, 60], locked: false }
+        },
+        edges: {
+          r1: { id: "r1", a: "s", b: "m", leftFace: null, rightFace: null, locked: false },
+          r2: { id: "r2", a: "m", b: "n", leftFace: null, rightFace: null, locked: false },
+          bridge: { id: "bridge", a: "m", b: "b", leftFace: null, rightFace: null, locked: false },
+          approach: { id: "approach", a: "b", b: "g", leftFace: null, rightFace: null, locked: false },
+          wallA: { id: "wallA", a: "w1", b: "g", leftFace: null, rightFace: null, locked: false },
+          wallB: { id: "wallB", a: "g", b: "w2", leftFace: null, rightFace: null, locked: false },
+          outward: { id: "outward", a: "g", b: "o", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "gc:river-1",
+          kind: "river",
+          name: "River",
+          vertices: ["s", "m", "n"],
+          source: { vertexId: "s", kind: "spring" },
+          mouth: { vertexId: "n", kind: "mapBoundary" },
+          style: { widthMeters: 8, color: "#4f8aad" },
+          locked: false
+        },
+        {
+          id: "gc:wall-1",
+          kind: "wall",
+          name: "Wall",
+          segments: [
+            { edgeId: "wallA", forward: true },
+            { edgeId: "wallB", forward: true }
+          ],
+          style: { widthMeters: 7, color: "#342a22" },
+          locked: false
+        },
+        {
+          id: "gc:road-1",
+          kind: "road",
+          name: "Road",
+          segments: [
+            { edgeId: "bridge", forward: true },
+            { edgeId: "approach", forward: true },
+            { edgeId: "outward", forward: true }
+          ],
+          style: { widthMeters: 4, color: "#735238" },
+          locked: false
+        }
+      ],
+      gates: [{ id: "gc:gate-1", vertexId: "g", locked: false }],
+      elements: [{ id: "plaza", kind: "plaza", faceIds: [], point: [30, 80], locked: false }]
+    };
+    const next = straightenGateCrossings(document);
+    expect(next.mesh.vertices.b.point[0]).toBeCloseTo(0, 0);
+    expect(next.mesh.vertices.b.point[1]).toBeCloseTo(20, 0);
+  });
+});
+
+describe("throughEdgesAt", () => {
+  it("does not treat an edge between two river vertices as a bridge arm", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+      mesh: {
+        vertices: {
+          a: { id: "a", point: [-10, 1], locked: false },
+          b: { id: "b", point: [0, 0], locked: false },
+          c: { id: "c", point: [10, 1], locked: false },
+          d: { id: "d", point: [0, -10], locked: false },
+          land: { id: "land", point: [0, 10], locked: false }
+        },
+        edges: {
+          r1: { id: "r1", a: "a", b: "b", leftFace: null, rightFace: null, locked: false },
+          r2: { id: "r2", a: "b", b: "c", leftFace: null, rightFace: null, locked: false },
+          r3: { id: "r3", a: "c", b: "d", leftFace: null, rightFace: null, locked: false },
+          chord: { id: "chord", a: "b", b: "d", leftFace: null, rightFace: null, locked: false },
+          bank: { id: "bank", a: "b", b: "land", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "gc:river-1",
+          kind: "river",
+          name: "River",
+          vertices: ["a", "b", "c", "d"],
+          source: null,
+          mouth: null,
+          style: { widthMeters: 8, color: "#4f8aad" },
+          locked: false
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+    const through = throughEdgesAt(document, "b", "river", true);
+    expect(through.map(edge => edge.id)).not.toContain("chord");
+    expect(through).toHaveLength(0);
   });
 });

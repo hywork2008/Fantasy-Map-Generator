@@ -2326,12 +2326,15 @@ function completeRoadRouter(
     const edges = kindEdgeIds(document, kind);
     const vertices = new Set([...edges].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
     for (const id of vertices) {
-      const allowed = new Set(throughEdgesAt(document, id, kind).map(e => e.id));
+      const allowed = new Set(throughEdgesAt(document, id, kind, kind === "river").map(e => e.id));
       const previous = restricted.get(id);
       restricted.set(id, previous ? new Set([...allowed].filter(e => previous.has(e))) : allowed);
     }
   }
   const gateIds = new Set(document.gates.map(g => g.vertexId));
+  const riverRouteVertices = new Set<Id>();
+  for (const group of document.featureGroups)
+    if (group.kind === "river") for (const id of group.vertices) riverRouteVertices.add(id);
   const endpoint = (p: Point): Id | null => {
     const plannedIndex = plan.gates.findIndex(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < 0.01);
     if (plannedIndex >= 0) {
@@ -2364,6 +2367,8 @@ function completeRoadRouter(
     const weight = (a: number, b: number, w: number, hopEnd: number) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
       if (banned.has(edge.id)) return Infinity;
+      // Once the road is on the river, the next vertex is land on the far bank.
+      if (riverRouteVertices.has(edge.a) && riverRouteVertices.has(edge.b)) return Infinity;
       for (const id of [edge.a, edge.b]) if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
       const faces = [edge.leftFace, edge.rightFace].filter((id): id is Id => id !== null);
       if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land")) return Infinity;

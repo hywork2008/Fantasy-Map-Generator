@@ -97,12 +97,24 @@ export function vertexHasCrossing(
   return false;
 }
 
-/** One non-barrier arm on each side; no same-side fallback is permitted. Prefers the pair closest to a straight 180° line. */
-export function throughEdgesAt(document: CityDocument, vertexId: Id, barrier: BarrierKind): Edge[] {
+function riverVertexSet(document: CityDocument): Set<Id> {
+  const ids = new Set<Id>();
+  for (const group of document.featureGroups) if (group.kind === "river") for (const id of group.vertices) ids.add(id);
+  return ids;
+}
+
+/** One non-barrier arm on each side; no same-side fallback is permitted. Prefers the pair closest to a straight 180° line.
+ * `landOnly` drops an arm that ends on another river vertex, so a road cannot turn along the channel. */
+export function throughEdgesAt(document: CityDocument, vertexId: Id, barrier: BarrierKind, landOnly = false): Edge[] {
   const ordered = orderedIncidentEdges(document, vertexId);
   const banned = kindEdgeIds(document, barrier);
   const used = ordered.filter(edge => banned.has(edge.id)).map(edge => edge.id);
-  const free = ordered.filter(edge => !banned.has(edge.id));
+  const stayOnRiver = landOnly && barrier === "river" ? riverVertexSet(document) : null;
+  const free = ordered.filter(edge => {
+    if (banned.has(edge.id)) return false;
+    if (!stayOnRiver) return true;
+    return !stayOnRiver.has(edge.a === vertexId ? edge.b : edge.a);
+  });
   const origin = document.mesh.vertices[vertexId]?.point;
   let bestPair: [Edge, Edge] | null = null;
   let bestStraightness = 1; // want minimum dot product (closest to -1)
@@ -203,7 +215,7 @@ export function joinWallRiverCrossings(document: CityDocument): CityDocument {
 /** Materialize the two road arms of a bridge, rather than just reserving an
  * unused degree-four river vertex for a later pathfinder. */
 export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDocument | null {
-  const through = throughEdgesAt(document, vertexId, "river");
+  const through = throughEdgesAt(document, vertexId, "river", true);
   const walls = kindEdgeIds(document, "wall");
   if (through.length !== 2 || through.some(e => walls.has(e.id))) return null;
   if (
@@ -459,15 +471,24 @@ function swingObliqueGateArm(
     ) <= PERPENDICULAR_GATE_DEGREES
   )
     return document;
-  let worse = placed[0];
+  // The arm that leaves a river crossing stays on the river normal. Square the
+  // gate with the other arm so the bridge is not pulled diagonal again.
+  const roadEdges = kindEdgeIds(document, "road");
+  const bridgeArm = (id: Id) =>
+    incidentEdges(document.mesh, id).some(
+      edge => roadEdges.has(edge.id) && riverVertices.has(edge.a === id ? edge.b : edge.a)
+    );
+  let worse: { id: Id; point: Point } | null = null;
   let worseDev = -1;
   for (const arm of placed) {
+    if (bridgeArm(arm.id)) continue;
     const dev = roadDeviationDegrees(gatePoint, [arm.point], tangent);
     if (dev > worseDev) {
       worseDev = dev;
       worse = arm;
     }
   }
+  if (!worse || worseDev <= PERPENDICULAR_GATE_DEGREES) return document;
   const road = document.mesh.vertices[worse.id];
   if (!road || road.locked || riverVertices.has(worse.id)) return document;
   if (document.gates.some(gate => gate.vertexId === worse.id)) return document;
@@ -975,7 +996,7 @@ function extendRoadsThroughPassages(document: CityDocument): CityDocument {
 }
 
 function extendRoadThrough(document: CityDocument, vertexId: Id, barrier: BarrierKind): CityDocument | null {
-  const through = throughEdgesAt(document, vertexId, barrier);
+  const through = throughEdgesAt(document, vertexId, barrier, barrier === "river");
   if (through.length < 1) return null;
   const touching = document.featureGroups.find(
     group => group.kind === "road" && featureGroupVertices(document, group).includes(vertexId)
