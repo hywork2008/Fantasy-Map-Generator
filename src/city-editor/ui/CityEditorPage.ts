@@ -3617,8 +3617,29 @@ function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face
 function floatingWindow(className: string, title: string): FloatingWindow {
   const root = div(`ce-panel ${className}`);
   const titlebar = div("ce-panel-titlebar");
-  titlebar.append(heading(title), text("⠿"));
   const content = div("ce-panel-content");
+  content.id = `${className.trim().split(/\s+/)[0]}-body`;
+  const collapse = document.createElement("button");
+  collapse.type = "button";
+  collapse.className = "ce-panel-collapse";
+  collapse.setAttribute("aria-controls", content.id);
+  const setCollapsed = (collapsed: boolean): void => {
+    root.classList.toggle("ce-panel--collapsed", collapsed);
+    content.hidden = collapsed;
+    const label = collapsed ? "Restore" : "Minimize";
+    collapse.textContent = collapsed ? "▲" : "▼";
+    collapse.title = label;
+    collapse.setAttribute("aria-label", label);
+    collapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  };
+  setCollapsed(false);
+  collapse.addEventListener("pointerdown", event => event.stopPropagation());
+  collapse.addEventListener("click", () => setCollapsed(!content.hidden));
+  const actions = div("ce-panel-titlebar-actions");
+  const grip = text("⠿");
+  grip.setAttribute("aria-hidden", "true");
+  actions.append(collapse, grip);
+  titlebar.append(heading(title), actions);
   root.append(titlebar, content);
   makeWindowDraggable(root, titlebar);
   return { root, content };
@@ -3665,6 +3686,7 @@ function makeWindowDraggable(windowNode: HTMLElement, handle: HTMLElement): void
   let top = 0;
   handle.addEventListener("pointerdown", event => {
     if (event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest("button, a, input, select, textarea")) return;
     event.preventDefault();
     const bounds = windowNode.getBoundingClientRect();
     startX = event.clientX;
