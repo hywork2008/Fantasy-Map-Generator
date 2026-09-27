@@ -1,6 +1,12 @@
 import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
+import {
+  approachBeyondAnchor,
+  approachBeyondLabel,
+  externalGateRoads,
+  normalizeApproachBeyond
+} from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
@@ -298,16 +304,18 @@ export function renderEditorSvg(
         if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
       }
     }
+    const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
       id: group.id,
-      label: `${group.kind} (${group.name})`,
+      label: beyondLabel ? `${group.kind} (${group.name} · ${beyondLabel})` : `${group.kind} (${group.name})`,
       name: group.name,
       locked: group.locked,
       widthMeters: group.style.widthMeters,
       color: group.style.color,
-      segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
+      segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
+      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {})
     };
     for (const run of runs) {
       if (run.length < 2) continue;
@@ -341,6 +349,37 @@ export function renderEditorSvg(
         })
       );
     }
+  }
+  const beyondFont = selectionLabelFontSize(document.frame.extentMeters, zoom);
+  for (const road of externalGateRoads(document)) {
+    const beyondLabel = approachBeyondLabel(road.group.beyond);
+    const norm = normalizeApproachBeyond(road.group.beyond);
+    if (!beyondLabel || !norm) continue;
+    const at = approachBeyondAnchor(road.outward, document.frame.extentMeters / 2);
+    features.appendChild(
+      element(
+        "text",
+        {
+          class: "ce-approach-beyond",
+          x: String(at[0]),
+          y: String(-at[1]),
+          "text-anchor": "middle",
+          "dominant-baseline": "middle",
+          "font-size": String(beyondFont),
+          fill: norm.realm.relation === "Enemy" ? "#7e2217" : norm.realm.relation === "Ally" ? "#1e5c22" : "#2c261f",
+          stroke: "#f4f0e6",
+          "stroke-width": String(beyondFont / 8),
+          "paint-order": "stroke",
+          "pointer-events": "none",
+          "data-group": road.group.id,
+          "data-beyond": typeof road.group.beyond === "string" ? road.group.beyond : norm.realm.relation,
+          "data-beyond-relation": norm.realm.relation,
+          "data-beyond-scale": norm.settlement.scale,
+          "data-beyond-role": norm.settlement.role ?? "generic"
+        },
+        beyondLabel
+      )
+    );
   }
   if (town) {
     for (const deck of bridgeDecks(document)) {

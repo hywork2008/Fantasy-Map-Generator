@@ -32,6 +32,17 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import {
+  approachBeyondLabel,
+  evaluateApproachBeyond,
+  normalizeApproachBeyond,
+  REALM_RELATION_LABELS,
+  REALM_RELATIONS,
+  SETTLEMENT_ROLE_LABELS,
+  SETTLEMENT_ROLES,
+  SETTLEMENT_SCALE_LABELS,
+  SETTLEMENT_SCALES
+} from "../core/gen/approachBeyond";
 import { defaultDistrictParameters, resolveDistricts, setDistrictParameters } from "../core/gen/fabricDistricts";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
@@ -86,7 +97,20 @@ import {
   validate
 } from "../core/mesh";
 import { openGatePassage } from "../core/passages";
-import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
+import type {
+  ApproachBeyond,
+  ApproachBeyondData,
+  BeyondRealmRelation,
+  CityDocument,
+  FeatureGroup,
+  Id,
+  Point,
+  SettlementRole,
+  SettlementScale,
+  Tool,
+  WardKind,
+  WaterKind
+} from "../core/types";
 import { exportCityMap, exportCitySvg, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import {
   buildShare,
@@ -2002,6 +2026,267 @@ export function mountCityEditor(root: HTMLElement): void {
     return documentState.frame.extentMeters / 2 / halfView;
   }
 
+  function appendApproachBeyondControls(
+    container: HTMLElement,
+    groupId: Id,
+    current: ApproachBeyond | undefined
+  ): void {
+    const wrap = document.createElement("div");
+    wrap.className = "ce-beyond-controls";
+    wrap.style.display = "flex";
+    wrap.style.flexDirection = "column";
+    wrap.style.gap = "6px";
+    wrap.style.marginTop = "8px";
+    wrap.style.padding = "8px";
+    wrap.style.border = "1px solid var(--line, #ccc)";
+    wrap.style.borderRadius = "4px";
+    wrap.style.background = "rgba(0,0,0,0.03)";
+
+    const norm = normalizeApproachBeyond(current);
+
+    const PRESETS = [
+      {
+        id: "city_domestic",
+        label: "大都市（自国）",
+        data: {
+          realm: { relation: "domestic" as const },
+          settlement: { scale: "city" as const, role: "generic" as const, population: 15000, wealth: 70 }
+        }
+      },
+      {
+        id: "granary_domestic",
+        label: "食料供給農村（自国）",
+        data: {
+          realm: { relation: "domestic" as const },
+          settlement: { scale: "village" as const, role: "granary" as const, population: 800, wealth: 45 }
+        }
+      },
+      {
+        id: "fortress_enemy",
+        label: "要塞町（敵国）",
+        data: {
+          realm: { relation: "Enemy" as const },
+          settlement: { scale: "town" as const, role: "fortress" as const, population: 4000, wealth: 55 }
+        }
+      },
+      {
+        id: "market_ally",
+        label: "交易大都市（同盟国）",
+        data: {
+          realm: { relation: "Ally" as const },
+          settlement: { scale: "city" as const, role: "market" as const, population: 14000, wealth: 75 }
+        }
+      },
+      {
+        id: "hamlet_domestic",
+        label: "過疎の村（自国）",
+        data: {
+          realm: { relation: "domestic" as const },
+          settlement: { scale: "hamlet" as const, role: "generic" as const, population: 150, wealth: 25 }
+        }
+      }
+    ] as const;
+
+    // プリセットセレクタ
+    const presetSelect = document.createElement("select");
+    presetSelect.className = "ce-approach-beyond-select";
+    const noneOption = document.createElement("option");
+    noneOption.value = "";
+    noneOption.textContent = "（付けない）";
+    presetSelect.appendChild(noneOption);
+    for (const p of PRESETS) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.label;
+      presetSelect.appendChild(opt);
+    }
+
+    if (!norm) {
+      presetSelect.value = "";
+    } else if (norm.realm.relation === "domestic" && norm.settlement.scale === "city") {
+      presetSelect.value = "city_domestic";
+    } else if (norm.realm.relation === "domestic" && norm.settlement.scale === "village") {
+      presetSelect.value = "granary_domestic";
+    } else if (norm.realm.relation === "Enemy") {
+      presetSelect.value = "fortress_enemy";
+    } else if (norm.realm.relation === "Ally") {
+      presetSelect.value = "market_ally";
+    } else if (norm.realm.relation === "domestic" && norm.settlement.scale === "hamlet") {
+      presetSelect.value = "hamlet_domestic";
+    } else {
+      presetSelect.value = "";
+    }
+
+    wrap.append(label("街道の先（プリセット）", presetSelect));
+
+    presetSelect.addEventListener("change", () => {
+      const next = clone(documentState);
+      const target = next.featureGroups.find(c => c.id === groupId);
+      if (target?.kind !== "road") return;
+      if (!presetSelect.value) {
+        delete target.beyond;
+        commit(next, "街道の先を解除");
+        return;
+      }
+      const found = PRESETS.find(p => p.id === presetSelect.value);
+      if (found) {
+        target.beyond = structuredClone(found.data as ApproachBeyondData);
+        commit(next, "街道の先を変更");
+      }
+    });
+
+    if (norm) {
+      // 1. 国・外交関係
+      const realmSelect = document.createElement("select");
+      realmSelect.className = "ce-beyond-realm-select";
+      for (const rel of REALM_RELATIONS) {
+        const opt = document.createElement("option");
+        opt.value = rel;
+        opt.textContent = REALM_RELATION_LABELS[rel];
+        realmSelect.appendChild(opt);
+      }
+      realmSelect.value = norm.realm.relation;
+
+      // 相手国名
+      const stateInput = document.createElement("input");
+      stateInput.type = "text";
+      stateInput.className = "ce-beyond-state-input";
+      stateInput.placeholder = "自国・または国名";
+      stateInput.value = norm.realm.stateName ?? "";
+
+      // 2. 都市規模
+      const scaleSelect = document.createElement("select");
+      scaleSelect.className = "ce-beyond-scale-select";
+      for (const s of SETTLEMENT_SCALES) {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = SETTLEMENT_SCALE_LABELS[s];
+        scaleSelect.appendChild(opt);
+      }
+      scaleSelect.value = norm.settlement.scale;
+
+      // 都市役割
+      const roleSelect = document.createElement("select");
+      roleSelect.className = "ce-beyond-role-select";
+      for (const r of SETTLEMENT_ROLES) {
+        const opt = document.createElement("option");
+        opt.value = r;
+        opt.textContent = SETTLEMENT_ROLE_LABELS[r];
+        roleSelect.appendChild(opt);
+      }
+      roleSelect.value = norm.settlement.role ?? "generic";
+
+      // 都市名
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "ce-beyond-name-input";
+      nameInput.placeholder = "都市名（任意）";
+      nameInput.value = norm.settlement.name ?? "";
+
+      // 人口
+      const popInput = document.createElement("input");
+      popInput.type = "number";
+      popInput.min = "10";
+      popInput.step = "100";
+      popInput.className = "ce-beyond-pop-input";
+      popInput.value = String(norm.settlement.population ?? 1000);
+
+      // 富
+      const wealthInput = document.createElement("input");
+      wealthInput.type = "number";
+      wealthInput.min = "0";
+      wealthInput.max = "100";
+      wealthInput.className = "ce-beyond-wealth-input";
+      wealthInput.value = String(norm.settlement.wealth ?? 50);
+
+      // 評価パネル
+      const assessBox = document.createElement("div");
+      assessBox.className = "ce-beyond-assessment";
+      assessBox.style.fontSize = "12px";
+      assessBox.style.lineHeight = "1.4";
+      assessBox.style.padding = "6px 8px";
+      assessBox.style.background = "#fff";
+      assessBox.style.borderRadius = "3px";
+      assessBox.style.border = "1px solid rgba(0,0,0,0.12)";
+
+      const assess = evaluateApproachBeyond(norm, {
+        extentMeters: documentState.frame.extentMeters,
+        hasWalls: documentState.featureGroups.some(g => g.kind === "wall")
+      });
+
+      if (assess) {
+        assessBox.innerHTML = `
+          <div style="font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+            <span>有用性: <span style="color: #2e7d32;">${assess.utilityLabel}</span></span>
+            <span>防備必要性: <span style="color: #c62828;">${assess.defenseLabel}</span></span>
+          </div>
+          <div style="color: #333; margin-bottom: 2px;">• ${assess.utilityReason}</div>
+          <div style="color: #333;">• ${assess.defenseReason}</div>
+        `;
+      }
+
+      function updateData(mutator: (d: ApproachBeyondData) => void, desc: string) {
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === groupId);
+        if (target?.kind !== "road") return;
+        const currentData =
+          normalizeApproachBeyond(target.beyond) ?? structuredClone(PRESETS[0].data as ApproachBeyondData);
+        mutator(currentData);
+        target.beyond = currentData;
+        commit(next, desc);
+      }
+
+      realmSelect.addEventListener("change", () => {
+        updateData(d => {
+          d.realm.relation = realmSelect.value as BeyondRealmRelation;
+        }, "国の外交関係を変更");
+      });
+      stateInput.addEventListener("change", () => {
+        updateData(d => {
+          d.realm.stateName = stateInput.value || undefined;
+        }, "相手国名を変更");
+      });
+      scaleSelect.addEventListener("change", () => {
+        updateData(d => {
+          d.settlement.scale = scaleSelect.value as SettlementScale;
+        }, "都市規模を変更");
+      });
+      roleSelect.addEventListener("change", () => {
+        updateData(d => {
+          d.settlement.role = roleSelect.value as SettlementRole;
+        }, "都市役割を変更");
+      });
+      nameInput.addEventListener("change", () => {
+        updateData(d => {
+          d.settlement.name = nameInput.value || undefined;
+        }, "都市名を変更");
+      });
+      popInput.addEventListener("change", () => {
+        updateData(d => {
+          d.settlement.population = Number(popInput.value) || 1000;
+        }, "相手人口を変更");
+      });
+      wealthInput.addEventListener("change", () => {
+        updateData(d => {
+          d.settlement.wealth = Number(wealthInput.value) || 50;
+        }, "相手経済水準を変更");
+      });
+
+      wrap.append(
+        label("国・外交関係", realmSelect),
+        label("国名", stateInput),
+        label("都市規模", scaleSelect),
+        label("特化役割", roleSelect),
+        label("都市名", nameInput),
+        label("推定人口", popInput),
+        label("経済指数(富 0-100)", wealthInput),
+        label("都市評価・防備指標", assessBox)
+      );
+    }
+
+    container.appendChild(wrap);
+  }
+
   function populateInspectorEditControls(container: HTMLElement): void {
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
@@ -2016,17 +2301,21 @@ export function mountCityEditor(root: HTMLElement): void {
             }
           })
         );
+        if (group.kind === "road") appendApproachBeyondControls(container, group.id, group.beyond);
         return;
       }
     }
     if (activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
+        if (group.kind === "road") appendApproachBeyondControls(container, group.id, group.beyond);
         container.appendChild(
           text(
-            group.locked
-              ? `${group.name} is locked`
-              : "Route drawing: in River, Road, or Wall mode, left-drag from a nearby edge to lay a connected route. In Select mode, left-drag a highlighted route edge through a cell to reroute it; right-click to delete; click an unused edge at an endpoint to extend it."
+            group.kind === "road"
+              ? "外壁の門から地図の外へ出る街道に、その先の性格を付けます。沿道をどう発展させるかの指標です。"
+              : group.locked
+                ? `${group.name} is locked`
+                : "Route drawing: in River, Road, or Wall mode, left-drag from a nearby edge to lay a connected route. In Select mode, left-drag a highlighted route edge through a cell to reroute it; right-click to delete; click an unused edge at an endpoint to extend it."
           )
         );
         return;
@@ -2244,16 +2533,18 @@ export function mountCityEditor(root: HTMLElement): void {
           activeGroupId = group.id;
           selection.groupId = group.id;
           selection.inspectedId = group.id;
+          const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
           inspectedInfo = {
             layer: "features",
             kind: group.kind,
             id: group.id,
-            label: `${group.kind} (${group.name})`,
+            label: beyondLabel ? `${group.kind} (${group.name} · ${beyondLabel})` : `${group.kind} (${group.name})`,
             name: group.name,
             locked: group.locked,
             widthMeters: group.style.widthMeters,
             color: group.style.color,
-            segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
+            segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
+            ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {})
           };
           tool = "select";
           refresh();
@@ -2262,7 +2553,11 @@ export function mountCityEditor(root: HTMLElement): void {
       choose.classList.toggle("is-active", isSelected);
       row.append(
         choose,
-        text(group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`)
+        text(
+          `${group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`}${
+            group.kind === "road" && approachBeyondLabel(group.beyond) ? ` · ${approachBeyondLabel(group.beyond)}` : ""
+          }`
+        )
       );
       const smooth = makeIconButton("⌁", `Smooth ${group.name}`, () => {
         const next = smoothFeatureGroup(documentState, group.id);

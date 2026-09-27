@@ -125,6 +125,38 @@ function seedRichTown(tries = 16): void {
 }
 
 describe("Generate panel", () => {
+  it("labels each outer-gate road with what lies beyond the map", () => {
+    selectStage(9);
+    const labels = [...root.querySelectorAll(".ce-approach-beyond")].map(node => node.textContent ?? "");
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      expect(label).toMatch(/(自国|同盟国|敵国|友好国|中立国|警戒国)/);
+      expect(label).toMatch(/(大都市|町|農村|村|集落)/);
+    }
+    const row = [...root.querySelectorAll(".ce-group-row")].find(candidate =>
+      labels.some(label => candidate.textContent?.includes(label))
+    );
+    expect(row).toBeTruthy();
+    row?.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const select = root.querySelector<HTMLSelectElement>(".ce-approach-beyond-select");
+    expect([...(select?.options ?? [])].map(option => option.textContent)).toEqual([
+      "（付けない）",
+      "大都市（自国）",
+      "食料供給農村（自国）",
+      "要塞町（敵国）",
+      "交易大都市（同盟国）",
+      "過疎の村（自国）"
+    ]);
+
+    // 詳細編集コントロールと評価パネルの存在を確認
+    expect(root.querySelector(".ce-beyond-realm-select")).toBeTruthy();
+    expect(root.querySelector(".ce-beyond-scale-select")).toBeTruthy();
+    expect(root.querySelector(".ce-beyond-assessment")).toBeTruthy();
+    expect(root.querySelector(".ce-beyond-assessment")?.textContent).toContain("有用性");
+    expect(root.querySelector(".ce-beyond-assessment")?.textContent).toContain("防備");
+  });
+
   it("offers a sea-wall control with a full wall, no wall, and one opening", () => {
     const select = root.querySelector<HTMLSelectElement>(".ce-generate-seawall");
     expect(select).toBeTruthy();

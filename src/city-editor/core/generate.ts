@@ -34,6 +34,7 @@ import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 
 import { maxWallGatesForExtent, sizePresetForExtent } from "./document";
 import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
+import { tagExternalGateRoads } from "./gen/approachBeyond";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
 import { type CoastResult, classifyCoast } from "./gen/classifySea";
@@ -391,6 +392,7 @@ export function generateStageOnDocument(
   if (res) {
     res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
     res.generationSeed = seed;
+    if (stageStep >= 5) tagExternalGateRoads(res, seed, settings.descriptor);
   }
   return res;
 }
@@ -713,6 +715,7 @@ export function generateCityAttempt(
     );
   settled.layout = effectiveLayout;
   if (coarse) settled.fabric = createFabricPlan(settled, seed);
+  tagExternalGateRoads(settled, seed, settings.descriptor);
   return settled;
 }
 

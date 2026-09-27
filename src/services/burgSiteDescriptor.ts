@@ -3,6 +3,7 @@ import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
+import type { RelationKey } from "../utils/diplomacyRelations";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 
@@ -76,6 +77,24 @@ export interface BurgSiteRiver {
   };
 }
 
+export interface BurgSiteRoadNextBurg {
+  id: number;
+  name: string;
+  distanceMeters: number;
+  stateId?: number;
+  stateName?: string;
+  isDomestic?: boolean;
+  diplomacyRelation?: "domestic" | RelationKey;
+  population?: number;
+  scale?: "hamlet" | "village" | "town" | "city";
+  role?: "generic" | "granary" | "market" | "fortress" | "capital";
+  capital?: boolean;
+  walls?: boolean;
+  citadel?: boolean;
+  treasury?: number;
+  wealth?: number;
+}
+
 export interface BurgSiteRoadEntry {
   routeId: number;
   /** FMG route group: "roads" | "trails" | "searoutes". */
@@ -88,7 +107,7 @@ export interface BurgSiteRoadEntry {
   /** Leg polyline from the town center outward, clipped to the extent box, local meters. */
   path: [number, number][];
   /** First other burg encountered along this leg (signpost destination), if any. */
-  nextBurg: { id: number; name: string; distanceMeters: number } | null;
+  nextBurg: BurgSiteRoadNextBurg | null;
 }
 
 export interface BurgSiteWaterbody {
@@ -652,10 +671,45 @@ function collectRoadEntries(
       const cellBurgId = pack.cells.burg[leg[i][2]];
       if (cellBurgId && cellBurgId !== burg.i) {
         const target = pack.burgs[cellBurgId];
+        const isDomestic = target ? target.state === burg.state : true;
+        let diplomacyRelation: BurgSiteRoadNextBurg["diplomacyRelation"] = isDomestic ? "domestic" : "Neutral";
+        if (!isDomestic && target && burg.state && target.state) {
+          const stateRel = pack.states[burg.state]?.diplomacy?.[target.state];
+          if (typeof stateRel === "string") {
+            diplomacyRelation = stateRel as RelationKey;
+          }
+        }
+        const stateName = (target?.state && pack.states[target.state]?.name) || "";
+        const pop = target?.population ?? 0;
+        let scale: BurgSiteRoadNextBurg["scale"] = "town";
+        if (target?.group === "hamlet" || pop < 1) scale = "hamlet";
+        else if (target?.group === "village" || pop < 3) scale = "village";
+        else if (pop > 10 || target?.capital) scale = "city";
+
+        let role: BurgSiteRoadNextBurg["role"] = "generic";
+        if (target?.capital) role = "capital";
+        else if (target?.citadel || (target?.walls && pop < 4)) role = "fortress";
+        else if (scale === "village" || target?.group === "farm") role = "granary";
+        else if (target?.port || target?.group === "trading_post" || (scale === "city" && target?.plaza))
+          role = "market";
+
+        const popRate = useOptionsState.getState().populationRate ?? 1000;
         nextBurg = {
           id: cellBurgId,
           name: target?.name ?? "",
-          distanceMeters: rn(lengthMapUnits * metersPerMapUnit)
+          distanceMeters: rn(lengthMapUnits * metersPerMapUnit),
+          stateId: target?.state,
+          stateName,
+          isDomestic,
+          diplomacyRelation,
+          population: Math.round(pop * popRate),
+          scale,
+          role,
+          capital: Boolean(target?.capital),
+          walls: Boolean(target?.walls),
+          citadel: Boolean(target?.citadel),
+          treasury: target?.treasury,
+          wealth: (target as { wealth?: number })?.wealth ?? Math.min(100, Math.round(pop * 10))
         };
         break;
       }

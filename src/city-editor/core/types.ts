@@ -53,6 +53,70 @@ export interface LineStyle {
   color: string;
 }
 
+/** FMG diplomacy relation keys. */
+export type BeyondDiplomacyRelation =
+  | "Ally"
+  | "Friendly"
+  | "Neutral"
+  | "Suspicion"
+  | "Enemy"
+  | "Unknown"
+  | "Rival"
+  | "Vassal"
+  | "Suzerain";
+
+/** Realm status: either domestic (same state) or foreign diplomacy relation. */
+export type BeyondRealmRelation = "domestic" | BeyondDiplomacyRelation;
+
+export type SettlementScale = "hamlet" | "village" | "town" | "city";
+export type SettlementRole = "generic" | "granary" | "market" | "fortress" | "capital";
+
+/** Realm / diplomatic context of what lies beyond this road. */
+export interface ApproachBeyondRealm {
+  relation: BeyondRealmRelation;
+  stateId?: number;
+  stateName?: string;
+}
+
+/** Settlement / urban scale and economy of what lies beyond this road. */
+export interface ApproachBeyondSettlement {
+  scale: SettlementScale;
+  role?: SettlementRole;
+  name?: string;
+  burgId?: number;
+  population?: number;
+  wealth?: number;
+  treasury?: number;
+  distanceMeters?: number;
+}
+
+/** Evaluation of the neighboring destination against the current city. */
+export interface ApproachBeyondAssessment {
+  utilityScore: number;
+  utilityLevel: "low" | "medium" | "high" | "critical";
+  utilityLabel: string;
+  utilityReason: string;
+
+  defenseScore: number;
+  defenseLevel: "safe" | "low" | "medium" | "high" | "critical";
+  defenseLabel: string;
+  defenseReason: string;
+
+  summary: string;
+}
+
+/** Structured indicator of what lies past the map frame at the end of an outer-gate road. */
+export interface ApproachBeyondData {
+  realm: ApproachBeyondRealm;
+  settlement: ApproachBeyondSettlement;
+  customLabel?: string;
+}
+
+/** What lies past the map frame at the end of an outer-gate road.
+ * Supports modern structured object with separated realm & settlement dimensions,
+ * as well as legacy short strings. */
+export type ApproachBeyond = ApproachBeyondData | "city" | "granary" | "enemy" | "ally" | "hamlet";
+
 export interface EdgeFeatureGroup {
   id: Id;
   kind: "road" | "wall" | "plank";
@@ -60,6 +124,8 @@ export interface EdgeFeatureGroup {
   segments: EdgeRef[];
   style: LineStyle;
   locked: boolean;
+  /** Set on roads that leave an outer-wall gate for the map exterior. */
+  beyond?: ApproachBeyond;
 }
 
 export interface RiverGroup {
