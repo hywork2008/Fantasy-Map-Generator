@@ -1,3 +1,4 @@
+import { bridgeDecks, clipPolylineOutsideRivers, riverRibbons } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import { buildBlockFabric } from "../core/gen/blockInfill";
@@ -277,6 +278,7 @@ export function renderEditorSvg(
     : document.featureGroups;
   // One ring for the whole pass. Roads inside it are the centre-to-wall streets.
   const concealWall = town && hideStreetLines ? outerWallRing(document) : null;
+  const ribbons = town ? riverRibbons(document) : [];
   for (const group of renderGroups) {
     const active = selection.groupId === group.id;
     const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
@@ -285,11 +287,16 @@ export function renderEditorSvg(
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
         : edgeGroupPoints(document, group.segments);
     if (points.length < 2) continue;
-    // gc:bridge-* is only the short deck across the river. The gate-to-plaza
-    // road that shares the crossing is a separate group and stays hidden.
-    const bridgeDeck = group.kind === "road" && group.id.startsWith("gc:bridge-");
-    const runs =
-      concealWall && group.kind === "road" && !bridgeDeck ? clipPolylineToExterior(points, concealWall) : [points];
+    // A generated bridge group is only the mesh span. Town view replaces it
+    // with a deck as long as the river. Other roads stop at the bank.
+    let runs = [points];
+    if (town && group.kind === "road") {
+      if (group.id.startsWith("gc:bridge-")) runs = [];
+      else {
+        runs = ribbons.length ? clipPolylineOutsideRivers(points, ribbons) : [points];
+        if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
+      }
+    }
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
@@ -329,6 +336,44 @@ export function renderEditorSvg(
           "stroke-width": String(group.style.widthMeters),
           "data-group": group.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+          "pointer-events": "stroke"
+        })
+      );
+    }
+  }
+  if (town) {
+    for (const deck of bridgeDecks(document)) {
+      const pickInfo: SvgPickInfo = {
+        layer: "features",
+        kind: "road",
+        id: deck.groupId,
+        label: `bridge (${deck.name})`,
+        name: deck.name,
+        widthMeters: deck.widthMeters,
+        segmentCount: 2
+      };
+      const encoded = encodeURIComponent(JSON.stringify(pickInfo));
+      features.appendChild(
+        element("path", {
+          d: line(deck.points),
+          class: "ce-bridge-outline",
+          fill: "none",
+          stroke: "#1A1917",
+          "stroke-width": String(deck.widthMeters + 1.4),
+          "stroke-linecap": "butt",
+          "pointer-events": "none"
+        })
+      );
+      features.appendChild(
+        element("path", {
+          d: line(deck.points),
+          class: "ce-bridge-deck",
+          fill: "none",
+          stroke: "#d5cfbf",
+          "stroke-width": String(deck.widthMeters),
+          "stroke-linecap": "butt",
+          "data-group": deck.groupId,
+          "data-pick": encoded,
           "pointer-events": "stroke"
         })
       );
@@ -1113,6 +1158,7 @@ export const STANDALONE_SVG_STYLE = `
   .ce-building { fill: #b2afa2; stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
   .ce-building--landmark { fill: #373831; }
   .ce-road-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-bridge-outline, .ce-bridge-deck { fill: none; stroke-linecap: butt; }
   .ce-face { stroke: none; fill: #e1dfd4; }
   .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill: #91c8d3; }
   .ce-face--land.ce-face--ward-unassigned { fill: #e1dfd4; }

@@ -671,21 +671,24 @@ describe("shareable link and FMG site", () => {
     expect(has(".ce-buildings .ce-building")).toBe(true);
     const roadsAt9 = count(".ce-feature--road");
     const lanesAt9 = count(".ce-infill-lane");
-    const bridgesAt9 = count('[data-group^="gc:bridge-"]');
+    const bridgesAt9 = count(".ce-bridge-deck");
     expect(roadsAt9).toBeGreaterThan(0);
     expect(bridgesAt9).toBeGreaterThan(0);
+    for (const deck of root.querySelectorAll(".ce-bridge-deck")) {
+      expect(deck.getAttribute("stroke-linecap")).toBe("butt");
+    }
 
     // Stage 10: same town, intramural roads and block-lane lines hidden.
-    // The short river deck stays; the gate-to-plaza road that uses the crossing does not.
+    // The river-width deck stays; the gate-to-plaza road that uses the crossing does not.
     selectStage(10);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑩ 道路・小道を隠す");
     expect(count(".ce-infill-lane")).toBe(0);
     expect(count(".ce-infill-trail")).toBe(0);
     expect(has(".ce-buildings .ce-building")).toBe(true);
     expect(has(".ce-feature--wall")).toBe(true);
-    expect(count('[data-group^="gc:bridge-"]')).toBe(bridgesAt9);
+    expect(count(".ce-bridge-deck")).toBe(bridgesAt9);
     const roadsAt10 = count(".ce-feature--road");
-    expect(roadsAt10).toBeGreaterThan(bridgesAt9);
+    expect(roadsAt10).toBeGreaterThan(0);
     expect(roadsAt10).toBeLessThan(roadsAt9);
 
     // Back to stage 9 restores the roads and lanes

@@ -99,6 +99,97 @@ describe("extramural trails", () => {
   });
 });
 
+describe("river bridge deck", () => {
+  it("draws a butt-capped deck as long as the river and stops the road at the bank", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      appearance: "town",
+      frame: { extentMeters: 200, cityRadiusMeters: 80, blockSizeMeters: 20 },
+      mesh: {
+        vertices: {
+          s: { id: "s", point: [0, -30], locked: false },
+          m: { id: "m", point: [0, 0], locked: false },
+          n: { id: "n", point: [0, 30], locked: false },
+          a: { id: "a", point: [-40, 0], locked: false },
+          b: { id: "b", point: [40, 0], locked: false }
+        },
+        edges: {
+          r1: { id: "r1", a: "s", b: "m", leftFace: null, rightFace: null, locked: false },
+          r2: { id: "r2", a: "m", b: "n", leftFace: null, rightFace: null, locked: false },
+          e1: { id: "e1", a: "a", b: "m", leftFace: null, rightFace: null, locked: false },
+          e2: { id: "e2", a: "m", b: "b", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "river",
+          kind: "river",
+          name: "River",
+          locked: false,
+          style: { widthMeters: 10, color: "#85857d" },
+          vertices: ["s", "m", "n"],
+          source: null,
+          mouth: null
+        },
+        {
+          id: "road",
+          kind: "road",
+          name: "Road",
+          locked: false,
+          style: { widthMeters: 6, color: "#735238" },
+          segments: [
+            { edgeId: "e1", forward: true },
+            { edgeId: "e2", forward: true }
+          ]
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-50 -50 100 100",
+      1
+    );
+    const deck = svg.querySelector(".ce-bridge-deck");
+    const outline = svg.querySelector(".ce-bridge-outline");
+    expect(deck?.getAttribute("stroke-linecap")).toBe("butt");
+    expect(outline?.getAttribute("stroke-linecap")).toBe("butt");
+    expect(deck?.getAttribute("stroke")).toBe("#d5cfbf");
+    expect(Number(outline?.getAttribute("stroke-width"))).toBeGreaterThan(Number(deck?.getAttribute("stroke-width")));
+    const deckLength = pathLength(deck?.getAttribute("d") ?? "");
+    expect(deckLength).toBeGreaterThan(10);
+    expect(deckLength).toBeLessThan(14);
+    const roads = [...svg.querySelectorAll(".ce-feature--road")].map(node => pathPoints(node.getAttribute("d") ?? ""));
+    expect(roads.length).toBeGreaterThan(0);
+    for (const points of roads) {
+      const xs = points.map(point => point[0]);
+      const crosses = Math.min(...xs) < -1 && Math.max(...xs) > 1;
+      expect(crosses).toBe(false);
+    }
+    expect(svg.querySelectorAll(".ce-bridge-deck")).toHaveLength(1);
+  });
+});
+
+function pathPoints(d: string): Point[] {
+  const nums = d.match(/-?\d*\.?\d+/g)?.map(Number) ?? [];
+  const points: Point[] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) points.push([nums[i], nums[i + 1]]);
+  return points;
+}
+
+function pathLength(d: string): number {
+  const points = pathPoints(d);
+  let length = 0;
+  for (let i = 1; i < points.length; i++)
+    length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  return length;
+}
+
 describe("vertexHandleRadius", () => {
   it("keeps r=2 at every zoom level", () => {
     expect(vertexHandleRadius(1)).toBe(2);
