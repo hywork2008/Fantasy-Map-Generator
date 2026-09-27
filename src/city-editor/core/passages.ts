@@ -336,7 +336,7 @@ function townCenter(document: CityDocument): Point {
 /** Square gate tower side is the round curtain tower's diameter (1.6 × wall thickness). */
 export const GATE_TOWER_SCALE = 1.6;
 /** Semicircular gate plaza, as a multiple of the tower side, on each side of the curtain. */
-export const GATE_PLAZA_SCALE = 1.35;
+export const GATE_PLAZA_SCALE = 1.35 * 0.7;
 
 export function gatePlazaRadiusMeters(wallWidthMeters: number): number {
   return wallWidthMeters * GATE_TOWER_SCALE * GATE_PLAZA_SCALE;

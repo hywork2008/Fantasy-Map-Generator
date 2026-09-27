@@ -57,24 +57,24 @@ describe("relieveGatePlazaBuildings", () => {
 
   it("omits a house bitten by the plaza and widens its neighbour up to the plaza edge", () => {
     const document = walledTown();
-    const kept = house("f1", 24, 32, -4, 6);
-    const bitten = house("f1", 16, 24, -4, 6);
+    const kept = house("f1", 18, 26, -4, 6);
+    const bitten = house("f1", 8, 18, -4, 6);
     const far = house("f2", 80, 88, 80, 88);
     const next = relieveGatePlazaBuildings(document, [kept, bitten, far]);
     expect(next).toHaveLength(2);
     expect(next.some(lot => lot.faceId === "f2" && lot.polygon[0][0] === 80)).toBe(true);
     const widened = next.find(lot => lot.faceId === "f1")!;
     const minX = Math.min(...widened.polygon.map(point => point[0]));
-    expect(minX).toBeLessThan(23);
+    expect(minX).toBeLessThan(17);
     expect(minX).toBeGreaterThan(radius - 0.4);
     expect(polygonBitesDisk(widened.polygon, { center: [0, 0], radius })).toBe(false);
   });
 
   it("splits the freed frontage between the houses on either side", () => {
     const document = walledTown();
-    const left = house("f1", -22, -14, 18, 26);
-    const middle = house("f1", -14, 14, 18, 26);
-    const right = house("f1", 14, 22, 18, 26);
+    const left = house("f1", -22, -14, 8, 16);
+    const middle = house("f1", -14, 14, 8, 16);
+    const right = house("f1", 14, 22, 8, 16);
     const next = relieveGatePlazaBuildings(document, [left, middle, right]);
     expect(next).toHaveLength(2);
     const xs = next.map(lot => lot.polygon.map(point => point[0]));
