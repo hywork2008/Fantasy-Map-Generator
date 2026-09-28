@@ -1,4 +1,11 @@
-import { isSimplePolygon, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./gen/geom";
+import {
+  isSimplePolygon,
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonArea,
+  polygonCentroid,
+  segmentSegmentHit
+} from "./gen/geom";
 import { defaultRoadWidthMeters } from "./gen/settlementExtent";
 // 4-way passages (gates / bridges) for generated routes.
 //
@@ -186,6 +193,140 @@ export function openBarrierPassage(document: CityDocument, vertexId: Id, barrier
     break;
   }
   return vertexHasKindPassage(next, vertexId, barrier) ? next : null;
+}
+
+/** Cut a wide-channel crossing along the river normal through the shared mesh.
+ * Moving existing ward corners cannot span a channel wider than a ward. Instead
+ * insert the bank approaches on face boundaries, keeping every junction real. */
+export function addWideRiverBridge(document: CityDocument, vertexId: Id, id: Id): CityDocument | null {
+  const frame = riverCrossingFrame(document, vertexId);
+  const origin = document.mesh.vertices[vertexId]?.point;
+  if (!frame || !origin) return null;
+  const normal: Point = [-frame.tangent[1], frame.tangent[0]];
+  const river = document.featureGroups.find(g => g.kind === "river" && g.vertices.includes(vertexId));
+  if (river?.kind !== "river") return null;
+  const riverPoints = river.vertices.map(id => document.mesh.vertices[id].point);
+  let next = document;
+  const paths: Id[][] = [];
+  const assignedGates = new Set<Id>();
+  for (const sign of [-1, 1]) {
+    const direction: Point = [normal[0] * sign, normal[1] * sign];
+    const far: Point = [
+      origin[0] + direction[0] * document.frame.extentMeters * 2,
+      origin[1] + direction[1] * document.frame.extentMeters * 2
+    ];
+    const path = [vertexId];
+    for (let step = 0; step < 32; step++) {
+      const from = path.at(-1)!;
+      const point = next.mesh.vertices[from].point;
+      const face = incidentFaces(next.mesh, from).find(
+        f =>
+          !f.properties.locked &&
+          f.properties.water === "land" &&
+          pointInPolygon([point[0] + direction[0] * 0.1, point[1] + direction[1] * 0.1], facePoints(next.mesh, f))
+      );
+      if (!face) return null;
+      const hits = face.boundary
+        .flatMap(ref => {
+          const edge = next.mesh.edges[ref.edgeId];
+          if (edge.a === from || edge.b === from) return [];
+          const a = next.mesh.vertices[edge.a].point,
+            b = next.mesh.vertices[edge.b].point;
+          const hit = segmentSegmentHit(point, far, a, b);
+          return hit && Math.hypot(hit.point[0] - point[0], hit.point[1] - point[1]) > 1 ? [{ edge, hit, a, b }] : [];
+        })
+        .sort((a, b) => a.hit.t - b.hit.t);
+      const hit = hits[0];
+      if (!hit || kindEdgeIds(next, "river").has(hit.edge.id)) return null;
+      const wall = kindEdgeIds(next, "wall").has(hit.edge.id);
+      let to: Id;
+      if (Math.hypot(hit.hit.point[0] - hit.a[0], hit.hit.point[1] - hit.a[1]) < 1) to = hit.edge.a;
+      else if (Math.hypot(hit.hit.point[0] - hit.b[0], hit.hit.point[1] - hit.b[1]) < 1) to = hit.edge.b;
+      else {
+        const fraction =
+          Math.hypot(hit.hit.point[0] - hit.a[0], hit.hit.point[1] - hit.a[1]) /
+          Math.hypot(hit.b[0] - hit.a[0], hit.b[1] - hit.a[1]);
+        const inserted = insertEdgeVertex(next, hit.edge.id, fraction);
+        if (!inserted) return null;
+        next = inserted.document;
+        to = inserted.vertexId;
+      }
+      const split = splitFace(next, face.id, from, to);
+      if (!split) return null;
+      next = split;
+      path.push(to);
+      if (wall && !next.gates.some(g => g.vertexId === to)) {
+        const crossing = next.mesh.vertices[to].point;
+        const submerged = next.gates.filter(
+          g =>
+            !g.locked &&
+            !assignedGates.has(g.id) &&
+            nearestOnPolyline(next.mesh.vertices[g.vertexId].point, riverPoints).dist < frame.width / 2
+        );
+        const candidates = submerged.length
+          ? submerged
+          : next.gates.filter(
+              g =>
+                !g.locked &&
+                !assignedGates.has(g.id) &&
+                (next.mesh.vertices[g.vertexId].point[0] - origin[0]) * direction[0] +
+                  (next.mesh.vertices[g.vertexId].point[1] - origin[1]) * direction[1] >
+                  0
+            );
+        const nearby = candidates
+          .map(gate => ({ gate, point: next.mesh.vertices[gate.vertexId].point }))
+          .sort(
+            (a, b) =>
+              Math.hypot(a.point[0] - crossing[0], a.point[1] - crossing[1]) -
+              Math.hypot(b.point[0] - crossing[0], b.point[1] - crossing[1])
+          )[0];
+        const maxDistance = submerged.length
+          ? frame.width * 1.2
+          : Math.max(document.frame.blockSizeMeters, frame.width / 2);
+        if (nearby && Math.hypot(nearby.point[0] - crossing[0], nearby.point[1] - crossing[1]) < maxDistance) {
+          nearby.gate.vertexId = to;
+          assignedGates.add(nearby.gate.id);
+        } else {
+          const gateId = `${id}:gate-${sign}-${step}`;
+          next.gates.push({ id: gateId, vertexId: to, locked: false });
+          assignedGates.add(gateId);
+        }
+      }
+      const end = next.mesh.vertices[to].point;
+      // A normal at a tight bend can run back into the upstream channel.
+      // Try another crossing site rather than bridge along that bend.
+      if (Math.hypot(end[0] - origin[0], end[1] - origin[1]) > frame.width * 1.2) return null;
+      if (nearestOnPolyline(end, riverPoints).dist >= frame.width / 2 + 6 && !wall) break;
+    }
+    const end = next.mesh.vertices[path.at(-1)!].point;
+    if (nearestOnPolyline(end, riverPoints).dist < frame.width / 2 + 6) return null;
+    paths.push(path);
+  }
+  const vertices = [...paths[0].slice().reverse(), ...paths[1].slice(1)];
+  const segments = vertices.slice(1).map((to, i) => {
+    const edge = edgeBetween(next.mesh, vertices[i], to)!;
+    return { edgeId: edge.id, forward: edge.a === vertices[i] };
+  });
+  // Keep the central bridge's two-arm contract; its longer bank approaches
+  // share those arms and continue across as many wards as the channel needs.
+  const mid = vertices.indexOf(vertexId);
+  next.featureGroups.push({
+    id,
+    kind: "road",
+    name: "Bridge",
+    locked: false,
+    segments: segments.slice(mid - 1, mid + 1),
+    style: { widthMeters: defaultRoadWidthMeters(document.frame.extentMeters), color: "#735238" }
+  });
+  next.featureGroups.push({
+    id: id.replace("bridge-", "bridgeApproach-"),
+    kind: "road",
+    name: "Bridge approaches",
+    locked: false,
+    segments,
+    style: { widthMeters: defaultRoadWidthMeters(document.frame.extentMeters), color: "#735238" }
+  });
+  return next;
 }
 
 /** Collapse the wall/river's shared boundary span into one centred crossing.
@@ -520,7 +661,17 @@ export function straightenGateCrossings(document: CityDocument): CityDocument {
     if (group.kind === "river") for (const id of group.vertices) riverVertices.add(id);
   }
   for (const gate of next.gates) {
-    if (gate.locked || riverVertices.has(gate.vertexId)) continue;
+    if (
+      gate.locked ||
+      riverVertices.has(gate.vertexId) ||
+      next.featureGroups.some(
+        group =>
+          group.kind === "road" &&
+          group.id.startsWith("gc:bridgeApproach-") &&
+          featureGroupVertices(next, group).includes(gate.vertexId)
+      )
+    )
+      continue;
     const vertex = next.mesh.vertices[gate.vertexId];
     if (!vertex || vertex.locked) continue;
     const neighbours = wallNeighbourIds(next, gate.vertexId);

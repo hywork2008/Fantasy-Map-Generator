@@ -159,6 +159,7 @@ export function bridgeDecks(document: CityDocument): BridgeDeck[] {
   if (rivers.size === 0) return [];
 
   const decks = new Map<Id, BridgeDeck>();
+  const ribbons = riverRibbons(document);
   for (const group of document.featureGroups) {
     if (group.kind !== "road") continue;
     const ids = featureGroupVertices(document, group);
@@ -171,10 +172,17 @@ export function bridgeDecks(document: CityDocument): BridgeDeck[] {
       const normal: Point = [-frame.tangent[1], frame.tangent[0]];
       const across = (point: Point) => (point[0] - origin[0]) * normal[0] + (point[1] - origin[1]) * normal[1];
       if (across(before) * across(after) >= 0) continue;
-      const half = (frame.width + BRIDGE_BANK_SEAT) / 2;
+      // At a bend the neighbouring channel capsules extend beyond width/2
+      // along this normal. Seat the perpendicular deck on the actual banks.
+      const reach = document.frame.extentMeters * 2;
+      const from: Point = [origin[0] - normal[0] * reach, origin[1] - normal[1] * reach];
+      const to: Point = [origin[0] + normal[0] * reach, origin[1] + normal[1] * reach];
+      const interval = channelIntervals(from, to, ribbons).find(([lo, hi]) => lo <= 0.5 && hi >= 0.5);
+      const lo = interval ? (interval[0] - 0.5) * reach * 2 : -frame.width / 2;
+      const hi = interval ? (interval[1] - 0.5) * reach * 2 : frame.width / 2;
       const points: [Point, Point] = [
-        [origin[0] - normal[0] * half, origin[1] - normal[1] * half],
-        [origin[0] + normal[0] * half, origin[1] + normal[1] * half]
+        [origin[0] + normal[0] * (lo - BRIDGE_BANK_SEAT / 2), origin[1] + normal[1] * (lo - BRIDGE_BANK_SEAT / 2)],
+        [origin[0] + normal[0] * (hi + BRIDGE_BANK_SEAT / 2), origin[1] + normal[1] * (hi + BRIDGE_BANK_SEAT / 2)]
       ];
       const previous = decks.get(ids[index]);
       const keepBridge = previous?.groupId.startsWith("gc:bridge-") && !group.id.startsWith("gc:bridge-");
@@ -187,7 +195,6 @@ export function bridgeDecks(document: CityDocument): BridgeDeck[] {
     }
   }
   const result = [...decks.values()];
-  const ribbons = riverRibbons(document);
   // Roads can cross between mesh vertices, or use a bent/shared river span.
   // Connect every genuine bank-to-bank gap, including crossings the vertex
   // detector above cannot represent. Grazing a bank never creates a bridge.

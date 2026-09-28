@@ -41,7 +41,14 @@ import { type CoastResult, classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
-import { isSimplePolygon, pointInPolygon, polygonArea, polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
+import {
+  isSimplePolygon,
+  pointInPolygon,
+  polygonArea,
+  polygonCentroid,
+  polygonTouchesRectEdge,
+  polylineCrossesSegment
+} from "./gen/geom";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -101,13 +108,13 @@ import {
 import { clone, edgeBetween, edgeEnd, faceNeighbors, facePoints, validate } from "./mesh";
 import {
   addBridge,
+  addWideRiverBridge,
   explainGeneratedCrossingFailures,
   joinWallRiverCrossings,
   kindEdgeIds,
   minGateSpacingMeters,
   openBarrierPassage,
   openGeneratedPassages,
-  orderedIncidentEdges,
   straightenBridges,
   straightenGateCrossings,
   throughEdgesAt,
@@ -512,12 +519,6 @@ export function generateCityAttempt(
   // capacity (Medium 45% / Large 20%) is a later split of the same fill.
   const activeCells = plan.cells ?? cells;
   const activeFaceIdOf = plan.faceIdOf ?? faceIdOf;
-  if (seed.startsWith("ll4jz5")) {
-    const uFaces = [...plan.urban].map(id => activeFaceIdOf[id]);
-    console.log("uFaces contains f87?", uFaces.includes("f87"), "f65?", uFaces.includes("f65"));
-    const bEdges = plan.borderLoops.flatMap(l => l.segments.map(s => s.edgeId));
-    console.log("bEdges contains e218?", bEdges.includes("e218"));
-  }
   const targetArea = Math.PI * params.cityRadiusMeters ** 2;
   const minimumUrbanArea = targetArea * MIN_SETTLEMENT_AREA_SHARE;
   const settlementArea = activeCells
@@ -633,17 +634,14 @@ export function generateCityAttempt(
       { roads: roadsBeforeFinish, minRoads, gates: next.gates.length }
     );
   next.appearance = "town";
-  console.log("Phase applyPlan crossing issues:", explainGeneratedCrossingFailures(next));
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
   const routed = coarse ? shortcutMajorRoads(next) : next;
   mark("major-road-shortcuts");
-  console.log("Phase shortcutMajorRoads crossing issues:", explainGeneratedCrossingFailures(routed));
   const rectified = hexagonal ? rectifyHexBlocks(routed, seed) : routed;
   mark("rectify-hex");
   const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
   mark("finish-geometry");
-  console.log("Phase finishCityGeometry crossing issues:", explainGeneratedCrossingFailures(finished));
   // Square each bridge immediately after smoothing, before block rectification
   // pins the road vertices. The crossing stays on the river; its two road
   // neighbours slide onto the normal so the span is the short perpendicular.
@@ -651,31 +649,9 @@ export function generateCityAttempt(
   const shaped = hexagonal || coarse ? squared : rectifyVoronoiBlocks(squared, seed, rectified);
   mark("rectify-voronoi");
   const settled = straightenGateCrossings(straightenBridges(shaped));
-  console.log("Phase straightenBridges crossing issues:", explainGeneratedCrossingFailures(settled));
   settleTempleOnDocument(settled);
   const roadsAfterFinish = countExternalApproachRoads(settled);
   const crossingDetails = explainGeneratedCrossingFailures(settled);
-  if (crossingDetails.length) {
-    console.log("Crossing details:", crossingDetails);
-    for (const d of crossingDetails) {
-      const match = d.match(/頂点 (v\d+) で城壁と河川が交わるが十字交差になっていない/);
-      if (match) {
-        const vid = match[1];
-        const ord = orderedIncidentEdges(settled, vid);
-        const wEdges = kindEdgeIds(settled, "wall");
-        const rEdges = kindEdgeIds(settled, "river");
-        console.log(
-          `Incident edges for ${vid}:`,
-          ord.map(e => ({
-            id: e.id,
-            wall: wEdges.has(e.id),
-            river: rEdges.has(e.id),
-            faces: [e.leftFace, e.rightFace]
-          }))
-        );
-      }
-    }
-  }
   const tangled = coarse
     ? Object.values(settled.mesh.faces)
         .filter(f => !isSimplePolygon(facePoints(settled.mesh, f)))
@@ -1131,6 +1107,7 @@ interface Plan {
   precincts: Precinct[];
   citadelOutline: Point[] | null;
   roads: Point[][];
+  roadPaths?: Point[][];
   streets: Point[][];
   wards: Map<number, WardKind>;
   /** `wards`' source data, in decision order rather than sorted by cell id. Empty
@@ -1639,6 +1616,7 @@ export function runPlan(
     precincts,
     citadelOutline,
     roads: complete ? roads : [...roads, ...gateStreets],
+    roadPaths: geo.roadPaths,
     streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
@@ -1944,12 +1922,9 @@ function applyPlan(
       const rivers = next.featureGroups.filter(g => g.kind === "river");
       const center = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
       for (const [riverIndex, river] of rivers.entries()) {
-        if (
-          river.kind !== "river" ||
-          !plan.rivers[riverIndex]?.bridgeAllowed ||
-          next.featureGroups.some(g => g.id === `${GEN_PREFIX}bridge-${riverIndex}` && g.locked)
-        )
-          continue;
+        const allowed = plan.rivers[riverIndex]?.bridgeAllowed;
+        const locked = next.featureGroups.some(g => g.id === `${GEN_PREFIX}bridge-${riverIndex}` && g.locked);
+        if (river.kind !== "river" || !allowed || locked) continue;
         const candidates = river.vertices
           .slice(1, -1)
           .filter(
@@ -1961,12 +1936,33 @@ function applyPlan(
                   [e.leftFace, e.rightFace].some(fid => fid && next.mesh.faces[fid].properties.buildable)
               )
           );
-        candidates.sort((a, b) => {
-          const p = next.mesh.vertices[a].point;
-          const q = next.mesh.vertices[b].point;
-          return Math.hypot(p[0] - center[0], p[1] - center[1]) - Math.hypot(q[0] - center[0], q[1] - center[1]);
-        });
+        const crossingScore = (id: Id) => {
+          const point = next.mesh.vertices[id].point;
+          const distance = Math.hypot(point[0] - center[0], point[1] - center[1]);
+          if (!complete || next.gridKind !== "evolution" || river.style.widthMeters <= next.frame.blockSizeMeters)
+            return distance;
+          const index = river.vertices.indexOf(id);
+          const before = next.mesh.vertices[river.vertices[index - 1]].point;
+          const after = next.mesh.vertices[river.vertices[index + 1]].point;
+          const ax = point[0] - before[0],
+            ay = point[1] - before[1];
+          const bx = after[0] - point[0],
+            by = after[1] - point[1];
+          const dot = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by) || 1);
+          // A sharp bend has no single short perpendicular across its ribbon.
+          // Prefer a nearby straight reach before opening the crossing.
+          return distance + river.style.widthMeters * 2 * (1 - dot);
+        };
+        candidates.sort((a, b) => crossingScore(a) - crossingScore(b));
         for (const id of candidates) {
+          if (complete && next.gridKind === "evolution" && river.style.widthMeters > next.frame.blockSizeMeters) {
+            const bridged = addWideRiverBridge(next, id, `${GEN_PREFIX}bridge-${riverIndex}`);
+            if (bridged) {
+              next = bridged;
+              break;
+            }
+            continue;
+          }
           const opened = openBarrierPassage(next, id, "river");
           if (opened) {
             const bridged = addBridge(opened, id, `${GEN_PREFIX}bridge-${riverIndex}`);
@@ -2059,14 +2055,8 @@ function applyPlan(
       // Approaches and the matching gate-to-plaza streets share a gate index.
       // Later streets are extras and are not paired with a planned gate.
       const gateIndex = isApproach ? i : i - approachRoadCount;
-      if (
-        complete &&
-        program.walls &&
-        gateIndex >= 0 &&
-        gateIndex < approachRoadCount &&
-        !next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`)
-      )
-        return;
+      const gateExists = next.gates.some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`);
+      if (complete && program.walls && gateIndex >= 0 && gateIndex < approachRoadCount && !gateExists) return;
       const segments = routeComplete(polyline, isApproach);
       if (segments.length < 1) return;
       if (!isApproach && program.walls) {
@@ -2117,6 +2107,55 @@ function applyPlan(
         locked: false
       });
     });
+    if (complete) {
+      // Far-bank FMG roads must cross the entire span before entering town.
+      // An exterior-only gate route can otherwise skirt the river instead.
+      const plaza = plan.precincts.find(p => p.kind === "plaza");
+      for (const bridge of next.featureGroups.filter(
+        g => g.kind === "road" && g.id.startsWith(`${GEN_PREFIX}bridgeApproach-`)
+      )) {
+        const vertices = featureGroupVertices(next, bridge);
+        const bankA = mesh.vertices[vertices[0]].point;
+        const bankB = mesh.vertices[vertices.at(-1)!].point;
+        const river = next.featureGroups.find(g => g.kind === "river" && g.vertices.some(id => vertices.includes(id)));
+        if (river?.kind !== "river") continue;
+        const riverPoints = river.vertices.map(id => mesh.vertices[id].point);
+        for (const [i, line] of (plan.roadPaths ?? []).entries()) {
+          if (!line.slice(1).some((point, j) => polylineCrossesSegment(riverPoints, line[j], point))) continue;
+          const end = line.at(-1)!;
+          const half = source.frame.extentMeters / 2;
+          const scale = half / Math.max(Math.abs(end[0]), Math.abs(end[1]), 1);
+          const far: Point = [end[0] * scale, end[1] * scale];
+          const nearA =
+            Math.hypot(far[0] - bankA[0], far[1] - bankA[1]) < Math.hypot(far[0] - bankB[0], far[1] - bankB[1]);
+          const entry = nearA ? bankA : bankB,
+            exit = nearA ? bankB : bankA;
+          const target = plazaApproachPoint(cells, plaza, exit);
+          if (!target) continue;
+          const approach = routeComplete([far, entry], false, true);
+          const street = routeComplete([exit, target], false, true);
+          if (!approach.length || !street.length || bridge.kind !== "road") continue;
+          const span = nearA
+            ? bridge.segments
+            : bridge.segments
+                .slice()
+                .reverse()
+                .map(ref => ({
+                  edgeId: ref.edgeId,
+                  forward: !ref.forward
+                }));
+          const segments = [...approach, ...span, ...street];
+          appendGeneratedGroup({
+            id: `${bridge.id.replace("bridgeApproach-", "riverRoad-")}-${i}`,
+            kind: "road",
+            name: "Cross-river road",
+            segments,
+            style: { widthMeters: defaultRoadWidthMeters(source.frame.extentMeters), color: "#735238" },
+            locked: false
+          });
+        }
+      }
+    }
     next = complete ? straightenBridges(next) : openGeneratedPassages(next);
     mesh = next.mesh;
     if (!complete) {
@@ -2300,7 +2339,7 @@ function completeRoadRouter(
   banned: Set<Id>,
   openRim = false,
   urbanRegions: Point[][] = []
-): (polyline: Point[], outside: boolean) => EdgeRef[] {
+): (polyline: Point[], outside: boolean, acrossBanks?: boolean) => EdgeRef[] {
   const { mesh } = document;
   const ids = Object.keys(mesh.vertices);
   const indexOf = new Map(ids.map((id, i) => [id, i]));
@@ -2334,7 +2373,35 @@ function completeRoadRouter(
       restricted.set(id, previous ? new Set([...allowed].filter(e => previous.has(e))) : allowed);
     }
   }
+  const bridgeEdges = new Set(
+    document.featureGroups.flatMap(g =>
+      g.kind === "road" && g.id.startsWith(`${GEN_PREFIX}bridgeApproach-`) ? g.segments.map(ref => ref.edgeId) : []
+    )
+  );
+  const bridgeInterior = new Map<Id, Set<Id>>();
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || !group.id.startsWith(`${GEN_PREFIX}bridgeApproach-`)) continue;
+    const vertices = featureGroupVertices(document, group);
+    for (const id of vertices.slice(1, -1))
+      bridgeInterior.set(
+        id,
+        new Set(
+          group.segments
+            .filter(ref => {
+              const edge = mesh.edges[ref.edgeId];
+              return edge.a === id || edge.b === id;
+            })
+            .map(ref => ref.edgeId)
+        )
+      );
+  }
   const gateIds = new Set(document.gates.map(g => g.vertexId));
+  const plazaFaces = new Set(document.elements.find(e => e.kind === "plaza")?.faceIds ?? []);
+  const internalPlazaEdges = new Set(
+    Object.values(mesh.edges)
+      .filter(e => e.leftFace && e.rightFace && plazaFaces.has(e.leftFace) && plazaFaces.has(e.rightFace))
+      .map(e => e.id)
+  );
   const riverRouteVertices = new Set<Id>();
   for (const group of document.featureGroups)
     if (group.kind === "river") for (const id of group.vertices) riverRouteVertices.add(id);
@@ -2351,7 +2418,7 @@ function completeRoadRouter(
     }
     return nearest(p);
   };
-  return (polyline, outside) => {
+  return (polyline, outside, acrossBanks = false) => {
     if (polyline.length < 2) return [];
     const snap = (p: Point, gateEnd: boolean) => (gateEnd ? endpoint(p) : nearest(p));
     const sampled: Point[] = [];
@@ -2360,7 +2427,17 @@ function completeRoadRouter(
     if (sampled.at(-1) !== polyline.at(-1)) sampled.push(polyline[polyline.length - 1]);
     const waypoints: number[] = [];
     for (let i = 0; i < sampled.length; i++) {
-      const id = snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
+      const onFrame =
+        acrossBanks && i === 0 && sampled[i].some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01)
+          ? new Set(
+              ids.filter(id =>
+                mesh.vertices[id].point.some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01)
+              )
+            )
+          : undefined;
+      const id = onFrame
+        ? nearest(sampled[i], onFrame)
+        : snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
       const idx = id ? indexOf.get(id) : undefined;
       if (idx === undefined || waypoints.at(-1) === idx) continue;
       waypoints.push(idx);
@@ -2369,15 +2446,23 @@ function completeRoadRouter(
     const hopEndOf = waypoints[waypoints.length - 1];
     const weight = (a: number, b: number, w: number, hopEnd: number) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
-      if (banned.has(edge.id)) return Infinity;
-      // Once the road is on the river, the next vertex is land on the far bank.
+      for (const id of [edge.a, edge.b])
+        if (bridgeInterior.has(id) && !gateIds.has(id) && !bridgeInterior.get(id)!.has(edge.id)) return Infinity;
+      if (banned.has(edge.id)) {
+        const canUsePlazaEdge =
+          !outside &&
+          internalPlazaEdges.has(edge.id) &&
+          (gateIds.has(edge.a) || gateIds.has(edge.b) || a === hopEnd || b === hopEnd);
+        if (!canUsePlazaEdge) return Infinity;
+      }
       if (riverRouteVertices.has(edge.a) && riverRouteVertices.has(edge.b)) return Infinity;
-      for (const id of [edge.a, edge.b]) if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
+      for (const id of [edge.a, edge.b]) {
+        if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
+      }
       const faces = [edge.leftFace, edge.rightFace].filter((id): id is Id => id !== null);
       if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land")) return Infinity;
       const inTown = faces.some(id => urban.has(id));
-      if (outside === inTown) {
-        // Unwalled towns have no gate passage; allow the last hop onto the rim.
+      if (!acrossBanks && outside === inTown && !bridgeEdges.has(edge.id)) {
         if (outside && openRim && (a === hopEnd || b === hopEnd)) return w;
         return Infinity;
       }
@@ -2724,6 +2809,7 @@ function plazaApproachPoint(cells: Cell[], plaza: Precinct | undefined, from?: P
       let bestPt: Point | null = null;
       for (const p of plaza.polygon) {
         const d = Math.hypot(p[0] - from[0], p[1] - from[1]);
+        if (d < 1) continue;
         if (d < bestDist) {
           bestDist = d;
           bestPt = p;
@@ -2775,6 +2861,7 @@ function plazaApproachPoint(cells: Cell[], plaza: Precinct | undefined, from?: P
   let bestDist = Number.POSITIVE_INFINITY;
   for (const p of perimeterVertices) {
     const d = from ? Math.hypot(p[0] - from[0], p[1] - from[1]) : Math.hypot(p[0], p[1]);
+    if (from && d < 1) continue;
     if (d < bestDist) {
       bestDist = d;
       best = p;

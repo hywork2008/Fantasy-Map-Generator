@@ -51,6 +51,15 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   for (const group of next.featureGroups) {
     const ids = featureGroupVertices(next, group);
     if (group.kind === "river") for (const id of ids) riverVertices.add(id);
+    if (group.kind === "road" && group.id.startsWith("gc:bridgeApproach-")) {
+      for (const id of ids) pinned.add(id);
+      for (const river of next.featureGroups) {
+        if (river.kind !== "river") continue;
+        for (let i = 0; i < river.vertices.length; i++)
+          if (ids.includes(river.vertices[i]))
+            for (const neighbor of river.vertices.slice(Math.max(0, i - 1), i + 2)) pinned.add(neighbor);
+      }
+    }
     if (group.locked || !group.id.startsWith("gc:")) {
       for (const id of ids) pinned.add(id);
       continue;

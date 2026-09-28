@@ -839,4 +839,46 @@ describe("shareable link and FMG site", () => {
     selectStage(9);
     expect(getRiverPaths()).toBe(stage9River);
   });
+
+  it("generates complete city for a small walled burg with zero population (Bonenfeld case)", () => {
+    const descriptor = JSON.parse(
+      JSON.stringify(
+        synthSite(
+          "small",
+          {
+            ...DEFAULT_SITE_CONFIG,
+            coast: "none",
+            rivers: [],
+            features: {
+              ...DEFAULT_SITE_CONFIG.features,
+              walls: true,
+              citadel: true,
+              plaza: true
+            }
+          },
+          "bonenfeld-case",
+          { extentMeters: 1200, cityRadiusMeters: 80 }
+        )
+      )
+    );
+    descriptor.burg.population = 0;
+    descriptor.burg.dwellings = 1;
+    descriptor.suggestedGates = 3;
+    const share = buildShare({
+      seed: "bonenfeld-seed",
+      grid: "evolution",
+      size: "small",
+      gridSeed: "bonenfeld-seed",
+      settings: { config: DEFAULT_SITE_CONFIG },
+      descriptor
+    });
+    window.history.replaceState(null, "", `${location.pathname}#${encodeShare(share)}`);
+    remount();
+    panelButton("都市を一括生成").click();
+
+    expect(root.querySelector(".ce-generate-error")).toBeNull();
+    expect(has(".ce-buildings .ce-building")).toBe(true);
+    expect(has(".ce-feature--wall")).toBe(true);
+    expect(has(".ce-feature--road")).toBe(true);
+  });
 });
