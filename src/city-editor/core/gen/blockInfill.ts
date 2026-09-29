@@ -269,7 +269,11 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
             return e ? [e.id] : [];
           })
         : group.segments.map(s => s.edgeId);
-    for (const id of ids) setbacks.set(id, Math.max(setbacks.get(id) ?? 8, group.style.widthMeters / 2 + 4));
+    // Farm frontage follows the same narrow road-edge gap as roadside houses.
+    const setback = group.style.widthMeters / 2 + (group.kind === "road" ? 0.35 : 4);
+    for (const id of ids) {
+      setbacks.set(id, Math.max(setbacks.get(id) ?? 0, group.kind === "road" ? setback : Math.max(8, setback)));
+    }
   }
   for (const district of districts) {
     const face = merged.mesh.faces[district.id];
@@ -289,7 +293,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       );
     });
     const key = JSON.stringify([
-      "farm-v3",
+      "farm-v4",
       district.id,
       outline,
       district.parameters,
