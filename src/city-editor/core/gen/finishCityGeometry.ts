@@ -1,6 +1,7 @@
 // MIT implementation based on City Editor's shared mesh and reference output.
 // No TownGeneratorTS / GPL source is used.
 import { featureGroupVertices } from "../features";
+import { castleWallIds } from "../fortifications";
 import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
 import { straightenBridges, straightenGateCrossings } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
@@ -75,6 +76,13 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   for (const gate of next.gates) if (gate.locked || !gate.id.startsWith("gc:")) pinned.add(gate.vertexId);
   // A gate and a river that already share a wall edge keep that spacing.
   // Either end may still move away; neither may close the gap.
+  for (const group of next.featureGroups)
+    if (group.kind === "wall" && castleWallIds(next).has(group.id))
+      for (const ref of group.segments) {
+        const edge = mesh.edges[ref.edgeId];
+        pinned.add(edge.a);
+        pinned.add(edge.b);
+      }
   const gateVertices = new Set(next.gates.map(gate => gate.vertexId));
   const gateRiverGap = new Map<Id, { anchor: Point; minDist: number }[]>();
   const rememberGap = (id: Id, anchor: Point, minDist: number) => {

@@ -161,6 +161,50 @@ export interface CityGate {
   id: Id;
   vertexId: Id;
   locked: boolean;
+  role?: "town" | "castle-main" | "postern" | "water";
+  ownerCastleId?: Id;
+  wallEdgeIds?: [Id, Id];
+  passageWidthMeters?: number;
+}
+
+export interface DefenseCircuit {
+  id: Id;
+  scope: "town" | "castle";
+  ownerCastleId?: Id;
+  areaFaceIds: Id[];
+  wallGroupIds: Id[];
+  naturalBarriers: Array<{ kind: "waterfront" | "opening"; segments: EdgeRef[] }>;
+  locked: boolean;
+}
+
+export interface CastlePart {
+  id: Id;
+  role: "keep" | "hall" | "range" | "service" | "chapel";
+  footprint: Point[];
+  entrances: Point[];
+  locked: boolean;
+}
+
+export interface CastlePlan {
+  id: Id;
+  version: 1;
+  seed: string;
+  position: "edge" | "central";
+  relationship: "integrated" | "detached";
+  form: "keep-bailey" | "courtyard";
+  circuitId: Id;
+  courtyards: Point[][];
+  parts: CastlePart[];
+  accesses: Array<{ gateId: Id; points: Point[]; widthMeters: number }>;
+  provenance: "generated" | "manual" | "legacy";
+  locked: boolean;
+}
+
+export interface CastleSettings {
+  position: "auto" | "edge" | "central";
+  relationship: "auto" | "integrated" | "detached";
+  form: "auto" | "keep-bailey" | "courtyard";
+  size: "auto" | "small" | "standard" | "large";
 }
 
 export interface DistrictParameters {
@@ -185,7 +229,7 @@ export interface FabricPlan {
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
   generation?: {
-    algorithm: "evolution-city-v3";
+    algorithm: "evolution-city-v3" | "castle-city-v1";
     seed: string;
     settings: import("./generate").GenerationSettings;
     input: Omit<CityDocument, "fabric">;
@@ -194,7 +238,9 @@ export interface FabricPlan {
 
 export interface CityDocument {
   format: "fmg-city-editor";
-  version: 1;
+  version: 1 | 2;
+  defenseCircuits?: DefenseCircuit[];
+  castles?: CastlePlan[];
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;

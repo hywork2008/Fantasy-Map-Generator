@@ -3,6 +3,7 @@ import { renderStandaloneCitySvg } from "../../render/svg";
 import { bridgeDecks } from "../bridgeDeck";
 import { createGridDocument, createSizedDocument, parseDocument } from "../document";
 import { featureGroupVertices } from "../features";
+import { townGates } from "../fortifications";
 import { countExternalApproachRoads, defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
@@ -121,7 +122,7 @@ describe("complete editable city", () => {
     settings.config.features.port = true;
     const city = generateCityOnDocument(grid, settings, "junction-6")!;
     expect(city).not.toBeNull();
-    for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
+    for (const gate of townGates(city)) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
     expect(generateCityOnDocument(grid, settings, "junction-6")).toEqual(city);
   });
   for (const coast of ["none", "straight", "bay", "cape"] as const) {
@@ -299,14 +300,14 @@ describe("complete editable city", () => {
     expect(city).not.toBeNull();
     if (!city) return;
     expect(validate(city)).toEqual([]);
-    expect(city.gates).toHaveLength(2);
+    expect(townGates(city)).toHaveLength(2);
     const wall = city.featureGroups.find(group => group.kind === "wall");
     expect(wall?.kind).toBe("wall");
     if (wall?.kind !== "wall") return;
     const spacing = minGateSpacingMeters(wall.style.widthMeters);
-    const points = city.gates.map(gate => city.mesh.vertices[gate.vertexId].point);
+    const points = townGates(city).map(gate => city.mesh.vertices[gate.vertexId].point);
     expect(Math.hypot(points[0][0] - points[1][0], points[0][1] - points[1][1])).toBeGreaterThanOrEqual(spacing);
-    for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
+    for (const gate of townGates(city)) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
     expect(bridgeDecks(city)).toHaveLength(1);
     expect(renderStandaloneCitySvg(city).querySelectorAll(".ce-quays path")).toHaveLength(0);
 

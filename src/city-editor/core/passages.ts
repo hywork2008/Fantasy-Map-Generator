@@ -1,3 +1,4 @@
+import { townGates } from "./fortifications";
 import {
   isSimplePolygon,
   nearestOnPolyline,
@@ -255,7 +256,7 @@ export function addWideRiverBridge(document: CityDocument, vertexId: Id, id: Id)
       if (!split) return null;
       next = split;
       path.push(to);
-      if (wall && !next.gates.some(g => g.vertexId === to)) {
+      if (wall && !townGates(next).some(g => g.vertexId === to)) {
         const crossing = next.mesh.vertices[to].point;
         const submerged = next.gates.filter(
           g =>
@@ -515,7 +516,7 @@ export function minGateSpacingMeters(wallWidthMeters: number): number {
 /** Both gate plazas together are a disk centred on the gate. Buildings must stay outside it. */
 export function gatePlazaDisks(document: CityDocument): { center: Point; radius: number }[] {
   const disks: { center: Point; radius: number }[] = [];
-  for (const gate of document.gates) {
+  for (const gate of townGates(document)) {
     const frame = gateCrossingFrame(document, gate.vertexId);
     if (!frame) continue;
     const wall = document.featureGroups.find(
@@ -576,7 +577,11 @@ export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCro
   if (!tangent) return null;
   let inward = unit(-tangent[1], tangent[0]);
   if (!inward) return null;
-  const center = townCenter(document);
+  const castleOwner = document.gates.find(g => g.vertexId === vertexId)?.ownerCastleId;
+  const castleCircuit = document.defenseCircuits?.find(c => c.ownerCastleId === castleOwner && c.scope === "castle");
+  const center = castleCircuit
+    ? polygonCentroid(castleCircuit.areaFaceIds.flatMap(id => facePoints(document.mesh, document.mesh.faces[id])))
+    : townCenter(document);
   const toward = unit(center[0] - gate.point[0], center[1] - gate.point[1]);
   if (toward && inward[0] * toward[0] + inward[1] * toward[1] < 0) inward = [-inward[0], -inward[1]];
   return { point: gate.point, tangent, inward, roads };
@@ -632,7 +637,7 @@ function swingObliqueGateArm(
   if (!worse || worseDev <= PERPENDICULAR_GATE_DEGREES) return document;
   const road = document.mesh.vertices[worse.id];
   if (!road || road.locked || riverVertices.has(worse.id)) return document;
-  if (document.gates.some(gate => gate.vertexId === worse.id)) return document;
+  if (townGates(document).some(gate => gate.vertexId === worse.id)) return document;
   if (bridgeArmIsFixed(document, worse.id)) return document;
   const vx = worse.point[0] - gatePoint[0];
   const vy = worse.point[1] - gatePoint[1];
@@ -660,7 +665,7 @@ export function straightenGateCrossings(document: CityDocument): CityDocument {
   for (const group of next.featureGroups) {
     if (group.kind === "river") for (const id of group.vertices) riverVertices.add(id);
   }
-  for (const gate of next.gates) {
+  for (const gate of townGates(next)) {
     if (
       gate.locked ||
       riverVertices.has(gate.vertexId) ||
@@ -807,7 +812,7 @@ function riverCrossingFrame(document: CityDocument, midId: Id): { tangent: Point
 function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
   const vertex = document.mesh.vertices[id];
   if (!vertex || vertex.locked) return true;
-  if (document.gates.some(gate => gate.vertexId === id)) return true;
+  if (townGates(document).some(gate => gate.vertexId === id)) return true;
   for (const group of document.featureGroups) {
     if (group.kind === "river" && group.vertices.includes(id)) return true;
     if (group.kind !== "wall" && !group.locked) continue;
@@ -942,7 +947,7 @@ export function straightenBridges(document: CityDocument): CityDocument {
 /** Completed generation must never publish a decorative gate or a disconnected
  * wall/river crossing. Kept separate from legacy-file structural validation. */
 export function validGeneratedCrossings(document: CityDocument): boolean {
-  for (const gate of document.gates) {
+  for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road")) return false;
   }
   const walls = kindEdgeIds(document, "wall");
@@ -977,7 +982,7 @@ export function validGeneratedCrossings(document: CityDocument): boolean {
  * edge, or unbridged town-dividing river. Empty when crossings are valid. */
 export function explainGeneratedCrossingFailures(document: CityDocument): string[] {
   const details: string[] = [];
-  for (const gate of document.gates) {
+  for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road"))
       details.push(`門 ${gate.id}（頂点 ${gate.vertexId}）に城壁と道路の十字交差がない`);
   }
@@ -1017,7 +1022,7 @@ export function explainGeneratedCrossingFailures(document: CityDocument): string
 /** Open wall passages at every gate, then river bridges at every road–river meeting. */
 export function openGeneratedPassages(document: CityDocument): CityDocument {
   let next = document;
-  for (const gate of next.gates ?? []) {
+  for (const gate of townGates(next)) {
     if (!next.mesh.vertices[gate.vertexId]) continue;
     if (vertexHasKindPassage(next, gate.vertexId, "wall")) continue;
     const opened = openBarrierPassage(next, gate.vertexId, "wall");

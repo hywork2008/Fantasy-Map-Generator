@@ -1,3 +1,5 @@
+import { reservedCastleFaces, validateFortifications } from "./fortifications";
+import { refreshCastleLayouts } from "./gen/castleLayout";
 import type { Cell } from "./gen/types";
 import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
 
@@ -157,7 +159,13 @@ export function faceNeighbors(mesh: Mesh, faceId: Id): Id[] {
 export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): CityDocument | null {
   const next = clone(document);
   const face = next.mesh.faces[faceId];
-  if (!face || face.properties.locked || a === b) return null;
+  if (
+    !face ||
+    face.properties.locked ||
+    a === b ||
+    document.defenseCircuits?.some(c => c.locked && c.areaFaceIds.includes(faceId))
+  )
+    return null;
   const vertices = faceVertices(next.mesh, face);
   const ia = vertices.indexOf(a);
   const ib = vertices.indexOf(b);
@@ -189,13 +197,21 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
   };
   const district = next.fabric?.districts.find(d => d.faceIds.includes(faceId));
   if (district) district.faceIds.push(newFaceId);
+  for (const circuit of next.defenseCircuits ?? [])
+    if (circuit.areaFaceIds.includes(faceId)) circuit.areaFaceIds.push(newFaceId);
   rebuildFaceSides(next.mesh);
   return validate(next).length ? null : next;
 }
 
 /** Merge two neighboring faces, unless a shared edge carries a feature. */
 export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId: Id): CityDocument | null {
-  if (keepFaceId === removeFaceId) return null;
+  if (
+    keepFaceId === removeFaceId ||
+    (document.defenseCircuits ?? []).some(
+      c => c.areaFaceIds.includes(keepFaceId) !== c.areaFaceIds.includes(removeFaceId)
+    )
+  )
+    return null;
   const next = clone(document);
   const keep = next.mesh.faces[keepFaceId];
   const remove = next.mesh.faces[removeFaceId];
@@ -228,6 +244,8 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
     if (owner) owner.faceIds.push(keepFaceId);
     next.fabric.districts = next.fabric.districts.filter(d => d.faceIds.length);
   }
+  for (const circuit of next.defenseCircuits ?? [])
+    circuit.areaFaceIds = [...new Set(circuit.areaFaceIds.map(id => (id === removeFaceId ? keepFaceId : id)))];
   rebuildFaceSides(next.mesh);
   return validate(next).length ? null : next;
 }
@@ -249,7 +267,7 @@ export function rebuildFaceSides(mesh: Mesh): void {
 
 export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKind): CityDocument {
   const current = document.mesh.faces[faceId];
-  if (current?.properties.locked) return document;
+  if (current?.properties.locked || (water !== "land" && reservedCastleFaces(document).has(faceId))) return document;
   // Re-applying the same water class (and its forced sea-level elevation) is a
   // no-op; return the original so the caller can skip a history snapshot.
   if (current && current.properties.water === water && (water === "land" || current.properties.elevation === 0)) {
@@ -265,7 +283,12 @@ export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKin
 }
 
 export function setFaceElevation(document: CityDocument, faceId: Id, elevation: number): CityDocument {
-  if (!Number.isFinite(elevation) || document.mesh.faces[faceId]?.properties.locked) return document;
+  if (
+    !Number.isFinite(elevation) ||
+    document.mesh.faces[faceId]?.properties.locked ||
+    (elevation <= 0 && reservedCastleFaces(document).has(faceId))
+  )
+    return document;
   const next = clone(document);
   const face = next.mesh.faces[faceId];
   if (!face) return next;
@@ -278,6 +301,13 @@ function protectedVertex(document: CityDocument, id: Id): boolean {
   const edges = incidentEdges(document.mesh, id);
   return (
     !!document.mesh.vertices[id]?.locked ||
+    (document.castles ?? []).some(
+      c =>
+        c.locked &&
+        document.defenseCircuits
+          ?.find(d => d.id === c.circuitId)
+          ?.areaFaceIds.some(fid => faceVertices(document.mesh, document.mesh.faces[fid]).includes(id))
+    ) ||
     incidentFaces(document.mesh, id).some(f => f.properties.locked) ||
     edges.some(e => e.locked || document.featureGroups.some(g => g.locked && groupUsesEdge(document, g, e.id)))
   );
@@ -291,6 +321,7 @@ export function moveVertex(document: CityDocument, vertexId: Id, point: Point): 
   const half = next.frame.extentMeters / 2;
   if (Math.abs(point[0]) > half || Math.abs(point[1]) > half) return null;
   vertex.point = point;
+  if (!refreshCastleLayouts(next)) return null;
   return validate(next).length ? null : next;
 }
 
@@ -392,13 +423,20 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
   const gateVertices = new Set<Id>();
   next.gates = (next.gates ?? []).filter(gate => {
     if (gate.vertexId === removeVertexId) gate.vertexId = keepVertexId;
+    if (gate.wallEdgeIds) gate.wallEdgeIds = gate.wallEdgeIds.map(id => edgeReplacements.get(id) ?? id) as [Id, Id];
     if (gateVertices.has(gate.vertexId)) return false;
     gateVertices.add(gate.vertexId);
     return true;
   });
 
+  for (const circuit of next.defenseCircuits ?? [])
+    for (const barrier of circuit.naturalBarriers)
+      barrier.segments = barrier.segments
+        .filter(r => r.edgeId !== joiningEdge.id)
+        .map(r => ({ ...r, edgeId: edgeReplacements.get(r.edgeId) ?? r.edgeId }));
   delete next.mesh.vertices[removeVertexId];
   rebuildFaceSides(next.mesh);
+  if (!refreshCastleLayouts(next)) return null;
   return validate(next).length ? null : next;
 }
 
@@ -481,6 +519,23 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
   for (const face of Object.values(next.mesh.faces))
     if (face.site) face.site = [face.site[0] * factor, face.site[1] * factor];
   for (const group of next.featureGroups) group.style.widthMeters *= factor;
+  for (const castle of next.castles ?? []) {
+    const scale = (p: Point): Point => [p[0] * factor, p[1] * factor];
+    castle.courtyards = castle.courtyards.map(r => r.map(scale));
+    for (const part of castle.parts) {
+      part.footprint = part.footprint.map(scale);
+      part.entrances = part.entrances.map(scale);
+    }
+    for (const access of castle.accesses) {
+      access.points = access.points.map(scale);
+      access.widthMeters *= factor;
+    }
+  }
+  for (const gate of next.gates) if (gate.passageWidthMeters) gate.passageWidthMeters *= factor;
+  for (const element of next.elements) {
+    if (element.point) element.point = [element.point[0] * factor, element.point[1] * factor];
+    if (element.sizeMeters) element.sizeMeters *= factor;
+  }
   next.frame.extentMeters *= factor;
   next.frame.cityRadiusMeters *= factor;
   next.frame.blockSizeMeters *= factor;
@@ -539,6 +594,11 @@ export function insertEdgeVertex(
           : [id]
       );
   }
+  for (const circuit of next.defenseCircuits ?? [])
+    for (const barrier of circuit.naturalBarriers) barrier.segments = barrier.segments.flatMap(expand);
+  for (const gate of next.gates)
+    if (gate.wallEdgeIds?.includes(edgeId) && gate.vertexId === edge.b)
+      gate.wallEdgeIds = gate.wallEdgeIds.map(id => (id === edgeId ? newEdgeId : id)) as [Id, Id];
   return validate(next).length ? null : { document: next, vertexId };
 }
 
@@ -578,6 +638,7 @@ export function validate(document: CityDocument): string[] {
     if (!mesh.vertices[gate.vertexId]) errors.push(`Gate ${gate.id} has no vertex`);
     else if (!gateHasWall(document, gate.vertexId)) errors.push(`Gate ${gate.id} is not on a wall`);
   }
+  errors.push(...validateFortifications(document));
   return errors;
 }
 

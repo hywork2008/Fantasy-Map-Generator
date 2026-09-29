@@ -235,7 +235,7 @@ export function validFabricPlan(plan: FabricPlan): boolean {
   const g = plan.generation,
     config = g.settings?.config;
   return (
-    g.algorithm === "evolution-city-v3" &&
+    ["evolution-city-v3", "castle-city-v1"].includes(g.algorithm) &&
     (g.settings?.walledAreaShare === undefined ||
       (Number.isFinite(g.settings.walledAreaShare) &&
         g.settings.walledAreaShare >= 0.05 &&

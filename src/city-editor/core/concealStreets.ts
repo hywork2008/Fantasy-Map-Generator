@@ -1,3 +1,4 @@
+import { circuitRing } from "./fortifications";
 // Stage ⑩ view geometry. The document keeps every road and lane; the town
 // drawing drops the stretches that sit inside the outer wall, and the block
 // lanes are omitted entirely by the renderer.
@@ -19,6 +20,10 @@ const SAME_POINT_METERS = 0.05;
  * town has no wall. A coastal gap is closed with a chord; a river gap is
  * bridged only when the open ends sit within `maxGapMeters`. */
 export function outerWallRing(document: CityDocument): Point[] | null {
+  if (document.defenseCircuits) {
+    const town = document.defenseCircuits.find(c => c.scope === "town");
+    return town ? circuitRing(document, town) : null;
+  }
   const lines: Point[][] = [];
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
@@ -28,7 +33,7 @@ export function outerWallRing(document: CityDocument): Point[] | null {
   }
   if (!lines.length) return null;
   const plaza = document.elements.find(element => element.kind === "plaza" && element.point)?.point;
-  const center = plaza ?? polygonCentroid(lines.flat());
+  const center = plaza ?? polygonCentroid(lines.flatMap(line => line));
   const maxGap = Math.max(60, document.frame.blockSizeMeters * 4);
   return outerWallRingFromPolylines(lines, center, maxGap);
 }

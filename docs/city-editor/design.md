@@ -1,5 +1,7 @@
 # City Editor — 手動都市作製の設計
 
+城の生成・城郭囲壁・都市城壁との接続については、[城郭生成と都市城壁の設計](castles-and-fortifications.md)（2026-09-29、調査付き設計案）を参照。城に関する具体化・置換案はそちらで管理する。
+
 `src/city-generator/` が決定論的に都市案を**生成**するのに対し、City Editor はその案または空の格子を出発点に、セル・辺・都市要素を直接編集して保存する独立 MPA である。本書では TownGeneratorTS の操作感（セル格子を編集し、辺に道・壁・川を載せる）を目標とする。ただし TownGeneratorTS の GPL コードは参照・移植しない。既存の `docs/city-generator/` と公開アルゴリズム、FMG の MIT コードだけを利用する。
 
 ## 1. 決定事項

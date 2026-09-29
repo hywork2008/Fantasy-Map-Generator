@@ -117,7 +117,13 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
   }
   const land = new Set(
     Object.values(mesh.faces)
-      .filter(f => f.properties.water === "land" && f.properties.buildable && f.properties.ward !== "farm")
+      .filter(
+        f =>
+          f.properties.water === "land" &&
+          f.properties.buildable &&
+          f.properties.ward !== "farm" &&
+          !(document.castles?.length && f.properties.ward === "castle")
+      )
       .map(f => f.id)
   );
   const edgeMid = (id: Id) => mid(mesh.vertices[mesh.edges[id].a].point, mesh.vertices[mesh.edges[id].b].point);

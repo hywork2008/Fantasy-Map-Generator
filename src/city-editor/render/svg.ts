@@ -2,6 +2,14 @@ import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridge
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import {
+  boundaryEdges,
+  boundaryRings,
+  castleWallIds,
+  circuitRing,
+  reservedCastleFaces,
+  wallRunsOutsideGates
+} from "../core/fortifications";
+import {
   approachBeyondAnchor,
   approachBeyondLabel,
   externalGateRoads,
@@ -278,6 +286,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(edges);
 
+  svg.appendChild(renderCastles(document, selection.inspectedId));
   const features = element("g", { class: "ce-features" });
   const order = { wall: 0, river: 1, road: 2, plank: 3 };
   const renderGroups = town
@@ -296,7 +305,7 @@ export function renderEditorSvg(
     if (points.length < 2) continue;
     // A generated bridge group is only the mesh span. Town view replaces it
     // with a deck as long as the river. Other roads stop at the bank.
-    let runs = [points];
+    let runs = group.kind === "wall" ? wallRunsOutsideGates(document, points) : [points];
     if (town && group.kind === "road") {
       if (group.id.startsWith("gc:bridge-")) runs = [];
       else {
@@ -428,6 +437,7 @@ export function renderEditorSvg(
 
   const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
   for (const face of Object.values(document.mesh.faces)) {
+    if (reservedCastleFaces(document).has(face.id)) continue;
     const marker = renderFaceWardLandmark(document.mesh, face);
     if (marker && !town) wardLandmarks.appendChild(marker);
   }
@@ -667,10 +677,63 @@ function renderTownFortifications(
       points: g.vertices.map(id => document.mesh.vertices[id].point),
       width: g.style.widthMeters
     }));
+  const cornerTowers: Point[] = [];
+  const cornerIds = new Set<Id>();
+  for (const circuit of document.defenseCircuits ?? []) {
+    if (circuit.scope !== "castle") continue;
+    const refs = boundaryRings(document.mesh, boundaryEdges(document.mesh, circuit.areaFaceIds))[0] ?? [];
+    const points = refs.map(
+      ref =>
+        document.mesh.vertices[ref.forward ? document.mesh.edges[ref.edgeId].a : document.mesh.edges[ref.edgeId].b]
+          .point
+    );
+    for (let i = 0; i < refs.length; i++) {
+      const ref = refs[i],
+        edge = document.mesh.edges[ref.edgeId],
+        id = ref.forward ? edge.a : edge.b;
+      if (cornerIds.has(id)) continue;
+      const p = points[i],
+        a = points[(i + points.length - 1) % points.length],
+        b = points[(i + 1) % points.length];
+      const u: Point = [p[0] - a[0], p[1] - a[1]],
+        v: Point = [b[0] - p[0], b[1] - p[1]];
+      const turn = Math.acos(
+        Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (Math.hypot(...u) * Math.hypot(...v))))
+      );
+      if (
+        turn < Math.PI / 6 ||
+        document.gates.some(
+          g =>
+            Math.hypot(
+              document.mesh.vertices[g.vertexId].point[0] - p[0],
+              document.mesh.vertices[g.vertexId].point[1] - p[1]
+            ) < 14
+        )
+      )
+        continue;
+      if (cornerTowers.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 12)) continue;
+      const wall = document.featureGroups.find(g => g.kind === "wall" && g.segments.some(r => r.edgeId === ref.edgeId));
+      if (!wall) continue;
+      const towerId = `castle-tower-${id}`,
+        pick = { layer: "fortifications", kind: "tower", id: towerId, label: "城の隅塔", wallId: wall.id, point: p };
+      layer.appendChild(
+        element("circle", {
+          cx: String(p[0]),
+          cy: String(-p[1]),
+          r: String(wall.style.widthMeters * 1.05),
+          fill: "#292a26",
+          class: inspectedId === towerId ? "ce-is-selected cg-is-selected" : "",
+          "data-pick": encodeURIComponent(JSON.stringify(pick))
+        })
+      );
+      cornerIds.add(id);
+      cornerTowers.push(p);
+    }
+  }
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
     const points = edgeGroupPoints(document, group.segments);
-    const spacing = Math.max(45, document.frame.blockSizeMeters * 1.4);
+    const spacing = castleWallIds(document).has(group.id) ? 32 : Math.max(45, document.frame.blockSizeMeters * 1.4);
     let untilTower = spacing / 2;
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1];
@@ -680,6 +743,10 @@ function renderTownFortifications(
         const t = untilTower / length;
         const position: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
         if (rivers.some(r => nearestOnPolyline(position, r.points).dist < r.width / 2 + group.style.widthMeters)) {
+          untilTower += spacing;
+          continue;
+        }
+        if (cornerTowers.some(p => Math.hypot(p[0] - position[0], p[1] - position[1]) < 16)) {
           untilTower += spacing;
           continue;
         }
@@ -736,7 +803,7 @@ function renderTownFortifications(
     const side = width * GATE_TOWER_SCALE;
     const deviation = gateRoadDeviationDegrees(document, gate.vertexId) ?? 0;
     const slant = Math.tan((Math.min(deviation, 20) * Math.PI) / 180);
-    const opening = Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
+    const opening = gate.passageWidthMeters ?? Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
     const plazaRadius = gatePlazaRadiusMeters(width);
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
@@ -756,7 +823,7 @@ function renderTownFortifications(
       "data-pick": encodeURIComponent(JSON.stringify(gatePickInfo))
     });
     if (tool === "select") marker.style.cursor = "pointer";
-    for (const sweep of [1, 0])
+    for (const sweep of gate.ownerCastleId ? [] : [1, 0])
       marker.appendChild(
         element("path", {
           d: `M ${-plazaRadius} 0 A ${plazaRadius} ${plazaRadius} 0 0 ${sweep} ${plazaRadius} 0 Z`,
@@ -1330,4 +1397,62 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
 export function serializeCitySvg(document: CityDocument): string {
   const svg = renderStandaloneCitySvg(document);
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(svg)}`;
+}
+
+function renderCastles(document: CityDocument, inspectedId?: string | number | null): SVGGElement {
+  const layer = element("g", { class: "ce-castles" }) as SVGGElement;
+  for (const castle of document.castles ?? []) {
+    const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
+    if (!circuit) continue;
+    const pick = {
+      layer: "fortifications",
+      kind: "castle",
+      id: castle.id,
+      label: `城 (${castle.form})`,
+      locked: castle.locked
+    };
+    const group = element("g", {
+      "data-pick": encodeURIComponent(JSON.stringify(pick)),
+      class: inspectedId === castle.id ? "ce-is-selected cg-is-selected" : "",
+      style: "cursor:pointer"
+    });
+    group.appendChild(
+      element("path", {
+        d: polygon(circuitRing(document, circuit)),
+        fill: "#d5cfbf",
+        "fill-opacity": "0.25",
+        stroke: "none"
+      })
+    );
+    for (const court of castle.courtyards)
+      group.appendChild(
+        element("path", { d: polygon(court), fill: "#d8cdb6", stroke: "#a7977f", "stroke-width": "0.6" })
+      );
+    for (const access of castle.accesses)
+      group.appendChild(
+        element("path", {
+          d: line(access.points),
+          fill: "none",
+          stroke: "#b7a78e",
+          "stroke-width": String(access.widthMeters),
+          "stroke-linejoin": "round"
+        })
+      );
+    for (const part of castle.parts) {
+      group.appendChild(
+        element("path", {
+          d: polygon(part.footprint),
+          fill: part.role === "keep" ? "#827364" : "#a49380",
+          stroke: "#4f463c",
+          "stroke-width": part.role === "keep" ? "2" : "1"
+        })
+      );
+      for (const entrance of part.entrances)
+        group.appendChild(
+          element("circle", { cx: String(entrance[0]), cy: String(-entrance[1]), r: "1.4", fill: "#e2d5be" })
+        );
+    }
+    layer.appendChild(group);
+  }
+  return layer;
 }

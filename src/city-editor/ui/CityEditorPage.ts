@@ -2,6 +2,13 @@ import i18n from "../../i18n";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import {
+  createCastleOnFace,
+  deleteCastle,
+  regenerateCastleInterior,
+  setCastleLocked,
+  setCastlePartLocked
+} from "../core/castles";
+import {
   CITY_SIZE_PRESETS,
   type CitySizePreset,
   createGridDocument,
@@ -32,6 +39,7 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import { reservedCastleFaces, validateFortifications } from "../core/fortifications";
 import {
   approachBeyondLabel,
   evaluateApproachBeyond,
@@ -43,6 +51,8 @@ import {
   SETTLEMENT_SCALE_LABELS,
   SETTLEMENT_SCALES
 } from "../core/gen/approachBeyond";
+import { refreshCastleLayouts } from "../core/gen/castleLayout";
+import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
 import { defaultDistrictParameters, resolveDistricts, setDistrictParameters } from "../core/gen/fabricDistricts";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
@@ -101,6 +111,7 @@ import type {
   ApproachBeyond,
   ApproachBeyondData,
   BeyondRealmRelation,
+  CastleSettings,
   CityDocument,
   FeatureGroup,
   Id,
@@ -905,6 +916,39 @@ export function mountCityEditor(root: HTMLElement): void {
   const seedLabel = label("Seed", seedInput);
   const copyLinkButton = makeButton("Copy shareable link", () => void copyShareLink(copyLinkButton));
 
+  const castleControls = div("ce-castle-settings");
+  const castleInputs = new Map<keyof CastleSettings, HTMLSelectElement>();
+  const castleChoices: Array<[keyof CastleSettings, string, string[]]> = [
+    ["position", "城の位置", ["auto", "edge", "central"]],
+    ["relationship", "城壁との関係", ["auto", "integrated", "detached"]],
+    ["form", "城の形式", ["auto", "keep-bailey", "courtyard"]],
+    ["size", "城の規模", ["auto", "small", "standard", "large"]]
+  ];
+  for (const [key, title, choices] of castleChoices) {
+    const input = select(choices, generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key]);
+    const titles: Record<string, string> = {
+      auto: "自動",
+      edge: "都市の端",
+      central: "都市の中央",
+      integrated: "都市城壁と一体",
+      detached: "独立した囲郭",
+      "keep-bailey": "主塔と中庭",
+      courtyard: "中庭を囲む居館",
+      small: "小",
+      standard: "標準",
+      large: "大"
+    };
+    for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
+    castleInputs.set(key, input);
+    input.addEventListener("change", () => {
+      generateSettings.castle = { ...generateSettings.castle, [key]: input.value };
+      if (generateSettings.castle.position === "central" && generateSettings.castle.relationship === "integrated")
+        generateSettings.castle.relationship = "detached";
+      generateSettings.legacyCastles = false;
+      syncGenerateControls();
+    });
+    castleControls.append(label(title, input));
+  }
   const synthControls = div("ce-generate-synth");
   synthControls.append(
     label("都市形態", layoutSelect),
@@ -935,6 +979,7 @@ export function mountCityEditor(root: HTMLElement): void {
     divider(),
     importedBox,
     synthControls,
+    castleControls,
     label("城壁内の市街地面積（%）", walledShareInput),
     text("空欄は Tiny/Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
     housingSummary,
@@ -1713,6 +1758,10 @@ export function mountCityEditor(root: HTMLElement): void {
       refresh();
       return;
     }
+    if (validateFortifications(next).length && (!refreshCastleLayouts(next) || validateFortifications(next).length)) {
+      showNotice("城郭の整合性を保てない編集です。城域・城門・必須棟を確認してください。");
+      return;
+    }
     // Any real edit invalidates a Grid-evolution preview built against the old
     // mesh/frame — dismiss it rather than leave a stale overlay on screen.
     clearGridEvo();
@@ -2288,6 +2337,45 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function populateInspectorEditControls(container: HTMLElement): void {
+    const castle = documentState.castles?.find(
+      c =>
+        c.id === selection.inspectedId ||
+        (selection.faceId &&
+          documentState.defenseCircuits?.find(d => d.id === c.circuitId)?.areaFaceIds.includes(selection.faceId))
+    );
+    if (castle) {
+      container.append(
+        text(`城郭: ${castle.position} / ${castle.relationship} / ${castle.form}`),
+        makeButton(castle.locked ? "城郭のロック解除" : "城郭をロック", () =>
+          runContextAction(() => setCastleLocked(documentState, castle.id, !castle.locked), "Castle lock")
+        ),
+        makeButton("城内を再配置", () =>
+          runContextAction(() => regenerateCastleInterior(documentState, castle.id, false), "Castle layout")
+        ),
+        makeButton("城の形式を切り替える", () =>
+          runContextAction(() => regenerateCastleInterior(documentState, castle.id), "Castle interior")
+        ),
+        makeButton("城郭を削除", () => runContextAction(() => deleteCastle(documentState, castle.id), "Delete castle"))
+      );
+      for (const part of castle.parts) {
+        const input = checkbox(part.locked, checked =>
+          runContextAction(
+            () => setCastlePartLocked(documentState, castle.id, part.id, checked),
+            "Castle building lock"
+          )
+        );
+        input.disabled = castle.locked;
+        container.append(toggleLabel(`${part.role} を固定`, input));
+      }
+      return;
+    }
+    if (selection.faceId && !reservedCastleFaces(documentState).size)
+      container.append(
+        makeButton("選択区画を新しい城郭にする", () =>
+          runContextAction(() => createCastleOnFace(documentState, selection.faceId!), "Create castle")
+        )
+      );
+
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
@@ -3256,7 +3344,12 @@ export function mountCityEditor(root: HTMLElement): void {
     completeResult = recipe ? documentState : null;
     if (recipe) {
       generateSeed = recipe.seed;
-      Object.assign(generateSettings, { walledAreaShare: undefined, descriptor: undefined }, clone(recipe.settings));
+      Object.assign(
+        generateSettings,
+        { walledAreaShare: undefined, descriptor: undefined, castle: undefined },
+        clone(recipe.settings)
+      );
+      generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
       importedOrigin = generateSettings.descriptor ? (importedOrigin ?? "link") : null;
       syncGenerateControls();
     } else {
@@ -3291,6 +3384,8 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function syncGenerateControls(): void {
     seedInput.value = generateSeed;
+    for (const [key, input] of castleInputs)
+      input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key];
     layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
     if (!generateSettings.config.wall) {

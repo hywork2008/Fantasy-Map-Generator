@@ -1,4 +1,5 @@
 import { featureGroupVertices } from "../features";
+import { townGates } from "../fortifications";
 import type {
   ApproachBeyond,
   ApproachBeyondAssessment,
@@ -422,7 +423,7 @@ export interface ExternalGateRoad {
 /** Roads that start at an outer gate and run away from the town center.
  * Gate-to-plaza streets end closer to the origin, so they stay out. */
 export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
-  const gates = new Set(document.gates.map(gate => gate.vertexId));
+  const gates = new Set(townGates(document).map(gate => gate.vertexId));
   const found: ExternalGateRoad[] = [];
   for (const group of document.featureGroups) {
     if (group.kind !== "road" || group.id.startsWith("gc:bridge-")) continue;

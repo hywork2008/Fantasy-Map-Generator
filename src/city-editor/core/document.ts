@@ -196,7 +196,7 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
-    doc.version === 1 &&
+    (doc.version === 1 || doc.version === 2) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&

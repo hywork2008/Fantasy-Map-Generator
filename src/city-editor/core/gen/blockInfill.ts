@@ -1,10 +1,11 @@
+import { circuitRing, polygonOverlaps } from "../fortifications";
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
 import { openFieldPlots } from "./openField";
@@ -40,7 +41,24 @@ function distToSegment(p: Point, a: Point, b: Point): number {
 }
 
 function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
-  return { ...fabric, buildings: relieveGatePlazaBuildings(document, fabric.buildings) };
+  const reserved = (document.defenseCircuits ?? [])
+    .filter(c => c.scope === "castle")
+    .map(c => circuitRing(document, c));
+  return {
+    ...fabric,
+    buildings: relieveGatePlazaBuildings(
+      document,
+      fabric.buildings.filter(b => !reserved.some(r => polygonOverlaps(b.polygon, r)))
+    ),
+    lanes: fabric.lanes.filter(
+      l =>
+        !reserved.some(
+          r =>
+            l.points.some(p => pointInPolygon(p, r)) ||
+            l.points.slice(1).some((p, i) => segmentInteriorInPolygon(l.points[i], p, r))
+        )
+    )
+  };
 }
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */

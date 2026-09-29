@@ -1,3 +1,4 @@
+import { townGates } from "./fortifications";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "./gen/geom";
 import { edgeBetween, facePoints, faceVertices, incidentFaces, insertEdgeVertex, splitFace } from "./mesh";
 import { kindEdgeIds } from "./passages";
@@ -96,7 +97,7 @@ export function openWallRiverMouths(document: CityDocument): CityDocument {
     document.featureGroups.flatMap(group => (group.kind === "river" ? [group.vertices[0], group.vertices.at(-1)!] : []))
   );
   for (const vertex of ends) {
-    if (next.gates.some(g => g.vertexId === vertex && g.locked)) continue;
+    if (townGates(next).some(g => g.vertexId === vertex && g.locked)) continue;
     const incident = Object.values(next.mesh.edges).filter(edge => edge.a === vertex || edge.b === vertex);
     if (!incident.some(edge => !edge.leftFace || !edge.rightFace)) continue;
     const walls = kindEdgeIds(next, "wall");

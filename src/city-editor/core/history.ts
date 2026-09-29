@@ -180,6 +180,9 @@ type RecordPatch<T> = Record<Id, T | null>;
  * whole when they differ.
  */
 interface DocPatch {
+  version?: CityDocument["version"];
+  castles?: CityDocument["castles"] | null;
+  defenseCircuits?: CityDocument["defenseCircuits"] | null;
   frame?: CityDocument["frame"];
   appearance?: CityDocument["appearance"] | null;
   fabric?: CityDocument["fabric"] | null;
@@ -224,6 +227,10 @@ function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatc
 
 function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
+  if (previous.version !== next.version) patch.version = next.version;
+  if (!equal(previous.castles, next.castles)) patch.castles = next.castles ? clone(next.castles) : null;
+  if (!equal(previous.defenseCircuits, next.defenseCircuits))
+    patch.defenseCircuits = next.defenseCircuits ? clone(next.defenseCircuits) : null;
   if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
   if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
   if (!equal(previous.fabric, next.fabric)) patch.fabric = next.fabric ? clone(next.fabric) : null;
@@ -258,6 +265,11 @@ function applyRecord<T>(map: Record<Id, T>, patch: RecordPatch<T> | undefined): 
 }
 
 function applyPatch(document: CityDocument, patch: DocPatch): void {
+  if (patch.version) document.version = patch.version;
+  if (patch.castles === null) delete document.castles;
+  else if (patch.castles) document.castles = clone(patch.castles);
+  if (patch.defenseCircuits === null) delete document.defenseCircuits;
+  else if (patch.defenseCircuits) document.defenseCircuits = clone(patch.defenseCircuits);
   if (patch.frame) document.frame = clone(patch.frame);
   if (patch.appearance === null) delete document.appearance;
   else if (patch.appearance) document.appearance = patch.appearance;

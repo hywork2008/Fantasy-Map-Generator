@@ -12,7 +12,7 @@ export interface ImportedCityMap {
 
 /** Download the complete editable map, not a rendered SVG snapshot. */
 export function exportCityMap(cityDocument: CityDocument): void {
-  const blob = new Blob([JSON.stringify(cityDocument, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify({ ...cityDocument, version: 2 }, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

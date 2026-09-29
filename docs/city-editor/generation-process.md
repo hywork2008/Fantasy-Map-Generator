@@ -84,6 +84,8 @@ Generate パネルの工程名（`GENERATION_STAGES`、`src/city-editor/core/gen
 
 ### ④ 城壁・門・城郭
 
+以下は現行処理。城郭の専用生成と都市壁との接続を置き換える設計案は、[城郭生成と都市城壁の設計](castles-and-fortifications.md) を参照。
+
 計画側:
 
 1. `componentBorderLoops` で都市成分の外周をメッシュ辺のまま辿る。

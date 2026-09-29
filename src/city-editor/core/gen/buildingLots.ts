@@ -1,3 +1,4 @@
+import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
 import { buildBlockFabric } from "./blockInfill";
 import { clipHalfPlane, insetConvexKernel, longestFrame } from "./lotGeometry";
 
@@ -66,6 +67,12 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {
+  if (
+    (document.defenseCircuits ?? [])
+      .filter(c => c.scope === "castle")
+      .some(c => polygonOverlaps(polygon, circuitRing(document, c)))
+  )
+    return true;
   const yard = civicYardMeters(document.frame.extentMeters);
   for (const element of document.elements) {
     if (element.kind === "temple" && element.point) {
@@ -102,6 +109,7 @@ function buildFaceLots(
   clearance: Map<Id, number>,
   rivers: RiverMargin[]
 ): BuildingLot[] {
+  if (reservedCastleFaces(document).has(face.id)) return [];
   const { water, ward, buildable } = face.properties;
   if (water !== "land" || !buildable || !ward || ward === "empty" || ward === "park" || ward === "farm") return [];
   if (document.elements.some(e => (e.kind === "plaza" || e.kind === "temple") && e.faceIds.includes(face.id)))

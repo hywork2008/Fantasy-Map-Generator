@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="910" viewBox="0 0 1200 910" role="img" aria-labelledby="title description">
+<title id="title">城と都市壁の配置、および城内の平面構成</title>
+<desc id="description">外周一体型、外周独立型、中央独立型の三つの模式図と、主門、城庭、主塔、居館、付属棟を持つ城の平面図。史例の復元図ではなく City Editor の設計案。</desc>
+<style>text{font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;fill:#283139}.title{font-size:25px;font-weight:700}.subtitle{font-size:13px;fill:#5c6670}.label{font-size:15px;font-weight:600}.note{font-size:13px;fill:#4c5861}.small{font-size:12px}.wall{fill:none;stroke-linejoin:round;stroke-linecap:round}.house{fill:#d9d8d1;stroke:#b3b6b0;stroke-width:1}.building{fill:#aca59a;stroke:#484745;stroke-width:2}.callout{fill:none;stroke:#677780;stroke-width:1.3}</style>
+<rect x="0" y="0" width="1200" height="910" fill="#f6f5ef"/>
+<text x="28" y="42" class="title">城は「都市の壁」と「城自身の壁」を持つ</text>
+<text x="28" y="68" class="subtitle">City Editor の設計模式図 — 歴史的建築の復元図ではありません。上段は縮尺を定めない概念図です。</text>
+<path d="M28,93 L58,93" class="wall" stroke="#427d80" stroke-width="5"/>
+<text x="69" y="98" class="small">都市壁</text>
+<path d="M200,93 L230,93" class="wall" stroke="#795c91" stroke-width="5"/>
+<text x="241" y="98" class="small">共有する壁</text>
+<path d="M409,93 L439,93" class="wall" stroke="#ae6837" stroke-width="5"/>
+<text x="450" y="98" class="small">城の独立囲壁・仕切り壁</text>
+<rect x="28" y="118" width="360" height="345" rx="12" fill="#fffefa" stroke="#dddcd4"/>
+<text x="46" y="148" class="label">A  外周一体型</text>
+<text x="46" y="173" class="small">外向きの壁を共有し、市街側を仕切る</text>
+<g transform="translate(43 181)">
+<polygon points="28,25 220,25 266,95 275,193 309,230 275,267 234,255 205,215 48,215 22,134" fill="#e9efe9"/>
+<polygon points="205,215 235,180 275,193 309,230 275,267 234,255" fill="#eee3d8"/>
+<path d="M205,215 L48,215 L22,134 L28,25 L220,25 L266,95 L275,193" class="wall" stroke="#427d80" stroke-width="5"/>
+<path d="M275,193 L309,230 L275,267 L234,255 L205,215" class="wall" stroke="#795c91" stroke-width="5"/>
+<path d="M205,215 L235,180 L275,193" class="wall" stroke="#ae6837" stroke-width="5"/>
+<path d="M125,101 L162,143 L220,198 L251,222" stroke="#fffefa" stroke-width="10" fill="none"/>
+<g transform="translate(220 198) rotate(-49)">
+<rect x="-6" y="-6" width="12" height="12" fill="#f8f6ef"/>
+<rect x="-14" y="-6" width="8" height="12" fill="#ae6837"/>
+<rect x="6" y="-6" width="8" height="12" fill="#ae6837"/>
+</g>
+<rect x="258" y="216" width="22" height="23" class="building"/>
+<text x="235" y="254" class="small">城庭</text>
+<circle cx="309" cy="230" r="5" fill="#795c91"/>
+<circle cx="275" cy="267" r="5" fill="#795c91"/>
+<circle cx="234" cy="255" r="5" fill="#795c91"/>
+<circle cx="205" cy="215" r="5" fill="#795c91"/>
+<rect x="45" y="42" width="22" height="18" class="house"/>
+<rect x="77" y="44" width="22" height="18" class="house"/>
+<rect x="111" y="45" width="22" height="18" class="house"/>
+<rect x="165" y="47" width="22" height="18" class="house"/>
+<rect x="205" y="60" width="22" height="18" class="house"/>
+<rect x="48" y="94" width="22" height="18" class="house"/>
+<rect x="82" y="90" width="22" height="18" class="house"/>
+<rect x="216" y="103" width="22" height="18" class="house"/>
+<rect x="56" y="166" width="22" height="18" class="house"/>
+<rect x="87" y="179" width="22" height="18" class="house"/>
+<rect x="125" y="181" width="22" height="18" class="house"/>
+<g transform="translate(26 100) rotate(88)">
+<rect x="-6" y="-6" width="12" height="12" fill="#f8f6ef"/>
+<rect x="-14" y="-6" width="8" height="12" fill="#427d80"/>
+<rect x="6" y="-6" width="8" height="12" fill="#427d80"/>
+</g>
+<text x="116" y="76" class="small">市街</text>
+</g>
+<rect x="420" y="118" width="360" height="345" rx="12" fill="#fffefa" stroke="#dddcd4"/>
+<text x="438" y="148" class="label">B  外周独立型</text>
+<text x="438" y="173" class="small">城の全周を閉じ、都市壁と余白を取る</text>
+<g transform="translate(435 181)">
+<polygon points="28,25 220,25 266,95 275,193 205,215 48,215 22,134" fill="#e9efe9"/>
+<path d="M28,25 L220,25 L266,95 L275,193 L205,215 L48,215 L22,134 L28,25" class="wall" stroke="#427d80" stroke-width="5"/>
+<polygon points="185,146 240,150 254,191 203,204 177,176" fill="#eee3d8"/>
+<path d="M185,146 L240,150 L254,191 L203,204 L177,176 L185,146" class="wall" stroke="#ae6837" stroke-width="4"/>
+<path d="M125,101 L165,133 L181,161 L201,176" stroke="#fffefa" stroke-width="9" fill="none"/>
+<g transform="translate(181 161) rotate(-64)">
+<rect x="-6" y="-6" width="12" height="12" fill="#f8f6ef"/>
+<rect x="-14" y="-6" width="8" height="12" fill="#ae6837"/>
+<rect x="6" y="-6" width="8" height="12" fill="#ae6837"/>
+</g>
+<rect x="221" y="170" width="17" height="18" class="building"/>
+<text x="194" y="195" class="small">庭</text>
+<rect x="45" y="42" width="22" height="18" class="house"/>
+<rect x="77" y="44" width="22" height="18" class="house"/>
+<rect x="111" y="45" width="22" height="18" class="house"/>
+<rect x="165" y="47" width="22" height="18" class="house"/>
+<rect x="205" y="60" width="22" height="18" class="house"/>
+<rect x="48" y="94" width="22" height="18" class="house"/>
+<rect x="82" y="90" width="22" height="18" class="house"/>
+<rect x="216" y="103" width="22" height="18" class="house"/>
+<rect x="56" y="166" width="22" height="18" class="house"/>
+<rect x="87" y="179" width="22" height="18" class="house"/>
+<rect x="125" y="181" width="22" height="18" class="house"/>
+<g transform="translate(26 100) rotate(88)">
+<rect x="-6" y="-6" width="12" height="12" fill="#f8f6ef"/>
+<rect x="-14" y="-6" width="8" height="12" fill="#427d80"/>
+<rect x="6" y="-6" width="8" height="12" fill="#427d80"/>
+</g>
+<text x="116" y="76" class="small">市街</text>
+</g>
+<rect x="812" y="118" width="360" height="345" rx="12" fill="#fffefa" stroke="#dddcd4"/>
+<text x="830" y="148" class="label">C  中央独立型</text>
+<text x="830" y="173" class="small">市街の中でも、庭と門を持つ別区画</text>
+<g transform="translate(827 181)">
+<polygon points="28,25 220,25 266,95 275,193 205,215 48,215 22,134" fill="#e9efe9"/>
+<path d="M28,25 L220,25 L266,95 L275,193 L205,215 L48,215 L22,134 L28,25" class="wall" stroke="#427d80" stroke-width="5"/>
+<polygon points="124,90 187,85 204,132 170,161 120,144" fill="#eee3d8"/>
+<path d="M124,90 L187,85 L204,132 L170,161 L120,144 L124,90" class="wall" stroke="#ae6837" stroke-width="4"/>
+<path d="M77,155 L105,126 L122,117 L147,123" stroke="#fffefa" stroke-width="9" fill="none"/>
+<g transform="translate(122 117) rotate(-85)">
+<rect x="-6" y="-6" width="12" height="12" fill="#f8f6ef"/>
+<rect x="-14" y="-6" width="8" height="12" fill="#ae6837"/>
+<rect x="6" y="-6" width="8" height="12" fill="#ae6837"/>
+</g>
+<rect x="166" y="102" width="20" height="21" class="building"/>
+<text x="148" y="144" class="small">城庭</text>
+<rect x="45" y="42" width="22" height="18" class="house"/>
+<rect x="77" y="44" width="22" height="18" class="house"/>
+<rect x="111" y="45" width="22" height="18" class="house"/>
+<rect x="165" y="47" width="22" height="18" class="house"/>
+<rect x="205" y="60" width="22" height="18" class="house"/>
+<rect x="48" y="94" width="22" height="18" class="house"/>
+<rect x="82" y="90" width="22" height="18" class="house"/>
+<rect x="216" y="103" width="22" height="18" class="house"/>
+<rect x="56" y="166" width="22" height="18" class="house"/>
+<rect x="87" y="179" width="22" height="18" class="house"/>
+<g transform="translate(26 100) rotate(88)">
+<rect x="-6" y="-6" width="12" height="12" fill="#f8f6ef"/>
+<rect x="-14" y="-6" width="8" height="12" fill="#427d80"/>
+<rect x="6" y="-6" width="8" height="12" fill="#427d80"/>
+</g>
+<text x="116" y="76" class="small">市街</text>
+</g>
+<rect x="28" y="487" width="1144" height="368" rx="12" fill="#fffefa" stroke="#dddcd4"/>
+<text x="49" y="520" class="label">城内は、門と庭の動線を先に予約する</text>
+<text x="49" y="543" class="small">主塔型の配置例。単位は m、上が市街側。棟を壁沿いに組み合わせ、庭を住宅で埋めません。</text>
+<g transform="translate(57 565)">
+<polygon points="54,13 318,13 352,56 339,189 280,209 60,204 20,145 20,60" fill="#eee3d8"/>
+<path d="M54,13 L160,13" class="wall" stroke="#ae6837" stroke-width="8"/>
+<path d="M184,13 L318,13 L352,56 L339,189 L280,209 L60,204 L20,145 L20,60 L54,13" class="wall" stroke="#ae6837" stroke-width="8"/>
+<circle cx="54" cy="13" r="10" fill="#ae6837"/>
+<circle cx="318" cy="13" r="10" fill="#ae6837"/>
+<circle cx="352" cy="56" r="10" fill="#ae6837"/>
+<circle cx="339" cy="189" r="10" fill="#ae6837"/>
+<circle cx="280" cy="209" r="10" fill="#ae6837"/>
+<circle cx="60" cy="204" r="10" fill="#ae6837"/>
+<circle cx="20" cy="145" r="10" fill="#ae6837"/>
+<circle cx="20" cy="60" r="10" fill="#ae6837"/>
+<path d="M172,-6 L172,94 L245,94" stroke="#faf8f2" stroke-width="13" fill="none"/>
+<path d="M172,94 L105,94 L105,55" stroke="#faf8f2" stroke-width="13" fill="none"/>
+<path d="M105,94 L69,94" stroke="#faf8f2" stroke-width="10" fill="none"/>
+<path d="M172,94 L172,151 L230,151 L230,170" stroke="#faf8f2" stroke-width="10" fill="none"/>
+<rect x="155" y="2" width="11" height="23" fill="#ae6837"/>
+<rect x="178" y="2" width="11" height="23" fill="#ae6837"/>
+<rect x="61" y="26" width="68" height="29" class="building"/>
+<rect x="40" y="78" width="29" height="51" class="building"/>
+<rect x="245" y="64" width="58" height="60" class="building"/>
+<rect x="205" y="170" width="108" height="22" class="building"/>
+<text x="165" y="140" class="label">城庭</text>
+<text x="163" y="41" class="small">入口</text>
+<text x="92" y="246" class="small">0</text>
+<text x="240" y="246" class="small">50 m</text>
+<path d="M97,233 L247,233" stroke="#484745" stroke-width="2"/>
+<path d="M97,229 L97,237" stroke="#484745" stroke-width="2"/>
+<path d="M247,229 L247,237" stroke="#484745" stroke-width="2"/>
+<circle cx="207" cy="1" r="11" fill="#fffefa" stroke="#8b877d" stroke-width="1"/>
+<text x="207" y="5" class="small" text-anchor="middle">1</text>
+<circle cx="215" cy="140" r="11" fill="#fffefa" stroke="#8b877d" stroke-width="1"/>
+<text x="215" y="144" class="small" text-anchor="middle">2</text>
+<circle cx="276" cy="92" r="11" fill="#fffefa" stroke="#8b877d" stroke-width="1"/>
+<text x="276" y="96" class="small" text-anchor="middle">3</text>
+<circle cx="96" cy="39" r="11" fill="#fffefa" stroke="#8b877d" stroke-width="1"/>
+<text x="96" y="43" class="small" text-anchor="middle">4</text>
+<circle cx="54" cy="102" r="11" fill="#fffefa" stroke="#8b877d" stroke-width="1"/>
+<text x="54" y="106" class="small" text-anchor="middle">5</text>
+</g>
+<text x="485" y="585" class="label">1  主門・門楼</text>
+<text x="485" y="607" class="note">市街の支線から庭へ。壁に実際の開口を設ける。</text>
+<text x="485" y="633" class="label">2  城庭・主要動線</text>
+<text x="485" y="655" class="note">庭を先に確保し、主塔と居館への通路を残す。</text>
+<text x="485" y="681" class="label">3  主塔</text>
+<text x="485" y="703" class="note">明確な矩形の平面。門の真正面を塞がない。</text>
+<text x="485" y="729" class="label">4  広間・居館</text>
+<text x="485" y="751" class="note">囲壁の内側に沿う棟。居住と行政の中心。</text>
+<text x="485" y="777" class="label">5  付属棟</text>
+<text x="485" y="799" class="note">厨房・厩・倉庫などを少数配置する。</text>
+<text x="28" y="886" class="subtitle">共有壁は一つの実体を参照し、中央城の囲壁を都市外周として扱わない。数値と比率は生成用の設計値です。</text>
+</svg>
