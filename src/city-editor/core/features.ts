@@ -324,7 +324,13 @@ export function placeGateOpening(document: CityDocument, gateVertexId: Id, candi
 }
 
 export function removeGroup(document: CityDocument, groupId: Id): CityDocument {
-  if (castleWallIds(document).has(groupId) || document.featureGroups.find(g => g.id === groupId)?.locked)
+  if (
+    document.featureGroups.find(g => g.id === groupId)?.locked ||
+    document.defenseCircuits?.some(c => c.locked && c.wallGroupIds.includes(groupId)) ||
+    document.castles?.some(
+      c => c.locked && document.defenseCircuits?.find(d => d.id === c.circuitId)?.wallGroupIds.includes(groupId)
+    )
+  )
     return document;
   const next = clone(document);
   const removed = next.featureGroups.find(group => group.id === groupId);
@@ -735,7 +741,7 @@ function wallEdgeIds(document: CityDocument): Set<Id> {
 
 function pruneGatesWithoutWalls(document: CityDocument): void {
   if (!document.gates) return;
-  document.gates = document.gates.filter(gate => vertexHasWall(document, gate.vertexId));
+  document.gates = document.gates.filter(gate => gate.ownerCastleId || vertexHasWall(document, gate.vertexId));
 }
 
 function connectedWardFaces(

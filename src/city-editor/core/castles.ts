@@ -1,8 +1,14 @@
 import { outerWallRing } from "./concealStreets";
-import { boundaryEdges, boundaryRings, reservedCastleFaces, validateFortifications } from "./fortifications";
+import {
+  boundaryEdges,
+  boundaryRings,
+  castleWallIds,
+  reservedCastleFaces,
+  validateFortifications
+} from "./fortifications";
 import { layoutCastle, refreshCastleLayouts } from "./gen/castleLayout";
 import type { CastleSite } from "./gen/castlePlacement";
-import { pointInPolygon, polygonCentroid } from "./gen/geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "./gen/geom";
 import {
   clone,
   faceNeighbors,
@@ -146,6 +152,14 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
     const exterior = working.mesh.faces[outside];
     const targets = faceVertices(working.mesh, exterior)
       .filter(id => id !== vertexId)
+      .filter(id => {
+        const target = working.mesh.vertices[id].point;
+        const at = working.mesh.vertices[vertexId].point;
+        const dx = target[0] - at[0],
+          dy = target[1] - at[1];
+        const tangent = Math.abs(dx * (q[0] - p[0]) + dy * (q[1] - p[1]));
+        return tangent <= Math.hypot(dx, dy) * Math.hypot(q[0] - p[0], q[1] - p[1]) * 0.6;
+      })
       .sort((a, b) => {
         const p = working.mesh.vertices[a].point,
           q = working.mesh.vertices[b].point;
@@ -248,6 +262,7 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
   for (const edge of Object.values(mesh.edges)) {
     if (
       barriers.has(edge.id) ||
+      !castleRoadEdgeAllowed(document, edge.id, 4) ||
       [edge.leftFace, edge.rightFace].some(
         id => id && (castleFaces.has(id) || mesh.faces[id].properties.water !== "land")
       )
@@ -438,4 +453,40 @@ export function setCastlePartLocked(
   if (!castle || castle.locked || !part) return null;
   part.locked = locked;
   return next;
+}
+
+/** Keep road ribbons clear of castle curtains, tapering clearance at an actual gate. */
+export function castleRoadEdgeAllowed(document: CityDocument, edgeId: Id, width: number): boolean {
+  const edge = document.mesh.edges[edgeId];
+  const a = document.mesh.vertices[edge.a].point,
+    b = document.mesh.vertices[edge.b].point;
+  const owned = castleWallIds(document);
+  for (const group of document.featureGroups) {
+    if (group.kind !== "wall" || !owned.has(group.id)) continue;
+    const clearance = (width + group.style.widthMeters) / 2 + 0.5;
+    for (const ref of group.segments) {
+      const wall = document.mesh.edges[ref.edgeId];
+      if (wall.id === edgeId) return false;
+      const c = document.mesh.vertices[wall.a].point,
+        d = document.mesh.vertices[wall.b].point;
+      const gate = document.gates.find(
+        g => g.ownerCastleId && [edge.a, edge.b].includes(g.vertexId) && [wall.a, wall.b].includes(g.vertexId)
+      );
+      const gatePoint = gate && document.mesh.vertices[gate.vertexId].point;
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+        const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+        const q = nearestOnPolyline(p, [c, d]).point;
+        const minimum = gatePoint
+          ? Math.min(clearance, Math.hypot(p[0] - gatePoint[0], p[1] - gatePoint[1]) * 0.75)
+          : clearance;
+        if (Math.hypot(p[0] - q[0], p[1] - q[1]) + 0.01 < minimum) return false;
+      }
+      if (!gatePoint)
+        for (const p of [c, d]) {
+          const q = nearestOnPolyline(p, [a, b]).point;
+          if (Math.hypot(p[0] - q[0], p[1] - q[1]) < clearance) return false;
+        }
+    }
+  }
+  return true;
 }

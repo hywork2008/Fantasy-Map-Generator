@@ -255,7 +255,13 @@ export function validateFortifications(document: CityDocument): string[] {
         arms?.length !== 2 ||
         arms.some(
           e =>
-            !e || !wallEdges.has(e.id) || !ownedBoundary.has(e.id) || (e.a !== gate.vertexId && e.b !== gate.vertexId)
+            !e ||
+            (!wallEdges.has(e.id) &&
+              !ownedCircuit?.naturalBarriers.some(
+                b => b.kind === "opening" && b.segments.some(r => r.edgeId === e.id)
+              )) ||
+            !ownedBoundary.has(e.id) ||
+            (e.a !== gate.vertexId && e.b !== gate.vertexId)
         )
       )
         errors.push(`Invalid castle gate arms ${gate.id}`);
@@ -325,10 +331,9 @@ export function wallRunsOutsideGates(document: CityDocument, points: Point[]): P
   return runs;
 }
 
-/** A deliberate town-wall edit records openings on the existing town boundary. */
+/** A deliberate wall edit records openings on each affected defense boundary. */
 export function refreshTownWallReferences(document: CityDocument): void {
   for (const circuit of document.defenseCircuits ?? []) {
-    if (circuit.scope !== "town") continue;
     const boundary = boundaryEdges(document.mesh, circuit.areaFaceIds),
       ids = new Set(boundary.map(r => r.edgeId));
     const groups = document.featureGroups.filter(g => g.kind === "wall" && g.segments.some(r => ids.has(r.edgeId)));

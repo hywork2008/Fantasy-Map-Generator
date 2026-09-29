@@ -1,4 +1,4 @@
-import { finalizeCastles, installCastle, registerTownCircuit } from "./castles";
+import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
@@ -2651,6 +2651,11 @@ function completeRoadRouter(
         )
       );
   }
+  const castleBlocked = new Set(
+    Object.values(mesh.edges)
+      .filter(edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)))
+      .map(edge => edge.id)
+  );
   const gateIds = new Set(townGates(document).map(g => g.vertexId));
   const plazaFaces = new Set(document.elements.find(e => e.kind === "plaza")?.faceIds ?? []);
   const internalPlazaEdges = new Set(
@@ -2702,6 +2707,7 @@ function completeRoadRouter(
     const hopEndOf = waypoints[waypoints.length - 1];
     const weight = (a: number, b: number, w: number, hopEnd: number) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
+      if (castleBlocked.has(edge.id)) return Infinity;
       for (const id of [edge.a, edge.b])
         if (bridgeInterior.has(id) && !gateIds.has(id) && !bridgeInterior.get(id)!.has(edge.id)) return Infinity;
       if (banned.has(edge.id)) {

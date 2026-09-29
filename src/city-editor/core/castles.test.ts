@@ -195,7 +195,11 @@ describe("Castle compounds", () => {
       id = doc.castles![0].id,
       wall = [...castleWallIds(doc)][0],
       gate = doc.gates[0];
-    expect(removeGroup(doc, wall)).toBe(doc);
+    const opened = removeGroup(doc, wall);
+    expect(opened.featureGroups.some(g => g.id === wall)).toBe(false);
+    expect(opened.castles).toEqual(doc.castles);
+    expect(validate(opened)).toEqual([]);
+    expect(removeGroup(setCastleLocked(doc, id, true)!, wall).featureGroups.some(g => g.id === wall)).toBe(true);
     expect(removeEdgeFromGroup(doc, wall, boundaryEdges(doc.mesh, ["f0"])[0].edgeId)).toBeNull();
     expect(toggleGate(doc, gate.vertexId)).toBeNull();
     const reassigned = structuredClone(doc);

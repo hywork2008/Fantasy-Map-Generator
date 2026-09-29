@@ -659,7 +659,8 @@ export function validate(document: CityDocument): string[] {
   }
   for (const gate of document.gates ?? []) {
     if (!mesh.vertices[gate.vertexId]) errors.push(`Gate ${gate.id} has no vertex`);
-    else if (!gateHasWall(document, gate.vertexId)) errors.push(`Gate ${gate.id} is not on a wall`);
+    else if (!gate.ownerCastleId && !gateHasWall(document, gate.vertexId))
+      errors.push(`Gate ${gate.id} is not on a wall`);
   }
   errors.push(...validateFortifications(document));
   return errors;
