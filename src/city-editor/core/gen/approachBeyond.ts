@@ -420,8 +420,8 @@ export interface ExternalGateRoad {
   bearing: number;
 }
 
-/** Roads that start at an outer gate and run away from the town center.
- * Gate-to-plaza streets end closer to the origin, so they stay out. */
+/** Roads joining an outer gate to the map boundary. Distance from the origin
+ * cannot distinguish an interior street from an approach in coastal towns. */
 export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
   const gates = new Set(townGates(document).map(gate => gate.vertexId));
   const found: ExternalGateRoad[] = [];
@@ -439,12 +439,17 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
     const gate = document.mesh.vertices[gateId]?.point;
     const outward = document.mesh.vertices[outId]?.point;
     if (!gate || !outward) continue;
-    if (Math.hypot(outward[0], outward[1]) <= Math.hypot(gate[0], gate[1]) + 1) continue;
+    if (!onMapBoundary(document, outward)) continue;
     const bearing = vecToAzimuth(outward[0], outward[1]);
     found.push({ group, outward, bearing });
   }
   found.sort((a, b) => a.bearing - b.bearing || a.group.id.localeCompare(b.group.id));
   return found;
+}
+
+function onMapBoundary(document: CityDocument, point: Point): boolean {
+  const half = document.frame.extentMeters / 2;
+  return Math.abs(Math.max(Math.abs(point[0]), Math.abs(point[1])) - half) <= 0.05;
 }
 
 function beyondFromBurg(burg: NonNullable<BurgSiteDescriptor["roads"][number]["nextBurg"]>): ApproachBeyondData {
@@ -507,6 +512,16 @@ export function tagExternalGateRoads(document: CityDocument, seed: string, descr
   // Also tag river-crossing approach roads with their matching beyond descriptor
   for (const group of document.featureGroups) {
     if (group.kind !== "road" || !group.id.startsWith("gc:riverRoad-")) continue;
+    const vertices = featureGroupVertices(document, group);
+    if (
+      ![vertices[0], vertices.at(-1)!].some(id => {
+        const point = document.mesh.vertices[id]?.point;
+        return point && onMapBoundary(document, point);
+      })
+    ) {
+      delete group.beyond;
+      continue;
+    }
     const match = group.id.match(/^gc:riverRoad-\d+-(\d+)$/);
     if (match) {
       const pathIndex = Number.parseInt(match[1], 10);

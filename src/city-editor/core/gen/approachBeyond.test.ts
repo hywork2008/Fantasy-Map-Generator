@@ -166,3 +166,31 @@ describe("approach beyond", () => {
     expect(city.featureGroups.some(group => group.kind === "road" && group.beyond)).toBe(false);
   });
 });
+
+it("does not label the central Road 7 in the reported coastal town", () => {
+  const grid = createGridDocument({
+    size: "tiny",
+    grid: "evolution",
+    seed: "1gqyytj",
+    patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+  });
+  const settings = defaultGenerationSettings();
+  settings.layout = "organic";
+  settings.walledAreaShare = 1;
+  settings.config.coast = "bay";
+  settings.config.rivers = ["straight"];
+  settings.config.relief = true;
+  settings.config.features = { walls: true, citadel: false, plaza: true, temple: false, port: true, shanty: true };
+  const city = generateCityOnDocument(grid, settings, "e7fn1h")!;
+  expect(city).not.toBeNull();
+  const central = city.featureGroups.find(g => g.kind === "road" && g.segments.some(r => r.edgeId === "e370"));
+  expect(central?.id).toBe("gc:road-6");
+  expect(central?.kind === "road" && central.beyond).toBeUndefined();
+  expect(externalGateRoads(city).some(r => r.group.id === central!.id)).toBe(false);
+  expect(externalGateRoads(city).length).toBeGreaterThan(0);
+  if (central?.kind === "road") {
+    central.beyond = "city";
+    tagExternalGateRoads(city, "e7fn1h");
+    expect(central.beyond).toBeUndefined();
+  }
+});
