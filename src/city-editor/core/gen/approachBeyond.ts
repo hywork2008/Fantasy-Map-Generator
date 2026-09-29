@@ -10,6 +10,7 @@ import type {
   SettlementRole,
   SettlementScale
 } from "../types";
+import { azimuthDelta, vecToAzimuth } from "./geom";
 import { makeRng } from "./prng";
 import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 
@@ -438,10 +439,33 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
     const outward = document.mesh.vertices[outId]?.point;
     if (!gate || !outward) continue;
     if (Math.hypot(outward[0], outward[1]) <= Math.hypot(gate[0], gate[1]) + 1) continue;
-    found.push({ group, outward, bearing: Math.atan2(outward[1], outward[0]) });
+    const bearing = vecToAzimuth(outward[0], outward[1]);
+    found.push({ group, outward, bearing });
   }
   found.sort((a, b) => a.bearing - b.bearing || a.group.id.localeCompare(b.group.id));
   return found;
+}
+
+function beyondFromBurg(burg: NonNullable<BurgSiteDescriptor["roads"][number]["nextBurg"]>): ApproachBeyondData {
+  const scale = (burg.scale ?? "town") as SettlementScale;
+  const role = (burg.role ?? (burg.capital ? "capital" : "generic")) as SettlementRole;
+  return {
+    realm: {
+      relation: (burg.diplomacyRelation ?? (burg.isDomestic ? "domestic" : "Neutral")) as BeyondRealmRelation,
+      stateId: burg.stateId,
+      stateName: burg.stateName
+    },
+    settlement: {
+      scale,
+      role,
+      name: burg.name,
+      burgId: burg.id,
+      population: burg.population,
+      wealth: burg.wealth,
+      treasury: burg.treasury,
+      distanceMeters: burg.distanceMeters
+    }
+  };
 }
 
 /** Write `beyond` onto external gate roads and clear it from other generated roads. */
@@ -461,11 +485,10 @@ export function tagExternalGateRoads(document: CityDocument, seed: string, descr
   roads.forEach((road, index) => {
     let matchedNextBurg: BurgSiteDescriptor["roads"][number]["nextBurg"] | null = null;
     if (descriptorRoads.length > 0) {
-      const roadBearingDeg = ((road.bearing * 180) / Math.PI + 360) % 360;
       let minDiff = 180;
       for (const dRoad of descriptorRoads) {
         if (!dRoad.nextBurg) continue;
-        const diff = Math.abs(((((dRoad.entryAzimuthDeg - roadBearingDeg + 180) % 360) + 360) % 360) - 180);
+        const diff = azimuthDelta(dRoad.entryAzimuthDeg, road.bearing);
         if (diff < minDiff && diff < 60) {
           minDiff = diff;
           matchedNextBurg = dRoad.nextBurg;
@@ -474,31 +497,47 @@ export function tagExternalGateRoads(document: CityDocument, seed: string, descr
     }
 
     if (matchedNextBurg) {
-      const scale = (matchedNextBurg.scale ?? "town") as SettlementScale;
-      const role = (matchedNextBurg.role ?? (matchedNextBurg.capital ? "capital" : "generic")) as SettlementRole;
-      const beyondData: ApproachBeyondData = {
-        realm: {
-          relation: (matchedNextBurg.diplomacyRelation ??
-            (matchedNextBurg.isDomestic ? "domestic" : "Neutral")) as BeyondRealmRelation,
-          stateId: matchedNextBurg.stateId,
-          stateName: matchedNextBurg.stateName
-        },
-        settlement: {
-          scale,
-          role,
-          name: matchedNextBurg.name,
-          burgId: matchedNextBurg.id,
-          population: matchedNextBurg.population,
-          wealth: matchedNextBurg.wealth,
-          treasury: matchedNextBurg.treasury,
-          distanceMeters: matchedNextBurg.distanceMeters
-        }
-      };
-      road.group.beyond = beyondData;
+      road.group.beyond = beyondFromBurg(matchedNextBurg);
     } else {
       road.group.beyond = roles[index];
     }
   });
+
+  // Also tag river-crossing approach roads with their matching beyond descriptor
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || !group.id.startsWith("gc:riverRoad-")) continue;
+    const match = group.id.match(/^gc:riverRoad-\d+-(\d+)$/);
+    if (match) {
+      const pathIndex = Number.parseInt(match[1], 10);
+      const dRoad = descriptorRoads[pathIndex];
+      if (dRoad?.nextBurg) {
+        group.beyond = beyondFromBurg(dRoad.nextBurg);
+        continue;
+      }
+    }
+    if (descriptorRoads.length > 0) {
+      const ids = featureGroupVertices(document, group);
+      const pStart = document.mesh.vertices[ids[0]]?.point;
+      const pEnd = document.mesh.vertices[ids.at(-1)!]?.point;
+      if (pStart && pEnd) {
+        const outward = Math.hypot(pStart[0], pStart[1]) > Math.hypot(pEnd[0], pEnd[1]) ? pStart : pEnd;
+        const az = vecToAzimuth(outward[0], outward[1]);
+        let minDiff = 180;
+        let matched: BurgSiteDescriptor["roads"][number]["nextBurg"] | null = null;
+        for (const dRoad of descriptorRoads) {
+          if (!dRoad.nextBurg) continue;
+          const diff = azimuthDelta(dRoad.entryAzimuthDeg, az);
+          if (diff < minDiff && diff < 60) {
+            minDiff = diff;
+            matched = dRoad.nextBurg;
+          }
+        }
+        if (matched) {
+          group.beyond = beyondFromBurg(matched);
+        }
+      }
+    }
+  }
 }
 
 /** Keep a label inside the frame, on the outer end of the road. */

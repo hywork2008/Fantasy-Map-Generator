@@ -61,9 +61,16 @@ describe("Bonenfeld wide-river generation", () => {
     const city = generateCityOnDocument(gridDoc, settings, descriptor.burg.seed);
     if (city && process.env.CE_BONENFELD_EXPORT)
       writeFileSync(process.env.CE_BONENFELD_EXPORT, renderStandaloneCitySvg(city).outerHTML);
-    expect(city).not.toBeNull();
-    expect(city?.gates.length).toBeGreaterThan(0);
-    expect(city?.featureGroups.some(g => g.name === "Bridge" || g.id.includes("bridge"))).toBe(true);
+    const riverRoad1 = city!.featureGroups.find(g => g.id === "gc:riverRoad-0-1")!;
+    expect(riverRoad1).toBeDefined();
+    expect(riverRoad1.beyond?.realm.relation).toBe("domestic");
+    expect(riverRoad1.beyond?.settlement.name).toBe("Senau");
+
+    const riverRoad2 = city!.featureGroups.find(g => g.id === "gc:riverRoad-0-2")!;
+    expect(riverRoad2).toBeDefined();
+    expect(riverRoad2.beyond?.realm.relation).toBe("domestic");
+    expect(riverRoad2.beyond?.settlement.name).toBe("Schosin");
+    expect(riverRoad2.beyond?.settlement.role).toBe("fortress");
     expect(city?.appearance).toBe("town");
     expect(city?.generationSeed).toBe(descriptor.burg.seed);
     expect(validate(city!)).toEqual([]);
