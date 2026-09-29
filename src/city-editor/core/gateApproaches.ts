@@ -1,3 +1,4 @@
+import { featureGroupVertices } from "./features";
 import { townGates } from "./fortifications";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "./gen/geom";
 import { edgeBetween, facePoints, faceVertices, incidentFaces, insertEdgeVertex, splitFace } from "./mesh";
@@ -127,6 +128,98 @@ export function openWallRiverMouths(document: CityDocument): CityDocument {
           .filter(run => run.length)
           .map((segments, i) => ({ ...group, id: i ? `${group.id}:mouth-${vertex}-${i}` : group.id, segments }));
       });
+    }
+  }
+  return next;
+}
+
+/** Replace perimeter detours through unoccupied exterior cells by real mesh chords. */
+export function shortcutExteriorRoads(document: CityDocument, planning = false): CityDocument {
+  let next = document;
+  const protectedVertices = new Set<Id>(
+    Object.values(document.mesh.vertices)
+      .filter(v => v.locked)
+      .map(v => v.id)
+  );
+  const roadNeighbors = new Map<Id, Set<Id>>();
+  for (const group of document.featureGroups) {
+    if (group.kind === "river") for (const id of group.vertices) protectedVertices.add(id);
+    if (group.kind !== "river" && (group.kind === "wall" || group.locked)) {
+      for (const ref of group.segments ?? []) {
+        const edge = document.mesh.edges[ref.edgeId];
+        protectedVertices.add(edge.a);
+        protectedVertices.add(edge.b);
+      }
+    }
+    if (group.kind !== "road") continue;
+    for (const ref of group.segments) {
+      const edge = document.mesh.edges[ref.edgeId];
+      for (const [a, b] of [
+        [edge.a, edge.b],
+        [edge.b, edge.a]
+      ]) {
+        if (!roadNeighbors.has(a)) roadNeighbors.set(a, new Set());
+        roadNeighbors.get(a)!.add(b);
+      }
+    }
+  }
+  for (const [id, neighbors] of roadNeighbors) if (neighbors.size > 2) protectedVertices.add(id);
+  const occupied = new Set(document.elements.flatMap(element => element.faceIds));
+  const enclosed = new Set((document.defenseCircuits ?? []).flatMap(circuit => circuit.areaFaceIds));
+  for (const originalGroup of document.featureGroups) {
+    if (originalGroup.kind !== "road" || originalGroup.locked || !originalGroup.id.startsWith("gc:road-")) continue;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const group = next.featureGroups.find(g => g.id === originalGroup.id)!;
+      if (group.kind !== "road") break;
+      const vertices = featureGroupVertices(next, group);
+      for (let i = 0; i + 2 < vertices.length && !changed; i++) {
+        for (let j = i + 2; j < vertices.length; j++) {
+          if (protectedVertices.has(vertices[j - 1])) break;
+          const a = vertices[i],
+            b = vertices[j];
+          if (
+            [a, b].some(id => protectedVertices.has(id) && !townGates(next).some(g => g.vertexId === id)) ||
+            edgeBetween(next.mesh, a, b)
+          )
+            continue;
+          const face = incidentFaces(next.mesh, a).find(
+            f =>
+              !f.properties.locked &&
+              (!f.properties.buildable || (planning && !document.fabric && f.properties.settlement === "outskirts")) &&
+              f.properties.water === "land" &&
+              !occupied.has(f.id) &&
+              !enclosed.has(f.id) &&
+              (planning ||
+                f.properties.ward === null ||
+                f.properties.ward === "empty" ||
+                f.properties.ward === "farm") &&
+              faceVertices(next.mesh, f).includes(b) &&
+              group.segments.slice(i, j).every(ref => f.boundary.some(boundary => boundary.edgeId === ref.edgeId))
+          );
+          if (!face) continue;
+          const split = splitFace(next, face.id, a, b);
+          if (!split) continue;
+          const pieces = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);
+          const area = polygonArea(facePoints(next.mesh, face));
+          if (
+            pieces.some(f => {
+              const polygon = facePoints(split.mesh, f);
+              return !isSimplePolygon(polygon) || polygonArea(polygon) * area <= 0;
+            })
+          )
+            continue;
+          const edge = edgeBetween(split.mesh, a, b)!;
+          const updated = split.featureGroups.find(g => g.id === group.id)!;
+          if (updated.kind !== "road") continue;
+          updated.segments.splice(i, j - i, { edgeId: edge.id, forward: edge.a === a });
+          for (const piece of pieces) piece.site = polygonCentroid(facePoints(split.mesh, piece));
+          next = split;
+          changed = true;
+          break;
+        }
+      }
     }
   }
   return next;

@@ -392,6 +392,14 @@ export function fitsCluster(rect: OrientedRect, cellIds: number[], byId: Map<num
   );
 }
 
+/** The whole nave must stay on the mapped land, including concave coastlines. */
+export function templeFitsLand(rect: OrientedRect, land: Point[][], water: Point[][]): boolean {
+  if (water.some(polygon => polygonHitsOrientedRect(polygon, rect))) return false;
+  return [rect.center, ...orientedRectBoundarySamples(rect, 8)].every(point =>
+    land.some(polygon => pointInPolygon(point, polygon) || nearestOnPolyline(point, closeRing(polygon)).dist < 0.01)
+  );
+}
+
 export function placeTempleFootprint(
   cells: Cell[],
   urban: Set<number>,
@@ -403,7 +411,8 @@ export function placeTempleFootprint(
   capital: boolean,
   streets: Point[][],
   rivers: Point[][],
-  walls: Point[][] = []
+  walls: Point[][] = [],
+  sea: Set<number> = new Set()
 ): { cellIds: number[]; anchor: Point; rotation: number } | null {
   const byId = new Map(cells.map(c => [c.id, c]));
   const plazaIds = new Set(plaza?.cellIds ?? []);
@@ -413,7 +422,7 @@ export function placeTempleFootprint(
   const wet = (c: Cell): boolean => rivers.some(line => cellTouchesPolyline(c, line, margin));
   const streeted = (c: Cell): boolean => streets.some(line => polylineThroughCellInterior(c, line));
   const eligible = (c: Cell): boolean =>
-    urban.has(c.id) && !occupied.has(c.id) && !plazaIds.has(c.id) && !citadelIds.has(c.id);
+    urban.has(c.id) && !sea.has(c.id) && !occupied.has(c.id) && !plazaIds.has(c.id) && !citadelIds.has(c.id);
   const R = Math.max(1, extentMeters * 0.165);
   const inBand = (c: Cell): boolean => {
     const d = Math.hypot(...c.centroid);
@@ -450,10 +459,14 @@ export function placeTempleFootprint(
   const maxCells = Math.min(MAX_CIVIC_CELLS, minCells + 3);
   const footprint = templeFootprintMeters(extentMeters);
   const minArea = footprint.length * footprint.width;
+  const land = cells.filter(c => !sea.has(c.id)).map(c => c.polygon);
+  const water = cells.filter(c => sea.has(c.id)).map(c => c.polygon);
+  const onLand = (rect: OrientedRect): boolean => templeFitsLand(rect, land, water);
 
   const clears = (rect: OrientedRect, ids: number[]): boolean =>
     hazards.every(h => orientedRectPolylineDistance(rect, h.points) >= h.clearance - 0.2) &&
-    fitsCluster(rect, ids, byId);
+    fitsCluster(rect, ids, byId) &&
+    onLand(rect);
 
   for (const pick of ranked.slice(0, Math.min(32, ranked.length))) {
     const growEligible = (c: Cell): boolean => eligible(c) && !wet(c) && !streeted(c);
@@ -483,7 +496,7 @@ export function placeTempleFootprint(
       maxCells
     );
     const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
-    if (hazards.every(h => orientedRectPolylineDistance(rect, h.points) >= h.clearance - 0.2)) {
+    if (onLand(rect) && hazards.every(h => orientedRectPolylineDistance(rect, h.points) >= h.clearance - 0.2)) {
       return { cellIds, anchor: rect.center, rotation: rect.rotation };
     }
   }
@@ -491,7 +504,7 @@ export function placeTempleFootprint(
   const pick = ranked[0];
   const cellIds = growCluster(pick.id, byId, eligible, ids => ids.length >= minCells, maxCells);
   const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
-  if (wallHazards.some(h => orientedRectPolylineDistance(rect, h.points) < h.clearance)) return null;
+  if (!onLand(rect) || wallHazards.some(h => orientedRectPolylineDistance(rect, h.points) < h.clearance)) return null;
   return { cellIds, anchor: rect.center, rotation: rect.rotation };
 }
 

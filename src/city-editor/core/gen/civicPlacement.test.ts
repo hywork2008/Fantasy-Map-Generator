@@ -5,6 +5,7 @@ import {
   orientedRectPolylineDistance,
   placePlazaCluster,
   placeTempleFootprint,
+  templeFitsLand,
   templeRectForElement
 } from "./civicPlacement";
 import type { Cell, Point } from "./types";
@@ -409,4 +410,72 @@ it.each(["organic-wall-1", "organic-wall-2", "organic-wall-3"])("clears finished
     const points = featureGroupVertices(city!, wall).map(id => city!.mesh.vertices[id].point);
     expect(orientedRectPolylineDistance(rect, points)).toBeGreaterThanOrEqual(wall.style.widthMeters / 2 + 3.8);
   }
+});
+
+describe("temple land containment", () => {
+  it("does not let the fallback placement protrude into a sea cell", () => {
+    const cells = [square(0, -10, 0, 20, [1]), square(1, 10, 0, 20, [0])];
+    const placed = placeTempleFootprint(
+      cells,
+      new Set([0]),
+      new Set(),
+      null,
+      new Set(),
+      600,
+      20,
+      false,
+      [],
+      [],
+      [],
+      new Set([1])
+    );
+    expect(placed).toBeNull();
+  });
+  const land = [square(0, -30, 0, 60).polygon];
+  const sea = [square(1, 30, 0, 60).polygon];
+  it("rejects a nave whose center is on land but its rotated corner reaches the sea", () => {
+    const rect = { center: [-8, 0] as Point, length: 28, width: 16, rotation: Math.PI / 4 };
+    expect(templeFitsLand(rect, land, sea)).toBe(false);
+    expect(templeFitsLand({ ...rect, center: [-25, 0] }, land, sea)).toBe(true);
+  });
+  it("rejects a nave beyond the mapped land", () => {
+    expect(templeFitsLand({ center: [-65, 0], length: 28, width: 16, rotation: 0 }, land, sea)).toBe(false);
+  });
+  it("rejects a narrow inlet even when all corners are dry", () => {
+    const rect = { center: [0, 0] as Point, length: 28, width: 16, rotation: 0 };
+    const inlet: Point[] = [
+      [-1, 2],
+      [1, 2],
+      [1, 30],
+      [-1, 30]
+    ];
+    expect(templeFitsLand(rect, [square(0, 0, 0, 100).polygon], [inlet])).toBe(false);
+  });
+});
+
+it.each(["bay", "cape", "straight"] as const)("keeps finished organic temple on land with %s coast", async coast => {
+  const { createGridDocument } = await import("../document");
+  const { defaultGenerationSettings, generateCityOnDocument } = await import("../generate");
+  const { facePoints } = await import("../mesh");
+  const seed = `temple-sea-${coast}`;
+  const document = createGridDocument({ size: "tiny", grid: "evolution", seed });
+  const settings = defaultGenerationSettings();
+  settings.layout = "organic";
+  settings.config.layout = "organic";
+  settings.config.coast = coast;
+  settings.config.rivers = [];
+  settings.config.features.walls = true;
+  settings.config.features.temple = true;
+  settings.config.features.citadel = false;
+  settings.config.features.port = true;
+  const city = generateCityOnDocument(document, settings, seed);
+  expect(city).not.toBeNull();
+  const temple = city!.elements.find(element => element.kind === "temple");
+  expect(temple?.point).toBeDefined();
+  const rect = templeRectForElement(temple!.point!, temple!.sizeMeters, temple!.rotation, city!.frame.extentMeters);
+  const faces = Object.values(city!.mesh.faces);
+  const land = faces.filter(face => face.properties.water === "land").map(face => facePoints(city!.mesh, face));
+  const water = faces.filter(face => face.properties.water !== "land").map(face => facePoints(city!.mesh, face));
+  expect(water.length).toBeGreaterThan(0);
+  expect(templeFitsLand(rect, land, water)).toBe(true);
 });

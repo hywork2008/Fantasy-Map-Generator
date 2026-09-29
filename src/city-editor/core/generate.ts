@@ -1,11 +1,12 @@
 import { finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
-import { connectDryCellInteriors, openWallRiverMouths } from "./gateApproaches";
+import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
 import {
   orientedRectPolylineDistance,
   placeAndClearTempleRect,
   polygonHitsOrientedRect,
+  templeFitsLand,
   templeHazards,
   templeRectForElement
 } from "./gen/civicPlacement";
@@ -2431,6 +2432,11 @@ function applyPlan(
     }
   }
 
+  if (stageStep >= 5) {
+    next = shortcutExteriorRoads(next, true);
+    mesh = next.mesh;
+  }
+
   mark("route-junctions");
   // Accepted gates are an invariant. Never make an incomplete route look
   // successful by deleting its gate (and then deleting its paired roads).
@@ -3033,6 +3039,21 @@ function settleTempleOnDocument(document: CityDocument): void {
       hazards.push({ points, clearance: Math.max(group.style.widthMeters / 2 + 2, 10.2) });
     }
   }
+  const land: Point[][] = [];
+  const water: Point[][] = [];
+  for (const face of Object.values(document.mesh.faces)) {
+    (face.properties.water === "land" ? land : water).push(facePoints(document.mesh, face));
+  }
+  // Coast and map boundaries prevent the clearance nudge from escaping dry land.
+  for (const edge of Object.values(document.mesh.edges)) {
+    const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : undefined;
+    const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : undefined;
+    if ((left?.properties.water === "land") === (right?.properties.water === "land")) continue;
+    hazards.push({
+      points: [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point],
+      clearance: 2
+    });
+  }
   const plazaGuides: Point[][] = [];
   const plaza = document.elements.find(element => element.kind === "plaza");
   if (plaza) {
@@ -3052,7 +3073,9 @@ function settleTempleOnDocument(document: CityDocument): void {
   );
   const clearsWalls = (candidate: typeof rect): boolean =>
     walls.every(wall => orientedRectPolylineDistance(candidate, wall.points) >= wall.clearance - 0.2);
-  if (!clearsWalls(rect)) {
+  const validSite = (candidate: typeof rect): boolean =>
+    clearsWalls(candidate) && templeFitsLand(candidate, land, water);
+  if (!validSite(rect)) {
     const candidates = Object.values(document.mesh.faces)
       .filter(face => face.properties.settlement === "core" && face.properties.water === "land")
       .map(face => polygonCentroid(facePoints(document.mesh, face)))
@@ -3063,12 +3086,16 @@ function settleTempleOnDocument(document: CityDocument): void {
       );
     for (const center of candidates) {
       const candidate = placeAndClearTempleRect(center, document.frame.extentMeters, guides, hazards);
-      if (!hazards.every(h => orientedRectPolylineDistance(candidate, h.points) >= h.clearance - 0.2)) continue;
+      if (
+        !validSite(candidate) ||
+        !hazards.every(h => orientedRectPolylineDistance(candidate, h.points) >= h.clearance - 0.2)
+      )
+        continue;
       rect = candidate;
       break;
     }
     // A cramped town may have no site large enough for the nave and its clearance.
-    if (!clearsWalls(rect)) {
+    if (!validSite(rect)) {
       document.elements = document.elements.filter(element => element !== temple);
       return;
     }
