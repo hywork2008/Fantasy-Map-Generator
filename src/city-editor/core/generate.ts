@@ -2778,7 +2778,10 @@ function completeRoadRouter(
     if (outside) {
       const half = document.frame.extentMeters / 2;
       const onFrame = (node: number) => graph.points[node].some(value => Math.abs(value) >= half - 0.01);
-      while (nodes.length > 2 && onFrame(nodes[0]) && onFrame(nodes[1])) nodes.shift();
+      // Routes are stored frame → town. Keep the first frame contact seen
+      // from town, even when the discarded tail briefly returns inland.
+      const firstContactFromTown = nodes.findLastIndex(onFrame);
+      if (firstContactFromTown >= 0) nodes = nodes.slice(firstContactFromTown);
     }
     return nodes.slice(1).map((b, i) => {
       const edge = edgeFor.get(`${Math.min(nodes[i], b)},${Math.max(nodes[i], b)}`)!;
