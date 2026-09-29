@@ -25,6 +25,9 @@ export interface FarmPlot {
   rows: Point[][];
 }
 export interface CityFabric {
+  parcels?: import("./parcelTypes").ParcelPlan[];
+  openSpaces?: import("./parcelTypes").OpenSpace[];
+  harbor?: import("./harborFabric").HarborPlan;
   farms?: FarmPlot[];
   buildings: BuildingLot[];
   lanes: InfillLane[];

@@ -8,6 +8,7 @@ import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
+import { buildMedievalFabric, medievalStreetDocument } from "./medievalFabric";
 import { openFieldPlots } from "./openField";
 import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
 import {
@@ -63,6 +64,13 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
+  if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
+    return buildMedievalFabric(document, buildLegacyBlockFabric(medievalStreetDocument(document), cache));
+  }
+  return buildLegacyBlockFabric(document, cache);
+}
+
+function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): DistrictFabric {
   const layout =
     document.layout ??
     document.fabric?.generation?.settings?.layout ??

@@ -53,7 +53,12 @@ import {
 } from "../core/gen/approachBeyond";
 import { refreshCastleLayouts } from "../core/gen/castleLayout";
 import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
-import { defaultDistrictParameters, resolveDistricts, setDistrictParameters } from "../core/gen/fabricDistricts";
+import {
+  defaultDistrictParameters,
+  resolveDistricts,
+  setBuildingPattern,
+  setDistrictParameters
+} from "../core/gen/fabricDistricts";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
@@ -162,6 +167,7 @@ const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> 
   { kind: "castle", label: "🏰" },
   { kind: "merchant", label: "⚖️" },
   { kind: "craftsmen", label: "🛠️" },
+  { kind: "patriciate", label: "🏛️" },
   { kind: "harbor", label: "⚓" },
   { kind: "park", label: "🌳" },
   { kind: "farm", label: "🌾" },
@@ -259,7 +265,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let notice = "";
   let measureFrom: [number, number] | null = null;
   let measureTo: [number, number] | null = null;
-  const generateSettings: GenerationSettings = defaultGenerationSettings();
+  const generateSettings: GenerationSettings = { ...defaultGenerationSettings(), buildingPattern: "medieval" };
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
   // ①→⑦ stay consistent with each other.
@@ -645,11 +651,24 @@ export function mountCityEditor(root: HTMLElement): void {
     gridEvoAdoptButton
   );
 
+  const currentBuildingPatternSelect = select(["legacy", "medieval"], documentState.buildingPattern ?? "legacy");
+  currentBuildingPatternSelect.className = "ce-document-building-pattern";
+  currentBuildingPatternSelect.setAttribute("aria-label", "現在の建物生成");
+  currentBuildingPatternSelect.options[0].textContent = "従来の住宅";
+  currentBuildingPatternSelect.options[1].textContent = "中世の敷地（倉庫・屋敷・庭）";
+  currentBuildingPatternSelect.addEventListener("change", () => {
+    const pattern = currentBuildingPatternSelect.value as "legacy" | "medieval";
+    generateSettings.buildingPattern = pattern;
+    commit(setBuildingPattern(documentState, pattern), "Change building pattern");
+    if (documentState.appearance === "town") completeResult = documentState;
+    syncGenerateControls();
+  });
   documentPanel.content.append(
     sizeLabel,
     gridKindLabel,
     hexSizeLabel,
     documentActions,
+    label("現在の建物生成", currentBuildingPatternSelect),
     label("Scale", scaleInput),
     label("Smoothing", smoothingModeInput),
     text(
@@ -681,6 +700,16 @@ export function mountCityEditor(root: HTMLElement): void {
     const val = layoutSelect.value as CityLayout;
     generateSettings.layout = val;
     generateSettings.config.layout = val;
+  });
+
+  const buildingPatternSelect = select(["legacy", "medieval"], generateSettings.buildingPattern ?? "legacy");
+  buildingPatternSelect.className = "ce-generate-building-pattern";
+  buildingPatternSelect.setAttribute("aria-label", "建物生成");
+  buildingPatternSelect.options[0].textContent = "従来の住宅";
+  buildingPatternSelect.options[1].textContent = "中世の敷地（倉庫・屋敷・庭）";
+  buildingPatternSelect.addEventListener("change", () => {
+    generateSettings.buildingPattern = buildingPatternSelect.value as "legacy" | "medieval";
+    completeResult = null;
   });
 
   const coastSelect = select(["none", "straight", "bay", "cape"], generateSettings.config.coast);
@@ -953,6 +982,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const synthControls = div("ce-generate-synth");
   synthControls.append(
     label("都市形態", layoutSelect),
+    label("建物生成", buildingPatternSelect),
     label("Coast", coastSelect),
     label("海側の城壁", seaWallSelect),
     label("Rivers", riversSelect),
@@ -1912,6 +1942,8 @@ export function mountCityEditor(root: HTMLElement): void {
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
+    currentBuildingPatternSelect.value =
+      documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     walledShareInput.placeholder = `auto (${defaultWalledAreaShare(documentState.frame.extentMeters) * 100}%)`;
     map.classList.toggle("ce-map--select", tool === "select");
     map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");
@@ -2495,6 +2527,7 @@ export function mountCityEditor(root: HTMLElement): void {
           "castle",
           "merchant",
           "craftsmen",
+          "patriciate",
           "harbor",
           "park",
           ...(documentState.gridKind === "evolution" ? ["farm"] : []),
@@ -2502,6 +2535,8 @@ export function mountCityEditor(root: HTMLElement): void {
         ],
         face.properties.ward ?? ""
       );
+      const patriciateOption = [...ward.options].find(o => o.value === "patriciate");
+      if (patriciateOption) patriciateOption.textContent = "patriciate · 富裕層街";
       water.disabled = elevation.disabled = ward.disabled = face.properties.locked;
       ward.addEventListener("change", () => {
         if (face.properties.locked) return;
@@ -2509,7 +2544,7 @@ export function mountCityEditor(root: HTMLElement): void {
         next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
         commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
       });
-      if (documentState.gridKind === "evolution") {
+      if (documentState.gridKind === "evolution" || documentState.buildingPattern === "medieval") {
         const district = resolveDistricts(documentState, documentState.fabric).find(d => d.faceIds.includes(face.id));
         const parameters = district?.parameters ?? defaultDistrictParameters(face, documentState);
         container.append(text(`District · ${district?.faceIds.length ?? 1} cells`));
@@ -2521,6 +2556,7 @@ export function mountCityEditor(root: HTMLElement): void {
           ["orientation", "Local street direction (°)", (parameters.orientation * 180) / Math.PI, -180, 180, 1]
         ] as const;
         for (const [key, title, value, min, max, step] of fields) {
+          if (key === "coverage" && documentState.buildingPattern === "medieval") continue;
           const input = numberInput(String(Math.round(value * 100) / 100), String(min), String(step));
           input.max = String(max);
           input.setAttribute("aria-label", title);
@@ -2538,6 +2574,65 @@ export function mountCityEditor(root: HTMLElement): void {
             else showNotice("Enter a value within the district setting range");
           });
           container.append(label(title, input));
+        }
+        if (documentState.buildingPattern === "medieval" || documentState.fabric?.version === 5) {
+          const composition = select(
+            ["standard", "commercial", "warehouses", "estates"],
+            parameters.composition ?? "standard"
+          );
+          for (const option of [...composition.options])
+            option.textContent = (
+              {
+                standard: "地区に合わせる",
+                commercial: "商家中心",
+                warehouses: "倉庫中心",
+                estates: "屋敷中心"
+              } as Record<string, string>
+            )[option.value];
+          composition.disabled = face.properties.locked;
+          composition.addEventListener("change", () => {
+            const next = setDistrictParameters(documentState, face.id, {
+              composition: composition.value as NonNullable<typeof parameters.composition>
+            });
+            if (next) commit(next, "Change building composition");
+          });
+          container.append(label("建物構成", composition));
+          for (const [key, title, initial] of [
+            ["sizeVariation", "規模のばらつき (%)", 0.7],
+            ["gardenAmount", "庭・作業庭の量 (%)", 0.55],
+            ["parcelCoverage", "建蔽率の目安 (%)", 0.55]
+          ] as const) {
+            const value = parameters[key] ?? (key === "parcelCoverage" ? null : initial);
+            const input = numberInput(
+              value === null ? "" : String(Math.round(Math.max(key === "parcelCoverage" ? 0.55 : 0, value) * 100)),
+              key === "parcelCoverage" ? "55" : "0",
+              "1"
+            );
+            if (key === "parcelCoverage") input.placeholder = "用途に合わせる";
+            input.max = key === "parcelCoverage" ? "90" : "100";
+            input.disabled = face.properties.locked;
+            input.addEventListener("change", () => {
+              const next = setDistrictParameters(documentState, face.id, {
+                [key]: key === "parcelCoverage" && input.value === "" ? undefined : Number(input.value) / 100
+              });
+              if (next) commit(next, "Edit parcel profile");
+              else showNotice("Enter a value within the district setting range");
+            });
+            container.append(label(title, input));
+          }
+          const preset = select(["small", "dense", "warehouse"], parameters.harborPreset ?? "dense");
+          preset.options[0].textContent = "小港";
+          preset.options[1].textContent = "密集商港";
+          preset.options[2].textContent = "倉庫集積港";
+          preset.disabled = face.properties.locked;
+          preset.addEventListener("change", () => {
+            const next = setDistrictParameters(documentState, face.id, {
+              harborPreset: preset.value as NonNullable<typeof parameters.harborPreset>
+            });
+            if (next) commit(next, "Change harbor preset");
+          });
+          if (face.properties.ward === "harbor" || parameters.composition === "warehouses")
+            container.append(label("港の構成", preset));
         }
         container.append(divider());
       }
@@ -3336,6 +3431,8 @@ export function mountCityEditor(root: HTMLElement): void {
     referenceImage = parsed.document.referenceImage ?? null;
     delete parsed.document.referenceImage;
     documentState = parsed.document;
+    generateSettings.buildingPattern =
+      documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     history = new DocumentHistory(parsed.document, "Imported map");
     rebuildEditorIndexes();
     selection = emptySelection();
@@ -3353,7 +3450,7 @@ export function mountCityEditor(root: HTMLElement): void {
       generateSeed = recipe.seed;
       Object.assign(
         generateSettings,
-        { walledAreaShare: undefined, descriptor: undefined, castle: undefined },
+        { walledAreaShare: undefined, descriptor: undefined, castle: undefined, buildingPattern: "legacy" },
         clone(recipe.settings)
       );
       generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
@@ -3393,6 +3490,7 @@ export function mountCityEditor(root: HTMLElement): void {
     seedInput.value = generateSeed;
     for (const [key, input] of castleInputs)
       input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key];
+    buildingPatternSelect.value = generateSettings.buildingPattern ?? "legacy";
     layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
     if (!generateSettings.config.wall) {
@@ -3479,7 +3577,12 @@ export function mountCityEditor(root: HTMLElement): void {
     hexSizeInput.value = String(hexSizeMeters);
     hexSizeValue.textContent = formatDistance(hexSizeMeters);
     syncGridKindUi();
-    Object.assign(generateSettings, defaultGenerationSettings(), structuredClone(share.settings));
+    Object.assign(
+      generateSettings,
+      defaultGenerationSettings(),
+      { buildingPattern: "legacy" },
+      structuredClone(share.settings)
+    );
     generateSettings.descriptor = share.descriptor;
     importedOrigin = share.descriptor ? origin : null;
     documentState = createGridDocument({

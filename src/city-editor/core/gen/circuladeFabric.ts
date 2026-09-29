@@ -9,7 +9,6 @@ import { facePoints } from "../mesh";
 import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types";
 import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import type { BlockBoundary, PerimeterFabric } from "./perimeterBlocks";
-import { makeRng } from "./prng";
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
@@ -22,7 +21,7 @@ export function buildCirculadeBlocks(
   outline: Point[],
   boundaries: BlockBoundary[],
   parameters: DistrictParameters | undefined,
-  seed: string,
+  _seed: string,
   build: boolean,
   hub: Point = [0, 0]
 ): PerimeterFabric {
@@ -35,8 +34,6 @@ export function buildCirculadeBlocks(
     }
   }
   if (!build || outline.length < 3) return fabric;
-
-  const _rng = makeRng(`${seed}:circulade-fabric:${face.id}`);
 
   // Calculate face center angle relative to hub for unwrapping
   const fCentroid = polygonCentroid(outline);
@@ -227,7 +224,7 @@ function extractWallLoop(document: CityDocument): { poly: Point[]; edges: [Point
     return { poly, edges };
   }
   const wall = document.featureGroups.find(g => g.kind === "wall");
-  if (!wall || wall.segments.length === 0) return { poly: [], edges: [] };
+  if (wall?.kind !== "wall" || wall.segments.length === 0) return { poly: [], edges: [] };
   const mesh = document.mesh;
   const rawEdges: [Point, Point][] = wall.segments.map(s => {
     const e = mesh.edges[s.edgeId];
@@ -292,7 +289,7 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
   const reservedFaces = new Set(document.elements.flatMap(e => e.faceIds));
 
   // 3. Roads and rivers
-  const roads = document.featureGroups.filter(g => g.kind === "road");
+  const roads = document.featureGroups.filter((g): g is Exclude<typeof g, { kind: "river" }> => g.kind === "road");
   const roadSegments = roads.flatMap(r =>
     r.segments.map(s => {
       const e = document.mesh.edges[s.edgeId];
@@ -428,7 +425,6 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
 
       for (let scIdx = 0; scIdx < numSubClusters; scIdx++) {
         const scThStart = clusterThetaStart + scIdx * (subClusterAngleSpan + venelleWidth / meanR);
-        const _scThEnd = scThStart + subClusterAngleSpan;
         const housesInSubCluster = Math.max(2, Math.round((subClusterAngleSpan * meanR) / 6.0));
         const lotAngleStep = subClusterAngleSpan / housesInSubCluster;
         const slitAngle = 0.35 / meanR;

@@ -226,6 +226,7 @@ export interface StreetSettings {
 }
 
 export interface GenerationSettings {
+  buildingPattern?: import("./types").BuildingPattern;
   castle?: Partial<import("./types").CastleSettings>;
   /** Only used when replaying a pre-castle-city recipe. */
   legacyCastles?: boolean;
@@ -565,10 +566,11 @@ export function generateCityAttempt(
       ]
     );
   }
+  const buildingPattern = settings.buildingPattern ?? document.buildingPattern ?? "legacy";
   const wards = new Map(plan.wards);
   for (const [id, kind] of wards) {
     if (["slum", "gate", "shanty", "military"].includes(kind)) wards.set(id, "craftsmen");
-    if (["patriciate", "administration"].includes(kind)) wards.set(id, "merchant");
+    if (kind === "administration" || kind === "patriciate") wards.set(id, "merchant");
   }
   const streetOptions = resolveStreetSettings(settings);
   const plaza = plan.precincts.find(p => p.kind === "plaza");
@@ -708,7 +710,16 @@ export function generateCityAttempt(
       tangled.slice(0, 12)
     );
   settled.layout = effectiveLayout;
+  settled.buildingPattern = buildingPattern;
   if (coarse) settled.fabric = createFabricPlan(settled, seed);
+  // Housing style is applied only after roads, crossings and castle geometry
+  // have passed the same validation as the legacy generator.
+  if (buildingPattern === "medieval")
+    for (const [id, ward] of plan.wards) {
+      const face = settled.mesh.faces[activeFaceIdOf[id]];
+      if (ward === "patriciate" && face?.properties.ward === "merchant" && !face.properties.locked)
+        face.properties.ward = "patriciate";
+    }
   tagExternalGateRoads(settled, seed, settings.descriptor);
   return settled;
 }
@@ -3311,12 +3322,13 @@ function toGeneratorBorder(loop: MeshBorderLoop): {
 
 function editorWard(
   kind: WardKind
-): "market" | "castle" | "merchant" | "craftsmen" | "harbor" | "park" | "empty" | null {
+): "market" | "castle" | "merchant" | "craftsmen" | "patriciate" | "harbor" | "park" | "empty" | null {
   switch (kind) {
     case "market":
     case "castle":
     case "merchant":
     case "craftsmen":
+    case "patriciate":
     case "harbor":
     case "park":
     case "empty":

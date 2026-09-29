@@ -185,6 +185,7 @@ interface DocPatch {
   defenseCircuits?: CityDocument["defenseCircuits"] | null;
   frame?: CityDocument["frame"];
   appearance?: CityDocument["appearance"] | null;
+  buildingPattern?: CityDocument["buildingPattern"] | null;
   fabric?: CityDocument["fabric"] | null;
   gridKind?: CityDocument["gridKind"] | null;
   layout?: CityDocument["layout"] | null;
@@ -232,6 +233,7 @@ function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   if (!equal(previous.defenseCircuits, next.defenseCircuits))
     patch.defenseCircuits = next.defenseCircuits ? clone(next.defenseCircuits) : null;
   if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
+  if (previous.buildingPattern !== next.buildingPattern) patch.buildingPattern = next.buildingPattern ?? null;
   if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
   if (!equal(previous.fabric, next.fabric)) patch.fabric = next.fabric ? clone(next.fabric) : null;
   if (previous.gridKind !== next.gridKind) patch.gridKind = next.gridKind ?? null;
@@ -271,6 +273,8 @@ function applyPatch(document: CityDocument, patch: DocPatch): void {
   if (patch.defenseCircuits === null) delete document.defenseCircuits;
   else if (patch.defenseCircuits) document.defenseCircuits = clone(patch.defenseCircuits);
   if (patch.frame) document.frame = clone(patch.frame);
+  if (patch.buildingPattern === null) delete document.buildingPattern;
+  else if (patch.buildingPattern) document.buildingPattern = patch.buildingPattern;
   if (patch.appearance === null) delete document.appearance;
   else if (patch.appearance) document.appearance = patch.appearance;
   if (patch.fabric === null) delete document.fabric;

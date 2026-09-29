@@ -176,7 +176,7 @@ export function parseDocument(text: string): CityDocument | null {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
     if (value.fabric !== undefined && !validFabricPlan(value.fabric)) return null;
-    if (value.fabric && value.fabric.version !== 4) value.fabric = upgradeFabricPlan(value);
+    if (value.fabric && value.fabric.version < 4) value.fabric = upgradeFabricPlan(value);
     const recipe = value.fabric?.generation;
     if (recipe && (!isDocument(recipe.input) || "fabric" in recipe.input || validate(recipe.input).length)) return null;
     // Version-1 files saved before the scale-bar addition lack this descriptive
@@ -186,6 +186,13 @@ export function parseDocument(text: string): CityDocument | null {
     // documents simply have no gates until the user adds one on a wall vertex.
     if (!Array.isArray(value.gates)) value.gates = [];
     for (const face of Object.values(value.mesh.faces)) {
+      if (
+        face.properties.ward !== null &&
+        !["market", "castle", "merchant", "craftsmen", "patriciate", "harbor", "park", "farm", "empty"].includes(
+          face.properties.ward
+        )
+      )
+        return null;
       if (face.properties.water !== "land") face.properties.depth ??= 3;
     }
     return validate(value).length === 0 ? value : null;
@@ -201,6 +208,7 @@ function isDocument(value: unknown): value is CityDocument {
     doc.format === "fmg-city-editor" &&
     (doc.version === 1 || doc.version === 2) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
+    (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&

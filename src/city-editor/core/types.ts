@@ -2,7 +2,19 @@ export type Id = string;
 export type Point = [number, number];
 
 export type WaterKind = "land" | "sea" | "lake" | "openWater";
-export type WardKind = "market" | "castle" | "merchant" | "craftsmen" | "harbor" | "park" | "farm" | "empty";
+export type WardKind =
+  | "market"
+  | "castle"
+  | "merchant"
+  | "craftsmen"
+  | "patriciate"
+  | "harbor"
+  | "park"
+  | "farm"
+  | "empty";
+export type BuildingPattern = "legacy" | "medieval";
+export type BuildingComposition = "standard" | "commercial" | "warehouses" | "estates";
+export type HarborPreset = "small" | "dense" | "warehouse";
 
 export interface FaceProperties {
   /** Generated land-use extent; local infill never changes mesh topology. */
@@ -210,6 +222,13 @@ export interface CastleSettings {
 }
 
 export interface DistrictParameters {
+  composition?: BuildingComposition;
+  /** Relative size variation within each archetype (0–1). */
+  sizeVariation?: number;
+  /** Relative amount of private garden / yard (0–1). */
+  gardenAmount?: number;
+  parcelCoverage?: number;
+  harborPreset?: HarborPreset;
   /** Fraction of eligible lots retained, not a guaranteed area coverage. */
   occupancy: number;
   /** Core: footprint fraction of each street block; outskirts: fraction of each lot. */
@@ -226,7 +245,7 @@ export interface FabricDistrict {
 }
 export interface FabricPlan {
   /** v4 groups residential cells into road-bounded perimeter blocks. */
-  version: 2 | 3 | 4;
+  version: 2 | 3 | 4 | 5;
   seed: string;
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
@@ -249,6 +268,8 @@ export interface CityDocument {
   frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
   /** Completed cities open in the building/ink view; editing uses the same mesh. */
   appearance?: "town";
+  /** Missing on old maps: retain their original housing generator. */
+  buildingPattern?: BuildingPattern;
   /** A non-editable source image, for example an imported MFCG SVG. */
   referenceImage?: { href: string; width: number; height: number };
   mesh: Mesh;

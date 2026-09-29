@@ -17,7 +17,7 @@ import {
 } from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
-import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
@@ -153,6 +153,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(cells);
 
+  let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   if (town) {
     const buildings = element("g", {
       class: "ce-buildings",
@@ -160,12 +161,15 @@ export function renderEditorSvg(
     });
     mark("svg-base");
     const fabric =
+      document.buildingPattern === "medieval" ||
+      document.fabric?.version === 5 ||
       document.gridKind === "evolution" ||
       document.layout === "circulade" ||
       document.layout === "bram" ||
       document.layout === "classic"
         ? buildBlockFabric(document)
         : null;
+    townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
@@ -191,6 +195,52 @@ export function renderEditorSvg(
         );
       });
       svg.appendChild(farms);
+      if (!hideBuildings && fabric.openSpaces?.length) {
+        const spaces = element("g", { class: "ce-open-spaces", "pointer-events": "none" });
+        const green = new Set(["kitchen-garden", "formal-garden"]);
+        for (const space of fabric.openSpaces) {
+          spaces.appendChild(
+            element("path", {
+              d: polygon(space.polygon),
+              class: `ce-open-space ce-open-space--${space.kind}`,
+              fill: green.has(space.kind) ? "#c4c6aa" : space.kind === "courtyard" ? "#ddd6c5" : "#d5cfbf",
+              stroke: green.has(space.kind) ? "#a0a58a" : "none",
+              "stroke-width": "0.25",
+              "data-space-kind": space.kind,
+              "data-parcel": space.parcelId ?? "",
+              "data-space-access": space.access
+            })
+          );
+          // A few garden beds read at town scale without detailed roof or shadow rendering.
+          if (green.has(space.kind) && Math.abs(polygonArea(space.polygon)) > 35 && zoom >= 0.7) {
+            const c = polygonCentroid(space.polygon);
+            spaces.appendChild(
+              element("circle", {
+                cx: String(c[0]),
+                cy: String(-c[1]),
+                r: "1.3",
+                fill: "#87966d",
+                class: "ce-garden-plant"
+              })
+            );
+          }
+        }
+        for (const parcel of fabric.parcels ?? [])
+          for (const access of parcel.access) {
+            if (access.widthMeters < 2) continue;
+            spaces.appendChild(
+              element("path", {
+                d: line(access.points),
+                class: "ce-parcel-access",
+                fill: "none",
+                stroke: "#d5cfbf",
+                "stroke-width": String(access.widthMeters),
+                "data-parcel": parcel.id
+              })
+            );
+          }
+        svg.appendChild(spaces);
+      }
       // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
       // the ground colour still reads as the gap between them.
       if (!hideStreetLines) {
@@ -237,13 +287,18 @@ export function renderEditorSvg(
     mark("buildings", { buildings: lots.length });
     if (!hideBuildings) {
       for (const lot of lots) {
-        const bldId = `bld-${lot.faceId}`;
+        const bldId = lot.parcelId ?? `bld-${lot.faceId}`;
         const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
         const pickInfo: SvgPickInfo = {
           layer: "buildings",
           kind: "building",
           id: bldId,
-          label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+          label: lot.archetype
+            ? `${lot.archetype} · ${lot.role} · ${Math.round(Math.abs(polygonArea(lot.polygon)))} m²`
+            : `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+          ...(lot.parcelId
+            ? { parcelId: lot.parcelId, archetype: lot.archetype, role: lot.role, uses: lot.uses, storeys: lot.storeys }
+            : {}),
           ward: document.mesh.faces[lot.faceId].properties.ward,
           faceId: lot.faceId,
           landmark: !!lot.landmark
@@ -252,6 +307,9 @@ export function renderEditorSvg(
           d: polygon(lot.polygon),
           class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           "data-building-face": lot.faceId,
+          ...(lot.parcelId
+            ? { "data-parcel": lot.parcelId, "data-archetype": lot.archetype!, "data-building-role": lot.role! }
+            : {}),
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
         });
         if (tool === "select") bldNode.style.cursor = "pointer";
@@ -454,7 +512,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(features);
   if (town) {
-    svg.appendChild(renderTownQuays(document));
+    svg.appendChild(renderTownQuays(document, townHarbor));
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
   }
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
@@ -629,8 +687,23 @@ export function renderEditorSvg(
   return svg;
 }
 
-function renderTownQuays(document: CityDocument): SVGGElement {
+function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/harborFabric").HarborPlan): SVGGElement {
   const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
+  if (harbor) {
+    for (const pier of harbor.piers)
+      layer.appendChild(
+        element("path", {
+          d: polygon(pier.polygon),
+          class: "ce-pier",
+          "data-water-face": pier.waterFaceId,
+          "data-depth-m": String(pier.depth),
+          fill: "#d5cfbf",
+          stroke: "#514f45",
+          "stroke-width": "0.6"
+        })
+      );
+    return layer;
+  }
   // One shoreline per sea cell; a manually assigned ward needs no landmark.
   const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number }>();
   for (const edge of Object.values(document.mesh.edges)) {
@@ -1333,6 +1406,7 @@ export const STANDALONE_SVG_STYLE = `
   .ce-face--land.ce-face--ward-market { fill: #edcf7a; }
   .ce-face--land.ce-face--ward-castle { fill: #bca7ce; }
   .ce-face--land.ce-face--ward-merchant { fill: #dfa184; }
+  .ce-face--land.ce-face--ward-patriciate { fill: #cab4d3; }
   .ce-face--land.ce-face--ward-craftsmen { fill: #d1a46e; }
   .ce-face--land.ce-face--ward-harbor { fill: #e3b66d; }
   .ce-face--land.ce-face--ward-park { fill: #99c187; }

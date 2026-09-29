@@ -17,6 +17,12 @@ export interface BuildingLot {
   faceId: Id;
   polygon: Point[];
   landmark: boolean;
+  id?: Id;
+  parcelId?: Id;
+  archetype?: import("./parcelTypes").ParcelArchetype;
+  role?: "main" | "wing" | "store" | "workshop" | "stable" | "shed";
+  uses?: Array<"residential" | "retail" | "storage" | "craft">;
+  storeys?: number;
 }
 
 interface RiverMargin {
@@ -29,6 +35,8 @@ interface RiverMargin {
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
 export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   if (
+    document.buildingPattern === "medieval" ||
+    document.fabric?.version === 5 ||
     document.gridKind === "evolution" ||
     document.layout === "circulade" ||
     document.layout === "bram" ||
