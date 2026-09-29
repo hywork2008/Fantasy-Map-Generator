@@ -90,4 +90,46 @@ describe("finishCityGeometry gate-river clearance", () => {
     const wall = next.mesh.vertices.w.point;
     expect(Math.hypot(wall[0] - 50, wall[1])).toBeGreaterThan(0.5);
   });
+
+  it("keeps a smoothed wall outside the drawn road width away from gates", () => {
+    const document = gateBesideRiver();
+    const vertex = (id: string, x: number, y: number) => ({ id, point: [x, y] as [number, number], locked: false });
+    const edge = (id: string, a: string, b: string) => ({ id, a, b, leftFace: null, rightFace: null, locked: false });
+    document.mesh.vertices = {
+      wa: vertex("wa", -40, 0),
+      wm: vertex("wm", 0, 30),
+      wb: vertex("wb", 40, 0),
+      ra: vertex("ra", -10, 20),
+      rb: vertex("rb", 10, 20)
+    };
+    document.mesh.edges = {
+      wa: edge("wa", "wa", "wm"),
+      wb: edge("wb", "wm", "wb"),
+      road: edge("road", "ra", "rb")
+    };
+    document.featureGroups = [
+      {
+        id: "gc:wall-0",
+        kind: "wall",
+        name: "Wall",
+        segments: [
+          { edgeId: "wa", forward: true },
+          { edgeId: "wb", forward: true }
+        ],
+        style: { widthMeters: 7, color: "#342a22" },
+        locked: false
+      },
+      {
+        id: "gc:road-0",
+        kind: "road",
+        name: "Road",
+        segments: [{ edgeId: "road", forward: true }],
+        style: { widthMeters: 4, color: "#735238" },
+        locked: false
+      }
+    ];
+    document.gates = [];
+    const next = finishCityGeometry(document);
+    expect(next.mesh.vertices.wm.point[1]).toBeGreaterThan(29.9);
+  });
 });
