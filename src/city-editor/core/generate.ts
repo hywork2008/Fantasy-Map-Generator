@@ -1899,7 +1899,7 @@ function applyPlan(
   // ② river feature groups
   if (stageStep >= 2) {
     plan.rivers.forEach((band, i) => {
-      const vertices = polylineToVertexPath(mesh, band.edgePoints, nearest);
+      const vertices = polylineToVertexPath(mesh, band.resolvedEdgePoints, nearest);
       if (vertices.length < 2) return;
       const width = band.widths.length ? band.widths.reduce((s, w) => s + w, 0) / band.widths.length : 12;
       appendGeneratedGroup({

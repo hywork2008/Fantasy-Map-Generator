@@ -5,8 +5,9 @@
 // SEA: with a coast it aims just past the shoreline and stops at the water's
 // edge, ending exactly at the mouth. See docs/city-generator/design.md §4.2.
 
+import FlatQueue from "flatqueue";
 import type { EdgeGraph } from "./edgeGraph";
-import { MERGE_QUANTUM, smoothPath, vertexKey } from "./edgeGraph";
+import { MERGE_QUANTUM, nearestNode, smoothPath, vertexKey } from "./edgeGraph";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
@@ -16,6 +17,9 @@ import { trimWindowTails } from "./windowPath";
 export interface RoutedRiver {
   /** Raw walk — a chain of actual cell-edge vertices (used for classification). */
   edgePoints: Point[];
+  /** Mesh path extended to the frame/water for the emitted river feature.
+   * Keep the original walk for urban classification and street planning. */
+  resolvedEdgePoints: Point[];
   /** `edgePoints` smoothed — the river's drawn / setback centerline. */
   smoothPoints: Point[];
   /**
@@ -50,6 +54,7 @@ export function walkRiver(
 ): RoutedRiver {
   const dead: RoutedRiver = {
     edgePoints: [],
+    resolvedEdgePoints: [],
     smoothPoints: [],
     foldedPoints: [],
     widths: [],
@@ -156,14 +161,69 @@ export function walkRiver(
   const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
+  const resolvedEdges = extendRiverEnds(graph, edgePoints, halfExtentMeters, waterPolygon);
+  if (resolvedEdges.length < 3) return dead;
   return {
     edgePoints,
+    resolvedEdgePoints: resolvedEdges,
     smoothPoints,
     foldedPoints: clamped,
     widths: resampleWidths(smoothPoints, corridor, widths),
     fallback: false,
     bridgeAllowed
   };
+}
+
+/** Resolve the mesh path emitted as the editor's river feature.
+ * A walk can arrive within one cell of its goal without reaching the frame.
+ * Continue along existing edges to the closest reachable frame/water contact;
+ * never re-enter the river, since that would form a loop. */
+function extendRiverEnds(graph: EdgeGraph, points: Point[], half: number, water: Point[] | null): Point[] {
+  if (points.length < 3) return points;
+  let nodes = points.map(p => nearestNode(graph, p));
+  const resolved = (id: number): boolean => {
+    const p = graph.points[id];
+    return (
+      Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - MERGE_QUANTUM || (water !== null && pointInPolygon(p, water))
+    );
+  };
+  const extend = (path: number[]): number[] => {
+    const tip = path[path.length - 1];
+    if (resolved(tip)) return path;
+    const blocked = new Set(path.slice(0, -1));
+    const distance = new Float64Array(graph.points.length).fill(Infinity);
+    const previous = new Int32Array(graph.points.length).fill(-1);
+    const closed = new Uint8Array(graph.points.length);
+    const queue = new FlatQueue<number>();
+    distance[tip] = 0;
+    queue.push(tip, 0);
+    while (queue.length) {
+      const id = queue.pop()!;
+      if (closed[id]) continue;
+      closed[id] = 1;
+      if (resolved(id)) {
+        const extension = [id];
+        for (let n = id; n !== tip; ) {
+          n = previous[n];
+          extension.push(n);
+        }
+        return [...path, ...extension.reverse().slice(1)];
+      }
+      for (const { to, w } of graph.adjacency[id]) {
+        if (blocked.has(to)) continue;
+        const cost = distance[id] + w;
+        if (cost >= distance[to]) continue;
+        distance[to] = cost;
+        previous[to] = id;
+        queue.push(to, cost);
+      }
+    }
+    return path;
+  };
+  nodes = extend(nodes.slice().reverse()).reverse();
+  nodes = extend(nodes);
+  if (!resolved(nodes[0]) || !resolved(nodes[nodes.length - 1])) return [];
+  return nodes.map(id => [...graph.points[id]] as Point);
 }
 
 /**
