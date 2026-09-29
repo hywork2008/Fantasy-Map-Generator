@@ -114,6 +114,33 @@ function roughness(document: CityDocument, kind: "wall" | "road"): number {
 
 describe("complete editable city", () => {
   const base = createSizedDocument("small", "preview");
+  it("ends rivers and roads at their interior-side frame contact in the shared cape city", () => {
+    const grid = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "13k952u",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "cape";
+    settings.config.rivers = ["greatBend", "toCoast"];
+    settings.config.relief = true;
+    settings.config.features = { walls: true, citadel: true, plaza: false, temple: true, port: false, shanty: false };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    const city = generateCityOnDocument(grid, settings, "xtce12")!;
+    expect(city).not.toBeNull();
+    const rivers = city.featureGroups.filter(group => group.kind === "river");
+    expect(rivers).toHaveLength(2);
+    const half = city.frame.extentMeters / 2;
+    const onFrame = (p: Point) => Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - 0.05;
+    for (const id of new Set([...kindEdgeIds(city, "river"), ...kindEdgeIds(city, "road")])) {
+      const edge = city.mesh.edges[id];
+      const a = city.mesh.vertices[edge.a].point;
+      const b = city.mesh.vertices[edge.b].point;
+      expect(onFrame(a) && onFrame(b), `${edge.a} → ${edge.b}`).toBe(false);
+    }
+  });
   it("retries a bay layout with an unusable crossing without weakening the crossing rules", () => {
     const grid = createGridDocument({ size: "small", grid: "hex", seed: "junction-check" });
     const settings = defaultGenerationSettings();

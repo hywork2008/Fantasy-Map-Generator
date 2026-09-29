@@ -35,6 +35,7 @@ import { close } from "./interior";
 import { landwardFarNode } from "./plausibility";
 import { SMALL_CITY_EXTENT_METERS } from "./settlementExtent";
 import type { BorderLoop, Cell, CityGeography, Gate, Point, Precinct, StreetNetwork } from "./types";
+import { trimWindowTails } from "./windowPath";
 
 /** How `farNodeFor` picks the extramural road's window-edge aim (Phase G2). */
 export type FarNodeMode = "descriptorEnd" | "radial" | "manualBearings";
@@ -389,8 +390,10 @@ export function buildStreets(input: StreetInputs): StreetResult {
       farNode,
       manualBearings?.[gi]
     );
-    const legs = route(goal, graph.points[apronNode], nonUrban, roadsHardBar);
-    if (!legs) continue;
+    const routed = route(goal, graph.points[apronNode], nonUrban, roadsHardBar);
+    if (!routed) continue;
+    const legs = trimWindowTails(routed, halfExtentMeters);
+    if (legs.length < 2) continue;
     // The radial stub onto the gate is not an A* hop — bar it separately so a
     // river along the wall cannot become the road's first edge, and so a shore
     // gate does not grow a last hop across the water (Phase G2).

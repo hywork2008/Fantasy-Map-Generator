@@ -11,6 +11,7 @@ import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
 import type { Point } from "./types";
+import { trimWindowTails } from "./windowPath";
 
 export interface RoutedRiver {
   /** Raw walk — a chain of actual cell-edge vertices (used for classification). */
@@ -121,7 +122,8 @@ export function walkRiver(
     nodes.map(id => [graph.points[id][0], graph.points[id][1]] as Point),
     cellSizeMeters
   );
-  const edgePoints = waterPolygon ? trimAtWater(walked, waterPolygon) : walked;
+  const inWindow = trimWindowTails(walked, halfExtentMeters);
+  const edgePoints = waterPolygon ? trimAtWater(inWindow, waterPolygon) : inWindow;
   if (edgePoints.length < 3) return dead;
 
   const rawSmooth = smoothPath(edgePoints, SMOOTH_ITERATIONS);
