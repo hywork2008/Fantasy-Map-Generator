@@ -103,6 +103,17 @@ export function resolveDistricts(document: CityDocument, plan?: FabricPlan): Fab
             (plan && !original)
           )
             continue;
+          // Another shared edge can be a bridge approach or a dead-end road.
+          // Joining around its tip would swallow that frontage into the union,
+          // leaving the entire far-bank district without a road entrance.
+          if (
+            other.boundary.some(ref => {
+              const shared = document.mesh.edges[ref.edgeId];
+              const neighbor = shared.leftFace === otherId ? shared.rightFace : shared.leftFace;
+              return blocked.has(shared.id) && !!neighbor && ids.includes(neighbor);
+            })
+          )
+            continue;
           if (!districtBoundary(document, [...ids, otherId])) continue;
           ids.push(otherId);
           pending.delete(otherId);
