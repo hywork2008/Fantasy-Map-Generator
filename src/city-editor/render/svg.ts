@@ -607,58 +607,70 @@ export function renderEditorSvg(
 
 function renderTownQuays(document: CityDocument): SVGGElement {
   const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
-  const harbor = document.elements.find(entry => entry.kind === "harbor");
-  if (!harbor) return layer;
-  // A solid sea wall is masonry, not a river bank. Piers belong only on an
-  // unwalled edge of the harbour itself — otherwise every sea-front cell grows
-  // a span that reads as a bridge into the water.
-  const harborFaces = new Set(harbor.faceIds);
-  const walled = new Set(
-    document.featureGroups.flatMap(group =>
-      group.kind === "wall" ? group.segments.map(segment => segment.edgeId) : []
-    )
-  );
-  const harborLand = (faceId: Id | null): boolean => {
-    if (!faceId || !document.mesh.faces[faceId]) return false;
-    if (harborFaces.has(faceId)) return true;
-    return document.mesh.faces[faceId].boundary.some(ref => {
-      const edge = document.mesh.edges[ref.edgeId];
-      const other = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
-      return !!other && harborFaces.has(other);
-    });
-  };
-  let best: { a: Point; b: Point; waterRing: Point[]; length: number } | null = null;
-  let bestDist = Infinity;
-  const harborPoint = harbor.point;
+  // One shoreline per sea cell; a manually assigned ward needs no landmark.
+  const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number }>();
   for (const edge of Object.values(document.mesh.edges)) {
-    if (walled.has(edge.id)) continue;
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
-    if (!left || !right || (left.properties.water === "land") === (right.properties.water === "land")) continue;
+    if (!left || !right) continue;
     const land = left.properties.water === "land" ? left : right;
     const water = land === left ? right : left;
-    if (!land.properties.buildable || water.properties.water !== "sea" || !harborLand(land.id)) continue;
+    if (land.properties.water !== "land" || land.properties.ward !== "harbor" || water.properties.water !== "sea")
+      continue;
+    const depth = water.properties.depth ?? 3;
+    if (!Number.isFinite(depth) || depth < 3) continue;
     const a = document.mesh.vertices[edge.a].point;
     const b = document.mesh.vertices[edge.b].point;
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (length < 1) continue;
-    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const dist = harborPoint ? Math.hypot(mid[0] - harborPoint[0], mid[1] - harborPoint[1]) : 0;
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = { a, b, waterRing: facePoints(document.mesh, water), length };
+    if (length < 10 || length <= (shores.get(water.id)?.length ?? 0)) continue;
+    shores.set(water.id, { a, b, ring: facePoints(document.mesh, water), length, depth });
+  }
+  for (const [waterId, { a, b, ring, length, depth }] of shores) {
+    const center = polygonCentroid(ring);
+    const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    let normal: Point = [-tangent[1], tangent[0]];
+    if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+    const count = length >= 35 ? 3 : 2;
+    const width = Math.min(3, length / (count * 5));
+    for (let i = 0; i < count; i++) {
+      const t = (i + 1) / (count + 1);
+      const start: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      // Stop within the receiving cell, so a pier never becomes a bridge.
+      let reach = 0;
+      const desired = Math.min(26, length * (0.4 + (i % 2) * 0.06));
+      for (let d = 0.5; d <= desired; d += 0.5) {
+        if (
+          ![-1, 0, 1].every(side =>
+            pointInPolygon(
+              [
+                start[0] + normal[0] * d + (tangent[0] * width * side) / 2,
+                start[1] + normal[1] * d + (tangent[1] * width * side) / 2
+              ],
+              ring
+            )
+          )
+        )
+          break;
+        reach = d;
+      }
+      if (reach < 3) continue;
+      const deck = (along: number, side: number): Point => [
+        start[0] + normal[0] * along + (tangent[0] * width * side) / 2,
+        start[1] + normal[1] * along + (tangent[1] * width * side) / 2
+      ];
+      layer.appendChild(
+        element("path", {
+          d: polygon([deck(0, -1), deck(reach, -1), deck(reach, 1), deck(0, 1)]),
+          class: "ce-pier",
+          "data-water-face": waterId,
+          "data-depth-m": String(depth),
+          fill: "#d5cfbf",
+          stroke: "#514f45",
+          "stroke-width": "0.6"
+        })
+      );
     }
   }
-  if (!best) return layer;
-  const { a, b, waterRing, length } = best;
-  const center = polygonCentroid(waterRing);
-  let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
-  if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
-  const start: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
-  if (!pointInPolygon(end, waterRing)) return layer;
-  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" }));
-  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" }));
   return layer;
 }
 

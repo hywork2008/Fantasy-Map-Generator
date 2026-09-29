@@ -1868,6 +1868,7 @@ function applyPlan(
     if (face && !face.properties.locked && !reservedCastleFaces(next).has(face.id)) {
       face.properties.water = "sea";
       face.properties.elevation = 0;
+      face.properties.depth ??= 3;
       face.properties.buildable = false;
     }
   }

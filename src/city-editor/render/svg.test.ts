@@ -706,3 +706,85 @@ describe("renderStandaloneCitySvg / serializeCitySvg", () => {
     expect(img?.getAttribute("xlink:href")).toBe("data:image/png;base64,fake");
   });
 });
+
+describe("harbor piers", () => {
+  function harborMap(depth?: number): CityDocument {
+    const polygons: Point[][] = [
+      [
+        [0, 0],
+        [50, 0],
+        [50, 50],
+        [0, 50]
+      ],
+      [
+        [50, 0],
+        [100, 0],
+        [100, 50],
+        [50, 50]
+      ],
+      [
+        [0, 50],
+        [50, 50],
+        [50, 100],
+        [0, 100]
+      ],
+      [
+        [50, 50],
+        [100, 50],
+        [100, 100],
+        [50, 100]
+      ]
+    ];
+    const mesh = meshFromCells(
+      polygons.map((polygon, id) => ({
+        id,
+        polygon,
+        site: polygon[0],
+        centroid: polygon[0],
+        neighbors: [],
+        onBorder: false
+      }))
+    );
+    for (const id of ["f0", "f2"]) mesh.faces[id].properties.ward = "harbor";
+    for (const id of ["f1", "f3"])
+      Object.assign(mesh.faces[id].properties, {
+        water: "sea",
+        elevation: 0,
+        depth,
+        buildable: false
+      });
+    return {
+      format: "fmg-city-editor",
+      version: 2,
+      appearance: "town",
+      mesh,
+      frame: { extentMeters: 200, cityRadiusMeters: 50, blockSizeMeters: 50 },
+      featureGroups: [],
+      gates: [],
+      elements: []
+    };
+  }
+
+  it("draws three rectangular piers per adjacent sea cell without a harbor element", () => {
+    const svg = renderStandaloneCitySvg(harborMap());
+    const piers = svg.querySelectorAll(".ce-pier");
+    expect(piers).toHaveLength(6);
+    for (const pier of piers) {
+      expect(pier.getAttribute("d")).toMatch(/ Z$/);
+      expect(pier.getAttribute("data-depth-m")).toBe("3");
+      const numbers = pier
+        .getAttribute("d")!
+        .match(/-?\d+(?:\.\d+)?/g)!
+        .map(Number);
+      expect(Math.max(...numbers.filter((_, i) => i % 2 === 0))).toBeLessThan(100);
+    }
+  });
+
+  it("respects shallow water and draws neither lake piers nor piers beside other wards", () => {
+    expect(renderStandaloneCitySvg(harborMap(2.9)).querySelectorAll(".ce-pier")).toHaveLength(0);
+    const doc = harborMap(6);
+    doc.mesh.faces.f1.properties.water = "lake";
+    doc.mesh.faces.f2.properties.ward = "merchant";
+    expect(renderStandaloneCitySvg(doc).querySelectorAll(".ce-pier")).toHaveLength(0);
+  });
+});

@@ -9,6 +9,7 @@ import {
   mergeVertices,
   optimizeJunctions,
   scaleDocument,
+  setFaceDepth,
   setFaceWater,
   splitFace,
   validate
@@ -228,5 +229,26 @@ describe("local edge insertion", () => {
     document.featureGroups[0].locked = false;
     document.mesh.faces[edge.leftFace!].properties.locked = true;
     expect(insertEdgeVertex(document, edge.id, 0.3)).toBeNull();
+  });
+});
+
+describe("water depth", () => {
+  it("edits depth independently of sea-level elevation and preserves it on save/load", async () => {
+    const { parseDocument } = await import("./document");
+    const base = createDocument("depth", 200);
+    const id = Object.keys(base.mesh.faces)[0];
+    const sea = setFaceWater(base, id, "sea");
+    expect(sea.mesh.faces[id].properties.depth).toBe(3);
+    const deep = setFaceDepth(sea, id, 6);
+    expect(deep.mesh.faces[id].properties.elevation).toBe(0);
+    expect(parseDocument(JSON.stringify(deep))?.mesh.faces[id].properties.depth).toBe(6);
+    expect(setFaceDepth(deep, id, -1)).toBe(deep);
+    expect(setFaceDepth(deep, id, NaN)).toBe(deep);
+    const locked = structuredClone(deep);
+    locked.mesh.faces[id].properties.locked = true;
+    expect(setFaceDepth(locked, id, 9)).toBe(locked);
+    expect(setFaceWater(deep, id, "land").mesh.faces[id].properties.depth).toBeUndefined();
+    delete sea.mesh.faces[id].properties.depth;
+    expect(parseDocument(JSON.stringify(sea))?.mesh.faces[id].properties.depth).toBe(3);
   });
 });

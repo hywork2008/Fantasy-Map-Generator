@@ -277,8 +277,27 @@ export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKin
   const face = next.mesh.faces[faceId];
   if (face) {
     face.properties.water = water;
-    if (water !== "land") face.properties.elevation = 0;
+    if (water !== "land") {
+      face.properties.elevation = 0;
+      face.properties.depth ??= 3;
+    } else delete face.properties.depth;
   }
+  return next;
+}
+
+export function setFaceDepth(document: CityDocument, faceId: Id, depth: number): CityDocument {
+  const face = document.mesh.faces[faceId];
+  if (
+    !face ||
+    face.properties.locked ||
+    face.properties.water === "land" ||
+    !Number.isFinite(depth) ||
+    depth < 0 ||
+    face.properties.depth === depth
+  )
+    return document;
+  const next = clone(document);
+  next.mesh.faces[faceId].properties.depth = depth;
   return next;
 }
 
@@ -294,6 +313,8 @@ export function setFaceElevation(document: CityDocument, faceId: Id, elevation: 
   if (!face) return next;
   face.properties.elevation = elevation;
   face.properties.water = elevation <= 0 ? "sea" : "land";
+  if (elevation <= 0) face.properties.depth ??= 3;
+  else delete face.properties.depth;
   return next;
 }
 
@@ -612,6 +633,8 @@ export function validate(document: CityDocument): string[] {
   }
   for (const face of Object.values(mesh.faces)) {
     const points = facePoints(mesh, face);
+    if (face.properties.depth !== undefined && (!Number.isFinite(face.properties.depth) || face.properties.depth < 0))
+      errors.push(`Face ${face.id} has invalid depth`);
     if (points.length < 3 || Math.abs(area(points)) < 1) errors.push(`Face ${face.id} has no area`);
   }
   for (const group of document.featureGroups) {

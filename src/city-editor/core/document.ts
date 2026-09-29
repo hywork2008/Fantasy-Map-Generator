@@ -185,6 +185,9 @@ export function parseDocument(text: string): CityDocument | null {
     // Gate anchors were introduced after the first editable-map format. Old
     // documents simply have no gates until the user adds one on a wall vertex.
     if (!Array.isArray(value.gates)) value.gates = [];
+    for (const face of Object.values(value.mesh.faces)) {
+      if (face.properties.water !== "land") face.properties.depth ??= 3;
+    }
     return validate(value).length === 0 ? value : null;
   } catch {
     return null;

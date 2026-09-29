@@ -101,6 +101,7 @@ import {
   moveVertex,
   optimizeJunctions,
   scaleDocument,
+  setFaceDepth,
   setFaceElevation,
   setFaceWater,
   splitFace,
@@ -2482,6 +2483,11 @@ export function mountCityEditor(root: HTMLElement): void {
       elevation.addEventListener("change", () =>
         commit(setFaceElevation(documentState, face.id, Number(elevation.value)), "Set elevation")
       );
+      const depth = numberInput(String(face.properties.depth ?? 3), "0", "0.1");
+      depth.disabled = face.properties.locked || face.properties.water === "land";
+      depth.addEventListener("change", () =>
+        commit(setFaceDepth(documentState, face.id, Number(depth.value)), "Set water depth")
+      );
       const ward = select(
         [
           "",
@@ -2543,6 +2549,7 @@ export function mountCityEditor(root: HTMLElement): void {
       container.append(
         label("Elevation", elevation),
         label("Water", water),
+        ...(face.properties.water !== "land" ? [label("Depth (m)", depth)] : []),
         label("Ward", ward),
         text("Ward automatically controls the landmark drawn in this cell."),
         divider(),

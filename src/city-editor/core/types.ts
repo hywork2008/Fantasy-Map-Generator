@@ -9,6 +9,8 @@ export interface FaceProperties {
   settlement?: "core" | "outskirts";
   /** Metres relative to sea level. `0` and below are water. */
   elevation: number;
+  /** Positive water depth in metres, independent of elevation. Legacy maps default to 3 m. */
+  depth?: number;
   water: WaterKind;
   ward: WardKind | null;
   buildable: boolean;
