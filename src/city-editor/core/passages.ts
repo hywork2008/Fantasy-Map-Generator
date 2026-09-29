@@ -199,7 +199,12 @@ export function openBarrierPassage(document: CityDocument, vertexId: Id, barrier
 /** Cut a wide-channel crossing along the river normal through the shared mesh.
  * Moving existing ward corners cannot span a channel wider than a ward. Instead
  * insert the bank approaches on face boundaries, keeping every junction real. */
-export function addWideRiverBridge(document: CityDocument, vertexId: Id, id: Id): CityDocument | null {
+export function addWideRiverBridge(
+  document: CityDocument,
+  vertexId: Id,
+  id: Id,
+  approachReachMeters?: number
+): CityDocument | null {
   const frame = riverCrossingFrame(document, vertexId);
   const origin = document.mesh.vertices[vertexId]?.point;
   if (!frame || !origin) return null;
@@ -296,7 +301,7 @@ export function addWideRiverBridge(document: CityDocument, vertexId: Id, id: Id)
       const end = next.mesh.vertices[to].point;
       // A normal at a tight bend can run back into the upstream channel.
       // Try another crossing site rather than bridge along that bend.
-      if (Math.hypot(end[0] - origin[0], end[1] - origin[1]) > frame.width * 1.2) return null;
+      if (Math.hypot(end[0] - origin[0], end[1] - origin[1]) > (approachReachMeters ?? frame.width * 1.2)) return null;
       if (nearestOnPolyline(end, riverPoints).dist >= frame.width / 2 + 6 && !wall) break;
     }
     const end = next.mesh.vertices[path.at(-1)!].point;

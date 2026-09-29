@@ -101,6 +101,7 @@ import type {
   WardKind
 } from "./gen/types";
 import { DEFAULT_WALL_PLAN } from "./gen/types";
+import { connectUrbanRiverDistricts } from "./gen/urbanBridges";
 import { assignWards } from "./gen/wards";
 import {
   type GenerationObserver,
@@ -658,7 +659,11 @@ export function generateCityAttempt(
   const squared = straightenBridges(finished);
   const shaped = hexagonal || coarse ? squared : rectifyVoronoiBlocks(squared, seed, rectified);
   mark("rectify-voronoi");
-  const settled = straightenGateCrossings(straightenBridges(shaped));
+  const allowedRiverIds = new Set(
+    plan.rivers.flatMap((river, index) => (river.bridgeAllowed ? [`${GEN_PREFIX}river-${index}`] : []))
+  );
+  const connected = coarse ? connectUrbanRiverDistricts(shaped, allowedRiverIds) : shaped;
+  const settled = straightenGateCrossings(straightenBridges(connected));
   settleTempleOnDocument(settled);
   if (settled.castles?.length && !finalizeCastles(settled, false))
     return reject("castle", "castle-layout-too-small", "仕上げ後の城郭形状が成立しません");

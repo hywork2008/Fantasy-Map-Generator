@@ -15,6 +15,7 @@ import { orientedRectPolylineDistance, pointInOrientedRect, templeRectForElement
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { civicYardMeters } from "./housing";
 import { minExternalRoadsForExtent } from "./settlementExtent";
+import { connectUrbanRiverDistricts } from "./urbanBridges";
 
 function capeMicroCity(coast: "auto" | "open" | "seaWall" | "opening"): CityDocument | null {
   const input = createGridDocument({
@@ -140,6 +141,27 @@ describe("complete editable city", () => {
       const b = city.mesh.vertices[edge.b].point;
       expect(onFrame(a) && onFrame(b), `${edge.a} → ${edge.b}`).toBe(false);
     }
+    expect(validate(city)).toEqual([]);
+    const bridge = city.featureGroups.find(group => group.id === "gc:bridge-district-0");
+    expect(bridge?.kind).toBe("road");
+    if (bridge?.kind === "road") {
+      const vertices = featureGroupVertices(city, bridge);
+      expect(vertexHasCrossing(city, vertices[1], "river", "road")).toBe(true);
+    }
+    const fabric = buildBlockFabric(city);
+    for (const id of ["f47", "f66"]) {
+      const face = city.mesh.faces[id];
+      expect(face.properties.buildable).toBe(true);
+      expect(
+        fabric.buildings.some(building =>
+          pointInPolygon(polygonCentroid(building.polygon), facePoints(city.mesh, face))
+        ),
+        `${id} has housing`
+      ).toBe(true);
+    }
+    expect(connectUrbanRiverDistricts(city, new Set(["gc:river-0", "gc:river-1"]))).toBe(city);
+    const isolated = { ...city, featureGroups: city.featureGroups.filter(group => !group.id.includes("district-")) };
+    expect(connectUrbanRiverDistricts(isolated, new Set())).toBe(isolated);
   });
   it("retries a bay layout with an unusable crossing without weakening the crossing rules", () => {
     const grid = createGridDocument({ size: "small", grid: "hex", seed: "junction-check" });
