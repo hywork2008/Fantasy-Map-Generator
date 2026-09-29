@@ -12,7 +12,7 @@ import {
 import {
   approachBeyondAnchor,
   approachBeyondLabel,
-  externalGateRoads,
+  externalRoadLabels,
   normalizeApproachBeyond
 } from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
@@ -360,35 +360,59 @@ export function renderEditorSvg(
     }
   }
   const beyondFont = selectionLabelFontSize(document.frame.extentMeters, zoom);
-  for (const road of externalGateRoads(document)) {
+  for (const exit of externalRoadLabels(document)) {
+    const road = exit.destinations[0];
     const beyondLabel = approachBeyondLabel(road.group.beyond);
     const norm = normalizeApproachBeyond(road.group.beyond);
     if (!beyondLabel || !norm) continue;
     const at = approachBeyondAnchor(road.outward, document.frame.extentMeters / 2);
-    features.appendChild(
-      element(
-        "text",
-        {
-          class: "ce-approach-beyond",
-          x: String(at[0]),
-          y: String(-at[1]),
-          "text-anchor": "middle",
-          "dominant-baseline": "middle",
-          "font-size": String(beyondFont),
-          fill: norm.realm.relation === "Enemy" ? "#7e2217" : norm.realm.relation === "Ally" ? "#1e5c22" : "#2c261f",
-          stroke: "#f4f0e6",
-          "stroke-width": String(beyondFont / 8),
-          "paint-order": "stroke",
-          "pointer-events": "none",
-          "data-group": road.group.id,
-          "data-beyond": typeof road.group.beyond === "string" ? road.group.beyond : norm.realm.relation,
-          "data-beyond-relation": norm.realm.relation,
-          "data-beyond-scale": norm.settlement.scale,
-          "data-beyond-role": norm.settlement.role ?? "generic"
-        },
-        beyondLabel
-      )
+    const label = element(
+      "text",
+      {
+        class: "ce-approach-beyond",
+        x: String(at[0]),
+        y: String(-at[1]),
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+        "font-size": String(beyondFont),
+        fill: norm.realm.relation === "Enemy" ? "#7e2217" : norm.realm.relation === "Ally" ? "#1e5c22" : "#2c261f",
+        stroke: "#f4f0e6",
+        "stroke-width": String(beyondFont / 8),
+        "paint-order": "stroke",
+        "pointer-events": "none",
+        "data-group": road.group.id,
+        "data-groups": exit.roads.map(item => item.group.id).join(" "),
+        "data-beyond": typeof road.group.beyond === "string" ? road.group.beyond : norm.realm.relation,
+        "data-beyond-relation": norm.realm.relation,
+        "data-beyond-scale": norm.settlement.scale,
+        "data-beyond-role": norm.settlement.role ?? "generic"
+      },
+      exit.destinations.length === 1 ? beyondLabel : undefined
     );
+    if (exit.destinations.length > 1) {
+      const lines = ["街道の先で分岐", ...exit.destinations.map(item => approachBeyondLabel(item.group.beyond)!)];
+      const step = beyondFont * 1.3;
+      const top = Math.max(
+        -document.frame.extentMeters / 2 + step,
+        Math.min(document.frame.extentMeters / 2 - lines.length * step, -at[1] - ((lines.length - 1) * step) / 2)
+      );
+      for (let i = 0; i < lines.length; i++) {
+        const value = i ? normalizeApproachBeyond(exit.destinations[i - 1].group.beyond) : undefined;
+        label.appendChild(
+          element(
+            "tspan",
+            {
+              x: String(at[0]),
+              y: String(top + i * step),
+              fill:
+                value?.realm.relation === "Enemy" ? "#7e2217" : value?.realm.relation === "Ally" ? "#1e5c22" : "#2c261f"
+            },
+            lines[i]
+          )
+        );
+      }
+    }
+    features.appendChild(label);
   }
   if (town) {
     for (const deck of bridgeDecks(document)) {

@@ -7,6 +7,7 @@ import {
   assignApproachBeyonds,
   evaluateApproachBeyond,
   externalGateRoads,
+  externalRoadLabels,
   normalizeApproachBeyond,
   tagExternalGateRoads
 } from "./approachBeyond";
@@ -188,6 +189,30 @@ it("does not label the central Road 7 in the reported coastal town", () => {
   expect(central?.kind === "road" && central.beyond).toBeUndefined();
   expect(externalGateRoads(city).some(r => r.group.id === central!.id)).toBe(false);
   expect(externalGateRoads(city).length).toBeGreaterThan(0);
+  const exits = externalRoadLabels(city);
+  const shared = exits.find(exit => exit.roads.some(r => r.group.id === "gc:road-0"))!;
+  expect(shared.roads.map(r => r.group.id)).toContain("gc:road-2");
+  expect(shared.destinations).toHaveLength(1);
+  expect(shared.roads[0].group.beyond).toEqual(shared.roads[1].group.beyond);
+  const render = () =>
+    renderEditorSvg(city, "select", { faceId: null, edgeId: null, vertexId: null, groupId: null }, "0 0 10 10", 1);
+  expect(render().querySelectorAll('.ce-approach-beyond[data-groups~="gc:road-0"]')).toHaveLength(1);
+  const descriptor = {
+    roads: [41, 42].map((id, i) => ({
+      routeId: i,
+      entryAzimuthDeg: shared.roads[0].bearing,
+      nextBurg: { id, name: `Town ${id}`, scale: "town", isDomestic: true, population: 1000, wealth: 40 }
+    }))
+  } as unknown as BurgSiteDescriptor;
+  tagExternalGateRoads(city, "e7fn1h", descriptor);
+  const combined = externalRoadLabels(city).find(exit => exit.roads.some(r => r.group.id === "gc:road-0"))!;
+  expect(combined.destinations).toHaveLength(2);
+  const label = render().querySelector('.ce-approach-beyond[data-groups~="gc:road-0"]')!;
+  expect(label.querySelectorAll("tspan")).toHaveLength(3);
+  expect(label.textContent).toContain("Town 41");
+  expect(label.textContent).toContain("Town 42");
+  tagExternalGateRoads(city, "e7fn1h");
+
   if (central?.kind === "road") {
     central.beyond = "city";
     tagExternalGateRoads(city, "e7fn1h");

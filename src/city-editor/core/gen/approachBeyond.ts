@@ -447,6 +447,47 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
   return found;
 }
 
+/** Group nearby exits with the same outward bearing without merging their roads. */
+export function externalRoadExits(document: CityDocument): ExternalGateRoad[][] {
+  const exits: ExternalGateRoad[][] = [];
+  const tolerance = Math.max(1, Math.min(8, document.frame.blockSizeMeters * 0.15));
+  for (const road of externalGateRoads(document)) {
+    const exit = exits.find(group =>
+      group.every(
+        other =>
+          Math.hypot(road.outward[0] - other.outward[0], road.outward[1] - other.outward[1]) <= tolerance &&
+          azimuthDelta(road.bearing, other.bearing) <= 10
+      )
+    );
+    if (exit) exit.push(road);
+    else exits.push([road]);
+  }
+  return exits;
+}
+
+/** Preserve distinct FMG destinations but display repeated destinations only once. */
+export function externalRoadLabels(
+  document: CityDocument
+): Array<{ roads: ExternalGateRoad[]; destinations: ExternalGateRoad[] }> {
+  return externalRoadExits(document)
+    .map(roads => {
+      const seen = new Set<string>();
+      const destinations = roads.filter(road => {
+        const value = normalizeApproachBeyond(road.group.beyond);
+        if (!value) return false;
+        const key =
+          value.settlement.burgId !== undefined
+            ? `burg:${value.settlement.burgId}`
+            : approachBeyondLabel(road.group.beyond)!;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return { roads, destinations };
+    })
+    .filter(exit => exit.destinations.length);
+}
+
 function onMapBoundary(document: CityDocument, point: Point): boolean {
   const half = document.frame.extentMeters / 2;
   return Math.abs(Math.max(Math.abs(point[0]), Math.abs(point[1])) - half) <= 0.05;
@@ -483,29 +524,36 @@ export function tagExternalGateRoads(document: CityDocument, seed: string, descr
   }
 
   const descriptorRoads = descriptor?.roads ?? [];
-  const roles = assignApproachBeyonds(seed, roads.length, {
+  const exits = externalRoadExits(document);
+  const exitIndex = new Map(exits.flatMap((exit, index) => exit.map(road => [road.group.id, index] as const)));
+  const roles = assignApproachBeyonds(seed, exits.length, {
     extentMeters: document.frame.extentMeters,
     hasWalls: document.featureGroups.some(g => g.kind === "wall")
   });
 
-  roads.forEach((road, index) => {
-    let matchedNextBurg: BurgSiteDescriptor["roads"][number]["nextBurg"] | null = null;
-    if (descriptorRoads.length > 0) {
-      let minDiff = 180;
-      for (const dRoad of descriptorRoads) {
-        if (!dRoad.nextBurg) continue;
-        const diff = azimuthDelta(dRoad.entryAzimuthDeg, road.bearing);
-        if (diff < minDiff && diff < 60) {
-          minDiff = diff;
-          matchedNextBurg = dRoad.nextBurg;
-        }
-      }
-    }
+  const usedDestinations = new Map<number, Set<number>>();
+  roads.forEach(road => {
+    const index = exitIndex.get(road.group.id)!;
+    const used = usedDestinations.get(index) ?? new Set<number>();
+    usedDestinations.set(index, used);
+    const candidates = descriptorRoads
+      .filter(item => item.nextBurg)
+      .map(item => ({ item, diff: azimuthDelta(item.entryAzimuthDeg, road.bearing) }))
+      .filter(candidate => candidate.diff < 60)
+      .sort((a, b) => a.diff - b.diff || a.item.routeId - b.item.routeId);
+    // Multiple descriptor branches at a common exit retain their separate towns.
+    const best = candidates[0];
+    const matched =
+      best &&
+      (candidates.find(candidate => candidate.diff <= best.diff + 10 && !used.has(candidate.item.nextBurg!.id)) ??
+        best);
+    const matchedNextBurg = matched?.item.nextBurg;
+    if (matchedNextBurg) used.add(matchedNextBurg.id);
 
     if (matchedNextBurg) {
       road.group.beyond = beyondFromBurg(matchedNextBurg);
     } else {
-      road.group.beyond = roles[index];
+      road.group.beyond = structuredClone(roles[exitIndex.get(road.group.id)!]);
     }
   });
 
