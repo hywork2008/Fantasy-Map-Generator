@@ -3001,15 +3001,25 @@ function polylineToVertexPath(mesh: Mesh, polyline: Point[], nearest: NearestVer
   return out;
 }
 
-/** Push the temple nave off finished roads and rivers, then re-align it. */
+/** Push the temple nave off finished roads, rivers and walls, then re-align it. */
 function settleTempleOnDocument(document: CityDocument): void {
   const temple = document.elements.find(element => element.kind === "temple" && element.point);
   if (!temple?.point) return;
   const roads: Point[][] = [];
   const rivers: Point[][] = [];
   const hazards: { points: Point[]; clearance: number }[] = [];
+  const walls: { points: Point[]; clearance: number }[] = [];
   for (const group of document.featureGroups) {
-    if (group.kind === "road") {
+    if (group.kind === "wall") {
+      const points = featureGroupVertices(document, group)
+        .map(id => document.mesh.vertices[id]?.point)
+        .filter((p): p is Point => !!p);
+      if (points.length >= 2) {
+        const wall = { points, clearance: group.style.widthMeters / 2 + 4 };
+        walls.push(wall);
+        hazards.push(wall);
+      }
+    } else if (group.kind === "road") {
       const points = featureGroupVertices(document, group)
         .map(id => document.mesh.vertices[id]?.point)
         .filter((p): p is Point => !!p);
@@ -3034,12 +3044,35 @@ function settleTempleOnDocument(document: CityDocument): void {
     }
   }
   const guides = [...roads, ...plazaGuides];
-  const rect = placeAndClearTempleRect(
+  let rect = placeAndClearTempleRect(
     temple.point,
     document.frame.extentMeters,
     guides,
     hazards.length ? hazards : templeHazards(roads, rivers, document.frame.extentMeters)
   );
+  const clearsWalls = (candidate: typeof rect): boolean =>
+    walls.every(wall => orientedRectPolylineDistance(candidate, wall.points) >= wall.clearance - 0.2);
+  if (!clearsWalls(rect)) {
+    const candidates = Object.values(document.mesh.faces)
+      .filter(face => face.properties.settlement === "core" && face.properties.water === "land")
+      .map(face => polygonCentroid(facePoints(document.mesh, face)))
+      .sort(
+        (a, b) =>
+          Math.hypot(a[0] - temple.point![0], a[1] - temple.point![1]) -
+          Math.hypot(b[0] - temple.point![0], b[1] - temple.point![1])
+      );
+    for (const center of candidates) {
+      const candidate = placeAndClearTempleRect(center, document.frame.extentMeters, guides, hazards);
+      if (!hazards.every(h => orientedRectPolylineDistance(candidate, h.points) >= h.clearance - 0.2)) continue;
+      rect = candidate;
+      break;
+    }
+    // A cramped town may have no site large enough for the nave and its clearance.
+    if (!clearsWalls(rect)) {
+      document.elements = document.elements.filter(element => element !== temple);
+      return;
+    }
+  }
   temple.point = rect.center;
   temple.rotation = rect.rotation;
 

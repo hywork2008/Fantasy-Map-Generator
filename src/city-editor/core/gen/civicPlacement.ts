@@ -402,7 +402,8 @@ export function placeTempleFootprint(
   cellSize: number,
   capital: boolean,
   streets: Point[][],
-  rivers: Point[][]
+  rivers: Point[][],
+  walls: Point[][] = []
 ): { cellIds: number[]; anchor: Point; rotation: number } | null {
   const byId = new Map(cells.map(c => [c.id, c]));
   const plazaIds = new Set(plaza?.cellIds ?? []);
@@ -427,7 +428,8 @@ export function placeTempleFootprint(
     .filter((p): p is Point[] => !!p && p.length >= 3)
     .map(closeRing);
   const guides = [...streets.filter(l => l.length >= 2), ...plazaRings];
-  const hazards = templeHazards(streets, rivers, extentMeters);
+  const wallHazards = walls.filter(line => line.length >= 2).map(points => ({ points, clearance: yard + 2 }));
+  const hazards = [...templeHazards(streets, rivers, extentMeters), ...wallHazards];
 
   const score = (c: Cell): number => {
     let s = dist(c.centroid, plazaAnchor);
@@ -489,6 +491,7 @@ export function placeTempleFootprint(
   const pick = ranked[0];
   const cellIds = growCluster(pick.id, byId, eligible, ids => ids.length >= minCells, maxCells);
   const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
+  if (wallHazards.some(h => orientedRectPolylineDistance(rect, h.points) < h.clearance)) return null;
   return { cellIds, anchor: rect.center, rotation: rect.rotation };
 }
 

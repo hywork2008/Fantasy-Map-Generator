@@ -4,7 +4,8 @@ import {
   nudgeRectOffPolylines,
   orientedRectPolylineDistance,
   placePlazaCluster,
-  placeTempleFootprint
+  placeTempleFootprint,
+  templeRectForElement
 } from "./civicPlacement";
 import type { Cell, Point } from "./types";
 
@@ -355,4 +356,57 @@ describe("user URL reproduction", () => {
       expect(distToNave).toBeGreaterThan(minClearance);
     }
   });
+});
+
+describe("organic temple wall clearance", () => {
+  it.each([0, 12, 24])("keeps the full nave clear of a wall at x=%s", x => {
+    const cells = grid(9, 20);
+    const wall: Point[] = [
+      [x, -100],
+      [x, 100]
+    ];
+    const placed = placeTempleFootprint(
+      cells,
+      new Set(cells.map(c => c.id)),
+      new Set(),
+      null,
+      new Set(),
+      600,
+      20,
+      false,
+      [],
+      [],
+      [wall]
+    );
+    expect(placed).not.toBeNull();
+    const rect = templeRectForElement(placed!.anchor, undefined, placed!.rotation, 600);
+    expect(orientedRectPolylineDistance(rect, wall)).toBeGreaterThanOrEqual(5.8);
+  });
+});
+
+it.each(["organic-wall-1", "organic-wall-2", "organic-wall-3"])("clears finished organic walls for %s", async seed => {
+  const { createGridDocument } = await import("../document");
+  const { defaultGenerationSettings, generateCityOnDocument } = await import("../generate");
+  const { featureGroupVertices } = await import("../features");
+  const document = createGridDocument({ size: "tiny", grid: "evolution", seed });
+  const settings = defaultGenerationSettings();
+  settings.layout = "organic";
+  settings.config.layout = "organic";
+  settings.config.coast = "none";
+  settings.config.rivers = [];
+  settings.config.features.walls = true;
+  settings.config.features.temple = true;
+  settings.config.features.citadel = false;
+  settings.config.features.port = false;
+  const city = generateCityOnDocument(document, settings, seed);
+  expect(city).not.toBeNull();
+  const temple = city!.elements.find(element => element.kind === "temple");
+  expect(temple?.point).toBeDefined();
+  const rect = templeRectForElement(temple!.point!, temple!.sizeMeters, temple!.rotation, city!.frame.extentMeters);
+  const walls = city!.featureGroups.filter(group => group.kind === "wall");
+  expect(walls.length).toBeGreaterThan(0);
+  for (const wall of walls) {
+    const points = featureGroupVertices(city!, wall).map(id => city!.mesh.vertices[id].point);
+    expect(orientedRectPolylineDistance(rect, points)).toBeGreaterThanOrEqual(wall.style.widthMeters / 2 + 3.8);
+  }
 });
