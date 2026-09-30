@@ -130,4 +130,185 @@ describe("parkFabric", () => {
     const parkMarker = landmark!.querySelector(`[data-element="ward-${face.id}"]`);
     expect(parkMarker).not.toBeNull();
   });
+
+  describe("fortification clearance hybrid logic", () => {
+    it("suppresses trees completely in small-to-medium park blocks adjacent to city walls (pure esplanade)", () => {
+      const doc = createParkDocument();
+      // Remove default faces for a controlled test
+      const v0 = { id: "v_sm_0", point: [0, 0] as [number, number], locked: false };
+      const v1 = { id: "v_sm_1", point: [20, 0] as [number, number], locked: false };
+      const v2 = { id: "v_sm_2", point: [20, 15] as [number, number], locked: false };
+      const v3 = { id: "v_sm_3", point: [0, 15] as [number, number], locked: false };
+      doc.mesh.vertices[v0.id] = v0;
+      doc.mesh.vertices[v1.id] = v1;
+      doc.mesh.vertices[v2.id] = v2;
+      doc.mesh.vertices[v3.id] = v3;
+
+      const e0 = { id: "e_sm_0", a: v0.id, b: v1.id, leftFace: "f_small_park", rightFace: null, locked: false };
+      const e1 = { id: "e_sm_1", a: v1.id, b: v2.id, leftFace: "f_small_park", rightFace: null, locked: false };
+      const e2 = { id: "e_sm_2", a: v2.id, b: v3.id, leftFace: "f_small_park", rightFace: null, locked: false };
+      const e3 = { id: "e_sm_3", a: v3.id, b: v0.id, leftFace: "f_small_park", rightFace: null, locked: false };
+      doc.mesh.edges[e0.id] = e0;
+      doc.mesh.edges[e1.id] = e1;
+      doc.mesh.edges[e2.id] = e2;
+      doc.mesh.edges[e3.id] = e3;
+
+      doc.mesh.faces = {
+        f_small_park: {
+          id: "f_small_park",
+          boundary: [
+            { edgeId: e0.id, forward: true },
+            { edgeId: e1.id, forward: true },
+            { edgeId: e2.id, forward: true },
+            { edgeId: e3.id, forward: true }
+          ],
+          properties: {
+            water: "land",
+            ward: "park",
+            buildable: true
+          }
+        }
+      };
+
+      const outline = facePoints(doc.mesh, doc.mesh.faces["f_small_park"]);
+      const area = Math.abs(polygonArea(outline));
+      expect(area).toBe(300); // 20m x 15m = 300 m^2 < 650 m^2
+
+      // Add a wall along the boundary edge (y = 0)
+      doc.featureGroups.push({
+        id: "wall-1",
+        kind: "wall",
+        name: "Town Wall",
+        segments: [{ edgeId: e0.id, forward: true }],
+        style: { widthMeters: 3, color: "#666" },
+        locked: true
+      });
+
+      const lawns = buildParkLawns(doc);
+      expect(lawns.length).toBe(1);
+      // Pure lawn is still generated
+      expect(lawns[0].lawnPolygons.length).toBeGreaterThan(0);
+      // But trees are completely suppressed (open parade ground / esplanade)
+      expect(lawns[0].trees.length).toBe(0);
+    });
+
+    it("keeps trees at least FORTIFICATION_TREE_CLEAR_ZONE away from walls in large park blocks", () => {
+      // Create a large custom face (e.g. 50m x 40m = 2000 m^2)
+      const doc = createParkDocument();
+      // Add a large custom rectangular face
+      const v0 = { id: "v_custom_0", point: [0, 0] as [number, number], locked: false };
+      const v1 = { id: "v_custom_1", point: [60, 0] as [number, number], locked: false };
+      const v2 = { id: "v_custom_2", point: [60, 40] as [number, number], locked: false };
+      const v3 = { id: "v_custom_3", point: [0, 40] as [number, number], locked: false };
+      doc.mesh.vertices[v0.id] = v0;
+      doc.mesh.vertices[v1.id] = v1;
+      doc.mesh.vertices[v2.id] = v2;
+      doc.mesh.vertices[v3.id] = v3;
+
+      const e0 = { id: "e_c_0", a: v0.id, b: v1.id, leftFace: "f_large_park", rightFace: null, locked: false };
+      const e1 = { id: "e_c_1", a: v1.id, b: v2.id, leftFace: "f_large_park", rightFace: null, locked: false };
+      const e2 = { id: "e_c_2", a: v2.id, b: v3.id, leftFace: "f_large_park", rightFace: null, locked: false };
+      const e3 = { id: "e_c_3", a: v3.id, b: v0.id, leftFace: "f_large_park", rightFace: null, locked: false };
+      doc.mesh.edges[e0.id] = e0;
+      doc.mesh.edges[e1.id] = e1;
+      doc.mesh.edges[e2.id] = e2;
+      doc.mesh.edges[e3.id] = e3;
+
+      doc.mesh.faces["f_large_park"] = {
+        id: "f_large_park",
+        boundary: [
+          { edgeId: e0.id, forward: true },
+          { edgeId: e1.id, forward: true },
+          { edgeId: e2.id, forward: true },
+          { edgeId: e3.id, forward: true }
+        ],
+        properties: {
+          water: "land",
+          ward: "park",
+          buildable: true
+        }
+      };
+
+      // Set the bottom edge (y = 0) as a city wall
+      doc.featureGroups.push({
+        id: "wall-curtain",
+        kind: "wall",
+        name: "Curtain Wall",
+        segments: [{ edgeId: e0.id, forward: true }],
+        style: { widthMeters: 3, color: "#555" },
+        locked: true
+      });
+
+      const lawns = buildParkLawns(doc);
+      const largePark = lawns.find(l => l.faceId === "f_large_park");
+      expect(largePark).toBeDefined();
+      expect(largePark!.trees.length).toBeGreaterThan(0);
+
+      // Verify that every single tree maintains defensive clear zone distance (>= 11.0m from y=0 wall)
+      for (const tree of largePark!.trees) {
+        expect(tree.center[1]).toBeGreaterThanOrEqual(11.0);
+      }
+    });
+
+    it("suppresses trees in small park blocks adjacent to castle wards", () => {
+      const doc = createParkDocument();
+      const v0 = { id: "v0", point: [0, 0] as [number, number], locked: false };
+      const v1 = { id: "v1", point: [20, 0] as [number, number], locked: false };
+      const v2 = { id: "v2", point: [20, 15] as [number, number], locked: false };
+      const v3 = { id: "v3", point: [0, 15] as [number, number], locked: false };
+      const v4 = { id: "v4", point: [20, -20] as [number, number], locked: false };
+      const v5 = { id: "v5", point: [0, -20] as [number, number], locked: false };
+      doc.mesh.vertices[v0.id] = v0;
+      doc.mesh.vertices[v1.id] = v1;
+      doc.mesh.vertices[v2.id] = v2;
+      doc.mesh.vertices[v3.id] = v3;
+      doc.mesh.vertices[v4.id] = v4;
+      doc.mesh.vertices[v5.id] = v5;
+
+      const e0 = { id: "e0", a: v0.id, b: v1.id, leftFace: "f_park", rightFace: "f_castle", locked: false };
+      const e1 = { id: "e1", a: v1.id, b: v2.id, leftFace: "f_park", rightFace: null, locked: false };
+      const e2 = { id: "e2", a: v2.id, b: v3.id, leftFace: "f_park", rightFace: null, locked: false };
+      const e3 = { id: "e3", a: v3.id, b: v0.id, leftFace: "f_park", rightFace: null, locked: false };
+
+      const e4 = { id: "e4", a: v1.id, b: v4.id, leftFace: "f_castle", rightFace: null, locked: false };
+      const e5 = { id: "e5", a: v4.id, b: v5.id, leftFace: "f_castle", rightFace: null, locked: false };
+      const e6 = { id: "e6", a: v5.id, b: v0.id, leftFace: "f_castle", rightFace: null, locked: false };
+
+      doc.mesh.edges[e0.id] = e0;
+      doc.mesh.edges[e1.id] = e1;
+      doc.mesh.edges[e2.id] = e2;
+      doc.mesh.edges[e3.id] = e3;
+      doc.mesh.edges[e4.id] = e4;
+      doc.mesh.edges[e5.id] = e5;
+      doc.mesh.edges[e6.id] = e6;
+
+      doc.mesh.faces = {
+        f_park: {
+          id: "f_park",
+          boundary: [
+            { edgeId: e0.id, forward: true },
+            { edgeId: e1.id, forward: true },
+            { edgeId: e2.id, forward: true },
+            { edgeId: e3.id, forward: true }
+          ],
+          properties: { water: "land", ward: "park", buildable: true }
+        },
+        f_castle: {
+          id: "f_castle",
+          boundary: [
+            { edgeId: e0.id, forward: false },
+            { edgeId: e4.id, forward: true },
+            { edgeId: e5.id, forward: true },
+            { edgeId: e6.id, forward: true }
+          ],
+          properties: { water: "land", ward: "castle", buildable: false }
+        }
+      };
+
+      const lawns = buildParkLawns(doc);
+      expect(lawns.length).toBe(1);
+      expect(lawns[0].lawnPolygons.length).toBeGreaterThan(0);
+      expect(lawns[0].trees.length).toBe(0);
+    });
+  });
 });

@@ -28,20 +28,109 @@ export interface ParkLawn {
 const LAWN_SETBACK = 2.8;
 
 /**
+ * Minimum distance (meters) between tree canopy centers and fortification barriers
+ * (city walls, castle boundaries) to maintain defensive lines of sight and prevent
+ * scaling footholds (esplanade / glacis clear zone).
+ */
+export const FORTIFICATION_TREE_CLEAR_ZONE = 11.0;
+
+/**
+ * Minimum park block area (square meters) required to plant trees when adjacent to
+ * fortifications. Smaller blocks adjacent to walls become pure grass esplanades /
+ * parade grounds (no trees).
+ */
+export const MIN_FORTIFIED_PARK_TREE_AREA = 650;
+
+interface DefenseData {
+  wallEdgeIds: Set<Id>;
+  castleFaceIds: Set<Id>;
+  segments: [Point, Point][];
+}
+
+function collectDefenseData(document: CityDocument): DefenseData {
+  const wallEdgeIds = new Set<Id>();
+  const segments: [Point, Point][] = [];
+
+  for (const group of document.featureGroups) {
+    if (group.kind === "wall") {
+      for (const seg of group.segments) {
+        wallEdgeIds.add(seg.edgeId);
+        const edge = document.mesh.edges[seg.edgeId];
+        if (!edge) continue;
+        const va = document.mesh.vertices[edge.a]?.point;
+        const vb = document.mesh.vertices[edge.b]?.point;
+        if (va && vb) {
+          segments.push([va, vb]);
+        }
+      }
+    }
+  }
+
+  const castleFaceIds = new Set<Id>();
+  for (const f of Object.values(document.mesh.faces)) {
+    if (f.properties.ward === "castle") {
+      castleFaceIds.add(f.id);
+    }
+  }
+  if (document.elements) {
+    for (const el of document.elements) {
+      if (el.kind === "citadel") {
+        for (const fid of el.faceIds) {
+          castleFaceIds.add(fid);
+        }
+      }
+    }
+  }
+
+  for (const cid of castleFaceIds) {
+    const cf = document.mesh.faces[cid];
+    if (!cf) continue;
+    const pts = facePoints(document.mesh, cf);
+    for (let i = 0; i < pts.length; i++) {
+      segments.push([pts[i], pts[(i + 1) % pts.length]]);
+    }
+  }
+
+  return { wallEdgeIds, castleFaceIds, segments };
+}
+
+function isFaceAdjacentToDefense(document: CityDocument, face: Face, outline: Point[], defense: DefenseData): boolean {
+  if (!defense.segments.length) return false;
+
+  for (const ref of face.boundary) {
+    if (defense.wallEdgeIds.has(ref.edgeId)) return true;
+    const edge = document.mesh.edges[ref.edgeId];
+    if (edge) {
+      const neighborId = edge.leftFace === face.id ? edge.rightFace : edge.leftFace;
+      if (neighborId && defense.castleFaceIds.has(neighborId)) return true;
+    }
+  }
+
+  for (const pt of outline) {
+    for (const [a, b] of defense.segments) {
+      if (distToSegment(pt, a, b) < 5.0) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Generate lawn polygons, walkways, and top-down tree canopies for each face with ward="park".
  * Everything is rendered within the town presentation layer and does not pollute `document.elements`.
  */
 export function buildParkLawns(document: CityDocument, seed = "park-fabric"): ParkLawn[] {
+  const defense = collectDefenseData(document);
   const lawns: ParkLawn[] = [];
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "land" || face.properties.ward !== "park") continue;
-    const lawn = shapeParkFace(document, face, seed);
+    const lawn = shapeParkFace(document, face, seed, defense);
     if (lawn) lawns.push(lawn);
   }
   return lawns;
 }
 
-function shapeParkFace(document: CityDocument, face: Face, seed: string): ParkLawn | null {
+function shapeParkFace(document: CityDocument, face: Face, seed: string, defense: DefenseData): ParkLawn | null {
   const outline = facePoints(document.mesh, face);
   if (outline.length < 3) return null;
   const area = Math.abs(polygonArea(outline));
@@ -74,10 +163,11 @@ function shapeParkFace(document: CityDocument, face: Face, seed: string): ParkLa
     if (scaled.length >= 3) lawnPolygons.push(scaled);
   }
 
+  const isFortified = isFaceAdjacentToDefense(document, face, outline, defense);
   const rng = makeRng(`${seed}:park-lawn:${face.id}`);
   const paths = generateParkPaths(outline, lawnPolygons, area, rng);
   const grassTufts = generateGrassTufts(lawnPolygons, paths, rng);
-  const trees = generateTopDownBushes(outline, lawnPolygons, paths, area, rng);
+  const trees = generateTopDownBushes(outline, lawnPolygons, paths, area, rng, defense, isFortified);
 
   return {
     faceId: face.id,
@@ -167,8 +257,16 @@ function generateTopDownBushes(
   _lawns: Point[][],
   paths: Point[][],
   area: number,
-  rng: Rng
+  rng: Rng,
+  defense?: DefenseData,
+  isFortified = false
 ): ParkTreeCanopy[] {
+  // If adjacent to fortifications and block is small/medium, treat as an open esplanade /
+  // military parade ground (pure lawn, no climbable trees).
+  if (isFortified && area < MIN_FORTIFIED_PARK_TREE_AREA) {
+    return [];
+  }
+
   const targetCount = Math.max(2, Math.min(18, Math.round(area / 110)));
   const trees: ParkTreeCanopy[] = [];
   const xs = outline.map(p => p[0]);
@@ -198,6 +296,18 @@ function generateTopDownBushes(
       }
     }
     if (tooCloseToEdge) continue;
+
+    // Check distance to fortifications (city walls and castles)
+    if (defense?.segments.length) {
+      let tooCloseToDefense = false;
+      for (const [a, b] of defense.segments) {
+        if (distToSegment(cand, a, b) < FORTIFICATION_TREE_CLEAR_ZONE) {
+          tooCloseToDefense = true;
+          break;
+        }
+      }
+      if (tooCloseToDefense) continue;
+    }
 
     // Check distance to walkways
     let hitsPath = false;
@@ -231,18 +341,21 @@ function generateTopDownBushes(
     trees.push({ center: cand, radius, subCircles });
   }
 
-  // Fallback: at least one canopy if area is large enough
-  if (!trees.length) {
+  // Fallback: at least one canopy if area is large enough, but NEVER violate fortification clear zone
+  if (!trees.length && !isFortified) {
     const c = polygonCentroid(outline);
     if (pointInPolygon(c, outline)) {
-      trees.push({
-        center: c,
-        radius: 4.5,
-        subCircles: [
-          { offset: [1.5, 1.2], radius: 3.2 },
-          { offset: [-1.4, -1.0], radius: 2.8 }
-        ]
-      });
+      const nearDefense = defense?.segments.some(([a, b]) => distToSegment(c, a, b) < FORTIFICATION_TREE_CLEAR_ZONE);
+      if (!nearDefense) {
+        trees.push({
+          center: c,
+          radius: 4.5,
+          subCircles: [
+            { offset: [1.5, 1.2], radius: 3.2 },
+            { offset: [-1.4, -1.0], radius: 2.8 }
+          ]
+        });
+      }
     }
   }
 
