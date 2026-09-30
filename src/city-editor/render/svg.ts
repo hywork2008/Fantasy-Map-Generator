@@ -17,6 +17,7 @@ import {
 } from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
+import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
@@ -178,7 +179,7 @@ export function renderEditorSvg(
         const garden = farm.kind === "kitchen-garden";
         farms.appendChild(
           element("path", {
-            d: polygon(farm.polygon),
+            d: roundedFarmPolygon(farm.polygon),
             fill: garden ? (tone ? "#bccd9c" : "#aec392") : tone ? "#d4ceb2" : "#c4bf9a",
             stroke: garden ? "#536c45" : "#8f8a74",
             "stroke-width": garden ? "1.8" : "0.6",
@@ -198,6 +199,22 @@ export function renderEditorSvg(
         );
       });
       svg.appendChild(farms);
+      if (!hideBuildings) {
+        const sheds = element("g", { class: "ce-farm-sheds", "pointer-events": "none" });
+        for (const shed of farmSheds(document, fabric.farms, lots)) {
+          sheds.appendChild(
+            element("path", {
+              d: polygon(shed.polygon),
+              fill: "#796b55",
+              stroke: "#4a4336",
+              "stroke-width": "0.6",
+              class: "ce-farm-shed",
+              "data-farm-face": shed.faceId
+            })
+          );
+        }
+        svg.appendChild(sheds);
+      }
       if (!hideBuildings && fabric.openSpaces?.length) {
         const spaces = element("g", { class: "ce-open-spaces", "pointer-events": "none" });
         const green = new Set(["kitchen-garden", "formal-garden"]);
@@ -1258,6 +1275,34 @@ function edgeGroupPoints(document: CityDocument, segments: EdgeRef[]): Point[] {
 
 function polygon(points: Point[]): string {
   return `${line(points)} Z`;
+}
+
+/** Soften field corners without moving the underlying parcel or its furrows. */
+function roundedFarmPolygon(points: Point[]): string {
+  if (points.length < 3) return polygon(points);
+  const corners = points.map((point, index) => {
+    const previous = points[(index + points.length - 1) % points.length];
+    const next = points[(index + 1) % points.length];
+    const before = Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+    const after = Math.hypot(next[0] - point[0], next[1] - point[1]);
+    const radius = Math.min(3, before * 0.18, after * 0.18);
+    const entry: Point = before
+      ? [
+          point[0] + ((previous[0] - point[0]) * radius) / before,
+          point[1] + ((previous[1] - point[1]) * radius) / before
+        ]
+      : point;
+    const exit: Point = after
+      ? [point[0] + ((next[0] - point[0]) * radius) / after, point[1] + ((next[1] - point[1]) * radius) / after]
+      : point;
+    return { point, entry, exit };
+  });
+  const start = corners[0].entry;
+  return `M${start[0]} ${-start[1]} ${corners
+    .map(({ point, exit }, index) => {
+      return `Q${point[0]} ${-point[1]} ${exit[0]} ${-exit[1]} L${corners[(index + 1) % corners.length].entry[0]} ${-corners[(index + 1) % corners.length].entry[1]}`;
+    })
+    .join(" ")} Z`;
 }
 
 function line(points: Point[]): string {

@@ -75,6 +75,7 @@ import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { resolveRiverBoundaryOverlaps } from "./gen/resolveRiverOverlaps";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
+import { cultivateRoadside } from "./gen/roadsideFarms";
 import {
   defaultRoadWidthMeters,
   evolutionWallInsetRings,
@@ -411,6 +412,7 @@ export function generateStageOnDocument(
     res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
     res.generationSeed = seed;
     if (stageStep >= 5) tagExternalGateRoads(res, seed, settings.descriptor);
+    if (stageStep >= 6) cultivateRoadside(res);
   }
   return res;
 }
@@ -721,6 +723,7 @@ export function generateCityAttempt(
         face.properties.ward = "patriciate";
     }
   tagExternalGateRoads(settled, seed, settings.descriptor);
+  cultivateRoadside(settled);
   return settled;
 }
 
@@ -1933,7 +1936,7 @@ function applyPlan(
   if (stageStep >= 6) {
     for (const [cellId, kind] of plan.wards) {
       const face = faceFor(cellId);
-      const editor = kind === "farm" && next.gridKind === "evolution" ? "farm" : editorWard(kind);
+      const editor = editorWard(kind);
       if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id))
         face.properties.ward = editor;
     }
@@ -3322,7 +3325,7 @@ function toGeneratorBorder(loop: MeshBorderLoop): {
 
 function editorWard(
   kind: WardKind
-): "market" | "castle" | "merchant" | "craftsmen" | "patriciate" | "harbor" | "park" | "empty" | null {
+): "market" | "castle" | "merchant" | "craftsmen" | "patriciate" | "harbor" | "park" | "farm" | "empty" | null {
   switch (kind) {
     case "market":
     case "castle":
@@ -3331,9 +3334,9 @@ function editorWard(
     case "patriciate":
     case "harbor":
     case "park":
+    case "farm":
     case "empty":
       return kind;
-    case "farm":
     case "slum":
     case "gate":
       return "empty";
