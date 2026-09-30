@@ -18,6 +18,11 @@ export function vertexKey(p: Point): string {
   return `${Math.round(p[0] / MERGE_QUANTUM)},${Math.round(p[1] / MERGE_QUANTUM)}`;
 }
 
+/** Directed identity of a cell edge, used to forbid upstream travel on another river. */
+export function graphEdgeKey(a: Point, b: Point): string {
+  return `${vertexKey(a)}>${vertexKey(b)}`;
+}
+
 export interface EdgeGraph {
   /** node id → coordinate. */
   points: Point[];

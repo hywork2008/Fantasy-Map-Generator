@@ -7,7 +7,7 @@
 
 import FlatQueue from "flatqueue";
 import type { EdgeGraph } from "./edgeGraph";
-import { MERGE_QUANTUM, nearestNode, smoothPath, vertexKey } from "./edgeGraph";
+import { graphEdgeKey, MERGE_QUANTUM, nearestNode, smoothPath, vertexKey } from "./edgeGraph";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
@@ -51,7 +51,8 @@ export function walkRiver(
   halfExtentMeters: number,
   rng: Rng,
   bridgeAllowed = true,
-  seaVertices?: ReadonlySet<string>
+  seaVertices?: ReadonlySet<string>,
+  blockedEdges?: ReadonlySet<string>
 ): RoutedRiver {
   const dead: RoutedRiver = {
     edgePoints: [],
@@ -115,7 +116,8 @@ export function walkRiver(
     corridorPull: 1.5,
     corridorFalloff: 1.5,
     maxSteps: 300,
-    stop
+    stop,
+    blockedEdges
   });
   if (nodes.length < 3) {
     nodes = walkGraph(graph, {
@@ -126,7 +128,8 @@ export function walkRiver(
       wander: 0.35,
       corridorPull: 1.2,
       maxSteps: 220,
-      stop
+      stop,
+      blockedEdges
     });
   }
   if (nodes.length < 3) return dead;
@@ -169,7 +172,14 @@ export function walkRiver(
   const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
-  const resolvedEdges = extendRiverEnds(graph, edgePoints, halfExtentMeters, reachesSea, waterPolygon !== null);
+  const resolvedEdges = extendRiverEnds(
+    graph,
+    edgePoints,
+    halfExtentMeters,
+    reachesSea,
+    waterPolygon !== null,
+    blockedEdges
+  );
   if (resolvedEdges.length < 3) return dead;
   return {
     edgePoints,
@@ -191,7 +201,8 @@ function extendRiverEnds(
   points: Point[],
   half: number,
   reachesSea: (point: Point) => boolean,
-  hasSea: boolean
+  hasSea: boolean,
+  blockedEdges?: ReadonlySet<string>
 ): Point[] {
   if (points.length < 3) return points;
   let nodes = points.map(p => nearestNode(graph, p));
@@ -224,6 +235,7 @@ function extendRiverEnds(
       }
       for (const { to, w } of graph.adjacency[id]) {
         if (blocked.has(to)) continue;
+        if (blockedEdges?.has(graphEdgeKey(graph.points[id], graph.points[to]))) continue;
         const cost = distance[id] + w;
         if (cost >= distance[to]) continue;
         distance[to] = cost;

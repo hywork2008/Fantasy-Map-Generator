@@ -5,7 +5,7 @@
 // (design §4.2): the descriptor gives a rough corridor, the walk gives the shape.
 
 import type { EdgeGraph } from "./edgeGraph";
-import { nearestNode } from "./edgeGraph";
+import { graphEdgeKey, nearestNode } from "./edgeGraph";
 import { nearestOnPolyline } from "./geom";
 import type { Rng } from "./prng";
 import type { Point } from "./types";
@@ -32,6 +32,8 @@ export interface WalkOptions {
   maxSteps?: number;
   /** Nodes to steer away from (e.g. another river's path). */
   avoid?: Set<number>;
+  /** Directed edges that would run against another river's flow. */
+  blockedEdges?: ReadonlySet<string>;
 }
 
 /** Clamp a point into the [-half, half]² window (with a small inset). */
@@ -77,6 +79,7 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
     let bestScore = Number.NEGATIVE_INFINITY;
     for (const { to } of graph.adjacency[current]) {
       if (to === previous) continue;
+      if (opts.blockedEdges?.has(graphEdgeKey(here, graph.points[to]))) continue;
       const there = graph.points[to];
       const ex = there[0] - here[0];
       const ey = there[1] - here[1];

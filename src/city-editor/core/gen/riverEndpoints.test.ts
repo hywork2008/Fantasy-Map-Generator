@@ -45,6 +45,11 @@ describe("generated river endpoints", () => {
         expect(river.vertices.slice(0, -1).some(touchesSea)).toBe(false);
         expect(touchesSea(river.vertices.at(-1)!)).toBe(true);
       }
+      const [first, second] = rivers;
+      if (first.kind !== "river" || second.kind !== "river") continue;
+      const firstFlow = new Set(first.vertices.slice(1).map((id, i) => `${first.vertices[i]}>${id}`));
+      for (let i = 1; i < second.vertices.length; i++)
+        expect(firstFlow.has(`${second.vertices[i]}>${second.vertices[i - 1]}`)).toBe(false);
     }
   });
 
@@ -89,6 +94,7 @@ describe("generated river endpoints", () => {
     let checked = 0;
     for (const seed of ["coastal-a", "coastal-b", "coastal-c"]) {
       const city = generateStageOnDocument(input, settings, seed, 2)!;
+      const againstFlow = new Set<string>();
       for (const river of city.featureGroups.filter(group => group.kind === "river")) {
         checked++;
         for (const id of [river.vertices[0], river.vertices.at(-1)!]) {
@@ -114,8 +120,11 @@ describe("generated river endpoints", () => {
           ),
           `${seed}: river mouth does not reach a sea face`
         ).toBe(true);
-        for (let i = 1; i < river.vertices.length; i++)
+        for (let i = 1; i < river.vertices.length; i++) {
           expect(edgeBetween(city.mesh, river.vertices[i - 1], river.vertices[i])).toBeTruthy();
+          expect(againstFlow.has(`${river.vertices[i - 1]}>${river.vertices[i]}`)).toBe(false);
+          againstFlow.add(`${river.vertices[i]}>${river.vertices[i - 1]}`);
+        }
       }
     }
     expect(checked).toBeGreaterThan(0);

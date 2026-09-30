@@ -44,7 +44,7 @@ import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
 import { classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
-import { aStar, buildEdgeGraph, type EdgeGraph, vertexKey } from "./gen/edgeGraph";
+import { aStar, buildEdgeGraph, type EdgeGraph, graphEdgeKey, vertexKey } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
 import {
   isSimplePolygon,
@@ -1261,22 +1261,27 @@ export function runPlan(
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
   const seaVertices = new Set(cells.filter(cell => sea.has(cell.id)).flatMap(cell => cell.polygon.map(vertexKey)));
-  const rivers = geo.rivers
-    .map((r, i) =>
-      walkRiver(
-        graph,
-        r.corridor,
-        r.widths,
-        coast?.waterPolygon ?? null,
-        coast?.shoreline ?? null,
-        cellSize,
-        half,
-        makeRng(`${seed}:river:${i}`),
-        r.bridgeAllowed,
-        seaVertices.size ? seaVertices : undefined
-      )
-    )
-    .filter(band => !band.fallback && band.edgePoints.length >= 2);
+  const rivers: RoutedRiver[] = [];
+  const againstRiverFlow = new Set<string>();
+  for (const [i, r] of geo.rivers.entries()) {
+    const band = walkRiver(
+      graph,
+      r.corridor,
+      r.widths,
+      coast?.waterPolygon ?? null,
+      coast?.shoreline ?? null,
+      cellSize,
+      half,
+      makeRng(`${seed}:river:${i}`),
+      r.bridgeAllowed,
+      seaVertices.size ? seaVertices : undefined,
+      againstRiverFlow
+    );
+    if (band.fallback || band.edgePoints.length < 2) continue;
+    rivers.push(band);
+    for (let j = 1; j < band.resolvedEdgePoints.length; j++)
+      againstRiverFlow.add(graphEdgeKey(band.resolvedEdgePoints[j], band.resolvedEdgePoints[j - 1]));
+  }
   const river = classifyRiver(
     cells,
     sea,
@@ -1943,9 +1948,11 @@ function applyPlan(
 
   // ② river feature groups
   if (stageStep >= 2) {
+    const againstFlow = new Set<string>();
     plan.rivers.forEach((band, i) => {
-      const vertices = polylineToVertexPath(mesh, band.resolvedEdgePoints, nearest);
+      const vertices = polylineToVertexPath(mesh, band.resolvedEdgePoints, nearest, againstFlow);
       if (vertices.length < 2) return;
+      for (let j = 1; j < vertices.length; j++) againstFlow.add(`${vertices[j]}>${vertices[j - 1]}`);
       const width = band.widths.length ? band.widths.reduce((s, w) => s + w, 0) / band.widths.length : 12;
       appendGeneratedGroup({
         id: `${GEN_PREFIX}river-${i}`,
@@ -3034,7 +3041,12 @@ function nearestVertexLookup(mesh: Mesh, bucket: number): NearestVertex {
 }
 
 /** Generator polyline → a contiguous list of mesh vertex ids (for a river). */
-function polylineToVertexPath(mesh: Mesh, polyline: Point[], nearest: NearestVertex): Id[] {
+function polylineToVertexPath(
+  mesh: Mesh,
+  polyline: Point[],
+  nearest: NearestVertex,
+  againstFlow: ReadonlySet<string> = new Set()
+): Id[] {
   const raw: Id[] = [];
   for (const p of polyline) {
     const id = nearest(p);
@@ -3046,15 +3058,48 @@ function polylineToVertexPath(mesh: Mesh, polyline: Point[], nearest: NearestVer
     const a = out.at(-1) as Id;
     const b = raw[i];
     if (a === b) continue;
-    if (edgeBetween(mesh, a, b)) {
+    if (edgeBetween(mesh, a, b) && !againstFlow.has(`${a}>${b}`)) {
       out.push(b);
       continue;
     }
-    const bridge = shortestPath(mesh, a, b);
+    const bridge = againstFlow.size
+      ? shortestPathWithFlow(mesh, a, b, againstFlow, new Set(out.slice(0, -1)))
+      : shortestPath(mesh, a, b);
     if (!bridge) return []; // Never emit a river that ends at an interior gap.
     out.push(...bridge.slice(1));
   }
   return out;
+}
+
+/** Bridge a graph-walk gap without reversing an already emitted river edge. */
+function shortestPathWithFlow(
+  mesh: Mesh,
+  from: Id,
+  to: Id,
+  againstFlow: ReadonlySet<string>,
+  visited: ReadonlySet<Id>
+): Id[] | null {
+  const adjacent = new Map<Id, Id[]>();
+  for (const edge of Object.values(mesh.edges)) {
+    (adjacent.get(edge.a) ?? adjacent.set(edge.a, []).get(edge.a)!).push(edge.b);
+    (adjacent.get(edge.b) ?? adjacent.set(edge.b, []).get(edge.b)!).push(edge.a);
+  }
+  for (const neighbors of adjacent.values()) neighbors.sort();
+  const previous = new Map<Id, Id | null>([[from, null]]);
+  const queue = [from];
+  for (let i = 0; i < queue.length && !previous.has(to); i++) {
+    const id = queue[i];
+    for (const neighbor of adjacent.get(id) ?? []) {
+      if (previous.has(neighbor) || (visited.has(neighbor) && neighbor !== to)) continue;
+      if (againstFlow.has(`${id}>${neighbor}`)) continue;
+      previous.set(neighbor, id);
+      queue.push(neighbor);
+    }
+  }
+  if (!previous.has(to)) return null;
+  const path: Id[] = [];
+  for (let id: Id | null = to; id; id = previous.get(id) ?? null) path.push(id);
+  return path.reverse();
 }
 
 /** Push the temple nave off finished roads, rivers and walls, then re-align it. */
