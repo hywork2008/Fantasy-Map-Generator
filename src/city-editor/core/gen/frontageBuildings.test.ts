@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createGridDocument } from "../document";
+import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import type { Point } from "../types";
+import { buildBlockFabric } from "./blockInfill";
 import { type FrontageOptions, frontageBuildings } from "./frontageBuildings";
 import { pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
 import { convexInfillParts } from "./localInfill";
@@ -189,6 +192,89 @@ describe("plain frontage buildings", () => {
       // Width is reasonably compact (4m to 7.5m)
       expect(width).toBeGreaterThanOrEqual(4.0);
       expect(width).toBeLessThanOrEqual(7.5);
+    }
+  });
+
+  it("fills oblique corner rows by sharing cuts instead of discarding tapered remainders", () => {
+    const block: Point[] = [
+      [0, 0],
+      [60, 0],
+      [41.1, 40],
+      [10, 35]
+    ];
+    for (const angle of [0, 0.63]) {
+      const rotate = ([x, y]: Point): Point => [
+        x * Math.cos(angle) - y * Math.sin(angle),
+        x * Math.sin(angle) + y * Math.cos(angle)
+      ];
+      const polygon = block.map(rotate);
+      const houses = frontageBuildings(
+        polygon,
+        [0, 1, 2, 3],
+        { lotArea: 80, coverage: 0.9, occupancy: 1, outskirts: false, perimeter: true, rowDepth: 10 },
+        makeRng("probe11")
+      );
+      const corner: Point = rotate([55.4, 9]);
+      expect(houses.some(p => pointInPolygon(corner, p))).toBe(true);
+      for (let i = 0; i < houses.length; i++) {
+        expect(houses[i].length).toBeGreaterThanOrEqual(4);
+        expect(houses[i].every(p => pointInPolygon(p, polygon))).toBe(true);
+        for (let j = i + 1; j < houses.length; j++) expect(intersectionArea(houses[i], houses[j])).toBeLessThan(1e-5);
+      }
+    }
+  });
+
+  it("fills the two formerly triangular blocks in cell f12 of shared city 1m8e8ll", () => {
+    const input = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "6wit83",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    Object.assign(settings, {
+      config: {
+        coast: "none",
+        rivers: ["through"],
+        relief: false,
+        features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+        wall: { envelope: "auto", coast: "auto", line: "auto" },
+        layout: "organic"
+      },
+      streets: { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true },
+      buildingPattern: "medieval",
+      layout: "organic",
+      walledAreaShare: 1
+    });
+    const city = generateCityOnDocument(input, settings, "1m8e8ll");
+    const houses = buildBlockFabric(city).buildings;
+    const blocks: Point[][] = [
+      [
+        [-60.30287585840822, 5.072238435451375],
+        [-61.55103759173951, -9.710141118011276],
+        [-56.58542705125478, -13.468923276290543],
+        [-44.09845373684171, -15.674829686090115],
+        [-37.60916487832663, -16.20784543946811],
+        [-42.0312307854377, 1.8342352041316197]
+      ],
+      [
+        [-46.16882720464068, 5.614221307658459],
+        [-45.19152090050067, 14.728255852138497],
+        [-48.26883784172259, 27.283744980004883],
+        [-58.33627812513603, 28.36328585814342],
+        [-60.04941431687284, 8.074064728572505]
+      ]
+    ];
+    for (const block of blocks) {
+      const relevant = houses.filter(b => intersectionArea(b.polygon, block) > 1);
+      expect(relevant.length).toBeGreaterThan(6);
+      const used = relevant.reduce((sum, b) => sum + intersectionArea(b.polygon, block), 0);
+      expect(used / area(block)).toBeGreaterThan(0.995);
+      for (let i = 0; i < relevant.length; i++) {
+        expect(relevant[i].polygon.length).toBeGreaterThanOrEqual(4);
+        for (let j = i + 1; j < relevant.length; j++)
+          expect(intersectionArea(relevant[i].polygon, relevant[j].polygon)).toBeLessThan(1e-5);
+      }
     }
   });
 
