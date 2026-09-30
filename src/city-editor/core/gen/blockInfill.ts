@@ -16,6 +16,7 @@ import {
   bramPeripheryBufferMeters,
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
+import { shapeSuburbanFabric } from "./suburbanLanduse";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
@@ -42,6 +43,7 @@ function distToSegment(p: Point, a: Point, b: Point): number {
 }
 
 function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+  fabric = shapeSuburbanFabric(document, fabric);
   const reserved = (document.defenseCircuits ?? [])
     .filter(c => c.scope === "castle")
     .map(c => circuitRing(document, c));
