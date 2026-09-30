@@ -273,6 +273,8 @@ export interface FabricPlan {
 export interface CityDocument {
   format: "fmg-city-editor";
   version: 1 | 2;
+  /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
+  coastalOceanFaceIds?: Id[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
   /** Absent on legacy documents, which keep their existing generation behavior. */

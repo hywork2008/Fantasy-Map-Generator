@@ -21,6 +21,7 @@
 // of rateLocation preferences — not from the GPL sources.
 
 import { placeTempleFootprint } from "./civicPlacement";
+import { cultivableParts } from "./coastalSuitability";
 import {
   azimuthDelta,
   nearestOnPolyline,
@@ -110,6 +111,7 @@ export interface WardInputs {
   params: CityParams;
   program: CityProgram;
   shoreline: Point[] | null;
+  oceanShorelines?: Point[][];
   waterPolygon: Point[] | null;
   /** Intramural streets and approach roads, used to site and orient the temple. */
   streets?: Point[][];
@@ -152,6 +154,9 @@ export function assignWards(input: WardInputs): WardResult {
   const citadel = precincts.find(p => p.kind === "citadel") ?? null;
   const citadelIds = new Set(citadel?.cellIds ?? []);
   const plazaIds = new Set(plaza?.cellIds ?? []);
+  const oceanShore = (input.oceanShorelines ?? []).flatMap(line =>
+    line.slice(1).map((point, index) => [line[index], point] as [Point, Point])
+  );
 
   const take = (id: number, kind: WardKind): void => {
     assigned.set(id, kind);
@@ -237,7 +242,10 @@ export function assignWards(input: WardInputs): WardResult {
     if (input.residentialOutskirts?.has(cell.id)) {
       take(cell.id, rng() < 0.12 ? "merchant" : "craftsmen");
     } else {
-      const farm = rng() < FARM_CHANCE && polygonCompactness(cell.polygon) >= FARM_COMPACTNESS;
+      const farm =
+        rng() < FARM_CHANCE &&
+        polygonCompactness(cell.polygon) >= FARM_COMPACTNESS &&
+        cultivableParts(cell.polygon, oceanShore).length > 0;
       take(cell.id, farm ? "farm" : "empty");
     }
   }

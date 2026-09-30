@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createGridDocument, createSizedDocument, maxWallGatesForExtent, sizePresetForExtent } from "./document";
+import {
+  createGridDocument,
+  createSizedDocument,
+  maxWallGatesForExtent,
+  parseDocument,
+  sizePresetForExtent
+} from "./document";
 import { featureGroupVertices } from "./features";
+import { buildBlockFabric } from "./gen/blockInfill";
+import {
+  COASTAL_ARABLE_SETBACK_METERS,
+  COASTAL_BUILDING_SETBACK_METERS,
+  coastalBandOverlap,
+  oceanShoreSegments
+} from "./gen/coastalSuitability";
 import { polygonArea } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
@@ -285,6 +298,53 @@ describe("generateStageOnDocument", () => {
       return Object.values(out?.mesh.faces ?? {}).some(f => f.properties.water === "sea");
     });
     expect(tagged).toBe(true);
+  });
+
+  it("records the ocean shore separately from freshwater", () => {
+    const ocean = generateStageOnDocument(base, SCENARIOS["bay, no walls"], "ce-gen-a", S.coast);
+    expect(ocean?.coastalOceanFaceIds?.length).toBeGreaterThan(0);
+    expect(oceanShoreSegments(ocean!).length).toBeGreaterThan(0);
+    const dry = generateStageOnDocument(base, SCENARIOS["landlocked, one river, walls + citadel"], "ce-gen-a", S.coast);
+    expect(dry?.coastalOceanFaceIds).toEqual([]);
+  });
+
+  it("keeps generated fields and ordinary buildings outside the ocean strip", () => {
+    const input = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "5bb66l",
+      patchParams: {
+        nPatches: 15,
+        relaxCount: 4,
+        relaxPasses: 3
+      }
+    });
+    const configured = settings({
+      coast: "straight",
+      rivers: ["toCoast", "greatBend"],
+      relief: true,
+      features: { walls: false, citadel: false, plaza: true, temple: true, port: true, shanty: false }
+    });
+    configured.buildingPattern = "medieval";
+    configured.layout = "organic";
+    const city = generateCityOnDocument(input, configured, "rb8rxv");
+    expect(city).not.toBeNull();
+    const shore = oceanShoreSegments(city!);
+    expect(shore.length).toBeGreaterThan(0);
+    expect(oceanShoreSegments(parseDocument(JSON.stringify(city))!)).toHaveLength(shore.length);
+    const fabric = buildBlockFabric(city!);
+    expect(fabric.farms.length).toBeGreaterThan(0);
+    expect(fabric.buildings.length).toBeGreaterThan(0);
+    expect(fabric.farms.every(farm => !coastalBandOverlap(farm.polygon, shore, COASTAL_ARABLE_SETBACK_METERS))).toBe(
+      true
+    );
+    expect(
+      fabric.buildings.every(
+        lot =>
+          city!.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
+          !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
+      )
+    ).toBe(true);
   });
 
   it("draws a wall round the urban blob when Walls is on (some seed)", () => {

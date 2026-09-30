@@ -1,10 +1,12 @@
 import { facePoints } from "../mesh";
 import type { CityDocument, Point } from "../types";
 import { normalizeApproachBeyond } from "./approachBeyond";
+import { cultivableParts, oceanShoreSegments } from "./coastalSuitability";
 import { nearestOnPolyline, polygonCentroid } from "./geom";
 
 /** Fill the rural land beside external approaches after their destinations are known. */
 export function cultivateRoadside(document: CityDocument): void {
+  const shore = oceanShoreSegments(document);
   const roads = document.featureGroups
     .flatMap(group =>
       group.kind === "road" && group.beyond
@@ -30,7 +32,12 @@ export function cultivateRoadside(document: CityDocument): void {
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.locked || face.properties.water !== "land" || face.properties.settlement === "core") continue;
     if (face.properties.ward && face.properties.ward !== "empty" && face.properties.ward !== "farm") continue;
-    const center = polygonCentroid(facePoints(document.mesh, face));
+    const polygon = facePoints(document.mesh, face);
+    if (!cultivableParts(polygon, shore).length) {
+      if (face.properties.ward === "farm") face.properties.ward = "empty";
+      continue;
+    }
+    const center = polygonCentroid(polygon);
     let nearest: { distance: number; hostile: boolean } | undefined;
     for (const road of roads) {
       for (const line of road.lines) {

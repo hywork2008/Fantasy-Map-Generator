@@ -8,6 +8,7 @@ export { insetConvexKernel } from "./lotGeometry";
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
 import { orientedRectPolylineDistance, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
+import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { civicYardMeters } from "./housing";
@@ -171,7 +172,15 @@ function buildFaceLots(
     }
   };
   subdivide(block, 0);
-  return result;
+  const shore = oceanShoreSegments(document);
+  return shore.length
+    ? result.filter(
+        lot =>
+          document.mesh.faces[lot.faceId]?.properties.locked ||
+          document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
+          !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
+      )
+    : result;
 }
 
 function clipBlockWithRivers(block: Point[], polygon: Point[], center: Point, rivers: RiverMargin[]): Point[] {

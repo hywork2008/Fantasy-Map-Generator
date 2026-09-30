@@ -3,6 +3,13 @@ import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
+import {
+  COASTAL_BUILDING_SETBACK_METERS,
+  clipRowsToConvex,
+  coastalBandOverlap,
+  cultivableParts,
+  oceanShoreSegments
+} from "./coastalSuitability";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
@@ -46,6 +53,22 @@ function distToSegment(p: Point, a: Point, b: Point): number {
 
 function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
   fabric = shapeSuburbanFabric(document, fabric);
+  const shore = oceanShoreSegments(document);
+  if (shore.length) {
+    fabric = {
+      ...fabric,
+      farms: fabric.farms.flatMap(farm =>
+        document.mesh.faces[farm.faceId]?.properties.locked
+          ? [farm]
+          : convexInfillParts(farm.polygon).flatMap(part =>
+              cultivableParts(part, shore).flatMap(polygon => {
+                const rows = clipRowsToConvex(farm.rows, polygon);
+                return rows.length >= 2 ? [{ ...farm, polygon, rows }] : [];
+              })
+            )
+      )
+    };
+  }
   const reserved = (document.defenseCircuits ?? [])
     .filter(c => c.scope === "castle")
     .map(c => circuitRing(document, c));
@@ -69,9 +92,26 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
   if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
-    return buildMedievalFabric(document, buildLegacyBlockFabric(medievalStreetDocument(document), cache));
+    return finishCoastalBuildings(
+      document,
+      buildMedievalFabric(document, buildLegacyBlockFabric(medievalStreetDocument(document), cache))
+    );
   }
-  return buildLegacyBlockFabric(document, cache);
+  return finishCoastalBuildings(document, buildLegacyBlockFabric(document, cache));
+}
+
+function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+  const shore = oceanShoreSegments(document);
+  if (!shore.length) return fabric;
+  return {
+    ...fabric,
+    buildings: fabric.buildings.filter(
+      lot =>
+        document.mesh.faces[lot.faceId]?.properties.locked ||
+        document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
+        !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
+    )
+  };
 }
 
 function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): DistrictFabric {

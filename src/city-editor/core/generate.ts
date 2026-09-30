@@ -41,7 +41,7 @@ import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./feat
 import { tagExternalGateRoads } from "./gen/approachBeyond";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
-import { type CoastResult, classifyCoast } from "./gen/classifySea";
+import { classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
@@ -1128,6 +1128,7 @@ export function generateWardStep(
 interface Plan {
   layout?: "organic" | "circulade" | "bram" | "classic";
   sea: Set<number>;
+  ocean: Set<number>;
   /** S1's raw graph walk (upstream → downstream), before it is closed into
    * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
   coastPath: Point[];
@@ -1200,6 +1201,7 @@ export function runPlan(
     legacyCastles: settings.legacyCastles,
     layout: effectiveLayout,
     sea: new Set(),
+    ocean: new Set(),
     coastPath: [],
     waterPolygon: null,
     avoidSea: streetOpts.avoidSea,
@@ -1233,17 +1235,28 @@ export function runPlan(
       : geo.coast
         ? [{ ...geo.coast, kind: "ocean" as const }]
         : [];
-  const coasts = waterInputs
-    .map((water, i) =>
-      classifyCoast(graph, water.corridor, water.waterAzimuthDeg, cells, half, cellSize, makeRng(`${seed}:water:${i}`))
+  const classified = waterInputs.map((water, i) => ({
+    kind: water.kind,
+    coast: classifyCoast(
+      graph,
+      water.corridor,
+      water.waterAzimuthDeg,
+      cells,
+      half,
+      cellSize,
+      makeRng(`${seed}:water:${i}`)
     )
-    .filter((c): c is CoastResult => c !== null);
+  }));
+  const coasts = classified.flatMap(item => (item.coast ? [item.coast] : []));
   const coast = coasts[0] ?? null;
   const coastPath = coast?.shoreline ?? [];
   const waterPolygon = coast?.waterPolygon ?? null;
   const sea = new Set<number>(coasts.flatMap(c => [...c.sea]));
+  const ocean = new Set<number>(
+    classified.flatMap(item => (item.kind === "ocean" && item.coast ? [...item.coast.sea] : []))
+  );
   mark("coast");
-  if (stageStep < 2) return { ...empty, sea, coastPath, waterPolygon };
+  if (stageStep < 2) return { ...empty, sea, ocean, coastPath, waterPolygon };
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
   const rivers = geo.rivers
@@ -1267,7 +1280,7 @@ export function runPlan(
     rivers.map(band => ({ edgePoints: band.edgePoints }))
   );
   mark("river");
-  if (stageStep < 3) return { ...empty, sea, coastPath, waterPolygon, rivers };
+  if (stageStep < 3) return { ...empty, sea, ocean, coastPath, waterPolygon, rivers };
 
   // S3 — urban core. `params.urbanNPatches` (debug/tuning override) caps the
   // fill to a fixed cell count; otherwise accumulate actual area up to π R².
@@ -1399,6 +1412,7 @@ export function runPlan(
     return {
       ...empty,
       sea,
+      ocean,
       coastPath,
       waterPolygon,
       rivers,
@@ -1636,6 +1650,7 @@ export function runPlan(
     return {
       ...empty,
       sea,
+      ocean,
       coastPath,
       waterPolygon,
       rivers,
@@ -1730,6 +1745,7 @@ export function runPlan(
     return {
       ...empty,
       sea,
+      ocean,
       coastPath,
       waterPolygon,
       rivers,
@@ -1763,6 +1779,7 @@ export function runPlan(
     params,
     program,
     shoreline: coast?.shoreline ?? null,
+    oceanShorelines: classified.flatMap(item => (item.kind === "ocean" && item.coast ? [item.coast.shoreline] : [])),
     waterPolygon,
     streets: [...streetResult.streets, ...roads],
     rivers: rivers.map(band => band.edgePoints)
@@ -1774,6 +1791,7 @@ export function runPlan(
     castleFailure,
     legacyCastles: settings.legacyCastles,
     sea,
+    ocean,
     coastPath,
     waterPolygon,
     avoidSea: streetOpts.avoidSea,
@@ -1898,6 +1916,9 @@ function applyPlan(
       face.properties.buildable = false;
     }
   }
+  next.coastalOceanFaceIds = [...plan.ocean]
+    .map(cellId => faceFor(cellId)?.id)
+    .filter((id): id is string => !!id && mesh.faces[id].properties.water === "sea");
 
   // ③ built-up cells (buildable). Non-urban land is not buildable.
   if (stageStep >= 3) {

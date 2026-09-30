@@ -21,6 +21,8 @@ import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
+import { convexInfillParts } from "../core/gen/lotGeometry";
+import { corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
@@ -164,6 +166,50 @@ export function renderEditorSvg(
     );
   }
   svg.appendChild(cells);
+
+  if (town && document.coastalOceanFaceIds?.length) {
+    const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
+    const ocean = new Set(document.coastalOceanFaceIds);
+    for (const edge of Object.values(document.mesh.edges)) {
+      const left = document.mesh.faces[edge.leftFace ?? ""];
+      const right = document.mesh.faces[edge.rightFace ?? ""];
+      const land =
+        left?.properties.water === "land" && right && ocean.has(right.id)
+          ? left
+          : right?.properties.water === "land" && left && ocean.has(left.id)
+            ? right
+            : null;
+      if (!land || land.properties.ward === "harbor") continue;
+      const a = document.mesh.vertices[edge.a].point,
+        b = document.mesh.vertices[edge.b].point;
+      const beachBand = corridor(a, b, 34, 8);
+      const scrubBand = corridor(a, b, 70, 8);
+      for (const part of convexInfillParts(facePoints(document.mesh, land))) {
+        const scrub = intersectConvex(part, scrubBand);
+        for (const polygonPart of scrub.length >= 3 ? subtractConvex(scrub, beachBand, 1) : []) {
+          shore.appendChild(
+            element("path", {
+              d: polygon(polygonPart),
+              fill: "#b9bc9d",
+              stroke: "none",
+              "data-coast-face": land.id
+            })
+          );
+        }
+        const beach = intersectConvex(part, beachBand);
+        if (beach.length < 3 || Math.abs(polygonArea(beach)) < 1) continue;
+        shore.appendChild(
+          element("path", {
+            d: polygon(beach),
+            fill: "#d7c9a6",
+            stroke: "none",
+            "data-coast-face": land.id
+          })
+        );
+      }
+    }
+    svg.appendChild(shore);
+  }
 
   let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   let townParkLawns: import("../core/gen/parkFabric").ParkLawn[] = [];

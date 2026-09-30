@@ -210,6 +210,8 @@ function isDocument(value: unknown): value is CityDocument {
     (doc.version === 1 || doc.version === 2) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
     (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
+    (doc.coastalOceanFaceIds === undefined ||
+      (Array.isArray(doc.coastalOceanFaceIds) && doc.coastalOceanFaceIds.every(id => typeof id === "string"))) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&

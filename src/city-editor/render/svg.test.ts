@@ -15,6 +15,59 @@ import {
   vertexHandleRadius
 } from "./svg";
 
+describe("generated natural ocean shore", () => {
+  it("paints a land-side beach for ocean, while leaving lake shores alone", () => {
+    const mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [0, 0],
+          [50, 0],
+          [50, 100],
+          [0, 100]
+        ],
+        site: [25, 50],
+        centroid: [25, 50],
+        neighbors: [1],
+        onBorder: true
+      },
+      {
+        id: 1,
+        polygon: [
+          [50, 0],
+          [100, 0],
+          [100, 100],
+          [50, 100]
+        ],
+        site: [75, 50],
+        centroid: [75, 50],
+        neighbors: [0],
+        onBorder: true
+      }
+    ]);
+    mesh.faces.f0.properties.ward = "empty";
+    mesh.faces.f1.properties.water = "sea";
+    const doc: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      gridKind: "evolution",
+      appearance: "town",
+      coastalOceanFaceIds: ["f1"],
+      mesh,
+      frame: { extentMeters: 100, cityRadiusMeters: 30, blockSizeMeters: 50 },
+      featureGroups: [],
+      gates: [],
+      elements: []
+    };
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const ocean = renderEditorSvg(doc, "select", selection, "0 0 100 100", 1);
+    expect(ocean.querySelectorAll(".ce-natural-shore path").length).toBeGreaterThan(0);
+    doc.coastalOceanFaceIds = [];
+    const lake = renderEditorSvg(doc, "select", selection, "0 0 100 100", 1);
+    expect(lake.querySelectorAll(".ce-natural-shore path")).toHaveLength(0);
+  });
+});
+
 describe("extramural trails", () => {
   it("shows the outer access network even before houses occupy it, without adding core centrelines", () => {
     const polygon: Point[] = [
