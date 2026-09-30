@@ -9,6 +9,40 @@ import { walkRiver } from "./riverPath";
 import type { Point } from "./types";
 
 describe("generated river endpoints", () => {
+  it("stops at the first shoreline contact for the shared harbor seed", () => {
+    const input = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "165egds",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      ...settings.config,
+      coast: "bay",
+      rivers: ["through"],
+      relief: false,
+      features: { walls: false, citadel: true, plaza: true, temple: true, port: true, shanty: false },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "auto"
+    };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    const city = generateStageOnDocument(input, settings, "bsrlsb:junction-retry:3", 2)!;
+    const river = city.featureGroups.find(group => group.kind === "river");
+    expect(river?.kind).toBe("river");
+    if (river?.kind !== "river") return;
+
+    const touchesSea = (id: string): boolean =>
+      Object.values(city.mesh.edges).some(
+        edge =>
+          (edge.a === id || edge.b === id) &&
+          [edge.leftFace, edge.rightFace].some(faceId => faceId && city.mesh.faces[faceId]?.properties.water === "sea")
+      );
+    expect(river.vertices.slice(0, -1).some(touchesSea)).toBe(false);
+    expect(touchesSea(river.vertices.at(-1)!)).toBe(true);
+  });
+
   it("keeps every emitted coastal river connected to the map edge or sea in stage ②", () => {
     const input = createGridDocument({ size: "tiny", grid: "evolution", seed: "coastal-river-grid" });
     const settings = defaultGenerationSettings();

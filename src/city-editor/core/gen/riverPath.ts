@@ -95,7 +95,12 @@ export function walkRiver(
   if (waterPolygon && shoreline && shoreline.length >= 2) {
     goal = seawardOf(mouth, shoreline, waterPolygon, cellSizeMeters, halfExtentMeters);
   }
-  const stop = waterPolygon ? (_id: number, p: Point) => pointInPolygon(p, waterPolygon) : undefined;
+  // Shoreline vertices are on the polygon boundary, where pointInPolygon may
+  // return false. Stop at the first contact instead of following the coast.
+  const shoreNodes = new Set((shoreline ?? []).map(vertexKey));
+  const reachesSea = (p: Point): boolean =>
+    shoreNodes.has(vertexKey(p)) || (waterPolygon !== null && pointInPolygon(p, waterPolygon));
+  const stop = waterPolygon ? (_id: number, p: Point) => reachesSea(p) : undefined;
 
   let nodes = walkGraph(graph, {
     start,
@@ -128,7 +133,7 @@ export function walkRiver(
     cellSizeMeters
   );
   const inWindow = trimWindowTails(walked, halfExtentMeters);
-  const edgePoints = waterPolygon ? trimAtWater(inWindow, waterPolygon) : inWindow;
+  const edgePoints = waterPolygon ? trimAtWater(inWindow, reachesSea) : inWindow;
   if (edgePoints.length < 3) return dead;
 
   const rawSmooth = smoothPath(edgePoints, SMOOTH_ITERATIONS);
@@ -161,7 +166,7 @@ export function walkRiver(
   const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
-  const resolvedEdges = extendRiverEnds(graph, edgePoints, halfExtentMeters, waterPolygon);
+  const resolvedEdges = extendRiverEnds(graph, edgePoints, halfExtentMeters, waterPolygon, shoreNodes);
   if (resolvedEdges.length < 3) return dead;
   return {
     edgePoints,
@@ -178,13 +183,21 @@ export function walkRiver(
  * A walk can arrive within one cell of its goal without reaching the frame.
  * Continue along existing edges to the closest reachable frame/water contact;
  * never re-enter the river, since that would form a loop. */
-function extendRiverEnds(graph: EdgeGraph, points: Point[], half: number, water: Point[] | null): Point[] {
+function extendRiverEnds(
+  graph: EdgeGraph,
+  points: Point[],
+  half: number,
+  water: Point[] | null,
+  shoreNodes: ReadonlySet<string>
+): Point[] {
   if (points.length < 3) return points;
   let nodes = points.map(p => nearestNode(graph, p));
   const resolved = (id: number): boolean => {
     const p = graph.points[id];
     return (
-      Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - MERGE_QUANTUM || (water !== null && pointInPolygon(p, water))
+      Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - MERGE_QUANTUM ||
+      shoreNodes.has(vertexKey(p)) ||
+      (water !== null && pointInPolygon(p, water))
     );
   };
   const extend = (path: number[]): number[] => {
@@ -389,10 +402,10 @@ function exciseLoops(points: Point[], cell: number): Point[] {
 }
 
 /** Keep vertices up to and including the first that reaches the water (the mouth). */
-function trimAtWater(points: Point[], waterPolygon: Point[]): Point[] {
-  const firstWet = points.findIndex(p => pointInPolygon(p, waterPolygon));
+function trimAtWater(points: Point[], reachesSea: (point: Point) => boolean): Point[] {
+  const firstWet = points.findIndex(reachesSea);
   if (firstWet === -1) return points;
-  return points.slice(0, Math.max(firstWet + 1, 3));
+  return points.slice(0, firstWet + 1);
 }
 
 /** A point a few cells into the water, off the shoreline near `mouth`. */
