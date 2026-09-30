@@ -10,6 +10,7 @@ import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type
 import { insetConvexKernel } from "./lotGeometry";
 import { buildMedievalFabric, medievalStreetDocument } from "./medievalFabric";
 import { openFieldPlots } from "./openField";
+import { buildParkLawns, type ParkLawn } from "./parkFabric";
 import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
 import {
   bramCoreRadiusForCity,
@@ -22,6 +23,7 @@ export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
 export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
+  parks?: ParkLawn[];
 }
 let defaultCache: FabricCache | null = null;
 function getDefaultCache(): FabricCache {
@@ -341,5 +343,6 @@ function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): Dis
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });
     farms.push(...plots);
   }
-  return finishFabric(document, { buildings, lanes, entrances, farms });
+  const parks = buildParkLawns(merged);
+  return finishFabric(document, { buildings, lanes, entrances, farms, parks });
 }

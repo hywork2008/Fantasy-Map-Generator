@@ -30,6 +30,7 @@ export interface CityFabric {
   openSpaces?: import("./parcelTypes").OpenSpace[];
   harbor?: import("./harborFabric").HarborPlan;
   farms?: FarmPlot[];
+  parks?: import("./parkFabric").ParkLawn[];
   buildings: BuildingLot[];
   lanes: InfillLane[];
   /** Portals shared by adjacent faces, or opening onto a major road. */

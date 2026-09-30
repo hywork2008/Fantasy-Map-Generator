@@ -21,6 +21,7 @@ import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
+import { buildParkLawns } from "../core/gen/parkFabric";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
@@ -157,6 +158,7 @@ export function renderEditorSvg(
   svg.appendChild(cells);
 
   let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
+  let townParkLawns: import("../core/gen/parkFabric").ParkLawn[] = [];
   if (town) {
     const buildings = element("g", {
       class: "ce-buildings",
@@ -332,6 +334,53 @@ export function renderEditorSvg(
         svg.appendChild(trails);
       }
     }
+    townParkLawns = fabric?.parks ?? buildParkLawns(document);
+    if (townParkLawns.length) {
+      const parks = element("g", { class: "ce-parks", "pointer-events": "none" });
+      for (const park of townParkLawns) {
+        for (const lawn of park.lawnPolygons) {
+          parks.appendChild(
+            element("path", {
+              d: roundedFarmPolygon(lawn),
+              class: "ce-park-lawn",
+              fill: "#7ea867",
+              stroke: "#4d733b",
+              "stroke-width": "0.8",
+              "data-park-face": park.faceId
+            })
+          );
+        }
+        for (const path of park.paths) {
+          parks.appendChild(
+            element("path", {
+              d: line(path),
+              class: "ce-park-path",
+              fill: "none",
+              stroke: "#d8d1bf",
+              "stroke-width": "1.8",
+              "stroke-linecap": "round",
+              "stroke-linejoin": "round",
+              "data-park-face": park.faceId
+            })
+          );
+        }
+        for (const tuft of park.grassTufts) {
+          const [tx, ty] = [tuft[0], -tuft[1]];
+          parks.appendChild(
+            element("path", {
+              d: `M${tx - 1.2} ${ty - 2} L${tx} ${ty} L${tx + 1.2} ${ty - 2}`,
+              class: "ce-park-grass",
+              fill: "none",
+              stroke: "#5d8249",
+              "stroke-width": "0.7",
+              "stroke-linecap": "round",
+              "data-park-face": park.faceId
+            })
+          );
+        }
+      }
+      svg.appendChild(parks);
+    }
     mark("buildings", { buildings: lots.length });
     if (!hideBuildings) {
       for (const lot of lots) {
@@ -393,7 +442,7 @@ export function renderEditorSvg(
   svg.appendChild(edges);
 
   svg.appendChild(renderCastles(document, selection.inspectedId));
-  const features = element("g", { class: "ce-features" });
+  const features = element("g", { class: "ce-features", style: "z-index: 2;" });
   const order = { wall: 0, river: 1, road: 2, plank: 3 };
   const renderGroups = town
     ? [...document.featureGroups].sort((a, b) => order[a.kind] - order[b.kind])
@@ -562,6 +611,56 @@ export function renderEditorSvg(
   if (town) {
     svg.appendChild(renderTownQuays(document, townHarbor));
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
+    if (townParkLawns.length) {
+      const parkTreesLayer = element("g", {
+        class: "ce-park-trees",
+        style: "z-index: 5;",
+        "pointer-events": "none"
+      });
+      for (const park of townParkLawns) {
+        for (const tr of park.trees) {
+          const treeGroup = element("g", { class: "ce-park-tree", style: "z-index: 5;" });
+          const [cx, cy] = [tr.center[0], -tr.center[1]];
+          for (const sub of tr.subCircles) {
+            treeGroup.appendChild(
+              element("circle", {
+                cx: String(cx + sub.offset[0]),
+                cy: String(cy - sub.offset[1]),
+                r: String(sub.radius),
+                class: "ce-park-canopy-lobe",
+                fill: "#557849",
+                stroke: "#385230",
+                "stroke-width": "0.6"
+              })
+            );
+          }
+          treeGroup.appendChild(
+            element("circle", {
+              cx: String(cx),
+              cy: String(cy),
+              r: String(tr.radius),
+              class: "ce-park-canopy-main",
+              fill: "#557849",
+              stroke: "#385230",
+              "stroke-width": "0.6"
+            })
+          );
+          treeGroup.appendChild(
+            element("circle", {
+              cx: String(cx),
+              cy: String(cy),
+              r: String(tr.radius * 0.55),
+              class: "ce-park-canopy-highlight",
+              fill: "#688e5b",
+              stroke: "none",
+              opacity: "0.85"
+            })
+          );
+          parkTreesLayer.appendChild(treeGroup);
+        }
+      }
+      svg.appendChild(parkTreesLayer);
+    }
   }
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
@@ -1623,6 +1722,14 @@ export const STANDALONE_SVG_STYLE = `
   .ce-reference-image { opacity: 0.82; }
   .ce-svg--town { background: #d5cfbf; }
   .ce-svg.ce-svg--town .ce-face--land { fill: #d5cfbf; }
+  .ce-svg.ce-svg--town .ce-face--land.ce-face--ward-park { fill: #99c187; }
+  .ce-features { z-index: 2; }
+  .ce-park-trees, .ce-park-tree { z-index: 5; }
+  .ce-park-lawn { fill: #7ea867; stroke: #4d733b; stroke-width: 0.8px; }
+  .ce-park-path { fill: none; stroke: #d8d1bf; stroke-width: 1.8px; stroke-linecap: round; stroke-linejoin: round; }
+  .ce-park-grass { fill: none; stroke: #5d8249; stroke-width: 0.7px; stroke-linecap: round; }
+  .ce-park-canopy-lobe, .ce-park-canopy-main { fill: #557849; stroke: #385230; stroke-width: 0.6px; }
+  .ce-park-canopy-highlight { fill: #688e5b; opacity: 0.85; }
   .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--lake, .ce-svg--town .ce-face--openWater { fill: #85857d; }
   .ce-svg--town .ce-edge { stroke: transparent; }
   .ce-svg--town .ce-feature { opacity: 1; }
