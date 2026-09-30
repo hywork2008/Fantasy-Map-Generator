@@ -30,6 +30,8 @@ import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool }
 
 import { openSpaceBoundary } from "./openSpaceBoundary";
 
+export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
+
 const NS = "http://www.w3.org/2000/svg";
 
 /** A "Grid evolution" step drawn as a translucent overlay above the mesh while
@@ -101,18 +103,24 @@ export function renderEditorSvg(
   observer?: GenerationObserver,
   hideBuildings = false,
   /** Stage ⑩. Drop roads inside the outer wall, and the lanes that divide blocks. */
-  hideStreetLines = false
+  hideStreetLines = false,
+  quality: RenderQuality = "detailed"
 ): SVGSVGElement {
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
+  const effectiveQuality = quality === "auto" ? (document.frame.extentMeters >= 3600 ? "light" : "detailed") : quality;
+  // Mesh editing always keeps individual handles and full picking metadata.
+  const lightweight = town && effectiveQuality !== "detailed";
+  const minimal = lightweight && effectiveQuality === "minimal";
   const classes = ["ce-svg"];
   if (town) classes.push("ce-svg--town");
   if (showGridLines) classes.push("ce-svg--show-grid");
   const svg = element("svg", {
     viewBox,
     class: classes.join(" "),
-    "aria-label": "City editor canvas"
+    "aria-label": "City editor canvas",
+    "data-render-quality": town ? effectiveQuality : "detailed"
   }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
   if (backdrop) {
@@ -176,6 +184,16 @@ export function renderEditorSvg(
         : null;
     townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
+    for (const settlement of ["core", "outskirts"] as const) {
+      svg.setAttribute(
+        `data-${settlement}-buildings`,
+        String(
+          hideBuildings
+            ? 0
+            : lots.filter(lot => document.mesh.faces[lot.faceId]?.properties.settlement === settlement).length
+        )
+      );
+    }
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
       fabric.farms.forEach((farm, index) => {
@@ -192,18 +210,19 @@ export function renderEditorSvg(
             "data-farm-face": farm.faceId
           })
         );
-        farms.appendChild(
-          element("path", {
-            d: farm.rows.map(row => line(row)).join(" "),
-            fill: "none",
-            stroke: garden ? "#617b4d" : "#5e5948",
-            "stroke-width": garden ? "0.8" : "0.65",
-            class: "ce-farm-rows"
-          })
-        );
+        if (!lightweight)
+          farms.appendChild(
+            element("path", {
+              d: farm.rows.map(row => line(row)).join(" "),
+              fill: "none",
+              stroke: garden ? "#617b4d" : "#5e5948",
+              "stroke-width": garden ? "0.8" : "0.65",
+              class: "ce-farm-rows"
+            })
+          );
       });
       svg.appendChild(farms);
-      if (!hideBuildings) {
+      if (!hideBuildings && !minimal) {
         const sheds = element("g", { class: "ce-farm-sheds", "pointer-events": "none" });
         for (const shed of farmSheds(document, fabric.farms, lots)) {
           sheds.appendChild(
@@ -247,7 +266,7 @@ export function renderEditorSvg(
             })
           );
           // A few garden beds read at town scale without detailed roof or shadow rendering.
-          if (green.has(space.kind) && Math.abs(polygonArea(space.polygon)) > 35 && zoom >= 0.7) {
+          if (!lightweight && green.has(space.kind) && Math.abs(polygonArea(space.polygon)) > 35 && zoom >= 0.7) {
             const c = polygonCentroid(space.polygon);
             spaces.appendChild(
               element("circle", {
@@ -296,18 +315,26 @@ export function renderEditorSvg(
       if (!hideStreetLines) {
         const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
         const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
+        const laneBatches = new Map<number, string[]>();
+        const trailBatch: string[] = [];
         for (const lane of fabric.lanes) {
-          lanes.appendChild(
-            element("path", {
-              d: line(lane.points),
-              class: "ce-infill-lane",
-              fill: "none",
-              stroke: "#d5cfbf",
-              "stroke-width": String(lane.widthMeters),
-              "stroke-linecap": "round",
-              "data-infill-face": lane.faceId
-            })
-          );
+          const path = line(lane.points);
+          if (lightweight) {
+            const paths = laneBatches.get(lane.widthMeters) ?? [];
+            paths.push(path);
+            laneBatches.set(lane.widthMeters, paths);
+          } else
+            lanes.appendChild(
+              element("path", {
+                d: path,
+                class: "ce-infill-lane",
+                fill: "none",
+                stroke: "#d5cfbf",
+                "stroke-width": String(lane.widthMeters),
+                "stroke-linecap": "round",
+                "data-infill-face": lane.faceId
+              })
+            );
           // Outside the core, expose the access network even where a house has
           // not been placed. This is a thin trail centreline, not a building shadow.
           // For classic and organic layouts, also expose the interior core lanes as trails.
@@ -317,19 +344,45 @@ export function renderEditorSvg(
             document.layout === "classic" ||
             document.layout === "organic" ||
             hideBuildings
-          )
-            trails.appendChild(
-              element("path", {
-                d: line(lane.points),
-                class: "ce-infill-trail",
-                fill: "none",
-                stroke: "#7b7567",
-                "stroke-width": "0.35",
-                "stroke-linecap": "round",
-                "data-infill-face": lane.faceId
-              })
-            );
+          ) {
+            if (lightweight) trailBatch.push(path);
+            else
+              trails.appendChild(
+                element("path", {
+                  d: path,
+                  class: "ce-infill-trail",
+                  fill: "none",
+                  stroke: "#7b7567",
+                  "stroke-width": "0.35",
+                  "stroke-linecap": "round",
+                  "data-infill-face": lane.faceId
+                })
+              );
+          }
         }
+        for (const [width, paths] of laneBatches) {
+          lanes.appendChild(
+            element("path", {
+              d: paths.join(" "),
+              class: "ce-infill-lane",
+              fill: "none",
+              stroke: "#d5cfbf",
+              "stroke-width": String(width),
+              "stroke-linecap": "round"
+            })
+          );
+        }
+        if (trailBatch.length)
+          trails.appendChild(
+            element("path", {
+              d: trailBatch.join(" "),
+              class: "ce-infill-trail",
+              fill: "none",
+              stroke: "#7b7567",
+              "stroke-width": "0.35",
+              "stroke-linecap": "round"
+            })
+          );
         svg.appendChild(lanes);
         svg.appendChild(trails);
       }
@@ -364,7 +417,7 @@ export function renderEditorSvg(
             })
           );
         }
-        for (const tuft of park.grassTufts) {
+        for (const tuft of lightweight ? [] : park.grassTufts) {
           const [tx, ty] = [tuft[0], -tuft[1]];
           parks.appendChild(
             element("path", {
@@ -383,7 +436,28 @@ export function renderEditorSvg(
     }
     mark("buildings", { buildings: lots.length });
     if (!hideBuildings) {
+      const batches = new Map<Id, string[]>();
+      const faceOrdinals = new Map<Id, number>();
       for (const lot of lots) {
+        // Selected districts expand to individual buildings, retaining parcel inspection.
+        if (
+          lightweight &&
+          !lot.landmark &&
+          selection.faceId !== lot.faceId &&
+          selection.inspectedId !== lot.faceId &&
+          (!lot.parcelId || selection.inspectedId !== lot.parcelId) &&
+          selection.inspectedId !== `bld-${lot.faceId}`
+        ) {
+          const ordinal = faceOrdinals.get(lot.faceId) ?? 0;
+          faceOrdinals.set(lot.faceId, ordinal + 1);
+          if (minimal && ordinal % 2 !== 0) continue;
+          const paths = batches.get(lot.faceId) ?? [];
+          paths.push(
+            `${lot.polygon.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${(-p[1]).toFixed(1)}`).join(" ")} Z`
+          );
+          batches.set(lot.faceId, paths);
+          continue;
+        }
         const bldId = lot.parcelId ?? `bld-${lot.faceId}`;
         const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
         const pickInfo: SvgPickInfo = {
@@ -412,12 +486,42 @@ export function renderEditorSvg(
         if (tool === "select") bldNode.style.cursor = "pointer";
         buildings.appendChild(bldNode);
       }
+      for (const [faceId, paths] of batches) {
+        buildings.appendChild(
+          element("path", {
+            d: paths.join(" "),
+            class: "ce-building ce-building-batch",
+            "data-building-face": faceId,
+            "data-pick": encodeURIComponent(
+              JSON.stringify({
+                layer: "buildings",
+                kind: "building",
+                id: `bld-${faceId}`,
+                faceId,
+                label: `街区 #${faceId}（選択すると建物の詳細を表示）`,
+                buildings: faceOrdinals.get(faceId),
+                displayedBuildings: paths.length
+              })
+            ),
+            style: "cursor:pointer"
+          })
+        );
+      }
       svg.appendChild(buildings);
     }
   }
 
   const edges = element("g", { class: "ce-edges" });
   for (const edge of Object.values(document.mesh.edges)) {
+    // In town view these strokes are transparent; route picking uses the mesh index.
+    if (
+      lightweight &&
+      !showGridLines &&
+      selection.edgeId !== edge.id &&
+      selection.inspectedId !== edge.id &&
+      selection.inspectedId !== `edge-${edge.id}`
+    )
+      continue;
     const [a, b] = [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point];
     const isSelected = selection.edgeId === edge.id;
     const isPickSelected = selection.inspectedId === edge.id || selection.inspectedId === `edge-${edge.id}`;
@@ -514,61 +618,7 @@ export function renderEditorSvg(
       );
     }
   }
-  const beyondFont = selectionLabelFontSize(document.frame.extentMeters, zoom);
-  for (const exit of externalRoadLabels(document)) {
-    const road = exit.destinations[0];
-    const beyondLabel = approachBeyondLabel(road.group.beyond);
-    const norm = normalizeApproachBeyond(road.group.beyond);
-    if (!beyondLabel || !norm) continue;
-    const at = approachBeyondAnchor(road.outward, document.frame.extentMeters / 2);
-    const label = element(
-      "text",
-      {
-        class: "ce-approach-beyond",
-        x: String(at[0]),
-        y: String(-at[1]),
-        "text-anchor": "middle",
-        "dominant-baseline": "middle",
-        "font-size": String(beyondFont),
-        fill: norm.realm.relation === "Enemy" ? "#7e2217" : norm.realm.relation === "Ally" ? "#1e5c22" : "#2c261f",
-        stroke: "#f4f0e6",
-        "stroke-width": String(beyondFont / 8),
-        "paint-order": "stroke",
-        "pointer-events": "none",
-        "data-group": road.group.id,
-        "data-groups": exit.roads.map(item => item.group.id).join(" "),
-        "data-beyond": typeof road.group.beyond === "string" ? road.group.beyond : norm.realm.relation,
-        "data-beyond-relation": norm.realm.relation,
-        "data-beyond-scale": norm.settlement.scale,
-        "data-beyond-role": norm.settlement.role ?? "generic"
-      },
-      exit.destinations.length === 1 ? beyondLabel : undefined
-    );
-    if (exit.destinations.length > 1) {
-      const lines = ["街道の先で分岐", ...exit.destinations.map(item => approachBeyondLabel(item.group.beyond)!)];
-      const step = beyondFont * 1.3;
-      const top = Math.max(
-        -document.frame.extentMeters / 2 + step,
-        Math.min(document.frame.extentMeters / 2 - lines.length * step, -at[1] - ((lines.length - 1) * step) / 2)
-      );
-      for (let i = 0; i < lines.length; i++) {
-        const value = i ? normalizeApproachBeyond(exit.destinations[i - 1].group.beyond) : undefined;
-        label.appendChild(
-          element(
-            "tspan",
-            {
-              x: String(at[0]),
-              y: String(top + i * step),
-              fill:
-                value?.realm.relation === "Enemy" ? "#7e2217" : value?.realm.relation === "Ally" ? "#1e5c22" : "#2c261f"
-            },
-            lines[i]
-          )
-        );
-      }
-    }
-    features.appendChild(label);
-  }
+  features.appendChild(renderApproachLabels(document, zoom));
   if (town) {
     for (const deck of bridgeDecks(document)) {
       const pickInfo: SvgPickInfo = {
@@ -618,7 +668,22 @@ export function renderEditorSvg(
         "pointer-events": "none"
       });
       for (const park of townParkLawns) {
-        for (const tr of park.trees) {
+        for (const [treeIndex, tr] of park.trees.entries()) {
+          if (minimal && treeIndex % 3 !== 0) continue;
+          if (lightweight) {
+            parkTreesLayer.appendChild(
+              element("circle", {
+                cx: String(tr.center[0]),
+                cy: String(-tr.center[1]),
+                r: String(tr.radius),
+                class: "ce-park-tree",
+                fill: "#557849",
+                stroke: "#385230",
+                "stroke-width": "0.6"
+              })
+            );
+            continue;
+          }
           const treeGroup = element("g", { class: "ce-park-tree", style: "z-index: 5;" });
           const [cx, cy] = [tr.center[0], -tr.center[1]];
           for (const sub of tr.subCircles) {
@@ -665,10 +730,13 @@ export function renderEditorSvg(
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
   const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
-  for (const face of Object.values(document.mesh.faces)) {
-    if (reservedCastleFaces(document).has(face.id)) continue;
-    const marker = renderFaceWardLandmark(document.mesh, face);
-    if (marker && !town) wardLandmarks.appendChild(marker);
+  if (!town) {
+    const castleFaces = reservedCastleFaces(document);
+    for (const face of Object.values(document.mesh.faces)) {
+      if (castleFaces.has(face.id)) continue;
+      const marker = renderFaceWardLandmark(document.mesh, face);
+      if (marker) wardLandmarks.appendChild(marker);
+    }
   }
   svg.appendChild(wardLandmarks);
 
@@ -832,6 +900,66 @@ export function renderEditorSvg(
   svg.appendChild(element("g", { class: "ce-measure-layer", "pointer-events": "none" }));
   mark("svg-details");
   return svg;
+}
+
+export function renderApproachLabels(document: CityDocument, zoom: number): SVGGElement {
+  const labels = element("g", { class: "ce-approach-labels" }) as SVGGElement;
+  const beyondFont = selectionLabelFontSize(document.frame.extentMeters, zoom);
+  for (const exit of externalRoadLabels(document)) {
+    const road = exit.destinations[0];
+    const beyondLabel = approachBeyondLabel(road.group.beyond);
+    const norm = normalizeApproachBeyond(road.group.beyond);
+    if (!beyondLabel || !norm) continue;
+    const at = approachBeyondAnchor(road.outward, document.frame.extentMeters / 2);
+    const label = element(
+      "text",
+      {
+        class: "ce-approach-beyond",
+        x: String(at[0]),
+        y: String(-at[1]),
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+        "font-size": String(beyondFont),
+        fill: norm.realm.relation === "Enemy" ? "#7e2217" : norm.realm.relation === "Ally" ? "#1e5c22" : "#2c261f",
+        stroke: "#f4f0e6",
+        "stroke-width": String(beyondFont / 8),
+        "paint-order": "stroke",
+        "pointer-events": "none",
+        "data-group": road.group.id,
+        "data-groups": exit.roads.map(item => item.group.id).join(" "),
+        "data-beyond": typeof road.group.beyond === "string" ? road.group.beyond : norm.realm.relation,
+        "data-beyond-relation": norm.realm.relation,
+        "data-beyond-scale": norm.settlement.scale,
+        "data-beyond-role": norm.settlement.role ?? "generic"
+      },
+      exit.destinations.length === 1 ? beyondLabel : undefined
+    );
+    if (exit.destinations.length > 1) {
+      const lines = ["街道の先で分岐", ...exit.destinations.map(item => approachBeyondLabel(item.group.beyond)!)];
+      const step = beyondFont * 1.3;
+      const top = Math.max(
+        -document.frame.extentMeters / 2 + step,
+        Math.min(document.frame.extentMeters / 2 - lines.length * step, -at[1] - ((lines.length - 1) * step) / 2)
+      );
+      for (let i = 0; i < lines.length; i++) {
+        const value = i ? normalizeApproachBeyond(exit.destinations[i - 1].group.beyond) : undefined;
+        label.appendChild(
+          element(
+            "tspan",
+            {
+              x: String(at[0]),
+              y: String(top + i * step),
+              fill:
+                value?.realm.relation === "Enemy" ? "#7e2217" : value?.realm.relation === "Ally" ? "#1e5c22" : "#2c261f"
+            },
+            lines[i]
+          )
+        );
+      }
+    }
+    labels.appendChild(label);
+  }
+  return labels;
 }
 
 function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/harborFabric").HarborPlan): SVGGElement {

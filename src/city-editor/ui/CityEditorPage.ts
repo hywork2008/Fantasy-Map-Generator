@@ -142,7 +142,9 @@ import {
   faceClassName,
   type GridOverlay,
   parsePickInfo,
+  type RenderQuality,
   type RenderSelection,
+  renderApproachLabels,
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
@@ -956,6 +958,17 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   });
 
+  const renderQualitySelect = select(["auto", "detailed", "light", "minimal"], "auto");
+  renderQualitySelect.className = "ce-render-quality";
+  renderQualitySelect.setAttribute("aria-label", "描画品質");
+  ["自動（Largeは軽量）", "詳細", "軽量（建物をまとめる）", "最軽量（建物・樹木を間引く）"].forEach((text, i) => {
+    renderQualitySelect.options[i].textContent = text;
+  });
+  renderQualitySelect.addEventListener("change", () => redrawMap());
+  const renderQualityHelp = text(
+    "軽量表示では農地の畝・植栽の細部を省略。最軽量では一般建物を約1/2、公園の樹木を約1/3に間引きます。街区を選択すると建物の詳細を表示。保存データ・SVG出力・建物数は元のままです。"
+  );
+
   const meshToggleRow = div("ce-icon-row");
   meshToggleRow.append(toggleLabel("街区の編集表示", blockMeshInput), toggleLabel("グリッド線表示", gridLinesInput));
 
@@ -1044,6 +1057,8 @@ export function mountCityEditor(root: HTMLElement): void {
     copyLinkButton,
     seedLabel,
     meshToggleRow,
+    label("描画品質", renderQualitySelect),
+    renderQualityHelp,
     divider(),
     importedBox,
     synthControls,
@@ -1287,7 +1302,7 @@ export function mountCityEditor(root: HTMLElement): void {
     viewCenter = [viewCenter[0] - (point[0] - previous[0]), viewCenter[1] - (point[1] - previous[1])];
     lastPanX = event.clientX;
     lastPanY = event.clientY;
-    scheduleRedraw();
+    updateViewport();
   });
   map.addEventListener("pointerleave", () => {
     if (!isWardPainting && !isJunctionPainting) hideWardBrushPreview();
@@ -1741,7 +1756,8 @@ export function mountCityEditor(root: HTMLElement): void {
         documentState.frame.extentMeters / 40,
         documentState.frame.extentMeters / 2
       );
-      scheduleRedraw();
+      if (showSelectionLabels) scheduleRedraw();
+      else updateViewport(true);
       updateWardBrushPreview();
       updateCircularWallPreview();
       refreshScaleBar();
@@ -2032,6 +2048,20 @@ export function mountCityEditor(root: HTMLElement): void {
     if (redrawHandle) redrawMap();
   }
 
+  // Panning/zooming changes only the camera, never rebuild the city's SVG or fabric.
+  function updateViewport(zoomChanged = false): void {
+    const svg = map.querySelector("svg");
+    if (!svg) return;
+    svg.setAttribute(
+      "viewBox",
+      `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`
+    );
+    if (zoomChanged)
+      svg.querySelector(".ce-approach-labels")?.replaceWith(renderApproachLabels(documentState, zoomFactor()));
+    updateHoverOverlay();
+    updateMeasureOverlay();
+  }
+
   function redrawMap(): void {
     if (redrawHandle) {
       cancelAnimationFrame(redrawHandle);
@@ -2053,16 +2083,12 @@ export function mountCityEditor(root: HTMLElement): void {
       showGridLines,
       sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample })),
       hideBuildings,
-      hideStreetLines
+      hideStreetLines,
+      renderQualitySelect.value as RenderQuality
     );
     map.replaceChildren(svg);
-    let coreBuildings = 0,
-      outerBuildings = 0;
-    for (const building of svg.querySelectorAll(".ce-building")) {
-      const face = documentState.mesh.faces[building.getAttribute("data-building-face") ?? ""];
-      if (face?.properties.settlement === "core") coreBuildings++;
-      else if (face?.properties.settlement === "outskirts") outerBuildings++;
-    }
+    const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
+    const outerBuildings = Number(svg.getAttribute("data-outskirts-buildings") ?? 0);
     const buildingCount = coreBuildings + outerBuildings;
     housingSummary.hidden = buildingCount === 0;
     housingSummary.textContent = buildingCount
