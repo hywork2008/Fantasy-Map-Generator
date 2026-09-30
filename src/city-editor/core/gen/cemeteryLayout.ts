@@ -121,9 +121,9 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
     }
   }
 
-  // If the building frame cannot fit, churchyard precinct cannot host required chapel buildings
+  // A narrow churchyard can still serve as a burial ground without chapel buildings.
   if (!frame) {
-    return null;
+    return layoutBurialField(cemetery, safe, ring, at, center, x, y, world, extentRadius);
   }
   const [w, h] = frame;
 

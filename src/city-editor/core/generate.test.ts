@@ -1065,6 +1065,36 @@ describe("sizePresetForExtent / custom frame", () => {
     expect(cemeteryFaces.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("renders burial grounds on the narrow Age of Exploration cemetery from a shared seed", () => {
+    const base = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "72ar60",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      ...settings.config,
+      coast: "none",
+      rivers: ["through"],
+      relief: false,
+      features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "organic"
+    };
+    settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+    settings.buildingPattern = "medieval";
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    settings.historicalPeriod = "ageOfExploration";
+    const city = generateCityOnDocument(base, settings, "cdz0dr");
+    expect(city).not.toBeNull();
+    const cemetery = city?.cemeteries?.find(plan => city.mesh.faces[plan.faceId]?.properties.ward === "cemetery");
+    expect(cemetery?.form).toBe("field");
+    expect(cemetery?.courtyards.length).toBeGreaterThan(0);
+    expect(cemetery?.parts.some(part => part.role === "graves")).toBe(true);
+  });
+
   it("completes full city generation with rivers without throwing undefined .map error", () => {
     const base = createGridDocument({ size: "small", grid: "voronoi" });
     const settings = defaultGenerationSettings();
