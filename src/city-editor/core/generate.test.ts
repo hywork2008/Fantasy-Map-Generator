@@ -308,6 +308,19 @@ describe("generateStageOnDocument", () => {
     expect(dry?.coastalOceanFaceIds).toEqual([]);
   });
 
+  it("removes inland sea at f17 for the shared bay seed", () => {
+    const input = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "82smk9",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const config = settings({ coast: "bay", rivers: ["through"], relief: false });
+    const output = generateStageOnDocument(input, config, "lfzfps", S.coast);
+    expect(output?.mesh.faces.f17.properties.water).toBe("land");
+    expect(output?.coastalOceanFaceIds?.length).toBeGreaterThan(0);
+  });
+
   it("keeps generated fields and ordinary buildings outside the ocean strip", () => {
     const input = createGridDocument({
       size: "small",

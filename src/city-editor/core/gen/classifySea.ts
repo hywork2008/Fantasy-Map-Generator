@@ -58,7 +58,31 @@ export function classifyCoast(
     if (pointInPolygon(cell.centroid, waterPolygon)) sea.add(cell.id);
   }
   smoothMembership(cells, sea, 1);
+  keepBorderConnectedSea(cells, sea);
   return { sea, shoreline, waterPolygon };
+}
+
+/** A coast is open water: discard pockets cut off from the map boundary. */
+function keepBorderConnectedSea(cells: Cell[], sea: Set<number>): void {
+  const byId = new Map(cells.map(cell => [cell.id, cell]));
+  const connected = new Set<number>();
+  const queue: number[] = [];
+  for (const cell of cells) {
+    if (cell.onBorder && sea.has(cell.id)) {
+      connected.add(cell.id);
+      queue.push(cell.id);
+    }
+  }
+  for (let i = 0; i < queue.length; i++) {
+    const cell = byId.get(queue[i]);
+    if (!cell) continue;
+    for (const neighbor of cell.neighbors) {
+      if (!sea.has(neighbor) || connected.has(neighbor)) continue;
+      connected.add(neighbor);
+      queue.push(neighbor);
+    }
+  }
+  for (const id of sea) if (!connected.has(id)) sea.delete(id);
 }
 
 /** Close the shoreline into a polygon whose interior is the water. */
