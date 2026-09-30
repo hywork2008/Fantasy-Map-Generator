@@ -9,6 +9,40 @@ import { walkRiver } from "./riverPath";
 import type { Point } from "./types";
 
 describe("generated river endpoints", () => {
+  it("runs edge to edge when a cape corridor produces no classified sea", () => {
+    const input = createGridDocument({
+      size: "medium",
+      grid: "evolution",
+      seed: "1jmka8t",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      ...settings.config,
+      coast: "cape",
+      rivers: ["beside"],
+      relief: false,
+      features: { walls: true, citadel: true, plaza: true, temple: true, port: false, shanty: false },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "auto"
+    };
+    settings.layout = "organic";
+    settings.walledAreaShare = 0.45;
+    for (const step of [2, 6, 8]) {
+      const city = generateStageOnDocument(input, settings, "1mr7qkg:junction-retry:3", step)!;
+      expect(Object.values(city.mesh.faces).some(face => face.properties.water === "sea")).toBe(false);
+      const river = city.featureGroups.find(group => group.id === "gc:river-0");
+      expect(river?.kind).toBe("river");
+      if (river?.kind !== "river") continue;
+      for (const id of [river.vertices[0], river.vertices.at(-1)!]) {
+        const point = city.mesh.vertices[id].point;
+        expect(Math.max(Math.abs(point[0]), Math.abs(point[1]))).toBeCloseTo(city.frame.extentMeters / 2, 5);
+      }
+      for (let i = 1; i < river.vertices.length; i++)
+        expect(edgeBetween(city.mesh, river.vertices[i - 1], river.vertices[i])).toBeTruthy();
+    }
+  });
+
   it("reaches the classified sea for both rivers in the shared two-river seed", () => {
     const input = createGridDocument({
       size: "small",

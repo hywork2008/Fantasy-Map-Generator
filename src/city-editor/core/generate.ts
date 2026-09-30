@@ -1261,6 +1261,9 @@ export function runPlan(
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
   const seaVertices = new Set(cells.filter(cell => sea.has(cell.id)).flatMap(cell => cell.polygon.map(vertexKey)));
+  // A coast walk can classify zero water cells (notably on cape layouts).
+  // In that case its polygon is not a real river mouth: route edge to edge.
+  const riverCoast = seaVertices.size ? coast : null;
   const rivers: RoutedRiver[] = [];
   const againstRiverFlow = new Set<string>();
   for (const [i, r] of geo.rivers.entries()) {
@@ -1268,8 +1271,8 @@ export function runPlan(
       graph,
       r.corridor,
       r.widths,
-      coast?.waterPolygon ?? null,
-      coast?.shoreline ?? null,
+      riverCoast?.waterPolygon ?? null,
+      riverCoast?.shoreline ?? null,
       cellSize,
       half,
       makeRng(`${seed}:river:${i}`),
