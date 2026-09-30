@@ -44,7 +44,7 @@ import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
 import { classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
-import { aStar, buildEdgeGraph, type EdgeGraph } from "./gen/edgeGraph";
+import { aStar, buildEdgeGraph, type EdgeGraph, vertexKey } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
 import {
   isSimplePolygon,
@@ -1260,6 +1260,7 @@ export function runPlan(
   if (stageStep < 2) return { ...empty, sea, ocean, coastPath, waterPolygon };
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
+  const seaVertices = new Set(cells.filter(cell => sea.has(cell.id)).flatMap(cell => cell.polygon.map(vertexKey)));
   const rivers = geo.rivers
     .map((r, i) =>
       walkRiver(
@@ -1271,7 +1272,8 @@ export function runPlan(
         cellSize,
         half,
         makeRng(`${seed}:river:${i}`),
-        r.bridgeAllowed
+        r.bridgeAllowed,
+        seaVertices.size ? seaVertices : undefined
       )
     )
     .filter(band => !band.fallback && band.edgePoints.length >= 2);

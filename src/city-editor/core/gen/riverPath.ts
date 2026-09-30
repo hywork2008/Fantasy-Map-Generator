@@ -50,7 +50,8 @@ export function walkRiver(
   cellSizeMeters: number,
   halfExtentMeters: number,
   rng: Rng,
-  bridgeAllowed = true
+  bridgeAllowed = true,
+  seaVertices?: ReadonlySet<string>
 ): RoutedRiver {
   const dead: RoutedRiver = {
     edgePoints: [],
@@ -99,7 +100,9 @@ export function walkRiver(
   // return false. Stop at the first contact instead of following the coast.
   const shoreNodes = new Set((shoreline ?? []).map(vertexKey));
   const reachesSea = (p: Point): boolean =>
-    shoreNodes.has(vertexKey(p)) || (waterPolygon !== null && pointInPolygon(p, waterPolygon));
+    seaVertices
+      ? seaVertices.has(vertexKey(p))
+      : shoreNodes.has(vertexKey(p)) || (waterPolygon !== null && pointInPolygon(p, waterPolygon));
   const stop = waterPolygon ? (_id: number, p: Point) => reachesSea(p) : undefined;
 
   let nodes = walkGraph(graph, {
@@ -166,7 +169,7 @@ export function walkRiver(
   const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
-  const resolvedEdges = extendRiverEnds(graph, edgePoints, halfExtentMeters, waterPolygon, shoreNodes);
+  const resolvedEdges = extendRiverEnds(graph, edgePoints, halfExtentMeters, reachesSea, waterPolygon !== null);
   if (resolvedEdges.length < 3) return dead;
   return {
     edgePoints,
@@ -187,20 +190,17 @@ function extendRiverEnds(
   graph: EdgeGraph,
   points: Point[],
   half: number,
-  water: Point[] | null,
-  shoreNodes: ReadonlySet<string>
+  reachesSea: (point: Point) => boolean,
+  hasSea: boolean
 ): Point[] {
   if (points.length < 3) return points;
   let nodes = points.map(p => nearestNode(graph, p));
-  const resolved = (id: number): boolean => {
+  const atFrame = (id: number): boolean => {
     const p = graph.points[id];
-    return (
-      Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - MERGE_QUANTUM ||
-      shoreNodes.has(vertexKey(p)) ||
-      (water !== null && pointInPolygon(p, water))
-    );
+    return Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - MERGE_QUANTUM;
   };
-  const extend = (path: number[]): number[] => {
+  const atSea = (id: number): boolean => reachesSea(graph.points[id]);
+  const extend = (path: number[], resolved: (id: number) => boolean): number[] => {
     const tip = path[path.length - 1];
     if (resolved(tip)) return path;
     const blocked = new Set(path.slice(0, -1));
@@ -233,9 +233,13 @@ function extendRiverEnds(
     }
     return path;
   };
-  nodes = extend(nodes.slice().reverse()).reverse();
-  nodes = extend(nodes);
-  if (!resolved(nodes[0]) || !resolved(nodes[nodes.length - 1])) return [];
+  nodes = extend(nodes.slice().reverse(), id => atFrame(id) || atSea(id)).reverse();
+  nodes = extend(nodes, id => (hasSea ? atSea(id) : atFrame(id)));
+  if (
+    (!atFrame(nodes[0]) && !atSea(nodes[0])) ||
+    !(hasSea ? atSea(nodes[nodes.length - 1]) : atFrame(nodes[nodes.length - 1]))
+  )
+    return [];
   return nodes.map(id => [...graph.points[id]] as Point);
 }
 

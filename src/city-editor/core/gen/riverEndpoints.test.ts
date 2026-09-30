@@ -9,6 +9,45 @@ import { walkRiver } from "./riverPath";
 import type { Point } from "./types";
 
 describe("generated river endpoints", () => {
+  it("reaches the classified sea for both rivers in the shared two-river seed", () => {
+    const input = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "xofubc",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      ...settings.config,
+      coast: "bay",
+      rivers: ["beside", "greatBend"],
+      relief: true,
+      features: { walls: true, citadel: true, plaza: true, temple: true, port: true, shanty: false },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "auto"
+    };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    for (const step of [2, 6]) {
+      const city = generateStageOnDocument(input, settings, "1lczj97:junction-retry:2", step)!;
+      const rivers = city.featureGroups.filter(group => group.kind === "river");
+      expect(rivers).toHaveLength(2);
+      for (const river of rivers) {
+        if (river.kind !== "river") continue;
+        const touchesSea = (id: string): boolean =>
+          Object.values(city.mesh.edges).some(
+            edge =>
+              (edge.a === id || edge.b === id) &&
+              [edge.leftFace, edge.rightFace].some(
+                faceId => faceId && city.mesh.faces[faceId]?.properties.water === "sea"
+              )
+          );
+        expect(river.vertices.slice(0, -1).some(touchesSea)).toBe(false);
+        expect(touchesSea(river.vertices.at(-1)!)).toBe(true);
+      }
+    }
+  });
+
   it("stops at the first shoreline contact for the shared harbor seed", () => {
     const input = createGridDocument({
       size: "small",
@@ -64,6 +103,17 @@ describe("generated river endpoints", () => {
           );
           expect(atEdge || atSea, `${seed}: river ends inland at ${point}`).toBe(true);
         }
+        const mouth = river.vertices.at(-1)!;
+        expect(
+          Object.values(city.mesh.edges).some(
+            edge =>
+              (edge.a === mouth || edge.b === mouth) &&
+              [edge.leftFace, edge.rightFace].some(
+                faceId => faceId && city.mesh.faces[faceId]?.properties.water === "sea"
+              )
+          ),
+          `${seed}: river mouth does not reach a sea face`
+        ).toBe(true);
         for (let i = 1; i < river.vertices.length; i++)
           expect(edgeBetween(city.mesh, river.vertices[i - 1], river.vertices[i])).toBeTruthy();
       }
