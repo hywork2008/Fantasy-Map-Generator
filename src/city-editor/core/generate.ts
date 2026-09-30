@@ -2600,7 +2600,8 @@ function applyPlan(
         !face.properties.ward ||
         face.properties.ward === "empty" ||
         face.properties.ward === "park" ||
-        face.properties.ward === "farm"
+        face.properties.ward === "farm" ||
+        face.properties.ward === "cemetery"
       )
         continue;
 
@@ -3169,7 +3170,7 @@ function settleTempleOnDocument(document: CityDocument): void {
   }
   const guides = [...roads, ...plazaGuides];
   const parkPlots = Object.values(document.mesh.faces)
-    .filter(face => face.properties.ward === "park")
+    .filter(face => face.properties.ward === "park" || face.properties.ward === "cemetery")
     .map(face => facePoints(document.mesh, face));
   let rect = placeAndClearTempleRect(
     temple.point,
@@ -3410,7 +3411,18 @@ function toGeneratorBorder(loop: MeshBorderLoop): {
 
 function editorWard(
   kind: WardKind
-): "market" | "castle" | "merchant" | "craftsmen" | "patriciate" | "harbor" | "park" | "farm" | "empty" | null {
+):
+  | "market"
+  | "castle"
+  | "merchant"
+  | "craftsmen"
+  | "patriciate"
+  | "harbor"
+  | "park"
+  | "farm"
+  | "cemetery"
+  | "empty"
+  | null {
   switch (kind) {
     case "market":
     case "castle":
@@ -3420,6 +3432,7 @@ function editorWard(
     case "harbor":
     case "park":
     case "farm":
+    case "cemetery":
     case "empty":
       return kind;
     case "slum":

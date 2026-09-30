@@ -134,7 +134,7 @@ export function resolveDistricts(document: CityDocument, plan?: FabricPlan): Fab
  * land and landmarks must retain their own outlines even in saved v4 plans. */
 function landUse(face: Face): string {
   const ward = face.properties.ward;
-  return ward && !["park", "farm", "empty", "castle"].includes(ward) ? "urban" : (ward ?? "empty");
+  return ward && !["park", "farm", "cemetery", "empty", "castle"].includes(ward) ? "urban" : (ward ?? "empty");
 }
 
 export function createFabricPlan(document: CityDocument, seed: string): FabricPlan {

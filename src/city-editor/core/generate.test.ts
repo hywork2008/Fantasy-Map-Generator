@@ -1053,4 +1053,15 @@ describe("sizePresetForExtent / custom frame", () => {
     expect(document.frame.cityRadiusMeters).toBe(300);
     expect(validate(document)).toEqual([]);
   });
+
+  it("automatically generates a cemetery in the completed city", () => {
+    const base = createGridDocument({ size: "small", grid: "hex" });
+    const city = generateCityOnDocument(base, defaultGenerationSettings(), "cemetery-gen-seed");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    const faces = Object.values(city.mesh.faces);
+    const cemeteryFaces = faces.filter(f => f.properties.ward === "cemetery");
+    expect(cemeteryFaces.length).toBeGreaterThanOrEqual(1);
+  });
 });

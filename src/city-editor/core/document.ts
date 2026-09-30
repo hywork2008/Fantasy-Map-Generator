@@ -189,9 +189,18 @@ export function parseDocument(text: string): CityDocument | null {
     for (const face of Object.values(value.mesh.faces)) {
       if (
         face.properties.ward !== null &&
-        !["market", "castle", "merchant", "craftsmen", "patriciate", "harbor", "park", "farm", "empty"].includes(
-          face.properties.ward
-        )
+        ![
+          "market",
+          "castle",
+          "merchant",
+          "craftsmen",
+          "patriciate",
+          "harbor",
+          "park",
+          "farm",
+          "cemetery",
+          "empty"
+        ].includes(face.properties.ward)
       )
         return null;
       if (face.properties.water !== "land") face.properties.depth ??= 3;

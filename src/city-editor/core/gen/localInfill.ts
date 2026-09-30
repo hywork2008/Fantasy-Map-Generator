@@ -483,7 +483,7 @@ function cleanBuildingPolygon(polygon: Point[]): Point[] {
 }
 
 function buildableFace(face: Face): boolean {
-  return !!face.properties.ward && !["park", "farm", "empty"].includes(face.properties.ward);
+  return !!face.properties.ward && !["park", "farm", "cemetery", "empty"].includes(face.properties.ward);
 }
 
 function pickParameters(ids: Id[], document: CityDocument, options?: InfillOptions): DistrictParameters | undefined {

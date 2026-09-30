@@ -187,9 +187,13 @@ export function assignWards(input: WardInputs): WardResult {
   }
 
   // 3. Temple / Cathedral next to the plaza.
+  const templeIds = new Set<number>();
   const existingTemple = precincts.find(p => p.kind === "temple");
   if (existingTemple) {
-    for (const id of existingTemple.cellIds) take(id, "cathedral");
+    for (const id of existingTemple.cellIds) {
+      take(id, "cathedral");
+      templeIds.add(id);
+    }
   } else if (program.temple) {
     const templeRng = makeRng(`${params.seed}:program:temple`);
     const temple = placeTemple(
@@ -210,11 +214,21 @@ export function assignWards(input: WardInputs): WardResult {
     );
     if (temple) {
       extraPrecincts.push(temple);
-      for (const id of temple.cellIds) take(id, "cathedral");
+      for (const id of temple.cellIds) {
+        take(id, "cathedral");
+        templeIds.add(id);
+      }
     }
   }
 
   const rng = makeRng(`${params.seed}:program:wards`);
+
+  // 3.5. Cemetery: every medieval city requires a churchyard or municipal cemetery.
+  const cemeteryId = placeCemetery(cells, urban, occupied, sea, templeIds, plaza, citadelIds, rng);
+  if (cemeteryId !== null) {
+    take(cemeteryId, "cemetery");
+  }
+
   const gateChance = program.walls ? GATE_CHANCE_WALLED : GATE_CHANCE_OPEN;
   const gateEps = Math.max(QUANTUM * 2, cellSize * 0.08);
 
@@ -589,4 +603,78 @@ function closeRing(poly: Point[]): Point[] {
 
 function dist(a: Point, b: Point): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+/**
+ * Automatically places a churchyard or municipal cemetery.
+ * Priority 1: A cell adjacent to the Cathedral/Temple (Churchyard), preferably to the South or East.
+ * Priority 2: In urban core, a quiet cell away from the central market/citadel.
+ */
+function placeCemetery(
+  cells: Cell[],
+  urban: Set<number>,
+  occupied: Set<number>,
+  sea: Set<number>,
+  templeIds: Set<number>,
+  plaza: Precinct | null,
+  citadelIds: Set<number>,
+  rng: Rng
+): number | null {
+  const byId = new Map(cells.map(c => [c.id, c]));
+
+  // Priority 1: Adjacent to temple (Churchyard).
+  if (templeIds.size > 0) {
+    const candidates: Array<{ id: number; score: number }> = [];
+    const templeCenters = [...templeIds]
+      .map(id => byId.get(id))
+      .filter((c): c is Cell => !!c)
+      .map(c => c.centroid);
+
+    const tc: Point = templeCenters.length
+      ? [
+          templeCenters.reduce((s, p) => s + p[0], 0) / templeCenters.length,
+          templeCenters.reduce((s, p) => s + p[1], 0) / templeCenters.length
+        ]
+      : [0, 0];
+
+    for (const tid of templeIds) {
+      const tCell = byId.get(tid);
+      if (!tCell) continue;
+      for (const nid of tCell.neighbors) {
+        if (!urban.has(nid) || occupied.has(nid) || sea.has(nid)) continue;
+        const nCell = byId.get(nid);
+        if (!nCell) continue;
+
+        // Prefer South (negative Y) and East (positive X)
+        const dy = nCell.centroid[1] - tc[1];
+        const dx = nCell.centroid[0] - tc[0];
+        const orientationScore = -dy * 1.5 + dx * 0.5;
+        candidates.push({ id: nid, score: orientationScore + rng() * 10 });
+      }
+    }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.score - a.score);
+      return candidates[0].id;
+    }
+  }
+
+  // Priority 2: In urban core, prefer cells slightly away from central plaza/citadel
+  const urbanCandidates: Array<{ id: number; score: number }> = [];
+  const plazaCenter = plaza?.anchor ?? [0, 0];
+  for (const id of urban) {
+    if (occupied.has(id) || sea.has(id)) continue;
+    const cell = byId.get(id);
+    if (!cell) continue;
+
+    const distToPlaza = Math.hypot(cell.centroid[0] - plazaCenter[0], cell.centroid[1] - plazaCenter[1]);
+    urbanCandidates.push({ id, score: distToPlaza + rng() * 20 });
+  }
+
+  if (urbanCandidates.length > 0) {
+    urbanCandidates.sort((a, b) => b.score - a.score);
+    return urbanCandidates[0].id;
+  }
+
+  return null;
 }

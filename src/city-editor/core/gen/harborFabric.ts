@@ -73,7 +73,7 @@ export function planHarbor(
       f =>
         f.properties.water === "land" &&
         f.properties.buildable &&
-        !["park", "farm", "empty", "castle"].includes(f.properties.ward ?? "empty")
+        !["park", "farm", "cemetery", "empty", "castle"].includes(f.properties.ward ?? "empty")
     )
     .map(f => ({ id: f.id, polygon: facePoints(document.mesh, f) }));
   const reserved = new Set(

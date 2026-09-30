@@ -186,7 +186,8 @@ export function renderEditorSvg(
       const fortified = land.properties.ward === "castle";
       const builtShore =
         fortified ||
-        (land.properties.settlement === "core" && !["park", "farm", "empty"].includes(land.properties.ward ?? ""));
+        (land.properties.settlement === "core" &&
+          !["park", "farm", "cemetery", "empty"].includes(land.properties.ward ?? ""));
       if (builtShore) {
         const revetment = corridor(a, b, fortified ? 22 : 14, 8);
         for (const part of convexInfillParts(facePoints(document.mesh, land))) {
