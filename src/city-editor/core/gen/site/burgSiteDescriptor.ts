@@ -138,6 +138,8 @@ export interface BurgSiteDescriptor {
   terrain: BurgSiteTerrain;
   /** Optional on v2 saves; absent means the conservative 50 m legacy cap. */
   transport?: { maxBridgeSpanMeters: number };
+  /** Historical period / era from FMG (e.g. "ageOfExploration"). */
+  historicalPeriod?: import("../../types").HistoricalPeriod;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];

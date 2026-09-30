@@ -8,7 +8,7 @@ import { buildingHitsCivicLandmark } from "./buildingLots";
 import { defaultDistrictParameters, resolveDistricts } from "./fabricDistricts";
 import { polygonBitesDisk } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid, segmentSegmentHit } from "./geom";
-import { planHarbor } from "./harborFabric";
+import { harborLaneRuns, planHarbor } from "./harborFabric";
 import { convexInfillParts, longestFrame } from "./lotGeometry";
 import { bounds, corridor, distance, intersectConvex, PlotIndex, plotArea } from "./parcelGeometry";
 import type { OpenSpace, ParcelArchetype, ParcelFrontage, ParcelPlan } from "./parcelTypes";
@@ -41,11 +41,13 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
   for (const house of houses) houseIndex.add(house, bounds(house.lot.polygon));
   const overlaps = (polygon: Point[], other: Point[]) =>
     convexInfillParts(other).some(part => plotArea(intersectConvex(polygon, part)) > 0.02);
-  const hitsHouse = (polygon: Point[]) => houseIndex.query(bounds(polygon)).some(h => overlaps(polygon, h.lot.polygon));
+  const _hitsHouse = (polygon: Point[]) =>
+    houseIndex.query(bounds(polygon)).some(h => overlaps(polygon, h.lot.polygon));
   const fronts: ParcelFrontage[] = base.lanes.flatMap(l =>
     l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
   );
   const barriers: Point[][] = [];
+  const throughStreets: ParcelFrontage[] = [];
   for (const group of document.featureGroups) {
     const segments: [Point, Point][] =
       group.kind === "river"
@@ -57,8 +59,11 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
             return [document.mesh.vertices[e.a].point, document.mesh.vertices[e.b].point];
           });
     for (const [a, b] of segments) {
-      if (group.kind === "road" || group.kind === "plank") fronts.push({ a, b, widthMeters: group.style.widthMeters });
-      else barriers.push(corridor(a, b, group.style.widthMeters + 2));
+      if (group.kind === "road" || group.kind === "plank") {
+        const frontage = { a, b, widthMeters: group.style.widthMeters };
+        fronts.push(frontage);
+        throughStreets.push(frontage);
+      } else barriers.push(corridor(a, b, group.style.widthMeters + 2));
     }
   }
   for (const circuit of document.defenseCircuits ?? [])
@@ -66,14 +71,24 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
   const gateDisks = gatePlazaDisks(document).map(d => ({ ...d, radius: d.radius + 6 }));
   const nearGate = (polygon: Point[]) =>
     gateDisks.some(d => pointInPolygon(d.center, polygon) || polygonBitesDisk(polygon, d, 0));
-  const harbor = planHarbor(document, fronts, barriers, p => !hitsHouse(p) && !nearGate(p));
+  const harbor = planHarbor(document, fronts, barriers, p => !nearGate(p), throughStreets);
   fronts.push(...harbor.frontages);
   markCargoNetwork(fronts, barriers);
+
+  const craneForbiddenPolygons: Point[][] = harbor.cranes.map(c => {
+    const r = c.radiusMeters + 3.0;
+    return Array.from({ length: 8 }, (_, i) => {
+      const a = (i * 2 * Math.PI) / 8;
+      return [c.point[0] + Math.cos(a) * r, c.point[1] + Math.sin(a) * r] as Point;
+    });
+  });
+
   const forbidden = new PlotIndex<Point[]>();
   for (const poly of [
     ...barriers,
     ...fronts.map(f => corridor(f.a, f.b, f.widthMeters + 0.2)),
-    ...harbor.spaces.map(s => s.polygon)
+    ...harbor.spaces.map(s => s.polygon),
+    ...craneForbiddenPolygons
   ])
     if (poly.length >= 3) forbidden.add(poly, bounds(poly));
   const frontIndex = new PlotIndex<ParcelFrontage>();
@@ -92,6 +107,25 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
     return !forbidden.query(bounds(polygon)).some(p => plotArea(intersectConvex(polygon, p)) > 0.02);
   };
   const replaced = new Set<number>();
+  for (const anchor of houses) {
+    const poly = anchor.lot.polygon;
+    const hitsSpace = harbor.spaces.some(s => plotArea(intersectConvex(poly, s.polygon)) > 0.01);
+    const hitsCrane = harbor.cranes.some(c => {
+      const clearance = c.radiusMeters + 3.0;
+      return (
+        pointInPolygon(c.point, poly) || poly.some(pt => Math.hypot(pt[0] - c.point[0], pt[1] - c.point[1]) < clearance)
+      );
+    });
+    const hitsCargo = harbor.cargoPiles.some(cp => {
+      const r = Math.max(cp.widthMeters, cp.heightMeters) / 2 + 1.0;
+      return (
+        pointInPolygon(cp.point, poly) || poly.some(pt => Math.hypot(pt[0] - cp.point[0], pt[1] - cp.point[1]) < r)
+      );
+    });
+    if (hitsSpace || hitsCrane || hitsCargo) {
+      replaced.add(anchor.index);
+    }
+  }
   const parcels: ParcelPlan[] = [];
   const buildings: BuildingLot[] = [];
   const spaces: OpenSpace[] = [...harbor.spaces];
@@ -408,6 +442,13 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
   return {
     ...base,
     buildings: [...base.buildings.filter((_, i) => !replaced.has(i)), ...buildings],
+    // The apron itself provides access: residential subdivision lanes end at
+    // its edge. Retain the warehouse/back-street network elsewhere in the cell.
+    lanes: base.lanes.flatMap(lane => {
+      const localSpaces = harbor.spaces.filter(s => s.faceId === lane.faceId);
+      const runs = localSpaces.length ? harborLaneRuns(lane.points, localSpaces) : [lane.points];
+      return runs.map(points => ({ ...lane, points }));
+    }),
     parcels,
     openSpaces: spaces,
     harbor

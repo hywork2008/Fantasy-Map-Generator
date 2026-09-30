@@ -227,6 +227,7 @@ export interface StreetSettings {
 }
 
 export interface GenerationSettings {
+  historicalPeriod?: import("./types").HistoricalPeriod;
   buildingPattern?: import("./types").BuildingPattern;
   castle?: Partial<import("./types").CastleSettings>;
   /** Only used when replaying a pre-castle-city recipe. */
@@ -442,6 +443,11 @@ export function generateCityOnDocument(
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
     const result = generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1);
     if (result) {
+      result.historicalPeriod =
+        settings.historicalPeriod ??
+        settings.descriptor?.historicalPeriod ??
+        document.historicalPeriod ??
+        "ageOfExploration";
       result.generationSeed = attemptSeed;
       if (result.fabric) {
         const input = clone(document);

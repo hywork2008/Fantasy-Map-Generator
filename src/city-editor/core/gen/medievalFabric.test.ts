@@ -10,7 +10,7 @@ import type { CityDocument, Point, WardKind } from "../types";
 import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
 import { createFabricPlan, setBuildingPattern, setDistrictParameters } from "./fabricDistricts";
 import { polygonBitesDisk } from "./gatePlazaBuildings";
-import { isSimplePolygon, nearestOnPolyline, polygonCentroid } from "./geom";
+import { isSimplePolygon, nearestOnPolyline, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { FabricCache } from "./localInfill";
 import { buildMedievalFabric } from "./medievalFabric";
 import { intersectConvex, plotArea } from "./parcelGeometry";
@@ -274,7 +274,8 @@ describe("medieval parcel fabric", () => {
       expect(coreBuildings.length).toBeGreaterThanOrEqual(legacyCoreCount * 0.8);
       expect(fabric.buildings.filter(b => b.parcelId).every(b => b.polygon.length === 4)).toBe(true);
       const original = buildBlockFabric(legacy);
-      expect(fabric.lanes).toEqual(original.lanes);
+      const outsideHarbor = (lane: { faceId: string }) => city.mesh.faces[lane.faceId]?.properties.ward !== "harbor";
+      expect(fabric.lanes.filter(outsideHarbor)).toEqual(original.lanes.filter(outsideHarbor));
       const roofs = (f: DistrictFabric) => f.buildings.reduce((sum, b) => sum + plotArea(b.polygon), 0);
       expect(roofs(fabric)).toBeGreaterThanOrEqual(roofs(original) * 0.9);
       expect(fabric.buildings.filter(b => city.mesh.faces[b.faceId].properties.settlement === "outskirts")).toEqual(
@@ -315,5 +316,50 @@ describe("medieval parcel fabric", () => {
     expect(svg.querySelectorAll(".ce-open-space").length).toBeGreaterThan(0);
     expect(svg.querySelectorAll(".ce-building[data-archetype]").length).toBeGreaterThan(0);
     expect(svg.querySelectorAll(".ce-pier").length).toBeGreaterThan(0);
+  });
+
+  it("keeps quay equipment off coastal roads and subdivision lanes out of working yards", () => {
+    const document = fixture([], true);
+    const road = document.featureGroups[0];
+    if (road.kind === "river") throw new Error("Expected a road");
+    const shore = Object.values(document.mesh.edges).find(
+      e => document.mesh.vertices[e.a].point[0] === 0 && document.mesh.vertices[e.b].point[0] === 0
+    )!;
+    road.segments.push({ edgeId: shore.id, forward: true });
+    const fabric = buildBlockFabric(document);
+    expect(fabric.harbor!.cranes.length).toBeGreaterThan(0);
+    expect(fabric.harbor!.cargoPiles.length).toBeGreaterThan(0);
+    const equipment = [
+      ...fabric.harbor!.cranes.map(c => ({ point: c.point, radius: c.radiusMeters })),
+      ...fabric.harbor!.cargoPiles.map(c => ({ point: c.point, radius: Math.hypot(c.widthMeters, c.heightMeters) / 2 }))
+    ];
+    for (const item of equipment)
+      for (const segment of road.segments) {
+        const edge = document.mesh.edges[segment.edgeId];
+        expect(
+          nearestOnPolyline(item.point, [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point])
+            .dist
+        ).toBeGreaterThan(item.radius + road.style.widthMeters / 2);
+      }
+    for (const lane of fabric.lanes)
+      for (const space of fabric.harbor!.spaces.filter(s => s.faceId === lane.faceId))
+        for (let i = 1; i < lane.points.length; i++)
+          expect(segmentInteriorInPolygon(lane.points[i - 1], lane.points[i], space.polygon)).toBe(false);
+  });
+
+  it("keeps cranes and cargo clear of buildings with dedicated open loading spaces", () => {
+    const document = fixture([], true);
+    document.historicalPeriod = "ageOfExploration";
+    const fabric = buildBlockFabric(document);
+    expect(fabric.harbor?.cranes.length).toBeGreaterThan(0);
+    expect(fabric.harbor?.spaces.some(s => s.kind === "loading-yard")).toBe(true);
+    for (const crane of fabric.harbor?.cranes ?? []) {
+      for (const building of fabric.buildings) {
+        for (const pt of building.polygon) {
+          const d = Math.hypot(pt[0] - crane.point[0], pt[1] - crane.point[1]);
+          expect(d).toBeGreaterThanOrEqual(crane.radiusMeters + 2.0);
+        }
+      }
+    }
   });
 });

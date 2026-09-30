@@ -663,11 +663,48 @@ export function mountCityEditor(root: HTMLElement): void {
     if (documentState.appearance === "town") completeResult = documentState;
     syncGenerateControls();
   });
+
+  const periodOptions: import("../core/types").HistoricalPeriod[] = [
+    "ageOfExploration",
+    "lateMedieval",
+    "highMedieval",
+    "earlyMedieval",
+    "classicalAntiquity",
+    "maritimeEra",
+    "preIndustrialEra",
+    "steamEra"
+  ];
+  const historicalPeriodSelect = select(periodOptions, documentState.historicalPeriod ?? "ageOfExploration");
+  historicalPeriodSelect.className = "ce-document-historical-period";
+  historicalPeriodSelect.setAttribute("aria-label", "時代設定");
+  const periodOptionLabels: Record<string, string> = {
+    ageOfExploration: "大航海時代 (c. 1450–1600 · 標準)",
+    lateMedieval: "中世後期 (c. 1300–1450)",
+    highMedieval: "中世盛期 (c. 1000–1300)",
+    earlyMedieval: "中世初期 (c. 500–1000)",
+    classicalAntiquity: "古典古代・ローマ",
+    maritimeEra: "海洋時代・近世 (c. 1600–1750)",
+    preIndustrialEra: "産業革命前夜 (c. 1750–1830)",
+    steamEra: "蒸気時代 (c. 1830–1880)"
+  };
+  for (const option of [...historicalPeriodSelect.options]) {
+    if (periodOptionLabels[option.value]) option.textContent = periodOptionLabels[option.value];
+  }
+  historicalPeriodSelect.addEventListener("change", () => {
+    const period = historicalPeriodSelect.value as import("../core/types").HistoricalPeriod;
+    generateSettings.historicalPeriod = period;
+    const next = { ...documentState, historicalPeriod: period };
+    commit(next, "Change historical period");
+    if (documentState.appearance === "town") completeResult = next;
+    syncGenerateControls();
+  });
+
   documentPanel.content.append(
     sizeLabel,
     gridKindLabel,
     hexSizeLabel,
     documentActions,
+    label("時代設定", historicalPeriodSelect),
     label("現在の建物生成", currentBuildingPatternSelect),
     label("Scale", scaleInput),
     label("Smoothing", smoothingModeInput),
@@ -1944,6 +1981,7 @@ export function mountCityEditor(root: HTMLElement): void {
   function refreshUiOnly(): void {
     currentBuildingPatternSelect.value =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
+    historicalPeriodSelect.value = documentState.historicalPeriod ?? "ageOfExploration";
     walledShareInput.placeholder = `auto (${defaultWalledAreaShare(documentState.frame.extentMeters) * 100}%)`;
     map.classList.toggle("ce-map--select", tool === "select");
     map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");

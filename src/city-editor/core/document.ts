@@ -164,6 +164,7 @@ function documentFromCells(
     format: "fmg-city-editor",
     version: 1,
     frame: { extentMeters, cityRadiusMeters, blockSizeMeters },
+    historicalPeriod: "ageOfExploration",
     mesh: meshFromCells(cells),
     featureGroups: [],
     gates: [],

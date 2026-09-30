@@ -186,6 +186,8 @@ export interface BurgSiteDescriptor {
   /** Local transport constraint for City Editor. Legacy maps use the
    * conservative medieval value rather than inventing a long bridge. */
   transport?: { maxBridgeSpanMeters: number };
+  /** Historical period / era from FMG options (default: "ageOfExploration"). */
+  historicalPeriod?: string;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];
@@ -275,6 +277,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     },
     terrain,
     transport: { maxBridgeSpanMeters: bridgeSpanForPeriod(worldContext.options.historicalPeriod) },
+    historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
     rivers,
     waterbody,
     roads,

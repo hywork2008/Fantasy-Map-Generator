@@ -787,4 +787,66 @@ describe("harbor piers", () => {
     doc.mesh.faces.f2.properties.ward = "merchant";
     expect(renderStandaloneCitySvg(doc).querySelectorAll(".ce-pier")).toHaveLength(0);
   });
+
+  it("renders harbor cranes, cargo piles, and wide loading yards for ageOfExploration town harbors", async () => {
+    const { buildBlockFabric } = await import("../core/gen/blockInfill");
+    const rect = (x: number, w: number): Point[] => [
+      [x, 0],
+      [x + w, 0],
+      [x + w, 160],
+      [x, 160]
+    ];
+    const mesh = meshFromCells(
+      [rect(-80, 80), rect(0, 160), rect(160, 160)].map((polygon, id) => ({
+        id,
+        polygon,
+        site: polygon[0],
+        centroid: polygon[0],
+        neighbors: [],
+        onBorder: false
+      }))
+    );
+    for (const [i, f] of Object.values(mesh.faces).entries())
+      Object.assign(f.properties, {
+        ward: i === 0 ? null : i === 1 ? "harbor" : "patriciate",
+        water: i === 0 ? "sea" : "land",
+        buildable: i !== 0,
+        settlement: "core",
+        depth: 8
+      });
+    const roadEdges = Object.values(mesh.edges).filter(e => {
+      const a = mesh.vertices[e.a].point,
+        b = mesh.vertices[e.b].point;
+      return (a[1] === 0 && b[1] === 0 && Math.min(a[0], b[0]) >= 0) || (a[0] === 160 && b[0] === 160);
+    });
+    const doc: CityDocument = {
+      format: "fmg-city-editor",
+      version: 2,
+      gridKind: "evolution",
+      buildingPattern: "medieval",
+      appearance: "town",
+      historicalPeriod: "ageOfExploration",
+      layout: "organic",
+      frame: { extentMeters: 1000, cityRadiusMeters: 400, blockSizeMeters: 50 },
+      mesh,
+      featureGroups: [
+        {
+          id: "road-entry",
+          kind: "road",
+          name: "Port road",
+          segments: roadEdges.map(e => ({ edgeId: e.id, forward: true })),
+          style: { widthMeters: 6, color: "#d5cfbf" },
+          locked: false
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+    const fabric = buildBlockFabric(doc);
+    expect(fabric.harbor?.cranes?.length).toBeGreaterThan(0);
+    expect(fabric.harbor?.cargoPiles?.length).toBeGreaterThan(0);
+    const svg = renderStandaloneCitySvg(doc);
+    expect(svg.querySelectorAll(".ce-crane").length).toBeGreaterThan(0);
+    expect(svg.querySelectorAll(".ce-cargo-pile").length).toBeGreaterThan(0);
+  });
 });

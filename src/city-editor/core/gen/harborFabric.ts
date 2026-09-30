@@ -1,6 +1,12 @@
 import { facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
-import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "./geom";
+import {
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonCentroid,
+  segmentInteriorInPolygon,
+  segmentSegmentHit
+} from "./geom";
 import { convexInfillParts } from "./lotGeometry";
 import { corridor, distance, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
 import type { OpenSpace, ParcelFrontage } from "./parcelTypes";
@@ -11,10 +17,31 @@ export interface HarborPier {
   depth: number;
   polygon: Point[];
 }
+
+export interface HarborCrane {
+  id: Id;
+  kind: "treadwheel" | "derrick" | "romanMagnaRota";
+  point: Point;
+  armAngleRad: number;
+  radiusMeters: number;
+  armLengthMeters: number;
+}
+
+export interface HarborCargoPile {
+  id: Id;
+  kind: "crates" | "barrels" | "ballast";
+  point: Point;
+  widthMeters: number;
+  heightMeters: number;
+  rotation: number;
+}
+
 export interface HarborPlan {
   spaces: OpenSpace[];
   frontages: ParcelFrontage[];
   piers: HarborPier[];
+  cranes: HarborCrane[];
+  cargoPiles: HarborCargoPile[];
   /** Distinct shared spaces; private warehouse yards are measured separately. */
   sharedArea: number;
 }
@@ -36,9 +63,10 @@ export function planHarbor(
   document: CityDocument,
   streets: ParcelFrontage[],
   barriers: Point[][],
-  isFree: (polygon: Point[]) => boolean = () => true
+  isFree: (polygon: Point[]) => boolean = () => true,
+  throughStreets: ParcelFrontage[] = streets
 ): HarborPlan {
-  const plan: HarborPlan = { spaces: [], frontages: [], piers: [], sharedArea: 0 };
+  const plan: HarborPlan = { spaces: [], frontages: [], piers: [], cranes: [], cargoPiles: [], sharedArea: 0 };
   const shores: Shore[] = [];
   const land = Object.values(document.mesh.faces)
     .filter(
@@ -143,10 +171,32 @@ export function planHarbor(
     }
   };
   const berthByWater = new Map<Id, Shore>();
+  const usableShores: { shore: Shore; midpoint: Point; stripWidth: number; qA: Point; qB: Point }[] = [];
+  const period = document.historicalPeriod ?? "ageOfExploration";
+  const isExplorationOrLater = [
+    "ageOfExploration",
+    "maritimeEra",
+    "preIndustrialEra",
+    "steamEra",
+    "industrialChemistryEra",
+    "petroleumEra",
+    "rocketryEra"
+  ].includes(period);
+  const isAncient = period === "classicalAntiquity";
+
   for (const shore of shores) {
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
     const preset = params?.harborPreset ?? "dense";
-    const stripWidth = preset === "small" ? 4 : preset === "warehouse" ? 8 : 6;
+    const stripWidth =
+      preset === "small"
+        ? 4
+        : isExplorationOrLater
+          ? preset === "warehouse"
+            ? 14
+            : 12
+          : preset === "warehouse"
+            ? 8
+            : 6;
     const shift = (p: Point, d: number): Point => [p[0] + shore.inward[0] * d, p[1] + shore.inward[1] * d];
     const qA = shift(shore.a, stripWidth / 2),
       qB = shift(shore.b, stripWidth / 2);
@@ -181,22 +231,171 @@ export function planHarbor(
     plan.frontages.push({ a: qA, b: qB, widthMeters: stripWidth, cargo: true });
     plan.frontages.push({ a: midpoint, b: connection.hit.point, widthMeters: 3, cargo: true });
     // Larger hubs get local aprons; a small port still keeps its strip and path.
-    if (preset !== "small" && shore.length >= 28) {
-      const center = shift(midpoint, stripWidth / 2 + 5);
+    const minYardLength = isExplorationOrLater ? 16 : 24;
+    const yardWidth = isExplorationOrLater ? (preset === "warehouse" ? 18 : 14) : preset === "warehouse" ? 14 : 10;
+    if (preset !== "small" && shore.length >= minYardLength) {
+      const center = shift(midpoint, stripWidth / 2 + yardWidth / 2);
       const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
-      const half = Math.min(12, shore.length / 4);
+      const half = Math.min(16, shore.length / (isExplorationOrLater ? 3 : 4));
       addSpace(
         shore,
         corridor(
           [center[0] - tangent[0] * half, center[1] - tangent[1] * half],
           [center[0] + tangent[0] * half, center[1] + tangent[1] * half],
-          preset === "warehouse" ? 14 : 10
+          yardWidth
         ),
         "loading-yard"
       );
     }
+    usableShores.push({ shore, midpoint, stripWidth, qA, qB });
     if (shore.waterId && shore.depth >= 3 && shore.length > (berthByWater.get(shore.waterId)?.length ?? 0))
       berthByWater.set(shore.waterId, shore);
+  }
+
+  // Select primary berths for cranes (1 or 2 cranes max per harbor, prioritized by berth quality)
+  // Cranes and dedicated loading yards are for trading/commercial ports, not small fishing landings.
+  const candidateShores = usableShores
+    .filter(u => {
+      const params = document.fabric?.districts.find(d => d.faceIds.includes(u.shore.landId))?.parameters;
+      const preset = params?.harborPreset ?? "dense";
+      return preset !== "small";
+    })
+    .map(u => {
+      const isPrimaryBerth = Array.from(berthByWater.values()).some(b => b.id === u.shore.id);
+      const score = (isPrimaryBerth ? 100 : 0) + u.shore.length * 2 + u.shore.depth * 5;
+      return { ...u, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const selectedForCrane: typeof candidateShores = [];
+  const maxCranes = candidateShores.length >= 4 ? 2 : candidateShores.length > 0 ? 1 : 0;
+  for (const c of candidateShores) {
+    if (selectedForCrane.length >= maxCranes) break;
+    if (selectedForCrane.length === 0 || selectedForCrane.every(other => distance(other.midpoint, c.midpoint) > 28)) {
+      selectedForCrane.push(c);
+    }
+  }
+
+  for (const { shore, midpoint, stripWidth } of selectedForCrane) {
+    const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
+    const preset = params?.harborPreset ?? "dense";
+    if (preset === "small") continue;
+
+    const shift = (p: Point, d: number): Point => [p[0] + shore.inward[0] * d, p[1] + shore.inward[1] * d];
+    // Ensure there is a dedicated loading yard behind the crane for staging cargo and unloading
+    const hasYard = plan.spaces.some(s => s.kind === "loading-yard" && s.faceId === shore.landId);
+    if (!hasYard) {
+      const yardWidth = isExplorationOrLater ? 16 : 12;
+      const center = shift(midpoint, stripWidth / 2 + yardWidth / 2);
+      const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
+      const half = Math.min(16, Math.max(8, shore.length / 2.5));
+      addSpace(
+        shore,
+        corridor(
+          [center[0] - tangent[0] * half, center[1] - tangent[1] * half],
+          [center[0] + tangent[0] * half, center[1] + tangent[1] * half],
+          yardWidth
+        ),
+        "loading-yard"
+      );
+    }
+
+    const craneKind: HarborCrane["kind"] = isExplorationOrLater
+      ? "treadwheel"
+      : isAncient
+        ? "romanMagnaRota"
+        : period === "lateMedieval" || period === "highMedieval"
+          ? "treadwheel"
+          : "derrick";
+    const armAngleRad = Math.atan2(-shore.inward[1], -shore.inward[0]);
+    const radiusMeters = craneKind === "treadwheel" ? 2.8 : 2;
+    const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
+    // Fit the entire footprint in the reserved apron, leaving roads and the
+    // cross-quay cart approach unobstructed. Omit equipment if no safe fit exists.
+    const fits = (point: Point, radius: number): boolean => {
+      const footprint: Point[] = Array.from({ length: 16 }, (_, i) => {
+        const angle = (i * Math.PI) / 8;
+        return [point[0] + Math.cos(angle) * radius, point[1] + Math.sin(angle) * radius];
+      });
+      const area = plotArea(footprint);
+      const covered = plan.spaces
+        .filter(s => s.faceId === shore.landId)
+        .reduce((sum, s) => sum + plotArea(intersectConvex(footprint, s.polygon)), 0);
+      return (
+        covered >= area - 0.01 &&
+        isFree(footprint) &&
+        [...throughStreets, ...plan.frontages.filter(f => f.widthMeters === 3)].every(
+          f => nearestOnPolyline(point, [f.a, f.b]).dist >= radius + f.widthMeters / 2 + 0.8
+        ) &&
+        plan.cranes.every(c => distance(point, c.point) >= radius + c.radiusMeters + 1)
+      );
+    };
+    const candidates: Point[] = [];
+    for (const depth of [radiusMeters + 0.8, stripWidth / 2, stripWidth - radiusMeters - 0.8])
+      for (const along of [0, -7, 7, -14, 14]) {
+        if (Math.abs(along) + radiusMeters + 1 > shore.length / 2) continue;
+        candidates.push([
+          midpoint[0] + tangent[0] * along + shore.inward[0] * (depth - stripWidth / 2),
+          midpoint[1] + tangent[1] * along + shore.inward[1] * (depth - stripWidth / 2)
+        ]);
+      }
+    const cranePt = candidates.find(p => fits(p, radiusMeters + 0.4));
+    if (!cranePt) continue;
+    plan.cranes.push({
+      id: `crane:${shore.id}:0`,
+      kind: craneKind,
+      point: cranePt,
+      armAngleRad,
+      radiusMeters,
+      armLengthMeters: Math.max(
+        craneKind === "treadwheel" ? 6.5 : 4.5,
+        nearestOnPolyline(cranePt, [shore.a, shore.b]).dist + 1.5
+      )
+    });
+
+    if (isExplorationOrLater) {
+      const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
+      const p1 = shift([midpoint[0] + tangent[0] * 6.5, midpoint[1] + tangent[1] * 6.5], stripWidth * 0.55);
+      const p2 = shift([midpoint[0] - tangent[0] * 7.5, midpoint[1] - tangent[1] * 7.5], stripWidth * 0.55);
+      const piles: HarborCargoPile[] = [
+        {
+          id: `cargo:${shore.id}:barrels`,
+          kind: "barrels",
+          point: p1,
+          widthMeters: 3.5,
+          heightMeters: 2.2,
+          rotation: Math.atan2(tangent[1], tangent[0])
+        },
+        {
+          id: `cargo:${shore.id}:crates`,
+          kind: "crates",
+          point: p2,
+          widthMeters: 4.2,
+          heightMeters: 2.8,
+          rotation: Math.atan2(tangent[1], tangent[0]) + 0.15
+        }
+      ];
+      for (const pile of piles) {
+        const radius = Math.hypot(pile.widthMeters, pile.heightMeters) / 2 + 0.4;
+        const positions = [
+          pile.point,
+          ...plan.spaces
+            .filter(s => s.faceId === shore.landId && s.kind === "loading-yard")
+            .flatMap(s => {
+              const c = polygonCentroid(s.polygon);
+              return [c, ...s.polygon.map(p => [(p[0] + c[0]) / 2, (p[1] + c[1]) / 2] as Point)];
+            })
+        ];
+        const point = positions.find(
+          p =>
+            fits(p, radius) &&
+            plan.cargoPiles.every(
+              other => distance(p, other.point) >= radius + Math.hypot(other.widthMeters, other.heightMeters) / 2 + 0.5
+            )
+        );
+        if (point) plan.cargoPiles.push({ ...pile, point });
+      }
+    }
   }
   for (const shore of berthByWater.values()) {
     const count = shore.length >= 35 ? 3 : 2;
@@ -222,4 +421,38 @@ export function planHarbor(
   }
   plan.sharedArea = plan.spaces.reduce((a, s) => a + plotArea(s.polygon), 0);
   return plan;
+}
+
+/** Split at every apron boundary, including an off-centre crossing whose
+ * original segment midpoint lies outside the yard. */
+export function harborLaneRuns(points: Point[], spaces: OpenSpace[]): Point[][] {
+  const runs: Point[][] = [];
+  let current: Point[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i];
+    const cuts = [
+      { point: a, t: 0 },
+      { point: b, t: 1 }
+    ];
+    for (const space of spaces)
+      for (let j = 0; j < space.polygon.length; j++) {
+        const hit = segmentSegmentHit(a, b, space.polygon[j], space.polygon[(j + 1) % space.polygon.length]);
+        if (hit && !cuts.some(c => Math.abs(c.t - hit.t) < 1e-8)) cuts.push(hit);
+      }
+    cuts.sort((p, q) => p.t - q.t);
+    for (let j = 1; j < cuts.length; j++) {
+      const start = cuts[j - 1].point,
+        end = cuts[j].point;
+      if (spaces.some(s => segmentInteriorInPolygon(start, end, s.polygon))) {
+        if (current.length > 1) runs.push(current);
+        current = [];
+      } else {
+        if (!current.length) current.push(start);
+        current.push(end);
+      }
+    }
+  }
+  if (current.length > 1) runs.push(current);
+  return runs;
 }

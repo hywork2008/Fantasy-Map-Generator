@@ -16,6 +16,19 @@ export type BuildingPattern = "legacy" | "medieval";
 export type BuildingComposition = "standard" | "commercial" | "warehouses" | "estates";
 export type HarborPreset = "small" | "dense" | "warehouse";
 
+export type HistoricalPeriod =
+  | "classicalAntiquity"
+  | "earlyMedieval"
+  | "highMedieval"
+  | "lateMedieval"
+  | "ageOfExploration"
+  | "maritimeEra"
+  | "preIndustrialEra"
+  | "steamEra"
+  | "industrialChemistryEra"
+  | "petroleumEra"
+  | "rocketryEra";
+
 export interface FaceProperties {
   /** Generated land-use extent; local infill never changes mesh topology. */
   settlement?: "core" | "outskirts";
@@ -268,6 +281,8 @@ export interface CityDocument {
   frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
   /** Completed cities open in the building/ink view; editing uses the same mesh. */
   appearance?: "town";
+  /** Historical backdrop / technological era. Defaults to "ageOfExploration". */
+  historicalPeriod?: HistoricalPeriod;
   /** Missing on old maps: retain their original housing generator. */
   buildingPattern?: BuildingPattern;
   /** A non-editable source image, for example an imported MFCG SVG. */
