@@ -23,6 +23,7 @@ export interface FarmPlot {
   faceId: Id;
   polygon: Point[];
   rows: Point[][];
+  kind?: "open-field" | "kitchen-garden";
 }
 export interface CityFabric {
   parcels?: import("./parcelTypes").ParcelPlan[];

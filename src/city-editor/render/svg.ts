@@ -175,12 +175,15 @@ export function renderEditorSvg(
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
       fabric.farms.forEach((farm, index) => {
         const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
+        const garden = farm.kind === "kitchen-garden";
         farms.appendChild(
           element("path", {
             d: polygon(farm.polygon),
-            fill: tone ? "#d4ceb2" : "#c4bf9a",
-            stroke: "#8f8a74",
-            "stroke-width": "0.6",
+            fill: garden ? (tone ? "#bccd9c" : "#aec392") : tone ? "#d4ceb2" : "#c4bf9a",
+            stroke: garden ? "#536c45" : "#8f8a74",
+            "stroke-width": garden ? "1.8" : "0.6",
+            "stroke-dasharray": garden ? "3 1.2" : "none",
+            class: garden ? "ce-kitchen-garden" : "ce-open-field",
             "data-farm-face": farm.faceId
           })
         );
@@ -188,8 +191,8 @@ export function renderEditorSvg(
           element("path", {
             d: farm.rows.map(row => line(row)).join(" "),
             fill: "none",
-            stroke: "#5e5948",
-            "stroke-width": "0.65",
+            stroke: garden ? "#617b4d" : "#5e5948",
+            "stroke-width": garden ? "0.8" : "0.65",
             class: "ce-farm-rows"
           })
         );

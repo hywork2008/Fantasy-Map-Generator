@@ -303,7 +303,7 @@ function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): Dis
       );
     });
     const key = JSON.stringify([
-      "farm-v4",
+      "farm-v5",
       district.id,
       outline,
       district.parameters,
@@ -334,7 +334,8 @@ function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): Dis
         const rows = field.rows.filter(
           row => !nearby.some(river => row.some(p => nearestOnPolyline(p, river.points).dist < river.width / 2 + 4))
         );
-        if (rows.length >= 2) plots.push({ faceId: district.faceIds[0], polygon: field.polygon, rows });
+        if (rows.length >= 2)
+          plots.push({ faceId: owner(district.id, polygonCentroid(field.polygon)), polygon: field.polygon, rows });
       }
     }
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });

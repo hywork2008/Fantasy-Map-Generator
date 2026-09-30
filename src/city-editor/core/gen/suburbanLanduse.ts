@@ -1,9 +1,9 @@
 import { featureGroupVertices } from "../features";
-import { facePoints } from "../mesh";
 import type { CityDocument, Point } from "../types";
 import { evaluateApproachBeyond, externalGateRoads, normalizeApproachBeyond } from "./approachBeyond";
 import type { DistrictFabric } from "./blockInfill";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
+import { chord } from "./localInfill";
 
 type Profile = "trade" | "granary" | "frontier" | "rural";
 interface Approach {
@@ -90,9 +90,9 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
     );
     return hash / 0xffffffff < spacing;
   });
-  const farms = fabric.farms.filter(farm => {
+  const farms = fabric.farms.flatMap(farm => {
     const face = document.mesh.faces[farm.faceId];
-    if (!face || face.properties.settlement !== "outskirts") return true;
+    if (!face || face.properties.settlement !== "outskirts") return [farm];
     const center = polygonCentroid(farm.polygon);
     const near = nearest(center);
     if (
@@ -101,16 +101,44 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
       wallDistance(center) < near.road.clearance ||
       near.gateDistance < near.road.clearance
     )
-      return false;
-    const min = near.road.profile === "granary" ? 20 : 35;
+      return [];
+    const min = near.road.profile === "granary" ? 20 : 18;
     const max = near.road.profile === "granary" ? 155 : near.road.profile === "trade" ? 150 : 115;
-    return (
-      near.distance >= min &&
-      near.distance <= max &&
-      farm.polygon.every(
-        p => pointInPolygon(p, facePoints(document.mesh, face)) && wallDistance(p) >= near.road.clearance
-      )
-    );
+    if (near.distance < min || near.distance > max || !farm.polygon.every(p => wallDistance(p) >= near.road.clearance))
+      return [];
+    const garden = near.distance < 45 && near.road.profile !== "granary";
+    const road = near.road.points;
+    const nearestSegment = road
+      .slice(1)
+      .map((end, i) => ({
+        start: road[i],
+        end,
+        distance: nearestOnPolyline(center, [road[i], end]).dist
+      }))
+      .sort((a, b) => a.distance - b.distance)[0];
+    const dx = nearestSegment.end[0] - nearestSegment.start[0];
+    const dy = nearestSegment.end[1] - nearestSegment.start[1];
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-6) return [farm];
+    const normal: Point = [-dy / length, dx / length];
+    const values = farm.polygon.map(p => p[0] * normal[0] + p[1] * normal[1]);
+    const spacing = garden ? 2.7 : 4;
+    const rows: Point[][] = [];
+    for (let offset = Math.min(...values) + spacing; offset < Math.max(...values) - spacing / 2; offset += spacing) {
+      const ends = chord(farm.polygon, normal, offset);
+      if (!ends) continue;
+      const span = Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]);
+      if (span < (garden ? 7 : 12)) continue;
+      const inset = Math.min(garden ? 1.5 : 0.8, span / 5);
+      const unit: Point = [(ends[1][0] - ends[0][0]) / span, (ends[1][1] - ends[0][1]) / span];
+      rows.push([
+        [ends[0][0] + unit[0] * inset, ends[0][1] + unit[1] * inset],
+        [ends[1][0] - unit[0] * inset, ends[1][1] - unit[1] * inset]
+      ]);
+    }
+    return rows.length >= 2
+      ? [{ ...farm, kind: garden ? ("kitchen-garden" as const) : ("open-field" as const), rows }]
+      : [];
   });
   return { ...fabric, buildings, farms, lanes: fabric.lanes.filter(lane => !outskirts(lane.faceId)) };
 }
