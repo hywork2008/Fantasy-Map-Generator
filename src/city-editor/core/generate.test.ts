@@ -18,7 +18,6 @@ import {
   generateStageOnDocument,
   generateUrbanPatchStep,
   generateWardStep,
-  randomSeed,
   riversForCount,
   type SiteConfig
 } from "./generate";
@@ -267,7 +266,11 @@ describe("generateStageOnDocument", () => {
 
         it("assigns wards to cells only at the ward stage", () => {
           const beforeWards = generateStageOnDocument(base, scenario, seed, S.streets);
-          expect(Object.values(beforeWards?.mesh.faces ?? {}).every(f => f.properties.ward === null)).toBe(true);
+          expect(
+            Object.values(beforeWards?.mesh.faces ?? {}).every(
+              f => f.properties.ward === null || f.properties.ward === "castle"
+            )
+          ).toBe(true);
           const warded = generateStageOnDocument(base, scenario, seed, S.wards);
           expect(Object.values(warded?.mesh.faces ?? {}).some(f => f.properties.ward !== null)).toBe(true);
         });
@@ -313,8 +316,8 @@ describe("generateStageOnDocument", () => {
   it("a different seed ⇒ a different plan, same map frame", () => {
     const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
     const plans = new Set<string>();
-    for (let i = 0; i < 6; i++) {
-      const out = generateStageOnDocument(base, scenario, randomSeed(), S.wards);
+    for (const seed of SEEDS) {
+      const out = generateStageOnDocument(base, scenario, seed, S.wards);
       expect(out?.frame).toEqual(base.frame);
       plans.add(JSON.stringify({ fg: out?.featureGroups, gates: out?.gates }));
     }
@@ -725,7 +728,7 @@ describe("generateGateStep — per-loop ④ gate-placement scrub", () => {
         expect(step.document, `gate ${idx} returned null`).not.toBeNull();
         if (!step.document) continue;
         expect(validate(step.document)).toEqual([]);
-        for (const gate of step.document.gates)
+        for (const gate of step.document.gates.filter(g => !g.ownerCastleId))
           expect(incidentEdges(step.document.mesh, gate.vertexId).length).toBeGreaterThanOrEqual(4);
         expect(step.document.frame).toEqual(base.frame);
       }

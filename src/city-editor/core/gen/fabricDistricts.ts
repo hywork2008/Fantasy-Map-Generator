@@ -103,6 +103,17 @@ export function resolveDistricts(document: CityDocument, plan?: FabricPlan): Fab
             (plan && !original)
           )
             continue;
+          // Another shared edge can be a bridge approach or a dead-end road.
+          // Joining around its tip would swallow that frontage into the union,
+          // leaving the entire far-bank district without a road entrance.
+          if (
+            other.boundary.some(ref => {
+              const shared = document.mesh.edges[ref.edgeId];
+              const neighbor = shared.leftFace === otherId ? shared.rightFace : shared.leftFace;
+              return blocked.has(shared.id) && !!neighbor && ids.includes(neighbor);
+            })
+          )
+            continue;
           if (!districtBoundary(document, [...ids, otherId])) continue;
           ids.push(otherId);
           pending.delete(otherId);
@@ -127,13 +138,13 @@ function landUse(face: Face): string {
 }
 
 export function createFabricPlan(document: CityDocument, seed: string): FabricPlan {
-  return { version: 4, seed, districts: resolveDistricts(document) };
+  return { version: document.buildingPattern === "medieval" ? 5 : 4, seed, districts: resolveDistricts(document) };
 }
 
 /** Derive the road-bounded v4 plan without mutating an open legacy document. */
 export function upgradeFabricPlan(document: CityDocument): FabricPlan | undefined {
   const plan = document.fabric;
-  if (!plan || plan.version === 4) return plan;
+  if (!plan || plan.version === 4 || plan.version === 5) return plan;
   const upgraded = createFabricPlan(document, plan.seed);
   if (plan.generation) upgraded.generation = plan.generation;
   return upgraded;
@@ -174,7 +185,8 @@ export function setDistrictParameters(
   faceId: Id,
   parameters: Partial<DistrictParameters>
 ): CityDocument | null {
-  if (document.gridKind !== "evolution" || !document.mesh.faces[faceId]) return null;
+  if ((document.gridKind !== "evolution" && document.buildingPattern !== "medieval") || !document.mesh.faces[faceId])
+    return null;
   const next = clone(document);
   next.fabric ??= createFabricPlan(next, "manual");
   next.fabric = upgradeFabricPlan(next)!;
@@ -184,6 +196,18 @@ export function setDistrictParameters(
   const p = { ...district.parameters, ...parameters };
   if (!validDistrictParameters(p)) return null;
   district.parameters = p;
+  return next;
+}
+
+/** Undoable display/generation choice. No mesh, road or ward edits are made. */
+export function setBuildingPattern(document: CityDocument, pattern: import("../types").BuildingPattern): CityDocument {
+  const next = clone(document);
+  next.buildingPattern = pattern;
+  if (next.fabric) {
+    next.fabric = upgradeFabricPlan(next)!;
+    next.fabric.version = pattern === "medieval" ? 5 : 4;
+    if (next.fabric.generation) next.fabric.generation.settings.buildingPattern = pattern;
+  } else if (pattern === "medieval") next.fabric = createFabricPlan(next, next.generationSeed ?? "medieval");
   return next;
 }
 
@@ -202,13 +226,18 @@ export function validDistrictParameters(p: DistrictParameters): boolean {
     Number.isFinite(p.laneWidth) &&
     p.laneWidth >= 1 &&
     p.laneWidth <= 12 &&
-    Number.isFinite(p.orientation)
+    Number.isFinite(p.orientation) &&
+    (p.composition === undefined || ["standard", "commercial", "warehouses", "estates"].includes(p.composition)) &&
+    (p.harborPreset === undefined || ["small", "dense", "warehouse"].includes(p.harborPreset)) &&
+    [p.sizeVariation, p.gardenAmount].every(v => v === undefined || (Number.isFinite(v) && v >= 0 && v <= 1)) &&
+    (p.parcelCoverage === undefined ||
+      (Number.isFinite(p.parcelCoverage) && p.parcelCoverage >= 0.15 && p.parcelCoverage <= 0.9))
   );
 }
 
 export function validFabricPlan(plan: FabricPlan): boolean {
   if (
-    (plan?.version !== 2 && plan?.version !== 3 && plan?.version !== 4) ||
+    (plan?.version !== 2 && plan?.version !== 3 && plan?.version !== 4 && plan?.version !== 5) ||
     typeof plan.seed !== "string" ||
     !Array.isArray(plan.districts)
   )
@@ -235,11 +264,12 @@ export function validFabricPlan(plan: FabricPlan): boolean {
   const g = plan.generation,
     config = g.settings?.config;
   return (
-    g.algorithm === "evolution-city-v3" &&
+    ["evolution-city-v3", "castle-city-v1"].includes(g.algorithm) &&
     (g.settings?.walledAreaShare === undefined ||
       (Number.isFinite(g.settings.walledAreaShare) &&
         g.settings.walledAreaShare >= 0.05 &&
         g.settings.walledAreaShare <= 1)) &&
+    (g.settings?.buildingPattern === undefined || ["legacy", "medieval"].includes(g.settings.buildingPattern)) &&
     typeof g.seed === "string" &&
     !!g.input &&
     !!config &&

@@ -23,8 +23,12 @@ export interface FarmPlot {
   faceId: Id;
   polygon: Point[];
   rows: Point[][];
+  kind?: "open-field" | "kitchen-garden";
 }
 export interface CityFabric {
+  parcels?: import("./parcelTypes").ParcelPlan[];
+  openSpaces?: import("./parcelTypes").OpenSpace[];
+  harbor?: import("./harborFabric").HarborPlan;
   farms?: FarmPlot[];
   buildings: BuildingLot[];
   lanes: InfillLane[];
@@ -117,7 +121,13 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
   }
   const land = new Set(
     Object.values(mesh.faces)
-      .filter(f => f.properties.water === "land" && f.properties.buildable && f.properties.ward !== "farm")
+      .filter(
+        f =>
+          f.properties.water === "land" &&
+          f.properties.buildable &&
+          f.properties.ward !== "farm" &&
+          !(document.castles?.length && f.properties.ward === "castle")
+      )
       .map(f => f.id)
   );
   const edgeMid = (id: Id) => mid(mesh.vertices[mesh.edges[id].a].point, mesh.vertices[mesh.edges[id].b].point);

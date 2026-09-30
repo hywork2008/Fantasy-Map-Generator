@@ -7,7 +7,7 @@
 // the shape. ~8 control points keeps the corridor's intent (chord, mouth, big
 // bends) while leaving the fine shape to the graph.
 
-import { azimuthToVec } from "../geom";
+import { azimuthToVec, polylineCrossesSegment } from "../geom";
 import type { CityGeography, CityParams, CityProgram, Point, WallPlan } from "../types";
 import { DEFAULT_WALL_PLAN } from "../types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
@@ -167,11 +167,24 @@ function extractRivers(site: BurgSiteDescriptor): CityGeography["rivers"] {
             widths.push(seg.widthsMeters[i] ?? r.widthMeters);
           }
         }
+        const corridor = downsample(pts, RIVER_CORRIDOR_POINTS);
+        const roadCrosses =
+          r.crossesSite &&
+          (site.suggestedArchetype === "riverCrossing" ||
+            site.roads
+              .filter(road => road.group !== "searoutes" && road.path.length >= 2)
+              .some(road => {
+                for (let i = 0; i < road.path.length - 1; i++) {
+                  if (polylineCrossesSegment(corridor, road.path[i] as Point, road.path[i + 1] as Point)) return true;
+                }
+                return false;
+              }));
         return {
-          corridor: downsample(pts, RIVER_CORRIDOR_POINTS),
+          corridor,
           widths: downsampleScalars(widths, RIVER_CORRIDOR_POINTS),
           cityBank: r.cityBank,
-          bridgeAllowed: r.widthMeters <= (site.transport?.maxBridgeSpanMeters ?? MAX_LEGACY_BRIDGE_SPAN_METERS),
+          bridgeAllowed:
+            roadCrosses || r.widthMeters <= (site.transport?.maxBridgeSpanMeters ?? MAX_LEGACY_BRIDGE_SPAN_METERS),
           joinsWater: r.downstream.terminal === "ocean" || r.downstream.terminal === "lake"
         };
       })

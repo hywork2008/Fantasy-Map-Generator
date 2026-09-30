@@ -1,12 +1,14 @@
+import { circuitRing, polygonOverlaps } from "../fortifications";
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
+import { buildMedievalFabric, medievalStreetDocument } from "./medievalFabric";
 import { openFieldPlots } from "./openField";
 import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
 import {
@@ -14,6 +16,7 @@ import {
   bramPeripheryBufferMeters,
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
+import { shapeSuburbanFabric } from "./suburbanLanduse";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
@@ -40,11 +43,36 @@ function distToSegment(p: Point, a: Point, b: Point): number {
 }
 
 function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
-  return { ...fabric, buildings: relieveGatePlazaBuildings(document, fabric.buildings) };
+  fabric = shapeSuburbanFabric(document, fabric);
+  const reserved = (document.defenseCircuits ?? [])
+    .filter(c => c.scope === "castle")
+    .map(c => circuitRing(document, c));
+  return {
+    ...fabric,
+    buildings: relieveGatePlazaBuildings(
+      document,
+      fabric.buildings.filter(b => !reserved.some(r => polygonOverlaps(b.polygon, r)))
+    ),
+    lanes: fabric.lanes.filter(
+      l =>
+        !reserved.some(
+          r =>
+            l.points.some(p => pointInPolygon(p, r)) ||
+            l.points.slice(1).some((p, i) => segmentInteriorInPolygon(l.points[i], p, r))
+        )
+    )
+  };
 }
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
+  if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
+    return buildMedievalFabric(document, buildLegacyBlockFabric(medievalStreetDocument(document), cache));
+  }
+  return buildLegacyBlockFabric(document, cache);
+}
+
+function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): DistrictFabric {
   const layout =
     document.layout ??
     document.fabric?.generation?.settings?.layout ??
@@ -251,7 +279,11 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
             return e ? [e.id] : [];
           })
         : group.segments.map(s => s.edgeId);
-    for (const id of ids) setbacks.set(id, Math.max(setbacks.get(id) ?? 8, group.style.widthMeters / 2 + 4));
+    // Farm frontage follows the same narrow road-edge gap as roadside houses.
+    const setback = group.style.widthMeters / 2 + (group.kind === "road" ? 0.35 : 4);
+    for (const id of ids) {
+      setbacks.set(id, Math.max(setbacks.get(id) ?? 0, group.kind === "road" ? setback : Math.max(8, setback)));
+    }
   }
   for (const district of districts) {
     const face = merged.mesh.faces[district.id];
@@ -271,7 +303,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       );
     });
     const key = JSON.stringify([
-      "farm-v3",
+      "farm-v5",
       district.id,
       outline,
       district.parameters,
@@ -302,7 +334,8 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
         const rows = field.rows.filter(
           row => !nearby.some(river => row.some(p => nearestOnPolyline(p, river.points).dist < river.width / 2 + 4))
         );
-        if (rows.length >= 2) plots.push({ faceId: district.faceIds[0], polygon: field.polygon, rows });
+        if (rows.length >= 2)
+          plots.push({ faceId: owner(district.id, polygonCentroid(field.polygon)), polygon: field.polygon, rows });
       }
     }
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });

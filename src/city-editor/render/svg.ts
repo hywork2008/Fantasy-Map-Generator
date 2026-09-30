@@ -1,9 +1,24 @@
 import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
+import {
+  boundaryEdges,
+  boundaryRings,
+  castleWallIds,
+  circuitRing,
+  reservedCastleFaces,
+  wallRunsOutsideGates
+} from "../core/fortifications";
+import {
+  approachBeyondAnchor,
+  approachBeyondLabel,
+  externalRoadLabels,
+  normalizeApproachBeyond
+} from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
-import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../core/gen/geom";
+import { farmSheds } from "../core/gen/farmSheds";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
@@ -139,6 +154,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(cells);
 
+  let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   if (town) {
     const buildings = element("g", {
       class: "ce-buildings",
@@ -146,23 +162,29 @@ export function renderEditorSvg(
     });
     mark("svg-base");
     const fabric =
+      document.buildingPattern === "medieval" ||
+      document.fabric?.version === 5 ||
       document.gridKind === "evolution" ||
       document.layout === "circulade" ||
       document.layout === "bram" ||
       document.layout === "classic"
         ? buildBlockFabric(document)
         : null;
+    townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
       fabric.farms.forEach((farm, index) => {
         const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
+        const garden = farm.kind === "kitchen-garden";
         farms.appendChild(
           element("path", {
-            d: polygon(farm.polygon),
-            fill: tone ? "#d4ceb2" : "#c4bf9a",
-            stroke: "#8f8a74",
-            "stroke-width": "0.6",
+            d: roundedFarmPolygon(farm.polygon),
+            fill: garden ? (tone ? "#bccd9c" : "#aec392") : tone ? "#d4ceb2" : "#c4bf9a",
+            stroke: garden ? "#536c45" : "#8f8a74",
+            "stroke-width": garden ? "1.8" : "0.6",
+            "stroke-dasharray": garden ? "3 1.2" : "none",
+            class: garden ? "ce-kitchen-garden" : "ce-open-field",
             "data-farm-face": farm.faceId
           })
         );
@@ -170,13 +192,75 @@ export function renderEditorSvg(
           element("path", {
             d: farm.rows.map(row => line(row)).join(" "),
             fill: "none",
-            stroke: "#5e5948",
-            "stroke-width": "0.65",
+            stroke: garden ? "#617b4d" : "#5e5948",
+            "stroke-width": garden ? "0.8" : "0.65",
             class: "ce-farm-rows"
           })
         );
       });
       svg.appendChild(farms);
+      if (!hideBuildings) {
+        const sheds = element("g", { class: "ce-farm-sheds", "pointer-events": "none" });
+        for (const shed of farmSheds(document, fabric.farms, lots)) {
+          sheds.appendChild(
+            element("path", {
+              d: polygon(shed.polygon),
+              fill: "#796b55",
+              stroke: "#4a4336",
+              "stroke-width": "0.6",
+              class: "ce-farm-shed",
+              "data-farm-face": shed.faceId
+            })
+          );
+        }
+        svg.appendChild(sheds);
+      }
+      if (!hideBuildings && fabric.openSpaces?.length) {
+        const spaces = element("g", { class: "ce-open-spaces", "pointer-events": "none" });
+        const green = new Set(["kitchen-garden", "formal-garden"]);
+        for (const space of fabric.openSpaces) {
+          spaces.appendChild(
+            element("path", {
+              d: polygon(space.polygon),
+              class: `ce-open-space ce-open-space--${space.kind}`,
+              fill: green.has(space.kind) ? "#c4c6aa" : space.kind === "courtyard" ? "#ddd6c5" : "#d5cfbf",
+              stroke: green.has(space.kind) ? "#a0a58a" : "none",
+              "stroke-width": "0.25",
+              "data-space-kind": space.kind,
+              "data-parcel": space.parcelId ?? "",
+              "data-space-access": space.access
+            })
+          );
+          // A few garden beds read at town scale without detailed roof or shadow rendering.
+          if (green.has(space.kind) && Math.abs(polygonArea(space.polygon)) > 35 && zoom >= 0.7) {
+            const c = polygonCentroid(space.polygon);
+            spaces.appendChild(
+              element("circle", {
+                cx: String(c[0]),
+                cy: String(-c[1]),
+                r: "1.3",
+                fill: "#87966d",
+                class: "ce-garden-plant"
+              })
+            );
+          }
+        }
+        for (const parcel of fabric.parcels ?? [])
+          for (const access of parcel.access) {
+            if (access.widthMeters < 2) continue;
+            spaces.appendChild(
+              element("path", {
+                d: line(access.points),
+                class: "ce-parcel-access",
+                fill: "none",
+                stroke: "#d5cfbf",
+                "stroke-width": String(access.widthMeters),
+                "data-parcel": parcel.id
+              })
+            );
+          }
+        svg.appendChild(spaces);
+      }
       // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
       // the ground colour still reads as the gap between them.
       if (!hideStreetLines) {
@@ -223,13 +307,18 @@ export function renderEditorSvg(
     mark("buildings", { buildings: lots.length });
     if (!hideBuildings) {
       for (const lot of lots) {
-        const bldId = `bld-${lot.faceId}`;
+        const bldId = lot.parcelId ?? `bld-${lot.faceId}`;
         const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
         const pickInfo: SvgPickInfo = {
           layer: "buildings",
           kind: "building",
           id: bldId,
-          label: `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+          label: lot.archetype
+            ? `${lot.archetype} · ${lot.role} · ${Math.round(Math.abs(polygonArea(lot.polygon)))} m²`
+            : `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+          ...(lot.parcelId
+            ? { parcelId: lot.parcelId, archetype: lot.archetype, role: lot.role, uses: lot.uses, storeys: lot.storeys }
+            : {}),
           ward: document.mesh.faces[lot.faceId].properties.ward,
           faceId: lot.faceId,
           landmark: !!lot.landmark
@@ -238,6 +327,9 @@ export function renderEditorSvg(
           d: polygon(lot.polygon),
           class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           "data-building-face": lot.faceId,
+          ...(lot.parcelId
+            ? { "data-parcel": lot.parcelId, "data-archetype": lot.archetype!, "data-building-role": lot.role! }
+            : {}),
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
         });
         if (tool === "select") bldNode.style.cursor = "pointer";
@@ -272,6 +364,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(edges);
 
+  svg.appendChild(renderCastles(document, selection.inspectedId));
   const features = element("g", { class: "ce-features" });
   const order = { wall: 0, river: 1, road: 2, plank: 3 };
   const renderGroups = town
@@ -290,7 +383,7 @@ export function renderEditorSvg(
     if (points.length < 2) continue;
     // A generated bridge group is only the mesh span. Town view replaces it
     // with a deck as long as the river. Other roads stop at the bank.
-    let runs = [points];
+    let runs = group.kind === "wall" ? wallRunsOutsideGates(document, points) : [points];
     if (town && group.kind === "road") {
       if (group.id.startsWith("gc:bridge-")) runs = [];
       else {
@@ -298,16 +391,18 @@ export function renderEditorSvg(
         if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
       }
     }
+    const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
       id: group.id,
-      label: `${group.kind} (${group.name})`,
+      label: beyondLabel ? `${group.kind} (${group.name} · ${beyondLabel})` : `${group.kind} (${group.name})`,
       name: group.name,
       locked: group.locked,
       widthMeters: group.style.widthMeters,
       color: group.style.color,
-      segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length
+      segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
+      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {})
     };
     for (const run of runs) {
       if (run.length < 2) continue;
@@ -341,6 +436,61 @@ export function renderEditorSvg(
         })
       );
     }
+  }
+  const beyondFont = selectionLabelFontSize(document.frame.extentMeters, zoom);
+  for (const exit of externalRoadLabels(document)) {
+    const road = exit.destinations[0];
+    const beyondLabel = approachBeyondLabel(road.group.beyond);
+    const norm = normalizeApproachBeyond(road.group.beyond);
+    if (!beyondLabel || !norm) continue;
+    const at = approachBeyondAnchor(road.outward, document.frame.extentMeters / 2);
+    const label = element(
+      "text",
+      {
+        class: "ce-approach-beyond",
+        x: String(at[0]),
+        y: String(-at[1]),
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+        "font-size": String(beyondFont),
+        fill: norm.realm.relation === "Enemy" ? "#7e2217" : norm.realm.relation === "Ally" ? "#1e5c22" : "#2c261f",
+        stroke: "#f4f0e6",
+        "stroke-width": String(beyondFont / 8),
+        "paint-order": "stroke",
+        "pointer-events": "none",
+        "data-group": road.group.id,
+        "data-groups": exit.roads.map(item => item.group.id).join(" "),
+        "data-beyond": typeof road.group.beyond === "string" ? road.group.beyond : norm.realm.relation,
+        "data-beyond-relation": norm.realm.relation,
+        "data-beyond-scale": norm.settlement.scale,
+        "data-beyond-role": norm.settlement.role ?? "generic"
+      },
+      exit.destinations.length === 1 ? beyondLabel : undefined
+    );
+    if (exit.destinations.length > 1) {
+      const lines = ["街道の先で分岐", ...exit.destinations.map(item => approachBeyondLabel(item.group.beyond)!)];
+      const step = beyondFont * 1.3;
+      const top = Math.max(
+        -document.frame.extentMeters / 2 + step,
+        Math.min(document.frame.extentMeters / 2 - lines.length * step, -at[1] - ((lines.length - 1) * step) / 2)
+      );
+      for (let i = 0; i < lines.length; i++) {
+        const value = i ? normalizeApproachBeyond(exit.destinations[i - 1].group.beyond) : undefined;
+        label.appendChild(
+          element(
+            "tspan",
+            {
+              x: String(at[0]),
+              y: String(top + i * step),
+              fill:
+                value?.realm.relation === "Enemy" ? "#7e2217" : value?.realm.relation === "Ally" ? "#1e5c22" : "#2c261f"
+            },
+            lines[i]
+          )
+        );
+      }
+    }
+    features.appendChild(label);
   }
   if (town) {
     for (const deck of bridgeDecks(document)) {
@@ -382,13 +532,14 @@ export function renderEditorSvg(
   }
   svg.appendChild(features);
   if (town) {
-    svg.appendChild(renderTownQuays(document));
+    svg.appendChild(renderTownQuays(document, townHarbor));
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
   }
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
   const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
   for (const face of Object.values(document.mesh.faces)) {
+    if (reservedCastleFaces(document).has(face.id)) continue;
     const marker = renderFaceWardLandmark(document.mesh, face);
     if (marker && !town) wardLandmarks.appendChild(marker);
   }
@@ -556,60 +707,87 @@ export function renderEditorSvg(
   return svg;
 }
 
-function renderTownQuays(document: CityDocument): SVGGElement {
+function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/harborFabric").HarborPlan): SVGGElement {
   const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
-  const harbor = document.elements.find(entry => entry.kind === "harbor");
-  if (!harbor) return layer;
-  // A solid sea wall is masonry, not a river bank. Piers belong only on an
-  // unwalled edge of the harbour itself — otherwise every sea-front cell grows
-  // a span that reads as a bridge into the water.
-  const harborFaces = new Set(harbor.faceIds);
-  const walled = new Set(
-    document.featureGroups.flatMap(group =>
-      group.kind === "wall" ? group.segments.map(segment => segment.edgeId) : []
-    )
-  );
-  const harborLand = (faceId: Id | null): boolean => {
-    if (!faceId || !document.mesh.faces[faceId]) return false;
-    if (harborFaces.has(faceId)) return true;
-    return document.mesh.faces[faceId].boundary.some(ref => {
-      const edge = document.mesh.edges[ref.edgeId];
-      const other = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
-      return !!other && harborFaces.has(other);
-    });
-  };
-  let best: { a: Point; b: Point; waterRing: Point[]; length: number } | null = null;
-  let bestDist = Infinity;
-  const harborPoint = harbor.point;
+  if (harbor) {
+    for (const pier of harbor.piers)
+      layer.appendChild(
+        element("path", {
+          d: polygon(pier.polygon),
+          class: "ce-pier",
+          "data-water-face": pier.waterFaceId,
+          "data-depth-m": String(pier.depth),
+          fill: "#d5cfbf",
+          stroke: "#514f45",
+          "stroke-width": "0.6"
+        })
+      );
+    return layer;
+  }
+  // One shoreline per sea cell; a manually assigned ward needs no landmark.
+  const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number }>();
   for (const edge of Object.values(document.mesh.edges)) {
-    if (walled.has(edge.id)) continue;
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
-    if (!left || !right || (left.properties.water === "land") === (right.properties.water === "land")) continue;
+    if (!left || !right) continue;
     const land = left.properties.water === "land" ? left : right;
     const water = land === left ? right : left;
-    if (!land.properties.buildable || water.properties.water !== "sea" || !harborLand(land.id)) continue;
+    if (land.properties.water !== "land" || land.properties.ward !== "harbor" || water.properties.water !== "sea")
+      continue;
+    const depth = water.properties.depth ?? 3;
+    if (!Number.isFinite(depth) || depth < 3) continue;
     const a = document.mesh.vertices[edge.a].point;
     const b = document.mesh.vertices[edge.b].point;
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (length < 1) continue;
-    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const dist = harborPoint ? Math.hypot(mid[0] - harborPoint[0], mid[1] - harborPoint[1]) : 0;
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = { a, b, waterRing: facePoints(document.mesh, water), length };
+    if (length < 10 || length <= (shores.get(water.id)?.length ?? 0)) continue;
+    shores.set(water.id, { a, b, ring: facePoints(document.mesh, water), length, depth });
+  }
+  for (const [waterId, { a, b, ring, length, depth }] of shores) {
+    const center = polygonCentroid(ring);
+    const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    let normal: Point = [-tangent[1], tangent[0]];
+    if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+    const count = length >= 35 ? 3 : 2;
+    const width = Math.min(3, length / (count * 5));
+    for (let i = 0; i < count; i++) {
+      const t = (i + 1) / (count + 1);
+      const start: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      // Stop within the receiving cell, so a pier never becomes a bridge.
+      let reach = 0;
+      const desired = Math.min(26, length * (0.4 + (i % 2) * 0.06));
+      for (let d = 0.5; d <= desired; d += 0.5) {
+        if (
+          ![-1, 0, 1].every(side =>
+            pointInPolygon(
+              [
+                start[0] + normal[0] * d + (tangent[0] * width * side) / 2,
+                start[1] + normal[1] * d + (tangent[1] * width * side) / 2
+              ],
+              ring
+            )
+          )
+        )
+          break;
+        reach = d;
+      }
+      if (reach < 3) continue;
+      const deck = (along: number, side: number): Point => [
+        start[0] + normal[0] * along + (tangent[0] * width * side) / 2,
+        start[1] + normal[1] * along + (tangent[1] * width * side) / 2
+      ];
+      layer.appendChild(
+        element("path", {
+          d: polygon([deck(0, -1), deck(reach, -1), deck(reach, 1), deck(0, 1)]),
+          class: "ce-pier",
+          "data-water-face": waterId,
+          "data-depth-m": String(depth),
+          fill: "#d5cfbf",
+          stroke: "#514f45",
+          "stroke-width": "0.6"
+        })
+      );
     }
   }
-  if (!best) return layer;
-  const { a, b, waterRing, length } = best;
-  const center = polygonCentroid(waterRing);
-  let normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
-  if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
-  const start: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const end: Point = [start[0] + normal[0] * 18, start[1] + normal[1] * 18];
-  if (!pointInPolygon(end, waterRing)) return layer;
-  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#514f45", "stroke-width": "4" }));
-  layer.appendChild(element("path", { d: line([start, end]), fill: "none", stroke: "#c2bdad", "stroke-width": "2.5" }));
   return layer;
 }
 
@@ -628,10 +806,63 @@ function renderTownFortifications(
       points: g.vertices.map(id => document.mesh.vertices[id].point),
       width: g.style.widthMeters
     }));
+  const cornerTowers: Point[] = [];
+  const cornerIds = new Set<Id>();
+  for (const circuit of document.defenseCircuits ?? []) {
+    if (circuit.scope !== "castle") continue;
+    const refs = boundaryRings(document.mesh, boundaryEdges(document.mesh, circuit.areaFaceIds))[0] ?? [];
+    const points = refs.map(
+      ref =>
+        document.mesh.vertices[ref.forward ? document.mesh.edges[ref.edgeId].a : document.mesh.edges[ref.edgeId].b]
+          .point
+    );
+    for (let i = 0; i < refs.length; i++) {
+      const ref = refs[i],
+        edge = document.mesh.edges[ref.edgeId],
+        id = ref.forward ? edge.a : edge.b;
+      if (cornerIds.has(id)) continue;
+      const p = points[i],
+        a = points[(i + points.length - 1) % points.length],
+        b = points[(i + 1) % points.length];
+      const u: Point = [p[0] - a[0], p[1] - a[1]],
+        v: Point = [b[0] - p[0], b[1] - p[1]];
+      const turn = Math.acos(
+        Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (Math.hypot(...u) * Math.hypot(...v))))
+      );
+      if (
+        turn < Math.PI / 6 ||
+        document.gates.some(
+          g =>
+            Math.hypot(
+              document.mesh.vertices[g.vertexId].point[0] - p[0],
+              document.mesh.vertices[g.vertexId].point[1] - p[1]
+            ) < 14
+        )
+      )
+        continue;
+      if (cornerTowers.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 12)) continue;
+      const wall = document.featureGroups.find(g => g.kind === "wall" && g.segments.some(r => r.edgeId === ref.edgeId));
+      if (!wall) continue;
+      const towerId = `castle-tower-${id}`,
+        pick = { layer: "fortifications", kind: "tower", id: towerId, label: "城の隅塔", wallId: wall.id, point: p };
+      layer.appendChild(
+        element("circle", {
+          cx: String(p[0]),
+          cy: String(-p[1]),
+          r: String(wall.style.widthMeters * 1.05),
+          fill: "#292a26",
+          class: inspectedId === towerId ? "ce-is-selected cg-is-selected" : "",
+          "data-pick": encodeURIComponent(JSON.stringify(pick))
+        })
+      );
+      cornerIds.add(id);
+      cornerTowers.push(p);
+    }
+  }
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
     const points = edgeGroupPoints(document, group.segments);
-    const spacing = Math.max(45, document.frame.blockSizeMeters * 1.4);
+    const spacing = castleWallIds(document).has(group.id) ? 32 : Math.max(45, document.frame.blockSizeMeters * 1.4);
     let untilTower = spacing / 2;
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1];
@@ -641,6 +872,10 @@ function renderTownFortifications(
         const t = untilTower / length;
         const position: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
         if (rivers.some(r => nearestOnPolyline(position, r.points).dist < r.width / 2 + group.style.widthMeters)) {
+          untilTower += spacing;
+          continue;
+        }
+        if (cornerTowers.some(p => Math.hypot(p[0] - position[0], p[1] - position[1]) < 16)) {
           untilTower += spacing;
           continue;
         }
@@ -697,7 +932,7 @@ function renderTownFortifications(
     const side = width * GATE_TOWER_SCALE;
     const deviation = gateRoadDeviationDegrees(document, gate.vertexId) ?? 0;
     const slant = Math.tan((Math.min(deviation, 20) * Math.PI) / 180);
-    const opening = Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
+    const opening = gate.passageWidthMeters ?? Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
     const plazaRadius = gatePlazaRadiusMeters(width);
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
@@ -717,7 +952,7 @@ function renderTownFortifications(
       "data-pick": encodeURIComponent(JSON.stringify(gatePickInfo))
     });
     if (tool === "select") marker.style.cursor = "pointer";
-    for (const sweep of [1, 0])
+    for (const sweep of gate.ownerCastleId ? [] : [1, 0])
       marker.appendChild(
         element("path", {
           d: `M ${-plazaRadius} 0 A ${plazaRadius} ${plazaRadius} 0 0 ${sweep} ${plazaRadius} 0 Z`,
@@ -1042,6 +1277,34 @@ function polygon(points: Point[]): string {
   return `${line(points)} Z`;
 }
 
+/** Soften field corners without moving the underlying parcel or its furrows. */
+function roundedFarmPolygon(points: Point[]): string {
+  if (points.length < 3) return polygon(points);
+  const corners = points.map((point, index) => {
+    const previous = points[(index + points.length - 1) % points.length];
+    const next = points[(index + 1) % points.length];
+    const before = Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+    const after = Math.hypot(next[0] - point[0], next[1] - point[1]);
+    const radius = Math.min(3, before * 0.18, after * 0.18);
+    const entry: Point = before
+      ? [
+          point[0] + ((previous[0] - point[0]) * radius) / before,
+          point[1] + ((previous[1] - point[1]) * radius) / before
+        ]
+      : point;
+    const exit: Point = after
+      ? [point[0] + ((next[0] - point[0]) * radius) / after, point[1] + ((next[1] - point[1]) * radius) / after]
+      : point;
+    return { point, entry, exit };
+  });
+  const start = corners[0].entry;
+  return `M${start[0]} ${-start[1]} ${corners
+    .map(({ point, exit }, index) => {
+      return `Q${point[0]} ${-point[1]} ${exit[0]} ${-exit[1]} L${corners[(index + 1) % corners.length].entry[0]} ${-corners[(index + 1) % corners.length].entry[1]}`;
+    })
+    .join(" ")} Z`;
+}
+
 function line(points: Point[]): string {
   return points.map((point, index) => `${index ? "L" : "M"}${point[0]} ${-point[1]}`).join(" ");
 }
@@ -1191,6 +1454,7 @@ export const STANDALONE_SVG_STYLE = `
   .ce-face--land.ce-face--ward-market { fill: #edcf7a; }
   .ce-face--land.ce-face--ward-castle { fill: #bca7ce; }
   .ce-face--land.ce-face--ward-merchant { fill: #dfa184; }
+  .ce-face--land.ce-face--ward-patriciate { fill: #cab4d3; }
   .ce-face--land.ce-face--ward-craftsmen { fill: #d1a46e; }
   .ce-face--land.ce-face--ward-harbor { fill: #e3b66d; }
   .ce-face--land.ce-face--ward-park { fill: #99c187; }
@@ -1291,4 +1555,62 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
 export function serializeCitySvg(document: CityDocument): string {
   const svg = renderStandaloneCitySvg(document);
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(svg)}`;
+}
+
+function renderCastles(document: CityDocument, inspectedId?: string | number | null): SVGGElement {
+  const layer = element("g", { class: "ce-castles" }) as SVGGElement;
+  for (const castle of document.castles ?? []) {
+    const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
+    if (!circuit) continue;
+    const pick = {
+      layer: "fortifications",
+      kind: "castle",
+      id: castle.id,
+      label: `城 (${castle.form})`,
+      locked: castle.locked
+    };
+    const group = element("g", {
+      "data-pick": encodeURIComponent(JSON.stringify(pick)),
+      class: inspectedId === castle.id ? "ce-is-selected cg-is-selected" : "",
+      style: "cursor:pointer"
+    });
+    group.appendChild(
+      element("path", {
+        d: polygon(circuitRing(document, circuit)),
+        fill: "#d5cfbf",
+        "fill-opacity": "0.25",
+        stroke: "none"
+      })
+    );
+    for (const court of castle.courtyards)
+      group.appendChild(
+        element("path", { d: polygon(court), fill: "#d8cdb6", stroke: "#a7977f", "stroke-width": "0.6" })
+      );
+    for (const access of castle.accesses)
+      group.appendChild(
+        element("path", {
+          d: line(access.points),
+          fill: "none",
+          stroke: "#b7a78e",
+          "stroke-width": String(access.widthMeters),
+          "stroke-linejoin": "round"
+        })
+      );
+    for (const part of castle.parts) {
+      group.appendChild(
+        element("path", {
+          d: polygon(part.footprint),
+          fill: part.role === "keep" ? "#827364" : "#a49380",
+          stroke: "#4f463c",
+          "stroke-width": part.role === "keep" ? "2" : "1"
+        })
+      );
+      for (const entrance of part.entrances)
+        group.appendChild(
+          element("circle", { cx: String(entrance[0]), cy: String(-entrance[1]), r: "1.4", fill: "#e2d5be" })
+        );
+    }
+    layer.appendChild(group);
+  }
+  return layer;
 }

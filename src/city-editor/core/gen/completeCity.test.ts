@@ -3,6 +3,7 @@ import { renderStandaloneCitySvg } from "../../render/svg";
 import { bridgeDecks } from "../bridgeDeck";
 import { createGridDocument, createSizedDocument, parseDocument } from "../document";
 import { featureGroupVertices } from "../features";
+import { townGates } from "../fortifications";
 import { countExternalApproachRoads, defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import { facePoints, faceVertices, validate } from "../mesh";
@@ -14,6 +15,7 @@ import { orientedRectPolylineDistance, pointInOrientedRect, templeRectForElement
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { civicYardMeters } from "./housing";
 import { minExternalRoadsForExtent } from "./settlementExtent";
+import { connectUrbanRiverDistricts } from "./urbanBridges";
 
 function capeMicroCity(coast: "auto" | "open" | "seaWall" | "opening"): CityDocument | null {
   const input = createGridDocument({
@@ -113,6 +115,54 @@ function roughness(document: CityDocument, kind: "wall" | "road"): number {
 
 describe("complete editable city", () => {
   const base = createSizedDocument("small", "preview");
+  it("ends rivers and roads at their interior-side frame contact in the shared cape city", () => {
+    const grid = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "13k952u",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "cape";
+    settings.config.rivers = ["greatBend", "toCoast"];
+    settings.config.relief = true;
+    settings.config.features = { walls: true, citadel: true, plaza: false, temple: true, port: false, shanty: false };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    const city = generateCityOnDocument(grid, settings, "xtce12")!;
+    expect(city).not.toBeNull();
+    const rivers = city.featureGroups.filter(group => group.kind === "river");
+    expect(rivers).toHaveLength(2);
+    const half = city.frame.extentMeters / 2;
+    const onFrame = (p: Point) => Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - 0.05;
+    for (const id of new Set([...kindEdgeIds(city, "river"), ...kindEdgeIds(city, "road")])) {
+      const edge = city.mesh.edges[id];
+      const a = city.mesh.vertices[edge.a].point;
+      const b = city.mesh.vertices[edge.b].point;
+      expect(onFrame(a) && onFrame(b), `${edge.a} → ${edge.b}`).toBe(false);
+    }
+    expect(validate(city)).toEqual([]);
+    const bridge = city.featureGroups.find(group => group.id === "gc:bridge-district-0");
+    expect(bridge?.kind).toBe("road");
+    if (bridge?.kind === "road") {
+      const vertices = featureGroupVertices(city, bridge);
+      expect(vertexHasCrossing(city, vertices[1], "river", "road")).toBe(true);
+    }
+    const fabric = buildBlockFabric(city);
+    for (const id of ["f47", "f66"]) {
+      const face = city.mesh.faces[id];
+      expect(face.properties.buildable).toBe(true);
+      expect(
+        fabric.buildings.some(building =>
+          pointInPolygon(polygonCentroid(building.polygon), facePoints(city.mesh, face))
+        ),
+        `${id} has housing`
+      ).toBe(true);
+    }
+    expect(connectUrbanRiverDistricts(city, new Set(["gc:river-0", "gc:river-1"]))).toBe(city);
+    const isolated = { ...city, featureGroups: city.featureGroups.filter(group => !group.id.includes("district-")) };
+    expect(connectUrbanRiverDistricts(isolated, new Set())).toBe(isolated);
+  });
   it("retries a bay layout with an unusable crossing without weakening the crossing rules", () => {
     const grid = createGridDocument({ size: "small", grid: "hex", seed: "junction-check" });
     const settings = defaultGenerationSettings();
@@ -121,7 +171,7 @@ describe("complete editable city", () => {
     settings.config.features.port = true;
     const city = generateCityOnDocument(grid, settings, "junction-6")!;
     expect(city).not.toBeNull();
-    for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
+    for (const gate of townGates(city)) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
     expect(generateCityOnDocument(grid, settings, "junction-6")).toEqual(city);
   });
   for (const coast of ["none", "straight", "bay", "cape"] as const) {
@@ -299,14 +349,14 @@ describe("complete editable city", () => {
     expect(city).not.toBeNull();
     if (!city) return;
     expect(validate(city)).toEqual([]);
-    expect(city.gates).toHaveLength(2);
+    expect(townGates(city)).toHaveLength(2);
     const wall = city.featureGroups.find(group => group.kind === "wall");
     expect(wall?.kind).toBe("wall");
     if (wall?.kind !== "wall") return;
     const spacing = minGateSpacingMeters(wall.style.widthMeters);
-    const points = city.gates.map(gate => city.mesh.vertices[gate.vertexId].point);
+    const points = townGates(city).map(gate => city.mesh.vertices[gate.vertexId].point);
     expect(Math.hypot(points[0][0] - points[1][0], points[0][1] - points[1][1])).toBeGreaterThanOrEqual(spacing);
-    for (const gate of city.gates) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
+    for (const gate of townGates(city)) expect(vertexHasCrossing(city, gate.vertexId, "wall", "road")).toBe(true);
     expect(bridgeDecks(city)).toHaveLength(1);
     expect(renderStandaloneCitySvg(city).querySelectorAll(".ce-quays path")).toHaveLength(0);
 

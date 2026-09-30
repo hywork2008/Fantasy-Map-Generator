@@ -213,7 +213,8 @@ export function placeGates(
   urban: Set<number>,
   borders: BorderLoop[],
   geo: CityGeography,
-  maxGates?: number
+  maxGates?: number,
+  eligiblePoint: (point: Point) => boolean = () => true
 ): Gate[] {
   if (!borders.length) return [];
 
@@ -235,7 +236,9 @@ export function placeGates(
   const loopLength = borders.map(b => polylineLength([...b.points, b.points[0]]));
   const perLoop: Candidate[][] = borders.map((border, borderIndex) => {
     const arcs = cumulativeArcLengths(border.points);
-    const all = border.points.map((point, i) => ({ point, borderIndex, arc: arcs[i] }));
+    const all = border.points
+      .map((point, i) => ({ point, borderIndex, arc: arcs[i] }))
+      .filter(c => eligiblePoint(c.point));
     const corners = all.filter(c => (cornerVotes.get(qk(c.point)) ?? 0) >= 2);
     // A border too simple to have any real corner (rare, tiny blobs) falls
     // back to every vertex rather than producing zero gates.
@@ -280,7 +283,7 @@ export function placeGates(
     urban,
     borders,
     geo.rivers.map(river => river.corridor)
-  );
+  ).filter(gate => eligiblePoint(gate.point));
 }
 
 /**

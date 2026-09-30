@@ -44,6 +44,34 @@ export interface BurgSiteRiver {
   };
 }
 
+export interface BurgSiteRoadNextBurg {
+  id: number;
+  name: string;
+  distanceMeters: number;
+  stateId?: number;
+  stateName?: string;
+  isDomestic?: boolean;
+  diplomacyRelation?:
+    | "domestic"
+    | "Ally"
+    | "Friendly"
+    | "Neutral"
+    | "Suspicion"
+    | "Enemy"
+    | "Unknown"
+    | "Rival"
+    | "Vassal"
+    | "Suzerain";
+  population?: number;
+  scale?: "hamlet" | "village" | "town" | "city";
+  role?: "generic" | "granary" | "market" | "fortress" | "capital";
+  capital?: boolean;
+  walls?: boolean;
+  citadel?: boolean;
+  treasury?: number;
+  wealth?: number;
+}
+
 export interface BurgSiteRoadEntry {
   routeId: number;
   /** "roads" | "trails" | "searoutes". */
@@ -55,7 +83,7 @@ export interface BurgSiteRoadEntry {
   reachesEdge: boolean;
   /** Leg polyline from the town center outward, clipped to the window, local meters. */
   path: [number, number][];
-  nextBurg: { id: number; name: string; distanceMeters: number } | null;
+  nextBurg: BurgSiteRoadNextBurg | null;
 }
 
 export interface BurgSiteWaterbody {

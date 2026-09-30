@@ -148,7 +148,17 @@ describe("getBurgSiteDescriptor", () => {
     expect(east.entryAzimuthDeg).toBe(90);
     expect(east.group).toBe("roads");
     expect(east.reachesEdge).toBe(true);
-    expect(east.nextBurg).toEqual({ id: 2, name: "Eastville", distanceMeters: 20000 });
+    expect(east.nextBurg).toEqual(
+      expect.objectContaining({
+        id: 2,
+        name: "Eastville",
+        distanceMeters: 20000,
+        scale: "village",
+        role: "granary",
+        isDomestic: true,
+        diplomacyRelation: "domestic"
+      })
+    );
     expect(east.path[0]).toEqual([0, 0]);
 
     expect(west.entryAzimuthDeg).toBe(270);

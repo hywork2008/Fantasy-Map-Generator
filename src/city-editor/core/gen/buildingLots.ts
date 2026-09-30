@@ -1,3 +1,4 @@
+import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
 import { buildBlockFabric } from "./blockInfill";
 import { clipHalfPlane, insetConvexKernel, longestFrame } from "./lotGeometry";
 
@@ -16,6 +17,12 @@ export interface BuildingLot {
   faceId: Id;
   polygon: Point[];
   landmark: boolean;
+  id?: Id;
+  parcelId?: Id;
+  archetype?: import("./parcelTypes").ParcelArchetype;
+  role?: "main" | "wing" | "store" | "workshop" | "stable" | "shed";
+  uses?: Array<"residential" | "retail" | "storage" | "craft">;
+  storeys?: number;
 }
 
 interface RiverMargin {
@@ -28,6 +35,8 @@ interface RiverMargin {
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
 export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   if (
+    document.buildingPattern === "medieval" ||
+    document.fabric?.version === 5 ||
     document.gridKind === "evolution" ||
     document.layout === "circulade" ||
     document.layout === "bram" ||
@@ -66,6 +75,12 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {
+  if (
+    (document.defenseCircuits ?? [])
+      .filter(c => c.scope === "castle")
+      .some(c => polygonOverlaps(polygon, circuitRing(document, c)))
+  )
+    return true;
   const yard = civicYardMeters(document.frame.extentMeters);
   for (const element of document.elements) {
     if (element.kind === "temple" && element.point) {
@@ -102,6 +117,7 @@ function buildFaceLots(
   clearance: Map<Id, number>,
   rivers: RiverMargin[]
 ): BuildingLot[] {
+  if (reservedCastleFaces(document).has(face.id)) return [];
   const { water, ward, buildable } = face.properties;
   if (water !== "land" || !buildable || !ward || ward === "empty" || ward === "park" || ward === "farm") return [];
   if (document.elements.some(e => (e.kind === "plaza" || e.kind === "temple") && e.faceIds.includes(face.id)))

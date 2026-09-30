@@ -169,7 +169,7 @@ describe("wall capacity and extramural housing", () => {
   });
 
   for (const terrain of ["inland", "river", "coast"] as const) {
-    it(`large ${terrain}: most buildings and local lanes grow outside the core, with valid crossings and saved capacity`, () => {
+    it(`large ${terrain}: roadside outskirts stay sparse, with valid crossings and saved capacity`, () => {
       const seed = "phase2-reference";
       const input = createGridDocument({ size: "large", grid: "evolution", seed });
       const before = JSON.stringify(input);
@@ -184,11 +184,9 @@ describe("wall capacity and extramural housing", () => {
       expect(city.gates.length).toBeGreaterThan(0);
       const fabric = buildBlockFabric(city);
       const outer = fabric.buildings.filter(b => city.mesh.faces[b.faceId].properties.settlement === "outskirts");
-      // Core plots are Tiny-scale and fully terraced, so they hold more houses
-      expect(outer.length / fabric.buildings.length).toBeGreaterThan(0.5);
-      expect(
-        fabric.lanes.filter(l => city.mesh.faces[l.faceId].properties.settlement === "outskirts").length
-      ).toBeGreaterThan(100);
+      expect(outer.length).toBeGreaterThan(0);
+      expect(outer.length / fabric.buildings.length).toBeLessThan(0.2);
+      expect(fabric.lanes.filter(l => city.mesh.faces[l.faceId].properties.settlement === "outskirts").length).toBe(0);
       expect(settledArea(city, "core") / settledArea(city)).toBeLessThan(0.3);
       expect(city.fabric!.generation!.settings.walledAreaShare).toBe(0.2);
       const loaded = parseDocument(JSON.stringify(city))!;

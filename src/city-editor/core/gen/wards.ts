@@ -199,7 +199,9 @@ export function assignWards(input: WardInputs): WardResult {
       params.extentMeters,
       templeRng,
       input.streets ?? [],
-      input.rivers ?? []
+      input.rivers ?? [],
+      program.walls ? borders.map(border => [...border.points, border.points[0]]) : [],
+      sea
     );
     if (temple) {
       extraPrecincts.push(temple);
@@ -437,7 +439,9 @@ function placeTemple(
   extentMeters: number,
   rng: Rng,
   streets: Point[][],
-  rivers: Point[][]
+  rivers: Point[][],
+  walls: Point[][],
+  sea: Set<number>
 ): Precinct | null {
   const placed = placeTempleFootprint(
     cells,
@@ -449,7 +453,9 @@ function placeTemple(
     cellSize,
     capital,
     streets,
-    rivers
+    rivers,
+    walls,
+    sea
   );
   // Keep the temple RNG stream in the contract even when capital adds no cell.
   rng();

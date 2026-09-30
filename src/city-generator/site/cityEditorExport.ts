@@ -24,6 +24,7 @@ interface EditorMesh {
       site: Point;
       properties: {
         elevation: number;
+        depth?: number;
         water: "land" | "sea";
         ward: EditorWard | null;
         buildable: boolean;
@@ -216,6 +217,7 @@ class EditorMeshBuilder {
       site: copyPoint(cell.site),
       properties: {
         elevation: sea ? 0 : 1,
+        ...(sea ? { depth: 3 } : {}),
         water: sea ? "sea" : "land",
         ward: editorWard(ward),
         buildable: !sea && tag !== "rural",

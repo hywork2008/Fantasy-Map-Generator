@@ -4,11 +4,11 @@
 // 2. Continuous row houses (maisons mitoyennes, 3-6 lots contiguous along the circumference).
 // 3. Radial venelles (alleys) between house clusters and ring street gaps serving as roads.
 
+import { circuitRing } from "../fortifications";
 import { facePoints } from "../mesh";
 import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types";
 import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import type { BlockBoundary, PerimeterFabric } from "./perimeterBlocks";
-import { makeRng } from "./prng";
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
@@ -21,7 +21,7 @@ export function buildCirculadeBlocks(
   outline: Point[],
   boundaries: BlockBoundary[],
   parameters: DistrictParameters | undefined,
-  seed: string,
+  _seed: string,
   build: boolean,
   hub: Point = [0, 0]
 ): PerimeterFabric {
@@ -34,8 +34,6 @@ export function buildCirculadeBlocks(
     }
   }
   if (!build || outline.length < 3) return fabric;
-
-  const _rng = makeRng(`${seed}:circulade-fabric:${face.id}`);
 
   // Calculate face center angle relative to hub for unwrapping
   const fCentroid = polygonCentroid(outline);
@@ -210,8 +208,23 @@ export interface CirculadeTownOptions {
 }
 
 function extractWallLoop(document: CityDocument): { poly: Point[]; edges: [Point, Point][] } {
+  const town = document.defenseCircuits?.find(c => c.scope === "town");
+  if (town) {
+    // Castle installation splits the town curtain into several wall groups.
+    // The circuit's area remains the complete town boundary, including natural barriers.
+    const poly = circuitRing(document, town);
+    const edges: [Point, Point][] = document.featureGroups.flatMap(group =>
+      group.kind === "wall" && town.wallGroupIds.includes(group.id)
+        ? group.segments.map(ref => {
+            const edge = document.mesh.edges[ref.edgeId];
+            return [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point] as [Point, Point];
+          })
+        : []
+    );
+    return { poly, edges };
+  }
   const wall = document.featureGroups.find(g => g.kind === "wall");
-  if (!wall || wall.segments.length === 0) return { poly: [], edges: [] };
+  if (wall?.kind !== "wall" || wall.segments.length === 0) return { poly: [], edges: [] };
   const mesh = document.mesh;
   const rawEdges: [Point, Point][] = wall.segments.map(s => {
     const e = mesh.edges[s.edgeId];
@@ -242,7 +255,7 @@ function extractWallLoop(document: CityDocument): { poly: Point[]; edges: [Point
   }
   const isClosed =
     Math.hypot(chain[0][0] - chain[chain.length - 1][0], chain[0][1] - chain[chain.length - 1][1]) < 1e-3;
-  const poly = isClosed ? chain.slice(0, -1) : chain;
+  const poly = isClosed ? chain.slice(0, -1) : [];
   return { poly, edges: rawEdges };
 }
 
@@ -257,9 +270,15 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
   const hub = options.hub;
 
   // 1. City wall boundary and setback
-  const wall = document.featureGroups.find(g => g.kind === "wall");
+  const town = document.defenseCircuits?.find(c => c.scope === "town");
+  const walls = document.featureGroups.filter(g => g.kind === "wall" && (!town || town.wallGroupIds.includes(g.id)));
   const { poly: wallPoly, edges: wallEdges } = extractWallLoop(document);
-  const wallSetback = (wall?.style?.widthMeters ?? 7.0) / 2 + 2.5;
+  const wallWidth = town
+    ? walls.length
+      ? Math.max(...walls.map(w => w.style?.widthMeters ?? 7.0))
+      : 7.0
+    : (walls[0]?.style?.widthMeters ?? 7.0);
+  const wallSetback = wallWidth / 2 + 2.5;
 
   // 2. Civic landmarks to protect
   const plaza = document.elements.find(e => e.kind === "plaza");
@@ -270,7 +289,7 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
   const reservedFaces = new Set(document.elements.flatMap(e => e.faceIds));
 
   // 3. Roads and rivers
-  const roads = document.featureGroups.filter(g => g.kind === "road");
+  const roads = document.featureGroups.filter((g): g is Exclude<typeof g, { kind: "river" }> => g.kind === "road");
   const roadSegments = roads.flatMap(r =>
     r.segments.map(s => {
       const e = document.mesh.edges[s.edgeId];
@@ -327,8 +346,8 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
   const venelleWidth = 3.2;
 
   let maxR = 250;
-  if (wallEdges.length > 0) {
-    maxR = Math.max(...wallEdges.map(e => Math.hypot(e[0][0] - hub[0], e[0][1] - hub[1])));
+  if (wallPoly.length >= 3) {
+    maxR = Math.max(...wallPoly.map(p => Math.hypot(p[0] - hub[0], p[1] - hub[1])));
   } else {
     const coreFaces = Object.values(document.mesh.faces).filter(
       f => f.properties.settlement === "core" && f.properties.water === "land"
@@ -406,7 +425,6 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
 
       for (let scIdx = 0; scIdx < numSubClusters; scIdx++) {
         const scThStart = clusterThetaStart + scIdx * (subClusterAngleSpan + venelleWidth / meanR);
-        const _scThEnd = scThStart + subClusterAngleSpan;
         const housesInSubCluster = Math.max(2, Math.round((subClusterAngleSpan * meanR) / 6.0));
         const lotAngleStep = subClusterAngleSpan / housesInSubCluster;
         const slitAngle = 0.35 / meanR;

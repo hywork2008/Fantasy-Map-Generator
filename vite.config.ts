@@ -21,6 +21,8 @@ export default defineConfig({
                 city: path.resolve(__dirname, 'src/city/index.html'),
                 // Manual City Editor — deliberately isolated from the world map.
                 cityEditor: path.resolve(__dirname, 'src/city-editor/index.html'),
+                // Indoor / courtyard plans, independent of the world map.
+                dungeonEditor: path.resolve(__dirname, 'src/dungeon-editor/index.html'),
             },
         },
     },

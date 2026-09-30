@@ -1,3 +1,4 @@
+import { castleWallIds, refreshTownWallReferences } from "./fortifications";
 import {
   clone,
   edgeBetween,
@@ -209,6 +210,7 @@ export function finishRiver(document: CityDocument, groupId: Id): CityDocument |
 
 /** Add or remove a gate at a vertex shared by at least one wall segment. */
 export function toggleGate(document: CityDocument, vertexId: Id): CityDocument | null {
+  if (document.gates?.some(g => g.vertexId === vertexId && (g.ownerCastleId || g.locked))) return null;
   if (!document.mesh.vertices[vertexId] || !vertexHasWall(document, vertexId)) return null;
   const next = clone(document);
   if (!next.gates) next.gates = [];
@@ -322,10 +324,21 @@ export function placeGateOpening(document: CityDocument, gateVertexId: Id, candi
 }
 
 export function removeGroup(document: CityDocument, groupId: Id): CityDocument {
+  if (
+    document.featureGroups.find(g => g.id === groupId)?.locked ||
+    document.defenseCircuits?.some(c => c.locked && c.wallGroupIds.includes(groupId)) ||
+    document.castles?.some(
+      c => c.locked && document.defenseCircuits?.find(d => d.id === c.circuitId)?.wallGroupIds.includes(groupId)
+    )
+  )
+    return document;
   const next = clone(document);
   const removed = next.featureGroups.find(group => group.id === groupId);
   next.featureGroups = next.featureGroups.filter(group => group.id !== groupId);
-  if (removed?.kind === "wall") pruneGatesWithoutWalls(next);
+  if (removed?.kind === "wall") {
+    pruneGatesWithoutWalls(next);
+    refreshTownWallReferences(next);
+  }
   return next;
 }
 
@@ -620,6 +633,7 @@ export function previewRouteAcrossFace(
 /** Remove one selected route edge. Roads/walls split into contiguous groups; a
  * river is trimmed on the upstream side so its direction stays unambiguous. */
 export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId: Id): CityDocument | null {
+  if (castleWallIds(document).has(groupId)) return null;
   const next = clone(document);
   const index = next.featureGroups.findIndex(group => group.id === groupId);
   const group = next.featureGroups[index];
@@ -647,7 +661,10 @@ export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId:
   const after = group.segments.slice(segment + 1);
   if (!before.length && !after.length) {
     next.featureGroups.splice(index, 1);
-    if (group.kind === "wall") pruneGatesWithoutWalls(next);
+    if (group.kind === "wall") {
+      pruneGatesWithoutWalls(next);
+      refreshTownWallReferences(next);
+    }
     return next;
   }
   group.segments = before.length ? before : after;
@@ -660,7 +677,10 @@ export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId:
       segments: after
     });
   }
-  if (group.kind === "wall") pruneGatesWithoutWalls(next);
+  if (group.kind === "wall") {
+    pruneGatesWithoutWalls(next);
+    refreshTownWallReferences(next);
+  }
   return next;
 }
 
@@ -721,7 +741,7 @@ function wallEdgeIds(document: CityDocument): Set<Id> {
 
 function pruneGatesWithoutWalls(document: CityDocument): void {
   if (!document.gates) return;
-  document.gates = document.gates.filter(gate => vertexHasWall(document, gate.vertexId));
+  document.gates = document.gates.filter(gate => gate.ownerCastleId || vertexHasWall(document, gate.vertexId));
 }
 
 function connectedWardFaces(

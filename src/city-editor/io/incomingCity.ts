@@ -231,7 +231,9 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   const config = isRecord(raw.config)
     ? (raw.config as unknown as GenerationSettings["config"])
     : structuredClone(DEFAULT_SITE_CONFIG);
+  if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
   const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;

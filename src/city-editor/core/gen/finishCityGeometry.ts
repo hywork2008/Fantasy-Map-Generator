@@ -1,6 +1,7 @@
 // MIT implementation based on City Editor's shared mesh and reference output.
 // No TownGeneratorTS / GPL source is used.
 import { featureGroupVertices } from "../features";
+import { castleWallIds } from "../fortifications";
 import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
 import { straightenBridges, straightenGateCrossings } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
@@ -46,11 +47,22 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   }
   const walls = new Set<Id>();
   const roads = new Set<Id>();
+  const roadWidths = new Map<Id, number>();
+  const wallWidths = new Map<Id, number>();
   const rivers = new Set<Id>();
   const riverVertices = new Set<Id>();
   for (const group of next.featureGroups) {
     const ids = featureGroupVertices(next, group);
     if (group.kind === "river") for (const id of ids) riverVertices.add(id);
+    if (group.kind === "road" && group.id.startsWith("gc:bridgeApproach-")) {
+      for (const id of ids) pinned.add(id);
+      for (const river of next.featureGroups) {
+        if (river.kind !== "river") continue;
+        for (let i = 0; i < river.vertices.length; i++)
+          if (ids.includes(river.vertices[i]))
+            for (const neighbor of river.vertices.slice(Math.max(0, i - 1), i + 2)) pinned.add(neighbor);
+      }
+    }
     if (group.locked || !group.id.startsWith("gc:")) {
       for (const id of ids) pinned.add(id);
       continue;
@@ -60,13 +72,63 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     if (!edges) continue;
     for (let i = 1; i < ids.length; i++) {
       const edge = edgeIndex.between(ids[i - 1], ids[i]);
-      if (edge) edges.add(edge.id);
+      if (edge) {
+        edges.add(edge.id);
+        if (group.kind === "road")
+          roadWidths.set(edge.id, Math.max(roadWidths.get(edge.id) ?? 0, group.style.widthMeters));
+        if (group.kind === "wall")
+          wallWidths.set(edge.id, Math.max(wallWidths.get(edge.id) ?? 0, group.style.widthMeters));
+      }
     }
   }
   for (const gate of next.gates) if (gate.locked || !gate.id.startsWith("gc:")) pinned.add(gate.vertexId);
   // A gate and a river that already share a wall edge keep that spacing.
   // Either end may still move away; neither may close the gap.
+  for (const group of next.featureGroups)
+    if (group.kind === "wall" && castleWallIds(next).has(group.id))
+      for (const ref of group.segments) {
+        const edge = mesh.edges[ref.edgeId];
+        pinned.add(edge.a);
+        pinned.add(edge.b);
+      }
   const gateVertices = new Set(next.gates.map(gate => gate.vertexId));
+  const clearancePairs: { road: Id; wall: Id; minimum: number }[] = [];
+  const clearanceAt = (roadId: Id, wallId: Id): number => {
+    const road = mesh.edges[roadId];
+    const wall = mesh.edges[wallId];
+    const a = mesh.vertices[road.a].point;
+    const b = mesh.vertices[road.b].point;
+    const c = mesh.vertices[wall.a].point;
+    const d = mesh.vertices[wall.b].point;
+    const pointGap = (p: Point, u: Point, v: Point): number => {
+      const dx = v[0] - u[0];
+      const dy = v[1] - u[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / (dx * dx + dy * dy || 1)));
+      return Math.hypot(p[0] - u[0] - t * dx, p[1] - u[1] - t * dy);
+    };
+    if (segmentSegmentHit(a, b, c, d)) return 0;
+    return Math.min(pointGap(a, c, d), pointGap(b, c, d), pointGap(c, a, b), pointGap(d, a, b));
+  };
+  for (const roadId of roads)
+    for (const wallId of walls) {
+      const road = mesh.edges[roadId];
+      const wall = mesh.edges[wallId];
+      // A road and curtain are meant to meet at a gate.
+      if ([road.a, road.b].some(id => gateVertices.has(id) && (id === wall.a || id === wall.b))) continue;
+      const visibleGap = ((roadWidths.get(roadId) ?? 0) + (wallWidths.get(wallId) ?? 0)) / 2 + 1;
+      const minimum = Math.min(visibleGap, clearanceAt(roadId, wallId));
+      if (minimum > 0.01) clearancePairs.push({ road: roadId, wall: wallId, minimum });
+    }
+  const clearanceAtVertex = new Map<Id, typeof clearancePairs>();
+  for (const pair of clearancePairs) {
+    const road = mesh.edges[pair.road];
+    const wall = mesh.edges[pair.wall];
+    for (const id of new Set([road.a, road.b, wall.a, wall.b])) {
+      const pairs = clearanceAtVertex.get(id) ?? [];
+      pairs.push(pair);
+      clearanceAtVertex.set(id, pairs);
+    }
+  }
   const gateRiverGap = new Map<Id, { anchor: Point; minDist: number }[]>();
   const rememberGap = (id: Id, anchor: Point, minDist: number) => {
     const holds = gateRiverGap.get(id) ?? [];
@@ -185,7 +247,20 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       if (Math.hypot(target[0] - p[0], target[1] - p[1]) < 0.01) continue;
       for (let strength = 0.5; strength >= 1 / 128; strength /= 2) {
         v.point = [p[0] + (target[0] - p[0]) * strength, p[1] + (target[1] - p[1]) * strength];
-        if (validAt(id) && keepsGateRiverGap(id, v.point)) break;
+        const candidate = v.point;
+        const pairs = clearanceAtVertex.get(id) ?? [];
+        // A large first step can jump across a narrow road. Check the path as
+        // well as its endpoint so a wall cannot pass through it in one sweep.
+        let clearsRoad = true;
+        for (const fraction of [0.25, 0.5, 0.75, 1]) {
+          v.point = [p[0] + (candidate[0] - p[0]) * fraction, p[1] + (candidate[1] - p[1]) * fraction];
+          if (pairs.some(pair => clearanceAt(pair.road, pair.wall) < pair.minimum - 1e-3)) {
+            clearsRoad = false;
+            break;
+          }
+        }
+        v.point = candidate;
+        if (validAt(id) && keepsGateRiverGap(id, candidate) && clearsRoad) break;
         v.point = p;
       }
     }

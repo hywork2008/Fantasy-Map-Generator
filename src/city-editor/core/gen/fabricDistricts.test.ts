@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseDocument } from "../document";
-import { defaultGenerationSettings, generateStageOnDocument } from "../generate";
+import { createGridDocument, parseDocument } from "../document";
+import { defaultGenerationSettings, generateCityOnDocument, generateStageOnDocument } from "../generate";
 import { DocumentHistory } from "../history";
 import {
   facePoints,
@@ -16,6 +16,47 @@ import type { CityDocument, Point } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
 import { createFabricPlan, districtDocument, resolveDistricts, setDistrictParameters } from "./fabricDistricts";
 import { pointInPolygon, polygonCentroid } from "./geom";
+
+describe("bridge approach frontages", () => {
+  it.each([
+    { seed: "1y63y6a:junction-retry:1", gridSeed: "ln431i", bank: ["f37", "f124"] },
+    { seed: "3rfi8n:junction-retry:1", gridSeed: "1p8yayr", bank: ["f121", "f36", "f37", "f38", "f39", "f52"] }
+  ])("builds housing on the bank without gates for $gridSeed", ({ seed, gridSeed, bank }) => {
+    const input = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: gridSeed,
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      coast: "none",
+      rivers: ["through"],
+      relief: false,
+      features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "organic"
+    };
+    settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    const document = generateCityOnDocument(input, settings, seed)!;
+    expect(document).toBeTruthy();
+    expect(document.generationSeed).toBe(seed);
+    const bankVertices = new Set(bank.flatMap(id => faceVertices(document.mesh, document.mesh.faces[id])));
+    expect(document.gates!.some(g => bankVertices.has(g.vertexId))).toBe(false);
+    const districts = resolveDistricts(document, document.fabric);
+    const merged = districtDocument(document, districts);
+    const bridge = document.featureGroups.find(g => g.id === "gc:bridge-0")!;
+    expect(bridge.kind).toBe("road");
+    if (bridge.kind !== "road") throw new Error("Missing bridge");
+    for (const ref of bridge.segments) {
+      expect(merged.mesh.edges[ref.edgeId]).toBeDefined();
+    }
+    const fabric = buildBlockFabric(document);
+    for (const id of bank) expect(fabric.buildings.some(b => b.faceId === id)).toBe(true);
+  });
+});
 
 function fixture(): CityDocument {
   const origins = [
