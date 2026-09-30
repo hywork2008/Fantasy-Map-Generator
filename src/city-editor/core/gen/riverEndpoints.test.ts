@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createGridDocument } from "../document";
-import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
+import { defaultGenerationSettings, generateCityOnDocument, generateStageOnDocument } from "../generate";
 import { edgeBetween, validate } from "../mesh";
 import type { EdgeGraph } from "./edgeGraph";
 import { pointInPolygon } from "./geom";
@@ -9,6 +9,34 @@ import { walkRiver } from "./riverPath";
 import type { Point } from "./types";
 
 describe("generated river endpoints", () => {
+  it("keeps every emitted coastal river connected to the map edge or sea in stage ②", () => {
+    const input = createGridDocument({ size: "tiny", grid: "evolution", seed: "coastal-river-grid" });
+    const settings = defaultGenerationSettings();
+    settings.config = { ...settings.config, coast: "bay", rivers: ["toCoast", "meander"] };
+    let checked = 0;
+    for (const seed of ["coastal-a", "coastal-b", "coastal-c"]) {
+      const city = generateStageOnDocument(input, settings, seed, 2)!;
+      for (const river of city.featureGroups.filter(group => group.kind === "river")) {
+        checked++;
+        for (const id of [river.vertices[0], river.vertices.at(-1)!]) {
+          const point = city.mesh.vertices[id].point;
+          const atEdge = Math.max(Math.abs(point[0]), Math.abs(point[1])) >= city.frame.extentMeters / 2 - 0.001;
+          const atSea = Object.values(city.mesh.edges).some(
+            edge =>
+              (edge.a === id || edge.b === id) &&
+              [edge.leftFace, edge.rightFace].some(
+                faceId => faceId && city.mesh.faces[faceId]?.properties.water === "sea"
+              )
+          );
+          expect(atEdge || atSea, `${seed}: river ends inland at ${point}`).toBe(true);
+        }
+        for (let i = 1; i < river.vertices.length; i++)
+          expect(edgeBetween(city.mesh, river.vertices[i - 1], river.vertices[i])).toBeTruthy();
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it.each([false, true])("resolves the mesh path when the walk arrives short of its goal (sea=%s)", sea => {
     const points: Point[] = [-300, -250, -100, 0, 100, 250, 300].map(x => [x, 0]);
     const graph: EdgeGraph = {

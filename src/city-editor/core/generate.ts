@@ -3048,8 +3048,8 @@ function polylineToVertexPath(mesh: Mesh, polyline: Point[], nearest: NearestVer
       continue;
     }
     const bridge = shortestPath(mesh, a, b);
-    if (bridge && bridge.length <= 6) out.push(...bridge.slice(1));
-    else break; // give up cleanly at the first unbridgeable gap
+    if (!bridge) return []; // Never emit a river that ends at an interior gap.
+    out.push(...bridge.slice(1));
   }
   return out;
 }
