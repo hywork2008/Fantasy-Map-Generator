@@ -124,6 +124,7 @@ export type WardKind =
   | "park"
   | "slum"
   | "farm"
+  | "cemetery"
   | "empty"
   | "harbor"
   | "shanty";

@@ -82,6 +82,7 @@ export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point
       .some(c => polygonOverlaps(polygon, circuitRing(document, c)))
   )
     return true;
+  if ((document.cemeteries ?? []).some(c => polygonOverlaps(polygon, c.boundary))) return true;
   const yard = civicYardMeters(document.frame.extentMeters);
   for (const element of document.elements) {
     if (element.kind === "temple" && element.point) {
@@ -120,7 +121,16 @@ function buildFaceLots(
 ): BuildingLot[] {
   if (reservedCastleFaces(document).has(face.id)) return [];
   const { water, ward, buildable } = face.properties;
-  if (water !== "land" || !buildable || !ward || ward === "empty" || ward === "park" || ward === "farm") return [];
+  if (
+    water !== "land" ||
+    !buildable ||
+    !ward ||
+    ward === "empty" ||
+    ward === "park" ||
+    ward === "farm" ||
+    ward === "cemetery"
+  )
+    return [];
   if (document.elements.some(e => (e.kind === "plaza" || e.kind === "temple") && e.faceIds.includes(face.id)))
     return [];
   const polygon = facePoints(document.mesh, face);

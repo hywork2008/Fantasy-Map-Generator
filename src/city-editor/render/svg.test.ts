@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createDocument } from "../core/document";
+import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
 import { faceNeighbors, faceVertices, meshFromCells } from "../core/mesh";
 import type { CityDocument, Point } from "../core/types";
 import {
   faceClassName,
   parsePickInfo,
+  renderCemeteries,
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
@@ -611,6 +613,54 @@ describe("generated temple footprint", () => {
       '[data-element="gc:temple"]'
     );
     expect(rect?.getAttribute("transform")).toBe("translate(10 -5) rotate(-45)");
+  });
+});
+
+describe("cemetery precinct rendering", () => {
+  it("updates the cemetery layer after a ward is painted and erased", () => {
+    const document = createDocument("cemetery-layer", 600);
+    document.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [0, 0],
+          [60, 0],
+          [60, 60],
+          [0, 60]
+        ],
+        site: [30, 30],
+        centroid: [30, 30],
+        neighbors: [],
+        onBorder: false
+      }
+    ]);
+    const face = Object.values(document.mesh.faces)[0];
+    face.properties.ward = "cemetery";
+    syncDocumentCemeteries(document, [face.id]);
+    const painted = renderCemeteries(document);
+    expect(painted.children).toHaveLength(1);
+    face.properties.ward = "empty";
+    syncDocumentCemeteries(document, [face.id]);
+    const erased = renderCemeteries(document);
+    expect(erased.children).toHaveLength(0);
+  });
+
+  it("renders cemetery precinct with stone walls, courtyards, paths, parts, and yew trees", () => {
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const document = createDocument("cemetery-render-test", 600);
+    document.appearance = "town";
+
+    // Set face 0 to cemetery ward
+    const f0 = Object.values(document.mesh.faces)[0];
+    f0.properties.ward = "cemetery";
+
+    const svg = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1);
+    const cemeteryGroup = svg.querySelector<SVGGElement>(".ce-cemeteries");
+    expect(cemeteryGroup).not.toBeNull();
+
+    // Verify precinct components are rendered
+    expect(cemeteryGroup?.querySelectorAll("path").length).toBeGreaterThan(0);
+    expect(cemeteryGroup?.querySelectorAll("circle").length).toBeGreaterThan(0);
   });
 });
 

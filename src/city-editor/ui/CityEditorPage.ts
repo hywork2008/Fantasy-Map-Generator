@@ -53,6 +53,7 @@ import {
 } from "../core/gen/approachBeyond";
 import { refreshCastleLayouts } from "../core/gen/castleLayout";
 import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
+import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
 import {
   defaultDistrictParameters,
   resolveDistricts,
@@ -145,6 +146,7 @@ import {
   type RenderQuality,
   type RenderSelection,
   renderApproachLabels,
+  renderCemeteries,
   renderEditorSvg,
   renderFaceWardLandmark,
   renderHoverOverlay,
@@ -172,6 +174,7 @@ const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> 
   { kind: "patriciate", label: "🏛️" },
   { kind: "harbor", label: "⚓" },
   { kind: "park", label: "🌳" },
+  { kind: "cemetery", label: "🪦" },
   { kind: "farm", label: "🌾" },
   { kind: "empty", label: "󠁪󠁪 " },
   { kind: "erase", label: "🧹" },
@@ -2116,7 +2119,7 @@ export function mountCityEditor(root: HTMLElement): void {
    * Patch one face's rendered fill and Ward-landmark marker in place, without
    * a full redrawMap() pass. Only ward/sea painting may call this: it never
    * adds, removes, or moves a vertex/edge and never touches featureGroups,
-   * gates, or elements, so nothing else the SVG renders can be affected.
+   * gates, or elements. Cemetery layers are updated separately when needed.
    */
   function patchFaceRender(faceId: Id): void {
     const face = documentState.mesh.faces[faceId];
@@ -2594,6 +2597,7 @@ export function mountCityEditor(root: HTMLElement): void {
           "patriciate",
           "harbor",
           "park",
+          "cemetery",
           ...(documentState.gridKind === "evolution" ? ["farm"] : []),
           "empty"
         ],
@@ -2601,11 +2605,14 @@ export function mountCityEditor(root: HTMLElement): void {
       );
       const patriciateOption = [...ward.options].find(o => o.value === "patriciate");
       if (patriciateOption) patriciateOption.textContent = "patriciate · 富裕層街";
+      const cemeteryOption = [...ward.options].find(o => o.value === "cemetery");
+      if (cemeteryOption) cemeteryOption.textContent = "cemetery · 墓地";
       water.disabled = elevation.disabled = ward.disabled = face.properties.locked;
       ward.addEventListener("change", () => {
         if (face.properties.locked) return;
         const next = clone(documentState);
         next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
+        if (face.properties.ward === "cemetery" || ward.value === "cemetery") syncDocumentCemeteries(next, [face.id]);
         commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
       });
       if (documentState.gridKind === "evolution" || documentState.buildingPattern === "medieval") {
@@ -3066,6 +3073,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // face keeps its original reference.
     let faces: CityDocument["mesh"]["faces"] | null = null;
     const touched: Id[] = [];
+    let cemeteryChanged = false;
     for (const faceId of faceIds) {
       if (paintedWardFaceIds.has(faceId)) continue;
       paintedWardFaceIds.add(faceId);
@@ -3081,6 +3089,7 @@ export function mountCityEditor(root: HTMLElement): void {
         properties.water = "sea";
         properties.elevation = 0;
       } else {
+        if (properties.ward === "cemetery" || wardBrush === "cemetery") cemeteryChanged = true;
         properties.ward = wardBrush;
       }
       faces[faceId] = { ...face, properties };
@@ -3088,6 +3097,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (faces) {
       documentState = { ...documentState, mesh: { ...documentState.mesh, faces } };
+      if (cemeteryChanged) {
+        documentState.cemeteries = [...(documentState.cemeteries ?? [])];
+        syncDocumentCemeteries(documentState, touched);
+        map.querySelector(".ce-cemeteries")?.replaceWith(renderCemeteries(documentState, selection.inspectedId));
+      }
       wardPaintChanged = true;
       // Patch just the touched faces' <path>/landmark directly, rather than
       // scheduling a full redrawMap() pass over the whole mesh next frame — on

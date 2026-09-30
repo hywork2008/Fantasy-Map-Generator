@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createDocument } from "./document";
+import { syncDocumentCemeteries } from "./gen/cemeteryLayout";
 import { DocumentHistory } from "./history";
+import { meshFromCells } from "./mesh";
 import type { CityDocument, WardKind } from "./types";
 
 function withFaceCount(document: CityDocument, marker: number): CityDocument {
@@ -61,6 +63,34 @@ function mutate(document: CityDocument, random: () => number, step: number): Cit
 }
 
 describe("DocumentHistory timeline", () => {
+  it("restores cemetery plans with ward edits", () => {
+    const base = createDocument("cemetery-history", 900, 110);
+    base.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [0, 0],
+          [60, 0],
+          [60, 60],
+          [0, 60]
+        ],
+        site: [30, 30],
+        centroid: [30, 30],
+        neighbors: [],
+        onBorder: false
+      }
+    ]);
+    const faceId = "f0";
+    const history = new DocumentHistory(base);
+    const painted = structuredClone(base);
+    painted.mesh.faces[faceId].properties.ward = "cemetery";
+    syncDocumentCemeteries(painted, [faceId]);
+    expect(painted.cemeteries).toHaveLength(1);
+    history.commit(painted, "Paint cemetery");
+    expect(history.undo()?.cemeteries).toBeUndefined();
+    expect(history.redo()?.cemeteries).toEqual(painted.cemeteries);
+  });
+
   it("records a labelled entry per commit and reports the cursor", () => {
     const base = createDocument("history-seed", 900, 110);
     const history = new DocumentHistory(base);

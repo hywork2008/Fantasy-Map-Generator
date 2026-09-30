@@ -17,12 +17,13 @@ import {
 } from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
+import { layoutCemetery } from "../core/gen/cemeteryLayout";
 import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
 import { convexInfillParts } from "../core/gen/lotGeometry";
-import { corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
+import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
@@ -614,6 +615,7 @@ export function renderEditorSvg(
   svg.appendChild(edges);
 
   svg.appendChild(renderCastles(document, selection.inspectedId));
+  svg.appendChild(renderCemeteries(document, selection.inspectedId));
   const features = element("g", { class: "ce-features", style: "z-index: 2;" });
   const order = { wall: 0, river: 1, road: 2, plank: 3 };
   const renderGroups = town
@@ -1945,6 +1947,7 @@ export const STANDALONE_SVG_STYLE = `
   .ce-face--land.ce-face--ward-harbor { fill: #e3b66d; }
   .ce-face--land.ce-face--ward-park { fill: #99c187; }
   .ce-face--land.ce-face--ward-farm { fill: #c6c19f; }
+  .ce-face--land.ce-face--ward-cemetery { fill: #99c187; }
   .ce-face--land.ce-face--ward-empty { fill: #f2ead2; }
   .ce-face--land.ce-face--urban-step { fill: #d9662b; }
   .ce-edge { fill: none; stroke: #738083; stroke-width: 1px; }
@@ -2099,6 +2102,225 @@ function renderCastles(document: CityDocument, inspectedId?: string | number | n
           element("circle", { cx: String(entrance[0]), cy: String(-entrance[1]), r: "1.4", fill: "#e2d5be" })
         );
     }
+    layer.appendChild(group);
+  }
+  return layer;
+}
+
+export function renderCemeteries(document: CityDocument, inspectedId?: string | number | null): SVGGElement {
+  const layer = element("g", { class: "ce-cemeteries" }) as SVGGElement;
+  let plans = document.cemeteries;
+  if (!plans) {
+    const generated: import("../core/types").CemeteryPlan[] = [];
+    for (const face of Object.values(document.mesh.faces)) {
+      if (face.properties.ward === "cemetery") {
+        const boundary = facePoints(document.mesh, face);
+        const plan: import("../core/types").CemeteryPlan = {
+          id: `cemetery:${face.id}`,
+          version: 1,
+          seed: `cemetery-${face.id}`,
+          form: "churchyard",
+          faceId: face.id,
+          boundary,
+          courtyards: [],
+          parts: [],
+          accesses: [],
+          trees: [],
+          provenance: "generated",
+          locked: false
+        };
+        const layout = layoutCemetery(document, plan);
+        if (layout) generated.push(layout);
+      }
+    }
+    plans = generated;
+  }
+  for (const cemetery of plans) {
+    const pick = {
+      layer: "cemetery",
+      kind: "cemetery",
+      id: cemetery.id,
+      label: `墓地 (${cemetery.form})`,
+      locked: cemetery.locked
+    };
+    const group = element("g", {
+      "data-pick": encodeURIComponent(JSON.stringify(pick)),
+      class: inspectedId === cemetery.id ? "ce-is-selected cg-is-selected" : "",
+      style: "cursor:pointer"
+    });
+
+    // 1. Outer precinct stone wall
+    if (cemetery.boundary.length >= 3) {
+      group.appendChild(
+        element("path", {
+          d: polygon(cemetery.boundary),
+          fill: "none",
+          stroke: "#49483f",
+          "stroke-width": "1.0"
+        })
+      );
+    }
+
+    // 2. Courtyards / lawns (vibrant grass matching park lawns)
+    for (const court of cemetery.courtyards) {
+      group.appendChild(
+        element("path", {
+          d: polygon(court),
+          fill: "#7ea867",
+          stroke: "#4d733b",
+          "stroke-width": "0.8"
+        })
+      );
+    }
+
+    // 3. Pathways (clean gravel paths matching park walks)
+    for (const access of cemetery.accesses) {
+      group.appendChild(
+        element("path", {
+          d: line(access.points),
+          fill: "none",
+          stroke: "#d8d1bf",
+          "stroke-width": String(access.widthMeters),
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round"
+        })
+      );
+    }
+
+    // 4. Parts: buildings, calvary cross, graves
+    for (const part of cemetery.parts) {
+      if (part.role === "calvary") {
+        group.appendChild(
+          element("path", {
+            d: polygon(part.footprint),
+            fill: "#edeae2",
+            stroke: "#5d584e",
+            "stroke-width": "0.8"
+          })
+        );
+        const center = polygonCentroid(part.footprint);
+        const crossSize = 1.8;
+        group.appendChild(
+          element("line", {
+            x1: String(center[0]),
+            y1: String(-center[1] - crossSize),
+            x2: String(center[0]),
+            y2: String(-center[1] + crossSize),
+            stroke: "#3d3932",
+            "stroke-width": "1.0",
+            "stroke-linecap": "round"
+          })
+        );
+        group.appendChild(
+          element("line", {
+            x1: String(center[0] - crossSize * 0.7),
+            y1: String(-center[1] - crossSize * 0.3),
+            x2: String(center[0] + crossSize * 0.7),
+            y2: String(-center[1] - crossSize * 0.3),
+            stroke: "#3d3932",
+            "stroke-width": "1.0",
+            "stroke-linecap": "round"
+          })
+        );
+      } else if (part.role === "graves") {
+        // Individual stone headstones dotted neatly over the green lawn
+        const box = bounds(part.footprint);
+        const stepX = 2.4;
+        const stepY = 2.0;
+        for (let gx = box.minX + 1.2; gx <= box.maxX - 1.2; gx += stepX) {
+          for (let gy = box.minY + 1.0; gy <= box.maxY - 1.0; gy += stepY) {
+            if (pointInPolygon([gx, gy], part.footprint)) {
+              group.appendChild(
+                element("rect", {
+                  x: String(gx - 0.4),
+                  y: String(-gy - 0.7),
+                  width: "0.8",
+                  height: "1.4",
+                  rx: "0.2",
+                  fill: "#edeae2",
+                  stroke: "#68645c",
+                  "stroke-width": "0.35"
+                })
+              );
+            }
+          }
+        }
+      } else {
+        // Stone buildings: slate / limestone masonry
+        const isChapel = part.role === "chapel";
+        group.appendChild(
+          element("path", {
+            d: polygon(part.footprint),
+            fill: isChapel ? "#726b5f" : part.role === "ossuary" ? "#888072" : "#989082",
+            stroke: "#3d3932",
+            "stroke-width": isChapel ? "1.4" : "1.0"
+          })
+        );
+        for (const entrance of part.entrances) {
+          group.appendChild(
+            element("circle", {
+              cx: String(entrance[0]),
+              cy: String(-entrance[1]),
+              r: "1.2",
+              fill: "#f3efe4"
+            })
+          );
+        }
+      }
+    }
+
+    // 5. Yew Trees: fluffy multi-circle tree canopy matching park foliage
+    for (const tree of cemetery.trees) {
+      const treeGroup = element("g", { class: "ce-cemetery-tree" });
+      const cx = tree[0];
+      const cy = -tree[1];
+      const radius = 3.2;
+
+      // 6 surrounding canopy lobes
+      const lobeCount = 6;
+      for (let i = 0; i < lobeCount; i++) {
+        const angle = (i * 2 * Math.PI) / lobeCount;
+        const ox = Math.cos(angle) * (radius * 0.45);
+        const oy = Math.sin(angle) * (radius * 0.45);
+        treeGroup.appendChild(
+          element("circle", {
+            cx: String(cx + ox),
+            cy: String(cy + oy),
+            r: String(radius * 0.55),
+            fill: "#557849",
+            stroke: "#385230",
+            "stroke-width": "0.6"
+          })
+        );
+      }
+
+      // Main center canopy
+      treeGroup.appendChild(
+        element("circle", {
+          cx: String(cx),
+          cy: String(cy),
+          r: String(radius),
+          fill: "#557849",
+          stroke: "#385230",
+          "stroke-width": "0.6"
+        })
+      );
+
+      // Top highlight
+      treeGroup.appendChild(
+        element("circle", {
+          cx: String(cx),
+          cy: String(cy),
+          r: String(radius * 0.55),
+          fill: "#688e5b",
+          stroke: "none",
+          opacity: "0.85"
+        })
+      );
+
+      group.appendChild(treeGroup);
+    }
+
     layer.appendChild(group);
   }
   return layer;

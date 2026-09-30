@@ -68,6 +68,8 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
   }
   for (const circuit of document.defenseCircuits ?? [])
     if (circuit.scope === "castle") barriers.push(...convexInfillParts(circuitRing(document, circuit)));
+  for (const cemetery of document.cemeteries ?? [])
+    if (cemetery.boundary.length >= 3) barriers.push(...convexInfillParts(cemetery.boundary));
   const gateDisks = gatePlazaDisks(document).map(d => ({ ...d, radius: d.radius + 6 }));
   const nearGate = (polygon: Point[]) =>
     gateDisks.some(d => pointInPolygon(d.center, polygon) || polygonBitesDisk(polygon, d, 0));

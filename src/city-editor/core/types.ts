@@ -11,6 +11,7 @@ export type WardKind =
   | "harbor"
   | "park"
   | "farm"
+  | "cemetery"
   | "empty";
 export type BuildingPattern = "legacy" | "medieval";
 export type BuildingComposition = "standard" | "commercial" | "warehouses" | "estates";
@@ -234,6 +235,34 @@ export interface CastleSettings {
   size: "auto" | "small" | "standard" | "large";
 }
 
+export type CemeteryForm = "churchyard" | "cloister" | "field";
+
+export type CemeteryPartRole = "chapel" | "ossuary" | "rectory" | "calvary" | "graves";
+
+export interface CemeteryPart {
+  id: Id;
+  role: CemeteryPartRole;
+  footprint: Point[];
+  entrances: Point[];
+  locked: boolean;
+}
+
+export interface CemeteryPlan {
+  id: Id;
+  version: 1;
+  seed: string;
+  form: CemeteryForm;
+  faceId: Id;
+  boundary: Point[];
+  courtyards: Point[][];
+  parts: CemeteryPart[];
+  accesses: Array<{ points: Point[]; widthMeters: number }>;
+  trees: Point[];
+  gatePoint?: Point;
+  provenance: "generated" | "manual" | "legacy";
+  locked: boolean;
+}
+
 export interface DistrictParameters {
   composition?: BuildingComposition;
   /** Relative size variation within each archetype (0–1). */
@@ -277,6 +306,7 @@ export interface CityDocument {
   coastalOceanFaceIds?: Id[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
+  cemeteries?: CemeteryPlan[];
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;
