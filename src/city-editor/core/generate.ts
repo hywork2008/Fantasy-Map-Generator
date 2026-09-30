@@ -10,6 +10,7 @@ import {
   templeHazards,
   templeRectForElement
 } from "./gen/civicPlacement";
+import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./gen/coastalSuitability";
 import { createFabricPlan } from "./gen/fabricDistricts";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 // Step-by-step random city generation for the City Editor.
@@ -3101,6 +3102,11 @@ function settleTempleOnDocument(document: CityDocument): void {
       clearance: 2
     });
   }
+  // The rendered beach occupies roughly 17 m inland from an ocean edge.
+  // Give a cathedral at least the same inland setback as ordinary buildings.
+  for (const [a, b] of oceanShoreSegments(document)) {
+    hazards.push({ points: [a, b], clearance: COASTAL_BUILDING_SETBACK_METERS });
+  }
   const plazaGuides: Point[][] = [];
   const plaza = document.elements.find(element => element.kind === "plaza");
   if (plaza) {
@@ -3112,19 +3118,25 @@ function settleTempleOnDocument(document: CityDocument): void {
     }
   }
   const guides = [...roads, ...plazaGuides];
+  const parkPlots = Object.values(document.mesh.faces)
+    .filter(face => face.properties.ward === "park")
+    .map(face => facePoints(document.mesh, face));
   let rect = placeAndClearTempleRect(
     temple.point,
     document.frame.extentMeters,
     guides,
     hazards.length ? hazards : templeHazards(roads, rivers, document.frame.extentMeters)
   );
-  const clearsWalls = (candidate: typeof rect): boolean =>
-    walls.every(wall => orientedRectPolylineDistance(candidate, wall.points) >= wall.clearance - 0.2);
   const validSite = (candidate: typeof rect): boolean =>
-    clearsWalls(candidate) && templeFitsLand(candidate, land, water);
+    hazards.every(hazard => orientedRectPolylineDistance(candidate, hazard.points) >= hazard.clearance - 0.2) &&
+    !parkPlots.some(plot => polygonHitsOrientedRect(plot, candidate)) &&
+    templeFitsLand(candidate, land, water);
   if (!validSite(rect)) {
     const candidates = Object.values(document.mesh.faces)
-      .filter(face => face.properties.settlement === "core" && face.properties.water === "land")
+      .filter(
+        face =>
+          face.properties.settlement === "core" && face.properties.water === "land" && face.properties.ward !== "park"
+      )
       .map(face => polygonCentroid(facePoints(document.mesh, face)))
       .sort(
         (a, b) =>
@@ -3133,11 +3145,7 @@ function settleTempleOnDocument(document: CityDocument): void {
       );
     for (const center of candidates) {
       const candidate = placeAndClearTempleRect(center, document.frame.extentMeters, guides, hazards);
-      if (
-        !validSite(candidate) ||
-        !hazards.every(h => orientedRectPolylineDistance(candidate, h.points) >= h.clearance - 0.2)
-      )
-        continue;
+      if (!validSite(candidate)) continue;
       rect = candidate;
       break;
     }

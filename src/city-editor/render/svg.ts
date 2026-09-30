@@ -174,14 +174,35 @@ export function renderEditorSvg(
       const left = document.mesh.faces[edge.leftFace ?? ""];
       const right = document.mesh.faces[edge.rightFace ?? ""];
       const land =
-        left?.properties.water === "land" && right && ocean.has(right.id)
+        left?.properties.water === "land" && right?.properties.water === "sea" && ocean.has(right.id)
           ? left
-          : right?.properties.water === "land" && left && ocean.has(left.id)
+          : right?.properties.water === "land" && left?.properties.water === "sea" && ocean.has(left.id)
             ? right
             : null;
       if (!land || land.properties.ward === "harbor") continue;
       const a = document.mesh.vertices[edge.a].point,
         b = document.mesh.vertices[edge.b].point;
+      const fortified = land.properties.ward === "castle";
+      const builtShore =
+        fortified ||
+        (land.properties.settlement === "core" && !["park", "farm", "empty"].includes(land.properties.ward ?? ""));
+      if (builtShore) {
+        const revetment = corridor(a, b, fortified ? 22 : 14, 8);
+        for (const part of convexInfillParts(facePoints(document.mesh, land))) {
+          const bank = intersectConvex(part, revetment);
+          if (bank.length < 3 || Math.abs(polygonArea(bank)) < 1) continue;
+          shore.appendChild(
+            element("path", {
+              d: polygon(bank),
+              fill: fortified ? "#99988c" : "#ada99a",
+              stroke: "none",
+              "data-coast-face": land.id,
+              "data-shore-kind": fortified ? "fortified" : "revetment"
+            })
+          );
+        }
+        continue;
+      }
       const beachBand = corridor(a, b, 34, 8);
       const scrubBand = corridor(a, b, 70, 8);
       for (const part of convexInfillParts(facePoints(document.mesh, land))) {
@@ -203,7 +224,8 @@ export function renderEditorSvg(
             d: polygon(beach),
             fill: "#d7c9a6",
             stroke: "none",
-            "data-coast-face": land.id
+            "data-coast-face": land.id,
+            "data-shore-kind": "beach"
           })
         );
       }

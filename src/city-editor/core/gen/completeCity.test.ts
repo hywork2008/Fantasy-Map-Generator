@@ -11,11 +11,56 @@ import { gateRoadDeviationDegrees, kindEdgeIds, minGateSpacingMeters, vertexHasC
 import type { CityDocument, Point } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { buildCityBuildings, buildingHitsCivicLandmark, insetConvexKernel } from "./buildingLots";
-import { orientedRectPolylineDistance, pointInOrientedRect, templeRectForElement } from "./civicPlacement";
+import {
+  orientedRectPolylineDistance,
+  pointInOrientedRect,
+  polygonHitsOrientedRect,
+  templeRectForElement
+} from "./civicPlacement";
+import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./coastalSuitability";
+
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { civicYardMeters } from "./housing";
 import { minExternalRoadsForExtent } from "./settlementExtent";
 import { connectUrbanRiverDistricts } from "./urbanBridges";
+
+it("keeps the shared small bay temple clear of finished roads and park plots", () => {
+  const grid = createGridDocument({
+    size: "small",
+    grid: "evolution",
+    seed: "hh199ci",
+    patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+  });
+  const settings = defaultGenerationSettings();
+  settings.config.coast = "bay";
+  settings.config.rivers = ["through"];
+  settings.config.relief = false;
+  settings.config.features = { walls: false, citadel: true, plaza: true, temple: true, port: true, shanty: false };
+  settings.config.layout = "auto";
+  settings.layout = "organic";
+  settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+  const city = generateCityOnDocument(grid, settings, "17m9kwi");
+  expect(city).not.toBeNull();
+  const temple = city?.elements.find(element => element.kind === "temple");
+  expect(temple?.point).toBeDefined();
+  if (!city || !temple?.point) return;
+  const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, city.frame.extentMeters);
+  for (const group of city.featureGroups.filter(group => group.kind === "road")) {
+    const points = featureGroupVertices(city, group)
+      .map(id => city.mesh.vertices[id]?.point)
+      .filter((p): p is Point => !!p);
+    if (points.length >= 2)
+      expect(orientedRectPolylineDistance(nave, points)).toBeGreaterThanOrEqual(group.style.widthMeters / 2 + 2);
+  }
+  for (const face of Object.values(city.mesh.faces).filter(face => face.properties.ward === "park")) {
+    expect(polygonHitsOrientedRect(facePoints(city.mesh, face), nave)).toBe(false);
+  }
+  const shore = oceanShoreSegments(city);
+  expect(shore.length).toBeGreaterThan(0);
+  for (const [a, b] of shore) {
+    expect(orientedRectPolylineDistance(nave, [a, b])).toBeGreaterThanOrEqual(COASTAL_BUILDING_SETBACK_METERS - 0.2);
+  }
+});
 
 function capeMicroCity(coast: "auto" | "open" | "seaWall" | "opening"): CityDocument | null {
   const input = createGridDocument({
