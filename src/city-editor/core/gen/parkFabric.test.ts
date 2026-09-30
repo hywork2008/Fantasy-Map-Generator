@@ -310,5 +310,68 @@ describe("parkFabric", () => {
       expect(lawns[0].lawnPolygons.length).toBeGreaterThan(0);
       expect(lawns[0].trees.length).toBe(0);
     });
+
+    it("insets park lawn polygons and trees from adjacent river width", () => {
+      const doc = createParkDocument();
+      const v0 = { id: "v0", point: [0, 0] as [number, number], locked: false };
+      const v1 = { id: "v1", point: [60, 0] as [number, number], locked: false };
+      const v2 = { id: "v2", point: [60, 60] as [number, number], locked: false };
+      const v3 = { id: "v3", point: [0, 60] as [number, number], locked: false };
+      doc.mesh.vertices[v0.id] = v0;
+      doc.mesh.vertices[v1.id] = v1;
+      doc.mesh.vertices[v2.id] = v2;
+      doc.mesh.vertices[v3.id] = v3;
+
+      const e0 = { id: "e0", a: v0.id, b: v1.id, leftFace: "f_river_park", rightFace: null, locked: false };
+      const e1 = { id: "e1", a: v1.id, b: v2.id, leftFace: "f_river_park", rightFace: null, locked: false };
+      const e2 = { id: "e2", a: v2.id, b: v3.id, leftFace: "f_river_park", rightFace: null, locked: false };
+      const e3 = { id: "e3", a: v3.id, b: v0.id, leftFace: "f_river_park", rightFace: null, locked: false };
+      doc.mesh.edges[e0.id] = e0;
+      doc.mesh.edges[e1.id] = e1;
+      doc.mesh.edges[e2.id] = e2;
+      doc.mesh.edges[e3.id] = e3;
+
+      doc.mesh.faces = {
+        f_river_park: {
+          id: "f_river_park",
+          boundary: [
+            { edgeId: e0.id, forward: true },
+            { edgeId: e1.id, forward: true },
+            { edgeId: e2.id, forward: true },
+            { edgeId: e3.id, forward: true }
+          ],
+          properties: { water: "land", ward: "park", buildable: true }
+        }
+      };
+
+      // 10m wide river along y = 0 (bottom edge: e0)
+      doc.featureGroups.push({
+        id: "fg:river",
+        kind: "river",
+        name: "River",
+        segments: [],
+        vertices: [v0.id, v1.id],
+        style: { widthMeters: 10, color: "#85857d" },
+        locked: true
+      });
+
+      const lawns = buildParkLawns(doc);
+      expect(lawns.length).toBe(1);
+      const park = lawns[0];
+      expect(park.lawnPolygons.length).toBeGreaterThan(0);
+
+      // River width = 10m, halfWidth = 5m, margin = 5 + 3.2 = 8.2m
+      // All lawn polygon points must have y >= 7.0 (safe clearance from river centerline at y = 0)
+      for (const poly of park.lawnPolygons) {
+        for (const pt of poly) {
+          expect(pt[1]).toBeGreaterThanOrEqual(7.0);
+        }
+      }
+
+      // Any tree planted must have y >= 8.0
+      for (const tree of park.trees) {
+        expect(tree.center[1]).toBeGreaterThanOrEqual(8.0);
+      }
+    });
   });
 });

@@ -819,7 +819,10 @@ function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
   if (!vertex || vertex.locked) return true;
   if (townGates(document).some(gate => gate.vertexId === id)) return true;
   for (const group of document.featureGroups) {
-    if (group.kind === "river" && group.vertices.includes(id)) return true;
+    if (group.kind === "river") {
+      if (group.vertices.includes(id)) return true;
+      continue;
+    }
     if (group.kind !== "wall" && !group.locked) continue;
     if (
       group.segments.some(segment => {

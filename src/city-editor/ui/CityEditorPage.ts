@@ -3613,7 +3613,10 @@ export function mountCityEditor(root: HTMLElement): void {
       hexSizeMeters: gridKind === "hex" ? hexSizeMeters : undefined,
       gridSeed,
       patchParams: gridKind === "evolution" ? { ...gridEvoParams } : undefined,
-      settings: documentState.fabric?.generation?.settings ?? generateSettings,
+      settings: {
+        ...(documentState.fabric?.generation?.settings ?? generateSettings),
+        historicalPeriod: documentState.historicalPeriod ?? generateSettings.historicalPeriod
+      },
       descriptor: generateSettings.descriptor
     });
   }

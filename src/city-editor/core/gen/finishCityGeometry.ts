@@ -5,7 +5,8 @@ import { castleWallIds } from "../fortifications";
 import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
 import { straightenBridges, straightenGateCrossings } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
-import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
+import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./cemeteryLayout";
+import { polygonArea, polygonCentroid, segmentInteriorInPolygon, segmentSegmentHit } from "./geom";
 
 /** Smooth the actual shared vertices, so walls, streets, water and building
  * setbacks keep meeting at exactly the same coordinates after editing/export.
@@ -54,7 +55,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
   for (const group of next.featureGroups) {
     const ids = featureGroupVertices(next, group);
     if (group.kind === "river") for (const id of ids) riverVertices.add(id);
-    if (group.kind === "road" && group.id.startsWith("gc:bridgeApproach-")) {
+    if (group.kind === "road" && (group.id.startsWith("gc:bridge-") || group.id.startsWith("gc:bridgeApproach-"))) {
       for (const id of ids) pinned.add(id);
       for (const river of next.featureGroups) {
         if (river.kind !== "river") continue;
@@ -91,15 +92,36 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
         pinned.add(edge.a);
         pinned.add(edge.b);
       }
-  const gateVertices = new Set(next.gates.map(gate => gate.vertexId));
-  const clearancePairs: { road: Id; wall: Id; minimum: number }[] = [];
-  const clearanceAt = (roadId: Id, wallId: Id): number => {
+  const cemeteryFaces = Object.values(mesh.faces).filter(f => f.properties.ward === "cemetery");
+  const cemeteryEdges = new Set(cemeteryFaces.flatMap(f => (f.boundary ?? []).map(b => b.edgeId)));
+
+  const riverWidths = new Map<Id, number>();
+  for (const group of next.featureGroups) {
+    if (group.kind === "river") {
+      const ids = featureGroupVertices(next, group);
+      for (let i = 1; i < ids.length; i++) {
+        const edge = edgeIndex.between(ids[i - 1], ids[i]);
+        if (edge) riverWidths.set(edge.id, Math.max(riverWidths.get(edge.id) ?? 0, group.style.widthMeters));
+      }
+    }
+  }
+
+  const bridgeVertices = new Set<Id>();
+  for (const group of next.featureGroups) {
+    if (group.kind === "road" && (group.id.startsWith("gc:bridge-") || group.id.startsWith("gc:bridgeApproach-"))) {
+      for (const id of featureGroupVertices(next, group)) bridgeVertices.add(id);
+    }
+  }
+
+  const gateVertices = new Set((next.gates ?? []).map(gate => gate.vertexId));
+  const clearancePairs: { road: Id; obstacle: Id; minimum: number }[] = [];
+  const clearanceAt = (roadId: Id, obstacleId: Id): number => {
     const road = mesh.edges[roadId];
-    const wall = mesh.edges[wallId];
+    const obstacle = mesh.edges[obstacleId];
     const a = mesh.vertices[road.a].point;
     const b = mesh.vertices[road.b].point;
-    const c = mesh.vertices[wall.a].point;
-    const d = mesh.vertices[wall.b].point;
+    const c = mesh.vertices[obstacle.a].point;
+    const d = mesh.vertices[obstacle.b].point;
     const pointGap = (p: Point, u: Point, v: Point): number => {
       const dx = v[0] - u[0];
       const dy = v[1] - u[1];
@@ -109,6 +131,8 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     if (segmentSegmentHit(a, b, c, d)) return 0;
     return Math.min(pointGap(a, c, d), pointGap(b, c, d), pointGap(c, a, b), pointGap(d, a, b));
   };
+
+  // 1. Road vs Wall clearance
   for (const roadId of roads)
     for (const wallId of walls) {
       const road = mesh.edges[roadId];
@@ -117,13 +141,42 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       if ([road.a, road.b].some(id => gateVertices.has(id) && (id === wall.a || id === wall.b))) continue;
       const visibleGap = ((roadWidths.get(roadId) ?? 0) + (wallWidths.get(wallId) ?? 0)) / 2 + 1;
       const minimum = Math.min(visibleGap, clearanceAt(roadId, wallId));
-      if (minimum > 0.01) clearancePairs.push({ road: roadId, wall: wallId, minimum });
+      if (minimum > 0.01) clearancePairs.push({ road: roadId, obstacle: wallId, minimum });
     }
+
+  // 2. Road vs River clearance: non-bridge roads must NEVER cross rivers or cut into river water
+  for (const roadId of roads)
+    for (const riverId of rivers) {
+      const road = mesh.edges[roadId];
+      const river = mesh.edges[riverId];
+      // A road and river are meant to meet at a bridge crossing.
+      if ([road.a, road.b].some(id => bridgeVertices.has(id) && (id === river.a || id === river.b))) continue;
+      const initial = clearanceAt(roadId, riverId);
+      if (initial < 0.01 || initial > 60) continue;
+      const visibleGap = ((roadWidths.get(roadId) ?? 4) + (riverWidths.get(riverId) ?? 6)) / 2 + 1;
+      const minimum = Math.max(0.5, Math.min(visibleGap, initial));
+      if (minimum > 0.01) clearancePairs.push({ road: roadId, obstacle: riverId, minimum });
+    }
+
+  // 3. Road vs Cemetery boundary clearance: roads must never cut across cemetery perimeter
+  for (const roadId of roads) {
+    if (cemeteryEdges.has(roadId)) continue;
+    for (const cemEdgeId of cemeteryEdges) {
+      const road = mesh.edges[roadId];
+      const cemEdge = mesh.edges[cemEdgeId];
+      if (road.a === cemEdge.a || road.a === cemEdge.b || road.b === cemEdge.a || road.b === cemEdge.b) continue;
+      const initial = clearanceAt(roadId, cemEdgeId);
+      if (initial < 0.01 || initial > 50) continue;
+      const minimum = Math.max(0.5, Math.min((roadWidths.get(roadId) ?? 4) / 2 + 1, initial));
+      if (minimum > 0.01) clearancePairs.push({ road: roadId, obstacle: cemEdgeId, minimum });
+    }
+  }
+
   const clearanceAtVertex = new Map<Id, typeof clearancePairs>();
   for (const pair of clearancePairs) {
     const road = mesh.edges[pair.road];
-    const wall = mesh.edges[pair.wall];
-    for (const id of new Set([road.a, road.b, wall.a, wall.b])) {
+    const obstacle = mesh.edges[pair.obstacle];
+    for (const id of new Set([road.a, road.b, obstacle.a, obstacle.b])) {
       const pairs = clearanceAtVertex.get(id) ?? [];
       pairs.push(pair);
       clearanceAtVertex.set(id, pairs);
@@ -219,7 +272,8 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     for (const fid of facesAt.get(id) ?? []) {
       const points = faceRings.get(fid)!.map(v => mesh.vertices[v].point);
       const before = areas.get(fid)!;
-      if (polygonArea(points) / before < (coarse ? 0.5 : 0.12)) return false;
+      const area = polygonArea(points);
+      if (Math.abs(area) < 1.01 || area / before < (coarse ? 0.5 : 0.12)) return false;
       for (let i = 0; i < points.length; i++) {
         for (let j = i + 2; j < points.length; j++) {
           if (i === 0 && j === points.length - 1) continue;
@@ -237,6 +291,20 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       if (Math.hypot(point[0] - hold.anchor[0], point[1] - hold.anchor[1]) < hold.minDist - 1e-3) return false;
     return true;
   };
+  const entersCemetery = (vertexId: Id): boolean => {
+    for (const n of adjacent.get(vertexId) ?? []) {
+      const e = edgeIndex.between(vertexId, n);
+      if (!e || !roads.has(e.id) || cemeteryEdges.has(e.id)) continue;
+      const a = mesh.vertices[vertexId].point;
+      const b = mesh.vertices[n].point;
+      for (const face of cemeteryFaces) {
+        const poly = facePoints(mesh, face);
+        if (segmentInteriorInPolygon(a, b, poly)) return true;
+      }
+    }
+    return false;
+  };
+
   // Several small sweeps let neighbouring vertices move together; a difficult
   // local corner must not reduce the smoothing strength of the entire town.
   for (let pass = 0; pass < 10; pass++) {
@@ -250,17 +318,17 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
         const candidate = v.point;
         const pairs = clearanceAtVertex.get(id) ?? [];
         // A large first step can jump across a narrow road. Check the path as
-        // well as its endpoint so a wall cannot pass through it in one sweep.
-        let clearsRoad = true;
+        // well as its endpoint so a wall or river cannot pass through it in one sweep.
+        let clearsObstacles = true;
         for (const fraction of [0.25, 0.5, 0.75, 1]) {
           v.point = [p[0] + (candidate[0] - p[0]) * fraction, p[1] + (candidate[1] - p[1]) * fraction];
-          if (pairs.some(pair => clearanceAt(pair.road, pair.wall) < pair.minimum - 1e-3)) {
-            clearsRoad = false;
+          if (pairs.some(pair => clearanceAt(pair.road, pair.obstacle) < pair.minimum - 1e-3)) {
+            clearsObstacles = false;
             break;
           }
         }
         v.point = candidate;
-        if (validAt(id) && keepsGateRiverGap(id, candidate) && clearsRoad) break;
+        if (validAt(id) && keepsGateRiverGap(id, candidate) && clearsObstacles && !entersCemetery(id)) break;
         v.point = p;
       }
     }
@@ -278,5 +346,8 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     const face = alignedMesh.faces[element.faceIds[0]];
     if (face) element.point = polygonCentroid(facePoints(alignedMesh, face));
   }
-  return straightenBridges(aligned);
+  const finished = straightenBridges(aligned);
+  syncDocumentCemeteries(finished);
+  refreshCemeteryLayouts(finished);
+  return finished;
 }

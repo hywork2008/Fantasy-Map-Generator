@@ -1,18 +1,17 @@
 import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
-import { buildBlockFabric } from "./blockInfill";
-import { clipHalfPlane, insetConvexKernel, longestFrame } from "./lotGeometry";
-
-export { insetConvexKernel } from "./lotGeometry";
-
 // MIT, independently implemented from the reference city's output geometry.
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
+import { buildBlockFabric } from "./blockInfill";
 import { orientedRectPolylineDistance, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { civicYardMeters } from "./housing";
+import { clipBlockWithRivers, clipHalfPlane, insetConvexKernel, longestFrame, type RiverMargin } from "./lotGeometry";
 import { makeRng } from "./prng";
+
+export { insetConvexKernel } from "./lotGeometry";
 
 export interface BuildingLot {
   faceId: Id;
@@ -24,12 +23,6 @@ export interface BuildingLot {
   role?: "main" | "wing" | "store" | "workshop" | "stable" | "shed";
   uses?: Array<"residential" | "retail" | "storage" | "craft">;
   storeys?: number;
-}
-
-interface RiverMargin {
-  points: Point[];
-  margin: number;
-  halfWidth: number;
 }
 
 /** Buildings are derived from the edited mesh, never a second source of street
@@ -191,39 +184,4 @@ function buildFaceLots(
           !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
       )
     : result;
-}
-
-function clipBlockWithRivers(block: Point[], polygon: Point[], center: Point, rivers: RiverMargin[]): Point[] {
-  let current = block;
-  for (const river of rivers) {
-    const pts = river.points;
-    const rMargin = river.margin;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p1 = pts[i];
-      const p2 = pts[i + 1];
-      const dx = p2[0] - p1[0];
-      const dy = p2[1] - p1[1];
-      const len = Math.hypot(dx, dy);
-      if (len < 1e-6) continue;
-      const d1 = nearestOnPolyline(p1, polygon).dist;
-      const d2 = nearestOnPolyline(p2, polygon).dist;
-      if (Math.min(d1, d2) > rMargin + 30) continue;
-
-      const nx = -dy / len;
-      const ny = dx / len;
-      let side = (center[0] - p1[0]) * nx + (center[1] - p1[1]) * ny;
-      if (Math.abs(side) < 1e-4) {
-        for (const pt of polygon) {
-          side = (pt[0] - p1[0]) * nx + (pt[1] - p1[1]) * ny;
-          if (Math.abs(side) >= 1e-4) break;
-        }
-      }
-      const sign = side >= 0 ? 1 : -1;
-      const norm: Point = [-sign * nx, -sign * ny];
-      const off = -sign * (p1[0] * nx + p1[1] * ny) - rMargin;
-      current = clipHalfPlane(current, norm, off);
-      if (current.length < 3) return [];
-    }
-  }
-  return current;
 }

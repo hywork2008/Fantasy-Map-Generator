@@ -89,6 +89,16 @@ describe("share codec", () => {
     expect(decodeShare(encodeShare(share))).toEqual(JSON.parse(JSON.stringify(share)));
   });
 
+  it("preserves the historical period used to place cemeteries", () => {
+    const share = buildShare({
+      seed: "cemetery-period",
+      grid: "evolution",
+      size: "tiny",
+      settings: { config: structuredClone(DEFAULT_SITE_CONFIG), historicalPeriod: "steamEra" }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.historicalPeriod).toBe("steamEra");
+  });
+
   it("wraps a City Generator descriptor token as a share", () => {
     const decoded = decodeShare(encodeJson(sample));
     expect(decoded).not.toBeNull();

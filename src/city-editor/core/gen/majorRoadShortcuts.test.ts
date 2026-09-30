@@ -53,4 +53,20 @@ describe("major-road diagonals", () => {
     doc.featureGroups.push({ ...doc.featureGroups[0], id: "manual-road" });
     expect(shortcutMajorRoads(doc)).toBe(doc);
   });
+  it("safely handles documents with river feature groups (no segments property)", () => {
+    const doc = fixture();
+    const vertices = Object.keys(doc.mesh.vertices);
+    doc.featureGroups.push({
+      id: "river-1",
+      kind: "river",
+      name: "River",
+      vertices: [vertices[0], vertices[2]],
+      source: null,
+      mouth: null,
+      style: { widthMeters: 10, color: "blue" },
+      locked: false
+    });
+    // Should not throw TypeError: Cannot read properties of undefined (reading 'map')
+    expect(() => shortcutMajorRoads(doc)).not.toThrow();
+  });
 });

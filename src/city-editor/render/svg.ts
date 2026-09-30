@@ -17,7 +17,7 @@ import {
 } from "../core/gen/approachBeyond";
 import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
-import { layoutCemetery } from "../core/gen/cemeteryLayout";
+import { computeCemeteryBoundary, layoutCemetery } from "../core/gen/cemeteryLayout";
 import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
@@ -1921,7 +1921,6 @@ export const STANDALONE_SVG_STYLE = `
   .ce-reference-image { opacity: 0.82; }
   .ce-svg--town { background: #d5cfbf; }
   .ce-svg.ce-svg--town .ce-face--land { fill: #d5cfbf; }
-  .ce-svg.ce-svg--town .ce-face--land.ce-face--ward-park { fill: #99c187; }
   .ce-features { z-index: 2; }
   .ce-park-trees, .ce-park-tree { z-index: 5; }
   .ce-park-lawn { fill: #7ea867; stroke: #4d733b; stroke-width: 0.8px; }
@@ -2115,12 +2114,16 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
     const generated: import("../core/types").CemeteryPlan[] = [];
     for (const face of Object.values(document.mesh.faces)) {
       if (face.properties.ward === "cemetery") {
-        const boundary = facePoints(document.mesh, face);
+        const boundary = computeCemeteryBoundary(document, face);
+        const area = Math.abs(polygonArea(boundary));
+        const period = document.historicalPeriod;
+        const isModern = period === "preIndustrialEra" || period === "steamEra" || period === "industrialRevolution";
+        const form: import("../core/types").CemeteryPlan["form"] = isModern || area < 750 ? "field" : "churchyard";
         const plan: import("../core/types").CemeteryPlan = {
           id: `cemetery:${face.id}`,
           version: 1,
           seed: `cemetery-${face.id}`,
-          form: "churchyard",
+          form,
           faceId: face.id,
           boundary,
           courtyards: [],
@@ -2224,23 +2227,96 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
           })
         );
       } else if (part.role === "graves") {
-        // Individual stone headstones dotted neatly over the green lawn
-        const box = bounds(part.footprint);
-        const stepX = 2.4;
-        const stepY = 2.0;
-        for (let gx = box.minX + 1.2; gx <= box.maxX - 1.2; gx += stepX) {
-          for (let gy = box.minY + 1.0; gy <= box.maxY - 1.0; gy += stepY) {
-            if (pointInPolygon([gx, gy], part.footprint)) {
+        // Individual stone headstones and grave slabs dotted neatly over the green lawn
+        const [minX, minY, maxX, maxY] = bounds(part.footprint);
+        const stepX = 2.2;
+        const stepY = 2.4;
+        const calvaryPart = cemetery.parts.find(p => p.role === "calvary");
+        const calvaryCenter = calvaryPart ? polygonCentroid(calvaryPart.footprint) : null;
+
+        let plotIndex = 0;
+        for (let gx = minX + 1.2; gx <= maxX - 1.2; gx += stepX) {
+          for (let gy = minY + 1.0; gy <= maxY - 1.0; gy += stepY) {
+            plotIndex++;
+            const p: Point = [gx, gy];
+            if (!pointInPolygon(p, part.footprint)) continue;
+
+            // Keep graves off paths / accesses
+            let hitsPath = false;
+            for (const acc of cemetery.accesses) {
+              const halfW = (acc.widthMeters ?? 1.8) / 2 + 0.45;
+              if (nearestOnPolyline(p, acc.points).dist < halfW) {
+                hitsPath = true;
+                break;
+              }
+            }
+            if (hitsPath) continue;
+
+            // Keep off calvary monument
+            if (calvaryCenter && Math.hypot(gx - calvaryCenter[0], gy - calvaryCenter[1]) < 2.0) {
+              continue;
+            }
+
+            // Keep off tree canopies
+            if (cemetery.trees.some(tp => Math.hypot(gx - tp[0], gy - tp[1]) < 2.2)) {
+              continue;
+            }
+
+            // Authentic European burial field:
+            // Every plot has an upright headstone.
+            // Alternating plots feature flat stone slabs (ledger stones) or kerb borders.
+            const hasSlab = plotIndex % 3 !== 0;
+
+            if (hasSlab) {
+              // 1. Flat horizontal grave slab / stone kerb
               group.appendChild(
                 element("rect", {
-                  x: String(gx - 0.4),
-                  y: String(-gy - 0.7),
-                  width: "0.8",
-                  height: "1.4",
-                  rx: "0.2",
-                  fill: "#edeae2",
-                  stroke: "#68645c",
-                  "stroke-width": "0.35"
+                  x: String(gx - 0.28),
+                  y: String(-gy - 0.5),
+                  width: "0.56",
+                  height: "1.05",
+                  rx: "0.12",
+                  fill: "#ded9cd",
+                  stroke: "#666157",
+                  "stroke-width": "0.3"
+                })
+              );
+            }
+
+            // 2. Upright headstone at the head of the plot (facing east/pathway)
+            group.appendChild(
+              element("rect", {
+                x: String(gx - 0.32),
+                y: String(-gy + 0.38),
+                width: "0.64",
+                height: "0.26",
+                rx: "0.08",
+                fill: "#edeae2",
+                stroke: "#49453c",
+                "stroke-width": "0.35"
+              })
+            );
+
+            // Optional carved cross relief on select headstones
+            if (plotIndex % 2 === 0) {
+              group.appendChild(
+                element("line", {
+                  x1: String(gx),
+                  y1: String(-gy + 0.41),
+                  x2: String(gx),
+                  y2: String(-gy + 0.61),
+                  stroke: "#787265",
+                  "stroke-width": "0.2"
+                })
+              );
+              group.appendChild(
+                element("line", {
+                  x1: String(gx - 0.12),
+                  y1: String(-gy + 0.47),
+                  x2: String(gx + 0.12),
+                  y2: String(-gy + 0.47),
+                  stroke: "#787265",
+                  "stroke-width": "0.2"
                 })
               );
             }

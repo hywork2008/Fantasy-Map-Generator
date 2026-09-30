@@ -15,6 +15,7 @@ import { type CitySizePreset, type GridKind, isCitySizePreset, sizePresetForExte
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
+import type { HistoricalPeriod } from "../core/types";
 
 /** sessionStorage key the FMG Burg editor writes before `window.open`. */
 export const CITY_SITE_KEY = "fmg.citySite";
@@ -239,7 +240,27 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (isFiniteNumber(raw.urbanNPatches)) settings.urbanNPatches = raw.urbanNPatches;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];
+  if (isHistoricalPeriod(raw.historicalPeriod)) settings.historicalPeriod = raw.historicalPeriod;
   return settings;
+}
+
+function isHistoricalPeriod(value: unknown): value is HistoricalPeriod {
+  return (
+    typeof value === "string" &&
+    [
+      "classicalAntiquity",
+      "earlyMedieval",
+      "highMedieval",
+      "lateMedieval",
+      "ageOfExploration",
+      "maritimeEra",
+      "preIndustrialEra",
+      "steamEra",
+      "industrialChemistryEra",
+      "petroleumEra",
+      "rocketryEra"
+    ].includes(value)
+  );
 }
 
 function asPatchParams(raw: unknown): CityEditorShare["patchParams"] | undefined {

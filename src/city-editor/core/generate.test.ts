@@ -1064,4 +1064,21 @@ describe("sizePresetForExtent / custom frame", () => {
     const cemeteryFaces = faces.filter(f => f.properties.ward === "cemetery");
     expect(cemeteryFaces.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("completes full city generation with rivers without throwing undefined .map error", () => {
+    const base = createGridDocument({ size: "small", grid: "voronoi" });
+    const settings = defaultGenerationSettings();
+    settings.config.rivers = [{ source: [-400, -200], mouth: [400, 200] }];
+    settings.historicalPeriod = "industrialRevolution";
+
+    const city = generateCityOnDocument(base, settings, "full-gen-river-seed");
+    expect(city).not.toBeNull();
+    if (!city) return;
+
+    // Check cemeteries and feature groups
+    expect(city.featureGroups.some(g => g.kind === "river")).toBe(true);
+    const faces = Object.values(city.mesh.faces);
+    expect(faces.some(f => f.properties.ward === "cemetery")).toBe(true);
+    expect(city.cemeteries?.length).toBeGreaterThanOrEqual(1);
+  });
 });

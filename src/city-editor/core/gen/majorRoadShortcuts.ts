@@ -1,7 +1,7 @@
 import { featureGroupVertices } from "../features";
 import { edgeBetween, facePoints, faceVertices, splitFace } from "../mesh";
 import { validGeneratedCrossings } from "../passages";
-import type { CityDocument, Id } from "../types";
+import type { CityDocument, Id, Point } from "../types";
 import { pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 
 /** Add only useful major-road diagonals; local infill roads never use this path.
@@ -14,7 +14,7 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
       const road = next.featureGroups.find(g => g.id === roadId);
       if (road?.kind !== "road" || road.locked) break;
       const vertices = featureGroupVertices(next, road);
-      const gateVertices = new Set(next.gates.map(g => g.vertexId));
+      const gateVertices = new Set((next.gates ?? []).map(g => g.vertexId));
       if (vertices.length >= 3 && gateVertices.has(vertices[0]) && gateVertices.has(vertices[vertices.length - 1])) {
         const chord = Math.hypot(
           next.mesh.vertices[vertices[0]].point[0] - next.mesh.vertices[vertices[vertices.length - 1]].point[0],
@@ -29,7 +29,7 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
         // onto the curtain wall / river is not a useful major-road shortcut.
         if (chord > 4 && pathLength > chord * 1.25) break;
       }
-      const protectedVertices = new Set<Id>(next.gates.map(g => g.vertexId));
+      const protectedVertices = new Set<Id>((next.gates ?? []).map(g => g.vertexId));
       for (const group of next.featureGroups) {
         if (group.id !== roadId) for (const id of featureGroupVertices(next, group)) protectedVertices.add(id);
       }
@@ -38,6 +38,17 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
           protectedVertices.add(edge.a);
           protectedVertices.add(edge.b);
         }
+      const riverSegments: [Point, Point][] = [];
+      for (const group of next.featureGroups) {
+        if (group.kind === "river") {
+          const ids = featureGroupVertices(next, group);
+          for (let k = 1; k < ids.length; k++) {
+            const p1 = next.mesh.vertices[ids[k - 1]]?.point;
+            const p2 = next.mesh.vertices[ids[k]]?.point;
+            if (p1 && p2) riverSegments.push([p1, p2]);
+          }
+        }
+      }
       let changed = false;
       outer: for (let i = 0; i < vertices.length - 2; i++) {
         if (next.mesh.vertices[vertices[i]].locked || protectedVertices.has(vertices[i])) continue;
@@ -57,6 +68,8 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
             if (
               f.properties.water !== "land" ||
               f.properties.locked ||
+              f.properties.ward === "cemetery" ||
+              f.properties.ward === "park" ||
               next.elements.some(e => e.faceIds.includes(f.id))
             )
               return false;
@@ -74,6 +87,7 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
             });
           });
           if (!face) continue;
+          if (riverSegments.some(([p1, p2]) => segmentSegmentHit(a, b, p1, p2))) continue;
           const split = splitFace(next, face.id, vertices[i], vertices[j]);
           if (!split) continue;
           const added = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);

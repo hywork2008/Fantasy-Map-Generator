@@ -89,6 +89,8 @@ export function rectifyVoronoiBlocks(
     if (
       face.properties.locked ||
       !face.properties.buildable ||
+      face.properties.ward === "cemetery" ||
+      face.properties.ward === "park" ||
       face.properties.water !== "land" ||
       !convex(facePoints(mesh, face))
     ) {

@@ -662,6 +662,45 @@ describe("cemetery precinct rendering", () => {
     expect(cemeteryGroup?.querySelectorAll("path").length).toBeGreaterThan(0);
     expect(cemeteryGroup?.querySelectorAll("circle").length).toBeGreaterThan(0);
   });
+
+  it("renders suburban pre-industrial burial fields with headstones and grave slabs on narrow parcels", () => {
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const document = createDocument("cemetery-suburban-test", 600);
+    document.appearance = "town";
+    document.historicalPeriod = "preIndustrialEra";
+
+    // Narrow parcel: 12m wide x 35m long (too narrow for cathedral frame, perfect for burial field)
+    document.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [10, 10],
+          [22, 10],
+          [22, 45],
+          [10, 45]
+        ],
+        site: [16, 27],
+        centroid: [16, 27],
+        neighbors: [],
+        onBorder: false
+      }
+    ]);
+    const f0 = Object.values(document.mesh.faces)[0];
+    f0.properties.ward = "cemetery";
+    syncDocumentCemeteries(document, [f0.id]);
+
+    const svg = renderEditorSvg(document, "select", selection, "-50 -50 150 150", 1);
+    const cemeteryGroup = svg.querySelector<SVGGElement>(".ce-cemeteries");
+    expect(cemeteryGroup).not.toBeNull();
+
+    // Verify headstones (rect elements with stroke #49453c) and slabs are rendered
+    const rects = cemeteryGroup?.querySelectorAll("rect") ?? [];
+    expect(rects.length).toBeGreaterThanOrEqual(4);
+
+    // Verify burial field form was assigned
+    expect(document.cemeteries?.[0].form).toBe("field");
+    expect(document.cemeteries?.[0].parts.some(p => p.role === "graves")).toBe(true);
+  });
 });
 
 describe("renderEditorSvg data-pick metadata", () => {

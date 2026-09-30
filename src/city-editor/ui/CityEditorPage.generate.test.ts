@@ -643,6 +643,9 @@ describe("shareable link and FMG site", () => {
     const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
     seedInput.value = "share-seed";
     seedInput.dispatchEvent(new Event("input", { bubbles: true }));
+    const period = root.querySelector<HTMLSelectElement>(".ce-document-historical-period")!;
+    period.value = "steamEra";
+    period.dispatchEvent(new Event("change", { bubbles: true }));
     panelButton("Copy shareable link").click();
     await vi.waitFor(() => expect(writes).toHaveLength(1));
     const token = writes[0].slice(writes[0].indexOf("#") + 1);
@@ -650,7 +653,11 @@ describe("shareable link and FMG site", () => {
     expect(share?.seed).toBe("share-seed");
     expect(share?.grid).toBe("evolution");
     expect(share?.size).toBe("tiny");
+    expect(share?.settings.historicalPeriod).toBe("steamEra");
     expect(share?.descriptor).toBeUndefined();
+    window.history.replaceState(null, "", writes[0]);
+    remount();
+    expect(root.querySelector<HTMLSelectElement>(".ce-document-historical-period")?.value).toBe("steamEra");
   });
 
   it("copies the displayed initial-grid town without redrawing and reproduces its geometry", async () => {

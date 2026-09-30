@@ -1,7 +1,7 @@
-import { facePoints } from "../mesh";
+import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
 import { pointInPolygon, polygonArea, polygonCentroid } from "./geom";
-import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
+import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
 import { makeRng, type Rng } from "./prng";
 
 /**
@@ -41,20 +41,54 @@ export const FORTIFICATION_TREE_CLEAR_ZONE = 11.0;
  */
 export const MIN_FORTIFIED_PARK_TREE_AREA = 650;
 
-interface DefenseData {
+interface ClearanceData {
   wallEdgeIds: Set<Id>;
   castleFaceIds: Set<Id>;
   segments: [Point, Point][];
+  rivers: RiverMargin[];
+  riverEdgeClearance: Map<Id, number>;
+  wallEdgeClearance: Map<Id, number>;
+  roadEdgeClearance: Map<Id, number>;
+  riverSegments: Array<{ a: Point; b: Point; clearDist: number }>;
 }
 
-function collectDefenseData(document: CityDocument): DefenseData {
+function collectClearanceData(document: CityDocument): ClearanceData {
+  const edgeIndex = indexMeshEdges(document.mesh);
   const wallEdgeIds = new Set<Id>();
   const segments: [Point, Point][] = [];
+  const rivers: RiverMargin[] = [];
+  const riverEdgeClearance = new Map<Id, number>();
+  const wallEdgeClearance = new Map<Id, number>();
+  const roadEdgeClearance = new Map<Id, number>();
+  const riverSegments: Array<{ a: Point; b: Point; clearDist: number }> = [];
 
-  for (const group of document.featureGroups) {
-    if (group.kind === "wall") {
-      for (const seg of group.segments) {
+  for (const group of document.featureGroups ?? []) {
+    const halfWidth = (group.style?.widthMeters ?? 4) / 2;
+    if (group.kind === "river") {
+      const margin = halfWidth + 3.2;
+      const pts = (group.vertices ?? []).map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
+      if (pts.length >= 2) {
+        rivers.push({
+          points: pts,
+          margin,
+          halfWidth
+        });
+        for (let i = 0; i < pts.length - 1; i++) {
+          riverSegments.push({ a: pts[i], b: pts[i + 1], clearDist: margin });
+        }
+      }
+      const edgeIds = (group.vertices ?? []).slice(1).flatMap((id, i) => {
+        const edge = edgeIndex.between(group.vertices[i], id);
+        return edge ? [edge.id] : [];
+      });
+      for (const eid of edgeIds) {
+        riverEdgeClearance.set(eid, Math.max(riverEdgeClearance.get(eid) ?? 0, margin));
+      }
+    } else if (group.kind === "wall") {
+      const margin = halfWidth + 2.5;
+      for (const seg of group.segments ?? []) {
         wallEdgeIds.add(seg.edgeId);
+        wallEdgeClearance.set(seg.edgeId, Math.max(wallEdgeClearance.get(seg.edgeId) ?? 0, margin));
         const edge = document.mesh.edges[seg.edgeId];
         if (!edge) continue;
         const va = document.mesh.vertices[edge.a]?.point;
@@ -62,6 +96,11 @@ function collectDefenseData(document: CityDocument): DefenseData {
         if (va && vb) {
           segments.push([va, vb]);
         }
+      }
+    } else if (group.kind === "road") {
+      const margin = halfWidth + 1.5;
+      for (const seg of group.segments ?? []) {
+        roadEdgeClearance.set(seg.edgeId, Math.max(roadEdgeClearance.get(seg.edgeId) ?? 0, margin));
       }
     }
   }
@@ -91,23 +130,37 @@ function collectDefenseData(document: CityDocument): DefenseData {
     }
   }
 
-  return { wallEdgeIds, castleFaceIds, segments };
+  return {
+    wallEdgeIds,
+    castleFaceIds,
+    segments,
+    rivers,
+    riverEdgeClearance,
+    wallEdgeClearance,
+    roadEdgeClearance,
+    riverSegments
+  };
 }
 
-function isFaceAdjacentToDefense(document: CityDocument, face: Face, outline: Point[], defense: DefenseData): boolean {
-  if (!defense.segments.length) return false;
+function isFaceAdjacentToDefense(
+  document: CityDocument,
+  face: Face,
+  outline: Point[],
+  clearance: ClearanceData
+): boolean {
+  if (!clearance.segments.length) return false;
 
   for (const ref of face.boundary) {
-    if (defense.wallEdgeIds.has(ref.edgeId)) return true;
+    if (clearance.wallEdgeIds.has(ref.edgeId)) return true;
     const edge = document.mesh.edges[ref.edgeId];
     if (edge) {
       const neighborId = edge.leftFace === face.id ? edge.rightFace : edge.leftFace;
-      if (neighborId && defense.castleFaceIds.has(neighborId)) return true;
+      if (neighborId && clearance.castleFaceIds.has(neighborId)) return true;
     }
   }
 
   for (const pt of outline) {
-    for (const [a, b] of defense.segments) {
+    for (const [a, b] of clearance.segments) {
       if (distToSegment(pt, a, b) < 5.0) return true;
     }
   }
@@ -120,54 +173,101 @@ function isFaceAdjacentToDefense(document: CityDocument, face: Face, outline: Po
  * Everything is rendered within the town presentation layer and does not pollute `document.elements`.
  */
 export function buildParkLawns(document: CityDocument, seed = "park-fabric"): ParkLawn[] {
-  const defense = collectDefenseData(document);
+  const clearance = collectClearanceData(document);
   const lawns: ParkLawn[] = [];
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "land" || face.properties.ward !== "park") continue;
-    const lawn = shapeParkFace(document, face, seed, defense);
+    const lawn = shapeParkFace(document, face, seed, clearance);
     if (lawn) lawns.push(lawn);
   }
   return lawns;
 }
 
-function shapeParkFace(document: CityDocument, face: Face, seed: string, defense: DefenseData): ParkLawn | null {
+function shapeParkFace(document: CityDocument, face: Face, seed: string, clearance: ClearanceData): ParkLawn | null {
   const outline = facePoints(document.mesh, face);
   if (outline.length < 3) return null;
   const area = Math.abs(polygonArea(outline));
   if (area < 25) return null;
+
+  const setbacks = face.boundary.map(ref => {
+    const edge = document.mesh.edges[ref.edgeId];
+    const otherId = edge ? (edge.leftFace === face.id ? edge.rightFace : edge.leftFace) : null;
+    const otherFace = otherId ? document.mesh.faces[otherId] : null;
+
+    const riverM = clearance.riverEdgeClearance.get(ref.edgeId);
+    if (riverM !== undefined) return riverM;
+
+    if (otherFace && otherFace.properties.water !== "land") {
+      return 6.0;
+    }
+
+    const wallM = clearance.wallEdgeClearance.get(ref.edgeId);
+    if (wallM !== undefined) return wallM;
+
+    const roadM = clearance.roadEdgeClearance.get(ref.edgeId);
+    if (roadM !== undefined) return roadM;
+
+    return LAWN_SETBACK;
+  });
 
   const parts = convexInfillParts(outline);
   const lawnPolygons: Point[][] = [];
   for (const part of parts) {
     const partArea = Math.abs(polygonArea(part));
     if (partArea < 20) continue;
-    const setback = partArea < 80 ? 1.8 : LAWN_SETBACK;
-    const inset = insetConvexKernel(
-      part,
-      part.map(() => setback)
-    );
+
+    const partSetbacks = part.map((pt, i) => {
+      const nextPt = part[(i + 1) % part.length];
+      const mid: Point = [(pt[0] + nextPt[0]) / 2, (pt[1] + nextPt[1]) / 2];
+
+      let maxEdgeSetback = partArea < 80 ? 1.8 : LAWN_SETBACK;
+      for (let j = 0; j < face.boundary.length; j++) {
+        const ref = face.boundary[j];
+        const edge = document.mesh.edges[ref.edgeId];
+        if (!edge) continue;
+        const va = document.mesh.vertices[edge.a]?.point;
+        const vb = document.mesh.vertices[edge.b]?.point;
+        if (va && vb && distToSegment(mid, va, vb) < 1.0) {
+          maxEdgeSetback = Math.max(maxEdgeSetback, setbacks[j]);
+        }
+      }
+      return maxEdgeSetback;
+    });
+
+    let inset = insetConvexKernel(part, partSetbacks);
+    if (inset.length >= 3 && clearance.rivers.length > 0) {
+      const clipped = clipBlockWithRivers(inset, part, polygonCentroid(part), clearance.rivers);
+      if (clipped.length >= 3) inset = clipped;
+    }
+
     if (inset.length >= 3 && Math.abs(polygonArea(inset)) >= 15) {
       lawnPolygons.push(inset);
     } else if (part.length >= 3 && partArea >= 25) {
-      const fallback = insetConvexKernel(
-        part,
-        part.map(() => 1.2)
-      );
+      const fallbackSetbacks = partSetbacks.map(s => Math.min(s, 1.8));
+      let fallback = insetConvexKernel(part, fallbackSetbacks);
+      if (fallback.length >= 3 && clearance.rivers.length > 0) {
+        const clipped = clipBlockWithRivers(fallback, part, polygonCentroid(part), clearance.rivers);
+        if (clipped.length >= 3) fallback = clipped;
+      }
       if (fallback.length >= 3) lawnPolygons.push(fallback);
     }
   }
 
   if (!lawnPolygons.length) {
     const c = polygonCentroid(outline);
-    const scaled = outline.map(p => [c[0] + (p[0] - c[0]) * 0.82, c[1] + (p[1] - c[1]) * 0.82] as Point);
+    let scaled = outline.map(p => [c[0] + (p[0] - c[0]) * 0.82, c[1] + (p[1] - c[1]) * 0.82] as Point);
+    if (clearance.rivers.length > 0) {
+      const clipped = clipBlockWithRivers(scaled, outline, c, clearance.rivers);
+      if (clipped.length >= 3) scaled = clipped;
+    }
     if (scaled.length >= 3) lawnPolygons.push(scaled);
   }
 
-  const isFortified = isFaceAdjacentToDefense(document, face, outline, defense);
+  const isFortified = isFaceAdjacentToDefense(document, face, outline, clearance);
   const rng = makeRng(`${seed}:park-lawn:${face.id}`);
   const paths = generateParkPaths(outline, lawnPolygons, area, rng);
   const grassTufts = generateGrassTufts(lawnPolygons, paths, rng);
-  const trees = generateTopDownBushes(outline, lawnPolygons, paths, area, rng, defense, isFortified);
+  const trees = generateTopDownBushes(outline, lawnPolygons, paths, area, rng, clearance, isFortified);
 
   return {
     faceId: face.id,
@@ -258,7 +358,7 @@ function generateTopDownBushes(
   paths: Point[][],
   area: number,
   rng: Rng,
-  defense?: DefenseData,
+  clearance?: ClearanceData,
   isFortified = false
 ): ParkTreeCanopy[] {
   // If adjacent to fortifications and block is small/medium, treat as an open esplanade /
@@ -298,15 +398,27 @@ function generateTopDownBushes(
     if (tooCloseToEdge) continue;
 
     // Check distance to fortifications (city walls and castles)
-    if (defense?.segments.length) {
+    if (clearance?.segments.length) {
       let tooCloseToDefense = false;
-      for (const [a, b] of defense.segments) {
+      for (const [a, b] of clearance.segments) {
         if (distToSegment(cand, a, b) < FORTIFICATION_TREE_CLEAR_ZONE) {
           tooCloseToDefense = true;
           break;
         }
       }
       if (tooCloseToDefense) continue;
+    }
+
+    // Check distance to rivers
+    if (clearance?.riverSegments.length) {
+      let tooCloseToRiver = false;
+      for (const rSeg of clearance.riverSegments) {
+        if (distToSegment(cand, rSeg.a, rSeg.b) < rSeg.clearDist) {
+          tooCloseToRiver = true;
+          break;
+        }
+      }
+      if (tooCloseToRiver) continue;
     }
 
     // Check distance to walkways
@@ -341,12 +453,13 @@ function generateTopDownBushes(
     trees.push({ center: cand, radius, subCircles });
   }
 
-  // Fallback: at least one canopy if area is large enough, but NEVER violate fortification clear zone
+  // Fallback: at least one canopy if area is large enough, but NEVER violate fortification or river clear zones
   if (!trees.length && !isFortified) {
     const c = polygonCentroid(outline);
     if (pointInPolygon(c, outline)) {
-      const nearDefense = defense?.segments.some(([a, b]) => distToSegment(c, a, b) < FORTIFICATION_TREE_CLEAR_ZONE);
-      if (!nearDefense) {
+      const nearDefense = clearance?.segments.some(([a, b]) => distToSegment(c, a, b) < FORTIFICATION_TREE_CLEAR_ZONE);
+      const nearRiver = clearance?.riverSegments.some(rSeg => distToSegment(c, rSeg.a, rSeg.b) < rSeg.clearDist);
+      if (!nearDefense && !nearRiver) {
         trees.push({
           center: c,
           radius: 4.5,

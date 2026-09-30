@@ -711,7 +711,14 @@ describe("building setbacks", () => {
 
     for (const [id, face] of Object.entries(city.mesh.faces)) {
       if (insideFaces.has(id)) continue;
-      if (!face.properties.ward || face.properties.ward === "empty" || face.properties.ward === "park") continue;
+      if (
+        !face.properties.ward ||
+        face.properties.ward === "empty" ||
+        face.properties.ward === "park" ||
+        face.properties.ward === "farm" ||
+        face.properties.ward === "cemetery"
+      )
+        continue;
       if (!face.properties.buildable) continue;
 
       const hasRoad = face.boundary.some(b => roadEdges.has(b.edgeId));

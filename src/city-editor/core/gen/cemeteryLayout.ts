@@ -1,8 +1,8 @@
 import { insideRing, polygonOverlaps, polylineInsideRing } from "../fortifications";
-import { facePoints } from "../mesh";
-import type { CemeteryPart, CemeteryPlan, CityDocument, Id, Point } from "../types";
-import { polygonCentroid, segmentInteriorInPolygon } from "./geom";
-import { insetConvexKernel } from "./lotGeometry";
+import { facePoints, indexMeshEdges } from "../mesh";
+import type { CemeteryPart, CemeteryPlan, CityDocument, Face, Id, Point } from "../types";
+import { nearestOnPolyline, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
+import { clipBlockWithRivers, insetConvexKernel, type RiverMargin } from "./lotGeometry";
 
 /**
  * Geometric layout of a cemetery precinct (churchyard / cloister / field).
@@ -13,29 +13,71 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
   const ring = cemetery.boundary;
   if (!ring || ring.length < 3) return null;
 
-  // Inset the boundary to establish a safe perimeter inside the churchyard wall
-  const setback = 2.0;
+  // Inset the boundary to establish a safe perimeter inside the perimeter stone wall
+  const isField = cemetery.form === "field";
+  const setback = isField ? 1.4 : 2.0;
   const safe = insetConvexKernel(
     ring,
     ring.map(() => setback)
   );
   if (safe.length < 3) return null;
 
+  const safeArea = Math.abs(polygonArea(safe));
+  const xs = safe.map(p => p[0]);
+  const ys = safe.map(p => p[1]);
+  const spanX = Math.max(...xs) - Math.min(...xs);
+  const spanY = Math.max(...ys) - Math.min(...ys);
+  const minSpan = Math.min(spanX, spanY);
+  const maxSpan = Math.max(spanX, spanY);
+
+  if (isField) {
+    // Burial field needs enough room for headstone rows and access walk
+    if (safeArea < 30 || minSpan < 2.5 || maxSpan < 6.0) return null;
+  } else {
+    // Churchyard precinct requires room for chapel, rectory, and ossuary buildings
+    if (safeArea < 50 || spanX < 5.0 || spanY < 5.0) return null;
+  }
+
   const center = polygonCentroid(safe);
 
   // Determine primary gate/entrance position 'at'
   let at = cemetery.gatePoint;
-  if (!at) {
-    // If no gate specified, pick the boundary edge closest to a street/road or south-facing
-    let bestDist = -Infinity;
+  if (!at || !insideRing(at, ring)) {
+    // Look for a road adjacent to this cemetery boundary
+    const roadPolylines: Point[][] = [];
+    for (const group of document.featureGroups ?? []) {
+      if (group.kind === "road") {
+        const pts = (group.segments ?? []).flatMap(s => {
+          const edge = document.mesh.edges[s.edgeId];
+          if (!edge) return [];
+          const va = document.mesh.vertices[edge.a]?.point;
+          const vb = document.mesh.vertices[edge.b]?.point;
+          return va && vb ? [va, vb] : [];
+        });
+        if (pts.length >= 2) roadPolylines.push(pts);
+      }
+    }
+
+    let bestDist = Infinity;
     let candidate = ring[0];
-    for (let i = 0; i < ring.length; i++) {
-      const p = ring[i];
-      // Prefer south side (negative Y in our coordinates usually, or find lowest Y)
-      const dist = -p[1];
-      if (dist > bestDist) {
-        bestDist = dist;
-        candidate = p;
+    if (roadPolylines.length > 0) {
+      for (const p of ring) {
+        for (const road of roadPolylines) {
+          const hit = nearestOnPolyline(p, road);
+          if (hit.dist < bestDist) {
+            bestDist = hit.dist;
+            candidate = p;
+          }
+        }
+      }
+    } else {
+      // Fallback: prefer south side (lowest Y)
+      let lowestY = Infinity;
+      for (const p of ring) {
+        if (p[1] < lowestY) {
+          lowestY = p[1];
+          candidate = p;
+        }
       }
     }
     at = candidate;
@@ -60,7 +102,15 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
     world(u - w / 2, v + h / 2)
   ];
 
-  // Fit the largest rectangular frame inside the safe kernel
+  const extentRadius = Math.sqrt(safeArea / Math.PI);
+
+  // If explicitly configured as "field" (pure burial ground with rows of headstones),
+  // layout burial field directly without attempting large church buildings
+  if (cemetery.form === "field") {
+    return layoutBurialField(cemetery, safe, ring, at, center, x, y, world, extentRadius);
+  }
+
+  // Fit the largest rectangular frame inside the safe kernel for churchyard buildings
   let frame: [number, number] | null = null;
   for (const ratio of [1, 1.25, 0.8, 1.5, 0.67, 1.8, 0.55]) {
     for (let h = 40; h >= 10; h -= 1) {
@@ -71,7 +121,10 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
     }
   }
 
-  if (!frame) return null;
+  // If the building frame cannot fit, churchyard precinct cannot host required chapel buildings
+  if (!frame) {
+    return null;
+  }
   const [w, h] = frame;
 
   const parts: CemeteryPart[] = [];
@@ -147,7 +200,7 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
   }
 
   // Restore locked parts
-  for (const old of cemetery.parts.filter(p => p.locked)) {
+  for (const old of (cemetery.parts ?? []).filter(p => p.locked)) {
     const index = parts.findIndex(p => p.role === old.role);
     if (index >= 0 && old.footprint.every(p => insideRing(p, safe))) {
       parts[index] = structuredClone(old);
@@ -157,7 +210,7 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
   // Check overlaps among building parts (excluding calvary/graves which sit in open yard)
   const solidParts = parts.filter(p => p.role !== "calvary" && p.role !== "graves");
   if (solidParts.some((p, i) => solidParts.slice(i + 1).some(q => polygonOverlaps(p.footprint, q.footprint)))) {
-    return null;
+    return layoutBurialField(cemetery, safe, ring, at, center, x, y, world, extentRadius);
   }
 
   // Courtyard / lawn: the entire safe kernel inside the precinct wall
@@ -219,15 +272,208 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
 }
 
 /**
+ * Lays out a burial ground / field without full-set church buildings,
+ * consisting of headstone rows, pathways, open lawn, central cross/memorial, and trees.
+ * Ideal for suburban expansion cemeteries, pre-industrial/modern cemeteries,
+ * or compact parcels where a full abbey/church complex does not fit.
+ */
+function layoutBurialField(
+  cemetery: CemeteryPlan,
+  safe: Point[],
+  _ring: Point[],
+  at: Point,
+  center: Point,
+  x: Point,
+  y: Point,
+  world: (u: number, v: number) => Point,
+  extentRadius: number
+): CemeteryPlan {
+  const parts: CemeteryPart[] = [];
+  const accesses: CemeteryPlan["accesses"] = [];
+
+  // 1. Central preaching cross or memorial column
+  const calvarySize = Math.max(1.6, Math.min(2.4, extentRadius * 0.2));
+  const calvaryCenter = center;
+  parts.push({
+    id: `${cemetery.id}:calvary`,
+    role: "calvary",
+    footprint: [
+      [
+        calvaryCenter[0] - x[0] * calvarySize * 0.5 - y[0] * calvarySize * 0.5,
+        calvaryCenter[1] - x[1] * calvarySize * 0.5 - y[1] * calvarySize * 0.5
+      ],
+      [
+        calvaryCenter[0] + x[0] * calvarySize * 0.5 - y[0] * calvarySize * 0.5,
+        calvaryCenter[1] + x[1] * calvarySize * 0.5 - y[1] * calvarySize * 0.5
+      ],
+      [
+        calvaryCenter[0] + x[0] * calvarySize * 0.5 + y[0] * calvarySize * 0.5,
+        calvaryCenter[1] + x[1] * calvarySize * 0.5 + y[1] * calvarySize * 0.5
+      ],
+      [
+        calvaryCenter[0] - x[0] * calvarySize * 0.5 + y[0] * calvarySize * 0.5,
+        calvaryCenter[1] - x[1] * calvarySize * 0.5 + y[1] * calvarySize * 0.5
+      ]
+    ],
+    entrances: [[calvaryCenter[0] - y[0] * calvarySize * 0.5, calvaryCenter[1] - y[1] * calvarySize * 0.5]],
+    locked: false
+  });
+
+  // 2. Main access path: entrance 'at' -> center calvary -> deep end
+  const pathToEnd = world(0, extentRadius * 0.75);
+  const mainSpine: Point[] = [at, center];
+  if (insideRing(pathToEnd, safe)) {
+    mainSpine.push(pathToEnd);
+  }
+  accesses.push({ points: mainSpine, widthMeters: 2.0 });
+
+  // Optional cross-path if wide enough
+  const leftWing = world(-extentRadius * 0.6, 0);
+  const rightWing = world(extentRadius * 0.6, 0);
+  if (insideRing(leftWing, safe) && insideRing(rightWing, safe) && extentRadius >= 10) {
+    accesses.push({ points: [leftWing, rightWing], widthMeters: 1.5 });
+  }
+
+  // 3. Graves: the safe kernel is dedicated as burial grounds with headstones
+  parts.push({
+    id: `${cemetery.id}:graves`,
+    role: "graves",
+    footprint: safe,
+    entrances: [at],
+    locked: false
+  });
+
+  // 4. Trees: planted along perimeter borders
+  const treeCandidates: Point[] = [
+    world(-extentRadius * 0.65, -extentRadius * 0.65),
+    world(extentRadius * 0.65, -extentRadius * 0.65),
+    world(-extentRadius * 0.65, extentRadius * 0.65),
+    world(extentRadius * 0.65, extentRadius * 0.65)
+  ];
+  const trees = treeCandidates.filter(p => insideRing(p, safe));
+
+  return {
+    ...cemetery,
+    form: "field",
+    parts,
+    courtyards: [safe],
+    accesses,
+    trees,
+    gatePoint: at
+  };
+}
+
+/**
+ * Computes an inset cemetery boundary polygon that respects adjacent river widths,
+ * city walls, roads, and water bodies, preventing cemetery stone walls and internal
+ * geometry from clipping into river channels, walls, or road rights-of-way.
+ */
+export function computeCemeteryBoundary(document: CityDocument, face: Face): Point[] {
+  const raw = facePoints(document.mesh, face);
+  if (raw.length < 3) return raw;
+
+  const edgeIndex = indexMeshEdges(document.mesh);
+  const riverMarginByEdge = new Map<Id, number>();
+  const wallMarginByEdge = new Map<Id, number>();
+  const roadMarginByEdge = new Map<Id, number>();
+  const rivers: RiverMargin[] = [];
+
+  for (const group of document.featureGroups ?? []) {
+    const halfWidth = (group.style?.widthMeters ?? 4) / 2;
+    if (group.kind === "river") {
+      const margin = halfWidth + 3.5;
+      const pts = (group.vertices ?? []).map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
+      if (pts.length >= 2) {
+        rivers.push({
+          points: pts,
+          margin,
+          halfWidth
+        });
+      }
+      const edgeIds = (group.vertices ?? []).slice(1).flatMap((id, i) => {
+        const edge = edgeIndex.between(group.vertices[i], id);
+        return edge ? [edge.id] : [];
+      });
+      for (const eid of edgeIds) {
+        riverMarginByEdge.set(eid, Math.max(riverMarginByEdge.get(eid) ?? 0, margin));
+      }
+    } else if (group.kind === "wall") {
+      const margin = halfWidth + 2.5;
+      for (const seg of group.segments ?? []) {
+        wallMarginByEdge.set(seg.edgeId, Math.max(wallMarginByEdge.get(seg.edgeId) ?? 0, margin));
+      }
+    } else if (group.kind === "road") {
+      const margin = halfWidth + 1.8;
+      for (const seg of group.segments ?? []) {
+        roadMarginByEdge.set(seg.edgeId, Math.max(roadMarginByEdge.get(seg.edgeId) ?? 0, margin));
+      }
+    }
+  }
+
+  // Calculate per-edge setback for each boundary segment
+  const setbacks = face.boundary.map(ref => {
+    const edge = document.mesh.edges[ref.edgeId];
+    const otherId = edge ? (edge.leftFace === face.id ? edge.rightFace : edge.leftFace) : null;
+    const otherFace = otherId ? document.mesh.faces[otherId] : null;
+
+    // Check river
+    const riverM = riverMarginByEdge.get(ref.edgeId);
+    if (riverM !== undefined) return riverM;
+
+    // Adjacent water face (sea, lake, canal, open water)
+    if (otherFace && otherFace.properties.water !== "land") {
+      return 6.0;
+    }
+
+    // Check city wall
+    const wallM = wallMarginByEdge.get(ref.edgeId);
+    if (wallM !== undefined) return wallM;
+
+    // Check road
+    const roadM = roadMarginByEdge.get(ref.edgeId);
+    if (roadM !== undefined) return roadM;
+
+    // Standard parcel boundary buffer
+    return 1.8;
+  });
+
+  let boundary = insetConvexKernel(raw, setbacks);
+  if (boundary.length < 3 || Math.abs(polygonArea(boundary)) < 40) {
+    // If setback was too large for a small polygon, apply capped setback
+    const fallbackSetbacks = setbacks.map(s => Math.min(s, 2.2));
+    boundary = insetConvexKernel(raw, fallbackSetbacks);
+  }
+
+  if (boundary.length >= 3 && rivers.length > 0) {
+    const center = face.site ?? polygonCentroid(raw);
+    const clipped = clipBlockWithRivers(boundary, raw, center, rivers);
+    if (clipped.length >= 3 && Math.abs(polygonArea(clipped)) >= 30) {
+      boundary = clipped;
+    }
+  }
+
+  return boundary.length >= 3 ? boundary : raw;
+}
+
+/**
  * Recomputes layout for all unlocked cemeteries in the document.
  */
 export function refreshCemeteryLayouts(document: CityDocument): boolean {
   for (let i = 0; i < (document.cemeteries?.length ?? 0); i++) {
     const cemetery = document.cemeteries![i];
     if (cemetery.locked) continue;
-    const updated = layoutCemetery(document, cemetery);
-    if (!updated) return false;
-    document.cemeteries![i] = updated;
+    const face = document.mesh.faces[cemetery.faceId];
+    const boundary = face ? computeCemeteryBoundary(document, face) : cemetery.boundary;
+    const updated = layoutCemetery(document, { ...cemetery, boundary });
+    document.cemeteries![i] = updated ?? {
+      ...cemetery,
+      boundary,
+      courtyards: [],
+      parts: [],
+      accesses: [],
+      trees: [],
+      gatePoint: undefined
+    };
   }
   return true;
 }
@@ -243,12 +489,16 @@ export function syncDocumentCemeteries(document: CityDocument, faceIds?: Iterabl
     if (face?.properties.ward === "cemetery") {
       let plan = document.cemeteries.find(c => c.faceId === face.id);
       if (!plan) {
-        const boundary = facePoints(document.mesh, face);
+        const boundary = computeCemeteryBoundary(document, face);
+        const area = Math.abs(polygonArea(boundary));
+        const period = document.historicalPeriod;
+        const isModern = period === "preIndustrialEra" || period === "steamEra" || period === "industrialRevolution";
+        const form: CemeteryPlan["form"] = isModern || area < 750 ? "field" : "churchyard";
         plan = {
           id: `cemetery:${face.id}`,
           version: 1,
           seed: `cemetery-${face.id}`,
-          form: "churchyard",
+          form,
           faceId: face.id,
           boundary,
           courtyards: [],

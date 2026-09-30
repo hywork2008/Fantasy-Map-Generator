@@ -20,6 +20,7 @@
 // Algorithms are taken from TownGeneratorTS/docs/** and the public description
 // of rateLocation preferences — not from the GPL sources.
 
+import type { HistoricalPeriod } from "../types";
 import { placeTempleFootprint } from "./civicPlacement";
 import { cultivableParts } from "./coastalSuitability";
 import {
@@ -29,6 +30,7 @@ import {
   polygonArea,
   polygonCompactness,
   polylineTangent,
+  segmentInteriorInPolygon,
   vecToAzimuth
 } from "./geom";
 import { makeRng, type Rng } from "./prng";
@@ -45,6 +47,19 @@ import type {
   WardAssignment,
   WardKind
 } from "./types";
+
+/**
+ * Eras in which intramural burial within crowded city cores was prohibited or superseded
+ * by extramural suburban / garden cemeteries (Père Lachaise, London Magnificent Seven, etc.)
+ * starting with 18th-century Enlightenment reforms, the 1780 Holy Innocents closure, and 19th-century burial acts.
+ */
+export const MODERN_BURIAL_PERIODS: ReadonlySet<HistoricalPeriod> = new Set<HistoricalPeriod>([
+  "preIndustrialEra",
+  "steamEra",
+  "industrialChemistryEra",
+  "petroleumEra",
+  "rocketryEra"
+]);
 
 const QUANTUM = 0.05;
 const RIBBON_CONE_DEG = 15;
@@ -117,6 +132,7 @@ export interface WardInputs {
   streets?: Point[][];
   /** River centerlines, used to keep the temple off the water. */
   rivers?: Point[][];
+  historicalPeriod?: HistoricalPeriod;
 }
 
 export interface WardResult {
@@ -223,8 +239,22 @@ export function assignWards(input: WardInputs): WardResult {
 
   const rng = makeRng(`${params.seed}:program:wards`);
 
-  // 3.5. Cemetery: every medieval city requires a churchyard or municipal cemetery.
-  const cemeteryId = placeCemetery(cells, urban, occupied, sea, templeIds, plaza, citadelIds, rng);
+  // 3.5. Cemetery: every medieval or modern city requires a churchyard or municipal cemetery.
+  const cemeteryRng = makeRng(`${params.seed}:cemetery`);
+  const cemeteryId = placeCemetery(
+    cells,
+    urban,
+    outskirts,
+    occupied,
+    sea,
+    templeIds,
+    plaza,
+    citadelIds,
+    gates,
+    input.streets ?? [],
+    input.historicalPeriod,
+    cemeteryRng
+  );
   if (cemeteryId !== null) {
     take(cemeteryId, "cemetery");
   }
@@ -606,24 +636,110 @@ function dist(a: Point, b: Point): number {
 }
 
 /**
- * Automatically places a churchyard or municipal cemetery.
- * Priority 1: A cell adjacent to the Cathedral/Temple (Churchyard), preferably to the South or East.
- * Priority 2: In urban core, a quiet cell away from the central market/citadel.
+ * Automatically places a churchyard or municipal cemetery based on historical period.
+ *
+ * - For modern eras (pre-industrial Enlightenment, Industrial Revolution / steam era and later),
+ *   burials were banned intramurally (within city walls and dense urban residential quarters) due to
+ *   public health reforms and overcrowding (e.g. 1780 Holy Innocents closure, 1804 Napoleonic decrees,
+ *   1850s London Burial Acts). The cemetery is placed extramurally in the suburban outskirts (`outskirts`),
+ *   prioritizing accessible locations along gate approach roads with generous space and quiet topography.
+ *
+ * - For earlier eras (classical antiquity through early/high/late medieval and age of exploration),
+ *   burials took place on consecrated ground immediately surrounding parish churches or cathedrals:
+ *   Priority 1: A cell adjacent to the Cathedral/Temple (Churchyard), preferably to the South or East.
+ *   Priority 2: In the urban core, a quiet cell away from the central market/citadel.
  */
+function isCellPenetratedByStreet(cellPolygon: Point[], cellCentroid: Point, streets: Point[][]): boolean {
+  for (const street of streets) {
+    if (street.length < 2) continue;
+    for (let i = 0; i < street.length - 1; i++) {
+      if (segmentInteriorInPolygon(street[i], street[i + 1], cellPolygon)) {
+        return true;
+      }
+    }
+    const hit = nearestOnPolyline(cellCentroid, street);
+    if (hit.dist < 14) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function placeCemetery(
   cells: Cell[],
   urban: Set<number>,
+  outskirts: Set<number>,
   occupied: Set<number>,
   sea: Set<number>,
   templeIds: Set<number>,
   plaza: Precinct | null,
   citadelIds: Set<number>,
+  gates: Gate[],
+  streets: Point[][],
+  historicalPeriod: HistoricalPeriod | undefined,
   rng: Rng
 ): number | null {
   const byId = new Map(cells.map(c => [c.id, c]));
+  const isModern = !!historicalPeriod && MODERN_BURIAL_PERIODS.has(historicalPeriod);
 
+  // Modern Extramural Placement: Outside walls / in outskirts along approach roads
+  if (isModern && outskirts.size > 0) {
+    const outskirtsCandidates: Array<{ id: number; score: number }> = [];
+    const plazaCenter = plaza?.anchor ?? [0, 0];
+
+    for (const id of outskirts) {
+      if (occupied.has(id) || sea.has(id) || urban.has(id)) continue;
+      const cell = byId.get(id);
+      if (!cell || cell.polygon.length < 3) continue;
+
+      const compactness = polygonCompactness(cell.polygon);
+      if (compactness < 0.25) continue;
+
+      // Proximity to gates: suburban cemeteries were accessible along roads outside the gates
+      let minGateDist = Infinity;
+      for (const g of gates) {
+        const d = Math.hypot(cell.centroid[0] - g.point[0], cell.centroid[1] - g.point[1]);
+        if (d < minGateDist) minGateDist = d;
+      }
+
+      // Proximity to approach roads / streets: carriage accessibility for funeral corteges
+      let minStreetDist = Infinity;
+      for (const street of streets) {
+        if (street.length < 2) continue;
+        const hit = nearestOnPolyline(cell.centroid, street);
+        if (hit.dist < minStreetDist) minStreetDist = hit.dist;
+      }
+
+      const distToPlaza = Math.hypot(cell.centroid[0] - plazaCenter[0], cell.centroid[1] - plazaCenter[1]);
+
+      // Ideal suburban gate distance: ~60m to 250m (not blocking the immediate gate arch, but nearby)
+      const gateScore = minGateDist < Infinity ? 30 / (1 + Math.abs(minGateDist - 120) / 60) : 10;
+
+      // Proximity to approach road: cemetery should be alongside road (~15m to 45m), not bisected by it
+      const roadScore = minStreetDist < Infinity ? 25 / (1 + Math.abs(minStreetDist - 25) / 25) : 5;
+
+      // Suburban cemeteries benefited from well-proportioned land parcels for garden pathways
+      const shapeScore = compactness * 20;
+
+      // Slight penalty for map perimeter boundary cells if interior suburban options exist
+      const borderPenalty = cell.onBorder ? -15 : 0;
+
+      const score = gateScore + roadScore + shapeScore + borderPenalty + distToPlaza * 0.05 + rng() * 10;
+      // Reject cells that have a major road or highway cutting straight through them
+      if (isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) continue;
+
+      outskirtsCandidates.push({ id, score });
+    }
+
+    if (outskirtsCandidates.length > 0) {
+      outskirtsCandidates.sort((a, b) => b.score - a.score);
+      return outskirtsCandidates[0].id;
+    }
+  }
+
+  // Traditional Intramural Placement (Medieval / Churchyard)
   // Priority 1: Adjacent to temple (Churchyard).
-  if (templeIds.size > 0) {
+  if (!isModern && templeIds.size > 0) {
     const candidates: Array<{ id: number; score: number }> = [];
     const templeCenters = [...templeIds]
       .map(id => byId.get(id))
@@ -649,7 +765,11 @@ function placeCemetery(
         const dy = nCell.centroid[1] - tc[1];
         const dx = nCell.centroid[0] - tc[0];
         const orientationScore = -dy * 1.5 + dx * 0.5;
-        candidates.push({ id: nid, score: orientationScore + rng() * 10 });
+        const score = orientationScore + rng() * 10;
+        // Reject if streets penetrate the candidate churchyard cell
+        if (isCellPenetratedByStreet(nCell.polygon, nCell.centroid, streets)) continue;
+
+        candidates.push({ id: nid, score });
       }
     }
 
@@ -668,12 +788,22 @@ function placeCemetery(
     if (!cell) continue;
 
     const distToPlaza = Math.hypot(cell.centroid[0] - plazaCenter[0], cell.centroid[1] - plazaCenter[1]);
-    urbanCandidates.push({ id, score: distToPlaza + rng() * 20 });
+    const score = distToPlaza + rng() * 20;
+    if (isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) continue;
+
+    urbanCandidates.push({ id, score });
   }
 
   if (urbanCandidates.length > 0) {
     urbanCandidates.sort((a, b) => b.score - a.score);
     return urbanCandidates[0].id;
+  }
+
+  // Fallback: any available outskirts cell if urban was exhausted
+  for (const id of outskirts) {
+    const cell = byId.get(id);
+    if (cell && !occupied.has(id) && !sea.has(id) && !isCellPenetratedByStreet(cell.polygon, cell.centroid, streets))
+      return id;
   }
 
   return null;

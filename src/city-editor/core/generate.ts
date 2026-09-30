@@ -40,6 +40,7 @@ import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 import { maxWallGatesForExtent, sizePresetForExtent } from "./document";
 import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
 import { tagExternalGateRoads } from "./gen/approachBeyond";
+import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./gen/cemeteryLayout";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
 import { classifyCoast } from "./gen/classifySea";
@@ -378,11 +379,13 @@ export function generateStageOnDocument(
       const res = clone(full);
       delete res.appearance;
       delete res.fabric;
+      syncDocumentCemeteries(res);
       res.generationSeed = full.generationSeed ?? seed;
       return res;
     }
     if (stageStep === 8) {
       const res = clone(full);
+      syncDocumentCemeteries(res);
       res.generationSeed = full.generationSeed ?? seed;
       return res;
     }
@@ -720,6 +723,11 @@ export function generateCityAttempt(
     );
   settled.layout = effectiveLayout;
   settled.buildingPattern = buildingPattern;
+  settled.historicalPeriod =
+    settings.historicalPeriod ??
+    settings.descriptor?.historicalPeriod ??
+    document.historicalPeriod ??
+    "ageOfExploration";
   if (coarse) settled.fabric = createFabricPlan(settled, seed);
   // Housing style is applied only after roads, crossings and castle geometry
   // have passed the same validation as the legacy generator.
@@ -731,6 +739,8 @@ export function generateCityAttempt(
     }
   tagExternalGateRoads(settled, seed, settings.descriptor);
   cultivateRoadside(settled);
+  syncDocumentCemeteries(settled);
+  refreshCemeteryLayouts(settled);
   return settled;
 }
 
@@ -1777,6 +1787,9 @@ export function runPlan(
   }
 
   // S6 — wards.
+  const historicalPeriod =
+    settings.historicalPeriod ?? settings.descriptor?.historicalPeriod ?? sourceDocument?.historicalPeriod;
+
   const warded = assignWards({
     cells: currentCells,
     urban: currentUrban,
@@ -1793,7 +1806,8 @@ export function runPlan(
     oceanShorelines: classified.flatMap(item => (item.kind === "ocean" && item.coast ? [item.coast.shoreline] : [])),
     waterPolygon,
     streets: [...streetResult.streets, ...roads],
-    rivers: rivers.map(band => band.edgePoints)
+    rivers: rivers.map(band => band.edgePoints),
+    historicalPeriod
   });
   mark("wards");
   return {
@@ -1977,8 +1991,12 @@ function applyPlan(
     for (const [cellId, kind] of plan.wards) {
       const face = faceFor(cellId);
       const editor = editorWard(kind);
-      if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id))
+      if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id)) {
         face.properties.ward = editor;
+        if (editor === "cemetery" || editor === "park") {
+          face.properties.buildable = false;
+        }
+      }
     }
   }
 
@@ -2636,6 +2654,9 @@ function applyPlan(
       errors.slice(0, 20)
     );
     return null;
+  }
+  if (stageStep >= 6) {
+    syncDocumentCemeteries(next);
   }
   return next;
 }

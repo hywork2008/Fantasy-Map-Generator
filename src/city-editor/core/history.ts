@@ -186,6 +186,8 @@ interface DocPatch {
   defenseCircuits?: CityDocument["defenseCircuits"] | null;
   frame?: CityDocument["frame"];
   appearance?: CityDocument["appearance"] | null;
+  coastalOceanFaceIds?: CityDocument["coastalOceanFaceIds"] | null;
+  historicalPeriod?: CityDocument["historicalPeriod"] | null;
   buildingPattern?: CityDocument["buildingPattern"] | null;
   fabric?: CityDocument["fabric"] | null;
   gridKind?: CityDocument["gridKind"] | null;
@@ -237,6 +239,9 @@ function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
   if (previous.buildingPattern !== next.buildingPattern) patch.buildingPattern = next.buildingPattern ?? null;
   if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
+  if (!equal(previous.coastalOceanFaceIds, next.coastalOceanFaceIds))
+    patch.coastalOceanFaceIds = next.coastalOceanFaceIds ? clone(next.coastalOceanFaceIds) : null;
+  if (previous.historicalPeriod !== next.historicalPeriod) patch.historicalPeriod = next.historicalPeriod ?? null;
   if (!equal(previous.fabric, next.fabric)) patch.fabric = next.fabric ? clone(next.fabric) : null;
   if (previous.gridKind !== next.gridKind) patch.gridKind = next.gridKind ?? null;
   if (previous.layout !== next.layout) patch.layout = next.layout ?? null;
@@ -281,6 +286,10 @@ function applyPatch(document: CityDocument, patch: DocPatch): void {
   else if (patch.buildingPattern) document.buildingPattern = patch.buildingPattern;
   if (patch.appearance === null) delete document.appearance;
   else if (patch.appearance) document.appearance = patch.appearance;
+  if (patch.coastalOceanFaceIds === null) delete document.coastalOceanFaceIds;
+  else if (patch.coastalOceanFaceIds) document.coastalOceanFaceIds = clone(patch.coastalOceanFaceIds);
+  if (patch.historicalPeriod === null) delete document.historicalPeriod;
+  else if (patch.historicalPeriod) document.historicalPeriod = patch.historicalPeriod;
   if (patch.fabric === null) delete document.fabric;
   else if (patch.fabric) document.fabric = clone(patch.fabric);
   if (patch.gridKind === null) delete document.gridKind;

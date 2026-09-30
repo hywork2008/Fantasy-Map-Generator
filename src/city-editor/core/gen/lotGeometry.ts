@@ -1,5 +1,5 @@
 import type { Point } from "../types";
-import { polygonArea } from "./geom";
+import { nearestOnPolyline, polygonArea } from "./geom";
 
 const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 
@@ -127,4 +127,45 @@ export function longestFrame(poly: Point[]): { axis: Point; min: number; max: nu
   const [lo, hi] = bounds(normal);
   if (hi - lo > max - min) return { axis: normal, min: lo, max: hi, across: max - min };
   return { axis, min, max, across: hi - lo };
+}
+
+export interface RiverMargin {
+  points: Point[];
+  margin: number;
+  halfWidth: number;
+}
+
+export function clipBlockWithRivers(block: Point[], polygon: Point[], center: Point, rivers: RiverMargin[]): Point[] {
+  let current = block;
+  for (const river of rivers) {
+    const pts = river.points;
+    const rMargin = river.margin;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const dx = p2[0] - p1[0];
+      const dy = p2[1] - p1[1];
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-6) continue;
+      const d1 = nearestOnPolyline(p1, polygon).dist;
+      const d2 = nearestOnPolyline(p2, polygon).dist;
+      if (Math.min(d1, d2) > rMargin + 30) continue;
+
+      const nx = -dy / len;
+      const ny = dx / len;
+      let side = (center[0] - p1[0]) * nx + (center[1] - p1[1]) * ny;
+      if (Math.abs(side) < 1e-4) {
+        for (const pt of polygon) {
+          side = (pt[0] - p1[0]) * nx + (pt[1] - p1[1]) * ny;
+          if (Math.abs(side) >= 1e-4) break;
+        }
+      }
+      const sign = side >= 0 ? 1 : -1;
+      const norm: Point = [-sign * nx, -sign * ny];
+      const off = -sign * (p1[0] * nx + p1[1] * ny) - rMargin;
+      current = clipHalfPlane(current, norm, off);
+      if (current.length < 3) return [];
+    }
+  }
+  return current;
 }
