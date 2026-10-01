@@ -27,6 +27,7 @@ import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/p
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
+import { transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
@@ -909,6 +910,37 @@ export function renderEditorSvg(
     elements.appendChild(elemMarker);
   }
   svg.appendChild(elements);
+  if (document.landmarks?.length) {
+    const landmarks = element("g", { class: "ce-historic-landmarks", "pointer-events": "none" });
+    for (const instance of document.landmarks) {
+      const asset = document.landmarkAssets?.find(
+        a => a.id === instance.assetId && a.revision === instance.assetRevision
+      );
+      for (const part of instance.site) {
+        landmarks.appendChild(
+          element("path", {
+            d: [polygon(part.outer), ...part.holes.map(polygon)].join(" "),
+            "fill-rule": "evenodd",
+            fill: "#c5b99d",
+            stroke: "#746a5c",
+            "stroke-width": "0.8"
+          })
+        );
+      }
+      for (const part of asset ? transformLandmarkPolygons(asset.footprint, instance) : []) {
+        landmarks.appendChild(
+          element("path", {
+            d: [polygon(part.outer), ...part.holes.map(polygon)].join(" "),
+            "fill-rule": "evenodd",
+            fill: "#968a76",
+            stroke: "#39372f",
+            "stroke-width": "1.2"
+          })
+        );
+      }
+    }
+    svg.appendChild(landmarks);
+  }
 
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 

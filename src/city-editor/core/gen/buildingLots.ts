@@ -1,4 +1,5 @@
 import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
+import { landmarkReservationHits } from "../landmarks";
 // MIT, independently implemented from the reference city's output geometry.
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
@@ -69,6 +70,7 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {
+  if (landmarkReservationHits(document, polygon)) return true;
   if (
     (document.defenseCircuits ?? [])
       .filter(c => c.scope === "castle")

@@ -1,4 +1,5 @@
 import { circuitRing, polygonOverlaps } from "../fortifications";
+import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
@@ -102,15 +103,16 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
   const shore = oceanShoreSegments(document);
-  if (!shore.length) return fabric;
   return {
     ...fabric,
     buildings: fabric.buildings.filter(
       lot =>
-        document.mesh.faces[lot.faceId]?.properties.locked ||
-        document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
-        !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
-    )
+        !landmarkReservationHits(document, lot.polygon) &&
+        (document.mesh.faces[lot.faceId]?.properties.locked ||
+          document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
+          !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
+    ),
+    farms: fabric.farms.filter(farm => !landmarkReservationHits(document, farm.polygon))
   };
 }
 

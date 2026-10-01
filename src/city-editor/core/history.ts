@@ -200,6 +200,8 @@ interface DocPatch {
   featureGroups?: CityDocument["featureGroups"];
   gates?: CityGate[];
   elements?: CityElement[];
+  landmarks?: CityDocument["landmarks"] | null;
+  landmarkAssets?: CityDocument["landmarkAssets"] | null;
 }
 
 function equal(a: unknown, b: unknown): boolean {
@@ -261,6 +263,9 @@ function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const previousElements = previous.elements ?? [];
   const nextElements = next.elements ?? [];
   if (!equal(previousElements, nextElements)) patch.elements = clone(nextElements);
+  if (!equal(previous.landmarks, next.landmarks)) patch.landmarks = next.landmarks ? clone(next.landmarks) : null;
+  if (!equal(previous.landmarkAssets, next.landmarkAssets))
+    patch.landmarkAssets = next.landmarkAssets ? clone(next.landmarkAssets) : null;
   return patch;
 }
 
@@ -306,4 +311,8 @@ function applyPatch(document: CityDocument, patch: DocPatch): void {
   if (patch.featureGroups) document.featureGroups = clone(patch.featureGroups);
   if (patch.gates) document.gates = clone(patch.gates);
   if (patch.elements) document.elements = clone(patch.elements);
+  if (patch.landmarks === null) delete document.landmarks;
+  else if (patch.landmarks) document.landmarks = clone(patch.landmarks);
+  if (patch.landmarkAssets === null) delete document.landmarkAssets;
+  else if (patch.landmarkAssets) document.landmarkAssets = clone(patch.landmarkAssets);
 }

@@ -184,6 +184,43 @@ export interface CityElement {
   locked: boolean;
 }
 
+export interface LandmarkPolygon {
+  outer: Point[];
+  holes: Point[][];
+}
+
+export interface LandmarkAsset {
+  id: string;
+  revision: string;
+  name: string;
+  historicalPhase: string;
+  referenceSizeMeters: [number, number];
+  dimensionSource: string;
+  footprint: LandmarkPolygon[];
+  minimumSite: LandmarkPolygon[];
+  entrances: Array<{ id: string; point: Point; outward: Point; widthMeters: number; required: boolean }>;
+  /** Static, normalized SVG markup, retained with the document for offline display. */
+  renderSvg: string;
+  provenanceId: string;
+}
+
+export interface LandmarkInstance {
+  id: Id;
+  assetId: string;
+  assetRevision: string;
+  position: Point;
+  rotation: number;
+  scale: number;
+  site: LandmarkPolygon[];
+  accesses: Array<{
+    entranceId: string;
+    points: Point[];
+    widthMeters: number;
+    target: { kind: "road" | "lane"; id: string; point: Point };
+  }>;
+  locked: boolean;
+}
+
 /** A gate is an opening in an outer wall, anchored to a Wall route vertex. */
 export interface CityGate {
   id: Id;
@@ -301,7 +338,9 @@ export interface FabricPlan {
 
 export interface CityDocument {
   format: "fmg-city-editor";
-  version: 1 | 2;
+  version: 1 | 2 | 3;
+  landmarks?: LandmarkInstance[];
+  landmarkAssets?: LandmarkAsset[];
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
   defenseCircuits?: DefenseCircuit[];
