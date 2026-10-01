@@ -249,4 +249,30 @@ describe("harborShips", () => {
       }
     }
   });
+
+  it("never spawns ships when there are no piers (preventing ghost galleons on shores without docks)", () => {
+    const doc = harborFixture("ageOfExploration");
+    // fabric の piers を空にし、メッシュ岸辺からも桟橋が作られないようにする
+    if (doc.fabric?.harbor) {
+      doc.fabric.harbor.piers = [];
+    }
+    // 水深を浅くして桟橋抽出を不許可にする
+    for (const f of Object.values(doc.mesh.faces)) {
+      if (f.properties.water === "sea") {
+        f.properties.depth = 1.5;
+      }
+    }
+    const ships = planHarborShips(doc, "seed-no-piers");
+    expect(ships.length).toBe(0);
+  });
+
+  it("never spawns ships if harbor ward face is strictly inland without any sea contact", () => {
+    const doc = harborFixture("ageOfExploration");
+    // 全てのセルを陸地に変更（海がない状態、またはharborが完全に内陸）
+    for (const f of Object.values(doc.mesh.faces)) {
+      f.properties.water = "land";
+    }
+    const ships = planHarborShips(doc, "seed-landlocked-harbor");
+    expect(ships.length).toBe(0);
+  });
 });

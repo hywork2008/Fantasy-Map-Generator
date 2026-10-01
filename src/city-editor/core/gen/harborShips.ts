@@ -1,5 +1,5 @@
 import { SHIP_SPECS, type ShipType } from "../../render/shipSvg";
-import { facePoints } from "../mesh";
+import { faceNeighbors, facePoints } from "../mesh";
 import type { CityDocument, CityElement, Id, Point } from "../types";
 import { buildBlockFabric } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
@@ -87,6 +87,14 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
   );
   if (!harborFaces.length) return [];
 
+  const seaFaces = new Set(
+    Object.values(document.mesh.faces)
+      .filter(f => f.properties.water === "sea")
+      .map(f => f.id)
+  );
+  const coastalHarborFaces = harborFaces.filter(f => faceNeighbors(document.mesh, f.id).some(nid => seaFaces.has(nid)));
+  if (!coastalHarborFaces.length) return [];
+
   const period = document.historicalPeriod ?? "ageOfExploration";
   const exploration = isExplorationOrLater(period);
   const allowedTypes = allowedShipTypesForPeriod(period);
@@ -96,7 +104,8 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
   const knownPiers: KnownPier[] = [];
 
   // (1) fabric.harbor が存在する場合はその piers を利用
-  const fabric = document.fabric?.harbor ? document.fabric : buildBlockFabric(document);
+  const docFabric = document.fabric as import("./blockInfill").DistrictFabric | undefined;
+  const fabric = docFabric?.harbor ? docFabric : buildBlockFabric(document);
   const fabricHarbor = fabric?.harbor;
 
   if (fabricHarbor && fabricHarbor.piers?.length) {
@@ -257,7 +266,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
   const placedShips: CityElement[] = [];
   const targetCount =
-    knownPiers.length >= 2 ? (rng() < 0.4 ? 3 : 2) : knownPiers.length >= 1 ? (rng() < 0.4 ? 2 : 1) : 1;
+    knownPiers.length >= 2 ? (rng() < 0.4 ? 3 : 2) : knownPiers.length >= 1 ? (rng() < 0.4 ? 2 : 1) : 0;
   const usedPierSides = new Set<string>();
 
   for (const berth of berths) {
@@ -393,31 +402,73 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     });
   }
 
-  // 桟橋だけでは目標隻数に満たず、水域が十分にある場合、岸壁または泊地（Anchorage）にも配置
-  if (placedShips.length < targetCount && placedShips.length < 1) {
-    const harborCenter = polygonCentroid(facePoints(document.mesh, harborFaces[0]));
+  // 桟橋だけでは目標隻数に満たず、かつ桟橋が存在する場合にのみ、十分な水域があれば泊地（Anchorage）に配置
+  if (placedShips.length < targetCount && knownPiers.length > 0 && placedShips.length < 2) {
+    const harborCenter = polygonCentroid(facePoints(document.mesh, coastalHarborFaces[0]));
     for (const [waterId, waterPoly] of waterPolygons) {
       if (placedShips.length >= targetCount) break;
+      const waterFace = document.mesh.faces[waterId];
+      if (!waterFace || waterFace.properties.water !== "sea") continue;
+      const depth = waterFace.properties.depth ?? 3;
+      if (depth < 3.0) continue;
+
       const waterCenter = polygonCentroid(waterPoly);
       const toWater: Point = [waterCenter[0] - harborCenter[0], waterCenter[1] - harborCenter[1]];
       const len = Math.hypot(toWater[0], toWater[1]);
       if (len < 10) continue;
       const normToWater: Point = [toWater[0] / len, toWater[1] / len];
 
-      const chosenType: ShipType = exploration ? (rng() < 0.5 ? "medium" : "large") : "medium";
+      let chosenType: ShipType = exploration ? (rng() < 0.5 ? "medium" : "large") : "medium";
+      if (!allowedTypes.includes(chosenType)) {
+        chosenType = allowedTypes[0];
+      }
+      if (chosenType === "large" && depth < 3.5) {
+        chosenType = "medium";
+      }
+      if (chosenType === "medium" && depth < 3.0) {
+        chosenType = "small";
+      }
+
       const spec = SHIP_SPECS[chosenType];
       const sizeMeters = spec.defaultSizeMeters;
+      const beam = (sizeMeters / spec.baseLengthMeters) * spec.baseBeamMeters;
 
       // 泊地（沖合35〜55m）
       const anchorPt: Point = [harborCenter[0] + normToWater[0] * 42, harborCenter[1] + normToWater[1] * 42];
       if (!pointInPolygon(anchorPt, waterPoly)) continue;
-      if (landPolygons.some(lp => pointInPolygon(anchorPt, lp))) continue;
+
+      const rotation = -Math.atan2(normToWater[0], normToWater[1]);
+      const dir: Point = [normToWater[0], normToWater[1]];
+      const normal: Point = [-dir[1], dir[0]];
+      const halfLen = sizeMeters * 0.48;
+      const halfBeam = beam / 2 + 1.2;
+
+      const bow: Point = [anchorPt[0] + dir[0] * halfLen, anchorPt[1] + dir[1] * halfLen];
+      const stern: Point = [anchorPt[0] - dir[0] * halfLen, anchorPt[1] - dir[1] * halfLen];
+      const corners: Point[] = [
+        [anchorPt[0] + dir[0] * halfLen + normal[0] * halfBeam, anchorPt[1] + dir[1] * halfLen + normal[1] * halfBeam],
+        [anchorPt[0] + dir[0] * halfLen - normal[0] * halfBeam, anchorPt[1] + dir[1] * halfLen - normal[1] * halfBeam],
+        [anchorPt[0] - dir[0] * halfLen - normal[0] * halfBeam, anchorPt[1] - dir[1] * halfLen - normal[1] * halfBeam],
+        [anchorPt[0] - dir[0] * halfLen + normal[0] * halfBeam, anchorPt[1] - dir[1] * halfLen + normal[1] * halfBeam]
+      ];
+
+      // 陸地との干渉判定（船首・船尾・四隅・中心点すべてが陸地に入っていないこと）
+      const hitsLand = landPolygons.some(
+        lp =>
+          pointInPolygon(anchorPt, lp) ||
+          pointInPolygon(bow, lp) ||
+          pointInPolygon(stern, lp) ||
+          corners.some(c => pointInPolygon(c, lp))
+      );
+      if (hitsLand) continue;
+
+      // 水域ポリゴン内に船体が収まっていること
+      if (!pointInPolygon(bow, waterPoly) || !pointInPolygon(stern, waterPoly)) continue;
+
       if (knownPiers.some(p => distPointToSegment(anchorPt, p.start, p.end) < 20)) continue;
 
       const collides = placedShips.some(s => distance(anchorPt, s.point ?? [0, 0]) < 25);
       if (collides) continue;
-
-      const rotation = -Math.atan2(normToWater[0], normToWater[1]);
 
       placedShips.push({
         id: `${GEN_PREFIX}ship-${placedShips.length}`,

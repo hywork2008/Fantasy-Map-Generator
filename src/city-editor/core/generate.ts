@@ -1552,6 +1552,10 @@ export function runPlan(
       const refreshed = cellsFromMesh(currentMesh, half);
       currentCells = refreshed.cells;
       currentFaceIdOf = refreshed.faceIdOf;
+      sea.clear();
+      currentFaceIdOf.forEach((fid, idx) => {
+        if (currentMesh.faces[fid]?.properties.water === "sea") sea.add(idx);
+      });
       const coreFaceIds = new Set(
         Object.values(currentMesh.faces)
           .filter(f => f.properties.settlement === "core")
@@ -2160,8 +2164,14 @@ function applyPlan(
   if (stageStep >= 6) {
     for (const [cellId, kind] of plan.wards) {
       const face = faceFor(cellId);
-      const editor = editorWard(kind);
+      let editor = editorWard(kind);
       if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id)) {
+        if (editor === "harbor") {
+          const touchesSea = faceNeighbors(mesh, face.id).some(nid => mesh.faces[nid]?.properties.water === "sea");
+          if (!touchesSea) {
+            editor = "merchant";
+          }
+        }
         face.properties.ward = editor;
         if (editor === "cemetery" || editor === "park") {
           face.properties.buildable = false;
@@ -2363,6 +2373,13 @@ function applyPlan(
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
       if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;
       if (next.elements.some(e => e.id === `${GEN_PREFIX}${precinct.kind}`)) continue;
+      if (precinct.kind === "harbor") {
+        const harborFaceIds = precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean);
+        const hasCoastalFace = harborFaceIds.some(fid =>
+          faceNeighbors(mesh, fid).some(nid => mesh.faces[nid]?.properties.water === "sea")
+        );
+        if (!hasCoastalFace) continue;
+      }
       next.elements.push({
         id: `${GEN_PREFIX}${precinct.kind}`,
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
