@@ -452,27 +452,30 @@ function placeHarbor(
   shoreline: Point[],
   R: number
 ): Precinct | null {
+  if (!shoreline.length || !sea.size) return null;
   const hit = nearestOnPolyline([0, 0], shoreline);
   const P = hit.point;
   const tangent = polylineTangent(shoreline, hit.segIndex);
-  const inland = cells
-    .filter(c => !sea.has(c.id) && !occupied.has(c.id))
-    .sort((a, b) => dist(a.centroid, P) - dist(b.centroid, P) || a.id - b.id);
-  const seaAdj = inland.filter(c => urban.has(c.id) && c.neighbors.some(n => sea.has(n)));
-  const anchor = seaAdj[0] ?? inland.find(c => urban.has(c.id)) ?? inland[0];
+
+  // 海（sea）に隣接する未占有の陸地セルのみを対象とする
+  const seaAdjacent = cells.filter(c => !sea.has(c.id) && !occupied.has(c.id) && c.neighbors.some(n => sea.has(n)));
+  if (!seaAdjacent.length) return null;
+
+  // 都市化エリア（urban）内の海沿いセルを最優先、なければその他の海沿いセル
+  const urbanSeaAdj = seaAdjacent.filter(c => urban.has(c.id));
+  const candidates = urbanSeaAdj.length ? urbanSeaAdj : seaAdjacent;
+  candidates.sort((a, b) => dist(a.centroid, P) - dist(b.centroid, P) || a.id - b.id);
+  const anchor = candidates[0];
   if (!anchor) return null;
 
   const along = (c: Cell): number => (c.centroid[0] - P[0]) * tangent[0] + (c.centroid[1] - P[1]) * tangent[1];
-  const extras = cells
-    .filter(
-      c =>
-        urban.has(c.id) &&
-        c.id !== anchor.id &&
-        !occupied.has(c.id) &&
-        c.neighbors.some(n => sea.has(n)) &&
-        Math.abs(along(c)) <= R * 0.5
-    )
-    .sort((a, b) => dist(a.centroid, P) - dist(b.centroid, P) || a.id - b.id)
+  const extras = seaAdjacent
+    .filter(c => c.id !== anchor.id && Math.abs(along(c)) <= R * 0.5)
+    .sort((a, b) => {
+      const aUrban = urban.has(a.id) ? 0 : 1;
+      const bUrban = urban.has(b.id) ? 0 : 1;
+      return aUrban - bUrban || dist(a.centroid, P) - dist(b.centroid, P) || a.id - b.id;
+    })
     .slice(0, 3);
 
   const cellIds = [anchor.id, ...extras.map(c => c.id)];

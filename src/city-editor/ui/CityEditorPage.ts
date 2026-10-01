@@ -1147,6 +1147,28 @@ export function mountCityEditor(root: HTMLElement): void {
   const seedLabel = label("Seed", seedInput);
   const copyLinkButton = makeButton("Copy shareable link", () => void copyShareLink(copyLinkButton));
 
+  const moatInputs = new Map<"town" | "castle", HTMLInputElement>();
+  const moatControls = div("ce-moat-settings");
+  for (const scope of ["town", "castle"] as const) {
+    const input = checkbox(!!generateSettings.moats?.[scope], checked => {
+      generateSettings.moats = { ...generateSettings.moats, [scope]: checked };
+      completeResult = null;
+      runContextAction(() => {
+        const next = structuredClone(documentState);
+        if (next.fabric?.generation)
+          next.fabric.generation.settings.moats = { ...next.fabric.generation.settings.moats, [scope]: checked };
+        for (const circuit of next.defenseCircuits ?? []) {
+          if (circuit.scope === scope && !circuit.locked)
+            circuit.moat = { enabled: checked, widthMeters: circuit.moat?.widthMeters ?? (scope === "town" ? 12 : 8) };
+        }
+        return next;
+      }, "Moat");
+    });
+    input.className = `ce-moat-${scope}`;
+    moatInputs.set(scope, input);
+    moatControls.append(toggleLabel(scope === "town" ? "市壁の外堀" : "城壁の外堀（Citadel）", input));
+  }
+
   const castleControls = div("ce-castle-settings");
   const castleInputs = new Map<keyof CastleSettings, HTMLSelectElement>();
   const castleChoices: Array<[keyof CastleSettings, string, string[]]> = [
@@ -1215,6 +1237,7 @@ export function mountCityEditor(root: HTMLElement): void {
     importedBox,
     synthControls,
     castleControls,
+    moatControls,
     label("城壁内の市街地面積（%）", walledShareInput),
     text("空欄は Tiny/Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
     housingSummary,
@@ -2273,6 +2296,11 @@ export function mountCityEditor(root: HTMLElement): void {
   function restore(next: CityDocument | null): void {
     if (!next) return;
     documentState = next;
+    generateSettings.moats = {
+      town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
+      castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
+    };
+    syncGenerateControls();
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
@@ -4056,7 +4084,13 @@ export function mountCityEditor(root: HTMLElement): void {
       generateSeed = recipe.seed;
       Object.assign(
         generateSettings,
-        { walledAreaShare: undefined, descriptor: undefined, castle: undefined, buildingPattern: "legacy" },
+        {
+          walledAreaShare: undefined,
+          descriptor: undefined,
+          castle: undefined,
+          moats: undefined,
+          buildingPattern: "legacy"
+        },
         clone(recipe.settings)
       );
       generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
@@ -4069,6 +4103,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     showBlockMesh = false;
     clearGridEvo();
+    generateSettings.moats = {
+      town: documentState.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
+      castle: documentState.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
+    };
+    syncGenerateControls();
     halfView = parsed.document.frame.extentMeters / 2;
     viewCenter = [0, 0];
     showNotice(
@@ -4094,6 +4133,7 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function syncGenerateControls(): void {
     seedInput.value = generateSeed;
+    for (const [scope, input] of moatInputs) input.checked = !!generateSettings.moats?.[scope];
     for (const [key, input] of castleInputs)
       input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key];
     buildingPatternSelect.value = generateSettings.buildingPattern ?? "legacy";

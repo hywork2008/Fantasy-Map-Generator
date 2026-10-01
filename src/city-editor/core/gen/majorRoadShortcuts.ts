@@ -1,5 +1,6 @@
 import { featureGroupVertices } from "../features";
 import { edgeBetween, facePoints, faceVertices, splitFace } from "../mesh";
+import { MoatReservation } from "../moats";
 import { validGeneratedCrossings } from "../passages";
 import type { CityDocument, Id, Point } from "../types";
 import { pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
@@ -88,6 +89,7 @@ export function shortcutMajorRoads(source: CityDocument): CityDocument {
           });
           if (!face) continue;
           if (riverSegments.some(([p1, p2]) => segmentSegmentHit(a, b, p1, p2))) continue;
+          if (!new MoatReservation(next, road.style.widthMeters / 2 + 1).roadAllowed(a, b)) continue;
           const split = splitFace(next, face.id, vertices[i], vertices[j]);
           if (!split) continue;
           const added = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);

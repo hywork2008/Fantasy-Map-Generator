@@ -234,6 +234,8 @@ export interface CityGate {
 }
 
 export interface DefenseCircuit {
+  /** Water ribbon derived from the physical curtain, outside the enclosed area. */
+  moat?: { enabled: boolean; widthMeters: number };
   id: Id;
   scope: "town" | "castle";
   ownerCastleId?: Id;

@@ -249,4 +249,89 @@ describe("harborShips", () => {
       }
     }
   });
+
+  it("never spawns ships when there are no piers (preventing ghost galleons on shores without docks)", () => {
+    const doc = harborFixture("ageOfExploration");
+    // fabric の piers を空にし、メッシュ岸辺からも桟橋が作られないようにする
+    if (doc.fabric?.harbor) {
+      doc.fabric.harbor.piers = [];
+    }
+    // 水深を浅くして桟橋抽出を不許可にする
+    for (const f of Object.values(doc.mesh.faces)) {
+      if (f.properties.water === "sea") {
+        f.properties.depth = 1.5;
+      }
+    }
+    const ships = planHarborShips(doc, "seed-no-piers");
+    expect(ships.length).toBe(0);
+  });
+
+  it("never spawns ships if harbor ward face is strictly inland without any sea contact", () => {
+    const doc = harborFixture("ageOfExploration");
+    // 全てのセルを陸地に変更（海がない状態、またはharborが完全に内陸）
+    for (const f of Object.values(doc.mesh.faces)) {
+      f.properties.water = "land";
+    }
+    const ships = planHarborShips(doc, "seed-landlocked-harbor");
+    expect(ships.length).toBe(0);
+  });
+
+  it("renders piers and docked ships for user share link lung4d:junction-retry:1", async () => {
+    const { createGridDocument } = await import("../document");
+    const { defaultGenerationSettings, generateCityOnDocument } = await import("../generate");
+    const { renderEditorSvg } = await import("../../render/svg");
+
+    const input = createGridDocument({
+      size: "small",
+      grid: "evolution",
+      seed: "18vm518",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = {
+      ...defaultGenerationSettings(),
+      config: {
+        coast: "cape" as const,
+        rivers: ["greatBend", "through"],
+        relief: false,
+        features: {
+          walls: true,
+          citadel: false,
+          plaza: true,
+          temple: true,
+          port: true,
+          shanty: true
+        },
+        wall: {
+          envelope: "auto" as const,
+          coast: "auto" as const,
+          line: "auto" as const
+        },
+        layout: "auto" as const
+      },
+      streets: {
+        farNode: "descriptorEnd" as const,
+        avoidSea: true,
+        foldSmoothing: true
+      },
+      buildingPattern: "medieval" as const,
+      layout: "organic" as const,
+      walledAreaShare: 1,
+      historicalPeriod: "ageOfExploration"
+    };
+
+    const city = generateCityOnDocument(input, settings, "lung4d:junction-retry:1");
+    expect(city).not.toBeNull();
+    const doc = city!;
+
+    const emptySelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const svg = renderEditorSvg(doc, "select", emptySelection, "-500 -500 1000 1000", 1);
+
+    const renderedPiers = svg.querySelectorAll(".ce-pier");
+    const renderedShips = svg.querySelectorAll(".ce-ship");
+
+    // 桟橋が正しく描画されていること（0本ではなく複数本）
+    expect(renderedPiers.length).toBeGreaterThanOrEqual(1);
+    // 船も描画されていること
+    expect(renderedShips.length).toBeGreaterThanOrEqual(1);
+  });
 });

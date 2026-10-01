@@ -14,6 +14,7 @@ import {
 import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./gen/coastalSuitability";
 import { createFabricPlan } from "./gen/fabricDistricts";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
+import { MoatReservation } from "./moats";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -231,6 +232,7 @@ export interface StreetSettings {
 }
 
 export interface GenerationSettings {
+  moats?: { town?: boolean; castle?: boolean };
   /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
   riverPlacement?: "through" | "outside" | "outsideNear";
   historicalPeriod?: import("./types").HistoricalPeriod;
@@ -687,6 +689,31 @@ export function generateCityAttempt(
   settleTempleOnDocument(settled);
   if (settled.castles?.length && !finalizeCastles(settled, false))
     return reject("castle", "castle-layout-too-small", "仕上げ後の城郭形状が成立しません");
+  if (settled.defenseCircuits?.some(c => c.moat?.enabled)) {
+    const reservations = new Map<number, MoatReservation>();
+    const blocked = settled.featureGroups.flatMap(group => {
+      if (group.kind !== "road") return [];
+      let moat = reservations.get(group.style.widthMeters);
+      if (!moat) {
+        moat = new MoatReservation(settled, group.style.widthMeters / 2 + 1);
+        reservations.set(group.style.widthMeters, moat);
+      }
+      return group.segments
+        .filter(ref => {
+          const edge = settled.mesh.edges[ref.edgeId];
+          return !moat.roadAllowed(settled.mesh.vertices[edge.a].point, settled.mesh.vertices[edge.b].point);
+        })
+        .map(ref => `${group.id}: ${ref.edgeId}`);
+    });
+    if (blocked.length)
+      return reject(
+        "street-plan",
+        "roads-in-moat",
+        "仕上げ後の道路が門の橋以外で外堀に重なります",
+        { roads: blocked.length },
+        blocked
+      );
+  }
   const roadsAfterFinish = countExternalApproachRoads(settled);
   const crossingDetails = explainGeneratedCrossingFailures(settled);
   const tangled = coarse
@@ -1170,6 +1197,7 @@ interface Plan {
   citadelOutline: Point[] | null;
   castleSite?: CastleSite | null;
   castleFailure?: string;
+  moats?: GenerationSettings["moats"];
   legacyCastles?: boolean;
   roads: Point[][];
   roadPaths?: Point[][];
@@ -1215,6 +1243,7 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     layout: effectiveLayout,
     sea: new Set(),
@@ -1523,6 +1552,10 @@ export function runPlan(
       const refreshed = cellsFromMesh(currentMesh, half);
       currentCells = refreshed.cells;
       currentFaceIdOf = refreshed.faceIdOf;
+      sea.clear();
+      currentFaceIdOf.forEach((fid, idx) => {
+        if (currentMesh.faces[fid]?.properties.water === "sea") sea.add(idx);
+      });
       const coreFaceIds = new Set(
         Object.values(currentMesh.faces)
           .filter(f => f.properties.settlement === "core")
@@ -1954,6 +1987,7 @@ export function runPlan(
     layout: effectiveLayout,
     castleSite,
     castleFailure,
+    moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     sea,
     ocean,
@@ -2130,8 +2164,14 @@ function applyPlan(
   if (stageStep >= 6) {
     for (const [cellId, kind] of plan.wards) {
       const face = faceFor(cellId);
-      const editor = editorWard(kind);
+      let editor = editorWard(kind);
       if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id)) {
+        if (editor === "harbor") {
+          const touchesSea = faceNeighbors(mesh, face.id).some(nid => mesh.faces[nid]?.properties.water === "sea");
+          if (!touchesSea) {
+            editor = "merchant";
+          }
+        }
         face.properties.ward = editor;
         if (editor === "cemetery" || editor === "park") {
           face.properties.buildable = false;
@@ -2333,6 +2373,13 @@ function applyPlan(
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
       if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;
       if (next.elements.some(e => e.id === `${GEN_PREFIX}${precinct.kind}`)) continue;
+      if (precinct.kind === "harbor") {
+        const harborFaceIds = precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean);
+        const hasCoastalFace = harborFaceIds.some(fid =>
+          faceNeighbors(mesh, fid).some(nid => mesh.faces[nid]?.properties.water === "sea")
+        );
+        if (!hasCoastalFace) continue;
+      }
       next.elements.push({
         id: `${GEN_PREFIX}${precinct.kind}`,
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
@@ -2359,7 +2406,12 @@ function applyPlan(
   }
 
   if (stageStep >= 4 && !settingsLegacy(plan)) {
-    registerTownCircuit(next, urbanRegions, program.walls);
+    registerTownCircuit(
+      next,
+      urbanRegions,
+      program.walls,
+      [...plan.urban].map(id => faceIdOf[id])
+    );
     if (plan.castleSite) {
       const installed = installCastle(next, plan.castleSite, plan.castleSite.faceId, source.generationSeed ?? "");
       if (!installed) {
@@ -2375,6 +2427,11 @@ function applyPlan(
       next = installed;
       mesh = next.mesh;
     }
+  }
+
+  for (const circuit of next.defenseCircuits ?? []) {
+    if (!circuit.locked && plan.moats?.[circuit.scope] !== undefined)
+      circuit.moat = { enabled: !!plan.moats[circuit.scope], widthMeters: circuit.scope === "town" ? 12 : 8 };
   }
 
   mark("wall-junctions");
@@ -2875,9 +2932,14 @@ function completeRoadRouter(
         )
       );
   }
+  const moat = new MoatReservation(document, defaultRoadWidthMeters(document.frame.extentMeters) / 2 + 1);
   const castleBlocked = new Set(
     Object.values(mesh.edges)
-      .filter(edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)))
+      .filter(
+        edge =>
+          !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)) ||
+          !moat.roadAllowed(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point)
+      )
       .map(edge => edge.id)
   );
   const gateIds = new Set(townGates(document).map(g => g.vertexId));

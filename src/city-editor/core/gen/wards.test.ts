@@ -209,4 +209,74 @@ describe("assignWards with automatic cemetery placement", () => {
     // Cell 5 at [35, 120] should be chosen instead.
     expect(cemeteryCell?.cellId).toBe(5);
   });
+
+  it("never assigns harbor ward to inland cells even when port is requested", () => {
+    // 0: sea cell
+    // 1: coastal cell adjacent to sea 0
+    // 2: inland cell adjacent to 1 but NOT to sea 0
+    // 3: inland cell adjacent to 2
+    const cells: Cell[] = [
+      makeCell(0, [-50, 0], [1]),
+      makeCell(1, [-20, 0], [0, 2]),
+      makeCell(2, [10, 0], [1, 3]),
+      makeCell(3, [40, 0], [2])
+    ];
+
+    const input: WardInputs = {
+      cells,
+      urban: new Set([1, 2, 3]),
+      outskirts: new Set(),
+      sea: new Set([0]),
+      borders: [],
+      gates: [],
+      precincts: [],
+      geo: { bounds: [-100, -100, 200, 200], riverCentres: [], roadPaths: [] },
+      params: {
+        seed: "harbor-test-seed",
+        cityRadiusMeters: 50,
+        cellSizeMeters: 20,
+        extentMeters: 600,
+        nPatches: 1
+      },
+      program: {
+        walls: false,
+        citadel: false,
+        plaza: false,
+        temple: false,
+        port: true,
+        shanty: false,
+        capital: false
+      },
+      shoreline: [
+        [-35, -50],
+        [-35, 50]
+      ],
+      waterPolygon: [
+        [-100, -100],
+        [-35, -100],
+        [-35, 100],
+        [-100, 100]
+      ],
+      streets: []
+    };
+
+    const result = assignWards(input);
+    const harborWards = result.wards.filter(w => w.kind === "harbor");
+    expect(harborWards.length).toBeGreaterThan(0);
+    // すべての harbor セルは sea(0) と隣接していること
+    for (const hw of harborWards) {
+      const c = cells.find(cell => cell.id === hw.cellId);
+      expect(c?.neighbors.some(n => input.sea.has(n))).toBe(true);
+    }
+
+    // もし海沿いセルが一切存在しない場合、内陸セルに harbor は割り当てられないこと
+    const inlandOnlyInput: WardInputs = {
+      ...input,
+      sea: new Set(),
+      shoreline: null,
+      waterPolygon: null
+    };
+    const inlandResult = assignWards(inlandOnlyInput);
+    expect(inlandResult.wards.some(w => w.kind === "harbor")).toBe(false);
+  });
 });

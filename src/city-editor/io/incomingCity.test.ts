@@ -54,6 +54,16 @@ describe("parseDescriptor", () => {
 });
 
 describe("share codec", () => {
+  it("preserves independent moat options in share links", () => {
+    const share = buildShare({
+      seed: "moats",
+      grid: "evolution",
+      size: "tiny",
+      settings: { config: DEFAULT_SITE_CONFIG, moats: { town: true, castle: false } }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.moats).toEqual({ town: true, castle: false });
+  });
+
   it("round-trips a City Editor share through a base64url token", () => {
     const share = buildShare({
       seed: "town-a",

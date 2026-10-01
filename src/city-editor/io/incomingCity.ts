@@ -234,6 +234,13 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     : structuredClone(DEFAULT_SITE_CONFIG);
   if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
   const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (raw.moats !== undefined) {
+    if (!isRecord(raw.moats)) return null;
+    const { town, castle } = raw.moats;
+    if ((town !== undefined && typeof town !== "boolean") || (castle !== undefined && typeof castle !== "boolean"))
+      return null;
+    settings.moats = { town, castle };
+  }
   if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];

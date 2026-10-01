@@ -189,6 +189,9 @@ export function planHarbor(
   const isAncient = period === "classicalAntiquity";
 
   for (const shore of shores) {
+    if (shore.waterId && shore.depth >= 3 && shore.length > (berthByWater.get(shore.waterId)?.length ?? 0))
+      berthByWater.set(shore.waterId, shore);
+
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
     const preset = params?.harborPreset ?? "dense";
     const stripWidth =
@@ -252,8 +255,6 @@ export function planHarbor(
       );
     }
     usableShores.push({ shore, midpoint, stripWidth, qA, qB });
-    if (shore.waterId && shore.depth >= 3 && shore.length > (berthByWater.get(shore.waterId)?.length ?? 0))
-      berthByWater.set(shore.waterId, shore);
   }
 
   // Select primary berths for cranes (1 or 2 cranes max per harbor, prioritized by berth quality)

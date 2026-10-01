@@ -114,6 +114,13 @@ export function validateFortifications(document: CityDocument): string[] {
     }
   }
   for (const circuit of circuits) {
+    if (
+      circuit.moat &&
+      (typeof circuit.moat.enabled !== "boolean" ||
+        !Number.isFinite(circuit.moat.widthMeters) ||
+        circuit.moat.widthMeters <= 0)
+    )
+      errors.push(`Invalid moat ${circuit.id}`);
     if (!["town", "castle"].includes(circuit.scope) || !unique(circuit.wallGroupIds))
       errors.push(`Invalid circuit metadata ${circuit.id}`);
 
