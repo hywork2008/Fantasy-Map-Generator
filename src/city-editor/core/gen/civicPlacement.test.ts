@@ -3,6 +3,7 @@ import {
   civicOrientation,
   nudgeRectOffPolylines,
   orientedRectPolylineDistance,
+  orientTempleHybrid,
   placePlazaCluster,
   placeTempleFootprint,
   templeFitsLand,
@@ -72,6 +73,41 @@ describe("civic orientation", () => {
       [-10, -10]
     ];
     expect(civicOrientation([0, 16], [plaza])).toBeCloseTo(0, 6);
+  });
+
+  describe("orientTempleHybrid", () => {
+    it("orients apse East in high/late medieval and modern eras", () => {
+      // East-west road: baseAngle = 0 (or PI)
+      const angleHigh = orientTempleHybrid([0, 0], 0, null, "highMedieval");
+      expect(Math.cos(angleHigh)).toBeGreaterThan(0); // Apse points East
+
+      const angleLate = orientTempleHybrid([0, 0], 0, null, "lateMedieval");
+      expect(Math.cos(angleLate)).toBeGreaterThan(0); // Apse points East
+
+      const angleExploration = orientTempleHybrid([0, 0], 0, null, "ageOfExploration");
+      expect(Math.cos(angleExploration)).toBeGreaterThan(0); // Apse points East
+    });
+
+    it("orients apse West in classical antiquity and early medieval eras", () => {
+      // East-west road: baseAngle = 0
+      const angleAncient = orientTempleHybrid([0, 0], 0, null, "classicalAntiquity");
+      expect(Math.cos(angleAncient)).toBeLessThan(0); // Apse points West
+
+      const angleEarly = orientTempleHybrid([0, 0], 0, null, "earlyMedieval");
+      expect(Math.cos(angleEarly)).toBeLessThan(0); // Apse points West
+    });
+
+    it("faces entrance towards an adjacent plaza regardless of era", () => {
+      // Temple at origin, Plaza located to the East [60, 0]
+      // Entrance (-X) should face East towards the plaza, meaning apse (+X) faces West
+      const angleFacingEastPlaza = orientTempleHybrid([0, 0], 0, [60, 0], "highMedieval");
+      expect(Math.cos(angleFacingEastPlaza)).toBeLessThan(0); // Apse points West, entrance points East
+
+      // Temple at origin, Plaza located to the West [-60, 0]
+      // Entrance (-X) should face West towards the plaza, meaning apse (+X) faces East
+      const angleFacingWestPlaza = orientTempleHybrid([0, 0], 0, [-60, 0], "earlyMedieval");
+      expect(Math.cos(angleFacingWestPlaza)).toBeGreaterThan(0); // Apse points East, entrance points West
+    });
   });
 });
 

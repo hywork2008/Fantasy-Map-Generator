@@ -35,6 +35,7 @@ import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool }
 
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
+import { renderTempleSvg } from "./templeSvg";
 
 export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
@@ -895,7 +896,7 @@ export function renderEditorSvg(
       elements.appendChild(treeNode);
       continue;
     }
-    if (town && cityElement.id.startsWith("gc:")) {
+    if (town && (cityElement.id.startsWith("gc:") || cityElement.kind === "temple" || cityElement.kind === "plaza")) {
       if (cityElement.kind === "plaza") {
         const plazaCircle = element("circle", {
           cx: String(p[0]),
@@ -914,21 +915,19 @@ export function renderEditorSvg(
         const footprint = templeFootprintMeters(document.frame.extentMeters);
         const length = cityElement.sizeMeters && cityElement.sizeMeters > 0 ? cityElement.sizeMeters : footprint.length;
         const width = length * (footprint.width / footprint.length);
-        const deg = (-(cityElement.rotation ?? 0) * 180) / Math.PI;
-        const templeRect = element("rect", {
-          x: String(-length / 2),
-          y: String(-width / 2),
-          width: String(length),
-          height: String(width),
-          fill: "#292a26",
-          transform: `translate(${p[0]} ${-p[1]}) rotate(${deg})`,
-          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
-          "data-element": cityElement.id,
-          "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-          "pointer-events": tool === "select" ? "all" : "none"
+        const templeNode = renderTempleSvg({
+          point: p,
+          length,
+          width,
+          rotation: cityElement.rotation,
+          id: cityElement.id,
+          className: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          isPickSelected
         });
-        if (tool === "select") templeRect.style.cursor = "pointer";
-        elements.appendChild(templeRect);
+        templeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+        templeNode.setAttribute("pointer-events", tool === "select" ? "all" : "none");
+        if (tool === "select") templeNode.style.cursor = "pointer";
+        elements.appendChild(templeNode);
       }
       continue;
     }
@@ -2408,6 +2407,12 @@ export const STANDALONE_SVG_STYLE = `
   .ce-ship-lantern { fill: #c49a45; stroke: #523e16; }
   .ce-ship-rotate-knob { transition: r 0.15s ease; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35)); }
   .ce-ship-rotate-knob:hover { r: 6px; fill: #e8f4fc; }
+  .ce-temple { cursor: pointer; }
+  .ce-temple-shadow { fill: rgba(18, 22, 25, 0.28); }
+  .ce-temple-base { fill: #b8b5ad; stroke: #38352e; stroke-width: 0.7px; stroke-linejoin: round; }
+  .ce-temple-buttresses { fill: #9e9b93; stroke: #38352e; stroke-width: 0.5px; }
+  .ce-temple-nave, .ce-temple-transept, .ce-temple-apse, .ce-temple-crossing, .ce-temple-westwork { stroke-linejoin: round; }
+  .ce-temple-spire-diagonal { stroke-linecap: round; }
 `;
 
 export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {

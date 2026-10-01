@@ -56,6 +56,7 @@ import { buildBlockFabric, type InfillLane } from "../core/gen/blockInfill";
 import { refreshCastleLayouts } from "../core/gen/castleLayout";
 import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
 import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
+import { orientTempleHybrid } from "../core/gen/civicPlacement";
 import {
   defaultDistrictParameters,
   resolveDistricts,
@@ -827,6 +828,12 @@ export function mountCityEditor(root: HTMLElement): void {
     const period = historicalPeriodSelect.value as import("../core/types").HistoricalPeriod;
     generateSettings.historicalPeriod = period;
     const next = { ...documentState, historicalPeriod: period };
+    const plaza = next.elements.find(e => e.kind === "plaza");
+    for (const elem of next.elements) {
+      if (elem.kind === "temple" && elem.point && !elem.locked) {
+        elem.rotation = orientTempleHybrid(elem.point, elem.rotation ?? 0, plaza?.point, period);
+      }
+    }
     commit(next, "Change historical period");
     if (documentState.appearance === "town") completeResult = next;
     syncGenerateControls();

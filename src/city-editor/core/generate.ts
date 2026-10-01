@@ -4,6 +4,7 @@ import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } f
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
 import {
   orientedRectPolylineDistance,
+  orientTempleHybrid,
   placeAndClearTempleRect,
   polygonHitsOrientedRect,
   templeFitsLand,
@@ -2207,7 +2208,15 @@ function applyPlan(
             : precinct.kind === "plaza"
               ? plazaFootprintMeters(next.frame.extentMeters)
               : undefined,
-        rotation: precinct.rotation,
+        rotation:
+          precinct.kind === "temple"
+            ? orientTempleHybrid(
+                [precinct.anchor[0], precinct.anchor[1]],
+                precinct.rotation ?? 0,
+                plan.precincts.find(p => p.kind === "plaza")?.anchor,
+                next.historicalPeriod
+              )
+            : precinct.rotation,
         locked: false
       });
     }
@@ -3230,8 +3239,9 @@ function settleTempleOnDocument(document: CityDocument): void {
       return;
     }
   }
+  const plazaCenter = plaza?.point ?? (plazaGuides.length ? polygonCentroid(plazaGuides[0]) : undefined);
   temple.point = rect.center;
-  temple.rotation = rect.rotation;
+  temple.rotation = orientTempleHybrid(rect.center, rect.rotation, plazaCenter, document.historicalPeriod);
 
   const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, document.frame.extentMeters);
   const hitFaces = Object.values(document.mesh.faces).filter(face => {
