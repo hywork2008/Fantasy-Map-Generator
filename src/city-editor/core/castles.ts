@@ -23,11 +23,22 @@ import {
 import type { CastlePlan, CityDocument, DefenseCircuit, EdgeRef, Id, Point } from "./types";
 
 /** Explicit town area is independent of standalone castle walls. */
-export function registerTownCircuit(document: CityDocument, regions: Point[][], walled: boolean): void {
+export function registerTownCircuit(
+  document: CityDocument,
+  regions: Point[][],
+  walled: boolean,
+  interiorFaceIds: Id[] = []
+): void {
   if (!walled) return;
   document.version = 2;
+  // Passage construction can move a known interior cell's centroid beyond its
+  // original polygon. Preserve planned membership; use geometry for newly split cells.
+  const interior = new Set(interiorFaceIds);
   const areaFaceIds = Object.values(document.mesh.faces)
-    .filter(face => regions.some(r => pointInPolygon(polygonCentroid(facePoints(document.mesh, face)), r)))
+    .filter(
+      face =>
+        interior.has(face.id) || regions.some(r => pointInPolygon(polygonCentroid(facePoints(document.mesh, face)), r))
+    )
     .map(face => face.id);
   const circuit: DefenseCircuit = {
     id: "gc:defense-town",

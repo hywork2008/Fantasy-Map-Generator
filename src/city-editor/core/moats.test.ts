@@ -218,6 +218,65 @@ describe("moat reservations", () => {
       ).toBeCloseTo(0, 8);
   });
 
+  it("keeps aj6sr9 e111 on the perimeter and only draws an exterior bridge at v79", () => {
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      coast: "none",
+      rivers: ["through"],
+      relief: false,
+      features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "organic"
+    };
+    Object.assign(settings, {
+      streets: { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true },
+      buildingPattern: "medieval",
+      layout: "organic",
+      walledAreaShare: 1,
+      moats: { town: true, castle: true },
+      historicalPeriod: "ageOfExploration"
+    });
+    const source = createGridDocument({
+      grid: "evolution",
+      size: "tiny",
+      seed: "h43blt",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const city = generateCityOnDocument(source, settings, "aj6sr9")!;
+    expect(city).not.toBeNull();
+    expect(city.generationSeed).toBe("aj6sr9");
+    expect(validate(city)).toEqual([]);
+    const circuit = city.defenseCircuits!.find(c => c.scope === "town")!;
+    const edge = city.mesh.edges.e111;
+    expect(circuit.areaFaceIds).toContain("f32");
+    expect(circuit.areaFaceIds).not.toContain("f33");
+    expect(boundaryEdges(city.mesh, circuit.areaFaceIds).some(ref => ref.edgeId === edge.id)).toBe(true);
+    const a = city.mesh.vertices[edge.a].point,
+      b = city.mesh.vertices[edge.b].point;
+    const midpoint: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
+    const outside = city.mesh.faces.f33.site!;
+    const sign = (outside[0] - midpoint[0]) * normal[0] + (outside[1] - midpoint[1]) * normal[1] > 0 ? 1 : -1;
+    const moat = new MoatReservation(city);
+    expect(moat.hitsPoint([midpoint[0] + normal[0] * sign * 8, midpoint[1] + normal[1] * sign * 8])).toBe(true);
+    expect(moat.hitsPoint([midpoint[0] - normal[0] * sign * 8, midpoint[1] - normal[1] * sign * 8])).toBe(false);
+    const frame = gateCrossingFrame(city, "v79")!;
+    const insideRoad = frame.roads.find(
+      point => (point[0] - frame.point[0]) * frame.inward[0] + (point[1] - frame.point[1]) * frame.inward[1] > 0
+    )!;
+    expect(moat.roadParts([frame.point, insideRoad]).bridges).toHaveLength(0);
+    const svg = renderEditorSvg(
+      city,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-300 -300 600 600",
+      1
+    );
+    const gateId = city.gates.find(gate => gate.vertexId === "v79")!.id;
+    expect(svg.querySelectorAll(`.ce-drawbridge[data-gate-id="${gateId}"]`)).toHaveLength(1);
+  });
+
   it.each(["voronoi", "hex", "evolution"] as const)(
     "completes a %s city with both moats and keeps its buildings clear",
     grid => {

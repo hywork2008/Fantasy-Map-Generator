@@ -2389,7 +2389,12 @@ function applyPlan(
   }
 
   if (stageStep >= 4 && !settingsLegacy(plan)) {
-    registerTownCircuit(next, urbanRegions, program.walls);
+    registerTownCircuit(
+      next,
+      urbanRegions,
+      program.walls,
+      [...plan.urban].map(id => faceIdOf[id])
+    );
     if (plan.castleSite) {
       const installed = installCastle(next, plan.castleSite, plan.castleSite.faceId, source.generationSeed ?? "");
       if (!installed) {
