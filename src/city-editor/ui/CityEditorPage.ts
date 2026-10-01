@@ -4350,6 +4350,7 @@ export function mountCityEditor(root: HTMLElement): void {
     hideStreetLines = false;
     syncStageUi(9);
     rebuildEditorIndexes();
+    refresh();
     showNotice("都市を生成しました — 城壁・街路・建物");
   }
 

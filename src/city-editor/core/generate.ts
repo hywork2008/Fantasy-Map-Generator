@@ -56,6 +56,7 @@ import {
   polygonTouchesRectEdge,
   polylineCrossesSegment
 } from "./gen/geom";
+import { spawnHarborShips } from "./gen/harborShips";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -418,6 +419,7 @@ export function generateStageOnDocument(
     res.generationSeed = seed;
     if (stageStep >= 5) tagExternalGateRoads(res, seed, settings.descriptor);
     if (stageStep >= 6) cultivateRoadside(res);
+    if (stageStep >= 6) spawnHarborShips(res, seed);
   }
   return res;
 }
@@ -741,6 +743,7 @@ export function generateCityAttempt(
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
+  spawnHarborShips(settled, seed);
   return settled;
 }
 

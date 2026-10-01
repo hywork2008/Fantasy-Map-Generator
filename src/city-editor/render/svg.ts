@@ -857,6 +857,44 @@ export function renderEditorSvg(
       point: p,
       sizeMeters: cityElement.sizeMeters ?? 8
     };
+    if (cityElement.kind === "ship") {
+      const shipNode = renderShipSvg({
+        type: cityElement.shipType ?? "small",
+        point: p,
+        sizeMeters: cityElement.sizeMeters,
+        rotation: cityElement.rotation,
+        id: cityElement.id,
+        className: isPickSelected ? "ce-is-selected cg-is-selected" : ""
+      });
+      shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (tool === "select") {
+        shipNode.style.pointerEvents = "all";
+        shipNode.style.cursor = "move";
+      }
+      elements.appendChild(shipNode);
+
+      if (tool === "select" && isPickSelected) {
+        const handleNode = renderShipRotationHandle({
+          id: cityElement.id,
+          point: p,
+          sizeMeters: cityElement.sizeMeters,
+          rotation: cityElement.rotation
+        });
+        elements.appendChild(handleNode);
+      }
+      continue;
+    }
+    if (cityElement.kind === "tree") {
+      const treeNode = tree(p, cityElement.sizeMeters ?? 8, cityElement.id);
+      treeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (isPickSelected) treeNode.classList.add("ce-is-selected", "cg-is-selected");
+      if (tool === "select") {
+        treeNode.style.pointerEvents = "all";
+        treeNode.style.cursor = "pointer";
+      }
+      elements.appendChild(treeNode);
+      continue;
+    }
     if (town && cityElement.id.startsWith("gc:")) {
       if (cityElement.kind === "plaza") {
         const plazaCircle = element("circle", {
@@ -891,44 +929,6 @@ export function renderEditorSvg(
         });
         if (tool === "select") templeRect.style.cursor = "pointer";
         elements.appendChild(templeRect);
-      }
-      continue;
-    }
-    if (cityElement.kind === "tree") {
-      const treeNode = tree(p, cityElement.sizeMeters ?? 8, cityElement.id);
-      treeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
-      if (isPickSelected) treeNode.classList.add("ce-is-selected", "cg-is-selected");
-      if (tool === "select") {
-        treeNode.style.pointerEvents = "all";
-        treeNode.style.cursor = "pointer";
-      }
-      elements.appendChild(treeNode);
-      continue;
-    }
-    if (cityElement.kind === "ship") {
-      const shipNode = renderShipSvg({
-        type: cityElement.shipType ?? "small",
-        point: p,
-        sizeMeters: cityElement.sizeMeters,
-        rotation: cityElement.rotation,
-        id: cityElement.id,
-        className: isPickSelected ? "ce-is-selected cg-is-selected" : ""
-      });
-      shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
-      if (tool === "select") {
-        shipNode.style.pointerEvents = "all";
-        shipNode.style.cursor = "move";
-      }
-      elements.appendChild(shipNode);
-
-      if (tool === "select" && isPickSelected) {
-        const handleNode = renderShipRotationHandle({
-          id: cityElement.id,
-          point: p,
-          sizeMeters: cityElement.sizeMeters,
-          rotation: cityElement.rotation
-        });
-        elements.appendChild(handleNode);
       }
       continue;
     }
@@ -1331,14 +1331,25 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
     const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
     let normal: Point = [-tangent[1], tangent[0]];
     if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
-    const count = length >= 35 ? 3 : 2;
-    const width = Math.min(3, length / (count * 5));
+    const isExploration = [
+      "ageOfExploration",
+      "maritimeEra",
+      "preIndustrialEra",
+      "steamEra",
+      "industrialChemistryEra",
+      "petroleumEra",
+      "rocketryEra"
+    ].includes(document.historicalPeriod ?? "ageOfExploration");
+    const count = length >= 50 ? 2 : 1;
+    const width = Math.min(isExploration ? 6.2 : 5.2, Math.max(isExploration ? 4.8 : 4.0, length * 0.16));
+    const fractions = count === 2 ? [0.28, 0.72] : [0.5];
     for (let i = 0; i < count; i++) {
-      const t = (i + 1) / (count + 1);
+      const t = fractions[i];
       const start: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
       // Stop within the receiving cell, so a pier never becomes a bridge.
       let reach = 0;
-      const desired = Math.min(26, length * (0.4 + (i % 2) * 0.06));
+      const maxReachLimit = isExploration ? 42 : 28;
+      const desired = Math.min(maxReachLimit, Math.max(isExploration ? 32 : 22, length * (isExploration ? 0.75 : 0.5)));
       for (let d = 0.5; d <= desired; d += 0.5) {
         if (
           ![-1, 0, 1].every(side =>

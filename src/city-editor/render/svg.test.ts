@@ -338,6 +338,63 @@ describe("Ward landmarks", () => {
     expect(harbor?.querySelector("text")).toBeNull();
     expect(harbor?.querySelectorAll("path, circle").length).toBeGreaterThan(1);
   });
+
+  it("hides gc:harbor mark in town view when showBlockMesh is OFF, but displays it when showBlockMesh is ON", () => {
+    const document = createDocument("town-harbor", 400);
+    document.appearance = "town";
+    document.elements.push({
+      id: "gc:harbor",
+      kind: "harbor",
+      faceIds: [],
+      point: [0, 0],
+      locked: false
+    });
+    document.elements.push({
+      id: "gc:ship-0",
+      kind: "ship",
+      faceIds: [],
+      point: [10, 10],
+      sizeMeters: 25,
+      shipType: "medium",
+      locked: false
+    });
+
+    const emptySel = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+
+    // 1. 街区の編集表示がOFF (showBlockMesh = false) の場合:
+    // town === true となり、gc:harbor の港マークは非表示、船は表示されること
+    const svgTown = renderEditorSvg(
+      document,
+      "select",
+      emptySel,
+      "-200 -200 400 400",
+      1,
+      null,
+      null,
+      null,
+      null,
+      false // showBlockMesh = false
+    );
+    expect(svgTown.querySelectorAll(".ce-element--harbor").length).toBe(0);
+    expect(svgTown.querySelectorAll(".ce-ship").length).toBe(1);
+
+    // 2. 街区の編集表示がON (showBlockMesh = true) の場合:
+    // town === false となり、gc:harbor の港マークが表示され、船も表示されること
+    const svgMesh = renderEditorSvg(
+      document,
+      "select",
+      emptySel,
+      "-200 -200 400 400",
+      1,
+      null,
+      null,
+      null,
+      null,
+      true // showBlockMesh = true
+    );
+    expect(svgMesh.querySelectorAll(".ce-element--harbor").length).toBe(1);
+    expect(svgMesh.querySelectorAll(".ce-ship").length).toBe(1);
+  });
 });
 
 describe("faceClassName / renderFaceWardLandmark", () => {
@@ -988,10 +1045,10 @@ describe("harbor piers", () => {
     };
   }
 
-  it("draws three rectangular piers per adjacent sea cell without a harbor element", () => {
+  it("draws rectangular piers per adjacent sea cell without a harbor element", () => {
     const svg = renderStandaloneCitySvg(harborMap());
     const piers = svg.querySelectorAll(".ce-pier");
-    expect(piers).toHaveLength(6);
+    expect(piers).toHaveLength(4);
     for (const pier of piers) {
       expect(pier.getAttribute("d")).toMatch(/ Z$/);
       expect(pier.getAttribute("data-depth-m")).toBe("3");
