@@ -1,3 +1,4 @@
+import type { HistoricalPeriod } from "../types";
 import {
   nearestOnPolyline,
   pointInPolygon,
@@ -47,6 +48,65 @@ export function civicOrientation(point: Point, guides: Point[][]): number {
   }
   if (!Number.isFinite(bestDist) || bestDist === Number.POSITIVE_INFINITY) return 0;
   return foldAxis(Math.atan2(tangent[1], tangent[0]));
+}
+
+/**
+ * 寺院（バシリカ）の長軸向き（回転角ラジアン）を決定するハイブリッドルール。
+ * 1. 街路・広場ガイドラインに沿うベース長軸角度（baseAngle）を基準とする。
+ * 2. 広場が至近にあり、正面玄関（-X方向）を広場に向けられる場合は、広場対面を優先。
+ * 3. それ以外は、時代設定（HistoricalPeriod）の東西軸ルールを適用：
+ *    - 古代・初期中世 (classicalAntiquity, earlyMedieval):
+ *      初期キリスト教バシリカの西方指向（Occidentation: アプスが西、玄関が東）
+ *    - 盛期中世以降 (highMedieval, lateMedieval, ageOfExploration など):
+ *      中世カテドラルの東方指向（Ad Orientem: アプスが東、玄関が西）
+ */
+export function orientTempleHybrid(
+  point: Point,
+  baseAngle: number,
+  plazaPoint?: Point | null,
+  period?: HistoricalPeriod
+): number {
+  let a1 = baseAngle;
+  while (a1 < 0) a1 += Math.PI * 2;
+  while (a1 >= Math.PI * 2) a1 -= Math.PI * 2;
+  const a2 = (a1 + Math.PI) % (Math.PI * 2);
+
+  // 1. 広場との位置関係の評価
+  if (plazaPoint) {
+    const dx = plazaPoint[0] - point[0];
+    const dy = plazaPoint[1] - point[1];
+    const distToPlaza = Math.hypot(dx, dy);
+
+    // 広場から一定距離以内（近傍）にある場合
+    if (distToPlaza > 1e-3 && distToPlaza <= 300) {
+      const ux = dx / distToPlaza;
+      const uy = dy / distToPlaza;
+
+      // 正面玄関（ローカル -X）のワールド方向ベクトル: (-cos(a), -sin(a))
+      // 広場への投影内積: dot(entrance, uPlaza) = -(cos(a)*ux + sin(a)*uy)
+      const dotA1 = -(Math.cos(a1) * ux + Math.sin(a1) * uy);
+      const dotA2 = -(Math.cos(a2) * ux + Math.sin(a2) * uy);
+
+      // 広場が長軸に対して明確に一方の端にある場合（直交に近くない）
+      if (Math.abs(dotA1) >= 0.25) {
+        return dotA1 >= dotA2 ? a1 : a2;
+      }
+    }
+  }
+
+  // 2. 時代設定による東西軸ルール
+  // アプス（ローカル +X）のワールドX方向成分: cos(a)
+  // 古代・初期中世: アプスが西（cos(a) < 0）
+  // 盛期中世以降: アプスが東（cos(a) > 0）
+  const isAncientOrEarly = period === "classicalAntiquity" || period === "earlyMedieval";
+
+  if (isAncientOrEarly) {
+    // 西向きアプス（cos(a) がより小さい / 負の方）
+    return Math.cos(a1) <= Math.cos(a2) ? a1 : a2;
+  } else {
+    // 東向きアプス（cos(a) がより大きい / 正の方）
+    return Math.cos(a1) >= Math.cos(a2) ? a1 : a2;
+  }
 }
 
 export function orientedRectCorners(rect: OrientedRect): Point[] {

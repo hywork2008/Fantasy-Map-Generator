@@ -26,12 +26,16 @@ import { convexInfillParts } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
+import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
+import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 import { openSpaceBoundary } from "./openSpaceBoundary";
+import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
+import { renderTempleSvg } from "./templeSvg";
 
 export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
@@ -237,6 +241,7 @@ export function renderEditorSvg(
 
   let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   let townParkLawns: import("../core/gen/parkFabric").ParkLawn[] = [];
+  let townWatermills: import("../core/gen/watermillFabric").WatermillPlan | undefined;
   if (town) {
     const buildings = element("g", {
       class: "ce-buildings",
@@ -254,6 +259,7 @@ export function renderEditorSvg(
         : null;
     townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
+    townWatermills = fabric?.watermills ?? buildWatermillPlan(document, lots.length);
     for (const settlement of ["core", "outskirts"] as const) {
       svg.setAttribute(
         `data-${settlement}-buildings`,
@@ -678,7 +684,7 @@ export function renderEditorSvg(
             ? group.kind === "road"
               ? "#d5cfbf"
               : group.kind === "river"
-                ? "#85857d"
+                ? "#527f8b"
                 : "#292a26"
             : group.style.color,
           "stroke-width": String(group.style.widthMeters),
@@ -731,6 +737,7 @@ export function renderEditorSvg(
   svg.appendChild(features);
   if (town) {
     svg.appendChild(renderTownQuays(document, townHarbor));
+    svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
     if (townParkLawns.length) {
       const parkTreesLayer = element("g", {
@@ -851,7 +858,45 @@ export function renderEditorSvg(
       point: p,
       sizeMeters: cityElement.sizeMeters ?? 8
     };
-    if (town && cityElement.id.startsWith("gc:")) {
+    if (cityElement.kind === "ship") {
+      const shipNode = renderShipSvg({
+        type: cityElement.shipType ?? "small",
+        point: p,
+        sizeMeters: cityElement.sizeMeters,
+        rotation: cityElement.rotation,
+        id: cityElement.id,
+        className: isPickSelected ? "ce-is-selected cg-is-selected" : ""
+      });
+      shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (tool === "select") {
+        shipNode.style.pointerEvents = "all";
+        shipNode.style.cursor = "move";
+      }
+      elements.appendChild(shipNode);
+
+      if (tool === "select" && isPickSelected) {
+        const handleNode = renderShipRotationHandle({
+          id: cityElement.id,
+          point: p,
+          sizeMeters: cityElement.sizeMeters,
+          rotation: cityElement.rotation
+        });
+        elements.appendChild(handleNode);
+      }
+      continue;
+    }
+    if (cityElement.kind === "tree") {
+      const treeNode = tree(p, cityElement.sizeMeters ?? 8, cityElement.id);
+      treeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (isPickSelected) treeNode.classList.add("ce-is-selected", "cg-is-selected");
+      if (tool === "select") {
+        treeNode.style.pointerEvents = "all";
+        treeNode.style.cursor = "pointer";
+      }
+      elements.appendChild(treeNode);
+      continue;
+    }
+    if (town && (cityElement.id.startsWith("gc:") || cityElement.kind === "temple" || cityElement.kind === "plaza")) {
       if (cityElement.kind === "plaza") {
         const plazaCircle = element("circle", {
           cx: String(p[0]),
@@ -870,33 +915,20 @@ export function renderEditorSvg(
         const footprint = templeFootprintMeters(document.frame.extentMeters);
         const length = cityElement.sizeMeters && cityElement.sizeMeters > 0 ? cityElement.sizeMeters : footprint.length;
         const width = length * (footprint.width / footprint.length);
-        const deg = (-(cityElement.rotation ?? 0) * 180) / Math.PI;
-        const templeRect = element("rect", {
-          x: String(-length / 2),
-          y: String(-width / 2),
-          width: String(length),
-          height: String(width),
-          fill: "#292a26",
-          transform: `translate(${p[0]} ${-p[1]}) rotate(${deg})`,
-          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
-          "data-element": cityElement.id,
-          "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-          "pointer-events": tool === "select" ? "all" : "none"
+        const templeNode = renderTempleSvg({
+          point: p,
+          length,
+          width,
+          rotation: cityElement.rotation,
+          id: cityElement.id,
+          className: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          isPickSelected
         });
-        if (tool === "select") templeRect.style.cursor = "pointer";
-        elements.appendChild(templeRect);
+        templeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+        templeNode.setAttribute("pointer-events", tool === "select" ? "all" : "none");
+        if (tool === "select") templeNode.style.cursor = "pointer";
+        elements.appendChild(templeNode);
       }
-      continue;
-    }
-    if (cityElement.kind === "tree") {
-      const treeNode = tree(p, cityElement.sizeMeters ?? 8, cityElement.id);
-      treeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
-      if (isPickSelected) treeNode.classList.add("ce-is-selected", "cg-is-selected");
-      if (tool === "select") {
-        treeNode.style.pointerEvents = "all";
-        treeNode.style.cursor = "pointer";
-      }
-      elements.appendChild(treeNode);
       continue;
     }
     const elemMarker = cityElementMarker(p, cityElement.kind, cityElement.id);
@@ -909,6 +941,76 @@ export function renderEditorSvg(
     elements.appendChild(elemMarker);
   }
   svg.appendChild(elements);
+  if (document.landmarks?.length) {
+    const landmarks = element("g", {
+      class: "ce-historic-landmarks",
+      "pointer-events": tool === "select" ? "all" : "none"
+    });
+    for (const instance of document.landmarks) {
+      const asset = document.landmarkAssets?.find(
+        a => a.id === instance.assetId && a.revision === instance.assetRevision
+      );
+      const pick = encodeURIComponent(
+        JSON.stringify({
+          layer: "landmarks",
+          kind: "landmark",
+          id: instance.id,
+          label: asset?.name ?? `Missing landmark asset ${instance.assetId}`,
+          assetId: instance.assetId,
+          rotation: instance.rotation,
+          scale: instance.scale
+        })
+      );
+      const marker = element("g", { "data-pick": pick, "data-landmark": instance.id });
+      if (selection.inspectedId === instance.id) marker.classList.add("ce-is-selected");
+      for (const access of instance.accesses) {
+        for (const part of accessCorridor(access.points, access.widthMeters)) {
+          marker.appendChild(
+            element("path", {
+              d: polygon(part.outer),
+              fill: "#b2a78e",
+              stroke: "#675f50",
+              "stroke-width": "0.6"
+            })
+          );
+        }
+      }
+      for (const part of instance.site) {
+        marker.appendChild(
+          element("path", {
+            d: [polygon(part.outer), ...part.holes.map(polygon)].join(" "),
+            "fill-rule": "evenodd",
+            fill: "#c5b99d",
+            stroke: "#746a5c",
+            "stroke-width": "0.8"
+          })
+        );
+      }
+      for (const part of asset ? transformLandmarkPolygons(asset.footprint, instance) : []) {
+        marker.appendChild(
+          element("path", {
+            d: [polygon(part.outer), ...part.holes.map(polygon)].join(" "),
+            "fill-rule": "evenodd",
+            fill: "#968a76",
+            stroke: "#39372f",
+            "stroke-width": "1.2"
+          })
+        );
+      }
+      if (asset) {
+        const art = renderNormalizedLandmarkSvg(asset.renderSvg);
+        const c = Math.cos(instance.rotation) * instance.scale;
+        const s = Math.sin(instance.rotation) * instance.scale;
+        art.setAttribute(
+          "transform",
+          `matrix(${c} ${-s} ${-s} ${-c} ${instance.position[0]} ${-instance.position[1]})`
+        );
+        marker.appendChild(art);
+      }
+      landmarks.appendChild(marker);
+    }
+    svg.appendChild(landmarks);
+  }
 
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 
@@ -1228,14 +1330,25 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
     const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
     let normal: Point = [-tangent[1], tangent[0]];
     if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
-    const count = length >= 35 ? 3 : 2;
-    const width = Math.min(3, length / (count * 5));
+    const isExploration = [
+      "ageOfExploration",
+      "maritimeEra",
+      "preIndustrialEra",
+      "steamEra",
+      "industrialChemistryEra",
+      "petroleumEra",
+      "rocketryEra"
+    ].includes(document.historicalPeriod ?? "ageOfExploration");
+    const count = length >= 50 ? 2 : 1;
+    const width = Math.min(isExploration ? 6.2 : 5.2, Math.max(isExploration ? 4.8 : 4.0, length * 0.16));
+    const fractions = count === 2 ? [0.28, 0.72] : [0.5];
     for (let i = 0; i < count; i++) {
-      const t = (i + 1) / (count + 1);
+      const t = fractions[i];
       const start: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
       // Stop within the receiving cell, so a pier never becomes a bridge.
       let reach = 0;
-      const desired = Math.min(26, length * (0.4 + (i % 2) * 0.06));
+      const maxReachLimit = isExploration ? 42 : 28;
+      const desired = Math.min(maxReachLimit, Math.max(isExploration ? 32 : 22, length * (isExploration ? 0.75 : 0.5)));
       for (let d = 0.5; d <= desired; d += 0.5) {
         if (
           ![-1, 0, 1].every(side =>
@@ -1269,6 +1382,261 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
       );
     }
   }
+  return layer;
+}
+
+function renderTownWatermills(
+  document: CityDocument,
+  plan?: import("../core/gen/watermillFabric").WatermillPlan,
+  tool: Tool = "select",
+  inspectedId: number | string | null = null
+): SVGGElement {
+  const layer = element("g", {
+    class: "ce-watermills",
+    "pointer-events": tool === "select" ? "all" : "none"
+  }) as SVGGElement;
+
+  if (!plan?.mills?.length) return layer;
+
+  // 1. Weirs and water rapids/foam (堰と白波)
+  const weirsLayer = element("g", { class: "ce-watermill-weirs", "pointer-events": "none" });
+  for (const mill of plan.mills) {
+    if (mill.weir) {
+      const g = element("g", { class: "ce-watermill-weir" });
+      // Weir beam / crest (timber piles / masonry weir)
+      g.appendChild(
+        element("path", {
+          d: line(mill.weir.points),
+          class: "ce-weir-crest",
+          fill: "none",
+          stroke: "#3d342a",
+          "stroke-width": String(mill.weir.crestWidth),
+          "stroke-linecap": "round"
+        })
+      );
+      // Small timber post markers along weir
+      const [w0, w1] = mill.weir.points;
+      const wlen = Math.hypot(w1[0] - w0[0], w1[1] - w0[1]);
+      const posts = Math.max(2, Math.floor(wlen / 2.5));
+      for (let p = 0; p <= posts; p++) {
+        const frac = p / posts;
+        const postX = w0[0] + (w1[0] - w0[0]) * frac;
+        const postY = -(w0[1] + (w1[1] - w0[1]) * frac);
+        g.appendChild(
+          element("circle", {
+            cx: postX.toFixed(2),
+            cy: postY.toFixed(2),
+            r: "0.45",
+            fill: "#262019"
+          })
+        );
+      }
+      // Weir overflow foam / white water
+      if (mill.weir.foamPoints?.length >= 2) {
+        g.appendChild(
+          element("path", {
+            d: line(mill.weir.foamPoints),
+            class: "ce-weir-foam",
+            fill: "none",
+            stroke: "#eef5f7",
+            "stroke-width": "1.6",
+            "stroke-dasharray": "2.5 1.5",
+            opacity: "0.85"
+          })
+        );
+      }
+      weirsLayer.appendChild(g);
+    }
+
+    // Wake / Tailrace ripples downstream of waterwheel
+    if (mill.wakePolyline?.length >= 2) {
+      weirsLayer.appendChild(
+        element("path", {
+          d: line(mill.wakePolyline),
+          class: "ce-wheel-wake",
+          fill: "none",
+          stroke: "#e8f2f5",
+          "stroke-width": "1.2",
+          "stroke-dasharray": "1.8 1.4",
+          opacity: "0.8"
+        })
+      );
+    }
+  }
+  layer.appendChild(weirsLayer);
+
+  // 2. Millhouses (水車小屋建物)
+  const housesLayer = element("g", { class: "ce-millhouses" });
+  for (const mill of plan.mills) {
+    const isSelected = inspectedId === mill.id || inspectedId === `millhouse-${mill.id}`;
+    const pickInfo = {
+      layer: "buildings",
+      kind: "watermill",
+      id: mill.id,
+      label: `${mill.name}（${mill.kind === "gristmill" ? "製粉水車" : mill.kind === "fulling" ? "縮絨水車" : "鍛冶水車"}）`,
+      millKind: mill.kind,
+      bankSide: mill.bankSide,
+      riverId: mill.riverId
+    };
+
+    const g = element("g", {
+      class: `ce-millhouse-group${isSelected ? " ce-is-selected cg-is-selected" : ""}`,
+      "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+      style: tool === "select" ? "cursor:pointer" : undefined
+    });
+
+    // Base building perimeter
+    g.appendChild(
+      element("path", {
+        d: polygon(mill.millhousePolygon),
+        class: "ce-millhouse-base ce-building",
+        fill: "#b5ab96",
+        stroke: "#292a26",
+        "stroke-width": "0.45"
+      })
+    );
+
+    // Roof slopes (river-side slope and land-side slope with subtle shading)
+    g.appendChild(
+      element("path", {
+        d: polygon(mill.riverSideRoof),
+        class: "ce-millhouse-roof-riverside",
+        fill: "#a89d87",
+        stroke: "none",
+        opacity: "0.7"
+      })
+    );
+    g.appendChild(
+      element("path", {
+        d: polygon(mill.landSideRoof),
+        class: "ce-millhouse-roof-landside",
+        fill: "#c4baa6",
+        stroke: "none",
+        opacity: "0.7"
+      })
+    );
+
+    // Gable ridge line (棟木)
+    g.appendChild(
+      element("path", {
+        d: line(mill.millhouseRidge),
+        class: "ce-millhouse-ridge",
+        fill: "none",
+        stroke: "#423d33",
+        "stroke-width": "0.55"
+      })
+    );
+
+    housesLayer.appendChild(g);
+  }
+  layer.appendChild(housesLayer);
+
+  // 3. Waterwheels (水車輪とパドル・車軸)
+  const wheelsLayer = element("g", { class: "ce-waterwheels" });
+  for (const mill of plan.mills) {
+    const isSelected = inspectedId === mill.id || inspectedId === `waterwheel-${mill.id}`;
+    const pickInfo = {
+      layer: "features",
+      kind: "waterwheel",
+      id: `wheel-${mill.id}`,
+      label: `${mill.name}の水車輪`,
+      millId: mill.id
+    };
+
+    const [cx, cy] = [mill.wheel.center[0], -mill.wheel.center[1]];
+    const rotDeg = (-mill.wheel.angleRad * 180) / Math.PI;
+
+    const g = element("g", {
+      class: `ce-waterwheel-unit${isSelected ? " ce-is-selected cg-is-selected" : ""}`,
+      transform: `translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${rotDeg.toFixed(1)})`,
+      "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
+      style: tool === "select" ? "cursor:pointer" : undefined
+    });
+
+    const hw = mill.wheel.width / 2;
+    const hr = mill.wheel.radius;
+
+    // Wheel frame outer box
+    g.appendChild(
+      element("rect", {
+        x: (-hr).toFixed(2),
+        y: (-hw).toFixed(2),
+        width: (hr * 2).toFixed(2),
+        height: (hw * 2).toFixed(2),
+        rx: "0.3",
+        ry: "0.3",
+        fill: "#3b2a1a",
+        stroke: "#1c140d",
+        "stroke-width": "0.35"
+      })
+    );
+
+    // Wheel inner rim
+    const innerHw = hw * 0.65;
+    g.appendChild(
+      element("rect", {
+        x: (-hr * 0.85).toFixed(2),
+        y: (-innerHw).toFixed(2),
+        width: (hr * 1.7).toFixed(2),
+        height: (innerHw * 2).toFixed(2),
+        fill: "#2e2014",
+        stroke: "#140e09",
+        "stroke-width": "0.2"
+      })
+    );
+
+    // Wheel paddles (blades)
+    const bladeCount = mill.wheel.bladeCount;
+    for (let b = 0; b < bladeCount; b++) {
+      const bx = -hr + (hr * 2 * (b + 0.5)) / bladeCount;
+      g.appendChild(
+        element("line", {
+          x1: bx.toFixed(2),
+          y1: (-hw).toFixed(2),
+          x2: bx.toFixed(2),
+          y2: hw.toFixed(2),
+          stroke: "#543e29",
+          "stroke-width": "0.3"
+        })
+      );
+    }
+
+    // Axle shaft
+    g.appendChild(
+      element("circle", {
+        cx: "0",
+        cy: "0",
+        r: "0.5",
+        fill: "#1f150e",
+        stroke: "#0a0704",
+        "stroke-width": "0.2"
+      })
+    );
+
+    // Splash highlights on sides of wheel
+    g.appendChild(
+      element("circle", {
+        cx: (-hr * 0.7).toFixed(2),
+        cy: (-hw - 0.4).toFixed(2),
+        r: "0.35",
+        fill: "#eef5f7",
+        opacity: "0.7"
+      })
+    );
+    g.appendChild(
+      element("circle", {
+        cx: (hr * 0.7).toFixed(2),
+        cy: (-hw - 0.4).toFixed(2),
+        r: "0.35",
+        fill: "#eef5f7",
+        opacity: "0.7"
+      })
+    );
+
+    wheelsLayer.appendChild(g);
+  }
+  layer.appendChild(wheelsLayer);
+
   return layer;
 }
 
@@ -1802,6 +2170,60 @@ function element(name: string, attrs: Record<string, string>, content?: string):
   return node;
 }
 
+/** Rebuild only static geometry from the embedded plan; never adopt source DOM nodes or links. */
+function renderNormalizedLandmarkSvg(markup: string): SVGGElement {
+  const output = element("g", { class: "ce-landmark-art", "pointer-events": "none" }) as SVGGElement;
+  if (typeof DOMParser === "undefined" || markup.length > 100_000) return output;
+  const source = new DOMParser().parseFromString(markup, "image/svg+xml");
+  if (source.querySelector("parsererror") || source.documentElement.localName !== "svg") return output;
+  const tags = new Set(["g", "path", "circle", "rect", "ellipse", "polygon", "polyline", "line"]);
+  const attrs = new Set([
+    "d",
+    "points",
+    "x",
+    "y",
+    "x1",
+    "x2",
+    "y1",
+    "y2",
+    "cx",
+    "cy",
+    "r",
+    "rx",
+    "ry",
+    "width",
+    "height",
+    "fill",
+    "fill-rule",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "opacity",
+    "fill-opacity",
+    "stroke-opacity",
+    "transform"
+  ]);
+  let count = 0;
+  const append = (sourceParent: Element, target: SVGElement): void => {
+    for (const child of Array.from(sourceParent.children)) {
+      if (++count > 1_000) return;
+      if (!tags.has(child.localName)) continue;
+      const node = element(child.localName, {});
+      for (const attribute of Array.from(child.attributes)) {
+        if (!attrs.has(attribute.localName) || attribute.namespaceURI) continue;
+        if (/url\s*\(|[<>]|javascript:|data:/i.test(attribute.value)) continue;
+        if (attribute.localName === "transform" && /[^\d\s.,+\-eE()a-z]/.test(attribute.value)) continue;
+        node.setAttribute(attribute.localName, attribute.value);
+      }
+      target.appendChild(node);
+      if (child.localName === "g") append(child, node);
+    }
+  };
+  append(source.documentElement, output);
+  return output;
+}
+
 function isPoint(point: Point | undefined): point is Point {
   return point !== undefined;
 }
@@ -1928,7 +2350,11 @@ export const STANDALONE_SVG_STYLE = `
   .ce-park-grass { fill: none; stroke: #5d8249; stroke-width: 0.7px; stroke-linecap: round; }
   .ce-park-canopy-lobe, .ce-park-canopy-main { fill: #557849; stroke: #385230; stroke-width: 0.6px; }
   .ce-park-canopy-highlight { fill: #688e5b; opacity: 0.85; }
-  .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--lake, .ce-svg--town .ce-face--openWater { fill: #85857d; }
+  .ce-millhouse-base { fill: #b8ad98; stroke: #332f28; stroke-width: 0.45px; }
+  .ce-weir-crest { stroke-linecap: round; }
+  .ce-waterwheel-unit:hover { filter: drop-shadow(0 0 2px rgba(255,200,80,0.8)); }
+  .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--openWater { fill: #456d7f; }
+  .ce-svg--town .ce-face--lake { fill: #527f8b; }
   .ce-svg--town .ce-edge { stroke: transparent; }
   .ce-svg--town .ce-feature { opacity: 1; }
   .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
@@ -1965,6 +2391,28 @@ export const STANDALONE_SVG_STYLE = `
   .ce-pier { fill: #c8beaa; stroke: #4a463c; stroke-width: 0.6px; }
   .ce-crane { filter: drop-shadow(0 0 1px #332b22); }
   .ce-cargo-pile { opacity: 0.95; }
+  .ce-ship { cursor: pointer; }
+  .ce-ship-shadow { fill: rgba(18, 30, 38, 0.32); }
+  .ce-ship-hull-outer { fill: #382c20; stroke: #221a13; }
+  .ce-ship-deck { fill: #c8b99c; stroke: #423527; }
+  .ce-ship-deck-step { fill: #ab9b7e; stroke: #382a1d; }
+  .ce-ship-hatch { fill: #5a4834; stroke: #31261a; }
+  .ce-ship-grating { stroke: #31261a; }
+  .ce-ship-mast { fill: #5a4531; stroke: #22170e; }
+  .ce-ship-crowsnest { fill: #38281a; stroke: #1e150d; }
+  .ce-ship-yard { stroke: #3e3020; }
+  .ce-ship-furled-sail { fill: #e8e0ce; stroke: #7d7260; }
+  .ce-ship-rigging { stroke: #2b2218; opacity: 0.75; }
+  .ce-ship-boat { fill: #b8a88a; stroke: #382a1d; }
+  .ce-ship-lantern { fill: #c49a45; stroke: #523e16; }
+  .ce-ship-rotate-knob { transition: r 0.15s ease; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35)); }
+  .ce-ship-rotate-knob:hover { r: 6px; fill: #e8f4fc; }
+  .ce-temple { cursor: pointer; }
+  .ce-temple-shadow { fill: rgba(18, 22, 25, 0.28); }
+  .ce-temple-base { fill: #b8b5ad; stroke: #38352e; stroke-width: 0.7px; stroke-linejoin: round; }
+  .ce-temple-buttresses { fill: #9e9b93; stroke: #38352e; stroke-width: 0.5px; }
+  .ce-temple-nave, .ce-temple-transept, .ce-temple-apse, .ce-temple-crossing, .ce-temple-westwork { stroke-linejoin: round; }
+  .ce-temple-spire-diagonal { stroke-linecap: round; }
 `;
 
 export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {

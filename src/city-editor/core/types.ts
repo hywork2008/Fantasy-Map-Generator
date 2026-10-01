@@ -170,7 +170,7 @@ export interface RiverGroup {
 
 export type FeatureGroup = EdgeFeatureGroup | RiverGroup;
 
-export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree";
+export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree" | "ship";
 
 export interface CityElement {
   id: Id;
@@ -179,8 +179,46 @@ export interface CityElement {
   /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
   point?: Point;
   sizeMeters?: number;
-  /** Long-axis angle in radians, CCW from +X. Temples use this. */
+  /** Long-axis angle in radians, CCW from +X. Temples and ships use this. */
   rotation?: number;
+  locked: boolean;
+  shipType?: "small" | "medium" | "large";
+}
+
+export interface LandmarkPolygon {
+  outer: Point[];
+  holes: Point[][];
+}
+
+export interface LandmarkAsset {
+  id: string;
+  revision: string;
+  name: string;
+  historicalPhase: string;
+  referenceSizeMeters: [number, number];
+  dimensionSource: string;
+  footprint: LandmarkPolygon[];
+  minimumSite: LandmarkPolygon[];
+  entrances: Array<{ id: string; point: Point; outward: Point; widthMeters: number; required: boolean }>;
+  /** Static, normalized SVG markup, retained with the document for offline display. */
+  renderSvg: string;
+  provenanceId: string;
+}
+
+export interface LandmarkInstance {
+  id: Id;
+  assetId: string;
+  assetRevision: string;
+  position: Point;
+  rotation: number;
+  scale: number;
+  site: LandmarkPolygon[];
+  accesses: Array<{
+    entranceId: string;
+    points: Point[];
+    widthMeters: number;
+    target: { kind: "road" | "lane"; id: string; point: Point };
+  }>;
   locked: boolean;
 }
 
@@ -301,7 +339,9 @@ export interface FabricPlan {
 
 export interface CityDocument {
   format: "fmg-city-editor";
-  version: 1 | 2;
+  version: 1 | 2 | 3;
+  landmarks?: LandmarkInstance[];
+  landmarkAssets?: LandmarkAsset[];
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
   defenseCircuits?: DefenseCircuit[];
@@ -330,4 +370,16 @@ export interface CityDocument {
   generationSeed?: string;
 }
 
-export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "wardWall" | "junction" | "face";
+export type Tool =
+  | "select"
+  | "vertex"
+  | "road"
+  | "wall"
+  | "river"
+  | "ward"
+  | "sea"
+  | "wardWall"
+  | "junction"
+  | "face"
+  | "landmark"
+  | "ship";

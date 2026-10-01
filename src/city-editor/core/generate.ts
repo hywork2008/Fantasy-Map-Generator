@@ -4,6 +4,7 @@ import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } f
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
 import {
   orientedRectPolylineDistance,
+  orientTempleHybrid,
   placeAndClearTempleRect,
   polygonHitsOrientedRect,
   templeFitsLand,
@@ -56,6 +57,7 @@ import {
   polygonTouchesRectEdge,
   polylineCrossesSegment
 } from "./gen/geom";
+import { spawnHarborShips } from "./gen/harborShips";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -418,6 +420,7 @@ export function generateStageOnDocument(
     res.generationSeed = seed;
     if (stageStep >= 5) tagExternalGateRoads(res, seed, settings.descriptor);
     if (stageStep >= 6) cultivateRoadside(res);
+    if (stageStep >= 6) spawnHarborShips(res, seed);
   }
   return res;
 }
@@ -741,6 +744,7 @@ export function generateCityAttempt(
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
+  spawnHarborShips(settled, seed);
   return settled;
 }
 
@@ -2204,7 +2208,15 @@ function applyPlan(
             : precinct.kind === "plaza"
               ? plazaFootprintMeters(next.frame.extentMeters)
               : undefined,
-        rotation: precinct.rotation,
+        rotation:
+          precinct.kind === "temple"
+            ? orientTempleHybrid(
+                [precinct.anchor[0], precinct.anchor[1]],
+                precinct.rotation ?? 0,
+                plan.precincts.find(p => p.kind === "plaza")?.anchor,
+                next.historicalPeriod
+              )
+            : precinct.rotation,
         locked: false
       });
     }
@@ -3093,7 +3105,21 @@ function polylineToVertexPath(
     if (!bridge) return []; // Never emit a river that ends at an interior gap.
     out.push(...bridge.slice(1));
   }
-  return out;
+  // Snapping the resolved walk back to mesh vertices can revisit a vertex even
+  // when the geometric walk has no loop (for example A → B → A). Remove the
+  // closed span so the emitted river cannot double back over its own edge.
+  const simple: Id[] = [];
+  const index = new Map<Id, number>();
+  for (const id of out) {
+    const previous = index.get(id);
+    if (previous !== undefined) {
+      for (const removed of simple.splice(previous + 1)) index.delete(removed);
+    } else {
+      index.set(id, simple.length);
+      simple.push(id);
+    }
+  }
+  return simple;
 }
 
 /** Bridge a graph-walk gap without reversing an already emitted river edge. */
@@ -3227,8 +3253,9 @@ function settleTempleOnDocument(document: CityDocument): void {
       return;
     }
   }
+  const plazaCenter = plaza?.point ?? (plazaGuides.length ? polygonCentroid(plazaGuides[0]) : undefined);
   temple.point = rect.center;
-  temple.rotation = rect.rotation;
+  temple.rotation = orientTempleHybrid(rect.center, rect.rotation, plazaCenter, document.historicalPeriod);
 
   const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, document.frame.extentMeters);
   const hitFaces = Object.values(document.mesh.faces).filter(face => {

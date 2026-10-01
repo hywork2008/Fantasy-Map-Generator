@@ -73,6 +73,34 @@ function fixture(wards: WardKind[] = ["craftsmen", "patriciate"], harbor = false
 }
 
 describe("medieval parcel fabric", () => {
+  it("keeps parcel members in sync when a landmark replaces a house", () => {
+    const document = fixture();
+    const initial = buildBlockFabric(document);
+    const target = initial.buildings.find(building => building.parcelId)!;
+    expect(target).toBeDefined();
+    const reserved: CityDocument = {
+      ...document,
+      version: 3,
+      landmarks: [
+        {
+          id: "landmark",
+          assetId: "test",
+          assetRevision: "1",
+          position: [0, 0],
+          rotation: 0,
+          scale: 1,
+          site: [{ outer: target.polygon, holes: [] }],
+          accesses: [],
+          locked: false
+        }
+      ]
+    };
+    const updated = buildBlockFabric(reserved);
+    for (const parcel of updated.parcels ?? []) {
+      expect(parcel.buildings).toEqual(updated.buildings.filter(building => building.parcelId === parcel.id));
+      expect(parcel.openSpaces.every(space => updated.openSpaces?.includes(space))).toBe(true);
+    }
+  });
   for (const [size, layout, coast] of [
     ["micro", "organic", "none"],
     ["tiny", "classic", "bay"],

@@ -16,6 +16,10 @@ export interface HarborPier {
   waterFaceId: Id;
   depth: number;
   polygon: Point[];
+  start?: Point;
+  end?: Point;
+  width?: number;
+  reach?: number;
 }
 
 export interface HarborCrane {
@@ -398,14 +402,23 @@ export function planHarbor(
     }
   }
   for (const shore of berthByWater.values()) {
-    const count = shore.length >= 35 ? 3 : 2;
-    const width = Math.min(3, shore.length / (count * 5));
+    const count = shore.length >= 50 ? 2 : 1;
+    const width = Math.min(
+      isExplorationOrLater ? 6.2 : 5.2,
+      Math.max(isExplorationOrLater ? 4.8 : 4.0, shore.length * 0.16)
+    );
+    const fractions = count === 2 ? [0.28, 0.72] : [0.5];
     for (let i = 0; i < count; i++) {
-      const t = (i + 1) / (count + 1);
+      const t = fractions[i];
       const start: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
       const end = (d: number): Point => [start[0] - shore.inward[0] * d, start[1] - shore.inward[1] * d];
       let reach = 0;
-      for (let d = 0.5; d <= Math.min(26, shore.length * (0.4 + (i % 2) * 0.06)); d += 0.5) {
+      const maxReachLimit = isExplorationOrLater ? 42 : 28;
+      const reachCap = Math.min(
+        maxReachLimit,
+        Math.max(isExplorationOrLater ? 32 : 22, shore.length * (isExplorationOrLater ? 0.75 : 0.5))
+      );
+      for (let d = 0.5; d <= reachCap; d += 0.5) {
         const deck = corridor(start, end(d), width);
         if (!deck.slice(1, 3).every(p => pointInPolygon(p, shore.water))) break;
         reach = d;
@@ -415,7 +428,11 @@ export function planHarbor(
           id: `pier:${shore.id}:${i}`,
           waterFaceId: shore.waterId,
           depth: shore.depth,
-          polygon: corridor(start, end(reach), width)
+          polygon: corridor(start, end(reach), width),
+          start,
+          end: end(reach),
+          width,
+          reach
         });
     }
   }

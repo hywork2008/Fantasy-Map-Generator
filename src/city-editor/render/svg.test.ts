@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDocument } from "../core/document";
 import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
 import { faceNeighbors, faceVertices, meshFromCells } from "../core/mesh";
-import type { CityDocument, Point } from "../core/types";
+import type { CityDocument, LandmarkAsset, Point } from "../core/types";
 import {
   faceClassName,
   parsePickInfo,
@@ -337,6 +337,63 @@ describe("Ward landmarks", () => {
     expect(harbor?.getAttribute("transform")).toMatch(/^translate\(/);
     expect(harbor?.querySelector("text")).toBeNull();
     expect(harbor?.querySelectorAll("path, circle").length).toBeGreaterThan(1);
+  });
+
+  it("hides gc:harbor mark in town view when showBlockMesh is OFF, but displays it when showBlockMesh is ON", () => {
+    const document = createDocument("town-harbor", 400);
+    document.appearance = "town";
+    document.elements.push({
+      id: "gc:harbor",
+      kind: "harbor",
+      faceIds: [],
+      point: [0, 0],
+      locked: false
+    });
+    document.elements.push({
+      id: "gc:ship-0",
+      kind: "ship",
+      faceIds: [],
+      point: [10, 10],
+      sizeMeters: 25,
+      shipType: "medium",
+      locked: false
+    });
+
+    const emptySel = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+
+    // 1. 街区の編集表示がOFF (showBlockMesh = false) の場合:
+    // town === true となり、gc:harbor の港マークは非表示、船は表示されること
+    const svgTown = renderEditorSvg(
+      document,
+      "select",
+      emptySel,
+      "-200 -200 400 400",
+      1,
+      null,
+      null,
+      null,
+      null,
+      false // showBlockMesh = false
+    );
+    expect(svgTown.querySelectorAll(".ce-element--harbor").length).toBe(0);
+    expect(svgTown.querySelectorAll(".ce-ship").length).toBe(1);
+
+    // 2. 街区の編集表示がON (showBlockMesh = true) の場合:
+    // town === false となり、gc:harbor の港マークが表示され、船も表示されること
+    const svgMesh = renderEditorSvg(
+      document,
+      "select",
+      emptySel,
+      "-200 -200 400 400",
+      1,
+      null,
+      null,
+      null,
+      null,
+      true // showBlockMesh = true
+    );
+    expect(svgMesh.querySelectorAll(".ce-element--harbor").length).toBe(1);
+    expect(svgMesh.querySelectorAll(".ce-ship").length).toBe(1);
   });
 });
 
@@ -801,6 +858,71 @@ describe("renderEditorSvg showGridLines", () => {
 });
 
 describe("renderStandaloneCitySvg / serializeCitySvg", () => {
+  it("embeds normalized landmark art without source links or scripts", () => {
+    const document = createDocument("landmark-svg", 400);
+    const asset: LandmarkAsset = {
+      id: "plan",
+      revision: "1",
+      name: "Plan",
+      historicalPhase: "test",
+      referenceSizeMeters: [10, 10],
+      dimensionSource: "test",
+      provenanceId: "test",
+      footprint: [
+        {
+          outer: [
+            [-5, -5],
+            [5, -5],
+            [5, 5],
+            [-5, 5]
+          ],
+          holes: []
+        }
+      ],
+      minimumSite: [
+        {
+          outer: [
+            [-6, -6],
+            [6, -6],
+            [6, 6],
+            [-6, 6]
+          ],
+          holes: []
+        }
+      ],
+      entrances: [],
+      renderSvg:
+        '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 0L5 5Z" fill="#123456"/><script>alert(1)</script><image href="https://example.com/x.png"/></svg>'
+    };
+    document.version = 3;
+    document.landmarkAssets = [asset];
+    document.landmarks = [
+      {
+        id: "one",
+        assetId: "plan",
+        assetRevision: "1",
+        position: [20, 30],
+        rotation: 0,
+        scale: 1,
+        site: asset.minimumSite,
+        accesses: [],
+        locked: false
+      }
+    ];
+    const svg = renderStandaloneCitySvg(document);
+    expect(svg.querySelector(".ce-landmark-art path")?.getAttribute("fill")).toBe("#123456");
+    expect(svg.querySelector("[data-landmark]")?.getAttribute("data-pick")).toBeNull();
+    const editor = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+    expect(parsePickInfo(editor.querySelector("[data-landmark]")?.getAttribute("data-pick") ?? null)?.id).toBe("one");
+    expect(svg.querySelector(".ce-landmark-art")?.getAttribute("transform")).toContain("20 -30");
+    expect(svg.querySelector(".ce-landmark-art script, .ce-landmark-art image")).toBeNull();
+  });
   it("creates a standalone SVG with appropriate attributes, background, and embedded style", () => {
     const document = createDocument("standalone-test", 600);
     const svg = renderStandaloneCitySvg(document);
@@ -923,10 +1045,10 @@ describe("harbor piers", () => {
     };
   }
 
-  it("draws three rectangular piers per adjacent sea cell without a harbor element", () => {
+  it("draws rectangular piers per adjacent sea cell without a harbor element", () => {
     const svg = renderStandaloneCitySvg(harborMap());
     const piers = svg.querySelectorAll(".ce-pier");
-    expect(piers).toHaveLength(6);
+    expect(piers).toHaveLength(4);
     for (const pier of piers) {
       expect(pier.getAttribute("d")).toMatch(/ Z$/);
       expect(pier.getAttribute("data-depth-m")).toBe("3");
@@ -1006,5 +1128,75 @@ describe("harbor piers", () => {
     const svg = renderStandaloneCitySvg(doc);
     expect(svg.querySelectorAll(".ce-crane").length).toBeGreaterThan(0);
     expect(svg.querySelectorAll(".ce-cargo-pile").length).toBeGreaterThan(0);
+  });
+
+  describe("ship element rendering", () => {
+    it("renders small, medium, and large ships with scale variations", () => {
+      const doc: CityDocument = {
+        format: "fmg-city-editor",
+        version: 2,
+        frame: { extentMeters: 1000, cityRadiusMeters: 400, blockSizeMeters: 50 },
+        mesh: { vertices: {}, edges: {}, faces: {} },
+        featureGroups: [],
+        gates: [],
+        elements: [
+          {
+            id: "ship-sloop-1",
+            kind: "ship",
+            shipType: "small",
+            faceIds: [],
+            point: [100, 150],
+            sizeMeters: 18, // 18m (base 16m -> scale ~1.125)
+            rotation: 0,
+            locked: false
+          },
+          {
+            id: "ship-caravel-1",
+            kind: "ship",
+            shipType: "medium",
+            faceIds: [],
+            point: [200, 250],
+            sizeMeters: 28, // 28m (base 25m -> scale 1.12)
+            rotation: Math.PI / 4,
+            locked: false
+          },
+          {
+            id: "ship-galleon-1",
+            kind: "ship",
+            shipType: "large",
+            faceIds: [],
+            point: [300, 350],
+            sizeMeters: 48, // 48m (base 42m -> scale ~1.143)
+            rotation: Math.PI / 2,
+            locked: false
+          }
+        ]
+      };
+
+      const emptySel: RenderSelection = {
+        faceId: null,
+        edgeId: null,
+        vertexId: null,
+        groupId: null,
+        inspectedId: null
+      };
+      const svg = renderEditorSvg(doc, "select", emptySel, "-500 -500 1000 1000", 1);
+      const smallShip = svg.querySelector(".ce-ship--small");
+      const mediumShip = svg.querySelector(".ce-ship--medium");
+      const largeShip = svg.querySelector(".ce-ship--large");
+
+      expect(smallShip).not.toBeNull();
+      expect(mediumShip).not.toBeNull();
+      expect(largeShip).not.toBeNull();
+
+      expect(smallShip?.getAttribute("transform")).toContain("scale(1.1250 1.1250)");
+      expect(mediumShip?.getAttribute("transform")).toContain("scale(1.1200 1.1200)");
+      expect(largeShip?.getAttribute("transform")).toContain("scale(1.1429 1.1429)");
+
+      // Test standalone SVG export includes ship styles
+      const standalone = renderStandaloneCitySvg(doc);
+      expect(standalone.querySelector(".ce-ship--small")).not.toBeNull();
+      expect(standalone.querySelector("style")?.textContent).toContain(".ce-ship");
+    });
   });
 });

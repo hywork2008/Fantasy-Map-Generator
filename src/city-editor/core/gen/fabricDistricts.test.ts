@@ -16,6 +16,7 @@ import type { CityDocument, Point } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
 import { createFabricPlan, districtDocument, resolveDistricts, setDistrictParameters } from "./fabricDistricts";
 import { pointInPolygon, polygonCentroid } from "./geom";
+import { buildLocalFabric } from "./localInfill";
 
 describe("bridge approach frontages", () => {
   it.each([
@@ -55,6 +56,43 @@ describe("bridge approach frontages", () => {
     }
     const fabric = buildBlockFabric(document);
     for (const id of bank) expect(fabric.buildings.some(b => b.faceId === id)).toBe(true);
+  });
+
+  it("builds housing in isolated river-bounded pockets across barriers for 1yq30d7", () => {
+    const input = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "1yq30d7",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      coast: "none",
+      rivers: ["through"],
+      relief: false,
+      features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "organic"
+    };
+    settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    const document = generateCityOnDocument(input, settings, "1gjwfza")!;
+    expect(document).toBeTruthy();
+
+    const fabric = buildBlockFabric(document);
+    for (const id of ["f16", "f27", "f28"]) {
+      expect(fabric.buildings.some(b => b.faceId === id)).toBe(true);
+    }
+  });
+});
+
+describe("local infill locked boundaries", () => {
+  it("does not recover a locked face through an adjacent reached face", () => {
+    const document = fixture();
+    document.mesh.faces.f1.properties.locked = true;
+
+    expect(buildLocalFabric(document).entrances.has("f1")).toBe(false);
   });
 });
 

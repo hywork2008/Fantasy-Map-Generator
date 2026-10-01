@@ -1,6 +1,7 @@
 import i18n from "../../i18n";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
+import { historicLandmarkPrototypes } from "../assets/catalog";
 import {
   createCastleOnFace,
   deleteCastle,
@@ -51,9 +52,11 @@ import {
   SETTLEMENT_SCALE_LABELS,
   SETTLEMENT_SCALES
 } from "../core/gen/approachBeyond";
+import { buildBlockFabric, type InfillLane } from "../core/gen/blockInfill";
 import { refreshCastleLayouts } from "../core/gen/castleLayout";
 import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
 import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
+import { orientTempleHybrid } from "../core/gen/civicPlacement";
 import {
   defaultDistrictParameters,
   resolveDistricts,
@@ -62,6 +65,7 @@ import {
 } from "../core/gen/fabricDistricts";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
+import { buildLandmarkLaneNetwork, repairLandmarkLaneTargets } from "../core/gen/landmarkLaneNetwork";
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
@@ -96,6 +100,12 @@ import { type GenerationSample, generationPhaseLabel, logGenerationFailures } fr
 import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
 import {
+  placeLandmark,
+  transformLandmarkPolygons,
+  transformPlacedLandmark,
+  validateLandmarks
+} from "../core/landmarks";
+import {
   clone,
   edgeBetween,
   faceNeighbors,
@@ -120,8 +130,10 @@ import type {
   BeyondRealmRelation,
   CastleSettings,
   CityDocument,
+  CityElement,
   FeatureGroup,
   Id,
+  LandmarkAsset,
   Point,
   SettlementRole,
   SettlementScale,
@@ -139,6 +151,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
   faceClassName,
   type GridOverlay,
@@ -157,6 +170,8 @@ import {
 
 const TOOLS: Array<[Tool, string, string]> = [
   ["select", "Select and move", "↖"],
+  ["landmark", "Place historic landmark", "⌂"],
+  ["ship", "Place ships", "⛵"],
   ["vertex", "Edit vertices", "⌘"],
   ["road", "Draw road", "╱"],
   ["wall", "Draw wall", "▥"],
@@ -230,6 +245,25 @@ export function mountCityEditor(root: HTMLElement): void {
   // renderer separately.
   let referenceImage: CityDocument["referenceImage"] | null = null;
   let tool: Tool = "select";
+  let landmarkAssetId = "";
+  let landmarkRotationDegrees = 0;
+  let landmarkHoverPoint: Point | null = null;
+  let shipType: ShipType = "small";
+  let shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
+  let shipAngleDegrees = 0;
+  let shipHoverPoint: Point | null = null;
+  interface ShipDragState {
+    shipId: string;
+    mode: "move" | "rotate";
+    startPoint: Point;
+    initialShipPoint: Point;
+    initialRotation: number;
+    moved: boolean;
+  }
+  let shipDrag: ShipDragState | null = null;
+  let shipDragBefore: CityDocument | null = null;
+  let landmarkLaneSource: CityDocument | null = null;
+  let landmarkLanes: InfillLane[] = [];
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
   let inspectedInfo: SvgPickInfo | null = null;
   let activeGroupId: Id | null = null;
@@ -411,6 +445,101 @@ export function mountCityEditor(root: HTMLElement): void {
     toolGrid.appendChild(button);
   }
   toolbar.content.appendChild(toolGrid);
+  const landmarkControls = div("ce-landmark-controls");
+  const landmarkSelect = document.createElement("select");
+  landmarkSelect.setAttribute("aria-label", "Historic landmark asset");
+  landmarkSelect.addEventListener("change", () => {
+    landmarkAssetId = landmarkSelect.value;
+    refresh();
+  });
+  const landmarkAngle = document.createElement("input");
+  landmarkAngle.type = "number";
+  landmarkAngle.min = "-180";
+  landmarkAngle.max = "180";
+  landmarkAngle.step = "15";
+  landmarkAngle.value = "0";
+  landmarkAngle.title = "Landmark rotation in degrees";
+  landmarkAngle.addEventListener("change", () => {
+    landmarkRotationDegrees = Number(landmarkAngle.value) || 0;
+    updateLandmarkPreview();
+  });
+  const landmarkFile = document.createElement("input");
+  landmarkFile.type = "file";
+  landmarkFile.accept = ".json,application/json";
+  landmarkFile.title = "Import a reviewed landmark asset JSON";
+  landmarkFile.addEventListener("change", () => {
+    const file = landmarkFile.files?.[0];
+    if (!file) return;
+    void file.text().then(source => {
+      try {
+        const asset = JSON.parse(source) as LandmarkAsset;
+        const trial: CityDocument = { ...documentState, version: 3, landmarkAssets: [asset], landmarks: [] };
+        if (validateLandmarks(trial).length) throw new Error("Invalid asset");
+        const already = (documentState.landmarkAssets ?? []).some(
+          item => item.id === asset.id && item.revision === asset.revision
+        );
+        if (!already)
+          commit(
+            { ...documentState, version: 3, landmarkAssets: [...(documentState.landmarkAssets ?? []), asset] },
+            `Import ${asset.name}`
+          );
+        landmarkAssetId = `${asset.id}@${asset.revision}`;
+        tool = "landmark";
+        refresh();
+      } catch {
+        showNotice("ランドマーク素材の形式を確認してください。");
+      }
+    });
+  });
+  landmarkControls.append(landmarkSelect, landmarkAngle, landmarkFile);
+  toolbar.content.appendChild(landmarkControls);
+
+  const shipControls = div("ce-ship-controls");
+  const shipSelect = document.createElement("select");
+  shipSelect.setAttribute("aria-label", "Ship type");
+  for (const [key, spec] of Object.entries(SHIP_SPECS)) {
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = `${spec.label}`;
+    shipSelect.appendChild(opt);
+  }
+  shipSelect.value = shipType;
+
+  const shipSizeInput = document.createElement("input");
+  shipSizeInput.type = "number";
+  shipSizeInput.min = "6";
+  shipSizeInput.max = "80";
+  shipSizeInput.step = "1";
+  shipSizeInput.value = String(shipSizeMeters);
+  shipSizeInput.title = "Ship length in metres";
+
+  shipSelect.addEventListener("change", () => {
+    shipType = shipSelect.value as ShipType;
+    shipSizeMeters = SHIP_SPECS[shipType].defaultSizeMeters;
+    shipSizeInput.value = String(shipSizeMeters);
+    updateShipPreview();
+    refresh();
+  });
+
+  shipSizeInput.addEventListener("input", () => {
+    shipSizeMeters = Number(shipSizeInput.value) || SHIP_SPECS[shipType].defaultSizeMeters;
+    updateShipPreview();
+  });
+
+  const shipAngle = document.createElement("input");
+  shipAngle.type = "number";
+  shipAngle.min = "-180";
+  shipAngle.max = "180";
+  shipAngle.step = "15";
+  shipAngle.value = "0";
+  shipAngle.title = "Ship rotation in degrees";
+  shipAngle.addEventListener("input", () => {
+    shipAngleDegrees = Number(shipAngle.value) || 0;
+    updateShipPreview();
+  });
+
+  shipControls.append(shipSelect, label("Length (m)", shipSizeInput), label("Angle (°)", shipAngle));
+  toolbar.content.appendChild(shipControls);
   const paintButtons = new Map<WardKind | "sea" | "erase", HTMLButtonElement>();
   const paintGrid = div("ce-icon-row");
   for (const { kind, label: paintLabel } of PAINT_BRUSHES) {
@@ -699,6 +828,12 @@ export function mountCityEditor(root: HTMLElement): void {
     const period = historicalPeriodSelect.value as import("../core/types").HistoricalPeriod;
     generateSettings.historicalPeriod = period;
     const next = { ...documentState, historicalPeriod: period };
+    const plaza = next.elements.find(e => e.kind === "plaza");
+    for (const elem of next.elements) {
+      if (elem.kind === "temple" && elem.point && !elem.locked) {
+        elem.rotation = orientTempleHybrid(elem.point, elem.rotation ?? 0, plaza?.point, period);
+      }
+    }
     commit(next, "Change historical period");
     if (documentState.appearance === "town") completeResult = next;
     syncGenerateControls();
@@ -1156,6 +1291,65 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     if (tool === "select") {
+      const targetEl = event.target instanceof Element ? event.target : null;
+      const shipHandle = targetEl?.closest<SVGElement>("[data-ship-handle='rotate']");
+      if (shipHandle) {
+        const shipId = shipHandle.getAttribute("data-ship-id");
+        const ship = documentState.elements.find(e => e.id === shipId && e.kind === "ship");
+        if (ship && ship.point && !ship.locked) {
+          event.preventDefault();
+          shipDragBefore = clone(documentState);
+          shipDrag = {
+            shipId: ship.id,
+            mode: "rotate",
+            startPoint: point,
+            initialShipPoint: [...ship.point],
+            initialRotation: ship.rotation ?? 0,
+            moved: false
+          };
+          map.setPointerCapture(event.pointerId);
+          suppressNextClick = true;
+          return;
+        }
+      }
+
+      const shipPick = targetEl?.closest<SVGElement>(".ce-ship[data-pick]");
+      if (shipPick) {
+        const rawPick = shipPick.getAttribute("data-pick");
+        const info = parsePickInfo(rawPick);
+        if (info && info.kind === "ship") {
+          const shipId = String(info.id);
+          const ship = documentState.elements.find(e => e.id === shipId);
+          if (ship && ship.point) {
+            selection = {
+              faceId: null,
+              edgeId: null,
+              vertexId: null,
+              groupId: null,
+              inspectedId: ship.id
+            };
+            inspectedInfo = info;
+            activeGroupId = null;
+            if (!ship.locked) {
+              event.preventDefault();
+              shipDragBefore = clone(documentState);
+              shipDrag = {
+                shipId: ship.id,
+                mode: "move",
+                startPoint: point,
+                initialShipPoint: [...ship.point],
+                initialRotation: ship.rotation ?? 0,
+                moved: false
+              };
+              map.setPointerCapture(event.pointerId);
+              suppressNextClick = true;
+            }
+            refresh();
+            return;
+          }
+        }
+      }
+
       const nearestVertexId = closestVertexId(point);
       const v = nearestVertexId ? documentState.mesh.vertices[nearestVertexId] : null;
       const vDist = v ? Math.hypot(v.point[0] - point[0], v.point[1] - point[1]) : Number.POSITIVE_INFINITY;
@@ -1250,6 +1444,41 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (shipDrag) {
+      const point = localPoint(event);
+      if (Math.hypot(point[0] - shipDrag.startPoint[0], point[1] - shipDrag.startPoint[1]) > 0.5) {
+        shipDrag.moved = true;
+        suppressNextClick = true;
+      }
+      if (shipDrag.mode === "move") {
+        const dx = point[0] - shipDrag.startPoint[0];
+        const dy = point[1] - shipDrag.startPoint[1];
+        const nextPoint: Point = [shipDrag.initialShipPoint[0] + dx, shipDrag.initialShipPoint[1] + dy];
+        documentState = {
+          ...documentState,
+          elements: documentState.elements.map(e => (e.id === shipDrag!.shipId ? { ...e, point: nextPoint } : e))
+        };
+      } else if (shipDrag.mode === "rotate") {
+        const nextAngle = getShipAngleFromPoint(shipDrag.initialShipPoint, point);
+        documentState = {
+          ...documentState,
+          elements: documentState.elements.map(e => (e.id === shipDrag!.shipId ? { ...e, rotation: nextAngle } : e))
+        };
+        shipAngleDegrees = Math.round((nextAngle * 180) / Math.PI);
+      }
+      scheduleRedraw();
+      return;
+    }
+    if (tool === "landmark" && !isPanning) {
+      landmarkHoverPoint = localPoint(event);
+      updateLandmarkPreview();
+      return;
+    }
+    if (tool === "ship" && !isPanning) {
+      shipHoverPoint = localPoint(event);
+      updateShipPreview();
+      return;
+    }
     if (tool === "wardWall" || circularWallStroke) updateCircularWallPreview(event);
     if (circularWallStroke) return;
     if (isBrushTool(tool)) updateWardBrushPreview(event);
@@ -1312,6 +1541,20 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!circularWallStroke) hideCircularWallPreview();
   });
   const finishDrag = (event: PointerEvent): void => {
+    if (shipDrag) {
+      const wasMoved = shipDrag.moved;
+      const dragMode = shipDrag.mode;
+      const before = shipDragBefore;
+      shipDrag = null;
+      shipDragBefore = null;
+      if (map.hasPointerCapture(event.pointerId)) map.releasePointerCapture(event.pointerId);
+      if (wasMoved && before) {
+        commit(documentState, dragMode === "move" ? "Move ship" : "Rotate ship");
+      } else {
+        refresh();
+      }
+      return;
+    }
     if (
       !isVertexDragging &&
       !isWardPainting &&
@@ -1444,6 +1687,47 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
+    if (tool === "landmark") {
+      const asset = selectedLandmarkAsset();
+      if (!asset) {
+        showNotice("ランドマーク素材を読み込んでください。");
+        return;
+      }
+      const result = placeLandmark(
+        documentState,
+        asset,
+        {
+          id: `landmark-${crypto.randomUUID()}`,
+          position: localPoint(event as PointerEvent),
+          rotation: (landmarkRotationDegrees * Math.PI) / 180,
+          scale: 1
+        },
+        preservedLandmarkLanes()
+      );
+      if (result.document) {
+        commit(result.document, `Place ${asset.name}`);
+        landmarkHoverPoint = null;
+      } else showNotice(result.reasons.join("; "));
+      return;
+    }
+    if (tool === "ship") {
+      const p = localPoint(event as PointerEvent);
+      const newElement: CityElement = {
+        id: `ship-${crypto.randomUUID()}`,
+        kind: "ship",
+        shipType,
+        faceIds: [],
+        point: p,
+        sizeMeters: shipSizeMeters,
+        rotation: (shipAngleDegrees * Math.PI) / 180,
+        locked: false
+      };
+      commit(
+        { ...documentState, elements: [...documentState.elements, newElement] },
+        `Place ${SHIP_SPECS[shipType].label}`
+      );
+      return;
+    }
     let target = event.target instanceof Element ? event.target : null;
     if (target === map || target?.tagName.toLowerCase() === "svg") {
       const under =
@@ -1998,6 +2282,34 @@ export function mountCityEditor(root: HTMLElement): void {
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
+    const assets = [
+      ...(documentState.landmarkAssets ?? []),
+      ...historicLandmarkPrototypes.filter(
+        prototype =>
+          !(documentState.landmarkAssets ?? []).some(
+            asset => asset.id === prototype.id && asset.revision === prototype.revision
+          )
+      )
+    ];
+    landmarkSelect.replaceChildren(
+      ...assets.map(asset => {
+        const option = document.createElement("option");
+        option.value = `${asset.id}@${asset.revision}`;
+        option.textContent = `${asset.name} (${asset.historicalPhase})`;
+        return option;
+      })
+    );
+    if (!assets.length) {
+      const option = document.createElement("option");
+      option.textContent = "Import reviewed asset…";
+      option.value = "";
+      landmarkSelect.appendChild(option);
+    }
+    if (!assets.some(asset => `${asset.id}@${asset.revision}` === landmarkAssetId))
+      landmarkAssetId = assets.length ? `${assets[0].id}@${assets[0].revision}` : "";
+    landmarkSelect.value = landmarkAssetId;
+    landmarkControls.hidden = tool !== "landmark";
+    shipControls.hidden = tool !== "ship";
     currentBuildingPatternSelect.value =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     historicalPeriodSelect.value = documentState.historicalPeriod ?? "ageOfExploration";
@@ -2113,6 +2425,117 @@ export function mountCityEditor(root: HTMLElement): void {
     updateRoutePreview();
     updateHoverOverlay();
     updateMeasureOverlay();
+    updateLandmarkPreview();
+  }
+
+  function selectedLandmarkAsset(): LandmarkAsset | null {
+    return (
+      [...(documentState.landmarkAssets ?? []), ...historicLandmarkPrototypes].find(
+        asset => `${asset.id}@${asset.revision}` === landmarkAssetId
+      ) ?? null
+    );
+  }
+
+  function preservedLandmarkLanes(): InfillLane[] {
+    if (landmarkLaneSource === documentState) return landmarkLanes;
+    landmarkLaneSource = documentState;
+    if (
+      documentState.appearance === "town" &&
+      (documentState.buildingPattern === "medieval" ||
+        documentState.fabric?.version === 5 ||
+        documentState.gridKind === "evolution" ||
+        ["circulade", "bram", "classic"].includes(documentState.layout ?? ""))
+    ) {
+      const fabric = buildBlockFabric(documentState);
+      landmarkLanes = [
+        ...buildLandmarkLaneNetwork(documentState, fabric.lanes),
+        ...(fabric.parcels ?? []).flatMap(parcel =>
+          parcel.access.map(access => ({
+            faceId: parcel.faceIds[0],
+            points: access.points,
+            widthMeters: access.widthMeters
+          }))
+        )
+      ];
+    } else landmarkLanes = [];
+    return landmarkLanes;
+  }
+
+  function updateShipPreview(): void {
+    const svg = map.querySelector("svg");
+    if (!svg) return;
+    svg.querySelector(".ce-ship-preview")?.remove();
+    if (tool !== "ship" || !shipHoverPoint) return;
+    const preview = renderShipSvg({
+      type: shipType,
+      point: shipHoverPoint,
+      sizeMeters: shipSizeMeters,
+      rotation: (shipAngleDegrees * Math.PI) / 180,
+      opacity: 0.68,
+      className: "ce-ship-preview"
+    });
+    preview.style.pointerEvents = "none";
+    svg.appendChild(preview);
+  }
+
+  function updateLandmarkPreview(): void {
+    const svg = map.querySelector("svg");
+    if (!svg) return;
+    svg.querySelector(".ce-landmark-preview")?.remove();
+    const asset = selectedLandmarkAsset();
+    if (tool !== "landmark" || !asset || !landmarkHoverPoint) return;
+    const placement = {
+      id: "preview-landmark",
+      position: landmarkHoverPoint,
+      rotation: (landmarkRotationDegrees * Math.PI) / 180,
+      scale: 1
+    };
+    const preview = placeLandmark(documentState, asset, placement, preservedLandmarkLanes());
+    const layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    layer.classList.add("ce-landmark-preview");
+    layer.setAttribute("pointer-events", "none");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const site = transformLandmarkPolygons(asset.minimumSite, placement);
+    path.setAttribute(
+      "d",
+      site
+        .flatMap(part => [part.outer, ...part.holes])
+        .map(ring => `M ${ring.map(point => `${point[0]} ${-point[1]}`).join(" L ")} Z`)
+        .join(" ")
+    );
+    path.setAttribute("fill-rule", "evenodd");
+    path.setAttribute("fill", preview.document ? "#68aa6a66" : "#c2606066");
+    path.setAttribute("stroke", preview.document ? "#267943" : "#a22525");
+    path.setAttribute("stroke-width", "2");
+    layer.appendChild(path);
+    const footprint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    footprint.setAttribute(
+      "d",
+      transformLandmarkPolygons(asset.footprint, placement)
+        .flatMap(part => [part.outer, ...part.holes])
+        .map(ring => `M ${ring.map(point => `${point[0]} ${-point[1]}`).join(" L ")} Z`)
+        .join(" ")
+    );
+    footprint.setAttribute("fill-rule", "evenodd");
+    footprint.setAttribute("fill", preview.document ? "#357a5477" : "#a8444477");
+    footprint.setAttribute("stroke", preview.document ? "#1d6539" : "#8b1d1d");
+    layer.appendChild(footprint);
+    for (const access of preview.document?.landmarks?.at(-1)?.accesses ?? []) {
+      const route = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      route.setAttribute("d", `M ${access.points.map(point => `${point[0]} ${-point[1]}`).join(" L ")}`);
+      route.setAttribute("fill", "none");
+      route.setAttribute("stroke", "#267943");
+      route.setAttribute("stroke-width", String(access.widthMeters));
+      layer.appendChild(route);
+    }
+    const message = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    message.textContent = preview.document ? `${asset.name} — place` : preview.reasons.slice(0, 2).join("; ");
+    message.setAttribute("x", String(landmarkHoverPoint[0]));
+    message.setAttribute("y", String(-landmarkHoverPoint[1] - 14));
+    message.setAttribute("font-size", "11");
+    message.setAttribute("fill", preview.document ? "#165a34" : "#8b1d1d");
+    layer.appendChild(message);
+    svg.appendChild(layer);
   }
 
   /**
@@ -2761,6 +3184,86 @@ export function mountCityEditor(root: HTMLElement): void {
       });
 
       inspector.content.append(kind, content, clearButton);
+
+      if (inspectedInfo.layer === "landmarks" && typeof inspectedInfo.id === "string") {
+        const instance = documentState.landmarks?.find(item => item.id === inspectedInfo?.id);
+        if (instance && !instance.locked) {
+          const x = numberInput(String(instance.position[0]), "-100000", "0.1");
+          const y = numberInput(String(instance.position[1]), "-100000", "0.1");
+          const angle = numberInput(String((instance.rotation * 180) / Math.PI), "-360", "1");
+          const scale = numberInput(String(instance.scale), "0.01", "0.01");
+          inspector.content.append(
+            divider(),
+            label("X (m)", x),
+            label("Y (m)", y),
+            label("Rotation (°)", angle),
+            label("Scale", scale),
+            makeButton("Update landmark", () => {
+              const result = transformPlacedLandmark(
+                documentState,
+                instance.id,
+                {
+                  position: [Number(x.value), Number(y.value)],
+                  rotation: (Number(angle.value) * Math.PI) / 180,
+                  scale: Number(scale.value)
+                },
+                preservedLandmarkLanes()
+              );
+              if (result.document) commit(result.document, `Update ${inspectedInfo?.label ?? "landmark"}`);
+              else showNotice(result.reasons.join("; "));
+            })
+          );
+          inspector.content.appendChild(
+            makeButton("Delete landmark", () => {
+              commit(
+                { ...documentState, landmarks: documentState.landmarks?.filter(item => item.id !== instance.id) },
+                `Delete ${inspectedInfo?.label ?? "landmark"}`
+              );
+              inspectedInfo = null;
+              selection.inspectedId = null;
+              refresh();
+            })
+          );
+        }
+      }
+
+      if (inspectedInfo.layer === "elements" && inspectedInfo.kind === "ship" && typeof inspectedInfo.id === "string") {
+        const shipElem = documentState.elements.find(item => item.id === inspectedInfo?.id);
+        if (shipElem && !shipElem.locked && shipElem.point) {
+          const x = numberInput(String(shipElem.point[0]), "-100000", "0.1");
+          const y = numberInput(String(shipElem.point[1]), "-100000", "0.1");
+          const length = numberInput(String(shipElem.sizeMeters ?? SHIP_SPECS.small.defaultSizeMeters), "5", "1");
+          const angle = numberInput(String(((shipElem.rotation ?? 0) * 180) / Math.PI), "-360", "1");
+          inspector.content.append(
+            divider(),
+            label("X (m)", x),
+            label("Y (m)", y),
+            label("Length (m)", length),
+            label("Rotation (°)", angle),
+            makeButton("Update ship", () => {
+              const updated = documentState.elements.map(item => {
+                if (item.id !== shipElem.id) return item;
+                return {
+                  ...item,
+                  point: [Number(x.value), Number(y.value)] as Point,
+                  sizeMeters: Number(length.value) || item.sizeMeters,
+                  rotation: (Number(angle.value) * Math.PI) / 180
+                };
+              });
+              commit({ ...documentState, elements: updated }, `Update ship #${shipElem.id}`);
+            }),
+            makeButton("Delete ship", () => {
+              commit(
+                { ...documentState, elements: documentState.elements.filter(item => item.id !== shipElem.id) },
+                `Delete ship #${shipElem.id}`
+              );
+              inspectedInfo = null;
+              selection.inspectedId = null;
+              refresh();
+            })
+          );
+        }
+      }
 
       const editSection = div("ce-inspector-edit-section");
       populateInspectorEditControls(editSection);
@@ -3508,10 +4011,21 @@ export function mountCityEditor(root: HTMLElement): void {
     // seeds the history, then keep it only in the closure for render + export.
     referenceImage = parsed.document.referenceImage ?? null;
     delete parsed.document.referenceImage;
+    let unresolvedLandmarks: Id[] = [];
+    if (parsed.document.landmarks?.some(instance => instance.accesses.some(access => access.target.kind === "lane"))) {
+      const fabric = buildBlockFabric(parsed.document);
+      const repaired = repairLandmarkLaneTargets(
+        parsed.document,
+        buildLandmarkLaneNetwork(parsed.document, fabric.lanes)
+      );
+      parsed.document = repaired.document;
+      unresolvedLandmarks = repaired.unresolved;
+    }
     documentState = parsed.document;
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     history = new DocumentHistory(parsed.document, "Imported map");
+    if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
@@ -3843,6 +4357,7 @@ export function mountCityEditor(root: HTMLElement): void {
     hideStreetLines = false;
     syncStageUi(9);
     rebuildEditorIndexes();
+    refresh();
     showNotice("都市を生成しました — 城壁・街路・建物");
   }
 

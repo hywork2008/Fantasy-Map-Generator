@@ -1,4 +1,5 @@
 import { circuitRing, polygonOverlaps } from "../fortifications";
+import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { laneHitsCivicLandmark } from "./buildingLots";
@@ -13,6 +14,7 @@ import {
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
+import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
 import { buildMedievalFabric, medievalStreetDocument } from "./medievalFabric";
@@ -25,12 +27,14 @@ import {
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
 import { shapeSuburbanFabric } from "./suburbanLanduse";
+import { buildWatermillPlan, type WatermillPlan } from "./watermillFabric";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
 export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
   parks?: ParkLawn[];
+  watermills?: WatermillPlan;
 }
 let defaultCache: FabricCache | null = null;
 function getDefaultCache(): FabricCache {
@@ -91,26 +95,68 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
+  // Generate the established street/parcel network from the same stable seed,
+  // then fit affected buildings to the landmark reservation in one final pass.
+  const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
   if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
     return finishCoastalBuildings(
       document,
-      buildMedievalFabric(document, buildLegacyBlockFabric(medievalStreetDocument(document), cache))
+      buildMedievalFabric(source, buildLegacyBlockFabric(medievalStreetDocument(source), cache))
     );
   }
-  return finishCoastalBuildings(document, buildLegacyBlockFabric(document, cache));
+  return finishCoastalBuildings(document, buildLegacyBlockFabric(source, cache));
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
   const shore = oceanShoreSegments(document);
-  if (!shore.length) return fabric;
+  const buildings = rebuildLandmarkHousing(document, fabric.buildings, [
+    ...fabric.lanes,
+    ...(fabric.parcels ?? []).flatMap(parcel =>
+      parcel.access.map(access => ({
+        points: access.points,
+        widthMeters: access.widthMeters
+      }))
+    )
+  ]).filter(
+    lot =>
+      document.mesh.faces[lot.faceId]?.properties.locked ||
+      document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
+      !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
+  );
+  const watermills =
+    fabric.watermills ??
+    buildWatermillPlan(
+      document,
+      buildings.length,
+      "watermill-fabric",
+      fabric.lanes,
+      fabric.farms.map(farm => farm.polygon)
+    );
+  const millPolygons = watermills.mills.map(m => m.millhousePolygon);
+  const nonMillBuildings = millPolygons.length
+    ? buildings.filter(b => !millPolygons.some(mPoly => polygonOverlaps(b.polygon, mPoly)))
+    : buildings;
+  const openSpaces = fabric.openSpaces?.filter(space => !landmarkReservationHits(document, space.polygon));
+  const parcelBuildings = new Map<string, typeof nonMillBuildings>();
+  for (const building of nonMillBuildings) {
+    if (!building.parcelId) continue;
+    const members = parcelBuildings.get(building.parcelId) ?? [];
+    members.push(building);
+    parcelBuildings.set(building.parcelId, members);
+  }
   return {
     ...fabric,
-    buildings: fabric.buildings.filter(
-      lot =>
-        document.mesh.faces[lot.faceId]?.properties.locked ||
-        document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
-        !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
-    )
+    buildings: nonMillBuildings,
+    farms: fabric.farms.filter(farm => !landmarkReservationHits(document, farm.polygon)),
+    openSpaces,
+    watermills,
+    parcels: document.landmarks?.length
+      ? fabric.parcels?.map(parcel => ({
+          ...parcel,
+          buildings: parcelBuildings.get(parcel.id) ?? [],
+          openSpaces: parcel.openSpaces.filter(space => !landmarkReservationHits(document, space.polygon))
+        }))
+      : fabric.parcels
   };
 }
 

@@ -8,6 +8,7 @@ import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { civicYardMeters } from "./housing";
+import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { clipBlockWithRivers, clipHalfPlane, insetConvexKernel, longestFrame, type RiverMargin } from "./lotGeometry";
 import { makeRng } from "./prng";
 
@@ -62,9 +63,12 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   }
   const lots: BuildingLot[] = [];
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
-  return relieveGatePlazaBuildings(
+  return rebuildLandmarkHousing(
     document,
-    lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
+    relieveGatePlazaBuildings(
+      document,
+      lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
+    )
   );
 }
 

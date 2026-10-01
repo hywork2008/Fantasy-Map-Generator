@@ -31,6 +31,7 @@ export interface CityFabric {
   harbor?: import("./harborFabric").HarborPlan;
   farms?: FarmPlot[];
   parks?: import("./parkFabric").ParkLawn[];
+  watermills?: import("./watermillFabric").WatermillPlan;
   buildings: BuildingLot[];
   lanes: InfillLane[];
   /** Portals shared by adjacent faces, or opening onto a major road. */
@@ -81,7 +82,8 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
   const { mesh } = document;
   const edges = indexMeshEdges(mesh);
   const roads = new Set<Id>(),
-    barriers = new Set<Id>();
+    barriers = new Set<Id>(),
+    walls = new Set<Id>();
   const clearance = new Map<Id, number>();
   const rivers: { points: Point[]; width: number }[] = [];
   const organicContext: OrganicBlockContext = {
@@ -107,6 +109,7 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     for (const id of ids) {
       if (group.kind === "road") roads.add(id);
       if (group.kind === "river" || group.kind === "wall") barriers.add(id);
+      if (group.kind === "wall") walls.add(id);
       // Roads are represented by their centre line. Houses belong at the road
       // edge, whereas walls and rivers need their own protective clearance.
       const clearanceMeters =
@@ -145,18 +148,81 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
     queue.push(id);
   }
   const reached = new Set(queue);
-  for (let cursor = 0; cursor < queue.length; cursor++) {
-    const id = queue[cursor];
-    for (const ref of mesh.faces[id].boundary) {
-      const edge = mesh.edges[ref.edgeId],
-        other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
-      if (!other || !land.has(other) || reached.has(other) || barriers.has(edge.id)) continue;
-      // A locked boundary is not opened by procedural infill.
-      if (edge.locked || mesh.faces[id].properties.locked || mesh.faces[other].properties.locked) continue;
-      add(id, edgeMid(edge.id));
-      add(other, edgeMid(edge.id));
-      reached.add(other);
-      queue.push(other);
+  const expandReachability = (startCursor: number) => {
+    for (let cursor = startCursor; cursor < queue.length; cursor++) {
+      const id = queue[cursor];
+      for (const ref of mesh.faces[id].boundary) {
+        const edge = mesh.edges[ref.edgeId],
+          other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+        if (!other || !land.has(other) || reached.has(other) || barriers.has(edge.id)) continue;
+        // A locked boundary is not opened by procedural infill.
+        if (edge.locked || mesh.faces[id].properties.locked || mesh.faces[other].properties.locked) continue;
+        add(id, edgeMid(edge.id));
+        add(other, edgeMid(edge.id));
+        reached.add(other);
+        queue.push(other);
+      }
+    }
+  };
+
+  expandReachability(0);
+
+  // Recover isolated pockets of buildable urban land within the settlement core
+  // (e.g. across a river or within walls) that were not reached from the major road frontages.
+  if (queue.length > 0) {
+    const unreachedUrban = () =>
+      [...land].filter(id => !reached.has(id) && mesh.faces[id].properties.settlement !== "outskirts");
+
+    let unreached = unreachedUrban();
+    while (unreached.length > 0) {
+      let bestFaceId: Id | null = null;
+      let bestEdgeId: Id | null = null;
+      let bestPriority = -1;
+      let bestDistToHub = Infinity;
+
+      for (const fid of unreached) {
+        const face = mesh.faces[fid];
+        for (const ref of face.boundary) {
+          const edge = mesh.edges[ref.edgeId];
+          if (walls.has(edge.id) || edge.locked || face.properties.locked) continue;
+          const other = edge.leftFace === fid ? edge.rightFace : edge.leftFace;
+          if (other && mesh.faces[other].properties.locked) continue;
+          let priority = 0;
+          if (roads.has(edge.id)) {
+            priority = 2;
+          } else if (other && reached.has(other)) {
+            priority = 1;
+          } else {
+            continue;
+          }
+          const m = edgeMid(edge.id);
+          const d = distance(m, organicContext.hub);
+          if (priority > bestPriority || (priority === bestPriority && d < bestDistToHub)) {
+            bestPriority = priority;
+            bestDistToHub = d;
+            bestFaceId = fid;
+            bestEdgeId = edge.id;
+          }
+        }
+      }
+
+      if (!bestFaceId || !bestEdgeId) {
+        break;
+      }
+
+      add(bestFaceId, edgeMid(bestEdgeId));
+      if (!barriers.has(bestEdgeId)) {
+        const edge = mesh.edges[bestEdgeId];
+        const other = edge.leftFace === bestFaceId ? edge.rightFace : edge.leftFace;
+        if (other && land.has(other)) {
+          add(other, edgeMid(bestEdgeId));
+        }
+      }
+      reached.add(bestFaceId);
+      const startCursor = queue.length;
+      queue.push(bestFaceId);
+      expandReachability(startCursor);
+      unreached = unreachedUrban();
     }
   }
   const grouped = new Set<Id>();

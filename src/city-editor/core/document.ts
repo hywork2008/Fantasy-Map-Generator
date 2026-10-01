@@ -4,6 +4,7 @@ import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
 import { makeRng } from "./gen/prng";
 import type { Cell, CityGeography, CityParams } from "./gen/types";
+import { validateLandmarks } from "./landmarks";
 import { meshFromCells, validate } from "./mesh";
 import type { CityDocument } from "./types";
 
@@ -205,7 +206,7 @@ export function parseDocument(text: string): CityDocument | null {
         return null;
       if (face.properties.water !== "land") face.properties.depth ??= 3;
     }
-    return validate(value).length === 0 ? value : null;
+    return validate(value).length === 0 && validateLandmarks(value).length === 0 ? value : null;
   } catch {
     return null;
   }
@@ -216,7 +217,9 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
-    (doc.version === 1 || doc.version === 2) &&
+    (doc.version === 1 || doc.version === 2 || doc.version === 3) &&
+    (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
+    (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
     (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
     (doc.coastalOceanFaceIds === undefined ||

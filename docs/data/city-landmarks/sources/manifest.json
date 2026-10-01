@@ -1,0 +1,57 @@
+{
+  "reviewDate": "2026-10-01",
+  "scope": "Wikimedia Commons original files and separate preview renditions for local geometric study. Originals are stored outside the app bundle.",
+  "items": [
+    {
+      "assetId": "pantheon-prototype",
+      "filePage": "https://commons.wikimedia.org/wiki/File:Dehio_1_Pantheon_Floor_plan.jpg",
+      "filePageRevisionId": 1199513013,
+      "filePageRevisionTimestamp": "2026-04-18T12:13:46Z",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/6/67/Dehio_1_Pantheon_Floor_plan.jpg",
+      "localOriginal": "original/pantheon.jpg",
+      "originalPixels": [1750, 2599],
+      "originalBytes": 294921,
+      "originalTimestamp": "2006-01-19T18:53:54Z",
+      "commonsSha1": "638a2558dd0a8cf6ad003b4776b4b96aef872125",
+      "licenseShortName": "Public domain",
+      "localPreview": "pantheon-preview.jpg",
+      "previewPixels": [500, 743],
+      "previewSha256": "a277fbdc0a896a125bf731bd333580c2fbd049bb54389f8f21eeb93dfcbdd515",
+      "originalSha256": "d0cee07cdb7a9f309541037bc3137c19d1727ae5bd040f98f7a16bab7eb96ca1"
+    },
+    {
+      "assetId": "san-vitale-prototype",
+      "filePage": "https://commons.wikimedia.org/wiki/File:Bazilika_San_Vitale.svg",
+      "filePageRevisionId": 819000855,
+      "filePageRevisionTimestamp": "2023-11-06T13:15:16Z",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/7/73/Bazilika_San_Vitale.svg",
+      "localOriginal": "original/san-vitale.svg",
+      "originalPixels": [512, 362],
+      "originalBytes": 71117,
+      "originalTimestamp": "2020-11-26T17:17:25Z",
+      "commonsSha1": "d103725502801b48581cc4eaf87d59c03fba2c66",
+      "licenseShortName": "CC0",
+      "localPreview": "san-vitale-preview.webp",
+      "previewPixels": [960, 679],
+      "previewSha256": "dd4de5489e3ca7c5a1a54be248e86f3b231336da03e2c509ad7e950a4f391c72",
+      "originalSha256": "27de5dcdeb11518fbb75271f28024b6eded0cdd6d158eb1fb89fa28b01350848"
+    },
+    {
+      "assetId": "chartres-prototype",
+      "filePage": "https://commons.wikimedia.org/wiki/File:Plan.cathedrale.Chartres.png",
+      "filePageRevisionId": 183035182,
+      "filePageRevisionTimestamp": "2015-12-28T12:04:54Z",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Plan.cathedrale.Chartres.png",
+      "localOriginal": "original/chartres.png",
+      "originalPixels": [556, 932],
+      "originalBytes": 143853,
+      "originalTimestamp": "2010-02-07T17:59:54Z",
+      "commonsSha1": "9f4a5becafbddc9f060615e161d52e99c1c9567b",
+      "licenseShortName": "Public domain",
+      "localPreview": "chartres-preview.png",
+      "previewPixels": [500, 838],
+      "previewSha256": "ff319fd2517f1caff01c6b8bbda08343aee3720d881ceffff68b34eeec6326e1",
+      "originalSha256": "3da9a2507b6cbd7a89791398753030dd9a3018843869714ad3728bfca1871cbc"
+    }
+  ]
+}
