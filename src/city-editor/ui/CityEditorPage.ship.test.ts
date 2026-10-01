@@ -155,4 +155,133 @@ describe("City Editor Ship Tool", () => {
     // Ship should be removed
     expect(root.querySelector(".ce-ship")).toBeNull();
   });
+
+  it("drags and drops a ship to move it on the map", () => {
+    // 1. Place a ship
+    const shipBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(b =>
+      b.textContent?.includes("⛵")
+    );
+    shipBtn?.click();
+
+    const map = root.querySelector<HTMLDivElement>(".ce-map")!;
+    map.dispatchEvent(
+      new MouseEvent("click", {
+        clientX: 200,
+        clientY: 200,
+        bubbles: true
+      })
+    );
+
+    const shipBefore = root.querySelector(".ce-ship")!;
+    const transformBefore = shipBefore.getAttribute("transform");
+
+    // 2. Switch to select mode
+    const selectBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.title === "Select and move" || b.textContent?.includes("↖")
+    );
+    selectBtn?.click();
+
+    // 3. Pointerdown on ship to start drag
+    const shipEl = root.querySelector(".ce-ship")!;
+    shipEl.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        clientX: 200,
+        clientY: 200,
+        button: 0,
+        bubbles: true
+      })
+    );
+
+    // 4. Pointermove to drag by 50px
+    map.dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX: 260,
+        clientY: 280,
+        bubbles: true
+      })
+    );
+
+    // 5. Pointerup to drop
+    map.dispatchEvent(
+      new PointerEvent("pointerup", {
+        clientX: 260,
+        clientY: 280,
+        bubbles: true
+      })
+    );
+
+    const shipAfter = root.querySelector(".ce-ship")!;
+    const transformAfter = shipAfter.getAttribute("transform");
+    expect(transformAfter).not.toBe(transformBefore);
+  });
+
+  it("shows rotation handle when ship is selected and rotates ship on dragging handle", () => {
+    // 1. Place a ship
+    const shipBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(b =>
+      b.textContent?.includes("⛵")
+    );
+    shipBtn?.click();
+
+    const map = root.querySelector<HTMLDivElement>(".ce-map")!;
+    map.dispatchEvent(
+      new MouseEvent("click", {
+        clientX: 200,
+        clientY: 200,
+        bubbles: true
+      })
+    );
+
+    // 2. Switch to select mode
+    const selectBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.title === "Select and move" || b.textContent?.includes("↖")
+    );
+    selectBtn?.click();
+
+    // 3. Click ship to select it
+    const shipEl = root.querySelector(".ce-ship")!;
+    shipEl.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true
+      })
+    );
+
+    // Rotation handle must be visible at the tip of the ship
+    const handle = root.querySelector<SVGElement>("[data-ship-handle='rotate']");
+    expect(handle).not.toBeNull();
+    const knob = root.querySelector<SVGElement>(".ce-ship-rotate-knob");
+    expect(knob).not.toBeNull();
+
+    // 4. Drag the rotation handle
+    knob?.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        clientX: 200,
+        clientY: 180,
+        button: 0,
+        bubbles: true
+      })
+    );
+
+    // Drag pointer to the right (+90 degrees or -90 degrees)
+    map.dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX: 280,
+        clientY: 200,
+        bubbles: true
+      })
+    );
+
+    // Drop
+    map.dispatchEvent(
+      new PointerEvent("pointerup", {
+        clientX: 280,
+        clientY: 200,
+        bubbles: true
+      })
+    );
+
+    const shipAfter = root.querySelector(".ce-ship")!;
+    const transform = shipAfter.getAttribute("transform");
+    // Should have a non-zero rotation angle
+    expect(transform).not.toContain("rotate(0)");
+  });
 });

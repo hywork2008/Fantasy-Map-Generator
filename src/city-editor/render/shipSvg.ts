@@ -120,6 +120,93 @@ export function renderShipSvg(options: RenderShipOptions): SVGGElement {
 }
 
 /**
+ * 船の中心と全長・回転角度から、船首先端の回転ハンドルのワールド座標 [x, y] を算出する。
+ */
+export function getShipRotationHandlePoint(shipPoint: Point, sizeMeters: number, rotation: number): Point {
+  const distance = sizeMeters * 0.65;
+  const ux = -Math.sin(rotation);
+  const uy = Math.cos(rotation);
+  return [shipPoint[0] + ux * distance, shipPoint[1] + uy * distance];
+}
+
+/**
+ * 船の中心点からターゲット点への角度（ラジアン）を算出する。
+ * 船首（+Y方向）が 0、反時計回りを正とする。
+ */
+export function getShipAngleFromPoint(shipPoint: Point, targetPoint: Point): number {
+  const dx = targetPoint[0] - shipPoint[0];
+  const dy = targetPoint[1] - shipPoint[1];
+  return -Math.atan2(dx, dy);
+}
+
+/**
+ * 選択中の船の先端に配置する回転操作ハンドルのSVGグループを構築する。
+ */
+export function renderShipRotationHandle(ship: {
+  id: string;
+  point: Point;
+  sizeMeters?: number;
+  rotation?: number;
+}): SVGGElement {
+  const p = ship.point;
+  const rot = ship.rotation ?? 0;
+  const length = ship.sizeMeters ?? SHIP_SPECS.small.defaultSizeMeters;
+  const handlePt = getShipRotationHandlePoint(p, length, rot);
+
+  const group = element("g", {
+    class: "ce-ship-handle-group",
+    "data-ship-handle": "rotate",
+    "data-ship-id": ship.id
+  }) as SVGGElement;
+
+  // ガイドライン（船中心〜ハンドル）
+  group.appendChild(
+    element("line", {
+      x1: String(p[0]),
+      y1: String(-p[1]),
+      x2: String(handlePt[0]),
+      y2: String(-handlePt[1]),
+      stroke: "#2679a8",
+      "stroke-width": "1.2",
+      "stroke-dasharray": "3 2",
+      "pointer-events": "none"
+    })
+  );
+
+  // 操作しやすい透明なヒットエリア
+  group.appendChild(
+    element("circle", {
+      cx: String(handlePt[0]),
+      cy: String(-handlePt[1]),
+      r: "10",
+      fill: "transparent",
+      stroke: "none",
+      class: "ce-ship-rotate-hit",
+      "data-ship-handle": "rotate",
+      "data-ship-id": ship.id,
+      style: "cursor: grab;"
+    })
+  );
+
+  // ハンドルノブ本体（青い円＋白い内部）
+  const circle = element("circle", {
+    cx: String(handlePt[0]),
+    cy: String(-handlePt[1]),
+    r: "4.5",
+    class: "ce-ship-rotate-knob",
+    fill: "#ffffff",
+    stroke: "#1d638d",
+    "stroke-width": "2",
+    "data-ship-handle": "rotate",
+    "data-ship-id": ship.id,
+    style: "cursor: grab;"
+  });
+  group.appendChild(circle);
+
+  return group;
+}
+
+/**
  * 小型船 (スループ / Sloop)
  * 基準: 全長 16m, 全幅 5m
  * 構成: 単一マスト、ブーム、バウスプリット、小型貨物ハッチ、コンパニオンウェイ、ティラー（舵棒）

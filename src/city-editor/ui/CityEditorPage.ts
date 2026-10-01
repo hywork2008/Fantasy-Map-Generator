@@ -150,7 +150,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
-import { renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
+import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
   faceClassName,
   type GridOverlay,
@@ -251,6 +251,16 @@ export function mountCityEditor(root: HTMLElement): void {
   let shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
   let shipAngleDegrees = 0;
   let shipHoverPoint: Point | null = null;
+  interface ShipDragState {
+    shipId: string;
+    mode: "move" | "rotate";
+    startPoint: Point;
+    initialShipPoint: Point;
+    initialRotation: number;
+    moved: boolean;
+  }
+  let shipDrag: ShipDragState | null = null;
+  let shipDragBefore: CityDocument | null = null;
   let landmarkLaneSource: CityDocument | null = null;
   let landmarkLanes: InfillLane[] = [];
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
@@ -1274,6 +1284,65 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     if (tool === "select") {
+      const targetEl = event.target instanceof Element ? event.target : null;
+      const shipHandle = targetEl?.closest<SVGElement>("[data-ship-handle='rotate']");
+      if (shipHandle) {
+        const shipId = shipHandle.getAttribute("data-ship-id");
+        const ship = documentState.elements.find(e => e.id === shipId && e.kind === "ship");
+        if (ship && ship.point && !ship.locked) {
+          event.preventDefault();
+          shipDragBefore = clone(documentState);
+          shipDrag = {
+            shipId: ship.id,
+            mode: "rotate",
+            startPoint: point,
+            initialShipPoint: [...ship.point],
+            initialRotation: ship.rotation ?? 0,
+            moved: false
+          };
+          map.setPointerCapture(event.pointerId);
+          suppressNextClick = true;
+          return;
+        }
+      }
+
+      const shipPick = targetEl?.closest<SVGElement>(".ce-ship[data-pick]");
+      if (shipPick) {
+        const rawPick = shipPick.getAttribute("data-pick");
+        const info = parsePickInfo(rawPick);
+        if (info && info.kind === "ship") {
+          const shipId = String(info.id);
+          const ship = documentState.elements.find(e => e.id === shipId);
+          if (ship && ship.point) {
+            selection = {
+              faceId: null,
+              edgeId: null,
+              vertexId: null,
+              groupId: null,
+              inspectedId: ship.id
+            };
+            inspectedInfo = info;
+            activeGroupId = null;
+            if (!ship.locked) {
+              event.preventDefault();
+              shipDragBefore = clone(documentState);
+              shipDrag = {
+                shipId: ship.id,
+                mode: "move",
+                startPoint: point,
+                initialShipPoint: [...ship.point],
+                initialRotation: ship.rotation ?? 0,
+                moved: false
+              };
+              map.setPointerCapture(event.pointerId);
+              suppressNextClick = true;
+            }
+            refresh();
+            return;
+          }
+        }
+      }
+
       const nearestVertexId = closestVertexId(point);
       const v = nearestVertexId ? documentState.mesh.vertices[nearestVertexId] : null;
       const vDist = v ? Math.hypot(v.point[0] - point[0], v.point[1] - point[1]) : Number.POSITIVE_INFINITY;
@@ -1368,6 +1437,31 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (shipDrag) {
+      const point = localPoint(event);
+      if (Math.hypot(point[0] - shipDrag.startPoint[0], point[1] - shipDrag.startPoint[1]) > 0.5) {
+        shipDrag.moved = true;
+        suppressNextClick = true;
+      }
+      if (shipDrag.mode === "move") {
+        const dx = point[0] - shipDrag.startPoint[0];
+        const dy = point[1] - shipDrag.startPoint[1];
+        const nextPoint: Point = [shipDrag.initialShipPoint[0] + dx, shipDrag.initialShipPoint[1] + dy];
+        documentState = {
+          ...documentState,
+          elements: documentState.elements.map(e => (e.id === shipDrag!.shipId ? { ...e, point: nextPoint } : e))
+        };
+      } else if (shipDrag.mode === "rotate") {
+        const nextAngle = getShipAngleFromPoint(shipDrag.initialShipPoint, point);
+        documentState = {
+          ...documentState,
+          elements: documentState.elements.map(e => (e.id === shipDrag!.shipId ? { ...e, rotation: nextAngle } : e))
+        };
+        shipAngleDegrees = Math.round((nextAngle * 180) / Math.PI);
+      }
+      scheduleRedraw();
+      return;
+    }
     if (tool === "landmark" && !isPanning) {
       landmarkHoverPoint = localPoint(event);
       updateLandmarkPreview();
@@ -1440,6 +1534,20 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!circularWallStroke) hideCircularWallPreview();
   });
   const finishDrag = (event: PointerEvent): void => {
+    if (shipDrag) {
+      const wasMoved = shipDrag.moved;
+      const dragMode = shipDrag.mode;
+      const before = shipDragBefore;
+      shipDrag = null;
+      shipDragBefore = null;
+      if (map.hasPointerCapture(event.pointerId)) map.releasePointerCapture(event.pointerId);
+      if (wasMoved && before) {
+        commit(documentState, dragMode === "move" ? "Move ship" : "Rotate ship");
+      } else {
+        refresh();
+      }
+      return;
+    }
     if (
       !isVertexDragging &&
       !isWardPainting &&

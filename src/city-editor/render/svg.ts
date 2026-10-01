@@ -34,7 +34,7 @@ import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDev
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 import { openSpaceBoundary } from "./openSpaceBoundary";
-import { renderShipSvg } from "./shipSvg";
+import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 
 export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
@@ -917,9 +917,19 @@ export function renderEditorSvg(
       shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
       if (tool === "select") {
         shipNode.style.pointerEvents = "all";
-        shipNode.style.cursor = "pointer";
+        shipNode.style.cursor = "move";
       }
       elements.appendChild(shipNode);
+
+      if (tool === "select" && isPickSelected) {
+        const handleNode = renderShipRotationHandle({
+          id: cityElement.id,
+          point: p,
+          sizeMeters: cityElement.sizeMeters,
+          rotation: cityElement.rotation
+        });
+        elements.appendChild(handleNode);
+      }
       continue;
     }
     const elemMarker = cityElementMarker(p, cityElement.kind, cityElement.id);
@@ -2385,6 +2395,8 @@ export const STANDALONE_SVG_STYLE = `
   .ce-ship-rigging { stroke: #2b2218; opacity: 0.75; }
   .ce-ship-boat { fill: #b8a88a; stroke: #382a1d; }
   .ce-ship-lantern { fill: #c49a45; stroke: #523e16; }
+  .ce-ship-rotate-knob { transition: r 0.15s ease; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35)); }
+  .ce-ship-rotate-knob:hover { r: 6px; fill: #e8f4fc; }
 `;
 
 export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
