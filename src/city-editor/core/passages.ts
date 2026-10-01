@@ -663,12 +663,14 @@ function swingObliqueGateArm(
 function straightenExteriorGateApproaches(document: CityDocument): CityDocument {
   let next = document;
   const riverIds = riverVertexSet(document);
-  for (const gate of townGates(document)) {
+  for (const gate of document.gates) {
     if (gate.locked || next.mesh.vertices[gate.vertexId]?.locked || riverIds.has(gate.vertexId)) continue;
     const frame = gateCrossingFrame(next, gate.vertexId);
     if (!frame) continue;
     const roadEdges = kindEdgeIds(next, "road");
-    for (const id of throughRoadNeighbourIds(next, gate.vertexId)) {
+    for (const roadEdge of incidentEdges(next.mesh, gate.vertexId)) {
+      if (!roadEdges.has(roadEdge.id)) continue;
+      const id = roadEdge.a === gate.vertexId ? roadEdge.b : roadEdge.a;
       const point = next.mesh.vertices[id]?.point;
       if (!point || riverIds.has(id)) continue;
       const outward = -(point[0] - frame.point[0]) * frame.inward[0] - (point[1] - frame.point[1]) * frame.inward[1];

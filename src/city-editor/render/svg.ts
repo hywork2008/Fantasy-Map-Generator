@@ -1680,29 +1680,28 @@ function renderTownWatermills(
   return layer;
 }
 
-function gateHasTownMoat(document: CityDocument, gate: CityGate): boolean {
-  return (
-    !gate.ownerCastleId &&
-    (document.defenseCircuits ?? []).some(
-      circuit =>
-        circuit.scope === "town" &&
-        circuit.moat?.enabled &&
-        document.featureGroups.some(
-          group =>
-            group.kind === "wall" &&
-            circuit.wallGroupIds.includes(group.id) &&
-            group.segments.some(ref => {
-              const edge = document.mesh.edges[ref.edgeId];
-              return edge && (edge.a === gate.vertexId || edge.b === gate.vertexId);
-            })
-        )
-    )
+function gateHasMoat(document: CityDocument, gate: CityGate): boolean {
+  return (document.defenseCircuits ?? []).some(
+    circuit =>
+      (gate.ownerCastleId
+        ? circuit.scope === "castle" && circuit.ownerCastleId === gate.ownerCastleId
+        : circuit.scope === "town") &&
+      circuit.moat?.enabled &&
+      document.featureGroups.some(
+        group =>
+          group.kind === "wall" &&
+          circuit.wallGroupIds.includes(group.id) &&
+          group.segments.some(ref => {
+            const edge = document.mesh.edges[ref.edgeId];
+            return edge && (edge.a === gate.vertexId || edge.b === gate.vertexId);
+          })
+      )
   );
 }
 
 function drawbridgeGate(document: CityDocument, points: Point[], width: number): CityGate | undefined {
   return document.gates
-    .filter(gate => gateHasTownMoat(document, gate))
+    .filter(gate => gateHasMoat(document, gate))
     .map(gate => ({ gate, distance: nearestOnPolyline(document.mesh.vertices[gate.vertexId].point, points).dist }))
     .filter(candidate => candidate.distance <= Math.max(width, candidate.gate.passageWidthMeters ?? 8))
     .sort((a, b) => a.distance - b.distance)[0]?.gate;
@@ -1968,28 +1967,8 @@ export function renderMoats(document: CityDocument): SVGGElement {
       if (!frame) continue;
       const length = circuit.moat.widthMeters + maxWallWidth / 2 + 2;
       const end: Point = [frame.point[0] - frame.inward[0] * length, frame.point[1] - frame.inward[1] * length];
-      if (circuit.scope === "town") {
-        ribbon.appendChild(
-          renderDrawbridge(document, [frame.point, end], gate.passageWidthMeters ?? 8, gate.id, "ce-moat-bridge")
-        );
-        continue;
-      }
       ribbon.appendChild(
-        element("path", {
-          d: line([frame.point, end]),
-          class: "ce-moat-bridge",
-          fill: "none",
-          stroke: "#57534b",
-          "stroke-width": String((gate.passageWidthMeters ?? 8) + 2)
-        })
-      );
-      ribbon.appendChild(
-        element("path", {
-          d: line([frame.point, end]),
-          fill: "none",
-          stroke: "#d5cfbf",
-          "stroke-width": String(gate.passageWidthMeters ?? 8)
-        })
+        renderDrawbridge(document, [frame.point, end], gate.passageWidthMeters ?? 8, gate.id, "ce-moat-bridge")
       );
     }
     layer.appendChild(ribbon);
@@ -2140,7 +2119,7 @@ function renderTownFortifications(
     const slant = Math.tan((Math.min(deviation, 20) * Math.PI) / 180);
     const opening = gate.passageWidthMeters ?? Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
     const plazaRadius = gatePlazaRadiusMeters(width);
-    const drawbridge = gateHasTownMoat(document, gate);
+    const drawbridge = gateHasMoat(document, gate);
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
       layer: "gates",

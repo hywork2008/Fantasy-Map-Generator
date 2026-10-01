@@ -592,6 +592,16 @@ describe("straightenGateCrossings", () => {
     expect(Object.keys(next.mesh.vertices)).toEqual(Object.keys(document.mesh.vertices));
   });
 
+  it("squares an exterior approach even when the road ends at the gate", () => {
+    const document = gateOnStraightWall([0, 30], [12, -40]);
+    delete document.mesh.edges.roadIn;
+    const road = document.featureGroups.find(group => group.kind === "road")!;
+    if (road.kind === "road") road.segments = [{ edgeId: "roadOut", forward: false }];
+    const next = straightenGateCrossings(document);
+    expect(next.mesh.vertices.rout.point).toEqual([0, -40]);
+    expect(next.mesh.vertices.g.point).toEqual([0, 0]);
+  });
+
   it("does not move a locked gate", () => {
     const document = gateOnStraightWall([18, 22], [0, -40], true);
     const next = straightenGateCrossings(document);

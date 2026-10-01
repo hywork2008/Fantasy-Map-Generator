@@ -141,14 +141,16 @@ describe("exterior moats", () => {
     expect(svg.querySelectorAll(".ce-drawbridge")).toHaveLength(1);
   });
 
-  it("keeps a citadel moat bridge as a regular bridge", () => {
+  it("draws a citadel moat with a lifting leaf and a fixed far-bank bridge", () => {
     const doc = fixture();
     doc.defenseCircuits![0].scope = "castle";
     doc.defenseCircuits![0].ownerCastleId = "castle";
     doc.gates[0].ownerCastleId = "castle";
     const svg = renderStandaloneCitySvg(doc);
     expect(svg.querySelectorAll(".ce-moat-bridge")).toHaveLength(1);
-    expect(svg.querySelectorAll(".ce-drawbridge")).toHaveLength(0);
+    expect(svg.querySelectorAll(".ce-drawbridge")).toHaveLength(1);
+    expect(svg.querySelectorAll(".ce-moat-fixed-bridge-deck")).toHaveLength(1);
+    expect(svg.querySelectorAll(".ce-drawbridge-chain")).toHaveLength(2);
   });
 
   it("supports castle moats independently and draws a shared curtain only once", () => {
