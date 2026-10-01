@@ -918,6 +918,19 @@ export function mountCityEditor(root: HTMLElement): void {
   riversSelect.addEventListener("change", () => {
     generateSettings.config.rivers = riversForCount(generateSettings.config, Number(riversSelect.value));
   });
+  const riverPlacementSelect = select(
+    ["through", "outsideNear", "outside"],
+    generateSettings.riverPlacement ?? "through"
+  );
+  riverPlacementSelect.className = "ce-generate-river-placement";
+  riverPlacementSelect.options[0].textContent = "市内を通過（通常）";
+  riverPlacementSelect.options[1].textContent = "市壁の外側（約1〜2セル）";
+  riverPlacementSelect.options[2].textContent = "市壁の外側（約1〜3セル）";
+  riverPlacementSelect.title = "Rivers=1・市壁ありの場合に適用されます。";
+  riverPlacementSelect.addEventListener("change", () => {
+    generateSettings.riverPlacement = riverPlacementSelect.value as GenerationSettings["riverPlacement"];
+    completeResult = null;
+  });
   const reliefInput = checkbox(generateSettings.config.relief, checked => {
     generateSettings.config.relief = checked;
   });
@@ -1174,6 +1187,7 @@ export function mountCityEditor(root: HTMLElement): void {
     label("Coast", coastSelect),
     label("海側の城壁", seaWallSelect),
     label("Rivers", riversSelect),
+    label("河川の位置", riverPlacementSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
     text("Features"),
     featureGrid,
@@ -4092,6 +4106,7 @@ export function mountCityEditor(root: HTMLElement): void {
       ? generateSettings.config.wall.coast
       : "auto";
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
+    riverPlacementSelect.value = generateSettings.riverPlacement ?? "through";
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";

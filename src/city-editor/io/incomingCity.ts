@@ -237,6 +237,8 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];
+  if (raw.riverPlacement === "through" || raw.riverPlacement === "outside" || raw.riverPlacement === "outsideNear")
+    settings.riverPlacement = raw.riverPlacement;
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (isFiniteNumber(raw.urbanNPatches)) settings.urbanNPatches = raw.urbanNPatches;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];

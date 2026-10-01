@@ -168,3 +168,17 @@ describe("resolveIncomingCity", () => {
     expect(resolveIncomingCity({ hash: "", session: null })).toBeNull();
   });
 });
+
+describe("river placement sharing", () => {
+  for (const placement of ["outside", "outsideNear"] as const) {
+    it(`preserves ${placement} through a shared link`, () => {
+      const share = buildShare({
+        seed: "outside",
+        grid: "hex",
+        size: "small",
+        settings: { config: structuredClone(DEFAULT_SITE_CONFIG), riverPlacement: placement }
+      });
+      expect(decodeShare(encodeShare(share))?.settings.riverPlacement).toBe(placement);
+    });
+  }
+});

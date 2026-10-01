@@ -125,6 +125,12 @@ function seedRichTown(tries = 16): void {
 }
 
 describe("Generate panel", () => {
+  it("offers separate river setbacks of one–two and one–three cells", () => {
+    const control = root.querySelector<HTMLSelectElement>(".ce-generate-river-placement")!;
+    expect(Array.from(control.options, option => option.value)).toEqual(["through", "outsideNear", "outside"]);
+    expect(control.options[1].textContent).toContain("1〜2セル");
+    expect(control.options[2].textContent).toContain("1〜3セル");
+  });
   it("labels each outer-gate road with what lies beyond the map", () => {
     selectStage(9);
     const labels = [...root.querySelectorAll(".ce-approach-beyond")].map(node => node.textContent ?? "");
