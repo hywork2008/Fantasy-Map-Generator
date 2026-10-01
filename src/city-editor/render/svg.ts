@@ -34,6 +34,7 @@ import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDev
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 import { openSpaceBoundary } from "./openSpaceBoundary";
+import { renderShipSvg } from "./shipSvg";
 
 export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
@@ -902,6 +903,23 @@ export function renderEditorSvg(
         treeNode.style.cursor = "pointer";
       }
       elements.appendChild(treeNode);
+      continue;
+    }
+    if (cityElement.kind === "ship") {
+      const shipNode = renderShipSvg({
+        type: cityElement.shipType ?? "small",
+        point: p,
+        sizeMeters: cityElement.sizeMeters,
+        rotation: cityElement.rotation,
+        id: cityElement.id,
+        className: isPickSelected ? "ce-is-selected cg-is-selected" : ""
+      });
+      shipNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      if (tool === "select") {
+        shipNode.style.pointerEvents = "all";
+        shipNode.style.cursor = "pointer";
+      }
+      elements.appendChild(shipNode);
       continue;
     }
     const elemMarker = cityElementMarker(p, cityElement.kind, cityElement.id);
@@ -2353,6 +2371,20 @@ export const STANDALONE_SVG_STYLE = `
   .ce-pier { fill: #c8beaa; stroke: #4a463c; stroke-width: 0.6px; }
   .ce-crane { filter: drop-shadow(0 0 1px #332b22); }
   .ce-cargo-pile { opacity: 0.95; }
+  .ce-ship { cursor: pointer; }
+  .ce-ship-shadow { fill: rgba(18, 30, 38, 0.32); }
+  .ce-ship-hull-outer { fill: #382c20; stroke: #221a13; }
+  .ce-ship-deck { fill: #c8b99c; stroke: #423527; }
+  .ce-ship-deck-step { fill: #ab9b7e; stroke: #382a1d; }
+  .ce-ship-hatch { fill: #5a4834; stroke: #31261a; }
+  .ce-ship-grating { stroke: #31261a; }
+  .ce-ship-mast { fill: #5a4531; stroke: #22170e; }
+  .ce-ship-crowsnest { fill: #38281a; stroke: #1e150d; }
+  .ce-ship-yard { stroke: #3e3020; }
+  .ce-ship-furled-sail { fill: #e8e0ce; stroke: #7d7260; }
+  .ce-ship-rigging { stroke: #2b2218; opacity: 0.75; }
+  .ce-ship-boat { fill: #b8a88a; stroke: #382a1d; }
+  .ce-ship-lantern { fill: #c49a45; stroke: #523e16; }
 `;
 
 export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {

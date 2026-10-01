@@ -1,0 +1,158 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mountCityEditor } from "./CityEditorPage";
+
+if (typeof Element.prototype.scrollIntoView !== "function") {
+  Element.prototype.scrollIntoView = () => {};
+}
+if (typeof Element.prototype.setPointerCapture !== "function") {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (typeof Element.prototype.releasePointerCapture !== "function") {
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (typeof Element.prototype.hasPointerCapture !== "function") {
+  Element.prototype.hasPointerCapture = () => false;
+}
+
+describe("City Editor Ship Tool", () => {
+  let root: HTMLElement;
+
+  beforeEach(() => {
+    root = document.createElement("div");
+    document.body.append(root);
+    mountCityEditor(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+  });
+
+  it("provides a ship brush in the toolbar and shows ship controls when active", () => {
+    const shipBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.title === "Place ships" || b.textContent?.includes("⛵")
+    );
+    expect(shipBtn).toBeDefined();
+
+    const shipControls = root.querySelector<HTMLDivElement>(".ce-ship-controls");
+    expect(shipControls).toBeDefined();
+    expect(shipControls?.hidden).toBe(true);
+
+    shipBtn?.click();
+    expect(shipControls?.hidden).toBe(false);
+
+    // Ship type select exists and contains small, medium, and large
+    const select = shipControls?.querySelector("select");
+    expect(select).toBeDefined();
+    expect(select?.options.length).toBe(3);
+    expect(select?.value).toBe("small");
+
+    // Length input exists
+    const lengthInput = shipControls?.querySelector<HTMLInputElement>("input[type='number']");
+    expect(lengthInput).toBeDefined();
+    expect(lengthInput?.value).toBe("16");
+  });
+
+  it("places a small ship on click and reflects it in the SVG canvas", () => {
+    const shipBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(b =>
+      b.textContent?.includes("⛵")
+    );
+    shipBtn?.click();
+
+    const map = root.querySelector<HTMLDivElement>(".ce-map");
+    expect(map).toBeDefined();
+
+    // Click to place a ship
+    const clickEvent = new MouseEvent("click", {
+      clientX: 200,
+      clientY: 200,
+      bubbles: true
+    });
+    map?.dispatchEvent(clickEvent);
+
+    const shipNode = root.querySelector(".ce-ship--small");
+    expect(shipNode).not.toBeNull();
+    expect(shipNode?.getAttribute("data-ship-type")).toBe("small");
+    expect(shipNode?.getAttribute("data-ship-length")).toBe("16");
+  });
+
+  it("places a medium ship with custom size (e.g. 28m instead of default 25m)", () => {
+    const shipBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(b =>
+      b.textContent?.includes("⛵")
+    );
+    shipBtn?.click();
+
+    const shipControls = root.querySelector<HTMLDivElement>(".ce-ship-controls")!;
+    const select = shipControls.querySelector<HTMLSelectElement>("select")!;
+    select.value = "medium";
+    select.dispatchEvent(new Event("change"));
+
+    const lengthInput = shipControls.querySelector<HTMLInputElement>("input[type='number']")!;
+    expect(lengthInput.value).toBe("25");
+
+    // Adjust length by 3 metres -> 28m
+    lengthInput.value = "28";
+    lengthInput.dispatchEvent(new Event("input"));
+
+    const map = root.querySelector<HTMLDivElement>(".ce-map")!;
+    map.dispatchEvent(
+      new MouseEvent("click", {
+        clientX: 250,
+        clientY: 250,
+        bubbles: true
+      })
+    );
+
+    const shipNode = root.querySelector(".ce-ship--medium");
+    expect(shipNode).not.toBeNull();
+    expect(shipNode?.getAttribute("data-ship-length")).toBe("28");
+    // scale for caravel with base 25m: 28 / 25 = 1.1200
+    expect(shipNode?.getAttribute("transform")).toContain("scale(1.1200 1.1200)");
+  });
+
+  it("inspects and deletes a placed ship in select mode", () => {
+    // 1. Place a ship
+    const shipBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(b =>
+      b.textContent?.includes("⛵")
+    );
+    shipBtn?.click();
+
+    const map = root.querySelector<HTMLDivElement>(".ce-map")!;
+    map.dispatchEvent(
+      new MouseEvent("click", {
+        clientX: 300,
+        clientY: 300,
+        bubbles: true
+      })
+    );
+
+    const shipNode = root.querySelector<SVGElement>(".ce-ship");
+    expect(shipNode).not.toBeNull();
+
+    // 2. Switch to select mode
+    const selectBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.title === "Select and move" || b.textContent?.includes("↖")
+    );
+    selectBtn?.click();
+
+    // 3. Click the ship to inspect
+    const child = root.querySelector(".ce-ship")!;
+    child.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true
+      })
+    );
+
+    const kind = root.querySelector<HTMLElement>(".cg-inspector-kind");
+    expect(kind).not.toBeNull();
+    expect(kind?.textContent).toContain("ship");
+
+    const deleteBtn = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.textContent === "Delete ship"
+    );
+    expect(deleteBtn).toBeDefined();
+    deleteBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // Ship should be removed
+    expect(root.querySelector(".ce-ship")).toBeNull();
+  });
+});

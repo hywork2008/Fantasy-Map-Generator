@@ -170,7 +170,7 @@ export interface RiverGroup {
 
 export type FeatureGroup = EdgeFeatureGroup | RiverGroup;
 
-export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree";
+export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree" | "ship";
 
 export interface CityElement {
   id: Id;
@@ -179,9 +179,10 @@ export interface CityElement {
   /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
   point?: Point;
   sizeMeters?: number;
-  /** Long-axis angle in radians, CCW from +X. Temples use this. */
+  /** Long-axis angle in radians, CCW from +X. Temples and ships use this. */
   rotation?: number;
   locked: boolean;
+  shipType?: "small" | "medium" | "large";
 }
 
 export interface LandmarkPolygon {
@@ -380,4 +381,5 @@ export type Tool =
   | "wardWall"
   | "junction"
   | "face"
-  | "landmark";
+  | "landmark"
+  | "ship";
