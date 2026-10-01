@@ -1,5 +1,4 @@
 import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
-import { landmarkReservationHits } from "../landmarks";
 // MIT, independently implemented from the reference city's output geometry.
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
@@ -9,6 +8,7 @@ import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { civicYardMeters } from "./housing";
+import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { clipBlockWithRivers, clipHalfPlane, insetConvexKernel, longestFrame, type RiverMargin } from "./lotGeometry";
 import { makeRng } from "./prng";
 
@@ -63,14 +63,16 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   }
   const lots: BuildingLot[] = [];
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
-  return relieveGatePlazaBuildings(
+  return rebuildLandmarkHousing(
     document,
-    lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
+    relieveGatePlazaBuildings(
+      document,
+      lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
+    )
   );
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {
-  if (landmarkReservationHits(document, polygon)) return true;
   if (
     (document.defenseCircuits ?? [])
       .filter(c => c.scope === "castle")

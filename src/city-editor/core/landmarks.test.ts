@@ -141,6 +141,10 @@ describe("historic landmark foundation", () => {
     const outside = placeLandmark(doc, asset, { id: "outside", position: [149, 0], rotation: 0, scale: 1 });
     expect(outside.document).toBeNull();
     expect(outside.reasons).toContain("Outside map frame");
+    doc.elements.push({ id: "temple-1", kind: "temple", faceIds: [], point: [0, 0], sizeMeters: 20, locked: false });
+    expect(placeLandmark(doc, asset, { id: "overlap", position: [0, 0], rotation: 0, scale: 1 }).reasons).toContain(
+      "Overlaps temple temple-1"
+    );
   });
 
   it("connects a required entrance to a road and reserves the passage", () => {

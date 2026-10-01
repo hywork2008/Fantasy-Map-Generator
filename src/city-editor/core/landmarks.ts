@@ -1,3 +1,4 @@
+import { templeRectForElement } from "./gen/civicPlacement";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
 import { facePoints } from "./mesh";
 import type { CityDocument, LandmarkAsset, LandmarkInstance, LandmarkPolygon, Point } from "./types";
@@ -164,6 +165,25 @@ export function placeLandmark(
   for (const other of document.landmarks ?? []) {
     if (site.some(part => other.site.some(existing => polygonIntersectsLandmark(part.outer, [existing]))))
       reasons.push(`Overlaps landmark ${other.id}`);
+  }
+  for (const element of document.elements) {
+    if (element.kind !== "temple" || !element.point) continue;
+    const footprint = templeRectForElement(
+      element.point,
+      element.sizeMeters,
+      element.rotation,
+      document.frame.extentMeters
+    );
+    const localCorners: Point[] = [
+      [-footprint.length / 2, -footprint.width / 2],
+      [footprint.length / 2, -footprint.width / 2],
+      [footprint.length / 2, footprint.width / 2],
+      [-footprint.length / 2, footprint.width / 2]
+    ];
+    const corners = localCorners.map(point =>
+      transformLandmarkPoint(point, { position: footprint.center, rotation: footprint.rotation, scale: 1 })
+    );
+    if (site.some(part => polygonIntersectsLandmark(corners, [part]))) reasons.push(`Overlaps temple ${element.id}`);
   }
   for (const [index, lane] of preservedLanes.entries()) {
     if (
