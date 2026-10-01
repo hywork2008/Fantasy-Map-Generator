@@ -30,6 +30,7 @@ import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
+import { MoatReservation } from "../core/moats";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
@@ -632,6 +633,8 @@ export function renderEditorSvg(
   // One ring for the whole pass. Roads inside it are the centre-to-wall streets.
   const concealWall = town && hideStreetLines ? outerWallRing(document) : null;
   const ribbons = town ? riverRibbons(document) : [];
+  const moatReservations = new Map<number, MoatReservation>();
+  const moatDecks: Array<{ points: Point[]; width: number }> = [];
   for (const group of renderGroups) {
     const active = selection.groupId === group.id;
     const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
@@ -649,6 +652,19 @@ export function renderEditorSvg(
         runs = ribbons.length ? roadRunsOutsideRivers(points, ribbons, group.style.widthMeters) : [points];
         if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
       }
+    }
+    if (group.kind === "road") {
+      const width = group.style.widthMeters;
+      let moat = moatReservations.get(width);
+      if (!moat) {
+        moat = new MoatReservation(document, width / 2 + 1);
+        moatReservations.set(width, moat);
+      }
+      runs = runs.flatMap(run => {
+        const parts = moat.roadParts(run);
+        moatDecks.push(...parts.bridges.map(points => ({ points, width })));
+        return parts.dry;
+      });
     }
     const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
     const pickInfo: SvgPickInfo = {
@@ -695,6 +711,20 @@ export function renderEditorSvg(
         })
       );
     }
+  }
+  for (const deck of moatDecks) {
+    features.appendChild(
+      element("path", {
+        d: line(deck.points),
+        class: "ce-moat-road-bridge",
+        fill: "none",
+        stroke: "#57534b",
+        "stroke-width": String(deck.width + 1.4)
+      })
+    );
+    features.appendChild(
+      element("path", { d: line(deck.points), fill: "none", stroke: "#d5cfbf", "stroke-width": String(deck.width) })
+    );
   }
   features.appendChild(renderApproachLabels(document, zoom));
   if (town) {
@@ -1742,6 +1772,11 @@ export function renderMoats(document: CityDocument): SVGGElement {
         return e.a === gate.vertexId || e.b === gate.vertexId;
       });
       if (!touches) continue;
+      // Connected roads supply a deck aligned with their actual crossing below.
+      if (
+        document.featureGroups.some(g => g.kind === "road" && featureGroupVertices(document, g).includes(gate.vertexId))
+      )
+        continue;
       const frame = gateCrossingFrame(document, gate.vertexId);
       if (!frame) continue;
       const length = circuit.moat.widthMeters + maxWallWidth / 2 + 2;

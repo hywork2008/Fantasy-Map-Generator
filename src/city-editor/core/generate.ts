@@ -14,6 +14,7 @@ import {
 import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./gen/coastalSuitability";
 import { createFabricPlan } from "./gen/fabricDistricts";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
+import { MoatReservation } from "./moats";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -688,6 +689,31 @@ export function generateCityAttempt(
   settleTempleOnDocument(settled);
   if (settled.castles?.length && !finalizeCastles(settled, false))
     return reject("castle", "castle-layout-too-small", "仕上げ後の城郭形状が成立しません");
+  if (settled.defenseCircuits?.some(c => c.moat?.enabled)) {
+    const reservations = new Map<number, MoatReservation>();
+    const blocked = settled.featureGroups.flatMap(group => {
+      if (group.kind !== "road") return [];
+      let moat = reservations.get(group.style.widthMeters);
+      if (!moat) {
+        moat = new MoatReservation(settled, group.style.widthMeters / 2 + 1);
+        reservations.set(group.style.widthMeters, moat);
+      }
+      return group.segments
+        .filter(ref => {
+          const edge = settled.mesh.edges[ref.edgeId];
+          return !moat.roadAllowed(settled.mesh.vertices[edge.a].point, settled.mesh.vertices[edge.b].point);
+        })
+        .map(ref => `${group.id}: ${ref.edgeId}`);
+    });
+    if (blocked.length)
+      return reject(
+        "street-plan",
+        "roads-in-moat",
+        "仕上げ後の道路が門の橋以外で外堀に重なります",
+        { roads: blocked.length },
+        blocked
+      );
+  }
   const roadsAfterFinish = countExternalApproachRoads(settled);
   const crossingDetails = explainGeneratedCrossingFailures(settled);
   const tangled = coarse
@@ -2884,9 +2910,14 @@ function completeRoadRouter(
         )
       );
   }
+  const moat = new MoatReservation(document, defaultRoadWidthMeters(document.frame.extentMeters) / 2 + 1);
   const castleBlocked = new Set(
     Object.values(mesh.edges)
-      .filter(edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)))
+      .filter(
+        edge =>
+          !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)) ||
+          !moat.roadAllowed(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point)
+      )
       .map(edge => edge.id)
   );
   const gateIds = new Set(townGates(document).map(g => g.vertexId));
