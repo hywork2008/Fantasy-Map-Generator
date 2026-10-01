@@ -621,6 +621,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(edges);
 
+  svg.appendChild(renderMoats(document));
   svg.appendChild(renderCastles(document, selection.inspectedId));
   svg.appendChild(renderCemeteries(document, selection.inspectedId));
   const features = element("g", { class: "ce-features", style: "z-index: 2;" });
@@ -1640,6 +1641,134 @@ function renderTownWatermills(
   return layer;
 }
 
+/** Exterior-only strokes keep the water against the curtain without changing mesh cells. */
+export function renderMoats(document: CityDocument): SVGGElement {
+  const layer = element("g", { class: "ce-moats", "pointer-events": "none" }) as SVGGElement;
+  const claimed = new Set<Id>();
+  const circuits = [...(document.defenseCircuits ?? [])].sort(
+    (a, b) => (a.scope === "town" ? 0 : 1) - (b.scope === "town" ? 0 : 1)
+  );
+  for (const [index, circuit] of circuits.entries()) {
+    if (!circuit.moat?.enabled || !(circuit.moat.widthMeters > 0)) continue;
+    const regions = circuit.areaFaceIds.flatMap(id =>
+      document.mesh.faces[id] ? [facePoints(document.mesh, document.mesh.faces[id])] : []
+    );
+    if (!regions.length) continue;
+    const maskId = `ce-moat-exterior-${index}`;
+    const extent = document.frame.extentMeters;
+    const mask = element("mask", {
+      id: maskId,
+      maskUnits: "userSpaceOnUse",
+      x: String(-extent),
+      y: String(-extent),
+      width: String(extent * 2),
+      height: String(extent * 2),
+      "mask-type": "luminance"
+    });
+    mask.appendChild(
+      element("rect", {
+        x: String(-extent),
+        y: String(-extent),
+        width: String(extent * 2),
+        height: String(extent * 2),
+        fill: "white"
+      })
+    );
+    for (const region of regions)
+      mask.appendChild(element("path", { d: polygon(region), fill: "black", stroke: "black", "stroke-width": "0.05" }));
+    // Existing water supplies the moat on waterfronts; do not repaint it.
+    for (const face of Object.values(document.mesh.faces)) {
+      if (face.properties.water !== "land")
+        mask.appendChild(element("path", { d: polygon(facePoints(document.mesh, face)), fill: "black" }));
+    }
+    for (const river of document.featureGroups) {
+      if (river.kind !== "river") continue;
+      const points = river.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint);
+      if (points.length > 1)
+        mask.appendChild(
+          element("path", {
+            d: line(points),
+            fill: "none",
+            stroke: "black",
+            "stroke-width": String(river.style.widthMeters),
+            "stroke-linejoin": "round",
+            "stroke-linecap": "round"
+          })
+        );
+    }
+    const defs = element("defs", {});
+    defs.appendChild(mask);
+    layer.appendChild(defs);
+    const ribbon = element("g", { "data-circuit": circuit.id, mask: `url(#${maskId})` });
+    const boundary = new Set(boundaryEdges(document.mesh, circuit.areaFaceIds).map(r => r.edgeId));
+    const moatEdges = new Set<Id>();
+    let maxWallWidth = 0;
+    for (const group of document.featureGroups) {
+      if (group.kind !== "wall" || !circuit.wallGroupIds.includes(group.id)) continue;
+      const refs = new Set(group.segments.filter(ref => boundary.has(ref.edgeId) && !claimed.has(ref.edgeId)));
+      // Preserve contiguous runs so joins do not leave gaps at corners.
+      let run: EdgeRef[] = [];
+      const flush = () => {
+        if (!run.length) return;
+        ribbon.appendChild(
+          element("path", {
+            d: line(edgeGroupPoints(document, run)),
+            class: "ce-moat-water",
+            fill: "none",
+            stroke: "#80bbc9",
+            "stroke-width": String(group.style.widthMeters + circuit.moat!.widthMeters * 2),
+            "stroke-linejoin": "round",
+            "stroke-linecap": "round"
+          })
+        );
+        run = [];
+      };
+      for (const ref of group.segments) {
+        if (!refs.has(ref)) {
+          flush();
+          continue;
+        }
+        run.push(ref);
+        moatEdges.add(ref.edgeId);
+        claimed.add(ref.edgeId);
+        maxWallWidth = Math.max(maxWallWidth, group.style.widthMeters);
+      }
+      flush();
+    }
+    for (const gate of document.gates ?? []) {
+      if (circuit.scope === "castle" ? gate.ownerCastleId !== circuit.ownerCastleId : !!gate.ownerCastleId) continue;
+      const touches = [...moatEdges].some(id => {
+        const e = document.mesh.edges[id];
+        return e.a === gate.vertexId || e.b === gate.vertexId;
+      });
+      if (!touches) continue;
+      const frame = gateCrossingFrame(document, gate.vertexId);
+      if (!frame) continue;
+      const length = circuit.moat.widthMeters + maxWallWidth / 2 + 2;
+      const end: Point = [frame.point[0] - frame.inward[0] * length, frame.point[1] - frame.inward[1] * length];
+      ribbon.appendChild(
+        element("path", {
+          d: line([frame.point, end]),
+          class: "ce-moat-bridge",
+          fill: "none",
+          stroke: "#57534b",
+          "stroke-width": String((gate.passageWidthMeters ?? 8) + 2)
+        })
+      );
+      ribbon.appendChild(
+        element("path", {
+          d: line([frame.point, end]),
+          fill: "none",
+          stroke: "#d5cfbf",
+          "stroke-width": String(gate.passageWidthMeters ?? 8)
+        })
+      );
+    }
+    layer.appendChild(ribbon);
+  }
+  return layer;
+}
+
 function renderTownFortifications(
   document: CityDocument,
   tool: Tool = "select",
@@ -2449,7 +2578,7 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
   svg.setAttribute("width", String(extent));
   svg.setAttribute("height", String(extent));
 
-  let defs = svg.querySelector("defs");
+  let defs = [...svg.children].find(child => child.localName === "defs") as SVGDefsElement | undefined;
   if (!defs) {
     defs = element("defs", {}) as SVGDefsElement;
     svg.insertBefore(defs, svg.firstChild);

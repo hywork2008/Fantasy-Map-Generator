@@ -231,6 +231,7 @@ export interface StreetSettings {
 }
 
 export interface GenerationSettings {
+  moats?: { town?: boolean; castle?: boolean };
   /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
   riverPlacement?: "through" | "outside" | "outsideNear";
   historicalPeriod?: import("./types").HistoricalPeriod;
@@ -1170,6 +1171,7 @@ interface Plan {
   citadelOutline: Point[] | null;
   castleSite?: CastleSite | null;
   castleFailure?: string;
+  moats?: GenerationSettings["moats"];
   legacyCastles?: boolean;
   roads: Point[][];
   roadPaths?: Point[][];
@@ -1215,6 +1217,7 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     layout: effectiveLayout,
     sea: new Set(),
@@ -1954,6 +1957,7 @@ export function runPlan(
     layout: effectiveLayout,
     castleSite,
     castleFailure,
+    moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     sea,
     ocean,
@@ -2375,6 +2379,11 @@ function applyPlan(
       next = installed;
       mesh = next.mesh;
     }
+  }
+
+  for (const circuit of next.defenseCircuits ?? []) {
+    if (!circuit.locked && plan.moats?.[circuit.scope] !== undefined)
+      circuit.moat = { enabled: !!plan.moats[circuit.scope], widthMeters: circuit.scope === "town" ? 12 : 8 };
   }
 
   mark("wall-junctions");
