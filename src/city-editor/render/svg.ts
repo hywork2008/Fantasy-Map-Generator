@@ -1345,7 +1345,9 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
       layer.appendChild(cranesLayer);
     }
 
-    return layer;
+    if (harbor.piers.length > 0) {
+      return layer;
+    }
   }
   // One shoreline per sea cell; a manually assigned ward needs no landmark.
   const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number }>();
