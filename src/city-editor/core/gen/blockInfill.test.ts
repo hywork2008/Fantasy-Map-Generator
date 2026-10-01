@@ -66,6 +66,39 @@ function connectedLaneSegments(fabric: ReturnType<typeof buildBlockFabric>) {
 }
 
 describe("coarse-cell infill", () => {
+  it("reserves a polygon without changing generated lanes or unrelated houses", () => {
+    const document = fixture([rect]);
+    const before = buildBlockFabric(document);
+    const target = before.buildings[Math.floor(before.buildings.length / 2)];
+    const reserved: CityDocument = {
+      ...document,
+      version: 3,
+      landmarks: [
+        {
+          id: "reserved",
+          assetId: "test",
+          assetRevision: "1",
+          position: [0, 0],
+          rotation: 0,
+          scale: 1,
+          site: [{ outer: target.polygon, holes: [] }],
+          accesses: [],
+          locked: false
+        }
+      ]
+    };
+    const after = buildBlockFabric(reserved);
+    expect(after.buildings.length).toBeLessThan(before.buildings.length);
+    expect(after.buildings.some(building => JSON.stringify(building.polygon) === JSON.stringify(target.polygon))).toBe(
+      false
+    );
+    expect(after.lanes).toEqual(before.lanes);
+    expect(
+      after.buildings.every(building =>
+        before.buildings.some(original => JSON.stringify(original.polygon) === JSON.stringify(building.polygon))
+      )
+    ).toBe(true);
+  });
   it("splits a core cell into closed street blocks without adding mesh edges", () => {
     const document = fixture([rect]);
     const before = JSON.stringify(document);

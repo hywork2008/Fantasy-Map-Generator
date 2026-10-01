@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDocument, parseDocument } from "./document";
 import { DocumentHistory } from "./history";
 import {
+  connectedRoadEdgeIds,
   landmarkReservationHits,
   placeLandmark,
   polygonIntersectsLandmark,
@@ -30,6 +31,31 @@ const asset: LandmarkAsset = {
 };
 
 describe("historic landmark foundation", () => {
+  it("does not connect an isolated road to a boundary road", () => {
+    const doc = createDocument("road-connectivity", 300);
+    const edges = Object.values(doc.mesh.edges);
+    const onBoundary = (id: string) => Math.max(...doc.mesh.vertices[id].point.map(Math.abs)) >= 149.999;
+    const boundary = edges.find(edge => onBoundary(edge.a) || onBoundary(edge.b))!;
+    const isolated = edges.find(
+      edge =>
+        ![edge.a, edge.b].some(id => [boundary.a, boundary.b].includes(id)) &&
+        !onBoundary(edge.a) &&
+        !onBoundary(edge.b)
+    )!;
+    expect(boundary).toBeDefined();
+    expect(isolated).toBeDefined();
+    doc.featureGroups = [boundary, isolated].map((edge, index) => ({
+      id: `road-${index}`,
+      kind: "road",
+      name: "Road",
+      segments: [{ edgeId: edge.id, forward: true }],
+      style: { widthMeters: 4, color: "#555" },
+      locked: false
+    }));
+    const connected = connectedRoadEdgeIds(doc);
+    expect(connected.has(boundary.id)).toBe(true);
+    expect(connected.has(isolated.id)).toBe(false);
+  });
   it("transforms site geometry without changing the source", () => {
     const transformed = transformLandmarkPolygons(asset.minimumSite, {
       position: [20, 30],
@@ -151,6 +177,27 @@ describe("historic landmark foundation", () => {
       scale: 1
     });
     expect(result.reasons).toEqual([]);
+    const blocked = placeLandmark(
+      doc,
+      accessAsset,
+      {
+        id: "blocked",
+        position,
+        rotation: Math.atan2(normal[1], normal[0]),
+        scale: 1
+      },
+      [
+        {
+          points: [
+            [position[0] - 10, position[1]],
+            [position[0] + 10, position[1]]
+          ],
+          widthMeters: 2
+        }
+      ]
+    );
+    expect(blocked.document).toBeNull();
+    expect(blocked.reasons).toContain("Blocks existing lane 1");
     expect(result.document?.landmarks?.[0].accesses[0].target.id).toBe("road-1");
     const passage = result.document!.landmarks![0].accesses[0].points;
     const midway: Point = [(passage[0][0] + passage[1][0]) / 2, (passage[0][1] + passage[1][1]) / 2];

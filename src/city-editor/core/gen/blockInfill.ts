@@ -112,7 +112,8 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
           document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
           !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
     ),
-    farms: fabric.farms.filter(farm => !landmarkReservationHits(document, farm.polygon))
+    farms: fabric.farms.filter(farm => !landmarkReservationHits(document, farm.polygon)),
+    openSpaces: fabric.openSpaces?.filter(space => !landmarkReservationHits(document, space.polygon))
   };
 }
 

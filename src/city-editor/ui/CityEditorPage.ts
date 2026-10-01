@@ -51,6 +51,7 @@ import {
   SETTLEMENT_SCALE_LABELS,
   SETTLEMENT_SCALES
 } from "../core/gen/approachBeyond";
+import { buildBlockFabric, type InfillLane } from "../core/gen/blockInfill";
 import { refreshCastleLayouts } from "../core/gen/castleLayout";
 import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
 import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
@@ -236,6 +237,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let landmarkAssetId = "";
   let landmarkRotationDegrees = 0;
   let landmarkHoverPoint: Point | null = null;
+  let landmarkLaneSource: CityDocument | null = null;
+  let landmarkLanes: InfillLane[] = [];
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
   let inspectedInfo: SvgPickInfo | null = null;
   let activeGroupId: Id | null = null;
@@ -1509,12 +1512,17 @@ export function mountCityEditor(root: HTMLElement): void {
         showNotice("ランドマーク素材を読み込んでください。");
         return;
       }
-      const result = placeLandmark(documentState, asset, {
-        id: `landmark-${crypto.randomUUID()}`,
-        position: localPoint(event as PointerEvent),
-        rotation: (landmarkRotationDegrees * Math.PI) / 180,
-        scale: 1
-      });
+      const result = placeLandmark(
+        documentState,
+        asset,
+        {
+          id: `landmark-${crypto.randomUUID()}`,
+          position: localPoint(event as PointerEvent),
+          rotation: (landmarkRotationDegrees * Math.PI) / 180,
+          scale: 1
+        },
+        preservedLandmarkLanes()
+      );
       if (result.document) {
         commit(result.document, `Place ${asset.name}`);
         landmarkHoverPoint = null;
@@ -2216,6 +2224,31 @@ export function mountCityEditor(root: HTMLElement): void {
     return documentState.landmarkAssets?.find(asset => `${asset.id}@${asset.revision}` === landmarkAssetId) ?? null;
   }
 
+  function preservedLandmarkLanes(): InfillLane[] {
+    if (landmarkLaneSource === documentState) return landmarkLanes;
+    landmarkLaneSource = documentState;
+    if (
+      documentState.appearance === "town" &&
+      (documentState.buildingPattern === "medieval" ||
+        documentState.fabric?.version === 5 ||
+        documentState.gridKind === "evolution" ||
+        ["circulade", "bram", "classic"].includes(documentState.layout ?? ""))
+    ) {
+      const fabric = buildBlockFabric(documentState);
+      landmarkLanes = [
+        ...fabric.lanes,
+        ...(fabric.parcels ?? []).flatMap(parcel =>
+          parcel.access.map(access => ({
+            faceId: parcel.faceIds[0],
+            points: access.points,
+            widthMeters: access.widthMeters
+          }))
+        )
+      ];
+    } else landmarkLanes = [];
+    return landmarkLanes;
+  }
+
   function updateLandmarkPreview(): void {
     const svg = map.querySelector("svg");
     if (!svg) return;
@@ -2228,7 +2261,7 @@ export function mountCityEditor(root: HTMLElement): void {
       rotation: (landmarkRotationDegrees * Math.PI) / 180,
       scale: 1
     };
-    const preview = placeLandmark(documentState, asset, placement);
+    const preview = placeLandmark(documentState, asset, placement, preservedLandmarkLanes());
     const layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     layer.classList.add("ce-landmark-preview");
     layer.setAttribute("pointer-events", "none");

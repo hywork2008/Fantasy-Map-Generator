@@ -92,11 +92,48 @@ export function accessCorridor(points: Point[], widthMeters: number): LandmarkPo
   });
 }
 
+/** Road edges reachable from the map boundary; an unfinished local road draft is allowed when no root exists yet. */
+export function connectedRoadEdgeIds(document: CityDocument): Set<string> {
+  const roads = document.featureGroups.flatMap(group =>
+    group.kind === "road" ? group.segments.map(ref => ref.edgeId) : []
+  );
+  const adjacency = new Map<string, Set<string>>();
+  const half = document.frame.extentMeters / 2;
+  const boundary = (point: Point): boolean => Math.max(Math.abs(point[0]), Math.abs(point[1])) >= half - 1e-3;
+  const roots: string[] = [];
+  for (const id of roads) {
+    const edge = document.mesh.edges[id];
+    if (!edge) continue;
+    for (const vertexId of [edge.a, edge.b]) {
+      const incident = adjacency.get(vertexId) ?? new Set<string>();
+      incident.add(id);
+      adjacency.set(vertexId, incident);
+    }
+    if (boundary(document.mesh.vertices[edge.a].point) || boundary(document.mesh.vertices[edge.b].point))
+      roots.push(id);
+  }
+  if (!roots.length) return new Set(roads);
+  const connected = new Set(roots);
+  const queue = [...roots];
+  for (let i = 0; i < queue.length; i++) {
+    const edge = document.mesh.edges[queue[i]];
+    for (const vertexId of [edge.a, edge.b]) {
+      for (const next of adjacency.get(vertexId) ?? []) {
+        if (connected.has(next)) continue;
+        connected.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return connected;
+}
+
 /** Place one asset atomically. Rejected placements leave the original document untouched. */
 export function placeLandmark(
   document: CityDocument,
   asset: LandmarkAsset,
-  placement: Pick<LandmarkInstance, "id" | "position" | "rotation" | "scale">
+  placement: Pick<LandmarkInstance, "id" | "position" | "rotation" | "scale">,
+  preservedLanes: ReadonlyArray<{ points: Point[]; widthMeters: number }> = []
 ): { document: CityDocument | null; reasons: string[] } {
   const site = transformLandmarkPolygons(asset.minimumSite, placement);
   const reasons: string[] = [];
@@ -127,6 +164,14 @@ export function placeLandmark(
   for (const other of document.landmarks ?? []) {
     if (site.some(part => other.site.some(existing => polygonIntersectsLandmark(part.outer, [existing]))))
       reasons.push(`Overlaps landmark ${other.id}`);
+  }
+  for (const [index, lane] of preservedLanes.entries()) {
+    if (
+      accessCorridor(lane.points, lane.widthMeters).some(band =>
+        site.some(part => polygonIntersectsLandmark(band.outer, [part]))
+      )
+    )
+      reasons.push(`Blocks existing lane ${index + 1}`);
   }
   for (const group of document.featureGroups) {
     const edgeIds =
@@ -162,6 +207,7 @@ export function placeLandmark(
     }
   }
   const accesses: LandmarkInstance["accesses"] = [];
+  const connectedRoads = connectedRoadEdgeIds(document);
   for (const entrance of asset.entrances.filter(entry => entry.required)) {
     const start = transformLandmarkPoint(entrance.point, placement);
     const outward: Point = [
@@ -173,6 +219,7 @@ export function placeLandmark(
       .flatMap(group =>
         group.segments.flatMap(ref => {
           const edge = document.mesh.edges[ref.edgeId];
+          if (!connectedRoads.has(ref.edgeId)) return [];
           const a = document.mesh.vertices[edge?.a]?.point;
           const b = document.mesh.vertices[edge?.b]?.point;
           if (!a || !b) return [];
