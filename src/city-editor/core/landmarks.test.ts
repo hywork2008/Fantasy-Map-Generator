@@ -6,7 +6,8 @@ import {
   landmarkReservationHits,
   placeLandmark,
   polygonIntersectsLandmark,
-  transformLandmarkPolygons
+  transformLandmarkPolygons,
+  transformPlacedLandmark
 } from "./landmarks";
 import type { LandmarkAsset, Point } from "./types";
 
@@ -181,6 +182,22 @@ describe("historic landmark foundation", () => {
       scale: 1
     });
     expect(result.reasons).toEqual([]);
+    const shifted: Point = [position[0] + (b[0] - a[0]) / length, position[1] + (b[1] - a[1]) / length];
+    const updated = transformPlacedLandmark(result.document!, "access", {
+      position: shifted,
+      rotation: Math.atan2(normal[1], normal[0]),
+      scale: 1.2
+    });
+    expect(updated.reasons).toEqual([]);
+    expect(updated.document?.landmarks?.[0].position).toEqual(shifted);
+    expect(updated.document?.landmarks?.[0].site).not.toEqual(result.document?.landmarks?.[0].site);
+    expect(updated.document?.landmarks?.[0].accesses[0].points[0]).not.toEqual(
+      result.document?.landmarks?.[0].accesses[0].points[0]
+    );
+    expect(
+      transformPlacedLandmark(result.document!, "access", { position: [149, 0], rotation: 0, scale: 1 }).document
+    ).toBeNull();
+    expect(result.document?.landmarks?.[0].position).toEqual(position);
     const blocked = placeLandmark(
       doc,
       accessAsset,

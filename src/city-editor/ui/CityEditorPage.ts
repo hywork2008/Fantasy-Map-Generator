@@ -97,7 +97,12 @@ import {
 import { type GenerationSample, generationPhaseLabel, logGenerationFailures } from "../core/generationDiagnostics";
 import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
-import { placeLandmark, transformLandmarkPolygons, validateLandmarks } from "../core/landmarks";
+import {
+  placeLandmark,
+  transformLandmarkPolygons,
+  transformPlacedLandmark,
+  validateLandmarks
+} from "../core/landmarks";
 import {
   clone,
   edgeBetween,
@@ -2960,6 +2965,31 @@ export function mountCityEditor(root: HTMLElement): void {
       if (inspectedInfo.layer === "landmarks" && typeof inspectedInfo.id === "string") {
         const instance = documentState.landmarks?.find(item => item.id === inspectedInfo?.id);
         if (instance && !instance.locked) {
+          const x = numberInput(String(instance.position[0]), "-100000", "0.1");
+          const y = numberInput(String(instance.position[1]), "-100000", "0.1");
+          const angle = numberInput(String((instance.rotation * 180) / Math.PI), "-360", "1");
+          const scale = numberInput(String(instance.scale), "0.01", "0.01");
+          inspector.content.append(
+            divider(),
+            label("X (m)", x),
+            label("Y (m)", y),
+            label("Rotation (°)", angle),
+            label("Scale", scale),
+            makeButton("Update landmark", () => {
+              const result = transformPlacedLandmark(
+                documentState,
+                instance.id,
+                {
+                  position: [Number(x.value), Number(y.value)],
+                  rotation: (Number(angle.value) * Math.PI) / 180,
+                  scale: Number(scale.value)
+                },
+                preservedLandmarkLanes()
+              );
+              if (result.document) commit(result.document, `Update ${inspectedInfo?.label ?? "landmark"}`);
+              else showNotice(result.reasons.join("; "));
+            })
+          );
           inspector.content.appendChild(
             makeButton("Delete landmark", () => {
               commit(

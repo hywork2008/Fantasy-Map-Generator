@@ -334,6 +334,37 @@ export function placeLandmark(
   return { document: next, reasons: [] };
 }
 
+/** Re-place one editable instance and regenerate its site and required access as one change. */
+export function transformPlacedLandmark(
+  document: CityDocument,
+  instanceId: Id,
+  transform: Pick<LandmarkInstance, "position" | "rotation" | "scale">,
+  preservedLanes: ReadonlyArray<{ points: Point[]; widthMeters: number; id?: Id; connectedToRoad?: boolean }> = []
+): { document: CityDocument | null; reasons: string[] } {
+  const instance = document.landmarks?.find(item => item.id === instanceId);
+  if (!instance) return { document: null, reasons: ["Landmark not found"] };
+  if (instance.locked) return { document: null, reasons: ["Landmark is locked"] };
+  const asset = document.landmarkAssets?.find(
+    item => item.id === instance.assetId && item.revision === instance.assetRevision
+  );
+  if (!asset) return { document: null, reasons: ["Landmark asset not found"] };
+  const withoutInstance: CityDocument = {
+    ...document,
+    landmarks: document.landmarks?.filter(item => item.id !== instanceId)
+  };
+  const result = placeLandmark(withoutInstance, asset, { id: instanceId, ...transform }, preservedLanes);
+  if (!result.document) return result;
+  const replacement = result.document.landmarks?.find(item => item.id === instanceId);
+  if (!replacement) return { document: null, reasons: ["Landmark replacement failed"] };
+  return {
+    document: {
+      ...result.document,
+      landmarks: document.landmarks?.map(item => (item.id === instanceId ? replacement : item))
+    },
+    reasons: []
+  };
+}
+
 export function validateLandmarks(document: CityDocument): string[] {
   const errors: string[] = [];
   if ((document.landmarks?.length || document.landmarkAssets?.length) && document.version !== 3)
