@@ -27,12 +27,14 @@ import {
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
 import { shapeSuburbanFabric } from "./suburbanLanduse";
+import { buildWatermillPlan, type WatermillPlan } from "./watermillFabric";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
 export { convexInfillParts, FabricCache } from "./localInfill";
 export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
   parks?: ParkLawn[];
+  watermills?: WatermillPlan;
 }
 let defaultCache: FabricCache | null = null;
 function getDefaultCache(): FabricCache {
@@ -121,9 +123,22 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
       !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS)
   );
+  const watermills =
+    fabric.watermills ??
+    buildWatermillPlan(
+      document,
+      buildings.length,
+      "watermill-fabric",
+      fabric.lanes,
+      fabric.farms.map(farm => farm.polygon)
+    );
+  const millPolygons = watermills.mills.map(m => m.millhousePolygon);
+  const nonMillBuildings = millPolygons.length
+    ? buildings.filter(b => !millPolygons.some(mPoly => polygonOverlaps(b.polygon, mPoly)))
+    : buildings;
   const openSpaces = fabric.openSpaces?.filter(space => !landmarkReservationHits(document, space.polygon));
-  const parcelBuildings = new Map<string, typeof buildings>();
-  for (const building of buildings) {
+  const parcelBuildings = new Map<string, typeof nonMillBuildings>();
+  for (const building of nonMillBuildings) {
     if (!building.parcelId) continue;
     const members = parcelBuildings.get(building.parcelId) ?? [];
     members.push(building);
@@ -131,9 +146,10 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   }
   return {
     ...fabric,
-    buildings,
+    buildings: nonMillBuildings,
     farms: fabric.farms.filter(farm => !landmarkReservationHits(document, farm.polygon)),
     openSpaces,
+    watermills,
     parcels: document.landmarks?.length
       ? fabric.parcels?.map(parcel => ({
           ...parcel,

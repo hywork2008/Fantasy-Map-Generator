@@ -31,6 +31,7 @@ export interface CityFabric {
   harbor?: import("./harborFabric").HarborPlan;
   farms?: FarmPlot[];
   parks?: import("./parkFabric").ParkLawn[];
+  watermills?: import("./watermillFabric").WatermillPlan;
   buildings: BuildingLot[];
   lanes: InfillLane[];
   /** Portals shared by adjacent faces, or opening onto a major road. */
