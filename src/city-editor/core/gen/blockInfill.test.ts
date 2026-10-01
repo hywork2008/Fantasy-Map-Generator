@@ -4,6 +4,7 @@ import type { CityDocument, Point } from "../types";
 import { buildBlockFabric, convexInfillParts } from "./blockInfill";
 import { createFabricPlan } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
+import { buildLandmarkLaneNetwork } from "./landmarkLaneNetwork";
 
 function fixture(polygons: Point[][]): CityDocument {
   const mesh = meshFromCells(
@@ -105,6 +106,9 @@ describe("coarse-cell infill", () => {
     const fabric = buildBlockFabric(document);
     expect(fabric.buildings.length).toBeGreaterThan(70);
     expect(fabric.lanes.length).toBeGreaterThan(2);
+    expect(
+      buildLandmarkLaneNetwork(document, fabric.lanes).filter(lane => lane.connectedToRoad).length
+    ).toBeGreaterThan(0);
     expect(JSON.stringify(document)).toBe(before);
     expect(buildBlockFabric(document)).toEqual(fabric);
     const { segments, seen } = connectedLaneSegments(fabric);

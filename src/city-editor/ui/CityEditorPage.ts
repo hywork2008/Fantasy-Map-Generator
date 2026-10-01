@@ -63,6 +63,7 @@ import {
 } from "../core/gen/fabricDistricts";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
 import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
+import { buildLandmarkLaneNetwork, repairLandmarkLaneTargets } from "../core/gen/landmarkLaneNetwork";
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
@@ -2236,7 +2237,7 @@ export function mountCityEditor(root: HTMLElement): void {
     ) {
       const fabric = buildBlockFabric(documentState);
       landmarkLanes = [
-        ...fabric.lanes,
+        ...buildLandmarkLaneNetwork(documentState, fabric.lanes),
         ...(fabric.parcels ?? []).flatMap(parcel =>
           parcel.access.map(access => ({
             faceId: parcel.faceIds[0],
@@ -3719,10 +3720,21 @@ export function mountCityEditor(root: HTMLElement): void {
     // seeds the history, then keep it only in the closure for render + export.
     referenceImage = parsed.document.referenceImage ?? null;
     delete parsed.document.referenceImage;
+    let unresolvedLandmarks: Id[] = [];
+    if (parsed.document.landmarks?.some(instance => instance.accesses.some(access => access.target.kind === "lane"))) {
+      const fabric = buildBlockFabric(parsed.document);
+      const repaired = repairLandmarkLaneTargets(
+        parsed.document,
+        buildLandmarkLaneNetwork(parsed.document, fabric.lanes)
+      );
+      parsed.document = repaired.document;
+      unresolvedLandmarks = repaired.unresolved;
+    }
     documentState = parsed.document;
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     history = new DocumentHistory(parsed.document, "Imported map");
+    if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;

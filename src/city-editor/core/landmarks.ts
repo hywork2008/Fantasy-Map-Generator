@@ -1,7 +1,7 @@
 import { templeRectForElement } from "./gen/civicPlacement";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
 import { facePoints } from "./mesh";
-import type { CityDocument, LandmarkAsset, LandmarkInstance, LandmarkPolygon, Point } from "./types";
+import type { CityDocument, Id, LandmarkAsset, LandmarkInstance, LandmarkPolygon, Point } from "./types";
 
 const finitePoint = (point: Point): boolean => point.length === 2 && point.every(Number.isFinite);
 
@@ -134,7 +134,7 @@ export function placeLandmark(
   document: CityDocument,
   asset: LandmarkAsset,
   placement: Pick<LandmarkInstance, "id" | "position" | "rotation" | "scale">,
-  preservedLanes: ReadonlyArray<{ points: Point[]; widthMeters: number }> = []
+  preservedLanes: ReadonlyArray<{ points: Point[]; widthMeters: number; id?: Id; connectedToRoad?: boolean }> = []
 ): { document: CityDocument | null; reasons: string[] } {
   const site = transformLandmarkPolygons(asset.minimumSite, placement);
   const reasons: string[] = [];
@@ -228,79 +228,87 @@ export function placeLandmark(
   }
   const accesses: LandmarkInstance["accesses"] = [];
   const connectedRoads = connectedRoadEdgeIds(document);
+  const accessTargets: Array<{ kind: "road" | "lane"; id: Id; points: Point[] }> = [
+    ...document.featureGroups.flatMap(group =>
+      group.kind === "road"
+        ? group.segments.flatMap(ref => {
+            if (!connectedRoads.has(ref.edgeId)) return [];
+            const edge = document.mesh.edges[ref.edgeId];
+            const a = document.mesh.vertices[edge?.a]?.point;
+            const b = document.mesh.vertices[edge?.b]?.point;
+            return a && b ? [{ kind: "road" as const, id: group.id, points: [a, b] }] : [];
+          })
+        : []
+    ),
+    ...preservedLanes.flatMap(lane =>
+      lane.connectedToRoad && lane.id ? [{ kind: "lane" as const, id: lane.id, points: lane.points }] : []
+    )
+  ];
   for (const entrance of asset.entrances.filter(entry => entry.required)) {
     const start = transformLandmarkPoint(entrance.point, placement);
     const outward: Point = [
       entrance.outward[0] * Math.cos(placement.rotation) - entrance.outward[1] * Math.sin(placement.rotation),
       entrance.outward[0] * Math.sin(placement.rotation) + entrance.outward[1] * Math.cos(placement.rotation)
     ];
-    const candidates = document.featureGroups
-      .filter((group): group is Extract<typeof group, { kind: "road" | "wall" | "plank" }> => group.kind === "road")
-      .flatMap(group =>
-        group.segments.flatMap(ref => {
-          const edge = document.mesh.edges[ref.edgeId];
-          if (!connectedRoads.has(ref.edgeId)) return [];
-          const a = document.mesh.vertices[edge?.a]?.point;
-          const b = document.mesh.vertices[edge?.b]?.point;
-          if (!a || !b) return [];
-          const nearest = nearestOnPolyline(start, [a, b]);
-          const point = nearest.point;
-          const distance = Math.hypot(point[0] - start[0], point[1] - start[1]);
-          const facing = (point[0] - start[0]) * outward[0] + (point[1] - start[1]) * outward[1];
-          if (distance > 80 || facing < -0.1) return [];
-          const corridor = accessCorridor([start, point], entrance.widthMeters);
-          if (
-            (document.landmarks ?? []).some(other =>
-              corridor.some(part => polygonIntersectsLandmark(part.outer, other.site))
-            )
+    const candidates = accessTargets
+      .flatMap(target => {
+        const nearest = nearestOnPolyline(start, target.points);
+        const point = nearest.point;
+        const distance = Math.hypot(point[0] - start[0], point[1] - start[1]);
+        const facing = (point[0] - start[0]) * outward[0] + (point[1] - start[1]) * outward[1];
+        if (distance > 80 || facing < -0.1) return [];
+        const corridor = accessCorridor([start, point], entrance.widthMeters);
+        if (
+          (document.landmarks ?? []).some(other =>
+            corridor.some(part => polygonIntersectsLandmark(part.outer, other.site))
           )
-            return [];
-          if (
-            Object.values(document.mesh.faces).some(
-              face =>
-                (face.properties.water !== "land" ||
-                  face.properties.locked ||
-                  face.properties.ward === "castle" ||
-                  face.properties.ward === "cemetery") &&
-                corridor.some(part => polygonIntersectsLandmark(facePoints(document.mesh, face), [part]))
-            )
+        )
+          return [];
+        if (
+          Object.values(document.mesh.faces).some(
+            face =>
+              (face.properties.water !== "land" ||
+                face.properties.locked ||
+                face.properties.ward === "castle" ||
+                face.properties.ward === "cemetery") &&
+              corridor.some(part => polygonIntersectsLandmark(facePoints(document.mesh, face), [part]))
           )
-            return [];
-          if (
-            document.featureGroups.some(obstacle =>
-              obstacle.kind === "wall" || obstacle.kind === "river"
-                ? obstacle.kind === "river"
-                  ? obstacle.vertices.slice(1).some((id, i) => {
-                      const c = document.mesh.vertices[obstacle.vertices[i]]?.point;
-                      const d = document.mesh.vertices[id]?.point;
-                      return c && d && corridor.some(part => segmentHitsPolygon(c, d, part.outer));
-                    })
-                  : obstacle.segments.some(segment => {
-                      const wall = document.mesh.edges[segment.edgeId];
-                      const c = document.mesh.vertices[wall.a]?.point;
-                      const d = document.mesh.vertices[wall.b]?.point;
-                      return c && d && corridor.some(part => segmentHitsPolygon(c, d, part.outer));
-                    })
-                : false
-            )
+        )
+          return [];
+        if (
+          document.featureGroups.some(obstacle =>
+            obstacle.kind === "wall" || obstacle.kind === "river"
+              ? obstacle.kind === "river"
+                ? obstacle.vertices.slice(1).some((id, i) => {
+                    const c = document.mesh.vertices[obstacle.vertices[i]]?.point;
+                    const d = document.mesh.vertices[id]?.point;
+                    return c && d && corridor.some(part => segmentHitsPolygon(c, d, part.outer));
+                  })
+                : obstacle.segments.some(segment => {
+                    const wall = document.mesh.edges[segment.edgeId];
+                    const c = document.mesh.vertices[wall.a]?.point;
+                    const d = document.mesh.vertices[wall.b]?.point;
+                    return c && d && corridor.some(part => segmentHitsPolygon(c, d, part.outer));
+                  })
+              : false
           )
-            return [];
-          return [
-            {
-              distance,
-              access: {
-                entranceId: entrance.id,
-                points: [start, point],
-                widthMeters: entrance.widthMeters,
-                target: { kind: "road" as const, id: group.id, point }
-              }
+        )
+          return [];
+        return [
+          {
+            distance,
+            access: {
+              entranceId: entrance.id,
+              points: [start, point],
+              widthMeters: entrance.widthMeters,
+              target: { kind: target.kind, id: target.id, point }
             }
-          ];
-        })
-      )
+          }
+        ];
+      })
       .sort((a, b) => a.distance - b.distance);
     if (candidates.length) accesses.push(candidates[0].access);
-    else reasons.push(`No road access for ${entrance.id}`);
+    else reasons.push(`No road or lane access for ${entrance.id}`);
   }
   if (reasons.length) return { document: null, reasons: [...new Set(reasons)] };
   const next: CityDocument = {

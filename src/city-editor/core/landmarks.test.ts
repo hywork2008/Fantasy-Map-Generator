@@ -203,6 +203,42 @@ describe("historic landmark foundation", () => {
     expect(blocked.document).toBeNull();
     expect(blocked.reasons).toContain("Blocks existing lane 1");
     expect(result.document?.landmarks?.[0].accesses[0].target.id).toBe("road-1");
+    const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    const laneCenter: Point = [position[0] + normal[0] * 7, position[1] + normal[1] * 7];
+    const lane = {
+      id: "lane-near",
+      connectedToRoad: true,
+      widthMeters: 2,
+      points: [
+        [laneCenter[0] - tangent[0] * 10, laneCenter[1] - tangent[1] * 10] as Point,
+        [laneCenter[0] + tangent[0] * 10, laneCenter[1] + tangent[1] * 10] as Point
+      ]
+    };
+    const laneResult = placeLandmark(
+      doc,
+      accessAsset,
+      {
+        id: "lane-access",
+        position,
+        rotation: Math.atan2(normal[1], normal[0]),
+        scale: 1
+      },
+      [lane]
+    );
+    expect(laneResult.reasons).toEqual([]);
+    expect(laneResult.document?.landmarks?.[0].accesses[0].target).toMatchObject({ kind: "lane", id: "lane-near" });
+    const disconnected = placeLandmark(
+      doc,
+      accessAsset,
+      {
+        id: "road-only",
+        position,
+        rotation: Math.atan2(normal[1], normal[0]),
+        scale: 1
+      },
+      [{ ...lane, connectedToRoad: false }]
+    );
+    expect(disconnected.document?.landmarks?.[0].accesses[0].target.kind).toBe("road");
     const passage = result.document!.landmarks![0].accesses[0].points;
     const midway: Point = [(passage[0][0] + passage[1][0]) / 2, (passage[0][1] + passage[1][1]) / 2];
     expect(
