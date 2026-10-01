@@ -6,8 +6,9 @@ import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import { buildCityBuildings } from "./gen/buildingLots";
 import { polygonCentroid } from "./gen/geom";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
-import { meshFromCells } from "./mesh";
+import { meshFromCells, validate } from "./mesh";
 import { MoatReservation } from "./moats";
+import { gateCrossingFrame, straightenGateCrossings } from "./passages";
 import type { CityDocument, Point } from "./types";
 
 function fixture(): CityDocument {
@@ -154,6 +155,67 @@ describe("moat reservations", () => {
         [160, 0]
       ]).bridges
     ).toHaveLength(0);
+  });
+
+  it("squares the gn8tsm v66 drawbridge while preserving the river approach and identical dry-city topology", () => {
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      coast: "none",
+      rivers: ["through"],
+      relief: false,
+      features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+      wall: { envelope: "auto", coast: "auto", line: "auto" },
+      layout: "auto"
+    };
+    Object.assign(settings, {
+      streets: { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true },
+      buildingPattern: "medieval",
+      layout: "circulade",
+      walledAreaShare: 1,
+      moats: { town: true, castle: true },
+      historicalPeriod: "ageOfExploration"
+    });
+    const source = createGridDocument({
+      grid: "evolution",
+      size: "tiny",
+      seed: "3bynwo",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const city = generateCityOnDocument(source, settings, "gn8tsm")!;
+    expect(city).not.toBeNull();
+    expect(city.generationSeed).toBe("gn8tsm");
+    expect(validate(city)).toEqual([]);
+    const frame = gateCrossingFrame(city, "v66")!;
+    const outside = frame.roads.filter(
+      point => (point[0] - frame.point[0]) * frame.inward[0] + (point[1] - frame.point[1]) * frame.inward[1] < 0
+    );
+    expect(outside).toHaveLength(1);
+    const delta: Point = [outside[0][0] - frame.point[0], outside[0][1] - frame.point[1]];
+    expect(delta[0] * frame.tangent[0] + delta[1] * frame.tangent[1]).toBeCloseTo(0, 8);
+    expect(Math.hypot(...delta)).toBeGreaterThanOrEqual(24 - 1e-8);
+    expect(city.mesh.vertices.v100.point).toEqual([15.103083214703275, 197.14223977142487]);
+    expect(straightenGateCrossings(city).mesh).toEqual(city.mesh);
+    const dry = generateCityOnDocument(source, { ...settings, moats: { town: false, castle: false } }, "gn8tsm")!;
+    expect(dry.mesh).toEqual(city.mesh);
+    const svg = renderEditorSvg(
+      city,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-300 -300 600 600",
+      1
+    );
+    const gateId = city.gates.find(gate => gate.vertexId === "v66")!.id;
+    const deck = svg.querySelector(`.ce-drawbridge[data-gate-id="${gateId}"] .ce-drawbridge-deck`)!;
+    expect(deck).not.toBeNull();
+    const coordinates = deck
+      .getAttribute("d")!
+      .split(/[ML ,]+/)
+      .filter(Boolean)
+      .map(Number);
+    for (let i = 0; i < coordinates.length; i += 2)
+      expect(
+        (coordinates[i] - frame.point[0]) * frame.tangent[0] + (-coordinates[i + 1] - frame.point[1]) * frame.tangent[1]
+      ).toBeCloseTo(0, 8);
   });
 
   it.each(["voronoi", "hex", "evolution"] as const)(

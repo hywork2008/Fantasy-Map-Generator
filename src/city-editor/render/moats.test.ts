@@ -4,7 +4,7 @@ import { boundaryEdges, validateFortifications } from "../core/fortifications";
 import { defaultGenerationSettings, generateGateStep } from "../core/generate";
 import { meshFromCells } from "../core/mesh";
 import type { CityDocument } from "../core/types";
-import { renderMoats, serializeCitySvg } from "./svg";
+import { renderMoats, renderStandaloneCitySvg, serializeCitySvg } from "./svg";
 
 function fixture(): CityDocument {
   const mesh = meshFromCells([
@@ -64,6 +64,63 @@ describe("exterior moats", () => {
     expect(layer.querySelector(".ce-moat-water")?.getAttribute("stroke-width")).toBe("28");
     expect(layer.querySelectorAll(".ce-moat-bridge")).toHaveLength(1);
     expect(Object.values(doc.mesh.faces).every(f => f.properties.water === "land")).toBe(true);
+  });
+
+  it("draws a lowered timber drawbridge and keeps only the interior town gate plaza", () => {
+    const doc = fixture();
+    const svg = renderStandaloneCitySvg(doc);
+    expect(svg.querySelectorAll(".ce-drawbridge")).toHaveLength(1);
+    expect(svg.querySelectorAll(".ce-drawbridge-chain")).toHaveLength(2);
+    expect(svg.querySelectorAll(".ce-drawbridge-hinge")).toHaveLength(1);
+    expect(svg.querySelectorAll(".ce-drawbridge-plank").length).toBeGreaterThan(2);
+    const plazas = svg.querySelectorAll(".ce-gate-plaza");
+    expect(plazas).toHaveLength(1);
+    expect(plazas[0].getAttribute("d")).toContain(" 0 0 0 ");
+    doc.defenseCircuits![0].moat!.enabled = false;
+    const dry = renderStandaloneCitySvg(doc);
+    expect(dry.querySelectorAll(".ce-drawbridge")).toHaveLength(0);
+    expect(dry.querySelectorAll(".ce-gate-plaza")).toHaveLength(2);
+  });
+
+  it("aligns the road drawbridge hinge with the gate even for an incoming road", () => {
+    const doc = fixture();
+    const gate = doc.mesh.vertices[doc.gates[0].vertexId];
+    const far: [number, number] = [gate.point[0] * 2, gate.point[1] * 2];
+    doc.mesh.vertices.outside = { id: "outside", point: far, locked: false };
+    doc.mesh.edges.approach = {
+      id: "approach",
+      a: "outside",
+      b: gate.id,
+      leftFace: null,
+      rightFace: null,
+      locked: false
+    };
+    doc.featureGroups.push({
+      id: "approach",
+      kind: "road",
+      name: "Approach",
+      segments: [{ edgeId: "approach", forward: true }],
+      style: { widthMeters: 8, color: "black" },
+      locked: false
+    });
+    const svg = renderStandaloneCitySvg(doc);
+    const bridge = svg.querySelector(".ce-moat-road-bridge.ce-drawbridge");
+    expect(bridge?.getAttribute("data-gate-id")).toBe(doc.gates[0].id);
+    const d = bridge?.querySelector(".ce-drawbridge-deck")?.getAttribute("d") ?? "";
+    const coordinates = d.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+    expect(coordinates[0]).toBeCloseTo(gate.point[0]);
+    expect(coordinates[1]).toBeCloseTo(-gate.point[1]);
+    expect(svg.querySelectorAll(".ce-drawbridge")).toHaveLength(1);
+  });
+
+  it("keeps a citadel moat bridge as a regular bridge", () => {
+    const doc = fixture();
+    doc.defenseCircuits![0].scope = "castle";
+    doc.defenseCircuits![0].ownerCastleId = "castle";
+    doc.gates[0].ownerCastleId = "castle";
+    const svg = renderStandaloneCitySvg(doc);
+    expect(svg.querySelectorAll(".ce-moat-bridge")).toHaveLength(1);
+    expect(svg.querySelectorAll(".ce-drawbridge")).toHaveLength(0);
   });
 
   it("supports castle moats independently and draws a shared curtain only once", () => {

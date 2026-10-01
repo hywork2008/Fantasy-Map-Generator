@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { incidentEdges } from "./mesh";
 import {
   addBridge,
+  gateCrossingFrame,
   gateRoadDeviationDegrees,
   joinWallRiverCrossings,
   kindEdgeIds,
@@ -575,6 +576,20 @@ describe("straightenGateCrossings", () => {
     const document = gateOnStraightWall([0, 30], [0, -40]);
     const next = straightenGateCrossings(document);
     expect(next.mesh.vertices.g.point).toEqual([0, 0]);
+  });
+
+  it("makes even a slightly oblique exterior arm exactly perpendicular without a moat", () => {
+    const document = gateOnStraightWall([0, 30], [3, -40]);
+    const next = straightenGateCrossings(document);
+    const frame = gateCrossingFrame(next, "g")!;
+    const outside = frame.roads.find(
+      point => (point[0] - frame.point[0]) * frame.inward[0] + (point[1] - frame.point[1]) * frame.inward[1] < 0
+    )!;
+    expect(
+      (outside[0] - frame.point[0]) * frame.tangent[0] + (outside[1] - frame.point[1]) * frame.tangent[1]
+    ).toBeCloseTo(0, 8);
+    expect(next.mesh.vertices.g.point).toEqual(document.mesh.vertices.g.point);
+    expect(Object.keys(next.mesh.vertices)).toEqual(Object.keys(document.mesh.vertices));
   });
 
   it("does not move a locked gate", () => {

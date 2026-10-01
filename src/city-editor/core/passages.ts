@@ -658,6 +658,57 @@ function swingObliqueGateArm(
   return moved;
 }
 
+/** Keep a normal, bank-clearing first exterior span even when its far arm also serves a river bridge.
+ * Applied to every town gate, independently of whether a moat is enabled. */
+function straightenExteriorGateApproaches(document: CityDocument): CityDocument {
+  let next = document;
+  const riverIds = riverVertexSet(document);
+  for (const gate of townGates(document)) {
+    if (gate.locked || next.mesh.vertices[gate.vertexId]?.locked || riverIds.has(gate.vertexId)) continue;
+    const frame = gateCrossingFrame(next, gate.vertexId);
+    if (!frame) continue;
+    const roadEdges = kindEdgeIds(next, "road");
+    for (const id of throughRoadNeighbourIds(next, gate.vertexId)) {
+      const point = next.mesh.vertices[id]?.point;
+      if (!point || riverIds.has(id)) continue;
+      const outward = -(point[0] - frame.point[0]) * frame.inward[0] - (point[1] - frame.point[1]) * frame.inward[1];
+      if (outward <= 0) continue;
+      const distance = Math.max(24, outward);
+      const target: Point = [frame.point[0] - frame.inward[0] * distance, frame.point[1] - frame.inward[1] * distance];
+      if (Math.hypot(point[0] - target[0], point[1] - target[1]) < 0.001) continue;
+      const onRiverApproach = incidentEdges(next.mesh, id).some(
+        edge => roadEdges.has(edge.id) && riverIds.has(edge.a === id ? edge.b : edge.a)
+      );
+      let moved = next;
+      if (!bridgeArmIsFixed(next, id) && !onRiverApproach) moved = tryMoveVertex(next, id, target);
+      if (
+        moved !== next &&
+        Math.hypot(moved.mesh.vertices[id].point[0] - target[0], moved.mesh.vertices[id].point[1] - target[1]) < 0.001
+      ) {
+        next = moved;
+        for (const face of incidentFaces(next.mesh, id)) face.site = polygonCentroid(facePoints(next.mesh, face));
+        continue;
+      }
+      // A separate gate approach preserves the existing river-bank vertex and road junctions.
+      const edge = edgeBetween(next.mesh, gate.vertexId, id);
+      if (!edge) continue;
+      const span = Math.min(24, outward * 0.6);
+      if (span < 4) continue;
+      const fraction = span / outward;
+      const inserted = insertEdgeVertex(next, edge.id, edge.a === gate.vertexId ? fraction : 1 - fraction);
+      if (!inserted) continue;
+      const approach: Point = [frame.point[0] - frame.inward[0] * span, frame.point[1] - frame.inward[1] * span];
+      const squared = tryMoveVertex(inserted.document, inserted.vertexId, approach);
+      const at = squared.mesh.vertices[inserted.vertexId].point;
+      if (Math.hypot(at[0] - approach[0], at[1] - approach[1]) > 0.001) continue;
+      next = squared;
+      for (const face of incidentFaces(next.mesh, inserted.vertexId))
+        face.site = polygonCentroid(facePoints(next.mesh, face));
+    }
+  }
+  return next;
+}
+
 /**
  * Square each gate to the road that passes through it. The gate vertex slides
  * along the curtain first. When that cannot bring both arms under a right
@@ -777,7 +828,7 @@ export function straightenGateCrossings(document: CityDocument): CityDocument {
     }
     next = cursor;
   }
-  return next;
+  return straightenExteriorGateApproaches(next);
 }
 
 /** Local river direction at a crossing, and the drawn channel width. */
