@@ -3105,7 +3105,21 @@ function polylineToVertexPath(
     if (!bridge) return []; // Never emit a river that ends at an interior gap.
     out.push(...bridge.slice(1));
   }
-  return out;
+  // Snapping the resolved walk back to mesh vertices can revisit a vertex even
+  // when the geometric walk has no loop (for example A → B → A). Remove the
+  // closed span so the emitted river cannot double back over its own edge.
+  const simple: Id[] = [];
+  const index = new Map<Id, number>();
+  for (const id of out) {
+    const previous = index.get(id);
+    if (previous !== undefined) {
+      for (const removed of simple.splice(previous + 1)) index.delete(removed);
+    } else {
+      index.set(id, simple.length);
+      simple.push(id);
+    }
+  }
+  return simple;
 }
 
 /** Bridge a graph-walk gap without reversing an already emitted river edge. */
