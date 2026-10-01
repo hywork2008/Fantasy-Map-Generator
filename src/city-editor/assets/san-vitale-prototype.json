@@ -1,0 +1,190 @@
+{
+  "id": "san-vitale-prototype",
+  "revision": "1",
+  "name": "San Vitale (Ravenna) — schematic study",
+  "historicalPhase": "Sixth-century octagonal basilica; schematic plan",
+  "referenceSizeMeters": [
+    40,
+    59
+  ],
+  "dimensionSource": "Structural study: outer octagon circumradius about 19.75 m; chancel and narthex extensions are schematic estimates",
+  "footprint": [
+    {
+      "outer": [
+        [
+          20.0,
+          0
+        ],
+        [
+          14.142,
+          14.142
+        ],
+        [
+          0,
+          20.0
+        ],
+        [
+          -14.142,
+          14.142
+        ],
+        [
+          -20.0,
+          0
+        ],
+        [
+          -14.142,
+          -14.142
+        ],
+        [
+          0,
+          -20.0
+        ],
+        [
+          14.142,
+          -14.142
+        ]
+      ],
+      "holes": []
+    },
+    {
+      "outer": [
+        [
+          -11,
+          17
+        ],
+        [
+          11,
+          17
+        ],
+        [
+          11,
+          31
+        ],
+        [
+          -11,
+          31
+        ]
+      ],
+      "holes": []
+    },
+    {
+      "outer": [
+        [
+          -16,
+          -28
+        ],
+        [
+          16,
+          -28
+        ],
+        [
+          16,
+          -18
+        ],
+        [
+          -16,
+          -18
+        ]
+      ],
+      "holes": []
+    }
+  ],
+  "minimumSite": [
+    {
+      "outer": [
+        [
+          23.0,
+          0
+        ],
+        [
+          16.263,
+          16.263
+        ],
+        [
+          0,
+          23.0
+        ],
+        [
+          -16.263,
+          16.263
+        ],
+        [
+          -23.0,
+          0
+        ],
+        [
+          -16.263,
+          -16.263
+        ],
+        [
+          0,
+          -23.0
+        ],
+        [
+          16.263,
+          -16.263
+        ]
+      ],
+      "holes": []
+    },
+    {
+      "outer": [
+        [
+          -14,
+          16
+        ],
+        [
+          14,
+          16
+        ],
+        [
+          14,
+          34
+        ],
+        [
+          -14,
+          34
+        ]
+      ],
+      "holes": []
+    },
+    {
+      "outer": [
+        [
+          -19,
+          -32
+        ],
+        [
+          19,
+          -32
+        ],
+        [
+          19,
+          -17
+        ],
+        [
+          -19,
+          -17
+        ]
+      ],
+      "holes": []
+    }
+  ],
+  "entrances": [
+    {
+      "id": "west-narthex",
+      "point": [
+        0,
+        -28
+      ],
+      "outward": [
+        0,
+        -1
+      ],
+      "widthMeters": 3,
+      "required": true
+    }
+  ],
+  "renderSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-75 -75 150 150\"><polygon points=\"20.0,0.0 14.142,14.142 0.0,20.0 -14.142,14.142 -20.0,0.0 -14.142,-14.142 -0.0,-20.0 14.142,-14.142\" fill=\"#a89a80\" stroke=\"#36322d\" stroke-width=\"0.8\"/><polygon points=\"-11,17 11,17 11,31 -11,31\" fill=\"#a89a80\" stroke=\"#36322d\" stroke-width=\"0.8\"/><polygon points=\"-16,-28 16,-28 16,-18 -16,-18\" fill=\"#a89a80\" stroke=\"#36322d\" stroke-width=\"0.8\"/><polygon points=\"10.0,0.0 7.071,7.071 0.0,10.0 -7.071,7.071 -10.0,0.0 -7.071,-7.071 -0.0,-10.0 7.071,-7.071\" fill=\"none\" stroke=\"#514b40\" stroke-width=\"0.8\"/></svg>",
+  "provenanceId": "historic-landmark-san-vitale-v1"
+}

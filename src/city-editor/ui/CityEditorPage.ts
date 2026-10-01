@@ -1,6 +1,7 @@
 import i18n from "../../i18n";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
+import { historicLandmarkPrototypes } from "../assets/catalog";
 import {
   createCastleOnFace,
   deleteCastle,
@@ -2089,7 +2090,15 @@ export function mountCityEditor(root: HTMLElement): void {
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
-    const assets = documentState.landmarkAssets ?? [];
+    const assets = [
+      ...(documentState.landmarkAssets ?? []),
+      ...historicLandmarkPrototypes.filter(
+        prototype =>
+          !(documentState.landmarkAssets ?? []).some(
+            asset => asset.id === prototype.id && asset.revision === prototype.revision
+          )
+      )
+    ];
     landmarkSelect.replaceChildren(
       ...assets.map(asset => {
         const option = document.createElement("option");
@@ -2227,7 +2236,11 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function selectedLandmarkAsset(): LandmarkAsset | null {
-    return documentState.landmarkAssets?.find(asset => `${asset.id}@${asset.revision}` === landmarkAssetId) ?? null;
+    return (
+      [...(documentState.landmarkAssets ?? []), ...historicLandmarkPrototypes].find(
+        asset => `${asset.id}@${asset.revision}` === landmarkAssetId
+      ) ?? null
+    );
   }
 
   function preservedLandmarkLanes(): InfillLane[] {

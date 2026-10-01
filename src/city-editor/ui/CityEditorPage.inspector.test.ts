@@ -28,6 +28,16 @@ describe("City Editor Inspector (Select and move mode)", () => {
     root.remove();
   });
 
+  it("offers the three bundled historic landmark studies without an import", () => {
+    const select = root.querySelector<HTMLSelectElement>('select[aria-label="Historic landmark asset"]');
+    expect(select).not.toBeNull();
+    expect([...select!.options].map(option => option.value)).toEqual([
+      "pantheon-prototype@1",
+      "san-vitale-prototype@1",
+      "chartres-prototype@5"
+    ]);
+  });
+
   it("shows clicked cell details in Inspector panel and keeps edit controls", () => {
     const target = root.querySelector<SVGElement>(".ce-cells path[data-pick]");
     expect(target).not.toBeNull();
