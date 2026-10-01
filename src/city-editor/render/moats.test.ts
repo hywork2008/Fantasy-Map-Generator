@@ -82,6 +82,34 @@ describe("exterior moats", () => {
     expect(dry.querySelectorAll(".ce-gate-plaza")).toHaveLength(2);
   });
 
+  it("starts the lifting leaf at the gate centre with four metres beyond the gate and a fixed far-bank bridge", () => {
+    const bridge = renderStandaloneCitySvg(fixture()).querySelector(".ce-drawbridge")!;
+    const points = (selector: string) => {
+      const coordinates = bridge
+        .querySelector(selector)!
+        .getAttribute("d")!
+        .split(/[ML ,]+/)
+        .filter(Boolean)
+        .map(Number);
+      return Array.from({ length: coordinates.length / 2 }, (_, i) => [coordinates[i * 2], coordinates[i * 2 + 1]]);
+    };
+    const leaf = points(".ce-drawbridge-deck");
+    const fixed = points(".ce-moat-fixed-bridge-deck");
+    const length = (p: number[][]) =>
+      p.slice(1).reduce((sum, q, i) => sum + Math.hypot(q[0] - p[i][0], q[1] - p[i][1]), 0);
+    expect(length(leaf)).toBeCloseTo(6, 8);
+    expect(length(fixed)).toBeGreaterThan(6);
+    expect(fixed[0]).toEqual(leaf.at(-1));
+    for (const chain of bridge.querySelectorAll(".ce-drawbridge-chain")) {
+      const coordinates = chain
+        .getAttribute("d")!
+        .split(/[ML ,]+/)
+        .filter(Boolean)
+        .map(Number);
+      expect(Math.hypot(coordinates[2] - coordinates[0], coordinates[3] - coordinates[1])).toBeLessThan(7);
+    }
+  });
+
   it("aligns the road drawbridge hinge with the gate even for an incoming road", () => {
     const doc = fixture();
     const gate = doc.mesh.vertices[doc.gates[0].vertexId];

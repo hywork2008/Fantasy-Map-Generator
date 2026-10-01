@@ -719,7 +719,7 @@ export function renderEditorSvg(
       const startDistance = Math.hypot(deck.points[0][0] - at[0], deck.points[0][1] - at[1]);
       const endDistance = Math.hypot(deck.points.at(-1)![0] - at[0], deck.points.at(-1)![1] - at[1]);
       const points = startDistance <= endDistance ? deck.points : [...deck.points].reverse();
-      features.appendChild(renderDrawbridge(points, deck.width, gate.id, "ce-moat-road-bridge"));
+      features.appendChild(renderDrawbridge(document, points, deck.width, gate.id, "ce-moat-road-bridge"));
       continue;
     }
     features.appendChild(
@@ -1708,13 +1708,70 @@ function drawbridgeGate(document: CityDocument, points: Point[], width: number):
     .sort((a, b) => a.distance - b.distance)[0]?.gate;
 }
 
-/** Lowered timber leaf: transverse boards, side chains and a hinge at the gate. */
-function renderDrawbridge(points: Point[], width: number, gateId: Id, bridgeClass: string): SVGGElement {
+/** A short lowered timber leaf at the gate meets the fixed bridge from the far bank. */
+function renderDrawbridge(
+  document: CityDocument,
+  points: Point[],
+  width: number,
+  gateId: Id,
+  bridgeClass: string
+): SVGGElement {
+  const gate = document.gates.find(g => g.id === gateId)!;
+  const wall = document.featureGroups.find(
+    g => g.kind === "wall" && featureGroupVertices(document, g).includes(gate.vertexId)
+  );
   const bridge = element("g", {
     class: `${bridgeClass} ce-drawbridge`,
     "data-gate-id": gateId,
     "pointer-events": "none"
   }) as SVGGElement;
+  const leaf: Point[] = [points[0]];
+  const fixed: Point[] = [];
+  // Include the part under the gate so four metres remain visible outside.
+  let remaining = 4 + (wall?.style.widthMeters ?? 0) / 2;
+  for (let i = 1; i < points.length; i++) {
+    if (fixed.length) {
+      fixed.push(points[i]);
+      continue;
+    }
+    const a = points[i - 1],
+      b = points[i];
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (length <= remaining) {
+      leaf.push(b);
+      remaining -= length;
+      continue;
+    }
+    const t = remaining / length;
+    const joint: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    leaf.push(joint);
+    fixed.push(joint, b);
+  }
+  if (fixed.length > 1) {
+    bridge.appendChild(
+      element("path", {
+        d: line(fixed),
+        class: "ce-moat-fixed-bridge-outline",
+        fill: "none",
+        stroke: "#57534b",
+        "stroke-width": String(width + 1.2),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round"
+      })
+    );
+    bridge.appendChild(
+      element("path", {
+        d: line(fixed),
+        class: "ce-moat-fixed-bridge-deck",
+        fill: "none",
+        stroke: "#bcb6a5",
+        "stroke-width": String(width),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round"
+      })
+    );
+  }
+  points = leaf;
   bridge.appendChild(
     element("path", {
       d: line(points),
@@ -1761,7 +1818,7 @@ function renderDrawbridge(points: Point[], width: number, gateId: Id, bridgeClas
           "stroke-width": "0.3"
         })
       );
-      nextBoard += 1.6;
+      nextBoard += 1;
     }
     travelled += length;
   }
@@ -1913,7 +1970,7 @@ export function renderMoats(document: CityDocument): SVGGElement {
       const end: Point = [frame.point[0] - frame.inward[0] * length, frame.point[1] - frame.inward[1] * length];
       if (circuit.scope === "town") {
         ribbon.appendChild(
-          renderDrawbridge([frame.point, end], gate.passageWidthMeters ?? 8, gate.id, "ce-moat-bridge")
+          renderDrawbridge(document, [frame.point, end], gate.passageWidthMeters ?? 8, gate.id, "ce-moat-bridge")
         );
         continue;
       }
