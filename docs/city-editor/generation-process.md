@@ -282,12 +282,27 @@ Generate パネルの工程名（`GENERATION_STAGES`、`src/city-editor/core/gen
 
 進捗ラベルは `generationPhaseLabel`（`generationDiagnostics.ts`）。準備、地形、市街地、城壁・門、街道・橋、都市の構成、形状の仕上げ、交差の検証、メッシュ検証、にまとめて表示する。
 
+## 失敗プレビュー（デバッグオプション）
+
+Generateパネルの「デバッグ：生成失敗の途中図を表示」は既定でOFF。有効時は要求シードの最初の案だけを試し、最初の失敗時点で再試行を止める。その時点のメッシュ・海・川・壁・道路・施設を読み取り専用で表示する。工程スライダーからの生成失敗にも適用する。最初の案が成功したときは通常の完成都市を表示する。工程⑦〜⑩の失敗後の一括生成へのフォールバックも行わない。OFF時は従来どおり最大8案を試す。
+
+`generateCityOnDocument` / `generateCityAttempt` / `generateStageOnDocument` の任意の `onRejected` コールバックを渡すとデバッグモードとなり、再試行せず、`GenerationDebugPreview` を受け取る。`applyPlan` 内の失敗はその場の途中文書、幾何仕上げ後の失敗は仕上げた文書を複製する。城配置・市街地面積など、書込み前の失敗では、すでに得た計画から地形・市街地・予定城壁・施設の途中図を作り、生成をやり直さない。
+
+失敗プレビューの表示中は、ツールバーの「Export city map as SVG」から失敗時点の途中図をSVGへ書き出せる。強調表示を含む全体図を出力し、画面の移動・拡大には依存しない。ファイル名は `ce-generation-failure-日時.svg`。工程・理由・Seed・検証詳細もSVG内のメタデータに記録する。
+
+Workerはリクエストの `debugFailure` が有効なときだけスナップショットを採取し、最初の不採用時の `complete` 応答へ `failurePreview` を付ける。成功・キャンセル時には途中図を採用しない。同期実行も同じコールバックで扱う。
+
+`generationDebug.ts` は検証の詳細に記録された門・頂点・辺・面・featureを強調対象へ変換する。赤は検証対象の具体的な位置、橙は位置を特定できない場合の関連領域。工程・reason・メッセージ・実行シードも表示する。`generationDebugSvg.ts` は不正メッシュでも描ける専用描画で、通常の住居充填・編集用ピッキングを呼ばない。途中文書は保存文書・Undo履歴へ入れない。
+
+ドラッグとホイールで移動・拡大できる。「失敗プレビューを閉じる」、Escape、オプションOFFで通常の地図へ戻る。位置が特定できない原因では、橙の領域を原因箇所と断定しない。Workerの例外や起動エラーなど、生成器が不採用スナップショットを返していないエラーはこのプレビューの対象外。
+
 ## ファイル対応
 
 | ファイル | 役割 |
 | --- | --- |
 | `src/city-editor/ui/CityEditorPage.ts` | 一括生成、工程スライダ、⑧⑩の表示フラグ |
 | `src/city-editor/core/generate.ts` | `GENERATION_STAGES`、`runPlan`、`applyPlan`、完成生成 |
+| `src/city-editor/core/generationDebug.ts`、`render/generationDebugSvg.ts` | 不採用時点のスナップショット、検証対象の強調、読み取り専用途中図 |
 | `src/city-editor/core/generationWorker.ts` | 一括生成の worker。中身は `generateCityOnDocument` |
 | `src/city-editor/core/gen/site/synthSite.ts` | パネル設定から立地を作る |
 | `src/city-editor/core/gen/classifySea.ts` | ① |

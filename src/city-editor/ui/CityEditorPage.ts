@@ -96,6 +96,7 @@ import {
   riversForCount,
   type SiteConfig
 } from "../core/generate";
+import type { GenerationDebugPreview } from "../core/generationDebug";
 import { type GenerationSample, generationPhaseLabel, logGenerationFailures } from "../core/generationDiagnostics";
 import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
@@ -141,7 +142,14 @@ import type {
   WardKind,
   WaterKind
 } from "../core/types";
-import { exportCityMap, exportCitySvg, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
+import {
+  exportCityMap,
+  exportCitySvg,
+  exportGenerationDebugSvg,
+  type ImportedCityMap,
+  pickCityMap,
+  readCityMap
+} from "../io/cityEditorFile";
 import {
   buildShare,
   type CityEditorShare,
@@ -151,6 +159,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
   faceClassName,
@@ -319,6 +328,19 @@ export function mountCityEditor(root: HTMLElement): void {
   let completeResult: CityDocument | null = null;
   let generationJob: ReturnType<typeof startCityGeneration> | null = null;
   let generationSamples: GenerationSample[] = [];
+  let pendingFailurePreview: GenerationDebugPreview | null = null;
+  let failurePreview: GenerationDebugPreview | null = null;
+  let failurePreviewSource: CityDocument | null = null;
+  const failureDebugInput = checkbox(false, checked => {
+    if (!checked) clearFailurePreview();
+  });
+  failureDebugInput.setAttribute("aria-label", "デバッグ：生成失敗の途中図を表示");
+  const failureDebugSummary = document.createElement("div");
+  failureDebugSummary.className = "ce-generation-debug-summary";
+  failureDebugSummary.setAttribute("aria-live", "polite");
+  failureDebugSummary.hidden = true;
+  const closeFailurePreview = makeButton("失敗プレビューを閉じる", () => clearFailurePreview());
+  closeFailurePreview.hidden = true;
   const generationProgress = document.createElement("output");
   generationProgress.className = "ce-generation-progress";
   generationProgress.setAttribute("aria-live", "polite");
@@ -432,6 +454,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const toolGrid = div("ce-icon-row");
   for (const [id, label, icon] of TOOLS) {
     const button = makeIconButton(icon, label, () => {
+      if (failurePreview) clearFailurePreview();
       tool = id;
       if (id !== "select") {
         inspectedInfo = null;
@@ -636,6 +659,11 @@ export function mountCityEditor(root: HTMLElement): void {
     showNotice("Map exported");
   });
   const exportSvgButton = makeIconButton("🗺️", "Export city map as SVG", () => {
+    if (failurePreview) {
+      exportGenerationDebugSvg(failurePreview);
+      showNotice("失敗時点のSVGをエクスポートしました");
+      return;
+    }
     exportCitySvg(referenceImage ? { ...documentState, referenceImage } : documentState);
     showNotice("SVG exported");
   });
@@ -1226,6 +1254,9 @@ export function mountCityEditor(root: HTMLElement): void {
   generatePanel.content.append(
     generationProgress,
     cancelGeneration,
+    toggleLabel("デバッグ：生成失敗の途中図を表示", failureDebugInput),
+    failureDebugSummary,
+    closeFailurePreview,
     makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
     makeButton("🎲 新しい都市", () => rollNewTown()),
     copyLinkButton,
@@ -1261,7 +1292,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // A wheel-zoom just before this click may still be waiting on its frame;
     // hit-testing below reads the SVG, so settle it first.
     flushRedraw();
-    if (event.button === 1 || (event.button === 0 && isSpacePressed)) {
+    if (event.button === 1 || (event.button === 0 && (isSpacePressed || failurePreview))) {
       event.preventDefault();
       isPanning = true;
       hasPanned = false;
@@ -1270,7 +1301,7 @@ export function mountCityEditor(root: HTMLElement): void {
       map.setPointerCapture(event.pointerId);
       return;
     }
-    if (event.button !== 0) return;
+    if (failurePreview || event.button !== 0) return;
     const point = localPoint(event);
     if (tool === "wardWall") {
       event.preventDefault();
@@ -1481,6 +1512,7 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (failurePreview && !isPanning) return;
     if (shipDrag) {
       const point = localPoint(event);
       if (Math.hypot(point[0] - shipDrag.startPoint[0], point[1] - shipDrag.startPoint[1]) > 0.5) {
@@ -1724,6 +1756,7 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
+    if (failurePreview) return;
     if (tool === "landmark") {
       const asset = selectedLandmarkAsset();
       if (!asset) {
@@ -1940,6 +1973,7 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
+    if (failurePreview) return;
     flushRedraw();
     const isSelectTool = tool === "select";
     const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
@@ -2095,7 +2129,11 @@ export function mountCityEditor(root: HTMLElement): void {
       event.preventDefault();
       restore(event.shiftKey ? history.redo(documentState) : history.undo(documentState));
     }
-    if (event.key === "Enter") finishButton.click();
+    if (failurePreview && event.key === "Escape") {
+      clearFailurePreview();
+      return;
+    }
+    if (event.key === "Enter" && !failurePreview) finishButton.click();
     if (event.key === "Escape") {
       routeStroke = null;
       selection = emptySelection();
@@ -2419,12 +2457,47 @@ export function mountCityEditor(root: HTMLElement): void {
     updateMeasureOverlay();
   }
 
+  function showFailurePreview(preview: GenerationDebugPreview, heading: string): void {
+    failurePreview = preview;
+    failurePreviewSource = documentState;
+    const { sample, seed, highlights } = preview;
+    failureDebugSummary.textContent = `${heading} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）: ${sample.failure?.message ?? ""} [${sample.failure?.reason ?? ""}] · Seed: ${seed}。${highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された門・辺・面"}。途中図は読み取り専用です。ドラッグとホイールで移動・拡大できます。`;
+    failureDebugSummary.hidden = false;
+    closeFailurePreview.hidden = false;
+    tool = "select";
+    selection = emptySelection();
+    activeGroupId = null;
+    redrawMap();
+  }
+
+  function clearFailurePreview(): void {
+    const wasVisible = failurePreview !== null;
+    failurePreview = null;
+    failurePreviewSource = null;
+    failureDebugSummary.hidden = true;
+    closeFailurePreview.hidden = true;
+    if (wasVisible) redrawMap();
+  }
+
   function redrawMap(): void {
     if (redrawHandle) {
       cancelAnimationFrame(redrawHandle);
       redrawHandle = 0;
     }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
+    if (failurePreview && failurePreviewSource !== documentState) {
+      failurePreview = null;
+      failureDebugSummary.hidden = true;
+      closeFailurePreview.hidden = true;
+    }
+    if (failurePreview) {
+      map.replaceChildren(renderGenerationDebugSvg(failurePreview, box));
+      housingSummary.hidden = true;
+      faceElementsById.clear();
+      wardLandmarksGroup = null;
+      wardLandmarkElementsById.clear();
+      return;
+    }
     const svg = renderEditorSvg(
       documentState,
       tool,
@@ -4299,14 +4372,19 @@ export function mountCityEditor(root: HTMLElement): void {
     )
       completeSource = documentState;
     if (generationJob) return;
+    clearFailurePreview();
     generationSamples = [];
+    pendingFailurePreview = null;
+    const onFailurePreview = (preview: GenerationDebugPreview) => {
+      pendingFailurePreview = preview;
+    };
     const onProgress = (sample: GenerationSample) => {
       generationSamples.push(sample);
       if (sample.failure) {
         generationProgress.textContent = `案${sample.attempt} 不採用 — ${generationPhaseLabel(sample.phase)}: ${sample.failure.message}`;
         return;
       }
-      generationProgress.textContent = `生成中 — ${sample.attempt}/${COMPLETE_CITY_ATTEMPTS}案目 · ${generationPhaseLabel(sample.phase)}`;
+      generationProgress.textContent = `生成中 — ${sample.attempt}/${failureDebugInput.checked ? 1 : COMPLETE_CITY_ATTEMPTS}案目 · ${generationPhaseLabel(sample.phase)}`;
     };
     if (typeof Worker !== "undefined") {
       const input = documentState;
@@ -4316,8 +4394,15 @@ export function mountCityEditor(root: HTMLElement): void {
       root.setAttribute("aria-busy", "true");
       try {
         const job = startCityGeneration(
-          { document: completeSource, settings: generateSettings, seed: generateSeed },
-          onProgress
+          {
+            document: completeSource,
+            settings: generateSettings,
+            seed: generateSeed,
+            debugFailure: failureDebugInput.checked
+          },
+          onProgress,
+          undefined,
+          onFailurePreview
         );
         generationJob = job;
         const observer = new MutationObserver(() => {
@@ -4355,7 +4440,15 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     // Non-worker hosts (including jsdom) retain the synchronous API.
     try {
-      acceptCompleteGeneration(generateCityOnDocument(completeSource, generateSettings, generateSeed, onProgress));
+      acceptCompleteGeneration(
+        generateCityOnDocument(
+          completeSource,
+          generateSettings,
+          generateSeed,
+          onProgress,
+          failureDebugInput.checked ? onFailurePreview : undefined
+        )
+      );
     } catch (error) {
       console.error(error);
       generationProgress.textContent = "都市の生成に失敗しました";
@@ -4381,9 +4474,14 @@ export function mountCityEditor(root: HTMLElement): void {
           ...context,
           samples: generationSamples
         });
+      if (failureDebugInput.checked && pendingFailurePreview) {
+        showFailurePreview(pendingFailurePreview, `失敗案 ${pendingFailurePreview.sample.attempt}（再試行なし）`);
+      }
+      pendingFailurePreview = null;
       showNotice("都市の生成に失敗しました");
       return;
     }
+    pendingFailurePreview = null;
     if (next.generationSeed) {
       generateSeed = next.generationSeed;
       syncGenerateControls();
@@ -4425,6 +4523,8 @@ export function mountCityEditor(root: HTMLElement): void {
     const source = completeSource;
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
 
+    clearFailurePreview();
+    pendingFailurePreview = null;
     let next: CityDocument | null = null;
     try {
       const finished =
@@ -4439,15 +4539,29 @@ export function mountCityEditor(root: HTMLElement): void {
         delete s7.fabric;
         next = s7;
       } else {
-        next = generateStageOnDocument(source, generateSettings, effectiveSeed, stage.step);
+        next = generateStageOnDocument(
+          source,
+          generateSettings,
+          effectiveSeed,
+          stage.step,
+          failureDebugInput.checked
+            ? preview => {
+                pendingFailurePreview = preview;
+              }
+            : undefined
+        );
       }
     } catch (error) {
       console.error(error);
     }
     if (!next) {
+      if (failureDebugInput.checked && pendingFailurePreview)
+        showFailurePreview(pendingFailurePreview, `失敗した工程 ${stage.label}`);
+      pendingFailurePreview = null;
       showNotice(`Generation failed at ${stage.label}`);
       return;
     }
+    pendingFailurePreview = null;
     if ((stage.step === 9 || stage.step === 10) && !completeResult) {
       completeResult = next;
     }

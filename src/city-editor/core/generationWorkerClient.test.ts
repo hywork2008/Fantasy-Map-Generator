@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGridDocument } from "./document";
 import { defaultGenerationSettings } from "./generate";
+import { captureGenerationDebugPreview } from "./generationDebug";
 import { startCityGeneration } from "./generationWorkerClient";
 
 function fixture() {
@@ -47,5 +48,32 @@ describe("generation worker lifecycle", () => {
     worker.onmessage!({ data: { type: "error", message: "invalid mesh" } } as MessageEvent);
     await rejected;
     expect(worker.terminate).toHaveBeenCalledOnce();
+  });
+  it("delivers a failure checkpoint only when debugging is enabled", async () => {
+    for (const enabled of [false, true]) {
+      const { worker, document, job } = fixture();
+      job.cancel();
+      await job.result.catch(() => {});
+      const onPreview = vi.fn();
+      const preview = captureGenerationDebugPreview(
+        document,
+        {
+          phase: "urban",
+          elapsedMs: 0,
+          attempt: 8,
+          failure: { reason: "urban-area-too-small", message: "too small" }
+        },
+        "worker:junction-retry:7"
+      );
+      const debugJob = startCityGeneration(
+        { document, settings: defaultGenerationSettings(), seed: "worker", debugFailure: enabled },
+        () => {},
+        () => worker,
+        onPreview
+      );
+      worker.onmessage!({ data: { type: "complete", document: null, failurePreview: preview } } as MessageEvent);
+      expect(await debugJob.result).toBeNull();
+      expect(onPreview).toHaveBeenCalledTimes(Number(enabled));
+    }
   });
 });
