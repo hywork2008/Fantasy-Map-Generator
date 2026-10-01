@@ -1931,7 +1931,7 @@ export function renderMoats(document: CityDocument): SVGGElement {
             d: line(edgeGroupPoints(document, run)),
             class: "ce-moat-water",
             fill: "none",
-            stroke: "#80bbc9",
+            stroke: "#91c8d3",
             "stroke-width": String(group.style.widthMeters + circuit.moat!.widthMeters * 2),
             "stroke-linejoin": "round",
             "stroke-linecap": "round"
@@ -2692,6 +2692,7 @@ export const STANDALONE_SVG_STYLE = `
   .ce-waterwheel-unit:hover { filter: drop-shadow(0 0 2px rgba(255,200,80,0.8)); }
   .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--openWater { fill: #456d7f; }
   .ce-svg--town .ce-face--lake { fill: #527f8b; }
+  .ce-svg--town .ce-moat-water { stroke: #527f8b; }
   .ce-svg--town .ce-edge { stroke: transparent; }
   .ce-svg--town .ce-feature { opacity: 1; }
   .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
