@@ -682,7 +682,7 @@ export function renderEditorSvg(
             ? group.kind === "road"
               ? "#d5cfbf"
               : group.kind === "river"
-                ? "#85857d"
+                ? "#527f8b"
                 : "#292a26"
             : group.style.color,
           "stroke-width": String(group.style.widthMeters),
@@ -2315,7 +2315,8 @@ export const STANDALONE_SVG_STYLE = `
   .ce-millhouse-base { fill: #b8ad98; stroke: #332f28; stroke-width: 0.45px; }
   .ce-weir-crest { stroke-linecap: round; }
   .ce-waterwheel-unit:hover { filter: drop-shadow(0 0 2px rgba(255,200,80,0.8)); }
-  .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--lake, .ce-svg--town .ce-face--openWater { fill: #85857d; }
+  .ce-svg--town .ce-face--sea, .ce-svg--town .ce-face--openWater { fill: #456d7f; }
+  .ce-svg--town .ce-face--lake { fill: #527f8b; }
   .ce-svg--town .ce-edge { stroke: transparent; }
   .ce-svg--town .ce-feature { opacity: 1; }
   .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
