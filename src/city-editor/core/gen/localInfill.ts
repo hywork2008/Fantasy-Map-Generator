@@ -183,8 +183,9 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
         const face = mesh.faces[fid];
         for (const ref of face.boundary) {
           const edge = mesh.edges[ref.edgeId];
-          if (walls.has(edge.id)) continue; // A locked wall barrier is never opened by procedural infill.
+          if (walls.has(edge.id) || edge.locked || face.properties.locked) continue;
           const other = edge.leftFace === fid ? edge.rightFace : edge.leftFace;
+          if (other && mesh.faces[other].properties.locked) continue;
           let priority = 0;
           if (roads.has(edge.id)) {
             priority = 2;

@@ -16,6 +16,7 @@ import type { CityDocument, Point } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
 import { createFabricPlan, districtDocument, resolveDistricts, setDistrictParameters } from "./fabricDistricts";
 import { pointInPolygon, polygonCentroid } from "./geom";
+import { buildLocalFabric } from "./localInfill";
 
 describe("bridge approach frontages", () => {
   it.each([
@@ -83,6 +84,15 @@ describe("bridge approach frontages", () => {
     for (const id of ["f16", "f27", "f28"]) {
       expect(fabric.buildings.some(b => b.faceId === id)).toBe(true);
     }
+  });
+});
+
+describe("local infill locked boundaries", () => {
+  it("does not recover a locked face through an adjacent reached face", () => {
+    const document = fixture();
+    document.mesh.faces.f1.properties.locked = true;
+
+    expect(buildLocalFabric(document).entrances.has("f1")).toBe(false);
   });
 });
 
