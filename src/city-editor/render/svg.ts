@@ -27,7 +27,7 @@ import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/p
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
-import { transformLandmarkPolygons } from "../core/landmarks";
+import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
@@ -911,13 +911,41 @@ export function renderEditorSvg(
   }
   svg.appendChild(elements);
   if (document.landmarks?.length) {
-    const landmarks = element("g", { class: "ce-historic-landmarks", "pointer-events": "none" });
+    const landmarks = element("g", {
+      class: "ce-historic-landmarks",
+      "pointer-events": tool === "select" ? "all" : "none"
+    });
     for (const instance of document.landmarks) {
       const asset = document.landmarkAssets?.find(
         a => a.id === instance.assetId && a.revision === instance.assetRevision
       );
+      const pick = encodeURIComponent(
+        JSON.stringify({
+          layer: "landmarks",
+          kind: "landmark",
+          id: instance.id,
+          label: asset?.name ?? `Missing landmark asset ${instance.assetId}`,
+          assetId: instance.assetId,
+          rotation: instance.rotation,
+          scale: instance.scale
+        })
+      );
+      const marker = element("g", { "data-pick": pick, "data-landmark": instance.id });
+      if (selection.inspectedId === instance.id) marker.classList.add("ce-is-selected");
+      for (const access of instance.accesses) {
+        for (const part of accessCorridor(access.points, access.widthMeters)) {
+          marker.appendChild(
+            element("path", {
+              d: polygon(part.outer),
+              fill: "#b2a78e",
+              stroke: "#675f50",
+              "stroke-width": "0.6"
+            })
+          );
+        }
+      }
       for (const part of instance.site) {
-        landmarks.appendChild(
+        marker.appendChild(
           element("path", {
             d: [polygon(part.outer), ...part.holes.map(polygon)].join(" "),
             "fill-rule": "evenodd",
@@ -928,7 +956,7 @@ export function renderEditorSvg(
         );
       }
       for (const part of asset ? transformLandmarkPolygons(asset.footprint, instance) : []) {
-        landmarks.appendChild(
+        marker.appendChild(
           element("path", {
             d: [polygon(part.outer), ...part.holes.map(polygon)].join(" "),
             "fill-rule": "evenodd",
@@ -938,6 +966,17 @@ export function renderEditorSvg(
           })
         );
       }
+      if (asset) {
+        const art = renderNormalizedLandmarkSvg(asset.renderSvg);
+        const c = Math.cos(instance.rotation) * instance.scale;
+        const s = Math.sin(instance.rotation) * instance.scale;
+        art.setAttribute(
+          "transform",
+          `matrix(${c} ${-s} ${-s} ${-c} ${instance.position[0]} ${-instance.position[1]})`
+        );
+        marker.appendChild(art);
+      }
+      landmarks.appendChild(marker);
     }
     svg.appendChild(landmarks);
   }
@@ -1832,6 +1871,60 @@ function element(name: string, attrs: Record<string, string>, content?: string):
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
   if (content) node.textContent = content;
   return node;
+}
+
+/** Rebuild only static geometry from the embedded plan; never adopt source DOM nodes or links. */
+function renderNormalizedLandmarkSvg(markup: string): SVGGElement {
+  const output = element("g", { class: "ce-landmark-art", "pointer-events": "none" }) as SVGGElement;
+  if (typeof DOMParser === "undefined" || markup.length > 100_000) return output;
+  const source = new DOMParser().parseFromString(markup, "image/svg+xml");
+  if (source.querySelector("parsererror") || source.documentElement.localName !== "svg") return output;
+  const tags = new Set(["g", "path", "circle", "rect", "ellipse", "polygon", "polyline", "line"]);
+  const attrs = new Set([
+    "d",
+    "points",
+    "x",
+    "y",
+    "x1",
+    "x2",
+    "y1",
+    "y2",
+    "cx",
+    "cy",
+    "r",
+    "rx",
+    "ry",
+    "width",
+    "height",
+    "fill",
+    "fill-rule",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "opacity",
+    "fill-opacity",
+    "stroke-opacity",
+    "transform"
+  ]);
+  let count = 0;
+  const append = (sourceParent: Element, target: SVGElement): void => {
+    for (const child of Array.from(sourceParent.children)) {
+      if (++count > 1_000) return;
+      if (!tags.has(child.localName)) continue;
+      const node = element(child.localName, {});
+      for (const attribute of Array.from(child.attributes)) {
+        if (!attrs.has(attribute.localName) || attribute.namespaceURI) continue;
+        if (/url\s*\(|[<>]|javascript:|data:/i.test(attribute.value)) continue;
+        if (attribute.localName === "transform" && /[^\d\s.,+\-eE()a-z]/.test(attribute.value)) continue;
+        node.setAttribute(attribute.localName, attribute.value);
+      }
+      target.appendChild(node);
+      if (child.localName === "g") append(child, node);
+    }
+  };
+  append(source.documentElement, output);
+  return output;
 }
 
 function isPoint(point: Point | undefined): point is Point {

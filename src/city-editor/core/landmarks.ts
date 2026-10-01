@@ -1,4 +1,4 @@
-import { pointInPolygon, segmentSegmentHit } from "./gen/geom";
+import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
 import { facePoints } from "./mesh";
 import type { CityDocument, LandmarkAsset, LandmarkInstance, LandmarkPolygon, Point } from "./types";
 
@@ -31,6 +31,11 @@ function inFilledPolygon(point: Point, polygon: LandmarkPolygon): boolean {
   return pointInPolygon(point, polygon.outer) && !polygon.holes.some(hole => pointInPolygon(point, hole));
 }
 
+function segmentHitsPolygon(a: Point, b: Point, polygon: Point[]): boolean {
+  if (pointInPolygon(a, polygon) || pointInPolygon(b, polygon)) return true;
+  return ringEdges(polygon).some(([c, d]) => segmentSegmentHit(a, b, c, d) !== null);
+}
+
 /** Positive-area intersection, respecting courtyard holes and concave boundaries. */
 export function polygonIntersectsLandmark(polygon: Point[], site: LandmarkPolygon[]): boolean {
   return site.some(part => {
@@ -54,7 +59,37 @@ export function polygonIntersectsLandmark(polygon: Point[], site: LandmarkPolygo
 }
 
 export function landmarkReservationHits(document: CityDocument, polygon: Point[]): boolean {
-  return (document.landmarks ?? []).some(instance => polygonIntersectsLandmark(polygon, instance.site));
+  return (document.landmarks ?? []).some(
+    instance =>
+      polygonIntersectsLandmark(polygon, instance.site) ||
+      instance.accesses.some(access =>
+        accessCorridor(access.points, access.widthMeters).some(part => polygonIntersectsLandmark(polygon, [part]))
+      )
+  );
+}
+
+export function accessCorridor(points: Point[], widthMeters: number): LandmarkPolygon[] {
+  const half = widthMeters / 2;
+  return points.slice(1).flatMap((end, i) => {
+    const start = points[i];
+    const dx = end[0] - start[0],
+      dy = end[1] - start[1];
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-6) return [];
+    const nx = (-dy / length) * half,
+      ny = (dx / length) * half;
+    return [
+      {
+        outer: [
+          [start[0] + nx, start[1] + ny],
+          [end[0] + nx, end[1] + ny],
+          [end[0] - nx, end[1] - ny],
+          [start[0] - nx, start[1] - ny]
+        ] as Point[],
+        holes: []
+      }
+    ];
+  });
 }
 
 /** Place one asset atomically. Rejected placements leave the original document untouched. */
@@ -126,6 +161,80 @@ export function placeLandmark(
       if (site.some(part => polygonIntersectsLandmark(band, [part]))) reasons.push(`Blocks ${group.kind} ${group.id}`);
     }
   }
+  const accesses: LandmarkInstance["accesses"] = [];
+  for (const entrance of asset.entrances.filter(entry => entry.required)) {
+    const start = transformLandmarkPoint(entrance.point, placement);
+    const outward: Point = [
+      entrance.outward[0] * Math.cos(placement.rotation) - entrance.outward[1] * Math.sin(placement.rotation),
+      entrance.outward[0] * Math.sin(placement.rotation) + entrance.outward[1] * Math.cos(placement.rotation)
+    ];
+    const candidates = document.featureGroups
+      .filter((group): group is Extract<typeof group, { kind: "road" | "wall" | "plank" }> => group.kind === "road")
+      .flatMap(group =>
+        group.segments.flatMap(ref => {
+          const edge = document.mesh.edges[ref.edgeId];
+          const a = document.mesh.vertices[edge?.a]?.point;
+          const b = document.mesh.vertices[edge?.b]?.point;
+          if (!a || !b) return [];
+          const nearest = nearestOnPolyline(start, [a, b]);
+          const point = nearest.point;
+          const distance = Math.hypot(point[0] - start[0], point[1] - start[1]);
+          const facing = (point[0] - start[0]) * outward[0] + (point[1] - start[1]) * outward[1];
+          if (distance > 80 || facing < -0.1) return [];
+          const corridor = accessCorridor([start, point], entrance.widthMeters);
+          if (
+            (document.landmarks ?? []).some(other =>
+              corridor.some(part => polygonIntersectsLandmark(part.outer, other.site))
+            )
+          )
+            return [];
+          if (
+            Object.values(document.mesh.faces).some(
+              face =>
+                (face.properties.water !== "land" ||
+                  face.properties.locked ||
+                  face.properties.ward === "castle" ||
+                  face.properties.ward === "cemetery") &&
+                corridor.some(part => polygonIntersectsLandmark(facePoints(document.mesh, face), [part]))
+            )
+          )
+            return [];
+          if (
+            document.featureGroups.some(obstacle =>
+              obstacle.kind === "wall" || obstacle.kind === "river"
+                ? obstacle.kind === "river"
+                  ? obstacle.vertices.slice(1).some((id, i) => {
+                      const c = document.mesh.vertices[obstacle.vertices[i]]?.point;
+                      const d = document.mesh.vertices[id]?.point;
+                      return c && d && corridor.some(part => segmentHitsPolygon(c, d, part.outer));
+                    })
+                  : obstacle.segments.some(segment => {
+                      const wall = document.mesh.edges[segment.edgeId];
+                      const c = document.mesh.vertices[wall.a]?.point;
+                      const d = document.mesh.vertices[wall.b]?.point;
+                      return c && d && corridor.some(part => segmentHitsPolygon(c, d, part.outer));
+                    })
+                : false
+            )
+          )
+            return [];
+          return [
+            {
+              distance,
+              access: {
+                entranceId: entrance.id,
+                points: [start, point],
+                widthMeters: entrance.widthMeters,
+                target: { kind: "road" as const, id: group.id, point }
+              }
+            }
+          ];
+        })
+      )
+      .sort((a, b) => a.distance - b.distance);
+    if (candidates.length) accesses.push(candidates[0].access);
+    else reasons.push(`No road access for ${entrance.id}`);
+  }
   if (reasons.length) return { document: null, reasons: [...new Set(reasons)] };
   const next: CityDocument = {
     ...document,
@@ -142,7 +251,7 @@ export function placeLandmark(
         assetId: asset.id,
         assetRevision: asset.revision,
         site,
-        accesses: [],
+        accesses,
         locked: false
       }
     ]
@@ -171,6 +280,7 @@ export function validateLandmarks(document: CityDocument): string[] {
       errors.push(`Invalid landmark asset ${key}`);
     if (!validPolygons(asset.footprint) || !validPolygons(asset.minimumSite))
       errors.push(`Invalid landmark geometry ${key}`);
+    if (!asset.entrances.some(e => e.required)) errors.push(`Missing required landmark entrance ${key}`);
     if (
       !asset.entrances.every(
         e =>
@@ -193,6 +303,13 @@ export function validateLandmarks(document: CityDocument): string[] {
     ids.add(instance.id);
     if (!assets.has(`${instance.assetId}@${instance.assetRevision}`))
       errors.push(`Missing landmark asset ${instance.id}`);
+    const asset = assets.get(`${instance.assetId}@${instance.assetRevision}`);
+    if (
+      asset?.entrances.some(
+        entrance => entrance.required && !instance.accesses.some(access => access.entranceId === entrance.id)
+      )
+    )
+      errors.push(`Unconnected landmark entrance ${instance.id}`);
     if (
       !finitePoint(instance.position) ||
       !Number.isFinite(instance.rotation) ||
@@ -201,6 +318,23 @@ export function validateLandmarks(document: CityDocument): string[] {
       !validPolygons(instance.site)
     )
       errors.push(`Invalid landmark instance ${instance.id}`);
+    for (const access of instance.accesses) {
+      if (
+        !access.entranceId ||
+        access.points.length < 2 ||
+        !access.points.every(finitePoint) ||
+        !Number.isFinite(access.widthMeters) ||
+        access.widthMeters <= 0 ||
+        (access.target.kind !== "road" && access.target.kind !== "lane") ||
+        !finitePoint(access.target.point)
+      )
+        errors.push(`Invalid landmark access ${instance.id}`);
+      if (
+        access.target.kind === "road" &&
+        !document.featureGroups.some(group => group.kind === "road" && group.id === access.target.id)
+      )
+        errors.push(`Missing landmark road ${instance.id}`);
+    }
   }
   return errors;
 }

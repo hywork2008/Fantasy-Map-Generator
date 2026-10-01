@@ -369,4 +369,15 @@ export interface CityDocument {
   generationSeed?: string;
 }
 
-export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "wardWall" | "junction" | "face";
+export type Tool =
+  | "select"
+  | "vertex"
+  | "road"
+  | "wall"
+  | "river"
+  | "ward"
+  | "sea"
+  | "wardWall"
+  | "junction"
+  | "face"
+  | "landmark";

@@ -95,6 +95,7 @@ import {
 import { type GenerationSample, generationPhaseLabel, logGenerationFailures } from "../core/generationDiagnostics";
 import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
+import { placeLandmark, transformLandmarkPolygons, validateLandmarks } from "../core/landmarks";
 import {
   clone,
   edgeBetween,
@@ -122,6 +123,7 @@ import type {
   CityDocument,
   FeatureGroup,
   Id,
+  LandmarkAsset,
   Point,
   SettlementRole,
   SettlementScale,
@@ -157,6 +159,7 @@ import {
 
 const TOOLS: Array<[Tool, string, string]> = [
   ["select", "Select and move", "↖"],
+  ["landmark", "Place historic landmark", "⌂"],
   ["vertex", "Edit vertices", "⌘"],
   ["road", "Draw road", "╱"],
   ["wall", "Draw wall", "▥"],
@@ -230,6 +233,9 @@ export function mountCityEditor(root: HTMLElement): void {
   // renderer separately.
   let referenceImage: CityDocument["referenceImage"] | null = null;
   let tool: Tool = "select";
+  let landmarkAssetId = "";
+  let landmarkRotationDegrees = 0;
+  let landmarkHoverPoint: Point | null = null;
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
   let inspectedInfo: SvgPickInfo | null = null;
   let activeGroupId: Id | null = null;
@@ -411,6 +417,54 @@ export function mountCityEditor(root: HTMLElement): void {
     toolGrid.appendChild(button);
   }
   toolbar.content.appendChild(toolGrid);
+  const landmarkControls = div("ce-landmark-controls");
+  const landmarkSelect = document.createElement("select");
+  landmarkSelect.setAttribute("aria-label", "Historic landmark asset");
+  landmarkSelect.addEventListener("change", () => {
+    landmarkAssetId = landmarkSelect.value;
+    refresh();
+  });
+  const landmarkAngle = document.createElement("input");
+  landmarkAngle.type = "number";
+  landmarkAngle.min = "-180";
+  landmarkAngle.max = "180";
+  landmarkAngle.step = "15";
+  landmarkAngle.value = "0";
+  landmarkAngle.title = "Landmark rotation in degrees";
+  landmarkAngle.addEventListener("change", () => {
+    landmarkRotationDegrees = Number(landmarkAngle.value) || 0;
+    updateLandmarkPreview();
+  });
+  const landmarkFile = document.createElement("input");
+  landmarkFile.type = "file";
+  landmarkFile.accept = ".json,application/json";
+  landmarkFile.title = "Import a reviewed landmark asset JSON";
+  landmarkFile.addEventListener("change", () => {
+    const file = landmarkFile.files?.[0];
+    if (!file) return;
+    void file.text().then(source => {
+      try {
+        const asset = JSON.parse(source) as LandmarkAsset;
+        const trial: CityDocument = { ...documentState, version: 3, landmarkAssets: [asset], landmarks: [] };
+        if (validateLandmarks(trial).length) throw new Error("Invalid asset");
+        const already = (documentState.landmarkAssets ?? []).some(
+          item => item.id === asset.id && item.revision === asset.revision
+        );
+        if (!already)
+          commit(
+            { ...documentState, version: 3, landmarkAssets: [...(documentState.landmarkAssets ?? []), asset] },
+            `Import ${asset.name}`
+          );
+        landmarkAssetId = `${asset.id}@${asset.revision}`;
+        tool = "landmark";
+        refresh();
+      } catch {
+        showNotice("ランドマーク素材の形式を確認してください。");
+      }
+    });
+  });
+  landmarkControls.append(landmarkSelect, landmarkAngle, landmarkFile);
+  toolbar.content.appendChild(landmarkControls);
   const paintButtons = new Map<WardKind | "sea" | "erase", HTMLButtonElement>();
   const paintGrid = div("ce-icon-row");
   for (const { kind, label: paintLabel } of PAINT_BRUSHES) {
@@ -1250,6 +1304,11 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (tool === "landmark" && !isPanning) {
+      landmarkHoverPoint = localPoint(event);
+      updateLandmarkPreview();
+      return;
+    }
     if (tool === "wardWall" || circularWallStroke) updateCircularWallPreview(event);
     if (circularWallStroke) return;
     if (isBrushTool(tool)) updateWardBrushPreview(event);
@@ -1444,6 +1503,24 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
+    if (tool === "landmark") {
+      const asset = selectedLandmarkAsset();
+      if (!asset) {
+        showNotice("ランドマーク素材を読み込んでください。");
+        return;
+      }
+      const result = placeLandmark(documentState, asset, {
+        id: `landmark-${crypto.randomUUID()}`,
+        position: localPoint(event as PointerEvent),
+        rotation: (landmarkRotationDegrees * Math.PI) / 180,
+        scale: 1
+      });
+      if (result.document) {
+        commit(result.document, `Place ${asset.name}`);
+        landmarkHoverPoint = null;
+      } else showNotice(result.reasons.join("; "));
+      return;
+    }
     let target = event.target instanceof Element ? event.target : null;
     if (target === map || target?.tagName.toLowerCase() === "svg") {
       const under =
@@ -1998,6 +2075,25 @@ export function mountCityEditor(root: HTMLElement): void {
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
+    const assets = documentState.landmarkAssets ?? [];
+    landmarkSelect.replaceChildren(
+      ...assets.map(asset => {
+        const option = document.createElement("option");
+        option.value = `${asset.id}@${asset.revision}`;
+        option.textContent = `${asset.name} (${asset.historicalPhase})`;
+        return option;
+      })
+    );
+    if (!assets.length) {
+      const option = document.createElement("option");
+      option.textContent = "Import reviewed asset…";
+      option.value = "";
+      landmarkSelect.appendChild(option);
+    }
+    if (!assets.some(asset => `${asset.id}@${asset.revision}` === landmarkAssetId))
+      landmarkAssetId = assets.length ? `${assets[0].id}@${assets[0].revision}` : "";
+    landmarkSelect.value = landmarkAssetId;
+    landmarkControls.hidden = tool !== "landmark";
     currentBuildingPatternSelect.value =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     historicalPeriodSelect.value = documentState.historicalPeriod ?? "ageOfExploration";
@@ -2113,6 +2209,71 @@ export function mountCityEditor(root: HTMLElement): void {
     updateRoutePreview();
     updateHoverOverlay();
     updateMeasureOverlay();
+    updateLandmarkPreview();
+  }
+
+  function selectedLandmarkAsset(): LandmarkAsset | null {
+    return documentState.landmarkAssets?.find(asset => `${asset.id}@${asset.revision}` === landmarkAssetId) ?? null;
+  }
+
+  function updateLandmarkPreview(): void {
+    const svg = map.querySelector("svg");
+    if (!svg) return;
+    svg.querySelector(".ce-landmark-preview")?.remove();
+    const asset = selectedLandmarkAsset();
+    if (tool !== "landmark" || !asset || !landmarkHoverPoint) return;
+    const placement = {
+      id: "preview-landmark",
+      position: landmarkHoverPoint,
+      rotation: (landmarkRotationDegrees * Math.PI) / 180,
+      scale: 1
+    };
+    const preview = placeLandmark(documentState, asset, placement);
+    const layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    layer.classList.add("ce-landmark-preview");
+    layer.setAttribute("pointer-events", "none");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const site = transformLandmarkPolygons(asset.minimumSite, placement);
+    path.setAttribute(
+      "d",
+      site
+        .flatMap(part => [part.outer, ...part.holes])
+        .map(ring => `M ${ring.map(point => `${point[0]} ${-point[1]}`).join(" L ")} Z`)
+        .join(" ")
+    );
+    path.setAttribute("fill-rule", "evenodd");
+    path.setAttribute("fill", preview.document ? "#68aa6a66" : "#c2606066");
+    path.setAttribute("stroke", preview.document ? "#267943" : "#a22525");
+    path.setAttribute("stroke-width", "2");
+    layer.appendChild(path);
+    const footprint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    footprint.setAttribute(
+      "d",
+      transformLandmarkPolygons(asset.footprint, placement)
+        .flatMap(part => [part.outer, ...part.holes])
+        .map(ring => `M ${ring.map(point => `${point[0]} ${-point[1]}`).join(" L ")} Z`)
+        .join(" ")
+    );
+    footprint.setAttribute("fill-rule", "evenodd");
+    footprint.setAttribute("fill", preview.document ? "#357a5477" : "#a8444477");
+    footprint.setAttribute("stroke", preview.document ? "#1d6539" : "#8b1d1d");
+    layer.appendChild(footprint);
+    for (const access of preview.document?.landmarks?.at(-1)?.accesses ?? []) {
+      const route = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      route.setAttribute("d", `M ${access.points.map(point => `${point[0]} ${-point[1]}`).join(" L ")}`);
+      route.setAttribute("fill", "none");
+      route.setAttribute("stroke", "#267943");
+      route.setAttribute("stroke-width", String(access.widthMeters));
+      layer.appendChild(route);
+    }
+    const message = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    message.textContent = preview.document ? `${asset.name} — place` : preview.reasons.slice(0, 2).join("; ");
+    message.setAttribute("x", String(landmarkHoverPoint[0]));
+    message.setAttribute("y", String(-landmarkHoverPoint[1] - 14));
+    message.setAttribute("font-size", "11");
+    message.setAttribute("fill", preview.document ? "#165a34" : "#8b1d1d");
+    layer.appendChild(message);
+    svg.appendChild(layer);
   }
 
   /**
@@ -2761,6 +2922,23 @@ export function mountCityEditor(root: HTMLElement): void {
       });
 
       inspector.content.append(kind, content, clearButton);
+
+      if (inspectedInfo.layer === "landmarks" && typeof inspectedInfo.id === "string") {
+        const instance = documentState.landmarks?.find(item => item.id === inspectedInfo?.id);
+        if (instance && !instance.locked) {
+          inspector.content.appendChild(
+            makeButton("Delete landmark", () => {
+              commit(
+                { ...documentState, landmarks: documentState.landmarks?.filter(item => item.id !== instance.id) },
+                `Delete ${inspectedInfo?.label ?? "landmark"}`
+              );
+              inspectedInfo = null;
+              selection.inspectedId = null;
+              refresh();
+            })
+          );
+        }
+      }
 
       const editSection = div("ce-inspector-edit-section");
       populateInspectorEditControls(editSection);

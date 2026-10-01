@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDocument } from "../core/document";
 import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
 import { faceNeighbors, faceVertices, meshFromCells } from "../core/mesh";
-import type { CityDocument, Point } from "../core/types";
+import type { CityDocument, LandmarkAsset, Point } from "../core/types";
 import {
   faceClassName,
   parsePickInfo,
@@ -801,6 +801,71 @@ describe("renderEditorSvg showGridLines", () => {
 });
 
 describe("renderStandaloneCitySvg / serializeCitySvg", () => {
+  it("embeds normalized landmark art without source links or scripts", () => {
+    const document = createDocument("landmark-svg", 400);
+    const asset: LandmarkAsset = {
+      id: "plan",
+      revision: "1",
+      name: "Plan",
+      historicalPhase: "test",
+      referenceSizeMeters: [10, 10],
+      dimensionSource: "test",
+      provenanceId: "test",
+      footprint: [
+        {
+          outer: [
+            [-5, -5],
+            [5, -5],
+            [5, 5],
+            [-5, 5]
+          ],
+          holes: []
+        }
+      ],
+      minimumSite: [
+        {
+          outer: [
+            [-6, -6],
+            [6, -6],
+            [6, 6],
+            [-6, 6]
+          ],
+          holes: []
+        }
+      ],
+      entrances: [],
+      renderSvg:
+        '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 0L5 5Z" fill="#123456"/><script>alert(1)</script><image href="https://example.com/x.png"/></svg>'
+    };
+    document.version = 3;
+    document.landmarkAssets = [asset];
+    document.landmarks = [
+      {
+        id: "one",
+        assetId: "plan",
+        assetRevision: "1",
+        position: [20, 30],
+        rotation: 0,
+        scale: 1,
+        site: asset.minimumSite,
+        accesses: [],
+        locked: false
+      }
+    ];
+    const svg = renderStandaloneCitySvg(document);
+    expect(svg.querySelector(".ce-landmark-art path")?.getAttribute("fill")).toBe("#123456");
+    expect(svg.querySelector("[data-landmark]")?.getAttribute("data-pick")).toBeNull();
+    const editor = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+    expect(parsePickInfo(editor.querySelector("[data-landmark]")?.getAttribute("data-pick") ?? null)?.id).toBe("one");
+    expect(svg.querySelector(".ce-landmark-art")?.getAttribute("transform")).toContain("20 -30");
+    expect(svg.querySelector(".ce-landmark-art script, .ce-landmark-art image")).toBeNull();
+  });
   it("creates a standalone SVG with appropriate attributes, background, and embedded style", () => {
     const document = createDocument("standalone-test", 600);
     const svg = renderStandaloneCitySvg(document);
