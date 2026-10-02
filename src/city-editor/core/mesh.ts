@@ -334,7 +334,12 @@ function protectedVertex(document: CityDocument, id: Id): boolean {
   );
 }
 
-export function moveVertex(document: CityDocument, vertexId: Id, point: Point): CityDocument | null {
+export function moveVertex(
+  document: CityDocument,
+  vertexId: Id,
+  point: Point,
+  allowExistingErrors = false
+): CityDocument | null {
   if (protectedVertex(document, vertexId)) return null;
   const next = clone(document);
   const vertex = next.mesh.vertices[vertexId];
@@ -343,7 +348,11 @@ export function moveVertex(document: CityDocument, vertexId: Id, point: Point): 
   if (Math.abs(point[0]) > half || Math.abs(point[1]) > half) return null;
   vertex.point = point;
   if (!refreshCastleLayouts(next)) return null;
-  return validate(next).length ? null : next;
+  const errors = validate(next);
+  if (!errors.length) return next;
+  if (!allowExistingErrors) return null;
+  const existing = new Set(validate(document));
+  return errors.every(error => existing.has(error)) ? next : null;
 }
 
 /**

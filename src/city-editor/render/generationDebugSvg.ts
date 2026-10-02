@@ -4,7 +4,11 @@ import type { Point } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
 /** Tolerates broken meshes; avoids town infill and picking on rejected geometry. */
-export function renderGenerationDebugSvg(preview: GenerationDebugPreview, viewBox: string): SVGSVGElement {
+export function renderGenerationDebugSvg(
+  preview: GenerationDebugPreview,
+  viewBox: string,
+  edit?: { showVertices: boolean; selectedVertexId: string | null }
+): SVGSVGElement {
   const { document: city, highlights } = preview;
   const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("viewBox", viewBox);
@@ -49,12 +53,19 @@ export function renderGenerationDebugSvg(preview: GenerationDebugPreview, viewBo
   for (const face of Object.values(city.mesh.faces)) {
     const points = facePoints(face.id);
     if (points.length < 3) continue;
-    addPath(
+    const node = addPath(
       path(points, true),
       face.properties.water !== "land" ? "#b4d8ed" : face.properties.buildable ? "#e2dbc8" : "#edf0e4",
       "#a4ab9f",
       0.6
     );
+    if (edit) {
+      node.setAttribute("data-face", face.id);
+      node.setAttribute(
+        "data-pick",
+        encodeURIComponent(JSON.stringify({ layer: "cells", kind: "cell", id: face.id, label: `cell #${face.id}` }))
+      );
+    }
   }
   // Moat geometry needs intact boundaries. Skip it on malformed meshes.
   const intact = Object.values(city.mesh.faces).every(f =>
@@ -127,6 +138,47 @@ export function renderGenerationDebugSvg(preview: GenerationDebugPreview, viewBo
     tip.textContent = id;
     circle.append(tip);
     svg.append(circle);
+  }
+  if (edit) {
+    for (const edge of Object.values(city.mesh.edges)) {
+      const a = point(edge.a),
+        b = point(edge.b);
+      if (!a || !b) continue;
+      const node = addPath(path([a, b]), "none", "transparent", Math.max(3, city.frame.extentMeters / 200));
+      node.setAttribute("data-edge", edge.id);
+    }
+    const vertices = document.createElementNS(NS, "g");
+    vertices.setAttribute("class", "ce-vertices");
+    for (const vertex of Object.values(city.mesh.vertices)) {
+      if (!point(vertex.id) || (!edit.showVertices && vertex.id !== edit.selectedVertexId)) continue;
+      const node = document.createElementNS(NS, "circle");
+      node.setAttribute("cx", String(vertex.point[0]));
+      node.setAttribute("cy", String(-vertex.point[1]));
+      node.setAttribute("r", String(Math.max(2, city.frame.extentMeters / 300)));
+      node.setAttribute("fill", vertex.id === edit.selectedVertexId ? "#ffcc33" : "#ffffff");
+      node.setAttribute("stroke", "#333333");
+      node.setAttribute("class", "ce-vertex");
+      node.setAttribute("data-vertex", vertex.id);
+      node.setAttribute(
+        "data-pick",
+        encodeURIComponent(
+          JSON.stringify({
+            layer: "vertices",
+            kind: "vertex",
+            id: vertex.id,
+            label: `vertex #${vertex.id}`,
+            point: vertex.point
+          })
+        )
+      );
+      vertices.append(node);
+    }
+    svg.append(vertices);
+    for (const name of ["ce-hover-layer", "ce-route-preview-layer", "ce-measure-layer"]) {
+      const group = document.createElementNS(NS, "g");
+      group.setAttribute("class", name);
+      svg.append(group);
+    }
   }
   return svg;
 }

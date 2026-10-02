@@ -330,7 +330,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let generationSamples: GenerationSample[] = [];
   let pendingFailurePreview: GenerationDebugPreview | null = null;
   let failurePreview: GenerationDebugPreview | null = null;
-  let failurePreviewSource: CityDocument | null = null;
+  let failureRenderContext: GenerationDebugPreview | null = null;
+  let failurePreviewHistoryIndex: number | null = null;
   const failureDebugInput = checkbox(false, checked => {
     if (!checked) clearFailurePreview();
   });
@@ -339,7 +340,7 @@ export function mountCityEditor(root: HTMLElement): void {
   failureDebugSummary.className = "ce-generation-debug-summary";
   failureDebugSummary.setAttribute("aria-live", "polite");
   failureDebugSummary.hidden = true;
-  const closeFailurePreview = makeButton("失敗プレビューを閉じる", () => clearFailurePreview());
+  const closeFailurePreview = makeButton("失敗箇所の強調を閉じる", () => clearFailurePreview());
   closeFailurePreview.hidden = true;
   const generationProgress = document.createElement("output");
   generationProgress.className = "ce-generation-progress";
@@ -454,7 +455,6 @@ export function mountCityEditor(root: HTMLElement): void {
   const toolGrid = div("ce-icon-row");
   for (const [id, label, icon] of TOOLS) {
     const button = makeIconButton(icon, label, () => {
-      if (failurePreview) clearFailurePreview();
       tool = id;
       if (id !== "select") {
         inspectedInfo = null;
@@ -1292,7 +1292,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // A wheel-zoom just before this click may still be waiting on its frame;
     // hit-testing below reads the SVG, so settle it first.
     flushRedraw();
-    if (event.button === 1 || (event.button === 0 && (isSpacePressed || failurePreview))) {
+    if (event.button === 1 || (event.button === 0 && isSpacePressed)) {
       event.preventDefault();
       isPanning = true;
       hasPanned = false;
@@ -1301,7 +1301,7 @@ export function mountCityEditor(root: HTMLElement): void {
       map.setPointerCapture(event.pointerId);
       return;
     }
-    if (failurePreview || event.button !== 0) return;
+    if (event.button !== 0) return;
     const point = localPoint(event);
     if (tool === "wardWall") {
       event.preventDefault();
@@ -1512,7 +1512,6 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
-    if (failurePreview && !isPanning) return;
     if (shipDrag) {
       const point = localPoint(event);
       if (Math.hypot(point[0] - shipDrag.startPoint[0], point[1] - shipDrag.startPoint[1]) > 0.5) {
@@ -1578,9 +1577,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (isVertexDragging && selection.vertexId) {
       const point = localPoint(event);
-      const next = moveVertex(documentState, selection.vertexId, point);
+      const next = moveVertex(documentState, selection.vertexId, point, !!failureRenderContext);
       if (!next) return;
       documentState = next;
+      if (inspectedInfo?.kind === "vertex")
+        inspectedInfo = { ...inspectedInfo, point: next.mesh.vertices[selection.vertexId].point };
       dragMergeCandidateId = closestMergeCandidate(selection.vertexId);
       selection.hoverVertexId = dragMergeCandidateId;
       scheduleRedraw();
@@ -1756,7 +1757,6 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
-    if (failurePreview) return;
     if (tool === "landmark") {
       const asset = selectedLandmarkAsset();
       if (!asset) {
@@ -1973,7 +1973,6 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
-    if (failurePreview) return;
     flushRedraw();
     const isSelectTool = tool === "select";
     const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
@@ -2133,7 +2132,7 @@ export function mountCityEditor(root: HTMLElement): void {
       clearFailurePreview();
       return;
     }
-    if (event.key === "Enter" && !failurePreview) finishButton.click();
+    if (event.key === "Enter") finishButton.click();
     if (event.key === "Escape") {
       routeStroke = null;
       selection = emptySelection();
@@ -2204,7 +2203,15 @@ export function mountCityEditor(root: HTMLElement): void {
       refresh();
       return;
     }
-    if (validateFortifications(next).length && (!refreshCastleLayouts(next) || validateFortifications(next).length)) {
+    const fortificationErrors = validateFortifications(next);
+    const existingErrors = failureRenderContext ? new Set(validateFortifications(documentState)) : new Set<string>();
+    const preservesExistingErrors =
+      failureRenderContext && fortificationErrors.every(error => existingErrors.has(error));
+    if (
+      fortificationErrors.length &&
+      !preservesExistingErrors &&
+      (!refreshCastleLayouts(next) || validateFortifications(next).length)
+    ) {
       showNotice("城郭の整合性を保てない編集です。城域・城門・必須棟を確認してください。");
       return;
     }
@@ -2459,21 +2466,38 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function showFailurePreview(preview: GenerationDebugPreview, heading: string): void {
     failurePreview = preview;
-    failurePreviewSource = documentState;
+    failureRenderContext = preview;
+    const partial = structuredClone(preview.document);
+    partial.generationSeed = preview.seed;
+    documentState = history.commit(partial, "生成失敗の途中図");
+    failurePreviewHistoryIndex = history.index;
+    completeSource = null;
+    completeResult = null;
+    lastGeneratedStep = null;
+    activeStepStage = null;
+    stepIndex = -1;
+    stepStatus.textContent = "";
+    urbanCoreHighlight = null;
+    stepOverlayPaths = null;
+    hideBuildings = false;
+    hideStreetLines = false;
+    inspectedInfo = null;
+    clearGridEvo();
+    rebuildEditorIndexes();
     const { sample, seed, highlights } = preview;
-    failureDebugSummary.textContent = `${heading} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）: ${sample.failure?.message ?? ""} [${sample.failure?.reason ?? ""}] · Seed: ${seed}。${highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された門・辺・面"}。途中図は読み取り専用です。ドラッグとホイールで移動・拡大できます。`;
+    failureDebugSummary.textContent = `${heading} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）: ${sample.failure?.message ?? ""} [${sample.failure?.reason ?? ""}] · Seed: ${seed}。${highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された門・辺・面"}。途中図を編集できます。強調は失敗時点の診断です。Undoで生成前に戻れます。`;
     failureDebugSummary.hidden = false;
     closeFailurePreview.hidden = false;
     tool = "select";
     selection = emptySelection();
     activeGroupId = null;
-    redrawMap();
+    refresh();
   }
 
   function clearFailurePreview(): void {
     const wasVisible = failurePreview !== null;
     failurePreview = null;
-    failurePreviewSource = null;
+    failurePreviewHistoryIndex = null;
     failureDebugSummary.hidden = true;
     closeFailurePreview.hidden = true;
     if (wasVisible) redrawMap();
@@ -2485,13 +2509,24 @@ export function mountCityEditor(root: HTMLElement): void {
       redrawHandle = 0;
     }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
-    if (failurePreview && failurePreviewSource !== documentState) {
+    if (failurePreview && failurePreviewHistoryIndex !== null && history.index < failurePreviewHistoryIndex) {
       failurePreview = null;
       failureDebugSummary.hidden = true;
       closeFailurePreview.hidden = true;
     }
-    if (failurePreview) {
-      map.replaceChildren(renderGenerationDebugSvg(failurePreview, box));
+    if (failurePreview) failurePreview = { ...failurePreview, document: documentState };
+    if (failureRenderContext && validate(documentState).length) {
+      const editablePreview = failurePreview ?? {
+        ...failureRenderContext,
+        document: documentState,
+        highlights: { vertices: [], edges: [], faces: [], contextual: false }
+      };
+      map.replaceChildren(
+        renderGenerationDebugSvg(editablePreview, box, {
+          showVertices: tool === "vertex" || tool === "river",
+          selectedVertexId: selection.vertexId
+        })
+      );
       housingSummary.hidden = true;
       faceElementsById.clear();
       wardLandmarksGroup = null;
@@ -2516,6 +2551,17 @@ export function mountCityEditor(root: HTMLElement): void {
       hideStreetLines,
       renderQualitySelect.value as RenderQuality
     );
+    if (failurePreview) {
+      svg.classList.add("ce-generation-debug");
+      svg.setAttribute("data-attempt", String(failurePreview.sample.attempt));
+      svg.setAttribute("data-seed", failurePreview.seed);
+      const highlights = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      highlights.setAttribute("pointer-events", "none");
+      highlights.append(
+        ...renderGenerationDebugSvg(failurePreview, box).querySelectorAll(".ce-generation-debug-highlight")
+      );
+      svg.append(highlights);
+    }
     map.replaceChildren(svg);
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
     const outerBuildings = Number(svg.getAttribute("data-outskirts-buildings") ?? 0);
@@ -3601,7 +3647,9 @@ export function mountCityEditor(root: HTMLElement): void {
     faceBucketSize = Math.max(documentState.frame.blockSizeMeters * 2, documentState.frame.extentMeters / 32);
     faceBuckets = new Map();
     for (const face of Object.values(documentState.mesh.faces)) {
+      if (face.boundary.some(ref => !documentState.mesh.edges[ref.edgeId])) continue;
       const points = facePoints(documentState.mesh, face);
+      if (!points.length || points.some(p => !p.every(Number.isFinite))) continue;
       const minX = Math.min(...points.map(point => point[0]));
       const maxX = Math.max(...points.map(point => point[0]));
       const minY = Math.min(...points.map(point => point[1]));

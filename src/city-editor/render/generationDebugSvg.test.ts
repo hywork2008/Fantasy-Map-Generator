@@ -23,6 +23,12 @@ it("renders a rejected mesh with missing edges safely, and marks the reported ve
   expect(svg.getAttribute("data-attempt")).toBe("8");
   expect(svg.outerHTML).not.toContain("NaN");
   expect(svg.querySelector("[data-pick]")).toBeNull();
+  const editable = renderGenerationDebugSvg(preview, "-150 -150 300 300", {
+    showVertices: true,
+    selectedVertexId: vertexId
+  });
+  expect(editable.querySelector(`[data-vertex="${vertexId}"][data-pick]`)).not.toBeNull();
+  expect(editable.querySelector("[data-edge]")).not.toBeNull();
 });
 
 it("exports a standalone full-frame SVG with highlights and failure diagnostics", () => {
