@@ -395,6 +395,56 @@ describe("Ward landmarks", () => {
     expect(svgMesh.querySelectorAll(".ce-element--harbor").length).toBe(1);
     expect(svgMesh.querySelectorAll(".ce-ship").length).toBe(1);
   });
+
+  it("prevents duplicate harbor anchor marks on cells that already render ward landmarks when showBlockMesh is ON", async () => {
+    const { createGridDocument } = await import("../core/document");
+    const { defaultGenerationSettings, generateCityOnDocument } = await import("../core/generate");
+    const input = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "1v0y52u",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = {
+      ...defaultGenerationSettings(),
+      config: {
+        coast: "straight" as const,
+        rivers: ["greatBend", "toCoast"],
+        relief: false,
+        features: { walls: false, citadel: false, plaza: true, temple: true, port: true, shanty: false },
+        wall: { envelope: "auto", coast: "auto", line: "auto" },
+        layout: "auto"
+      },
+      streets: { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true },
+      buildingPattern: "medieval" as const,
+      layout: "organic" as const,
+      walledAreaShare: 1,
+      historicalPeriod: "ageOfExploration" as const
+    };
+    const city = generateCityOnDocument(input, settings, "jn1kg0");
+    const emptySel = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const svgMesh = renderEditorSvg(
+      city,
+      "select",
+      emptySel,
+      "-200 -200 400 400",
+      1,
+      null,
+      null,
+      null,
+      null,
+      true // showBlockMesh = true
+    );
+    // f28 should have exactly 1 harbor marker (ward-f28) and no duplicate gc:harbor marker
+    expect(svgMesh.querySelector('[data-element="ward-f28"]')).not.toBeNull();
+    expect(svgMesh.querySelector('[data-element="gc:harbor"]')).toBeNull();
+    // In total, each harbor cell should have exactly one harbor landmark
+    const harborMarkers = svgMesh.querySelectorAll(".ce-element--harbor");
+    const harborFaces = Object.values(city.mesh.faces).filter(
+      f => f.properties.ward === "harbor" && f.properties.water === "land"
+    );
+    expect(harborMarkers.length).toBe(harborFaces.length);
+  });
 });
 
 describe("faceClassName / renderFaceWardLandmark", () => {
