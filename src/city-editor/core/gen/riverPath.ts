@@ -148,11 +148,9 @@ export function walkRiver(
     ? rawSmooth.map((p, i) => (i < rawSmooth.length - 1 && pointInPolygon(p, waterPolygon) ? edgePoints[i] : p))
     : rawSmooth;
 
-  // INVARIANT: both ends of the drawn centreline must be RESOLVED — within ~1
-  // cell of a map edge, or in / at the sea. The walk often stops a little short
-  // of that. finalizeEnds snaps each end to whichever (edge or shoreline) it can
-  // reach with a short, grid-respecting step; if an end can reach neither, the
-  // river is not viable for this geography and the whole thing is dropped.
+  // Resolve the smoothed mouth at the coast (or frame for inland rivers).
+  // Coastal sources are resolved separately along dry graph edges below;
+  // snapping them to the nearest shoreline would create a sea-to-sea river.
   const finalized = finalizeEnds(clamped, halfExtentMeters, cellSizeMeters, waterPolygon, shoreline);
   if (!finalized) return dead;
   // Snapping the mouth onto the shore can strand the previous (smoothed,
@@ -211,7 +209,7 @@ function extendRiverEnds(
     return Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - MERGE_QUANTUM;
   };
   const atSea = (id: number): boolean => reachesSea(graph.points[id]);
-  const extend = (path: number[], resolved: (id: number) => boolean): number[] => {
+  const extend = (path: number[], resolved: (id: number) => boolean, upstream = false): number[] => {
     const tip = path[path.length - 1];
     if (resolved(tip)) return path;
     const blocked = new Set(path.slice(0, -1));
@@ -234,7 +232,7 @@ function extendRiverEnds(
         return [...path, ...extension.reverse().slice(1)];
       }
       for (const { to, w } of graph.adjacency[id]) {
-        if (blocked.has(to)) continue;
+        if (blocked.has(to) || (upstream && atSea(to))) continue;
         if (blockedEdges?.has(graphEdgeKey(graph.points[id], graph.points[to]))) continue;
         const cost = distance[id] + w;
         if (cost >= distance[to]) continue;
@@ -245,10 +243,12 @@ function extendRiverEnds(
     }
     return path;
   };
-  nodes = extend(nodes.slice().reverse(), id => atFrame(id) || atSea(id)).reverse();
+  // Only the mouth may touch sea cells. A nearby shore is not a source.
+  nodes = extend(nodes.slice().reverse(), id => atFrame(id) && !atSea(id), true).reverse();
   nodes = extend(nodes, id => (hasSea ? atSea(id) : atFrame(id)));
   if (
-    (!atFrame(nodes[0]) && !atSea(nodes[0])) ||
+    !atFrame(nodes[0]) ||
+    atSea(nodes[0]) ||
     !(hasSea ? atSea(nodes[nodes.length - 1]) : atFrame(nodes[nodes.length - 1]))
   )
     return [];
@@ -302,10 +302,9 @@ export function applyVertexShifts(points: Point[], shifts: Map<string, Point>): 
 }
 
 /**
- * Enforce the endpoint invariant. Each end independently: keep it if already
- * resolved (near a map edge, or in/at the sea); else snap it to the nearest of
- * {map edge, shoreline} that is within `REACH` and reachable without crossing
- * water; else the river is unviable — return null so the caller drops it.
+ * Snap the smoothed mouth to the frame or shoreline within reach. Inland
+ * sources also snap to the frame; coastal sources keep their dry walk tip
+ * until extendRiverEnds resolves the mesh path without touching sea cells.
  */
 function finalizeEnds(
   points: Point[],
@@ -344,7 +343,10 @@ function finalizeEnds(
   };
 
   /** null = drop river; the point = new tip to prepend/append; undefined = keep as-is. */
-  const resolve = (tip: Point): Point | null | undefined => {
+  const resolve = (tip: Point, upstream = false): Point | null | undefined => {
+    // The graph extension resolves the source along dry cell edges. Never
+    // snap the smoothed source to the coast when the frame is nearby.
+    if (upstream && waterPolygon !== null) return undefined;
     if (inSea(tip)) {
       // A proper mouth sits just past the coastline; a tip left deep in the water
       // (coarse grid, cape headland) is pulled back onto the shore.
@@ -374,7 +376,7 @@ function finalizeEnds(
   };
 
   const out = points.map(p => [p[0], p[1]] as Point);
-  const head = resolve(out[0]);
+  const head = resolve(out[0], true);
   if (head === null) return null;
   if (head) out.unshift(head);
   const tail = resolve(out[out.length - 1]);

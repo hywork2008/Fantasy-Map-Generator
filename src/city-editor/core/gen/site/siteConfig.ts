@@ -86,7 +86,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   relief: false,
   features: defaultFeatures(presetPopulation("smallCity")),
   wall: { ...DEFAULT_WALL_CHOICE },
-  layout: "auto"
+  layout: "organic"
 };
 
 /** A stable string form for RNG seeding / display. Deliberately omits `features`

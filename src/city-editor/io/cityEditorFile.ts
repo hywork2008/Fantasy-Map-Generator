@@ -1,5 +1,7 @@
 import { parseDocument } from "../core/document";
+import type { GenerationDebugPreview } from "../core/generationDebug";
 import type { CityDocument } from "../core/types";
+import { serializeGenerationDebugSvg } from "../render/generationDebugSvg";
 import { serializeCitySvg } from "../render/svg";
 import { importMfcgJson, importMfcgSvg } from "./mfcgImport";
 
@@ -32,12 +34,20 @@ export function exportCityMap(cityDocument: CityDocument): void {
 
 /** Download a rendered standalone SVG map snapshot. */
 export function exportCitySvg(cityDocument: CityDocument): void {
-  const svg = serializeCitySvg(cityDocument);
+  downloadSvg(serializeCitySvg(cityDocument), "ce");
+}
+
+/** Download the rejected checkpoint with failure highlights and diagnostics. */
+export function exportGenerationDebugSvg(preview: GenerationDebugPreview): void {
+  downloadSvg(serializeGenerationDebugSvg(preview), "ce-generation-failure");
+}
+
+function downloadSvg(svg: string, prefix: string): void {
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `ce-${formatExportTimestamp(new Date())}.svg`;
+  link.download = `${prefix}-${formatExportTimestamp(new Date())}.svg`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

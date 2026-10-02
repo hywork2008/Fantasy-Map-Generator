@@ -1,3 +1,23 @@
+export interface RoadRoutingTrace {
+  routeId?: string;
+  outside: boolean;
+  plannedPoints: number[][];
+  waypoints: string[];
+  status: "connected" | "failed";
+  reason?: string;
+  path: string[];
+  edges?: string[];
+  searches: Array<{
+    start: string;
+    end: string;
+    classification: "planned" | "current-curtain";
+    reachedCount: number;
+    partialPath: string[];
+    partialEdges: string[];
+    blocked: Array<{ edge: string; from: string; to: string; reason: string }>;
+  }>;
+}
+
 /** Transient diagnostics; never stored in a city document or undo history. */
 export interface GenerationFailure {
   /** Machine-readable cause, e.g. `urban-area-too-small`. */
@@ -6,6 +26,7 @@ export interface GenerationFailure {
   message: string;
   /** Extra "how" lines: ids, thresholds, validate() messages. */
   details?: string[];
+  routing?: RoadRoutingTrace[];
 }
 
 export interface GenerationSample {
@@ -31,9 +52,9 @@ export function generationPhaseLabel(phase: string): string {
   if (phase === "prepare") return "準備";
   if (phase === "complete") return "全体";
   if (phase === "apply-validation") return "メッシュ検証";
+  if (phase.includes("wall")) return "城壁・門";
   if (phase.includes("coast") || phase.includes("river") || phase.includes("terrain")) return "地形";
   if (phase === "urban") return "市街地";
-  if (phase.includes("wall")) return "城壁・門";
   if (phase.includes("street") || phase.includes("route") || phase.includes("road")) return "街道・橋";
   if (phase.includes("rectify") || phase.includes("geometry")) return "形状の仕上げ";
   if (phase.includes("crossing")) return "交差の検証";
@@ -48,14 +69,15 @@ export function reportGenerationFailure(
   reason: string,
   message: string,
   counts?: Record<string, number>,
-  details?: string[]
+  details?: string[],
+  routing?: RoadRoutingTrace[]
 ): GenerationSample {
   const sample: GenerationSample = {
     phase,
     elapsedMs: 0,
     attempt,
     counts,
-    failure: { reason, message, details }
+    failure: { reason, message, details, routing }
   };
   observer?.(sample);
   if (!observer) logGenerationFailures([sample]);
@@ -93,6 +115,24 @@ export function formatGenerationFailureLog(
       if (counts) lines.push(`    数値: ${counts}`);
     }
     for (const detail of failure.details ?? []) lines.push(`    ${detail}`);
+    for (const route of failure.routing ?? []) {
+      lines.push(
+        `    道路 ${route.routeId ?? "?"} (${route.outside ? "城外→門" : "門→城内"}): ${route.status}; waypoints=${route.waypoints.join(" → ")}; path=${route.path.join(" → ") || "なし"}`
+      );
+      lines.push(`      採用経路の辺: ${route.edges?.join(", ") || "なし"}`);
+      if (route.reason) lines.push(`      理由: ${route.reason}`);
+      lines.push(`      予定座標: ${JSON.stringify(route.plannedPoints)}`);
+      route.searches.forEach((search, index) => {
+        lines.push(
+          `      探索${index + 1} (${search.classification}): 始点=${search.start}, 終点=${search.end}, 到達頂点数=${search.reachedCount}`
+        );
+        lines.push(
+          `        最も終点に近づいた経路: ${search.partialPath.join(" → ")}; 辺: ${search.partialEdges.join(", ") || "なし"}`
+        );
+        for (const block of search.blocked)
+          lines.push(`        禁止: ${block.from} → ${block.to} (${block.edge}): ${block.reason}`);
+      });
+    }
   }
   return lines.join("\n");
 }
@@ -119,7 +159,8 @@ export function logGenerationFailures(
         reason: failure.reason,
         how: failure.message,
         counts: sample.counts,
-        details: failure.details
+        details: failure.details,
+        routing: failure.routing
       }
     );
   }

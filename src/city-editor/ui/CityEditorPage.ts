@@ -96,6 +96,7 @@ import {
   riversForCount,
   type SiteConfig
 } from "../core/generate";
+import type { GenerationDebugPreview } from "../core/generationDebug";
 import { type GenerationSample, generationPhaseLabel, logGenerationFailures } from "../core/generationDiagnostics";
 import { startCityGeneration } from "../core/generationWorkerClient";
 import { DocumentHistory } from "../core/history";
@@ -141,7 +142,14 @@ import type {
   WardKind,
   WaterKind
 } from "../core/types";
-import { exportCityMap, exportCitySvg, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
+import {
+  exportCityMap,
+  exportCitySvg,
+  exportGenerationDebugSvg,
+  type ImportedCityMap,
+  pickCityMap,
+  readCityMap
+} from "../io/cityEditorFile";
 import {
   buildShare,
   type CityEditorShare,
@@ -151,6 +159,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
   faceClassName,
@@ -167,6 +176,7 @@ import {
   renderRoutePreview,
   type SvgPickInfo
 } from "../render/svg";
+import { generationLogPanel } from "./generationLogPanel";
 
 const TOOLS: Array<[Tool, string, string]> = [
   ["select", "Select and move", "↖"],
@@ -307,18 +317,53 @@ export function mountCityEditor(root: HTMLElement): void {
   const generateSettings: GenerationSettings = { ...defaultGenerationSettings(), buildingPattern: "medieval" };
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
-  // ①→⑦ stay consistent with each other.
+  // ①→⑧ stay consistent with each other.
   let generateSeed = randomSeed();
   let hideBuildings = false;
-  /** Stage ⑩. Same document as ⑨; the town drawing omits intramural roads and block lanes. */
+  /** Stage ⑬. Same document as ⑫; the town drawing omits intramural roads and block lanes. */
   let hideStreetLines = false;
-  let currentStageStep = 9;
+  let currentStageStep = 12;
   let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
   let completeResult: CityDocument | null = null;
+  let completeResultSettings: string | null = null;
+  const generationHistory = new WeakMap<
+    object,
+    {
+      source: CityDocument;
+      result: CityDocument | null;
+      resultSettings: string | null;
+      settings: GenerationSettings;
+      seed: string;
+      stage: number;
+      lastStage: number | null;
+      activeStage: GenerationStage["id"] | null;
+      stepIndex: number;
+      stepStatus: string;
+      coreHighlight: Set<Id> | null;
+      overlayPaths: Point[][] | null;
+      hideBuildings: boolean;
+      hideStreetLines: boolean;
+    }
+  >();
   let generationJob: ReturnType<typeof startCityGeneration> | null = null;
   let generationSamples: GenerationSample[] = [];
+  let generationLogHover: { ids: string[]; seed: string } = { ids: [], seed: "" };
+  let pendingFailurePreview: GenerationDebugPreview | null = null;
+  let failurePreview: GenerationDebugPreview | null = null;
+  let failureRenderContext: GenerationDebugPreview | null = null;
+  let failurePreviewHistoryIndex: number | null = null;
+  const failureDebugInput = checkbox(false, checked => {
+    if (!checked) clearFailurePreview();
+  });
+  failureDebugInput.setAttribute("aria-label", "デバッグ：生成失敗の途中図を表示");
+  const failureDebugSummary = document.createElement("div");
+  failureDebugSummary.className = "ce-generation-debug-summary";
+  failureDebugSummary.setAttribute("aria-live", "polite");
+  failureDebugSummary.hidden = true;
+  const closeFailurePreview = makeButton("失敗箇所の強調を閉じる", () => clearFailurePreview());
+  closeFailurePreview.hidden = true;
   const generationProgress = document.createElement("output");
   generationProgress.className = "ce-generation-progress";
   generationProgress.setAttribute("aria-live", "polite");
@@ -341,7 +386,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let showGridLines = false;
   let lastGeneratedStep: number | null = null;
   // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
-  // WHICHEVER of the six processes was last activated (by pressing its stage
+  // WHICHEVER of the generation processes was last activated (by pressing its stage
   // button, or by ◀/▶ itself), one loop iteration at a time. `stepIndex` is
   // -1 = nothing stepped yet, so the first ▶ press lands on iteration 0.
   // `urbanCoreHighlight` / `stepOverlayPaths` are transient render tints for
@@ -402,6 +447,8 @@ export function mountCityEditor(root: HTMLElement): void {
   const inspector = floatingWindow("ce-inspector", "Inspector");
   const groups = floatingWindow("ce-groups", "Objects");
   const historyPanel = floatingWindow("ce-history", "History");
+  const logPanel = floatingWindow("ce-generation-log", "生成ログ");
+  const generationLog = generationLogPanel(logPanel.content, hoverGenerationLogObjects);
   const generatePanel = floatingWindow("ce-generate", "Generate");
   const status = document.createElement("output");
   status.className = "ce-status";
@@ -420,6 +467,7 @@ export function mountCityEditor(root: HTMLElement): void {
     inspector.root,
     groups.root,
     historyPanel.root,
+    logPanel.root,
     generatePanel.root,
     status,
     scaleBar,
@@ -607,6 +655,7 @@ export function mountCityEditor(root: HTMLElement): void {
       ...importedFrame()
     });
     history = new DocumentHistory(documentState, "New grid");
+    generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -636,6 +685,11 @@ export function mountCityEditor(root: HTMLElement): void {
     showNotice("Map exported");
   });
   const exportSvgButton = makeIconButton("🗺️", "Export city map as SVG", () => {
+    if (failurePreview) {
+      exportGenerationDebugSvg(failurePreview);
+      showNotice("失敗時点のSVGをエクスポートしました");
+      return;
+    }
     exportCitySvg(referenceImage ? { ...documentState, referenceImage } : documentState);
     showNotice("SVG exported");
   });
@@ -794,7 +848,10 @@ export function mountCityEditor(root: HTMLElement): void {
     const pattern = currentBuildingPatternSelect.value as "legacy" | "medieval";
     generateSettings.buildingPattern = pattern;
     commit(setBuildingPattern(documentState, pattern), "Change building pattern");
-    if (documentState.appearance === "town") completeResult = documentState;
+    if (documentState.appearance === "town") {
+      completeResult = documentState;
+      completeResultSettings = JSON.stringify(generateSettings);
+    }
     syncGenerateControls();
   });
 
@@ -835,7 +892,10 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     commit(next, "Change historical period");
-    if (documentState.appearance === "town") completeResult = next;
+    if (documentState.appearance === "town") {
+      completeResult = next;
+      completeResultSettings = JSON.stringify(generateSettings);
+    }
     syncGenerateControls();
   });
 
@@ -1005,7 +1065,7 @@ export function mountCityEditor(root: HTMLElement): void {
   syncStageUi(currentStageStep);
 
   // ③'s nPatches count cutoff (towngen-comparison.md §2.1) — the one tunable
-  // knob among the six processes so far; the ◀/▶ scrub below applies to all six.
+  // knob among the generation processes so far; the ◀/▶ scrub below applies to all six.
   const urbanNPatchesInput = numberInput("", "1", "1");
   urbanNPatchesInput.className = "ce-generate-npatches";
   urbanNPatchesInput.placeholder = "auto";
@@ -1018,10 +1078,21 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     const n = Math.round(Number(raw));
     if (!Number.isFinite(n) || n < 1) {
+      urbanCoreModeSelect.value = generateSettings.urbanCoreMode ?? "legacy";
       urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
       return;
     }
     generateSettings.urbanNPatches = n;
+  });
+
+  const urbanCoreModeSelect = select(["legacy", "compact"], generateSettings.urbanCoreMode ?? "legacy");
+  urbanCoreModeSelect.options[0].textContent = "従来方式（郊外住宅帯を含む）";
+  urbanCoreModeSelect.options[1].textContent = "修正版（都市中心部に限定）";
+  urbanCoreModeSelect.addEventListener("change", () => {
+    generateSettings.urbanCoreMode = urbanCoreModeSelect.value as "legacy" | "compact";
+    completeResult = null;
+    completeResultSettings = null;
+    rerunLastStage();
   });
 
   const walledShareInput = numberInput("", "5", "5");
@@ -1086,9 +1157,9 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   syncBearingsRow();
 
-  // One shared ◀/▶ scrub for whichever of the six processes was last activated
+  // One shared ◀/▶ scrub for whichever of the generation processes was last activated
   // (pressing its stage button, or ◀/▶ itself) — towngen-comparison.md's
-  // per-loop verification tool, generalised from ③'s to all six.
+  // per-loop verification tool, generalised from ③ to the other processes.
   const stepStatus = document.createElement("output");
   stepStatus.className = "ce-generate-step-status";
   const stepPrevButton = makeIconButton("◀", "Previous step", () => runStep(-1));
@@ -1226,6 +1297,9 @@ export function mountCityEditor(root: HTMLElement): void {
   generatePanel.content.append(
     generationProgress,
     cancelGeneration,
+    toggleLabel("デバッグ：生成失敗の途中図を表示", failureDebugInput),
+    failureDebugSummary,
+    closeFailurePreview,
     makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
     makeButton("🎲 新しい都市", () => rollNewTown()),
     copyLinkButton,
@@ -1243,10 +1317,11 @@ export function mountCityEditor(root: HTMLElement): void {
     housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑩までの全工程を順番に確認できます。⑩では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
+      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑬までの全工程を順番に確認できます。④はセル分割前の城壁、⑤は河川横断用のセル分割、⑥は門の通路とセル分割、⑦は門・城郭を表示します。⑬では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
     stageContainer,
     divider(),
+    label("市街地コアの確保方式", urbanCoreModeSelect),
     label("③ nPatches (blank = auto)", urbanNPatchesInput),
     toggleLabel("Avoid sea", avoidSeaInput),
     label("Street far end", farNodeSelect),
@@ -1546,9 +1621,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (isVertexDragging && selection.vertexId) {
       const point = localPoint(event);
-      const next = moveVertex(documentState, selection.vertexId, point);
+      const next = moveVertex(documentState, selection.vertexId, point, !!failureRenderContext);
       if (!next) return;
       documentState = next;
+      if (inspectedInfo?.kind === "vertex")
+        inspectedInfo = { ...inspectedInfo, point: next.mesh.vertices[selection.vertexId].point };
       dragMergeCandidateId = closestMergeCandidate(selection.vertexId);
       selection.hoverVertexId = dragMergeCandidateId;
       scheduleRedraw();
@@ -1634,15 +1711,18 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (wasVertexDragging && vertexMoved) {
       history.commit(documentState, mergeCandidateId ? "Merge vertices" : "Move vertex");
+      rememberFailureGenerationState();
       rebuildEditorIndexes();
     }
     selection.hoverVertexId = null;
     if (wasWardPainting && wardPaintChanged) {
       history.commit(documentState, paintHistoryLabel());
+      rememberFailureGenerationState();
       if (edgePaintChanged) rebuildEditorIndexes();
     }
     if (wasJunctionPainting && junctionPaintChanged) {
       history.commit(documentState, "Clean junctions");
+      rememberFailureGenerationState();
       rebuildEditorIndexes();
     }
     if (circle && event.type !== "pointercancel") {
@@ -2095,6 +2175,10 @@ export function mountCityEditor(root: HTMLElement): void {
       event.preventDefault();
       restore(event.shiftKey ? history.redo(documentState) : history.undo(documentState));
     }
+    if (failurePreview && event.key === "Escape") {
+      clearFailurePreview();
+      return;
+    }
     if (event.key === "Enter") finishButton.click();
     if (event.key === "Escape") {
       routeStroke = null;
@@ -2166,7 +2250,15 @@ export function mountCityEditor(root: HTMLElement): void {
       refresh();
       return;
     }
-    if (validateFortifications(next).length && (!refreshCastleLayouts(next) || validateFortifications(next).length)) {
+    const fortificationErrors = validateFortifications(next);
+    const existingErrors = failureRenderContext ? new Set(validateFortifications(documentState)) : new Set<string>();
+    const preservesExistingErrors =
+      failureRenderContext && fortificationErrors.every(error => existingErrors.has(error));
+    if (
+      fortificationErrors.length &&
+      !preservesExistingErrors &&
+      (!refreshCastleLayouts(next) || validateFortifications(next).length)
+    ) {
       showNotice("城郭の整合性を保てない編集です。城域・城門・必須棟を確認してください。");
       return;
     }
@@ -2174,6 +2266,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // mesh/frame — dismiss it rather than leave a stale overlay on screen.
     clearGridEvo();
     documentState = history.commit(next, label);
+    rememberFailureGenerationState();
     rebuildEditorIndexes();
     refresh();
   }
@@ -2293,13 +2386,79 @@ export function mountCityEditor(root: HTMLElement): void {
     }
   }
 
+  function rememberGenerationState(
+    seed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed,
+    stage = currentStageStep
+  ): void {
+    if (!completeSource) return;
+    generationHistory.set(history.currentEntryKey, {
+      source: completeSource,
+      result: completeResult,
+      resultSettings: completeResultSettings,
+      settings: clone(generateSettings),
+      seed,
+      stage,
+      lastStage: lastGeneratedStep,
+      activeStage: activeStepStage,
+      stepIndex,
+      stepStatus: stepStatus.textContent ?? "",
+      coreHighlight: urbanCoreHighlight ? new Set(urbanCoreHighlight) : null,
+      overlayPaths: stepOverlayPaths ? clone(stepOverlayPaths) : null,
+      hideBuildings,
+      hideStreetLines
+    });
+  }
+
+  /** Editing a rejected city must not turn its repaired mesh into the input
+   * for earlier stages when that edit is restored through History. */
+  function rememberFailureGenerationState(): void {
+    if (failureRenderContext && completeSource) rememberGenerationState();
+  }
+
   function restore(next: CityDocument | null): void {
     if (!next) return;
     documentState = next;
-    generateSettings.moats = {
-      town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
-      castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
-    };
+    const playback = generationHistory.get(history.currentEntryKey);
+    if (playback) {
+      completeSource = playback.source;
+      completeResult = playback.result;
+      completeResultSettings = playback.resultSettings;
+      const restoredSettings = clone(playback.settings);
+      // Street controls capture this object, so preserve its identity.
+      for (const key of Object.keys(streets)) delete streets[key as keyof typeof streets];
+      Object.assign(streets, restoredSettings.streets);
+      for (const key of Object.keys(generateSettings)) Reflect.deleteProperty(generateSettings, key);
+      Object.assign(generateSettings, defaultGenerationSettings(), restoredSettings, { streets });
+      generateSeed = playback.seed;
+      lastGeneratedStep = playback.lastStage;
+      activeStepStage = playback.activeStage;
+      stepIndex = playback.stepIndex;
+      stepStatus.textContent = playback.stepStatus;
+      urbanCoreHighlight = playback.coreHighlight ? new Set(playback.coreHighlight) : null;
+      stepOverlayPaths = playback.overlayPaths ? clone(playback.overlayPaths) : null;
+      hideBuildings = playback.hideBuildings;
+      hideStreetLines = playback.hideStreetLines;
+      syncStageUi(playback.stage);
+    } else {
+      const recipe = next.fabric?.generation;
+      completeSource = recipe ? clone(recipe.input) : null;
+      completeResult = recipe ? next : null;
+      completeResultSettings = recipe ? JSON.stringify(generateSettings) : null;
+      lastGeneratedStep = null;
+      activeStepStage = null;
+      stepIndex = -1;
+      stepStatus.textContent = "";
+      urbanCoreHighlight = null;
+      stepOverlayPaths = null;
+      hideBuildings = false;
+      hideStreetLines = false;
+      if (recipe) generateSeed = recipe.seed;
+      generateSettings.moats = {
+        town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
+        castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
+      };
+      syncStageUi(next.appearance === "town" ? 12 : 1);
+    }
     syncGenerateControls();
     rebuildEditorIndexes();
     selection = emptySelection();
@@ -2419,12 +2578,78 @@ export function mountCityEditor(root: HTMLElement): void {
     updateMeasureOverlay();
   }
 
+  function showFailurePreview(preview: GenerationDebugPreview, heading: string): void {
+    failurePreview = preview;
+    failureRenderContext = preview;
+    const partial = structuredClone(preview.document);
+    partial.generationSeed = preview.seed;
+    documentState = history.commit(partial, "生成失敗の途中図");
+    failurePreviewHistoryIndex = history.index;
+    completeResult = null;
+    completeResultSettings = null;
+    lastGeneratedStep = null;
+    activeStepStage = null;
+    stepIndex = -1;
+    stepStatus.textContent = "";
+    urbanCoreHighlight = null;
+    stepOverlayPaths = null;
+    hideBuildings = false;
+    hideStreetLines = false;
+    inspectedInfo = null;
+    clearGridEvo();
+    rebuildEditorIndexes();
+    const { sample, seed, highlights } = preview;
+    failureDebugSummary.textContent = `${heading} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）: ${sample.failure?.message ?? ""} [${sample.failure?.reason ?? ""}] · Seed: ${seed}。${highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された門・辺・面"}。途中図を編集できます。強調は失敗時点の診断です。Undoで生成前に戻れます。`;
+    failureDebugSummary.hidden = false;
+    closeFailurePreview.hidden = false;
+    rememberGenerationState(preview.seed);
+    tool = "select";
+    selection = emptySelection();
+    activeGroupId = null;
+    refresh();
+  }
+
+  function clearFailurePreview(): void {
+    const wasVisible = failurePreview !== null;
+    failurePreview = null;
+    failurePreviewHistoryIndex = null;
+    failureDebugSummary.hidden = true;
+    closeFailurePreview.hidden = true;
+    if (wasVisible) redrawMap();
+  }
+
   function redrawMap(): void {
     if (redrawHandle) {
       cancelAnimationFrame(redrawHandle);
       redrawHandle = 0;
     }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
+    if (failurePreview && failurePreviewHistoryIndex !== null && history.index < failurePreviewHistoryIndex) {
+      failurePreview = null;
+      failureDebugSummary.hidden = true;
+      closeFailurePreview.hidden = true;
+    }
+    if (failurePreview) failurePreview = { ...failurePreview, document: documentState };
+    if (failureRenderContext && validate(documentState).length) {
+      const editablePreview = failurePreview ?? {
+        ...failureRenderContext,
+        document: documentState,
+        highlights: { vertices: [], edges: [], faces: [], contextual: false }
+      };
+      map.replaceChildren(
+        renderGenerationDebugSvg(editablePreview, box, {
+          showVertices: tool === "vertex" || tool === "river",
+          selectedVertexId: selection.vertexId,
+          selectedEdgeId: selection.edgeId
+        })
+      );
+      housingSummary.hidden = true;
+      faceElementsById.clear();
+      wardLandmarksGroup = null;
+      wardLandmarkElementsById.clear();
+      updateGenerationLogHover();
+      return;
+    }
     const svg = renderEditorSvg(
       documentState,
       tool,
@@ -2443,6 +2668,19 @@ export function mountCityEditor(root: HTMLElement): void {
       hideStreetLines,
       renderQualitySelect.value as RenderQuality
     );
+    if (failurePreview) {
+      svg.classList.add("ce-generation-debug");
+      svg.setAttribute("data-attempt", String(failurePreview.sample.attempt));
+      svg.setAttribute("data-seed", failurePreview.seed);
+      const highlights = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      highlights.setAttribute("pointer-events", "none");
+      highlights.append(
+        ...renderGenerationDebugSvg(failurePreview, box).querySelectorAll(
+          ".ce-generation-debug-highlight, [data-debug-restriction]"
+        )
+      );
+      svg.append(highlights);
+    }
     map.replaceChildren(svg);
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
     const outerBuildings = Number(svg.getAttribute("data-outskirts-buildings") ?? 0);
@@ -2614,6 +2852,7 @@ export function mountCityEditor(root: HTMLElement): void {
     const layer = map.querySelector<SVGGElement>(".ce-hover-layer");
     if (!layer) return;
     layer.replaceChildren(...renderHoverOverlay(documentState, selection, zoomFactor()));
+    updateGenerationLogHover();
   }
 
   function refreshScaleBar(): void {
@@ -3397,6 +3636,68 @@ export function mountCityEditor(root: HTMLElement): void {
       );
   }
 
+  function appendGenerationException(error: unknown, seed: string): void {
+    generationLog.append(
+      {
+        phase: "runtime",
+        elapsedMs: 0,
+        attempt: 1,
+        failure: { reason: "generation-exception", message: error instanceof Error ? error.message : String(error) }
+      },
+      seed
+    );
+  }
+
+  function hoverGenerationLogObjects(ids: string[], seed: string): void {
+    generationLogHover = { ids, seed };
+    updateGenerationLogHover();
+  }
+
+  function updateGenerationLogHover(): void {
+    const svg = map.querySelector("svg");
+    if (!svg) return;
+    svg.querySelector(".ce-generation-log-highlight")?.remove();
+    if (generationLogHover.seed !== documentState.generationSeed || !generationLogHover.ids.length) return;
+    const ns = "http://www.w3.org/2000/svg";
+    const layer = document.createElementNS(ns, "g");
+    layer.setAttribute("class", "ce-generation-log-highlight");
+    layer.setAttribute("pointer-events", "none");
+    for (const id of generationLogHover.ids) {
+      const vertex = documentState.mesh.vertices[id],
+        edge = documentState.mesh.edges[id],
+        face = documentState.mesh.faces[id];
+      let node: SVGElement;
+      if (vertex) {
+        node = document.createElementNS(ns, "circle");
+        node.setAttribute("cx", String(vertex.point[0]));
+        node.setAttribute("cy", String(-vertex.point[1]));
+        node.setAttribute("r", String(Math.max(0.5, halfView / 70)));
+        node.setAttribute("fill", "#ffdf0088");
+      } else if (edge && documentState.mesh.vertices[edge.a] && documentState.mesh.vertices[edge.b]) {
+        node = document.createElementNS(ns, "path");
+        const a = documentState.mesh.vertices[edge.a].point,
+          b = documentState.mesh.vertices[edge.b].point;
+        node.setAttribute("d", `M${a[0]},${-a[1]}L${b[0]},${-b[1]}`);
+        node.setAttribute("fill", "none");
+      } else if (face?.boundary.every(ref => documentState.mesh.edges[ref.edgeId])) {
+        node = document.createElementNS(ns, "path");
+        node.setAttribute(
+          "d",
+          `${facePoints(documentState.mesh, face)
+            .map((p, i) => `${i ? "L" : "M"}${p[0]},${-p[1]}`)
+            .join(" ")}Z`
+        );
+        node.setAttribute("fill", "#ffdf0044");
+      } else continue;
+      node.setAttribute("data-object-id", id);
+      node.setAttribute("stroke", "#ffdf00");
+      node.setAttribute("stroke-width", "4");
+      node.setAttribute("vector-effect", "non-scaling-stroke");
+      layer.append(node);
+    }
+    svg.append(layer);
+  }
+
   function renderHistory(): void {
     const entries = history.entries;
     const current = history.index;
@@ -3415,6 +3716,7 @@ export function mountCityEditor(root: HTMLElement): void {
       historyClearButton = makeButton("Clear all history", () => {
         if (!history.canUndo && !history.canRedo) return;
         history.reset(documentState, "History cleared");
+        rememberGenerationState();
         showNotice("History cleared");
         refreshUiOnly();
       });
@@ -3528,7 +3830,9 @@ export function mountCityEditor(root: HTMLElement): void {
     faceBucketSize = Math.max(documentState.frame.blockSizeMeters * 2, documentState.frame.extentMeters / 32);
     faceBuckets = new Map();
     for (const face of Object.values(documentState.mesh.faces)) {
+      if (face.boundary.some(ref => !documentState.mesh.edges[ref.edgeId])) continue;
       const points = facePoints(documentState.mesh, face);
+      if (!points.length || points.some(p => !p.every(Number.isFinite))) continue;
       const minX = Math.min(...points.map(point => point[0]));
       const maxX = Math.max(...points.map(point => point[0]));
       const minY = Math.min(...points.map(point => point[1]));
@@ -3874,6 +4178,7 @@ export function mountCityEditor(root: HTMLElement): void {
     } else {
       history.amendTop(documentState, `Draw ${stroke.kind}`);
     }
+    rememberFailureGenerationState();
     rebuildEditorIndexes();
   }
 
@@ -4067,6 +4372,7 @@ export function mountCityEditor(root: HTMLElement): void {
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     history = new DocumentHistory(parsed.document, "Imported map");
+    generationLog.reset();
     if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
     rebuildEditorIndexes();
     selection = emptySelection();
@@ -4086,6 +4392,7 @@ export function mountCityEditor(root: HTMLElement): void {
         generateSettings,
         {
           walledAreaShare: undefined,
+          urbanCoreMode: undefined,
           descriptor: undefined,
           castle: undefined,
           moats: undefined,
@@ -4094,6 +4401,7 @@ export function mountCityEditor(root: HTMLElement): void {
         clone(recipe.settings)
       );
       generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
+      completeResultSettings = JSON.stringify(generateSettings);
       importedOrigin = generateSettings.descriptor ? (importedOrigin ?? "link") : null;
       syncGenerateControls();
     } else {
@@ -4149,6 +4457,7 @@ export function mountCityEditor(root: HTMLElement): void {
     riverPlacementSelect.value = generateSettings.riverPlacement ?? "through";
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
+    urbanCoreModeSelect.value = generateSettings.urbanCoreMode ?? "legacy";
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
     walledShareInput.value =
       generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
@@ -4245,10 +4554,11 @@ export function mountCityEditor(root: HTMLElement): void {
       cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters
     });
     history = new DocumentHistory(documentState, share.descriptor ? "Imported site" : "Shared city");
+    generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
-    completeSource = documentState;
+    completeSource = clone(documentState);
     completeResult = null;
     halfView = documentState.frame.extentMeters / 2;
     viewCenter = [0, 0];
@@ -4273,8 +4583,8 @@ export function mountCityEditor(root: HTMLElement): void {
     stepOverlayPaths = null;
     stepStatus.textContent = "";
     lastGeneratedStep = null;
-    currentStageStep = 9;
-    syncStageUi(9);
+    currentStageStep = 12;
+    syncStageUi(12);
     runCompleteGeneration();
   }
 
@@ -4291,22 +4601,40 @@ export function mountCityEditor(root: HTMLElement): void {
   function runCompleteGeneration(): void {
     // Reuse the input grid for successive rolls, preventing accumulated shrink
     // from finishing an already finished town. A real edit becomes a new input.
-    if (
-      !completeSource ||
-      (documentState !== completeResult &&
-        JSON.stringify(documentState) !== JSON.stringify(completeResult) &&
-        lastGeneratedStep === null)
-    )
-      completeSource = documentState;
+    if (!completeSource) {
+      completeSource = documentState.fabric?.generation?.input
+        ? clone(documentState.fabric.generation.input)
+        : clone(documentState);
+    } else if (
+      documentState !== completeResult &&
+      JSON.stringify(documentState) !== JSON.stringify(completeResult) &&
+      lastGeneratedStep === null &&
+      !generationHistory.has(history.currentEntryKey)
+    ) {
+      completeSource = clone(documentState);
+    }
     if (generationJob) return;
+    if (!generationHistory.has(history.currentEntryKey))
+      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 12 : 1));
+    clearFailurePreview();
     generationSamples = [];
+    generationLog.reset();
+    pendingFailurePreview = null;
+    const onFailurePreview = (preview: GenerationDebugPreview) => {
+      pendingFailurePreview = preview;
+    };
     const onProgress = (sample: GenerationSample) => {
       generationSamples.push(sample);
+      generationLog.append(
+        sample,
+        sample.failure?.details?.find(line => line.startsWith("seed="))?.slice(5) ??
+          (sample.attempt === 1 ? generateSeed : `${generateSeed}:junction-retry:${sample.attempt - 1}`)
+      );
       if (sample.failure) {
         generationProgress.textContent = `案${sample.attempt} 不採用 — ${generationPhaseLabel(sample.phase)}: ${sample.failure.message}`;
         return;
       }
-      generationProgress.textContent = `生成中 — ${sample.attempt}/${COMPLETE_CITY_ATTEMPTS}案目 · ${generationPhaseLabel(sample.phase)}`;
+      generationProgress.textContent = `生成中 — ${sample.attempt}/${failureDebugInput.checked ? 1 : COMPLETE_CITY_ATTEMPTS}案目 · ${generationPhaseLabel(sample.phase)}`;
     };
     if (typeof Worker !== "undefined") {
       const input = documentState;
@@ -4316,8 +4644,15 @@ export function mountCityEditor(root: HTMLElement): void {
       root.setAttribute("aria-busy", "true");
       try {
         const job = startCityGeneration(
-          { document: completeSource, settings: generateSettings, seed: generateSeed },
-          onProgress
+          {
+            document: completeSource,
+            settings: generateSettings,
+            seed: generateSeed,
+            debugFailure: failureDebugInput.checked
+          },
+          onProgress,
+          undefined,
+          onFailurePreview
         );
         generationJob = job;
         const observer = new MutationObserver(() => {
@@ -4335,6 +4670,7 @@ export function mountCityEditor(root: HTMLElement): void {
                 generationProgress.textContent = "生成をキャンセルしました";
               else {
                 console.error(error);
+                appendGenerationException(error, generateSeed);
                 generationProgress.textContent = "都市の生成に失敗しました";
               }
             }
@@ -4347,6 +4683,7 @@ export function mountCityEditor(root: HTMLElement): void {
           });
       } catch (error) {
         console.error(error);
+        appendGenerationException(error, generateSeed);
         cancelGeneration.hidden = true;
         root.removeAttribute("aria-busy");
         generationProgress.textContent = "都市の生成を開始できませんでした";
@@ -4355,9 +4692,18 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     // Non-worker hosts (including jsdom) retain the synchronous API.
     try {
-      acceptCompleteGeneration(generateCityOnDocument(completeSource, generateSettings, generateSeed, onProgress));
+      acceptCompleteGeneration(
+        generateCityOnDocument(
+          clone(completeSource),
+          generateSettings,
+          generateSeed,
+          onProgress,
+          failureDebugInput.checked ? onFailurePreview : undefined
+        )
+      );
     } catch (error) {
       console.error(error);
+      appendGenerationException(error, generateSeed);
       generationProgress.textContent = "都市の生成に失敗しました";
     }
   }
@@ -4376,14 +4722,19 @@ export function mountCityEditor(root: HTMLElement): void {
         faces: Object.keys(source.mesh.faces).length
       };
       if (generationSamples.some(sample => sample.failure)) logGenerationFailures(generationSamples, context);
-      else
-        console.error("[City Editor] 都市の生成に失敗しました（不採用理由は記録されていない）", {
-          ...context,
-          samples: generationSamples
-        });
+      else {
+        const message = "都市の生成に失敗しました（不採用理由は記録されていない）";
+        console.error(`[City Editor] ${message}`, { ...context, samples: generationSamples });
+        appendGenerationException(message, generateSeed);
+      }
+      if (failureDebugInput.checked && pendingFailurePreview) {
+        showFailurePreview(pendingFailurePreview, `失敗案 ${pendingFailurePreview.sample.attempt}（再試行なし）`);
+      }
+      pendingFailurePreview = null;
       showNotice("都市の生成に失敗しました");
       return;
     }
+    pendingFailurePreview = null;
     if (next.generationSeed) {
       generateSeed = next.generationSeed;
       syncGenerateControls();
@@ -4410,7 +4761,9 @@ export function mountCityEditor(root: HTMLElement): void {
     showBlockMesh = false;
     hideBuildings = false;
     hideStreetLines = false;
-    syncStageUi(9);
+    syncStageUi(12);
+    completeResultSettings = JSON.stringify(generateSettings);
+    rememberGenerationState();
     rebuildEditorIndexes();
     refresh();
     showNotice("都市を生成しました — 城壁・街路・建物");
@@ -4422,34 +4775,65 @@ export function mountCityEditor(root: HTMLElement): void {
         ? clone(documentState.fabric.generation.input)
         : clone(documentState);
     }
-    const source = completeSource;
+    if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) completeResult = null;
+    if (!generationHistory.has(history.currentEntryKey))
+      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 12 : 1));
+    const source = clone(completeSource);
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
 
+    clearFailurePreview();
+    pendingFailurePreview = null;
+    generationLog.reset();
     let next: CityDocument | null = null;
     try {
       const finished =
         completeResult && (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
           ? completeResult
           : null;
-      if (finished && (stage.step === 8 || stage.step === 9 || stage.step === 10)) {
+      if (finished && ["blocks", "buildings", "conceal"].includes(stage.id)) {
         next = clone(finished);
-      } else if (finished && stage.step === 7) {
+      } else if (finished && stage.id === "geometry") {
         const s7 = clone(finished);
         delete s7.appearance;
         delete s7.fabric;
         next = s7;
       } else {
-        next = generateStageOnDocument(source, generateSettings, effectiveSeed, stage.step);
+        next = generateStageOnDocument(
+          source,
+          generateSettings,
+          effectiveSeed,
+          stage.processStep,
+          failureDebugInput.checked
+            ? preview => {
+                pendingFailurePreview = preview;
+              }
+            : undefined,
+          stage.wallCheckpoint,
+          sample => {
+            generationLog.append(
+              sample,
+              sample.failure?.details?.find(line => line.startsWith("seed="))?.slice(5) ??
+                (sample.attempt === 1 ? effectiveSeed : `${effectiveSeed}:junction-retry:${sample.attempt - 1}`)
+            );
+            if (sample.failure) logGenerationFailures([sample], { seed: effectiveSeed });
+          }
+        );
       }
     } catch (error) {
       console.error(error);
+      appendGenerationException(error, effectiveSeed);
     }
     if (!next) {
+      if (failureDebugInput.checked && pendingFailurePreview)
+        showFailurePreview(pendingFailurePreview, `失敗した工程 ${stage.label}`);
+      pendingFailurePreview = null;
       showNotice(`Generation failed at ${stage.label}`);
       return;
     }
-    if ((stage.step === 9 || stage.step === 10) && !completeResult) {
+    pendingFailurePreview = null;
+    if (["buildings", "conceal"].includes(stage.id) && !completeResult) {
       completeResult = next;
+      completeResultSettings = JSON.stringify(generateSettings);
     }
     lastGeneratedStep = stage.step;
     currentStageStep = stage.step;
@@ -4461,18 +4845,21 @@ export function mountCityEditor(root: HTMLElement): void {
     // ③ itself keeps showing the debug tint on its finished core (nothing else
     // marks `buildable` on the document); every other stage already has its
     // own visual cue (river / walls+gates / roads / ward colours) and needs none.
-    urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
+    urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next, generateSettings.urbanCoreMode) : null;
     stepOverlayPaths = null;
-    hideBuildings = stage.step === 8;
-    hideStreetLines = stage.step === 10;
+    hideBuildings = stage.id === "blocks";
+    hideStreetLines = stage.id === "conceal";
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
+      rememberGenerationState(next.generationSeed ?? effectiveSeed);
       showNotice(`Already at ${stage.label}`);
       redrawMap();
       return;
     }
     documentState = history.commit(next, `Generate ${stage.label}`);
+    if (completeResult === next) completeResultSettings = JSON.stringify(generateSettings);
+    rememberGenerationState(next.generationSeed ?? effectiveSeed);
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -4480,18 +4867,18 @@ export function mountCityEditor(root: HTMLElement): void {
     showNotice(`Generated up to ${stage.label}`);
   }
 
-  /** ◀/▶: scrub whichever process ①…⑥ was last activated one loop iteration at
+  /** ◀/▶: scrub whichever process ①…⑨ was last activated one loop iteration at
    * a time, right on the mesh (towngen-comparison.md) — independent of the
    * stage buttons themselves, which still jump straight to the finished result. */
   function runStep(delta: number): void {
     if (!activeStepStage) {
-      showNotice("Press a stage button (①–⑥) first");
+      showNotice("Press a stage button first");
       return;
     }
     const stage = activeStepStage;
     const label = GENERATION_STAGES.find(s => s.id === stage)?.label ?? "";
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
-    const source = completeSource ?? documentState;
+    const source = clone(completeSource ?? documentState);
     let result: UiStepResult;
     try {
       result = STEP_FNS[stage](source, generateSettings, effectiveSeed, stepIndex + delta);
@@ -4515,6 +4902,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     documentState = history.commit(result.document, `${label} step ${result.index + 1}/${result.total}`);
+    rememberGenerationState(effectiveSeed);
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -4634,7 +5022,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 }
 
-/** A ◀/▶ step result, unified across all six processes — mirrors
+/** A ◀/▶ step result, unified across all generation processes — mirrors
  * `GenerationStepResult` but also carries ③'s face-tint highlight, since that
  * one adapts `generateUrbanPatchStep`'s own (slightly different) shape. */
 interface UiStepResult {
@@ -4668,10 +5056,28 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
       total: r.total,
       index: r.index,
       detail: r.total > 0 ? `cell #${r.cellId} — ${r.index + 1}/${r.total}` : null,
-      highlightFaces: r.document ? buildableLandFaceIds(r.document) : null
+      highlightFaces: r.document ? buildableLandFaceIds(r.document, settings.urbanCoreMode) : null
     };
   },
-  walls: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
+  walls: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 4, undefined, "walls"),
+    total: 1,
+    index: 0,
+    detail: "城壁配置完了"
+  }),
+  riverPassages: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 4, undefined, "riverPassages"),
+    total: 1,
+    index: 0,
+    detail: "河川横断用のセル分割・城壁経路調整完了"
+  }),
+  passages: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 4, undefined, "passages"),
+    total: 1,
+    index: 0,
+    detail: "門の通路準備完了"
+  }),
+  gates: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
   streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
   wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx)),
   geometry: (doc, settings, seed) => {
@@ -4694,10 +5100,15 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
 
 /** The exact land faces a Generate press just marked buildable — the ③ urban-
  * core debug highlight's source set (towngen-comparison.md §2.1). */
-function buildableLandFaceIds(document: CityDocument): Set<Id> {
+function buildableLandFaceIds(document: CityDocument, coreMode?: "legacy" | "compact"): Set<Id> {
   const ids = new Set<Id>();
   for (const face of Object.values(document.mesh.faces)) {
-    if (face.properties.water === "land" && face.properties.buildable) ids.add(face.id);
+    if (
+      face.properties.water === "land" &&
+      face.properties.buildable &&
+      (coreMode !== "compact" || face.properties.settlement === "core")
+    )
+      ids.add(face.id);
   }
   return ids;
 }

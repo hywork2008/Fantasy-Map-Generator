@@ -14,7 +14,10 @@ import {
 import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./gen/coastalSuitability";
 import { createFabricPlan } from "./gen/fabricDistricts";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
+import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./generationDebug";
+import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { MoatReservation } from "./moats";
+import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -78,7 +81,6 @@ import {
 import { makeRng } from "./gen/prng";
 import { isHexagonalDocument, rectifyHexBlocks } from "./gen/rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
-import { resolveRiverBoundaryOverlaps } from "./gen/resolveRiverOverlaps";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import { cultivateRoadside } from "./gen/roadsideFarms";
 import {
@@ -122,7 +124,6 @@ import {
   addBridge,
   addWideRiverBridge,
   explainGeneratedCrossingFailures,
-  joinWallRiverCrossings,
   kindEdgeIds,
   minGateSpacingMeters,
   openBarrierPassage,
@@ -173,49 +174,94 @@ const GEN_PREFIX = "gc:";
  * a fixed nominal preset is fine — the real scale is the document's frame. */
 const NOMINAL_PRESET = "largeTown" as const;
 
-/** One runnable process, in order. `step` is the S-index it recomputes up to;
+/** One visible process, in order. `processStep` is the S-index it recomputes up to;
  * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
 export interface GenerationStage {
-  id: "coast" | "river" | "urban" | "walls" | "streets" | "wards" | "geometry" | "blocks" | "buildings" | "conceal";
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  id:
+    | "coast"
+    | "river"
+    | "urban"
+    | "walls"
+    | "riverPassages"
+    | "passages"
+    | "gates"
+    | "streets"
+    | "wards"
+    | "geometry"
+    | "blocks"
+    | "buildings"
+    | "conceal";
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+  /** Original planning pass; separate from the visible slider number. */
+  processStep: number;
+  wallCheckpoint?: "walls" | "riverPassages" | "passages";
   label: string;
   hint: string;
 }
 
 export const GENERATION_STAGES: GenerationStage[] = [
-  { id: "coast", step: 1, label: "① 海岸線と海", hint: "Tag sea cells along a coastline walk" },
-  { id: "river", step: 2, label: "② 河川", hint: "Route a river along the existing cell edges" },
-  { id: "urban", step: 3, label: "③ 市街地コア", hint: "Mark the built-up cells" },
+  { id: "coast", step: 1, processStep: 1, label: "① 海岸線と海", hint: "Tag sea cells along a coastline walk" },
+  { id: "river", step: 2, processStep: 2, label: "② 河川", hint: "Route a river along the existing cell edges" },
+  { id: "urban", step: 3, processStep: 3, label: "③ 市街地コア", hint: "Mark the built-up cells" },
   {
     id: "walls",
     step: 4,
-    label: "④ 城壁・門・城郭",
-    hint: "Wall the urban outline, place gates, plaza & citadel (needs Walls)"
+    processStep: 4,
+    wallCheckpoint: "walls",
+    label: "④ 城壁",
+    hint: "市街地の外周に城壁を描く。河川横断用・門用のセル分割前の状態。"
   },
-  { id: "streets", step: 5, label: "⑤ 街路", hint: "Approach roads to the gates" },
-  { id: "wards", step: 6, label: "⑥ 地区割り当て", hint: "Assign a district type to each urban cell" },
+  {
+    id: "riverPassages",
+    step: 5,
+    processStep: 4,
+    wallCheckpoint: "riverPassages",
+    label: "⑤ 河川横断・セル分割",
+    hint: "城壁が河川を横断するためのセル分割と経路調整を行う。門の通路はまだ開かない。"
+  },
+  {
+    id: "passages",
+    step: 6,
+    processStep: 4,
+    wallCheckpoint: "passages",
+    label: "⑥ 門の通路・セル分割",
+    hint: "門候補で通路を開く。必要なセルを分割し、門の確定前のメッシュを表示する。"
+  },
+  {
+    id: "gates",
+    step: 7,
+    processStep: 4,
+    label: "⑦ 門・城郭",
+    hint: "開いた通路に門を確定し、広場・寺院・城郭を配置する。"
+  },
+  { id: "streets", step: 8, processStep: 5, label: "⑧ 街路", hint: "Approach roads to the gates" },
+  { id: "wards", step: 9, processStep: 6, label: "⑨ 地区割り当て", hint: "Assign a district type to each urban cell" },
   {
     id: "geometry",
-    step: 7,
-    label: "⑦ 幾何平滑化",
+    step: 10,
+    processStep: 7,
+    label: "⑩ 幾何平滑化",
     hint: "Smooth walls and streets into rounded shapes (finishCityGeometry)"
   },
   {
     id: "blocks",
-    step: 8,
-    label: "⑧ 街区・小道",
+    step: 11,
+    processStep: 8,
+    label: "⑪ 街区・小道",
     hint: "Form interior blocks and secondary access lanes"
   },
   {
     id: "buildings",
-    step: 9,
-    label: "⑨ 住居・完成都市",
+    step: 12,
+    processStep: 9,
+    label: "⑫ 住居・完成都市",
     hint: "Place residential and civic buildings"
   },
   {
     id: "conceal",
-    step: 10,
-    label: "⑩ 道路・小道を隠す",
+    step: 13,
+    processStep: 10,
+    label: "⑬ 道路・小道を隠す",
     hint: "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
   }
 ];
@@ -232,6 +278,8 @@ export interface StreetSettings {
 }
 
 export interface GenerationSettings {
+  /** Unset preserves the existing flood fill and outer residential belt. */
+  urbanCoreMode?: "legacy" | "compact";
   moats?: { town?: boolean; castle?: boolean };
   /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
   riverPlacement?: "through" | "outside" | "outsideNear";
@@ -367,19 +415,32 @@ export function generateStageOnDocument(
   document: CityDocument,
   settings: GenerationSettings,
   seed: string,
-  stageStep: number
+  stageStep: number,
+  onRejected?: GenerationDebugObserver,
+  wallCheckpoint?: "walls" | "riverPassages" | "passages",
+  observer?: GenerationObserver
 ): CityDocument | null {
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) {
-    reportGenerationFailure(undefined, 1, "prepare", "too-few-faces", `格子の面が3未満 (${faces.length})`, {
-      faces: faces.length,
-      stageStep
-    });
+    const sample = reportGenerationFailure(
+      observer,
+      1,
+      "prepare",
+      "too-few-faces",
+      `格子の面が3未満 (${faces.length})`,
+      {
+        faces: faces.length,
+        stageStep
+      }
+    );
+    if (onRejected) onRejected(captureGenerationDebugPreview(document, sample, seed));
     return null;
   }
 
   if (stageStep >= 7) {
-    const full = generateCityAttempt(document, settings, seed) ?? generateCityOnDocument(document, settings, seed);
+    const full =
+      generateCityAttempt(document, settings, seed, observer, 1, onRejected) ??
+      (onRejected ? null : generateCityOnDocument(document, settings, seed, observer));
     if (!full) return null;
     if (stageStep === 7) {
       const res = clone(full);
@@ -412,13 +473,36 @@ export function generateStageOnDocument(
     settings,
     stageStep,
     false,
-    undefined,
+    observer,
     1,
     true,
     document.gridKind,
     document
   );
-  const res = applyPlan(document, cells, faceIdOf, plan, program, stageStep);
+  if (plan.castleFailure && (onRejected || observer) && !wallCheckpoint) {
+    const sample = reportGenerationFailure(
+      observer,
+      1,
+      "castle",
+      plan.castleFailure,
+      "指定した城の配置条件を満たす場所がありません"
+    );
+    onRejected?.(captureGenerationDebugPreview(planningDebugDocument(document, faceIdOf, plan, program), sample, seed));
+    return null;
+  }
+  const res = applyPlan(
+    document,
+    cells,
+    faceIdOf,
+    plan,
+    program,
+    stageStep,
+    false,
+    observer,
+    1,
+    onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined,
+    wallCheckpoint
+  );
   if (res) {
     res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
     res.generationSeed = seed;
@@ -439,7 +523,8 @@ export function generateCityOnDocument(
   document: CityDocument,
   settings: GenerationSettings,
   seed: string,
-  observer?: GenerationObserver
+  observer?: GenerationObserver,
+  onRejected?: GenerationDebugObserver
 ): CityDocument | null {
   // Some coast/river layouts cannot form valid crossings, or enough external
   // approach roads, on this grid. Try another deterministic layout with the
@@ -450,9 +535,10 @@ export function generateCityOnDocument(
     if (sample.failure) failures.push(sample);
     observer?.(sample);
   };
+  // Debug previews stop at the first rejection, keeping the requested seed.
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
-    const result = generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1);
+    const result = generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1, onRejected);
     if (result) {
       result.historicalPeriod =
         settings.historicalPeriod ??
@@ -476,6 +562,7 @@ export function generateCityOnDocument(
       }
       return result;
     }
+    if (onRejected) return null;
   }
   observe({
     phase: "complete",
@@ -508,9 +595,11 @@ export function generateCityAttempt(
   settings: GenerationSettings,
   seed: string,
   observer?: GenerationObserver,
-  attempt = 1
+  attempt = 1,
+  onRejected?: GenerationDebugObserver
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
+  let debugDocument = () => document;
   const reject = (
     phase: string,
     reason: string,
@@ -518,7 +607,11 @@ export function generateCityAttempt(
     counts?: Record<string, number>,
     details?: string[]
   ): null => {
-    reportGenerationFailure(observer, attempt, phase, reason, message, counts, [`seed=${seed}`, ...(details ?? [])]);
+    const sample = reportGenerationFailure(observer, attempt, phase, reason, message, counts, [
+      `seed=${seed}`,
+      ...(details ?? [])
+    ]);
+    if (onRejected) onRejected(captureGenerationDebugPreview(debugDocument(), sample, seed));
     return null;
   };
   const faceCount = Object.keys(document.mesh.faces).length;
@@ -545,6 +638,7 @@ export function generateCityAttempt(
     document
   );
   mark("plan-total");
+  debugDocument = () => planningDebugDocument(document, faceIdOf, plan, program);
   if (plan.castleFailure) return reject("castle", plan.castleFailure, "指定した城の配置条件を満たす場所がありません");
   // Do not save a nominally successful town when imported water has consumed
   // its centre. Measure the flood-fill settlement, not the walled core — wall
@@ -552,7 +646,11 @@ export function generateCityAttempt(
   const activeCells = plan.cells ?? cells;
   const activeFaceIdOf = plan.faceIdOf ?? faceIdOf;
   const targetArea = Math.PI * params.cityRadiusMeters ** 2;
-  const minimumUrbanArea = targetArea * MIN_SETTLEMENT_AREA_SHARE;
+  const areaShare =
+    settings.urbanCoreMode === "compact" && program.walls
+      ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters)
+      : 1;
+  const minimumUrbanArea = targetArea * areaShare * MIN_SETTLEMENT_AREA_SHARE;
   const settlementArea = activeCells
     .filter(cell => plan.builtUp.has(cell.id))
     .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
@@ -653,10 +751,12 @@ export function generateCityAttempt(
     6,
     true,
     observer,
-    attempt
+    attempt,
+    onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined
   );
   mark("apply-total");
   if (!next) return null;
+  debugDocument = () => next;
   const minRoads = requiredExternalRoads(settings, document.frame.extentMeters);
   const roadsBeforeFinish = countExternalApproachRoads(next);
   if (minRoads > 0 && roadsBeforeFinish < minRoads)
@@ -686,6 +786,7 @@ export function generateCityAttempt(
   );
   const connected = coarse ? connectUrbanRiverDistricts(shaped, allowedRiverIds) : shaped;
   const settled = straightenGateCrossings(straightenBridges(connected));
+  debugDocument = () => settled;
   settleTempleOnDocument(settled);
   if (settled.castles?.length && !finalizeCastles(settled, false))
     return reject("castle", "castle-layout-too-small", "仕上げ後の城郭形状が成立しません");
@@ -1170,6 +1271,7 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  urbanCoreMode?: "legacy" | "compact";
   layout?: "organic" | "circulade" | "bram" | "classic";
   sea: Set<number>;
   ocean: Set<number>;
@@ -1235,7 +1337,7 @@ export function runPlan(
   complete = false,
   observer?: GenerationObserver,
   attempt = 1,
-  resolveRiverSplit = true,
+  _resolveRiverSplit = true,
   gridKind?: "hex" | "voronoi" | "evolution",
   sourceDocument?: CityDocument
 ): Plan {
@@ -1243,6 +1345,7 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    urbanCoreMode: settings.urbanCoreMode,
     moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     layout: effectiveLayout,
@@ -1313,7 +1416,11 @@ export function runPlan(
     (settings.riverPlacement === "outside" || settings.riverPlacement === "outsideNear") &&
     geo.rivers.length === 1 &&
     program.walls;
-  const urbanRadius = urbanDiskRadiusMeters(params.cityRadiusMeters, program.walls);
+  const compactCore = settings.urbanCoreMode === "compact";
+  const coreShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+  const urbanRadius = compactCore
+    ? params.cityRadiusMeters * Math.sqrt(coreShare)
+    : urbanDiskRadiusMeters(params.cityRadiusMeters, program.walls);
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
   const plannedUrban = outsideRiver
     ? classifyUrban(
@@ -1324,16 +1431,14 @@ export function runPlan(
         null,
         params.urbanNPatches ?? null,
         params.cellSizeMeters,
-        !complete && stageStep === 3
+        !complete && stageStep === 3,
+        settings.urbanCoreMode
       )
     : null;
-  let plannedCore = plannedUrban
-    ? splitUrbanCore(cells, plannedUrban.urban, resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters))
-        .urban
-    : null;
+  let plannedCore = plannedUrban ? splitUrbanCore(cells, plannedUrban.urban, compactCore ? 1 : coreShare).urban : null;
   // The final curtain is peeled inward on evolution grids. Route relative to
   // that curtain, rather than adding a river setback to the unpeeled settlement.
-  if (plannedCore && effectiveLayout !== "bram") {
+  if (!compactCore && plannedCore && effectiveLayout !== "bram") {
     const rings = evolutionWallInsetRings(
       sizePresetForExtent(params.extentMeters),
       seed,
@@ -1486,13 +1591,14 @@ export function runPlan(
       null,
       params.urbanNPatches ?? null,
       params.cellSizeMeters,
-      !complete && stageStep === 3
+      !complete && stageStep === 3,
+      settings.urbanCoreMode
     );
   // City extent and wall capacity are independent. The outer residential
   // belt retains the rest of the same flood-fill, including its connectivity.
   // Grid evolution then pulls a tiny/small curtain in by one or two cells.
   const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
-  const split = splitUrbanCore(cells, classification.urban, walledShare);
+  const split = splitUrbanCore(cells, classification.urban, compactCore ? 1 : walledShare);
   const urban = plannedCore ?? split.urban;
   let residentialOutskirts = new Set([...split.residentialOutskirts, ...[...split.urban].filter(id => !urban.has(id))]);
   const outskirts = new Set([...classification.outskirts, ...residentialOutskirts]);
@@ -1508,79 +1614,8 @@ export function runPlan(
   let currentOutskirts = outskirts;
   let meshModified = false;
 
-  if (resolveRiverSplit && stageStep >= 3 && rivers.length > 0 && currentUrban.size > 0) {
-    const nearest = nearestVertexLookup(currentMesh, Math.max(1, cellSize));
-    const tempDoc: CityDocument = {
-      format: "fmg-city-editor",
-      version: 1,
-      frame: { extentMeters: half * 2, cityRadiusMeters: params.cityRadiusMeters, blockSizeMeters: cellSize },
-      mesh: clone(currentMesh),
-      featureGroups: rivers.map((r, i) => ({
-        id: `temp-river-${i}`,
-        kind: "river",
-        name: `River ${i + 1}`,
-        vertices: polylineToVertexPath(currentMesh, r.edgePoints, nearest),
-        source: null,
-        mouth: null,
-        style: { widthMeters: 10, color: "#4f8aad" },
-        locked: false
-      })),
-      gates: [],
-      elements: []
-    };
-    for (const face of Object.values(tempDoc.mesh.faces)) {
-      delete face.properties.settlement;
-    }
-    for (const cellId of sea) {
-      const fid = currentFaceIdOf[cellId];
-      if (fid && tempDoc.mesh.faces[fid]) {
-        tempDoc.mesh.faces[fid].properties.water = "sea";
-        tempDoc.mesh.faces[fid].properties.buildable = false;
-      }
-    }
-    for (const cellId of currentUrban) {
-      const fid = currentFaceIdOf[cellId];
-      if (fid && tempDoc.mesh.faces[fid]) {
-        tempDoc.mesh.faces[fid].properties.settlement = "core";
-        tempDoc.mesh.faces[fid].properties.buildable = true;
-      }
-    }
-    const resolved = resolveRiverBoundaryOverlaps(tempDoc);
-    if (Object.keys(resolved.mesh.faces).length !== Object.keys(currentMesh.faces).length) {
-      meshModified = true;
-      currentMesh = resolved.mesh;
-      const refreshed = cellsFromMesh(currentMesh, half);
-      currentCells = refreshed.cells;
-      currentFaceIdOf = refreshed.faceIdOf;
-      sea.clear();
-      currentFaceIdOf.forEach((fid, idx) => {
-        if (currentMesh.faces[fid]?.properties.water === "sea") sea.add(idx);
-      });
-      const coreFaceIds = new Set(
-        Object.values(currentMesh.faces)
-          .filter(f => f.properties.settlement === "core")
-          .map(f => f.id)
-      );
-      const residentialFaceIds = new Set(
-        [...residentialOutskirts].map(idx => faceIdOf[idx]).filter((fid): fid is string => Boolean(fid))
-      );
-      currentUrban = new Set(
-        currentFaceIdOf.map((fid, idx) => (coreFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
-      );
-      const outskirtFaceIds = new Set(
-        [...outskirts].map(idx => faceIdOf[idx]).filter((fid): fid is string => Boolean(fid && !coreFaceIds.has(fid)))
-      );
-      currentOutskirts = new Set(
-        currentFaceIdOf.map((fid, idx) => (outskirtFaceIds.has(fid) ? idx : -1)).filter(idx => idx >= 0)
-      );
-      residentialOutskirts = new Set(
-        currentFaceIdOf
-          .map((fid, idx) => (residentialFaceIds.has(fid) && !coreFaceIds.has(fid) ? idx : -1))
-          .filter(idx => idx >= 0)
-      );
-      currentBuiltUp = new Set([...currentUrban, ...currentOutskirts]);
-    }
-  }
+  // Wall routing owns river conflicts. Planning must not subdivide every
+  // river-side cell before a usable curtain route has been found.
 
   // Bram's spoke roads have to meet a curtain outside the 120 m core. A
   // one-cell peel on this coarse mesh drops that curtain onto the spoke and
@@ -1589,7 +1624,7 @@ export function runPlan(
     effectiveLayout === "bram" || outsideRiver
       ? 0
       : evolutionWallInsetRings(sizePresetForExtent(params.extentMeters), seed, gridKind, program.walls, walledShare);
-  if (insetRings > 0 && currentUrban.size > 0) {
+  if (!compactCore && insetRings > 0 && currentUrban.size > 0) {
     const inset = insetWalledCore(currentCells, currentUrban, insetRings);
     if (inset.peeled.size) {
       currentUrban = inset.urban;
@@ -1597,8 +1632,8 @@ export function runPlan(
         residentialOutskirts.add(id);
         currentOutskirts.add(id);
       }
-      // River splits renumber cells, so the flood-fill stages no longer match.
-      if (!meshModified) urbanStages = classification.stages.filter(stage => currentUrban.has(stage.cellId));
+      // Original cell IDs are retained throughout the wall plan.
+      urbanStages = classification.stages.filter(stage => currentUrban.has(stage.cellId));
     }
   }
 
@@ -1984,6 +2019,7 @@ export function runPlan(
   });
   mark("wards");
   return {
+    urbanCoreMode: settings.urbanCoreMode,
     layout: effectiveLayout,
     castleSite,
     castleFailure,
@@ -2015,6 +2051,64 @@ export function runPlan(
   };
 }
 
+/** A planning checkpoint, not another generation pass (notably when a castle has no site). */
+function planningDebugDocument(
+  source: CityDocument,
+  faceIdOf: string[],
+  plan: Plan,
+  program: CityProgram
+): CityDocument {
+  const next = clone(source);
+  if (plan.mesh) next.mesh = clone(plan.mesh);
+  const ids = plan.faceIdOf ?? faceIdOf;
+  delete next.appearance;
+  delete next.fabric;
+  next.featureGroups = next.featureGroups.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
+  next.gates = next.gates.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
+  next.elements = next.elements.filter(e => e.locked || !e.id.startsWith(GEN_PREFIX));
+  for (const [index, id] of ids.entries()) {
+    const face = next.mesh.faces[id];
+    if (!face || face.properties.locked) continue;
+    face.properties.water = plan.sea.has(index) ? "sea" : "land";
+    face.properties.buildable = !plan.sea.has(index) && (plan.urban.has(index) || plan.outskirts.has(index));
+    face.properties.settlement = plan.urban.has(index) ? "core" : "outskirts";
+    face.properties.ward = editorWard(plan.wards.get(index) ?? "empty");
+  }
+  const nearest = nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters));
+  for (const [index, river] of plan.rivers.entries())
+    next.featureGroups.push({
+      id: `${GEN_PREFIX}river-${index}`,
+      kind: "river",
+      name: `River ${index + 1}`,
+      vertices: polylineToVertexPath(next.mesh, river.resolvedEdgePoints, nearest),
+      source: null,
+      mouth: null,
+      style: { widthMeters: Math.max(6, river.widths[0] ?? 12), color: "#4f8aad" },
+      locked: false
+    });
+  // This is the planned wall, before passage construction and road routing.
+  for (const [index, loop] of (program.walls ? plan.borderLoops : []).entries())
+    next.featureGroups.push({
+      id: `${GEN_PREFIX}debug-wall-${index}`,
+      kind: "wall",
+      name: `Planned wall ${index + 1}`,
+      segments: clone(loop.segments),
+      style: { widthMeters: 4, color: "#41382e" },
+      locked: false
+    });
+  for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
+    if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;
+    next.elements.push({
+      id: `${GEN_PREFIX}debug-${precinct.kind}`,
+      kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
+      faceIds: precinct.cellIds.map(id => ids[id]).filter(Boolean),
+      point: clone(precinct.anchor),
+      locked: false
+    });
+  }
+  return next;
+}
+
 function settingsLegacy(plan: Plan): boolean {
   return !!plan.legacyCastles;
 }
@@ -2030,16 +2124,33 @@ function applyPlan(
   stageStep: number,
   complete = false,
   observer?: GenerationObserver,
-  attempt = 1
+  attempt = 1,
+  onRejected?: (document: CityDocument, sample: import("./generationDiagnostics").GenerationSample) => void,
+  wallCheckpoint?: "walls" | "riverPassages" | "passages"
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
+  const gateRouting = new Map<Id, RoadRoutingTrace[]>();
+  const reject = (
+    phase: string,
+    reason: string,
+    message: string,
+    counts?: Record<string, number>,
+    details?: string[],
+    routing?: RoadRoutingTrace[]
+  ): null => {
+    const sample = reportGenerationFailure(observer, attempt, phase, reason, message, counts, details, routing);
+    onRejected?.(next, sample);
+    return null;
+  };
   if (plan.mesh) {
     next.mesh = clone(plan.mesh);
     cells = plan.cells!;
     faceIdOf = plan.faceIdOf!;
   }
   delete next.appearance;
+  // Keep the active morphology even when routing rejects before town finish.
+  next.layout = plan.layout ?? source.layout;
   if (!settingsLegacy(plan)) {
     next.castles = (next.castles ?? []).filter(c => c.locked || c.provenance !== "generated");
     const retained = new Set(next.castles.map(c => c.id));
@@ -2047,7 +2158,7 @@ function applyPlan(
       c => c.locked || (c.ownerCastleId && retained.has(c.ownerCastleId))
     );
   }
-  if (plan.castleFailure) return null;
+  if (plan.castleFailure && !wallCheckpoint) return null;
   let mesh = next.mesh;
 
   // Clear this module's previous output + every non-locked face tag, so the
@@ -2100,7 +2211,7 @@ function applyPlan(
 
   const faceFor = (cellId: number): (typeof mesh.faces)[string] | undefined => mesh.faces[faceIdOf[cellId]];
   const nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
-  const urbanRegions = [...plan.urban]
+  let urbanRegions = [...plan.urban]
     .map(id => faceFor(id))
     .filter(face => !!face)
     .map(face => facePoints(mesh, face));
@@ -2131,7 +2242,7 @@ function applyPlan(
         !reservedCastleFaces(next).has(face.id)
       ) {
         face.properties.buildable = built.has(id);
-        if (source.gridKind === "evolution" && built.has(id))
+        if ((source.gridKind === "evolution" || plan.urbanCoreMode === "compact") && built.has(id))
           face.properties.settlement = plan.urban.has(id) ? "core" : "outskirts";
       }
     }
@@ -2233,11 +2344,82 @@ function applyPlan(
       }
     });
   }
+  if (stageStep === 4 && wallCheckpoint === "walls") return next;
+  let actualTownFaces: Set<Id> | null = null;
+  let routingPlan = plan;
   if (stageStep >= 4) {
+    // Round shared river/wall vertices before clearance repair, passage splits
+    // and gate/road placement constrain them. Keep the raw curtain checkpoint
+    // available for diagnostics; subsequent checkpoints use this prepared mesh.
+    const precincts = [...plan.precincts, ...plan.templeHarbor];
+    const reservedVertices = new Set(
+      [
+        ...reservedCastleFaces(next),
+        ...(plan.castleSite ? [plan.castleSite.faceId] : []),
+        ...precincts.flatMap(precinct => precinct.cellIds.map(id => faceIdOf[id]))
+      ].flatMap(id => (next.mesh.faces[id] ? faceVertices(next.mesh, next.mesh.faces[id]) : []))
+    );
+    // Polygonal plazas may have no reserved faces; keep their inserted ring
+    // aligned with the planned civic landmarks as the outer boundary rounds.
+    for (const point of precincts.flatMap(precinct => precinct.polygon ?? [])) {
+      const id = nearest(point);
+      if (id && Math.hypot(mesh.vertices[id].point[0] - point[0], mesh.vertices[id].point[1] - point[1]) < 1e-6)
+        reservedVertices.add(id);
+    }
+    const lockedBefore = new Map([...reservedVertices].map(id => [id, next.mesh.vertices[id].locked]));
+    for (const id of reservedVertices) next.mesh.vertices[id].locked = true;
+    next = finishCityGeometry(next, "boundaries");
+    for (const [id, locked] of lockedBefore) next.mesh.vertices[id].locked = locked;
+    mesh = next.mesh;
+    urbanRegions = [...plan.urban]
+      .map(id => faceFor(id))
+      .filter(face => !!face)
+      .map(face => facePoints(mesh, face));
+    mark("smooth-boundaries");
     // Cell splitting handles ordinary bank overlaps. Resolve any residual
     // coastal span before placing gates, so later junction repairs cannot
     // consume an already published gate vertex.
-    next = openWallRiverMouths(joinWallRiverCrossings(next));
+    next = openWallRiverMouths(next);
+    const riverRepair = repairRiverWalls(
+      next,
+      urbanRegions,
+      new Set([...reservedCastleFaces(next), ...(plan.castleSite ? [plan.castleSite.faceId] : [])])
+    );
+    next = riverRepair.document;
+    if (riverRepair.issues.length)
+      return reject(
+        "wall-river-routing",
+        "wall-river-routing-failed",
+        "城壁・河川の離隔、迂回・河川通過口を確保できない",
+        {
+          issues: riverRepair.issues.length,
+          preparedRiverPassages: riverRepair.preparedPassages.length,
+          crossingSplitFaces: riverRepair.splitFaces
+        },
+        [
+          ...riverRepair.adjustments,
+          ...riverRepair.preparedPassages.map(id => `河川横断口の準備完了: ${id}`),
+          ...riverRepair.issues
+        ]
+      );
+    actualTownFaces = enclosedTownFaces(next);
+    if (actualTownFaces) {
+      urbanRegions = [...actualTownFaces].map(id => facePoints(next.mesh, next.mesh.faces[id]));
+      routingPlan = {
+        ...plan,
+        urban: new Set(faceIdOf.flatMap((id, index) => (actualTownFaces!.has(id) ? [index] : [])))
+      };
+      for (const face of Object.values(next.mesh.faces)) {
+        if (face.properties.locked || reservedCastleFaces(next).has(face.id)) continue;
+        if (face.properties.water !== "land") continue;
+        if (actualTownFaces.has(face.id)) {
+          face.properties.settlement = "core";
+        } else if (face.properties.settlement === "core") {
+          face.properties.settlement = "outskirts";
+        }
+      }
+    }
+    if (stageStep === 4 && wallCheckpoint === "riverPassages") return next;
     mesh = next.mesh;
     const wallVertices = new Set<Id>();
     for (const group of next.featureGroups) {
@@ -2250,7 +2432,7 @@ function applyPlan(
     // Reserve gates only on banks whose exterior land reaches the frame.
     // The cell graph deliberately ignores dry-corner bottlenecks: those can
     // be repaired by splitting cells without changing the gate later.
-    const coreIds = new Set([...plan.urban].map(id => faceIdOf[id]));
+    const coreIds = actualTownFaces ?? new Set([...plan.urban].map(id => faceIdOf[id]));
     const riverEdges = kindEdgeIds(next, "river");
     const reachable = new Set<Id>();
     const queue: Id[] = [];
@@ -2369,6 +2551,12 @@ function applyPlan(
         break;
       }
     });
+    if (stageStep === 4 && wallCheckpoint === "passages") {
+      // Selection uses temporary gates to reserve spacing and stable indices.
+      // Display the opened mesh before materializing those generated gates.
+      next.gates = next.gates.filter(gate => gate.locked || !gate.id.startsWith(GEN_PREFIX));
+      return next;
+    }
     // Reserved precinct landmarks as point-anchored elements.
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
       if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;
@@ -2410,19 +2598,12 @@ function applyPlan(
       next,
       urbanRegions,
       program.walls,
-      [...plan.urban].map(id => faceIdOf[id])
+      actualTownFaces ? [...actualTownFaces] : [...plan.urban].map(id => faceIdOf[id])
     );
     if (plan.castleSite) {
       const installed = installCastle(next, plan.castleSite, plan.castleSite.faceId, source.generationSeed ?? "");
       if (!installed) {
-        reportGenerationFailure(
-          observer,
-          attempt,
-          "castle",
-          "castle-layout-too-small",
-          "城の門・庭・必須棟が区画に入りません"
-        );
-        return null;
+        return reject("castle", "castle-layout-too-small", "城の門・庭・必須棟が区画に入りません");
       }
       next = installed;
       mesh = next.mesh;
@@ -2506,7 +2687,7 @@ function applyPlan(
       const preliminaryBans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
       const probe = completeRoadRouter(
         next,
-        plan,
+        routingPlan,
         faceIdOf,
         nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters)),
         preliminaryBans,
@@ -2549,6 +2730,14 @@ function applyPlan(
       ...internalPlazaEdges,
       ...templeBlockedEdges
     ]);
+    const banReasons = new Map<Id, string[]>();
+    const recordBans = (ids: Iterable<Id>, reason: string) => {
+      for (const id of ids) banReasons.set(id, [...(banReasons.get(id) ?? []), reason]);
+    };
+    recordBans(kindEdgeIds(next, "river"), "river-edge: 川の辺");
+    recordBans(kindEdgeIds(next, "wall"), "wall-edge: 城壁の辺");
+    recordBans(internalPlazaEdges, "plaza-interior: 広場の内部辺");
+    recordBans(templeBlockedEdges, "temple: 寺院の内部・身廊");
     const layout = plan.layout ?? source.layout;
     if (layout === "bram") {
       const plazaElem = next.elements.find(e => e.kind === "plaza");
@@ -2564,10 +2753,20 @@ function applyPlan(
             Math.hypot(pb[0] - hub[0], pb[1] - hub[1]) < banRadius)
         ) {
           banned.add(e.id);
+          recordBans([e.id], "bram-core: Bram中心部の道路禁止半径内");
         }
       }
     }
-    const routeComplete = completeRoadRouter(next, plan, faceIdOf, nearestAfter, banned, !program.walls, urbanRegions);
+    const routeComplete = completeRoadRouter(
+      next,
+      routingPlan,
+      faceIdOf,
+      nearestAfter,
+      banned,
+      !program.walls,
+      urbanRegions,
+      banReasons
+    );
     // A complete city supplies one approach road and one interior street for
     // every planned gate. Gate placement is allowed to fail (for example when
     // the matching wall run was removed at the coast), so never materialize
@@ -2580,7 +2779,11 @@ function applyPlan(
       const gateIndex = isApproach ? i : i - approachRoadCount;
       const gateExists = townGates(next).some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`);
       if (complete && program.walls && gateIndex >= 0 && gateIndex < approachRoadCount && !gateExists) return;
-      const segments = routeComplete(polyline, isApproach);
+      const segments = routeComplete(polyline, isApproach, false, trace => {
+        trace.routeId = `${GEN_PREFIX}road-${i}`;
+        const id = `${GEN_PREFIX}gate-${gateIndex}`;
+        gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
+      });
       if (segments.length < 1) return;
       if (!isApproach && program.walls) {
         const wallEdges = kindEdgeIds(next, "wall");
@@ -2725,16 +2928,31 @@ function applyPlan(
         ((complete || stageStep >= 6) && !vertexHasCrossing(next, gate.vertexId, "wall", "road")))
   );
   if (disconnected.length) {
-    reportGenerationFailure(
-      observer,
-      attempt,
+    return reject(
       "gate-routing",
       "unconnected-gates",
       `門 ${disconnected.length} 箇所の道路接続を確保できない`,
       { gates: townGates(next).length, disconnected: disconnected.length },
-      disconnected.map(gate => `${gate.id}: ${gate.vertexId}`)
+      disconnected.flatMap(gate => [
+        `${gate.id}: ${gate.vertexId}`,
+        `門 ${gate.vertexId}: wall-passage=${vertexHasKindPassage(next, gate.vertexId, "wall")}, wall-road-crossing=${vertexHasCrossing(next, gate.vertexId, "wall", "road")}`,
+        `門 ${gate.vertexId} の道路辺: ${
+          next.featureGroups
+            .flatMap(group =>
+              group.kind === "road"
+                ? group.segments
+                    .filter(ref => {
+                      const edge = mesh.edges[ref.edgeId];
+                      return edge.a === gate.vertexId || edge.b === gate.vertexId;
+                    })
+                    .map(ref => ref.edgeId)
+                : []
+            )
+            .join(", ") || "なし"
+        }`
+      ]),
+      disconnected.flatMap(gate => gateRouting.get(gate.id) ?? [])
     );
-    return null;
   }
 
   // Trim or remove any road endpoints that terminate on curtain wall vertices without a gate.
@@ -2842,23 +3060,19 @@ function applyPlan(
 
   if (stageStep >= 6) settleTempleOnDocument(next);
   if (stageStep >= 5 && next.castles?.length && !finalizeCastles(next, true)) {
-    reportGenerationFailure(observer, attempt, "castle", "castle-no-access", "城門から市街への支線を確保できません");
-    return null;
+    return reject("castle", "castle-no-access", "城門から市街への支線を確保できません");
   }
 
   const errors = validate(next);
   mark("apply-validation", { errors: errors.length });
   if (errors.length) {
-    reportGenerationFailure(
-      observer,
-      attempt,
+    return reject(
       "apply-validation",
       "invalid-mesh",
       `メッシュ検証が ${errors.length} 件のエラーで失敗`,
       { errors: errors.length },
       errors.slice(0, 20)
     );
-    return null;
   }
   if (stageStep >= 6) {
     syncDocumentCemeteries(next);
@@ -2868,15 +3082,21 @@ function applyPlan(
 
 /** Re-route against the topology AFTER gates have been opened. Snapping each
  * old Voronoi hop independently can leave a road ending beside its own gate. */
-function completeRoadRouter(
+export function completeRoadRouter(
   document: CityDocument,
   plan: Plan,
   faceIdOf: string[],
   nearest: NearestVertex,
   banned: Set<Id>,
   openRim = false,
-  urbanRegions: Point[][] = []
-): (polyline: Point[], outside: boolean, acrossBanks?: boolean) => EdgeRef[] {
+  urbanRegions: Point[][] = [],
+  banReasons: Map<Id, string[]> = new Map()
+): (
+  polyline: Point[],
+  outside: boolean,
+  acrossBanks?: boolean,
+  onTrace?: (trace: RoadRoutingTrace) => void
+) => EdgeRef[] {
   const { mesh } = document;
   const ids = Object.keys(mesh.vertices);
   const indexOf = new Map(ids.map((id, i) => [id, i]));
@@ -2899,6 +3119,48 @@ function completeRoadRouter(
     if (originalFaces.has(face.id)) continue;
     const center = polygonCentroid(facePoints(mesh, face));
     if (urbanRegions.some(region => pointInPolygon(center, region))) urban.add(face.id);
+  }
+  // Membership can become stale when a gate passage changes the curtain.
+  // For a closed town wall, classify faces by reachability from the frame on
+  // the current mesh. Keep planned membership for open coastal curtains.
+  let curtainInterior: Set<Id> | undefined;
+  const castleWalls = castleWallIds(document);
+  const townWalls = new Set(
+    document.featureGroups.flatMap(group =>
+      group.kind === "wall" && !castleWalls.has(group.id) ? group.segments.map(ref => ref.edgeId) : []
+    )
+  );
+  const wallDegree = new Map<Id, number>();
+  for (const id of townWalls) {
+    const edge = mesh.edges[id];
+    for (const vertex of [edge.a, edge.b]) wallDegree.set(vertex, (wallDegree.get(vertex) ?? 0) + 1);
+  }
+  if (!openRim && townWalls.size && [...wallDegree.values()].every(degree => degree === 2)) {
+    const exterior = new Set<Id>();
+    const queue: Id[] = [];
+    for (const edge of Object.values(mesh.edges)) {
+      if (edge.leftFace && edge.rightFace) continue;
+      for (const id of [edge.leftFace, edge.rightFace]) {
+        if (id && !townWalls.has(edge.id) && !exterior.has(id)) {
+          exterior.add(id);
+          queue.push(id);
+        }
+      }
+    }
+    for (const id of queue) {
+      for (const ref of mesh.faces[id].boundary) {
+        if (townWalls.has(ref.edgeId)) continue;
+        const edge = mesh.edges[ref.edgeId];
+        const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+        if (other && !exterior.has(other)) {
+          exterior.add(other);
+          queue.push(other);
+        }
+      }
+    }
+    if (exterior.size < Object.keys(mesh.faces).length) {
+      curtainInterior = new Set(Object.keys(mesh.faces).filter(id => !exterior.has(id)));
+    }
   }
   const restricted = new Map<Id, Set<Id>>();
   for (const kind of ["wall", "river"] as const) {
@@ -2935,11 +3197,12 @@ function completeRoadRouter(
   const moat = new MoatReservation(document, defaultRoadWidthMeters(document.frame.extentMeters) / 2 + 1);
   const castleBlocked = new Set(
     Object.values(mesh.edges)
-      .filter(
-        edge =>
-          !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)) ||
-          !moat.roadAllowed(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point)
-      )
+      .filter(edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)))
+      .map(edge => edge.id)
+  );
+  const moatBlocked = new Set(
+    Object.values(mesh.edges)
+      .filter(edge => !moat.roadAllowed(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point))
       .map(edge => edge.id)
   );
   const gateIds = new Set(townGates(document).map(g => g.vertexId));
@@ -2965,8 +3228,20 @@ function completeRoadRouter(
     }
     return nearest(p);
   };
-  return (polyline, outside, acrossBanks = false) => {
-    if (polyline.length < 2) return [];
+  return (polyline, outside, acrossBanks = false, onTrace) => {
+    const searches: RoadRoutingTrace["searches"] = [];
+    if (polyline.length < 2) {
+      onTrace?.({
+        outside,
+        plannedPoints: polyline,
+        waypoints: [],
+        status: "failed",
+        path: [],
+        searches,
+        reason: "予定経路の座標が2点未満"
+      });
+      return [];
+    }
     const snap = (p: Point, gateEnd: boolean) => (gateEnd ? endpoint(p) : nearest(p));
     const sampled: Point[] = [];
     const stride = Math.max(1, Math.ceil((polyline.length - 1) / 8));
@@ -2989,30 +3264,58 @@ function completeRoadRouter(
       if (idx === undefined || waypoints.at(-1) === idx) continue;
       waypoints.push(idx);
     }
-    if (!waypoints.length || (!outside && waypoints.length < 2)) return [];
+    if (!waypoints.length || (!outside && waypoints.length < 2)) {
+      onTrace?.({
+        outside,
+        plannedPoints: polyline,
+        waypoints: waypoints.map(i => ids[i]),
+        status: "failed",
+        path: [],
+        searches,
+        reason: "スナップ後の経由頂点が不足（頂点なし、または始点と終点が同一）"
+      });
+      return [];
+    }
     const hopEndOf = waypoints[waypoints.length - 1];
+    let useCurrentCurtain = false;
+    let blocked: RoadRoutingTrace["searches"][number]["blocked"] = [];
     const weight = (a: number, b: number, w: number, hopEnd: number) => {
       const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
-      if (castleBlocked.has(edge.id)) return Infinity;
+      const rejectEdge = (reason: string) => {
+        if (onTrace) blocked.push({ edge: edge.id, from: ids[a], to: ids[b], reason });
+        return Infinity;
+      };
+      if (castleBlocked.has(edge.id)) return rejectEdge("castle: 城・城壁の禁止領域");
+      if (moatBlocked.has(edge.id)) return rejectEdge("moat: 門の通路以外で堀に進入");
       for (const id of [edge.a, edge.b])
-        if (bridgeInterior.has(id) && !gateIds.has(id) && !bridgeInterior.get(id)!.has(edge.id)) return Infinity;
+        if (bridgeInterior.has(id) && !gateIds.has(id) && !bridgeInterior.get(id)!.has(edge.id))
+          return rejectEdge(`bridge-interior: 橋の途中 ${id} から分岐`);
       if (banned.has(edge.id)) {
         const canUsePlazaEdge =
           !outside &&
           internalPlazaEdges.has(edge.id) &&
           (gateIds.has(edge.a) || gateIds.has(edge.b) || a === hopEnd || b === hopEnd);
-        if (!canUsePlazaEdge) return Infinity;
+        if (!canUsePlazaEdge) return rejectEdge(banReasons.get(edge.id)?.join("; ") ?? "banned-edge: 道路探索の禁止辺");
       }
-      if (riverRouteVertices.has(edge.a) && riverRouteVertices.has(edge.b)) return Infinity;
+      if (riverRouteVertices.has(edge.a) && riverRouteVertices.has(edge.b))
+        return rejectEdge("river-bank: 両端が川の頂点");
       for (const id of [edge.a, edge.b]) {
-        if (restricted.has(id) && !restricted.get(id)!.has(edge.id)) return Infinity;
+        if (restricted.has(id) && !restricted.get(id)!.has(edge.id))
+          return rejectEdge(
+            `barrier-passage: ${id} で川・壁を通り抜ける腕ではない（許可辺: ${[...restricted.get(id)!].join(", ") || "なし"}）`
+          );
       }
       const faces = [edge.leftFace, edge.rightFace].filter((id): id is Id => id !== null);
-      if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land")) return Infinity;
-      const inTown = faces.some(id => urban.has(id));
+      if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land"))
+        return rejectEdge("water-face: 水面に接する辺");
+      const inTown = faces.some(id => (useCurrentCurtain ? curtainInterior! : urban).has(id));
       if (!acrossBanks && outside === inTown && !bridgeEdges.has(edge.id)) {
         if (outside && openRim && (a === hopEnd || b === hopEnd)) return w;
-        return Infinity;
+        return rejectEdge(
+          outside
+            ? `town-interior: 城外道路が城内セルに接する (${faces.filter(id => (useCurrentCurtain ? curtainInterior! : urban).has(id)).join(", ")})`
+            : `town-exterior: 城内道路が城外セルに接する (${faces.join(", ")})`
+        );
       }
       return w;
     };
@@ -3020,34 +3323,69 @@ function completeRoadRouter(
       const nodes: number[] = [points[0]];
       for (let i = 0; i < points.length - 1; i++) {
         const hopEnd = points[i + 1];
-        const hop = aStar(graph, nodes.at(-1)!, hopEnd, (a, b, w) => weight(a, b, w, hopEnd));
+        blocked = [];
+        const start = nodes.at(-1)!;
+        const hop = aStar(
+          graph,
+          start,
+          hopEnd,
+          (a, b, w) => weight(a, b, w, hopEnd),
+          onTrace
+            ? (partial, reached) => {
+                const visited = new Set(reached.map(i => ids[i]));
+                const partialPath = [...nodes.slice(0, -1), ...partial];
+                searches.push({
+                  start: ids[start],
+                  end: ids[hopEnd],
+                  classification: useCurrentCurtain ? "current-curtain" : "planned",
+                  reachedCount: reached.length,
+                  partialPath: partialPath.map(i => ids[i]),
+                  partialEdges: partialPath.slice(1).map((v, i) => {
+                    return edgeFor.get(`${Math.min(partialPath[i], v)},${Math.max(partialPath[i], v)}`)!.id;
+                  }),
+                  blocked: blocked.filter(block => !visited.has(block.to))
+                });
+              }
+            : undefined
+        );
         if (!hop || hop.length < 2) return null;
         nodes.push(...hop.slice(1));
       }
       return nodes.length >= 2 ? nodes : null;
     };
     let nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
-    if (
-      outside &&
-      (!nodes || graph.points[nodes[0]].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01))
-    ) {
-      // The bearing can snap to an unusable river mouth. Search dry frame
-      // exits in bearing order before giving up the already placed gate.
-      const half = document.frame.extentMeters / 2;
-      const target = graph.points[waypoints[0]];
-      const exits = ids.map((_, i) => i).filter(i => graph.points[i].some(v => Math.abs(v) >= half - 0.01));
-      exits.sort(
-        (a, b) =>
-          Math.hypot(graph.points[a][0] - target[0], graph.points[a][1] - target[1]) -
-          Math.hypot(graph.points[b][0] - target[0], graph.points[b][1] - target[1])
-      );
-      for (const exit of exits) {
-        const extended = stitch([exit, hopEndOf]);
-        if (extended) {
-          nodes = extended;
-          break;
+    // Keep successful planned routes unchanged. Only retry a failed exterior
+    // approach against the repaired closed curtain; interior streets retain
+    // their planned urban/plaza membership.
+    for (let pass = 0; outside && pass < (curtainInterior ? 2 : 1); pass++) {
+      if (pass > 0) {
+        useCurrentCurtain = true;
+        nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+      }
+      if (
+        outside &&
+        (!nodes || graph.points[nodes[0]].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01))
+      ) {
+        // The bearing can snap to an unusable river mouth. Search dry frame
+        // exits in bearing order before giving up the already placed gate.
+        const half = document.frame.extentMeters / 2;
+        const target = graph.points[waypoints[0]];
+        const exits = ids.map((_, i) => i).filter(i => graph.points[i].some(v => Math.abs(v) >= half - 0.01));
+        exits.sort(
+          (a, b) =>
+            Math.hypot(graph.points[a][0] - target[0], graph.points[a][1] - target[1]) -
+            Math.hypot(graph.points[b][0] - target[0], graph.points[b][1] - target[1])
+        );
+        for (const exit of exits) {
+          const extended = stitch([exit, hopEndOf]);
+          if (extended) {
+            nodes = extended;
+            break;
+          }
         }
       }
+      if (nodes && graph.points[nodes[0]].some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01))
+        break;
     }
     if (!nodes && !outside && gateIds.has(ids[waypoints[0]])) {
       // A coastal plaza corner may itself touch water or a wall. Connect to
@@ -3061,6 +3399,33 @@ function completeRoadRouter(
           })
         )
       );
+      // Polygonal plazas (circulade/bram) have no face IDs. Their nearest
+      // corner can snap into a temple footprint; try the other plaza corners
+      // rather than treating that blocked snap as an unreachable gate.
+      if (!plaza?.faceIds.length) {
+        const precinct = plan.precincts.find(p => p.kind === "plaza");
+        for (const point of precinct?.polygon ?? []) {
+          const id = nearest(point);
+          const index = id ? indexOf.get(id) : undefined;
+          if (index !== undefined) targets.add(index);
+        }
+      }
+      if ((plan.layout ?? document.layout) === "bram") {
+        // A spoke ends outside the reserved core, but its nearest mesh vertex
+        // can lie inside it. Try nearby exterior vertices before rejecting the
+        // gate; all wall, river, sea, castle and moat restrictions still apply.
+        const hub = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
+        const core = bramCoreRadiusForCity(document.frame.cityRadiusMeters, !openRim);
+        const minimumRadius = bramRoadBanRadiusMeters(core);
+        const aim = polyline.at(-1)!;
+        for (const [index, point] of graph.points.entries()) {
+          if (
+            Math.hypot(point[0] - hub[0], point[1] - hub[1]) >= minimumRadius &&
+            Math.hypot(point[0] - aim[0], point[1] - aim[1]) <= document.frame.blockSizeMeters
+          )
+            targets.add(index);
+        }
+      }
       const target = graph.points[hopEndOf];
       const candidates = [...targets].sort(
         (a, b) =>
@@ -3072,7 +3437,21 @@ function completeRoadRouter(
         if (nodes) break;
       }
     }
-    if (!nodes) return [];
+    const emitTrace = () =>
+      onTrace?.({
+        outside,
+        plannedPoints: polyline,
+        waypoints: waypoints.map(i => ids[i]),
+        status: nodes ? "connected" : "failed",
+        path: nodes?.map(i => ids[i]) ?? [],
+        edges:
+          nodes?.slice(1).map((b, i) => edgeFor.get(`${Math.min(nodes![i], b)},${Math.max(nodes![i], b)}`)!.id) ?? [],
+        searches
+      });
+    if (!nodes) {
+      emitTrace();
+      return [];
+    }
     if (outside) {
       const half = document.frame.extentMeters / 2;
       const onFrame = (node: number) => graph.points[node].some(value => Math.abs(value) >= half - 0.01);
@@ -3081,6 +3460,7 @@ function completeRoadRouter(
       const firstContactFromTown = nodes.findLastIndex(onFrame);
       if (firstContactFromTown >= 0) nodes = nodes.slice(firstContactFromTown);
     }
+    emitTrace();
     return nodes.slice(1).map((b, i) => {
       const edge = edgeFor.get(`${Math.min(nodes[i], b)},${Math.max(nodes[i], b)}`)!;
       return { edgeId: edge.id, forward: edge.a === ids[nodes[i]] };

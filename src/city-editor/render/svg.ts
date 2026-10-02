@@ -32,9 +32,20 @@ import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { MoatReservation } from "../core/moats";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
-import type { CityDocument, CityGate, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
-
+import type {
+  CityDocument,
+  CityElement,
+  CityGate,
+  EdgeRef,
+  Face,
+  FeatureGroup,
+  Id,
+  Mesh,
+  Point,
+  Tool
+} from "../core/types";
 import { openSpaceBoundary } from "./openSpaceBoundary";
+import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 import { renderTempleSvg } from "./templeSvg";
 
@@ -775,6 +786,7 @@ export function renderEditorSvg(
     }
   }
   svg.appendChild(features);
+  svg.appendChild(renderRiverWallSvg(document));
   if (town) {
     svg.appendChild(renderTownQuays(document, townHarbor));
     svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
@@ -847,9 +859,9 @@ export function renderEditorSvg(
   }
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
+  const castleFaces = !town ? reservedCastleFaces(document) : new Set<Id>();
   const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
   if (!town) {
-    const castleFaces = reservedCastleFaces(document);
     for (const face of Object.values(document.mesh.faces)) {
       if (castleFaces.has(face.id)) continue;
       const marker = renderFaceWardLandmark(document.mesh, face);
@@ -969,6 +981,9 @@ export function renderEditorSvg(
         if (tool === "select") templeNode.style.cursor = "pointer";
         elements.appendChild(templeNode);
       }
+      continue;
+    }
+    if (!town && elementHasDuplicateWardLandmark(document, castleFaces, cityElement)) {
       continue;
     }
     const elemMarker = cityElementMarker(p, cityElement.kind, cityElement.id);
@@ -2622,6 +2637,40 @@ function cityElementMarker(point: Point, kind: string, id: Id): SVGElement {
 function wardLandmarkKind(ward: string | null): "plaza" | "citadel" | "harbor" | "park" | null {
   const landmarks = { market: "plaza", castle: "citadel", harbor: "harbor", park: "park" } as const;
   return landmarks[ward as keyof typeof landmarks] ?? null;
+}
+
+function faceRendersWardLandmarkKind(castleFaces: Set<Id>, face: Face, kind: string): boolean {
+  if (castleFaces.has(face.id) || face.properties.water !== "land") return false;
+  return wardLandmarkKind(face.properties.ward) === kind;
+}
+
+function elementHasDuplicateWardLandmark(
+  document: CityDocument,
+  castleFaces: Set<Id>,
+  cityElement: CityElement
+): boolean {
+  const kind = cityElement.kind;
+  if (kind !== "harbor" && kind !== "plaza" && kind !== "citadel") {
+    return false;
+  }
+  if (cityElement.faceIds?.length) {
+    for (const fid of cityElement.faceIds) {
+      const face = document.mesh.faces[fid];
+      if (face && faceRendersWardLandmarkKind(castleFaces, face, kind)) {
+        return true;
+      }
+    }
+  }
+  if (cityElement.point) {
+    for (const face of Object.values(document.mesh.faces)) {
+      if (!faceRendersWardLandmarkKind(castleFaces, face, kind)) continue;
+      const poly = facePoints(document.mesh, face);
+      if (pointInPolygon(cityElement.point, poly)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

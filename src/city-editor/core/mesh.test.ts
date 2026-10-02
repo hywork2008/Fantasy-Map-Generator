@@ -7,6 +7,7 @@ import {
   insertEdgeVertex,
   mergeFaces,
   mergeVertices,
+  moveVertex,
   optimizeJunctions,
   scaleDocument,
   setFaceDepth,
@@ -251,4 +252,21 @@ describe("water depth", () => {
     delete sea.mesh.faces[id].properties.depth;
     expect(parseDocument(JSON.stringify(sea))?.mesh.faces[id].properties.depth).toBe(3);
   });
+});
+
+it("allows debug vertex movement with existing errors, without introducing new errors", () => {
+  const source = createSizedDocument("micro", "debug-existing-errors");
+  const face = Object.values(source.mesh.faces)[0];
+  face.properties.depth = -1;
+  const edge = Object.values(source.mesh.edges)[0];
+  const vertex = source.mesh.vertices[edge.a];
+  const before = structuredClone(source);
+  const target: [number, number] = [vertex.point[0] + 0.1, vertex.point[1] + 0.1];
+  expect(moveVertex(source, vertex.id, target)).toBeNull();
+  const moved = moveVertex(source, vertex.id, target, true);
+  expect(moved).not.toBeNull();
+  expect(validate(moved!)).toEqual(validate(source));
+  const neighbor = source.mesh.vertices[edge.b].point;
+  expect(moveVertex(source, vertex.id, [neighbor[0] + 0.1, neighbor[1] + 0.1], true)).toBeNull();
+  expect(source).toEqual(before);
 });

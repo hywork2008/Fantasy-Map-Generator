@@ -265,6 +265,9 @@ export function validFabricPlan(plan: FabricPlan): boolean {
     config = g.settings?.config;
   return (
     ["evolution-city-v3", "castle-city-v1"].includes(g.algorithm) &&
+    (g.settings?.urbanCoreMode === undefined ||
+      g.settings.urbanCoreMode === "legacy" ||
+      g.settings.urbanCoreMode === "compact") &&
     (g.settings?.walledAreaShare === undefined ||
       (Number.isFinite(g.settings.walledAreaShare) &&
         g.settings.walledAreaShare >= 0.05 &&

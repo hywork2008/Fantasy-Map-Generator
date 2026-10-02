@@ -95,7 +95,8 @@ export function aStar(
   graph: EdgeGraph,
   start: number,
   goal: number,
-  edgeCost: (a: number, b: number, w: number) => number = (_a, _b, w) => w
+  edgeCost: (a: number, b: number, w: number) => number = (_a, _b, w) => w,
+  onFailure?: (path: number[], reached: number[]) => void
 ): number[] | null {
   const n = graph.points.length;
   if (start < 0 || goal < 0 || start >= n || goal >= n) return null;
@@ -128,7 +129,16 @@ export function aStar(
     }
   }
 
-  if (goal !== start && cameFrom[goal] === -1) return null;
+  if (goal !== start && cameFrom[goal] === -1) {
+    if (onFailure) {
+      const reached = Array.from(gScore.keys()).filter(i => Number.isFinite(gScore[i]));
+      const closest = reached.reduce((best, i) => (heuristic(i) < heuristic(best) ? i : best), start);
+      const partial = [closest];
+      for (let node = closest; node !== start; node = cameFrom[node]) partial.push(cameFrom[node]);
+      onFailure(partial.reverse(), reached);
+    }
+    return null;
+  }
   const path: number[] = [goal];
   for (let node = goal; node !== start; node = cameFrom[node]) {
     if (cameFrom[node] === -1) return null;

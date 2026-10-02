@@ -12,7 +12,7 @@ import { polygonArea, polygonCentroid, segmentInteriorInPolygon, segmentSegmentH
  * setbacks keep meeting at exactly the same coordinates after editing/export.
  * Neighbouring blocks absorb the displacement; local line searches prevent
  * collapsed edges, inverted faces and self-intersections. */
-export function finishCityGeometry(source: CityDocument): CityDocument {
+export function finishCityGeometry(source: CityDocument, phase: "finish" | "boundaries" = "finish"): CityDocument {
   const next = clone(source);
   const coarse = source.gridKind === "evolution";
   const { mesh } = next;
@@ -113,6 +113,10 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     }
   }
 
+  // Wall routing has fixed the channel and its clearance before this stage.
+  // Smoothing streets must not pull the river back onto the new curtain.
+  if (phase === "finish") for (const id of riverVertices) pinned.add(id);
+
   const gateVertices = new Set((next.gates ?? []).map(gate => gate.vertexId));
   const clearancePairs: { road: Id; obstacle: Id; minimum: number }[] = [];
   const clearanceAt = (roadId: Id, obstacleId: Id): number => {
@@ -171,6 +175,19 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       if (minimum > 0.01) clearancePairs.push({ road: roadId, obstacle: cemEdgeId, minimum });
     }
   }
+
+  // Preserve the river/curtain clearance through every smoothing sweep.
+  // Shared vertices are intentional transverse water passages.
+  for (const wallId of walls)
+    for (const riverId of rivers) {
+      const wall = mesh.edges[wallId],
+        river = mesh.edges[riverId];
+      if ([wall.a, wall.b].some(id => id === river.a || id === river.b)) continue;
+      const initial = clearanceAt(wallId, riverId);
+      const visibleGap = (wallWidths.get(wallId) ?? 7) / 2 + (riverWidths.get(riverId) ?? 10) / 2 + 2;
+      const minimum = Math.min(visibleGap, initial);
+      if (minimum > 0.01) clearancePairs.push({ road: wallId, obstacle: riverId, minimum });
+    }
 
   const clearanceAtVertex = new Map<Id, typeof clearancePairs>();
   for (const pair of clearancePairs) {
@@ -232,7 +249,9 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     }
     for (const id of neighbors.keys()) constrained.add(id);
   };
-  smoothNetwork(water, coarse ? 3 : 12);
+  // Classify terrain on the original grid. Boundary preparation only rounds
+  // the channel and curtain, before routing publishes their clearance.
+  smoothNetwork(water, phase === "boundaries" ? 0 : coarse ? 3 : 12);
   smoothNetwork(rivers, coarse ? 3 : 12);
   smoothNetwork(walls, coarse ? 4 : 32);
   // The vertex where a road leaves a gate stays put. A short stub beyond it
@@ -243,7 +262,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     if (gateVertices.has(edge.a)) constrained.add(edge.b);
     if (gateVertices.has(edge.b)) constrained.add(edge.a);
   }
-  smoothNetwork(roads, coarse ? 6 : 48);
+  smoothNetwork(roads, phase === "boundaries" ? 0 : coarse ? 6 : 48);
 
   // Extend boundary displacements into nearby blocks instead of dragging one
   // vertex through an otherwise frozen Voronoi tessellation.
@@ -263,7 +282,18 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     for (const [id, p] of updates) desired.set(id, p);
   }
 
-  const validAt = (id: Id): boolean => {
+  const minimumCorner = (points: Point[]): number =>
+    Math.min(
+      ...points.map((p, i) => {
+        const a = points[(i + points.length - 1) % points.length];
+        const b = points[(i + 1) % points.length];
+        const dot =
+          ((a[0] - p[0]) * (b[0] - p[0]) + (a[1] - p[1]) * (b[1] - p[1])) /
+          (Math.hypot(a[0] - p[0], a[1] - p[1]) * Math.hypot(b[0] - p[0], b[1] - p[1]) || 1);
+        return Math.acos(Math.max(-1, Math.min(1, dot)));
+      })
+    );
+  const validAt = (id: Id, cornerFloors: Map<Id, number>): boolean => {
     const p = mesh.vertices[id].point;
     for (const n of adjacent.get(id) ?? []) {
       const q = mesh.vertices[n].point;
@@ -274,6 +304,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       const before = areas.get(fid)!;
       const area = polygonArea(points);
       if (Math.abs(area) < 1.01 || area / before < (coarse ? 0.5 : 0.12)) return false;
+      if (minimumCorner(points) < cornerFloors.get(fid)! - 1e-7) return false;
       for (let i = 0; i < points.length; i++) {
         for (let j = i + 2; j < points.length; j++) {
           if (i === 0 && j === points.length - 1) continue;
@@ -313,6 +344,14 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       const v = mesh.vertices[id];
       const p = v.point;
       if (Math.hypot(target[0] - p[0], target[1] - p[1]) < 0.01) continue;
+      // This is a displacement constraint, not a generation rejection: an
+      // already acute cell may improve gradually, but must not become sharper.
+      const cornerFloors = new Map(
+        (facesAt.get(id) ?? []).map(fid => [
+          fid,
+          Math.min(Math.PI / 12, minimumCorner(faceRings.get(fid)!.map(vertex => mesh.vertices[vertex].point)))
+        ])
+      );
       for (let strength = 0.5; strength >= 1 / 128; strength /= 2) {
         v.point = [p[0] + (target[0] - p[0]) * strength, p[1] + (target[1] - p[1]) * strength];
         const candidate = v.point;
@@ -328,14 +367,15 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
           }
         }
         v.point = candidate;
-        if (validAt(id) && keepsGateRiverGap(id, candidate) && clearsObstacles && !entersCemetery(id)) break;
+        if (validAt(id, cornerFloors) && keepsGateRiverGap(id, candidate) && clearsObstacles && !entersCemetery(id))
+          break;
         v.point = p;
       }
     }
   }
   // Smoothing rounds the curtain and leaves short street stubs oblique to it.
   // Slide the gate along the wall before sites are taken from the faces.
-  const aligned = straightenGateCrossings(next);
+  const aligned = phase === "boundaries" ? next : straightenGateCrossings(next);
   const alignedMesh = aligned.mesh;
   for (const face of Object.values(alignedMesh.faces)) {
     if (!face.properties.locked) face.site = polygonCentroid(facePoints(alignedMesh, face));
@@ -346,7 +386,7 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     const face = alignedMesh.faces[element.faceIds[0]];
     if (face) element.point = polygonCentroid(facePoints(alignedMesh, face));
   }
-  const finished = straightenBridges(aligned);
+  const finished = phase === "boundaries" ? aligned : straightenBridges(aligned);
   syncDocumentCemeteries(finished);
   refreshCemeteryLayouts(finished);
   return finished;

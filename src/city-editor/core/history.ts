@@ -29,6 +29,7 @@ export class DocumentHistory {
   private patches: (DocPatch | null)[] = [null];
   private entryList: HistoryEntry[] = [];
   private cursor = 0;
+  private entryKeys: object[] = [{}];
   /** Rebuilt state at `cursor`, kept so `commit` can diff in O(changed keys). */
   private live: CityDocument;
   /** Rebuilt state at `cursor - 1`, the base an `amendTop` re-diffs against. */
@@ -55,6 +56,7 @@ export class DocumentHistory {
     const patch = diffDocument(this.live, document);
     this.cursor += 1;
     this.patches[this.cursor] = patch;
+    this.entryKeys[this.cursor] = {};
     this.entryList[this.cursor] = { label, time: Date.now() };
     this.base = this.live;
     // No clone: `document` is never mutated in place after this point (every
@@ -76,6 +78,7 @@ export class DocumentHistory {
    * so the whole stroke collapses to a single undo entry.
    */
   amendTop(document: CityDocument, label?: string): CityDocument {
+    this.entryKeys[this.cursor] = {};
     if (this.cursor === 0) {
       // No entry to fold into: treat as reseeding the initial state.
       this.checkpoints.set(0, document);
@@ -94,6 +97,7 @@ export class DocumentHistory {
     const seed = clone(document);
     this.checkpoints = new Map([[0, seed]]);
     this.patches = [null];
+    this.entryKeys = [{}];
     this.entryList = [{ label, time: Date.now() }];
     this.cursor = 0;
     this.live = seed;
@@ -123,6 +127,11 @@ export class DocumentHistory {
     return this.entryList.map(entry => ({ ...entry }));
   }
 
+  /** Stable opaque identity for a recorded state; edits and branches get new keys. */
+  get currentEntryKey(): object {
+    return this.entryKeys[this.cursor];
+  }
+
   get index(): number {
     return this.cursor;
   }
@@ -145,6 +154,7 @@ export class DocumentHistory {
 
   private truncateAfter(index: number): void {
     this.patches.length = index + 1;
+    this.entryKeys.length = index + 1;
     this.entryList.length = index + 1;
     for (const key of [...this.checkpoints.keys()]) if (key > index) this.checkpoints.delete(key);
   }

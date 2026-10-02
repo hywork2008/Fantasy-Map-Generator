@@ -37,13 +37,16 @@ export function classifyUrban(
   nPatches: number | null = null,
   /** Area fallback for degenerate polygons. */
   cellSizeMeters = cityRadiusMeters / 3.5,
-  captureStages = true
+  captureStages = true,
+  coreMode: "legacy" | "compact" = "legacy"
 ): UrbanClassification {
   const urban = new Set<number>();
   const outskirts = new Set<number>();
   const stages: UrbanStage[] = [];
 
-  const eligible = (c: Cell): boolean => !ctx.sea.has(c.id);
+  const compact = coreMode === "compact";
+  const eligible = (c: Cell): boolean =>
+    !ctx.sea.has(c.id) && (!compact || Math.hypot(c.centroid[0], c.centroid[1]) <= cityRadiusMeters);
 
   // Distance metric: circular inland, elliptical (shore-elongated) on a coast.
   const reach = (c: Cell): number => {
@@ -66,7 +69,8 @@ export function classifyUrban(
     const bank = ctx.bank.get(c.id) ?? 0;
     return bank > 0 ? cityRadiusMeters * 0.22 : 0;
   };
-  const cost = (c: Cell): number => reach(c) + bankPenalty(c) - gatePull(c);
+  const cost = (c: Cell): number =>
+    compact ? Math.hypot(c.centroid[0], c.centroid[1]) : reach(c) + bankPenalty(c) - gatePull(c);
 
   const byId = new Map(cells.map(c => [c.id, c]));
   const citySideCells = cells.filter(c => eligible(c) && (ctx.bank.get(c.id) ?? 0) === 0);
@@ -96,7 +100,7 @@ export function classifyUrban(
   }
 
   for (const cell of cells) {
-    if (urban.has(cell.id) || !eligible(cell)) continue;
+    if (compact || urban.has(cell.id) || !eligible(cell)) continue;
     if (reach(cell) > cityRadiusMeters * RIBBON_REACH || roadBearings.length === 0) continue;
     const az = vecToAzimuth(cell.centroid[0], cell.centroid[1]);
     if (Math.min(...roadBearings.map(b => azimuthDelta(az, b))) <= RIBBON_CONE_DEG) outskirts.add(cell.id);
