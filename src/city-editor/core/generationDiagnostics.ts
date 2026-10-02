@@ -52,9 +52,9 @@ export function generationPhaseLabel(phase: string): string {
   if (phase === "prepare") return "準備";
   if (phase === "complete") return "全体";
   if (phase === "apply-validation") return "メッシュ検証";
+  if (phase.includes("wall")) return "城壁・門";
   if (phase.includes("coast") || phase.includes("river") || phase.includes("terrain")) return "地形";
   if (phase === "urban") return "市街地";
-  if (phase.includes("wall")) return "城壁・門";
   if (phase.includes("street") || phase.includes("route") || phase.includes("road")) return "街道・橋";
   if (phase.includes("rectify") || phase.includes("geometry")) return "形状の仕上げ";
   if (phase.includes("crossing")) return "交差の検証";

@@ -44,8 +44,8 @@ import type {
   Point,
   Tool
 } from "../core/types";
-
 import { openSpaceBoundary } from "./openSpaceBoundary";
+import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 import { renderTempleSvg } from "./templeSvg";
 
@@ -786,6 +786,7 @@ export function renderEditorSvg(
     }
   }
   svg.appendChild(features);
+  svg.appendChild(renderRiverWallSvg(document));
   if (town) {
     svg.appendChild(renderTownQuays(document, townHarbor));
     svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));

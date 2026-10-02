@@ -196,6 +196,119 @@ export function openBarrierPassage(document: CityDocument, vertexId: Id, barrier
   return vertexHasKindPassage(next, vertexId, barrier) ? next : null;
 }
 
+/** Construct only the two bank approaches for this water passage. Never
+ * merge channel vertices or split unrelated river-side cells. */
+export function openRiverWallPassage(document: CityDocument, vertexId: Id): CityDocument | null {
+  const frame = riverCrossingFrame(document, vertexId);
+  const origin = document.mesh.vertices[vertexId]?.point;
+  if (!frame || !origin || document.mesh.vertices[vertexId].locked) return null;
+  const normal: Point = [-frame.tangent[1], frame.tangent[0]];
+  const wallHalfWidth = Math.max(
+    2,
+    ...document.featureGroups.flatMap(group =>
+      group.kind === "wall" &&
+      group.segments.some(ref => {
+        const edge = document.mesh.edges[ref.edgeId];
+        return edge.a === vertexId || edge.b === vertexId;
+      })
+        ? [group.style.widthMeters / 2]
+        : []
+    )
+  );
+  const clearance = frame.width / 2 + wallHalfWidth + 2;
+  const riverPoints = document.featureGroups.flatMap(group =>
+    group.kind === "river" ? [group.vertices.map(id => document.mesh.vertices[id].point)] : []
+  );
+  const existing = throughEdgesAt(document, vertexId, "river", true);
+  if (
+    existing.length === 2 &&
+    existing.every(edge => {
+      const p = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a].point;
+      const dx = p[0] - origin[0],
+        dy = p[1] - origin[1];
+      return (
+        Math.abs(dx * normal[0] + dy * normal[1]) / Math.max(1e-7, Math.hypot(dx, dy)) >= 0.5 &&
+        riverPoints.every(line => nearestOnPolyline(p, line).dist >= clearance)
+      );
+    })
+  )
+    return document;
+  let next = document;
+  for (const sign of [-1, 1]) {
+    const direction: Point = [normal[0] * sign, normal[1] * sign];
+    const far: Point = [
+      origin[0] + direction[0] * document.frame.extentMeters * 2,
+      origin[1] + direction[1] * document.frame.extentMeters * 2
+    ];
+    let from = vertexId;
+    let reachedBank = false;
+    for (let step = 0; step < 4; step++) {
+      const point = next.mesh.vertices[from].point;
+      const riverEdges = kindEdgeIds(next, "river");
+      const along = incidentEdges(next.mesh, from).find(edge => {
+        if (riverEdges.has(edge.id)) return false;
+        const other = next.mesh.vertices[edge.a === from ? edge.b : edge.a].point;
+        const dx = other[0] - point[0],
+          dy = other[1] - point[1];
+        return dx * direction[0] + dy * direction[1] > 1 && Math.abs(dx * direction[1] - dy * direction[0]) < 1e-5;
+      });
+      if (along) {
+        from = along.a === from ? along.b : along.a;
+        if (riverPoints.every(line => nearestOnPolyline(next.mesh.vertices[from].point, line).dist >= clearance)) {
+          reachedBank = true;
+          break;
+        }
+        continue;
+      }
+      const face = incidentFaces(next.mesh, from).find(
+        face =>
+          !face.properties.locked &&
+          face.properties.water === "land" &&
+          pointInPolygon([point[0] + direction[0] * 0.1, point[1] + direction[1] * 0.1], facePoints(next.mesh, face))
+      );
+      if (!face) return null;
+      const hit = face.boundary
+        .flatMap(ref => {
+          const edge = next.mesh.edges[ref.edgeId];
+          if (edge.a === from || edge.b === from) return [];
+          const a = next.mesh.vertices[edge.a].point,
+            b = next.mesh.vertices[edge.b].point;
+          const crossing = segmentSegmentHit(point, far, a, b);
+          return crossing && Math.hypot(crossing.point[0] - point[0], crossing.point[1] - point[1]) > 1
+            ? [{ edge, a, b, crossing }]
+            : [];
+        })
+        .sort((a, b) => a.crossing.t - b.crossing.t)[0];
+      if (!hit || kindEdgeIds(next, "river").has(hit.edge.id)) return null;
+      let to: Id;
+      if (Math.hypot(hit.crossing.point[0] - hit.a[0], hit.crossing.point[1] - hit.a[1]) < 1) to = hit.edge.a;
+      else if (Math.hypot(hit.crossing.point[0] - hit.b[0], hit.crossing.point[1] - hit.b[1]) < 1) to = hit.edge.b;
+      else {
+        const dx = hit.b[0] - hit.a[0],
+          dy = hit.b[1] - hit.a[1];
+        const fraction =
+          ((hit.crossing.point[0] - hit.a[0]) * dx + (hit.crossing.point[1] - hit.a[1]) * dy) / (dx * dx + dy * dy);
+        const inserted = insertEdgeVertex(next, hit.edge.id, fraction);
+        if (!inserted) return null;
+        next = inserted.document;
+        to = inserted.vertexId;
+      }
+      if (!edgeBetween(next.mesh, from, to)) {
+        const split = splitFace(next, face.id, from, to);
+        if (!split) return null;
+        next = split;
+      }
+      from = to;
+      if (riverPoints.every(line => nearestOnPolyline(next.mesh.vertices[to].point, line).dist >= clearance)) {
+        reachedBank = true;
+        break;
+      }
+    }
+    if (!reachedBank) return null;
+  }
+  return throughEdgesAt(next, vertexId, "river", true).length === 2 ? next : null;
+}
+
 /** Cut a wide-channel crossing along the river normal through the shared mesh.
  * Moving existing ward corners cannot span a channel wider than a ward. Instead
  * insert the bank approaches on face boundaries, keeping every junction real. */
@@ -402,9 +515,63 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
   return straightenBridge(next, id);
 }
 
+/** Gate squaring must not erase the river clearance established by routing. */
+function keepsWallRiverGap(before: CityDocument, after: CityDocument, vertexId: Id): boolean {
+  const point = (doc: CityDocument, id: Id) => doc.mesh.vertices[id].point;
+  const distance = (doc: CityDocument, edge: Edge, a: Id, b: Id) => {
+    const p = point(doc, edge.a),
+      q = point(doc, edge.b),
+      u = point(doc, a),
+      v = point(doc, b);
+    if (segmentSegmentHit(p, q, u, v)) return 0;
+    return Math.min(
+      nearestOnPolyline(p, [u, v]).dist,
+      nearestOnPolyline(q, [u, v]).dist,
+      nearestOnPolyline(u, [p, q]).dist,
+      nearestOnPolyline(v, [p, q]).dist
+    );
+  };
+  for (const wall of before.featureGroups) {
+    if (wall.kind !== "wall") continue;
+    for (const ref of wall.segments) {
+      const edge = before.mesh.edges[ref.edgeId];
+      if (edge.a !== vertexId && edge.b !== vertexId) continue;
+      for (const river of before.featureGroups) {
+        if (river.kind !== "river") continue;
+        for (let i = 1; i < river.vertices.length; i++) {
+          const a = river.vertices[i - 1],
+            b = river.vertices[i];
+          const crossing = [edge.a, edge.b].find(id => id === a || id === b);
+          if (crossing) {
+            const sine = (doc: CityDocument) => {
+              const p = point(doc, crossing),
+                q = point(doc, edge.a === crossing ? edge.b : edge.a),
+                r = point(doc, a === crossing ? b : a);
+              const dx = q[0] - p[0],
+                dy = q[1] - p[1],
+                rx = r[0] - p[0],
+                ry = r[1] - p[1];
+              return Math.abs(dx * ry - dy * rx) / Math.max(1e-7, Math.hypot(dx, dy) * Math.hypot(rx, ry));
+            };
+            if (sine(after) < Math.min(0.5, sine(before)) - 1e-7) return false;
+            continue;
+          }
+          const minimum = Math.min(
+            wall.style.widthMeters / 2 + river.style.widthMeters / 2 + 2,
+            distance(before, edge, a, b)
+          );
+          if (distance(after, edge, a, b) < minimum - 1e-7) return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): CityDocument {
   const v = document.mesh.vertices[vertexId];
-  if (!v || v.locked) return document;
+  if (!v || v.locked || document.featureGroups.some(g => g.kind === "river" && g.vertices.includes(vertexId)))
+    return document;
   const start = v.point;
   for (let s = 1.0; s >= 0.125; s /= 2) {
     const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
@@ -427,7 +594,7 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
       }
       return false;
     });
-    if (invalid) continue;
+    if (invalid || !keepsWallRiverGap(document, moved, vertexId)) continue;
     return moved;
   }
   return document;

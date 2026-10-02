@@ -154,6 +154,8 @@ export interface EdgeFeatureGroup {
   locked: boolean;
   /** Set on roads that leave an outer-wall gate for the map exterior. */
   beyond?: ApproachBeyond;
+  /** River-through-wall passages; distinct from gates that require road access. */
+  riverPassages?: Id[];
 }
 
 export interface RiverGroup {

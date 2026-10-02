@@ -113,6 +113,10 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
     }
   }
 
+  // Wall routing has fixed the channel and its clearance before this stage.
+  // Smoothing streets must not pull the river back onto the new curtain.
+  for (const id of riverVertices) pinned.add(id);
+
   const gateVertices = new Set((next.gates ?? []).map(gate => gate.vertexId));
   const clearancePairs: { road: Id; obstacle: Id; minimum: number }[] = [];
   const clearanceAt = (roadId: Id, obstacleId: Id): number => {
@@ -171,6 +175,19 @@ export function finishCityGeometry(source: CityDocument): CityDocument {
       if (minimum > 0.01) clearancePairs.push({ road: roadId, obstacle: cemEdgeId, minimum });
     }
   }
+
+  // Preserve the river/curtain clearance through every smoothing sweep.
+  // Shared vertices are intentional transverse water passages.
+  for (const wallId of walls)
+    for (const riverId of rivers) {
+      const wall = mesh.edges[wallId],
+        river = mesh.edges[riverId];
+      if ([wall.a, wall.b].some(id => id === river.a || id === river.b)) continue;
+      const initial = clearanceAt(wallId, riverId);
+      const visibleGap = (wallWidths.get(wallId) ?? 7) / 2 + (riverWidths.get(riverId) ?? 10) / 2 + 2;
+      const minimum = Math.min(visibleGap, initial);
+      if (minimum > 0.01) clearancePairs.push({ road: wallId, obstacle: riverId, minimum });
+    }
 
   const clearanceAtVertex = new Map<Id, typeof clearancePairs>();
   for (const pair of clearancePairs) {

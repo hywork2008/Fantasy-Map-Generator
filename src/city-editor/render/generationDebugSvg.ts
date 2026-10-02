@@ -4,12 +4,14 @@ import type { GenerationDebugPreview } from "../core/generationDebug";
 import { MoatReservation } from "../core/moats";
 import type { Point } from "../core/types";
 
+import { renderRiverWallSvg } from "./riverWallSvg";
+
 const NS = "http://www.w3.org/2000/svg";
 /** Tolerates broken meshes; avoids town infill and picking on rejected geometry. */
 export function renderGenerationDebugSvg(
   preview: GenerationDebugPreview,
   viewBox: string,
-  edit?: { showVertices: boolean; selectedVertexId: string | null }
+  edit?: { showVertices: boolean; selectedVertexId: string | null; selectedEdgeId?: string | null }
 ): SVGSVGElement {
   const { document: city, highlights } = preview;
   const svg = document.createElementNS(NS, "svg");
@@ -169,6 +171,16 @@ export function renderGenerationDebugSvg(
       const node = addPath(path([a, b]), "none", "transparent", Math.max(3, city.frame.extentMeters / 200));
       node.setAttribute("data-edge", edge.id);
     }
+    if (edit.selectedEdgeId) {
+      const edge = city.mesh.edges[edit.selectedEdgeId];
+      const a = edge && point(edge.a),
+        b = edge && point(edge.b);
+      if (a && b) {
+        const selected = addPath(path([a, b]), "none", "#ffcc33", Math.max(3, city.frame.extentMeters / 150));
+        selected.setAttribute("class", "ce-edge ce-selected");
+        selected.setAttribute("pointer-events", "none");
+      }
+    }
     const vertices = document.createElementNS(NS, "g");
     vertices.setAttribute("class", "ce-vertices");
     for (const vertex of Object.values(city.mesh.vertices)) {
@@ -202,6 +214,7 @@ export function renderGenerationDebugSvg(
       svg.append(group);
     }
   }
+  svg.append(renderRiverWallSvg(city));
   return svg;
 }
 

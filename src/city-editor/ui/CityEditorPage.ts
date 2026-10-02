@@ -176,6 +176,7 @@ import {
   renderRoutePreview,
   type SvgPickInfo
 } from "../render/svg";
+import { generationLogPanel } from "./generationLogPanel";
 
 const TOOLS: Array<[Tool, string, string]> = [
   ["select", "Select and move", "↖"],
@@ -316,12 +317,12 @@ export function mountCityEditor(root: HTMLElement): void {
   const generateSettings: GenerationSettings = { ...defaultGenerationSettings(), buildingPattern: "medieval" };
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
-  // ①→⑦ stay consistent with each other.
+  // ①→⑧ stay consistent with each other.
   let generateSeed = randomSeed();
   let hideBuildings = false;
-  /** Stage ⑫. Same document as ⑪; the town drawing omits intramural roads and block lanes. */
+  /** Stage ⑬. Same document as ⑫; the town drawing omits intramural roads and block lanes. */
   let hideStreetLines = false;
-  let currentStageStep = 11;
+  let currentStageStep = 12;
   let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
@@ -348,6 +349,7 @@ export function mountCityEditor(root: HTMLElement): void {
   >();
   let generationJob: ReturnType<typeof startCityGeneration> | null = null;
   let generationSamples: GenerationSample[] = [];
+  let generationLogHover: { ids: string[]; seed: string } = { ids: [], seed: "" };
   let pendingFailurePreview: GenerationDebugPreview | null = null;
   let failurePreview: GenerationDebugPreview | null = null;
   let failureRenderContext: GenerationDebugPreview | null = null;
@@ -445,6 +447,8 @@ export function mountCityEditor(root: HTMLElement): void {
   const inspector = floatingWindow("ce-inspector", "Inspector");
   const groups = floatingWindow("ce-groups", "Objects");
   const historyPanel = floatingWindow("ce-history", "History");
+  const logPanel = floatingWindow("ce-generation-log", "生成ログ");
+  const generationLog = generationLogPanel(logPanel.content, hoverGenerationLogObjects);
   const generatePanel = floatingWindow("ce-generate", "Generate");
   const status = document.createElement("output");
   status.className = "ce-status";
@@ -463,6 +467,7 @@ export function mountCityEditor(root: HTMLElement): void {
     inspector.root,
     groups.root,
     historyPanel.root,
+    logPanel.root,
     generatePanel.root,
     status,
     scaleBar,
@@ -650,6 +655,7 @@ export function mountCityEditor(root: HTMLElement): void {
       ...importedFrame()
     });
     history = new DocumentHistory(documentState, "New grid");
+    generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -1300,7 +1306,7 @@ export function mountCityEditor(root: HTMLElement): void {
     housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑫までの全工程を順番に確認できます。④は城壁、⑤は門の通路とセル分割、⑥は門・城郭を表示します。⑫では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
+      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑬までの全工程を順番に確認できます。④はセル分割前の城壁、⑤は河川横断用のセル分割、⑥は門の通路とセル分割、⑦は門・城郭を表示します。⑬では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
     stageContainer,
     divider(),
@@ -1693,15 +1699,18 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (wasVertexDragging && vertexMoved) {
       history.commit(documentState, mergeCandidateId ? "Merge vertices" : "Move vertex");
+      rememberFailureGenerationState();
       rebuildEditorIndexes();
     }
     selection.hoverVertexId = null;
     if (wasWardPainting && wardPaintChanged) {
       history.commit(documentState, paintHistoryLabel());
+      rememberFailureGenerationState();
       if (edgePaintChanged) rebuildEditorIndexes();
     }
     if (wasJunctionPainting && junctionPaintChanged) {
       history.commit(documentState, "Clean junctions");
+      rememberFailureGenerationState();
       rebuildEditorIndexes();
     }
     if (circle && event.type !== "pointercancel") {
@@ -2245,6 +2254,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // mesh/frame — dismiss it rather than leave a stale overlay on screen.
     clearGridEvo();
     documentState = history.commit(next, label);
+    rememberFailureGenerationState();
     rebuildEditorIndexes();
     refresh();
   }
@@ -2387,6 +2397,12 @@ export function mountCityEditor(root: HTMLElement): void {
     });
   }
 
+  /** Editing a rejected city must not turn its repaired mesh into the input
+   * for earlier stages when that edit is restored through History. */
+  function rememberFailureGenerationState(): void {
+    if (failureRenderContext && completeSource) rememberGenerationState();
+  }
+
   function restore(next: CityDocument | null): void {
     if (!next) return;
     documentState = next;
@@ -2429,7 +2445,7 @@ export function mountCityEditor(root: HTMLElement): void {
         town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
         castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
       };
-      syncStageUi(next.appearance === "town" ? 11 : 1);
+      syncStageUi(next.appearance === "town" ? 12 : 1);
     }
     syncGenerateControls();
     rebuildEditorIndexes();
@@ -2611,13 +2627,15 @@ export function mountCityEditor(root: HTMLElement): void {
       map.replaceChildren(
         renderGenerationDebugSvg(editablePreview, box, {
           showVertices: tool === "vertex" || tool === "river",
-          selectedVertexId: selection.vertexId
+          selectedVertexId: selection.vertexId,
+          selectedEdgeId: selection.edgeId
         })
       );
       housingSummary.hidden = true;
       faceElementsById.clear();
       wardLandmarksGroup = null;
       wardLandmarkElementsById.clear();
+      updateGenerationLogHover();
       return;
     }
     const svg = renderEditorSvg(
@@ -2822,6 +2840,7 @@ export function mountCityEditor(root: HTMLElement): void {
     const layer = map.querySelector<SVGGElement>(".ce-hover-layer");
     if (!layer) return;
     layer.replaceChildren(...renderHoverOverlay(documentState, selection, zoomFactor()));
+    updateGenerationLogHover();
   }
 
   function refreshScaleBar(): void {
@@ -3605,6 +3624,68 @@ export function mountCityEditor(root: HTMLElement): void {
       );
   }
 
+  function appendGenerationException(error: unknown, seed: string): void {
+    generationLog.append(
+      {
+        phase: "runtime",
+        elapsedMs: 0,
+        attempt: 1,
+        failure: { reason: "generation-exception", message: error instanceof Error ? error.message : String(error) }
+      },
+      seed
+    );
+  }
+
+  function hoverGenerationLogObjects(ids: string[], seed: string): void {
+    generationLogHover = { ids, seed };
+    updateGenerationLogHover();
+  }
+
+  function updateGenerationLogHover(): void {
+    const svg = map.querySelector("svg");
+    if (!svg) return;
+    svg.querySelector(".ce-generation-log-highlight")?.remove();
+    if (generationLogHover.seed !== documentState.generationSeed || !generationLogHover.ids.length) return;
+    const ns = "http://www.w3.org/2000/svg";
+    const layer = document.createElementNS(ns, "g");
+    layer.setAttribute("class", "ce-generation-log-highlight");
+    layer.setAttribute("pointer-events", "none");
+    for (const id of generationLogHover.ids) {
+      const vertex = documentState.mesh.vertices[id],
+        edge = documentState.mesh.edges[id],
+        face = documentState.mesh.faces[id];
+      let node: SVGElement;
+      if (vertex) {
+        node = document.createElementNS(ns, "circle");
+        node.setAttribute("cx", String(vertex.point[0]));
+        node.setAttribute("cy", String(-vertex.point[1]));
+        node.setAttribute("r", String(Math.max(0.5, halfView / 70)));
+        node.setAttribute("fill", "#ffdf0088");
+      } else if (edge && documentState.mesh.vertices[edge.a] && documentState.mesh.vertices[edge.b]) {
+        node = document.createElementNS(ns, "path");
+        const a = documentState.mesh.vertices[edge.a].point,
+          b = documentState.mesh.vertices[edge.b].point;
+        node.setAttribute("d", `M${a[0]},${-a[1]}L${b[0]},${-b[1]}`);
+        node.setAttribute("fill", "none");
+      } else if (face?.boundary.every(ref => documentState.mesh.edges[ref.edgeId])) {
+        node = document.createElementNS(ns, "path");
+        node.setAttribute(
+          "d",
+          `${facePoints(documentState.mesh, face)
+            .map((p, i) => `${i ? "L" : "M"}${p[0]},${-p[1]}`)
+            .join(" ")}Z`
+        );
+        node.setAttribute("fill", "#ffdf0044");
+      } else continue;
+      node.setAttribute("data-object-id", id);
+      node.setAttribute("stroke", "#ffdf00");
+      node.setAttribute("stroke-width", "4");
+      node.setAttribute("vector-effect", "non-scaling-stroke");
+      layer.append(node);
+    }
+    svg.append(layer);
+  }
+
   function renderHistory(): void {
     const entries = history.entries;
     const current = history.index;
@@ -3623,6 +3704,7 @@ export function mountCityEditor(root: HTMLElement): void {
       historyClearButton = makeButton("Clear all history", () => {
         if (!history.canUndo && !history.canRedo) return;
         history.reset(documentState, "History cleared");
+        rememberGenerationState();
         showNotice("History cleared");
         refreshUiOnly();
       });
@@ -4084,6 +4166,7 @@ export function mountCityEditor(root: HTMLElement): void {
     } else {
       history.amendTop(documentState, `Draw ${stroke.kind}`);
     }
+    rememberFailureGenerationState();
     rebuildEditorIndexes();
   }
 
@@ -4277,6 +4360,7 @@ export function mountCityEditor(root: HTMLElement): void {
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     history = new DocumentHistory(parsed.document, "Imported map");
+    generationLog.reset();
     if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
     rebuildEditorIndexes();
     selection = emptySelection();
@@ -4456,6 +4540,7 @@ export function mountCityEditor(root: HTMLElement): void {
       cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters
     });
     history = new DocumentHistory(documentState, share.descriptor ? "Imported site" : "Shared city");
+    generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -4484,8 +4569,8 @@ export function mountCityEditor(root: HTMLElement): void {
     stepOverlayPaths = null;
     stepStatus.textContent = "";
     lastGeneratedStep = null;
-    currentStageStep = 11;
-    syncStageUi(11);
+    currentStageStep = 12;
+    syncStageUi(12);
     runCompleteGeneration();
   }
 
@@ -4516,15 +4601,21 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (generationJob) return;
     if (!generationHistory.has(history.currentEntryKey))
-      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 11 : 1));
+      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 12 : 1));
     clearFailurePreview();
     generationSamples = [];
+    generationLog.reset();
     pendingFailurePreview = null;
     const onFailurePreview = (preview: GenerationDebugPreview) => {
       pendingFailurePreview = preview;
     };
     const onProgress = (sample: GenerationSample) => {
       generationSamples.push(sample);
+      generationLog.append(
+        sample,
+        sample.failure?.details?.find(line => line.startsWith("seed="))?.slice(5) ??
+          (sample.attempt === 1 ? generateSeed : `${generateSeed}:junction-retry:${sample.attempt - 1}`)
+      );
       if (sample.failure) {
         generationProgress.textContent = `案${sample.attempt} 不採用 — ${generationPhaseLabel(sample.phase)}: ${sample.failure.message}`;
         return;
@@ -4565,6 +4656,7 @@ export function mountCityEditor(root: HTMLElement): void {
                 generationProgress.textContent = "生成をキャンセルしました";
               else {
                 console.error(error);
+                appendGenerationException(error, generateSeed);
                 generationProgress.textContent = "都市の生成に失敗しました";
               }
             }
@@ -4577,6 +4669,7 @@ export function mountCityEditor(root: HTMLElement): void {
           });
       } catch (error) {
         console.error(error);
+        appendGenerationException(error, generateSeed);
         cancelGeneration.hidden = true;
         root.removeAttribute("aria-busy");
         generationProgress.textContent = "都市の生成を開始できませんでした";
@@ -4596,6 +4689,7 @@ export function mountCityEditor(root: HTMLElement): void {
       );
     } catch (error) {
       console.error(error);
+      appendGenerationException(error, generateSeed);
       generationProgress.textContent = "都市の生成に失敗しました";
     }
   }
@@ -4614,11 +4708,11 @@ export function mountCityEditor(root: HTMLElement): void {
         faces: Object.keys(source.mesh.faces).length
       };
       if (generationSamples.some(sample => sample.failure)) logGenerationFailures(generationSamples, context);
-      else
-        console.error("[City Editor] 都市の生成に失敗しました（不採用理由は記録されていない）", {
-          ...context,
-          samples: generationSamples
-        });
+      else {
+        const message = "都市の生成に失敗しました（不採用理由は記録されていない）";
+        console.error(`[City Editor] ${message}`, { ...context, samples: generationSamples });
+        appendGenerationException(message, generateSeed);
+      }
       if (failureDebugInput.checked && pendingFailurePreview) {
         showFailurePreview(pendingFailurePreview, `失敗案 ${pendingFailurePreview.sample.attempt}（再試行なし）`);
       }
@@ -4653,7 +4747,7 @@ export function mountCityEditor(root: HTMLElement): void {
     showBlockMesh = false;
     hideBuildings = false;
     hideStreetLines = false;
-    syncStageUi(11);
+    syncStageUi(12);
     completeResultSettings = JSON.stringify(generateSettings);
     rememberGenerationState();
     rebuildEditorIndexes();
@@ -4669,12 +4763,13 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) completeResult = null;
     if (!generationHistory.has(history.currentEntryKey))
-      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 11 : 1));
+      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 12 : 1));
     const source = clone(completeSource);
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
 
     clearFailurePreview();
     pendingFailurePreview = null;
+    generationLog.reset();
     let next: CityDocument | null = null;
     try {
       const finished =
@@ -4699,11 +4794,20 @@ export function mountCityEditor(root: HTMLElement): void {
                 pendingFailurePreview = preview;
               }
             : undefined,
-          stage.wallCheckpoint
+          stage.wallCheckpoint,
+          sample => {
+            generationLog.append(
+              sample,
+              sample.failure?.details?.find(line => line.startsWith("seed="))?.slice(5) ??
+                (sample.attempt === 1 ? effectiveSeed : `${effectiveSeed}:junction-retry:${sample.attempt - 1}`)
+            );
+            if (sample.failure) logGenerationFailures([sample], { seed: effectiveSeed });
+          }
         );
       }
     } catch (error) {
       console.error(error);
+      appendGenerationException(error, effectiveSeed);
     }
     if (!next) {
       if (failureDebugInput.checked && pendingFailurePreview)
@@ -4749,7 +4853,7 @@ export function mountCityEditor(root: HTMLElement): void {
     showNotice(`Generated up to ${stage.label}`);
   }
 
-  /** ◀/▶: scrub whichever process ①…⑧ was last activated one loop iteration at
+  /** ◀/▶: scrub whichever process ①…⑨ was last activated one loop iteration at
    * a time, right on the mesh (towngen-comparison.md) — independent of the
    * stage buttons themselves, which still jump straight to the finished result. */
   function runStep(delta: number): void {
@@ -4946,6 +5050,12 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
     total: 1,
     index: 0,
     detail: "城壁配置完了"
+  }),
+  riverPassages: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 4, undefined, "riverPassages"),
+    total: 1,
+    index: 0,
+    detail: "河川横断用のセル分割・城壁経路調整完了"
   }),
   passages: (doc, settings, seed) => ({
     document: generateStageOnDocument(doc, settings, seed, 4, undefined, "passages"),
