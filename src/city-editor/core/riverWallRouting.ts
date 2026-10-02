@@ -2,16 +2,8 @@ import { featureGroupVertices } from "./features";
 import { boundaryRings, castleWallIds } from "./fortifications";
 import { aStar, type EdgeGraph } from "./gen/edgeGraph";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid, segmentSegmentHit } from "./gen/geom";
-import {
-  clone,
-  edgeBetween,
-  facePoints,
-  faceVertices,
-  incidentEdges,
-  incidentFaces,
-  moveVertex,
-  splitFace
-} from "./mesh";
+import { clone, edgeBetween, facePoints, faceVertices, incidentEdges, incidentFaces, splitFace } from "./mesh";
+import { moveVertexWithNeighbors } from "./meshDeformation";
 import {
   alternatingPairs,
   kindEdgeIds,
@@ -543,6 +535,20 @@ export function repairRiverWalls(
         rivers = kindEdgeIds(before, "river");
       const wallVertices = new Set([...walls].flatMap(id => [before.mesh.edges[id].a, before.mesh.edges[id].b]));
       const riverVertices = new Set([...rivers].flatMap(id => [before.mesh.edges[id].a, before.mesh.edges[id].b]));
+      const fixed = new Set([
+        ...wallVertices,
+        ...[...kindEdgeIds(before, "road")].flatMap(id => [before.mesh.edges[id].a, before.mesh.edges[id].b]),
+        ...before.gates.map(gate => gate.vertexId),
+        ...before.featureGroups.flatMap(group =>
+          group.kind === "river"
+            ? [
+                group.vertices[0],
+                group.vertices.at(-1)!,
+                ...[group.source?.vertexId, group.mouth?.vertexId].filter((id): id is Id => !!id)
+              ]
+            : []
+        )
+      ]);
       const deficit = (doc: CityDocument) =>
         edgeIds.reduce((sum, id) => {
           const edge = doc.mesh.edges[id];
@@ -626,7 +632,16 @@ export function repairRiverWalls(
               ];
               const start = startPoints.get(candidate.id)!;
               if (Math.hypot(to[0] - start[0], to[1] - start[1]) > before.frame.blockSizeMeters * 0.4) continue;
-              const moved = moveVertex(before, candidate.id, to);
+              const anchored = new Set(fixed);
+              anchored.delete(candidate.id);
+              const moved = moveVertexWithNeighbors(
+                before,
+                candidate.id,
+                to,
+                anchored,
+                startPoints,
+                before.frame.blockSizeMeters * 0.4
+              );
               if (!moved) continue;
               // Channel displacement must not introduce a self intersection.
               const channelValid = moved.featureGroups.every(

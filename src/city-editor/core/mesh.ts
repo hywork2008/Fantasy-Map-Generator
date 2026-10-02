@@ -318,7 +318,7 @@ export function setFaceElevation(document: CityDocument, faceId: Id, elevation: 
   return next;
 }
 
-function protectedVertex(document: CityDocument, id: Id): boolean {
+export function protectedVertex(document: CityDocument, id: Id): boolean {
   const edges = incidentEdges(document.mesh, id);
   return (
     !!document.mesh.vertices[id]?.locked ||
@@ -340,13 +340,24 @@ export function moveVertex(
   point: Point,
   allowExistingErrors = false
 ): CityDocument | null {
-  if (protectedVertex(document, vertexId)) return null;
+  return moveVertices(document, new Map([[vertexId, point]]), allowExistingErrors);
+}
+
+/** Apply a coordinated displacement atomically; intermediate cell shapes
+ * need not be valid while several shared corners move together. */
+export function moveVertices(
+  document: CityDocument,
+  points: ReadonlyMap<Id, Point>,
+  allowExistingErrors = false
+): CityDocument | null {
   const next = clone(document);
-  const vertex = next.mesh.vertices[vertexId];
-  if (!vertex || vertex.locked) return null;
   const half = next.frame.extentMeters / 2;
-  if (Math.abs(point[0]) > half || Math.abs(point[1]) > half) return null;
-  vertex.point = point;
+  for (const [id, point] of points) {
+    const vertex = next.mesh.vertices[id];
+    if (!vertex || protectedVertex(document, id)) return null;
+    if (!point.every(Number.isFinite) || Math.abs(point[0]) > half || Math.abs(point[1]) > half) return null;
+    vertex.point = [point[0], point[1]];
+  }
   if (!refreshCastleLayouts(next)) return null;
   const errors = validate(next);
   if (!errors.length) return next;
