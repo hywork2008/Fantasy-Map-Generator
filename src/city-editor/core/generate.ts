@@ -3164,6 +3164,17 @@ function completeRoadRouter(
           })
         )
       );
+      // Polygonal plazas (circulade/bram) have no face IDs. Their nearest
+      // corner can snap into a temple footprint; try the other plaza corners
+      // rather than treating that blocked snap as an unreachable gate.
+      if (!plaza?.faceIds.length) {
+        const precinct = plan.precincts.find(p => p.kind === "plaza");
+        for (const point of precinct?.polygon ?? []) {
+          const id = nearest(point);
+          const index = id ? indexOf.get(id) : undefined;
+          if (index !== undefined) targets.add(index);
+        }
+      }
       const target = graph.points[hopEndOf];
       const candidates = [...targets].sort(
         (a, b) =>
