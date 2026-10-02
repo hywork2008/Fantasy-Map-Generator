@@ -2362,13 +2362,17 @@ function applyPlan(
       return reject(
         "wall-river-routing",
         "wall-river-routing-failed",
-        "川を動かさずに城壁の迂回・河川通過口を確保できない",
+        "城壁・河川の離隔、迂回・河川通過口を確保できない",
         {
           issues: riverRepair.issues.length,
           preparedRiverPassages: riverRepair.preparedPassages.length,
           crossingSplitFaces: riverRepair.splitFaces
         },
-        [...riverRepair.preparedPassages.map(id => `河川横断口の準備完了: ${id}`), ...riverRepair.issues]
+        [
+          ...riverRepair.adjustments,
+          ...riverRepair.preparedPassages.map(id => `河川横断口の準備完了: ${id}`),
+          ...riverRepair.issues
+        ]
       );
     actualTownFaces = enclosedTownFaces(next);
     if (actualTownFaces) {

@@ -2,7 +2,16 @@ import { featureGroupVertices } from "./features";
 import { boundaryRings, castleWallIds } from "./fortifications";
 import { aStar, type EdgeGraph } from "./gen/edgeGraph";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid, segmentSegmentHit } from "./gen/geom";
-import { clone, edgeBetween, facePoints, faceVertices, incidentEdges, incidentFaces, splitFace } from "./mesh";
+import {
+  clone,
+  edgeBetween,
+  facePoints,
+  faceVertices,
+  incidentEdges,
+  incidentFaces,
+  moveVertex,
+  splitFace
+} from "./mesh";
 import { kindEdgeIds, openRiverWallPassage, throughEdgesAt, vertexHasCrossing } from "./passages";
 import type { CityDocument, EdgeRef, Id, Point } from "./types";
 
@@ -137,6 +146,7 @@ export interface RiverWallRepair {
   issues: string[];
   preparedPassages: Id[];
   splitFaces: number;
+  adjustments: string[];
 }
 
 /** Replace river-sharing curtain runs by inland mesh paths. Try dry paths
@@ -152,6 +162,7 @@ export function repairRiverWalls(
   let document = clone(source);
   const preparedPassages = new Set<Id>();
   const preparationIssues: string[] = [];
+  const adjustments: string[] = [];
   let routingIssues: string[] = [];
   // All mesh helpers honour face locks. Temporarily protect reserved castle
   // faces too, then restore their persisted lock state before returning.
@@ -477,6 +488,177 @@ export function repairRiverWalls(
     }
     return result;
   };
+  // Width-only conflicts do not need topology changes. Compare small wall
+  // and channel displacements against the shape of the whole town curtain.
+  const separateNearBanks = () => {
+    const originalPoints = document.featureGroups.flatMap(g =>
+      g.kind === "wall" && !castleWallIds(document).has(g.id)
+        ? featureGroupVertices(document, g).map(id => document.mesh.vertices[id].point)
+        : []
+    );
+    if (!originalPoints.length) return;
+    const center: Point = [0, 1].map(
+      axis => originalPoints.reduce((sum, p) => sum + p[axis], 0) / originalPoints.length
+    ) as Point;
+    const roundness = (doc: CityDocument) => {
+      const radii = doc.featureGroups.flatMap(g =>
+        g.kind === "wall" && !castleWallIds(doc).has(g.id)
+          ? featureGroupVertices(doc, g).map(id =>
+              Math.hypot(doc.mesh.vertices[id].point[0] - center[0], doc.mesh.vertices[id].point[1] - center[1])
+            )
+          : []
+      );
+      const mean = radii.reduce((sum, r) => sum + r, 0) / radii.length;
+      return radii.reduce((sum, r) => sum + (r - mean) ** 2, 0) / radii.length / Math.max(1, mean ** 2);
+    };
+    const startPoints = new Map(Object.values(document.mesh.vertices).map(v => [v.id, v.point]));
+    for (let iteration = 0; iteration < 24; iteration++) {
+      const before = document;
+      const existing = new Set(conflicts());
+      const edgeIds = [...existing].flatMap(message =>
+        message.includes("間隔が不足") ? (message.match(/\be\d+\b/g) ?? []) : []
+      );
+      if (!edgeIds.length) break;
+      const walls = kindEdgeIds(before, "wall"),
+        rivers = kindEdgeIds(before, "river");
+      const wallVertices = new Set([...walls].flatMap(id => [before.mesh.edges[id].a, before.mesh.edges[id].b]));
+      const riverVertices = new Set([...rivers].flatMap(id => [before.mesh.edges[id].a, before.mesh.edges[id].b]));
+      const deficit = (doc: CityDocument) =>
+        edgeIds.reduce((sum, id) => {
+          const edge = doc.mesh.edges[id];
+          const wall = doc.featureGroups.find(g => g.kind === "wall" && g.segments.some(r => r.edgeId === id))!;
+          return (
+            sum +
+            doc.featureGroups.reduce(
+              (total, river) =>
+                river.kind !== "river"
+                  ? total
+                  : total +
+                    river.vertices
+                      .slice(1)
+                      .reduce(
+                        (amount, b, i) =>
+                          amount +
+                          Math.max(
+                            0,
+                            wall.style.widthMeters / 2 +
+                              river.style.widthMeters / 2 +
+                              2 -
+                              segmentDistance(
+                                doc.mesh.vertices[edge.a].point,
+                                doc.mesh.vertices[edge.b].point,
+                                doc.mesh.vertices[river.vertices[i]].point,
+                                doc.mesh.vertices[b].point
+                              )
+                          ),
+                        0
+                      ),
+              0
+            )
+          );
+        }, 0);
+      const oldDeficit = deficit(before),
+        oldRoundness = roundness(before);
+      const choices: {
+        doc: CityDocument;
+        id: Id;
+        kind: "wall" | "river";
+        roundness: number;
+        distance: number;
+        deficit: number;
+      }[] = [];
+      for (const edgeId of edgeIds) {
+        const edge = before.mesh.edges[edgeId];
+        for (const id of [edge.a, edge.b]) {
+          if (riverVertices.has(id)) continue;
+          const p = before.mesh.vertices[id].point;
+          for (const river of before.featureGroups) {
+            if (river.kind !== "river") continue;
+            const near = nearestOnPolyline(
+              p,
+              river.vertices.map(v => before.mesh.vertices[v].point)
+            );
+            if (near.dist < 1e-7) continue;
+            const wall = before.featureGroups.find(
+              g => g.kind === "wall" && g.segments.some(r => r.edgeId === edgeId)
+            )!;
+            const amount = wall.style.widthMeters / 2 + river.style.widthMeters / 2 + 2 - near.dist + 0.25;
+            if (amount <= 0) continue;
+            const direction: Point = [(p[0] - near.point[0]) / near.dist, (p[1] - near.point[1]) / near.dist];
+            const candidates: { id: Id; kind: "wall" | "river"; sign: number }[] = [{ id, kind: "wall", sign: 1 }];
+            if (!river.locked && river.id.startsWith("gc:"))
+              for (const vertex of [river.vertices[near.segIndex], river.vertices[near.segIndex + 1]]) {
+                if (
+                  !wallVertices.has(vertex) &&
+                  vertex !== river.vertices[0] &&
+                  vertex !== river.vertices.at(-1) &&
+                  vertex !== river.source?.vertexId &&
+                  vertex !== river.mouth?.vertexId
+                )
+                  candidates.push({ id: vertex, kind: "river", sign: -1 });
+              }
+            for (const candidate of candidates) {
+              if (before.gates?.some(g => g.vertexId === candidate.id)) continue;
+              const from = before.mesh.vertices[candidate.id].point;
+              const to: Point = [
+                from[0] + direction[0] * amount * candidate.sign,
+                from[1] + direction[1] * amount * candidate.sign
+              ];
+              const start = startPoints.get(candidate.id)!;
+              if (Math.hypot(to[0] - start[0], to[1] - start[1]) > before.frame.blockSizeMeters * 0.4) continue;
+              const moved = moveVertex(before, candidate.id, to);
+              if (!moved) continue;
+              // Channel displacement must not introduce a self intersection.
+              const channelValid = moved.featureGroups.every(
+                g =>
+                  g.kind !== "river" ||
+                  g.vertices
+                    .slice(1)
+                    .every((b, i) =>
+                      g.vertices
+                        .slice(i + 3)
+                        .every(
+                          (d, offset) =>
+                            !segmentSegmentHit(
+                              moved.mesh.vertices[g.vertices[i]].point,
+                              moved.mesh.vertices[b].point,
+                              moved.mesh.vertices[g.vertices[i + offset + 2]].point,
+                              moved.mesh.vertices[d].point
+                            )
+                        )
+                    )
+              );
+              if (!channelValid) continue;
+              document = moved;
+              const newIssues = conflicts();
+              document = before;
+              const nextDeficit = deficit(moved);
+              if (newIssues.some(issue => !existing.has(issue)) || nextDeficit >= oldDeficit - 1e-6) continue;
+              choices.push({
+                doc: moved,
+                id: candidate.id,
+                kind: candidate.kind,
+                roundness: roundness(moved),
+                distance: amount,
+                deficit: nextDeficit
+              });
+            }
+          }
+        }
+      }
+      const wallChoices = choices.filter(c => c.kind === "wall" && c.roundness <= oldRoundness + 1e-7);
+      const riverChoices = choices.filter(c => c.kind === "river");
+      const pool = wallChoices.length ? wallChoices : riverChoices.length ? riverChoices : choices;
+      pool.sort((a, b) => a.deficit - b.deficit || a.roundness - b.roundness || a.distance - b.distance);
+      const best = pool[0];
+      if (!best) break;
+      document = best.doc;
+      adjustments.push(
+        `${best.kind === "wall" ? "城壁" : "河川"}の離隔調整: ${best.id}（${best.distance.toFixed(2)} m、城壁全周の円形度を比較）`
+      );
+    }
+  };
+  separateNearBanks();
   reroute(false);
   if (conflicts().length) reroute(true);
   if (conflicts().length) {
@@ -590,6 +772,7 @@ export function repairRiverWalls(
     document,
     issues,
     preparedPassages: [...preparedPassages],
+    adjustments,
     splitFaces: Object.keys(document.mesh.faces).length - Object.keys(source.mesh.faces).length
   };
 }
