@@ -2,7 +2,7 @@ import { featureGroupVertices } from "./features";
 import { boundaryRings, castleWallIds } from "./fortifications";
 import { aStar, type EdgeGraph } from "./gen/edgeGraph";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid, segmentSegmentHit } from "./gen/geom";
-import { clone, facePoints } from "./mesh";
+import { clone, edgeBetween, facePoints, faceVertices, incidentEdges, incidentFaces, splitFace } from "./mesh";
 import { kindEdgeIds, openRiverWallPassage, throughEdgesAt, vertexHasCrossing } from "./passages";
 import type { CityDocument, EdgeRef, Id, Point } from "./types";
 
@@ -17,7 +17,7 @@ function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
 }
 
 /** Require an actual transverse crossing rather than a wall that grazes
- * the bank. A crossing arm must meet both local river rays by at least 30°. */
+ * the bank. Oblique crossings are valid; clearance is checked separately. */
 function transverseArm(document: CityDocument, edgeId: Id, vertexId: Id): boolean {
   const edge = document.mesh.edges[edgeId];
   const origin = document.mesh.vertices[vertexId].point;
@@ -31,8 +31,58 @@ function transverseArm(document: CityDocument, edgeId: Id, vertexId: Id): boolea
     const point = document.mesh.vertices[river.a === vertexId ? river.b : river.a].point;
     const rx = point[0] - origin[0],
       ry = point[1] - origin[1];
-    return Math.abs(dx * ry - dy * rx) / Math.max(1e-7, Math.hypot(dx, dy) * Math.hypot(rx, ry)) >= 0.5;
+    return Math.abs(dx * ry - dy * rx) / Math.max(1e-7, Math.hypot(dx, dy) * Math.hypot(rx, ry)) > 1e-5;
   });
+}
+
+/** The bank approach may turn at a near-bank corner before reaching full
+ * clearance. Follow only dry edges that increase distance from every channel;
+ * never follow the river or permit a second geometric channel intersection. */
+function bankApproachEdges(document: CityDocument, origin: Id, arms: Id[], gap: number, permitted?: Set<Id>): Set<Id> {
+  const mesh = document.mesh;
+  const channel = document.featureGroups.flatMap(g =>
+    g.kind === "river"
+      ? g.vertices.slice(1).map((b, i) => ({ a: g.vertices[i], b, radius: g.style.widthMeters / 2 }))
+      : []
+  );
+  const riverVertices = new Set(channel.flatMap(c => [c.a, c.b]));
+  const clearance = (id: Id) =>
+    Math.min(
+      ...channel.map(
+        c =>
+          nearestOnPolyline(mesh.vertices[id].point, [mesh.vertices[c.a].point, mesh.vertices[c.b].point]).dist -
+          c.radius -
+          gap
+      )
+    );
+  const result = new Set(arms);
+  const queue = arms.map(id => (mesh.edges[id].a === origin ? mesh.edges[id].b : mesh.edges[id].a));
+  const visited = new Set<Id>();
+  for (let at = 0; at < queue.length; at++) {
+    const vertex = queue[at];
+    if (visited.has(vertex) || clearance(vertex) >= 0) continue;
+    visited.add(vertex);
+    for (const edge of incidentEdges(mesh, vertex)) {
+      if (permitted && !permitted.has(edge.id)) continue;
+      const other = edge.a === vertex ? edge.b : edge.a;
+      if (riverVertices.has(other) || clearance(other) <= clearance(vertex) + 1e-7) continue;
+      if (
+        channel.some(
+          c =>
+            segmentDistance(
+              mesh.vertices[vertex].point,
+              mesh.vertices[other].point,
+              mesh.vertices[c.a].point,
+              mesh.vertices[c.b].point
+            ) < 1e-7
+        )
+      )
+        continue;
+      result.add(edge.id);
+      queue.push(other);
+    }
+  }
+  return result;
 }
 
 /** Face membership from the actual closed town curtain, including new split cells. */
@@ -151,6 +201,13 @@ export function repairRiverWalls(
     for (const group of document.featureGroups) {
       if (group.kind !== "wall" || group.locked || castles.has(group.id) || !group.id.startsWith("gc:")) continue;
       const gap = group.style.widthMeters / 2 + 2;
+      const approachEdges = new Set(
+        [...passages].flatMap(([id, arms]) =>
+          arms.size === 2 && [...arms].every(edge => transverseArm(document, edge, id))
+            ? [...bankApproachEdges(document, id, [...arms], gap)]
+            : []
+        )
+      );
       const clearVertex = (id: Id) =>
         channel.every(
           c =>
@@ -189,6 +246,17 @@ export function repairRiverWalls(
                 });
               })?.[0]
             : undefined);
+        if (crossings && approachEdges.has(edgeId))
+          return channel.every(
+            c =>
+              (touching[0] && (c.a === touching[0] || c.b === touching[0])) ||
+              segmentDistance(
+                mesh.vertices[edge.a].point,
+                mesh.vertices[edge.b].point,
+                mesh.vertices[c.a].point,
+                mesh.vertices[c.b].point
+              ) > 1e-7
+          );
         return channel.every(c => {
           if (
             crossingOrigin &&
@@ -337,9 +405,27 @@ export function repairRiverWalls(
       if (group.kind !== "wall" || group.locked || !group.id.startsWith("gc:") || castleWallIds(document).has(group.id))
         continue;
       const gap = group.style.widthMeters / 2 + 2;
+      const groupEdges = new Set(group.segments.map(ref => ref.edgeId));
+      const approaches = new Set(
+        featureGroupVertices(document, group).flatMap(id =>
+          vertices.has(id) && vertexHasCrossing(document, id, "wall", "river")
+            ? [
+                ...bankApproachEdges(
+                  document,
+                  id,
+                  [...groupEdges].filter(
+                    edge => document.mesh.edges[edge].a === id || document.mesh.edges[edge].b === id
+                  ),
+                  gap,
+                  groupEdges
+                )
+              ]
+            : []
+        )
+      );
       for (const ref of group.segments) {
         const edge = document.mesh.edges[ref.edgeId];
-        if (rivers.has(edge.id)) continue;
+        if (rivers.has(edge.id) || approaches.has(edge.id)) continue;
         const crossing =
           [edge.a, edge.b].find(
             id =>
@@ -422,34 +508,52 @@ export function repairRiverWalls(
       const beforeRun = document;
       const candidates = [...new Set([run[0], run.at(-1)!, ...run])];
       let usedIds: Id[] = [];
-      const trials: Id[][] = [
-        [...new Set([run[0], run.at(-1)!])],
-        ...candidates.map(id => [id]),
-        ...run.slice(1).map((id, index) => [run[index], id])
-      ];
-      // A river-sharing run needs crossings at its entry/exit, not an
-      // arbitrary opening in its middle. Each trial is private and is accepted
-      // only when every prepared junction is consumed by the wall.
+      const trials: { vertex: Id; face?: Id; target?: Id }[] = [];
+      for (const vertex of candidates) {
+        // Prefer a single diagonal to an existing land corner. A normal ray
+        // can cut both banks yet miss the useful v79→v53 replacement entirely.
+        for (const face of incidentFaces(beforeRun.mesh, vertex)) {
+          if (face.properties.locked || face.properties.water !== "land") continue;
+          for (const target of faceVertices(beforeRun.mesh, face)) {
+            if (target === vertex || riverVertices.has(target) || edgeBetween(beforeRun.mesh, vertex, target)) continue;
+            trials.push({ vertex, face: face.id, target });
+          }
+        }
+      }
+      const existingWallVertices = new Set(
+        beforeRun.featureGroups.flatMap(group => (group.kind === "wall" ? featureGroupVertices(beforeRun, group) : []))
+      );
+      const chordLength = (trial: { vertex: Id; target?: Id }) => {
+        const a = beforeRun.mesh.vertices[trial.vertex].point,
+          b = beforeRun.mesh.vertices[trial.target!].point;
+        return Math.hypot(a[0] - b[0], a[1] - b[1]);
+      };
+      trials.sort(
+        (a, b) =>
+          Number(existingWallVertices.has(b.target!)) - Number(existingWallVertices.has(a.target!)) ||
+          chordLength(a) - chordLength(b)
+      );
+      // Fall back to the normal corridor at one river vertex only.
+      for (const vertex of candidates) trials.push({ vertex });
       for (const trial of trials) {
         document = clone(beforeRun);
-        let ready = true;
-        for (const id of trial) {
-          const opened = openRiverWallPassage(document, id);
-          if (!opened || !preservesRivers(document, opened)) {
-            ready = false;
-            break;
-          }
-          const arms = throughEdgesAt(opened, id, "river", true);
-          if (arms.length !== 2 || !arms.every(edge => transverseArm(opened, edge.id, id))) {
-            ready = false;
-            break;
-          }
-          document = opened;
-        }
-        if (!ready) continue;
+        const opened =
+          trial.face && trial.target
+            ? splitFace(document, trial.face, trial.vertex, trial.target)
+            : openRiverWallPassage(document, trial.vertex);
+        if (!opened || !preservesRivers(document, opened)) continue;
+        const arms = throughEdgesAt(opened, trial.vertex, "river", true);
+        if (arms.length !== 2 || !arms.every(edge => transverseArm(opened, edge.id, trial.vertex))) continue;
+        document = opened;
         reroute(true);
-        if (!trial.every(vertex => vertexHasCrossing(document, vertex, "wall", "river"))) continue;
-        usedIds = trial;
+        if (!vertexHasCrossing(document, trial.vertex, "wall", "river")) continue;
+        // A diagonal trial is useful only if the wall uses that exact new
+        // edge, not merely a different pre-existing crossing at the vertex.
+        if (trial.target) {
+          const chord = edgeBetween(document.mesh, trial.vertex, trial.target);
+          if (!chord || !kindEdgeIds(document, "wall").has(chord.id)) continue;
+        }
+        usedIds = [trial.vertex];
         break;
       }
       if (!usedIds.length) {
