@@ -247,7 +247,8 @@ export function placeGates(
   let pool: Candidate[] = ([] as Candidate[]).concat(...perLoop);
   if (!pool.length) return [];
 
-  const wet = !!geo.coast || (geo.waterAreas?.length ?? 0) > 0 || geo.rivers.length > 0;
+  const wet =
+    !!geo.coast || (geo.waterAreas?.length ?? 0) > 0 || geo.rivers.length > 0 || (geo.channels?.length ?? 0) > 0;
   const suggested = geo.suggestedGates ?? geo.roadBearings.length;
   // clamp(round(suggested * 0.7), 3, 6), plus one on a wet site. A map-size
   // ceiling (Micro: 3) wins, so the wet bonus cannot open a fifth gate.

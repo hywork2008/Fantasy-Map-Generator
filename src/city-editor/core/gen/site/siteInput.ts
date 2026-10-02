@@ -7,7 +7,14 @@
 // the shape. ~8 control points keeps the corridor's intent (chord, mouth, big
 // bends) while leaving the fine shape to the graph.
 
-import { azimuthToVec, polylineCrossesSegment } from "../geom";
+import {
+  azimuthToVec,
+  nearestOnPolyline,
+  pointInPolygon,
+  polylineTangent,
+  sideOfPolyline,
+  vecToAzimuth
+} from "../geom";
 import type { CityGeography, CityParams, CityProgram, Point, WallPlan } from "../types";
 import { DEFAULT_WALL_PLAN } from "../types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
@@ -33,18 +40,17 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
 
 export function siteToGeography(site: BurgSiteDescriptor): CityGeography {
   const coast = extractCoast(site);
-  // A river, however wide, is not an ocean. Earlier code promoted a broad
-  // on-cell river to a second coast and unioned its sea cells with the real
-  // coast. At estuaries that can leave only a few dry cells, and the first
-  // river then accidentally becomes the harbour shore. Keep only actual
-  // sea/lake surfaces in S1; wide rivers remain physical S2 barriers.
+  // A wide river is not a second ocean. Promoting it to a coast half-plane
+  // floods the far countryside and, at an estuary, can swallow the burg.
+  // Draw only the channel, between the town-side bank and the far bank, and
+  // keep the real sea/lake (if any) as the harbour shore.
+  const { channels, consumed } = extractWideChannels(site);
   const waterAreas = coast ? [{ ...coast, kind: site.waterbody?.kind ?? "ocean" } as const] : [];
   return {
-    // This is the navigable sea/lake shore used by port and quay placement;
-    // it must never be replaced by an inland river.
     coast,
     waterAreas,
-    rivers: extractRivers(site),
+    channels,
+    rivers: extractRivers(site, consumed),
     roadBearings: extractRoadBearings(site),
     roadPaths: site.roads
       .filter(r => r.group !== "searoutes" && r.path.length >= 2)
@@ -76,7 +82,7 @@ export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
  */
 export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgram, "wallPlan">): WallPlan {
   const plan: WallPlan = { ...DEFAULT_WALL_PLAN, extent: program.walls ? "full" : "none" };
-  const hasCoast = site.waterbody !== null;
+  const hasCoast = site.waterbody !== null || site.rivers.some(r => unbridgeableOnSite(site, r));
   const hasRiver = site.rivers.some(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
   const fortified = program.citadel || program.capital;
 
@@ -150,9 +156,124 @@ function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number): 
  * its era-aware transport constraint. */
 const MAX_LEGACY_BRIDGE_SPAN_METERS = 50;
 
-function extractRivers(site: BurgSiteDescriptor): CityGeography["rivers"] {
+type SiteRiver = BurgSiteDescriptor["rivers"][number];
+
+function bridgeSpanMeters(site: BurgSiteDescriptor): number {
+  return site.transport?.maxBridgeSpanMeters ?? MAX_LEGACY_BRIDGE_SPAN_METERS;
+}
+
+/** Widest water in the town window. The width at the burg can be bridgeable
+ * while a clipped downstream sample is already wider than the era's span. */
+function drawnWidthMeters(river: SiteRiver): number {
+  let width = river.widthMeters;
+  for (const seg of river.segments) {
+    for (const sample of seg.widthsMeters) if (sample > width) width = sample;
+  }
+  return width;
+}
+
+/** A channel the town's era cannot span, passing through the burg or the city disk. */
+function unbridgeableOnSite(site: BurgSiteDescriptor, river: SiteRiver): boolean {
+  return drawnWidthMeters(river) > bridgeSpanMeters(site) && (river.throughBurgCell || river.crossesSite);
+}
+
+/** Land the burg must keep between the map origin and a wide channel. */
+function bankMarginMeters(site: BurgSiteDescriptor): number {
+  return Math.min(150, Math.max(20, 0.3 * site.frame.cityRadiusMeters));
+}
+
+function extractWideChannels(site: BurgSiteDescriptor): {
+  channels: NonNullable<CityGeography["channels"]>;
+  consumed: Set<number>;
+} {
+  const consumed = new Set<number>();
+  const channels: NonNullable<CityGeography["channels"]> = [];
+  const margin = bankMarginMeters(site);
+  const half = site.frame.extentMeters / 2;
+  for (const river of site.rivers) {
+    if (!unbridgeableOnSite(site, river)) continue;
+    // Too wide to bridge or to wall across. Drop the stroke either way so a
+    // curtain is never asked to clear half the channel width.
+    consumed.add(river.riverId);
+    const channel = buildChannel(river, drawnWidthMeters(river), margin, half);
+    if (channel) channels.push(channel);
+  }
+  return { channels, consumed };
+}
+
+/** Town-side bank to far bank, extended across the window. The origin stays
+ * on dry land; when the true bank is closer than `margin`, the near edge
+ * moves into the channel rather than the town moving off centre. */
+function buildChannel(
+  river: SiteRiver,
+  widthMeters: number,
+  margin: number,
+  halfExtent: number
+): NonNullable<CityGeography["channels"]>[number] | null {
+  const centerline = extendPastFrame(centerlineOf(river), halfExtent);
+  if (centerline.length < 2 || widthMeters <= 0) return null;
+  const side = sideOfPolyline([0, 0], centerline);
+  const sign = Math.abs(side) < 1e-3 ? (river.cityBank === "left" ? 1 : -1) : Math.sign(side);
+  let nearOffset = (widthMeters / 2) * sign;
+  const farOffset = -(widthMeters / 2) * sign;
+  let near = offsetPolyline(centerline, nearOffset);
+  for (let i = 0; i < 6; i++) {
+    // Clearance is positive only on the town side of the bank. An origin
+    // inside the channel needs the bank moved past it before adding margin.
+    const dist = sideOfPolyline([0, 0], near) * sign;
+    if (dist >= margin - 0.5) break;
+    nearOffset -= (margin - dist) * sign;
+    near = offsetPolyline(centerline, nearOffset);
+  }
+  const far = offsetPolyline(centerline, farOffset);
+  const polygon = [...near, ...[...far].reverse()];
+  if (polygon.length < 4 || pointInPolygon([0, 0], polygon)) return null;
+  const hit = nearestOnPolyline([0, 0], near);
+  return {
+    polygon,
+    shoreline: near,
+    waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
+  };
+}
+
+function centerlineOf(river: SiteRiver): Point[] {
+  const pts: Point[] = [];
+  for (const seg of river.segments) {
+    for (const p of seg.points) {
+      const q: Point = [p[0], p[1]];
+      const prev = pts[pts.length - 1];
+      if (prev && Math.hypot(prev[0] - q[0], prev[1] - q[1]) < 1) continue;
+      pts.push(q);
+    }
+  }
+  return pts;
+}
+
+function extendPastFrame(poly: Point[], half: number): Point[] {
+  if (poly.length < 2) return poly;
+  const reach = half * 3;
+  const outward = (tip: Point, prev: Point): Point => {
+    const dx = tip[0] - prev[0];
+    const dy = tip[1] - prev[1];
+    const len = Math.hypot(dx, dy) || 1;
+    return [tip[0] + (dx / len) * reach, tip[1] + (dy / len) * reach];
+  };
+  return [outward(poly[0], poly[1]), ...poly.slice(1, -1), outward(poly[poly.length - 1], poly[poly.length - 2])];
+}
+
+/** Signed offset along the left normal. Positive `distance` is left of the flow. */
+function offsetPolyline(poly: Point[], distance: number): Point[] {
+  return poly.map((p, i) => {
+    const t = polylineTangent(poly, Math.min(i, poly.length - 2));
+    return [p[0] - t[1] * distance, p[1] + t[0] * distance] as Point;
+  });
+}
+
+function extractRivers(site: BurgSiteDescriptor, wideChannelIds: Set<number>): CityGeography["rivers"] {
+  const span = bridgeSpanMeters(site);
   return (
     site.rivers
+      .filter(r => !wideChannelIds.has(r.riverId))
       .filter(r => r.segments.some(s => s.points.length >= 2))
       // Drop a river that neither crosses the site nor runs near it: real FMG
       // descriptors sometimes list a large river ~2+ radii away (offsetRatio) that
@@ -167,25 +288,17 @@ function extractRivers(site: BurgSiteDescriptor): CityGeography["rivers"] {
             widths.push(seg.widthsMeters[i] ?? r.widthMeters);
           }
         }
-        const corridor = downsample(pts, RIVER_CORRIDOR_POINTS);
-        const roadCrosses =
-          r.crossesSite &&
-          (site.suggestedArchetype === "riverCrossing" ||
-            site.roads
-              .filter(road => road.group !== "searoutes" && road.path.length >= 2)
-              .some(road => {
-                for (let i = 0; i < road.path.length - 1; i++) {
-                  if (polylineCrossesSegment(corridor, road.path[i] as Point, road.path[i + 1] as Point)) return true;
-                }
-                return false;
-              }));
         return {
-          corridor,
+          corridor: downsample(pts, RIVER_CORRIDOR_POINTS),
           widths: downsampleScalars(widths, RIVER_CORRIDOR_POINTS),
           cityBank: r.cityBank,
-          bridgeAllowed:
-            roadCrosses || r.widthMeters <= (site.transport?.maxBridgeSpanMeters ?? MAX_LEGACY_BRIDGE_SPAN_METERS),
-          joinsWater: r.downstream.terminal === "ocean" || r.downstream.terminal === "lake"
+          // A road on the world map does not make a channel wider than the era's
+          // span bridgeable. Those channels are water bands, not strokes.
+          bridgeAllowed: drawnWidthMeters(r) <= span,
+          joinsWater:
+            (r.parentRiverId !== null && wideChannelIds.has(r.parentRiverId)) ||
+            r.downstream.terminal === "ocean" ||
+            r.downstream.terminal === "lake"
         };
       })
       .filter(r => r.corridor.length >= 2)

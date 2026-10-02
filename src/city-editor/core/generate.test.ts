@@ -14,7 +14,7 @@ import {
   coastalBandOverlap,
   oceanShoreSegments
 } from "./gen/coastalSuitability";
-import { polygonArea } from "./gen/geom";
+import { pointInPolygon, polygonArea } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
 import { siteToGeography } from "./gen/site/siteInput";
@@ -216,12 +216,14 @@ const SHIQSH: BurgSiteDescriptor = {
 };
 
 describe("FMG harbour-site regression — Shiqsh", () => {
-  it("keeps a central dry town, a real sea shore, and kilometre rivers unbridged", () => {
+  it("keeps a centred dry harbour town when kilometre rivers are wider than a bridge", () => {
     const geo = siteToGeography(SHIQSH);
     expect(geo.coast?.waterAzimuthDeg).toBe(173.7);
     expect(geo.waterAreas).toHaveLength(1);
-    expect(geo.rivers).toHaveLength(2);
-    expect(geo.rivers.every(river => !river.bridgeAllowed)).toBe(true);
+    expect(geo.waterAreas?.[0]?.kind).toBe("ocean");
+    expect(geo.rivers).toHaveLength(0);
+    expect(geo.channels).toHaveLength(2);
+    expect(geo.channels?.every(channel => !pointInPolygon([0, 0], channel.polygon))).toBe(true);
 
     const source = createGridDocument({
       size: "medium",
@@ -237,13 +239,16 @@ describe("FMG harbour-site regression — Shiqsh", () => {
     expect(city).not.toBeNull();
     if (!city) return;
     const faces = Object.values(city.mesh.faces);
-    expect(faces.filter(face => face.properties.water === "sea").length).toBeLessThan(faces.length / 4);
-    expect(faces.filter(face => face.properties.buildable).length).toBeGreaterThan(20);
+    const seaFaces = faces.filter(face => face.properties.water === "sea").length;
+    expect(seaFaces).toBeGreaterThan(0);
+    expect(seaFaces).toBeLessThan(faces.length * 0.75);
+    // Both kilometre-wide channels remain water, leaving a small dry town.
+    expect(faces.filter(face => face.properties.buildable).length).toBeGreaterThan(0);
     const centre = faces.filter(face => face.site).sort((a, b) => Math.hypot(...a.site!) - Math.hypot(...b.site!))[0];
     expect(centre.properties.water).toBe("land");
     expect(centre.properties.buildable).toBe(true);
     expect(city.elements.some(element => element.kind === "harbor")).toBe(true);
-    expect(city.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(true);
+    expect(city.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(false);
     expect(city.featureGroups.some(group => group.kind === "plank")).toBe(false);
   });
 });

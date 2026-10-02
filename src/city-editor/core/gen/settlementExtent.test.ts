@@ -217,6 +217,10 @@ describe("evolution curtain inset", () => {
     const bridge = insetWalledCore([cell(0, [1]), cell(1, [0, 2, -1]), cell(2, [1])], new Set([0, 1, 2]), 1);
     expect([...bridge.urban]).toEqual([0]);
     expect([...bridge.peeled].sort()).toEqual([1, 2]);
+    // The burg cell stays inside even when a later ring would peel it.
+    const anchored = insetWalledCore(five, all, 2, 7);
+    expect(anchored.urban.has(7)).toBe(true);
+    expect(twice.urban.has(7)).toBe(false);
   });
 
   it("insets tiny by one cell and small by one or two, and leaves other towns on the settlement edge", () => {

@@ -89,17 +89,20 @@ export function evolutionWallInsetRings(
 
 /** Pull `urban` in by `rings` cells from its boundary. Peeled cells leave the
  * curtain and stay in the town. A ring that would erase the core is skipped.
- * When a ring splits the remainder, the largest component stays walled. */
+ * When a ring splits the remainder, the largest component stays walled.
+ * `anchor`, when it already belongs to the core, is the burg cell and is never peeled. */
 export function insetWalledCore(
   cells: Cell[],
   urban: Set<number>,
-  rings: number
+  rings: number,
+  anchor?: number
 ): { urban: Set<number>; peeled: Set<number> } {
   const peeled = new Set<number>();
   let core = new Set(urban);
   const steps = Number.isFinite(rings) ? Math.max(0, Math.floor(rings)) : 0;
   if (!steps || !core.size) return { urban: core, peeled };
   const byId = new Map(cells.map(cell => [cell.id, cell]));
+  const keepAnchor = anchor !== undefined && core.has(anchor);
   for (let step = 0; step < steps; step++) {
     const boundary: number[] = [];
     for (const id of core) {
@@ -112,12 +115,14 @@ export function insetWalledCore(
     }
     if (!boundary.length) break;
     const next = new Set(core);
-    for (const id of boundary) next.delete(id);
-    if (!next.size) break;
+    for (const id of boundary) if (id !== anchor || !keepAnchor) next.delete(id);
+    if (!next.size || next.size === core.size) break;
     const components = connectedCellComponents(byId, next);
     let kept = components[0];
     for (const component of components) {
-      if (component.size > kept.size) kept = component;
+      const anchored = keepAnchor && component.has(anchor!);
+      const keptAnchored = keepAnchor && kept.has(anchor!);
+      if ((anchored && !keptAnchored) || (anchored === keptAnchored && component.size > kept.size)) kept = component;
     }
     for (const id of core) {
       if (!kept.has(id)) peeled.add(id);

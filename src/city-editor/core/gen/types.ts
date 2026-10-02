@@ -252,6 +252,11 @@ export interface CityGeography {
    * bank here instead of an impossibly wide river stroke. `coast` remains for
    * backwards-compatible standalone and exported inputs. */
   waterAreas?: { corridor: Point[]; waterAzimuthDeg: number; kind: "ocean" | "lake" | "river" }[];
+  /** On-site rivers wider than the era can bridge. Each polygon is the channel
+   * itself (near bank to far bank), not a half-plane: the burg stays on the
+   * near bank at the map origin, and the opposite bank stays land outside the
+   * town. `shoreline` is the town-side bank. */
+  channels?: { polygon: Point[]; shoreline: Point[]; waterAzimuthDeg: number }[];
   /** Gate-candidate road bearings, compass degrees. */
   roadBearings: number[];
   /** Road centre-lines, used by S4 to choose the corresponding gates. */

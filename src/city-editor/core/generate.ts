@@ -48,11 +48,12 @@ import { tagExternalGateRoads } from "./gen/approachBeyond";
 import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./gen/cemeteryLayout";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
-import { classifyCoast } from "./gen/classifySea";
+import { type CoastResult, classifyCoast } from "./gen/classifySea";
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph, graphEdgeKey, vertexKey } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
 import {
+  clipPolylineOutsidePolygon,
   isSimplePolygon,
   nearestOnPolyline,
   pointInPolygon,
@@ -1334,6 +1335,50 @@ interface MeshBorderLoop {
   cellIds: number[];
 }
 
+/** Cells inside a wide-channel polygon become water. A band that covers the
+ * burg is skipped so the town stays centred on dry land. */
+function applyWideChannels(
+  cells: Cell[],
+  channels: NonNullable<CityGeography["channels"]>,
+  sea: Set<number>
+): NonNullable<CityGeography["channels"]> {
+  if (!channels.length || !cells.length) return [];
+  const origin = cells.reduce((best, cell) =>
+    cell.centroid[0] ** 2 + cell.centroid[1] ** 2 < best.centroid[0] ** 2 + best.centroid[1] ** 2 ? cell : best
+  );
+  const applied: NonNullable<CityGeography["channels"]> = [];
+  for (const channel of channels) {
+    if (pointInPolygon([0, 0], channel.polygon) || pointInPolygon(origin.centroid, channel.polygon)) continue;
+    const wet = cells.filter(cell => cell.id !== origin.id && pointInPolygon(cell.centroid, channel.polygon));
+    if (!wet.length) continue;
+    for (const cell of wet) sea.add(cell.id);
+    applied.push(channel);
+  }
+  return applied;
+}
+
+/** Keep the dry piece nearest the burg when a road crosses a wide channel.
+ * The longest dry piece is often the far bank, which is not part of the town. */
+function keepCitySide(lines: Point[][], polygon: Point[]): Point[][] {
+  const out: Point[][] = [];
+  for (const line of lines) {
+    const runs = clipPolylineOutsidePolygon(line, polygon);
+    if (!runs.length) continue;
+    let best = runs[0];
+    let bestD = Number.POSITIVE_INFINITY;
+    for (const run of runs) {
+      let d = Number.POSITIVE_INFINITY;
+      for (const p of run) d = Math.min(d, p[0] * p[0] + p[1] * p[1]);
+      if (d < bestD) {
+        best = run;
+        bestD = d;
+      }
+    }
+    if (best.length >= 2) out.push(best);
+  }
+  return out;
+}
+
 export function runPlan(
   mesh: Mesh,
   faceIdOf: string[],
@@ -1396,9 +1441,13 @@ export function runPlan(
       : geo.coast
         ? [{ ...geo.coast, kind: "ocean" as const }]
         : [];
-  const classified = waterInputs.map((water, i) => ({
-    kind: water.kind,
-    coast: classifyCoast(
+  const originCell = cells.reduce((best, cell) =>
+    cell.centroid[0] ** 2 + cell.centroid[1] ** 2 < best.centroid[0] ** 2 + best.centroid[1] ** 2 ? cell : best
+  );
+  const wetsOrigin = (result: CoastResult | null): boolean =>
+    !!result && (pointInPolygon([0, 0], result.waterPolygon) || result.sea.has(originCell.id));
+  const classified = waterInputs.map((water, i) => {
+    const coast = classifyCoast(
       graph,
       water.corridor,
       water.waterAzimuthDeg,
@@ -1406,16 +1455,41 @@ export function runPlan(
       half,
       cellSize,
       makeRng(`${seed}:water:${i}`)
-    )
-  }));
+    );
+    if (!wetsOrigin(coast)) return { kind: water.kind, coast };
+    // The closure picked the side that contains the burg. Take the other side
+    // when that leaves the map origin dry; otherwise drop the surface.
+    const flipped = classifyCoast(
+      graph,
+      water.corridor,
+      (water.waterAzimuthDeg + 180) % 360,
+      cells,
+      half,
+      cellSize,
+      makeRng(`${seed}:water:${i}:flip`)
+    );
+    return { kind: water.kind, coast: flipped && !wetsOrigin(flipped) ? flipped : null };
+  });
   const coasts = classified.flatMap(item => (item.coast ? [item.coast] : []));
-  const coast = coasts[0] ?? null;
-  const coastPath = coast?.shoreline ?? [];
-  const waterPolygon = coast?.waterPolygon ?? null;
+  let coast: CoastResult | null = coasts[0] ?? null;
+  let coastPath = coast?.shoreline ?? [];
+  let waterPolygon = coast?.waterPolygon ?? null;
   const sea = new Set<number>(coasts.flatMap(c => [...c.sea]));
   const ocean = new Set<number>(
     classified.flatMap(item => (item.kind === "ocean" && item.coast ? [...item.coast.sea] : []))
   );
+  // Wide FMG channels are water cells, not fat strokes. The burg's cell stays
+  // land so the town remains centred on its own bank.
+  const appliedChannels = applyWideChannels(cells, geo.channels ?? [], sea);
+  if (!coast && appliedChannels[0]) {
+    coast = {
+      sea: new Set<number>(),
+      shoreline: appliedChannels[0].shoreline,
+      waterPolygon: appliedChannels[0].polygon
+    };
+    coastPath = appliedChannels[0].shoreline;
+    waterPolygon = appliedChannels[0].polygon;
+  }
   mark("coast");
   if (stageStep < 2) return { ...empty, sea, ocean, coastPath, waterPolygon };
 
@@ -1448,6 +1522,16 @@ export function runPlan(
       )
     : null;
   let plannedCore = plannedUrban ? splitUrbanCore(cells, plannedUrban.urban, compactCore ? 1 : coreShare).urban : null;
+  // The burg is the map origin. Keep that dry cell in the curtain when it
+  // already touches the core, and never peel it off afterwards.
+  const burgCell = cells.find(cell => !sea.has(cell.id) && pointInPolygon([0, 0], cell.polygon)) ?? null;
+  const retainBurg = (core: Set<number>): Set<number> => {
+    if (!burgCell || core.has(burgCell.id)) return core;
+    if (core.size > 0 && !burgCell.neighbors.some(id => core.has(id))) return core;
+    const next = new Set(core);
+    next.add(burgCell.id);
+    return next;
+  };
   // The final curtain is peeled inward on evolution grids. Route relative to
   // that curtain, rather than adding a river setback to the unpeeled settlement.
   if (!compactCore && plannedCore && effectiveLayout !== "bram") {
@@ -1458,7 +1542,7 @@ export function runPlan(
       program.walls,
       resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters)
     );
-    if (rings > 0) plannedCore = insetWalledCore(cells, plannedCore, rings).urban;
+    if (rings > 0) plannedCore = insetWalledCore(cells, retainBurg(plannedCore), rings, burgCell?.id).urban;
   }
   const plannedWallLoops = plannedCore
     ? componentBorderLoops(mesh, faceIdOf, plannedCore).map(loop => [...loop.points, loop.points[0]])
@@ -1637,7 +1721,7 @@ export function runPlan(
       ? 0
       : evolutionWallInsetRings(sizePresetForExtent(params.extentMeters), seed, gridKind, program.walls, walledShare);
   if (!compactCore && insetRings > 0 && currentUrban.size > 0) {
-    const inset = insetWalledCore(currentCells, currentUrban, insetRings);
+    const inset = insetWalledCore(currentCells, retainBurg(currentUrban), insetRings, burgCell?.id);
     if (inset.peeled.size) {
       currentUrban = inset.urban;
       for (const id of inset.peeled) {
@@ -1645,6 +1729,75 @@ export function runPlan(
         currentOutskirts.add(id);
       }
       // Original cell IDs are retained throughout the wall plan.
+      urbanStages = classification.stages.filter(stage => currentUrban.has(stage.cellId));
+    }
+  }
+  // A channel can leave the flooded core on the far bank. The curtain belongs
+  // around the burg; grow that core on the near bank instead of walling the
+  // opposite shore.
+  if (program.walls && burgCell && !currentUrban.has(burgCell.id) && effectiveLayout !== "bram") {
+    const target = Math.max(currentUrban.size, 1);
+    const byId = new Map(currentCells.map(cell => [cell.id, cell]));
+    const grown = new Set<number>([burgCell.id]);
+    const pending = [burgCell.id];
+    while (pending.length && grown.size < target) {
+      const id = pending.shift()!;
+      const cell = byId.get(id);
+      if (!cell) continue;
+      const neighbors = cell.neighbors.filter(
+        neighbor => !grown.has(neighbor) && !sea.has(neighbor) && byId.has(neighbor)
+      );
+      neighbors.sort((a, b) => {
+        const pa = byId.get(a)!.centroid;
+        const pb = byId.get(b)!.centroid;
+        return pa[0] ** 2 + pa[1] ** 2 - (pb[0] ** 2 + pb[1] ** 2);
+      });
+      for (const neighbor of neighbors) {
+        grown.add(neighbor);
+        pending.push(neighbor);
+        if (grown.size >= target) break;
+      }
+    }
+    for (const id of currentUrban) {
+      if (grown.has(id)) continue;
+      residentialOutskirts.add(id);
+      currentOutskirts.add(id);
+    }
+    currentUrban = grown;
+    urbanStages = classification.stages.filter(stage => currentUrban.has(stage.cellId));
+  }
+  // One cell has no interior vertex once the gate passage splits it, so the
+  // street snaps onto the curtain. Keep a second dry cell beside the burg,
+  // off the river so the curtain does not inherit a shared bank.
+  if (
+    program.walls &&
+    burgCell &&
+    currentUrban.has(burgCell.id) &&
+    currentUrban.size < 2 &&
+    effectiveLayout !== "bram"
+  ) {
+    const byId = new Map(currentCells.map(cell => [cell.id, cell]));
+    const riverVertices = new Set(
+      rivers.flatMap(river =>
+        river.edgePoints.map(point => `${Math.round(point[0] * 100)},${Math.round(point[1] * 100)}`)
+      )
+    );
+    const touchesRiver = (cellId: number) =>
+      byId
+        .get(cellId)
+        ?.polygon.some(point => riverVertices.has(`${Math.round(point[0] * 100)},${Math.round(point[1] * 100)}`)) ??
+      false;
+    const neighbors = burgCell.neighbors
+      .filter(
+        neighbor => !currentUrban.has(neighbor) && !sea.has(neighbor) && !touchesRiver(neighbor) && byId.has(neighbor)
+      )
+      .sort((a, b) => {
+        const pa = byId.get(a)!.centroid;
+        const pb = byId.get(b)!.centroid;
+        return pa[0] ** 2 + pa[1] ** 2 - (pb[0] ** 2 + pb[1] ** 2);
+      });
+    if (neighbors.length) {
+      currentUrban = new Set([...currentUrban, neighbors[0]]);
       urbanStages = classification.stages.filter(stage => currentUrban.has(stage.cellId));
     }
   }
@@ -1947,11 +2100,16 @@ export function runPlan(
   }
   let roads = streetResult.roads;
   if (streetOpts.avoidSea) {
-    roads = clipPolylinesToLand(roads, waterPolygon);
+    const oceanPolygon = coasts[0]?.waterPolygon ?? null;
+    roads = clipPolylinesToLand(roads, oceanPolygon);
+    roads = appliedChannels.reduce((lines, channel) => keepCitySide(lines, channel.polygon), roads);
     streetResult = {
       ...streetResult,
       roads,
-      arteries: clipPolylinesToLand(streetResult.arteries, waterPolygon)
+      arteries: appliedChannels.reduce(
+        (lines, channel) => keepCitySide(lines, channel.polygon),
+        clipPolylinesToLand(streetResult.arteries, oceanPolygon)
+      )
     };
     routedGates = remakeUnreachableLandGates(routedGates, roads, cellSize);
   }
@@ -3132,28 +3290,27 @@ export function completeRoadRouter(
     const center = polygonCentroid(facePoints(mesh, face));
     if (urbanRegions.some(region => pointInPolygon(center, region))) urban.add(face.id);
   }
-  // Membership can become stale when a gate passage changes the curtain.
-  // For a closed town wall, classify faces by reachability from the frame on
-  // the current mesh. Keep planned membership for open coastal curtains.
+  // Membership can become stale when a gate passage or a citadel cuts the
+  // curtain into several groups. A face is inside when every path to the map
+  // frame crosses a wall, including a castle curtain that replaced a town arc.
+  // An open sea wall still reaches the burg, and that flood is not used.
   let curtainInterior: Set<Id> | undefined;
-  const castleWalls = castleWallIds(document);
-  const townWalls = new Set(
-    document.featureGroups.flatMap(group =>
-      group.kind === "wall" && !castleWalls.has(group.id) ? group.segments.map(ref => ref.edgeId) : []
-    )
-  );
+  const barrierWalls = kindEdgeIds(document, "wall");
+  const barrierVertices = new Set([...barrierWalls].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
   const wallDegree = new Map<Id, number>();
-  for (const id of townWalls) {
+  for (const id of barrierWalls) {
     const edge = mesh.edges[id];
     for (const vertex of [edge.a, edge.b]) wallDegree.set(vertex, (wallDegree.get(vertex) ?? 0) + 1);
   }
-  if (!openRim && townWalls.size && [...wallDegree.values()].every(degree => degree === 2)) {
+  // A citadel spur or an open sea wall is not a closed curtain. Degree 2 keeps
+  // the previous route classification for those towns.
+  if (!openRim && barrierWalls.size && [...wallDegree.values()].every(degree => degree === 2)) {
     const exterior = new Set<Id>();
     const queue: Id[] = [];
     for (const edge of Object.values(mesh.edges)) {
       if (edge.leftFace && edge.rightFace) continue;
       for (const id of [edge.leftFace, edge.rightFace]) {
-        if (id && !townWalls.has(edge.id) && !exterior.has(id)) {
+        if (id && !barrierWalls.has(edge.id) && !exterior.has(id)) {
           exterior.add(id);
           queue.push(id);
         }
@@ -3161,7 +3318,7 @@ export function completeRoadRouter(
     }
     for (const id of queue) {
       for (const ref of mesh.faces[id].boundary) {
-        if (townWalls.has(ref.edgeId)) continue;
+        if (barrierWalls.has(ref.edgeId)) continue;
         const edge = mesh.edges[ref.edgeId];
         const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
         if (other && !exterior.has(other)) {
@@ -3170,7 +3327,13 @@ export function completeRoadRouter(
         }
       }
     }
-    if (exterior.size < Object.keys(mesh.faces).length) {
+    const originFace = Object.values(mesh.faces).find(face => pointInPolygon([0, 0], facePoints(mesh, face)));
+    if (
+      exterior.size > 0 &&
+      exterior.size < Object.keys(mesh.faces).length &&
+      originFace &&
+      !exterior.has(originFace.id)
+    ) {
       curtainInterior = new Set(Object.keys(mesh.faces).filter(id => !exterior.has(id)));
     }
   }
@@ -3269,12 +3432,55 @@ export function completeRoadRouter(
               )
             )
           : undefined;
-      const id = onFrame
-        ? nearest(sampled[i], onFrame)
-        : snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
+      let id = onFrame ? nearest(sampled[i], onFrame) : snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
+      // The nearest plaza corner is often a curtain vertex. An interior street
+      // has to end on a town vertex or its only hops are the wall itself.
+      const gateEnd = outside ? i === sampled.length - 1 : i === 0;
+      if (
+        !outside &&
+        !gateEnd &&
+        id &&
+        barrierVertices.has(id) &&
+        !gateIds.has(id) &&
+        (plan.layout ?? document.layout) !== "bram"
+      ) {
+        const point = sampled[i];
+        const host = Object.values(mesh.faces).find(
+          face => (curtainInterior?.has(face.id) || urban.has(face.id)) && pointInPolygon(point, facePoints(mesh, face))
+        );
+        const pool = host
+          ? faceVertices(mesh, host)
+          : [...(curtainInterior ?? urban)].flatMap(fid =>
+              mesh.faces[fid] ? faceVertices(mesh, mesh.faces[fid]) : []
+            );
+        let best: Id | undefined;
+        let bestDist = Infinity;
+        for (const vertexId of pool) {
+          if (barrierVertices.has(vertexId) || gateIds.has(vertexId)) continue;
+          const at = mesh.vertices[vertexId]?.point;
+          if (!at) continue;
+          const dist = Math.hypot(at[0] - point[0], at[1] - point[1]);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = vertexId;
+          }
+        }
+        if (best) id = best;
+      }
       const idx = id ? indexOf.get(id) : undefined;
       if (idx === undefined || waypoints.at(-1) === idx) continue;
       waypoints.push(idx);
+    }
+    // A hamlet plaza can snap onto the gate vertex. One inward passage arm
+    // still has to exist or the gate has no town-side road.
+    if (!outside && waypoints.length === 1 && gateIds.has(ids[waypoints[0]])) {
+      const vertexId = ids[waypoints[0]];
+      const inward = throughEdgesAt(document, vertexId, "wall").find(edge =>
+        [edge.leftFace, edge.rightFace].some(id => !!id && (curtainInterior?.has(id) || urban.has(id)))
+      );
+      const other = inward ? (inward.a === vertexId ? inward.b : inward.a) : undefined;
+      const otherIndex = other ? indexOf.get(other) : undefined;
+      if (otherIndex !== undefined && otherIndex !== waypoints[0]) waypoints.push(otherIndex);
     }
     if (!waypoints.length || (!outside && waypoints.length < 2)) {
       onTrace?.({
@@ -3366,13 +3572,22 @@ export function completeRoadRouter(
       return nodes.length >= 2 ? nodes : null;
     };
     let nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+    // Passage splits and a citadel can leave the planned urban ids behind the
+    // curtain that was actually built. Retry a failed interior street on that
+    // curtain; a route that already succeeded keeps its planned membership.
+    if (!nodes && !outside && curtainInterior) {
+      useCurrentCurtain = true;
+      nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+      if (!nodes) useCurrentCurtain = false;
+    }
     // Keep successful planned routes unchanged. Only retry a failed exterior
-    // approach against the repaired closed curtain; interior streets retain
-    // their planned urban/plaza membership.
+    // approach against the repaired closed curtain.
     for (let pass = 0; outside && pass < (curtainInterior ? 2 : 1); pass++) {
       if (pass > 0) {
         useCurrentCurtain = true;
-        nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+        const retried = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
+        if (retried) nodes = retried;
+        else useCurrentCurtain = false;
       }
       if (
         outside &&

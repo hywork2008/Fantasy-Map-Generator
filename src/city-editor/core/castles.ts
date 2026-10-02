@@ -226,7 +226,7 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
     working.castles ??= [];
     working.castles.push(castle);
     working.version = 2;
-    const layout = layoutCastle(working, castle);
+    const layout = layoutCastle(working, castle, 8);
     if (!layout) continue;
     working.castles[working.castles.length - 1] = layout;
     working.elements = working.elements.filter(e => e.kind !== "citadel" || !e.faceIds.includes(faceId));
@@ -240,7 +240,9 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
   return null;
 }
 
-/** Shortest exterior mesh branch, stopping on the existing public street graph. */
+/** Shortest exterior mesh branch, stopping on the existing public street graph.
+ * The clearance pass keeps the spur off the curtain. A site pinched against
+ * that curtain retries without the clearance so the gate can still leave. */
 function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): EdgeRef[] | null {
   const { mesh } = document,
     castleFaces = reservedCastleFaces(document);
@@ -269,55 +271,58 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
     for (const id of plaza?.faceIds ?? []) for (const v of faceVertices(mesh, mesh.faces[id])) targets.add(v);
   }
   if (!targets.size) return null;
-  const adjacent = new Map<Id, Array<{ to: Id; edge: Id; cost: number }>>();
-  for (const edge of Object.values(mesh.edges)) {
-    if (
-      barriers.has(edge.id) ||
-      !castleRoadEdgeAllowed(document, edge.id, 4) ||
-      [edge.leftFace, edge.rightFace].some(
-        id => id && (castleFaces.has(id) || mesh.faces[id].properties.water !== "land")
+  const search = (clearance: boolean): EdgeRef[] | null => {
+    const adjacent = new Map<Id, Array<{ to: Id; edge: Id; cost: number }>>();
+    for (const edge of Object.values(mesh.edges)) {
+      if (
+        barriers.has(edge.id) ||
+        (clearance && !castleRoadEdgeAllowed(document, edge.id, 4)) ||
+        [edge.leftFace, edge.rightFace].some(
+          id => id && (castleFaces.has(id) || mesh.faces[id].properties.water !== "land")
+        )
       )
-    )
-      continue;
-    const p = mesh.vertices[edge.a].point,
-      q = mesh.vertices[edge.b].point,
-      cost = Math.hypot(p[0] - q[0], p[1] - q[1]);
-    for (const [a, b] of [
-      [edge.a, edge.b],
-      [edge.b, edge.a]
-    ]) {
-      const entries = adjacent.get(a) ?? [];
-      entries.push({ to: b, edge: edge.id, cost });
-      adjacent.set(a, entries);
+        continue;
+      const p = mesh.vertices[edge.a].point,
+        q = mesh.vertices[edge.b].point,
+        cost = Math.hypot(p[0] - q[0], p[1] - q[1]);
+      for (const [a, b] of [
+        [edge.a, edge.b],
+        [edge.b, edge.a]
+      ]) {
+        const entries = adjacent.get(a) ?? [];
+        entries.push({ to: b, edge: edge.id, cost });
+        adjacent.set(a, entries);
+      }
     }
-  }
-  const distance = new Map<Id, number>([[vertexId, 0]]),
-    previous = new Map<Id, { from: Id; edge: Id }>(),
-    pending = new Set([vertexId]);
-  let goal: Id | null = null;
-  while (pending.size) {
-    const at = [...pending].sort((a, b) => distance.get(a)! - distance.get(b)! || a.localeCompare(b))[0];
-    pending.delete(at);
-    if (targets.has(at)) {
-      goal = at;
-      break;
+    const distance = new Map<Id, number>([[vertexId, 0]]),
+      previous = new Map<Id, { from: Id; edge: Id }>(),
+      pending = new Set([vertexId]);
+    let goal: Id | null = null;
+    while (pending.size) {
+      const at = [...pending].sort((a, b) => distance.get(a)! - distance.get(b)! || a.localeCompare(b))[0];
+      pending.delete(at);
+      if (targets.has(at)) {
+        goal = at;
+        break;
+      }
+      for (const item of adjacent.get(at) ?? []) {
+        const cost = distance.get(at)! + item.cost;
+        if (cost >= (distance.get(item.to) ?? Infinity)) continue;
+        distance.set(item.to, cost);
+        previous.set(item.to, { from: at, edge: item.edge });
+        pending.add(item.to);
+      }
     }
-    for (const item of adjacent.get(at) ?? []) {
-      const cost = distance.get(at)! + item.cost;
-      if (cost >= (distance.get(item.to) ?? Infinity)) continue;
-      distance.set(item.to, cost);
-      previous.set(item.to, { from: at, edge: item.edge });
-      pending.add(item.to);
+    if (!goal) return null;
+    const refs: EdgeRef[] = [];
+    for (let at = goal; at !== vertexId; ) {
+      const step = previous.get(at)!;
+      refs.push({ edgeId: step.edge, forward: mesh.edges[step.edge].a === step.from });
+      at = step.from;
     }
-  }
-  if (!goal) return null;
-  const refs: EdgeRef[] = [];
-  for (let at = goal; at !== vertexId; ) {
-    const step = previous.get(at)!;
-    refs.push({ edgeId: step.edge, forward: mesh.edges[step.edge].a === step.from });
-    at = step.from;
-  }
-  return refs.reverse();
+    return refs.reverse();
+  };
+  return search(true) ?? search(false);
 }
 
 export function finalizeCastles(document: CityDocument, connect: boolean): boolean {
@@ -345,10 +350,14 @@ export function regenerateCastleInterior(document: CityDocument, id: Id, changeF
     index = next.castles?.findIndex(c => c.id === id) ?? -1;
   if (index < 0 || next.castles![index].locked) return null;
   const castle = next.castles![index];
-  const result = layoutCastle(next, {
-    ...castle,
-    form: changeForm ? (castle.form === "keep-bailey" ? "courtyard" : "keep-bailey") : castle.form
-  });
+  const result = layoutCastle(
+    next,
+    {
+      ...castle,
+      form: changeForm ? (castle.form === "keep-bailey" ? "courtyard" : "keep-bailey") : castle.form
+    },
+    8
+  );
   if (!result) return null;
   next.castles![index] = result;
   return validateFortifications(next).length ? null : next;
