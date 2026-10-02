@@ -12,7 +12,14 @@ import {
   moveVertex,
   splitFace
 } from "./mesh";
-import { kindEdgeIds, openRiverWallPassage, throughEdgesAt, vertexHasCrossing } from "./passages";
+import {
+  alternatingPairs,
+  kindEdgeIds,
+  openRiverWallPassage,
+  orderedIncidentEdges,
+  throughEdgesAt,
+  vertexHasCrossing
+} from "./passages";
 import type { CityDocument, EdgeRef, Id, Point } from "./types";
 
 function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
@@ -171,7 +178,7 @@ export function repairRiverWalls(
     source.mesh.faces[id] ? [polygonCentroid(facePoints(source.mesh, source.mesh.faces[id]))] : []
   );
 
-  const reroute = (allowCrossings: boolean) => {
+  const reroute = (allowCrossings: boolean, trialPassage?: { vertex: Id; arms: Id[] }) => {
     routingIssues = [];
     const mesh = document.mesh;
     const ids = Object.keys(mesh.vertices);
@@ -193,8 +200,18 @@ export function repairRiverWalls(
     const riverEdges = kindEdgeIds(document, "river"),
       roadEdges = kindEdgeIds(document, "road");
     const riverVertices = new Set(channel.flatMap(e => [e.a, e.b]));
+    const wallEdges = kindEdgeIds(document, "wall");
     const passages = new Map(
-      [...riverVertices].map(id => [id, new Set(throughEdgesAt(document, id, "river", true).map(e => e.id))])
+      [...riverVertices].map(id => {
+        // Keep an already consumed, valid crossing even when a straighter
+        // unused pair exists at the same junction.
+        const arms = vertexHasCrossing(document, id, "wall", "river")
+          ? incidentEdges(mesh, id)
+              .filter(edge => wallEdges.has(edge.id))
+              .map(edge => edge.id)
+          : throughEdgesAt(document, id, "river", true).map(edge => edge.id);
+        return [id, new Set(trialPassage?.vertex === id ? trialPassage.arms : arms)];
+      })
     );
     const interior = new Set(
       Object.values(mesh.faces)
@@ -688,6 +705,7 @@ export function repairRiverWalls(
     }
     for (const run of runs) {
       const beforeRun = document;
+      const existingWallEdges = kindEdgeIds(beforeRun, "wall");
       const candidates = [...new Set([run[0], run.at(-1)!, ...run])];
       let usedIds: Id[] = [];
       const trials: { vertex: Id; face?: Id; target?: Id }[] = [];
@@ -724,19 +742,35 @@ export function repairRiverWalls(
             ? splitFace(document, trial.face, trial.vertex, trial.target)
             : openRiverWallPassage(document, trial.vertex);
         if (!opened || !preservesRivers(document, opened)) continue;
-        const arms = throughEdgesAt(opened, trial.vertex, "river", true);
-        if (arms.length !== 2 || !arms.every(edge => transverseArm(opened, edge.id, trial.vertex))) continue;
-        document = opened;
-        reroute(true);
-        if (!vertexHasCrossing(document, trial.vertex, "wall", "river")) continue;
-        // A diagonal trial is useful only if the wall uses that exact new
-        // edge, not merely a different pre-existing crossing at the vertex.
-        if (trial.target) {
-          const chord = edgeBetween(document.mesh, trial.vertex, trial.target);
-          if (!chord || !kindEdgeIds(document, "wall").has(chord.id)) continue;
+        const chord = trial.target ? edgeBetween(opened.mesh, trial.vertex, trial.target) : null;
+        const ordered = orderedIncidentEdges(opened, trial.vertex);
+        const riverArms = ordered.filter(edge => rivers.has(edge.id)).map(edge => edge.id);
+        // A new diagonal can cross through several opposite land arms. The
+        // straightest pair may miss the existing curtain's exit entirely.
+        const pairs = chord
+          ? ordered
+              .filter(edge => {
+                const other = edge.a === trial.vertex ? edge.b : edge.a;
+                return (
+                  !riverVertices.has(other) &&
+                  alternatingPairs(ordered, riverArms, [chord.id, edge.id]) &&
+                  transverseArm(opened, edge.id, trial.vertex)
+                );
+              })
+              .sort((a, b) => Number(existingWallEdges.has(b.id)) - Number(existingWallEdges.has(a.id)))
+              .map(edge => [chord.id, edge.id])
+          : [throughEdgesAt(opened, trial.vertex, "river", true).map(edge => edge.id)];
+        for (const arms of pairs) {
+          if (arms.length !== 2 || !arms.every(id => transverseArm(opened, id, trial.vertex))) continue;
+          document = clone(opened);
+          reroute(true, { vertex: trial.vertex, arms });
+          if (!vertexHasCrossing(document, trial.vertex, "wall", "river")) continue;
+          // Publish a cell cut only when the curtain consumes that exact edge.
+          if (chord && !kindEdgeIds(document, "wall").has(chord.id)) continue;
+          usedIds = [trial.vertex];
+          break;
         }
-        usedIds = [trial.vertex];
-        break;
+        if (usedIds.length) break;
       }
       if (!usedIds.length) {
         // A geometrically open junction is not a prepared wall passage until
