@@ -409,7 +409,7 @@ describe("generateStageOnDocument", () => {
   });
 
   it("covers every stage id in GENERATION_STAGES", () => {
-    expect(GENERATION_STAGES.map(s => s.step)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(GENERATION_STAGES.map(s => s.step)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
   });
 });
 

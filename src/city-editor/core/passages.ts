@@ -91,11 +91,13 @@ export function vertexHasCrossing(
   document: CityDocument,
   vertexId: Id,
   first: BarrierKind,
-  second: FeatureGroup["kind"]
+  second: FeatureGroup["kind"],
+  cachedAIds?: Set<Id>,
+  cachedBIds?: Set<Id>
 ): boolean {
   const ordered = orderedIncidentEdges(document, vertexId);
-  const aIds = kindEdgeIds(document, first);
-  const bIds = kindEdgeIds(document, second);
+  const aIds = cachedAIds ?? kindEdgeIds(document, first);
+  const bIds = cachedBIds ?? kindEdgeIds(document, second);
   const a = ordered.filter(e => aIds.has(e.id)).map(e => e.id);
   const b = ordered.filter(e => bIds.has(e.id)).map(e => e.id);
   for (let i = 0; i < b.length; i++)
@@ -113,11 +115,18 @@ function riverVertexSet(document: CityDocument): Set<Id> {
 
 /** One non-barrier arm on each side; no same-side fallback is permitted. Prefers the pair closest to a straight 180° line.
  * `landOnly` drops an arm that ends on another river vertex, so a road cannot turn along the channel. */
-export function throughEdgesAt(document: CityDocument, vertexId: Id, barrier: BarrierKind, landOnly = false): Edge[] {
+export function throughEdgesAt(
+  document: CityDocument,
+  vertexId: Id,
+  barrier: BarrierKind,
+  landOnly = false,
+  cachedBanned?: Set<Id>,
+  cachedRiverVertices?: Set<Id>
+): Edge[] {
   const ordered = orderedIncidentEdges(document, vertexId);
-  const banned = kindEdgeIds(document, barrier);
+  const banned = cachedBanned ?? kindEdgeIds(document, barrier);
   const used = ordered.filter(edge => banned.has(edge.id)).map(edge => edge.id);
-  const stayOnRiver = landOnly && barrier === "river" ? riverVertexSet(document) : null;
+  const stayOnRiver = landOnly && barrier === "river" ? (cachedRiverVertices ?? riverVertexSet(document)) : null;
   const free = ordered.filter(edge => {
     if (banned.has(edge.id)) return false;
     if (!stayOnRiver) return true;
@@ -722,6 +731,7 @@ export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCro
     .map(id => document.mesh.vertices[id]?.point)
     .filter((point): point is Point => !!point);
   let tangent: Point | null = null;
+  let cornerBisector: Point | null = null;
   if (neighbours) {
     const a = document.mesh.vertices[neighbours[0]]?.point;
     const b = document.mesh.vertices[neighbours[1]]?.point;
@@ -731,8 +741,8 @@ export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCro
       const chord = unit(b[0] - a[0], b[1] - a[1]);
       if (u && v && chord && u[0] * v[0] + u[1] * v[1] < -0.5) tangent = chord;
       else if (u && v) {
-        const bisector = unit(u[0] + v[0], u[1] + v[1]);
-        if (bisector) tangent = [-bisector[1], bisector[0]];
+        cornerBisector = unit(u[0] + v[0], u[1] + v[1]);
+        if (cornerBisector) tangent = [-cornerBisector[1], cornerBisector[0]];
       }
       tangent ??= chord;
     }
@@ -754,7 +764,7 @@ export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCro
   const center = castleCircuit
     ? polygonCentroid(castleCircuit.areaFaceIds.flatMap(id => facePoints(document.mesh, document.mesh.faces[id])))
     : townCenter(document);
-  const toward = unit(center[0] - gate.point[0], center[1] - gate.point[1]);
+  const toward = unit(center[0] - gate.point[0], center[1] - gate.point[1]) ?? cornerBisector;
   if (toward && inward[0] * toward[0] + inward[1] * toward[1] < 0) inward = [-inward[0], -inward[1]];
   return { point: gate.point, tangent, inward, roads };
 }

@@ -40,7 +40,7 @@ const rotate = (v: Point, angle: number): Point => [
 ];
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
 const pointKey = (p: Point) => `${Math.round(p[0] * 1e6)},${Math.round(p[1] * 1e6)}`;
-export const ORGANIC_LANE_FACADE_CLEARANCE = 0.0;
+export const ORGANIC_LANE_FACADE_CLEARANCE = 0.05;
 
 /** Organic streets are a subdivision of connected public space, not rows of
  * rectangles. First join the district perimeter around the hub; then split

@@ -185,7 +185,7 @@ describe("exterior moats", () => {
     settings.config.features.walls = true;
     settings.config.features.citadel = true;
     settings.moats = { town: true, castle: true };
-    const result = generateGateStep(createSizedDocument("tiny", "conceal-wall"), settings, "conceal-wall", -1);
+    const result = generateGateStep(createSizedDocument("tiny", "moat-fixture"), settings, "moat-fixture", -1);
     expect(result.document).not.toBeNull();
     expect(result.document?.defenseCircuits?.find(c => c.scope === "town")?.moat?.enabled).toBe(true);
     expect(result.document?.defenseCircuits?.find(c => c.scope === "castle")?.moat?.enabled).toBe(true);

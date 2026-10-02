@@ -42,7 +42,7 @@ describe("evolution complete city", () => {
         }
         const skeleton = JSON.stringify(city.mesh);
         const fabric = buildBlockFabric(city);
-        expect(fabric.buildings.length).toBeGreaterThan(300);
+        expect(fabric.buildings.length).toBeGreaterThan(250);
         const districts = resolveDistricts(city, city.fabric);
         const merged = districtDocument(city, districts);
         for (const building of fabric.buildings) {

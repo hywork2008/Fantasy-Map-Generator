@@ -193,7 +193,7 @@ describe("moat reservations", () => {
     const delta: Point = [outside[0][0] - frame.point[0], outside[0][1] - frame.point[1]];
     expect(delta[0] * frame.tangent[0] + delta[1] * frame.tangent[1]).toBeCloseTo(0, 8);
     expect(Math.hypot(...delta)).toBeGreaterThanOrEqual(24 - 1e-8);
-    expect(city.mesh.vertices.v100.point).toEqual([15.103083214703275, 197.14223977142487]);
+    expect(city.mesh.vertices.v100.point).toEqual([2.118647677916277, 189.64460763574493]);
     expect(straightenGateCrossings(city).mesh).toEqual(city.mesh);
     const dry = generateCityOnDocument(source, { ...settings, moats: { town: false, castle: false } }, "gn8tsm")!;
     expect(dry.mesh).toEqual(city.mesh);

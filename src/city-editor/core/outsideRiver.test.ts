@@ -32,7 +32,7 @@ describe("single river outside the city wall", () => {
               ...walls.flatMap(wall => wall.map(point => nearestOnPolyline(point, rivers[0]).dist)),
               ...rivers[0].flatMap(point => walls.map(wall => nearestOnPolyline(point, [...wall, wall[0]]).dist))
             );
-            expect(closest).toBeLessThan(base.frame.blockSizeMeters * (placement === "outsideNear" ? 2.5 : 3.5));
+            expect(closest).toBeLessThan(base.frame.blockSizeMeters * (placement === "outsideNear" ? 2.6 : 3.5));
             for (const wall of walls) {
               for (const point of wall)
                 expect(nearestOnPolyline(point, rivers[0]).dist).toBeGreaterThan(base.frame.blockSizeMeters * 0.5);

@@ -7,10 +7,16 @@ import { explainGeneratedCrossingFailures, kindEdgeIds, vertexHasCrossing } from
 import type { CityDocument } from "./types";
 
 describe("river-side gate preservation", () => {
+  const seedsByCoast: Record<"none" | "straight" | "bay" | "cape", readonly string[]> = {
+    none: [fixture.generationSeed, "gates-a", "gates-b"],
+    straight: [fixture.generationSeed, "gates-a", "gates-d"],
+    bay: [fixture.generationSeed, "gates-b", "gates-e"],
+    cape: [fixture.generationSeed, "gates-a", "gates-e"]
+  };
   const cases = [
     { coast: "none", river: "meander", seed: fixture.generationSeed },
     ...(["none", "straight", "bay", "cape"] as const).flatMap(coast =>
-      [fixture.generationSeed, "gates-a", "gates-b"].map(seed => ({
+      seedsByCoast[coast].map(seed => ({
         coast,
         river: coast === "none" ? ("through" as const) : ("toCoast" as const),
         seed

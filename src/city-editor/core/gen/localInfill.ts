@@ -462,22 +462,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
       ])
     : "";
   if (reserved) {
-    const plaza = document.elements.some(e => e.kind === "plaza" && e.faceIds.includes(id));
-    const perimeter =
-      plaza && !isClassic && !isCirculade
-        ? buildPerimeterBlocks(
-            face,
-            polygon,
-            boundaries,
-            parameters,
-            ctx.options?.seed ?? "plaza-infill",
-            false,
-            false,
-            ctx.organicContext
-          )
-        : { buildings: [], lanes: [], entrances: new Map() };
-    if (key) ctx.options?.cache.set(key, perimeter);
-    fabric.lanes.push(...perimeter.lanes);
+    if (key) ctx.options?.cache.set(key, { buildings: [], lanes: [], entrances: new Map() });
     return;
   }
 

@@ -864,12 +864,24 @@ export function generateCityAttempt(
   if (coarse) settled.fabric = createFabricPlan(settled, seed);
   // Housing style is applied only after roads, crossings and castle geometry
   // have passed the same validation as the legacy generator.
-  if (buildingPattern === "medieval")
+  if (buildingPattern === "medieval") {
+    let hasPatriciate = false;
     for (const [id, ward] of plan.wards) {
       const face = settled.mesh.faces[activeFaceIdOf[id]];
-      if (ward === "patriciate" && face?.properties.ward === "merchant" && !face.properties.locked)
+      if (ward === "patriciate" && face?.properties.ward === "merchant" && !face.properties.locked) {
         face.properties.ward = "patriciate";
+        hasPatriciate = true;
+      }
     }
+    if (!hasPatriciate) {
+      for (const face of Object.values(settled.mesh.faces)) {
+        if (face.properties.ward === "merchant" && !face.properties.locked) {
+          face.properties.ward = "patriciate";
+          break;
+        }
+      }
+    }
+  }
   tagExternalGateRoads(settled, seed, settings.descriptor);
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
