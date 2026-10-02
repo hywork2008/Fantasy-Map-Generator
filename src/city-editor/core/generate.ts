@@ -175,49 +175,85 @@ const GEN_PREFIX = "gc:";
  * a fixed nominal preset is fine — the real scale is the document's frame. */
 const NOMINAL_PRESET = "largeTown" as const;
 
-/** One runnable process, in order. `step` is the S-index it recomputes up to;
+/** One visible process, in order. `processStep` is the S-index it recomputes up to;
  * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
 export interface GenerationStage {
-  id: "coast" | "river" | "urban" | "walls" | "streets" | "wards" | "geometry" | "blocks" | "buildings" | "conceal";
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  id:
+    | "coast"
+    | "river"
+    | "urban"
+    | "walls"
+    | "passages"
+    | "gates"
+    | "streets"
+    | "wards"
+    | "geometry"
+    | "blocks"
+    | "buildings"
+    | "conceal";
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  /** Original planning pass; separate from the visible slider number. */
+  processStep: number;
+  wallCheckpoint?: "walls" | "passages";
   label: string;
   hint: string;
 }
 
 export const GENERATION_STAGES: GenerationStage[] = [
-  { id: "coast", step: 1, label: "① 海岸線と海", hint: "Tag sea cells along a coastline walk" },
-  { id: "river", step: 2, label: "② 河川", hint: "Route a river along the existing cell edges" },
-  { id: "urban", step: 3, label: "③ 市街地コア", hint: "Mark the built-up cells" },
+  { id: "coast", step: 1, processStep: 1, label: "① 海岸線と海", hint: "Tag sea cells along a coastline walk" },
+  { id: "river", step: 2, processStep: 2, label: "② 河川", hint: "Route a river along the existing cell edges" },
+  { id: "urban", step: 3, processStep: 3, label: "③ 市街地コア", hint: "Mark the built-up cells" },
   {
     id: "walls",
     step: 4,
-    label: "④ 城壁・門・城郭",
-    hint: "Wall the urban outline, place gates, plaza & citadel (needs Walls)"
+    processStep: 4,
+    wallCheckpoint: "walls",
+    label: "④ 城壁",
+    hint: "市街地の外周に城壁を描く。門の通路はまだ開かない。"
   },
-  { id: "streets", step: 5, label: "⑤ 街路", hint: "Approach roads to the gates" },
-  { id: "wards", step: 6, label: "⑥ 地区割り当て", hint: "Assign a district type to each urban cell" },
+  {
+    id: "passages",
+    step: 5,
+    processStep: 4,
+    wallCheckpoint: "passages",
+    label: "⑤ 門の通路・セル分割",
+    hint: "門候補で通路を開く。必要なセルを分割し、門の確定前のメッシュを表示する。"
+  },
+  {
+    id: "gates",
+    step: 6,
+    processStep: 4,
+    label: "⑥ 門・城郭",
+    hint: "開いた通路に門を確定し、広場・寺院・城郭を配置する。"
+  },
+  { id: "streets", step: 7, processStep: 5, label: "⑦ 街路", hint: "Approach roads to the gates" },
+  { id: "wards", step: 8, processStep: 6, label: "⑧ 地区割り当て", hint: "Assign a district type to each urban cell" },
   {
     id: "geometry",
-    step: 7,
-    label: "⑦ 幾何平滑化",
+    step: 9,
+    processStep: 7,
+    label: "⑨ 幾何平滑化",
     hint: "Smooth walls and streets into rounded shapes (finishCityGeometry)"
   },
   {
     id: "blocks",
-    step: 8,
-    label: "⑧ 街区・小道",
+    step: 10,
+    processStep: 8,
+    label: "⑩ 街区・小道",
     hint: "Form interior blocks and secondary access lanes"
   },
   {
     id: "buildings",
-    step: 9,
-    label: "⑨ 住居・完成都市",
+    step: 11,
+    processStep: 9,
+    label: "⑪ 住居・完成都市",
     hint: "Place residential and civic buildings"
   },
   {
     id: "conceal",
-    step: 10,
-    label: "⑩ 道路・小道を隠す",
+    step: 12,
+    processStep: 10,
+    label: "⑫ 道路・小道を隠す",
     hint: "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
   }
 ];
@@ -370,7 +406,8 @@ export function generateStageOnDocument(
   settings: GenerationSettings,
   seed: string,
   stageStep: number,
-  onRejected?: GenerationDebugObserver
+  onRejected?: GenerationDebugObserver,
+  wallCheckpoint?: "walls" | "passages"
 ): CityDocument | null {
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) {
@@ -431,7 +468,7 @@ export function generateStageOnDocument(
     document.gridKind,
     document
   );
-  if (plan.castleFailure && onRejected) {
+  if (plan.castleFailure && onRejected && !wallCheckpoint) {
     const sample = reportGenerationFailure(
       undefined,
       1,
@@ -452,7 +489,8 @@ export function generateStageOnDocument(
     false,
     undefined,
     1,
-    onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined
+    onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined,
+    wallCheckpoint
   );
   if (res) {
     res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
@@ -2137,7 +2175,8 @@ function applyPlan(
   complete = false,
   observer?: GenerationObserver,
   attempt = 1,
-  onRejected?: (document: CityDocument, sample: import("./generationDiagnostics").GenerationSample) => void
+  onRejected?: (document: CityDocument, sample: import("./generationDiagnostics").GenerationSample) => void,
+  wallCheckpoint?: "walls" | "passages"
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
@@ -2169,7 +2208,7 @@ function applyPlan(
       c => c.locked || (c.ownerCastleId && retained.has(c.ownerCastleId))
     );
   }
-  if (plan.castleFailure) return null;
+  if (plan.castleFailure && !wallCheckpoint) return null;
   let mesh = next.mesh;
 
   // Clear this module's previous output + every non-locked face tag, so the
@@ -2355,6 +2394,7 @@ function applyPlan(
       }
     });
   }
+  if (stageStep === 4 && wallCheckpoint === "walls") return next;
   if (stageStep >= 4) {
     // Cell splitting handles ordinary bank overlaps. Resolve any residual
     // coastal span before placing gates, so later junction repairs cannot
@@ -2491,6 +2531,12 @@ function applyPlan(
         break;
       }
     });
+    if (stageStep === 4 && wallCheckpoint === "passages") {
+      // Selection uses temporary gates to reserve spacing and stable indices.
+      // Display the opened mesh before materializing those generated gates.
+      next.gates = next.gates.filter(gate => gate.locked || !gate.id.startsWith(GEN_PREFIX));
+      return next;
+    }
     // Reserved precinct landmarks as point-anchored elements.
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
       if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;

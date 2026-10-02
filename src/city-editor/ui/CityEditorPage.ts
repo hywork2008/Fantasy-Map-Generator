@@ -319,9 +319,9 @@ export function mountCityEditor(root: HTMLElement): void {
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
   let hideBuildings = false;
-  /** Stage ⑩. Same document as ⑨; the town drawing omits intramural roads and block lanes. */
+  /** Stage ⑫. Same document as ⑪; the town drawing omits intramural roads and block lanes. */
   let hideStreetLines = false;
-  let currentStageStep = 9;
+  let currentStageStep = 11;
   let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
@@ -384,7 +384,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let showGridLines = false;
   let lastGeneratedStep: number | null = null;
   // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
-  // WHICHEVER of the six processes was last activated (by pressing its stage
+  // WHICHEVER of the generation processes was last activated (by pressing its stage
   // button, or by ◀/▶ itself), one loop iteration at a time. `stepIndex` is
   // -1 = nothing stepped yet, so the first ▶ press lands on iteration 0.
   // `urbanCoreHighlight` / `stepOverlayPaths` are transient render tints for
@@ -1059,7 +1059,7 @@ export function mountCityEditor(root: HTMLElement): void {
   syncStageUi(currentStageStep);
 
   // ③'s nPatches count cutoff (towngen-comparison.md §2.1) — the one tunable
-  // knob among the six processes so far; the ◀/▶ scrub below applies to all six.
+  // knob among the generation processes so far; the ◀/▶ scrub below applies to all six.
   const urbanNPatchesInput = numberInput("", "1", "1");
   urbanNPatchesInput.className = "ce-generate-npatches";
   urbanNPatchesInput.placeholder = "auto";
@@ -1140,9 +1140,9 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   syncBearingsRow();
 
-  // One shared ◀/▶ scrub for whichever of the six processes was last activated
+  // One shared ◀/▶ scrub for whichever of the generation processes was last activated
   // (pressing its stage button, or ◀/▶ itself) — towngen-comparison.md's
-  // per-loop verification tool, generalised from ③'s to all six.
+  // per-loop verification tool, generalised from ③ to the other processes.
   const stepStatus = document.createElement("output");
   stepStatus.className = "ce-generate-step-status";
   const stepPrevButton = makeIconButton("◀", "Previous step", () => runStep(-1));
@@ -1300,7 +1300,7 @@ export function mountCityEditor(root: HTMLElement): void {
     housingSummary,
     divider(),
     text(
-      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑩までの全工程を順番に確認できます。⑩では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
+      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑫までの全工程を順番に確認できます。④は城壁、⑤は門の通路とセル分割、⑥は門・城郭を表示します。⑫では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
     ),
     stageContainer,
     divider(),
@@ -2429,7 +2429,7 @@ export function mountCityEditor(root: HTMLElement): void {
         town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
         castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
       };
-      syncStageUi(next.appearance === "town" ? 9 : 1);
+      syncStageUi(next.appearance === "town" ? 11 : 1);
     }
     syncGenerateControls();
     rebuildEditorIndexes();
@@ -4484,8 +4484,8 @@ export function mountCityEditor(root: HTMLElement): void {
     stepOverlayPaths = null;
     stepStatus.textContent = "";
     lastGeneratedStep = null;
-    currentStageStep = 9;
-    syncStageUi(9);
+    currentStageStep = 11;
+    syncStageUi(11);
     runCompleteGeneration();
   }
 
@@ -4516,7 +4516,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (generationJob) return;
     if (!generationHistory.has(history.currentEntryKey))
-      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 9 : 1));
+      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 11 : 1));
     clearFailurePreview();
     generationSamples = [];
     pendingFailurePreview = null;
@@ -4653,7 +4653,7 @@ export function mountCityEditor(root: HTMLElement): void {
     showBlockMesh = false;
     hideBuildings = false;
     hideStreetLines = false;
-    syncStageUi(9);
+    syncStageUi(11);
     completeResultSettings = JSON.stringify(generateSettings);
     rememberGenerationState();
     rebuildEditorIndexes();
@@ -4669,7 +4669,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) completeResult = null;
     if (!generationHistory.has(history.currentEntryKey))
-      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 9 : 1));
+      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 11 : 1));
     const source = clone(completeSource);
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
 
@@ -4681,9 +4681,9 @@ export function mountCityEditor(root: HTMLElement): void {
         completeResult && (!completeResult.generationSeed || completeResult.generationSeed === effectiveSeed)
           ? completeResult
           : null;
-      if (finished && (stage.step === 8 || stage.step === 9 || stage.step === 10)) {
+      if (finished && ["blocks", "buildings", "conceal"].includes(stage.id)) {
         next = clone(finished);
-      } else if (finished && stage.step === 7) {
+      } else if (finished && stage.id === "geometry") {
         const s7 = clone(finished);
         delete s7.appearance;
         delete s7.fabric;
@@ -4693,12 +4693,13 @@ export function mountCityEditor(root: HTMLElement): void {
           source,
           generateSettings,
           effectiveSeed,
-          stage.step,
+          stage.processStep,
           failureDebugInput.checked
             ? preview => {
                 pendingFailurePreview = preview;
               }
-            : undefined
+            : undefined,
+          stage.wallCheckpoint
         );
       }
     } catch (error) {
@@ -4712,7 +4713,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     pendingFailurePreview = null;
-    if ((stage.step === 9 || stage.step === 10) && !completeResult) {
+    if (["buildings", "conceal"].includes(stage.id) && !completeResult) {
       completeResult = next;
       completeResultSettings = JSON.stringify(generateSettings);
     }
@@ -4728,8 +4729,8 @@ export function mountCityEditor(root: HTMLElement): void {
     // own visual cue (river / walls+gates / roads / ward colours) and needs none.
     urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
     stepOverlayPaths = null;
-    hideBuildings = stage.step === 8;
-    hideStreetLines = stage.step === 10;
+    hideBuildings = stage.id === "blocks";
+    hideStreetLines = stage.id === "conceal";
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
@@ -4748,12 +4749,12 @@ export function mountCityEditor(root: HTMLElement): void {
     showNotice(`Generated up to ${stage.label}`);
   }
 
-  /** ◀/▶: scrub whichever process ①…⑥ was last activated one loop iteration at
+  /** ◀/▶: scrub whichever process ①…⑧ was last activated one loop iteration at
    * a time, right on the mesh (towngen-comparison.md) — independent of the
    * stage buttons themselves, which still jump straight to the finished result. */
   function runStep(delta: number): void {
     if (!activeStepStage) {
-      showNotice("Press a stage button (①–⑥) first");
+      showNotice("Press a stage button first");
       return;
     }
     const stage = activeStepStage;
@@ -4903,7 +4904,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 }
 
-/** A ◀/▶ step result, unified across all six processes — mirrors
+/** A ◀/▶ step result, unified across all generation processes — mirrors
  * `GenerationStepResult` but also carries ③'s face-tint highlight, since that
  * one adapts `generateUrbanPatchStep`'s own (slightly different) shape. */
 interface UiStepResult {
@@ -4940,7 +4941,19 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
       highlightFaces: r.document ? buildableLandFaceIds(r.document) : null
     };
   },
-  walls: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
+  walls: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 4, undefined, "walls"),
+    total: 1,
+    index: 0,
+    detail: "城壁配置完了"
+  }),
+  passages: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 4, undefined, "passages"),
+    total: 1,
+    index: 0,
+    detail: "門の通路準備完了"
+  }),
+  gates: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
   streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
   wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx)),
   geometry: (doc, settings, seed) => {
