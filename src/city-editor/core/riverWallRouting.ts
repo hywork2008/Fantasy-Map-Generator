@@ -156,10 +156,10 @@ export interface RiverWallRepair {
   adjustments: string[];
 }
 
-/** Replace river-sharing curtain runs by inland mesh paths. Try dry paths
- * first, then existing transverse passages, then a single local chord per
- * crossing run. Failed opening trials are discarded; usable openings survive
- * later routing failures.
+/** Replace river-conflicting curtain runs by inland mesh paths. Try dry paths
+ * first, then existing transverse passages, then local dry chords and a
+ * single chord per crossing run. Failed opening trials are discarded;
+ * usable openings survive later routing failures.
  * These passages belong to walls, never to the road-gate list. */
 export function repairRiverWalls(
   source: CityDocument,
@@ -171,6 +171,7 @@ export function repairRiverWalls(
   const preparationIssues: string[] = [];
   const adjustments: string[] = [];
   let routingIssues: string[] = [];
+  let failedDetours: { start: Id; end: Id }[] = [];
   // All mesh helpers honour face locks. Temporarily protect reserved castle
   // faces too, then restore their persisted lock state before returning.
   for (const id of protectedFaces) if (document.mesh.faces[id]) document.mesh.faces[id].properties.locked = true;
@@ -180,6 +181,7 @@ export function repairRiverWalls(
 
   const reroute = (allowCrossings: boolean, trialPassage?: { vertex: Id; arms: Id[] }) => {
     routingIssues = [];
+    failedDetours = [];
     const mesh = document.mesh;
     const ids = Object.keys(mesh.vertices);
     const index = new Map(ids.map((id, i) => [id, i]));
@@ -380,6 +382,7 @@ export function repairRiverWalls(
               })
             : null;
         if (!nodes) {
+          failedDetours.push({ start: startId, end: endId });
           routingIssues.push(
             `城壁の河川迂回に失敗: 始点 ${startId} → 終点 ${endId}（${
               !clearVertex(startId) || !clearVertex(endId) ? "探索端点が河川の離隔内" : "通行可能な辺で接続できない"
@@ -678,6 +681,39 @@ export function repairRiverWalls(
   separateNearBanks();
   reroute(false);
   if (conflicts().length) reroute(true);
+  if (conflicts().length) {
+    // A curtain that touches a river bend may only need a dry chord between
+    // its approach and exit. Do not force a new crossing at the river vertex.
+    for (const { start, end } of failedDetours.slice()) {
+      const before = document;
+      const existingConflicts = new Set(conflicts());
+      if (edgeBetween(before.mesh, start, end)) continue;
+      for (const face of incidentFaces(before.mesh, start)) {
+        if (
+          face.properties.locked ||
+          face.properties.water !== "land" ||
+          !faceVertices(before.mesh, face).includes(end)
+        )
+          continue;
+        const split = splitFace(before, face.id, start, end);
+        if (!split) continue;
+        const chord = edgeBetween(split.mesh, start, end)!;
+        document = split;
+        reroute(true);
+        const nextConflicts = conflicts();
+        // Clearance and closed-curtain checks run in the normal router. Keep
+        // the cut only when the wall consumes it and it resolves conflicts.
+        if (
+          kindEdgeIds(document, "wall").has(chord.id) &&
+          nextConflicts.length < existingConflicts.size &&
+          nextConflicts.every(issue => existingConflicts.has(issue))
+        )
+          break;
+        document = before;
+      }
+    }
+    reroute(true);
+  }
   if (conflicts().length) {
     // Prepare the entry/exit crossings together with their consuming curtain
     // path. Unused opening trials remain private and never alter the map.
