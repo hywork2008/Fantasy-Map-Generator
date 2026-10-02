@@ -61,3 +61,27 @@ it("exports a standalone full-frame SVG with highlights and failure diagnostics"
   expect(xml.querySelector("desc")!.textContent).toContain("赤");
   expect(text).not.toContain("NaN");
 });
+
+it("records the failed layout and shows the Bram core exclusion in standalone exports", () => {
+  const city = createGridDocument({ size: "tiny", grid: "evolution", seed: "debug-bram-core" });
+  city.layout = "bram";
+  city.featureGroups.push({
+    id: "gc:wall-0",
+    kind: "wall",
+    name: "Wall",
+    locked: false,
+    segments: [{ edgeId: Object.keys(city.mesh.edges)[0], forward: true }],
+    style: { widthMeters: 4, color: "black" }
+  });
+  const preview = captureGenerationDebugPreview(
+    city,
+    { phase: "gate-routing", elapsedMs: 0, attempt: 1, failure: { reason: "unconnected-gates", message: "failed" } },
+    "kz6ecv"
+  );
+  const svg = new DOMParser().parseFromString(serializeGenerationDebugSvg(preview), "image/svg+xml");
+  expect(svg.documentElement.getAttribute("data-layout")).toBe("bram");
+  const core = svg.querySelector('[data-debug-restriction="bram-core"]')!;
+  expect(core.getAttribute("r")).toBe("118");
+  expect(core.getAttribute("pointer-events")).toBe("none");
+  expect(core.textContent).toContain("道路探索対象外");
+});

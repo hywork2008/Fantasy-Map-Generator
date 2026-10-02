@@ -2157,6 +2157,8 @@ function applyPlan(
     faceIdOf = plan.faceIdOf!;
   }
   delete next.appearance;
+  // Keep the active morphology even when routing rejects before town finish.
+  next.layout = plan.layout ?? source.layout;
   if (!settingsLegacy(plan)) {
     next.castles = (next.castles ?? []).filter(c => c.locked || c.provenance !== "generated");
     const retained = new Set(next.castles.map(c => c.id));
@@ -3173,6 +3175,22 @@ function completeRoadRouter(
           const id = nearest(point);
           const index = id ? indexOf.get(id) : undefined;
           if (index !== undefined) targets.add(index);
+        }
+      }
+      if ((plan.layout ?? document.layout) === "bram") {
+        // A spoke ends outside the reserved core, but its nearest mesh vertex
+        // can lie inside it. Try nearby exterior vertices before rejecting the
+        // gate; all wall, river, sea, castle and moat restrictions still apply.
+        const hub = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
+        const core = bramCoreRadiusForCity(document.frame.cityRadiusMeters, !openRim);
+        const minimumRadius = bramRoadBanRadiusMeters(core);
+        const aim = polyline.at(-1)!;
+        for (const [index, point] of graph.points.entries()) {
+          if (
+            Math.hypot(point[0] - hub[0], point[1] - hub[1]) >= minimumRadius &&
+            Math.hypot(point[0] - aim[0], point[1] - aim[1]) <= document.frame.blockSizeMeters
+          )
+            targets.add(index);
         }
       }
       const target = graph.points[hopEndOf];

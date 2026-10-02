@@ -1,3 +1,5 @@
+import { castleWallIds } from "../core/fortifications";
+import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../core/gen/polygonalCirculadeLayout";
 import type { GenerationDebugPreview } from "../core/generationDebug";
 import { MoatReservation } from "../core/moats";
 import type { Point } from "../core/types";
@@ -17,6 +19,7 @@ export function renderGenerationDebugSvg(
   svg.setAttribute("aria-label", `生成失敗の途中図: ${preview.sample.failure?.message ?? ""}`);
   svg.setAttribute("data-attempt", String(preview.sample.attempt));
   svg.setAttribute("data-seed", preview.seed);
+  if (city.layout) svg.setAttribute("data-layout", city.layout);
   const title = document.createElementNS(NS, "title");
   title.textContent = preview.sample.failure?.message ?? "生成失敗";
   svg.append(title);
@@ -66,6 +69,25 @@ export function renderGenerationDebugSvg(
         encodeURIComponent(JSON.stringify({ layer: "cells", kind: "cell", id: face.id, label: `cell #${face.id}` }))
       );
     }
+  }
+  if (city.layout === "bram") {
+    const hub = city.elements.find(e => e.kind === "plaza")?.point ?? [0, 0];
+    const castleWalls = castleWallIds(city);
+    const walled = city.featureGroups.some(g => g.kind === "wall" && !castleWalls.has(g.id));
+    const radius = bramRoadBanRadiusMeters(bramCoreRadiusForCity(city.frame.cityRadiusMeters, walled));
+    const core = document.createElementNS(NS, "circle");
+    core.setAttribute("cx", String(hub[0]));
+    core.setAttribute("cy", String(-hub[1]));
+    core.setAttribute("r", String(radius));
+    core.setAttribute("fill", "#786f6422");
+    core.setAttribute("stroke", "#786f64");
+    core.setAttribute("stroke-dasharray", "4 4");
+    core.setAttribute("pointer-events", "none");
+    core.setAttribute("data-debug-restriction", "bram-core");
+    const tip = document.createElementNS(NS, "title");
+    tip.textContent = "Bram中心部：格子上の道路探索対象外（専用の中心部道路を使用）";
+    core.append(tip);
+    svg.append(core);
   }
   // Moat geometry needs intact boundaries. Skip it on malformed meshes.
   const intact = Object.values(city.mesh.faces).every(f =>

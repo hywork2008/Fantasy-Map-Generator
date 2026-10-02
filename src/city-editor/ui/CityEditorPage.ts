@@ -2558,7 +2558,9 @@ export function mountCityEditor(root: HTMLElement): void {
       const highlights = document.createElementNS("http://www.w3.org/2000/svg", "g");
       highlights.setAttribute("pointer-events", "none");
       highlights.append(
-        ...renderGenerationDebugSvg(failurePreview, box).querySelectorAll(".ce-generation-debug-highlight")
+        ...renderGenerationDebugSvg(failurePreview, box).querySelectorAll(
+          ".ce-generation-debug-highlight, [data-debug-restriction]"
+        )
       );
       svg.append(highlights);
     }
