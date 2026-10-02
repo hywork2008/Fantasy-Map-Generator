@@ -9,6 +9,49 @@ import { walkRiver } from "./riverPath";
 import type { Point } from "./types";
 
 describe("generated river endpoints", () => {
+  it("keeps the shared cape river sources off classified sea cells", () => {
+    const input = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "1sst4y1",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    settings.config = {
+      ...settings.config,
+      coast: "cape",
+      rivers: ["greatBend", "through"],
+      relief: false,
+      features: { walls: true, citadel: true, plaza: false, temple: true, port: false, shanty: true }
+    };
+    settings.layout = "organic";
+    settings.walledAreaShare = 1;
+    settings.historicalPeriod = "ageOfExploration";
+    for (const city of [
+      generateStageOnDocument(input, settings, "1t6nore", 2)!,
+      generateCityOnDocument(input, settings, "1t6nore")!
+    ]) {
+      const rivers = city.featureGroups.filter(group => group.kind === "river");
+      expect(rivers.some(river => river.id === "gc:river-0")).toBe(true);
+      for (const river of rivers) {
+        const touchesSea = (id: string): boolean =>
+          Object.values(city.mesh.edges).some(
+            edge =>
+              (edge.a === id || edge.b === id) &&
+              [edge.leftFace, edge.rightFace].some(
+                faceId => faceId && city.mesh.faces[faceId]?.properties.water === "sea"
+              )
+          );
+        expect(river.vertices.slice(0, -1).some(touchesSea), river.id).toBe(false);
+        expect(touchesSea(river.vertices.at(-1)!)).toBe(true);
+        const source = city.mesh.vertices[river.vertices[0]].point;
+        expect(Math.max(Math.abs(source[0]), Math.abs(source[1]))).toBeCloseTo(city.frame.extentMeters / 2, 5);
+        for (let i = 1; i < river.vertices.length; i++)
+          expect(edgeBetween(city.mesh, river.vertices[i - 1], river.vertices[i])).toBeTruthy();
+      }
+    }
+  });
+
   it("runs edge to edge when a cape corridor produces no classified sea", () => {
     const input = createGridDocument({
       size: "medium",
