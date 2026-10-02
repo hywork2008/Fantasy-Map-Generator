@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGridDocument, createSizedDocument } from "./document";
-import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
+import riverGateFixture from "./fixtures/river-gates-20260923.json";
+import { defaultGenerationSettings, generateCityAttempt, generateCityOnDocument } from "./generate";
 import {
   formatGenerationFailureLog,
   type GenerationSample,
   generationPhaseLabel,
   logGenerationFailures
 } from "./generationDiagnostics";
+import type { CityDocument } from "./types";
 
 describe("generation failure diagnostics", () => {
   it("labels stages in Japanese", () => {
@@ -96,4 +98,22 @@ describe("generation failure diagnostics", () => {
     error.mockRestore();
     groupEnd.mockRestore();
   });
+});
+
+it("includes paired routing traces in a real rejected gate-generation sample", () => {
+  const settings = defaultGenerationSettings();
+  settings.layout = "classic";
+  settings.config.coast = "none";
+  settings.config.features.port = false;
+  settings.config.rivers = ["meander"];
+  const samples: GenerationSample[] = [];
+  generateCityAttempt(riverGateFixture as CityDocument, settings, riverGateFixture.generationSeed, sample =>
+    samples.push(sample)
+  );
+  const failure = samples.find(sample => sample.failure?.reason === "unconnected-gates")!.failure!;
+  expect(failure.routing!.length).toBeGreaterThan(0);
+  expect(failure.routing!.some(route => route.outside)).toBe(true);
+  expect(failure.routing!.some(route => !route.outside)).toBe(true);
+  expect(failure.routing!.some(route => route.status === "failed" && route.searches.length > 0)).toBe(true);
+  expect(formatGenerationFailureLog(samples)).toContain("始点=");
 });

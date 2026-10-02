@@ -41,7 +41,34 @@ it("exports a standalone full-frame SVG with highlights and failure diagnostics"
       phase: "apply-validation",
       elapsedMs: 0,
       attempt: 1,
-      failure: { reason: "invalid-mesh", message: "broken <mesh>", details: [id] }
+      failure: {
+        reason: "invalid-mesh",
+        message: "broken <mesh>",
+        details: [id],
+        routing: [
+          {
+            outside: true,
+            plannedPoints: [
+              [0, 0],
+              [1, 1]
+            ],
+            waypoints: [id, "v62"],
+            status: "failed",
+            path: [],
+            searches: [
+              {
+                start: id,
+                end: "v62",
+                classification: "planned",
+                reachedCount: 1,
+                partialPath: [id],
+                partialEdges: [],
+                blocked: [{ edge: Object.keys(city.mesh.edges)[0], from: id, to: "v62", reason: "temple" }]
+              }
+            ]
+          }
+        ]
+      }
     },
     "export<&seed"
   );
