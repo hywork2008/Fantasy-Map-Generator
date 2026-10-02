@@ -278,6 +278,8 @@ export interface StreetSettings {
 }
 
 export interface GenerationSettings {
+  /** Unset preserves the existing flood fill and outer residential belt. */
+  urbanCoreMode?: "legacy" | "compact";
   moats?: { town?: boolean; castle?: boolean };
   /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
   riverPlacement?: "through" | "outside" | "outsideNear";
@@ -644,7 +646,11 @@ export function generateCityAttempt(
   const activeCells = plan.cells ?? cells;
   const activeFaceIdOf = plan.faceIdOf ?? faceIdOf;
   const targetArea = Math.PI * params.cityRadiusMeters ** 2;
-  const minimumUrbanArea = targetArea * MIN_SETTLEMENT_AREA_SHARE;
+  const areaShare =
+    settings.urbanCoreMode === "compact" && program.walls
+      ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters)
+      : 1;
+  const minimumUrbanArea = targetArea * areaShare * MIN_SETTLEMENT_AREA_SHARE;
   const settlementArea = activeCells
     .filter(cell => plan.builtUp.has(cell.id))
     .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
@@ -1265,6 +1271,7 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  urbanCoreMode?: "legacy" | "compact";
   layout?: "organic" | "circulade" | "bram" | "classic";
   sea: Set<number>;
   ocean: Set<number>;
@@ -1338,6 +1345,7 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    urbanCoreMode: settings.urbanCoreMode,
     moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     layout: effectiveLayout,
@@ -1408,7 +1416,11 @@ export function runPlan(
     (settings.riverPlacement === "outside" || settings.riverPlacement === "outsideNear") &&
     geo.rivers.length === 1 &&
     program.walls;
-  const urbanRadius = urbanDiskRadiusMeters(params.cityRadiusMeters, program.walls);
+  const compactCore = settings.urbanCoreMode === "compact";
+  const coreShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+  const urbanRadius = compactCore
+    ? params.cityRadiusMeters * Math.sqrt(coreShare)
+    : urbanDiskRadiusMeters(params.cityRadiusMeters, program.walls);
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
   const plannedUrban = outsideRiver
     ? classifyUrban(
@@ -1419,16 +1431,14 @@ export function runPlan(
         null,
         params.urbanNPatches ?? null,
         params.cellSizeMeters,
-        !complete && stageStep === 3
+        !complete && stageStep === 3,
+        settings.urbanCoreMode
       )
     : null;
-  let plannedCore = plannedUrban
-    ? splitUrbanCore(cells, plannedUrban.urban, resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters))
-        .urban
-    : null;
+  let plannedCore = plannedUrban ? splitUrbanCore(cells, plannedUrban.urban, compactCore ? 1 : coreShare).urban : null;
   // The final curtain is peeled inward on evolution grids. Route relative to
   // that curtain, rather than adding a river setback to the unpeeled settlement.
-  if (plannedCore && effectiveLayout !== "bram") {
+  if (!compactCore && plannedCore && effectiveLayout !== "bram") {
     const rings = evolutionWallInsetRings(
       sizePresetForExtent(params.extentMeters),
       seed,
@@ -1581,13 +1591,14 @@ export function runPlan(
       null,
       params.urbanNPatches ?? null,
       params.cellSizeMeters,
-      !complete && stageStep === 3
+      !complete && stageStep === 3,
+      settings.urbanCoreMode
     );
   // City extent and wall capacity are independent. The outer residential
   // belt retains the rest of the same flood-fill, including its connectivity.
   // Grid evolution then pulls a tiny/small curtain in by one or two cells.
   const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
-  const split = splitUrbanCore(cells, classification.urban, walledShare);
+  const split = splitUrbanCore(cells, classification.urban, compactCore ? 1 : walledShare);
   const urban = plannedCore ?? split.urban;
   let residentialOutskirts = new Set([...split.residentialOutskirts, ...[...split.urban].filter(id => !urban.has(id))]);
   const outskirts = new Set([...classification.outskirts, ...residentialOutskirts]);
@@ -1613,7 +1624,7 @@ export function runPlan(
     effectiveLayout === "bram" || outsideRiver
       ? 0
       : evolutionWallInsetRings(sizePresetForExtent(params.extentMeters), seed, gridKind, program.walls, walledShare);
-  if (insetRings > 0 && currentUrban.size > 0) {
+  if (!compactCore && insetRings > 0 && currentUrban.size > 0) {
     const inset = insetWalledCore(currentCells, currentUrban, insetRings);
     if (inset.peeled.size) {
       currentUrban = inset.urban;
@@ -2008,6 +2019,7 @@ export function runPlan(
   });
   mark("wards");
   return {
+    urbanCoreMode: settings.urbanCoreMode,
     layout: effectiveLayout,
     castleSite,
     castleFailure,
@@ -2230,7 +2242,7 @@ function applyPlan(
         !reservedCastleFaces(next).has(face.id)
       ) {
         face.properties.buildable = built.has(id);
-        if (source.gridKind === "evolution" && built.has(id))
+        if ((source.gridKind === "evolution" || plan.urbanCoreMode === "compact") && built.has(id))
           face.properties.settlement = plan.urban.has(id) ? "core" : "outskirts";
       }
     }

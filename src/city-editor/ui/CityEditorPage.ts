@@ -1078,10 +1078,21 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     const n = Math.round(Number(raw));
     if (!Number.isFinite(n) || n < 1) {
+      urbanCoreModeSelect.value = generateSettings.urbanCoreMode ?? "legacy";
       urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
       return;
     }
     generateSettings.urbanNPatches = n;
+  });
+
+  const urbanCoreModeSelect = select(["legacy", "compact"], generateSettings.urbanCoreMode ?? "legacy");
+  urbanCoreModeSelect.options[0].textContent = "従来方式（郊外住宅帯を含む）";
+  urbanCoreModeSelect.options[1].textContent = "修正版（都市中心部に限定）";
+  urbanCoreModeSelect.addEventListener("change", () => {
+    generateSettings.urbanCoreMode = urbanCoreModeSelect.value as "legacy" | "compact";
+    completeResult = null;
+    completeResultSettings = null;
+    rerunLastStage();
   });
 
   const walledShareInput = numberInput("", "5", "5");
@@ -1310,6 +1321,7 @@ export function mountCityEditor(root: HTMLElement): void {
     ),
     stageContainer,
     divider(),
+    label("市街地コアの確保方式", urbanCoreModeSelect),
     label("③ nPatches (blank = auto)", urbanNPatchesInput),
     toggleLabel("Avoid sea", avoidSeaInput),
     label("Street far end", farNodeSelect),
@@ -4380,6 +4392,7 @@ export function mountCityEditor(root: HTMLElement): void {
         generateSettings,
         {
           walledAreaShare: undefined,
+          urbanCoreMode: undefined,
           descriptor: undefined,
           castle: undefined,
           moats: undefined,
@@ -4444,6 +4457,7 @@ export function mountCityEditor(root: HTMLElement): void {
     riverPlacementSelect.value = generateSettings.riverPlacement ?? "through";
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
+    urbanCoreModeSelect.value = generateSettings.urbanCoreMode ?? "legacy";
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
     walledShareInput.value =
       generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
@@ -4831,7 +4845,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // ③ itself keeps showing the debug tint on its finished core (nothing else
     // marks `buildable` on the document); every other stage already has its
     // own visual cue (river / walls+gates / roads / ward colours) and needs none.
-    urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
+    urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next, generateSettings.urbanCoreMode) : null;
     stepOverlayPaths = null;
     hideBuildings = stage.id === "blocks";
     hideStreetLines = stage.id === "conceal";
@@ -5042,7 +5056,7 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
       total: r.total,
       index: r.index,
       detail: r.total > 0 ? `cell #${r.cellId} — ${r.index + 1}/${r.total}` : null,
-      highlightFaces: r.document ? buildableLandFaceIds(r.document) : null
+      highlightFaces: r.document ? buildableLandFaceIds(r.document, settings.urbanCoreMode) : null
     };
   },
   walls: (doc, settings, seed) => ({
@@ -5086,10 +5100,15 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
 
 /** The exact land faces a Generate press just marked buildable — the ③ urban-
  * core debug highlight's source set (towngen-comparison.md §2.1). */
-function buildableLandFaceIds(document: CityDocument): Set<Id> {
+function buildableLandFaceIds(document: CityDocument, coreMode?: "legacy" | "compact"): Set<Id> {
   const ids = new Set<Id>();
   for (const face of Object.values(document.mesh.faces)) {
-    if (face.properties.water === "land" && face.properties.buildable) ids.add(face.id);
+    if (
+      face.properties.water === "land" &&
+      face.properties.buildable &&
+      (coreMode !== "compact" || face.properties.settlement === "core")
+    )
+      ids.add(face.id);
   }
   return ids;
 }

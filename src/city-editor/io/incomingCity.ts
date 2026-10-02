@@ -248,6 +248,7 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     settings.riverPlacement = raw.riverPlacement;
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (isFiniteNumber(raw.urbanNPatches)) settings.urbanNPatches = raw.urbanNPatches;
+  if (raw.urbanCoreMode === "legacy" || raw.urbanCoreMode === "compact") settings.urbanCoreMode = raw.urbanCoreMode;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];
   if (isHistoricalPeriod(raw.historicalPeriod)) settings.historicalPeriod = raw.historicalPeriod;
   return settings;
