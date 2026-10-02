@@ -326,6 +326,26 @@ export function mountCityEditor(root: HTMLElement): void {
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
   let completeResult: CityDocument | null = null;
+  let completeResultSettings: string | null = null;
+  const generationHistory = new WeakMap<
+    object,
+    {
+      source: CityDocument;
+      result: CityDocument | null;
+      resultSettings: string | null;
+      settings: GenerationSettings;
+      seed: string;
+      stage: number;
+      lastStage: number | null;
+      activeStage: GenerationStage["id"] | null;
+      stepIndex: number;
+      stepStatus: string;
+      coreHighlight: Set<Id> | null;
+      overlayPaths: Point[][] | null;
+      hideBuildings: boolean;
+      hideStreetLines: boolean;
+    }
+  >();
   let generationJob: ReturnType<typeof startCityGeneration> | null = null;
   let generationSamples: GenerationSample[] = [];
   let pendingFailurePreview: GenerationDebugPreview | null = null;
@@ -822,7 +842,10 @@ export function mountCityEditor(root: HTMLElement): void {
     const pattern = currentBuildingPatternSelect.value as "legacy" | "medieval";
     generateSettings.buildingPattern = pattern;
     commit(setBuildingPattern(documentState, pattern), "Change building pattern");
-    if (documentState.appearance === "town") completeResult = documentState;
+    if (documentState.appearance === "town") {
+      completeResult = documentState;
+      completeResultSettings = JSON.stringify(generateSettings);
+    }
     syncGenerateControls();
   });
 
@@ -863,7 +886,10 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     commit(next, "Change historical period");
-    if (documentState.appearance === "town") completeResult = next;
+    if (documentState.appearance === "town") {
+      completeResult = next;
+      completeResultSettings = JSON.stringify(generateSettings);
+    }
     syncGenerateControls();
   });
 
@@ -2338,13 +2364,73 @@ export function mountCityEditor(root: HTMLElement): void {
     }
   }
 
+  function rememberGenerationState(
+    seed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed,
+    stage = currentStageStep
+  ): void {
+    if (!completeSource) return;
+    generationHistory.set(history.currentEntryKey, {
+      source: completeSource,
+      result: completeResult,
+      resultSettings: completeResultSettings,
+      settings: clone(generateSettings),
+      seed,
+      stage,
+      lastStage: lastGeneratedStep,
+      activeStage: activeStepStage,
+      stepIndex,
+      stepStatus: stepStatus.textContent ?? "",
+      coreHighlight: urbanCoreHighlight ? new Set(urbanCoreHighlight) : null,
+      overlayPaths: stepOverlayPaths ? clone(stepOverlayPaths) : null,
+      hideBuildings,
+      hideStreetLines
+    });
+  }
+
   function restore(next: CityDocument | null): void {
     if (!next) return;
     documentState = next;
-    generateSettings.moats = {
-      town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
-      castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
-    };
+    const playback = generationHistory.get(history.currentEntryKey);
+    if (playback) {
+      completeSource = playback.source;
+      completeResult = playback.result;
+      completeResultSettings = playback.resultSettings;
+      const restoredSettings = clone(playback.settings);
+      // Street controls capture this object, so preserve its identity.
+      for (const key of Object.keys(streets)) delete streets[key as keyof typeof streets];
+      Object.assign(streets, restoredSettings.streets);
+      for (const key of Object.keys(generateSettings)) Reflect.deleteProperty(generateSettings, key);
+      Object.assign(generateSettings, defaultGenerationSettings(), restoredSettings, { streets });
+      generateSeed = playback.seed;
+      lastGeneratedStep = playback.lastStage;
+      activeStepStage = playback.activeStage;
+      stepIndex = playback.stepIndex;
+      stepStatus.textContent = playback.stepStatus;
+      urbanCoreHighlight = playback.coreHighlight ? new Set(playback.coreHighlight) : null;
+      stepOverlayPaths = playback.overlayPaths ? clone(playback.overlayPaths) : null;
+      hideBuildings = playback.hideBuildings;
+      hideStreetLines = playback.hideStreetLines;
+      syncStageUi(playback.stage);
+    } else {
+      const recipe = next.fabric?.generation;
+      completeSource = recipe ? clone(recipe.input) : null;
+      completeResult = recipe ? next : null;
+      completeResultSettings = recipe ? JSON.stringify(generateSettings) : null;
+      lastGeneratedStep = null;
+      activeStepStage = null;
+      stepIndex = -1;
+      stepStatus.textContent = "";
+      urbanCoreHighlight = null;
+      stepOverlayPaths = null;
+      hideBuildings = false;
+      hideStreetLines = false;
+      if (recipe) generateSeed = recipe.seed;
+      generateSettings.moats = {
+        town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
+        castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
+      };
+      syncStageUi(next.appearance === "town" ? 9 : 1);
+    }
     syncGenerateControls();
     rebuildEditorIndexes();
     selection = emptySelection();
@@ -2471,8 +2557,8 @@ export function mountCityEditor(root: HTMLElement): void {
     partial.generationSeed = preview.seed;
     documentState = history.commit(partial, "生成失敗の途中図");
     failurePreviewHistoryIndex = history.index;
-    completeSource = null;
     completeResult = null;
+    completeResultSettings = null;
     lastGeneratedStep = null;
     activeStepStage = null;
     stepIndex = -1;
@@ -2488,6 +2574,7 @@ export function mountCityEditor(root: HTMLElement): void {
     failureDebugSummary.textContent = `${heading} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）: ${sample.failure?.message ?? ""} [${sample.failure?.reason ?? ""}] · Seed: ${seed}。${highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された門・辺・面"}。途中図を編集できます。強調は失敗時点の診断です。Undoで生成前に戻れます。`;
     failureDebugSummary.hidden = false;
     closeFailurePreview.hidden = false;
+    rememberGenerationState(preview.seed);
     tool = "select";
     selection = emptySelection();
     activeGroupId = null;
@@ -4217,6 +4304,7 @@ export function mountCityEditor(root: HTMLElement): void {
         clone(recipe.settings)
       );
       generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
+      completeResultSettings = JSON.stringify(generateSettings);
       importedOrigin = generateSettings.descriptor ? (importedOrigin ?? "link") : null;
       syncGenerateControls();
     } else {
@@ -4371,7 +4459,7 @@ export function mountCityEditor(root: HTMLElement): void {
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
-    completeSource = documentState;
+    completeSource = clone(documentState);
     completeResult = null;
     halfView = documentState.frame.extentMeters / 2;
     viewCenter = [0, 0];
@@ -4414,14 +4502,21 @@ export function mountCityEditor(root: HTMLElement): void {
   function runCompleteGeneration(): void {
     // Reuse the input grid for successive rolls, preventing accumulated shrink
     // from finishing an already finished town. A real edit becomes a new input.
-    if (
-      !completeSource ||
-      (documentState !== completeResult &&
-        JSON.stringify(documentState) !== JSON.stringify(completeResult) &&
-        lastGeneratedStep === null)
-    )
-      completeSource = documentState;
+    if (!completeSource) {
+      completeSource = documentState.fabric?.generation?.input
+        ? clone(documentState.fabric.generation.input)
+        : clone(documentState);
+    } else if (
+      documentState !== completeResult &&
+      JSON.stringify(documentState) !== JSON.stringify(completeResult) &&
+      lastGeneratedStep === null &&
+      !generationHistory.has(history.currentEntryKey)
+    ) {
+      completeSource = clone(documentState);
+    }
     if (generationJob) return;
+    if (!generationHistory.has(history.currentEntryKey))
+      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 9 : 1));
     clearFailurePreview();
     generationSamples = [];
     pendingFailurePreview = null;
@@ -4492,7 +4587,7 @@ export function mountCityEditor(root: HTMLElement): void {
     try {
       acceptCompleteGeneration(
         generateCityOnDocument(
-          completeSource,
+          clone(completeSource),
           generateSettings,
           generateSeed,
           onProgress,
@@ -4559,6 +4654,8 @@ export function mountCityEditor(root: HTMLElement): void {
     hideBuildings = false;
     hideStreetLines = false;
     syncStageUi(9);
+    completeResultSettings = JSON.stringify(generateSettings);
+    rememberGenerationState();
     rebuildEditorIndexes();
     refresh();
     showNotice("都市を生成しました — 城壁・街路・建物");
@@ -4570,7 +4667,10 @@ export function mountCityEditor(root: HTMLElement): void {
         ? clone(documentState.fabric.generation.input)
         : clone(documentState);
     }
-    const source = completeSource;
+    if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) completeResult = null;
+    if (!generationHistory.has(history.currentEntryKey))
+      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 9 : 1));
+    const source = clone(completeSource);
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
 
     clearFailurePreview();
@@ -4614,6 +4714,7 @@ export function mountCityEditor(root: HTMLElement): void {
     pendingFailurePreview = null;
     if ((stage.step === 9 || stage.step === 10) && !completeResult) {
       completeResult = next;
+      completeResultSettings = JSON.stringify(generateSettings);
     }
     lastGeneratedStep = stage.step;
     currentStageStep = stage.step;
@@ -4632,11 +4733,14 @@ export function mountCityEditor(root: HTMLElement): void {
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
+      rememberGenerationState(next.generationSeed ?? effectiveSeed);
       showNotice(`Already at ${stage.label}`);
       redrawMap();
       return;
     }
     documentState = history.commit(next, `Generate ${stage.label}`);
+    if (completeResult === next) completeResultSettings = JSON.stringify(generateSettings);
+    rememberGenerationState(next.generationSeed ?? effectiveSeed);
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -4655,7 +4759,7 @@ export function mountCityEditor(root: HTMLElement): void {
     const stage = activeStepStage;
     const label = GENERATION_STAGES.find(s => s.id === stage)?.label ?? "";
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
-    const source = completeSource ?? documentState;
+    const source = clone(completeSource ?? documentState);
     let result: UiStepResult;
     try {
       result = STEP_FNS[stage](source, generateSettings, effectiveSeed, stepIndex + delta);
@@ -4679,6 +4783,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     documentState = history.commit(result.document, `${label} step ${result.index + 1}/${result.total}`);
+    rememberGenerationState(effectiveSeed);
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;

@@ -294,3 +294,23 @@ describe("DocumentHistory delta reconstruction", () => {
     expect(JSON.stringify(history.jumpTo(5))).toBe(JSON.stringify(replacement));
   });
 });
+
+it("retains entry identities across history replay and replaces them for edits and branches", () => {
+  const input = createDocument("history-entry-identity");
+  const history = new DocumentHistory(input);
+  const initial = history.currentEntryKey;
+  const next = withFaceCount(input, 700);
+  history.commit(next);
+  const first = history.currentEntryKey;
+  history.undo(next);
+  expect(history.currentEntryKey).toBe(initial);
+  history.redo(input);
+  expect(history.currentEntryKey).toBe(first);
+  history.amendTop(withFaceCount(next, 800));
+  expect(history.currentEntryKey).not.toBe(first);
+  history.undo(next);
+  history.commit(next);
+  expect(history.currentEntryKey).not.toBe(first);
+  history.reset(input);
+  expect(history.currentEntryKey).not.toBe(initial);
+});

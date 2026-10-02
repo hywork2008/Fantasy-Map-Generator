@@ -895,3 +895,31 @@ describe("shareable link and FMG site", () => {
     expect(has(".ce-feature--road")).toBe(true);
   });
 });
+
+it("replays all ten stages identically when alternating the slider and completed-city history", () => {
+  panelButton("都市を一括生成").click();
+  expect(root.querySelector(".ce-building")).not.toBeNull();
+  const completedIndex = root.querySelectorAll(".ce-history-row").length - 1;
+  const snapshot = () =>
+    [...root.querySelectorAll("svg.ce-svg path, svg.ce-svg .ce-building")].map(node => [
+      node.getAttribute("class"),
+      node.getAttribute("d"),
+      node.getAttribute("data-face"),
+      node.getAttribute("data-edge")
+    ]);
+  const stages = new Map<number, ReturnType<typeof snapshot>>();
+  for (let step = 1; step <= 10; step++) {
+    selectStage(step);
+    stages.set(step, snapshot());
+  }
+  for (const order of [
+    [2, 10, 1, 9, 3, 8, 4, 7, 5, 6],
+    [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+  ]) {
+    root.querySelectorAll<HTMLButtonElement>(".ce-history-row")[completedIndex].click();
+    for (const step of order) {
+      selectStage(step);
+      expect(snapshot()).toEqual(stages.get(step));
+    }
+  }
+});

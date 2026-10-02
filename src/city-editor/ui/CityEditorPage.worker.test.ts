@@ -234,3 +234,66 @@ describe("background complete generation", () => {
     expect(root.querySelector<HTMLButtonElement>('button[title="Undo"]')!.disabled).toBe(false);
   });
 });
+
+it("replays early stages from the original grid after a split failure and history jumps", async () => {
+  vi.spyOn(console, "group").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "groupEnd").mockImplementation(() => {});
+  mount();
+  root.querySelector<HTMLInputElement>(".ce-moat-town")!.click();
+  const save = vi.spyOn(cityEditorFile, "exportCityMap").mockImplementation(() => {});
+  const read = () => {
+    root.querySelector<HTMLButtonElement>('button[title="Export editable city map (JSON)"]')!.click();
+    return structuredClone(save.mock.calls.at(-1)![0]);
+  };
+  const stage = (value: number) => {
+    const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider")!;
+    slider.value = String(value);
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const baselines = new Map<number, ReturnType<typeof read>>();
+  for (const step of [1, 2, 3]) {
+    stage(step);
+    baselines.set(step, read());
+  }
+  root.querySelector<HTMLInputElement>('input[aria-label="デバッグ：生成失敗の途中図を表示"]')!.click();
+  button("都市を一括生成").click();
+  const { faceVertices, splitFace } = await import("../core/mesh");
+  const input = worker.request.document;
+  const face = Object.keys(input.mesh.faces).find(id => faceVertices(input.mesh, input.mesh.faces[id]).length >= 4)!;
+  const vertices = faceVertices(input.mesh, input.mesh.faces[face]);
+  const partial = splitFace(input, face, vertices[0], vertices[2])!;
+  expect(Object.keys(partial.mesh.faces)).toHaveLength(Object.keys(input.mesh.faces).length + 1);
+  const sample = {
+    phase: "gate-routing",
+    elapsedMs: 0,
+    attempt: 1,
+    failure: { reason: "unconnected-gates", message: "failed", details: [vertices[0]] }
+  };
+  worker.onmessage!({
+    data: {
+      type: "complete",
+      document: null,
+      failurePreview: captureGenerationDebugPreview(partial, sample, worker.request.seed)
+    }
+  } as MessageEvent);
+  await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
+  const failureIndex = root.querySelectorAll(".ce-history-row").length - 1;
+  button("都市を一括生成").click();
+  expect(worker.request.document).toEqual(input);
+  button("生成をキャンセル").click();
+  await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
+  const patchLimit = root.querySelector<HTMLInputElement>(".ce-generate-npatches")!;
+  patchLimit.value = "1";
+  patchLimit.dispatchEvent(new Event("change", { bubbles: true }));
+  root.querySelectorAll<HTMLButtonElement>(".ce-history-row")[0].click();
+  for (let round = 0; round < 3; round++) {
+    root.querySelectorAll<HTMLButtonElement>(".ce-history-row")[failureIndex].click();
+    expect(root.querySelector<HTMLInputElement>(".ce-moat-town")!.checked).toBe(true);
+    expect(patchLimit.value).toBe("");
+    for (const step of [2, 1, 3, 2]) {
+      stage(step);
+      expect(read()).toEqual(baselines.get(step));
+    }
+  }
+});
