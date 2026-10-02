@@ -2348,6 +2348,34 @@ function applyPlan(
   let actualTownFaces: Set<Id> | null = null;
   let routingPlan = plan;
   if (stageStep >= 4) {
+    // Round shared river/wall vertices before clearance repair, passage splits
+    // and gate/road placement constrain them. Keep the raw curtain checkpoint
+    // available for diagnostics; subsequent checkpoints use this prepared mesh.
+    const precincts = [...plan.precincts, ...plan.templeHarbor];
+    const reservedVertices = new Set(
+      [
+        ...reservedCastleFaces(next),
+        ...(plan.castleSite ? [plan.castleSite.faceId] : []),
+        ...precincts.flatMap(precinct => precinct.cellIds.map(id => faceIdOf[id]))
+      ].flatMap(id => (next.mesh.faces[id] ? faceVertices(next.mesh, next.mesh.faces[id]) : []))
+    );
+    // Polygonal plazas may have no reserved faces; keep their inserted ring
+    // aligned with the planned civic landmarks as the outer boundary rounds.
+    for (const point of precincts.flatMap(precinct => precinct.polygon ?? [])) {
+      const id = nearest(point);
+      if (id && Math.hypot(mesh.vertices[id].point[0] - point[0], mesh.vertices[id].point[1] - point[1]) < 1e-6)
+        reservedVertices.add(id);
+    }
+    const lockedBefore = new Map([...reservedVertices].map(id => [id, next.mesh.vertices[id].locked]));
+    for (const id of reservedVertices) next.mesh.vertices[id].locked = true;
+    next = finishCityGeometry(next, "boundaries");
+    for (const [id, locked] of lockedBefore) next.mesh.vertices[id].locked = locked;
+    mesh = next.mesh;
+    urbanRegions = [...plan.urban]
+      .map(id => faceFor(id))
+      .filter(face => !!face)
+      .map(face => facePoints(mesh, face));
+    mark("smooth-boundaries");
     // Cell splitting handles ordinary bank overlaps. Resolve any residual
     // coastal span before placing gates, so later junction repairs cannot
     // consume an already published gate vertex.
