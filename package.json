@@ -47,7 +47,9 @@
     "races:relations:export": "node --import tsx scripts/races-csv.ts export-relations",
     "build:characters": "FMG_EXTENSION=characters vite build -c vite.extension.config.ts",
     "prebuild:characters": "npm run races:import",
-    "test:race-bundles": "node --import tsx scripts/check-race-bundles.ts"
+    "test:race-bundles": "node --import tsx scripts/check-race-bundles.ts",
+    "housing:export": "node scripts/housingBatch.mjs export",
+    "housing:batch": "node scripts/housingBatch.mjs compare"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

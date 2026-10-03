@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { worldContext } from "../../context/worldContext";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
 import { type BurgSiteDescriptor, getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
-import { type CityEditorShare, shareFromDescriptor } from "../io/incomingCity";
+import { type CityEditorShare, parseIncomingPayload } from "../io/incomingCity";
 import { createGridDocument } from "./document";
 import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import type { BuildingLot } from "./gen/buildingLots";
@@ -125,11 +125,22 @@ export function housingGap(dwellings: number, houses: number): HousingReportGap 
  * `buildings` matches the City Editor 「建物」 panel. Each call uses a fresh
  * fabric cache so one burg cannot reuse another's lots. */
 export function compareBurgHousing(descriptor: BurgSiteDescriptor): HousingComparison {
-  const share = shareFromDescriptor(descriptor);
+  const share = parseIncomingPayload(JSON.stringify(descriptor));
+  if (!share) throw new Error("Invalid burg site descriptor");
+  return compareShareHousing(share, descriptor.frame.extentMeters);
+}
+
+/** Reproduce the complete CE hand-off saved in a batch CSV. */
+export function compareShareHousing(
+  share: CityEditorShare,
+  sourceExtentMeters = share.descriptor?.frame.extentMeters
+): HousingComparison {
+  const descriptor = share.descriptor;
+  if (!descriptor) throw new Error("Housing comparison requires a site descriptor");
   const document = cityEditorDocument(share);
   const settings = cityEditorSettings(share);
   let failure: string | null = null;
-  const city = generateCityOnDocument(document, settings, descriptor.burg.seed, sample => {
+  const city = generateCityOnDocument(document, settings, share.seed, sample => {
     if (sample.failure) failure = sample.failure.message;
   });
   const counted = city ?? document;
@@ -159,10 +170,10 @@ export function compareBurgHousing(descriptor: BurgSiteDescriptor): HousingCompa
       population: descriptor.burg.population,
       dwellings: descriptor.burg.dwellings,
       cityRadiusMeters: descriptor.frame.cityRadiusMeters,
-      sourceExtentMeters: descriptor.frame.extentMeters,
+      sourceExtentMeters: sourceExtentMeters ?? descriptor.frame.extentMeters,
       extentMeters: share.descriptor?.frame.extentMeters ?? descriptor.frame.extentMeters,
       size: share.size,
-      fitted: share.descriptor?.frame.extentMeters !== descriptor.frame.extentMeters,
+      fitted: share.descriptor?.frame.extentMeters !== sourceExtentMeters,
       nPatches: share.patchParams?.nPatches ?? DEFAULT_PATCH_PARAMS.nPatches,
       blockSizeMeters: counted.frame.blockSizeMeters,
       walls: descriptor.burg.walls,
