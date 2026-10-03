@@ -33,7 +33,7 @@ interface ConnectionBase {
 }
 export type NetworkConnection = ConnectionBase &
   (
-    | { kind: "land"; land: NetworkCorridor }
+    | { kind: "land"; land: NetworkCorridor; constructionCostMeters?: number }
     | {
         kind: "bridge";
         crossing: ProvisionalRiverCrossing;
@@ -42,6 +42,8 @@ export type NetworkConnection = ConnectionBase &
         approachB: NetworkCorridor;
         constructionCostMeters: number;
         useCostMeters: number;
+        /** New outside approach works, charged per connection even on an existing bridge. */
+        approachConstructionCostMeters?: number;
       }
   );
 interface CrossingReference {
@@ -62,6 +64,7 @@ export interface ConstrainedNetworkEdge {
   distanceMeters: number;
   costMeters: number;
   crossing?: Readonly<CrossingReference>;
+  connectionConstructionCostMeters?: number;
 }
 export interface ConstrainedLandNetwork {
   nodes: readonly NetworkNode[];
@@ -186,6 +189,11 @@ export function buildConstrainedLandNetwork(input: {
       crossing: CrossingReference | undefined,
       check: (env: NetworkEnvironment) => boolean;
     if (c.kind === "land") {
+      if (
+        c.constructionCostMeters !== undefined &&
+        (!Number.isFinite(c.constructionCostMeters) || c.constructionCostMeters < 0)
+      )
+        return { reason: "invalid-input" };
       const land = savedCorridor(c.land);
       if (!corridorValid(land, input.environment, roadWidthMeters)) return { reason: "invalid-land" };
       pieces = [...land.corridor.pieces];
@@ -224,6 +232,8 @@ export function buildConstrainedLandNetwork(input: {
         c.constructionCostMeters < 0 ||
         !Number.isFinite(c.useCostMeters) ||
         c.useCostMeters <= 0 ||
+        (c.approachConstructionCostMeters !== undefined &&
+          (!Number.isFinite(c.approachConstructionCostMeters) || c.approachConstructionCostMeters < 0)) ||
         !validate(c.crossingInput, input.environment)
       )
         return { reason: "invalid-bridge" };
@@ -270,7 +280,18 @@ export function buildConstrainedLandNetwork(input: {
       Math.hypot(...corridorDelta(end, byId.get(c.to)!.point)) > corridorPositionTolerance(end, byId.get(c.to)!.point)
     )
       return { reason: "invalid-junction" };
-    edges.push({ id: c.id, reverse: false, from: c.from, to: c.to, pieces, distanceMeters, costMeters, crossing });
+    edges.push({
+      id: c.id,
+      reverse: false,
+      from: c.from,
+      to: c.to,
+      pieces,
+      distanceMeters,
+      costMeters,
+      crossing,
+      connectionConstructionCostMeters:
+        c.kind === "land" ? (c.constructionCostMeters ?? 0) : (c.approachConstructionCostMeters ?? 0)
+    });
     checks.push(check);
     if (c.bidirectional) {
       edges.push({
@@ -281,6 +302,8 @@ export function buildConstrainedLandNetwork(input: {
         pieces: reversePieces(pieces),
         distanceMeters,
         costMeters,
+        connectionConstructionCostMeters:
+          c.kind === "land" ? (c.constructionCostMeters ?? 0) : (c.approachConstructionCostMeters ?? 0),
         crossing: crossing ? { ...crossing, fromBank: crossing.toBank, toBank: crossing.fromBank } : undefined
       });
       checks.push(check);
@@ -309,6 +332,7 @@ export type NetworkRouteResult = (
         edges: readonly ConstrainedNetworkEdge[];
         distanceMeters: number;
         costMeters: number;
+        costs: { travelMeters: number; constructionMeters: number; repeatCrossingMeters: number };
         crossingHistory: readonly RiverCrossingHistory[];
         facilityIds: readonly number[];
       };
@@ -336,6 +360,12 @@ export function findConstrainedLandRoute(
     goalTangent?: RiverPoint;
     settings: NetworkSearchSettings;
     environment: NetworkEnvironment;
+    /** Explicit connection availability; omitted means all candidate connections. */
+    allowedConnectionIds?: readonly number[];
+    alreadyPaidFacilityIds?: readonly number[];
+    alreadyPaidConnectionIds?: readonly number[];
+    maxConstructionCostMeters?: number;
+    maxRouteCostMeters?: number;
   }
 ): NetworkRouteResult {
   const stats = { labels: 0, expansions: 0 };
@@ -356,6 +386,24 @@ export function findConstrainedLandRoute(
     (input.goalTangent && !goalTangent)
   )
     return fail("invalid-input");
+  const connectionIds = new Set(network.edges.map(e => e.id)),
+    facilityIds = new Set(network.edges.flatMap(e => (e.crossing ? [e.crossing.facilityId] : []))),
+    roadIds = connectionIds;
+  for (const [ids, known] of [
+    [input.allowedConnectionIds, connectionIds],
+    [input.alreadyPaidFacilityIds, facilityIds],
+    [input.alreadyPaidConnectionIds, roadIds]
+  ] as const)
+    if (
+      ids &&
+      (ids.length > known.size || new Set(ids).size !== ids.length || ids.some(id => !validId(id) || !known.has(id)))
+    )
+      return fail("invalid-input");
+  for (const cap of [input.maxConstructionCostMeters, input.maxRouteCostMeters])
+    if (cap !== undefined && (!Number.isFinite(cap) || cap < 0)) return fail("invalid-input");
+  const allowed = input.allowedConnectionIds ? new Set(input.allowedConnectionIds) : null,
+    paidFacilities = new Set(input.alreadyPaidFacilityIds),
+    paidRoads = new Set(input.alreadyPaidConnectionIds);
   const checks = validators.get(network);
   if (!checks) return fail("unvalidated-network");
   if (checks.some(check => !check(input.environment))) return fail("invalid-geometry");
@@ -364,6 +412,10 @@ export function findConstrainedLandRoute(
     incoming: number | null;
     history: RiverCrossingHistory[];
     facilities: number[];
+    roads: number[];
+    travel: number;
+    construction: number;
+    repeat: number;
     cost: number;
     distance: number;
     parent: Label | null;
@@ -380,11 +432,16 @@ export function findConstrainedLandRoute(
   let budget = false,
     overflow = false;
   function push(l: Omit<Label, "key">) {
-    if (!Number.isFinite(l.cost) || !Number.isFinite(l.distance)) {
+    if (![l.cost, l.distance, l.travel, l.construction, l.repeat].every(Number.isFinite)) {
       overflow = true;
       return;
     }
-    const key = JSON.stringify([l.node, l.incoming, l.history, l.facilities]);
+    if (
+      l.construction > (input.maxConstructionCostMeters ?? Infinity) ||
+      l.cost > (input.maxRouteCostMeters ?? Infinity)
+    )
+      return;
+    const key = JSON.stringify([l.node, l.incoming, l.history, l.facilities, l.roads]);
     if (l.cost >= (best.get(key) ?? Infinity)) return;
     if (stats.labels >= s.maxLabels) {
       budget = true;
@@ -394,7 +451,19 @@ export function findConstrainedLandRoute(
     best.set(key, l.cost);
     queue.push({ ...l, key }, l.cost);
   }
-  push({ node: input.startNodeId, incoming: null, history: [], facilities: [], cost: 0, distance: 0, parent: null });
+  push({
+    node: input.startNodeId,
+    incoming: null,
+    history: [],
+    facilities: [],
+    roads: [],
+    travel: 0,
+    construction: 0,
+    repeat: 0,
+    cost: 0,
+    distance: 0,
+    parent: null
+  });
   while (queue.length) {
     if (budget) return fail("search-budget");
     if (overflow) return fail("invalid-cost");
@@ -413,6 +482,7 @@ export function findConstrainedLandRoute(
           edges: path,
           distanceMeters: l.distance,
           costMeters: l.cost,
+          costs: { travelMeters: l.travel, constructionMeters: l.construction, repeatCrossingMeters: l.repeat },
           crossingHistory: l.history,
           facilityIds: l.facilities
         },
@@ -422,15 +492,20 @@ export function findConstrainedLandRoute(
     for (const index of adjacency.get(l.node) ?? []) {
       const e = network.edges[index],
         entry = corridorPieceTangents(e.pieces[0])!.start;
+      if (allowed && !allowed.has(e.id)) continue;
       if (tangent && !sameCorridorDirection(tangent, entry)) continue;
       if (e.crossing && incoming?.crossing?.facilityId === e.crossing.facilityId && incoming.from === e.to) continue;
       const history = l.history.map(h => ({ ...h })),
-        facilities = [...l.facilities];
-      let increment = e.costMeters;
+        facilities = [...l.facilities],
+        roads = [...l.roads];
+      let travel = e.costMeters,
+        construction = 0,
+        repeat = 0;
       if (e.crossing) {
         const c = e.crossing,
           previous = history.find(h => h.riverId === c.riverId);
-        increment += c.useCostMeters + (previous?.count ?? 0) * s.repeatCrossingCostMeters;
+        travel += c.useCostMeters;
+        repeat += (previous?.count ?? 0) * s.repeatCrossingCostMeters;
         const next = {
           riverId: c.riverId,
           count: Math.min(s.historyCountCap, (previous?.count ?? 0) + 1),
@@ -442,16 +517,26 @@ export function findConstrainedLandRoute(
         else history.push(next);
         history.sort((a, b) => a.riverId - b.riverId);
         if (!facilities.includes(c.facilityId)) {
-          increment += c.constructionCostMeters;
+          if (!paidFacilities.has(c.facilityId)) construction += c.constructionCostMeters;
           facilities.push(c.facilityId);
           facilities.sort((a, b) => a - b);
         }
       }
+      if ((e.connectionConstructionCostMeters ?? 0) > 0 && !paidRoads.has(e.id) && !roads.includes(e.id)) {
+        construction += e.connectionConstructionCostMeters ?? 0;
+        roads.push(e.id);
+        roads.sort((a, b) => a - b);
+      }
+      const increment = travel + construction + repeat;
       push({
         node: e.to,
         incoming: index,
         history,
         facilities,
+        roads,
+        travel: l.travel + travel,
+        construction: l.construction + construction,
+        repeat: l.repeat + repeat,
         cost: l.cost + increment,
         distance: l.distance + e.distanceMeters,
         parent: l
