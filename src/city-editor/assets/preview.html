@@ -3,17 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>City Editor - 船舶モデル比較 & 川下り用荷船 (River Barge)</title>
+  <title>City Editor - 建築 & 船舶 プレビューギャラリー</title>
   <style>
     :root {
       --bg: #141b22;
       --card-bg: #1e2630;
+      --card-header: #25303d;
       --border: #2e3a48;
       --text: #e6edf3;
       --muted: #8b949e;
+      --ground-bg: #2a2822;
+      --ground-line: #3b372f;
       --water-bg: #1c3547;
       --water-line: #264b63;
       --accent: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-purple: #bc8cff;
+    }
+    * {
+      box-sizing: border-box;
     }
     body {
       margin: 0;
@@ -22,20 +31,68 @@
       background: var(--bg);
       color: var(--text);
     }
-    h1 {
-      margin-top: 0;
-      font-size: 22px;
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     p.lead {
       color: var(--muted);
-      font-size: 14px;
-      margin-bottom: 24px;
+      font-size: 13.5px;
+      margin: 6px 0 0 0;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(0,0,0,0.25);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+    }
+    .tab-btn.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
       gap: 20px;
       margin-bottom: 32px;
     }
@@ -46,10 +103,23 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
+      position: relative;
+    }
+    .card.highlight-green {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 14px rgba(46, 160, 67, 0.2);
+    }
+    .card.highlight-orange {
+      border-color: var(--accent-orange);
+      box-shadow: 0 0 14px rgba(210, 153, 34, 0.2);
+    }
+    .card.highlight-purple {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 14px rgba(188, 140, 255, 0.2);
     }
     .card h2 {
       margin: 0 0 8px 0;
-      font-size: 16px;
+      font-size: 15.5px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -61,6 +131,22 @@
       background: rgba(88, 166, 255, 0.15);
       color: var(--accent);
       border: 1px solid rgba(88, 166, 255, 0.3);
+      font-weight: 500;
+    }
+    .card .badge.hamlet {
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.3);
+    }
+    .card .badge.primitive {
+      background: rgba(210, 153, 34, 0.15);
+      color: #e3b341;
+      border-color: rgba(210, 153, 34, 0.3);
+    }
+    .card .badge.shrine {
+      background: rgba(188, 140, 255, 0.15);
+      color: #d2a8ff;
+      border-color: rgba(188, 140, 255, 0.3);
     }
     .card .badge.river {
       background: rgba(46, 160, 67, 0.15);
@@ -68,30 +154,48 @@
       border-color: rgba(46, 160, 67, 0.3);
     }
     .canvas-container {
-      background: var(--water-bg);
       border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.05);
-      padding: 20px;
-      height: 380px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 16px;
+      height: 340px;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       position: relative;
     }
-    .canvas-container::before {
+    .canvas-container.ground {
+      background: var(--ground-bg);
+    }
+    .canvas-container.ground::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(var(--ground-line) 1px, transparent 1px);
+      background-size: 16px 16px;
+      opacity: 0.45;
+    }
+    .canvas-container.water {
+      background: var(--water-bg);
+    }
+    .canvas-container.water::before {
       content: "";
       position: absolute;
       inset: 0;
       background-image: radial-gradient(var(--water-line) 1px, transparent 1px);
       background-size: 16px 16px;
-      opacity: 0.3;
+      opacity: 0.35;
     }
     .canvas-container svg {
-      max-height: 100%;
-      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+      max-width: 90%;
+      max-height: 90%;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.45));
       position: relative;
       z-index: 1;
+      transition: transform 0.2s ease;
+    }
+    .canvas-container:hover svg {
+      transform: scale(1.03);
     }
     .desc {
       margin-top: 14px;
@@ -99,149 +203,418 @@
       color: var(--muted);
       line-height: 1.5;
     }
+    .desc strong.title {
+      display: block;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
     .desc ul {
       margin: 6px 0 0 0;
-      padding-left: 20px;
+      padding-left: 18px;
     }
     .feature-list {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 20px;
+      margin-top: 24px;
     }
     .feature-list h3 {
       margin-top: 0;
       font-size: 16px;
-      color: #3fb950;
+      color: var(--accent-green);
     }
     .feature-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 16px;
-      margin-top: 12px;
+      margin-top: 14px;
     }
     .feature-item {
       background: rgba(255,255,255,0.02);
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 6px;
-      padding: 12px;
+      padding: 14px;
     }
     .feature-item strong {
       display: block;
       color: var(--text);
-      margin-bottom: 4px;
-      font-size: 13px;
+      margin-bottom: 6px;
+      font-size: 13.5px;
     }
     .feature-item span {
-      font-size: 12px;
+      font-size: 12.5px;
       color: var(--muted);
-      line-height: 1.4;
+      line-height: 1.45;
     }
+    /* SVG スタイル定義 */
+    .ce-temple-shadow { fill: rgba(18, 22, 25, 0.28); }
+    .ce-temple-base { fill: #b8b5ad; stroke: #38352e; stroke-width: 0.7px; stroke-linejoin: round; }
+    .ce-temple-buttresses { fill: #9e9b93; stroke: #38352e; stroke-width: 0.5px; }
+    .ce-temple-nave, .ce-temple-transept, .ce-temple-apse, .ce-temple-crossing, .ce-temple-westwork, .ce-temple-chancel, .ce-temple-porch, .ce-temple-roof { stroke-linejoin: round; }
+    .ce-temple-spire-diagonal { stroke-linecap: round; }
+    .ce-megalith-stone, .ce-megalith-portal { stroke-linejoin: round; }
   </style>
 </head>
 <body>
 
-  <h1>City Editor 船舶比較 & 川下り用荷船（River Cargo Barge）</h1>
-  <p class="lead">外洋航海用（スループ・キャラベル・ガレオン）と、浅水河川の急流を下る川荷船（バージ）の設計比較</p>
+  <header>
+    <div>
+      <h1>🏛️ City Editor モデルギャラリー</h1>
+      <p class="lead">都市規模に応じた寺院・聖域モデル（寒村向け礼拝堂・環状列石・木造祠 vs 大聖堂）および船舶モデルの比較</p>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('temples')">🏛️ 寺院・聖域（寒村向け対応）</button>
+      <button class="tab-btn" onclick="switchTab('ships')">⛵ 船舶・川荷船（バージ）</button>
+    </div>
+  </header>
 
-  <div class="grid">
-    <!-- 川荷船 -->
-    <div class="card" style="border-color: #3fb950; box-shadow: 0 0 12px rgba(46, 160, 67, 0.2);">
-      <h2>川荷船 (バージ) <span class="badge river">川下り専用</span></h2>
-      <div class="canvas-container" id="barge-container"></div>
-      <div class="desc">
-        <strong>主要諸元:</strong> 全長 18m / 全幅 4.8m (平底・浅喫水)
-        <ul>
-          <li><strong>平底舟形船体:</strong> 浅瀬・砂洲・急流を渡り、川岸へ直接荷揚げ可能</li>
-          <li><strong>露出貨物 & 防水幌:</strong> 木箱、樽、麻袋、材木束、荷縄ネット</li>
-          <li><strong>長大操舵スイープ:</strong> 船尾から突出する約4.5mの大型操舵櫂</li>
-          <li><strong>船尾木造小屋:</strong> 煙突・天窓付きの船頭寝所（クディ）</li>
-          <li><strong>河川荷役具:</strong> 渡し板、川底突き竿（プッシュポール）</li>
-        </ul>
+  <!-- ================================================================= -->
+  <!-- タブ 1: 寺院・聖域モデル比較（寒村向け） -->
+  <!-- ================================================================= -->
+  <div id="tab-temples" class="tab-content active">
+    <div class="grid">
+      
+      <!-- 1. 素朴な村の礼拝堂 (Rustic Village Chapel) -->
+      <div class="card highlight-green">
+        <h2>村の素朴な礼拝堂 <span class="badge hamlet">寒村・小規模推奨</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-11 -6.5 22 13" width="100%" height="100%">
+            <g class="ce-temple ce-temple--chapel" transform="translate(0 0) rotate(0)" width="16" height="8">
+              <g class="ce-temple-shadow" transform="translate(0.5 0.6)" opacity="0.32">
+                <path d="M -8 -2.88 L 2.24 -2.88 L 2.24 -1.92 L 8 -1.92 L 8 1.92 L 2.24 1.92 L 2.24 2.88 L -0.96 2.88 L -0.96 4.4 L -3.36 4.4 L -3.36 2.88 L -8 2.88 Z" fill="#181e22"></path>
+              </g>
+              <g class="ce-temple-base">
+                <path d="M -8 -2.88 L 2.24 -2.88 L 2.24 -1.92 L 8 -1.92 L 8 1.92 L 2.24 1.92 L 2.24 2.88 L -0.96 2.88 L -0.96 4.4 L -3.36 4.4 L -3.36 2.88 L -8 2.88 Z" fill="#b8b5ad" stroke="#38352e" stroke-width="0.7" stroke-linejoin="round"></path>
+              </g>
+              <g class="ce-temple-buttresses" fill="#9e9b93" stroke="#38352e" stroke-width="0.5">
+                <rect x="-8.8" y="-2.88" width="0.8" height="0.6"></rect>
+                <rect x="-8.8" y="2.28" width="0.8" height="0.6"></rect>
+                <rect x="8" y="-1.92" width="0.8" height="0.6"></rect>
+                <rect x="8" y="1.32" width="0.8" height="0.6"></rect>
+              </g>
+              <g class="ce-temple-chancel">
+                <polygon points="2.24,-1.92 8,-1.92 8,0 2.24,0" fill="#ba5d30" stroke="#422616" stroke-width="0.45"></polygon>
+                <polygon points="2.24,0 8,0 8,1.92 2.24,1.92" fill="#8c3e1a" stroke="#422616" stroke-width="0.45"></polygon>
+                <line x1="2.24" y1="0" x2="8" y2="0" stroke="#52210d" stroke-width="0.7" stroke-linecap="round"></line>
+              </g>
+              <g class="ce-temple-nave">
+                <polygon points="-8,-2.88 2.24,-2.88 2.24,0 -8,0" fill="#c86a3e" stroke="#422616" stroke-width="0.5"></polygon>
+                <polygon points="-8,0 2.24,0 2.24,2.88 -8,2.88" fill="#8c3e1a" stroke="#422616" stroke-width="0.5"></polygon>
+                <line x1="-8" y1="0" x2="2.24" y2="0" stroke="#52210d" stroke-width="0.85" stroke-linecap="round"></line>
+                <line x1="-8" y1="-0.2" x2="2.24" y2="-0.2" stroke="#e8956e" stroke-width="0.35" opacity="0.75"></line>
+              </g>
+              <g class="ce-temple-porch">
+                <polygon points="-3.36,2.88 -3.36,4.4 -2.16,4.4 -2.16,2.88" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-2.16,2.88 -2.16,4.4 -0.96,4.4 -0.96,2.88" fill="#733012" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="-2.16" y1="2.88" x2="-2.16" y2="4.4" stroke="#52210d" stroke-width="0.6" stroke-linecap="round"></line>
+                <rect x="-2.48" y="4" width="0.64" height="0.4" fill="#2b2721"></rect>
+              </g>
+              <g class="ce-temple-bellcote">
+                <polygon points="-7.68,-0.7 -6.98,0 -6.28,-0.7" fill="#c86a3e" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-7.68,-0.7 -6.98,0 -7.68,0.7" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-7.68,0.7 -6.98,0 -6.28,0.7" fill="#733012" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-6.28,-0.7 -6.98,0 -6.28,0.7" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line class="ce-temple-spire-diagonal" x1="-7.68" y1="-0.7" x2="-6.28" y2="0.7" stroke="#52210d" stroke-width="0.5" stroke-linecap="round"></line>
+                <line class="ce-temple-spire-diagonal" x1="-7.68" y1="0.7" x2="-6.28" y2="-0.7" stroke="#52210d" stroke-width="0.5" stroke-linecap="round"></line>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Rustic Village Chapel（全長 16m / 全幅 8m）</strong>
+          <ul>
+            <li><strong>単身廊＋内陣構成:</strong> 翼廊や側廊のない素朴な身廊と、一段低く狭い内陣（Chancel）</li>
+            <li><strong>木製鐘架 (Bellcote):</strong> 西切妻上部に乗る素朴な小鐘楼</li>
+            <li><strong>南側玄関ポーチ:</strong> 雨風を凌ぐ素朴な木造/石造ポーチ</li>
+            <li><strong>四隅控え壁:</strong> 角部のみの簡素なバットレス</li>
+            <li><strong>自動適用:</strong> 長さ24m未満（micro/tiny）で自動選択</li>
+          </ul>
+        </div>
       </div>
+
+      <!-- 2. 原始的な環状列石と祭壇 (Megalithic Stone Circle) -->
+      <div class="card highlight-orange">
+        <h2>原始的環状列石 & 祭壇 <span class="badge primitive">古代・精霊信仰</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-10.5 -10.5 21 21" width="100%" height="100%">
+            <g class="ce-temple ce-temple--megalith" transform="translate(0 0) rotate(0)" width="16" height="16">
+              <g class="ce-temple-earth">
+                <ellipse cx="0" cy="0" rx="7.08" ry="7.08" fill="#736854" opacity="0.22" stroke="#5e5443" stroke-width="0.6" stroke-dasharray="3 2"></ellipse>
+              </g>
+              <g class="ce-temple-shadow" transform="translate(0.6 0.72)" opacity="0.38">
+                <ellipse cx="6.56" cy="0" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="5.08" cy="3.69" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="2.17" cy="6.69" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-1.87" cy="5.74" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-5.64" cy="4.1" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-5.22" cy="-3.79" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-2.14" cy="-6.59" rx="1.08" ry="0.88" fill="#181e22"></ellipse>
+                <ellipse cx="1.87" cy="-5.75" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="5.71" cy="-4.15" rx="1.08" ry="0.9" fill="#181e22"></ellipse>
+                <ellipse cx="-6.69" cy="-2.3" rx="1.01" ry="1.08" fill="#181e22"></ellipse>
+                <ellipse cx="-6.69" cy="2.3" rx="1.01" ry="1.08" fill="#181e22"></ellipse>
+                <rect x="-1.28" y="-1.6" width="3.2" height="3.2" rx="0.5" fill="#181e22"></rect>
+              </g>
+              <g class="ce-temple-megaliths">
+                <g class="ce-megalith-stone">
+                  <polygon points="6.08,-0.45 7.1,-0.32 7.16,0.27 6.8,0.45 6.02,0.36" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="6.02,0.36 6.08,-0.45 7.1,-0.32" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="7.1,-0.32 7.16,0.27 6.8,0.45" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="6.44" cy="-0.09" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="4.6,3.24 5.62,3.38 5.68,3.96 5.32,4.14 4.54,4.05" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="4.54,4.05 4.6,3.24 5.62,3.38" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="5.62,3.38 5.68,3.96 5.32,4.14" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="4.96" cy="3.6" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="1.69,6.24 2.71,6.37 2.77,6.96 2.41,7.14 1.63,7.05" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="1.63,7.05 1.69,6.24 2.71,6.37" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="2.71,6.37 2.77,6.96 2.41,7.14" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="2.05" cy="6.6" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-2.35,5.29 -1.33,5.43 -1.27,6.01 -1.63,6.19 -2.41,6.1" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-2.41,6.1 -2.35,5.29 -1.33,5.43" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-1.33,5.43 -1.27,6.01 -1.63,6.19" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-1.99" cy="5.65" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-6.12,3.65 -5.1,3.78 -5.04,4.37 -5.4,4.55 -6.18,4.46" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-6.18,4.46 -6.12,3.65 -5.1,3.78" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-5.1,3.78 -5.04,4.37 -5.4,4.55" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-5.76" cy="4.01" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-5.7,-4.24 -4.68,-4.11 -4.62,-3.52 -4.98,-3.34 -5.76,-3.43" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-5.76,-3.43 -5.7,-4.24 -4.68,-4.11" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-4.68,-4.11 -4.62,-3.52 -4.98,-3.34" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-5.34" cy="-3.88" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-2.62,-7.07 -1.6,-6.93 -1.54,-6.29 -1.9,-6.1 -2.68,-6.19" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-2.68,-6.19 -2.62,-7.07 -1.6,-6.93" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-1.6,-6.93 -1.54,-6.29 -1.9,-6.1" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-2.26" cy="-6.68" r="0.17" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="1.39,-6.2 2.41,-6.07 2.47,-5.48 2.11,-5.3 1.33,-5.39" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="1.33,-5.39 1.39,-6.2 2.41,-6.07" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="2.41,-6.07 2.47,-5.48 2.11,-5.3" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="1.75" cy="-5.84" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="5.23,-4.65 6.25,-4.5 6.31,-3.85 5.95,-3.65 5.17,-3.75" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="5.17,-3.75 5.23,-4.65 6.25,-4.5" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="6.25,-4.5 6.31,-3.85 5.95,-3.65" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="5.59" cy="-4.25" r="0.17" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-portal">
+                  <polygon points="-7.14,-2.9 -6.19,-2.72 -6.13,-1.94 -6.47,-1.7 -7.2,-1.82" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-7.2,-1.82 -7.14,-2.9 -6.19,-2.72" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-6.19,-2.72 -6.13,-1.94 -6.47,-1.7" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-6.8" cy="-2.42" r="0.2" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-portal">
+                  <polygon points="-7.14,1.7 -6.19,1.88 -6.13,2.66 -6.47,2.9 -7.2,2.78" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-7.2,2.78 -7.14,1.7 -6.19,1.88" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-6.19,1.88 -6.13,2.66 -6.47,2.9" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-6.8" cy="2.18" r="0.2" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+              </g>
+              <g class="ce-temple-altar">
+                <rect x="-0.98" y="-1.3" width="2.6" height="2.6" fill="#5c5952" stroke="#36342e" stroke-width="0.4"></rect>
+                <rect x="-1.28" y="-1.6" width="3.2" height="3.2" rx="0.4" fill="#b5b2aa" stroke="#36342e" stroke-width="0.6" stroke-linejoin="round"></rect>
+                <circle cx="0.32" cy="0" r="0.9" fill="none" stroke="#3c3831" stroke-width="0.4" opacity="0.75"></circle>
+                <line x1="-0.8" y1="0" x2="1.44" y2="0" stroke="#3c3831" stroke-width="0.35" opacity="0.6"></line>
+                <line x1="0.32" y1="-1.12" x2="0.32" y2="1.12" stroke="#3c3831" stroke-width="0.35" opacity="0.6"></line>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Stone Circle & Altar（直径 16m × 16m）</strong>
+          <ul>
+            <li><strong>屋根を持たない古代聖域:</strong> 辺境・古代自然崇拝の村に最適な神殿代替品</li>
+            <li><strong>不揃いな直立巨石群:</strong> 苔むした風化石と光影のリアルな陰影表現</li>
+            <li><strong>中央祭壇石 (Dolmen):</strong> 供物を捧げる平らな石板と太陽ルーン刻印</li>
+            <li><strong>西側門柱石 (Portal):</strong> 聖域へ参入する西側の2基の立石</li>
+            <li><strong>踏み固められた聖地土:</strong> 儀礼サークルの周囲の土壌グラウンド</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. 素朴な木造の祠 / 社 (Primitive Timber Shrine) -->
+      <div class="card highlight-purple">
+        <h2>素朴な木造の祠 / 聖堂 <span class="badge shrine">木造・土着信仰</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-10 -7 20 14" width="100%" height="100%">
+            <g class="ce-temple ce-temple--shrine" transform="translate(0 0) rotate(0)" width="15" height="9">
+              <g class="ce-temple-shadow" transform="translate(0.6 0.72)" opacity="0.34">
+                <rect x="-5.63" y="-3.51" width="9" height="7.02" rx="0.6" fill="#181e22"></rect>
+              </g>
+              <g class="ce-temple-base">
+                <rect x="-6.03" y="-3.91" width="9.8" height="7.82" rx="0.6" fill="#5c4632" stroke="#261a0f" stroke-width="0.6"></rect>
+              </g>
+              <g class="ce-temple-roof">
+                <polygon points="-5.63,-3.51 3.38,-3.51 3.38,0 -5.63,0" fill="#d1b45a" stroke="#3d2e0b" stroke-width="0.45"></polygon>
+                <polygon points="-5.63,0 3.38,0 3.38,3.51 -5.63,3.51" fill="#8f7228" stroke="#3d2e0b" stroke-width="0.45"></polygon>
+                <line x1="-6.13" y1="0" x2="3.88" y2="0" stroke="#5c4714" stroke-width="0.9" stroke-linecap="round"></line>
+                <path d="M -6.22 -0.7 L -5.33 0 L -6.22 0.7" fill="none" stroke="#2d2014" stroke-width="0.6" stroke-linecap="round"></path>
+                <path d="M 3.98 -0.7 L 3.08 0 L 3.98 0.7" fill="none" stroke="#2d2014" stroke-width="0.6" stroke-linecap="round"></path>
+              </g>
+              <g class="ce-temple-posts">
+                <circle cx="-5.63" cy="-3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="-5.63" cy="3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="-1.13" cy="-3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="-1.13" cy="3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="3.38" cy="-3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="3.38" cy="3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+              </g>
+              <g class="ce-temple-hearth">
+                <circle cx="5.78" cy="0" r="1.05" fill="#949187" stroke="#36342e" stroke-width="0.45"></circle>
+                <circle cx="5.78" cy="0" r="0.73" fill="#211c18"></circle>
+                <circle cx="5.78" cy="0" r="0.47" fill="#ff5722" opacity="0.85"></circle>
+                <circle cx="5.78" cy="0" r="0.23" fill="#ffca28"></circle>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Timber Thatched Shrine（全長 15m / 全幅 9m）</strong>
+          <ul>
+            <li><strong>急勾配の茅葺き大屋根:</strong> 北欧・ケルト・スラヴ圏の寒村に見られる茅葺き社</li>
+            <li><strong>木彫り角飾り (Gable Beast Heads):</strong> 棟木の両端に突き出た交差木彫り飾り</li>
+            <li><strong>外周丸太柱:</strong> 軒下を支える素朴な6本のログポスト</li>
+            <li><strong>聖なる炉床 (Sacred Hearth):</strong> 前庭で赤く燃え盛る火床と残り火</li>
+            <li><strong>木造基壇:</strong> 地面からの湿気を防ぐ高床の木造デッキ</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 4. 大都市バシリカ式大聖堂 (比較対象) -->
+      <div class="card">
+        <h2>バシリカ式大聖堂 <span class="badge">大都市・司教座</span></h2>
+        <div class="canvas-container ground">
+          <iframe src="./basilica-cathedral.svg" style="border:none;width:100%;height:100%;pointer-events:none;"></iframe>
+        </div>
+        <div class="desc">
+          <strong class="title">Basilica Cathedral（全長 54m / 全幅 28m）</strong>
+          <ul>
+            <li><strong>大都市向け巨大建築:</strong> 身廊・側廊・翼廊・交差部尖塔・半円後陣</li>
+            <li><strong>荘厳なファサード:</strong> 双塔西正面、西ポルティコ、放射状小祭室</li>
+            <li><strong>寒村での不自然さの解消:</strong> 小規模集落（micro/tiny）ではこの過剰に立派な大聖堂から上記の素朴な礼拝堂へ自動切り替え</li>
+          </ul>
+        </div>
+      </div>
+
     </div>
 
-    <!-- 小型船 スループ -->
-    <div class="card">
-      <h2>小型船 (スループ) <span class="badge">沿岸・港湾</span></h2>
-      <div class="canvas-container" id="sloop-container"></div>
-      <div class="desc">
-        <strong>主要諸元:</strong> 全長 16m / 全幅 5.0m
-        <ul>
-          <li>単一マスト、ブーム、バウスプリット</li>
-          <li>小型ハッチ・格子、船尾ティラー舵</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- 中型船 キャラベル -->
-    <div class="card">
-      <h2>中型船 (キャラベル) <span class="badge">外洋航海</span></h2>
-      <div class="canvas-container" id="caravel-container"></div>
-      <div class="desc">
-        <strong>主要諸元:</strong> 全長 25m / 全幅 7.5m
-        <ul>
-          <li>3本マスト（フォア・メイン・ミズン）、ラティーンヤード</li>
-          <li>積載テンダーボート、キャプスタン、船尾クォーターデッキ</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- 大型船 ガレオン -->
-    <div class="card">
-      <h2>大型船 (ガレオン) <span class="badge">遠洋主戦</span></h2>
-      <div class="canvas-container" id="galleon-container"></div>
-      <div class="desc">
-        <strong>主要諸元:</strong> 全長 42m / 全幅 11.5m
-        <ul>
-          <li>ビークヘッド、多段船尾楼（ポープデッキ）</li>
-          <li>4本マスト・多段ヤード、大型ピナス長艇、船尾3基ランタン</li>
-        </ul>
+    <div class="feature-list">
+      <h3>小規模・寒村向け寺院および代替建造物の設計仕様</h3>
+      <div class="feature-grid">
+        <div class="feature-item">
+          <strong>1. 寒村（Hamlet）スケールへの完全適合</strong>
+          <span>City Editorの寒村生成（micro / tiny）では、人口数十〜数百人の集落にバシリカ式大聖堂が立つという違和感がありました。新設の「村の礼拝堂」は全長14〜16mの単身廊・内陣・小鐘架構成で、寒村のスケール感と完璧に合致。自動判定（`length < 24m`）により既存コードもそのまま寒村に最適な外観へと自動昇華します。</span>
+        </div>
+        <div class="feature-item">
+          <strong>2. 宗教・世界観に合わせた3つの代替様式</strong>
+          <span>キリスト教的一神教の村には<strong>「素朴な村の礼拝堂」</strong>、ケルト・ドルイド・古代精霊信仰の集落には<strong>「原始的環状列石」</strong>、北欧・森林文化圏の集落には<strong>「茅葺き木造祠」</strong>と、寒村の多様な文化背景に応じたモデルを完備しました。</span>
+        </div>
+        <div class="feature-item">
+          <strong>3. 屋根を持たない聖域「環状列石（Stone Circle）」</strong>
+          <span>神殿の代替物として、建物ではなく「自然の巨石と祭壇」による聖域を再現。不規則な多角形による10基の直立巨石、西側門柱石、上面にルーン太陽環が刻まれた中央祭壇石（ドルメン）を備え、山間部や未開拓の寒村に最適です。</span>
+        </div>
+        <div class="feature-item">
+          <strong>4. 聖なる火と木彫り装飾の「木造祠（Timber Shrine）」</strong>
+          <span>北欧のスタヴ教会やスラヴの木造社を想起させる急勾配の茅葺き大屋根と、棟木両端の動物の角・鳥を模した交差木彫り飾り。前庭には石組みの炉で赤く灯る聖火（Hearth Fire）が配置され、寒村の夜の温もりを演出します。</span>
+        </div>
+        <div class="feature-item">
+          <strong>5. City Editor の型定義と完全連携</strong>
+          <span>`CityElement` に `templeType?: "basilica" | "chapel" | "shrine" | "megalith"` を新設。マップ上の要素ごとに自由に変更でき、回転や拡大縮小、選択ハイライトにも完全対応しています。</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="feature-list">
-    <h3>川下り船（River Cargo Barge）の構造と特徴</h3>
-    <div class="feature-grid">
-      <div class="feature-item">
-        <strong>1. 平底・幅広の舟形船体（Flat Bottom Hull）</strong>
-        <span>外洋船のような深い竜骨（キール）や尖った船首ではなく、浅瀬や砂州の多い河川でも座礁しない平底形状。船首バンパーにより浅瀬や河岸にそのまま突っ込んで接岸・荷揚げができます。</span>
+  <!-- ================================================================= -->
+  <!-- タブ 2: 船舶モデル比較 -->
+  <!-- ================================================================= -->
+  <div id="tab-ships" class="tab-content">
+    <div class="grid">
+      <!-- 川荷船 -->
+      <div class="card highlight-green">
+        <h2>川荷船 (バージ) <span class="badge river">川下り専用</span></h2>
+        <div class="canvas-container water" id="barge-container">
+          <iframe src="./river-barge.svg" style="border:none;width:100%;height:100%;pointer-events:none;"></iframe>
+        </div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 18m / 全幅 4.8m (平底・浅喫水)</strong>
+          <ul>
+            <li><strong>平底舟形船体:</strong> 浅瀬・砂洲・急流を渡り、川岸へ直接荷揚げ可能</li>
+            <li><strong>露出貨物 & 防水幌:</strong> 木箱、樽、麻袋、材木束、荷縄ネット</li>
+            <li><strong>長大操舵スイープ:</strong> 船尾から突出する約4.5mの大型操舵櫂</li>
+            <li><strong>船尾木造小屋:</strong> 煙突・天窓付きの船頭寝所（クディ）</li>
+            <li><strong>河川荷役具:</strong> 渡し板、川底突き竿（プッシュポール）</li>
+          </ul>
+        </div>
       </div>
-      <div class="feature-item">
-        <strong>2. 豊富な積荷描写（Open & Tarp Cargo）</strong>
-        <span>船内には木箱（クロス補強）、木製樽（ワイン・塩・油）、穀物麻袋、材木束を配置。中央の主要荷倉はオリーブグリーンの防水幌（ターポリン）で覆われ、菱形ネットロープで強固に縛り付けられています。</span>
+
+      <!-- 小型船 スループ -->
+      <div class="card">
+        <h2>小型船 (スループ) <span class="badge">沿岸・港湾</span></h2>
+        <div class="canvas-container water" id="sloop-container"></div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 16m / 全幅 5.0m</strong>
+          <ul>
+            <li>単一マスト、ブーム、バウスプリット</li>
+            <li>小型ハッチ・格子、船尾ティラー舵</li>
+          </ul>
+        </div>
       </div>
-      <div class="feature-item">
-        <strong>3. 長大な操舵オール「スイープ」（Giant Sweep Oar）</strong>
-        <span>川下り船の命とも言える装備。急流や蛇行する川で船首の向きを水流に維持するため、船尾ピボットから斜め後方へ突き出す約4.5mの大櫂と、船頭が操るティラーハンドルを備えています。</span>
+
+      <!-- 中型船 キャラベル -->
+      <div class="card">
+        <h2>中型船 (キャラベル) <span class="badge">外洋航海</span></h2>
+        <div class="canvas-container water" id="caravel-container"></div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 25m / 全幅 7.5m</strong>
+          <ul>
+            <li>3本マスト（フォア・メイン・ミズン）、ラティーンヤード</li>
+            <li>積載テンダーボート、キャプスタン、船尾クォーターデッキ</li>
+          </ul>
+        </div>
       </div>
-      <div class="feature-item">
-        <strong>4. 河川航行の実用装備（Deck Equipment）</strong>
-        <span>浅瀬を押すための2本の長い竹/木製竿（プッシュポール）、未舗装の河岸へ渡すための渡し板（ギャングプランク）、橋梁通過時に倒して格納する倒立式マスト（Tabernacle）を装備。</span>
-      </div>
-      <div class="feature-item">
-        <strong>5. 船尾の木造小屋（Deckhouse / Cuddy）</strong>
-        <span>数週間にわたる川下り生活を支えるため、船尾には板葺き屋根の船頭小屋（クディ）を設置。暖炉/調理用ストーブの煙突や天窓、舵取りデッキへの出入口が設けられています。</span>
-      </div>
-      <div class="feature-item">
-        <strong>6. City Editor 統合</strong>
-        <span>City Editorのツールバーから「川荷船 (バージ)」を選択して配置可能。回転ハンドルによる角度変更、メートル単位での拡大縮小・幅比率の自由変更にも完全対応しています。</span>
+
+      <!-- 大型船 ガレオン -->
+      <div class="card">
+        <h2>大型船 (ガレオン) <span class="badge">遠洋主戦</span></h2>
+        <div class="canvas-container water" id="galleon-container"></div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 42m / 全幅 11.5m</strong>
+          <ul>
+            <li>ビークヘッド、多段船尾楼（ポープデッキ）</li>
+            <li>4本マスト・多段ヤード、大型ピナス長艇、船尾3基ランタン</li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
 
-  <script type="module">
-    // スタンドアロンSVGファイルをフェッチして埋め込み
-    fetch('./river-barge.svg')
-      .then(res => res.text())
-      .then(svgText => {
-        document.getElementById('barge-container').innerHTML = svgText;
-      })
-      .catch(() => {
-        // フォールバック
-        document.getElementById('barge-container').innerHTML = '<iframe src="./river-barge.svg" style="border:none;width:100%;height:100%;"></iframe>';
-      });
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      if (tabId === 'temples') {
+        document.querySelector('.tab-btn:first-child').classList.add('active');
+        document.getElementById('tab-temples').classList.add('active');
+      } else {
+        document.querySelector('.tab-btn:last-child').classList.add('active');
+        document.getElementById('tab-ships').classList.add('active');
+      }
+    }
   </script>
 </body>
 </html>

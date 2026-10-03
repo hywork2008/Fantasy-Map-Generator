@@ -1013,7 +1013,8 @@ export function renderEditorSvg(
           rotation: cityElement.rotation,
           id: cityElement.id,
           className: isPickSelected ? "ce-is-selected cg-is-selected" : "",
-          isPickSelected
+          isPickSelected,
+          templeType: cityElement.templeType
         });
         templeNode.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
         templeNode.setAttribute("pointer-events", tool === "select" ? "all" : "none");
@@ -2839,8 +2840,9 @@ export const STANDALONE_SVG_STYLE = `
   .ce-temple-shadow { fill: rgba(18, 22, 25, 0.28); }
   .ce-temple-base { fill: #b8b5ad; stroke: #38352e; stroke-width: 0.7px; stroke-linejoin: round; }
   .ce-temple-buttresses { fill: #9e9b93; stroke: #38352e; stroke-width: 0.5px; }
-  .ce-temple-nave, .ce-temple-transept, .ce-temple-apse, .ce-temple-crossing, .ce-temple-westwork { stroke-linejoin: round; }
+  .ce-temple-nave, .ce-temple-transept, .ce-temple-apse, .ce-temple-crossing, .ce-temple-westwork, .ce-temple-chancel, .ce-temple-porch, .ce-temple-roof { stroke-linejoin: round; }
   .ce-temple-spire-diagonal { stroke-linecap: round; }
+  .ce-megalith-stone, .ce-megalith-portal { stroke-linejoin: round; }
 `;
 
 export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {

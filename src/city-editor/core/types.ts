@@ -178,6 +178,8 @@ export type FeatureGroup = EdgeFeatureGroup | RiverGroup;
 
 export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree" | "ship";
 
+export type TempleType = "basilica" | "chapel" | "shrine" | "megalith";
+
 export interface CityElement {
   id: Id;
   kind: ElementKind;
@@ -189,6 +191,7 @@ export interface CityElement {
   rotation?: number;
   locked: boolean;
   shipType?: "small" | "medium" | "large" | "barge";
+  templeType?: TempleType;
 }
 
 export interface LandmarkPolygon {
