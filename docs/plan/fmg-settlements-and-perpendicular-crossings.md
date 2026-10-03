@@ -618,3 +618,13 @@ CEのdescriptor parserは不正boundsとdescriptor frame外のboundsを拒否す
 検証: descriptor拡大/明示予算/コピー/原点・都市規模維持、非対称遠岸でのfit停止、収まる小都市のfit継続、共有リンク往復、不正/overflow/frame外bounds拒否を含む関連3ファイル45テストが通過。型検査、Biome、構成lint、world writer検査も通過。
 
 これは必要表示範囲の保存・読込み・小都市縮小までの実装である。確定W/D/Eと物理河岸の新descriptor、CE固定橋描画、generate中の地形クリップ/最終frame検証、市街地と広域地形の生成範囲分離は未実装であり、最終CE表示に河岸が残る保証や旧斜交橋問題の解消として扱わない。
+
+### 段階3のCE固定断面preview契約・専用SVG入口（2026-10-04）
+
+`exportFixedBurgCrossings`を追加した。現在環境で再検証された登録snapshotから、共有施設ごとのW/D/E、q/接線/法線、source geometryVersion、方式、対応する全物理水域ring、局所軸の直線またはcubic制御点とparameterを取り出す。世界メートル原点から都市中心のlocal east/northへ平行移動と南北反転だけを適用する。橋・岸の再推定、平滑化、clipによる新橋台、移設は行わない。全幅通過callbackを必須とし、施設数/全水域頂点数に上限を持つ。出力を凍結し、W/D/Eの全幅を保持するrequiredBoundsを付ける。全河川ringをrequiredBoundsへ強制的に含めることはせず、局所接続の必要範囲として扱う。
+
+共通`FixedBurgCrossings` schema 1とbounded JSON形状検査を追加した。ID/version/未知field/有限値/水域ringを検査し、局所軸のparameterにおけるqと微分が接線と一致すること、法線の直交性、qから最寄りの水際がWと一致すること、E→D→W→q→W→D→Eの厳密な順序/一直線、全幅のrequiredBounds内包含を確認する。データpreviewの検証であり、FMGの地形/外交/費用やsession認証をJSONから復活させるものではない。
+
+CEの`drawFixedBurgCrossings`は専用SVG groupへ物理水域ring、E→D/D→Eの短い進入、D→Dの橋床を出力するopt-in入口である。共有橋床は一施設一回、物理道路幅・butt端を維持し、通常bridgeDecks/riverConnectionsの再発見処理を呼ばない。不正payloadや予算不足では専用groupの古い描画を消す。親側がCE north-up座標の表示変換とframe clipを行う契約であり、境界で新たな橋台を生成しない。
+
+検証には共有橋のworld→CE座標とSVG D端、直線/cubicの軸証拠とJSON往復、凍結、斜交/改変岸/version/不足bounds拒否、予算と現在条件の拒否、失敗時group消去を追加した。これは独立した固定断面previewであり、通常descriptor version 2、CityDocument/生成/既定SVGへの統合、確定した外側道路の曲線受け渡し、物理河岸をCE街区制約へ適用する処理、最終frame視覚検証は未接続。旧斜交橋問題も未解消。

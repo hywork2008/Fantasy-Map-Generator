@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { WorldContext } from "../context/worldContext";
 import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
+import { exportFixedBurgCrossings } from "../services/fixedBurgCrossings";
 import { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
+import { validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { type ApproachCorridorInput, findApproachCorridor } from "./approachCorridorSearch";
 import type { NetworkConnection } from "./constrainedLandNetwork";
 import { evaluateWorldCellLandConnectionProposals } from "./worldCellLandConnectionProposals";
@@ -423,6 +425,19 @@ describe("fresh world adoption and fixed section handoff", () => {
     }
     expect(Object.isFrozen(a)).toBe(true);
     expect(JSON.stringify(f.world)).toBe(before);
+  });
+  it("exports the current cubic river derivative and physical banks to a CE-local preview", () => {
+    const f = sessionFixture();
+    expect(f.session.commit(f.prepare()).status).toBe("committed");
+    const evaluated = f.run(),
+      context = getWorldLandProposalContext(evaluated)!;
+    const budgets = { maxFacilities: 10, maxWaterVertices: 10000 };
+    const exported = exportFixedBurgCrossings(f.session.snapshot, context, [85, 50], budgets);
+    if (!("crossings" in exported)) throw Error(exported.reason);
+    expect(exported.crossings.crossings[0].witness.kind).toBe("cubic");
+    expect(validFixedBurgCrossings(JSON.parse(JSON.stringify(exported.crossings)), budgets)).toBe(true);
+    expect(exported.crossings.crossings).toHaveLength(1);
+    expect(exported.crossings.crossings[0].tangent[1]).toBeLessThan(0);
   });
   it("adds a second city approach to an already adopted bridge without duplicating the facility", () => {
     const f = sessionFixture();

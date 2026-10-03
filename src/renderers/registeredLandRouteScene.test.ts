@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { drawFixedBurgCrossings } from "../city-editor/render/fixedBurgCrossings";
 import { type ApproachCorridorInput, findApproachCorridor } from "../generators/approachCorridorSearch";
 import {
   buildConstrainedLandNetwork,
@@ -8,8 +9,10 @@ import {
 } from "../generators/constrainedLandNetwork";
 import { createLandConnectionRegistry } from "../generators/landConnectionAdoption";
 import { type CrossingCandidateInput, createProvisionalRiverCrossing } from "../generators/riverCrossingCandidates";
+import { exportFixedBurgCrossings } from "../services/fixedBurgCrossings";
 import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "../services/physicalWaterIndex";
 import { buildPolylineRiverAxis, type RiverPoint } from "../services/riverGeometry";
+import { validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { drawRegisteredLandRoutes } from "./draw-registered-land-routes";
 import { buildRegisteredLandRouteScene, type RegisteredRouteSceneSettings } from "./registeredLandRouteScene";
 import { buildRegisteredLandRouteLayers, type RegisteredRoutePolygon } from "./webgl/registeredLandRouteLayers";
@@ -289,5 +292,62 @@ describe("registered route SVG/WebGL physical geometry", () => {
     } finally {
       random.mockRestore();
     }
+  });
+});
+
+describe("CE fixed physical crossing handoff", () => {
+  const budgets = { maxFacilities: 10, maxWaterVertices: 1000 };
+  function exported() {
+    const f = fixture();
+    const result = exportFixedBurgCrossings(f.snapshot, f.current, [30, 10], budgets);
+    if (!("crossings" in result)) throw Error(result.reason);
+    return { ...f, payload: result.crossings };
+  }
+  it("preserves shared D/W/E and river truth under CE north-up translation", () => {
+    const f = exported();
+    expect(f.payload.crossings).toHaveLength(1);
+    const c = f.payload.crossings[0];
+    expect(c.deckA[1]).toBe(10);
+    expect(c.deckA[0] + 30).toBeGreaterThan(5);
+    expect(validFixedBurgCrossings(JSON.parse(JSON.stringify(f.payload)), budgets)).toBe(true);
+    expect(Object.isFrozen(c)).toBe(true);
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    expect(drawFixedBurgCrossings(group, f.payload, budgets)).toBe(true);
+    const decks = group.querySelectorAll("[data-facility-id]");
+    expect(decks).toHaveLength(1);
+    expect(group.querySelectorAll("[data-crossing-approach]")).toHaveLength(2);
+    expect(decks[0].getAttribute("d")).toBe(`M${c.deckA[0]},${c.deckA[1]}L${c.deckB[0]},${c.deckB[1]}`);
+    expect(decks[0].getAttribute("stroke-linecap")).toBe("butt");
+  });
+  it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
+    const f = exported();
+    for (const mutate of [
+      (a: typeof f.payload) => {
+        (a.crossings[0].deckA as number[])[1] += 1;
+      },
+      (a: typeof f.payload) => {
+        (a.crossings[0].waterA as number[])[0] += 1;
+      },
+      (a: typeof f.payload) => {
+        a.crossings[0].geometryVersion += 1;
+      },
+      (a: typeof f.payload) => {
+        a.requiredBounds.minX += 1;
+      }
+    ]) {
+      const raw = structuredClone(f.payload);
+      mutate(raw);
+      expect(validFixedBurgCrossings(raw, budgets)).toBe(false);
+    }
+  });
+  it("clears obsolete preview on malformed data or budget failure", () => {
+    const f = exported(),
+      group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    drawFixedBurgCrossings(group, f.payload, budgets);
+    expect(drawFixedBurgCrossings(group, f.payload, { ...budgets, maxWaterVertices: 1 })).toBe(false);
+    expect(group.childNodes).toHaveLength(0);
+    expect(validFixedBurgCrossings(null, budgets)).toBe(false);
+    f.state.allows = false;
+    expect(exportFixedBurgCrossings(f.snapshot, f.current, [30, 10], budgets)).toHaveProperty("reason");
   });
 });
