@@ -1,3 +1,4 @@
+import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 // FMG burg inputs against the houses City Editor actually draws.
 // The counts are the same core/outskirts footprints the City Editor panel
 // labels 「建物」. `houses` drops landmarks and non-residential outbuildings.
@@ -39,7 +40,9 @@ export interface HousingReportInput {
   roads: number;
   suggestedGates: number;
   historicalPeriod?: string;
+  /** Legacy output alias for the total crossing allowance. */
   maxBridgeSpanMeters?: number;
+  maxBridgeCrossingMeters?: number;
 }
 
 export interface HousingReportOutput {
@@ -185,7 +188,8 @@ export function compareShareHousing(
       roads: roads.length,
       suggestedGates: descriptor.suggestedGates,
       historicalPeriod: descriptor.historicalPeriod,
-      maxBridgeSpanMeters: descriptor.transport?.maxBridgeSpanMeters
+      maxBridgeSpanMeters: resolveBridgeCrossingLimit(descriptor.historicalPeriod, descriptor.transport),
+      maxBridgeCrossingMeters: resolveBridgeCrossingLimit(descriptor.historicalPeriod, descriptor.transport)
     },
     output,
     gap: housingGap(descriptor.burg.dwellings, output.houses),

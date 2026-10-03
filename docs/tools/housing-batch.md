@@ -14,6 +14,8 @@ npm run housing:batch -- temp/housing-selected.csv temp/housing-selected-results
 
 CSVはUTF-8 BOM付きで、Excelでも日本語を読みやすくしている。人口・dwellings・seed・規模・範囲・城壁・港・河川数などの確認用列と、CEに渡す完全な入力である `share_json` を保存する。JSONには道路や河川の形状、地形、生成設定も含む。比較時には元のFMGを必要としない。
 
+`max_bridge_crossing_meters` は時代設定と明示指定から解決した通常橋の横断総延長上限。複数径間を含み、単一支間の長さではない。旧列 `max_bridge_span_meters` は互換用に同じ値を出力する。上限を指定する場合は `share_json` 内の `descriptor.transport.maxBridgeCrossingMeters` を編集する。旧 `maxBridgeSpanMeters` の50m・1,000mは旧デフォルトとして時代別上限へ読み替える。
+
 `share_json` が生成入力の正本で、通常の列は確認用。入力を変更して試す場合はJSON内の対応する値を編集する。例えばdwellingsは `descriptor.burg.dwellings`、生成seedは `seed`。burg_idとJSON内の都市IDは一致させる。source_extent_metersはFMG側の元の範囲を保持する。生成コードの補正を検証する際は、同じ入力CSVをそのまま再利用できる。
 
 比較は都市ごとに新しい生成と建物キャッシュを使い、CEと同じ生成処理を実行する。全都市は時間がかかるので、まず対象を絞って試すことを推奨する。進捗を標準エラーに表示する。既存の出力パスは上書きされる。入力CSVと出力CSVに同じパスを指定しても動作するが、再比較のため入力を別に保存しておくと便利。

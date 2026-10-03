@@ -38,6 +38,7 @@ describe("wide-channel bank clearance", () => {
       "wide-channel-clearance",
       { extentMeters: 1500, cityRadiusMeters: 240 }
     );
+    site.transport = { maxBridgeCrossingMeters: 50 };
     Object.assign(site.rivers[0], {
       widthMeters: 400,
       throughBurgCell: true,
@@ -64,5 +65,32 @@ describe("wide-channel bank clearance", () => {
     const farY = y + (bank === "left" ? -200 : 200);
     expect(pointInPolygon([0, (channel.shoreline[0][1] + farY) / 2], channel.polygon)).toBe(true);
     expect(channel.polygon.slice(channel.shoreline.length).every(p => p[1] === farY)).toBe(true);
+  });
+});
+
+describe("historical crossing policy", () => {
+  it("keeps a Leon-sized river bridgeable when loading an old 50m share", () => {
+    const site = synthSite("smallTown", { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["straight"] }, "leon-policy");
+    site.historicalPeriod = "ageOfExploration";
+    site.transport = { maxBridgeSpanMeters: 50 };
+    Object.assign(site.rivers[0], {
+      widthMeters: 97,
+      throughBurgCell: true,
+      crossesSite: true,
+      segments: [
+        {
+          points: [
+            [-750, -150],
+            [750, -150]
+          ],
+          widthsMeters: [97, 97]
+        }
+      ]
+    });
+    expect(siteToGeography(site).channels).toHaveLength(0);
+    expect(siteToGeography(site).rivers[0].bridgeAllowed).toBe(true);
+    site.rivers[0].segments[0].widthsMeters = [12000, 12000];
+    site.rivers[0].widthMeters = 12000;
+    expect(siteToGeography(site).rivers).toHaveLength(0);
   });
 });

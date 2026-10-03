@@ -1,3 +1,4 @@
+import { resolveBridgeCrossingLimit } from "../../../../utils/bridgeCrossingPolicy";
 // BurgSiteDescriptor → the primitives the S0–S3 pipeline consumes. Pure parsing;
 // no world-map imports. Used for both the synth path and real FMG descriptors —
 // the pipeline never sees the descriptor directly.
@@ -170,18 +171,14 @@ function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number, c
   ];
 }
 
-/** Conservative historical default for descriptors saved before FMG exported
- * its era-aware transport constraint. */
-const MAX_LEGACY_BRIDGE_SPAN_METERS = 50;
-
 type SiteRiver = BurgSiteDescriptor["rivers"][number];
 
-function bridgeSpanMeters(site: BurgSiteDescriptor): number {
-  return site.transport?.maxBridgeSpanMeters ?? MAX_LEGACY_BRIDGE_SPAN_METERS;
+function bridgeCrossingMeters(site: BurgSiteDescriptor): number {
+  return resolveBridgeCrossingLimit(site.historicalPeriod, site.transport);
 }
 
 /** Widest water in the town window. The width at the burg can be bridgeable
- * while a clipped downstream sample is already wider than the era's span. */
+ * while a clipped downstream sample is already wider than the era's supported crossing allowance. */
 function drawnWidthMeters(river: SiteRiver): number {
   let width = river.widthMeters;
   for (const seg of river.segments) {
@@ -192,7 +189,7 @@ function drawnWidthMeters(river: SiteRiver): number {
 
 /** A channel the town's era cannot span, passing through the burg or the city disk. */
 function unbridgeableOnSite(site: BurgSiteDescriptor, river: SiteRiver): boolean {
-  return drawnWidthMeters(river) > bridgeSpanMeters(site) && (river.throughBurgCell || river.crossesSite);
+  return drawnWidthMeters(river) > bridgeCrossingMeters(site) && (river.throughBurgCell || river.crossesSite);
 }
 
 /** Land the burg must keep between the map origin and a wide channel. */
@@ -288,7 +285,7 @@ function offsetPolyline(poly: Point[], distance: number): Point[] {
 }
 
 function extractRivers(site: BurgSiteDescriptor, wideChannelIds: Set<number>): CityGeography["rivers"] {
-  const span = bridgeSpanMeters(site);
+  const crossingLimit = bridgeCrossingMeters(site);
   return (
     site.rivers
       .filter(r => !wideChannelIds.has(r.riverId))
@@ -311,8 +308,8 @@ function extractRivers(site: BurgSiteDescriptor, wideChannelIds: Set<number>): C
           widths: downsampleScalars(widths, RIVER_CORRIDOR_POINTS),
           cityBank: r.cityBank,
           // A road on the world map does not make a channel wider than the era's
-          // span bridgeable. Those channels are water bands, not strokes.
-          bridgeAllowed: drawnWidthMeters(r) <= span,
+          // crossing allowance bridgeable. Those channels are water bands, not strokes.
+          bridgeAllowed: drawnWidthMeters(r) <= crossingLimit,
           joinsWater:
             (r.parentRiverId !== null && wideChannelIds.has(r.parentRiverId)) ||
             r.downstream.terminal === "ocean" ||

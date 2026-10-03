@@ -1,3 +1,4 @@
+import type { BridgeTransport } from "../../utils/bridgeCrossingPolicy";
 // BurgSiteDescriptor — the FMG → City Generator input contract.
 //
 // This is a decoupled TYPE-ONLY copy of the public shape produced by
@@ -109,7 +110,7 @@ export interface BurgSiteDescriptor {
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
   /** Optional City Editor transport constraint; ignored by this generator. */
-  transport?: { maxBridgeSpanMeters: number };
+  transport?: BridgeTransport;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];

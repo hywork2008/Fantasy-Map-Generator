@@ -1,3 +1,4 @@
+import type { BridgeTransport } from "../../../../utils/bridgeCrossingPolicy";
 // BurgSiteDescriptor — the FMG → City Generator input contract.
 //
 // This is a decoupled TYPE-ONLY copy of the public shape produced by
@@ -136,8 +137,8 @@ export interface BurgSiteDescriptor {
   };
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
-  /** Optional on v2 saves; absent means the conservative 50 m legacy cap. */
-  transport?: { maxBridgeSpanMeters: number };
+  /** Total supported crossing allowance; old span-named values are migrated by the shared policy. */
+  transport?: BridgeTransport;
   /** Historical period / era from FMG (e.g. "ageOfExploration"). */
   historicalPeriod?: import("../../types").HistoricalPeriod;
   rivers: BurgSiteRiver[];

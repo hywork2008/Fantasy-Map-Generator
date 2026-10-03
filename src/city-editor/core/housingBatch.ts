@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { worldContext } from "../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
+import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 import { parseIncomingPayload } from "../io/incomingCity";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
 import { burgIdsForTokens, compareShareHousing, loadArchiveWorld } from "./housingReport";
@@ -106,7 +107,8 @@ export async function exportHousingInputs(archive: string, tokens: string[]): Pr
         roads: descriptor.roads.filter(road => road.group !== "searoutes").length,
         suggested_gates: descriptor.suggestedGates,
         historical_period: descriptor.historicalPeriod,
-        max_bridge_span_meters: descriptor.transport?.maxBridgeSpanMeters,
+        max_bridge_span_meters: resolveBridgeCrossingLimit(descriptor.historicalPeriod, descriptor.transport),
+        max_bridge_crossing_meters: resolveBridgeCrossingLimit(descriptor.historicalPeriod, descriptor.transport),
         share_json: JSON.stringify(share)
       }
     ];
@@ -133,6 +135,8 @@ export function compareHousingInputs(
         ...row,
         population: report.input!.population,
         dwellings: report.input!.dwellings,
+        max_bridge_span_meters: report.input!.maxBridgeSpanMeters,
+        max_bridge_crossing_meters: report.input!.maxBridgeCrossingMeters,
         generated: output.generated,
         generation_seed: output.generationSeed,
         buildings: output.buildings,

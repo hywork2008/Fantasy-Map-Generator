@@ -3,6 +3,8 @@ import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
+import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
+import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
@@ -183,9 +185,8 @@ export interface BurgSiteDescriptor {
   };
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
-  /** Local transport constraint for City Editor. Legacy maps use the
-   * conservative medieval value rather than inventing a long bridge. */
-  transport?: { maxBridgeSpanMeters: number };
+  /** Routine supported crossing allowance, derived from historical technology. */
+  transport?: BridgeTransport;
   /** Historical period / era from FMG options (default: "ageOfExploration"). */
   historicalPeriod?: string;
   rivers: BurgSiteRiver[];
@@ -276,7 +277,9 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       biomeId: pack.cells.biomeCode[burg.cell]
     },
     terrain,
-    transport: { maxBridgeSpanMeters: bridgeSpanForPeriod(worldContext.options.historicalPeriod) },
+    transport: {
+      maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(worldContext.options.historicalPeriod ?? "ageOfExploration")
+    },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
     rivers,
     waterbody,
@@ -284,20 +287,6 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     suggestedGates: roadLegCount,
     suggestedArchetype
   };
-}
-
-/** A road bridge over a wider channel becomes a ferry or a port connection.
- * Only explicitly industrial periods are allowed a kilometre-scale span. */
-function bridgeSpanForPeriod(period: typeof worldContext.options.historicalPeriod): number {
-  switch (period) {
-    case "steamEra":
-    case "industrialChemistryEra":
-    case "petroleumEra":
-    case "rocketryEra":
-      return 1000;
-    default:
-      return 50;
-  }
 }
 
 /** Number of land route legs radiating from the burg — used as the watabou `gates` hint. */
