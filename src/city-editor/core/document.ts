@@ -1,4 +1,5 @@
 import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
+import { polygonArea } from "./gen/geom";
 import { buildGrid } from "./gen/grid";
 import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
@@ -76,6 +77,10 @@ export interface CreateGridOptions {
   /** Override the preset window so an FMG descriptor's frame is used as-is. */
   extentMeters?: number;
   cityRadiusMeters?: number;
+  /** Evolution only. Replace the nominal 50 m block with the median town-cell width. */
+  measureBlockSize?: boolean;
+  /** Explicit evolution block width. Ignored for a hex grid, which uses its side length. */
+  blockSizeMeters?: number;
 }
 
 export function isCitySizePreset(value: unknown): value is CitySizePreset {
@@ -99,6 +104,63 @@ export function sizePresetForExtent(extentMeters: number): CitySizePreset {
 /** Outer-wall gate ceiling for the preset nearest to this window. */
 export function maxWallGatesForExtent(extentMeters: number): number {
   return CITY_SIZE_PRESETS[sizePresetForExtent(extentMeters)].maxWallGates;
+}
+
+const TOWN_PRESET_ORDER: CitySizePreset[] = ["micro", "tiny", "small", "medium", "large"];
+/** Centre cells of the evolution spiral, as a fraction of extent / sqrt(site count). */
+const EVOLUTION_CENTER_WIDTH_FACTOR = 0.63;
+/** A house row plus a lane. Narrower centre cells leave the curtain without dwellings. */
+const MIN_TOWN_CELL_METERS = 32;
+/** Patch-count slider bounds in the Document panel. */
+const MIN_PATCHES = 6;
+const MAX_PATCHES = 48;
+
+export interface FittedTownFrame {
+  size: CitySizePreset;
+  extentMeters: number;
+  cityRadiusMeters: number;
+  nPatches: number;
+}
+
+/**
+ * FMG floors every town window at 1,500 m, so a hamlet of radius ~80 m is a speck
+ * on a Small map and the curtain encloses one cell. When that floor (or any
+ * similarly oversized window) is in effect, pick the Map size whose town disk
+ * matches a hand-drawn city, then choose an evolution patch count that keeps
+ * the centre cells wide enough for dwellings. The radius itself stays in true metres.
+ * Returns null when the window already frames the town.
+ */
+export function fitUndersizedTownFrame(cityRadiusMeters: number, extentMeters: number): FittedTownFrame | null {
+  if (!(cityRadiusMeters > 0) || !(extentMeters > 0)) return null;
+  const naturalExtent = cityRadiusMeters * 6;
+  if (extentMeters <= naturalExtent * 1.25) return null;
+  let size = sizePresetForExtent(cityRadiusMeters / 0.33);
+  while (size !== "large" && CITY_SIZE_PRESETS[size].extentMeters < cityRadiusMeters * 2.5) {
+    size = TOWN_PRESET_ORDER[TOWN_PRESET_ORDER.indexOf(size) + 1];
+  }
+  const fittedExtent = CITY_SIZE_PRESETS[size].extentMeters;
+  return {
+    size,
+    extentMeters: fittedExtent,
+    cityRadiusMeters,
+    nPatches: nPatchesForTownCells(fittedExtent)
+  };
+}
+
+/** Largest patch count whose centre cells stay wide enough for a dwelling row. */
+export function nPatchesForTownCells(extentMeters: number): number {
+  const raw = ((EVOLUTION_CENTER_WIDTH_FACTOR * extentMeters) / MIN_TOWN_CELL_METERS) ** 2 / 8;
+  return Math.max(MIN_PATCHES, Math.min(MAX_PATCHES, Math.round(raw)));
+}
+
+function medianTownCellMeters(cells: Cell[], cityRadiusMeters: number): number {
+  const areas = cells
+    .filter(cell => Math.hypot(cell.centroid[0], cell.centroid[1]) <= Math.max(cityRadiusMeters, 1))
+    .map(cell => Math.abs(polygonArea(cell.polygon)))
+    .filter(area => area > 0)
+    .sort((a, b) => a - b);
+  const mid = areas[Math.floor(areas.length / 2)];
+  return mid ? Math.max(1, Math.round(Math.sqrt(mid))) : BLOCK_SIZE_METERS;
 }
 
 /** A Voronoi cell is one macro block. The presets all retain a 50 m block target. */
@@ -140,6 +202,8 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
     blockSizeMeters = hexSizeMeters;
   } else if (grid === "evolution") {
     cells = buildPatchCells({ extentMeters, ...patchParams }, makeRng(seed));
+    if (options.measureBlockSize) blockSizeMeters = medianTownCellMeters(cells, cityRadiusMeters);
+    else if (options.blockSizeMeters && options.blockSizeMeters > 0) blockSizeMeters = options.blockSizeMeters;
   } else {
     const params: CityParams = {
       seed,
@@ -149,6 +213,7 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
       lloydPasses: 1
     };
     cells = buildGrid(params, EMPTY_GEO, makeRng(seed)).at(-1)?.cells ?? [];
+    if (options.blockSizeMeters && options.blockSizeMeters > 0) blockSizeMeters = options.blockSizeMeters;
   }
   const document = documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters);
   document.gridKind = grid;

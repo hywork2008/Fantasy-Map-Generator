@@ -247,6 +247,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let gridSeed = randomSeed();
   let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND, seed: gridSeed });
   let gridKind: GridKind = DEFAULT_GRID_KIND;
+  /** Fitted hamlet import: the scale bar's cell length follows the mesh, not 50 m. */
+  let measureTownCells = false;
   let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
   let history = new DocumentHistory(documentState);
   // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
@@ -652,7 +654,8 @@ export function mountCityEditor(root: HTMLElement): void {
       seed: gridSeed,
       hexSizeMeters,
       patchParams: { ...gridEvoParams },
-      ...importedFrame()
+      ...importedFrame(),
+      measureBlockSize: measureTownCells
     });
     history = new DocumentHistory(documentState, "New grid");
     generationLog.reset();
@@ -776,6 +779,9 @@ export function mountCityEditor(root: HTMLElement): void {
   //     parameter slider rebuilds the preview live and lands on the final
   //     stage — the same result as the "Preview grid evolution" button. ---
   const gridParamLabels: HTMLLabelElement[] = [];
+  const gridParamControls: Partial<
+    Record<"nPatches" | "relaxCount" | "relaxPasses", { slider: HTMLInputElement; readout: HTMLSpanElement }>
+  > = {};
   for (const { key, caption, min, max } of [
     { key: "nPatches", caption: "Patches (nPatches)", min: 6, max: 48 },
     { key: "relaxCount", caption: "Relax K (centre sites)", min: 0, max: 200 },
@@ -790,8 +796,17 @@ export function mountCityEditor(root: HTMLElement): void {
       readout.textContent = slider.value;
       runGridEvo(); // live — same output as the Preview button (~25 ms)
     });
+    gridParamControls[key] = { slider, readout };
     gridParamLabels.push(label(caption, control));
   }
+  const syncGridParamControls = (): void => {
+    for (const key of ["nPatches", "relaxCount", "relaxPasses"] as const) {
+      const control = gridParamControls[key];
+      if (!control) continue;
+      control.slider.value = String(gridEvoParams[key]);
+      control.readout.textContent = control.slider.value;
+    }
+  };
   const gridEvoBuildButton = makeButton("▶ Preview grid evolution", () => runGridEvo());
   const gridEvoReseedButton = makeIconButton("🎲", "New scatter seed", () => {
     gridEvoSeed = randomSeed();
@@ -4491,6 +4506,7 @@ export function mountCityEditor(root: HTMLElement): void {
       hexSizeMeters: gridKind === "hex" ? hexSizeMeters : undefined,
       gridSeed,
       patchParams: gridKind === "evolution" ? { ...gridEvoParams } : undefined,
+      measureBlockSize: measureTownCells,
       settings: {
         ...(documentState.fabric?.generation?.settings ?? generateSettings),
         historicalPeriod: documentState.historicalPeriod ?? generateSettings.historicalPeriod
@@ -4520,6 +4536,7 @@ export function mountCityEditor(root: HTMLElement): void {
   function useStandaloneSite(): void {
     delete generateSettings.descriptor;
     importedOrigin = null;
+    measureTownCells = false;
     forgetIncomingCity();
     syncGenerateControls();
     showNotice("Standalone site — geography controls unlocked");
@@ -4531,6 +4548,8 @@ export function mountCityEditor(root: HTMLElement): void {
     gridKind = share.grid;
     hexSizeMeters = share.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
     if (share.patchParams) Object.assign(gridEvoParams, share.patchParams);
+    syncGridParamControls();
+    measureTownCells = share.measureBlockSize === true;
     size.value = share.size;
     gridKindSelect.value = gridKind;
     hexSizeInput.value = String(hexSizeMeters);
@@ -4551,7 +4570,8 @@ export function mountCityEditor(root: HTMLElement): void {
       hexSizeMeters,
       patchParams: { ...gridEvoParams },
       extentMeters: share.descriptor?.frame.extentMeters,
-      cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters
+      cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters,
+      measureBlockSize: measureTownCells
     });
     history = new DocumentHistory(documentState, share.descriptor ? "Imported site" : "Shared city");
     generationLog.reset();

@@ -11,7 +11,14 @@
 // copy in core/gen/site/burgSiteDescriptor (DESCRIPTOR_VERSION gates incompatible
 // payloads). Keep CITY_SITE_KEY in sync with src/controllers/burg-editor.ts.
 
-import { type CitySizePreset, type GridKind, isCitySizePreset, sizePresetForExtent } from "../core/document";
+import {
+  type CitySizePreset,
+  fitUndersizedTownFrame,
+  type GridKind,
+  isCitySizePreset,
+  sizePresetForExtent
+} from "../core/document";
+import { DEFAULT_PATCH_PARAMS } from "../core/gen/patches";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
@@ -34,6 +41,8 @@ export interface CityEditorShare {
   hexSizeMeters?: number;
   gridSeed?: string;
   patchParams?: { nPatches: number; relaxCount: number; relaxPasses: number };
+  /** Evolution import whose block width should follow the fitted town cells. */
+  measureBlockSize?: boolean;
   settings: Omit<GenerationSettings, "descriptor">;
   descriptor?: BurgSiteDescriptor;
 }
@@ -69,15 +78,25 @@ export function parseIncomingPayload(json: string): CityEditorShare | null {
 }
 
 export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
+  const fit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
+  const fitted = fit ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } } : descriptor;
   return {
     kind: CITY_EDITOR_SHARE_KIND,
     version: CITY_EDITOR_SHARE_VERSION,
     seed: descriptor.burg.seed,
     grid: "evolution",
-    size: sizePresetForExtent(descriptor.frame.extentMeters),
+    size: fit?.size ?? sizePresetForExtent(descriptor.frame.extentMeters),
     gridSeed: descriptor.burg.seed,
+    patchParams: fit
+      ? {
+          nPatches: fit.nPatches,
+          relaxCount: DEFAULT_PATCH_PARAMS.relaxCount,
+          relaxPasses: DEFAULT_PATCH_PARAMS.relaxPasses
+        }
+      : undefined,
+    measureBlockSize: fit ? true : undefined,
     settings: { config: structuredClone(DEFAULT_SITE_CONFIG) },
-    descriptor
+    descriptor: fitted
   };
 }
 
@@ -88,6 +107,7 @@ export function buildShare(input: {
   hexSizeMeters?: number;
   gridSeed?: string;
   patchParams?: CityEditorShare["patchParams"];
+  measureBlockSize?: boolean;
   settings: GenerationSettings;
   descriptor?: BurgSiteDescriptor;
 }): CityEditorShare {
@@ -103,6 +123,7 @@ export function buildShare(input: {
   if (input.hexSizeMeters != null) share.hexSizeMeters = input.hexSizeMeters;
   if (input.gridSeed != null) share.gridSeed = input.gridSeed;
   if (input.patchParams) share.patchParams = { ...input.patchParams };
+  if (input.measureBlockSize) share.measureBlockSize = true;
   if (input.descriptor) share.descriptor = structuredClone(input.descriptor);
   return share;
 }
@@ -219,6 +240,7 @@ function asShare(raw: unknown): CityEditorShare | null {
   if (typeof raw.gridSeed === "string" && raw.gridSeed) share.gridSeed = raw.gridSeed;
   const patch = asPatchParams(raw.patchParams);
   if (patch) share.patchParams = patch;
+  if (raw.measureBlockSize === true) share.measureBlockSize = true;
   if (raw.descriptor !== undefined) {
     const descriptor = asDescriptor(raw.descriptor);
     if (!descriptor) return warnShape("share.descriptor");
