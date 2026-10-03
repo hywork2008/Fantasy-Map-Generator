@@ -19,6 +19,7 @@ import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./g
 import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { MoatReservation } from "./moats";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
+import { cellInsideWater, dryRuns, lineHitsWater, waterPolygons } from "./waterGeometry";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -54,7 +55,6 @@ import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph, graphEdgeKey, vertexKey } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
 import {
-  clipPolylineOutsidePolygon,
   isSimplePolygon,
   nearestOnPolyline,
   pointInPolygon,
@@ -1298,6 +1298,7 @@ interface Plan {
   /** Closed water polygon from S1, or null when landlocked. Used by the G2
    * plausibility filter in `applyPlan` (wet wall edges) and tests. */
   waterPolygon: Point[] | null;
+  channelPolygons?: Point[][];
   /** Resolved `settings.streets.avoidSea` so `applyPlan` can drop wet walls
    * without taking the whole settings object. */
   avoidSea: boolean;
@@ -1339,23 +1340,18 @@ interface MeshBorderLoop {
   cellIds: number[];
 }
 
-/** Cells inside a wide-channel polygon become water. A band that covers the
- * burg is skipped so the town stays centred on dry land. */
+/** Keep continuous water even when no coarse face is wholly wet.
+ * Only wholly covered cells become water; partial cells use the exact reservation. */
 function applyWideChannels(
   cells: Cell[],
   channels: NonNullable<CityGeography["channels"]>,
   sea: Set<number>
 ): NonNullable<CityGeography["channels"]> {
   if (!channels.length || !cells.length) return [];
-  const origin = cells.reduce((best, cell) =>
-    cell.centroid[0] ** 2 + cell.centroid[1] ** 2 < best.centroid[0] ** 2 + best.centroid[1] ** 2 ? cell : best
-  );
   const applied: NonNullable<CityGeography["channels"]> = [];
   for (const channel of channels) {
-    if (pointInPolygon([0, 0], channel.polygon) || pointInPolygon(origin.centroid, channel.polygon)) continue;
-    const wet = cells.filter(cell => cell.id !== origin.id && pointInPolygon(cell.centroid, channel.polygon));
-    if (!wet.length) continue;
-    for (const cell of wet) sea.add(cell.id);
+    const wet = cells.filter(cell => pointInPolygon(cell.centroid, channel.polygon));
+    for (const cell of wet) if (cellInsideWater(cell.polygon, channel.polygon)) sea.add(cell.id);
     applied.push(channel);
   }
   return applied;
@@ -1366,7 +1362,7 @@ function applyWideChannels(
 function keepCitySide(lines: Point[][], polygon: Point[]): Point[][] {
   const out: Point[][] = [];
   for (const line of lines) {
-    const runs = clipPolylineOutsidePolygon(line, polygon);
+    const runs = dryRuns(line, [polygon]);
     if (!runs.length) continue;
     let best = runs[0];
     let bestD = Number.POSITIVE_INFINITY;
@@ -1482,8 +1478,7 @@ export function runPlan(
   const ocean = new Set<number>(
     classified.flatMap(item => (item.kind === "ocean" && item.coast ? [...item.coast.sea] : []))
   );
-  // Wide FMG channels are water cells, not fat strokes. The burg's cell stays
-  // land so the town remains centred on its own bank.
+  // Channel polygons remain authoritative; coarse cells only classify wholly wet land.
   const appliedChannels = applyWideChannels(cells, geo.channels ?? [], sea);
   if (!coast && appliedChannels[0]) {
     coast = {
@@ -1494,6 +1489,7 @@ export function runPlan(
     coastPath = appliedChannels[0].shoreline;
     waterPolygon = appliedChannels[0].polygon;
   }
+  empty.channelPolygons = appliedChannels.map(channel => channel.polygon);
   mark("coast");
   if (stageStep < 2) return { ...empty, sea, ocean, coastPath, waterPolygon };
 
@@ -1993,8 +1989,24 @@ export function runPlan(
   const castleGateRegions = [...preservedCastleIds, ...(castleSite ? [castleSite.faceId] : [])].flatMap(id =>
     currentMesh.faces[id] ? [facePoints(currentMesh, currentMesh.faces[id])] : []
   );
-  const canPlaceTownGate = (p: Point) =>
-    !castleGateRegions.some(r => pointInPolygon(p, r) || nearestOnPolyline(p, [...r, r[0]]).dist < 10);
+  const channelPolygons = empty.channelPolygons ?? [];
+  const gateNearest = nearestVertexLookup(currentMesh, Math.max(1, cellSize));
+  const urbanFaces = new Set([...currentUrban].map(id => currentFaceIdOf[id]));
+  const canPlaceTownGate = (p: Point) => {
+    if (castleGateRegions.some(r => pointInPolygon(p, r) || nearestOnPolyline(p, [...r, r[0]]).dist < 10)) return false;
+    if (!channelPolygons.length) return true;
+    const vertex = gateNearest(p);
+    if (!vertex || channelPolygons.some(polygon => pointInPolygon(p, polygon))) return false;
+    // A wall corner needs a dry inward edge. Otherwise a narrow surveyed
+    // channel can isolate its gate even though both incident faces are land.
+    return Object.values(currentMesh.edges).some(edge => {
+      if (edge.a !== vertex && edge.b !== vertex) return false;
+      if (!edge.leftFace || !edge.rightFace || !urbanFaces.has(edge.leftFace) || !urbanFaces.has(edge.rightFace))
+        return false;
+      const line = [currentMesh.vertices[edge.a].point, currentMesh.vertices[edge.b].point];
+      return !lineHitsWater(line, channelPolygons) && !castleGateRegions.some(region => lineHitsWater(line, [region]));
+    });
+  };
 
   const placed = markWaterGate(
     placeGates(
@@ -2214,6 +2226,7 @@ export function runPlan(
     coastPath,
     waterPolygon,
     avoidSea: streetOpts.avoidSea,
+    channelPolygons: empty.channelPolygons,
     rivers,
     urban: currentUrban,
     outskirts: currentOutskirts,
@@ -2245,6 +2258,7 @@ function planningDebugDocument(
   const next = clone(source);
   if (plan.mesh) next.mesh = clone(plan.mesh);
   const ids = plan.faceIdOf ?? faceIdOf;
+  next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   delete next.fabric;
   next.featureGroups = next.featureGroups.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
@@ -2332,6 +2346,7 @@ function applyPlan(
     cells = plan.cells!;
     faceIdOf = plan.faceIdOf!;
   }
+  next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   // Keep the active morphology even when routing rejects before town finish.
   next.layout = plan.layout ?? source.layout;
@@ -2511,6 +2526,11 @@ function applyPlan(
         plan.avoidSea && plan.waterPolygon
           ? splitDryWallRuns(loop.points, loop.segments, plan.waterPolygon)
           : [loop.segments];
+      for (const ref of loop.segments) {
+        const edge = mesh.edges[ref.edgeId];
+        if (lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
+          openEdges.add(edge.id);
+      }
       for (const segments of runs.flatMap(run => unbannedRuns(run, openEdges))) {
         if (segments.length < 1) continue;
         appendGeneratedGroup({
@@ -2908,7 +2928,11 @@ function applyPlan(
         }
       }
     }
+    const channelEdges = Object.values(mesh.edges)
+      .filter(edge => lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
+      .map(edge => edge.id);
     const banned = new Set<Id>([
+      ...channelEdges,
       ...kindEdgeIds(next, "river"),
       ...kindEdgeIds(next, "wall"),
       ...internalPlazaEdges,
@@ -2918,6 +2942,7 @@ function applyPlan(
     const recordBans = (ids: Iterable<Id>, reason: string) => {
       for (const id of ids) banReasons.set(id, [...(banReasons.get(id) ?? []), reason]);
     };
+    recordBans(channelEdges, "water-area: 連続した水路内の辺");
     recordBans(kindEdgeIds(next, "river"), "river-edge: 川の辺");
     recordBans(kindEdgeIds(next, "wall"), "wall-edge: 城壁の辺");
     recordBans(internalPlazaEdges, "plaza-interior: 広場の内部辺");

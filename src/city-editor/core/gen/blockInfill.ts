@@ -3,6 +3,7 @@ import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Id, Point } from "../types";
+import { dryRuns, polygonHitsWater, waterPolygons } from "../waterGeometry";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import {
@@ -122,6 +123,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   ]).filter(
     lot =>
       !moat.hitsPolygon(lot.polygon) &&
+      !polygonHitsWater(lot.polygon, waterPolygons(document)) &&
       (document.mesh.faces[lot.faceId]?.properties.locked ||
         document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
         !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
@@ -156,21 +158,34 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   return {
     ...fabric,
     buildings: nonMillBuildings,
-    lanes: fabric.lanes.flatMap(lane => moat.dryRuns(lane.points).map(points => ({ ...lane, points }))),
+    lanes: fabric.lanes.flatMap(lane =>
+      moat
+        .dryRuns(lane.points)
+        .flatMap(run => dryRuns(run, waterPolygons(document)))
+        .map(points => ({ ...lane, points }))
+    ),
     entrances: new Map(
       [...fabric.entrances].map(([id, points]) => [id, points.filter(point => !moat.hitsPoint(point))])
     ),
     farms: fabric.farms.filter(
-      farm => !landmarkReservationHits(document, farm.polygon) && !moat.hitsPolygon(farm.polygon)
+      farm =>
+        !landmarkReservationHits(document, farm.polygon) &&
+        !moat.hitsPolygon(farm.polygon) &&
+        !polygonHitsWater(farm.polygon, waterPolygons(document))
     ),
     openSpaces,
     watermills,
     parcels:
-      document.landmarks?.length || moat.parts.length
+      document.landmarks?.length || moat.parts.length || document.waterAreas?.length
         ? fabric.parcels?.map(parcel => ({
             ...parcel,
             buildings: parcelBuildings.get(parcel.id) ?? [],
-            access: parcel.access.flatMap(access => moat.dryRuns(access.points).map(points => ({ ...access, points }))),
+            access: parcel.access.flatMap(access =>
+              moat
+                .dryRuns(access.points)
+                .flatMap(run => dryRuns(run, waterPolygons(document)))
+                .map(points => ({ ...access, points }))
+            ),
             openSpaces: parcel.openSpaces.filter(
               space => !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon)
             )

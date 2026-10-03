@@ -19,7 +19,7 @@ export interface BurgSiteRiver {
   widthMeters: number;
   /** Downstream flow azimuth at the closest approach (compass degrees). */
   axisAzimuthDeg: number;
-  /** Unsigned distance (m) from the town center to the (bank-snapped) centerline. */
+  /** Unsigned distance (m) from the town center to the physical centerline. */
   offsetMeters: number;
   /** offsetMeters / cityRadiusMeters. 0 → bisects the town, >= 1 → outside the core. */
   offsetRatio: number;
@@ -29,9 +29,9 @@ export interface BurgSiteRiver {
   crossesSite: boolean;
   /** FMG world truth: the river flows through the burg's own cell. */
   throughBurgCell: boolean;
-  /** Raw map-geometry distance (m) before bank snapping. */
+  /** Physical map-geometry distance; equal to offsetMeters in new exports. */
   rawOffsetMeters: number;
-  /** True when the centerline was rigidly translated so the town sits on the bank. */
+  /** Legacy bank-translation flag. New FMG exports always set false. */
   snappedToBank: boolean;
   /** Centerline polyline(s) clipped to the window, upstream → downstream, local meters. */
   segments: { points: [number, number][]; widthsMeters: number[] }[];

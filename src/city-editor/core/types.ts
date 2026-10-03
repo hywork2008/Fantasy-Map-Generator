@@ -348,6 +348,8 @@ export interface CityDocument {
   landmarkAssets?: LandmarkAsset[];
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
+  /** Continuous imported water, independent of the editable street-block mesh. */
+  waterAreas?: { kind: "river"; polygon: Point[] }[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];

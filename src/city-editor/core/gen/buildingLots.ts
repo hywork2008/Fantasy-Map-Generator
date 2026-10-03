@@ -3,6 +3,7 @@ import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortificat
 import { facePoints, indexMeshEdges } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Face, Id, Point } from "../types";
+import { polygonHitsWater, waterPolygons } from "../waterGeometry";
 import { buildBlockFabric } from "./blockInfill";
 import { orientedRectPolylineDistance, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
@@ -71,7 +72,7 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
       document,
       lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
     )
-  ).filter(lot => !moat.hitsPolygon(lot.polygon));
+  ).filter(lot => !moat.hitsPolygon(lot.polygon) && !polygonHitsWater(lot.polygon, waterPolygons(document)));
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {

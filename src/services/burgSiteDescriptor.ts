@@ -48,18 +48,9 @@ export interface BurgSiteRiver {
   crossesSite: boolean;
   /** FMG world-model truth: the river flows through the burg's own cell ("the town is on this river"). */
   throughBurgCell: boolean;
-  /**
-   * Raw map-geometry distance (m) from the town center to the centerline before
-   * bank snapping. FMG draws rivers exaggeratedly wide and shifts river burgs
-   * toward the DRAWN bank, so for on-river towns this is an artifact of drawn
-   * width (often ~1 km) rather than real-world separation.
-   */
+  /** Physical map-geometry distance; equal to offsetMeters for new exports. */
   rawOffsetMeters: number;
-  /**
-   * True when the centerline was rigidly translated so the town center sits on
-   * the bank (offset = trueWidth/2 + bank margin). Applied only to
-   * throughBurgCell rivers; shape, flow azimuth and bank side are preserved.
-   */
+  /** Legacy flag retained for saved descriptors. New exports never move only the river. */
   snappedToBank: boolean;
   /**
    * Centerline polyline(s) clipped to the extent box, upstream → downstream,
@@ -68,7 +59,7 @@ export interface BurgSiteRiver {
   segments: { points: [number, number][]; widthsMeters: number[] }[];
   /** FMG's direct downstream/mainstem river, if this is a tributary. */
   parentRiverId: number | null;
-  /** Actual drawn water edges, clipped to the extent box, local meters. */
+  /** Physical water edges, clipped to the extent box, local meters. */
   leftBankSegments: [number, number][][];
   rightBankSegments: [number, number][][];
   /** Regional downstream context; it never expands the urban drawing window. */
@@ -207,9 +198,6 @@ const EXTENT_MIN_M = 1500;
 const EXTENT_MAX_M = 4500;
 /** Minimum believable river width for bridge-scale rendering. */
 const RIVER_MIN_WIDTH_M = 2;
-/** Bank strip between the town center and an on-cell river: min(this cap, ratio × cityRadius). */
-const RIVER_BANK_MARGIN_MAX_M = 150;
-const RIVER_BANK_MARGIN_RATIO = 0.3;
 /** Relief (m) of the town center above its surroundings that suggests a hilltop site. */
 const HILLTOP_RELIEF_M = 30;
 
@@ -402,6 +390,7 @@ function clipPolylineToBox(points: [number, number][], half: number): [number, n
 interface PolylineApproach {
   dist: number;
   index: number;
+  t: number;
   tangent: [number, number];
   crossZ: number;
   px: number;
@@ -430,7 +419,7 @@ function closestApproachToOrigin(points: { x: number; y: number }[]): PolylineAp
     const ty = dy / length;
     // z-component of tangent × (origin - closest point); > 0 → origin left of flow
     const crossZ = tx * -py - ty * -px;
-    best = { dist, index: i, tangent: [tx, ty], crossZ, px, py };
+    best = { dist, index: i, t, tangent: [tx, ty], crossZ, px, py };
   }
   return best;
 }
@@ -482,7 +471,7 @@ function collectRivers(
     if (meandered.length < 2) continue;
 
     const banks = Rivers.getRiverBanks(meandered, river.widthFactor ?? 1, river.sourceWidth ?? 0.1);
-    let points: WeightedPoint[] = meandered.map(([x, y], index) => {
+    const points: WeightedPoint[] = meandered.map(([x, y], index) => {
       const [lx, ly] = toLocal(x, y);
       // `Rivers.getWidth` is in map-distance units. The local frame below is
       // already scale-normalised to meters, so width must use that same factor.
@@ -494,34 +483,11 @@ function collectRivers(
     if (!rawApproach) continue;
     const rawOffsetMeters = rn(rawApproach.dist, 1);
 
-    // FMG draws rivers exaggeratedly wide and shifts river burgs toward the
-    // DRAWN bank, so the raw centerline distance of an on-cell river is a
-    // drawn-width artifact (often ~1 km — far outside the city window). Rigidly
-    // translate the centerline so the town center sits on the bank in
-    // true-width space; shape, azimuth and bank side are preserved.
+    // Keep physical centreline, banks, roads and terrain in the same burg-local
+    // frame. The rendered bank exaggeration must not move only the river.
     const throughBurgCell = river.cells.includes(burg.cell);
-    let snappedToBank = false;
-    if (throughBurgCell) {
-      const trueHalfWidth = points[rawApproach.index].w / 2;
-      const target = trueHalfWidth + Math.min(RIVER_BANK_MARGIN_MAX_M, cityRadiusMeters * RIVER_BANK_MARGIN_RATIO);
-      let ux: number;
-      let uy: number;
-      if (rawApproach.dist > 1) {
-        ux = -rawApproach.px / rawApproach.dist;
-        uy = -rawApproach.py / rawApproach.dist;
-      } else {
-        // centerline passes (almost) through the town center — pick the side the
-        // same way FMG's shiftTowardsRiverBank does (cell parity)
-        const side = burg.cell % 2 ? 1 : -1;
-        ux = -rawApproach.tangent[1] * side;
-        uy = rawApproach.tangent[0] * side;
-      }
-      const shift = rawApproach.dist - target;
-      points = points.map(point => ({ x: point.x + ux * shift, y: point.y + uy * shift, w: point.w }));
-      snappedToBank = true;
-    }
-
-    const approach = (snappedToBank ? closestApproachToOrigin(points) : null) ?? rawApproach;
+    const snappedToBank = false;
+    const approach = rawApproach;
 
     const segments = clipWeightedPolylineToBox(points, half);
     // Use the true-width banks in the same local metre frame as `points`.
@@ -541,7 +507,10 @@ function collectRivers(
       riverId: river.i,
       name: river.name ?? "",
       type: river.type ?? "",
-      widthMeters: points[approach.index].w,
+      widthMeters: rn(
+        points[approach.index].w + (points[approach.index + 1].w - points[approach.index].w) * approach.t,
+        1
+      ),
       axisAzimuthDeg: azimuthDeg(approach.tangent[0], approach.tangent[1]),
       offsetMeters,
       offsetRatio: rn(offsetMeters / cityRadiusMeters, 2),

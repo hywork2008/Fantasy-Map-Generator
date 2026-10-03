@@ -225,6 +225,34 @@ function buildChannel(
   margin: number,
   halfExtent: number
 ): NonNullable<CityGeography["channels"]>[number] | null {
+  // FMG's surveyed physical banks are authoritative; do not push the near
+  // bank into the channel to make room for the generated town. Legacy snapped
+  // surveys may contain exaggerated banks; reconstruct their channel below.
+  const left = river.leftBankSegments?.flat() ?? [];
+  const right = river.rightBankSegments?.flat() ?? [];
+  if (!river.snappedToBank && left.length >= 2 && right.length >= 2) {
+    const near = river.cityBank === "left" ? left : right;
+    const far = river.cityBank === "left" ? right : left;
+    const hit = nearestOnPolyline([0, 0], near);
+    return {
+      polygon: [...near, ...far.reverse()],
+      shoreline: near,
+      waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
+    };
+  }
+  // A kilometre-scale river can have only its town-side bank in the local
+  // frame. Keep that water boundary even when its centreline is off-screen.
+  if (!river.snappedToBank && (left.length >= 2 || right.length >= 2)) {
+    const near = left.length >= 2 ? left : right;
+    const sign = Math.sign(sideOfPolyline([0, 0], near)) || (river.cityBank === "left" ? 1 : -1);
+    const far = offsetPolyline(near, -sign * widthMeters);
+    const hit = nearestOnPolyline([0, 0], near);
+    return {
+      polygon: [...near, ...far.reverse()],
+      shoreline: near,
+      waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
+    };
+  }
   const centerline = extendPastFrame(centerlineOf(river), halfExtent);
   if (centerline.length < 2 || widthMeters <= 0) return null;
   const side = sideOfPolyline([0, 0], centerline);

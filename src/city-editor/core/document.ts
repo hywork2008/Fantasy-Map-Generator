@@ -289,6 +289,15 @@ function isDocument(value: unknown): value is CityDocument {
     (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
     (doc.coastalOceanFaceIds === undefined ||
       (Array.isArray(doc.coastalOceanFaceIds) && doc.coastalOceanFaceIds.every(id => typeof id === "string"))) &&
+    (doc.waterAreas === undefined ||
+      (Array.isArray(doc.waterAreas) &&
+        doc.waterAreas.every(
+          area =>
+            area?.kind === "river" &&
+            Array.isArray(area.polygon) &&
+            area.polygon.length >= 3 &&
+            area.polygon.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
+        ))) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&

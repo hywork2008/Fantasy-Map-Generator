@@ -182,7 +182,7 @@ describe("getBurgSiteDescriptor", () => {
     expect(terrain.heightfield.waterMask.every(mask => mask === 0)).toBe(true);
   });
 
-  it("snaps an on-cell river to the town bank in true-width space", () => {
+  it("preserves on-cell river coordinates rather than moving it independently of roads", () => {
     // Relocate the burg onto a river cell, offset 0.3 map units (300 m) east of
     // the centerline — mimicking FMG's shift of river burgs toward the drawn bank.
     const burg = worldContext.pack.burgs[1];
@@ -195,11 +195,9 @@ describe("getBurgSiteDescriptor", () => {
     const river = descriptor.rivers[0];
 
     expect(river.throughBurgCell).toBe(true);
-    expect(river.snappedToBank).toBe(true);
+    expect(river.snappedToBank).toBe(false);
     expect(river.rawOffsetMeters).toBeCloseTo(300, 0);
-    // snapped so the town center sits on the bank: trueWidth/2 + min(150, 0.3 × radius)
-    const expectedOffset = river.widthMeters / 2 + 0.3 * descriptor.frame.cityRadiusMeters;
-    expect(river.offsetMeters).toBeCloseTo(expectedOffset, 0);
+    expect(river.offsetMeters).toBe(river.rawOffsetMeters);
     expect(river.crossesSite).toBe(true);
     // town east of the southward-flowing river → left bank, flow azimuth unchanged
     expect(river.cityBank).toBe("left");
@@ -214,6 +212,23 @@ describe("getBurgSiteDescriptor", () => {
     expect(descriptor.rivers[0].offsetRatio).toBeGreaterThan(1);
     // no crossing river → falls back to crossroads on flat terrain
     expect(descriptor.suggestedArchetype).toBe("crossroads");
+  });
+
+  it("interpolates the closest-point width instead of using the upstream vertex", () => {
+    worldContext.pack.burgs[1].y = 98;
+    worldContext.pack.cells.fl[4] = 2000;
+    const river = getBurgSiteDescriptor(1)!.rivers[0];
+    const segment = river.segments[0];
+    const i = segment.points.findIndex(
+      (p, index) => index + 1 < segment.points.length && p[1] >= 0 && segment.points[index + 1][1] <= 0
+    );
+    expect(i).toBeGreaterThanOrEqual(0);
+    const t = segment.points[i][1] / (segment.points[i][1] - segment.points[i + 1][1]);
+    expect(river.widthMeters).toBeCloseTo(
+      segment.widthsMeters[i] + (segment.widthsMeters[i + 1] - segment.widthsMeters[i]) * t,
+      0
+    );
+    expect(river.widthMeters).not.toBe(segment.widthsMeters[i]);
   });
 
   it("uses the same map scale for river widths, centreline and physical banks", () => {

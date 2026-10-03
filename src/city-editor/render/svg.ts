@@ -44,6 +44,7 @@ import type {
   Point,
   Tool
 } from "../core/types";
+import { dryRuns, waterPolygons } from "../core/waterGeometry";
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
@@ -183,6 +184,13 @@ export function renderEditorSvg(
     );
   }
   svg.appendChild(cells);
+  const continuousWater = element("g", { class: "ce-continuous-water", "pointer-events": "none" });
+  for (const [index, ring] of waterPolygons(document).entries()) {
+    continuousWater.appendChild(
+      element("path", { d: polygon(ring), class: "ce-face ce-face--sea", "data-water-area": String(index) })
+    );
+  }
+  svg.appendChild(continuousWater);
 
   if (town && document.coastalOceanFaceIds?.length) {
     const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
@@ -664,6 +672,8 @@ export function renderEditorSvg(
         if (concealWall) runs = runs.flatMap(run => clipPolylineToExterior(run, concealWall));
       }
     }
+    if (group.kind === "road" || group.kind === "wall")
+      runs = runs.flatMap(run => dryRuns(run, waterPolygons(document)));
     if (group.kind === "road") {
       const width = group.style.widthMeters;
       let moat = moatReservations.get(width);
