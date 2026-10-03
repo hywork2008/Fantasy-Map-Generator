@@ -342,3 +342,57 @@ describe("bounded world crossing enumeration", () => {
     expect(registry.waterValidationStats.validations).toBe(3);
   });
 });
+
+describe("river version archives", () => {
+  const budgets = { maxJsonCharacters: 100000, maxRivers: 10 };
+  function saved() {
+    const world = fixture();
+    const registry = new WorldRiverGeometryRegistry();
+    registry.get(world, world.pack.rivers[0], "km", settings);
+    world.pack.rivers[0].sourceWidth = 0.5;
+    const result = registry.get(world, world.pack.rivers[0], "km", settings);
+    const json = registry.saveVersions(world, "km", settings, "world", budgets)!;
+    return { world, registry, result, json };
+  }
+  it("preserves versions and advances the allocator after restoration", () => {
+    const f = saved();
+    const restored = WorldRiverGeometryRegistry.restoreVersions(f.json, f.world, "km", settings, "world", budgets)!;
+    const result = restored.get(f.world, f.world.pack.rivers[0], "km", settings);
+    expect(result.geometryVersion).toBe(f.result.geometryVersion);
+    expect("geometry" in result).toBe(true);
+    if ("geometry" in result) expect(result.geometry.axis.geometryVersion).toBe(f.result.geometryVersion);
+    f.world.pack.rivers[0].sourceWidth = 0.6;
+    expect(restored.get(f.world, f.world.pack.rivers[0], "km", settings).geometryVersion).toBeGreaterThan(
+      f.result.geometryVersion
+    );
+  });
+  it("rejects changed source, precision, units and world identity", () => {
+    const f = saved();
+    const restore = (unit = "km", config = settings, identity = "world") =>
+      WorldRiverGeometryRegistry.restoreVersions(f.json, f.world, unit, config, identity, budgets);
+    expect(restore("mi")).toBeNull();
+    expect(restore("km", { ...settings, curveAlpha: 0.2 })).toBeNull();
+    expect(restore("km", settings, "another")).toBeNull();
+    f.world.pack.rivers[0].sourceWidth = 0.6;
+    expect(restore()).toBeNull();
+  });
+  it("rejects malformed archives, allocator reuse, missing rivers and oversized input", () => {
+    const f = saved();
+    const restore = (json: string) =>
+      WorldRiverGeometryRegistry.restoreVersions(json, f.world, "km", settings, "world", budgets);
+    for (const json of ["null", "{", "[]", "1"]) expect(restore(json)).toBeNull();
+    const raw = JSON.parse(f.json);
+    raw.nextVersion = raw.rivers[0].geometryVersion;
+    expect(restore(JSON.stringify(raw))).toBeNull();
+    raw.nextVersion = 10;
+    raw.rivers = [];
+    expect(restore(JSON.stringify(raw))).toBeNull();
+    expect(
+      WorldRiverGeometryRegistry.restoreVersions(f.json, f.world, "km", settings, "world", {
+        ...budgets,
+        maxJsonCharacters: 1
+      })
+    ).toBeNull();
+    expect(f.registry.saveVersions(f.world, "km", settings, "world", { ...budgets, maxRivers: 0 })).toBeNull();
+  });
+});

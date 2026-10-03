@@ -224,7 +224,7 @@ function freezeResult<T>(value: T): T {
 }
 /** Session-scoped cache. Versions are explicit monotonic IDs, not coordinate hashes.
  * Geometry, physical widths, units and precision changes invalidate success AND failure.
- * Version persistence and committing geometry to a saved world belong to migration.
+ * Archives preserve versions only when current source and precision match exactly.
  */
 export class WorldRiverGeometryRegistry {
   private waterValidation = new PhysicalWaterValidationCache();
@@ -244,6 +244,115 @@ export class WorldRiverGeometryRegistry {
   private cacheHits = 0;
   get stats() {
     return { builds: this.buildCount, cacheHits: this.cacheHits };
+  }
+  /** Save all current rivers; functions and mutable world arrays are never archived. */
+  saveVersions(
+    world: Readonly<WorldContext>,
+    distanceUnit: string,
+    settings: WorldRiverGeometrySettings,
+    worldIdentity: string,
+    budgets: { maxJsonCharacters: number; maxRivers: number }
+  ): string | null {
+    if (!validVersionArchiveBudgets(budgets) || !worldIdentity || world.pack.rivers.length > budgets.maxRivers)
+      return null;
+    const ids = new Set<number>();
+    const rivers: { riverId: number; geometryVersion: number; sourceKey: string }[] = [];
+    for (const river of world.pack.rivers) {
+      if (ids.has(river.i)) return null;
+      ids.add(river.i);
+      const result = this.get(world, river, distanceUnit, settings);
+      if (!("geometry" in result)) return null;
+      rivers.push({
+        riverId: river.i,
+        geometryVersion: result.geometryVersion,
+        sourceKey: this.entries.get(world.pack)!.get(river.i)!.key
+      });
+    }
+    const json = JSON.stringify({
+      schemaVersion: 1,
+      algorithmVersion: 1,
+      worldIdentity,
+      nextVersion: this.nextVersion,
+      rivers
+    });
+    return json.length <= budgets.maxJsonCharacters ? json : null;
+  }
+  /** Build a new registry atomically; saved data never changes the supplied world. */
+  static restoreVersions(
+    json: string,
+    world: Readonly<WorldContext>,
+    distanceUnit: string,
+    settings: WorldRiverGeometrySettings,
+    worldIdentity: string,
+    budgets: { maxJsonCharacters: number; maxRivers: number }
+  ): WorldRiverGeometryRegistry | null {
+    if (
+      !validVersionArchiveBudgets(budgets) ||
+      !worldIdentity ||
+      json.length > budgets.maxJsonCharacters ||
+      world.pack.rivers.length > budgets.maxRivers
+    )
+      return null;
+    let saved: {
+      schemaVersion: number;
+      algorithmVersion: number;
+      worldIdentity: string;
+      nextVersion: number;
+      rivers: { riverId: number; geometryVersion: number; sourceKey: string }[];
+    };
+    try {
+      saved = JSON.parse(json);
+    } catch {
+      return null;
+    }
+    if (
+      !saved ||
+      Object.keys(saved).sort().join() !== "algorithmVersion,nextVersion,rivers,schemaVersion,worldIdentity" ||
+      saved.schemaVersion !== 1 ||
+      saved.algorithmVersion !== 1 ||
+      saved.worldIdentity !== worldIdentity ||
+      !Number.isSafeInteger(saved.nextVersion) ||
+      saved.nextVersion < 1 ||
+      !Array.isArray(saved.rivers) ||
+      saved.rivers.length !== world.pack.rivers.length
+    )
+      return null;
+    const currentRivers = new Map(world.pack.rivers.map(river => [river.i, river]));
+    if (currentRivers.size !== world.pack.rivers.length) return null;
+    const registry = new WorldRiverGeometryRegistry();
+    const ids = new Set<number>(),
+      versions = new Set<number>();
+    const entries = new Map<number, { key: string; result: WorldRiverGeometryResult }>();
+    for (const record of saved.rivers) {
+      if (
+        !record ||
+        Object.keys(record).sort().join() !== "geometryVersion,riverId,sourceKey" ||
+        !Number.isSafeInteger(record.riverId) ||
+        record.riverId < 0 ||
+        ids.has(record.riverId) ||
+        !Number.isSafeInteger(record.geometryVersion) ||
+        record.geometryVersion < 1 ||
+        record.geometryVersion >= saved.nextVersion ||
+        versions.has(record.geometryVersion) ||
+        typeof record.sourceKey !== "string"
+      )
+        return null;
+      ids.add(record.riverId);
+      versions.add(record.geometryVersion);
+      const river = currentRivers.get(record.riverId);
+      if (!river) return null;
+      const current = registry.get(world, river, distanceUnit, settings);
+      const key = registry.entries.get(world.pack)!.get(river.i)!.key;
+      if (!("geometry" in current) || key !== record.sourceKey) return null;
+      const result = freezeResult(
+        buildWorldRiverGeometry(world, river, distanceUnit, record.geometryVersion, settings)
+      );
+      if (!("geometry" in result)) return null;
+      entries.set(river.i, { key, result });
+    }
+    registry.entries.set(world.pack, entries);
+    registry.nextVersion = saved.nextVersion;
+    return registry;
   }
   get(
     world: Readonly<WorldContext>,
@@ -275,9 +384,20 @@ export class WorldRiverGeometryRegistry {
       this.cacheHits++;
       return previous.result;
     }
+    if (!Number.isSafeInteger(this.nextVersion) || this.nextVersion >= Number.MAX_SAFE_INTEGER)
+      throw new RangeError("River geometry version allocator exhausted");
     const result = freezeResult(buildResolvedGeometry(river.i, this.nextVersion++, source, scale, settings));
     entries.set(river.i, { key, result });
     this.buildCount++;
     return result;
   }
+}
+
+function validVersionArchiveBudgets(budgets: { maxJsonCharacters: number; maxRivers: number }): boolean {
+  return (
+    Number.isSafeInteger(budgets.maxJsonCharacters) &&
+    budgets.maxJsonCharacters > 0 &&
+    Number.isSafeInteger(budgets.maxRivers) &&
+    budgets.maxRivers >= 0
+  );
 }

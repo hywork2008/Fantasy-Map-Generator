@@ -592,3 +592,9 @@ CE:
 検証: 新規archive11ケースを含む関連18ファイル・計253テストが通過。共有橋/契約/revisionの往復、確定円弧/片方向、再構築networkの検索と区間出力、schema/単位/world不一致、JSON/全graph予算、欠損/重複/未知IDと契約、改変橋床/岸/version/寸法/方式、実端点移動・新水域・支持/水上通過拒否、費用更新と非有限値、必須辺追加費用と変更スコア、未知field/数値overflow、property順変更、凍結・元状態非変更・RNG非消費を確認した。型検査、Biome、構成lint、world writer検査も通過。
 
 このarchiveは独立した接続保存契約であり、通常`.map`のwriter/loaderやworld施設表への登録、永続ID割当/river geometryVersionの復元adapterにはまだ接続していない。現在の物理河川snapshot・完全な湖/海・費用/地形/外交条件は復元前に呼び出し側が解決する必要がある。旧道路/徒歩/水運の接続移行、自動河岸グラフ、通常生成、既定SVG/WebGL、CE descriptor/最終frameは残り、旧経路の斜交橋描画問題は未解消。次はworld側の保存正本と河川versionの復元、CEへ固定形状を渡す契約を進める。
+
+### 段階3の河川geometryVersion archive（2026-10-04）
+
+`WorldRiverGeometryRegistry.saveVersions/restoreVersions`に、schema/algorithm version、worldIdentity、河川ごとの解決済みsource・物理scale・精度/サンプリング設定のkey、geometryVersion、採番上限の保存契約を追加した。復元は現在の全河川集合と入力keyの完全一致を確認し、現在の入力から物理形状を再構築して保存versionを与えた新registryを返す。関数やworld配列を保存せず、worldや既存registryを変更しない。入力不一致、未知フィールド、重複ID/version、欠落河川、versionの再利用、schema/algorithm/world不一致、JSON文字数/河川数予算超過は復元を拒否する。以後の変更には保存した採番上限から新versionを割り当て、unsafe integerへの採番は拒否する。
+
+再起動時のversionリセットによる接続archiveの不一致を防ぐ独立adapterであり、接続復元より先にこのregistryを復元して現在のcrossingInputAtへ渡す。通常`.map` writer/loaderの統合、河川と接続archiveの一括保存、永続施設ID、CEへの固定形状descriptorは未接続。旧経路の斜交橋描画問題も未解消。復元・採番継続・入力変更拒否・不正データ/予算の回帰テストを追加した。
