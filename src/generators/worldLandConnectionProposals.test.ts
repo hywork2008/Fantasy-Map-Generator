@@ -4,6 +4,7 @@ import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
 import { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
 import { type ApproachCorridorInput, findApproachCorridor } from "./approachCorridorSearch";
 import type { NetworkConnection } from "./constrainedLandNetwork";
+import { evaluateWorldCellLandConnectionProposals } from "./worldCellLandConnectionProposals";
 import {
   evaluateWorldLandConnectionProposals,
   type WorldConnectionPair,
@@ -302,5 +303,59 @@ describe("complete finite bridge passage footprint", () => {
     ]);
     expect(bridgePassageFootprint([0, 0], [0, 0], 2)).toBeNull();
     expect(bridgePassageFootprint([1e20, 1e20], [1e20 + 1e5, 1e20], 2)).toBeNull();
+  });
+});
+
+describe("current world cell policy proposal adapter", () => {
+  function cellFixture() {
+    const f = fixture();
+    f.world.pack.cells.i = new Uint16Array([0, 1, 2]);
+    f.world.pack.cells.state = new Uint16Array([0, 1, 0]);
+    const strips = [
+      [0, 49.8],
+      [49.8, 50.2],
+      [50.2, 100]
+    ];
+    f.world.pack.cells.v = strips.map((_, i) => [i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3]);
+    f.world.pack.vertices = {
+      p: strips.flatMap(([a, b]) => [
+        [a, 0],
+        [b, 0],
+        [b, 100],
+        [a, 100]
+      ])
+    } as WorldContext["pack"]["vertices"];
+    const input = {
+      ...f.input,
+      cellPolicySettings: { maxCells: 10, maxVertices: 100, maxClipOperations: 1000, maxRemainingPieces: 100 },
+      cellRules: { allowsCell: (c: { stateId: number }) => c.stateId !== 2, supportsCell: () => true }
+    };
+    return { ...f, input, run: () => evaluateWorldCellLandConnectionProposals(f.world, "km", input) };
+  }
+  it("evaluates current permissions over bridge water and rebuilds after state changes", () => {
+    const f = cellFixture();
+    expect(f.run()).toHaveProperty("diagnostics.shared.status", "proposed");
+    f.world.pack.cells.state[1] = 2;
+    const denied = f.run();
+    expect(denied.status).toBe("evaluated");
+    expect(denied.diagnostics.rejected).toContainEqual({ facilityId: 100, reason: "passage-blocked" });
+    f.world.pack.cells.state[1] = 1;
+    expect(f.run()).toHaveProperty("diagnostics.shared.status", "proposed");
+  });
+  it("preserves unresolved geometry and policy budgets through boolean callbacks", () => {
+    const f = cellFixture();
+    f.input.cellPolicySettings.maxClipOperations = 1;
+    expect(f.run()).toMatchObject({
+      status: "unresolved",
+      reason: "world-environment",
+      environmentReason: "clip-budget"
+    });
+    f.input.cellPolicySettings.maxClipOperations = 1000;
+    f.world.pack.cells.v[0][0] = 999;
+    expect(f.run()).toMatchObject({
+      status: "unresolved",
+      reason: "world-environment",
+      environmentReason: "invalid-cell"
+    });
   });
 });
