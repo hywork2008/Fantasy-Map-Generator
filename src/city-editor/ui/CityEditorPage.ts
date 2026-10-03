@@ -5198,6 +5198,32 @@ function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face
   return target?.getAttribute(`data-${kind}`) ?? null;
 }
 
+let highestPanelZIndex = 10;
+
+export function bringPanelToFront(panel: HTMLElement): void {
+  const allPanels = Array.from(document.querySelectorAll<HTMLElement>(".ce-panel"));
+  let maxZ = highestPanelZIndex;
+  allPanels.forEach(p => {
+    const z = parseInt(p.style.zIndex || "", 10);
+    if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+  });
+  const currentZ = parseInt(panel.style.zIndex || "", 10);
+  if (Number.isNaN(currentZ) || currentZ < maxZ) {
+    if (maxZ > 9000) {
+      const sorted = allPanels
+        .map(p => ({ panel: p, z: parseInt(p.style.zIndex || "4", 10) }))
+        .sort((a, b) => a.z - b.z);
+      sorted.forEach((item, index) => {
+        item.panel.style.zIndex = `${10 + index}`;
+      });
+      highestPanelZIndex = 10 + sorted.length;
+      maxZ = highestPanelZIndex;
+    }
+    highestPanelZIndex = maxZ + 1;
+    panel.style.zIndex = `${highestPanelZIndex}`;
+  }
+}
+
 function floatingWindow(className: string, title: string): FloatingWindow {
   const root = div(`ce-panel ${className}`);
   const titlebar = div("ce-panel-titlebar");
@@ -5225,6 +5251,8 @@ function floatingWindow(className: string, title: string): FloatingWindow {
   actions.append(collapse, grip);
   titlebar.append(heading(title), actions);
   root.append(titlebar, content);
+  root.addEventListener("pointerdown", () => bringPanelToFront(root), true);
+  root.addEventListener("focusin", () => bringPanelToFront(root));
   makeWindowDraggable(root, titlebar);
   return { root, content };
 }
@@ -5272,6 +5300,7 @@ function makeWindowDraggable(windowNode: HTMLElement, handle: HTMLElement): void
     if (event.button !== 0) return;
     if (event.target instanceof Element && event.target.closest("button, a, input, select, textarea")) return;
     event.preventDefault();
+    bringPanelToFront(windowNode);
     const bounds = windowNode.getBoundingClientRect();
     startX = event.clientX;
     startY = event.clientY;
