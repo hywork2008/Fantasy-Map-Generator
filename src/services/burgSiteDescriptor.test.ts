@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { BurgSiteDescriptor as CESite } from "../city-editor/core/gen/site/burgSiteDescriptor";
+import { siteToGeography } from "../city-editor/core/gen/site/siteInput";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -141,11 +143,40 @@ describe("getBurgSiteDescriptor", () => {
 
   it("exports water contact even when the on-cell river is outside the city window", () => {
     worldContext.pack.cells.r[0] = 1;
+    worldContext.pack.cells.fl[0] = 1000;
+    const river = worldContext.pack.rivers[0];
+    river.cellHydrology = {
+      0: { waterDepth: 3.25, surfaceVelocity: 1.2, waterTemperature: 14 },
+      6: { waterDepth: 8, surfaceVelocity: 2, waterTemperature: 15 }
+    };
     const burg = worldContext.pack.burgs[1];
+    burg.port = 1;
     burg.x = 1000;
     burg.y = 1000;
     const descriptor = getBurgSiteDescriptor(1)!;
-    expect(descriptor.rivers).toHaveLength(0);
+    expect(descriptor.rivers).toHaveLength(1);
+    expect(descriptor.rivers[0]).toMatchObject({
+      segments: [],
+      leftBankSegments: [],
+      rightBankSegments: [],
+      depthMeters: 3.25,
+      hydrology: { cellId: 0, waterDepth: 3.25, surfaceVelocity: 1.2, waterTemperature: 14 },
+      navigationVessel: { draftMeters: 0.8, beamMeters: 4, airDraftMeters: 4 },
+      crossing: { depthMeters: 3.25, navigationRequired: true }
+    });
+    const ceSite = structuredClone(descriptor) as CESite;
+    ceSite.roads = [
+      {
+        ...ceSite.roads[0],
+        group: "roads",
+        path: [
+          [0, 0],
+          [-ceSite.frame.extentMeters, 0]
+        ]
+      }
+    ];
+    const geo = siteToGeography(ceSite, true);
+    expect(geo.rivers[0].crossing?.depthMeters).toBe(3.25);
     expect(descriptor.burg.waterAccess).toMatchObject({ river: true, riverId: 1 });
     expect(burg.waterAccess).toEqual(descriptor.burg.waterAccess);
   });

@@ -33,6 +33,9 @@ import { updateBurgWaterAccess } from "./burgWaterAccess";
 export interface BurgSiteRiver {
   /** Estimated local water depth, not a surveyed navigation depth. */
   depthMeters?: number | null;
+  /** FMG estimate at the burg cell, or nearest sampled river cell. */
+  hydrology?: import("../types/models").RiverCellHydrology & { cellId: number };
+  navigationVessel?: import("../utils/riverCrossing").NavigationVessel;
   crossing?: import("../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
@@ -228,6 +231,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     (burg.y - y) * metersPerMapUnit
   ];
 
+  const waterAccess = updateBurgWaterAccess(burg, pack);
   const rivers = collectRivers(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
   const roads = collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
   const waterbody = collectWaterbody(burg, toLocal, half);
@@ -248,7 +252,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       dwellings: getUrbanDwellings(population),
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
-      waterAccess: updateBurgWaterAccess(burg, pack),
+      waterAccess,
       riverPlacement: burg.riverPlacement,
       citadel: Boolean(burg.citadel),
       plaza: Boolean(burg.plaza),
@@ -468,7 +472,8 @@ function collectRivers(
 
   const results: BurgSiteRiver[] = [];
   for (const river of pack.rivers) {
-    if (!river.cells?.length || !river.cells.some(cell => neighborhood.has(cell))) continue;
+    const frontage = burg.waterAccess?.riverId === river.i;
+    if (!river.cells?.length || (!frontage && !river.cells.some(cell => neighborhood.has(cell)))) continue;
 
     const validPoints = river.points && river.points.length === river.cells.length ? river.points : null;
     const meandered = Rivers.addMeandering(river.cells, validPoints);
@@ -504,7 +509,9 @@ function collectRivers(
     // city window while its actual bank crosses it. Keep it: City Generator
     // turns that bank into an open-water boundary instead of silently dropping
     // the waterway.
-    if (!segments.length && !leftBankSegments.length && !rightBankSegments.length) continue;
+    // A clipped-out frontage still carries its physical survey to CE's
+    // local geometry fallback; clipping must not discard depth or navigation.
+    if (!frontage && !segments.length && !leftBankSegments.length && !rightBankSegments.length) continue;
 
     const widthMeters = rn(
       points[approach.index].w + (points[approach.index + 1].w - points[approach.index].w) * approach.t,
@@ -520,7 +527,9 @@ function collectRivers(
         },
         river.cells.find(c => c >= 0)!
       );
-    const depthMeters = river.cellHydrology?.[nearestCell]?.waterDepth ?? null;
+    const sampleCell = river.cellHydrology?.[burg.cell] ? burg.cell : nearestCell;
+    const hydrology = river.cellHydrology?.[sampleCell];
+    const depthMeters = hydrology?.waterDepth ?? null;
     const waterRoutes = (pack.routes ?? []).filter(
       route =>
         route.group === "searoutes" &&
@@ -528,7 +537,7 @@ function collectRivers(
     );
     const vessel = waterRoutes.some(route => route.navigation !== "river")
       ? SEA_SAILING_VESSEL
-      : waterRoutes.length
+      : waterRoutes.length || (frontage && burg.waterAccess?.port.river)
         ? RIVER_CARGO_VESSEL
         : undefined;
     const siteCrossings = (pack.routes ?? [])
@@ -548,6 +557,8 @@ function collectRivers(
     results.push({
       riverId: river.i,
       depthMeters,
+      ...(hydrology ? { hydrology: { ...hydrology, cellId: sampleCell } } : {}),
+      ...(vessel ? { navigationVessel: { ...vessel } } : {}),
       crossing,
       name: river.name ?? "",
       type: river.type ?? "",

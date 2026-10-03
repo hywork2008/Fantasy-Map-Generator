@@ -717,6 +717,17 @@
           "terminal": "ocean",
           "distanceMeters": 45506,
           "bearingDeg": 115.8
+        },
+        "hydrology": {
+          "surfaceVelocity": 0.22,
+          "waterDepth": 3.09,
+          "waterTemperature": 5.2,
+          "cellId": 1067
+        },
+        "navigationVessel": {
+          "draftMeters": 3.5,
+          "beamMeters": 10,
+          "airDraftMeters": 25
         }
       }
     ],
@@ -1518,7 +1529,52 @@
       "maxBridgeCrossingMeters": 1000
     },
     "historicalPeriod": "ageOfExploration",
-    "rivers": [],
+    "rivers": [
+      {
+        "riverId": 44,
+        "depthMeters": 1.94,
+        "hydrology": {
+          "surfaceVelocity": 0.28,
+          "waterDepth": 1.94,
+          "waterTemperature": 3.6,
+          "cellId": 1401
+        },
+        "navigationVessel": {
+          "draftMeters": 3.5,
+          "beamMeters": 10,
+          "airDraftMeters": 25
+        },
+        "crossing": {
+          "widthMeters": 316.2,
+          "depthMeters": 1.94,
+          "navigationRequired": false,
+          "clearanceMeters": 6,
+          "openingMeters": 60,
+          "kind": "fixedBridge",
+          "reason": "fixedClearance"
+        },
+        "name": "Ithsesath",
+        "type": "River",
+        "widthMeters": 316.2,
+        "axisAzimuthDeg": 110,
+        "offsetMeters": 1504.6,
+        "offsetRatio": 3.57,
+        "cityBank": "left",
+        "crossesSite": false,
+        "throughBurgCell": true,
+        "rawOffsetMeters": 1504.6,
+        "snappedToBank": false,
+        "segments": [],
+        "parentRiverId": null,
+        "leftBankSegments": [],
+        "rightBankSegments": [],
+        "downstream": {
+          "terminal": "ocean",
+          "distanceMeters": 240359,
+          "bearingDeg": 70.3
+        }
+      }
+    ],
     "waterbody": null,
     "roads": [
       {
@@ -2337,6 +2393,17 @@
           "terminal": "ocean",
           "distanceMeters": 160249,
           "bearingDeg": 52.4
+        },
+        "hydrology": {
+          "surfaceVelocity": 0.26,
+          "waterDepth": 2.27,
+          "waterTemperature": 4,
+          "cellId": 1403
+        },
+        "navigationVessel": {
+          "draftMeters": 3.5,
+          "beamMeters": 10,
+          "airDraftMeters": 25
         }
       }
     ],

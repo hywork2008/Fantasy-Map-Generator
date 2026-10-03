@@ -104,7 +104,8 @@ describe("Ky Cuong river ports 3, 8 and 33", () => {
         (city.riverConnections?.length ?? 0) * 2
       );
       if (site.burg.id === 8) {
-        expect(svg.querySelectorAll(".ce-ferry-landing")).toHaveLength(2);
+        expect(city.riverConnections![0].crossing).toMatchObject({ depthMeters: 1.94, kind: "fixedBridge" });
+        expect(svg.querySelector(".ce-bridge-deck")).not.toBeNull();
         const south = [...svg.querySelectorAll(".ce-approach-beyond")].find(
           e => Number(e.getAttribute("y")) > city.frame.extentMeters * 0.4
         );

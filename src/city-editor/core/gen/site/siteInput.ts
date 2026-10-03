@@ -83,7 +83,7 @@ export function siteToGeography(site: BurgSiteDescriptor, imported = false): Cit
             depthMeters: river?.depthMeters,
             period: site.historicalPeriod,
             transport: site.transport,
-            vessel: RIVER_CARGO_VESSEL
+            vessel: river?.navigationVessel ?? RIVER_CARGO_VESSEL
           });
           const prev = townRun.at(-2)!;
           const len = Math.hypot(tip[0] - prev[0], tip[1] - prev[1]);
@@ -142,7 +142,10 @@ function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
   }
   const width = Math.max(8, existing ? drawnWidthMeters(existing) : (site.burg.riverPlacement?.widthMeters ?? 30));
   const bank = existing?.cityBank ?? site.burg.riverPlacement?.bank ?? "left";
-  const tangent = azimuthToVec(existing?.axisAzimuthDeg ?? 90);
+  // Metadata-only surveys have no local course to preserve. Retain the
+  // established fallback orientation while consuming their hydrology.
+  const axis = existing?.segments.some(s => s.points.length >= 2) ? existing.axisAzimuthDeg : 90;
+  const tangent = azimuthToVec(axis);
   const sign = bank === "left" ? 1 : -1;
   const offset = width / 2 + radius * (originInChannel ? 0.9 : 0.45);
   const center: Point = [tangent[1] * sign * offset, -tangent[0] * sign * offset];
@@ -177,7 +180,7 @@ function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
     name: existing?.name ?? "River",
     type: existing?.type ?? "River",
     widthMeters: width,
-    axisAzimuthDeg: existing?.axisAzimuthDeg ?? 90,
+    axisAzimuthDeg: axis,
     offsetMeters: offset,
     offsetRatio: offset / radius,
     rawOffsetMeters: offset,

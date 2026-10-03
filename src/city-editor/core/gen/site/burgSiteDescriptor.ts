@@ -14,6 +14,9 @@ export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossr
 export interface BurgSiteRiver {
   /** Estimated local water depth, not a surveyed navigation depth. */
   depthMeters?: number | null;
+  /** FMG estimate at the burg cell, or nearest sampled river cell. */
+  hydrology?: import("../../../../types/models").RiverCellHydrology & { cellId: number };
+  navigationVessel?: import("../../../../utils/riverCrossing").NavigationVessel;
   crossing?: import("../../../../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
