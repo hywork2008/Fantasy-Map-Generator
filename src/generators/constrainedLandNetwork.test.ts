@@ -125,6 +125,20 @@ function fixture() {
   return { source, environment, corridor, bridge, input, build, search, searchSettings };
 }
 describe("atomic bridge network and direction/history search", () => {
+  it("rechecks whole-water passage policy and does not silently drop a required callback", () => {
+    const f = fixture();
+    let allowed = true;
+    const environment = { ...f.environment, allowsBridgeFootprint: () => allowed };
+    const result = buildConstrainedLandNetwork({ ...f.input, environment });
+    if (!("network" in result)) throw new Error(result.reason);
+    const query = { startNodeId: 1, goalNodeId: 2, settings: f.searchSettings, environment };
+    expect(findConstrainedLandRoute(result.network, query)).toHaveProperty("route");
+    allowed = false;
+    expect(findConstrainedLandRoute(result.network, query)).toMatchObject({ reason: "invalid-geometry" });
+    expect(findConstrainedLandRoute(result.network, { ...query, environment: f.environment })).toMatchObject({
+      reason: "invalid-geometry"
+    });
+  });
   it("checks an isolated public endpoint even for a zero-edge route", () => {
     const f = fixture(),
       n = f.build({ ...f.input, connections: [] });

@@ -3,7 +3,7 @@ import { corridorDelta, corridorUnit } from "../services/approachCorridorGeometr
 import type { RiverPoint } from "../services/riverGeometry";
 import type { WorldRiverGeometryRegistry, WorldRiverGeometrySettings } from "../services/worldRiverGeometry";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
-import type { ApproachCorridorSettings } from "./approachCorridorSearch";
+import type { ApproachCorridorInput, ApproachCorridorSettings } from "./approachCorridorSearch";
 import {
   buildLocalApproachGuides,
   type LocalApproachGuideResult,
@@ -35,7 +35,15 @@ export type WorldCrossingApproachResult =
         | "invalid-crossing";
     }
   | { reason: "guide-unresolved"; side: "A" | "B"; build: LocalApproachGuideResult }
-  | { result: RiverCrossingApproachResult; builds: readonly [LocalApproachGuideResult, LocalApproachGuideResult] };
+  | {
+      result: RiverCrossingApproachResult;
+      builds: readonly [LocalApproachGuideResult, LocalApproachGuideResult];
+      contracts: {
+        crossingInput: Parameters<typeof connectRiverCrossingApproaches>[0]["crossingInput"];
+        approachA: ApproachCorridorInput;
+        approachB: ApproachCorridorInput;
+      };
+    };
 /** Read-only city-to-E geometry gate. It uses city coordinates, never a cell's
  * implicit bank connectivity. Caller supplies complete physical lake/sea water
  * and deterministic terrain/capability evaluation for this world snapshot.
@@ -135,5 +143,19 @@ export function connectWorldRiverCrossingApproaches(
     settings: settings.corridor,
     water
   });
-  return { result, builds: [a, b] };
+  const contract = (guides: typeof a.guides, i: number): ApproachCorridorInput => ({
+    nodes: guides.nodes,
+    startNodeId: guides.startNodeId,
+    goalNodeId: guides.approachNodeId,
+    startTangent: guides.startTangent,
+    goalTangent: corridorUnit(corridorDelta(decks[i], endpoints[i]))!,
+    settings: settings.corridor,
+    water,
+    supportsDryFootprint
+  });
+  return {
+    result,
+    builds: [a, b],
+    contracts: { crossingInput, approachA: contract(a.guides, 0), approachB: contract(b.guides, 1) }
+  };
 }

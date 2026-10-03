@@ -7,6 +7,7 @@ import {
   corridorUnit,
   sameCorridorDirection
 } from "../services/approachCorridorGeometry";
+import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
 import { validWaterPolygon } from "../services/riverPhysicalGeometry";
 import { type ApproachCorridor, type ApproachCorridorInput, validateApproachCorridor } from "./approachCorridorSearch";
@@ -72,6 +73,8 @@ export interface ConstrainedLandNetwork {
   roadWidthMeters: number;
 }
 export interface NetworkEnvironment extends LandRouteGraphEnvironment {
+  /** Whole bridge occupied area, including water; mandatory in world proposal adapters. */
+  allowsBridgeFootprint?: (footprint: readonly RiverPoint[], facilityId: number) => boolean;
   /** Current geometry/version/capability for every referenced facility. Unknown blocks validation. */
   crossingInputAt: (facilityId: number) => CrossingCandidateInput | null;
 }
@@ -124,7 +127,7 @@ export function buildConstrainedLandNetwork(input: {
   maxCorridorPieces: number;
   maxGuideNodes: number;
   maxGuideEdges: number;
-  environment: LandRouteGraphEnvironment;
+  environment: LandRouteGraphEnvironment & Pick<NetworkEnvironment, "allowsBridgeFootprint">;
 }):
   | { network: ConstrainedLandNetwork }
   | { reason: "invalid-input" | "graph-budget" | "invalid-land" | "invalid-bridge" | "invalid-junction" } {
@@ -205,10 +208,18 @@ export function buildConstrainedLandNetwork(input: {
         a = savedCorridor(c.approachA),
         b = savedCorridor(c.approachB);
       const matches = (p: RiverPoint, q: RiverPoint) => p[0] === q[0] && p[1] === q[1];
-      const validate = (source: CrossingCandidateInput, env: LandRouteGraphEnvironment) => {
+      const passage = bridgePassageFootprint(bridge.approachA, bridge.approachB, roadWidthMeters);
+      const requiresPassagePolicy = !!input.environment.allowsBridgeFootprint;
+      const validate = (
+        source: CrossingCandidateInput,
+        env: LandRouteGraphEnvironment & Pick<NetworkEnvironment, "allowsBridgeFootprint">
+      ) => {
         const ta = corridorUnit(corridorDelta(bridge.deckA, bridge.approachA)),
           tb = corridorUnit(corridorDelta(bridge.deckB, bridge.approachB));
         return (
+          !!passage &&
+          (!requiresPassagePolicy || !!env.allowsBridgeFootprint) &&
+          (!env.allowsBridgeFootprint || env.allowsBridgeFootprint(passage, bridge.id)) &&
           source.dimensions.roadWidthMeters === roadWidthMeters &&
           validateProvisionalRiverCrossing(bridge, {
             ...source,
