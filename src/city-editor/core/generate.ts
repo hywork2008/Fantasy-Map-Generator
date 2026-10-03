@@ -88,6 +88,7 @@ import { cultivateRoadside } from "./gen/roadsideFarms";
 import {
   defaultRoadWidthMeters,
   evolutionWallInsetRings,
+  extendCoreToCoast,
   insetWalledCore,
   MIN_SETTLEMENT_AREA_SHARE,
   minExternalRoadsForExtent,
@@ -1509,6 +1510,7 @@ export function runPlan(
   // River crossings still need the established inward curtain routing. Other
   // FMG towns already have a population-scaled radius and retain that core.
   const preserveImportedCore = !!settings.descriptor && geo.rivers.length === 0;
+  const openCoastalCore = program.walls && program.wallPlan?.coast === "open" && sea.size > 0;
   const coreShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
   const urbanRadius = compactCore
     ? params.cityRadiusMeters * Math.sqrt(coreShare)
@@ -1541,7 +1543,7 @@ export function runPlan(
   // Evolution curtains are peeled inward unless the imported core is retained.
   // Route relative to that curtain rather than adding a river setback to the
   // unpeeled settlement.
-  if (!preserveImportedCore && !compactCore && plannedCore && effectiveLayout !== "bram") {
+  if (!preserveImportedCore && !openCoastalCore && !compactCore && plannedCore && effectiveLayout !== "bram") {
     const rings = evolutionWallInsetRings(
       sizePresetForExtent(params.extentMeters),
       seed,
@@ -1702,8 +1704,12 @@ export function runPlan(
   // Grid evolution may then pull a tiny/small curtain in by one or two cells.
   const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
   const split = splitUrbanCore(cells, classification.urban, compactCore ? 1 : walledShare);
-  const urban = plannedCore ?? split.urban;
-  let residentialOutskirts = new Set([...split.residentialOutskirts, ...[...split.urban].filter(id => !urban.has(id))]);
+  // An open curtain must meet the shore; a smaller wall capacity must not
+  // leave a dry ring between the protected core and its natural boundary.
+  const urban = openCoastalCore
+    ? extendCoreToCoast(cells, plannedCore ?? split.urban, classification.urban, sea)
+    : (plannedCore ?? split.urban);
+  let residentialOutskirts = new Set([...classification.urban].filter(id => !urban.has(id)));
   const outskirts = new Set([...classification.outskirts, ...residentialOutskirts]);
   let urbanStages = classification.stages.filter(stage => urban.has(stage.cellId));
   const builtUp = classification.urban;
@@ -1725,7 +1731,7 @@ export function runPlan(
   // leaves the gates unroutable, so Bram keeps the settlement-edge curtain.
   // Imports without bridgeable rivers keep the supplied disk rather than a random inset.
   const insetRings =
-    preserveImportedCore || effectiveLayout === "bram" || outsideRiver
+    preserveImportedCore || openCoastalCore || effectiveLayout === "bram" || outsideRiver
       ? 0
       : evolutionWallInsetRings(sizePresetForExtent(params.extentMeters), seed, gridKind, program.walls, walledShare);
   if (!compactCore && insetRings > 0 && currentUrban.size > 0) {

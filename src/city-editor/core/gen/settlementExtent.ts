@@ -69,6 +69,44 @@ export function splitUrbanCore(cells: Cell[], builtUp: Set<number>, share: numbe
   return { urban, residentialOutskirts };
 }
 
+/** Join a capacity-limited core to its built-up waterfront, keeping the shore
+ * as a natural defense boundary. Paths stay inside the original settlement;
+ * no rural cells are annexed merely to reach distant water. */
+export function extendCoreToCoast(
+  cells: Cell[],
+  core: Set<number>,
+  builtUp: Set<number>,
+  sea: Set<number>
+): Set<number> {
+  const byId = new Map(cells.map(cell => [cell.id, cell]));
+  const shore = new Set([...builtUp].filter(id => byId.get(id)?.neighbors.some(n => sea.has(n))));
+  const result = new Set(core);
+  if (!shore.size || !core.size) return result;
+  const previous = new Map<number, number>();
+  const seen = new Set(core);
+  const queue = [...core];
+  for (let i = 0; i < queue.length; i++) {
+    const id = queue[i];
+    for (const neighbor of byId.get(id)?.neighbors ?? []) {
+      if (seen.has(neighbor) || !builtUp.has(neighbor) || sea.has(neighbor)) continue;
+      seen.add(neighbor);
+      previous.set(neighbor, id);
+      queue.push(neighbor);
+    }
+  }
+  for (const id of shore) {
+    if (!seen.has(id)) continue;
+    let cursor = id;
+    while (!result.has(cursor)) {
+      result.add(cursor);
+      const parent = previous.get(cursor);
+      if (parent === undefined) break;
+      cursor = parent;
+    }
+  }
+  return result;
+}
+
 /** Grid-evolution curtain inset, in cell rings, measured inward from the
  * settlement edge. Tiny moves one cell. Small moves one or two, from the seed.
  * Micro and Medium / Large stay put (those already use an area share). Other

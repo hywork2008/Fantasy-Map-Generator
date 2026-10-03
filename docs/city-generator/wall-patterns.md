@@ -67,14 +67,15 @@ M4b（`design.md §4.2` の S4 / `burg-feature-options.md §4.1`）の初回実�
 | --- | --- | --- |
 | `open` | 壁を描かない。汀線が境界。低い護岸／杭列は任意（`Overlay{quay}` 細） | `port` かつ遠浅（傾斜 `< ~4%`） |
 | `quayWall` | 低い港湾壁（curtain より薄い）+ 水門 1 | 商業港・中規模 |
-| `seaWall` | 本格的な海岸城壁（M4b の現挙動） | 露出海岸・襲撃圏・`citadel`/`capital`、または `port` なし |
+| `seaWall` | 本格的な海岸城壁 | 海からの襲撃に備える明示的な選択、または `port` なし。`citadel`/`capital` とは独立 |
 | `harborBasin` | 壁を海側へ張り出して泊地を囲む + 防波堤モール + 水門 | 要塞化港（`port && citadel`） |
 | `setBack` | 壁を汀線の 1 セル内陸へ。波止場・造船所・倉庫は城壁外 | 中傾斜（`~4–12%`）の岸 |
 
 - `open` でも**エンベロープの海側の辺は残す**（S5/S6 は閉領域を要る）。描画だけ `quay` or 無し。
 - `harborBasin` は水門（`Overlay{gate, water:true}`）を 1、モールは `Overlay{wall}` の短い突堤 2 本。
 - `wallCoast` の既定は §7 の岸 relief 推定 →（無ければ）`port ? "open" : "seaWall"`。UI で上書き可。
-  実装済み（`siteToWallPlan`）：`hasCoast` なら `port && !(citadel||capital) ? "open" : "seaWall"`。
+  実装済み（`siteToWallPlan`）：`hasCoast` なら `port ? "open" : "seaWall"`。首都・城塞フラグは海岸城壁の有無と独立。海からの襲撃に備える港湾都市は `Wall coast: seaWall`（港に開口部を残す場合は `opening`）を明示する。
+  CE の `open` では全周のセル縮小を省略し、城壁内面積を制限したコアも市街地内の海岸へ接続する。海岸側に乾いた外周帯を挟まず、陸側の外壁と海岸線を合わせて都市の境界にする。
 
 ### 3.1 汀線への到達（`reachEnvelopeToShore`）
 
@@ -223,7 +224,7 @@ descriptor に既にある `suggestedArchetype` / `population` / `port` / `citad
 | 立地 | `wallEnvelope` | `wallCoast` | `wallLine` | `wallExtent` |
 | --- | --- | --- | --- | --- |
 | harbor・遠浅・城なし | `hull` | `open` | `polygonal` | `landwardOnly` |
-| harbor・`citadel` / `capital` | `hull` | `harborBasin` or `seaWall` | `organic` | `full` |
+| harbor・`citadel` / `capital` | `hull` | `open`（海からの襲撃に備える場合は明示的に `seaWall` / `opening`） | `organic` | `full` |
 | harbor・段丘 | `hull` | `setBack` | `polygonal` | `full` |
 | harbor・崖 | `sectorPolygon` | `seaWall`（崖上終端） | `organic` crest-follow | `landwardOnly` |
 | riverCrossing | `notchFilled`（河曲を残す） | ── | `organic` + `moatOnLand` | `full` |

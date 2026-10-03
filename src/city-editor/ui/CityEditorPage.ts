@@ -985,9 +985,11 @@ export function mountCityEditor(root: HTMLElement): void {
     seaWallSelect.appendChild(option);
   }
   seaWallSelect.value = generateSettings.config.wall.coast;
-  seaWallSelect.title = "海に面した城壁。1箇所開放は港の前だけ壁を欠きます。";
+  seaWallSelect.title =
+    "首都・城塞とは独立した海側の防備。海からの襲撃に備える場合は全面あり。1箇所開放は港の前だけ壁を欠きます。";
   seaWallSelect.addEventListener("change", () => {
     generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
+    completeResult = null;
   });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
@@ -1293,7 +1295,6 @@ export function mountCityEditor(root: HTMLElement): void {
     label("都市形態", layoutSelect),
     label("建物生成", buildingPatternSelect),
     label("Coast", coastSelect),
-    label("海側の城壁", seaWallSelect),
     label("Rivers", riversSelect),
     label("河川の位置", riverPlacementSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
@@ -1325,6 +1326,7 @@ export function mountCityEditor(root: HTMLElement): void {
     divider(),
     importedBox,
     synthControls,
+    label("海側の城壁", seaWallSelect),
     castleControls,
     moatControls,
     label("城壁内の市街地面積（%）", walledShareInput),

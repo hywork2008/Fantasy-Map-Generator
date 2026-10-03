@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { nearestOnPolyline, pointInPolygon } from "../geom";
 import { DEFAULT_SITE_CONFIG } from "./siteConfig";
-import { siteToGeography } from "./siteInput";
+import { resolveWallPlan, siteToGeography, siteToProgram } from "./siteInput";
 import { synthSite } from "./synthSite";
+
+describe("independent sea defenses", () => {
+  it.each([
+    { capital: false, citadel: false },
+    { capital: true, citadel: false },
+    { capital: false, citadel: true },
+    { capital: true, citadel: true }
+  ])("leaves a harbour open regardless of capital=$capital / castle=$citadel", flags => {
+    const site = synthSite("smallTown", { ...DEFAULT_SITE_CONFIG, coast: "bay" }, "sea-defense");
+    Object.assign(site.burg, { walls: true, port: true, ...flags });
+    const program = siteToProgram(site);
+    expect(program.wallPlan?.coast).toBe("open");
+    expect(resolveWallPlan(program.wallPlan!, { coast: "seaWall" }).coast).toBe("seaWall");
+    site.burg.port = false;
+    expect(siteToProgram(site).wallPlan?.coast).toBe("seaWall");
+  });
+});
 
 describe("wide-channel bank clearance", () => {
   it.each([
