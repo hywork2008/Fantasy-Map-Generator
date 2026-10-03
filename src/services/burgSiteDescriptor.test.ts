@@ -80,6 +80,26 @@ function setupRiverCrossingWorld() {
 
 describe("getBurgSiteDescriptor", () => {
   beforeEach(setupRiverCrossingWorld);
+  it("copies an optional fixed preview into the descriptor and rejects a different town origin", () => {
+    const bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    const fixedCrossings = {
+      schemaVersion: 1 as const,
+      coordinateUnit: "metres" as const,
+      revision: 0,
+      originMeters: [100000, 100000] as [number, number],
+      roadWidthMeters: 2,
+      requiredBounds: bounds,
+      rivers: [],
+      crossings: []
+    };
+    const descriptor = getBurgSiteDescriptor(1, { requiredBounds: bounds, maxExtentMeters: 4500, fixedCrossings })!;
+    expect(descriptor.fixedCrossings).toEqual(fixedCrossings);
+    fixedCrossings.originMeters[0]++;
+    expect(descriptor.fixedCrossings!.originMeters[0]).toBe(100000);
+    expect(() => getBurgSiteDescriptor(1, { requiredBounds: bounds, maxExtentMeters: 4500, fixedCrossings })).toThrow(
+      "origin or bounds mismatch"
+    );
+  });
   it("expands the physical display frame within an explicit budget and retains town size", () => {
     const original = getBurgSiteDescriptor(1)!;
     const requiredBounds = { minX: -2600, minY: -10, maxX: 100, maxY: 20 };

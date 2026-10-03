@@ -1,7 +1,9 @@
 import { normalWaterSection, validWaterPolygon } from "../services/riverPhysicalGeometry";
-import { isRequiredSiteBounds, type RequiredSiteBounds } from "./requiredSiteBounds";
+import { isRequiredSiteBounds, type RequiredSiteBounds, requiredSiteExtent } from "./requiredSiteBounds";
 
 type Point = readonly [number, number];
+export const FIXED_SITE_CROSSING_BUDGETS = Object.freeze({ maxFacilities: 100, maxWaterVertices: 10000 });
+
 export interface FixedCrossingBudgets {
   maxFacilities: number;
   maxWaterVertices: number;
@@ -166,4 +168,27 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
     }
   }
   return a.rivers.every(r => a.crossings.some(c => c.riverId === r.id));
+}
+
+/** The local preview must refer to this descriptor's exact physical town origin. */
+export function fixedCrossingsMatchFrame(payload: FixedBurgCrossings, frame: unknown): boolean {
+  if (
+    !record(frame) ||
+    !point(frame.originMapUnits) ||
+    typeof frame.metersPerMapUnit !== "number" ||
+    !Number.isFinite(frame.metersPerMapUnit) ||
+    frame.metersPerMapUnit <= 0 ||
+    !isRequiredSiteBounds(frame.requiredBounds) ||
+    typeof frame.extentMeters !== "number" ||
+    !Number.isFinite(frame.extentMeters) ||
+    frame.extentMeters <= 0 ||
+    requiredSiteExtent(frame.requiredBounds) > frame.extentMeters
+  )
+    return false;
+  const b = payload.requiredBounds,
+    f = frame.requiredBounds;
+  if (f.minX > b.minX || f.minY > b.minY || f.maxX < b.maxX || f.maxY < b.maxY) return false;
+  const origin = frame.originMapUnits,
+    scale = frame.metersPerMapUnit;
+  return origin.every((v, i) => Number.isFinite(v * scale) && Math.abs(v * scale - payload.originMeters[i]) <= 1e-7);
 }

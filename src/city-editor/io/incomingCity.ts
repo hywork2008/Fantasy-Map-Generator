@@ -1,3 +1,8 @@
+import {
+  FIXED_SITE_CROSSING_BUDGETS,
+  fixedCrossingsMatchFrame,
+  validFixedBurgCrossings
+} from "../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
@@ -219,6 +224,12 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
       requiredSiteExtent(raw.frame.requiredBounds) > raw.frame.extentMeters)
   )
     return warnShape("frame.requiredBounds outside frame or invalid");
+  if (
+    raw.fixedCrossings !== undefined &&
+    (!validFixedBurgCrossings(raw.fixedCrossings, FIXED_SITE_CROSSING_BUDGETS) ||
+      !fixedCrossingsMatchFrame(raw.fixedCrossings, raw.frame))
+  )
+    return warnShape("fixedCrossings origin or requiredBounds mismatch");
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   return raw as unknown as BurgSiteDescriptor;

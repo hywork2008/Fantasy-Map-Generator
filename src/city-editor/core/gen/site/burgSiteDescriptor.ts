@@ -1,4 +1,5 @@
 import type { BridgeTransport } from "../../../../utils/bridgeCrossingPolicy";
+import type { FixedBurgCrossings } from "../../../../utils/fixedBurgCrossings";
 import type { RequiredSiteBounds } from "../../../../utils/requiredSiteBounds";
 // BurgSiteDescriptor — the FMG → City Generator input contract.
 //
@@ -118,6 +119,8 @@ export interface BurgSiteTerrain {
 }
 
 export interface BurgSiteDescriptor {
+  /** Optional physical crossing preview; not input to legacy bridge discovery. */
+  fixedCrossings?: FixedBurgCrossings;
   version: 2;
   burg: {
     id: number;

@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
+import { synthSite } from "../city-editor/core/gen/site/synthSite";
+import {
+  decodeShare,
+  encodeShare,
+  parseDescriptor,
+  parseIncomingPayload,
+  shareFromDescriptor
+} from "../city-editor/io/incomingCity";
 import { drawFixedBurgCrossings } from "../city-editor/render/fixedBurgCrossings";
+import { renderFixedSitePreview } from "../city-editor/render/fixedSitePreview";
 import { type ApproachCorridorInput, findApproachCorridor } from "../generators/approachCorridorSearch";
 import {
   buildConstrainedLandNetwork,
@@ -318,6 +328,41 @@ describe("CE fixed physical crossing handoff", () => {
     expect(group.querySelectorAll("[data-crossing-approach]")).toHaveLength(2);
     expect(decks[0].getAttribute("d")).toBe(`M${c.deckA[0]},${c.deckA[1]}L${c.deckB[0]},${c.deckB[1]}`);
     expect(decks[0].getAttribute("stroke-linecap")).toBe("butt");
+  });
+  it("round-trips the optional descriptor preview through CE sharing and renders its fixed D ends", () => {
+    const f = exported();
+    const base = synthSite("largeTown", DEFAULT_SITE_CONFIG, "fixed", { extentMeters: 1500, cityRadiusMeters: 80 });
+    const site = {
+      ...base,
+      fixedCrossings: f.payload,
+      frame: {
+        ...base.frame,
+        originMapUnits: [30, 10] as [number, number],
+        metersPerMapUnit: 1,
+        requiredBounds: f.payload.requiredBounds
+      }
+    };
+    const parsed = parseDescriptor(JSON.stringify(site))!;
+    expect(parsed).not.toBeNull();
+    const shared = decodeShare(encodeShare(shareFromDescriptor(parsed)))!;
+    expect(shared.descriptor!.fixedCrossings).toEqual(JSON.parse(JSON.stringify(f.payload)));
+    expect(parseIncomingPayload(JSON.stringify(shared))!.descriptor!.fixedCrossings).toEqual(
+      JSON.parse(JSON.stringify(f.payload))
+    );
+    const svg = renderFixedSitePreview(shared.descriptor!)!;
+    expect(svg.querySelectorAll("[data-facility-id]")).toHaveLength(1);
+    expect(svg.querySelector("g")!.getAttribute("transform")).toBe("scale(1,-1)");
+    expect(svg.getAttribute("viewBox")).toBe(
+      `${-shared.descriptor!.frame.extentMeters / 2} ${-shared.descriptor!.frame.extentMeters / 2} ${shared.descriptor!.frame.extentMeters} ${shared.descriptor!.frame.extentMeters}`
+    );
+    const changed = structuredClone(site);
+    changed.frame.originMapUnits[0]++;
+    expect(parseDescriptor(JSON.stringify(changed))).toBeNull();
+    expect(renderFixedSitePreview(changed)).toBeNull();
+    const missingBounds = structuredClone(site) as typeof site & { frame: { requiredBounds?: unknown } };
+    delete missingBounds.frame.requiredBounds;
+    expect(parseDescriptor(JSON.stringify(missingBounds))).toBeNull();
+    expect(renderFixedSitePreview(base)).toBeNull();
   });
   it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
     const f = exported();

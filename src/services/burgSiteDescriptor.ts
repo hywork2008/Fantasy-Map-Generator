@@ -6,6 +6,11 @@ import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
+import {
+  FIXED_SITE_CROSSING_BUDGETS,
+  type FixedBurgCrossings,
+  validFixedBurgCrossings
+} from "../utils/fixedBurgCrossings";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { isRequiredSiteBounds, type RequiredSiteBounds, requiredSiteExtent } from "../utils/requiredSiteBounds";
@@ -148,6 +153,8 @@ export interface BurgSiteTerrain {
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
 export interface BurgSiteDescriptor {
+  /** Optional physical crossing preview; not input to legacy bridge discovery. */
+  fixedCrossings?: FixedBurgCrossings;
   version: 2;
   burg: {
     id: number;
@@ -220,7 +227,11 @@ type WeightedPoint = { x: number; y: number; w: number };
 
 export function getBurgSiteDescriptor(
   burgId: number,
-  frameRequirements?: { requiredBounds: RequiredSiteBounds; maxExtentMeters: number }
+  frameRequirements?: {
+    requiredBounds: RequiredSiteBounds;
+    maxExtentMeters: number;
+    fixedCrossings?: FixedBurgCrossings;
+  }
 ): BurgSiteDescriptor | null {
   const { pack } = worldContext;
   const burg = pack.burgs?.[burgId];
@@ -241,6 +252,22 @@ export function getBurgSiteDescriptor(
     if (extentMeters > frameRequirements.maxExtentMeters)
       throw new RangeError("Required site frame exceeds extent budget");
   }
+  const fixedCrossings = frameRequirements?.fixedCrossings;
+  if (fixedCrossings) {
+    if (!validFixedBurgCrossings(fixedCrossings, FIXED_SITE_CROSSING_BUDGETS))
+      throw new RangeError("Invalid fixed crossing preview");
+    const required = frameRequirements!.requiredBounds,
+      b = fixedCrossings.requiredBounds;
+    if (
+      required.minX > b.minX ||
+      required.minY > b.minY ||
+      required.maxX < b.maxX ||
+      required.maxY < b.maxY ||
+      Math.abs(fixedCrossings.originMeters[0] - burg.x * metersPerMapUnit) > 1e-7 ||
+      Math.abs(fixedCrossings.originMeters[1] - burg.y * metersPerMapUnit) > 1e-7
+    )
+      throw new RangeError("Fixed crossing preview origin or bounds mismatch");
+  }
   const half = extentMeters / 2;
 
   const toLocal = (x: number, y: number): [number, number] => [
@@ -259,6 +286,7 @@ export function getBurgSiteDescriptor(
 
   return {
     version: DESCRIPTOR_VERSION,
+    ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
     burg: {
       id: burgId,
       name: burg.name ?? "",
@@ -281,7 +309,7 @@ export function getBurgSiteDescriptor(
     frame: {
       ...(frameRequirements ? { requiredBounds: { ...frameRequirements.requiredBounds } } : {}),
       originMapUnits: [burg.x, burg.y],
-      metersPerMapUnit: rn(metersPerMapUnit, 2),
+      metersPerMapUnit: fixedCrossings ? metersPerMapUnit : rn(metersPerMapUnit, 2),
       extentMeters,
       cityRadiusMeters
     },

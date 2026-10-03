@@ -159,6 +159,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
@@ -5157,7 +5158,7 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
     ["Plaza / Temple", `${yesNo(descriptor.burg.plaza)} · ${yesNo(descriptor.burg.temple)}`],
     ["Port", descriptor.burg.port ? (descriptor.waterbody ? "Yes" : "Yes (no waterbody)") : "No"]
   ];
-  return rows.map(([key, value]) => {
+  const nodes: Node[] = rows.map(([key, value]) => {
     const line = document.createElement("div");
     line.className = "ce-imported-row";
     const labelNode = document.createElement("span");
@@ -5167,6 +5168,13 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
     line.append(labelNode, valueNode);
     return line;
   });
+  const preview = renderFixedSitePreview(descriptor);
+  if (preview) {
+    const caption = document.createElement("div");
+    caption.textContent = "Imported fixed river crossings";
+    nodes.push(caption, preview);
+  }
+  return nodes;
 }
 
 function emptySelection(): RenderSelection {
