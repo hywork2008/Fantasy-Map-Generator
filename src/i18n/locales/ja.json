@@ -3097,6 +3097,8 @@
       "previewError": "都市プレビューを生成できませんでした。",
       "previewRetry": "再試行",
       "previewCityEditor": "City Editorを開く",
+      "previewNavigation": "ホイールでズーム・ドラッグで移動",
+      "previewReset": "表示をリセット",
 
       "tabsAria": "都市エディターの節",
       "overview": "概要",

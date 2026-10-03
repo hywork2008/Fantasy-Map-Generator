@@ -3097,6 +3097,8 @@
       "previewError": "Could not generate the city preview.",
       "previewRetry": "Retry",
       "previewCityEditor": "Open City Editor",
+      "previewNavigation": "Scroll to zoom · Drag to pan",
+      "previewReset": "Reset view",
 
       "tabsAria": "Burg editor sections",
       "overview": "Overview",

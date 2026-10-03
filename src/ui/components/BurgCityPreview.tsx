@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { burgEditorActions } from "../../controllers/burg-editor";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import type { BurgData } from "../../store/burgEditorState";
+import { CityPreviewViewport } from "./CityPreviewViewport";
 
 export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
   const { t } = useTranslation();
@@ -81,11 +82,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
   return (
     <div id="burgCityPreview" style={{ width: "min(640px, 75vw)" }}>
       {url ? (
-        <img
-          src={url}
-          alt={t("dialogs.burgEditor.previewAriaLabel")}
-          style={{ display: "block", width: "100%", maxHeight: "65vh", objectFit: "contain" }}
-        />
+        <CityPreviewViewport url={url} alt={t("dialogs.burgEditor.previewAriaLabel")} />
       ) : (
         <p role="status">{t(failed ? "dialogs.burgEditor.previewError" : "dialogs.burgEditor.previewLoading")}</p>
       )}
