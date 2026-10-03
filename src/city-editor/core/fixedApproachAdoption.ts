@@ -11,9 +11,18 @@ export interface SavedFixedApproach {
   geometryVersion: number;
 }
 export type FixedApproachProvider = (
-  request: Readonly<FixedApproachRequest>
+  /** Resolve against this immutable current-document snapshot, never a captured previous state. */
+  request: Readonly<FixedApproachRequest>,
+  document: Readonly<CityDocument>
 ) => Pick<FixedApproachInput, "otherWater" | "supportsDryFootprint" | "allowsMeshEdge"> | null;
 const providers = new WeakMap<CityDocument, FixedApproachProvider>();
+function freezeSnapshot<T>(value: T): Readonly<T> {
+  if (value && typeof value === "object") {
+    for (const child of Object.values(value)) freezeSnapshot(child);
+    Object.freeze(value);
+  }
+  return value;
+}
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object")
@@ -46,12 +55,20 @@ export function adoptFixedCrossingApproaches(
   )
     return { reason: "invalid-requests" };
   const before = JSON.stringify(doc),
-    records: SavedFixedApproach[] = [];
+    records: SavedFixedApproach[] = [],
+    providerDocument = freezeSnapshot(structuredClone(doc));
   for (const r of requests) {
-    const request = structuredClone(r.request),
-      current = provider(structuredClone(request));
-    if (!current) return { reason: "missing-current-contract" };
-    const result = findFixedCrossingApproach(doc, { ...request, ...current });
+    const request = structuredClone(r.request);
+    let result: ReturnType<typeof findFixedCrossingApproach>;
+    try {
+      const current = provider(structuredClone(request), providerDocument);
+      if (JSON.stringify(doc) !== before) return { reason: "changed-document" };
+      if (!current) return { reason: "missing-current-contract" };
+      result = findFixedCrossingApproach(doc, { ...request, ...current });
+    } catch {
+      return { reason: JSON.stringify(doc) !== before ? "changed-document" : "current-contract-failed" };
+    }
+    if (JSON.stringify(doc) !== before) return { reason: "changed-document" };
     if (!("corridor" in result)) return { reason: result.reason };
     records.push({
       id: r.id,

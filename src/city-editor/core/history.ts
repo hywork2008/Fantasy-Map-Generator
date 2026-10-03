@@ -1,3 +1,4 @@
+import { type FixedApproachProvider, restoreFixedCrossingApproaches } from "./fixedApproachAdoption";
 import { clone } from "./mesh";
 import type { CityDocument, CityElement, CityGate, Edge, Face, Id, Vertex } from "./types";
 
@@ -35,7 +36,12 @@ export class DocumentHistory {
   /** Rebuilt state at `cursor - 1`, the base an `amendTop` re-diffs against. */
   private base: CityDocument;
 
-  constructor(initial: CityDocument, label = "Initial state", checkpointInterval?: number) {
+  constructor(
+    initial: CityDocument,
+    label = "Initial state",
+    checkpointInterval?: number,
+    private readonly fixedApproachProvider?: FixedApproachProvider
+  ) {
     this.checkpointInterval = Math.max(2, Math.round(checkpointInterval ?? defaultCheckpointInterval(initial)));
     // `clone(initial)` gives this history its own object graph, independent of
     // whatever the caller does with `initial` afterwards. From here on every
@@ -119,7 +125,13 @@ export class DocumentHistory {
     this.live = this.reconstruct(index);
     this.base = index > 0 ? this.reconstruct(index - 1) : clone(this.live);
     this.cursor = index;
-    return clone(this.live);
+    const document = clone(this.live);
+    if (this.fixedApproachProvider && document.fixedCrossingApproaches !== undefined) {
+      const checked = restoreFixedCrossingApproaches(document, this.fixedApproachProvider);
+      if ("document" in checked) return checked.document;
+    }
+    // A failed current check retains editable data without session authorization.
+    return document;
   }
 
   /** Oldest state first; the entry at `index` is the one currently shown. */
@@ -190,6 +202,8 @@ type RecordPatch<T> = Record<Id, T | null>;
  * whole when they differ.
  */
 interface DocPatch {
+  importedFixedCrossings?: CityDocument["importedFixedCrossings"] | null;
+  fixedCrossingApproaches?: CityDocument["fixedCrossingApproaches"] | null;
   version?: CityDocument["version"];
   castles?: CityDocument["castles"] | null;
   cemeteries?: CityDocument["cemeteries"] | null;
@@ -244,6 +258,10 @@ function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatc
 
 function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
+  if (!equal(previous.importedFixedCrossings, next.importedFixedCrossings))
+    patch.importedFixedCrossings = next.importedFixedCrossings ? clone(next.importedFixedCrossings) : null;
+  if (!equal(previous.fixedCrossingApproaches, next.fixedCrossingApproaches))
+    patch.fixedCrossingApproaches = next.fixedCrossingApproaches ? clone(next.fixedCrossingApproaches) : null;
   if (previous.version !== next.version) patch.version = next.version;
   if (!equal(previous.castles, next.castles)) patch.castles = next.castles ? clone(next.castles) : null;
   if (!equal(previous.riverConnections, next.riverConnections))
@@ -292,6 +310,10 @@ function applyRecord<T>(map: Record<Id, T>, patch: RecordPatch<T> | undefined): 
 }
 
 function applyPatch(document: CityDocument, patch: DocPatch): void {
+  if (patch.importedFixedCrossings === null) delete document.importedFixedCrossings;
+  else if (patch.importedFixedCrossings) document.importedFixedCrossings = clone(patch.importedFixedCrossings);
+  if (patch.fixedCrossingApproaches === null) delete document.fixedCrossingApproaches;
+  else if (patch.fixedCrossingApproaches) document.fixedCrossingApproaches = clone(patch.fixedCrossingApproaches);
   if (patch.version) document.version = patch.version;
   if (patch.castles === null) delete document.castles;
   else if (patch.castles) document.castles = clone(patch.castles);

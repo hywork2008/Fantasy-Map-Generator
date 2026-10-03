@@ -720,3 +720,15 @@ connector候補はleadまでの明示距離とE外側半平面で制限する。
 検証: 法線上のvertexがないmeshから固定lead経由の円弧回廊が成立しEを保持すること、二つの仮想ID、支持拒否、採用後のSVG Aコマンド、lead付きJSON要求の現在復元、terminal/node予算、短すぎるleadを確認した。関連3ファイル75テスト、型検査、Biome、構成lint、world writer検査が通過。
 
 通常Generate/UIでの要求集合自動構築と読込み/履歴の自動有効化は引き続き未接続。CEの既存編集mesh/terrain heightfieldから完全な湖海水域や現在支持/通過条件を推測してproviderを作らず、現段階は明示providerでのopt-in処理とする。現在world条件の取得・受け渡し、street junctionの通行graph統合、全施設/全河川移行と最終frame視覚検証、旧fieldなし地図の斜交橋問題は残る。
+
+### 段階3のCE固定source・進入回廊の履歴差分と読込み再検証（2026-10-04）
+
+`DocumentHistory`の差分に`importedFixedCrossings`と`fixedCrossingApproaches`を追加した。追加・変更・削除をcheckpoint間のpatchへ保存し、Undo/Redo/jumpTo/amendTopの再構築で固定sourceと確定回廊を同じ保存状態へ戻す。前段ではこれらのfieldが差分対象になく、checkpoint間の復元で状態が一致しなかった。
+
+現在providerの第二引数に、対象documentを独立コピーして再帰freezeしたsnapshotを渡す。復元対象mesh/frame/sourceから現在の条件を解決でき、前documentをcaptureする必要がない。従来の一引数providerも利用できる。provider取得・探索callbackの例外は`current-contract-failed`、元document変更は`changed-document`として採用を拒否する。snapshotの変更で元documentを書き換えることも許さない。
+
+`parseDocument`、`readCityMap`、`pickCityMap`に任意providerを渡せるようにした。`DocumentHistory`も任意のsession providerを受け、履歴移動後の返却documentで保存要求を再実行する。確定回廊/version/距離/費用が保存値と一致した場合だけそのdocumentを有効化する。現在条件が不成立・例外・providerなしの場合は編集用の保存データを保持し、session認証を復活させず回廊を描画しない。provider関数自体はファイルや履歴差分へ保存しない。
+
+検証: 実ファイルAPIでの読込みと現在再描画、固定source/回廊の追加・削除・checkpoint越しUndo/Redo/jumpTo、amendTopによるsource変更と空要求集合、履歴対象frameからの現在支持拒否、providerなし履歴の非表示、provider例外とsnapshot改変の拒否を確認した。関連4ファイル74テスト、型検査、Biome、構成lint、world writer検査が通過。
+
+通常UIはまだ完全な現在水域・支持・通過条件providerを注入していないため、自動有効化されたと扱わない。今回は既存読込み/履歴APIへの明示provider接続と差分保存修正である。通常Generateでの要求集合構築、現在world環境の取得、street junctionの通行graph統合、全施設/全河川移行、最終frame視覚検証、旧fieldなし地図の斜交橋問題は残る。

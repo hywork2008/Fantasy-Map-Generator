@@ -10,9 +10,11 @@ import { buildCityBuildings } from "../city-editor/core/gen/buildingLots";
 import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
 import { synthSite } from "../city-editor/core/gen/site/synthSite";
 import { defaultGenerationSettings, generateStageOnDocument } from "../city-editor/core/generate";
+import { DocumentHistory } from "../city-editor/core/history";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
 import { meshFromCells } from "../city-editor/core/mesh";
 import { lineHitsDocumentWater, polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
+import { readCityMap } from "../city-editor/io/cityEditorFile";
 import {
   decodeShare,
   encodeShare,
@@ -648,7 +650,7 @@ describe("CE fixed physical crossing handoff", () => {
       )
     ).toBe(true);
   });
-  it("routes to the exact fixed E portal with a normal final tangent and no mesh mutation", () => {
+  it("routes to the exact fixed E portal with a normal final tangent and no mesh mutation", async () => {
     const f = exported(),
       c = f.payload.crossings[0];
     const doc = createGridDocument({
@@ -750,6 +752,66 @@ describe("CE fixed physical crossing handoff", () => {
     const restored = restoreFixedCrossingApproaches(loaded, provider);
     if (!("document" in restored)) throw Error(restored.reason);
     expect(renderStandaloneCitySvg(restored.document).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+    const currentProvider: Parameters<typeof restoreFixedCrossingApproaches>[1] = (_request, current) => ({
+      otherWater,
+      supportsDryFootprint: () => current.frame.blockSizeMeters === fileDoc.frame.blockSizeMeters,
+      allowsMeshEdge: edgeId => !!current.mesh.edges[edgeId]
+    });
+    const currentLoaded = parseDocument(JSON.stringify(fileAdopted.document), currentProvider)!;
+    expect(renderStandaloneCitySvg(currentLoaded).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+    const read = await readCityMap(new File([JSON.stringify(fileAdopted.document)], "city.json"), currentProvider);
+    expect(read?.source).toBe("city-editor");
+    expect(renderStandaloneCitySvg(read!.document).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+    const history = new DocumentHistory(fileDoc, "Initial", 2, currentProvider);
+    history.commit(fileAdopted.document);
+    const removed = structuredClone(fileAdopted.document);
+    delete removed.importedFixedCrossings;
+    delete removed.fixedCrossingApproaches;
+    history.commit(removed);
+    const undone = history.undo(removed)!;
+    expect(undone.importedFixedCrossings).toEqual(fileAdopted.document.importedFixedCrossings);
+    expect(undone.fixedCrossingApproaches).toEqual(fileAdopted.document.fixedCrossingApproaches);
+    expect(renderStandaloneCitySvg(undone).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+    expect(history.undo(undone)!.fixedCrossingApproaches).toBeUndefined();
+    expect(history.redo(fileDoc)!.fixedCrossingApproaches).toEqual(fileAdopted.document.fixedCrossingApproaches);
+    expect(history.jumpTo(2)!.importedFixedCrossings).toBeUndefined();
+    const blocked = structuredClone(fileAdopted.document);
+    blocked.frame.blockSizeMeters += 1;
+    history.jumpTo(1);
+    history.commit(blocked);
+    expect(renderStandaloneCitySvg(history.undo(blocked)!).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(
+      1
+    );
+    expect(renderStandaloneCitySvg(history.redo(undone)!).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+    const amended = structuredClone(fileAdopted.document);
+    amended.importedFixedCrossings!.revision += 1;
+    amended.fixedCrossingApproaches = [];
+    history.amendTop(amended);
+    history.undo(amended);
+    const redone = history.redo(undone)!;
+    expect(redone.importedFixedCrossings).toEqual(amended.importedFixedCrossings);
+    expect(redone.fixedCrossingApproaches).toEqual([]);
+    const unauthenticatedHistory = new DocumentHistory(fileDoc);
+    unauthenticatedHistory.commit(fileAdopted.document);
+    unauthenticatedHistory.commit(removed);
+    expect(
+      renderStandaloneCitySvg(unauthenticatedHistory.undo(removed)!).querySelectorAll("[data-fixed-approach-id]")
+    ).toHaveLength(0);
+    const blockedLoaded = parseDocument(JSON.stringify(blocked), currentProvider)!;
+    expect(blockedLoaded.fixedCrossingApproaches).toEqual(blocked.fixedCrossingApproaches);
+    expect(renderStandaloneCitySvg(blockedLoaded).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+    expect(
+      restoreFixedCrossingApproaches(loaded, () => {
+        throw Error("unavailable");
+      })
+    ).toHaveProperty("reason", "current-contract-failed");
+    expect(
+      restoreFixedCrossingApproaches(loaded, (_request, current) => {
+        current.mesh.vertices.v0.point[0] += 1;
+        return null;
+      })
+    ).toHaveProperty("reason", "current-contract-failed");
+    expect(loaded.mesh.vertices.v0.point).toEqual(fileDoc.mesh.vertices.v0.point);
     const malformed = JSON.parse(JSON.stringify(loaded));
     malformed.fixedCrossingApproaches[0].request.settings.maxNodes = 1000000;
     expect(parseDocument(JSON.stringify(malformed))).toBeNull();

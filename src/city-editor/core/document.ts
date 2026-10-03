@@ -1,6 +1,10 @@
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
-import { validSavedFixedApproaches } from "./fixedApproachAdoption";
+import {
+  type FixedApproachProvider,
+  restoreFixedCrossingApproaches,
+  validSavedFixedApproaches
+} from "./fixedApproachAdoption";
 import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
 import { polygonArea } from "./gen/geom";
 import { buildGrid } from "./gen/grid";
@@ -241,7 +245,8 @@ function documentFromCells(
   };
 }
 
-export function parseDocument(text: string): CityDocument | null {
+/** Optional current contract enables saved approaches only after exact replay. */
+export function parseDocument(text: string, fixedApproachProvider?: FixedApproachProvider): CityDocument | null {
   try {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
@@ -274,7 +279,12 @@ export function parseDocument(text: string): CityDocument | null {
         return null;
       if (face.properties.water !== "land") face.properties.depth ??= 3;
     }
-    return validate(value).length === 0 && validateLandmarks(value).length === 0 ? value : null;
+    if (validate(value).length || validateLandmarks(value).length) return null;
+    if (fixedApproachProvider && value.fixedCrossingApproaches !== undefined) {
+      const checked = restoreFixedCrossingApproaches(value, fixedApproachProvider);
+      if ("document" in checked) return checked.document;
+    }
+    return value;
   } catch {
     return null;
   }
