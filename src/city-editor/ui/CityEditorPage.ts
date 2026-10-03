@@ -40,6 +40,7 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import { type FixedApproachProvider, restoreFixedCrossingApproaches } from "../core/fixedApproachAdoption";
 import { reservedCastleFaces, validateFortifications } from "../core/fortifications";
 import {
   approachBeyondLabel,
@@ -244,14 +245,26 @@ interface FloatingWindow {
   content: HTMLDivElement;
 }
 
-export function mountCityEditor(root: HTMLElement): void {
+export interface CityEditorOptions {
+  /** Complete current water/support/passage contract; retained only in this editor session. */
+  fixedApproachProvider?: FixedApproachProvider;
+}
+
+export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
+  const fixedApproachProvider = options.fixedApproachProvider;
+  function documentForOutput(current: CityDocument): CityDocument {
+    if (!fixedApproachProvider || current.fixedCrossingApproaches === undefined) return current;
+    const checked = restoreFixedCrossingApproaches(current, fixedApproachProvider);
+    // Discard any previous object authorization when the current contract fails.
+    return "document" in checked ? checked.document : clone(current);
+  }
   let gridSeed = randomSeed();
   let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND, seed: gridSeed });
   let gridKind: GridKind = DEFAULT_GRID_KIND;
   /** Fitted hamlet import: the scale bar's cell length follows the mesh, not 50 m. */
   let measureTownCells = false;
   let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
-  let history = new DocumentHistory(documentState);
+  let history = new DocumentHistory(documentState, "Initial state", undefined, fixedApproachProvider);
   // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
   // of `documentState` so it is never cloned into a history snapshot or an
   // undo/redo step; it is re-attached only for export and passed to the
@@ -658,7 +671,7 @@ export function mountCityEditor(root: HTMLElement): void {
       ...importedFrame(),
       measureBlockSize: measureTownCells
     });
-    history = new DocumentHistory(documentState, "New grid");
+    history = new DocumentHistory(documentState, "New grid", undefined, fixedApproachProvider);
     generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
@@ -694,7 +707,7 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("失敗時点のSVGをエクスポートしました");
       return;
     }
-    exportCitySvg(referenceImage ? { ...documentState, referenceImage } : documentState);
+    exportCitySvg(documentForOutput(referenceImage ? { ...documentState, referenceImage } : documentState));
     showNotice("SVG exported");
   });
   const importButton = makeIconButton("📤", "Import city map or SVG reference", () => void importDocument());
@@ -1805,7 +1818,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // Cell-only painting patches its faces live. Edge erasing changes route
     // groups, so it needs one full redraw once the stroke is complete.
     if (wasWardPainting) {
-      if (edgePaintChanged) refresh();
+      if (edgePaintChanged || documentState.fixedCrossingApproaches !== undefined) refresh();
       else refreshUiOnly();
     } else if (wasVertexDragging || wasJunctionPainting || circle || stroke || draggedRoute) refresh();
   };
@@ -2669,7 +2682,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     const svg = renderEditorSvg(
-      documentState,
+      documentForOutput(documentState),
       tool,
       selection,
       box,
@@ -3974,6 +3987,12 @@ export function mountCityEditor(root: HTMLElement): void {
       // scheduling a full redrawMap() pass over the whole mesh next frame — on
       // a Large mesh a 1-cell brush touches one face out of ~9,000.
       for (const faceId of touched) patchFaceRender(faceId);
+      if (documentState.fixedCrossingApproaches !== undefined) {
+        // Face-only painting can change support/passage without changing mesh edges.
+        for (const path of map.querySelectorAll("[data-fixed-approach-id]")) path.remove();
+        map.querySelector("svg")?.setAttribute("data-fixed-approach-status", "unvalidated");
+        scheduleRedraw();
+      }
     }
     if (eraseEdges) eraseEdgesAtPoint(point);
   }
@@ -4359,12 +4378,12 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   async function importDocument(): Promise<void> {
-    const parsed = await pickCityMap();
+    const parsed = await pickCityMap(fixedApproachProvider);
     applyImportedMap(parsed);
   }
 
   async function importMapFile(file: File | undefined): Promise<void> {
-    applyImportedMap(await readCityMap(file));
+    applyImportedMap(await readCityMap(file, fixedApproachProvider));
   }
 
   function applyImportedMap(parsed: ImportedCityMap | null): void {
@@ -4389,7 +4408,7 @@ export function mountCityEditor(root: HTMLElement): void {
     documentState = parsed.document;
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
-    history = new DocumentHistory(parsed.document, "Imported map");
+    history = new DocumentHistory(parsed.document, "Imported map", undefined, fixedApproachProvider);
     generationLog.reset();
     if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
     rebuildEditorIndexes();
@@ -4576,7 +4595,12 @@ export function mountCityEditor(root: HTMLElement): void {
       cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters,
       measureBlockSize: measureTownCells
     });
-    history = new DocumentHistory(documentState, share.descriptor ? "Imported site" : "Shared city");
+    history = new DocumentHistory(
+      documentState,
+      share.descriptor ? "Imported site" : "Shared city",
+      undefined,
+      fixedApproachProvider
+    );
     generationLog.reset();
     referenceImage = null;
     selection = emptySelection();

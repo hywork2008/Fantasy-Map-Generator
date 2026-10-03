@@ -732,3 +732,15 @@ connector候補はleadまでの明示距離とE外側半平面で制限する。
 検証: 実ファイルAPIでの読込みと現在再描画、固定source/回廊の追加・削除・checkpoint越しUndo/Redo/jumpTo、amendTopによるsource変更と空要求集合、履歴対象frameからの現在支持拒否、providerなし履歴の非表示、provider例外とsnapshot改変の拒否を確認した。関連4ファイル74テスト、型検査、Biome、構成lint、world writer検査が通過。
 
 通常UIはまだ完全な現在水域・支持・通過条件providerを注入していないため、自動有効化されたと扱わない。今回は既存読込み/履歴APIへの明示provider接続と差分保存修正である。通常Generateでの要求集合構築、現在world環境の取得、street junctionの通行graph統合、全施設/全河川移行、最終frame視覚検証、旧fieldなし地図の斜交橋問題は残る。
+
+### 段階3のCE UI session provider・表示/取込み/履歴/SVG出力接続（2026-10-04）
+
+`mountCityEditor`へ任意`CityEditorOptions.fixedApproachProvider`を追加した。呼出側が完全な現在水域・支持・通過条件を提供するsession契約であり、従来の一引数起動は維持する。ファイルpickerとdrop取込み、初期/新grid/取込み/共有siteの各DocumentHistoryへ同じproviderを渡す。provider関数はdocumentや履歴・JSONへ保存しない。
+
+通常editor再描画は対象documentで保存回廊を再探索し、保存値との完全一致時だけ有効化した独立documentをrendererへ渡す。編集によるdocumentコピーでsession認証が失われても現在条件で復元できる。失敗時にはコピーを使い、以前のobjectの認証を引き継がない。SVG出力にも同じ処理を接続し、reference image付加によるコピーを含め出力対象で再検証する。編集状態と履歴の保存値を描画用の認証documentへ置き換えない。
+
+faceだけを変更するward/sea brushも支持・通過条件へ影響し得るため、固定進入回廊がある場合は旧pathを直ちに除去し、次frameの再描画を予約する。stroke終了時も全再描画する。通常のfieldなし編集は既存のface patch表示を維持する。橋のD/Eや円弧の再配置・snapは行わない。
+
+検証: 実UIへのdrop取込みから固定回廊表示、scale編集による保存回廊不一致と非表示、Undoによる現在再表示、現在支持条件変更後のRedo/Undoでの表示拒否、SVG出力境界での有効/無効回廊を確認した。関連6ファイル92テスト、型検査、構成lint、world writer検査、差分空白検査が通過。Biomeのエラーはなく、既存ship処理のoptional-chain警告2件は残した。
+
+今回の接続は完全なproviderを明示注入したUI sessionが対象である。既定起動元からworld環境を取得してproviderを構築する処理、通常Generateによる要求集合の自動構築・採用は未接続であり、自動生成された全CEへ有効化したと扱わない。street junctionの通行graph統合、全施設/全河川移行、最終frame視覚検証、旧fieldなし地図の斜交橋問題は残る。

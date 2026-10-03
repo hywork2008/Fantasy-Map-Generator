@@ -14,6 +14,7 @@ import { DocumentHistory } from "../city-editor/core/history";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
 import { meshFromCells } from "../city-editor/core/mesh";
 import { lineHitsDocumentWater, polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
+import * as cityEditorFiles from "../city-editor/io/cityEditorFile";
 import { readCityMap } from "../city-editor/io/cityEditorFile";
 import {
   decodeShare,
@@ -26,6 +27,7 @@ import { drawFixedBurgCrossings } from "../city-editor/render/fixedBurgCrossings
 import { fixedRoadIsDry } from "../city-editor/render/fixedDocumentGeometry";
 import { renderFixedSitePreview } from "../city-editor/render/fixedSitePreview";
 import { renderStandaloneCitySvg } from "../city-editor/render/svg";
+import { mountCityEditor } from "../city-editor/ui/CityEditorPage";
 import { type ApproachCorridorInput, findApproachCorridor } from "../generators/approachCorridorSearch";
 import {
   buildConstrainedLandNetwork,
@@ -812,6 +814,48 @@ describe("CE fixed physical crossing handoff", () => {
       })
     ).toHaveProperty("reason", "current-contract-failed");
     expect(loaded.mesh.vertices.v0.point).toEqual(fileDoc.mesh.vertices.v0.point);
+    const editorRoot = document.createElement("div");
+    document.body.append(editorRoot);
+    let uiSupports = true;
+    const uiProvider: Parameters<typeof restoreFixedCrossingApproaches>[1] = (q, current) => {
+      const contract = currentProvider(q, current)!;
+      return { ...contract, supportsDryFootprint: footprint => uiSupports && contract.supportsDryFootprint(footprint) };
+    };
+    if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
+    const svgExport = vi.spyOn(cityEditorFiles, "exportCitySvg").mockImplementation(() => {});
+    try {
+      mountCityEditor(editorRoot, { fixedApproachProvider: uiProvider });
+      const drop = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(drop, "dataTransfer", {
+        value: { files: [new File([JSON.stringify(fileAdopted.document)], "city.json")] }
+      });
+      editorRoot.querySelector(".ce-map")!.dispatchEvent(drop);
+      await vi.waitFor(() => expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1));
+      const scaleLabel = [...editorRoot.querySelectorAll("label")].find(label => label.textContent?.trim() === "Scale");
+      const scale = scaleLabel!.querySelector("input")!;
+      scale.value = "2";
+      editorRoot.querySelector<HTMLButtonElement>("button[title='Scale all map geometry']")!.click();
+      expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+      editorRoot.querySelector<HTMLButtonElement>("button[title='Undo']")!.click();
+      expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+      editorRoot.querySelector<HTMLButtonElement>("button[title='Export city map as SVG']")!.click();
+      expect(
+        renderStandaloneCitySvg(svgExport.mock.calls.at(-1)![0]).querySelectorAll("[data-fixed-approach-id]")
+      ).toHaveLength(1);
+      uiSupports = false;
+      editorRoot.querySelector<HTMLButtonElement>("button[title='Export city map as SVG']")!.click();
+      expect(
+        renderStandaloneCitySvg(svgExport.mock.calls.at(-1)![0]).querySelectorAll("[data-fixed-approach-id]")
+      ).toHaveLength(0);
+      expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+      editorRoot.querySelector<HTMLButtonElement>("button[title='Redo']")!.click();
+      editorRoot.querySelector<HTMLButtonElement>("button[title='Undo']")!.click();
+      expect(editorRoot.querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+      expect(editorRoot.querySelector("svg.ce-svg")!.getAttribute("data-fixed-approach-status")).toBe("unvalidated");
+    } finally {
+      svgExport.mockRestore();
+      editorRoot.remove();
+    }
     const malformed = JSON.parse(JSON.stringify(loaded));
     malformed.fixedCrossingApproaches[0].request.settings.maxNodes = 1000000;
     expect(parseDocument(JSON.stringify(malformed))).toBeNull();
