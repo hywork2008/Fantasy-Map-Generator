@@ -515,6 +515,7 @@ export function generateStageOnDocument(
     res.generationSeed = seed;
     if (stageStep >= 5) tagExternalGateRoads(res, seed, settings.descriptor);
     if (stageStep >= 6) cultivateRoadside(res);
+    applyImportedWaterAccess(res, settings);
     if (stageStep >= 6) spawnHarborShips(res, seed);
   }
   return res;
@@ -911,6 +912,7 @@ export function generateCityAttempt(
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
   if (settings.descriptor) fitImportedHousing(settled, settings.descriptor.burg.dwellings);
+  applyImportedWaterAccess(settled, settings);
   spawnHarborShips(settled, seed);
   return settled;
 }
@@ -1669,6 +1671,7 @@ export function runPlan(
           relaxedBlocks
         );
       }
+      if (r.crossing) band.crossing = r.crossing;
       if (band.fallback || band.edgePoints.length < 2) continue;
       const distance = outsideRiver
         ? Math.min(
@@ -2322,6 +2325,7 @@ function planningDebugDocument(
       id: `${GEN_PREFIX}river-${index}`,
       kind: "river",
       name: `River ${index + 1}`,
+      ...(river.crossing ? { crossing: river.crossing } : {}),
       vertices: polylineToVertexPath(next.mesh, river.resolvedEdgePoints, nearest),
       source: null,
       mouth: null,
@@ -2504,6 +2508,7 @@ function applyPlan(
         id: `${GEN_PREFIX}river-${i}`,
         kind: "river",
         name: `River ${i + 1}`,
+        ...(band.crossing ? { crossing: band.crossing } : {}),
         vertices,
         source: null,
         mouth: null,
@@ -4386,4 +4391,11 @@ function editorWard(
     default:
       return null;
   }
+}
+
+/** Preserve the source port frontages for berth-specific vessel selection. */
+function applyImportedWaterAccess(document: CityDocument, settings: GenerationSettings): void {
+  const access = settings.descriptor?.burg.waterAccess;
+  if (access) document.waterAccess = structuredClone(access);
+  else delete document.waterAccess;
 }

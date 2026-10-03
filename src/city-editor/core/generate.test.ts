@@ -1010,6 +1010,36 @@ describe("FMG descriptor geography", () => {
     )
   );
 
+  it("preserves FMG crossing and port-water decisions in the editable document", () => {
+    const source = structuredClone(descriptor);
+    source.rivers[0].crossing = {
+      kind: "movableBridge",
+      widthMeters: 20,
+      depthMeters: 4,
+      navigationRequired: true,
+      clearanceMeters: 12,
+      openingMeters: 8,
+      reason: "movableClearance"
+    };
+    source.burg.waterAccess = {
+      river: true,
+      sea: true,
+      lake: false,
+      riverId: 1,
+      seaFeatureIds: [1],
+      lakeFeatureIds: [],
+      port: { river: true, sea: true, lake: false }
+    };
+    const settings = defaultGenerationSettings();
+    settings.descriptor = source;
+    const output = generateStageOnDocument(grid, settings, "fmg-layout", 2)!;
+    expect(output.featureGroups.find(group => group.kind === "river")?.crossing?.kind).toBe("movableBridge");
+    expect(output.waterAccess).toEqual(source.burg.waterAccess);
+    expect(output.waterAccess).not.toBe(source.burg.waterAccess);
+    const standalone = generateStageOnDocument(output, defaultGenerationSettings(), "standalone", 1)!;
+    expect(standalone.waterAccess).toBeUndefined();
+  });
+
   it("uses the descriptor's coast even when SiteConfig is landlocked", () => {
     const settings = defaultGenerationSettings();
     settings.descriptor = descriptor;

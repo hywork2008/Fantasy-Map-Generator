@@ -1,4 +1,4 @@
-import { max as d3max, mean } from "d3";
+import { max as d3max, mean, polygonContains } from "d3";
 import { type Quadtree, quadtree } from "d3-quadtree";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -26,11 +26,13 @@ import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
-import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { each, findCell, findClosestCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
+import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { riverBankCandidates } from "../utils/riverBankPosition";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -141,10 +143,10 @@ class BurgModule {
       }
     }
 
-    // Shift non-port river burgs slightly toward the bank
+    // Position river towns on the actual local bank, including river/estuary ports.
     for (const burg of burgs) {
-      if (!burg.i || burg.lock || burg.port || !cells.r[burg.cell]) continue;
-      const [x, y] = this.shiftTowardsRiverBank(burg.cell, riversById);
+      if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
+      const [x, y] = this.shiftTowardsRiverBank(burg.cell, riversById, [burg.x, burg.y]);
       burg.x = x;
       burg.y = y;
     }
@@ -699,9 +701,72 @@ class BurgModule {
     return [rn(x0 + t * dx, 2), rn(y0 + t * dy, 2)];
   }
 
-  private shiftTowardsRiverBank(cellId: number, riversById: Map<number, { i: number; cells: number[] }>): Point {
+  private shiftTowardsRiverBank(
+    cellId: number,
+    riversById: Map<number, { i: number; cells: number[] }>,
+    origin?: Point
+  ): Point {
     const { cells } = this.worldContext.pack;
     const [x, y] = cells.p[cellId];
+    const river = this.worldContext.pack.rivers.find(r => r.i === cells.r[cellId]);
+    // Old/incomplete rivers keep their legacy nudge until they have usable geometry.
+    if (river?.cells.length && Number.isFinite(river.widthFactor) && Number.isFinite(river.sourceWidth)) {
+      const supplied = river.points?.length === river.cells.length ? river.points : null;
+      const points = Rivers.addMeandering(river.cells, supplied);
+      const banks = Rivers.getRiverBanks(points, river.widthFactor, river.sourceWidth);
+      const sections = points.map(([px, py], i) => ({
+        point: [px, py] as Point,
+        physicalWidth: Rivers.getWidth(banks.widths[i] / 2),
+        renderedWidth: banks.widths[i]
+      }));
+      const source = origin ?? [x, y];
+      const candidates = sections
+        .slice(0, -1)
+        .flatMap((_, i) => riverBankCandidates(source, sections.slice(i, i + 2), 0.05))
+        .sort(
+          (a, b) =>
+            Math.hypot(a.point[0] - source[0], a.point[1] - source[1]) -
+            Math.hypot(b.point[0] - source[0], b.point[1] - source[1])
+        );
+      const record = (candidate: (typeof candidates)[number]): Point => {
+        const burg = this.worldContext.pack.burgs.find(b => b?.i && b.cell === cellId);
+        if (burg)
+          burg.riverPlacement = {
+            riverId: river.i,
+            bank: candidate.bank,
+            widthMeters: rn(
+              candidate.width * mapUnitMeters(this.worldContext.distanceScale, useOptionsState.getState().distanceUnit),
+              1
+            )
+          };
+        return [rn(candidate.point[0], 4), rn(candidate.point[1], 4)];
+      };
+      // Preserve cell ownership and politics. The chosen bank must be in this land polygon.
+      const polygon = (cells.v?.[cellId] ?? []).map(v => this.worldContext.pack.vertices.p[v]);
+      const candidate = candidates.find(c => polygon.length >= 3 && polygonContains(polygon, c.point));
+      if (candidate) return record(candidate);
+      // Very wide rivers may cover the entire logical cell. Check the landmass ring before
+      // leaving that cell, so a bank at a mouth cannot put the town into the ocean.
+      const land = this.worldContext.pack.features[cells.f[cellId]];
+      const landRing = (land?.vertices ?? []).map(v => this.worldContext.pack.vertices.p[v]);
+      const cellRadius = Math.max(0, ...polygon.map(p => Math.hypot(p[0] - x, p[1] - y)));
+      const dry = candidates.find(c => {
+        if (
+          !cellRadius ||
+          Math.hypot(c.point[0] - source[0], c.point[1] - source[1]) > Math.max(cellRadius * 2, c.width)
+        )
+          return false;
+        if (landRing.length < 3 || !polygonContains(landRing, c.point)) return false;
+        const target = findClosestCell(c.point[0], c.point[1], undefined, this.worldContext.pack);
+        return (
+          target !== undefined &&
+          cells.h[target] >= 20 &&
+          cells.f[target] === cells.f[cellId] &&
+          (!cells.state || cells.state[target] === cells.state[cellId])
+        );
+      });
+      if (dry) return record(dry);
+    }
     const shift = Math.min(cells.fl[cellId] / 200, 0.6);
 
     const tangent = this.getRiverTangent(cellId, riversById);

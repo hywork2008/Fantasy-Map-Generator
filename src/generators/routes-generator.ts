@@ -6,7 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
+import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { useOptionsState } from "../store/optionsState";
 import type {
@@ -36,6 +36,7 @@ import { allowsGeneratedSeaLanes } from "../utils/frontierStartMode";
 import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
 import { isTrueOceanPortBurg } from "../utils/oceanPort";
+import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import type { Point } from "./voronoi";
@@ -1359,7 +1360,7 @@ class RoutesModule {
     const { pack } = this.worldContext;
     // Land-origin frontier has no ships; river lines share the searoutes layer.
     if (!this.allowsGeneratedSeaLanes()) return [];
-    const riverGraph = buildRiverNavigationGraph(pack);
+    const riverGraph = buildRiverNavigationGraph(pack, { respectCrossings: false });
     const riverPorts = pack.burgs.filter(burg =>
       Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
     );
@@ -1595,6 +1596,40 @@ class RoutesModule {
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
     pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
+    pack.cells.routes = this.buildLinks(pack.routes);
+    resolveRiverRouteCrossings(worldContext);
+    const finalRiverGraph = buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL });
+    const finalSeaShipRiverGraph = buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL });
+    const preservesSeaShipPassage = (route: Route): boolean => {
+      if (route.group !== "searoutes" || route.navigation === "river") return true;
+      const cells = route.cells ?? route.points.map(p => p[2]);
+      return cells.slice(1).every((next, index) => {
+        const current = cells[index];
+        // A coastal port's sea haven is separate from its local river frontage.
+        if (
+          !pack.cells.r[current] ||
+          pack.cells.r[current] !== pack.cells.r[next] ||
+          !this.riverAdjacency.has(`${current}-${next}`)
+        )
+          return true;
+        return (
+          finalSeaShipRiverGraph.getOutgoing(current).some(edge => edge.toCellId === next) ||
+          finalSeaShipRiverGraph.getOutgoing(next).some(edge => edge.toCellId === current)
+        );
+      });
+    };
+    pack.routes = pack.routes.filter(
+      route =>
+        route.lock ||
+        ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
+          preservesSeaShipPassage(route) &&
+          (route.navigation !== "river" ||
+            (route.cells ?? [])
+              .slice(1)
+              .every((cell, index) =>
+                finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
+              )))
+    );
     pack.cells.routes = this.buildLinks(pack.routes);
   }
 

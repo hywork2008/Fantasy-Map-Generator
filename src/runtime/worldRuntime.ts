@@ -1154,6 +1154,7 @@ class LegacyWorldRuntime implements WorldRuntime {
       cells.burg[burg.cell] = 0;
       cells.burg[cellId] = burgId;
       burg.cell = cellId;
+      delete burg.riverPlacement;
       updateBurgWaterAccess(burg, this.world.pack);
       burg.state = stateId;
       burg.x = x;

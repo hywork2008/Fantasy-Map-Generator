@@ -245,6 +245,7 @@ export interface CityGeography {
     cityBank: "left" | "right";
     /** A road may bridge only a channel the site's technology can span. */
     bridgeAllowed: boolean;
+    crossing?: import("../../../utils/riverCrossing").RiverCrossingPlan;
     /** The FMG tributary ends in an imported open-water parent inside this
      * urban window. A direct final leg is valid if graph walking cannot close
      * the junction exactly. */

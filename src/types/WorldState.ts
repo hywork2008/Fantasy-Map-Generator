@@ -140,6 +140,8 @@ export interface WorldOptions {
    * probability. Undefined preserves normal probabilistic culture-type assignment.
    */
   forceIndustrialCultures?: boolean;
+  /** Optional local engineering override; era defaults fill absent capabilities. */
+  riverBridgeTechnology?: Partial<import("../utils/riverCrossing").RiverBridgeTechnology>;
   historicalPeriod?:
     | "earlyMedieval"
     | "highMedieval"

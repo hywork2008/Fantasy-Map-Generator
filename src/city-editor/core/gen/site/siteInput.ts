@@ -339,7 +339,10 @@ function extractRivers(site: BurgSiteDescriptor, wideChannelIds: Set<number>): C
           cityBank: r.cityBank,
           // A road on the world map does not make a channel wider than the era's
           // crossing allowance bridgeable. Those channels are water bands, not strokes.
-          bridgeAllowed: drawnWidthMeters(r) <= crossingLimit,
+          bridgeAllowed: r.crossing
+            ? ["fixedBridge", "movableBridge"].includes(r.crossing.kind)
+            : drawnWidthMeters(r) <= crossingLimit,
+          crossing: r.crossing,
           joinsWater:
             (r.parentRiverId !== null && wideChannelIds.has(r.parentRiverId)) ||
             r.downstream.terminal === "ocean" ||

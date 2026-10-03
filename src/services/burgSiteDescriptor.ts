@@ -7,6 +7,8 @@ import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
+import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
 
@@ -29,6 +31,9 @@ import { updateBurgWaterAccess } from "./burgWaterAccess";
  */
 
 export interface BurgSiteRiver {
+  /** Estimated local water depth, not a surveyed navigation depth. */
+  depthMeters?: number | null;
+  crossing?: import("../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
   type: string;
@@ -153,6 +158,7 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    riverPlacement?: import("../types/models").Burg["riverPlacement"];
     /** Optional for legacy descriptors; independent of clipped water geometry. */
     waterAccess?: import("../types/burgWater").BurgWaterAccess;
     citadel: boolean;
@@ -204,14 +210,6 @@ const RIVER_MIN_WIDTH_M = 2;
 /** Relief (m) of the town center above its surroundings that suggests a hilltop site. */
 const HILLTOP_RELIEF_M = 30;
 
-const UNIT_METERS: Record<string, number> = {
-  km: 1000,
-  mi: 1609.344,
-  lg: 4828.032,
-  vr: 1066.8,
-  nmi: 1852
-};
-
 type WeightedPoint = { x: number; y: number; w: number };
 
 export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null {
@@ -251,6 +249,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
       waterAccess: updateBurgWaterAccess(burg, pack),
+      riverPlacement: burg.riverPlacement,
       citadel: Boolean(burg.citadel),
       plaza: Boolean(burg.plaza),
       walls: Boolean(burg.walls),
@@ -270,6 +269,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     },
     terrain,
     transport: {
+      riverBridgeTechnology: worldContext.options.riverBridgeTechnology,
       maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(worldContext.options.historicalPeriod ?? "ageOfExploration")
     },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
@@ -290,7 +290,7 @@ export function countBurgRoadLegs(burg: Burg): number {
 
 function getMetersPerMapUnit(): number {
   const unit = useOptionsState.getState().distanceUnit;
-  return worldContext.distanceScale * (UNIT_METERS[unit] ?? 1000);
+  return mapUnitMeters(worldContext.distanceScale, unit);
 }
 
 function getCityRadiusMeters(population: number): number {
@@ -506,9 +506,49 @@ function collectRivers(
     // the waterway.
     if (!segments.length && !leftBankSegments.length && !rightBankSegments.length) continue;
 
+    const widthMeters = rn(
+      points[approach.index].w + (points[approach.index + 1].w - points[approach.index].w) * approach.t,
+      1
+    );
+    const nearestCell = river.cells
+      .filter(c => c >= 0)
+      .reduce(
+        (best, cell) => {
+          const [x, y] = pack.cells.p[cell];
+          const [bx, by] = pack.cells.p[best];
+          return Math.hypot(x - burg.x, y - burg.y) < Math.hypot(bx - burg.x, by - burg.y) ? cell : best;
+        },
+        river.cells.find(c => c >= 0)!
+      );
+    const depthMeters = river.cellHydrology?.[nearestCell]?.waterDepth ?? null;
+    const waterRoutes = (pack.routes ?? []).filter(
+      route =>
+        route.group === "searoutes" &&
+        (route.cells ?? route.points?.map(p => p[2]) ?? []).some(c => river.cells.includes(c))
+    );
+    const vessel = waterRoutes.some(route => route.navigation !== "river")
+      ? SEA_SAILING_VESSEL
+      : waterRoutes.length
+        ? RIVER_CARGO_VESSEL
+        : undefined;
+    const siteCrossings = (pack.routes ?? [])
+      .flatMap(route => route.riverCrossings ?? [])
+      .filter(c => c.riverId === river.i && Math.hypot(...toLocal(...c.point)) <= half);
+    const crossing =
+      siteCrossings.find(c => c.plan.kind === "ferry" || c.plan.kind === "none")?.plan ??
+      siteCrossings[0]?.plan ??
+      planRiverCrossing({
+        widthMeters,
+        depthMeters,
+        period: worldContext.options.historicalPeriod,
+        technology: worldContext.options.riverBridgeTechnology,
+        vessel
+      });
     const offsetMeters = rn(approach.dist, 1);
     results.push({
       riverId: river.i,
+      depthMeters,
+      crossing,
       name: river.name ?? "",
       type: river.type ?? "",
       widthMeters: rn(

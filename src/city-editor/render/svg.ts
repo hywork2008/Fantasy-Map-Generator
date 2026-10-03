@@ -759,6 +759,7 @@ export function renderEditorSvg(
   features.appendChild(renderApproachLabels(document, zoom));
   if (town) {
     for (const deck of bridgeDecks(document)) {
+      const crossing = document.featureGroups.find(g => g.id === deck.groupId)?.crossing;
       const pickInfo: SvgPickInfo = {
         layer: "features",
         kind: "road",
@@ -783,7 +784,8 @@ export function renderEditorSvg(
       features.appendChild(
         element("path", {
           d: line(deck.points),
-          class: "ce-bridge-deck",
+          class: crossing?.kind === "movableBridge" ? "ce-bridge-deck ce-movable-bridge" : "ce-bridge-deck",
+          "data-crossing-kind": crossing?.kind ?? "fixedBridge",
           fill: "none",
           stroke: "#d5cfbf",
           "stroke-width": String(deck.widthMeters),
@@ -793,6 +795,33 @@ export function renderEditorSvg(
           "pointer-events": "stroke"
         })
       );
+      if (crossing?.kind === "movableBridge" && deck.points.length >= 2) {
+        const first = deck.points[0],
+          last = deck.points.at(-1)!;
+        const dx = last[0] - first[0],
+          dy = last[1] - first[1];
+        const length = Math.hypot(dx, dy);
+        if (length > 0) {
+          const center: Point = [(first[0] + last[0]) / 2, (first[1] + last[1]) / 2];
+          const half = Math.min(length * 0.4, crossing.openingMeters / 2);
+          for (const sign of [-1, 1]) {
+            const hinge: Point = [center[0] + ((sign * dx) / length) * half, center[1] + ((sign * dy) / length) * half];
+            const w = deck.widthMeters / 2;
+            features.appendChild(
+              element("path", {
+                d: line([
+                  [hinge[0] - (dy / length) * w, hinge[1] + (dx / length) * w],
+                  [hinge[0] + (dy / length) * w, hinge[1] - (dx / length) * w]
+                ]),
+                class: "ce-movable-bridge-hinge",
+                stroke: "#493b30",
+                "stroke-width": "1.5",
+                "pointer-events": "none"
+              })
+            );
+          }
+        }
+      }
     }
   }
   svg.appendChild(features);

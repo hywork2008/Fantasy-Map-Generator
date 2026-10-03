@@ -146,6 +146,7 @@ export interface ApproachBeyondData {
 export type ApproachBeyond = ApproachBeyondData | "city" | "granary" | "enemy" | "ally" | "hamlet";
 
 export interface EdgeFeatureGroup {
+  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   id: Id;
   kind: "road" | "wall" | "plank";
   name: string;
@@ -161,6 +162,7 @@ export interface EdgeFeatureGroup {
 }
 
 export interface RiverGroup {
+  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   id: Id;
   kind: "river";
   name: string;
@@ -344,6 +346,7 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  waterAccess?: import("../../types/burgWater").BurgWaterAccess;
   format: "fmg-city-editor";
   version: 1 | 2 | 3;
   landmarks?: LandmarkInstance[];

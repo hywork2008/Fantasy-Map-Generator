@@ -25,7 +25,10 @@ export const RoutesRenderer: IRenderer = {
       if (!points || points.length < 2) continue;
       if (focusScope && !(cells ?? []).some(c => isCellInScope(focusScope, c))) continue;
       if (!routePaths[group]) routePaths[group] = [];
-      routePaths[group].push(`<path id="route${i}" d="${Routes.getPath(route, pack)}"/>`);
+      const crossingKinds = [...new Set((route.riverCrossings ?? []).map(c => c.plan.kind))].join(", ");
+      routePaths[group].push(
+        `<path id="route${i}" d="${Routes.getPath(route, pack)}" data-crossings="${crossingKinds}">${crossingKinds ? `<title>River crossings: ${crossingKinds}</title>` : ""}</path>`
+      );
     }
 
     routes.attr("fill", "none").selectAll("path").remove();

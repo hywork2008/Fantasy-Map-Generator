@@ -16,6 +16,7 @@ export function updateBurgWaterAccess(burg: Burg, pack: PackedGraph): BurgWaterA
     if (feature?.type === "lake") lake.add(featureId);
   }
   const riverId = cells.r?.[burg.cell] || null;
+  if (burg.riverPlacement && burg.riverPlacement.riverId !== riverId) delete burg.riverPlacement;
   const access: BurgWaterAccess = {
     river: riverId !== null,
     sea: sea.size > 0,

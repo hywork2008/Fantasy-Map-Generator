@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PackedGraph } from "../types/PackedGraph";
+import { RIVER_CARGO_VESSEL } from "../utils/riverCrossing";
 import {
   buildRiverNavigationGraph,
   DEFAULT_SHELTERED_WATER_MINIMUM_ENCLOSURE,
@@ -95,5 +96,36 @@ describe("buildRiverNavigationGraph", () => {
     const graph = buildRiverNavigationGraph(pack);
 
     expect(findDownstreamRiverPath(graph, 0, 3)?.cellIds).toEqual([0, 2, 3]);
+  });
+});
+
+describe("vessel-specific navigation", () => {
+  it("rejects shallow reaches but preserves missing legacy depth", () => {
+    const pack = makePack();
+    pack.rivers[0].cellHydrology = { 1: { waterDepth: 0.5, waterTemperature: 15, surfaceVelocity: 1 } };
+    expect(buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }).getOutgoing(0)).toEqual([]);
+    delete pack.rivers[0].cellHydrology;
+    expect(buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }).getOutgoing(0)).toHaveLength(1);
+  });
+  it("blocks low fixed bridges and permits an adequately opened movable span", () => {
+    const pack = makePack();
+    pack.routes = [
+      {
+        group: "roads",
+        riverCrossings: [
+          {
+            riverId: 1,
+            cellId: 1,
+            point: [10, 0],
+            plan: { kind: "fixedBridge", clearanceMeters: 2, openingMeters: 10 }
+          }
+        ]
+      }
+    ] as unknown as PackedGraph["routes"];
+    expect(buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }).getOutgoing(0)).toEqual([]);
+    const plan = pack.routes[0].riverCrossings![0].plan;
+    plan.kind = "movableBridge";
+    plan.clearanceMeters = 10;
+    expect(buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }).getOutgoing(0)).toHaveLength(1);
   });
 });

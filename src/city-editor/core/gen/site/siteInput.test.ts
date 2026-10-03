@@ -94,3 +94,21 @@ describe("historical crossing policy", () => {
     expect(siteToGeography(site).rivers).toHaveLength(0);
   });
 });
+
+describe("FMG crossing handoff", () => {
+  it("does not generate a bridge for an explicit ferry decision", () => {
+    const site = synthSite("smallTown", { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["straight"] }, "ferry");
+    site.rivers[0].crossing = {
+      kind: "ferry",
+      widthMeters: 30,
+      depthMeters: 3,
+      clearanceMeters: 4,
+      openingMeters: 0,
+      navigationRequired: true,
+      reason: "navigationClearance"
+    };
+    expect(siteToGeography(site).rivers[0].bridgeAllowed).toBe(false);
+    site.rivers[0].crossing.kind = "movableBridge";
+    expect(siteToGeography(site).rivers[0]).toMatchObject({ bridgeAllowed: true, crossing: { kind: "movableBridge" } });
+  });
+});

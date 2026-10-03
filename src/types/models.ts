@@ -331,6 +331,8 @@ export interface BurgDemographics {
 }
 
 export interface Burg {
+  /** Local FMG river site; the source cell remains the logical political owner. */
+  riverPlacement?: { riverId: number; bank: "left" | "right"; widthMeters: number };
   /** Water contact and usable port frontages, refreshed from FMG cell topology. */
   waterAccess?: import("./burgWater").BurgWaterAccess;
   cell: number;
@@ -827,6 +829,8 @@ export interface RiverCellHydrology {
 }
 
 export interface Route {
+  /** Actual road/channel intersections resolved after candidate water routes. */
+  riverCrossings?: import("../utils/riverCrossing").RiverRouteCrossing[];
   i: number;
   group: string;
   feature: number;

@@ -12,6 +12,9 @@ export const DESCRIPTOR_VERSION = 2;
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
 export interface BurgSiteRiver {
+  /** Estimated local water depth, not a surveyed navigation depth. */
+  depthMeters?: number | null;
+  crossing?: import("../../../../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
   type: string;
@@ -123,6 +126,7 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    riverPlacement?: import("../../../../types/models").Burg["riverPlacement"];
     /** Optional for legacy descriptors; independent of clipped water geometry. */
     waterAccess?: import("../../../../types/burgWater").BurgWaterAccess;
     citadel: boolean;

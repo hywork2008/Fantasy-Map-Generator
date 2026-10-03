@@ -243,6 +243,24 @@ describe("river bridge deck", () => {
       expect(crosses).toBe(false);
     }
     expect(svg.querySelectorAll(".ce-bridge-deck")).toHaveLength(1);
+    document.featureGroups[1].crossing = {
+      kind: "movableBridge",
+      widthMeters: 10,
+      depthMeters: 3,
+      navigationRequired: true,
+      clearanceMeters: 12,
+      openingMeters: 6,
+      reason: "movableClearance"
+    };
+    const movable = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-50 -50 100 100",
+      1
+    );
+    expect(movable.querySelector(".ce-movable-bridge")?.getAttribute("data-crossing-kind")).toBe("movableBridge");
+    expect(movable.querySelectorAll(".ce-movable-bridge-hinge")).toHaveLength(2);
   });
 });
 

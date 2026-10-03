@@ -333,6 +333,7 @@ export function addWideRiverBridge(
   const normal: Point = [-frame.tangent[1], frame.tangent[0]];
   const river = document.featureGroups.find(g => g.kind === "river" && g.vertices.includes(vertexId));
   if (river?.kind !== "river") return null;
+  if (river.crossing && !["fixedBridge", "movableBridge"].includes(river.crossing.kind)) return null;
   const riverPoints = river.vertices.map(id => document.mesh.vertices[id].point);
   let next = document;
   const paths: Id[][] = [];
@@ -441,7 +442,8 @@ export function addWideRiverBridge(
   next.featureGroups.push({
     id,
     kind: "road",
-    name: "Bridge",
+    name: river?.crossing?.kind === "movableBridge" ? "Movable river bridge" : "Bridge",
+    ...(river?.crossing ? { crossing: river.crossing } : {}),
     locked: false,
     segments: segments.slice(mid - 1, mid + 1),
     style: { widthMeters: defaultRoadWidthMeters(document.frame.extentMeters), color: "#735238" }
@@ -493,6 +495,8 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
     )
   )
     return null;
+  const river = document.featureGroups.find(g => g.kind === "river" && g.vertices.includes(vertexId));
+  if (river?.crossing && !["fixedBridge", "movableBridge"].includes(river.crossing.kind)) return null;
   let next = clone(document);
   let [a, b] = through;
   if (document.gridKind === "evolution") {
@@ -513,7 +517,8 @@ export function addBridge(document: CityDocument, vertexId: Id, id: Id): CityDoc
   next.featureGroups.push({
     id,
     kind: "road",
-    name: "Bridge",
+    name: river?.crossing?.kind === "movableBridge" ? "Movable river bridge" : "Bridge",
+    ...(river?.crossing ? { crossing: river.crossing } : {}),
     locked: false,
     segments: [
       { edgeId: a.id, forward: a.b === vertexId },

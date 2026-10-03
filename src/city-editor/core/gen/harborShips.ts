@@ -97,7 +97,11 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
   const period = document.historicalPeriod ?? "ageOfExploration";
   const exploration = isExplorationOrLater(period);
-  const allowedTypes = allowedShipTypesForPeriod(period);
+  const seaTypes = allowedShipTypesForPeriod(period);
+  const typesForWater = (faceId: Id): ShipType[] => {
+    if (!document.waterAccess) return seaTypes; // Legacy/standalone documents.
+    return document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(faceId) ? seaTypes : ["small"];
+  };
 
   const rng = makeRng(`${document.generationSeed ?? "fmg"}:${seed}:ships`);
 
@@ -274,6 +278,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     const berthKey = `${berth.pier.id}:${berth.side}`;
     if (usedPierSides.has(berthKey)) continue;
 
+    const allowedTypes = typesForWater(berth.pier.waterFaceId);
     // 船種選択
     let chosenType: ShipType;
     if (exploration) {
@@ -418,6 +423,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
       if (len < 10) continue;
       const normToWater: Point = [toWater[0] / len, toWater[1] / len];
 
+      const allowedTypes = typesForWater(waterId);
       let chosenType: ShipType = exploration ? (rng() < 0.5 ? "medium" : "large") : "medium";
       if (!allowedTypes.includes(chosenType)) {
         chosenType = allowedTypes[0];

@@ -335,3 +335,22 @@ describe("harborShips", () => {
     expect(renderedShips.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("actual port water", () => {
+  it("never puts a galleon at a river or lake berth, even in a dual sea/river port", () => {
+    const doc = harborFixture("ageOfExploration");
+    doc.waterAccess = {
+      river: true,
+      sea: true,
+      lake: false,
+      riverId: 1,
+      seaFeatureIds: [1],
+      lakeFeatureIds: [],
+      port: { river: true, sea: true, lake: false }
+    };
+    doc.coastalOceanFaceIds = [];
+    const ships = ["s1", "s2", "s3"].flatMap(seed => planHarborShips(doc, seed));
+    expect(ships.length).toBeGreaterThan(0);
+    expect(ships.every(ship => ship.shipType === "small")).toBe(true);
+  });
+});

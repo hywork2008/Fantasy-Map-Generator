@@ -16,6 +16,8 @@ export const BRIDGE_CROSSING_LIMIT_METERS = {
 } as const;
 
 export interface BridgeTransport {
+  /** Explicit local technology; era capabilities supply missing values. */
+  riverBridgeTechnology?: Partial<import("./riverCrossing").RiverBridgeTechnology>;
   /** Total routine crossing allowance, including multiple supported spans. */
   maxBridgeCrossingMeters?: number;
   /** Legacy name: previously compared against the entire channel width. */

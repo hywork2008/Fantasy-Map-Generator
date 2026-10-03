@@ -1065,3 +1065,45 @@ describe("BurgsModule.defineFeatures — strategic citadel bonus", () => {
     expect(burg.citadel).toBe(0);
   });
 });
+
+describe("physical river-bank city placement", () => {
+  it("moves the town beyond the local drawn and physical banks of a broad river", () => {
+    worldContext.pack = {
+      burgs: [0, { i: 1, cell: 1, x: 0, y: 0 }],
+      cells: {
+        h: [25, 25, 25, 25, 25, 25],
+        r: [10, 10, 10, 10, 10, 10],
+        fl: [0, 0, 0, 0, 0, 0],
+        haven: [0, 0, 0, 0, 0, 0],
+        harbor: [0, 0, 0, 0, 0, 0],
+        f: [0, 0, 0, 0, 0, 0],
+        p: [
+          [0, -4],
+          [0, 0],
+          [0, 4],
+          [0, 8],
+          [0, 12],
+          [0, 16]
+        ],
+        v: [[], [0, 1, 2, 3]]
+      },
+      vertices: {
+        p: [
+          [-20, -20],
+          [20, -20],
+          [20, 20],
+          [-20, 20]
+        ],
+        c: []
+      },
+      features: [{ type: "island" }],
+      rivers: [{ i: 10, cells: [0, 1, 2, 3, 4, 5], sourceWidth: 4, widthFactor: 0, width: 7 }]
+    } as unknown as PackedGraph;
+    Burgs.shift();
+    const burg = worldContext.pack.burgs[1];
+    expect(Math.abs(burg.x)).toBeGreaterThanOrEqual(4);
+    expect(Math.abs(burg.x)).toBeLessThan(5);
+    expect(burg.cell).toBe(1);
+    expect(burg.waterAccess?.river).toBe(true);
+  });
+});

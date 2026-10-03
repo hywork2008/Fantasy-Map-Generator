@@ -34,6 +34,7 @@ export interface RoutedRiver {
   fallback: boolean;
   /** Whether the site permits a road bridge across this physical channel. */
   bridgeAllowed: boolean;
+  crossing?: import("../../../utils/riverCrossing").RiverCrossingPlan;
 }
 
 // Two passes, not three: on the coarse ward-scale grid the walked `edgePoints`
