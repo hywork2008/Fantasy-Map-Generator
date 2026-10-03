@@ -377,7 +377,13 @@ export interface CityDocument {
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;
-  frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
+  frame: {
+    extentMeters: number;
+    cityRadiusMeters: number;
+    blockSizeMeters: number;
+    /** Town-sizing window when `extentMeters` was widened to show a distant bank. */
+    settlementExtentMeters?: number;
+  };
   /** Completed cities open in the building/ink view; editing uses the same mesh. */
   appearance?: "town";
   /** Historical backdrop / technological era. Defaults to "ageOfExploration". */

@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { createGridDocument, descriptorFrameGridOptions } from "../city-editor/core/document";
+import { townExtentMeters } from "../city-editor/core/gen/settlementExtent";
 import type { BurgSiteDescriptor as CESite } from "../city-editor/core/gen/site/burgSiteDescriptor";
 import { siteToGeography } from "../city-editor/core/gen/site/siteInput";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
+import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { countBurgRoadLegs, getBurgSiteDescriptor } from "./burgSiteDescriptor";
 
 /**
@@ -210,9 +213,71 @@ describe("getBurgSiteDescriptor", () => {
       }
     ];
     const geo = siteToGeography(ceSite, true);
-    expect(geo.rivers[0].crossing?.depthMeters).toBe(3.25);
+    expect(descriptor.rivers[0].frontage).toBe("beyond-budget");
+    expect(geo.rivers).toHaveLength(0);
+    expect(geo.channels ?? []).toHaveLength(0);
     expect(descriptor.burg.waterAccess).toMatchObject({ river: true, riverId: 1 });
     expect(burg.waterAccess).toEqual(descriptor.burg.waterAccess);
+  });
+
+  it("widens the display to a bank outside the population window without growing the town", () => {
+    const burg = worldContext.pack.burgs[1];
+    burg.cell = 4;
+    burg.x = 98.2;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
+    expect(descriptor.frame.cityRadiusMeters).toBe(461);
+    expect(descriptor.burg.population).toBe(10000);
+    expect(descriptor.frame.extentMeters).toBeGreaterThan(population);
+    expect(descriptor.frame.extentMeters).toBeLessThanOrEqual(4500);
+    expect(descriptor.frame.requiredBounds).toBeDefined();
+    const river = descriptor.rivers[0];
+    expect(river.frontage).toBeUndefined();
+    expect(river.cityBank).toBe("right");
+    const xs = [
+      ...river.segments.flatMap(segment => segment.points.map(point => point[0])),
+      ...river.leftBankSegments.flat().map(point => point[0]),
+      ...river.rightBankSegments.flat().map(point => point[0])
+    ];
+    expect(xs.length).toBeGreaterThan(0);
+    expect(Math.min(...xs)).toBeGreaterThan(500);
+    const geo = siteToGeography(structuredClone(descriptor) as CESite);
+    const shore = geo.channels?.[0]?.shoreline ?? geo.rivers[0]?.corridor ?? [];
+    expect(shore.length).toBeGreaterThanOrEqual(2);
+    expect(shore.every(point => point[0] > 500)).toBe(true);
+
+    const document = createGridDocument({
+      size: "large",
+      grid: "evolution",
+      seed: "frontage-window",
+      ...descriptorFrameGridOptions(descriptor.frame)
+    });
+    expect(document.frame.extentMeters).toBe(descriptor.frame.extentMeters);
+    expect(document.frame.settlementExtentMeters).toBe(population);
+    expect(townExtentMeters(document.frame)).toBe(population);
+    for (const vertex of Object.values(document.mesh.vertices)) {
+      expect(Math.abs(vertex.point[0])).toBeLessThanOrEqual(population / 2 + 1);
+      expect(Math.abs(vertex.point[1])).toBeLessThanOrEqual(population / 2 + 1);
+    }
+  });
+
+  it("fits a wide river port by its near bank when the centreline exceeds the display budget", () => {
+    const burg = worldContext.pack.burgs[1];
+    burg.cell = 4;
+    burg.x = 97.8;
+    burg.port = 1;
+    worldContext.pack.rivers[0].widthFactor = 8;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    const river = descriptor.rivers[0];
+    expect(river.frontage).toBeUndefined();
+    expect(river.offsetMeters).toBeGreaterThan(2200);
+    expect(descriptor.frame.cityRadiusMeters).toBe(461);
+    expect(descriptor.frame.extentMeters).toBeGreaterThan(2766);
+    expect(descriptor.frame.extentMeters).toBeLessThanOrEqual(4500);
+    expect(descriptor.frame.extentMeters).toBeLessThan(river.offsetMeters * 2);
+    const banks = [...river.leftBankSegments.flat(), ...river.rightBankSegments.flat()];
+    expect(banks.length).toBeGreaterThan(1);
+    expect(Math.min(...banks.map(point => point[0]))).toBeGreaterThan(500);
   });
 
   it("emits one gate-candidate entry per road leg with destinations", () => {

@@ -1,10 +1,11 @@
+import { townMeshExtentMeters } from "../../document";
 import type { CityGeography, Point } from "../types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
 
-/** Stop at the first frame crossing; a fitted city must keep the source road's
- * intersection with its smaller frame, rather than inventing a radial exit. */
+/** Stop at the first town-mesh crossing. A widened display still shows the
+ * river, but the source road meets the mesh edge instead of that outer frame. */
 export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<CityGeography["importedRoads"]> {
-  const half = site.frame.extentMeters / 2;
+  const half = townMeshExtentMeters(site.frame) / 2;
   return site.roads.flatMap((road, sourceIndex) => {
     if (road.group === "searoutes" || road.path.length < 2) return [];
     const path: Point[] = [[...road.path[0]]];

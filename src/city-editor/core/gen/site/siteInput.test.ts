@@ -22,6 +22,76 @@ describe("independent sea defenses", () => {
 });
 
 describe("wide-channel bank clearance", () => {
+  it.each(["both", "one", "unequal"] as const)("keeps disconnected %s-bank fragments separate", banks => {
+    const site = synthSite(
+      "smallTown",
+      { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["straight"] },
+      "disconnected-frontage",
+      { extentMeters: 3000, cityRadiusMeters: 80 }
+    );
+    site.burg.port = false;
+    site.transport = { maxBridgeCrossingMeters: 100 };
+    Object.assign(site.rivers[0], {
+      widthMeters: 40,
+      cityBank: "left",
+      snappedToBank: false,
+      segments: [
+        {
+          points: [
+            [1000, -900],
+            [1100, -800]
+          ],
+          widthsMeters: [40, 40]
+        },
+        {
+          points: [
+            [1100, 800],
+            [1000, 900]
+          ],
+          widthsMeters: [40, 40]
+        }
+      ],
+      leftBankSegments: [
+        [
+          [980, -900],
+          [1080, -800]
+        ],
+        [
+          [1080, 800],
+          [980, 900]
+        ]
+      ],
+      rightBankSegments:
+        banks === "one"
+          ? []
+          : banks === "unequal"
+            ? [
+                [
+                  [1120, 800],
+                  [1020, 900]
+                ]
+              ]
+            : [
+                [
+                  [1020, -900],
+                  [1120, -800]
+                ],
+                [
+                  [1120, 800],
+                  [1020, 900]
+                ]
+              ]
+    });
+    const before = JSON.stringify(site);
+    const geo = siteToGeography(site);
+    expect(geo.channels).toHaveLength(2);
+    expect(geo.channels!.every(c => !pointInPolygon([1100, 0], c.polygon))).toBe(true);
+    expect(geo.channels!.some(c => pointInPolygon([1050, -850], c.polygon))).toBe(true);
+    expect(geo.channels!.some(c => pointInPolygon([1050, 850], c.polygon))).toBe(true);
+    expect(geo.channels!.every(c => c.shoreline.every(p => p[1] < 0) || c.shoreline.every(p => p[1] > 0))).toBe(true);
+    expect(JSON.stringify(site)).toBe(before);
+  });
+
   it.each([
     { y: 0, bank: "left" as const },
     { y: 0, bank: "right" as const },
@@ -153,7 +223,7 @@ describe("river port geometry lost to FMG clipping", () => {
       0
     );
   });
-  it("preserves surveyed bends when moving a remote river frontage", () => {
+  it("keeps a surveyed course south of town instead of moving it", () => {
     const site = riverPort(40);
     const river = synthSite(
       "smallTown",
@@ -183,10 +253,44 @@ describe("river port geometry lost to FMG clipping", () => {
     });
     site.rivers = [river];
     const before = JSON.stringify(site);
-    const points = siteToGeography(site).rivers[0].corridor;
-    expect(points).toHaveLength(3);
-    expect(points[1][1] - (points[0][1] + points[2][1]) / 2).toBeCloseTo(-80);
+    const geo = siteToGeography(site);
+    const water = geo.channels?.[0]?.shoreline ?? geo.rivers[0]?.corridor ?? [];
+    expect(water.length).toBeGreaterThanOrEqual(2);
+    expect(water.every(point => point[1] < -500)).toBe(true);
     expect(JSON.stringify(site)).toBe(before);
+  });
+  it("keeps a surveyed river north of town on that side", () => {
+    const site = riverPort(40);
+    const river = synthSite(
+      "smallTown",
+      { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["straight"] },
+      "surveyed-north"
+    ).rivers[0];
+    Object.assign(river, {
+      riverId: 42,
+      widthMeters: 40,
+      cityBank: "right",
+      axisAzimuthDeg: 90,
+      offsetMeters: 1800,
+      offsetRatio: 1800 / site.frame.cityRadiusMeters,
+      throughBurgCell: true,
+      segments: [
+        {
+          points: [
+            [-200, 1800],
+            [200, 1800]
+          ],
+          widthsMeters: [40, 40]
+        }
+      ],
+      leftBankSegments: [],
+      rightBankSegments: []
+    });
+    site.rivers = [river];
+    const geo = siteToGeography(site);
+    const water = geo.channels?.[0]?.shoreline ?? geo.rivers[0]?.corridor ?? [];
+    expect(water.length).toBeGreaterThanOrEqual(2);
+    expect(water.every(point => point[1] > 1000)).toBe(true);
   });
   it.each([
     { limit: 1000, depth: 2, kind: "fixedBridge" },

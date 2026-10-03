@@ -41,6 +41,8 @@ export interface BurgSiteRiver {
   rawOffsetMeters: number;
   /** Legacy bank-translation flag. New FMG exports always set false. */
   snappedToBank: boolean;
+  /** The real bank does not fit the display budget. Do not invent a nearer river. */
+  frontage?: "beyond-budget";
   /** Centerline polyline(s) clipped to the window, upstream → downstream, local meters. */
   segments: { points: [number, number][]; widthsMeters: number[] }[];
   parentRiverId: number | null;

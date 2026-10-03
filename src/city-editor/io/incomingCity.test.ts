@@ -209,7 +209,9 @@ describe("mandatory local site bounds", () => {
     const d = descriptor({ minX: -700, minY: -20, maxX: -600, maxY: 40 });
     const share = shareFromDescriptor(d);
     expect(share.descriptor!.frame).toEqual(d.frame);
-    expect(share.patchParams).toBeUndefined();
+    expect(share.size).toBe("small");
+    expect(share.patchParams?.nPatches).toBe(6);
+    expect(share.measureBlockSize).toBe(true);
     expect(decodeShare(encodeShare(share))!.descriptor!.frame).toEqual(d.frame);
   });
   it("still fits a hamlet when all mandatory points fit the smaller frame", () => {

@@ -10,7 +10,7 @@ import { worldContext } from "../../context/worldContext";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
 import { type BurgSiteDescriptor, getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { type CityEditorShare, parseIncomingPayload } from "../io/incomingCity";
-import { createGridDocument } from "./document";
+import { createGridDocument, descriptorFrameGridOptions } from "./document";
 import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import type { BuildingLot } from "./gen/buildingLots";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
@@ -100,8 +100,7 @@ export function cityEditorDocument(share: CityEditorShare): CityDocument {
     seed: share.gridSeed ?? share.seed,
     hexSizeMeters: share.hexSizeMeters,
     patchParams: share.patchParams,
-    extentMeters: share.descriptor?.frame.extentMeters,
-    cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters,
+    ...(share.descriptor ? descriptorFrameGridOptions(share.descriptor.frame) : {}),
     measureBlockSize: share.measureBlockSize === true
   });
 }

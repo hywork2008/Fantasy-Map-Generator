@@ -5,7 +5,12 @@ import { worldContext } from "../../context/worldContext";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { shareFromDescriptor } from "../io/incomingCity";
-import { createGridDocument, fitUndersizedTownFrame, nPatchesForTownCells } from "./document";
+import {
+  createGridDocument,
+  descriptorFrameGridOptions,
+  fitUndersizedTownFrame,
+  nPatchesForTownCells
+} from "./document";
 import { buildBlockFabric } from "./gen/blockInfill";
 import { pointInPolygon } from "./gen/geom";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
@@ -153,8 +158,7 @@ describe.skipIf(!existsSync(alyatland))("Alyatland hamlet hand-off", () => {
         grid: share.grid,
         seed: share.gridSeed ?? share.seed,
         patchParams: share.patchParams,
-        extentMeters: share.descriptor?.frame.extentMeters,
-        cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters,
+        ...(share.descriptor ? descriptorFrameGridOptions(share.descriptor.frame) : {}),
         measureBlockSize: share.measureBlockSize
       });
       const settings = defaultGenerationSettings();

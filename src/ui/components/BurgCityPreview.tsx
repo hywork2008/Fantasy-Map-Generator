@@ -22,7 +22,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
     async function generate() {
       const [
         { parseDescriptor, shareFromDescriptor },
-        { createGridDocument },
+        { createGridDocument, descriptorFrameGridOptions },
         { defaultGenerationSettings },
         { startCityGeneration },
         { serializeCitySvg }
@@ -44,8 +44,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
         seed: share.gridSeed ?? share.seed,
         hexSizeMeters: share.hexSizeMeters,
         patchParams: share.patchParams,
-        extentMeters: share.descriptor?.frame.extentMeters,
-        cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters,
+        ...(share.descriptor ? descriptorFrameGridOptions(share.descriptor.frame) : {}),
         measureBlockSize: share.measureBlockSize === true
       });
       if (disposed) return;

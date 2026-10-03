@@ -1,5 +1,5 @@
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
-import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { populationWindowMeters, type RequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import {
   type FixedApproachProvider,
   restoreFixedCrossingApproaches,
@@ -84,6 +84,10 @@ export interface CreateGridOptions {
   /** Override the preset window so an FMG descriptor's frame is used as-is. */
   extentMeters?: number;
   cityRadiusMeters?: number;
+  /** Block mesh window when the display frame is larger than the town. */
+  meshExtentMeters?: number;
+  /** Civic window stored on the frame when it is smaller than the display frame. */
+  settlementExtentMeters?: number;
   /** Evolution only. Replace the nominal 50 m block with the median town-cell width. */
   measureBlockSize?: boolean;
   /** Explicit evolution block width. Ignored for a hex grid, which uses its side length. */
@@ -193,28 +197,70 @@ export function createSizedDocument(size: CitySizePreset, seed = randomSeed()): 
 
 /** New-city mesh: hexagonal tiling, Poisson Voronoi (`🆕` historically), or the
  * Grid-evolution final stage (Document-panel default; same mesh as 「この格子を採用」). */
+/**
+ * Mesh side when required water kept the display larger than the town.
+ * A hamlet uses the fitted Micro/Tiny window. A town whose population window
+ * already matches uses that window. Otherwise the display itself is the mesh.
+ */
+export function townMeshExtentMeters(frame: {
+  extentMeters: number;
+  cityRadiusMeters: number;
+  requiredBounds?: RequiredSiteBounds;
+}): number {
+  const population = populationWindowMeters(frame.cityRadiusMeters);
+  const town = fitUndersizedTownFrame(frame.cityRadiusMeters, population)?.extentMeters ?? population;
+  const water = frame.requiredBounds ? requiredSiteExtent(frame.requiredBounds) : 0;
+  if (frame.extentMeters > town + 0.5 && water > town + 0.5) return town;
+  return frame.extentMeters;
+}
+
+/** Display extent, and a separate town mesh when `townMeshExtentMeters` is smaller. */
+export function descriptorFrameGridOptions(frame: {
+  extentMeters: number;
+  cityRadiusMeters: number;
+  requiredBounds?: RequiredSiteBounds;
+}): Pick<CreateGridOptions, "extentMeters" | "meshExtentMeters" | "settlementExtentMeters" | "cityRadiusMeters"> {
+  const mesh = townMeshExtentMeters(frame);
+  const widened = mesh < frame.extentMeters - 0.5;
+  return {
+    extentMeters: frame.extentMeters,
+    cityRadiusMeters: frame.cityRadiusMeters,
+    ...(widened ? { meshExtentMeters: mesh, settlementExtentMeters: mesh } : {})
+  };
+}
+
 export function createGridDocument(options: CreateGridOptions): CityDocument {
   const seed = options.seed ?? randomSeed();
   const grid = options.grid ?? "hex";
   const preset = CITY_SIZE_PRESETS[options.size];
   const extentMeters = options.extentMeters ?? preset.extentMeters;
   const cityRadiusMeters = options.cityRadiusMeters ?? extentMeters * 0.33;
+  const meshExtent =
+    options.meshExtentMeters && options.meshExtentMeters > 0
+      ? Math.min(extentMeters, options.meshExtentMeters)
+      : extentMeters;
   const hexSizeMeters = options.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
   const patchParams = options.patchParams ?? DEFAULT_PATCH_PARAMS;
+  const settlement =
+    options.settlementExtentMeters &&
+    options.settlementExtentMeters > 0 &&
+    options.settlementExtentMeters < extentMeters - 0.5
+      ? options.settlementExtentMeters
+      : undefined;
 
   let cells: Cell[];
   let blockSizeMeters = BLOCK_SIZE_METERS;
   if (grid === "hex") {
-    cells = buildHexGrid(extentMeters, hexSizeMeters);
+    cells = buildHexGrid(meshExtent, hexSizeMeters);
     blockSizeMeters = hexSizeMeters;
   } else if (grid === "evolution") {
-    cells = buildPatchCells({ extentMeters, ...patchParams }, makeRng(seed));
+    cells = buildPatchCells({ extentMeters: meshExtent, ...patchParams }, makeRng(seed));
     if (options.measureBlockSize) blockSizeMeters = medianTownCellMeters(cells, cityRadiusMeters);
     else if (options.blockSizeMeters && options.blockSizeMeters > 0) blockSizeMeters = options.blockSizeMeters;
   } else {
     const params: CityParams = {
       seed,
-      extentMeters,
+      extentMeters: meshExtent,
       cityRadiusMeters,
       cellSizeMeters: BLOCK_SITE_SPACING_METERS,
       lloydPasses: 1
@@ -222,7 +268,7 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
     cells = buildGrid(params, EMPTY_GEO, makeRng(seed)).at(-1)?.cells ?? [];
     if (options.blockSizeMeters && options.blockSizeMeters > 0) blockSizeMeters = options.blockSizeMeters;
   }
-  const document = documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters);
+  const document = documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters, settlement);
   document.gridKind = grid;
   return document;
 }
@@ -231,12 +277,18 @@ function documentFromCells(
   cells: Cell[],
   extentMeters: number,
   blockSizeMeters: number,
-  cityRadiusMeters: number
+  cityRadiusMeters: number,
+  settlementExtentMeters?: number
 ): CityDocument {
   return {
     format: "fmg-city-editor",
     version: 1,
-    frame: { extentMeters, cityRadiusMeters, blockSizeMeters },
+    frame: {
+      extentMeters,
+      cityRadiusMeters,
+      blockSizeMeters,
+      ...(settlementExtentMeters ? { settlementExtentMeters } : {})
+    },
     historicalPeriod: "ageOfExploration",
     mesh: meshFromCells(cells),
     featureGroups: [],

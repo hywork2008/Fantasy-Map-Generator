@@ -94,7 +94,8 @@ import {
   MIN_SETTLEMENT_AREA_SHARE,
   minExternalRoadsForExtent,
   resolveWalledAreaShare,
-  splitUrbanCore
+  splitUrbanCore,
+  townExtentMeters
 } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
@@ -400,7 +401,7 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
   };
   const params: CityParams = {
     seed,
-    extentMeters: frame.extentMeters,
+    extentMeters: townExtentMeters(frame),
     cityRadiusMeters: settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters,
     dwellings: descriptor.burg.dwellings,
     cellSizeMeters: cellSize,
@@ -512,7 +513,11 @@ export function generateStageOnDocument(
     wallCheckpoint
   );
   if (res) {
-    res.layout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, document.frame.extentMeters, seed);
+    res.layout = resolveEffectiveLayout(
+      settings.layout ?? settings.config?.layout,
+      townExtentMeters(document.frame),
+      seed
+    );
     res.generationSeed = seed;
     if (stageStep >= 5) tagExternalGateRoads(res, seed, settings.descriptor);
     if (stageStep >= 6) cultivateRoadside(res);
@@ -564,7 +569,7 @@ export function generateCityOnDocument(
           settings: {
             ...structuredClone(settings),
             layout: result.layout,
-            walledAreaShare: resolveWalledAreaShare(settings.walledAreaShare, document.frame.extentMeters)
+            walledAreaShare: resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
           },
           input
         };
@@ -766,7 +771,7 @@ export function generateCityAttempt(
   mark("apply-total");
   if (!next) return null;
   debugDocument = () => next;
-  const minRoads = requiredExternalRoads(settings, document.frame.extentMeters);
+  const minRoads = requiredExternalRoads(settings, townExtentMeters(document.frame));
   const roadsBeforeFinish = countExternalApproachRoads(next);
   if (minRoads > 0 && roadsBeforeFinish < minRoads)
     return reject(
@@ -1935,7 +1940,14 @@ export function runPlan(
     const temp: CityDocument = {
       format: "fmg-city-editor",
       version: 1,
-      frame: { extentMeters: half * 2, cityRadiusMeters: params.cityRadiusMeters, blockSizeMeters: cellSize },
+      frame: {
+        extentMeters: half * 2,
+        cityRadiusMeters: params.cityRadiusMeters,
+        blockSizeMeters: cellSize,
+        ...(sourceDocument?.frame.settlementExtentMeters
+          ? { settlementExtentMeters: sourceDocument.frame.settlementExtentMeters }
+          : {})
+      },
       mesh: currentMesh,
       featureGroups: program.walls
         ? [
@@ -2613,7 +2625,7 @@ function applyPlan(
             ? lineHitsDocumentWater(
                 next,
                 [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-                defaultRoadWidthMeters(next.frame.extentMeters)
+                defaultRoadWidthMeters(townExtentMeters(next.frame))
               )
             : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
         )
@@ -2869,9 +2881,9 @@ function applyPlan(
         point: [precinct.anchor[0], precinct.anchor[1]],
         sizeMeters:
           precinct.kind === "temple"
-            ? templeFootprintMeters(next.frame.extentMeters).length
+            ? templeFootprintMeters(townExtentMeters(next.frame)).length
             : precinct.kind === "plaza"
-              ? plazaFootprintMeters(next.frame.extentMeters)
+              ? plazaFootprintMeters(townExtentMeters(next.frame))
               : undefined,
         rotation:
           precinct.kind === "temple"
@@ -3005,7 +3017,7 @@ function applyPlan(
       .filter(e => e.leftFace && e.rightFace && templeFaces.has(e.leftFace) && templeFaces.has(e.rightFace))
       .map(e => e.id);
     const templeNave = templeElem?.point
-      ? templeRectForElement(templeElem.point, templeElem.sizeMeters, templeElem.rotation, next.frame.extentMeters)
+      ? templeRectForElement(templeElem.point, templeElem.sizeMeters, templeElem.rotation, townExtentMeters(next.frame))
       : null;
     const templeBlockedEdges = new Set<Id>(internalTempleEdges);
     if (templeNave) {
@@ -3024,7 +3036,7 @@ function applyPlan(
           ? lineHitsDocumentWater(
               next,
               [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-              defaultRoadWidthMeters(next.frame.extentMeters)
+              defaultRoadWidthMeters(townExtentMeters(next.frame))
             )
           : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
       )
@@ -3086,7 +3098,7 @@ function applyPlan(
             ? lineHitsDocumentWater(
                 next,
                 [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-                defaultRoadWidthMeters(next.frame.extentMeters)
+                defaultRoadWidthMeters(townExtentMeters(next.frame))
               )
             : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
         )
@@ -3191,7 +3203,7 @@ function applyPlan(
             }
           : {}),
         segments,
-        style: { widthMeters: defaultRoadWidthMeters(source.frame.extentMeters), color: "#735238" },
+        style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
         locked: false
       });
     });
@@ -3238,7 +3250,7 @@ function applyPlan(
             kind: "road",
             name: "Cross-river road",
             segments,
-            style: { widthMeters: defaultRoadWidthMeters(source.frame.extentMeters), color: "#735238" },
+            style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
             locked: false
           });
         }
@@ -3561,10 +3573,12 @@ export function completeRoadRouter(
         )
       );
   }
-  const moat = new MoatReservation(document, defaultRoadWidthMeters(document.frame.extentMeters) / 2 + 1);
+  const moat = new MoatReservation(document, defaultRoadWidthMeters(townExtentMeters(document.frame)) / 2 + 1);
   const castleBlocked = new Set(
     Object.values(mesh.edges)
-      .filter(edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(document.frame.extentMeters)))
+      .filter(
+        edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(townExtentMeters(document.frame)))
+      )
       .map(edge => edge.id)
   );
   const moatBlocked = new Set(
@@ -4218,9 +4232,9 @@ function settleTempleOnDocument(document: CityDocument): void {
     .map(face => facePoints(document.mesh, face));
   let rect = placeAndClearTempleRect(
     temple.point,
-    document.frame.extentMeters,
+    townExtentMeters(document.frame),
     guides,
-    hazards.length ? hazards : templeHazards(roads, rivers, document.frame.extentMeters)
+    hazards.length ? hazards : templeHazards(roads, rivers, townExtentMeters(document.frame))
   );
   const validSite = (candidate: typeof rect): boolean =>
     hazards.every(hazard => orientedRectPolylineDistance(candidate, hazard.points) >= hazard.clearance - 0.2) &&
@@ -4239,7 +4253,7 @@ function settleTempleOnDocument(document: CityDocument): void {
           Math.hypot(b[0] - temple.point![0], b[1] - temple.point![1])
       );
     for (const center of candidates) {
-      const candidate = placeAndClearTempleRect(center, document.frame.extentMeters, guides, hazards);
+      const candidate = placeAndClearTempleRect(center, townExtentMeters(document.frame), guides, hazards);
       if (!validSite(candidate)) continue;
       rect = candidate;
       break;
@@ -4254,7 +4268,7 @@ function settleTempleOnDocument(document: CityDocument): void {
   temple.point = rect.center;
   temple.rotation = orientTempleHybrid(rect.center, rect.rotation, plazaCenter, document.historicalPeriod);
 
-  const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, document.frame.extentMeters);
+  const nave = templeRectForElement(temple.point, temple.sizeMeters, temple.rotation, townExtentMeters(document.frame));
   const hitFaces = Object.values(document.mesh.faces).filter(face => {
     const poly = facePoints(document.mesh, face);
     return pointInPolygon(temple.point!, poly) || polygonHitsOrientedRect(poly, nave);

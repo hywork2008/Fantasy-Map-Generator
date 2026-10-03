@@ -15,6 +15,7 @@ import {
   createGridDocument,
   DEFAULT_CITY_SIZE,
   DEFAULT_GRID_KIND,
+  descriptorFrameGridOptions,
   type GridKind
 } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
@@ -4513,11 +4514,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
   }
 
-  function importedFrame(): { extentMeters?: number; cityRadiusMeters?: number } {
+  function importedFrame() {
     const descriptor = generateSettings.descriptor;
-    return descriptor
-      ? { extentMeters: descriptor.frame.extentMeters, cityRadiusMeters: descriptor.frame.cityRadiusMeters }
-      : {};
+    return descriptor ? descriptorFrameGridOptions(descriptor.frame) : {};
   }
 
   function currentShare(): CityEditorShare {
@@ -4591,8 +4590,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       seed: gridSeed,
       hexSizeMeters,
       patchParams: { ...gridEvoParams },
-      extentMeters: share.descriptor?.frame.extentMeters,
-      cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters,
+      ...(share.descriptor ? descriptorFrameGridOptions(share.descriptor.frame) : {}),
       measureBlockSize: measureTownCells
     });
     history = new DocumentHistory(

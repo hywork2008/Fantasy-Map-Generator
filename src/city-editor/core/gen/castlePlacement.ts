@@ -4,6 +4,7 @@ import type { CastleSettings, CityDocument, Id, Mesh, Point } from "../types";
 import { layoutCastle } from "./castleLayout";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { makeRng } from "./prng";
+import { townExtentMeters } from "./settlementExtent";
 import type { BurgSiteTerrain } from "./site/burgSiteDescriptor";
 
 export const DEFAULT_CASTLE_SETTINGS: CastleSettings = {
@@ -237,7 +238,7 @@ export function placeCastleRegion(
   );
   const size =
     settings.size === "auto"
-      ? document.frame.extentMeters <= 600 || document.frame.cityRadiusMeters <= 120
+      ? townExtentMeters(document.frame) <= 600 || document.frame.cityRadiusMeters <= 120
         ? "small"
         : "standard"
       : settings.size;

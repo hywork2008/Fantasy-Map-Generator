@@ -580,6 +580,7 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
   next.frame.extentMeters *= factor;
   next.frame.cityRadiusMeters *= factor;
   next.frame.blockSizeMeters *= factor;
+  if (next.frame.settlementExtentMeters !== undefined) next.frame.settlementExtentMeters *= factor;
   return validate(next).length ? null : next;
 }
 

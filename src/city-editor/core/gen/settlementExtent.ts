@@ -23,6 +23,13 @@ export function minExternalRoadsForExtent(extentMeters: number): number {
  * Road width in meters scaled by settlement extent, aligning with medieval European
  * street width standards (Tiny/village: ~3.5m, Small town: ~4.5m, Medium city: ~6m, Large city: ~7.5m).
  */
+/** Civic window. A widened display frame keeps walls, roads, and landmarks on the unexpanded town. */
+export function townExtentMeters(frame: { extentMeters: number; settlementExtentMeters?: number }): number {
+  const settlement = frame.settlementExtentMeters;
+  if (settlement === undefined || !Number.isFinite(settlement) || settlement <= 0) return frame.extentMeters;
+  return Math.min(frame.extentMeters, settlement);
+}
+
 export function defaultRoadWidthMeters(extentMeters: number): number {
   if (extentMeters <= 600) return 3.5;
   if (extentMeters <= 1200) return 4.5;

@@ -1,4 +1,5 @@
 import { resolveBridgeCrossingLimit } from "../../../../utils/bridgeCrossingPolicy";
+import { populationWindowMeters } from "../../../../utils/requiredSiteBounds";
 import { planRiverCrossing, RIVER_CARGO_VESSEL } from "../../../../utils/riverCrossing";
 import { dryRuns } from "../../waterGeometry";
 import { importedRoadsForSite } from "./importedRoads";
@@ -119,12 +120,24 @@ export function siteToGeography(site: BurgSiteDescriptor, imported = false): Cit
 
 /** Port topology survives FMG window clipping. Reconstruct only an unavailable
  * river frontage; a sea/lake anchor alone is not evidence of a river port. */
+function hasSurveyedCourse(river: SiteRiver | undefined): boolean {
+  if (!river) return false;
+  return [...river.segments.map(segment => segment.points), ...river.leftBankSegments, ...river.rightBankSegments].some(
+    line => line.length >= 2
+  );
+}
+
 function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
   const access = site.burg.waterAccess;
   if (!site.burg.port || !access?.port.river) return site;
   const id = access.riverId ?? site.burg.riverPlacement?.riverId;
   if (id == null) return site;
   const existing = site.rivers.find(r => r.riverId === id);
+  // A course outside the population window stays on its surveyed bank. A course
+  // inside that window still uses the old repair: origin in the channel, or no
+  // bank inside the city radius, is relocated. Metadata-only ports do too.
+  if (existing?.frontage === "beyond-budget") return site;
+  if (existing && surveyedOutsideTownWindow(site, existing)) return site;
   const radius = site.frame.cityRadiusMeters;
   const bankLines = [...(existing?.leftBankSegments ?? []), ...(existing?.rightBankSegments ?? [])];
   const hasLocalBank = bankLines.some(line => line.length >= 2 && nearestOnPolyline([0, 0], line).dist < radius);
@@ -344,6 +357,27 @@ function bankMarginMeters(site: BurgSiteDescriptor): number {
   return Math.min(150, Math.max(20, 0.3 * site.frame.cityRadiusMeters));
 }
 
+/** Nearest measured centreline or bank. Infinity when the survey has no course. */
+function nearestSurveyMeters(river: SiteRiver): number {
+  let best = Infinity;
+  const lines = [
+    ...river.segments.map(segment => segment.points),
+    ...river.leftBankSegments,
+    ...river.rightBankSegments
+  ];
+  for (const line of lines) {
+    if (line.length < 2) continue;
+    best = Math.min(best, nearestOnPolyline([0, 0], line).dist);
+  }
+  return best;
+}
+
+/** Outside the population window a mesh walk would pin the water to the town edge. */
+function surveyedOutsideTownWindow(site: BurgSiteDescriptor, river: SiteRiver): boolean {
+  if (!hasSurveyedCourse(river)) return false;
+  return nearestSurveyMeters(river) > populationWindowMeters(site.frame.cityRadiusMeters) / 2 + 1;
+}
+
 function extractWideChannels(site: BurgSiteDescriptor): {
   channels: NonNullable<CityGeography["channels"]>;
   consumed: Set<number>;
@@ -353,21 +387,18 @@ function extractWideChannels(site: BurgSiteDescriptor): {
   const margin = bankMarginMeters(site);
   const half = site.frame.extentMeters / 2;
   for (const river of site.rivers) {
-    if (
-      !unbridgeableOnSite(site, river) &&
-      !(
-        site.burg.waterAccess?.port.river &&
-        site.burg.waterAccess.riverId === river.riverId &&
-        drawnWidthMeters(river) > site.frame.cityRadiusMeters * 0.4
-      )
-    )
-      continue;
+    if (river.frontage === "beyond-budget") continue;
+    const portChannel =
+      !!site.burg.waterAccess?.port.river &&
+      site.burg.waterAccess.riverId === river.riverId &&
+      drawnWidthMeters(river) > site.frame.cityRadiusMeters * 0.4;
+    // A course outside the town mesh is drawn from its banks, not walked as a stroke.
+    if (!unbridgeableOnSite(site, river) && !portChannel && !surveyedOutsideTownWindow(site, river)) continue;
     // Broad river ports need a real water surface and shoreline even when
     // bridge technology could span the river. The stroke/wall pipeline cannot
     // model that frontage or berth piers on it.
     consumed.add(river.riverId);
-    const channel = buildChannel(river, drawnWidthMeters(river), margin, half);
-    if (channel) channels.push(channel);
+    channels.push(...buildChannels(river, drawnWidthMeters(river), margin, half));
   }
   return { channels, consumed };
 }
@@ -375,64 +406,98 @@ function extractWideChannels(site: BurgSiteDescriptor): {
 /** Town-side bank to far bank, extended across the window. The origin stays
  * on dry land; when the true bank is closer than `margin`, the near edge
  * moves into the channel rather than the town moving off centre. */
-function buildChannel(
+function buildChannels(
   river: SiteRiver,
   widthMeters: number,
   margin: number,
   halfExtent: number
-): NonNullable<CityGeography["channels"]>[number] | null {
+): NonNullable<CityGeography["channels"]> {
   // FMG's surveyed physical banks are authoritative; do not push the near
   // bank into the channel to make room for the generated town. Legacy snapped
   // surveys may contain exaggerated banks; reconstruct their channel below.
-  const left = river.leftBankSegments?.flat() ?? [];
-  const right = river.rightBankSegments?.flat() ?? [];
-  if (!river.snappedToBank && left.length >= 2 && right.length >= 2) {
-    const near = river.cityBank === "left" ? left : right;
-    const far = river.cityBank === "left" ? right : left;
+  const left = river.leftBankSegments.filter(line => line.length >= 2);
+  const right = river.rightBankSegments.filter(line => line.length >= 2);
+  const channel = (near: Point[], far: Point[]): NonNullable<CityGeography["channels"]>[number] => {
     const hit = nearestOnPolyline([0, 0], near);
     return {
-      polygon: [...near, ...far.reverse()],
+      polygon: [...near, ...[...far].reverse()],
       shoreline: near,
       waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
     };
+  };
+  if (!river.snappedToBank && left.length && right.length) {
+    // Clipping each bank independently can produce different fragment counts.
+    // Pair only mutually closest fragments, never concatenate across a gap or
+    // assume that the same array index identifies the same stretch of river.
+    const distance = (a: Point[], b: Point[]): number =>
+      Math.min(...a.map(p => nearestOnPolyline(p, b).dist), ...b.map(p => nearestOnPolyline(p, a).dist));
+    const distances = left.map(a => right.map(b => distance(a, b)));
+    const closestRight = distances.map(row => row.indexOf(Math.min(...row)));
+    const closestLeft = right.map((_, j) => {
+      const column = distances.map(row => row[j]);
+      return column.indexOf(Math.min(...column));
+    });
+    const pairedLeft = new Set<number>();
+    const pairedRight = new Set<number>();
+    const result: NonNullable<CityGeography["channels"]> = [];
+    for (let i = 0; i < left.length; i++) {
+      const j = closestRight[i];
+      if (closestLeft[j] !== i) continue;
+      pairedLeft.add(i);
+      pairedRight.add(j);
+      result.push(river.cityBank === "left" ? channel(left[i], right[j]) : channel(right[j], left[i]));
+    }
+    // An unmatched bank has its opposite bank outside the clipping window.
+    // Preserve each fragment separately using the existing one-bank fallback.
+    for (const [lines, paired] of [
+      [left, pairedLeft],
+      [right, pairedRight]
+    ] as const) {
+      for (let i = 0; i < lines.length; i++) {
+        if (paired.has(i)) continue;
+        const near = lines[i];
+        const sign = Math.sign(sideOfPolyline([0, 0], near)) || (river.cityBank === "left" ? 1 : -1);
+        result.push(channel(near, offsetPolyline(near, -sign * widthMeters)));
+      }
+    }
+    return result;
   }
   // A kilometre-scale river can have only its town-side bank in the local
   // frame. Keep that water boundary even when its centreline is off-screen.
-  if (!river.snappedToBank && (left.length >= 2 || right.length >= 2)) {
-    const near = left.length >= 2 ? left : right;
-    const sign = Math.sign(sideOfPolyline([0, 0], near)) || (river.cityBank === "left" ? 1 : -1);
-    const far = offsetPolyline(near, -sign * widthMeters);
+  if (!river.snappedToBank && (left.length || right.length)) {
+    return [...left, ...right].map(near => {
+      const sign = Math.sign(sideOfPolyline([0, 0], near)) || (river.cityBank === "left" ? 1 : -1);
+      return channel(near, offsetPolyline(near, -sign * widthMeters));
+    });
+  }
+  return river.segments.flatMap(segment => {
+    const centerline = extendPastFrame(segment.points, halfExtent);
+    if (centerline.length < 2 || widthMeters <= 0) return [];
+    const side = sideOfPolyline([0, 0], centerline);
+    const sign = Math.abs(side) < 1e-3 ? (river.cityBank === "left" ? 1 : -1) : Math.sign(side);
+    let nearOffset = (widthMeters / 2) * sign;
+    const farOffset = -(widthMeters / 2) * sign;
+    let near = offsetPolyline(centerline, nearOffset);
+    for (let i = 0; i < 6; i++) {
+      // Clearance is positive only on the town side of the bank. An origin
+      // inside the channel needs the bank moved past it before adding margin.
+      const dist = sideOfPolyline([0, 0], near) * sign;
+      if (dist >= margin - 0.5) break;
+      nearOffset -= (margin - dist) * sign;
+      near = offsetPolyline(centerline, nearOffset);
+    }
+    const far = offsetPolyline(centerline, farOffset);
+    const polygon = [...near, ...[...far].reverse()];
+    if (polygon.length < 4 || pointInPolygon([0, 0], polygon)) return [];
     const hit = nearestOnPolyline([0, 0], near);
-    return {
-      polygon: [...near, ...far.reverse()],
-      shoreline: near,
-      waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
-    };
-  }
-  const centerline = extendPastFrame(centerlineOf(river), halfExtent);
-  if (centerline.length < 2 || widthMeters <= 0) return null;
-  const side = sideOfPolyline([0, 0], centerline);
-  const sign = Math.abs(side) < 1e-3 ? (river.cityBank === "left" ? 1 : -1) : Math.sign(side);
-  let nearOffset = (widthMeters / 2) * sign;
-  const farOffset = -(widthMeters / 2) * sign;
-  let near = offsetPolyline(centerline, nearOffset);
-  for (let i = 0; i < 6; i++) {
-    // Clearance is positive only on the town side of the bank. An origin
-    // inside the channel needs the bank moved past it before adding margin.
-    const dist = sideOfPolyline([0, 0], near) * sign;
-    if (dist >= margin - 0.5) break;
-    nearOffset -= (margin - dist) * sign;
-    near = offsetPolyline(centerline, nearOffset);
-  }
-  const far = offsetPolyline(centerline, farOffset);
-  const polygon = [...near, ...[...far].reverse()];
-  if (polygon.length < 4 || pointInPolygon([0, 0], polygon)) return null;
-  const hit = nearestOnPolyline([0, 0], near);
-  return {
-    polygon,
-    shoreline: near,
-    waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
-  };
+    return [
+      {
+        polygon,
+        shoreline: near,
+        waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
+      }
+    ];
+  });
 }
 
 function centerlineOf(river: SiteRiver): Point[] {
@@ -472,12 +537,20 @@ function extractRivers(site: BurgSiteDescriptor, wideChannelIds: Set<number>): C
   const crossingLimit = bridgeCrossingMeters(site);
   return (
     site.rivers
-      .filter(r => !wideChannelIds.has(r.riverId))
+      .filter(r => r.frontage !== "beyond-budget" && !wideChannelIds.has(r.riverId))
       .filter(r => r.segments.some(s => s.points.length >= 2))
       // Drop a river that neither crosses the site nor runs near it: real FMG
       // descriptors sometimes list a large river ~2+ radii away (offsetRatio) that
       // has nothing to do with the town plan but would otherwise dominate the window.
-      .filter(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6)
+      // The burg's own surveyed frontage stays, including one outside 1.6 radii.
+      .filter(
+        r =>
+          r.throughBurgCell ||
+          r.crossesSite ||
+          Math.abs(r.offsetRatio) < 1.6 ||
+          (hasSurveyedCourse(r) &&
+            (site.burg.waterAccess?.riverId === r.riverId || site.burg.riverPlacement?.riverId === r.riverId))
+      )
       .map(r => {
         const pts: Point[] = [];
         const widths: number[] = [];

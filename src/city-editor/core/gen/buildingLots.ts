@@ -13,6 +13,7 @@ import { civicYardMeters } from "./housing";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { clipBlockWithRivers, clipHalfPlane, insetConvexKernel, longestFrame, type RiverMargin } from "./lotGeometry";
 import { makeRng } from "./prng";
+import { townExtentMeters } from "./settlementExtent";
 
 export { insetConvexKernel } from "./lotGeometry";
 
@@ -83,14 +84,14 @@ export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point
   )
     return true;
   if ((document.cemeteries ?? []).some(c => polygonOverlaps(polygon, c.boundary))) return true;
-  const yard = civicYardMeters(document.frame.extentMeters);
+  const yard = civicYardMeters(townExtentMeters(document.frame));
   for (const element of document.elements) {
     if (element.kind === "temple" && element.point) {
       const rect = templeRectForElement(
         element.point,
         element.sizeMeters,
         element.rotation,
-        document.frame.extentMeters
+        townExtentMeters(document.frame)
       );
       if (polygonHitsTempleYard(polygon, rect, Math.max(2, yard * 0.25))) return true;
     }
@@ -105,7 +106,7 @@ export function laneHitsCivicLandmark(document: CityDocument, points: Point[]): 
         element.point,
         element.sizeMeters,
         element.rotation,
-        document.frame.extentMeters
+        townExtentMeters(document.frame)
       );
       if (orientedRectPolylineDistance(rect, points) < 1.8) return true;
     }

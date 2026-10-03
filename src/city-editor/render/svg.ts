@@ -27,7 +27,7 @@ import { convexInfillParts } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { riverPortShore } from "../core/gen/riverPortShore";
-import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
+import { defaultRoadWidthMeters, townExtentMeters } from "../core/gen/settlementExtent";
 import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
 import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
@@ -136,7 +136,8 @@ export function renderEditorSvg(
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
-  const effectiveQuality = quality === "auto" ? (document.frame.extentMeters >= 3600 ? "light" : "detailed") : quality;
+  const effectiveQuality =
+    quality === "auto" ? (townExtentMeters(document.frame) >= 3600 ? "light" : "detailed") : quality;
   // Mesh editing always keeps individual handles and full picking metadata.
   const lightweight = town && effectiveQuality !== "detailed";
   const minimal = lightweight && effectiveQuality === "minimal";
@@ -774,7 +775,7 @@ export function renderEditorSvg(
     );
   }
   for (const connection of fixedMode ? [] : (document.riverConnections ?? [])) {
-    const width = defaultRoadWidthMeters(document.frame.extentMeters);
+    const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
     const group = document.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
     const vertex = group ? document.mesh.vertices[featureGroupVertices(document, group)[0]]?.point : undefined;
     const townRoad = vertex ? [vertex, ...connection.townRoad] : connection.townRoad;
@@ -1113,7 +1114,7 @@ export function renderEditorSvg(
         elements.appendChild(plazaCircle);
       }
       if (cityElement.kind === "temple") {
-        const footprint = templeFootprintMeters(document.frame.extentMeters);
+        const footprint = templeFootprintMeters(townExtentMeters(document.frame));
         const length = cityElement.sizeMeters && cityElement.sizeMeters > 0 ? cityElement.sizeMeters : footprint.length;
         const width = length * (footprint.width / footprint.length);
         const templeNode = renderTempleSvg({
@@ -2283,7 +2284,7 @@ function renderTownFortifications(
     );
     if (wall?.kind !== "wall") continue;
     const width = wall.style.widthMeters;
-    let roadWidth = defaultRoadWidthMeters(document.frame.extentMeters);
+    let roadWidth = defaultRoadWidthMeters(townExtentMeters(document.frame));
     for (const group of document.featureGroups) {
       if (group.kind === "road" && featureGroupVertices(document, group).includes(gate.vertexId))
         roadWidth = Math.max(roadWidth, group.style.widthMeters);

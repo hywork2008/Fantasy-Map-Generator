@@ -3,7 +3,7 @@ import {
   fixedCrossingsMatchFrame,
   validFixedBurgCrossings
 } from "../../utils/fixedBurgCrossings";
-import { isRequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
 // The Burg editor writes a BurgSiteDescriptor JSON to sessionStorage and opens
@@ -85,10 +85,16 @@ export function parseIncomingPayload(json: string): CityEditorShare | null {
 
 export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
   const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
+  const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
   const proposedFit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
-  // Retain the existing grid density when required terrain prevents town fitting.
+  // Water that does not fit the smaller frame keeps the display extent.
+  // Patch count follows the population window: a hamlet still uses its Micro
+  // or Tiny count, and a town whose window already matches keeps the default.
   const fit = proposedFit && proposedFit.extentMeters >= minimumExtent ? proposedFit : null;
   const fitted = fit ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } } : descriptor;
+  const blockedByWater = !fit && proposedFit != null && minimumExtent > proposedFit.extentMeters;
+  const townGrid =
+    fit ?? (blockedByWater ? fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, population) : null);
   return {
     kind: CITY_EDITOR_SHARE_KIND,
     version: CITY_EDITOR_SHARE_VERSION,
@@ -96,14 +102,14 @@ export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorS
     grid: "evolution",
     size: fit?.size ?? sizePresetForExtent(descriptor.frame.extentMeters),
     gridSeed: descriptor.burg.seed,
-    patchParams: fit
+    patchParams: townGrid
       ? {
-          nPatches: fit.nPatches,
+          nPatches: townGrid.nPatches,
           relaxCount: DEFAULT_PATCH_PARAMS.relaxCount,
           relaxPasses: DEFAULT_PATCH_PARAMS.relaxPasses
         }
       : undefined,
-    measureBlockSize: fit ? true : undefined,
+    measureBlockSize: townGrid ? true : undefined,
     settings: { config: structuredClone(DEFAULT_SITE_CONFIG) },
     descriptor: fitted
   };
