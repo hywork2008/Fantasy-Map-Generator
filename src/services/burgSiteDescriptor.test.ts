@@ -80,6 +80,20 @@ function setupRiverCrossingWorld() {
 
 describe("getBurgSiteDescriptor", () => {
   beforeEach(setupRiverCrossingWorld);
+  it("expands the physical display frame within an explicit budget and retains town size", () => {
+    const original = getBurgSiteDescriptor(1)!;
+    const requiredBounds = { minX: -2600, minY: -10, maxX: 100, maxY: 20 };
+    const expanded = getBurgSiteDescriptor(1, { requiredBounds, maxExtentMeters: 6000 })!;
+    expect(expanded.frame.extentMeters).toBe(5200);
+    expect(expanded.frame.cityRadiusMeters).toBe(original.frame.cityRadiusMeters);
+    expect(expanded.frame.originMapUnits).toEqual(original.frame.originMapUnits);
+    expect(expanded.burg.population).toBe(original.burg.population);
+    requiredBounds.minX = 0;
+    expect(expanded.frame.requiredBounds!.minX).toBe(-2600);
+    expect(() =>
+      getBurgSiteDescriptor(1, { requiredBounds: { minX: -2600, minY: 0, maxX: 0, maxY: 0 }, maxExtentMeters: 4500 })
+    ).toThrow("extent budget");
+  });
 
   it("returns null for the placeholder and missing burgs", () => {
     expect(getBurgSiteDescriptor(0)).toBeNull();

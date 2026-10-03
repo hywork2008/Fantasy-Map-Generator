@@ -1,4 +1,5 @@
 import type { BridgeTransport } from "../../../../utils/bridgeCrossingPolicy";
+import type { RequiredSiteBounds } from "../../../../utils/requiredSiteBounds";
 // BurgSiteDescriptor — the FMG → City Generator input contract.
 //
 // This is a decoupled TYPE-ONLY copy of the public shape produced by
@@ -139,6 +140,8 @@ export interface BurgSiteDescriptor {
     shanty: boolean;
   };
   frame: {
+    /** Local metre bounds that frame fitting must retain. */
+    requiredBounds?: RequiredSiteBounds;
     originMapUnits: [number, number];
     metersPerMapUnit: number;
     extentMeters: number;

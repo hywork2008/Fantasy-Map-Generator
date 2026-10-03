@@ -8,6 +8,7 @@ import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { isRequiredSiteBounds, type RequiredSiteBounds, requiredSiteExtent } from "../utils/requiredSiteBounds";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
@@ -179,6 +180,8 @@ export interface BurgSiteDescriptor {
   };
   frame: {
     /** Burg position in FMG map units (the local origin). */
+    /** Local metre bounds that frame fitting must retain. */
+    requiredBounds?: RequiredSiteBounds;
     originMapUnits: [number, number];
     metersPerMapUnit: number;
     /** Side length of the square generation window centered on the origin. */
@@ -215,7 +218,10 @@ const HILLTOP_RELIEF_M = 30;
 
 type WeightedPoint = { x: number; y: number; w: number };
 
-export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null {
+export function getBurgSiteDescriptor(
+  burgId: number,
+  frameRequirements?: { requiredBounds: RequiredSiteBounds; maxExtentMeters: number }
+): BurgSiteDescriptor | null {
   const { pack } = worldContext;
   const burg = pack.burgs?.[burgId];
   if (!burg?.i || burg.removed) return null;
@@ -223,7 +229,18 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const cityRadiusMeters = getCityRadiusMeters(population);
-  const extentMeters = minmax(rn(cityRadiusMeters * 6), EXTENT_MIN_M, EXTENT_MAX_M);
+  let extentMeters = minmax(rn(cityRadiusMeters * 6), EXTENT_MIN_M, EXTENT_MAX_M);
+  if (frameRequirements) {
+    if (
+      !isRequiredSiteBounds(frameRequirements.requiredBounds) ||
+      !Number.isFinite(frameRequirements.maxExtentMeters) ||
+      frameRequirements.maxExtentMeters <= 0
+    )
+      throw new RangeError("Invalid required site bounds or frame budget");
+    extentMeters = Math.max(extentMeters, requiredSiteExtent(frameRequirements.requiredBounds));
+    if (extentMeters > frameRequirements.maxExtentMeters)
+      throw new RangeError("Required site frame exceeds extent budget");
+  }
   const half = extentMeters / 2;
 
   const toLocal = (x: number, y: number): [number, number] => [
@@ -262,6 +279,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       settlementSite: burg.settlementSite ?? "surface"
     },
     frame: {
+      ...(frameRequirements ? { requiredBounds: { ...frameRequirements.requiredBounds } } : {}),
       originMapUnits: [burg.x, burg.y],
       metersPerMapUnit: rn(metersPerMapUnit, 2),
       extentMeters,

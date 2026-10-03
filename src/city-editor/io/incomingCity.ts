@@ -1,3 +1,4 @@
+import { isRequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
 // The Burg editor writes a BurgSiteDescriptor JSON to sessionStorage and opens
@@ -78,7 +79,10 @@ export function parseIncomingPayload(json: string): CityEditorShare | null {
 }
 
 export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
-  const fit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
+  const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
+  const proposedFit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
+  // Retain the existing grid density when required terrain prevents town fitting.
+  const fit = proposedFit && proposedFit.extentMeters >= minimumExtent ? proposedFit : null;
   const fitted = fit ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } } : descriptor;
   return {
     kind: CITY_EDITOR_SHARE_KIND,
@@ -209,6 +213,12 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
   if (!isRecord(raw.frame) || !isFiniteNumber(raw.frame.extentMeters) || !isFiniteNumber(raw.frame.cityRadiusMeters)) {
     return warnShape("frame.extentMeters / frame.cityRadiusMeters");
   }
+  if (
+    raw.frame.requiredBounds !== undefined &&
+    (!isRequiredSiteBounds(raw.frame.requiredBounds) ||
+      requiredSiteExtent(raw.frame.requiredBounds) > raw.frame.extentMeters)
+  )
+    return warnShape("frame.requiredBounds outside frame or invalid");
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   return raw as unknown as BurgSiteDescriptor;

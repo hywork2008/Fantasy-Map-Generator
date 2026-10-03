@@ -606,3 +606,15 @@ CE:
 現在環境providerは渡された河川registryを使用し、完全水域・支持/通過条件・現在端点・費用・辺追加費用を解決する。保存前後/復元前後で河川archiveのcheckpointを比較し、検証callbackによる入力/採番変更を混在した保存結果として返さない。復元接続も出力前に再度保存検証を行う。元world、既存採用registry、既存revisionの部分更新は行わない。共有橋の非初期version/revision/施設参照の往復、壊れた片側archive、現在通過拒否、別registryのprovider、入力変更、外側schema/予算とprovider未呼出の結合テストを追加した。
 
 通常`.map` writer/loaderへの組込みはまだ行っていない。この段階は完全な現在環境providerを必要とするopt-in保存入口であり、既存worldから旧道路契約/完全湖海水域を自動復元できると扱わない。world正本の施設表・永続ID、通常生成/描画、CE descriptor/requiredBoundsへの固定形状受け渡し、旧経路の斜交橋描画問題は残る。
+
+### 段階3/4のCE requiredBounds受け渡し・小都市frame保持（2026-10-04）
+
+FMG/CEのdescriptor v2に後方互換の任意`frame.requiredBounds`を追加した。値は都市中心を変更しないlocal metresのminX/minY/maxX/maxYであり、非対称な近岸・水面・固定接続点も中心原点の正方形へ収める。共通`requiredSiteBounds.ts`で有限値、軸順序、未知field、倍幅計算のoverflowを検査する。
+
+`getBurgSiteDescriptor`は任意の`{requiredBounds,maxExtentMeters}`を受け、従来人口frameと必要範囲の大きい方で河川/道路/水辺/terrainを採取する。明示予算を超える場合はRangeErrorで停止し、上限へ丸めて必要範囲を欠落させない。requiredBoundsをコピーし、都市原点/人口/半径を変えない。通常呼出は従来どおりで、確定接続からのbounds自動取得は未接続。
+
+CEのdescriptor parserは不正boundsとdescriptor frame外のboundsを拒否する。`shareFromDescriptor`の小都市fitが必要範囲を落とす場合はfit自体を行わず、元のextentと既存grid密度設定を維持する。収まる場合は従来fitを使用し、boundsと都市半径を保持する。共有リンクのJSON往復でもboundsが残る。追加fieldは既存v2との任意互換であり、意味を変えるv3固定橋descriptorはまだ追加していない。
+
+検証: descriptor拡大/明示予算/コピー/原点・都市規模維持、非対称遠岸でのfit停止、収まる小都市のfit継続、共有リンク往復、不正/overflow/frame外bounds拒否を含む関連3ファイル45テストが通過。型検査、Biome、構成lint、world writer検査も通過。
+
+これは必要表示範囲の保存・読込み・小都市縮小までの実装である。確定W/D/Eと物理河岸の新descriptor、CE固定橋描画、generate中の地形クリップ/最終frame検証、市街地と広域地形の生成範囲分離は未実装であり、最終CE表示に河岸が残る保証や旧斜交橋問題の解消として扱わない。
