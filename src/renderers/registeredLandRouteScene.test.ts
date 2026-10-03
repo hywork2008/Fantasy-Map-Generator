@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGridDocument, parseDocument } from "../city-editor/core/document";
+import {
+  adoptFixedCrossingApproaches,
+  restoreFixedCrossingApproaches
+} from "../city-editor/core/fixedApproachAdoption";
 import { findFixedCrossingApproach } from "../city-editor/core/fixedCrossingApproach";
 import { buildBlockFabric } from "../city-editor/core/gen/blockInfill";
 import { buildCityBuildings } from "../city-editor/core/gen/buildingLots";
@@ -7,6 +11,7 @@ import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
 import { synthSite } from "../city-editor/core/gen/site/synthSite";
 import { defaultGenerationSettings, generateStageOnDocument } from "../city-editor/core/generate";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
+import { meshFromCells } from "../city-editor/core/mesh";
 import { lineHitsDocumentWater, polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import {
   decodeShare,
@@ -662,6 +667,7 @@ describe("CE fixed physical crossing handoff", () => {
       lead: { id: "lead", point: [e[0] - n[0] * 10, e[1] - n[1] * 10], locked: false }
     };
     doc.mesh.edges = { edge: { id: "edge", a: "start", b: "lead", leftFace: null, rightFace: null, locked: false } };
+    doc.mesh.faces = {};
     const input = {
       facilityId: c.id,
       side: "A" as const,
@@ -692,6 +698,78 @@ describe("CE fixed physical crossing handoff", () => {
     expect(result.endpoint).toEqual(c.approachA);
     expect(result.corridor.pieces.at(-1)!.end).toEqual(c.approachA);
     expect(result.guideVertexIds.at(-1)).toBeNull();
+    const { otherWater, supportsDryFootprint, allowsMeshEdge, ...request } = input;
+    let supports = true;
+    const provider = () => ({ otherWater, supportsDryFootprint: () => supports, allowsMeshEdge });
+    const adopted = adoptFixedCrossingApproaches(doc, [{ id: "city-A", request }], provider);
+    if (!("document" in adopted)) throw Error(adopted.reason);
+    expect(doc.fixedCrossingApproaches).toBeUndefined();
+    const svg = renderStandaloneCitySvg(adopted.document);
+    const path = svg.querySelector("[data-fixed-approach-id='city-A']")!;
+    expect(path).not.toBeNull();
+    expect(path.getAttribute("d")).toContain(`L${e[0]} ${-e[1]}`);
+    const curvedDoc = structuredClone(doc);
+    curvedDoc.mesh.vertices.start.point[1] += 10;
+    curvedDoc.mesh.vertices.corner = {
+      id: "corner",
+      point: [curvedDoc.mesh.vertices.lead.point[0], curvedDoc.mesh.vertices.lead.point[1] + 10],
+      locked: false
+    };
+    curvedDoc.mesh.edges = {
+      first: { id: "first", a: "start", b: "corner", leftFace: null, rightFace: null, locked: false },
+      second: { id: "second", a: "corner", b: "lead", leftFace: null, rightFace: null, locked: false }
+    };
+    const curved = adoptFixedCrossingApproaches(curvedDoc, [{ id: "curve-A", request }], provider);
+    if (!("document" in curved)) throw Error(curved.reason);
+    expect(curved.document.fixedCrossingApproaches![0].corridor.pieces.some(p => p.kind === "arc")).toBe(true);
+    expect(
+      renderStandaloneCitySvg(curved.document).querySelector("[data-fixed-approach-id='curve-A']")!.getAttribute("d")
+    ).toContain("A2 2");
+    const copied = structuredClone(adopted.document);
+    expect(renderStandaloneCitySvg(copied).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+    expect(restoreFixedCrossingApproaches(copied, provider)).toHaveProperty("document");
+    const fileDoc = structuredClone(doc);
+    const a = doc.mesh.vertices.start.point,
+      lead = doc.mesh.vertices.lead.point;
+    fileDoc.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [a, lead, [lead[0], lead[1] + 5], [a[0], a[1] + 5]],
+        site: [(a[0] + lead[0]) / 2, a[1] + 2.5],
+        centroid: [(a[0] + lead[0]) / 2, a[1] + 2.5],
+        neighbors: [],
+        onBorder: true
+      }
+    ]);
+    const fileRequest = { ...request, startVertexId: "v0" };
+    const fileAdopted = adoptFixedCrossingApproaches(fileDoc, [{ id: "file-A", request: fileRequest }], provider);
+    if (!("document" in fileAdopted)) throw Error(fileAdopted.reason);
+    const loaded = parseDocument(JSON.stringify(fileAdopted.document))!;
+    expect(loaded).not.toBeNull();
+    expect(renderStandaloneCitySvg(loaded).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+    const restored = restoreFixedCrossingApproaches(loaded, provider);
+    if (!("document" in restored)) throw Error(restored.reason);
+    expect(renderStandaloneCitySvg(restored.document).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(1);
+    const malformed = JSON.parse(JSON.stringify(loaded));
+    malformed.fixedCrossingApproaches[0].request.settings.maxNodes = 1000000;
+    expect(parseDocument(JSON.stringify(malformed))).toBeNull();
+    expect(
+      adoptFixedCrossingApproaches(
+        doc,
+        [
+          { id: "first", request },
+          { id: "second", request: { ...request, facilityId: 999 } }
+        ],
+        provider
+      )
+    ).toHaveProperty("reason");
+    expect(doc.fixedCrossingApproaches).toBeUndefined();
+    copied.fixedCrossingApproaches![0].corridor.pieces[0].end = [999, 999];
+    expect(restoreFixedCrossingApproaches(copied, provider)).toHaveProperty("reason", "changed-approaches");
+    supports = false;
+    expect(renderStandaloneCitySvg(adopted.document).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(0);
+    expect(adoptFixedCrossingApproaches(doc, [{ id: "city-A", request }], provider)).toHaveProperty("reason");
+
     expect(JSON.stringify(doc)).toBe(before);
     const opposite = structuredClone(doc),
       b = c.approachB;

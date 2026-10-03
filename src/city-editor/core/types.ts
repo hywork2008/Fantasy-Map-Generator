@@ -349,6 +349,7 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  fixedCrossingApproaches?: import("./fixedApproachAdoption").SavedFixedApproach[];
   /** Source physical crossings; not inferred from editable mesh roads. */
   importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;
   waterAccess?: import("../../types/burgWater").BurgWaterAccess;

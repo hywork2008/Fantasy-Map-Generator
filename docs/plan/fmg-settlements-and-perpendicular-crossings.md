@@ -696,3 +696,15 @@ CE applyPlanの道路探索用禁止辺とriver landing候補辺の判定に、�
 検証には両岸の正確なEでの終了、法線方向、元mesh非変更、permission/支持拒否、追加水域、terminal予算、斜めconnectorの拒否、callbackによるsource変更の拒否を追加した。既存方向付き回廊探索・壁段階の回帰テスト、型検査、Biome、構成lint、world writer検査を確認した。
 
 これは探索結果を返すopt-in adapterであり、通常applyPlanへの自動採用、CityDocumentへの確定外側回廊保存、同一施設への複数接続の原子的登録、固定D/Eと既設街区junctionの通行graph統合は未接続。採用側で現在契約を再検証し、返した円弧をmesh edgeや点列へsnapし直さず使用する必要がある。端点をずらすfallbackや斜め橋の生成は行わない。既存fieldなし地図の斜交橋問題、全河川移行と最終frame視覚検証は残る。
+
+### 段階3のCE固定進入回廊・一括採用/保存/現在再検証描画（2026-10-04）
+
+`fixedApproachAdoption.ts`に、一つの明示要求集合を新CityDocumentへ採用する`adoptFixedCrossingApproaches`を追加した。各要求には固有ID、施設/side/始点と方向、回廊設定・予算を保存し、現在providerが完全な追加水域・支持条件・mesh edge permissionを解決する。全要求の方向付き回廊探索が成功し、元documentが検証中に変更されていない場合だけ、確定回廊とsource geometryVersionをコピーした新documentを返す。一件失敗しても元documentへ部分登録しない。入力集合は採用する全要求の明示集合であり、追加変更時に維持する接続も呼出側が含める。
+
+CityDocumentの任意`fixedCrossingApproaches`にplain要求と確定line/arc・距離/費用・guide参照を保存する。ファイルparserには件数100、全piece数2000、guide数と検索/円弧予算の上限、有限値・ID・点・未知field・設定の形状検査を追加した。provider関数とsessionの有効化情報は保存しない。`restoreFixedCrossingApproaches`は現在条件で全要求を再実行し、保存回廊/距離/費用/versionと完全に一致する場合だけ新documentを有効化する。property順は比較結果に影響しない。現在の別経路へのretargetを復元として扱わない。
+
+有効化情報はdocument objectに結び付けたWeakMapへ保持し、コピー/JSON/履歴cloneでは復活しない。通常SVGは表示の都度現在providerから全回廊を再検証し、有効な回廊だけをEで終わる独立pathとして描く。直線はL、確定円弧は円のAコマンドで表示し、meshへのsnapや再平滑化を行わない。短いE→D/D→Eと共有D→D橋床は前段の施設layerを使うため、新しい橋床を追加しない。未検証/不成立の場合は回廊を表示せず、data-fixed-approach-statusで識別する。検証中の固定source/frame変更では古い固定water/crossing layerも出力しない。
+
+検証には原子的採用と元document非変更、直線/cubic fillet円弧の最終SVG、正確なE端、コピーの非表示、CEファイル往復と現在provider復元、改変保存pieceと過大設定の拒否、一件失敗時の部分登録拒否、現在支持条件による表示停止を追加した。関連5ファイル81テスト、型検査、Biome、構成lint、world writer検査を確認した。
+
+通常Generate/UIからこの要求集合を自動構築する処理、読込み/履歴操作後の現在provider自動解決、固定portalと一般street junctionの通行graph、複数都市接続の採用費用/需要評価は未接続である。現時点はopt-in採用APIと、その有効化結果の通常SVG描画であり、全地図/全CE施設の移行が完了したと扱わない。旧fieldなし地図の斜交橋問題、全河川/水域移行、最終frame視覚検証は残る。

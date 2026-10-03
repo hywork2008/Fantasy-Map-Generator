@@ -1,6 +1,7 @@
 import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
+import { currentFixedCrossingApproaches } from "../core/fixedApproachAdoption";
 import {
   boundaryEdges,
   boundaryRings,
@@ -131,6 +132,7 @@ export function renderEditorSvg(
   const fixedMode = document.importedFixedCrossings !== undefined;
   const fixedGeometry = fixedDocumentGeometry(document);
   const fixedLayers = fixedGeometry ? fixedDocumentLayers(fixedGeometry) : null;
+  const fixedEpoch = JSON.stringify([document.importedFixedCrossings, document.frame]);
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
@@ -902,7 +904,37 @@ export function renderEditorSvg(
     }
   }
   svg.appendChild(features);
-  if (fixedLayers) svg.appendChild(fixedLayers.crossings);
+  if (fixedLayers) {
+    const currentApproaches = currentFixedCrossingApproaches(document);
+    const sameEpoch = fixedEpoch === JSON.stringify([document.importedFixedCrossings, document.frame]);
+    const approaches = sameEpoch ? currentApproaches : null;
+    if (!sameEpoch) {
+      fixedLayers.water.remove();
+      svg.setAttribute("data-fixed-geometry-status", "invalid");
+    }
+    svg.setAttribute("data-fixed-approach-status", approaches ? "ready" : "unvalidated");
+    if (approaches)
+      for (const approach of approaches) {
+        const p = approach.corridor.pieces;
+        const d = p
+          .map(
+            (piece, i) =>
+              `${i ? "" : `M${piece.start[0]} ${-piece.start[1]}`} ${piece.kind === "line" ? `L${piece.end[0]} ${-piece.end[1]}` : `A${piece.radiusMeters} ${piece.radiusMeters} 0 ${Math.abs(piece.sweep) > Math.PI ? 1 : 0} ${piece.sweep < 0 ? 1 : 0} ${piece.end[0]} ${-piece.end[1]}`}`
+          )
+          .join(" ");
+        svg.appendChild(
+          element("path", {
+            d,
+            fill: "none",
+            stroke: "#b6ac99",
+            "stroke-width": String(document.importedFixedCrossings!.roadWidthMeters),
+            "stroke-linecap": "butt",
+            "data-fixed-approach-id": approach.id
+          })
+        );
+      }
+    if (sameEpoch) svg.appendChild(fixedLayers.crossings);
+  }
   svg.appendChild(renderRiverWallSvg(document));
   if (town) {
     svg.appendChild(renderTownQuays(document, townHarbor));

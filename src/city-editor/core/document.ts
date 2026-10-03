@@ -1,5 +1,6 @@
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { validSavedFixedApproaches } from "./fixedApproachAdoption";
 import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
 import { polygonArea } from "./gen/geom";
 import { buildGrid } from "./gen/grid";
@@ -284,6 +285,8 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    (doc.fixedCrossingApproaches === undefined ||
+      (!!doc.importedFixedCrossings && validSavedFixedApproaches(doc.fixedCrossingApproaches))) &&
     (doc.version === 1 || doc.version === 2 || doc.version === 3) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
     (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
