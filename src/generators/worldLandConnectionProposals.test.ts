@@ -7,6 +7,11 @@ import type { NetworkConnection } from "./constrainedLandNetwork";
 import { evaluateWorldCellLandConnectionProposals } from "./worldCellLandConnectionProposals";
 import { createWorldLandConnectionSession } from "./worldLandConnectionAdoption";
 import {
+  restoreWorldLandConnections,
+  saveWorldLandConnections,
+  type WorldLandArchiveCurrent
+} from "./worldLandConnectionArchive";
+import {
   evaluateWorldLandConnectionProposals,
   getWorldLandProposalContext,
   type WorldConnectionPair,
@@ -508,5 +513,134 @@ describe("fresh world adoption and fixed section handoff", () => {
     const c = createWorldLandConnectionSession(g.run);
     if (!("session" in c)) throw Error(JSON.stringify(c));
     expect(c.session.prepare(0, { kind: "individual", pairId: 1 })).toMatchObject({ reason: "assessment-budget" });
+  });
+});
+
+describe("combined world river and connection archive", () => {
+  const budgets = {
+    maxJsonCharacters: 2000000,
+    rivers: { maxJsonCharacters: 100000, maxRivers: 10 },
+    connections: {
+      maxJsonCharacters: 1500000,
+      maxFacilities: 10,
+      maxNodes: 100,
+      maxEdges: 100,
+      maxCorridorPieces: 1000,
+      maxGuideNodes: 10000,
+      maxGuideEdges: 100000,
+      maxArcSections: 100
+    }
+  };
+  function archiveFixture() {
+    const f = fixture();
+    // Allocate a noninitial version before adoption.
+    f.input.registry.get(f.world, f.world.pack.rivers[0], "km", f.input.settings.crossings.geometry);
+    f.world.pack.rivers[0].sourceWidth = 2.1;
+    const created = createWorldLandConnectionSession(f.run);
+    if (!("session" in created)) throw Error(JSON.stringify(created));
+    const draft = created.session.prepare(0, { kind: "shared" });
+    if (!("draft" in draft)) throw Error(JSON.stringify(draft));
+    expect(created.session.commit(draft.draft).status).toBe("committed");
+    const evaluated = f.run();
+    const context = getWorldLandProposalContext(evaluated)!;
+    const current: WorldLandArchiveCurrent = {
+      world: f.world,
+      worldIdentity: context.worldIdentity,
+      distanceUnit: "km",
+      geometrySettings: f.input.settings.crossings.geometry,
+      connectionsAt: registry => {
+        const evaluated = evaluateWorldLandConnectionProposals(f.world, "km", { ...f.input, registry });
+        const c = getWorldLandProposalContext(evaluated);
+        return c
+          ? {
+              worldIdentity: c.worldIdentity,
+              environment: c.environment,
+              nodePointAt: c.nodePointAt,
+              costsAt: connection => ({
+                constructionCostMeters: connection.constructionCostMeters,
+                ...(connection.kind === "bridge" ? { useCostMeters: 3, approachConstructionCostMeters: 2 } : {})
+              }),
+              edgePenaltyAt: () => null
+            }
+          : null;
+      }
+    };
+    const saved = saveWorldLandConnections(created.session.snapshot, f.input.registry, current, budgets);
+    if (!("json" in saved)) throw Error(saved.reason);
+    return { ...f, current, saved, snapshot: created.session.snapshot };
+  }
+  it("restores a shared bridge and its noninitial river version together", () => {
+    const f = archiveFixture(),
+      before = JSON.stringify(f.world);
+    const result = restoreWorldLandConnections(f.saved.json, f.current, budgets);
+    if (!("registry" in result)) throw Error(result.reason);
+    expect(result.registry.snapshot.revision).toBe(f.snapshot.revision);
+    expect(result.registry.snapshot.facilityIds).toEqual(f.snapshot.facilityIds);
+    expect(result.registry.snapshot.connectionIds).toEqual(f.snapshot.connectionIds);
+    expect(result.rivers.get(f.world, f.world.pack.rivers[0], "km", f.current.geometrySettings).geometryVersion).toBe(
+      2
+    );
+    expect(JSON.stringify(f.world)).toBe(before);
+    const second = saveWorldLandConnections(result.registry.snapshot, result.rivers, f.current, budgets);
+    expect(second).toEqual(f.saved);
+  });
+  it("returns no partial result when either archive or current conditions fail", () => {
+    const f = archiveFixture();
+    const raw = JSON.parse(f.saved.json);
+    raw.connections = "null";
+    expect(restoreWorldLandConnections(JSON.stringify(raw), f.current, budgets)).toHaveProperty("reason");
+    raw.connections = f.saved.json;
+    raw.rivers = "null";
+    expect(restoreWorldLandConnections(JSON.stringify(raw), f.current, budgets)).toEqual({ reason: "river-archive" });
+    expect(restoreWorldLandConnections(f.saved.json, { ...f.current, worldIdentity: "other" }, budgets)).toEqual({
+      reason: "changed-world"
+    });
+    f.input.environment.allowsPassageFootprint = () => false;
+    expect(restoreWorldLandConnections(f.saved.json, f.current, budgets)).toHaveProperty("reason");
+    expect(f.snapshot.revision).toBe(1);
+  });
+  it("rejects a provider using an unrelated session registry", () => {
+    const f = archiveFixture();
+    const unrelated = new WorldRiverGeometryRegistry();
+    const provider = f.current.connectionsAt;
+    const result = restoreWorldLandConnections(
+      f.saved.json,
+      { ...f.current, connectionsAt: () => provider(unrelated) },
+      budgets
+    );
+    expect(result).toHaveProperty("reason");
+    expect(
+      saveWorldLandConnections(
+        f.snapshot,
+        f.input.registry,
+        { ...f.current, connectionsAt: () => provider(unrelated) },
+        budgets
+      )
+    ).toEqual({ reason: "unbound-rivers" });
+  });
+  it("rejects source changes made while the provider constructs current contracts", () => {
+    const f = archiveFixture(),
+      provider = f.current.connectionsAt;
+    const current = {
+      ...f.current,
+      connectionsAt: (registry: WorldRiverGeometryRegistry) => {
+        const contracts = provider(registry);
+        f.world.pack.rivers[0].sourceWidth += 0.1;
+        return contracts;
+      }
+    };
+    expect(restoreWorldLandConnections(f.saved.json, current, budgets)).toHaveProperty("reason");
+    expect(f.snapshot.revision).toBe(1);
+  });
+  it("bounds and validates the outer archive before calling the provider", () => {
+    const f = archiveFixture(),
+      provider = vi.fn(f.current.connectionsAt),
+      current = { ...f.current, connectionsAt: provider };
+    for (const json of ["null", "[]", "{", JSON.stringify({ ...JSON.parse(f.saved.json), extra: true })])
+      expect(restoreWorldLandConnections(json, current, budgets)).toHaveProperty("reason");
+    expect(restoreWorldLandConnections(f.saved.json, current, { ...budgets, maxJsonCharacters: 1 })).toEqual({
+      reason: "json-budget"
+    });
+    expect(provider).not.toHaveBeenCalled();
   });
 });
