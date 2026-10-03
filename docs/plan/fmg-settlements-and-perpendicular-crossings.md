@@ -672,3 +672,15 @@ CEに`polygonHitsDocumentWater`を追加した。固定sourceを持つdocument�
 検証には実際の建物配置で水域接触する候補が除外され乾いた建物が残ること、block fabricの建物も全幅乾燥であること、岸境界接触、hole内の島、同じobjectのversion改変による再検証失敗を追加した。旧水域/街区と壁段階の回帰検査、型検査、Biome、構成lint、world writer検査を確認した。
 
 この段階は建物/敷地/farmの配置拒否である。固定河岸による街区meshそのものの分割、道路・laneの全幅経路探索、人口/住戸不足時の再配置、旧river margin/海faceの置換、港/埠頭/城塞の全footprint、外側進入回廊の移行は残る。水域が保存sourceに収録されていない河川を解決済みと扱わない。最終frame/街区生成全体の視覚検証と旧fieldなし地図の斜交橋問題も未解消。
+
+### 段階3/4のCE道路辺・lane/access全幅水域制約（2026-10-04）
+
+`lineHitsDocumentWater`を追加した。各直線strokeの物理幅と端部/round joinを包含する拡張矩形を作り、前段の全footprint水域判定で検査する。長さ0の区間も端部の正方形を検査する。非有限値・不正幅・不正点列は通行不可とし、壊れた固定source/frameは前段と同じ診断で停止する。中心線だけが乾燥した並走や端部だけの岸接触を許さない。
+
+固定sourceがある場合、block fabricのlaneとparcel accessは元の全経路を全幅で検査して湿った候補を丸ごと除外する。固定水域について途中を切って乾燥stubを繋がったaccessとして残さない。moatの従来分割は別の制約として維持する。旧continuous riverでの点列clipを固定sourceへ重ねず、完全なring/holeを持つ物理水域を使用する。lane/trailの最終SVGはround joinへ固定し、表示trailの幅0.35mも検査幅に含める。
+
+CE applyPlanの道路探索用禁止辺とriver landing候補辺の判定に、現在frameに対応する実際のdefault road幅の全幅検査を接続した。旧sourceなしの場合は従来の水域判定を維持する。湿った辺を既存routerの候補から外すため、探索不成立は従来の未解決として扱い、斜め橋や別施設へfallbackしない。
+
+検証には中心線だけ乾燥した並走道路、完全横断、端部接触、長さ0、乾燥経路、非有限幅、実block fabricのlane/access全幅乾燥を追加した。関連5ファイル71テスト、型検査、Biome、構成lint、world writer検査を確認した。
+
+これは既存mesh routerの候補制約とlane/accessの採用拒否であり、世界側の方向付き回廊探索をCEへ移植したものではない。固定D/EをCE routerの予約portalへ接続する処理、確定外側回廊の受け渡し、失われたaccess/住戸の再配置、街区meshの物理河岸分割、海/港/城塞の全footprint移行、全seedの最終表示検証は残る。保存sourceに含まれない河川や旧fieldなし地図の斜交橋は未解決。

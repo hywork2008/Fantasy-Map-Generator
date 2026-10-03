@@ -3,7 +3,7 @@ import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Id, Point } from "../types";
-import { dryRuns, polygonHitsDocumentWater, waterPolygons } from "../waterGeometry";
+import { dryRuns, lineHitsDocumentWater, polygonHitsDocumentWater, waterPolygons } from "../waterGeometry";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import {
@@ -171,12 +171,18 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   return {
     ...fabric,
     buildings: nonMillBuildings,
-    lanes: fabric.lanes.flatMap(lane =>
-      moat
-        .dryRuns(lane.points)
-        .flatMap(run => dryRuns(run, waterPolygons(document)))
-        .map(points => ({ ...lane, points }))
-    ),
+    lanes: fabric.lanes
+      .filter(
+        lane =>
+          !document.importedFixedCrossings ||
+          !lineHitsDocumentWater(document, lane.points, Math.max(lane.widthMeters, 0.35))
+      )
+      .flatMap(lane =>
+        moat
+          .dryRuns(lane.points)
+          .flatMap(run => (document.importedFixedCrossings ? [run] : dryRuns(run, waterPolygons(document))))
+          .map(points => ({ ...lane, points }))
+      ),
     entrances: new Map(
       [...fabric.entrances].map(([id, points]) => [id, points.filter(point => !moat.hitsPoint(point))])
     ),
@@ -189,16 +195,22 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     openSpaces,
     watermills,
     parcels:
-      document.landmarks?.length || moat.parts.length || document.waterAreas?.length
+      document.landmarks?.length || moat.parts.length || document.waterAreas?.length || document.importedFixedCrossings
         ? fabric.parcels?.map(parcel => ({
             ...parcel,
             buildings: parcelBuildings.get(parcel.id) ?? [],
-            access: parcel.access.flatMap(access =>
-              moat
-                .dryRuns(access.points)
-                .flatMap(run => dryRuns(run, waterPolygons(document)))
-                .map(points => ({ ...access, points }))
-            ),
+            access: parcel.access
+              .filter(
+                access =>
+                  !document.importedFixedCrossings ||
+                  !lineHitsDocumentWater(document, access.points, access.widthMeters)
+              )
+              .flatMap(access =>
+                moat
+                  .dryRuns(access.points)
+                  .flatMap(run => (document.importedFixedCrossings ? [run] : dryRuns(run, waterPolygons(document))))
+                  .map(points => ({ ...access, points }))
+              ),
             openSpaces: parcel.openSpaces.filter(
               space => !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon)
             )

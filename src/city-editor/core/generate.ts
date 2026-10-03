@@ -20,7 +20,7 @@ import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { applyImportedFixedCrossings } from "./importedFixedCrossings";
 import { MoatReservation } from "./moats";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
-import { cellInsideWater, dryRuns, lineHitsWater, waterPolygons } from "./waterGeometry";
+import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPolygons } from "./waterGeometry";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -2608,7 +2608,15 @@ function applyPlan(
           : [loop.segments];
       for (const ref of loop.segments) {
         const edge = mesh.edges[ref.edgeId];
-        if (lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
+        if (
+          next.importedFixedCrossings
+            ? lineHitsDocumentWater(
+                next,
+                [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
+                defaultRoadWidthMeters(next.frame.extentMeters)
+              )
+            : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
+        )
           openEdges.add(edge.id);
       }
       for (const segments of runs.flatMap(run => unbannedRuns(run, openEdges))) {
@@ -3011,7 +3019,15 @@ function applyPlan(
       }
     }
     const channelEdges = Object.values(mesh.edges)
-      .filter(edge => lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
+      .filter(edge =>
+        next.importedFixedCrossings
+          ? lineHitsDocumentWater(
+              next,
+              [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
+              defaultRoadWidthMeters(next.frame.extentMeters)
+            )
+          : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
+      )
       .map(edge => edge.id);
     const banned = new Set<Id>([
       ...channelEdges,
@@ -3066,7 +3082,13 @@ function applyPlan(
       for (const edge of Object.values(mesh.edges)) {
         if (
           banned.has(edge.id) ||
-          lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
+          (next.importedFixedCrossings
+            ? lineHitsDocumentWater(
+                next,
+                [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
+                defaultRoadWidthMeters(next.frame.extentMeters)
+              )
+            : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
         )
           continue;
         for (const id of [edge.a, edge.b])

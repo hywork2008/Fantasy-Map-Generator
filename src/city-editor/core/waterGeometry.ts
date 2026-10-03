@@ -120,3 +120,46 @@ export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[
     throw new RangeError("Invalid fixed water geometry or city frame");
   return fixed.rivers.some(river => footprintTouchesWater(polygon, river));
 }
+
+/** Reserve the whole stroke, including round joins and terminal caps.
+ * Reject the complete run instead of creating disconnected clipped pieces. */
+export function lineHitsDocumentWater(document: CityDocument, points: readonly Point[], widthMeters: number): boolean {
+  if (
+    !Number.isFinite(widthMeters) ||
+    widthMeters <= 0 ||
+    points.length < 2 ||
+    points.some(p => p.length !== 2 || p.some(v => !Number.isFinite(v)))
+  )
+    return true;
+  const half = widthMeters / 2;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i],
+      dx = b[0] - a[0],
+      dy = b[1] - a[1],
+      length = Math.hypot(dx, dy);
+    if (!Number.isFinite(length)) return true;
+    if (!length) {
+      if (
+        polygonHitsDocumentWater(document, [
+          [a[0] - half, a[1] - half],
+          [a[0] + half, a[1] - half],
+          [a[0] + half, a[1] + half],
+          [a[0] - half, a[1] + half]
+        ])
+      )
+        return true;
+      continue;
+    }
+    const t = [dx / length, dy / length],
+      n = [-t[1], t[0]];
+    const rectangle = [
+      [-half, -half],
+      [-half, half],
+      [length + half, half],
+      [length + half, -half]
+    ].map(([x, y]) => [a[0] + t[0] * x + n[0] * y, a[1] + t[1] * x + n[1] * y] as Point);
+    if (polygonHitsDocumentWater(document, rectangle)) return true;
+  }
+  return false;
+}

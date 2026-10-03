@@ -431,6 +431,7 @@ export function renderEditorSvg(
               element("path", {
                 d: path,
                 class: "ce-infill-lane",
+                ...(fixedMode ? { "stroke-linejoin": "round" } : {}),
                 fill: "none",
                 stroke: "#d5cfbf",
                 "stroke-width": String(lane.widthMeters),
@@ -454,6 +455,7 @@ export function renderEditorSvg(
                 element("path", {
                   d: path,
                   class: "ce-infill-trail",
+                  ...(fixedMode ? { "stroke-linejoin": "round" } : {}),
                   fill: "none",
                   stroke: "#7b7567",
                   "stroke-width": "0.35",
@@ -468,6 +470,7 @@ export function renderEditorSvg(
             element("path", {
               d: paths.join(" "),
               class: "ce-infill-lane",
+              ...(fixedMode ? { "stroke-linejoin": "round" } : {}),
               fill: "none",
               stroke: "#d5cfbf",
               "stroke-width": String(width),
@@ -480,6 +483,7 @@ export function renderEditorSvg(
             element("path", {
               d: trailBatch.join(" "),
               class: "ce-infill-trail",
+              ...(fixedMode ? { "stroke-linejoin": "round" } : {}),
               fill: "none",
               stroke: "#7b7567",
               "stroke-width": "0.35",

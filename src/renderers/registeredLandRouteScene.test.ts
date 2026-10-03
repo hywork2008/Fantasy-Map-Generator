@@ -6,7 +6,7 @@ import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
 import { synthSite } from "../city-editor/core/gen/site/synthSite";
 import { defaultGenerationSettings, generateStageOnDocument } from "../city-editor/core/generate";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
-import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
+import { lineHitsDocumentWater, polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import {
   decodeShare,
   encodeShare,
@@ -527,7 +527,14 @@ describe("CE fixed physical crossing handoff", () => {
     expect(dry.length).toBeGreaterThan(0);
     expect(dry.length).toBeLessThan(baseline.length);
     expect(dry.every(lot => !polygonHitsDocumentWater(doc, lot.polygon))).toBe(true);
-    expect(buildBlockFabric(doc).buildings.every(lot => !polygonHitsDocumentWater(doc, lot.polygon))).toBe(true);
+    const fabric = buildBlockFabric(doc);
+    expect(fabric.buildings.every(lot => !polygonHitsDocumentWater(doc, lot.polygon))).toBe(true);
+    expect(fabric.lanes.every(lane => !lineHitsDocumentWater(doc, lane.points, lane.widthMeters))).toBe(true);
+    expect(
+      (fabric.parcels ?? []).every(parcel =>
+        parcel.access.every(access => !lineHitsDocumentWater(doc, access.points, access.widthMeters))
+      )
+    ).toBe(true);
     const touching: [number, number][] = [
       [-25, 0],
       [-23, 0],
@@ -552,6 +559,88 @@ describe("CE fixed physical crossing handoff", () => {
     ).toBe(false);
     doc.importedFixedCrossings.crossings[0].geometryVersion++;
     expect(() => polygonHitsDocumentWater(doc, touching)).toThrow("Invalid fixed water");
+  });
+  it("rejects whole-width roads and terminal caps without splitting a crossing into dry stubs", () => {
+    const f = exported();
+    const doc = createGridDocument({
+      size: "tiny",
+      grid: "hex",
+      extentMeters: 300,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 30,
+      seed: "fixed-stroke"
+    });
+    doc.importedFixedCrossings = structuredClone(f.payload);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [-23, 0],
+          [-23, 20]
+        ],
+        6
+      )
+    ).toBe(true);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [-23, 0],
+          [-23, 20]
+        ],
+        2
+      )
+    ).toBe(false);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [-40, 10],
+          [-20, 10]
+        ],
+        2
+      )
+    ).toBe(true);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [-24, 0],
+          [-20, 0]
+        ],
+        3
+      )
+    ).toBe(true);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [-30, 0],
+          [-30, 0]
+        ],
+        2
+      )
+    ).toBe(true);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [0, 0],
+          [0, 20]
+        ],
+        2
+      )
+    ).toBe(false);
+    expect(
+      lineHitsDocumentWater(
+        doc,
+        [
+          [0, 0],
+          [0, 20]
+        ],
+        Infinity
+      )
+    ).toBe(true);
   });
   it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
     const f = exported();
