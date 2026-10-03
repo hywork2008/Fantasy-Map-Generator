@@ -1,6 +1,7 @@
 import type { WorldContext } from "../context/worldContext";
+import type { PhysicalWaterIndex } from "../services/physicalWaterIndex";
 import type { RiverPoint } from "../services/riverGeometry";
-import { type PhysicalWaterPolygon, validWaterPolygon } from "../services/riverPhysicalGeometry";
+import type { PhysicalWaterPolygon } from "../services/riverPhysicalGeometry";
 import type {
   WorldRiverGeometryRegistry,
   WorldRiverGeometryResult,
@@ -42,6 +43,7 @@ export interface WorldCrossingCandidateReport {
   }[];
   attempts: number;
   nextCandidateId: number;
+  waterSearch: { queries: number; visitedNodes: number; polygonTests: number; boundsTests: number };
 }
 /** Read-only coarse enumeration, in stable river order with a round-robin budget.
  * This does not register bridges/routes or assert reachability. Corridor refinement
@@ -59,13 +61,25 @@ export function generateWorldRiverCrossingCandidates(
     candidates: ProvisionalRiverCrossing[] = [];
   const rejected: WorldCrossingCandidateReport["rejected"][number][] = [];
   let attempts = 0;
+  let waterIndex: PhysicalWaterIndex | null = null;
+  let initialWaterStats = { queries: 0, visitedNodes: 0, polygonTests: 0, boundsTests: 0 };
+  const waterSearch = () => {
+    const stats = waterIndex?.stats ?? initialWaterStats;
+    return {
+      queries: stats.queries - initialWaterStats.queries,
+      visitedNodes: stats.visitedNodes - initialWaterStats.visitedNodes,
+      polygonTests: stats.polygonTests - initialWaterStats.polygonTests,
+      boundsTests: stats.boundsTests - initialWaterStats.boundsTests
+    };
+  };
   const report = (status: WorldCrossingCandidateReport["status"]): WorldCrossingCandidateReport => ({
     status,
     geometries,
     candidates,
     rejected,
     attempts,
-    nextCandidateId: settings.firstCandidateId + attempts
+    nextCandidateId: settings.firstCandidateId + attempts,
+    waterSearch: waterSearch()
   });
   if (
     !Number.isFinite(settings.spacingMeters) ||
@@ -80,7 +94,6 @@ export function generateWorldRiverCrossingCandidates(
     !Object.values(settings.dimensions).every(v => Number.isFinite(v) && v > 0)
   )
     return report("invalid-settings");
-  if (!environment.nonRiverWater.every(validWaterPolygon)) return report("unresolved-water");
   const rivers = [...world.pack.rivers].sort((a, b) => a.i - b.i);
   if (rivers.length > settings.maxRivers) return report("river-budget");
   if (new Set(rivers.map(r => r.i)).size !== rivers.length) return report("unresolved-water");
@@ -89,6 +102,9 @@ export function generateWorldRiverCrossingCandidates(
   const resolved = geometries.filter(
     (g): g is Extract<WorldRiverGeometryResult, { geometry: unknown }> => "geometry" in g
   );
+  waterIndex = registry.getWaterIndex([...resolved.map(g => g.geometry.water), ...environment.nonRiverWater]);
+  if (!waterIndex) return report("unresolved-water");
+  initialWaterStats = waterIndex.stats;
   const first = settings.dimensions.localWindowMeters + settings.spacingMeters / 2;
   const counts = resolved.map(g =>
     Math.max(
@@ -108,10 +124,8 @@ export function generateWorldRiverCrossingCandidates(
         geometry: g.geometry,
         arcLengthMeters,
         dimensions: settings.dimensions,
-        otherWater: [
-          ...resolved.filter(other => other !== g).map(other => other.geometry.water),
-          ...environment.nonRiverWater
-        ],
+        otherWater: [],
+        waterIndex,
         capability: environment.capabilityAt(g.riverId, arcLengthMeters),
         supportsDryFootprint: footprint => environment.supportsDryFootprint(g.riverId, footprint)
       });

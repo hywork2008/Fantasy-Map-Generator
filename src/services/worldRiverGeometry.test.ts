@@ -8,6 +8,7 @@ import {
 } from "../generators/worldRiverCrossingCandidates";
 import type { River } from "../types/models";
 import { physicalRiverWidth, riverDisplayOffset } from "../utils/riverShape";
+import type { PhysicalWaterPolygon } from "./riverPhysicalGeometry";
 import {
   buildWorldRiverGeometry,
   WorldRiverGeometryRegistry,
@@ -306,5 +307,38 @@ describe("bounded world crossing enumeration", () => {
     expect(b.geometries[0]).toBe(a.geometries[0]);
     expect(b.candidates).toEqual(a.candidates);
     expect(registry.stats).toEqual({ builds: 1, cacheHits: 1 });
+  });
+  it("reuses water validation/index metrics and rebuilds after an obstacle edit", () => {
+    const world = fixture(),
+      registry = new WorldRiverGeometryRegistry();
+    const lake: PhysicalWaterPolygon = {
+      id: 1,
+      rings: [
+        [
+          [50000, 50000],
+          [50010, 50000],
+          [50010, 50010],
+          [50000, 50010]
+        ]
+      ]
+    };
+    const env = { ...environment, nonRiverWater: [lake] };
+    const a = generateWorldRiverCrossingCandidates(world, "km", candidateSettings, env, registry);
+    expect(registry.waterValidationStats).toEqual({ validations: 2, cacheHits: 0 });
+    const b = generateWorldRiverCrossingCandidates(world, "km", candidateSettings, env, registry);
+    expect(b.candidates).toEqual(a.candidates);
+    expect(b.waterSearch).toEqual(a.waterSearch);
+    expect(registry.waterValidationStats).toEqual({ validations: 2, cacheHits: 2 });
+    lake.rings = [
+      [
+        [20046, 22099],
+        [20060, 22099],
+        [20060, 22101],
+        [20046, 22101]
+      ]
+    ];
+    const c = generateWorldRiverCrossingCandidates(world, "km", candidateSettings, env, registry);
+    expect(c.rejected[0]).toMatchObject({ candidateId: 100, reason: "wet-approach" });
+    expect(registry.waterValidationStats.validations).toBe(3);
   });
 });

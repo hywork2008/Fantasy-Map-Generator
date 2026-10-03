@@ -41,7 +41,8 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
     for (let i = 0; i < ring.length; i++) {
       const a = ring[i],
         b = ring[(i + 1) % ring.length];
-      if (Math.hypot(...sub(b, a)) <= epsilon) return false;
+      const edgeLength = Math.hypot(...sub(b, a));
+      if (!Number.isFinite(edgeLength) || edgeLength <= epsilon) return false;
       area += cross2(sub(a, ring[0]), sub(b, ring[0]));
       const ref = water.bankReferences?.[r]?.[i];
       if (
@@ -64,7 +65,7 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
         }
       }
     }
-    if (Math.abs(area) <= epsilon * epsilon) return false;
+    if (!Number.isFinite(area) || Math.abs(area) <= epsilon * epsilon) return false;
   }
   return true;
 }

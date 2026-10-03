@@ -1,3 +1,4 @@
+import type { PhysicalWaterIndex } from "../services/physicalWaterIndex";
 import { sampleRiverAxis } from "../services/riverAxisSampling";
 import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "../services/riverGeometry";
 import {
@@ -45,6 +46,10 @@ export interface CrossingCandidateInput {
   dimensions: CrossingCandidateDimensions;
   /** Complete water obstacles in the local corridor, including lakes and other rivers. */
   otherWater: readonly PhysicalWaterPolygon[];
+  /** Complete obstacle snapshot. Indexed mode requires an empty otherWater array;
+   * all river/lake/sea obstacles must be in this index before candidate generation.
+   */
+  waterIndex?: PhysicalWaterIndex;
   capability: Omit<Parameters<typeof planRiverCrossing>[0], "widthMeters">;
   /** Mandatory terrain check of the whole dry footprint, not just its endpoints. */
   supportsDryFootprint: (footprint: readonly RiverPoint[]) => boolean;
@@ -101,19 +106,20 @@ function clippedEdge(
 }
 export function createProvisionalRiverCrossing(input: CrossingCandidateInput): CrossingCandidateResult {
   const { geometry, dimensions: d } = input;
+  const targetWater = input.waterIndex ? input.waterIndex.getSnapshot(geometry.water) : geometry.water;
+  if (!targetWater || (input.waterIndex && input.otherWater.length)) return { reason: "invalid-input" };
   if (
     !Number.isSafeInteger(input.id) ||
     !Number.isFinite(input.arcLengthMeters) ||
     !Object.values(d).every(v => Number.isFinite(v) && v > 0) ||
     d.localWindowMeters < d.roadWidthMeters / 2 ||
-    !validWaterPolygon(geometry.water) ||
-    !input.otherWater.every(validWaterPolygon)
+    (!input.waterIndex && (!validWaterPolygon(targetWater) || !input.otherWater.every(validWaterPolygon)))
   )
     return { reason: "invalid-input" };
   const sample = sampleRiverAxis(geometry.axis, input.arcLengthMeters, d.localWindowMeters);
   if (!sample) return { reason: "unstable-axis" };
   const { point: q, tangent: tRiver, normal: nCrossing } = sample;
-  const section = normalWaterSection(q, nCrossing, geometry.water);
+  const section = normalWaterSection(q, nCrossing, targetWater);
   if (!section) return { reason: "unresolved-section" };
   const { negative: a, positive: b } = section;
   const local = (hit: NormalBankHit) =>
@@ -146,13 +152,18 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
   // Include the full deck-end cross section and a dry support strip behind it.
   const dryA = rectangle(approachLo, deckLo + Math.min(d.bankSeatMeters / 2, d.straightApproachMeters));
   const dryB = rectangle(deckHi - Math.min(d.bankSeatMeters / 2, d.straightApproachMeters), approachHi);
-  const waterObstacles = [geometry.water, ...input.otherWater];
-  if ([dryA, dryB].some(p => waterObstacles.some(w => footprintTouchesWater(p, w)))) return { reason: "wet-approach" };
+  if ([deck, dryA, dryB].some(p => !validWaterPolygon({ id: -1, rings: [p] }))) return { reason: "invalid-input" };
+  const waterObstacles = [targetWater, ...input.otherWater];
+  const touchesWater = (footprint: readonly RiverPoint[], excludeTarget = false) =>
+    input.waterIndex
+      ? input.waterIndex.touchesWater(footprint, excludeTarget ? targetWater : undefined)
+      : (excludeTarget ? input.otherWater : waterObstacles).some(w => footprintTouchesWater(footprint, w));
+  if ([dryA, dryB].some(p => touchesWater(p))) return { reason: "wet-approach" };
   if (![dryA, dryB].every(input.supportsDryFootprint)) return { reason: "unsupported-bank" };
-  if (input.otherWater.some(w => footprintTouchesWater(deck, w))) return { reason: "compound-crossing" };
+  if (touchesWater(deck, true)) return { reason: "compound-crossing" };
   // Every boundary in the occupied deck must belong to the same local pair of banks.
-  for (let r = 0; r < geometry.water.rings.length; r++) {
-    const ring = geometry.water.rings[r];
+  for (let r = 0; r < targetWater.rings.length; r++) {
+    const ring = targetWater.rings[r];
     for (let i = 0; i < ring.length; i++) {
       const clipped = clippedEdge(
         ring[i],
@@ -165,7 +176,7 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
         halfWidth
       );
       if (!clipped) continue;
-      const ref = geometry.water.bankReferences?.[r]?.[i];
+      const ref = targetWater.bankReferences?.[r]?.[i];
       if (
         r !== a.ringIndex ||
         !ref ||

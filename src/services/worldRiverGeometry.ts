@@ -2,9 +2,10 @@ import type { WorldContext } from "../context/worldContext";
 import type { River } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { meanderRiverPoints, physicalRiverWidth, riverDisplayOffset } from "../utils/riverShape";
+import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "./physicalWaterIndex";
 import { buildCatmullRomRiverAxis, type RiverCurvePrecision } from "./riverCurveGeometry";
 import type { RiverPoint } from "./riverGeometry";
-import type { PhysicalRiverGeometry } from "./riverPhysicalGeometry";
+import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
 import {
   buildPhysicalRiverGeometry,
   type RiverBankSampling,
@@ -226,6 +227,17 @@ function freezeResult<T>(value: T): T {
  * Version persistence and committing geometry to a saved world belong to migration.
  */
 export class WorldRiverGeometryRegistry {
+  private waterValidation = new PhysicalWaterValidationCache();
+  private waterIndex: PhysicalWaterIndex | undefined;
+  get waterValidationStats() {
+    return this.waterValidation.stats;
+  }
+  getWaterIndex(waters: readonly PhysicalWaterPolygon[]): PhysicalWaterIndex | null {
+    const index = PhysicalWaterIndex.build(waters, this.waterValidation, this.waterIndex);
+    this.waterIndex = index ?? undefined;
+    return index;
+  }
+
   private entries = new WeakMap<object, Map<number, { key: string; result: WorldRiverGeometryResult }>>();
   private nextVersion = 1;
   private buildCount = 0;
