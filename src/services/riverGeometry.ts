@@ -32,6 +32,7 @@ export function buildPolylineRiverAxis(
     const dx = end[0] - start[0],
       dy = end[1] - start[1];
     const size = Math.hypot(dx, dy);
+    if (!Number.isFinite(size) || !Number.isFinite(length + size)) return null;
     if (size === 0) continue;
     segments.push({ index, start, end, arcStart: length, length: size, tangent: [dx / size, dy / size] });
     length += size;
@@ -67,7 +68,7 @@ export function samplePolylineRiverAxis(axis: RiverAxis, arcLength: number, wind
       segment.start[0] + distance * segment.tangent[0],
       segment.start[1] + distance * segment.tangent[1]
     ] as RiverPoint,
-    tangent: segment.tangent,
+    tangent: [...segment.tangent] as RiverPoint,
     normal: [-segment.tangent[1], segment.tangent[0]] as RiverPoint
   };
 }

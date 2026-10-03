@@ -45,6 +45,15 @@ describe("piecewise-linear river reference", () => {
   });
 });
 
+it("rejects finite coordinates whose arc length overflows", () => {
+  expect(
+    buildPolylineRiverAxis(1, 0, [
+      [-1e308, 0],
+      [1e308, 0]
+    ])
+  ).toBeNull();
+});
+
 describe("fixed pre-implementation crossing fixtures", () => {
   const rivers = [
     {
