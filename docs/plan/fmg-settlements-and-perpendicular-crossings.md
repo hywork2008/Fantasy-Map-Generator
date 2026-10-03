@@ -708,3 +708,15 @@ CityDocumentの任意`fixedCrossingApproaches`にplain要求と確定line/arc・
 検証には原子的採用と元document非変更、直線/cubic fillet円弧の最終SVG、正確なE端、コピーの非表示、CEファイル往復と現在provider復元、改変保存pieceと過大設定の拒否、一件失敗時の部分登録拒否、現在支持条件による表示停止を追加した。関連5ファイル81テスト、型検査、Biome、構成lint、world writer検査を確認した。
 
 通常Generate/UIからこの要求集合を自動構築する処理、読込み/履歴操作後の現在provider自動解決、固定portalと一般street junctionの通行graph、複数都市接続の採用費用/需要評価は未接続である。現時点はopt-in採用APIと、その有効化結果の通常SVG描画であり、全地図/全CE施設の移行が完了したと扱わない。旧fieldなし地図の斜交橋問題、全河川/水域移行、最終frame視覚検証は残る。
+
+### 段階3のCE固定portal・外側lead guideと非整列mesh接続（2026-10-04）
+
+通常Generateへ接続する前提を調べ、前段adapterが河川法線上の既存mesh vertexを要求していることを確認した。任意の河川方位や粗いmeshでは該当vertexがないため、`findFixedCrossingApproach`へ明示`terminalLeadMeters`を追加した。指定時はEから外側法線方向へ固定lead guideを置き、既存meshの外側vertexからleadへ、leadから正確なEへ探索する。最後のlead→E方向と物理位置は固定し、前の曲がりは既存の円弧fillet探索/全幅・最終直線長検証を使う。
+
+connector候補はleadまでの明示距離とE外側半平面で制限する。候補数・追加guide/edgeを予算へ含める。leadと既存vertexが完全に一致した場合だけそのvertex→Eを直接使い、近似座標での自動weldは行わない。leadとEの元mesh IDはいずれもnullとし、公的junctionへ登録しない。leadなしの旧要求は従来の法線上connector契約を維持する。leadを動かしてEや橋床を合わせるfallbackはない。
+
+保存要求の任意lead値もbounded shape検査と現在再探索復元へ接続した。現在支持providerには、仮想connector全footprintの地形支持に加え通過/構造予約の検査を含める契約を明記した。値が最終直線長より短い、非有限、node/edge/terminal予算不足、支持拒否の場合は採用しない。
+
+検証: 法線上のvertexがないmeshから固定lead経由の円弧回廊が成立しEを保持すること、二つの仮想ID、支持拒否、採用後のSVG Aコマンド、lead付きJSON要求の現在復元、terminal/node予算、短すぎるleadを確認した。関連3ファイル75テスト、型検査、Biome、構成lint、world writer検査が通過。
+
+通常Generate/UIでの要求集合自動構築と読込み/履歴の自動有効化は引き続き未接続。CEの既存編集mesh/terrain heightfieldから完全な湖海水域や現在支持/通過条件を推測してproviderを作らず、現段階は明示providerでのopt-in処理とする。現在world条件の取得・受け渡し、street junctionの通行graph統合、全施設/全河川移行と最終frame視覚検証、旧fieldなし地図の斜交橋問題は残る。

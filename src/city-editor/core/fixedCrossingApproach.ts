@@ -22,9 +22,12 @@ export function findFixedCrossingApproach(
     settings: ApproachCorridorSettings;
     maxTerminalConnectors: number;
     maxConnectorMeters: number;
+    /** Optional normal-aligned external lead. It is a guide, not a public junction. */
+    terminalLeadMeters?: number;
     maxWaterVertices: number;
     /** Complete additional lakes/sea/other obstacles, in CE local metres. */
     otherWater: readonly PhysicalWaterPolygon[];
+    /** Must include whole-footprint support AND passage/structure reservations for virtual connectors. */
     supportsDryFootprint: (footprint: readonly RiverPoint[]) => boolean;
     allowsMeshEdge: (edgeId: Id) => boolean;
   }
@@ -48,6 +51,10 @@ export function findFixedCrossingApproach(
     input.maxTerminalConnectors < 1 ||
     !Number.isSafeInteger(input.maxWaterVertices) ||
     input.maxWaterVertices < 1 ||
+    (input.terminalLeadMeters !== undefined &&
+      (!Number.isFinite(input.terminalLeadMeters) ||
+        input.terminalLeadMeters <= 0 ||
+        input.terminalLeadMeters < input.settings.minimumFinalStraightMeters)) ||
     !Number.isFinite(input.maxConnectorMeters) ||
     input.maxConnectorMeters <= 0 ||
     input.settings.roadWidthMeters !== fixed.roadWidthMeters ||
@@ -57,7 +64,10 @@ export function findFixedCrossingApproach(
   const crossing = fixed.crossings.find(c => c.id === input.facilityId);
   if (!crossing) return failure("unknown-facility");
   const ids = Object.keys(document.mesh.vertices);
-  if (ids.length + 1 > input.settings.maxNodes || Object.keys(document.mesh.edges).length * 2 > input.settings.maxEdges)
+  if (
+    ids.length + (input.terminalLeadMeters === undefined ? 1 : 2) > input.settings.maxNodes ||
+    Object.keys(document.mesh.edges).length * 2 > input.settings.maxEdges
+  )
     return failure("graph-budget");
   const fixedKey = JSON.stringify(fixed);
   const meshKey = JSON.stringify([document.mesh.vertices, document.mesh.edges]);
@@ -84,24 +94,37 @@ export function findFixedCrossingApproach(
   }
   const endpoint: RiverPoint = [...(input.side === "A" ? crossing.approachA : crossing.approachB)];
   const tangent: RiverPoint = input.side === "A" ? [...crossing.normal] : [-crossing.normal[0], -crossing.normal[1]];
-  const portal = nodes.length;
+  const lead: RiverPoint =
+    input.terminalLeadMeters === undefined
+      ? endpoint
+      : [endpoint[0] - tangent[0] * input.terminalLeadMeters, endpoint[1] - tangent[1] * input.terminalLeadMeters];
+  if (!lead.every(Number.isFinite)) return failure("invalid-lead");
   const candidates = nodes.filter(node => {
-    const dx = endpoint[0] - node.point[0],
-      dy = endpoint[1] - node.point[1],
+    const dx = lead[0] - node.point[0],
+      dy = lead[1] - node.point[1],
       length = Math.hypot(dx, dy);
+    if (!Number.isFinite(length) || length > input.maxConnectorMeters) return false;
+    if ((endpoint[0] - node.point[0]) * tangent[0] + (endpoint[1] - node.point[1]) * tangent[1] <= 0) return false;
     return (
-      length > 1e-9 &&
-      length <= input.maxConnectorMeters &&
-      length >= input.settings.minimumFinalStraightMeters &&
-      dx * tangent[0] + dy * tangent[1] > 0 &&
-      Math.abs(dx * tangent[1] - dy * tangent[0]) <= 1e-9 * length
+      input.terminalLeadMeters !== undefined ||
+      (length > 1e-9 &&
+        length >= input.settings.minimumFinalStraightMeters &&
+        Math.abs(dx * tangent[1] - dy * tangent[0]) <= 1e-9 * length)
     );
   });
   if (candidates.length > input.maxTerminalConnectors) return failure("terminal-budget");
   if (!candidates.length) return failure("no-terminal-connector");
-  const edgeCount = nodes.reduce((n, node) => n + node.neighbors.length, 0) + candidates.length;
-  if (edgeCount > input.settings.maxEdges) return failure("graph-budget");
-  for (const node of candidates) node.neighbors.push(portal);
+  const extraEdges = candidates.length + (input.terminalLeadMeters === undefined ? 0 : 1);
+  if (nodes.reduce((n, node) => n + node.neighbors.length, 0) + extraEdges > input.settings.maxEdges)
+    return failure("graph-budget");
+  const leadId = nodes.length;
+  if (input.terminalLeadMeters !== undefined) nodes.push({ id: leadId, point: [...lead], neighbors: [] });
+  const portal = nodes.length;
+  if (input.terminalLeadMeters !== undefined) nodes[leadId].neighbors.push(portal);
+  for (const node of candidates) {
+    const coincidentLead = node.point[0] === lead[0] && node.point[1] === lead[1];
+    node.neighbors.push(input.terminalLeadMeters === undefined || coincidentLead ? portal : leadId);
+  }
   nodes.push({ id: portal, point: [...endpoint], neighbors: [] });
   const result = findApproachCorridor({
     nodes,
@@ -127,7 +150,7 @@ export function findFixedCrossingApproach(
         geometryVersion: crossing.geometryVersion,
         guides: nodes.map(node => ({ ...node, point: [...node.point] as RiverPoint, neighbors: [...node.neighbors] })),
         settings: { ...input.settings },
-        guideVertexIds: [...ids, null]
+        guideVertexIds: [...ids, ...(input.terminalLeadMeters === undefined ? [] : [null]), null]
       }
     : result;
 }

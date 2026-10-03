@@ -808,6 +808,48 @@ describe("CE fixed physical crossing handoff", () => {
       })
     ).toHaveProperty("reason", "changed-source");
     doc.mesh.vertices.start.point = [e[0] - n[0] * 20, e[1] - n[1] * 20];
+    const offsetDoc = structuredClone(doc);
+    offsetDoc.mesh.vertices.start.point[1] += 7;
+    offsetDoc.mesh.vertices.lead.point[1] += 7;
+    const leadResult = findFixedCrossingApproach(offsetDoc, { ...input, terminalLeadMeters: 10 });
+    if (!("corridor" in leadResult)) throw Error(leadResult.reason);
+    expect(leadResult.corridor.pieces.some(p => p.kind === "arc")).toBe(true);
+    expect(leadResult.corridor.pieces.at(-1)!.end).toEqual(e);
+    expect(leadResult.guideVertexIds.slice(-2)).toEqual([null, null]);
+    const leadAdopted = adoptFixedCrossingApproaches(
+      offsetDoc,
+      [{ id: "lead-A", request: { ...request, terminalLeadMeters: 10 } }],
+      provider
+    );
+    // The provider above is intentionally disabled; reject instead of bypassing support.
+    expect(leadAdopted).toHaveProperty("reason");
+    const leadProvider = () => ({ otherWater: [], supportsDryFootprint: () => true, allowsMeshEdge: () => true });
+    const acceptedLead = adoptFixedCrossingApproaches(
+      offsetDoc,
+      [{ id: "lead-A", request: { ...request, terminalLeadMeters: 10 } }],
+      leadProvider
+    );
+    if (!("document" in acceptedLead)) throw Error(acceptedLead.reason);
+    const leadSvg = renderStandaloneCitySvg(acceptedLead.document);
+    expect(leadSvg.querySelector("[data-fixed-approach-id='lead-A']")!.getAttribute("d")).toContain("A2 2");
+    expect(
+      restoreFixedCrossingApproaches(JSON.parse(JSON.stringify(acceptedLead.document)), leadProvider)
+    ).toHaveProperty("document");
+    expect(
+      findFixedCrossingApproach(offsetDoc, { ...input, terminalLeadMeters: 10, maxTerminalConnectors: 1 })
+    ).toHaveProperty("reason", "terminal-budget");
+    expect(
+      findFixedCrossingApproach(offsetDoc, {
+        ...input,
+        terminalLeadMeters: 10,
+        settings: { ...input.settings, maxNodes: 3 }
+      })
+    ).toHaveProperty("reason", "graph-budget");
+    expect(findFixedCrossingApproach(offsetDoc, { ...input, terminalLeadMeters: 1 })).toHaveProperty(
+      "reason",
+      "invalid-input"
+    );
+
     doc.mesh.vertices.lead.point[1] += 0.1;
     expect(findFixedCrossingApproach(doc, input)).toHaveProperty("reason", "no-terminal-connector");
   });

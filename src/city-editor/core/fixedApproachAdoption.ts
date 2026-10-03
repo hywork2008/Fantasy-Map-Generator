@@ -114,7 +114,7 @@ export function validSavedFixedApproaches(raw: unknown): raw is SavedFixedApproa
     if (
       !keys(
         q,
-        "facilityId,side,startVertexId,startTangent,settings,maxTerminalConnectors,maxConnectorMeters,maxWaterVertices"
+        "facilityId,side,startVertexId,startTangent,settings,maxTerminalConnectors,maxConnectorMeters,terminalLeadMeters,maxWaterVertices"
       ) ||
       !Number.isSafeInteger(q.facilityId) ||
       (q.facilityId as number) < 0 ||
@@ -124,6 +124,8 @@ export function validSavedFixedApproaches(raw: unknown): raw is SavedFixedApproa
       (q.startTangent !== undefined && !point(q.startTangent)) ||
       !object(q.settings)
     )
+      return false;
+    if (q.terminalLeadMeters !== undefined && (!finite(q.terminalLeadMeters) || q.terminalLeadMeters <= 0))
       return false;
     for (const key of ["maxTerminalConnectors", "maxConnectorMeters", "maxWaterVertices"])
       if (!finite(q[key]) || q[key] <= 0) return false;
