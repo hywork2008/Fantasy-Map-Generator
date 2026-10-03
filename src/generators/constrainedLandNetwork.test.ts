@@ -11,8 +11,10 @@ import {
   findConstrainedLandRoute,
   type NetworkConnection,
   type NetworkCorridor,
-  type NetworkNode
+  type NetworkNode,
+  selectConstrainedLandNetwork
 } from "./constrainedLandNetwork";
+import { createLandConnectionRegistry } from "./landConnectionAdoption";
 import { type CrossingCandidateInput, createProvisionalRiverCrossing } from "./riverCrossingCandidates";
 
 const settings: ApproachCorridorSettings = {
@@ -367,5 +369,241 @@ describe("atomic bridge network and direction/history search", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("explicit selected connections and atomic session adoption", () => {
+  function adoptionFixture(shared = false) {
+    const f = fixture();
+    if (shared) {
+      f.input.nodes.push({ id: 3, point: [35, 0] });
+      const c = f.bridge(5, 0, 2, 3, 2);
+      if (c.kind !== "bridge") throw Error();
+      c.approachA = f.corridor([[35, 0], c.crossing.approachA], [-1, 0]);
+      f.input.connections.push(c);
+    }
+    const network = f.build();
+    const baseline = selectConstrainedLandNetwork(network, [], f.environment, f.input);
+    if (!("network" in baseline)) throw Error(baseline.reason);
+    const created = createLandConnectionRegistry(baseline.network, f.environment, f.input);
+    if (!("registry" in created)) throw Error(created.reason);
+    const current = {
+      candidateNetwork: network,
+      environment: f.environment,
+      nodePointAt: (id: number) => f.input.nodes.find(n => n.id === id)?.point ?? null
+    };
+    const request = {
+      kind: "individual" as const,
+      input: {
+        startNodeId: 1,
+        goalNodeId: 2,
+        searchSettings: f.searchSettings,
+        settings: {
+          minimumImprovementMeters: 1,
+          nearEqualCostMeters: 1,
+          maxConstructionCostMeters: 100,
+          maxRouteCostMeters: 500,
+          maxSearches: 4
+        }
+      }
+    };
+    const prepare = () => {
+      const r = created.registry.prepare(created.registry.snapshot.revision, request, current);
+      if (!("draft" in r)) throw Error(JSON.stringify(r));
+      return r.draft;
+    };
+    return { ...f, network, baseline: baseline.network, registry: created.registry, current, request, prepare };
+  }
+  it("rebuilds explicit selected IDs from saved contracts and rejects copied/unknown sources", () => {
+    const f = adoptionFixture();
+    expect(selectConstrainedLandNetwork(f.network, [1], f.environment, f.input)).toHaveProperty("network");
+    expect(selectConstrainedLandNetwork(f.network, [1, 1], f.environment, f.input)).toMatchObject({
+      reason: "invalid-input"
+    });
+    expect(selectConstrainedLandNetwork(f.network, [999], f.environment, f.input)).toMatchObject({
+      reason: "invalid-input"
+    });
+    expect(selectConstrainedLandNetwork(structuredClone(f.network), [1], f.environment, f.input)).toMatchObject({
+      reason: "unvalidated-network"
+    });
+    f.input.connections[0].from = 999;
+    expect(selectConstrainedLandNetwork(f.network, [1], f.environment, f.input)).toHaveProperty("network");
+  });
+  it("prepares without publishing, then registers the complete bridge once", () => {
+    const f = adoptionFixture(),
+      before = f.registry.snapshot,
+      draft = f.prepare();
+    expect(f.registry.snapshot).toBe(before);
+    expect(draft.newFacilityIds).toEqual([5]);
+    expect(Object.isFrozen(draft)).toBe(true);
+    expect(f.registry.commit(draft, f.current)).toMatchObject({
+      status: "committed",
+      snapshot: { revision: 1, connectionIds: [1], facilityIds: [5] }
+    });
+    expect(f.registry.commit(draft, f.current)).toMatchObject({ reason: "unknown-draft" });
+    expect(f.registry.prepare(1, f.request, f.current)).toMatchObject({ reason: "not-proposed" });
+  });
+  it("refuses stale concurrent drafts and foreign/JSON drafts without partial registration", () => {
+    const f = adoptionFixture(),
+      a = f.prepare(),
+      b = f.prepare();
+    const g = adoptionFixture();
+    expect(g.registry.commit(a, g.current)).toMatchObject({ reason: "unknown-draft" });
+    expect(f.registry.commit(structuredClone(a), f.current)).toMatchObject({ reason: "unknown-draft" });
+    expect(f.registry.commit(a, f.current).status).toBe("committed");
+    const snapshot = f.registry.snapshot;
+    expect(f.registry.commit(b, f.current)).toMatchObject({ reason: "stale-revision" });
+    expect(f.registry.prepare(0, f.request, f.current)).toMatchObject({ reason: "stale-revision" });
+    expect(f.registry.snapshot).toBe(snapshot);
+  });
+  it("checks the revision again if a current-state callback publishes another draft", () => {
+    const f = adoptionFixture(),
+      a = f.prepare(),
+      b = f.prepare();
+    let published = false;
+    const current = {
+      ...f.current,
+      nodePointAt: (id: number) => {
+        if (!published) {
+          published = true;
+          expect(f.registry.commit(b, f.current).status).toBe("committed");
+        }
+        return f.current.nodePointAt(id);
+      }
+    };
+    expect(f.registry.commit(a, current)).toMatchObject({ reason: "stale-revision" });
+    expect(f.registry.snapshot.revision).toBe(1);
+  });
+  it("rechecks actual endpoint positions and current water before commit", () => {
+    const f = adoptionFixture(),
+      draft = f.prepare(),
+      before = f.registry.snapshot;
+    expect(f.registry.commit(draft, { ...f.current, nodePointAt: () => [999, 0] })).toMatchObject({
+      reason: "changed-nodes"
+    });
+    const _lake = {
+      id: 99,
+      rings: [
+        [
+          [20, -2],
+          [25, -2],
+          [25, 2],
+          [20, 2]
+        ]
+      ] as RiverPoint[][]
+    };
+    const water = PhysicalWaterIndex.build([f.source.geometry.water, _lake], new PhysicalWaterValidationCache())!;
+    expect(f.registry.commit(draft, { ...f.current, environment: { ...f.environment, water } })).toMatchObject({
+      reason: "not-proposed",
+      assessment: { status: "unresolved", reason: "invalid-geometry" }
+    });
+    expect(f.registry.snapshot).toBe(before);
+  });
+  it("rejects current passage/capability changes and does not lose the draft", () => {
+    const f = adoptionFixture(),
+      draft = f.prepare(),
+      before = f.registry.snapshot;
+    expect(
+      f.registry.commit(draft, { ...f.current, environment: { ...f.environment, allowsBridgeFootprint: () => false } })
+    ).toMatchObject({ reason: "not-proposed" });
+    f.source.capability.depthMeters = Infinity;
+    expect(f.registry.commit(draft, f.current)).toMatchObject({ reason: "not-proposed" });
+    expect(f.registry.snapshot).toBe(before);
+    f.source.capability.depthMeters = 3;
+    expect(f.registry.commit(draft, f.current).status).toBe("committed");
+  });
+  it("detects refreshed engineering costs and preserves valuation settings from preparation", () => {
+    const f = adoptionFixture(),
+      draft = f.prepare();
+    f.request.input.settings.maxConstructionCostMeters = 0;
+    if (f.input.connections[0].kind !== "bridge") throw Error();
+    f.input.connections[0].constructionCostMeters = 21;
+    expect(f.registry.commit(draft, { ...f.current, candidateNetwork: f.build() })).toMatchObject({
+      reason: "changed-proposal"
+    });
+    expect(f.registry.snapshot.revision).toBe(0);
+    expect(f.registry.commit(draft, f.current).status).toBe("committed");
+  });
+  it("registers a shared bridge package atomically with unique facility ownership", () => {
+    const f = adoptionFixture(true);
+    const request = {
+      kind: "shared" as const,
+      input: {
+        pairs: [
+          { id: 1, startNodeId: 1, goalNodeId: 2, weight: 1, unconnectedAllowanceMeters: 200 },
+          { id: 2, startNodeId: 3, goalNodeId: 2, weight: 1, unconnectedAllowanceMeters: 200 }
+        ],
+        sharedFacilityIds: [5],
+        searchSettings: f.searchSettings,
+        settings: {
+          maxPairs: 5,
+          maxSearches: 20,
+          maxReturnComparisons: 1,
+          nearEqualCostMeters: 1,
+          maxConstructionCostMeters: 100,
+          maxPairCostMeters: 500,
+          maxTotalCostMeters: 1000,
+          minimumNetBenefitMeters: 1
+        }
+      }
+    };
+    const p = f.registry.prepare(0, request, f.current);
+    if (!("draft" in p)) throw Error(JSON.stringify(p));
+    expect(p.draft.newConnectionIds).toEqual([1, 2]);
+    expect(f.registry.commit(p.draft, f.current)).toMatchObject({
+      status: "committed",
+      snapshot: { connectionIds: [1, 2], facilityIds: [5] }
+    });
+  });
+  it("preserves explicit established connections and refuses their silent replacement", () => {
+    const f = adoptionFixture(true);
+    const base = selectConstrainedLandNetwork(f.network, [1], f.environment, f.input);
+    if (!("network" in base)) throw Error();
+    const created = createLandConnectionRegistry(base.network, f.environment, f.input);
+    if (!("registry" in created)) throw Error();
+    const request = { ...f.request, input: { ...f.request.input, startNodeId: 3 } };
+    const p = created.registry.prepare(0, request, f.current);
+    if (!("draft" in p)) throw Error(JSON.stringify(p));
+    expect(p.draft.newFacilityIds).toEqual([]);
+    expect(p.draft.newConnectionIds).toEqual([2]);
+    const removed = selectConstrainedLandNetwork(f.network, [2], f.environment, f.input);
+    if (!("network" in removed)) throw Error();
+    expect(created.registry.commit(p.draft, { ...f.current, candidateNetwork: removed.network })).toMatchObject({
+      reason: "changed-baseline"
+    });
+    expect(created.registry.snapshot.connectionIds).toEqual([1]);
+    expect(created.registry.commit(p.draft, f.current)).toMatchObject({
+      status: "committed",
+      snapshot: { connectionIds: [1, 2], facilityIds: [5] }
+    });
+  });
+  it("keeps source settings and network immutable and does not consume RNG", () => {
+    const f = adoptionFixture(),
+      before = JSON.stringify([f.network, f.request]);
+    const random = vi.spyOn(Math, "random").mockImplementation(() => {
+      throw Error("RNG");
+    });
+    try {
+      const draft = f.prepare();
+      expect(f.registry.commit(draft, f.current).status).toBe("committed");
+      expect(JSON.stringify([f.network, f.request])).toBe(before);
+      expect(Object.isFrozen(f.registry.snapshot)).toBe(true);
+      expect(Object.isFrozen(f.registry.snapshot.connectionIds)).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
+  });
+  it("does not register a partial package when selection or assessment budgets expire", () => {
+    const f = adoptionFixture(),
+      before = f.registry.snapshot;
+    f.request.input.searchSettings = { ...f.searchSettings, maxExpansions: 1 };
+    expect(f.registry.prepare(0, f.request, f.current)).toMatchObject({
+      reason: "not-proposed",
+      assessment: { status: "unresolved" }
+    });
+    expect(selectConstrainedLandNetwork(f.network, [1], f.environment, { ...f.input, maxEdges: 1 })).toMatchObject({
+      reason: "graph-budget"
+    });
+    expect(f.registry.snapshot).toBe(before);
   });
 });

@@ -79,6 +79,10 @@ export interface NetworkEnvironment extends LandRouteGraphEnvironment {
   crossingInputAt: (facilityId: number) => CrossingCandidateInput | null;
 }
 const validators = new WeakMap<ConstrainedLandNetwork, readonly ((env: NetworkEnvironment) => boolean)[]>();
+const connectionSources = new WeakMap<
+  ConstrainedLandNetwork,
+  ReadonlyMap<number, (env: NetworkEnvironment) => NetworkConnection | null>
+>();
 const validId = (id: number) => Number.isSafeInteger(id) && id >= 0;
 function reversePieces(pieces: readonly CorridorPiece[]): CorridorPiece[] {
   return [...pieces]
@@ -167,7 +171,8 @@ export function buildConstrainedLandNetwork(input: {
   )
     return { reason: "invalid-input" };
   const edges: ConstrainedNetworkEdge[] = [],
-    checks: ((env: NetworkEnvironment) => boolean)[] = [];
+    checks: ((env: NetworkEnvironment) => boolean)[] = [],
+    sources = new Map<number, (env: NetworkEnvironment) => NetworkConnection | null>();
   for (const node of nodes) {
     const half = roadWidthMeters / 2;
     const footprint: RiverPoint[] = [
@@ -203,6 +208,14 @@ export function buildConstrainedLandNetwork(input: {
       distanceMeters = land.corridor.distanceMeters;
       costMeters = land.corridor.costMeters;
       check = env => corridorValid(land, env, roadWidthMeters);
+      const base = {
+        id: c.id,
+        from: c.from,
+        to: c.to,
+        bidirectional: c.bidirectional,
+        constructionCostMeters: c.constructionCostMeters
+      };
+      sources.set(c.id, () => ({ ...base, kind: "land", land }));
     } else {
       const bridge = structuredClone(c.crossing),
         a = savedCorridor(c.approachA),
@@ -281,6 +294,21 @@ export function buildConstrainedLandNetwork(input: {
         const current = env.crossingInputAt(bridge.id);
         return !!current && validate(current, env);
       };
+      const base = {
+        id: c.id,
+        from: c.from,
+        to: c.to,
+        bidirectional: c.bidirectional,
+        constructionCostMeters: c.constructionCostMeters,
+        useCostMeters: c.useCostMeters,
+        approachConstructionCostMeters: c.approachConstructionCostMeters
+      };
+      sources.set(c.id, env => {
+        const current = env.crossingInputAt(bridge.id);
+        return current
+          ? { ...base, kind: "bridge", crossing: bridge, crossingInput: current, approachA: a, approachB: b }
+          : null;
+      });
     }
     if (![distanceMeters, costMeters].every(v => Number.isFinite(v) && v >= 0)) return { reason: "invalid-input" };
     const start = pieces[0].start,
@@ -322,7 +350,45 @@ export function buildConstrainedLandNetwork(input: {
   }
   const network = freeze({ nodes, edges, roadWidthMeters: roadWidthMeters });
   validators.set(network, checks);
+  connectionSources.set(network, sources);
   return { network };
+}
+
+/** Extracts only explicit connection IDs from a session-validated source and
+ * rebuilds their authoritative corridor contracts against the current world.
+ * An edge list/JSON copy cannot manufacture a registered connection. */
+export function selectConstrainedLandNetwork(
+  network: ConstrainedLandNetwork,
+  connectionIds: readonly number[],
+  environment: NetworkEnvironment,
+  budgets: Pick<
+    Parameters<typeof buildConstrainedLandNetwork>[0],
+    "maxNodes" | "maxEdges" | "maxCorridorPieces" | "maxGuideNodes" | "maxGuideEdges"
+  >
+): ReturnType<typeof buildConstrainedLandNetwork> | { reason: "unvalidated-network" | "invalid-geometry" } {
+  const sources = connectionSources.get(network),
+    checks = validators.get(network);
+  if (!sources || !checks) return { reason: "unvalidated-network" };
+  if (new Set(connectionIds).size !== connectionIds.length || connectionIds.some(id => !sources.has(id)))
+    return { reason: "invalid-input" };
+  if (!checks.every(check => check(environment))) return { reason: "invalid-geometry" };
+  const connections: NetworkConnection[] = [];
+  for (const id of [...connectionIds].sort((a, b) => a - b)) {
+    const c = sources.get(id)!(environment);
+    if (!c) return { reason: "invalid-geometry" };
+    connections.push(c);
+  }
+  return buildConstrainedLandNetwork({
+    nodes: network.nodes,
+    connections,
+    roadWidthMeters: network.roadWidthMeters,
+    environment,
+    maxNodes: budgets.maxNodes,
+    maxEdges: budgets.maxEdges,
+    maxCorridorPieces: budgets.maxCorridorPieces,
+    maxGuideNodes: budgets.maxGuideNodes,
+    maxGuideEdges: budgets.maxGuideEdges
+  });
 }
 export interface NetworkSearchSettings {
   maxLabels: number;
