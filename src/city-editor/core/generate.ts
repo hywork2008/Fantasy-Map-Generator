@@ -17,6 +17,7 @@ import { fitImportedHousing } from "./gen/fitImportedHousing";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./generationDebug";
 import type { RoadRoutingTrace } from "./generationDiagnostics";
+import { applyImportedFixedCrossings } from "./importedFixedCrossings";
 import { MoatReservation } from "./moats";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 import { cellInsideWater, dryRuns, lineHitsWater, waterPolygons } from "./waterGeometry";
@@ -4457,6 +4458,7 @@ function editorWard(
 
 /** Preserve the source port frontages for berth-specific vessel selection. */
 function applyImportedWaterAccess(document: CityDocument, settings: GenerationSettings): void {
+  applyImportedFixedCrossings(document, settings.descriptor);
   const access = settings.descriptor?.burg.waterAccess;
   if (access) document.waterAccess = structuredClone(access);
   else delete document.waterAccess;

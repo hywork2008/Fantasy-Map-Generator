@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { createGridDocument, parseDocument } from "../city-editor/core/document";
 import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
 import { synthSite } from "../city-editor/core/gen/site/synthSite";
+import { defaultGenerationSettings, generateStageOnDocument } from "../city-editor/core/generate";
+import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
 import {
   decodeShare,
   encodeShare,
@@ -363,6 +366,53 @@ describe("CE fixed physical crossing handoff", () => {
     delete missingBounds.frame.requiredBounds;
     expect(parseDescriptor(JSON.stringify(missingBounds))).toBeNull();
     expect(renderFixedSitePreview(base)).toBeNull();
+  });
+  it("keeps fixed geometry in CE documents and rejects corrupted or cropped file data", () => {
+    const f = exported();
+    const base = synthSite("largeTown", DEFAULT_SITE_CONFIG, "fixed-doc", { extentMeters: 1500, cityRadiusMeters: 80 });
+    const site = {
+      ...base,
+      fixedCrossings: f.payload,
+      frame: {
+        ...base.frame,
+        originMapUnits: [30, 10] as [number, number],
+        metersPerMapUnit: 1,
+        requiredBounds: f.payload.requiredBounds
+      }
+    };
+    const doc = createGridDocument({
+      size: "small",
+      grid: "hex",
+      extentMeters: 1500,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 300,
+      seed: "fixed-doc"
+    });
+    const settings = defaultGenerationSettings();
+    settings.descriptor = { ...site, rivers: [], roads: [], waterbody: null };
+    const staged = generateStageOnDocument(doc, settings, "fixed-doc-stage", 1);
+    expect(staged).not.toBeNull();
+    expect(staged!.importedFixedCrossings).toEqual(f.payload);
+    expect(doc.importedFixedCrossings).toBeUndefined();
+    applyImportedFixedCrossings(doc, site);
+    expect(doc.importedFixedCrossings).not.toBe(f.payload);
+    const loaded = parseDocument(JSON.stringify(doc))!;
+    expect(loaded.importedFixedCrossings).toEqual(JSON.parse(JSON.stringify(f.payload)));
+    const broken = JSON.parse(JSON.stringify(doc));
+    broken.importedFixedCrossings.crossings[0].deckA[1]++;
+    expect(parseDocument(JSON.stringify(broken))).toBeNull();
+    const cropped = JSON.parse(JSON.stringify(doc));
+    cropped.frame.extentMeters = 1;
+    expect(parseDocument(JSON.stringify(cropped))).toBeNull();
+    doc.frame.extentMeters = 1;
+    const previous = doc.importedFixedCrossings;
+    expect(() => applyImportedFixedCrossings(doc, site)).toThrow("City frame");
+    expect(doc.importedFixedCrossings).toBe(previous);
+    doc.frame.extentMeters = 1500;
+    applyImportedFixedCrossings(doc);
+    expect(doc.importedFixedCrossings).toBe(previous);
+    applyImportedFixedCrossings(doc, base);
+    expect(doc.importedFixedCrossings).toBeUndefined();
   });
   it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
     const f = exported();

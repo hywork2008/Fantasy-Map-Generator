@@ -349,6 +349,8 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  /** Source physical crossings; not inferred from editable mesh roads. */
+  importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;
   waterAccess?: import("../../types/burgWater").BurgWaterAccess;
   format: "fmg-city-editor";
   version: 1 | 2 | 3;

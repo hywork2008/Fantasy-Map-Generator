@@ -1,3 +1,5 @@
+import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
+import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
 import { polygonArea } from "./gen/geom";
 import { buildGrid } from "./gen/grid";
@@ -299,6 +301,12 @@ function isDocument(value: unknown): value is CityDocument {
             area.polygon.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
         ))) &&
     (doc.importedRoadCount === undefined || (Number.isInteger(doc.importedRoadCount) && doc.importedRoadCount >= 0)) &&
+    (doc.importedFixedCrossings === undefined ||
+      (validFixedBurgCrossings(doc.importedFixedCrossings, FIXED_SITE_CROSSING_BUDGETS) &&
+        !!doc.frame &&
+        Number.isFinite(doc.frame.extentMeters) &&
+        doc.frame.extentMeters > 0 &&
+        requiredSiteExtent(doc.importedFixedCrossings.requiredBounds) <= doc.frame.extentMeters)) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&
