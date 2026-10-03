@@ -21,6 +21,7 @@ import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
+import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
@@ -148,6 +149,7 @@ class BurgModule {
       burg.y = y;
     }
 
+    updateAllBurgWaterAccess(this.worldContext.pack);
     this.landmassPortBurgIds.clear();
   }
 
@@ -549,6 +551,7 @@ class BurgModule {
   private promoteToPort(candidate: PortCandidate, riversById: Map<number, { i: number; cells: number[] }>): void {
     const { burg, haven, portFeatureId } = candidate;
     burg.port = portFeatureId;
+    updateBurgWaterAccess(burg, this.worldContext.pack);
     if (haven !== null && burg.i && this.landmassPortBurgIds.has(burg.i)) {
       const [x, y] = this.getCoastalBurgPosition(burg.cell, haven);
       burg.x = x;
@@ -1676,6 +1679,7 @@ class BurgModule {
     cells.burg[cellId as number] = burgId;
 
     if (addOptions.developPort) this.developPort(burg);
+    updateBurgWaterAccess(burg, pack);
 
     // A new Burg joins the existing network immediately. Frontier outposts and
     // rural settlements do not call this method, so they stay route-free.

@@ -2,6 +2,7 @@ import { restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
+import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
 import type { Grid } from "../types/Grid";
 import {
   CULTURE_TYPES,
@@ -1153,6 +1154,7 @@ class LegacyWorldRuntime implements WorldRuntime {
       cells.burg[burg.cell] = 0;
       cells.burg[cellId] = burgId;
       burg.cell = cellId;
+      updateBurgWaterAccess(burg, this.world.pack);
       burg.state = stateId;
       burg.x = x;
       burg.y = y;
@@ -2077,7 +2079,10 @@ class LegacyWorldRuntime implements WorldRuntime {
         hydrologyChanged = true;
       }
     }
-    if (hydrologyChanged) refreshRiverHydrology(river, this.world);
+    if (hydrologyChanged) {
+      refreshRiverHydrology(river, this.world);
+      updateAllBurgWaterAccess(this.world.pack);
+    }
     return { result: undefined, topics: changed ? ["map.networks"] : [] };
   }
 
@@ -2121,6 +2126,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     river.points = points;
     river.cells = cellIds;
     refreshRiverHydrology(river, this.world);
+    updateAllBurgWaterAccess(this.world.pack);
     return { result: undefined, topics: ["map.networks"] };
   }
 
@@ -2147,6 +2153,7 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     const created = structuredClone(river);
     refreshRiverHydrology(created, this.world);
+    updateAllBurgWaterAccess(this.world.pack);
     this.world.pack.rivers.push(created);
     for (const cellId of created.cells) {
       if (!this.world.pack.cells.r[cellId]) this.world.pack.cells.r[cellId] = created.i;

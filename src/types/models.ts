@@ -331,6 +331,8 @@ export interface BurgDemographics {
 }
 
 export interface Burg {
+  /** Water contact and usable port frontages, refreshed from FMG cell topology. */
+  waterAccess?: import("./burgWater").BurgWaterAccess;
   cell: number;
   x: number;
   y: number;

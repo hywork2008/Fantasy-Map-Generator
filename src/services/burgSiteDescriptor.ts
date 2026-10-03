@@ -8,6 +8,7 @@ import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
+import { updateBurgWaterAccess } from "./burgWaterAccess";
 
 /**
  * Burg site descriptor — the machine-readable "site survey" of a burg's local
@@ -152,6 +153,8 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    /** Optional for legacy descriptors; independent of clipped water geometry. */
+    waterAccess?: import("../types/burgWater").BurgWaterAccess;
     citadel: boolean;
     plaza: boolean;
     walls: boolean;
@@ -247,6 +250,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       dwellings: getUrbanDwellings(population),
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
+      waterAccess: updateBurgWaterAccess(burg, pack),
       citadel: Boolean(burg.citadel),
       plaza: Boolean(burg.plaza),
       walls: Boolean(burg.walls),

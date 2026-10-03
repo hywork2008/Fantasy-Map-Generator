@@ -95,6 +95,8 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    /** Optional for legacy descriptors; independent of clipped water geometry. */
+    waterAccess?: import("../../types/burgWater").BurgWaterAccess;
     citadel: boolean;
     plaza: boolean;
     walls: boolean;

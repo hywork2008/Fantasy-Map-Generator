@@ -3,6 +3,7 @@ import { Names } from "../generators/names-generator";
 import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
 import { ChunkedWorldCodecAdapter } from "../runtime/worldArchive";
 import { worldRuntime } from "../runtime/worldRuntime";
+import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
@@ -83,6 +84,7 @@ function getLegacyEconomyPackFields(pack: unknown): {
 
 /** Captures the DOM-free canonical snapshot used by `.fmg` saves and autosaves. */
 export async function prepareWorldArchive(): Promise<Blob> {
+  updateAllBurgWaterAccess(worldContext.pack);
   return worldArchiveCodec.encode(await worldRuntime.captureArchiveDocument());
 }
 
@@ -197,6 +199,7 @@ function prepareMapDataFromSvg(): string {
   const cultures = JSON.stringify(worldContext.pack.cultures);
   const races = JSON.stringify(worldContext.pack.races ?? []);
   const states = JSON.stringify(worldContext.pack.states);
+  updateAllBurgWaterAccess(worldContext.pack);
   const burgs = JSON.stringify(worldContext.pack.burgs);
   const religions = JSON.stringify(worldContext.pack.religions);
   const provinces = JSON.stringify(worldContext.pack.provinces);

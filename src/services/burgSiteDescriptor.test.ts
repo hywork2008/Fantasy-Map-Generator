@@ -139,6 +139,17 @@ describe("getBurgSiteDescriptor", () => {
     expect(segment.points[0][1]).toBeGreaterThan(segment.points.at(-1)![1]);
   });
 
+  it("exports water contact even when the on-cell river is outside the city window", () => {
+    worldContext.pack.cells.r[0] = 1;
+    const burg = worldContext.pack.burgs[1];
+    burg.x = 1000;
+    burg.y = 1000;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    expect(descriptor.rivers).toHaveLength(0);
+    expect(descriptor.burg.waterAccess).toMatchObject({ river: true, riverId: 1 });
+    expect(burg.waterAccess).toEqual(descriptor.burg.waterAccess);
+  });
+
   it("emits one gate-candidate entry per road leg with destinations", () => {
     const descriptor = getBurgSiteDescriptor(1)!;
     expect(descriptor.roads).toHaveLength(2);
