@@ -35,9 +35,9 @@ describe.skipIf(!existsSync(alyatland))("archive housing comparison", () => {
       expect(row.output?.houses).toBe((row.output?.housesCore ?? 0) + (row.output?.housesOutskirts ?? 0));
       expect(row.output?.buildings).toBe((row.output?.buildingsCore ?? 0) + (row.output?.buildingsOutskirts ?? 0));
       expect(row.gap?.housesMinusDwellings).toBe((row.output?.houses ?? 0) - (row.input?.dwellings ?? 0));
-      expect(row.output?.houses ?? 0).toBeGreaterThan(30);
+      expect(row.output?.houses ?? 0).toBeGreaterThanOrEqual((row.input?.dwellings ?? 0) * 0.9);
     }
-    expect(byId[385]?.output?.houses).toBeGreaterThan(byId[385]?.input?.dwellings ?? 0);
+    expect(byId[385]?.output?.houses).toBeGreaterThanOrEqual(byId[385]?.input?.dwellings ?? 0);
     // Pack scan order: the earlier Crild (id 123) precedes the later one (id 385).
     expect(burgIdsForTokens(["Crild"]).map(entry => entry.burgId)).toEqual([123, 385]);
   }, 120_000);

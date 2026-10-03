@@ -130,20 +130,39 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     .map(line => line as Point[])
     .filter(line => line.length >= 2)
     .sort((a, b) => polylineLength(b) - polylineLength(a))[0];
-  if (longest) return { corridor: downsample(longest, CORRIDOR_POINTS), waterAzimuthDeg };
+  if (longest) {
+    let corridor = downsample(longest, CORRIDOR_POINTS);
+    // FMG's kilometre-scale coast can sit beyond a port's entire city disk.
+    // Bring that shore to the town while retaining its shape and bearing;
+    // an inland burg must keep its real distance from the water.
+    // A wide navigable channel already supplies the waterfront. Moving the
+    // ocean across that channel would flood the river port's remaining land.
+    if (site.burg.port && wb.isPort && !site.rivers.some(r => unbridgeableOnSite(site, r))) {
+      const hit = nearestOnPolyline([0, 0], corridor);
+      const radius = site.frame.cityRadiusMeters;
+      if (radius > 0 && hit.dist > radius) {
+        const factor = 1 - (radius * 0.6) / hit.dist;
+        corridor = corridor.map(p => [p[0] - hit.point[0] * factor, p[1] - hit.point[1] * factor]);
+      }
+    }
+    return { corridor, waterAzimuthDeg };
+  }
   // A port burg whose shoreline polyline fell outside the window (real FMG
   // descriptors do this when the coast is just past the extent): lay a straight
   // rough coast across the window, set back toward the water off the town. The
   // graph walk jaggedises it, same path as a synth "straight" coast — better a
   // placed coast than a silently-landlocked harbour.
-  return { corridor: syntheticShoreCorridor(waterAzimuthDeg, site.frame.extentMeters), waterAzimuthDeg };
+  return {
+    corridor: syntheticShoreCorridor(waterAzimuthDeg, site.frame.extentMeters, site.frame.cityRadiusMeters),
+    waterAzimuthDeg
+  };
 }
 
-function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number): Point[] {
+function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number, cityRadiusMeters: number): Point[] {
   const half = extentMeters / 2;
   const toWater = azimuthToVec(waterAzimuthDeg);
   const along: Point = [-toWater[1], toWater[0]];
-  const standoff = half * 0.33; // shore sits a third of the way out toward the water
+  const standoff = Math.min(half * 0.33, cityRadiusMeters * 0.6);
   const mid: Point = [toWater[0] * standoff, toWater[1] * standoff];
   const reach = half * 1.4; // overshoot the window so edge cells still project onto it
   return [

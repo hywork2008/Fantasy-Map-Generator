@@ -13,6 +13,7 @@ import {
 } from "./gen/civicPlacement";
 import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./gen/coastalSuitability";
 import { createFabricPlan } from "./gen/fabricDistricts";
+import { fitImportedHousing } from "./gen/fitImportedHousing";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./generationDebug";
 import type { RoadRoutingTrace } from "./generationDiagnostics";
@@ -294,9 +295,10 @@ export interface GenerationSettings {
   layout?: import("./gen/site/siteConfig").CityLayout;
   /** Approximate fraction of built-up area enclosed by the main wall (0.05–1).
    * Unset: tiny/small 100%, medium 45%, large 20%. Ignored when walls are disabled.
-   * Grid evolution still pulls a tiny curtain in by one cell, and a small curtain
+   * Standalone grid evolution pulls a tiny curtain in by one cell, and a small curtain
    * in by one or two cells, so houses can sit outside that line. Bram keeps the
-   * settlement edge so its spoke roads can reach the gates. */
+   * settlement edge so its spoke roads can reach the gates. FMG imports without
+   * bridgeable rivers retain the supplied town radius without the random inset. */
   walledAreaShare?: number;
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
@@ -887,6 +889,7 @@ export function generateCityAttempt(
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
+  if (settings.descriptor) fitImportedHousing(settled, settings.descriptor.burg.dwellings);
   spawnHarborShips(settled, seed);
   return settled;
 }
@@ -1503,6 +1506,9 @@ export function runPlan(
     geo.rivers.length === 1 &&
     program.walls;
   const compactCore = settings.urbanCoreMode === "compact";
+  // River crossings still need the established inward curtain routing. Other
+  // FMG towns already have a population-scaled radius and retain that core.
+  const preserveImportedCore = !!settings.descriptor && geo.rivers.length === 0;
   const coreShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
   const urbanRadius = compactCore
     ? params.cityRadiusMeters * Math.sqrt(coreShare)
@@ -1532,9 +1538,10 @@ export function runPlan(
     next.add(burgCell.id);
     return next;
   };
-  // The final curtain is peeled inward on evolution grids. Route relative to
-  // that curtain, rather than adding a river setback to the unpeeled settlement.
-  if (!compactCore && plannedCore && effectiveLayout !== "bram") {
+  // Evolution curtains are peeled inward unless the imported core is retained.
+  // Route relative to that curtain rather than adding a river setback to the
+  // unpeeled settlement.
+  if (!preserveImportedCore && !compactCore && plannedCore && effectiveLayout !== "bram") {
     const rings = evolutionWallInsetRings(
       sizePresetForExtent(params.extentMeters),
       seed,
@@ -1692,7 +1699,7 @@ export function runPlan(
     );
   // City extent and wall capacity are independent. The outer residential
   // belt retains the rest of the same flood-fill, including its connectivity.
-  // Grid evolution then pulls a tiny/small curtain in by one or two cells.
+  // Grid evolution may then pull a tiny/small curtain in by one or two cells.
   const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
   const split = splitUrbanCore(cells, classification.urban, compactCore ? 1 : walledShare);
   const urban = plannedCore ?? split.urban;
@@ -1716,8 +1723,9 @@ export function runPlan(
   // Bram's spoke roads have to meet a curtain outside the 120 m core. A
   // one-cell peel on this coarse mesh drops that curtain onto the spoke and
   // leaves the gates unroutable, so Bram keeps the settlement-edge curtain.
+  // Imports without bridgeable rivers keep the supplied disk rather than a random inset.
   const insetRings =
-    effectiveLayout === "bram" || outsideRiver
+    preserveImportedCore || effectiveLayout === "bram" || outsideRiver
       ? 0
       : evolutionWallInsetRings(sizePresetForExtent(params.extentMeters), seed, gridKind, program.walls, walledShare);
   if (!compactCore && insetRings > 0 && currentUrban.size > 0) {

@@ -55,9 +55,13 @@ export function packPerimeter(block: Point[], fronts: Front[], options: Frontage
     if (band.length < 3 || area(band) < 12) continue;
     const local = band.map(p => [dot(p, frame.axis), dot(p, frame.inward)] as Point);
     const depth = Math.max(...local.map(p => p[1])) - Math.min(...local.map(p => p[1]));
-    const width = front.primary
-      ? Math.max(4.2, Math.min(5.6, depth * 0.75, Math.sqrt(options.lotArea) * 0.52))
-      : Math.max(3.8, Math.min(5.4, depth * 0.75, Math.sqrt(options.lotArea) * 0.52));
+    // A larger target plot widens its frontage as well as its depth. Capping
+    // every row at ~5 m made large plots produce excessive narrow houses.
+    const frontageLimit = options.lotArea <= 110 ? (front.primary ? 5.6 : 5.4) : 16;
+    const width = Math.max(
+      front.primary ? 4.2 : 3.8,
+      Math.min(frontageLimit, depth * 0.75, Math.sqrt(options.lotArea) * 0.52)
+    );
     const lots = planRow(band, frame.axis, width, fronts, rng);
     if (!lots.length) continue;
     // Reserve only rows that have a viable complete partition. Occupancy is

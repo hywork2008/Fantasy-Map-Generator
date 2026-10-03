@@ -142,7 +142,7 @@ describe.skipIf(!existsSync(alyatland))("Alyatland hamlet hand-off", () => {
     const { bindSimulationBurgState } = await import("../../runtime/simulationBurgState");
     bindSimulationBurgState(worldContext, validated.document.simulation);
 
-    const expectDwellings: Record<number, number> = { 157: 30, 207: 30, 385: 30, 123: 30, 1: 100 };
+    const minimumCoreBuildings: Record<number, number> = { 157: 30, 207: 30, 385: 30, 123: 30, 1: 100 };
     for (const id of [157, 207, 385, 123, 1]) {
       const descriptor = getBurgSiteDescriptor(id);
       expect(descriptor, String(id)).not.toBeNull();
@@ -168,7 +168,9 @@ describe.skipIf(!existsSync(alyatland))("Alyatland hamlet hand-off", () => {
       const core = buildBlockFabric(city).buildings.filter(
         lot => city.mesh.faces[lot.faceId]?.properties.settlement === "core"
       ).length;
-      expect(core, `${descriptor.burg.name} core`).toBeGreaterThan(expectDwellings[id]);
+      expect(core, `${descriptor.burg.name} core`).toBeGreaterThanOrEqual(
+        Math.min(minimumCoreBuildings[id], descriptor.burg.dwellings)
+      );
       if (id === 1) expect(share.size).not.toBe("micro");
     }
   }, 120_000);
