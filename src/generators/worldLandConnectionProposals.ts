@@ -96,6 +96,30 @@ export type WorldLandProposalResult = (
         | "assessment-unresolved";
     }
 ) & { diagnostics: WorldProposalDiagnostics };
+export interface WorldLandProposalContext {
+  network: ConstrainedLandNetwork;
+  assessmentSearches: number;
+  environment: NetworkEnvironment;
+  baselineConnectionIds: readonly number[];
+  pairs: readonly WorldConnectionPair[];
+  settings: WorldProposalSettings;
+  worldIdentity: string;
+  nodePointAt: (id: number) => RiverPoint | null;
+}
+const proposalContexts = new WeakMap<WorldLandProposalResult, WorldLandProposalContext>();
+/** Session provenance for the adoption adapter. JSON copies have no current-world contract. */
+export function getWorldLandProposalContext(result: WorldLandProposalResult): WorldLandProposalContext | null {
+  const context = proposalContexts.get(result);
+  if (result.status !== "evaluated" || context?.network !== result.network) return null;
+  return context
+    ? {
+        ...context,
+        environment: { ...context.environment },
+        pairs: structuredClone(context.pairs),
+        settings: structuredClone(context.settings)
+      }
+    : null;
+}
 /** Read-only world→coarse candidates→city approaches→candidate network→proposal
  * adapter. Baseline connections are explicit validated CURRENT city-to-city
  * corridors, not inferred from pack.cells.routes. Pair selection/importance and
@@ -398,5 +422,33 @@ export function evaluateWorldLandConnectionProposals(
     if (shared.status === "unresolved")
       return unresolved(shared.reason === "comparison-budget" ? "assessment-budget" : "assessment-unresolved");
   }
-  return { status: "evaluated", network: built.network, diagnostics };
+  const result: WorldLandProposalResult = { status: "evaluated", network: built.network, diagnostics };
+  proposalContexts.set(result, {
+    network: built.network,
+    assessmentSearches: diagnostics.assessmentSearches,
+    environment: networkEnvironment,
+    baselineConnectionIds: Object.freeze([...baselineIds].sort((a, b) => a - b)),
+    pairs: structuredClone(pairs),
+    settings: structuredClone(s),
+    worldIdentity: JSON.stringify([world.mapId, world.seed, distanceUnit, scale, width, height]),
+    nodePointAt: id => {
+      const city = world.pack.burgs[id],
+        currentScale = mapUnitMeters(world.distanceScale, distanceUnit);
+      if (
+        !city ||
+        city.i !== id ||
+        city.removed ||
+        !Number.isFinite(currentScale) ||
+        currentScale <= 0 ||
+        ![city.x, city.y].every(Number.isFinite) ||
+        city.x < 0 ||
+        city.y < 0 ||
+        city.x > world.graphWidth ||
+        city.y > world.graphHeight
+      )
+        return null;
+      return [city.x * currentScale, city.y * currentScale];
+    }
+  });
+  return result;
 }

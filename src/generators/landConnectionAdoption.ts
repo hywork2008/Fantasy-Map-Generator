@@ -40,6 +40,10 @@ export interface LandAdoptionCurrent {
   /** Resolve actual current city/junction coordinates; IDs alone cannot certify an unmoved endpoint. */
   nodePointAt: (nodeId: number) => RiverPoint | null;
 }
+const registeredSnapshots = new WeakSet<LandConnectionSnapshot>();
+export function isRegisteredLandConnectionSnapshot(snapshot: LandConnectionSnapshot): boolean {
+  return registeredSnapshots.has(snapshot);
+}
 type Failure = { status: "unresolved"; reason: string; assessment?: Assessment };
 const ids = (network: ConstrainedLandNetwork) => [...new Set(network.edges.map(e => e.id))].sort((a, b) => a - b);
 const facilities = (network: ConstrainedLandNetwork) =>
@@ -87,7 +91,9 @@ class LandConnectionRegistry {
     return this.current;
   }
   private makeSnapshot(network: ConstrainedLandNetwork, revision: number): LandConnectionSnapshot {
-    return freeze({ revision, network, connectionIds: ids(network), facilityIds: facilities(network) });
+    const snapshot = freeze({ revision, network, connectionIds: ids(network), facilityIds: facilities(network) });
+    registeredSnapshots.add(snapshot);
+    return snapshot;
   }
   private evaluate(
     request: LandAdoptionRequest,

@@ -15,6 +15,7 @@ import {
   selectConstrainedLandNetwork
 } from "./constrainedLandNetwork";
 import { createLandConnectionRegistry } from "./landConnectionAdoption";
+import { exportRegisteredLandRouteSections } from "./registeredLandRouteSections";
 import { type CrossingCandidateInput, createProvisionalRiverCrossing } from "./riverCrossingCandidates";
 
 const settings: ApproachCorridorSettings = {
@@ -592,6 +593,61 @@ describe("explicit selected connections and atomic session adoption", () => {
     } finally {
       random.mockRestore();
     }
+  });
+  it("exports only authenticated registered geometry and rechecks current nodes and water", () => {
+    const f = adoptionFixture(),
+      draft = f.prepare();
+    f.registry.commit(draft, f.current);
+    expect(exportRegisteredLandRouteSections({ ...f.registry.snapshot }, f.current)).toMatchObject({
+      reason: "unregistered-snapshot"
+    });
+    expect(
+      exportRegisteredLandRouteSections(f.registry.snapshot, { ...f.current, nodePointAt: () => null })
+    ).toMatchObject({ reason: "changed-nodes" });
+    const r = exportRegisteredLandRouteSections(f.registry.snapshot, f.current);
+    if (!("sections" in r)) throw Error();
+    expect(r.sections.crossings[0].id).toBe(5);
+    const crossing = r.sections.crossings[0];
+    const deck = r.sections.connections[0].sections.find(s => s.kind === "bridge")!;
+    expect(deck.pieces[0]).toMatchObject({ start: crossing.deckA, end: crossing.deckB });
+    f.source.capability.depthMeters = Infinity;
+    expect(exportRegisteredLandRouteSections(f.registry.snapshot, f.current)).toMatchObject({
+      reason: "invalid-geometry"
+    });
+    expect(r.sections.crossings[0]).toEqual(crossing);
+    expect(Object.isFrozen(r.sections.crossings[0])).toBe(true);
+  });
+  it("preserves exact land arcs and one-way connectivity without making bridges", () => {
+    const f = fixture();
+    const land = f.corridor(
+      [
+        [30, 0],
+        [40, 0],
+        [40, 10],
+        [30, 10]
+      ],
+      [-1, 0]
+    );
+    const built = buildConstrainedLandNetwork({
+      ...f.input,
+      nodes: [
+        { id: 1, point: [30, 0] },
+        { id: 2, point: [30, 10] }
+      ],
+      connections: [{ id: 8, kind: "land", from: 1, to: 2, bidirectional: false, land }]
+    });
+    if (!("network" in built)) throw Error(built.reason);
+    const registered = createLandConnectionRegistry(built.network, f.environment, f.input);
+    if (!("registry" in registered)) throw Error();
+    const out = exportRegisteredLandRouteSections(registered.registry.snapshot, {
+      environment: f.environment,
+      nodePointAt: id => built.network.nodes.find(n => n.id === id)?.point ?? null
+    });
+    if (!("sections" in out)) throw Error(out.reason);
+    expect(out.sections.crossings).toEqual([]);
+    expect(out.sections.connections[0].bidirectional).toBe(false);
+    expect(out.sections.connections[0].sections).toEqual([{ kind: "land", pieces: land.corridor.pieces }]);
+    expect(out.sections.connections[0].sections[0].pieces.some(p => p.kind === "arc")).toBe(true);
   });
   it("does not register a partial package when selection or assessment budgets expire", () => {
     const f = adoptionFixture(),

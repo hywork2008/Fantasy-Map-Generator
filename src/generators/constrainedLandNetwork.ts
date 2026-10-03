@@ -390,6 +390,24 @@ export function selectConstrainedLandNetwork(
     maxGuideEdges: budgets.maxGuideEdges
   });
 }
+
+/** Canonical facility geometry for an authenticated current network, never inferred from drawn roads. */
+export function getConstrainedNetworkCrossings(
+  network: ConstrainedLandNetwork,
+  environment: NetworkEnvironment
+): { crossings: readonly ProvisionalRiverCrossing[] } | { reason: "unvalidated-network" | "invalid-geometry" } {
+  const sources = connectionSources.get(network),
+    checks = validators.get(network);
+  if (!sources || !checks) return { reason: "unvalidated-network" };
+  if (!checks.every(check => check(environment))) return { reason: "invalid-geometry" };
+  const crossings = new Map<number, ProvisionalRiverCrossing>();
+  for (const source of sources.values()) {
+    const connection = source(environment);
+    if (!connection) return { reason: "invalid-geometry" };
+    if (connection.kind === "bridge") crossings.set(connection.crossing.id, structuredClone(connection.crossing));
+  }
+  return { crossings: freeze([...crossings.values()].sort((a, b) => a.id - b.id)) };
+}
 export interface NetworkSearchSettings {
   maxLabels: number;
   maxExpansions: number;

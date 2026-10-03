@@ -5,8 +5,10 @@ import { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
 import { type ApproachCorridorInput, findApproachCorridor } from "./approachCorridorSearch";
 import type { NetworkConnection } from "./constrainedLandNetwork";
 import { evaluateWorldCellLandConnectionProposals } from "./worldCellLandConnectionProposals";
+import { createWorldLandConnectionSession } from "./worldLandConnectionAdoption";
 import {
   evaluateWorldLandConnectionProposals,
+  getWorldLandProposalContext,
   type WorldConnectionPair,
   type WorldProposalEnvironment,
   type WorldProposalSettings
@@ -342,6 +344,18 @@ describe("current world cell policy proposal adapter", () => {
     f.world.pack.cells.state[1] = 1;
     expect(f.run()).toHaveProperty("diagnostics.shared.status", "proposed");
   });
+  it("uses freshly rebuilt cell policies for adoption over the bridge water", () => {
+    const f = cellFixture(),
+      created = createWorldLandConnectionSession(f.run);
+    if (!("session" in created)) throw Error(JSON.stringify(created));
+    const p = created.session.prepare(0, { kind: "shared" });
+    if (!("draft" in p)) throw Error(JSON.stringify(p));
+    f.world.pack.cells.state[1] = 2;
+    expect(created.session.commit(p.draft).status).toBe("unresolved");
+    expect(created.session.snapshot.revision).toBe(0);
+    f.world.pack.cells.state[1] = 1;
+    expect(created.session.commit(p.draft).status).toBe("committed");
+  });
   it("preserves unresolved geometry and policy budgets through boolean callbacks", () => {
     const f = cellFixture();
     f.input.cellPolicySettings.maxClipOperations = 1;
@@ -357,5 +371,142 @@ describe("current world cell policy proposal adapter", () => {
       reason: "world-environment",
       environmentReason: "invalid-cell"
     });
+  });
+});
+
+describe("fresh world adoption and fixed section handoff", () => {
+  function sessionFixture() {
+    const f = fixture();
+    let evaluations = 0;
+    const created = createWorldLandConnectionSession(() => {
+      evaluations++;
+      return f.run();
+    });
+    if (!("session" in created)) throw Error(JSON.stringify(created));
+    const prepare = (selection = { kind: "shared" as const }) => {
+      const p = created.session.prepare(created.session.snapshot.revision, selection);
+      if (!("draft" in p)) throw Error(JSON.stringify(p));
+      return p.draft;
+    };
+    return { ...f, session: created.session, prepare, evaluations: () => evaluations };
+  }
+  it("reevaluates world at preparation, commit and handoff, with one fixed shared deck", () => {
+    const f = sessionFixture(),
+      before = JSON.stringify(f.world),
+      draft = f.prepare();
+    expect(f.session.snapshot.revision).toBe(0);
+    expect(f.session.commit(draft).status).toBe("committed");
+    const exported = f.session.exportSections();
+    if (!("sections" in exported)) throw Error(JSON.stringify(exported));
+    const a = exported.sections;
+    expect(f.evaluations()).toBe(4);
+    expect(a.coordinateUnit).toBe("metres");
+    expect(a.crossings).toHaveLength(1);
+    expect(a.connections).toHaveLength(2);
+    const crossing = a.crossings[0];
+    for (const connection of a.connections) {
+      const bridge = connection.sections.find(s => s.kind === "bridge")!;
+      expect(bridge.pieces).toHaveLength(1);
+      expect(bridge.pieces[0]).toMatchObject({ kind: "line", start: crossing.deckA, end: crossing.deckB });
+      const d = [crossing.deckB[0] - crossing.deckA[0], crossing.deckB[1] - crossing.deckA[1]];
+      expect(d[0] * crossing.tRiver[0] + d[1] * crossing.tRiver[1]).toBeCloseTo(0, 10);
+      expect(connection.sections.flatMap(s => s.pieces).reduce((n, p) => n + p.lengthMeters, 0)).toBeCloseTo(
+        connection.distanceMeters,
+        10
+      );
+      expect(connection.bidirectional).toBe(true);
+    }
+    expect(Object.isFrozen(a)).toBe(true);
+    expect(JSON.stringify(f.world)).toBe(before);
+  });
+  it("adds a second city approach to an already adopted bridge without duplicating the facility", () => {
+    const f = sessionFixture();
+    const a = f.session.prepare(0, { kind: "individual", pairId: 1 });
+    if (!("draft" in a)) throw Error(JSON.stringify(a));
+    expect(f.session.commit(a.draft).status).toBe("committed");
+    const b = f.session.prepare(1, { kind: "individual", pairId: 2 });
+    if (!("draft" in b)) throw Error(JSON.stringify(b));
+    expect(b.draft.newFacilityIds).toEqual([]);
+    expect(b.draft.newConnectionIds).toHaveLength(1);
+    expect(f.session.commit(b.draft).status).toBe("committed");
+    expect(f.session.snapshot.facilityIds).toEqual([100]);
+    expect(f.session.snapshot.connectionIds).toHaveLength(2);
+  });
+  it("keeps private world provenance independent of editable diagnostics and rejects network replacement", () => {
+    const f = fixture(),
+      r = f.run();
+    if (r.status !== "evaluated") throw Error();
+    const context = getWorldLandProposalContext(r)!;
+    const searches = context.assessmentSearches;
+    r.diagnostics.assessmentSearches = -100;
+    context.settings.maxAssessmentSearches = 100000;
+    expect(getWorldLandProposalContext(r)!.assessmentSearches).toBe(searches);
+    expect(getWorldLandProposalContext(r)!.settings.maxAssessmentSearches).toBe(30);
+    r.network = structuredClone(r.network);
+    expect(getWorldLandProposalContext(r)).toBeNull();
+  });
+  it("refuses section handoff after the registered bridge loses current passage permission", () => {
+    const f = sessionFixture(),
+      draft = f.prepare();
+    expect(f.session.commit(draft).status).toBe("committed");
+    f.input.environment.allowsPassageFootprint = () => false;
+    const out = f.session.exportSections();
+    expect(out).not.toHaveProperty("sections");
+    expect(f.session.snapshot.revision).toBe(1);
+  });
+  it("refuses cached results and result copies as current-world authority", () => {
+    const f = fixture(),
+      result = f.run();
+    const created = createWorldLandConnectionSession(() => result);
+    if (!("session" in created)) throw Error();
+    expect(created.session.prepare(0, { kind: "shared" })).toMatchObject({ reason: "reused-world-evaluation" });
+    expect(createWorldLandConnectionSession(() => ({ ...result }))).toMatchObject({
+      reason: "unvalidated-world-evaluation"
+    });
+  });
+  it("does not adopt after actual city movement or changing to another world", () => {
+    const f = sessionFixture(),
+      draft = f.prepare();
+    f.world.pack.burgs[1].x = 86;
+    expect(f.session.commit(draft)).toMatchObject({ status: "unresolved", reason: "changed-nodes" });
+    expect(f.session.snapshot.revision).toBe(0);
+    f.world.pack.burgs[1].x = 85;
+    f.world.mapId = 999;
+    expect(f.session.commit(draft)).toMatchObject({ reason: "changed-world" });
+  });
+  it("rechecks current passage policy and physical river geometry without partial publication", () => {
+    const f = sessionFixture(),
+      draft = f.prepare();
+    f.input.environment.allowsPassageFootprint = () => false;
+    expect(f.session.commit(draft).status).toBe("unresolved");
+    expect(f.session.snapshot.connectionIds).toEqual([]);
+    f.input.environment.allowsPassageFootprint = () => true;
+    f.world.pack.rivers[0].sourceWidth = 3;
+    expect(f.session.commit(draft).status).toBe("unresolved");
+    expect(f.session.snapshot.revision).toBe(0);
+  });
+  it("rechecks refreshed engineering costs and valuation settings", () => {
+    const f = sessionFixture(),
+      draft = f.prepare();
+    f.input.environment.facilityCostsAt = () => ({ constructionCostMeters: 11, useCostMeters: 3 });
+    expect(f.session.commit(draft)).toMatchObject({ reason: "changed-proposal" });
+    f.input.environment.facilityCostsAt = () => ({ constructionCostMeters: 10, useCostMeters: 3 });
+    f.input.settings.shared.minimumNetBenefitMeters = 2;
+    expect(f.session.commit(draft)).toMatchObject({ reason: "changed-valuation" });
+    expect(f.session.snapshot.revision).toBe(0);
+  });
+  it("uses actual pair IDs, detects old revisions and refuses an exhausted global search budget", () => {
+    const f = sessionFixture();
+    expect(f.session.prepare(0, { kind: "individual", pairId: 999 })).toMatchObject({ reason: "unknown-pair" });
+    const p = f.session.prepare(0, { kind: "individual", pairId: 1 });
+    if (!("draft" in p)) throw Error(JSON.stringify(p));
+    expect(f.session.commit(p.draft).status).toBe("committed");
+    expect(f.session.prepare(0, { kind: "shared" })).toMatchObject({ reason: "stale-revision" });
+    const g = fixture();
+    g.input.pairs = [g.input.pairs[0]];
+    g.input.settings.maxAssessmentSearches = 3;
+    const c = createWorldLandConnectionSession(g.run);
+    if (!("session" in c)) throw Error(JSON.stringify(c));
+    expect(c.session.prepare(0, { kind: "individual", pairId: 1 })).toMatchObject({ reason: "assessment-budget" });
   });
 });
