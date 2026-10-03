@@ -648,3 +648,15 @@ descriptorがない再生成ではファイル由来の固定データを維持�
 検証には段階1の実生成結果への付与と元document非変更、CityDocumentのJSONファイル往復、独立コピー、改変橋床・切り詰めframeの拒否、付与失敗時の以前データ維持、descriptorなし保持/別descriptorでの消去を追加した。関連5ファイル61テスト、型検査、Biome、構成lint、world writer検査を確認した。
 
 このfieldは固定source geometryの保存であり、通常rendererがCityDocumentから固定橋を描く変更、物理河岸を街区/道路の生成制約として使う処理、旧bridgeDecks/riverConnectionsの停止・置換はまだ行っていない。通常都市の既存橋を新正本へ移行済みと扱わず、旧斜交橋問題は未解消。次は保存したsource geometryを現在表示・生成制約へ接続する。
+
+### 段階3のCityDocument固定断面・通常SVG/出力描画（2026-10-04）
+
+CEの`renderEditorSvg`へ保存済み`importedFixedCrossings`を接続した。専用water layerを街区背景の上に、専用crossing layerを通常featureの上に配置し、north-upを一度だけ反転する。水域は保存ringのevenodd path、橋床は保存D→Dの直線・物理幅・butt端、短い進入はE→D/D→Eのまま描く。通常SVG出力も同じrendererを使うため、CityDocumentファイルから再読込みした形状をそのまま出力できる。元documentや保存端点を変更しない。
+
+固定fieldがある場合、通常river feature/近似continuous river水域、gc:bridge mesh span、bridgeDecks、riverConnectionsの旧描画、moatによる自動bridge描画をこのpassでは使わない。固定sourceで未登録の旧橋を再発見して追加しない。固定fieldを持たないdocumentの従来描画は維持する。固定fieldが不正・frame不足の場合も旧橋へ戻さず、SVGに`data-fixed-geometry-status=invalid`を付け、固定水域/橋床と通常道路を返さない。成功時は同属性をreadyにする。
+
+通常road featureは保存水域に触れる全幅を描かない。`fixedRoadIsDry`で各直線strokeの全幅とround joinを包含する端部拡張矩形を検査し、対象水域に触れるrunを全体で除外する。中心線だけが乾燥した道路も拒否する。表示はround join/butt capへ固定し、検証範囲外のmiter突出を描かない。これは表示時の保守的拒否であり、欠けた道路を新しい接続として登録したり、橋へ変換したりしない。
+
+検証: 最終City SVGでの共有橋一回/正確なD端/物理水域layer、旧bridge/ferry描画抑止、改変versionの旧方式fallback拒否、fieldなしの従来bridge保持、中心線だけ乾いた全幅接触・横断・乾いた道路、元document非変更を追加し、関連2ファイル54テストが通過。型検査、Biome、構成lint、world writer検査も確認した。
+
+固定sourceに収録されていない河川/旧橋はこの描画passの対象外であり、新形式の全河川・全道路移行が済んだと扱わない。固定modeでは旧moat橋も自動生成しないため、必要なmoat接続は別の検証済み契約へ移行する必要がある。海/街区faceの生成水域、建物/河岸配置、街区・道路の物理水域制約、正本の外側進入回廊描画、現在world条件の更新と全seed最終frame視覚検証は未接続。既存fieldなし地図の斜交橋問題も残る。

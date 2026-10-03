@@ -46,6 +46,7 @@ import type {
   Tool
 } from "../core/types";
 import { dryRuns, waterPolygons } from "../core/waterGeometry";
+import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
@@ -127,6 +128,9 @@ export function renderEditorSvg(
   hideStreetLines = false,
   quality: RenderQuality = "detailed"
 ): SVGSVGElement {
+  const fixedMode = document.importedFixedCrossings !== undefined;
+  const fixedGeometry = fixedDocumentGeometry(document);
+  const fixedLayers = fixedGeometry ? fixedDocumentLayers(fixedGeometry) : null;
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
@@ -141,7 +145,8 @@ export function renderEditorSvg(
     viewBox,
     class: classes.join(" "),
     "aria-label": "City editor canvas",
-    "data-render-quality": town ? effectiveQuality : "detailed"
+    "data-render-quality": town ? effectiveQuality : "detailed",
+    ...(fixedMode ? { "data-fixed-geometry-status": fixedGeometry ? "ready" : "invalid" } : {})
   }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
   if (backdrop) {
@@ -186,12 +191,13 @@ export function renderEditorSvg(
   }
   svg.appendChild(cells);
   const continuousWater = element("g", { class: "ce-continuous-water", "pointer-events": "none" });
-  for (const [index, ring] of waterPolygons(document).entries()) {
+  for (const [index, ring] of (fixedMode ? [] : waterPolygons(document)).entries()) {
     continuousWater.appendChild(
       element("path", { d: polygon(ring), class: "ce-face ce-face--sea", "data-water-area": String(index) })
     );
   }
   svg.appendChild(continuousWater);
+  if (fixedLayers) svg.appendChild(fixedLayers.water);
 
   if (town && document.coastalOceanFaceIds?.length) {
     const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
@@ -656,6 +662,7 @@ export function renderEditorSvg(
   const moatReservations = new Map<number, MoatReservation>();
   const moatDecks: Array<{ points: Point[]; width: number }> = [];
   for (const group of renderGroups) {
+    if (fixedMode && (group.kind === "river" || (group.kind === "road" && group.id.startsWith("gc:bridge-")))) continue;
     const active = selection.groupId === group.id;
     const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
     const points =
@@ -688,6 +695,8 @@ export function renderEditorSvg(
         return parts.dry;
       });
     }
+    if (fixedMode && group.kind === "road")
+      runs = fixedGeometry ? runs.filter(run => fixedRoadIsDry(run, group.style.widthMeters, fixedGeometry)) : [];
     const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
     const pickInfo: SvgPickInfo = {
       layer: "features",
@@ -727,6 +736,7 @@ export function renderEditorSvg(
                 : "#292a26"
             : group.style.color,
           "stroke-width": String(group.style.widthMeters),
+          ...(fixedMode && group.kind === "road" ? { "stroke-linejoin": "round", "stroke-linecap": "butt" } : {}),
           "data-group": group.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
           "pointer-events": "stroke"
@@ -734,7 +744,7 @@ export function renderEditorSvg(
       );
     }
   }
-  for (const deck of moatDecks) {
+  for (const deck of fixedMode ? [] : moatDecks) {
     const gate = drawbridgeGate(document, deck.points, deck.width);
     if (gate) {
       const at = document.mesh.vertices[gate.vertexId].point;
@@ -757,7 +767,7 @@ export function renderEditorSvg(
       element("path", { d: line(deck.points), fill: "none", stroke: "#d5cfbf", "stroke-width": String(deck.width) })
     );
   }
-  for (const connection of document.riverConnections ?? []) {
+  for (const connection of fixedMode ? [] : (document.riverConnections ?? [])) {
     const width = defaultRoadWidthMeters(document.frame.extentMeters);
     const group = document.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
     const vertex = group ? document.mesh.vertices[featureGroupVertices(document, group)[0]]?.point : undefined;
@@ -820,7 +830,7 @@ export function renderEditorSvg(
     }
   }
   features.appendChild(renderApproachLabels(document, zoom));
-  if (town) {
+  if (town && !fixedMode) {
     for (const deck of bridgeDecks(document)) {
       const crossing = document.featureGroups.find(g => g.id === deck.groupId)?.crossing;
       const pickInfo: SvgPickInfo = {
@@ -888,6 +898,7 @@ export function renderEditorSvg(
     }
   }
   svg.appendChild(features);
+  if (fixedLayers) svg.appendChild(fixedLayers.crossings);
   svg.appendChild(renderRiverWallSvg(document));
   if (town) {
     svg.appendChild(renderTownQuays(document, townHarbor));

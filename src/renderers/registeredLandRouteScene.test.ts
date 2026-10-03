@@ -12,7 +12,9 @@ import {
   shareFromDescriptor
 } from "../city-editor/io/incomingCity";
 import { drawFixedBurgCrossings } from "../city-editor/render/fixedBurgCrossings";
+import { fixedRoadIsDry } from "../city-editor/render/fixedDocumentGeometry";
 import { renderFixedSitePreview } from "../city-editor/render/fixedSitePreview";
+import { renderStandaloneCitySvg } from "../city-editor/render/svg";
 import { type ApproachCorridorInput, findApproachCorridor } from "../generators/approachCorridorSearch";
 import {
   buildConstrainedLandNetwork,
@@ -413,6 +415,95 @@ describe("CE fixed physical crossing handoff", () => {
     expect(doc.importedFixedCrossings).toBe(previous);
     applyImportedFixedCrossings(doc, base);
     expect(doc.importedFixedCrossings).toBeUndefined();
+  });
+  it("uses saved fixed geometry in the final city SVG and blocks legacy deck fallback", () => {
+    const f = exported();
+    const doc = createGridDocument({
+      size: "small",
+      grid: "hex",
+      extentMeters: 1500,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 300,
+      seed: "fixed-render"
+    });
+    doc.appearance = "town";
+    doc.importedFixedCrossings = structuredClone(f.payload);
+    doc.riverConnections = [
+      {
+        sourceIndex: 0,
+        farRoad: [
+          [-100, 0],
+          [-50, 0]
+        ],
+        townRoad: [
+          [50, 0],
+          [100, 0]
+        ],
+        banks: [
+          [-50, 0],
+          [50, 20]
+        ],
+        crossing: {
+          kind: "fixedBridge",
+          widthMeters: 10,
+          depthMeters: 3,
+          navigationRequired: false,
+          clearanceMeters: 0,
+          openingMeters: 0,
+          reason: "fixedClearance"
+        }
+      }
+    ];
+    const before = JSON.stringify(doc);
+    const svg = renderStandaloneCitySvg(doc);
+    expect(svg.getAttribute("data-fixed-geometry-status")).toBe("ready");
+    expect(svg.querySelectorAll(".ce-fixed-crossings [data-facility-id]")).toHaveLength(1);
+    const crossing = f.payload.crossings[0];
+    const deck = svg.querySelector(".ce-fixed-crossings [data-facility-id]")!;
+    expect(deck.getAttribute("d")).toBe(
+      `M${crossing.deckA[0]},${crossing.deckA[1]}L${crossing.deckB[0]},${crossing.deckB[1]}`
+    );
+    expect(deck.getAttribute("stroke-width")).toBe(String(f.payload.roadWidthMeters));
+    expect(svg.querySelectorAll(".ce-bridge-deck,.ce-bridge-outline,.ce-ferry-route")).toHaveLength(0);
+    expect(svg.querySelectorAll(".ce-fixed-river-water [data-river-id]")).toHaveLength(1);
+    expect(JSON.stringify(doc)).toBe(before);
+    // A dry centreline whose physical width reaches water is also rejected.
+    expect(
+      fixedRoadIsDry(
+        [
+          [-23, 0],
+          [-23, 20]
+        ],
+        6,
+        f.payload
+      )
+    ).toBe(false);
+    expect(
+      fixedRoadIsDry(
+        [
+          [0, 0],
+          [0, 20]
+        ],
+        2,
+        f.payload
+      )
+    ).toBe(true);
+    expect(
+      fixedRoadIsDry(
+        [
+          [-40, 10],
+          [-20, 10]
+        ],
+        2,
+        f.payload
+      )
+    ).toBe(false);
+    doc.importedFixedCrossings.crossings[0].geometryVersion++;
+    const invalid = renderStandaloneCitySvg(doc);
+    expect(invalid.getAttribute("data-fixed-geometry-status")).toBe("invalid");
+    expect(invalid.querySelectorAll("[data-facility-id],.ce-bridge-deck")).toHaveLength(0);
+    delete doc.importedFixedCrossings;
+    expect(renderStandaloneCitySvg(doc).querySelectorAll(".ce-bridge-deck")).toHaveLength(1);
   });
   it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
     const f = exported();
