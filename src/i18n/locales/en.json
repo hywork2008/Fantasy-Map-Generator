@@ -3092,6 +3092,12 @@
       }
     },
     "burgEditor": {
+      "preview": "Preview",
+      "previewLoading": "Generating city preview…",
+      "previewError": "Could not generate the city preview.",
+      "previewRetry": "Retry",
+      "previewCityEditor": "Open City Editor",
+
       "tabsAria": "Burg editor sections",
       "overview": "Overview",
       "name": "Name:",

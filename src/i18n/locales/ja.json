@@ -3092,6 +3092,12 @@
       }
     },
     "burgEditor": {
+      "preview": "Preview",
+      "previewLoading": "都市プレビューを生成中…",
+      "previewError": "都市プレビューを生成できませんでした。",
+      "previewRetry": "再試行",
+      "previewCityEditor": "City Editorを開く",
+
       "tabsAria": "都市エディターの節",
       "overview": "概要",
       "name": "名前：",
