@@ -37,6 +37,7 @@
     "diagnose:treasury": "tsx scripts/diagnoseTreasuryDecline.ts",
     "diagnose:wealth": "tsx scripts/diagnoseCharacterWealth.ts",
     "extract:fmg": "tsx scripts/extractFmgArchive.ts",
+    "housing:compare": "node scripts/compareBurgHousing.mjs",
     "races:import": "node --import tsx scripts/races-csv.ts import",
     "races:export": "node --import tsx scripts/races-csv.ts export",
     "races:check": "node --import tsx scripts/races-csv.ts check",
