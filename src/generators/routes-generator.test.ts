@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
+import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath } from "../utils/pathUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
@@ -1769,5 +1770,29 @@ describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)
     // Port 0 may only enter via haven cell 1.
     expect(getSea(0, 1)).toBeLessThan(Infinity);
     expect(getSea(0, 2)).toBe(Infinity);
+  });
+});
+
+describe("road hubs before population is finalized", () => {
+  it("uses local food size instead of resolving all missing populations to zero", () => {
+    const previousPack = worldContext.pack;
+    const previousGrid = worldContext.grid;
+    try {
+      worldContext.pack = {
+        cells: { s: [100, 100, 100], h: [30, 30, 30], capacity: [100, 100, 100], subsistenceCapacity: [100, 1, 100] }
+      } as unknown as PackedGraph;
+      worldContext.grid = { cells: { temp: [12, 12, 12], prec: [45, 45, 45] } } as unknown as Grid;
+      const burgs: Burg[] = [
+        { i: 1, cell: 0, x: 0, y: 0, capital: 1 },
+        { i: 2, cell: 1, x: 1, y: 0 },
+        { i: 3, cell: 2, x: 2, y: 0 }
+      ];
+      const internals = Routes as unknown as { getDomesticRoadHubs(burgs: Burg[]): Burg[] };
+      expect(internals.getDomesticRoadHubs(burgs).map(burg => burg.i)).toEqual([1, 3]);
+      expect(burgs.every(burg => burg.population === undefined)).toBe(true);
+    } finally {
+      worldContext.pack = previousPack;
+      worldContext.grid = previousGrid;
+    }
   });
 });

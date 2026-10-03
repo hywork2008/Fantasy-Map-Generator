@@ -39,6 +39,7 @@ import { isTrueOceanPortBurg } from "../utils/oceanPort";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
+import { getSettlementBaseSize } from "./settlementSuitability";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
@@ -984,7 +985,20 @@ class RoutesModule {
       .sort(
         (a, b) =>
           Number(Boolean(b.port)) - Number(Boolean(a.port)) ||
-          (b.population ?? 0) - (a.population ?? 0) ||
+          (b.population ??
+            getSettlementBaseSize(
+              this.worldContext.pack.cells,
+              b.cell,
+              this.worldContext.grid.cells.temp,
+              this.worldContext.grid.cells.prec
+            )) -
+            (a.population ??
+              getSettlementBaseSize(
+                this.worldContext.pack.cells,
+                a.cell,
+                this.worldContext.grid.cells.temp,
+                this.worldContext.grid.cells.prec
+              )) ||
           (a.i ?? 0) - (b.i ?? 0)
       );
     const hubCount = Math.min(3, Math.max(1, Math.floor(Math.sqrt(candidates.length))));

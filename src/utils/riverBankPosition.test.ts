@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { riverBankCandidates } from "./riverBankPosition";
+import { pointInSurveyedRiver, riverBankCandidates } from "./riverBankPosition";
 
 describe("actual local river bank", () => {
   it("places both candidates outside a 7km channel", () => {
@@ -24,6 +24,24 @@ describe("actual local river bank", () => {
       10
     );
     expect(result[0]).toMatchObject({ point: [110, 0], width: 200 });
+  });
+  it("does not displace the physical bank for an exaggerated symbol", () => {
+    const sections = [
+      { point: [0, -100] as [number, number], physicalWidth: 20, renderedWidth: 500 },
+      { point: [0, 100] as [number, number], physicalWidth: 20, renderedWidth: 500 }
+    ];
+    expect(riverBankCandidates([30, 0], sections, 2)[0].point).toEqual([12, 0]);
+  });
+  it("detects water in another surveyed reach including its bank", () => {
+    const sections = [
+      { point: [0, 0] as [number, number], physicalWidth: 20, renderedWidth: 50 },
+      { point: [0, 100] as [number, number], physicalWidth: 20, renderedWidth: 50 },
+      { point: [20, 100] as [number, number], physicalWidth: 20, renderedWidth: 50 },
+      { point: [20, 0] as [number, number], physicalWidth: 20, renderedWidth: 50 }
+    ];
+    expect(pointInSurveyedRiver([11, 50], sections)).toBe(true);
+    expect(pointInSurveyedRiver([-10, 50], sections)).toBe(true);
+    expect(pointInSurveyedRiver([-12, 50], sections)).toBe(false);
   });
   it("ignores zero-length river pieces", () => {
     expect(

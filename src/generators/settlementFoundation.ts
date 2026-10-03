@@ -9,6 +9,7 @@ import type { FrontierPolitySpacing, FrontierStartMode, InitialSettlementPattern
 import { frontierRegionCenterDistanceWeight, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
+import { getSettlementClimateScore } from "./settlementSuitability";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 type MutableNumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
@@ -191,7 +192,7 @@ function collectSites(
     const forestResourceScore = isForestBiomeCode(cells.biomeCode?.[id]) ? 1.12 : 1;
     const [x, y] = cells.p[id];
     const resourceKind = getResourceKind(cells, id, climate);
-    const climateScore = getClimateScore(temperature, precipitation, resourceKind);
+    const climateScore = getSettlementClimateScore(temperature, precipitation, resourceKind);
 
     // Extreme temperature still blocks settlement even if residual capacity remains.
     if (temperature < -18 || temperature > 42) continue;
@@ -258,18 +259,6 @@ function getResourceKind(
   // fallback only; rivers, lakes, and coasts always outrank it.
   const precipitation = getClimateValue(climate.precipitation, cells.g?.[id] ?? id, 45);
   return precipitation >= 45 ? "spring" : null;
-}
-
-function getClimateScore(temperature: number, precipitation: number, kind: ResourceKind | null): number {
-  if (!kind) return 0;
-  if (temperature < -18 || temperature > 42) return 0;
-  // The current climate model has no separate growing-season column. This
-  // temperature-derived score is the local growing-season adapter until one
-  // exists in WorldContext.
-  const growingSeasonScore = temperature < -5 ? 0.2 : temperature < 2 ? 0.5 : temperature > 34 ? 0.55 : 1;
-  const precipitationScore =
-    precipitation < 8 ? (kind === "river" || kind === "lake" ? 0.2 : 0) : precipitation < 20 ? 0.55 : 1;
-  return growingSeasonScore * precipitationScore;
 }
 
 /** Livability for hinterland claimability (0 = exclude from oikoumene field). */

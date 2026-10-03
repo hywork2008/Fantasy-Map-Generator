@@ -1067,7 +1067,7 @@ describe("BurgsModule.defineFeatures — strategic citadel bonus", () => {
 });
 
 describe("physical river-bank city placement", () => {
-  it("moves the town beyond the local drawn and physical banks of a broad river", () => {
+  it("moves the town to the physical bank independently of the drawn width", () => {
     worldContext.pack = {
       burgs: [0, { i: 1, cell: 1, x: 0, y: 0 }],
       cells: {
@@ -1101,8 +1101,8 @@ describe("physical river-bank city placement", () => {
     } as unknown as PackedGraph;
     Burgs.shift();
     const burg = worldContext.pack.burgs[1];
-    expect(Math.abs(burg.x)).toBeGreaterThanOrEqual(4);
-    expect(Math.abs(burg.x)).toBeLessThan(5);
+    expect(Math.abs(burg.x)).toBeGreaterThan(2.9);
+    expect(Math.abs(burg.x)).toBeLessThan(3.1);
     expect(burg.cell).toBe(1);
     expect(burg.waterAccess?.river).toBe(true);
   });

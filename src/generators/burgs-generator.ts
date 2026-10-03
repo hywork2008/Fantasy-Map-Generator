@@ -32,7 +32,7 @@ import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
-import { riverBankCandidates } from "../utils/riverBankPosition";
+import { pointInSurveyedRiver, riverBankCandidates } from "../utils/riverBankPosition";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -60,6 +60,7 @@ import {
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
+import { getSettlementBaseSize } from "./settlementSuitability";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import type { Point } from "./voronoi";
 
@@ -701,6 +702,15 @@ class BurgModule {
     return [rn(x0 + t * dx, 2), rn(y0 + t * dy, 2)];
   }
 
+  private getSettlementScore(cellId: number, legacyScore: number): number {
+    const { pack, grid } = this.worldContext;
+    const culture = pack.cultures[pack.cells.culture[cellId]];
+    const race = getRaceById(pack.races, culture?.race);
+    // Specialized ecologies retain their established terrain ranking.
+    if (race?.key && race.key !== "human") return legacyScore;
+    return getSettlementBaseSize(pack.cells, cellId, grid.cells.temp, grid.cells.prec);
+  }
+
   private shiftTowardsRiverBank(
     cellId: number,
     riversById: Map<number, { i: number; cells: number[] }>,
@@ -723,6 +733,7 @@ class BurgModule {
       const candidates = sections
         .slice(0, -1)
         .flatMap((_, i) => riverBankCandidates(source, sections.slice(i, i + 2), 0.05))
+        .filter(candidate => !pointInSurveyedRiver(candidate.point, sections))
         .sort(
           (a, b) =>
             Math.hypot(a.point[0] - source[0], a.point[1] - source[1]) -
@@ -734,6 +745,10 @@ class BurgModule {
           burg.riverPlacement = {
             riverId: river.i,
             bank: candidate.bank,
+            physicalCellId:
+              findClosestCell(candidate.point[0], candidate.point[1], undefined, this.worldContext.pack) ?? cellId,
+            bankDistanceMeters:
+              0.05 * mapUnitMeters(this.worldContext.distanceScale, useOptionsState.getState().distanceUnit),
             widthMeters: rn(
               candidate.width * mapUnitMeters(this.worldContext.distanceScale, useOptionsState.getState().distanceUnit),
               1
@@ -744,7 +759,7 @@ class BurgModule {
       // Preserve cell ownership and politics. The chosen bank must be in this land polygon.
       const polygon = (cells.v?.[cellId] ?? []).map(v => this.worldContext.pack.vertices.p[v]);
       const candidate = candidates.find(c => polygon.length >= 3 && polygonContains(polygon, c.point));
-      if (candidate) return record(candidate);
+      if (candidate && cells.h[cellId] >= 20 && cells.h[cellId] < 60) return record(candidate);
       // Very wide rivers may cover the entire logical cell. Check the landmass ring before
       // leaving that cell, so a bank at a mouth cannot put the town into the ocean.
       const land = this.worldContext.pack.features[cells.f[cellId]];
@@ -761,11 +776,14 @@ class BurgModule {
         return (
           target !== undefined &&
           cells.h[target] >= 20 &&
+          cells.h[target] < 60 &&
           cells.f[target] === cells.f[cellId] &&
           (!cells.state || cells.state[target] === cells.state[cellId])
         );
       });
       if (dry) return record(dry);
+      // A measured but infeasible bank is not replaced by a guessed nudge.
+      return origin ?? [x, y];
     }
     const shift = Math.min(cells.fl[cellId] / 200, 0.6);
 
@@ -886,8 +904,8 @@ class BurgModule {
       }
 
       const randomize = (score: number) => score * (0.5 + Math.random() * 0.5);
-      const score = new Int16Array(cells.s.map(randomize));
-      const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
+      const score = Float32Array.from(cells.s, (value, id) => randomize(this.getSettlementScore(id, value)));
+      const sorted = populatedCells.filter(id => score[id] > 0).sort((a, b) => score[b] - score[a]);
 
       const capitalsNumber = getCapitalsNumber();
       let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / capitalsNumber; // min distance between capitals
@@ -1145,7 +1163,8 @@ class BurgModule {
     if (!count || !sorted.length) return placed;
 
     const randomize = (score: number) => score * gauss(1, 3, 0, 20, 3);
-    const score = new Int16Array(cells.s.map(randomize));
+    const score = Float32Array.from(cells.s, (value, id) => randomize(this.getSettlementScore(id, value)));
+    for (let i = sorted.length - 1; i >= 0; i--) if (score[sorted[i]] <= 0) sorted.splice(i, 1);
     sorted.sort((a, b) => score[b] - score[a]);
 
     let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (count ** 0.7 / 66);

@@ -35,7 +35,7 @@ export function riverBankCandidates(origin: [number, number], sections: RiverSec
   }
   if (!best) return [];
   const section = best;
-  const offset = Math.max(section.physicalWidth, section.renderedWidth) / 2 + margin;
+  const offset = section.physicalWidth / 2 + margin;
   return [1, -1]
     .map(side => ({
       point: [
@@ -50,4 +50,20 @@ export function riverBankCandidates(origin: [number, number], sections: RiverSec
         Math.hypot(a.point[0] - origin[0], a.point[1] - origin[1]) -
         Math.hypot(b.point[0] - origin[0], b.point[1] - origin[1])
     );
+}
+
+/** Includes all surveyed reaches, so the bank of a bend cannot lie in another reach. */
+export function pointInSurveyedRiver(point: [number, number], sections: RiverSectionPoint[]): boolean {
+  for (let i = 0; i < sections.length - 1; i++) {
+    const a = sections[i],
+      b = sections[i + 1];
+    const dx = b.point[0] - a.point[0],
+      dy = b.point[1] - a.point[1];
+    const squared = dx * dx + dy * dy;
+    if (!squared) continue;
+    const t = Math.max(0, Math.min(1, ((point[0] - a.point[0]) * dx + (point[1] - a.point[1]) * dy) / squared));
+    const width = a.physicalWidth + t * (b.physicalWidth - a.physicalWidth);
+    if (Math.hypot(point[0] - a.point[0] - t * dx, point[1] - a.point[1] - t * dy) <= width / 2) return true;
+  }
+  return false;
 }

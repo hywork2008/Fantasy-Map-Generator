@@ -30,6 +30,14 @@ describe("burg water access", () => {
     pack.cells.c[0] = [3];
     expect(updateBurgWaterAccess(burg, pack).port).toEqual({ river: true, sea: false, lake: false });
   });
+  it("retains measured river access outside the administrative river cell", () => {
+    const { burg, pack } = fixture();
+    pack.cells.r[0] = 0;
+    burg.riverPlacement = { riverId: 7, bank: "left", widthMeters: 40, physicalCellId: 0, bankDistanceMeters: 10 };
+    expect(updateBurgWaterAccess(burg, pack).riverId).toBe(7);
+    expect(burg.riverPlacement).toBeDefined();
+    expect(burg.cell).toBe(0);
+  });
   it("distinguishes contact from a navigable river port and clears stale flags", () => {
     const { burg, pack } = fixture();
     pack.cells.fl[0] = 99;
