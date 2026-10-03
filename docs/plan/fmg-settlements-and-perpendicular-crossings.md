@@ -684,3 +684,15 @@ CE applyPlanの道路探索用禁止辺とriver landing候補辺の判定に、�
 検証には中心線だけ乾燥した並走道路、完全横断、端部接触、長さ0、乾燥経路、非有限幅、実block fabricのlane/access全幅乾燥を追加した。関連5ファイル71テスト、型検査、Biome、構成lint、world writer検査を確認した。
 
 これは既存mesh routerの候補制約とlane/accessの採用拒否であり、世界側の方向付き回廊探索をCEへ移植したものではない。固定D/EをCE routerの予約portalへ接続する処理、確定外側回廊の受け渡し、失われたaccess/住戸の再配置、街区meshの物理河岸分割、海/港/城塞の全footprint移行、全seedの最終表示検証は残る。保存sourceに含まれない河川や旧fieldなし地図の斜交橋は未解決。
+
+### 段階3のCE mesh→固定E方向付き回廊adapter（2026-10-04）
+
+`findFixedCrossingApproach`を追加した。現在CityDocumentの固定sourceを検証し、指定facility/sideのEを正確な座標の仮想終端portalとして探索guideへ追加する。元meshを編集せず、近傍vertexへEをsnapしない。最後のconnectorはEへの法線方向に一致し、明示距離上限/最終直線長を満たす外側guide vertexだけから許す。Eの逆側/斜めのvertexを便宜的に接続しない。
+
+現在meshの明示edge permissionからguideを構築し、既存の方向付き`findApproachCorridor`へ渡す。道路幅は保存施設の物理幅と一致させ、元mesh guideに対して確定した直線/円弧・全幅・最終方向を検証する。source水域に、呼出側が解決した完全な追加湖/海/他障害物を加えてwater indexを構築する。現在支持条件providerも必須とする。検索node/edge/label/expansion、terminal connector数/距離、全水域頂点数を制限し、予算不足や完全なconnectorがない場合は未解決を返す。
+
+成功結果はfacility ID/geometryVersion/side、正確なE、確定回廊、独立guide/settingsコピー、guide→元mesh vertex ID対応を持つ。仮想portalの元vertex IDはnullであり、座標が同じでも通常道路junctionへ自動登録しない。検査callbackの前後で固定sourceとmesh vertex/edgeの内容を比較し、検査中に座標/接続/versionが変わればchanged-sourceとして拒否する。terrain/permission providerは一回の探索中に決定的なsnapshotであることを呼出契約とする。
+
+検証には両岸の正確なEでの終了、法線方向、元mesh非変更、permission/支持拒否、追加水域、terminal予算、斜めconnectorの拒否、callbackによるsource変更の拒否を追加した。既存方向付き回廊探索・壁段階の回帰テスト、型検査、Biome、構成lint、world writer検査を確認した。
+
+これは探索結果を返すopt-in adapterであり、通常applyPlanへの自動採用、CityDocumentへの確定外側回廊保存、同一施設への複数接続の原子的登録、固定D/Eと既設街区junctionの通行graph統合は未接続。採用側で現在契約を再検証し、返した円弧をmesh edgeや点列へsnapし直さず使用する必要がある。端点をずらすfallbackや斜め橋の生成は行わない。既存fieldなし地図の斜交橋問題、全河川移行と最終frame視覚検証は残る。

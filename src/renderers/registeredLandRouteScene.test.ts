@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGridDocument, parseDocument } from "../city-editor/core/document";
+import { findFixedCrossingApproach } from "../city-editor/core/fixedCrossingApproach";
 import { buildBlockFabric } from "../city-editor/core/gen/blockInfill";
 import { buildCityBuildings } from "../city-editor/core/gen/buildingLots";
 import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
@@ -641,6 +642,96 @@ describe("CE fixed physical crossing handoff", () => {
         Infinity
       )
     ).toBe(true);
+  });
+  it("routes to the exact fixed E portal with a normal final tangent and no mesh mutation", () => {
+    const f = exported(),
+      c = f.payload.crossings[0];
+    const doc = createGridDocument({
+      size: "tiny",
+      grid: "hex",
+      extentMeters: 300,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 30,
+      seed: "fixed-portal"
+    });
+    doc.importedFixedCrossings = structuredClone(f.payload);
+    const n = c.normal,
+      e = c.approachA;
+    doc.mesh.vertices = {
+      start: { id: "start", point: [e[0] - n[0] * 20, e[1] - n[1] * 20], locked: false },
+      lead: { id: "lead", point: [e[0] - n[0] * 10, e[1] - n[1] * 10], locked: false }
+    };
+    doc.mesh.edges = { edge: { id: "edge", a: "start", b: "lead", leftFace: null, rightFace: null, locked: false } };
+    const input = {
+      facilityId: c.id,
+      side: "A" as const,
+      startVertexId: "start",
+      maxTerminalConnectors: 10,
+      maxConnectorMeters: 15,
+      maxWaterVertices: 1000,
+      otherWater: [],
+      supportsDryFootprint: () => true,
+      allowsMeshEdge: () => true,
+      settings: {
+        roadWidthMeters: 2,
+        minimumTurnRadiusMeters: 2,
+        minimumStraightMeters: 0,
+        minimumFinalStraightMeters: 2,
+        turnPenaltyMetersPerRadian: 0,
+        maxEnvelopeErrorMeters: 0.05,
+        maxArcSections: 100,
+        maxNodes: 100,
+        maxEdges: 100,
+        maxLabels: 100,
+        maxExpansions: 100
+      }
+    };
+    const before = JSON.stringify(doc);
+    const result = findFixedCrossingApproach(doc, input);
+    if (!("corridor" in result)) throw Error(result.reason);
+    expect(result.endpoint).toEqual(c.approachA);
+    expect(result.corridor.pieces.at(-1)!.end).toEqual(c.approachA);
+    expect(result.guideVertexIds.at(-1)).toBeNull();
+    expect(JSON.stringify(doc)).toBe(before);
+    const opposite = structuredClone(doc),
+      b = c.approachB;
+    opposite.mesh.vertices.start.point = [b[0] + n[0] * 20, b[1] + n[1] * 20];
+    opposite.mesh.vertices.lead.point = [b[0] + n[0] * 10, b[1] + n[1] * 10];
+    expect(findFixedCrossingApproach(opposite, { ...input, side: "B" })).toHaveProperty("endpoint", c.approachB);
+    expect(findFixedCrossingApproach(doc, { ...input, allowsMeshEdge: () => false })).toHaveProperty("reason");
+    expect(findFixedCrossingApproach(doc, { ...input, supportsDryFootprint: () => false })).toHaveProperty("reason");
+    expect(findFixedCrossingApproach(doc, { ...input, maxTerminalConnectors: 0 })).toHaveProperty("reason");
+    const mid = [e[0] - n[0] * 5, e[1] - n[1] * 5];
+    expect(
+      findFixedCrossingApproach(doc, {
+        ...input,
+        otherWater: [
+          {
+            id: 99,
+            rings: [
+              [
+                [mid[0] - 1, mid[1] - 2],
+                [mid[0] + 1, mid[1] - 2],
+                [mid[0] + 1, mid[1] + 2],
+                [mid[0] - 1, mid[1] + 2]
+              ]
+            ]
+          }
+        ]
+      })
+    ).toHaveProperty("reason");
+    expect(
+      findFixedCrossingApproach(doc, {
+        ...input,
+        supportsDryFootprint: () => {
+          doc.mesh.vertices.start.point[0] += 0.1;
+          return true;
+        }
+      })
+    ).toHaveProperty("reason", "changed-source");
+    doc.mesh.vertices.start.point = [e[0] - n[0] * 20, e[1] - n[1] * 20];
+    doc.mesh.vertices.lead.point[1] += 0.1;
+    expect(findFixedCrossingApproach(doc, input)).toHaveProperty("reason", "no-terminal-connector");
   });
   it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
     const f = exported();
