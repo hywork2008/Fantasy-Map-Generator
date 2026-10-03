@@ -6,6 +6,7 @@ import {
   type NetworkRouteResult,
   type NetworkSearchSettings
 } from "./constrainedLandNetwork";
+import { compareLandRouteAlternatives } from "./landRouteAlternatives";
 
 export type AssessedNetworkRoute = Extract<NetworkRouteResult, { route: unknown }>["route"];
 export interface LandConnectionAssessmentSettings {
@@ -14,12 +15,15 @@ export interface LandConnectionAssessmentSettings {
   maxConstructionCostMeters: number;
   maxRouteCostMeters: number;
   maxSearches: number;
+  /** Explicitly enable the bounded same-river return pass; omitted preserves the earlier gate. */
+  maxReturnComparisons?: number;
 }
 export interface LandConnectionComparison {
   baseline?: NetworkRouteResult;
   candidate?: NetworkRouteResult;
   bridgeFree?: NetworkRouteResult;
   searches: number;
+  riverReturns?: readonly NetworkRouteResult[];
 }
 export type LandConnectionAssessment = (
   | {
@@ -114,32 +118,38 @@ export function assessLandConnection(
   comparison.baseline = baseline;
   const bf = failure(baseline);
   if (bf) return bf;
-  const candidate = query(input.candidateConnectionIds, true);
-  if (!candidate) return unresolved("comparison-budget");
-  comparison.candidate = candidate;
-  const cf = failure(candidate);
-  if (cf) return cf;
-  if (!("route" in candidate))
+  if (comparison.searches >= s.maxSearches) return unresolved("comparison-budget");
+  const alternatives = compareLandRouteAlternatives(network, {
+    query: {
+      startNodeId: input.startNodeId,
+      goalNodeId: input.goalNodeId,
+      startTangent: input.startTangent,
+      goalTangent: input.goalTangent,
+      settings: input.searchSettings,
+      environment: input.environment,
+      allowedConnectionIds: input.candidateConnectionIds,
+      alreadyPaidFacilityIds: paidFacilities,
+      alreadyPaidConnectionIds: paidRoads,
+      maxConstructionCostMeters: s.maxConstructionCostMeters,
+      maxRouteCostMeters: s.maxRouteCostMeters
+    },
+    nearEqualCostMeters: s.nearEqualCostMeters,
+    maxSearches: s.maxSearches - comparison.searches,
+    maxReturnComparisons: s.maxReturnComparisons ?? 0
+  });
+  comparison.searches += alternatives.comparison.searches;
+  comparison.candidate = alternatives.comparison.candidate;
+  comparison.bridgeFree = alternatives.comparison.bridgeFree;
+  comparison.riverReturns = alternatives.comparison.riverReturns;
+  if ("reason" in alternatives) {
+    if (alternatives.reason !== "no-route") return unresolved(alternatives.reason);
     return "route" in baseline
       ? { status: "keep-baseline", reason: "no-feasible-proposal", route: baseline.route, comparison }
       : { status: "rejected", reason: "no-feasible-proposal", comparison };
-  // Whole-route same-bank counterfactual. It does not replace point subpaths in
-  // the candidate: choose a complete validated route, preserving shared geometry.
-  const bridgeFreeIds = [...new Set(network.edges.filter(e => candidateIds.has(e.id) && !e.crossing).map(e => e.id))];
-  const bridgeFree = query(bridgeFreeIds, true);
-  if (!bridgeFree) return unresolved("comparison-budget");
-  comparison.bridgeFree = bridgeFree;
-  const df = failure(bridgeFree);
-  if (df) return df;
-  let route = candidate.route;
+  }
+  const route = alternatives.route;
   const crossings = (r: AssessedNetworkRoute) => r.edges.filter(e => e.crossing).length;
   const tolerance = (a: number, b: number) => Math.max(s.nearEqualCostMeters, 16 * Number.EPSILON * Math.max(1, a, b));
-  if (
-    "route" in bridgeFree &&
-    bridgeFree.route.costMeters - route.costMeters <= tolerance(route.costMeters, bridgeFree.route.costMeters) &&
-    crossings(bridgeFree.route) < crossings(route)
-  )
-    route = bridgeFree.route;
   const newConnectionIds = [...new Set(route.edges.filter(e => !baselineIds.has(e.id)).map(e => e.id))].sort(
     (a, b) => a - b
   );
