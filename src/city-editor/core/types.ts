@@ -188,7 +188,7 @@ export interface CityElement {
   /** Long-axis angle in radians, CCW from +X. Temples and ships use this. */
   rotation?: number;
   locked: boolean;
-  shipType?: "small" | "medium" | "large";
+  shipType?: "small" | "medium" | "large" | "barge";
 }
 
 export interface LandmarkPolygon {

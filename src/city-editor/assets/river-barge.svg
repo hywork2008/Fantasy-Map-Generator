@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -11 10 26" width="300" height="780" class="river-cargo-barge">
+  <defs>
+    <!-- ドロップシャドウ -->
+    <filter id="barge-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0.4" dy="0.6" stdDeviation="0.4" flood-color="#121e26" flood-opacity="0.35"/>
+    </filter>
+    <!-- 幌の質感グラデーション -->
+    <linearGradient id="tarp-shading" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#55654c" />
+      <stop offset="25%" stop-color="#697a60" />
+      <stop offset="50%" stop-color="#73866a" />
+      <stop offset="75%" stop-color="#697a60" />
+      <stop offset="100%" stop-color="#55654c" />
+    </linearGradient>
+    <!-- 屋根の質感グラデーション -->
+    <linearGradient id="cabin-roof-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#613c24" />
+      <stop offset="50%" stop-color="#7a4f31" />
+      <stop offset="100%" stop-color="#5c3820" />
+    </linearGradient>
+    <!-- 材木グラデーション -->
+    <linearGradient id="timber-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8c7554" />
+      <stop offset="50%" stop-color="#a68e6b" />
+      <stop offset="100%" stop-color="#856f4e" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. 水面への影 (Hull & Sweep Shadow) -->
+  <g class="ce-ship-shadow-group" opacity="0.8">
+    <path d="M -1.3,-8.9 C 1.2,-9.1 2.3,-7.5 2.6,-4.5 C 2.8,0 2.8,4.5 2.4,8.5 L -1.2,8.8 C -2.3,7.8 -2.7,4.5 -2.7,0 C -2.7,-4.8 -2.3,-8.0 -1.3,-8.9 Z" fill="rgba(18, 30, 38, 0.28)" />
+    <line x1="0.5" y1="8.2" x2="-0.5" y2="12.6" stroke="rgba(18, 30, 38, 0.22)" stroke-width="0.7" stroke-linecap="round" />
+  </g>
+
+  <!-- 2. 船体外殻・ガンネル (Outer Hull / Heavy Gunwales) -->
+  <path d="M -1.5,-8.8 L 1.5,-8.8 C 2.15,-8.5 2.4,-5.2 2.4,0 C 2.4,4.6 2.15,7.6 1.7,8.6 L -1.7,8.6 C -2.15,7.6 -2.4,4.6 -2.4,0 C -2.4,-5.2 -2.15,-8.5 -1.5,-8.8 Z"
+        fill="#38291a" stroke="#20160d" stroke-width="0.35" class="ce-ship-hull-outer" />
+
+  <!-- 船首・船尾の木製バンパー（Rubbing Strakes / Fenders） -->
+  <line x1="-1.6" y1="-8.8" x2="1.6" y2="-8.8" stroke="#1c130b" stroke-width="0.55" stroke-linecap="round" />
+  <line x1="-1.75" y1="8.6" x2="1.75" y2="8.6" stroke="#1c130b" stroke-width="0.5" stroke-linecap="round" />
+
+  <!-- 3. 内側甲板 (Deck Planking) -->
+  <path d="M -1.3,-8.4 L 1.3,-8.4 C 1.9,-8.1 2.12,-4.8 2.12,0 C 2.12,4.3 1.9,7.2 1.48,8.2 L -1.48,8.2 C -1.9,7.2 -2.12,4.3 -2.12,0 C -2.12,-4.8 -1.9,-8.1 -1.3,-8.4 Z"
+        fill="#beae92" stroke="#423423" stroke-width="0.2" class="ce-ship-deck" />
+
+  <!-- 甲板の板張り目地（Plank Seams & Catwalks） -->
+  <path d="M -1.6,-8.0 L -1.6,8.0 M 1.6,-8.0 L 1.6,8.0 M -0.8,-8.2 L -0.8,4.6 M 0,-8.3 L 0,4.6 M 0.8,-8.2 L 0.8,4.6"
+        stroke="#a7977b" stroke-width="0.15" />
+
+  <!-- 4. 船首の係留ポスト（Mooring Bitts）＆ロープコイル -->
+  <rect x="-0.95" y="-8.1" width="0.35" height="0.35" rx="0.06" fill="#261a10" stroke="#140c06" stroke-width="0.1" />
+  <rect x="0.6" y="-8.1" width="0.35" height="0.35" rx="0.06" fill="#261a10" stroke="#140c06" stroke-width="0.1" />
+  <line x1="-0.9" y1="-7.92" x2="0.9" y2="-7.92" stroke="#3a2818" stroke-width="0.18" />
+
+  <!-- コイル状係留ロープ（右舷船首） -->
+  <circle cx="0.85" cy="-7.1" r="0.55" fill="none" stroke="#9e8156" stroke-width="0.28" />
+  <circle cx="0.85" cy="-7.1" r="0.26" fill="none" stroke="#b5986c" stroke-width="0.22" />
+
+  <!-- 渡し板（左舷に収納された荷役用ギャングプランク） -->
+  <rect x="-2.02" y="-5.8" width="0.36" height="3.4" rx="0.06" fill="#846d51" stroke="#3d2f1f" stroke-width="0.15" class="ce-ship-gangplank" />
+  <path d="M -2.0,-5.1 L -1.68,-5.1 M -2.0,-4.3 L -1.68,-4.3 M -2.0,-3.5 L -1.68,-3.5 M -2.0,-2.7 L -1.68,-2.7" stroke="#4a3825" stroke-width="0.15" />
+
+  <!-- 川底突き竿（右舷のプッシュポール 2本） -->
+  <line x1="1.88" y1="-7.6" x2="1.88" y2="4.8" stroke="#dfc79b" stroke-width="0.18" stroke-linecap="round" class="ce-ship-pole" />
+  <line x1="2.04" y1="-6.8" x2="2.04" y2="5.4" stroke="#c4ab80" stroke-width="0.16" stroke-linecap="round" class="ce-ship-pole" />
+
+  <!-- 倒立式マスト（Tabernacle Mast） -->
+  <rect x="-0.28" y="-7.0" width="0.56" height="0.45" rx="0.08" fill="#322214" stroke="#180e07" stroke-width="0.15" />
+  <line x1="0.0" y1="-6.75" x2="0.0" y2="-2.8" stroke="#543d25" stroke-width="0.32" stroke-linecap="round" />
+  <line x1="-0.2" y1="-4.8" x2="0.2" y2="-4.8" stroke="#9c8157" stroke-width="0.16" />
+
+  <!-- 5. 前部貨物エリア (Forward Cargo: 木箱・樽・穀物麻袋) -->
+  <!-- 木箱1 (左前・大型Xブレース) -->
+  <rect x="-1.45" y="-6.4" width="1.15" height="1.1" rx="0.08" fill="#8e6b43" stroke="#3d2b17" stroke-width="0.2" class="ce-ship-cargo" />
+  <path d="M -1.45,-6.4 L -0.3,-5.3 M -0.3,-6.4 L -1.45,-5.3" stroke="#51391f" stroke-width="0.15" />
+
+  <!-- 木箱2 (小型木箱) -->
+  <rect x="-0.15" y="-6.4" width="0.9" height="0.95" rx="0.06" fill="#a17c52" stroke="#432f1a" stroke-width="0.18" class="ce-ship-cargo" />
+
+  <!-- 穀物麻袋 (2袋) -->
+  <ellipse cx="1.05" cy="-5.85" rx="0.42" ry="0.55" transform="rotate(-15 1.05 -5.85)" fill="#ccb892" stroke="#685536" stroke-width="0.16" class="ce-ship-cargo" />
+  <ellipse cx="1.12" cy="-5.05" rx="0.38" ry="0.5" transform="rotate(20 1.12 -5.05)" fill="#bfa982" stroke="#685536" stroke-width="0.16" class="ce-ship-cargo" />
+
+  <!-- 樽群 (ワイン・塩漬け魚 3基) -->
+  <g class="ce-ship-cargo">
+    <circle cx="-0.95" cy="-4.3" r="0.52" fill="#725333" stroke="#312010" stroke-width="0.2" />
+    <circle cx="-0.95" cy="-4.3" r="0.4" fill="none" stroke="#261a0d" stroke-width="0.14" />
+    <circle cx="-0.95" cy="-4.3" r="0.1" fill="#1f150a" />
+  </g>
+  <g class="ce-ship-cargo">
+    <circle cx="0.15" cy="-4.35" r="0.55" fill="#84603c" stroke="#352211" stroke-width="0.2" />
+    <circle cx="0.15" cy="-4.35" r="0.42" fill="none" stroke="#261a0d" stroke-width="0.14" />
+    <circle cx="0.15" cy="-4.35" r="0.1" fill="#1f150a" />
+  </g>
+  <g class="ce-ship-cargo">
+    <circle cx="-0.45" cy="-3.45" r="0.48" fill="#6d4e2f" stroke="#2e1c0d" stroke-width="0.2" />
+    <circle cx="-0.45" cy="-3.45" r="0.36" fill="none" stroke="#261a0d" stroke-width="0.14" />
+  </g>
+
+  <!-- 6. 中央メイン貨物：防水幌 (Canvas Tarpaulin & Lashing Ropes) -->
+  <!-- 荷倉コーミング枠 -->
+  <rect x="-1.55" y="-2.8" width="3.1" height="5.6" rx="0.2" fill="#443422" stroke="#251b10" stroke-width="0.25" class="ce-ship-hatch" />
+
+  <!-- 防水幌シート -->
+  <rect x="-1.42" y="-2.65" width="2.84" height="5.3" rx="0.25" fill="url(#tarp-shading)" stroke="#384532" stroke-width="0.25" class="ce-ship-tarpaulin" />
+
+  <!-- 幌のシワ・陰影 -->
+  <path d="M -1.25,-1.2 Q 0,-0.8 1.25,-1.2 M -1.25,0.4 Q 0,0.8 1.25,0.4 M -1.25,1.8 Q 0,2.1 1.25,1.8" stroke="#44513d" stroke-width="0.25" fill="none" />
+  <path d="M -1.2,-1.05 Q 0,-0.65 1.2,-1.05 M -1.2,0.55 Q 0,0.95 1.2,0.55" stroke="#7e9174" stroke-width="0.2" fill="none" />
+
+  <!-- 荷縄ネット (Lashing Ropes) -->
+  <path d="M -1.42,-2.2 L 1.42,-0.2 M -1.42,-0.8 L 1.42,1.2 M -1.42,0.6 L 1.42,2.4 M 1.42,-2.2 L -1.42,-0.2 M 1.42,-0.8 L -1.42,1.2 M 1.42,0.6 L -1.42,2.4"
+        stroke="#cfb689" stroke-width="0.18" stroke-linecap="round" class="ce-ship-lashing" />
+
+  <!-- ロープ固定クリート -->
+  <path d="M -1.55,-2.0 L -1.35,-2.0 M -1.55,-0.5 L -1.35,-0.5 M -1.55,1.0 L -1.35,1.0 M -1.55,2.2 L -1.35,2.2 M 1.35,-2.0 L 1.55,-2.0 M 1.35,-0.5 L 1.55,-0.5 M 1.35,1.0 L 1.55,1.0 M 1.35,2.2 L 1.55,2.2"
+        stroke="#261a0f" stroke-width="0.2" />
+
+  <!-- 7. 後部貨物 (Aft Cargo: 木箱・材木束) -->
+  <rect x="-1.35" y="3.1" width="1.0" height="1.15" rx="0.06" fill="#916f47" stroke="#42301c" stroke-width="0.18" class="ce-ship-cargo" />
+
+  <!-- 材木束 (Timber bundle) -->
+  <rect x="-0.15" y="3.05" width="1.35" height="1.3" rx="0.06" fill="url(#timber-grad)" stroke="#433522" stroke-width="0.18" class="ce-ship-cargo" />
+  <path d="M -0.15,3.45 L 1.2,3.45 M -0.15,3.85 L 1.2,3.85 M 0.3,3.05 L 0.3,4.35 M 0.75,3.05 L 0.75,4.35" stroke="#514028" stroke-width="0.15" />
+  <line x1="-0.15" y1="3.2" x2="1.2" y2="3.2" stroke="#d0b586" stroke-width="0.15" />
+  <line x1="-0.15" y1="4.15" x2="1.2" y2="4.15" stroke="#d0b586" stroke-width="0.15" />
+
+  <!-- 8. 船尾キャビン (Deckhouse / Cuddy: 船頭小屋) -->
+  <rect x="-1.4" y="4.75" width="2.8" height="2.2" rx="0.18" fill="#483624" stroke="#22170d" stroke-width="0.3" class="ce-ship-cabin" />
+  <rect x="-1.48" y="4.85" width="2.96" height="2.0" rx="0.15" fill="url(#cabin-roof-grad)" stroke="#352012" stroke-width="0.2" class="ce-ship-cabin-roof" />
+  <path d="M -1.0,4.85 L -1.0,6.85 M -0.5,4.85 L -0.5,6.85 M 0,4.85 L 0,6.85 M 0.5,4.85 L 0.5,6.85 M 1.0,4.85 L 1.0,6.85" stroke="#52321c" stroke-width="0.15" />
+
+  <!-- 天窓 -->
+  <rect x="-0.45" y="5.45" width="0.9" height="0.7" rx="0.08" fill="#9bb5be" stroke="#28343b" stroke-width="0.18" />
+  <path d="M 0,5.45 L 0,6.15 M -0.45,5.8 L 0.45,5.8" stroke="#28343b" stroke-width="0.14" />
+
+  <!-- 煙突 (Stove Pipe / Chimney) -->
+  <circle cx="0.85" cy="5.35" r="0.24" fill="#1f2124" stroke="#0d0e10" stroke-width="0.15" class="ce-ship-chimney" />
+  <circle cx="0.85" cy="5.35" r="0.12" fill="#050505" />
+
+  <!-- 9. 船尾デッキ ＆ 係留具 -->
+  <rect x="-1.15" y="7.7" width="0.32" height="0.32" rx="0.06" fill="#261a10" stroke="#140c06" stroke-width="0.1" />
+  <rect x="0.95" y="7.7" width="0.32" height="0.32" rx="0.06" fill="#261a10" stroke="#140c06" stroke-width="0.1" />
+  <circle cx="-0.65" cy="7.75" r="0.42" fill="none" stroke="#9e8156" stroke-width="0.24" />
+
+  <!-- 10. 川下り船の命：長大な操舵オール (Giant Steering Sweep Oar) -->
+  <!-- 回転軸台座 -->
+  <rect x="-0.05" y="7.75" width="0.45" height="0.7" rx="0.08" fill="#2c1c0f" stroke="#140c06" stroke-width="0.15" />
+  <circle cx="0.18" cy="8.1" r="0.22" fill="#140c06" />
+
+  <!-- 前方ティラーハンドル -->
+  <line x1="0.18" y1="8.1" x2="0.05" y2="6.9" stroke="#4e351d" stroke-width="0.32" stroke-linecap="round" class="ce-ship-tiller" />
+  <line x1="-0.2" y1="7.0" x2="0.3" y2="7.0" stroke="#382412" stroke-width="0.24" stroke-linecap="round" />
+
+  <!-- 後方スイープ長柄シャフト (全長4m超の大櫂) -->
+  <line x1="0.18" y1="8.1" x2="-0.55" y2="12.3" stroke="#4a321a" stroke-width="0.38" stroke-linecap="round" class="ce-ship-sweep-shaft" />
+
+  <!-- スイープの水掻きブレード -->
+  <path d="M -0.32,10.5 L -0.85,12.7 C -0.82,13.05 -0.52,13.05 -0.35,12.85 L -0.15,10.6 Z"
+        fill="#6c4d29" stroke="#261a0c" stroke-width="0.2" class="ce-ship-sweep-blade" />
+  <line x1="-0.26" y1="11.3" x2="-0.62" y2="11.3" stroke="#1a1208" stroke-width="0.18" />
+  <line x1="-0.32" y1="12.1" x2="-0.74" y2="12.1" stroke="#1a1208" stroke-width="0.18" />
+</svg>
