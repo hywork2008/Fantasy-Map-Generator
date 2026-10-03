@@ -12,14 +12,22 @@ if (String.prototype.replaceAll === undefined) {
   };
 }
 
+// Match the native signature so importing this module does not change flat's inferred element type.
+export function flatArrayFallback<A, D extends number = 1>(this: A, depth?: D): FlatArray<A, D>[] {
+  const levels = depth === undefined ? 1 : Math.max(0, Math.trunc(Number(depth)) || 0);
+  const flatten = (array: unknown[], remaining: number): unknown[] =>
+    array.reduce<unknown[]>((acc, value) => {
+      if (Array.isArray(value) && remaining > 0) {
+        for (const item of flatten(value, remaining - 1)) acc.push(item);
+      } else acc.push(value);
+      return acc;
+    }, []);
+  return flatten(this as unknown as unknown[], levels) as FlatArray<A, D>[];
+}
+
 // flat
 if (Array.prototype.flat === undefined) {
-  Array.prototype.flat = function <T>(this: T[], depth?: number): T[] {
-    return (this as Array<unknown>).reduce<unknown[]>(
-      (acc, val) => (Array.isArray(val) ? acc.concat((val as unknown[]).flat(depth)) : acc.concat(val)),
-      []
-    ) as T[];
-  };
+  Array.prototype.flat = flatArrayFallback;
 }
 
 // at
@@ -59,7 +67,6 @@ declare global {
   }
 
   interface Array<T> {
-    flat(depth?: number): T[];
     at(index: number): T | undefined;
   }
 

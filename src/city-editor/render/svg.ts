@@ -1443,7 +1443,7 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
 }
 
 function renderTownWatermills(
-  document: CityDocument,
+  _document: CityDocument,
   plan?: import("../core/gen/watermillFabric").WatermillPlan,
   tool: Tool = "select",
   inspectedId: number | string | null = null
@@ -1539,7 +1539,7 @@ function renderTownWatermills(
     const g = element("g", {
       class: `ce-millhouse-group${isSelected ? " ce-is-selected cg-is-selected" : ""}`,
       "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-      style: tool === "select" ? "cursor:pointer" : undefined
+      style: tool === "select" ? "cursor:pointer" : ""
     });
 
     // Base building perimeter
@@ -1607,7 +1607,7 @@ function renderTownWatermills(
       class: `ce-waterwheel-unit${isSelected ? " ce-is-selected cg-is-selected" : ""}`,
       transform: `translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${rotDeg.toFixed(1)})`,
       "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
-      style: tool === "select" ? "cursor:pointer" : undefined
+      style: tool === "select" ? "cursor:pointer" : ""
     });
 
     const hw = mill.wheel.width / 2;
@@ -2954,7 +2954,7 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
         const boundary = computeCemeteryBoundary(document, face);
         const area = Math.abs(polygonArea(boundary));
         const period = document.historicalPeriod;
-        const isModern = period === "preIndustrialEra" || period === "steamEra" || period === "industrialRevolution";
+        const isModern = period === "preIndustrialEra" || period === "steamEra" || period === "industrialChemistryEra";
         const form: import("../core/types").CemeteryPlan["form"] = isModern || area < 750 ? "field" : "churchyard";
         const plan: import("../core/types").CemeteryPlan = {
           id: `cemetery:${face.id}`,

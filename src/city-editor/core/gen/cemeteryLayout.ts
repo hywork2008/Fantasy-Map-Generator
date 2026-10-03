@@ -492,7 +492,7 @@ export function syncDocumentCemeteries(document: CityDocument, faceIds?: Iterabl
         const boundary = computeCemeteryBoundary(document, face);
         const area = Math.abs(polygonArea(boundary));
         const period = document.historicalPeriod;
-        const isModern = period === "preIndustrialEra" || period === "steamEra" || period === "industrialRevolution";
+        const isModern = period === "preIndustrialEra" || period === "steamEra" || period === "industrialChemistryEra";
         const form: CemeteryPlan["form"] = isModern || area < 750 ? "field" : "churchyard";
         plan = {
           id: `cemetery:${face.id}`,

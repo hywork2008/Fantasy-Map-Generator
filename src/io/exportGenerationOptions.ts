@@ -100,7 +100,6 @@ const NUMBER_KEYS = [
   "diplomacyHistoryAttempts",
   "warFrequency",
   "maxWarDisparityRatio",
-  "maxWarDisparityRatioEnabled",
   "ironDepositsPerState",
   "populationRate",
   "distanceScale",

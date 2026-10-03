@@ -121,6 +121,9 @@ export interface WorldOptions {
    * addendum).
    */
   gunpowderEraEnabled?: boolean;
+  /** Optional historical-war strength cap; missing values use generation defaults. */
+  maxWarDisparityRatio?: number;
+  maxWarDisparityRatioEnabled?: boolean;
   /**
    * Generation option: begin Muskets and Artillery without pre-existing serviceable equipment.
    * Undefined preserves the legacy, fully equipped starting-force behavior.

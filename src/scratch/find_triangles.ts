@@ -10,7 +10,8 @@ const face: Face = {
     settlement: "core",
     water: "land",
     elevation: 10,
-    slope: 0
+    buildable: true,
+    locked: false
   }
 };
 

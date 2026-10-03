@@ -105,7 +105,6 @@ for (let fIdx = 0; fIdx < ordered.length; fIdx++) {
     if (rear - frontY < 3.5) continue; // 奥行き不足のゴミ区画を除外
 
     // 形状解決: 前面幅がしっかりあれば、奥が斜めでも台形（4頂点）または長方形（4頂点）にする！
-    const _lotSpan = hi - lo;
     let bld: Point[];
     if (lot.length === 4) {
       bld = lot;
