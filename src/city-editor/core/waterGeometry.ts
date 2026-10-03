@@ -1,3 +1,10 @@
+import { footprintTouchesWater } from "../../services/riverPhysicalGeometry";
+import {
+  FIXED_SITE_CROSSING_BUDGETS,
+  type FixedBurgCrossings,
+  validFixedBurgCrossings
+} from "../../utils/fixedBurgCrossings";
+import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
 import { convexInfillParts } from "./gen/lotGeometry";
 import { bounds, boundsOverlap, intersectConvex, plotArea } from "./gen/parcelGeometry";
@@ -87,4 +94,29 @@ export function cellInsideWater(polygon: Point[], water: Point[]): boolean {
     0
   );
   return wetArea >= area - 0.001;
+}
+
+const fixedWaterChecks = new WeakMap<FixedBurgCrossings, { key: string; valid: boolean }>();
+
+/** Whole-footprint reservation against source rivers, including holes/islands.
+ * Invalid source/frame must stop placement rather than turn into empty water. */
+export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[]): boolean {
+  if (polygon.length < 3 || polygon.some(p => p.length !== 2 || p.some(v => !Number.isFinite(v)))) return true;
+  const fixed = document.importedFixedCrossings;
+  if (fixed === undefined) return polygonHitsWater(polygon, waterPolygons(document));
+  if (!fixed || typeof fixed !== "object") throw new RangeError("Invalid fixed water geometry or city frame");
+  const key = JSON.stringify(fixed);
+  let checked = fixedWaterChecks.get(fixed);
+  if (!checked || checked.key !== key) {
+    checked = { key, valid: validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS) };
+    fixedWaterChecks.set(fixed, checked);
+  }
+  if (
+    !checked.valid ||
+    !Number.isFinite(document.frame.extentMeters) ||
+    document.frame.extentMeters <= 0 ||
+    requiredSiteExtent(fixed.requiredBounds) > document.frame.extentMeters
+  )
+    throw new RangeError("Invalid fixed water geometry or city frame");
+  return fixed.rivers.some(river => footprintTouchesWater(polygon, river));
 }

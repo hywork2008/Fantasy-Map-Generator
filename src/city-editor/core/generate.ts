@@ -1311,6 +1311,8 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  fixedCrossings?: CityDocument["importedFixedCrossings"];
+  replaceFixedCrossings?: boolean;
   urbanCoreMode?: "legacy" | "compact";
   layout?: "organic" | "circulade" | "bram" | "classic";
   sea: Set<number>;
@@ -1427,6 +1429,8 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    fixedCrossings: settings.descriptor?.fixedCrossings,
+    replaceFixedCrossings: !!settings.descriptor,
     urbanCoreMode: settings.urbanCoreMode,
     moats: settings.moats,
     legacyCastles: settings.legacyCastles,
@@ -2275,6 +2279,8 @@ export function runPlan(
     waterPolygon,
     avoidSea: streetOpts.avoidSea,
     channelPolygons: empty.channelPolygons,
+    fixedCrossings: empty.fixedCrossings,
+    replaceFixedCrossings: empty.replaceFixedCrossings,
     rivers,
     urban: currentUrban,
     outskirts: currentOutskirts,
@@ -2308,6 +2314,8 @@ function planningDebugDocument(
   const next = clone(source);
   if (plan.mesh) next.mesh = clone(plan.mesh);
   const ids = plan.faceIdOf ?? faceIdOf;
+  if (plan.replaceFixedCrossings)
+    next.importedFixedCrossings = plan.fixedCrossings ? clone(plan.fixedCrossings) : undefined;
   next.importedRoadCount = plan.importedRoads?.length;
   next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
@@ -2399,6 +2407,8 @@ function applyPlan(
     cells = plan.cells!;
     faceIdOf = plan.faceIdOf!;
   }
+  if (plan.replaceFixedCrossings)
+    next.importedFixedCrossings = plan.fixedCrossings ? clone(plan.fixedCrossings) : undefined;
   next.importedRoadCount = plan.importedRoads?.length;
   next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));

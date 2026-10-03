@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGridDocument, parseDocument } from "../city-editor/core/document";
+import { buildBlockFabric } from "../city-editor/core/gen/blockInfill";
+import { buildCityBuildings } from "../city-editor/core/gen/buildingLots";
 import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
 import { synthSite } from "../city-editor/core/gen/site/synthSite";
 import { defaultGenerationSettings, generateStageOnDocument } from "../city-editor/core/generate";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
+import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import {
   decodeShare,
   encodeShare,
@@ -504,6 +507,51 @@ describe("CE fixed physical crossing handoff", () => {
     expect(invalid.querySelectorAll("[data-facility-id],.ce-bridge-deck")).toHaveLength(0);
     delete doc.importedFixedCrossings;
     expect(renderStandaloneCitySvg(doc).querySelectorAll(".ce-bridge-deck")).toHaveLength(1);
+  });
+  it("reserves fixed physical river footprints for actual building and block lots", () => {
+    const f = exported();
+    const doc = createGridDocument({
+      size: "tiny",
+      grid: "hex",
+      extentMeters: 300,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 30,
+      seed: "fixed-lots"
+    });
+    for (const face of Object.values(doc.mesh.faces))
+      Object.assign(face.properties, { ward: "craftsmen", settlement: "core" });
+    const baseline = buildCityBuildings(doc);
+    doc.importedFixedCrossings = structuredClone(f.payload);
+    expect(baseline.some(lot => polygonHitsDocumentWater(doc, lot.polygon))).toBe(true);
+    const dry = buildCityBuildings(doc);
+    expect(dry.length).toBeGreaterThan(0);
+    expect(dry.length).toBeLessThan(baseline.length);
+    expect(dry.every(lot => !polygonHitsDocumentWater(doc, lot.polygon))).toBe(true);
+    expect(buildBlockFabric(doc).buildings.every(lot => !polygonHitsDocumentWater(doc, lot.polygon))).toBe(true);
+    const touching: [number, number][] = [
+      [-25, 0],
+      [-23, 0],
+      [-23, 2],
+      [-25, 2]
+    ];
+    expect(polygonHitsDocumentWater(doc, touching)).toBe(true);
+    const island: [number, number][] = [
+      [-33, 30],
+      [-27, 30],
+      [-27, 40],
+      [-33, 40]
+    ];
+    (doc.importedFixedCrossings.rivers[0].rings as (readonly [number, number][])[]).push(island);
+    expect(
+      polygonHitsDocumentWater(doc, [
+        [-32, 32],
+        [-28, 32],
+        [-28, 38],
+        [-32, 38]
+      ])
+    ).toBe(false);
+    doc.importedFixedCrossings.crossings[0].geometryVersion++;
+    expect(() => polygonHitsDocumentWater(doc, touching)).toThrow("Invalid fixed water");
   });
   it("rejects oblique decks, moved banks, stale versions and insufficient bounds", () => {
     const f = exported();

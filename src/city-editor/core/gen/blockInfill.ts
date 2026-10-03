@@ -3,7 +3,7 @@ import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Id, Point } from "../types";
-import { dryRuns, polygonHitsWater, waterPolygons } from "../waterGeometry";
+import { dryRuns, polygonHitsDocumentWater, waterPolygons } from "../waterGeometry";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import {
@@ -136,7 +136,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   ]).filter(
     lot =>
       !moat.hitsPolygon(lot.polygon) &&
-      !polygonHitsWater(lot.polygon, waterPolygons(document)) &&
+      !polygonHitsDocumentWater(document, lot.polygon) &&
       (document.mesh.faces[lot.faceId]?.properties.locked ||
         document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
         !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
@@ -184,7 +184,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       farm =>
         !landmarkReservationHits(document, farm.polygon) &&
         !moat.hitsPolygon(farm.polygon) &&
-        !polygonHitsWater(farm.polygon, waterPolygons(document))
+        !polygonHitsDocumentWater(document, farm.polygon)
     ),
     openSpaces,
     watermills,
