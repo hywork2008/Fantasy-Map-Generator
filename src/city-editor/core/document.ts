@@ -298,6 +298,7 @@ function isDocument(value: unknown): value is CityDocument {
             area.polygon.length >= 3 &&
             area.polygon.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
         ))) &&
+    (doc.importedRoadCount === undefined || (Number.isInteger(doc.importedRoadCount) && doc.importedRoadCount >= 0)) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&

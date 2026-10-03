@@ -242,7 +242,7 @@ export function placeGates(
     const corners = all.filter(c => (cornerVotes.get(qk(c.point)) ?? 0) >= 2);
     // A border too simple to have any real corner (rare, tiny blobs) falls
     // back to every vertex rather than producing zero gates.
-    return corners.length >= 3 ? corners : all;
+    return corners.length >= Math.max(3, geo.importedRoads?.length ?? 3) ? corners : all;
   });
   let pool: Candidate[] = ([] as Candidate[]).concat(...perLoop);
   if (!pool.length) return [];
@@ -253,25 +253,38 @@ export function placeGates(
   // clamp(round(suggested * 0.7), 3, 6), plus one on a wet site. A map-size
   // ceiling (Micro: 3) wins, so the wet bonus cannot open a fifth gate.
   let target = Math.max(3, Math.min(6, Math.round(suggested * 0.7))) + (wet ? 1 : 0);
-  if (maxGates !== undefined && Number.isFinite(maxGates)) target = Math.min(target, Math.max(1, Math.floor(maxGates)));
+  if (geo.importedRoads !== undefined) target = geo.importedRoads.length;
+  else if (maxGates !== undefined && Number.isFinite(maxGates))
+    target = Math.min(target, Math.max(1, Math.floor(maxGates)));
 
   const bearings = geo.roadPaths?.filter(p => p.length >= 2).map(p => vecToAzimuth(p.at(-1)![0], p.at(-1)![1])) ?? [];
   const targets = bearings.length ? bearings : geo.roadBearings;
 
   const gates: Gate[] = [];
   for (let i = 0; i < target && pool.length; i++) {
-    const bearing = targets.length ? targets[i % targets.length] : (i * 360) / target;
+    const source = geo.importedRoads?.[i];
+    const bearing = source
+      ? vecToAzimuth(...source.path.at(-1)!)
+      : targets.length
+        ? targets[i % targets.length]
+        : (i * 360) / target;
     const byBearingMatch = (a: Candidate, b: Candidate): number => {
       const ad = azimuthDelta(vecToAzimuth(a.point[0], a.point[1]), bearing);
       const bd = azimuthDelta(vecToAzimuth(b.point[0], b.point[1]), bearing);
       return ad - bd || Math.hypot(a.point[0], a.point[1]) - Math.hypot(b.point[0], b.point[1]);
     };
     const choice = pool.slice().sort(byBearingMatch)[0];
-    gates.push({ point: choice.point, borderIndex: choice.borderIndex, water: false });
+    gates.push({
+      point: choice.point,
+      borderIndex: choice.borderIndex,
+      water: false,
+      ...(source ? { roadIndex: i } : {})
+    });
     // Thin out anything within one gate-spacing of the one just chosen, along
     // the SAME loop (TownGen's splice-out-the-neighbours step), so gates don't
     // bunch up when two candidate corners happen to share a bearing.
-    const spacing = loopLength[choice.borderIndex] / (target + 1);
+    const spacing =
+      loopLength[choice.borderIndex] / (geo.importedRoads !== undefined && target > 3 ? target * 3 : target + 1);
     pool = pool.filter(
       c =>
         c.borderIndex !== choice.borderIndex ||

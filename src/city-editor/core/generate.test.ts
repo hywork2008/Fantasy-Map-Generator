@@ -216,7 +216,7 @@ const SHIQSH: BurgSiteDescriptor = {
 };
 
 describe("FMG harbour-site regression — Shiqsh", () => {
-  it("keeps a centred dry harbour town when kilometre rivers are wider than a bridge", () => {
+  it("keeps the dry harbour site and rejects unavailable FMG roads instead of inventing other exits", () => {
     const geo = siteToGeography(SHIQSH);
     expect(geo.coast?.waterAzimuthDeg).toBe(173.7);
     expect(geo.waterAreas).toHaveLength(1);
@@ -234,22 +234,25 @@ describe("FMG harbour-site regression — Shiqsh", () => {
     });
     const imported = defaultGenerationSettings();
     imported.descriptor = SHIQSH;
-    const city = generateCityOnDocument(source, imported, SHIQSH.burg.seed);
-
-    expect(city).not.toBeNull();
-    if (!city) return;
-    const faces = Object.values(city.mesh.faces);
+    const site = generateStageOnDocument(source, imported, SHIQSH.burg.seed, 3)!;
+    expect(site).toBeTruthy();
+    const faces = Object.values(site.mesh.faces);
     const seaFaces = faces.filter(face => face.properties.water === "sea").length;
     expect(seaFaces).toBeGreaterThan(0);
     expect(seaFaces).toBeLessThan(faces.length * 0.75);
-    // Both kilometre-wide channels remain water, leaving a small dry town.
     expect(faces.filter(face => face.properties.buildable).length).toBeGreaterThan(0);
     const centre = faces.filter(face => face.site).sort((a, b) => Math.hypot(...a.site!) - Math.hypot(...b.site!))[0];
     expect(centre.properties.water).toBe("land");
     expect(centre.properties.buildable).toBe(true);
-    expect(city.elements.some(element => element.kind === "harbor")).toBe(true);
-    expect(city.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(false);
-    expect(city.featureGroups.some(group => group.kind === "plank")).toBe(false);
+    expect(site.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(false);
+    const failures: string[] = [];
+    const city = generateCityOnDocument(source, imported, SHIQSH.burg.seed, sample => {
+      if (sample.failure) failures.push(sample.failure.reason);
+    });
+    // One source road enters an unbridgeable channel. The previous successful
+    // roll silently replaced it with a radial exit on another side of town.
+    expect(city).toBeNull();
+    expect(failures).toContain("fmg-road-mismatch");
   });
 });
 

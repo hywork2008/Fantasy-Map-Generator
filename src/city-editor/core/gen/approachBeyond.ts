@@ -429,6 +429,13 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
     if (group.kind !== "road" || group.id.startsWith("gc:bridge-")) continue;
     const ids = featureGroupVertices(document, group);
     if (ids.length < 2) continue;
+    // Imported approaches are routed from the source endpoint toward town.
+    // They remain world roads without walls, and may terminate within the frame.
+    if (group.sourceRoad) {
+      const outward = document.mesh.vertices[ids[0]]?.point;
+      if (outward) found.push({ group, outward, bearing: vecToAzimuth(...outward) });
+      continue;
+    }
     const start = ids[0];
     const end = ids[ids.length - 1];
     const startIsGate = gates.has(start);
@@ -547,7 +554,9 @@ export function tagExternalGateRoads(document: CityDocument, seed: string, descr
       best &&
       (candidates.find(candidate => candidate.diff <= best.diff + 10 && !used.has(candidate.item.nextBurg!.id)) ??
         best);
-    const matchedNextBurg = matched?.item.nextBurg;
+    const matchedNextBurg = road.group.sourceRoad
+      ? descriptorRoads[road.group.sourceRoad.index]?.nextBurg
+      : matched?.item.nextBurg;
     if (matchedNextBurg) used.add(matchedNextBurg.id);
 
     if (matchedNextBurg) {

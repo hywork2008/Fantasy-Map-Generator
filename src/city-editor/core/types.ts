@@ -154,6 +154,8 @@ export interface EdgeFeatureGroup {
   locked: boolean;
   /** Set on roads that leave an outer-wall gate for the map exterior. */
   beyond?: ApproachBeyond;
+  /** Source FMG land-road leg; distinguishes external approaches from local streets. */
+  sourceRoad?: { index: number; routeId: number };
   /** River-through-wall passages; distinct from gates that require road access. */
   riverPassages?: Id[];
 }
@@ -348,6 +350,8 @@ export interface CityDocument {
   landmarkAssets?: LandmarkAsset[];
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
+  /** Number of source FMG land-road legs; absent for standalone/legacy documents. */
+  importedRoadCount?: number;
   /** Continuous imported water, independent of the editable street-block mesh. */
   waterAreas?: { kind: "river"; polygon: Point[] }[];
   defenseCircuits?: DefenseCircuit[];

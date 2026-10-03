@@ -337,6 +337,9 @@ export function defaultGenerationSettings(): GenerationSettings {
  * gate → plaza (one end near the origin) and are ignored. Cape land may never
  * reach the window edge, so "outward from the town" is the test, not the frame. */
 export function countExternalApproachRoads(document: CityDocument): number {
+  if (document.importedRoadCount !== undefined)
+    return document.featureGroups.filter(g => g.kind === "road" && !g.locked && g.sourceRoad && g.segments.length)
+      .length;
   const cellSize = Math.max(1, document.frame.blockSizeMeters);
   const core = document.frame.cityRadiusMeters * 0.25;
   let count = 0;
@@ -388,7 +391,7 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
       extentMeters: frame.extentMeters,
       cityRadiusMeters: frame.cityRadiusMeters
     });
-  const geo = siteToGeography(descriptor);
+  const geo = siteToGeography(descriptor, !!settings.descriptor);
   const baseProgram = siteToProgram(descriptor);
   const program: CityProgram = {
     ...baseProgram,
@@ -817,6 +820,23 @@ export function generateCityAttempt(
         "仕上げ後の道路が門の橋以外で外堀に重なります",
         { roads: blocked.length },
         blocked
+      );
+  }
+  if (geo.importedRoads !== undefined) {
+    const sourceRoads = settled.featureGroups.filter(
+      group => group.kind === "road" && group.sourceRoad && group.segments.length
+    );
+    const missing = geo.importedRoads.filter(
+      road =>
+        sourceRoads.filter(group => group.kind === "road" && group.sourceRoad?.index === road.sourceIndex).length !== 1
+    );
+    if (missing.length || sourceRoads.length !== geo.importedRoads.length)
+      return reject(
+        "street-plan",
+        "fmg-road-mismatch",
+        "FMGから与えられた街道の接続をすべて確保できません",
+        { expected: geo.importedRoads.length, actual: sourceRoads.length },
+        missing.map(road => `source road ${road.sourceIndex}: route ${road.routeId}`)
       );
   }
   const roadsAfterFinish = countExternalApproachRoads(settled);
@@ -1321,6 +1341,7 @@ interface Plan {
   legacyCastles?: boolean;
   roads: Point[][];
   roadPaths?: Point[][];
+  importedRoads?: CityGeography["importedRoads"];
   streets: Point[][];
   wards: Map<number, WardKind>;
   /** `wards`' source data, in decision order rather than sorted by cell id. Empty
@@ -1411,6 +1432,7 @@ export function runPlan(
     coastPath: [],
     waterPolygon: null,
     avoidSea: streetOpts.avoidSea,
+    importedRoads: geo.importedRoads,
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
@@ -2027,7 +2049,7 @@ export function runPlan(
     ),
     genBorders,
     coast?.shoreline ?? null,
-    program.port
+    program.port && geo.importedRoads === undefined
   );
   let gates = streetOpts.avoidSea ? markSeaSurroundedGates(placed, waterPolygon, cellSize) : placed;
 
@@ -2039,7 +2061,7 @@ export function runPlan(
         ? polygonalCirculadePlan.recommendedGates
         : null;
 
-  if (recommendedGates && genBorders.length) {
+  if (recommendedGates && genBorders.length && geo.importedRoads === undefined) {
     const customGates: Gate[] = [];
     for (const rec of recommendedGates) {
       let bestDist = Infinity;
@@ -2108,6 +2130,26 @@ export function runPlan(
     avoidSea: streetOpts.avoidSea
   };
   let streetResult = buildStreets(streetInput);
+  // Local streets seed housing independently of external roads. Retain the
+  // ordinary interior access pattern, without creating world roads or gates
+  // for these extra anchors (including settlements with no FMG roads).
+  if (geo.importedRoads !== undefined && geo.importedRoads.length < 3) {
+    const anchors = placeGates(
+      currentCells,
+      currentUrban,
+      genBorders,
+      { ...geo, importedRoads: undefined },
+      3,
+      canPlaceTownGate
+    );
+    const local = buildStreets({ ...streetInput, gates: anchors, geo: { ...geo, importedRoads: undefined } });
+    streetResult = {
+      ...streetResult,
+      streets: local.streets,
+      arteries: local.arteries,
+      vertexShifts: local.vertexShifts
+    };
+  }
   let routedGates = gates;
   let streetGeo = geo;
   const minRoads = requiredExternalRoads(settings, params.extentMeters);
@@ -2238,6 +2280,7 @@ export function runPlan(
     citadelOutline,
     roads: complete ? roads : [...roads, ...gateStreets],
     roadPaths: geo.roadPaths,
+    importedRoads: geo.importedRoads,
     streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
@@ -2258,6 +2301,7 @@ function planningDebugDocument(
   const next = clone(source);
   if (plan.mesh) next.mesh = clone(plan.mesh);
   const ids = plan.faceIdOf ?? faceIdOf;
+  next.importedRoadCount = plan.importedRoads?.length;
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   delete next.fabric;
@@ -2346,6 +2390,7 @@ function applyPlan(
     cells = plan.cells!;
     faceIdOf = plan.faceIdOf!;
   }
+  next.importedRoadCount = plan.importedRoads?.length;
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   // Keep the active morphology even when routing rejects before town finish.
@@ -3037,12 +3082,20 @@ function applyPlan(
         id: `${GEN_PREFIX}road-${i}`,
         kind: "road",
         name: `Road ${i + 1}`,
+        ...(isApproach && plan.importedRoads && plan.gates[gateIndex]?.roadIndex !== undefined
+          ? {
+              sourceRoad: {
+                index: plan.importedRoads[plan.gates[gateIndex].roadIndex!].sourceIndex,
+                routeId: plan.importedRoads[plan.gates[gateIndex].roadIndex!].routeId
+              }
+            }
+          : {}),
         segments,
         style: { widthMeters: defaultRoadWidthMeters(source.frame.extentMeters), color: "#735238" },
         locked: false
       });
     });
-    if (complete) {
+    if (complete && plan.importedRoads === undefined) {
       // Far-bank FMG roads must cross the entire span before entering town.
       // An exterior-only gate route can otherwise skirt the river instead.
       const plaza = plan.precincts.find(p => p.kind === "plaza");

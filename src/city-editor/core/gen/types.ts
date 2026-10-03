@@ -185,6 +185,8 @@ export interface BorderLoop {
 export interface Gate {
   point: Point;
   borderIndex: number;
+  /** Index into importedRoads; absent for standalone entrance planning. */
+  roadIndex?: number;
   /** The port-facing gate, when the programme has a harbour. */
   water: boolean;
 }
@@ -261,6 +263,8 @@ export interface CityGeography {
   roadBearings: number[];
   /** Road centre-lines, used by S4 to choose the corresponding gates. */
   roadPaths?: Point[][];
+  /** Present (including []) only for strict FMG road hand-off. */
+  importedRoads?: { sourceIndex: number; routeId: number; path: Point[] }[];
   /** FMG's desired number of land gates. Falls back to road bearings when absent. */
   suggestedGates?: number;
 }

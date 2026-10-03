@@ -1,4 +1,5 @@
 import { resolveBridgeCrossingLimit } from "../../../../utils/bridgeCrossingPolicy";
+import { importedRoadsForSite } from "./importedRoads";
 // BurgSiteDescriptor → the primitives the S0–S3 pipeline consumes. Pure parsing;
 // no world-map imports. Used for both the synth path and real FMG descriptors —
 // the pipeline never sees the descriptor directly.
@@ -39,7 +40,7 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
   };
 }
 
-export function siteToGeography(site: BurgSiteDescriptor): CityGeography {
+export function siteToGeography(site: BurgSiteDescriptor, imported = false): CityGeography {
   const coast = extractCoast(site);
   // A wide river is not a second ocean. Promoting it to a coast half-plane
   // floods the far countryside and, at an estuary, can swallow the burg.
@@ -56,6 +57,7 @@ export function siteToGeography(site: BurgSiteDescriptor): CityGeography {
     roadPaths: site.roads
       .filter(r => r.group !== "searoutes" && r.path.length >= 2)
       .map(r => r.path.map(p => [p[0], p[1]])),
+    importedRoads: imported ? importedRoadsForSite(site) : undefined,
     suggestedGates: site.suggestedGates
   };
 }
