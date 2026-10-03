@@ -125,6 +125,10 @@ export const BurgEditorDialog: React.FC = () => {
                     {burgData.provinceAndState}
                   </td>
                 </tr>
+                <tr>
+                  <th scope="row">ID:</th>
+                  <td id="burgId">{burgData.id}</td>
+                </tr>
                 <tr data-tip={t("dialogs.burgEditor.nameTip")}>
                   <th scope="row">
                     <label htmlFor="burgName">{t("dialogs.burgEditor.name")}</label>
