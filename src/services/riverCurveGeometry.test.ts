@@ -42,6 +42,27 @@ function waterFor(axis: CubicRiverAxis, settings = sampling) {
 }
 
 describe("canonical cubic river axis", () => {
+  it("does not classify a rounded d3 endpoint root as an interior stop at metre scale", () => {
+    const built = buildCatmullRomRiverAxis(
+      7,
+      1,
+      [
+        [50, 40],
+        [50, 44],
+        [50, 48],
+        [50, 52],
+        [50, 56],
+        [50, 60]
+      ],
+      0.1,
+      precision
+    );
+    expect(built).toHaveProperty("axis");
+    if ("axis" in built) {
+      expect(built.axis.length).toBeCloseTo(20, 8);
+      expect(sampleCubicRiverAxis(built.axis, 10, 2)).toHaveProperty("point");
+    }
+  });
   it("integrates and inverts a known curved axis and derives its tangent analytically", () => {
     const axis = axisFor([parabola]);
     expect(axis.length).toBeCloseTo(analyticLength(1), 7);

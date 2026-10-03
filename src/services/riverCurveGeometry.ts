@@ -69,7 +69,15 @@ function hasInteriorStationaryPoint(c: RiverCubic): boolean {
       c[1][i] - c[0][i]
     )
   );
-  return roots.some(t => t > 0 && t < 1 && size(evaluateRiverCubic(c, t).derivative) <= epsilon);
+  // d3 endpoint handles may coincide with the endpoint. Solving their quadratic
+  // can move an endpoint root a few ULPs into (0, 1); it is not an interior stop.
+  const endpointRoundoff = 16 * Number.EPSILON;
+  return roots.some(t => {
+    if (t <= 0 || t >= 1) return false;
+    if (t <= endpointRoundoff && size(delta(c[1], c[0])) === 0) return false;
+    if (t >= 1 - endpointRoundoff && size(delta(c[3], c[2])) === 0) return false;
+    return size(evaluateRiverCubic(c, t).derivative) <= epsilon;
+  });
 }
 interface IntegrationBudget {
   remaining: number;
