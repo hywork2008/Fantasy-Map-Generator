@@ -63,18 +63,24 @@ function freeze<T>(value: T): T {
 export function createLandConnectionRegistry(
   baseline: ConstrainedLandNetwork,
   environment: NetworkEnvironment,
-  budgets: Budgets
+  budgets: Budgets,
+  initialRevision = 0
 ): { registry: LandConnectionRegistry } | { reason: string } {
+  if (!Number.isSafeInteger(initialRevision) || initialRevision < 0) return { reason: "invalid-revision" };
   const built = selectConstrainedLandNetwork(baseline, ids(baseline), environment, budgets);
   return "network" in built
     ? {
-        registry: new LandConnectionRegistry(built.network, {
-          maxNodes: budgets.maxNodes,
-          maxEdges: budgets.maxEdges,
-          maxCorridorPieces: budgets.maxCorridorPieces,
-          maxGuideNodes: budgets.maxGuideNodes,
-          maxGuideEdges: budgets.maxGuideEdges
-        })
+        registry: new LandConnectionRegistry(
+          built.network,
+          {
+            maxNodes: budgets.maxNodes,
+            maxEdges: budgets.maxEdges,
+            maxCorridorPieces: budgets.maxCorridorPieces,
+            maxGuideNodes: budgets.maxGuideNodes,
+            maxGuideEdges: budgets.maxGuideEdges
+          },
+          initialRevision
+        )
       }
     : built;
 }
@@ -83,9 +89,10 @@ class LandConnectionRegistry {
   private drafts = new WeakMap<LandAdoptionDraft, { request: LandAdoptionRequest; base: LandConnectionSnapshot }>();
   constructor(
     network: ConstrainedLandNetwork,
-    private readonly budgets: Budgets
+    private readonly budgets: Budgets,
+    initialRevision: number
   ) {
-    this.current = this.makeSnapshot(network, 0);
+    this.current = this.makeSnapshot(network, initialRevision);
   }
   get snapshot(): LandConnectionSnapshot {
     return this.current;

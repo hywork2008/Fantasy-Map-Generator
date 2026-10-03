@@ -15,6 +15,12 @@ import {
   selectConstrainedLandNetwork
 } from "./constrainedLandNetwork";
 import { createLandConnectionRegistry } from "./landConnectionAdoption";
+import {
+  type LandArchiveBudgets,
+  restoreRegisteredLandConnections,
+  type SavedLandConnection,
+  saveRegisteredLandConnections
+} from "./registeredLandConnectionArchive";
 import { exportRegisteredLandRouteSections } from "./registeredLandRouteSections";
 import { type CrossingCandidateInput, createProvisionalRiverCrossing } from "./riverCrossingCandidates";
 
@@ -648,6 +654,291 @@ describe("explicit selected connections and atomic session adoption", () => {
     expect(out.sections.connections[0].bidirectional).toBe(false);
     expect(out.sections.connections[0].sections).toEqual([{ kind: "land", pieces: land.corridor.pieces }]);
     expect(out.sections.connections[0].sections[0].pieces.some(p => p.kind === "arc")).toBe(true);
+  });
+  function archiveFixture() {
+    const f = adoptionFixture(true);
+    const environment = { ...f.environment, allowsBridgeFootprint: () => true };
+    const created = createLandConnectionRegistry(f.network, environment, f.input, 7);
+    if (!("registry" in created)) throw Error(created.reason);
+    const budgets: LandArchiveBudgets = {
+      maxJsonCharacters: 100000,
+      maxArcSections: 100,
+      maxFacilities: 10,
+      maxNodes: 100,
+      maxEdges: 100,
+      maxCorridorPieces: 1000,
+      maxGuideNodes: 1000,
+      maxGuideEdges: 5000
+    };
+    const current = {
+      ...f.current,
+      worldIdentity: "archive-fixture-world",
+      environment,
+      costsAt: (c: Readonly<SavedLandConnection>) => ({
+        constructionCostMeters: c.constructionCostMeters,
+        ...(c.kind === "bridge"
+          ? { useCostMeters: c.useCostMeters, approachConstructionCostMeters: c.approachConstructionCostMeters }
+          : {})
+      }),
+      edgePenaltyAt: (_id: number, _side: "land" | "A" | "B") => null as ((from: number, to: number) => number) | null
+    };
+    const saved = saveRegisteredLandConnections(created.registry.snapshot, current, budgets);
+    if (!("json" in saved)) throw Error(saved.reason);
+    const restore = (json = saved.json) => restoreRegisteredLandConnections(json, current, budgets);
+    return { ...f, registry: created.registry, current, budgets, saved, restore };
+  }
+  it("round-trips shared facilities, source contracts and revision into a freshly authenticated session", () => {
+    const f = archiveFixture(),
+      r = f.restore();
+    if (!("registry" in r)) throw Error(r.reason);
+    expect(r.registry.snapshot.revision).toBe(7);
+    expect(r.registry.snapshot.facilityIds).toEqual([5]);
+    expect(r.registry.snapshot.connectionIds).toEqual([1, 2]);
+    expect(r.registry.snapshot.network).toEqual(f.registry.snapshot.network);
+    expect(r.registry.snapshot).not.toBe(f.registry.snapshot);
+    expect(f.saved.archive.facilities).toHaveLength(1);
+    expect(f.saved.json).not.toContain('"water":');
+    expect(f.saved.json).not.toContain("supportsDryFootprint");
+    expect(Object.isFrozen(f.saved.archive)).toBe(true);
+    expect(exportRegisteredLandRouteSections(r.registry.snapshot, f.current)).toHaveProperty("sections");
+    expect(
+      findConstrainedLandRoute(r.registry.snapshot.network, {
+        startNodeId: 3,
+        goalNodeId: 2,
+        settings: f.searchSettings,
+        environment: f.current.environment,
+        paidFacilityIds: [5],
+        paidConnectionIds: [1, 2]
+      })
+    ).toHaveProperty("route");
+  });
+  it("restores exact land arcs and one-way connections", () => {
+    const f = archiveFixture(),
+      land = f.corridor(
+        [
+          [30, 0],
+          [40, 0],
+          [40, 10],
+          [30, 10]
+        ],
+        [-1, 0]
+      );
+    const built = buildConstrainedLandNetwork({
+      ...f.input,
+      nodes: [
+        { id: 1, point: [30, 0] },
+        { id: 2, point: [30, 10] }
+      ],
+      connections: [{ id: 8, kind: "land", from: 1, to: 2, bidirectional: false, land }]
+    });
+    if (!("network" in built)) throw Error();
+    const created = createLandConnectionRegistry(built.network, f.current.environment, f.input);
+    if (!("registry" in created)) throw Error();
+    const current = {
+      ...f.current,
+      nodePointAt: (id: number) => built.network.nodes.find(n => n.id === id)?.point ?? null
+    };
+    const saved = saveRegisteredLandConnections(created.registry.snapshot, current, f.budgets);
+    if (!("json" in saved)) throw Error(saved.reason);
+    const restored = restoreRegisteredLandConnections(saved.json, current, f.budgets);
+    if (!("registry" in restored)) throw Error(restored.reason);
+    expect(restored.registry.snapshot.network.edges).toHaveLength(1);
+    expect(restored.registry.snapshot.network.edges[0].pieces).toEqual(land.corridor.pieces);
+  });
+  it("refuses malformed/versioned/oversized archives before registration", () => {
+    const f = archiveFixture();
+    expect(f.restore("{")).toMatchObject({ reason: "invalid-json" });
+    expect(
+      restoreRegisteredLandConnections(f.saved.json, { ...f.current, worldIdentity: "other-world" }, f.budgets)
+    ).toMatchObject({ reason: "changed-world" });
+    expect(f.restore(JSON.stringify({ ...f.saved.archive, schemaVersion: 2 }))).toMatchObject({
+      reason: "unsupported-schema"
+    });
+    expect(f.restore(JSON.stringify({ ...f.saved.archive, coordinateUnit: "map" }))).toMatchObject({
+      reason: "unsupported-schema"
+    });
+    expect(f.restore(JSON.stringify({ ...f.saved.archive, revision: -1 }))).toMatchObject({
+      reason: "invalid-archive"
+    });
+    f.budgets.maxJsonCharacters = 10;
+    expect(f.restore()).toMatchObject({ reason: "json-budget" });
+    expect(saveRegisteredLandConnections(f.registry.snapshot, f.current, f.budgets)).toMatchObject({
+      reason: "json-budget"
+    });
+  });
+  it("checks all graph and corridor archive budgets without partial restoration", () => {
+    const f = archiveFixture();
+    for (const key of [
+      "maxNodes",
+      "maxEdges",
+      "maxCorridorPieces",
+      "maxGuideNodes",
+      "maxGuideEdges",
+      "maxArcSections"
+    ] as const) {
+      expect(restoreRegisteredLandConnections(f.saved.json, f.current, { ...f.budgets, [key]: 1 })).toMatchObject({
+        reason: "graph-budget"
+      });
+    }
+    expect(
+      restoreRegisteredLandConnections(f.saved.json, f.current, { ...f.budgets, maxFacilities: NaN })
+    ).toMatchObject({ reason: "invalid-budget" });
+    expect(f.registry.snapshot.revision).toBe(7);
+  });
+  it("rejects missing/duplicate facilities, IDs and broken contract records", () => {
+    const f = archiveFixture();
+    expect(f.restore(JSON.stringify({ ...f.saved.archive, facilities: [] }))).toMatchObject({
+      reason: "missing-facility"
+    });
+    expect(
+      f.restore(
+        JSON.stringify({
+          ...f.saved.archive,
+          facilities: [...f.saved.archive.facilities, f.saved.archive.facilities[0]]
+        })
+      )
+    ).toMatchObject({ reason: "invalid-facility" });
+    expect(
+      f.restore(
+        JSON.stringify({
+          ...f.saved.archive,
+          connections: [f.saved.archive.connections[0], f.saved.archive.connections[0]]
+        })
+      )
+    ).toMatchObject({ reason: "invalid-connection" });
+    const a = JSON.parse(f.saved.json);
+    a.connections[0].approachA.contract.nodes[0].neighbors = [999];
+    expect(f.restore(JSON.stringify(a))).toMatchObject({ reason: "invalid-corridor" });
+    a.connections[0].approachA.corridor.pieces[0] = {};
+    expect(f.restore(JSON.stringify(a))).toMatchObject({ reason: "invalid-corridor" });
+  });
+  it("refuses changed physical bridge axes, banks, versions, dimensions and plan metadata", () => {
+    const f = archiveFixture();
+    for (const change of [
+      (a: import("./registeredLandConnectionArchive").RegisteredLandConnectionArchive) => {
+        a.facilities[0].crossing.deckA[1] += 1;
+      },
+      (a: import("./registeredLandConnectionArchive").RegisteredLandConnectionArchive) => {
+        a.facilities[0].crossing.geometryVersion += 1;
+      },
+      (a: import("./registeredLandConnectionArchive").RegisteredLandConnectionArchive) => {
+        a.facilities[0].dimensions.bankSeatMeters += 1;
+      },
+      (a: import("./registeredLandConnectionArchive").RegisteredLandConnectionArchive) => {
+        a.facilities[0].crossing.banks =
+          [] as unknown as import("./registeredLandConnectionArchive").RegisteredLandConnectionArchive["facilities"][number]["crossing"]["banks"];
+      },
+      (a: import("./registeredLandConnectionArchive").RegisteredLandConnectionArchive) => {
+        a.facilities[0].crossing.plan.kind = "ferry";
+      }
+    ]) {
+      const a = JSON.parse(f.saved.json);
+      change(a);
+      expect(f.restore(JSON.stringify(a))).toMatchObject({ reason: "changed-facility" });
+    }
+    f.source.capability.depthMeters = Infinity;
+    expect(f.restore()).toMatchObject({ reason: "changed-facility" });
+  });
+  it("rechecks current endpoint positions, dry footprints and whole bridge passage", () => {
+    const f = archiveFixture();
+    expect(
+      restoreRegisteredLandConnections(f.saved.json, { ...f.current, nodePointAt: () => null }, f.budgets)
+    ).toMatchObject({ reason: "changed-nodes" });
+    f.current.environment.allowsBridgeFootprint = () => false;
+    expect(f.restore()).toMatchObject({ reason: "invalid-bridge" });
+    f.current.environment.allowsBridgeFootprint = () => true;
+    f.current.environment.supportsDryFootprint = () => false;
+    expect(f.restore()).not.toHaveProperty("registry");
+    f.current.environment.supportsDryFootprint = () => true;
+    const lake = {
+      id: 99,
+      rings: [
+        [
+          [20, -2],
+          [25, -2],
+          [25, 2],
+          [20, 2]
+        ]
+      ] as RiverPoint[][]
+    };
+    f.current.environment.water = PhysicalWaterIndex.build(
+      [f.source.geometry.water, lake],
+      new PhysicalWaterValidationCache()
+    )!;
+    expect(f.restore()).toMatchObject({ reason: "invalid-bridge" });
+    expect(f.registry.snapshot.revision).toBe(7);
+  });
+  it("requires fresh monetary and penalty contracts instead of trusting archived fees", () => {
+    const f = archiveFixture();
+    f.current.costsAt = () => ({ constructionCostMeters: 100, useCostMeters: 9, approachConstructionCostMeters: 4 });
+    const restored = f.restore();
+    if (!("registry" in restored)) throw Error(restored.reason);
+    expect(restored.registry.snapshot.network.edges[0].crossing!.useCostMeters).toBe(9);
+    expect(restored.registry.snapshot.network.edges[0].connectionConstructionCostMeters).toBe(4);
+    f.current.costsAt = () => ({ constructionCostMeters: Infinity });
+    expect(f.restore()).toMatchObject({ reason: "invalid-cost" });
+    f.current.costsAt = c => ({
+      constructionCostMeters: c.constructionCostMeters,
+      useCostMeters: 3,
+      approachConstructionCostMeters: 0
+    });
+    const a = JSON.parse(f.saved.json);
+    a.connections[0].approachA.contract.requiresEdgePenalty = true;
+    expect(f.restore(JSON.stringify(a))).toMatchObject({ reason: "missing-edge-penalty" });
+  });
+  it("rejects unknown nested fields and numeric overflow without leaking raw parser errors", () => {
+    const f = archiveFixture();
+    const a = JSON.parse(f.saved.json);
+    a.connections[0].approachA.corridor.extra = { deeply: [1, 2, 3] };
+    expect(f.restore(JSON.stringify(a))).toMatchObject({ reason: "invalid-corridor" });
+    expect(f.restore(f.saved.json.replace('"roadWidthMeters":2', '"roadWidthMeters":1e9999'))).toMatchObject({
+      reason: "invalid-archive"
+    });
+    const b = JSON.parse(f.saved.json);
+    b.nodes[0].point = [null, 0];
+    expect(f.restore(JSON.stringify(b))).toMatchObject({ reason: "invalid-node" });
+    const c = JSON.parse(f.saved.json);
+    c.connections[0].approachA.contract.settings.roadWidthMeters = 3;
+    expect(f.restore(JSON.stringify(c))).toMatchObject({ reason: "invalid-bridge" });
+    expect(
+      restoreRegisteredLandConnections(
+        f.saved.json,
+        { ...f.current, environment: { ...f.current.environment, allowsBridgeFootprint: undefined } },
+        f.budgets
+      )
+    ).toMatchObject({ reason: "missing-current-contract" });
+    expect(f.registry.snapshot.revision).toBe(7);
+  });
+  it("does not silently drop a real edge penalty or change archived corridor cost", () => {
+    const f = archiveFixture(),
+      a = JSON.parse(f.saved.json);
+    a.connections[0].approachA.contract.requiresEdgePenalty = true;
+    a.connections[0].approachA.corridor.costMeters += 2;
+    // Only connection 1 had a penalty; connection 2 must keep its own zero contract.
+    f.current.edgePenaltyAt = (id, side) => (id === 1 && side === "A" ? () => 2 : null);
+    expect(f.restore(JSON.stringify(a))).toHaveProperty("registry");
+    f.current.edgePenaltyAt = (id, side) => (id === 1 && side === "A" ? () => 3 : null);
+    expect(f.restore(JSON.stringify(a))).toMatchObject({ reason: "invalid-bridge" });
+  });
+  it("keeps archive and source immutable, accepts property reordering, and consumes no RNG", () => {
+    const f = archiveFixture(),
+      before = JSON.stringify(f.registry.snapshot),
+      json = f.saved.json;
+    const random = vi.spyOn(Math, "random").mockImplementation(() => {
+      throw Error("RNG");
+    });
+    try {
+      const a = JSON.parse(json);
+      a.facilities[0].crossing = Object.fromEntries(Object.entries(a.facilities[0].crossing).reverse());
+      expect(f.restore(JSON.stringify(a))).toHaveProperty("registry");
+      expect(JSON.stringify(f.registry.snapshot)).toBe(before);
+      expect(f.saved.json).toBe(json);
+      expect(saveRegisteredLandConnections({ ...f.registry.snapshot }, f.current, f.budgets)).toMatchObject({
+        reason: "unregistered-snapshot"
+      });
+    } finally {
+      random.mockRestore();
+    }
   });
   it("does not register a partial package when selection or assessment budgets expire", () => {
     const f = adoptionFixture(),

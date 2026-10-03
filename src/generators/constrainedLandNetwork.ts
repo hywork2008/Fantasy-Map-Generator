@@ -408,6 +408,35 @@ export function getConstrainedNetworkCrossings(
   }
   return { crossings: freeze([...crossings.values()].sort((a, b) => a.id - b.id)) };
 }
+
+/** Current source contracts for persistence. Copies retain live providers only
+ * until the archive adapter explicitly removes them; no source object is exposed. */
+export function getConstrainedNetworkConnections(
+  network: ConstrainedLandNetwork,
+  environment: NetworkEnvironment
+): { connections: readonly NetworkConnection[] } | { reason: "unvalidated-network" | "invalid-geometry" } {
+  const sources = connectionSources.get(network),
+    checks = validators.get(network);
+  if (!sources || !checks) return { reason: "unvalidated-network" };
+  if (!checks.every(check => check(environment))) return { reason: "invalid-geometry" };
+  const connections: NetworkConnection[] = [];
+  for (const source of sources.values()) {
+    const c = source(environment);
+    if (!c) return { reason: "invalid-geometry" };
+    connections.push(
+      c.kind === "land"
+        ? { ...c, land: savedCorridor(c.land) }
+        : {
+            ...c,
+            crossing: structuredClone(c.crossing),
+            crossingInput: { ...c.crossingInput },
+            approachA: savedCorridor(c.approachA),
+            approachB: savedCorridor(c.approachB)
+          }
+    );
+  }
+  return { connections };
+}
 export interface NetworkSearchSettings {
   maxLabels: number;
   maxExpansions: number;
