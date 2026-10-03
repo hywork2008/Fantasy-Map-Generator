@@ -1,4 +1,5 @@
-import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint, samplePolylineRiverAxis } from "../services/riverGeometry";
+import { sampleRiverAxis } from "../services/riverAxisSampling";
+import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "../services/riverGeometry";
 import {
   footprintTouchesWater,
   type NormalBankHit,
@@ -109,7 +110,7 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
     !input.otherWater.every(validWaterPolygon)
   )
     return { reason: "invalid-input" };
-  const sample = samplePolylineRiverAxis(geometry.axis, input.arcLengthMeters, d.localWindowMeters);
+  const sample = sampleRiverAxis(geometry.axis, input.arcLengthMeters, d.localWindowMeters);
   if (!sample) return { reason: "unstable-axis" };
   const { point: q, tangent: tRiver, normal: nCrossing } = sample;
   const section = normalWaterSection(q, nCrossing, geometry.water);

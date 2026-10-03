@@ -1,4 +1,5 @@
-import { RIVER_GEOMETRY_TOLERANCE, type RiverAxis, type RiverPoint } from "./riverGeometry";
+import type { PhysicalRiverAxis } from "./riverAxisSampling";
+import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "./riverGeometry";
 
 /** All coordinates and distances in this contract are metres. Rings are unclosed.
  * Edge i joins points[i] to points[(i+1)%length]. Null references denote caps,
@@ -16,7 +17,7 @@ export interface PhysicalWaterPolygon {
   bankReferences?: readonly (readonly (RiverBankReference | null)[])[];
 }
 export interface PhysicalRiverGeometry {
-  axis: RiverAxis;
+  axis: PhysicalRiverAxis;
   water: PhysicalWaterPolygon;
 }
 export const cross2 = (a: RiverPoint, b: RiverPoint) => a[0] * b[1] - a[1] * b[0];
@@ -128,7 +129,8 @@ export interface NormalBankHit {
 }
 /** Complete line intersections are used only to find q's immediate water interval.
  * Remote intersections are not a collision test for the finite bridge footprint.
- * Vertex hits and line-aligned boundaries are ambiguous and rejected.
+ * Transverse joins with matching bank provenance are merged; tangencies, caps,
+ * and unresolved vertex hits are rejected.
  */
 export function normalWaterSection(
   q: RiverPoint,
@@ -136,7 +138,7 @@ export function normalWaterSection(
   water: PhysicalWaterPolygon
 ): { negative: NormalBankHit; positive: NormalBankHit } | null {
   if (!pointInWater(q, water)) return null;
-  const hits: NormalBankHit[] = [];
+  const hits: (NormalBankHit & { vertex?: boolean; transverseSign?: number })[] = [];
   for (let r = 0; r < water.rings.length; r++) {
     const ring = water.rings[r];
     for (let i = 0; i < ring.length; i++) {
@@ -174,15 +176,45 @@ export function normalWaterSection(
         point: [q[0] + distance * normal[0], q[1] + distance * normal[1]],
         ringIndex: r,
         edgeIndex: i,
-        reference: interior && reference ? { ...reference } : null,
-        bankArcLength: interior && reference ? reference.arcStart + u * (reference.arcEnd - reference.arcStart) : null
+        reference: reference ? { ...reference } : null,
+        vertex: !interior,
+        transverseSign: Math.sign(denominator),
+        bankArcLength: reference ? reference.arcStart + u * (reference.arcEnd - reference.arcStart) : null
       });
     }
   }
   hits.sort((a, b) => a.distance - b.distance);
   if (hits.some(h => Math.abs(h.distance) <= epsilon)) return null;
-  const negative = hits.filter(h => h.distance < 0).at(-1),
-    positive = hits.find(h => h.distance > 0);
+  const merged: NormalBankHit[] = [];
+  for (let i = 0; i < hits.length; ) {
+    const hit = hits[i];
+    const group = [hit];
+    while (++i < hits.length && Math.abs(hits[i].distance - hit.distance) <= epsilon) group.push(hits[i]);
+    const compatible =
+      group.length === 2 &&
+      group.every(
+        h =>
+          h.vertex &&
+          h.reference &&
+          h.ringIndex === hit.ringIndex &&
+          h.reference.side === hit.reference?.side &&
+          h.transverseSign === hit.transverseSign &&
+          h.bankArcLength !== null &&
+          hit.bankArcLength !== null &&
+          Math.abs(h.bankArcLength - hit.bankArcLength) <= epsilon
+      );
+    const resolved = (group.length === 1 && !hit.vertex) || compatible;
+    merged.push({
+      distance: hit.distance,
+      point: hit.point,
+      ringIndex: hit.ringIndex,
+      edgeIndex: hit.edgeIndex,
+      reference: resolved ? hit.reference : null,
+      bankArcLength: resolved ? hit.bankArcLength : null
+    });
+  }
+  const negative = merged.filter(h => h.distance < 0).at(-1),
+    positive = merged.find(h => h.distance > 0);
   if (!negative || !positive) return null;
   return { negative, positive };
 }
