@@ -284,7 +284,8 @@ export function placeGates(
     // the SAME loop (TownGen's splice-out-the-neighbours step), so gates don't
     // bunch up when two candidate corners happen to share a bearing.
     const spacing =
-      loopLength[choice.borderIndex] / (geo.importedRoads !== undefined && target > 3 ? target * 3 : target + 1);
+      loopLength[choice.borderIndex] /
+      (geo.importedRoads !== undefined && (target > 3 || geo.riverPort) ? Math.max(1, target * 3) : target + 1);
     pool = pool.filter(
       c =>
         c.borderIndex !== choice.borderIndex ||

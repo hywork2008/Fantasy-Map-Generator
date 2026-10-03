@@ -432,7 +432,8 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
     // Imported approaches are routed from the source endpoint toward town.
     // They remain world roads without walls, and may terminate within the frame.
     if (group.sourceRoad) {
-      const outward = document.mesh.vertices[ids[0]]?.point;
+      const connection = document.riverConnections?.find(c => c.sourceIndex === group.sourceRoad!.index);
+      const outward = connection?.farRoad.at(-1) ?? document.mesh.vertices[ids[0]]?.point;
       if (outward) found.push({ group, outward, bearing: vecToAzimuth(...outward) });
       continue;
     }
@@ -477,7 +478,14 @@ export function externalRoadLabels(
   document: CityDocument
 ): Array<{ roads: ExternalGateRoad[]; destinations: ExternalGateRoad[] }> {
   return externalRoadExits(document)
-    .map(roads => {
+    .map(exit => {
+      // A landing without a far-bank road has no off-map road exit label.
+      // Complete crossings use the far road endpoint, retaining destination data.
+      const roads = exit.filter(
+        road =>
+          road.group.sourceRoad?.terminal !== "riverLanding" ||
+          document.riverConnections?.some(c => c.sourceIndex === road.group.sourceRoad?.index)
+      );
       const seen = new Set<string>();
       const destinations = roads.filter(road => {
         const value = normalizeApproachBeyond(road.group.beyond);

@@ -112,3 +112,130 @@ describe("FMG crossing handoff", () => {
     expect(siteToGeography(site).rivers[0]).toMatchObject({ bridgeAllowed: true, crossing: { kind: "movableBridge" } });
   });
 });
+
+describe("river port geometry lost to FMG clipping", () => {
+  function riverPort(width = 30) {
+    const site = synthSite("smallTown", { ...DEFAULT_SITE_CONFIG, coast: "none" }, "clipped-river-port");
+    site.burg.port = true;
+    site.burg.waterAccess = {
+      river: true,
+      sea: false,
+      lake: false,
+      riverId: 42,
+      seaFeatureIds: [],
+      lakeFeatureIds: [],
+      port: { river: true, sea: false, lake: false }
+    };
+    site.burg.riverPlacement = { riverId: 42, bank: "left", widthMeters: width };
+    site.rivers = [];
+    return site;
+  }
+  it("restores a nearby river without inventing an ocean or changing the source", () => {
+    const site = riverPort();
+    const before = JSON.stringify(site);
+    const geo = siteToGeography(site);
+    expect(geo.coast).toBeNull();
+    expect(geo.waterAreas).toHaveLength(0);
+    expect(geo.rivers).toHaveLength(1);
+    expect(geo.rivers[0].widths.length).toBeGreaterThan(2);
+    expect(geo.rivers[0].widths.every(width => width === 30)).toBe(true);
+    expect(nearestOnPolyline([0, 0], geo.rivers[0].corridor).dist).toBeLessThan(site.frame.cityRadiusMeters);
+    expect(JSON.stringify(site)).toBe(before);
+  });
+  it("keeps a 7 km river as a channel with a nearby bank and a dry town", () => {
+    const site = riverPort(7000);
+    const geo = siteToGeography(site);
+    expect(geo.rivers).toHaveLength(0);
+    expect(geo.channels).toHaveLength(1);
+    expect(pointInPolygon([0, 0], geo.channels![0].polygon)).toBe(false);
+    expect(nearestOnPolyline([0, 0], geo.channels![0].shoreline).dist).toBeCloseTo(
+      site.frame.cityRadiusMeters * 0.45,
+      0
+    );
+  });
+  it("preserves surveyed bends when moving a remote river frontage", () => {
+    const site = riverPort(40);
+    const river = synthSite(
+      "smallTown",
+      { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["straight"] },
+      "surveyed-bend"
+    ).rivers[0];
+    const half = site.frame.extentMeters / 2;
+    Object.assign(river, {
+      riverId: 42,
+      widthMeters: 40,
+      cityBank: "left",
+      axisAzimuthDeg: 90,
+      offsetMeters: 1000,
+      offsetRatio: 1000 / site.frame.cityRadiusMeters,
+      segments: [
+        {
+          points: [
+            [-half, -1000],
+            [0, -1080],
+            [half, -1000]
+          ],
+          widthsMeters: [40, 40, 40]
+        }
+      ],
+      leftBankSegments: [],
+      rightBankSegments: []
+    });
+    site.rivers = [river];
+    const before = JSON.stringify(site);
+    const points = siteToGeography(site).rivers[0].corridor;
+    expect(points).toHaveLength(3);
+    expect(points[1][1] - (points[0][1] + points[2][1]) / 2).toBeCloseTo(-80);
+    expect(JSON.stringify(site)).toBe(before);
+  });
+  it.each([
+    { limit: 1000, depth: 2, kind: "fixedBridge" },
+    { limit: 50, depth: 2, kind: "ferry" },
+    { limit: 1000, depth: null, kind: "ferry" }
+  ])("retains both road banks for $kind (limit=$limit, depth=$depth)", ({ limit, depth, kind }) => {
+    const site = riverPort(300);
+    site.historicalPeriod = "ageOfExploration";
+    site.transport = { maxBridgeCrossingMeters: limit };
+    const river = synthSite(
+      "smallTown",
+      { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["straight"] },
+      "crossing-bank"
+    ).rivers[0];
+    Object.assign(river, {
+      riverId: 42,
+      widthMeters: 300,
+      depthMeters: depth,
+      crossing: undefined,
+      axisAzimuthDeg: 90,
+      cityBank: "left",
+      segments: [],
+      leftBankSegments: [],
+      rightBankSegments: []
+    });
+    site.rivers = [river];
+    site.roads = [
+      {
+        ...site.roads[0],
+        routeId: 12,
+        group: "roads",
+        path: [
+          [0, 0],
+          [0, -site.frame.extentMeters]
+        ],
+        entryAzimuthDeg: 180
+      }
+    ];
+    const connection = siteToGeography(site, true).importedRoads![0].riverConnection!;
+    expect(connection).toBeDefined();
+    expect(connection.crossing.kind).toBe(kind);
+    expect(connection.farRoad.at(-1)![1]).toBe(-site.frame.extentMeters / 2);
+    expect(connection.banks[1][1]).toBeLessThan(connection.banks[0][1]);
+    expect(connection.townRoad.at(-1)).toEqual(connection.banks[0]);
+  });
+  it("does not infer a river from a coastal anchor", () => {
+    const site = riverPort();
+    site.burg.waterAccess!.port.river = false;
+    site.burg.waterAccess!.port.sea = true;
+    expect(siteToGeography(site).rivers).toHaveLength(0);
+  });
+});

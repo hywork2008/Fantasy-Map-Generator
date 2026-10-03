@@ -25,6 +25,7 @@ import { templeFootprintMeters } from "../core/gen/housing";
 import { convexInfillParts } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
+import { riverPortShore } from "../core/gen/riverPortShore";
 import { defaultRoadWidthMeters } from "../core/gen/settlementExtent";
 import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
@@ -756,6 +757,68 @@ export function renderEditorSvg(
       element("path", { d: line(deck.points), fill: "none", stroke: "#d5cfbf", "stroke-width": String(deck.width) })
     );
   }
+  for (const connection of document.riverConnections ?? []) {
+    const width = defaultRoadWidthMeters(document.frame.extentMeters);
+    const group = document.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
+    const vertex = group ? document.mesh.vertices[featureGroupVertices(document, group)[0]]?.point : undefined;
+    const townRoad = vertex ? [vertex, ...connection.townRoad] : connection.townRoad;
+    for (const points of [connection.farRoad, ...dryRuns(townRoad, waterPolygons(document))])
+      features.appendChild(
+        element("path", {
+          d: line(points),
+          class: "ce-river-connection-road",
+          "data-source-index": String(connection.sourceIndex),
+          fill: "none",
+          stroke: "#735238",
+          "stroke-width": String(width)
+        })
+      );
+    const bridge = ["fixedBridge", "movableBridge"].includes(connection.crossing.kind);
+    if (bridge) {
+      features.appendChild(
+        element("path", {
+          d: line(connection.banks),
+          class: "ce-bridge-outline",
+          fill: "none",
+          stroke: "#1A1917",
+          "stroke-width": String(width + 1.4)
+        })
+      );
+      features.appendChild(
+        element("path", {
+          d: line(connection.banks),
+          class: connection.crossing.kind === "movableBridge" ? "ce-bridge-deck ce-movable-bridge" : "ce-bridge-deck",
+          "data-crossing-kind": connection.crossing.kind,
+          fill: "none",
+          stroke: "#d5cfbf",
+          "stroke-width": String(width)
+        })
+      );
+    } else {
+      features.appendChild(
+        element("path", {
+          d: line(connection.banks),
+          class: "ce-ferry-route",
+          "data-crossing-kind": connection.crossing.kind,
+          fill: "none",
+          stroke: "#c8beaa",
+          "stroke-width": "1.5",
+          "stroke-dasharray": "5 5"
+        })
+      );
+      for (const p of connection.banks)
+        features.appendChild(
+          element("circle", {
+            cx: String(p[0]),
+            cy: String(-p[1]),
+            r: "5",
+            class: "ce-ferry-landing",
+            fill: "#c8beaa",
+            stroke: "#4a463c"
+          })
+        );
+    }
+  }
   features.appendChild(renderApproachLabels(document, zoom));
   if (town) {
     for (const deck of bridgeDecks(document)) {
@@ -1405,7 +1468,7 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
     }
   }
   // One shoreline per sea cell; a manually assigned ward needs no landmark.
-  const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number }>();
+  const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point }>();
   for (const edge of Object.values(document.mesh.edges)) {
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
@@ -1416,17 +1479,26 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
       continue;
     const depth = water.properties.depth ?? 3;
     if (!Number.isFinite(depth) || depth < 3) continue;
-    const a = document.mesh.vertices[edge.a].point;
-    const b = document.mesh.vertices[edge.b].point;
+    const physical = riverPortShore(document, land.id);
+    const a = physical?.a ?? document.mesh.vertices[edge.a].point;
+    const b = physical?.b ?? document.mesh.vertices[edge.b].point;
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (length < 10 || length <= (shores.get(water.id)?.length ?? 0)) continue;
-    shores.set(water.id, { a, b, ring: facePoints(document.mesh, water), length, depth });
+    shores.set(water.id, {
+      a,
+      b,
+      ring: physical?.water ?? facePoints(document.mesh, water),
+      length,
+      depth,
+      inward: physical?.inward
+    });
   }
-  for (const [waterId, { a, b, ring, length, depth }] of shores) {
+  for (const [waterId, { a, b, ring, length, depth, inward }] of shores) {
     const center = polygonCentroid(ring);
     const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
-    let normal: Point = [-tangent[1], tangent[0]];
-    if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+    let normal: Point = inward ? [-inward[0], -inward[1]] : [-tangent[1], tangent[0]];
+    if (!inward && (center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0)
+      normal = [-normal[0], -normal[1]];
     const isExploration = [
       "ageOfExploration",
       "maritimeEra",

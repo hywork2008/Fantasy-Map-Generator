@@ -1344,6 +1344,7 @@ interface Plan {
   roads: Point[][];
   roadPaths?: Point[][];
   importedRoads?: CityGeography["importedRoads"];
+  riverPort?: boolean;
   streets: Point[][];
   wards: Map<number, WardKind>;
   /** `wards`' source data, in decision order rather than sorted by cell id. Empty
@@ -1435,6 +1436,7 @@ export function runPlan(
     waterPolygon: null,
     avoidSea: streetOpts.avoidSea,
     importedRoads: geo.importedRoads,
+    riverPort: geo.riverPort,
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
@@ -2284,6 +2286,7 @@ export function runPlan(
     roads: complete ? roads : [...roads, ...gateStreets],
     roadPaths: geo.roadPaths,
     importedRoads: geo.importedRoads,
+    riverPort: geo.riverPort,
     streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
@@ -2305,6 +2308,7 @@ function planningDebugDocument(
   if (plan.mesh) next.mesh = clone(plan.mesh);
   const ids = plan.faceIdOf ?? faceIdOf;
   next.importedRoadCount = plan.importedRoads?.length;
+  next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   delete next.fabric;
@@ -2395,6 +2399,7 @@ function applyPlan(
     faceIdOf = plan.faceIdOf!;
   }
   next.importedRoadCount = plan.importedRoads?.length;
+  next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   // Keep the active morphology even when routing rejects before town finish.
@@ -2463,6 +2468,12 @@ function applyPlan(
     .map(id => faceFor(id))
     .filter(face => !!face)
     .map(face => facePoints(mesh, face));
+  const isInteriorRiverLanding = (roadIndex: number | undefined): boolean => {
+    const road = roadIndex === undefined ? undefined : plan.importedRoads?.[roadIndex];
+    if (!road?.riverLanding) return false;
+    const tip = road.path.at(-1)!;
+    return !program.walls || urbanRegions.some(region => pointInPolygon(tip, region));
+  };
 
   // ① sea
   for (const cellId of plan.sea) {
@@ -2528,11 +2539,19 @@ function applyPlan(
       if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id)) {
         if (editor === "harbor") {
           const touchesSea = faceNeighbors(mesh, face.id).some(nid => mesh.faces[nid]?.properties.water === "sea");
-          if (!touchesSea) {
+          if (
+            !touchesSea &&
+            !plan.templeHarbor.some(
+              p => p.kind === "harbor" && p.label === "River Harbour" && p.cellIds.includes(cellId)
+            )
+          ) {
             editor = "merchant";
           }
         }
         face.properties.ward = editor;
+        // A reserved harbour may be on the first dry cell beyond the compact
+        // residential core. It still needs a working quay and port buildings.
+        if (editor === "harbor" && face.properties.water === "land") face.properties.buildable = true;
         if (editor === "cemetery" || editor === "park") {
           face.properties.buildable = false;
         }
@@ -2734,7 +2753,7 @@ function applyPlan(
     const frontTotal = seaFront + landFront;
     const seaShare = frontTotal > 0 ? seaFront / frontTotal : 0;
     const gateBudget =
-      seaShare >= 0.3
+      !(plan.riverPort && plan.importedRoads !== undefined) && seaShare >= 0.3
         ? Math.max(1, Math.min(plan.gates.length, Math.round(plan.gates.length * (1 - seaShare))))
         : plan.gates.length;
     const placedPoints: Point[] = next.gates.flatMap(gate => {
@@ -2744,6 +2763,8 @@ function applyPlan(
     const tooCloseToGate = (point: Point): boolean =>
       placedPoints.some(placed => Math.hypot(placed[0] - point[0], placed[1] - point[1]) < minGateSpacing);
     plan.gates.forEach((gate, i) => {
+      if (isInteriorRiverLanding(gate.roadIndex)) return;
+
       if (townGates(next).length >= gateBudget) return;
       if (townGates(next).some(g => g.id === `${GEN_PREFIX}gate-${i}` && g.locked)) return;
       const riverVertices = new Set(
@@ -2820,7 +2841,7 @@ function applyPlan(
         const hasCoastalFace = harborFaceIds.some(fid =>
           faceNeighbors(mesh, fid).some(nid => mesh.faces[nid]?.properties.water === "sea")
         );
-        if (!hasCoastalFace) continue;
+        if (!hasCoastalFace && precinct.label !== "River Harbour") continue;
       }
       next.elements.push({
         id: `${GEN_PREFIX}${precinct.kind}`,
@@ -3026,6 +3047,32 @@ function applyPlan(
       urbanRegions,
       banReasons
     );
+    // Landing endpoints must snap to a usable dry vertex rather than a
+    // closer submerged vertex of the coarse editing mesh.
+    let routeLanding = routeComplete;
+    if (plan.importedRoads?.some(road => road.riverLanding)) {
+      const landingVertices = new Set<Id>();
+      for (const edge of Object.values(mesh.edges)) {
+        if (
+          banned.has(edge.id) ||
+          lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
+        )
+          continue;
+        for (const id of [edge.a, edge.b])
+          if (!waterPolygons(next).some(p => pointInPolygon(mesh.vertices[id].point, p))) landingVertices.add(id);
+      }
+      routeLanding = completeRoadRouter(
+        next,
+        routingPlan,
+        faceIdOf,
+        (point, allowed) =>
+          nearestAfter(point, allowed ? new Set([...allowed].filter(id => landingVertices.has(id))) : landingVertices),
+        banned,
+        !program.walls,
+        urbanRegions,
+        banReasons
+      );
+    }
     // A complete city supplies one approach road and one interior street for
     // every planned gate. Gate placement is allowed to fail (for example when
     // the matching wall run was removed at the coast), so never materialize
@@ -3036,13 +3083,25 @@ function applyPlan(
       // Approaches and the matching gate-to-plaza streets share a gate index.
       // Later streets are extras and are not paired with a planned gate.
       const gateIndex = isApproach ? i : i - approachRoadCount;
+      const plannedGate = plan.gates[gateIndex];
+      const riverLanding = isInteriorRiverLanding(plannedGate?.roadIndex);
+      const hasRiverLanding =
+        plannedGate?.roadIndex !== undefined && plan.importedRoads?.[plannedGate.roadIndex]?.riverLanding;
       const gateExists = townGates(next).some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`);
-      if (complete && program.walls && gateIndex >= 0 && gateIndex < approachRoadCount && !gateExists) return;
-      const segments = routeComplete(polyline, isApproach, false, trace => {
-        trace.routeId = `${GEN_PREFIX}road-${i}`;
-        const id = `${GEN_PREFIX}gate-${gateIndex}`;
-        gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
-      });
+      if (complete && program.walls && gateIndex >= 0 && gateIndex < approachRoadCount && !gateExists && !riverLanding)
+        return;
+      if (riverLanding && !isApproach) return;
+      const routeLine = riverLanding ? [...plan.importedRoads![plannedGate.roadIndex!].path].reverse() : polyline;
+      const segments = (hasRiverLanding ? routeLanding : routeComplete)(
+        routeLine,
+        isApproach && !riverLanding,
+        !!riverLanding,
+        trace => {
+          trace.routeId = `${GEN_PREFIX}road-${i}`;
+          const id = `${GEN_PREFIX}gate-${gateIndex}`;
+          gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
+        }
+      );
       if (segments.length < 1) return;
       if (!isApproach && program.walls) {
         const wallEdges = kindEdgeIds(next, "wall");
@@ -3091,7 +3150,10 @@ function applyPlan(
           ? {
               sourceRoad: {
                 index: plan.importedRoads[plan.gates[gateIndex].roadIndex!].sourceIndex,
-                routeId: plan.importedRoads[plan.gates[gateIndex].roadIndex!].routeId
+                routeId: plan.importedRoads[plan.gates[gateIndex].roadIndex!].routeId,
+                ...(plan.importedRoads[plan.gates[gateIndex].roadIndex!].riverLanding
+                  ? { terminal: "riverLanding" as const }
+                  : {})
               }
             }
           : {}),

@@ -186,7 +186,17 @@ export function assignWards(input: WardInputs): WardResult {
   // 2. Harbour (coast-bound) before temple so the two cannot collide.
   if (program.port) {
     if (!shoreline || shoreline.length < 2 || !waterPolygon) {
-      console.warn("port set but no waterbody");
+      // Navigable river frontage can exist without a sea/lake water polygon.
+      const lines = input.rivers ?? [];
+      const candidates = cells.filter(c => urban.has(c.id) && !sea.has(c.id) && !occupied.has(c.id));
+      const distanceToRiver = (c: Cell): number =>
+        Math.min(...lines.map(line => nearestOnPolyline(c.centroid, line).dist));
+      candidates.sort((a, b) => distanceToRiver(a) - distanceToRiver(b) || a.id - b.id);
+      const anchor = candidates[0];
+      if (anchor && distanceToRiver(anchor) <= cellSize * 1.5) {
+        extraPrecincts.push({ kind: "harbor", cellIds: [anchor.id], anchor: anchor.centroid, label: "River Harbour" });
+        take(anchor.id, "harbor");
+      }
     } else {
       const harbor = placeHarbor(cells, urban, sea, occupied, shoreline, R);
       if (harbor) {

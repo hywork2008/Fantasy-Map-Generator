@@ -193,6 +193,7 @@ interface DocPatch {
   version?: CityDocument["version"];
   castles?: CityDocument["castles"] | null;
   cemeteries?: CityDocument["cemeteries"] | null;
+  riverConnections?: CityDocument["riverConnections"] | null;
   defenseCircuits?: CityDocument["defenseCircuits"] | null;
   frame?: CityDocument["frame"];
   appearance?: CityDocument["appearance"] | null;
@@ -245,6 +246,8 @@ function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
   if (previous.version !== next.version) patch.version = next.version;
   if (!equal(previous.castles, next.castles)) patch.castles = next.castles ? clone(next.castles) : null;
+  if (!equal(previous.riverConnections, next.riverConnections))
+    patch.riverConnections = next.riverConnections ? clone(next.riverConnections) : null;
   if (!equal(previous.cemeteries, next.cemeteries)) patch.cemeteries = next.cemeteries ? clone(next.cemeteries) : null;
   if (!equal(previous.defenseCircuits, next.defenseCircuits))
     patch.defenseCircuits = next.defenseCircuits ? clone(next.defenseCircuits) : null;
@@ -292,6 +295,8 @@ function applyPatch(document: CityDocument, patch: DocPatch): void {
   if (patch.version) document.version = patch.version;
   if (patch.castles === null) delete document.castles;
   else if (patch.castles) document.castles = clone(patch.castles);
+  if (patch.riverConnections === null) delete document.riverConnections;
+  else if (patch.riverConnections) document.riverConnections = clone(patch.riverConnections);
   if (patch.cemeteries === null) delete document.cemeteries;
   else if (patch.cemeteries) document.cemeteries = clone(patch.cemeteries);
   if (patch.defenseCircuits === null) delete document.defenseCircuits;

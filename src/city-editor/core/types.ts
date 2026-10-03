@@ -156,7 +156,7 @@ export interface EdgeFeatureGroup {
   /** Set on roads that leave an outer-wall gate for the map exterior. */
   beyond?: ApproachBeyond;
   /** Source FMG land-road leg; distinguishes external approaches from local streets. */
-  sourceRoad?: { index: number; routeId: number };
+  sourceRoad?: { index: number; routeId: number; terminal?: "riverLanding" };
   /** River-through-wall passages; distinct from gates that require road access. */
   riverPassages?: Id[];
 }
@@ -360,6 +360,14 @@ export interface CityDocument {
   importedRoadCount?: number;
   /** Continuous imported water, independent of the editable street-block mesh. */
   waterAreas?: { kind: "river"; polygon: Point[] }[];
+  /** Exact imported road legs across physical water, outside the block mesh. */
+  riverConnections?: {
+    sourceIndex: number;
+    farRoad: Point[];
+    townRoad: Point[];
+    banks: [Point, Point];
+    crossing: import("../../utils/riverCrossing").RiverCrossingPlan;
+  }[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];

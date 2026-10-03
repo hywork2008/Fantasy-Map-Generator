@@ -5,6 +5,7 @@ import { buildBlockFabric } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
 import { distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
+import { riverPortShore } from "./riverPortShore";
 
 const GEN_PREFIX = "gc:";
 
@@ -154,7 +155,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
   // (2) fabric.harbor に桟橋がない場合（デフォルト生成等）、svg.ts と同一のメッシュ岸辺から桟橋を抽出
   if (!knownPiers.length) {
-    const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number }>();
+    const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point }>();
     for (const edge of Object.values(document.mesh.edges)) {
       const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
       const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
@@ -165,18 +166,27 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
         continue;
       const depth = water.properties.depth ?? 3;
       if (!Number.isFinite(depth) || depth < 3) continue;
-      const a = document.mesh.vertices[edge.a].point;
-      const b = document.mesh.vertices[edge.b].point;
+      const physical = riverPortShore(document, land.id);
+      const a = physical?.a ?? document.mesh.vertices[edge.a].point;
+      const b = physical?.b ?? document.mesh.vertices[edge.b].point;
       const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (length < 10 || length <= (shores.get(water.id)?.length ?? 0)) continue;
-      shores.set(water.id, { a, b, ring: facePoints(document.mesh, water), length, depth });
+      shores.set(water.id, {
+        a,
+        b,
+        ring: physical?.water ?? facePoints(document.mesh, water),
+        length,
+        depth,
+        inward: physical?.inward
+      });
     }
 
-    for (const [waterId, { a, b, ring, length, depth }] of shores) {
+    for (const [waterId, { a, b, ring, length, depth, inward }] of shores) {
       const center = polygonCentroid(ring);
       const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
-      let normal: Point = [-tangent[1], tangent[0]];
-      if ((center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0) normal = [-normal[0], -normal[1]];
+      let normal: Point = inward ? [-inward[0], -inward[1]] : [-tangent[1], tangent[0]];
+      if (!inward && (center[0] - a[0]) * normal[0] + (center[1] - a[1]) * normal[1] < 0)
+        normal = [-normal[0], -normal[1]];
       const count = length >= 50 ? 2 : 1;
       const width = Math.min(exploration ? 6.2 : 5.2, Math.max(exploration ? 4.8 : 4.0, length * 0.16));
       const fractions = count === 2 ? [0.28, 0.72] : [0.5];

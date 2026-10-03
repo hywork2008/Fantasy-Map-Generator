@@ -16,6 +16,7 @@ import {
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
+import { planHarbor } from "./harborFabric";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
 import { insetConvexKernel } from "./lotGeometry";
@@ -106,7 +107,19 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
       buildMedievalFabric(source, buildLegacyBlockFabric(medievalStreetDocument(source), cache))
     );
   }
-  return finishCoastalBuildings(document, buildLegacyBlockFabric(source, cache));
+  const base = buildLegacyBlockFabric(source, cache);
+  if (!document.waterAccess?.port.river) return finishCoastalBuildings(document, base);
+  const streets = base.lanes.flatMap(l =>
+    l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
+  );
+  const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
+  const harbor = planHarbor(document, streets, barriers);
+  return finishCoastalBuildings(document, {
+    ...base,
+    buildings: base.buildings.filter(b => !harbor.spaces.some(s => polygonOverlaps(b.polygon, s.polygon))),
+    openSpaces: [...(base.openSpaces ?? []), ...harbor.spaces],
+    harbor
+  });
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {

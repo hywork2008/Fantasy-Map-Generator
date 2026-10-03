@@ -238,6 +238,8 @@ export interface Snapshot {
  * along them, so the fine shape (and where it exits) is graph-derived, not
  * authored. Built from a BurgSiteDescriptor (site/siteInput.ts) or empty. */
 export interface CityGeography {
+  /** Explicit FMG river-port topology, independent of clipped shore geometry. */
+  riverPort?: boolean;
   coast: { corridor: Point[]; waterAzimuthDeg: number } | null;
   rivers: {
     corridor: Point[];
@@ -265,7 +267,13 @@ export interface CityGeography {
   /** Road centre-lines, used by S4 to choose the corresponding gates. */
   roadPaths?: Point[][];
   /** Present (including []) only for strict FMG road hand-off. */
-  importedRoads?: { sourceIndex: number; routeId: number; path: Point[] }[];
+  importedRoads?: {
+    sourceIndex: number;
+    routeId: number;
+    path: Point[];
+    riverLanding?: boolean;
+    riverConnection?: NonNullable<import("../types").CityDocument["riverConnections"]>[number];
+  }[];
   /** FMG's desired number of land gates. Falls back to road bearings when absent. */
   suggestedGates?: number;
 }
