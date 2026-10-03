@@ -229,8 +229,10 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
   const local = arcLength - segment.arcStart;
   const leaf = segment.leaves.find(l => local <= l.arcStart + l.length) ?? segment.leaves.at(-1)!;
   const target = local - leaf.arcStart;
-  let t = target <= 0 ? leaf.t0 : target >= leaf.length ? leaf.t1 : (leaf.t0 + leaf.t1) / 2;
-  if (target > 0 && target < leaf.length) {
+  const atStart = arcLength === segment.arcStart;
+  const atEnd = arcLength === axis.length || arcLength === segment.arcStart + segment.length;
+  let t = atStart ? 0 : atEnd ? 1 : target <= 0 ? leaf.t0 : target >= leaf.length ? leaf.t1 : (leaf.t0 + leaf.t1) / 2;
+  if (!atStart && !atEnd && target > 0 && target < leaf.length) {
     let lo = leaf.t0,
       hi = leaf.t1;
     const budget: IntegrationBudget = { remaining: axis.precision.maxEvaluations, failed: false };

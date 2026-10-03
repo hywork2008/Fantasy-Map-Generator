@@ -12,6 +12,7 @@ import type { River } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import { TIME, WARN } from "../utils/debug";
+import { meanderRiverPoints, physicalRiverWidth, riverDisplayOffset } from "../utils/riverShape";
 import { Lakes } from "./lakes";
 import { Names } from "./names-generator";
 import { refreshRiverHydrology } from "./riverHydrology";
@@ -31,9 +32,6 @@ class RiverModule {
   appServices: AppServices = appServices;
   private FLUX_FACTOR = 500;
   private MAX_FLUX_WIDTH = 1;
-  private LENGTH_FACTOR = 200;
-  private LENGTH_STEP_WIDTH = 1 / this.LENGTH_FACTOR;
-  private LENGTH_PROGRESSION = [1, 1, 2, 3, 5, 8, 13, 21, 34].map(n => n / this.LENGTH_FACTOR);
   private lineGen = line().curve(curveBasis);
 
   riverTypes = {
@@ -393,54 +391,11 @@ class RiverModule {
     riverPoints: Point[] | null = null,
     meandering = 0.5
   ): [number, number, number][] {
-    const { pack } = this.worldContext;
-    const { fl, h } = pack.cells;
-    const meandered = [];
-    const points = this.getRiverPoints(riverCells, riverPoints);
-    const lastStep = points.length - 1;
-    let step = h[riverCells[0]] < 20 ? 1 : 10;
-
-    for (let i = 0; i <= lastStep; i++, step++) {
-      const cell = riverCells[i];
-      const isLastCell = i === lastStep;
-
-      const [x1, y1] = points[i];
-
-      meandered.push([x1, y1, fl[cell]]);
-      if (isLastCell) break;
-
-      const nextCell = riverCells[i + 1];
-      const [x2, y2] = points[i + 1];
-
-      if (nextCell === -1) {
-        meandered.push([x2, y2, fl[cell]]);
-        break;
-      }
-
-      const dist2 = (x2 - x1) ** 2 + (y2 - y1) ** 2; // square distance between cells
-      if (dist2 <= 25 && riverCells.length >= 6) continue;
-
-      const meander = meandering + 1 / step + Math.max(meandering - step / 100, 0);
-      const angle = Math.atan2(y2 - y1, x2 - x1);
-      const sinMeander = Math.sin(angle) * meander;
-      const cosMeander = Math.cos(angle) * meander;
-
-      if (step < 20 && (dist2 > 64 || (dist2 > 36 && riverCells.length < 5))) {
-        // if dist2 is big or river is small add extra points at 1/3 and 2/3 of segment
-        const p1x = (x1 * 2 + x2) / 3 + -sinMeander;
-        const p1y = (y1 * 2 + y2) / 3 + cosMeander;
-        const p2x = (x1 + x2 * 2) / 3 + sinMeander / 2;
-        const p2y = (y1 + y2 * 2) / 3 - cosMeander / 2;
-        meandered.push([p1x, p1y, 0], [p2x, p2y, 0]);
-      } else if (dist2 > 25 || riverCells.length < 6) {
-        // if dist is medium or river is small add 1 extra middlepoint
-        const p1x = (x1 + x2) / 2 + -sinMeander;
-        const p1y = (y1 + y2) / 2 + cosMeander;
-        meandered.push([p1x, p1y, 0]);
-      }
-    }
-
-    return meandered as [number, number, number][];
+    const { fl, h } = this.worldContext.pack.cells;
+    return meanderRiverPoints(
+      { cells: riverCells, points: this.getRiverPoints(riverCells, riverPoints), flux: fl, heights: h },
+      meandering
+    );
   }
 
   /**
@@ -458,7 +413,7 @@ class RiverModule {
     return h[firstCell] < h[lastCell] ? [...riverCells].reverse() : [...riverCells];
   }
 
-  getRiverPoints(riverCells: number[], riverPoints: [number, number][] | null) {
+  getRiverPoints(riverCells: number[], riverPoints: [number, number][] | null): [number, number][] {
     const { pack } = this.worldContext;
     if (riverPoints) return riverPoints;
 
@@ -469,7 +424,7 @@ class RiverModule {
     });
   }
 
-  getBorderPoint(i: number) {
+  getBorderPoint(i: number): [number, number] {
     const { pack } = this.worldContext;
     const [x, y] = pack.cells.p[i];
     const min = Math.min(y, worldContext.graphHeight - y, x, worldContext.graphWidth - x);
@@ -490,13 +445,7 @@ class RiverModule {
     widthFactor: number;
     startingWidth: number;
   }) {
-    if (pointIndex === 0) return startingWidth;
-
-    const fluxWidth = Math.min(flux ** 0.7 / this.FLUX_FACTOR, this.MAX_FLUX_WIDTH);
-    const lengthWidth =
-      pointIndex * this.LENGTH_STEP_WIDTH +
-      (this.LENGTH_PROGRESSION[pointIndex] || (this.LENGTH_PROGRESSION.at(-1) as number));
-    return widthFactor * (lengthWidth + fluxWidth) + startingWidth;
+    return riverDisplayOffset({ flux, pointIndex, widthFactor, startingWidth });
   }
 
   getSourceWidth(flux: number) {
@@ -589,7 +538,7 @@ class RiverModule {
   // Real mouth width examples: Amazon 6000m, Volga 6000m, Dniepr 3000m, Mississippi 1300m, Themes 900m,
   // Danube 800m, Daugava 600m, Neva 500m, Nile 450m, Don 400m, Wisla 300m, Pripyat 150m, Bug 140m, Muchavets 40m
   getWidth(offset: number) {
-    return rn((offset / 1.5) ** 1.8, 2); // mouth width in km
+    return physicalRiverWidth(offset); // width in configured map-distance units
   }
 
   // remove river and all its tributaries; returns IDs of removed rivers for SVG cleanup
