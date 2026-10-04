@@ -13,7 +13,16 @@ interface Section {
   id: number;
   bounds: SpatialBounds;
 }
-type Patch = { geometry: PhysicalRiverGeometry; sampleCount: number } | { reason: string };
+type Patch =
+  | {
+      geometry: PhysicalRiverGeometry;
+      sampleCount: number;
+      l: RiverPoint[];
+      r: RiverPoint[];
+      lr: RiverBankReference[];
+      rr: RiverBankReference[];
+    }
+  | { reason: string };
 export interface RegionalRiverSuccess {
   geometry: PhysicalRiverGeometry;
   geometryVersion: number;
@@ -65,7 +74,7 @@ export class RegionalRiverGeometry {
     else {
       // Preserve the evaluator tolerance of the full reference axis.
       built.axis.precision = { ...this.settings.precision };
-      result = buildPhysicalRiverGeometry(
+      const builtPhysical = buildPhysicalRiverGeometry(
         built.axis,
         [
           { arcLengthMeters: 0, widthMeters: this.source.widths[id] },
@@ -73,15 +82,29 @@ export class RegionalRiverGeometry {
         ],
         this.settings.banks
       );
-    }
-    if ("geometry" in result) {
-      const water = result.geometry.water;
-      for (const ring of water.rings) {
-        for (const p of ring) Object.freeze(p);
-        Object.freeze(ring);
+      if (!("geometry" in builtPhysical)) result = builtPhysical;
+      else {
+        const water = builtPhysical.geometry.water;
+        for (const ring of water.rings) {
+          for (const p of ring) Object.freeze(p);
+          Object.freeze(ring);
+        }
+        Object.freeze(water.rings);
+        Object.freeze(water);
+        const ring = water.rings[0];
+        const refs = water.bankReferences![0];
+        const split = refs.indexOf(null);
+        const l = ring.slice(0, split + 1);
+        const r = ring.slice(split + 1).toReversed();
+        if (r.length < l.length) r.unshift(l[0]);
+        const lr = refs.slice(0, split).map(ref => ({ ...ref! }));
+        const rr = refs
+          .slice(split + 1)
+          .filter((ref): ref is RiverBankReference => !!ref)
+          .toReversed()
+          .map(ref => ({ ...ref }));
+        result = { ...builtPhysical, l, r, lr, rr };
       }
-      Object.freeze(water.rings);
-      Object.freeze(water);
     }
     this.patches.set(id, result);
     return result;
@@ -127,7 +150,9 @@ export class RegionalRiverGeometry {
       runEnd = -1;
     const flush = () => {
       if (!left.length) return;
-      const tip = Math.hypot(left[0][0] - right[0][0], left[0][1] - right[0][1]) <= 1e-9;
+      const dx = left[0][0] - right[0][0],
+        dy = left[0][1] - right[0][1];
+      const tip = dx * dx + dy * dy <= 1e-18;
       const ring = [...left, ...right.toReversed()];
       const refs: (RiverBankReference | null)[] = [...leftRefs, null, ...rightRefs.toReversed(), null];
       if (tip) {
@@ -155,35 +180,28 @@ export class RegionalRiverGeometry {
       vertices += patch.geometry.water.rings.reduce((n, ring) => n + ring.length, 0);
       if (vertices > 20000) return { reason: "region-budget", bounds: coverage };
       const axis = patch.geometry.axis as CubicRiverAxis;
-      const ring = patch.geometry.water.rings[0];
-      const refs = patch.geometry.water.bankReferences![0];
-      const split = refs.indexOf(null);
-      const l = ring.slice(0, split + 1);
-      const r = ring.slice(split + 1).toReversed();
-      if (r.length < l.length) r.unshift(l[0]);
-      const lr = refs
-        .slice(0, split)
-        .map(ref => ({ ...ref!, arcStart: ref!.arcStart + length, arcEnd: ref!.arcEnd + length }));
-      const rr = refs
-        .slice(split + 1)
-        .filter((ref): ref is RiverBankReference => !!ref)
-        .toReversed()
-        .map(ref => ({ ...ref, arcStart: ref.arcStart + length, arcEnd: ref.arcEnd + length }));
+      const l = patch.l;
+      const r = patch.r;
+      const lr = patch.lr.map(ref => ({ ...ref, arcStart: ref.arcStart + length, arcEnd: ref.arcEnd + length }));
+      const rr = patch.rr.map(ref => ({ ...ref, arcStart: ref.arcStart + length, arcEnd: ref.arcEnd + length }));
       if (!left.length) {
         runStart = id;
-        left = l;
-        right = r;
+        left = [...l];
+        right = [...r];
       } else {
-        if (
-          Math.hypot(left.at(-1)![0] - l[0][0], left.at(-1)![1] - l[0][1]) > 1e-6 ||
-          Math.hypot(right.at(-1)![0] - r[0][0], right.at(-1)![1] - r[0][1]) > 1e-6
-        )
+        const lastL = left[left.length - 1],
+          lastR = right[right.length - 1];
+        const dlx = lastL[0] - l[0][0],
+          dly = lastL[1] - l[0][1];
+        const drx = lastR[0] - r[0][0],
+          dry = lastR[1] - r[0][1];
+        if (dlx * dlx + dly * dly > 1e-12 || drx * drx + dry * dry > 1e-12)
           return { reason: "unstable-axis", bounds: this.sections[id].bounds };
-        left.push(...l.slice(1));
-        right.push(...r.slice(1));
+        for (let k = 1; k < l.length; k++) left.push(l[k]);
+        for (let k = 1; k < r.length; k++) right.push(r[k]);
       }
-      leftRefs.push(...lr);
-      rightRefs.push(...rr);
+      for (let k = 0; k < lr.length; k++) leftRefs.push(lr[k]);
+      for (let k = 0; k < rr.length; k++) rightRefs.push(rr[k]);
       segments.push(...axis.segments.map(segment => ({ ...segment, index: id, arcStart: segment.arcStart + length })));
       length += axis.length;
       runEnd = id;
@@ -203,7 +221,6 @@ export class RegionalRiverGeometry {
       water
     };
     for (const ring of rings) {
-      for (const p of ring) Object.freeze(p);
       Object.freeze(ring);
     }
     Object.freeze(rings);

@@ -5,12 +5,14 @@ import { worldContext } from "../../context/worldContext";
 import { bindSimulationBurgState } from "../../runtime/simulationBurgState";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
+import { evaluateRiverCubic, type RiverCubic } from "../../services/riverCurveGeometry";
 import { pointInWater } from "../../services/riverPhysicalGeometry";
 import type { FixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { shareFromDescriptor } from "../io/incomingCity";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderStandaloneCitySvg } from "../render/svg";
 import { createGridDocument, descriptorFrameGridOptions, townMeshExtentMeters } from "./document";
+import { frameRoadConnectedToTown } from "./frameRoadConnection";
 import { type FrameRoadLeg, frameRoadLegs } from "./frameRoads";
 import type { BurgSiteDescriptor, BurgSiteRoadEntry } from "./gen/site/burgSiteDescriptor";
 import { importedRoadsForSite } from "./gen/site/importedRoads";
@@ -427,12 +429,16 @@ describe.skipIf(!existsSync(archive))("Tverdur frame roads", () => {
     });
     Object.assign(worldContext, validated.document.world);
     bindSimulationBurgState(worldContext, validated.document.simulation);
+    const routeIds = worldContext.pack.routes.map(route => route.i);
     const site = getBurgSiteDescriptor(98);
+    expect(worldContext.pack.routes.map(route => route.i)).toEqual(routeIds);
     expect(site?.burg.name).toBe("Tverdur");
     if (!site) return;
     const legs = frameRoadLegs(site, "beyond-mesh");
     const land = site.roads.flatMap((road, sourceIndex) =>
-      road.group === "searoutes" ? [] : [{ sourceIndex, routeId: road.routeId, end: road.path.at(-1)! }]
+      road.group === "searoutes"
+        ? []
+        : [{ sourceIndex, routeId: road.routeId, end: road.sharedBranches?.[0]?.path.at(-1) ?? road.path.at(-1)! }]
     );
     expect(land.length).toBeGreaterThanOrEqual(3);
     for (const road of land) {
@@ -441,34 +447,17 @@ describe.skipIf(!existsSync(archive))("Tverdur frame roads", () => {
       const end = leg!.pieces.at(-1)!.points.at(-1)!;
       expect(Math.hypot(end[0] - road.end[0], end[1] - road.end[1]), `route ${road.routeId}`).toBeLessThanOrEqual(25);
     }
-    const crossing = bridges(legs).filter(span => span.leg.routeId === 24);
+    const crossing = site.fixedCrossings!.crossings;
     expect(crossing).toHaveLength(1);
-    const [a, b] = crossing[0].piece.points;
-    const deck: Point = [b[0] - a[0], b[1] - a[1]];
-    const deckLength = Math.hypot(deck[0], deck[1]);
-    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const river = site.fixedCrossings!.rivers[0];
-    expect(pointInWater(mid, river)).toBe(true);
-    const center = site.rivers.find(item => item.riverId === river.id)!;
-    let tangent: Point = [1, 0];
-    let nearest = Infinity;
-    for (const segment of center.segments)
-      for (let i = 1; i < segment.points.length; i++) {
-        const start = segment.points[i - 1],
-          finish = segment.points[i];
-        const edge: Point = [finish[0] - start[0], finish[1] - start[1]];
-        const length = Math.hypot(edge[0], edge[1]);
-        if (!length) continue;
-        const raw = ((mid[0] - start[0]) * edge[0] + (mid[1] - start[1]) * edge[1]) / (length * length);
-        const t = Math.max(0, Math.min(1, raw));
-        const closest: Point = [start[0] + edge[0] * t, start[1] + edge[1] * t];
-        const gap = Math.hypot(closest[0] - mid[0], closest[1] - mid[1]);
-        if (gap < nearest) {
-          nearest = gap;
-          tangent = [edge[0] / length, edge[1] / length];
-        }
-      }
-    expect(Math.abs((deck[0] / deckLength) * tangent[0] + (deck[1] / deckLength) * tangent[1])).toBeLessThan(1e-6);
+    expect(bridges(legs)).toHaveLength(0);
+    const c = crossing[0];
+    expect(c.witness.kind).toBe("cubic");
+    const derivative = evaluateRiverCubic(c.witness.controls as unknown as RiverCubic, c.witness.parameter).derivative;
+    const deck: Point = [c.deckB[0] - c.deckA[0], c.deckB[1] - c.deckA[1]];
+    expect(
+      Math.abs((deck[0] * derivative[0] + deck[1] * derivative[1]) / (Math.hypot(...deck) * Math.hypot(...derivative)))
+    ).toBeLessThan(1e-9);
+    expect(pointInWater(c.q, site.fixedCrossings!.rivers[0])).toBe(true);
     const share = shareFromDescriptor(site);
     const document = createGridDocument({
       size: share.size,
@@ -484,7 +473,10 @@ describe.skipIf(!existsSync(archive))("Tverdur frame roads", () => {
     expect(city).not.toBeNull();
     const drawn = renderStandaloneCitySvg(city!);
     expect(drawn.querySelectorAll(".ce-frame-road").length).toBeGreaterThanOrEqual(3);
-    expect(drawn.querySelectorAll("[data-frame-bridge]").length).toBe(1);
-    expect(drawn.querySelector("[data-frame-bridge]")!.getAttribute("stroke-linecap")).toBe("butt");
+    expect(drawn.querySelectorAll("[data-facility-id]")).toHaveLength(1);
+    expect(drawn.querySelectorAll("[data-frame-bridge]")).toHaveLength(0);
+    expect(drawn.querySelectorAll("[data-frame-connection]")).toHaveLength(3);
+    for (const leg of city!.frameRoads!)
+      expect(frameRoadConnectedToTown(city!, leg), `route ${leg.routeId}`).toBe(true);
   }, 60_000);
 });

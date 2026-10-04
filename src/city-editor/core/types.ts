@@ -367,6 +367,7 @@ export interface CityDocument {
   frameRoads?: {
     sourceIndex: number;
     routeId: number;
+    branchIndex?: number;
     pieces: {
       kind: "road" | "bridge";
       points: Point[];

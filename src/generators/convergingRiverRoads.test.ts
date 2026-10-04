@@ -82,9 +82,17 @@ describe("FMG city-side river road convergence", () => {
     )!;
     expect(result.legs.map(leg => leg.id)).toEqual([0, 1, 2]);
   });
-  it("does not borrow an unvalidated crossing or create a bridge for one leg", () => {
+  it("preserves a lone crossing road with the same certified bridge contract", () => {
+    const result = convergeRiverRoadLegs([-50, 0], [legs[0]], [plan()], 100)!;
+    expect(result.legs).toHaveLength(1);
+    expect(result.legs[0].points.at(-1)).toEqual(legs[0].points.at(-1));
+    expect(result.trunk.slice(2, 4)).toEqual([
+      [-6, 0],
+      [6, 0]
+    ]);
+  });
+  it("does not borrow an unvalidated crossing", () => {
     const candidate = plan();
-    expect(convergeRiverRoadLegs([-50, 0], [legs[0]], [candidate], 100)).toBeNull();
     candidate.crossing.deckA = [6, 1];
     expect(convergeRiverRoadLegs([-50, 0], legs, [candidate], 100)).toBeNull();
   });
@@ -107,5 +115,30 @@ describe("FMG city-side river road convergence", () => {
     const blocked = plan();
     blocked.input.supportsDryFootprint = () => false;
     expect(convergeRiverRoadLegs([-50, 0], legs, [blocked], 100)).toBeNull();
+  });
+  it("moves a lone road to a nearby perpendicular section when its direct approach hits a lake", () => {
+    const source = input();
+    source.otherWater = [
+      {
+        id: 8,
+        rings: [
+          [
+            [-35, -5],
+            [-25, -5],
+            [-25, 5],
+            [-35, 5]
+          ]
+        ]
+      }
+    ];
+    const nearby = { ...source, arcLengthMeters: 130 };
+    const result = convergeRiverRoadLegs([-50, 0], [legs[1]], [plan(source), plan(nearby)], 100)!;
+    expect(result).not.toBeNull();
+    expect(result.crossing.q).toEqual([0, 30]);
+    expect(result.trunk.slice(2, 4)).toEqual([
+      [-6, 30],
+      [6, 30]
+    ]);
+    expect(result.legs[0].points.at(-1)).toEqual([50, 0]);
   });
 });

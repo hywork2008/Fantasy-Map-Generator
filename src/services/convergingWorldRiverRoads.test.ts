@@ -81,6 +81,29 @@ function fixture() {
 }
 afterEach(() => vi.restoreAllMocks());
 describe("committed FMG shared bridge geometry", () => {
+  it("commits a single crossing without removing routes, destinations or same-bank roads", () => {
+    const world = fixture();
+    world.pack.routes = [
+      world.pack.routes[0],
+      {
+        i: 9,
+        group: "roads",
+        points: [
+          [-50, 0, 0],
+          [-60, 50, 2]
+        ]
+      } as never
+    ];
+    const before = structuredClone(world.pack.routes);
+    const prepared = ensureConvergingWorldRiverRoads(world, "km");
+    expect(prepared.facilities).toHaveLength(1);
+    expect(prepared.changedRoutes).toEqual([0]);
+    expect(world.pack.routes.map(r => r.i)).toEqual(before.map(r => r.i));
+    expect(world.pack.routes[0].points[0]).toEqual(before[0].points[0]);
+    expect(world.pack.routes[0].points.at(-1)).toEqual(before[0].points.at(-1));
+    expect(world.pack.routes[1]).toEqual(before[1]);
+    expect(convergedBurgCrossings(world, "km", world.pack.burgs[1])?.crossings).toHaveLength(1);
+  });
   it("commits once, exports the same normal section to CE and renders without smoothing or cell snapping", () => {
     const world = fixture();
     const prepared = ensureConvergingWorldRiverRoads(world, "km");
@@ -122,5 +145,47 @@ describe("committed FMG shared bridge geometry", () => {
     expect(world.pack.routes[0].points).toEqual(original);
     expect(world.pack.routes[0].cells).toEqual([0, 1]);
     expect(world.pack.routes[0].riverRoadConvergence).toBeUndefined();
+  });
+  it("keeps separate necessary crossings when a lake prevents sharing the far-bank arms", () => {
+    const world = fixture();
+    world.pack.routes = [-80, 80].map((y, i) => ({
+      i,
+      group: "roads",
+      points: [
+        [-50, 0, 0],
+        [50, y, i + 1]
+      ]
+    })) as never;
+    world.pack.cells.h[1] = 10;
+    vi.mocked(SettlementGeometrySession.prototype.terrain).mockReturnValue([
+      {
+        id: 0,
+        ring: [
+          [-2000, -2000],
+          [2000, -2000],
+          [2000, 2000],
+          [-2000, 2000]
+        ]
+      },
+      {
+        id: 1,
+        ring: [
+          [20, -20],
+          [35, -20],
+          [35, 20],
+          [20, 20]
+        ]
+      }
+    ]);
+    const endpoints = world.pack.routes.map(r => r.points.at(-1));
+    const prepared = ensureConvergingWorldRiverRoads(world, "km");
+    expect(prepared.facilities).toHaveLength(2);
+    expect(new Set(prepared.facilities.map(f => f.crossing.id)).size).toBe(2);
+    expect(world.pack.routes.map(r => r.points.at(-1))).toEqual(endpoints);
+    const exported = convergedBurgCrossings(world, "km", world.pack.burgs[1])!;
+    expect(exported.crossings).toHaveLength(2);
+    expect(exported.rivers).toHaveLength(1);
+    expect(exported.obstacles).toHaveLength(1);
+    expect(validFixedBurgCrossings(exported, FIXED_SITE_CROSSING_BUDGETS)).toBe(true);
   });
 });

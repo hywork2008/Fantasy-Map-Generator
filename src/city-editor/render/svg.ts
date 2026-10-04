@@ -10,7 +10,7 @@ import {
   reservedCastleFaces,
   wallRunsOutsideGates
 } from "../core/fortifications";
-import { segmentClearsSurveyedWater } from "../core/frameRoads";
+import { frameRoadTownConnection } from "../core/frameRoadConnection";
 import {
   approachBeyondAnchor,
   approachBeyondLabel,
@@ -2679,19 +2679,26 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
   const legs = document.frameRoads;
   if (!legs?.length) return;
   const width = String(defaultRoadWidthMeters(townExtentMeters(document.frame)));
-  const rings = [
-    ...(document.importedFixedCrossings?.rivers ?? []),
-    ...(document.importedFixedCrossings?.obstacles ?? [])
-  ].map(river => river.rings);
   for (const leg of legs) {
-    const anchor = outerSourcePoint(document, leg.sourceIndex);
-    for (const [index, piece] of leg.pieces.entries()) {
-      let points = piece.points;
-      if (index === 0 && piece.kind === "road" && anchor && points.length) {
-        const gap = Math.hypot(anchor[0] - points[0][0], anchor[1] - points[0][1]);
-        if (gap > 0.5 && gap <= 40 && segmentClearsSurveyedWater(anchor, points[0], rings))
-          points = [anchor, ...points];
-      }
+    const connection = frameRoadTownConnection(document, leg);
+    if (connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5)
+      parent.appendChild(
+        element("path", {
+          d: line(connection),
+          class: "ce-frame-road",
+          "data-frame-road": String(leg.routeId),
+          "data-source-index": String(leg.sourceIndex),
+          "data-route-id": String(leg.routeId),
+          "data-frame-connection": "true",
+          fill: "none",
+          stroke: "#735238",
+          "stroke-width": width,
+          "stroke-linecap": "butt",
+          "pointer-events": "none"
+        })
+      );
+    for (const piece of leg.pieces) {
+      const points = piece.points;
       if (points.length < 2) continue;
       const identity = {
         "data-source-index": String(leg.sourceIndex),
@@ -2699,23 +2706,6 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
         "pointer-events": "none"
       };
       if (piece.kind === "bridge") {
-        if (index === 0 && anchor && points.length) {
-          const gap = Math.hypot(anchor[0] - points[0][0], anchor[1] - points[0][1]);
-          if (gap > 0.5 && gap <= 40 && segmentClearsSurveyedWater(anchor, points[0], rings)) {
-            parent.appendChild(
-              element("path", {
-                d: line([anchor, points[0]]),
-                class: "ce-frame-road",
-                "data-frame-road": String(leg.routeId),
-                fill: "none",
-                stroke: "#735238",
-                "stroke-width": width,
-                "stroke-linecap": "butt",
-                ...identity
-              })
-            );
-          }
-        }
         parent.appendChild(
           element("path", {
             d: line(points),
@@ -2755,24 +2745,6 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
       );
     }
   }
-}
-
-function outerSourcePoint(document: CityDocument, sourceIndex: number): Point | undefined {
-  let best: Point | undefined;
-  let bestD = -1;
-  for (const group of document.featureGroups) {
-    if (group.kind !== "road" || group.sourceRoad?.index !== sourceIndex) continue;
-    for (const id of featureGroupVertices(document, group)) {
-      const point = document.mesh.vertices[id]?.point;
-      if (!point) continue;
-      const d = point[0] * point[0] + point[1] * point[1];
-      if (d > bestD) {
-        bestD = d;
-        best = point;
-      }
-    }
-  }
-  return best;
 }
 
 function centroid(points: Point[]): Point {

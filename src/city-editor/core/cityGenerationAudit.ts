@@ -1,5 +1,7 @@
 import { parseIncomingPayload } from "../io/incomingCity";
 import { featureGroupVertices } from "./features";
+import { frameRoadConnectedToTown } from "./frameRoadConnection";
+import { frameRoadTarget } from "./frameRoads";
 import { defaultRoadWidthMeters, townExtentMeters } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { importedRoadsForSite } from "./gen/site/importedRoads";
@@ -82,31 +84,45 @@ export function auditCityGeneration(
 
 /** Where each land road ends after generation, compared with the descriptor path. Not a reject reason. */
 function roadReach(city: CityDocument, descriptor: BurgSiteDescriptor) {
-  const half = descriptor.frame.extentMeters / 2;
   const round = (value: number) => Math.round(value * 10) / 10;
-  const onFrame = (point: Point) => half - Math.max(Math.abs(point[0]), Math.abs(point[1])) <= 25;
-  const rows = [];
+  const rows: {
+    sourceIndex: number;
+    routeId: number;
+    descriptorEndDistance: number;
+    renderedEndDistance: number | null;
+    connectedToTown: boolean;
+    reachesTarget: boolean;
+  }[] = [];
   descriptor.roads.forEach((road, sourceIndex) => {
     if (road.group === "searoutes") return;
     const targets = road.sharedBranches?.length
-      ? road.sharedBranches.flatMap(branch =>
-          branch.path.length ? [{ routeId: branch.routeId, end: branch.path.at(-1)! }] : []
+      ? road.sharedBranches.flatMap((branch, branchIndex) =>
+          branch.path.length ? [{ routeId: branch.routeId, branchIndex, path: branch.path }] : []
         )
       : road.path.length
-        ? [{ routeId: road.routeId, end: road.path.at(-1)! }]
+        ? [{ routeId: road.routeId, branchIndex: 0, path: road.path }]
         : [];
     for (const target of targets) {
-      const leg = city.frameRoads?.find(item => item.sourceIndex === sourceIndex && item.routeId === target.routeId);
+      const targetEnd = frameRoadTarget(target.path, city.frame.extentMeters / 2);
+      if (!targetEnd) continue;
+      const leg = city.frameRoads?.find(
+        item =>
+          item.sourceIndex === sourceIndex &&
+          item.routeId === target.routeId &&
+          (item.branchIndex ?? 0) === target.branchIndex
+      );
       const frameEnd = leg?.pieces.at(-1)?.points.at(-1);
       const meshEnd = outerMeshPoint(city, sourceIndex);
       const rendered = frameEnd ?? meshEnd;
-      const gap = rendered ? Math.hypot(rendered[0] - target.end[0], rendered[1] - target.end[1]) : Infinity;
+      const gap = rendered ? Math.hypot(rendered[0] - targetEnd[0], rendered[1] - targetEnd[1]) : Infinity;
+      const connectedToTown = leg ? frameRoadConnectedToTown(city, leg) : !!meshEnd;
       rows.push({
         sourceIndex,
         routeId: target.routeId,
-        descriptorEndDistance: round(Math.hypot(target.end[0], target.end[1])),
+        descriptorEndDistance: round(Math.hypot(targetEnd[0], targetEnd[1])),
         renderedEndDistance: rendered ? round(Math.hypot(rendered[0], rendered[1])) : null,
-        reachesTarget: gap <= 25 || (!!rendered && onFrame(rendered) && onFrame(target.end))
+        connectedToTown,
+        reachesTarget: connectedToTown && gap <= 25
       });
     }
   });

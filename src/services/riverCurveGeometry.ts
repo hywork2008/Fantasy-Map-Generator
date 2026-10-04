@@ -265,6 +265,70 @@ export function buildCatmullRomRiverAxis(
   const curves = catmullRomRiverCubics(points, alpha);
   return curves ? buildCubicRiverAxis(riverId, geometryVersion, curves, precision) : { reason: "invalid-curve" };
 }
+function integrateLength(
+  c: RiverCubic,
+  lo: number,
+  hi: number,
+  tolerance: number,
+  depth: number,
+  budget: IntegrationBudget
+): number | null {
+  if (lo === hi) return 0;
+  const dx0 = c[1][0] - c[0][0],
+    dx1 = c[2][0] - c[1][0],
+    dx2 = c[3][0] - c[2][0];
+  const dy0 = c[1][1] - c[0][1],
+    dy1 = c[2][1] - c[1][1],
+    dy2 = c[3][1] - c[2][1];
+  const speed = (t: number) => {
+    if (--budget.remaining < 0) {
+      budget.failed = true;
+      return NaN;
+    }
+    const v = 1 - t,
+      a = 3 * v * v,
+      b = 6 * v * t,
+      d = 3 * t * t;
+    return Math.hypot(a * dx0 + b * dx1 + d * dx2, a * dy0 + b * dy1 + d * dy2);
+  };
+  function visit(
+    a: number,
+    b: number,
+    fa: number,
+    fm: number,
+    fb: number,
+    estimate: number,
+    tol: number,
+    remaining: number
+  ): number | null {
+    const m = (a + b) / 2,
+      fl = speed((a + m) / 2),
+      fr = speed((m + b) / 2);
+    if (budget.failed || !Number.isFinite(fl + fr)) return null;
+    const left = ((m - a) * (fa + 4 * fl + fm)) / 6,
+      right = ((b - m) * (fm + 4 * fr + fb)) / 6;
+    const error = left + right - estimate;
+    if (Math.abs(error) <= 15 * tol) {
+      const length = left + right + error / 15;
+      return Number.isFinite(length) && length >= 0 ? length : null;
+    }
+    if (remaining === 0) {
+      budget.failed = true;
+      return null;
+    }
+    const leftLen = visit(a, m, fa, fl, fm, left, tol / 2, remaining - 1);
+    if (leftLen === null) return null;
+    const rightLen = visit(m, b, fm, fr, fb, right, tol / 2, remaining - 1);
+    if (rightLen === null) return null;
+    return leftLen + rightLen;
+  }
+  const fa = speed(lo),
+    fm = speed((lo + hi) / 2),
+    fb = speed(hi);
+  const estimate = ((hi - lo) * (fa + 4 * fm + fb)) / 6;
+  return visit(lo, hi, fa, fm, fb, estimate, tolerance, depth);
+}
+
 /** Arc inversion uses integrated speed. Rendering subdivisions never define tRiver. */
 export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) {
   if (!Number.isFinite(arcLength) || arcLength < 0 || arcLength > axis.length) return null;
@@ -275,13 +339,21 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
   const target = local - leaf.arcStart;
   const atStart = arcLength === segment.arcStart;
   const atEnd = arcLength === axis.length || arcLength === segment.arcStart + segment.length;
-  let t = atStart ? 0 : atEnd ? 1 : target <= 0 ? leaf.t0 : target >= leaf.length ? leaf.t1 : (leaf.t0 + leaf.t1) / 2;
+  let t = atStart
+    ? 0
+    : atEnd
+      ? 1
+      : target <= 0
+        ? leaf.t0
+        : target >= leaf.length
+          ? leaf.t1
+          : leaf.t0 + (target / leaf.length) * (leaf.t1 - leaf.t0);
   if (!atStart && !atEnd && target > 0 && target < leaf.length) {
     let lo = leaf.t0,
       hi = leaf.t1;
     const budget: IntegrationBudget = { remaining: axis.precision.maxEvaluations, failed: false };
     for (let iteration = 0; iteration < 60; iteration++) {
-      const parts = integrate(
+      const distance = integrateLength(
         segment.controls,
         leaf.t0,
         t,
@@ -289,8 +361,7 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
         axis.precision.maxIntegrationDepth,
         budget
       );
-      if (!parts) return null;
-      const distance = parts.reduce((sum, p) => sum + p.length, 0);
+      if (distance === null) return null;
       if (Math.abs(distance - target) <= axis.precision.arcToleranceMeters) break;
       if (distance < target) lo = t;
       else hi = t;

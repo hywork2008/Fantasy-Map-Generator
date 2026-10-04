@@ -56,26 +56,38 @@ export function convergeRiverRoadLegs(
           b = leg.points[i];
         const sa = direction * side(a, c),
           sb = direction * side(b, c);
-        if (sa >= farSide || sb <= farSide || sb <= sa) continue;
-        const t = (farSide - sa) / (sb - sa);
-        const rejoin: RiverPoint = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-        if (distance(origin, rejoin) > maximumRejoinDistanceMeters || !dry(far, rejoin)) continue;
-        // Only replace a real water crossing; a road already on this bank
-        // must keep its independent city entrance.
-        if (
-          !leg.points.slice(1, i + 1).some((p, j) => {
-            const footprint = bridgePassageFootprint(leg.points[j], p, input.dimensions.roadWidthMeters);
-            return footprint && footprintTouchesWater(footprint, input.geometry.water);
-          })
-        )
-          continue;
+        if (sb <= farSide) continue;
+        const firstT = sa >= farSide ? 0 : (farSide - sa) / (sb - sa);
+        const length = distance(a, b);
+        if (!length) continue;
+        // A bank bends independently of this bridge's normal. The first point
+        // on the far-side plane can still be wet: try farther dry rejoins on
+        // the same original segment before giving up that economic connection.
+        let rejoin: RiverPoint | null = null;
+        for (const advance of [0, 1, 2, 4, 8, 16, 32, 64, 128]) {
+          const t = Math.min(1, firstT + (advance * input.dimensions.roadWidthMeters * 2) / length);
+          const at: RiverPoint = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+          if (distance(origin, at) > maximumRejoinDistanceMeters) continue;
+          if (!dry(far, at)) continue;
+          const prefix = [...leg.points.slice(0, i), at];
+          if (
+            !prefix.slice(1).some((p, j) => {
+              const footprint = bridgePassageFootprint(prefix[j], p, input.dimensions.roadWidthMeters);
+              return footprint && footprintTouchesWater(footprint, input.geometry.water);
+            })
+          )
+            continue;
+          rejoin = at;
+          break;
+        }
+        if (!rejoin) continue;
         const trunk = [origin, near, nearA ? c.deckA : c.deckB, nearA ? c.deckB : c.deckA, far];
         adopted.push({ id: leg.id, points: [...trunk, rejoin, ...leg.points.slice(i)], rejoinSegment: i });
         cost += distance(far, rejoin);
         break;
       }
     }
-    if (adopted.length < 2) continue;
+    if (!adopted.length) continue;
     const value: ConvergingRiverRoads = {
       crossing: c,
       trunk: adopted[0].points.slice(0, 5),

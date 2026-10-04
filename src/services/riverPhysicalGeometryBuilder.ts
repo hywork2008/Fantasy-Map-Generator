@@ -48,13 +48,22 @@ export function buildPhysicalRiverGeometry(
   const firstWet = survey.findIndex(s => s.widthMeters > 0);
   if (firstWet < 0 || survey.slice(firstWet).some(s => s.widthMeters <= 0)) return { reason: "invalid-survey" };
   const waterStart = firstWet > 0 ? survey[firstWet - 1].arcLengthMeters : 0;
+  const isTwoPointSurvey = survey.length === 2;
   function widthAt(s: number): number {
-    const index = Math.max(
-      1,
-      survey.findIndex(p => p.arcLengthMeters >= s)
-    );
-    const a = survey[index - 1],
-      b = survey[index];
+    if (isTwoPointSurvey) {
+      const a = survey[0],
+        b = survey[1];
+      return a.widthMeters + ((b.widthMeters - a.widthMeters) * s) / b.arcLengthMeters;
+    }
+    let lo = 1,
+      hi = survey.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (survey[mid].arcLengthMeters >= s) hi = mid;
+      else lo = mid + 1;
+    }
+    const a = survey[lo - 1],
+      b = survey[lo];
     return (
       a.widthMeters +
       ((b.widthMeters - a.widthMeters) * (s - a.arcLengthMeters)) / (b.arcLengthMeters - a.arcLengthMeters)
@@ -88,26 +97,29 @@ export function buildPhysicalRiverGeometry(
   }
   const banks: BankSample[] = [];
   function chordError(p: RiverPoint, a: RiverPoint, b: RiverPoint, fraction: number) {
-    return Math.hypot(p[0] - a[0] - fraction * (b[0] - a[0]), p[1] - a[1] - fraction * (b[1] - a[1]));
+    const dx = p[0] - a[0] - fraction * (b[0] - a[0]);
+    const dy = p[1] - a[1] - fraction * (b[1] - a[1]);
+    return Math.sqrt(dx * dx + dy * dy);
   }
   function refine(a: BankSample, b: BankSample): boolean {
-    const fractions = [0.25, 0.5, 0.75];
-    const inside = fractions.map(f => sample(a.s + f * (b.s - a.s)));
-    if (inside.some(p => !p)) return false;
-    const curved = inside.some(
-      (p, i) =>
-        Math.max(
-          chordError(p!.left, a.left, b.left, fractions[i]),
-          chordError(p!.right, a.right, b.right, fractions[i])
-        ) > settings.maxChordErrorMeters
-    );
-    if (b.s - a.s > settings.maxStepMeters || curved) {
-      const mid = inside[1]!;
-      if (mid.s === a.s || mid.s === b.s) {
+    const delta = b.s - a.s;
+    const p1 = sample(a.s + 0.25 * delta);
+    const p2 = sample(a.s + 0.5 * delta);
+    const p3 = sample(a.s + 0.75 * delta);
+    if (!p1 || !p2 || !p3) return false;
+    const curved =
+      Math.max(chordError(p1.left, a.left, b.left, 0.25), chordError(p1.right, a.right, b.right, 0.25)) >
+        settings.maxChordErrorMeters ||
+      Math.max(chordError(p2.left, a.left, b.left, 0.5), chordError(p2.right, a.right, b.right, 0.5)) >
+        settings.maxChordErrorMeters ||
+      Math.max(chordError(p3.left, a.left, b.left, 0.75), chordError(p3.right, a.right, b.right, 0.75)) >
+        settings.maxChordErrorMeters;
+    if (delta > settings.maxStepMeters || curved) {
+      if (p2.s === a.s || p2.s === b.s) {
         failure = { reason: "sampling-budget" };
         return false;
       }
-      return refine(a, mid) && refine(mid, b);
+      return refine(a, p2) && refine(p2, b);
     }
     banks.push(b);
     return true;

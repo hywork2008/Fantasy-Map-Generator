@@ -18,6 +18,7 @@ export interface FrameRoadPiece {
 export interface FrameRoadLeg {
   sourceIndex: number;
   routeId: number;
+  branchIndex?: number;
   pieces: FrameRoadPiece[];
 }
 
@@ -72,7 +73,29 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
     const paths = road.sharedBranches?.length
       ? road.sharedBranches.map(branch => ({ routeId: branch.routeId, path: branch.path }))
       : [{ routeId: road.routeId, path: road.path }];
-    for (const item of paths) {
+    for (const [branchIndex, item] of paths.entries()) {
+      const crossing = site.fixedCrossings?.crossings.find(c => c.id === road.sharedCrossingId);
+      if (crossing) {
+        // FMG already surveyed and committed this route. Keep its dry arms and
+        // let the fixed-crossing layer draw E→D→D→E, without planning it again.
+        const indexOf = (at: readonly [number, number]) => item.path.findIndex(p => dist(p, at as Point) < 1e-6);
+        const a = indexOf(crossing.approachA),
+          b = indexOf(crossing.approachB);
+        if (a >= 0 && b >= 0) {
+          const near = Math.min(a, b),
+            far = Math.max(a, b);
+          const town = item.path.slice(0, near + 1).map(point);
+          const start = scope === "frame" ? town : (outsideSquare(town, half) ?? [town.at(-1)!]);
+          const tail = clipToSquare(item.path.slice(far).map(point), site.frame.extentMeters / 2);
+          legs.push({
+            sourceIndex,
+            routeId: item.routeId,
+            branchIndex,
+            pieces: [{ kind: "road", points: start }, ...(tail.length ? [{ kind: "road" as const, points: tail }] : [])]
+          });
+          continue;
+        }
+      }
       const scoped =
         scope === "beyond-mesh" ? pathOutsideMesh(item.path, half, decks, site.frame.extentMeters / 2) : item.path;
       const outer = finitePath(scoped);
@@ -80,10 +103,17 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
       const path = outer && scope === "beyond-mesh" && full ? shoreStart(full, outer, bodies) : outer;
       if (!path || polylineLength(path) < MIN_PIECE_METERS) continue;
       const pieces = piecesFor(path, bodies, site, decks);
-      if (pieces.length) legs.push({ sourceIndex, routeId: item.routeId, pieces });
+      if (!pieces.length && scope === "beyond-mesh" && reachesFrame(path[0], site.frame.extentMeters / 2))
+        pieces.push({ kind: "road", points: [path[0]] });
+      if (pieces.length) legs.push({ sourceIndex, routeId: item.routeId, branchIndex, pieces });
     }
   });
   return legs;
+}
+
+/** The incoming display can be fitted smaller than its original FMG window. */
+export function frameRoadTarget(path: readonly Point[], half: number): Point | undefined {
+  return clipToSquare(path.map(point), half).at(-1);
 }
 
 /** True when the open segment stays out of the surveyed channel interior. Boundary contact is dry. */
@@ -387,7 +417,7 @@ function centerlineHit(
       consider(q, tangent, dist(q, mid) + 1e6);
     }
   }
-  return best ? { q: best.q, tangent: best.tangent } : null;
+  return best;
 }
 
 function bankTangent(water: PhysicalWaterPolygon, entry: Point, exit: Point): Point | null {
@@ -954,7 +984,7 @@ function point(value: readonly [number, number]): Point {
 function sub(a: Point, b: Point): Point {
   return [a[0] - b[0], a[1] - b[1]];
 }
-function add(a: Point, b: Point): Point {
+function add(a: readonly [number, number], b: readonly [number, number]): Point {
   return [a[0] + b[0], a[1] + b[1]];
 }
 function scale(a: Point, k: number): Point {

@@ -8,14 +8,17 @@ import {
   type ProvisionalRiverCrossing
 } from "../generators/riverCrossingCandidates";
 import type { Burg, Route } from "../types/models";
+import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { FixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
+import { bridgePassageFootprint } from "./bridgePassageGeometry";
 import { evaluateRiverAxis } from "./riverAxisSampling";
 import type { RiverPoint } from "./riverGeometry";
 import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
+import { footprintTouchesWater } from "./riverPhysicalGeometry";
 import { SettlementGeometrySession } from "./settlementGeometrySession";
 import { coveredByTerrainCells, settlementRadiusMeters } from "./settlementRiverSite";
 
@@ -35,6 +38,83 @@ interface Prepared {
 }
 const cache = new WeakMap<object, Prepared>();
 const session = new SettlementGeometrySession();
+
+function polygonBounds(rings: readonly (readonly RiverPoint[])[]) {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const ring of rings) {
+    for (const p of ring) {
+      if (p[0] < minX) minX = p[0];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[1] > maxY) maxY = p[1];
+    }
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function clipSegmentToCircle(
+  a: RiverPoint,
+  b: RiverPoint,
+  origin: RiverPoint,
+  radius: number
+): [RiverPoint, RiverPoint] | null {
+  const vx = b[0] - a[0],
+    vy = b[1] - a[1];
+  const vLenSq = vx * vx + vy * vy;
+  const distA = Math.hypot(a[0] - origin[0], a[1] - origin[1]);
+  if (vLenSq <= 0) return distA <= radius ? [a, b] : null;
+
+  const wx = a[0] - origin[0],
+    wy = a[1] - origin[1];
+  const A = vLenSq;
+  const B = 2 * (wx * vx + wy * vy);
+  const C = wx * wx + wy * wy - radius * radius;
+  const discr = B * B - 4 * A * C;
+  if (discr < 0) return null;
+  const sqrtD = Math.sqrt(discr);
+  const t0 = Math.max(0, (-B - sqrtD) / (2 * A));
+  const t1 = Math.min(1, (-B + sqrtD) / (2 * A));
+  if (t0 > t1 || t0 > 1 || t1 < 0) return null;
+  return [
+    [a[0] + t0 * vx, a[1] + t0 * vy],
+    [a[0] + t1 * vx, a[1] + t1 * vy]
+  ];
+}
+
+function legTouchesRiverWater(
+  origin: RiverPoint,
+  leg: ConvergingRoadLeg,
+  water: PhysicalWaterPolygon,
+  waterBounds: { minX: number; minY: number; maxX: number; maxY: number },
+  maxDist: number,
+  roadWidthMeters: number
+): boolean {
+  if (leg.points.length < 2) return false;
+  for (let i = 1; i < leg.points.length; i++) {
+    const a = leg.points[i - 1],
+      b = leg.points[i];
+    const clipped = clipSegmentToCircle(a, b, origin, maxDist);
+    if (!clipped) continue;
+    const [ca, cb] = clipped;
+    const segMinX = Math.min(ca[0], cb[0]) - roadWidthMeters,
+      segMaxX = Math.max(ca[0], cb[0]) + roadWidthMeters,
+      segMinY = Math.min(ca[1], cb[1]) - roadWidthMeters,
+      segMaxY = Math.max(ca[1], cb[1]) + roadWidthMeters;
+    if (
+      segMinX > waterBounds.maxX ||
+      segMaxX < waterBounds.minX ||
+      segMinY > waterBounds.maxY ||
+      segMaxY < waterBounds.minY
+    )
+      continue;
+    const footprint = bridgePassageFootprint(ca, cb, roadWidthMeters);
+    if (footprint && footprintTouchesWater(footprint, water)) return true;
+  }
+  return false;
+}
 function key(world: WorldContext, unit: string) {
   const p = world.pack;
   return JSON.stringify([
@@ -89,11 +169,10 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
     const origin: RiverPoint = [burg.x * scale, burg.y * scale];
-    const half =
+    const baseHalf =
       populationWindowMeters(
         settlementRadiusMeters((burg.population ?? 0) * world.populationRate * world.urbanization)
       ) / 2;
-    const bounds = { minX: origin[0] - half, maxX: origin[0] + half, minY: origin[1] - half, maxY: origin[1] + half };
     const legs: (ConvergingRoadLeg & {
       route: Route;
       index: number;
@@ -117,125 +196,219 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
           });
       }
     }
-    if (legs.length < 2) continue;
-    const water: PhysicalWaterPolygon[] = [],
-      geometries: PhysicalRiverGeometry[] = [];
-    let complete = true;
-    for (const riverId of session.rivers(bounds)) {
-      const river = world.pack.rivers.find(r => r.i === riverId)!;
-      const resolved = session.resolve(world, river, unit, bounds);
-      if (!("geometry" in resolved)) {
-        if (resolved.reason !== "no-local-water") complete = false;
-        continue;
-      }
-      water.push(resolved.geometry.water);
-      geometries.push(resolved.geometry);
-    }
-    if (!complete || !geometries.length) continue;
-    const terrain = session.terrain(world, bounds);
-    const supported = terrain.filter(t => world.pack.cells.h[t.id] >= 20);
-    water.push(
-      ...terrain.filter(t => world.pack.cells.h[t.id] < 20).map(t => ({ id: 1000000000 + t.id, rings: [t.ring] }))
-    );
-    const supports = (polygon: readonly RiverPoint[]) =>
-      polygon.every(p => p[0] >= bounds.minX && p[0] <= bounds.maxX && p[1] >= bounds.minY && p[1] <= bounds.maxY) &&
-      coveredByTerrainCells(
-        polygon,
-        supported.map(t => t.ring)
-      );
-    for (const geometry of geometries) {
-      const arcs: { arc: number; distance: number }[] = [];
-      for (let j = 0; j < geometry.water.rings.length; j++)
-        for (let i = 0; i < geometry.water.rings[j].length; i++) {
-          const ref = geometry.water.bankReferences?.[j]?.[i];
-          if (!ref) continue;
-          const a = geometry.water.rings[j][i],
-            b = geometry.water.rings[j][(i + 1) % geometry.water.rings[j].length];
-          const dx = b[0] - a[0],
-            dy = b[1] - a[1],
-            length = dx * dx + dy * dy;
-          const t = length ? Math.max(0, Math.min(1, ((origin[0] - a[0]) * dx + (origin[1] - a[1]) * dy) / length)) : 0;
-          arcs.push({
-            arc: ref.arcStart + t * (ref.arcEnd - ref.arcStart),
-            distance: Math.hypot(a[0] + dx * t - origin[0], a[1] + dy * t - origin[1])
-          });
+    if (!legs.length) continue;
+    const adoptedLegs = new Set<number>();
+    for (const half of [baseHalf, baseHalf + bridgeCrossingLimitForPeriod(world.options.historicalPeriod)]) {
+      if (adoptedLegs.size === legs.length) break;
+      const bounds = { minX: origin[0] - half, maxX: origin[0] + half, minY: origin[1] - half, maxY: origin[1] + half };
+      const water: PhysicalWaterPolygon[] = [],
+        geometries: PhysicalRiverGeometry[] = [];
+      let complete = true;
+      for (const riverId of session.rivers(bounds)) {
+        const river = world.pack.rivers.find(r => r.i === riverId)!;
+        const resolved = session.resolve(world, river, unit, bounds);
+        if (!("geometry" in resolved)) {
+          if (resolved.reason !== "no-local-water") complete = false;
+          continue;
         }
-      const river = world.pack.rivers.find(r => r.i === geometry.water.id)!;
-      const riverCells = river.cells.filter(c => c >= 0);
-      const cellId = riverCells.reduce(
-        (best, c) =>
-          Math.hypot(world.pack.cells.p[c][0] * scale - origin[0], world.pack.cells.p[c][1] * scale - origin[1]) <
-          Math.hypot(world.pack.cells.p[best][0] * scale - origin[0], world.pack.cells.p[best][1] * scale - origin[1])
-            ? c
-            : best,
-        riverCells[0]
-      );
-      const waterRoutes = world.pack.routes.filter(
-        r => r.group === "searoutes" && (r.cells ?? r.points.map(p => p[2])).some(c => riverCells.includes(c))
-      );
-      const vessel = waterRoutes.some(r => r.navigation !== "river")
-        ? SEA_SAILING_VESSEL
-        : waterRoutes.length || world.pack.cells.fl[cellId] >= MIN_NAVIGABLE_FLUX
-          ? RIVER_CARGO_VESSEL
-          : undefined;
-      const candidates: { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput }[] = [];
-      for (const { arc } of arcs.sort((a, b) => a.distance - b.distance).slice(0, 32)) {
-        const input: CrossingCandidateInput = {
-          id: facilityId,
-          geometry,
-          arcLengthMeters: arc,
-          dimensions: { bankSeatMeters: 2, straightApproachMeters: 10, roadWidthMeters: 5, localWindowMeters: 20 },
-          otherWater: water.filter(w => w !== geometry.water),
-          capability: {
-            period: world.options.historicalPeriod,
-            technology: world.options.riverBridgeTechnology,
-            depthMeters: river.cellHydrology?.[cellId]?.waterDepth,
-            vessel
-          },
-          supportsDryFootprint: supports
-        };
-        const created = createProvisionalRiverCrossing(input);
-        if ("candidate" in created) candidates.push({ crossing: created.candidate, input });
+        water.push(resolved.geometry.water);
+        geometries.push(resolved.geometry);
       }
-      const merged = convergeRiverRoadLegs(origin, legs, candidates, half - 20);
-      if (!merged) continue;
-      const facility: Facility = {
-        burgId: burg.i,
-        crossing: merged.crossing,
-        geometry,
-        near: merged.trunk[1],
-        routeIds: merged.legs.map(l => legs[l.id].route.i),
-        half,
-        water
-      };
-      if (!crossingsPayload(world, unit, burg, [facility])) continue;
-      for (const changed of merged.legs) {
-        const leg = legs[changed.id],
-          route = leg.route;
-        route.riverRoadConvergence ??= { originalPoints: structuredClone(route.points), pointsKey: "", burgIds: [] };
-        const index = route.points.findIndex(
-          p => p[2] === burg.cell && Math.hypot(p[0] - burg.x, p[1] - burg.y) < 1e-7
+      if (!complete || !geometries.length) continue;
+      const terrain = session.terrain(world, bounds);
+      const supported = terrain.filter(t => world.pack.cells.h[t.id] >= 20);
+      const supportedRings = supported.map(t => t.ring);
+      water.push(
+        ...terrain.filter(t => world.pack.cells.h[t.id] < 20).map(t => ({ id: 1000000000 + t.id, rings: [t.ring] }))
+      );
+      const supports = (polygon: readonly RiverPoint[]) =>
+        polygon.every(p => p[0] >= bounds.minX && p[0] <= bounds.maxX && p[1] >= bounds.minY && p[1] <= bounds.maxY) &&
+        coveredByTerrainCells(polygon, supportedRings);
+      for (const geometry of geometries) {
+        const remaining = legs.filter(leg => !adoptedLegs.has(leg.id));
+        if (!remaining.length) break;
+        const waterBounds = polygonBounds(geometry.water.rings);
+        const crossingLegs = remaining.filter(leg =>
+          legTouchesRiverWater(origin, leg, geometry.water, waterBounds, Math.SQRT2 * half, 5)
         );
-        const points: Route["points"] = changed.points.map((p, i) => [
-          p[0] / scale,
-          p[1] / scale,
-          i === 0
-            ? burg.cell
-            : i >= 6
-              ? leg.sourcePoints[changed.rejoinSegment + i - 6][2]
-              : tree.find(p[0] / scale, p[1] / scale)!.id
-        ]);
-        route.points = leg.reverse
-          ? [...points.reverse(), ...route.points.slice(index + 1)]
-          : [...route.points.slice(0, index), ...points];
-        route.cells = route.points.map(p => p[2]).filter((c, i, a) => !i || c !== a[i - 1]);
-        route.riverRoadConvergence.pointsKey = JSON.stringify(route.points);
-        if (!route.riverRoadConvergence.burgIds.includes(burg.i)) route.riverRoadConvergence.burgIds.push(burg.i);
-        if (!result.changedRoutes.includes(route.i)) result.changedRoutes.push(route.i);
+        if (!crossingLegs.length) continue;
+
+        const maxArcDist = Math.SQRT2 * half + 100;
+        const arcs: { arc: number; distance: number }[] = [];
+        for (let j = 0; j < geometry.water.rings.length; j++)
+          for (let i = 0; i < geometry.water.rings[j].length; i++) {
+            const ref = geometry.water.bankReferences?.[j]?.[i];
+            if (!ref) continue;
+            const a = geometry.water.rings[j][i],
+              b = geometry.water.rings[j][(i + 1) % geometry.water.rings[j].length];
+            const dx = b[0] - a[0],
+              dy = b[1] - a[1],
+              length = dx * dx + dy * dy;
+            const t = length
+              ? Math.max(0, Math.min(1, ((origin[0] - a[0]) * dx + (origin[1] - a[1]) * dy) / length))
+              : 0;
+            const distance = Math.hypot(a[0] + dx * t - origin[0], a[1] + dy * t - origin[1]);
+            if (distance <= maxArcDist) {
+              arcs.push({
+                arc: ref.arcStart + t * (ref.arcEnd - ref.arcStart),
+                distance
+              });
+            }
+          }
+        if (!arcs.length) continue;
+        const river = world.pack.rivers.find(r => r.i === geometry.water.id)!;
+        const riverCells = river.cells.filter(c => c >= 0);
+        const cellId = riverCells.reduce(
+          (best, c) =>
+            Math.hypot(world.pack.cells.p[c][0] * scale - origin[0], world.pack.cells.p[c][1] * scale - origin[1]) <
+            Math.hypot(world.pack.cells.p[best][0] * scale - origin[0], world.pack.cells.p[best][1] * scale - origin[1])
+              ? c
+              : best,
+          riverCells[0]
+        );
+        const waterRoutes = world.pack.routes.filter(
+          r => r.group === "searoutes" && (r.cells ?? r.points.map(p => p[2])).some(c => riverCells.includes(c))
+        );
+        const vessel = waterRoutes.some(r => r.navigation !== "river")
+          ? SEA_SAILING_VESSEL
+          : waterRoutes.length || world.pack.cells.fl[cellId] >= MIN_NAVIGABLE_FLUX
+            ? RIVER_CARGO_VESSEL
+            : undefined;
+        // Try existing nearest sections first. Only expand along the real axis
+        // if none can connect the road; common dry/supported cases keep their cost.
+        const sortedArcs = arcs.sort((a, b) => a.distance - b.distance);
+        const nearest: typeof arcs = [];
+        for (const a of sortedArcs) {
+          if (!nearest.some(f => Math.abs(f.arc - a.arc) < 5)) {
+            nearest.push(a);
+            if (nearest.length >= 32) break;
+          }
+        }
+        const chunks = (arr: number[], size: number) => {
+          const res: number[][] = [];
+          for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+          return res;
+        };
+        const nearestBatches = chunks(
+          nearest.map(a => a.arc),
+          4
+        );
+        const offsetArcs = nearest
+          .slice(0, 4)
+          .flatMap(a => [-160, -80, -40, -20, 20, 40, 80, 160].map(offset => a.arc + offset));
+        const offsetBatches = chunks(offsetArcs, 8);
+        const candidateCache = new Map<
+          number,
+          { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput } | null
+        >();
+        while (true) {
+          const activeLegs = crossingLegs.filter(leg => !adoptedLegs.has(leg.id));
+          if (!activeLegs.length) break;
+          let merged: ReturnType<typeof convergeRiverRoadLegs> = null;
+
+          const evaluateBatch = (batch: number[]) => {
+            const candidates: { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput }[] = [];
+            for (const arc of batch) {
+              if (arc <= 0 || arc >= geometry.axis.length) continue;
+              let item = candidateCache.get(arc);
+              if (item === undefined) {
+                const input: CrossingCandidateInput = {
+                  id: facilityId,
+                  geometry,
+                  arcLengthMeters: arc,
+                  dimensions: {
+                    bankSeatMeters: 2,
+                    straightApproachMeters: 10,
+                    roadWidthMeters: 5,
+                    localWindowMeters: 20
+                  },
+                  otherWater: water.filter(w => w !== geometry.water),
+                  capability: {
+                    period: world.options.historicalPeriod,
+                    technology: world.options.riverBridgeTechnology,
+                    depthMeters: river.cellHydrology?.[cellId]?.waterDepth,
+                    vessel
+                  },
+                  supportsDryFootprint: supports
+                };
+                const created = createProvisionalRiverCrossing(input);
+                item = "candidate" in created ? { crossing: created.candidate, input } : null;
+                candidateCache.set(arc, item);
+              }
+              if (item) {
+                if (item.input.id !== facilityId) {
+                  item = {
+                    crossing: { ...item.crossing, id: facilityId },
+                    input: { ...item.input, id: facilityId }
+                  };
+                }
+                candidates.push(item);
+              }
+            }
+            if (candidates.length) {
+              return convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half);
+            }
+            return null;
+          };
+
+          for (const batch of nearestBatches) {
+            merged = evaluateBatch(batch);
+            if (merged) break;
+          }
+          if (!merged) {
+            for (const batch of offsetBatches) {
+              merged = evaluateBatch(batch);
+              if (merged) break;
+            }
+          }
+          if (!merged) break;
+          const facility: Facility = {
+            burgId: burg.i,
+            crossing: merged.crossing,
+            geometry,
+            near: merged.trunk[1],
+            routeIds: merged.legs.map(l => legs[l.id].route.i),
+            half,
+            water
+          };
+          const valid = crossingsPayload(world, unit, burg, [
+            ...result.facilities.filter(f => f.burgId === burg.i),
+            facility
+          ]);
+          if (!valid) break;
+          for (const changed of merged.legs) {
+            adoptedLegs.add(changed.id);
+            const leg = legs[changed.id],
+              route = leg.route;
+            route.riverRoadConvergence ??= {
+              originalPoints: structuredClone(route.points),
+              pointsKey: "",
+              burgIds: []
+            };
+            const index = route.points.findIndex(
+              p => p[2] === burg.cell && Math.hypot(p[0] - burg.x, p[1] - burg.y) < 1e-7
+            );
+            const points: Route["points"] = changed.points.map((p, i) => [
+              p[0] / scale,
+              p[1] / scale,
+              i === 0
+                ? burg.cell
+                : i >= 6
+                  ? leg.sourcePoints[changed.rejoinSegment + i - 6][2]
+                  : tree.find(p[0] / scale, p[1] / scale)!.id
+            ]);
+            route.points = leg.reverse
+              ? [...points.reverse(), ...route.points.slice(index + 1)]
+              : [...route.points.slice(0, index), ...points];
+            route.cells = route.points.map(p => p[2]).filter((c, i, a) => !i || c !== a[i - 1]);
+            route.riverRoadConvergence.pointsKey = JSON.stringify(route.points);
+            if (!route.riverRoadConvergence.burgIds.includes(burg.i)) route.riverRoadConvergence.burgIds.push(burg.i);
+            if (!result.changedRoutes.includes(route.i)) result.changedRoutes.push(route.i);
+          }
+          result.facilities.push(facility);
+          facilityId++;
+        }
       }
-      result.facilities.push(facility);
-      facilityId++;
-      break;
     }
   }
   if (restored || result.changedRoutes.length) {
@@ -312,7 +485,8 @@ function crossingsPayload(
       witness
     });
   }
-  const half = Math.min(...facilities.map(f => f.half));
+  const survey = facilities.reduce((a, b) => (a.half >= b.half ? a : b));
+  const half = survey.half;
   const occupied = crossings.flatMap(c =>
     [c.approachA, c.approachB, c.deckA, c.deckB].flatMap(p =>
       [-3, 3].map(d => [p[0] + d * c.tangent[0], p[1] + d * c.tangent[1]])
@@ -331,14 +505,14 @@ function crossingsPayload(
       minY: Math.min(...occupied.map(p => p[1])),
       maxY: Math.max(...occupied.map(p => p[1]))
     },
-    rivers: facilities.map(f => ({
+    rivers: [...new Map(facilities.map(f => [f.crossing.riverId, f])).values()].map(f => ({
       id: f.crossing.riverId,
       geometryVersion: f.crossing.geometryVersion,
-      rings: f.geometry.water.rings.map(r => r.map(point))
+      rings: (survey.water.find(w => w.id === f.crossing.riverId) ?? f.geometry.water).rings.map(r => r.map(point))
     })),
     crossings,
-    obstacles: facilities[0].water
-      .filter(w => !facilities.some(f => f.geometry.water === w))
+    obstacles: survey.water
+      .filter(w => !facilities.some(f => f.crossing.riverId === w.id))
       .map(w => ({ id: w.id, rings: w.rings.map(r => r.map(point)) }))
   };
   return validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS) ? payload : null;

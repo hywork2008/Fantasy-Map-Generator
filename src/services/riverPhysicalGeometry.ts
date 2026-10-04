@@ -27,7 +27,18 @@ const epsilon = RIVER_GEOMETRY_TOLERANCE;
 /** Conservative input validation; callers should cache validated geometry by version.
  * Self-intersections and touching rings do not provide an unambiguous water interior.
  */
+const validRingsCache = new WeakMap<readonly (readonly RiverPoint[])[], boolean>();
+
 export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
+  if (!water?.rings?.length) return false;
+  const cached = validRingsCache.get(water.rings);
+  if (cached !== undefined) return cached;
+  const result = checkValidWaterPolygon(water);
+  validRingsCache.set(water.rings, result);
+  return result;
+}
+
+function checkValidWaterPolygon(water: PhysicalWaterPolygon): boolean {
   if (!water.rings.length) return false;
   for (let r = 0; r < water.rings.length; r++) {
     const ring = water.rings[r];
@@ -57,64 +68,154 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
     }
     if (!Number.isFinite(area) || Math.abs(area) <= epsilon * epsilon) return false;
   }
-  // Sweep edge envelopes instead of comparing every pair in a long river ring.
-  // Expand by the same tolerance used by the precise contact predicate.
-  const edges = water.rings.flatMap((ring, r) =>
-    ring.map((a, i) => {
-      const b = ring[(i + 1) % ring.length];
-      return {
-        a,
-        b,
-        r,
-        i,
-        count: ring.length,
-        minX: Math.min(a[0], b[0]) - epsilon,
-        maxX: Math.max(a[0], b[0]) + epsilon,
-        minY: Math.min(a[1], b[1]) - epsilon,
-        maxY: Math.max(a[1], b[1]) + epsilon
-      };
-    })
-  );
+  // Fast path for small single-ring polygons without allocation overhead
+  if (water.rings.length === 1 && water.rings[0].length <= 32) {
+    const ring = water.rings[0];
+    const n = ring.length;
+    for (let i = 0; i < n; i++) {
+      const a = ring[i],
+        b = ring[(i + 1) % n];
+      for (let j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) continue;
+        const c = ring[j],
+          d = ring[(j + 1) % n];
+        if (segmentsTouch(a, b, c, d)) return false;
+      }
+    }
+    return true;
+  }
+  // Sweep edge envelopes without per-edge object allocations.
+  let totalEdges = 0;
+  for (let r = 0; r < water.rings.length; r++) totalEdges += water.rings[r].length;
+
+  const edgeRing = new Int32Array(totalEdges);
+  const edgeIndex = new Int32Array(totalEdges);
+  const edgeCount = new Int32Array(totalEdges);
+  const edgeMinX = new Float64Array(totalEdges);
+  const edgeMaxX = new Float64Array(totalEdges);
+  const edgeMinY = new Float64Array(totalEdges);
+  const edgeMaxY = new Float64Array(totalEdges);
+  const order = new Int32Array(totalEdges);
+
   let minX = Infinity,
     maxX = -Infinity,
     minY = Infinity,
     maxY = -Infinity;
-  for (const edge of edges) {
-    minX = Math.min(minX, edge.minX);
-    maxX = Math.max(maxX, edge.maxX);
-    minY = Math.min(minY, edge.minY);
-    maxY = Math.max(maxY, edge.maxY);
+
+  let e = 0;
+  for (let r = 0; r < water.rings.length; r++) {
+    const ring = water.rings[r];
+    const n = ring.length;
+    for (let i = 0; i < n; i++) {
+      const a = ring[i],
+        b = ring[(i + 1) % n];
+      const ex0 = Math.min(a[0], b[0]) - epsilon;
+      const ex1 = Math.max(a[0], b[0]) + epsilon;
+      const ey0 = Math.min(a[1], b[1]) - epsilon;
+      const ey1 = Math.max(a[1], b[1]) + epsilon;
+      edgeRing[e] = r;
+      edgeIndex[e] = i;
+      edgeCount[e] = n;
+      edgeMinX[e] = ex0;
+      edgeMaxX[e] = ex1;
+      edgeMinY[e] = ey0;
+      edgeMaxY[e] = ey1;
+      order[e] = e;
+      if (ex0 < minX) minX = ex0;
+      if (ex1 > maxX) maxX = ex1;
+      if (ey0 < minY) minY = ey0;
+      if (ey1 > maxY) maxY = ey1;
+      e++;
+    }
   }
+
   const axis = maxX - minX >= maxY - minY ? "X" : "Y";
-  const minKey = axis === "X" ? "minX" : "minY",
-    maxKey = axis === "X" ? "maxX" : "maxY";
-  edges.sort((a, b) => a[minKey] - b[minKey]);
-  for (let i = 0; i < edges.length; i++) {
-    const a = edges[i];
-    for (let j = i + 1; j < edges.length && edges[j][minKey] <= a[maxKey]; j++) {
-      const b = edges[j];
-      if (a.maxY < b.minY || b.maxY < a.minY || a.maxX < b.minX || b.maxX < a.minX) continue;
-      if (a.r === b.r && (Math.abs(a.i - b.i) === 1 || Math.abs(a.i - b.i) === a.count - 1)) continue;
-      if (segmentsTouch(a.a, a.b, b.a, b.b)) return false;
+  const primaryMin = axis === "X" ? edgeMinX : edgeMinY;
+  const primaryMax = axis === "X" ? edgeMaxX : edgeMaxY;
+
+  order.sort((i, j) => primaryMin[i] - primaryMin[j]);
+
+  for (let oi = 0; oi < totalEdges; oi++) {
+    const i = order[oi];
+    const maxPrimary = primaryMax[i];
+    const rA = edgeRing[i];
+    const idxA = edgeIndex[i];
+    const cntA = edgeCount[i];
+    const ringA = water.rings[rA];
+    const aA = ringA[idxA];
+    const bA = ringA[(idxA + 1) % cntA];
+    const minXA = edgeMinX[i];
+    const maxXA = edgeMaxX[i];
+    const minYA = edgeMinY[i];
+    const maxYA = edgeMaxY[i];
+
+    for (let oj = oi + 1; oj < totalEdges && primaryMin[order[oj]] <= maxPrimary; oj++) {
+      const j = order[oj];
+      if (maxYA < edgeMinY[j] || edgeMaxY[j] < minYA || maxXA < edgeMinX[j] || edgeMaxX[j] < minXA) continue;
+      const rB = edgeRing[j];
+      const idxB = edgeIndex[j];
+      if (rA === rB && (Math.abs(idxA - idxB) === 1 || Math.abs(idxA - idxB) === cntA - 1)) continue;
+      const ringB = water.rings[rB];
+      const aB = ringB[idxB];
+      const bB = ringB[(idxB + 1) % edgeCount[j]];
+      if (segmentsTouch(aA, bA, aB, bB)) return false;
     }
   }
   return true;
 }
+interface Bounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+const ringBoundsCache = new WeakMap<readonly RiverPoint[], Bounds>();
+
+export function getRingBounds(ring: readonly RiverPoint[]): Bounds {
+  let b = ringBoundsCache.get(ring);
+  if (!b) {
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (let i = 0; i < ring.length; i++) {
+      const p = ring[i];
+      if (p[0] < minX) minX = p[0];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[1] > maxY) maxY = p[1];
+    }
+    b = { minX, minY, maxX, maxY };
+    ringBoundsCache.set(ring, b);
+  }
+  return b;
+}
+
 /** Boundary is included, so dry footprints touching water fail conservatively. */
 export function pointInWater(point: RiverPoint, water: PhysicalWaterPolygon): boolean {
   let inside = false;
   for (const ring of water.rings) {
-    for (let i = 0; i < ring.length; i++) {
+    const b = getRingBounds(ring);
+    if (
+      point[0] < b.minX - epsilon ||
+      point[0] > b.maxX + epsilon ||
+      point[1] < b.minY - epsilon ||
+      point[1] > b.maxY + epsilon
+    ) {
+      continue;
+    }
+    const n = ring.length;
+    for (let i = 0; i < n; i++) {
       const a = ring[i],
-        b = ring[(i + 1) % ring.length];
-      const edge = sub(b, a),
+        c = ring[(i + 1) % n];
+      const edge = sub(c, a),
         delta = sub(point, a),
         length = Math.hypot(...edge);
       if (length === 0) continue;
       const projection = (delta[0] * edge[0] + delta[1] * edge[1]) / length;
       if (Math.abs(cross2(edge, delta)) / length <= epsilon && projection >= -epsilon && projection <= length + epsilon)
         return true;
-      if (a[1] > point[1] !== b[1] > point[1] && point[0] < a[0] + ((point[1] - a[1]) * (b[0] - a[0])) / (b[1] - a[1]))
+      if (a[1] > point[1] !== c[1] > point[1] && point[0] < a[0] + ((point[1] - a[1]) * (c[0] - a[0])) / (c[1] - a[1]))
         inside = !inside;
     }
   }
@@ -138,16 +239,85 @@ export function segmentsTouch(a: RiverPoint, b: RiverPoint, c: RiverPoint, d: Ri
     u = cross2(offset, ab) / denominator;
   return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }
+const waterBoundsCache = new WeakMap<PhysicalWaterPolygon, Bounds>();
+
+export function getWaterBounds(water: PhysicalWaterPolygon): Bounds {
+  let b = waterBoundsCache.get(water);
+  if (!b) {
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (let i = 0; i < water.rings.length; i++) {
+      const rb = getRingBounds(water.rings[i]);
+      if (rb.minX < minX) minX = rb.minX;
+      if (rb.maxX > maxX) maxX = rb.maxX;
+      if (rb.minY < minY) minY = rb.minY;
+      if (rb.maxY > maxY) maxY = rb.maxY;
+    }
+    b = { minX, minY, maxX, maxY };
+    waterBoundsCache.set(water, b);
+  }
+  return b;
+}
+
 export function footprintTouchesWater(footprint: readonly RiverPoint[], water: PhysicalWaterPolygon): boolean {
+  if (!footprint.length || !water.rings.length) return false;
+  let fMinX = Infinity,
+    fMinY = Infinity,
+    fMaxX = -Infinity,
+    fMaxY = -Infinity;
+  for (let i = 0; i < footprint.length; i++) {
+    const p = footprint[i];
+    if (p[0] < fMinX) fMinX = p[0];
+    if (p[0] > fMaxX) fMaxX = p[0];
+    if (p[1] < fMinY) fMinY = p[1];
+    if (p[1] > fMaxY) fMaxY = p[1];
+  }
+
+  // Quick reject against the entire water polygon bounds
+  const wb = getWaterBounds(water);
+  if (
+    fMaxX < wb.minX - epsilon ||
+    fMinX > wb.maxX + epsilon ||
+    fMaxY < wb.minY - epsilon ||
+    fMinY > wb.maxY + epsilon
+  ) {
+    return false;
+  }
+
   if (footprint.some(p => pointInWater(p, water))) return true;
   const polygon: PhysicalWaterPolygon = { id: -1, rings: [footprint] };
   for (const ring of water.rings) {
-    if (ring.some(p => pointInWater(p, polygon))) return true;
-    for (let i = 0; i < ring.length; i++)
-      for (let j = 0; j < footprint.length; j++) {
-        if (segmentsTouch(ring[i], ring[(i + 1) % ring.length], footprint[j], footprint[(j + 1) % footprint.length]))
-          return true;
+    const b = getRingBounds(ring);
+    if (fMaxX < b.minX - epsilon || fMinX > b.maxX + epsilon || fMaxY < b.minY - epsilon || fMinY > b.maxY + epsilon) {
+      continue;
+    }
+    if (
+      ring.some(
+        p =>
+          p[0] >= fMinX - epsilon &&
+          p[0] <= fMaxX + epsilon &&
+          p[1] >= fMinY - epsilon &&
+          p[1] <= fMaxY + epsilon &&
+          pointInWater(p, polygon)
+      )
+    )
+      return true;
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i],
+        c = ring[(i + 1) % ring.length];
+      const eMinX = Math.min(a[0], c[0]),
+        eMaxX = Math.max(a[0], c[0]),
+        eMinY = Math.min(a[1], c[1]),
+        eMaxY = Math.max(a[1], c[1]);
+      if (fMaxX < eMinX - epsilon || fMinX > eMaxX + epsilon || fMaxY < eMinY - epsilon || fMinY > eMaxY + epsilon) {
+        continue;
       }
+      for (let j = 0; j < footprint.length; j++) {
+        if (segmentsTouch(a, c, footprint[j], footprint[(j + 1) % footprint.length])) return true;
+      }
+    }
   }
   return false;
 }
