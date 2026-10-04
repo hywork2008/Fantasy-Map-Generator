@@ -96,6 +96,14 @@ class WorldLandConnectionSession {
               searchSettings: c.settings.search,
               settings: {
                 ...c.settings.individual,
+                maxConstructionCostMeters: Math.min(
+                  c.settings.individual.maxConstructionCostMeters,
+                  pair.assessmentSettings?.maxConstructionCostMeters ?? c.settings.individual.maxConstructionCostMeters
+                ),
+                maxRouteCostMeters: Math.min(
+                  c.settings.individual.maxRouteCostMeters,
+                  pair.assessmentSettings?.maxRouteCostMeters ?? c.settings.individual.maxRouteCostMeters
+                ),
                 maxSearches: Math.min(c.settings.individual.maxSearches, remaining)
               }
             }

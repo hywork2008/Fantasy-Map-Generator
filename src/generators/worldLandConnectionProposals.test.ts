@@ -126,6 +126,25 @@ function fixture() {
   return { world, input, run };
 }
 describe("world candidates to read-only land connection proposals", () => {
+  it("applies pair construction caps and supplies confirmed outer corridor lengths", () => {
+    const f = fixture();
+    f.input.pairs.splice(1);
+    f.input.pairs[0].assessmentSettings = { maxConstructionCostMeters: 0, maxRouteCostMeters: 500 };
+    const costs = vi.fn((_crossing, _a, _b, lengths: readonly [number, number]) => {
+      expect(lengths.every(length => Number.isFinite(length) && length > 0)).toBe(true);
+      return 2;
+    });
+    f.input.environment.approachConstructionCostAt = costs;
+    const result = f.run();
+    expect(result.status).toBe("evaluated");
+    expect(costs).toHaveBeenCalledTimes(1);
+    expect(result.diagnostics.individuals[0].assessment.status).toBe("rejected");
+    f.input.pairs[0].assessmentSettings.maxConstructionCostMeters = 100;
+    expect(f.run().diagnostics.individuals[0].assessment.status).toBe("proposed");
+    f.input.pairs[0].assessmentSettings.maxRouteCostMeters = NaN;
+    expect(f.run()).toMatchObject({ status: "unresolved", reason: "invalid-input" });
+  });
+
   it("keeps later connection slots stable when an earlier coarse candidate is rejected", () => {
     const f = fixture();
     f.input.settings.crossings.spacingMeters = 4;

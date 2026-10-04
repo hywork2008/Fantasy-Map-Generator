@@ -38,6 +38,7 @@ export interface WorldConnectionPair {
   cityAId: number;
   cityBId: number;
   weight: number;
+  assessmentSettings?: Pick<LandConnectionAssessmentSettings, "maxConstructionCostMeters" | "maxRouteCostMeters">;
   unconnectedAllowanceMeters: number;
   startTangent?: RiverPoint;
   goalTangent?: RiverPoint;
@@ -49,7 +50,12 @@ export interface WorldProposalEnvironment {
   allowsPassageFootprint: (footprint: readonly RiverPoint[]) => boolean;
   capabilityAt: (riverId: number, arcLengthMeters: number) => CrossingCandidateInput["capability"];
   facilityCostsAt: (crossing: ProvisionalRiverCrossing) => { constructionCostMeters: number; useCostMeters: number };
-  approachConstructionCostAt: (crossing: ProvisionalRiverCrossing, cityAId: number, cityBId: number) => number;
+  approachConstructionCostAt: (
+    crossing: ProvisionalRiverCrossing,
+    cityAId: number,
+    cityBId: number,
+    corridorLengthsMeters: readonly [number, number]
+  ) => number;
 }
 export interface WorldProposalSettings {
   crossings: WorldCrossingCandidateSettings;
@@ -179,7 +185,11 @@ export function evaluateWorldLandConnectionProposals(
       !Number.isFinite(p.weight) ||
       p.weight <= 0 ||
       !Number.isFinite(p.unconnectedAllowanceMeters) ||
-      p.unconnectedAllowanceMeters < 0
+      p.unconnectedAllowanceMeters < 0 ||
+      (p.assessmentSettings !== undefined &&
+        ![p.assessmentSettings.maxConstructionCostMeters, p.assessmentSettings.maxRouteCostMeters].every(
+          v => Number.isFinite(v) && v >= 0
+        ))
     )
       return unresolved("invalid-input");
     seen.add(k);
@@ -343,7 +353,10 @@ export function evaluateWorldLandConnectionProposals(
           });
           continue;
         }
-        const approachConstructionCostMeters = e.approachConstructionCostAt(crossing, cityAId, cityBId);
+        const approachConstructionCostMeters = e.approachConstructionCostAt(crossing, cityAId, cityBId, [
+          approach.result.approachA.distanceMeters,
+          approach.result.approachB.distanceMeters
+        ]);
         if (!Number.isFinite(approachConstructionCostMeters) || approachConstructionCostMeters < 0)
           return unresolved("invalid-cost");
         const c: NetworkConnection = {
@@ -397,7 +410,18 @@ export function evaluateWorldLandConnectionProposals(
       baselineConnectionIds: available,
       candidateConnectionIds: candidates,
       searchSettings: s.search,
-      settings: { ...s.individual, maxSearches: Math.min(s.individual.maxSearches, remaining) },
+      settings: {
+        ...s.individual,
+        maxConstructionCostMeters: Math.min(
+          s.individual.maxConstructionCostMeters,
+          p.assessmentSettings?.maxConstructionCostMeters ?? s.individual.maxConstructionCostMeters
+        ),
+        maxRouteCostMeters: Math.min(
+          s.individual.maxRouteCostMeters,
+          p.assessmentSettings?.maxRouteCostMeters ?? s.individual.maxRouteCostMeters
+        ),
+        maxSearches: Math.min(s.individual.maxSearches, remaining)
+      },
       environment: networkEnvironment
     });
     diagnostics.assessmentSearches += assessment.comparison.searches;
