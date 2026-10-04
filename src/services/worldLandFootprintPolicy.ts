@@ -1,7 +1,10 @@
 import type { WorldContext } from "../context/worldContext";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { footprintBounds } from "./physicalWaterIndex";
 import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "./riverGeometry";
 import { footprintTouchesWater, validWaterPolygon } from "./riverPhysicalGeometry";
+import { SpatialBoundsIndex } from "./spatialBoundsIndex";
+import { worldCellConvexPieces } from "./worldCellGeometry";
 
 export interface WorldLandCellPolicy {
   cellId: number;
@@ -62,7 +65,7 @@ function clip(p: readonly RiverPoint[], a: RiverPoint, b: RiverPoint, orientatio
 }
 /** Cell polygons are a conservative support/political mask, not physical river
  * banks or a continuous slope model. Passage permission also applies over water.
- * Coverage is proved by subtracting the union of permitted convex cells; shared
+ * Coverage is proved by subtracting the union of permitted convex cell pieces; shared
  * borders do not count as gaps and overlap cannot conceal a forbidden cell.
  */
 export function buildWorldLandFootprintPolicy(
@@ -75,7 +78,7 @@ export function buildWorldLandFootprintPolicy(
   }
 ):
   | { policy: WorldLandFootprintPolicy }
-  | { reason: "invalid-input" | "cell-budget" | "vertex-budget" | "invalid-cell" } {
+  | { reason: "invalid-input" | "cell-budget" | "vertex-budget" | "invalid-cell" | "triangulation-budget" } {
   if (
     ![settings.maxCells, settings.maxVertices, settings.maxClipOperations, settings.maxRemainingPieces].every(
       v => Number.isSafeInteger(v) && v > 0
@@ -116,25 +119,28 @@ export function buildWorldLandFootprintPolicy(
       return { reason: "invalid-cell" };
     vertices += refs.length;
     if (vertices > settings.maxVertices) return { reason: "vertex-budget" };
-    const polygon: RiverPoint[] = [];
-    for (const ref of refs) {
-      const p = world.pack.vertices.p[ref];
-      if (!Number.isSafeInteger(ref) || ref < 0 || !p) return { reason: "invalid-cell" };
-      polygon.push([p[0] * scale, p[1] * scale]);
-    }
-    if (!convex(polygon)) return { reason: "invalid-cell" };
+    const decomposed = worldCellConvexPieces(world, id, scale, settings.maxClipOperations);
+    if (!("pieces" in decomposed)) return decomposed;
     const cell = Object.freeze({ cellId: id, stateId, height: h });
-    cells.push({
-      polygon,
-      allowed: rules.allowsCell(cell),
-      supported: h >= 20 && rules.supportsCell(cell),
-      orientation: Math.sign(polygon.reduce((s, a, i) => s + side(polygon[0], a, polygon[(i + 1) % polygon.length]), 0))
-    });
+    const allowed = rules.allowsCell(cell),
+      supported = h >= 20 && rules.supportsCell(cell);
+    for (const polygon of decomposed.pieces) {
+      cells.push({
+        polygon,
+        allowed,
+        supported,
+        orientation: Math.sign(
+          polygon.reduce((s, a, i) => s + side(polygon[0], a, polygon[(i + 1) % polygon.length]), 0)
+        )
+      });
+    }
   }
+
   // Copy budgets into this session snapshot, independently of caller mutation.
   const maxClipOperations = settings.maxClipOperations,
     maxRemainingPieces = settings.maxRemainingPieces,
     maxVertices = settings.maxVertices;
+  const index = new SpatialBoundsIndex(cells, c => footprintBounds(c.polygon)!);
   return {
     policy: Object.freeze({
       assess(footprint: readonly RiverPoint[], purpose: "passage" | "dry-support"): WorldFootprintAssessment {
@@ -143,7 +149,14 @@ export function buildWorldLandFootprintPolicy(
           return { status: "unresolved", reason: "invalid-footprint" };
         if (footprint.some(p => p[0] < 0 || p[1] < 0 || p[0] > width || p[1] > height))
           return { status: "blocked", reason: "outside-world" };
-        for (const c of cells) {
+        const bounds = footprintBounds(footprint)!;
+        const nearby = index.query({
+          minX: bounds.minX - eps,
+          minY: bounds.minY - eps,
+          maxX: bounds.maxX + eps,
+          maxY: bounds.maxY + eps
+        });
+        for (const c of nearby) {
           if (
             (!c.allowed || (purpose === "dry-support" && !c.supported)) &&
             footprintTouchesWater(footprint, { id: 0, rings: [c.polygon] })
@@ -152,7 +165,7 @@ export function buildWorldLandFootprintPolicy(
         }
         let remaining: (readonly RiverPoint[])[] = [footprint],
           operations = 0;
-        for (const c of cells) {
+        for (const c of nearby) {
           if (!c.allowed || (purpose === "dry-support" && !c.supported)) continue;
           const next: (readonly RiverPoint[])[] = [];
           for (const piece of remaining) {

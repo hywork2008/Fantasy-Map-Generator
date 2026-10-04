@@ -10,34 +10,46 @@ import {
   type NearbyConnectionSettings,
   selectNearbyWorldConnectionPairs
 } from "./landConnectionSelection";
-import { evaluateWorldLandConnectionProposals, type WorldLandProposalResult } from "./worldLandConnectionProposals";
+import {
+  evaluateWorldCellLandConnectionProposals,
+  type WorldCellLandProposalResult
+} from "./worldCellLandConnectionProposals";
+import {
+  evaluateWorldLandConnectionProposals,
+  type WorldLandProposalResult,
+  type WorldProposalSettings
+} from "./worldLandConnectionProposals";
 
 type ProposalInput = Parameters<typeof evaluateWorldLandConnectionProposals>[2];
-export type CalibratedWorldLandConnectionResult =
+type CellProposalInput = Parameters<typeof evaluateWorldCellLandConnectionProposals>[2];
+interface CalibrationSelectionInput {
+  cityIds: readonly number[];
+  nearby: NearbyConnectionSettings;
+  calibration: LandConnectionCalibration;
+  measurements: LandSearchMeasurements;
+  budgetPolicy: LandBudgetPolicy;
+  settings: WorldProposalSettings;
+}
+type CalibratedResult<P> =
   | {
       status: "evaluated";
       selection: Extract<NearbyConnectionResult, { status: "selected" }>;
-      proposal: WorldLandProposalResult;
+      proposal: P;
       budget: ReturnType<typeof tuneLandConnectionBudgets>;
     }
-  | { status: "unresolved"; reason: string; selection?: NearbyConnectionResult; proposal?: WorldLandProposalResult };
+  | { status: "unresolved"; reason: string; selection?: NearbyConnectionResult; proposal?: P };
+export type CalibratedWorldLandConnectionResult = CalibratedResult<WorldLandProposalResult>;
+export type CalibratedWorldCellLandConnectionResult = CalibratedResult<WorldCellLandProposalResult>;
 
-/** Complete stage-5 evaluation entry: current city selection, physical costs,
- * bounded facility groups and measured search budgets. Complete physical water,
- * support/permissions and capability still come from the current world provider;
- * no lakes, bridges or baseline connectivity are inferred here. */
-export function evaluateCalibratedWorldLandConnections(
+function calibratedProposal<P extends WorldLandProposalResult | WorldCellLandProposalResult>(
   world: Readonly<WorldContext>,
   distanceUnit: string,
-  input: Omit<ProposalInput, "pairs" | "environment"> & {
-    cityIds: readonly number[];
-    nearby: NearbyConnectionSettings;
-    calibration: LandConnectionCalibration;
-    measurements: LandSearchMeasurements;
-    budgetPolicy: LandBudgetPolicy;
-    environment: Omit<ProposalInput["environment"], "facilityCostsAt" | "approachConstructionCostAt">;
-  }
-): CalibratedWorldLandConnectionResult {
+  input: CalibrationSelectionInput,
+  evaluate: (
+    selection: Extract<NearbyConnectionResult, { status: "selected" }>,
+    budget: ReturnType<typeof tuneLandConnectionBudgets>
+  ) => P
+): CalibratedResult<P> {
   if (
     !input.settings.sharedSelection ||
     input.nearby.maxPairs > input.settings.maxPairs ||
@@ -60,19 +72,62 @@ export function evaluateCalibratedWorldLandConnections(
   } catch {
     return { status: "unresolved", reason: "invalid-budget-policy", selection };
   }
-  const width = budget.settings.crossings.dimensions.roadWidthMeters;
-  const proposal = evaluateWorldLandConnectionProposals(world, distanceUnit, {
-    ...input,
-    pairs: selection.pairs,
-    settings: budget.settings,
-    environment: {
-      ...input.environment,
-      facilityCostsAt: crossing => calibrateBridgeCosts(crossing, width, input.calibration),
-      approachConstructionCostAt: (_crossing, _a, _b, lengths) =>
-        calibrateApproachCost(lengths, width, input.calibration)
-    }
-  });
+  const proposal = evaluate(selection, budget);
   return proposal.status === "evaluated"
     ? { status: "evaluated", selection, proposal, budget }
     : { status: "unresolved", reason: proposal.reason, selection, proposal };
+}
+
+/** Explicit-provider stage-5 entry. Preserves the original complete water/support
+ * contract for synthetic environments and callers with their own physical source. */
+export function evaluateCalibratedWorldLandConnections(
+  world: Readonly<WorldContext>,
+  distanceUnit: string,
+  input: Omit<ProposalInput, "pairs" | "environment"> &
+    CalibrationSelectionInput & {
+      environment: Omit<ProposalInput["environment"], "facilityCostsAt" | "approachConstructionCostAt">;
+    }
+): CalibratedWorldLandConnectionResult {
+  return calibratedProposal(world, distanceUnit, input, (selection, budget) => {
+    const width = budget.settings.crossings.dimensions.roadWidthMeters;
+    return evaluateWorldLandConnectionProposals(world, distanceUnit, {
+      ...input,
+      pairs: selection.pairs,
+      settings: budget.settings,
+      environment: {
+        ...input.environment,
+        facilityCostsAt: crossing => calibrateBridgeCosts(crossing, width, input.calibration),
+        approachConstructionCostAt: (_crossing, _a, _b, lengths) =>
+          calibrateApproachCost(lengths, width, input.calibration)
+      }
+    });
+  });
+}
+
+/** World-owned lake/sea and cell-policy entry, including optional automatic dry
+ * walking alternatives. Calibration/engineering capability and all budgets remain
+ * explicit. The returned proposal is accepted by the existing fresh-session
+ * adoption API; incomplete world inputs cannot be promoted into adoption permits. */
+export function evaluateCalibratedWorldCellLandConnections(
+  world: Readonly<WorldContext>,
+  distanceUnit: string,
+  input: Omit<CellProposalInput, "pairs" | "environment"> &
+    CalibrationSelectionInput & {
+      environment: Omit<CellProposalInput["environment"], "facilityCostsAt" | "approachConstructionCostAt">;
+    }
+): CalibratedWorldCellLandConnectionResult {
+  return calibratedProposal(world, distanceUnit, input, (selection, budget) => {
+    const width = budget.settings.crossings.dimensions.roadWidthMeters;
+    return evaluateWorldCellLandConnectionProposals(world, distanceUnit, {
+      ...input,
+      pairs: selection.pairs,
+      settings: budget.settings,
+      environment: {
+        ...input.environment,
+        facilityCostsAt: crossing => calibrateBridgeCosts(crossing, width, input.calibration),
+        approachConstructionCostAt: (_crossing, _a, _b, lengths) =>
+          calibrateApproachCost(lengths, width, input.calibration)
+      }
+    });
+  });
 }

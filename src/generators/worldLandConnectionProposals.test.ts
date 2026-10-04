@@ -269,6 +269,14 @@ describe("current world cell policy proposal adapter", () => {
   function cellFixture() {
     const f = fixture();
     f.world.pack.cells.i = new Uint16Array([0, 1, 2]);
+    f.world.pack.cells.h = new Uint8Array([25, 25, 25]);
+    f.world.pack.cells.fl = new Uint16Array([20, 20, 20]);
+    f.world.pack.cells.p = [
+      [50, 40],
+      [50, 50],
+      [50, 60]
+    ];
+    f.world.pack.rivers[0].cells = [0, 1, 2];
     f.world.pack.cells.state = new Uint16Array([0, 1, 0]);
     const strips = [
       [0, 49.8],
@@ -300,6 +308,60 @@ describe("current world cell policy proposal adapter", () => {
     expect(denied.diagnostics.rejected).toContainEqual({ facilityId: 100, reason: "passage-blocked" });
     f.world.pack.cells.state[1] = 1;
     expect(f.run()).toHaveProperty("diagnostics.shared.status", "proposed");
+  });
+  it("automatically includes current lake/sea cells even when explicit obstacles are empty", () => {
+    const f = cellFixture();
+    f.world.pack.cells.h[1] = 10;
+    const result = f.run();
+    expect(result.status).toBe("evaluated");
+    expect(result.diagnostics.enumeration?.candidates).toEqual([]);
+    expect(result.diagnostics.enumeration?.rejected.length).toBeGreaterThan(0);
+  });
+  it("does not certify callbacks that change current world permissions during evaluation", () => {
+    const f = cellFixture();
+    f.input.environment.capabilityAt = () => {
+      f.world.pack.cells.state[1] = 2;
+      return { depthMeters: 3 };
+    };
+    expect(f.run()).toMatchObject({
+      status: "unresolved",
+      reason: "world-environment",
+      environmentReason: "changed-world-environment"
+    });
+  });
+  it("uses an automatically built same-bank walking alternative and refuses incomplete dry baselines", () => {
+    const f = cellFixture();
+    const dryBaseline = {
+      firstConnectionId: 10,
+      maxSearches: 100,
+      guides: {
+        spacingMeters: 10,
+        roadWidthMeters: 2,
+        firstNodeId: 100,
+        maxCells: 10,
+        maxVertices: 100,
+        maxSamples: 1000,
+        maxSourceNodes: 1000,
+        maxSourceEdges: 10000,
+        maxNeighbourChecks: 10000
+      }
+    };
+    const input = {
+      ...f.input,
+      dryBaseline,
+      pairs: [{ id: 1, cityAId: 1, cityBId: 3, weight: 1, unconnectedAllowanceMeters: 200 }]
+    };
+    const result = evaluateWorldCellLandConnectionProposals(f.world, "km", input);
+    expect(result.status).toBe("evaluated");
+    const context = getWorldLandProposalContext(result);
+    expect(context?.baselineConnectionIds).toEqual([10]);
+    expect(result.diagnostics.individuals[0].assessment.status).not.toBe("proposed");
+    const unresolved = evaluateWorldCellLandConnectionProposals(f.world, "km", { ...f.input, dryBaseline });
+    expect(unresolved).toMatchObject({
+      status: "unresolved",
+      reason: "world-environment",
+      environmentReason: "dry-baseline-unresolved"
+    });
   });
   it("uses freshly rebuilt cell policies for adoption over the bridge water", () => {
     const f = cellFixture(),

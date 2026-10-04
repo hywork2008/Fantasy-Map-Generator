@@ -35,6 +35,44 @@ function fixture(polygons = [rect(0, 0, 4, 10), rect(4, 0, 2, 10), rect(6, 0, 4,
   return { world, settings, rules, build, assess };
 }
 describe("world cell full-footprint policy", () => {
+  it("preserves concave rounded-cell recesses instead of filling a convex hull", () => {
+    const f = fixture([
+      [
+        [0, 0],
+        [10, 0],
+        [10, 3],
+        [3, 3],
+        [3, 10],
+        [0, 10]
+      ]
+    ]);
+    f.world.pack.cells.v[0] = [0, 1, 2, 3, 4, 5];
+    expect(f.assess(rect(1, 1, 1, 1), "dry-support")).toEqual({ status: "allowed" });
+    expect(f.assess(rect(5, 5, 1, 1), "dry-support")).toEqual({ status: "blocked", reason: "uncovered-region" });
+    f.settings.maxClipOperations = 1;
+    expect(f.build()).toEqual({ reason: "triangulation-budget" });
+  });
+  it("accepts exact adjacent/closing duplicate coordinates without modifying source vertex IDs", () => {
+    const f = fixture([
+      [
+        [0, 0],
+        [10, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+        [0, 0]
+      ]
+    ]);
+    f.world.pack.cells.v[0] = [0, 1, 2, 3, 4, 5];
+    const before = JSON.stringify(f.world);
+    expect(f.assess(rect(1, 1, 8, 8), "dry-support")).toEqual({ status: "allowed" });
+    expect(JSON.stringify(f.world)).toBe(before);
+  });
+  it("does not spend the local clipping budget on distant cells", () => {
+    const f = fixture([...Array.from({ length: 12 }, () => rect(0, 0, 2, 2)), rect(0, 0, 10, 10)]);
+    f.settings.maxClipOperations = 4;
+    expect(f.assess(rect(7, 7, 1, 1), "dry-support")).toEqual({ status: "allowed" });
+  });
   it("covers the union across shared borders in both winding directions", () => {
     const f = fixture();
     f.world.pack.vertices.p.splice(4, 4, ...rect(4, 0, 2, 10).reverse());

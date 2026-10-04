@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getWorldLandProposalReport } from "../services/worldLandProposalReport";
-import { evaluateCalibratedWorldLandConnections } from "./calibratedWorldLandConnections";
+import {
+  evaluateCalibratedWorldCellLandConnections,
+  evaluateCalibratedWorldLandConnections
+} from "./calibratedWorldLandConnections";
 import { createLandCalibrationWorldFixture } from "./fixtures/landConnectionCalibrationWorld";
 import { measureLandProposalSearches } from "./landConnectionBudgets";
 import { LAND_CONNECTION_CALIBRATION_PROFILES } from "./landConnectionCalibrationProfiles";
@@ -37,6 +40,35 @@ function fixture() {
   return { ...f, input, run };
 }
 describe("calibrated world selection and group adoption", () => {
+  it("uses current world-owned water/cell contracts for calibrated adoption and rejects a new lake at commit", () => {
+    const f = fixture();
+    f.world.pack.cells.i = new Uint16Array([0, 1, 2, 3, 4, 5]);
+    f.world.pack.cells.state = new Uint16Array(6);
+    f.world.pack.cells.v = Array.from({ length: 6 }, (_, i) => [i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3]);
+    f.world.pack.vertices = {
+      p: Array.from({ length: 6 }, (_, i) => [
+        [(i * 100) / 6, 0],
+        [((i + 1) * 100) / 6, 0],
+        [((i + 1) * 100) / 6, 100],
+        [(i * 100) / 6, 100]
+      ]).flat()
+    } as typeof f.world.pack.vertices;
+    const input = {
+      ...f.input,
+      cellPolicySettings: { maxCells: 10, maxVertices: 100, maxClipOperations: 10000, maxRemainingPieces: 100 },
+      cellRules: { allowsCell: () => true, supportsCell: () => true }
+    };
+    const evaluate = () => evaluateCalibratedWorldCellLandConnections(f.world, "km", input);
+    const result = evaluate();
+    expect(result.status).toBe("evaluated");
+    const created = createWorldLandConnectionSession(() => evaluate().proposal!);
+    if (!("session" in created)) throw Error(created.reason);
+    const prepared = created.session.prepare(0, { kind: "shared", groupId: 0 });
+    if (!("draft" in prepared)) throw Error(prepared.reason);
+    f.world.pack.cells.h[2] = 10;
+    expect(created.session.commit(prepared.draft).status).toBe("unresolved");
+    expect(created.session.snapshot.revision).toBe(0);
+  });
   it("retries only related rejected groups after adoption and obeys the retry limit", () => {
     const f = fixture();
     f.input.settings.shared.maxConstructionCostMeters = 100;
