@@ -9,6 +9,7 @@ import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
 import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
+import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type {
   Burg,
@@ -445,7 +446,14 @@ class RoutesModule {
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
-    for (const { points, i: routeId, navigation } of routes) {
+    for (const { points, i: routeId, navigation, group, registeredConnectionId } of routes) {
+      // Retained legacy locks are archive data, not certified physical links.
+      if (
+        this.worldContext.options.landConnectionGeneration &&
+        group !== "searoutes" &&
+        registeredConnectionId === undefined
+      )
+        continue;
       // River routes are a charted visual aid. Their actual travel graph is
       // directional, so they must never enter this bidirectional link table.
       if (navigation === "river") continue;
@@ -1639,6 +1647,16 @@ class RoutesModule {
               )))
     );
     pack.cells.routes = this.buildLinks(pack.routes);
+    if (worldContext.options.landConnectionGeneration) {
+      const physical = generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit);
+      if ("routes" in physical) {
+        pack.routes = [...pack.routes.filter(route => route.group === "searoutes" || route.lock), ...physical.routes];
+        pack.cells.routes = this.buildLinks(pack.routes);
+      } else {
+        delete worldContext.options.registeredLandConnections;
+        console.warn("Physical land connections unresolved", physical.reason);
+      }
+    }
   }
 
   // utility functions
@@ -2095,7 +2113,11 @@ class RoutesModule {
     return this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
   }
 
-  getPath({ group, points }: { group: string; points: number[][] }, pack?: PackedGraph): string {
+  getPath(
+    { group, points, registeredConnectionId }: { group: string; points: number[][]; registeredConnectionId?: number },
+    pack?: PackedGraph
+  ): string {
+    if (registeredConnectionId !== undefined) return "";
     const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);
     const renderPoints = this.getRenderPoints({ group, points }, pack);
     const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);

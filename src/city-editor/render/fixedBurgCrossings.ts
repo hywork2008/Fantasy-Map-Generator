@@ -7,7 +7,7 @@ export function drawFixedBurgCrossings(group: SVGGElement, payload: unknown, bud
   group.replaceChildren();
   if (!validFixedBurgCrossings(payload, budgets)) return false;
   const fragment = group.ownerDocument.createDocumentFragment();
-  for (const river of payload.rivers) {
+  for (const river of [...payload.rivers, ...(payload.obstacles ?? [])]) {
     const path = group.ownerDocument.createElementNS(namespace, "path");
     path.setAttribute("d", river.rings.map(ring => `M${ring.map(p => `${p[0]},${p[1]}`).join("L")}Z`).join(""));
     path.setAttribute("fill", "#79b7d1");

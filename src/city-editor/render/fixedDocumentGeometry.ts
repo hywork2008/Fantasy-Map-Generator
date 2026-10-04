@@ -10,6 +10,11 @@ import { drawFixedBurgCrossings } from "./fixedBurgCrossings";
 
 export function fixedDocumentGeometry(doc: CityDocument): FixedBurgCrossings | null {
   const payload = doc.importedFixedCrossings;
+  if (payload?.schemaVersion === 4) {
+    const b = payload.coverageBounds,
+      half = doc.frame.extentMeters / 2;
+    if (!b || b.minX > -half || b.minY > -half || b.maxX < half || b.maxY < half) return null;
+  }
   return payload &&
     validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS) &&
     Number.isFinite(doc.frame.extentMeters) &&
@@ -40,7 +45,7 @@ export function fixedRoadIsDry(points: readonly Point[], width: number, payload:
     ].map(([x, y]) => [a[0] + t[0] * x + n[0] * y, a[1] + t[1] * x + n[1] * y] as Point);
     if (
       corners.some(p => p.some(v => !Number.isFinite(v))) ||
-      payload.rivers.some(r => footprintTouchesWater(corners, r))
+      [...payload.rivers, ...(payload.obstacles ?? [])].some(r => footprintTouchesWater(corners, r))
     )
       return false;
   }

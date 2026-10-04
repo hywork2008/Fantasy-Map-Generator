@@ -1,4 +1,4 @@
-import { normalWaterSection, validWaterPolygon } from "../services/riverPhysicalGeometry";
+import { footprintTouchesWater, normalWaterSection, validWaterPolygon } from "../services/riverPhysicalGeometry";
 import { isRequiredSiteBounds, type RequiredSiteBounds, requiredSiteExtent } from "./requiredSiteBounds";
 
 type Point = readonly [number, number];
@@ -10,7 +10,9 @@ export interface FixedCrossingBudgets {
 }
 export interface FixedBurgCrossings {
   /** v2 also accepts surveyed water with no bridge facilities. */
-  schemaVersion: 1 | 2 | 3;
+  schemaVersion: 1 | 2 | 3 | 4;
+  /** v4: complete additional world water within coverageBounds, with fixed bridges. */
+  obstacles?: readonly { id: number; rings: readonly (readonly Point[])[] }[];
   /** v3 certifies only this CE-local area; no bridge facilities are inferred. */
   coverageBounds?: RequiredSiteBounds;
   coordinateUnit: "metres";
@@ -55,9 +57,9 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
     !record(raw) ||
     !keys(
       raw,
-      `schemaVersion,coordinateUnit,revision,originMeters,roadWidthMeters,requiredBounds,rivers,crossings${raw.schemaVersion === 3 ? ",coverageBounds" : ""}`
+      `schemaVersion,coordinateUnit,revision,originMeters,roadWidthMeters,requiredBounds,rivers,crossings${raw.schemaVersion === 3 ? ",coverageBounds" : raw.schemaVersion === 4 ? ",coverageBounds,obstacles" : ""}`
     ) ||
-    (raw.schemaVersion !== 1 && raw.schemaVersion !== 2 && raw.schemaVersion !== 3) ||
+    (raw.schemaVersion !== 1 && raw.schemaVersion !== 2 && raw.schemaVersion !== 3 && raw.schemaVersion !== 4) ||
     raw.coordinateUnit !== "metres" ||
     !id(raw.revision) ||
     !point(raw.originMeters) ||
@@ -69,12 +71,12 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
     !Array.isArray(raw.crossings) ||
     raw.crossings.length > budgets.maxFacilities ||
     raw.rivers.length > budgets.maxFacilities ||
-    (raw.schemaVersion === 1 && raw.rivers.length > raw.crossings.length) ||
-    (raw.schemaVersion !== 1 && raw.crossings.length !== 0)
+    ((raw.schemaVersion === 1 || raw.schemaVersion === 4) && raw.rivers.length > raw.crossings.length) ||
+    ((raw.schemaVersion === 2 || raw.schemaVersion === 3) && raw.crossings.length !== 0)
   )
     return false;
   if (
-    raw.schemaVersion === 3 &&
+    (raw.schemaVersion === 3 || raw.schemaVersion === 4) &&
     (!isRequiredSiteBounds(raw.coverageBounds) ||
       raw.coverageBounds.minX > raw.requiredBounds.minX ||
       raw.coverageBounds.minY > raw.requiredBounds.minY ||
@@ -83,6 +85,24 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
   )
     return false;
   let vertices = 0;
+  if (raw.schemaVersion === 4) {
+    if (!Array.isArray(raw.obstacles) || raw.obstacles.length > budgets.maxWaterVertices) return false;
+    for (const obstacle of raw.obstacles) {
+      if (
+        !record(obstacle) ||
+        !keys(obstacle, "id,rings") ||
+        !Number.isSafeInteger(obstacle.id) ||
+        !Array.isArray(obstacle.rings)
+      )
+        return false;
+      for (const ring of obstacle.rings) {
+        if (!Array.isArray(ring) || !ring.every(point) || vertices + ring.length > budgets.maxWaterVertices)
+          return false;
+        vertices += ring.length;
+      }
+      if (!validWaterPolygon(obstacle as unknown as { id: number; rings: Point[][] })) return false;
+    }
+  }
   const riverIds = new Set<number>();
   for (const r of raw.rivers) {
     if (
@@ -202,6 +222,21 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
     const section = normalWaterSection(c.q, c.normal, { id: r.id, rings: r.rings });
     if (!section || !close(section.negative.point, c.waterA) || !close(section.positive.point, c.waterB)) return false;
     const ordered = [c.approachA, c.deckA, c.waterA, c.q, c.waterB, c.deckB, c.approachB];
+    if (a.schemaVersion === 4) {
+      const half = a.roadWidthMeters / 2;
+      const footprint = [
+        [c.approachA[0] - c.tangent[0] * half, c.approachA[1] - c.tangent[1] * half],
+        [c.approachB[0] - c.tangent[0] * half, c.approachB[1] - c.tangent[1] * half],
+        [c.approachB[0] + c.tangent[0] * half, c.approachB[1] + c.tangent[1] * half],
+        [c.approachA[0] + c.tangent[0] * half, c.approachA[1] + c.tangent[1] * half]
+      ] as Point[];
+      if (
+        [...a.rivers.filter(river => river.id !== c.riverId), ...(a.obstacles ?? [])].some(water =>
+          footprintTouchesWater(footprint, water)
+        )
+      )
+        return false;
+    }
     let previous = -Infinity;
     for (const p of ordered) {
       const d = (p[0] - c.q[0]) * c.normal[0] + (p[1] - c.q[1]) * c.normal[1];
@@ -225,7 +260,9 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
       }
     }
   }
-  return a.schemaVersion !== 1 || a.rivers.every(r => a.crossings.some(c => c.riverId === r.id));
+  return (
+    (a.schemaVersion !== 1 && a.schemaVersion !== 4) || a.rivers.every(r => a.crossings.some(c => c.riverId === r.id))
+  );
 }
 
 /** The local preview must refer to this descriptor's exact physical town origin. */
@@ -245,6 +282,12 @@ export function fixedCrossingsMatchFrame(payload: FixedBurgCrossings, frame: unk
     return false;
   const b = payload.requiredBounds,
     f = frame.requiredBounds;
+  if (payload.schemaVersion === 3 || payload.schemaVersion === 4) {
+    const coverage = payload.coverageBounds,
+      half = frame.extentMeters / 2;
+    if (!coverage || coverage.minX > -half || coverage.minY > -half || coverage.maxX < half || coverage.maxY < half)
+      return false;
+  }
   if (f.minX > b.minX || f.minY > b.minY || f.maxX < b.maxX || f.maxY < b.maxY) return false;
   const origin = frame.originMapUnits,
     scale = frame.metersPerMapUnit;

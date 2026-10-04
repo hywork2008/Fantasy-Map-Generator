@@ -1,3 +1,4 @@
+import { FixedRoadReservation } from "../fixedRoadReservation";
 import { circuitRing, polygonOverlaps } from "../fortifications";
 import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
@@ -123,6 +124,7 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+  const fixedRoads = new FixedRoadReservation(document);
   const moat = new MoatReservation(document, 2);
   const shore = oceanShoreSegments(document);
   const buildings = rebuildLandmarkHousing(document, fabric.buildings, [
@@ -136,6 +138,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   ]).filter(
     lot =>
       !moat.hitsPolygon(lot.polygon) &&
+      !fixedRoads.hitsPolygon(lot.polygon) &&
       !polygonHitsDocumentWater(document, lot.polygon) &&
       (document.mesh.faces[lot.faceId]?.properties.locked ||
         document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
@@ -152,7 +155,9 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     );
   const watermills = {
     ...candidateWatermills,
-    mills: candidateWatermills.mills.filter(m => !moat.hitsPolygon(m.millhousePolygon))
+    mills: candidateWatermills.mills.filter(
+      m => !moat.hitsPolygon(m.millhousePolygon) && !fixedRoads.hitsPolygon(m.millhousePolygon)
+    )
   };
   const millPolygons = watermills.mills.map(m => m.millhousePolygon);
   const nonMillBuildings = millPolygons.length

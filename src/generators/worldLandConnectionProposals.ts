@@ -260,7 +260,11 @@ export function evaluateWorldLandConnectionProposals(
   const environment = {
     nonRiverWater: e.nonRiverWater,
     supportsDryFootprint: (_riverId: number, p: readonly RiverPoint[]) => supportsDryFootprint(p),
-    capabilityAt: e.capabilityAt
+    capabilityAt: e.capabilityAt,
+    corridors: pairs.map(pair => ({
+      start: nodes.find(n => n.id === pair.cityAId)!.point,
+      end: nodes.find(n => n.id === pair.cityBId)!.point
+    }))
   };
   const enumeration = generateWorldRiverCrossingCandidates(
     world,

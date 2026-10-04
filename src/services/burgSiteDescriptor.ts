@@ -1,4 +1,5 @@
 import { worldContext } from "../context/worldContext";
+import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, River, Route } from "../types/models";
@@ -23,6 +24,7 @@ import {
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
+import { exportFixedBurgCrossings } from "./fixedBurgCrossings";
 import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
 import { SettlementGeometrySession } from "./settlementGeometrySession";
@@ -32,6 +34,7 @@ import {
   settlementRadiusMeters,
   settlementRiverGeometry
 } from "./settlementRiverSite";
+import { getWorldLandConnectionCurrent } from "./worldLandConnectionRuntime";
 import { worldRiverOccupiedBounds } from "./worldRiverGeometry";
 
 /**
@@ -302,10 +305,64 @@ export function getBurgSiteDescriptor(
     } else if (frontage?.beyondBudget) beyondBudgetRiverId = waterAccess.riverId;
   }
   let fixedCrossings = frameRequirements?.fixedCrossings;
+  if (!fixedCrossings && worldContext.options.landConnectionGeneration) {
+    const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+    if (physical) {
+      const facilities = new Set(
+        physical.snapshot.network.edges
+          .filter(e => e.from === burgId || e.to === burgId)
+          .flatMap(e => (e.crossing ? [e.crossing.facilityId] : []))
+      );
+      const halfBudget =
+        Math.min(POPULATION_WINDOW_MAX_M, frameRequirements?.maxExtentMeters ?? POPULATION_WINDOW_MAX_M) / 2;
+      const resolved = getConstrainedNetworkConnections(physical.snapshot.network, physical.current.environment);
+      if (!("connections" in resolved)) throw new RangeError("Cannot resolve current fixed crossings");
+      const localFacilities = [...facilities].filter(id => {
+        const source = resolved.connections.find(c => c.kind === "bridge" && c.crossing.id === id);
+        if (source?.kind !== "bridge") return false;
+        const c = source.crossing,
+          width = physical.snapshot.network.roadWidthMeters / 2;
+        return [c.approachA, c.approachB, c.deckA, c.deckB].every(p =>
+          [-1, 1].every(
+            sign =>
+              Math.abs(p[0] - burg.x * metersPerMapUnit + sign * c.tRiver[0] * width) <= halfBudget &&
+              Math.abs(p[1] - burg.y * metersPerMapUnit + sign * c.tRiver[1] * width) <= halfBudget
+          )
+        );
+      });
+      if (localFacilities.length) {
+        const exported = exportFixedBurgCrossings(
+          physical.snapshot,
+          physical.current,
+          [burg.x * metersPerMapUnit, burg.y * metersPerMapUnit],
+          FIXED_SITE_CROSSING_BUDGETS,
+          {
+            facilityIds: localFacilities,
+            coverageBounds: { minX: -halfBudget, minY: -halfBudget, maxX: halfBudget, maxY: halfBudget }
+          }
+        );
+        if (!("crossings" in exported))
+          throw new RangeError(`Cannot export current fixed crossings: ${exported.reason}`);
+        const b = exported.crossings.requiredBounds;
+        if (requiredSiteExtent(b) <= POPULATION_WINDOW_MAX_M) {
+          fixedCrossings = exported.crossings;
+          autoBounds = autoBounds
+            ? {
+                minX: Math.min(autoBounds.minX, b.minX),
+                minY: Math.min(autoBounds.minY, b.minY),
+                maxX: Math.max(autoBounds.maxX, b.maxX),
+                maxY: Math.max(autoBounds.maxY, b.maxY)
+              }
+            : { ...b };
+          extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
+        }
+      }
+    }
+  }
   if (fixedCrossings) {
     if (!validFixedBurgCrossings(fixedCrossings, FIXED_SITE_CROSSING_BUDGETS))
       throw new RangeError("Invalid fixed crossing preview");
-    const required = frameRequirements!.requiredBounds,
+    const required = frameRequirements?.requiredBounds ?? autoBounds ?? fixedCrossings.requiredBounds,
       b = fixedCrossings.requiredBounds;
     if (
       required.minX > b.minX ||
@@ -903,6 +960,26 @@ function collectRouteLegs(burg: Burg): { route: Route; leg: [number, number, num
 
   for (const route of pack.routes) {
     if (route.merged || !route.points?.length) continue;
+    if (route.registeredConnectionId !== undefined) {
+      const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+      const edge = physical?.snapshot.network.edges.find(e => e.id === route.registeredConnectionId && !e.reverse);
+      if (!edge || (edge.from !== burg.i && edge.to !== burg.i)) continue;
+      let leg = edge.from === burg.i ? route.points.slice() : route.points.slice().reverse();
+      if (edge.crossing) {
+        const connection = getConstrainedNetworkConnections(physical!.snapshot.network, physical!.current.environment);
+        if (!("connections" in connection)) continue;
+        const source = connection.connections.find(c => c.id === edge.id);
+        if (source?.kind !== "bridge") continue;
+        const endpoint = edge.from === burg.i ? source.crossing.approachA : source.crossing.approachB;
+        const scale = getMetersPerMapUnit();
+        const terminal = leg.findIndex(p => Math.hypot(p[0] * scale - endpoint[0], p[1] * scale - endpoint[1]) <= 1e-7);
+        if (terminal < 1) continue;
+        leg = leg.slice(0, terminal + 1);
+      }
+      if (leg.length >= 2) legs.push({ route, leg });
+      continue;
+    }
+    if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
     const index = route.points.findIndex(point => point[2] === burg.cell);
     if (index === -1) continue;
 

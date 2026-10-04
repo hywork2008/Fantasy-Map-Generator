@@ -226,3 +226,5 @@ npx vitest run src/services/settlementPlacement.profile.test.ts
 検証: セッション初期準備の中断/再開、2河川を含む単位変更・河川編集の途中取消し、取消し後の初回terrain ring生成が旧単位を使うこと、同一内容のpack置換、既存の政治属性だけの変更時の再使用を確認。関連3ファイル46テスト、型検査、変更ファイルのBiome、legacy UI・world writer・構成lintを確認した。新規保存world fixtureは不要で、指定のSercilandファイルは変更していない。追加の速度調整・数値性能受入計測は実施していない。
 
 後続の段階1〜2実装では、world湖・海の水セル和集合と共有snapshot、セル内乾燥ガイド/共有境界portal、徒歩代替回廊の自動構築を追加し、worldセル提案と段階5の校正付き現在評価へ接続した。地形支持の全セル問い合わせもbounds索引へ変更した。詳細・残件は[関連計画の追加記録](fmg-settlements-and-perpendicular-crossings.md)を参照。これは段階6を前提にした変更ではなく、通常生成/描画/CE自動接続へ進むための現在環境の構築である。全入口の非同期化・生成全体予算・Workerや数値性能受入の完了を意味しない。
+
+さらに段階1〜3の回廊/狭窄部候補細分化、明示設定worldの通常生成での採用・archive保存/現在復元・SVG/WebGL描画、通常descriptorのv4固定橋/全局所水域受渡し、CEの既定現在providerと両岸自動進入要求・建物予約を実装した。[最新の範囲と残件](fmg-settlements-and-perpendicular-crossings.md)に記録した。旧路の解析接続口・接続問い合わせ利用者・ロック道路の完全移行と3D表示は残る。段階6の全seed検証・既定化とは独立して進められる残件であり、未完了を段階6前提として扱わない。

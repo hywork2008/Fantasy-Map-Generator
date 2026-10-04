@@ -62,6 +62,12 @@ export function findFixedCrossingApproach(
   )
     return failure("invalid-input");
   const crossing = fixed.crossings.find(c => c.id === input.facilityId);
+  if (fixed.schemaVersion === 4) {
+    const b = fixed.coverageBounds,
+      half = document.frame.extentMeters / 2;
+    if (!b || b.minX > -half || b.minY > -half || b.maxX < half || b.maxY < half)
+      return failure("incomplete-water-coverage");
+  }
   if (!crossing) return failure("unknown-facility");
   const ids = Object.keys(document.mesh.vertices);
   if (
@@ -73,7 +79,7 @@ export function findFixedCrossingApproach(
   const meshKey = JSON.stringify([document.mesh.vertices, document.mesh.edges]);
   const start = ids.indexOf(input.startVertexId);
   if (start < 0) return failure("unknown-start");
-  const waters = [...fixed.rivers, ...input.otherWater];
+  const waters = [...fixed.rivers, ...(fixed.obstacles ?? []), ...input.otherWater];
   if (waters.reduce((sum, w) => sum + w.rings.reduce((n, r) => n + r.length, 0), 0) > input.maxWaterVertices)
     return failure("water-budget");
   const water = PhysicalWaterIndex.build(waters, new PhysicalWaterValidationCache());

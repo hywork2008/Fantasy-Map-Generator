@@ -38,9 +38,18 @@ export function worldCellConvexPieces(
   maxOperations: number
 ): { pieces: [number, number][][] } | { reason: "invalid-cell" | "triangulation-budget" } {
   const source = worldCellRing(world, cellId, 1);
+  return polygonConvexPieces(source, scale, maxOperations);
+}
+
+/** Bounded decomposition shared by world cells and editable CE terrain. */
+export function polygonConvexPieces(
+  source: readonly [number, number][] | null,
+  scale: number,
+  maxOperations: number
+): { pieces: [number, number][][] } | { reason: "invalid-cell" | "triangulation-budget" } {
   if (!source || !Number.isSafeInteger(maxOperations) || maxOperations < 1) return { reason: "invalid-cell" };
   const polygon = source.map(p => [p[0] * scale, p[1] * scale] as [number, number]);
-  if (!validWaterPolygon({ id: cellId, rings: [polygon] })) return { reason: "invalid-cell" };
+  if (!validWaterPolygon({ id: 0, rings: [polygon] })) return { reason: "invalid-cell" };
   const initialArea = source.reduce((area, p, i) => area + side(source[0], p, source[(i + 1) % source.length]), 0);
   if (!Number.isFinite(initialArea) || initialArea === 0) return { reason: "invalid-cell" };
   if (
@@ -108,7 +117,5 @@ export function worldCellConvexPieces(
     if (!found) return { reason: "invalid-cell" };
   }
   pieces.push(vertices.map(i => polygon[i]));
-  return pieces.every(piece => validWaterPolygon({ id: cellId, rings: [piece] }))
-    ? { pieces }
-    : { reason: "invalid-cell" };
+  return pieces.every(piece => validWaterPolygon({ id: 0, rings: [piece] })) ? { pieces } : { reason: "invalid-cell" };
 }

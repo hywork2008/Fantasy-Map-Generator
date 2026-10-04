@@ -219,6 +219,11 @@ export interface WorldOptions {
    * Undefined on older saves / missing field: defaults to "elevationAware".
    */
   landRouteGenerationMode?: LandRouteGenerationMode;
+  /** Explicit phase-1–5 physical-road contract; no implicit trial profile. */
+  landConnectionGeneration?: import("../services/worldLandConnectionRuntime").WorldLandConnectionGenerationSettings;
+  /** Data only: restored against current terrain, rivers, costs and units. */
+  registeredLandConnections?: string;
+  registeredLandConnectionUnit?: string;
   /**
    * Strength of elevation/slope aversion when landRouteGenerationMode is elevationAware.
    * 0 = ignore height (short ridge shortcuts allowed); 1 = plan defaults; >1 = stricter valleys.

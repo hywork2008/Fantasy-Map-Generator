@@ -631,7 +631,7 @@ function polylineLength(poly: Point[]): number {
 }
 
 function assertRegionalCoverage(site: BurgSiteDescriptor): void {
-  if (site.fixedCrossings?.schemaVersion !== 3) return;
+  if (site.fixedCrossings?.schemaVersion !== 3 && site.fixedCrossings?.schemaVersion !== 4) return;
   const bounds = site.fixedCrossings.coverageBounds;
   const half = site.frame.extentMeters / 2;
   if (!bounds || bounds.minX > -half || bounds.minY > -half || bounds.maxX < half || bounds.maxY < half)

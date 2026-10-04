@@ -844,6 +844,8 @@ export interface RiverCellHydrology {
 }
 
 export interface Route {
+  /** Exact physical shape is resolved through the current world registry. */
+  registeredConnectionId?: number;
   /** Actual road/channel intersections resolved after candidate water routes. */
   riverCrossings?: import("../utils/riverCrossing").RiverRouteCrossing[];
   i: number;

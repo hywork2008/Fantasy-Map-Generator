@@ -35,6 +35,28 @@ function fixture(polygons = [rect(0, 0, 4, 10), rect(4, 0, 2, 10), rect(6, 0, 4,
   return { world, settings, rules, build, assess };
 }
 describe("world cell full-footprint policy", () => {
+  it("covers a long stroke across fractional shared borders without manufacturing ULP gaps", () => {
+    const f = fixture(Array.from({ length: 6 }, (_, i) => rect((i * 100) / 6, 0, 100 / 6, 100)));
+    // Use the same stored border coordinates on both cells, as a shared mesh does.
+    f.world.pack.vertices.p = Array.from({ length: 6 }, (_, i) => [
+      [(i * 100) / 6, 0],
+      [((i + 1) * 100) / 6, 0],
+      [((i + 1) * 100) / 6, 100],
+      [(i * 100) / 6, 100]
+    ]).flat();
+    f.world.graphWidth = f.world.graphHeight = 100;
+    expect(
+      f.assess(
+        [
+          [66.72991677469778, 29],
+          [66.72991677469778, 31],
+          [17.506932429798717, 31],
+          [17.506932429798717, 29]
+        ],
+        "dry-support"
+      ).status
+    ).toBe("allowed");
+  });
   it("preserves concave rounded-cell recesses instead of filling a convex hull", () => {
     const f = fixture([
       [

@@ -58,7 +58,9 @@ function clip(p: readonly RiverPoint[], a: RiverPoint, b: RiverPoint, orientatio
     if ((du < 0 && dv > 0) || (du > 0 && dv < 0)) {
       if (!Number.isFinite(du - dv)) return null;
       const t = du / (du - dv);
-      out.push([u[0] + (v[0] - u[0]) * t, u[1] + (v[1] - u[1]) * t]);
+      // Preserve an exact axis-aligned shared border. Computing its constant
+      // coordinate by interpolation can manufacture an ULP-wide uncovered gap.
+      out.push([a[0] === b[0] ? a[0] : u[0] + (v[0] - u[0]) * t, a[1] === b[1] ? a[1] : u[1] + (v[1] - u[1]) * t]);
     }
   }
   return out;
@@ -136,59 +138,85 @@ export function buildWorldLandFootprintPolicy(
     }
   }
 
+  return { policy: buildPolygonLandFootprintPolicy(cells, { minX: 0, minY: 0, maxX: width, maxY: height }, settings) };
+}
+
+/** Whole convex-footprint coverage against a union of validated convex terrain pieces.
+ * Callers own decomposition and must supply the complete current terrain mask.
+ */
+export function buildPolygonLandFootprintPolicy(
+  source: readonly { polygon: RiverPoint[]; allowed: boolean; supported: boolean }[],
+  boundary: { minX: number; minY: number; maxX: number; maxY: number },
+  settings: WorldFootprintPolicySettings
+): WorldLandFootprintPolicy {
+  const cells = source.map(c => {
+    const polygon = c.polygon.map(p => [...p] as RiverPoint);
+    if (!convex(polygon)) throw new RangeError("Invalid terrain piece");
+    return {
+      ...c,
+      polygon,
+      orientation: Math.sign(polygon.reduce((s, a, i) => s + side(polygon[0], a, polygon[(i + 1) % polygon.length]), 0))
+    };
+  });
+  const { minX, minY, maxX, maxY } = boundary;
+  if (
+    ![minX, minY, maxX, maxY].every(Number.isFinite) ||
+    minX >= maxX ||
+    minY >= maxY ||
+    !Object.values(settings).every(v => Number.isSafeInteger(v) && v > 0)
+  )
+    throw new RangeError("Invalid terrain budget or bounds");
   // Copy budgets into this session snapshot, independently of caller mutation.
   const maxClipOperations = settings.maxClipOperations,
     maxRemainingPieces = settings.maxRemainingPieces,
     maxVertices = settings.maxVertices;
   const index = new SpatialBoundsIndex(cells, c => footprintBounds(c.polygon)!);
-  return {
-    policy: Object.freeze({
-      assess(footprint: readonly RiverPoint[], purpose: "passage" | "dry-support"): WorldFootprintAssessment {
-        if (footprint.length > maxVertices) return { status: "unresolved", reason: "vertex-budget" };
-        if ((purpose !== "passage" && purpose !== "dry-support") || !convex(footprint))
-          return { status: "unresolved", reason: "invalid-footprint" };
-        if (footprint.some(p => p[0] < 0 || p[1] < 0 || p[0] > width || p[1] > height))
-          return { status: "blocked", reason: "outside-world" };
-        const bounds = footprintBounds(footprint)!;
-        const nearby = index.query({
-          minX: bounds.minX - eps,
-          minY: bounds.minY - eps,
-          maxX: bounds.maxX + eps,
-          maxY: bounds.maxY + eps
-        });
-        for (const c of nearby) {
-          if (
-            (!c.allowed || (purpose === "dry-support" && !c.supported)) &&
-            footprintTouchesWater(footprint, { id: 0, rings: [c.polygon] })
-          )
-            return { status: "blocked", reason: c.allowed ? "unsupported-cell" : "forbidden-cell" };
-        }
-        let remaining: (readonly RiverPoint[])[] = [footprint],
-          operations = 0;
-        for (const c of nearby) {
-          if (!c.allowed || (purpose === "dry-support" && !c.supported)) continue;
-          const next: (readonly RiverPoint[])[] = [];
-          for (const piece of remaining) {
-            let inside = piece;
-            for (let i = 0; i < c.polygon.length && inside.length >= 3; i++) {
-              if (++operations > maxClipOperations) return { status: "unresolved", reason: "clip-budget" };
-              const a = c.polygon[i],
-                b = c.polygon[(i + 1) % c.polygon.length];
-              const outside = clip(inside, a, b, -c.orientation);
-              if (!outside || !Number.isFinite(area(outside)))
-                return { status: "unresolved", reason: "numeric-geometry" };
-              if (outside.length >= 3 && area(outside) > eps * eps) next.push(outside);
-              if (next.length > maxRemainingPieces) return { status: "unresolved", reason: "piece-budget" };
-              const clipped = clip(inside, a, b, c.orientation);
-              if (!clipped) return { status: "unresolved", reason: "numeric-geometry" };
-              inside = clipped;
-            }
-          }
-          remaining = next;
-          if (!remaining.length) return { status: "allowed" };
-        }
-        return { status: "blocked", reason: "uncovered-region" };
+  return Object.freeze({
+    assess(footprint: readonly RiverPoint[], purpose: "passage" | "dry-support"): WorldFootprintAssessment {
+      if (footprint.length > maxVertices) return { status: "unresolved", reason: "vertex-budget" };
+      if ((purpose !== "passage" && purpose !== "dry-support") || !convex(footprint))
+        return { status: "unresolved", reason: "invalid-footprint" };
+      if (footprint.some(p => p[0] < minX || p[1] < minY || p[0] > maxX || p[1] > maxY))
+        return { status: "blocked", reason: "outside-world" };
+      const bounds = footprintBounds(footprint)!;
+      const nearby = index.query({
+        minX: bounds.minX - eps,
+        minY: bounds.minY - eps,
+        maxX: bounds.maxX + eps,
+        maxY: bounds.maxY + eps
+      });
+      for (const c of nearby) {
+        if (
+          (!c.allowed || (purpose === "dry-support" && !c.supported)) &&
+          footprintTouchesWater(footprint, { id: 0, rings: [c.polygon] })
+        )
+          return { status: "blocked", reason: c.allowed ? "unsupported-cell" : "forbidden-cell" };
       }
-    })
-  };
+      let remaining: (readonly RiverPoint[])[] = [footprint],
+        operations = 0;
+      for (const c of nearby) {
+        if (!c.allowed || (purpose === "dry-support" && !c.supported)) continue;
+        const next: (readonly RiverPoint[])[] = [];
+        for (const piece of remaining) {
+          let inside = piece;
+          for (let i = 0; i < c.polygon.length && inside.length >= 3; i++) {
+            if (++operations > maxClipOperations) return { status: "unresolved", reason: "clip-budget" };
+            const a = c.polygon[i],
+              b = c.polygon[(i + 1) % c.polygon.length];
+            const outside = clip(inside, a, b, -c.orientation);
+            if (!outside || !Number.isFinite(area(outside)))
+              return { status: "unresolved", reason: "numeric-geometry" };
+            if (outside.length >= 3 && area(outside) > eps * eps) next.push(outside);
+            if (next.length > maxRemainingPieces) return { status: "unresolved", reason: "piece-budget" };
+            const clipped = clip(inside, a, b, c.orientation);
+            if (!clipped) return { status: "unresolved", reason: "numeric-geometry" };
+            inside = clipped;
+          }
+        }
+        remaining = next;
+        if (!remaining.length) return { status: "allowed" };
+      }
+      return { status: "blocked", reason: "uncovered-region" };
+    }
+  });
 }

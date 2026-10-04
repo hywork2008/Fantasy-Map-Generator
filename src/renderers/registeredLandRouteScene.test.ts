@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  cityFixedApproachProvider,
+  connectAutomaticFixedApproaches
+} from "../city-editor/core/automaticFixedApproaches";
 import { createGridDocument, parseDocument } from "../city-editor/core/document";
 import {
   adoptFixedCrossingApproaches,
   restoreFixedCrossingApproaches
 } from "../city-editor/core/fixedApproachAdoption";
 import { findFixedCrossingApproach } from "../city-editor/core/fixedCrossingApproach";
+import { FixedRoadReservation } from "../city-editor/core/fixedRoadReservation";
 import { buildBlockFabric } from "../city-editor/core/gen/blockInfill";
 import { buildCityBuildings } from "../city-editor/core/gen/buildingLots";
 import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
@@ -331,6 +336,156 @@ describe("CE fixed physical crossing handoff", () => {
     if (!("crossings" in result)) throw Error(result.reason);
     return { ...f, payload: result.crossings };
   }
+  it("automatically connects actual streets on both sides using the standalone current CE contract", () => {
+    const f = exported(),
+      fixed = f.payload.crossings[0];
+    const doc = createGridDocument({
+      size: "tiny",
+      grid: "hex",
+      extentMeters: 300,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 30,
+      seed: "auto-fixed"
+    });
+    doc.importedFixedCrossings = structuredClone(f.payload);
+    doc.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [-100, -100],
+          [100, -100],
+          [100, 100],
+          [-100, 100]
+        ],
+        site: [0, 0],
+        centroid: [0, 0],
+        neighbors: [],
+        onBorder: true
+      }
+    ]);
+    doc.featureGroups = [];
+    for (const side of ["A", "B"] as const) {
+      const e = side === "A" ? fixed.approachA : fixed.approachB;
+      const n = side === "A" ? fixed.normal : [-fixed.normal[0], -fixed.normal[1]];
+      for (const [id, length] of [
+        [`${side}0`, 30],
+        [`${side}1`, 20]
+      ] as const)
+        doc.mesh.vertices[id] = { id, point: [e[0] - n[0] * length, e[1] - n[1] * length], locked: false };
+      doc.mesh.edges[side] = { id: side, a: `${side}0`, b: `${side}1`, leftFace: null, rightFace: null, locked: false };
+      doc.featureGroups.push({
+        id: `street-${side}`,
+        kind: "road",
+        name: side,
+        segments: [{ edgeId: side, forward: true }],
+        style: { widthMeters: 2, color: "black" },
+        locked: false
+      });
+    }
+    const before = JSON.stringify(doc);
+    const result = connectAutomaticFixedApproaches(doc);
+    expect(result.diagnostics.map(d => d.status)).toEqual(["adopted", "adopted"]);
+    expect(JSON.stringify(doc)).toBe(before);
+    expect(result.document.fixedCrossingApproaches).toHaveLength(2);
+    const piece = result.document.fixedCrossingApproaches![0].corridor.pieces[0];
+    const p = [(piece.start[0] + piece.end[0]) / 2, (piece.start[1] + piece.end[1]) / 2];
+    const reservation = new FixedRoadReservation(result.document);
+    expect(
+      reservation.hitsPolygon([
+        [p[0] - 0.1, p[1] - 0.1],
+        [p[0] + 0.1, p[1] - 0.1],
+        [p[0] + 0.1, p[1] + 0.1],
+        [p[0] - 0.1, p[1] + 0.1]
+      ])
+    ).toBe(true);
+    expect(
+      reservation.hitsPolygon([
+        [50, 50],
+        [60, 50],
+        [60, 60],
+        [50, 60]
+      ])
+    ).toBe(false);
+    expect(renderStandaloneCitySvg(result.document).querySelectorAll("[data-fixed-approach-id]")).toHaveLength(2);
+    const restored = restoreFixedCrossingApproaches(structuredClone(result.document), cityFixedApproachProvider);
+    expect(restored).toHaveProperty("document");
+    const changed = structuredClone(result.document);
+    changed.mesh.faces.f0.properties.water = "lake";
+    expect(restoreFixedCrossingApproaches(changed, cityFixedApproachProvider)).toHaveProperty("reason");
+    const unsupported = structuredClone(doc);
+    unsupported.mesh.faces = {};
+    expect(connectAutomaticFixedApproaches(unsupported).diagnostics.every(d => d.status === "unresolved")).toBe(true);
+  });
+  it("hands off complete extra water for the local fixed-bridge frame and refuses cropped coverage", () => {
+    const f = fixture();
+    const selected = exportFixedBurgCrossings(f.snapshot, f.current, [30, 10], budgets, {
+      facilityIds: [5],
+      coverageBounds: { minX: -150, minY: -150, maxX: 150, maxY: 150 }
+    });
+    if (!("crossings" in selected)) throw Error(selected.reason);
+    expect(selected.crossings.schemaVersion).toBe(4);
+    expect(selected.crossings.obstacles).toEqual([]);
+    expect(validFixedBurgCrossings(JSON.parse(JSON.stringify(selected.crossings)), budgets)).toBe(true);
+    const copied = structuredClone(selected.crossings);
+    copied.obstacles = [
+      {
+        id: -1,
+        rings: [
+          [
+            [-18, 5],
+            [-14, 5],
+            [-14, 15],
+            [-18, 15]
+          ]
+        ]
+      }
+    ];
+    expect(validFixedBurgCrossings(copied, budgets)).toBe(true);
+    const doc = createGridDocument({
+      size: "tiny",
+      grid: "hex",
+      extentMeters: 300,
+      cityRadiusMeters: 80,
+      hexSizeMeters: 30,
+      seed: "extra-water"
+    });
+    doc.importedFixedCrossings = copied;
+    expect(
+      polygonHitsDocumentWater(doc, [
+        [-17, 6],
+        [-15, 6],
+        [-15, 14],
+        [-17, 14]
+      ])
+    ).toBe(true);
+    const preview = renderStandaloneCitySvg(doc);
+    expect(preview.querySelector("[data-river-id='-1']")).not.toBeNull();
+    doc.frame.extentMeters = 400;
+    expect(renderStandaloneCitySvg(doc).querySelectorAll("[data-facility-id]")).toHaveLength(0);
+    expect(() =>
+      polygonHitsDocumentWater(doc, [
+        [0, 0],
+        [1, 0],
+        [0, 1]
+      ])
+    ).toThrow(/coverage/);
+    const obstructed = structuredClone(selected.crossings);
+    const endpoint = obstructed.crossings[0].approachA;
+    obstructed.obstacles = [
+      {
+        id: -2,
+        rings: [
+          [
+            [endpoint[0] - 1, endpoint[1] - 1],
+            [endpoint[0] + 1, endpoint[1] - 1],
+            [endpoint[0] + 1, endpoint[1] + 1],
+            [endpoint[0] - 1, endpoint[1] + 1]
+          ]
+        ]
+      }
+    ];
+    expect(validFixedBurgCrossings(obstructed, budgets)).toBe(false);
+  });
   it("preserves shared D/W/E and river truth under CE north-up translation", () => {
     const f = exported();
     expect(f.payload.crossings).toHaveLength(1);

@@ -1,3 +1,4 @@
+import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
@@ -920,7 +921,19 @@ export function generateCityAttempt(
   if (settings.descriptor) fitImportedHousing(settled, settings.descriptor.burg.dwellings);
   applyImportedWaterAccess(settled, settings);
   spawnHarborShips(settled, seed);
-  return settled;
+  const fixedApproachStarted = performance.now();
+  const fixedApproaches = connectAutomaticFixedApproaches(settled);
+  observer?.({
+    phase: "fixed-crossing-approaches",
+    elapsedMs: performance.now() - fixedApproachStarted,
+    attempt,
+    counts: {
+      adopted: fixedApproaches.diagnostics.filter(d => d.status === "adopted").length,
+      unresolved: fixedApproaches.diagnostics.filter(d => d.status === "unresolved").length
+    },
+    fixedApproaches: fixedApproaches.diagnostics
+  });
+  return fixedApproaches.document;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */

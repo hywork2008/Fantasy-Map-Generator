@@ -30,6 +30,7 @@ export interface GenerationFailure {
 }
 
 export interface GenerationSample {
+  fixedApproaches?: import("./automaticFixedApproaches").AutomaticFixedApproachResult["diagnostics"];
   phase: string;
   elapsedMs: number;
   attempt: number;

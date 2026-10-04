@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
-import type { Burg } from "../types/models";
+import type { Burg, Route } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath } from "../utils/pathUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
@@ -1376,6 +1376,52 @@ describe("RoutesModule.addMeandering", () => {
     expect(links[1][2]).toBe(0);
     expect(links[2][3]).toBe(0);
     expect(links[3][4]).toBe(0);
+  });
+
+  it("excludes retained legacy land locks from the physical-mode compatibility links", () => {
+    const before = worldContext.options;
+    try {
+      worldContext.options = {
+        ...before,
+        landConnectionGeneration: {} as NonNullable<typeof before.landConnectionGeneration>
+      };
+      const routes: Route[] = [
+        {
+          i: 0,
+          group: "roads",
+          feature: 0,
+          lock: true,
+          points: [
+            [0, 0, 1],
+            [1, 0, 2]
+          ]
+        },
+        {
+          i: 1,
+          group: "roads",
+          feature: 0,
+          registeredConnectionId: 10,
+          points: [
+            [0, 0, 3],
+            [1, 0, 4]
+          ]
+        },
+        {
+          i: 2,
+          group: "searoutes",
+          feature: 0,
+          points: [
+            [0, 0, 5],
+            [1, 0, 6]
+          ]
+        }
+      ];
+      expect(Routes.buildLinks(routes)).toEqual({ 3: { 4: 1 }, 4: { 3: 1 }, 5: { 6: 2 }, 6: { 5: 2 } });
+      worldContext.options = before;
+      expect(Routes.buildLinks([routes[0]])).toEqual({ 1: { 2: 0 }, 2: { 1: 0 } });
+    } finally {
+      worldContext.options = before;
+    }
   });
 
   it("produces geometry identical to the river polygon along the same cells", () => {

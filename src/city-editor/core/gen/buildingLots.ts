@@ -1,3 +1,4 @@
+import { FixedRoadReservation } from "../fixedRoadReservation";
 import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
 // MIT, independently implemented from the reference city's output geometry.
 import { facePoints, indexMeshEdges } from "../mesh";
@@ -67,13 +68,19 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   const lots: BuildingLot[] = [];
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
   const moat = new MoatReservation(document, 2);
+  const fixedRoads = new FixedRoadReservation(document);
   return rebuildLandmarkHousing(
     document,
     relieveGatePlazaBuildings(
       document,
       lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
     )
-  ).filter(lot => !moat.hitsPolygon(lot.polygon) && !polygonHitsDocumentWater(document, lot.polygon));
+  ).filter(
+    lot =>
+      !moat.hitsPolygon(lot.polygon) &&
+      !fixedRoads.hitsPolygon(lot.polygon) &&
+      !polygonHitsDocumentWater(document, lot.polygon)
+  );
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {

@@ -10,7 +10,7 @@ import type { CityDocument } from "./types";
 /** Preserve source geometry as read-only import data, independently of the editable mesh. */
 export function applyImportedFixedCrossings(document: CityDocument, site?: BurgSiteDescriptor): void {
   const source = site?.fixedCrossings ?? document.importedFixedCrossings;
-  if (source?.schemaVersion === 3) {
+  if (source?.schemaVersion === 3 || source?.schemaVersion === 4) {
     const b = source.coverageBounds,
       half = document.frame.extentMeters / 2;
     if (!b || b.minX > -half || b.minY > -half || b.maxX < half || b.maxY < half)

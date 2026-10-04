@@ -6,6 +6,7 @@ import {
   type FixedCrossingBudgets,
   validFixedBurgCrossings
 } from "../utils/fixedBurgCrossings";
+import type { RequiredSiteBounds } from "../utils/requiredSiteBounds";
 import { evaluateRiverAxis } from "./riverAxisSampling";
 import type { RiverPoint } from "./riverGeometry";
 
@@ -15,19 +16,29 @@ export function exportFixedBurgCrossings(
   snapshot: LandConnectionSnapshot,
   current: { environment: NetworkEnvironment; nodePointAt: (id: number) => RiverPoint | null },
   originMeters: RiverPoint,
-  budgets: FixedCrossingBudgets
+  budgets: FixedCrossingBudgets,
+  selection?: { facilityIds: readonly number[]; coverageBounds: RequiredSiteBounds }
 ): { crossings: FixedBurgCrossings } | { reason: string } {
   if (!originMeters.every(Number.isFinite)) return { reason: "invalid-origin" };
   if (typeof current.environment.allowsBridgeFootprint !== "function") return { reason: "missing-current-contract" };
   const exported = exportRegisteredLandRouteSections(snapshot, current);
   if (!("sections" in exported)) return exported;
-  if (exported.sections.crossings.length > budgets.maxFacilities) return { reason: "facility-budget" };
+  const selected = selection
+    ? exported.sections.crossings.filter(c => selection.facilityIds.includes(c.id))
+    : exported.sections.crossings;
+  if (
+    selection &&
+    (new Set(selection.facilityIds).size !== selection.facilityIds.length ||
+      selected.length !== selection.facilityIds.length)
+  )
+    return { reason: "unknown-facility" };
+  if (selected.length > budgets.maxFacilities) return { reason: "facility-budget" };
   const point = (p: RiverPoint): [number, number] => [p[0] - originMeters[0], originMeters[1] - p[1]];
   const vector = (p: RiverPoint): [number, number] => [p[0], -p[1]];
   const rivers: FixedBurgCrossings["rivers"][number][] = [];
   const crossings: FixedBurgCrossings["crossings"][number][] = [];
   let vertices = 0;
-  for (const c of exported.sections.crossings) {
+  for (const c of selected) {
     const input = current.environment.crossingInputAt(c.id);
     if (!input) return { reason: "changed-facility" };
     const axis = input.geometry.axis;
@@ -90,7 +101,7 @@ export function exportFixedBurgCrossings(
       }
     : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   const result: FixedBurgCrossings = {
-    schemaVersion: 1,
+    schemaVersion: selection ? 4 : 1,
     coordinateUnit: "metres",
     revision: snapshot.revision,
     originMeters: [...originMeters],
@@ -99,6 +110,26 @@ export function exportFixedBurgCrossings(
     rivers,
     crossings
   };
+  if (selection) {
+    const b = selection.coverageBounds;
+    result.coverageBounds = { ...b };
+    const targetWater = new Set(
+      selected.map(c => {
+        const input = current.environment.crossingInputAt(c.id);
+        return input ? current.environment.water.getSnapshot(input.geometry.water) : null;
+      })
+    );
+    if (targetWater.has(null)) return { reason: "changed-water" };
+    const obstacles = current.environment.water
+      .query({
+        minX: originMeters[0] + b.minX,
+        maxX: originMeters[0] + b.maxX,
+        minY: originMeters[1] - b.maxY,
+        maxY: originMeters[1] - b.minY
+      })
+      .filter(w => !targetWater.has(w));
+    result.obstacles = obstacles.map(w => ({ id: w.id, rings: w.rings.map(r => r.map(point)) }));
+  }
   if (!validFixedBurgCrossings(result, budgets)) return { reason: "invalid-fixed-crossings" };
   return { crossings: freeze(result) };
 }

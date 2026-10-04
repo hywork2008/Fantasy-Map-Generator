@@ -6,6 +6,8 @@ import type { RiverPoint } from "../services/riverGeometry";
 import { validWaterPolygon } from "../services/riverPhysicalGeometry";
 
 export interface RegisteredRouteSceneSettings {
+  /** Presentation scope only; the entire registered network is still validated. */
+  connectionIds?: readonly number[];
   /** Uniform physical conversion only; never stretch or rotate a bridge. */
   metresPerUnit: number;
   originMeters: RiverPoint;
@@ -56,6 +58,13 @@ export function buildRegisteredLandRouteScene(
   if (!("sections" in exported)) return exported;
   const source = exported.sections,
     half = source.roadWidthMeters / 2;
+  const selected =
+    settings.connectionIds === undefined
+      ? source.connections
+      : source.connections.filter(c => settings.connectionIds!.includes(c.id));
+  const selectedFacilities = new Set(
+    selected.flatMap(c => c.sections.flatMap(s => (s.facilityId === undefined ? [] : [s.facilityId])))
+  );
   const project = (p: RiverPoint): RiverPoint => [
     (p[0] - settings.originMeters[0]) / settings.metresPerUnit,
     (p[1] - settings.originMeters[1]) / settings.metresPerUnit
@@ -168,7 +177,7 @@ export function buildRegisteredLandRouteScene(
     }
     return { id, part, svgPath: svg, polygons: mesh };
   };
-  for (const connection of source.connections) {
+  for (const connection of selected) {
     let run: CorridorPiece[] = [],
       part = 0;
     const flush = () => {
@@ -187,6 +196,7 @@ export function buildRegisteredLandRouteScene(
     if (!flush()) return { reason: failure! };
   }
   for (const crossing of source.crossings) {
+    if (!selectedFacilities.has(crossing.id)) continue;
     const transformed = corridorUnit(corridorDelta(project(crossing.deckB), project(crossing.deckA)));
     if (!transformed || !sameCorridorDirection(transformed, crossing.nCrossing))
       return { reason: "invalid-projection" };

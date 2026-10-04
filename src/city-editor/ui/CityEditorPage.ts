@@ -2,6 +2,7 @@ import i18n from "../../i18n";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { historicLandmarkPrototypes } from "../assets/catalog";
+import { cityFixedApproachProvider } from "../core/automaticFixedApproaches";
 import {
   createCastleOnFace,
   deleteCastle,
@@ -252,7 +253,7 @@ export interface CityEditorOptions {
 }
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
-  const fixedApproachProvider = options.fixedApproachProvider;
+  const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
   function documentForOutput(current: CityDocument): CityDocument {
     if (!fixedApproachProvider || current.fixedCrossingApproaches === undefined) return current;
     const checked = restoreFixedCrossingApproaches(current, fixedApproachProvider);
@@ -4791,7 +4792,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       showNotice("同じ都市を表示しています");
       return;
     }
-    documentState = history.commit(next, "Generate complete city");
+    documentState = history.commit(documentForOutput(next), "Generate complete city");
     completeResult = documentState;
     lastGeneratedStep = null;
     activeStepStage = null;

@@ -118,7 +118,15 @@ export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[
     requiredSiteExtent(fixed.requiredBounds) > document.frame.extentMeters
   )
     throw new RangeError("Invalid fixed water geometry or city frame");
-  return fixed.rivers.some(river => footprintTouchesWater(polygon, river));
+  if (fixed.schemaVersion === 3 || fixed.schemaVersion === 4) {
+    const coverage = fixed.coverageBounds,
+      half = document.frame.extentMeters / 2;
+    if (!coverage || coverage.minX > -half || coverage.minY > -half || coverage.maxX < half || coverage.maxY < half)
+      throw new RangeError("Fixed water coverage does not contain city frame");
+    if (polygon.some(([x, y]) => x < coverage.minX || x > coverage.maxX || y < coverage.minY || y > coverage.maxY))
+      return true;
+  }
+  return [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water));
 }
 
 /** Reserve the whole stroke, including round joins and terminal caps.

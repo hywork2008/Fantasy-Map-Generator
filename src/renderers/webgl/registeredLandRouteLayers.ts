@@ -1,3 +1,4 @@
+import { COORDINATE_SYSTEM } from "@deck.gl/core";
 import { PolygonLayer } from "@deck.gl/layers";
 import type { LandConnectionSnapshot } from "../../generators/landConnectionAdoption";
 import type { exportRegisteredLandRouteSections } from "../../generators/registeredLandRouteSections";
@@ -36,6 +37,7 @@ export function buildRegisteredLandRouteLayers(
     return new PolygonLayer<RegisteredRoutePolygon>({
       id: `registered-land-${kind}s`,
       data,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       filled: true,
       stroked: false,
       extruded: false,

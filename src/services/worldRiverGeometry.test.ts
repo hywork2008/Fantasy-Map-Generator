@@ -333,6 +333,40 @@ describe("bounded world crossing enumeration", () => {
     expect(b.candidates).toEqual(a.candidates);
     expect(registry.stats).toEqual({ builds: 1, cacheHits: 1 });
   });
+  it("subdivides measured narrow spans and city corridors with stable allocation and a shared work budget", () => {
+    const world = fixture(),
+      registry = new WorldRiverGeometryRegistry();
+    const settings = {
+      ...candidateSettings,
+      maxAttempts: 100,
+      refinement: { maxCenters: 1, levels: 2, maxProjectionChecks: 100 }
+    };
+    const env = {
+      ...environment,
+      corridors: [{ start: [0, 28000] as [number, number], end: [40000, 28000] as [number, number] }]
+    };
+    const coarse = generateWorldRiverCrossingCandidates(world, "km", candidateSettings, environment, registry);
+    const result = generateWorldRiverCrossingCandidates(world, "km", settings, env, registry);
+    expect(result.status).toBe("complete");
+    expect(result.attempts).toBe(coarse.attempts + 4);
+    expect(result.nextCandidateId).toBe(settings.firstCandidateId + result.attempts);
+    expect(generateWorldRiverCrossingCandidates(world, "km", settings, env, registry).candidates).toEqual(
+      result.candidates
+    );
+    expect(
+      generateWorldRiverCrossingCandidates(
+        world,
+        "km",
+        { ...settings, refinement: { ...settings.refinement, maxProjectionChecks: 1 } },
+        env,
+        registry
+      ).status
+    ).toBe("refinement-budget");
+    expect(
+      generateWorldRiverCrossingCandidates(world, "km", { ...settings, maxAttempts: coarse.attempts }, env, registry)
+        .status
+    ).toBe("attempt-budget");
+  });
   it("reuses water validation/index metrics and rebuilds after an obstacle edit", () => {
     const world = fixture(),
       registry = new WorldRiverGeometryRegistry();

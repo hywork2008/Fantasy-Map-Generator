@@ -1337,6 +1337,11 @@ export function buildRoutePaths(
   colors?: Partial<Record<"roads" | "trails" | "searoutes" | "railways", Color>>
 ): DeckPath[] {
   return (worldContext.pack.routes ?? []).flatMap(route => {
+    if (
+      route.registeredConnectionId !== undefined ||
+      (worldContext.options.landConnectionGeneration && route.group !== "searoutes")
+    )
+      return [];
     if (focusScope && !(route.cells ?? []).some(cell => isCellInScope(focusScope, cell))) return [];
 
     // Imported maps can contain incomplete route point arrays. deck.gl cannot render NaN / missing
