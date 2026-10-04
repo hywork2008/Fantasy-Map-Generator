@@ -1,0 +1,668 @@
+{
+  "sourceArchive": "temp/000.savdata/Vilealand 2026-10-04-15-32.fmg",
+  "sourceArchiveSha256": "10802555a1db9c8a936e8a46ae5dd9c53e191aa502c38134bad68d75d8b438da",
+  "inputCsv": "temp/vilealand-ce-inputs.csv",
+  "inputSha256": "72c3afc886814a3c358186853bbb0f85d7adc80981b31dd48bca0b27f0e40182",
+  "afterCodeSha256": "7aa0cb36fc3b657549a34b23c48e63fee171a6ae1bafcbaec159b0c52261b849",
+  "node": "v22.23.1",
+  "timeoutMs": 120000,
+  "cities": 662,
+  "before": {
+    "counts": {
+      "rejected": 194,
+      "generated": 468
+    },
+    "reasons": {
+      "unconnected-gates": 24,
+      "fmg-road-mismatch": 146,
+      "castle-layout-too-small": 30,
+      "castle-no-access": 1
+    }
+  },
+  "after": {
+    "counts": {
+      "generated": 644,
+      "rejected": 18
+    },
+    "reasons": {
+      "unconnected-gates": 10,
+      "fmg-road-mismatch": 8
+    }
+  },
+  "resolvedCities": 176,
+  "previouslyGeneratedNowRejected": [],
+  "remaining": [
+    {
+      "burgId": 13,
+      "name": "Buranvily",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 267,
+          "endpoint": [
+            786.2,
+            -912
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 27,
+          "endpoint": [
+            -894.7,
+            912
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 485,
+          "endpoint": [
+            -189.4,
+            912
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 15,
+      "name": "Eaudevile",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 29,
+          "endpoint": [
+            1308,
+            -44.4
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 309,
+          "endpoint": [
+            414.9,
+            -1308
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 309,
+          "endpoint": [
+            -1308,
+            457.3
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 19,
+      "name": "Beira",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 39,
+          "endpoint": [
+            1002,
+            63.6
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 38,
+          "endpoint": [
+            291.8,
+            -1002
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        }
+      ]
+    },
+    {
+      "burgId": 20,
+      "name": "Liras",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 41,
+          "endpoint": [
+            1959,
+            -90.9
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 40,
+          "endpoint": [
+            -236.5,
+            -1959
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 3,
+          "routeId": 42,
+          "endpoint": [
+            -583.1,
+            1959
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 26,
+      "name": "Bogard",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 114,
+          "endpoint": [
+            300,
+            158.12
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 119,
+          "endpoint": [
+            -300,
+            -180.4
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 114,
+          "endpoint": [
+            -300,
+            96.80000000000001
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 36,
+      "name": "Petim",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 76,
+          "endpoint": [
+            1164,
+            949.2
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 1,
+          "endpoint": [
+            -1164,
+            -370.1
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 0,
+          "endpoint": [
+            -978,
+            1164
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        }
+      ]
+    },
+    {
+      "burgId": 56,
+      "name": "Mandor",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 209,
+          "endpoint": [
+            300,
+            -17.240000000000002
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 209,
+          "endpoint": [
+            -154.32000000000002,
+            300
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 63,
+      "name": "Kingdon",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 1,
+          "routeId": 17,
+          "endpoint": [
+            1074,
+            434.2
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 17,
+          "endpoint": [
+            -333.5,
+            -1074
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 91,
+      "name": "Beremi",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 230,
+          "endpoint": [
+            1179,
+            -734
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 226,
+          "endpoint": [
+            -907.1,
+            1179
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 267,
+      "name": "Milpalbuna",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 399,
+          "endpoint": [
+            150,
+            123.34000000000002
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 399,
+          "endpoint": [
+            92.04,
+            -150
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 330,
+      "name": "Porviceira",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 53,
+          "endpoint": [
+            92.1,
+            918
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 53,
+          "endpoint": [
+            918,
+            -125.8
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 57,
+          "endpoint": [
+            -518.3,
+            -918
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        }
+      ]
+    },
+    {
+      "burgId": 381,
+      "name": "Caxialvague",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 63,
+          "endpoint": [
+            150,
+            -26.900000000000002
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 65,
+          "endpoint": [
+            42.6,
+            -150
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 60,
+          "endpoint": [
+            -150,
+            43.34
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 404,
+      "name": "Modeta",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 459,
+          "endpoint": [
+            -101,
+            -150
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 327,
+          "endpoint": [
+            -52.620000000000005,
+            150
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 423,
+      "name": "Ponhoes",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 459,
+          "endpoint": [
+            139.94000000000003,
+            150
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 54,
+          "endpoint": [
+            -39.52,
+            -150
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 3,
+          "routeId": 52,
+          "endpoint": [
+            -150,
+            -14.240000000000002
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 462,
+      "name": "Gorotynsk",
+      "reasons": [
+        "fmg-road-mismatch"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 300,
+          "endpoint": [
+            150,
+            -60.96000000000001
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 287,
+          "endpoint": [
+            -69.42,
+            -150
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 287,
+          "endpoint": [
+            -90.10000000000001,
+            150
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        }
+      ]
+    },
+    {
+      "burgId": 571,
+      "name": "Tabuada",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 385,
+          "endpoint": [
+            150,
+            62.1
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 475,
+          "endpoint": [
+            -150,
+            -8.5
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 595,
+      "name": "Montius",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 12,
+          "endpoint": [
+            150,
+            -27.54
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 12,
+          "endpoint": [
+            -150,
+            36.56
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": true
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 13,
+          "endpoint": [
+            -150,
+            121
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        }
+      ]
+    },
+    {
+      "burgId": 609,
+      "name": "Flechosin",
+      "reasons": [
+        "unconnected-gates"
+      ],
+      "inputRoads": [
+        {
+          "sourceIndex": 0,
+          "routeId": 390,
+          "endpoint": [
+            150,
+            148.12
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 1,
+          "routeId": 393,
+          "endpoint": [
+            -11.240000000000002,
+            -150
+          ],
+          "surveyedEndpointTouchesWater": false,
+          "surveyedPathTouchesWater": false
+        },
+        {
+          "sourceIndex": 2,
+          "routeId": 435,
+          "endpoint": [
+            -150,
+            44.800000000000004
+          ],
+          "surveyedEndpointTouchesWater": true,
+          "surveyedPathTouchesWater": true
+        }
+      ]
+    }
+  ]
+}

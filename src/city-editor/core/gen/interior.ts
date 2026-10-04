@@ -245,6 +245,7 @@ export function placeGates(
     return corners.length >= Math.max(3, geo.importedRoads?.length ?? 3) ? corners : all;
   });
   let pool: Candidate[] = ([] as Candidate[]).concat(...perLoop);
+  const originalPool = pool.slice();
   if (!pool.length) return [];
 
   const wet =
@@ -291,6 +292,10 @@ export function placeGates(
         c.borderIndex !== choice.borderIndex ||
         circularArcDelta(c.arc, choice.arc, loopLength[choice.borderIndex]) >= spacing
     );
+    // Preserve successful ordinary spacing choices. If thinning exhausts the
+    // remaining imported entrances, use another distinct eligible corner.
+    if (!pool.length && geo.importedRoads !== undefined)
+      pool = originalPool.filter(c => !gates.some(g => g.borderIndex === c.borderIndex && qk(g.point) === qk(c.point)));
   }
   return shiftRiverCrossingGates(
     gates,

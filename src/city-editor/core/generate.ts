@@ -2049,9 +2049,18 @@ export function runPlan(
   const channelPolygons = empty.channelPolygons ?? [];
   const gateNearest = nearestVertexLookup(currentMesh, Math.max(1, cellSize));
   const urbanFaces = new Set([...currentUrban].map(id => currentFaceIdOf[id]));
+  const gateWaterDocument =
+    sourceDocument && empty.fixedCrossings
+      ? {
+          ...sourceDocument,
+          mesh: currentMesh,
+          importedFixedCrossings: empty.fixedCrossings,
+          waterAreas: channelPolygons.map(polygon => ({ kind: "river" as const, polygon }))
+        }
+      : undefined;
   const canPlaceTownGate = (p: Point) => {
     if (castleGateRegions.some(r => pointInPolygon(p, r) || nearestOnPolyline(p, [...r, r[0]]).dist < 10)) return false;
-    if (!channelPolygons.length) return true;
+    if (!channelPolygons.length && !gateWaterDocument) return true;
     const vertex = gateNearest(p);
     if (!vertex || channelPolygons.some(polygon => pointInPolygon(p, polygon))) return false;
     // A wall corner needs a dry inward edge. Otherwise a narrow surveyed
@@ -2061,7 +2070,17 @@ export function runPlan(
       if (!edge.leftFace || !edge.rightFace || !urbanFaces.has(edge.leftFace) || !urbanFaces.has(edge.rightFace))
         return false;
       const line = [currentMesh.vertices[edge.a].point, currentMesh.vertices[edge.b].point];
-      return !lineHitsWater(line, channelPolygons) && !castleGateRegions.some(region => lineHitsWater(line, [region]));
+      return (
+        !lineHitsWater(line, channelPolygons) &&
+        (!gateWaterDocument ||
+          !lineHitsDocumentWater(
+            gateWaterDocument,
+            line,
+            defaultRoadWidthMeters(townExtentMeters(gateWaterDocument.frame)),
+            true
+          )) &&
+        !castleGateRegions.some(region => lineHitsWater(line, [region]))
+      );
     });
   };
 
@@ -2638,7 +2657,8 @@ function applyPlan(
             ? lineHitsDocumentWater(
                 next,
                 [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-                defaultRoadWidthMeters(townExtentMeters(next.frame))
+                defaultRoadWidthMeters(townExtentMeters(next.frame)),
+                true
               )
             : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
         )
@@ -2920,9 +2940,22 @@ function applyPlan(
       actualTownFaces ? [...actualTownFaces] : [...plan.urban].map(id => faceIdOf[id])
     );
     if (plan.castleSite) {
-      const installed = installCastle(next, plan.castleSite, plan.castleSite.faceId, source.generationSeed ?? "");
+      const castleDetails: string[] = [];
+      const installed = installCastle(
+        next,
+        plan.castleSite,
+        plan.castleSite.faceId,
+        source.generationSeed ?? "",
+        castleDetails
+      );
       if (!installed) {
-        return reject("castle", "castle-layout-too-small", "城の門・庭・必須棟が区画に入りません");
+        return reject(
+          "castle",
+          "castle-layout-too-small",
+          "城の門・庭・必須棟が区画に入りません",
+          undefined,
+          castleDetails
+        );
       }
       next = installed;
       mesh = next.mesh;
@@ -3049,7 +3082,8 @@ function applyPlan(
           ? lineHitsDocumentWater(
               next,
               [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-              defaultRoadWidthMeters(townExtentMeters(next.frame))
+              defaultRoadWidthMeters(townExtentMeters(next.frame)),
+              true
             )
           : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
       )
@@ -3111,7 +3145,8 @@ function applyPlan(
             ? lineHitsDocumentWater(
                 next,
                 [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-                defaultRoadWidthMeters(townExtentMeters(next.frame))
+                defaultRoadWidthMeters(townExtentMeters(next.frame)),
+                true
               )
             : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
         )
@@ -3156,6 +3191,7 @@ function applyPlan(
         !!riverLanding,
         trace => {
           trace.routeId = `${GEN_PREFIX}road-${i}`;
+          if (trace.status === "failed") observer?.({ phase: "road-routing", elapsedMs: 0, attempt, routing: [trace] });
           const id = `${GEN_PREFIX}gate-${gateIndex}`;
           gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
         }
@@ -3600,6 +3636,37 @@ export function completeRoadRouter(
       .map(edge => edge.id)
   );
   const gateIds = new Set(townGates(document).map(g => g.vertexId));
+  // A coarse cell can put the closest vertex inside a surveyed river. Snap
+  // imported approaches only to a usable nearby vertex. Dry surveyed
+  // endpoints stay on their bank; wet legacy endpoints may snap within
+  // the editing-cell tolerance, without drawing a connector through water.
+  // This does not create a crossing or replace an already installed gate.
+  const approachVertices = new Set<Id>();
+  if (document.importedFixedCrossings) {
+    for (const edge of Object.values(mesh.edges)) {
+      if (banned.has(edge.id) || castleBlocked.has(edge.id) || moatBlocked.has(edge.id)) continue;
+      if ([edge.a, edge.b].some(id => restricted.has(id) && !restricted.get(id)!.has(edge.id))) continue;
+      if (plan.avoidSea && [edge.leftFace, edge.rightFace].some(id => id && mesh.faces[id].properties.water !== "land"))
+        continue;
+      approachVertices.add(edge.a);
+      approachVertices.add(edge.b);
+    }
+  }
+  const nearestDryApproach = (point: Point): Id | null => {
+    if (!document.importedFixedCrossings) return nearest(point);
+    const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
+    const endpointWet = lineHitsDocumentWater(document, [point, point], width, true);
+    const pool = new Set(approachVertices);
+    while (pool.size) {
+      const id = nearest(point, pool);
+      if (!id) return null;
+      const at = mesh.vertices[id].point;
+      if (Math.hypot(at[0] - point[0], at[1] - point[1]) > document.frame.blockSizeMeters * 2) return null;
+      if (endpointWet || !lineHitsDocumentWater(document, [point, at], width, true)) return id;
+      pool.delete(id);
+    }
+    return null;
+  };
   const plazaFaces = new Set(document.elements.find(e => e.kind === "plaza")?.faceIds ?? []);
   const internalPlazaEdges = new Set(
     Object.values(mesh.edges)
@@ -3636,7 +3703,7 @@ export function completeRoadRouter(
       });
       return [];
     }
-    const snap = (p: Point, gateEnd: boolean) => (gateEnd ? endpoint(p) : nearest(p));
+    const snap = (p: Point, gateEnd: boolean) => (gateEnd ? endpoint(p) : outside ? nearestDryApproach(p) : nearest(p));
     const sampled: Point[] = [];
     const stride = Math.max(1, Math.ceil((polyline.length - 1) / 8));
     for (let i = 0; i < polyline.length; i += stride) sampled.push(polyline[i]);
@@ -3747,7 +3814,10 @@ export function completeRoadRouter(
         return rejectEdge("water-face: 水面に接する辺");
       const inTown = faces.some(id => (useCurrentCurtain ? curtainInterior! : urban).has(id));
       if (!acrossBanks && outside === inTown && !bridgeEdges.has(edge.id)) {
-        if (outside && openRim && (a === hopEnd || b === hopEnd)) return w;
+        // An unwalled town has no curtain to separate an approach from local
+        // streets. Keep the exact requested entrance; dry/civic/river checks
+        // above still apply throughout, including inside built-up cells.
+        if (outside && openRim) return w;
         return rejectEdge(
           outside
             ? `town-interior: 城外道路が城内セルに接する (${faces.filter(id => (useCurrentCurtain ? curtainInterior! : urban).has(id)).join(", ")})`

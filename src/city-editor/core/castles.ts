@@ -21,6 +21,7 @@ import {
   validate
 } from "./mesh";
 import type { CastlePlan, CityDocument, DefenseCircuit, EdgeRef, Id, Point } from "./types";
+import { lineHitsDocumentWater } from "./waterGeometry";
 
 /** Explicit town area is independent of standalone castle walls. */
 export function registerTownCircuit(
@@ -86,7 +87,13 @@ function runsByMembership(refs: EdgeRef[], mask: Set<Id>): Array<{ shared: boole
 }
 
 /** Install a real curtain and split shared town arcs into canonical wall runs. */
-export function installCastle(document: CityDocument, site: CastleSite, faceId: Id, seed: string): CityDocument | null {
+export function installCastle(
+  document: CityDocument,
+  site: CastleSite,
+  faceId: Id,
+  seed: string,
+  diagnostics?: string[]
+): CityDocument | null {
   const next = clone(document);
   const face = next.mesh.faces[faceId];
   if (!face) return null;
@@ -152,7 +159,10 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
     const edge = next.mesh.edges[ref.edgeId];
     const p = next.mesh.vertices[edge.a].point,
       q = next.mesh.vertices[edge.b].point;
-    if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 14) continue;
+    if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 14) {
+      diagnostics?.push(`${edge.id}: gate edge shorter than 14m`);
+      continue;
+    }
     const inserted = insertEdgeVertex(next, edge.id, 0.5);
     if (!inserted) continue;
     let working = inserted.document;
@@ -181,12 +191,18 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
       split = splitFace(working, outside, vertexId, target);
       if (split) break;
     }
-    if (!split) continue;
+    if (!split) {
+      diagnostics?.push(`${edge.id}: no exterior access arm`);
+      continue;
+    }
     working = split;
     const arms = incidentEdges(working.mesh, vertexId)
       .filter(e => e.leftFace === faceId || e.rightFace === faceId)
       .map(e => e.id);
-    if (arms.length !== 2) continue;
+    if (arms.length !== 2) {
+      diagnostics?.push(`${edge.id}: ${arms.length} curtain arms`);
+      continue;
+    }
     working.gates.push({
       id: `${castleId}:gate`,
       vertexId,
@@ -208,7 +224,10 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
     working.defenseCircuits ??= [];
     working.defenseCircuits.push(circuit);
     updateCircuitWalls(working, circuit);
-    if (circuit.naturalBarriers.length) continue;
+    if (circuit.naturalBarriers.length) {
+      diagnostics?.push(`${edge.id}: ${circuit.naturalBarriers.length} natural barriers`);
+      continue;
+    }
     const castle: CastlePlan = {
       id: castleId,
       version: 1,
@@ -227,14 +246,21 @@ export function installCastle(document: CityDocument, site: CastleSite, faceId: 
     working.castles.push(castle);
     working.version = 2;
     const layout = layoutCastle(working, castle, 8);
-    if (!layout) continue;
+    if (!layout) {
+      diagnostics?.push(`${edge.id}: no valid gate/court/building layout`);
+      continue;
+    }
     working.castles[working.castles.length - 1] = layout;
     working.elements = working.elements.filter(e => e.kind !== "citadel" || !e.faceIds.includes(faceId));
     for (const id of circuit.areaFaceIds) {
       working.mesh.faces[id].properties.ward = "castle";
       working.mesh.faces[id].properties.buildable = false;
     }
-    if (validateFortifications(working).length) continue;
+    const issues = validateFortifications(working);
+    if (issues.length) {
+      diagnostics?.push(`${edge.id}: ${issues.join("; ")}`);
+      continue;
+    }
     return working;
   }
   return null;
@@ -270,6 +296,21 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
     const plaza = document.elements.find(e => e.kind === "plaza");
     for (const id of plaza?.faceIds ?? []) for (const v of faceVertices(mesh, mesh.faces[id])) targets.add(v);
   }
+  // An imported settlement may have zero world roads and no market square.
+  // Its castle still needs a local approach to an inhabited city block.
+  if (!targets.size) {
+    const curtainVertices = new Set([...barriers].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
+    for (const face of Object.values(mesh.faces)) {
+      if (
+        castleFaces.has(face.id) ||
+        !face.properties.buildable ||
+        face.properties.water !== "land" ||
+        face.properties.settlement !== "core"
+      )
+        continue;
+      for (const id of faceVertices(mesh, face)) if (!curtainVertices.has(id) && id !== vertexId) targets.add(id);
+    }
+  }
   if (!targets.size) return null;
   const search = (clearance: boolean): EdgeRef[] | null => {
     const adjacent = new Map<Id, Array<{ to: Id; edge: Id; cost: number }>>();
@@ -279,7 +320,8 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
         (clearance && !castleRoadEdgeAllowed(document, edge.id, 4)) ||
         [edge.leftFace, edge.rightFace].some(
           id => id && (castleFaces.has(id) || mesh.faces[id].properties.water !== "land")
-        )
+        ) ||
+        lineHitsDocumentWater(document, [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], 4, true)
       )
         continue;
       const p = mesh.vertices[edge.a].point,

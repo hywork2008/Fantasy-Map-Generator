@@ -44,14 +44,18 @@ export function layoutCastle(document: CityDocument, castle: CastlePlan, minFram
   if (!frame) return null;
   const [w, h] = frame;
   const parts: CastlePart[] = [];
-  const add = (role: CastlePart["role"], u: number, v: number, width: number, depth: number, entrance: Point) =>
+  const add = (role: CastlePart["role"], u: number, v: number, width: number, depth: number, entrance: Point) => {
+    // The small-bailey frame floor does not relax the document's 20 m²
+    // minimum for real buildings. Leave 5% headroom for coordinate rounding.
+    const scale = Math.max(1, Math.sqrt(21 / (width * depth)));
     parts.push({
       id: `${castle.id}:${role}`,
       role,
-      footprint: rectangle(u, v, width, depth),
+      footprint: rectangle(u, v, width * scale, depth * scale),
       entrances: [entrance],
       locked: false
     });
+  };
   const keepWidth = Math.min(20, w * 0.5),
     keepDepth = Math.min(24, h * 0.6);
   if (castle.form === "keep-bailey")

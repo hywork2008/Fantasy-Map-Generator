@@ -126,12 +126,20 @@ export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[
     if (polygon.some(([x, y]) => x < coverage.minX || x > coverage.maxX || y < coverage.minY || y > coverage.maxY))
       return true;
   }
-  return [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water));
+  return (
+    polygonHitsWater(polygon, waterPolygons(document)) ||
+    [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water))
+  );
 }
 
 /** Reserve the whole stroke, including round joins and terminal caps.
  * Reject the complete run instead of creating disconnected clipped pieces. */
-export function lineHitsDocumentWater(document: CityDocument, points: readonly Point[], widthMeters: number): boolean {
+export function lineHitsDocumentWater(
+  document: CityDocument,
+  points: readonly Point[],
+  widthMeters: number,
+  clipAtFrame = false
+): boolean {
   if (
     !Number.isFinite(widthMeters) ||
     widthMeters <= 0 ||
@@ -139,6 +147,39 @@ export function lineHitsDocumentWater(document: CityDocument, points: readonly P
     points.some(p => p.length !== 2 || p.some(v => !Number.isFinite(v)))
   )
     return true;
+  const frameHalf = document.frame.extentMeters / 2;
+  if (
+    clipAtFrame &&
+    (!Number.isFinite(frameHalf) || frameHalf <= 0 || points.some(p => p.some(v => v < -frameHalf || v > frameHalf)))
+  )
+    return true;
+  const hits = (polygon: Point[]) => {
+    if (!clipAtFrame) return polygonHitsDocumentWater(document, polygon);
+    // Viewport clipping removes the external cap, not a water crossing.
+    // Centreline nodes must stay inside the measured frame above; an unknown
+    // outside region can never provide a detour around an internal barrier.
+    let clipped = polygon;
+    for (const axis of [0, 1])
+      for (const sign of [-1, 1]) {
+        const next: Point[] = [];
+        const bound = sign * frameHalf;
+        for (let i = 0; i < clipped.length; i++) {
+          const a = clipped[i],
+            b = clipped[(i + 1) % clipped.length];
+          const aInside = sign * a[axis] <= frameHalf,
+            bInside = sign * b[axis] <= frameHalf;
+          if (aInside) next.push(a);
+          if (aInside !== bInside) {
+            const t = (bound - a[axis]) / (b[axis] - a[axis]);
+            const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+            p[axis] = bound;
+            next.push(p);
+          }
+        }
+        clipped = next;
+      }
+    return clipped.length < 3 || polygonHitsDocumentWater(document, clipped);
+  };
   const half = widthMeters / 2;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1],
@@ -149,7 +190,7 @@ export function lineHitsDocumentWater(document: CityDocument, points: readonly P
     if (!Number.isFinite(length)) return true;
     if (!length) {
       if (
-        polygonHitsDocumentWater(document, [
+        hits([
           [a[0] - half, a[1] - half],
           [a[0] + half, a[1] - half],
           [a[0] + half, a[1] + half],
@@ -167,7 +208,7 @@ export function lineHitsDocumentWater(document: CityDocument, points: readonly P
       [length + half, half],
       [length + half, -half]
     ].map(([x, y]) => [a[0] + t[0] * x + n[0] * y, a[1] + t[1] * x + n[1] * y] as Point);
-    if (polygonHitsDocumentWater(document, rectangle)) return true;
+    if (hits(rectangle)) return true;
   }
   return false;
 }

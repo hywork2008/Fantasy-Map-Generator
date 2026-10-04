@@ -15,6 +15,7 @@ import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import type { BuildingLot } from "./gen/buildingLots";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
 import { defaultGenerationSettings, type GenerationSettings, generateCityOnDocument } from "./generate";
+import type { GenerationSample } from "./generationDiagnostics";
 import type { CityDocument } from "./types";
 
 export interface HousingReportInput {
@@ -57,6 +58,8 @@ export interface HousingReportOutput {
   housesCore: number;
   housesOutskirts: number;
   failure: string | null;
+  failureReasons: string[];
+  diagnostics: GenerationSample[];
 }
 
 export interface HousingReportGap {
@@ -142,14 +145,19 @@ export function compareShareHousing(
   const document = cityEditorDocument(share);
   const settings = cityEditorSettings(share);
   let failure: string | null = null;
+  const diagnostics: GenerationSample[] = [];
   const city = generateCityOnDocument(document, settings, share.seed, sample => {
-    if (sample.failure) failure = sample.failure.message;
+    diagnostics.push(sample);
+    if (sample.failure && sample.failure.reason !== "all-attempts-rejected")
+      failure = `${sample.failure.reason}: ${sample.failure.message}`;
   });
   const counted = city ?? document;
-  const lots = buildBlockFabric(counted, new FabricCache()).buildings.filter(lot => {
-    const settlement = settlementOf(counted, lot);
-    return settlement === "core" || settlement === "outskirts";
-  });
+  const lots = city
+    ? buildBlockFabric(counted, new FabricCache()).buildings.filter(lot => {
+        const settlement = settlementOf(counted, lot);
+        return settlement === "core" || settlement === "outskirts";
+      })
+    : [];
   const houses = lots.filter(isHouse);
   const inSettlement = (lot: BuildingLot, settlement: string) => settlementOf(counted, lot) === settlement;
   const output: HousingReportOutput = {
@@ -161,7 +169,15 @@ export function compareShareHousing(
     houses: houses.length,
     housesCore: houses.filter(lot => inSettlement(lot, "core")).length,
     housesOutskirts: houses.filter(lot => inSettlement(lot, "outskirts")).length,
-    failure: city ? null : failure
+    failure: city ? null : failure,
+    failureReasons: [
+      ...new Set(
+        diagnostics.flatMap(sample =>
+          sample.failure && sample.failure.reason !== "all-attempts-rejected" ? [sample.failure.reason] : []
+        )
+      )
+    ],
+    diagnostics: diagnostics.filter(sample => sample.failure || sample.fixedApproaches)
   };
   const roads = descriptor.roads.filter(road => road.group !== "searoutes");
   return {
@@ -191,7 +207,9 @@ export function compareShareHousing(
       maxBridgeCrossingMeters: resolveBridgeCrossingLimit(descriptor.historicalPeriod, descriptor.transport)
     },
     output,
-    gap: housingGap(descriptor.burg.dwellings, output.houses),
+    gap: city
+      ? housingGap(descriptor.burg.dwellings, output.houses)
+      : { housesMinusDwellings: null, housesPerDwelling: null },
     error: null
   };
 }
