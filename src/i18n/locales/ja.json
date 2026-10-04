@@ -5045,5 +5045,53 @@
     "disadvantaged": "不利",
     "even": "互角",
     "spearmen": "槍兵"
+  },
+  "landConnections": {
+    "title": "直近の接続評価",
+    "description": "直近の評価結果です。費用スコアは移動と新設の負担を比較する値で、金額や移動時間ではありません。",
+    "unresolved": "評価未完了",
+    "cities": "都市",
+    "decision": "判定",
+    "reason": "理由",
+    "travel": "移動スコア",
+    "construction": "新設負担",
+    "benefit": "純改善",
+    "shared": "共有橋",
+    "status": {
+      "proposed": "提案",
+      "adopted": "採用済み",
+      "kept": "既存を維持",
+      "rejected": "不採用",
+      "unresolved": "未判定"
+    },
+    "reasons": {
+      "world-environment": "現在の地形・通過条件を検証できない",
+      "new-connection": "有限の整備上限内で未接続の都市を結ぶ",
+      "travel-saving": "移動費用の改善が新設負担と必要な余裕を上回る",
+      "shared-benefit": "橋を共用した全体の利益が新設負担を上回る",
+      "no-addition": "既存の接続で到達できる",
+      "insufficient-improvement": "改善が新設負担に見合わない",
+      "near-equal-fewer-crossings": "ほぼ同じ費用の渡河が少ない経路を維持",
+      "no-feasible-proposal": "形状と費用の条件を満たす新設案がない",
+      "no-route": "評価した候補では経路が見つからない",
+      "no-shared-facility": "複数の都市対で共用する橋がない",
+      "investment-budget": "橋と進入路の新設負担が上限を超える",
+      "total-cost-budget": "全体の費用が上限を超える",
+      "pair-cost-budget": "個別の移動費用が上限を超える",
+      "insufficient-benefit": "共有による利益が新設負担に見合わない",
+      "assessment-budget": "比較の予算を使い切ったため未判定",
+      "comparison-budget": "比較の予算を使い切ったため未判定",
+      "search-budget": "探索の予算を使い切ったため未判定",
+      "approach-budget": "進入回廊の探索予算を使い切ったため未判定",
+      "candidate-enumeration": "河川候補を完全に評価できない",
+      "assessment-unresolved": "候補の比較を確定できない",
+      "invalid-input": "評価入力が不正",
+      "invalid-geometry": "現在の形状を検証できない",
+      "invalid-network": "接続網を検証できない",
+      "invalid-cost": "費用を計算できない",
+      "unvalidated-network": "接続網が未検証",
+      "unresolved-water": "必要な物理水域を復元できない",
+      "pair-budget": "都市対の件数が評価上限を超える"
+    }
   }
 }

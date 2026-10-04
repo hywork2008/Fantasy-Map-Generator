@@ -2,14 +2,17 @@ import type { WorldContext } from "../context/worldContext";
 import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
 import type { PhysicalWaterPolygon } from "../services/riverPhysicalGeometry";
+import { publishWorldLandProposalReport, recordWorldLandProposalAdoption } from "../services/worldLandProposalReport";
 import type { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import {
   buildConstrainedLandNetwork,
   type ConstrainedLandNetwork,
+  findConstrainedLandRoute,
   type NetworkConnection,
   type NetworkEnvironment,
   type NetworkNode,
+  type NetworkRouteResult,
   type NetworkSearchSettings
 } from "./constrainedLandNetwork";
 import {
@@ -17,6 +20,11 @@ import {
   type LandConnectionAssessment,
   type LandConnectionAssessmentSettings
 } from "./landConnectionAssessment";
+import {
+  type SharedFacilityGroup,
+  type SharedFacilitySelectionSettings,
+  selectSharedFacilityGroups
+} from "./landConnectionSelection";
 import type { CrossingCandidateInput, ProvisionalRiverCrossing } from "./riverCrossingCandidates";
 import {
   assessSharedLandConnections,
@@ -71,11 +79,13 @@ export interface WorldProposalSettings {
   search: NetworkSearchSettings;
   individual: LandConnectionAssessmentSettings;
   shared: SharedConnectionSettings;
+  sharedSelection?: SharedFacilitySelectionSettings;
 }
 export interface WorldProposalDiagnostics {
   enumeration: WorldCrossingCandidateReport | null;
   approachAttempts: number;
   assessmentSearches: number;
+  approachSearchPeak?: { labels: number; expansions: number };
   rejected: readonly {
     facilityId: number;
     connectionId?: number;
@@ -85,6 +95,9 @@ export interface WorldProposalDiagnostics {
   }[];
   individuals: readonly { pairId: number; assessment: LandConnectionAssessment }[];
   shared?: SharedConnectionAssessment;
+  sharedGroups?: readonly { group: SharedFacilityGroup; assessment: SharedConnectionAssessment }[];
+  groupSelection?: { checks: number; truncated: boolean };
+  sharedBundleSearches?: readonly { pairId: number; result: NetworkRouteResult }[];
 }
 export type WorldLandProposalResult = (
   | { status: "evaluated"; network: ConstrainedLandNetwork }
@@ -110,6 +123,8 @@ export interface WorldLandProposalContext {
   pairs: readonly WorldConnectionPair[];
   settings: WorldProposalSettings;
   worldIdentity: string;
+  sharedGroups: readonly SharedFacilityGroup[];
+  reportAdoption: (kind: "individual" | "shared", id: number | undefined, facilityIds: readonly number[]) => void;
   nodePointAt: (id: number) => RiverPoint | null;
 }
 const proposalContexts = new WeakMap<WorldLandProposalResult, WorldLandProposalContext>();
@@ -122,7 +137,8 @@ export function getWorldLandProposalContext(result: WorldLandProposalResult): Wo
         ...context,
         environment: { ...context.environment },
         pairs: structuredClone(context.pairs),
-        settings: structuredClone(context.settings)
+        settings: structuredClone(context.settings),
+        sharedGroups: structuredClone(context.sharedGroups)
       }
     : null;
 }
@@ -150,11 +166,16 @@ export function evaluateWorldLandConnectionProposals(
       approachAttempts: 0,
       assessmentSearches: 0,
       rejected: [],
-      individuals: []
+      individuals: [],
+      approachSearchPeak: { labels: 0, expansions: 0 }
     };
   const unresolved = (
     reason: Extract<WorldLandProposalResult, { status: "unresolved" }>["reason"]
-  ): WorldLandProposalResult => ({ status: "unresolved", reason, diagnostics });
+  ): WorldLandProposalResult => {
+    const result: WorldLandProposalResult = { status: "unresolved", reason, diagnostics };
+    publishWorldLandProposalReport(world, result, input.pairs);
+    return result;
+  };
   if (
     ![
       e.supportsDryFootprint,
@@ -303,7 +324,12 @@ export function evaluateWorldLandConnectionProposals(
       rejected.push({ facilityId: crossing.id, reason: "passage-blocked" });
       continue;
     }
-    const costs = e.facilityCostsAt(crossing);
+    let costs: ReturnType<WorldProposalEnvironment["facilityCostsAt"]>;
+    try {
+      costs = e.facilityCostsAt(crossing);
+    } catch {
+      return unresolved("invalid-cost");
+    }
     if (
       !Number.isFinite(costs.constructionCostMeters) ||
       costs.constructionCostMeters < 0 ||
@@ -339,6 +365,22 @@ export function evaluateWorldLandConnectionProposals(
           rejected.push({ facilityId: crossing.id, connectionId: id, cityAId, cityBId, reason: approach.reason });
           continue;
         }
+        const corridorSearches =
+          "searches" in approach.result
+            ? approach.result.searches
+            : "search" in approach.result
+              ? [approach.result.search]
+              : [];
+        for (const search of corridorSearches) {
+          diagnostics.approachSearchPeak!.labels = Math.max(
+            diagnostics.approachSearchPeak!.labels,
+            search.stats.labels
+          );
+          diagnostics.approachSearchPeak!.expansions = Math.max(
+            diagnostics.approachSearchPeak!.expansions,
+            search.stats.expansions
+          );
+        }
         if (!("status" in approach.result)) {
           if (approach.result.reason === "approach-unresolved" && "reason" in approach.result.search) {
             if (approach.result.search.reason.endsWith("-budget")) return unresolved("approach-budget");
@@ -353,10 +395,15 @@ export function evaluateWorldLandConnectionProposals(
           });
           continue;
         }
-        const approachConstructionCostMeters = e.approachConstructionCostAt(crossing, cityAId, cityBId, [
-          approach.result.approachA.distanceMeters,
-          approach.result.approachB.distanceMeters
-        ]);
+        let approachConstructionCostMeters: number;
+        try {
+          approachConstructionCostMeters = e.approachConstructionCostAt(crossing, cityAId, cityBId, [
+            approach.result.approachA.distanceMeters,
+            approach.result.approachB.distanceMeters
+          ]);
+        } catch {
+          return unresolved("invalid-cost");
+        }
         if (!Number.isFinite(approachConstructionCostMeters) || approachConstructionCostMeters < 0)
           return unresolved("invalid-cost");
         const c: NetworkConnection = {
@@ -429,7 +476,69 @@ export function evaluateWorldLandConnectionProposals(
     if (assessment.status === "unresolved")
       return unresolved(assessment.reason === "comparison-budget" ? "assessment-budget" : "assessment-unresolved");
   }
-  if (pairs.length >= 2 && sharedFacilities.size) {
+  const sharedGroups: SharedFacilityGroup[] = [];
+  if (s.sharedSelection && pairs.length >= 2 && sharedFacilities.size) {
+    const routeBundles = individuals.flatMap(({ pairId, assessment }) => {
+      const candidate = assessment.comparison.candidate;
+      return candidate && "route" in candidate ? [{ pairId, facilityIds: candidate.route.facilityIds }] : [];
+    });
+    // A bridge bundle can be worthwhile only jointly. Probe with all bridge
+    // facilities hypothetically paid, then charge every ACTUAL facility once in
+    // each bounded group assessment. Outer approach works remain chargeable.
+    const bundleSearches: NonNullable<WorldProposalDiagnostics["sharedBundleSearches"]>[number][] = [];
+    diagnostics.sharedBundleSearches = bundleSearches;
+    const existingFacilities = new Set(
+      built.network.edges
+        .filter(edge => baselineIds.has(edge.id))
+        .flatMap(edge => (edge.crossing ? [edge.crossing.facilityId] : []))
+    );
+    for (const p of pairs) {
+      if (diagnostics.assessmentSearches >= s.maxAssessmentSearches) return unresolved("assessment-budget");
+      const result = findConstrainedLandRoute(built.network, {
+        startNodeId: p.cityAId,
+        goalNodeId: p.cityBId,
+        startTangent: p.startTangent,
+        goalTangent: p.goalTangent,
+        allowedConnectionIds: candidates,
+        alreadyPaidFacilityIds: [...new Set([...existingFacilities, ...sharedFacilities])],
+        alreadyPaidConnectionIds: available,
+        maxConstructionCostMeters: s.shared.maxConstructionCostMeters,
+        maxRouteCostMeters: s.shared.maxPairCostMeters,
+        settings: s.search,
+        environment: networkEnvironment
+      });
+      diagnostics.assessmentSearches++;
+      bundleSearches.push({ pairId: p.id, result });
+      if ("route" in result) routeBundles.push({ pairId: p.id, facilityIds: result.route.facilityIds });
+      else if (result.reason !== "no-route") return unresolved("assessment-unresolved");
+    }
+    const selection = selectSharedFacilityGroups(built.network, pairs, available, routeBundles, s.sharedSelection);
+    if (selection.status === "unresolved")
+      return unresolved(selection.reason === "group-budget" ? "assessment-budget" : "invalid-input");
+    diagnostics.groupSelection = { checks: selection.checks, truncated: selection.truncated };
+    const records: NonNullable<WorldProposalDiagnostics["sharedGroups"]>[number][] = [];
+    diagnostics.sharedGroups = records;
+    for (const group of selection.groups) {
+      const remaining = s.maxAssessmentSearches - diagnostics.assessmentSearches;
+      if (remaining < 1) return unresolved("assessment-budget");
+      const assessment = assessSharedLandConnections(built.network, {
+        pairs: pairs
+          .filter(p => group.pairIds.includes(p.id))
+          .map(p => ({ ...p, startNodeId: p.cityAId, goalNodeId: p.cityBId })),
+        baselineConnectionIds: available,
+        candidateConnectionIds: group.connectionIds,
+        sharedFacilityIds: group.facilityIds,
+        settings: { ...s.shared, maxSearches: Math.min(s.shared.maxSearches, remaining) },
+        searchSettings: s.search,
+        environment: networkEnvironment
+      });
+      records.push({ group, assessment });
+      diagnostics.assessmentSearches += assessment.searches;
+      if (assessment.status === "unresolved")
+        return unresolved(assessment.reason === "comparison-budget" ? "assessment-budget" : "assessment-unresolved");
+      sharedGroups.push(structuredClone(group));
+    }
+  } else if (pairs.length >= 2 && sharedFacilities.size) {
     const remaining = s.maxAssessmentSearches - diagnostics.assessmentSearches;
     if (remaining < 1) return unresolved("assessment-budget");
     const shared = assessSharedLandConnections(built.network, {
@@ -454,6 +563,8 @@ export function evaluateWorldLandConnectionProposals(
     baselineConnectionIds: Object.freeze([...baselineIds].sort((a, b) => a - b)),
     pairs: structuredClone(pairs),
     settings: structuredClone(s),
+    sharedGroups: structuredClone(sharedGroups),
+    reportAdoption: (kind, id, facilityIds) => recordWorldLandProposalAdoption(world, result, kind, id, facilityIds),
     worldIdentity: JSON.stringify([world.mapId, world.seed, distanceUnit, scale, width, height]),
     nodePointAt: id => {
       const city = world.pack.burgs[id],
@@ -474,5 +585,6 @@ export function evaluateWorldLandConnectionProposals(
       return [city.x * currentScale, city.y * currentScale];
     }
   });
+  publishWorldLandProposalReport(world, result, pairs);
   return result;
 }

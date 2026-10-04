@@ -14,6 +14,7 @@ import {
   type NetworkNode
 } from "./constrainedLandNetwork";
 import { assessLandConnection } from "./landConnectionAssessment";
+import { selectSharedFacilityGroups } from "./landConnectionSelection";
 import { compareLandRouteAlternatives } from "./landRouteAlternatives";
 import { type CrossingCandidateInput, createProvisionalRiverCrossing } from "./riverCrossingCandidates";
 import { assessSharedLandConnections } from "./sharedLandConnectionAssessment";
@@ -388,6 +389,106 @@ function sharedFixture() {
   return { ...f, network, input, nodes, connections };
 }
 describe("bounded shared-bridge proposal packages", () => {
+  it("selects and evaluates a complete two-river bundle when individual construction is unaffordable", () => {
+    const f = fixture(true);
+    const nodes: NetworkNode[] = [
+      { id: 1, point: [30, 0] },
+      { id: 2, point: [-30, 0] },
+      { id: 3, point: [70, 0] },
+      { id: 4, point: [130, 0] },
+      { id: 5, point: [140, 0] }
+    ];
+    const network = f.build(nodes, [
+      f.bridge(5, 7, 0, 0, 1, 1, 2, 80),
+      f.bridge(6, 8, 100, 0, 2, 4, 3, 80),
+      f.land(
+        3,
+        3,
+        1,
+        [
+          [70, 0],
+          [30, 0]
+        ],
+        [-1, 0]
+      ),
+      f.land(
+        4,
+        5,
+        4,
+        [
+          [140, 0],
+          [130, 0]
+        ],
+        [-1, 0]
+      )
+    ]);
+    const pairs = [
+      { id: 1, cityAId: 4, cityBId: 2, weight: 1, unconnectedAllowanceMeters: 1000 },
+      { id: 2, cityAId: 5, cityBId: 2, weight: 1, unconnectedAllowanceMeters: 1000 }
+    ];
+    const bundles = pairs.map(pair => {
+      const route = findConstrainedLandRoute(network, {
+        startNodeId: pair.cityAId,
+        goalNodeId: pair.cityBId,
+        settings: f.searchSettings,
+        environment: f.environment,
+        allowedConnectionIds: [1, 2, 3, 4],
+        alreadyPaidConnectionIds: [3, 4],
+        alreadyPaidFacilityIds: [5, 6],
+        maxConstructionCostMeters: 300,
+        maxRouteCostMeters: 500
+      });
+      if (!("route" in route)) throw new Error(route.reason);
+      expect(route.route.facilityIds).toEqual([5, 6]);
+      return { pairId: pair.id, facilityIds: route.route.facilityIds };
+    });
+    const selection = selectSharedFacilityGroups(network, pairs, [3, 4], bundles, {
+      maxGroups: 3,
+      maxPairsPerGroup: 2,
+      maxFacilitiesPerGroup: 2,
+      maxChecks: 1000
+    });
+    if (selection.status !== "selected") throw new Error(selection.reason);
+    const group = selection.groups.find(group => group.facilityIds.length === 2)!;
+    const assessment = assessSharedLandConnections(network, {
+      pairs: pairs.map(pair => ({ ...pair, startNodeId: pair.cityAId, goalNodeId: pair.cityBId })),
+      baselineConnectionIds: [3, 4],
+      candidateConnectionIds: group.connectionIds,
+      sharedFacilityIds: group.facilityIds,
+      settings: {
+        maxPairs: 2,
+        maxSearches: 10,
+        maxReturnComparisons: 0,
+        nearEqualCostMeters: 1,
+        maxConstructionCostMeters: 300,
+        maxPairCostMeters: 500,
+        maxTotalCostMeters: 1000,
+        minimumNetBenefitMeters: 1
+      },
+      searchSettings: f.searchSettings,
+      environment: f.environment
+    });
+    expect(assessment).toMatchObject({ status: "proposed", newFacilityIds: [5, 6], investmentMeters: 160 });
+    expect(
+      assessLandConnection(network, {
+        startNodeId: 4,
+        goalNodeId: 2,
+        baselineConnectionIds: [3, 4],
+        candidateConnectionIds: [1, 2, 3, 4],
+        searchSettings: f.searchSettings,
+        environment: f.environment,
+        settings: {
+          minimumImprovementMeters: 1,
+          nearEqualCostMeters: 1,
+          maxConstructionCostMeters: 50,
+          maxRouteCostMeters: 500,
+          maxSearches: 4,
+          maxReturnComparisons: 0
+        }
+      })
+    ).toMatchObject({ status: "rejected" });
+  });
+
   it("counts shared approach connections once, separately from the bridge body", () => {
     const f = sharedFixture();
     const connections = f.connections.map(e => (e.id === 3 || e.id === 4 ? { ...e, constructionCostMeters: 10 } : e));

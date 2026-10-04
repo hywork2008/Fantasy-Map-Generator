@@ -1,5 +1,6 @@
 import type { WorldContext } from "../context/worldContext";
 import { buildWorldLandFootprintPolicy, type WorldFootprintPolicySettings } from "../services/worldLandFootprintPolicy";
+import { publishWorldLandProposalReport } from "../services/worldLandProposalReport";
 import { evaluateWorldLandConnectionProposals, type WorldLandProposalResult } from "./worldLandConnectionProposals";
 
 type ProposalInput = Parameters<typeof evaluateWorldLandConnectionProposals>[2];
@@ -25,13 +26,16 @@ export function evaluateWorldCellLandConnectionProposals(
   }
 ): WorldCellLandProposalResult {
   const built = buildWorldLandFootprintPolicy(world, distanceUnit, input.cellPolicySettings, input.cellRules);
-  if (!("policy" in built))
-    return {
+  if (!("policy" in built)) {
+    const result: WorldCellLandProposalResult = {
       status: "unresolved",
       reason: "world-environment",
       environmentReason: built.reason,
       diagnostics: { enumeration: null, approachAttempts: 0, assessmentSearches: 0, rejected: [], individuals: [] }
     };
+    publishWorldLandProposalReport(world, result, input.pairs);
+    return result;
+  }
   let environmentReason: string | undefined;
   const check = (footprint: Parameters<typeof built.policy.assess>[0], purpose: "passage" | "dry-support") => {
     const r = built.policy.assess(footprint, purpose);
@@ -48,7 +52,7 @@ export function evaluateWorldCellLandConnectionProposals(
   });
   // A boolean callback fails closed, but its budget/error must not be reported as
   // a definite rejection or a completed proposal evaluation.
-  return environmentReason
+  const finalResult: WorldCellLandProposalResult = environmentReason
     ? {
         status: "unresolved",
         reason: "world-environment",
@@ -56,4 +60,6 @@ export function evaluateWorldCellLandConnectionProposals(
         diagnostics: result.diagnostics
       }
     : result;
+  if (finalResult !== result) publishWorldLandProposalReport(world, finalResult, input.pairs);
+  return finalResult;
 }

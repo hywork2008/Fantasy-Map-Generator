@@ -12,7 +12,20 @@ import {
   type WorldLandProposalResult
 } from "./worldLandConnectionProposals";
 
-export type WorldLandAdoptionSelection = { kind: "individual"; pairId: number } | { kind: "shared" };
+export type WorldLandAdoptionSelection = { kind: "individual"; pairId: number } | { kind: "shared"; groupId?: number };
+export interface PrioritizedLandAdoptionSettings {
+  maxSelections: number;
+  maxCurrentEvaluations: number;
+  maxRelatedReevaluations: number;
+}
+export interface PrioritizedLandAdoptionReport {
+  status: "completed" | "budget" | "unresolved";
+  reason?: string;
+  selections: number;
+  currentEvaluations: number;
+  relatedReevaluations: number;
+  decisions: readonly { selection: WorldLandAdoptionSelection; status: "committed" | "rejected"; reason?: string }[];
+}
 type Evaluation = WorldLandProposalResult | WorldCellLandProposalResult;
 type Registry = Extract<ReturnType<typeof createLandConnectionRegistry>, { registry: unknown }>["registry"];
 type Failure = { status: "unresolved"; reason: string; evaluation?: Evaluation };
@@ -110,11 +123,18 @@ class WorldLandConnectionSession {
           }
         : null;
     }
+    const group = selection.groupId === undefined ? undefined : c.sharedGroups.find(g => g.id === selection.groupId);
+    if ((selection.groupId !== undefined && !group) || (c.settings.sharedSelection && !group)) return null;
     return {
       kind: "shared",
+      ...(group ? { candidateConnectionIds: group.connectionIds } : {}),
       input: {
-        pairs: c.pairs.map(p => ({ ...p, startNodeId: p.cityAId, goalNodeId: p.cityBId })),
-        sharedFacilityIds: [...new Set(result.network.edges.flatMap(e => (e.crossing ? [e.crossing.facilityId] : [])))],
+        pairs: c.pairs
+          .filter(p => !group || group.pairIds.includes(p.id))
+          .map(p => ({ ...p, startNodeId: p.cityAId, goalNodeId: p.cityBId })),
+        sharedFacilityIds: group
+          ? group.facilityIds
+          : [...new Set(result.network.edges.flatMap(e => (e.crossing ? [e.crossing.facilityId] : [])))],
         searchSettings: c.settings.search,
         settings: { ...c.settings.shared, maxSearches: Math.min(c.settings.shared.maxSearches, remaining) }
       }
@@ -131,7 +151,9 @@ class WorldLandConnectionSession {
         reason:
           fresh.context.assessmentSearches >= fresh.context.settings.maxAssessmentSearches
             ? "assessment-budget"
-            : "unknown-pair"
+            : selection.kind === "shared"
+              ? "unknown-shared-group"
+              : "unknown-pair"
       };
     const prepared = this.registry.prepare(expectedRevision, request, {
       candidateNetwork: fresh.result.network,
@@ -141,6 +163,103 @@ class WorldLandConnectionSession {
     if ("draft" in prepared)
       this.drafts.set(prepared.draft, { selection: structuredClone(selection), request: structuredClone(request) });
     return prepared;
+  }
+  /** Prioritized bounded opt-in adoption. Fresh provider contracts remain
+   * mandatory at prepare and commit. Only failed selections related to a newly
+   * adopted facility/connection are scheduled again; existing paths are never
+   * replaced or pruned. A budget stop preserves already committed packages. */
+  adoptPrioritized(settings: PrioritizedLandAdoptionSettings): PrioritizedLandAdoptionReport {
+    const report: PrioritizedLandAdoptionReport = {
+      status: "completed",
+      selections: 0,
+      currentEvaluations: 0,
+      relatedReevaluations: 0,
+      decisions: []
+    };
+    const decisions: PrioritizedLandAdoptionReport["decisions"][number][] = [];
+    report.decisions = decisions;
+    if (
+      ![settings.maxSelections, settings.maxCurrentEvaluations].every(n => Number.isSafeInteger(n) && n > 0) ||
+      !Number.isSafeInteger(settings.maxRelatedReevaluations) ||
+      settings.maxRelatedReevaluations < 0
+    )
+      return { ...report, status: "unresolved", reason: "invalid-adoption-budget" };
+    report.currentEvaluations++;
+    const fresh = this.current();
+    if ("status" in fresh) return { ...report, status: "unresolved", reason: fresh.reason };
+    type Entry = {
+      selection: WorldLandAdoptionSelection;
+      priority: number;
+      facilityIds: readonly number[];
+      connectionIds: readonly number[];
+    };
+    const pending: Entry[] = fresh.context.pairs.map(pair => {
+      const assessment = fresh.result.diagnostics.individuals.find(p => p.pairId === pair.id)?.assessment;
+      const candidate = assessment?.comparison.candidate;
+      const route = candidate && "route" in candidate ? candidate.route : null;
+      return {
+        selection: { kind: "individual", pairId: pair.id },
+        priority: pair.weight,
+        facilityIds: route?.facilityIds ?? [],
+        connectionIds: route?.edges.map(e => e.id) ?? []
+      };
+    });
+    for (const group of fresh.context.sharedGroups)
+      pending.push({
+        selection: { kind: "shared", groupId: group.id },
+        priority: fresh.context.pairs
+          .filter(pair => group.pairIds.includes(pair.id))
+          .reduce((sum, pair) => sum + pair.weight, 0),
+        facilityIds: group.facilityIds,
+        connectionIds: group.connectionIds
+      });
+    if (!fresh.context.settings.sharedSelection && fresh.result.diagnostics.shared)
+      pending.push({
+        selection: { kind: "shared" },
+        priority: fresh.context.pairs.reduce((sum, pair) => sum + pair.weight, 0),
+        facilityIds: [
+          ...new Set(fresh.result.network.edges.flatMap(edge => (edge.crossing ? [edge.crossing.facilityId] : [])))
+        ],
+        connectionIds: fresh.result.network.edges.map(edge => edge.id)
+      });
+    pending.sort(
+      (a, b) => b.priority - a.priority || JSON.stringify(a.selection).localeCompare(JSON.stringify(b.selection))
+    );
+    const rejected: Entry[] = [];
+    while (pending.length) {
+      // Reserve both provider calls before starting another whole package.
+      if (report.selections >= settings.maxSelections || report.currentEvaluations + 2 > settings.maxCurrentEvaluations)
+        return { ...report, status: "budget", reason: "adoption-budget" };
+      const entry = pending.shift()!;
+      report.selections++;
+      report.currentEvaluations++;
+      const prepared = this.prepare(this.snapshot.revision, entry.selection);
+      if (!("draft" in prepared)) {
+        if (prepared.reason !== "not-proposed") return { ...report, status: "unresolved", reason: prepared.reason };
+        decisions.push({ selection: entry.selection, status: "rejected", reason: prepared.reason });
+        rejected.push(entry);
+        continue;
+      }
+      report.currentEvaluations++;
+      const committed = this.commit(prepared.draft);
+      if (committed.status !== "committed") return { ...report, status: "unresolved", reason: committed.reason };
+      decisions.push({ selection: entry.selection, status: "committed" });
+      const facilities = new Set(prepared.draft.newFacilityIds),
+        connections = new Set(prepared.draft.newConnectionIds);
+      for (let i = rejected.length - 1; i >= 0; i--) {
+        const candidate = rejected[i];
+        if (
+          !candidate.facilityIds.some(id => facilities.has(id)) &&
+          !candidate.connectionIds.some(id => connections.has(id))
+        )
+          continue;
+        if (report.relatedReevaluations >= settings.maxRelatedReevaluations) continue;
+        report.relatedReevaluations++;
+        pending.push(candidate);
+        rejected.splice(i, 1);
+      }
+    }
+    return report;
   }
   commit(draft: LandAdoptionDraft): ReturnType<Registry["commit"]> | Failure {
     const saved = this.drafts.get(draft);
@@ -155,7 +274,9 @@ class WorldLandConnectionSession {
         reason:
           fresh.context.assessmentSearches >= fresh.context.settings.maxAssessmentSearches
             ? "assessment-budget"
-            : "unknown-pair"
+            : saved.selection.kind === "shared"
+              ? "unknown-shared-group"
+              : "unknown-pair"
       };
     if (JSON.stringify(request) !== JSON.stringify(saved.request))
       return { status: "unresolved", reason: "changed-valuation" };
@@ -164,7 +285,14 @@ class WorldLandConnectionSession {
       environment: fresh.context.environment,
       nodePointAt: fresh.context.nodePointAt
     });
-    if (committed.status === "committed") this.drafts.delete(draft);
+    if (committed.status === "committed") {
+      this.drafts.delete(draft);
+      fresh.context.reportAdoption(
+        saved.selection.kind,
+        saved.selection.kind === "individual" ? saved.selection.pairId : saved.selection.groupId,
+        draft.newFacilityIds
+      );
+    }
     return committed;
   }
 }

@@ -32,7 +32,24 @@ export interface ConnectionCityImportance {
 
 export function validateLandConnectionCalibration(settings: LandConnectionCalibration): void {
   if (
-    !Object.values(settings).every(value => Number.isFinite(value) && value >= 0) ||
+    !(
+      [
+        "baseSizeReference",
+        "maximumImportance",
+        "capitalBonus",
+        "portBonus",
+        "allowanceMeters",
+        "maximumAllowanceMeters",
+        "constructionAllowanceMeters",
+        "maximumConstructionMeters",
+        "bridgeFixedCostMeters",
+        "bridgeCostPerSquareMeter",
+        "bridgeLongSpanCostPerCubicMeter",
+        "bridgeUseCostMeters",
+        "bridgeUseCostPerMeter",
+        "approachCostPerSquareMeter"
+      ] as const
+    ).every(key => Number.isFinite(settings[key]) && settings[key] >= 0) ||
     settings.baseSizeReference <= 0 ||
     settings.maximumImportance < 1 ||
     settings.bridgeUseCostMeters <= 0

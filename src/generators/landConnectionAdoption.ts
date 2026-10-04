@@ -17,7 +17,7 @@ type SharedInput = Omit<
 >;
 export type LandAdoptionRequest =
   | { kind: "individual"; input: IndividualInput }
-  | { kind: "shared"; input: SharedInput };
+  | { kind: "shared"; input: SharedInput; candidateConnectionIds?: readonly number[] };
 type Assessment = LandConnectionAssessment | SharedConnectionAssessment;
 type Proposed = Extract<Assessment, { status: "proposed" }>;
 type Budgets = Parameters<typeof selectConstrainedLandNetwork>[3];
@@ -128,6 +128,17 @@ class LandConnectionRegistry {
       candidateConnectionIds: ids(network),
       environment: current.environment
     };
+    if (request.kind === "shared" && request.candidateConnectionIds) {
+      const known = new Set(common.candidateConnectionIds);
+      if (
+        new Set(request.candidateConnectionIds).size !== request.candidateConnectionIds.length ||
+        request.candidateConnectionIds.some(id => !known.has(id))
+      )
+        return { status: "unresolved", reason: "invalid-candidate-selection" };
+      common.candidateConnectionIds = [
+        ...new Set([...this.current.connectionIds, ...request.candidateConnectionIds])
+      ].sort((a, b) => a - b);
+    }
     const assessment: Assessment =
       request.kind === "individual"
         ? assessLandConnection(network, { ...request.input, ...common })

@@ -1,0 +1,4253 @@
+{
+  "schemaVersion": 1,
+  "profilesAreGenerationDefaults": false,
+  "scope": "stage-5 coefficient comparisons; stage-6 all-seed/performance acceptance excluded",
+  "profiles": {
+    "lenient": {
+      "baseSizeReference": 100,
+      "maximumImportance": 4,
+      "capitalBonus": 1,
+      "portBonus": 0.5,
+      "allowanceMeters": 150000,
+      "maximumAllowanceMeters": 450000,
+      "constructionAllowanceMeters": 30000,
+      "maximumConstructionMeters": 90000,
+      "bridgeFixedCostMeters": 10,
+      "bridgeCostPerSquareMeter": 0.5,
+      "bridgeLongSpanCostPerCubicMeter": 0.02,
+      "bridgeUseCostMeters": 5,
+      "bridgeUseCostPerMeter": 0.2,
+      "approachCostPerSquareMeter": 0.2
+    },
+    "balanced": {
+      "baseSizeReference": 100,
+      "maximumImportance": 4,
+      "capitalBonus": 1,
+      "portBonus": 0.5,
+      "allowanceMeters": 150000,
+      "maximumAllowanceMeters": 450000,
+      "constructionAllowanceMeters": 30000,
+      "maximumConstructionMeters": 90000,
+      "bridgeFixedCostMeters": 20,
+      "bridgeCostPerSquareMeter": 2,
+      "bridgeLongSpanCostPerCubicMeter": 0.1,
+      "bridgeUseCostMeters": 5,
+      "bridgeUseCostPerMeter": 0.2,
+      "approachCostPerSquareMeter": 0.5
+    },
+    "conservative": {
+      "baseSizeReference": 100,
+      "maximumImportance": 4,
+      "capitalBonus": 1,
+      "portBonus": 0.5,
+      "allowanceMeters": 150000,
+      "maximumAllowanceMeters": 450000,
+      "constructionAllowanceMeters": 15000,
+      "maximumConstructionMeters": 45000,
+      "bridgeFixedCostMeters": 40,
+      "bridgeCostPerSquareMeter": 4,
+      "bridgeLongSpanCostPerCubicMeter": 0.2,
+      "bridgeUseCostMeters": 5,
+      "bridgeUseCostPerMeter": 0.2,
+      "approachCostPerSquareMeter": 1
+    }
+  },
+  "measuredPeaks": {
+    "networkLabels": 2,
+    "networkExpansions": 2,
+    "approachLabels": 1943,
+    "approachExpansions": 1563
+  },
+  "suggestedFixtureBudgets": {
+    "settings": {
+      "crossings": {
+        "geometry": {
+          "curveAlpha": 0.1,
+          "precision": {
+            "arcToleranceMeters": 0.00001,
+            "maxIntegrationDepth": 24,
+            "maxEvaluations": 100000
+          },
+          "banks": {
+            "maxStepMeters": 5,
+            "maxChordErrorMeters": 0.01,
+            "maxSamples": 2000
+          },
+          "maxSourcePoints": 100
+        },
+        "dimensions": {
+          "bankSeatMeters": 2,
+          "straightApproachMeters": 5,
+          "roadWidthMeters": 2,
+          "localWindowMeters": 4
+        },
+        "spacingMeters": 12,
+        "maxRivers": 10,
+        "maxAttempts": 10,
+        "firstCandidateId": 100
+      },
+      "approaches": {
+        "guides": {
+          "spacingMeters": 5,
+          "paddingMeters": 5,
+          "terminalLeadMeters": 5,
+          "connectorRadiusMeters": 8,
+          "maxSamples": 1000,
+          "maxNodes": 1000,
+          "maxEdges": 10000,
+          "maxEdgeChecks": 10000
+        },
+        "corridor": {
+          "roadWidthMeters": 2,
+          "minimumTurnRadiusMeters": 2,
+          "minimumStraightMeters": 0,
+          "minimumFinalStraightMeters": 2,
+          "turnPenaltyMetersPerRadian": 0,
+          "maxEnvelopeErrorMeters": 0.05,
+          "maxArcSections": 100,
+          "maxNodes": 1000,
+          "maxEdges": 10000,
+          "maxLabels": 3886,
+          "maxExpansions": 3126
+        }
+      },
+      "network": {
+        "maxNodes": 100,
+        "maxEdges": 100,
+        "maxCorridorPieces": 1000,
+        "maxGuideNodes": 10000,
+        "maxGuideEdges": 100000
+      },
+      "maxPairs": 5,
+      "maxApproachAttempts": 20,
+      "maxAssessmentSearches": 87,
+      "firstConnectionId": 1000,
+      "search": {
+        "maxLabels": 16,
+        "maxExpansions": 16,
+        "historyCountCap": 2,
+        "repeatCrossingCostMeters": 10
+      },
+      "individual": {
+        "minimumImprovementMeters": 1,
+        "nearEqualCostMeters": 1,
+        "maxConstructionCostMeters": 100,
+        "maxRouteCostMeters": 500,
+        "maxSearches": 4,
+        "maxReturnComparisons": 1
+      },
+      "shared": {
+        "maxPairs": 5,
+        "maxSearches": 12,
+        "maxReturnComparisons": 1,
+        "nearEqualCostMeters": 1,
+        "maxConstructionCostMeters": 100,
+        "maxPairCostMeters": 500,
+        "maxTotalCostMeters": 1000,
+        "minimumNetBenefitMeters": 1
+      },
+      "sharedSelection": {
+        "maxGroups": 4,
+        "maxPairsPerGroup": 3,
+        "maxFacilitiesPerGroup": 2,
+        "maxChecks": 10000
+      }
+    },
+    "ceilingLimited": false,
+    "requiredAssessmentSearches": 87
+  },
+  "fixtureRuns": [
+    {
+      "profile": "lenient",
+      "status": "evaluated",
+      "wallMs": 2938.082958,
+      "budget": {
+        "settings": {
+          "crossings": {
+            "geometry": {
+              "curveAlpha": 0.1,
+              "precision": {
+                "arcToleranceMeters": 0.00001,
+                "maxIntegrationDepth": 24,
+                "maxEvaluations": 100000
+              },
+              "banks": {
+                "maxStepMeters": 5,
+                "maxChordErrorMeters": 0.01,
+                "maxSamples": 2000
+              },
+              "maxSourcePoints": 100
+            },
+            "dimensions": {
+              "bankSeatMeters": 2,
+              "straightApproachMeters": 5,
+              "roadWidthMeters": 2,
+              "localWindowMeters": 4
+            },
+            "spacingMeters": 12,
+            "maxRivers": 10,
+            "maxAttempts": 10,
+            "firstCandidateId": 100
+          },
+          "approaches": {
+            "guides": {
+              "spacingMeters": 5,
+              "paddingMeters": 5,
+              "terminalLeadMeters": 5,
+              "connectorRadiusMeters": 8,
+              "maxSamples": 1000,
+              "maxNodes": 1000,
+              "maxEdges": 10000,
+              "maxEdgeChecks": 10000
+            },
+            "corridor": {
+              "roadWidthMeters": 2,
+              "minimumTurnRadiusMeters": 2,
+              "minimumStraightMeters": 0,
+              "minimumFinalStraightMeters": 2,
+              "turnPenaltyMetersPerRadian": 0,
+              "maxEnvelopeErrorMeters": 0.05,
+              "maxArcSections": 100,
+              "maxNodes": 1000,
+              "maxEdges": 10000,
+              "maxLabels": 3886,
+              "maxExpansions": 3126
+            }
+          },
+          "network": {
+            "maxNodes": 100,
+            "maxEdges": 100,
+            "maxCorridorPieces": 1000,
+            "maxGuideNodes": 10000,
+            "maxGuideEdges": 100000
+          },
+          "maxPairs": 5,
+          "maxApproachAttempts": 20,
+          "maxAssessmentSearches": 87,
+          "firstConnectionId": 1000,
+          "search": {
+            "maxLabels": 16,
+            "maxExpansions": 16,
+            "historyCountCap": 2,
+            "repeatCrossingCostMeters": 10
+          },
+          "individual": {
+            "minimumImprovementMeters": 1,
+            "nearEqualCostMeters": 1,
+            "maxConstructionCostMeters": 1000,
+            "maxRouteCostMeters": 500,
+            "maxSearches": 4,
+            "maxReturnComparisons": 1
+          },
+          "shared": {
+            "maxPairs": 5,
+            "maxSearches": 12,
+            "maxReturnComparisons": 1,
+            "nearEqualCostMeters": 1,
+            "maxConstructionCostMeters": 1000,
+            "maxPairCostMeters": 500,
+            "maxTotalCostMeters": 1000,
+            "minimumNetBenefitMeters": 1
+          },
+          "sharedSelection": {
+            "maxGroups": 4,
+            "maxPairsPerGroup": 3,
+            "maxFacilitiesPerGroup": 2,
+            "maxChecks": 10000
+          }
+        },
+        "ceilingLimited": false,
+        "requiredAssessmentSearches": 87
+      },
+      "measurements": {
+        "networkLabels": 3,
+        "networkExpansions": 2,
+        "approachLabels": 1943,
+        "approachExpansions": 1563
+      },
+      "individual": [
+        {
+          "pairId": 0,
+          "status": "rejected",
+          "reason": "no-feasible-proposal"
+        },
+        {
+          "pairId": 1,
+          "status": "proposed"
+        },
+        {
+          "pairId": 2,
+          "status": "proposed"
+        }
+      ],
+      "shared": [
+        {
+          "group": {
+            "pairIds": [
+              1,
+              2
+            ],
+            "facilityIds": [
+              100
+            ],
+            "connectionIds": [
+              1003,
+              1004
+            ],
+            "id": 0
+          },
+          "status": "proposed",
+          "investmentMeters": 58.426496,
+          "netBenefitMeters": 599647.029504,
+          "facilityIds": [
+            100
+          ]
+        }
+      ],
+      "adoption": [
+        {
+          "groupId": 0,
+          "status": "committed",
+          "facilityIds": [
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "balanced",
+      "status": "evaluated",
+      "wallMs": 2911.2008339999998,
+      "budget": {
+        "settings": {
+          "crossings": {
+            "geometry": {
+              "curveAlpha": 0.1,
+              "precision": {
+                "arcToleranceMeters": 0.00001,
+                "maxIntegrationDepth": 24,
+                "maxEvaluations": 100000
+              },
+              "banks": {
+                "maxStepMeters": 5,
+                "maxChordErrorMeters": 0.01,
+                "maxSamples": 2000
+              },
+              "maxSourcePoints": 100
+            },
+            "dimensions": {
+              "bankSeatMeters": 2,
+              "straightApproachMeters": 5,
+              "roadWidthMeters": 2,
+              "localWindowMeters": 4
+            },
+            "spacingMeters": 12,
+            "maxRivers": 10,
+            "maxAttempts": 10,
+            "firstCandidateId": 100
+          },
+          "approaches": {
+            "guides": {
+              "spacingMeters": 5,
+              "paddingMeters": 5,
+              "terminalLeadMeters": 5,
+              "connectorRadiusMeters": 8,
+              "maxSamples": 1000,
+              "maxNodes": 1000,
+              "maxEdges": 10000,
+              "maxEdgeChecks": 10000
+            },
+            "corridor": {
+              "roadWidthMeters": 2,
+              "minimumTurnRadiusMeters": 2,
+              "minimumStraightMeters": 0,
+              "minimumFinalStraightMeters": 2,
+              "turnPenaltyMetersPerRadian": 0,
+              "maxEnvelopeErrorMeters": 0.05,
+              "maxArcSections": 100,
+              "maxNodes": 1000,
+              "maxEdges": 10000,
+              "maxLabels": 3886,
+              "maxExpansions": 3126
+            }
+          },
+          "network": {
+            "maxNodes": 100,
+            "maxEdges": 100,
+            "maxCorridorPieces": 1000,
+            "maxGuideNodes": 10000,
+            "maxGuideEdges": 100000
+          },
+          "maxPairs": 5,
+          "maxApproachAttempts": 20,
+          "maxAssessmentSearches": 87,
+          "firstConnectionId": 1000,
+          "search": {
+            "maxLabels": 16,
+            "maxExpansions": 16,
+            "historyCountCap": 2,
+            "repeatCrossingCostMeters": 10
+          },
+          "individual": {
+            "minimumImprovementMeters": 1,
+            "nearEqualCostMeters": 1,
+            "maxConstructionCostMeters": 1000,
+            "maxRouteCostMeters": 500,
+            "maxSearches": 4,
+            "maxReturnComparisons": 1
+          },
+          "shared": {
+            "maxPairs": 5,
+            "maxSearches": 12,
+            "maxReturnComparisons": 1,
+            "nearEqualCostMeters": 1,
+            "maxConstructionCostMeters": 1000,
+            "maxPairCostMeters": 500,
+            "maxTotalCostMeters": 1000,
+            "minimumNetBenefitMeters": 1
+          },
+          "sharedSelection": {
+            "maxGroups": 4,
+            "maxPairsPerGroup": 3,
+            "maxFacilitiesPerGroup": 2,
+            "maxChecks": 10000
+          }
+        },
+        "ceilingLimited": false,
+        "requiredAssessmentSearches": 87
+      },
+      "measurements": {
+        "networkLabels": 3,
+        "networkExpansions": 2,
+        "approachLabels": 1943,
+        "approachExpansions": 1563
+      },
+      "individual": [
+        {
+          "pairId": 0,
+          "status": "rejected",
+          "reason": "no-feasible-proposal"
+        },
+        {
+          "pairId": 1,
+          "status": "proposed"
+        },
+        {
+          "pairId": 2,
+          "status": "proposed"
+        }
+      ],
+      "shared": [
+        {
+          "group": {
+            "pairIds": [
+              1,
+              2
+            ],
+            "facilityIds": [
+              100
+            ],
+            "connectionIds": [
+              1003,
+              1004
+            ],
+            "id": 0
+          },
+          "status": "proposed",
+          "investmentMeters": 152.81248000000002,
+          "netBenefitMeters": 599552.64352,
+          "facilityIds": [
+            100
+          ]
+        }
+      ],
+      "adoption": [
+        {
+          "groupId": 0,
+          "status": "committed",
+          "facilityIds": [
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "conservative",
+      "status": "evaluated",
+      "wallMs": 2910.2115830000002,
+      "budget": {
+        "settings": {
+          "crossings": {
+            "geometry": {
+              "curveAlpha": 0.1,
+              "precision": {
+                "arcToleranceMeters": 0.00001,
+                "maxIntegrationDepth": 24,
+                "maxEvaluations": 100000
+              },
+              "banks": {
+                "maxStepMeters": 5,
+                "maxChordErrorMeters": 0.01,
+                "maxSamples": 2000
+              },
+              "maxSourcePoints": 100
+            },
+            "dimensions": {
+              "bankSeatMeters": 2,
+              "straightApproachMeters": 5,
+              "roadWidthMeters": 2,
+              "localWindowMeters": 4
+            },
+            "spacingMeters": 12,
+            "maxRivers": 10,
+            "maxAttempts": 10,
+            "firstCandidateId": 100
+          },
+          "approaches": {
+            "guides": {
+              "spacingMeters": 5,
+              "paddingMeters": 5,
+              "terminalLeadMeters": 5,
+              "connectorRadiusMeters": 8,
+              "maxSamples": 1000,
+              "maxNodes": 1000,
+              "maxEdges": 10000,
+              "maxEdgeChecks": 10000
+            },
+            "corridor": {
+              "roadWidthMeters": 2,
+              "minimumTurnRadiusMeters": 2,
+              "minimumStraightMeters": 0,
+              "minimumFinalStraightMeters": 2,
+              "turnPenaltyMetersPerRadian": 0,
+              "maxEnvelopeErrorMeters": 0.05,
+              "maxArcSections": 100,
+              "maxNodes": 1000,
+              "maxEdges": 10000,
+              "maxLabels": 3886,
+              "maxExpansions": 3126
+            }
+          },
+          "network": {
+            "maxNodes": 100,
+            "maxEdges": 100,
+            "maxCorridorPieces": 1000,
+            "maxGuideNodes": 10000,
+            "maxGuideEdges": 100000
+          },
+          "maxPairs": 5,
+          "maxApproachAttempts": 20,
+          "maxAssessmentSearches": 87,
+          "firstConnectionId": 1000,
+          "search": {
+            "maxLabels": 16,
+            "maxExpansions": 16,
+            "historyCountCap": 2,
+            "repeatCrossingCostMeters": 10
+          },
+          "individual": {
+            "minimumImprovementMeters": 1,
+            "nearEqualCostMeters": 1,
+            "maxConstructionCostMeters": 1000,
+            "maxRouteCostMeters": 500,
+            "maxSearches": 4,
+            "maxReturnComparisons": 1
+          },
+          "shared": {
+            "maxPairs": 5,
+            "maxSearches": 12,
+            "maxReturnComparisons": 1,
+            "nearEqualCostMeters": 1,
+            "maxConstructionCostMeters": 1000,
+            "maxPairCostMeters": 500,
+            "maxTotalCostMeters": 1000,
+            "minimumNetBenefitMeters": 1
+          },
+          "sharedSelection": {
+            "maxGroups": 4,
+            "maxPairsPerGroup": 3,
+            "maxFacilitiesPerGroup": 2,
+            "maxChecks": 10000
+          }
+        },
+        "ceilingLimited": false,
+        "requiredAssessmentSearches": 87
+      },
+      "measurements": {
+        "networkLabels": 3,
+        "networkExpansions": 2,
+        "approachLabels": 1943,
+        "approachExpansions": 1563
+      },
+      "individual": [
+        {
+          "pairId": 0,
+          "status": "rejected",
+          "reason": "no-feasible-proposal"
+        },
+        {
+          "pairId": 1,
+          "status": "proposed"
+        },
+        {
+          "pairId": 2,
+          "status": "proposed"
+        }
+      ],
+      "shared": [
+        {
+          "group": {
+            "pairIds": [
+              1,
+              2
+            ],
+            "facilityIds": [
+              100
+            ],
+            "connectionIds": [
+              1003,
+              1004
+            ],
+            "id": 0
+          },
+          "status": "proposed",
+          "investmentMeters": 305.62496000000004,
+          "netBenefitMeters": 599399.83104,
+          "facilityIds": [
+            100
+          ]
+        }
+      ],
+      "adoption": [
+        {
+          "groupId": 0,
+          "status": "committed",
+          "facilityIds": [
+            100
+          ]
+        }
+      ]
+    }
+  ],
+  "worldRuns": [
+    {
+      "archive": "temp/000.savdata/Buyteland 2026-10-04-06-38.fmg",
+      "seed": "639235608",
+      "cities": 593,
+      "profiles": [
+        {
+          "profile": "lenient",
+          "wallMs": 4.912374999999884,
+          "selection": {
+            "status": "selected",
+            "checks": 9350,
+            "candidates": 1019,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 160,
+                "cityBId": 204,
+                "weight": 1.745967477524977,
+                "unconnectedAllowanceMeters": 261895.12162874654,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52379.024325749306,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 7,
+                "cityBId": 127,
+                "weight": 1.9062019202317981,
+                "unconnectedAllowanceMeters": 285930.2880347697,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 57186.057606953946,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 445,
+                "cityBId": 495,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 21,
+                "cityBId": 413,
+                "weight": 1.7097617696340304,
+                "unconnectedAllowanceMeters": 256464.26544510457,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51292.85308902091,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 2,
+                "cityBId": 115,
+                "weight": 1.8057776970284132,
+                "unconnectedAllowanceMeters": 270866.654554262,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54173.3309108524,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 13,
+                "cityBId": 46,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40195.58728077986,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 196,
+                "cityBId": 274,
+                "weight": 1.2953284916113503,
+                "unconnectedAllowanceMeters": 194299.27374170255,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 38859.85474834051,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 24,
+                "cityBId": 172,
+                "weight": 1.4472135954999579,
+                "unconnectedAllowanceMeters": 217082.03932499368,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 43416.407864998735,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 159,
+                "cityBId": 160,
+                "weight": 1.3478505426185217,
+                "unconnectedAllowanceMeters": 202177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40435.51627855565,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 100,
+                "cityBId": 118,
+                "weight": 1.161245154965971,
+                "unconnectedAllowanceMeters": 174186.77324489565,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34837.35464897913,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 51,
+                "cityBId": 444,
+                "weight": 1.204939015319192,
+                "unconnectedAllowanceMeters": 180740.8522978788,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 36148.170459575755,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 54,
+                "cityBId": 144,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 91,
+                "cityBId": 427,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40195.58728077986,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 185,
+                "cityBId": 274,
+                "weight": 1.7345207879911715,
+                "unconnectedAllowanceMeters": 260178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52035.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 288,
+                "cityBId": 355,
+                "weight": 1.8313209408606177,
+                "unconnectedAllowanceMeters": 274698.14112909266,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54939.62822581853,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 270,
+                "cityBId": 351,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 1,
+                "cityBId": 288,
+                "weight": 1.8313209408606177,
+                "unconnectedAllowanceMeters": 274698.14112909266,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54939.62822581853,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 82,
+                "cityBId": 390,
+                "weight": 1.816227766016838,
+                "unconnectedAllowanceMeters": 272434.1649025257,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54486.83298050514,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 203,
+                "cityBId": 300,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 11,
+                "cityBId": 129,
+                "weight": 1.204939015319192,
+                "unconnectedAllowanceMeters": 180740.8522978788,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 36148.170459575755,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 322,
+                "cityBId": 430,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 149,
+                "cityBId": 197,
+                "weight": 1.4218767558812768,
+                "unconnectedAllowanceMeters": 213281.51338219154,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 42656.3026764383,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 120,
+                "cityBId": 431,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 18,
+                "cityBId": 125,
+                "weight": 1.8478505426185217,
+                "unconnectedAllowanceMeters": 277177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 55435.51627855565,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 73,
+                "cityBId": 495,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 95,
+                "cityBId": 384,
+                "weight": 1.3100833856952154,
+                "unconnectedAllowanceMeters": 196512.5078542823,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 39302.50157085646,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 31,
+                "cityBId": 239,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 127,
+                "cityBId": 162,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40195.58728077986,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 232,
+                "cityBId": 285,
+                "weight": 1.3029587412587023,
+                "unconnectedAllowanceMeters": 195443.81118880532,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 39088.76223776107,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 159,
+                "cityBId": 204,
+                "weight": 1.3478505426185217,
+                "unconnectedAllowanceMeters": 202177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40435.51627855565,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 329,
+                "cityBId": 390,
+                "weight": 1.3347121593284537,
+                "unconnectedAllowanceMeters": 200206.82389926806,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40041.36477985361,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 141,
+                "cityBId": 182,
+                "weight": 1.1962141687034857,
+                "unconnectedAllowanceMeters": 179432.12530552287,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35886.42506110457,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 38,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 142,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 1010,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 7810,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 82010,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": true
+            }
+          ]
+        },
+        {
+          "profile": "balanced",
+          "wallMs": 4.066999999999098,
+          "selection": {
+            "status": "selected",
+            "checks": 9350,
+            "candidates": 1019,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 160,
+                "cityBId": 204,
+                "weight": 1.745967477524977,
+                "unconnectedAllowanceMeters": 261895.12162874654,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52379.024325749306,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 7,
+                "cityBId": 127,
+                "weight": 1.9062019202317981,
+                "unconnectedAllowanceMeters": 285930.2880347697,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 57186.057606953946,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 445,
+                "cityBId": 495,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 21,
+                "cityBId": 413,
+                "weight": 1.7097617696340304,
+                "unconnectedAllowanceMeters": 256464.26544510457,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51292.85308902091,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 2,
+                "cityBId": 115,
+                "weight": 1.8057776970284132,
+                "unconnectedAllowanceMeters": 270866.654554262,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54173.3309108524,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 13,
+                "cityBId": 46,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40195.58728077986,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 196,
+                "cityBId": 274,
+                "weight": 1.2953284916113503,
+                "unconnectedAllowanceMeters": 194299.27374170255,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 38859.85474834051,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 24,
+                "cityBId": 172,
+                "weight": 1.4472135954999579,
+                "unconnectedAllowanceMeters": 217082.03932499368,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 43416.407864998735,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 159,
+                "cityBId": 160,
+                "weight": 1.3478505426185217,
+                "unconnectedAllowanceMeters": 202177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40435.51627855565,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 100,
+                "cityBId": 118,
+                "weight": 1.161245154965971,
+                "unconnectedAllowanceMeters": 174186.77324489565,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34837.35464897913,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 51,
+                "cityBId": 444,
+                "weight": 1.204939015319192,
+                "unconnectedAllowanceMeters": 180740.8522978788,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 36148.170459575755,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 54,
+                "cityBId": 144,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 91,
+                "cityBId": 427,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40195.58728077986,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 185,
+                "cityBId": 274,
+                "weight": 1.7345207879911715,
+                "unconnectedAllowanceMeters": 260178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52035.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 288,
+                "cityBId": 355,
+                "weight": 1.8313209408606177,
+                "unconnectedAllowanceMeters": 274698.14112909266,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54939.62822581853,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 270,
+                "cityBId": 351,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 1,
+                "cityBId": 288,
+                "weight": 1.8313209408606177,
+                "unconnectedAllowanceMeters": 274698.14112909266,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54939.62822581853,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 82,
+                "cityBId": 390,
+                "weight": 1.816227766016838,
+                "unconnectedAllowanceMeters": 272434.1649025257,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54486.83298050514,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 203,
+                "cityBId": 300,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 11,
+                "cityBId": 129,
+                "weight": 1.204939015319192,
+                "unconnectedAllowanceMeters": 180740.8522978788,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 36148.170459575755,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 322,
+                "cityBId": 430,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 149,
+                "cityBId": 197,
+                "weight": 1.4218767558812768,
+                "unconnectedAllowanceMeters": 213281.51338219154,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 42656.3026764383,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 120,
+                "cityBId": 431,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 18,
+                "cityBId": 125,
+                "weight": 1.8478505426185217,
+                "unconnectedAllowanceMeters": 277177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 55435.51627855565,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 73,
+                "cityBId": 495,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 95,
+                "cityBId": 384,
+                "weight": 1.3100833856952154,
+                "unconnectedAllowanceMeters": 196512.5078542823,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 39302.50157085646,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 31,
+                "cityBId": 239,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 127,
+                "cityBId": 162,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40195.58728077986,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 232,
+                "cityBId": 285,
+                "weight": 1.3029587412587023,
+                "unconnectedAllowanceMeters": 195443.81118880532,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 39088.76223776107,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 159,
+                "cityBId": 204,
+                "weight": 1.3478505426185217,
+                "unconnectedAllowanceMeters": 202177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40435.51627855565,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 329,
+                "cityBId": 390,
+                "weight": 1.3347121593284537,
+                "unconnectedAllowanceMeters": 200206.82389926806,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 40041.36477985361,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 141,
+                "cityBId": 182,
+                "weight": 1.1962141687034857,
+                "unconnectedAllowanceMeters": 179432.12530552287,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35886.42506110457,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 140,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 620,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 4820,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 38420,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 408020,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": false
+            }
+          ]
+        },
+        {
+          "profile": "conservative",
+          "wallMs": 4.165375000000495,
+          "selection": {
+            "status": "selected",
+            "checks": 9350,
+            "candidates": 1019,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 160,
+                "cityBId": 204,
+                "weight": 1.745967477524977,
+                "unconnectedAllowanceMeters": 261895.12162874654,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26189.512162874653,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 7,
+                "cityBId": 127,
+                "weight": 1.9062019202317981,
+                "unconnectedAllowanceMeters": 285930.2880347697,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 28593.028803476973,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 445,
+                "cityBId": 495,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17487.46859276655,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 21,
+                "cityBId": 413,
+                "weight": 1.7097617696340304,
+                "unconnectedAllowanceMeters": 256464.26544510457,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25646.426544510454,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 2,
+                "cityBId": 115,
+                "weight": 1.8057776970284132,
+                "unconnectedAllowanceMeters": 270866.654554262,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27086.6654554262,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 13,
+                "cityBId": 46,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20097.79364038993,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 196,
+                "cityBId": 274,
+                "weight": 1.2953284916113503,
+                "unconnectedAllowanceMeters": 194299.27374170255,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 19429.927374170256,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 24,
+                "cityBId": 172,
+                "weight": 1.4472135954999579,
+                "unconnectedAllowanceMeters": 217082.03932499368,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 21708.203932499368,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 159,
+                "cityBId": 160,
+                "weight": 1.3478505426185217,
+                "unconnectedAllowanceMeters": 202177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20217.758139277827,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 100,
+                "cityBId": 118,
+                "weight": 1.161245154965971,
+                "unconnectedAllowanceMeters": 174186.77324489565,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17418.677324489567,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 51,
+                "cityBId": 444,
+                "weight": 1.204939015319192,
+                "unconnectedAllowanceMeters": 180740.8522978788,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 18074.085229787877,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 54,
+                "cityBId": 144,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 91,
+                "cityBId": 427,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20097.79364038993,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 185,
+                "cityBId": 274,
+                "weight": 1.7345207879911715,
+                "unconnectedAllowanceMeters": 260178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26017.811819867573,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 288,
+                "cityBId": 355,
+                "weight": 1.8313209408606177,
+                "unconnectedAllowanceMeters": 274698.14112909266,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27469.814112909266,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 270,
+                "cityBId": 351,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17487.46859276655,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 1,
+                "cityBId": 288,
+                "weight": 1.8313209408606177,
+                "unconnectedAllowanceMeters": 274698.14112909266,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27469.814112909266,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 82,
+                "cityBId": 390,
+                "weight": 1.816227766016838,
+                "unconnectedAllowanceMeters": 272434.1649025257,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27243.41649025257,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 203,
+                "cityBId": 300,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25837.28931919305,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 11,
+                "cityBId": 129,
+                "weight": 1.204939015319192,
+                "unconnectedAllowanceMeters": 180740.8522978788,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 18074.085229787877,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 322,
+                "cityBId": 430,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 149,
+                "cityBId": 197,
+                "weight": 1.4218767558812768,
+                "unconnectedAllowanceMeters": 213281.51338219154,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 21328.15133821915,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 120,
+                "cityBId": 431,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 18,
+                "cityBId": 125,
+                "weight": 1.8478505426185217,
+                "unconnectedAllowanceMeters": 277177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27717.758139277827,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 73,
+                "cityBId": 495,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17487.46859276655,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 95,
+                "cityBId": 384,
+                "weight": 1.3100833856952154,
+                "unconnectedAllowanceMeters": 196512.5078542823,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 19651.25078542823,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 31,
+                "cityBId": 239,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 127,
+                "cityBId": 162,
+                "weight": 1.3398529093593285,
+                "unconnectedAllowanceMeters": 200977.93640389928,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20097.79364038993,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 232,
+                "cityBId": 285,
+                "weight": 1.3029587412587023,
+                "unconnectedAllowanceMeters": 195443.81118880532,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 19544.381118880534,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 159,
+                "cityBId": 204,
+                "weight": 1.3478505426185217,
+                "unconnectedAllowanceMeters": 202177.58139277826,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20217.758139277827,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 329,
+                "cityBId": 390,
+                "weight": 1.3347121593284537,
+                "unconnectedAllowanceMeters": 200206.82389926806,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20020.682389926806,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 141,
+                "cityBId": 182,
+                "weight": 1.1962141687034857,
+                "unconnectedAllowanceMeters": 179432.12530552287,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17943.212530552286,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 280,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 1240,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 9640,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 76840,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": false
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 816040,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": false
+            }
+          ]
+        }
+      ],
+      "geometry": {
+        "resolvedRivers": 7,
+        "unresolved": {
+          "invalid-width": 190,
+          "sampling-budget": 11,
+          "folded-banks": 1
+        },
+        "wallMs": 120.14954200000102
+      },
+      "adoptionCertified": false,
+      "scope": "actual-city-selection-and-cost-probes; full world adoption not evaluated"
+    },
+    {
+      "archive": "temp/000.savdata/Ky Cuong 2026-10-03-14-57.fmg",
+      "seed": "382171639",
+      "cities": 324,
+      "profiles": [
+        {
+          "profile": "lenient",
+          "wallMs": 1.4964159999999538,
+          "selection": {
+            "status": "selected",
+            "checks": 5064,
+            "candidates": 552,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 46,
+                "cityBId": 251,
+                "weight": 1.8,
+                "unconnectedAllowanceMeters": 270000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 261,
+                "cityBId": 288,
+                "weight": 1.0921050135757093,
+                "unconnectedAllowanceMeters": 163815.7520363564,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32763.15040727128,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 23,
+                "cityBId": 308,
+                "weight": 1.859421299947015,
+                "unconnectedAllowanceMeters": 278913.1949920523,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 55782.638998410446,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 92,
+                "cityBId": 319,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 50,
+                "cityBId": 168,
+                "weight": 1.1781151304851551,
+                "unconnectedAllowanceMeters": 176717.26957277328,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35343.45391455465,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 49,
+                "cityBId": 309,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 44,
+                "cityBId": 312,
+                "weight": 1.1962141687034857,
+                "unconnectedAllowanceMeters": 179432.12530552287,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35886.42506110457,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 151,
+                "cityBId": 269,
+                "weight": 1.1393848069732357,
+                "unconnectedAllowanceMeters": 170907.72104598535,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34181.54420919707,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 278,
+                "cityBId": 320,
+                "weight": 1.104880884817015,
+                "unconnectedAllowanceMeters": 165732.13272255225,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 33146.426544510454,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 1,
+                "cityBId": 215,
+                "weight": 1.158113883008419,
+                "unconnectedAllowanceMeters": 173717.08245126286,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34743.41649025257,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 72,
+                "cityBId": 251,
+                "weight": 1.3741657386773942,
+                "unconnectedAllowanceMeters": 206124.86080160915,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 41224.97216032183,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 109,
+                "cityBId": 146,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 1,
+                "cityBId": 153,
+                "weight": 1.164572680755384,
+                "unconnectedAllowanceMeters": 174685.9021133076,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34937.18042266152,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 42,
+                "cityBId": 224,
+                "weight": 1.1733493586903694,
+                "unconnectedAllowanceMeters": 176002.4038035554,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35200.48076071108,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 27,
+                "cityBId": 315,
+                "weight": 1.139561698762554,
+                "unconnectedAllowanceMeters": 170934.2548143831,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34186.850962876626,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 96,
+                "cityBId": 177,
+                "weight": 1.2969310185848644,
+                "unconnectedAllowanceMeters": 194539.65278772966,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 38907.93055754593,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 110,
+                "cityBId": 142,
+                "weight": 1.659907198072391,
+                "unconnectedAllowanceMeters": 248986.07971085864,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 49797.21594217173,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 11,
+                "cityBId": 303,
+                "weight": 1.33166247903554,
+                "unconnectedAllowanceMeters": 199749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 39949.8743710662,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 22,
+                "cityBId": 176,
+                "weight": 1.8464101615137753,
+                "unconnectedAllowanceMeters": 276961.5242270663,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 55392.30484541326,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 109,
+                "cityBId": 318,
+                "weight": 1.138160873333954,
+                "unconnectedAllowanceMeters": 170724.13100009313,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34144.82620001862,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 2,
+                "cityBId": 37,
+                "weight": 2.08309518948453,
+                "unconnectedAllowanceMeters": 312464.2784226795,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 62492.8556845359,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 25,
+                "cityBId": 120,
+                "weight": 1.7097617696340304,
+                "unconnectedAllowanceMeters": 256464.26544510457,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51292.85308902091,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 23,
+                "cityBId": 177,
+                "weight": 1.2969310185848644,
+                "unconnectedAllowanceMeters": 194539.65278772966,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 38907.93055754593,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 14,
+                "cityBId": 56,
+                "weight": 1.969041575982343,
+                "unconnectedAllowanceMeters": 295356.23639735143,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 59071.24727947029,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 152,
+                "cityBId": 235,
+                "weight": 1.0894751349271898,
+                "unconnectedAllowanceMeters": 163421.27023907847,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32684.254047815695,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 54,
+                "cityBId": 146,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 271,
+                "cityBId": 294,
+                "weight": 1.0814335824274057,
+                "unconnectedAllowanceMeters": 162215.03736411085,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32443.007472822173,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 178,
+                "cityBId": 308,
+                "weight": 1.2553673179937903,
+                "unconnectedAllowanceMeters": 188305.09769906854,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 37661.01953981371,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 14,
+                "cityBId": 119,
+                "weight": 1.215430791260082,
+                "unconnectedAllowanceMeters": 182314.61868901228,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 36462.923737802455,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 174,
+                "cityBId": 240,
+                "weight": 1.118000083160251,
+                "unconnectedAllowanceMeters": 167700.01247403765,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 33540.00249480753,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 150,
+                "cityBId": 196,
+                "weight": 1.1300430832840345,
+                "unconnectedAllowanceMeters": 169506.46249260518,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 33901.292498521034,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 197,
+                "cityBId": 277,
+                "weight": 1.0989463717494172,
+                "unconnectedAllowanceMeters": 164841.95576241257,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32968.391152482516,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 38,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 142,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 1010,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 7810,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 82010,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": true
+            }
+          ]
+        },
+        {
+          "profile": "balanced",
+          "wallMs": 2.2971660000002885,
+          "selection": {
+            "status": "selected",
+            "checks": 5064,
+            "candidates": 552,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 46,
+                "cityBId": 251,
+                "weight": 1.8,
+                "unconnectedAllowanceMeters": 270000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 261,
+                "cityBId": 288,
+                "weight": 1.0921050135757093,
+                "unconnectedAllowanceMeters": 163815.7520363564,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32763.15040727128,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 23,
+                "cityBId": 308,
+                "weight": 1.859421299947015,
+                "unconnectedAllowanceMeters": 278913.1949920523,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 55782.638998410446,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 92,
+                "cityBId": 319,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 50,
+                "cityBId": 168,
+                "weight": 1.1781151304851551,
+                "unconnectedAllowanceMeters": 176717.26957277328,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35343.45391455465,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 49,
+                "cityBId": 309,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 44,
+                "cityBId": 312,
+                "weight": 1.1962141687034857,
+                "unconnectedAllowanceMeters": 179432.12530552287,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35886.42506110457,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 151,
+                "cityBId": 269,
+                "weight": 1.1393848069732357,
+                "unconnectedAllowanceMeters": 170907.72104598535,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34181.54420919707,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 278,
+                "cityBId": 320,
+                "weight": 1.104880884817015,
+                "unconnectedAllowanceMeters": 165732.13272255225,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 33146.426544510454,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 1,
+                "cityBId": 215,
+                "weight": 1.158113883008419,
+                "unconnectedAllowanceMeters": 173717.08245126286,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34743.41649025257,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 72,
+                "cityBId": 251,
+                "weight": 1.3741657386773942,
+                "unconnectedAllowanceMeters": 206124.86080160915,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 41224.97216032183,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 109,
+                "cityBId": 146,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 1,
+                "cityBId": 153,
+                "weight": 1.164572680755384,
+                "unconnectedAllowanceMeters": 174685.9021133076,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34937.18042266152,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 42,
+                "cityBId": 224,
+                "weight": 1.1733493586903694,
+                "unconnectedAllowanceMeters": 176002.4038035554,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35200.48076071108,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 27,
+                "cityBId": 315,
+                "weight": 1.139561698762554,
+                "unconnectedAllowanceMeters": 170934.2548143831,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34186.850962876626,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 96,
+                "cityBId": 177,
+                "weight": 1.2969310185848644,
+                "unconnectedAllowanceMeters": 194539.65278772966,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 38907.93055754593,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 110,
+                "cityBId": 142,
+                "weight": 1.659907198072391,
+                "unconnectedAllowanceMeters": 248986.07971085864,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 49797.21594217173,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 11,
+                "cityBId": 303,
+                "weight": 1.33166247903554,
+                "unconnectedAllowanceMeters": 199749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 39949.8743710662,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 22,
+                "cityBId": 176,
+                "weight": 1.8464101615137753,
+                "unconnectedAllowanceMeters": 276961.5242270663,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 55392.30484541326,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 109,
+                "cityBId": 318,
+                "weight": 1.138160873333954,
+                "unconnectedAllowanceMeters": 170724.13100009313,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34144.82620001862,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 2,
+                "cityBId": 37,
+                "weight": 2.08309518948453,
+                "unconnectedAllowanceMeters": 312464.2784226795,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 62492.8556845359,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 25,
+                "cityBId": 120,
+                "weight": 1.7097617696340304,
+                "unconnectedAllowanceMeters": 256464.26544510457,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51292.85308902091,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 23,
+                "cityBId": 177,
+                "weight": 1.2969310185848644,
+                "unconnectedAllowanceMeters": 194539.65278772966,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 38907.93055754593,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 14,
+                "cityBId": 56,
+                "weight": 1.969041575982343,
+                "unconnectedAllowanceMeters": 295356.23639735143,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 59071.24727947029,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 152,
+                "cityBId": 235,
+                "weight": 1.0894751349271898,
+                "unconnectedAllowanceMeters": 163421.27023907847,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32684.254047815695,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 54,
+                "cityBId": 146,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 271,
+                "cityBId": 294,
+                "weight": 1.0814335824274057,
+                "unconnectedAllowanceMeters": 162215.03736411085,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32443.007472822173,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 178,
+                "cityBId": 308,
+                "weight": 1.2553673179937903,
+                "unconnectedAllowanceMeters": 188305.09769906854,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 37661.01953981371,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 14,
+                "cityBId": 119,
+                "weight": 1.215430791260082,
+                "unconnectedAllowanceMeters": 182314.61868901228,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 36462.923737802455,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 174,
+                "cityBId": 240,
+                "weight": 1.118000083160251,
+                "unconnectedAllowanceMeters": 167700.01247403765,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 33540.00249480753,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 150,
+                "cityBId": 196,
+                "weight": 1.1300430832840345,
+                "unconnectedAllowanceMeters": 169506.46249260518,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 33901.292498521034,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 197,
+                "cityBId": 277,
+                "weight": 1.0989463717494172,
+                "unconnectedAllowanceMeters": 164841.95576241257,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 32968.391152482516,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 140,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 620,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 4820,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 38420,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 408020,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": false
+            }
+          ]
+        },
+        {
+          "profile": "conservative",
+          "wallMs": 1.748250000000553,
+          "selection": {
+            "status": "selected",
+            "checks": 5064,
+            "candidates": 552,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 46,
+                "cityBId": 251,
+                "weight": 1.8,
+                "unconnectedAllowanceMeters": 270000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 261,
+                "cityBId": 288,
+                "weight": 1.0921050135757093,
+                "unconnectedAllowanceMeters": 163815.7520363564,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16381.57520363564,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 23,
+                "cityBId": 308,
+                "weight": 1.859421299947015,
+                "unconnectedAllowanceMeters": 278913.1949920523,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27891.319499205223,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 92,
+                "cityBId": 319,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17724.885318687742,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 50,
+                "cityBId": 168,
+                "weight": 1.1781151304851551,
+                "unconnectedAllowanceMeters": 176717.26957277328,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17671.726957277326,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 49,
+                "cityBId": 309,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25837.28931919305,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 44,
+                "cityBId": 312,
+                "weight": 1.1962141687034857,
+                "unconnectedAllowanceMeters": 179432.12530552287,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17943.212530552286,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 151,
+                "cityBId": 269,
+                "weight": 1.1393848069732357,
+                "unconnectedAllowanceMeters": 170907.72104598535,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17090.772104598534,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 278,
+                "cityBId": 320,
+                "weight": 1.104880884817015,
+                "unconnectedAllowanceMeters": 165732.13272255225,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16573.213272255227,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 1,
+                "cityBId": 215,
+                "weight": 1.158113883008419,
+                "unconnectedAllowanceMeters": 173717.08245126286,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17371.708245126287,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 72,
+                "cityBId": 251,
+                "weight": 1.3741657386773942,
+                "unconnectedAllowanceMeters": 206124.86080160915,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 20612.486080160914,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 109,
+                "cityBId": 146,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17724.885318687742,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 1,
+                "cityBId": 153,
+                "weight": 1.164572680755384,
+                "unconnectedAllowanceMeters": 174685.9021133076,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17468.59021133076,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 42,
+                "cityBId": 224,
+                "weight": 1.1733493586903694,
+                "unconnectedAllowanceMeters": 176002.4038035554,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17600.24038035554,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 27,
+                "cityBId": 315,
+                "weight": 1.139561698762554,
+                "unconnectedAllowanceMeters": 170934.2548143831,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17093.425481438313,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 96,
+                "cityBId": 177,
+                "weight": 1.2969310185848644,
+                "unconnectedAllowanceMeters": 194539.65278772966,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 19453.965278772965,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 110,
+                "cityBId": 142,
+                "weight": 1.659907198072391,
+                "unconnectedAllowanceMeters": 248986.07971085864,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 24898.607971085865,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 11,
+                "cityBId": 303,
+                "weight": 1.33166247903554,
+                "unconnectedAllowanceMeters": 199749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 19974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 22,
+                "cityBId": 176,
+                "weight": 1.8464101615137753,
+                "unconnectedAllowanceMeters": 276961.5242270663,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27696.15242270663,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 109,
+                "cityBId": 318,
+                "weight": 1.138160873333954,
+                "unconnectedAllowanceMeters": 170724.13100009313,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17072.41310000931,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 2,
+                "cityBId": 37,
+                "weight": 2.08309518948453,
+                "unconnectedAllowanceMeters": 312464.2784226795,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 31246.42784226795,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 25,
+                "cityBId": 120,
+                "weight": 1.7097617696340304,
+                "unconnectedAllowanceMeters": 256464.26544510457,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25646.426544510454,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 23,
+                "cityBId": 177,
+                "weight": 1.2969310185848644,
+                "unconnectedAllowanceMeters": 194539.65278772966,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 19453.965278772965,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 14,
+                "cityBId": 56,
+                "weight": 1.969041575982343,
+                "unconnectedAllowanceMeters": 295356.23639735143,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 29535.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 152,
+                "cityBId": 235,
+                "weight": 1.0894751349271898,
+                "unconnectedAllowanceMeters": 163421.27023907847,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16342.127023907848,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 54,
+                "cityBId": 146,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17724.885318687742,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 271,
+                "cityBId": 294,
+                "weight": 1.0814335824274057,
+                "unconnectedAllowanceMeters": 162215.03736411085,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16221.503736411087,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 178,
+                "cityBId": 308,
+                "weight": 1.2553673179937903,
+                "unconnectedAllowanceMeters": 188305.09769906854,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 18830.509769906854,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 14,
+                "cityBId": 119,
+                "weight": 1.215430791260082,
+                "unconnectedAllowanceMeters": 182314.61868901228,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 18231.461868901228,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 174,
+                "cityBId": 240,
+                "weight": 1.118000083160251,
+                "unconnectedAllowanceMeters": 167700.01247403765,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16770.001247403765,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 150,
+                "cityBId": 196,
+                "weight": 1.1300430832840345,
+                "unconnectedAllowanceMeters": 169506.46249260518,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16950.646249260517,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 197,
+                "cityBId": 277,
+                "weight": 1.0989463717494172,
+                "unconnectedAllowanceMeters": 164841.95576241257,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 16484.195576241258,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 280,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 1240,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 9640,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 76840,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": false
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 816040,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": false
+            }
+          ]
+        }
+      ],
+      "geometry": {
+        "resolvedRivers": 17,
+        "unresolved": {
+          "invalid-width": 151,
+          "sampling-budget": 12,
+          "invalid-curve": 1
+        },
+        "wallMs": 156.87837500000023
+      },
+      "adoptionCertified": false,
+      "scope": "actual-city-selection-and-cost-probes; full world adoption not evaluated"
+    },
+    {
+      "archive": "temp/000.savdata/Bois 2026-10-03-18-35.fmg",
+      "seed": "569431067",
+      "cities": 683,
+      "profiles": [
+        {
+          "profile": "lenient",
+          "wallMs": 5.376624999998967,
+          "selection": {
+            "status": "selected",
+            "checks": 13708,
+            "candidates": 1230,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 44,
+                "cityBId": 558,
+                "weight": 1.7345207879911715,
+                "unconnectedAllowanceMeters": 260178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52035.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 81,
+                "cityBId": 129,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 158,
+                "cityBId": 485,
+                "weight": 1.8165955139840808,
+                "unconnectedAllowanceMeters": 272489.32709761214,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54497.86541952242,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 58,
+                "cityBId": 294,
+                "weight": 1.7872281323269015,
+                "unconnectedAllowanceMeters": 268084.2198490352,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 53616.84396980704,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 11,
+                "cityBId": 24,
+                "weight": 1.9472135954999579,
+                "unconnectedAllowanceMeters": 292082.0393249937,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 58416.407864998735,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 11,
+                "cityBId": 294,
+                "weight": 1.83166247903554,
+                "unconnectedAllowanceMeters": 274749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54949.8743710662,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 17,
+                "cityBId": 179,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 193,
+                "cityBId": 244,
+                "weight": 1.745967477524977,
+                "unconnectedAllowanceMeters": 261895.12162874654,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52379.024325749306,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 53,
+                "cityBId": 182,
+                "weight": 1.590936261535705,
+                "unconnectedAllowanceMeters": 238640.43923035575,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 47728.08784607115,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 11,
+                "cityBId": 58,
+                "weight": 1.7872281323269015,
+                "unconnectedAllowanceMeters": 268084.2198490352,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 53616.84396980704,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 129,
+                "cityBId": 593,
+                "weight": 1.5,
+                "unconnectedAllowanceMeters": 225000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 45000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 40,
+                "cityBId": 67,
+                "weight": 1.7434138525689145,
+                "unconnectedAllowanceMeters": 261512.07788533717,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52302.41557706743,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 24,
+                "cityBId": 294,
+                "weight": 1.83166247903554,
+                "unconnectedAllowanceMeters": 274749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54949.8743710662,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 48,
+                "cityBId": 336,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 565,
+                "cityBId": 650,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 116,
+                "cityBId": 353,
+                "weight": 1.1573213291015607,
+                "unconnectedAllowanceMeters": 173598.19936523412,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34719.63987304682,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 522,
+                "cityBId": 562,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 23,
+                "cityBId": 30,
+                "weight": 1.9242640687119286,
+                "unconnectedAllowanceMeters": 288639.6103067893,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 57727.92206135786,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 37,
+                "cityBId": 52,
+                "weight": 1.6664082715306088,
+                "unconnectedAllowanceMeters": 249961.2407295913,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 49992.24814591826,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 340,
+                "cityBId": 401,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 81,
+                "cityBId": 593,
+                "weight": 1.5,
+                "unconnectedAllowanceMeters": 225000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 45000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 328,
+                "cityBId": 605,
+                "weight": 1.1483239697419132,
+                "unconnectedAllowanceMeters": 172248.59546128698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34449.719092257394,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 179,
+                "cityBId": 191,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 231,
+                "cityBId": 538,
+                "weight": 1.1563809951939332,
+                "unconnectedAllowanceMeters": 173457.14927909,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34691.429855817994,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 433,
+                "cityBId": 464,
+                "weight": 1.0469041570657986,
+                "unconnectedAllowanceMeters": 157035.6235598698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 31407.12471197396,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 38,
+                "cityBId": 433,
+                "weight": 1.0469041570657986,
+                "unconnectedAllowanceMeters": 157035.6235598698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 31407.12471197396,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 50,
+                "cityBId": 392,
+                "weight": 1.2345207879911715,
+                "unconnectedAllowanceMeters": 185178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 37035.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 13,
+                "cityBId": 31,
+                "weight": 1.912310562561766,
+                "unconnectedAllowanceMeters": 286846.5843842649,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 57369.31687685298,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 196,
+                "cityBId": 595,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 105,
+                "cityBId": 279,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 82,
+                "cityBId": 420,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 27,
+                "cityBId": 670,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 38,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 142,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 1010,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 7810,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 82010,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": true
+            }
+          ]
+        },
+        {
+          "profile": "balanced",
+          "wallMs": 4.301916000000347,
+          "selection": {
+            "status": "selected",
+            "checks": 13708,
+            "candidates": 1230,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 44,
+                "cityBId": 558,
+                "weight": 1.7345207879911715,
+                "unconnectedAllowanceMeters": 260178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52035.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 81,
+                "cityBId": 129,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 158,
+                "cityBId": 485,
+                "weight": 1.8165955139840808,
+                "unconnectedAllowanceMeters": 272489.32709761214,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54497.86541952242,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 58,
+                "cityBId": 294,
+                "weight": 1.7872281323269015,
+                "unconnectedAllowanceMeters": 268084.2198490352,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 53616.84396980704,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 11,
+                "cityBId": 24,
+                "weight": 1.9472135954999579,
+                "unconnectedAllowanceMeters": 292082.0393249937,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 58416.407864998735,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 11,
+                "cityBId": 294,
+                "weight": 1.83166247903554,
+                "unconnectedAllowanceMeters": 274749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54949.8743710662,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 17,
+                "cityBId": 179,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 193,
+                "cityBId": 244,
+                "weight": 1.745967477524977,
+                "unconnectedAllowanceMeters": 261895.12162874654,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52379.024325749306,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 53,
+                "cityBId": 182,
+                "weight": 1.590936261535705,
+                "unconnectedAllowanceMeters": 238640.43923035575,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 47728.08784607115,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 11,
+                "cityBId": 58,
+                "weight": 1.7872281323269015,
+                "unconnectedAllowanceMeters": 268084.2198490352,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 53616.84396980704,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 129,
+                "cityBId": 593,
+                "weight": 1.5,
+                "unconnectedAllowanceMeters": 225000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 45000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 40,
+                "cityBId": 67,
+                "weight": 1.7434138525689145,
+                "unconnectedAllowanceMeters": 261512.07788533717,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 52302.41557706743,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 24,
+                "cityBId": 294,
+                "weight": 1.83166247903554,
+                "unconnectedAllowanceMeters": 274749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 54949.8743710662,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 48,
+                "cityBId": 336,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 565,
+                "cityBId": 650,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34974.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 116,
+                "cityBId": 353,
+                "weight": 1.1573213291015607,
+                "unconnectedAllowanceMeters": 173598.19936523412,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34719.63987304682,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 522,
+                "cityBId": 562,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 23,
+                "cityBId": 30,
+                "weight": 1.9242640687119286,
+                "unconnectedAllowanceMeters": 288639.6103067893,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 57727.92206135786,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 37,
+                "cityBId": 52,
+                "weight": 1.6664082715306088,
+                "unconnectedAllowanceMeters": 249961.2407295913,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 49992.24814591826,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 340,
+                "cityBId": 401,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 81,
+                "cityBId": 593,
+                "weight": 1.5,
+                "unconnectedAllowanceMeters": 225000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 45000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 328,
+                "cityBId": 605,
+                "weight": 1.1483239697419132,
+                "unconnectedAllowanceMeters": 172248.59546128698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34449.719092257394,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 179,
+                "cityBId": 191,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 51674.5786383861,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 231,
+                "cityBId": 538,
+                "weight": 1.1563809951939332,
+                "unconnectedAllowanceMeters": 173457.14927909,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 34691.429855817994,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 433,
+                "cityBId": 464,
+                "weight": 1.0469041570657986,
+                "unconnectedAllowanceMeters": 157035.6235598698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 31407.12471197396,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 38,
+                "cityBId": 433,
+                "weight": 1.0469041570657986,
+                "unconnectedAllowanceMeters": 157035.6235598698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 31407.12471197396,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 50,
+                "cityBId": 392,
+                "weight": 1.2345207879911715,
+                "unconnectedAllowanceMeters": 185178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 37035.623639735146,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 13,
+                "cityBId": 31,
+                "weight": 1.912310562561766,
+                "unconnectedAllowanceMeters": 286846.5843842649,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 57369.31687685298,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 196,
+                "cityBId": 595,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 35449.770637375485,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 105,
+                "cityBId": 279,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 82,
+                "cityBId": 420,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 27,
+                "cityBId": 670,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 30000,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 140,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 620,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 4820,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 38420,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 408020,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": false
+            }
+          ]
+        },
+        {
+          "profile": "conservative",
+          "wallMs": 4.42541700000038,
+          "selection": {
+            "status": "selected",
+            "checks": 13708,
+            "candidates": 1230,
+            "truncated": true,
+            "pairs": [
+              {
+                "id": 0,
+                "cityAId": 44,
+                "cityBId": 558,
+                "weight": 1.7345207879911715,
+                "unconnectedAllowanceMeters": 260178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26017.811819867573,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 1,
+                "cityAId": 81,
+                "cityBId": 129,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25837.28931919305,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 2,
+                "cityAId": 158,
+                "cityBId": 485,
+                "weight": 1.8165955139840808,
+                "unconnectedAllowanceMeters": 272489.32709761214,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27248.93270976121,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 3,
+                "cityAId": 58,
+                "cityBId": 294,
+                "weight": 1.7872281323269015,
+                "unconnectedAllowanceMeters": 268084.2198490352,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26808.42198490352,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 4,
+                "cityAId": 11,
+                "cityBId": 24,
+                "weight": 1.9472135954999579,
+                "unconnectedAllowanceMeters": 292082.0393249937,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 29208.203932499368,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 5,
+                "cityAId": 11,
+                "cityBId": 294,
+                "weight": 1.83166247903554,
+                "unconnectedAllowanceMeters": 274749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27474.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 6,
+                "cityAId": 17,
+                "cityBId": 179,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25837.28931919305,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 7,
+                "cityAId": 193,
+                "cityBId": 244,
+                "weight": 1.745967477524977,
+                "unconnectedAllowanceMeters": 261895.12162874654,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26189.512162874653,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 8,
+                "cityAId": 53,
+                "cityBId": 182,
+                "weight": 1.590936261535705,
+                "unconnectedAllowanceMeters": 238640.43923035575,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 23864.043923035573,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 9,
+                "cityAId": 11,
+                "cityBId": 58,
+                "weight": 1.7872281323269015,
+                "unconnectedAllowanceMeters": 268084.2198490352,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26808.42198490352,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 10,
+                "cityAId": 129,
+                "cityBId": 593,
+                "weight": 1.5,
+                "unconnectedAllowanceMeters": 225000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 22500,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 11,
+                "cityAId": 40,
+                "cityBId": 67,
+                "weight": 1.7434138525689145,
+                "unconnectedAllowanceMeters": 261512.07788533717,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 26151.207788533717,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 12,
+                "cityAId": 24,
+                "cityBId": 294,
+                "weight": 1.83166247903554,
+                "unconnectedAllowanceMeters": 274749.371855331,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 27474.9371855331,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 13,
+                "cityAId": 48,
+                "cityBId": 336,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 14,
+                "cityAId": 565,
+                "cityBId": 650,
+                "weight": 1.16583123951777,
+                "unconnectedAllowanceMeters": 174874.68592766547,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17487.46859276655,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 15,
+                "cityAId": 116,
+                "cityBId": 353,
+                "weight": 1.1573213291015607,
+                "unconnectedAllowanceMeters": 173598.19936523412,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17359.81993652341,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 16,
+                "cityAId": 522,
+                "cityBId": 562,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25837.28931919305,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 17,
+                "cityAId": 23,
+                "cityBId": 30,
+                "weight": 1.9242640687119286,
+                "unconnectedAllowanceMeters": 288639.6103067893,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 28863.96103067893,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 18,
+                "cityAId": 37,
+                "cityBId": 52,
+                "weight": 1.6664082715306088,
+                "unconnectedAllowanceMeters": 249961.2407295913,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 24996.12407295913,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 19,
+                "cityAId": 340,
+                "cityBId": 401,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 20,
+                "cityAId": 81,
+                "cityBId": 593,
+                "weight": 1.5,
+                "unconnectedAllowanceMeters": 225000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 22500,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 21,
+                "cityAId": 328,
+                "cityBId": 605,
+                "weight": 1.1483239697419132,
+                "unconnectedAllowanceMeters": 172248.59546128698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17224.859546128697,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 22,
+                "cityAId": 179,
+                "cityBId": 191,
+                "weight": 1.72248595461287,
+                "unconnectedAllowanceMeters": 258372.8931919305,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 25837.28931919305,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 23,
+                "cityAId": 231,
+                "cityBId": 538,
+                "weight": 1.1563809951939332,
+                "unconnectedAllowanceMeters": 173457.14927909,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17345.714927908997,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 24,
+                "cityAId": 433,
+                "cityBId": 464,
+                "weight": 1.0469041570657986,
+                "unconnectedAllowanceMeters": 157035.6235598698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15703.56235598698,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 25,
+                "cityAId": 38,
+                "cityBId": 433,
+                "weight": 1.0469041570657986,
+                "unconnectedAllowanceMeters": 157035.6235598698,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15703.56235598698,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 26,
+                "cityAId": 50,
+                "cityBId": 392,
+                "weight": 1.2345207879911715,
+                "unconnectedAllowanceMeters": 185178.11819867571,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 18517.811819867573,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 27,
+                "cityAId": 13,
+                "cityBId": 31,
+                "weight": 1.912310562561766,
+                "unconnectedAllowanceMeters": 286846.5843842649,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 28684.65843842649,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 28,
+                "cityAId": 196,
+                "cityBId": 595,
+                "weight": 1.1816590212458495,
+                "unconnectedAllowanceMeters": 177248.85318687744,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 17724.885318687742,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 29,
+                "cityAId": 105,
+                "cityBId": 279,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 30,
+                "cityAId": 82,
+                "cityBId": 420,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              },
+              {
+                "id": 31,
+                "cityAId": 27,
+                "cityBId": 670,
+                "weight": 1,
+                "unconnectedAllowanceMeters": 150000,
+                "assessmentSettings": {
+                  "maxConstructionCostMeters": 15000,
+                  "maxRouteCostMeters": 150000
+                }
+              }
+            ]
+          },
+          "physicalDeckCostProbes": [
+            {
+              "deckLengthMeters": 10,
+              "constructionCostMeters": 280,
+              "useCostMeters": 7,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 30,
+              "constructionCostMeters": 1240,
+              "useCostMeters": 11,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 100,
+              "constructionCostMeters": 9640,
+              "useCostMeters": 25,
+              "withinMaximumConstruction": true
+            },
+            {
+              "deckLengthMeters": 300,
+              "constructionCostMeters": 76840,
+              "useCostMeters": 65,
+              "withinMaximumConstruction": false
+            },
+            {
+              "deckLengthMeters": 1000,
+              "constructionCostMeters": 816040,
+              "useCostMeters": 205,
+              "withinMaximumConstruction": false
+            }
+          ]
+        }
+      ],
+      "geometry": {
+        "resolvedRivers": 11,
+        "unresolved": {
+          "sampling-budget": 18,
+          "invalid-width": 254,
+          "unstable-axis": 1
+        },
+        "wallMs": 176.13916600000084
+      },
+      "adoptionCertified": false,
+      "scope": "actual-city-selection-and-cost-probes; full world adoption not evaluated"
+    }
+  ],
+  "totalWallMs": 9975.493167
+}
