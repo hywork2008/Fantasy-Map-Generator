@@ -41,9 +41,9 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
     for (let i = 0; i < ring.length; i++) {
       const a = ring[i],
         b = ring[(i + 1) % ring.length];
-      const edgeLength = Math.hypot(...sub(b, a));
+      const edgeLength = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (!Number.isFinite(edgeLength) || edgeLength <= epsilon) return false;
-      area += cross2(sub(a, ring[0]), sub(b, ring[0]));
+      area += (a[0] - ring[0][0]) * (b[1] - ring[0][1]) - (a[1] - ring[0][1]) * (b[0] - ring[0][0]);
       const ref = water.bankReferences?.[r]?.[i];
       if (
         ref &&
@@ -59,29 +59,41 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
   }
   // Sweep edge envelopes instead of comparing every pair in a long river ring.
   // Expand by the same tolerance used by the precise contact predicate.
-  const edges = water.rings
-    .flatMap((ring, r) =>
-      ring.map((a, i) => {
-        const b = ring[(i + 1) % ring.length];
-        return {
-          a,
-          b,
-          r,
-          i,
-          count: ring.length,
-          minX: Math.min(a[0], b[0]) - epsilon,
-          maxX: Math.max(a[0], b[0]) + epsilon,
-          minY: Math.min(a[1], b[1]) - epsilon,
-          maxY: Math.max(a[1], b[1]) + epsilon
-        };
-      })
-    )
-    .sort((a, b) => a.minX - b.minX);
+  const edges = water.rings.flatMap((ring, r) =>
+    ring.map((a, i) => {
+      const b = ring[(i + 1) % ring.length];
+      return {
+        a,
+        b,
+        r,
+        i,
+        count: ring.length,
+        minX: Math.min(a[0], b[0]) - epsilon,
+        maxX: Math.max(a[0], b[0]) + epsilon,
+        minY: Math.min(a[1], b[1]) - epsilon,
+        maxY: Math.max(a[1], b[1]) + epsilon
+      };
+    })
+  );
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  for (const edge of edges) {
+    minX = Math.min(minX, edge.minX);
+    maxX = Math.max(maxX, edge.maxX);
+    minY = Math.min(minY, edge.minY);
+    maxY = Math.max(maxY, edge.maxY);
+  }
+  const axis = maxX - minX >= maxY - minY ? "X" : "Y";
+  const minKey = axis === "X" ? "minX" : "minY",
+    maxKey = axis === "X" ? "maxX" : "maxY";
+  edges.sort((a, b) => a[minKey] - b[minKey]);
   for (let i = 0; i < edges.length; i++) {
     const a = edges[i];
-    for (let j = i + 1; j < edges.length && edges[j].minX <= a.maxX; j++) {
+    for (let j = i + 1; j < edges.length && edges[j][minKey] <= a[maxKey]; j++) {
       const b = edges[j];
-      if (a.maxY < b.minY || b.maxY < a.minY) continue;
+      if (a.maxY < b.minY || b.maxY < a.minY || a.maxX < b.minX || b.maxX < a.minX) continue;
       if (a.r === b.r && (Math.abs(a.i - b.i) === 1 || Math.abs(a.i - b.i) === a.count - 1)) continue;
       if (segmentsTouch(a.a, a.b, b.a, b.b)) return false;
     }
@@ -108,7 +120,7 @@ export function pointInWater(point: RiverPoint, water: PhysicalWaterPolygon): bo
   }
   return inside;
 }
-function segmentsTouch(a: RiverPoint, b: RiverPoint, c: RiverPoint, d: RiverPoint): boolean {
+export function segmentsTouch(a: RiverPoint, b: RiverPoint, c: RiverPoint, d: RiverPoint): boolean {
   const ab = sub(b, a),
     cd = sub(d, c),
     offset = sub(c, a);

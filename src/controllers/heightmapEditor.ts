@@ -7,7 +7,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
 import {
   addLakesInDeepDepressions,
   calculateTemperatures,
@@ -32,6 +31,7 @@ import {
   registerHeightmapFinalizeHandler
 } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
+import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
@@ -466,9 +466,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     rankCells();
     GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Cultures.expand(state);
-    GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state);
+    const geometrySession = new SettlementGeometrySession();
+    GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state, { geometrySession });
     GenerationPipeline.States.generate(worldContext, viewContext, appServices, state);
-    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true });
+    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true, geometrySession });
     GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, state);

@@ -371,7 +371,12 @@ function isDocument(value: unknown): value is CityDocument {
         !!doc.frame &&
         Number.isFinite(doc.frame.extentMeters) &&
         doc.frame.extentMeters > 0 &&
-        requiredSiteExtent(doc.importedFixedCrossings.requiredBounds) <= doc.frame.extentMeters)) &&
+        requiredSiteExtent(doc.importedFixedCrossings.requiredBounds) <= doc.frame.extentMeters &&
+        (doc.importedFixedCrossings.schemaVersion !== 3 ||
+          (doc.importedFixedCrossings.coverageBounds!.minX <= -doc.frame.extentMeters / 2 &&
+            doc.importedFixedCrossings.coverageBounds!.minY <= -doc.frame.extentMeters / 2 &&
+            doc.importedFixedCrossings.coverageBounds!.maxX >= doc.frame.extentMeters / 2 &&
+            doc.importedFixedCrossings.coverageBounds!.maxY >= doc.frame.extentMeters / 2)))) &&
     !!doc.frame &&
     typeof doc.frame.extentMeters === "number" &&
     !!doc.mesh &&

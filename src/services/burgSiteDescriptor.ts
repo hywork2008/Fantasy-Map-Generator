@@ -23,7 +23,9 @@ import {
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
+import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
+import { SettlementGeometrySession } from "./settlementGeometrySession";
 import {
   nearestSettlementBank,
   SETTLEMENT_RIVER_SETTINGS,
@@ -594,11 +596,22 @@ function localRiverPoints(
 
 /** Near bank plus a strip of water, centred on the unchanged town origin. */
 function canonicalFrontageBounds(burg: Burg, riverId: number, toLocal: (x: number, y: number) => [number, number]) {
+  if (burg.riverPlacement?.sourceSegmentId === undefined) return legacyCanonicalFrontageBounds(burg, riverId, toLocal);
   const river = worldContext.pack.rivers.find(r => r.i === riverId);
   if (!river) return null;
-  const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
-  if (!("geometry" in resolved)) return null;
-  const scale = resolved.metersPerMapUnit;
+  const scale = getMetersPerMapUnit();
+  const reach = POPULATION_WINDOW_MAX_M / 2;
+  const x = burg.x * scale,
+    y = burg.y * scale;
+  const source = regionalRiverGeometry(
+    worldContext,
+    river,
+    useOptionsState.getState().distanceUnit,
+    SETTLEMENT_RIVER_SETTINGS
+  );
+  if (!(source instanceof RegionalRiverGeometry)) return null;
+  const resolved = source.query({ minX: x - reach, maxX: x + reach, minY: y - reach, maxY: y + reach });
+  if (!resolved || !("geometry" in resolved)) return null;
   const bank = nearestSettlementBank(resolved.geometry, [burg.x * scale, burg.y * scale]);
   if (!bank) return null;
   const samples = [bank.bankPoint, bank.waterPoint].map(p => toLocal(p[0] / scale, p[1] / scale));
@@ -614,6 +627,7 @@ function canonicalFrontageBounds(burg: Burg, riverId: number, toLocal: (x: numbe
 }
 
 function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBounds): FixedBurgCrossings | null {
+  if (burg.riverPlacement?.sourceSegmentId === undefined) return legacyCanonicalSiteWater(burg, half, required);
   const rivers: FixedBurgCrossings["rivers"][number][] = [];
   let vertices = 0;
   const scale = getMetersPerMapUnit();
@@ -624,33 +638,16 @@ function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBou
     [origin[0] + half, origin[1] + half],
     [origin[0] - half, origin[1] + half]
   ];
-  for (const river of worldContext.pack.rivers) {
-    const possible = worldRiverOccupiedBounds(
-      worldContext,
-      river,
-      useOptionsState.getState().distanceUnit,
-      SETTLEMENT_RIVER_SETTINGS
-    );
-    if (!possible) return null;
-    if (
-      possible.maxX < origin[0] - half ||
-      possible.minX > origin[0] + half ||
-      possible.maxY < origin[1] - half ||
-      possible.minY > origin[1] + half
-    )
-      continue;
-    const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
-    // Remote unresolved reaches cannot affect this frame; a nearby one stops the export.
-    const b = resolved.bounds;
-    if (!b) return null;
-    if (
-      b.maxX < origin[0] - half ||
-      b.minX > origin[0] + half ||
-      b.maxY < origin[1] - half ||
-      b.minY > origin[1] + half
-    )
-      continue;
-    if (!("geometry" in resolved)) return null;
+  const session = new SettlementGeometrySession();
+  session.prepare(worldContext, useOptionsState.getState().distanceUnit);
+  const coverage = { minX: origin[0] - half, maxX: origin[0] + half, minY: origin[1] - half, maxY: origin[1] + half };
+  for (const riverId of session.rivers(coverage)) {
+    const river = worldContext.pack.rivers.find(r => r.i === riverId)!;
+    const resolved = session.resolve(worldContext, river, useOptionsState.getState().distanceUnit, coverage);
+    if (!("geometry" in resolved)) {
+      if (resolved.reason === "no-local-water") continue;
+      return null;
+    }
     if (!footprintTouchesWater(frame, resolved.geometry.water)) continue;
     const rings = resolved.geometry.water.rings.map(ring =>
       ring.map(p => [p[0] - origin[0], origin[1] - p[1]] as [number, number])
@@ -661,11 +658,19 @@ function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBou
       rivers.length >= FIXED_SITE_CROSSING_BUDGETS.maxFacilities
     )
       return null;
-    rivers.push({ id: river.i, geometryVersion: resolved.geometryVersion, rings });
+    rivers.push({
+      id: river.i,
+      geometryVersion: resolved.geometryVersion,
+      rings,
+      sourceSegments: resolved.sourceSegments,
+      artificialCaps: resolved.artificialCaps,
+      bankPrecisionMeters: SETTLEMENT_RIVER_SETTINGS.banks.maxChordErrorMeters
+    });
   }
   if (!rivers.length) return null;
   const payload: FixedBurgCrossings = {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    coverageBounds: { minX: -half, minY: -half, maxX: half, maxY: half },
     coordinateUnit: "metres",
     revision: 0,
     originMeters: origin,
@@ -1160,4 +1165,92 @@ function inferArchetype(args: {
   }
 
   return "crossroads";
+}
+
+function legacyCanonicalFrontageBounds(
+  burg: Burg,
+  riverId: number,
+  toLocal: (x: number, y: number) => [number, number]
+) {
+  const river = worldContext.pack.rivers.find(r => r.i === riverId);
+  if (!river) return null;
+  const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+  if (!("geometry" in resolved)) return null;
+  const scale = resolved.metersPerMapUnit;
+  const bank = nearestSettlementBank(resolved.geometry, [burg.x * scale, burg.y * scale]);
+  if (!bank) return null;
+  const samples = [bank.bankPoint, bank.waterPoint].map(p => toLocal(p[0] / scale, p[1] / scale));
+  const bounds: RequiredSiteBounds = {
+    minX: Math.min(...samples.map(p => p[0])) - FRONTAGE_FRAME_PAD_M,
+    minY: Math.min(...samples.map(p => p[1])) - FRONTAGE_FRAME_PAD_M,
+    maxX: Math.max(...samples.map(p => p[0])) + FRONTAGE_FRAME_PAD_M,
+    maxY: Math.max(...samples.map(p => p[1])) + FRONTAGE_FRAME_PAD_M
+  };
+  return requiredSiteExtent(bounds) > POPULATION_WINDOW_MAX_M
+    ? { beyondBudget: true as const }
+    : { bounds, beyondBudget: false as const };
+}
+
+function legacyCanonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBounds): FixedBurgCrossings | null {
+  const rivers: FixedBurgCrossings["rivers"][number][] = [];
+  let vertices = 0;
+  const scale = getMetersPerMapUnit();
+  const origin: [number, number] = [burg.x * scale, burg.y * scale];
+  const frame: [number, number][] = [
+    [origin[0] - half, origin[1] - half],
+    [origin[0] + half, origin[1] - half],
+    [origin[0] + half, origin[1] + half],
+    [origin[0] - half, origin[1] + half]
+  ];
+  for (const river of worldContext.pack.rivers) {
+    const possible = worldRiverOccupiedBounds(
+      worldContext,
+      river,
+      useOptionsState.getState().distanceUnit,
+      SETTLEMENT_RIVER_SETTINGS
+    );
+    if (!possible) return null;
+    if (
+      possible.maxX < origin[0] - half ||
+      possible.minX > origin[0] + half ||
+      possible.maxY < origin[1] - half ||
+      possible.minY > origin[1] + half
+    )
+      continue;
+    const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+    // Remote unresolved reaches cannot affect this frame; a nearby one stops the export.
+    const b = resolved.bounds;
+    if (!b) return null;
+    if (
+      b.maxX < origin[0] - half ||
+      b.minX > origin[0] + half ||
+      b.maxY < origin[1] - half ||
+      b.minY > origin[1] + half
+    )
+      continue;
+    if (!("geometry" in resolved)) return null;
+    if (!footprintTouchesWater(frame, resolved.geometry.water)) continue;
+    const rings = resolved.geometry.water.rings.map(ring =>
+      ring.map(p => [p[0] - origin[0], origin[1] - p[1]] as [number, number])
+    );
+    vertices += rings.reduce((n, ring) => n + ring.length, 0);
+    if (
+      vertices > FIXED_SITE_CROSSING_BUDGETS.maxWaterVertices ||
+      rivers.length >= FIXED_SITE_CROSSING_BUDGETS.maxFacilities
+    )
+      return null;
+    rivers.push({ id: river.i, geometryVersion: resolved.geometryVersion, rings });
+  }
+  if (!rivers.length) return null;
+  const payload: FixedBurgCrossings = {
+    schemaVersion: 2,
+    coordinateUnit: "metres",
+    revision: 0,
+    originMeters: origin,
+    roadWidthMeters: 5,
+    requiredBounds: required ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+    rivers,
+    crossings: []
+  };
+  return validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS) ? payload : null;
 }

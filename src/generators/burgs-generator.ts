@@ -22,16 +22,15 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
+import { RegionalRiverGeometry } from "../services/regionalRiverGeometry";
 import { footprintTouchesWater, pointInWater } from "../services/riverPhysicalGeometry";
+import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import {
   coveredByTerrainCells,
-  findRiverSettlementSite,
-  SETTLEMENT_RIVER_SETTINGS,
-  settlementRadiusMeters,
-  settlementRiverGeometry
+  findRiverSettlementSiteSteps,
+  settlementRadiusMeters
 } from "../services/settlementRiverSite";
 import { tip } from "../services/tooltipService";
-import { worldRiverOccupiedBounds } from "../services/worldRiverGeometry";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -40,6 +39,7 @@ import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
+import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -116,6 +116,8 @@ export type BurgShiftOptions = {
    * each of those landmasses so intra-state searoutes can form.
    */
   connectStateLandmasses?: boolean;
+  geometrySession?: SettlementGeometrySession;
+  signal?: AbortSignal;
 };
 
 class BurgModule {
@@ -124,9 +126,7 @@ class BurgModule {
   appServices: AppServices = appServices;
   /** Burgs founded as overseas harbours: keep the town on the cell centre; the anchor sits at sea. */
   private landmassPortBurgIds = new Set<number>();
-  private riverSiteBounds?: Map<number, ReturnType<typeof worldRiverOccupiedBounds>>;
-  private riverSiteTerrain?: { id: number; ring: Point[]; minX: number; maxX: number; minY: number; maxY: number }[];
-  private riverSiteSurveys?: Map<number, ReturnType<typeof settlementRiverGeometry>>;
+  private geometrySession?: SettlementGeometrySession;
 
   // Assign port feature ids to burgs and position them appropriately
   shift(options: BurgShiftOptions = {}) {
@@ -136,11 +136,21 @@ class BurgModule {
   }
 
   async shiftAsync(options: BurgShiftOptions = {}): Promise<void> {
+    const pack = this.worldContext.pack;
+    const steps = this.shiftSteps(options);
     let start = performance.now();
-    for (const _ of this.shiftSteps(options)) {
-      if (performance.now() - start < 8) continue;
-      await new Promise<void>(resolve => setTimeout(resolve, 0));
-      start = performance.now();
+    try {
+      while (true) {
+        if (options.signal?.aborted || this.worldContext.pack !== pack)
+          throw new DOMException("Settlement placement cancelled", "AbortError");
+        const step = steps.next();
+        if (step.done) return;
+        if (performance.now() - start < 8) continue;
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+        start = performance.now();
+      }
+    } finally {
+      steps.return(undefined);
     }
   }
 
@@ -154,9 +164,9 @@ class BurgModule {
 
     const { cells, burgs } = this.worldContext.pack;
     const riversById = new Map(this.worldContext.pack.rivers.map(river => [river.i, river]));
-    this.riverSiteSurveys = new Map();
-    this.riverSiteBounds = new Map();
+    this.geometrySession = options.geometrySession ?? new SettlementGeometrySession();
     try {
+      yield* this.geometrySession.prepareSteps(this.worldContext, useOptionsState.getState().distanceUnit);
       for (const burg of burgs) {
         if (burg.i && !burg.lock) delete burg.port;
       }
@@ -168,7 +178,7 @@ class BurgModule {
         for (const candidate of this.selectPorts(candidates, lockedLakePorts, {
           byState: Boolean(options.connectStateLandmasses)
         })) {
-          this.promoteToPort(candidate, riversById);
+          yield* this.promoteToPortSteps(candidate, riversById);
           yield;
         }
       }
@@ -176,7 +186,7 @@ class BurgModule {
       // Position river towns on the actual local bank, including river/estuary ports.
       for (const burg of burgs) {
         if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
-        const [x, y] = this.shiftTowardsRiverBank(burg.cell, riversById, [burg.x, burg.y]);
+        const [x, y] = yield* this.shiftTowardsRiverBankSteps(burg.cell, riversById, [burg.x, burg.y]);
         burg.x = x;
         burg.y = y;
         yield;
@@ -185,9 +195,7 @@ class BurgModule {
       updateAllBurgWaterAccess(this.worldContext.pack);
       this.landmassPortBurgIds.clear();
     } finally {
-      this.riverSiteSurveys = undefined;
-      this.riverSiteBounds = undefined;
-      this.riverSiteTerrain = undefined;
+      this.geometrySession = undefined;
     }
   }
 
@@ -587,6 +595,15 @@ class BurgModule {
   }
 
   private promoteToPort(candidate: PortCandidate, riversById: Map<number, { i: number; cells: number[] }>): void {
+    for (const _ of this.promoteToPortSteps(candidate, riversById)) {
+      /* synchronous compatibility */
+    }
+  }
+
+  private *promoteToPortSteps(
+    candidate: PortCandidate,
+    riversById: Map<number, { i: number; cells: number[] }>
+  ): Generator<void> {
     const { burg, haven, portFeatureId } = candidate;
     burg.port = portFeatureId;
     updateBurgWaterAccess(burg, this.worldContext.pack);
@@ -597,7 +614,9 @@ class BurgModule {
       return;
     }
     const [x, y] =
-      haven !== null ? this.getCloseToEdgePoint(burg.cell, haven) : this.shiftTowardsRiverBank(burg.cell, riversById);
+      haven !== null
+        ? this.getCloseToEdgePoint(burg.cell, haven)
+        : yield* this.shiftTowardsRiverBankSteps(burg.cell, riversById);
     burg.x = x;
     burg.y = y;
   }
@@ -746,11 +765,11 @@ class BurgModule {
     return getSettlementBaseSize(pack.cells, cellId, grid.cells.temp, grid.cells.prec, pack.features);
   }
 
-  private shiftTowardsRiverBank(
+  private *shiftTowardsRiverBankSteps(
     cellId: number,
     _riversById: Map<number, { i: number; cells: number[] }>,
     origin?: Point
-  ): Point {
+  ): Generator<void, Point> {
     const world = this.worldContext;
     const { pack } = world;
     const { cells } = pack;
@@ -759,14 +778,9 @@ class BurgModule {
     const river = pack.rivers.find(r => r.i === cells.r[cellId]);
     if (!river) return source;
     const unit = useOptionsState.getState().distanceUnit;
-    const resolveRiver = (input: (typeof pack.rivers)[number]) => {
-      const cached = this.riverSiteSurveys?.get(input.i);
-      if (cached) return cached;
-      const resolved = settlementRiverGeometry(world, input, unit);
-      this.riverSiteSurveys?.set(input.i, resolved);
-      return resolved;
-    };
-    const target = resolveRiver(river);
+    const session = this.geometrySession ?? new SettlementGeometrySession();
+    if (!this.geometrySession) session.prepare(world, unit);
+    const prepared = session.source(river.i);
     const unresolved = (reason: string): Point => {
       if (burg) {
         delete burg.riverPlacement;
@@ -774,8 +788,9 @@ class BurgModule {
       }
       return source;
     };
-    if (!("geometry" in target)) return unresolved(target.reason);
-    const scale = target.metersPerMapUnit;
+    if (!prepared) return unresolved("invalid-source");
+    if (!(prepared instanceof RegionalRiverGeometry)) return unresolved(prepared.reason);
+    const scale = mapUnitMeters(world.distanceScale, unit);
     // Population is still finalized once, after roads. Reserve a deterministic local core now.
     const base = cells.capacity ? this.getSettlementScore(cellId, cells.s?.[cellId] ?? 0) / 5 : 0;
     const population =
@@ -790,59 +805,28 @@ class BurgModule {
     const originMeters: Point = [source[0] * scale, source[1] * scale];
     const otherWater = [];
     const unresolvedBounds: import("../services/worldRiverGeometry").RiverGeometryBounds[] = [];
-    for (const other of pack.rivers) {
-      if (other.i === river.i) continue;
-      // The envelope contains the full curve and physical width, including failed surveys.
-      // Remote rivers cannot intersect any candidate reservation and need no bank survey.
-      let bounds = this.riverSiteBounds?.get(other.i);
-      if (bounds === undefined) {
-        bounds = worldRiverOccupiedBounds(world, other, unit, SETTLEMENT_RIVER_SETTINGS);
-        this.riverSiteBounds?.set(other.i, bounds);
-      }
-      const reach = maxMove + radius * 2 + 22;
-      if (
-        bounds &&
-        (bounds.maxX < originMeters[0] - reach ||
-          bounds.minX > originMeters[0] + reach ||
-          bounds.maxY < originMeters[1] - reach ||
-          bounds.minY > originMeters[1] + reach)
-      )
-        continue;
-      const resolved = resolveRiver(other);
+    const reach = maxMove + radius * 2 + 22;
+    const bounds = {
+      minX: originMeters[0] - reach,
+      maxX: originMeters[0] + reach,
+      minY: originMeters[1] - reach,
+      maxY: originMeters[1] + reach
+    };
+    const target = yield* session.resolveSteps(world, river, unit, bounds);
+    if (!("geometry" in target)) return unresolved(target.reason);
+    const nearby = session.rivers(bounds);
+    for (const otherId of nearby) {
+      if (otherId === river.i) continue;
+      const other = pack.rivers.find(r => r.i === otherId)!;
+      const resolved = yield* session.resolveSteps(world, other, unit, bounds);
+      if ("reason" in resolved && resolved.reason === "no-local-water") continue;
       if (!("geometry" in resolved)) {
         if (!resolved.bounds) return unresolved("unresolved-other-river");
         unresolvedBounds.push(resolved.bounds);
       } else otherWater.push(resolved.geometry.water);
     }
-    const allTerrain =
-      this.riverSiteTerrain ??
-      cells.p.flatMap((_, id) => {
-        const ring = (cells.v?.[id] ?? [])
-          .map(v => pack.vertices.p[v])
-          .filter(Boolean)
-          .map(p => [p[0] * scale, p[1] * scale] as Point);
-        if (ring.length < 3) return [];
-        return [
-          {
-            id,
-            ring,
-            minX: Math.min(...ring.map(p => p[0])),
-            maxX: Math.max(...ring.map(p => p[0])),
-            minY: Math.min(...ring.map(p => p[1])),
-            maxY: Math.max(...ring.map(p => p[1]))
-          }
-        ];
-      });
-    if (this.riverSiteSurveys) this.riverSiteTerrain = allTerrain;
-    const reach = maxMove + radius * 2 + 22;
-    const terrain = allTerrain.filter(
-      t =>
-        t.maxX >= originMeters[0] - reach &&
-        t.minX <= originMeters[0] + reach &&
-        t.maxY >= originMeters[1] - reach &&
-        t.minY <= originMeters[1] + reach
-    );
-    const result = findRiverSettlementSite({
+    const terrain = session.terrain(world, bounds);
+    const result = yield* findRiverSettlementSiteSteps({
       geometry: target.geometry,
       origin: originMeters,
       radiusMeters: radius,
@@ -860,7 +844,9 @@ class BurgModule {
         };
         if (unresolvedBounds.some(w => w.minX <= b.maxX && w.maxX >= b.minX && w.minY <= b.maxY && w.maxY >= b.minY))
           return false;
-        const touched = terrain.filter(t => footprintTouchesWater(footprint, { id: t.id, rings: [t.ring] }));
+        const touched = session
+          .terrain(world, b)
+          .filter(t => footprintTouchesWater(footprint, { id: t.id, rings: [t.ring] }));
         if (
           !touched.length ||
           touched.some(
@@ -915,7 +901,8 @@ class BurgModule {
         physicalCellId,
         bankDistanceMeters: site.bankDistanceMeters,
         geometryVersion: site.geometryVersion,
-        arcLengthMeters: site.arcLengthMeters,
+        sourceSegmentId: site.sourceSegmentId,
+        sourceParameter: site.sourceParameter,
         footprintMeters: site.footprint.map(p => [p[0], p[1]]),
         accessMeters: site.access.map(p => [p[0], p[1]]),
         accessWidthMeters: 2,
@@ -932,7 +919,7 @@ class BurgModule {
     viewContext: Readonly<ViewContext>,
     appServices: AppServices,
     state: WorldState,
-    options: { deferShift?: boolean } = {}
+    options: { deferShift?: boolean; geometrySession?: SettlementGeometrySession } = {}
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
@@ -1134,7 +1121,7 @@ class BurgModule {
     }
 
     pack.burgs = burgs;
-    if (!options.deferShift) this.shift();
+    if (!options.deferShift) this.shift({ geometrySession: options.geometrySession });
 
     TIME && console.timeEnd("generateBurgs");
 

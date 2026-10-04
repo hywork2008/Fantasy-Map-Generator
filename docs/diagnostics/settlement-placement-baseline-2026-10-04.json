@@ -1,0 +1,90 @@
+{
+  "archive": "temp/000.savdata/Buyteland 2026-10-04-06-38.fmg",
+  "runtime": "v22.23.1",
+  "distanceUnit": "km",
+  "heightExponent": 1.8,
+  "distanceScale": 4.712556973564266,
+  "cells": 6316,
+  "rivers": 209,
+  "burgs": 593,
+  "riverTowns": 180,
+  "settings": {
+    "curveAlpha": 0.1,
+    "precision": {
+      "arcToleranceMeters": 0.01,
+      "maxIntegrationDepth": 20,
+      "maxEvaluations": 100000
+    },
+    "banks": {
+      "maxStepMeters": 2000,
+      "maxChordErrorMeters": 0.5,
+      "maxSamples": 2000,
+      "allowDrySource": true
+    },
+    "maxSourcePoints": 5000
+  },
+  "runs": [
+    {
+      "pass": "cold",
+      "wallMs": 6079.732459,
+      "surveyCalls": 109,
+      "surveyMs": 1877.2633689999998,
+      "maxSurveyMs": 28.241375000000517,
+      "boundsCalls": 289,
+      "boundsMs": 7.795292000001837,
+      "searchCalls": 24,
+      "searchMs": 4076.305456999998,
+      "maxSearchMs": 515.157792,
+      "bankEdgesScanned": 19260,
+      "obstacleRingsSupplied": 15,
+      "obstacleVerticesSupplied": 11667,
+      "supportCalls": 1700,
+      "supportMs": 19.467472000016187,
+      "collisionCalls": 4813,
+      "collisionMs": 4033.9451799999943,
+      "collisionVerticesSupplied": 3804593,
+      "placed": 12,
+      "unresolved": {
+        "sampling-budget": 154,
+        "candidate-budget": 12,
+        "invalid-curve": 2
+      }
+    },
+    {
+      "pass": "warm",
+      "wallMs": 4012.2196249999997,
+      "surveyCalls": 109,
+      "surveyMs": 2.208539999994173,
+      "maxSurveyMs": 0.0665419999986625,
+      "boundsCalls": 289,
+      "boundsMs": 3.3712899999964066,
+      "searchCalls": 24,
+      "searchMs": 3977.0951239999995,
+      "maxSearchMs": 458.0519999999997,
+      "bankEdgesScanned": 19260,
+      "obstacleRingsSupplied": 15,
+      "obstacleVerticesSupplied": 11667,
+      "supportCalls": 1700,
+      "supportMs": 14.99559200002841,
+      "collisionCalls": 4813,
+      "collisionMs": 3944.5938750000414,
+      "collisionVerticesSupplied": 3804593,
+      "placed": 12,
+      "unresolved": {
+        "sampling-budget": 154,
+        "candidate-budget": 12,
+        "invalid-curve": 2
+      }
+    }
+  ],
+  "baselineCommit": "7bfdf38ea",
+  "measurementDate": "2026-10-04",
+  "notes": [
+    "Vitest/jsdom; ordinary Burgs.shiftAsync only, not the complete browser generation pipeline.",
+    "One cold and one warm pass; original burg coordinates restored, same pack and physical river cache reused.",
+    "Default test option store; recorded unit and height exponent, not a full browser preference replay.",
+    "Nested times overlap: collisionMs and supportMs are included in searchMs; some boundsMs is included in surveyMs.",
+    "collisionVerticesSupplied counts polygon vertices supplied to calls, not exact visited edges or segment intersection operations.",
+    "Spies add instrumentation overhead; these are diagnostic observations, not a benchmark distribution."
+  ]
+}

@@ -1123,6 +1123,34 @@ describe("physical river-bank city placement", () => {
 });
 
 describe("cooperative river-town placement", () => {
+  it("rejects cancellation and pack replacement before adopting stale placement", async () => {
+    const original = worldContext.pack;
+    const controller = new AbortController();
+    controller.abort();
+    await expect(Burgs.shiftAsync({ signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(worldContext.pack).toBe(original);
+    worldContext.grid = { cells: { temp: new Array(10).fill(20) } } as unknown as Grid;
+    worldContext.pack = {
+      burgs: [0, { i: 1, cell: 1, x: 5, y: 5 }],
+      cells: { ...BASE_CELLS, r: [0, 10, 0, 0, 0, 0], harbor: [0, 0, 0, 0, 0, 0] },
+      features: [null],
+      vertices: BASE_VERTICES,
+      rivers: [{ i: 10, cells: [1] }]
+    } as unknown as PackedGraph;
+    let tick = 0;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => (tick += 10));
+    const replacement = structuredClone(worldContext.pack);
+    const pending = Burgs.shiftAsync();
+    worldContext.pack = replacement;
+    try {
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(worldContext.pack).toBe(replacement);
+      expect(replacement.burgs[1].x).toBe(5);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it("yields to browser timers and preserves synchronous placement results", async () => {
     worldContext.grid = { cells: { temp: new Array(10).fill(20) } } as unknown as Grid;
     const pack = {

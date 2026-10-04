@@ -11,6 +11,7 @@ import {
 import { getEarthRegion } from "./data/earthRegions";
 import { isFantasyCulturesSet } from "./data/raceCivicStance";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
+import { SettlementGeometrySession } from "./services/settlementGeometrySession";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
@@ -1110,6 +1111,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
 }
 
 function getGenerationStages(): Array<() => Promise<void>> {
+  const geometrySession = new SettlementGeometrySession();
   return [
     async () => {
       worldContext.grid.cells.h = await HeightmapGenerator.generate(
@@ -1207,18 +1209,18 @@ function getGenerationStages(): Array<() => Promise<void>> {
         worldContext.pack.settlementFoundation = withDwarfMountainRegion(settlementPattern.plan, dwarfHold);
       else delete worldContext.pack.settlementFoundation;
       Burgs.generate(worldContext, viewContext, appServices, state, { deferShift: true });
-      await Burgs.shiftAsync();
+      await Burgs.shiftAsync({ geometrySession });
     },
     async () => {
       const state = getWorldState();
       if (worldContext.options.initialSettlementPattern !== "standard") {
         Routes.generate(worldContext, viewContext, appServices, state);
         States.generate(worldContext, viewContext, appServices, state);
-        await Burgs.shiftAsync({ connectStateLandmasses: true });
+        await Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession });
         Routes.generate(worldContext, viewContext, appServices, state);
       } else {
         States.generate(worldContext, viewContext, appServices, state);
-        await Burgs.shiftAsync({ connectStateLandmasses: true });
+        await Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession });
         Routes.generate(worldContext, viewContext, appServices, state);
       }
       Religions.generate(worldContext, viewContext, appServices, state);

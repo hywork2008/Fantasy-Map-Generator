@@ -9,6 +9,13 @@ import type { CityDocument } from "./types";
 
 /** Preserve source geometry as read-only import data, independently of the editable mesh. */
 export function applyImportedFixedCrossings(document: CityDocument, site?: BurgSiteDescriptor): void {
+  const source = site?.fixedCrossings ?? document.importedFixedCrossings;
+  if (source?.schemaVersion === 3) {
+    const b = source.coverageBounds,
+      half = document.frame.extentMeters / 2;
+    if (!b || b.minX > -half || b.minY > -half || b.maxX < half || b.maxY < half)
+      throw new RangeError("Regional river coverage does not contain the city frame");
+  }
   if (!site) {
     if (
       document.importedFixedCrossings &&

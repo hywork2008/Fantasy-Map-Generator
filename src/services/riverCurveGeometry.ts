@@ -31,20 +31,35 @@ export interface CubicRiverAxis {
 export type CurveBuildResult = { axis: CubicRiverAxis } | { reason: "invalid-curve" | "integration-budget" };
 const epsilon = RIVER_GEOMETRY_TOLERANCE;
 const delta = (a: RiverPoint, b: RiverPoint): RiverPoint => [a[0] - b[0], a[1] - b[1]];
-const size = (p: RiverPoint) => Math.hypot(...p);
-const unit = (p: RiverPoint): RiverPoint | null => (size(p) > epsilon ? [p[0] / size(p), p[1] / size(p)] : null);
+const size = (p: RiverPoint) => Math.hypot(p[0], p[1]);
+const unit = (p: RiverPoint): RiverPoint | null => {
+  const length = size(p);
+  return length > epsilon ? [p[0] / length, p[1] / length] : null;
+};
+function cubicSpeed(c: RiverCubic, t: number) {
+  const v = 1 - t,
+    a = 3 * v * v,
+    b = 6 * v * t,
+    d = 3 * t * t;
+  return Math.hypot(
+    a * (c[1][0] - c[0][0]) + b * (c[2][0] - c[1][0]) + d * (c[3][0] - c[2][0]),
+    a * (c[1][1] - c[0][1]) + b * (c[2][1] - c[1][1]) + d * (c[3][1] - c[2][1])
+  );
+}
 export function evaluateRiverCubic(c: RiverCubic, t: number) {
   const v = 1 - t;
-  const point: RiverPoint = [0, 1].map(
-    i =>
-      c[0][i] + 3 * v * v * t * (c[1][i] - c[0][i]) + 3 * v * t * t * (c[2][i] - c[0][i]) + t ** 3 * (c[3][i] - c[0][i])
-  ) as [number, number];
-  const derivative: RiverPoint = [0, 1].map(
-    i => 3 * v * v * (c[1][i] - c[0][i]) + 6 * v * t * (c[2][i] - c[1][i]) + 3 * t * t * (c[3][i] - c[2][i])
-  ) as [number, number];
-  const second: RiverPoint = [0, 1].map(
-    i => 6 * v * (c[2][i] - 2 * c[1][i] + c[0][i]) + 6 * t * (c[3][i] - 2 * c[2][i] + c[1][i])
-  ) as [number, number];
+  const point: [number, number] = [0, 0],
+    derivative: [number, number] = [0, 0],
+    second: [number, number] = [0, 0];
+  for (let i = 0; i < 2; i++) {
+    point[i] =
+      c[0][i] +
+      3 * v * v * t * (c[1][i] - c[0][i]) +
+      3 * v * t * t * (c[2][i] - c[0][i]) +
+      t ** 3 * (c[3][i] - c[0][i]);
+    derivative[i] = 3 * v * v * (c[1][i] - c[0][i]) + 6 * v * t * (c[2][i] - c[1][i]) + 3 * t * t * (c[3][i] - c[2][i]);
+    second[i] = 6 * v * (c[2][i] - 2 * c[1][i] + c[0][i]) + 6 * t * (c[3][i] - 2 * c[2][i] + c[1][i]);
+  }
   return { point, derivative, second };
 }
 function endpointTangent(c: RiverCubic, end: boolean): RiverPoint | null {
@@ -98,12 +113,22 @@ function integrate(
   depth: number,
   budget: IntegrationBudget
 ): ArcLeaf[] | null {
+  const dx0 = c[1][0] - c[0][0],
+    dx1 = c[2][0] - c[1][0],
+    dx2 = c[3][0] - c[2][0];
+  const dy0 = c[1][1] - c[0][1],
+    dy1 = c[2][1] - c[1][1],
+    dy2 = c[3][1] - c[2][1];
   const speed = (t: number) => {
     if (--budget.remaining < 0) {
       budget.failed = true;
       return NaN;
     }
-    return size(evaluateRiverCubic(c, t).derivative);
+    const v = 1 - t,
+      a = 3 * v * v,
+      b = 6 * v * t,
+      d = 3 * t * t;
+    return Math.hypot(a * dx0 + b * dx1 + d * dx2, a * dy0 + b * dy1 + d * dy2);
   };
   const simpson = (a: number, b: number, fa: number, fm: number, fb: number) => ((b - a) * (fa + 4 * fm + fb)) / 6;
   const leaves: ArcLeaf[] = [];
@@ -269,7 +294,7 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
       if (Math.abs(distance - target) <= axis.precision.arcToleranceMeters) break;
       if (distance < target) lo = t;
       else hi = t;
-      const speed = size(evaluateRiverCubic(segment.controls, t).derivative);
+      const speed = cubicSpeed(segment.controls, t);
       const next = t + (target - distance) / speed;
       t = Number.isFinite(next) && next > lo && next < hi ? next : (lo + hi) / 2;
       if (iteration === 59) return null;

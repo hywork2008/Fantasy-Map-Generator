@@ -15,6 +15,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { countBurgRoadLegs, getBurgSiteDescriptor } from "./burgSiteDescriptor";
+
 import { settlementRiverGeometry } from "./settlementRiverSite";
 
 /**
@@ -128,6 +129,39 @@ describe("getBurgSiteDescriptor", () => {
       ])
     ).toBe(true);
     expect(worldContext.pack.burgs[1].x).toBe(100);
+  });
+
+  it("round-trips certified regional water and rejects uncovered CE frames", () => {
+    const burg = worldContext.pack.burgs[1];
+    burg.cell = 4;
+    burg.x = 99.5;
+    burg.riverPlacement = {
+      riverId: 1,
+      bank: "right",
+      widthMeters: 100,
+      sourceSegmentId: 2,
+      sourceParameter: 0.5
+    } as typeof burg.riverPlacement;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    const payload = descriptor.fixedCrossings!;
+    expect(payload.schemaVersion).toBe(3);
+    expect(payload.crossings).toEqual([]);
+    expect(validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS)).toBe(true);
+    expect(payload.rivers[0].sourceSegments!.length).toBeGreaterThan(0);
+    const doc = createGridDocument({
+      size: "small",
+      extentMeters: descriptor.frame.extentMeters,
+      cityRadiusMeters: descriptor.frame.cityRadiusMeters
+    });
+    applyImportedFixedCrossings(doc, descriptor as unknown as CESite);
+    expect(parseDocument(JSON.stringify(doc))!.importedFixedCrossings).toEqual(payload);
+    expect(renderStandaloneCitySvg(doc).querySelector(".ce-fixed-river-water [data-river-id='1']")).not.toBeNull();
+    doc.frame.extentMeters *= 2;
+    expect(parseDocument(JSON.stringify(doc))).toBeNull();
+    expect(() => applyImportedFixedCrossings(doc, descriptor as unknown as CESite)).toThrow(RangeError);
+    const invalid = structuredClone(payload);
+    invalid.coverageBounds = { minX: -1, minY: -1, maxX: 1, maxY: 1 };
+    expect(validFixedBurgCrossings(invalid, FIXED_SITE_CROSSING_BUDGETS)).toBe(false);
   });
 
   it("generates a compact town while preserving a distant canonical shoreline in the final frame", () => {

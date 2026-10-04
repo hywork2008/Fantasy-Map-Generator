@@ -30,6 +30,7 @@ const CORRIDOR_POINTS = 8;
 const RIVER_CORRIDOR_POINTS = 22;
 
 export function siteToParams(site: BurgSiteDescriptor): CityParams {
+  assertRegionalCoverage(site);
   const { cityRadiusMeters, extentMeters } = site.frame;
   return {
     seed: site.burg.seed,
@@ -44,6 +45,7 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
 }
 
 export function siteToGeography(site: BurgSiteDescriptor, imported = false): CityGeography {
+  assertRegionalCoverage(site);
   site = withRiverPortFallback(site);
   const coast = extractCoast(site);
   // A wide river is not a second ocean. Promoting it to a coast half-plane
@@ -51,7 +53,7 @@ export function siteToGeography(site: BurgSiteDescriptor, imported = false): Cit
   // Draw only the channel, between the town-side bank and the far bank, and
   // keep the real sea/lake (if any) as the harbour shore.
   const { channels, consumed } =
-    site.fixedCrossings?.schemaVersion === 2
+    site.fixedCrossings && site.fixedCrossings.schemaVersion !== 1
       ? { channels: [], consumed: new Set(site.rivers.map(r => r.riverId)) }
       : extractWideChannels(site);
   const waterAreas = coast ? [{ ...coast, kind: site.waterbody?.kind ?? "ocean" } as const] : [];
@@ -241,6 +243,7 @@ export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
  * the implemented enum members; the rest are reached via the UI / M4b.1.
  */
 export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgram, "wallPlan">): WallPlan {
+  assertRegionalCoverage(site);
   site = withRiverPortFallback(site);
   const plan: WallPlan = { ...DEFAULT_WALL_PLAN, extent: program.walls ? "full" : "none" };
   const hasCoast = site.waterbody !== null || site.rivers.some(r => unbridgeableOnSite(site, r));
@@ -625,4 +628,12 @@ function locate(cum: number[], d: number): [number, number] {
 function polylineLength(poly: Point[]): number {
   const cum = arcLengths(poly);
   return cum[cum.length - 1];
+}
+
+function assertRegionalCoverage(site: BurgSiteDescriptor): void {
+  if (site.fixedCrossings?.schemaVersion !== 3) return;
+  const bounds = site.fixedCrossings.coverageBounds;
+  const half = site.frame.extentMeters / 2;
+  if (!bounds || bounds.minX > -half || bounds.minY > -half || bounds.maxX < half || bounds.maxY < half)
+    throw new RangeError("Regional river source does not cover the requested city frame");
 }

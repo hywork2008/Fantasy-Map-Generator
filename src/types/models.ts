@@ -340,6 +340,8 @@ export interface Burg {
     bankDistanceMeters?: number;
     geometryVersion?: number;
     arcLengthMeters?: number;
+    sourceSegmentId?: number;
+    sourceParameter?: number;
     footprintMeters?: [number, number][];
     accessMeters?: [number, number][];
     accessWidthMeters?: number;

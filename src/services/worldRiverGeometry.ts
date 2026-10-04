@@ -139,6 +139,42 @@ function resolveSource(
     warnings
   };
 }
+/** Cheap source preparation shared by region queries: no bank sampling or arc inversion. */
+export function prepareWorldRiverGeometry(
+  world: Readonly<WorldContext>,
+  river: Readonly<River>,
+  unit: string,
+  settings: WorldRiverGeometrySettings
+) {
+  const source = resolveSource(world, river, settings.maxSourcePoints);
+  const scale = mapUnitMeters(world.distanceScale, unit);
+  if (!Number.isFinite(scale) || scale <= 0) return { reason: "invalid-scale" as const };
+  if ("reason" in source) return source;
+  const points = meanderRiverPoints({
+    cells: source.cells,
+    points: source.points,
+    flux: source.flux,
+    heights: source.heights
+  });
+  if (points.length > settings.maxSourcePoints) return { reason: "source-budget" as const };
+  const curves = catmullRomRiverCubics(
+    points.map(p => [p[0] * scale, p[1] * scale]),
+    settings.curveAlpha
+  );
+  if (!curves?.length) return { reason: "invalid-curve" as const };
+  let flux = 0;
+  const widths = points.map((p, i) => {
+    flux = Math.max(flux, p[2]);
+    return (
+      physicalRiverWidth(
+        riverDisplayOffset({ flux, pointIndex: i, widthFactor: source.widthFactor, startingWidth: source.sourceWidth })
+      ) * scale
+    );
+  });
+  if (widths.some(w => !Number.isFinite(w) || w < 0) || !widths.some(w => w > 0))
+    return { reason: "invalid-width" as const };
+  return { curves, widths, scale, source: source.source, warnings: source.warnings };
+}
 function buildResolvedGeometry(
   riverId: number,
   geometryVersion: number,

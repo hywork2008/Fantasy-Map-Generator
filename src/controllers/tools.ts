@@ -36,6 +36,7 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { appendMarkerToLayer } from "../renderers/index";
 import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
+import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
@@ -685,10 +686,11 @@ function regenerateSettlementPattern(): void {
         !note.id.startsWith("burg") && !note.id.startsWith("state") && !note.id.startsWith("province")
     );
 
-    GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state);
+    const geometrySession = new SettlementGeometrySession();
+    GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state, { geometrySession });
     GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.States.generate(worldContext, viewContext, appServices, state);
-    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true });
+    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true, geometrySession });
     GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, state);
