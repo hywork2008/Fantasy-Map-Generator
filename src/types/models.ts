@@ -338,7 +338,14 @@ export interface Burg {
     widthMeters: number;
     physicalCellId?: number;
     bankDistanceMeters?: number;
+    geometryVersion?: number;
+    arcLengthMeters?: number;
+    footprintMeters?: [number, number][];
+    accessMeters?: [number, number][];
+    accessWidthMeters?: number;
+    accessFootprintMeters?: [number, number][];
   };
+  riverSiteStatus?: { riverId: number; status: "placed" | "unresolved"; reason?: string };
   /** Water contact and usable port frontages, refreshed from FMG cell topology. */
   waterAccess?: import("./burgWater").BurgWaterAccess;
   cell: number;

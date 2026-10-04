@@ -36,7 +36,8 @@ const unit = (p: RiverPoint): RiverPoint | null => (size(p) > epsilon ? [p[0] / 
 export function evaluateRiverCubic(c: RiverCubic, t: number) {
   const v = 1 - t;
   const point: RiverPoint = [0, 1].map(
-    i => v ** 3 * c[0][i] + 3 * v * v * t * c[1][i] + 3 * v * t * t * c[2][i] + t ** 3 * c[3][i]
+    i =>
+      c[0][i] + 3 * v * v * t * (c[1][i] - c[0][i]) + 3 * v * t * t * (c[2][i] - c[0][i]) + t ** 3 * (c[3][i] - c[0][i])
   ) as [number, number];
   const derivative: RiverPoint = [0, 1].map(
     i => 3 * v * v * (c[1][i] - c[0][i]) + 6 * v * t * (c[2][i] - c[1][i]) + 3 * t * t * (c[3][i] - c[2][i])
@@ -62,13 +63,19 @@ function quadraticRoots(a: number, b: number, c: number): number[] {
   return [(-b - root) / (2 * a), (-b + root) / (2 * a)];
 }
 function hasInteriorStationaryPoint(c: RiverCubic): boolean {
-  const roots = [0, 1].flatMap(i =>
-    quadraticRoots(
-      -c[0][i] + 3 * c[1][i] - 3 * c[2][i] + c[3][i],
-      2 * (c[0][i] - 2 * c[1][i] + c[2][i]),
-      c[1][i] - c[0][i]
-    )
-  );
+  const startStop = size(delta(c[1], c[0])) === 0;
+  const endStop = size(delta(c[3], c[2])) === 0;
+  // Form the derivative from local differences. Absolute world coordinates
+  // otherwise cancel and can turn an endpoint handle into a fictitious interior stop.
+  const roots = [0, 1].flatMap(i => {
+    const d0 = c[1][i] - c[0][i],
+      d1 = c[2][i] - c[1][i],
+      d2 = c[3][i] - c[2][i];
+    if (startStop && endStop) return [];
+    if (startStop) return quadraticRoots(0, d2 - 2 * d1, 2 * d1);
+    if (endStop) return quadraticRoots(0, 2 * d1 - d0, d0);
+    return quadraticRoots(d0 - 2 * d1 + d2, 2 * (d1 - d0), d0);
+  });
   // d3 endpoint handles may coincide with the endpoint. Solving their quadratic
   // can move an endpoint root a few ULPs into (0, 1); it is not an interior stop.
   const endpointRoundoff = 16 * Number.EPSILON;
@@ -187,13 +194,7 @@ export function buildCubicRiverAxis(
   return { axis: { kind: "cubicBezier", riverId, geometryVersion, segments, length, precision: { ...precision } } };
 }
 /** Capture d3's actual Catmull–Rom cubics; no renderer-specific approximate formula. */
-export function buildCatmullRomRiverAxis(
-  riverId: number,
-  geometryVersion: number,
-  points: readonly RiverPoint[],
-  alpha: number,
-  precision: RiverCurvePrecision
-): CurveBuildResult {
+export function catmullRomRiverCubics(points: readonly RiverPoint[], alpha: number): RiverCubic[] | null {
   if (
     points.length < 2 ||
     points.some(p => p.some(v => !Number.isFinite(v))) ||
@@ -201,7 +202,7 @@ export function buildCatmullRomRiverAxis(
     alpha < 0 ||
     alpha > 1
   )
-    return { reason: "invalid-curve" };
+    return null;
   const curves: RiverCubic[] = [];
   let current: RiverPoint = points[0];
   const context = path();
@@ -227,7 +228,17 @@ export function buildCatmullRomRiverAxis(
   curve.lineStart();
   for (const p of points) curve.point(p[0], p[1]);
   curve.lineEnd();
-  return buildCubicRiverAxis(riverId, geometryVersion, curves, precision);
+  return curves;
+}
+export function buildCatmullRomRiverAxis(
+  riverId: number,
+  geometryVersion: number,
+  points: readonly RiverPoint[],
+  alpha: number,
+  precision: RiverCurvePrecision
+): CurveBuildResult {
+  const curves = catmullRomRiverCubics(points, alpha);
+  return curves ? buildCubicRiverAxis(riverId, geometryVersion, curves, precision) : { reason: "invalid-curve" };
 }
 /** Arc inversion uses integrated speed. Rendering subdivisions never define tRiver. */
 export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) {
@@ -245,7 +256,6 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
       hi = leaf.t1;
     const budget: IntegrationBudget = { remaining: axis.precision.maxEvaluations, failed: false };
     for (let iteration = 0; iteration < 60; iteration++) {
-      t = (lo + hi) / 2;
       const parts = integrate(
         segment.controls,
         leaf.t0,
@@ -259,6 +269,9 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
       if (Math.abs(distance - target) <= axis.precision.arcToleranceMeters) break;
       if (distance < target) lo = t;
       else hi = t;
+      const speed = size(evaluateRiverCubic(segment.controls, t).derivative);
+      const next = t + (target - distance) / speed;
+      t = Number.isFinite(next) && next > lo && next < hi ? next : (lo + hi) / 2;
       if (iteration === 59) return null;
     }
   }

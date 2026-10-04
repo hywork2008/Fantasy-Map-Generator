@@ -10,6 +10,8 @@ export interface RiverBankSampling {
   maxStepMeters: number;
   maxChordErrorMeters: number;
   maxSamples: number;
+  /** Known zero-width headwaters may end in one closed tip; never invent positive width. */
+  allowDrySource?: boolean;
 }
 export type PhysicalGeometryBuildResult =
   | { geometry: PhysicalRiverGeometry; sampleCount: number }
@@ -31,7 +33,7 @@ export function buildPhysicalRiverGeometry(
       (s, i) =>
         !Number.isFinite(s.arcLengthMeters) ||
         !Number.isFinite(s.widthMeters) ||
-        s.widthMeters <= 0 ||
+        (s.widthMeters <= 0 && (!settings.allowDrySource || s.widthMeters < 0)) ||
         (i > 0 && s.arcLengthMeters <= survey[i - 1].arcLengthMeters)
     ) ||
     !Number.isFinite(settings.maxStepMeters) ||
@@ -39,9 +41,13 @@ export function buildPhysicalRiverGeometry(
     !Number.isFinite(settings.maxChordErrorMeters) ||
     settings.maxChordErrorMeters <= 0 ||
     !Number.isSafeInteger(settings.maxSamples) ||
-    settings.maxSamples < 2
+    settings.maxSamples < 2 ||
+    (settings.allowDrySource !== undefined && typeof settings.allowDrySource !== "boolean")
   )
     return { reason: "invalid-survey" };
+  const firstWet = survey.findIndex(s => s.widthMeters > 0);
+  if (firstWet < 0 || survey.slice(firstWet).some(s => s.widthMeters <= 0)) return { reason: "invalid-survey" };
+  const waterStart = firstWet > 0 ? survey[firstWet - 1].arcLengthMeters : 0;
   function widthAt(s: number): number {
     const index = Math.max(
       1,
@@ -109,8 +115,10 @@ export function buildPhysicalRiverGeometry(
   // Retain width breakpoints and all source segment boundaries, independent of display sampling.
   const boundaries = [
     ...new Set([0, axis.length, ...survey.map(s => s.arcLengthMeters), ...axis.segments.map(s => s.arcStart)])
-  ].sort((a, b) => a - b);
-  const first = sample(0);
+  ]
+    .filter(s => s >= waterStart)
+    .sort((a, b) => a - b);
+  const first = sample(waterStart);
   if (!first) return failure!;
   banks.push(first);
   for (let i = 1; i < boundaries.length; i++) {
@@ -126,6 +134,12 @@ export function buildPhysicalRiverGeometry(
   for (let i = banks.length - 1; i > 0; i--)
     references.push({ side: "right", arcStart: banks[i].s, arcEnd: banks[i - 1].s });
   references.push(null);
+  if (waterStart > 0 || (settings.allowDrySource && survey[0].widthMeters === 0)) {
+    // The two source banks coincide. Keep a single tip and its two bank edges;
+    // remove only the zero-length cap, preserving original arc provenance.
+    points.pop();
+    references.pop();
+  }
   const water = { id: axis.riverId, rings: [points], bankReferences: [references] };
   if (!validWaterPolygon(water)) return { reason: "folded-banks" };
   return { geometry: { axis, water }, sampleCount: cache.size };

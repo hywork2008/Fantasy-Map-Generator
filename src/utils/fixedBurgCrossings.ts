@@ -9,7 +9,8 @@ export interface FixedCrossingBudgets {
   maxWaterVertices: number;
 }
 export interface FixedBurgCrossings {
-  schemaVersion: 1;
+  /** v2 also accepts surveyed water with no bridge facilities. */
+  schemaVersion: 1 | 2;
   coordinateUnit: "metres";
   revision: number;
   originMeters: Point;
@@ -44,7 +45,7 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
   if (
     !record(raw) ||
     !keys(raw, "schemaVersion,coordinateUnit,revision,originMeters,roadWidthMeters,requiredBounds,rivers,crossings") ||
-    raw.schemaVersion !== 1 ||
+    (raw.schemaVersion !== 1 && raw.schemaVersion !== 2) ||
     raw.coordinateUnit !== "metres" ||
     !id(raw.revision) ||
     !point(raw.originMeters) ||
@@ -55,7 +56,9 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
     !Array.isArray(raw.rivers) ||
     !Array.isArray(raw.crossings) ||
     raw.crossings.length > budgets.maxFacilities ||
-    raw.rivers.length > raw.crossings.length
+    raw.rivers.length > budgets.maxFacilities ||
+    (raw.schemaVersion === 1 && raw.rivers.length > raw.crossings.length) ||
+    (raw.schemaVersion === 2 && raw.crossings.length !== 0)
   )
     return false;
   let vertices = 0;
@@ -167,7 +170,7 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
       }
     }
   }
-  return a.rivers.every(r => a.crossings.some(c => c.riverId === r.id));
+  return a.schemaVersion === 2 || a.rivers.every(r => a.crossings.some(c => c.riverId === r.id));
 }
 
 /** The local preview must refer to this descriptor's exact physical town origin. */

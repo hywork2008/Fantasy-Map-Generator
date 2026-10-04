@@ -1,4 +1,4 @@
-import { max as d3max, mean, polygonContains } from "d3";
+import { max as d3max, mean } from "d3";
 import { type Quadtree, quadtree } from "d3-quadtree";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -22,17 +22,24 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
+import { footprintTouchesWater, pointInWater } from "../services/riverPhysicalGeometry";
+import {
+  coveredByTerrainCells,
+  findRiverSettlementSite,
+  SETTLEMENT_RIVER_SETTINGS,
+  settlementRadiusMeters,
+  settlementRiverGeometry
+} from "../services/settlementRiverSite";
 import { tip } from "../services/tooltipService";
+import { worldRiverOccupiedBounds } from "../services/worldRiverGeometry";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
-import { each, findCell, findClosestCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
-import { normalizeHeightExponent } from "../utils/height";
+import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
-import { mapUnitMeters } from "../utils/mapUnitMeters";
-import { pointInSurveyedRiver, riverBankCandidates } from "../utils/riverBankPosition";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -117,9 +124,27 @@ class BurgModule {
   appServices: AppServices = appServices;
   /** Burgs founded as overseas harbours: keep the town on the cell centre; the anchor sits at sea. */
   private landmassPortBurgIds = new Set<number>();
+  private riverSiteBounds?: Map<number, ReturnType<typeof worldRiverOccupiedBounds>>;
+  private riverSiteTerrain?: { id: number; ring: Point[]; minX: number; maxX: number; minY: number; maxY: number }[];
+  private riverSiteSurveys?: Map<number, ReturnType<typeof settlementRiverGeometry>>;
 
   // Assign port feature ids to burgs and position them appropriately
   shift(options: BurgShiftOptions = {}) {
+    for (const _ of this.shiftSteps(options)) {
+      /* synchronous compatibility entry */
+    }
+  }
+
+  async shiftAsync(options: BurgShiftOptions = {}): Promise<void> {
+    let start = performance.now();
+    for (const _ of this.shiftSteps(options)) {
+      if (performance.now() - start < 8) continue;
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+      start = performance.now();
+    }
+  }
+
+  private *shiftSteps(options: BurgShiftOptions): Generator<void> {
     if (options.connectStateLandmasses) this.ensureStateLandmassPorts();
 
     // States are known on the second shift during generation. Giant settlements retain their
@@ -129,31 +154,41 @@ class BurgModule {
 
     const { cells, burgs } = this.worldContext.pack;
     const riversById = new Map(this.worldContext.pack.rivers.map(river => [river.i, river]));
-    for (const burg of burgs) {
-      if (burg.i && !burg.lock) delete burg.port;
-    }
-
-    const candidatesByWater = this.collectPortCandidates(burgs);
-    for (const candidates of candidatesByWater.values()) {
-      if (!candidates.length) continue;
-      const lockedLakePorts = candidates[0].waterKind === "lake" ? this.getLockedLakePorts(candidates[0].haven) : [];
-      for (const candidate of this.selectPorts(candidates, lockedLakePorts, {
-        byState: Boolean(options.connectStateLandmasses)
-      })) {
-        this.promoteToPort(candidate, riversById);
+    this.riverSiteSurveys = new Map();
+    this.riverSiteBounds = new Map();
+    try {
+      for (const burg of burgs) {
+        if (burg.i && !burg.lock) delete burg.port;
       }
-    }
 
-    // Position river towns on the actual local bank, including river/estuary ports.
-    for (const burg of burgs) {
-      if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
-      const [x, y] = this.shiftTowardsRiverBank(burg.cell, riversById, [burg.x, burg.y]);
-      burg.x = x;
-      burg.y = y;
-    }
+      const candidatesByWater = this.collectPortCandidates(burgs);
+      for (const candidates of candidatesByWater.values()) {
+        if (!candidates.length) continue;
+        const lockedLakePorts = candidates[0].waterKind === "lake" ? this.getLockedLakePorts(candidates[0].haven) : [];
+        for (const candidate of this.selectPorts(candidates, lockedLakePorts, {
+          byState: Boolean(options.connectStateLandmasses)
+        })) {
+          this.promoteToPort(candidate, riversById);
+          yield;
+        }
+      }
 
-    updateAllBurgWaterAccess(this.worldContext.pack);
-    this.landmassPortBurgIds.clear();
+      // Position river towns on the actual local bank, including river/estuary ports.
+      for (const burg of burgs) {
+        if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
+        const [x, y] = this.shiftTowardsRiverBank(burg.cell, riversById, [burg.x, burg.y]);
+        burg.x = x;
+        burg.y = y;
+        yield;
+      }
+
+      updateAllBurgWaterAccess(this.worldContext.pack);
+      this.landmassPortBurgIds.clear();
+    } finally {
+      this.riverSiteSurveys = undefined;
+      this.riverSiteBounds = undefined;
+      this.riverSiteTerrain = undefined;
+    }
   }
 
   private resiteGiantWaterworksSettlements(): void {
@@ -708,124 +743,196 @@ class BurgModule {
     const race = getRaceById(pack.races, culture?.race);
     // Specialized ecologies retain their established terrain ranking.
     if (race?.key && race.key !== "human") return legacyScore;
-    return getSettlementBaseSize(pack.cells, cellId, grid.cells.temp, grid.cells.prec);
+    return getSettlementBaseSize(pack.cells, cellId, grid.cells.temp, grid.cells.prec, pack.features);
   }
 
   private shiftTowardsRiverBank(
     cellId: number,
-    riversById: Map<number, { i: number; cells: number[] }>,
+    _riversById: Map<number, { i: number; cells: number[] }>,
     origin?: Point
   ): Point {
-    const { cells } = this.worldContext.pack;
-    const [x, y] = cells.p[cellId];
-    const river = this.worldContext.pack.rivers.find(r => r.i === cells.r[cellId]);
-    // Old/incomplete rivers keep their legacy nudge until they have usable geometry.
-    if (river?.cells.length && Number.isFinite(river.widthFactor) && Number.isFinite(river.sourceWidth)) {
-      const supplied = river.points?.length === river.cells.length ? river.points : null;
-      const points = Rivers.addMeandering(river.cells, supplied);
-      const banks = Rivers.getRiverBanks(points, river.widthFactor, river.sourceWidth);
-      const sections = points.map(([px, py], i) => ({
-        point: [px, py] as Point,
-        physicalWidth: Rivers.getWidth(banks.widths[i] / 2),
-        renderedWidth: banks.widths[i]
-      }));
-      const source = origin ?? [x, y];
-      const candidates = sections
-        .slice(0, -1)
-        .flatMap((_, i) => riverBankCandidates(source, sections.slice(i, i + 2), 0.05))
-        .filter(candidate => !pointInSurveyedRiver(candidate.point, sections))
-        .sort(
-          (a, b) =>
-            Math.hypot(a.point[0] - source[0], a.point[1] - source[1]) -
-            Math.hypot(b.point[0] - source[0], b.point[1] - source[1])
-        );
-      const record = (candidate: (typeof candidates)[number]): Point => {
-        const burg = this.worldContext.pack.burgs.find(b => b?.i && b.cell === cellId);
-        if (burg)
-          burg.riverPlacement = {
-            riverId: river.i,
-            bank: candidate.bank,
-            physicalCellId:
-              findClosestCell(candidate.point[0], candidate.point[1], undefined, this.worldContext.pack) ?? cellId,
-            bankDistanceMeters:
-              0.05 * mapUnitMeters(this.worldContext.distanceScale, useOptionsState.getState().distanceUnit),
-            widthMeters: rn(
-              candidate.width * mapUnitMeters(this.worldContext.distanceScale, useOptionsState.getState().distanceUnit),
-              1
-            )
-          };
-        return [rn(candidate.point[0], 4), rn(candidate.point[1], 4)];
-      };
-      // Preserve cell ownership and politics. The chosen bank must be in this land polygon.
-      const polygon = (cells.v?.[cellId] ?? []).map(v => this.worldContext.pack.vertices.p[v]);
-      const candidate = candidates.find(c => polygon.length >= 3 && polygonContains(polygon, c.point));
-      if (candidate && cells.h[cellId] >= 20 && cells.h[cellId] < 60) return record(candidate);
-      // Very wide rivers may cover the entire logical cell. Check the landmass ring before
-      // leaving that cell, so a bank at a mouth cannot put the town into the ocean.
-      const land = this.worldContext.pack.features[cells.f[cellId]];
-      const landRing = (land?.vertices ?? []).map(v => this.worldContext.pack.vertices.p[v]);
-      const cellRadius = Math.max(0, ...polygon.map(p => Math.hypot(p[0] - x, p[1] - y)));
-      const dry = candidates.find(c => {
+    const world = this.worldContext;
+    const { pack } = world;
+    const { cells } = pack;
+    const source = origin ?? cells.p[cellId];
+    const burg = pack.burgs.find(b => b?.i && b.cell === cellId);
+    const river = pack.rivers.find(r => r.i === cells.r[cellId]);
+    if (!river) return source;
+    const unit = useOptionsState.getState().distanceUnit;
+    const resolveRiver = (input: (typeof pack.rivers)[number]) => {
+      const cached = this.riverSiteSurveys?.get(input.i);
+      if (cached) return cached;
+      const resolved = settlementRiverGeometry(world, input, unit);
+      this.riverSiteSurveys?.set(input.i, resolved);
+      return resolved;
+    };
+    const target = resolveRiver(river);
+    const unresolved = (reason: string): Point => {
+      if (burg) {
+        delete burg.riverPlacement;
+        burg.riverSiteStatus = { riverId: river.i, status: "unresolved", reason };
+      }
+      return source;
+    };
+    if (!("geometry" in target)) return unresolved(target.reason);
+    const scale = target.metersPerMapUnit;
+    // Population is still finalized once, after roads. Reserve a deterministic local core now.
+    const base = cells.capacity ? this.getSettlementScore(cellId, cells.s?.[cellId] ?? 0) / 5 : 0;
+    const population =
+      (burg?.population ?? base * (burg?.capital ? 1.5 : 1)) * world.populationRate * world.urbanization;
+    const radius = settlementRadiusMeters(Number.isFinite(population) ? population : 50);
+    const polygon = (cells.v?.[cellId] ?? []).map(v => pack.vertices.p[v]);
+    if (polygon.length < 3) return unresolved("missing-terrain");
+    const maxMove = Math.max(
+      radius * 3,
+      ...polygon.map(p => Math.hypot(p[0] - source[0], p[1] - source[1]) * scale * 2)
+    );
+    const originMeters: Point = [source[0] * scale, source[1] * scale];
+    const otherWater = [];
+    const unresolvedBounds: import("../services/worldRiverGeometry").RiverGeometryBounds[] = [];
+    for (const other of pack.rivers) {
+      if (other.i === river.i) continue;
+      // The envelope contains the full curve and physical width, including failed surveys.
+      // Remote rivers cannot intersect any candidate reservation and need no bank survey.
+      let bounds = this.riverSiteBounds?.get(other.i);
+      if (bounds === undefined) {
+        bounds = worldRiverOccupiedBounds(world, other, unit, SETTLEMENT_RIVER_SETTINGS);
+        this.riverSiteBounds?.set(other.i, bounds);
+      }
+      const reach = maxMove + radius * 2 + 22;
+      if (
+        bounds &&
+        (bounds.maxX < originMeters[0] - reach ||
+          bounds.minX > originMeters[0] + reach ||
+          bounds.maxY < originMeters[1] - reach ||
+          bounds.minY > originMeters[1] + reach)
+      )
+        continue;
+      const resolved = resolveRiver(other);
+      if (!("geometry" in resolved)) {
+        if (!resolved.bounds) return unresolved("unresolved-other-river");
+        unresolvedBounds.push(resolved.bounds);
+      } else otherWater.push(resolved.geometry.water);
+    }
+    const allTerrain =
+      this.riverSiteTerrain ??
+      cells.p.flatMap((_, id) => {
+        const ring = (cells.v?.[id] ?? [])
+          .map(v => pack.vertices.p[v])
+          .filter(Boolean)
+          .map(p => [p[0] * scale, p[1] * scale] as Point);
+        if (ring.length < 3) return [];
+        return [
+          {
+            id,
+            ring,
+            minX: Math.min(...ring.map(p => p[0])),
+            maxX: Math.max(...ring.map(p => p[0])),
+            minY: Math.min(...ring.map(p => p[1])),
+            maxY: Math.max(...ring.map(p => p[1]))
+          }
+        ];
+      });
+    if (this.riverSiteSurveys) this.riverSiteTerrain = allTerrain;
+    const reach = maxMove + radius * 2 + 22;
+    const terrain = allTerrain.filter(
+      t =>
+        t.maxX >= originMeters[0] - reach &&
+        t.minX <= originMeters[0] + reach &&
+        t.maxY >= originMeters[1] - reach &&
+        t.minY <= originMeters[1] + reach
+    );
+    const result = findRiverSettlementSite({
+      geometry: target.geometry,
+      origin: originMeters,
+      radiusMeters: radius,
+      bankGapMeters: 20,
+      accessWidthMeters: 2,
+      maxMoveMeters: maxMove,
+      maxCandidates: 128,
+      otherWater,
+      supports: (footprint, _access, point) => {
+        const b = {
+          minX: Math.min(...footprint.map(p => p[0])),
+          minY: Math.min(...footprint.map(p => p[1])),
+          maxX: Math.max(...footprint.map(p => p[0])),
+          maxY: Math.max(...footprint.map(p => p[1]))
+        };
+        if (unresolvedBounds.some(w => w.minX <= b.maxX && w.maxX >= b.minX && w.minY <= b.maxY && w.maxY >= b.minY))
+          return false;
+        const touched = terrain.filter(t => footprintTouchesWater(footprint, { id: t.id, rings: [t.ring] }));
         if (
-          !cellRadius ||
-          Math.hypot(c.point[0] - source[0], c.point[1] - source[1]) > Math.max(cellRadius * 2, c.width)
+          !touched.length ||
+          touched.some(
+            t =>
+              !Number.isFinite(cells.h[t.id]) ||
+              cells.h[t.id] < 20 ||
+              (cells.s && cells.s[t.id] <= 0) ||
+              cells.f[t.id] !== cells.f[cellId] ||
+              (cells.state && cells.state[t.id] !== cells.state[cellId])
+          )
         )
           return false;
-        if (landRing.length < 3 || !polygonContains(landRing, c.point)) return false;
-        const target = findClosestCell(c.point[0], c.point[1], undefined, this.worldContext.pack);
-        return (
-          target !== undefined &&
-          cells.h[target] >= 20 &&
-          cells.h[target] < 60 &&
-          cells.f[target] === cells.f[cellId] &&
-          (!cells.state || cells.state[target] === cells.state[cellId])
+        if (![...footprint, point].every(p => touched.some(t => pointInWater(p, { id: t.id, rings: [t.ring] }))))
+          return false;
+        if (
+          !coveredByTerrainCells(
+            footprint,
+            touched.map(t => t.ring)
+          )
+        )
+          return false;
+        const elevations = touched.map(t =>
+          heightToMeters(cells.h[t.id], normalizeHeightExponent(useOptionsState.getState().heightExponent))
         );
-      });
-      if (dry) return record(dry);
-      // A measured but infeasible bank is not replaced by a guessed nudge.
-      return origin ?? [x, y];
+        // Bounded terrain proxy: relief over the core and slopes to adjacent land centres.
+        if ((Math.max(...elevations) - Math.min(...elevations)) / (2 * radius) > 0.15) return false;
+        const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+        return touched.every(t =>
+          (cells.c?.[t.id] ?? []).every(next => {
+            if (cells.h[next] < 20) return true;
+            const distance =
+              Math.hypot(cells.p[next][0] - cells.p[t.id][0], cells.p[next][1] - cells.p[t.id][1]) * scale;
+            if (!distance) return true;
+            return (
+              Math.abs(heightToMeters(cells.h[next], exponent) - heightToMeters(cells.h[t.id], exponent)) / distance <=
+              0.15
+            );
+          })
+        );
+      }
+    });
+    if (!("site" in result)) return unresolved(result.reason);
+    const site = result.site;
+    const point: Point = [site.point[0] / scale, site.point[1] / scale];
+    const physicalCellId = terrain.find(t => pointInWater(site.point, { id: t.id, rings: [t.ring] }))?.id;
+    if (physicalCellId === undefined) return unresolved("missing-terrain");
+    if (burg) {
+      burg.riverPlacement = {
+        riverId: river.i,
+        bank: site.bank,
+        widthMeters: site.widthMeters,
+        physicalCellId,
+        bankDistanceMeters: site.bankDistanceMeters,
+        geometryVersion: site.geometryVersion,
+        arcLengthMeters: site.arcLengthMeters,
+        footprintMeters: site.footprint.map(p => [p[0], p[1]]),
+        accessMeters: site.access.map(p => [p[0], p[1]]),
+        accessWidthMeters: 2,
+        accessFootprintMeters: site.accessFootprint.map(p => [p[0], p[1]])
+      };
+      burg.riverSiteStatus = { riverId: river.i, status: "placed" };
     }
-    const shift = Math.min(cells.fl[cellId] / 200, 0.6);
-
-    const tangent = this.getRiverTangent(cellId, riversById);
-    if (!tangent) {
-      const xShifted = cellId % 2 ? x + shift : x - shift;
-      const yShifted = cells.r[cellId] % 2 ? y + shift : y - shift;
-      return [rn(xShifted, 2), rn(yShifted, 2)];
-    }
-
-    const [tx, ty] = tangent;
-    const length = Math.hypot(tx, ty);
-    const side = cellId % 2 ? 1 : -1;
-    const xShifted = x + (-ty / length) * shift * side;
-    const yShifted = y + (tx / length) * shift * side;
-    return [rn(xShifted, 2), rn(yShifted, 2)];
-  }
-
-  private getRiverTangent(cellId: number, riversById: Map<number, { i: number; cells: number[] }>): Point | null {
-    const { cells } = this.worldContext.pack;
-    const river = riversById.get(cells.r[cellId]);
-    if (!river) return null;
-
-    const idx = river.cells.indexOf(cellId);
-    if (idx === -1) return null;
-
-    const prevCell = river.cells[idx - 1];
-    const nextCell = river.cells[idx + 1];
-    const from = prevCell !== undefined && prevCell >= 0 ? cells.p[prevCell] : cells.p[cellId];
-    const to = nextCell !== undefined && nextCell >= 0 ? cells.p[nextCell] : cells.p[cellId];
-
-    const tx = to[0] - from[0];
-    const ty = to[1] - from[1];
-    if (tx === 0 && ty === 0) return null;
-    return [tx, ty];
+    // Keep full precision: rounding a tested footprint would invalidate its dry reservation.
+    return point;
   }
 
   generate(
     worldContext: WorldContext,
     viewContext: Readonly<ViewContext>,
     appServices: AppServices,
-    state: WorldState
+    state: WorldState,
+    options: { deferShift?: boolean } = {}
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
@@ -1027,7 +1134,7 @@ class BurgModule {
     }
 
     pack.burgs = burgs;
-    this.shift();
+    if (!options.deferShift) this.shift();
 
     TIME && console.timeEnd("generateBurgs");
 

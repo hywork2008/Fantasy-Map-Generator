@@ -50,7 +50,10 @@ export function siteToGeography(site: BurgSiteDescriptor, imported = false): Cit
   // floods the far countryside and, at an estuary, can swallow the burg.
   // Draw only the channel, between the town-side bank and the far bank, and
   // keep the real sea/lake (if any) as the harbour shore.
-  const { channels, consumed } = extractWideChannels(site);
+  const { channels, consumed } =
+    site.fixedCrossings?.schemaVersion === 2
+      ? { channels: [], consumed: new Set(site.rivers.map(r => r.riverId)) }
+      : extractWideChannels(site);
   const waterAreas = coast ? [{ ...coast, kind: site.waterbody?.kind ?? "ocean" } as const] : [];
   return {
     ...(site.burg.waterAccess?.port.river ? { riverPort: true } : {}),
@@ -128,6 +131,8 @@ function hasSurveyedCourse(river: SiteRiver | undefined): boolean {
 }
 
 function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
+  // Canonical source water is authoritative, including an off-centre shoreline.
+  if (site.fixedCrossings || site.burg.riverSiteStatus) return site;
   const access = site.burg.waterAccess;
   if (!site.burg.port || !access?.port.river) return site;
   const id = access.riverId ?? site.burg.riverPlacement?.riverId;

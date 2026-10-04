@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatCode } from "../data/coastalHabitatCatalog";
+import * as settlementRiverSite from "../services/settlementRiverSite";
 import type { Grid } from "../types/Grid";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -79,6 +80,23 @@ function makeBurgs() {
 describe("BurgsModule.shift — open-lake port promotion", () => {
   beforeEach(() => {
     worldContext.grid = { cells: { temp: new Array(10).fill(20) } } as unknown as Grid;
+  });
+
+  it("does not survey rivers when no unlocked town needs river placement", () => {
+    worldContext.pack = {
+      burgs: [0, { i: 1, cell: 1, x: 5, y: 5 }],
+      cells: { ...BASE_CELLS, r: [0, 0, 0, 0, 0, 0], harbor: [0, 0, 0, 0, 0, 0] },
+      features: [null],
+      vertices: BASE_VERTICES,
+      rivers: Array.from({ length: 1000 }, (_, i) => ({ i: i + 1, cells: [1, 2] }))
+    } as unknown as PackedGraph;
+    const survey = vi.spyOn(settlementRiverSite, "settlementRiverGeometry");
+    try {
+      Burgs.shift();
+      expect(survey).not.toHaveBeenCalled();
+    } finally {
+      survey.mockRestore();
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -592,7 +610,7 @@ describe("BurgsModule.shift — river-bank shift", () => {
     worldContext.grid = { cells: { temp: new Array(10).fill(20) } } as unknown as Grid;
   });
 
-  it("shifts a non-port river burg perpendicular to the local river course", () => {
+  it("preserves the position and diagnoses a river without physical survey data", () => {
     // River 10 runs diagonally [1 → 2 → 3] along (1,1); burg sits on the middle cell.
     // The river stays on land (no drain feature) so the burg never becomes a port.
     worldContext.pack = {
@@ -621,19 +639,11 @@ describe("BurgsModule.shift — river-bank shift", () => {
     Burgs.shift();
 
     const burg = worldContext.pack.burgs[1];
-    const dx = burg.x - 10;
-    const dy = burg.y - 10;
-
-    // Displacement is perpendicular to the river tangent (1,1): dot product ≈ 0.
-    expect(dx * 1 + dy * 1).toBeCloseTo(0, 6);
-    // Displacement magnitude is the shift amount min(fl/200, 0.6) (±2-decimal rounding).
-    const expectedShift = Math.min(300 / 200, 0.6);
-    expect(Math.hypot(dx, dy)).toBeCloseTo(expectedShift, 1);
-    // The burg actually moved off the cell center.
-    expect(dx === 0 && dy === 0).toBe(false);
+    expect([burg.x, burg.y]).toEqual([10, 10]);
+    expect(burg.riverSiteStatus).toEqual({ riverId: 10, status: "unresolved", reason: "invalid-source" });
   });
 
-  it("falls back to an axis nudge for a single-cell river (no course direction)", () => {
+  it("diagnoses a single-cell river without guessing a new position", () => {
     worldContext.pack = {
       burgs: [0 as any, { i: 1, cell: 1, x: 5, y: 5, capital: 0 }],
       cells: {
@@ -658,8 +668,8 @@ describe("BurgsModule.shift — river-bank shift", () => {
     Burgs.shift();
 
     const burg = worldContext.pack.burgs[1];
-    // Still shifted (axis-aligned fallback), just not crashing on the missing course.
-    expect(burg.x === 5 && burg.y === 5).toBe(false);
+    expect([burg.x, burg.y]).toEqual([5, 5]);
+    expect(burg.riverSiteStatus?.status).toBe("unresolved");
   });
 });
 
@@ -1105,5 +1115,40 @@ describe("physical river-bank city placement", () => {
     expect(Math.abs(burg.x)).toBeLessThan(3.1);
     expect(burg.cell).toBe(1);
     expect(burg.waterAccess?.river).toBe(true);
+    expect(burg.riverPlacement?.footprintMeters).toHaveLength(4);
+    expect(burg.riverPlacement?.accessMeters).toHaveLength(2);
+    expect(burg.riverPlacement?.geometryVersion).toBeGreaterThan(0);
+    expect(burg.riverSiteStatus?.status).toBe("placed");
+  });
+});
+
+describe("cooperative river-town placement", () => {
+  it("yields to browser timers and preserves synchronous placement results", async () => {
+    worldContext.grid = { cells: { temp: new Array(10).fill(20) } } as unknown as Grid;
+    const pack = {
+      burgs: [0, ...Array.from({ length: 20 }, (_, i) => ({ i: i + 1, cell: 1, x: 5, y: 5 }))],
+      cells: { ...BASE_CELLS, r: [0, 10, 0, 0, 0, 0], harbor: [0, 0, 0, 0, 0, 0] },
+      features: [null],
+      vertices: BASE_VERTICES,
+      rivers: [{ i: 10, cells: [1] }]
+    } as unknown as PackedGraph;
+    worldContext.pack = structuredClone(pack);
+    Burgs.shift();
+    const expected = structuredClone(worldContext.pack.burgs);
+    worldContext.pack = structuredClone(pack);
+    let tick = 0;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => (tick += 10));
+    let timerRan = false;
+    const timer = setTimeout(() => {
+      timerRan = true;
+    }, 0);
+    try {
+      await Burgs.shiftAsync();
+      expect(timerRan).toBe(true);
+      expect(worldContext.pack.burgs).toEqual(expected);
+    } finally {
+      clearTimeout(timer);
+      now.mockRestore();
+    }
   });
 });

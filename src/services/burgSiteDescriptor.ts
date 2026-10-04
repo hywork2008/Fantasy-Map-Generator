@@ -23,6 +23,14 @@ import {
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
+import { footprintTouchesWater } from "./riverPhysicalGeometry";
+import {
+  nearestSettlementBank,
+  SETTLEMENT_RIVER_SETTINGS,
+  settlementRadiusMeters,
+  settlementRiverGeometry
+} from "./settlementRiverSite";
+import { worldRiverOccupiedBounds } from "./worldRiverGeometry";
 
 /**
  * Burg site descriptor — the machine-readable "site survey" of a burg's local
@@ -181,6 +189,7 @@ export interface BurgSiteDescriptor {
     capital: boolean;
     port: boolean;
     riverPlacement?: import("../types/models").Burg["riverPlacement"];
+    riverSiteStatus?: import("../types/models").Burg["riverSiteStatus"];
     /** Optional for legacy descriptors; independent of clipped water geometry. */
     waterAccess?: import("../types/burgWater").BurgWaterAccess;
     citadel: boolean;
@@ -223,10 +232,6 @@ export interface BurgSiteDescriptor {
 
 const DESCRIPTOR_VERSION = 2;
 const HEIGHTFIELD_SIZE = 17;
-/** Typical population density inside medieval town walls, people per hectare. */
-const WALLED_DENSITY_PER_HA = 150;
-const CITY_RADIUS_MIN_M = 80;
-const CITY_RADIUS_MAX_M = 1500;
 /** Visible water past the near bank. A wide channel does not also require its centreline. */
 const FRONTAGE_WATER_MARGIN_M = 40;
 const FRONTAGE_FRAME_PAD_M = 20;
@@ -269,18 +274,32 @@ export function getBurgSiteDescriptor(
       frameRequirements.maxExtentMeters <= 0
     )
       throw new RangeError("Invalid required site bounds or frame budget");
+    autoBounds = { ...frameRequirements.requiredBounds };
     extentMeters = Math.max(extentMeters, requiredSiteExtent(frameRequirements.requiredBounds));
     if (extentMeters > frameRequirements.maxExtentMeters)
       throw new RangeError("Required site frame exceeds extent budget");
-  } else if (waterAccess.river && waterAccess.riverId != null) {
+  }
+  if (waterAccess.river && waterAccess.riverId != null) {
     const portRiver = Boolean(burg.port) && waterAccess.port.river;
-    const frontage = frontageDisplayBounds(waterAccess.riverId, toLocal, metersPerMapUnit, cityRadiusMeters, portRiver);
+    const frontage =
+      canonicalFrontageBounds(burg, waterAccess.riverId, toLocal) ??
+      frontageDisplayBounds(waterAccess.riverId, toLocal, metersPerMapUnit, cityRadiusMeters, portRiver);
     if (frontage?.bounds) {
-      autoBounds = frontage.bounds;
-      extentMeters = Math.max(extentMeters, requiredSiteExtent(frontage.bounds));
+      const extra = frameRequirements?.requiredBounds;
+      autoBounds = extra
+        ? {
+            minX: Math.min(extra.minX, frontage.bounds.minX),
+            minY: Math.min(extra.minY, frontage.bounds.minY),
+            maxX: Math.max(extra.maxX, frontage.bounds.maxX),
+            maxY: Math.max(extra.maxY, frontage.bounds.maxY)
+          }
+        : frontage.bounds;
+      extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
+      if (frameRequirements && extentMeters > frameRequirements.maxExtentMeters)
+        throw new RangeError("Required river frontage exceeds extent budget");
     } else if (frontage?.beyondBudget) beyondBudgetRiverId = waterAccess.riverId;
   }
-  const fixedCrossings = frameRequirements?.fixedCrossings;
+  let fixedCrossings = frameRequirements?.fixedCrossings;
   if (fixedCrossings) {
     if (!validFixedBurgCrossings(fixedCrossings, FIXED_SITE_CROSSING_BUDGETS))
       throw new RangeError("Invalid fixed crossing preview");
@@ -295,6 +314,15 @@ export function getBurgSiteDescriptor(
       Math.abs(fixedCrossings.originMeters[1] - burg.y * metersPerMapUnit) > 1e-7
     )
       throw new RangeError("Fixed crossing preview origin or bounds mismatch");
+  }
+  if (!fixedCrossings) {
+    const waterSource = canonicalSiteWater(burg, extentMeters / 2, autoBounds);
+    if (!waterSource && burg.riverPlacement?.geometryVersion !== undefined && beyondBudgetRiverId === null)
+      throw new RangeError("Cannot export canonical settlement water: unresolved geometry or water budget");
+    if (waterSource) {
+      fixedCrossings = waterSource;
+      autoBounds = waterSource.requiredBounds;
+    }
   }
   const half = extentMeters / 2;
   const rivers = collectRivers(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
@@ -322,7 +350,8 @@ export function getBurgSiteDescriptor(
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
       waterAccess,
-      riverPlacement: burg.riverPlacement,
+      riverPlacement: burg.riverPlacement ? structuredClone(burg.riverPlacement) : undefined,
+      riverSiteStatus: burg.riverSiteStatus ? { ...burg.riverSiteStatus } : undefined,
       citadel: Boolean(burg.citadel),
       plaza: Boolean(burg.plaza),
       walls: Boolean(burg.walls),
@@ -331,10 +360,10 @@ export function getBurgSiteDescriptor(
       settlementSite: burg.settlementSite ?? "surface"
     },
     frame: {
-      ...(frameRequirements
-        ? { requiredBounds: { ...frameRequirements.requiredBounds } }
-        : autoBounds
-          ? { requiredBounds: { ...autoBounds } }
+      ...(autoBounds
+        ? { requiredBounds: { ...autoBounds } }
+        : frameRequirements
+          ? { requiredBounds: { ...frameRequirements.requiredBounds } }
           : {}),
       originMapUnits: [burg.x, burg.y],
       metersPerMapUnit: fixedCrossings ? metersPerMapUnit : rn(metersPerMapUnit, 2),
@@ -372,9 +401,7 @@ function getMetersPerMapUnit(): number {
 }
 
 function getCityRadiusMeters(population: number): number {
-  const areaHa = Math.max(population, 50) / WALLED_DENSITY_PER_HA;
-  const radius = Math.sqrt((areaHa * 1e4) / Math.PI);
-  return minmax(rn(radius), CITY_RADIUS_MIN_M, CITY_RADIUS_MAX_M);
+  return settlementRadiusMeters(population);
 }
 
 function getHeightExponent(): number {
@@ -566,6 +593,90 @@ function localRiverPoints(
 }
 
 /** Near bank plus a strip of water, centred on the unchanged town origin. */
+function canonicalFrontageBounds(burg: Burg, riverId: number, toLocal: (x: number, y: number) => [number, number]) {
+  const river = worldContext.pack.rivers.find(r => r.i === riverId);
+  if (!river) return null;
+  const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+  if (!("geometry" in resolved)) return null;
+  const scale = resolved.metersPerMapUnit;
+  const bank = nearestSettlementBank(resolved.geometry, [burg.x * scale, burg.y * scale]);
+  if (!bank) return null;
+  const samples = [bank.bankPoint, bank.waterPoint].map(p => toLocal(p[0] / scale, p[1] / scale));
+  const bounds: RequiredSiteBounds = {
+    minX: Math.min(...samples.map(p => p[0])) - FRONTAGE_FRAME_PAD_M,
+    minY: Math.min(...samples.map(p => p[1])) - FRONTAGE_FRAME_PAD_M,
+    maxX: Math.max(...samples.map(p => p[0])) + FRONTAGE_FRAME_PAD_M,
+    maxY: Math.max(...samples.map(p => p[1])) + FRONTAGE_FRAME_PAD_M
+  };
+  return requiredSiteExtent(bounds) > POPULATION_WINDOW_MAX_M
+    ? { beyondBudget: true as const }
+    : { bounds, beyondBudget: false as const };
+}
+
+function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBounds): FixedBurgCrossings | null {
+  const rivers: FixedBurgCrossings["rivers"][number][] = [];
+  let vertices = 0;
+  const scale = getMetersPerMapUnit();
+  const origin: [number, number] = [burg.x * scale, burg.y * scale];
+  const frame: [number, number][] = [
+    [origin[0] - half, origin[1] - half],
+    [origin[0] + half, origin[1] - half],
+    [origin[0] + half, origin[1] + half],
+    [origin[0] - half, origin[1] + half]
+  ];
+  for (const river of worldContext.pack.rivers) {
+    const possible = worldRiverOccupiedBounds(
+      worldContext,
+      river,
+      useOptionsState.getState().distanceUnit,
+      SETTLEMENT_RIVER_SETTINGS
+    );
+    if (!possible) return null;
+    if (
+      possible.maxX < origin[0] - half ||
+      possible.minX > origin[0] + half ||
+      possible.maxY < origin[1] - half ||
+      possible.minY > origin[1] + half
+    )
+      continue;
+    const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+    // Remote unresolved reaches cannot affect this frame; a nearby one stops the export.
+    const b = resolved.bounds;
+    if (!b) return null;
+    if (
+      b.maxX < origin[0] - half ||
+      b.minX > origin[0] + half ||
+      b.maxY < origin[1] - half ||
+      b.minY > origin[1] + half
+    )
+      continue;
+    if (!("geometry" in resolved)) return null;
+    if (!footprintTouchesWater(frame, resolved.geometry.water)) continue;
+    const rings = resolved.geometry.water.rings.map(ring =>
+      ring.map(p => [p[0] - origin[0], origin[1] - p[1]] as [number, number])
+    );
+    vertices += rings.reduce((n, ring) => n + ring.length, 0);
+    if (
+      vertices > FIXED_SITE_CROSSING_BUDGETS.maxWaterVertices ||
+      rivers.length >= FIXED_SITE_CROSSING_BUDGETS.maxFacilities
+    )
+      return null;
+    rivers.push({ id: river.i, geometryVersion: resolved.geometryVersion, rings });
+  }
+  if (!rivers.length) return null;
+  const payload: FixedBurgCrossings = {
+    schemaVersion: 2,
+    coordinateUnit: "metres",
+    revision: 0,
+    originMeters: origin,
+    roadWidthMeters: 5,
+    requiredBounds: required ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+    rivers,
+    crossings: []
+  };
+  return validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS) ? payload : null;
+}
+
 function frontageDisplayBounds(
   riverId: number,
   toLocal: (x: number, y: number) => [number, number],

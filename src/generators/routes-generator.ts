@@ -6,6 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { getRaceById } from "../data/races";
 import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { useOptionsState } from "../store/optionsState";
@@ -980,26 +981,19 @@ class RoutesModule {
     const capital = burgs.find(burg => burg.capital);
     if (!capital) return burgs;
 
+    const baseSize = (burg: Burg): number => {
+      if (burg.population !== undefined) return burg.population;
+      const { pack, grid } = this.worldContext;
+      const culture = pack.cultures?.[burg.culture ?? pack.cells.culture?.[burg.cell] ?? 0];
+      const race = getRaceById(pack.races, culture?.race);
+      if (race?.key && race.key !== "human") return Math.max(0, pack.cells.s[burg.cell] ?? 0) / 5;
+      return getSettlementBaseSize(pack.cells, burg.cell, grid.cells.temp, grid.cells.prec, pack.features) / 5;
+    };
     const candidates = burgs
       .filter(burg => burg !== capital)
       .sort(
         (a, b) =>
-          Number(Boolean(b.port)) - Number(Boolean(a.port)) ||
-          (b.population ??
-            getSettlementBaseSize(
-              this.worldContext.pack.cells,
-              b.cell,
-              this.worldContext.grid.cells.temp,
-              this.worldContext.grid.cells.prec
-            )) -
-            (a.population ??
-              getSettlementBaseSize(
-                this.worldContext.pack.cells,
-                a.cell,
-                this.worldContext.grid.cells.temp,
-                this.worldContext.grid.cells.prec
-              )) ||
-          (a.i ?? 0) - (b.i ?? 0)
+          Number(Boolean(b.port)) - Number(Boolean(a.port)) || baseSize(b) - baseSize(a) || (a.i ?? 0) - (b.i ?? 0)
       );
     const hubCount = Math.min(3, Math.max(1, Math.floor(Math.sqrt(candidates.length))));
     return [capital, ...candidates.slice(0, hubCount)];

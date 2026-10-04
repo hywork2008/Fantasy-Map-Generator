@@ -12,7 +12,8 @@ import type { PhysicalWaterPolygon } from "./riverPhysicalGeometry";
 import {
   buildWorldRiverGeometry,
   WorldRiverGeometryRegistry,
-  type WorldRiverGeometrySettings
+  type WorldRiverGeometrySettings,
+  worldRiverOccupiedBounds
 } from "./worldRiverGeometry";
 
 const settings: WorldRiverGeometrySettings = {
@@ -68,6 +69,30 @@ function enumerateFixture(
 ) {
   return generateWorldRiverCrossingCandidates(world, distanceUnit, config, env, new WorldRiverGeometryRegistry());
 }
+
+describe("occupied river bounds for unresolved site obstacles", () => {
+  it("contains all canonical banks and stays available when only sampling fails", () => {
+    const world = fixture();
+    const resolved = built(world);
+    const bounds = worldRiverOccupiedBounds(world, world.pack.rivers[0], "km", settings)!;
+    expect(bounds).not.toBeNull();
+    for (const p of resolved.geometry.water.rings.flat()) {
+      expect(p[0]).toBeGreaterThanOrEqual(bounds.minX);
+      expect(p[0]).toBeLessThanOrEqual(bounds.maxX);
+      expect(p[1]).toBeGreaterThanOrEqual(bounds.minY);
+      expect(p[1]).toBeLessThanOrEqual(bounds.maxY);
+    }
+    expect(
+      worldRiverOccupiedBounds(world, world.pack.rivers[0], "km", {
+        ...settings,
+        banks: { ...settings.banks, maxSamples: 2 }
+      })
+    ).toEqual(bounds);
+    expect(
+      worldRiverOccupiedBounds(world, { ...world.pack.rivers[0], sourceWidth: Number.NaN }, "km", settings)
+    ).toBeNull();
+  });
+});
 
 describe("world physical river construction", () => {
   it("recovers a small river without points, converts units once and preserves the world", () => {

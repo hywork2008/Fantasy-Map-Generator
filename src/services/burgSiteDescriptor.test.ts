@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createGridDocument, descriptorFrameGridOptions } from "../city-editor/core/document";
+import { createGridDocument, descriptorFrameGridOptions, parseDocument } from "../city-editor/core/document";
+import { buildBlockFabric } from "../city-editor/core/gen/blockInfill";
 import { townExtentMeters } from "../city-editor/core/gen/settlementExtent";
 import type { BurgSiteDescriptor as CESite } from "../city-editor/core/gen/site/burgSiteDescriptor";
 import { siteToGeography } from "../city-editor/core/gen/site/siteInput";
+import { defaultGenerationSettings, generateCityOnDocument } from "../city-editor/core/generate";
+import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
+import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
+import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/io/incomingCity";
+import { renderStandaloneCitySvg } from "../city-editor/render/svg";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
+import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { countBurgRoadLegs, getBurgSiteDescriptor } from "./burgSiteDescriptor";
+import { settlementRiverGeometry } from "./settlementRiverSite";
 
 /**
  * Synthetic world: 1 map unit = 1 km (distanceScale 1, unit km).
@@ -83,6 +91,99 @@ function setupRiverCrossingWorld() {
 
 describe("getBurgSiteDescriptor", () => {
   beforeEach(setupRiverCrossingWorld);
+  it("exports the canonical physical water without inventing a bridge and retains it through CE save/render", () => {
+    const site = getBurgSiteDescriptor(1)!;
+    const payload = site.fixedCrossings!;
+    const resolved = settlementRiverGeometry(worldContext, worldContext.pack.rivers[0], "km");
+    if (!("geometry" in resolved)) throw new Error(resolved.reason);
+    expect(payload?.schemaVersion).toBe(2);
+    expect(payload.crossings).toEqual([]);
+    expect(validFixedBurgCrossings({ ...payload, schemaVersion: 1 }, FIXED_SITE_CROSSING_BUDGETS)).toBe(false);
+    expect(validFixedBurgCrossings(payload, { ...FIXED_SITE_CROSSING_BUDGETS, maxWaterVertices: 1 })).toBe(false);
+    expect(payload.rivers[0].rings).toEqual(
+      resolved.geometry.water.rings.map(ring => ring.map(p => [p[0] - 100000, 100000 - p[1]]))
+    );
+    const geography = siteToGeography(site as unknown as CESite);
+    expect(geography.rivers).toEqual([]);
+    expect(geography.channels).toEqual([]);
+    const doc = createGridDocument({
+      size: "small",
+      extentMeters: site.frame.extentMeters,
+      cityRadiusMeters: site.frame.cityRadiusMeters
+    });
+    applyImportedFixedCrossings(doc, site as unknown as CESite);
+    const restored = parseDocument(JSON.stringify(doc))!;
+    expect(restored.importedFixedCrossings).toEqual(payload);
+    const svg = renderStandaloneCitySvg(restored);
+    const water = svg.querySelector(".ce-fixed-river-water [data-river-id='1']")!;
+    expect(water).not.toBeNull();
+    expect(svg.querySelectorAll("[data-facility-id]")).toHaveLength(0);
+    const point = payload.rivers[0].rings[0][0];
+    expect(
+      polygonHitsDocumentWater(restored, [
+        [point[0] - 1, point[1] - 1],
+        [point[0] + 1, point[1] - 1],
+        [point[0] + 1, point[1] + 1],
+        [point[0] - 1, point[1] + 1]
+      ])
+    ).toBe(true);
+    expect(worldContext.pack.burgs[1].x).toBe(100);
+  });
+
+  it("generates a compact town while preserving a distant canonical shoreline in the final frame", () => {
+    const burg = worldContext.pack.burgs[1];
+    burg.population = 0.1;
+    worldContext.pack.cells.r[0] = 1;
+    for (const cell of worldContext.pack.rivers[0].cells) worldContext.pack.cells.p[cell][0] = 101.4;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    expect(descriptor.frame.cityRadiusMeters).toBe(80);
+    expect(descriptor.fixedCrossings?.schemaVersion).toBe(2);
+    const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor)))!;
+    expect(shared.patchParams?.nPatches).toBe(6);
+    const document = createGridDocument({
+      size: shared.size,
+      grid: shared.grid,
+      seed: shared.seed,
+      patchParams: shared.patchParams,
+      measureBlockSize: shared.measureBlockSize,
+      ...descriptorFrameGridOptions(shared.descriptor!.frame)
+    });
+    const city = generateCityOnDocument(
+      document,
+      { ...defaultGenerationSettings(), descriptor: shared.descriptor },
+      shared.seed
+    )!;
+    expect(city).not.toBeNull();
+    expect(city.frame.extentMeters).toBe(descriptor.frame.extentMeters);
+    expect(city.frame.cityRadiusMeters).toBe(80);
+    expect(city.frame.settlementExtentMeters).toBe(300);
+    const restored = parseDocument(JSON.stringify(city))!;
+    expect(restored.importedFixedCrossings).toEqual(descriptor.fixedCrossings);
+    const svg = renderStandaloneCitySvg(restored);
+    const path = svg.querySelector(".ce-fixed-river-water [data-river-id='1']")!;
+    expect(path.getAttribute("d")).toContain("M");
+    const sourceRing = restored.importedFixedCrossings!.rivers[0].rings[0];
+    expect(sourceRing.every(p => p[0] > 1300)).toBe(true);
+    const buildings = buildBlockFabric(restored).buildings;
+    expect(buildings.length).toBeGreaterThan(0);
+    expect(buildings.every(lot => !polygonHitsDocumentWater(restored, lot.polygon))).toBe(true);
+  });
+
+  it("keeps the actual frontage mandatory when callers also supply connection bounds", () => {
+    worldContext.pack.burgs[1].population = 0.1;
+    worldContext.pack.cells.r[0] = 1;
+    for (const cell of worldContext.pack.rivers[0].cells) worldContext.pack.cells.p[cell][0] = 101.4;
+    const requiredBounds = { minX: -30, minY: -10, maxX: 30, maxY: 10 };
+    const descriptor = getBurgSiteDescriptor(1, { requiredBounds, maxExtentMeters: 4500 })!;
+    expect(descriptor.frame.requiredBounds!.minX).toBe(-30);
+    expect(descriptor.frame.requiredBounds!.maxX).toBeGreaterThan(1400);
+    expect(descriptor.fixedCrossings?.schemaVersion).toBe(2);
+    expect(requiredBounds).toEqual({ minX: -30, minY: -10, maxX: 30, maxY: 10 });
+    expect(() => getBurgSiteDescriptor(1, { requiredBounds, maxExtentMeters: 1500 })).toThrow(
+      "frontage exceeds extent budget"
+    );
+  });
+
   it("copies an optional fixed preview into the descriptor and rejects a different town origin", () => {
     const bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
     const fixedCrossings = {
@@ -242,7 +343,8 @@ describe("getBurgSiteDescriptor", () => {
     expect(xs.length).toBeGreaterThan(0);
     expect(Math.min(...xs)).toBeGreaterThan(500);
     const geo = siteToGeography(structuredClone(descriptor) as CESite);
-    const shore = geo.channels?.[0]?.shoreline ?? geo.rivers[0]?.corridor ?? [];
+    const shore =
+      descriptor.fixedCrossings?.rivers[0]?.rings[0] ?? geo.channels?.[0]?.shoreline ?? geo.rivers[0]?.corridor ?? [];
     expect(shore.length).toBeGreaterThanOrEqual(2);
     expect(shore.every(point => point[0] > 500)).toBe(true);
 

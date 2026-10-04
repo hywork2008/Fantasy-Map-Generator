@@ -663,7 +663,11 @@ function regenerateSettlementPattern(): void {
       optionsSnap.initialSettlementPattern,
       optionsSnap.initialPopulationSaturation / 100,
       Math.random,
-      { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
+      {
+        temperature: worldContext.grid.cells.temp,
+        precipitation: worldContext.grid.cells.prec,
+        features: worldContext.pack.features
+      },
       optionsSnap.statesNumber,
       optionsSnap.oikoumeneLandShare,
       optionsSnap.frontierPolitySpacing,

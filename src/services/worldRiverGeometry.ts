@@ -3,7 +3,7 @@ import type { River } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { meanderRiverPoints, physicalRiverWidth, riverDisplayOffset } from "../utils/riverShape";
 import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "./physicalWaterIndex";
-import { buildCatmullRomRiverAxis, type RiverCurvePrecision } from "./riverCurveGeometry";
+import { buildCatmullRomRiverAxis, catmullRomRiverCubics, type RiverCurvePrecision } from "./riverCurveGeometry";
 import type { RiverPoint } from "./riverGeometry";
 import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
 import {
@@ -162,18 +162,7 @@ function buildResolvedGeometry(
     heights: source.heights
   });
   if (meandered.length > settings.maxSourcePoints) return { ...base, reason: "source-budget" };
-  const built = buildCatmullRomRiverAxis(
-    riverId,
-    geometryVersion,
-    meandered.map(([x, y]) => [x * metersPerMapUnit, y * metersPerMapUnit]),
-    settings.curveAlpha,
-    settings.precision
-  );
-  if (!("axis" in built)) return { ...base, reason: built.reason };
-  const axis = built.axis;
-  // One cubic per consecutive source pair: width progression depends on source
-  // points, never on a renderer's adaptive sample count.
-  const survey: RiverWidthSurvey[] = [];
+  const widths: number[] = [];
   let flux = 0;
   for (let i = 0; i < meandered.length; i++) {
     flux = Math.max(flux, meandered[i][2]);
@@ -184,9 +173,25 @@ function buildResolvedGeometry(
       startingWidth: source.sourceWidth
     });
     const widthMeters = physicalRiverWidth(offset) * metersPerMapUnit;
-    if (!Number.isFinite(widthMeters) || widthMeters <= 0) return { ...base, reason: "invalid-width" };
-    survey.push({ arcLengthMeters: i === axis.segments.length ? axis.length : axis.segments[i].arcStart, widthMeters });
+    if (!Number.isFinite(widthMeters) || widthMeters < 0 || (widthMeters === 0 && !settings.banks.allowDrySource))
+      return { ...base, reason: "invalid-width" };
+    widths.push(widthMeters);
   }
+  if (!widths.some(width => width > 0)) return { ...base, reason: "invalid-width" };
+  const built = buildCatmullRomRiverAxis(
+    riverId,
+    geometryVersion,
+    meandered.map(([x, y]) => [x * metersPerMapUnit, y * metersPerMapUnit]),
+    settings.curveAlpha,
+    settings.precision
+  );
+  if (!("axis" in built)) return { ...base, reason: built.reason };
+  const axis = built.axis;
+  // Widths depend on the original meander samples, never on display subdivisions.
+  const survey: RiverWidthSurvey[] = meandered.map((_, i) => ({
+    arcLengthMeters: i === axis.segments.length ? axis.length : axis.segments[i].arcStart,
+    widthMeters: widths[i]
+  }));
   const physical = buildPhysicalRiverGeometry(axis, survey, settings.banks);
   if (!("geometry" in physical)) return { ...base, reason: physical.reason };
   const bounds: RiverGeometryBounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
@@ -215,6 +220,50 @@ export function buildWorldRiverGeometry(
     settings
   );
 }
+/** Conservative occupied bounds even when an offset polygon is unresolved.
+ * The Bézier convex hull plus maximum physical half-width encloses every reach.
+ * Missing/corrupt source remains unbounded; it cannot be ignored during placement. */
+export function worldRiverOccupiedBounds(
+  world: Readonly<WorldContext>,
+  river: Readonly<River>,
+  unit: string,
+  settings: WorldRiverGeometrySettings
+): RiverGeometryBounds | null {
+  const source = resolveSource(world, river, settings.maxSourcePoints);
+  const scale = mapUnitMeters(world.distanceScale, unit);
+  if ("reason" in source || !Number.isFinite(scale) || scale <= 0) return null;
+  const points = meanderRiverPoints({
+    cells: source.cells,
+    points: source.points,
+    flux: source.flux,
+    heights: source.heights
+  });
+  if (points.length > settings.maxSourcePoints) return null;
+  const curves = catmullRomRiverCubics(
+    points.map(p => [p[0] * scale, p[1] * scale]),
+    settings.curveAlpha
+  );
+  if (!curves?.length) return null;
+  let flux = 0,
+    halfWidth = 0;
+  for (let i = 0; i < points.length; i++) {
+    flux = Math.max(flux, points[i][2]);
+    const width =
+      physicalRiverWidth(
+        riverDisplayOffset({ flux, pointIndex: i, widthFactor: source.widthFactor, startingWidth: source.sourceWidth })
+      ) * scale;
+    if (!Number.isFinite(width) || width < 0) return null;
+    halfWidth = Math.max(halfWidth, width / 2);
+  }
+  const controls = curves.flat();
+  return {
+    minX: Math.min(...controls.map(p => p[0])) - halfWidth,
+    minY: Math.min(...controls.map(p => p[1])) - halfWidth,
+    maxX: Math.max(...controls.map(p => p[0])) + halfWidth,
+    maxY: Math.max(...controls.map(p => p[1])) + halfWidth
+  };
+}
+
 function freezeResult<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
     for (const child of Object.values(value)) freezeResult(child);
@@ -372,7 +421,8 @@ export class WorldRiverGeometryRegistry {
       settings.banks.maxStepMeters,
       settings.banks.maxChordErrorMeters,
       settings.banks.maxSamples,
-      settings.maxSourcePoints
+      settings.maxSourcePoints,
+      ...(settings.banks.allowDrySource ? ["dry-source-tip"] : [])
     ]);
     let entries = this.entries.get(world.pack);
     if (!entries) {

@@ -9,7 +9,12 @@ import type { FrontierPolitySpacing, FrontierStartMode, InitialSettlementPattern
 import { frontierRegionCenterDistanceWeight, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
-import { getSettlementClimateScore } from "./settlementSuitability";
+import {
+  getSettlementBaseSize,
+  getSettlementClimateScore,
+  getSettlementWaterKind,
+  type SettlementWaterFeatures
+} from "./settlementSuitability";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 type MutableNumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
@@ -25,6 +30,7 @@ export interface SettlementFoundationCells {
   readonly p: readonly (readonly [number, number])[];
   readonly r?: ArrayLike<number>;
   readonly harbor?: ArrayLike<number>;
+  readonly haven?: ArrayLike<number>;
   /** Land-feature id; used to make different continents independent start fields. */
   readonly f?: ArrayLike<number>;
   readonly t?: ArrayLike<number>;
@@ -42,6 +48,7 @@ export interface SettlementFoundationCells {
 export interface SettlementClimate {
   readonly temperature?: ArrayLike<number>;
   readonly precipitation?: ArrayLike<number>;
+  readonly features?: SettlementWaterFeatures;
 }
 
 export interface SettlementFoundationResult {
@@ -182,6 +189,7 @@ function collectSites(
   for (let index = 0; index < cells.i.length; index++) {
     const id = cells.i[index];
     const capacity = getCellSubsistenceCapacity(cells, id);
+    if (getSettlementBaseSize(cells, id, climate.temperature, climate.precipitation, climate.features) <= 0) continue;
     // rankCells already zeroed uninhabitable / zero-habitability land.
     if ((cells.s[id] ?? 0) <= 0 || capacity <= 0 || (cells.h[id] ?? 0) < 20) continue;
 
@@ -251,9 +259,8 @@ function getResourceKind(
   id: number,
   climate: SettlementClimate
 ): ResourceKind | null {
-  if (cells.r?.[id]) return "river";
-  if (cells.harbor?.[id]) return cells.t?.[id] === 1 ? "coast" : "lake";
-  if (cells.t?.[id] === 1) return "coast";
+  const waterKind = getSettlementWaterKind(cells, id, climate.features);
+  if (waterKind !== "spring") return waterKind;
   if ((cells.conf?.[id] ?? 0) > 0) return "spring";
   // Rain-fed land is represented as a local spring-like resource. It is a
   // fallback only; rivers, lakes, and coasts always outrank it.

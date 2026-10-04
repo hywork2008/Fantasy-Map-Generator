@@ -28,6 +28,29 @@ function createCells(count: number, riverCells: readonly number[] = [4]) {
 }
 
 describe("Settlement Foundation Module", () => {
+  it("shares the freshwater distinction with standard candidates in an arid lake region", () => {
+    const run = (group: string) => {
+      const cells = createCells(6, []);
+      cells.h[4] = 10;
+      cells.s[4] = 0;
+      cells.capacity[4] = 0;
+      cells.harbor[3] = 1;
+      cells.f[4] = 1;
+      return createSettlementFoundation(
+        cells,
+        {
+          temperature: new Int8Array(6).fill(14),
+          precipitation: new Uint8Array(6).fill(2),
+          features: [{ type: "island" }, { type: "lake", group }]
+        },
+        "frontier",
+        0.3,
+        () => 0
+      );
+    };
+    expect(run("freshwater").plan.regions.length).toBeGreaterThan(0);
+    expect(run("salt").plan.regions).toEqual([]);
+  });
   it("places a compact, linked settlement region instead of ranking scattered world cells", () => {
     const cells = createCells(20, [4, 5]);
     const result = createSettlementFoundation(

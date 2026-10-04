@@ -1191,7 +1191,11 @@ function getGenerationStages(): Array<() => Promise<void>> {
         worldContext.options.initialSettlementPattern,
         optionsSnap.initialPopulationSaturation / 100,
         Math.random,
-        { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
+        {
+          temperature: worldContext.grid.cells.temp,
+          precipitation: worldContext.grid.cells.prec,
+          features: worldContext.pack.features
+        },
         optionsSnap.statesNumber,
         optionsSnap.oikoumeneLandShare,
         optionsSnap.frontierPolitySpacing,
@@ -1202,18 +1206,19 @@ function getGenerationStages(): Array<() => Promise<void>> {
       if (settlementPattern.plan)
         worldContext.pack.settlementFoundation = withDwarfMountainRegion(settlementPattern.plan, dwarfHold);
       else delete worldContext.pack.settlementFoundation;
-      Burgs.generate(worldContext, viewContext, appServices, state);
+      Burgs.generate(worldContext, viewContext, appServices, state, { deferShift: true });
+      await Burgs.shiftAsync();
     },
     async () => {
       const state = getWorldState();
       if (worldContext.options.initialSettlementPattern !== "standard") {
         Routes.generate(worldContext, viewContext, appServices, state);
         States.generate(worldContext, viewContext, appServices, state);
-        Burgs.shift({ connectStateLandmasses: true });
+        await Burgs.shiftAsync({ connectStateLandmasses: true });
         Routes.generate(worldContext, viewContext, appServices, state);
       } else {
         States.generate(worldContext, viewContext, appServices, state);
-        Burgs.shift({ connectStateLandmasses: true });
+        await Burgs.shiftAsync({ connectStateLandmasses: true });
         Routes.generate(worldContext, viewContext, appServices, state);
       }
       Religions.generate(worldContext, viewContext, appServices, state);

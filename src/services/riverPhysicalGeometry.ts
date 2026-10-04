@@ -54,18 +54,37 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
           !["left", "right"].includes(ref.side))
       )
         return false;
-      for (let j = i + 1; j < ring.length; j++) {
-        if (j === i + 1 || (i === 0 && j === ring.length - 1)) continue;
-        if (segmentsTouch(a, b, ring[j], ring[(j + 1) % ring.length])) return false;
-      }
-      for (let prior = 0; prior < r; prior++) {
-        const other = water.rings[prior];
-        for (let j = 0; j < other.length; j++) {
-          if (segmentsTouch(a, b, other[j], other[(j + 1) % other.length])) return false;
-        }
-      }
     }
     if (!Number.isFinite(area) || Math.abs(area) <= epsilon * epsilon) return false;
+  }
+  // Sweep edge envelopes instead of comparing every pair in a long river ring.
+  // Expand by the same tolerance used by the precise contact predicate.
+  const edges = water.rings
+    .flatMap((ring, r) =>
+      ring.map((a, i) => {
+        const b = ring[(i + 1) % ring.length];
+        return {
+          a,
+          b,
+          r,
+          i,
+          count: ring.length,
+          minX: Math.min(a[0], b[0]) - epsilon,
+          maxX: Math.max(a[0], b[0]) + epsilon,
+          minY: Math.min(a[1], b[1]) - epsilon,
+          maxY: Math.max(a[1], b[1]) + epsilon
+        };
+      })
+    )
+    .sort((a, b) => a.minX - b.minX);
+  for (let i = 0; i < edges.length; i++) {
+    const a = edges[i];
+    for (let j = i + 1; j < edges.length && edges[j].minX <= a.maxX; j++) {
+      const b = edges[j];
+      if (a.maxY < b.minY || b.maxY < a.minY) continue;
+      if (a.r === b.r && (Math.abs(a.i - b.i) === 1 || Math.abs(a.i - b.i) === a.count - 1)) continue;
+      if (segmentsTouch(a.a, a.b, b.a, b.b)) return false;
+    }
   }
   return true;
 }
