@@ -14,6 +14,7 @@ interface TerrainEntry {
 }
 /** Generation-owned caches. prepare checks legacy mutable inputs at each public boundary. */
 export class SettlementGeometrySession {
+  private pack?: WorldContext["pack"];
   private terrainKey = "";
   private riverKey = "";
   private terrainIndex?: SpatialBoundsIndex<TerrainEntry>;
@@ -29,10 +30,15 @@ export class SettlementGeometrySession {
     }
   }
   *prepareSteps(world: Readonly<WorldContext>, unit: string): Generator<void> {
-    this.scale = mapUnitMeters(world.distanceScale, unit);
+    const scale = mapUnitMeters(world.distanceScale, unit);
     const { pack } = world;
-    const terrainKey = JSON.stringify([this.scale, pack.vertices.p, pack.cells.v]);
-    if (terrainKey !== this.terrainKey) {
+    const replaced = pack !== this.pack;
+    let terrainIndex = this.terrainIndex;
+    let riverIndex = this.riverIndex;
+    let sources = this.sources;
+    let unbounded = this.unbounded;
+    const terrainKey = JSON.stringify([scale, pack.vertices.p, pack.cells.v]);
+    if (replaced || terrainKey !== this.terrainKey) {
       const terrain: TerrainEntry[] = [];
       for (let id = 0; id < (pack.cells.v?.length ?? 0); id++) {
         const vertices = pack.cells.v[id] ?? [];
@@ -42,20 +48,18 @@ export class SettlementGeometrySession {
           id,
           vertices,
           bounds: {
-            minX: Math.min(...points.map(p => p[0])) * this.scale,
-            maxX: Math.max(...points.map(p => p[0])) * this.scale,
-            minY: Math.min(...points.map(p => p[1])) * this.scale,
-            maxY: Math.max(...points.map(p => p[1])) * this.scale
+            minX: Math.min(...points.map(p => p[0])) * scale,
+            maxX: Math.max(...points.map(p => p[0])) * scale,
+            minY: Math.min(...points.map(p => p[1])) * scale,
+            maxY: Math.max(...points.map(p => p[1])) * scale
           }
         });
         if (id % 128 === 0) yield;
       }
-      this.terrainIndex = new SpatialBoundsIndex(terrain, t => t.bounds);
-      this.terrainKey = terrainKey;
-      this.terrainBuilds++;
+      terrainIndex = new SpatialBoundsIndex(terrain, t => t.bounds);
     }
     const riverKey = JSON.stringify([
-      this.scale,
+      scale,
       world.graphWidth,
       world.graphHeight,
       pack.rivers,
@@ -63,26 +67,36 @@ export class SettlementGeometrySession {
       pack.cells.h,
       pack.cells.fl
     ]);
-    if (riverKey !== this.riverKey) {
-      this.sources.clear();
-      this.unbounded = [];
+    if (replaced || riverKey !== this.riverKey) {
+      sources = new Map();
+      unbounded = [];
       const entries: { id: number; bounds: SpatialBounds }[] = [];
       for (const river of pack.rivers) {
         const source = regionalRiverGeometry(world, river, unit, SETTLEMENT_RIVER_SETTINGS);
-        this.sources.set(river.i, source);
+        sources.set(river.i, source);
         if (source instanceof RegionalRiverGeometry)
           entries.push(...source.sections.map(section => ({ id: river.i, bounds: section.bounds })));
         else {
           const bounds = worldRiverOccupiedBounds(world, river, unit, SETTLEMENT_RIVER_SETTINGS);
           if (bounds) entries.push({ id: river.i, bounds });
-          else this.unbounded.push(river.i);
+          else unbounded.push(river.i);
         }
         yield;
       }
-      this.riverIndex = new SpatialBoundsIndex(entries, e => e.bounds);
-      this.riverKey = riverKey;
-      this.riverIndexBuilds++;
+      riverIndex = new SpatialBoundsIndex(entries, e => e.bounds);
     }
+    // Yielding preparation may be cancelled. Publish one coherent snapshot only
+    // after both indexes and all sources are complete.
+    if (terrainIndex !== this.terrainIndex) this.terrainBuilds++;
+    if (riverIndex !== this.riverIndex) this.riverIndexBuilds++;
+    this.pack = pack;
+    this.scale = scale;
+    this.terrainIndex = terrainIndex;
+    this.riverIndex = riverIndex;
+    this.sources = sources;
+    this.unbounded = unbounded;
+    this.terrainKey = terrainKey;
+    this.riverKey = riverKey;
   }
   terrain(world: Readonly<WorldContext>, bounds: SpatialBounds) {
     return (this.terrainIndex?.query(bounds) ?? []).map(entry => {

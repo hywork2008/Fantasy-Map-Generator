@@ -71,6 +71,50 @@ describe("generation geometry sessions", () => {
     expect(session.terrain(world, { minX: 0, minY: 0, maxX: 9000, maxY: 9000 })).toHaveLength(1);
     expect(session.source(7)).toBeDefined();
   });
+  it("keeps the committed indexes, scale and sources when a rebuild is interrupted", () => {
+    const world = fixture(),
+      session = new SettlementGeometrySession();
+    world.pack.rivers.push({ ...world.pack.rivers[0], i: 8 });
+    session.prepare(world, "km");
+    const source = session.source(7),
+      otherSource = session.source(8);
+    const bounds = { minX: 0, minY: 0, maxX: 9000, maxY: 9000 };
+    const ring = session.terrain(world, bounds)[0].ring;
+    world.pack.rivers[0].sourceWidth = 0.8;
+    const steps = session.prepareSteps(world, "mi");
+    expect(steps.next().done).toBe(false); // terrain
+    expect(steps.next().done).toBe(false); // first river
+    steps.return(undefined);
+    expect(session.terrainBuilds).toBe(1);
+    expect(session.riverIndexBuilds).toBe(1);
+    expect(session.source(7)).toBe(source);
+    expect(session.source(8)).toBe(otherSource);
+    expect(session.terrain(world, bounds)[0].ring).toBe(ring);
+    // This ring is first materialized after cancellation: it still uses km.
+    expect(session.terrain(world, { minX: 50000, minY: 50000, maxX: 60000, maxY: 60000 })[0].ring[0]).toEqual([
+      50000, 50000
+    ]);
+    session.prepare(world, "mi");
+    expect(session.terrainBuilds).toBe(2);
+    expect(session.riverIndexBuilds).toBe(2);
+    expect(session.source(7)).not.toBe(source);
+    expect(session.source(8)).not.toBe(otherSource);
+  });
+  it("invalidates the whole session on an identical pack replacement", () => {
+    const world = fixture(),
+      session = new SettlementGeometrySession();
+    session.prepare(world, "km");
+    const source = session.source(7);
+    const bounds = { minX: 0, minY: 0, maxX: 9000, maxY: 9000 };
+    const ring = session.terrain(world, bounds)[0].ring;
+    world.pack = structuredClone(world.pack);
+    session.prepare(world, "km");
+    expect(session.terrainBuilds).toBe(2);
+    expect(session.riverIndexBuilds).toBe(2);
+    expect(session.source(7)).not.toBe(source);
+    expect(session.terrain(world, bounds)[0].ring).not.toBe(ring);
+    expect(session.terrain(world, bounds)[0].ring).toEqual(ring);
+  });
   it("queries only intersecting cell polygons, including cells enclosing the query", () => {
     const world = fixture(),
       session = new SettlementGeometrySession();
