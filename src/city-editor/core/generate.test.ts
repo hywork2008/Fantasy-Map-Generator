@@ -21,6 +21,7 @@ import { siteToGeography } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
 import {
   defaultGenerationSettings,
+  dryTownApproachLine,
   GENERATION_STAGES,
   type GenerationSettings,
   generateCityOnDocument,
@@ -1148,5 +1149,35 @@ describe("sizePresetForExtent / custom frame", () => {
     const faces = Object.values(city.mesh.faces);
     expect(faces.some(f => f.properties.ward === "cemetery")).toBe(true);
     expect(city.cemeteries?.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("dryTownApproachLine", () => {
+  const channel = (y: number) => y > 40 && y < 80;
+
+  it("keeps a routable town-side segment when the outer goal is the only wet point", () => {
+    const line = dryTownApproachLine(
+      [
+        [0, 120],
+        [0, 20]
+      ],
+      (a, b) => channel(a[1]) || channel(b[1]) || (a[1] < 40 && b[1] > 80) || (b[1] < 40 && a[1] > 80)
+    );
+    expect(line).not.toBeNull();
+    expect(line![0][1]).toBeLessThanOrEqual(40);
+    expect(line![1][1]).toBeLessThan(line![0][1]);
+    expect(line!.every(point => !channel(point[1]))).toBe(true);
+  });
+
+  it("leaves a dry approach unchanged", () => {
+    expect(
+      dryTownApproachLine(
+        [
+          [0, 10],
+          [0, 0]
+        ],
+        () => false
+      )
+    ).toBeNull();
   });
 });

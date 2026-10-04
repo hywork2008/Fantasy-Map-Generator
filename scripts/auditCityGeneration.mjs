@@ -244,9 +244,15 @@ const counts = Object.fromEntries(
 const reasons = {};
 for (const result of records.filter(r => r.status === "rejected"))
   for (const reason of result.reasons) reasons[reason] = (reasons[reason] ?? 0) + 1;
+const reach = records.flatMap(result => (Array.isArray(result.roadReach) ? result.roadReach : []));
+const roadReach = {
+  roads: reach.length,
+  reachesTarget: reach.filter(road => road.reachesTarget).length,
+  stopsShort: reach.filter(road => road.reachesTarget === false).length
+};
 writeFileSync(
   `${output}.summary.json`,
-  `${JSON.stringify({ ...metadata, inputCities: rows.length, completedCities: records.filter(r => r.status !== "interrupted").length, counts, reasons, interrupted: stopping }, null, 2)}\n`
+  `${JSON.stringify({ ...metadata, inputCities: rows.length, completedCities: records.filter(r => r.status !== "interrupted").length, counts, reasons, roadReach, interrupted: stopping }, null, 2)}\n`
 );
 console.error(`[ce:audit] ${JSON.stringify(counts)} -> ${output}`);
 if (stopping) process.exitCode = 130;

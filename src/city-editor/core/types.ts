@@ -363,6 +363,16 @@ export interface CityDocument {
   importedRoadCount?: number;
   /** Continuous imported water, independent of the editable street-block mesh. */
   waterAreas?: { kind: "river"; polygon: Point[] }[];
+  /** Land roads continued from the town mesh to the display frame, including perpendicular river decks. */
+  frameRoads?: {
+    sourceIndex: number;
+    routeId: number;
+    pieces: {
+      kind: "road" | "bridge";
+      points: Point[];
+      bridgeKind?: "fixedBridge" | "movableBridge";
+    }[];
+  }[];
   /** Exact imported road legs across physical water, outside the block mesh. */
   riverConnections?: {
     sourceIndex: number;

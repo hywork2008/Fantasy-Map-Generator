@@ -1,6 +1,7 @@
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
+import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
 import {
@@ -46,7 +47,7 @@ import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPo
 // Rivers / Features (or a real FMG descriptor) are the deliberate inputs and
 // are kept across presses.
 
-import { maxWallGatesForExtent, sizePresetForExtent } from "./document";
+import { maxWallGatesForExtent, sizePresetForExtent, townMeshExtentMeters } from "./document";
 import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
 import { tagExternalGateRoads } from "./gen/approachBeyond";
 import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./gen/cemeteryLayout";
@@ -757,6 +758,15 @@ export function generateCityAttempt(
     ),
     gate.point
   ]);
+  // A surveyed river can leave one entrance with no dry wall corner. Keep the
+  // town-side bank as an interior street. The frame road crosses onward.
+  const coveredRoadIndexes = new Set(
+    plan.gates.flatMap(gate => (gate.roadIndex === undefined ? [] : [gate.roadIndex]))
+  );
+  for (const [index, road] of (geo.importedRoads ?? []).entries()) {
+    if (coveredRoadIndexes.has(index) || road.path.length < 2) continue;
+    roads.push([[0, 0], [...road.path.at(-1)!]]);
+  }
   const next = applyPlan(
     document,
     activeCells,
@@ -1365,6 +1375,7 @@ interface Plan {
   roads: Point[][];
   roadPaths?: Point[][];
   importedRoads?: CityGeography["importedRoads"];
+  frameRoads?: CityDocument["frameRoads"];
   riverPort?: boolean;
   streets: Point[][];
   wards: Map<number, WardKind>;
@@ -1459,6 +1470,7 @@ export function runPlan(
     waterPolygon: null,
     avoidSea: streetOpts.avoidSea,
     importedRoads: geo.importedRoads,
+    frameRoads: outerFrameRoads(settings.descriptor),
     riverPort: geo.riverPort,
     rivers: [],
     urban: new Set(),
@@ -2337,6 +2349,7 @@ export function runPlan(
     roads: complete ? roads : [...roads, ...gateStreets],
     roadPaths: geo.roadPaths,
     importedRoads: geo.importedRoads,
+    frameRoads: empty.frameRoads,
     riverPort: geo.riverPort,
     streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
@@ -2362,6 +2375,7 @@ function planningDebugDocument(
     next.importedFixedCrossings = plan.fixedCrossings ? clone(plan.fixedCrossings) : undefined;
   next.importedRoadCount = plan.importedRoads?.length;
   next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
+  assignFrameRoads(next, plan);
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   delete next.fabric;
@@ -2412,6 +2426,75 @@ function planningDebugDocument(
   return next;
 }
 
+/** Town-side remainder of an approach whose line enters surveyed water. The outer goal is polyline[0]. */
+export function dryTownApproachLine(polyline: Point[], wet: (a: Point, b: Point) => boolean): Point[] | null {
+  if (polyline.length < 2) return null;
+  let cut = 0;
+  while (cut < polyline.length - 1 && wet(polyline[cut], polyline[cut + 1])) cut += 1;
+  if (cut === 0) {
+    let index = polyline.length - 1;
+    while (index > 0 && !wet(polyline[index - 1], polyline[index])) index -= 1;
+    if (index <= 0) return null;
+    const suffix = polyline.slice(index);
+    if (suffix.length < 2) return null;
+    if (Math.hypot(suffix[0][0] - polyline[0][0], suffix[0][1] - polyline[0][1]) < 1) return null;
+    return suffix;
+  }
+  const rest = polyline.slice(cut);
+  if (rest.length >= 2) {
+    if (Math.hypot(rest[0][0] - polyline[0][0], rest[0][1] - polyline[0][1]) < 1) return null;
+    return rest;
+  }
+  const inner = polyline[cut];
+  const landed = drySideOfWetSegment(polyline[cut - 1], inner, wet);
+  if (!landed) return null;
+  if (Math.hypot(landed[0] - polyline[0][0], landed[1] - polyline[0][1]) < 1) return null;
+  const step = townwardStep(inner, landed);
+  if (Math.hypot(step[0] - landed[0], step[1] - landed[1]) < 1 || wet(landed, step)) return null;
+  return [landed, step];
+}
+
+/** Outermost point on the town side of a wet segment, where the stroke still stays dry. */
+function drySideOfWetSegment(outer: Point, inner: Point, wet: (a: Point, b: Point) => boolean): Point | null {
+  if (!wet(outer, inner)) return inner;
+  let lo = 0;
+  let hi = 1;
+  let best: Point | null = null;
+  for (let i = 0; i < 16; i++) {
+    const t = (lo + hi) / 2;
+    const mid: Point = [inner[0] + (outer[0] - inner[0]) * t, inner[1] + (outer[1] - inner[1]) * t];
+    if (wet(inner, mid)) hi = t;
+    else {
+      best = mid;
+      lo = t;
+    }
+  }
+  return best;
+}
+
+function townwardStep(inner: Point, landed: Point): Point {
+  if (Math.hypot(inner[0] - landed[0], inner[1] - landed[1]) >= 1) return inner;
+  const length = Math.hypot(inner[0], inner[1]);
+  if (length >= 8) return [inner[0] - (inner[0] / length) * 8, inner[1] - (inner[1] / length) * 8];
+  return [inner[0] * 0.5, inner[1] * 0.5];
+}
+
+function dryTownApproach(document: CityDocument, polyline: Point[]): Point[] | null {
+  if (!document.importedFixedCrossings) return null;
+  const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
+  return dryTownApproachLine(polyline, (a, b) => lineHitsDocumentWater(document, [a, b], width, false));
+}
+
+function outerFrameRoads(site: BurgSiteDescriptor | undefined): CityDocument["frameRoads"] {
+  const legs = site ? frameRoadLegs(site, "beyond-mesh") : [];
+  return legs.length ? legs : undefined;
+}
+
+function assignFrameRoads(next: CityDocument, plan: Plan): void {
+  if (plan.frameRoads?.length) next.frameRoads = clone(plan.frameRoads);
+  else delete next.frameRoads;
+}
+
 function settingsLegacy(plan: Plan): boolean {
   return !!plan.legacyCastles;
 }
@@ -2455,6 +2538,7 @@ function applyPlan(
     next.importedFixedCrossings = plan.fixedCrossings ? clone(plan.fixedCrossings) : undefined;
   next.importedRoadCount = plan.importedRoads?.length;
   next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
+  assignFrameRoads(next, plan);
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
   delete next.appearance;
   // Keep the active morphology even when routing rejects before town finish.
@@ -3181,21 +3265,35 @@ function applyPlan(
       const hasRiverLanding =
         plannedGate?.roadIndex !== undefined && plan.importedRoads?.[plannedGate.roadIndex]?.riverLanding;
       const gateExists = townGates(next).some(gate => gate.id === `${GEN_PREFIX}gate-${gateIndex}`);
-      if (complete && program.walls && gateIndex >= 0 && gateIndex < approachRoadCount && !gateExists && !riverLanding)
+      // An imported road with no dry corner has no planned gate. Its town-side
+      // street still has to be traced; only a gate that was planned and lost is skipped.
+      if (
+        complete &&
+        program.walls &&
+        plannedGate &&
+        gateIndex >= 0 &&
+        gateIndex < approachRoadCount &&
+        !gateExists &&
+        !riverLanding
+      )
         return;
       if (riverLanding && !isApproach) return;
       const routeLine = riverLanding ? [...plan.importedRoads![plannedGate.roadIndex!].path].reverse() : polyline;
-      const segments = (hasRiverLanding ? routeLanding : routeComplete)(
-        routeLine,
-        isApproach && !riverLanding,
-        !!riverLanding,
-        trace => {
+      // A gateless bank street stays inside the town. A real gate approach stays outside.
+      const routeOutside = isApproach && !riverLanding && !!plannedGate;
+      const traceRoute = (line: Point[]) =>
+        (hasRiverLanding ? routeLanding : routeComplete)(line, routeOutside, !!riverLanding, trace => {
           trace.routeId = `${GEN_PREFIX}road-${i}`;
           if (trace.status === "failed") observer?.({ phase: "road-routing", elapsedMs: 0, attempt, routing: [trace] });
           const id = `${GEN_PREFIX}gate-${gateIndex}`;
           gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
-        }
-      );
+        });
+      let segments = traceRoute(routeLine);
+      // The mesh route stops on the town-side bank. The frame road carries the perpendicular crossing onward.
+      if (segments.length < 1 && routeOutside && next.importedFixedCrossings) {
+        const shortened = dryTownApproach(next, routeLine);
+        if (shortened) segments = traceRoute(shortened);
+      }
       if (segments.length < 1) return;
       if (!isApproach && program.walls) {
         const wallEdges = kindEdgeIds(next, "wall");
@@ -3236,18 +3334,32 @@ function applyPlan(
           }
         }
       }
+      const importedRoad = (() => {
+        if (!plan.importedRoads) return undefined;
+        const gateRoad = plan.gates[gateIndex]?.roadIndex;
+        if (isApproach && gateRoad !== undefined) return plan.importedRoads[gateRoad];
+        if (plannedGate) return undefined;
+        const used = new Set(plan.gates.flatMap(gate => (gate.roadIndex === undefined ? [] : [gate.roadIndex])));
+        const near = (point: Point | undefined) =>
+          point
+            ? plan.importedRoads!.find((road, index) => {
+                if (used.has(index)) return false;
+                const end = road.path.at(-1);
+                return !!end && Math.hypot(end[0] - point[0], end[1] - point[1]) < 1;
+              })
+            : undefined;
+        return near(polyline[0]) ?? near(polyline.at(-1));
+      })();
       appendGeneratedGroup({
         id: `${GEN_PREFIX}road-${i}`,
         kind: "road",
         name: `Road ${i + 1}`,
-        ...(isApproach && plan.importedRoads && plan.gates[gateIndex]?.roadIndex !== undefined
+        ...(importedRoad
           ? {
               sourceRoad: {
-                index: plan.importedRoads[plan.gates[gateIndex].roadIndex!].sourceIndex,
-                routeId: plan.importedRoads[plan.gates[gateIndex].roadIndex!].routeId,
-                ...(plan.importedRoads[plan.gates[gateIndex].roadIndex!].riverLanding
-                  ? { terminal: "riverLanding" as const }
-                  : {})
+                index: importedRoad.sourceIndex,
+                routeId: importedRoad.routeId,
+                ...(importedRoad.riverLanding ? { terminal: "riverLanding" as const } : {})
               }
             }
           : {}),
@@ -3256,6 +3368,35 @@ function applyPlan(
         locked: false
       });
     });
+    // The outside approach can collapse onto one vertex when the surveyed bank
+    // already sits inside the town. The gate's street is that road's town end.
+    if (plan.importedRoads) {
+      const tagged = new Set(
+        next.featureGroups.flatMap(group =>
+          group.kind === "road" && group.sourceRoad && group.segments.length ? [group.sourceRoad.index] : []
+        )
+      );
+      const meshHalf = townMeshExtentMeters(source.frame) / 2;
+      for (const [roadIndex, road] of plan.importedRoads.entries()) {
+        if (tagged.has(road.sourceIndex)) continue;
+        const end = road.path.at(-1);
+        // A road that still aims at the mesh edge failed to leave town. Do not
+        // borrow another street for it. Only a bank already inside the mesh
+        // is continued by the frame road.
+        if (!end || Math.max(Math.abs(end[0]), Math.abs(end[1])) >= meshHalf - 1) continue;
+        const gateIndex = plan.gates.findIndex(gate => gate.roadIndex === roadIndex);
+        if (gateIndex < 0) continue;
+        const street = next.featureGroups.find(
+          group => group.id === `${GEN_PREFIX}road-${approachRoadCount + gateIndex}`
+        );
+        if (street?.kind !== "road" || !street.segments.length || street.sourceRoad) continue;
+        street.sourceRoad = {
+          index: road.sourceIndex,
+          routeId: road.routeId,
+          ...(road.riverLanding ? { terminal: "riverLanding" as const } : {})
+        };
+      }
+    }
     if (complete && plan.importedRoads === undefined) {
       // Far-bank FMG roads must cross the entire span before entering town.
       // An exterior-only gate route can otherwise skirt the river instead.

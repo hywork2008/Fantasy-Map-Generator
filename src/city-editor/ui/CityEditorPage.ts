@@ -5194,7 +5194,7 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
   const preview = renderFixedSitePreview(descriptor);
   if (preview) {
     const caption = document.createElement("div");
-    caption.textContent = "Imported fixed river crossings";
+    caption.textContent = "Imported fixed river crossings and road directions";
     nodes.push(caption, preview);
   }
   return nodes;

@@ -10,6 +10,7 @@ import {
   reservedCastleFaces,
   wallRunsOutsideGates
 } from "../core/fortifications";
+import { segmentClearsSurveyedWater } from "../core/frameRoads";
 import {
   approachBeyondAnchor,
   approachBeyondLabel,
@@ -836,6 +837,7 @@ export function renderEditorSvg(
         );
     }
   }
+  appendFrameRoads(features, document);
   features.appendChild(renderApproachLabels(document, zoom));
   if (town && !fixedMode) {
     for (const deck of bridgeDecks(document)) {
@@ -2670,6 +2672,107 @@ function roundedFarmPolygon(points: Point[]): string {
 
 function line(points: Point[]): string {
   return points.map((point, index) => `${index ? "L" : "M"}${point[0]} ${-point[1]}`).join(" ");
+}
+
+/** Continue an imported road from the outermost mesh vertex when that stub stays dry. */
+function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
+  const legs = document.frameRoads;
+  if (!legs?.length) return;
+  const width = String(defaultRoadWidthMeters(townExtentMeters(document.frame)));
+  const rings = [
+    ...(document.importedFixedCrossings?.rivers ?? []),
+    ...(document.importedFixedCrossings?.obstacles ?? [])
+  ].map(river => river.rings);
+  for (const leg of legs) {
+    const anchor = outerSourcePoint(document, leg.sourceIndex);
+    for (const [index, piece] of leg.pieces.entries()) {
+      let points = piece.points;
+      if (index === 0 && piece.kind === "road" && anchor && points.length) {
+        const gap = Math.hypot(anchor[0] - points[0][0], anchor[1] - points[0][1]);
+        if (gap > 0.5 && gap <= 40 && segmentClearsSurveyedWater(anchor, points[0], rings))
+          points = [anchor, ...points];
+      }
+      if (points.length < 2) continue;
+      const identity = {
+        "data-source-index": String(leg.sourceIndex),
+        "data-route-id": String(leg.routeId),
+        "pointer-events": "none"
+      };
+      if (piece.kind === "bridge") {
+        if (index === 0 && anchor && points.length) {
+          const gap = Math.hypot(anchor[0] - points[0][0], anchor[1] - points[0][1]);
+          if (gap > 0.5 && gap <= 40 && segmentClearsSurveyedWater(anchor, points[0], rings)) {
+            parent.appendChild(
+              element("path", {
+                d: line([anchor, points[0]]),
+                class: "ce-frame-road",
+                "data-frame-road": String(leg.routeId),
+                fill: "none",
+                stroke: "#735238",
+                "stroke-width": width,
+                "stroke-linecap": "butt",
+                ...identity
+              })
+            );
+          }
+        }
+        parent.appendChild(
+          element("path", {
+            d: line(points),
+            class: "ce-bridge-outline",
+            fill: "none",
+            stroke: "#1A1917",
+            "stroke-width": String(Number(width) + 1.4),
+            "stroke-linecap": "butt",
+            ...identity
+          })
+        );
+        parent.appendChild(
+          element("path", {
+            d: line(points),
+            class: piece.bridgeKind === "movableBridge" ? "ce-bridge-deck ce-movable-bridge" : "ce-bridge-deck",
+            "data-frame-bridge": piece.bridgeKind ?? "fixedBridge",
+            fill: "none",
+            stroke: "#d5cfbf",
+            "stroke-width": width,
+            "stroke-linecap": "butt",
+            ...identity
+          })
+        );
+        continue;
+      }
+      parent.appendChild(
+        element("path", {
+          d: line(points),
+          class: "ce-frame-road",
+          "data-frame-road": String(leg.routeId),
+          fill: "none",
+          stroke: "#735238",
+          "stroke-width": width,
+          "stroke-linecap": "butt",
+          ...identity
+        })
+      );
+    }
+  }
+}
+
+function outerSourcePoint(document: CityDocument, sourceIndex: number): Point | undefined {
+  let best: Point | undefined;
+  let bestD = -1;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.sourceRoad?.index !== sourceIndex) continue;
+    for (const id of featureGroupVertices(document, group)) {
+      const point = document.mesh.vertices[id]?.point;
+      if (!point) continue;
+      const d = point[0] * point[0] + point[1] * point[1];
+      if (d > bestD) {
+        bestD = d;
+        best = point;
+      }
+    }
+  }
+  return best;
 }
 
 function centroid(points: Point[]): Point {

@@ -1,10 +1,13 @@
 import { parseIncomingPayload } from "../io/incomingCity";
+import { featureGroupVertices } from "./features";
 import { defaultRoadWidthMeters, townExtentMeters } from "./gen/settlementExtent";
+import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { importedRoadsForSite } from "./gen/site/importedRoads";
 import { generateCityOnDocument } from "./generate";
 import type { GenerationDebugPreview } from "./generationDebug";
 import type { GenerationSample } from "./generationDiagnostics";
 import { cityEditorDocument, cityEditorSettings } from "./housingReport";
+import type { CityDocument, Point } from "./types";
 import { lineHitsDocumentWater } from "./waterGeometry";
 
 /** Same incoming payload, grid and completed generator as the CE UI. No housing
@@ -69,9 +72,61 @@ export function auditCityGeneration(
     failures,
     routing: samples.flatMap(s => s.routing ?? []),
     inputRoads,
+    roadReach: city ? roadReach(city, share.descriptor) : null,
     fixedApproaches: fixed,
     completeFixedApproaches: fixed.every(s => s.status === "adopted"),
     phases: samples.map(({ phase, elapsedMs, attempt, counts }) => ({ phase, elapsedMs, attempt, counts })),
     preview
   };
+}
+
+/** Where each land road ends after generation, compared with the descriptor path. Not a reject reason. */
+function roadReach(city: CityDocument, descriptor: BurgSiteDescriptor) {
+  const half = descriptor.frame.extentMeters / 2;
+  const round = (value: number) => Math.round(value * 10) / 10;
+  const onFrame = (point: Point) => half - Math.max(Math.abs(point[0]), Math.abs(point[1])) <= 25;
+  const rows = [];
+  descriptor.roads.forEach((road, sourceIndex) => {
+    if (road.group === "searoutes") return;
+    const targets = road.sharedBranches?.length
+      ? road.sharedBranches.flatMap(branch =>
+          branch.path.length ? [{ routeId: branch.routeId, end: branch.path.at(-1)! }] : []
+        )
+      : road.path.length
+        ? [{ routeId: road.routeId, end: road.path.at(-1)! }]
+        : [];
+    for (const target of targets) {
+      const leg = city.frameRoads?.find(item => item.sourceIndex === sourceIndex && item.routeId === target.routeId);
+      const frameEnd = leg?.pieces.at(-1)?.points.at(-1);
+      const meshEnd = outerMeshPoint(city, sourceIndex);
+      const rendered = frameEnd ?? meshEnd;
+      const gap = rendered ? Math.hypot(rendered[0] - target.end[0], rendered[1] - target.end[1]) : Infinity;
+      rows.push({
+        sourceIndex,
+        routeId: target.routeId,
+        descriptorEndDistance: round(Math.hypot(target.end[0], target.end[1])),
+        renderedEndDistance: rendered ? round(Math.hypot(rendered[0], rendered[1])) : null,
+        reachesTarget: gap <= 25 || (!!rendered && onFrame(rendered) && onFrame(target.end))
+      });
+    }
+  });
+  return rows;
+}
+
+function outerMeshPoint(city: CityDocument, sourceIndex: number): Point | null {
+  let best: Point | null = null;
+  let bestD = -1;
+  for (const group of city.featureGroups) {
+    if (group.kind !== "road" || group.sourceRoad?.index !== sourceIndex) continue;
+    for (const id of featureGroupVertices(city, group)) {
+      const point = city.mesh.vertices[id]?.point;
+      if (!point) continue;
+      const d = point[0] * point[0] + point[1] * point[1];
+      if (d > bestD) {
+        bestD = d;
+        best = point;
+      }
+    }
+  }
+  return best;
 }
