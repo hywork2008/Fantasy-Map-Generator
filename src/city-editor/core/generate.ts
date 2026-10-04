@@ -928,8 +928,8 @@ export function generateCityAttempt(
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
-  if (settings.descriptor) fitImportedHousing(settled, settings.descriptor.burg.dwellings);
   applyImportedWaterAccess(settled, settings);
+  if (settings.descriptor) fitImportedHousing(settled, settings.descriptor.burg.dwellings);
   spawnHarborShips(settled, seed);
   const fixedApproachStarted = performance.now();
   const fixedApproaches = connectAutomaticFixedApproaches(settled);
@@ -1986,6 +1986,8 @@ export function runPlan(
             }
           ]
         : [],
+      waterAreas: (empty.channelPolygons ?? []).map(polygon => ({ kind: "river", polygon })),
+      importedFixedCrossings: settings.descriptor?.fixedCrossings,
       gates: [],
       elements: []
     };
@@ -2319,6 +2321,10 @@ export function runPlan(
     waterPolygon,
     streets: [...streetResult.streets, ...roads],
     rivers: rivers.map(band => band.edgePoints),
+    riverBanks:
+      settings.descriptor?.fixedCrossings?.rivers.flatMap(river =>
+        river.rings.map(ring => [...ring.map(p => [p[0], p[1]] as Point), [ring[0][0], ring[0][1]] as Point])
+      ) ?? geo.channels?.map(channel => [...channel.polygon, channel.polygon[0]]),
     historicalPeriod
   });
   mark("wards");
@@ -2953,6 +2959,20 @@ function applyPlan(
         )
           continue;
         const arms = throughEdgesAt(opened, vertexId, "wall");
+        // A partial land cell can hide a submerged passage arm. Both sides
+        // of a gate need a dry road before committing this candidate.
+        if (
+          opened.importedFixedCrossings &&
+          arms.some(edge =>
+            lineHitsDocumentWater(
+              opened,
+              [opened.mesh.vertices[edge.a].point, opened.mesh.vertices[edge.b].point],
+              defaultRoadWidthMeters(townExtentMeters(opened.frame)),
+              true
+            )
+          )
+        )
+          continue;
         const inRegion = (edge: (typeof arms)[number], regions: Point[][]) =>
           [edge.leftFace, edge.rightFace].some(id => {
             if (!id) return false;
@@ -3513,7 +3533,14 @@ function applyPlan(
                 : []
             )
             .join(", ") || "なし"
-        }`
+        }`,
+        `門 ${gate.vertexId} の全接続辺: ${Object.values(mesh.edges)
+          .filter(e => e.a === gate.vertexId || e.b === gate.vertexId)
+          .map(e => `${e.id}(to ${e.a === gate.vertexId ? e.b : e.a}, L:${e.leftFace}, R:${e.rightFace})`)
+          .join(", ")}`,
+        `門 ${gate.vertexId} の通過可能辺: ${throughEdgesAt(next, gate.vertexId, "wall")
+          .map(e => e.id)
+          .join(", ")}`
       ]),
       disconnected.flatMap(gate => gateRouting.get(gate.id) ?? [])
     );
@@ -3606,6 +3633,7 @@ function applyPlan(
         face.properties.ward === "empty" ||
         face.properties.ward === "park" ||
         face.properties.ward === "farm" ||
+        face.properties.ward === "harbor" ||
         face.properties.ward === "cemetery"
       )
         continue;

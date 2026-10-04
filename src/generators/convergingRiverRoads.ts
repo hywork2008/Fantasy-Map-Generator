@@ -1,4 +1,5 @@
 import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
+import { indexedPhysicalWater } from "../services/indexedPhysicalWater";
 import type { RiverPoint } from "../services/riverGeometry";
 import { footprintTouchesWater } from "../services/riverPhysicalGeometry";
 import type { CrossingCandidateInput, ProvisionalRiverCrossing } from "./riverCrossingCandidates";
@@ -31,6 +32,8 @@ export function convergeRiverRoadLegs(
   let best: { value: ConvergingRiverRoads; cost: number } | null = null;
   for (const { crossing: c, input } of candidates) {
     if (!validateProvisionalRiverCrossing(c, input)) continue;
+    const target = input.waterIndex?.getSnapshot(input.geometry.water);
+    const targetIndex = target ? indexedPhysicalWater(target) : undefined;
     const water = [input.geometry.water, ...input.otherWater];
     const dry = (a: RiverPoint, b: RiverPoint) => {
       if (distance(a, b) < 1e-8) return true;
@@ -38,7 +41,9 @@ export function convergeRiverRoadLegs(
       return (
         !!footprint &&
         input.supportsDryFootprint(footprint) &&
-        !water.some(area => footprintTouchesWater(footprint, area))
+        !(input.waterIndex
+          ? input.waterIndex.touchesWater(footprint)
+          : water.some(area => footprintTouchesWater(footprint, area)))
       );
     };
     const nearA = side(origin, c) < 0;
@@ -73,7 +78,10 @@ export function convergeRiverRoadLegs(
           if (
             !prefix.slice(1).some((p, j) => {
               const footprint = bridgePassageFootprint(prefix[j], p, input.dimensions.roadWidthMeters);
-              return footprint && footprintTouchesWater(footprint, input.geometry.water);
+              return (
+                footprint &&
+                (targetIndex ? targetIndex.touches(footprint) : footprintTouchesWater(footprint, input.geometry.water))
+              );
             })
           )
             continue;

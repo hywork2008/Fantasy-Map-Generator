@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createGridDocument } from "../document";
 import { defaultGenerationSettings, generateStageOnDocument } from "../generate";
 import { buildBlockFabric } from "./blockInfill";
+import { planHarborShips } from "./harborShips";
 import { DEFAULT_SITE_CONFIG } from "./site/siteConfig";
 import { synthSite } from "./site/synthSite";
 
@@ -39,5 +40,8 @@ describe("FMG river port without clipped geometry", () => {
     const fabric = buildBlockFabric(city);
     expect(fabric.harbor?.piers.length).toBeGreaterThan(0);
     expect(fabric.harbor?.piers.every(p => p.reach! <= width / 4)).toBe(true);
+    const ships = planHarborShips(city);
+    expect(ships.length).toBeGreaterThan(0);
+    expect(ships.every(ship => ship.shipType === "barge")).toBe(true);
   });
 });

@@ -103,7 +103,13 @@ export function cityEditorDocument(share: CityEditorShare): CityDocument {
     seed: share.gridSeed ?? share.seed,
     hexSizeMeters: share.hexSizeMeters,
     patchParams: share.patchParams,
-    ...(share.descriptor ? descriptorFrameGridOptions(share.descriptor.frame) : {}),
+    ...(share.descriptor
+      ? descriptorFrameGridOptions(
+          share.descriptor.frame,
+          share.descriptor.burg.waterAccess?.port.river === true,
+          share.descriptor.burg.riverPlacement?.bankDistanceMeters
+        )
+      : {}),
     measureBlockSize: share.measureBlockSize === true
   });
 }

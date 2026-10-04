@@ -2864,7 +2864,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (path) path.setAttribute("class", faceClassName(face, selection.faceId === faceId));
     wardLandmarkElementsById.get(faceId)?.remove();
     wardLandmarkElementsById.delete(faceId);
-    const landmark = renderFaceWardLandmark(documentState.mesh, face);
+    const landmark = renderFaceWardLandmark(documentState.mesh, face, documentState);
     if (landmark && wardLandmarksGroup) {
       wardLandmarksGroup.appendChild(landmark);
       wardLandmarkElementsById.set(faceId, landmark as SVGGElement);
@@ -4517,7 +4517,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function importedFrame() {
     const descriptor = generateSettings.descriptor;
-    return descriptor ? descriptorFrameGridOptions(descriptor.frame) : {};
+    return descriptor
+      ? descriptorFrameGridOptions(
+          descriptor.frame,
+          descriptor.burg.waterAccess?.port.river === true,
+          descriptor.burg.riverPlacement?.bankDistanceMeters
+        )
+      : {};
   }
 
   function currentShare(): CityEditorShare {
@@ -4591,7 +4597,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       seed: gridSeed,
       hexSizeMeters,
       patchParams: { ...gridEvoParams },
-      ...(share.descriptor ? descriptorFrameGridOptions(share.descriptor.frame) : {}),
+      ...(share.descriptor
+        ? descriptorFrameGridOptions(
+            share.descriptor.frame,
+            share.descriptor.burg.waterAccess?.port.river === true,
+            share.descriptor.burg.riverPlacement?.bankDistanceMeters
+          )
+        : {}),
       measureBlockSize: measureTownCells
     });
     history = new DocumentHistory(

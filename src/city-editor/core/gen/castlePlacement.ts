@@ -1,6 +1,7 @@
 import { boundaryEdges, insideRing } from "../fortifications";
 import { clone, faceNeighbors, facePoints, insertEdgeVertex, mergeFaces, splitFace } from "../mesh";
 import type { CastleSettings, CityDocument, Id, Mesh, Point } from "../types";
+import { polygonHitsDocumentWater } from "../waterGeometry";
 import { layoutCastle } from "./castleLayout";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { makeRng } from "./prng";
@@ -132,6 +133,7 @@ function acceptReservedCastle(
   if (
     area < minArea ||
     area > 30000 ||
+    polygonHitsDocumentWater(working, points) ||
     rivers.some(
       r =>
         points.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 5) ||

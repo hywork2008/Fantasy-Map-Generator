@@ -13,9 +13,9 @@ function houseCount(document: CityDocument): number {
   }).length;
 }
 
-/** Fit FMG households by replanning the plot and street-block dimensions.
- * Occupancy stays intact so housing forms complete street walls, with shared
- * courts behind them, instead of random holes throughout the city. */
+/** Fit FMG households by reducing occupancy, preserving metre-scale houses
+ * and streets. A sparsely populated town must not enlarge its houses to fill
+ * the same editing cells. */
 export function fitImportedHousing(document: CityDocument, dwellings: number): void {
   if (!document.fabric || !(dwellings > 0) || !Number.isFinite(dwellings)) return;
   if (document.buildingPattern === "medieval" || document.fabric.version === 5) return;
@@ -33,16 +33,14 @@ export function fitImportedHousing(document: CityDocument, dwellings: number): v
       })
   );
   if (!districts.length) return;
-  const areas = districts.map(district => district.parameters.lotArea);
+  const occupancies = districts.map(district => district.parameters.occupancy);
   // Discrete plots need modest headroom; aim halfway into the 0–5% allowance.
   const maximum = Math.ceil(dwellings * 1.05);
   const target = (dwellings + maximum) / 2;
   const originalCount = houseCount(document);
   if (originalCount <= maximum) return;
-  const maxFactor = Math.max(...areas.map(area => 3000 / area));
   const apply = (factor: number) => {
-    for (const [index, district] of districts.entries())
-      district.parameters.lotArea = Math.min(3000, areas[index] * factor);
+    for (const [index, district] of districts.entries()) district.parameters.occupancy = occupancies[index] * factor;
   };
   let bestFactor = 1;
   let bestError = Math.abs(originalCount - target);
@@ -57,22 +55,18 @@ export function fitImportedHousing(document: CityDocument, dwellings: number): v
     return count;
   };
   const fits = (count: number) => count >= dwellings && count <= maximum;
-  let low = 1;
-  let high = Math.min(maxFactor, Math.max(2, originalCount / target));
-  let count = sample(high);
-  for (let step = 0; step < 5 && count > maximum && high < maxFactor; step++) {
-    low = high;
-    high = Math.min(maxFactor, high * 2);
-    count = sample(high);
-  }
-  // Plot subdivision changes in whole rows. Keep the closest valid result
-  // even when seeded splits make the count locally non-monotonic.
-  for (let step = 0; step < 8 && !fits(count); step++) {
+  let low = 0;
+  let high = 1;
+  let count = sample(Math.min(1, target / originalCount));
+  // Occupancy changes only the number of occupied plots; plot dimensions stay
+  // fixed. Keep the closest seeded result if whole-house quantisation prevents
+  // a count inside the allowance.
+  for (let step = 0; step < 10 && !fits(count); step++) {
     const middle = (low + high) / 2;
     if (middle === low || middle === high) break;
     count = sample(middle);
-    if (count > target) low = middle;
-    else high = middle;
+    if (count > target) high = middle;
+    else low = middle;
   }
   apply(bestFactor);
 }

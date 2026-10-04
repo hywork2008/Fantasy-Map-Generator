@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { FixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { renderEditorSvg } from "../render/svg";
 import { createGridDocument, createSizedDocument, parseDocument } from "./document";
 import { featureGroupVertices } from "./features";
+import fixedFixture from "./fixtures/rarerland518-20261004.json";
 import { buildCityBuildings } from "./gen/buildingLots";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
 import { siteToGeography } from "./gen/site/siteInput";
@@ -9,7 +11,14 @@ import { synthSite } from "./gen/site/synthSite";
 import { defaultGenerationSettings, generateStageOnDocument } from "./generate";
 import { facePoints, validate } from "./mesh";
 import type { Point } from "./types";
-import { cellInsideWater, dryRuns, lineHitsWater, polygonHitsWater, waterPolygons } from "./waterGeometry";
+import {
+  cellInsideWater,
+  dryRuns,
+  fixedWaterPolygons,
+  lineHitsWater,
+  polygonHitsWater,
+  waterPolygons
+} from "./waterGeometry";
 
 const channel: Point[] = [
   [-600, 135],
@@ -18,6 +27,81 @@ const channel: Point[] = [
   [-600, 232]
 ];
 describe("continuous water geometry", () => {
+  it("preserves islands and coverage bounds in imported physical water", () => {
+    const fixed = structuredClone(fixedFixture.fixedCrossings) as unknown as FixedBurgCrossings;
+    if (fixed.schemaVersion !== 3 && fixed.schemaVersion !== 4) throw new Error("Expected a surveyed fixture");
+    fixed.coverageBounds = { minX: -100, minY: -100, maxX: 100, maxY: 100 };
+    fixed.obstacles = [];
+    fixed.rivers[0].rings = [
+      [
+        [-200, -200],
+        [200, -200],
+        [200, 200],
+        [-200, 200]
+      ],
+      [
+        [-20, -20],
+        [-20, 20],
+        [20, 20],
+        [20, -20]
+      ]
+    ];
+    fixed.rivers = [fixed.rivers[0]];
+    const water = fixedWaterPolygons(fixed);
+    expect(
+      polygonHitsWater(
+        [
+          [-10, -10],
+          [10, -10],
+          [10, 10],
+          [-10, 10]
+        ],
+        water
+      )
+    ).toBe(false);
+    expect(
+      lineHitsWater(
+        [
+          [30, 30],
+          [80, 80]
+        ],
+        water
+      )
+    ).toBe(true);
+    expect(water.flat().every(p => p.every(v => Math.abs(v) <= 100))).toBe(true);
+  });
+  it("keeps internal decomposition seams wet but external banks dry", () => {
+    const pieces: Point[][] = [
+      [
+        [0, 0],
+        [100, 0],
+        [100, 100]
+      ],
+      [
+        [0, 0],
+        [100, 100],
+        [0, 100]
+      ]
+    ];
+    expect(
+      dryRuns(
+        [
+          [10, 10],
+          [90, 90]
+        ],
+        pieces
+      )
+    ).toEqual([]);
+    expect(
+      lineHitsWater(
+        [
+          [10, 0],
+          [90, 0]
+        ],
+        pieces
+      )
+    ).toBe(false);
+  });
   it("finds a narrow crossing without a wet centroid or vertex, including concave water", () => {
     const cell: Point[] = [
       [-200, 0],

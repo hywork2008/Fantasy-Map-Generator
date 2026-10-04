@@ -15,6 +15,7 @@ import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { bridgePassageFootprint } from "./bridgePassageGeometry";
+import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "./physicalWaterIndex";
 import { evaluateRiverAxis } from "./riverAxisSampling";
 import type { RiverPoint } from "./riverGeometry";
 import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
@@ -166,6 +167,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
     .y(c => c.p[1])
     .addAll(centers);
   let facilityId = 0;
+  const waterValidation = new PhysicalWaterValidationCache();
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
     const origin: RiverPoint = [burg.x * scale, burg.y * scale];
@@ -221,10 +223,15 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
       water.push(
         ...terrain.filter(t => world.pack.cells.h[t.id] < 20).map(t => ({ id: 1000000000 + t.id, rings: [t.ring] }))
       );
+      const waterIndex = PhysicalWaterIndex.build(water, waterValidation);
+      if (!waterIndex) continue;
       const supports = (polygon: readonly RiverPoint[]) =>
         polygon.every(p => p[0] >= bounds.minX && p[0] <= bounds.maxX && p[1] >= bounds.minY && p[1] <= bounds.maxY) &&
         coveredByTerrainCells(polygon, supportedRings);
       for (const geometry of geometries) {
+        const snapshot = waterIndex.getSnapshot(geometry.water);
+        if (!snapshot) continue;
+        const candidateGeometry = { ...geometry, water: snapshot };
         const remaining = legs.filter(leg => !adoptedLegs.has(leg.id));
         if (!remaining.length) break;
         const waterBounds = polygonBounds(geometry.water.rings);
@@ -314,7 +321,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
               if (item === undefined) {
                 const input: CrossingCandidateInput = {
                   id: facilityId,
-                  geometry,
+                  geometry: candidateGeometry,
                   arcLengthMeters: arc,
                   dimensions: {
                     bankSeatMeters: 2,
@@ -322,7 +329,8 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
                     roadWidthMeters: 5,
                     localWindowMeters: 20
                   },
-                  otherWater: water.filter(w => w !== geometry.water),
+                  otherWater: [],
+                  waterIndex,
                   capability: {
                     period: world.options.historicalPeriod,
                     technology: world.options.riverBridgeTechnology,

@@ -8,7 +8,12 @@ import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
  * When that edge sits in a surveyed river, stop on the town side of the water.
  * The frame road carries the crossing. */
 export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<CityGeography["importedRoads"]> {
-  const half = townMeshExtentMeters(site.frame) / 2;
+  const half =
+    townMeshExtentMeters(
+      site.frame,
+      site.burg.waterAccess?.port.river === true,
+      site.burg.riverPlacement?.bankDistanceMeters
+    ) / 2;
   const waters: PhysicalWaterPolygon[] = (site.fixedCrossings?.rivers ?? []).map(river => ({
     id: river.id,
     rings: river.rings

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "../services/physicalWaterIndex";
 import { buildPolylineRiverAxis } from "../services/riverGeometry";
 import { convergeRiverRoadLegs } from "./convergingRiverRoads";
 import { type CrossingCandidateInput, createProvisionalRiverCrossing } from "./riverCrossingCandidates";
@@ -46,6 +47,35 @@ const legs = [-30, 0, 30].map((y, id) => ({
   ] as [number, number][]
 }));
 describe("FMG city-side river road convergence", () => {
+  it("preserves the exhaustive plan when using the complete indexed water snapshot", () => {
+    const source = input();
+    source.otherWater = [
+      {
+        id: 9,
+        rings: [
+          [
+            [20, 15],
+            [30, 15],
+            [30, 25],
+            [20, 25]
+          ]
+        ]
+      }
+    ];
+    const index = PhysicalWaterIndex.build(
+      [source.geometry.water, ...source.otherWater],
+      new PhysicalWaterValidationCache()
+    )!;
+    const indexed = {
+      ...source,
+      geometry: { ...source.geometry, water: index.getSnapshot(source.geometry.water)! },
+      otherWater: [],
+      waterIndex: index
+    };
+    const expected = convergeRiverRoadLegs([-50, 0], legs, [plan(source)], 100);
+    expect(expected).not.toBeNull();
+    expect(convergeRiverRoadLegs([-50, 0], legs, [plan(indexed)], 100)).toEqual(expected);
+  });
   it("uses one common trunk and perpendicular shortest deck, branching only on the far bank", () => {
     const before = structuredClone(legs);
     const result = convergeRiverRoadLegs([-50, 0], legs, [plan()], 100)!;

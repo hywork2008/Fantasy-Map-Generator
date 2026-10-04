@@ -1,7 +1,9 @@
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CityDocument, Face, Id, Point } from "../types";
+import { polygonHitsWater, waterPolygons } from "../waterGeometry";
 import { pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
+import { subtractConvex } from "./parcelGeometry";
 import { makeRng, type Rng } from "./prng";
 
 /**
@@ -50,6 +52,7 @@ interface ClearanceData {
   wallEdgeClearance: Map<Id, number>;
   roadEdgeClearance: Map<Id, number>;
   riverSegments: Array<{ a: Point; b: Point; clearDist: number }>;
+  water: Point[][];
 }
 
 function collectClearanceData(document: CityDocument): ClearanceData {
@@ -138,7 +141,8 @@ function collectClearanceData(document: CityDocument): ClearanceData {
     riverEdgeClearance,
     wallEdgeClearance,
     roadEdgeClearance,
-    riverSegments
+    riverSegments,
+    water: waterPolygons(document).flatMap(convexInfillParts)
   };
 }
 
@@ -263,15 +267,30 @@ function shapeParkFace(document: CityDocument, face: Face, seed: string, clearan
     if (scaled.length >= 3) lawnPolygons.push(scaled);
   }
 
+  let dryLawns = lawnPolygons;
+  for (const wet of clearance.water) dryLawns = dryLawns.flatMap(part => subtractConvex(part, wet, 1));
+  if (!dryLawns.length) return null;
   const isFortified = isFaceAdjacentToDefense(document, face, outline, clearance);
   const rng = makeRng(`${seed}:park-lawn:${face.id}`);
-  const paths = generateParkPaths(outline, lawnPolygons, area, rng);
-  const grassTufts = generateGrassTufts(lawnPolygons, paths, rng);
-  const trees = generateTopDownBushes(outline, lawnPolygons, paths, area, rng, clearance, isFortified);
+  const paths = generateParkPaths(outline, dryLawns, area, rng);
+  const grassTufts = generateGrassTufts(dryLawns, paths, rng);
+  const trees = generateTopDownBushes(outline, dryLawns, paths, area, rng, clearance, isFortified).filter(tree => {
+    const r = Math.max(tree.radius, ...tree.subCircles.map(c => Math.hypot(...c.offset) + c.radius));
+    const [x, y] = tree.center;
+    return !polygonHitsWater(
+      [
+        [x - r, y - r],
+        [x + r, y - r],
+        [x + r, y + r],
+        [x - r, y + r]
+      ],
+      clearance.water
+    );
+  });
 
   return {
     faceId: face.id,
-    lawnPolygons,
+    lawnPolygons: dryLawns,
     paths,
     grassTufts,
     trees

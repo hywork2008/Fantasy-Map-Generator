@@ -66,7 +66,14 @@ interface PlannedBridge {
 export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond-mesh"): FrameRoadLeg[] {
   const bodies = waterBodies(site);
   const decks = rememberedDecks(site);
-  const half = scope === "beyond-mesh" ? townMeshExtentMeters(site.frame) / 2 : 0;
+  const half =
+    scope === "beyond-mesh"
+      ? townMeshExtentMeters(
+          site.frame,
+          site.burg.waterAccess?.port.river === true,
+          site.burg.riverPlacement?.bankDistanceMeters
+        ) / 2
+      : 0;
   const legs: FrameRoadLeg[] = [];
   site.roads.forEach((road, sourceIndex) => {
     if (road.group === "searoutes") return;
@@ -188,8 +195,6 @@ function piecesFor(
     if (!bridge) {
       const around = skirtInterval(path, interval);
       if (!around) {
-        // The far side stays undrawn. A target that never leaves the channel
-        // still meets the frame where this bank does.
         landOnFrame(dry, path, bodies, half);
         flush();
         return finish(pieces, half);
@@ -830,8 +835,8 @@ function clipToSquare(points: Point[], half: number): Point[] {
 function projectToBank(water: PhysicalWaterPolygon, at: Point, prefer: Point, offset = 2): Point | null {
   if (!deepInWater(at, water)) return at;
   let nearest = Infinity;
-  const candidates: { dry: Point; gap: number }[] = [];
-  for (const ring of water.rings)
+  const segments: { closest: Point; delta: Point; gap: number }[] = [];
+  for (const ring of water.rings) {
     for (let i = 0; i < ring.length; i++) {
       const a = point(ring[i]),
         b = point(ring[(i + 1) % ring.length]);
@@ -841,19 +846,24 @@ function projectToBank(water: PhysicalWaterPolygon, at: Point, prefer: Point, of
       const t = Math.max(0, Math.min(1, dot(sub(at, a), delta) / length2));
       const closest = add(a, scale(delta, t));
       const gap = dist(at, closest);
-      const tangent = unit(delta);
-      if (!tangent) continue;
-      const normal = rotate(tangent);
-      for (const candidate of [add(closest, scale(normal, offset)), add(closest, scale(normal, -offset))]) {
-        if (deepInWater(candidate, water)) continue;
-        if (gap < nearest) nearest = gap;
-        candidates.push({ dry: candidate, gap });
-      }
+      if (gap < nearest) nearest = gap;
+      segments.push({ closest, delta, gap });
     }
+  }
+  const candidates: { dry: Point; gap: number }[] = [];
+  for (const seg of segments) {
+    if (seg.gap > nearest + 8) continue;
+    const tangent = unit(seg.delta);
+    if (!tangent) continue;
+    const normal = rotate(tangent);
+    for (const candidate of [add(seg.closest, scale(normal, offset)), add(seg.closest, scale(normal, -offset))]) {
+      if (deepInWater(candidate, water)) continue;
+      candidates.push({ dry: candidate, gap: seg.gap });
+    }
+  }
   let bank: Point | null = null;
   let best = Infinity;
   for (const candidate of candidates) {
-    if (candidate.gap > nearest + 8) continue;
     const score = dist(candidate.dry, prefer);
     if (score < best) {
       best = score;

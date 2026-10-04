@@ -208,13 +208,25 @@ export function pointInWater(point: RiverPoint, water: PhysicalWaterPolygon): bo
     for (let i = 0; i < n; i++) {
       const a = ring[i],
         c = ring[(i + 1) % n];
-      const edge = sub(c, a),
-        delta = sub(point, a),
-        length = Math.hypot(...edge);
-      if (length === 0) continue;
-      const projection = (delta[0] * edge[0] + delta[1] * edge[1]) / length;
-      if (Math.abs(cross2(edge, delta)) / length <= epsilon && projection >= -epsilon && projection <= length + epsilon)
-        return true;
+      const dx = c[0] - a[0],
+        dy = c[1] - a[1];
+      if (!dx && !dy) continue;
+      // Most banks are remote from this point. Avoid allocating vectors and
+      // measuring every edge for each provisional crossing candidate. The
+      // padding includes both perpendicular and endpoint tolerances.
+      if (
+        point[0] >= Math.min(a[0], c[0]) - 2 * epsilon &&
+        point[0] <= Math.max(a[0], c[0]) + 2 * epsilon &&
+        point[1] >= Math.min(a[1], c[1]) - 2 * epsilon &&
+        point[1] <= Math.max(a[1], c[1]) + 2 * epsilon
+      ) {
+        const x = point[0] - a[0],
+          y = point[1] - a[1];
+        const length = Math.hypot(dx, dy);
+        const projection = (x * dx + y * dy) / length;
+        if (Math.abs(dx * y - dy * x) / length <= epsilon && projection >= -epsilon && projection <= length + epsilon)
+          return true;
+      }
       if (a[1] > point[1] !== c[1] > point[1] && point[0] < a[0] + ((point[1] - a[1]) * (c[0] - a[0])) / (c[1] - a[1]))
         inside = !inside;
     }

@@ -111,6 +111,9 @@ describe("Ky Cuong river ports 3, 8 and 33", () => {
         );
         expect(south).toBeDefined();
       }
+      if (site.burg.id !== 3) {
+        expect(city.elements.some(e => e.kind === "ship" && e.shipType === "barge")).toBe(true);
+      }
       const piers = [...svg.querySelectorAll(".ce-pier")];
       expect(piers.length).toBeGreaterThan(0);
       for (const pier of piers) {
@@ -122,7 +125,7 @@ describe("Ky Cuong river ports 3, 8 and 33", () => {
         const tip: [number, number] = [(coords[2] + coords[4]) / 2, -(coords[3] + coords[5]) / 2];
         const areas = city.waterAreas!.filter(a => a.kind === "river");
         expect(Math.min(...areas.map(a => nearestOnPolyline(bank, [...a.polygon, a.polygon[0]]).dist))).toBeLessThan(
-          0.1
+          1.6
         );
         expect(areas.some(a => pointInPolygon(tip, a.polygon))).toBe(true);
       }

@@ -1,5 +1,6 @@
+import { indexedPhysicalWater } from "./indexedPhysicalWater";
 import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "./riverGeometry";
-import { footprintTouchesWater, type PhysicalWaterPolygon, validWaterPolygon } from "./riverPhysicalGeometry";
+import { type PhysicalWaterPolygon, validWaterPolygon } from "./riverPhysicalGeometry";
 
 export interface WaterBounds {
   minX: number;
@@ -200,7 +201,7 @@ export class PhysicalWaterIndex {
     if (!bounds || !validWaterPolygon({ id: -1, rings: [footprint] })) return true;
     return this.query(bounds, exclude).some(w => {
       this.polygonTests++;
-      return footprintTouchesWater(footprint, w);
+      return indexedPhysicalWater(w).touches(footprint);
     });
   }
 }

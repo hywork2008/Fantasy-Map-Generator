@@ -1,5 +1,6 @@
 import { facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
+import { waterPolygons } from "../waterGeometry";
 import {
   nearestOnPolyline,
   pointInPolygon,
@@ -76,7 +77,7 @@ export function planHarbor(
 ): HarborPlan {
   const plan: HarborPlan = { spaces: [], frontages: [], piers: [], cranes: [], cargoPiles: [], sharedArea: 0 };
   const shores: Shore[] = [];
-  barriers = [...barriers, ...(document.waterAreas ?? []).flatMap(a => convexInfillParts(a.polygon))];
+  barriers = [...barriers, ...waterPolygons(document).flatMap(convexInfillParts)];
   const land = Object.values(document.mesh.faces)
     .filter(
       f =>
@@ -143,8 +144,6 @@ export function planHarbor(
     if (shores.some(s => s.landId === face.id)) continue;
     const physical = riverPortShore(document, face.id);
     if (!physical || !face.properties.buildable) continue;
-    if (!physical.water.some(p => pointInPolygon(p, facePoints(document.mesh, face))) && physical.distance > 30)
-      continue;
     shores.push({ ...physical, id: `bank:${face.id}`, landId: face.id, waterId: "", depth: 1 });
   }
   // Explicit river harbour: bank work strips and short piers. A river alone
@@ -478,21 +477,33 @@ export function planHarbor(
     const fractions = count === 2 ? [0.28, 0.72] : [0.5];
     for (let i = 0; i < count; i++) {
       const t = fractions[i];
-      const start: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
-      const end = (d: number): Point => [start[0] - shore.inward[0] * d, start[1] - shore.inward[1] * d];
+      const bank: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
+      const start: Point = [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2];
+      if (
+        !pointInPolygon(start, facePoints(document.mesh, document.mesh.faces[shore.landId])) ||
+        pointInPolygon(start, shore.water)
+      )
+        continue;
+      const end = (d: number): Point => [bank[0] - shore.inward[0] * d, bank[1] - shore.inward[1] * d];
       let reach = 0;
-      const maxReachLimit = shore.riverId
-        ? Math.max(3, distance(shore.water[0], shore.water[3]) / 4)
-        : isExplorationOrLater
-          ? 42
-          : 28;
+      const rayEnd = end(document.frame.extentMeters * 2);
+      const exits = shore.water.flatMap((p, j) => {
+        const hit = segmentSegmentHit(bank, rayEnd, p, shore.water[(j + 1) % shore.water.length]);
+        return hit && distance(bank, hit.point) > 1 ? [distance(bank, hit.point)] : [];
+      });
+      const maxReachLimit = shore.riverId ? Math.min(...exits) / 4 : isExplorationOrLater ? 42 : 28;
       const reachCap = Math.min(
         maxReachLimit,
         Math.max(isExplorationOrLater ? 32 : 22, shore.length * (isExplorationOrLater ? 0.75 : 0.5))
       );
       for (let d = 0.5; d <= reachCap; d += 0.5) {
         const deck = corridor(start, end(d), width);
-        if (!deck.slice(1, 3).every(p => pointInPolygon(p, shore.water))) break;
+        if (!deck.slice(1, 3).every(p => pointInPolygon(p, shore.water))) {
+          // A curved bank can leave the first half-metre of the deck on land.
+          // Find the wet end before stopping at the opposite bank.
+          if (reach > 0) break;
+          continue;
+        }
         reach = d;
       }
       if (reach >= 3)

@@ -1,9 +1,10 @@
 import { SHIP_SPECS, type ShipType } from "../../render/shipSvg";
 import { faceNeighbors, facePoints } from "../mesh";
 import type { CityDocument, CityElement, Id, Point } from "../types";
+import { waterPolygons as documentWaterPolygons } from "../waterGeometry";
 import { buildBlockFabric } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
-import { distance } from "./parcelGeometry";
+import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
 import { riverPortShore } from "./riverPortShore";
 
@@ -61,6 +62,8 @@ function distSegmentToSegment(a: Point, b: Point, c: Point, d: Point): number {
 interface KnownPier {
   id: string;
   waterFaceId: Id;
+  riverId?: Id;
+  water?: Point[];
   depth: number;
   start: Point;
   end: Point;
@@ -94,7 +97,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
       .map(f => f.id)
   );
   const coastalHarborFaces = harborFaces.filter(f => faceNeighbors(document.mesh, f.id).some(nid => seaFaces.has(nid)));
-  if (!coastalHarborFaces.length) return [];
+  if (!coastalHarborFaces.length && !document.waterAccess?.port.river) return [];
 
   const period = document.historicalPeriod ?? "ageOfExploration";
   const exploration = isExplorationOrLater(period);
@@ -141,6 +144,14 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
       knownPiers.push({
         id: pier.id,
         waterFaceId: pier.waterFaceId,
+        riverId: pier.riverId,
+        water: pier.riverId?.startsWith("fixed-river:")
+          ? document.importedFixedCrossings?.rivers
+              .find(r => String(r.id) === pier.riverId!.split(":")[1])
+              ?.rings[Number(pier.riverId.split(":")[2])]?.map(p => [p[0], p[1]] as Point)
+          : pier.riverId
+            ? document.waterAreas?.find((a, i) => a.kind === "river" && pier.riverId === `river-area:${i}`)?.polygon
+            : undefined,
         depth: pier.depth,
         start,
         end,
@@ -249,6 +260,28 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     .filter(f => f.properties.water === "land")
     .map(f => facePoints(document.mesh, f));
 
+  const physicalWater = documentWaterPolygons(document);
+  const onDryLand = (p: Point, land: Point[]) =>
+    pointInPolygon(p, land) && !physicalWater.some(w => pointInPolygon(p, w));
+
+  const ribbonWater = document.featureGroups.flatMap(group =>
+    group.kind === "river"
+      ? group.vertices
+          .slice(1)
+          .map((id, i) =>
+            corridor(
+              document.mesh.vertices[group.vertices[i]].point,
+              document.mesh.vertices[id].point,
+              group.style.widthMeters
+            )
+          )
+      : []
+  );
+  physicalWater.push(...ribbonWater);
+  for (const pier of knownPiers) {
+    if (pier.riverId && !pier.water) pier.water = physicalWater.find(w => pointInPolygon(pier.end, w));
+  }
+
   // 桟橋の左右（side = 1 または -1）について、他桟橋や陸地との離隔を計測し候補バースを作成
   const berths: PierBerth[] = [];
   for (const pier of knownPiers) {
@@ -265,7 +298,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
         clearanceScore = Math.min(clearanceScore, d);
       }
       for (const lp of landPolygons) {
-        if (pointInPolygon(probePoint, lp)) clearanceScore = Math.min(clearanceScore, 2);
+        if (onDryLand(probePoint, lp)) clearanceScore = Math.min(clearanceScore, 2);
       }
       berths.push({ pier, side, clearanceScore });
     }
@@ -288,7 +321,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     const berthKey = `${berth.pier.id}:${berth.side}`;
     if (usedPierSides.has(berthKey)) continue;
 
-    const allowedTypes = typesForWater(berth.pier.waterFaceId);
+    const allowedTypes = berth.pier.riverId ? ["barge" as const] : typesForWater(berth.pier.waterFaceId);
     // 船種選択
     let chosenType: ShipType;
     if (exploration) {
@@ -329,8 +362,13 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     const beam = (sizeMeters / spec.baseLengthMeters) * spec.baseBeamMeters;
 
     // 桟橋に沿った船体中心位置（岸辺から十分離れた位置）
-    const offsetAlong = Math.max(sizeMeters * 0.48 + 3.0, berth.pier.length * 0.52);
-    const lateralDist = berth.pier.width / 2 + beam / 2 + 1.2;
+    const riverBerth = !!berth.pier.riverId;
+    const shipDir: Point = riverBerth ? berth.pier.normal : berth.pier.dir;
+    const shipNormal: Point = [-shipDir[1], shipDir[0]];
+    const offsetAlong = riverBerth
+      ? Math.max(beam / 2 + 2, berth.pier.length * 0.65)
+      : Math.max(sizeMeters * 0.48 + 3.0, berth.pier.length * 0.52);
+    const lateralDist = berth.pier.width / 2 + (riverBerth ? sizeMeters * 0.48 : beam / 2) + 1.2;
 
     const shipCenter: Point = [
       berth.pier.start[0] + berth.pier.dir[0] * offsetAlong + berth.pier.normal[0] * berth.side * lateralDist,
@@ -338,32 +376,32 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     ];
 
     const bow: Point = [
-      shipCenter[0] + berth.pier.dir[0] * (sizeMeters * 0.48),
-      shipCenter[1] + berth.pier.dir[1] * (sizeMeters * 0.48)
+      shipCenter[0] + shipDir[0] * (sizeMeters * 0.48),
+      shipCenter[1] + shipDir[1] * (sizeMeters * 0.48)
     ];
     const stern: Point = [
-      shipCenter[0] - berth.pier.dir[0] * (sizeMeters * 0.48),
-      shipCenter[1] - berth.pier.dir[1] * (sizeMeters * 0.48)
+      shipCenter[0] - shipDir[0] * (sizeMeters * 0.48),
+      shipCenter[1] - shipDir[1] * (sizeMeters * 0.48)
     ];
 
     const halfBeam = beam / 2 + 0.6;
     const halfLen = sizeMeters * 0.48;
     const corners: Point[] = [
       [
-        shipCenter[0] + berth.pier.dir[0] * halfLen + berth.pier.normal[0] * halfBeam,
-        shipCenter[1] + berth.pier.dir[1] * halfLen + berth.pier.normal[1] * halfBeam
+        shipCenter[0] + shipDir[0] * halfLen + shipNormal[0] * halfBeam,
+        shipCenter[1] + shipDir[1] * halfLen + shipNormal[1] * halfBeam
       ],
       [
-        shipCenter[0] + berth.pier.dir[0] * halfLen - berth.pier.normal[0] * halfBeam,
-        shipCenter[1] + berth.pier.dir[1] * halfLen - berth.pier.normal[1] * halfBeam
+        shipCenter[0] + shipDir[0] * halfLen - shipNormal[0] * halfBeam,
+        shipCenter[1] + shipDir[1] * halfLen - shipNormal[1] * halfBeam
       ],
       [
-        shipCenter[0] - berth.pier.dir[0] * halfLen - berth.pier.normal[0] * halfBeam,
-        shipCenter[1] - berth.pier.dir[1] * halfLen - berth.pier.normal[1] * halfBeam
+        shipCenter[0] - shipDir[0] * halfLen - shipNormal[0] * halfBeam,
+        shipCenter[1] - shipDir[1] * halfLen - shipNormal[1] * halfBeam
       ],
       [
-        shipCenter[0] - berth.pier.dir[0] * halfLen + berth.pier.normal[0] * halfBeam,
-        shipCenter[1] - berth.pier.dir[1] * halfLen + berth.pier.normal[1] * halfBeam
+        shipCenter[0] - shipDir[0] * halfLen + shipNormal[0] * halfBeam,
+        shipCenter[1] - shipDir[1] * halfLen + shipNormal[1] * halfBeam
       ]
     ];
 
@@ -378,17 +416,13 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     if (pierCollision) continue;
 
     // (2) 陸地との干渉判定
-    if (
-      landPolygons.some(
-        lp => corners.some(c => pointInPolygon(c, lp)) || pointInPolygon(bow, lp) || pointInPolygon(stern, lp)
-      )
-    ) {
+    if (landPolygons.some(lp => corners.some(c => onDryLand(c, lp)) || onDryLand(bow, lp) || onDryLand(stern, lp))) {
       continue;
     }
 
     // (3) 水域内判定
-    const waterPoly = waterPolygons.get(berth.pier.waterFaceId);
-    if (waterPoly && !pointInPolygon(shipCenter, waterPoly)) {
+    const waterPoly = berth.pier.water ?? waterPolygons.get(berth.pier.waterFaceId);
+    if (waterPoly && ![shipCenter, bow, stern, ...corners].every(p => pointInPolygon(p, waterPoly))) {
       continue;
     }
 
@@ -403,12 +437,12 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
     usedPierSides.add(berthKey);
 
-    const shipRotation = -Math.atan2(berth.pier.dir[0], berth.pier.dir[1]);
+    const shipRotation = -Math.atan2(shipDir[0], shipDir[1]);
 
     placedShips.push({
       id: `${GEN_PREFIX}ship-${placedShips.length}`,
       kind: "ship",
-      faceIds: [berth.pier.waterFaceId],
+      faceIds: berth.pier.waterFaceId ? [berth.pier.waterFaceId] : [],
       point: shipCenter,
       rotation: shipRotation,
       sizeMeters,
@@ -418,7 +452,12 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
   }
 
   // 桟橋だけでは目標隻数に満たず、かつ桟橋が存在する場合にのみ、十分な水域があれば泊地（Anchorage）に配置
-  if (placedShips.length < targetCount && knownPiers.length > 0 && placedShips.length < 2) {
+  if (
+    placedShips.length < targetCount &&
+    knownPiers.length > 0 &&
+    placedShips.length < 2 &&
+    coastalHarborFaces.length > 0
+  ) {
     const harborCenter = polygonCentroid(facePoints(document.mesh, coastalHarborFaces[0]));
     for (const [waterId, waterPoly] of waterPolygons) {
       if (placedShips.length >= targetCount) break;

@@ -202,30 +202,39 @@ export function createSizedDocument(size: CitySizePreset, seed = randomSeed()): 
  * A hamlet uses the fitted Micro/Tiny window. A town whose population window
  * already matches uses that window. Otherwise the display itself is the mesh.
  */
-export function townMeshExtentMeters(frame: {
-  extentMeters: number;
-  cityRadiusMeters: number;
-  requiredBounds?: RequiredSiteBounds;
-}): number {
+export function townMeshExtentMeters(
+  frame: {
+    extentMeters: number;
+    cityRadiusMeters: number;
+    requiredBounds?: RequiredSiteBounds;
+  },
+  riverPort = false,
+  bankDistanceMeters = 0
+): number {
   const population = populationWindowMeters(frame.cityRadiusMeters);
   const town = fitUndersizedTownFrame(frame.cityRadiusMeters, population)?.extentMeters ?? population;
   const water = frame.requiredBounds ? requiredSiteExtent(frame.requiredBounds) : 0;
-  if (frame.extentMeters > town + 0.5 && water > town + 0.5) return town;
+  if (frame.extentMeters > town + 0.5 && water > town + 0.5)
+    return riverPort ? Math.min(frame.extentMeters, Math.max(town, 2 * (bankDistanceMeters + 24))) : town;
   return frame.extentMeters;
 }
 
 /** Display extent, and a separate town mesh when `townMeshExtentMeters` is smaller. */
-export function descriptorFrameGridOptions(frame: {
-  extentMeters: number;
-  cityRadiusMeters: number;
-  requiredBounds?: RequiredSiteBounds;
-}): Pick<CreateGridOptions, "extentMeters" | "meshExtentMeters" | "settlementExtentMeters" | "cityRadiusMeters"> {
-  const mesh = townMeshExtentMeters(frame);
+export function descriptorFrameGridOptions(
+  frame: {
+    extentMeters: number;
+    cityRadiusMeters: number;
+    requiredBounds?: RequiredSiteBounds;
+  },
+  riverPort = false,
+  bankDistanceMeters = 0
+): Pick<CreateGridOptions, "extentMeters" | "meshExtentMeters" | "settlementExtentMeters" | "cityRadiusMeters"> {
+  const mesh = townMeshExtentMeters(frame, riverPort, bankDistanceMeters);
   const widened = mesh < frame.extentMeters - 0.5;
   return {
     extentMeters: frame.extentMeters,
     cityRadiusMeters: frame.cityRadiusMeters,
-    ...(widened ? { meshExtentMeters: mesh, settlementExtentMeters: mesh } : {})
+    ...(widened ? { meshExtentMeters: mesh, settlementExtentMeters: townMeshExtentMeters(frame) } : {})
   };
 }
 

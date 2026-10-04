@@ -433,7 +433,18 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
     // They remain world roads without walls, and may terminate within the frame.
     if (group.sourceRoad) {
       const connection = document.riverConnections?.find(c => c.sourceIndex === group.sourceRoad!.index);
-      const outward = connection?.farRoad.at(-1) ?? document.mesh.vertices[ids[0]]?.point;
+      const leg = document.frameRoads?.find(
+        leg => leg.sourceIndex === group.sourceRoad!.index && leg.routeId === group.sourceRoad!.routeId
+      );
+      const half = document.frame.extentMeters / 2;
+      const outward =
+        leg?.pieces
+          .filter(piece => piece.kind === "road")
+          .flatMap(piece => piece.points)
+          .filter(p => Math.max(Math.abs(p[0]), Math.abs(p[1])) <= half + 0.05)
+          .at(-1) ??
+        connection?.farRoad.at(-1) ??
+        document.mesh.vertices[ids[0]]?.point;
       if (outward) found.push({ group, outward, bearing: vecToAzimuth(...outward) });
       continue;
     }

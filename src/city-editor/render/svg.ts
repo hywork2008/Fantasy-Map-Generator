@@ -24,7 +24,7 @@ import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { templeFootprintMeters } from "../core/gen/housing";
-import { convexInfillParts } from "../core/gen/lotGeometry";
+import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { riverPortShore } from "../core/gen/riverPortShore";
@@ -206,6 +206,12 @@ export function renderEditorSvg(
   if (town && document.coastalOceanFaceIds?.length) {
     const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
     const ocean = new Set(document.coastalOceanFaceIds);
+    const wetParts = waterPolygons(document).flatMap(convexInfillParts);
+    const dryShoreParts = (outline: Point[]) => {
+      let parts = convexInfillParts(outline);
+      for (const wet of wetParts) parts = parts.flatMap(part => subtractConvex(part, wet, 1));
+      return parts;
+    };
     for (const edge of Object.values(document.mesh.edges)) {
       const left = document.mesh.faces[edge.leftFace ?? ""];
       const right = document.mesh.faces[edge.rightFace ?? ""];
@@ -225,7 +231,7 @@ export function renderEditorSvg(
           !["park", "farm", "cemetery", "empty"].includes(land.properties.ward ?? ""));
       if (builtShore) {
         const revetment = corridor(a, b, fortified ? 22 : 14, 8);
-        for (const part of convexInfillParts(facePoints(document.mesh, land))) {
+        for (const part of dryShoreParts(facePoints(document.mesh, land))) {
           const bank = intersectConvex(part, revetment);
           if (bank.length < 3 || Math.abs(polygonArea(bank)) < 1) continue;
           shore.appendChild(
@@ -242,7 +248,7 @@ export function renderEditorSvg(
       }
       const beachBand = corridor(a, b, 34, 8);
       const scrubBand = corridor(a, b, 70, 8);
-      for (const part of convexInfillParts(facePoints(document.mesh, land))) {
+      for (const part of dryShoreParts(facePoints(document.mesh, land))) {
         const scrub = intersectConvex(part, scrubBand);
         for (const polygonPart of scrub.length >= 3 ? subtractConvex(scrub, beachBand, 1) : []) {
           shore.appendChild(
@@ -787,7 +793,7 @@ export function renderEditorSvg(
           class: "ce-river-connection-road",
           "data-source-index": String(connection.sourceIndex),
           fill: "none",
-          stroke: "#735238",
+          stroke: town ? "#d5cfbf" : "#735238",
           "stroke-width": String(width)
         })
       );
@@ -837,7 +843,7 @@ export function renderEditorSvg(
         );
     }
   }
-  appendFrameRoads(features, document);
+  appendFrameRoads(features, document, town);
   features.appendChild(renderApproachLabels(document, zoom));
   if (town && !fixedMode) {
     for (const deck of bridgeDecks(document)) {
@@ -1016,7 +1022,7 @@ export function renderEditorSvg(
   if (!town) {
     for (const face of Object.values(document.mesh.faces)) {
       if (castleFaces.has(face.id)) continue;
-      const marker = renderFaceWardLandmark(document.mesh, face);
+      const marker = renderFaceWardLandmark(document.mesh, face, document);
       if (marker) wardLandmarks.appendChild(marker);
     }
   }
@@ -2675,13 +2681,29 @@ function line(points: Point[]): string {
 }
 
 /** Continue an imported road from the outermost mesh vertex when that stub stays dry. */
-function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
+function appendFrameRoads(parent: SVGElement, document: CityDocument, town: boolean): void {
   const legs = document.frameRoads;
   if (!legs?.length) return;
   const width = String(defaultRoadWidthMeters(townExtentMeters(document.frame)));
+  const casing = (points: Point[]) => {
+    if (!town) return;
+    parent.appendChild(
+      element("path", {
+        d: line(points),
+        class: "ce-frame-road-casing",
+        fill: "none",
+        stroke: "#57534b",
+        "stroke-width": String(Number(width) + 1.4),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round",
+        "pointer-events": "none"
+      })
+    );
+  };
   for (const leg of legs) {
     const connection = frameRoadTownConnection(document, leg);
-    if (connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5)
+    if (connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5) {
+      casing(connection);
       parent.appendChild(
         element("path", {
           d: line(connection),
@@ -2691,12 +2713,13 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
           "data-route-id": String(leg.routeId),
           "data-frame-connection": "true",
           fill: "none",
-          stroke: "#735238",
+          stroke: town ? "#d5cfbf" : "#735238",
           "stroke-width": width,
           "stroke-linecap": "butt",
           "pointer-events": "none"
         })
       );
+    }
     for (const piece of leg.pieces) {
       const points = piece.points;
       if (points.length < 2) continue;
@@ -2731,13 +2754,14 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument): void {
         );
         continue;
       }
+      casing(points);
       parent.appendChild(
         element("path", {
           d: line(points),
           class: "ce-frame-road",
           "data-frame-road": String(leg.routeId),
           fill: "none",
-          stroke: "#735238",
+          stroke: town ? "#d5cfbf" : "#735238",
           "stroke-width": width,
           "stroke-linecap": "butt",
           ...identity
@@ -2924,10 +2948,24 @@ export function faceClassName(face: Face, selected: boolean, urbanCoreHighlighte
  * to populate `.ce-ward-landmarks` in bulk), or null if this face shouldn't
  * show one. Pairs with faceClassName() for patching a single changed face.
  */
-export function renderFaceWardLandmark(mesh: Mesh, face: Face): SVGElement | null {
+export function renderFaceWardLandmark(mesh: Mesh, face: Face, source?: CityDocument): SVGElement | null {
   const kind = wardLandmarkKind(face.properties.ward);
   if (!kind || face.properties.water !== "land") return null;
-  return cityElementMarker(centroid(facePoints(mesh, face)), kind, `ward-${face.id}`);
+  const outline = facePoints(mesh, face);
+  if (!source || !waterPolygons(source).length) return cityElementMarker(centroid(outline), kind, `ward-${face.id}`);
+  let dry = convexInfillParts(outline);
+  for (const water of waterPolygons(source))
+    for (const wet of convexInfillParts(water)) dry = dry.flatMap(part => subtractConvex(part, wet, 1));
+  const safe = dry
+    .map(part =>
+      insetConvexKernel(
+        part,
+        part.map(() => 8)
+      )
+    )
+    .filter(part => part.length >= 3)
+    .sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)))[0];
+  return safe ? cityElementMarker(polygonCentroid(safe), kind, `ward-${face.id}`) : null;
 }
 
 function tree(point: Point, radius: number, id: Id): SVGElement {
@@ -3068,8 +3106,8 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
     false
   );
 
-  svg.setAttribute("xmlns", NS);
-  svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns", NS);
+  svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
   svg.setAttribute("version", "1.1");
   svg.setAttribute("width", String(extent));
   svg.setAttribute("height", String(extent));

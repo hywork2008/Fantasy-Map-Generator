@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { renderEditorSvg } from "../../render/svg";
 import { createDocument } from "../document";
-import { facePoints } from "../mesh";
+import { facePoints, meshFromCells } from "../mesh";
 import type { CityDocument } from "../types";
+import { polygonHitsDocumentWater } from "../waterGeometry";
 import { pointInPolygon, polygonArea } from "./geom";
 import { buildParkLawns } from "./parkFabric";
 
@@ -16,6 +17,47 @@ function createParkDocument(): CityDocument {
 }
 
 describe("parkFabric", () => {
+  it("keeps lawns and tree canopies off a physical river inside a land cell", () => {
+    const doc = createParkDocument();
+    doc.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [0, 0],
+          [100, 0],
+          [100, 100],
+          [0, 100]
+        ],
+        site: [50, 50],
+        centroid: [50, 50],
+        neighbors: [],
+        onBorder: false
+      }
+    ]);
+    doc.mesh.faces.f0.properties.ward = "park";
+    doc.waterAreas = [
+      {
+        kind: "river",
+        polygon: [
+          [-10, -10],
+          [60, -10],
+          [60, 110],
+          [-10, 110]
+        ]
+      }
+    ];
+    const lawns = buildParkLawns(doc);
+    expect(lawns).toHaveLength(1);
+    for (const lawn of lawns[0].lawnPolygons) expect(polygonHitsDocumentWater(doc, lawn)).toBe(false);
+    for (const tree of lawns[0].trees) expect(tree.center[0] - tree.radius).toBeGreaterThan(60);
+    doc.waterAreas[0].polygon = [
+      [-10, -10],
+      [110, -10],
+      [110, 110],
+      [-10, 110]
+    ];
+    expect(buildParkLawns(doc)).toEqual([]);
+  });
   it("builds lawn polygons for park faces with an inset perimeter", () => {
     const doc = createParkDocument();
     const face = Object.values(doc.mesh.faces)[0];

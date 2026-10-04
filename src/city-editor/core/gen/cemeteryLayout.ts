@@ -1,6 +1,7 @@
 import { insideRing, polygonOverlaps, polylineInsideRing } from "../fortifications";
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CemeteryPart, CemeteryPlan, CityDocument, Face, Id, Point } from "../types";
+import { waterPolygons } from "../waterGeometry";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
 import { plotArea, subtractConvex } from "./parcelGeometry";
@@ -455,10 +456,10 @@ export function computeCemeteryBoundary(document: CityDocument, face: Face): Poi
 
   // Physical channels can cross a land-classified editing cell without a
   // river feature group or an adjacent water face.
-  if (document.waterAreas?.length) {
+  if (waterPolygons(document).length) {
     let dry = convexInfillParts(boundary.length >= 3 ? boundary : raw);
-    for (const area of document.waterAreas)
-      for (const wet of convexInfillParts(area.polygon)) dry = dry.flatMap(part => subtractConvex(part, wet, 0.01));
+    for (const polygon of waterPolygons(document))
+      for (const wet of convexInfillParts(polygon)) dry = dry.flatMap(part => subtractConvex(part, wet, 0.01));
     return dry.sort((a, b) => plotArea(b) - plotArea(a))[0] ?? [];
   }
   return boundary.length >= 3 ? boundary : raw;

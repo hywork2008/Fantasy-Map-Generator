@@ -6,17 +6,73 @@ import {
 } from "../../utils/fixedBurgCrossings";
 import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
-import { convexInfillParts } from "./gen/lotGeometry";
-import { bounds, boundsOverlap, intersectConvex, plotArea } from "./gen/parcelGeometry";
+import { convexInfillParts, triangularInfillParts } from "./gen/lotGeometry";
+import { bounds, boundsOverlap, intersectConvex, plotArea, subtractConvex } from "./gen/parcelGeometry";
 import type { CityDocument, Point } from "./types";
+
+const importedWaterParts = new WeakMap<FixedBurgCrossings, Point[][]>();
+
+/** Source rings use even/odd filling, so islands remain dry. Imported surveys
+ * are immutable; replacing the survey invalidates this derived geometry. */
+export function fixedWaterPolygons(fixed: FixedBurgCrossings): Point[][] {
+  const cached = importedWaterParts.get(fixed);
+  if (cached) return cached;
+  const polygons = [...fixed.rivers, ...(fixed.obstacles ?? [])].flatMap(body => {
+    const rings = body.rings.map(ring => ring.map(p => [p[0], p[1]] as Point));
+    const depths = rings.map((ring, i) => rings.filter((other, j) => i !== j && pointInPolygon(ring[0], other)).length);
+    return rings.flatMap((ring, i) => {
+      if (depths[i] % 2) return [];
+      let parts = triangularInfillParts(ring);
+      for (const [j, hole] of rings.entries()) {
+        if (depths[j] !== depths[i] + 1 || !pointInPolygon(hole[0], ring)) continue;
+        for (const wetHole of triangularInfillParts(hole))
+          parts = parts.flatMap(part => subtractConvex(part, wetHole, 0.001));
+      }
+      return parts;
+    });
+  });
+  const box = fixed.schemaVersion === 3 || fixed.schemaVersion === 4 ? fixed.coverageBounds : undefined;
+  const frame: Point[] | undefined = box
+    ? [
+        [box.minX, box.minY],
+        [box.maxX, box.minY],
+        [box.maxX, box.maxY],
+        [box.minX, box.maxY]
+      ]
+    : undefined;
+  const local = frame
+    ? polygons.map(part => intersectConvex(part, frame)).filter(part => part.length >= 3 && plotArea(part) > 0.001)
+    : polygons;
+  importedWaterParts.set(fixed, local);
+  return local;
+}
 
 /** The imported water boundary is independent of editing-cell resolution. */
 export function waterPolygons(document: CityDocument): Point[][] {
-  return (document.waterAreas ?? []).map(area => area.polygon);
+  return [
+    ...(document.waterAreas ?? []).map(area => area.polygon),
+    ...(document.importedFixedCrossings ? fixedWaterPolygons(document.importedFixedCrossings) : [])
+  ];
 }
 
 function interior(point: Point, polygon: Point[]): boolean {
   return pointInPolygon(point, polygon) && nearestOnPolyline(point, [...polygon, polygon[0]]).dist > 1e-6;
+}
+
+function wetInterior(point: Point, polygons: readonly Point[][]): boolean {
+  if (polygons.some(polygon => interior(point, polygon))) return true;
+  // Decomposed imported water has internal seams. A point surrounded by
+  // water is wet even when it lies on every individual piece's boundary.
+  const nearby = polygons.filter(polygon => nearestOnPolyline(point, [...polygon, polygon[0]]).dist <= 1e-6);
+  return (
+    nearby.length > 1 &&
+    [
+      [1e-5, 0],
+      [-1e-5, 0],
+      [0, 1e-5],
+      [0, -1e-5]
+    ].every(([x, y]) => nearby.some(polygon => pointInPolygon([point[0] + x, point[1] + y], polygon)))
+  );
 }
 
 /** Split at every bank intersection, including narrow channels and concave bends.
@@ -44,7 +100,7 @@ export function dryRuns(line: Point[], polygons: readonly Point[][]): Point[][] 
       const start = sorted[j - 1],
         end = sorted[j];
       if (end - start < 1e-9) continue;
-      if (polygons.some(polygon => interior(at((start + end) / 2), polygon))) {
+      if (wetInterior(at((start + end) / 2), polygons)) {
         flush();
         continue;
       }
@@ -127,8 +183,10 @@ export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[
       return true;
   }
   return (
-    polygonHitsWater(polygon, waterPolygons(document)) ||
-    [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water))
+    polygonHitsWater(
+      polygon,
+      (document.waterAreas ?? []).map(area => area.polygon)
+    ) || [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water))
   );
 }
 
