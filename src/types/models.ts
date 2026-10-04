@@ -844,6 +844,8 @@ export interface RiverCellHydrology {
 }
 
 export interface Route {
+  /** Unsmooth shared bridge geometry. Original points allow fresh revalidation after water edits/load. */
+  riverRoadConvergence?: { originalPoints: [number, number, number][]; pointsKey: string; burgIds: number[] };
   /** Exact physical shape is resolved through the current world registry. */
   registeredConnectionId?: number;
   /** Actual road/channel intersections resolved after candidate water routes. */

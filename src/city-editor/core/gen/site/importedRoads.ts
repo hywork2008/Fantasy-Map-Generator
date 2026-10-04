@@ -20,6 +20,9 @@ export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<City
       path.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
       if (t < 1) break;
     }
-    return [{ sourceIndex, routeId: road.routeId, path }];
+    const terminal = path.at(-1)!;
+    const landing =
+      road.sharedCrossingId !== undefined && Math.max(Math.abs(terminal[0]), Math.abs(terminal[1])) < half - 1e-7;
+    return [{ sourceIndex, routeId: road.routeId, path, ...(landing ? { riverLanding: true } : {}) }];
   });
 }

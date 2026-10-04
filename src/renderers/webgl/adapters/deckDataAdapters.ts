@@ -1350,7 +1350,7 @@ export function buildRoutePaths(
     let path = getValidDeckPath(Routes.getRenderPoints(route, worldContext.pack));
     if (!path) return [];
 
-    if (path.length >= 3) {
+    if (path.length >= 3 && !route.riverRoadConvergence) {
       // FMG uses alpha 0.5 for searoutes, 0.1 for land routes
       const alpha = route.group === "searoutes" ? 0.5 : 0.1;
       path = sampleCatmullRomPolyline(path, alpha, false, 0.5);

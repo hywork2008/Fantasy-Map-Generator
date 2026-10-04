@@ -1,0 +1,582 @@
+{
+  "archive": "temp/000.savdata/Vilealand 2026-10-04-15-32.fmg",
+  "archiveSha256": "10802555a1db9c8a936e8a46ae5dd9c53e191aa502c38134bad68d75d8b438da",
+  "finalInput": "temp/vilealand-converged-ce-inputs-final.csv",
+  "finalInputSha256": "ab206590bc7d7631648a166f18d2b0401fcc8e091dd9d4d86a7a0ac86d981778",
+  "baseline": {
+    "generated": 644,
+    "rejected": 18
+  },
+  "after": {
+    "generated": 646,
+    "rejected": 16
+  },
+  "newSuccesses": [
+    20,
+    423
+  ],
+  "lostSuccesses": [],
+  "residualBurgIds": [
+    13,
+    15,
+    19,
+    26,
+    36,
+    56,
+    63,
+    91,
+    267,
+    330,
+    381,
+    404,
+    462,
+    571,
+    595,
+    609
+  ],
+  "evidence": {
+    "allCities": "temp/vilealand-converged-ce-result-v2.jsonl",
+    "finalChangedCities": "temp/vilealand-converged-ce-final-selected.jsonl",
+    "note": "Final CSV differs from v2 only for these 16 cities: exact, unrounded shared road points. All 16 were retested."
+  },
+  "sharedCities": [
+    {
+      "burgId": 20,
+      "name": "Liras",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 0,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 0,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 0,
+          "routeIds": [
+            40,
+            41
+          ],
+          "branches": 2,
+          "destinations": [
+            57,
+            632
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 79,
+      "name": "Cidaganes",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 1,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 1,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 1,
+          "routeIds": [
+            12,
+            436
+          ],
+          "branches": 2,
+          "destinations": [
+            616
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 186,
+      "name": "Bravave",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 2,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        },
+        {
+          "facilityId": 2,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 2,
+          "routeIds": [
+            71,
+            475
+          ],
+          "branches": 2,
+          "destinations": [
+            474,
+            571
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 214,
+      "name": "Gyombodajk",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 3,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 3,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 3,
+          "routeIds": [
+            20,
+            178
+          ],
+          "branches": 2,
+          "destinations": [
+            599,
+            429
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 218,
+      "name": "Gopyl",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 4,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 4,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 4,
+          "routeIds": [
+            417,
+            486
+          ],
+          "branches": 2,
+          "destinations": [
+            561,
+            260
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 242,
+      "name": "Lugalveical",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 5,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        },
+        {
+          "facilityId": 5,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 5,
+          "routeIds": [
+            399,
+            405
+          ],
+          "branches": 2,
+          "destinations": [
+            618,
+            585
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 256,
+      "name": "Maromsondok",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 6,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        },
+        {
+          "facilityId": 6,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 6,
+          "routeIds": [
+            151,
+            154
+          ],
+          "branches": 2,
+          "destinations": [
+            586,
+            573
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 280,
+      "name": "Alinhana",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 7,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 7,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 7,
+          "routeIds": [
+            1,
+            62
+          ],
+          "branches": 2,
+          "destinations": [
+            166,
+            46
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 358,
+      "name": "Balaszalmato",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 8,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 8,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 8,
+          "routeIds": [
+            183
+          ],
+          "branches": 2,
+          "destinations": [
+            406,
+            473
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 396,
+      "name": "Robuchesk",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 9,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 9,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 9,
+          "routeIds": [
+            269
+          ],
+          "branches": 2,
+          "destinations": [
+            559,
+            387
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 423,
+      "name": "Ponhoes",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 10,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 10,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 10,
+          "routeIds": [
+            52,
+            54
+          ],
+          "branches": 2,
+          "destinations": [
+            448,
+            444
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 477,
+      "name": "Togardvarda",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 11,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        },
+        {
+          "facilityId": 11,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 11,
+          "routeIds": [
+            19,
+            159
+          ],
+          "branches": 2,
+          "destinations": [
+            286,
+            329
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 499,
+      "name": "Vignenerin",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 12,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 12,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 12,
+          "routeIds": [
+            240,
+            479
+          ],
+          "branches": 2,
+          "destinations": [
+            145
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 593,
+      "name": "Obnas",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 13,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 13,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 13,
+          "routeIds": [
+            372
+          ],
+          "branches": 2,
+          "destinations": [
+            507,
+            57
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 597,
+      "name": "Mapolkakonor",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 14,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        },
+        {
+          "facilityId": 14,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 14,
+          "routeIds": [
+            35,
+            333
+          ],
+          "branches": 2,
+          "destinations": [
+            639,
+            622
+          ]
+        }
+      ]
+    },
+    {
+      "burgId": 603,
+      "name": "Quareirava",
+      "status": "generated",
+      "completeFixedApproaches": false,
+      "fixedApproaches": [
+        {
+          "facilityId": 15,
+          "side": "A",
+          "status": "unresolved",
+          "reason": "no-corridor"
+        },
+        {
+          "facilityId": 15,
+          "side": "B",
+          "status": "unresolved",
+          "reason": "no-street-start"
+        }
+      ],
+      "entries": [
+        {
+          "facilityId": 15,
+          "routeIds": [
+            397
+          ],
+          "branches": 2,
+          "destinations": [
+            506,
+            626
+          ]
+        }
+      ]
+    }
+  ]
+}

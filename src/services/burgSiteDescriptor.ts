@@ -24,6 +24,11 @@ import {
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
+import {
+  convergedBurgCrossings,
+  convergedBurgFacilities,
+  ensureConvergingWorldRiverRoads
+} from "./convergingWorldRiverRoads";
 import { exportFixedBurgCrossings } from "./fixedBurgCrossings";
 import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
@@ -128,6 +133,11 @@ export interface BurgSiteRoadNextBurg {
 }
 
 export interface BurgSiteRoadEntry {
+  sharedCrossingId?: number;
+  sharedRouteIds?: number[];
+  nextBurgs?: BurgSiteRoadNextBurg[];
+  /** Full shared crossing and far-bank branch, kept separate from the common CE entrance. */
+  sharedBranches?: { routeId: number; path: [number, number][]; nextBurg: BurgSiteRoadNextBurg | null }[];
   routeId: number;
   /** FMG route group: "roads" | "trails" | "searoutes". */
   group: string;
@@ -261,6 +271,7 @@ export function getBurgSiteDescriptor(
   const burg = pack.burgs?.[burgId];
   if (!burg?.i || burg.removed) return null;
 
+  ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const cityRadiusMeters = getCityRadiusMeters(population);
@@ -304,7 +315,21 @@ export function getBurgSiteDescriptor(
         throw new RangeError("Required river frontage exceeds extent budget");
     } else if (frontage?.beyondBudget) beyondBudgetRiverId = waterAccess.riverId;
   }
-  let fixedCrossings = frameRequirements?.fixedCrossings;
+  let fixedCrossings =
+    frameRequirements?.fixedCrossings ??
+    convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg);
+  if (fixedCrossings && !frameRequirements) {
+    const b = fixedCrossings.requiredBounds;
+    autoBounds = autoBounds
+      ? {
+          minX: Math.min(autoBounds.minX, b.minX),
+          minY: Math.min(autoBounds.minY, b.minY),
+          maxX: Math.max(autoBounds.maxX, b.maxX),
+          maxY: Math.max(autoBounds.maxY, b.maxY)
+        }
+      : { ...b };
+    extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
+  }
   if (!fixedCrossings && worldContext.options.landConnectionGeneration) {
     const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
     if (physical) {
@@ -507,7 +532,8 @@ function clipSegmentToBox(x1: number, y1: number, x2: number, y2: number, half: 
 /** Clip a polyline (with per-vertex widths) to the centered box, splitting into visible runs. */
 function clipWeightedPolylineToBox(
   points: WeightedPoint[],
-  half: number
+  half: number,
+  preservePrecision = false
 ): { points: [number, number][]; widthsMeters: number[] }[] {
   const runs: { points: [number, number][]; widthsMeters: number[] }[] = [];
   let current: { points: [number, number][]; widthsMeters: number[] } | null = null;
@@ -515,8 +541,9 @@ function clipWeightedPolylineToBox(
   const pushPoint = (x: number, y: number, w: number) => {
     if (!current) current = { points: [], widthsMeters: [] };
     const last = current.points.at(-1);
-    if (last && Math.abs(last[0] - x) < 0.01 && Math.abs(last[1] - y) < 0.01) return;
-    current.points.push([rn(x, 1), rn(y, 1)]);
+    const tolerance = preservePrecision ? 1e-7 : 0.01;
+    if (last && Math.abs(last[0] - x) < tolerance && Math.abs(last[1] - y) < tolerance) return;
+    current.points.push(preservePrecision ? [x, y] : [rn(x, 1), rn(y, 1)]);
     current.widthsMeters.push(w);
   };
 
@@ -550,9 +577,9 @@ function clipWeightedPolylineToBox(
   return runs;
 }
 
-function clipPolylineToBox(points: [number, number][], half: number): [number, number][][] {
+function clipPolylineToBox(points: [number, number][], half: number, preservePrecision = false): [number, number][][] {
   const weighted = points.map(([x, y]) => ({ x, y, w: 0 }));
-  return clipWeightedPolylineToBox(weighted, half).map(run => run.points);
+  return clipWeightedPolylineToBox(weighted, half, preservePrecision).map(run => run.points);
 }
 
 interface PolylineApproach {
@@ -980,7 +1007,11 @@ function collectRouteLegs(burg: Burg): { route: Route; leg: [number, number, num
       continue;
     }
     if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
-    const index = route.points.findIndex(point => point[2] === burg.cell);
+    const index = route.points.findIndex(
+      point =>
+        point[2] === burg.cell &&
+        (!route.riverRoadConvergence || Math.hypot(point[0] - burg.x, point[1] - burg.y) < 1e-7)
+    );
     if (index === -1) continue;
 
     const forward = route.points.slice(index);
@@ -1001,9 +1032,20 @@ function collectRoadEntries(
   const { pack } = worldContext;
   if (!pack.routes?.length) return [];
 
+  const facilities = convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!);
   const entries: BurgSiteRoadEntry[] = [];
   for (const { route, leg } of collectRouteLegs(burg)) {
-    const localPoints = leg.map(([x, y]) => toLocal(x, y));
+    const facility = facilities.find(
+      f =>
+        f.routeIds.includes(route.i) &&
+        leg.some(p => Math.hypot(p[0] * metersPerMapUnit - f.near[0], p[1] * metersPerMapUnit - f.near[1]) < 1e-7)
+    );
+    const terminal = facility
+      ? leg.findIndex(
+          p => Math.hypot(p[0] * metersPerMapUnit - facility.near[0], p[1] * metersPerMapUnit - facility.near[1]) < 1e-7
+        )
+      : -1;
+    const localPoints = (terminal >= 1 ? leg.slice(0, terminal + 1) : leg).map(([x, y]) => toLocal(x, y));
 
     // Azimuth where the leg crosses the city radius (gate direction).
     let entryAzimuth: number | null = null;
@@ -1076,8 +1118,43 @@ function collectRoadEntries(
       }
     }
 
-    const clipped = clipPolylineToBox(localPoints, half);
+    const clipped = clipPolylineToBox(localPoints, half, !!facility);
+    const shared = facility && entries.find(e => e.sharedCrossingId === facility.crossing.id);
+    if (shared) {
+      shared.sharedBranches!.push({
+        routeId: route.i,
+        path:
+          clipPolylineToBox(
+            leg.map(([x, y]) => toLocal(x, y)),
+            half,
+            true
+          )[0] ?? [],
+        nextBurg
+      });
+      if (!shared.sharedRouteIds!.includes(route.i)) shared.sharedRouteIds!.push(route.i);
+      if (nextBurg && !shared.nextBurgs!.some(b => b.id === nextBurg.id)) shared.nextBurgs!.push(nextBurg);
+      continue;
+    }
     entries.push({
+      ...(facility
+        ? {
+            sharedCrossingId: facility.crossing.id,
+            sharedRouteIds: [route.i],
+            nextBurgs: nextBurg ? [nextBurg] : [],
+            sharedBranches: [
+              {
+                routeId: route.i,
+                path:
+                  clipPolylineToBox(
+                    leg.map(([x, y]) => toLocal(x, y)),
+                    half,
+                    true
+                  )[0] ?? [],
+                nextBurg
+              }
+            ]
+          }
+        : {}),
       routeId: route.i,
       group: route.group,
       ...(route.name ? { name: route.name } : {}),

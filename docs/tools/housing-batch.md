@@ -69,3 +69,7 @@ npm run ce:audit -- temp/vilealand-ce-inputs.csv temp/ce-selected.jsonl --burg 1
 生成結果と失敗案プレビューは別物である。`--debug-dir` の再実行は通常試行の成否を変更せず、プレビューを成功として集計しない。この検査はjsdomとViteのモジュール実行環境を使い、実ブラウザでの描画確認までは行わない。
 
 Vilealandでの修正前後の全都市検査と未解決ケースは [2026-10-04の診断](../diagnostics/ce-fmg-generation-vilealand-2026-10-04.md) を参照。
+
+FMG側の道路生成・河川横断・都市配置を変更した場合は、保存されたFMGから `housing:export` を新しいCSVへ再実行する。現在のexportは、実測水面と乾いた両岸アプローチを検証できる複数の街道をFMG側で共通橋へ収束させてから、CEの入口・固定橋・対岸分岐を出力する。以前のCSVの再検査だけではFMG側の修正を検証できない。CSVが変わるため、旧結果からの `--failed-from` は使わず、全都市か `--burg` で対象を指定する。
+
+共通橋では `descriptor.roads` の入口数が元の街道数より少なくなる。`sharedRouteIds` と `sharedBranches`、`nextBurgs` を併せて確認し、道路や行き先の欠落と混同しない。また、`status: generated` と `completeFixedApproaches: true` は別の検査結果である。[Vilealandの共通橋の検証](../diagnostics/fmg-shared-river-roads-vilealand-2026-10-04.md)を参照。

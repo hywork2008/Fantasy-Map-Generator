@@ -4,6 +4,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Route } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
+import { ensureConvergingWorldRiverRoads } from "./convergingWorldRiverRoads";
 
 function intersection(a: number[], b: number[], c: number[], d: number[]) {
   const rx = b[0] - a[0],
@@ -21,6 +22,7 @@ function intersection(a: number[], b: number[], c: number[], d: number[]) {
 
 /** Resolve crossings AFTER candidate land/water routes exist; never consumes world RNG. */
 export function resolveRiverRouteCrossings(world: WorldContext): void {
+  const converged = ensureConvergingWorldRiverRoads(world, useOptionsState.getState().distanceUnit);
   const { pack } = world;
   const landRoutes = (pack.routes ?? []).filter(r => r.group !== "searoutes" && !r.lock);
   for (const route of landRoutes) route.riverCrossings = [];
@@ -75,6 +77,28 @@ export function resolveRiverRouteCrossings(world: WorldContext): void {
           route.riverCrossings!.push({ riverId: river.i, cellId, point: hit.point, plan });
         }
       }
+    }
+  }
+  const scale = mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit);
+  for (const facility of converged.facilities) {
+    const c = facility.crossing;
+    const river = pack.rivers.find(r => r.i === c.riverId)!;
+    const cells = river.cells.filter(c => c >= 0);
+    const cellId = cells.reduce(
+      (best, id) =>
+        Math.hypot(pack.cells.p[id][0] * scale - c.q[0], pack.cells.p[id][1] * scale - c.q[1]) <
+        Math.hypot(pack.cells.p[best][0] * scale - c.q[0], pack.cells.p[best][1] * scale - c.q[1])
+          ? id
+          : best,
+      cells[0]
+    );
+    for (const route of landRoutes.filter(r => facility.routeIds.includes(r.i))) {
+      route.riverCrossings = (route.riverCrossings ?? []).filter(
+        hit =>
+          hit.riverId !== c.riverId ||
+          Math.hypot(hit.point[0] * scale - c.q[0], hit.point[1] * scale - c.q[1]) > c.deckLengthMeters
+      );
+      route.riverCrossings.push({ riverId: c.riverId, cellId, point: [c.q[0] / scale, c.q[1] / scale], plan: c.plan });
     }
   }
 }

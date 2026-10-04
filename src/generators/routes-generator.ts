@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
+import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
 import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
@@ -1612,6 +1613,7 @@ class RoutesModule {
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
     pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
+    ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
     pack.cells.routes = this.buildLinks(pack.routes);
     resolveRiverRouteCrossings(worldContext);
     const finalRiverGraph = buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL });
@@ -2108,16 +2110,30 @@ class RoutesModule {
    * the module singleton's world — the WebGL route adapter is given a `Readonly<WorldContext>`
    * and has to read cell geometry out of that one.
    */
-  getRenderPoints(route: { group: string; points: number[][] }, pack?: PackedGraph): number[][] {
-    if (route.group === "searoutes") return route.points;
+  getRenderPoints(
+    route: { group: string; points: number[][]; riverRoadConvergence?: Route["riverRoadConvergence"] },
+    pack?: PackedGraph
+  ): number[][] {
+    if (route.group === "searoutes" || route.riverRoadConvergence) return route.points;
     return this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
   }
 
   getPath(
-    { group, points, registeredConnectionId }: { group: string; points: number[][]; registeredConnectionId?: number },
+    {
+      group,
+      points,
+      registeredConnectionId,
+      riverRoadConvergence
+    }: {
+      group: string;
+      points: number[][];
+      registeredConnectionId?: number;
+      riverRoadConvergence?: Route["riverRoadConvergence"];
+    },
     pack?: PackedGraph
   ): string {
     if (registeredConnectionId !== undefined) return "";
+    if (riverRoadConvergence) return points.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join("");
     const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);
     const renderPoints = this.getRenderPoints({ group, points }, pack);
     const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);

@@ -84,6 +84,11 @@ export interface BurgSiteRoadNextBurg {
 }
 
 export interface BurgSiteRoadEntry {
+  sharedCrossingId?: number;
+  sharedRouteIds?: number[];
+  nextBurgs?: BurgSiteRoadNextBurg[];
+  /** Full shared crossing and far-bank branch, kept separate from the common CE entrance. */
+  sharedBranches?: { routeId: number; path: [number, number][]; nextBurg: BurgSiteRoadNextBurg | null }[];
   routeId: number;
   /** "roads" | "trails" | "searoutes". */
   group: string;
