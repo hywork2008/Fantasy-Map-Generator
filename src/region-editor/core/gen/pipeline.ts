@@ -382,6 +382,11 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
   // 海岸線と湖
   doc.terrain.coastlinePolygons = descriptor.coastlines.map(poly => poly.map(toLocal));
   doc.terrain.lakePolygons = descriptor.lakes.map(poly => poly.map(toLocal));
+  doc.terrain.coastalHabitats = descriptor.coastalHabitats?.map(segment => ({
+    coastalHabitat: segment.coastalHabitat,
+    points: segment.points.map(toLocal),
+    landPolygon: segment.landPolygon.map(toLocal)
+  }));
 
   // 標高グリッド（Heightfield）および等高線（Contours）の生成
   if (descriptor.cells && descriptor.cells.length > 0) {

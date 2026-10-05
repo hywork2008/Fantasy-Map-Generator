@@ -1,3 +1,4 @@
+import type { CoastalHabitatCode } from "../../types/coastalHabitat";
 import type { CellLandUseBudget, LandUsePatchBudget, LandUseProfile } from "../../types/landUse";
 /**
  * Region Editor (RE) Core Data Types
@@ -183,7 +184,14 @@ export interface RegionHeightfield {
   elevationsMeters: number[];
 }
 
+export interface RegionCoastalHabitat {
+  points: Point[];
+  landPolygon: Point[];
+  coastalHabitat: CoastalHabitatCode;
+}
+
 export interface RegionTerrain {
+  coastalHabitats?: RegionCoastalHabitat[];
   coastlinePolygons: Point[][];
   lakePolygons: Point[][];
   heightfield?: RegionHeightfield;
@@ -250,6 +258,7 @@ export const REGION_SITE_KEY = "fmg.regionSite";
 export const REGION_SITE_VERSION = 2;
 
 export interface RegionSiteCell {
+  coastalHabitat?: CoastalHabitatCode;
   cultureId?: number;
   sourceCellId?: number;
   physicalLandAreaHa?: number;
@@ -287,6 +296,7 @@ export interface RegionSiteDescriptor {
     width: number;
     height: number;
   };
+  coastalHabitats?: RegionCoastalHabitat[];
   coastlines: Point[][];
   lakes: Point[][];
   rivers: Array<{

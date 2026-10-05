@@ -394,6 +394,7 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
       biomeName.toLowerCase().includes("water");
 
     sampledCells.push({
+      coastalHabitat: cells.coastalHabitat?.[cid] ?? 0,
       sourceCellId: cid,
       cultureId: cells.culture?.[cid],
       physicalLandAreaHa: landUse.cells[cid]?.physicalLandAreaHa,
@@ -417,6 +418,33 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
     });
   }
 
+  // Preserve the actual land/ocean edges and their land-side habitat.
+  const coastalHabitats: NonNullable<RegionSiteDescriptor["coastalHabitats"]> = [];
+  for (const cid of collectedCellSet) {
+    if (cells.h[cid] < 20) continue;
+    const vertices = cells.v?.[cid];
+    if (!vertices || !pack.vertices?.p) continue;
+    const oceanNeighbors = (cells.c[cid] ?? []).filter(
+      nid => cells.h[nid] < 20 && pack.features?.[cells.f?.[nid]]?.type === "ocean"
+    );
+    for (let i = 0; i < vertices.length; i++) {
+      const a = vertices[i];
+      const b = vertices[(i + 1) % vertices.length];
+      if (!oceanNeighbors.some(nid => cells.v?.[nid]?.includes(a) && cells.v[nid].includes(b))) continue;
+      const start = pack.vertices.p[a];
+      const end = pack.vertices.p[b];
+      if (!start || !end) continue;
+      coastalHabitats.push({
+        points: [
+          [start[0], start[1]],
+          [end[0], end[1]]
+        ],
+        landPolygon: vertices.map(vid => pack.vertices.p[vid]),
+        coastalHabitat: cells.coastalHabitat?.[cid] ?? 0
+      });
+    }
+  }
+
   const descriptor: RegionSiteDescriptor = {
     version: REGION_SITE_VERSION,
     landUse: {
@@ -437,7 +465,8 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
       width: extentWidth * metersPerMapUnit,
       height: extentHeight * metersPerMapUnit
     },
-    coastlines: [],
+    coastlines: coastalHabitats.map(segment => segment.points),
+    coastalHabitats,
     lakes: [],
     rivers: regionRivers,
     burgs: regionBurgs,

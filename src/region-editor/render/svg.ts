@@ -1,4 +1,5 @@
 import { curveCatmullRom, line } from "d3";
+import { getCoastalHabitatDefinition } from "../../data/coastalHabitatCatalog";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { pointInPolygon } from "../core/geometry";
@@ -329,6 +330,29 @@ export function renderRegionSvg(
     })
     .join("\n");
 
+  const coastalHabitatsLayer = (doc.terrain.coastalHabitats ?? [])
+    .map((segment, i) => {
+      const habitat = getCoastalHabitatDefinition(segment.coastalHabitat);
+      if (habitat.key === "none") return "";
+      const path = polyToSvgPath(segment.points, false);
+      const clipId = `re-coastal-habitat-${i}`;
+      const dash =
+        habitat.key === "rockyIntertidal"
+          ? "2,3"
+          : habitat.key === "tidalFlat"
+            ? "8,3,2,3"
+            : habitat.key === "coastalDune"
+              ? "6,4"
+              : "1,4";
+      return `<defs><clipPath id="${clipId}"><path d="${polyToSvgPath(segment.landPolygon, true)}" /></clipPath></defs>
+      <g class="coastal-habitat coastal-habitat-${habitat.key}" data-coastal-habitat="${habitat.key}" clip-path="url(#${clipId})">
+        <title>${escapeXml(habitat.label)}</title>
+        <path d="${path}" fill="none" stroke="${habitat.color}" stroke-width="14" />
+        <path d="${path}" fill="none" stroke="${theme.coastlineStroke}" stroke-width="9" stroke-dasharray="${dash}" opacity="0.3" />
+      </g>`;
+    })
+    .join("\n");
+
   const lakesLayer = doc.terrain.lakePolygons
     .map(poly => {
       return `<path class="lake" d="${polyToSvgPath(poly, true)}" fill="${theme.riverFill}" stroke="${theme.coastlineStroke}" stroke-width="1.5" />`;
@@ -554,6 +578,7 @@ export function renderRegionSvg(
       <g id="layer-biomes">${biomesLayer}</g>
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
+      <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
       <defs>
         ${detail > 0 ? `<pattern id="re-field-detail" width="${detail === 2 ? 7 : 18}" height="${detail === 2 ? 7 : 18}" patternUnits="userSpaceOnUse" patternTransform="rotate(23)"><path d="M0 0H18" stroke="#b8b080" stroke-width="0.5"/>${detail === 2 ? '<path d="M0 0V7" stroke="#b8b080" stroke-width="0.3"/>' : ""}</pattern>` : ""}
