@@ -5,7 +5,7 @@ import {
   SEASON_REGION_PROFILES
 } from "../../../data/cropCalendars";
 import { getStapleCropSuitability } from "../../../data/stapleCrops";
-import { commitLandUsePlan, usesFantasyForestDefaults } from "../../../generators/landUse";
+import { commitLandUsePlan, resolveStaticLandUseInputs, usesFantasyForestDefaults } from "../../../generators/landUse";
 import {
   ANNUAL_SOWN_SHARE,
   BASE_NET_YIELD_KG_PER_SOWN_HECTARE,
@@ -182,6 +182,8 @@ export interface CropMixEntry {
 }
 
 export interface AgriculturalConditions {
+  /** Prepared by the economy adapter, in hectares and real labour days. */
+  readonly landUseByCell?: Record<number, Partial<ClearanceCellInput>>;
   /** Staple crops available to the world. Omit for legacy/test callers' generic-Grain behavior. */
   readonly cropGoods?: readonly Good[];
   /** Persistent, cell-local soil organic fertility; 1 is the three-field baseline. */
@@ -553,6 +555,7 @@ export function reconcileForestClearanceForAgriculture(
   if (previous && (demandOptions.annual !== true || (previous.year === year && !previous.needsAnnualReconciliation)))
     return false;
   const populationRate = Math.max(1, world.populationRate || 1);
+  const staticInputs = new Map(resolveStaticLandUseInputs(world).map(i => [i.id, i]));
   const inputs: ClearanceCellInput[] = [];
   for (const cellId of cells.i) {
     const constraints = getCroplandConstraints(world, cellId) ?? {
@@ -586,6 +589,8 @@ export function reconcileForestClearanceForAgriculture(
     const burg = world.pack.burgs?.[cells.burg?.[cellId] ?? 0];
     const culture = world.pack.cultures?.[cells.culture?.[cellId] ?? 0];
     inputs.push({
+      ...staticInputs.get(cellId),
+      ...conditions.landUseByCell?.[cellId],
       id: cellId,
       anchor: cells.p?.[cellId] ?? [0, 0],
       physicalLandAreaHa: constraints.physicalHectares,
@@ -610,6 +615,14 @@ export function reconcileForestClearanceForAgriculture(
       laborAffordableAreaHa: laborArea,
       subsistenceReserve: SUBSISTENCE_FIELD_RESERVE,
       includeUrbanFoodDemand: demandOptions.includeUrbanFoodDemand,
+      workforce: {
+        ...staticInputs.get(cellId)!.workforce!,
+        adultPeople: farmableAdults * populationRate,
+        maintenanceDaysPerHa: laborDays * FARM_LABOUR_SAFETY_MARGIN,
+        otherOccupationDays:
+          conditions.landUseByCell?.[cellId]?.workforce?.otherOccupationDays ??
+          staticInputs.get(cellId)!.workforce!.otherOccupationDays
+      },
       newClearanceAreaHa: Math.min(
         Math.max(
           0,
@@ -619,7 +632,7 @@ export function reconcileForestClearanceForAgriculture(
         constraints.physicalHectares * 0.02
       ),
       neighbors: cells.c?.[cellId]?.filter(n => cells.state?.[n] === cells.state?.[cellId]),
-      diagnostics: ["estimated-clearance-labour"]
+      diagnostics: [...(staticInputs.get(cellId)?.diagnostics ?? []), "estimated-clearance-labour"]
     });
   }
   const plan = planSettlementLandUse(inputs, {
@@ -631,7 +644,10 @@ export function reconcileForestClearanceForAgriculture(
   });
   if (demandOptions.preserveLegacyStock)
     for (const budget of Object.values(plan.cells)) budget.diagnostics.push("legacy-timber-stock-preserved");
-  return commitLandUsePlan(world, plan, { preserveStock: demandOptions.preserveLegacyStock });
+  return commitLandUsePlan(world, plan, {
+    preserveStock: demandOptions.preserveLegacyStock,
+    annual: demandOptions.annual
+  });
 }
 
 function getCellFoodDemandPeople(

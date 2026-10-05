@@ -236,7 +236,7 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
 
   function renderMap(): void {
     const doc = history.current;
-    svgLayer.innerHTML = renderRegionSvg(doc, selectedId);
+    svgLayer.innerHTML = renderRegionSvg(doc, selectedId, { zoom });
     const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
     const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
     canvas.style.width = `${widthUnits}px`;
@@ -736,7 +736,9 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
   viewport.addEventListener("wheel", e => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
+    const beforeDetail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
     zoom = Math.min(Math.max(0.2, zoom * factor), 5.0);
+    if (beforeDetail !== (zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2)) renderMap();
     updateTransform();
   });
 

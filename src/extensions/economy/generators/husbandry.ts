@@ -267,7 +267,17 @@ function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cell
 
 /** The land-suitability ceiling clamped by population-scaled local demand — mirrors
  * viticulture.ts's `calculateDesiredVineyardAreaHectares()` (see module doc-comment). */
-function calculateDesiredPastureAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
+export function calculateDesiredPastureAreaHectares(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  planning = false
+): number {
+  const reserved = world.pack.landUse?.cells[cellId]?.patches
+    .filter(p => p.kind === "pasture" || p.kind === "wood_pasture")
+    .reduce((s, p) => s + p.areaHa, 0);
+  // New ledgers contain an explicit husbandry contract; legacy ledgers retain old suitability.
+  if (!planning && world.pack.landUse?.cells[cellId]?.diagnostics.includes("resolved-livestock-land"))
+    return reserved ?? 0;
   const ceiling = calculatePastureCeilingAreaHectares(world, cellId);
   if (ceiling <= 0) return 0;
   const populationPoints = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
@@ -373,6 +383,7 @@ export function getPastureAreaUsedHectares(cellId: number): number {
   const world = getWorldContext();
   const desiredArea = calculateDesiredPastureAreaHectares(world, cellId);
   if (desiredArea <= 0) return 0;
+  if (world.pack.landUse?.cells[cellId]?.diagnostics.includes("resolved-livestock-land")) return desiredArea;
   return desiredArea * getHusbandryWorkerFactor(cellId);
 }
 

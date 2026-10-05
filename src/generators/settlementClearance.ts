@@ -4,6 +4,7 @@ import {
   type LandUseProfile,
   type LandUseSnapshot
 } from "../types/landUse";
+import { addActivities, clearanceLabor, placeLandUses, recoveryYears, supplyCatchments } from "./landUseActivities";
 
 export const STAPLE_NEED_KG_PER_PERSON_YEAR = 200;
 export const EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK = 0.65;
@@ -38,6 +39,34 @@ export function resolveLandUseProfile(input: {
   );
 }
 export interface ClearanceCellInput {
+  polygon?: [number, number][];
+  temperature?: number;
+  precipitation?: number;
+  tenure?: "common" | "private" | "protected";
+  ownerId?: number;
+  access?: { cellId: number; cost: number; allowed?: boolean }[];
+  maxTransportCost?: number;
+  workforce?: {
+    adultPeople: number;
+    workableDays: number;
+    maintenanceDaysPerHa: number;
+    otherOccupationDays: number;
+    clearanceShare: number;
+    clearanceDaysPerHa: number;
+  };
+  livestock?: {
+    grazingAreaHa: number;
+    hayAreaHa?: number;
+    woodPastureHa?: number;
+    grazedFallowHa?: number;
+    fodderWithinFieldsHa?: number;
+  };
+  managedForestAreaHa?: number;
+  forestRotationYears?: number;
+  agroforestryAreaHa?: number;
+  agroforestryRotationYears?: number;
+  shiftingCycleYears?: number;
+  shiftingActiveYears?: number;
   id: number;
   anchor: [number, number];
   physicalLandAreaHa: number;
@@ -76,6 +105,8 @@ export function planSettlementLandUse(
   const cells: Record<number, CellLandUseBudget> = {};
   const requests = new Map<number, { required: number; remaining: number; candidates: number[] }>();
   const capacity = new Map<number, number>();
+  const catchments = supplyCatchments(ordered);
+  const referenceProductivity = new Map<number, number>();
   for (const input of ordered) {
     const area = positive(input.physicalLandAreaHa);
     const built = Math.min(area, calculateBuiltAreaHa(input.urbanPeople, input.profile));
@@ -83,10 +114,23 @@ export function planSettlementLandUse(
       positive(input.ruralPeople) + (input.includeUrbanFoodDemand === false ? 0 : positive(input.urbanPeople));
     const localPeople = Math.max(0, people - positive(input.importedStaplePeople ?? 0));
     const unresolvedEmbedded = input.profile === "embedded" && input.localStapleShare === undefined && localPeople > 0;
+    const reachable = input.access
+      ? (catchments.get(input.id) ?? []).map(c => c.id)
+      : [input.id, ...(input.neighbors ?? [])];
+    const remoteSupply = reachable.some(id => id !== input.id && (inputById.get(id)?.yieldKgPerSownHa ?? 0) > 0);
+    const referenceYield =
+      input.yieldKgPerSownHa > 0 ? input.yieldKgPerSownHa : remoteSupply ? BASE_NET_YIELD_KG_PER_SOWN_HECTARE : 0;
+    const referenceSown =
+      (input.annualSownShare ?? ANNUAL_SOWN_SHARE) > 0
+        ? (input.annualSownShare ?? ANNUAL_SOWN_SHARE)
+        : remoteSupply
+          ? ANNUAL_SOWN_SHARE
+          : 0;
+    referenceProductivity.set(input.id, referenceYield * referenceSown);
     const required = requiredFieldAreaHectares(
       localPeople * (input.localStapleShare ?? 1),
-      unresolvedEmbedded ? 0 : input.yieldKgPerSownHa,
-      input.annualSownShare
+      unresolvedEmbedded ? 0 : referenceYield,
+      referenceSown
     );
     // An unavailable crop keeps demand visible without non-finite archive values.
     const impossible = !Number.isFinite(required);
@@ -100,13 +144,14 @@ export function planSettlementLandUse(
       Math.max(0, area - built),
       positive(input.cultivableAreaHa),
       options.annual
-        ? previousFields + (previous?.lastUpdatedYear === options.year ? 0 : positive(input.newClearanceAreaHa ?? 0))
+        ? previousFields + (previous?.lastUpdatedYear === options.year ? 0 : positive(clearanceLabor(input, previous)))
         : Infinity
     );
-    capacity.set(input.id, input.yieldKgPerSownHa > 0 ? limit : 0);
+    capacity.set(input.id, input.yieldKgPerSownHa > 0 && input.tenure !== "protected" ? limit : 0);
     const diagnostics = [...(input.diagnostics ?? []), "estimated-spatial-forest-intersection"];
     if (input.profile === "port" && input.importedStaplePeople === undefined)
       diagnostics.push("port-import-supply-unresolved");
+    if (remoteSupply && input.yieldKgPerSownHa <= 0) diagnostics.push("remote-supply-reference-hectares");
     if (impossible) diagnostics.push("staple-production-unavailable");
     if (input.profile === "embedded" && !input.importedStaplePeople)
       diagnostics.push("embedded-food-supply-unresolved");
@@ -123,6 +168,10 @@ export function planSettlementLandUse(
       unallocatedAreaHa: impossible ? 0 : required,
       maintenanceShortfallHa: 0,
       convertedForestAreaHa: 0,
+      transportAllocations: [],
+      clearanceLaborDays: input.workforce
+        ? clearanceLabor(input, previous) * input.workforce.clearanceDaysPerHa
+        : undefined,
       patches:
         built > 0
           ? [
@@ -143,7 +192,9 @@ export function planSettlementLandUse(
     requests.set(input.id, {
       required: impossible ? 0 : required,
       remaining: target,
-      candidates: [input.id, ...[...new Set(input.neighbors ?? [])].filter(id => id !== input.id).sort((a, b) => a - b)]
+      candidates: input.access
+        ? (catchments.get(input.id) ?? []).map(c => c.id)
+        : [input.id, ...[...new Set(input.neighbors ?? [])].filter(id => id !== input.id).sort((a, b) => a - b)]
     });
   }
   // Prefer local supply, then adjacent accessible cells supplied by the host graph.
@@ -155,8 +206,13 @@ export function planSettlementLandUse(
       const list = offers.get(dest) ?? [];
       const source = inputById.get(id)!;
       const destination = inputById.get(dest)!;
+      if (
+        destination.tenure === "private" &&
+        (destination.ownerId === undefined || destination.ownerId !== source.ownerId)
+      )
+        continue;
       const conversion =
-        (source.yieldKgPerSownHa * (source.annualSownShare ?? ANNUAL_SOWN_SHARE)) /
+        referenceProductivity.get(id)! /
         (destination.yieldKgPerSownHa * (destination.annualSownShare ?? ANNUAL_SOWN_SHARE));
       if (!(conversion > 0) || !Number.isFinite(conversion)) continue;
       list.push({ id, area: request.remaining * conversion, conversion });
@@ -171,6 +227,12 @@ export function planSettlementLandUse(
       for (const offer of list)
         requests.get(offer.id)!.remaining -= (allocated * offer.area) / total / offer.conversion;
       cell.allocatedAreaHa += allocated;
+      for (const offer of list)
+        cell.transportAllocations!.push({
+          demandCellId: offer.id,
+          areaHa: (allocated * offer.area) / total,
+          transportCost: catchments.get(offer.id)?.find(c => c.id === dest)?.cost ?? 0
+        });
       const patch = cell.patches.find(p => p.kind === "cultivation");
       if (patch) {
         patch.areaHa += allocated;
@@ -209,7 +271,8 @@ export function planSettlementLandUse(
         oldAbandoned *
         Math.min(
           1,
-          Math.max(0, options.year - (previous.lastUpdatedYear ?? options.previous?.year ?? options.year)) * 0.02
+          Math.max(0, options.year - (previous.lastUpdatedYear ?? options.previous?.year ?? options.year)) /
+            recoveryYears(input.temperature, input.precipitation)
         );
       const abandoned = Math.min(
         Math.max(0, cell.physicalLandAreaHa - cell.patches.reduce((s, p) => s + p.areaHa, 0)),
@@ -225,23 +288,29 @@ export function planSettlementLandUse(
           supplierIds: [],
           stage: "regenerating",
           convertedForestAreaHa: 0,
-          abandonedYear: previous.patches.find(p => p.kind === "abandoned")?.abandonedYear ?? options.year
+          abandonedYear: previous.patches.find(p => p.kind === "abandoned")?.abandonedYear ?? options.year,
+          recoveryYears: recoveryYears(input.temperature, input.precipitation)
         });
     }
+    addActivities(input, cell, options.year, previous);
     const forest = cell.physicalLandAreaHa * Math.min(1, positive(input.forestCover));
     let nonforest = cell.physicalLandAreaHa - forest;
     for (const patch of cell.patches) {
       const open = Math.min(nonforest, patch.areaHa);
       nonforest -= open;
-      patch.convertedForestAreaHa = patch.areaHa - open;
+      patch.convertedForestAreaHa = (patch.areaHa - open) * (1 - (patch.canopyRetention ?? 0));
       cell.convertedForestAreaHa += patch.convertedForestAreaHa;
     }
-    const remainingForest = Math.max(0, forest - cell.convertedForestAreaHa);
+    const remainingLand = Math.max(0, cell.physicalLandAreaHa - cell.patches.reduce((s, p) => s + p.areaHa, 0));
+    const remainingForest = Math.min(
+      remainingLand,
+      Math.max(0, forest - (cell.physicalLandAreaHa - remainingLand - (cell.physicalLandAreaHa - forest - nonforest)))
+    );
     for (const [kind, areaHa] of [
       ["natural_forest", remainingForest],
-      ["other_natural", nonforest]
+      ["other_natural", Math.max(0, remainingLand - remainingForest)]
     ] as const) {
-      if (areaHa > 0)
+      if (areaHa >= 0)
         cell.patches.push({
           id: `land:${input.id}:${kind}`,
           sourceCellId: input.id,
@@ -253,6 +322,9 @@ export function planSettlementLandUse(
           convertedForestAreaHa: 0
         });
     }
+    placeLandUses(input, cell, options.seed);
+    if (previous && cell.geometryHaPerUnit && !previous.geometryHaPerUnit)
+      cell.diagnostics.push("legacy-geometry-baseline-preserved");
     for (const p of cell.patches) p.supplierIds = [...new Set(p.supplierIds)].sort();
   }
   return {

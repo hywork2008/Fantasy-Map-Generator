@@ -47,6 +47,45 @@ function fixture() {
   return { doc, site };
 }
 describe("land-use detail contract", () => {
+  it("reads FMG world polygons, clips water and keeps the same masks at every zoom", () => {
+    const { doc, site } = fixture();
+    const snapshot = planSettlementLandUse(
+      [
+        {
+          id: 7,
+          anchor: [50, 50],
+          polygon: site.cells[0].polygon!,
+          physicalLandAreaHa: 10000,
+          forestCover: 1,
+          ruralPeople: 200,
+          urbanPeople: 100,
+          cultivableAreaHa: 5000,
+          yieldKgPerSownHa: 450
+        }
+      ],
+      { seed: "world", year: 100 }
+    );
+    site.cells[0].landUse = snapshot.cells[7];
+    const crop = snapshot.cells[7].patches.find(p => p.kind === "cultivation")!.polygons![0];
+    const center: Point = crop.reduce((s, p) => [s[0] + p[0] / crop.length, s[1] + p[1] / crop.length] as Point, [
+      0, 0
+    ] as Point);
+    const lake = rectangle(center[0] - 0.05, center[1] - 0.05, 0.1, 0.1);
+    doc.terrain.lakePolygons = [lake];
+    generateFarmland(doc, site, p => p);
+    expect(doc.landUse!.unplacedAreaHa).toBeGreaterThan(0);
+    for (const patch of doc.landUse!.patches) expect(polygonArea(clipConvex(patch.polygon, lake))).toBeLessThan(1e-8);
+    const before = JSON.stringify(doc.landUse);
+    for (const zoom of [0.3, 1, 3]) {
+      const svg = renderRegionSvg(doc, undefined, { zoom });
+      for (const patch of doc.landUse!.patches.filter(p => p.kind === "built" || p.kind === "cultivation")) {
+        const path = `${patch.polygon.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ")} Z`;
+        expect(svg.split(`d="${path}"`).length).toBeGreaterThanOrEqual(3);
+      }
+    }
+    expect(JSON.stringify(doc.landUse)).toBe(before);
+    expect(snapshot.cells[7].patches.find(p => p.kind === "cultivation")!.polygons).toContainEqual(crop);
+  });
   it("uses supplied budgets without recalculating food, yield or rainfall", () => {
     const { doc, site } = fixture();
     site.cells[0].annualPrecipitationMm = 0;
@@ -122,7 +161,9 @@ describe("land-use detail contract", () => {
     expect(JSON.stringify(doc.landUse!.patches.find(p => p.id === patch.id))).toBe(edited);
     const svg = renderRegionSvg(doc);
     const path = `${patch.polygon.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ")} Z`;
-    expect(svg.split(`d="${path}"`).length).toBe(3);
+    expect(svg.split(`d="${path}"`).length).toBeGreaterThanOrEqual(3);
+    expect(renderRegionSvg(doc, undefined, { zoom: 0.4 })).toContain('data-detail-level="0"');
+    expect(renderRegionSvg(doc, undefined, { zoom: 2 })).toContain('data-detail-level="2"');
   });
   it("allows grassland farms and preserves mountainous forest and tropical dry forest", () => {
     const { doc, site } = fixture();

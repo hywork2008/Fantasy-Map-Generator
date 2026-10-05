@@ -221,7 +221,10 @@ export function buildLandscapeFromCells(
         forestCover: cell.forestCover,
         forestStock: cell.forestStock,
         forestPolygons: isForestBiome(landscape.kind)
-          ? buildNaturalCanopy(cell.polygon, cell.forestCover ?? 0.7, seed, metersPerMapUnit).map(p => p.map(toLocal))
+          ? (
+              cell.landUse?.forestPolygons ??
+              buildNaturalCanopy(cell.polygon, cell.forestCover ?? 0.7, seed, metersPerMapUnit)
+            ).map(p => p.map(toLocal))
           : undefined
       });
     }

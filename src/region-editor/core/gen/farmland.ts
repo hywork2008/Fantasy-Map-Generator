@@ -9,6 +9,7 @@ import {
   polygonArea,
   polygonsOverlap,
   rectangle,
+  subtractConvex,
   trimToArea
 } from "./landUseGeometry";
 
@@ -92,6 +93,48 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
     const physical = polygonArea(localPoly) * areaScale;
     if (Math.abs(physical - budget.physicalLandAreaHa) > Math.max(0.01, budget.physicalLandAreaHa * 0.01))
       diagnostics.push(`cell:${id}:polygon-area-differs-from-budget`);
+    if (budget.patches.some(p => p.polygons)) {
+      const exclusions = water.concat(
+        corridors,
+        retained.map(p => p.polygon)
+      );
+      for (const patch of budget.patches.filter(p => p.kind !== "natural_forest" && p.kind !== "other_natural")) {
+        if (retained.some(p => p.id.startsWith(patch.id))) continue;
+        let fragments = (patch.polygons ?? [])
+          .map(p => clipConvex(p.map(toLocal), localPoly))
+          .filter(p => polygonArea(p) > 1e-8);
+        for (const obstacle of exclusions)
+          fragments = fragments.flatMap(p => (polygonsOverlap(p, obstacle) ? subtractConvex(p, obstacle) : [p]));
+        if (patch.kind !== "built" && doc.terrain.heightfield) {
+          diagnostics.push(`cell:${id}:approximate-heightfield-slope`);
+          fragments = fragments.filter(
+            p =>
+              (approximateSlope(
+                p,
+                doc.terrain.heightfield,
+                doc.bounds.widthMeters / scale,
+                doc.bounds.heightMeters / scale,
+                scale
+              ) ?? 0) <= 0.35
+          );
+        }
+        const placed = fragments.reduce((s, p) => s + polygonArea(p) * areaScale, 0);
+        unplacedAreaHa += Math.max(0, patch.areaHa - placed);
+        fragments.forEach((polygon, index) => {
+          patches.push({
+            ...patch,
+            polygons: undefined,
+            id: `${patch.id}:coarse:${index}`,
+            anchor: toLocal(patch.anchor),
+            polygon,
+            areaHa: polygonArea(polygon) * areaScale,
+            convertedForestAreaHa:
+              patch.areaHa > 0 ? (patch.convertedForestAreaHa * polygonArea(polygon) * areaScale) / patch.areaHa : 0
+          });
+        });
+      }
+      continue;
+    }
     const occupied = retained.map(p => p.polygon);
     const bounds = (poly: Point[]) => [
       Math.min(...poly.map(p => p[0])),
@@ -219,6 +262,27 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
   // Cell area is counted once; settlements sharing a supply cell get a proportional presentation share.
   for (const city of doc.settlements) city.farmlandAreaHectares = 0;
   for (const cell of site.cells) {
+    const sourceBudget = cell.landUse ?? legacy?.cells[cell.sourceCellId ?? site.cells.indexOf(cell)];
+    if (sourceBudget?.transportAllocations) {
+      const placed = patches
+        .filter(p => p.sourceCellId === sourceBudget.sourceCellId && p.kind === "cultivation")
+        .reduce((s, p) => s + p.areaHa, 0);
+      const fraction = sourceBudget.allocatedAreaHa > 0 ? Math.min(1, placed / sourceBudget.allocatedAreaHa) : 0;
+      for (const allocation of sourceBudget.transportAllocations) {
+        const demand = site.cells.find(c => (c.sourceCellId ?? site.cells.indexOf(c)) === allocation.demandCellId);
+        if (!demand) continue;
+        const demandBudget = demand.landUse ?? legacy?.cells[allocation.demandCellId];
+        const demandPoly = (demand.polygon ?? []).map(toLocal);
+        const cities = doc.settlements.filter(s => pointInPolygon(s.position, demandPoly));
+        const urban = cities.reduce((s, c) => s + (c.population ?? 0), 0);
+        const people = demandBudget?.foodDemandPeople ?? urban;
+        if (people > 0 && people > (demandBudget?.ruralPeople ?? 0))
+          for (const city of cities)
+            city.farmlandAreaHectares =
+              (city.farmlandAreaHectares ?? 0) + (allocation.areaHa * fraction * (city.population ?? 0)) / people;
+      }
+      continue;
+    }
     const poly = (cell.polygon ?? []).map(toLocal);
     const cities = doc.settlements.filter(s => pointInPolygon(s.position, poly));
     const total = cities.reduce((s, c) => s + (c.population ?? 0), 0);

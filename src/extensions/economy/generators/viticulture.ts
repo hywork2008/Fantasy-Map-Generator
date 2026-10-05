@@ -92,6 +92,9 @@ function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): 
     physicalHectares -
       (world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? getCultivatedArea()[cellId] ?? 0) -
       getPastureAreaUsedHectares(cellId) -
+      (world.pack.landUse?.cells[cellId]?.patches
+        .filter(p => p.kind === "hay_meadow" || p.kind === "agroforestry" || p.kind === "managed_forest")
+        .reduce((s, p) => s + p.areaHa, 0) ?? 0) -
       calculateBurgBuiltAreaHectares(world, cellId)
   );
   if (unclaimedArea <= 0) return [];

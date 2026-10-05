@@ -245,7 +245,14 @@ export function getWildCarryingCapacity(cellId: number): number {
   const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
   const pastureAreaUsed = getPastureAreaUsedHectares(cellId);
   const vineyardAreaUsed = getVineyardAreaUsedHectares(cellId);
-  const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea - pastureAreaUsed - vineyardAreaUsed);
+  const ancillaryArea =
+    world.pack.landUse?.cells[cellId]?.patches
+      .filter(p => p.kind === "hay_meadow" || p.kind === "agroforestry")
+      .reduce((s, p) => s + p.areaHa * (1 - (p.canopyRetention ?? 0)), 0) ?? 0;
+  const wildHabitatArea = Math.max(
+    0,
+    physicalArea - cultivated - burgArea - pastureAreaUsed - vineyardAreaUsed - ancillaryArea
+  );
   return density * wildHabitatArea;
 }
 

@@ -1,3 +1,5 @@
+import { recordManagedHarvest } from "../../../generators/landUse";
+import { managedHarvestAllowance, recoveryYears } from "../../../generators/landUseActivities";
 /**
  * Economy bridge for the host-owned forest stock.
  *
@@ -10,7 +12,7 @@
 
 import { getForestStockRatio, harvestForestStock, regrowForestStock } from "../../../generators/forestStock";
 import { getMaintainedForestConversion } from "../../../generators/landUse";
-import { getCultivatedArea, getWorldContext, isEconomyContextReady } from "../economyContext";
+import { getCultivatedArea, getSimulationYear, getWorldContext, isEconomyContextReady } from "../economyContext";
 import { calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 
 /**
@@ -32,9 +34,15 @@ function getLiveCells() {
 export function harvestWood(cellId: number, requestedWood: number): number {
   const cells = getLiveCells();
   if (!cells || requestedWood <= 0 || !Number.isFinite(requestedWood)) return 0;
-  const requestedCoverage = requestedWood * FOREST_COVER_PER_WOOD_UNIT;
+  const world = getWorldContext(),
+    year = getSimulationYear();
+  const requestedCoverage = Math.min(
+    requestedWood * FOREST_COVER_PER_WOOD_UNIT,
+    managedHarvestAllowance(world.pack.landUse, cellId, year) ?? Infinity
+  );
   const harvestedCoverage = harvestForestStock(cells, cellId, requestedCoverage);
-  return requestedCoverage > 0 ? requestedWood * (harvestedCoverage / requestedCoverage) : 0;
+  recordManagedHarvest(world, cellId, year, harvestedCoverage);
+  return harvestedCoverage / FOREST_COVER_PER_WOOD_UNIT;
 }
 
 /** Applies a shipbuilding logging event to the same stock used by market Wood. */
@@ -71,7 +79,14 @@ export function tickForestRegrowth(deltaYears: number, getRegrowthMultiplier?: (
       cellId,
       deltaYears,
       protectedOpenCoverage,
-      getRegrowthMultiplier?.(cellId) ?? 1
+      (getRegrowthMultiplier?.(cellId) ?? 1) *
+        (world.pack.landUse?.cells[cellId]
+          ? 50 /
+            recoveryYears(
+              world.grid?.cells?.temp?.[cells.g?.[cellId] ?? cellId],
+              world.grid?.cells?.prec?.[cells.g?.[cellId] ?? cellId]
+            )
+          : 1)
     );
     changed = recovered || changed;
   }

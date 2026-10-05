@@ -96,7 +96,13 @@ export function createCurvedRiverPolygon(
   return `${rightPath} L ${leftPoints[0][0].toFixed(2)} ${leftPoints[0][1].toFixed(2)} ${leftSegments} Z`;
 }
 
-export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null): string {
+export function renderRegionSvg(
+  doc: RegionDocument,
+  selectedId?: string | null,
+  options: { zoom?: number } = {}
+): string {
+  const zoom = options.zoom ?? 1;
+  const detail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
   const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
   const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
 
@@ -114,12 +120,26 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
 
     // Physical land-use polygons are shared with ground rendering. Icon halos remain symbols only.
     const landUseClearing = (doc.landUse?.patches ?? [])
-      .filter(p => p.kind === "built" || p.kind === "cultivation" || p.kind === "pasture" || p.kind === "abandoned")
+      .filter(
+        p =>
+          p.kind === "built" ||
+          p.kind === "cultivation" ||
+          p.kind === "pasture" ||
+          p.kind === "hay_meadow" ||
+          p.kind === "wood_pasture" ||
+          p.kind === "agroforestry" ||
+          p.kind === "abandoned"
+      )
       .map(p => {
         const opacity =
           p.kind === "abandoned"
-            ? Math.max(0, 1 - Math.max(0, (doc.landUse?.year ?? 0) - (p.abandonedYear ?? doc.landUse?.year ?? 0)) / 20)
-            : 1;
+            ? Math.max(
+                0,
+                1 -
+                  Math.max(0, (doc.landUse?.year ?? 0) - (p.abandonedYear ?? doc.landUse?.year ?? 0)) /
+                    (p.recoveryYears ?? 20)
+              )
+            : 1 - (p.canopyRetention ?? 0);
         return `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" opacity="${opacity}" />`;
       })
       .join("\n");
@@ -535,7 +555,34 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
-      <g id="layer-land-use">${(doc.landUse?.patches ?? []).map(p => `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${polyToSvgPath(p.polygon)}" fill="${p.kind === "built" ? "#d6c3a2" : p.kind === "cultivation" ? "#d9cf9d" : p.kind === "pasture" ? "#bbc58e" : p.kind === "abandoned" ? "#aabb94" : "#b5c595"}" stroke="#aaae85" stroke-width="0.3" />`).join("\n")}</g>
+      <defs>
+        ${detail > 0 ? `<pattern id="re-field-detail" width="${detail === 2 ? 7 : 18}" height="${detail === 2 ? 7 : 18}" patternUnits="userSpaceOnUse" patternTransform="rotate(23)"><path d="M0 0H18" stroke="#b8b080" stroke-width="0.5"/>${detail === 2 ? '<path d="M0 0V7" stroke="#b8b080" stroke-width="0.3"/>' : ""}</pattern>` : ""}
+        ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
+      </defs>
+      <g id="layer-land-use" data-detail-level="${detail}">${(doc.landUse?.patches ?? [])
+        .map(p => {
+          const path = polyToSvgPath(p.polygon);
+          const color =
+            p.kind === "built"
+              ? "#d6c3a2"
+              : p.kind === "cultivation"
+                ? "#d9cf9d"
+                : p.kind === "hay_meadow"
+                  ? "#c8ce99"
+                  : p.kind === "pasture"
+                    ? "#bbc58e"
+                    : p.kind === "abandoned"
+                      ? "#aabb94"
+                      : "#b5c595";
+          const texture =
+            detail > 0 && p.kind === "cultivation"
+              ? "re-field-detail"
+              : detail > 0 && ["agroforestry", "wood_pasture", "managed_forest"].includes(p.kind)
+                ? "re-sparse-trees"
+                : undefined;
+          return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}" stroke="#aaae85" stroke-width="${detail > 0 ? 0.3 : 0}" />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
+        })
+        .join("\n")}</g>
       <g id="layer-forests">${forestLayer}</g>
       <g id="layer-rivers">${riversLayer}</g>
       <g id="layer-routes">${routesLayer}</g>
