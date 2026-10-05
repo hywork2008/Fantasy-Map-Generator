@@ -608,7 +608,11 @@ export function renderRegionSvg(
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
       <defs>
-        ${detail > 0 ? `<pattern id="re-field-detail" width="${detail === 2 ? 7 : 18}" height="${detail === 2 ? 7 : 18}" patternUnits="userSpaceOnUse" patternTransform="rotate(23)"><path d="M0 0H18" stroke="#b8b080" stroke-width="0.5"/>${detail === 2 ? '<path d="M0 0V7" stroke="#b8b080" stroke-width="0.3"/>' : ""}</pattern>` : ""}
+        <pattern id="re-field-detail" width="${detail === 2 ? 8 : 14}" height="${detail === 2 ? 10 : 14}" patternUnits="userSpaceOnUse" patternTransform="rotate(23)">
+          <path d="M0 0V${detail === 2 ? 10 : 14}" stroke="#75834b" stroke-width="${detail === 0 ? 0.6 : 1}" opacity="0.65" />
+          <path d="M2 0V${detail === 2 ? 10 : 14}" stroke="#ead47b" stroke-width="${detail === 0 ? 1 : 2}" opacity="0.8" />
+          ${detail === 2 ? '<path d="M5 9V3m0 4L3 5m2 0L3 3m2 4l2-2m-2 0l2-2m-2 0V1" fill="none" stroke="#786535" stroke-width="0.55" stroke-linecap="round" />' : ""}
+        </pattern>
         ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
       </defs>
       <g id="layer-land-use" data-detail-level="${detail}">${(doc.landUse?.patches ?? [])
@@ -618,7 +622,7 @@ export function renderRegionSvg(
             p.kind === "built"
               ? "#d6c3a2"
               : p.kind === "cultivation"
-                ? "#d9cf9d"
+                ? "#c5bd70"
                 : p.kind === "hay_meadow"
                   ? "#c8ce99"
                   : p.kind === "pasture"
@@ -627,12 +631,12 @@ export function renderRegionSvg(
                       ? "#aabb94"
                       : "#b5c595";
           const texture =
-            detail > 0 && p.kind === "cultivation"
+            p.kind === "cultivation"
               ? "re-field-detail"
               : detail > 0 && ["agroforestry", "wood_pasture", "managed_forest"].includes(p.kind)
                 ? "re-sparse-trees"
                 : undefined;
-          return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}" stroke="#aaae85" stroke-width="${detail > 0 ? 0.3 : 0}" />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
+          return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}" stroke="${p.kind === "cultivation" ? "#7c874e" : "#aaae85"}" stroke-width="${detail > 0 ? 0.3 : 0}" />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
         })
         .join("\n")}</g>
       <g id="layer-forests">${forestLayer}</g>
