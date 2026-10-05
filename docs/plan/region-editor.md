@@ -1,7 +1,7 @@
 # Region Editor (RE) — 地方・地域地図の生成と編集
 
-- 状態: 計画立案（RFC / 設計書）
-- 作成日: 2026-10-05
+- 状態: Phase 1〜5（基礎基盤・FMG連携・直角橋・Schley/Perilous描画・編集ツール群・CE/DE連携）実装完了
+- 更新日: 2026-10-05
 - 配置先: `src/region-editor/`
 - ドキュメント: `docs/plan/region-editor.md`
 - 関連:

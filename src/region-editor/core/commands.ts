@@ -1,0 +1,153 @@
+import { cloneRegionDocument } from "./document";
+import { generatePerpendicularBridges } from "./gen/perpendicularBridges";
+import { distance } from "./geometry";
+import type {
+  BiomeKind,
+  Point,
+  RegionBiomeArea,
+  RegionDocument,
+  RegionLandmark,
+  RegionSettlement,
+  RegionSymbol,
+  SymbolType
+} from "./types";
+
+/**
+ * シンボルを追加し、Y 座標順（北から南）で再ソートする
+ */
+export function addSymbol(doc: RegionDocument, symbol: RegionSymbol): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.symbols.push(symbol);
+  next.symbols.sort((a, b) => a.y - b.y);
+  return next;
+}
+
+export function removeSymbol(doc: RegionDocument, symbolId: string): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.symbols = next.symbols.filter(s => s.id !== symbolId);
+  return next;
+}
+
+export function moveSymbol(doc: RegionDocument, symbolId: string, x: number, y: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  const sym = next.symbols.find(s => s.id === symbolId);
+  if (sym && !sym.locked) {
+    sym.x = x;
+    sym.y = y;
+    next.symbols.sort((a, b) => a.y - b.y);
+  }
+  return next;
+}
+
+export function addSettlement(doc: RegionDocument, settlement: RegionSettlement): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.settlements.push(settlement);
+  return next;
+}
+
+export function updateSettlement(doc: RegionDocument, settlement: RegionSettlement): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  const idx = next.settlements.findIndex(s => s.id === settlement.id);
+  if (idx >= 0) {
+    next.settlements[idx] = { ...settlement };
+  }
+  return next;
+}
+
+export function removeSettlement(doc: RegionDocument, settlementId: string): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.settlements = next.settlements.filter(s => s.id !== settlementId);
+  return next;
+}
+
+export function addLandmark(doc: RegionDocument, landmark: RegionLandmark): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.landmarks.push(landmark);
+  return next;
+}
+
+export function updateLandmark(doc: RegionDocument, landmark: RegionLandmark): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  const idx = next.landmarks.findIndex(l => l.id === landmark.id);
+  if (idx >= 0) {
+    next.landmarks[idx] = { ...landmark };
+  }
+  return next;
+}
+
+export function removeLandmark(doc: RegionDocument, landmarkId: string): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.landmarks = next.landmarks.filter(l => l.id !== landmarkId);
+  return next;
+}
+
+/**
+ * バイオーム筆塗り（円形ブラシでポリゴンを作成しバイオーム面を追加＋シンボル配置）
+ */
+export function paintBiome(doc: RegionDocument, center: Point, radius: number, kind: BiomeKind): RegionDocument {
+  const next = cloneRegionDocument(doc);
+
+  // 円形ポリゴン（12頂点）の生成
+  const segments = 12;
+  const poly: Point[] = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    poly.push([center[0] + Math.cos(angle) * radius, center[1] + Math.sin(angle) * radius]);
+  }
+
+  const newArea: RegionBiomeArea = {
+    id: `bio-${kind}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    kind,
+    polygon: poly
+  };
+  next.biomes.push(newArea);
+
+  // 森林や山岳の場合は、円内に数個のシンボルを自動散布
+  if (kind.includes("forest") || kind.includes("mountains") || kind.includes("hills")) {
+    const count = Math.max(1, Math.floor(radius / 12));
+    for (let i = 0; i < count; i++) {
+      const dist = Math.random() * radius * 0.75;
+      const ang = Math.random() * Math.PI * 2;
+      const x = center[0] + Math.cos(ang) * dist;
+      const y = center[1] + Math.sin(ang) * dist;
+
+      let symType: SymbolType = "tree_deciduous";
+      if (kind === "coniferous_forest") symType = "tree_pine";
+      else if (kind === "tropical_forest") symType = "tree_jungle";
+      else if (kind === "mountains") symType = Math.random() > 0.5 ? "mountain_peak_major" : "mountain_peak_minor";
+      else if (kind === "hills") symType = "hill_single";
+
+      next.symbols.push({
+        id: `sym-brush-${Date.now()}-${i}`,
+        type: symType,
+        x,
+        y,
+        scale: 0.8 + Math.random() * 0.3,
+        rotationDeg: 0
+      });
+    }
+    next.symbols.sort((a, b) => a.y - b.y);
+  }
+
+  return next;
+}
+
+/**
+ * 指定位置の近傍シンボルを消去する
+ */
+export function eraseAt(doc: RegionDocument, center: Point, radius: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.symbols = next.symbols.filter(s => distance([s.x, s.y], center) > radius);
+  return next;
+}
+
+/**
+ * 道路を追加または更新し、直角橋を自動再計算する（AGENTS.md 原則遵守）
+ */
+export function updateRoutesAndBridges(doc: RegionDocument): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  const result = generatePerpendicularBridges(next.rivers, next.routes, next.bounds.metersPerUnit);
+  next.bridges = result.bridges;
+  next.routes = result.adjustedRoutes;
+  return next;
+}

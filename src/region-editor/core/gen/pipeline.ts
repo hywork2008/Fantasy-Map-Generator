@@ -26,12 +26,24 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
   // 1. 海岸線の生成（Sword Coast スタイルの西海岸: 西側が海、東側が陸）
   const coastPoints: Point[] = [];
   const coastBaseX = widthUnits * 0.28;
-  const steps = 30;
+  const steps = 40;
   for (let i = 0; i <= steps; i++) {
     const y = (heightUnits / steps) * i;
-    const wobble = (rng.next() - 0.5) * widthUnits * 0.12 + Math.sin(i * 0.4) * widthUnits * 0.08;
+    const wobble = (rng.next() - 0.5) * widthUnits * 0.08 + Math.sin(i * 0.35) * widthUnits * 0.06;
     coastPoints.push([coastBaseX + wobble, y]);
   }
+
+  // 任意の Y における海岸線の X 座標を正確に求める補間関数
+  const getCoastX = (y: number): number => {
+    if (y <= 0) return coastPoints[0][0];
+    if (y >= heightUnits) return coastPoints[coastPoints.length - 1][0];
+    const t = (y / heightUnits) * (coastPoints.length - 1);
+    const i = Math.floor(t);
+    const frac = t - i;
+    const p1 = coastPoints[i];
+    const p2 = coastPoints[Math.min(i + 1, coastPoints.length - 1)];
+    return p1[0] + (p2[0] - p1[0]) * frac;
+  };
 
   // 海岸線ポリゴン（西側海域）
   const seaPolygon: Point[] = [[0, 0], ...coastPoints, [0, heightUnits]];
@@ -65,12 +77,14 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     [widthUnits * 0.42, heightUnits * 0.45]
   ];
 
-  // 湿地帯（Mere of Dead Men 風）
+  // 湿地帯（Mere of Dead Men 風: 海岸線の陸側にピッタリ沿わせる）
+  const swampY1 = heightUnits * 0.62;
+  const swampY2 = heightUnits * 0.84;
   const swampPoly: Point[] = [
-    [coastBaseX - 20, heightUnits * 0.68],
-    [coastBaseX + 60, heightUnits * 0.65],
-    [coastBaseX + 50, heightUnits * 0.88],
-    [coastBaseX - 30, heightUnits * 0.86]
+    [getCoastX(swampY1), swampY1],
+    [getCoastX(swampY1) + 70, swampY1],
+    [getCoastX(swampY2) + 60, swampY2],
+    [getCoastX(swampY2), swampY2]
   ];
 
   doc.biomes = [
@@ -83,19 +97,21 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
   ];
 
   // 3. 河川の生成（山脈から海へ流れる川）
+  const river1MouthY = heightUnits * 0.54;
   const river1Points: Point[] = [
     [widthUnits * 0.82, heightUnits * 0.35],
     [widthUnits * 0.7, heightUnits * 0.45],
     [widthUnits * 0.55, heightUnits * 0.48],
     [widthUnits * 0.4, heightUnits * 0.52],
-    [coastBaseX - 10, heightUnits * 0.54]
+    [getCoastX(river1MouthY) - 8, river1MouthY]
   ];
 
+  const river2MouthY = heightUnits * 0.28;
   const river2Points: Point[] = [
     [widthUnits * 0.75, heightUnits * 0.15],
     [widthUnits * 0.62, heightUnits * 0.22],
     [widthUnits * 0.48, heightUnits * 0.25],
-    [coastBaseX + 5, heightUnits * 0.28]
+    [getCoastX(river2MouthY) - 8, river2MouthY]
   ];
 
   const river1: RegionRiver = {
@@ -116,17 +132,23 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
 
   doc.rivers = [river1, river2];
 
-  // 4. 主要街道の生成（High Road: 南北に走る大動脈）
+  // 4. 主要街道の生成（The Trade Way: 海岸線の内陸側を確実に通る）
+  const roadY1 = 0;
+  const roadY2 = heightUnits * 0.26;
+  const roadY3 = heightUnits * 0.53;
+  const roadY4 = heightUnits * 0.74;
+  const roadY5 = heightUnits;
+
   const roadPoints: Point[] = [
-    [coastBaseX + 45, 0],
-    [coastBaseX + 55, heightUnits * 0.26],
-    [coastBaseX + 40, heightUnits * 0.53], // river1 と交差！
-    [coastBaseX + 70, heightUnits * 0.75],
-    [coastBaseX + 50, heightUnits]
+    [getCoastX(roadY1) + 40, roadY1],
+    [getCoastX(roadY2) + 35, roadY2],
+    [getCoastX(roadY3) + 45, roadY3], // river1 と交差！
+    [getCoastX(roadY4) + 50, roadY4],
+    [getCoastX(roadY5) + 40, roadY5]
   ];
 
   const branchRoad: Point[] = [
-    [coastBaseX + 40, heightUnits * 0.53],
+    [getCoastX(roadY3) + 45, roadY3],
     [widthUnits * 0.58, heightUnits * 0.58],
     [widthUnits * 0.75, heightUnits * 0.65]
   ];
@@ -230,7 +252,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     {
       id: "set-1",
       name: "Waterdeep",
-      position: [coastBaseX + 15, heightUnits * 0.28],
+      position: [getCoastX(heightUnits * 0.28) + 14, heightUnits * 0.28],
       type: "metropolis",
       population: 130000,
       isCapital: true,
@@ -241,7 +263,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     {
       id: "set-2",
       name: "Daggerford",
-      position: [coastBaseX + 48, heightUnits * 0.54],
+      position: [getCoastX(heightUnits * 0.54) + 48, heightUnits * 0.54],
       type: "town",
       population: 4500,
       hasWalls: true,
@@ -261,7 +283,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     {
       id: "lm-1",
       name: "Undermountain",
-      position: [coastBaseX + 22, heightUnits * 0.29],
+      position: [getCoastX(heightUnits * 0.28) + 24, heightUnits * 0.29],
       kind: "dungeon",
       dangerLevel: 9,
       dungeonPreset: "room-corridor"
@@ -269,14 +291,14 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     {
       id: "lm-2",
       name: "Hold of the Sea Kings",
-      position: [coastBaseX - 25, heightUnits * 0.72],
+      position: [getCoastX(heightUnits * 0.72) + 12, heightUnits * 0.72],
       kind: "ruins",
       dangerLevel: 5
     },
     {
       id: "lm-3",
       name: "Way Inn",
-      position: [coastBaseX + 46, heightUnits * 0.68],
+      position: [getCoastX(heightUnits * 0.7) + 52, heightUnits * 0.7],
       kind: "tower",
       dangerLevel: 1,
       dungeonPreset: "caravanserai"
