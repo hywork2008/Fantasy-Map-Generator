@@ -197,17 +197,17 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
 
       const svg = renderRegionSvg(doc);
 
-      // 1. 森林レイヤーとキャノピーグループが存在すること
+      // 1. 森林レイヤー・林床・樹冠（影/本体/陰影/ハイライト）が存在すること
       expect(svg).toContain('id="layer-forests"');
       expect(svg).toContain('class="re-forest-layer"');
-      expect(svg).toContain('class="re-forest-canopy"');
+      expect(svg).toContain('class="re-forest-floor"');
+      expect(svg).toContain('class="forest-crown-shadow"');
+      expect(svg).toContain('class="forest-crown"');
+      expect(svg).toContain('class="forest-crown-light"');
 
-      // 2. 上空視点の陰影・光（feDiffuseLighting）と有機的林縁（feDisplacementMap）フィルターが定義されていること
-      expect(svg).toContain('id="re-forest-shading"');
-      expect(svg).toContain("feDiffuseLighting");
-      expect(svg).toContain("feDisplacementMap");
-      expect(svg).toContain('id="re-forest-shadow"');
-      expect(svg).toContain('id="re-forest-canopy-pattern"');
+      // 2. 重いSVGフィルター（ノイズ照明・ディスプレイスメント）には依存しないこと
+      expect(svg).not.toContain("feDiffuseLighting");
+      expect(svg).not.toContain("feDisplacementMap");
 
       // 3. 街道や都市周辺をくり抜くクリアリングマスク（re-forest-clearing-mask）が定義され、街道と都市がくり抜かれていること
       expect(svg).toContain('mask="url(#re-forest-clearing-mask)"');

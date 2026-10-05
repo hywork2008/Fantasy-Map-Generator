@@ -4,6 +4,7 @@ import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { pointInPolygon } from "../core/geometry";
 import type { Point, RegionDocument } from "../core/types";
+import { forestKindOf, mixHex, renderForestCrowns, renderWetlandMarks } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
@@ -176,7 +177,10 @@ export function renderRegionSvg(
     const wetlandWaterClearing = doc.biomes
       .flatMap(b => b.wetlandPatches ?? [])
       .filter(p => p.kind === "water")
-      .map(p => `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" />`)
+      .map(
+        p =>
+          `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" stroke="#000000" stroke-width="0.3" stroke-linejoin="round" />`
+      )
       .join("\n");
     const lakesClearing = doc.terrain.lakePolygons
       .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
@@ -196,78 +200,23 @@ export function renderRegionSvg(
         ${routesClearing}
         ${landUseClearing}
       </mask>
-
-      <!-- 森林キャノピー用: 光と影の陰影バンプと有機的林縁ディスプレイスメント -->
-      <filter id="re-forest-shading" x="-10%" y="-10%" width="120%" height="120%">
-        <!-- 樹冠の細かな凹凸ノイズ (微小葉群・クラスタ) -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="42" result="microNoise" />
-        <!-- 樹冠の大きな起伏ノイズ (林冠のうねり) -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="88" result="macroNoise" />
-        <feComposite in="microNoise" in2="macroNoise" operator="arithmetic" k1="0" k2="0.65" k3="0.35" k4="0" result="canopyNoise" />
-        <!-- 直線的なセル境界・林縁を有機的な樹冠の波打ちに変形 -->
-        <feDisplacementMap in="SourceGraphic" in2="canopyNoise" scale="5" xChannelSelector="R" yChannelSelector="G" result="displacedCanopy" />
-        <!-- 光源による拡散照明: 方位225°、仰角50°からの自然光による陰影 -->
-        <feDiffuseLighting in="canopyNoise" lighting-color="#ffffff" surfaceScale="3.6" diffuseConstant="1.2" result="light">
-          <feDistantLight azimuth="225" elevation="50" />
-        </feDiffuseLighting>
-        <!-- 緑色の茂みに光と影を乗算 -->
-        <feBlend mode="multiply" in="displacedCanopy" in2="light" result="litCanopy" />
-        <!-- 元の図形の外側を完全に透明化（余白の白枠を除去） -->
-        <feComposite in="litCanopy" in2="displacedCanopy" operator="in" result="finalCanopy" />
-      </filter>
-
-      <!-- 森林全体の地面へのドロップシャドウ（地面から盛り上がる立体感） -->
-      <filter id="re-forest-shadow" x="-5%" y="-5%" width="110%" height="110%">
-        <feDropShadow dx="1.5" dy="2.5" stdDeviation="2.2" flood-color="${canopyColors.shadow}" flood-opacity="0.35" />
-      </filter>
-
-      <!-- 上空視点の重なり合うキャノピーローブ（葉群クラスタ）パターン -->
-      <pattern id="re-forest-canopy-pattern" width="50" height="50" patternUnits="userSpaceOnUse">
-        <g fill="${canopyColors.highlight}" opacity="0.22">
-          <circle cx="10" cy="12" r="7.5" />
-          <circle cx="27" cy="10" r="8" />
-          <circle cx="41" cy="17" r="7" />
-          <circle cx="18" cy="29" r="8.5" />
-          <circle cx="35" cy="33" r="8" />
-          <circle cx="9" cy="42" r="6.5" />
-          <circle cx="43" cy="41" r="7" />
-        </g>
-        <g fill="${canopyColors.shadow}" opacity="0.28">
-          <circle cx="15" cy="16" r="6.5" />
-          <circle cx="32" cy="14" r="7" />
-          <circle cx="23" cy="33" r="7.5" />
-          <circle cx="39" cy="37" r="6.5" />
-          <circle cx="13" cy="46" r="6" />
-          <circle cx="44" cy="9" r="5.5" />
-        </g>
-      </pattern>
     `;
 
+    // 林床: 樹冠の隙間から見える暗い地面。継ぎ目が出ないよう同色の細い縁取りで塗り潰す
     const forestCells = forestBiomes
       .map(b => {
-        const kindKey =
-          b.kind === "coniferous_forest" ? "coniferous" : b.kind === "tropical_forest" ? "tropical" : "deciduous";
-        const color = canopyColors[kindKey];
+        const color = mixHex(canopyColors[forestKindOf(b.kind)], canopyColors.shadow, 0.5);
         const stockRatio =
           b.forestCover && b.forestStock !== undefined ? Math.max(0, Math.min(1, b.forestStock / b.forestCover)) : 1;
         const pathD = (b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ");
-        return `<path class="forest-canopy-cell forest-${b.kind}" data-id="${b.id}" d="${pathD}" fill="${color}" opacity="${0.5 + stockRatio * 0.5}" stroke="${color}" stroke-width="0" stroke-linejoin="round" />`;
+        return `<path class="forest-canopy-cell forest-${b.kind}" data-id="${b.id}" d="${pathD}" fill="${color}" opacity="${0.5 + stockRatio * 0.5}" stroke="${color}" stroke-width="0.6" stroke-linejoin="round" />`;
       })
       .join("\n");
 
-    const patternOverlays = forestBiomes
-      .map(
-        b =>
-          `<path class="forest-pattern-overlay" d="${(b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ")}" fill="url(#re-forest-canopy-pattern)" />`
-      )
-      .join("\n");
-
     forestLayer = `
-      <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)" filter="url(#re-forest-shadow)">
-        <g class="re-forest-canopy" filter="url(#re-forest-shading)">
-          ${forestCells}
-          ${patternOverlays}
-        </g>
+      <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)">
+        <g class="re-forest-floor">${forestCells}</g>
+        ${renderForestCrowns(forestBiomes, canopyColors, detail)}
       </g>
     `;
   }
@@ -293,9 +242,12 @@ export function renderRegionSvg(
         <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.05 0" />
         <feBlend mode="multiply" in="SourceGraphic" />
       </filter>
-      <pattern id="re-wetland-grass" width="11" height="9" patternUnits="userSpaceOnUse">
-        <path d="M2 7l-1-3m1 3l1-4m-1 4l3-2M8 3l-1-2m1 2l1-3" fill="none" stroke="#617c46" stroke-width="0.6" opacity="0.55" />
-      </pattern>
+      <filter id="re-wetland-bank" x="-2%" y="-2%" width="104%" height="104%">
+        <feMorphology operator="dilate" radius="0.8" in="SourceAlpha" result="bank" />
+        <feFlood flood-color="${mixHex(theme.riverFill, "#2f3d2a", 0.45)}" result="bankColor" />
+        <feComposite in="bankColor" in2="bank" operator="in" result="rim" />
+        <feMerge><feMergeNode in="rim" /><feMergeNode in="SourceGraphic" /></feMerge>
+      </filter>
       ${forestDefs}
     </defs>
   `;
@@ -313,19 +265,26 @@ export function renderRegionSvg(
     })
     .join("\n");
 
-  const wetlandLayer = doc.biomes
-    .map(b => {
-      const patches = b.wetlandPatches ?? [];
-      return (["mud", "sand", "water"] as const)
-        .map(kind => {
-          const polygons = patches.filter(p => p.kind === kind);
-          if (!polygons.length) return "";
-          const color = kind === "water" ? theme.riverFill : kind === "sand" ? "#dfc99a" : "#948a67";
-          return `<path class="wetland-${kind}" d="${polygons.map(p => polyToSvgPath(p.polygon)).join(" ")}" fill="${color}" stroke="${color}" stroke-width="0.15" stroke-linejoin="round" />`;
-        })
-        .join("\n");
+  const wetlandBiomes = doc.biomes.filter(b => b.wetlandPatches !== undefined);
+  const patchPath = (kind: "mud" | "sand" | "water") =>
+    wetlandBiomes
+      .flatMap(b => b.wetlandPatches ?? [])
+      .filter(p => p.kind === kind)
+      .map(p => polyToSvgPath(p.polygon))
+      .join(" ");
+  // 泥・砂 → 水の順。水は暗い岸縁パスの上に重ね、三角パッチ内部の継ぎ目だけを覆って外周の縁だけを残す
+  const wetlandLayer = (["mud", "sand", "water"] as const)
+    .map(kind => {
+      const d = patchPath(kind);
+      if (!d) return "";
+      if (kind === "water") {
+        return `<g class="wetland-bank" filter="url(#re-wetland-bank)"><path class="wetland-water" d="${d}" fill="${theme.riverFill}" stroke="${theme.riverFill}" stroke-width="0.3" stroke-linejoin="round" /></g>`;
+      }
+      const color = kind === "sand" ? "#dfc99a" : "#8c8262";
+      return `<path class="wetland-${kind}" d="${d}" fill="${color}" stroke="${color}" stroke-width="0.3" stroke-linejoin="round" />`;
     })
     .join("\n");
+  const wetlandMarks = renderWetlandMarks(wetlandBiomes, "#4f6b3a");
 
   // 3.5. 等高線レイヤー（Elevation Contours）
   let contoursLayer = "";
@@ -609,10 +568,7 @@ export function renderRegionSvg(
       ${defs}
       ${background}
       <g id="layer-biomes">${biomesLayer}</g>
-      <g id="layer-wetlands">${doc.biomes
-        .filter(b => b.wetlandPatches !== undefined)
-        .map(b => `<path class="wetland-grass" d="${polyToSvgPath(b.polygon)}" fill="url(#re-wetland-grass)" />`)
-        .join("\n")}${wetlandLayer}</g>
+      <g id="layer-wetlands">${wetlandMarks}${wetlandLayer}</g>
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>

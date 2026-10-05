@@ -80,7 +80,7 @@ describe("wetland mosaics", () => {
     const doc = createEmptyRegionDocument();
     doc.biomes = landscape.biomes;
     const svg = renderRegionSvg(doc);
-    expect(svg).toContain('class="wetland-grass"');
+    expect(svg).toContain('id="layer-wetlands"');
     expect(svg).toContain('class="wetland-water"');
     expect(svg).toContain('class="wetland-mud"');
     expect(svg).toContain("forest-canopy-cell");
@@ -89,5 +89,24 @@ describe("wetland mosaics", () => {
     expect(
       buildLandscapeFromCells([{ ...cell, biomeName: "Grassland" }], p => p, "wetland-test").biomes[0].wetlandPatches
     ).toBeUndefined();
+  });
+  it("scatters reed marks over a wide wetland, seamlessly and deterministically", () => {
+    const wide = {
+      ...cell,
+      point: [30, 30] as [number, number],
+      polygon: [
+        [0, 0],
+        [60, 0],
+        [60, 60],
+        [0, 60]
+      ] as [number, number][]
+    };
+    const landscape = buildLandscapeFromCells([{ ...wide, biomeName: "Wetland" }], p => p, "wetland-test", 1000);
+    const doc = createEmptyRegionDocument();
+    doc.biomes = landscape.biomes;
+    const svg = renderRegionSvg(doc);
+    expect(svg).toContain('class="wetland-reeds"');
+    expect(svg).toContain('class="wetland-bank"');
+    expect(renderRegionSvg(doc)).toBe(svg);
   });
 });
