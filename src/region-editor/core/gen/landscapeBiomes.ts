@@ -1,3 +1,5 @@
+import { STANDARD_BIOME_DEFINITIONS } from "../../../data/biomeCatalog";
+import type { BiomeDefinition, StandardBiomeKey } from "../../../types/biome";
 import type { BiomeKind, Point, RegionBiomeArea, RegionSiteCell, RegionSymbol, SymbolType } from "../types";
 import { clipConvex, landscapeNoise, polygonArea, rectangle } from "./landUseGeometry";
 import { makeRng } from "./prng";
@@ -29,6 +31,85 @@ export const CE_BIOME_PALETTE: Record<BiomeKind, string> = {
   mountains: "#b5a897",
   badlands: "#ded8aa"
 };
+
+// Every standard catalog key has an explicit visual family. Forest identity must
+// not depend on overlapping words such as "flooded", "tropical" or "forest-steppe".
+const STANDARD_VISUAL_KINDS = {
+  marine: "ocean",
+  hotDesert: "desert",
+  coldDesert: "desert",
+  savanna: "savanna",
+  grassland: "grassland",
+  tropicalSeasonalForest: "tropical_forest",
+  temperateDeciduousForest: "deciduous_forest",
+  tropicalRainforest: "tropical_forest",
+  temperateRainforest: "deciduous_forest",
+  taiga: "coniferous_forest",
+  tundra: "tundra",
+  glacier: "glacier",
+  wetland: "swamp",
+  centralEuropeanGreatForest: "deciduous_forest",
+  mediterraneanWoodlandScrub: "savanna",
+  temperateConiferousForest: "coniferous_forest",
+  montaneForest: "coniferous_forest",
+  alpineTundra: "tundra",
+  mangrove: "tropical_forest",
+  xericShrubland: "desert",
+  cloudForest: "tropical_forest",
+  heathMoorland: "marsh",
+  floodedForest: "deciduous_forest",
+  coldSteppe: "grassland",
+  tropicalDryForest: "tropical_forest",
+  borealPeatland: "marsh",
+  volcanicBarrens: "badlands",
+  lavaField: "badlands",
+  volcanicSoil: "grassland"
+} satisfies Record<StandardBiomeKey, BiomeKind>;
+
+const RELIEF_SYMBOLS: Record<string, SymbolType> = {
+  dune: "sand_dune",
+  cactus: "cactus",
+  deadTree: "tree_dead",
+  acacia: "tree_acacia",
+  grass: "grass_tuft",
+  palm: "tree_palm",
+  deciduous: "tree_deciduous",
+  conifer: "tree_pine",
+  swamp: "marsh_reed",
+  vulcan: "rock_cluster"
+};
+
+function catalogLandscape(definition: BiomeDefinition): ResolvedCellLandscape {
+  const tags = definition.tags;
+  const kind =
+    STANDARD_VISUAL_KINDS[definition.key as StandardBiomeKey] ??
+    (tags.includes("marine")
+      ? "ocean"
+      : tags.includes("forest")
+        ? tags.includes("tropical")
+          ? "tropical_forest"
+          : tags.includes("cold")
+            ? "coniferous_forest"
+            : "deciduous_forest"
+        : tags.includes("snow")
+          ? "glacier"
+          : tags.includes("wetland")
+            ? "marsh"
+            : tags.includes("desert")
+              ? "desert"
+              : tags.includes("cold")
+                ? "tundra"
+                : "grassland");
+  const symbolTypes = Object.entries(definition.relief.icons).flatMap(([icon, weight]) =>
+    RELIEF_SYMBOLS[icon] ? Array.from({ length: Math.max(0, Math.round(weight)) }, () => RELIEF_SYMBOLS[icon]) : []
+  );
+  return {
+    kind,
+    fillColor: kind === "ocean" ? CE_SEA_COLOR : definition.color,
+    isWater: kind === "ocean",
+    symbolTypes
+  };
+}
 
 export interface ResolvedCellLandscape {
   kind: BiomeKind;
@@ -117,7 +198,7 @@ export function resolveCellLandscape(
 
   if (
     name.includes("tropical") ||
-    name.includes("rainforest") ||
+    (name.includes("rainforest") && !name.includes("temperate")) ||
     name.includes("jungle") ||
     name.includes("mangrove")
   ) {
@@ -126,6 +207,15 @@ export function resolveCellLandscape(
       fillColor: CE_BIOME_PALETTE.tropical_forest,
       isWater: false,
       symbolTypes: ["tree_jungle", "tree_palm"]
+    };
+  }
+
+  if (name.includes("deciduous") || name.includes("forest") || name.includes("wood") || name.includes("grove")) {
+    return {
+      kind: "deciduous_forest",
+      fillColor: CE_BIOME_PALETTE.deciduous_forest,
+      isWater: false,
+      symbolTypes: ["tree_deciduous", "grass_tuft"]
     };
   }
 
@@ -141,15 +231,6 @@ export function resolveCellLandscape(
       fillColor: CE_BIOME_PALETTE.swamp,
       isWater: false,
       symbolTypes: ["swamp_grass", "marsh_reed"]
-    };
-  }
-
-  if (name.includes("deciduous") || name.includes("forest") || name.includes("wood") || name.includes("grove")) {
-    return {
-      kind: "deciduous_forest",
-      fillColor: CE_BIOME_PALETTE.deciduous_forest,
-      isWater: false,
-      symbolTypes: ["tree_deciduous", "grass_tuft"]
     };
   }
 
@@ -205,8 +286,19 @@ export function buildLandscapeFromCells(
     const stableId = cell.sourceCellId ?? `${cell.point[0]}:${cell.point[1]}`;
     const rng = makeRng(`${seed}:landscape:${stableId}`);
     const isWater = Boolean(cell.isWater || (cell.height !== undefined && cell.height < 20));
-    const landscape = resolveCellLandscape(cell.biomeName, cell.elevationMeters, isWater);
+    const definition =
+      cell.biomeDefinition ??
+      STANDARD_BIOME_DEFINITIONS.find(d => d.label.toLowerCase() === cell.biomeName.toLowerCase());
+    const landscape = isWater
+      ? resolveCellLandscape(cell.biomeName, cell.elevationMeters, true)
+      : definition
+        ? catalogLandscape(definition)
+        : resolveCellLandscape(cell.biomeName, cell.elevationMeters, false);
     const terrain = resolveCellLandscape("Grassland", cell.elevationMeters, isWater);
+    if (!cell.biomeDefinition && definition) {
+      landscape.fillColor = CE_BIOME_PALETTE[landscape.kind];
+      if (definition.key === "grassland" && cell.elevationMeters >= 650) Object.assign(landscape, terrain);
+    }
 
     // 1. バイオーム面（ポリゴン）の生成
     if (cell.polygon && cell.polygon.length >= 3) {

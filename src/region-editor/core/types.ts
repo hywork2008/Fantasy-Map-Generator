@@ -1,3 +1,4 @@
+import type { BiomeDefinition } from "../../types/biome";
 import type { CoastalHabitatCode } from "../../types/coastalHabitat";
 import type { CellLandUseBudget, LandUsePatchBudget, LandUseProfile } from "../../types/landUse";
 /**
@@ -258,6 +259,7 @@ export const REGION_SITE_KEY = "fmg.regionSite";
 export const REGION_SITE_VERSION = 2;
 
 export interface RegionSiteCell {
+  biomeDefinition?: BiomeDefinition;
   coastalHabitat?: CoastalHabitatCode;
   cultureId?: number;
   sourceCellId?: number;

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { STANDARD_BIOME_DEFINITIONS } from "../../../data/biomeCatalog";
+import { renderRegionSvg } from "../../render/svg";
+import { createEmptyRegionDocument } from "../document";
 import type { Point, RegionSiteCell } from "../types";
-import { buildLandscapeFromCells, CE_BIOME_PALETTE, CE_SEA_COLOR, resolveCellLandscape } from "./landscapeBiomes";
+import {
+  buildLandscapeFromCells,
+  CE_BIOME_PALETTE,
+  CE_SEA_COLOR,
+  isForestBiome,
+  resolveCellLandscape
+} from "./landscapeBiomes";
 
 describe("landscapeBiomes (CE Biome & Landscape Alignment)", () => {
   it("海セルをCEの海色 (#456d7f) として解決し、シンボルを配置しない", () => {
@@ -173,5 +182,45 @@ describe("landscapeBiomes (CE Biome & Landscape Alignment)", () => {
 
     // 森林セルには木シンボルが無数に配置されず0件であること（上空視点キャノピーとして一体描画される）
     expect(symbols).toHaveLength(0);
+  });
+});
+
+describe("catalog biome visuals", () => {
+  it.each(STANDARD_BIOME_DEFINITIONS)("renders $key with catalog color and forest identity", definition => {
+    const cell: RegionSiteCell = {
+      sourceCellId: 1,
+      biomeId: 99,
+      biomeName: "Renamed biome",
+      biomeDefinition: definition,
+      point: [50, 50],
+      elevationMeters: 100,
+      height: definition.key === "marine" ? 10 : 25,
+      forestCover: 1,
+      polygon: [
+        [0, 0],
+        [100, 0],
+        [100, 100],
+        [0, 100]
+      ]
+    };
+    const landscape = buildLandscapeFromCells([cell], p => p, "catalog-test");
+    const biome = landscape.biomes[0];
+    expect(isForestBiome(biome.kind)).toBe(definition.tags.includes("forest"));
+    expect(biome.isWater).toBe(definition.key === "marine");
+    expect(biome.color).toBe(definition.key === "marine" ? CE_SEA_COLOR : definition.color);
+    const doc = createEmptyRegionDocument();
+    doc.biomes = landscape.biomes;
+    doc.symbols = landscape.symbols;
+    const svg = renderRegionSvg(doc);
+    expect(svg).toContain(`fill="${biome.color}"`);
+    if (definition.tags.includes("forest")) {
+      expect(biome.forestPolygons).toHaveLength(1);
+      expect(svg).toContain(`forest-canopy-cell forest-${biome.kind}`);
+    }
+  });
+
+  it("recognizes flooded forest in legacy descriptors before wetland", () => {
+    expect(resolveCellLandscape("Flooded forest & riparian woodland", 50, false).kind).toBe("deciduous_forest");
+    expect(resolveCellLandscape("Temperate rainforest", 50, false).kind).toBe("deciduous_forest");
   });
 });
