@@ -840,10 +840,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   // and prevents the staged document from passing archive validation.
   initSimulationClock();
   ensureFuneralRemainsSeeded();
-  // Legacy .map saves predate grid.cells.seasonalTemp; compute it once for the
-  // freshly-loaded calendar month. (.fmg archive loads restore an already-consistent
-  // seasonalTemp/lastSeasonalTempBucket pair via the generic world.replace snapshot, so
-  // they need no equivalent call here.)
+  // Rebuild derived monthly climate for legacy data. Archive loads do this in world.replace.
   advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
 
   // data integrity checks (DOM-free; marker SVG id fixes run in applyLegacyMapView)

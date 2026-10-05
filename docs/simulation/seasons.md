@@ -5,7 +5,7 @@
 5つのゲームプレイ要素へどう波及するかをまとめた仕様書です。
 `docs/simulation/advance-time.md` の年/月/日クロック（`src/generators/timeEngine.ts`）を基盤としており、
 季節そのものは新しい時計を持たず、既存の `simulationContext.currentMonth`/`currentDay` から都度導出されます。
-設計の経緯・判断根拠は `docs/plan/seasonal-temperature-variation.md` を参照してください。
+設計の経緯・判断根拠は `docs/plan/seasonal-temperature-variation.md` と [地球型気候計画](../plan/earthlike-seasonal-climate-and-agriculture.md) を参照してください。
 
 ## 0. 設計方針
 
@@ -45,35 +45,25 @@
 
 ## 3. 地図全体の実効気温: `grid.cells.seasonalTemp`（`src/generators/seasonalClimate.ts`）
 
-> **実装済み（2026-08-12）**。設計判断の詳細・検討過程は [地軸傾斜ベースの季節気温変動 計画](../plan/seasonal-temperature-variation.md) を参照。
+2026-10-05に月平均の地球型モデルv1へ更新した。係数は計画書の未較正候補値。
 
-- 地軸傾斜は `WorldOptions.axialTilt`（World Configurator で設定可能・`#axialTiltInput`、デフォルト
-  `EARTH_AXIAL_TILT_DEG = 23.5`、`src/data/earthConfig.ts`）としてマップごとに保持・ロック・セーブされる。
-- `grid.cells.temp`（年間平均、生成時に一度だけ計算、`dataFieldOwnership.ts` で `map.physical` 所有）は
-  書き換えない。代わりに `grid.cells.seasonalTemp`（`simulation.cells` 所有）へ
-  `temp + getSeasonalTemperatureOffset(latitude, year, month, day, climate, axialTilt)` を保持する。
-- **月次の自己ゲート**: `SimulationSystem.cadence.every` は「暦月」ではなく「`advanceTime()` 呼び出し回数」
-  を数える（1日ずつ進める連続再生も、1年分を一括で進めるバルクジャンプも同じ1tick）ため、月次相当の粒度
-  には使えない。`advanceSeasonalClimate()` は毎tick呼ばれる（`cadence: { every: 1 }`）が、内部で
-  `simulationContext.lastSeasonalTempBucket`（`year*12+month`）を比較し、月が変わっていなければ即
-  `return`（`writer.markChanged` を呼ばない）。`technology.tick`/`settleTechnologyAnnual()` の年次自己ゲート
-  パターンを月次に踏襲したもの。
+- 年平均 `grid.cells.temp` を保持し、緯度別の海洋性・大陸性振幅を混合する。地軸傾斜0°と赤道は無季節性。年平均設定から振幅を決めない。
+- 海岸距離は海洋と陸地の隣接境界のサンプルを球面上のKD木で探索する。小湖は対象外。地域地図で範囲外の海岸が近い可能性がある場合は `continentality=0.5`、`regionalFallback`。
+- 固定至日から内陸20日・海洋45日の遅れを置いた曲線を各月で積分する。日数加重年平均を保存し、当月値だけ丸めて `seasonalTemp` に格納する。標高補正を追加しない。
+- 月バケットとランタイムの気候revisionで更新を判定する。地図ID・座標・地形・海洋分類・年平均・降水・傾斜・年の変更を内容ハッシュで検出し、同月編集でも更新する。地理が同じなら海岸探索を再実行しない。
+- `getCellClimateNormals(world, gridCellId, year)` は丸め前のFloat32月平均、日数比例の月降水、モデル版とrevision、フォールバックの根拠を返す。多数セルを読む場合は `createCellClimateNormalsReader` を一度作り、同一処理内で再利用する。地理・気候を編集した後はreaderを作り直す。
 - `seasonal-climate.tick` は新設の `"environment"` フェーズに登録され、`simulationPhases`
   （`clock → environment → population → economy → politics → military → finalize`）の順序により
   `"economy"` フェーズより必ず先に毎tick実行される。同一tick内で経済系（`heating.ts` 等）が常に最新の
   `seasonalTemp` を読めることが保証される。
-- 初回計算は生成完了直後（`main.ts`、`initSimulationClock()` の直後）と `.map` 形式のレガシーマップ
-  ロード直後（`io/load.ts`）に無条件で1回呼ばれる。`.fmg` アーカイブロードは `grid`/`simulationContext`
-  を丸ごと `structuredClone` した状態を復元する仕組み（`worldRuntime.ts` の `world.replace`）のため、
-  保存時点で既に整合していた `seasonalTemp`/`lastSeasonalTempBucket` の組がそのまま復元され、
-  別途の再計算呼び出しは不要（`.map` ロードのような明示的な呼び出しを追加していない）。
+- 生成後・レガシーロード後・`.fmg` の `world.replace` 後に再計算する。旧モデルの保存済み表示と月バケットは新しい派生値の検証に使わない。年平均・人口・在庫・農地はこの再計算で変更しない。
 - **表示**: WebGL（`buildTemperaturePolygons`、`buildDeckLayers.ts` の `"temperature"` レイヤー）と
   SVG（`draw-temperature.ts`）はいずれも `seasonalTemp ?? temp` を読む（未計算時・旧セーブ読み込み時は
   年間平均にフォールバック）。WebGLは `"simulation.cells"` トピックの変更で `renderCoordinator.ts` が
   自動的に再描画チェックをスケジュールする。**SVG側にはtick駆動の自動再描画経路を追加していない**
   （population/dangerなど他のセルヒートマップ系レイヤーと同じ扱いで、レイヤーをトグルした時点の値を表示する）。
 - **`economy` 拡張との統合**: `heating.ts` の `getCellEffectiveTemperature()` は共有の `grid.cells.seasonalTemp`
-  を優先して読み、独自の `getSeasonalTemperatureOffset()` 再計算は値が無い場合のフォールバックとしてのみ残す
+  を優先して読み、月平均の地球型曲線（海陸不明はC=0.5）は値が無い場合のフォールバックとしてのみ使う
   （重複計算の解消）。`foodProduction.ts` は季節オフセットではなく `getSeasonalAmplitude` と
   月次作物暦（[seasonal-crop-calendars.md](../plan/seasonal-crop-calendars.md)、次節）を使うため対象外。
 

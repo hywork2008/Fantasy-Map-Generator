@@ -219,6 +219,37 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     );
   });
 
+  it("rebuilds saved monthly climate on archive replacement without changing annual temperature or population", async () => {
+    const world = createPositionWorld();
+    world.mapId = 1;
+    world.seed = "climate-archive";
+    world.graphWidth = 100;
+    world.graphHeight = 100;
+    world.mapCoordinates = { latN: 60, latT: 30, lonW: 0, lonT: 20 };
+    world.options = { axialTilt: 23.5 } as WorldContext["options"];
+    world.grid = {
+      points: [
+        [50, 0],
+        [50, 50]
+      ],
+      cells: { i: new Uint32Array([0, 1]), temp: new Int8Array([4, 10]), seasonalTemp: new Int8Array([-100, -100]) }
+    } as WorldContext["grid"];
+    const simulation = {
+      tickCount: 0,
+      currentYear: 2024,
+      currentMonth: 7,
+      currentDay: 20,
+      lastSeasonalTempBucket: 2024 * 12 + 6,
+      cells: { population: new Float32Array([12, 34]) }
+    } as unknown as SimulationContext;
+    const runtime = createWorldRuntime(world, simulation);
+    const document = createWorldDocument(world, simulation, createPresentationData(), []);
+    await runtime.dispatch({ type: "world.replace", payload: { stage: "validated", document } });
+    expect(world.grid.cells.seasonalTemp![0]).toBeGreaterThan(4);
+    expect(Array.from(world.grid.cells.temp)).toEqual([4, 10]);
+    expect(Array.from(simulation.cells.population)).toEqual([12, 34]);
+  });
+
   it("atomically replaces world, simulation and presentation data through a full-replace commit", async () => {
     const world = createPositionWorld();
     const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext;

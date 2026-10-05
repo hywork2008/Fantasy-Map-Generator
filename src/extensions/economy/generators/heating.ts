@@ -9,12 +9,11 @@
  * from a map's latitude at generation time.
  */
 
-import { getLatitude, getSeasonalTemperatureOffset, rn } from "../../hostUtils";
+import { getLatitude, getMonthlyMeanTemperaturesC, rn } from "../../hostUtils";
 import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
-  getSimulationDay,
   getSimulationMonth,
   getSimulationYear,
   getWorldContext
@@ -59,15 +58,6 @@ function emptyLedger(populationLots: number, effectiveTemperature: number): Heat
   };
 }
 
-function getClimateOptions() {
-  const options = getWorldContext().options;
-  return {
-    temperatureEquator: options.temperatureEquator ?? 30,
-    temperatureNorthPole: options.temperatureNorthPole ?? -20,
-    temperatureSouthPole: options.temperatureSouthPole ?? -20
-  };
-}
-
 function getCellEffectiveTemperature(cellId: number): number | null {
   const world = getWorldContext();
   const gridCellId = world.pack.cells.g[cellId];
@@ -86,17 +76,13 @@ function getCellEffectiveTemperature(cellId: number): number | null {
   const point = world.pack.cells.p?.[cellId];
   if (!point) return baseTemperature;
   const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
-  return (
-    baseTemperature +
-    getSeasonalTemperatureOffset(
-      latitude,
-      getSimulationYear(),
-      getSimulationMonth(),
-      getSimulationDay(),
-      getClimateOptions(),
-      world.options.axialTilt
-    )
-  );
+  return getMonthlyMeanTemperaturesC({
+    annualMeanTemperatureC: baseTemperature,
+    latitudeDeg: latitude,
+    continentality: 0.5,
+    year: getSimulationYear(),
+    axialTiltDeg: world.options.axialTilt
+  })[getSimulationMonth() - 1];
 }
 
 function getMarketPopulationAndTemperature(marketId: number): { populationLots: number; effectiveTemperature: number } {

@@ -2,6 +2,7 @@ import { restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
+import { advanceSeasonalClimate } from "../generators/seasonalClimate";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
 import type { Grid } from "../types/Grid";
 import {
@@ -2337,6 +2338,8 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     try {
       this.applyDocument(document);
+      // Saved seasonal fields are derived values; rebuild them under the current model.
+      advanceSeasonalClimate({ world: this.world, simulation: this.simulation });
     } catch (error) {
       // Re-establish the current world in-place so all existing context
       // references stay valid even if a compatibility adapter throws.
