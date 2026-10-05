@@ -37,6 +37,91 @@ function polyToSvgPath(points: Point[], closed = true): string {
   return closed ? `${d} Z` : d;
 }
 
+/**
+ * 海セルに面した頂点を必ず通る Catmull-Rom スプラインで海岸線を丸める（角切りはしない）。
+ * 各区間を samples 分割した点列を返す。始点=終点なら閉じたリングとして扱う。
+ */
+export function smoothCoastline(points: Point[], samples = 6): Point[] {
+  if (points.length < 3) return points;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const closed = first[0] === last[0] && first[1] === last[1];
+  const v: Point[] = closed ? points.slice(0, -1) : points;
+  const n = v.length;
+  const at = (i: number): Point => {
+    if (closed) return v[((i % n) + n) % n];
+    if (i < 0) return [2 * v[0][0] - v[1][0], 2 * v[0][1] - v[1][1]];
+    if (i >= n) return [2 * v[n - 1][0] - v[n - 2][0], 2 * v[n - 1][1] - v[n - 2][1]];
+    return v[i];
+  };
+  const out: Point[] = [];
+  const segCount = closed ? n : n - 1;
+  for (let i = 0; i < segCount; i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
+    for (let k = 0; k < samples; k++) {
+      const t = k / samples;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      out.push([
+        0.5 *
+          (2 * p1[0] +
+            (-p0[0] + p2[0]) * t +
+            (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
+            (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+        0.5 *
+          (2 * p1[1] +
+            (-p0[1] + p2[1]) * t +
+            (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
+            (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
+      ]);
+    }
+  }
+  out.push(closed ? out[0] : v[n - 1]);
+  return out;
+}
+
+/**
+ * 直線の海岸（セル境界）と丸めた海岸線の間にできる細い隙間を、陸/海それぞれの色で塗り分ける。
+ * 曲線が海側へ膨らむ区間は陸色、陸側へ膨らむ区間は海色で埋める。
+ */
+function coastlineSliverPatches(
+  coast: Point[],
+  samples: number,
+  isSea: (pt: Point) => boolean,
+  landColorAt: (pt: Point) => string,
+  seaColor: string
+): string[] {
+  if (coast.length < 3) return [];
+  const closed = coast[0][0] === coast[coast.length - 1][0] && coast[0][1] === coast[coast.length - 1][1];
+  const curve = smoothCoastline(coast, samples);
+  const segCount = closed ? coast.length - 1 : coast.length - 1;
+  const patches: string[] = [];
+  for (let i = 0; i < segCount; i++) {
+    const a = coast[i];
+    const b = coast[i + 1];
+    const arc = curve.slice(i * samples, (i + 1) * samples + 1);
+    if (arc.length < 3) continue;
+    const mid = arc[Math.floor(arc.length / 2)];
+    const chordMid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const dx = mid[0] - chordMid[0];
+    const dy = mid[1] - chordMid[1];
+    if (dx * dx + dy * dy < 1e-4) continue;
+    // 膨らんだ側の点と、弦を挟んで反対側の点
+    const bulgeSide: Point = [chordMid[0] + dx * 0.5, chordMid[1] + dy * 0.5];
+    const otherSide: Point = [chordMid[0] - dx * 0.5, chordMid[1] - dy * 0.5];
+    const bulgeInSea = isSea(bulgeSide);
+    if (bulgeInSea === isSea(otherSide)) continue;
+    const color = bulgeInSea ? landColorAt(otherSide) : seaColor;
+    patches.push(
+      `<path d="${polyToSvgPath(arc)}" fill="${color}" stroke="${color}" stroke-width="0.4" stroke-linejoin="round" />`
+    );
+  }
+  return patches;
+}
+
 const FIELD_TONES = ["#d9c56b", "#cdbb5f", "#bfc266", "#d3b66b", "#b0bd63", "#c6aa62"];
 const MEADOW_TONES = ["#bbc58e", "#b3c088", "#c2c994", "#aebe87"];
 const FIELD_ANGLES = [8, 31, 57, 84, 112, 146];
@@ -199,6 +284,7 @@ export function renderRegionSvg(
       .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
       .join("\n");
     const coastlinesClearing = doc.terrain.coastlinePolygons
+      .map(poly => smoothCoastline(poly))
       .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
       .join("\n");
 
@@ -283,14 +369,29 @@ export function renderRegionSvg(
   const background = `<rect width="${widthUnits}" height="${heightUnits}" fill="${theme.background}" />`;
 
   // 3. バイオーム領域
-  const biomesLayer = doc.biomes
-    .map(b => {
-      const color = b.color ?? theme.biomes[b.kind] ?? theme.biomes.grassland;
-      const isSea = b.isWater || b.kind === "ocean";
-      const cls = isSea ? "biome-polygon biome-ocean ce-face--sea" : `biome-polygon biome-${b.kind} ce-face--land`;
-      return `<path class="${cls}" data-id="${b.id}" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" />`;
-    })
+  const biomePath = (b: RegionDocument["biomes"][number]): { isSea: boolean; svg: string } => {
+    const color = b.color ?? theme.biomes[b.kind] ?? theme.biomes.grassland;
+    const isSea = b.isWater || b.kind === "ocean";
+    const cls = isSea ? "biome-polygon biome-ocean ce-face--sea" : `biome-polygon biome-${b.kind} ce-face--land`;
+    return {
+      isSea,
+      svg: `<path class="${cls}" data-id="${b.id}" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" />`
+    };
+  };
+  const biomeParts = doc.biomes.map(biomePath);
+  const biomesLayerBase = biomeParts.map(part => part.svg).join("\n");
+  const seaPolys = doc.biomes.filter(bm => bm.isWater || bm.kind === "ocean").map(bm => bm.polygon);
+  const isSeaPoint = (pt: Point) => seaPolys.some(poly => pointInPolygon(pt, poly));
+  const landColorAt = (pt: Point): string => {
+    const land = doc.biomes.find(bm => !(bm.isWater || bm.kind === "ocean") && pointInPolygon(pt, bm.polygon));
+    return land?.color ?? theme.biomes[land?.kind ?? "grassland"] ?? theme.biomes.grassland;
+  };
+  const seaBiome = doc.biomes.find(bm => bm.isWater || bm.kind === "ocean");
+  const seaColor = seaBiome?.color ?? theme.biomes.ocean ?? "#9ec3d6";
+  const coastPatches = doc.terrain.coastlinePolygons
+    .flatMap(poly => coastlineSliverPatches(poly, 6, isSeaPoint, landColorAt, seaColor))
     .join("\n");
+  const biomesLayer = `${biomesLayerBase}\n${coastPatches}`;
 
   const wetlandBiomes = doc.biomes.filter(b => b.wetlandPatches !== undefined);
   const wetlandPatches = wetlandBiomes.flatMap(b => b.wetlandPatches ?? []);
@@ -345,7 +446,8 @@ export function renderRegionSvg(
   }
 
   // 4. 海岸線 & 波紋ハッチング & 湖
-  const ripples = generateCoastalRipples(doc.terrain.coastlinePolygons, 3, 5);
+  const smoothCoasts = doc.terrain.coastlinePolygons.map(poly => smoothCoastline(poly, 6));
+  const ripples = generateCoastalRipples(smoothCoasts, 3, 5);
   const ripplesLayer = ripples
     .map((rip, i) => {
       const opacity = (0.45 - i * 0.12).toFixed(2);
@@ -353,7 +455,7 @@ export function renderRegionSvg(
     })
     .join("\n");
 
-  const coastlinesLayer = doc.terrain.coastlinePolygons
+  const coastlinesLayer = smoothCoasts
     .map(poly => {
       return `<path class="coastline" d="${polyToSvgPath(poly, false)}" fill="none" stroke="${theme.coastlineStroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />`;
     })
