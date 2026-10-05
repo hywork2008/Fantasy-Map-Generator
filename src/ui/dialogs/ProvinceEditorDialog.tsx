@@ -6,6 +6,7 @@ import { filterAndSortBurgs } from "../../controllers/burgs-overview";
 import { enterFocus } from "../../controllers/focus-view";
 import { regeneratePopulationAndBurgs } from "../../controllers/population-editor";
 import { computeProvinceRows } from "../../controllers/provinces-editor";
+import { openRegionEditor } from "../../controllers/region-editor-handshake";
 import { Burgs } from "../../generators/burgs-generator";
 import { legacyMutation, patchBurg } from "../../runtime/worldRuntime";
 import { tip } from "../../services/tooltipService";
@@ -144,6 +145,14 @@ export const ProvinceEditorDialog: React.FC = () => {
                 onClick={() => enterFocus("province", provinceId)}
               >
                 Focus this province
+              </button>
+              <button
+                type="button"
+                className="icon-map"
+                data-tip="Open and edit this region in Region Editor (Sword Coast / Perilous Shores style)"
+                onClick={() => openRegionEditor(provinceId)}
+              >
+                Open in Region Editor
               </button>
               <button
                 type="button"

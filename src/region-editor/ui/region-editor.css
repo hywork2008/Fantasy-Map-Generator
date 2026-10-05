@@ -1,0 +1,228 @@
+:root {
+  --re-bg: #1e1e24;
+  --re-panel-bg: #282830;
+  --re-panel-border: #3f3f4a;
+  --re-text-main: #e6e6ec;
+  --re-text-muted: #9a9aa8;
+  --re-accent: #d4a373;
+  --re-accent-hover: #faedcd;
+  --re-btn-bg: #353540;
+  --re-btn-hover: #454554;
+  --re-input-bg: #1c1c22;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--re-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--re-text-main);
+  user-select: none;
+}
+
+#region-editor-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.re-header {
+  height: 48px;
+  background-color: var(--re-panel-bg);
+  border-bottom: 1px solid var(--re-panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 10;
+}
+
+.re-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.re-title {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: var(--re-accent);
+}
+
+.re-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.re-btn {
+  background-color: var(--re-btn-bg);
+  color: var(--re-text-main);
+  border: 1px solid var(--re-panel-border);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.re-btn:hover {
+  background-color: var(--re-btn-hover);
+  border-color: var(--re-accent);
+}
+
+.re-btn.primary {
+  background-color: #8c5b36;
+  border-color: var(--re-accent);
+  color: #fff;
+}
+
+.re-btn.primary:hover {
+  background-color: #a86e42;
+}
+
+.re-body {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.re-toolbar {
+  width: 52px;
+  background-color: var(--re-panel-bg);
+  border-right: 1px solid var(--re-panel-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 8px;
+  z-index: 5;
+}
+
+.re-tool-btn {
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--re-text-main);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.re-tool-btn:hover {
+  background-color: var(--re-btn-hover);
+}
+
+.re-tool-btn.active {
+  background-color: #40362c;
+  border-color: var(--re-accent);
+  color: var(--re-accent);
+}
+
+.re-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: #141418;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.re-viewport.panning {
+  cursor: grabbing;
+}
+
+.re-canvas-container {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  border-radius: 2px;
+  background-color: #fff;
+  transition: transform 0.05s ease-out;
+  transform-origin: center center;
+}
+
+.re-sidebar {
+  width: 300px;
+  background-color: var(--re-panel-bg);
+  border-left: 1px solid var(--re-panel-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px;
+  gap: 16px;
+  z-index: 5;
+}
+
+.re-panel-section {
+  border-bottom: 1px solid var(--re-panel-border);
+  padding-bottom: 14px;
+}
+
+.re-section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--re-accent);
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.re-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.re-form-row label {
+  font-size: 12px;
+  color: var(--re-text-muted);
+}
+
+.re-input, .re-select {
+  background-color: var(--re-input-bg);
+  border: 1px solid var(--re-panel-border);
+  color: var(--re-text-main);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.re-input:focus, .re-select:focus {
+  outline: none;
+  border-color: var(--re-accent);
+}
+
+.re-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: #3f3f4e;
+  color: #dcdce6;
+}
+
+.re-footer {
+  height: 28px;
+  background-color: #17171c;
+  border-top: 1px solid var(--re-panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--re-text-muted);
+}

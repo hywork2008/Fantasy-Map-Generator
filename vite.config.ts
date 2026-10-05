@@ -23,6 +23,8 @@ export default defineConfig({
                 cityEditor: path.resolve(__dirname, 'src/city-editor/index.html'),
                 // Indoor / courtyard plans, independent of the world map.
                 dungeonEditor: path.resolve(__dirname, 'src/dungeon-editor/index.html'),
+                // Regional map editor (Sword Coast / Perilous Shores style), between World and City.
+                regionEditor: path.resolve(__dirname, 'src/region-editor/index.html'),
             },
         },
     },
