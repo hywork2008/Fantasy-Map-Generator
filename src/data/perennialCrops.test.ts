@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { getPerennialCropSuitability, PERENNIAL_CROP_PROFILES } from "./perennialCrops";
 
 describe("perennial crop suitability", () => {
+  it("screens edible chestnut orchards for temperate rainfall and cold limits", () => {
+    const crop = PERENNIAL_CROP_PROFILES.Chestnuts;
+    expect(getPerennialCropSuitability(crop, 20, 10, "loam")).toBe(1);
+    expect(getPerennialCropSuitability(crop, 4, 10, "loam")).toBe(0);
+    expect(getPerennialCropSuitability(crop, 20, 4, "loam")).toBe(0);
+  });
+
   it("keeps olives viable in warm dry land without a biome dependency", () => {
     expect(getPerennialCropSuitability(PERENNIAL_CROP_PROFILES.Olives, 25, 5, "thin")).toBe(1);
   });

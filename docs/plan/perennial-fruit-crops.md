@@ -83,3 +83,16 @@ Verification covers:
 4. land/labour competition with grapes, husbandry, and wildlife;
 5. migration of legacy catalogues; and
 6. `Crop climate guide` detail and comparison display for all `crop` and `perennialCrop` goods.
+
+## Sweet chestnuts
+
+Chestnuts (*Castanea sativa*, not horse chestnuts) use
+[FAO ECOCROP 2234](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=2234):
+7–30 / 15–25°C and 500–1600 / 900–1300 mm annual rainfall.
+They use the temperate orchard calendar and compete for orchard land and labour.
+Area, labour, output and price are game calibrations, not medieval measurements.
+The good represents storable/dried edible chestnuts, without fresh-fruit spoilage
+or the Dried Fruits recipe. Like other perennial outputs it does not enter the
+current Grain Food Ledger; integrating tree staples into food capacity is a
+separate food-model change. Existing catalogue migrations append it without
+changing saved good IDs or creating stock.

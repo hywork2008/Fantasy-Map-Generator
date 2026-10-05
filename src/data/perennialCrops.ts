@@ -120,6 +120,18 @@ export const PERENNIAL_CROP_PROFILES = {
     yieldLotsPerHectarePerMonth: 0.04,
     calendar: DATE_PALM_CALENDAR
   },
+  Chestnuts: {
+    kind: "orchard",
+    temperature: { min: 7, idealMin: 15, idealMax: 25, max: 30 },
+    precipitation: { min: 5, idealMin: 9, idealMax: 13, max: 16 },
+    soils: ["loam", "sandy", "humus"],
+    // Area, labour and output are game calibrations, as for other orchards.
+    maximumLandShare: 0.35,
+    areaHectaresPerPerson: 0.025,
+    laborDaysPerHectare: 20,
+    yieldLotsPerHectarePerMonth: 0.025,
+    calendar: TEMPERATE_ORCHARD_CALENDAR
+  },
   Apples: {
     kind: "orchard",
     temperature: { min: 8, idealMin: 14, idealMax: 27, max: 33 },

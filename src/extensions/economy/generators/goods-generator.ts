@@ -3270,6 +3270,27 @@ export const GOODS_DATA: GoodData[] = [
     unit: "sack",
     demandCoverage: {},
     requiredTechnology: "syntheticAmmonia"
+  },
+  {
+    name: "Spelt",
+    warEconomyType: "essential",
+    tags: ["food", "crop", "stapleCrop", "cereal"],
+    icon: "good-grain",
+    color: "#c5ac70",
+    value: 1.1,
+    chance: 0,
+    unit: "wain",
+    crop: STAPLE_CROP_PROFILES.Spelt
+  },
+  {
+    name: "Chestnuts",
+    tags: ["food", "nuts", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#965b36",
+    value: 2,
+    chance: 0,
+    unit: "1,000 kg chestnut lot",
+    perennialCrop: PERENNIAL_CROP_PROFILES.Chestnuts
   }
 ];
 

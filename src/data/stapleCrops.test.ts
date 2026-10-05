@@ -22,6 +22,13 @@ describe("staple crop precipitation profiles", () => {
     });
   });
 
+  it("screens spelt for cool temperate fields and rejects dry or hot land", () => {
+    const crop = STAPLE_CROP_PROFILES.Spelt;
+    expect(getStapleCropSuitability(crop, 12, 8, "loam")).toBe(1);
+    expect(getStapleCropSuitability(crop, 12, 3, "loam")).toBe(0);
+    expect(getStapleCropSuitability(crop, 24, 8, "loam")).toBe(0);
+  });
+
   it("treats physically ideal wheat rainfall as fully suitable", () => {
     expect(getStapleCropSuitability(STAPLE_CROP_PROFILES.Wheat, 15, 8, "loam")).toBe(1);
   });

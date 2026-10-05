@@ -86,6 +86,15 @@ export const STAPLE_CROP_PROFILES = {
     soils: ["loam", "alluvial", "clay"],
     calendar: COOL_CEREAL_CALENDAR
   },
+  Spelt: {
+    kind: "cereal",
+    // Net edible yield includes the additional husk/dehulling loss (game calibration).
+    yieldMultiplier: 0.85,
+    temperature: { min: 4, idealMin: 10, idealMax: 17, max: 24 },
+    precipitation: { min: 3, idealMin: 7, idealMax: 10, max: 16 },
+    soils: ["loam", "clay", "sandy"],
+    calendar: COOL_CEREAL_CALENDAR
+  },
   Rye: {
     kind: "cereal",
     yieldMultiplier: 0.82,
