@@ -47,7 +47,7 @@ region-editor/
       symbols.ts             山岳・丘陵・樹木・湿原のSVGシンボル定義集
       themes.ts              カラーパレット・テーマ設定
   io/
-    incomingRegion.ts        sessionStorage からの FMG データ受取
+    incomingRegion.ts        IndexedDB (siteStore.ts) からの FMG データ受取
     regionEditorFile.ts      JSON 保存・読込、SVG 出力
   ui/
     RegionEditorPage.ts      メイン UI コンポーネント（パン・ズーム・サイドバー）

@@ -3,7 +3,8 @@ import { estimateWorldLandUse, usesFantasyForestDefaults } from "../generators/l
 import { Rivers } from "../generators/river-generator";
 import { calculateBuiltAreaHa, resolveLandUseProfile } from "../generators/settlementClearance";
 import type { Point, RegionSiteCell, RegionSiteDescriptor } from "../region-editor/core/types";
-import { REGION_SITE_KEY, REGION_SITE_VERSION } from "../region-editor/core/types";
+import { REGION_SITE_VERSION } from "../region-editor/core/types";
+import { saveRegionSite } from "../region-editor/io/siteStore";
 import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
@@ -486,14 +487,14 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
 /**
  * 対象の Province を Region Editor (RE) で開く
  */
-export function openRegionEditor(provinceId: number): void {
+export async function openRegionEditor(provinceId: number): Promise<void> {
   const descriptor = buildRegionSiteDescriptor(provinceId);
   if (!descriptor) {
     tip("この地域（Province）のデータを構築できませんでした", false, "error");
     return;
   }
   try {
-    sessionStorage.setItem(REGION_SITE_KEY, JSON.stringify(descriptor));
+    await saveRegionSite(descriptor);
     window.open(`${import.meta.env.BASE_URL}region-editor/`, "_blank");
   } catch (err) {
     console.error("Failed to open Region Editor:", err);

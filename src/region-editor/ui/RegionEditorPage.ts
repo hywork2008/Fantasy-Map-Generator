@@ -24,16 +24,17 @@ import {
   type RegionTheme,
   type SymbolType
 } from "../core/types";
-import { loadIncomingRegionFromStorage } from "../io/incomingRegion";
 import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionEditorFile";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { renderRegionSvg } from "../render/svg";
 
 export type EditorTool = "select" | "brush" | "stamp" | "settlement" | "landmark" | "erase";
 
-export function mountRegionEditor(root: HTMLElement): { dispose: () => void; getDocument: () => RegionDocument } {
-  const initialDoc: RegionDocument =
-    loadIncomingRegionFromStorage() ?? generateStandaloneRegion(DEFAULT_REGION_SETTINGS);
+export function mountRegionEditor(
+  root: HTMLElement,
+  incomingDoc?: RegionDocument | null
+): { dispose: () => void; getDocument: () => RegionDocument } {
+  const initialDoc: RegionDocument = incomingDoc ?? generateStandaloneRegion(DEFAULT_REGION_SETTINGS);
 
   const history = new RegionHistory(initialDoc);
 
