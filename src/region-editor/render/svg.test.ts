@@ -137,4 +137,106 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
     expect(svgRouteSel).toContain('class="route-road selected"');
     expect(svgRouteSel).toContain('stroke="#d4a373"');
   });
+
+  describe("Forest Canopy Rendering & Clearings", () => {
+    it("森林バイオームが存在する場合、一体化した茂み・陰影フィルター・クリアリングマスクが描画されること", () => {
+      const doc = createEmptyRegionDocument(DEFAULT_REGION_SETTINGS);
+      // 森林セルを追加
+      doc.biomes = [
+        {
+          id: "bio-forest-1",
+          kind: "deciduous_forest",
+          polygon: [
+            [50, 50],
+            [150, 50],
+            [150, 150],
+            [50, 150]
+          ]
+        },
+        {
+          id: "bio-forest-2",
+          kind: "coniferous_forest",
+          polygon: [
+            [150, 50],
+            [250, 50],
+            [250, 150],
+            [150, 150]
+          ]
+        }
+      ];
+
+      // 街道
+      doc.routes = [
+        {
+          id: "rt-forest",
+          name: "Forest Highway",
+          kind: "highway",
+          points: [
+            [100, 20],
+            [100, 180]
+          ]
+        }
+      ];
+
+      // 都市・集落
+      doc.settlements = [
+        {
+          id: "set-woodland",
+          burgId: 10,
+          name: "Woodland Haven",
+          position: [120, 100],
+          type: "city",
+          group: "town",
+          population: 3000,
+          isCapital: false,
+          hasWalls: false,
+          hasCitadel: false,
+          hasPort: false
+        }
+      ];
+
+      const svg = renderRegionSvg(doc);
+
+      // 1. 森林レイヤーとキャノピーグループが存在すること
+      expect(svg).toContain('id="layer-forests"');
+      expect(svg).toContain('class="re-forest-layer"');
+      expect(svg).toContain('class="re-forest-canopy"');
+
+      // 2. 上空視点の陰影・光（feDiffuseLighting）と有機的林縁（feDisplacementMap）フィルターが定義されていること
+      expect(svg).toContain('id="re-forest-shading"');
+      expect(svg).toContain("feDiffuseLighting");
+      expect(svg).toContain("feDisplacementMap");
+      expect(svg).toContain('id="re-forest-shadow"');
+      expect(svg).toContain('id="re-forest-canopy-pattern"');
+
+      // 3. 街道や都市周辺をくり抜くクリアリングマスク（re-forest-clearing-mask）が定義され、街道と都市がくり抜かれていること
+      expect(svg).toContain('mask="url(#re-forest-clearing-mask)"');
+      expect(svg).toContain('id="re-forest-clearing-mask"');
+
+      // 街道のくり抜き線（stroke-width="24"）が含まれること
+      expect(svg).toContain('stroke-width="24"');
+      // 集落のくり抜き円（circle r="28"）が含まれること
+      expect(svg).toContain('cx="120.00" cy="100.00" r="28"');
+    });
+
+    it("森林バイオームが存在しない場合は森林レイヤーが空であること", () => {
+      const doc = createEmptyRegionDocument(DEFAULT_REGION_SETTINGS);
+      doc.biomes = [
+        {
+          id: "bio-grass",
+          kind: "grassland",
+          polygon: [
+            [0, 0],
+            [100, 0],
+            [100, 100],
+            [0, 100]
+          ]
+        }
+      ];
+
+      const svg = renderRegionSvg(doc);
+      expect(svg).not.toContain('id="re-forest-shading"');
+      expect(svg).toContain('<g id="layer-forests"></g>');
+    });
+  });
 });

@@ -171,4 +171,75 @@ describe("generateFromFmgDescriptor with elevation & contours", () => {
     // 直角検証（東西の川に対して南北の橋 = 90度または-90度）
     expect(Math.abs(Math.abs(bridge.angleDeg) - 90)).toBeLessThan(1);
   });
+
+  it("FMG連携で森林セルが含まれる場合、個別の木シンボルで埋めずに一体化キャノピーとくり抜きマスクが機能すること", () => {
+    const mockDescriptor: RegionSiteDescriptor = {
+      version: 1,
+      sourceSeed: "seed-fmg-forest",
+      boundsMapUnits: [0, 0, 100, 100],
+      metersPerMapUnit: 1000,
+      extentMeters: { width: 100000, height: 100000 },
+      coastlines: [],
+      lakes: [],
+      rivers: [],
+      burgs: [
+        {
+          id: 50,
+          name: "Forest Town",
+          point: [50, 50],
+          group: "town",
+          capital: false,
+          population: 1500,
+          walls: false,
+          citadel: false,
+          port: false
+        }
+      ],
+      roads: [
+        {
+          routeId: 201,
+          name: "Woodland Road",
+          type: "road",
+          points: [
+            [20, 50],
+            [80, 50]
+          ]
+        }
+      ],
+      cells: [
+        {
+          point: [30, 50],
+          elevationMeters: 100,
+          biomeName: "Temperate deciduous forest",
+          polygon: [
+            [10, 30],
+            [50, 30],
+            [50, 70],
+            [10, 70]
+          ]
+        },
+        {
+          point: [70, 50],
+          elevationMeters: 120,
+          biomeName: "Taiga",
+          polygon: [
+            [50, 30],
+            [90, 30],
+            [90, 70],
+            [50, 70]
+          ]
+        }
+      ]
+    };
+
+    const doc = generateFromFmgDescriptor(mockDescriptor);
+
+    // 森林バイオーム面の検証
+    expect(doc.biomes).toHaveLength(2);
+    expect(doc.biomes[0].kind).toBe("deciduous_forest");
+    expect(doc.biomes[1].kind).toBe("coniferous_forest");
+
+    // 木シンボルが無数に敷き詰められていないこと（0件）
+    expect(doc.symbols).toHaveLength(0);
+  });
 });

@@ -125,4 +125,53 @@ describe("landscapeBiomes (CE Biome & Landscape Alignment)", () => {
       expect(symbols[i].y).toBeGreaterThanOrEqual(symbols[i - 1].y);
     }
   });
+
+  it("森林セルでは一本木の個別シンボルを散布せず、上空視点の一体化キャノピーとして解決されること", () => {
+    const dummyPoly: Point[] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100]
+    ];
+    const forestCells: RegionSiteCell[] = [
+      {
+        cellId: 10,
+        point: [50, 50],
+        elevationMeters: 120,
+        biomeName: "Temperate deciduous forest",
+        polygon: dummyPoly,
+        isWater: false,
+        height: 25
+      },
+      {
+        cellId: 11,
+        point: [150, 50],
+        elevationMeters: 200,
+        biomeName: "Taiga",
+        polygon: dummyPoly.map(([x, y]) => [x + 100, y] as Point),
+        isWater: false,
+        height: 30
+      },
+      {
+        cellId: 12,
+        point: [250, 50],
+        elevationMeters: 80,
+        biomeName: "Tropical rainforest",
+        polygon: dummyPoly.map(([x, y]) => [x + 200, y] as Point),
+        isWater: false,
+        height: 22
+      }
+    ];
+
+    const toLocal = (p: Point): Point => [p[0], p[1]];
+    const { biomes, symbols } = buildLandscapeFromCells(forestCells, toLocal, "forest-test-seed");
+
+    expect(biomes).toHaveLength(3);
+    expect(biomes[0].kind).toBe("deciduous_forest");
+    expect(biomes[1].kind).toBe("coniferous_forest");
+    expect(biomes[2].kind).toBe("tropical_forest");
+
+    // 森林セルには木シンボルが無数に配置されず0件であること（上空視点キャノピーとして一体描画される）
+    expect(symbols).toHaveLength(0);
+  });
 });

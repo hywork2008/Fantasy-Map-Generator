@@ -1,5 +1,6 @@
 import { curveCatmullRom, line } from "d3";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
+import { isForestBiome } from "../core/gen/landscapeBiomes";
 import type { Point, RegionDocument } from "../core/types";
 import { generateCoastalRipples } from "./coastalRipples";
 import { renderSettlementIcon } from "./styles/settlementIcons";
@@ -101,7 +102,147 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
   const themeName = doc.decoration.theme;
   const theme = THEMES[themeName] ?? THEMES.schley;
 
-  // 1. Defs (パーチメント風テクスチャ、フィルター)
+  const forestBiomes = doc.biomes.filter(b => isForestBiome(b.kind));
+  const hasForest = forestBiomes.length > 0;
+
+  let forestDefs = "";
+  let forestLayer = "";
+
+  if (hasForest) {
+    const canopyColors = theme.forestCanopy;
+
+    // 街道沿いの切り開き（くり抜き）
+    const routesClearing = doc.routes
+      .map(r => {
+        const pathD = createCurvedRoutePath(r.points, 0.1);
+        const w = r.kind === "highway" ? 24 : r.kind === "trail" ? 11 : 16;
+        return `<path d="${pathD}" fill="none" stroke="#000000" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" />`;
+      })
+      .join("\n");
+
+    // 集落・都市周辺の切り開き（開墾地・居住地）
+    const settlementsClearing = doc.settlements
+      .map(s => {
+        const [x, y] = s.position;
+        const radius = s.isCapital ? 34 : s.type === "city" || s.group === "capital" ? 28 : s.type === "town" ? 22 : 17;
+        return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius}" fill="#000000" />`;
+      })
+      .join("\n");
+
+    // ダンジョン・遺跡周辺の切り開き
+    const landmarksClearing = doc.landmarks
+      .map(lm => {
+        const [x, y] = lm.position;
+        return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="14" fill="#000000" />`;
+      })
+      .join("\n");
+
+    // 河川（川幅＋緩衝帯）の切り開き
+    const riversClearing = doc.rivers
+      .map(river => {
+        if (river.points.length >= 2) {
+          const bufferedWidths = river.widths.map(w => w + 60);
+          const riverPoly = createCurvedRiverPolygon(river.points, bufferedWidths, doc.bounds.metersPerUnit, 0.1);
+          return `<path d="${riverPoly}" fill="#000000" stroke="#000000" stroke-width="4" stroke-linejoin="round" />`;
+        }
+        return `<path d="${polyToSvgPath(river.points, false)}" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />`;
+      })
+      .join("\n");
+
+    // 湖および海岸線外側（海洋）の切り開き
+    const lakesClearing = doc.terrain.lakePolygons
+      .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
+      .join("\n");
+    const coastlinesClearing = doc.terrain.coastlinePolygons
+      .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
+      .join("\n");
+
+    forestDefs = `
+      <!-- 森林クリアリングマスク: 街道・都市・ダンジョン・水域をくり抜き、それ以外に森を広げる -->
+      <mask id="re-forest-clearing-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="${widthUnits}" height="${heightUnits}">
+        <rect x="0" y="0" width="${widthUnits}" height="${heightUnits}" fill="#ffffff" />
+        ${coastlinesClearing}
+        ${lakesClearing}
+        ${riversClearing}
+        ${routesClearing}
+        ${settlementsClearing}
+        ${landmarksClearing}
+      </mask>
+
+      <!-- 森林キャノピー用: 光と影の陰影バンプと有機的林縁ディスプレイスメント -->
+      <filter id="re-forest-shading" x="-10%" y="-10%" width="120%" height="120%">
+        <!-- 樹冠の細かな凹凸ノイズ (微小葉群・クラスタ) -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="42" result="microNoise" />
+        <!-- 樹冠の大きな起伏ノイズ (林冠のうねり) -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="88" result="macroNoise" />
+        <feComposite in="microNoise" in2="macroNoise" operator="arithmetic" k1="0" k2="0.65" k3="0.35" k4="0" result="canopyNoise" />
+        <!-- 直線的なセル境界・林縁を有機的な樹冠の波打ちに変形 -->
+        <feDisplacementMap in="SourceGraphic" in2="canopyNoise" scale="5" xChannelSelector="R" yChannelSelector="G" result="displacedCanopy" />
+        <!-- 光源による拡散照明: 方位225°、仰角50°からの自然光による陰影 -->
+        <feDiffuseLighting in="canopyNoise" lighting-color="#ffffff" surfaceScale="3.6" diffuseConstant="1.2" result="light">
+          <feDistantLight azimuth="225" elevation="50" />
+        </feDiffuseLighting>
+        <!-- 緑色の茂みに光と影を乗算 -->
+        <feBlend mode="multiply" in="displacedCanopy" in2="light" result="litCanopy" />
+        <!-- 元の図形の外側を完全に透明化（余白の白枠を除去） -->
+        <feComposite in="litCanopy" in2="displacedCanopy" operator="in" result="finalCanopy" />
+      </filter>
+
+      <!-- 森林全体の地面へのドロップシャドウ（地面から盛り上がる立体感） -->
+      <filter id="re-forest-shadow" x="-5%" y="-5%" width="110%" height="110%">
+        <feDropShadow dx="1.5" dy="2.5" stdDeviation="2.2" flood-color="${canopyColors.shadow}" flood-opacity="0.35" />
+      </filter>
+
+      <!-- 上空視点の重なり合うキャノピーローブ（葉群クラスタ）パターン -->
+      <pattern id="re-forest-canopy-pattern" width="50" height="50" patternUnits="userSpaceOnUse">
+        <g fill="${canopyColors.highlight}" opacity="0.22">
+          <circle cx="10" cy="12" r="7.5" />
+          <circle cx="27" cy="10" r="8" />
+          <circle cx="41" cy="17" r="7" />
+          <circle cx="18" cy="29" r="8.5" />
+          <circle cx="35" cy="33" r="8" />
+          <circle cx="9" cy="42" r="6.5" />
+          <circle cx="43" cy="41" r="7" />
+        </g>
+        <g fill="${canopyColors.shadow}" opacity="0.28">
+          <circle cx="15" cy="16" r="6.5" />
+          <circle cx="32" cy="14" r="7" />
+          <circle cx="23" cy="33" r="7.5" />
+          <circle cx="39" cy="37" r="6.5" />
+          <circle cx="13" cy="46" r="6" />
+          <circle cx="44" cy="9" r="5.5" />
+        </g>
+      </pattern>
+    `;
+
+    const forestCells = forestBiomes
+      .map(b => {
+        const kindKey =
+          b.kind === "coniferous_forest" ? "coniferous" : b.kind === "tropical_forest" ? "tropical" : "deciduous";
+        const color = canopyColors[kindKey];
+        const pathD = polyToSvgPath(b.polygon);
+        return `<path class="forest-canopy-cell forest-${b.kind}" data-id="${b.id}" d="${pathD}" fill="${color}" stroke="${color}" stroke-width="1.2" stroke-linejoin="round" />`;
+      })
+      .join("\n");
+
+    const patternOverlays = forestBiomes
+      .map(
+        b =>
+          `<path class="forest-pattern-overlay" d="${polyToSvgPath(b.polygon)}" fill="url(#re-forest-canopy-pattern)" />`
+      )
+      .join("\n");
+
+    forestLayer = `
+      <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)" filter="url(#re-forest-shadow)">
+        <g class="re-forest-canopy" filter="url(#re-forest-shading)">
+          ${forestCells}
+          ${patternOverlays}
+        </g>
+      </g>
+    `;
+  }
+
+  // 1. Defs (パーチメント風テクスチャ、フィルター、森林マスク・シェーディング)
   const defs = `
     <defs>
       <filter id="re-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -122,6 +263,7 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
         <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.05 0" />
         <feBlend mode="multiply" in="SourceGraphic" />
       </filter>
+      ${forestDefs}
     </defs>
   `;
 
@@ -393,6 +535,7 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
+      <g id="layer-forests">${forestLayer}</g>
       <g id="layer-rivers">${riversLayer}</g>
       <g id="layer-routes">${routesLayer}</g>
       <g id="layer-bridges">${bridgesLayer}</g>

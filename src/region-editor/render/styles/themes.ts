@@ -1,5 +1,14 @@
 import type { BiomeKind, RegionTheme } from "../../core/types";
 
+export interface ForestCanopyColors {
+  deciduous: string;
+  coniferous: string;
+  tropical: string;
+  shadow: string;
+  highlight: string;
+  stroke: string;
+}
+
 export interface ThemeColors {
   background: string;
   ocean: string;
@@ -26,6 +35,7 @@ export interface ThemeColors {
   landmarkFill: string;
   contourStroke: string;
   contourIndexStroke: string;
+  forestCanopy: ForestCanopyColors;
   biomes: Record<BiomeKind, string>;
 }
 
@@ -56,6 +66,14 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     landmarkFill: "#6d3278",
     contourStroke: "#8c7255",
     contourIndexStroke: "#5a4430",
+    forestCanopy: {
+      deciduous: "#3b6832",
+      coniferous: "#264f3a",
+      tropical: "#2e6f36",
+      shadow: "#162e14",
+      highlight: "#5f9450",
+      stroke: "#1a3617"
+    },
     biomes: {
       ocean: "#456d7f",
       grassland: "#d2dab2",
@@ -101,6 +119,14 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     landmarkFill: "#333333",
     contourStroke: "#888888",
     contourIndexStroke: "#333333",
+    forestCanopy: {
+      deciduous: "#c6d3be",
+      coniferous: "#b3c4ac",
+      tropical: "#bdd0b6",
+      shadow: "#748a6d",
+      highlight: "#dbe8d3",
+      stroke: "#4a5944"
+    },
     biomes: {
       ocean: "#eef2f5",
       grassland: "#fdfbf7",
@@ -146,6 +172,14 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     landmarkFill: "#59365c",
     contourStroke: "#9c8160",
     contourIndexStroke: "#624930",
+    forestCanopy: {
+      deciduous: "#686e42",
+      coniferous: "#515c3c",
+      tropical: "#596c3d",
+      shadow: "#363a1e",
+      highlight: "#8b945c",
+      stroke: "#33381a"
+    },
     biomes: {
       ocean: "#d2c09c",
       grassland: "#ded2ad",
@@ -191,6 +225,14 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     landmarkFill: "#000000",
     contourStroke: "#888888",
     contourIndexStroke: "#333333",
+    forestCanopy: {
+      deciduous: "#cccccc",
+      coniferous: "#bbbbbb",
+      tropical: "#c4c4c4",
+      shadow: "#666666",
+      highlight: "#e5e5e5",
+      stroke: "#555555"
+    },
     biomes: {
       ocean: "#f4f4f4",
       grassland: "#ffffff",

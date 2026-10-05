@@ -218,23 +218,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     });
   }
 
-  // 樹木シンボルの散布
-  const treePoints = poissonDiscSampling(
-    { minX: widthUnits * 0.35, minY: heightUnits * 0.08, maxX: widthUnits * 0.68, maxY: heightUnits * 0.48 },
-    14 / (0.5 + settings.treeDensity * 0.8),
-    rng.next,
-    forestPoly
-  );
-  for (const [idx, pt] of treePoints.entries()) {
-    symbols.push({
-      id: `sym-tree-${idx}`,
-      type: pt[1] < heightUnits * 0.25 ? "tree_pine" : "tree_deciduous",
-      x: pt[0],
-      y: pt[1],
-      scale: 0.65 + rng.next() * 0.3,
-      rotationDeg: 0
-    });
-  }
+  // 樹木シンボル: 森林セルは一体化茂みキャノピーとして描画するため、一本木の無数敷き詰めは行わない
 
   // 湿地シンボルの散布
   const swampPoints = poissonDiscSampling(

@@ -247,6 +247,13 @@ export function buildLandscapeFromCells(
   return { biomes, symbols };
 }
 
+/**
+ * 森林系バイオーム判定
+ */
+export function isForestBiome(kind: string): boolean {
+  return kind === "deciduous_forest" || kind === "coniferous_forest" || kind === "tropical_forest";
+}
+
 function getSymbolCountForBiome(kind: BiomeKind, rng: { next: () => number }): number {
   switch (kind) {
     case "mountains":
@@ -257,7 +264,8 @@ function getSymbolCountForBiome(kind: BiomeKind, rng: { next: () => number }): n
     case "deciduous_forest":
     case "coniferous_forest":
     case "tropical_forest":
-      return 1 + Math.floor(rng.next() * 3); // 1〜3本の木
+      // ★森林セルは上空視点の一体化茂み（キャノピー）として描画するため、個別の木シンボルは散布しない
+      return 0;
     case "savanna":
       return rng.next() > 0.5 ? 1 : 0;
     case "desert":
