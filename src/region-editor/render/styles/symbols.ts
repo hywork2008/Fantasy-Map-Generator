@@ -196,5 +196,86 @@ export const SYMBOL_DEFINITIONS: Record<SymbolType, SymbolDefinition> = {
         <path d="M -12 2 C -4 -4, 12 -4, 16 2" fill="none" stroke="${fill}" stroke-width="1" opacity="0.6" />
       </g>
     `
+  },
+
+  tree_palm: {
+    viewBox: "-18 -32 36 36",
+    width: 36,
+    height: 36,
+    originX: 0,
+    originY: 0,
+    renderSvg: (fill, stroke) => `
+      <g class="symbol-tree-palm">
+        <!-- 湾曲した幹 -->
+        <path d="M 0 0 Q -4 -12 -1 -24" stroke="#5a3d28" stroke-width="2" stroke-linecap="round" fill="none" />
+        <!-- 放射状のヤシの葉 -->
+        <path d="M -1 -24 Q -12 -28 -16 -20" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" />
+        <path d="M -1 -24 Q -8 -34 -2 -34" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" />
+        <path d="M -1 -24 Q 8 -32 14 -24" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" />
+        <path d="M -1 -24 Q 10 -22 16 -16" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" />
+        <path d="M -1 -24 Q -6 -20 -12 -14" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" />
+        <circle cx="-1" cy="-24" r="2.5" fill="${fill}" />
+      </g>
+    `
+  },
+
+  tree_acacia: {
+    viewBox: "-22 -26 44 30",
+    width: 44,
+    height: 30,
+    originX: 0,
+    originY: 0,
+    renderSvg: (fill, stroke) => `
+      <g class="symbol-tree-acacia">
+        <!-- 枝分かれ幹 -->
+        <path d="M 0 0 L 0 -8 L -6 -16 M 0 -8 L 6 -14" stroke="#4a3525" stroke-width="1.8" stroke-linecap="round" fill="none" />
+        <!-- 傘型（アンブレラ）樹冠 -->
+        <ellipse cx="-6" cy="-18" rx="10" ry="3.5" fill="${fill}" stroke="${stroke}" stroke-width="1" />
+        <ellipse cx="6" cy="-16" rx="9" ry="3" fill="${fill}" stroke="${stroke}" stroke-width="1" />
+      </g>
+    `
+  },
+
+  cactus: {
+    viewBox: "-14 -26 28 30",
+    width: 28,
+    height: 30,
+    originX: 0,
+    originY: 0,
+    renderSvg: (fill, stroke) => `
+      <g class="symbol-cactus">
+        <!-- 柱サボテン本体と腕 -->
+        <path d="M 0 0 L 0 -22 M -6 -8 L -6 -16 M -6 -8 L 0 -8 M 6 -11 L 6 -18 M 6 -11 L 0 -11" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      </g>
+    `
+  },
+
+  grass_tuft: {
+    viewBox: "-12 -14 24 16",
+    width: 24,
+    height: 16,
+    originX: 0,
+    originY: 0,
+    renderSvg: (_fill, stroke) => `
+      <g class="symbol-grass-tuft">
+        <path d="M 0 0 L -4 -10 M 0 0 L 0 -12 M 0 0 L 4 -9 M 0 0 L -8 -6 M 0 0 L 7 -6" stroke="${stroke}" stroke-width="1.1" stroke-linecap="round" fill="none" />
+      </g>
+    `
+  },
+
+  rock_cluster: {
+    viewBox: "-18 -16 36 20",
+    width: 36,
+    height: 20,
+    originX: 0,
+    originY: 0,
+    renderSvg: (fill, stroke) => `
+      <g class="symbol-rocks">
+        <polygon points="-12,0 -8,-9 -2,-8 4,0" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+        <polygon points="0,0 4,-12 12,-11 16,0" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+        <line x1="-5" y1="-8" x2="-2" y2="0" stroke="${stroke}" stroke-width="0.8" opacity="0.6" />
+        <line x1="8" y1="-11" x2="10" y2="0" stroke="${stroke}" stroke-width="0.8" opacity="0.6" />
+      </g>
+    `
   }
 };

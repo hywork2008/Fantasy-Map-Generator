@@ -56,8 +56,10 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
   // 3. バイオーム領域
   const biomesLayer = doc.biomes
     .map(b => {
-      const color = theme.biomes[b.kind] ?? theme.biomes.grassland;
-      return `<path class="biome-polygon biome-${b.kind}" data-id="${b.id}" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="none" />`;
+      const color = b.color ?? theme.biomes[b.kind] ?? theme.biomes.grassland;
+      const isSea = b.isWater || b.kind === "ocean";
+      const cls = isSea ? "biome-polygon biome-ocean ce-face--sea" : `biome-polygon biome-${b.kind} ce-face--land`;
+      return `<path class="${cls}" data-id="${b.id}" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" />`;
     })
     .join("\n");
 
@@ -162,10 +164,19 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
         ? theme.mountainFill
         : sym.type.startsWith("hill")
           ? theme.hillFill
-          : sym.type.startsWith("tree")
+          : sym.type.startsWith("tree") || sym.type === "grass_tuft"
             ? theme.treeFill
-            : theme.textSecondary;
-      const stroke = sym.type.startsWith("tree") ? theme.treeStroke : theme.mountainStroke;
+            : sym.type === "cactus"
+              ? "#557d4a"
+              : sym.type === "sand_dune"
+                ? "#d6c498"
+                : sym.type === "rock_cluster"
+                  ? "#92897e"
+                  : theme.textSecondary;
+      const stroke =
+        sym.type.startsWith("tree") || sym.type === "grass_tuft" || sym.type === "cactus"
+          ? theme.treeStroke
+          : theme.mountainStroke;
       const isSel = sym.id === selectedId;
 
       const innerSvg = def.renderSvg(fill, stroke, highlight);

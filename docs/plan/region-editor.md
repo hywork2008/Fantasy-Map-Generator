@@ -243,9 +243,11 @@ export type BiomeKind =
   | "deciduous_forest"
   | "coniferous_forest"
   | "tropical_forest"
+  | "savanna"
   | "hills"
   | "mountains"
   | "snow_mountains"
+  | "glacier"
   | "swamp"
   | "marsh"
   | "desert"
@@ -256,6 +258,8 @@ export interface RegionBiomeArea {
   id: string;
   kind: BiomeKind;
   polygon: Array<[number, number]>;
+  color?: string;     // CE互換の地表・セル塗りつぶし色オーバーライド
+  isWater?: boolean;  // 海洋・水域フラグ
 }
 
 export type SymbolType =
@@ -468,6 +472,28 @@ FMG と RE の間での地形・等高線の整合性を担保するため、以
    - RE 側では、渡されたセル標高から空間インデックス（グリッドバケット）を用いた逆距離加重法（IDW）により規則的な標高グリッド `Heightfield` を生成。
    - Marching Squares アルゴリズムにより、標高範囲に応じた等高線ポリライン（`RegionContourLine`）を自動抽出。主等高線（Index contour: 太線）および閉曲線判定を行い、ラプラシアンスムージングによってクラフト感のある手描き風等高線として描画・保持する。
    - ドキュメントデータモデル（`doc.terrain.contours`, `doc.terrain.heightfield`）として完全保持され、JSON 保存・読込、SVG 出力、UI での表示切替・間隔変更に対応。
+
+#### 8.1.2 CE 準拠の海セル色・バイオーム風景連携（Landscapes & Sea Faces）
+FMG・CE・RE 間での統一的な世界観と視覚体験を実現するため、City Editor（CE）の海色およびバイオーム風景（色彩と植生・地勢シンボル）を RE に完全連動させる：
+
+1. **CE 準拠の海セル（Sea Faces / Water）**:
+   - CE の海の色（`.ce-svg--town .ce-face--sea { fill: #456d7f; }`）および湖の色（`#527f8b`）を採用。
+   - FMG から渡された海洋・水域セル（`isWater` または標高 $< 20$ または `Marine`）は、RE 上でも正確な Voronoi 多角形メッシュとして `#456d7f` で彩色され、`ce-face--sea` クラスが付与される。水域セル上には陸地シンボル（樹木・山岳等）は散布されない。
+2. **陸地セルのバイオーム風景（Landscape Themes & Palettes）**:
+   - CE の `resolveLandscapeTheme` と完全互換のカラーパレット（`CE_BIOME_PALETTE`）を適用：
+     - 草原 (Grassland): `#d2dab2`
+     - 落葉樹林 (Deciduous Forest): `#c2d4ac`
+     - 針葉樹林 / タイガ (Coniferous Forest / Taiga): `#b5c4a7`
+     - 熱帯林 / ジャングル (Tropical Rainforest): `#b9cca0`
+     - サバナ (Savanna): `#ded8aa`
+     - 砂漠 (Desert): `#e8ddba`
+     - 湿原 (Swamp / Marsh): `#b4c5a5` / `#adbe9e`
+     - ツンドラ (Tundra): `#c9beaa`
+     - 氷河 / 雪山 (Glacier / Snow Mountains): `#d8e5e8`
+     - 丘陵 / 山岳 (Hills / Mountains): `#cfcaa8` / `#b5a897`
+3. **バイオーム準拠の植生・地勢シンボル散布**:
+   - 各セルのバイオームと標高に応じて、CE 同等のシンボル（アカシア、サボテン、ヤシ、針葉樹、広葉樹、湿原草、砂丘、岩礁群、草むら等）を散布。
+   - 北から南へ（Y座標昇順）の Z-sort により、手前と奥のシンボルが自然に重なり合う美しい立体パースペクティブを表現。
 
 ### 8.2 Region Editor (RE) → City Editor (CE) のハンドオフ
 RE 上の集落シンボル（Settlement）をクリックし、プロパティパネル内の **「City Editor (CE) で開く」** ボタンをクリック。

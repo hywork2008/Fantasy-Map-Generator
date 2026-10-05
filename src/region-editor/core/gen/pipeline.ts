@@ -10,6 +10,7 @@ import type {
   SymbolType
 } from "../types";
 import { generateContourLines, generateHeightfieldFromCells, synthesizeHeightfield } from "./contours";
+import { buildLandscapeFromCells } from "./landscapeBiomes";
 import { generatePerpendicularBridges } from "./perpendicularBridges";
 import { poissonDiscSampling } from "./poissonScatter";
 import { makeRng } from "./prng";
@@ -458,47 +459,15 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     }));
   }
 
-  // バイオームとシンボルの散布
-  const rng = makeRng(`${descriptor.sourceSeed}:symbols`);
-  const symbols: RegionSymbol[] = [];
-
-  for (const cell of descriptor.cells) {
-    const localPt = toLocal(cell.point);
-    const biome = cell.biomeName.toLowerCase();
-
-    if (biome.includes("mountain") || biome.includes("highland")) {
-      symbols.push({
-        id: `sym-mtn-${symbols.length}`,
-        type: cell.elevationMeters > 2000 ? "mountain_snow" : "mountain_peak_major",
-        x: localPt[0],
-        y: localPt[1],
-        scale: 0.9 + rng.next() * 0.25,
-        rotationDeg: 0,
-        elevationMeters: cell.elevationMeters
-      });
-    } else if (biome.includes("forest") || biome.includes("wood")) {
-      symbols.push({
-        id: `sym-tree-${symbols.length}`,
-        type: biome.includes("taiga") || biome.includes("conifer") ? "tree_pine" : "tree_deciduous",
-        x: localPt[0],
-        y: localPt[1],
-        scale: 0.75 + rng.next() * 0.2,
-        rotationDeg: 0
-      });
-    } else if (biome.includes("swamp") || biome.includes("wetland") || biome.includes("marsh")) {
-      symbols.push({
-        id: `sym-swamp-${symbols.length}`,
-        type: "swamp_grass",
-        x: localPt[0],
-        y: localPt[1],
-        scale: 0.7 + rng.next() * 0.2,
-        rotationDeg: 0
-      });
-    }
+  // CE準拠のバイオーム面と風景シンボルの生成
+  if (descriptor.cells && descriptor.cells.length > 0) {
+    const landscape = buildLandscapeFromCells(descriptor.cells, toLocal, descriptor.sourceSeed);
+    doc.biomes = landscape.biomes;
+    doc.symbols = landscape.symbols;
+  } else {
+    doc.biomes = [];
+    doc.symbols = [];
   }
-
-  symbols.sort((a, b) => a.y - b.y);
-  doc.symbols = symbols;
 
   return doc;
 }

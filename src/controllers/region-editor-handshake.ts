@@ -179,6 +179,17 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
     if (elevationMeters < minElevationMeters) minElevationMeters = elevationMeters;
     if (elevationMeters > maxElevationMeters) maxElevationMeters = elevationMeters;
 
+    const vIds = cells.v ? cells.v[cid] : undefined;
+    let polygon: Point[] | undefined;
+    if (vIds && pack.vertices && pack.vertices.p) {
+      polygon = vIds.map(vid => pack.vertices.p[vid]).filter((p): p is Point => !!p);
+    }
+    const isWater =
+      height < 20 ||
+      biomeName.toLowerCase().includes("marine") ||
+      biomeName.toLowerCase().includes("ocean") ||
+      biomeName.toLowerCase().includes("water");
+
     sampledCells.push({
       point: [pt[0], pt[1]],
       elevationMeters,
@@ -186,7 +197,9 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
       inProvince: cells.province[cid] === provinceId,
       provinceId: cells.province[cid],
       biomeId,
-      biomeName
+      biomeName,
+      polygon,
+      isWater
     });
   }
 

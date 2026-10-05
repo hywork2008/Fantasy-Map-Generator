@@ -17,9 +17,11 @@ export type BiomeKind =
   | "deciduous_forest"
   | "coniferous_forest"
   | "tropical_forest"
+  | "savanna"
   | "hills"
   | "mountains"
   | "snow_mountains"
+  | "glacier"
   | "swamp"
   | "marsh"
   | "desert"
@@ -30,6 +32,8 @@ export interface RegionBiomeArea {
   id: string;
   kind: BiomeKind;
   polygon: Point[];
+  color?: string; // CE-compatible ground/face fill color override
+  isWater?: boolean;
 }
 
 export type SymbolType =
@@ -41,10 +45,15 @@ export type SymbolType =
   | "tree_deciduous"
   | "tree_pine"
   | "tree_jungle"
+  | "tree_palm"
+  | "tree_acacia"
   | "tree_dead"
+  | "cactus"
+  | "grass_tuft"
   | "swamp_grass"
   | "marsh_reed"
-  | "sand_dune";
+  | "sand_dune"
+  | "rock_cluster";
 
 export interface RegionSymbol {
   id: string;
@@ -206,6 +215,8 @@ export interface RegionSiteCell {
   provinceId?: number;
   biomeId: number;
   biomeName: string;
+  polygon?: Point[]; // Voronoi cell boundary polygon in FMG coordinates
+  isWater?: boolean; // true if sea / ocean / water cell
 }
 
 export interface RegionSiteDescriptor {
