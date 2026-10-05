@@ -255,6 +255,7 @@ export interface RegionSiteDescriptor {
     name: string;
     points: Point[];
     widthMeters: number;
+    widthsMeters?: number[];
     dischargeM3s: number;
   }>;
   burgs: Array<{
@@ -270,6 +271,7 @@ export interface RegionSiteDescriptor {
   }>;
   roads: Array<{
     routeId: number;
+    name?: string;
     type: "highway" | "road" | "trail";
     points: Point[];
   }>;

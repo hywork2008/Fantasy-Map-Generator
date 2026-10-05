@@ -91,4 +91,84 @@ describe("generateFromFmgDescriptor with elevation & contours", () => {
       expect(c.points.length).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it("FMG 記述子から街道と川幅情報を受け取り、橋梁を生成してドキュメントに反映すること", () => {
+    const mockDescriptor: RegionSiteDescriptor = {
+      version: 1,
+      sourceSeed: "seed-routes-test",
+      provinceId: 5,
+      provinceName: "Sword Coast North",
+      boundsMapUnits: [0, 0, 100, 100],
+      metersPerMapUnit: 1000,
+      extentMeters: { width: 100000, height: 100000 },
+      coastlines: [],
+      lakes: [],
+      rivers: [
+        {
+          id: 1,
+          name: "Chionthar",
+          // (20, 50) から (80, 50) へ東西に流れる川
+          points: [
+            [20, 50],
+            [50, 50],
+            [80, 50]
+          ],
+          widthMeters: 200,
+          widthsMeters: [80, 180, 280],
+          dischargeM3s: 200
+        }
+      ],
+      burgs: [],
+      roads: [
+        {
+          routeId: 101,
+          name: "Coast Highway",
+          type: "highway",
+          // (50, 20) から (50, 80) へ南北に走り、河川 (50, 50) と直角交差する道路
+          points: [
+            [50, 20],
+            [50, 80]
+          ]
+        },
+        {
+          routeId: 102,
+          name: "East Path",
+          type: "trail",
+          points: [
+            [10, 10],
+            [30, 30]
+          ]
+        }
+      ],
+      cells: []
+    };
+
+    const doc = generateFromFmgDescriptor(mockDescriptor);
+
+    // 河川の検証
+    expect(doc.rivers.length).toBe(1);
+    const river = doc.rivers[0];
+    expect(river.name).toBe("Chionthar");
+    expect(river.widths).toEqual([80, 180, 280]); // 川幅配列がそのまま反映されていること
+
+    // 街道の検証
+    expect(doc.routes.length).toBe(2);
+    const highway = doc.routes.find(r => r.kind === "highway");
+    expect(highway).toBeDefined();
+    expect(highway!.name).toBe("Coast Highway");
+
+    const trail = doc.routes.find(r => r.kind === "trail");
+    expect(trail).toBeDefined();
+    expect(trail!.name).toBe("East Path");
+
+    // 直角橋の生成検証（交差箇所に規約通りの直角橋が生成されていること）
+    expect(doc.bridges.length).toBe(1);
+    const bridge = doc.bridges[0];
+    expect(bridge.riverId).toBe(river.id);
+    expect(bridge.routeId).toBe(highway!.id);
+    expect(bridge.style).toBe("stone_arch"); // highway なので石造アーチ
+    expect(bridge.lengthMeters).toBeGreaterThan(0);
+    // 直角検証（東西の川に対して南北の橋 = 90度または-90度）
+    expect(Math.abs(Math.abs(bridge.angleDeg) - 90)).toBeLessThan(1);
+  });
 });

@@ -96,4 +96,149 @@ describe("buildRegionSiteDescriptor", () => {
     const [minX, , maxX] = descriptor!.boundsMapUnits;
     expect(maxX - minX).toBeGreaterThanOrEqual(35);
   });
+
+  it("FMG の都市間街道（Routes）と河川の川幅（widthsMeters）が抽出されること", () => {
+    const province1: Province = {
+      i: 1,
+      name: "Riverland",
+      state: 1,
+      color: "#0000ff",
+      burg: 1,
+      center: 0
+    };
+
+    worldContext.seed = "handshake-seed-2";
+    worldContext.distanceScale = 1; // 1 map unit = 1000m
+    worldContext.graphWidth = 1000;
+    worldContext.graphHeight = 1000;
+    worldContext.options = { heightExponent: 1.8 } as any;
+    worldContext.biomesData = {
+      name: ["Water", "Grassland"]
+    } as any;
+
+    worldContext.pack = {
+      provinces: [undefined, province1],
+      states: [undefined, { i: 1, name: "The Kingdom" }],
+      cells: {
+        i: [0, 1, 2],
+        p: [
+          [200, 200],
+          [240, 210],
+          [280, 220]
+        ],
+        c: [[1], [0, 2], [1]],
+        h: [30, 28, 25],
+        fl: [100, 250, 600],
+        r: [1, 1, 1],
+        conf: [0, 0, 0],
+        province: [1, 1, 1],
+        state: [1, 1, 1],
+        biomeCode: [1, 1, 1]
+      },
+      burgs: [
+        undefined,
+        {
+          i: 1,
+          name: "High Capital",
+          x: 200,
+          y: 200,
+          cell: 0,
+          capital: 1,
+          population: 30,
+          group: "capital"
+        },
+        {
+          i: 2,
+          name: "Rivertown",
+          x: 280,
+          y: 220,
+          cell: 2,
+          capital: 0,
+          population: 5,
+          group: "town"
+        }
+      ],
+      rivers: [
+        {
+          i: 1,
+          name: "Great River",
+          cells: [0, 1, 2],
+          points: [
+            [200, 180],
+            [240, 210],
+            [280, 240]
+          ],
+          widthFactor: 1.5,
+          sourceWidth: 0.2,
+          discharge: 300,
+          width: 8
+        }
+      ],
+      routes: [
+        // 首都と接続する幹線道路 -> highway
+        {
+          i: 10,
+          name: "The Royal Highway",
+          group: "roads",
+          points: [
+            [190, 195, 0],
+            [200, 200, 0],
+            [240, 210, 1],
+            [280, 220, 2],
+            [290, 225, 2]
+          ]
+        },
+        // 小道 -> trail
+        {
+          i: 20,
+          name: "Forest Path",
+          group: "trails",
+          points: [
+            [210, 205, 0],
+            [230, 215, 1]
+          ]
+        },
+        // 海上航路 -> 除外されるべき
+        {
+          i: 30,
+          name: "Sea Route",
+          group: "searoutes",
+          points: [
+            [200, 200, 0],
+            [250, 250, 1]
+          ]
+        }
+      ]
+    } as any;
+
+    const descriptor = buildRegionSiteDescriptor(1);
+    expect(descriptor).not.toBeNull();
+
+    // 1. 河川とその太さの検証
+    expect(descriptor!.rivers.length).toBeGreaterThanOrEqual(1);
+    const river = descriptor!.rivers.find(r => r.name === "Great River");
+    expect(river).toBeDefined();
+    expect(river!.points.length).toBeGreaterThanOrEqual(2);
+    expect(river!.widthMeters).toBeGreaterThan(0);
+    expect(river!.widthsMeters).toBeDefined();
+    expect(river!.widthsMeters!.length).toBe(river!.points.length);
+    // 上流から下流へ向かって川幅が広がる（または相応の幅を持つ）こと
+    expect(river!.widthsMeters![river!.widthsMeters!.length - 1]).toBeGreaterThanOrEqual(river!.widthsMeters![0]);
+
+    // 2. 街道の検証
+    expect(descriptor!.roads.length).toBe(2); // 陸上ルート2本（海上ルートは除外）
+    const highway = descriptor!.roads.find(r => r.routeId === 10);
+    expect(highway).toBeDefined();
+    expect(highway!.name).toBe("The Royal Highway");
+    expect(highway!.type).toBe("highway");
+    expect(highway!.points.length).toBeGreaterThanOrEqual(2);
+
+    const trail = descriptor!.roads.find(r => r.routeId === 20);
+    expect(trail).toBeDefined();
+    expect(trail!.name).toBe("Forest Path");
+    expect(trail!.type).toBe("trail");
+
+    // 海上航路が含まれていないこと
+    expect(descriptor!.roads.some(r => r.routeId === 30)).toBe(false);
+  });
 });

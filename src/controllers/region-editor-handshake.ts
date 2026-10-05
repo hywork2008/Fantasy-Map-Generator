@@ -1,9 +1,10 @@
 import { worldContext } from "../context/worldContext";
+import { Rivers } from "../generators/river-generator";
 import type { Point, RegionSiteCell, RegionSiteDescriptor } from "../region-editor/core/types";
 import { REGION_SITE_KEY, REGION_SITE_VERSION } from "../region-editor/core/types";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
-import type { Province, River } from "../types/models";
+import type { Province, River, Route } from "../types/models";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 
 /**
@@ -109,27 +110,197 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
     }
   }
 
-  // 4. 範囲内の河川を抽出
+  // 4. 範囲内の河川を抽出（FMGの物理水理計算に基づく蛇行と川幅）
   const regionRivers: RegionSiteDescriptor["rivers"] = [];
   if (pack.rivers) {
+    if (!Rivers.worldContext) {
+      Rivers.worldContext = worldContext;
+    }
     for (const r of pack.rivers as River[]) {
-      if (!r?.i) continue;
-      const riverPoints: Point[] = [];
-      if (r.cells) {
-        for (const c of r.cells) {
+      if (!r?.i || !r.cells || r.cells.length < 2) continue;
+
+      let meanderedPoints: Point[] = [];
+      let meanderedWidths: number[] = [];
+
+      const hasHydrology = cells.fl && cells.h && cells.p;
+      if (hasHydrology) {
+        try {
+          const validPoints = r.points && r.points.length === r.cells.length ? r.points : null;
+          const pts = Rivers.addMeandering(r.cells, validPoints);
+          if (pts.length >= 2) {
+            const banks = Rivers.getRiverBanks(pts, r.widthFactor ?? 1, r.sourceWidth ?? 0.1);
+            meanderedPoints = pts.map(p => [p[0], p[1]] as Point);
+            meanderedWidths = pts.map((_, idx) => {
+              const halfOffset = banks.widths[idx] ? banks.widths[idx] / 2 : (r.width || 2) / 2;
+              const trueWidthMapUnits = Rivers.getWidth(halfOffset);
+              return Math.max(Math.round(trueWidthMapUnits * metersPerMapUnit), 8);
+            });
+          }
+        } catch {
+          // 水理計算エラー時はフォールバック
+        }
+      }
+
+      // フォールバック（fl や h が未定義のテストケース等）
+      if (meanderedPoints.length < 2) {
+        const baseWidth = Math.max((r.width || 4) * metersPerMapUnit * 0.05, 12);
+        const pts: Point[] = [];
+        const wds: number[] = [];
+        r.cells.forEach((c, idx) => {
           const pt = cells.p[c];
-          if (pt && pt[0] >= minX - 10 && pt[0] <= maxX + 10 && pt[1] >= minY - 10 && pt[1] <= maxY + 10) {
-            riverPoints.push([pt[0], pt[1]]);
+          if (pt) {
+            pts.push([pt[0], pt[1]]);
+            const prog = idx / (r.cells.length - 1 || 1);
+            wds.push(Math.max(Math.round(baseWidth * (0.3 + 0.7 * prog)), 8));
+          }
+        });
+        meanderedPoints = pts;
+        meanderedWidths = wds;
+      }
+
+      if (meanderedPoints.length < 2) continue;
+
+      // 領域バウンディングボックス [minX, minY, maxX, maxY] と交差するセグメントを抽出
+      const inBox = (p: Point) => p[0] >= minX - 10 && p[0] <= maxX + 10 && p[1] >= minY - 10 && p[1] <= maxY + 10;
+      const strictlyIn = (p: Point) => p[0] >= minX && p[0] <= maxX && p[1] >= minY && p[1] <= maxY;
+
+      let segPoints: Point[] = [];
+      let segWidths: number[] = [];
+      let hasStrictlyIn = false;
+      let segmentCounter = 0;
+
+      for (let i = 0; i < meanderedPoints.length; i++) {
+        const pt = meanderedPoints[i];
+        const w = meanderedWidths[i] ?? meanderedWidths[0] ?? 20;
+
+        if (inBox(pt)) {
+          if (segPoints.length === 0 && i > 0) {
+            segPoints.push(meanderedPoints[i - 1]);
+            segWidths.push(meanderedWidths[i - 1]);
+          }
+          segPoints.push(pt);
+          segWidths.push(w);
+          if (strictlyIn(pt)) hasStrictlyIn = true;
+        } else {
+          if (segPoints.length > 0) {
+            segPoints.push(pt);
+            segWidths.push(w);
+            if (segPoints.length >= 2 && hasStrictlyIn) {
+              const segId = segmentCounter === 0 ? r.i : r.i * 1000 + segmentCounter;
+              segmentCounter++;
+              const avgWidth = Math.round(segWidths.reduce((a, b) => a + b, 0) / segWidths.length);
+              regionRivers.push({
+                id: segId,
+                name: r.name || `River ${r.i}`,
+                points: segPoints,
+                widthMeters: avgWidth,
+                widthsMeters: segWidths,
+                dischargeM3s: r.discharge || 50
+              });
+            }
+            segPoints = [];
+            segWidths = [];
+            hasStrictlyIn = false;
           }
         }
       }
-      if (riverPoints.length >= 2) {
+
+      if (segPoints.length >= 2 && hasStrictlyIn) {
+        const segId = segmentCounter === 0 ? r.i : r.i * 1000 + segmentCounter;
+        const avgWidth = Math.round(segWidths.reduce((a, b) => a + b, 0) / segWidths.length);
         regionRivers.push({
-          id: r.i,
+          id: segId,
           name: r.name || `River ${r.i}`,
-          points: riverPoints,
-          widthMeters: Math.max(r.width || 4, 1) * 40,
+          points: segPoints,
+          widthMeters: avgWidth,
+          widthsMeters: segWidths,
           dischargeM3s: r.discharge || 50
+        });
+      }
+    }
+  }
+
+  // 5. 範囲内の都市間街道（Routes）を抽出
+  const regionRoads: RegionSiteDescriptor["roads"] = [];
+  if (pack.routes) {
+    const capitalBurgCells = new Set<number>();
+    const cityBurgCells = new Set<number>();
+    if (pack.burgs) {
+      for (const b of pack.burgs) {
+        if (!b?.i || b.removed) continue;
+        if (b.capital) {
+          capitalBurgCells.add(b.cell);
+        }
+        if ((b.population && b.population > 8) || b.group === "city" || b.group === "metropolis" || b.capital) {
+          cityBurgCells.add(b.cell);
+        }
+      }
+    }
+
+    for (const route of pack.routes as Route[]) {
+      if (!route?.i || !route.points || route.points.length < 2) continue;
+      if (route.group === "searoutes") continue; // 海上航路は除外（陸上街道を対象）
+
+      let type: "highway" | "road" | "trail" = "road";
+      if (route.group === "highways" || route.group === "highway") {
+        type = "highway";
+      } else if (route.group === "trails" || route.group === "trail") {
+        type = "trail";
+      } else {
+        // "roads" または未分類街道: 首都や主要都市と接続していれば highway、それ以外は road
+        const touchesCapital =
+          route.points.some(p => p[2] !== undefined && capitalBurgCells.has(p[2])) ||
+          (route.cells && route.cells.some(c => capitalBurgCells.has(c)));
+        const touchesCity =
+          route.points.some(p => p[2] !== undefined && cityBurgCells.has(p[2])) ||
+          (route.cells && route.cells.some(c => cityBurgCells.has(c)));
+        type = touchesCapital || touchesCity ? "highway" : "road";
+      }
+
+      const pts = route.points;
+      const inBox = (p: [number, number, ...number[]]) =>
+        p[0] >= minX - 10 && p[0] <= maxX + 10 && p[1] >= minY - 10 && p[1] <= maxY + 10;
+      const strictlyIn = (p: [number, number, ...number[]]) =>
+        p[0] >= minX && p[0] <= maxX && p[1] >= minY && p[1] <= maxY;
+
+      let currentSeg: Point[] = [];
+      let hasStrictlyIn = false;
+      let segmentCounter = 0;
+
+      for (let i = 0; i < pts.length; i++) {
+        const pt = pts[i];
+        if (inBox(pt)) {
+          if (currentSeg.length === 0 && i > 0) {
+            currentSeg.push([pts[i - 1][0], pts[i - 1][1]]);
+          }
+          currentSeg.push([pt[0], pt[1]]);
+          if (strictlyIn(pt)) hasStrictlyIn = true;
+        } else {
+          if (currentSeg.length > 0) {
+            currentSeg.push([pt[0], pt[1]]);
+            if (currentSeg.length >= 2 && hasStrictlyIn) {
+              const segId = segmentCounter === 0 ? route.i : route.i * 1000 + segmentCounter;
+              segmentCounter++;
+              regionRoads.push({
+                routeId: segId,
+                name: route.name,
+                type,
+                points: currentSeg
+              });
+            }
+            currentSeg = [];
+            hasStrictlyIn = false;
+          }
+        }
+      }
+
+      if (currentSeg.length >= 2 && hasStrictlyIn) {
+        const segId = segmentCounter === 0 ? route.i : route.i * 1000 + segmentCounter;
+        regionRoads.push({
+          routeId: segId,
+          name: route.name,
+          type,
+          points: currentSeg
         });
       }
     }
@@ -221,7 +392,7 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
     lakes: [],
     rivers: regionRivers,
     burgs: regionBurgs,
-    roads: [],
+    roads: regionRoads,
     elevationStats: {
       minElevationMeters: Number.isFinite(minElevationMeters) ? minElevationMeters : 0,
       maxElevationMeters: Number.isFinite(maxElevationMeters) ? maxElevationMeters : 0,

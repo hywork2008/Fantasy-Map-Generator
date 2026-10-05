@@ -107,36 +107,82 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
     .join("\n");
 
   // 5. 河川
+  // 5. 河川（太さの変化・水理幅の反映）
   const riversLayer = doc.rivers
     .map(river => {
+      const isSel = river.id === selectedId;
+      const minW = Math.round(Math.min(...river.widths));
+      const maxW = Math.round(Math.max(...river.widths));
+      const widthInfo =
+        river.widths.length > 0 ? (minW === maxW ? ` (川幅: ${minW}m)` : ` (川幅: ${minW}m〜${maxW}m)`) : "";
+      const titleTag = `<title>${escapeXml(river.name)}${widthInfo}</title>`;
+
+      if (river.widths.length >= 2 && river.points.length >= 2) {
+        // 上流から下流へと川幅が変化する河川
+        const bankPaths: string[] = [];
+        const waterPaths: string[] = [];
+
+        for (let i = 0; i < river.points.length - 1; i++) {
+          const p1 = river.points[i];
+          const p2 = river.points[i + 1];
+          const wMeters = (river.widths[i] + (river.widths[i + 1] ?? river.widths[i])) / 2;
+          const baseUnits = wMeters / doc.bounds.metersPerUnit;
+          const strokeWidth = Math.max(1.6, Math.min(24, 1.2 + baseUnits * 0.95));
+          const segD = `M ${p1[0].toFixed(2)} ${p1[1].toFixed(2)} L ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+
+          bankPaths.push(`<path d="${segD}" stroke-width="${(strokeWidth + 1.4).toFixed(2)}" />`);
+          waterPaths.push(`<path d="${segD}" stroke-width="${strokeWidth.toFixed(2)}" />`);
+        }
+
+        return `
+          <g class="river-group ${isSel ? "selected" : ""}" id="${escapeXml(river.id)}" data-kind="river" data-id="${escapeXml(river.id)}">
+            ${titleTag}
+            <g class="river-banks" fill="none" stroke="${isSel ? "#d4a373" : theme.riverStroke}" stroke-linecap="round" stroke-linejoin="round">
+              ${bankPaths.join("\n")}
+            </g>
+            <g class="river-water" fill="none" stroke="${theme.riverFill}" stroke-linecap="round" stroke-linejoin="round">
+              ${waterPaths.join("\n")}
+            </g>
+          </g>
+        `;
+      }
+
+      // 単一幅河川
       const pathD = polyToSvgPath(river.points, false);
       const avgWidthMeters = river.widths.reduce((a, b) => a + b, 0) / (river.widths.length || 1);
-      const strokeWidth = Math.max(1.8, (avgWidthMeters / doc.bounds.metersPerUnit) * 0.85);
+      const baseUnits = avgWidthMeters / doc.bounds.metersPerUnit;
+      const strokeWidth = Math.max(1.6, Math.min(24, 1.2 + baseUnits * 0.95));
+
       return `
-        <g class="river-group" id="${escapeXml(river.id)}" data-kind="river" data-id="${escapeXml(river.id)}">
-          <path d="${pathD}" fill="none" stroke="${theme.riverStroke}" stroke-width="${(strokeWidth + 1.4).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" />
+        <g class="river-group ${isSel ? "selected" : ""}" id="${escapeXml(river.id)}" data-kind="river" data-id="${escapeXml(river.id)}">
+          ${titleTag}
+          <path d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.riverStroke}" stroke-width="${(strokeWidth + 1.4).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" />
           <path d="${pathD}" fill="none" stroke="${theme.riverFill}" stroke-width="${strokeWidth.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" />
         </g>
       `;
     })
     .join("\n");
 
-  // 6. 街道 (Routes)
+  // 6. 街道 (Routes) - 都市間接続・種別別描画
   const routesLayer = doc.routes
     .map(route => {
       const pathD = polyToSvgPath(route.points, false);
+      const isSel = route.id === selectedId;
+      const titleTag = route.name ? `<title>${escapeXml(route.name)}</title>` : "";
+
       if (route.kind === "highway") {
         return `
-          <g class="route-highway" data-kind="route" data-id="${route.id}">
-            <path d="${pathD}" fill="none" stroke="${theme.highwayStroke}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+          <g class="route-highway ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}">
+            ${titleTag}
+            <path d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.highwayStroke}" stroke-width="${isSel ? "4.2" : "3.2"}" stroke-linecap="round" stroke-linejoin="round" />
             <path d="${pathD}" fill="none" stroke="${theme.background}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </g>
         `;
       }
       if (route.kind === "trail") {
-        return `<path class="route-trail" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${theme.roadStroke}" stroke-width="1.2" stroke-dasharray="3,3" stroke-linecap="round" />`;
+        return `<path class="route-trail ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.roadStroke}" stroke-width="${isSel ? "2.2" : "1.2"}" stroke-dasharray="3,3" stroke-linecap="round">${titleTag}</path>`;
       }
-      return `<path class="route-road" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${theme.roadStroke}" stroke-width="2" stroke-dasharray="7,2" stroke-linecap="round" stroke-linejoin="round" />`;
+      return `<path class="route-road ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.roadStroke}" stroke-width="${isSel ? "3.0" : "2"}" stroke-dasharray="7,2" stroke-linecap="round" stroke-linejoin="round">${titleTag}</path>`;
     })
     .join("\n");
 

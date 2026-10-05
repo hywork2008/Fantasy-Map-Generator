@@ -418,7 +418,7 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     id: `river-${r.id}`,
     name: r.name,
     points: r.points.map(toLocal),
-    widths: [r.widthMeters],
+    widths: r.widthsMeters && r.widthsMeters.length === r.points.length ? r.widthsMeters : [r.widthMeters],
     dischargeM3s: r.dischargeM3s
   }));
 
@@ -440,6 +440,7 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
   // 街道
   const routes: RegionRoute[] = descriptor.roads.map((rd, i) => ({
     id: `route-${rd.routeId}-${i}`,
+    name: rd.name,
     kind: rd.type,
     points: rd.points.map(toLocal)
   }));

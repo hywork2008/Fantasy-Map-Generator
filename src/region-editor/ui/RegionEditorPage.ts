@@ -49,7 +49,7 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
   let stampType: SymbolType = "mountain_peak_major";
 
   let selectedId: string | null = null;
-  let selectedKind: "settlement" | "landmark" | "symbol" | null = null;
+  let selectedKind: "settlement" | "landmark" | "symbol" | "route" | "river" | null = null;
 
   // ビューポート状態
   let zoom = 0.85;
@@ -163,6 +163,7 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
           <div style="font-size:12px; line-height:1.7; color:var(--re-text-muted);" id="re-stats-content">
             <div>🌲 樹木・山岳シンボル数: <strong>${history.current.symbols.length}</strong></div>
             <div>🌊 河川数: <strong>${history.current.rivers.length}</strong></div>
+            <div>🛣️ 街道数: <strong>${history.current.routes.length}</strong></div>
             <div>🌉 <strong>直角交差橋数 (規約遵守): <span style="color:#d4a373;">${history.current.bridges.length}</span></strong></div>
             <div>🏰 集落数: <strong>${history.current.settlements.length}</strong></div>
             <div>🧭 冒険地点・遺跡数: <strong>${history.current.landmarks.length}</strong></div>
@@ -210,6 +211,7 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
     statsContent.innerHTML = `
       <div>🌲 樹木・山岳シンボル数: <strong>${doc.symbols.length}</strong></div>
       <div>🌊 河川数: <strong>${doc.rivers.length}</strong></div>
+      <div>🛣️ 街道数: <strong>${doc.routes.length}</strong></div>
       <div>🌉 <strong>直角交差橋数 (規約遵守): <span style="color:#d4a373;">${doc.bridges.length}</span></strong></div>
       <div>📐 <strong>等高線数: <span style="color:#a88350;">${contourCount}本</span></strong> (主等高線: ${indexCount}本)</div>
       <div>⛰️ <strong>標高範囲: ${minElev}m 〜 ${maxElev}m</strong> (比高: ${maxElev - minElev}m)</div>
@@ -380,12 +382,46 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
         }
       });
     });
+
+    // 街道クリック
+    canvas.querySelectorAll<SVGElement>("[data-kind='route']").forEach(el => {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", e => {
+        if (activeTool !== "select") return;
+        e.stopPropagation();
+        const id = el.getAttribute("data-id");
+        const rt = history.current.routes.find(item => item.id === id);
+        if (rt) {
+          selectedId = rt.id;
+          selectedKind = "route";
+          updateSelectionPanel();
+          renderMap();
+        }
+      });
+    });
+
+    // 河川クリック
+    canvas.querySelectorAll<SVGElement>("[data-kind='river']").forEach(el => {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", e => {
+        if (activeTool !== "select") return;
+        e.stopPropagation();
+        const id = el.getAttribute("data-id");
+        const rv = history.current.rivers.find(item => item.id === id);
+        if (rv) {
+          selectedId = rv.id;
+          selectedKind = "river";
+          updateSelectionPanel();
+          renderMap();
+        }
+      });
+    });
   }
 
   function updateSelectionPanel(): void {
     const doc = history.current;
     if (!selectedId) {
-      selectionContent.innerHTML = "地図上の集落、ダンジョン、シンボルをクリックして選択します。";
+      selectionContent.innerHTML = "地図上の集落、ダンジョン、シンボル、街道、河川をクリックして選択します。";
       return;
     }
 
@@ -538,6 +574,47 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
         updateSelectionPanel();
         renderMap();
       });
+    }
+
+    if (selectedKind === "route") {
+      const rt = doc.routes.find(item => item.id === selectedId);
+      if (!rt) return;
+      const kindLabel =
+        rt.kind === "highway" ? "主要街道 (Highway)" : rt.kind === "trail" ? "小道 (Trail)" : "街道 (Road)";
+      const lengthMeters = rt.points.reduce((sum, p, i) => {
+        if (i === 0) return 0;
+        const prev = rt.points[i - 1];
+        return sum + Math.hypot(p[0] - prev[0], p[1] - prev[1]) * doc.bounds.metersPerUnit;
+      }, 0);
+      const connectedBridges = doc.bridges.filter(b => b.routeId === rt.id);
+
+      selectionContent.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div>街道名: <strong>${escapeHtml(rt.name || "名称なし街道")}</strong></div>
+          <div>種別: <span class="re-badge">${kindLabel}</span></div>
+          <div>総延長: ${(lengthMeters / 1000).toFixed(1)} km (${rt.points.length} 測点)</div>
+          <div>🌉 直角交差橋: <strong>${connectedBridges.length} 基</strong></div>
+        </div>
+      `;
+    }
+
+    if (selectedKind === "river") {
+      const rv = doc.rivers.find(item => item.id === selectedId);
+      if (!rv) return;
+      const minW = Math.round(Math.min(...rv.widths));
+      const maxW = Math.round(Math.max(...rv.widths));
+      const widthStr = minW === maxW ? `${minW} m` : `${minW} m 〜 ${maxW} m`;
+      const connectedBridges = doc.bridges.filter(b => b.riverId === rv.id);
+
+      selectionContent.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div>河川名: <strong>${escapeHtml(rv.name)}</strong></div>
+          <div>川幅: <strong>${widthStr}</strong></div>
+          <div>流量: ${rv.dischargeM3s} m³/s</div>
+          <div>測点数: ${rv.points.length} 点</div>
+          <div>🌉 直角交差橋: <strong>${connectedBridges.length} 基</strong></div>
+        </div>
+      `;
     }
   }
 
