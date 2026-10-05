@@ -1,3 +1,4 @@
+import { validRegionalContext } from "../../types/cityRegional";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
   fixedCrossingsMatchFrame,
@@ -90,11 +91,19 @@ export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorS
   // Water that does not fit the smaller frame keeps the display extent.
   // Patch count follows the population window: a hamlet still uses its Micro
   // or Tiny count, and a town whose window already matches keeps the default.
-  const fit = proposedFit && proposedFit.extentMeters >= minimumExtent ? proposedFit : null;
-  const fitted = fit ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } } : descriptor;
+  const fit =
+    !descriptor.regionalContext && proposedFit && proposedFit.extentMeters >= minimumExtent ? proposedFit : null;
+  const fitted = fit
+    ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } }
+    : descriptor.regionalContext
+      ? { ...descriptor, frame: { ...descriptor.frame, regionalMode: true } }
+      : descriptor;
   const blockedByWater = !fit && proposedFit != null && minimumExtent > proposedFit.extentMeters;
   const townGrid =
-    fit ?? (blockedByWater ? fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, population) : null);
+    fit ??
+    (blockedByWater || descriptor.regionalContext
+      ? fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, population)
+      : null);
   return {
     kind: CITY_EDITOR_SHARE_KIND,
     version: CITY_EDITOR_SHARE_VERSION,
@@ -171,13 +180,30 @@ export function resolveIncomingCity(lookup: IncomingLookup): IncomingCity | null
   const token = (lookup.hash ?? "").replace(/^#/, "").trim();
   if (token) {
     const share = decodeShare(token);
+    if (!share) {
+      let raw: unknown;
+      try {
+        raw = parseJson(new TextDecoder().decode(fromBase64Url(token)));
+      } catch {
+        raw = null;
+      }
+      if (hasRegionalPayload(raw)) throw new Error("FMG地域データが不正です。FMGから再取得してください。");
+    }
     if (share) return { share, origin: "link" };
   }
   if (lookup.session) {
     const share = parseIncomingPayload(lookup.session);
     if (share) return { share, origin: "world" };
+    if (hasRegionalPayload(parseJson(lookup.session)))
+      throw new Error("FMG地域データが不正です。FMGから再取得してください。");
   }
   return null;
+}
+
+function hasRegionalPayload(raw: unknown): boolean {
+  if (!isRecord(raw)) return false;
+  const descriptor = raw.kind === CITY_EDITOR_SHARE_KIND ? raw.descriptor : raw;
+  return isRecord(descriptor) && descriptor.regionalContext !== undefined;
 }
 
 /** Read the descriptor/share handed off by the world map (or carried in a link). */
@@ -213,13 +239,15 @@ function parseJson(json: string): unknown {
 
 function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
   if (!isRecord(raw)) return warnShape("root object");
-  if (raw.version !== DESCRIPTOR_VERSION) {
+  if (raw.version !== 2 && raw.version !== DESCRIPTOR_VERSION) {
     if (raw.kind === CITY_EDITOR_SHARE_KIND) return null;
     console.warn(
       `City Editor: incoming descriptor version ${String(raw.version)} != expected ${DESCRIPTOR_VERSION}; ignoring`
     );
     return null;
   }
+  if (raw.regionalContext !== undefined && (raw.version !== 3 || !validRegionalContext(raw.regionalContext)))
+    return warnShape("regionalContext");
   if (!isRecord(raw.burg) || typeof raw.burg.seed !== "string") return warnShape("burg.seed");
   if (!isRecord(raw.frame) || !isFiniteNumber(raw.frame.extentMeters) || !isFiniteNumber(raw.frame.cityRadiusMeters)) {
     return warnShape("frame.extentMeters / frame.cityRadiusMeters");
@@ -236,8 +264,23 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
       !fixedCrossingsMatchFrame(raw.fixedCrossings, raw.frame))
   )
     return warnShape("fixedCrossings origin or requiredBounds mismatch");
+  if (raw.regionalContext !== undefined) {
+    const region = raw.regionalContext as import("../../types/cityRegional").RegionalContext;
+    const half = raw.frame.extentMeters / 2;
+    const b = region.coverageBounds;
+    if (
+      b.minX > -half ||
+      b.minY > -half ||
+      b.maxX < half ||
+      b.maxY < half ||
+      region.settlements.some(s => s.burgId === (raw.burg as Record<string, unknown>).id)
+    )
+      return warnShape("regional coverage / target burg");
+  }
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
+  if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;
+  else delete raw.frame.regionalMode;
   return raw as unknown as BurgSiteDescriptor;
 }
 

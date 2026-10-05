@@ -2,6 +2,8 @@ import { worldContext } from "../context/worldContext";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
+import type { RegionalContext } from "../types/cityRegional";
+import { regionalRevision } from "../types/cityRegional";
 import type { Burg, River, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
@@ -187,9 +189,10 @@ export interface BurgSiteTerrain {
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
 export interface BurgSiteDescriptor {
+  regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;
-  version: 2;
+  version: 2 | 3;
   burg: {
     id: number;
     name: string;
@@ -221,6 +224,7 @@ export interface BurgSiteDescriptor {
     settlementSite: "surface" | "underground";
   };
   frame: {
+    regionalMode?: boolean;
     /** Burg position in FMG map units (the local origin). */
     /** Local metre bounds that frame fitting must retain. */
     requiredBounds?: RequiredSiteBounds;
@@ -245,7 +249,7 @@ export interface BurgSiteDescriptor {
   suggestedArchetype: BurgSiteArchetype;
 }
 
-const DESCRIPTOR_VERSION = 2;
+const DESCRIPTOR_VERSION = 3;
 const HEIGHTFIELD_SIZE = 17;
 /** Visible water past the near bank. A wide channel does not also require its centreline. */
 const FRONTAGE_WATER_MARGIN_M = 40;
@@ -420,8 +424,52 @@ export function getBurgSiteDescriptor(
   const roadLegCount = roads.filter(road => road.group !== "searoutes").length;
   const suggestedArchetype = inferArchetype({ burg, waterbody, rivers, roadLegCount, terrain });
 
+  const settlements: RegionalContext["settlements"] = pack.burgs
+    .filter(other => other?.i && other.i !== burgId && !other.removed)
+    .flatMap(other => {
+      const center = toLocal(other.x, other.y);
+      if (Math.abs(center[0]) > half || Math.abs(center[1]) > half) return [];
+      return [
+        {
+          burgId: other.i!,
+          name: other.name ?? "",
+          center,
+          radiusMeters: Math.max(
+            1,
+            getCityRadiusMeters((other.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+          ),
+          representation: "estimated" as const
+        }
+      ];
+    });
+  const regionalContext: RegionalContext = {
+    version: 1,
+    sourceRevision: regionalRevision({ burgId, population, roads, rivers, fixedCrossings, settlements, extentMeters }),
+    coverageBounds: { minX: -half, minY: -half, maxX: half, maxY: half },
+    settlements,
+    roads: roads
+      .filter(road => road.group !== "searoutes")
+      .flatMap(road => [
+        {
+          routeId: road.routeId,
+          branchId: 0,
+          points: road.path,
+          widthMeters: fixedCrossings?.roadWidthMeters ?? 6,
+          facilityIds: fixedCrossings?.crossings.filter(c => c.id === road.sharedCrossingId).map(c => c.id) ?? []
+        },
+        ...(road.sharedBranches ?? []).map((branch, index) => ({
+          routeId: branch.routeId,
+          branchId: index + 1,
+          points: branch.path,
+          widthMeters: fixedCrossings?.roadWidthMeters ?? 6,
+          facilityIds: fixedCrossings?.crossings.filter(c => c.id === road.sharedCrossingId).map(c => c.id) ?? []
+        }))
+      ])
+      .filter(road => road.points.length >= 2)
+  };
   return {
     version: DESCRIPTOR_VERSION,
+    regionalContext,
     ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
     burg: {
       id: burgId,
@@ -444,6 +492,7 @@ export function getBurgSiteDescriptor(
       settlementSite: burg.settlementSite ?? "surface"
     },
     frame: {
+      regionalMode: true,
       ...(autoBounds
         ? { requiredBounds: { ...autoBounds } }
         : frameRequirements

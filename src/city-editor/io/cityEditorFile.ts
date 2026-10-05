@@ -18,7 +18,14 @@ export function exportCityMap(cityDocument: CityDocument): void {
   const blob = new Blob(
     [
       JSON.stringify(
-        { ...cityDocument, version: cityDocument.landmarks?.length || cityDocument.landmarkAssets?.length ? 3 : 2 },
+        {
+          ...cityDocument,
+          version: cityDocument.sceneRegions
+            ? 4
+            : cityDocument.landmarks?.length || cityDocument.landmarkAssets?.length
+              ? 3
+              : 2
+        },
         null,
         2
       )

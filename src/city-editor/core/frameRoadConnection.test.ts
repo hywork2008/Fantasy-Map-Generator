@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { parseIncomingPayload } from "../io/incomingCity";
+import { createGridDocument, descriptorFrameGridOptions } from "./document";
+import { featureGroupVertices } from "./features";
+import tives from "./fixtures/tives-boundary-roads-20261005.json";
+import tob from "./fixtures/tobogobo-boundary-roads-20261005.json";
 import { frameRoadConnectedToTown, frameRoadTownConnection } from "./frameRoadConnection";
+import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import type { CityDocument, Point } from "./types";
 
 function city(): CityDocument {
@@ -104,5 +110,39 @@ describe("frame road continuity", () => {
         ])
       )
     ).toBe(false);
+  });
+});
+
+describe("straight core/exterior road joins", () => {
+  it.each([tob, tives])("shares a collinear endpoint for every supplied regional road", payload => {
+    const share = parseIncomingPayload(JSON.stringify(payload))!;
+    const input = createGridDocument({
+      size: share.size,
+      grid: share.grid,
+      seed: share.gridSeed ?? share.seed,
+      patchParams: share.patchParams,
+      measureBlockSize: share.measureBlockSize,
+      ...descriptorFrameGridOptions(share.descriptor!.frame)
+    });
+    const doc = generateCityOnDocument(
+      input,
+      { ...defaultGenerationSettings(), buildingPattern: "legacy", ...share.settings, descriptor: share.descriptor },
+      share.seed,
+      () => {}
+    )!;
+    expect(doc.frameRoads).toHaveLength(3);
+    for (const leg of doc.frameRoads!) {
+      const [join, outward] = leg.pieces[0].points;
+      const road = doc.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === leg.sourceIndex)!;
+      const points = featureGroupVertices(doc, road).map(id => doc.mesh.vertices[id].point);
+      if (points.at(-1) === join) points.reverse();
+      expect(points[0]).toBe(join);
+      const inner = points[1];
+      const cross = (join[0] - inner[0]) * (outward[1] - join[1]) - (join[1] - inner[1]) * (outward[0] - join[0]);
+      expect(Math.abs(cross)).toBeLessThan(1e-7);
+      expect(frameRoadTownConnection(doc, leg)).toEqual([join, join]);
+      expect(frameRoadConnectedToTown(doc, leg)).toBe(true);
+      expect(leg.pieces.slice(1)).toEqual([]);
+    }
   });
 });

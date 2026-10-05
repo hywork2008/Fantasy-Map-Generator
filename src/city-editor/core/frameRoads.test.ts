@@ -12,7 +12,7 @@ import { shareFromDescriptor } from "../io/incomingCity";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderStandaloneCitySvg } from "../render/svg";
 import { createGridDocument, descriptorFrameGridOptions, townMeshExtentMeters } from "./document";
-import { frameRoadConnectedToTown } from "./frameRoadConnection";
+import { frameRoadConnectedToTown, frameRoadTownConnection } from "./frameRoadConnection";
 import { type FrameRoadLeg, frameRoadLegs } from "./frameRoads";
 import type { BurgSiteDescriptor, BurgSiteRoadEntry } from "./gen/site/burgSiteDescriptor";
 import { importedRoadsForSite } from "./gen/site/importedRoads";
@@ -475,7 +475,12 @@ describe.skipIf(!existsSync(archive))("Tverdur frame roads", () => {
     expect(drawn.querySelectorAll(".ce-frame-road").length).toBeGreaterThanOrEqual(3);
     expect(drawn.querySelectorAll("[data-facility-id]")).toHaveLength(1);
     expect(drawn.querySelectorAll("[data-frame-bridge]")).toHaveLength(0);
-    expect(drawn.querySelectorAll("[data-frame-connection]")).toHaveLength(3);
+    // Straight shared endpoints need no extra boundary connector path.
+    const connectors = city!.frameRoads!.filter(leg => {
+      const connection = frameRoadTownConnection(city!, leg);
+      return connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5;
+    });
+    expect(drawn.querySelectorAll("[data-frame-connection]")).toHaveLength(connectors.length);
     for (const leg of city!.frameRoads!)
       expect(frameRoadConnectedToTown(city!, leg), `route ${leg.routeId}`).toBe(true);
   }, 60_000);

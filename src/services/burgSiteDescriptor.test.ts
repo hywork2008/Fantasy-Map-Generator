@@ -8,6 +8,7 @@ import { defaultGenerationSettings, generateCityOnDocument } from "../city-edito
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
 import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/io/incomingCity";
+import { renderCityPreviewSvg } from "../city-editor/render/previewSvg";
 import { renderStandaloneCitySvg } from "../city-editor/render/svg";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
@@ -116,6 +117,13 @@ describe("getBurgSiteDescriptor", () => {
     const restored = parseDocument(JSON.stringify(doc))!;
     expect(restored.importedFixedCrossings).toEqual(payload);
     const svg = renderStandaloneCitySvg(restored);
+    const preview = renderCityPreviewSvg(restored);
+    expect(preview.querySelector(".ce-fixed-river-water")?.outerHTML).toBe(
+      svg.querySelector(".ce-fixed-river-water")?.outerHTML
+    );
+    expect(preview.querySelector(".ce-fixed-crossings")?.outerHTML).toBe(
+      svg.querySelector(".ce-fixed-crossings")?.outerHTML
+    );
     const water = svg.querySelector(".ce-fixed-river-water [data-river-id='1']")!;
     expect(water).not.toBeNull();
     expect(svg.querySelectorAll("[data-facility-id]")).toHaveLength(0);

@@ -3093,6 +3093,9 @@
     },
     "burgEditor": {
       "preview": "Preview",
+      "previewSimplified": "簡略表示（住宅の詳細配置は省略）",
+      "previewProgress": "試行 {{attempt}} · {{phase}}{{retry}}",
+      "previewRetrying": " · 再試行中",
       "previewLoading": "都市プレビューを生成中…",
       "previewError": "都市プレビューを生成できませんでした。",
       "previewRetry": "再試行",

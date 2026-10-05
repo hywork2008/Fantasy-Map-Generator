@@ -1,3 +1,4 @@
+import type { RegionalContext } from "../../../../types/cityRegional";
 import type { BridgeTransport } from "../../../../utils/bridgeCrossingPolicy";
 import type { FixedBurgCrossings } from "../../../../utils/fixedBurgCrossings";
 import type { RequiredSiteBounds } from "../../../../utils/requiredSiteBounds";
@@ -9,7 +10,7 @@ import type { RequiredSiteBounds } from "../../../../utils/requiredSiteBounds";
 // with docs/plan/city-generator/v2/13-fmg-site-input.md; bump DESCRIPTOR_VERSION
 // (and the FMG service) when a field changes meaning.
 
-export const DESCRIPTOR_VERSION = 2;
+export const DESCRIPTOR_VERSION = 3;
 
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
@@ -126,9 +127,10 @@ export interface BurgSiteTerrain {
 }
 
 export interface BurgSiteDescriptor {
+  regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;
-  version: 2;
+  version: 2 | 3;
   burg: {
     id: number;
     name: string;
@@ -151,6 +153,7 @@ export interface BurgSiteDescriptor {
     shanty: boolean;
   };
   frame: {
+    regionalMode?: boolean;
     /** Local metre bounds that frame fitting must retain. */
     requiredBounds?: RequiredSiteBounds;
     originMapUnits: [number, number];
