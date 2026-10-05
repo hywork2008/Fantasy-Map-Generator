@@ -120,6 +120,7 @@ export interface RegionSettlement {
   hasCitadel?: boolean;
   hasPort?: boolean;
   cityEditorSeed?: string;
+  siteDescriptor?: unknown;
 }
 
 export interface RegionLandmark {
@@ -268,6 +269,7 @@ export interface RegionSiteDescriptor {
     walls: boolean;
     citadel: boolean;
     group?: string;
+    siteDescriptor?: unknown;
   }>;
   roads: Array<{
     routeId: number;

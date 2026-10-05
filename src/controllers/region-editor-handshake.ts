@@ -2,6 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
 import type { Point, RegionSiteCell, RegionSiteDescriptor } from "../region-editor/core/types";
 import { REGION_SITE_KEY, REGION_SITE_VERSION } from "../region-editor/core/types";
+import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Province, River, Route } from "../types/models";
@@ -91,11 +92,17 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
   // 距離スケール（km / mapUnit -> メートル換算）
   const metersPerMapUnit = (distanceScale || 1) * 1000;
 
-  // 3. 範囲内の Burgs を抽出
+  // 3. 範囲内の Burgs を抽出（CE連携用サイト記述子も保持）
   const regionBurgs: RegionSiteDescriptor["burgs"] = [];
   for (const b of pack.burgs) {
     if (!b?.i || b.removed) continue;
     if (b.x >= minX && b.x <= maxX && b.y >= minY && b.y <= maxY) {
+      let siteDescriptor: unknown;
+      try {
+        siteDescriptor = getBurgSiteDescriptor(b.i);
+      } catch (err) {
+        console.warn(`Could not build site descriptor for burg ${b.i}:`, err);
+      }
       regionBurgs.push({
         id: b.i,
         name: b.name || "Unnamed",
@@ -105,7 +112,8 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
         port: Boolean(b.port),
         walls: Boolean(b.walls),
         citadel: Boolean(b.citadel),
-        group: b.group || (b.capital ? "capital" : b.population && b.population > 5 ? "city" : "town")
+        group: b.group || (b.capital ? "capital" : b.population && b.population > 5 ? "city" : "town"),
+        siteDescriptor
       });
     }
   }

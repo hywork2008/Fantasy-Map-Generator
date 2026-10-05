@@ -470,24 +470,28 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
       });
 
       selectionContent.querySelector("#btn-open-ce")?.addEventListener("click", () => {
-        const burgDescriptor = {
-          version: 3,
-          burg: {
-            id: s.burgId ?? 999,
-            name: s.name,
-            group: s.type,
-            seed: s.cityEditorSeed || `${doc.seed}:${s.name}`,
-            population: s.population ?? 1200,
-            capital: s.isCapital ?? false,
-            port: s.hasPort ?? false,
-            walls: s.hasWalls ?? false,
-            citadel: s.hasCitadel ?? false,
-            plaza: true,
-            temple: true,
-            shanty: false
-          }
-        };
-        sessionStorage.setItem("fmg.citySite", JSON.stringify(burgDescriptor));
+        if (s.siteDescriptor) {
+          sessionStorage.setItem("fmg.citySite", JSON.stringify(s.siteDescriptor));
+        } else {
+          const burgDescriptor = {
+            version: 3,
+            burg: {
+              id: s.burgId ?? 999,
+              name: s.name,
+              group: s.type,
+              seed: s.cityEditorSeed || `${doc.seed}:${s.name}`,
+              population: s.population ?? 1200,
+              capital: s.isCapital ?? false,
+              port: s.hasPort ?? false,
+              walls: s.hasWalls ?? false,
+              citadel: s.hasCitadel ?? false,
+              plaza: true,
+              temple: true,
+              shanty: false
+            }
+          };
+          sessionStorage.setItem("fmg.citySite", JSON.stringify(burgDescriptor));
+        }
         window.open(`${import.meta.env.BASE_URL}city-editor/`, "_blank");
       });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
+import { generateFromFmgDescriptor } from "../region-editor/core/gen/pipeline";
 import type { Province } from "../types/models";
 import { buildRegionSiteDescriptor } from "./region-editor-handshake";
 
@@ -240,5 +241,90 @@ describe("buildRegionSiteDescriptor", () => {
 
     // 海上航路が含まれていないこと
     expect(descriptor!.roads.some(r => r.routeId === 30)).toBe(false);
+  });
+
+  it("REに受け渡されるBurg情報にsiteDescriptorが含まれ、CEに無変性で中継できること", () => {
+    // 州1 と Burg 1 の設定
+    const province: Province = {
+      i: 1,
+      name: "Coast Province",
+      state: 1,
+      color: "#ff0000",
+      burg: 1,
+      center: 0
+    };
+
+    worldContext.seed = "parity-seed-1";
+    worldContext.distanceScale = 1;
+    worldContext.pack = {
+      provinces: [undefined, province],
+      states: [undefined, { i: 1, name: "State 1" }],
+      cells: {
+        i: [0],
+        p: [[200, 200]],
+        c: [[]],
+        h: [20],
+        province: [1],
+        state: [1],
+        biomeCode: [1]
+      },
+      burgs: [
+        undefined,
+        {
+          i: 1,
+          name: "Waterdeep",
+          x: 200,
+          y: 200,
+          cell: 0,
+          population: 15,
+          capital: 1,
+          port: 1,
+          walls: 1,
+          citadel: 1,
+          group: "cities"
+        }
+      ],
+      rivers: [],
+      routes: []
+    } as any;
+
+    const descriptor = buildRegionSiteDescriptor(1);
+    expect(descriptor).not.toBeNull();
+    const burg = descriptor!.burgs.find(b => b.id === 1);
+    expect(burg).toBeDefined();
+
+    // 擬似的な完全な siteDescriptor をセットして、パイプライン経由でも変性なく維持されることを確認
+    const mockFullSiteDescriptor = {
+      version: 4,
+      burg: { id: 1, name: "Waterdeep", seed: "test-seed" },
+      roads: [
+        {
+          id: "r1",
+          points: [
+            [0, 0],
+            [10, 10]
+          ]
+        }
+      ],
+      rivers: [
+        {
+          id: "rv1",
+          points: [
+            [5, 0],
+            [5, 10]
+          ],
+          widthMeters: 50
+        }
+      ]
+    };
+    burg!.siteDescriptor = mockFullSiteDescriptor;
+
+    // pipeline を通しても siteDescriptor が保持されること
+    const doc = generateFromFmgDescriptor(descriptor!);
+    const settlement = doc.settlements.find(s => s.burgId === 1);
+    expect(settlement).toBeDefined();
+    // 参照が同一であり、一切の変性がないこと
+    expect(settlement!.siteDescriptor).toBe(mockFullSiteDescriptor);
+    expect(JSON.stringify(settlement!.siteDescriptor)).toBe(JSON.stringify(mockFullSiteDescriptor));
   });
 });

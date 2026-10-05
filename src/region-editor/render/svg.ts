@@ -1,3 +1,4 @@
+import { curveCatmullRom, line } from "d3";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import type { Point, RegionDocument } from "../core/types";
 import { generateCoastalRipples } from "./coastalRipples";
@@ -18,6 +19,79 @@ function polyToSvgPath(points: Point[], closed = true): string {
   if (points.length === 0) return "";
   const d = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ");
   return closed ? `${d} Z` : d;
+}
+
+/**
+ * FMG準拠のベジェ曲線（Catmull-Rom スプライン）による街道経路SVGパスを生成
+ */
+export function createCurvedRoutePath(points: Point[], alpha = 0.1): string {
+  if (points.length < 2) return "";
+  if (points.length === 2) {
+    return `M ${points[0][0].toFixed(2)} ${points[0][1].toFixed(2)} L ${points[1][0].toFixed(2)} ${points[1][1].toFixed(2)}`;
+  }
+  const lineGen = line<Point>()
+    .x(p => p[0])
+    .y(p => p[1])
+    .curve(curveCatmullRom.alpha(alpha));
+  const res = lineGen(points);
+  return res || polyToSvgPath(points, false);
+}
+
+/**
+ * FMG準拠のベジェ曲線（Catmull-Rom スプライン）と水理川幅による河川ポリゴンSVGパスを生成
+ */
+export function createCurvedRiverPolygon(
+  points: Point[],
+  widthsMeters: number[],
+  metersPerUnit: number,
+  alpha = 0.1
+): string {
+  if (points.length < 2) return "";
+
+  const leftPoints: Point[] = [];
+  const rightPoints: Point[] = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[i - 1] || points[i];
+    const curr = points[i];
+    const next = points[i + 1] || points[i];
+
+    const wMeters = widthsMeters[i] ?? widthsMeters[0] ?? 40;
+    const baseUnits = wMeters / metersPerUnit;
+    const visualWidth = Math.max(1.6, Math.min(24, 1.2 + baseUnits * 0.95));
+    const halfWidth = visualWidth / 2;
+
+    const angle = Math.atan2(prev[1] - next[1], prev[0] - next[0]);
+    const sinOffset = Math.sin(angle) * halfWidth;
+    const cosOffset = Math.cos(angle) * halfWidth;
+
+    leftPoints.push([curr[0] - sinOffset, curr[1] + cosOffset]);
+    rightPoints.push([curr[0] + sinOffset, curr[1] - cosOffset]);
+  }
+
+  if (points.length === 2) {
+    const p0 = rightPoints[1];
+    const p1 = rightPoints[0];
+    const p2 = leftPoints[0];
+    const p3 = leftPoints[1];
+    return `M ${p0[0].toFixed(2)} ${p0[1].toFixed(2)} L ${p1[0].toFixed(2)} ${p1[1].toFixed(2)} L ${p2[0].toFixed(2)} ${p2[1].toFixed(2)} L ${p3[0].toFixed(2)} ${p3[1].toFixed(2)} Z`;
+  }
+
+  const lineGen = line<Point>()
+    .x(p => p[0])
+    .y(p => p[1])
+    .curve(curveCatmullRom.alpha(alpha));
+
+  const rightPath = lineGen([...rightPoints].reverse()) || "";
+  const leftPath = lineGen(leftPoints) || "";
+
+  const firstC = leftPath.indexOf("C");
+  const leftSegments =
+    firstC !== -1
+      ? leftPath.substring(firstC)
+      : `L ${leftPoints.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")}`;
+
+  return `${rightPath} L ${leftPoints[0][0].toFixed(2)} ${leftPoints[0][1].toFixed(2)} ${leftSegments} Z`;
 }
 
 export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null): string {
@@ -107,7 +181,7 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
     .join("\n");
 
   // 5. 河川
-  // 5. 河川（太さの変化・水理幅の反映）
+  // 5. 河川（太さの変化・水理幅の反映、FMG準拠のベジェ曲線）
   const riversLayer = doc.rivers
     .map(river => {
       const isSel = river.id === selectedId;
@@ -117,56 +191,34 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
         river.widths.length > 0 ? (minW === maxW ? ` (川幅: ${minW}m)` : ` (川幅: ${minW}m〜${maxW}m)`) : "";
       const titleTag = `<title>${escapeXml(river.name)}${widthInfo}</title>`;
 
-      if (river.widths.length >= 2 && river.points.length >= 2) {
-        // 上流から下流へと川幅が変化する河川
-        const bankPaths: string[] = [];
-        const waterPaths: string[] = [];
-
-        for (let i = 0; i < river.points.length - 1; i++) {
-          const p1 = river.points[i];
-          const p2 = river.points[i + 1];
-          const wMeters = (river.widths[i] + (river.widths[i + 1] ?? river.widths[i])) / 2;
-          const baseUnits = wMeters / doc.bounds.metersPerUnit;
-          const strokeWidth = Math.max(1.6, Math.min(24, 1.2 + baseUnits * 0.95));
-          const segD = `M ${p1[0].toFixed(2)} ${p1[1].toFixed(2)} L ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
-
-          bankPaths.push(`<path d="${segD}" stroke-width="${(strokeWidth + 1.4).toFixed(2)}" />`);
-          waterPaths.push(`<path d="${segD}" stroke-width="${strokeWidth.toFixed(2)}" />`);
-        }
-
+      if (river.points.length >= 2) {
+        // ベジェ曲線（Catmull-Romスプライン）による川幅変化ポリゴン
+        const polyD = createCurvedRiverPolygon(river.points, river.widths, doc.bounds.metersPerUnit, 0.1);
+        const centerD = createCurvedRoutePath(river.points, 0.1);
         return `
           <g class="river-group ${isSel ? "selected" : ""}" id="${escapeXml(river.id)}" data-kind="river" data-id="${escapeXml(river.id)}">
             ${titleTag}
-            <g class="river-banks" fill="none" stroke="${isSel ? "#d4a373" : theme.riverStroke}" stroke-linecap="round" stroke-linejoin="round">
-              ${bankPaths.join("\n")}
-            </g>
-            <g class="river-water" fill="none" stroke="${theme.riverFill}" stroke-linecap="round" stroke-linejoin="round">
-              ${waterPaths.join("\n")}
-            </g>
+            <path class="river-polygon" d="${polyD}" fill="${theme.riverFill}" stroke="${isSel ? "#d4a373" : theme.riverStroke}" stroke-width="${isSel ? "2.0" : "1.0"}" stroke-linejoin="round" />
+            <path class="river-centerline" d="${centerD}" fill="none" stroke="${theme.riverFill}" stroke-width="0.5" opacity="0.6" />
           </g>
         `;
       }
 
-      // 単一幅河川
+      // 単一ポイント等のフォールバック
       const pathD = polyToSvgPath(river.points, false);
-      const avgWidthMeters = river.widths.reduce((a, b) => a + b, 0) / (river.widths.length || 1);
-      const baseUnits = avgWidthMeters / doc.bounds.metersPerUnit;
-      const strokeWidth = Math.max(1.6, Math.min(24, 1.2 + baseUnits * 0.95));
-
       return `
         <g class="river-group ${isSel ? "selected" : ""}" id="${escapeXml(river.id)}" data-kind="river" data-id="${escapeXml(river.id)}">
           ${titleTag}
-          <path d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.riverStroke}" stroke-width="${(strokeWidth + 1.4).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="${pathD}" fill="none" stroke="${theme.riverFill}" stroke-width="${strokeWidth.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.riverStroke}" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" />
         </g>
       `;
     })
     .join("\n");
 
-  // 6. 街道 (Routes) - 都市間接続・種別別描画
+  // 6. 街道 (Routes) - 都市間接続・種別別描画（FMG準拠のベジェ曲線）
   const routesLayer = doc.routes
     .map(route => {
-      const pathD = polyToSvgPath(route.points, false);
+      const pathD = createCurvedRoutePath(route.points, 0.1);
       const isSel = route.id === selectedId;
       const titleTag = route.name ? `<title>${escapeXml(route.name)}</title>` : "";
 

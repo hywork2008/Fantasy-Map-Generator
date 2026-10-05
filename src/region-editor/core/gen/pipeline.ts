@@ -434,7 +434,8 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     isCapital: b.capital,
     hasWalls: b.walls,
     hasCitadel: b.citadel,
-    hasPort: b.port
+    hasPort: b.port,
+    siteDescriptor: b.siteDescriptor
   }));
 
   // 街道

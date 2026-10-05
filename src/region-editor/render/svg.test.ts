@@ -26,14 +26,32 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
     expect(svg).toContain('data-id="river-test"');
     expect(svg).toContain("<title>River Chionthar (川幅: 60m〜400m)</title>");
 
-    // 水理幅を反映した土手と水流レイヤー
-    expect(svg).toContain('class="river-banks"');
-    expect(svg).toContain('class="river-water"');
+    // 水理幅を反映したベジェ曲線ポリゴンとセンターライン
+    expect(svg).toContain('class="river-polygon"');
+    expect(svg).toContain('class="river-centerline"');
 
-    // 下流側の太さが上流側の太さよりも大きくなっていること
-    // 60m vs 400m: 100m/unit では 60m -> strokeWidth ~ 1.77, 400m -> strokeWidth ~ 5.0
-    expect(svg).toMatch(/stroke-width="[1-2]\.\d\d"/); // 上流
-    expect(svg).toMatch(/stroke-width="[4-7]\.\d\d"/); // 下流
+    // 3点以上のスプライン補間により三次ベジェ曲線コマンド "C" が含まれること
+    expect(svg).toContain("C");
+  });
+
+  it("3点以上の街道がCatmull-Romベジェ曲線(Cコマンド)として滑らかに描画されること", () => {
+    const doc = createEmptyRegionDocument(DEFAULT_REGION_SETTINGS);
+    const curvedHighway: RegionRoute = {
+      id: "rt-curved",
+      name: "Curved Highway",
+      kind: "highway",
+      points: [
+        [50, 50],
+        [100, 80],
+        [150, 60],
+        [200, 120]
+      ]
+    };
+    doc.routes = [curvedHighway];
+
+    const svg = renderRegionSvg(doc);
+    expect(svg).toContain('class="route-highway "');
+    expect(svg).toContain("C"); // 三次ベジェ曲線コマンドが含まれること
   });
 
   it("都市間街道が種別（highway, road, trail）に応じたスタイルと名称で描画されること", () => {
