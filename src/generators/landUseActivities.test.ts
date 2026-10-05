@@ -20,6 +20,64 @@ const input = (changes: Partial<ClearanceCellInput> = {}): ClearanceCellInput =>
 const plan = (inputs: ClearanceCellInput[], year = 100, previous?: ReturnType<typeof planSettlementLandUse>) =>
   planSettlementLandUse(inputs, { seed: "activities", year, previous, annual: !!previous });
 describe("resolved land-use activities", () => {
+  it("finishes allocation for the European Standard cell that froze generation", () => {
+    const snapshot = planSettlementLandUse(
+      [
+        {
+          polygon: [
+            [302, 481],
+            [301, 482],
+            [288, 481],
+            [288, 481],
+            [288, 473],
+            [290, 471],
+            [297, 470],
+            [299, 473]
+          ],
+          temperature: 4,
+          precipitation: 10,
+          ownerId: 13,
+          maxTransportCost: 100,
+          access: [],
+          workforce: {
+            adultPeople: 4915.157079696655,
+            workableDays: 140,
+            maintenanceDaysPerHa: 34.5,
+            otherOccupationDays: 0,
+            clearanceShare: 0.1,
+            clearanceDaysPerHa: 140
+          },
+          id: 0,
+          anchor: [296.25, 477.55],
+          physicalLandAreaHa: 210424.47565464018,
+          forestCover: 0.699999988079071,
+          ruralPeople: 11110.238075256348,
+          urbanPeople: 7285.350354732133,
+          profile: "mixed_farming",
+          cultivableAreaHa: 151505.62247134093,
+          yieldKgPerSownHa: 57.14285714285713,
+          neighbors: [],
+          diagnostics: [
+            "estimated-soil-and-livelihood",
+            "land-tenure-unresolved",
+            "estimated-clearance-workforce-share"
+          ]
+        }
+      ],
+      { seed: "freeze-probe", year: 100 }
+    );
+    assertValidLandUseSnapshot(snapshot, 1);
+    const cell = snapshot.cells[0];
+    for (const patch of cell.patches) {
+      expect(patch.polygons?.every(poly => poly.length >= 3 && polygonArea(poly) > 0)).toBe(true);
+      expect(
+        Math.abs(
+          patch.polygons!.reduce((sum, poly) => sum + polygonArea(poly) * cell.geometryHaPerUnit!, 0) - patch.areaHa
+        )
+      ).toBeLessThan(1e-6);
+    }
+    expect(cell.patches.reduce((sum, patch) => sum + patch.areaHa, 0)).toBeCloseTo(cell.physicalLandAreaHa, 6);
+  });
   it("measures actual intersections and partitions the world geometry", () => {
     const p = plan([
       input({

@@ -238,15 +238,24 @@ export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget
       available.sort((a, b) => Number(forestPieces.has(b)) - Number(forestPieces.has(a)));
     patch.polygons = [];
     let needed = patch.areaHa;
+    const unrepresentable: Point[][] = [];
     while (needed > 1e-8 && available.length) {
       const poly = available.shift()!,
         area = polygonArea(poly) * areaScale;
       const cut = area > needed ? trimToArea(poly, needed / areaScale) : poly;
+      const cutArea = polygonArea(cut) * areaScale;
+      // A cut below coordinate precision cannot advance allocation. Preserve it for
+      // later uses, but never feed the unchanged polygon back into this loop.
+      if (!(cutArea > 0) || needed - cutArea === needed) {
+        unrepresentable.push(poly);
+        continue;
+      }
       inherit(poly, [cut]);
       patch.polygons.push(cut);
-      needed -= polygonArea(cut) * areaScale;
-      if (area > polygonArea(cut) * areaScale + 1e-8) available.unshift(...inherit(poly, subtractConvex(poly, cut)));
+      needed -= cutArea;
+      if (area > cutArea) available.unshift(...inherit(poly, subtractConvex(poly, cut)));
     }
+    available.push(...unrepresentable);
     const intersection = patch.polygons
       .filter(p => forestPieces.has(p))
       .reduce((s, p) => s + polygonArea(p) * areaScale, 0);

@@ -1,16 +1,32 @@
 type Point = [number, number];
+/** Remove zero-length edges without merging distinct, potentially very thin vertices. */
+function normalizePolygon(poly: Point[]): Point[] {
+  const result: Point[] = [];
+  for (const p of poly) {
+    const last = result.at(-1);
+    if (!last || p[0] !== last[0] || p[1] !== last[1]) result.push(p);
+  }
+  if (result.length > 1 && result[0][0] === result.at(-1)![0] && result[0][1] === result.at(-1)![1]) result.pop();
+  return result;
+}
 export function signedArea(poly: Point[]): number {
-  return (
-    poly.reduce((s, p, i) => {
-      const q = poly[(i + 1) % poly.length];
-      return s + p[0] * q[1] - q[0] * p[1];
-    }, 0) / 2
-  );
+  if (poly.length < 3) return 0;
+  // Translate before multiplying: absolute map coordinates cancel the area of thin cuts.
+  const origin = poly[0];
+  let area = 0;
+  for (let i = 1; i + 1 < poly.length; i++) {
+    const p = poly[i],
+      q = poly[i + 1];
+    area += (p[0] - origin[0]) * (q[1] - origin[1]) - (q[0] - origin[0]) * (p[1] - origin[1]);
+  }
+  return area / 2;
 }
 export const polygonArea = (poly: Point[]) => Math.abs(signedArea(poly));
 /** Sutherland-Hodgman for convex Voronoi cells and rectangular tiles. */
 export function clipConvex(subject: Point[], clip: Point[]): Point[] {
-  if (!subject.length || !clip.length) return [];
+  subject = normalizePolygon(subject);
+  clip = normalizePolygon(clip);
+  if (!polygonArea(subject) || !polygonArea(clip)) return [];
   const bounds = (poly: Point[]) => {
     let x0 = Infinity,
       y0 = Infinity,
@@ -40,14 +56,15 @@ export function clipConvex(subject: Point[], clip: Point[]): Point[] {
         q = input[(j + 1) % input.length],
         sp = side(p),
         sq = side(q);
-      if (sp >= -1e-9) output.push(p);
+      if (sp >= 0) output.push(p);
       if (sp >= 0 !== sq >= 0) {
         const t = sp / (sp - sq);
         output.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
       }
     }
   }
-  return output;
+  output = normalizePolygon(output);
+  return polygonArea(output) > 0 ? output : [];
 }
 /** Includes containment and edge crossings, including narrow water crossing a whole parcel. */
 export function polygonsOverlap(a: Point[], b: Point[]): boolean {
@@ -55,6 +72,10 @@ export function polygonsOverlap(a: Point[], b: Point[]): boolean {
 }
 /** Partition a convex polygon around another convex polygon; pieces have disjoint interiors. */
 export function subtractConvex(subject: Point[], clip: Point[]): Point[][] {
+  subject = normalizePolygon(subject);
+  clip = normalizePolygon(clip);
+  if (!polygonArea(subject)) return [];
+  if (!polygonArea(clip)) return [subject];
   let inside = subject;
   const pieces: Point[][] = [];
   const orientation = signedArea(clip) >= 0 ? 1 : -1;
@@ -75,11 +96,11 @@ export function subtractConvex(subject: Point[], clip: Point[]): Point[][] {
           output.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
         }
       }
-      return output;
+      return normalizePolygon(output);
     };
     const outside = half(false),
       next = half(true);
-    if (polygonArea(outside) > 1e-10) pieces.push(outside);
+    if (polygonArea(outside) > 0) pieces.push(outside);
     inside = next;
   }
   return pieces;
@@ -94,6 +115,8 @@ export function rectangle(x: number, y: number, w: number, h: number): Point[] {
 }
 /** Cut a partial parcel to exactly the remaining physical area rather than just changing its label. */
 export function trimToArea(poly: Point[], target: number): Point[] {
+  poly = normalizePolygon(poly);
+  if (!(target > 0) || !polygonArea(poly)) return [];
   if (polygonArea(poly) <= target) return poly;
   const xs = poly.map(p => p[0]),
     ys = poly.map(p => p[1]);
@@ -102,12 +125,21 @@ export function trimToArea(poly: Point[], target: number): Point[] {
     top = Math.max(...ys) + 1;
   let lo = left,
     hi = Math.max(...xs),
-    result = poly;
-  for (let i = 0; i < 45; i++) {
+    result: Point[] = [];
+  for (let i = 0; i < 64; i++) {
     const cut = (lo + hi) / 2;
-    result = clipConvex(poly, rectangle(left - 1, bottom, cut - left + 1, top - bottom));
-    if (polygonArea(result) > target) hi = cut;
-    else lo = cut;
+    if (cut === lo || cut === hi) break;
+    const candidate = clipConvex(poly, [
+      [left - 1, bottom],
+      [cut, bottom],
+      [cut, top],
+      [left - 1, top]
+    ]);
+    if (polygonArea(candidate) > target) hi = cut;
+    else {
+      lo = cut;
+      result = candidate;
+    }
   }
   return result;
 }
