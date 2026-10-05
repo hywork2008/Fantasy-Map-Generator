@@ -1,10 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import { generateFromFmgDescriptor } from "../region-editor/core/gen/pipeline";
 import type { Province } from "../types/models";
 import { buildRegionSiteDescriptor } from "./region-editor-handshake";
 
 describe("buildRegionSiteDescriptor", () => {
+  const originalGrid = worldContext.grid;
+  const originalPopulationRate = worldContext.populationRate;
+  const originalUrbanization = worldContext.urbanization;
+  afterEach(() => {
+    worldContext.grid = originalGrid;
+    worldContext.populationRate = originalPopulationRate;
+    worldContext.urbanization = originalUrbanization;
+  });
   it("存在しない Province ID の場合は null を返すこと", () => {
     worldContext.pack = {
       provinces: [],
@@ -212,8 +220,16 @@ describe("buildRegionSiteDescriptor", () => {
       ]
     } as any;
 
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 2;
+    worldContext.pack.cells.g = new Uint16Array(worldContext.pack.cells.i.length);
+    worldContext.grid = { cells: { prec: new Uint8Array([12]) } } as typeof worldContext.grid;
     const descriptor = buildRegionSiteDescriptor(1);
     expect(descriptor).not.toBeNull();
+    expect(descriptor!.cells[0].annualPrecipitationMm).toBe(1200);
+    for (const burg of descriptor!.burgs) {
+      expect(burg.population).toBe(worldContext.pack.burgs[burg.id].population * 2000);
+    }
 
     // 1. 河川とその太さの検証
     expect(descriptor!.rivers.length).toBeGreaterThanOrEqual(1);

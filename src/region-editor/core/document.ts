@@ -77,6 +77,16 @@ export function validateRegionDocument(
     return { ok: false, error: "Missing required arrays (symbols, rivers, bridges)" };
   }
 
+  // Older regional files stored field parcels at document level.
+  const legacy = candidate as Partial<RegionDocument> & {
+    farmland?: Array<{ settlementId: string; areaHectares: number }>;
+  };
+  for (const settlement of candidate.settlements ?? []) {
+    settlement.farmlandAreaHectares ??= (legacy.farmland ?? [])
+      .filter(field => field.settlementId === settlement.id)
+      .reduce((sum, field) => sum + field.areaHectares, 0);
+  }
+  delete legacy.farmland;
   return { ok: true, document: candidate as RegionDocument };
 }
 

@@ -68,6 +68,7 @@ export interface RegionSymbol {
 
 export interface RegionRiver {
   id: string;
+  sourceRiverId?: number;
   name: string;
   points: Point[];
   widths: number[];
@@ -115,6 +116,8 @@ export interface RegionSettlement {
   type: SettlementType;
   group?: string;
   population?: number;
+  /** Cultivated area in hectares; 0 when no land can be allocated. */
+  farmlandAreaHectares?: number;
   isCapital?: boolean;
   hasWalls?: boolean;
   hasCitadel?: boolean;
@@ -229,6 +232,7 @@ export interface RegionSiteCell {
   height?: number; // FMG raw 0-100 height index
   inProvince?: boolean; // true if cell is inside the selected province
   provinceId?: number;
+  annualPrecipitationMm?: number;
   biomeId: number;
   biomeName: string;
   polygon?: Point[]; // Voronoi cell boundary polygon in FMG coordinates
@@ -253,6 +257,7 @@ export interface RegionSiteDescriptor {
   lakes: Point[][];
   rivers: Array<{
     id: number;
+    sourceRiverId?: number;
     name: string;
     points: Point[];
     widthMeters: number;

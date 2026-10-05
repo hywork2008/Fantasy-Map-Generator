@@ -7,6 +7,7 @@ import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Province, River, Route } from "../types/models";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
+import { precipitationProxyToMillimeters } from "../utils/unitUtils";
 
 /**
  * FMG の指定された Province（または State）から RegionSiteDescriptor を構築する
@@ -107,7 +108,7 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
         id: b.i,
         name: b.name || "Unnamed",
         point: [b.x, b.y],
-        population: b.population ?? 1000,
+        population: Math.max(0, b.population ?? 0) * worldContext.populationRate * worldContext.urbanization,
         capital: Boolean(b.capital),
         port: Boolean(b.port),
         walls: Boolean(b.walls),
@@ -199,11 +200,12 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
               const avgWidth = Math.round(segWidths.reduce((a, b) => a + b, 0) / segWidths.length);
               regionRivers.push({
                 id: segId,
+                sourceRiverId: r.i,
                 name: r.name || `River ${r.i}`,
                 points: segPoints,
                 widthMeters: avgWidth,
                 widthsMeters: segWidths,
-                dischargeM3s: r.discharge || 50
+                dischargeM3s: Math.max(0, r.discharge ?? 0)
               });
             }
             segPoints = [];
@@ -218,11 +220,12 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
         const avgWidth = Math.round(segWidths.reduce((a, b) => a + b, 0) / segWidths.length);
         regionRivers.push({
           id: segId,
+          sourceRiverId: r.i,
           name: r.name || `River ${r.i}`,
           points: segPoints,
           widthMeters: avgWidth,
           widthsMeters: segWidths,
-          dischargeM3s: r.discharge || 50
+          dischargeM3s: Math.max(0, r.discharge ?? 0)
         });
       }
     }
@@ -376,6 +379,7 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
       height,
       inProvince: cells.province[cid] === provinceId,
       provinceId: cells.province[cid],
+      annualPrecipitationMm: precipitationProxyToMillimeters(worldContext.grid?.cells?.prec?.[cells.g?.[cid]] ?? 0),
       biomeId,
       biomeName,
       polygon,

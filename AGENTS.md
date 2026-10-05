@@ -6,8 +6,13 @@ FMG / Fantasy Map Generator
 src
 src/app.ts起点
 
+RE / Region Editor
+src/region-editor
+FMGのProvince相当の地図を描く
+
 CE / City Editor
 src/city-editor
+FMGのBurg相当の地図を描く
 
 DE / Dungeon Editor
 src/dungeon-editor

@@ -42,7 +42,7 @@ export function moveSymbol(doc: RegionDocument, symbolId: string, x: number, y: 
 
 export function addSettlement(doc: RegionDocument, settlement: RegionSettlement): RegionDocument {
   const next = cloneRegionDocument(doc);
-  next.settlements.push(settlement);
+  next.settlements.push({ ...settlement, farmlandAreaHectares: settlement.farmlandAreaHectares ?? 0 });
   return next;
 }
 

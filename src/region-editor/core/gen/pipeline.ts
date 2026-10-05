@@ -11,6 +11,7 @@ import type {
   SymbolType
 } from "../types";
 import { generateContourLines, generateHeightfieldFromCells, synthesizeHeightfield } from "./contours";
+import { generateFarmland } from "./farmland";
 import { buildLandscapeFromCells } from "./landscapeBiomes";
 import { generatePerpendicularBridges } from "./perpendicularBridges";
 import { poissonDiscSampling } from "./poissonScatter";
@@ -250,6 +251,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
       position: [getCoastX(heightUnits * 0.28) + 14, heightUnits * 0.28],
       type: "metropolis",
       population: 130000,
+      farmlandAreaHectares: 0,
       isCapital: true,
       hasWalls: true,
       hasCitadel: true,
@@ -261,6 +263,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
       position: [getCoastX(heightUnits * 0.54) + 48, heightUnits * 0.54],
       type: "town",
       population: 4500,
+      farmlandAreaHectares: 0,
       hasWalls: true,
       hasCitadel: true
     },
@@ -269,7 +272,8 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
       name: "Secomber",
       position: [widthUnits * 0.75, heightUnits * 0.65],
       type: "village",
-      population: 900
+      population: 900,
+      farmlandAreaHectares: 0
     }
   ];
 
@@ -400,6 +404,7 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
   // 河川
   doc.rivers = descriptor.rivers.map(r => ({
     id: `river-${r.id}`,
+    sourceRiverId: r.sourceRiverId,
     name: r.name,
     points: r.points.map(toLocal),
     widths: r.widthsMeters && r.widthsMeters.length === r.points.length ? r.widthsMeters : [r.widthMeters],
@@ -456,6 +461,8 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     doc.biomes = [];
     doc.symbols = [];
   }
+
+  generateFarmland(doc, descriptor, toLocal);
 
   return doc;
 }
