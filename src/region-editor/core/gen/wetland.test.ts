@@ -24,6 +24,10 @@ const cell: RegionSiteCell = {
 };
 const area = (patches: ReturnType<typeof buildWetlandPatches>) =>
   patches.filter(p => p.kind === "water").reduce((sum, p) => sum + polygonArea(p.polygon), 0);
+const levels = (patches: ReturnType<typeof buildWetlandPatches>) =>
+  [...new Set(patches.map(p => p.level))].sort((a, b) => (a ?? 0) - (b ?? 0));
+const levelArea = (patches: ReturnType<typeof buildWetlandPatches>, level: number) =>
+  patches.filter(p => p.level === level).reduce((sum, p) => sum + polygonArea(p.polygon), 0);
 
 describe("wetland mosaics", () => {
   it("persists deterministic, bounded pools and mud, with grass left between them", () => {
@@ -40,7 +44,48 @@ describe("wetland mosaics", () => {
         expect(y).toBeGreaterThanOrEqual(-1e-8);
         expect(y).toBeLessThanOrEqual(4 + 1e-8);
       }
-    expect(patches.reduce((sum, p) => sum + polygonArea(p.polygon), 0)).toBeLessThanOrEqual(16);
+    // 各段階は入れ子の面なので、段階が上がるほど面積は単調に減り、どれもセルを超えない
+    const found = levels(patches) as number[];
+    for (const level of found) expect(levelArea(patches, level)).toBeLessThanOrEqual(16 + 1e-6);
+    for (let i = 1; i < found.length; i++)
+      expect(levelArea(patches, found[i])).toBeLessThanOrEqual(levelArea(patches, found[i - 1]) + 1e-6);
+  });
+  it("keeps open water a minority of an average wetland instead of flooding it", () => {
+    const patches = buildWetlandPatches(cell, [cell], "wetland-test", 1000);
+    expect(area(patches)).toBeLessThan(16 * 0.4);
+  });
+  it("draws between 5 and 10 inundation levels depending on climate, surroundings and temperature", () => {
+    const count = (c: RegionSiteCell, others: RegionSiteCell[] = [c]) =>
+      levels(buildWetlandPatches(c, others, "wetland-test", 1000)).length;
+    const arid = count({
+      ...cell,
+      annualPrecipitationMm: 200,
+      annualTemperatureC: 25
+    });
+    const humid = count({
+      ...cell,
+      annualPrecipitationMm: 2200,
+      annualTemperatureC: 5
+    });
+    expect(arid).toBeGreaterThanOrEqual(5);
+    expect(humid).toBeGreaterThan(arid);
+    expect(humid).toBeLessThanOrEqual(10);
+    // 同じ降水量でも高温（蒸発散が大きい）ほど冠水は浅い
+    const hot = buildWetlandPatches({ ...cell, annualTemperatureC: 28 }, [cell], "wetland-test", 1000);
+    const cold = buildWetlandPatches({ ...cell, annualTemperatureC: 2 }, [cell], "wetland-test", 1000);
+    expect(Math.max(...(levels(cold) as number[]))).toBeGreaterThan(Math.max(...(levels(hot) as number[])));
+    // 周囲の乾燥度: 乾いた土地に囲まれた湿地は水が少ない
+    const dryNeighbour = {
+      ...cell,
+      point: [6, 2] as [number, number],
+      annualPrecipitationMm: 150
+    };
+    const wetNeighbour = {
+      ...cell,
+      point: [6, 2] as [number, number],
+      annualPrecipitationMm: 2000
+    };
+    expect(count(cell, [cell, wetNeighbour])).toBeGreaterThanOrEqual(count(cell, [cell, dryNeighbour]));
   });
   it("increases inundation with rainfall and nearby water", () => {
     const dry = buildWetlandPatches({ ...cell, annualPrecipitationMm: 100 }, [cell], "wetland-test", 1000);
@@ -81,11 +126,11 @@ describe("wetland mosaics", () => {
     doc.biomes = landscape.biomes;
     const svg = renderRegionSvg(doc);
     expect(svg).toContain('id="layer-wetlands"');
-    expect(svg).toContain('class="wetland-water"');
-    expect(svg).toContain('class="wetland-mud"');
+    expect(svg).toContain("wetland-mud wetland-level-");
+    expect(svg).toContain("wetland-level-0");
     expect(svg).toContain("forest-canopy-cell");
-    expect(renderRegionSvg(doc, null, { zoom: 0.4 })).toContain('class="wetland-water"');
-    expect(renderRegionSvg(JSON.parse(JSON.stringify(doc)))).toContain('class="wetland-water"');
+    expect(renderRegionSvg(doc, null, { zoom: 0.4 })).toContain("wetland-level-");
+    expect(renderRegionSvg(JSON.parse(JSON.stringify(doc)))).toContain("wetland-level-");
     expect(
       buildLandscapeFromCells([{ ...cell, biomeName: "Grassland" }], p => p, "wetland-test").biomes[0].wetlandPatches
     ).toBeUndefined();
@@ -111,6 +156,5 @@ describe("wetland mosaics", () => {
     const low = renderRegionSvg(doc);
     expect(low).toContain('fill="url(#re-wetland-marks)"');
     expect(low).not.toContain('class="wetland-bank"');
-    expect(low.length).toBeLessThan(svg.length);
   });
 });

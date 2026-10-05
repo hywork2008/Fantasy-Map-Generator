@@ -412,6 +412,7 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
       inProvince: cells.province[cid] === provinceId,
       provinceId: cells.province[cid],
       annualPrecipitationMm: precipitationProxyToMillimeters(worldContext.grid?.cells?.prec?.[cells.g?.[cid]] ?? 45),
+      annualTemperatureC: worldContext.grid?.cells?.temp?.[cells.g?.[cid]],
       biomeDefinition: biomesData.definitionsByKey?.[biomesData.keys?.[biomeId]],
       biomeId,
       biomeName,

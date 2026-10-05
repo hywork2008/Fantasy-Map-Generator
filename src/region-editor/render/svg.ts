@@ -3,7 +3,7 @@ import { getCoastalHabitatDefinition } from "../../data/coastalHabitatCatalog";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { pointInPolygon } from "../core/geometry";
-import type { Point, RegionDocument } from "../core/types";
+import { type Point, type RegionDocument, WETLAND_LEVELS } from "../core/types";
 import {
   DEFAULT_RENDER_QUALITY,
   forestCrownPattern,
@@ -12,7 +12,10 @@ import {
   type RenderQuality,
   renderForestCrowns,
   renderWetlandMarks,
-  wetlandMarkPattern
+  WETLAND_WATER_LEVEL,
+  wetlandLevelStyle,
+  wetlandMarkPattern,
+  wetlandPatchLevel
 } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
 import { renderSettlementIcon } from "./styles/settlementIcons";
@@ -186,7 +189,7 @@ export function renderRegionSvg(
     // 湖および海岸線外側（海洋）の切り開き
     const wetlandWaterClearing = doc.biomes
       .flatMap(b => b.wetlandPatches ?? [])
-      .filter(p => p.kind === "water")
+      .filter(p => wetlandPatchLevel(p) >= WETLAND_WATER_LEVEL)
       .map(
         p =>
           `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" stroke="#000000" stroke-width="0.3" stroke-linejoin="round" />`
@@ -290,30 +293,35 @@ export function renderRegionSvg(
     .join("\n");
 
   const wetlandBiomes = doc.biomes.filter(b => b.wetlandPatches !== undefined);
-  const patchPath = (kind: "mud" | "sand" | "water") =>
-    wetlandBiomes
-      .flatMap(b => b.wetlandPatches ?? [])
-      .filter(p => p.kind === kind)
+  const wetlandPatches = wetlandBiomes.flatMap(b => b.wetlandPatches ?? []);
+  const sandyWetland = wetlandPatches.some(p => p.kind === "sand");
+  // 冠水段階の昇順に重ねる。各段階は「その段階以上」の入れ子の面なので、外側が湿った地面、内側ほど水深が増す。
+  const wetlandLayer = Array.from({ length: WETLAND_LEVELS }, (_, level) => {
+    const d = wetlandPatches
+      .filter(p => wetlandPatchLevel(p) === level)
       .map(p => polyToSvgPath(p.polygon))
       .join(" ");
-  // 泥・砂 → 水の順。水は暗い岸縁パスの上に重ね、三角パッチ内部の継ぎ目だけを覆って外周の縁だけを残す
-  const wetlandLayer = (["mud", "sand", "water"] as const)
-    .map(kind => {
-      const d = patchPath(kind);
-      if (!d) return "";
-      if (kind === "water") {
-        const water = `<path class="wetland-water" d="${d}" fill="${theme.riverFill}" stroke="${theme.riverFill}" stroke-width="0.3" stroke-linejoin="round" />`;
-        return highQuality ? `<g class="wetland-bank" filter="url(#re-wetland-bank)">${water}</g>` : water;
-      }
-      const color = kind === "sand" ? "#dfc99a" : "#8c8262";
-      return `<path class="wetland-${kind}" d="${d}" fill="${color}" stroke="${color}" stroke-width="0.3" stroke-linejoin="round" />`;
-    })
-    .join("\n");
-  const wetlandMarks = highQuality
-    ? renderWetlandMarks(wetlandBiomes, "#4f6b3a")
-    : wetlandBiomes
-        .map(b => `<path class="wetland-reeds" d="${polyToSvgPath(b.polygon)}" fill="url(#re-wetland-marks)" />`)
-        .join("\n");
+    if (!d) return "";
+    const open = level >= WETLAND_WATER_LEVEL;
+    const { color, opacity } = wetlandLevelStyle(level, theme.riverFill, sandyWetland && !open);
+    const kind = open ? "water" : sandyWetland ? "sand" : "mud";
+    const path = `<path class="wetland-${kind} wetland-level-${level}" d="${d}" fill="${color}" fill-opacity="${opacity}" stroke="${color}" stroke-opacity="${opacity}" stroke-width="0.3" stroke-linejoin="round" />`;
+    // 開放水面の外周にだけ暗い岸縁を付ける（最初の水面段階）
+    const layered =
+      highQuality && level === WETLAND_WATER_LEVEL
+        ? `<g class="wetland-bank" filter="url(#re-wetland-bank)">${path}</g>`
+        : path;
+    // 低品質: 葦のタイルは湿地面（段階 2 以上）の上、開放水面の下に敷く
+    if (!highQuality && level === WETLAND_WATER_LEVEL - 1) {
+      const marshD = wetlandPatches
+        .filter(p => wetlandPatchLevel(p) === 2)
+        .map(p => polyToSvgPath(p.polygon))
+        .join(" ");
+      return `${layered}${marshD ? `<path class="wetland-reeds" d="${marshD}" fill="url(#re-wetland-marks)" />` : ""}`;
+    }
+    return layered;
+  }).join("\n");
+  const wetlandMarks = highQuality ? renderWetlandMarks(wetlandBiomes, "#4f6b3a") : "";
 
   // 3.5. 等高線レイヤー（Elevation Contours）
   let contoursLayer = "";
@@ -597,7 +605,7 @@ export function renderRegionSvg(
       ${defs}
       ${background}
       <g id="layer-biomes">${biomesLayer}</g>
-      <g id="layer-wetlands">${wetlandMarks}${wetlandLayer}</g>
+      <g id="layer-wetlands">${wetlandLayer}${wetlandMarks}</g>
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>

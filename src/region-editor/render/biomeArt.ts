@@ -1,5 +1,5 @@
 import { pointInPolygon } from "../core/geometry";
-import type { BiomeKind, Point, RegionBiomeArea } from "../core/types";
+import type { BiomeKind, Point, RegionBiomeArea, RegionWetlandPatch } from "../core/types";
 import type { ForestCanopyColors } from "./styles/themes";
 
 /**
@@ -174,7 +174,42 @@ export function renderForestCrowns(
   return out.join("\n");
 }
 
-/** 湿地記号（葦の株 + 水面の短い横線）。水・泥のパッチは後から上に重ねて覆う。 */
+/** 冠水段階。旧データ（level なし）は kind から推定する。 */
+export function wetlandPatchLevel(p: RegionWetlandPatch): number {
+  return p.level ?? (p.kind === "water" ? 8 : p.kind === "sand" ? 1 : 3);
+}
+
+/** この段階以上は開放水面として扱う（樹木を消し、岸縁を付ける）。 */
+export const WETLAND_WATER_LEVEL = 6;
+
+const MUD_TONES = ["#9a9470", "#8c8262", "#7f805a", "#6f7b52"];
+const SAND_TONES = ["#e6d5aa", "#dfc99a", "#d6c08c", "#cbb683"];
+const WATER_MIX = [0.12, 0.3, 0.55, 0.8, 1];
+
+/** 段階ごとの塗り。湿った地面 → 泥 → 冠水 → 開放水面へ連続的に変える。 */
+export function wetlandLevelStyle(
+  level: number,
+  riverFill: string,
+  sandy: boolean
+): { color: string; opacity: number } {
+  const tones = sandy ? SAND_TONES : MUD_TONES;
+  if (level <= 3)
+    return {
+      color: tones[Math.max(0, level)],
+      opacity: level === 0 ? 0.45 : level === 1 ? 0.75 : 1
+    };
+  if (level >= 9) return { color: mixHex(riverFill, "#1d3a4a", 0.3), opacity: 1 };
+  return {
+    color: mixHex(tones[3], riverFill, WATER_MIX[level - 4]),
+    opacity: 1
+  };
+}
+
+/**
+ * 湿地の記号。冠水段階ごとに密度と種類を変える:
+ * 2 スゲ（まばら）/ 3-5 葦（密）/ 6 葦 + 水面の筋 / 7-8 水面の筋のみ / 0-1, 9 なし。
+ * 記号は湿地セル全体ではなく、該当する冠水段階の面の内側にだけ置く。
+ */
 export function renderWetlandMarks(wetlands: RegionBiomeArea[], strokeColor: string): string {
   const spacing = 5.2;
   const seen = new Set<number>();
@@ -183,6 +218,29 @@ export function renderWetlandMarks(wetlands: RegionBiomeArea[], strokeColor: str
   for (const b of wetlands) {
     const poly = b.polygon;
     if (poly.length < 3) continue;
+    const patches = (b.wetlandPatches ?? [])
+      .map(p => {
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        for (const [x, y] of p.polygon) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+        return {
+          polygon: p.polygon,
+          level: wetlandPatchLevel(p),
+          minX,
+          minY,
+          maxX,
+          maxY
+        };
+      })
+      .filter(p => p.level >= 2 && p.level <= 8);
+    if (!patches.length) continue;
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
@@ -201,19 +259,39 @@ export function renderWetlandMarks(wetlands: RegionBiomeArea[], strokeColor: str
         const y = (iy + (hash2(ix, iy, 12) - 0.5) * 0.8) * spacing;
         if (x < minX || x > maxX || y < minY || y > maxY || !pointInPolygon([x, y], poly)) continue;
         seen.add(key);
+        let level = -1;
+        for (const p of patches) {
+          if (p.level <= level || x < p.minX || x > p.maxX || y < p.minY || y > p.maxY) continue;
+          if (pointInPolygon([x, y], p.polygon)) level = p.level;
+        }
+        if (level < 2) continue;
         const roll = hash2(ix, iy, 13);
-        if (roll < 0.2) continue; // 余白を残して記号をまばらに
-        if (roll < 0.6) {
-          // 葦の株: 中央が高い 3 本 + 根元の短い水平線
+        const reed = () => {
           const h = 3.2 + hash2(ix, iy, 14) * 1.8;
           reeds.push(
             `M${f1(x - 1.3)} ${f1(y)}L${f1(x - 1.7)} ${f1(y - h * 0.75)}M${f1(x)} ${f1(y)}L${f1(x + 0.1)} ${f1(y - h)}M${f1(x + 1.3)} ${f1(y)}L${f1(x + 1.8)} ${f1(y - h * 0.7)}`
           );
-        } else {
+        };
+        const ripple = () => {
           const w = 1.6 + hash2(ix, iy, 15) * 1.6;
           dashes.push(
             `M${f1(x - w)} ${f1(y)}L${f1(x + w)} ${f1(y)}M${f1(x - w * 0.5)} ${f1(y + 1)}L${f1(x + w * 0.5)} ${f1(y + 1)}`
           );
+        };
+        if (level === 2) {
+          if (roll > 0.35) continue;
+          reed();
+        } else if (level <= 5) {
+          if (roll < 0.2) continue;
+          if (roll < 0.8 || level === 3) reed();
+          else ripple();
+        } else if (level === 6) {
+          if (roll < 0.4) continue;
+          if (roll < 0.7) reed();
+          else ripple();
+        } else {
+          if (roll < 0.55) continue;
+          ripple();
         }
       }
     }

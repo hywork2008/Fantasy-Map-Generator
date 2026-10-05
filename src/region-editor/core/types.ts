@@ -32,9 +32,17 @@ export type BiomeKind =
   | "tundra"
   | "badlands";
 
+/** 湿地の冠水段階 0（湿った地面）〜 9（深い開放水面）。 */
+export const WETLAND_LEVELS = 10;
+
 export interface RegionWetlandPatch {
   kind: "water" | "mud" | "sand";
   polygon: Point[];
+  /**
+   * 冠水段階。この段階「以上」の領域を表す入れ子の面で、段階の昇順に重ねて描く。
+   * 未設定（旧データ）は kind から推定する。
+   */
+  level?: number;
 }
 
 export interface RegionBiomeArea {
@@ -284,6 +292,7 @@ export interface RegionSiteCell {
   inProvince?: boolean; // true if cell is inside the selected province
   provinceId?: number;
   annualPrecipitationMm?: number;
+  annualTemperatureC?: number;
   biomeId: number;
   biomeName: string;
   polygon?: Point[]; // Voronoi cell boundary polygon in FMG coordinates
