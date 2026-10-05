@@ -9,9 +9,18 @@ export interface GenerationRequest {
   seed: string;
   debugFailure?: boolean;
 }
+export interface GenerationTimings {
+  structureMs: number;
+  resultTransferMs: number;
+}
 export type GenerationReply =
   | { type: "progress"; sample: GenerationSample }
-  | { type: "complete"; document: CityDocument | null; failurePreview?: GenerationDebugPreview }
+  | {
+      type: "complete";
+      document: CityDocument | null;
+      failurePreview?: GenerationDebugPreview;
+      timing?: { structureMs: number; postedAt: number };
+    }
   | { type: "error"; message: string };
 
 /** A dedicated worker per run allows immediate cancellation even inside geometry loops. */
@@ -19,7 +28,8 @@ export function startCityGeneration(
   request: GenerationRequest,
   progress: (sample: GenerationSample) => void,
   createWorker = () => new Worker(new URL("./generationWorker.ts", import.meta.url), { type: "module" }),
-  onFailurePreview?: (preview: GenerationDebugPreview) => void
+  onFailurePreview?: (preview: GenerationDebugPreview) => void,
+  onTimings?: (timings: GenerationTimings) => void
 ): { result: Promise<CityDocument | null>; cancel: () => void } {
   const worker = createWorker();
   let cancel = () => {};
@@ -40,6 +50,11 @@ export function startCityGeneration(
       if (settled) return;
       if (data.type === "progress") progress(data.sample);
       else if (data.type === "complete") {
+        if (data.timing)
+          onTimings?.({
+            structureMs: data.timing.structureMs,
+            resultTransferMs: Math.max(0, performance.timeOrigin + performance.now() - data.timing.postedAt)
+          });
         if (!data.document && request.debugFailure && data.failurePreview) onFailurePreview?.(data.failurePreview);
         finish(data.document);
       } else finish(null, new Error(data.message));

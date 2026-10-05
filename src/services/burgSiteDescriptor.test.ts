@@ -8,6 +8,7 @@ import { defaultGenerationSettings, generateCityOnDocument } from "../city-edito
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
 import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/io/incomingCity";
+import { renderCityPreviewSvg } from "../city-editor/render/previewSvg";
 import { renderStandaloneCitySvg } from "../city-editor/render/svg";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
@@ -116,6 +117,13 @@ describe("getBurgSiteDescriptor", () => {
     const restored = parseDocument(JSON.stringify(doc))!;
     expect(restored.importedFixedCrossings).toEqual(payload);
     const svg = renderStandaloneCitySvg(restored);
+    const preview = renderCityPreviewSvg(restored);
+    expect(preview.querySelector(".ce-fixed-river-water")?.outerHTML).toBe(
+      svg.querySelector(".ce-fixed-river-water")?.outerHTML
+    );
+    expect(preview.querySelector(".ce-fixed-crossings")?.outerHTML).toBe(
+      svg.querySelector(".ce-fixed-crossings")?.outerHTML
+    );
     const water = svg.querySelector(".ce-fixed-river-water [data-river-id='1']")!;
     expect(water).not.toBeNull();
     expect(svg.querySelectorAll("[data-facility-id]")).toHaveLength(0);
@@ -129,6 +137,22 @@ describe("getBurgSiteDescriptor", () => {
       ])
     ).toBe(true);
     expect(worldContext.pack.burgs[1].x).toBe(100);
+  });
+
+  it("exports cell biome metadata in climate and biome properties", () => {
+    const site = getBurgSiteDescriptor(1)!;
+    expect(site.climate.biomeId).toBe(6);
+    expect(site.climate.biomeKey).toBe("temperateDeciduousForest");
+    expect(site.climate.biomeName).toBe("Temperate deciduous forest");
+    expect(site.climate.biomeColor).toBe("#29bc56");
+
+    expect(site.biome).toEqual({
+      id: 6,
+      key: "temperateDeciduousForest",
+      name: "Temperate deciduous forest",
+      color: "#29bc56",
+      tags: ["forest", "arable"]
+    });
   });
 
   it("round-trips certified regional water and rejects uncovered CE frames", () => {

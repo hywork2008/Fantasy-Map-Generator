@@ -1,7 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-export function CityPreviewViewport({ url, alt }: { url: string; alt: string }) {
+export function CityPreviewViewport({
+  url,
+  alt,
+  onLoad,
+  onError
+}: {
+  url: string;
+  alt: string;
+  onLoad?: () => void;
+  onError?: () => void;
+}) {
   const { t } = useTranslation();
   const viewport = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
@@ -94,6 +104,8 @@ export function CityPreviewViewport({ url, alt }: { url: string; alt: string }) 
         }}
       >
         <img
+          onLoad={onLoad}
+          onError={onError}
           ref={image}
           src={url}
           alt={alt}

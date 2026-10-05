@@ -1,7 +1,10 @@
 import { worldContext } from "../context/worldContext";
+import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
+import type { RegionalContext } from "../types/cityRegional";
+import { regionalRevision } from "../types/cityRegional";
 import type { Burg, River, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
@@ -186,10 +189,19 @@ export interface BurgSiteTerrain {
 
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
+export interface BurgSiteBiome {
+  id: number;
+  key?: string;
+  name: string;
+  color: string;
+  tags?: readonly string[];
+}
+
 export interface BurgSiteDescriptor {
+  regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;
-  version: 2;
+  version: 2 | 3;
   burg: {
     id: number;
     name: string;
@@ -221,6 +233,7 @@ export interface BurgSiteDescriptor {
     settlementSite: "surface" | "underground";
   };
   frame: {
+    regionalMode?: boolean;
     /** Burg position in FMG map units (the local origin). */
     /** Local metre bounds that frame fitting must retain. */
     requiredBounds?: RequiredSiteBounds;
@@ -231,7 +244,14 @@ export interface BurgSiteDescriptor {
     /** Suggested built-up radius derived from population (walled-town density model). */
     cityRadiusMeters: number;
   };
-  climate: { temperatureC: number; biomeId: number };
+  climate: {
+    temperatureC: number;
+    biomeId: number;
+    biomeKey?: string;
+    biomeName?: string;
+    biomeColor?: string;
+  };
+  biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
   /** Routine supported crossing allowance, derived from historical technology. */
   transport?: BridgeTransport;
@@ -245,7 +265,7 @@ export interface BurgSiteDescriptor {
   suggestedArchetype: BurgSiteArchetype;
 }
 
-const DESCRIPTOR_VERSION = 2;
+const DESCRIPTOR_VERSION = 3;
 const HEIGHTFIELD_SIZE = 17;
 /** Visible water past the near bank. A wide channel does not also require its centreline. */
 const FRONTAGE_WATER_MARGIN_M = 40;
@@ -420,8 +440,52 @@ export function getBurgSiteDescriptor(
   const roadLegCount = roads.filter(road => road.group !== "searoutes").length;
   const suggestedArchetype = inferArchetype({ burg, waterbody, rivers, roadLegCount, terrain });
 
+  const settlements: RegionalContext["settlements"] = pack.burgs
+    .filter(other => other?.i && other.i !== burgId && !other.removed)
+    .flatMap(other => {
+      const center = toLocal(other.x, other.y);
+      if (Math.abs(center[0]) > half || Math.abs(center[1]) > half) return [];
+      return [
+        {
+          burgId: other.i!,
+          name: other.name ?? "",
+          center,
+          radiusMeters: Math.max(
+            1,
+            getCityRadiusMeters((other.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+          ),
+          representation: "estimated" as const
+        }
+      ];
+    });
+  const regionalContext: RegionalContext = {
+    version: 1,
+    sourceRevision: regionalRevision({ burgId, population, roads, rivers, fixedCrossings, settlements, extentMeters }),
+    coverageBounds: { minX: -half, minY: -half, maxX: half, maxY: half },
+    settlements,
+    roads: roads
+      .filter(road => road.group !== "searoutes")
+      .flatMap(road => [
+        {
+          routeId: road.routeId,
+          branchId: 0,
+          points: road.path,
+          widthMeters: fixedCrossings?.roadWidthMeters ?? 6,
+          facilityIds: fixedCrossings?.crossings.filter(c => c.id === road.sharedCrossingId).map(c => c.id) ?? []
+        },
+        ...(road.sharedBranches ?? []).map((branch, index) => ({
+          routeId: branch.routeId,
+          branchId: index + 1,
+          points: branch.path,
+          widthMeters: fixedCrossings?.roadWidthMeters ?? 6,
+          facilityIds: fixedCrossings?.crossings.filter(c => c.id === road.sharedCrossingId).map(c => c.id) ?? []
+        }))
+      ])
+      .filter(road => road.points.length >= 2)
+  };
   return {
     version: DESCRIPTOR_VERSION,
+    regionalContext,
     ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
     burg: {
       id: burgId,
@@ -444,6 +508,7 @@ export function getBurgSiteDescriptor(
       settlementSite: burg.settlementSite ?? "surface"
     },
     frame: {
+      regionalMode: true,
       ...(autoBounds
         ? { requiredBounds: { ...autoBounds } }
         : frameRequirements
@@ -454,10 +519,38 @@ export function getBurgSiteDescriptor(
       extentMeters,
       cityRadiusMeters
     },
-    climate: {
-      temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
-      biomeId: pack.cells.biomeCode[burg.cell]
-    },
+    climate: (() => {
+      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+      const bData = worldContext.biomesData;
+      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+      const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
+      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+      return {
+        temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
+        biomeId: bId,
+        biomeKey: bKey,
+        biomeName: bName,
+        biomeColor: bColor
+      };
+    })(),
+    biome: (() => {
+      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+      const bData = worldContext.biomesData;
+      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+      const rawKey = bData?.keys ? bData.keys[bId] : undefined;
+      const bKey = rawKey ?? stdDef?.key;
+      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+      const bTags = (bData && rawKey ? bData.definitionsByKey?.[rawKey]?.tags : undefined) ?? stdDef?.tags;
+      return {
+        id: bId,
+        key: bKey,
+        name: bName,
+        color: bColor,
+        tags: bTags
+      };
+    })(),
     terrain,
     transport: {
       riverBridgeTechnology: worldContext.options.riverBridgeTechnology,

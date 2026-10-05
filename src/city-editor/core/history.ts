@@ -202,6 +202,7 @@ type RecordPatch<T> = Record<Id, T | null>;
  * whole when they differ.
  */
 interface DocPatch {
+  sceneRegions?: CityDocument["sceneRegions"] | null;
   importedFixedCrossings?: CityDocument["importedFixedCrossings"] | null;
   fixedCrossingApproaches?: CityDocument["fixedCrossingApproaches"] | null;
   version?: CityDocument["version"];
@@ -259,6 +260,8 @@ function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatc
 
 function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
+  if (!equal(previous.sceneRegions, next.sceneRegions))
+    patch.sceneRegions = next.sceneRegions ? clone(next.sceneRegions) : null;
   if (!equal(previous.importedFixedCrossings, next.importedFixedCrossings))
     patch.importedFixedCrossings = next.importedFixedCrossings ? clone(next.importedFixedCrossings) : null;
   if (!equal(previous.fixedCrossingApproaches, next.fixedCrossingApproaches))
@@ -312,6 +315,8 @@ function applyRecord<T>(map: Record<Id, T>, patch: RecordPatch<T> | undefined): 
 }
 
 function applyPatch(document: CityDocument, patch: DocPatch): void {
+  if (patch.sceneRegions === null) delete document.sceneRegions;
+  else if (patch.sceneRegions) document.sceneRegions = clone(patch.sceneRegions);
   if (patch.importedFixedCrossings === null) delete document.importedFixedCrossings;
   else if (patch.importedFixedCrossings) document.importedFixedCrossings = clone(patch.importedFixedCrossings);
   if (patch.fixedCrossingApproaches === null) delete document.fixedCrossingApproaches;

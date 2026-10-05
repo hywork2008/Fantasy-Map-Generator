@@ -3093,6 +3093,9 @@
     },
     "burgEditor": {
       "preview": "Preview",
+      "previewSimplified": "Simplified preview (detailed housing omitted)",
+      "previewProgress": "Attempt {{attempt}} · {{phase}}{{retry}}",
+      "previewRetrying": " · retrying",
       "previewLoading": "Generating city preview…",
       "previewError": "Could not generate the city preview.",
       "previewRetry": "Retry",

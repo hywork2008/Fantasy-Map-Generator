@@ -47,9 +47,12 @@ import type {
   Point,
   Tool
 } from "../core/types";
-import { dryRuns, waterPolygons } from "../core/waterGeometry";
+import { dryRuns, lineHitsDocumentWater, waterPolygons } from "../core/waterGeometry";
 import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
+import { getLandscapeGroundColor, getLandscapeSuburbFaceColor, renderLandscapeLayer } from "./landscape";
 import { openSpaceBoundary } from "./openSpaceBoundary";
+import { renderPreviewSymbols } from "./previewSymbols";
+import { renderRegionalSettlements } from "./regionalSvg";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 import { renderTempleSvg } from "./templeSvg";
@@ -128,7 +131,9 @@ export function renderEditorSvg(
   hideBuildings = false,
   /** Stage ⑩. Drop roads inside the outer wall, and the lanes that divide blocks. */
   hideStreetLines = false,
-  quality: RenderQuality = "detailed"
+  quality: RenderQuality = "detailed",
+  preview = false,
+  sceneVisibility: { core: boolean; regional: boolean } = { core: true, regional: true }
 ): SVGSVGElement {
   const fixedMode = document.importedFixedCrossings !== undefined;
   const fixedGeometry = fixedDocumentGeometry(document);
@@ -152,6 +157,17 @@ export function renderEditorSvg(
     "data-render-quality": town ? effectiveQuality : "detailed",
     ...(fixedMode ? { "data-fixed-geometry-status": fixedGeometry ? "ready" : "invalid" } : {})
   }) as SVGSVGElement;
+  const groundColor = getLandscapeGroundColor(document);
+  const suburbColor = getLandscapeSuburbFaceColor(document);
+  if (town) {
+    svg.style.backgroundColor = groundColor;
+    const biomeStyle = element(
+      "style",
+      { type: "text/css" },
+      `.ce-svg--town { background: ${groundColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+    );
+    svg.appendChild(biomeStyle);
+  }
   const backdrop = referenceImage ?? document.referenceImage;
   if (backdrop) {
     const { href, width, height } = backdrop;
@@ -184,14 +200,25 @@ export function renderEditorSvg(
       neighbors: faceNeighbors(document.mesh, face.id),
       vertices: faceVertices(document.mesh, face)
     };
-    cells.appendChild(
-      element("path", {
-        d: polygon(facePoints(document.mesh, face)),
-        class: `${faceClassName(face, isSelected, urbanCoreHighlight?.has(face.id) ?? false)}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-        "data-face": face.id,
-        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
-      })
-    );
+    const pathAttrs: Record<string, string> = {
+      d: polygon(facePoints(document.mesh, face)),
+      class: `${faceClassName(face, isSelected, urbanCoreHighlight?.has(face.id) ?? false)}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+      "data-face": face.id,
+      "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
+    };
+    if (town && face.properties.water === "land" && (!face.properties.ward || face.properties.ward === "empty")) {
+      pathAttrs.style = `fill: ${suburbColor};`;
+    }
+    cells.appendChild(element("path", pathAttrs));
+  }
+  if (document.sceneRegions) {
+    const waterCells = element("g", { class: "ce-regional-water-cells", "data-scene-region": "shared" });
+    for (const face of Object.values(document.mesh.faces)) {
+      if (face.properties.water === "land") continue;
+      const path = cells.querySelector(`[data-face="${face.id}"]`);
+      if (path) waterCells.appendChild(path);
+    }
+    svg.appendChild(waterCells);
   }
   svg.appendChild(cells);
   const continuousWater = element("g", { class: "ce-continuous-water", "pointer-events": "none" });
@@ -276,10 +303,23 @@ export function renderEditorSvg(
     svg.appendChild(shore);
   }
 
+  if (town) {
+    svg.appendChild(renderLandscapeLayer(document, town, effectiveQuality));
+  }
+
+  if (document.sceneRegions) {
+    const regional = element("g", { class: "ce-regional-layer", "data-scene-region": "regional" });
+    appendFrameRoads(regional, document, town);
+    regional.appendChild(renderRegionalSettlements(document));
+    svg.appendChild(regional);
+  }
+
+  if (preview && town) svg.appendChild(renderPreviewSymbols(document));
+
   let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   let townParkLawns: import("../core/gen/parkFabric").ParkLawn[] = [];
   let townWatermills: import("../core/gen/watermillFabric").WatermillPlan | undefined;
-  if (town) {
+  if (town && !preview) {
     const buildings = element("g", {
       class: "ce-buildings",
       "pointer-events": tool === "select" ? "all" : "none"
@@ -843,7 +883,7 @@ export function renderEditorSvg(
         );
     }
   }
-  appendFrameRoads(features, document, town);
+  if (!document.sceneRegions) appendFrameRoads(features, document, town);
   features.appendChild(renderApproachLabels(document, zoom));
   if (town && !fixedMode) {
     for (const deck of bridgeDecks(document)) {
@@ -946,8 +986,10 @@ export function renderEditorSvg(
   }
   svg.appendChild(renderRiverWallSvg(document));
   if (town) {
-    svg.appendChild(renderTownQuays(document, townHarbor));
-    svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
+    if (!preview) {
+      svg.appendChild(renderTownQuays(document, townHarbor));
+      svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
+    }
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
     if (townParkLawns.length) {
       const parkTreesLayer = element("g", {
@@ -1285,6 +1327,31 @@ export function renderEditorSvg(
   // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
   svg.appendChild(element("g", { class: "ce-measure-layer", "pointer-events": "none" }));
+  if (document.sceneRegions) {
+    const shared = new Set([
+      "ce-continuous-water",
+      "ce-fixed-river-water",
+      "ce-fixed-crossings",
+      "ce-regional-water-cells"
+    ]);
+    const crossings = element("g", { class: "ce-regional-crossings" });
+    for (const node of Array.from(
+      features.querySelectorAll(".ce-bridge-outline, .ce-bridge-deck, .ce-movable-bridge-hinge")
+    ))
+      crossings.appendChild(node);
+    crossings.setAttribute("data-scene-region", "shared");
+    svg.appendChild(crossings);
+    shared.add("ce-regional-crossings");
+    for (const child of Array.from(svg.children)) {
+      if (shared.has(child.getAttribute("class") ?? "") || child.hasAttribute("data-fixed-approach-id")) {
+        child.setAttribute("data-scene-region", "shared");
+        continue;
+      }
+      const regional = child.getAttribute("data-scene-region") === "regional";
+      child.setAttribute("data-scene-region", regional ? "regional" : "core");
+      if (!(regional ? sceneVisibility.regional : sceneVisibility.core)) child.setAttribute("display", "none");
+    }
+  }
   mark("svg-details");
   return svg;
 }
@@ -2723,10 +2790,29 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
     for (const piece of leg.pieces) {
       const points = piece.points;
       if (points.length < 2) continue;
+      if (
+        document.sceneRegions &&
+        (piece.kind === "bridge" || lineHitsDocumentWater(document, points, Number(width), true))
+      )
+        continue;
       const identity = {
         "data-source-index": String(leg.sourceIndex),
         "data-route-id": String(leg.routeId),
-        "pointer-events": "none"
+        "pointer-events": document.sceneRegions ? "stroke" : "none",
+        ...(document.sceneRegions
+          ? {
+              "data-pick": encodeURIComponent(
+                JSON.stringify({
+                  layer: "regional",
+                  kind: "road-reference",
+                  id: `regional-road-${leg.routeId}-${leg.branchIndex ?? 0}`,
+                  label: `街道 #${leg.routeId}`,
+                  routeId: leg.routeId,
+                  branchId: leg.branchIndex ?? 0
+                })
+              )
+            }
+          : {})
       };
       if (piece.kind === "bridge") {
         parent.appendChild(
@@ -3078,7 +3164,11 @@ export const STANDALONE_SVG_STYLE = `
   .ce-megalith-stone, .ce-megalith-portal { stroke-linejoin: round; }
 `;
 
-export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
+export function renderStandaloneCitySvg(
+  document: CityDocument,
+  preview = false,
+  observer?: GenerationObserver
+): SVGSVGElement {
   const extent = document.frame.extentMeters;
   const viewBox = `${-extent / 2} ${-extent / 2} ${extent} ${extent}`;
   const emptySel: RenderSelection = {
@@ -3103,8 +3193,22 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
     null,
     null,
     false,
-    false
+    false,
+    observer,
+    false,
+    false,
+    "detailed",
+    preview
   );
+  if (preview) {
+    svg.setAttribute("data-render-quality", "preview");
+    svg.setAttribute("data-preview-symbols", String(svg.querySelectorAll("[data-preview-block]").length));
+    for (const face of Object.values(document.mesh.faces)) {
+      if (!face.properties.buildable || face.properties.water !== "land") continue;
+      const path = svg.querySelector(`[data-face="${face.id}"]`);
+      path?.setAttribute("style", "fill: #beb5a1");
+    }
+  }
 
   svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns", NS);
   svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
@@ -3120,7 +3224,7 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
   const style = element("style", { type: "text/css" }, STANDALONE_SVG_STYLE);
   defs.appendChild(style);
 
-  const bgColor = document.appearance === "town" ? "#d5cfbf" : "#e1dfd4";
+  const bgColor = document.appearance === "town" ? getLandscapeGroundColor(document) : "#e1dfd4";
   const bgRect = element("rect", {
     x: String(-extent / 2),
     y: String(-extent / 2),
@@ -3129,6 +3233,15 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
     fill: bgColor,
     class: "ce-background"
   });
+  if (document.appearance === "town") {
+    const suburbColor = getLandscapeSuburbFaceColor(document);
+    const biomeStyle = element(
+      "style",
+      { type: "text/css" },
+      `.ce-svg--town { background: ${bgColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+    );
+    defs.appendChild(biomeStyle);
+  }
   if (defs.nextSibling) {
     svg.insertBefore(bgRect, defs.nextSibling);
   } else {
@@ -3155,8 +3268,8 @@ export function renderStandaloneCitySvg(document: CityDocument): SVGSVGElement {
   return svg;
 }
 
-export function serializeCitySvg(document: CityDocument): string {
-  const svg = renderStandaloneCitySvg(document);
+export function serializeCitySvg(document: CityDocument, observer?: GenerationObserver): string {
+  const svg = renderStandaloneCitySvg(document, false, observer);
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(svg)}`;
 }
 

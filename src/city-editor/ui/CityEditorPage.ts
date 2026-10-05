@@ -539,14 +539,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     void file.text().then(source => {
       try {
         const asset = JSON.parse(source) as LandmarkAsset;
-        const trial: CityDocument = { ...documentState, version: 3, landmarkAssets: [asset], landmarks: [] };
+        const trial: CityDocument = {
+          ...documentState,
+          version: documentState.sceneRegions ? 4 : 3,
+          landmarkAssets: [asset],
+          landmarks: []
+        };
         if (validateLandmarks(trial).length) throw new Error("Invalid asset");
         const already = (documentState.landmarkAssets ?? []).some(
           item => item.id === asset.id && item.revision === asset.revision
         );
         if (!already)
           commit(
-            { ...documentState, version: 3, landmarkAssets: [...(documentState.landmarkAssets ?? []), asset] },
+            {
+              ...documentState,
+              version: documentState.sceneRegions ? 4 : 3,
+              landmarkAssets: [...(documentState.landmarkAssets ?? []), asset]
+            },
             `Import ${asset.name}`
           );
         landmarkAssetId = `${asset.id}@${asset.revision}`;
@@ -1213,6 +1222,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     redrawMap();
   });
 
+  const coreLayerInput = checkbox(true, () => redrawMap());
+  const regionalLayerInput = checkbox(true, () => redrawMap());
   const renderQualitySelect = select(["auto", "detailed", "light", "minimal"], "auto");
   renderQualitySelect.className = "ce-render-quality";
   renderQualitySelect.setAttribute("aria-label", "描画品質");
@@ -1339,6 +1350,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     meshToggleRow,
     label("描画品質", renderQualitySelect),
     renderQualityHelp,
+    toggleLabel("中心部を表示", coreLayerInput),
+    toggleLabel("FMG郊外を表示", regionalLayerInput),
     divider(),
     importedBox,
     synthControls,
@@ -1380,6 +1393,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     if (event.button !== 0) return;
     const point = localPoint(event);
+    if (documentState.sceneRegions && !pointInPolygon(point, documentState.sceneRegions.coreBoundary)) return;
     if (tool === "wardWall") {
       event.preventDefault();
       circularWallStroke = {
@@ -1837,6 +1851,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     true
   );
   map.addEventListener("click", event => {
+    if (
+      documentState.sceneRegions &&
+      tool !== "select" &&
+      !pointInPolygon(localPoint(event as PointerEvent), documentState.sceneRegions.coreBoundary)
+    )
+      return;
     if (tool === "landmark") {
       const asset = selectedLandmarkAsset();
       if (!asset) {
@@ -2054,6 +2074,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
     flushRedraw();
+    if (documentState.sceneRegions && !pointInPolygon(localPoint(event), documentState.sceneRegions.coreBoundary))
+      return;
     const isSelectTool = tool === "select";
     const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
     const vertexId = targetId(event, "vertex") ?? (isSelectTool ? closestVertexId(localPoint(event)) : null);
@@ -2237,9 +2259,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   window.addEventListener("resize", refreshScaleBar);
 
   rebuildEditorIndexes();
-  const incoming = readIncomingCity();
-  if (incoming) applyShare(incoming.share, incoming.origin);
-  else refresh();
+  try {
+    const incoming = readIncomingCity();
+    if (incoming) applyShare(incoming.share, incoming.origin);
+    else refresh();
+  } catch (error) {
+    refresh();
+    showNotice(error instanceof Error ? error.message : "FMG地域データを読み込めませんでした。");
+  }
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     let next = documentState;
@@ -2699,7 +2726,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample })),
       hideBuildings,
       hideStreetLines,
-      renderQualitySelect.value as RenderQuality
+      renderQualitySelect.value as RenderQuality,
+      false,
+      { core: coreLayerInput.checked, regional: regionalLayerInput.checked }
     );
     if (failurePreview) {
       svg.classList.add("ce-generation-debug");
@@ -4604,7 +4633,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             share.descriptor.burg.riverPlacement?.bankDistanceMeters
           )
         : {}),
-      measureBlockSize: measureTownCells
+      measureBlockSize: measureTownCells,
+      biome: share.descriptor?.biome
     });
     history = new DocumentHistory(
       documentState,

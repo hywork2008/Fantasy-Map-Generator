@@ -14,6 +14,7 @@ import { makeRng } from "./gen/prng";
 import type { Cell, CityGeography, CityParams } from "./gen/types";
 import { validateLandmarks } from "./landmarks";
 import { meshFromCells, validate } from "./mesh";
+import { validRegionalFrameRoads, validSceneRegions } from "./sceneRegions";
 import type { CityDocument } from "./types";
 
 const EMPTY_GEO: CityGeography = { coast: null, rivers: [], roadBearings: [] };
@@ -92,6 +93,8 @@ export interface CreateGridOptions {
   measureBlockSize?: boolean;
   /** Explicit evolution block width. Ignored for a hex grid, which uses its side length. */
   blockSizeMeters?: number;
+  /** Regional biome information derived from FMG world cell. */
+  biome?: import("./gen/site/burgSiteDescriptor").BurgSiteBiome;
 }
 
 export function isCitySizePreset(value: unknown): value is CitySizePreset {
@@ -206,6 +209,7 @@ export function townMeshExtentMeters(
   frame: {
     extentMeters: number;
     cityRadiusMeters: number;
+    regionalMode?: boolean;
     requiredBounds?: RequiredSiteBounds;
   },
   riverPort = false,
@@ -213,6 +217,8 @@ export function townMeshExtentMeters(
 ): number {
   const population = populationWindowMeters(frame.cityRadiusMeters);
   const town = fitUndersizedTownFrame(frame.cityRadiusMeters, population)?.extentMeters ?? population;
+  if (frame.regionalMode)
+    return Math.min(frame.extentMeters, riverPort ? Math.max(town, 2 * (bankDistanceMeters + 24)) : town);
   const water = frame.requiredBounds ? requiredSiteExtent(frame.requiredBounds) : 0;
   if (frame.extentMeters > town + 0.5 && water > town + 0.5)
     return riverPort ? Math.min(frame.extentMeters, Math.max(town, 2 * (bankDistanceMeters + 24))) : town;
@@ -224,6 +230,7 @@ export function descriptorFrameGridOptions(
   frame: {
     extentMeters: number;
     cityRadiusMeters: number;
+    regionalMode?: boolean;
     requiredBounds?: RequiredSiteBounds;
   },
   riverPort = false,
@@ -279,6 +286,7 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
   }
   const document = documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters, settlement);
   document.gridKind = grid;
+  if (options.biome) document.biome = options.biome;
   return document;
 }
 
@@ -358,9 +366,13 @@ function isDocument(value: unknown): value is CityDocument {
     doc.format === "fmg-city-editor" &&
     (doc.fixedCrossingApproaches === undefined ||
       (!!doc.importedFixedCrossings && validSavedFixedApproaches(doc.fixedCrossingApproaches))) &&
-    (doc.version === 1 || doc.version === 2 || doc.version === 3) &&
+    (doc.version === 1 || doc.version === 2 || doc.version === 3 || doc.version === 4) &&
+    (doc.sceneRegions === undefined ||
+      (doc.version === 4 && validSceneRegions(doc.sceneRegions) && validRegionalFrameRoads(doc.frameRoads))) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
     (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
+    (doc.biome === undefined ||
+      (typeof doc.biome === "object" && doc.biome !== null && typeof (doc.biome as { id: unknown }).id === "number")) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
     (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
     (doc.coastalOceanFaceIds === undefined ||

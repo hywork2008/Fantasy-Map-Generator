@@ -8,6 +8,7 @@ const scope = globalThis as unknown as {
 };
 scope.onmessage = ({ data }) => {
   try {
+    const started = performance.now();
     let failurePreview: GenerationDebugPreview | undefined;
     const document = generateCityOnDocument(
       data.document,
@@ -20,7 +21,12 @@ scope.onmessage = ({ data }) => {
           }
         : undefined
     );
-    scope.postMessage({ type: "complete", document, ...(!document && failurePreview ? { failurePreview } : {}) });
+    scope.postMessage({
+      type: "complete",
+      document,
+      timing: { structureMs: performance.now() - started, postedAt: performance.timeOrigin + performance.now() },
+      ...(!document && failurePreview ? { failurePreview } : {})
+    });
   } catch (error) {
     scope.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) });
   }

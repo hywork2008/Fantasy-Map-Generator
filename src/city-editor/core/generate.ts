@@ -1,6 +1,7 @@
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
+import { alignFrameRoadEndpoints } from "./frameRoadConnection";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
@@ -22,6 +23,7 @@ import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { applyImportedFixedCrossings } from "./importedFixedCrossings";
 import { MoatReservation } from "./moats";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
+import { attachSceneRegions } from "./sceneRegions";
 import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPolygons } from "./waterGeometry";
 // Step-by-step random city generation for the City Editor.
 //
@@ -387,7 +389,9 @@ export function riversForCount(config: SiteConfig, count: number): SiteConfig["r
  * both read the exact same geography for a given `(document, settings, seed)`. */
 function prepareRun(document: CityDocument, settings: GenerationSettings, seed: string) {
   const frame = document.frame;
-  const half = frame.extentMeters / 2;
+  const half = settings.descriptor?.regionalContext
+    ? Math.max(...Object.values(document.mesh.vertices).map(v => Math.max(Math.abs(v.point[0]), Math.abs(v.point[1]))))
+    : frame.extentMeters / 2;
   const cellSize = Math.max(1, frame.blockSizeMeters);
   const descriptor =
     settings.descriptor ??
@@ -410,7 +414,10 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
     lloydPasses: 1,
     urbanNPatches: settings.urbanNPatches
   };
-  const { cells, faceIdOf } = cellsFromMesh(document.mesh, half);
+  const { cells, faceIdOf } = cellsFromMesh(
+    document.mesh,
+    settings.descriptor?.regionalContext ? townExtentMeters(frame) / 2 : half
+  );
   return { cells, faceIdOf, geo, program, params, half, cellSize };
 }
 
@@ -576,6 +583,17 @@ export function generateCityOnDocument(
           input
         };
       }
+      if (settings.descriptor?.regionalContext) attachSceneRegions(result, settings.descriptor.regionalContext);
+      result.biome =
+        settings.descriptor?.biome ??
+        (settings.descriptor?.climate
+          ? {
+              id: settings.descriptor.climate.biomeId,
+              key: settings.descriptor.climate.biomeKey,
+              name: settings.descriptor.climate.biomeName ?? `Biome ${settings.descriptor.climate.biomeId}`,
+              color: settings.descriptor.climate.biomeColor ?? "#d5cfbf"
+            }
+          : document.biome);
       return result;
     }
     if (onRejected) return null;
@@ -925,6 +943,7 @@ export function generateCityAttempt(
     }
   }
   tagExternalGateRoads(settled, seed, settings.descriptor);
+  alignFrameRoadEndpoints(settled);
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
@@ -1966,7 +1985,7 @@ export function runPlan(
       format: "fmg-city-editor",
       version: 1,
       frame: {
-        extentMeters: half * 2,
+        extentMeters: sourceDocument?.frame.extentMeters ?? half * 2,
         cityRadiusMeters: params.cityRadiusMeters,
         blockSizeMeters: cellSize,
         ...(sourceDocument?.frame.settlementExtentMeters
