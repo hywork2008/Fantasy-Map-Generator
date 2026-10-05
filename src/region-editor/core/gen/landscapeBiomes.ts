@@ -1,4 +1,5 @@
 import type { BiomeKind, Point, RegionBiomeArea, RegionSiteCell, RegionSymbol, SymbolType } from "../types";
+import { clipConvex, landscapeNoise, polygonArea, rectangle } from "./landUseGeometry";
 import { makeRng } from "./prng";
 
 /**
@@ -56,32 +57,6 @@ export function resolveCellLandscape(
     };
   }
 
-  // 標高による山岳・丘陵判定
-  if (elevationMeters >= 2000) {
-    return {
-      kind: "snow_mountains",
-      fillColor: CE_BIOME_PALETTE.snow_mountains,
-      isWater: false,
-      symbolTypes: ["mountain_snow", "mountain_peak_major"]
-    };
-  }
-  if (elevationMeters >= 1200) {
-    return {
-      kind: "mountains",
-      fillColor: CE_BIOME_PALETTE.mountains,
-      isWater: false,
-      symbolTypes: ["mountain_peak_major", "mountain_peak_minor"]
-    };
-  }
-  if (elevationMeters >= 650) {
-    return {
-      kind: "hills",
-      fillColor: CE_BIOME_PALETTE.hills,
-      isWater: false,
-      symbolTypes: ["hill_cluster", "hill_single"]
-    };
-  }
-
   // バイオーム名準拠の分類（CE landscape.ts と完全一致）
   if (
     name.includes("hot desert") ||
@@ -131,7 +106,7 @@ export function resolveCellLandscape(
     };
   }
 
-  if (name.includes("savanna") || name.includes("dry forest")) {
+  if (name.includes("savanna")) {
     return {
       kind: "savanna",
       fillColor: CE_BIOME_PALETTE.savanna,
@@ -178,6 +153,32 @@ export function resolveCellLandscape(
     };
   }
 
+  // 標高による山岳・丘陵判定
+  if (elevationMeters >= 2000) {
+    return {
+      kind: "snow_mountains",
+      fillColor: CE_BIOME_PALETTE.snow_mountains,
+      isWater: false,
+      symbolTypes: ["mountain_snow", "mountain_peak_major"]
+    };
+  }
+  if (elevationMeters >= 1200) {
+    return {
+      kind: "mountains",
+      fillColor: CE_BIOME_PALETTE.mountains,
+      isWater: false,
+      symbolTypes: ["mountain_peak_major", "mountain_peak_minor"]
+    };
+  }
+  if (elevationMeters >= 650) {
+    return {
+      kind: "hills",
+      fillColor: CE_BIOME_PALETTE.hills,
+      isWater: false,
+      symbolTypes: ["hill_cluster", "hill_single"]
+    };
+  }
+
   // デフォルト: 平原・草原（Grassland）
   return {
     kind: "grassland",
@@ -193,43 +194,53 @@ export function resolveCellLandscape(
 export function buildLandscapeFromCells(
   cells: RegionSiteCell[],
   toLocal: (p: Point) => Point,
-  seed: string
+  seed: string,
+  metersPerMapUnit = 1000
 ): { biomes: RegionBiomeArea[]; symbols: RegionSymbol[] } {
-  const rng = makeRng(`${seed}:landscape`);
   const biomes: RegionBiomeArea[] = [];
   const symbols: RegionSymbol[] = [];
 
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i];
+    const stableId = cell.sourceCellId ?? `${cell.point[0]}:${cell.point[1]}`;
+    const rng = makeRng(`${seed}:landscape:${stableId}`);
     const isWater = Boolean(cell.isWater || (cell.height !== undefined && cell.height < 20));
     const landscape = resolveCellLandscape(cell.biomeName, cell.elevationMeters, isWater);
+    const terrain = resolveCellLandscape("Grassland", cell.elevationMeters, isWater);
 
     // 1. バイオーム面（ポリゴン）の生成
     if (cell.polygon && cell.polygon.length >= 3) {
       const localPoly = cell.polygon.map(toLocal);
       biomes.push({
-        id: `bio-cell-${i}`,
+        id: `bio-cell-${stableId}`,
         kind: landscape.kind,
         polygon: localPoly,
         color: landscape.fillColor,
-        isWater: landscape.isWater
+        isWater: landscape.isWater,
+        terrainKind: terrain.kind,
+        forestCover: cell.forestCover,
+        forestStock: cell.forestStock,
+        forestPolygons: isForestBiome(landscape.kind)
+          ? buildNaturalCanopy(cell.polygon, cell.forestCover ?? 0.7, seed, metersPerMapUnit).map(p => p.map(toLocal))
+          : undefined
       });
     }
 
     // 2. 陸地セルの風景シンボルの散布
     if (!landscape.isWater && landscape.symbolTypes.length > 0) {
       const center = toLocal(cell.point);
-      const symbolCount = getSymbolCountForBiome(landscape.kind, rng);
+      const symbolLandscape = isForestBiome(landscape.kind) && cell.elevationMeters >= 650 ? terrain : landscape;
+      const symbolCount = getSymbolCountForBiome(symbolLandscape.kind, rng);
 
       for (let s = 0; s < symbolCount; s++) {
-        const symType = pickSymbolType(landscape.symbolTypes, rng);
+        const symType = pickSymbolType(symbolLandscape.symbolTypes, rng);
         // セル中心からのわずかな散布ジッター
         const jx = center[0] + (rng.next() - 0.5) * 22;
         const jy = center[1] + (rng.next() - 0.5) * 22;
 
         const scale = getSymbolScale(symType, rng, cell.elevationMeters);
         symbols.push({
-          id: `sym-land-${i}-${s}`,
+          id: `sym-land-${stableId}-${s}`,
           type: symType,
           x: jx,
           y: jy,
@@ -301,4 +312,42 @@ function getSymbolScale(type: SymbolType, rng: { next: () => number }, elevation
     return 0.65 + rng.next() * 0.25;
   }
   return 0.7 + rng.next() * 0.2;
+}
+
+/** Canopy is vegetation over forest land, not a second land-area or timber ledger.
+ * World noise is contoured across cells; a per-cell quota would create artificial boundary gaps.
+ */
+function buildNaturalCanopy(poly: Point[], cover: number, seed: string, metersPerMapUnit: number): Point[][] {
+  if (cover <= 0) return [];
+  if (cover >= 1) return [poly];
+  const step = Math.max(1000 / metersPerMapUnit, Math.sqrt(polygonArea(poly) / 512));
+  const xs = poly.map(p => p[0]),
+    ys = poly.map(p => p[1]);
+  const threshold = 0.5 + (0.5 - cover) * 0.55;
+  const result: Point[][] = [];
+  const noise = (p: Point) => landscapeNoise((p[0] * metersPerMapUnit) / 5000, (p[1] * metersPerMapUnit) / 5000, seed);
+  for (let ix = Math.floor(Math.min(...xs) / step); ix * step < Math.max(...xs); ix++)
+    for (let iy = Math.floor(Math.min(...ys) / step); iy * step < Math.max(...ys); iy++) {
+      const square = rectangle(ix * step, iy * step, step, step);
+      for (const triangle of [
+        [square[0], square[1], square[2]],
+        [square[0], square[2], square[3]]
+      ]) {
+        const contour: Point[] = [];
+        for (let i = 0; i < 3; i++) {
+          const a = triangle[i],
+            b = triangle[(i + 1) % 3],
+            va = noise(a) - threshold,
+            vb = noise(b) - threshold;
+          if (va >= 0) contour.push(a);
+          if (va >= 0 !== vb >= 0) {
+            const t = va / (va - vb);
+            contour.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+          }
+        }
+        const clipped = clipConvex(contour, poly);
+        if (polygonArea(clipped) > 1e-8) result.push(clipped);
+      }
+    }
+  return result;
 }

@@ -420,6 +420,8 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     type: normalizeSettlementType(b.group, b.capital),
     group: b.group,
     population: b.population,
+    landUseProfile: b.landUseProfile,
+    builtAreaHa: b.builtAreaHa,
     isCapital: b.capital,
     hasWalls: b.walls,
     hasCitadel: b.citadel,
@@ -454,7 +456,12 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
 
   // CE準拠のバイオーム面と風景シンボルの生成
   if (descriptor.cells && descriptor.cells.length > 0) {
-    const landscape = buildLandscapeFromCells(descriptor.cells, toLocal, descriptor.sourceSeed);
+    const landscape = buildLandscapeFromCells(
+      descriptor.cells,
+      toLocal,
+      descriptor.sourceSeed,
+      descriptor.metersPerMapUnit
+    );
     doc.biomes = landscape.biomes;
     doc.symbols = landscape.symbols;
   } else {

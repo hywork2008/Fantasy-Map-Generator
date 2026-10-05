@@ -126,6 +126,8 @@ export interface PackedGraphVertices {
 }
 
 export interface PackedGraph {
+  /** Compatibility accessor; canonical owner is simulation.landUse. */
+  landUse?: import("./landUse").LandUseSnapshot;
   cells: PackedGraphCells;
   vertices: PackedGraphVertices;
   rivers: River[];

@@ -251,7 +251,7 @@ function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cell
   const habitability = Math.max(0, world.biomesData.habitability[biomeCode] ?? 0);
   if (habitability <= 0) return 0;
 
-  const cultivated = getCultivatedArea()[cellId] ?? 0;
+  const cultivated = world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? getCultivatedArea()[cellId] ?? 0;
   const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
   const unclaimedArea = Math.max(0, physicalHectares - cultivated - burgArea);
   if (unclaimedArea <= 0) return 0;

@@ -1,3 +1,4 @@
+import type { CellLandUseBudget, LandUsePatchBudget, LandUseProfile } from "../../types/landUse";
 /**
  * Region Editor (RE) Core Data Types
  *
@@ -7,7 +8,7 @@
  */
 
 export const REGION_DOCUMENT_FORMAT = "fmg-region-editor";
-export const REGION_DOCUMENT_VERSION = 1;
+export const REGION_DOCUMENT_VERSION = 2;
 
 export type Point = [number, number];
 
@@ -34,6 +35,10 @@ export interface RegionBiomeArea {
   polygon: Point[];
   color?: string; // CE-compatible ground/face fill color override
   isWater?: boolean;
+  forestCover?: number;
+  forestStock?: number;
+  forestPolygons?: Point[][];
+  terrainKind?: BiomeKind;
 }
 
 export type SymbolType =
@@ -118,6 +123,8 @@ export interface RegionSettlement {
   population?: number;
   /** Cultivated area in hectares; 0 when no land can be allocated. */
   farmlandAreaHectares?: number;
+  builtAreaHa?: number;
+  landUseProfile?: LandUseProfile;
   isCapital?: boolean;
   hasWalls?: boolean;
   hasCitadel?: boolean;
@@ -185,7 +192,23 @@ export interface RegionTerrain {
   showContours?: boolean;
 }
 
+export interface RegionLandUsePatch extends LandUsePatchBudget {
+  polygon: Point[];
+  userEdited?: boolean;
+}
+export interface RegionLandUse {
+  modelVersion: number;
+  revision: number;
+  year: number;
+  seed: string;
+  provenance: "authoritative" | "estimated" | "legacy";
+  patches: RegionLandUsePatch[];
+  unplacedAreaHa: number;
+  diagnostics: string[];
+}
+
 export interface RegionDocument {
+  landUse?: RegionLandUse;
   format: typeof REGION_DOCUMENT_FORMAT;
   version: typeof REGION_DOCUMENT_VERSION;
   id: string;
@@ -224,9 +247,19 @@ export interface RegionDocument {
  * FMG から Region Editor へ渡されるサイト記述子
  */
 export const REGION_SITE_KEY = "fmg.regionSite";
-export const REGION_SITE_VERSION = 1;
+export const REGION_SITE_VERSION = 2;
 
 export interface RegionSiteCell {
+  cultureId?: number;
+  sourceCellId?: number;
+  physicalLandAreaHa?: number;
+  ruralPeople?: number;
+  forestCover?: number;
+  forestStock?: number;
+  forestCondition?: number;
+  canopy?: number;
+  specialFeature?: number;
+  landUse?: CellLandUseBudget;
   point: Point;
   elevationMeters: number;
   height?: number; // FMG raw 0-100 height index
@@ -240,7 +273,8 @@ export interface RegionSiteCell {
 }
 
 export interface RegionSiteDescriptor {
-  version: typeof REGION_SITE_VERSION;
+  landUse?: Omit<RegionLandUse, "patches" | "unplacedAreaHa" | "diagnostics">;
+  version: 1 | typeof REGION_SITE_VERSION;
   sourceSeed: string;
   provinceId?: number;
   provinceName?: string;
@@ -269,6 +303,10 @@ export interface RegionSiteDescriptor {
     name: string;
     point: Point;
     population: number;
+    cultureId?: number;
+    raceKey?: string;
+    landUseProfile?: LandUseProfile;
+    builtAreaHa?: number;
     capital: boolean;
     port: boolean;
     walls: boolean;

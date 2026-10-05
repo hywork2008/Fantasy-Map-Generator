@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { planSettlementLandUse } from "../generators/settlementClearance";
 import { createPresentationData } from "./presentationData";
 import { bindSimulationCellColumns } from "./simulationCellColumns";
 import { createWorldDocument } from "./worldArchive";
@@ -124,4 +125,34 @@ describe("SimulationData cell-column compatibility adapter", () => {
     expect(simulation.cells.forestStock[0]).toBeCloseTo(0.8, 6);
     expect(simulation.cells.forestStock[1]).toBeCloseTo(0.4, 6);
   });
+});
+
+it("archives one canonical land-use revision and restores it without clearing again", () => {
+  const world = createWorld(),
+    simulation = createSimulation();
+  bindSimulationCellColumns(world, simulation);
+  const plan = planSettlementLandUse(
+    [
+      {
+        id: 1,
+        anchor: [1, 1],
+        physicalLandAreaHa: 100,
+        forestCover: 0.7,
+        ruralPeople: 10,
+        urbanPeople: 0,
+        cultivableAreaHa: 50,
+        yieldKgPerSownHa: 450
+      }
+    ],
+    { seed: "world", year: 100 }
+  );
+  world.pack.landUse = plan;
+  expect(simulation.landUse).toBe(plan);
+  const archive = createWorldDocument(world, simulation, createPresentationData(), []);
+  expect(Object.hasOwn(archive.world.pack, "landUse")).toBe(false);
+  expect(archive.simulation.landUse).toEqual(plan);
+  const stock = archive.simulation.cells.forestStock.slice();
+  bindSimulationCellColumns(archive.world, archive.simulation);
+  expect(archive.world.pack.landUse).toEqual(plan);
+  expect(archive.world.pack.cells.forestStock).toEqual(stock);
 });

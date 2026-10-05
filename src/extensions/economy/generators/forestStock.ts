@@ -9,6 +9,7 @@
  */
 
 import { getForestStockRatio, harvestForestStock, regrowForestStock } from "../../../generators/forestStock";
+import { getMaintainedForestConversion } from "../../../generators/landUse";
 import { getCultivatedArea, getWorldContext, isEconomyContextReady } from "../economyContext";
 import { calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 
@@ -61,16 +62,18 @@ export function tickForestRegrowth(deltaYears: number, getRegrowthMultiplier?: (
   for (const cellId of cells.i) {
     const physicalArea = calculatePhysicalAreaHectares(world, cellId);
     const protectedOpenCoverage =
-      physicalArea > 0 && cultivatedArea.length === cells.i.length
+      getMaintainedForestConversion(world.pack.landUse, cellId) ??
+      (physicalArea > 0 && cultivatedArea.length === cells.i.length
         ? Math.max(0, Math.min(1, cultivatedArea[cellId] / physicalArea))
-        : 0;
-    changed ||= regrowForestStock(
+        : 0);
+    const recovered = regrowForestStock(
       cells,
       cellId,
       deltaYears,
       protectedOpenCoverage,
       getRegrowthMultiplier?.(cellId) ?? 1
     );
+    changed = recovered || changed;
   }
   return changed;
 }

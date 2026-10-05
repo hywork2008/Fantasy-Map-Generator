@@ -97,6 +97,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   simulation("pack.cells.femaleAdults", "simulation.cells", "cell.id"),
   simulation("pack.cells.elders", "simulation.cells", "cell.id"),
   simulation("pack.cells.danger", "simulation.cells", "cell.id"),
+  simulation("pack.landUse", "simulation.cells", "cell.id"),
   simulation("pack.cells.forestStock", "simulation.cells", "cell.id"),
   simulation("pack.cells.wildLand", "simulation.cells", "cell.id"),
 

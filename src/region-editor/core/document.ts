@@ -1,3 +1,5 @@
+import { generateFarmland } from "./gen/farmland";
+import type { RegionSiteDescriptor } from "./types";
 import {
   DEFAULT_REGION_SETTINGS,
   REGION_DOCUMENT_FORMAT,
@@ -60,10 +62,11 @@ export function validateRegionDocument(
     return { ok: false, error: "Document must be an object" };
   }
   const candidate = doc as Partial<RegionDocument>;
+  const storedVersion = (doc as { version?: number }).version;
   if (candidate.format !== REGION_DOCUMENT_FORMAT) {
     return { ok: false, error: `Invalid format: ${candidate.format}, expected ${REGION_DOCUMENT_FORMAT}` };
   }
-  if (candidate.version !== REGION_DOCUMENT_VERSION) {
+  if (candidate.version !== REGION_DOCUMENT_VERSION && storedVersion !== 1) {
     return { ok: false, error: `Unsupported version: ${candidate.version}, expected ${REGION_DOCUMENT_VERSION}` };
   }
   if (
@@ -77,16 +80,61 @@ export function validateRegionDocument(
     return { ok: false, error: "Missing required arrays (symbols, rivers, bridges)" };
   }
 
-  // Older regional files stored field parcels at document level.
+  // Preserve legacy parcel geometry rather than dropping it during migration.
   const legacy = candidate as Partial<RegionDocument> & {
-    farmland?: Array<{ settlementId: string; areaHectares: number }>;
+    farmland?: Array<{ id?: string; settlementId: string; areaHectares: number; polygon?: [number, number][] }>;
   };
+  if (!candidate.landUse && legacy.farmland?.some(p => p.polygon?.length)) {
+    candidate.landUse = {
+      modelVersion: 1,
+      revision: 1,
+      year: 0,
+      seed: candidate.seed ?? "legacy",
+      provenance: "legacy",
+      unplacedAreaHa: 0,
+      diagnostics: ["legacy-area-provenance"],
+      patches: legacy.farmland
+        .filter(p => p.polygon?.length)
+        .map((p, i) => ({
+          id: p.id ?? `legacy-field:${i}`,
+          sourceCellId: -1,
+          kind: "cultivation",
+          areaHa: p.areaHectares,
+          anchor: p.polygon![0],
+          polygon: p.polygon!,
+          supplierIds: [p.settlementId],
+          stage: "maintained",
+          convertedForestAreaHa: 0,
+          userEdited: true
+        }))
+    };
+  }
   for (const settlement of candidate.settlements ?? []) {
     settlement.farmlandAreaHectares ??= (legacy.farmland ?? [])
       .filter(field => field.settlementId === settlement.id)
       .reduce((sum, field) => sum + field.areaHectares, 0);
   }
   delete legacy.farmland;
+  if (storedVersion === 1 && !candidate.landUse && candidate.biomes?.length && candidate.settlements) {
+    const document = candidate as RegionDocument;
+    const site = {
+      version: 1,
+      sourceSeed: document.seed,
+      metersPerMapUnit: document.bounds.metersPerUnit,
+      cells: document.biomes.map((b, i) => ({
+        sourceCellId: i,
+        point: b.polygon[0] ?? [0, 0],
+        polygon: b.polygon,
+        elevationMeters: 0,
+        biomeId: i,
+        biomeName: b.kind,
+        isWater: b.isWater || b.kind === "ocean"
+      }))
+    } as RegionSiteDescriptor;
+    generateFarmland(document, site, p => p);
+    document.landUse!.diagnostics.push("legacy-rural-population-unknown");
+  }
+  candidate.version = REGION_DOCUMENT_VERSION;
   return { ok: true, document: candidate as RegionDocument };
 }
 

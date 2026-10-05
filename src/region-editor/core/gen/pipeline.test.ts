@@ -7,7 +7,7 @@ describe("generateStandaloneRegion", () => {
     const doc = generateStandaloneRegion(DEFAULT_REGION_SETTINGS);
 
     expect(doc.format).toBe("fmg-region-editor");
-    expect(doc.version).toBe(1);
+    expect(doc.version).toBe(2);
     expect(doc.title).toBe(DEFAULT_REGION_SETTINGS.title);
     expect(doc.symbols.length).toBeGreaterThan(0);
     expect(doc.rivers.length).toBeGreaterThan(0);

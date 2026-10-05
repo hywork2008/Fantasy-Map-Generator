@@ -90,7 +90,7 @@ function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): 
   const unclaimedArea = Math.max(
     0,
     physicalHectares -
-      (getCultivatedArea()[cellId] ?? 0) -
+      (world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? getCultivatedArea()[cellId] ?? 0) -
       getPastureAreaUsedHectares(cellId) -
       calculateBurgBuiltAreaHectares(world, cellId)
   );

@@ -84,16 +84,16 @@ describe("agricultural land use", () => {
     expect(profile.foodPotential[0]).toBeLessThan(profile.foodPotential[1]);
   });
 
-  it("makes newly opened forest land available to cultivation from the same forest stock", () => {
+  it("does not convert logging scars into agricultural land", () => {
     const world = createWorld();
     world.pack.cells.forestStock = new Float32Array([0.9, 0]);
     const intact = calculateAgriculturalLandProfile(world);
 
-    world.pack.cells.forestStock[0] = 0.45; // half of the potential forest cover has been opened
+    world.pack.cells.forestStock[0] = 0.45; // Timber removal alone leaves the land use unchanged
     const opened = calculateAgriculturalLandProfile(world);
 
-    expect(opened.cultivableArea[0]).toBeGreaterThan(intact.cultivableArea[0]);
-    expect(opened.cultivatedArea[0]).toBeGreaterThanOrEqual(intact.cultivatedArea[0]);
+    expect(opened.cultivableArea).toEqual(intact.cultivableArea);
+    expect(opened.cultivatedArea).toEqual(intact.cultivatedArea);
   });
 
   it("opens initial forest land from residents' grain requirement before calculating cultivated area", () => {
@@ -831,4 +831,31 @@ describe("agricultural land use", () => {
 
     expect(irrigated.yieldPerArea[0]).toBeGreaterThan(rainfed.yieldPerArea[0]);
   });
+});
+
+it("preserves legacy timber on migration and does not reapply clearing on extension reload", () => {
+  const world = createWorld();
+  world.pack.cells.forestStock = new Float32Array([0.4, 0]);
+  world.pack.cells.pop[0] = 4;
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { preserveLegacyStock: true });
+  expect(world.pack.cells.forestStock[0]).toBeCloseTo(0.4, 6);
+  expect(world.pack.landUse!.cells[0].diagnostics).toContain("legacy-timber-stock-preserved");
+  const revision = world.pack.landUse!.revision;
+  reconcileForestClearanceForAgriculture(world);
+  expect(world.pack.landUse!.revision).toBe(revision);
+  expect(world.pack.cells.forestStock[0]).toBeCloseTo(0.4, 6);
+});
+it("caps yearly field expansion and applies each year's revision once", () => {
+  const world = createWorld();
+  world.pack.cells.forestStock = new Float32Array([0.9, 0]);
+  reconcileForestClearanceForAgriculture(world);
+  const area = world.pack.landUse!.cells[0].allocatedAreaHa;
+  world.pack.cells.pop[0] = 100;
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { annual: true, year: 1 });
+  expect(world.pack.landUse!.cells[0].allocatedAreaHa).toBeLessThanOrEqual(area + 2.000001);
+  const revision = world.pack.landUse!.revision;
+  const stock = world.pack.cells.forestStock.slice();
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { annual: true, year: 1 });
+  expect(world.pack.landUse!.revision).toBe(revision);
+  expect(world.pack.cells.forestStock).toEqual(stock);
 });

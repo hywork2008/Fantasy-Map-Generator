@@ -241,7 +241,7 @@ export function getWildCarryingCapacity(cellId: number): number {
   const density = getWildGameDensityPerHectare(biomeCode, world.biomesData);
 
   const physicalArea = calculatePhysicalAreaHectares(world, cellId);
-  const cultivated = getCultivatedArea()[cellId] ?? 0;
+  const cultivated = world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? getCultivatedArea()[cellId] ?? 0;
   const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
   const pastureAreaUsed = getPastureAreaUsedHectares(cellId);
   const vineyardAreaUsed = getVineyardAreaUsedHectares(cellId);

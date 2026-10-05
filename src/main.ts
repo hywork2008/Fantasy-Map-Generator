@@ -53,6 +53,7 @@ import { ensureFuneralRemainsSeeded } from "./generators/funeralRites";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
+import { beginInitialLandUse, initializeSettlementLandUse } from "./generators/landUse";
 import { LavaFlows } from "./generators/lavaFlows";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
@@ -426,6 +427,11 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (viewContext.renderMap) drawLayers();
   });
   document.addEventListener("fmg:map-ready-tasks-completed", () => {
+    // Economy prepares its conditions and publishes first; OFF uses the shared static adapter.
+    if (pendingInitialLandUse) {
+      initializeSettlementLandUse(worldContext, useOptionsState.getState().year);
+      pendingInitialLandUse = false;
+    }
     if (viewContext.renderMap) drawLayers();
   });
   document.addEventListener("fmg:show-statistics", showStatistics);
@@ -1100,6 +1106,9 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   // panels (e.g. FrontierStatusPanel) able to re-render before the late
   // initSimulationClock() at the end of generation; stale cull/frontier projects
   // would then index pack.states that no longer exist.
+  delete simulationContext.landUse;
+  pendingInitialLandUse = true;
+  beginInitialLandUse(worldContext);
   simulationContext.frontier = createEmptyFrontierSimulationState();
   simulationContext.wilderness = createEmptyWildernessEcologyState();
   resetExtensionStateSlices(simulationContext);
@@ -1261,6 +1270,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
     }
   ];
 }
+
+let pendingInitialLandUse = false;
 
 const GENERATION_REVIEW_SVG_LAYER_IDS = [
   "oceanLayers",

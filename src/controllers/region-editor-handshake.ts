@@ -1,5 +1,7 @@
 import { worldContext } from "../context/worldContext";
+import { estimateWorldLandUse, usesFantasyForestDefaults } from "../generators/landUse";
 import { Rivers } from "../generators/river-generator";
+import { calculateBuiltAreaHa, resolveLandUseProfile } from "../generators/settlementClearance";
 import type { Point, RegionSiteCell, RegionSiteDescriptor } from "../region-editor/core/types";
 import { REGION_SITE_KEY, REGION_SITE_VERSION } from "../region-editor/core/types";
 import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
@@ -14,6 +16,7 @@ import { precipitationProxyToMillimeters } from "../utils/unitUtils";
  */
 export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescriptor | null {
   const { pack, seed, distanceScale, biomesData } = worldContext;
+  const landUse = pack.landUse ?? estimateWorldLandUse(worldContext, useOptionsState.getState().year);
   const province = pack.provinces[provinceId] as Province | undefined;
   if (!province || province.removed) {
     return null;
@@ -109,6 +112,23 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
         name: b.name || "Unnamed",
         point: [b.x, b.y],
         population: Math.max(0, b.population ?? 0) * worldContext.populationRate * worldContext.urbanization,
+        cultureId: b.culture,
+        raceKey: pack.cultures?.[b.culture ?? 0]?.raceKey,
+        landUseProfile: resolveLandUseProfile({
+          explicit: b.landUseProfile,
+          cultural: pack.cultures?.[b.culture ?? 0]?.landUseProfile,
+          raceKey: pack.cultures?.[b.culture ?? 0]?.raceKey,
+          fantasy: usesFantasyForestDefaults(worldContext)
+        }),
+        builtAreaHa: calculateBuiltAreaHa(
+          Math.max(0, b.population ?? 0) * worldContext.populationRate * worldContext.urbanization,
+          resolveLandUseProfile({
+            explicit: b.landUseProfile,
+            cultural: pack.cultures?.[b.culture ?? 0]?.landUseProfile,
+            raceKey: pack.cultures?.[b.culture ?? 0]?.raceKey,
+            fantasy: usesFantasyForestDefaults(worldContext)
+          })
+        ),
         capital: Boolean(b.capital),
         port: Boolean(b.port),
         walls: Boolean(b.walls),
@@ -374,12 +394,22 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
       biomeName.toLowerCase().includes("water");
 
     sampledCells.push({
+      sourceCellId: cid,
+      cultureId: cells.culture?.[cid],
+      physicalLandAreaHa: landUse.cells[cid]?.physicalLandAreaHa,
+      ruralPeople: Math.max(0, cells.pop?.[cid] ?? 0) * worldContext.populationRate,
+      forestCover: cells.forestCover?.[cid],
+      forestStock: cells.forestStock?.[cid],
+      forestCondition: cells.forestCondition?.[cid],
+      canopy: cells.canopy?.[cid],
+      specialFeature: cells.specialFeature?.[cid],
+      landUse: landUse.cells[cid],
       point: [pt[0], pt[1]],
       elevationMeters,
       height,
       inProvince: cells.province[cid] === provinceId,
       provinceId: cells.province[cid],
-      annualPrecipitationMm: precipitationProxyToMillimeters(worldContext.grid?.cells?.prec?.[cells.g?.[cid]] ?? 0),
+      annualPrecipitationMm: precipitationProxyToMillimeters(worldContext.grid?.cells?.prec?.[cells.g?.[cid]] ?? 45),
       biomeId,
       biomeName,
       polygon,
@@ -389,6 +419,13 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
 
   const descriptor: RegionSiteDescriptor = {
     version: REGION_SITE_VERSION,
+    landUse: {
+      modelVersion: landUse.modelVersion,
+      revision: landUse.revision,
+      year: landUse.year,
+      seed: landUse.seed,
+      provenance: landUse.provenance
+    },
     sourceSeed: seed,
     provinceId: province.i,
     provinceName: province.name,

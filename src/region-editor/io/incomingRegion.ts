@@ -6,7 +6,7 @@ export function loadIncomingRegionFromStorage(): RegionDocument | null {
     const raw = sessionStorage.getItem(REGION_SITE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as Partial<RegionSiteDescriptor>;
-    if (data.version !== REGION_SITE_VERSION) {
+    if (data.version !== REGION_SITE_VERSION && data.version !== 1) {
       console.warn("Region Site Descriptor version mismatch:", data.version);
       return null;
     }

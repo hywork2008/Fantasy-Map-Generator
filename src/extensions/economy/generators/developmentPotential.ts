@@ -1,3 +1,4 @@
+import { isInitialLandUsePending } from "../../../generators/landUse";
 import {
   applyRiverResidualFlows,
   Burgs,
@@ -216,7 +217,11 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
-    const demandOptions = { includeUrbanFoodDemand: !megacity, reserveLaborForUrbanExport: megacity };
+    const demandOptions = {
+      includeUrbanFoodDemand: !megacity,
+      reserveLaborForUrbanExport: megacity,
+      preserveLegacyStock: !world.pack.landUse && !isInitialLandUsePending(world)
+    };
     const conditions = this.getAgriculturalConditions(world);
     reconcileForestClearanceForAgriculture(
       world,
@@ -303,7 +308,12 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
-    const demandOptions = { includeUrbanFoodDemand: !megacity, reserveLaborForUrbanExport: megacity };
+    const demandOptions = {
+      includeUrbanFoodDemand: !megacity,
+      reserveLaborForUrbanExport: megacity,
+      year,
+      annual: true
+    };
     const conditions = this.advanceSoilConditions(world);
     reconcileForestClearanceForAgriculture(
       world,

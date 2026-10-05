@@ -5,7 +5,19 @@ import {
   SEASON_REGION_PROFILES
 } from "../../../data/cropCalendars";
 import { getStapleCropSuitability } from "../../../data/stapleCrops";
-import { harvestForestStock } from "../../../generators/forestStock";
+import { commitLandUsePlan, usesFantasyForestDefaults } from "../../../generators/landUse";
+import {
+  ANNUAL_SOWN_SHARE,
+  BASE_NET_YIELD_KG_PER_SOWN_HECTARE,
+  CLEARANCE_LABOUR_DAYS_PER_HECTARE,
+  type ClearanceCellInput,
+  calculateBuiltAreaHa,
+  EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK,
+  planSettlementLandUse,
+  resolveLandUseProfile,
+  STAPLE_NEED_KG_PER_PERSON_YEAR,
+  requiredFieldAreaHectares as sharedRequiredFieldAreaHectares
+} from "../../../generators/settlementClearance";
 import {
   allocateRiverWater,
   CHILD_COHORT_YEARS,
@@ -21,10 +33,12 @@ import { computeNaturalFloodRisk } from "./floodHazard";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
 
-export const STAPLE_NEED_KG_PER_PERSON_YEAR = 200;
-export const EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK = 0.65;
-export const ANNUAL_SOWN_SHARE = 0.67;
-export const BASE_NET_YIELD_KG_PER_SOWN_HECTARE = 450;
+export {
+  ANNUAL_SOWN_SHARE,
+  BASE_NET_YIELD_KG_PER_SOWN_HECTARE,
+  EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK,
+  STAPLE_NEED_KG_PER_PERSON_YEAR
+} from "../../../generators/settlementClearance";
 export const LABOUR_DAYS_PER_HECTARE = 30;
 export const WORKABLE_DAYS_PER_ADULT = 140;
 /** Calendar capacity used by the shared rural labour allocator. */
@@ -64,9 +78,8 @@ export const AGTECH_NO_DRAFT_EFFECT_SHARE = 0.6;
 export const DRAFT_CAPABLE_BIOME_TAGS: readonly string[] = ["grassland", "nomadic", "arable"];
 
 /**
- * Approximate built-up area per burg population point, used to exclude a settlement's own
- * footprint from cropland/pasture/wildHabitatArea accounting. ~50 people/ha is a plausible dense
- * medieval town density.
+ * @deprecated Legacy ha/population-point coefficient. Current footprints use real people
+ * and calculateBuiltAreaHa; retained only for external import compatibility.
  */
 export const URBAN_AREA_HECTARES_PER_POPULATION_POINT = 0.02;
 
@@ -270,6 +283,9 @@ export interface AgriculturalLandProfile {
  * can sustain a city whose own cell has no Grain production.
  */
 export interface AgriculturalDemandOptions {
+  readonly preserveLegacyStock?: boolean;
+  readonly year?: number;
+  readonly annual?: boolean;
   readonly includeUrbanFoodDemand?: boolean;
   /**
    * Megacity hinterland: reserve `MEGACITY_LABOR_EXPORT_SHARE` of rural adults (at least
@@ -396,7 +412,13 @@ export function calculateAgriculturalLandProfile(
         : 0;
     // Food first for the village, then the remaining *farmable* adults develop extra
     // hectares for export. Megacity keeps a labour-export reserve out of farmable.
-    const currentArea = yieldKgPerHa > 0 ? Math.min(area, Math.max(subsistenceArea, laborAffordableArea)) : 0;
+    const currentArea =
+      yieldKgPerHa > 0
+        ? Math.min(
+            area,
+            world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? Math.max(subsistenceArea, laborAffordableArea)
+          )
+        : 0;
     cultivatedArea[cellId] = currentArea;
     floweringForageArea[cellId] =
       currentArea * FOUR_COURSE_CLOVER_LEY_SHARE * fourCourseRotation * getCloverSuitability(world, cellId);
@@ -459,8 +481,9 @@ export function requiredFieldAreaHectares(
   yieldKgPerHa: number,
   sownShare: number = ANNUAL_SOWN_SHARE
 ): number {
-  if (people <= 0 || yieldKgPerHa <= 0 || sownShare <= 0) return 0;
-  return (people * STAPLE_NEED_KG_PER_PERSON_YEAR) / (EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK * yieldKgPerHa * sownShare);
+  // Compatibility: unavailable production is diagnosed in the shared planner.
+  const area = sharedRequiredFieldAreaHectares(people, yieldKgPerHa, sownShare);
+  return Number.isFinite(area) ? area : 0;
 }
 
 /** Children→adult arrivals this year, in rural population points. */
@@ -524,23 +547,27 @@ export function reconcileForestClearanceForAgriculture(
   conditions: AgriculturalConditions = {}
 ): boolean {
   const cells = world.pack.cells;
-  if (!cells.forestStock || cells.forestStock.length !== cells.i.length) return false;
-
+  const previous = world.pack.landUse;
+  const year = demandOptions.year ?? previous?.year ?? 0;
+  // Extension reload / OFF-ON toggles preserve the published revision.
+  if (previous && (demandOptions.annual !== true || (previous.year === year && !previous.needsAnnualReconciliation)))
+    return false;
   const populationRate = Math.max(1, world.populationRate || 1);
-  let changed = false;
-
+  const inputs: ClearanceCellInput[] = [];
   for (const cellId of cells.i) {
-    const constraints = getCroplandConstraints(world, cellId);
-    if (!constraints || constraints.terrainAndBiomeCeiling <= 0) continue;
-
+    const constraints = getCroplandConstraints(world, cellId) ?? {
+      physicalHectares: calculatePhysicalAreaHectares(world, cellId),
+      terrainAndBiomeCeiling: 0,
+      biomeTags: world.biomesData.tags?.[cells.biomeCode[cellId]] ?? []
+    };
+    if (constraints.physicalHectares <= 0) continue;
     const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
-    const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
-    const yieldKgPerHa = calculateYieldKgPerHectare(world, cellId, effectiveAgTech, stateProductivity, conditions);
-    const residentPeople = getCellFoodDemandPeople(
+    const yieldKgPerHa = calculateYieldKgPerHectare(
       world,
       cellId,
-      populationRate,
-      demandOptions.includeUrbanFoodDemand !== false
+      effectiveAgTech,
+      stateProductivityByCell?.[cellId] ?? 0,
+      conditions
     );
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
     const farmableAdults = Math.max(
@@ -548,43 +575,63 @@ export function reconcileForestClearanceForAgriculture(
       ruralAdults - getReservedLaborExportPoints(cells, cellId, demandOptions.reserveLaborForUrbanExport === true)
     );
     const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
-    const annualLaborDaysPerHectare =
+    const laborDays =
       LABOUR_DAYS_PER_HECTARE *
       (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech) *
       (1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation);
-    const requiredArea = requiredFieldAreaHectares(
-      residentPeople,
-      yieldKgPerHa,
-      calculateEffectiveSownShare(conditions, cellId)
-    );
-    const subsistenceArea = requiredArea * SUBSISTENCE_FIELD_RESERVE;
-    const laborAffordableArea =
+    const laborArea =
       yieldKgPerHa > 0
-        ? getLaborAffordableAreaHectares(
-            farmableAdults,
-            populationRate,
-            annualLaborDaysPerHectare,
-            constraints.terrainAndBiomeCeiling
-          )
+        ? getLaborAffordableAreaHectares(farmableAdults, populationRate, laborDays, constraints.terrainAndBiomeCeiling)
         : 0;
-    // Open enough forest for the same food-first target calculateAgriculturalLandProfile will plant.
-    const targetCultivatedArea = Math.min(
-      constraints.terrainAndBiomeCeiling,
-      Math.max(subsistenceArea, laborAffordableArea)
-    );
-    if (targetCultivatedArea <= 0) continue;
-
-    const forestCapacity = getForestCapacityForCell(cells, cellId, constraints.biomeTags);
-    const standingForestCover = Math.max(0, Math.min(forestCapacity, cells.forestStock[cellId] ?? forestCapacity));
-    const openLandArea = constraints.physicalHectares * (1 - standingForestCover);
-    const additionalOpenArea = targetCultivatedArea - openLandArea;
-    if (additionalOpenArea <= 0) continue;
-
-    const harvestedCoverage = harvestForestStock(cells, cellId, additionalOpenArea / constraints.physicalHectares);
-    changed ||= harvestedCoverage > 0;
+    const burg = world.pack.burgs?.[cells.burg?.[cellId] ?? 0];
+    const culture = world.pack.cultures?.[cells.culture?.[cellId] ?? 0];
+    inputs.push({
+      id: cellId,
+      anchor: cells.p?.[cellId] ?? [0, 0],
+      physicalLandAreaHa: constraints.physicalHectares,
+      forestCover: getForestCapacityForCell(cells, cellId, constraints.biomeTags),
+      ruralPeople: Math.max(0, cells.pop[cellId] ?? 0) * populationRate,
+      urbanPeople:
+        burg && !burg.removed
+          ? Math.max(0, burg.population ?? 0) * populationRate * Math.max(0, world.urbanization ?? 1)
+          : 0,
+      profile: resolveLandUseProfile({
+        explicit: burg?.landUseProfile,
+        cultural: culture?.landUseProfile,
+        raceKey: culture?.raceKey,
+        fantasy: usesFantasyForestDefaults(world)
+      }),
+      cultivableAreaHa:
+        constraints.biomeTags.includes("wetland") && !((conditions.fieldDrainageByCell?.[cellId] ?? 0) > 0)
+          ? 0
+          : constraints.terrainAndBiomeCeiling,
+      yieldKgPerSownHa: yieldKgPerHa,
+      annualSownShare: calculateEffectiveSownShare(conditions, cellId),
+      laborAffordableAreaHa: laborArea,
+      subsistenceReserve: SUBSISTENCE_FIELD_RESERVE,
+      includeUrbanFoodDemand: demandOptions.includeUrbanFoodDemand,
+      newClearanceAreaHa: Math.min(
+        Math.max(
+          0,
+          farmableAdults * populationRate * WORKABLE_DAYS_PER_ADULT -
+            (previous?.cells[cellId]?.allocatedAreaHa ?? 0) * laborDays * FARM_LABOUR_SAFETY_MARGIN
+        ) / CLEARANCE_LABOUR_DAYS_PER_HECTARE,
+        constraints.physicalHectares * 0.02
+      ),
+      neighbors: cells.c?.[cellId]?.filter(n => cells.state?.[n] === cells.state?.[cellId]),
+      diagnostics: ["estimated-clearance-labour"]
+    });
   }
-
-  return changed;
+  const plan = planSettlementLandUse(inputs, {
+    seed: world.seed ?? "legacy",
+    year,
+    provenance: "authoritative",
+    previous,
+    annual: demandOptions.annual === true && !!previous
+  });
+  if (demandOptions.preserveLegacyStock)
+    for (const budget of Object.values(plan.cells)) budget.diagnostics.push("legacy-timber-stock-preserved");
+  return commitLandUsePlan(world, plan, { preserveStock: demandOptions.preserveLegacyStock });
 }
 
 function getCellFoodDemandPeople(
@@ -647,23 +694,32 @@ export function calculateBurgBuiltAreaHectares(world: Readonly<WorldContext>, ce
   if (!burgId) return 0;
   const burg = world.pack.burgs?.[burgId];
   if (!burg || burg.removed) return 0;
-  return Math.max(0, burg.population ?? 0) * URBAN_AREA_HECTARES_PER_POPULATION_POINT;
+  const people =
+    Math.max(0, burg.population ?? 0) * Math.max(1, world.populationRate || 1) * Math.max(0, world.urbanization ?? 1);
+  const culture = world.pack.cultures?.[world.pack.cells.culture?.[cellId] ?? 0];
+  return calculateBuiltAreaHa(
+    people,
+    resolveLandUseProfile({
+      explicit: burg.landUseProfile,
+      cultural: culture?.landUseProfile,
+      raceKey: culture?.raceKey,
+      fantasy: usesFantasyForestDefaults(world)
+    })
+  );
 }
 
 function calculateCultivableAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;
   const constraints = getCroplandConstraints(world, cellId);
   if (!constraints) return 0;
-  // `forestCover` is potential forest capacity, while forestStock is the only
-  // mutable standing-timber value. Opening a forest therefore expands the area
-  // that can be farmed; no second "cleared land" approximation is stored.
+  const budget = world.pack.landUse?.cells[cellId];
+  if (budget) return Math.min(constraints.terrainAndBiomeCeiling, budget.allocatedAreaHa);
+  // Legacy fallback never treats logging scars as newly established fields.
   const forestCapacity = getForestCapacityForCell(cells, cellId, constraints.biomeTags);
-  const standingForestCover = Math.max(0, Math.min(forestCapacity, cells.forestStock?.[cellId] ?? forestCapacity));
-  const openLandArea = constraints.physicalHectares * (1 - standingForestCover);
-  return Math.min(constraints.terrainAndBiomeCeiling, openLandArea);
+  return Math.min(constraints.terrainAndBiomeCeiling, constraints.physicalHectares * (1 - forestCapacity));
 }
 
-function getCroplandConstraints(
+export function getCroplandConstraints(
   world: Readonly<WorldContext>,
   cellId: number
 ): {
@@ -690,7 +746,14 @@ function getCroplandConstraints(
         : biomeTags.includes("grassland") || biomeTags.includes("arable")
           ? 0.8
           : 0.7;
-  return { physicalHectares, terrainAndBiomeCeiling: physicalHectares * terrainShare * biomeCeiling, biomeTags };
+  return {
+    physicalHectares,
+    terrainAndBiomeCeiling: Math.max(
+      0,
+      physicalHectares * terrainShare * biomeCeiling - calculateBurgBuiltAreaHectares(world, cellId)
+    ),
+    biomeTags
+  };
 }
 
 function getForestCapacityForCell(

@@ -213,10 +213,10 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
       expect(svg).toContain('mask="url(#re-forest-clearing-mask)"');
       expect(svg).toContain('id="re-forest-clearing-mask"');
 
-      // 街道のくり抜き線（stroke-width="24"）が含まれること
-      expect(svg).toContain('stroke-width="24"');
-      // 集落のくり抜き円（circle r="28"）が含まれること
-      expect(svg).toContain('cx="120.00" cy="100.00" r="28"');
+      // 通行面のみを物理幅 (8m / 100m) で除外する
+      expect(svg).toContain('stroke-width="0.08"');
+      // アイコン固定半径を物理開地に転用しない
+      expect(svg).not.toContain('cx="120.00" cy="100.00" r="28"');
     });
 
     it("森林バイオームが存在しない場合は森林レイヤーが空であること", () => {

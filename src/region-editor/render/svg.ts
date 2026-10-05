@@ -1,6 +1,7 @@
 import { curveCatmullRom, line } from "d3";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
+import { pointInPolygon } from "../core/geometry";
 import type { Point, RegionDocument } from "../core/types";
 import { generateCoastalRipples } from "./coastalRipples";
 import { renderSettlementIcon } from "./styles/settlementIcons";
@@ -111,39 +112,30 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
   if (hasForest) {
     const canopyColors = theme.forestCanopy;
 
-    // 街道沿いの切り開き（くり抜き）
+    // Physical land-use polygons are shared with ground rendering. Icon halos remain symbols only.
+    const landUseClearing = (doc.landUse?.patches ?? [])
+      .filter(p => p.kind === "built" || p.kind === "cultivation" || p.kind === "pasture" || p.kind === "abandoned")
+      .map(p => {
+        const opacity =
+          p.kind === "abandoned"
+            ? Math.max(0, 1 - Math.max(0, (doc.landUse?.year ?? 0) - (p.abandonedYear ?? doc.landUse?.year ?? 0)) / 20)
+            : 1;
+        return `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" opacity="${opacity}" />`;
+      })
+      .join("\n");
     const routesClearing = doc.routes
       .map(r => {
-        const pathD = createCurvedRoutePath(r.points, 0.1);
-        const w = r.kind === "highway" ? 24 : r.kind === "trail" ? 11 : 16;
-        return `<path d="${pathD}" fill="none" stroke="#000000" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" />`;
+        const widthMeters = r.kind === "highway" ? 8 : r.kind === "trail" ? 2 : 5;
+        return `<path d="${createCurvedRoutePath(r.points, 0.1)}" fill="none" stroke="#000000" stroke-width="${widthMeters / doc.bounds.metersPerUnit}" />`;
       })
       .join("\n");
-
-    // 集落・都市周辺の切り開き（開墾地・居住地）
-    const settlementsClearing = doc.settlements
-      .map(s => {
-        const [x, y] = s.position;
-        const radius = s.isCapital ? 34 : s.type === "city" || s.group === "capital" ? 28 : s.type === "town" ? 22 : 17;
-        return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius}" fill="#000000" />`;
-      })
-      .join("\n");
-
-    // ダンジョン・遺跡周辺の切り開き
-    const landmarksClearing = doc.landmarks
-      .map(lm => {
-        const [x, y] = lm.position;
-        return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="14" fill="#000000" />`;
-      })
-      .join("\n");
-
     // 河川（川幅＋緩衝帯）の切り開き
     const riversClearing = doc.rivers
       .map(river => {
         if (river.points.length >= 2) {
-          const bufferedWidths = river.widths.map(w => w + 60);
+          const bufferedWidths = river.widths;
           const riverPoly = createCurvedRiverPolygon(river.points, bufferedWidths, doc.bounds.metersPerUnit, 0.1);
-          return `<path d="${riverPoly}" fill="#000000" stroke="#000000" stroke-width="4" stroke-linejoin="round" />`;
+          return `<path d="${riverPoly}" fill="#000000" stroke="#000000" stroke-width="0" stroke-linejoin="round" />`;
         }
         return `<path d="${polyToSvgPath(river.points, false)}" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />`;
       })
@@ -165,8 +157,7 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
         ${lakesClearing}
         ${riversClearing}
         ${routesClearing}
-        ${settlementsClearing}
-        ${landmarksClearing}
+        ${landUseClearing}
       </mask>
 
       <!-- 森林キャノピー用: 光と影の陰影バンプと有機的林縁ディスプレイスメント -->
@@ -220,15 +211,17 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
         const kindKey =
           b.kind === "coniferous_forest" ? "coniferous" : b.kind === "tropical_forest" ? "tropical" : "deciduous";
         const color = canopyColors[kindKey];
-        const pathD = polyToSvgPath(b.polygon);
-        return `<path class="forest-canopy-cell forest-${b.kind}" data-id="${b.id}" d="${pathD}" fill="${color}" stroke="${color}" stroke-width="1.2" stroke-linejoin="round" />`;
+        const stockRatio =
+          b.forestCover && b.forestStock !== undefined ? Math.max(0, Math.min(1, b.forestStock / b.forestCover)) : 1;
+        const pathD = (b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ");
+        return `<path class="forest-canopy-cell forest-${b.kind}" data-id="${b.id}" d="${pathD}" fill="${color}" opacity="${0.5 + stockRatio * 0.5}" stroke="${color}" stroke-width="0" stroke-linejoin="round" />`;
       })
       .join("\n");
 
     const patternOverlays = forestBiomes
       .map(
         b =>
-          `<path class="forest-pattern-overlay" d="${polyToSvgPath(b.polygon)}" fill="url(#re-forest-canopy-pattern)" />`
+          `<path class="forest-pattern-overlay" d="${(b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ")}" fill="url(#re-forest-canopy-pattern)" />`
       )
       .join("\n");
 
@@ -397,6 +390,13 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
 
   // 8. 地勢シンボル（山岳、丘陵、樹木、湿地等）
   const symbolsLayer = doc.symbols
+    .filter(
+      sym =>
+        !sym.type.startsWith("tree") ||
+        !(doc.landUse?.patches ?? []).some(
+          p => (p.kind === "built" || p.kind === "cultivation") && pointInPolygon([sym.x, sym.y], p.polygon)
+        )
+    )
     .map(sym => {
       const def = SYMBOL_DEFINITIONS[sym.type];
       if (!def) return "";
@@ -535,6 +535,7 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
+      <g id="layer-land-use">${(doc.landUse?.patches ?? []).map(p => `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${polyToSvgPath(p.polygon)}" fill="${p.kind === "built" ? "#d6c3a2" : p.kind === "cultivation" ? "#d9cf9d" : p.kind === "pasture" ? "#bbc58e" : p.kind === "abandoned" ? "#aabb94" : "#b5c595"}" stroke="#aaae85" stroke-width="0.3" />`).join("\n")}</g>
       <g id="layer-forests">${forestLayer}</g>
       <g id="layer-rivers">${riversLayer}</g>
       <g id="layer-routes">${routesLayer}</g>
