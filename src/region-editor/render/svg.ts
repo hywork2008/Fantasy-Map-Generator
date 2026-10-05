@@ -1,6 +1,7 @@
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import type { Point, RegionDocument } from "../core/types";
 import { generateCoastalRipples } from "./coastalRipples";
+import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
 import { THEMES } from "./styles/themes";
 
@@ -197,33 +198,20 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
     .map(s => {
       const [x, y] = s.position;
       const isSel = s.id === selectedId;
-      const offset = offsetMap.get(s.id) ?? [0, 14];
+      const offset = offsetMap.get(s.id) ?? [0, 15];
 
-      let markerSvg = "";
-      if (s.type === "metropolis" || s.isCapital) {
-        markerSvg = `
-          <rect x="-8" y="-8" width="16" height="16" fill="${theme.settlementFill}" stroke="${theme.settlementStroke}" stroke-width="1.8" />
-          <polygon points="0,-14 -9,-7 9,-7" fill="${theme.settlementStroke}" />
-          <circle cx="0" cy="0" r="3" fill="#ffffff" />
-        `;
-      } else if (s.type === "city" || s.hasWalls) {
-        markerSvg = `
-          <polygon points="0,-10 -8,5 8,5" fill="${theme.settlementFill}" stroke="${theme.settlementStroke}" stroke-width="1.4" />
-          <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
-        `;
-      } else if (s.type === "town") {
-        markerSvg = `
-          <circle cx="0" cy="0" r="5.5" fill="${theme.settlementFill}" stroke="${theme.settlementStroke}" stroke-width="1.6" />
-          <circle cx="0" cy="0" r="2" fill="#ffffff" />
-        `;
-      } else {
-        markerSvg = `<circle cx="0" cy="0" r="4" fill="${theme.settlementFill}" stroke="${theme.settlementStroke}" stroke-width="1.2" />`;
-      }
+      const markerSvg = renderSettlementIcon(s.type || s.group, {
+        theme,
+        isCapital: s.isCapital,
+        hasPort: s.hasPort,
+        hasWalls: s.hasWalls,
+        hasCitadel: s.hasCitadel
+      });
 
       return `
         <g class="settlement-symbol ${isSel ? "selected" : ""}" transform="translate(${x.toFixed(2)}, ${y.toFixed(2)})" data-kind="settlement" data-id="${s.id}">
           ${markerSvg}
-          ${isSel ? `<circle cx="0" cy="0" r="14" fill="none" stroke="#d4a373" stroke-width="2" />` : ""}
+          ${isSel ? `<circle cx="0" cy="-10" r="18" fill="none" stroke="#d4a373" stroke-width="2" stroke-dasharray="3,3" />` : ""}
           <text x="${offset[0].toFixed(2)}" y="${offset[1].toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="11" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
         </g>
       `;

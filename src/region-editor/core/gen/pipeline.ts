@@ -1,3 +1,4 @@
+import { normalizeSettlementType } from "../../render/styles/settlementIcons";
 import { createEmptyRegionDocument } from "../document";
 import type {
   Point,
@@ -427,7 +428,8 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     burgId: b.id,
     name: b.name,
     position: toLocal(b.point),
-    type: b.capital ? "city" : b.population > 2000 ? "town" : "village",
+    type: normalizeSettlementType(b.group, b.capital),
+    group: b.group,
     population: b.population,
     isCapital: b.capital,
     hasWalls: b.walls,

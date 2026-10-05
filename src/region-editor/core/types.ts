@@ -93,12 +93,27 @@ export interface RegionRoute {
   name?: string;
 }
 
+export type SettlementType =
+  | "capital"
+  | "city"
+  | "town"
+  | "village"
+  | "hamlet"
+  | "fort"
+  | "monastery"
+  | "caravanserai"
+  | "trading_post"
+  | "metropolis"
+  | "castle"
+  | "port";
+
 export interface RegionSettlement {
   id: string;
   burgId?: number;
   name: string;
   position: Point;
-  type: "metropolis" | "city" | "town" | "village" | "castle" | "port";
+  type: SettlementType;
+  group?: string;
   population?: number;
   isCapital?: boolean;
   hasWalls?: boolean;
@@ -251,6 +266,7 @@ export interface RegionSiteDescriptor {
     port: boolean;
     walls: boolean;
     citadel: boolean;
+    group?: string;
   }>;
   roads: Array<{
     routeId: number;

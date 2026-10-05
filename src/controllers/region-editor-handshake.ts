@@ -103,7 +103,8 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
         capital: Boolean(b.capital),
         port: Boolean(b.port),
         walls: Boolean(b.walls),
-        citadel: Boolean(b.citadel)
+        citadel: Boolean(b.citadel),
+        group: b.group || (b.capital ? "capital" : b.population && b.population > 5 ? "city" : "town")
       });
     }
   }
