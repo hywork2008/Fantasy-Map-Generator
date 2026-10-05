@@ -222,3 +222,41 @@ export function renderWetlandMarks(wetlands: RegionBiomeArea[], strokeColor: str
   return `<path class="wetland-reeds" d="${reeds.join("")}" fill="none" stroke="${strokeColor}" stroke-width="0.55" stroke-linecap="round" opacity="0.9" />
     <path class="wetland-dashes" d="${dashes.join("")}" fill="none" stroke="#5f8691" stroke-width="0.4" stroke-linecap="round" opacity="0.7" />`;
 }
+
+export type RenderQuality = "low" | "high";
+export const DEFAULT_RENDER_QUALITY: RenderQuality = "low";
+
+/**
+ * 低品質: 樹冠を 1 本ずつ描く代わりに、同じ見た目を繰り返しタイルにして塗る。
+ * 要素数がセル数・ズームに依存せず、ブラウザのタイル再利用で再描画が軽い。
+ */
+export function forestCrownPattern(kind: ForestKind, colors: ForestCanopyColors): string {
+  const r = CROWN_RADIUS[kind];
+  const w = r * 3.7;
+  const h = w * 0.86;
+  const spots: Array<[number, number, number]> = [
+    [w * 0.25, h * 0.25, 1],
+    [w * 0.75, h * 0.25, 0.9],
+    [w * 0.5, h * 0.75, 1.05],
+    [0, h * 0.75, 0.92],
+    [w, h * 0.75, 0.92]
+  ];
+  const base = colors[kind];
+  const shape = (x: number, y: number, k: number, i: number) =>
+    kind === "coniferous" ? spikyCrown(x, y, r * k, i) : lobedCrown(x, y, r * k, kind === "tropical" ? 9 : 7, i);
+  const shadows = spots.map(([x, y, k]) => ellipse(x + r * 0.35, y + r * 0.55, r * k * 1.05, r * k * 0.8)).join("");
+  const bodies = spots.map(([x, y, k], i) => shape(x, y, k, i * 1.3)).join("");
+  const lights = spots.map(([x, y, k]) => ellipse(x - r * 0.3, y - r * 0.34, r * k * 0.42, r * k * 0.34)).join("");
+  return `<pattern id="re-forest-crowns-${kind}" width="${f1(w)}" height="${f1(h)}" patternUnits="userSpaceOnUse">
+      <path d="${shadows}" fill="${colors.shadow}" opacity="0.4" />
+      <path d="${bodies}" fill="${base}" stroke="${colors.stroke}" stroke-width="0.25" stroke-opacity="0.55" />
+      <path d="${lights}" fill="${colors.highlight}" opacity="0.38" />
+    </pattern>`;
+}
+
+/** 低品質の湿地記号タイル（葦と水面の横線）。 */
+export function wetlandMarkPattern(strokeColor: string): string {
+  return `<pattern id="re-wetland-marks" width="11" height="9" patternUnits="userSpaceOnUse">
+      <path d="M2 7l-.4-3.2M2 7l.1-4M2 7l.8-3.4M8 3.5h3M7 6h2" fill="none" stroke="${strokeColor}" stroke-width="0.5" stroke-linecap="round" opacity="0.85" />
+    </pattern>`;
+}

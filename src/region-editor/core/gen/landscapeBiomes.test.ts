@@ -223,4 +223,32 @@ describe("catalog biome visuals", () => {
     expect(resolveCellLandscape("Flooded forest & riparian woodland", 50, false).kind).toBe("deciduous_forest");
     expect(resolveCellLandscape("Temperate rainforest", 50, false).kind).toBe("deciduous_forest");
   });
+
+  it("paints cells outside the frame with the FMG colour only", () => {
+    const square = (x: number): [number, number][] => [
+      [x, 0],
+      [x + 10, 0],
+      [x + 10, 10],
+      [x, 10]
+    ];
+    const definition = STANDARD_BIOME_DEFINITIONS.find(d => d.key === "temperateDeciduousForest");
+    const base = {
+      biomeId: 1,
+      biomeName: "Temperate deciduous forest",
+      elevationMeters: 100,
+      height: 40,
+      forestCover: 1
+    };
+    const cells: RegionSiteCell[] = [
+      { ...base, point: [5, 5], polygon: square(0) },
+      { ...base, point: [105, 5], polygon: square(100) }
+    ];
+    const withDef = cells.map(c => ({ ...c, biomeDefinition: definition }));
+    const { biomes, symbols } = buildLandscapeFromCells(withDef, p => p, "frame-test", 1000, { width: 50, height: 50 });
+    expect(biomes[0].forestPolygons).toBeDefined();
+    expect(biomes[1].forestPolygons).toBeUndefined();
+    expect(biomes[1].wetlandPatches).toBeUndefined();
+    expect(biomes[1].color).toBe(definition?.color);
+    expect(symbols.every(s => s.x < 50)).toBe(true);
+  });
 });

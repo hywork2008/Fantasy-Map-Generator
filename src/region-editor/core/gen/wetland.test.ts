@@ -104,9 +104,13 @@ describe("wetland mosaics", () => {
     const landscape = buildLandscapeFromCells([{ ...wide, biomeName: "Wetland" }], p => p, "wetland-test", 1000);
     const doc = createEmptyRegionDocument();
     doc.biomes = landscape.biomes;
-    const svg = renderRegionSvg(doc);
+    const svg = renderRegionSvg(doc, null, { quality: "high" });
     expect(svg).toContain('class="wetland-reeds"');
     expect(svg).toContain('class="wetland-bank"');
-    expect(renderRegionSvg(doc)).toBe(svg);
+    expect(renderRegionSvg(doc, null, { quality: "high" })).toBe(svg);
+    const low = renderRegionSvg(doc);
+    expect(low).toContain('fill="url(#re-wetland-marks)"');
+    expect(low).not.toContain('class="wetland-bank"');
+    expect(low.length).toBeLessThan(svg.length);
   });
 });

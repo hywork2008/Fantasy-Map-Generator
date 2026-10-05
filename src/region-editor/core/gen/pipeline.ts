@@ -465,7 +465,11 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
       descriptor.cells,
       toLocal,
       descriptor.sourceSeed,
-      descriptor.metersPerMapUnit
+      descriptor.metersPerMapUnit,
+      {
+        width: doc.bounds.widthMeters / doc.bounds.metersPerUnit,
+        height: doc.bounds.heightMeters / doc.bounds.metersPerUnit
+      }
     );
     doc.biomes = landscape.biomes;
     doc.symbols = landscape.symbols;

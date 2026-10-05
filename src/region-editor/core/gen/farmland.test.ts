@@ -42,6 +42,17 @@ describe("regional farmland", () => {
         requiredFieldAreaHectares(103, 450) * 1.1
       );
   });
+  it("draws no fields for cells outside the map frame", () => {
+    const { doc, site } = fixture(1000, 103);
+    site.cells[0].polygon = [
+      [-500, -500],
+      [-400, -500],
+      [-400, -400],
+      [-500, -400]
+    ];
+    generateFarmland(doc, site, p => p);
+    expect(doc.landUse?.patches.some(p => p.kind === "cultivation") ?? false).toBe(false);
+  });
   it("does not clear dry forests without accessible water or zero population", () => {
     const { doc, site } = fixture(0);
     generateFarmland(doc, site, p => p);

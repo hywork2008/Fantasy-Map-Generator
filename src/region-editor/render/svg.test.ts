@@ -195,7 +195,14 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
         }
       ];
 
-      const svg = renderRegionSvg(doc);
+      const svg = renderRegionSvg(doc, null, { quality: "high" });
+
+      // 低品質（デフォルト）はタイル描画で、樹冠を1本ずつは描かない
+      const low = renderRegionSvg(doc);
+      expect(low).toContain('id="re-forest-crowns-deciduous"');
+      expect(low).toContain('class="forest-pattern-overlay"');
+      expect(low).not.toContain('class="forest-crown"');
+      expect(low).not.toContain("re-wetland-bank");
 
       // 1. 森林レイヤー・林床・樹冠（影/本体/陰影/ハイライト）が存在すること
       expect(svg).toContain('id="layer-forests"');

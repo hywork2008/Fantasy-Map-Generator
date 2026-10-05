@@ -4,7 +4,16 @@ import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { pointInPolygon } from "../core/geometry";
 import type { Point, RegionDocument } from "../core/types";
-import { forestKindOf, mixHex, renderForestCrowns, renderWetlandMarks } from "./biomeArt";
+import {
+  DEFAULT_RENDER_QUALITY,
+  forestCrownPattern,
+  forestKindOf,
+  mixHex,
+  type RenderQuality,
+  renderForestCrowns,
+  renderWetlandMarks,
+  wetlandMarkPattern
+} from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
@@ -111,9 +120,10 @@ export function createCurvedRiverPolygon(
 export function renderRegionSvg(
   doc: RegionDocument,
   selectedId?: string | null,
-  options: { zoom?: number } = {}
+  options: { zoom?: number; quality?: RenderQuality } = {}
 ): string {
   const zoom = options.zoom ?? 1;
+  const highQuality = (options.quality ?? DEFAULT_RENDER_QUALITY) === "high";
   const detail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
   const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
   const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
@@ -200,6 +210,7 @@ export function renderRegionSvg(
         ${routesClearing}
         ${landUseClearing}
       </mask>
+      ${highQuality ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors)).join("\n")}
     `;
 
     // 林床: 樹冠の隙間から見える暗い地面。継ぎ目が出ないよう同色の細い縁取りで塗り潰す
@@ -216,7 +227,16 @@ export function renderRegionSvg(
     forestLayer = `
       <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)">
         <g class="re-forest-floor">${forestCells}</g>
-        ${renderForestCrowns(forestBiomes, canopyColors, detail)}
+        ${
+          highQuality
+            ? renderForestCrowns(forestBiomes, canopyColors, detail)
+            : forestBiomes
+                .map(
+                  b =>
+                    `<path class="forest-pattern-overlay" d="${(b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ")}" fill="url(#re-forest-crowns-${forestKindOf(b.kind)})" />`
+                )
+                .join("\n")
+        }
       </g>
     `;
   }
@@ -242,12 +262,16 @@ export function renderRegionSvg(
         <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.05 0" />
         <feBlend mode="multiply" in="SourceGraphic" />
       </filter>
-      <filter id="re-wetland-bank" x="-2%" y="-2%" width="104%" height="104%">
+      ${
+        highQuality
+          ? `<filter id="re-wetland-bank" x="-2%" y="-2%" width="104%" height="104%">
         <feMorphology operator="dilate" radius="0.8" in="SourceAlpha" result="bank" />
         <feFlood flood-color="${mixHex(theme.riverFill, "#2f3d2a", 0.45)}" result="bankColor" />
         <feComposite in="bankColor" in2="bank" operator="in" result="rim" />
         <feMerge><feMergeNode in="rim" /><feMergeNode in="SourceGraphic" /></feMerge>
-      </filter>
+      </filter>`
+          : wetlandMarkPattern("#4f6b3a")
+      }
       ${forestDefs}
     </defs>
   `;
@@ -278,13 +302,18 @@ export function renderRegionSvg(
       const d = patchPath(kind);
       if (!d) return "";
       if (kind === "water") {
-        return `<g class="wetland-bank" filter="url(#re-wetland-bank)"><path class="wetland-water" d="${d}" fill="${theme.riverFill}" stroke="${theme.riverFill}" stroke-width="0.3" stroke-linejoin="round" /></g>`;
+        const water = `<path class="wetland-water" d="${d}" fill="${theme.riverFill}" stroke="${theme.riverFill}" stroke-width="0.3" stroke-linejoin="round" />`;
+        return highQuality ? `<g class="wetland-bank" filter="url(#re-wetland-bank)">${water}</g>` : water;
       }
       const color = kind === "sand" ? "#dfc99a" : "#8c8262";
       return `<path class="wetland-${kind}" d="${d}" fill="${color}" stroke="${color}" stroke-width="0.3" stroke-linejoin="round" />`;
     })
     .join("\n");
-  const wetlandMarks = renderWetlandMarks(wetlandBiomes, "#4f6b3a");
+  const wetlandMarks = highQuality
+    ? renderWetlandMarks(wetlandBiomes, "#4f6b3a")
+    : wetlandBiomes
+        .map(b => `<path class="wetland-reeds" d="${polyToSvgPath(b.polygon)}" fill="url(#re-wetland-marks)" />`)
+        .join("\n");
 
   // 3.5. 等高線レイヤー（Elevation Contours）
   let contoursLayer = "";

@@ -26,6 +26,7 @@ import {
 } from "../core/types";
 import { loadIncomingRegionFromStorage } from "../io/incomingRegion";
 import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionEditorFile";
+import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { renderRegionSvg } from "../render/svg";
 
 export type EditorTool = "select" | "brush" | "stamp" | "settlement" | "landmark" | "erase";
@@ -50,6 +51,15 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
 
   let selectedId: string | null = null;
   let selectedKind: "settlement" | "landmark" | "symbol" | "route" | "river" | null = null;
+
+  // 描画品質（表示のみの設定。文書には保存しない）
+  const QUALITY_KEY = "re.renderQuality";
+  let quality: RenderQuality = DEFAULT_RENDER_QUALITY;
+  try {
+    if (localStorage.getItem(QUALITY_KEY) === "high") quality = "high";
+  } catch {
+    // localStorage が使えない環境ではデフォルトのまま
+  }
 
   // ビューポート状態
   let zoom = 0.85;
@@ -123,6 +133,13 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
               <option value="perilous" ${history.current.decoration.theme === "perilous" ? "selected" : ""}>Perilous Shores (Watabou ペン画)</option>
               <option value="parchment" ${history.current.decoration.theme === "parchment" ? "selected" : ""}>Antique Parchment (羊皮紙調)</option>
               <option value="monochrome" ${history.current.decoration.theme === "monochrome" ? "selected" : ""}>Monochrome (白黒)</option>
+            </select>
+          </div>
+          <div class="re-form-row">
+            <label>描画品質 (Quality)</label>
+            <select class="re-select" id="select-quality">
+              <option value="low" ${quality === "low" ? "selected" : ""}>低（高速・タイル描画）</option>
+              <option value="high" ${quality === "high" ? "selected" : ""}>高（樹冠を1本ずつ描画）</option>
             </select>
           </div>
         </section>
@@ -236,7 +253,7 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
 
   function renderMap(): void {
     const doc = history.current;
-    svgLayer.innerHTML = renderRegionSvg(doc, selectedId, { zoom });
+    svgLayer.innerHTML = renderRegionSvg(doc, selectedId, { zoom, quality });
     const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
     const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
     canvas.style.width = `${widthUnits}px`;
@@ -855,6 +872,17 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
     renderMap();
   });
 
+  // 描画品質切り替え
+  root.querySelector("#select-quality")?.addEventListener("change", e => {
+    quality = (e.target as HTMLSelectElement).value === "high" ? "high" : "low";
+    try {
+      localStorage.setItem(QUALITY_KEY, quality);
+    } catch {
+      // 保存できなくても動作には影響しない
+    }
+    renderMap();
+  });
+
   // 等高線表示切り替え
   root.querySelector("#check-show-contours")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
@@ -883,7 +911,7 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
 
   // PNG エクスポート
   root.querySelector("#btn-export-png")?.addEventListener("click", () => {
-    const svgStr = renderRegionSvg(history.current);
+    const svgStr = renderRegionSvg(history.current, null, { quality: "high" });
     const img = new Image();
     const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);

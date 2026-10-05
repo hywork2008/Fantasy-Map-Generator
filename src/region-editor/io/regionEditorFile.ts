@@ -9,7 +9,7 @@ export function exportRegionJson(doc: RegionDocument): void {
 }
 
 export function exportRegionSvg(doc: RegionDocument): void {
-  const svgStr = renderRegionSvg(doc);
+  const svgStr = renderRegionSvg(doc, null, { quality: "high" });
   const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
   downloadBlob(blob, `${slugify(doc.title)}.svg`);
 }

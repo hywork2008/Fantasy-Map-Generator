@@ -1,6 +1,6 @@
 import { BASE_NET_YIELD_KG_PER_SOWN_HECTARE, planSettlementLandUse } from "../../../generators/settlementClearance";
 import type { CellLandUseBudget } from "../../../types/landUse";
-import { pointInPolygon } from "../geometry";
+import { pointInPolygon, polygonOverlapsFrame } from "../geometry";
 import type { Point, RegionDocument, RegionLandUsePatch, RegionSiteDescriptor } from "../types";
 import {
   approximateSlope,
@@ -125,6 +125,11 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
   const cropNoiseCache = new Map<number, (x: number, y: number) => number>();
   for (const cell of cells) {
     if (!cell.polygon?.length || cell.isWater) continue;
+    // 描画枠（Scalebar のある枠）の外のセルには畑を作らない
+    if (
+      !polygonOverlapsFrame(cell.polygon.map(toLocal), doc.bounds.widthMeters / scale, doc.bounds.heightMeters / scale)
+    )
+      continue;
     const id = cell.sourceCellId ?? site.cells.indexOf(cell);
     const budget = cell.landUse ?? legacy?.cells[id];
     if (!budget) continue;

@@ -102,3 +102,18 @@ export function pointInPolygon(point: Point, vs: Point[]): boolean {
   }
   return inside;
 }
+
+/** ポリゴンの外接矩形が、原点基準の枠 (0,0)-(width,height) と重なるか。 */
+export function polygonOverlapsFrame(poly: Point[], width: number, height: number): boolean {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of poly) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return maxX >= 0 && minX <= width && maxY >= 0 && minY <= height;
+}

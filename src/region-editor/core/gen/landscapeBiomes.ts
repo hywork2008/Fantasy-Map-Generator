@@ -1,5 +1,6 @@
 import { STANDARD_BIOME_DEFINITIONS } from "../../../data/biomeCatalog";
 import type { BiomeDefinition, StandardBiomeKey } from "../../../types/biome";
+import { polygonOverlapsFrame } from "../geometry";
 import type { BiomeKind, Point, RegionBiomeArea, RegionSiteCell, RegionSymbol, SymbolType } from "../types";
 import { clipConvex, landscapeNoise, polygonArea, rectangle } from "./landUseGeometry";
 import { makeRng } from "./prng";
@@ -277,7 +278,9 @@ export function buildLandscapeFromCells(
   cells: RegionSiteCell[],
   toLocal: (p: Point) => Point,
   seed: string,
-  metersPerMapUnit = 1000
+  metersPerMapUnit = 1000,
+  /** 描画枠（Scalebar のある枠）のローカル寸法。枠外のセルは FMG 色の塗りだけにする */
+  frame?: { width: number; height: number }
 ): { biomes: RegionBiomeArea[]; symbols: RegionSymbol[] } {
   const biomes: RegionBiomeArea[] = [];
   const symbols: RegionSymbol[] = [];
@@ -304,6 +307,18 @@ export function buildLandscapeFromCells(
     // 1. バイオーム面（ポリゴン）の生成
     if (cell.polygon && cell.polygon.length >= 3) {
       const localPoly = cell.polygon.map(toLocal);
+      if (frame && !polygonOverlapsFrame(localPoly, frame.width, frame.height)) {
+        // 枠外: 等高線の文脈用に取り込んだだけのセル。FMG と同色で塗るのみ（樹冠・湿地・シンボルは作らない）
+        biomes.push({
+          id: `bio-cell-${stableId}`,
+          kind: landscape.kind,
+          polygon: localPoly,
+          color: landscape.isWater ? landscape.fillColor : (definition?.color ?? landscape.fillColor),
+          isWater: landscape.isWater,
+          terrainKind: terrain.kind
+        });
+        continue;
+      }
       biomes.push({
         id: `bio-cell-${stableId}`,
         kind: landscape.kind,
