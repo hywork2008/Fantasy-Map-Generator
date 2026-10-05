@@ -1,5 +1,13 @@
 import type { CellLandUseBudget, LandUsePatchBudget, LandUseSnapshot } from "../types/landUse";
-import { clipConvex, landscapeNoise, polygonArea, rectangle, subtractConvex, trimToArea } from "./landUseGeometry";
+import {
+  clipConvex,
+  createFieldNoise,
+  landscapeNoise,
+  polygonArea,
+  rectangle,
+  subtractConvex,
+  trimToArea
+} from "./landUseGeometry";
 import type { ClearanceCellInput } from "./settlementClearance";
 
 type Point = [number, number];
@@ -167,6 +175,10 @@ export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget
     }
   const noise = (p: Point) =>
     landscapeNoise((p[0] * Math.sqrt(areaScale) * 100) / 5000, (p[1] * Math.sqrt(areaScale) * 100) / 5000, seed);
+  const metersPerUnit = Math.sqrt(areaScale) * 100;
+  // World-coherent (no per-cell salt) so neighbouring cells of similar size continue the same clusters.
+  const cropNoise = createFieldNoise(`${seed}:crop-layout`, 2 ** Math.round(Math.log2(step * metersPerUnit * 3)));
+  const fieldNoise = (p: Point) => cropNoise(p[0] * metersPerUnit, p[1] * metersPerUnit);
   const contour = (poly: Point[], threshold: number): Point[] => {
     const output: Point[] = [];
     for (let i = 0; i < poly.length; i++) {
@@ -208,7 +220,9 @@ export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget
     const center = poly.reduce((s, p) => [s[0] + p[0] / poly.length, s[1] + p[1] / poly.length] as Point, [
       0, 0
     ] as Point);
-    return Math.hypot(center[0] - input.anchor[0], center[1] - input.anchor[1]) + noise(center) * step * 3;
+    // Distance only biases toward the settlement; coherent noise at roughly 3/8 cell width decides the
+    // cluster pattern, so crops form irregular lumps instead of a disc around the cell centre.
+    return Math.hypot(center[0] - input.anchor[0], center[1] - input.anchor[1]) + (1 - fieldNoise(center)) * step * 6;
   };
   open.sort((a, b) => priority(a) - priority(b));
   forest.sort((a, b) => priority(a) - priority(b));

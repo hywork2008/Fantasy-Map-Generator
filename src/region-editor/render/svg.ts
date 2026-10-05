@@ -24,6 +24,16 @@ function polyToSvgPath(points: Point[], closed = true): string {
   return closed ? `${d} Z` : d;
 }
 
+const FIELD_TONES = ["#d9c56b", "#cdbb5f", "#bfc266", "#d3b66b", "#b0bd63", "#c6aa62"];
+const MEADOW_TONES = ["#bbc58e", "#b3c088", "#c2c994", "#aebe87"];
+const FIELD_ANGLES = [8, 31, 57, 84, 112, 146];
+/** Stable per-patch variation so neighbouring fields differ without any randomness at render time. */
+function patchVariant(id: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619);
+  return hash >>> 0;
+}
+
 /**
  * FMG準拠のベジェ曲線（Catmull-Rom スプライン）による街道経路SVGパスを生成
  */
@@ -608,35 +618,44 @@ export function renderRegionSvg(
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
       <defs>
-        <pattern id="re-field-detail" width="${detail === 2 ? 8 : 14}" height="${detail === 2 ? 10 : 14}" patternUnits="userSpaceOnUse" patternTransform="rotate(23)">
-          <path d="M0 0V${detail === 2 ? 10 : 14}" stroke="#75834b" stroke-width="${detail === 0 ? 0.6 : 1}" opacity="0.65" />
-          <path d="M2 0V${detail === 2 ? 10 : 14}" stroke="#ead47b" stroke-width="${detail === 0 ? 1 : 2}" opacity="0.8" />
-          ${detail === 2 ? '<path d="M5 9V3m0 4L3 5m2 0L3 3m2 4l2-2m-2 0l2-2m-2 0V1" fill="none" stroke="#786535" stroke-width="0.55" stroke-linecap="round" />' : ""}
-        </pattern>
+        ${FIELD_ANGLES.map(
+          (
+            angle,
+            i
+          ) => `<pattern id="re-field-${i}" width="${detail === 2 ? 1.8 : 3}" height="${detail === 2 ? 1.8 : 3}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})">
+          <rect width="${detail === 2 ? 1.8 : 3}" height="${detail === 2 ? 0.7 : 1.2}" fill="#5f6b32" opacity="${detail === 0 ? 0.12 : 0.22}" />
+        </pattern>`
+        ).join("\n")}
         ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
       </defs>
       <g id="layer-land-use" data-detail-level="${detail}">${(doc.landUse?.patches ?? [])
         .map(p => {
           const path = polyToSvgPath(p.polygon);
+          const variant = patchVariant(p.id);
           const color =
             p.kind === "built"
               ? "#d6c3a2"
               : p.kind === "cultivation"
-                ? "#c5bd70"
+                ? FIELD_TONES[variant % FIELD_TONES.length]
                 : p.kind === "hay_meadow"
                   ? "#c8ce99"
                   : p.kind === "pasture"
-                    ? "#bbc58e"
+                    ? MEADOW_TONES[variant % MEADOW_TONES.length]
                     : p.kind === "abandoned"
                       ? "#aabb94"
                       : "#b5c595";
           const texture =
             p.kind === "cultivation"
-              ? "re-field-detail"
+              ? `re-field-${(variant >> 3) % FIELD_ANGLES.length}`
               : detail > 0 && ["agroforestry", "wood_pasture", "managed_forest"].includes(p.kind)
                 ? "re-sparse-trees"
                 : undefined;
-          return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}" stroke="${p.kind === "cultivation" ? "#7c874e" : "#aaae85"}" stroke-width="${detail > 0 ? 0.3 : 0}" />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
+          // Hedgerows keep a constant screen width so individual fields stay legible at any zoom.
+          const hedge =
+            detail > 0
+              ? ` stroke="${p.kind === "cultivation" ? "#7d8447" : "#aaae85"}" stroke-width="0.6" stroke-opacity="0.75" stroke-linejoin="round" vector-effect="non-scaling-stroke"`
+              : "";
+          return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}"${hedge} />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
         })
         .join("\n")}</g>
       <g id="layer-forests">${forestLayer}</g>

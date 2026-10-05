@@ -199,3 +199,36 @@ export function approximateSlope(
     }
   return found ? result : undefined;
 }
+
+function hashSeed(seed: string): number {
+  let hash = 2166136261;
+  for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return hash >>> 0;
+}
+function latticeValue(ix: number, iy: number, salt: number): number {
+  let n = Math.imul(ix, 374761393) ^ Math.imul(iy, 668265263) ^ salt;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function smoothValueNoise(x: number, y: number, salt: number): number {
+  const ix = Math.floor(x),
+    iy = Math.floor(y);
+  const fx = x - ix,
+    fy = y - iy;
+  const sx = fx * fx * (3 - 2 * fx),
+    sy = fy * fy * (3 - 2 * fy);
+  const top = latticeValue(ix, iy, salt) * (1 - sx) + latticeValue(ix + 1, iy, salt) * sx;
+  const bottom = latticeValue(ix, iy + 1, salt) * (1 - sx) + latticeValue(ix + 1, iy + 1, salt) * sx;
+  return top * (1 - sy) + bottom * sy;
+}
+/**
+ * Spatially coherent two-octave noise in [0, 1] for land-use layout, in world metres.
+ * `wavelength` is the size of the largest features, so unlike landscapeNoise it varies inside one cell.
+ */
+export function createFieldNoise(seed: string, wavelength: number): (xMeters: number, yMeters: number) => number {
+  const salt = hashSeed(seed);
+  const fine = wavelength / 2.7;
+  return (x, y) =>
+    smoothValueNoise(x / wavelength, y / wavelength, salt) * 0.65 +
+    smoothValueNoise(x / fine, y / fine, salt ^ 0x9e3779b9) * 0.35;
+}

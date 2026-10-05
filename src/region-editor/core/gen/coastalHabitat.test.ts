@@ -9,8 +9,10 @@ describe("FMG coastal habitats in RE", () => {
   it("preserves ocean edges and habitat through generation and SVG rendering, excluding lakes", () => {
     const originalPack = worldContext.pack;
     const originalBiomes = worldContext.biomesData;
+    const originalGrid = worldContext.grid;
     try {
       worldContext.biomesData = { name: ["Water", "Grassland"] } as any;
+      worldContext.grid = { cells: {}, points: [] } as any;
       worldContext.pack = {
         provinces: [undefined, { i: 1, name: "Coast", state: 0, center: 0 }],
         states: [],
@@ -39,6 +41,7 @@ describe("FMG coastal habitats in RE", () => {
           ],
           c: [[1, 2], [0], [0]],
           h: [25, 10, 10],
+          r: [],
           f: [0, 1, 2],
           v: [
             [0, 1, 2, 3],
@@ -71,6 +74,7 @@ describe("FMG coastal habitats in RE", () => {
     } finally {
       worldContext.pack = originalPack;
       worldContext.biomesData = originalBiomes;
+      worldContext.grid = originalGrid;
     }
   });
 });

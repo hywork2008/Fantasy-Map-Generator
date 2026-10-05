@@ -86,6 +86,47 @@ describe("land-use detail contract", () => {
     expect(JSON.stringify(doc.landUse)).toBe(before);
     expect(snapshot.cells[7].patches.find(p => p.kind === "cultivation")!.polygons).toContainEqual(crop);
   });
+  it("lays fields out as irregular parcels that favour roads instead of one disc at the cell centre", () => {
+    const { doc, site } = fixture();
+    const snapshot = planSettlementLandUse(
+      [
+        {
+          id: 7,
+          anchor: [50, 50],
+          physicalLandAreaHa: 10000,
+          forestCover: 0,
+          ruralPeople: 600,
+          urbanPeople: 0,
+          cultivableAreaHa: 8000,
+          yieldKgPerSownHa: 450
+        }
+      ],
+      { seed: "world", year: 100 }
+    );
+    site.cells[0].landUse = snapshot.cells[7];
+    doc.settlements = [];
+    doc.routes = [
+      {
+        id: "road",
+        kind: "road",
+        points: [
+          [0, 20],
+          [100, 20]
+        ]
+      }
+    ];
+    generateFarmland(doc, site, p => p);
+    const crops = doc.landUse!.patches.filter(p => p.kind === "cultivation");
+    expect(crops.length).toBeGreaterThan(10);
+    expect(crops.reduce((s, p) => s + p.areaHa, 0)).toBeCloseTo(snapshot.cells[7].allocatedAreaHa, 6);
+    const centroid = (poly: Point[]) => poly.reduce((s, p) => s + p[1] / poly.length, 0);
+    const meanRoadDistance = crops.reduce((s, p) => s + Math.abs(centroid(p.polygon) - 20), 0) / crops.length;
+    // A uniform scatter over this cell averages ~34 units from the road.
+    expect(meanRoadDistance).toBeLessThan(22);
+    const corners = crops.map(p => p.polygon.length);
+    expect(corners.filter(n => n >= 5).length).toBeGreaterThan(crops.length / 3);
+    expect(new Set(crops.map(p => p.id)).size).toBe(crops.length);
+  });
   it("uses supplied budgets without recalculating food, yield or rainfall", () => {
     const { doc, site } = fixture();
     site.cells[0].annualPrecipitationMm = 0;

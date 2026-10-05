@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import { generateFromFmgDescriptor } from "../region-editor/core/gen/pipeline";
 import type { Province } from "../types/models";
@@ -8,6 +8,9 @@ describe("buildRegionSiteDescriptor", () => {
   const originalGrid = worldContext.grid;
   const originalPopulationRate = worldContext.populationRate;
   const originalUrbanization = worldContext.urbanization;
+  beforeEach(() => {
+    worldContext.grid = { cells: {}, points: [] } as unknown as typeof worldContext.grid;
+  });
   afterEach(() => {
     worldContext.grid = originalGrid;
     worldContext.populationRate = originalPopulationRate;
@@ -17,7 +20,7 @@ describe("buildRegionSiteDescriptor", () => {
     worldContext.pack = {
       provinces: [],
       states: [],
-      cells: { i: [], p: [], c: [], h: [], province: [], state: [], biomeCode: [] },
+      cells: { i: [], p: [], c: [], h: [], r: [], province: [], state: [], biomeCode: [] },
       burgs: [],
       rivers: []
     } as any;
@@ -69,7 +72,8 @@ describe("buildRegionSiteDescriptor", () => {
         h: [25, 30, 80, 85],
         province: [1, 1, 2, 2],
         state: [1, 1, 1, 1],
-        biomeCode: [1, 1, 4, 4]
+        biomeCode: [1, 1, 4, 4],
+        r: []
       },
       burgs: [],
       rivers: []
@@ -282,7 +286,8 @@ describe("buildRegionSiteDescriptor", () => {
         h: [20],
         province: [1],
         state: [1],
-        biomeCode: [1]
+        biomeCode: [1],
+        r: []
       },
       burgs: [
         undefined,

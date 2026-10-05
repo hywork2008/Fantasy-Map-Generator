@@ -4,6 +4,7 @@ import type { Point } from "../types";
 export {
   approximateSlope,
   clipConvex,
+  createFieldNoise,
   landscapeNoise,
   lineBuffer,
   polygonArea,
