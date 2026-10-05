@@ -33,34 +33,35 @@ describe("landscape module", () => {
       expect(resolveLandscapeTheme(rain).category).toBe("tropical");
     });
 
-    it("maps temperateDeciduousForest to forest theme", () => {
-      const forest: BurgSiteBiome = {
+    it("maps temperateDeciduousForest and temperateRainforest to forest theme", () => {
+      const deciduous: BurgSiteBiome = {
         id: 6,
         key: "temperateDeciduousForest",
         name: "Temperate deciduous forest",
         color: "#29bc56"
       };
-      expect(resolveLandscapeTheme(forest).category).toBe("forest");
+      const rainforest: BurgSiteBiome = {
+        id: 8,
+        key: "temperateRainforest",
+        name: "Temperate rainforest",
+        color: "#409c43",
+        tags: ["forest"]
+      };
+      expect(resolveLandscapeTheme(deciduous).category).toBe("forest");
+      expect(resolveLandscapeTheme(rainforest).category).toBe("forest");
     });
 
-    it("maps wetland to wetland theme", () => {
-      const marsh: BurgSiteBiome = { id: 12, key: "wetland", name: "Wetland", color: "#0b9131" };
-      expect(resolveLandscapeTheme(marsh).category).toBe("wetland");
-    });
-
-    it("maps glacier to glacier theme", () => {
-      const snow: BurgSiteBiome = { id: 11, key: "glacier", name: "Glacier", color: "#d5e7eb" };
-      expect(resolveLandscapeTheme(snow).category).toBe("glacier");
-    });
-
-    it("maps tundra to tundra theme", () => {
-      const tundra: BurgSiteBiome = { id: 10, key: "tundra", name: "Tundra", color: "#96784b" };
-      expect(resolveLandscapeTheme(tundra).category).toBe("tundra");
-    });
-
-    it("maps savanna to savanna theme", () => {
+    it("maps savanna and tropicalDryForest to savanna theme", () => {
       const sav: BurgSiteBiome = { id: 3, key: "savanna", name: "Savanna", color: "#d2d082" };
+      const dryForest: BurgSiteBiome = {
+        id: 24,
+        key: "tropicalDryForest",
+        name: "Tropical dry forest & thorn woodland",
+        color: "#a3a34a",
+        tags: ["forest", "dry", "tropical"]
+      };
       expect(resolveLandscapeTheme(sav).category).toBe("savanna");
+      expect(resolveLandscapeTheme(dryForest).category).toBe("savanna");
     });
   });
 

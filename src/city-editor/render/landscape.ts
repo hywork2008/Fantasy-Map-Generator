@@ -42,14 +42,123 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
   const name = (biome.name ?? "").toLowerCase();
   const tags = new Set(biome.tags ?? []);
 
-  // 1. Desert
-  if (
-    key === "hotDesert" ||
-    key === "coldDesert" ||
-    key === "xericShrubland" ||
-    tags.has("desert") ||
-    name.includes("desert")
-  ) {
+  // ── Step 1: Explicit mapping by standard / known biome key ─────────────────
+  if (key) {
+    switch (key) {
+      case "hotDesert":
+      case "coldDesert":
+      case "xericShrubland":
+        return {
+          category: "desert",
+          groundFill: "#e8ddba",
+          suburbFaceFill: "#e4d8b2",
+          featureDensity: 0.45,
+          label: biome.name
+        };
+      case "glacier":
+        return {
+          category: "glacier",
+          groundFill: "#d8e5e8",
+          suburbFaceFill: "#d2dfe3",
+          featureDensity: 0.35,
+          label: biome.name
+        };
+      case "tundra":
+      case "alpineTundra":
+        return {
+          category: "tundra",
+          groundFill: "#c9beaa",
+          suburbFaceFill: "#c4b8a3",
+          featureDensity: 0.4,
+          label: biome.name
+        };
+      case "taiga":
+      case "temperateConiferousForest":
+      case "montaneForest":
+        return {
+          category: "conifer",
+          groundFill: "#b5c4a7",
+          suburbFaceFill: "#afbfa0",
+          featureDensity: 0.75,
+          label: biome.name
+        };
+      case "savanna":
+      case "tropicalDryForest":
+        return {
+          category: "savanna",
+          groundFill: "#ded8aa",
+          suburbFaceFill: "#d8d1a1",
+          featureDensity: 0.5,
+          label: biome.name
+        };
+      case "tropicalRainforest":
+      case "tropicalSeasonalForest":
+      case "mangrove":
+      case "cloudForest":
+        return {
+          category: "tropical",
+          groundFill: "#b9cca0",
+          suburbFaceFill: "#b2c598",
+          featureDensity: 0.8,
+          label: biome.name
+        };
+      case "wetland":
+      case "borealPeatland":
+      case "floodedForest":
+        return {
+          category: "wetland",
+          groundFill: "#b4c5a5",
+          suburbFaceFill: "#adbe9e",
+          featureDensity: 0.65,
+          label: biome.name
+        };
+      case "temperateDeciduousForest":
+      case "temperateRainforest":
+      case "centralEuropeanGreatForest":
+        return {
+          category: "forest",
+          groundFill: "#c2d4ac",
+          suburbFaceFill: "#bbcda4",
+          featureDensity: 0.8,
+          label: biome.name
+        };
+      case "grassland":
+      case "coldSteppe":
+      case "heathMoorland":
+      case "mediterraneanWoodlandScrub":
+        return {
+          category: "grassland",
+          groundFill: "#d2dab2",
+          suburbFaceFill: "#ccd4aa",
+          featureDensity: 0.55,
+          label: biome.name
+        };
+    }
+  }
+
+  // ── Step 2: Fallback inference from tags and name (e.g. custom biomes) ──────
+  // Specific multi-word patterns before generic substrings
+  if (name.includes("temperate rainforest")) {
+    return {
+      category: "forest",
+      groundFill: "#c2d4ac",
+      suburbFaceFill: "#bbcda4",
+      featureDensity: 0.8,
+      label: biome.name
+    };
+  }
+
+  if (tags.has("savanna") || name.includes("savanna") || name.includes("dry forest")) {
+    return {
+      category: "savanna",
+      groundFill: "#ded8aa",
+      suburbFaceFill: "#d8d1a1",
+      featureDensity: 0.5,
+      label: biome.name
+    };
+  }
+
+  if (tags.has("desert") || name.includes("desert") || name.includes("dune")) {
     return {
       category: "desert",
       groundFill: "#e8ddba",
@@ -59,8 +168,7 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 2. Glacier & Ice field
-  if (key === "glacier" || tags.has("snow") || name.includes("glacier") || name.includes("snowfield")) {
+  if (tags.has("snow") || name.includes("glacier") || name.includes("snowfield")) {
     return {
       category: "glacier",
       groundFill: "#d8e5e8",
@@ -70,8 +178,7 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 3. Tundra & Alpine tundra
-  if (key === "tundra" || key === "alpineTundra" || name.includes("tundra")) {
+  if (name.includes("tundra")) {
     return {
       category: "tundra",
       groundFill: "#c9beaa",
@@ -81,14 +188,7 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 4. Taiga & Coniferous forest
-  if (
-    key === "taiga" ||
-    key === "temperateConiferousForest" ||
-    key === "montaneForest" ||
-    name.includes("taiga") ||
-    name.includes("coniferous")
-  ) {
+  if (name.includes("taiga") || name.includes("conifer") || name.includes("pine") || name.includes("spruce")) {
     return {
       category: "conifer",
       groundFill: "#b5c4a7",
@@ -98,14 +198,11 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 5. Tropical rainforest & Mangrove
   if (
-    key === "tropicalRainforest" ||
-    key === "tropicalSeasonalForest" ||
-    key === "mangrove" ||
-    key === "cloudForest" ||
     (tags.has("tropical") && tags.has("forest")) ||
-    name.includes("rainforest")
+    name.includes("tropical") ||
+    name.includes("rainforest") ||
+    name.includes("jungle")
   ) {
     return {
       category: "tropical",
@@ -116,26 +213,12 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 6. Savanna & Tropical dry forest
-  if (key === "savanna" || key === "tropicalDryForest" || tags.has("savanna") || name.includes("savanna")) {
-    return {
-      category: "savanna",
-      groundFill: "#ded8aa",
-      suburbFaceFill: "#d8d1a1",
-      featureDensity: 0.5,
-      label: biome.name
-    };
-  }
-
-  // 7. Wetland, Swamp & Boreal peatland
   if (
-    key === "wetland" ||
-    key === "borealPeatland" ||
-    key === "floodedForest" ||
     tags.has("wetland") ||
     name.includes("wetland") ||
     name.includes("peatland") ||
-    name.includes("swamp")
+    name.includes("swamp") ||
+    name.includes("marsh")
   ) {
     return {
       category: "wetland",
@@ -146,15 +229,7 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 8. Temperate deciduous forest & Great forest
-  if (
-    key === "temperateDeciduousForest" ||
-    key === "temperateRainforest" ||
-    key === "centralEuropeanGreatForest" ||
-    tags.has("forest") ||
-    name.includes("forest") ||
-    name.includes("woodland")
-  ) {
+  if (tags.has("forest") || name.includes("forest") || name.includes("woodland")) {
     return {
       category: "forest",
       groundFill: "#c2d4ac",
@@ -164,7 +239,6 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
     };
   }
 
-  // 9. Grassland, Steppe & Heath
   return {
     category: "grassland",
     groundFill: "#d2dab2",
