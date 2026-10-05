@@ -24,12 +24,15 @@ import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { editBurgGroups } from "./burg-group-editor";
+import { openCityEditorForBurg, stashCitySite } from "./city-editor-handshake";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
 import { showBurgTemperatureGraph } from "./temperature-graph";
+
+export { openCityEditorForBurg, stashCitySite };
 
 let _currentBurgId = 0;
 let cellsWasForced = false;
@@ -38,28 +41,6 @@ const burgFacilities: readonly BurgFacility[] = ["citadel", "walls", "plaza", "t
 
 function isBurgFacility(feature: string): feature is BurgFacility {
   return burgFacilities.includes(feature as BurgFacility);
-}
-
-/** Stash the burg's site descriptor for the City Generator / City Editor tab.
- * Keep the key in sync with `CITY_SITE_KEY` in city-generator/site/incomingSite.ts
- * and city-editor/io/incomingCity.ts. */
-function stashCitySite(): boolean {
-  const burgId = burgEditorInternal.getBurgId();
-  const descriptor = getBurgSiteDescriptor(burgId);
-  if (!descriptor) {
-    tip("Cannot build the site descriptor for this burg", false, "error");
-    return false;
-  }
-  try {
-    // window.open below spawns a fresh same-origin tab, which inherits a copy of
-    // this sessionStorage — so each burg's hand-off is independent and a reload
-    // of the city tab keeps showing the same burg.
-    sessionStorage.setItem("fmg.citySite", JSON.stringify(descriptor));
-    return true;
-  } catch {
-    tip("Could not stash the site descriptor (storage blocked)", false, "error");
-    return false;
-  }
 }
 
 export function editBurg(id?: number): void {
@@ -449,13 +430,14 @@ export const burgEditorActions = {
   },
 
   openCityGenerator(): void {
-    if (!stashCitySite()) return;
+    const burgId = burgEditorInternal.getBurgId();
+    if (!stashCitySite(burgId)) return;
     openURL(`${import.meta.env.BASE_URL}city/`);
   },
 
   openCityEditor(): void {
-    if (!stashCitySite()) return;
-    openURL(`${import.meta.env.BASE_URL}city-editor/`);
+    const burgId = burgEditorInternal.getBurgId();
+    openCityEditorForBurg(burgId);
   },
 
   setCustomPreview(): void {

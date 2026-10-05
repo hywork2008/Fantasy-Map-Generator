@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { handleMapContextMenu, setDistanceFromHere, setDistanceToHere } from "../../controllers/mapContextMenu";
+import {
+  handleMapContextMenu,
+  setDistanceFromHere,
+  setDistanceToHere,
+  triggerOpenCityEditor,
+  triggerOpenRegionEditor
+} from "../../controllers/mapContextMenu";
 import { closeMapContextMenu, useMapContextMenuState } from "../../store/mapContextMenuState";
 import "./mapContextMenu.css";
 
@@ -10,7 +16,18 @@ const MENU_OFFSET = 2;
 export function MapContextMenu() {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
-  const { isOpen, clientX, clientY, mapX, mapY, distanceFrom, targetBurgName } = useMapContextMenuState();
+  const {
+    isOpen,
+    clientX,
+    clientY,
+    mapX,
+    mapY,
+    distanceFrom,
+    targetBurgId,
+    targetBurgName,
+    targetProvinceId,
+    targetProvinceName
+  } = useMapContextMenuState();
 
   useEffect(() => {
     const map = document.getElementById("map");
@@ -52,6 +69,18 @@ export function MapContextMenu() {
     menu.style.top = `${Math.round(top)}px`;
   }, [isOpen, clientX, clientY]);
 
+  const onOpenCityEditor = useCallback(() => {
+    if (targetBurgId) {
+      triggerOpenCityEditor(targetBurgId);
+    }
+  }, [targetBurgId]);
+
+  const onOpenRegionEditor = useCallback(() => {
+    if (targetProvinceId) {
+      triggerOpenRegionEditor(targetProvinceId);
+    }
+  }, [targetProvinceId]);
+
   const onFromHere = useCallback(() => {
     setDistanceFromHere(mapX, mapY);
   }, [mapX, mapY]);
@@ -69,6 +98,10 @@ export function MapContextMenu() {
     ? t("mapContextMenu.distanceToBurg", { name: targetBurgName })
     : t("mapContextMenu.distanceToHere");
 
+  const regionEditorLabel = targetProvinceName
+    ? t("mapContextMenu.openRegionEditorWithProvince", { name: targetProvinceName })
+    : t("mapContextMenu.openRegionEditor");
+
   return (
     <div
       ref={menuRef}
@@ -78,6 +111,21 @@ export function MapContextMenu() {
       aria-label={t("mapContextMenu.label")}
       onContextMenu={event => event.preventDefault()}
     >
+      {targetBurgId ? (
+        <button type="button" role="menuitem" className="map-context-menu__item" onClick={onOpenCityEditor}>
+          {t("mapContextMenu.openCityEditor", { name: targetBurgName })}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        className="map-context-menu__item"
+        onClick={onOpenRegionEditor}
+        disabled={!targetProvinceId}
+        title={!targetProvinceId ? t("mapContextMenu.openRegionEditorDisabled") : undefined}
+      >
+        {regionEditorLabel}
+      </button>
       <button type="button" role="menuitem" className="map-context-menu__item" onClick={onFromHere}>
         {fromLabel}
       </button>

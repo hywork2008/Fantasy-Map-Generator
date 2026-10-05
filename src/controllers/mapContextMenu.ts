@@ -15,10 +15,12 @@ import {
 } from "../store/mapContextMenuState";
 import { is3DViewActive } from "../store/viewModeState";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { rn } from "../utils";
+import { findCell, rn } from "../utils";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { openCityEditorForBurg } from "./city-editor-handshake";
 import { toggleRulers } from "./layers";
 import { Ruler, Rulers } from "./measurers";
+import { openRegionEditor } from "./region-editor-handshake";
 
 const PENDING_GROUP_CLASS = "distance-from-pending";
 
@@ -55,6 +57,56 @@ function resolveBurgAtMapPoint(mapX: number, mapY: number): { id: number; name: 
   return closest;
 }
 
+/**
+ * Resolves burg from DOM element if right-click occurred directly on a burg icon or burg label.
+ */
+export function resolveBurgFromElement(target: EventTarget | null): { id: number; name: string } | null {
+  if (!(target instanceof Element)) return null;
+  const burgEl = target.closest("#burgIcons [data-id], #burgLabels [data-id]");
+  if (!burgEl) return null;
+  const idStr = (burgEl as SVGElement).dataset?.id;
+  if (!idStr) return null;
+  const id = Number(idStr);
+  const burg = worldContext.pack?.burgs?.[id];
+  if (!burg || burg.removed) return null;
+  return { id, name: burg.name || `Burg ${id}` };
+}
+
+export function resolveBurgAtTargetOrPoint(
+  target: EventTarget | null,
+  mapX: number,
+  mapY: number
+): { id: number; name: string } | null {
+  return resolveBurgFromElement(target) ?? resolveBurgAtMapPoint(mapX, mapY);
+}
+
+/**
+ * Resolves province at a given map coordinate, falling back to a burg's cell if clicked on a burg.
+ */
+export function resolveProvinceAtMapPoint(
+  mapX: number,
+  mapY: number,
+  fallbackBurgId?: number | null
+): { id: number; name: string } | null {
+  const { pack } = worldContext;
+  if (!pack?.cells?.province) return null;
+
+  const cellId = findCell(mapX, mapY);
+  let provinceId = pack.cells.province[cellId];
+
+  if (!provinceId && fallbackBurgId && pack.burgs?.[fallbackBurgId]) {
+    const burg = pack.burgs[fallbackBurgId];
+    if (burg && !burg.removed && burg.cell) {
+      provinceId = pack.cells.province[burg.cell];
+    }
+  }
+
+  if (!provinceId) return null;
+  const province = pack.provinces?.[provinceId];
+  if (!province || province.removed) return null;
+  return { id: provinceId, name: province.name || `Province ${provinceId}` };
+}
+
 export function clientToMapPoint(clientX: number, clientY: number): [number, number] | null {
   const mapSvg = getElementById<SVGSVGElement>("map");
   const viewbox = view.viewbox?.node() as SVGGraphicsElement | null;
@@ -81,15 +133,29 @@ export function handleMapContextMenu(event: MouseEvent): void {
   if (!mapPoint) return;
 
   hidePickChooser();
-  const targetBurg = resolveBurgAtMapPoint(mapPoint[0], mapPoint[1]);
+  const targetBurg = resolveBurgAtTargetOrPoint(event.target, mapPoint[0], mapPoint[1]);
+  const targetProvince = resolveProvinceAtMapPoint(mapPoint[0], mapPoint[1], targetBurg?.id);
+
   openMapContextMenu(
     event.clientX,
     event.clientY,
     mapPoint[0],
     mapPoint[1],
     targetBurg?.id ?? null,
-    targetBurg?.name ?? null
+    targetBurg?.name ?? null,
+    targetProvince?.id ?? null,
+    targetProvince?.name ?? null
   );
+}
+
+export function triggerOpenCityEditor(burgId: number): void {
+  closeMapContextMenu();
+  openCityEditorForBurg(burgId);
+}
+
+export function triggerOpenRegionEditor(provinceId: number): void {
+  closeMapContextMenu();
+  openRegionEditor(provinceId);
 }
 
 export function isMapContextMenuTarget(target: EventTarget | null): boolean {

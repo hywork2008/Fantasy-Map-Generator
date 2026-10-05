@@ -11,6 +11,9 @@ export interface MapContextMenuState {
   /** Burg under the cursor for the menu currently open, if any (resolved by handleMapContextMenu). */
   targetBurgId: number | null;
   targetBurgName: string | null;
+  /** Province under the cursor for the menu currently open, if any. */
+  targetProvinceId: number | null;
+  targetProvinceName: string | null;
   /** Burg captured from targetBurg* at the moment "Distance from here"/"Distance from {burg}" was clicked. */
   distanceFromBurgId: number | null;
   distanceFromName: string | null;
@@ -26,6 +29,8 @@ const INITIAL_STATE: MapContextMenuState = {
   activeRulerId: null,
   targetBurgId: null,
   targetBurgName: null,
+  targetProvinceId: null,
+  targetProvinceName: null,
   distanceFromBurgId: null,
   distanceFromName: null
 };
@@ -41,9 +46,21 @@ export function openMapContextMenu(
   mapX: number,
   mapY: number,
   targetBurgId: number | null = null,
-  targetBurgName: string | null = null
+  targetBurgName: string | null = null,
+  targetProvinceId: number | null = null,
+  targetProvinceName: string | null = null
 ): void {
-  setMapContextMenuState({ isOpen: true, clientX, clientY, mapX, mapY, targetBurgId, targetBurgName });
+  setMapContextMenuState({
+    isOpen: true,
+    clientX,
+    clientY,
+    mapX,
+    mapY,
+    targetBurgId,
+    targetBurgName,
+    targetProvinceId,
+    targetProvinceName
+  });
 }
 
 export function closeMapContextMenu(): void {
@@ -74,6 +91,8 @@ export function resetDistanceSession(): void {
     activeRulerId: null,
     targetBurgId: null,
     targetBurgName: null,
+    targetProvinceId: null,
+    targetProvinceName: null,
     distanceFromBurgId: null,
     distanceFromName: null
   });

@@ -100,7 +100,11 @@
     "distanceToHere": "Distance to here",
     "distanceToHereDisabled": "Set Distance from here first",
     "distanceFromBurg": "Distance from {{name}}",
-    "distanceToBurg": "Distance to {{name}}"
+    "distanceToBurg": "Distance to {{name}}",
+    "openRegionEditor": "Open in Region Editor",
+    "openRegionEditorWithProvince": "Open in Region Editor ({{name}})",
+    "openRegionEditorDisabled": "No province at this location",
+    "openCityEditor": "Open in City Editor ({{name}})"
   },
   "directions": {
     "mode": {

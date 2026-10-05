@@ -100,7 +100,11 @@
     "distanceToHere": "ここまでの距離",
     "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください",
     "distanceFromBurg": "{{name}}からの距離",
-    "distanceToBurg": "{{name}}までの距離"
+    "distanceToBurg": "{{name}}までの距離",
+    "openRegionEditor": "Region Editorで開く",
+    "openRegionEditorWithProvince": "Region Editorで開く（{{name}}）",
+    "openRegionEditorDisabled": "この地点に州（Province）がありません",
+    "openCityEditor": "City Editorで開く（{{name}}）"
   },
   "directions": {
     "mode": {
