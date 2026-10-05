@@ -3,7 +3,8 @@ import type { WorldContext } from "../context/worldContext";
 import {
   generateSubsistenceCapacity,
   getLivelihoodKind,
-  reconcileSubsistenceCapacityFromFood
+  reconcileSubsistenceCapacityFromFood,
+  refreshEstimatedSubsistenceCapacity
 } from "./subsistenceCapacity";
 
 function createWorld(): WorldContext {
@@ -11,13 +12,14 @@ function createWorld(): WorldContext {
     grid: {
       cells: {
         temp: new Int8Array([14, -10, -6, -10, 8]),
-        prec: new Uint8Array([8, 8, 4, 35, 30])
+        prec: new Uint8Array([8, 8, 4, 35, 0])
       }
     },
     pack: {
       cells: {
         i: new Uint16Array([0, 1, 2, 3, 4]),
         capacity: new Float32Array([100, 100, 100, 100, 100]),
+        area: new Float32Array([1, 1, 1, 1, 1]),
         h: new Uint8Array([25, 25, 25, 25, 25]),
         g: new Uint16Array([0, 1, 2, 3, 4]),
         biomeCode: new Uint8Array([0, 1, 2, 3, 4]),
@@ -28,6 +30,7 @@ function createWorld(): WorldContext {
       }
     },
     biomesData: {
+      habitability: [100, 100, 100, 100, 100],
       tags: [["arable"], ["cold"], ["grassland", "cold"], ["forest", "cold"], ["desert"]]
     }
   } as unknown as WorldContext;
@@ -39,7 +42,8 @@ describe("generateSubsistenceCapacity", () => {
     generateSubsistenceCapacity(world);
     const { subsistenceCapacity, livelihood } = world.pack.cells;
 
-    expect(subsistenceCapacity?.[0]).toBeGreaterThan(90);
+    expect(subsistenceCapacity?.[0]).toBeGreaterThan(0);
+    expect(subsistenceCapacity?.[0]).toBeLessThan(90);
     expect(subsistenceCapacity?.[1]).toBeGreaterThan(30);
     expect(subsistenceCapacity?.[2]).toBeGreaterThan(25);
     expect(subsistenceCapacity?.[3]).toBeGreaterThan(15);
@@ -50,22 +54,31 @@ describe("generateSubsistenceCapacity", () => {
     expect(getLivelihoodKind(livelihood?.[3])).toBe("foraging");
   });
 
-  it("raises agricultural support when the next cell has a river", () => {
+  it("does not fabricate irrigation from an adjacent river without flow", () => {
     const isolated = createWorld();
     const watered = createWorld();
     isolated.grid.cells.prec[0] = 4;
     watered.grid.cells.prec[0] = 4;
-    watered.pack.cells.r = new Uint16Array([0, 0, 0, 0, 0]);
     watered.pack.cells.c = [[1], [0], [], [], []];
     watered.pack.cells.r[1] = 7;
     isolated.pack.cells.c = [[], [], [], [], []];
-
     generateSubsistenceCapacity(isolated);
     generateSubsistenceCapacity(watered);
+    expect(watered.pack.cells.subsistenceCapacity?.[0]).toBe(isolated.pack.cells.subsistenceCapacity?.[0]);
+  });
 
-    expect(watered.pack.cells.subsistenceCapacity?.[0] ?? 0).toBeGreaterThan(
-      isolated.pack.cells.subsistenceCapacity?.[0] ?? 0
-    );
+  it("replaces the extension result on disable while preserving non-agricultural and underground food", () => {
+    const world = createWorld();
+    generateSubsistenceCapacity(world);
+    world.grid.cells.temp[0] = 4;
+    world.grid.cells.prec[0] = 5;
+    world.pack.cells.subsistenceCapacity![0] = 95;
+    world.pack.cells.subsistenceNonAgriculturalCapacity![0] = 12;
+    world.pack.cells.subterraneanCapacity = new Float32Array([3, 0, 0, 0, 0]);
+    refreshEstimatedSubsistenceCapacity(world);
+    expect(world.pack.cells.subsistenceCapacity![0]).toBe(15);
+    refreshEstimatedSubsistenceCapacity(world);
+    expect(world.pack.cells.subsistenceCapacity![0]).toBe(15);
   });
 
   it("uses the local food capacity for initial population placement when available", async () => {

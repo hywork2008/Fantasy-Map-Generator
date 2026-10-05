@@ -68,7 +68,7 @@ import { advanceSeasonalClimate } from "./generators/seasonalClimate";
 import { seedDwarfHoldOikoumene, withDwarfMountainRegion } from "./generators/seedDwarfHoldOikoumene";
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
-import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
+import { generateSubsistenceCapacity, refreshEstimatedSubsistenceCapacity } from "./generators/subsistenceCapacity";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
@@ -118,6 +118,7 @@ import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
+import { useExtensionState } from "./store/extensionState";
 import { type GenerationReviewLayerId, generationProgressStore } from "./store/generationProgressState";
 import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
@@ -427,12 +428,18 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (viewContext.renderMap) drawLayers();
   });
   document.addEventListener("fmg:map-ready-tasks-completed", () => {
-    // Economy prepares its conditions and publishes first; OFF uses the shared static adapter.
+    // Economy publishes its own result; OFF uses the independently calibrated host estimate.
     if (pendingInitialLandUse) {
       initializeSettlementLandUse(worldContext, useOptionsState.getState().year);
       pendingInitialLandUse = false;
     }
+    if (!useExtensionState.getState().enabledExtensions.economy) refreshEstimatedSubsistenceCapacity(worldContext);
     if (viewContext.renderMap) drawLayers();
+  });
+  useExtensionState.subscribe((state, previous) => {
+    if (previous.enabledExtensions.economy && !state.enabledExtensions.economy) {
+      refreshEstimatedSubsistenceCapacity(worldContext);
+    }
   });
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));

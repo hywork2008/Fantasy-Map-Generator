@@ -1,11 +1,10 @@
 import type { WorldContext } from "../context/worldContext";
+import { estimateCellFoodProduction } from "./estimatedFoodProduction";
 import {
-  getStapleCropSuitability,
-  STAPLE_CROP_LIST,
-  type StapleCropKind,
-  type StapleSoilType
-} from "../data/stapleCrops";
-import { getCellWaterAccess, RAINFED_WELL_PRECIPITATION } from "./cellWaterAccess";
+  ANNUAL_SOWN_SHARE,
+  EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK,
+  STAPLE_NEED_KG_PER_PERSON_YEAR
+} from "./settlementClearance";
 
 /** Dominant local food strategy. Codes keep the packed map serializable. */
 export const LIVELIHOOD_CODE = {
@@ -75,16 +74,23 @@ export function generateSubsistenceCapacity(world: WorldContext): void {
   const subsistenceNonAgriculturalCapacity = new Float32Array(count);
   const livelihood = new Uint8Array(count);
 
+  const food = estimateCellFoodProduction(world);
+  const populationRate = Math.max(1, world.populationRate || 1);
+
   for (const cellId of cells.i) {
     const terrainCapacity = cells.capacity[cellId] ?? 0;
     if (terrainCapacity <= 0 || (cells.h[cellId] ?? 0) < 20) continue;
 
     const tags = world.biomesData.tags[cells.biomeCode[cellId] ?? 0] ?? [];
     const temperature = world.grid.cells.temp[cells.g[cellId] ?? cellId] ?? 12;
-    const precipitation = world.grid.cells.prec[cells.g[cellId] ?? cellId] ?? 45;
-    const water = getCellWaterAccess(cells, cellId, precipitation);
-    const soil = getCellSoil(tags, water.kind === "river" || water.kind === "adjacentRiver");
-    const agriculture = getAgricultureSupport(temperature, precipitation, soil, tags, water.irrigationSupplement);
+    const agriculturalCapacity =
+      (food.cultivableAreaHa[cellId] *
+        food.yieldKgPerHa[cellId] *
+        ANNUAL_SOWN_SHARE *
+        EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
+      STAPLE_NEED_KG_PER_PERSON_YEAR /
+      populationRate;
+    const agriculture = Math.min(1, agriculturalCapacity / terrainCapacity);
     const fishing = getFishingSupport(cells, cellId, tags);
     const pastoral = getPastoralSupport(temperature, tags);
     const foraging = getForagingSupport(temperature, tags);
@@ -102,46 +108,37 @@ export function generateSubsistenceCapacity(world: WorldContext): void {
   cells.livelihood = livelihood;
 }
 
-function getAgricultureSupport(
-  temperature: number,
-  precipitation: number,
-  soil: StapleSoilType,
-  tags: readonly string[],
-  irrigationSupplement = 0
-): number {
-  if (tags.includes("desert")) return 0;
-  // A ditch or well only tops up a dry year. Adding rainfall to an already
-  // suitable cell would push wheat and other staples into the waterlogged tail.
-  const cropIrrigation =
-    irrigationSupplement > 0 && precipitation < RAINFED_WELL_PRECIPITATION
-      ? Math.min(irrigationSupplement, RAINFED_WELL_PRECIPITATION - precipitation)
-      : 0;
-  const main = bestCropSuitability("cereal", temperature, precipitation, soil, cropIrrigation);
-  const root = bestCropSuitability("tuber", temperature, precipitation, soil, cropIrrigation);
-  const legume = bestCropSuitability("legume", temperature, precipitation, soil, cropIrrigation);
-  const staple = Math.max(main, root);
-
-  // A staple and a legume represent the normal rotation. A lone staple is
-  // viable but deliberately receives a lower ceiling for soil exhaustion.
-  if (staple > 0 && legume > 0) return 0.16 + (staple * 0.67 + legume * 0.33) * 0.84;
-  if (staple > 0) return 0.08 + staple * 0.52;
-  if (legume > 0) return 0.05 + legume * 0.28;
-  return 0;
-}
-
-function bestCropSuitability(
-  kind: StapleCropKind,
-  temperature: number,
-  precipitation: number,
-  soil: StapleSoilType,
-  irrigationSupplement = 0
-): number {
-  let best = 0;
-  for (const crop of STAPLE_CROP_LIST) {
-    if (crop.kind !== kind) continue;
-    best = Math.max(best, getStapleCropSuitability(crop, temperature, precipitation, soil, irrigationSupplement));
+/** Replaces a saved/extension agricultural result with the host estimate after load or disable. */
+export function refreshEstimatedSubsistenceCapacity(world: WorldContext): void {
+  const cells = world.pack.cells;
+  if (!cells.i?.length || !world.grid?.cells?.temp?.length) return;
+  if (
+    cells.subsistenceNonAgriculturalCapacity?.length !== cells.i.length ||
+    cells.subsistenceCapacity?.length !== cells.i.length
+  ) {
+    generateSubsistenceCapacity(world);
   }
-  return best;
+  const food = estimateCellFoodProduction(world);
+  const rate = Math.max(1, world.populationRate || 1);
+  if (cells.livelihood?.length !== cells.i.length) cells.livelihood = new Uint8Array(cells.i.length);
+  for (const id of cells.i) {
+    const agriculture =
+      (food.cultivableAreaHa[id] * food.yieldKgPerHa[id] * ANNUAL_SOWN_SHARE * EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
+      STAPLE_NEED_KG_PER_PERSON_YEAR /
+      rate;
+    cells.subsistenceCapacity![id] = Math.min(
+      Math.max(0, cells.capacity[id] ?? 0),
+      (cells.subsistenceNonAgriculturalCapacity![id] ?? 0) + (cells.subterraneanCapacity?.[id] ?? 0) + agriculture
+    );
+    const tags = world.biomesData.tags?.[cells.biomeCode[id]] ?? [];
+    const temperature = world.grid.cells.temp?.[cells.g?.[id] ?? id] ?? 12;
+    cells.livelihood[id] = getLivelihoodCode([
+      agriculture / Math.max(1e-6, cells.capacity[id] ?? 0),
+      getFishingSupport(cells, id, tags),
+      getPastoralSupport(temperature, tags),
+      getForagingSupport(temperature, tags)
+    ]);
+  }
 }
 
 function getFishingSupport(cells: WorldContext["pack"]["cells"], cellId: number, tags: readonly string[]): number {
@@ -172,15 +169,6 @@ function getForagingSupport(temperature: number, tags: readonly string[]): numbe
   if (tags.includes("cold")) support += 0.08;
   if (tags.includes("scrub")) support += 0.06;
   return Math.min(0.28, support);
-}
-
-function getCellSoil(tags: readonly string[], hasRiver: boolean): StapleSoilType {
-  if (hasRiver) return "alluvial";
-  if (tags.includes("wetland")) return "clay";
-  if (tags.includes("forest")) return "humus";
-  if (tags.includes("desert")) return "sandy";
-  if (tags.includes("mountain")) return "thin";
-  return "loam";
 }
 
 function getLivelihoodCode(supports: readonly number[]): number {

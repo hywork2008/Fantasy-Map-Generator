@@ -1,0 +1,38 @@
+{
+  "comparisons": 17556,
+  "meanAbsoluteErrorKgHa": 3.323360228425077,
+  "p95AbsoluteErrorKgHa": 17.825378304748536,
+  "maximumAbsoluteErrorKgHa": 49.28995201732289,
+  "examples": [
+    {
+      "soil": "loam",
+      "observedYieldKgHa": 0,
+      "estimatedYieldKgHa": 0
+    },
+    {
+      "soil": "alluvial",
+      "observedYieldKgHa": 0,
+      "estimatedYieldKgHa": 0
+    },
+    {
+      "soil": "humus",
+      "observedYieldKgHa": 0,
+      "estimatedYieldKgHa": 0
+    },
+    {
+      "soil": "clay",
+      "observedYieldKgHa": 0,
+      "estimatedYieldKgHa": 0
+    },
+    {
+      "soil": "sandy",
+      "observedYieldKgHa": 0,
+      "estimatedYieldKgHa": 0
+    },
+    {
+      "soil": "thin",
+      "observedYieldKgHa": 0,
+      "estimatedYieldKgHa": 0
+    }
+  ]
+}

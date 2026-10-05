@@ -1,11 +1,11 @@
 import type { WorldContext } from "../context/worldContext";
 import { landCoverCode } from "../types/biomeAttributes";
 import { assertValidLandUseSnapshot, type LandUseSnapshot } from "../types/landUse";
+import { estimateCellFoodProduction } from "./estimatedFoodProduction";
 import { harvestForestStock } from "./forestStock";
 import { newlyConvertedForest } from "./landUseActivities";
 import { polygonArea } from "./landUseGeometry";
 import {
-  BASE_NET_YIELD_KG_PER_SOWN_HECTARE,
   CLEARANCE_LABOUR_DAYS_PER_HECTARE,
   type ClearanceCellInput,
   planSettlementLandUse,
@@ -24,6 +24,7 @@ export function isInitialLandUsePending(world: WorldContext): boolean {
 export function resolveStaticLandUseInputs(world: Readonly<WorldContext>): ClearanceCellInput[] {
   const { cells } = world.pack;
   const inputs: ClearanceCellInput[] = [];
+  const food = estimateCellFoodProduction(world, true);
   for (const id of cells.i) {
     if (cells.h[id] < 20) continue;
     const area = Math.max(0, cells.area?.[id] ?? 0) * (world.distanceScale || 1) ** 2 * 100;
@@ -37,12 +38,6 @@ export function resolveStaticLandUseInputs(world: Readonly<WorldContext>): Clear
     const gridId = cells.g?.[id] ?? id;
     const temp = world.grid?.cells?.temp?.[gridId] ?? 12;
     const rain = world.grid?.cells?.prec?.[gridId] ?? 45;
-    const suitable =
-      temp > 0 &&
-      rain >= 8 &&
-      !tags.includes("wetland") &&
-      (world.biomesData.habitability?.[cells.biomeCode[id]] ?? 0) > 0;
-    const terrain = cells.h[id] <= 50 ? 0.9 : Math.max(0.2, 0.9 - (cells.h[id] - 50) / 90);
     const settings = burg?.landUseSettings ?? culture?.landUseSettings;
     inputs.push({
       ...settings,
@@ -94,12 +89,11 @@ export function resolveStaticLandUseInputs(world: Readonly<WorldContext>): Clear
         raceKey: culture?.raceKey,
         fantasy: usesFantasyForestDefaults(world)
       }),
-      cultivableAreaHa: suitable ? area * terrain * (tags.includes("desert") ? 0.2 : 0.8) : 0,
-      yieldKgPerSownHa: suitable
-        ? BASE_NET_YIELD_KG_PER_SOWN_HECTARE * Math.min(1, Math.max(0.15, temp / 7)) * Math.min(1, rain / 45)
-        : 0,
+      cultivableAreaHa: food.cultivableAreaHa[id],
+      yieldKgPerSownHa: food.yieldKgPerHa[id],
       neighbors: cells.c?.[id]?.filter(n => cells.state?.[n] === cells.state?.[id]),
       diagnostics: [
+        "offline-calibrated-food-climate",
         "estimated-soil-and-livelihood",
         ...(settings?.tenure ? [] : ["land-tenure-unresolved"]),
         "estimated-clearance-workforce-share",
