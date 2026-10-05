@@ -1,4 +1,5 @@
 import { worldContext } from "../context/worldContext";
+import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
@@ -188,6 +189,14 @@ export interface BurgSiteTerrain {
 
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
+export interface BurgSiteBiome {
+  id: number;
+  key?: string;
+  name: string;
+  color: string;
+  tags?: readonly string[];
+}
+
 export interface BurgSiteDescriptor {
   regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
@@ -235,7 +244,14 @@ export interface BurgSiteDescriptor {
     /** Suggested built-up radius derived from population (walled-town density model). */
     cityRadiusMeters: number;
   };
-  climate: { temperatureC: number; biomeId: number };
+  climate: {
+    temperatureC: number;
+    biomeId: number;
+    biomeKey?: string;
+    biomeName?: string;
+    biomeColor?: string;
+  };
+  biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
   /** Routine supported crossing allowance, derived from historical technology. */
   transport?: BridgeTransport;
@@ -503,10 +519,38 @@ export function getBurgSiteDescriptor(
       extentMeters,
       cityRadiusMeters
     },
-    climate: {
-      temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
-      biomeId: pack.cells.biomeCode[burg.cell]
-    },
+    climate: (() => {
+      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+      const bData = worldContext.biomesData;
+      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+      const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
+      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+      return {
+        temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
+        biomeId: bId,
+        biomeKey: bKey,
+        biomeName: bName,
+        biomeColor: bColor
+      };
+    })(),
+    biome: (() => {
+      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+      const bData = worldContext.biomesData;
+      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+      const rawKey = bData?.keys ? bData.keys[bId] : undefined;
+      const bKey = rawKey ?? stdDef?.key;
+      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+      const bTags = (bData && rawKey ? bData.definitionsByKey?.[rawKey]?.tags : undefined) ?? stdDef?.tags;
+      return {
+        id: bId,
+        key: bKey,
+        name: bName,
+        color: bColor,
+        tags: bTags
+      };
+    })(),
     terrain,
     transport: {
       riverBridgeTechnology: worldContext.options.riverBridgeTechnology,

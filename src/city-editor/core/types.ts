@@ -355,6 +355,8 @@ export interface CityDocument {
   waterAccess?: import("../../types/burgWater").BurgWaterAccess;
   format: "fmg-city-editor";
   version: 1 | 2 | 3 | 4;
+  /** Regional biome information derived from FMG world cell. */
+  biome?: import("./gen/site/burgSiteDescriptor").BurgSiteBiome;
   sceneRegions?: import("./sceneRegions").CitySceneRegions;
   landmarks?: LandmarkInstance[];
   landmarkAssets?: LandmarkAsset[];

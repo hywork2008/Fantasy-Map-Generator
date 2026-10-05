@@ -93,6 +93,8 @@ export interface CreateGridOptions {
   measureBlockSize?: boolean;
   /** Explicit evolution block width. Ignored for a hex grid, which uses its side length. */
   blockSizeMeters?: number;
+  /** Regional biome information derived from FMG world cell. */
+  biome?: import("./gen/site/burgSiteDescriptor").BurgSiteBiome;
 }
 
 export function isCitySizePreset(value: unknown): value is CitySizePreset {
@@ -284,6 +286,7 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
   }
   const document = documentFromCells(cells, extentMeters, blockSizeMeters, cityRadiusMeters, settlement);
   document.gridKind = grid;
+  if (options.biome) document.biome = options.biome;
   return document;
 }
 
@@ -368,6 +371,8 @@ function isDocument(value: unknown): value is CityDocument {
       (doc.version === 4 && validSceneRegions(doc.sceneRegions) && validRegionalFrameRoads(doc.frameRoads))) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
     (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
+    (doc.biome === undefined ||
+      (typeof doc.biome === "object" && doc.biome !== null && typeof (doc.biome as { id: unknown }).id === "number")) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
     (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
     (doc.coastalOceanFaceIds === undefined ||

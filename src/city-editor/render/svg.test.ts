@@ -1096,6 +1096,26 @@ describe("renderStandaloneCitySvg / serializeCitySvg", () => {
     expect(bg?.getAttribute("fill")).toBe("#d5cfbf");
   });
 
+  it("applies biome-specific background and renders landscape layer in town mode", () => {
+    const document = createDocument("biome-test", 800);
+    document.appearance = "town";
+    document.biome = {
+      id: 1,
+      key: "hotDesert",
+      name: "Hot desert",
+      color: "#fbe79f"
+    };
+    const standaloneSvg = renderStandaloneCitySvg(document);
+    const bg = standaloneSvg.querySelector("rect.ce-background");
+    expect(bg?.getAttribute("fill")).toBe("#e8ddba");
+
+    const selection = { faceId: null, vertexId: null, edgeId: null, inspectedId: null };
+    const editorSvg = renderEditorSvg(document, "select", selection, "-400 -400 800 800", 1);
+    const landscape = editorSvg.querySelector(".ce-landscape-layer");
+    expect(landscape).not.toBeNull();
+    expect(landscape?.children.length).toBeGreaterThan(0);
+  });
+
   it("serializeCitySvg produces a valid XML document string with xml declaration", () => {
     const document = createDocument("xml-test", 500);
     const xml = serializeCitySvg(document);

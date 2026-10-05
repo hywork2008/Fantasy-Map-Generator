@@ -110,7 +110,8 @@ export function cityEditorDocument(share: CityEditorShare): CityDocument {
           share.descriptor.burg.riverPlacement?.bankDistanceMeters
         )
       : {}),
-    measureBlockSize: share.measureBlockSize === true
+    measureBlockSize: share.measureBlockSize === true,
+    biome: share.descriptor?.biome
   });
 }
 

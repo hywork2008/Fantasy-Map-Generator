@@ -584,6 +584,16 @@ export function generateCityOnDocument(
         };
       }
       if (settings.descriptor?.regionalContext) attachSceneRegions(result, settings.descriptor.regionalContext);
+      result.biome =
+        settings.descriptor?.biome ??
+        (settings.descriptor?.climate
+          ? {
+              id: settings.descriptor.climate.biomeId,
+              key: settings.descriptor.climate.biomeKey,
+              name: settings.descriptor.climate.biomeName ?? `Biome ${settings.descriptor.climate.biomeId}`,
+              color: settings.descriptor.climate.biomeColor ?? "#d5cfbf"
+            }
+          : document.biome);
       return result;
     }
     if (onRejected) return null;

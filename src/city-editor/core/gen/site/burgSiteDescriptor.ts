@@ -126,6 +126,14 @@ export interface BurgSiteTerrain {
   };
 }
 
+export interface BurgSiteBiome {
+  id: number;
+  key?: string;
+  name: string;
+  color: string;
+  tags?: readonly string[];
+}
+
 export interface BurgSiteDescriptor {
   regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
@@ -161,7 +169,14 @@ export interface BurgSiteDescriptor {
     extentMeters: number;
     cityRadiusMeters: number;
   };
-  climate: { temperatureC: number; biomeId: number };
+  climate: {
+    temperatureC: number;
+    biomeId: number;
+    biomeKey?: string;
+    biomeName?: string;
+    biomeColor?: string;
+  };
+  biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
   /** Total supported crossing allowance; old span-named values are migrated by the shared policy. */
   transport?: BridgeTransport;

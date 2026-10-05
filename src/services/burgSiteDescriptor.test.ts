@@ -139,6 +139,22 @@ describe("getBurgSiteDescriptor", () => {
     expect(worldContext.pack.burgs[1].x).toBe(100);
   });
 
+  it("exports cell biome metadata in climate and biome properties", () => {
+    const site = getBurgSiteDescriptor(1)!;
+    expect(site.climate.biomeId).toBe(6);
+    expect(site.climate.biomeKey).toBe("temperateDeciduousForest");
+    expect(site.climate.biomeName).toBe("Temperate deciduous forest");
+    expect(site.climate.biomeColor).toBe("#29bc56");
+
+    expect(site.biome).toEqual({
+      id: 6,
+      key: "temperateDeciduousForest",
+      name: "Temperate deciduous forest",
+      color: "#29bc56",
+      tags: ["forest", "arable"]
+    });
+  });
+
   it("round-trips certified regional water and rejects uncovered CE frames", () => {
     const burg = worldContext.pack.burgs[1];
     burg.cell = 4;

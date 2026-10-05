@@ -49,6 +49,7 @@ import type {
 } from "../core/types";
 import { dryRuns, lineHitsDocumentWater, waterPolygons } from "../core/waterGeometry";
 import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
+import { getLandscapeGroundColor, getLandscapeSuburbFaceColor, renderLandscapeLayer } from "./landscape";
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import { renderPreviewSymbols } from "./previewSymbols";
 import { renderRegionalSettlements } from "./regionalSvg";
@@ -156,6 +157,17 @@ export function renderEditorSvg(
     "data-render-quality": town ? effectiveQuality : "detailed",
     ...(fixedMode ? { "data-fixed-geometry-status": fixedGeometry ? "ready" : "invalid" } : {})
   }) as SVGSVGElement;
+  const groundColor = getLandscapeGroundColor(document);
+  const suburbColor = getLandscapeSuburbFaceColor(document);
+  if (town) {
+    svg.style.backgroundColor = groundColor;
+    const biomeStyle = element(
+      "style",
+      { type: "text/css" },
+      `.ce-svg--town { background: ${groundColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+    );
+    svg.appendChild(biomeStyle);
+  }
   const backdrop = referenceImage ?? document.referenceImage;
   if (backdrop) {
     const { href, width, height } = backdrop;
@@ -188,14 +200,16 @@ export function renderEditorSvg(
       neighbors: faceNeighbors(document.mesh, face.id),
       vertices: faceVertices(document.mesh, face)
     };
-    cells.appendChild(
-      element("path", {
-        d: polygon(facePoints(document.mesh, face)),
-        class: `${faceClassName(face, isSelected, urbanCoreHighlight?.has(face.id) ?? false)}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
-        "data-face": face.id,
-        "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
-      })
-    );
+    const pathAttrs: Record<string, string> = {
+      d: polygon(facePoints(document.mesh, face)),
+      class: `${faceClassName(face, isSelected, urbanCoreHighlight?.has(face.id) ?? false)}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+      "data-face": face.id,
+      "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
+    };
+    if (town && face.properties.water === "land" && (!face.properties.ward || face.properties.ward === "empty")) {
+      pathAttrs.style = `fill: ${suburbColor};`;
+    }
+    cells.appendChild(element("path", pathAttrs));
   }
   if (document.sceneRegions) {
     const waterCells = element("g", { class: "ce-regional-water-cells", "data-scene-region": "shared" });
@@ -287,6 +301,10 @@ export function renderEditorSvg(
       }
     }
     svg.appendChild(shore);
+  }
+
+  if (town) {
+    svg.appendChild(renderLandscapeLayer(document, town, effectiveQuality));
   }
 
   if (document.sceneRegions) {
@@ -3206,7 +3224,7 @@ export function renderStandaloneCitySvg(
   const style = element("style", { type: "text/css" }, STANDALONE_SVG_STYLE);
   defs.appendChild(style);
 
-  const bgColor = document.appearance === "town" ? "#d5cfbf" : "#e1dfd4";
+  const bgColor = document.appearance === "town" ? getLandscapeGroundColor(document) : "#e1dfd4";
   const bgRect = element("rect", {
     x: String(-extent / 2),
     y: String(-extent / 2),
@@ -3215,6 +3233,15 @@ export function renderStandaloneCitySvg(
     fill: bgColor,
     class: "ce-background"
   });
+  if (document.appearance === "town") {
+    const suburbColor = getLandscapeSuburbFaceColor(document);
+    const biomeStyle = element(
+      "style",
+      { type: "text/css" },
+      `.ce-svg--town { background: ${bgColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+    );
+    defs.appendChild(biomeStyle);
+  }
   if (defs.nextSibling) {
     svg.insertBefore(bgRect, defs.nextSibling);
   } else {

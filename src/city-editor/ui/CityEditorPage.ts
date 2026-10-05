@@ -4633,7 +4633,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             share.descriptor.burg.riverPlacement?.bankDistanceMeters
           )
         : {}),
-      measureBlockSize: measureTownCells
+      measureBlockSize: measureTownCells,
+      biome: share.descriptor?.biome
     });
     history = new DocumentHistory(
       documentState,
