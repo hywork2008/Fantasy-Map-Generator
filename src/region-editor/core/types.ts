@@ -21,6 +21,7 @@ export type BiomeKind =
   | "coniferous_forest"
   | "tropical_forest"
   | "savanna"
+  | "woodland_scrub"
   | "hills"
   | "mountains"
   | "snow_mountains"

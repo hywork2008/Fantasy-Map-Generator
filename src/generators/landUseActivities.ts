@@ -1,5 +1,6 @@
 import type { CellLandUseBudget, LandUsePatchBudget, LandUseSnapshot } from "../types/landUse";
 import {
+  CLOSED_CANOPY_COVER,
   clipConvex,
   createFieldNoise,
   landscapeNoise,
@@ -197,7 +198,7 @@ export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget
   // The threshold is shared across a biome: per-cell quotas would manufacture boundary gaps.
   // Potential timber capacity remains independent of this primary forest land geometry.
   const cover = Math.min(1, Math.max(0, input.forestCover));
-  const threshold = cover <= 0 ? 2 : cover >= 1 ? -1 : 0.5 + (0.5 - cover) * 0.55;
+  const threshold = cover <= 0 ? 2 : cover >= CLOSED_CANOPY_COVER ? -1 : 0.5 + (0.5 - cover) * 0.55;
   cell.forestCapacityCoverage = cover;
   const forest: Point[][] = [],
     open: Point[][] = [];

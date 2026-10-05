@@ -205,7 +205,9 @@ describe("catalog biome visuals", () => {
     };
     const landscape = buildLandscapeFromCells([cell], p => p, "catalog-test");
     const biome = landscape.biomes[0];
-    expect(isForestBiome(biome.kind)).toBe(definition.tags.includes("forest"));
+    // 地中海性疎林は FMG 側では森林でないが、RE では樹冠付きの疎林として描く
+    const drawsCanopy = definition.tags.includes("forest") || definition.key === "mediterraneanWoodlandScrub";
+    expect(isForestBiome(biome.kind)).toBe(drawsCanopy);
     expect(biome.isWater).toBe(definition.key === "marine");
     expect(biome.color).toBe(definition.key === "marine" ? CE_SEA_COLOR : definition.color);
     const doc = createEmptyRegionDocument();
@@ -215,6 +217,9 @@ describe("catalog biome visuals", () => {
     expect(svg).toContain(`fill="${biome.color}"`);
     if (definition.tags.includes("forest")) {
       expect(biome.forestPolygons).toHaveLength(1);
+    }
+    if (drawsCanopy) {
+      expect(biome.forestPolygons?.length).toBeGreaterThan(0);
       expect(svg).toContain(`forest-canopy-cell forest-${biome.kind}`);
     }
   });

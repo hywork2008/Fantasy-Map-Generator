@@ -2,7 +2,7 @@ import { STANDARD_BIOME_DEFINITIONS } from "../../../data/biomeCatalog";
 import type { BiomeDefinition, StandardBiomeKey } from "../../../types/biome";
 import { polygonOverlapsFrame } from "../geometry";
 import type { BiomeKind, Point, RegionBiomeArea, RegionSiteCell, RegionSymbol, SymbolType } from "../types";
-import { clipConvex, landscapeNoise, polygonArea, rectangle } from "./landUseGeometry";
+import { CLOSED_CANOPY_COVER, clipConvex, landscapeNoise, polygonArea, rectangle } from "./landUseGeometry";
 import { makeRng } from "./prng";
 import { buildWetlandPatches } from "./wetland";
 
@@ -23,6 +23,7 @@ export const CE_BIOME_PALETTE: Record<BiomeKind, string> = {
   coniferous_forest: "#b5c4a7",
   tropical_forest: "#b9cca0",
   savanna: "#ded8aa",
+  woodland_scrub: "#cfd5a4",
   desert: "#e8ddba",
   swamp: "#b4c5a5",
   marsh: "#adbe9e",
@@ -51,7 +52,7 @@ const STANDARD_VISUAL_KINDS = {
   glacier: "glacier",
   wetland: "swamp",
   centralEuropeanGreatForest: "deciduous_forest",
-  mediterraneanWoodlandScrub: "savanna",
+  mediterraneanWoodlandScrub: "woodland_scrub",
   temperateConiferousForest: "coniferous_forest",
   montaneForest: "coniferous_forest",
   alpineTundra: "tundra",
@@ -112,6 +113,9 @@ function catalogLandscape(definition: BiomeDefinition): ResolvedCellLandscape {
     symbolTypes
   };
 }
+
+/** 地中海性疎林: FMG 側では森林扱いでない（forestCover 0）ため、RE の描画だけ疎な樹冠を与える */
+const WOODLAND_SCRUB_COVER = 0.45;
 
 export interface ResolvedCellLandscape {
   kind: BiomeKind;
@@ -337,9 +341,13 @@ export function buildLandscapeFromCells(
         forestCover: cell.forestCover,
         forestStock: cell.forestStock,
         forestPolygons: isForestBiome(landscape.kind)
-          ? (
-              cell.landUse?.forestPolygons ??
-              buildNaturalCanopy(cell.polygon, cell.forestCover ?? 0.7, seed, metersPerMapUnit)
+          ? // 密林（熱帯雨林など）は保存済みの疎な森林ポリゴンより優先し、セル全体を樹冠で覆う
+            ((cell.forestCover ?? 0) >= CLOSED_CANOPY_COVER
+              ? [cell.polygon]
+              : landscape.kind === "woodland_scrub"
+                ? buildNaturalCanopy(cell.polygon, WOODLAND_SCRUB_COVER, seed, metersPerMapUnit)
+                : (cell.landUse?.forestPolygons ??
+                  buildNaturalCanopy(cell.polygon, cell.forestCover ?? 0.7, seed, metersPerMapUnit))
             ).map(p => p.map(toLocal))
           : undefined
       });
@@ -381,7 +389,12 @@ export function buildLandscapeFromCells(
  * 森林系バイオーム判定
  */
 export function isForestBiome(kind: string): boolean {
-  return kind === "deciduous_forest" || kind === "coniferous_forest" || kind === "tropical_forest";
+  return (
+    kind === "deciduous_forest" ||
+    kind === "coniferous_forest" ||
+    kind === "tropical_forest" ||
+    kind === "woodland_scrub"
+  );
 }
 
 function getSymbolCountForBiome(kind: BiomeKind, rng: { next: () => number }): number {
@@ -394,6 +407,7 @@ function getSymbolCountForBiome(kind: BiomeKind, rng: { next: () => number }): n
     case "deciduous_forest":
     case "coniferous_forest":
     case "tropical_forest":
+    case "woodland_scrub":
       // ★森林セルは上空視点の一体化茂み（キャノピー）として描画するため、個別の木シンボルは散布しない
       return 0;
     case "savanna":
@@ -438,7 +452,7 @@ function getSymbolScale(type: SymbolType, rng: { next: () => number }, elevation
  */
 function buildNaturalCanopy(poly: Point[], cover: number, seed: string, metersPerMapUnit: number): Point[][] {
   if (cover <= 0) return [];
-  if (cover >= 1) return [poly];
+  if (cover >= CLOSED_CANOPY_COVER) return [poly];
   const step = Math.max(1000 / metersPerMapUnit, Math.sqrt(polygonArea(poly) / 512));
   const xs = poly.map(p => p[0]),
     ys = poly.map(p => p[1]);

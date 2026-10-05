@@ -156,6 +156,9 @@ export function lineBuffer(a: Point, b: Point, width: number): Point[] {
   ];
 }
 /** Spatially correlated world noise. Adjacent cells and province windows share phases. */
+/** Cover at or above this is closed canopy (rainforest etc.): no noise gaps, so no bare cell inside a dense forest biome. */
+export const CLOSED_CANOPY_COVER = 0.9;
+
 export function landscapeNoise(x: number, y: number, seed: string): number {
   let hash = 2166136261;
   for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);

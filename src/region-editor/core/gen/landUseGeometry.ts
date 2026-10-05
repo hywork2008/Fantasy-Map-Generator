@@ -3,6 +3,7 @@ import type { Point } from "../types";
 
 export {
   approximateSlope,
+  CLOSED_CANOPY_COVER,
   clipConvex,
   createFieldNoise,
   landscapeNoise,
