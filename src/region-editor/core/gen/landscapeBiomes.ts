@@ -3,6 +3,7 @@ import type { BiomeDefinition, StandardBiomeKey } from "../../../types/biome";
 import type { BiomeKind, Point, RegionBiomeArea, RegionSiteCell, RegionSymbol, SymbolType } from "../types";
 import { clipConvex, landscapeNoise, polygonArea, rectangle } from "./landUseGeometry";
 import { makeRng } from "./prng";
+import { buildWetlandPatches } from "./wetland";
 
 /**
  * City Editor (CE) 準拠の海・水域カラー
@@ -310,6 +311,14 @@ export function buildLandscapeFromCells(
         color: landscape.fillColor,
         isWater: landscape.isWater,
         terrainKind: terrain.kind,
+        wetlandPatches:
+          !landscape.isWater &&
+          (definition?.tags.includes("wetland") || landscape.kind === "swamp" || landscape.kind === "marsh")
+            ? buildWetlandPatches(cell, cells, seed, metersPerMapUnit).map(p => ({
+                ...p,
+                polygon: p.polygon.map(toLocal)
+              }))
+            : undefined,
         forestCover: cell.forestCover,
         forestStock: cell.forestStock,
         forestPolygons: isForestBiome(landscape.kind)

@@ -31,7 +31,13 @@ export type BiomeKind =
   | "tundra"
   | "badlands";
 
+export interface RegionWetlandPatch {
+  kind: "water" | "mud" | "sand";
+  polygon: Point[];
+}
+
 export interface RegionBiomeArea {
+  wetlandPatches?: RegionWetlandPatch[];
   id: string;
   kind: BiomeKind;
   polygon: Point[];

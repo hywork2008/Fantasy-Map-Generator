@@ -163,6 +163,11 @@ export function renderRegionSvg(
       .join("\n");
 
     // 湖および海岸線外側（海洋）の切り開き
+    const wetlandWaterClearing = doc.biomes
+      .flatMap(b => b.wetlandPatches ?? [])
+      .filter(p => p.kind === "water")
+      .map(p => `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" />`)
+      .join("\n");
     const lakesClearing = doc.terrain.lakePolygons
       .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
       .join("\n");
@@ -176,6 +181,7 @@ export function renderRegionSvg(
         <rect x="0" y="0" width="${widthUnits}" height="${heightUnits}" fill="#ffffff" />
         ${coastlinesClearing}
         ${lakesClearing}
+        ${wetlandWaterClearing}
         ${riversClearing}
         ${routesClearing}
         ${landUseClearing}
@@ -277,6 +283,9 @@ export function renderRegionSvg(
         <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.05 0" />
         <feBlend mode="multiply" in="SourceGraphic" />
       </filter>
+      <pattern id="re-wetland-grass" width="11" height="9" patternUnits="userSpaceOnUse">
+        <path d="M2 7l-1-3m1 3l1-4m-1 4l3-2M8 3l-1-2m1 2l1-3" fill="none" stroke="#617c46" stroke-width="0.6" opacity="0.55" />
+      </pattern>
       ${forestDefs}
     </defs>
   `;
@@ -291,6 +300,20 @@ export function renderRegionSvg(
       const isSea = b.isWater || b.kind === "ocean";
       const cls = isSea ? "biome-polygon biome-ocean ce-face--sea" : `biome-polygon biome-${b.kind} ce-face--land`;
       return `<path class="${cls}" data-id="${b.id}" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" />`;
+    })
+    .join("\n");
+
+  const wetlandLayer = doc.biomes
+    .map(b => {
+      const patches = b.wetlandPatches ?? [];
+      return (["mud", "sand", "water"] as const)
+        .map(kind => {
+          const polygons = patches.filter(p => p.kind === kind);
+          if (!polygons.length) return "";
+          const color = kind === "water" ? theme.riverFill : kind === "sand" ? "#dfc99a" : "#948a67";
+          return `<path class="wetland-${kind}" d="${polygons.map(p => polyToSvgPath(p.polygon)).join(" ")}" fill="${color}" stroke="${color}" stroke-width="0.15" stroke-linejoin="round" />`;
+        })
+        .join("\n");
     })
     .join("\n");
 
@@ -576,6 +599,10 @@ export function renderRegionSvg(
       ${defs}
       ${background}
       <g id="layer-biomes">${biomesLayer}</g>
+      <g id="layer-wetlands">${doc.biomes
+        .filter(b => b.wetlandPatches !== undefined)
+        .map(b => `<path class="wetland-grass" d="${polyToSvgPath(b.polygon)}" fill="url(#re-wetland-grass)" />`)
+        .join("\n")}${wetlandLayer}</g>
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
