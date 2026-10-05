@@ -1,7 +1,7 @@
 # 地球型の季節気温と農業への適用計画
 
 作成日: 2026-10-05  
-状態: 一部実装。候補係数による気候基盤・本体月次更新・旧表示値のロード後再構築を実装。観測較正、農業・統計表・REの移行は未完了。[実装記録](../calibration/earthlike-seasonal-climate-v1.md)を参照。
+状態: 一部実装。未移行の旧モデル消費者: 経済拡張の `urbanWaterClimate.ts`（旧 `getSeasonalTemperatureOffset`）と `foodProduction.ts`（旧 `getSeasonalAmplitude`）。候補係数による気候基盤・本体月次更新・旧表示値のロード後再構築を実装。観測較正、農業・統計表・REの移行は未完了。[実装記録](../calibration/earthlike-seasonal-climate-v1.md)を参照。
 
 ## 1. 目的と境界
 
@@ -124,7 +124,7 @@ CellClimateNormals
   precipitationSeasonalitySource
 ```
 
-降水量の内部単位からmmへの変換は一か所で定義する。現行の8を800mmと扱う換算について、生成・表示・水配分それぞれの契約を確認してから確定する。
+降水量の内部単位からmmへの変換は `precipitationUnits.ts` の一か所で定義する（v1は既存表示契約の1 proxy unit = 100mm）。水配分側の契約との整合は段階3で確認する。
 
 純粋な気温曲線・月平均計算は本体の下位ユーティリティに置く。`seasonUtils.ts` のleaf制約を守り、world context・generator・extensionをimportしない。地形からの距離場生成とデータ更新はgenerator側が担当する。
 

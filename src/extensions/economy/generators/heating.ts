@@ -9,6 +9,7 @@
  * from a map's latitude at generation time.
  */
 
+import { getCellClimateNormals } from "../../hostCore";
 import { getLatitude, getMonthlyMeanTemperaturesC, rn } from "../../hostUtils";
 import {
   getGoods,
@@ -76,10 +77,11 @@ function getCellEffectiveTemperature(cellId: number): number | null {
   const point = world.pack.cells.p?.[cellId];
   if (!point) return baseTemperature;
   const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
+  const continentality = getCellClimateNormals(world, gridCellId, getSimulationYear())?.continentality ?? 0.5;
   return getMonthlyMeanTemperaturesC({
     annualMeanTemperatureC: baseTemperature,
     latitudeDeg: latitude,
-    continentality: 0.5,
+    continentality,
     year: getSimulationYear(),
     axialTiltDeg: world.options.axialTilt
   })[getSimulationMonth() - 1];

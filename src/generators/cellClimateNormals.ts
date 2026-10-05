@@ -159,6 +159,13 @@ function buildGeography(world: WorldContext, key: string): Geography {
   return { key, continentality, source };
 }
 
+function fallbackLatitude(world: WorldContext, cell: number): number {
+  return (
+    (world.mapCoordinates.latN ?? 0) -
+    (world.grid.points[cell][1] / world.graphHeight) * (world.mapCoordinates.latT ?? 0)
+  );
+}
+
 /** Runtime-only cache; old saved monthly buckets cannot validate this model's derived fields. */
 export function ensureCellClimateNormals(world: WorldContext, year: number): ClimateCache {
   const previous = cache.get(world);
@@ -171,10 +178,7 @@ export function ensureCellClimateNormals(world: WorldContext, year: number): Cli
   const result: ClimateCache = { key, geography, revision: ++nextRevision, monthly, year };
   for (const cell of world.grid.cells.i) {
     const coordinates = getEarthCoordinatesAtMapPoint(world, world.grid.points[cell]);
-    const latitude =
-      coordinates?.latitude ??
-      (world.mapCoordinates.latN ?? 0) -
-        (world.grid.points[cell][1] / world.graphHeight) * (world.mapCoordinates.latT ?? 0);
+    const latitude = coordinates?.latitude ?? fallbackLatitude(world, cell);
     monthly.set(
       getMonthlyMeanTemperaturesC({
         annualMeanTemperatureC: world.grid.cells.temp[cell],
@@ -223,10 +227,7 @@ function readCellClimateNormals(
 ): CellClimateNormals | null {
   if (!Number.isInteger(gridCellId) || gridCellId < 0 || gridCellId >= world.grid.cells.i.length) return null;
   const coordinates = getEarthCoordinatesAtMapPoint(world, world.grid.points[gridCellId]);
-  const latitude =
-    coordinates?.latitude ??
-    (world.mapCoordinates.latN ?? 0) -
-      (world.grid.points[gridCellId][1] / world.graphHeight) * (world.mapCoordinates.latT ?? 0);
+  const latitude = coordinates?.latitude ?? fallbackLatitude(world, gridCellId);
   const precipitation = precipitationProxyToMillimeters(world.grid.cells.prec?.[gridCellId] ?? 0);
   const annualPrecipitationMm = Number.isFinite(precipitation) ? Math.max(0, precipitation) : 0;
   return {

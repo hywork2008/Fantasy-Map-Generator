@@ -29,7 +29,11 @@ for (const descriptor of manifest.typedArrays) {
 const parse = async (entry: string) => JSON.parse(await zip.file(entry)!.async("string"), (_key, value) =>
   value?.$typedArray ? arrays.get(value.$typedArray) : value);
 const world = await parse("map/world.json") as WorldContext;
-const simulation = await parse("simulation/core.json");
+const simulation = (await parse("simulation/core.json")) as {
+  currentYear: number;
+  currentMonth: number;
+  landUse?: Record<string, unknown>;
+};
 const year = simulation.currentYear;
 const start = performance.now();
 const state = ensureCellClimateNormals(world, year);
