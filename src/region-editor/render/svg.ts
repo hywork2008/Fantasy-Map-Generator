@@ -61,6 +61,27 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
     })
     .join("\n");
 
+  // 3.5. 等高線レイヤー（Elevation Contours）
+  let contoursLayer = "";
+  if (doc.terrain.showContours !== false && doc.terrain.contours && doc.terrain.contours.length > 0) {
+    const contourPaths = doc.terrain.contours
+      .map(c => {
+        const pathD = polyToSvgPath(c.points, Boolean(c.isClosed));
+        const isIndex = Boolean(c.isIndex);
+        const stroke = isIndex ? theme.contourIndexStroke : theme.contourStroke;
+        const strokeWidth = isIndex ? 1.2 : 0.65;
+        const opacity = isIndex ? 0.6 : 0.35;
+        return `<path class="contour-line ${isIndex ? "contour-index" : ""}" data-elevation="${c.elevationMeters}" d="${pathD}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
+      })
+      .join("\n");
+
+    contoursLayer = `
+      <g class="re-contours-layer" id="re-contours-layer">
+        ${contourPaths}
+      </g>
+    `;
+  }
+
   // 4. 海岸線 & 波紋ハッチング & 湖
   const ripples = generateCoastalRipples(doc.terrain.coastlinePolygons, 3, 5);
   const ripplesLayer = ripples
@@ -272,6 +293,7 @@ export function renderRegionSvg(doc: RegionDocument, selectedId?: string | null)
       ${defs}
       ${background}
       <g id="layer-biomes">${biomesLayer}</g>
+      <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
       <g id="layer-rivers">${riversLayer}</g>

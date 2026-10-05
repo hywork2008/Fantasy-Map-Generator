@@ -7,6 +7,8 @@ import {
   removeLandmark,
   removeSettlement,
   removeSymbol,
+  toggleContours,
+  updateContourInterval,
   updateLandmark,
   updateSettlement
 } from "../core/commands";
@@ -125,6 +127,28 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
           </div>
         </section>
 
+        <!-- 地形・等高線設定 -->
+        <section class="re-panel-section">
+          <div class="re-section-title">地形・等高線 (Contours)</div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="check-show-contours" style="cursor:pointer;">等高線を表示</label>
+            <input type="checkbox" id="check-show-contours" ${history.current.terrain.showContours !== false ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
+          </div>
+          <div class="re-form-row">
+            <label>等高線間隔</label>
+            <select class="re-select" id="select-contour-interval">
+              <option value="25" ${history.current.terrain.contourIntervalMeters === 25 ? "selected" : ""}>25 m（細密）</option>
+              <option value="50" ${history.current.terrain.contourIntervalMeters === 50 ? "selected" : ""}>50 m（標準・低地）</option>
+              <option value="100" ${!history.current.terrain.contourIntervalMeters || history.current.terrain.contourIntervalMeters === 100 ? "selected" : ""}>100 m（標準・中起伏）</option>
+              <option value="200" ${history.current.terrain.contourIntervalMeters === 200 ? "selected" : ""}>200 m（山岳）</option>
+              <option value="500" ${history.current.terrain.contourIntervalMeters === 500 ? "selected" : ""}>500 m（広域高山）</option>
+            </select>
+          </div>
+          <div style="font-size:11px; line-height:1.6; color:var(--re-text-muted); margin-top:4px;" id="re-elevation-info">
+            <!-- 標高情報 -->
+          </div>
+        </section>
+
         <!-- 選択要素のプロパティ -->
         <section class="re-panel-section" id="re-selection-panel">
           <div class="re-section-title">選択情報</div>
@@ -176,13 +200,36 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
 
   function updateStats(): void {
     const doc = history.current;
+    const hf = doc.terrain.heightfield;
+    const minElev = hf ? Math.round(hf.minElevationMeters) : 0;
+    const maxElev = hf ? Math.round(hf.maxElevationMeters) : 0;
+    const contourCount = doc.terrain.contours?.length ?? 0;
+    const indexCount = doc.terrain.contours?.filter(c => c.isIndex).length ?? 0;
+    const interval = doc.terrain.contourIntervalMeters ?? 100;
+
     statsContent.innerHTML = `
       <div>🌲 樹木・山岳シンボル数: <strong>${doc.symbols.length}</strong></div>
       <div>🌊 河川数: <strong>${doc.rivers.length}</strong></div>
       <div>🌉 <strong>直角交差橋数 (規約遵守): <span style="color:#d4a373;">${doc.bridges.length}</span></strong></div>
+      <div>📐 <strong>等高線数: <span style="color:#a88350;">${contourCount}本</span></strong> (主等高線: ${indexCount}本)</div>
+      <div>⛰️ <strong>標高範囲: ${minElev}m 〜 ${maxElev}m</strong> (比高: ${maxElev - minElev}m)</div>
       <div>🏰 集落数: <strong>${doc.settlements.length}</strong></div>
       <div>🧭 冒険地点・遺跡数: <strong>${doc.landmarks.length}</strong></div>
     `;
+
+    const elevInfo = root.querySelector("#re-elevation-info");
+    if (elevInfo) {
+      elevInfo.innerHTML = `
+        <div>標高範囲: <strong>${minElev} m 〜 ${maxElev} m</strong></div>
+        <div>等高線数: <strong>${contourCount} 本</strong>（主等高線 ${indexCount} 本）</div>
+        <div>等高線間隔: <strong>${interval} m</strong></div>
+      `;
+    }
+
+    const checkContours = root.querySelector<HTMLInputElement>("#check-show-contours");
+    if (checkContours) {
+      checkContours.checked = doc.terrain.showContours !== false;
+    }
   }
 
   function renderMap(): void {
@@ -716,6 +763,20 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
   root.querySelector("#select-theme")?.addEventListener("change", e => {
     const theme = (e.target as HTMLSelectElement).value as RegionTheme;
     history.current.decoration.theme = theme;
+    renderMap();
+  });
+
+  // 等高線表示切り替え
+  root.querySelector("#check-show-contours")?.addEventListener("change", e => {
+    const checked = (e.target as HTMLInputElement).checked;
+    history.push(toggleContours(history.current, checked));
+    renderMap();
+  });
+
+  // 等高線間隔変更
+  root.querySelector("#select-contour-interval")?.addEventListener("change", e => {
+    const interval = Number((e.target as HTMLSelectElement).value);
+    history.push(updateContourInterval(history.current, interval));
     renderMap();
   });
 

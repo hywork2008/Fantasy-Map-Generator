@@ -9,6 +9,7 @@ import type {
   RegionSymbol,
   SymbolType
 } from "../types";
+import { generateContourLines, generateHeightfieldFromCells, synthesizeHeightfield } from "./contours";
 import { generatePerpendicularBridges } from "./perpendicularBridges";
 import { poissonDiscSampling } from "./poissonScatter";
 import { makeRng } from "./prng";
@@ -48,6 +49,14 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
   // 海岸線ポリゴン（西側海域）
   const seaPolygon: Point[] = [[0, 0], ...coastPoints, [0, heightUnits]];
   doc.terrain.coastlinePolygons = [coastPoints];
+
+  // 標高グリッド（Heightfield）と等高線（Contours）の合成生成
+  const heightfield = synthesizeHeightfield(widthUnits, heightUnits, coastPoints);
+  const contourResult = generateContourLines(heightfield, widthUnits, heightUnits);
+  doc.terrain.heightfield = heightfield;
+  doc.terrain.contours = contourResult.contours;
+  doc.terrain.contourIntervalMeters = contourResult.intervalMeters;
+  doc.terrain.showContours = true;
 
   // 2. バイオーム領域の定義
   // 陸地全体の境界
@@ -383,6 +392,24 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
   // 海岸線と湖
   doc.terrain.coastlinePolygons = descriptor.coastlines.map(poly => poly.map(toLocal));
   doc.terrain.lakePolygons = descriptor.lakes.map(poly => poly.map(toLocal));
+
+  // 標高グリッド（Heightfield）および等高線（Contours）の生成
+  if (descriptor.cells && descriptor.cells.length > 0) {
+    const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
+    const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
+    const localCells = descriptor.cells.map(c => ({
+      point: toLocal(c.point),
+      elevationMeters: c.elevationMeters
+    }));
+
+    const heightfield = generateHeightfieldFromCells(localCells, widthUnits, heightUnits);
+    const contourResult = generateContourLines(heightfield, widthUnits, heightUnits);
+
+    doc.terrain.heightfield = heightfield;
+    doc.terrain.contours = contourResult.contours;
+    doc.terrain.contourIntervalMeters = contourResult.intervalMeters;
+    doc.terrain.showContours = true;
+  }
 
   // 河川
   doc.rivers = descriptor.rivers.map(r => ({

@@ -186,8 +186,19 @@ export interface RegionDocument {
     heightfield?: {                                    // 標高グリッド（陰影起伏・等高線用）
       cols: number;
       rows: number;
-      elevationsMeters: Float32Array | number[];
+      minElevationMeters: number;
+      maxElevationMeters: number;
+      elevationsMeters: number[];
     };
+    contours?: Array<{                                 // 生成・保持される等高線データ
+      id: string;
+      elevationMeters: number;
+      points: Array<[number, number]>;
+      isIndex?: boolean;                               // 主等高線（太線）
+      isClosed?: boolean;                              // 孤立峰・閉曲線
+    }>;
+    contourIntervalMeters?: number;                    // 等高線間隔 (m)
+    showContours?: boolean;                            // 等高線レイヤー表示フラグ
   };
 
   /** バイオーム領域（面情報） */
@@ -442,6 +453,21 @@ export function openRegionEditor(provinceId: number): void {
   openURL(`${import.meta.env.BASE_URL}region-editor/`);
 }
 ```
+
+#### 8.1.1 標高データと等高線生成（境界周辺セルの収集と乖離防止）
+FMG と RE の間での地形・等高線の整合性を担保するため、以下のアーキテクチャで標高データの引き渡しと等高線生成を行う：
+
+1. **標高パラメータの算出と伝達**:
+   - FMG 標準の標高変換関数 `heightToMeters`（`heightExponent` オプション考慮）により、各セルのパック高度 $h$（0〜100）をメートル単位の標高（$h \ge 20$ で陸地標高、$h < 20$ で水深/0m）に換算。
+   - `RegionSiteCell` として `point`, `elevationMeters`, `height`, `inProvince`（州所属フラグ）を格納。
+2. **境界周辺セル（Surrounding Cells）の収集と適応マージン**:
+   - 州の境界を跨ぐ標高差が大きい場合（山脈、海岸崖、峡谷など）、州内部のセルのみを渡すと外挿補間が破綻し、FMG と RE で地形に大きな乖離が生じる。
+   - そのため、対象州のセルと外周セルの標高差 `maxBorderRelief` を算出し、起伏が大きい場合は表示マージン（15% → 25%以上）およびサンプリングバッファを動的に拡張。
+   - 表示矩形内の全セルに加え、1次トポロジカル隣接セル（`cells.c`）まで収集して渡すことで、境界部でも滑らかで正確な標高勾配を維持する。
+3. **RE での Heightfield 補間と Marching Squares 等高線生成**:
+   - RE 側では、渡されたセル標高から空間インデックス（グリッドバケット）を用いた逆距離加重法（IDW）により規則的な標高グリッド `Heightfield` を生成。
+   - Marching Squares アルゴリズムにより、標高範囲に応じた等高線ポリライン（`RegionContourLine`）を自動抽出。主等高線（Index contour: 太線）および閉曲線判定を行い、ラプラシアンスムージングによってクラフト感のある手描き風等高線として描画・保持する。
+   - ドキュメントデータモデル（`doc.terrain.contours`, `doc.terrain.heightfield`）として完全保持され、JSON 保存・読込、SVG 出力、UI での表示切替・間隔変更に対応。
 
 ### 8.2 Region Editor (RE) → City Editor (CE) のハンドオフ
 RE 上の集落シンボル（Settlement）をクリックし、プロパティパネル内の **「City Editor (CE) で開く」** ボタンをクリック。

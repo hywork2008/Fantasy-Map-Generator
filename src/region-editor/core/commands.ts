@@ -1,4 +1,5 @@
 import { cloneRegionDocument } from "./document";
+import { generateContourLines } from "./gen/contours";
 import { generatePerpendicularBridges } from "./gen/perpendicularBridges";
 import { distance } from "./geometry";
 import type {
@@ -149,5 +150,30 @@ export function updateRoutesAndBridges(doc: RegionDocument): RegionDocument {
   const result = generatePerpendicularBridges(next.rivers, next.routes, next.bounds.metersPerUnit);
   next.bridges = result.bridges;
   next.routes = result.adjustedRoutes;
+  return next;
+}
+
+/**
+ * 等高線レイヤーの表示/非表示を切り替える
+ */
+export function toggleContours(doc: RegionDocument, show?: boolean): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.showContours = show ?? !(next.terrain.showContours ?? true);
+  return next;
+}
+
+/**
+ * 等高線の生成間隔を変更し、等高線を再生成する
+ */
+export function updateContourInterval(doc: RegionDocument, intervalMeters: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  if (next.terrain.heightfield) {
+    const widthUnits = next.bounds.widthMeters / next.bounds.metersPerUnit;
+    const heightUnits = next.bounds.heightMeters / next.bounds.metersPerUnit;
+    const res = generateContourLines(next.terrain.heightfield, widthUnits, heightUnits, intervalMeters);
+    next.terrain.contours = res.contours;
+    next.terrain.contourIntervalMeters = res.intervalMeters;
+    next.terrain.showContours = true;
+  }
   return next;
 }

@@ -24,6 +24,8 @@ export interface ThemeColors {
   settlementFill: string;
   settlementStroke: string;
   landmarkFill: string;
+  contourStroke: string;
+  contourIndexStroke: string;
   biomes: Record<BiomeKind, string>;
 }
 
@@ -52,6 +54,8 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     settlementFill: "#b3382c",
     settlementStroke: "#301511",
     landmarkFill: "#6d3278",
+    contourStroke: "#8c7255",
+    contourIndexStroke: "#5a4430",
     biomes: {
       ocean: "#9bc2c9",
       grassland: "#d5dfb8",
@@ -93,6 +97,8 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     settlementFill: "#111111",
     settlementStroke: "#111111",
     landmarkFill: "#333333",
+    contourStroke: "#888888",
+    contourIndexStroke: "#333333",
     biomes: {
       ocean: "#eef2f5",
       grassland: "#fdfbf7",
@@ -134,6 +140,8 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     settlementFill: "#8a3324",
     settlementStroke: "#2b140f",
     landmarkFill: "#59365c",
+    contourStroke: "#9c8160",
+    contourIndexStroke: "#624930",
     biomes: {
       ocean: "#d2c09c",
       grassland: "#ded2ad",
@@ -175,6 +183,8 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     settlementFill: "#000000",
     settlementStroke: "#000000",
     landmarkFill: "#000000",
+    contourStroke: "#888888",
+    contourIndexStroke: "#333333",
     biomes: {
       ocean: "#f4f4f4",
       grassland: "#ffffff",

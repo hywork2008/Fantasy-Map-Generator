@@ -130,6 +130,33 @@ export interface RegionDecoration {
   borderStyle: "ornate" | "simple" | "none";
 }
 
+export interface RegionContourLine {
+  id: string;
+  elevationMeters: number;
+  points: Point[];
+  /** 主等高線（Index contour: 太線・注記対象） */
+  isIndex?: boolean;
+  /** 閉曲線（孤立峰や凹地） */
+  isClosed?: boolean;
+}
+
+export interface RegionHeightfield {
+  cols: number;
+  rows: number;
+  minElevationMeters: number;
+  maxElevationMeters: number;
+  elevationsMeters: number[];
+}
+
+export interface RegionTerrain {
+  coastlinePolygons: Point[][];
+  lakePolygons: Point[][];
+  heightfield?: RegionHeightfield;
+  contours?: RegionContourLine[];
+  contourIntervalMeters?: number;
+  showContours?: boolean;
+}
+
 export interface RegionDocument {
   format: typeof REGION_DOCUMENT_FORMAT;
   version: typeof REGION_DOCUMENT_VERSION;
@@ -152,15 +179,7 @@ export interface RegionDocument {
     fmgBBox: [number, number, number, number];
   };
 
-  terrain: {
-    coastlinePolygons: Point[][];
-    lakePolygons: Point[][];
-    heightfield?: {
-      cols: number;
-      rows: number;
-      elevationsMeters: number[];
-    };
-  };
+  terrain: RegionTerrain;
 
   biomes: RegionBiomeArea[];
   symbols: RegionSymbol[];
@@ -178,6 +197,16 @@ export interface RegionDocument {
  */
 export const REGION_SITE_KEY = "fmg.regionSite";
 export const REGION_SITE_VERSION = 1;
+
+export interface RegionSiteCell {
+  point: Point;
+  elevationMeters: number;
+  height?: number; // FMG raw 0-100 height index
+  inProvince?: boolean; // true if cell is inside the selected province
+  provinceId?: number;
+  biomeId: number;
+  biomeName: string;
+}
 
 export interface RegionSiteDescriptor {
   version: typeof REGION_SITE_VERSION;
@@ -223,12 +252,12 @@ export interface RegionSiteDescriptor {
     point: Point;
     type: string;
   }>;
-  cells: Array<{
-    point: Point;
-    elevationMeters: number;
-    biomeId: number;
-    biomeName: string;
-  }>;
+  elevationStats?: {
+    minElevationMeters: number;
+    maxElevationMeters: number;
+    maxBorderRelief: number;
+  };
+  cells: RegionSiteCell[];
 }
 
 export interface RegionGenerationSettings {
