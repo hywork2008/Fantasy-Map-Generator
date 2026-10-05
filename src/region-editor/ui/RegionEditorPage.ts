@@ -737,7 +737,13 @@ export function mountRegionEditor(root: HTMLElement): { dispose: () => void; get
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
     const beforeDetail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
+    const oldZoom = zoom;
     zoom = Math.min(Math.max(0.2, zoom * factor), 5.0);
+    // カーソル直下の点を固定する（canvasは中心基準でscaleされる）
+    const rect = canvas.getBoundingClientRect();
+    const ratio = zoom / oldZoom;
+    panX += (e.clientX - (rect.left + rect.width / 2)) * (1 - ratio);
+    panY += (e.clientY - (rect.top + rect.height / 2)) * (1 - ratio);
     if (beforeDetail !== (zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2)) renderMap();
     updateTransform();
   });
