@@ -1,5 +1,8 @@
 # Staple Crop Climate Profiles
 
+2026-10-05 update: Production now screens crop maturity using actual monthly temperatures and evaluates the existing temperature suitability bands against the growing-period mean. Maturity days and degree-day thresholds are provisional game coefficients, not validated cultivar requirements. Annual precipitation remains in use. See [monthly crop model](../calibration/monthly-crop-climate-v1.md) for the current implementation; earlier calendar assumptions below describe the previous design.
+
+
 ## Climate scale
 
 `grid.cells.prec` stores annual precipitation in a 0–255 proxy scale where one

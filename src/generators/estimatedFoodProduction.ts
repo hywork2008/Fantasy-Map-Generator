@@ -1,4 +1,6 @@
+import { simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { createCellClimateNormalsReader } from "./cellClimateNormals";
 import { type EstimatedFoodSoil, estimateFoodClimateYield, estimateFoodWaterTarget } from "./foodClimateEstimate";
 import { allocateRiverWater, compileRiverWaterNetwork, type RiverWithdrawal } from "./riverWaterAllocation";
 
@@ -31,6 +33,11 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
     pack: { cells: { ...cells, fl: cells.fl ?? new Uint16Array(count) }, rivers: world.pack.rivers ?? [] },
     annualWaterPerFlux: ANNUAL_WATER_PER_FLUX
   });
+  const readClimate =
+    world.grid.cells.i?.length && world.grid.points?.length && world.graphHeight > 0
+      ? createCellClimateNormalsReader(world as WorldContext, simulationContext.currentYear || 2001)
+      : undefined;
+  const amplitudes = new Float32Array(count);
   const demands: RiverWithdrawal[] = [];
   for (const id of cells.i) {
     const height = cells.h[id];
@@ -58,9 +65,14 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
     const area = potentialLand ? ceiling : Math.min(ceiling, established ?? physical * (1 - forest));
     cultivableAreaHa[id] = area;
     const grid = cells.g?.[id] ?? id;
+    const monthly = readClimate?.(grid)?.monthlyMeanTemperatureC;
+    amplitudes[id] = monthly ? (Math.max(...monthly) - Math.min(...monthly)) / 2 : 0;
     const temp = world.grid.cells.temp?.[grid] ?? 12;
     const rain = world.grid.cells.prec?.[grid] ?? 0;
-    const deficit = Math.max(0, estimateFoodWaterTarget(temp, rain, getEstimatedFoodSoil(world, id)) - rain);
+    const deficit = Math.max(
+      0,
+      estimateFoodWaterTarget(temp, rain, getEstimatedFoodSoil(world, id), amplitudes[id]) - rain
+    );
     deficits[id] = deficit;
     const intake = network.intakeByFieldCell[id];
     if (!intake || area <= 0 || deficit <= 0) continue;
@@ -89,7 +101,8 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
       world.grid.cells.prec?.[grid] ?? 0,
       getEstimatedFoodSoil(world, id),
       irrigatedShare > 0 ? deficit : 0,
-      irrigatedShare
+      irrigatedShare,
+      amplitudes[id]
     );
   }
   return { cultivableAreaHa, yieldKgPerHa, deliveredWater, allocation };

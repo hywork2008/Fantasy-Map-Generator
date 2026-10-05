@@ -10,14 +10,13 @@ import {
   getWorldContext,
   setRuralHouseholdFoodStock
 } from "../economyContext";
-import { getCropMix } from "./agriculturalLandUse";
 import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { FoodLedger, Market } from "./marketTypes";
-import { getCropHarvestWeight } from "./production-utils";
+import { getCropHarvestWeight, getCurrentCropMix } from "./production-utils";
 import { markRetailInventoryDirty } from "./retailInventory";
 import {
   advanceStapleCropInventoryQuarterly,
@@ -404,7 +403,7 @@ export class FoodProductionModule {
           annualHarvest = capacity * GROSS_FOOD_NEED * cultivation;
         }
 
-        const cropMix = getCropMix(this.worldContext, cellId, cropGoods);
+        const cropMix = getCurrentCropMix(this.worldContext, cellId, cropGoods);
         // A modern catalogue must not turn an unsuitable field into anonymous
         // Grain. Legacy catalogues without crop profiles retain the aggregate
         // Food Ledger behavior until they are migrated.
@@ -416,7 +415,8 @@ export class FoodProductionModule {
         const harvestWeight = cropMix.length
           ? cropMix.reduce((total, entry) => {
               const periodShare = months.reduce(
-                (sum, harvestMonth) => sum + (getCropHarvestWeight(entry.good, cellId, harvestMonth) ?? 0),
+                (sum, harvestMonth) =>
+                  sum + (getCropHarvestWeight(entry.good, cellId, harvestMonth, entry.irrigated) ?? 0),
                 0
               );
               return total + entry.share * periodShare;
@@ -442,7 +442,12 @@ export class FoodProductionModule {
         // Food Ledger keeps wheat-equivalent nutrition, while every unit also
         // retains a real crop identity for consumption and player trade.
         for (const entry of cropMix) {
-          cropWholesale.set(entry.good.i, (cropWholesale.get(entry.good.i) ?? 0) + wholesale * entry.share);
+          const periodShare = months.reduce(
+            (sum, harvestMonth) => sum + (getCropHarvestWeight(entry.good, cellId, harvestMonth, entry.irrigated) ?? 0),
+            0
+          );
+          const share = harvestWeight > 0 ? (entry.share * periodShare) / harvestWeight : 0;
+          cropWholesale.set(entry.good.i, (cropWholesale.get(entry.good.i) ?? 0) + wholesale * share);
         }
       }
 

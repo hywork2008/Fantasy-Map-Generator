@@ -1,38 +1,150 @@
 {
-  "comparisons": 17556,
-  "meanAbsoluteErrorKgHa": 3.323360228425077,
-  "p95AbsoluteErrorKgHa": 17.825378304748536,
-  "maximumAbsoluteErrorKgHa": 49.28995201732289,
+  "comparisons": 56430,
+  "meanAbsoluteErrorKgHa": 3.9839710049394412,
+  "p95AbsoluteErrorKgHa": 19.063525633877845,
+  "maximumAbsoluteErrorKgHa": 96.9453375,
   "examples": [
     {
       "soil": "loam",
-      "observedYieldKgHa": 0,
-      "estimatedYieldKgHa": 0
+      "observedYieldKgHa": 85.36170994151722,
+      "estimatedYieldKgHa": 84.899045
     },
     {
       "soil": "alluvial",
-      "observedYieldKgHa": 0,
-      "estimatedYieldKgHa": 0
+      "observedYieldKgHa": 84.28125,
+      "estimatedYieldKgHa": 84.28125
     },
     {
       "soil": "humus",
-      "observedYieldKgHa": 0,
-      "estimatedYieldKgHa": 0
+      "observedYieldKgHa": 83.53070683912797,
+      "estimatedYieldKgHa": 81.6203675
     },
     {
       "soil": "clay",
-      "observedYieldKgHa": 0,
-      "estimatedYieldKgHa": 0
+      "observedYieldKgHa": 57.6578500921076,
+      "estimatedYieldKgHa": 57.51469
     },
     {
       "soil": "sandy",
-      "observedYieldKgHa": 0,
-      "estimatedYieldKgHa": 0
+      "observedYieldKgHa": 82.72163737903942,
+      "estimatedYieldKgHa": 81.50866
     },
     {
       "soil": "thin",
-      "observedYieldKgHa": 0,
-      "estimatedYieldKgHa": 0
+      "observedYieldKgHa": 51.40573154796254,
+      "estimatedYieldKgHa": 50.977689999999996
+    }
+  ],
+  "worstExamples": [
+    {
+      "error": 96.9453375,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 0,
+      "share": 0,
+      "soil": "loam",
+      "observed": 271.625,
+      "estimated": 174.6796625
+    },
+    {
+      "error": 96.24941639648438,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 0,
+      "share": 0,
+      "soil": "alluvial",
+      "observed": 247.77499389648438,
+      "estimated": 151.5255775
+    },
+    {
+      "error": 95.72021346901636,
+      "temp": 15.25,
+      "amplitude": 10,
+      "rain": 4,
+      "extra": 12,
+      "share": 0.5,
+      "soil": "humus",
+      "observed": 245.07450034401634,
+      "estimated": 149.35428687499999
+    },
+    {
+      "error": 94.42564139648437,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 13,
+      "extra": 0,
+      "share": 0,
+      "soil": "humus",
+      "observed": 314.3999938964844,
+      "estimated": 219.9743525
+    },
+    {
+      "error": 94.09837016761361,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 13,
+      "extra": 1.5,
+      "share": 0.1,
+      "soil": "humus",
+      "observed": 311.2989612926136,
+      "estimated": 217.20059112500002
+    },
+    {
+      "error": 94.08864819438034,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 3,
+      "share": 0.1,
+      "soil": "loam",
+      "observed": 267.12535719438034,
+      "estimated": 173.036709
+    },
+    {
+      "error": 94.02400171031604,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 6,
+      "share": 0.1,
+      "soil": "loam",
+      "observed": 264.01224171031606,
+      "estimated": 169.98824000000002
+    },
+    {
+      "error": 93.43137450017755,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 6,
+      "share": 0.1,
+      "soil": "alluvial",
+      "observed": 241.12551325017756,
+      "estimated": 147.69413875
+    },
+    {
+      "error": 93.14491526897638,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 3,
+      "share": 0.1,
+      "soil": "alluvial",
+      "observed": 243.7526075189764,
+      "estimated": 150.60769225
+    },
+    {
+      "error": 93.0754225703125,
+      "temp": 29.25,
+      "amplitude": 22,
+      "rain": 17,
+      "extra": 1.5,
+      "share": 0.1,
+      "soil": "loam",
+      "observed": 266.4161376953125,
+      "estimated": 173.340715125
     }
   ]
 }

@@ -39,9 +39,13 @@ describe("offline calibrated food production", () => {
     expect(limited.allocation.residualFlowByCell[2]).toBeGreaterThanOrEqual(30 * 10 * 0.55);
   });
 
-  it("keeps a dry Degoryesk-like cell at zero agricultural yield", () => {
-    expect(estimateFoodClimateYield(4, 5, "alluvial")).toBe(0);
-    expect(estimateFoodClimateYield(4, 8, "alluvial")).toBeGreaterThan(0);
+  it("supports viable dryland crops in a Degoryesk-like cell without inventing water", () => {
+    expect(estimateFoodClimateYield(4, 0, "alluvial", 0, 0, 8)).toBe(0);
+    expect(estimateFoodClimateYield(4, 5, "alluvial", 0, 0, 8)).toBeGreaterThan(0);
+    expect(estimateFoodClimateYield(4, 5, "alluvial", 0, 0, 8)).toBeGreaterThan(
+      estimateFoodClimateYield(4, 5, "alluvial", 0, 0, 0)
+    );
+    expect(estimateFoodClimateYield(4, 8, "alluvial", 0, 0, 8)).toBeGreaterThan(0);
   });
 
   it("does not invent river water when flux is missing or zero", () => {

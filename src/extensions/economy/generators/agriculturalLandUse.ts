@@ -1,9 +1,3 @@
-import {
-  classifyAgriculturalClimateZone,
-  classifySeasonRegion,
-  getCropCalendar,
-  SEASON_REGION_PROFILES
-} from "../../../data/cropCalendars";
 import { getStapleCropSuitability } from "../../../data/stapleCrops";
 import { commitLandUsePlan, resolveStaticLandUseInputs, usesFantasyForestDefaults } from "../../../generators/landUse";
 import {
@@ -28,10 +22,15 @@ import {
   type WorldContext
 } from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
-import { getLatitude } from "../../hostUtils";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
+import {
+  type AgriculturalClimateReader,
+  createAgriculturalClimateReader,
+  getSeasonalCropPlan,
+  readAgriculturalClimate
+} from "./seasonalCropClimate";
 
 export {
   ANNUAL_SOWN_SHARE,
@@ -176,12 +175,17 @@ const MIN_SOIL_FERTILITY = 0.55;
 const MAX_SOIL_FERTILITY = 1.1;
 
 export interface CropMixEntry {
+  readonly irrigated?: boolean;
   readonly good: Good;
   readonly share: number;
   readonly suitability: number;
 }
 
 export interface AgriculturalConditions {
+  /** Real monthly climate, prepared once per agricultural pass; injectable for offline calibration. */
+  readonly climateByCell?: AgriculturalClimateReader;
+  /** Production reads the already allocated water for each maintained field. */
+  readonly irrigationAtCell?: (cellId: number) => { irrigated: boolean; supplement: number; fraction?: number };
   /** Prepared by the economy adapter, in hectares and real labour days. */
   readonly landUseByCell?: Record<number, Partial<ClearanceCellInput>>;
   /** Staple crops available to the world. Omit for legacy/test callers' generic-Grain behavior. */
@@ -316,6 +320,10 @@ export function calculateAgriculturalLandProfile(
   demandOptions: AgriculturalDemandOptions = {},
   conditions: AgriculturalConditions = {}
 ): AgriculturalLandProfile {
+  conditions = {
+    ...conditions,
+    climateByCell: conditions.climateByCell ?? createAgriculturalClimateReader(world, demandOptions.year)
+  };
   const cells = world.pack.cells;
   const count = cells?.i?.length ?? 0;
   const cultivableArea = new Float32Array(count);
@@ -363,7 +371,8 @@ export function calculateAgriculturalLandProfile(
       conditions.cropGoods ?? [],
       cultivableArea,
       conditions.irrigationDevelopmentByCell,
-      conditions.irrigationConveyanceEfficiencyByCell
+      conditions.irrigationConveyanceEfficiencyByCell,
+      conditions.climateByCell
     );
 
   for (const cellId of cells.i) {
@@ -406,7 +415,22 @@ export function calculateAgriculturalLandProfile(
     );
     const farmableAdults = Math.max(0, ruralAdults - reservedLaborExportPoints);
     const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
-    const annualLaborDaysPerHectare = effectiveLaborDaysPerHectare * fourCourseLaborMultiplier;
+    const cycles = conditions.cropGoods
+      ? getCropMix(world, cellId, conditions.cropGoods, { ...conditions, irrigation }).reduce(
+          (sum, entry) =>
+            sum +
+            entry.share *
+              (entry.good.crop?.calendar
+                ? getSeasonalCropPlan(
+                    entry.good.crop.calendar,
+                    conditions.climateByCell!(cellId),
+                    entry.irrigated ?? (irrigation.irrigatedAreaHa[cellId] ?? 0) > 0
+                  ).calendar.cropCycles
+                : 1),
+          0
+        )
+      : 1;
+    const annualLaborDaysPerHectare = effectiveLaborDaysPerHectare * fourCourseLaborMultiplier * Math.max(1, cycles);
     const subsistenceArea = Math.min(area, requiredArea * SUBSISTENCE_FIELD_RESERVE);
     const laborAffordableArea =
       yieldKgPerHa > 0
@@ -548,6 +572,10 @@ export function reconcileForestClearanceForAgriculture(
   demandOptions: AgriculturalDemandOptions = {},
   conditions: AgriculturalConditions = {}
 ): boolean {
+  conditions = {
+    ...conditions,
+    climateByCell: conditions.climateByCell ?? createAgriculturalClimateReader(world, demandOptions.year)
+  };
   const cells = world.pack.cells;
   const previous = world.pack.landUse;
   const year = demandOptions.year ?? previous?.year ?? 0;
@@ -878,6 +906,36 @@ export function getCropMix(
   cropGoods: readonly Good[],
   conditions: AgriculturalConditions = {}
 ): readonly CropMixEntry[] {
+  conditions = { ...conditions, climateByCell: conditions.climateByCell ?? (id => readAgriculturalClimate(world, id)) };
+  const supplied = conditions.irrigationAtCell?.(cellId);
+  const irrigated = supplied?.irrigated ?? (conditions.irrigation?.irrigatedAreaHa[cellId] ?? 0) > 0;
+  const fraction =
+    supplied?.fraction ??
+    Math.min(
+      1,
+      (conditions.irrigation?.irrigatedAreaHa[cellId] ?? 0) /
+        Math.max(calculateCultivableAreaHectares(world, cellId), 1e-6)
+    );
+  const supplement = supplied?.supplement ?? conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
+  if (fraction > 0 && fraction < 1) {
+    const dry = getCropMix(world, cellId, cropGoods, {
+      ...conditions,
+      irrigationAtCell: () => ({ irrigated: false, supplement: 0, fraction: 0 })
+    });
+    const wet = getCropMix(world, cellId, cropGoods, {
+      ...conditions,
+      irrigationAtCell: () => ({ irrigated: true, supplement, fraction: 1 })
+    });
+    return [
+      ...dry.map(e => ({ ...e, share: e.share * (1 - fraction) })),
+      ...wet.map(e => ({ ...e, share: e.share * fraction }))
+    ];
+  }
+  // A zero-area irrigation allocation supplies no water to rain-fed crops.
+  conditions = {
+    ...conditions,
+    irrigationAtCell: () => ({ irrigated, supplement: irrigated ? supplement : 0, fraction: irrigated ? 1 : 0 })
+  };
   const candidates = cropGoods
     .filter(good => good.crop)
     .map(good => ({ good, suitability: getCropSuitability(world, cellId, good, conditions) }))
@@ -898,13 +956,42 @@ export function getCropMix(
     31
   );
   if (!mainCrop && !legume) return [];
-  if (!mainCrop) return [{ ...legume!, share: 1 }];
-  if (!legume) return [{ ...mainCrop, share: 1 }];
+  if (!mainCrop) return [{ ...legume!, share: 1, irrigated }];
+  if (!legume) return [{ ...mainCrop, share: 1, irrigated }];
 
   return [
-    { ...mainCrop, share: MAIN_CROP_SHARE_WITH_LEGUME },
-    { ...legume, share: 1 - MAIN_CROP_SHARE_WITH_LEGUME }
+    { ...mainCrop, share: MAIN_CROP_SHARE_WITH_LEGUME, irrigated },
+    { ...legume, share: 1 - MAIN_CROP_SHARE_WITH_LEGUME, irrigated }
   ];
+}
+
+/** Annual output shares differ from rotation area shares when crops have different yields or cycles. */
+export function getCropOutputMix(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  crops: readonly Good[],
+  conditions: AgriculturalConditions = {}
+): readonly CropMixEntry[] {
+  const climateByCell = conditions.climateByCell ?? (id => readAgriculturalClimate(world, id));
+  const mix = getCropMix(world, cellId, crops, { ...conditions, climateByCell });
+  if (!mix.length) return [];
+  const grid = world.pack.cells.g?.[cellId] ?? cellId;
+  const rain = world.grid?.cells.prec?.[grid] ?? 45;
+  const supplement =
+    conditions.irrigationAtCell?.(cellId).supplement ?? conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
+  const weighted = mix.map(entry => ({
+    ...entry,
+    share:
+      entry.share *
+      entry.suitability *
+      (entry.good.crop?.yieldMultiplier ?? 1) *
+      getPrecipitationFactor(rain + (entry.irrigated ? supplement : 0)) *
+      (entry.good.crop?.calendar
+        ? getSeasonalCropPlan(entry.good.crop.calendar, climateByCell(cellId), entry.irrigated).calendar.cropCycles
+        : 1)
+  }));
+  const total = weighted.reduce((sum, e) => sum + e.share, 0);
+  return total > 0 ? weighted.map(e => ({ ...e, share: e.share / total })) : [];
 }
 
 /**
@@ -931,26 +1018,11 @@ function getCropMonthlyLabourDays(
     monthlyDays.fill(annualLaborDays / 12);
     return monthlyDays;
   }
-  const cells = world.pack.cells;
-  const point = cells.p?.[cellId];
-  const gridCellId = cells.g?.[cellId] ?? cellId;
-  if (!point || gridCellId < 0) {
-    monthlyDays.fill(annualLaborDays / 12);
-    return monthlyDays;
-  }
-  const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
-  const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
-  const precipitation = world.grid.cells.prec?.[gridCellId] ?? 45;
-  const region = classifySeasonRegion(latitude);
-  const zone = classifyAgriculturalClimateZone({
-    annualTemperatureC: temperature,
-    annualPrecipitation: precipitation,
-    irrigated: irrigatedArea > 0
-  });
   for (const entry of mix) {
     const calendarProfile = entry.good.crop?.calendar;
     if (!calendarProfile) continue;
-    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, calendarProfile);
+    const climate = conditions.climateByCell!(cellId);
+    const calendar = getSeasonalCropPlan(calendarProfile, climate, entry.irrigated ?? irrigatedArea > 0).calendar;
     for (let month = 0; month < 12; month++) {
       monthlyDays[month] += annualLaborDays * entry.share * calendar.labourWeights[month];
     }
@@ -1019,10 +1091,20 @@ export function getCropSuitability(
   const crop = good.crop;
   if (!crop) return 0;
   const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
-  const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
+  const climate = (conditions.climateByCell ?? (id => readAgriculturalClimate(world, id)))(cellId);
+  const water = conditions.irrigationAtCell?.(cellId);
+  const plan = crop.calendar
+    ? getSeasonalCropPlan(
+        crop.calendar,
+        climate,
+        water?.irrigated ?? (conditions.irrigation?.irrigatedAreaHa[cellId] ?? 0) > 0
+      )
+    : undefined;
+  if (plan && !plan.calendar.cropCycles) return 0;
+  const temperature = plan?.growingMeanTemperatureC ?? climate.monthlyMeanTemperatureC[0];
   const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
   const soil = getCellSoilType(world, cellId);
-  const irrigationSupplement = conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
+  const irrigationSupplement = water?.supplement ?? conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
   return getStapleCropSuitability(crop, temperature, precipitation, soil, irrigationSupplement);
 }
 
@@ -1035,7 +1117,8 @@ export function calculateRiverIrrigationResults(
   cropGoods: readonly Good[],
   cultivableArea: Float32Array,
   irrigationDevelopmentByCell?: Float32Array,
-  conveyanceEfficiencyByCell?: Float32Array
+  conveyanceEfficiencyByCell?: Float32Array,
+  climateByCell = createAgriculturalClimateReader(world)
 ): RiverIrrigationResults {
   const count = world.pack.cells.i.length;
   const empty = createEmptyRiverIrrigationResults(count);
@@ -1057,7 +1140,7 @@ export function calculateRiverIrrigationResults(
 
     const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
     const rainfall = world.grid.cells.prec?.[gridCellId] ?? 45;
-    const target = getCropWaterTarget(world, cellId, cropGoods, rainfall);
+    const target = getCropWaterTarget(world, cellId, cropGoods, rainfall, climateByCell);
     const deficit = Math.max(0, target - rainfall);
     const commandArea = area * development;
     if (deficit <= 0 || commandArea <= 0) continue;
@@ -1132,15 +1215,26 @@ function getCropWaterTarget(
   world: Readonly<WorldContext>,
   cellId: number,
   cropGoods: readonly Good[],
-  rainfall: number
+  rainfall: number,
+  climateByCell: AgriculturalClimateReader
 ): number {
-  const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
-  const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
   const soil = getCellSoilType(world, cellId);
   const candidates = cropGoods
     .map(good => good.crop)
     .filter((crop): crop is NonNullable<Good["crop"]> => Boolean(crop))
-    .filter(crop => getStapleCropSuitability(crop, temperature, crop.precipitation.idealMin, soil) > 0.1)
+    .filter(crop => {
+      const climate = climateByCell(cellId);
+      const plan = crop.calendar ? getSeasonalCropPlan(crop.calendar, climate, true) : undefined;
+      return (
+        (!plan || plan.calendar.cropCycles > 0) &&
+        getStapleCropSuitability(
+          crop,
+          plan?.growingMeanTemperatureC ?? climate.monthlyMeanTemperatureC[0],
+          crop.precipitation.idealMin,
+          soil
+        ) > 0.1
+      );
+    })
     .map(crop => crop.precipitation.idealMin)
     .filter(target => target > rainfall);
   return candidates.length ? Math.min(...candidates) : rainfall;
@@ -1246,11 +1340,23 @@ function calculateClimateYield(
   const cropFactor = conditions.cropGoods
     ? cropMix.length
       ? cropMix.reduce(
-          (sum, entry) => sum + entry.share * entry.suitability * (entry.good.crop?.yieldMultiplier ?? 1),
+          (sum, entry) =>
+            sum +
+            entry.share *
+              entry.suitability *
+              (entry.irrigated ? irrigatedPrecipitationFactor : precipitationFactor) *
+              (entry.good.crop?.yieldMultiplier ?? 1) *
+              (entry.good.crop?.calendar
+                ? getSeasonalCropPlan(
+                    entry.good.crop.calendar,
+                    conditions.climateByCell!(cellId),
+                    entry.irrigated ?? irrigatedShare > 0
+                  ).calendar.cropCycles
+                : 1),
           0
         )
       : 0
-    : 1;
+    : temperatureFactor * areaWeightedPrecipitationFactor;
   const fertility = conditions.soilFertilityByCell?.[cellId] ?? 1;
   const salinity = conditions.irrigationSalinityByCell?.[cellId] ?? 0;
   const soilFertilityFactor = Math.max(0.7, 1 - (1 - fertility) * 0.5);
@@ -1267,20 +1373,14 @@ function calculateClimateYield(
   const cellIrrigation = conditions.irrigationDevelopmentByCell?.[cellId] ?? 0;
   const droughtFactor =
     1 - droughtStress * (1 - cellIrrigation * DROUGHT_IRRIGATION_YIELD_MITIGATION) * DROUGHT_YIELD_DAMAGE_SEVERITY;
-  return Math.max(
-    0,
-    temperatureFactor *
-      areaWeightedPrecipitationFactor *
-      cropFactor *
-      soilFertilityFactor *
-      salinityFactor *
-      floodFactor *
-      droughtFactor
-  );
+  return Math.max(0, cropFactor * soilFertilityFactor * salinityFactor * floodFactor * droughtFactor);
 }
 
 function getPrecipitationFactor(precipitation: number): number {
-  if (precipitation < 8) return 0;
+  // Crop-specific suitability still rejects insufficient rainfall. The generic yield
+  // multiplier must not erase viable dryland crops below 800 mm; join the existing
+  // 800 mm coefficient continuously to zero water instead.
+  if (precipitation < 8) return Math.max(0, precipitation) * (0.4 / 8);
   if (precipitation < 20) return 0.4 + ((precipitation - 8) / 12) * 0.35;
   if (precipitation < 60) return 0.75 + ((precipitation - 20) / 40) * 0.25;
   return 1;

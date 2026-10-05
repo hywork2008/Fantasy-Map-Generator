@@ -34,6 +34,10 @@ export interface ClimateRange {
  */
 
 const COOL_CEREAL_CALENDAR = {
+  // Spring-crop alternative to the historical 240-day autumn-to-summer calendar.
+  // Thermal requirements are provisional game coefficients, not cultivar measurements.
+  minimumSeasonDays: 120,
+  minimumGrowingDegreeDays: 500,
   annualCycleDays: 240,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 3,
@@ -44,6 +48,7 @@ const COOL_CEREAL_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 const WARM_CEREAL_CALENDAR = {
+  minimumGrowingDegreeDays: 900,
   annualCycleDays: 120,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 10,
@@ -54,6 +59,7 @@ const WARM_CEREAL_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 const LEGUME_CALENDAR = {
+  minimumGrowingDegreeDays: 550,
   annualCycleDays: 150,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 5,
@@ -64,6 +70,7 @@ const LEGUME_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 const ROOT_CALENDAR = {
+  minimumGrowingDegreeDays: 500,
   annualCycleDays: 150,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 2,

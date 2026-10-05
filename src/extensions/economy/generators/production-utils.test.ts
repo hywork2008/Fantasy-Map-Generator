@@ -139,7 +139,8 @@ describe("getCellProduction seasonal food output", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.mapCoordinates = { latN: 90, latT: 180 };
     worldContext.graphHeight = 100;
-    worldContext.options = { month } as unknown as WorldContext["options"];
+    worldContext.graphWidth = 100;
+    worldContext.options = { month, axialTilt: 23.5 } as unknown as WorldContext["options"];
     worldContext.pack = {
       goods: [
         {
@@ -172,34 +173,32 @@ describe("getCellProduction seasonal food output", () => {
         p: [[0, y]]
       }
     } as unknown as PackedGraph;
-    worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([45]) } } as WorldContext["grid"];
+    worldContext.grid = {
+      points: [[0, y]],
+      cells: { i: new Uint16Array([0]), temp: new Int8Array([8]), prec: new Uint8Array([45]) }
+    } as WorldContext["grid"];
     Goods.sync();
   };
 
-  it("uses the crop calendar's single harvest rather than a generic autumn curve", () => {
+  it("uses the actual monthly cereal harvest and leaves winter without new crop output", () => {
     const biomeProduction = { 6: [{ goodId: 0, production: 1 }] };
-    const y = 5.56; // latitude ~80N -> near-full seasonality strength
-
-    setUpWithMonth(7, y);
-    const preHarvestOutput = getCellProduction(0, biomeProduction)[0];
-
-    setUpWithMonth(8, y);
-    const harvestOutput = getCellProduction(0, biomeProduction)[0];
-
-    expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
+    const outputs = Array.from({ length: 12 }, (_, m) => {
+      setUpWithMonth(m + 1, 25); // 45N, annual mean 8C
+      return getCellProduction(0, biomeProduction)[0] ?? 0;
+    });
+    expect(outputs[0]).toBe(0);
+    expect(Math.max(...outputs)).toBeGreaterThan(0);
+    expect(outputs.filter(v => v > 0).length).toBeLessThan(12);
   });
 
   it("does not make a seasonal cereal continuous merely because it is near the equator", () => {
     const biomeProduction = { 6: [{ goodId: 0, production: 1 }] };
-    const y = 48.89; // latitude ~2N -> seasonality strength near 0
-
-    setUpWithMonth(7, y);
-    const preHarvestOutput = getCellProduction(0, biomeProduction)[0];
-
-    setUpWithMonth(8, y);
-    const harvestOutput = getCellProduction(0, biomeProduction)[0];
-
-    expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
+    const outputs = Array.from({ length: 12 }, (_, m) => {
+      setUpWithMonth(m + 1, 48.89);
+      return getCellProduction(0, biomeProduction)[0] ?? 0;
+    });
+    expect(Math.max(...outputs)).toBeGreaterThan(0);
+    expect(outputs.filter(v => v > 0).length).toBeLessThan(12);
   });
 
   it("renders a climate-suitable orchard in its annual harvest window", () => {
@@ -218,8 +217,9 @@ describe("getCellProduction seasonal food output", () => {
     };
     worldContext.mapCoordinates = { latN: 90, latT: 180 };
     worldContext.graphHeight = 100;
+    worldContext.graphWidth = 100;
     worldContext.distanceScale = 1;
-    worldContext.options = { month: 9 } as WorldContext["options"];
+    worldContext.options = { month: 9, axialTilt: 23.5 } as WorldContext["options"];
     worldContext.pack = {
       goods: [apples],
       cultures: [],
@@ -244,7 +244,10 @@ describe("getCellProduction seasonal food output", () => {
       habitability: [0, 0, 0, 0, 0, 0, 100],
       tags: [[], [], [], [], [], [], ["arable"]]
     } as never;
-    worldContext.grid = { cells: { temp: new Int8Array([18]), prec: new Uint8Array([12]) } } as WorldContext["grid"];
+    worldContext.grid = {
+      points: [[0, 20]],
+      cells: { i: new Uint16Array([0]), temp: new Int8Array([12]), prec: new Uint8Array([12]) }
+    } as WorldContext["grid"];
     setGoods([apples] as never);
     setGoodCellColumn(new Uint16Array([0]));
     setCultivatedArea(new Float32Array([0]));
@@ -252,12 +255,12 @@ describe("getCellProduction seasonal food output", () => {
     setViticultureWorkers(new Float32Array([1]));
     Goods.sync();
 
-    const harvestOutput = getCellProduction(0, {})[apples.i] ?? 0;
-    worldContext.options = { month: 1 } as WorldContext["options"];
-    const dormantOutput = getCellProduction(0, {})[apples.i] ?? 0;
-
-    expect(harvestOutput).toBeGreaterThan(0);
-    expect(dormantOutput).toBe(0);
+    const outputs = Array.from({ length: 12 }, (_, m) => {
+      worldContext.options = { month: m + 1, axialTilt: 23.5 } as WorldContext["options"];
+      return getCellProduction(0, {})[apples.i] ?? 0;
+    });
+    expect(Math.max(...outputs)).toBeGreaterThan(0);
+    expect(outputs[0]).toBe(0);
   });
 });
 

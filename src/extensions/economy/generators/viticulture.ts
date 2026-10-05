@@ -5,20 +5,13 @@
  * land- and labour-gated production path.
  */
 
-import {
-  classifyAgriculturalClimateZone,
-  classifySeasonRegion,
-  getCropCalendar,
-  type MonthlyWeights,
-  SEASON_REGION_PROFILES
-} from "../../../data/cropCalendars";
+import type { MonthlyWeights } from "../../../data/cropCalendars";
 import {
   getPerennialCropSuitability,
   PERENNIAL_CROP_PROFILES,
   type PerennialCropProfile
 } from "../../../data/perennialCrops";
 import type { WorldContext } from "../../hostCore";
-import { getLatitude } from "../../hostUtils";
 import {
   getCultivatedArea,
   getGoods,
@@ -37,6 +30,7 @@ import {
 } from "./agriculturalLandUse";
 import { type Good, isGoodEnabled } from "./goods-generator";
 import { getPastureAreaUsedHectares } from "./husbandry";
+import { getSeasonalCropPlan, readAgriculturalClimate } from "./seasonalCropClimate";
 
 export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = PERENNIAL_CROP_PROFILES.Grapes.yieldLotsPerHectarePerMonth;
 
@@ -81,7 +75,7 @@ function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): 
   if ((world.biomesData.habitability?.[biomeCode] ?? 0) <= 0) return [];
 
   const gridCellId = cells.g?.[cellId] ?? cellId;
-  const temperature = world.grid?.cells?.temp?.[gridCellId] ?? 12;
+  const climate = readAgriculturalClimate(world, cellId);
   const precipitation = world.grid?.cells?.prec?.[gridCellId] ?? 45;
   const soil = getCellSoilType(world, cellId);
   const irrigatedArea = getIrrigatedArea()[cellId] ?? 0;
@@ -108,6 +102,9 @@ function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): 
     if (!isGoodEnabled(good)) continue;
     const profile = getPerennialProfile(good);
     if (!profile) continue;
+    const plan = profile.calendar ? getSeasonalCropPlan(profile.calendar, climate, irrigatedArea > 0) : undefined;
+    if (plan && !plan.calendar.cropCycles) continue;
+    const temperature = plan?.growingMeanTemperatureC ?? climate.monthlyMeanTemperatureC[0];
     const suitability = getPerennialCropSuitability(profile, temperature, precipitation, soil, irrigationSupplement);
     if (suitability <= 0.1) continue;
     const ceiling = unclaimedArea * terrainShare * profile.maximumLandShare * suitability;
@@ -216,12 +213,6 @@ export function getPerennialMonthlyLaborWeights(
   if (!point || gridCellId < 0) {
     return [1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12];
   }
-  const region = classifySeasonRegion(getLatitude(point[1], world.mapCoordinates, world.graphHeight));
-  const zone = classifyAgriculturalClimateZone({
-    annualTemperatureC: world.grid.cells.temp?.[gridCellId] ?? 12,
-    annualPrecipitation: world.grid.cells.prec?.[gridCellId] ?? 45,
-    irrigated: (getIrrigatedArea()[cellId] ?? 0) > 0
-  });
   const weighted = Array.from({ length: 12 }, () => 0);
   const totalAnnualDays = mix.reduce(
     (total, entry) => total + entry.areaHectares * entry.profile.laborDaysPerHectare,
@@ -229,7 +220,11 @@ export function getPerennialMonthlyLaborWeights(
   );
   for (const entry of mix) {
     const share = (entry.areaHectares * entry.profile.laborDaysPerHectare) / Math.max(1e-6, totalAnnualDays);
-    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, entry.profile.calendar);
+    const calendar = getSeasonalCropPlan(
+      entry.profile.calendar,
+      readAgriculturalClimate(world, cellId),
+      (getIrrigatedArea()[cellId] ?? 0) > 0
+    ).calendar;
     for (let month = 0; month < 12; month++) weighted[month] += share * calendar.labourWeights[month];
   }
   const total = weighted.reduce((sum, value) => sum + value, 0);

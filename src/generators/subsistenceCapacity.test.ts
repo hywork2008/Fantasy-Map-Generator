@@ -71,7 +71,7 @@ describe("generateSubsistenceCapacity", () => {
     const world = createWorld();
     generateSubsistenceCapacity(world);
     world.grid.cells.temp[0] = 4;
-    world.grid.cells.prec[0] = 5;
+    world.grid.cells.prec[0] = 0;
     world.pack.cells.subsistenceCapacity![0] = 95;
     world.pack.cells.subsistenceNonAgriculturalCapacity![0] = 12;
     world.pack.cells.subterraneanCapacity = new Float32Array([3, 0, 0, 0, 0]);

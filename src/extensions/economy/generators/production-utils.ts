@@ -1,14 +1,7 @@
 import { sum } from "d3";
-import {
-  type CropCalendar,
-  classifyAgriculturalClimateZone,
-  classifySeasonRegion,
-  getCropCalendar,
-  type PlantingCohort,
-  SEASON_REGION_PROFILES
-} from "../../../data/cropCalendars";
+import type { CropCalendar, PlantingCohort } from "../../../data/cropCalendars";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
-import { getLatitude, rn } from "../../hostUtils";
+import { rn } from "../../hostUtils";
 import {
   getCultivableArea,
   getCultivatedArea,
@@ -16,10 +9,11 @@ import {
   getGoodCellColumn,
   getGoods,
   getIrrigatedArea,
+  getIrrigationDeliveredWater,
   getSimulationMonth,
   getWorldContext
 } from "../economyContext";
-import { getCropMix } from "./agriculturalLandUse";
+import { getCropOutputMix } from "./agriculturalLandUse";
 import { getMilkOutput } from "./dairy";
 import { drawDomesticatedFaunaOfftake, previewDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getForestStockMultiplier } from "./forestStock";
@@ -27,6 +21,7 @@ import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
+import { getSeasonalCropPlan, readAgriculturalClimate } from "./seasonalCropClimate";
 import { getPerennialHarvestOutputs } from "./viticulture";
 import { getWoolOutput } from "./woolProduction";
 
@@ -86,40 +81,58 @@ function getForestStockProductionMultiplier(good: Good, cellId: number): number 
   return getForestStockMultiplier(cellId);
 }
 
-const cropCalendarCache = new Map<string, CropCalendar>();
-
-function getCalendarForGood(good: Good, cellId: number): CropCalendar | null {
+function getCalendarForGood(good: Good, cellId: number, irrigated?: boolean): CropCalendar | null {
   const profile = good.crop?.calendar ?? good.perennialCrop?.calendar;
   if (!profile) return null;
-  const world = getWorldContext();
-  const cells = world.pack.cells;
-  const point = cells.p[cellId];
-  const gridCellId = cells.g?.[cellId] ?? cellId;
-  if (!point || gridCellId < 0) return null;
-  const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
-  const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
-  const precipitation = world.grid.cells.prec?.[gridCellId] ?? 45;
-  const irrigated = (getIrrigatedArea()[cellId] ?? 0) > 0;
-  const region = classifySeasonRegion(latitude);
-  const zone = classifyAgriculturalClimateZone({
-    annualTemperatureC: temperature,
-    annualPrecipitation: precipitation,
-    irrigated
-  });
+  const climate = readAgriculturalClimate(getWorldContext(), cellId);
   const cohort: PlantingCohort | undefined = profile.allowsPlantingCohorts
     ? ((cellId % 3) as PlantingCohort)
     : undefined;
-  const key = `${region}:${zone.id}:${good.i}:${cohort ?? "none"}`;
-  const cached = cropCalendarCache.get(key);
-  if (cached) return cached;
-  const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, profile, cohort);
-  cropCalendarCache.set(key, calendar);
-  return calendar;
+  return getSeasonalCropPlan(profile, climate, irrigated ?? (getIrrigatedArea()[cellId] ?? 0) > 0, cohort).calendar;
+}
+
+/** Use the same normal climate and allocated irrigation as the annual farm calculation. */
+export function getCurrentCropMix(
+  world: Readonly<import("../../hostCore").WorldContext>,
+  cellId: number,
+  crops: readonly Good[]
+) {
+  return getCropOutputMix(world, cellId, crops, {
+    climateByCell: id => readAgriculturalClimate(world, id),
+    irrigationAtCell: id => {
+      const area = getIrrigatedArea()[id] ?? 0;
+      return {
+        irrigated: area > 0,
+        supplement: area > 0 ? (getIrrigationDeliveredWater()[id] ?? 0) / area : 0,
+        fraction: Math.min(1, area / Math.max(getCultivableArea()[id] ?? 0, 1e-6))
+      };
+    }
+  });
 }
 
 /** Month weight for a crop or perennial harvest. Non-crops return null. */
-export function getCropHarvestWeight(good: Good, cellId: number, month: number): number | null {
-  const calendar = getCalendarForGood(good, cellId);
+export function getCropHarvestWeight(good: Good, cellId: number, month: number, irrigated?: boolean): number | null {
+  if (good.crop && irrigated === undefined) {
+    const entries = getCurrentCropMix(
+      getWorldContext(),
+      cellId,
+      getGoods().filter(g => g.crop && isGoodEnabled(g))
+    ).filter(e => e.good.i === good.i);
+    const total = entries.reduce((sum, e) => sum + e.share, 0);
+    if (total > 0)
+      return (
+        entries.reduce(
+          (sum, e) =>
+            sum +
+            e.share *
+              (getCalendarForGood(good, cellId, e.irrigated)?.harvestWeights[
+                Math.max(0, Math.min(11, Math.floor(month - 1)))
+              ] ?? 0),
+          0
+        ) / total
+      );
+  }
+  const calendar = getCalendarForGood(good, cellId, irrigated);
   if (!calendar) return null;
   return calendar.harvestWeights[Math.max(0, Math.min(11, Math.floor(month - 1)))] ?? 0;
 }
@@ -285,7 +298,7 @@ export function getCellProduction(
   }
 
   const cropGoods = getGoods().filter(good => good.crop && isGoodEnabled(good));
-  const cropMix = getCropMix(getWorldContext(), cellId, cropGoods);
+  const cropMix = getCurrentCropMix(getWorldContext(), cellId, cropGoods);
   const stapleOutput = getCellStapleFoodProduction(cellId);
   if (cropMix.length && stapleOutput > 0) {
     // The Food Ledger still settles this same total through its aggregate Grain commodity.
