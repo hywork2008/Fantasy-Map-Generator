@@ -3,6 +3,7 @@ import { createDocument } from "../core/document";
 import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
 import { faceNeighbors, faceVertices, meshFromCells } from "../core/mesh";
 import type { CityDocument, LandmarkAsset, Point } from "../core/types";
+import { polygonHitsWater } from "../core/waterGeometry";
 import {
   faceClassName,
   parsePickInfo,
@@ -64,6 +65,26 @@ describe("generated natural ocean shore", () => {
     const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
     const ocean = renderEditorSvg(doc, "select", selection, "0 0 100 100", 1);
     expect(ocean.querySelectorAll('[data-shore-kind="beach"]').length).toBeGreaterThan(0);
+    const river: Point[] = [
+      [-10, 40],
+      [110, 40],
+      [110, 60],
+      [-10, 60]
+    ];
+    doc.waterAreas = [{ kind: "river", polygon: river }];
+    const estuary = renderEditorSvg(doc, "select", selection, "0 0 100 100", 1);
+    const beaches = [...estuary.querySelectorAll('[data-shore-kind="beach"]')];
+    expect(beaches.length).toBeGreaterThan(1);
+    for (const beach of beaches) {
+      const coords = beach
+        .getAttribute("d")!
+        .match(/-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/gi)!
+        .map(Number);
+      const polygon: Point[] = [];
+      for (let i = 0; i < coords.length; i += 2) polygon.push([coords[i], -coords[i + 1]]);
+      expect(polygonHitsWater(polygon, [river])).toBe(false);
+    }
+    doc.waterAreas = [];
     doc.coastalOceanFaceIds = ["f0"];
     const staleOcean = renderEditorSvg(doc, "select", selection, "0 0 100 100", 1);
     expect(staleOcean.querySelectorAll(".ce-natural-shore path")).toHaveLength(0);
@@ -243,6 +264,24 @@ describe("river bridge deck", () => {
       expect(crosses).toBe(false);
     }
     expect(svg.querySelectorAll(".ce-bridge-deck")).toHaveLength(1);
+    document.featureGroups[1].crossing = {
+      kind: "movableBridge",
+      widthMeters: 10,
+      depthMeters: 3,
+      navigationRequired: true,
+      clearanceMeters: 12,
+      openingMeters: 6,
+      reason: "movableClearance"
+    };
+    const movable = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-50 -50 100 100",
+      1
+    );
+    expect(movable.querySelector(".ce-movable-bridge")?.getAttribute("data-crossing-kind")).toBe("movableBridge");
+    expect(movable.querySelectorAll(".ce-movable-bridge-hinge")).toHaveLength(2);
   });
 });
 
@@ -448,6 +487,51 @@ describe("Ward landmarks", () => {
 });
 
 describe("faceClassName / renderFaceWardLandmark", () => {
+  it("moves a partially wet cell's marker onto dry land and omits fully wet markers", () => {
+    const document = createDocument("wet-ward-marker", 400);
+    document.mesh = meshFromCells([
+      {
+        id: 0,
+        polygon: [
+          [0, 0],
+          [100, 0],
+          [100, 100],
+          [0, 100]
+        ],
+        site: [50, 50],
+        centroid: [50, 50],
+        neighbors: [],
+        onBorder: false
+      }
+    ]);
+    const face = document.mesh.faces.f0;
+    face.properties.ward = "park";
+    document.waterAreas = [
+      {
+        kind: "river",
+        polygon: [
+          [-10, -10],
+          [70, -10],
+          [70, 110],
+          [-10, 110]
+        ]
+      }
+    ];
+    const marker = renderFaceWardLandmark(document.mesh, face, document);
+    expect(marker).not.toBeNull();
+    const coordinates = marker!
+      .getAttribute("transform")!
+      .match(/-?\d+(?:\.\d+)?/g)!
+      .map(Number);
+    expect(coordinates[0]).toBeGreaterThanOrEqual(78);
+    document.waterAreas[0].polygon = [
+      [-10, -10],
+      [110, -10],
+      [110, 110],
+      [-10, 110]
+    ];
+    expect(renderFaceWardLandmark(document.mesh, face, document)).toBeNull();
+  });
   // CityEditorPage patches a single painted face's <path>/landmark with these
   // two helpers instead of a full renderEditorSvg() pass (see
   // patchFaceRender). They must keep producing exactly what the bulk render
@@ -1012,14 +1096,35 @@ describe("renderStandaloneCitySvg / serializeCitySvg", () => {
     expect(bg?.getAttribute("fill")).toBe("#d5cfbf");
   });
 
+  it("applies biome-specific background and renders landscape layer in town mode", () => {
+    const document = createDocument("biome-test", 800);
+    document.appearance = "town";
+    document.biome = {
+      id: 1,
+      key: "hotDesert",
+      name: "Hot desert",
+      color: "#fbe79f"
+    };
+    const standaloneSvg = renderStandaloneCitySvg(document);
+    const bg = standaloneSvg.querySelector("rect.ce-background");
+    expect(bg?.getAttribute("fill")).toBe("#e8ddba");
+
+    const selection = { faceId: null, vertexId: null, edgeId: null, inspectedId: null };
+    const editorSvg = renderEditorSvg(document, "select", selection, "-400 -400 800 800", 1);
+    const landscape = editorSvg.querySelector(".ce-landscape-layer");
+    expect(landscape).not.toBeNull();
+    expect(landscape?.children.length).toBeGreaterThan(0);
+  });
+
   it("serializeCitySvg produces a valid XML document string with xml declaration", () => {
     const document = createDocument("xml-test", 500);
     const xml = serializeCitySvg(document);
 
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')).toBe(true);
-    expect(xml).toContain('<svg xmlns="http://www.w3.org/2000/svg"');
+    expect(xml).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(xml).toContain("</svg>");
     expect(xml).toContain('class="ce-background"');
+    expect(new DOMParser().parseFromString(xml, "image/svg+xml").querySelector("parsererror")).toBeNull();
   });
 
   it("includes xlink:href on image elements for reference images", () => {

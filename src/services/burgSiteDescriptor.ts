@@ -1,11 +1,49 @@
 import { worldContext } from "../context/worldContext";
+import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
+import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
-import type { Burg, Route } from "../types/models";
+import type { RegionalContext } from "../types/cityRegional";
+import { regionalRevision } from "../types/cityRegional";
+import type { Burg, River, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
+import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
+import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import type { RelationKey } from "../utils/diplomacyRelations";
+import {
+  FIXED_SITE_CROSSING_BUDGETS,
+  type FixedBurgCrossings,
+  validFixedBurgCrossings
+} from "../utils/fixedBurgCrossings";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
+import { mapUnitMeters } from "../utils/mapUnitMeters";
+import {
+  isRequiredSiteBounds,
+  POPULATION_WINDOW_MAX_M,
+  populationWindowMeters,
+  type RequiredSiteBounds,
+  requiredSiteExtent
+} from "../utils/requiredSiteBounds";
+import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
+import { updateBurgWaterAccess } from "./burgWaterAccess";
+import {
+  convergedBurgCrossings,
+  convergedBurgFacilities,
+  ensureConvergingWorldRiverRoads
+} from "./convergingWorldRiverRoads";
+import { exportFixedBurgCrossings } from "./fixedBurgCrossings";
+import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
+import { footprintTouchesWater } from "./riverPhysicalGeometry";
+import { SettlementGeometrySession } from "./settlementGeometrySession";
+import {
+  nearestSettlementBank,
+  SETTLEMENT_RIVER_SETTINGS,
+  settlementRadiusMeters,
+  settlementRiverGeometry
+} from "./settlementRiverSite";
+import { getWorldLandConnectionCurrent } from "./worldLandConnectionRuntime";
+import { worldRiverOccupiedBounds } from "./worldRiverGeometry";
 
 /**
  * Burg site descriptor — the machine-readable "site survey" of a burg's local
@@ -26,6 +64,12 @@ import { getUrbanDwellings } from "../utils/urbanDwellings";
  */
 
 export interface BurgSiteRiver {
+  /** Estimated local water depth, not a surveyed navigation depth. */
+  depthMeters?: number | null;
+  /** FMG estimate at the burg cell, or nearest sampled river cell. */
+  hydrology?: import("../types/models").RiverCellHydrology & { cellId: number };
+  navigationVessel?: import("../utils/riverCrossing").NavigationVessel;
+  crossing?: import("../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
   type: string;
@@ -46,19 +90,15 @@ export interface BurgSiteRiver {
   crossesSite: boolean;
   /** FMG world-model truth: the river flows through the burg's own cell ("the town is on this river"). */
   throughBurgCell: boolean;
-  /**
-   * Raw map-geometry distance (m) from the town center to the centerline before
-   * bank snapping. FMG draws rivers exaggeratedly wide and shifts river burgs
-   * toward the DRAWN bank, so for on-river towns this is an artifact of drawn
-   * width (often ~1 km) rather than real-world separation.
-   */
+  /** Physical map-geometry distance; equal to offsetMeters for new exports. */
   rawOffsetMeters: number;
-  /**
-   * True when the centerline was rigidly translated so the town center sits on
-   * the bank (offset = trueWidth/2 + bank margin). Applied only to
-   * throughBurgCell rivers; shape, flow azimuth and bank side are preserved.
-   */
+  /** Legacy flag retained for saved descriptors. New exports never move only the river. */
   snappedToBank: boolean;
+  /**
+   * The real bank does not fit the 4,500 m display budget.
+   * City Editor must not invent a nearer river for this record.
+   */
+  frontage?: "beyond-budget";
   /**
    * Centerline polyline(s) clipped to the extent box, upstream → downstream,
    * local meters. widthsMeters[i] is the true width at points[i].
@@ -66,7 +106,7 @@ export interface BurgSiteRiver {
   segments: { points: [number, number][]; widthsMeters: number[] }[];
   /** FMG's direct downstream/mainstem river, if this is a tributary. */
   parentRiverId: number | null;
-  /** Actual drawn water edges, clipped to the extent box, local meters. */
+  /** Physical water edges, clipped to the extent box, local meters. */
   leftBankSegments: [number, number][][];
   rightBankSegments: [number, number][][];
   /** Regional downstream context; it never expands the urban drawing window. */
@@ -96,6 +136,11 @@ export interface BurgSiteRoadNextBurg {
 }
 
 export interface BurgSiteRoadEntry {
+  sharedCrossingId?: number;
+  sharedRouteIds?: number[];
+  nextBurgs?: BurgSiteRoadNextBurg[];
+  /** Full shared crossing and far-bank branch, kept separate from the common CE entrance. */
+  sharedBranches?: { routeId: number; path: [number, number][]; nextBurg: BurgSiteRoadNextBurg | null }[];
   routeId: number;
   /** FMG route group: "roads" | "trails" | "searoutes". */
   group: string;
@@ -144,8 +189,19 @@ export interface BurgSiteTerrain {
 
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
+export interface BurgSiteBiome {
+  id: number;
+  key?: string;
+  name: string;
+  color: string;
+  tags?: readonly string[];
+}
+
 export interface BurgSiteDescriptor {
-  version: 2;
+  regionalContext?: RegionalContext;
+  /** Optional physical crossing preview; not input to legacy bridge discovery. */
+  fixedCrossings?: FixedBurgCrossings;
+  version: 2 | 3;
   burg: {
     id: number;
     name: string;
@@ -159,6 +215,10 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    riverPlacement?: import("../types/models").Burg["riverPlacement"];
+    riverSiteStatus?: import("../types/models").Burg["riverSiteStatus"];
+    /** Optional for legacy descriptors; independent of clipped water geometry. */
+    waterAccess?: import("../types/burgWater").BurgWaterAccess;
     citadel: boolean;
     plaza: boolean;
     walls: boolean;
@@ -173,7 +233,10 @@ export interface BurgSiteDescriptor {
     settlementSite: "surface" | "underground";
   };
   frame: {
+    regionalMode?: boolean;
     /** Burg position in FMG map units (the local origin). */
+    /** Local metre bounds that frame fitting must retain. */
+    requiredBounds?: RequiredSiteBounds;
     originMapUnits: [number, number];
     metersPerMapUnit: number;
     /** Side length of the square generation window centered on the origin. */
@@ -181,11 +244,17 @@ export interface BurgSiteDescriptor {
     /** Suggested built-up radius derived from population (walled-town density model). */
     cityRadiusMeters: number;
   };
-  climate: { temperatureC: number; biomeId: number };
+  climate: {
+    temperatureC: number;
+    biomeId: number;
+    biomeKey?: string;
+    biomeName?: string;
+    biomeColor?: string;
+  };
+  biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
-  /** Local transport constraint for City Editor. Legacy maps use the
-   * conservative medieval value rather than inventing a long bridge. */
-  transport?: { maxBridgeSpanMeters: number };
+  /** Routine supported crossing allowance, derived from historical technology. */
+  transport?: BridgeTransport;
   /** Historical period / era from FMG options (default: "ageOfExploration"). */
   historicalPeriod?: string;
   rivers: BurgSiteRiver[];
@@ -196,49 +265,174 @@ export interface BurgSiteDescriptor {
   suggestedArchetype: BurgSiteArchetype;
 }
 
-const DESCRIPTOR_VERSION = 2;
+const DESCRIPTOR_VERSION = 3;
 const HEIGHTFIELD_SIZE = 17;
-/** Typical population density inside medieval town walls, people per hectare. */
-const WALLED_DENSITY_PER_HA = 150;
-const CITY_RADIUS_MIN_M = 80;
-const CITY_RADIUS_MAX_M = 1500;
-const EXTENT_MIN_M = 1500;
-const EXTENT_MAX_M = 4500;
+/** Visible water past the near bank. A wide channel does not also require its centreline. */
+const FRONTAGE_WATER_MARGIN_M = 40;
+const FRONTAGE_FRAME_PAD_M = 20;
+/** Matches `extractWideChannels`: a river port wider than this fraction of the radius is a channel. */
+const PORT_CHANNEL_RADIUS_RATIO = 0.4;
 /** Minimum believable river width for bridge-scale rendering. */
 const RIVER_MIN_WIDTH_M = 2;
-/** Bank strip between the town center and an on-cell river: min(this cap, ratio × cityRadius). */
-const RIVER_BANK_MARGIN_MAX_M = 150;
-const RIVER_BANK_MARGIN_RATIO = 0.3;
 /** Relief (m) of the town center above its surroundings that suggests a hilltop site. */
 const HILLTOP_RELIEF_M = 30;
 
-const UNIT_METERS: Record<string, number> = {
-  km: 1000,
-  mi: 1609.344,
-  lg: 4828.032,
-  vr: 1066.8,
-  nmi: 1852
-};
-
 type WeightedPoint = { x: number; y: number; w: number };
 
-export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null {
+export function getBurgSiteDescriptor(
+  burgId: number,
+  frameRequirements?: {
+    requiredBounds: RequiredSiteBounds;
+    maxExtentMeters: number;
+    fixedCrossings?: FixedBurgCrossings;
+  }
+): BurgSiteDescriptor | null {
   const { pack } = worldContext;
   const burg = pack.burgs?.[burgId];
   if (!burg?.i || burg.removed) return null;
 
+  ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const cityRadiusMeters = getCityRadiusMeters(population);
-  const extentMeters = minmax(rn(cityRadiusMeters * 6), EXTENT_MIN_M, EXTENT_MAX_M);
-  const half = extentMeters / 2;
-
   const toLocal = (x: number, y: number): [number, number] => [
     (x - burg.x) * metersPerMapUnit,
     (burg.y - y) * metersPerMapUnit
   ];
-
+  const waterAccess = updateBurgWaterAccess(burg, pack);
+  let extentMeters = populationWindowMeters(cityRadiusMeters);
+  let autoBounds: RequiredSiteBounds | undefined;
+  let beyondBudgetRiverId: number | null = null;
+  if (frameRequirements) {
+    if (
+      !isRequiredSiteBounds(frameRequirements.requiredBounds) ||
+      !Number.isFinite(frameRequirements.maxExtentMeters) ||
+      frameRequirements.maxExtentMeters <= 0
+    )
+      throw new RangeError("Invalid required site bounds or frame budget");
+    autoBounds = { ...frameRequirements.requiredBounds };
+    extentMeters = Math.max(extentMeters, requiredSiteExtent(frameRequirements.requiredBounds));
+    if (extentMeters > frameRequirements.maxExtentMeters)
+      throw new RangeError("Required site frame exceeds extent budget");
+  }
+  if (waterAccess.river && waterAccess.riverId != null) {
+    const portRiver = Boolean(burg.port) && waterAccess.port.river;
+    const frontage =
+      canonicalFrontageBounds(burg, waterAccess.riverId, toLocal) ??
+      frontageDisplayBounds(waterAccess.riverId, toLocal, metersPerMapUnit, cityRadiusMeters, portRiver);
+    if (frontage?.bounds) {
+      const extra = frameRequirements?.requiredBounds;
+      autoBounds = extra
+        ? {
+            minX: Math.min(extra.minX, frontage.bounds.minX),
+            minY: Math.min(extra.minY, frontage.bounds.minY),
+            maxX: Math.max(extra.maxX, frontage.bounds.maxX),
+            maxY: Math.max(extra.maxY, frontage.bounds.maxY)
+          }
+        : frontage.bounds;
+      extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
+      if (frameRequirements && extentMeters > frameRequirements.maxExtentMeters)
+        throw new RangeError("Required river frontage exceeds extent budget");
+    } else if (frontage?.beyondBudget) beyondBudgetRiverId = waterAccess.riverId;
+  }
+  let fixedCrossings =
+    frameRequirements?.fixedCrossings ??
+    convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg);
+  if (fixedCrossings && !frameRequirements) {
+    const b = fixedCrossings.requiredBounds;
+    autoBounds = autoBounds
+      ? {
+          minX: Math.min(autoBounds.minX, b.minX),
+          minY: Math.min(autoBounds.minY, b.minY),
+          maxX: Math.max(autoBounds.maxX, b.maxX),
+          maxY: Math.max(autoBounds.maxY, b.maxY)
+        }
+      : { ...b };
+    extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
+  }
+  if (!fixedCrossings && worldContext.options.landConnectionGeneration) {
+    const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+    if (physical) {
+      const facilities = new Set(
+        physical.snapshot.network.edges
+          .filter(e => e.from === burgId || e.to === burgId)
+          .flatMap(e => (e.crossing ? [e.crossing.facilityId] : []))
+      );
+      const halfBudget =
+        Math.min(POPULATION_WINDOW_MAX_M, frameRequirements?.maxExtentMeters ?? POPULATION_WINDOW_MAX_M) / 2;
+      const resolved = getConstrainedNetworkConnections(physical.snapshot.network, physical.current.environment);
+      if (!("connections" in resolved)) throw new RangeError("Cannot resolve current fixed crossings");
+      const localFacilities = [...facilities].filter(id => {
+        const source = resolved.connections.find(c => c.kind === "bridge" && c.crossing.id === id);
+        if (source?.kind !== "bridge") return false;
+        const c = source.crossing,
+          width = physical.snapshot.network.roadWidthMeters / 2;
+        return [c.approachA, c.approachB, c.deckA, c.deckB].every(p =>
+          [-1, 1].every(
+            sign =>
+              Math.abs(p[0] - burg.x * metersPerMapUnit + sign * c.tRiver[0] * width) <= halfBudget &&
+              Math.abs(p[1] - burg.y * metersPerMapUnit + sign * c.tRiver[1] * width) <= halfBudget
+          )
+        );
+      });
+      if (localFacilities.length) {
+        const exported = exportFixedBurgCrossings(
+          physical.snapshot,
+          physical.current,
+          [burg.x * metersPerMapUnit, burg.y * metersPerMapUnit],
+          FIXED_SITE_CROSSING_BUDGETS,
+          {
+            facilityIds: localFacilities,
+            coverageBounds: { minX: -halfBudget, minY: -halfBudget, maxX: halfBudget, maxY: halfBudget }
+          }
+        );
+        if (!("crossings" in exported))
+          throw new RangeError(`Cannot export current fixed crossings: ${exported.reason}`);
+        const b = exported.crossings.requiredBounds;
+        if (requiredSiteExtent(b) <= POPULATION_WINDOW_MAX_M) {
+          fixedCrossings = exported.crossings;
+          autoBounds = autoBounds
+            ? {
+                minX: Math.min(autoBounds.minX, b.minX),
+                minY: Math.min(autoBounds.minY, b.minY),
+                maxX: Math.max(autoBounds.maxX, b.maxX),
+                maxY: Math.max(autoBounds.maxY, b.maxY)
+              }
+            : { ...b };
+          extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
+        }
+      }
+    }
+  }
+  if (fixedCrossings) {
+    if (!validFixedBurgCrossings(fixedCrossings, FIXED_SITE_CROSSING_BUDGETS))
+      throw new RangeError("Invalid fixed crossing preview");
+    const required = frameRequirements?.requiredBounds ?? autoBounds ?? fixedCrossings.requiredBounds,
+      b = fixedCrossings.requiredBounds;
+    if (
+      required.minX > b.minX ||
+      required.minY > b.minY ||
+      required.maxX < b.maxX ||
+      required.maxY < b.maxY ||
+      Math.abs(fixedCrossings.originMeters[0] - burg.x * metersPerMapUnit) > 1e-7 ||
+      Math.abs(fixedCrossings.originMeters[1] - burg.y * metersPerMapUnit) > 1e-7
+    )
+      throw new RangeError("Fixed crossing preview origin or bounds mismatch");
+  }
+  if (!fixedCrossings) {
+    const waterSource = canonicalSiteWater(burg, extentMeters / 2, autoBounds);
+    if (!waterSource && burg.riverPlacement?.geometryVersion !== undefined && beyondBudgetRiverId === null)
+      throw new RangeError("Cannot export canonical settlement water: unresolved geometry or water budget");
+    if (waterSource) {
+      fixedCrossings = waterSource;
+      autoBounds = waterSource.requiredBounds;
+    }
+  }
+  const half = extentMeters / 2;
   const rivers = collectRivers(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
+  if (beyondBudgetRiverId != null) {
+    for (const river of rivers) if (river.riverId === beyondBudgetRiverId) river.frontage = "beyond-budget";
+  }
   const roads = collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
   const waterbody = collectWaterbody(burg, toLocal, half);
   const terrain = collectTerrain(burg, half, metersPerMapUnit);
@@ -246,8 +440,53 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
   const roadLegCount = roads.filter(road => road.group !== "searoutes").length;
   const suggestedArchetype = inferArchetype({ burg, waterbody, rivers, roadLegCount, terrain });
 
+  const settlements: RegionalContext["settlements"] = pack.burgs
+    .filter(other => other?.i && other.i !== burgId && !other.removed)
+    .flatMap(other => {
+      const center = toLocal(other.x, other.y);
+      if (Math.abs(center[0]) > half || Math.abs(center[1]) > half) return [];
+      return [
+        {
+          burgId: other.i!,
+          name: other.name ?? "",
+          center,
+          radiusMeters: Math.max(
+            1,
+            getCityRadiusMeters((other.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+          ),
+          representation: "estimated" as const
+        }
+      ];
+    });
+  const regionalContext: RegionalContext = {
+    version: 1,
+    sourceRevision: regionalRevision({ burgId, population, roads, rivers, fixedCrossings, settlements, extentMeters }),
+    coverageBounds: { minX: -half, minY: -half, maxX: half, maxY: half },
+    settlements,
+    roads: roads
+      .filter(road => road.group !== "searoutes")
+      .flatMap(road => [
+        {
+          routeId: road.routeId,
+          branchId: 0,
+          points: road.path,
+          widthMeters: fixedCrossings?.roadWidthMeters ?? 6,
+          facilityIds: fixedCrossings?.crossings.filter(c => c.id === road.sharedCrossingId).map(c => c.id) ?? []
+        },
+        ...(road.sharedBranches ?? []).map((branch, index) => ({
+          routeId: branch.routeId,
+          branchId: index + 1,
+          points: branch.path,
+          widthMeters: fixedCrossings?.roadWidthMeters ?? 6,
+          facilityIds: fixedCrossings?.crossings.filter(c => c.id === road.sharedCrossingId).map(c => c.id) ?? []
+        }))
+      ])
+      .filter(road => road.points.length >= 2)
+  };
   return {
     version: DESCRIPTOR_VERSION,
+    regionalContext,
+    ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
     burg: {
       id: burgId,
       name: burg.name ?? "",
@@ -258,6 +497,9 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       dwellings: getUrbanDwellings(population),
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
+      waterAccess,
+      riverPlacement: burg.riverPlacement ? structuredClone(burg.riverPlacement) : undefined,
+      riverSiteStatus: burg.riverSiteStatus ? { ...burg.riverSiteStatus } : undefined,
       citadel: Boolean(burg.citadel),
       plaza: Boolean(burg.plaza),
       walls: Boolean(burg.walls),
@@ -266,17 +508,54 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       settlementSite: burg.settlementSite ?? "surface"
     },
     frame: {
+      regionalMode: true,
+      ...(autoBounds
+        ? { requiredBounds: { ...autoBounds } }
+        : frameRequirements
+          ? { requiredBounds: { ...frameRequirements.requiredBounds } }
+          : {}),
       originMapUnits: [burg.x, burg.y],
-      metersPerMapUnit: rn(metersPerMapUnit, 2),
+      metersPerMapUnit: fixedCrossings ? metersPerMapUnit : rn(metersPerMapUnit, 2),
       extentMeters,
       cityRadiusMeters
     },
-    climate: {
-      temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
-      biomeId: pack.cells.biomeCode[burg.cell]
-    },
+    climate: (() => {
+      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+      const bData = worldContext.biomesData;
+      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+      const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
+      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+      return {
+        temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
+        biomeId: bId,
+        biomeKey: bKey,
+        biomeName: bName,
+        biomeColor: bColor
+      };
+    })(),
+    biome: (() => {
+      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+      const bData = worldContext.biomesData;
+      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+      const rawKey = bData?.keys ? bData.keys[bId] : undefined;
+      const bKey = rawKey ?? stdDef?.key;
+      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+      const bTags = (bData && rawKey ? bData.definitionsByKey?.[rawKey]?.tags : undefined) ?? stdDef?.tags;
+      return {
+        id: bId,
+        key: bKey,
+        name: bName,
+        color: bColor,
+        tags: bTags
+      };
+    })(),
     terrain,
-    transport: { maxBridgeSpanMeters: bridgeSpanForPeriod(worldContext.options.historicalPeriod) },
+    transport: {
+      riverBridgeTechnology: worldContext.options.riverBridgeTechnology,
+      maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(worldContext.options.historicalPeriod ?? "ageOfExploration")
+    },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
     rivers,
     waterbody,
@@ -284,20 +563,6 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     suggestedGates: roadLegCount,
     suggestedArchetype
   };
-}
-
-/** A road bridge over a wider channel becomes a ferry or a port connection.
- * Only explicitly industrial periods are allowed a kilometre-scale span. */
-function bridgeSpanForPeriod(period: typeof worldContext.options.historicalPeriod): number {
-  switch (period) {
-    case "steamEra":
-    case "industrialChemistryEra":
-    case "petroleumEra":
-    case "rocketryEra":
-      return 1000;
-    default:
-      return 50;
-  }
 }
 
 /** Number of land route legs radiating from the burg — used as the watabou `gates` hint. */
@@ -309,13 +574,11 @@ export function countBurgRoadLegs(burg: Burg): number {
 
 function getMetersPerMapUnit(): number {
   const unit = useOptionsState.getState().distanceUnit;
-  return worldContext.distanceScale * (UNIT_METERS[unit] ?? 1000);
+  return mapUnitMeters(worldContext.distanceScale, unit);
 }
 
 function getCityRadiusMeters(population: number): number {
-  const areaHa = Math.max(population, 50) / WALLED_DENSITY_PER_HA;
-  const radius = Math.sqrt((areaHa * 1e4) / Math.PI);
-  return minmax(rn(radius), CITY_RADIUS_MIN_M, CITY_RADIUS_MAX_M);
+  return settlementRadiusMeters(population);
 }
 
 function getHeightExponent(): number {
@@ -362,7 +625,8 @@ function clipSegmentToBox(x1: number, y1: number, x2: number, y2: number, half: 
 /** Clip a polyline (with per-vertex widths) to the centered box, splitting into visible runs. */
 function clipWeightedPolylineToBox(
   points: WeightedPoint[],
-  half: number
+  half: number,
+  preservePrecision = false
 ): { points: [number, number][]; widthsMeters: number[] }[] {
   const runs: { points: [number, number][]; widthsMeters: number[] }[] = [];
   let current: { points: [number, number][]; widthsMeters: number[] } | null = null;
@@ -370,8 +634,9 @@ function clipWeightedPolylineToBox(
   const pushPoint = (x: number, y: number, w: number) => {
     if (!current) current = { points: [], widthsMeters: [] };
     const last = current.points.at(-1);
-    if (last && Math.abs(last[0] - x) < 0.01 && Math.abs(last[1] - y) < 0.01) return;
-    current.points.push([rn(x, 1), rn(y, 1)]);
+    const tolerance = preservePrecision ? 1e-7 : 0.01;
+    if (last && Math.abs(last[0] - x) < tolerance && Math.abs(last[1] - y) < tolerance) return;
+    current.points.push(preservePrecision ? [x, y] : [rn(x, 1), rn(y, 1)]);
     current.widthsMeters.push(w);
   };
 
@@ -405,14 +670,15 @@ function clipWeightedPolylineToBox(
   return runs;
 }
 
-function clipPolylineToBox(points: [number, number][], half: number): [number, number][][] {
+function clipPolylineToBox(points: [number, number][], half: number, preservePrecision = false): [number, number][][] {
   const weighted = points.map(([x, y]) => ({ x, y, w: 0 }));
-  return clipWeightedPolylineToBox(weighted, half).map(run => run.points);
+  return clipWeightedPolylineToBox(weighted, half, preservePrecision).map(run => run.points);
 }
 
 interface PolylineApproach {
   dist: number;
   index: number;
+  t: number;
   tangent: [number, number];
   crossZ: number;
   px: number;
@@ -441,7 +707,7 @@ function closestApproachToOrigin(points: { x: number; y: number }[]): PolylineAp
     const ty = dy / length;
     // z-component of tangent × (origin - closest point); > 0 → origin left of flow
     const crossZ = tx * -py - ty * -px;
-    best = { dist, index: i, tangent: [tx, ty], crossZ, px, py };
+    best = { dist, index: i, t, tangent: [tx, ty], crossZ, px, py };
   }
   return best;
 }
@@ -466,6 +732,181 @@ function getTrueRiverBanks(points: WeightedPoint[]): { left: [number, number][];
   return { left, right };
 }
 
+function closestPointOnPolyline(points: [number, number][]): [number, number] | null {
+  if (points.length < 2) return null;
+  let best: [number, number] | null = null;
+  let bestD = Infinity;
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len2 = dx * dx + dy * dy;
+    const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, (-a[0] * dx - a[1] * dy) / len2));
+    const x = a[0] + dx * t;
+    const y = a[1] + dy * t;
+    const d = x * x + y * y;
+    if (d < bestD) {
+      bestD = d;
+      best = [x, y];
+    }
+  }
+  return best;
+}
+
+function localRiverPoints(
+  river: Pick<River, "cells" | "points" | "widthFactor" | "sourceWidth">,
+  toLocal: (x: number, y: number) => [number, number],
+  metersPerMapUnit: number
+): WeightedPoint[] | null {
+  if (!river.cells?.length) return null;
+  const validPoints = river.points && river.points.length === river.cells.length ? river.points : null;
+  const meandered = Rivers.addMeandering(river.cells, validPoints);
+  if (meandered.length < 2) return null;
+  const banks = Rivers.getRiverBanks(meandered, river.widthFactor ?? 1, river.sourceWidth ?? 0.1);
+  return meandered.map(([x, y], index) => {
+    const [lx, ly] = toLocal(x, y);
+    const trueWidthMapUnits = Rivers.getWidth(banks.widths[index] / 2);
+    return { x: lx, y: ly, w: Math.max(rn(trueWidthMapUnits * metersPerMapUnit, 1), RIVER_MIN_WIDTH_M) };
+  });
+}
+
+/** Near bank plus a strip of water, centred on the unchanged town origin. */
+function canonicalFrontageBounds(burg: Burg, riverId: number, toLocal: (x: number, y: number) => [number, number]) {
+  if (burg.riverPlacement?.sourceSegmentId === undefined) return legacyCanonicalFrontageBounds(burg, riverId, toLocal);
+  const river = worldContext.pack.rivers.find(r => r.i === riverId);
+  if (!river) return null;
+  const scale = getMetersPerMapUnit();
+  const reach = POPULATION_WINDOW_MAX_M / 2;
+  const x = burg.x * scale,
+    y = burg.y * scale;
+  const source = regionalRiverGeometry(
+    worldContext,
+    river,
+    useOptionsState.getState().distanceUnit,
+    SETTLEMENT_RIVER_SETTINGS
+  );
+  if (!(source instanceof RegionalRiverGeometry)) return null;
+  const resolved = source.query({ minX: x - reach, maxX: x + reach, minY: y - reach, maxY: y + reach });
+  if (!resolved || !("geometry" in resolved)) return null;
+  const bank = nearestSettlementBank(resolved.geometry, [burg.x * scale, burg.y * scale]);
+  if (!bank) return null;
+  const samples = [bank.bankPoint, bank.waterPoint].map(p => toLocal(p[0] / scale, p[1] / scale));
+  const bounds: RequiredSiteBounds = {
+    minX: Math.min(...samples.map(p => p[0])) - FRONTAGE_FRAME_PAD_M,
+    minY: Math.min(...samples.map(p => p[1])) - FRONTAGE_FRAME_PAD_M,
+    maxX: Math.max(...samples.map(p => p[0])) + FRONTAGE_FRAME_PAD_M,
+    maxY: Math.max(...samples.map(p => p[1])) + FRONTAGE_FRAME_PAD_M
+  };
+  return requiredSiteExtent(bounds) > POPULATION_WINDOW_MAX_M
+    ? { beyondBudget: true as const }
+    : { bounds, beyondBudget: false as const };
+}
+
+function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBounds): FixedBurgCrossings | null {
+  if (burg.riverPlacement?.sourceSegmentId === undefined) return legacyCanonicalSiteWater(burg, half, required);
+  const rivers: FixedBurgCrossings["rivers"][number][] = [];
+  let vertices = 0;
+  const scale = getMetersPerMapUnit();
+  const origin: [number, number] = [burg.x * scale, burg.y * scale];
+  const frame: [number, number][] = [
+    [origin[0] - half, origin[1] - half],
+    [origin[0] + half, origin[1] - half],
+    [origin[0] + half, origin[1] + half],
+    [origin[0] - half, origin[1] + half]
+  ];
+  const session = new SettlementGeometrySession();
+  session.prepare(worldContext, useOptionsState.getState().distanceUnit);
+  const coverage = { minX: origin[0] - half, maxX: origin[0] + half, minY: origin[1] - half, maxY: origin[1] + half };
+  for (const riverId of session.rivers(coverage)) {
+    const river = worldContext.pack.rivers.find(r => r.i === riverId)!;
+    const resolved = session.resolve(worldContext, river, useOptionsState.getState().distanceUnit, coverage);
+    if (!("geometry" in resolved)) {
+      if (resolved.reason === "no-local-water") continue;
+      return null;
+    }
+    if (!footprintTouchesWater(frame, resolved.geometry.water)) continue;
+    const rings = resolved.geometry.water.rings.map(ring =>
+      ring.map(p => [p[0] - origin[0], origin[1] - p[1]] as [number, number])
+    );
+    vertices += rings.reduce((n, ring) => n + ring.length, 0);
+    if (
+      vertices > FIXED_SITE_CROSSING_BUDGETS.maxWaterVertices ||
+      rivers.length >= FIXED_SITE_CROSSING_BUDGETS.maxFacilities
+    )
+      return null;
+    rivers.push({
+      id: river.i,
+      geometryVersion: resolved.geometryVersion,
+      rings,
+      sourceSegments: resolved.sourceSegments,
+      artificialCaps: resolved.artificialCaps,
+      bankPrecisionMeters: SETTLEMENT_RIVER_SETTINGS.banks.maxChordErrorMeters
+    });
+  }
+  if (!rivers.length) return null;
+  const payload: FixedBurgCrossings = {
+    schemaVersion: 3,
+    coverageBounds: { minX: -half, minY: -half, maxX: half, maxY: half },
+    coordinateUnit: "metres",
+    revision: 0,
+    originMeters: origin,
+    roadWidthMeters: 5,
+    requiredBounds: required ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+    rivers,
+    crossings: []
+  };
+  return validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS) ? payload : null;
+}
+
+function frontageDisplayBounds(
+  riverId: number,
+  toLocal: (x: number, y: number) => [number, number],
+  metersPerMapUnit: number,
+  cityRadiusMeters: number,
+  portRiver: boolean
+): { bounds: RequiredSiteBounds; beyondBudget: false } | { bounds?: undefined; beyondBudget: true } | null {
+  const river = worldContext.pack.rivers?.find(item => item.i === riverId);
+  if (!river) return null;
+  const points = localRiverPoints(river, toLocal, metersPerMapUnit);
+  if (!points) return null;
+  const approach = closestApproachToOrigin(points);
+  if (!approach) return null;
+  const width = points[approach.index].w + (points[approach.index + 1].w - points[approach.index].w) * approach.t;
+  const banks = getTrueRiverBanks(points);
+  const townBank = approach.crossZ > 0 ? banks.left : banks.right;
+  const bankPoint = closestPointOnPolyline(townBank);
+  if (!bankPoint) return null;
+  const center: [number, number] = [approach.px, approach.py];
+  const dx = center[0] - bankPoint[0];
+  const dy = center[1] - bankPoint[1];
+  const span = Math.hypot(dx, dy);
+  const waterDist = Math.min(FRONTAGE_WATER_MARGIN_M, span);
+  const water: [number, number] =
+    span === 0 ? bankPoint : [bankPoint[0] + (dx / span) * waterDist, bankPoint[1] + (dy / span) * waterDist];
+  const limit = bridgeCrossingLimitForPeriod(worldContext.options.historicalPeriod ?? "ageOfExploration");
+  const wide = width > limit || (portRiver && width > cityRadiusMeters * PORT_CHANNEL_RADIUS_RATIO);
+  const samples: [number, number][] = [bankPoint, water];
+  if (!wide) samples.push(center);
+  const pad = FRONTAGE_FRAME_PAD_M;
+  const bounds: RequiredSiteBounds = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  };
+  for (const [x, y] of samples) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return { beyondBudget: true };
+    bounds.minX = Math.min(bounds.minX, x - pad);
+    bounds.minY = Math.min(bounds.minY, y - pad);
+    bounds.maxX = Math.max(bounds.maxX, x + pad);
+    bounds.maxY = Math.max(bounds.maxY, y + pad);
+  }
+  if (!isRequiredSiteBounds(bounds) || requiredSiteExtent(bounds) > POPULATION_WINDOW_MAX_M)
+    return { beyondBudget: true };
+  return { bounds, beyondBudget: false };
+}
+
 function collectRivers(
   burg: Burg,
   toLocal: (x: number, y: number) => [number, number],
@@ -486,53 +927,21 @@ function collectRivers(
 
   const results: BurgSiteRiver[] = [];
   for (const river of pack.rivers) {
-    if (!river.cells?.length || !river.cells.some(cell => neighborhood.has(cell))) continue;
+    const frontage = burg.waterAccess?.riverId === river.i;
+    if (!river.cells?.length || (!frontage && !river.cells.some(cell => neighborhood.has(cell)))) continue;
 
-    const validPoints = river.points && river.points.length === river.cells.length ? river.points : null;
-    const meandered = Rivers.addMeandering(river.cells, validPoints);
-    if (meandered.length < 2) continue;
-
-    const banks = Rivers.getRiverBanks(meandered, river.widthFactor ?? 1, river.sourceWidth ?? 0.1);
-    let points: WeightedPoint[] = meandered.map(([x, y], index) => {
-      const [lx, ly] = toLocal(x, y);
-      // `Rivers.getWidth` is in map-distance units. The local frame below is
-      // already scale-normalised to meters, so width must use that same factor.
-      const trueWidthMapUnits = Rivers.getWidth(banks.widths[index] / 2);
-      return { x: lx, y: ly, w: Math.max(rn(trueWidthMapUnits * metersPerMapUnit, 1), RIVER_MIN_WIDTH_M) };
-    });
+    const points = localRiverPoints(river, toLocal, metersPerMapUnit);
+    if (!points) continue;
 
     const rawApproach = closestApproachToOrigin(points);
     if (!rawApproach) continue;
     const rawOffsetMeters = rn(rawApproach.dist, 1);
 
-    // FMG draws rivers exaggeratedly wide and shifts river burgs toward the
-    // DRAWN bank, so the raw centerline distance of an on-cell river is a
-    // drawn-width artifact (often ~1 km — far outside the city window). Rigidly
-    // translate the centerline so the town center sits on the bank in
-    // true-width space; shape, azimuth and bank side are preserved.
+    // Keep physical centreline, banks, roads and terrain in the same burg-local
+    // frame. The rendered bank exaggeration must not move only the river.
     const throughBurgCell = river.cells.includes(burg.cell);
-    let snappedToBank = false;
-    if (throughBurgCell) {
-      const trueHalfWidth = points[rawApproach.index].w / 2;
-      const target = trueHalfWidth + Math.min(RIVER_BANK_MARGIN_MAX_M, cityRadiusMeters * RIVER_BANK_MARGIN_RATIO);
-      let ux: number;
-      let uy: number;
-      if (rawApproach.dist > 1) {
-        ux = -rawApproach.px / rawApproach.dist;
-        uy = -rawApproach.py / rawApproach.dist;
-      } else {
-        // centerline passes (almost) through the town center — pick the side the
-        // same way FMG's shiftTowardsRiverBank does (cell parity)
-        const side = burg.cell % 2 ? 1 : -1;
-        ux = -rawApproach.tangent[1] * side;
-        uy = rawApproach.tangent[0] * side;
-      }
-      const shift = rawApproach.dist - target;
-      points = points.map(point => ({ x: point.x + ux * shift, y: point.y + uy * shift, w: point.w }));
-      snappedToBank = true;
-    }
-
-    const approach = (snappedToBank ? closestApproachToOrigin(points) : null) ?? rawApproach;
+    const snappedToBank = false;
+    const approach = rawApproach;
 
     const segments = clipWeightedPolylineToBox(points, half);
     // Use the true-width banks in the same local metre frame as `points`.
@@ -545,14 +954,63 @@ function collectRivers(
     // city window while its actual bank crosses it. Keep it: City Generator
     // turns that bank into an open-water boundary instead of silently dropping
     // the waterway.
-    if (!segments.length && !leftBankSegments.length && !rightBankSegments.length) continue;
+    // A clipped-out frontage still carries its physical survey to CE's
+    // local geometry fallback; clipping must not discard depth or navigation.
+    if (!frontage && !segments.length && !leftBankSegments.length && !rightBankSegments.length) continue;
 
+    const widthMeters = rn(
+      points[approach.index].w + (points[approach.index + 1].w - points[approach.index].w) * approach.t,
+      1
+    );
+    const nearestCell = river.cells
+      .filter(c => c >= 0)
+      .reduce(
+        (best, cell) => {
+          const [x, y] = pack.cells.p[cell];
+          const [bx, by] = pack.cells.p[best];
+          return Math.hypot(x - burg.x, y - burg.y) < Math.hypot(bx - burg.x, by - burg.y) ? cell : best;
+        },
+        river.cells.find(c => c >= 0)!
+      );
+    const sampleCell = river.cellHydrology?.[burg.cell] ? burg.cell : nearestCell;
+    const hydrology = river.cellHydrology?.[sampleCell];
+    const depthMeters = hydrology?.waterDepth ?? null;
+    const waterRoutes = (pack.routes ?? []).filter(
+      route =>
+        route.group === "searoutes" &&
+        (route.cells ?? route.points?.map(p => p[2]) ?? []).some(c => river.cells.includes(c))
+    );
+    const vessel = waterRoutes.some(route => route.navigation !== "river")
+      ? SEA_SAILING_VESSEL
+      : waterRoutes.length || (frontage && burg.waterAccess?.port.river)
+        ? RIVER_CARGO_VESSEL
+        : undefined;
+    const siteCrossings = (pack.routes ?? [])
+      .flatMap(route => route.riverCrossings ?? [])
+      .filter(c => c.riverId === river.i && Math.hypot(...toLocal(...c.point)) <= half);
+    const crossing =
+      siteCrossings.find(c => c.plan.kind === "ferry" || c.plan.kind === "none")?.plan ??
+      siteCrossings[0]?.plan ??
+      planRiverCrossing({
+        widthMeters,
+        depthMeters,
+        period: worldContext.options.historicalPeriod,
+        technology: worldContext.options.riverBridgeTechnology,
+        vessel
+      });
     const offsetMeters = rn(approach.dist, 1);
     results.push({
       riverId: river.i,
+      depthMeters,
+      ...(hydrology ? { hydrology: { ...hydrology, cellId: sampleCell } } : {}),
+      ...(vessel ? { navigationVessel: { ...vessel } } : {}),
+      crossing,
       name: river.name ?? "",
       type: river.type ?? "",
-      widthMeters: points[approach.index].w,
+      widthMeters: rn(
+        points[approach.index].w + (points[approach.index + 1].w - points[approach.index].w) * approach.t,
+        1
+      ),
       axisAzimuthDeg: azimuthDeg(approach.tangent[0], approach.tangent[1]),
       offsetMeters,
       offsetRatio: rn(offsetMeters / cityRadiusMeters, 2),
@@ -622,7 +1080,31 @@ function collectRouteLegs(burg: Burg): { route: Route; leg: [number, number, num
 
   for (const route of pack.routes) {
     if (route.merged || !route.points?.length) continue;
-    const index = route.points.findIndex(point => point[2] === burg.cell);
+    if (route.registeredConnectionId !== undefined) {
+      const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+      const edge = physical?.snapshot.network.edges.find(e => e.id === route.registeredConnectionId && !e.reverse);
+      if (!edge || (edge.from !== burg.i && edge.to !== burg.i)) continue;
+      let leg = edge.from === burg.i ? route.points.slice() : route.points.slice().reverse();
+      if (edge.crossing) {
+        const connection = getConstrainedNetworkConnections(physical!.snapshot.network, physical!.current.environment);
+        if (!("connections" in connection)) continue;
+        const source = connection.connections.find(c => c.id === edge.id);
+        if (source?.kind !== "bridge") continue;
+        const endpoint = edge.from === burg.i ? source.crossing.approachA : source.crossing.approachB;
+        const scale = getMetersPerMapUnit();
+        const terminal = leg.findIndex(p => Math.hypot(p[0] * scale - endpoint[0], p[1] * scale - endpoint[1]) <= 1e-7);
+        if (terminal < 1) continue;
+        leg = leg.slice(0, terminal + 1);
+      }
+      if (leg.length >= 2) legs.push({ route, leg });
+      continue;
+    }
+    if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
+    const index = route.points.findIndex(
+      point =>
+        point[2] === burg.cell &&
+        (!route.riverRoadConvergence || Math.hypot(point[0] - burg.x, point[1] - burg.y) < 1e-7)
+    );
     if (index === -1) continue;
 
     const forward = route.points.slice(index);
@@ -643,9 +1125,20 @@ function collectRoadEntries(
   const { pack } = worldContext;
   if (!pack.routes?.length) return [];
 
+  const facilities = convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!);
   const entries: BurgSiteRoadEntry[] = [];
   for (const { route, leg } of collectRouteLegs(burg)) {
-    const localPoints = leg.map(([x, y]) => toLocal(x, y));
+    const facility = facilities.find(
+      f =>
+        f.routeIds.includes(route.i) &&
+        leg.some(p => Math.hypot(p[0] * metersPerMapUnit - f.near[0], p[1] * metersPerMapUnit - f.near[1]) < 1e-7)
+    );
+    const terminal = facility
+      ? leg.findIndex(
+          p => Math.hypot(p[0] * metersPerMapUnit - facility.near[0], p[1] * metersPerMapUnit - facility.near[1]) < 1e-7
+        )
+      : -1;
+    const localPoints = (terminal >= 1 ? leg.slice(0, terminal + 1) : leg).map(([x, y]) => toLocal(x, y));
 
     // Azimuth where the leg crosses the city radius (gate direction).
     let entryAzimuth: number | null = null;
@@ -718,8 +1211,43 @@ function collectRoadEntries(
       }
     }
 
-    const clipped = clipPolylineToBox(localPoints, half);
+    const clipped = clipPolylineToBox(localPoints, half, !!facility);
+    const shared = facility && entries.find(e => e.sharedCrossingId === facility.crossing.id);
+    if (shared) {
+      shared.sharedBranches!.push({
+        routeId: route.i,
+        path:
+          clipPolylineToBox(
+            leg.map(([x, y]) => toLocal(x, y)),
+            half,
+            true
+          )[0] ?? [],
+        nextBurg
+      });
+      if (!shared.sharedRouteIds!.includes(route.i)) shared.sharedRouteIds!.push(route.i);
+      if (nextBurg && !shared.nextBurgs!.some(b => b.id === nextBurg.id)) shared.nextBurgs!.push(nextBurg);
+      continue;
+    }
     entries.push({
+      ...(facility
+        ? {
+            sharedCrossingId: facility.crossing.id,
+            sharedRouteIds: [route.i],
+            nextBurgs: nextBurg ? [nextBurg] : [],
+            sharedBranches: [
+              {
+                routeId: route.i,
+                path:
+                  clipPolylineToBox(
+                    leg.map(([x, y]) => toLocal(x, y)),
+                    half,
+                    true
+                  )[0] ?? [],
+                nextBurg
+              }
+            ]
+          }
+        : {}),
       routeId: route.i,
       group: route.group,
       ...(route.name ? { name: route.name } : {}),
@@ -884,4 +1412,92 @@ function inferArchetype(args: {
   }
 
   return "crossroads";
+}
+
+function legacyCanonicalFrontageBounds(
+  burg: Burg,
+  riverId: number,
+  toLocal: (x: number, y: number) => [number, number]
+) {
+  const river = worldContext.pack.rivers.find(r => r.i === riverId);
+  if (!river) return null;
+  const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+  if (!("geometry" in resolved)) return null;
+  const scale = resolved.metersPerMapUnit;
+  const bank = nearestSettlementBank(resolved.geometry, [burg.x * scale, burg.y * scale]);
+  if (!bank) return null;
+  const samples = [bank.bankPoint, bank.waterPoint].map(p => toLocal(p[0] / scale, p[1] / scale));
+  const bounds: RequiredSiteBounds = {
+    minX: Math.min(...samples.map(p => p[0])) - FRONTAGE_FRAME_PAD_M,
+    minY: Math.min(...samples.map(p => p[1])) - FRONTAGE_FRAME_PAD_M,
+    maxX: Math.max(...samples.map(p => p[0])) + FRONTAGE_FRAME_PAD_M,
+    maxY: Math.max(...samples.map(p => p[1])) + FRONTAGE_FRAME_PAD_M
+  };
+  return requiredSiteExtent(bounds) > POPULATION_WINDOW_MAX_M
+    ? { beyondBudget: true as const }
+    : { bounds, beyondBudget: false as const };
+}
+
+function legacyCanonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBounds): FixedBurgCrossings | null {
+  const rivers: FixedBurgCrossings["rivers"][number][] = [];
+  let vertices = 0;
+  const scale = getMetersPerMapUnit();
+  const origin: [number, number] = [burg.x * scale, burg.y * scale];
+  const frame: [number, number][] = [
+    [origin[0] - half, origin[1] - half],
+    [origin[0] + half, origin[1] - half],
+    [origin[0] + half, origin[1] + half],
+    [origin[0] - half, origin[1] + half]
+  ];
+  for (const river of worldContext.pack.rivers) {
+    const possible = worldRiverOccupiedBounds(
+      worldContext,
+      river,
+      useOptionsState.getState().distanceUnit,
+      SETTLEMENT_RIVER_SETTINGS
+    );
+    if (!possible) return null;
+    if (
+      possible.maxX < origin[0] - half ||
+      possible.minX > origin[0] + half ||
+      possible.maxY < origin[1] - half ||
+      possible.minY > origin[1] + half
+    )
+      continue;
+    const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+    // Remote unresolved reaches cannot affect this frame; a nearby one stops the export.
+    const b = resolved.bounds;
+    if (!b) return null;
+    if (
+      b.maxX < origin[0] - half ||
+      b.minX > origin[0] + half ||
+      b.maxY < origin[1] - half ||
+      b.minY > origin[1] + half
+    )
+      continue;
+    if (!("geometry" in resolved)) return null;
+    if (!footprintTouchesWater(frame, resolved.geometry.water)) continue;
+    const rings = resolved.geometry.water.rings.map(ring =>
+      ring.map(p => [p[0] - origin[0], origin[1] - p[1]] as [number, number])
+    );
+    vertices += rings.reduce((n, ring) => n + ring.length, 0);
+    if (
+      vertices > FIXED_SITE_CROSSING_BUDGETS.maxWaterVertices ||
+      rivers.length >= FIXED_SITE_CROSSING_BUDGETS.maxFacilities
+    )
+      return null;
+    rivers.push({ id: river.i, geometryVersion: resolved.geometryVersion, rings });
+  }
+  if (!rivers.length) return null;
+  const payload: FixedBurgCrossings = {
+    schemaVersion: 2,
+    coordinateUnit: "metres",
+    revision: 0,
+    originMeters: origin,
+    roadWidthMeters: 5,
+    requiredBounds: required ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+    rivers,
+    crossings: []
+  };
+  return validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS) ? payload : null;
 }

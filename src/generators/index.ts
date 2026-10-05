@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import "./voronoi";
 import { Biomes } from "./biomes";
 import { Burgs } from "./burgs-generator";
@@ -89,9 +90,10 @@ function runBurgsGenerate(
   state: WorldStateAt<"culturesExpanded">,
   worldContext: WorldContext,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  appServices: AppServices,
+  geometrySession?: SettlementGeometrySession
 ): WorldStateAt<"burgs"> {
-  Burgs.generate(worldContext, viewContext, appServices, state);
+  Burgs.generate(worldContext, viewContext, appServices, state, { geometrySession });
   return state as unknown as WorldStateAt<"burgs">;
 }
 
@@ -99,12 +101,13 @@ function runStatesGenerate(
   state: WorldStateAt<"burgs">,
   worldContext: WorldContext,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  appServices: AppServices,
+  geometrySession?: SettlementGeometrySession
 ): WorldStateAt<"states"> {
   States.generate(worldContext, viewContext, appServices, state);
   // Lake-port representation depends on the State ownership established above.
   // Multi-landmass states also receive a sea port on each inhabited island here.
-  Burgs.shift({ connectStateLandmasses: true });
+  Burgs.shift({ connectStateLandmasses: true, geometrySession });
   return state as unknown as WorldStateAt<"states">;
 }
 
@@ -219,14 +222,15 @@ export function generateWorld(
   appServices: AppServices,
   state: WorldState
 ): void {
+  const geometrySession = new SettlementGeometrySession();
   const s01 = runRiversGenerate(state, worldContext, viewContext, appServices);
   const s02 = runBiomesDefine(s01);
   const s03 = runFeaturesDefineGroups(s02);
   const s04 = runIceGenerate(s03, worldContext, viewContext, appServices);
   const s05 = runCulturesGenerate(s04, worldContext, viewContext, appServices);
   const s06 = runCulturesExpand(s05);
-  const s07 = runBurgsGenerate(s06, worldContext, viewContext, appServices);
-  const s08 = runStatesGenerate(s07, worldContext, viewContext, appServices);
+  const s07 = runBurgsGenerate(s06, worldContext, viewContext, appServices, geometrySession);
+  const s08 = runStatesGenerate(s07, worldContext, viewContext, appServices, geometrySession);
   const s09 = runRoutesGenerate(s08, worldContext, viewContext, appServices);
   const s10 = runReligionsGenerate(s09, worldContext, viewContext, appServices);
   const s11 = runBurgsSpecify(s10, worldContext, viewContext, appServices);

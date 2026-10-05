@@ -429,6 +429,25 @@ export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
     if (group.kind !== "road" || group.id.startsWith("gc:bridge-")) continue;
     const ids = featureGroupVertices(document, group);
     if (ids.length < 2) continue;
+    // Imported approaches are routed from the source endpoint toward town.
+    // They remain world roads without walls, and may terminate within the frame.
+    if (group.sourceRoad) {
+      const connection = document.riverConnections?.find(c => c.sourceIndex === group.sourceRoad!.index);
+      const leg = document.frameRoads?.find(
+        leg => leg.sourceIndex === group.sourceRoad!.index && leg.routeId === group.sourceRoad!.routeId
+      );
+      const half = document.frame.extentMeters / 2;
+      const outward =
+        leg?.pieces
+          .filter(piece => piece.kind === "road")
+          .flatMap(piece => piece.points)
+          .filter(p => Math.max(Math.abs(p[0]), Math.abs(p[1])) <= half + 0.05)
+          .at(-1) ??
+        connection?.farRoad.at(-1) ??
+        document.mesh.vertices[ids[0]]?.point;
+      if (outward) found.push({ group, outward, bearing: vecToAzimuth(...outward) });
+      continue;
+    }
     const start = ids[0];
     const end = ids[ids.length - 1];
     const startIsGate = gates.has(start);
@@ -470,7 +489,14 @@ export function externalRoadLabels(
   document: CityDocument
 ): Array<{ roads: ExternalGateRoad[]; destinations: ExternalGateRoad[] }> {
   return externalRoadExits(document)
-    .map(roads => {
+    .map(exit => {
+      // A landing without a far-bank road has no off-map road exit label.
+      // Complete crossings use the far road endpoint, retaining destination data.
+      const roads = exit.filter(
+        road =>
+          road.group.sourceRoad?.terminal !== "riverLanding" ||
+          document.riverConnections?.some(c => c.sourceIndex === road.group.sourceRoad?.index)
+      );
       const seen = new Set<string>();
       const destinations = roads.filter(road => {
         const value = normalizeApproachBeyond(road.group.beyond);
@@ -547,7 +573,9 @@ export function tagExternalGateRoads(document: CityDocument, seed: string, descr
       best &&
       (candidates.find(candidate => candidate.diff <= best.diff + 10 && !used.has(candidate.item.nextBurg!.id)) ??
         best);
-    const matchedNextBurg = matched?.item.nextBurg;
+    const matchedNextBurg = road.group.sourceRoad
+      ? descriptorRoads[road.group.sourceRoad.index]?.nextBurg
+      : matched?.item.nextBurg;
     if (matchedNextBurg) used.add(matchedNextBurg.id);
 
     if (matchedNextBurg) {

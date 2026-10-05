@@ -1,3 +1,4 @@
+import type { BridgeTransport } from "../../utils/bridgeCrossingPolicy";
 // BurgSiteDescriptor — the FMG → City Generator input contract.
 //
 // This is a decoupled TYPE-ONLY copy of the public shape produced by
@@ -11,6 +12,9 @@ export const DESCRIPTOR_VERSION = 2;
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
 export interface BurgSiteRiver {
+  /** Estimated local water depth, not a surveyed navigation depth. */
+  depthMeters?: number | null;
+  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
   type: string;
@@ -18,7 +22,7 @@ export interface BurgSiteRiver {
   widthMeters: number;
   /** Downstream flow azimuth at the closest approach (compass degrees). */
   axisAzimuthDeg: number;
-  /** Unsigned distance (m) from the town center to the (bank-snapped) centerline. */
+  /** Unsigned distance (m) from the town center to the physical centerline. */
   offsetMeters: number;
   /** offsetMeters / cityRadiusMeters. 0 → bisects the town, >= 1 → outside the core. */
   offsetRatio: number;
@@ -28,9 +32,9 @@ export interface BurgSiteRiver {
   crossesSite: boolean;
   /** FMG world truth: the river flows through the burg's own cell. */
   throughBurgCell: boolean;
-  /** Raw map-geometry distance (m) before bank snapping. */
+  /** Physical map-geometry distance; equal to offsetMeters in new exports. */
   rawOffsetMeters: number;
-  /** True when the centerline was rigidly translated so the town sits on the bank. */
+  /** Legacy bank-translation flag. New FMG exports always set false. */
   snappedToBank: boolean;
   /** Centerline polyline(s) clipped to the window, upstream → downstream, local meters. */
   segments: { points: [number, number][]; widthsMeters: number[] }[];
@@ -94,6 +98,9 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    riverPlacement?: import("../../types/models").Burg["riverPlacement"];
+    /** Optional for legacy descriptors; independent of clipped water geometry. */
+    waterAccess?: import("../../types/burgWater").BurgWaterAccess;
     citadel: boolean;
     plaza: boolean;
     walls: boolean;
@@ -109,7 +116,7 @@ export interface BurgSiteDescriptor {
   climate: { temperatureC: number; biomeId: number };
   terrain: BurgSiteTerrain;
   /** Optional City Editor transport constraint; ignored by this generator. */
-  transport?: { maxBridgeSpanMeters: number };
+  transport?: BridgeTransport;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   roads: BurgSiteRoadEntry[];

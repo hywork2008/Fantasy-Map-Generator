@@ -35,16 +35,6 @@ function segmentsGap(a: Point, b: Point, c: Point, d: Point): number {
   );
 }
 
-function _polygonGap(a: Point[], b: Point[]): number {
-  let gap = Infinity;
-  for (let i = 0; i < a.length; i++) {
-    const a0 = a[i];
-    const a1 = a[(i + 1) % a.length];
-    for (let j = 0; j < b.length; j++) gap = Math.min(gap, segmentsGap(a0, a1, b[j], b[(j + 1) % b.length]));
-  }
-  return gap;
-}
-
 /** True when the polygon takes a visible bite out of the open plaza disk. */
 export function polygonBitesDisk(poly: Point[], disk: Disk, margin = BITE_METERS): boolean {
   const limit = disk.radius - margin;

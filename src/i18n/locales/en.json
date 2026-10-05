@@ -3092,6 +3092,17 @@
       }
     },
     "burgEditor": {
+      "preview": "Preview",
+      "previewSimplified": "Simplified preview (detailed housing omitted)",
+      "previewProgress": "Attempt {{attempt}} · {{phase}}{{retry}}",
+      "previewRetrying": " · retrying",
+      "previewLoading": "Generating city preview…",
+      "previewError": "Could not generate the city preview.",
+      "previewRetry": "Retry",
+      "previewCityEditor": "Open City Editor",
+      "previewNavigation": "Scroll to zoom · Drag to pan",
+      "previewReset": "Reset view",
+
       "tabsAria": "Burg editor sections",
       "overview": "Overview",
       "name": "Name:",
@@ -5037,5 +5048,53 @@
     "disadvantaged": "Disadvantaged",
     "even": "Even",
     "spearmen": "Spearmen"
+  },
+  "landConnections": {
+    "title": "Last connection assessment",
+    "description": "Last evaluation results. Scores compare travel and construction effort; they are not money or travel time.",
+    "unresolved": "Assessment incomplete",
+    "cities": "Cities",
+    "decision": "Decision",
+    "reason": "Reason",
+    "travel": "Travel score",
+    "construction": "New construction",
+    "benefit": "Net benefit",
+    "shared": "shared bridge",
+    "status": {
+      "proposed": "Proposed",
+      "adopted": "Adopted",
+      "kept": "Kept existing",
+      "rejected": "Rejected",
+      "unresolved": "Unresolved"
+    },
+    "reasons": {
+      "world-environment": "Current terrain or passage conditions could not be validated",
+      "new-connection": "Connects cities within a finite construction allowance",
+      "travel-saving": "Travel savings exceed construction and the required margin",
+      "shared-benefit": "Shared benefit exceeds the complete construction package",
+      "no-addition": "Existing connections suffice",
+      "insufficient-improvement": "Improvement does not justify construction",
+      "near-equal-fewer-crossings": "Keeps a near-equal route with fewer crossings",
+      "no-feasible-proposal": "No new route meets geometry and cost conditions",
+      "no-route": "No route among the evaluated candidates",
+      "no-shared-facility": "No bridge is shared by multiple city pairs",
+      "investment-budget": "Bridge and approach construction exceeds the allowance",
+      "total-cost-budget": "Total score exceeds the allowance",
+      "pair-cost-budget": "A pair exceeds its route allowance",
+      "insufficient-benefit": "Shared benefit does not justify construction",
+      "assessment-budget": "Comparison budget exhausted; no conclusion",
+      "comparison-budget": "Comparison budget exhausted; no conclusion",
+      "search-budget": "Search budget exhausted; no conclusion",
+      "approach-budget": "Approach budget exhausted; no conclusion",
+      "candidate-enumeration": "River candidates could not be fully evaluated",
+      "assessment-unresolved": "Candidate comparison is unresolved",
+      "invalid-input": "Invalid assessment input",
+      "invalid-geometry": "Current geometry could not be validated",
+      "invalid-network": "Network could not be validated",
+      "invalid-cost": "Invalid cost calculation",
+      "unvalidated-network": "Network is unvalidated",
+      "unresolved-water": "Required physical water is unresolved",
+      "pair-budget": "City pair count exceeds the budget"
+    }
   }
 }

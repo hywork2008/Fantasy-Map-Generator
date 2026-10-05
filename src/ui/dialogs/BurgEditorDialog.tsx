@@ -6,6 +6,7 @@ import { showElementLockTip } from "../../services/tooltipService";
 import { useBurgEditorState } from "../../store/burgEditorState";
 import { useDialogState } from "../../store/dialogState";
 import { type ExtensionEditorTab, getEnabledEditorTabs, useExtensionState } from "../../store/extensionState";
+import { BurgCityPreview } from "../components/BurgCityPreview";
 import { IconButton } from "../components/IconButton";
 import { PopulationPyramid } from "../components/PopulationPyramid";
 import { Dialog } from "./Dialog";
@@ -39,6 +40,15 @@ const BurgEditorTabBar: React.FC<BurgEditorTabBarProps> = ({ tabs, activeTab, on
         onClick={() => onSelect("overview")}
       >
         {t("dialogs.burgEditor.overview")}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === "preview"}
+        className={activeTab === "preview" ? "pressed" : ""}
+        onClick={() => onSelect("preview")}
+      >
+        {t("dialogs.burgEditor.preview")}
       </button>
       {tabs.map(tab => (
         <button
@@ -79,7 +89,8 @@ export const BurgEditorDialog: React.FC = () => {
   }, [isOpen]);
 
   useEffect(() => {
-    if (activeTab !== "overview" && !editorTabs.some(tab => tab.id === activeTab)) setActiveTab("overview");
+    if (activeTab !== "overview" && activeTab !== "preview" && !editorTabs.some(tab => tab.id === activeTab))
+      setActiveTab("overview");
   }, [activeTab, editorTabs]);
 
   useEffect(() => {
@@ -103,7 +114,7 @@ export const BurgEditorDialog: React.FC = () => {
       anchorTitlebarOnOpen
       className="fmg-dialog--burg-editor"
     >
-      {editorTabs.length > 0 && <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />}
+      <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />
       {activeTab === "overview" ? (
         <div id="burgBody">
           <div className="d-flex">
@@ -124,6 +135,10 @@ export const BurgEditorDialog: React.FC = () => {
                   <td colSpan={2} id="burgProvinceAndState">
                     {burgData.provinceAndState}
                   </td>
+                </tr>
+                <tr>
+                  <th scope="row">ID:</th>
+                  <td id="burgId">{burgData.id}</td>
                 </tr>
                 <tr data-tip={t("dialogs.burgEditor.nameTip")}>
                   <th scope="row">
@@ -478,25 +493,10 @@ export const BurgEditorDialog: React.FC = () => {
               </tbody>
             </table>
           </div>
-
-          {burgData.previewUrl && (
-            <div id="burgPreviewSection" data-tip={t("dialogs.burgEditor.previewSectionTip")} className="d-flex">
-              <div className="d-flex">
-                <span>{t("dialogs.burgEditor.previewLabel")}</span>
-                <div className="d-flex">
-                  <i
-                    id="burgLinkOpen"
-                    data-tip={t("dialogs.burgEditor.previewOpenTip")}
-                    className="icon-link-ext pointer"
-                    onClick={() => burgEditorActions.openBurgLink()}
-                  ></i>
-                </div>
-              </div>
-              <div id="burgPreviewObject">
-                <object data={burgData.previewUrl} aria-label={t("dialogs.burgEditor.previewAriaLabel")} />
-              </div>
-            </div>
-          )}
+        </div>
+      ) : activeTab === "preview" ? (
+        <div id="burgBody">
+          <BurgCityPreview burgData={burgData} />
         </div>
       ) : (
         <div id="burgBody">{ActiveExtensionComponent ? <ActiveExtensionComponent /> : null}</div>

@@ -143,7 +143,8 @@ export function placeLandmark(
     !Number.isFinite(placement.rotation) ||
     !Number.isFinite(placement.scale) ||
     placement.scale <= 0 ||
-    validateLandmarks({ ...document, version: 3, landmarkAssets: [asset], landmarks: [] }).length
+    validateLandmarks({ ...document, version: document.sceneRegions ? 4 : 3, landmarkAssets: [asset], landmarks: [] })
+      .length
   )
     reasons.push("Invalid landmark asset or transform");
   const half = document.frame.extentMeters / 2;
@@ -313,7 +314,7 @@ export function placeLandmark(
   if (reasons.length) return { document: null, reasons: [...new Set(reasons)] };
   const next: CityDocument = {
     ...document,
-    version: 3,
+    version: document.sceneRegions ? 4 : 3,
     landmarkAssets: (document.landmarkAssets ?? []).some(
       existing => existing.id === asset.id && existing.revision === asset.revision
     )
@@ -367,8 +368,12 @@ export function transformPlacedLandmark(
 
 export function validateLandmarks(document: CityDocument): string[] {
   const errors: string[] = [];
-  if ((document.landmarks?.length || document.landmarkAssets?.length) && document.version !== 3)
-    errors.push("Landmarks require document version 3");
+  if (
+    (document.landmarks?.length || document.landmarkAssets?.length) &&
+    document.version !== 3 &&
+    document.version !== 4
+  )
+    errors.push("Landmarks require document version 3 or 4");
   const assets = new Map<string, LandmarkAsset>();
   for (const asset of document.landmarkAssets ?? []) {
     const key = `${asset.id}@${asset.revision}`;

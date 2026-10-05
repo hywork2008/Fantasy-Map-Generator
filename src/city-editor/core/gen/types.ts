@@ -185,6 +185,8 @@ export interface BorderLoop {
 export interface Gate {
   point: Point;
   borderIndex: number;
+  /** Index into importedRoads; absent for standalone entrance planning. */
+  roadIndex?: number;
   /** The port-facing gate, when the programme has a harbour. */
   water: boolean;
 }
@@ -236,6 +238,8 @@ export interface Snapshot {
  * along them, so the fine shape (and where it exits) is graph-derived, not
  * authored. Built from a BurgSiteDescriptor (site/siteInput.ts) or empty. */
 export interface CityGeography {
+  /** Explicit FMG river-port topology, independent of clipped shore geometry. */
+  riverPort?: boolean;
   coast: { corridor: Point[]; waterAzimuthDeg: number } | null;
   rivers: {
     corridor: Point[];
@@ -243,6 +247,7 @@ export interface CityGeography {
     cityBank: "left" | "right";
     /** A road may bridge only a channel the site's technology can span. */
     bridgeAllowed: boolean;
+    crossing?: import("../../../utils/riverCrossing").RiverCrossingPlan;
     /** The FMG tributary ends in an imported open-water parent inside this
      * urban window. A direct final leg is valid if graph walking cannot close
      * the junction exactly. */
@@ -252,10 +257,23 @@ export interface CityGeography {
    * bank here instead of an impossibly wide river stroke. `coast` remains for
    * backwards-compatible standalone and exported inputs. */
   waterAreas?: { corridor: Point[]; waterAzimuthDeg: number; kind: "ocean" | "lake" | "river" }[];
+  /** On-site rivers wider than the era can bridge. Each polygon is the channel
+   * itself (near bank to far bank), not a half-plane: the burg stays on the
+   * near bank at the map origin, and the opposite bank stays land outside the
+   * town. `shoreline` is the town-side bank. */
+  channels?: { polygon: Point[]; shoreline: Point[]; waterAzimuthDeg: number }[];
   /** Gate-candidate road bearings, compass degrees. */
   roadBearings: number[];
   /** Road centre-lines, used by S4 to choose the corresponding gates. */
   roadPaths?: Point[][];
+  /** Present (including []) only for strict FMG road hand-off. */
+  importedRoads?: {
+    sourceIndex: number;
+    routeId: number;
+    path: Point[];
+    riverLanding?: boolean;
+    riverConnection?: NonNullable<import("../types").CityDocument["riverConnections"]>[number];
+  }[];
   /** FMG's desired number of land gates. Falls back to road bearings when absent. */
   suggestedGates?: number;
 }

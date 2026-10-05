@@ -188,6 +188,20 @@ describe("manual city mesh", () => {
     expect(sea).not.toBe(document);
     expect(setFaceWater(sea, landFaceId, "sea")).toBe(sea);
   });
+
+  it("scales the separate town window together with the display and mesh", () => {
+    const document = createDocument("mesh-town-scale", 3000, 110);
+    document.frame.settlementExtentMeters = 300;
+    const scaled = scaleDocument(document, 2)!;
+    expect(scaled.frame.extentMeters).toBe(6000);
+    expect(scaled.frame.settlementExtentMeters).toBe(600);
+    expect(scaled.frame.cityRadiusMeters).toBe(document.frame.cityRadiusMeters * 2);
+    expect(scaled.frame.blockSizeMeters).toBe(document.frame.blockSizeMeters * 2);
+    expect(document.frame.settlementExtentMeters).toBe(300);
+    expect(scaleDocument(scaled, 0.5)!.frame).toEqual(document.frame);
+    delete document.frame.settlementExtentMeters;
+    expect(scaleDocument(document, 2)!.frame.settlementExtentMeters).toBeUndefined();
+  });
 });
 
 describe("local edge insertion", () => {

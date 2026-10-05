@@ -82,7 +82,7 @@ for (let fIdx = 0; fIdx < ordered.length; fIdx++) {
     const lo = start + (i === 0 ? 1e-5 : 0);
     const hi = end - (i === count - 1 ? 1e-5 : 0);
     start = end;
-    const _occupied = rng() < 1;
+    rng(); // Preserve the occupancy draw in the reproduced random sequence.
     rng();
     let lot = clipHalfPlane(band, [-1, 0], -lo);
     lot = clipHalfPlane(lot, [1, 0], hi);

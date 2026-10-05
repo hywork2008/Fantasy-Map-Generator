@@ -4,7 +4,7 @@ import { polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { insetConvexKernel } from "./lotGeometry";
 
 /** Rectangular buildings on a shared court, in metres rather than cell units. */
-export function layoutCastle(document: CityDocument, castle: CastlePlan): CastlePlan | null {
+export function layoutCastle(document: CityDocument, castle: CastlePlan, minFrame = 13): CastlePlan | null {
   const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
   const gate = document.gates.find(g => g.ownerCastleId === castle.id);
   if (!circuit || !gate) return null;
@@ -32,9 +32,11 @@ export function layoutCastle(document: CityDocument, castle: CastlePlan): Castle
   // Try wide and deep frames separately, avoiding an oversized keep on large maps.
   let frame: [number, number] | null = null;
   for (const ratio of [1, 1.25, 0.8, 1.5, 0.67]) {
-    for (let h = 48; h >= 13; h -= 1) {
+    // 13 m is the ordinary bailey. Installation of a hamlet curtain may pass a
+    // lower floor when the inset kernel is only ~40 m across.
+    for (let h = 48; h >= minFrame; h -= 1) {
       const w = Math.min(55, h * ratio);
-      if (w < 13 || !rectangle(0, 0, w * 2, h * 2).every(p => insideRing(p, safe))) continue;
+      if (w < minFrame || !rectangle(0, 0, w * 2, h * 2).every(p => insideRing(p, safe))) continue;
       if (!frame || w * h > frame[0] * frame[1]) frame = [w, h];
       break;
     }
@@ -42,14 +44,18 @@ export function layoutCastle(document: CityDocument, castle: CastlePlan): Castle
   if (!frame) return null;
   const [w, h] = frame;
   const parts: CastlePart[] = [];
-  const add = (role: CastlePart["role"], u: number, v: number, width: number, depth: number, entrance: Point) =>
+  const add = (role: CastlePart["role"], u: number, v: number, width: number, depth: number, entrance: Point) => {
+    // The small-bailey frame floor does not relax the document's 20 m²
+    // minimum for real buildings. Leave 5% headroom for coordinate rounding.
+    const scale = Math.max(1, Math.sqrt(21 / (width * depth)));
     parts.push({
       id: `${castle.id}:${role}`,
       role,
-      footprint: rectangle(u, v, width, depth),
+      footprint: rectangle(u, v, width * scale, depth * scale),
       entrances: [entrance],
       locked: false
     });
+  };
   const keepWidth = Math.min(20, w * 0.5),
     keepDepth = Math.min(24, h * 0.6);
   if (castle.form === "keep-bailey")
@@ -153,7 +159,7 @@ export function refreshCastleLayouts(document: CityDocument): boolean {
   for (let i = 0; i < (document.castles?.length ?? 0); i++) {
     const castle = document.castles![i];
     if (castle.locked) continue;
-    const updated = layoutCastle(document, castle);
+    const updated = layoutCastle(document, castle, 8);
     if (!updated) return false;
     document.castles![i] = updated;
   }

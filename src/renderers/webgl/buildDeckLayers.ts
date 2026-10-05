@@ -22,9 +22,11 @@ import type { WorldContext } from "../../context/worldContext";
 import { getCombatDeathsByCell, getPopulationLossSimDay } from "../../generators/populationLossTracker";
 import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
 import { getPresentationStyle, presentationData } from "../../runtime/presentationData";
+import { getWorldLandConnectionCurrent } from "../../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../../store/optionsState";
 import { usePopulationOverviewState } from "../../store/populationOverviewState";
 import type { ExtensionWebglIconDatum, ExtensionWebglPathDatum } from "../../types/extension-api";
+import { isCellInScope } from "../core/focusScope";
 import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
 import {
   buildBackgroundPolygons,
@@ -101,6 +103,7 @@ import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
 import type { FlatLandTopology, LandGeometryProjection } from "./flatLandTopology";
 import { inProcessLandTopologyProjectionAdapter } from "./landTopologyProjectionAdapter";
+import { buildRegisteredLandRouteLayers } from "./registeredLandRouteLayers";
 import {
   getBurgIconStyle,
   getCellLayerOpacities,
@@ -1020,6 +1023,28 @@ export function buildDeckLayers(
   // viewMesh renders routes as terrain-following Three.js lines rather than baking them into
   // the flat terrain bitmap, where they would remain painted onto the surface.
   if (routesLayer && options.includeRoutes !== false) addPathLayer(routesLayer);
+  if (activeLayers.toggleRoutes && options.includeRoutes !== false) {
+    const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+    if (physical) {
+      const connectionIds = worldContext.pack.routes
+        .filter(
+          r =>
+            r.registeredConnectionId !== undefined &&
+            (!viewContext.focusScope || (r.cells ?? []).some(c => isCellInScope(viewContext.focusScope, c)))
+        )
+        .map(r => r.registeredConnectionId!);
+      const built = buildRegisteredLandRouteLayers(
+        physical.snapshot,
+        physical.current,
+        { ...physical.scene, connectionIds },
+        {
+          roadColor: [...pathPaintStyles.roads] as [number, number, number, number],
+          bridgeColor: [...pathPaintStyles.roads] as [number, number, number, number]
+        }
+      );
+      if ("layers" in built) layers.push(...built.layers);
+    }
+  }
 
   // Pushed after rivers/borders/coastline/routes (and before labels) to match the SVG renderer's
   // stacking order, where #emblems and #icons are appended after #routes and before #labels

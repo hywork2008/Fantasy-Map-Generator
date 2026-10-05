@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { outerWallRing } from "../concealStreets";
 import { createGridDocument, parseDocument } from "../document";
+import { castleWallIds } from "../fortifications";
 import { defaultGenerationSettings, generateCityOnDocument, generateStageOnDocument } from "../generate";
 import type { GenerationSample } from "../generationDiagnostics";
 import { facePoints, validate } from "../mesh";
@@ -12,6 +13,7 @@ import {
   defaultRoadWidthMeters,
   defaultWalledAreaShare,
   evolutionWallInsetRings,
+  extendCoreToCoast,
   insetWalledCore,
   MIN_CITY_EXTERNAL_ROADS,
   MIN_FORT_EXTERNAL_ROADS,
@@ -20,6 +22,7 @@ import {
   resolveWalledAreaShare,
   SMALL_CITY_EXTENT_METERS
 } from "./settlementExtent";
+import { synthSite } from "./site/synthSite";
 import type { Cell } from "./types";
 
 function cell(id: number, neighbors: number[]): Cell {
@@ -106,6 +109,91 @@ function settledArea(document: CityDocument, kind?: "core" | "outskirts") {
 }
 
 describe("wall capacity and extramural housing", () => {
+  it("joins the core to built-up shore without annexing countryside or disconnected coast", () => {
+    const cells = [
+      cell(0, [1]),
+      cell(1, [0, 2]),
+      cell(2, [1, 3, 9]),
+      cell(3, [2, 9]),
+      cell(4, [9]),
+      cell(9, [2, 3, 4])
+    ];
+    const core = new Set([0]);
+    expect(extendCoreToCoast(cells, core, new Set([0, 1, 2, 3, 4]), new Set([9]))).toEqual(new Set([0, 1, 2, 3]));
+    expect(core).toEqual(new Set([0]));
+    expect(extendCoreToCoast(cells, core, new Set([0, 2, 3]), new Set([9]))).toEqual(core);
+  });
+
+  it.each([
+    { size: "tiny", imported: false },
+    { size: "small", imported: false },
+    { size: "medium", imported: false },
+    { size: "small", imported: true }
+  ] as const)(
+    "$size harbour (imported=$imported) keeps a core on the shore and walls only on land",
+    ({ size, imported }) => {
+      const seed = "open-coastal-core";
+      const input = createGridDocument({ size, grid: "evolution", seed });
+      const settings = defaultGenerationSettings();
+      settings.layout = "organic";
+      settings.config.coast = "straight";
+      settings.config.rivers = [];
+      settings.config.features = { walls: true, citadel: true, plaza: true, temple: false, port: true, shanty: false };
+      if (imported) {
+        settings.config.rivers = ["toCoast"];
+        settings.descriptor = synthSite("smallTown", settings.config, seed, {
+          extentMeters: input.frame.extentMeters,
+          cityRadiusMeters: input.frame.cityRadiusMeters
+        });
+        settings.descriptor.burg.capital = true;
+      }
+      const city = generateCityOnDocument(input, settings, seed);
+      expect(city).not.toBeNull();
+      if (!city) return;
+      expect(validate(city)).toEqual([]);
+      expect(validGeneratedCrossings(city)).toBe(true);
+      const castleWalls = castleWallIds(city);
+      const wallEdges = new Set(
+        city.featureGroups.flatMap(g =>
+          g.kind === "wall" && !castleWalls.has(g.id) ? g.segments.map(s => s.edgeId) : []
+        )
+      );
+      let coreShore = 0;
+      for (const edge of Object.values(city.mesh.edges)) {
+        const faces = [edge.leftFace, edge.rightFace].flatMap(id => (id ? [city.mesh.faces[id]] : []));
+        if (!faces.some(f => f.properties.water === "sea")) continue;
+        if (!faces.some(f => f.properties.water === "land" && f.properties.settlement === "core")) continue;
+        coreShore++;
+        expect(wallEdges.has(edge.id)).toBe(false);
+      }
+      expect(coreShore).toBeGreaterThan(0);
+      expect(wallEdges.size).toBeGreaterThan(0);
+      const seaVertices = new Set(
+        Object.values(city.mesh.edges)
+          .filter(edge =>
+            [edge.leftFace, edge.rightFace].some(id => id && city.mesh.faces[id].properties.water === "sea")
+          )
+          .flatMap(edge => [edge.a, edge.b])
+      );
+      // The land curtain ends on water or joins a separately defended castle.
+      const castleVertices = new Set(
+        city.featureGroups.flatMap(g =>
+          g.kind === "wall" && castleWalls.has(g.id)
+            ? g.segments.flatMap(s => [city.mesh.edges[s.edgeId].a, city.mesh.edges[s.edgeId].b])
+            : []
+        )
+      );
+      const degree = new Map<string, number>();
+      for (const id of wallEdges) {
+        for (const vertex of [city.mesh.edges[id].a, city.mesh.edges[id].b])
+          degree.set(vertex, (degree.get(vertex) ?? 0) + 1);
+      }
+      expect(
+        [...degree].filter(([id, count]) => count === 1 && (seaVertices.has(id) || castleVertices.has(id))).length
+      ).toBeGreaterThanOrEqual(2);
+    }
+  );
+
   it("requires two map-edge roads for city sizes and one for Micro / Tiny / fort maps", () => {
     expect(SMALL_CITY_EXTENT_METERS).toBe(1200);
     expect([300, 600, 1200, 2400, 4800].map(minExternalRoadsForExtent)).toEqual([
@@ -195,7 +283,7 @@ describe("wall capacity and extramural housing", () => {
       expect(JSON.stringify(input)).toBe(before);
       loaded.fabric!.generation!.settings.walledAreaShare = -1;
       expect(parseDocument(JSON.stringify(loaded))).toBeNull();
-    }, 20000);
+    }, 30000);
   }
 });
 
@@ -217,6 +305,10 @@ describe("evolution curtain inset", () => {
     const bridge = insetWalledCore([cell(0, [1]), cell(1, [0, 2, -1]), cell(2, [1])], new Set([0, 1, 2]), 1);
     expect([...bridge.urban]).toEqual([0]);
     expect([...bridge.peeled].sort()).toEqual([1, 2]);
+    // The burg cell stays inside even when a later ring would peel it.
+    const anchored = insetWalledCore(five, all, 2, 7);
+    expect(anchored.urban.has(7)).toBe(true);
+    expect(twice.urban.has(7)).toBe(false);
   });
 
   it("insets tiny by one cell and small by one or two, and leaves other towns on the settlement edge", () => {

@@ -9,6 +9,12 @@ import type { FrontierPolitySpacing, FrontierStartMode, InitialSettlementPattern
 import { frontierRegionCenterDistanceWeight, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
+import {
+  getSettlementBaseSize,
+  getSettlementClimateScore,
+  getSettlementWaterKind,
+  type SettlementWaterFeatures
+} from "./settlementSuitability";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 type MutableNumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
@@ -24,6 +30,7 @@ export interface SettlementFoundationCells {
   readonly p: readonly (readonly [number, number])[];
   readonly r?: ArrayLike<number>;
   readonly harbor?: ArrayLike<number>;
+  readonly haven?: ArrayLike<number>;
   /** Land-feature id; used to make different continents independent start fields. */
   readonly f?: ArrayLike<number>;
   readonly t?: ArrayLike<number>;
@@ -41,6 +48,7 @@ export interface SettlementFoundationCells {
 export interface SettlementClimate {
   readonly temperature?: ArrayLike<number>;
   readonly precipitation?: ArrayLike<number>;
+  readonly features?: SettlementWaterFeatures;
 }
 
 export interface SettlementFoundationResult {
@@ -181,6 +189,7 @@ function collectSites(
   for (let index = 0; index < cells.i.length; index++) {
     const id = cells.i[index];
     const capacity = getCellSubsistenceCapacity(cells, id);
+    if (getSettlementBaseSize(cells, id, climate.temperature, climate.precipitation, climate.features) <= 0) continue;
     // rankCells already zeroed uninhabitable / zero-habitability land.
     if ((cells.s[id] ?? 0) <= 0 || capacity <= 0 || (cells.h[id] ?? 0) < 20) continue;
 
@@ -191,7 +200,7 @@ function collectSites(
     const forestResourceScore = isForestBiomeCode(cells.biomeCode?.[id]) ? 1.12 : 1;
     const [x, y] = cells.p[id];
     const resourceKind = getResourceKind(cells, id, climate);
-    const climateScore = getClimateScore(temperature, precipitation, resourceKind);
+    const climateScore = getSettlementClimateScore(temperature, precipitation, resourceKind);
 
     // Extreme temperature still blocks settlement even if residual capacity remains.
     if (temperature < -18 || temperature > 42) continue;
@@ -250,26 +259,13 @@ function getResourceKind(
   id: number,
   climate: SettlementClimate
 ): ResourceKind | null {
-  if (cells.r?.[id]) return "river";
-  if (cells.harbor?.[id]) return cells.t?.[id] === 1 ? "coast" : "lake";
-  if (cells.t?.[id] === 1) return "coast";
+  const waterKind = getSettlementWaterKind(cells, id, climate.features);
+  if (waterKind !== "spring") return waterKind;
   if ((cells.conf?.[id] ?? 0) > 0) return "spring";
   // Rain-fed land is represented as a local spring-like resource. It is a
   // fallback only; rivers, lakes, and coasts always outrank it.
   const precipitation = getClimateValue(climate.precipitation, cells.g?.[id] ?? id, 45);
   return precipitation >= 45 ? "spring" : null;
-}
-
-function getClimateScore(temperature: number, precipitation: number, kind: ResourceKind | null): number {
-  if (!kind) return 0;
-  if (temperature < -18 || temperature > 42) return 0;
-  // The current climate model has no separate growing-season column. This
-  // temperature-derived score is the local growing-season adapter until one
-  // exists in WorldContext.
-  const growingSeasonScore = temperature < -5 ? 0.2 : temperature < 2 ? 0.5 : temperature > 34 ? 0.55 : 1;
-  const precipitationScore =
-    precipitation < 8 ? (kind === "river" || kind === "lake" ? 0.2 : 0) : precipitation < 20 ? 0.55 : 1;
-  return growingSeasonScore * precipitationScore;
 }
 
 /** Livability for hinterland claimability (0 = exclude from oikoumene field). */

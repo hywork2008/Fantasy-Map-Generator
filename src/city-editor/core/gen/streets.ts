@@ -696,6 +696,8 @@ export function farNodeFor(
   mode: FarNodeMode,
   manualBearing: number | undefined
 ): Point {
+  const imported = gate.roadIndex === undefined ? undefined : geo.importedRoads?.[gate.roadIndex];
+  if (imported) return [...imported.path.at(-1)!];
   const gateAz = vecToAzimuth(gate.point[0], gate.point[1]);
   let dir: Point;
   if (mode === "radial") {

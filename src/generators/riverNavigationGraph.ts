@@ -1,4 +1,5 @@
 import type { PackedGraph } from "../types/PackedGraph";
+import { type NavigationVessel, RIVER_CARGO_VESSEL, vesselFitsRiver } from "../utils/riverCrossing";
 import { MIN_NAVIGABLE_FLUX } from "./river-generator";
 
 export const DEFAULT_SHELTERED_WATER_MINIMUM_ENCLOSURE = 60;
@@ -26,6 +27,9 @@ export type RiverNavigationPath = {
 };
 
 export interface RiverNavigationGraphOptions {
+  vessel?: NavigationVessel;
+  /** Candidate routing ignores existing bridges; final routing enforces them. */
+  respectCrossings?: boolean;
   minNavigableFlux?: number;
   shelteredWaterMinimumEnclosure?: number;
 }
@@ -71,6 +75,16 @@ export function buildRiverNavigationGraph(
     else outgoing.set(edge.fromCellId, [edge]);
   };
 
+  const crossingsByCell = new Map<string, import("../utils/riverCrossing").RiverCrossingPlan[]>();
+  if (options.respectCrossings !== false) {
+    for (const route of pack.routes ?? [])
+      for (const crossing of route.riverCrossings ?? []) {
+        const key = `${crossing.riverId}:${crossing.cellId}`;
+        const plans = crossingsByCell.get(key) ?? [];
+        plans.push(crossing.plan);
+        crossingsByCell.set(key, plans);
+      }
+  }
   for (const river of pack.rivers ?? []) {
     if (!river?.cells) continue;
 
@@ -78,6 +92,22 @@ export function buildRiverNavigationGraph(
       const fromCellId = river.cells[index];
       const toCellId = river.cells[index + 1];
       if (!isNavigableRiverCell(pack, fromCellId, minNavigableFlux) || toCellId < 0) continue;
+      {
+        const vessel = options.vessel ?? RIVER_CARGO_VESSEL;
+        if (![fromCellId, toCellId].every(c => vesselFitsRiver(river.cellHydrology?.[c]?.waterDepth, vessel))) continue;
+        const crossings = [
+          ...(crossingsByCell.get(`${river.i}:${fromCellId}`) ?? []),
+          ...(crossingsByCell.get(`${river.i}:${toCellId}`) ?? [])
+        ];
+        if (
+          crossings.some(
+            plan =>
+              (plan.kind === "fixedBridge" || plan.kind === "movableBridge") &&
+              (plan.clearanceMeters < vessel.airDraftMeters + 1 || plan.openingMeters < vessel.beamMeters + 2)
+          )
+        )
+          continue;
+      }
 
       const kind: RiverNavigationEdgeKind | null = isNavigableRiverCell(pack, toCellId, minNavigableFlux)
         ? "downstream"

@@ -10,8 +10,7 @@ const doc = generateCityOnDocument(base, settings, seed)!;
 
 const distFace = doc.mesh.faces.f45;
 const polygon = facePoints(doc.mesh, distFace);
-const boundaries = distFace.boundary.map((ref, i) => {
-  const _edge = doc.mesh.edges[ref.edgeId];
+const boundaries = distFace.boundary.map((_ref, i) => {
   return {
     a: polygon[i],
     b: polygon[(i + 1) % polygon.length],
@@ -24,7 +23,6 @@ const boundaries = distFace.boundary.map((ref, i) => {
 const fabric = buildPerimeterBlocks(distFace, polygon, boundaries, undefined, "test", true, false);
 
 // どの block に Triangle 0 が属しているかを特定
-const _t0_pt = [203.46021906131145, 187.04100654544615];
 
 for (let bIdx = 0; bIdx < fabric.blocks.length; bIdx++) {
   const block = fabric.blocks[bIdx];

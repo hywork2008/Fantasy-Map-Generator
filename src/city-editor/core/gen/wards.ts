@@ -31,6 +31,7 @@ import {
   polygonCompactness,
   polylineTangent,
   segmentInteriorInPolygon,
+  segmentSegmentHit,
   vecToAzimuth
 } from "./geom";
 import { makeRng, type Rng } from "./prng";
@@ -127,6 +128,7 @@ export interface WardInputs {
   program: CityProgram;
   shoreline: Point[] | null;
   oceanShorelines?: Point[][];
+  riverBanks?: Point[][];
   waterPolygon: Point[] | null;
   /** Intramural streets and approach roads, used to site and orient the temple. */
   streets?: Point[][];
@@ -185,8 +187,48 @@ export function assignWards(input: WardInputs): WardResult {
 
   // 2. Harbour (coast-bound) before temple so the two cannot collide.
   if (program.port) {
-    if (!shoreline || shoreline.length < 2 || !waterPolygon) {
-      console.warn("port set but no waterbody");
+    if ((geo.riverPort && input.riverBanks?.length) || !shoreline || shoreline.length < 2 || !waterPolygon) {
+      // Navigable river frontage can exist without a sea/lake water polygon.
+      const lines = input.riverBanks?.length ? input.riverBanks : (input.rivers ?? []);
+      const candidates = cells.filter(
+        c =>
+          ((geo.riverPort && input.riverBanks?.length) || urban.has(c.id) || outskirts.has(c.id)) &&
+          !sea.has(c.id) &&
+          !occupied.has(c.id) &&
+          (!input.riverBanks?.length ||
+            input.riverBanks.filter(bank => pointInPolygon(c.centroid, bank)).length % 2 === 0)
+      );
+      const distanceToRiver = (c: Cell): number =>
+        Math.min(
+          ...lines.map(line => {
+            if (!input.riverBanks?.length) return nearestOnPolyline(c.centroid, line).dist;
+            if (
+              line
+                .slice(1)
+                .some((p, i) =>
+                  c.polygon.some((q, j) => segmentSegmentHit(line[i], p, q, c.polygon[(j + 1) % c.polygon.length]))
+                )
+            )
+              return 0;
+            return Math.min(
+              ...c.polygon.map(p => nearestOnPolyline(p, line).dist),
+              ...line.map(p => nearestOnPolyline(p, [...c.polygon, c.polygon[0]]).dist)
+            );
+          })
+        );
+      const bankDistances = new Map(candidates.map(c => [c.id, distanceToRiver(c)]));
+      candidates.sort(
+        (a, b) =>
+          bankDistances.get(a.id)! - bankDistances.get(b.id)! ||
+          Math.hypot(...a.centroid) - Math.hypot(...b.centroid) ||
+          a.id - b.id
+      );
+      const anchor = candidates[0];
+      if (anchor && bankDistances.get(anchor.id)! <= cellSize * 1.5) {
+        extraPrecincts.push({ kind: "harbor", cellIds: [anchor.id], anchor: anchor.centroid, label: "River Harbour" });
+        take(anchor.id, "harbor");
+        if (!urban.has(anchor.id)) outskirts.add(anchor.id);
+      }
     } else {
       const harbor = placeHarbor(cells, urban, sea, occupied, shoreline, R);
       if (harbor) {

@@ -400,10 +400,14 @@ export function repairRiverWalls(
       const points = output.map(
         ref => mesh.vertices[ref.forward ? mesh.edges[ref.edgeId].a : mesh.edges[ref.edgeId].b].point
       );
+      // A coarse cell's centroid can sit in the river margin being given up.
+      // The burg at the map origin is the centre that has to stay enclosed.
+      const keepsTown =
+        !originalPolygon || pointInPolygon(polygonCentroid(originalPolygon), points) || pointInPolygon([0, 0], points);
       if (
         closed &&
         (!isSimplePolygon(points) ||
-          (originalPolygon && !pointInPolygon(polygonCentroid(originalPolygon), points)) ||
+          !keepsTown ||
           protectedPoints.some(
             p => originalPolygon && pointInPolygon(p, originalPolygon) && !pointInPolygon(p, points)
           ))

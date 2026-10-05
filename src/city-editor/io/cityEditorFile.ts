@@ -1,4 +1,5 @@
 import { parseDocument } from "../core/document";
+import type { FixedApproachProvider } from "../core/fixedApproachAdoption";
 import type { GenerationDebugPreview } from "../core/generationDebug";
 import type { CityDocument } from "../core/types";
 import { serializeGenerationDebugSvg } from "../render/generationDebugSvg";
@@ -17,7 +18,14 @@ export function exportCityMap(cityDocument: CityDocument): void {
   const blob = new Blob(
     [
       JSON.stringify(
-        { ...cityDocument, version: cityDocument.landmarks?.length || cityDocument.landmarkAssets?.length ? 3 : 2 },
+        {
+          ...cityDocument,
+          version: cityDocument.sceneRegions
+            ? 4
+            : cityDocument.landmarks?.length || cityDocument.landmarkAssets?.length
+              ? 3
+              : 2
+        },
         null,
         2
       )
@@ -58,17 +66,22 @@ function formatExportTimestamp(date: Date): string {
 }
 
 /** Open a file picker for native City Editor maps and MFCG exports. */
-export function pickCityMap(): Promise<ImportedCityMap | null> {
+export function pickCityMap(fixedApproachProvider?: FixedApproachProvider): Promise<ImportedCityMap | null> {
   return new Promise(resolve => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = `${CITY_EDITOR_FILE_EXTENSION},application/json,image/svg+xml,.svg`;
-    input.addEventListener("change", () => void readCityMap(input.files?.[0]).then(resolve), { once: true });
+    input.addEventListener("change", () => void readCityMap(input.files?.[0], fixedApproachProvider).then(resolve), {
+      once: true
+    });
     input.click();
   });
 }
 
-export async function readCityMap(file: File | undefined): Promise<ImportedCityMap | null> {
+export async function readCityMap(
+  file: File | undefined,
+  fixedApproachProvider?: FixedApproachProvider
+): Promise<ImportedCityMap | null> {
   if (!file) return null;
   try {
     const text = await file.text();
@@ -76,7 +89,7 @@ export async function readCityMap(file: File | undefined): Promise<ImportedCityM
       const document = importMfcgSvg(text);
       return document ? { document, source: "mfcg-svg" } : null;
     }
-    const cityEditor = parseDocument(text);
+    const cityEditor = parseDocument(text, fixedApproachProvider);
     if (cityEditor) return { document: cityEditor, source: "city-editor" };
     const document = importMfcgJson(JSON.parse(text));
     return document ? { document, source: "mfcg-json" } : null;

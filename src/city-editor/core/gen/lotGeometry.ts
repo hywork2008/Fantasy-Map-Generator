@@ -5,6 +5,15 @@ const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - 
 
 /** Convex pieces of a simple polygon. Seams stay inside the original outline. */
 export function convexInfillParts(polygon: Point[]): Point[][] {
+  return infillParts(polygon, true);
+}
+
+/** Water reservations need triangles, not the expensive maximal-piece merge. */
+export function triangularInfillParts(polygon: Point[]): Point[][] {
+  return infillParts(polygon, false);
+}
+
+function infillParts(polygon: Point[], merge: boolean): Point[][] {
   const sign = -Math.sign(polygonArea(polygon));
   if (!sign || polygon.length < 3) return [];
   const convex = (ids: number[]) =>
@@ -40,7 +49,7 @@ export function convexInfillParts(polygon: Point[]): Point[][] {
     remaining.splice(ear, 1);
   }
   pieces.push(remaining);
-  for (let changed = true; changed; ) {
+  for (let changed = merge; changed; ) {
     changed = false;
     outer: for (let i = 0; i < pieces.length; i++)
       for (let j = i + 1; j < pieces.length; j++) {

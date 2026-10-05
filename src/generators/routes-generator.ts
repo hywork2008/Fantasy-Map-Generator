@@ -6,8 +6,11 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
+import { getRaceById } from "../data/races";
+import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
+import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
+import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type {
   Burg,
@@ -36,8 +39,10 @@ import { allowsGeneratedSeaLanes } from "../utils/frontierStartMode";
 import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
 import { isTrueOceanPortBurg } from "../utils/oceanPort";
+import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
+import { getSettlementBaseSize } from "./settlementSuitability";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
@@ -442,7 +447,14 @@ class RoutesModule {
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
-    for (const { points, i: routeId, navigation } of routes) {
+    for (const { points, i: routeId, navigation, group, registeredConnectionId } of routes) {
+      // Retained legacy locks are archive data, not certified physical links.
+      if (
+        this.worldContext.options.landConnectionGeneration &&
+        group !== "searoutes" &&
+        registeredConnectionId === undefined
+      )
+        continue;
       // River routes are a charted visual aid. Their actual travel graph is
       // directional, so they must never enter this bidirectional link table.
       if (navigation === "river") continue;
@@ -978,13 +990,19 @@ class RoutesModule {
     const capital = burgs.find(burg => burg.capital);
     if (!capital) return burgs;
 
+    const baseSize = (burg: Burg): number => {
+      if (burg.population !== undefined) return burg.population;
+      const { pack, grid } = this.worldContext;
+      const culture = pack.cultures?.[burg.culture ?? pack.cells.culture?.[burg.cell] ?? 0];
+      const race = getRaceById(pack.races, culture?.race);
+      if (race?.key && race.key !== "human") return Math.max(0, pack.cells.s[burg.cell] ?? 0) / 5;
+      return getSettlementBaseSize(pack.cells, burg.cell, grid.cells.temp, grid.cells.prec, pack.features) / 5;
+    };
     const candidates = burgs
       .filter(burg => burg !== capital)
       .sort(
         (a, b) =>
-          Number(Boolean(b.port)) - Number(Boolean(a.port)) ||
-          (b.population ?? 0) - (a.population ?? 0) ||
-          (a.i ?? 0) - (b.i ?? 0)
+          Number(Boolean(b.port)) - Number(Boolean(a.port)) || baseSize(b) - baseSize(a) || (a.i ?? 0) - (b.i ?? 0)
       );
     const hubCount = Math.min(3, Math.max(1, Math.floor(Math.sqrt(candidates.length))));
     return [capital, ...candidates.slice(0, hubCount)];
@@ -1359,7 +1377,7 @@ class RoutesModule {
     const { pack } = this.worldContext;
     // Land-origin frontier has no ships; river lines share the searoutes layer.
     if (!this.allowsGeneratedSeaLanes()) return [];
-    const riverGraph = buildRiverNavigationGraph(pack);
+    const riverGraph = buildRiverNavigationGraph(pack, { respectCrossings: false });
     const riverPorts = pack.burgs.filter(burg =>
       Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
     );
@@ -1595,7 +1613,52 @@ class RoutesModule {
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
     pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
+    ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
     pack.cells.routes = this.buildLinks(pack.routes);
+    resolveRiverRouteCrossings(worldContext);
+    const finalRiverGraph = buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL });
+    const finalSeaShipRiverGraph = buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL });
+    const preservesSeaShipPassage = (route: Route): boolean => {
+      if (route.group !== "searoutes" || route.navigation === "river") return true;
+      const cells = route.cells ?? route.points.map(p => p[2]);
+      return cells.slice(1).every((next, index) => {
+        const current = cells[index];
+        // A coastal port's sea haven is separate from its local river frontage.
+        if (
+          !pack.cells.r[current] ||
+          pack.cells.r[current] !== pack.cells.r[next] ||
+          !this.riverAdjacency.has(`${current}-${next}`)
+        )
+          return true;
+        return (
+          finalSeaShipRiverGraph.getOutgoing(current).some(edge => edge.toCellId === next) ||
+          finalSeaShipRiverGraph.getOutgoing(next).some(edge => edge.toCellId === current)
+        );
+      });
+    };
+    pack.routes = pack.routes.filter(
+      route =>
+        route.lock ||
+        ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
+          preservesSeaShipPassage(route) &&
+          (route.navigation !== "river" ||
+            (route.cells ?? [])
+              .slice(1)
+              .every((cell, index) =>
+                finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
+              )))
+    );
+    pack.cells.routes = this.buildLinks(pack.routes);
+    if (worldContext.options.landConnectionGeneration) {
+      const physical = generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit);
+      if ("routes" in physical) {
+        pack.routes = [...pack.routes.filter(route => route.group === "searoutes" || route.lock), ...physical.routes];
+        pack.cells.routes = this.buildLinks(pack.routes);
+      } else {
+        delete worldContext.options.registeredLandConnections;
+        console.warn("Physical land connections unresolved", physical.reason);
+      }
+    }
   }
 
   // utility functions
@@ -2047,12 +2110,30 @@ class RoutesModule {
    * the module singleton's world — the WebGL route adapter is given a `Readonly<WorldContext>`
    * and has to read cell geometry out of that one.
    */
-  getRenderPoints(route: { group: string; points: number[][] }, pack?: PackedGraph): number[][] {
-    if (route.group === "searoutes") return route.points;
+  getRenderPoints(
+    route: { group: string; points: number[][]; riverRoadConvergence?: Route["riverRoadConvergence"] },
+    pack?: PackedGraph
+  ): number[][] {
+    if (route.group === "searoutes" || route.riverRoadConvergence) return route.points;
     return this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
   }
 
-  getPath({ group, points }: { group: string; points: number[][] }, pack?: PackedGraph): string {
+  getPath(
+    {
+      group,
+      points,
+      registeredConnectionId,
+      riverRoadConvergence
+    }: {
+      group: string;
+      points: number[][];
+      registeredConnectionId?: number;
+      riverRoadConvergence?: Route["riverRoadConvergence"];
+    },
+    pack?: PackedGraph
+  ): string {
+    if (registeredConnectionId !== undefined) return "";
+    if (riverRoadConvergence) return points.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join("");
     const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);
     const renderPoints = this.getRenderPoints({ group, points }, pack);
     const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);

@@ -7,6 +7,7 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { type BurgFacility, legacyMutation, moveBurg, patchBurg, removeBurg } from "../runtime/worldRuntime";
 import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
+import { updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { getHeight } from "../services/cellInfoService";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { getPopulationAgeBands } from "../services/populationAgeBands";
@@ -358,6 +359,7 @@ export const burgEditorActions = {
       if (burg.port) {
         legacyMutation(() => {
           burg.port = 0;
+          updateBurgWaterAccess(burg, worldContext.pack);
           return { result: undefined, topics: ["map.settlements"] };
         });
         const anchor = getElementBySelector<SVGUseElement>(`#anchors [data-id='${burgId}']`);
@@ -368,6 +370,7 @@ export const burgEditorActions = {
         const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
         legacyMutation(() => {
           burg.port = portFeature;
+          updateBurgWaterAccess(burg, worldContext.pack);
           return { result: undefined, topics: ["map.settlements"] };
         });
 

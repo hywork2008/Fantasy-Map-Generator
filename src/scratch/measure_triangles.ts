@@ -21,7 +21,7 @@ console.log(`Edges: AB=${edgeAB.toFixed(2)}m, BC=${edgeBC.toFixed(2)}m, CA=${edg
 const area = (p: Point[]) => Math.abs(polygonArea(p));
 console.log(`Area: ${area(t12).toFixed(2)} m^2`);
 
-const t13 = [
+const t13: Point[] = [
   [282.4940405628981, 128.3648036194237],
   [279.7054008612446, 132.68530815032253],
   [275.08467247912006, 126.64268469655279]

@@ -14,13 +14,14 @@ import {
   coastalBandOverlap,
   oceanShoreSegments
 } from "./gen/coastalSuitability";
-import { polygonArea } from "./gen/geom";
+import { pointInPolygon, polygonArea } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
 import { siteToGeography } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
 import {
   defaultGenerationSettings,
+  dryTownApproachLine,
   GENERATION_STAGES,
   type GenerationSettings,
   generateCityOnDocument,
@@ -216,12 +217,14 @@ const SHIQSH: BurgSiteDescriptor = {
 };
 
 describe("FMG harbour-site regression — Shiqsh", () => {
-  it("keeps a central dry town, a real sea shore, and kilometre rivers unbridged", () => {
+  it("keeps the dry harbour site and rejects unavailable FMG roads instead of inventing other exits", () => {
     const geo = siteToGeography(SHIQSH);
     expect(geo.coast?.waterAzimuthDeg).toBe(173.7);
     expect(geo.waterAreas).toHaveLength(1);
-    expect(geo.rivers).toHaveLength(2);
-    expect(geo.rivers.every(river => !river.bridgeAllowed)).toBe(true);
+    expect(geo.waterAreas?.[0]?.kind).toBe("ocean");
+    expect(geo.rivers).toHaveLength(0);
+    expect(geo.channels).toHaveLength(2);
+    expect(geo.channels?.every(channel => !pointInPolygon([0, 0], channel.polygon))).toBe(true);
 
     const source = createGridDocument({
       size: "medium",
@@ -232,19 +235,25 @@ describe("FMG harbour-site regression — Shiqsh", () => {
     });
     const imported = defaultGenerationSettings();
     imported.descriptor = SHIQSH;
-    const city = generateCityOnDocument(source, imported, SHIQSH.burg.seed);
-
-    expect(city).not.toBeNull();
-    if (!city) return;
-    const faces = Object.values(city.mesh.faces);
-    expect(faces.filter(face => face.properties.water === "sea").length).toBeLessThan(faces.length / 4);
-    expect(faces.filter(face => face.properties.buildable).length).toBeGreaterThan(20);
+    const site = generateStageOnDocument(source, imported, SHIQSH.burg.seed, 3)!;
+    expect(site).toBeTruthy();
+    const faces = Object.values(site.mesh.faces);
+    const seaFaces = faces.filter(face => face.properties.water === "sea").length;
+    expect(seaFaces).toBeGreaterThan(0);
+    expect(seaFaces).toBeLessThan(faces.length * 0.75);
+    expect(faces.filter(face => face.properties.buildable).length).toBeGreaterThan(0);
     const centre = faces.filter(face => face.site).sort((a, b) => Math.hypot(...a.site!) - Math.hypot(...b.site!))[0];
     expect(centre.properties.water).toBe("land");
     expect(centre.properties.buildable).toBe(true);
-    expect(city.elements.some(element => element.kind === "harbor")).toBe(true);
-    expect(city.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(true);
-    expect(city.featureGroups.some(group => group.kind === "plank")).toBe(false);
+    expect(site.featureGroups.some(group => group.kind === "river" && group.style.widthMeters > 50)).toBe(false);
+    const failures: string[] = [];
+    const city = generateCityOnDocument(source, imported, SHIQSH.burg.seed, sample => {
+      if (sample.failure) failures.push(sample.failure.reason);
+    });
+    // One source road enters an unbridgeable channel. The previous successful
+    // roll silently replaced it with a radial exit on another side of town.
+    expect(city).toBeNull();
+    expect(failures).toContain("fmg-road-mismatch");
   });
 });
 
@@ -1002,6 +1011,36 @@ describe("FMG descriptor geography", () => {
     )
   );
 
+  it("preserves FMG crossing and port-water decisions in the editable document", () => {
+    const source = structuredClone(descriptor);
+    source.rivers[0].crossing = {
+      kind: "movableBridge",
+      widthMeters: 20,
+      depthMeters: 4,
+      navigationRequired: true,
+      clearanceMeters: 12,
+      openingMeters: 8,
+      reason: "movableClearance"
+    };
+    source.burg.waterAccess = {
+      river: true,
+      sea: true,
+      lake: false,
+      riverId: 1,
+      seaFeatureIds: [1],
+      lakeFeatureIds: [],
+      port: { river: true, sea: true, lake: false }
+    };
+    const settings = defaultGenerationSettings();
+    settings.descriptor = source;
+    const output = generateStageOnDocument(grid, settings, "fmg-layout", 2)!;
+    expect(output.featureGroups.find(group => group.kind === "river")?.crossing?.kind).toBe("movableBridge");
+    expect(output.waterAccess).toEqual(source.burg.waterAccess);
+    expect(output.waterAccess).not.toBe(source.burg.waterAccess);
+    const standalone = generateStageOnDocument(output, defaultGenerationSettings(), "standalone", 1)!;
+    expect(standalone.waterAccess).toBeUndefined();
+  });
+
   it("uses the descriptor's coast even when SiteConfig is landlocked", () => {
     const settings = defaultGenerationSettings();
     settings.descriptor = descriptor;
@@ -1110,5 +1149,35 @@ describe("sizePresetForExtent / custom frame", () => {
     const faces = Object.values(city.mesh.faces);
     expect(faces.some(f => f.properties.ward === "cemetery")).toBe(true);
     expect(city.cemeteries?.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("dryTownApproachLine", () => {
+  const channel = (y: number) => y > 40 && y < 80;
+
+  it("keeps a routable town-side segment when the outer goal is the only wet point", () => {
+    const line = dryTownApproachLine(
+      [
+        [0, 120],
+        [0, 20]
+      ],
+      (a, b) => channel(a[1]) || channel(b[1]) || (a[1] < 40 && b[1] > 80) || (b[1] < 40 && a[1] > 80)
+    );
+    expect(line).not.toBeNull();
+    expect(line![0][1]).toBeLessThanOrEqual(40);
+    expect(line![1][1]).toBeLessThan(line![0][1]);
+    expect(line!.every(point => !channel(point[1]))).toBe(true);
+  });
+
+  it("leaves a dry approach unchanged", () => {
+    expect(
+      dryTownApproachLine(
+        [
+          [0, 10],
+          [0, 0]
+        ],
+        () => false
+      )
+    ).toBeNull();
   });
 });

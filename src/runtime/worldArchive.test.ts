@@ -67,6 +67,32 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(rewrittenStage.document.opaqueExtensionChunks[0]?.bytes).toEqual(new Uint8Array([1, 2, 3, 255]));
   });
 
+  it("preserves converged route geometry and its source for bridge revalidation on load", async () => {
+    const world = sampleWorld();
+    const points: [number, number, number][] = [
+      [0, 0, 0],
+      [1, 0, 1]
+    ];
+    world.pack.routes = [
+      {
+        i: 0,
+        group: "roads",
+        feature: 0,
+        points,
+        cells: [0, 1],
+        riverRoadConvergence: {
+          originalPoints: structuredClone(points),
+          pointsKey: JSON.stringify(points),
+          burgIds: [1]
+        }
+      }
+    ];
+    const codec = new ChunkedWorldCodecAdapter();
+    const blob = await codec.encode(createWorldDocument(world, sampleSimulation(), createPresentationData(), []));
+    const restored = await codec.decode({ header: new Uint8Array(await blob.slice(0, 4).arrayBuffer()), blob });
+    expect(restored.document.world.pack.routes).toEqual(world.pack.routes);
+  });
+
   it("rejects an opaque extension chunk with a checksum that does not match its bytes", async () => {
     const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), [
       {

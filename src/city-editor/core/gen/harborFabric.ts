@@ -1,5 +1,6 @@
 import { facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
+import { waterPolygons } from "../waterGeometry";
 import {
   nearestOnPolyline,
   pointInPolygon,
@@ -10,10 +11,13 @@ import {
 import { convexInfillParts } from "./lotGeometry";
 import { corridor, distance, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
 import type { OpenSpace, ParcelFrontage } from "./parcelTypes";
+import { riverPortShore } from "./riverPortShore";
 
 export interface HarborPier {
   id: Id;
   waterFaceId: Id;
+  /** Ribbon rivers have no water mesh face. */
+  riverId?: Id;
   depth: number;
   polygon: Point[];
   start?: Point;
@@ -50,6 +54,7 @@ export interface HarborPlan {
   sharedArea: number;
 }
 interface Shore {
+  riverId?: Id;
   id: Id;
   landId: Id;
   waterId: Id;
@@ -72,6 +77,7 @@ export function planHarbor(
 ): HarborPlan {
   const plan: HarborPlan = { spaces: [], frontages: [], piers: [], cranes: [], cargoPiles: [], sharedArea: 0 };
   const shores: Shore[] = [];
+  barriers = [...barriers, ...waterPolygons(document).flatMap(convexInfillParts)];
   const land = Object.values(document.mesh.faces)
     .filter(
       f =>
@@ -102,6 +108,18 @@ export function planHarbor(
       walls.has(edge.id)
     )
       continue;
+    const physical = riverPortShore(document, harbor.id);
+    if (physical) {
+      if (!shores.some(s => s.landId === harbor.id))
+        shores.push({
+          id: `bank:${harbor.id}`,
+          landId: harbor.id,
+          waterId: water.id,
+          ...physical,
+          depth: water.properties.depth ?? 3
+        });
+      continue;
+    }
     const a = document.mesh.vertices[edge.a].point,
       b = document.mesh.vertices[edge.b].point;
     const length = distance(a, b);
@@ -121,8 +139,15 @@ export function planHarbor(
       water: facePoints(document.mesh, water)
     });
   }
-  // Explicit river harbor: work strip along its bank, without inferring piers in
-  // shallow rivers or turning a river segment into a sea berth.
+  // Partially wet cells need not share a mesh edge with a water cell.
+  for (const face of Object.values(document.mesh.faces)) {
+    if (shores.some(s => s.landId === face.id)) continue;
+    const physical = riverPortShore(document, face.id);
+    if (!physical || !face.properties.buildable) continue;
+    shores.push({ ...physical, id: `bank:${face.id}`, landId: face.id, waterId: "", depth: 1 });
+  }
+  // Explicit river harbour: bank work strips and short piers. A river alone
+  // does not establish a navigable port or a sea berth.
   for (const element of document.elements.filter(e => e.kind === "harbor")) {
     for (const faceId of element.faceIds) {
       const face = document.mesh.faces[faceId];
@@ -137,7 +162,7 @@ export function planHarbor(
           if (len < 10 || nearestOnPolyline(center, [a, b]).dist > Math.max(30, river.style.widthMeters + 15)) continue;
           let inward: Point = [-(b[1] - a[1]) / len, (b[0] - a[0]) / len];
           if ((center[0] - a[0]) * inward[0] + (center[1] - a[1]) * inward[1] < 0) inward = [-inward[0], -inward[1]];
-          const shift = river.style.widthMeters / 2 + 2;
+          const shift = river.style.widthMeters / 2;
           const start: Point = [a[0] + inward[0] * shift, a[1] + inward[1] * shift];
           const end: Point = [b[0] + inward[0] * shift, b[1] + inward[1] * shift];
           if (nearestOnPolyline(center, [start, end]).dist > 30) continue;
@@ -145,12 +170,15 @@ export function planHarbor(
             id: `${river.id}:${i}:${faceId}`,
             landId: faceId,
             waterId: "",
+            riverId: river.id,
             a: start,
             b: end,
             inward,
             length: len,
-            depth: 0,
-            water: []
+            // The explicit river harbour supplies navigation evidence. Keep
+            // the deck within one quarter of the channel, leaving a fairway.
+            depth: 1,
+            water: corridor(a, b, river.style.widthMeters)
           });
         }
     }
@@ -174,6 +202,40 @@ export function planHarbor(
       }
     }
   };
+  // Reserve the whole physical bank inside each harbour cell, rather than
+  // only the single segment selected for its berth.
+  if (document.waterAccess?.port.river)
+    for (const face of Object.values(document.mesh.faces)) {
+      if (face.properties.ward !== "harbor" || face.properties.water !== "land" || !face.properties.buildable) continue;
+      for (const area of document.waterAreas ?? []) {
+        if (area.kind !== "river") continue;
+        for (let i = 0; i < area.polygon.length; i++) {
+          const a = area.polygon[i],
+            b = area.polygon[(i + 1) % area.polygon.length];
+          const length = distance(a, b);
+          if (length < 1) continue;
+          let inward: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
+          const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          if (pointInPolygon([mid[0] + inward[0], mid[1] + inward[1]], area.polygon)) inward = [-inward[0], -inward[1]];
+          const shift = (p: Point): Point => [p[0] + inward[0] * 6, p[1] + inward[1] * 6];
+          addSpace(
+            {
+              id: `bank:${face.id}:${i}`,
+              landId: face.id,
+              waterId: "",
+              a,
+              b,
+              inward,
+              length,
+              depth: 1,
+              water: area.polygon
+            },
+            corridor(shift(a), shift(b), 12),
+            "quay"
+          );
+        }
+      }
+    }
   const berthByWater = new Map<Id, Shore>();
   const usableShores: { shore: Shore; midpoint: Point; stripWidth: number; qA: Point; qB: Point }[] = [];
   const period = document.historicalPeriod ?? "ageOfExploration";
@@ -189,8 +251,12 @@ export function planHarbor(
   const isAncient = period === "classicalAntiquity";
 
   for (const shore of shores) {
-    if (shore.waterId && shore.depth >= 3 && shore.length > (berthByWater.get(shore.waterId)?.length ?? 0))
-      berthByWater.set(shore.waterId, shore);
+    if (
+      (shore.waterId || shore.riverId) &&
+      (shore.depth >= 3 || !!shore.riverId) &&
+      shore.length > (berthByWater.get(shore.waterId || shore.id)?.length ?? 0)
+    )
+      berthByWater.set(shore.waterId || shore.id, shore);
 
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
     const preset = params?.harborPreset ?? "dense";
@@ -411,23 +477,40 @@ export function planHarbor(
     const fractions = count === 2 ? [0.28, 0.72] : [0.5];
     for (let i = 0; i < count; i++) {
       const t = fractions[i];
-      const start: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
-      const end = (d: number): Point => [start[0] - shore.inward[0] * d, start[1] - shore.inward[1] * d];
+      const bank: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
+      const start: Point = [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2];
+      if (
+        !pointInPolygon(start, facePoints(document.mesh, document.mesh.faces[shore.landId])) ||
+        pointInPolygon(start, shore.water)
+      )
+        continue;
+      const end = (d: number): Point => [bank[0] - shore.inward[0] * d, bank[1] - shore.inward[1] * d];
       let reach = 0;
-      const maxReachLimit = isExplorationOrLater ? 42 : 28;
+      const rayEnd = end(document.frame.extentMeters * 2);
+      const exits = shore.water.flatMap((p, j) => {
+        const hit = segmentSegmentHit(bank, rayEnd, p, shore.water[(j + 1) % shore.water.length]);
+        return hit && distance(bank, hit.point) > 1 ? [distance(bank, hit.point)] : [];
+      });
+      const maxReachLimit = shore.riverId ? Math.min(...exits) / 4 : isExplorationOrLater ? 42 : 28;
       const reachCap = Math.min(
         maxReachLimit,
         Math.max(isExplorationOrLater ? 32 : 22, shore.length * (isExplorationOrLater ? 0.75 : 0.5))
       );
       for (let d = 0.5; d <= reachCap; d += 0.5) {
         const deck = corridor(start, end(d), width);
-        if (!deck.slice(1, 3).every(p => pointInPolygon(p, shore.water))) break;
+        if (!deck.slice(1, 3).every(p => pointInPolygon(p, shore.water))) {
+          // A curved bank can leave the first half-metre of the deck on land.
+          // Find the wet end before stopping at the opposite bank.
+          if (reach > 0) break;
+          continue;
+        }
         reach = d;
       }
       if (reach >= 3)
         plan.piers.push({
           id: `pier:${shore.id}:${i}`,
           waterFaceId: shore.waterId,
+          ...(shore.riverId ? { riverId: shore.riverId } : {}),
           depth: shore.depth,
           polygon: corridor(start, end(reach), width),
           start,

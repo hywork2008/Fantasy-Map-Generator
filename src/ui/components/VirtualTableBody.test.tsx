@@ -138,7 +138,7 @@ describe("VirtualTableBody resilience to display:none and resize", () => {
       removeEventListener: () => {}
     };
 
-    let rectCb2: ((rect: { width: number; height: number }) => void) | null = null;
+    let rectCb2: (rect: { width: number; height: number }) => void = () => {};
     const virtualizer = new Virtualizer({
       count,
       getScrollElement: () => scrollContainer as unknown as Element,
@@ -156,7 +156,7 @@ describe("VirtualTableBody resilience to display:none and resize", () => {
     virtualizer.shouldAdjustScrollPositionOnItemSizeChange = () => false;
     virtualizer._didMount();
     virtualizer._willUpdate();
-    rectCb2?.({ width: 800, height: 700 });
+    rectCb2({ width: 800, height: 700 });
 
     // With overscan: 10, startIndex needs to be 17 to have start=7:
     // 17 * 23 = 391

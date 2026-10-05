@@ -16,8 +16,7 @@ console.log("District face properties:", distFace?.properties);
 const polygon = facePoints(doc.mesh, distFace);
 console.log("District polygon vertex count:", polygon.length);
 
-const boundaries = distFace.boundary.map((ref, i) => {
-  const _edge = doc.mesh.edges[ref.edgeId];
+const boundaries = distFace.boundary.map((_ref, i) => {
   return {
     a: polygon[i],
     b: polygon[(i + 1) % polygon.length],

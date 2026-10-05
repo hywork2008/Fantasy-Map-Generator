@@ -1,7 +1,7 @@
 import type { Point } from "../core/types";
 
-export type ShipType = "small" | "medium" | "large";
-export type ShipClassKey = ShipType | "sloop" | "caravel" | "galleon";
+export type ShipType = "small" | "medium" | "large" | "barge";
+export type ShipClassKey = ShipType | "sloop" | "caravel" | "galleon" | "barge" | "river-barge";
 
 export interface ShipDimensions {
   baseLengthMeters: number;
@@ -40,12 +40,30 @@ export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
     maxSizeMeters: 55,
     label: "大型船 (ガレオン)",
     historicalName: "Galleon"
+  },
+  barge: {
+    baseLengthMeters: 18,
+    baseBeamMeters: 4.8,
+    defaultSizeMeters: 18,
+    minSizeMeters: 10,
+    maxSizeMeters: 28,
+    label: "川荷船 (バージ)",
+    historicalName: "River Barge"
   }
 };
 
 export function normalizeShipType(key: string | undefined): ShipType {
   if (!key) return "small";
   const lower = key.toLowerCase();
+  if (
+    lower === "barge" ||
+    lower === "river-barge" ||
+    lower.includes("バージ") ||
+    lower.includes("川") ||
+    lower.includes("荷")
+  ) {
+    return "barge";
+  }
   if (lower === "sloop" || lower === "small" || lower.includes("小")) return "small";
   if (lower === "caravel" || lower === "medium" || lower.includes("中")) return "medium";
   if (lower === "galleon" || lower === "large" || lower.includes("大")) return "large";
@@ -113,6 +131,9 @@ export function renderShipSvg(options: RenderShipOptions): SVGGElement {
       break;
     case "large":
       buildGalleonGeometry(group);
+      break;
+    case "barge":
+      buildRiverBargeGeometry(group);
       break;
   }
 
@@ -1138,6 +1159,725 @@ function buildGalleonGeometry(container: SVGGElement): void {
       stroke: "#3e3020",
       "stroke-width": "0.4",
       "stroke-linecap": "round"
+    })
+  );
+}
+
+/**
+ * 川荷船 (バージ / River Barge)
+ * 基準: 全長 18m, 全幅 4.8m (平底・浅喫水の河川荷船)
+ * 構成:
+ *  - 平底・浅喫水の角丸舟形船体（浅瀬や急流に対応）
+ *  - 船首の渡し板（ギャングプランク）、押し竿（プッシュポール）、係留ポスト＆ロープコイル
+ *  - 左右の舷側歩み板（キャットウォーク）
+ *  - 前部貨物（木箱、木製樽、穀物麻袋）
+ *  - 中央メイン貨物（防水幌キャンバスシート、荷崩れ防止ロープ縛り、陰影）
+ *  - 後部貨物（材木束、予備木箱）
+ *  - 船尾木造小屋（キャビン/クディ: 板葺き屋根、煙突、天窓、出入口）
+ *  - 川下り専用の長大操舵オール（スイープ / Steering Sweep Oar）＆ピボット軸
+ *  - 倒立式マスト（橋梁通過用フォールディングマスト）
+ */
+function buildRiverBargeGeometry(container: SVGGElement): void {
+  // 1. 水面への影 (Hull shadow & Sweep shadow)
+  container.appendChild(
+    element("path", {
+      d: "M -1.3,-8.9 C 1.2,-9.1 2.3,-7.5 2.6,-4.5 C 2.8,0 2.8,4.5 2.4,8.5 L -1.2,8.8 C -2.3,7.8 -2.7,4.5 -2.7,0 C -2.7,-4.8 -2.3,-8.0 -1.3,-8.9 Z",
+      class: "ce-ship-shadow",
+      fill: "rgba(18, 30, 38, 0.28)"
+    })
+  );
+
+  container.appendChild(
+    element("line", {
+      x1: "0.5",
+      y1: "8.2",
+      x2: "-0.5",
+      y2: "12.6",
+      stroke: "rgba(18, 30, 38, 0.22)",
+      "stroke-width": "0.7",
+      "stroke-linecap": "round"
+    })
+  );
+
+  // 2. 船体外殻・ガンネル (Outer Hull / Heavy Gunwales)
+  container.appendChild(
+    element("path", {
+      d: "M -1.5,-8.8 L 1.5,-8.8 C 2.15,-8.5 2.4,-5.2 2.4,0 C 2.4,4.6 2.15,7.6 1.7,8.6 L -1.7,8.6 C -2.15,7.6 -2.4,4.6 -2.4,0 C -2.4,-5.2 -2.15,-8.5 -1.5,-8.8 Z",
+      class: "ce-ship-hull-outer",
+      fill: "#38291a",
+      stroke: "#20160d",
+      "stroke-width": "0.35"
+    })
+  );
+
+  // 船首・船尾の木製バンパー（Rubbing strakes / Fenders）
+  container.appendChild(
+    element("line", {
+      x1: "-1.6",
+      y1: "-8.8",
+      x2: "1.6",
+      y2: "-8.8",
+      stroke: "#1c130b",
+      "stroke-width": "0.55",
+      "stroke-linecap": "round"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-1.75",
+      y1: "8.6",
+      x2: "1.75",
+      y2: "8.6",
+      stroke: "#1c130b",
+      "stroke-width": "0.5",
+      "stroke-linecap": "round"
+    })
+  );
+
+  // 3. 内側甲板 (Deck Planking)
+  container.appendChild(
+    element("path", {
+      d: "M -1.3,-8.4 L 1.3,-8.4 C 1.9,-8.1 2.12,-4.8 2.12,0 C 2.12,4.3 1.9,7.2 1.48,8.2 L -1.48,8.2 C -1.9,7.2 -2.12,4.3 -2.12,0 C -2.12,-4.8 -1.9,-8.1 -1.3,-8.4 Z",
+      class: "ce-ship-deck",
+      fill: "#beae92",
+      stroke: "#423423",
+      "stroke-width": "0.2"
+    })
+  );
+
+  // 甲板の板張りライン（Plank seams）
+  container.appendChild(
+    element("path", {
+      d: "M -1.6,-8.0 L -1.6,8.0 M 1.6,-8.0 L 1.6,8.0 M -0.8,-8.2 L -0.8,4.6 M 0,-8.3 L 0,4.6 M 0.8,-8.2 L 0.8,4.6",
+      stroke: "#a7977b",
+      "stroke-width": "0.15"
+    })
+  );
+
+  // 4. 船首の係留ポスト（Mooring Bitts）＆ロープコイル
+  // 係留ビット2基
+  container.appendChild(
+    element("rect", {
+      x: "-0.95",
+      y: "-8.1",
+      width: "0.35",
+      height: "0.35",
+      rx: "0.06",
+      fill: "#261a10",
+      stroke: "#140c06",
+      "stroke-width": "0.1"
+    })
+  );
+  container.appendChild(
+    element("rect", {
+      x: "0.6",
+      y: "-8.1",
+      width: "0.35",
+      height: "0.35",
+      rx: "0.06",
+      fill: "#261a10",
+      stroke: "#140c06",
+      "stroke-width": "0.1"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.9",
+      y1: "-7.92",
+      x2: "0.9",
+      y2: "-7.92",
+      stroke: "#3a2818",
+      "stroke-width": "0.18"
+    })
+  );
+
+  // コイル状係留ロープ（右舷船首）
+  container.appendChild(
+    element("circle", {
+      cx: "0.85",
+      cy: "-7.1",
+      r: "0.55",
+      fill: "none",
+      stroke: "#9e8156",
+      "stroke-width": "0.28"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "0.85",
+      cy: "-7.1",
+      r: "0.26",
+      fill: "none",
+      stroke: "#b5986c",
+      "stroke-width": "0.22"
+    })
+  );
+
+  // 渡し板（左舷に収納された荷役用ギャングプランク）
+  container.appendChild(
+    element("rect", {
+      x: "-2.02",
+      y: "-5.8",
+      width: "0.36",
+      height: "3.4",
+      rx: "0.06",
+      class: "ce-ship-gangplank",
+      fill: "#846d51",
+      stroke: "#3d2f1f",
+      "stroke-width": "0.15"
+    })
+  );
+  container.appendChild(
+    element("path", {
+      d: "M -2.0,-5.1 L -1.68,-5.1 M -2.0,-4.3 L -1.68,-4.3 M -2.0,-3.5 L -1.68,-3.5 M -2.0,-2.7 L -1.68,-2.7",
+      stroke: "#4a3825",
+      "stroke-width": "0.15"
+    })
+  );
+
+  // 川底突き竿（右舷のプッシュポール 2本）
+  container.appendChild(
+    element("line", {
+      x1: "1.88",
+      y1: "-7.6",
+      x2: "1.88",
+      y2: "4.8",
+      class: "ce-ship-pole",
+      stroke: "#dfc79b",
+      "stroke-width": "0.18",
+      "stroke-linecap": "round"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "2.04",
+      y1: "-6.8",
+      x2: "2.04",
+      y2: "5.4",
+      class: "ce-ship-pole",
+      stroke: "#c4ab80",
+      "stroke-width": "0.16",
+      "stroke-linecap": "round"
+    })
+  );
+
+  // 倒立式マスト（Tabernacle mast: 橋梁をくぐるため後方に倒して格納）
+  container.appendChild(
+    element("rect", {
+      x: "-0.28",
+      y: "-7.0",
+      width: "0.56",
+      height: "0.45",
+      rx: "0.08",
+      fill: "#322214",
+      stroke: "#180e07",
+      "stroke-width": "0.15"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "0.0",
+      y1: "-6.75",
+      x2: "0.0",
+      y2: "-2.8",
+      stroke: "#543d25",
+      "stroke-width": "0.32",
+      "stroke-linecap": "round"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.2",
+      y1: "-4.8",
+      x2: "0.2",
+      y2: "-4.8",
+      stroke: "#9c8157",
+      "stroke-width": "0.16"
+    })
+  );
+
+  // 5. 前部貨物 (Forward Cargo Area)
+  // 木箱 1 (大型・左前)
+  container.appendChild(
+    element("rect", {
+      x: "-1.45",
+      y: "-6.4",
+      width: "1.15",
+      height: "1.1",
+      rx: "0.08",
+      class: "ce-ship-cargo",
+      fill: "#8e6b43",
+      stroke: "#3d2b17",
+      "stroke-width": "0.2"
+    })
+  );
+  container.appendChild(
+    element("path", {
+      d: "M -1.45,-6.4 L -0.3,-5.3 M -0.3,-6.4 L -1.45,-5.3",
+      stroke: "#51391f",
+      "stroke-width": "0.15"
+    })
+  );
+
+  // 木箱 2 (小型・右前)
+  container.appendChild(
+    element("rect", {
+      x: "-0.15",
+      y: "-6.4",
+      width: "0.9",
+      height: "0.95",
+      rx: "0.06",
+      class: "ce-ship-cargo",
+      fill: "#a17c52",
+      stroke: "#432f1a",
+      "stroke-width": "0.18"
+    })
+  );
+
+  // 穀物麻袋（右側 2袋）
+  container.appendChild(
+    element("ellipse", {
+      cx: "1.05",
+      cy: "-5.85",
+      rx: "0.42",
+      ry: "0.55",
+      transform: "rotate(-15 1.05 -5.85)",
+      class: "ce-ship-cargo",
+      fill: "#ccb892",
+      stroke: "#685536",
+      "stroke-width": "0.16"
+    })
+  );
+  container.appendChild(
+    element("ellipse", {
+      cx: "1.12",
+      cy: "-5.05",
+      rx: "0.38",
+      ry: "0.5",
+      transform: "rotate(20 1.12 -5.05)",
+      class: "ce-ship-cargo",
+      fill: "#bfa982",
+      stroke: "#685536",
+      "stroke-width": "0.16"
+    })
+  );
+
+  // 樽群（3基）
+  // 樽 1
+  container.appendChild(
+    element("circle", {
+      cx: "-0.95",
+      cy: "-4.3",
+      r: "0.52",
+      class: "ce-ship-cargo",
+      fill: "#725333",
+      stroke: "#312010",
+      "stroke-width": "0.2"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "-0.95",
+      cy: "-4.3",
+      r: "0.4",
+      fill: "none",
+      stroke: "#261a0d",
+      "stroke-width": "0.14"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "-0.95",
+      cy: "-4.3",
+      r: "0.1",
+      fill: "#1f150a"
+    })
+  );
+
+  // 樽 2
+  container.appendChild(
+    element("circle", {
+      cx: "0.15",
+      cy: "-4.35",
+      r: "0.55",
+      class: "ce-ship-cargo",
+      fill: "#84603c",
+      stroke: "#352211",
+      "stroke-width": "0.2"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "0.15",
+      cy: "-4.35",
+      r: "0.42",
+      fill: "none",
+      stroke: "#261a0d",
+      "stroke-width": "0.14"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "0.15",
+      cy: "-4.35",
+      r: "0.1",
+      fill: "#1f150a"
+    })
+  );
+
+  // 樽 3
+  container.appendChild(
+    element("circle", {
+      cx: "-0.45",
+      cy: "-3.45",
+      r: "0.48",
+      class: "ce-ship-cargo",
+      fill: "#6d4e2f",
+      stroke: "#2e1c0d",
+      "stroke-width": "0.2"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "-0.45",
+      cy: "-3.45",
+      r: "0.36",
+      fill: "none",
+      stroke: "#261a0d",
+      "stroke-width": "0.14"
+    })
+  );
+
+  // 6. 中央メイン貨物：防水幌（Canvas Tarpaulin & Lashing Ropes）
+  // 荷倉コーミング枠
+  container.appendChild(
+    element("rect", {
+      x: "-1.55",
+      y: "-2.8",
+      width: "3.1",
+      height: "5.6",
+      rx: "0.2",
+      class: "ce-ship-hatch",
+      fill: "#443422",
+      stroke: "#251b10",
+      "stroke-width": "0.25"
+    })
+  );
+
+  // 防水幌本体（オリーブグリーンの防水シート）
+  container.appendChild(
+    element("rect", {
+      x: "-1.42",
+      y: "-2.65",
+      width: "2.84",
+      height: "5.3",
+      rx: "0.25",
+      class: "ce-ship-tarpaulin",
+      fill: "#617158",
+      stroke: "#384532",
+      "stroke-width": "0.25"
+    })
+  );
+
+  // 幌のシワ・荷物の盛り上がり陰影
+  container.appendChild(
+    element("path", {
+      d: "M -1.25,-1.2 Q 0,-0.8 1.25,-1.2 M -1.25,0.4 Q 0,0.8 1.25,0.4 M -1.25,1.8 Q 0,2.1 1.25,1.8",
+      stroke: "#4a5743",
+      "stroke-width": "0.25",
+      fill: "none"
+    })
+  );
+  container.appendChild(
+    element("path", {
+      d: "M -1.2,-1.05 Q 0,-0.65 1.2,-1.05 M -1.2,0.55 Q 0,0.95 1.2,0.55",
+      stroke: "#788a6f",
+      "stroke-width": "0.2",
+      fill: "none"
+    })
+  );
+
+  // 幌を固定する荷縄ネット（Lashing Ropes: 格子状）
+  container.appendChild(
+    element("path", {
+      d: "M -1.42,-2.2 L 1.42,-0.2 M -1.42,-0.8 L 1.42,1.2 M -1.42,0.6 L 1.42,2.4 M 1.42,-2.2 L -1.42,-0.2 M 1.42,-0.8 L -1.42,1.2 M 1.42,0.6 L -1.42,2.4",
+      class: "ce-ship-lashing",
+      stroke: "#cfb689",
+      "stroke-width": "0.18",
+      "stroke-linecap": "round"
+    })
+  );
+  // コーミングのロープ固定クリート（舷側の留め具 8箇所）
+  container.appendChild(
+    element("path", {
+      d: "M -1.55,-2.0 L -1.35,-2.0 M -1.55,-0.5 L -1.35,-0.5 M -1.55,1.0 L -1.35,1.0 M -1.55,2.2 L -1.35,2.2 M 1.35,-2.0 L 1.55,-2.0 M 1.35,-0.5 L 1.55,-0.5 M 1.35,1.0 L 1.55,1.0 M 1.35,2.2 L 1.55,2.2",
+      stroke: "#261a0f",
+      "stroke-width": "0.2"
+    })
+  );
+
+  // 7. 後部貨物 (Aft Cargo: 材木束・追加の木箱)
+  // 木箱
+  container.appendChild(
+    element("rect", {
+      x: "-1.35",
+      y: "3.1",
+      width: "1.0",
+      height: "1.15",
+      rx: "0.06",
+      class: "ce-ship-cargo",
+      fill: "#916f47",
+      stroke: "#42301c",
+      "stroke-width": "0.18"
+    })
+  );
+  // 材木束（角材の結束）
+  container.appendChild(
+    element("rect", {
+      x: "-0.15",
+      y: "3.05",
+      width: "1.35",
+      height: "1.3",
+      rx: "0.06",
+      class: "ce-ship-cargo",
+      fill: "#9b8564",
+      stroke: "#433522",
+      "stroke-width": "0.18"
+    })
+  );
+  container.appendChild(
+    element("path", {
+      d: "M -0.15,3.45 L 1.2,3.45 M -0.15,3.85 L 1.2,3.85 M 0.3,3.05 L 0.3,4.35 M 0.75,3.05 L 0.75,4.35",
+      stroke: "#514028",
+      "stroke-width": "0.15"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.15",
+      y1: "3.2",
+      x2: "1.2",
+      y2: "3.2",
+      stroke: "#d0b586",
+      "stroke-width": "0.15"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.15",
+      y1: "4.15",
+      x2: "1.2",
+      y2: "4.15",
+      stroke: "#d0b586",
+      "stroke-width": "0.15"
+    })
+  );
+
+  // 8. 船尾キャビン（Deckhouse / Cuddy: 船頭小屋）
+  // 小屋土台外壁
+  container.appendChild(
+    element("rect", {
+      x: "-1.4",
+      y: "4.75",
+      width: "2.8",
+      height: "2.2",
+      rx: "0.18",
+      class: "ce-ship-cabin",
+      fill: "#483624",
+      stroke: "#22170d",
+      "stroke-width": "0.3"
+    })
+  );
+  // 板葺き屋根
+  container.appendChild(
+    element("rect", {
+      x: "-1.48",
+      y: "4.85",
+      width: "2.96",
+      height: "2.0",
+      rx: "0.15",
+      class: "ce-ship-cabin-roof",
+      fill: "#734b2f",
+      stroke: "#352012",
+      "stroke-width": "0.2"
+    })
+  );
+  container.appendChild(
+    element("path", {
+      d: "M -1.0,4.85 L -1.0,6.85 M -0.5,4.85 L -0.5,6.85 M 0,4.85 L 0,6.85 M 0.5,4.85 L 0.5,6.85 M 1.0,4.85 L 1.0,6.85",
+      stroke: "#59371f",
+      "stroke-width": "0.15"
+    })
+  );
+  // 小屋天窓
+  container.appendChild(
+    element("rect", {
+      x: "-0.45",
+      y: "5.45",
+      width: "0.9",
+      height: "0.7",
+      rx: "0.08",
+      fill: "#9bb5be",
+      stroke: "#28343b",
+      "stroke-width": "0.18"
+    })
+  );
+  container.appendChild(
+    element("path", {
+      d: "M 0,5.45 L 0,6.15 M -0.45,5.8 L 0.45,5.8",
+      stroke: "#28343b",
+      "stroke-width": "0.14"
+    })
+  );
+  // ストーブ煙突（Galley pipe / Chimney）
+  container.appendChild(
+    element("circle", {
+      cx: "0.85",
+      cy: "5.35",
+      r: "0.24",
+      class: "ce-ship-chimney",
+      fill: "#1f2124",
+      stroke: "#0d0e10",
+      "stroke-width": "0.15"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "0.85",
+      cy: "5.35",
+      r: "0.12",
+      fill: "#050505"
+    })
+  );
+
+  // 9. 船尾デッキ ＆ 係留具
+  // 船尾デッキ係留ビット
+  container.appendChild(
+    element("rect", {
+      x: "-1.15",
+      y: "7.7",
+      width: "0.32",
+      height: "0.32",
+      rx: "0.06",
+      fill: "#261a10",
+      stroke: "#140c06",
+      "stroke-width": "0.1"
+    })
+  );
+  container.appendChild(
+    element("rect", {
+      x: "0.95",
+      y: "7.7",
+      width: "0.32",
+      height: "0.32",
+      rx: "0.06",
+      fill: "#261a10",
+      stroke: "#140c06",
+      "stroke-width": "0.1"
+    })
+  );
+  // 船尾ロープコイル
+  container.appendChild(
+    element("circle", {
+      cx: "-0.65",
+      cy: "7.75",
+      r: "0.42",
+      fill: "none",
+      stroke: "#9e8156",
+      "stroke-width": "0.24"
+    })
+  );
+
+  // 10. 川下り船の命：長大な操舵オール（Giant Steering Sweep Oar）
+  // 船尾ピボットマウント（回転軸台座）
+  container.appendChild(
+    element("rect", {
+      x: "-0.05",
+      y: "7.75",
+      width: "0.45",
+      height: "0.7",
+      rx: "0.08",
+      fill: "#2c1c0f",
+      stroke: "#140c06",
+      "stroke-width": "0.15"
+    })
+  );
+  container.appendChild(
+    element("circle", {
+      cx: "0.18",
+      cy: "8.1",
+      r: "0.22",
+      fill: "#140c06"
+    })
+  );
+
+  // 前方ティラーハンドル（船頭が操作するレバー柄）
+  container.appendChild(
+    element("line", {
+      x1: "0.18",
+      y1: "8.1",
+      x2: "0.05",
+      y2: "6.9",
+      class: "ce-ship-tiller",
+      stroke: "#4e351d",
+      "stroke-width": "0.32",
+      "stroke-linecap": "round"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.2",
+      y1: "7.0",
+      x2: "0.3",
+      y2: "7.0",
+      stroke: "#382412",
+      "stroke-width": "0.24",
+      "stroke-linecap": "round"
+    })
+  );
+
+  // 後方スイープ長柄シャフト（船尾から水面へ突き出る大櫂の柄: 全長4m超）
+  container.appendChild(
+    element("line", {
+      x1: "0.18",
+      y1: "8.1",
+      x2: "-0.55",
+      y2: "12.3",
+      class: "ce-ship-sweep-shaft",
+      stroke: "#4a321a",
+      "stroke-width": "0.38",
+      "stroke-linecap": "round"
+    })
+  );
+
+  // スイープの水掻きブレード（急流・川下り制御用の幅広ブレード）
+  container.appendChild(
+    element("path", {
+      d: "M -0.32,10.5 L -0.85,12.7 C -0.82,13.05 -0.52,13.05 -0.35,12.85 L -0.15,10.6 Z",
+      class: "ce-ship-sweep-blade",
+      fill: "#6c4d29",
+      stroke: "#261a0c",
+      "stroke-width": "0.2"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.26",
+      y1: "11.3",
+      x2: "-0.62",
+      y2: "11.3",
+      stroke: "#1a1208",
+      "stroke-width": "0.18"
+    })
+  );
+  container.appendChild(
+    element("line", {
+      x1: "-0.32",
+      y1: "12.1",
+      x2: "-0.74",
+      y2: "12.1",
+      stroke: "#1a1208",
+      "stroke-width": "0.18"
     })
   );
 }

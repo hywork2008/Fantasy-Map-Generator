@@ -1,3 +1,7 @@
+import type { RegionalContext } from "../../../../types/cityRegional";
+import type { BridgeTransport } from "../../../../utils/bridgeCrossingPolicy";
+import type { FixedBurgCrossings } from "../../../../utils/fixedBurgCrossings";
+import type { RequiredSiteBounds } from "../../../../utils/requiredSiteBounds";
 // BurgSiteDescriptor — the FMG → City Generator input contract.
 //
 // This is a decoupled TYPE-ONLY copy of the public shape produced by
@@ -6,11 +10,17 @@
 // with docs/plan/city-generator/v2/13-fmg-site-input.md; bump DESCRIPTOR_VERSION
 // (and the FMG service) when a field changes meaning.
 
-export const DESCRIPTOR_VERSION = 2;
+export const DESCRIPTOR_VERSION = 3;
 
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
 export interface BurgSiteRiver {
+  /** Estimated local water depth, not a surveyed navigation depth. */
+  depthMeters?: number | null;
+  /** FMG estimate at the burg cell, or nearest sampled river cell. */
+  hydrology?: import("../../../../types/models").RiverCellHydrology & { cellId: number };
+  navigationVessel?: import("../../../../utils/riverCrossing").NavigationVessel;
+  crossing?: import("../../../../utils/riverCrossing").RiverCrossingPlan;
   riverId: number;
   name: string;
   type: string;
@@ -18,7 +28,7 @@ export interface BurgSiteRiver {
   widthMeters: number;
   /** Downstream flow azimuth at the closest approach (compass degrees). */
   axisAzimuthDeg: number;
-  /** Unsigned distance (m) from the town center to the (bank-snapped) centerline. */
+  /** Unsigned distance (m) from the town center to the physical centerline. */
   offsetMeters: number;
   /** offsetMeters / cityRadiusMeters. 0 → bisects the town, >= 1 → outside the core. */
   offsetRatio: number;
@@ -28,10 +38,12 @@ export interface BurgSiteRiver {
   crossesSite: boolean;
   /** FMG world truth: the river flows through the burg's own cell. */
   throughBurgCell: boolean;
-  /** Raw map-geometry distance (m) before bank snapping. */
+  /** Physical map-geometry distance; equal to offsetMeters in new exports. */
   rawOffsetMeters: number;
-  /** True when the centerline was rigidly translated so the town sits on the bank. */
+  /** Legacy bank-translation flag. New FMG exports always set false. */
   snappedToBank: boolean;
+  /** The real bank does not fit the display budget. Do not invent a nearer river. */
+  frontage?: "beyond-budget";
   /** Centerline polyline(s) clipped to the window, upstream → downstream, local meters. */
   segments: { points: [number, number][]; widthsMeters: number[] }[];
   parentRiverId: number | null;
@@ -73,6 +85,11 @@ export interface BurgSiteRoadNextBurg {
 }
 
 export interface BurgSiteRoadEntry {
+  sharedCrossingId?: number;
+  sharedRouteIds?: number[];
+  nextBurgs?: BurgSiteRoadNextBurg[];
+  /** Full shared crossing and far-bank branch, kept separate from the common CE entrance. */
+  sharedBranches?: { routeId: number; path: [number, number][]; nextBurg: BurgSiteRoadNextBurg | null }[];
   routeId: number;
   /** "roads" | "trails" | "searoutes". */
   group: string;
@@ -109,8 +126,19 @@ export interface BurgSiteTerrain {
   };
 }
 
+export interface BurgSiteBiome {
+  id: number;
+  key?: string;
+  name: string;
+  color: string;
+  tags?: readonly string[];
+}
+
 export interface BurgSiteDescriptor {
-  version: 2;
+  regionalContext?: RegionalContext;
+  /** Optional physical crossing preview; not input to legacy bridge discovery. */
+  fixedCrossings?: FixedBurgCrossings;
+  version: 2 | 3;
   burg: {
     id: number;
     name: string;
@@ -122,6 +150,10 @@ export interface BurgSiteDescriptor {
     dwellings: number;
     capital: boolean;
     port: boolean;
+    riverPlacement?: import("../../../../types/models").Burg["riverPlacement"];
+    riverSiteStatus?: import("../../../../types/models").Burg["riverSiteStatus"];
+    /** Optional for legacy descriptors; independent of clipped water geometry. */
+    waterAccess?: import("../../../../types/burgWater").BurgWaterAccess;
     citadel: boolean;
     plaza: boolean;
     walls: boolean;
@@ -129,15 +161,25 @@ export interface BurgSiteDescriptor {
     shanty: boolean;
   };
   frame: {
+    regionalMode?: boolean;
+    /** Local metre bounds that frame fitting must retain. */
+    requiredBounds?: RequiredSiteBounds;
     originMapUnits: [number, number];
     metersPerMapUnit: number;
     extentMeters: number;
     cityRadiusMeters: number;
   };
-  climate: { temperatureC: number; biomeId: number };
+  climate: {
+    temperatureC: number;
+    biomeId: number;
+    biomeKey?: string;
+    biomeName?: string;
+    biomeColor?: string;
+  };
+  biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
-  /** Optional on v2 saves; absent means the conservative 50 m legacy cap. */
-  transport?: { maxBridgeSpanMeters: number };
+  /** Total supported crossing allowance; old span-named values are migrated by the shared policy. */
+  transport?: BridgeTransport;
   /** Historical period / era from FMG (e.g. "ageOfExploration"). */
   historicalPeriod?: import("../../types").HistoricalPeriod;
   rivers: BurgSiteRiver[];

@@ -121,6 +121,9 @@ export interface WorldOptions {
    * addendum).
    */
   gunpowderEraEnabled?: boolean;
+  /** Optional historical-war strength cap; missing values use generation defaults. */
+  maxWarDisparityRatio?: number;
+  maxWarDisparityRatioEnabled?: boolean;
   /**
    * Generation option: begin Muskets and Artillery without pre-existing serviceable equipment.
    * Undefined preserves the legacy, fully equipped starting-force behavior.
@@ -137,6 +140,8 @@ export interface WorldOptions {
    * probability. Undefined preserves normal probabilistic culture-type assignment.
    */
   forceIndustrialCultures?: boolean;
+  /** Optional local engineering override; era defaults fill absent capabilities. */
+  riverBridgeTechnology?: Partial<import("../utils/riverCrossing").RiverBridgeTechnology>;
   historicalPeriod?:
     | "earlyMedieval"
     | "highMedieval"
@@ -214,6 +219,11 @@ export interface WorldOptions {
    * Undefined on older saves / missing field: defaults to "elevationAware".
    */
   landRouteGenerationMode?: LandRouteGenerationMode;
+  /** Explicit phase-1–5 physical-road contract; no implicit trial profile. */
+  landConnectionGeneration?: import("../services/worldLandConnectionRuntime").WorldLandConnectionGenerationSettings;
+  /** Data only: restored against current terrain, rivers, costs and units. */
+  registeredLandConnections?: string;
+  registeredLandConnectionUnit?: string;
   /**
    * Strength of elevation/slope aversion when landRouteGenerationMode is elevationAware.
    * 0 = ignore height (short ridge shortcuts allowed); 1 = plan defaults; >1 = stricter valleys.

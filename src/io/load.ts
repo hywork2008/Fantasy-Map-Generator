@@ -40,9 +40,13 @@ import {
   LegacyMapCodecAdapter
 } from "../runtime/worldArchive";
 import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
+import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
+import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
 import { declareFont, fonts } from "../services/fonts";
+import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
+import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
 import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
@@ -255,6 +259,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // derived per-cell surface data. Backfill it once the validated world is live.
     legacyMutation(() => {
       refreshAllRiverHydrology(worldContext);
+      updateAllBurgWaterAccess(worldContext.pack);
       return { result: undefined, topics: ["map.networks"] };
     });
 
@@ -263,7 +268,9 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // those routes verbatim instead of forcibly replacing them with augmented.
     // When sea mode is present we rebuild; land mode defaults to elevationAware
     // when the archive has no landRouteGenerationMode field.
-    if (seaRouteGenerationMode) {
+    const hasRegisteredLandArchive =
+      !!worldContext.options.landConnectionGeneration && !!worldContext.options.registeredLandConnections;
+    if (seaRouteGenerationMode && !hasRegisteredLandArchive) {
       legacyMutation(() => {
         if (landRouteElevationAversion !== undefined) {
           worldContext.options.landRouteElevationAversion = landRouteElevationAversion;
@@ -274,6 +281,9 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     }
 
     useOptionsState.getState().setOptions({
+      ...(hasRegisteredLandArchive && worldContext.options.registeredLandConnectionUnit
+        ? { distanceUnit: worldContext.options.registeredLandConnectionUnit }
+        : {}),
       seed: worldContext.seed,
       year: validated.document.simulation.currentYear,
       era: validated.document.simulation.era,
@@ -285,6 +295,28 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       ),
       frontierStartMode: normalizeFrontierStartMode(worldContext.options.frontierStartMode),
       frontierPolitySpacing: normalizeFrontierPolitySpacing(worldContext.options.frontierPolitySpacing)
+    });
+    if (worldContext.options.landConnectionGeneration) {
+      legacyMutation(() => {
+        const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+        const ids = new Set(physical?.snapshot.connectionIds ?? []);
+        worldContext.pack.cells.routes = Routes.buildLinks(
+          worldContext.pack.routes.filter(
+            route =>
+              route.group === "searoutes" ||
+              (route.registeredConnectionId !== undefined && ids.has(route.registeredConnectionId))
+          )
+        );
+        return { result: undefined, topics: ["map.networks"] };
+      });
+    }
+    legacyMutation(() => {
+      const converged = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
+      if (converged.changedRoutes.length) {
+        worldContext.pack.cells.routes = Routes.buildLinks(worldContext.pack.routes);
+        resolveRiverRouteCrossings(worldContext);
+      }
+      return { result: undefined, topics: ["map.networks"] };
     });
     // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
     legacyMutation(() => {
@@ -716,6 +748,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   worldContext.pack.cells.pop = Float32Array.from(data[21].split(","), Number);
   worldContext.pack.cells.r = Uint16Array.from(data[22].split(","), Number);
   refreshAllRiverHydrology(worldContext);
+  updateAllBurgWaterAccess(worldContext.pack);
   // data[23] had deprecated cells.road
   worldContext.pack.cells.s = Uint16Array.from(data[24].split(","), Number);
   worldContext.pack.cells.state = Uint16Array.from(data[25].split(","), Number);

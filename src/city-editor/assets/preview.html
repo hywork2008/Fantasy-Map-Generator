@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Editor - 建築 & 船舶 プレビューギャラリー</title>
+  <style>
+    :root {
+      --bg: #141b22;
+      --card-bg: #1e2630;
+      --card-header: #25303d;
+      --border: #2e3a48;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --ground-bg: #2a2822;
+      --ground-line: #3b372f;
+      --water-bg: #1c3547;
+      --water-line: #264b63;
+      --accent: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-purple: #bc8cff;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    p.lead {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 6px 0 0 0;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(0,0,0,0.25);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+    }
+    .tab-btn.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .card.highlight-green {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 14px rgba(46, 160, 67, 0.2);
+    }
+    .card.highlight-orange {
+      border-color: var(--accent-orange);
+      box-shadow: 0 0 14px rgba(210, 153, 34, 0.2);
+    }
+    .card.highlight-purple {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 14px rgba(188, 140, 255, 0.2);
+    }
+    .card h2 {
+      margin: 0 0 8px 0;
+      font-size: 15.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      font-weight: 500;
+    }
+    .card .badge.hamlet {
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.3);
+    }
+    .card .badge.primitive {
+      background: rgba(210, 153, 34, 0.15);
+      color: #e3b341;
+      border-color: rgba(210, 153, 34, 0.3);
+    }
+    .card .badge.shrine {
+      background: rgba(188, 140, 255, 0.15);
+      color: #d2a8ff;
+      border-color: rgba(188, 140, 255, 0.3);
+    }
+    .card .badge.river {
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.3);
+    }
+    .card .asset-link {
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+      margin-top: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .card .asset-link:hover {
+      text-decoration: underline;
+    }
+    .canvas-container {
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 16px;
+      height: 340px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .canvas-container.ground {
+      background: var(--ground-bg);
+    }
+    .canvas-container.ground::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(var(--ground-line) 1px, transparent 1px);
+      background-size: 16px 16px;
+      opacity: 0.45;
+    }
+    .canvas-container.water {
+      background: var(--water-bg);
+    }
+    .canvas-container.water::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(var(--water-line) 1px, transparent 1px);
+      background-size: 16px 16px;
+      opacity: 0.35;
+    }
+    .canvas-container svg {
+      max-width: 90%;
+      max-height: 90%;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.45));
+      position: relative;
+      z-index: 1;
+      transition: transform 0.2s ease;
+    }
+    .canvas-container:hover svg {
+      transform: scale(1.03);
+    }
+    .desc {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .desc strong.title {
+      display: block;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .desc ul {
+      margin: 6px 0 0 0;
+      padding-left: 18px;
+    }
+    .feature-list {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 24px;
+    }
+    .feature-list h3 {
+      margin-top: 0;
+      font-size: 16px;
+      color: var(--accent-green);
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .feature-item {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 14px;
+    }
+    .feature-item strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 6px;
+      font-size: 13.5px;
+    }
+    .feature-item span {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    /* 寺院 SVG スタイル */
+    .ce-temple-shadow { fill: rgba(18, 22, 25, 0.28); }
+    .ce-temple-base { fill: #b8b5ad; stroke: #38352e; stroke-width: 0.7px; stroke-linejoin: round; }
+    .ce-temple-buttresses { fill: #9e9b93; stroke: #38352e; stroke-width: 0.5px; }
+    .ce-temple-nave, .ce-temple-transept, .ce-temple-apse, .ce-temple-crossing, .ce-temple-westwork, .ce-temple-chancel, .ce-temple-porch, .ce-temple-roof { stroke-linejoin: round; }
+    .ce-temple-spire-diagonal { stroke-linecap: round; }
+    .ce-megalith-stone, .ce-megalith-portal { stroke-linejoin: round; }
+
+    /* 船舶 SVG スタイル */
+    .ce-ship { cursor: pointer; }
+    .ce-ship-shadow { fill: rgba(18, 30, 38, 0.32); }
+    .ce-ship-hull-outer { fill: #382c20; stroke: #221a13; }
+    .ce-ship-deck { fill: #c8b99c; stroke: #423527; }
+    .ce-ship-deck-step { fill: #ab9b7e; stroke: #382a1d; }
+    .ce-ship-hatch { fill: #5a4834; stroke: #31261a; }
+    .ce-ship-grating { stroke: #31261a; }
+    .ce-ship-mast { fill: #5a4531; stroke: #22170e; }
+    .ce-ship-crowsnest { fill: #38281a; stroke: #1e150d; }
+    .ce-ship-yard { stroke: #3e3020; }
+    .ce-ship-furled-sail { fill: #e8e0ce; stroke: #7d7260; }
+    .ce-ship-rigging { stroke: #2b2218; opacity: 0.75; }
+    .ce-ship-boat { fill: #b8a88a; stroke: #382a1d; }
+    .ce-ship-lantern { fill: #c49a45; stroke: #523e16; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>🏛️ City Editor モデルギャラリー</h1>
+      <p class="lead">都市規模に応じた寺院・聖域モデル（寒村向け礼拝堂・環状列石・木造祠 vs 大聖堂）および船舶モデルの比較</p>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('temples')">🏛️ 寺院・聖域（寒村向け対応）</button>
+      <button class="tab-btn" onclick="switchTab('ships')">⛵ 船舶・川荷船（全艦種）</button>
+    </div>
+  </header>
+
+  <!-- ================================================================= -->
+  <!-- タブ 1: 寺院・聖域モデル比較（寒村向け） -->
+  <!-- ================================================================= -->
+  <div id="tab-temples" class="tab-content active">
+    <div class="grid">
+      
+      <!-- 1. 素朴な村の礼拝堂 (Rustic Village Chapel) -->
+      <div class="card highlight-green">
+        <h2>村の素朴な礼拝堂 <span class="badge hamlet">寒村・小規模推奨</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-11 -6.5 22 13" width="100%" height="100%">
+            <g class="ce-temple ce-temple--chapel" transform="translate(0 0) rotate(0)" width="16" height="8">
+              <g class="ce-temple-shadow" transform="translate(0.5 0.6)" opacity="0.32">
+                <path d="M -8 -2.88 L 2.24 -2.88 L 2.24 -1.92 L 8 -1.92 L 8 1.92 L 2.24 1.92 L 2.24 2.88 L -0.96 2.88 L -0.96 4.4 L -3.36 4.4 L -3.36 2.88 L -8 2.88 Z" fill="#181e22"></path>
+              </g>
+              <g class="ce-temple-base">
+                <path d="M -8 -2.88 L 2.24 -2.88 L 2.24 -1.92 L 8 -1.92 L 8 1.92 L 2.24 1.92 L 2.24 2.88 L -0.96 2.88 L -0.96 4.4 L -3.36 4.4 L -3.36 2.88 L -8 2.88 Z" fill="#b8b5ad" stroke="#38352e" stroke-width="0.7" stroke-linejoin="round"></path>
+              </g>
+              <g class="ce-temple-buttresses" fill="#9e9b93" stroke="#38352e" stroke-width="0.5">
+                <rect x="-8.8" y="-2.88" width="0.8" height="0.6"></rect>
+                <rect x="-8.8" y="2.28" width="0.8" height="0.6"></rect>
+                <rect x="8" y="-1.92" width="0.8" height="0.6"></rect>
+                <rect x="8" y="1.32" width="0.8" height="0.6"></rect>
+              </g>
+              <g class="ce-temple-chancel">
+                <polygon points="2.24,-1.92 8,-1.92 8,0 2.24,0" fill="#ba5d30" stroke="#422616" stroke-width="0.45"></polygon>
+                <polygon points="2.24,0 8,0 8,1.92 2.24,1.92" fill="#8c3e1a" stroke="#422616" stroke-width="0.45"></polygon>
+                <line x1="2.24" y1="0" x2="8" y2="0" stroke="#52210d" stroke-width="0.7" stroke-linecap="round"></line>
+              </g>
+              <g class="ce-temple-nave">
+                <polygon points="-8,-2.88 2.24,-2.88 2.24,0 -8,0" fill="#c86a3e" stroke="#422616" stroke-width="0.5"></polygon>
+                <polygon points="-8,0 2.24,0 2.24,2.88 -8,2.88" fill="#8c3e1a" stroke="#422616" stroke-width="0.5"></polygon>
+                <line x1="-8" y1="0" x2="2.24" y2="0" stroke="#52210d" stroke-width="0.85" stroke-linecap="round"></line>
+                <line x1="-8" y1="-0.2" x2="2.24" y2="-0.2" stroke="#e8956e" stroke-width="0.35" opacity="0.75"></line>
+              </g>
+              <g class="ce-temple-porch">
+                <polygon points="-3.36,2.88 -3.36,4.4 -2.16,4.4 -2.16,2.88" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-2.16,2.88 -2.16,4.4 -0.96,4.4 -0.96,2.88" fill="#733012" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="-2.16" y1="2.88" x2="-2.16" y2="4.4" stroke="#52210d" stroke-width="0.6" stroke-linecap="round"></line>
+                <rect x="-2.48" y="4" width="0.64" height="0.4" fill="#2b2721"></rect>
+              </g>
+              <g class="ce-temple-bellcote">
+                <polygon points="-7.68,-0.7 -6.98,0 -6.28,-0.7" fill="#c86a3e" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-7.68,-0.7 -6.98,0 -7.68,0.7" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-7.68,0.7 -6.98,0 -6.28,0.7" fill="#733012" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-6.28,-0.7 -6.98,0 -6.28,0.7" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line class="ce-temple-spire-diagonal" x1="-7.68" y1="-0.7" x2="-6.28" y2="0.7" stroke="#52210d" stroke-width="0.5" stroke-linecap="round"></line>
+                <line class="ce-temple-spire-diagonal" x1="-7.68" y1="0.7" x2="-6.28" y2="-0.7" stroke="#52210d" stroke-width="0.5" stroke-linecap="round"></line>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Rustic Village Chapel（全長 16m / 全幅 8m）</strong>
+          <a class="asset-link" href="./rustic-chapel.svg" target="_blank">📄 単体素材: rustic-chapel.svg</a>
+          <ul>
+            <li><strong>単身廊＋内陣構成:</strong> 翼廊や側廊のない素朴な身廊と、一段低く狭い内陣（Chancel）</li>
+            <li><strong>木製鐘架 (Bellcote):</strong> 西切妻上部に乗る素朴な小鐘楼</li>
+            <li><strong>南側玄関ポーチ:</strong> 雨風を凌ぐ素朴な木造/石造ポーチ</li>
+            <li><strong>四隅控え壁:</strong> 角部のみの簡素なバットレス</li>
+            <li><strong>自動適用:</strong> 長さ24m未満（micro/tiny）で自動選択</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2. 原始的な環状列石と祭壇 (Megalithic Stone Circle) -->
+      <div class="card highlight-orange">
+        <h2>原始的環状列石 & 祭壇 <span class="badge primitive">古代・精霊信仰</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-10.5 -10.5 21 21" width="100%" height="100%">
+            <g class="ce-temple ce-temple--megalith" transform="translate(0 0) rotate(0)" width="16" height="16">
+              <g class="ce-temple-earth">
+                <ellipse cx="0" cy="0" rx="7.08" ry="7.08" fill="#736854" opacity="0.22" stroke="#5e5443" stroke-width="0.6" stroke-dasharray="3 2"></ellipse>
+              </g>
+              <g class="ce-temple-shadow" transform="translate(0.6 0.72)" opacity="0.38">
+                <ellipse cx="6.56" cy="0" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="5.08" cy="3.69" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="2.17" cy="6.69" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-1.87" cy="5.74" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-5.64" cy="4.1" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-5.22" cy="-3.79" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="-2.14" cy="-6.59" rx="1.08" ry="0.88" fill="#181e22"></ellipse>
+                <ellipse cx="1.87" cy="-5.75" rx="1.08" ry="0.81" fill="#181e22"></ellipse>
+                <ellipse cx="5.71" cy="-4.15" rx="1.08" ry="0.9" fill="#181e22"></ellipse>
+                <ellipse cx="-6.69" cy="-2.3" rx="1.01" ry="1.08" fill="#181e22"></ellipse>
+                <ellipse cx="-6.69" cy="2.3" rx="1.01" ry="1.08" fill="#181e22"></ellipse>
+                <rect x="-1.28" y="-1.6" width="3.2" height="3.2" rx="0.5" fill="#181e22"></rect>
+              </g>
+              <g class="ce-temple-megaliths">
+                <g class="ce-megalith-stone">
+                  <polygon points="6.08,-0.45 7.1,-0.32 7.16,0.27 6.8,0.45 6.02,0.36" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="6.02,0.36 6.08,-0.45 7.1,-0.32" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="7.1,-0.32 7.16,0.27 6.8,0.45" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="6.44" cy="-0.09" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="4.6,3.24 5.62,3.38 5.68,3.96 5.32,4.14 4.54,4.05" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="4.54,4.05 4.6,3.24 5.62,3.38" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="5.62,3.38 5.68,3.96 5.32,4.14" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="4.96" cy="3.6" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="1.69,6.24 2.71,6.37 2.77,6.96 2.41,7.14 1.63,7.05" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="1.63,7.05 1.69,6.24 2.71,6.37" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="2.71,6.37 2.77,6.96 2.41,7.14" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="2.05" cy="6.6" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-2.35,5.29 -1.33,5.43 -1.27,6.01 -1.63,6.19 -2.41,6.1" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-2.41,6.1 -2.35,5.29 -1.33,5.43" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-1.33,5.43 -1.27,6.01 -1.63,6.19" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-1.99" cy="5.65" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-6.12,3.65 -5.1,3.78 -5.04,4.37 -5.4,4.55 -6.18,4.46" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-6.18,4.46 -6.12,3.65 -5.1,3.78" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-5.1,3.78 -5.04,4.37 -5.4,4.55" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-5.76" cy="4.01" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-5.7,-4.24 -4.68,-4.11 -4.62,-3.52 -4.98,-3.34 -5.76,-3.43" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-5.76,-3.43 -5.7,-4.24 -4.68,-4.11" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-4.68,-4.11 -4.62,-3.52 -4.98,-3.34" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-5.34" cy="-3.88" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="-2.62,-7.07 -1.6,-6.93 -1.54,-6.29 -1.9,-6.1 -2.68,-6.19" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-2.68,-6.19 -2.62,-7.07 -1.6,-6.93" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-1.6,-6.93 -1.54,-6.29 -1.9,-6.1" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-2.26" cy="-6.68" r="0.17" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="1.39,-6.2 2.41,-6.07 2.47,-5.48 2.11,-5.3 1.33,-5.39" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="1.33,-5.39 1.39,-6.2 2.41,-6.07" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="2.41,-6.07 2.47,-5.48 2.11,-5.3" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="1.75" cy="-5.84" r="0.16" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-stone">
+                  <polygon points="5.23,-4.65 6.25,-4.5 6.31,-3.85 5.95,-3.65 5.17,-3.75" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="5.17,-3.75 5.23,-4.65 6.25,-4.5" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="6.25,-4.5 6.31,-3.85 5.95,-3.65" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="5.59" cy="-4.25" r="0.17" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-portal">
+                  <polygon points="-7.14,-2.9 -6.19,-2.72 -6.13,-1.94 -6.47,-1.7 -7.2,-1.82" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-7.2,-1.82 -7.14,-2.9 -6.19,-2.72" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-6.19,-2.72 -6.13,-1.94 -6.47,-1.7" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-6.8" cy="-2.42" r="0.2" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+                <g class="ce-megalith-portal">
+                  <polygon points="-7.14,1.7 -6.19,1.88 -6.13,2.66 -6.47,2.9 -7.2,2.78" fill="#949187" stroke="#36342e" stroke-width="0.45" stroke-linejoin="round"></polygon>
+                  <polyline points="-7.2,2.78 -7.14,1.7 -6.19,1.88" fill="none" stroke="#b5b2aa" stroke-width="0.6" stroke-linecap="round"></polyline>
+                  <polyline points="-6.19,1.88 -6.13,2.66 -6.47,2.9" fill="none" stroke="#5c5952" stroke-width="0.55" stroke-linecap="round"></polyline>
+                  <circle cx="-6.8" cy="2.18" r="0.2" fill="#5b6d49" opacity="0.55"></circle>
+                </g>
+              </g>
+              <g class="ce-temple-altar">
+                <rect x="-0.98" y="-1.3" width="2.6" height="2.6" fill="#5c5952" stroke="#36342e" stroke-width="0.4"></rect>
+                <rect x="-1.28" y="-1.6" width="3.2" height="3.2" rx="0.4" fill="#b5b2aa" stroke="#36342e" stroke-width="0.6" stroke-linejoin="round"></rect>
+                <circle cx="0.32" cy="0" r="0.9" fill="none" stroke="#3c3831" stroke-width="0.4" opacity="0.75"></circle>
+                <line x1="-0.8" y1="0" x2="1.44" y2="0" stroke="#3c3831" stroke-width="0.35" opacity="0.6"></line>
+                <line x1="0.32" y1="-1.12" x2="0.32" y2="1.12" stroke="#3c3831" stroke-width="0.35" opacity="0.6"></line>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Stone Circle & Altar（直径 16m × 16m）</strong>
+          <a class="asset-link" href="./megalithic-circle.svg" target="_blank">📄 単体素材: megalithic-circle.svg</a>
+          <ul>
+            <li><strong>屋根を持たない古代聖域:</strong> 辺境・古代自然崇拝の村に最適な神殿代替品</li>
+            <li><strong>不揃いな直立巨石群:</strong> 苔むした風化石と光影のリアルな陰影表現</li>
+            <li><strong>中央祭壇石 (Dolmen):</strong> 供物を捧げる平らな石板と太陽ルーン刻印</li>
+            <li><strong>西側門柱石 (Portal):</strong> 聖域へ参入する西側の2基の立石</li>
+            <li><strong>踏み固められた聖地土:</strong> 儀礼サークルの周囲の土壌グラウンド</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. 素朴な木造の祠 / 社 (Primitive Timber Shrine) -->
+      <div class="card highlight-purple">
+        <h2>素朴な木造の祠 / 聖堂 <span class="badge shrine">木造・土着信仰</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-10 -7 20 14" width="100%" height="100%">
+            <g class="ce-temple ce-temple--shrine" transform="translate(0 0) rotate(0)" width="15" height="9">
+              <g class="ce-temple-shadow" transform="translate(0.6 0.72)" opacity="0.34">
+                <rect x="-5.63" y="-3.51" width="9" height="7.02" rx="0.6" fill="#181e22"></rect>
+              </g>
+              <g class="ce-temple-base">
+                <rect x="-6.03" y="-3.91" width="9.8" height="7.82" rx="0.6" fill="#5c4632" stroke="#261a0f" stroke-width="0.6"></rect>
+              </g>
+              <g class="ce-temple-roof">
+                <polygon points="-5.63,-3.51 3.38,-3.51 3.38,0 -5.63,0" fill="#d1b45a" stroke="#3d2e0b" stroke-width="0.45"></polygon>
+                <polygon points="-5.63,0 3.38,0 3.38,3.51 -5.63,3.51" fill="#8f7228" stroke="#3d2e0b" stroke-width="0.45"></polygon>
+                <line x1="-6.13" y1="0" x2="3.88" y2="0" stroke="#5c4714" stroke-width="0.9" stroke-linecap="round"></line>
+                <path d="M -6.22 -0.7 L -5.33 0 L -6.22 0.7" fill="none" stroke="#2d2014" stroke-width="0.6" stroke-linecap="round"></path>
+                <path d="M 3.98 -0.7 L 3.08 0 L 3.98 0.7" fill="none" stroke="#2d2014" stroke-width="0.6" stroke-linecap="round"></path>
+              </g>
+              <g class="ce-temple-posts">
+                <circle cx="-5.63" cy="-3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="-5.63" cy="3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="-1.13" cy="-3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="-1.13" cy="3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="3.38" cy="-3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+                <circle cx="3.38" cy="3.51" r="0.45" fill="#3b2c1d" stroke="#261a0f" stroke-width="0.35"></circle>
+              </g>
+              <g class="ce-temple-hearth">
+                <circle cx="5.78" cy="0" r="1.05" fill="#949187" stroke="#36342e" stroke-width="0.45"></circle>
+                <circle cx="5.78" cy="0" r="0.73" fill="#211c18"></circle>
+                <circle cx="5.78" cy="0" r="0.47" fill="#ff5722" opacity="0.85"></circle>
+                <circle cx="5.78" cy="0" r="0.23" fill="#ffca28"></circle>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Timber Thatched Shrine（全長 15m / 全幅 9m）</strong>
+          <a class="asset-link" href="./timber-shrine.svg" target="_blank">📄 単体素材: timber-shrine.svg</a>
+          <ul>
+            <li><strong>急勾配の茅葺き大屋根:</strong> 北欧・ケルト・スラヴ圏の寒村に見られる茅葺き社</li>
+            <li><strong>木彫り角飾り (Gable Beast Heads):</strong> 棟木の両端に突き出た交差木彫り飾り</li>
+            <li><strong>外周丸太柱:</strong> 軒下を支える素朴な6本のログポスト</li>
+            <li><strong>聖なる炉床 (Sacred Hearth):</strong> 前庭で赤く燃え盛る火床と残り火</li>
+            <li><strong>木造基壇:</strong> 地面からの湿気を防ぐ高床の木造デッキ</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 4. 大都市バシリカ式大聖堂 (比較対象) -->
+      <div class="card">
+        <h2>バシリカ式大聖堂 <span class="badge">大都市・司教座</span></h2>
+        <div class="canvas-container ground">
+          <svg viewBox="-31 -17 62 34" width="100%" height="100%">
+            <g class="ce-temple ce-temple--basilica" transform="translate(0 0) rotate(0)" width="54" height="28">
+              <g class="ce-temple-shadow" transform="translate(0.97 1.17)" opacity="0.32">
+                <path d="M -28.08 -3.92 L -27 -3.92 L -27 -12.88 L -18.9 -12.88 L -18.9 -10.36 L 2.7 -10.36 L 2.7 -13.72 L 11.88 -13.72 L 11.88 -9.32 L 19.44 -9.32 A 9.32 9.32 0 0 1 28.76 0 A 9.32 9.32 0 0 1 19.44 9.32 L 11.88 9.32 L 11.88 13.72 L 2.7 13.72 L 2.7 10.36 L -18.9 10.36 L -18.9 12.88 L -27 12.88 L -27 3.92 L -28.08 3.92 Z" fill="#181e22"></path>
+              </g>
+              <g class="ce-temple-base">
+                <path d="M -28.08 -3.92 L -27 -3.92 L -27 -12.88 L -18.9 -12.88 L -18.9 -10.36 L 2.7 -10.36 L 2.7 -13.72 L 11.88 -13.72 L 11.88 -9.32 L 19.44 -9.32 A 9.32 9.32 0 0 1 28.76 0 A 9.32 9.32 0 0 1 19.44 9.32 L 11.88 9.32 L 11.88 13.72 L 2.7 13.72 L 2.7 10.36 L -18.9 10.36 L -18.9 12.88 L -27 12.88 L -27 3.92 L -28.08 3.92 Z" fill="#b8b5ad" stroke="#38352e" stroke-width="0.7" stroke-linejoin="round"></path>
+              </g>
+              <g class="ce-temple-buttresses" fill="#9e9b93" stroke="#38352e" stroke-width="0.5">
+                <rect x="-14.04" y="-11.06" width="1.08" height="0.7"></rect>
+                <rect x="-14.04" y="10.36" width="1.08" height="0.7"></rect>
+                <rect x="-8.64" y="-11.06" width="1.08" height="0.7"></rect>
+                <rect x="-8.64" y="10.36" width="1.08" height="0.7"></rect>
+                <rect x="-3.24" y="-11.06" width="1.08" height="0.7"></rect>
+                <rect x="-3.24" y="10.36" width="1.08" height="0.7"></rect>
+                <rect x="4.46" y="-14.42" width="1.08" height="0.7"></rect>
+                <rect x="9.05" y="-14.42" width="1.08" height="0.7"></rect>
+                <rect x="4.46" y="13.72" width="1.08" height="0.7"></rect>
+                <rect x="9.05" y="13.72" width="1.08" height="0.7"></rect>
+              </g>
+              <g class="ce-temple-aisles">
+                <polygon points="-18.9,-10.36 2.7,-10.36 2.7,-5.6 -18.9,-5.6" fill="#b2afa7" stroke="#38352e" stroke-width="0.5"></polygon>
+                <polygon points="-18.9,5.6 2.7,5.6 2.7,10.36 -18.9,10.36" fill="#9e9b93" stroke="#38352e" stroke-width="0.5"></polygon>
+              </g>
+              <g class="ce-temple-transept">
+                <polygon points="2.7,-5.6 2.7,-13.72 7.29,-13.72 7.29,-5.6" fill="#c86a3e" stroke="#422616" stroke-width="0.45"></polygon>
+                <polygon points="7.29,-5.6 7.29,-13.72 11.88,-13.72 11.88,-5.6" fill="#a34e25" stroke="#422616" stroke-width="0.45"></polygon>
+                <polygon points="2.7,13.72 2.7,5.6 7.29,5.6 7.29,13.72" fill="#ba5d30" stroke="#422616" stroke-width="0.45"></polygon>
+                <polygon points="7.29,13.72 7.29,5.6 11.88,5.6 11.88,13.72" fill="#8c3e1a" stroke="#422616" stroke-width="0.45"></polygon>
+                <line x1="7.29" y1="-13.72" x2="7.29" y2="-5.6" stroke="#52210d" stroke-width="0.75" stroke-linecap="round"></line>
+                <line x1="7.29" y1="5.6" x2="7.29" y2="13.72" stroke="#52210d" stroke-width="0.75" stroke-linecap="round"></line>
+              </g>
+              <g class="ce-temple-apse">
+                <path d="M 11.88 -9.32 L 19.44 -9.32 A 9.32 9.32 0 0 1 28.76 0 A 9.32 9.32 0 0 1 19.44 9.32 L 11.88 9.32 L 11.88 5.6 L 19.44 5.6 A 5.6 5.6 0 0 0 25.04 0 A 5.6 5.6 0 0 0 19.44 -5.6 L 11.88 -5.6 Z" fill="#a8a59d" stroke="#38352e" stroke-width="0.5"></path>
+                <circle cx="26.03" cy="-6.59" r="2.98" fill="#ba5d30" stroke="#38352e" stroke-width="0.55"></circle>
+                <circle cx="26.03" cy="-6.59" r="1.34" fill="#c86a3e" stroke="#52210d" stroke-width="0.4"></circle>
+                <circle cx="28.76" cy="0" r="2.98" fill="#ba5d30" stroke="#38352e" stroke-width="0.55"></circle>
+                <circle cx="28.76" cy="0" r="1.34" fill="#c86a3e" stroke="#52210d" stroke-width="0.4"></circle>
+                <circle cx="26.03" cy="6.59" r="2.98" fill="#ba5d30" stroke="#38352e" stroke-width="0.55"></circle>
+                <circle cx="26.03" cy="6.59" r="1.34" fill="#c86a3e" stroke="#52210d" stroke-width="0.4"></circle>
+                <polygon points="19.44,0 19.44,-5.6 22.24,-4.85" fill="#c86a3e" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="19.44" y1="0" x2="22.24" y2="-4.85" stroke="#52210d" stroke-width="0.5"></line>
+                <polygon points="19.44,0 22.24,-4.85 24.29,-2.8" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="19.44" y1="0" x2="24.29" y2="-2.8" stroke="#52210d" stroke-width="0.5"></line>
+                <polygon points="19.44,0 24.29,-2.8 25.04,0" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="19.44" y1="0" x2="25.04" y2="0" stroke="#52210d" stroke-width="0.5"></line>
+                <polygon points="19.44,0 25.04,0 24.29,2.8" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="19.44" y1="0" x2="24.29" y2="2.8" stroke="#52210d" stroke-width="0.5"></line>
+                <polygon points="19.44,0 24.29,2.8 22.24,4.85" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="19.44" y1="0" x2="22.24" y2="4.85" stroke="#52210d" stroke-width="0.5"></line>
+                <polygon points="19.44,0 22.24,4.85 19.44,5.6" fill="#733012" stroke="#422616" stroke-width="0.4"></polygon>
+                <line x1="19.44" y1="0" x2="19.44" y2="5.6" stroke="#52210d" stroke-width="0.5"></line>
+              </g>
+              <g class="ce-temple-nave">
+                <polygon points="-18.9,-5.6 2.7,-5.6 2.7,0 -18.9,0" fill="#c86a3e" stroke="#422616" stroke-width="0.5"></polygon>
+                <polygon points="-18.9,0 2.7,0 2.7,5.6 -18.9,5.6" fill="#8c3e1a" stroke="#422616" stroke-width="0.5"></polygon>
+                <polygon points="11.88,-5.6 19.44,-5.6 19.44,0 11.88,0" fill="#ba5d30" stroke="#422616" stroke-width="0.5"></polygon>
+                <polygon points="11.88,0 19.44,0 19.44,5.6 11.88,5.6" fill="#8c3e1a" stroke="#422616" stroke-width="0.5"></polygon>
+                <line x1="-18.9" y1="0" x2="2.7" y2="0" stroke="#52210d" stroke-width="0.9" stroke-linecap="round"></line>
+                <line x1="11.88" y1="0" x2="19.44" y2="0" stroke="#52210d" stroke-width="0.9" stroke-linecap="round"></line>
+                <line x1="-18.9" y1="-0.25" x2="2.7" y2="-0.25" stroke="#e8956e" stroke-width="0.4" opacity="0.8"></line>
+              </g>
+              <g class="ce-temple-crossing">
+                <rect x="2.53" y="-4.76" width="9.52" height="9.52" fill="#b3b0a8" stroke="#38352e" stroke-width="0.6"></rect>
+                <polygon points="2.53,-4.76 7.29,0 12.05,-4.76" fill="#c86a3e" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="2.53,-4.76 7.29,0 2.53,4.76" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="2.53,4.76 7.29,0 12.05,4.76" fill="#733012" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="12.05,-4.76 7.29,0 12.05,4.76" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line class="ce-temple-spire-diagonal" x1="2.53" y1="-4.76" x2="12.05" y2="4.76" stroke="#52210d" stroke-width="0.65" stroke-linecap="round"></line>
+                <line class="ce-temple-spire-diagonal" x1="2.53" y1="4.76" x2="12.05" y2="-4.76" stroke="#52210d" stroke-width="0.65" stroke-linecap="round"></line>
+              </g>
+              <g class="ce-temple-westwork">
+                <polygon points="-28.89,0 -27,-3.64 -27,3.64" fill="#ba5d30" stroke="#422616" stroke-width="0.5"></polygon>
+                <line x1="-28.89" y1="0" x2="-27" y2="0" stroke="#52210d" stroke-width="0.65"></line>
+                <rect x="-27.2" y="-1.96" width="0.5" height="3.92" fill="#2b2721"></rect>
+                <rect x="-27" y="-12.88" width="8.1" height="7.84" fill="#b3b0a8" stroke="#38352e" stroke-width="0.6"></rect>
+                <rect x="-27.26" y="-13.14" width="0.86" height="0.86" fill="#9e9b93" stroke="#38352e" stroke-width="0.4"></rect>
+                <rect x="-19.5" y="-13.14" width="0.86" height="0.86" fill="#9e9b93" stroke="#38352e" stroke-width="0.4"></rect>
+                <polygon points="-27,-12.88 -22.95,-8.96 -18.9,-12.88" fill="#c86a3e" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-27,-12.88 -22.95,-8.96 -27,-5.04" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-18.9,-12.88 -22.95,-8.96 -18.9,-5.04" fill="#a34e25" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-27,-5.04 -22.95,-8.96 -18.9,-5.04" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line class="ce-temple-spire-diagonal" x1="-27" y1="-12.88" x2="-18.9" y2="-5.04" stroke="#52210d" stroke-width="0.6" stroke-linecap="round"></line>
+                <line class="ce-temple-spire-diagonal" x1="-27" y1="-5.04" x2="-18.9" y2="-12.88" stroke="#52210d" stroke-width="0.6" stroke-linecap="round"></line>
+                <rect x="-27" y="5.04" width="8.1" height="7.84" fill="#b3b0a8" stroke="#38352e" stroke-width="0.6"></rect>
+                <rect x="-27.26" y="12.28" width="0.86" height="0.86" fill="#9e9b93" stroke="#38352e" stroke-width="0.4"></rect>
+                <rect x="-19.5" y="12.28" width="0.86" height="0.86" fill="#9e9b93" stroke="#38352e" stroke-width="0.4"></rect>
+                <polygon points="-27,5.04 -22.95,8.96 -18.9,5.04" fill="#c86a3e" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-27,5.04 -22.95,8.96 -27,12.88" fill="#ba5d30" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-18.9,5.04 -22.95,8.96 -18.9,12.88" fill="#a34e25" stroke="#422616" stroke-width="0.4"></polygon>
+                <polygon points="-27,12.88 -22.95,8.96 -18.9,12.88" fill="#8c3e1a" stroke="#422616" stroke-width="0.4"></polygon>
+                <line class="ce-temple-spire-diagonal" x1="-27" y1="5.04" x2="-18.9" y2="12.88" stroke="#52210d" stroke-width="0.6" stroke-linecap="round"></line>
+                <line class="ce-temple-spire-diagonal" x1="-27" y1="12.88" x2="-18.9" y2="5.04" stroke="#52210d" stroke-width="0.6" stroke-linecap="round"></line>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">Basilica Cathedral（全長 54m / 全幅 28m）</strong>
+          <a class="asset-link" href="./basilica-cathedral.svg" target="_blank">📄 単体素材: basilica-cathedral.svg</a>
+          <ul>
+            <li><strong>大都市向け巨大建築:</strong> 身廊・側廊・翼廊・交差部尖塔・半円後陣</li>
+            <li><strong>荘厳なファサード:</strong> 双塔西正面、西ポルティコ、放射状小祭室</li>
+            <li><strong>寒村での不自然さの解消:</strong> 小規模集落（micro/tiny）ではこの過剰に立派な大聖堂から素朴な礼拝堂へ自動切り替え</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="feature-list">
+      <h3>小規模・寒村向け寺院および代替建造物の設計仕様</h3>
+      <div class="feature-grid">
+        <div class="feature-item">
+          <strong>1. 寒村（Hamlet）スケールへの完全適合</strong>
+          <span>City Editorの寒村生成（micro / tiny）では、人口数十〜数百人の集落にバシリカ式大聖堂が立つという違和感がありました。新設の「村の礼拝堂」は全長14〜16mの単身廊・内陣・小鐘架構成で、寒村のスケール感と完璧に合致。自動判定（`length < 24m`）により既存コードもそのまま寒村に最適な外観へと自動昇華します。</span>
+        </div>
+        <div class="feature-item">
+          <strong>2. 宗教・世界観に合わせた3つの代替様式</strong>
+          <span>キリスト教的一神教の村には<strong>「素朴な村の礼拝堂」</strong>、ケルト・ドルイド・古代精霊信仰の集落には<strong>「原始的環状列石」</strong>、北欧・森林文化圏の集落には<strong>「茅葺き木造祠」</strong>と、寒村の多様な文化背景に応じたモデルを完備しました。</span>
+        </div>
+        <div class="feature-item">
+          <strong>3. 屋根を持たない聖域「環状列石（Stone Circle）」</strong>
+          <span>神殿の代替物として、建物ではなく「自然の巨石と祭壇」による聖域を再現。不規則な多角形による10基の直立巨石、西側門柱石、上面にルーン太陽環が刻まれた中央祭壇石（ドルメン）を備え、山間部や未開拓の寒村に最適です。</span>
+        </div>
+        <div class="feature-item">
+          <strong>4. 聖なる火と木彫り装飾の「木造祠（Timber Shrine）」</strong>
+          <span>北欧のスタヴ教会やスラヴの木造社を想起させる急勾配の茅葺き大屋根と、棟木両端の動物の角・鳥を模した交差木彫り飾り。前庭には石組みの炉で赤く灯る聖火（Hearth Fire）が配置され、寒村の夜の温もりを演出します。</span>
+        </div>
+        <div class="feature-item">
+          <strong>5. City Editor の型定義と完全連携</strong>
+          <span>`CityElement` に `templeType?: "basilica" | "chapel" | "shrine" | "megalith"` を新設。マップ上の要素ごとに自由に変更でき、回転や拡大縮小、選択ハイライトにも完全対応しています。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 2: 船舶モデル比較（全艦種インライン表示） -->
+  <!-- ================================================================= -->
+  <div id="tab-ships" class="tab-content">
+    <div class="grid">
+
+      <!-- 1. 川荷船 (River Cargo Barge) -->
+      <div class="card highlight-green">
+        <h2>川荷船 (バージ) <span class="badge river">川下り専用</span></h2>
+        <div class="canvas-container water">
+          <svg viewBox="-5 -11 10 26" width="100%" height="100%">
+            <g class="ce-ship-shadow-group" opacity="0.8">
+              <path d="M -1.3,-8.9 C 1.2,-9.1 2.3,-7.5 2.6,-4.5 C 2.8,0 2.8,4.5 2.4,8.5 L -1.2,8.8 C -2.3,7.8 -2.7,4.5 -2.7,0 C -2.7,-4.8 -2.3,-8.0 -1.3,-8.9 Z" fill="rgba(18, 30, 38, 0.28)"></path>
+              <line x1="0.5" y1="8.2" x2="-0.5" y2="12.6" stroke="rgba(18, 30, 38, 0.22)" stroke-width="0.7" stroke-linecap="round"></line>
+            </g>
+            <path d="M -1.5,-8.8 L 1.5,-8.8 C 2.15,-8.5 2.4,-5.2 2.4,0 C 2.4,4.6 2.15,7.6 1.7,8.6 L -1.7,8.6 C -2.15,7.6 -2.4,4.6 -2.4,0 C -2.4,-5.2 -2.15,-8.5 -1.5,-8.8 Z" fill="#38291a" stroke="#20160d" stroke-width="0.35" class="ce-ship-hull-outer"></path>
+            <line x1="-1.6" y1="-8.8" x2="1.6" y2="-8.8" stroke="#1c130b" stroke-width="0.55" stroke-linecap="round"></line>
+            <path d="M -1.3,-8.5 L 1.3,-8.5 C 1.95,-8.2 2.15,-5.0 2.15,0 C 2.15,4.3 1.95,7.3 1.5,8.3 L -1.5,8.3 C -1.95,7.3 -2.15,4.3 -2.15,0 C -2.15,-5.0 -1.95,-8.2 -1.3,-8.5 Z" fill="#b8a788" stroke="#3d2e1e" stroke-width="0.25" class="ce-ship-deck"></path>
+            <line x1="-2.15" y1="0" x2="2.15" y2="0" stroke="#756143" stroke-width="0.18"></line>
+            <line x1="-2.0" y1="-4.5" x2="2.0" y2="-4.5" stroke="#756143" stroke-width="0.18"></line>
+            <line x1="-1.9" y1="4.5" x2="1.9" y2="4.5" stroke="#756143" stroke-width="0.18"></line>
+            <!-- 幌荷倉 -->
+            <rect x="-1.7" y="-2.5" width="3.4" height="6.2" rx="0.35" fill="#5e7054" stroke="#2c3826" stroke-width="0.25"></rect>
+            <!-- 荷縄ネット -->
+            <line x1="-1.7" y1="-1.5" x2="1.7" y2="-0.5" stroke="#3a4833" stroke-width="0.15"></line>
+            <line x1="-1.7" y1="0.5" x2="1.7" y2="1.5" stroke="#3a4833" stroke-width="0.15"></line>
+            <line x1="-1.7" y1="2.5" x2="1.7" y2="3.5" stroke="#3a4833" stroke-width="0.15"></line>
+            <line x1="1.7" y1="-1.5" x2="-1.7" y2="-0.5" stroke="#3a4833" stroke-width="0.15"></line>
+            <line x1="1.7" y1="0.5" x2="-1.7" y2="1.5" stroke="#3a4833" stroke-width="0.15"></line>
+            <line x1="1.7" y1="2.5" x2="-1.7" y2="3.5" stroke="#3a4833" stroke-width="0.15"></line>
+            <!-- 前部露出貨物（木箱・樽） -->
+            <rect x="-1.3" y="-6.8" width="1.2" height="1.2" rx="0.1" fill="#7d6342" stroke="#36291a" stroke-width="0.2"></rect>
+            <line x1="-1.3" y1="-6.8" x2="-0.1" y2="-5.6" stroke="#36291a" stroke-width="0.15"></line>
+            <circle cx="0.7" cy="-6.2" r="0.65" fill="#5c452e" stroke="#2b1f14" stroke-width="0.2"></circle>
+            <circle cx="0.7" cy="-6.2" r="0.4" fill="none" stroke="#2b1f14" stroke-width="0.15"></circle>
+            <!-- 船尾小屋（クディ） -->
+            <rect x="-1.4" y="4.8" width="2.8" height="2.6" rx="0.2" fill="#6e462a" stroke="#2e1a0e" stroke-width="0.25"></rect>
+            <line x1="0" y1="4.8" x2="0" y2="7.4" stroke="#4a2c17" stroke-width="0.4"></line>
+            <circle cx="-0.8" cy="5.4" r="0.22" fill="#1c1612"></circle>
+            <!-- スイープ大櫂 -->
+            <line x1="0.3" y1="7.2" x2="-0.6" y2="12.4" stroke="#48321e" stroke-width="0.55" stroke-linecap="round"></line>
+            <polygon points="-0.7,11.0 -0.4,12.5 -0.9,12.8 -1.2,11.3" fill="#614429" stroke="#2e1e12" stroke-width="0.15"></polygon>
+            <line x1="0.3" y1="7.2" x2="0.8" y2="5.8" stroke="#362415" stroke-width="0.35" stroke-linecap="round"></line>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 18m / 全幅 4.8m (平底・浅喫水)</strong>
+          <a class="asset-link" href="./river-barge.svg" target="_blank">📄 単体素材: river-barge.svg</a>
+          <ul>
+            <li><strong>平底舟形船体:</strong> 浅瀬・砂洲・急流を渡り、川岸へ直接荷揚げ可能</li>
+            <li><strong>露出貨物 & 防水幌:</strong> 木箱、樽、麻袋、材木束、荷縄ネット</li>
+            <li><strong>長大操舵スイープ:</strong> 船尾から突出する約4.5mの大型操舵櫂</li>
+            <li><strong>船尾木造小屋:</strong> 煙突・天窓付きの船頭寝所（クディ）</li>
+            <li><strong>河川荷役具:</strong> 渡し板、川底突き竿（プッシュポール）</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2. 小型船 スループ (Sloop) -->
+      <div class="card">
+        <h2>小型船 (スループ) <span class="badge">沿岸・港湾</span></h2>
+        <div class="canvas-container water">
+          <svg viewBox="-6 -12 12 24" width="100%" height="100%">
+            <g class="ce-ship ce-ship--small" transform="translate(0 0) rotate(0) scale(1.0000 1.0000)">
+              <ellipse cx="0.3" cy="0.4" rx="2.7" ry="8.4" class="ce-ship-shadow" fill="rgba(18, 30, 38, 0.32)"></ellipse>
+              <line x1="0" y1="-7.0" x2="0" y2="-11.2" stroke="#423223" stroke-width="0.45" stroke-linecap="round"></line>
+              <path d="M 0,-8 C 2.1,-7.6 2.65,-3 2.6,0 C 2.55,3.8 2.25,6.8 1.8,7.9 L -1.8,7.9 C -2.25,6.8 -2.55,3.8 -2.6,0 C -2.65,-3 -2.1,-7.6 0,-8 Z" class="ce-ship-hull-outer" fill="#382c20" stroke="#221a13" stroke-width="0.35"></path>
+              <path d="M 0,-7.3 C 1.85,-6.9 2.2,-2.7 2.15,0 C 2.1,3.5 1.85,6.2 1.45,7.3 L -1.45,7.3 C -1.85,6.2 -2.1,3.5 -2.15,0 C -2.2,-2.7 -1.85,-6.9 0,-7.3 Z" class="ce-ship-deck" fill="#c8b99c" stroke="#423527" stroke-width="0.2"></path>
+              <path d="M 0,-6.5 L 0,6.8 M -0.8,-5.5 L -0.8,6.8 M 0.8,-5.5 L 0.8,6.8" stroke="#b0a286" stroke-width="0.15"></path>
+              <path d="M 1.4,-6.2 L 2.3,-6.9 M 1.9,-7.2 L 1.8,-5.9" class="ce-ship-anchor" stroke="#282a2d" stroke-width="0.25" fill="none"></path>
+              <rect x="-0.85" y="0.3" width="1.7" height="1.8" rx="0.15" class="ce-ship-hatch" fill="#5a4834" stroke="#31261a" stroke-width="0.25"></rect>
+              <line x1="-0.85" y1="1.2" x2="0.85" y2="1.2" class="ce-ship-grating" stroke="#31261a" stroke-width="0.2"></line>
+              <rect x="-0.65" y="3.8" width="1.3" height="1.2" rx="0.15" class="ce-ship-deck-step" fill="#a8987b" stroke="#382a1d" stroke-width="0.2"></rect>
+              <rect x="-0.45" y="4.0" width="0.9" height="0.8" fill="#382a1d"></rect>
+              <path d="M 0,-2.5 L -2.2,-1.8 M 0,-2.5 L -2.2,-3.2 M 0,-2.5 L 2.2,-1.8 M 0,-2.5 L 2.2,-3.2" class="ce-ship-rigging" stroke="#2b2218" stroke-width="0.2" opacity="0.75"></path>
+              <circle cx="0" cy="-2.5" r="0.65" class="ce-ship-bulwark" fill="#48392a" stroke="#261c12" stroke-width="0.2"></circle>
+              <circle cx="0" cy="-2.5" r="0.35" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="0" y1="-2.5" x2="0.3" y2="8.5" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.45" stroke-linecap="round"></line>
+              <path d="M -0.1,-2.3 Q 0.35,3 0.2,8.3 L 0.5,8.3 Q 0.65,3 0.15,-2.3 Z" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></path>
+              <line x1="0" y1="7.7" x2="0" y2="6.2" stroke="#2a1f15" stroke-width="0.3" stroke-linecap="round"></line>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 16m / 全幅 5.0m</strong>
+          <a class="asset-link" href="./sloop.svg" target="_blank">📄 単体素材: sloop.svg</a>
+          <ul>
+            <li>単一マスト、ブーム、バウスプリット</li>
+            <li>小型ハッチ・格子、船尾ティラー舵</li>
+            <li>沿岸交易・漁業・水先案内に適した俊敏な小型帆船</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. 中型船 キャラベル (Caravel) -->
+      <div class="card">
+        <h2>中型船 (キャラベル) <span class="badge">外洋航海</span></h2>
+        <div class="canvas-container water">
+          <svg viewBox="-8.75 -17.5 17.5 35" width="100%" height="100%">
+            <g class="ce-ship ce-ship--medium" transform="translate(0 0) rotate(0) scale(1.0000 1.0000)">
+              <ellipse cx="0.5" cy="0.6" rx="4.1" ry="13.0" class="ce-ship-shadow" fill="rgba(18, 30, 38, 0.32)"></ellipse>
+              <line x1="0" y1="-11.5" x2="0" y2="-17.5" stroke="#423223" stroke-width="0.7" stroke-linecap="round"></line>
+              <path d="M 0,-12.5 C 3.2,-11.6 3.9,-5 3.85,0 C 3.8,5.2 3.6,9.8 2.45,12.5 L -2.45,12.5 C -3.6,9.8 -3.8,5.2 -3.85,0 C -3.9,-5 -3.2,-11.6 0,-12.5 Z" class="ce-ship-hull-outer" fill="#382c20" stroke="#221a13" stroke-width="0.4"></path>
+              <path d="M 0,-11.8 C 2.7,-10.9 3.3,-4.5 3.25,0 C 3.2,4.8 3.0,9.2 2.05,11.8 L -2.05,11.8 C -3.0,9.2 -3.2,4.8 -3.25,0 C -3.3,-4.5 -2.7,-10.9 0,-11.8 Z" class="ce-ship-deck" fill="#c8b99c" stroke="#423527" stroke-width="0.25"></path>
+              <path d="M 0,-11.8 C 2.4,-11 2.85,-9.5 2.95,-8.0 L -2.95,-8.0 C -2.85,-9.5 -2.4,-11 0,-11.8 Z" class="ce-ship-deck-step" fill="#b2a284" stroke="#382a1d" stroke-width="0.3"></path>
+              <line x1="-2.95" y1="-8.0" x2="2.95" y2="-8.0" stroke="#2a1f15" stroke-width="0.4"></line>
+              <path d="M -3.15,3.5 L 3.15,3.5 C 3.0,6.5 2.7,9.5 2.05,11.8 L -2.05,11.8 C -2.7,9.5 -3.0,6.5 -3.15,3.5 Z" class="ce-ship-deck-step" fill="#ab9b7e" stroke="#382a1d" stroke-width="0.3"></path>
+              <line x1="-3.15" y1="3.5" x2="3.15" y2="3.5" stroke="#2a1f15" stroke-width="0.45"></line>
+              <circle cx="0" cy="-9.6" r="0.6" fill="#4a3927" stroke="#251b11" stroke-width="0.2"></circle>
+              <path d="M -0.8,-9.6 L 0.8,-9.6 M 0,-10.4 L 0,-8.8" stroke="#251b11" stroke-width="0.2"></path>
+              <path d="M 0,-5.8 C 0.85,-5.5 0.9,-4 0.85,-2.2 C 0.8,-1.8 0.5,-1.8 0,-1.8 C -0.5,-1.8 -0.8,-1.8 -0.85,-2.2 C -0.9,-4 -0.85,-5.5 0,-5.8 Z" class="ce-ship-boat" fill="#b8a88a" stroke="#382a1d" stroke-width="0.25"></path>
+              <line x1="-0.7" y1="-3.8" x2="0.7" y2="-3.8" stroke="#382a1d" stroke-width="0.2"></line>
+              <rect x="-1.2" y="-0.2" width="2.4" height="2.2" rx="0.2" class="ce-ship-hatch" fill="#5a4834" stroke="#31261a" stroke-width="0.25"></rect>
+              <path d="M -1.2,0.5 L 1.2,0.5 M -1.2,1.2 L 1.2,1.2 M -0.4,-0.2 L -0.4,2.0 M 0.4,-0.2 L 0.4,2.0" class="ce-ship-grating" stroke="#31261a" stroke-width="0.2"></path>
+              <rect x="-0.8" y="9.8" width="1.6" height="1.3" rx="0.15" fill="#503f2e" stroke="#261a10" stroke-width="0.2"></rect>
+              <path d="M 0,-7.5 L -2.8,-6.8 M 0,-7.5 L -2.8,-8.2 M 0,-7.5 L 2.8,-6.8 M 0,-7.5 L 2.8,-8.2 M 0,-1.0 L -3.2,-0.2 M 0,-1.0 L -3.2,-1.8 M 0,-1.0 L 3.2,-0.2 M 0,-1.0 L 3.2,-1.8 M 0,7.5 L -2.5,7.0 M 0,7.5 L 2.5,7.0" class="ce-ship-rigging" stroke="#2b2218" stroke-width="0.2" opacity="0.75"></path>
+              <circle cx="0" cy="-7.5" r="0.45" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-3.2" y1="-7.5" x2="3.2" y2="-7.5" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.5" stroke-linecap="round"></line>
+              <rect x="-3.1" y="-7.8" width="6.2" height="0.6" rx="0.2" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></rect>
+              <circle cx="0" cy="-1.0" r="1.1" class="ce-ship-crowsnest" fill="#38281a" stroke="#1e150d" stroke-width="0.25"></circle>
+              <circle cx="0" cy="-1.0" r="0.55" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-4.6" y1="-1.0" x2="4.6" y2="-1.0" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.6" stroke-linecap="round"></line>
+              <rect x="-4.5" y="-1.35" width="9.0" height="0.7" rx="0.25" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></rect>
+              <circle cx="0" cy="7.5" r="0.4" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-2.6" y1="4.2" x2="2.4" y2="10.8" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.45" stroke-linecap="round"></line>
+              <path d="M -2.5,4.3 L 2.3,10.7 L 2.6,10.5 L -2.2,4.1 Z" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.15"></path>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 25m / 全幅 7.5m</strong>
+          <a class="asset-link" href="./caravel.svg" target="_blank">📄 単体素材: caravel.svg</a>
+          <ul>
+            <li>3本マスト（フォア・メイン・ミズン）、ラティーンヤード</li>
+            <li>積載テンダーボート、キャプスタン、船尾クォーターデッキ</li>
+            <li>大航海時代を切り拓いた遠洋探検・中距離交易の主力船</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 4. 大型船 ガレオン (Galleon) -->
+      <div class="card">
+        <h2>大型船 (ガレオン) <span class="badge">遠洋主戦</span></h2>
+        <div class="canvas-container water">
+          <svg viewBox="-12.75 -28 25.5 56" width="100%" height="100%">
+            <g class="ce-ship ce-ship--large" transform="translate(0 0) rotate(0) scale(1.0000 1.0000)">
+              <ellipse cx="0.8" cy="1.0" rx="6.3" ry="22.2" class="ce-ship-shadow" fill="rgba(18, 30, 38, 0.32)"></ellipse>
+              <path d="M 0,-21.2 L 1.2,-17.0 L -1.2,-17.0 Z" fill="#3a2d21" stroke="#251d15" stroke-width="0.35"></path>
+              <line x1="0" y1="-16.5" x2="0" y2="-27.2" stroke="#423223" stroke-width="0.9" stroke-linecap="round"></line>
+              <line x1="-3.2" y1="-23.8" x2="3.2" y2="-23.8" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.45" stroke-linecap="round"></line>
+              <path d="M 0,-17 C 4.6,-16 5.8,-8 5.75,0 C 5.7,7 5.2,14 4.0,18.5 C 3.6,20.2 2.8,21 0,21 C -2.8,21 -3.6,20.2 -4.0,18.5 C -5.2,14 -5.7,7 -5.75,0 C -5.8,-8 -4.6,-16 0,-17 Z" class="ce-ship-hull-outer" fill="#382c20" stroke="#1f1811" stroke-width="0.45"></path>
+              <path d="M 0,-16.2 C 4.0,-15.2 5.0,-7.5 4.95,0 C 4.9,6.5 4.5,13 3.4,17.5 C 3.0,19.2 2.3,19.8 0,19.8 C -2.3,19.8 -3.0,19.2 -3.4,17.5 C -4.5,13 -4.9,6.5 -4.95,0 C -5.0,-7.5 -4.0,-15.2 0,-16.2 Z" class="ce-ship-deck" fill="#c8b99c" stroke="#423527" stroke-width="0.25"></path>
+              <path d="M 0,-16.2 C 3.8,-15.2 4.65,-12.5 4.65,-9.5 L -4.65,-9.5 C -4.65,-12.5 -3.8,-15.2 0,-16.2 Z" class="ce-ship-deck-step" fill="#b2a284" stroke="#382a1d" stroke-width="0.3"></path>
+              <line x1="-4.65" y1="-9.5" x2="4.65" y2="-9.5" stroke="#2a1f15" stroke-width="0.5"></line>
+              <path d="M -4.8,4.8 L 4.8,4.8 C 4.5,8.2 4.15,11.8 3.7,14.2 L -3.7,14.2 C -4.15,11.8 -4.5,8.2 -4.8,4.8 Z" class="ce-ship-deck-step" fill="#ab9b7e" stroke="#382a1d" stroke-width="0.3"></path>
+              <line x1="-4.8" y1="4.8" x2="4.8" y2="4.8" stroke="#2a1f15" stroke-width="0.5"></line>
+              <path d="M -3.7,14.2 L 3.7,14.2 C 3.3,16.8 2.8,18.8 1.85,20.0 L -1.85,20.0 C -2.8,18.8 -3.3,16.8 -3.7,14.2 Z" class="ce-ship-deck-step" fill="#9e8e72" stroke="#382a1d" stroke-width="0.3"></path>
+              <line x1="-3.7" y1="14.2" x2="3.7" y2="14.2" stroke="#2a1f15" stroke-width="0.5"></line>
+              <path d="M 3.8,-14.5 L 4.9,-15.5 M 4.3,-16.0 L 4.3,-14.2 M -3.8,-14.5 L -4.9,-15.5 M -4.3,-16.0 L -4.3,-14.2" stroke="#282a2d" stroke-width="0.3" fill="none"></path>
+              <path d="M 0,-9.0 C 1.2,-8.6 1.25,-6.2 1.2,-3.6 C 1.15,-2.2 0.7,-2.0 0,-2.0 C -0.7,-2.0 -1.15,-2.2 -1.2,-3.6 C -1.25,-6.2 -1.2,-8.6 0,-9.0 Z" class="ce-ship-boat" fill="#b8a88a" stroke="#382a1d" stroke-width="0.3"></path>
+              <path d="M -0.9,-7.2 L 0.9,-7.2 M -1.0,-5.4 L 1.0,-5.4 M -0.95,-3.6 L 0.95,-3.6" stroke="#382a1d" stroke-width="0.2"></path>
+              <rect x="-1.8" y="0.4" width="3.6" height="2.8" rx="0.25" class="ce-ship-hatch" fill="#5a4834" stroke="#31261a" stroke-width="0.3"></rect>
+              <path d="M -1.8,1.3 L 1.8,1.3 M -1.8,2.2 L 1.8,2.2 M -0.9,0.4 L -0.9,3.2 M 0,0.4 L 0,3.2 M 0.9,0.4 L 0.9,3.2" class="ce-ship-grating" stroke="#31261a" stroke-width="0.2"></path>
+              <circle cx="0" cy="20.6" r="0.55" class="ce-ship-lantern" fill="#c49a45" stroke="#523e16" stroke-width="0.2"></circle>
+              <circle cx="-2.3" cy="19.8" r="0.45" class="ce-ship-lantern" fill="#c49a45" stroke="#523e16" stroke-width="0.2"></circle>
+              <circle cx="2.3" cy="19.8" r="0.45" class="ce-ship-lantern" fill="#c49a45" stroke="#523e16" stroke-width="0.2"></circle>
+              <path d="M 0,-12.0 L -4.4,-11.0 M 0,-12.0 L -4.4,-13.0 M 0,-12.0 L 4.4,-11.0 M 0,-12.0 L 4.4,-13.0 M 0,-1.8 L -4.8,-0.8 M 0,-1.8 L -4.8,-2.8 M 0,-1.8 L 4.8,-0.8 M 0,-1.8 L 4.8,-2.8 M 0,9.5 L -3.8,9.0 M 0,9.5 L 3.8,9.0 M 0,17.2 L -2.5,17.0 M 0,17.2 L 2.5,17.0" class="ce-ship-rigging" stroke="#2b2218" stroke-width="0.2" opacity="0.75"></path>
+              <circle cx="0" cy="-12.0" r="1.1" class="ce-ship-crowsnest" fill="#38281a" stroke="#1e150d" stroke-width="0.25"></circle>
+              <circle cx="0" cy="-12.0" r="0.55" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-6.2" y1="-12.0" x2="6.2" y2="-12.0" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.6" stroke-linecap="round"></line>
+              <rect x="-6.0" y="-12.4" width="12.0" height="0.8" rx="0.3" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></rect>
+              <line x1="-4.2" y1="-13.1" x2="4.2" y2="-13.1" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.45" stroke-linecap="round"></line>
+              <circle cx="0" cy="-1.8" r="1.4" class="ce-ship-crowsnest" fill="#38281a" stroke="#1e150d" stroke-width="0.3"></circle>
+              <circle cx="0" cy="-1.8" r="0.7" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-7.8" y1="-1.8" x2="7.8" y2="-1.8" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.7" stroke-linecap="round"></line>
+              <rect x="-7.6" y="-2.25" width="15.2" height="0.9" rx="0.3" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></rect>
+              <line x1="-5.4" y1="-3.1" x2="5.4" y2="-3.1" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.5" stroke-linecap="round"></line>
+              <circle cx="0" cy="9.5" r="0.9" class="ce-ship-crowsnest" fill="#38281a" stroke="#1e150d" stroke-width="0.25"></circle>
+              <circle cx="0" cy="9.5" r="0.5" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-4.2" y1="4.8" x2="3.8" y2="14.2" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.55" stroke-linecap="round"></line>
+              <path d="M -4.1,4.9 L 3.7,14.1 L 4.0,13.8 L -3.8,4.6 Z" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></path>
+              <circle cx="0" cy="17.2" r="0.4" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle>
+              <line x1="-2.2" y1="14.5" x2="2.2" y2="19.8" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.4" stroke-linecap="round"></line>
+            </g>
+          </svg>
+        </div>
+        <div class="desc">
+          <strong class="title">主要諸元: 全長 42m / 全幅 11.5m</strong>
+          <a class="asset-link" href="./galleon.svg" target="_blank">📄 単体素材: galleon.svg</a>
+          <ul>
+            <li>ビークヘッド、多段船尾楼（ポープデッキ）</li>
+            <li>4本マスト・多段ヤード、大型ピナス長艇、船尾3基ランタン</li>
+            <li>重武装と大容量積載力を誇る遠洋艦隊・大都市港湾の覇者</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      if (tabId === 'temples') {
+        document.querySelector('.tab-btn:first-child').classList.add('active');
+        document.getElementById('tab-temples').classList.add('active');
+      } else {
+        document.querySelector('.tab-btn:last-child').classList.add('active');
+        document.getElementById('tab-ships').classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>

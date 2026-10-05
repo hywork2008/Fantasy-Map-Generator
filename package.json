@@ -33,10 +33,12 @@
     "convert-global": "tsx scripts/convert-global.ts",
     "perf:webgl-layers": "tsx scripts/benchmarkWebglLayers.ts",
     "perf:advance-year": "tsx scripts/benchmarkAdvanceYear.ts",
+    "calibrate:land-connections": "node --import tsx scripts/calibrateLandConnections.ts",
     "calibrate:fast-advance": "tsx scripts/calibrateFastAdvance.ts",
     "diagnose:treasury": "tsx scripts/diagnoseTreasuryDecline.ts",
     "diagnose:wealth": "tsx scripts/diagnoseCharacterWealth.ts",
     "extract:fmg": "tsx scripts/extractFmgArchive.ts",
+    "housing:compare": "node scripts/compareBurgHousing.mjs",
     "races:import": "node --import tsx scripts/races-csv.ts import",
     "races:export": "node --import tsx scripts/races-csv.ts export",
     "races:check": "node --import tsx scripts/races-csv.ts check",
@@ -46,7 +48,10 @@
     "races:relations:export": "node --import tsx scripts/races-csv.ts export-relations",
     "build:characters": "FMG_EXTENSION=characters vite build -c vite.extension.config.ts",
     "prebuild:characters": "npm run races:import",
-    "test:race-bundles": "node --import tsx scripts/check-race-bundles.ts"
+    "test:race-bundles": "node --import tsx scripts/check-race-bundles.ts",
+    "housing:export": "node scripts/housingBatch.mjs export",
+    "housing:batch": "node scripts/housingBatch.mjs compare",
+    "ce:audit": "node --import tsx scripts/auditCityGeneration.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -12 12 24" width="240" height="480">
+  <style>
+    .ce-ship { cursor: pointer; }
+    .ce-ship-shadow { fill: rgba(18, 30, 38, 0.32); }
+    .ce-ship-hull-outer { fill: #382c20; stroke: #221a13; }
+    .ce-ship-deck { fill: #c8b99c; stroke: #423527; }
+    .ce-ship-deck-step { fill: #ab9b7e; stroke: #382a1d; }
+    .ce-ship-hatch { fill: #5a4834; stroke: #31261a; }
+    .ce-ship-grating { stroke: #31261a; }
+    .ce-ship-mast { fill: #5a4531; stroke: #22170e; }
+    .ce-ship-crowsnest { fill: #38281a; stroke: #1e150d; }
+    .ce-ship-yard { stroke: #3e3020; }
+    .ce-ship-furled-sail { fill: #e8e0ce; stroke: #7d7260; }
+    .ce-ship-rigging { stroke: #2b2218; opacity: 0.75; }
+    .ce-ship-boat { fill: #b8a88a; stroke: #382a1d; }
+    .ce-ship-lantern { fill: #c49a45; stroke: #523e16; }
+
+  </style>
+  <g class="ce-ship ce-ship--small" transform="translate(0 0) rotate(0) scale(1.0000 1.0000)" data-ship-type="small" data-ship-length="16" data-element="export-small" id="export-small"><ellipse cx="0.3" cy="0.4" rx="2.7" ry="8.4" class="ce-ship-shadow" fill="rgba(18, 30, 38, 0.32)"></ellipse><line x1="0" y1="-7.0" x2="0" y2="-11.2" stroke="#423223" stroke-width="0.45" stroke-linecap="round"></line><path d="M 0,-8 C 2.1,-7.6 2.65,-3 2.6,0 C 2.55,3.8 2.25,6.8 1.8,7.9 L -1.8,7.9 C -2.25,6.8 -2.55,3.8 -2.6,0 C -2.65,-3 -2.1,-7.6 0,-8 Z" class="ce-ship-hull-outer" fill="#382c20" stroke="#221a13" stroke-width="0.35"></path><path d="M 0,-7.3 C 1.85,-6.9 2.2,-2.7 2.15,0 C 2.1,3.5 1.85,6.2 1.45,7.3 L -1.45,7.3 C -1.85,6.2 -2.1,3.5 -2.15,0 C -2.2,-2.7 -1.85,-6.9 0,-7.3 Z" class="ce-ship-deck" fill="#c8b99c" stroke="#423527" stroke-width="0.2"></path><path d="M 0,-6.5 L 0,6.8 M -0.8,-5.5 L -0.8,6.8 M 0.8,-5.5 L 0.8,6.8" stroke="#b0a286" stroke-width="0.15"></path><path d="M 1.4,-6.2 L 2.3,-6.9 M 1.9,-7.2 L 1.8,-5.9" class="ce-ship-anchor" stroke="#282a2d" stroke-width="0.25" fill="none"></path><rect x="-0.85" y="0.3" width="1.7" height="1.8" rx="0.15" class="ce-ship-hatch" fill="#5a4834" stroke="#31261a" stroke-width="0.25"></rect><line x1="-0.85" y1="1.2" x2="0.85" y2="1.2" class="ce-ship-grating" stroke="#31261a" stroke-width="0.2"></line><rect x="-0.65" y="3.8" width="1.3" height="1.2" rx="0.15" class="ce-ship-deck-step" fill="#a8987b" stroke="#382a1d" stroke-width="0.2"></rect><rect x="-0.45" y="4.0" width="0.9" height="0.8" fill="#382a1d"></rect><path d="M 0,-2.5 L -2.2,-1.8 M 0,-2.5 L -2.2,-3.2 M 0,-2.5 L 2.2,-1.8 M 0,-2.5 L 2.2,-3.2" class="ce-ship-rigging" stroke="#2b2218" stroke-width="0.2" opacity="0.75"></path><circle cx="0" cy="-2.5" r="0.65" class="ce-ship-bulwark" fill="#48392a" stroke="#261c12" stroke-width="0.2"></circle><circle cx="0" cy="-2.5" r="0.35" class="ce-ship-mast" fill="#5a4531" stroke="#22170e" stroke-width="0.2"></circle><line x1="0" y1="-2.5" x2="0.3" y2="8.5" class="ce-ship-yard" stroke="#3e3020" stroke-width="0.45" stroke-linecap="round"></line><path d="M -0.1,-2.3 Q 0.35,3 0.2,8.3 L 0.5,8.3 Q 0.65,3 0.15,-2.3 Z" class="ce-ship-furled-sail" fill="#e8e0ce" stroke="#7d7260" stroke-width="0.2"></path><line x1="0" y1="7.7" x2="0" y2="6.2" stroke="#2a1f15" stroke-width="0.3" stroke-linecap="round"></line></g>
+</svg>

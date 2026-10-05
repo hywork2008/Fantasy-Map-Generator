@@ -13,6 +13,7 @@ import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
 import { IconButton } from "../components/IconButton";
+import { LandConnectionAssessmentReport } from "../components/LandConnectionAssessmentReport";
 import { SortableHeader } from "../components/tables/SortableHeader";
 import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
@@ -186,6 +187,7 @@ export const RoutesOverviewDialog: React.FC = () => {
       className="fmg-dialog--table"
     >
       <div id="routesOverviewContainer">
+        <LandConnectionAssessmentReport />
         <div ref={parentRef} id="routesBody" className="table">
           <table className="fmg-table">
             <thead>

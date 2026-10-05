@@ -192,3 +192,46 @@ describe("river placement sharing", () => {
     });
   }
 });
+
+describe("mandatory local site bounds", () => {
+  function descriptor(bounds?: { minX: number; minY: number; maxX: number; maxY: number }) {
+    return {
+      ...sample,
+      frame: {
+        ...sample.frame,
+        extentMeters: 1500,
+        cityRadiusMeters: 80,
+        ...(bounds ? { requiredBounds: bounds } : {})
+      }
+    };
+  }
+  it("retains distant near-bank terrain without shifting origin or enlarging town radius", () => {
+    const d = descriptor({ minX: -700, minY: -20, maxX: -600, maxY: 40 });
+    const share = shareFromDescriptor(d);
+    expect(share.descriptor!.frame).toEqual(d.frame);
+    expect(share.size).toBe("small");
+    expect(share.patchParams?.nPatches).toBe(6);
+    expect(share.measureBlockSize).toBe(true);
+    expect(decodeShare(encodeShare(share))!.descriptor!.frame).toEqual(d.frame);
+  });
+  it("still fits a hamlet when all mandatory points fit the smaller frame", () => {
+    const d = descriptor({ minX: -10, minY: -10, maxX: 10, maxY: 10 });
+    const fitted = shareFromDescriptor(d).descriptor!;
+    expect(fitted.frame.extentMeters).toBeLessThan(1500);
+    expect(fitted.frame.requiredBounds).toEqual(d.frame.requiredBounds);
+    expect(fitted.frame.cityRadiusMeters).toBe(80);
+  });
+  it("rejects inverted, nonfinite, overflowing or out-of-frame bounds", () => {
+    for (const bounds of [
+      null,
+      { minX: 2, minY: 0, maxX: 1, maxY: 0 },
+      { minX: -800, minY: 0, maxX: 0, maxY: 0 },
+      { minX: 0, minY: 0, maxX: 1e308, maxY: 0 },
+      { minX: 0, minY: 0, maxX: Infinity, maxY: 0 }
+    ]) {
+      const d = descriptor();
+      d.frame.requiredBounds = bounds;
+      expect(parseDescriptor(JSON.stringify(d))).toBeNull();
+    }
+  });
+});

@@ -2,6 +2,7 @@ import i18n from "../../i18n";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { historicLandmarkPrototypes } from "../assets/catalog";
+import { cityFixedApproachProvider } from "../core/automaticFixedApproaches";
 import {
   createCastleOnFace,
   deleteCastle,
@@ -15,6 +16,7 @@ import {
   createGridDocument,
   DEFAULT_CITY_SIZE,
   DEFAULT_GRID_KIND,
+  descriptorFrameGridOptions,
   type GridKind
 } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
@@ -40,6 +42,7 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import { type FixedApproachProvider, restoreFixedCrossingApproaches } from "../core/fixedApproachAdoption";
 import { reservedCastleFaces, validateFortifications } from "../core/fortifications";
 import {
   approachBeyondLabel,
@@ -159,6 +162,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
@@ -243,12 +247,26 @@ interface FloatingWindow {
   content: HTMLDivElement;
 }
 
-export function mountCityEditor(root: HTMLElement): void {
+export interface CityEditorOptions {
+  /** Complete current water/support/passage contract; retained only in this editor session. */
+  fixedApproachProvider?: FixedApproachProvider;
+}
+
+export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
+  const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
+  function documentForOutput(current: CityDocument): CityDocument {
+    if (!fixedApproachProvider || current.fixedCrossingApproaches === undefined) return current;
+    const checked = restoreFixedCrossingApproaches(current, fixedApproachProvider);
+    // Discard any previous object authorization when the current contract fails.
+    return "document" in checked ? checked.document : clone(current);
+  }
   let gridSeed = randomSeed();
   let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND, seed: gridSeed });
   let gridKind: GridKind = DEFAULT_GRID_KIND;
+  /** Fitted hamlet import: the scale bar's cell length follows the mesh, not 50 m. */
+  let measureTownCells = false;
   let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
-  let history = new DocumentHistory(documentState);
+  let history = new DocumentHistory(documentState, "Initial state", undefined, fixedApproachProvider);
   // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
   // of `documentState` so it is never cloned into a history snapshot or an
   // undo/redo step; it is re-attached only for export and passed to the
@@ -521,14 +539,23 @@ export function mountCityEditor(root: HTMLElement): void {
     void file.text().then(source => {
       try {
         const asset = JSON.parse(source) as LandmarkAsset;
-        const trial: CityDocument = { ...documentState, version: 3, landmarkAssets: [asset], landmarks: [] };
+        const trial: CityDocument = {
+          ...documentState,
+          version: documentState.sceneRegions ? 4 : 3,
+          landmarkAssets: [asset],
+          landmarks: []
+        };
         if (validateLandmarks(trial).length) throw new Error("Invalid asset");
         const already = (documentState.landmarkAssets ?? []).some(
           item => item.id === asset.id && item.revision === asset.revision
         );
         if (!already)
           commit(
-            { ...documentState, version: 3, landmarkAssets: [...(documentState.landmarkAssets ?? []), asset] },
+            {
+              ...documentState,
+              version: documentState.sceneRegions ? 4 : 3,
+              landmarkAssets: [...(documentState.landmarkAssets ?? []), asset]
+            },
             `Import ${asset.name}`
           );
         landmarkAssetId = `${asset.id}@${asset.revision}`;
@@ -652,9 +679,10 @@ export function mountCityEditor(root: HTMLElement): void {
       seed: gridSeed,
       hexSizeMeters,
       patchParams: { ...gridEvoParams },
-      ...importedFrame()
+      ...importedFrame(),
+      measureBlockSize: measureTownCells
     });
-    history = new DocumentHistory(documentState, "New grid");
+    history = new DocumentHistory(documentState, "New grid", undefined, fixedApproachProvider);
     generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
@@ -690,7 +718,7 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("失敗時点のSVGをエクスポートしました");
       return;
     }
-    exportCitySvg(referenceImage ? { ...documentState, referenceImage } : documentState);
+    exportCitySvg(documentForOutput(referenceImage ? { ...documentState, referenceImage } : documentState));
     showNotice("SVG exported");
   });
   const importButton = makeIconButton("📤", "Import city map or SVG reference", () => void importDocument());
@@ -776,6 +804,9 @@ export function mountCityEditor(root: HTMLElement): void {
   //     parameter slider rebuilds the preview live and lands on the final
   //     stage — the same result as the "Preview grid evolution" button. ---
   const gridParamLabels: HTMLLabelElement[] = [];
+  const gridParamControls: Partial<
+    Record<"nPatches" | "relaxCount" | "relaxPasses", { slider: HTMLInputElement; readout: HTMLSpanElement }>
+  > = {};
   for (const { key, caption, min, max } of [
     { key: "nPatches", caption: "Patches (nPatches)", min: 6, max: 48 },
     { key: "relaxCount", caption: "Relax K (centre sites)", min: 0, max: 200 },
@@ -790,8 +821,17 @@ export function mountCityEditor(root: HTMLElement): void {
       readout.textContent = slider.value;
       runGridEvo(); // live — same output as the Preview button (~25 ms)
     });
+    gridParamControls[key] = { slider, readout };
     gridParamLabels.push(label(caption, control));
   }
+  const syncGridParamControls = (): void => {
+    for (const key of ["nPatches", "relaxCount", "relaxPasses"] as const) {
+      const control = gridParamControls[key];
+      if (!control) continue;
+      control.slider.value = String(gridEvoParams[key]);
+      control.readout.textContent = control.slider.value;
+    }
+  };
   const gridEvoBuildButton = makeButton("▶ Preview grid evolution", () => runGridEvo());
   const gridEvoReseedButton = makeIconButton("🎲", "New scatter seed", () => {
     gridEvoSeed = randomSeed();
@@ -970,9 +1010,11 @@ export function mountCityEditor(root: HTMLElement): void {
     seaWallSelect.appendChild(option);
   }
   seaWallSelect.value = generateSettings.config.wall.coast;
-  seaWallSelect.title = "海に面した城壁。1箇所開放は港の前だけ壁を欠きます。";
+  seaWallSelect.title =
+    "首都・城塞とは独立した海側の防備。海からの襲撃に備える場合は全面あり。1箇所開放は港の前だけ壁を欠きます。";
   seaWallSelect.addEventListener("change", () => {
     generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
+    completeResult = null;
   });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
@@ -1180,6 +1222,8 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   });
 
+  const coreLayerInput = checkbox(true, () => redrawMap());
+  const regionalLayerInput = checkbox(true, () => redrawMap());
   const renderQualitySelect = select(["auto", "detailed", "light", "minimal"], "auto");
   renderQualitySelect.className = "ce-render-quality";
   renderQualitySelect.setAttribute("aria-label", "描画品質");
@@ -1278,7 +1322,6 @@ export function mountCityEditor(root: HTMLElement): void {
     label("都市形態", layoutSelect),
     label("建物生成", buildingPatternSelect),
     label("Coast", coastSelect),
-    label("海側の城壁", seaWallSelect),
     label("Rivers", riversSelect),
     label("河川の位置", riverPlacementSelect),
     toggleLabel("Relief (hilltop)", reliefInput),
@@ -1307,9 +1350,12 @@ export function mountCityEditor(root: HTMLElement): void {
     meshToggleRow,
     label("描画品質", renderQualitySelect),
     renderQualityHelp,
+    toggleLabel("中心部を表示", coreLayerInput),
+    toggleLabel("FMG郊外を表示", regionalLayerInput),
     divider(),
     importedBox,
     synthControls,
+    label("海側の城壁", seaWallSelect),
     castleControls,
     moatControls,
     label("城壁内の市街地面積（%）", walledShareInput),
@@ -1347,6 +1393,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.button !== 0) return;
     const point = localPoint(event);
+    if (documentState.sceneRegions && !pointInPolygon(point, documentState.sceneRegions.coreBoundary)) return;
     if (tool === "wardWall") {
       event.preventDefault();
       circularWallStroke = {
@@ -1787,7 +1834,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // Cell-only painting patches its faces live. Edge erasing changes route
     // groups, so it needs one full redraw once the stroke is complete.
     if (wasWardPainting) {
-      if (edgePaintChanged) refresh();
+      if (edgePaintChanged || documentState.fixedCrossingApproaches !== undefined) refresh();
       else refreshUiOnly();
     } else if (wasVertexDragging || wasJunctionPainting || circle || stroke || draggedRoute) refresh();
   };
@@ -1804,6 +1851,12 @@ export function mountCityEditor(root: HTMLElement): void {
     true
   );
   map.addEventListener("click", event => {
+    if (
+      documentState.sceneRegions &&
+      tool !== "select" &&
+      !pointInPolygon(localPoint(event as PointerEvent), documentState.sceneRegions.coreBoundary)
+    )
+      return;
     if (tool === "landmark") {
       const asset = selectedLandmarkAsset();
       if (!asset) {
@@ -2021,6 +2074,8 @@ export function mountCityEditor(root: HTMLElement): void {
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
     flushRedraw();
+    if (documentState.sceneRegions && !pointInPolygon(localPoint(event), documentState.sceneRegions.coreBoundary))
+      return;
     const isSelectTool = tool === "select";
     const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
     const vertexId = targetId(event, "vertex") ?? (isSelectTool ? closestVertexId(localPoint(event)) : null);
@@ -2204,9 +2259,14 @@ export function mountCityEditor(root: HTMLElement): void {
   window.addEventListener("resize", refreshScaleBar);
 
   rebuildEditorIndexes();
-  const incoming = readIncomingCity();
-  if (incoming) applyShare(incoming.share, incoming.origin);
-  else refresh();
+  try {
+    const incoming = readIncomingCity();
+    if (incoming) applyShare(incoming.share, incoming.origin);
+    else refresh();
+  } catch (error) {
+    refresh();
+    showNotice(error instanceof Error ? error.message : "FMG地域データを読み込めませんでした。");
+  }
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     let next = documentState;
@@ -2651,7 +2711,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     const svg = renderEditorSvg(
-      documentState,
+      documentForOutput(documentState),
       tool,
       selection,
       box,
@@ -2666,7 +2726,9 @@ export function mountCityEditor(root: HTMLElement): void {
       sample => root.dispatchEvent(new CustomEvent("city-render-diagnostics", { detail: sample })),
       hideBuildings,
       hideStreetLines,
-      renderQualitySelect.value as RenderQuality
+      renderQualitySelect.value as RenderQuality,
+      false,
+      { core: coreLayerInput.checked, regional: regionalLayerInput.checked }
     );
     if (failurePreview) {
       svg.classList.add("ce-generation-debug");
@@ -2831,7 +2893,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (path) path.setAttribute("class", faceClassName(face, selection.faceId === faceId));
     wardLandmarkElementsById.get(faceId)?.remove();
     wardLandmarkElementsById.delete(faceId);
-    const landmark = renderFaceWardLandmark(documentState.mesh, face);
+    const landmark = renderFaceWardLandmark(documentState.mesh, face, documentState);
     if (landmark && wardLandmarksGroup) {
       wardLandmarksGroup.appendChild(landmark);
       wardLandmarkElementsById.set(faceId, landmark as SVGGElement);
@@ -3956,6 +4018,12 @@ export function mountCityEditor(root: HTMLElement): void {
       // scheduling a full redrawMap() pass over the whole mesh next frame — on
       // a Large mesh a 1-cell brush touches one face out of ~9,000.
       for (const faceId of touched) patchFaceRender(faceId);
+      if (documentState.fixedCrossingApproaches !== undefined) {
+        // Face-only painting can change support/passage without changing mesh edges.
+        for (const path of map.querySelectorAll("[data-fixed-approach-id]")) path.remove();
+        map.querySelector("svg")?.setAttribute("data-fixed-approach-status", "unvalidated");
+        scheduleRedraw();
+      }
     }
     if (eraseEdges) eraseEdgesAtPoint(point);
   }
@@ -4341,12 +4409,12 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   async function importDocument(): Promise<void> {
-    const parsed = await pickCityMap();
+    const parsed = await pickCityMap(fixedApproachProvider);
     applyImportedMap(parsed);
   }
 
   async function importMapFile(file: File | undefined): Promise<void> {
-    applyImportedMap(await readCityMap(file));
+    applyImportedMap(await readCityMap(file, fixedApproachProvider));
   }
 
   function applyImportedMap(parsed: ImportedCityMap | null): void {
@@ -4371,7 +4439,7 @@ export function mountCityEditor(root: HTMLElement): void {
     documentState = parsed.document;
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
-    history = new DocumentHistory(parsed.document, "Imported map");
+    history = new DocumentHistory(parsed.document, "Imported map", undefined, fixedApproachProvider);
     generationLog.reset();
     if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
     rebuildEditorIndexes();
@@ -4476,10 +4544,14 @@ export function mountCityEditor(root: HTMLElement): void {
     }
   }
 
-  function importedFrame(): { extentMeters?: number; cityRadiusMeters?: number } {
+  function importedFrame() {
     const descriptor = generateSettings.descriptor;
     return descriptor
-      ? { extentMeters: descriptor.frame.extentMeters, cityRadiusMeters: descriptor.frame.cityRadiusMeters }
+      ? descriptorFrameGridOptions(
+          descriptor.frame,
+          descriptor.burg.waterAccess?.port.river === true,
+          descriptor.burg.riverPlacement?.bankDistanceMeters
+        )
       : {};
   }
 
@@ -4491,6 +4563,7 @@ export function mountCityEditor(root: HTMLElement): void {
       hexSizeMeters: gridKind === "hex" ? hexSizeMeters : undefined,
       gridSeed,
       patchParams: gridKind === "evolution" ? { ...gridEvoParams } : undefined,
+      measureBlockSize: measureTownCells,
       settings: {
         ...(documentState.fabric?.generation?.settings ?? generateSettings),
         historicalPeriod: documentState.historicalPeriod ?? generateSettings.historicalPeriod
@@ -4520,6 +4593,7 @@ export function mountCityEditor(root: HTMLElement): void {
   function useStandaloneSite(): void {
     delete generateSettings.descriptor;
     importedOrigin = null;
+    measureTownCells = false;
     forgetIncomingCity();
     syncGenerateControls();
     showNotice("Standalone site — geography controls unlocked");
@@ -4531,6 +4605,8 @@ export function mountCityEditor(root: HTMLElement): void {
     gridKind = share.grid;
     hexSizeMeters = share.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
     if (share.patchParams) Object.assign(gridEvoParams, share.patchParams);
+    syncGridParamControls();
+    measureTownCells = share.measureBlockSize === true;
     size.value = share.size;
     gridKindSelect.value = gridKind;
     hexSizeInput.value = String(hexSizeMeters);
@@ -4550,10 +4626,22 @@ export function mountCityEditor(root: HTMLElement): void {
       seed: gridSeed,
       hexSizeMeters,
       patchParams: { ...gridEvoParams },
-      extentMeters: share.descriptor?.frame.extentMeters,
-      cityRadiusMeters: share.descriptor?.frame.cityRadiusMeters
+      ...(share.descriptor
+        ? descriptorFrameGridOptions(
+            share.descriptor.frame,
+            share.descriptor.burg.waterAccess?.port.river === true,
+            share.descriptor.burg.riverPlacement?.bankDistanceMeters
+          )
+        : {}),
+      measureBlockSize: measureTownCells,
+      biome: share.descriptor?.biome
     });
-    history = new DocumentHistory(documentState, share.descriptor ? "Imported site" : "Shared city");
+    history = new DocumentHistory(
+      documentState,
+      share.descriptor ? "Imported site" : "Shared city",
+      undefined,
+      fixedApproachProvider
+    );
     generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
@@ -4746,7 +4834,7 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("同じ都市を表示しています");
       return;
     }
-    documentState = history.commit(next, "Generate complete city");
+    documentState = history.commit(documentForOutput(next), "Generate complete city");
     completeResult = documentState;
     lastGeneratedStep = null;
     activeStepStage = null;
@@ -5135,7 +5223,7 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
     ["Plaza / Temple", `${yesNo(descriptor.burg.plaza)} · ${yesNo(descriptor.burg.temple)}`],
     ["Port", descriptor.burg.port ? (descriptor.waterbody ? "Yes" : "Yes (no waterbody)") : "No"]
   ];
-  return rows.map(([key, value]) => {
+  const nodes: Node[] = rows.map(([key, value]) => {
     const line = document.createElement("div");
     line.className = "ce-imported-row";
     const labelNode = document.createElement("span");
@@ -5145,6 +5233,13 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
     line.append(labelNode, valueNode);
     return line;
   });
+  const preview = renderFixedSitePreview(descriptor);
+  if (preview) {
+    const caption = document.createElement("div");
+    caption.textContent = "Imported fixed river crossings and road directions";
+    nodes.push(caption, preview);
+  }
+  return nodes;
 }
 
 function emptySelection(): RenderSelection {
@@ -5176,6 +5271,32 @@ function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face
   return target?.getAttribute(`data-${kind}`) ?? null;
 }
 
+let highestPanelZIndex = 10;
+
+export function bringPanelToFront(panel: HTMLElement): void {
+  const allPanels = Array.from(document.querySelectorAll<HTMLElement>(".ce-panel"));
+  let maxZ = highestPanelZIndex;
+  allPanels.forEach(p => {
+    const z = parseInt(p.style.zIndex || "", 10);
+    if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+  });
+  const currentZ = parseInt(panel.style.zIndex || "", 10);
+  if (Number.isNaN(currentZ) || currentZ < maxZ) {
+    if (maxZ > 9000) {
+      const sorted = allPanels
+        .map(p => ({ panel: p, z: parseInt(p.style.zIndex || "4", 10) }))
+        .sort((a, b) => a.z - b.z);
+      sorted.forEach((item, index) => {
+        item.panel.style.zIndex = `${10 + index}`;
+      });
+      highestPanelZIndex = 10 + sorted.length;
+      maxZ = highestPanelZIndex;
+    }
+    highestPanelZIndex = maxZ + 1;
+    panel.style.zIndex = `${highestPanelZIndex}`;
+  }
+}
+
 function floatingWindow(className: string, title: string): FloatingWindow {
   const root = div(`ce-panel ${className}`);
   const titlebar = div("ce-panel-titlebar");
@@ -5203,6 +5324,8 @@ function floatingWindow(className: string, title: string): FloatingWindow {
   actions.append(collapse, grip);
   titlebar.append(heading(title), actions);
   root.append(titlebar, content);
+  root.addEventListener("pointerdown", () => bringPanelToFront(root), true);
+  root.addEventListener("focusin", () => bringPanelToFront(root));
   makeWindowDraggable(root, titlebar);
   return { root, content };
 }
@@ -5250,6 +5373,7 @@ function makeWindowDraggable(windowNode: HTMLElement, handle: HTMLElement): void
     if (event.button !== 0) return;
     if (event.target instanceof Element && event.target.closest("button, a, input, select, textarea")) return;
     event.preventDefault();
+    bringPanelToFront(windowNode);
     const bounds = windowNode.getBoundingClientRect();
     startX = event.clientX;
     startY = event.clientY;

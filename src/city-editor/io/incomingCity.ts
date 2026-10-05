@@ -1,3 +1,10 @@
+import { validRegionalContext } from "../../types/cityRegional";
+import {
+  FIXED_SITE_CROSSING_BUDGETS,
+  fixedCrossingsMatchFrame,
+  validFixedBurgCrossings
+} from "../../utils/fixedBurgCrossings";
+import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
 // The Burg editor writes a BurgSiteDescriptor JSON to sessionStorage and opens
@@ -11,7 +18,14 @@
 // copy in core/gen/site/burgSiteDescriptor (DESCRIPTOR_VERSION gates incompatible
 // payloads). Keep CITY_SITE_KEY in sync with src/controllers/burg-editor.ts.
 
-import { type CitySizePreset, type GridKind, isCitySizePreset, sizePresetForExtent } from "../core/document";
+import {
+  type CitySizePreset,
+  fitUndersizedTownFrame,
+  type GridKind,
+  isCitySizePreset,
+  sizePresetForExtent
+} from "../core/document";
+import { DEFAULT_PATCH_PARAMS } from "../core/gen/patches";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
@@ -34,6 +48,8 @@ export interface CityEditorShare {
   hexSizeMeters?: number;
   gridSeed?: string;
   patchParams?: { nPatches: number; relaxCount: number; relaxPasses: number };
+  /** Evolution import whose block width should follow the fitted town cells. */
+  measureBlockSize?: boolean;
   settings: Omit<GenerationSettings, "descriptor">;
   descriptor?: BurgSiteDescriptor;
 }
@@ -69,15 +85,42 @@ export function parseIncomingPayload(json: string): CityEditorShare | null {
 }
 
 export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
+  const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
+  const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
+  const proposedFit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
+  // Water that does not fit the smaller frame keeps the display extent.
+  // Patch count follows the population window: a hamlet still uses its Micro
+  // or Tiny count, and a town whose window already matches keeps the default.
+  const fit =
+    !descriptor.regionalContext && proposedFit && proposedFit.extentMeters >= minimumExtent ? proposedFit : null;
+  const fitted = fit
+    ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } }
+    : descriptor.regionalContext
+      ? { ...descriptor, frame: { ...descriptor.frame, regionalMode: true } }
+      : descriptor;
+  const blockedByWater = !fit && proposedFit != null && minimumExtent > proposedFit.extentMeters;
+  const townGrid =
+    fit ??
+    (blockedByWater || descriptor.regionalContext
+      ? fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, population)
+      : null);
   return {
     kind: CITY_EDITOR_SHARE_KIND,
     version: CITY_EDITOR_SHARE_VERSION,
     seed: descriptor.burg.seed,
     grid: "evolution",
-    size: sizePresetForExtent(descriptor.frame.extentMeters),
+    size: fit?.size ?? sizePresetForExtent(descriptor.frame.extentMeters),
     gridSeed: descriptor.burg.seed,
+    patchParams: townGrid
+      ? {
+          nPatches: townGrid.nPatches,
+          relaxCount: DEFAULT_PATCH_PARAMS.relaxCount,
+          relaxPasses: DEFAULT_PATCH_PARAMS.relaxPasses
+        }
+      : undefined,
+    measureBlockSize: townGrid ? true : undefined,
     settings: { config: structuredClone(DEFAULT_SITE_CONFIG) },
-    descriptor
+    descriptor: fitted
   };
 }
 
@@ -88,6 +131,7 @@ export function buildShare(input: {
   hexSizeMeters?: number;
   gridSeed?: string;
   patchParams?: CityEditorShare["patchParams"];
+  measureBlockSize?: boolean;
   settings: GenerationSettings;
   descriptor?: BurgSiteDescriptor;
 }): CityEditorShare {
@@ -103,6 +147,7 @@ export function buildShare(input: {
   if (input.hexSizeMeters != null) share.hexSizeMeters = input.hexSizeMeters;
   if (input.gridSeed != null) share.gridSeed = input.gridSeed;
   if (input.patchParams) share.patchParams = { ...input.patchParams };
+  if (input.measureBlockSize) share.measureBlockSize = true;
   if (input.descriptor) share.descriptor = structuredClone(input.descriptor);
   return share;
 }
@@ -135,13 +180,30 @@ export function resolveIncomingCity(lookup: IncomingLookup): IncomingCity | null
   const token = (lookup.hash ?? "").replace(/^#/, "").trim();
   if (token) {
     const share = decodeShare(token);
+    if (!share) {
+      let raw: unknown;
+      try {
+        raw = parseJson(new TextDecoder().decode(fromBase64Url(token)));
+      } catch {
+        raw = null;
+      }
+      if (hasRegionalPayload(raw)) throw new Error("FMG地域データが不正です。FMGから再取得してください。");
+    }
     if (share) return { share, origin: "link" };
   }
   if (lookup.session) {
     const share = parseIncomingPayload(lookup.session);
     if (share) return { share, origin: "world" };
+    if (hasRegionalPayload(parseJson(lookup.session)))
+      throw new Error("FMG地域データが不正です。FMGから再取得してください。");
   }
   return null;
+}
+
+function hasRegionalPayload(raw: unknown): boolean {
+  if (!isRecord(raw)) return false;
+  const descriptor = raw.kind === CITY_EDITOR_SHARE_KIND ? raw.descriptor : raw;
+  return isRecord(descriptor) && descriptor.regionalContext !== undefined;
 }
 
 /** Read the descriptor/share handed off by the world map (or carried in a link). */
@@ -177,19 +239,48 @@ function parseJson(json: string): unknown {
 
 function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
   if (!isRecord(raw)) return warnShape("root object");
-  if (raw.version !== DESCRIPTOR_VERSION) {
+  if (raw.version !== 2 && raw.version !== DESCRIPTOR_VERSION) {
     if (raw.kind === CITY_EDITOR_SHARE_KIND) return null;
     console.warn(
       `City Editor: incoming descriptor version ${String(raw.version)} != expected ${DESCRIPTOR_VERSION}; ignoring`
     );
     return null;
   }
+  if (raw.regionalContext !== undefined && (raw.version !== 3 || !validRegionalContext(raw.regionalContext)))
+    return warnShape("regionalContext");
   if (!isRecord(raw.burg) || typeof raw.burg.seed !== "string") return warnShape("burg.seed");
   if (!isRecord(raw.frame) || !isFiniteNumber(raw.frame.extentMeters) || !isFiniteNumber(raw.frame.cityRadiusMeters)) {
     return warnShape("frame.extentMeters / frame.cityRadiusMeters");
   }
+  if (
+    raw.frame.requiredBounds !== undefined &&
+    (!isRequiredSiteBounds(raw.frame.requiredBounds) ||
+      requiredSiteExtent(raw.frame.requiredBounds) > raw.frame.extentMeters)
+  )
+    return warnShape("frame.requiredBounds outside frame or invalid");
+  if (
+    raw.fixedCrossings !== undefined &&
+    (!validFixedBurgCrossings(raw.fixedCrossings, FIXED_SITE_CROSSING_BUDGETS) ||
+      !fixedCrossingsMatchFrame(raw.fixedCrossings, raw.frame))
+  )
+    return warnShape("fixedCrossings origin or requiredBounds mismatch");
+  if (raw.regionalContext !== undefined) {
+    const region = raw.regionalContext as import("../../types/cityRegional").RegionalContext;
+    const half = raw.frame.extentMeters / 2;
+    const b = region.coverageBounds;
+    if (
+      b.minX > -half ||
+      b.minY > -half ||
+      b.maxX < half ||
+      b.maxY < half ||
+      region.settlements.some(s => s.burgId === (raw.burg as Record<string, unknown>).id)
+    )
+      return warnShape("regional coverage / target burg");
+  }
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
+  if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;
+  else delete raw.frame.regionalMode;
   return raw as unknown as BurgSiteDescriptor;
 }
 
@@ -219,6 +310,7 @@ function asShare(raw: unknown): CityEditorShare | null {
   if (typeof raw.gridSeed === "string" && raw.gridSeed) share.gridSeed = raw.gridSeed;
   const patch = asPatchParams(raw.patchParams);
   if (patch) share.patchParams = patch;
+  if (raw.measureBlockSize === true) share.measureBlockSize = true;
   if (raw.descriptor !== undefined) {
     const descriptor = asDescriptor(raw.descriptor);
     if (!descriptor) return warnShape("share.descriptor");

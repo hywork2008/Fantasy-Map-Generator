@@ -9,6 +9,9 @@ describe("shipSvg", () => {
     expect(normalizeShipType("caravel")).toBe("medium");
     expect(normalizeShipType("large")).toBe("large");
     expect(normalizeShipType("galleon")).toBe("large");
+    expect(normalizeShipType("barge")).toBe("barge");
+    expect(normalizeShipType("river-barge")).toBe("barge");
+    expect(normalizeShipType("川荷船")).toBe("barge");
     expect(normalizeShipType(undefined)).toBe("small");
   });
 
@@ -79,5 +82,27 @@ describe("shipSvg", () => {
       widthMeters: 6 // base is 5m -> scaleX = 1.2
     });
     expect(node.getAttribute("transform")).toBe("translate(0 0) rotate(0) scale(1.2000 1.0000)");
+  });
+
+  it("renders a river cargo barge with flat hull, cargo tarpaulin, cabin, and giant sweep oar", () => {
+    const node = renderShipSvg({
+      type: "barge",
+      point: [120, -80],
+      sizeMeters: 18,
+      rotation: Math.PI / 4
+    });
+    expect(node.getAttribute("class")).toContain("ce-ship--barge");
+    expect(node.getAttribute("transform")).toContain("translate(120 80)");
+    expect(node.querySelector(".ce-ship-hull-outer")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-deck")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-tarpaulin")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-lashing")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-cabin")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-cabin-roof")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-tiller")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-sweep-blade")).not.toBeNull();
+    expect(node.querySelector(".ce-ship-gangplank")).not.toBeNull();
+    expect(node.querySelectorAll(".ce-ship-cargo").length).toBeGreaterThan(0);
+    expect(node.querySelectorAll(".ce-ship-pole").length).toBe(2);
   });
 });

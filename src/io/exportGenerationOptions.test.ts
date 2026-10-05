@@ -7,7 +7,8 @@ import {
   buildGenerationOptionsExport,
   GENERATION_OPTIONS_KIND,
   importGenerationOptionsFromText,
-  parseGenerationOptionsExport
+  parseGenerationOptionsExport,
+  sanitizeGenerationOptions
 } from "./exportGenerationOptions";
 
 const originalOptions = useOptionsState.getState();
@@ -130,5 +131,15 @@ describe("applyGenerationOptions", () => {
     expect(useOptionsState.getState().cultures).toBe(9);
     expect(useOptionsState.getState().template).toBe("continent");
     expect(useOptionsState.getState().seed).toBe("111");
+  });
+});
+
+describe("war disparity option import", () => {
+  it("keeps the toggle boolean and the ratio numeric", () => {
+    expect(sanitizeGenerationOptions({ maxWarDisparityRatioEnabled: "false", maxWarDisparityRatio: "8" })).toEqual({
+      maxWarDisparityRatioEnabled: false,
+      maxWarDisparityRatio: 8
+    });
+    expect(sanitizeGenerationOptions({ maxWarDisparityRatioEnabled: 1 })).toEqual({});
   });
 });

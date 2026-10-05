@@ -23,6 +23,13 @@ export function minExternalRoadsForExtent(extentMeters: number): number {
  * Road width in meters scaled by settlement extent, aligning with medieval European
  * street width standards (Tiny/village: ~3.5m, Small town: ~4.5m, Medium city: ~6m, Large city: ~7.5m).
  */
+/** Civic window. A widened display frame keeps walls, roads, and landmarks on the unexpanded town. */
+export function townExtentMeters(frame: { extentMeters: number; settlementExtentMeters?: number }): number {
+  const settlement = frame.settlementExtentMeters;
+  if (settlement === undefined || !Number.isFinite(settlement) || settlement <= 0) return frame.extentMeters;
+  return Math.min(frame.extentMeters, settlement);
+}
+
 export function defaultRoadWidthMeters(extentMeters: number): number {
   if (extentMeters <= 600) return 3.5;
   if (extentMeters <= 1200) return 4.5;
@@ -69,6 +76,44 @@ export function splitUrbanCore(cells: Cell[], builtUp: Set<number>, share: numbe
   return { urban, residentialOutskirts };
 }
 
+/** Join a capacity-limited core to its built-up waterfront, keeping the shore
+ * as a natural defense boundary. Paths stay inside the original settlement;
+ * no rural cells are annexed merely to reach distant water. */
+export function extendCoreToCoast(
+  cells: Cell[],
+  core: Set<number>,
+  builtUp: Set<number>,
+  sea: Set<number>
+): Set<number> {
+  const byId = new Map(cells.map(cell => [cell.id, cell]));
+  const shore = new Set([...builtUp].filter(id => byId.get(id)?.neighbors.some(n => sea.has(n))));
+  const result = new Set(core);
+  if (!shore.size || !core.size) return result;
+  const previous = new Map<number, number>();
+  const seen = new Set(core);
+  const queue = [...core];
+  for (let i = 0; i < queue.length; i++) {
+    const id = queue[i];
+    for (const neighbor of byId.get(id)?.neighbors ?? []) {
+      if (seen.has(neighbor) || !builtUp.has(neighbor) || sea.has(neighbor)) continue;
+      seen.add(neighbor);
+      previous.set(neighbor, id);
+      queue.push(neighbor);
+    }
+  }
+  for (const id of shore) {
+    if (!seen.has(id)) continue;
+    let cursor = id;
+    while (!result.has(cursor)) {
+      result.add(cursor);
+      const parent = previous.get(cursor);
+      if (parent === undefined) break;
+      cursor = parent;
+    }
+  }
+  return result;
+}
+
 /** Grid-evolution curtain inset, in cell rings, measured inward from the
  * settlement edge. Tiny moves one cell. Small moves one or two, from the seed.
  * Micro and Medium / Large stay put (those already use an area share). Other
@@ -89,17 +134,20 @@ export function evolutionWallInsetRings(
 
 /** Pull `urban` in by `rings` cells from its boundary. Peeled cells leave the
  * curtain and stay in the town. A ring that would erase the core is skipped.
- * When a ring splits the remainder, the largest component stays walled. */
+ * When a ring splits the remainder, the largest component stays walled.
+ * `anchor`, when it already belongs to the core, is the burg cell and is never peeled. */
 export function insetWalledCore(
   cells: Cell[],
   urban: Set<number>,
-  rings: number
+  rings: number,
+  anchor?: number
 ): { urban: Set<number>; peeled: Set<number> } {
   const peeled = new Set<number>();
   let core = new Set(urban);
   const steps = Number.isFinite(rings) ? Math.max(0, Math.floor(rings)) : 0;
   if (!steps || !core.size) return { urban: core, peeled };
   const byId = new Map(cells.map(cell => [cell.id, cell]));
+  const keepAnchor = anchor !== undefined && core.has(anchor);
   for (let step = 0; step < steps; step++) {
     const boundary: number[] = [];
     for (const id of core) {
@@ -112,12 +160,14 @@ export function insetWalledCore(
     }
     if (!boundary.length) break;
     const next = new Set(core);
-    for (const id of boundary) next.delete(id);
-    if (!next.size) break;
+    for (const id of boundary) if (id !== anchor || !keepAnchor) next.delete(id);
+    if (!next.size || next.size === core.size) break;
     const components = connectedCellComponents(byId, next);
     let kept = components[0];
     for (const component of components) {
-      if (component.size > kept.size) kept = component;
+      const anchored = keepAnchor && component.has(anchor!);
+      const keptAnchored = keepAnchor && kept.has(anchor!);
+      if ((anchored && !keptAnchored) || (anchored === keptAnchored && component.size > kept.size)) kept = component;
     }
     for (const id of core) {
       if (!kept.has(id)) peeled.add(id);

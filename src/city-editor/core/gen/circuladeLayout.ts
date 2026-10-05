@@ -108,7 +108,6 @@ export function planCirculadeLayout(
 
   // 2. Temple adjacent to plaza (never monopolizing center, strictly clearing roads by >= 11m)
   let temple: Precinct | null = null;
-  let _templeAngle: number | null = null;
   const templeHalfL = 14; // length 28m
   const templeHalfW = 8; // width 16m
   if (hasTemple) {
@@ -133,7 +132,6 @@ export function planCirculadeLayout(
       cellIds: [],
       rotation: throughAngle
     };
-    _templeAngle = throughAngle + (side > 0 ? Math.PI * 0.5 : -Math.PI * 0.5);
   }
 
   // 3. Concentric Rings

@@ -41,8 +41,6 @@ export function buildMedievalFabric(document: CityDocument, base: DistrictFabric
   for (const house of houses) houseIndex.add(house, bounds(house.lot.polygon));
   const overlaps = (polygon: Point[], other: Point[]) =>
     convexInfillParts(other).some(part => plotArea(intersectConvex(polygon, part)) > 0.02);
-  const _hitsHouse = (polygon: Point[]) =>
-    houseIndex.query(bounds(polygon)).some(h => overlaps(polygon, h.lot.polygon));
   const fronts: ParcelFrontage[] = base.lanes.flatMap(l =>
     l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
   );

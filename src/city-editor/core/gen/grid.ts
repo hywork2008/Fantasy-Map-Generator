@@ -72,7 +72,8 @@ function scatterSites(params: CityParams, geo: CityGeography, rng: Rng): Point[]
   const waterLines: Point[][] = [
     ...(geo.coast ? [geo.coast.corridor] : []),
     ...geo.rivers.map(r => r.corridor),
-    ...(geo.waterAreas?.map(w => w.corridor) ?? [])
+    ...(geo.waterAreas?.map(w => w.corridor) ?? []),
+    ...(geo.channels?.map(channel => channel.shoreline) ?? [])
   ].filter(l => l.length >= 2);
 
   const radius = (p: Point): number => {

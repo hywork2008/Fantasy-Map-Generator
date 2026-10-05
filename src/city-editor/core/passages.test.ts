@@ -219,6 +219,25 @@ describe("openBarrierPassage", () => {
     expect(vertexHasKindPassage(next, "g", "river")).toBe(true);
     const bridged = addBridge(next, "g", "gc:bridge-test")!;
     expect(vertexHasCrossing(bridged, "g", "river", "road")).toBe(true);
+    const river = next.featureGroups.find(g => g.kind === "river")!;
+    river.crossing = {
+      kind: "ferry",
+      widthMeters: 12,
+      depthMeters: 3,
+      navigationRequired: true,
+      clearanceMeters: 4,
+      openingMeters: 0,
+      reason: "navigationClearance"
+    };
+    expect(addBridge(next, "g", "gc:bridge-forbidden")).toBeNull();
+    river.crossing.kind = "movableBridge";
+    river.crossing.clearanceMeters = 12;
+    river.crossing.openingMeters = 6;
+    const movable = addBridge(next, "g", "gc:bridge-movable")!;
+    expect(movable.featureGroups.find(g => g.id === "gc:bridge-movable")).toMatchObject({
+      name: "Movable river bridge",
+      crossing: { kind: "movableBridge" }
+    });
     expect([...kindEdgeIds(bridged, "road")].some(id => kindEdgeIds(bridged, "river").has(id))).toBe(false);
   });
 

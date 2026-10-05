@@ -1,8 +1,10 @@
+import { FixedRoadReservation } from "../fixedRoadReservation";
 import { circuitRing, polygonOverlaps, reservedCastleFaces } from "../fortifications";
 // MIT, independently implemented from the reference city's output geometry.
 import { facePoints, indexMeshEdges } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Face, Id, Point } from "../types";
+import { polygonHitsDocumentWater } from "../waterGeometry";
 import { buildBlockFabric } from "./blockInfill";
 import { orientedRectPolylineDistance, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
@@ -12,6 +14,7 @@ import { civicYardMeters } from "./housing";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { clipBlockWithRivers, clipHalfPlane, insetConvexKernel, longestFrame, type RiverMargin } from "./lotGeometry";
 import { makeRng } from "./prng";
+import { townExtentMeters } from "./settlementExtent";
 
 export { insetConvexKernel } from "./lotGeometry";
 
@@ -65,13 +68,19 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   const lots: BuildingLot[] = [];
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
   const moat = new MoatReservation(document, 2);
+  const fixedRoads = new FixedRoadReservation(document);
   return rebuildLandmarkHousing(
     document,
     relieveGatePlazaBuildings(
       document,
       lots.filter(lot => !buildingHitsCivicLandmark(document, lot.polygon))
     )
-  ).filter(lot => !moat.hitsPolygon(lot.polygon));
+  ).filter(
+    lot =>
+      !moat.hitsPolygon(lot.polygon) &&
+      !fixedRoads.hitsPolygon(lot.polygon) &&
+      !polygonHitsDocumentWater(document, lot.polygon)
+  );
 }
 
 export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point[]): boolean {
@@ -82,14 +91,14 @@ export function buildingHitsCivicLandmark(document: CityDocument, polygon: Point
   )
     return true;
   if ((document.cemeteries ?? []).some(c => polygonOverlaps(polygon, c.boundary))) return true;
-  const yard = civicYardMeters(document.frame.extentMeters);
+  const yard = civicYardMeters(townExtentMeters(document.frame));
   for (const element of document.elements) {
     if (element.kind === "temple" && element.point) {
       const rect = templeRectForElement(
         element.point,
         element.sizeMeters,
         element.rotation,
-        document.frame.extentMeters
+        townExtentMeters(document.frame)
       );
       if (polygonHitsTempleYard(polygon, rect, Math.max(2, yard * 0.25))) return true;
     }
@@ -104,7 +113,7 @@ export function laneHitsCivicLandmark(document: CityDocument, points: Point[]): 
         element.point,
         element.sizeMeters,
         element.rotation,
-        document.frame.extentMeters
+        townExtentMeters(document.frame)
       );
       if (orientedRectPolylineDistance(rect, points) < 1.8) return true;
     }

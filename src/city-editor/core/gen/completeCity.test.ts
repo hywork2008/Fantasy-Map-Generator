@@ -390,7 +390,7 @@ describe("complete editable city", () => {
   });
 
   it("spaces Micro cape gates so their plazas do not meet, and does not bridge the sea wall", () => {
-    const city = capeMicroCity("auto");
+    const city = capeMicroCity("seaWall");
     expect(city).not.toBeNull();
     if (!city) return;
     expect(validate(city)).toEqual([]);

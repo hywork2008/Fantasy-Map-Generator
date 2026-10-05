@@ -146,6 +146,7 @@ export interface ApproachBeyondData {
 export type ApproachBeyond = ApproachBeyondData | "city" | "granary" | "enemy" | "ally" | "hamlet";
 
 export interface EdgeFeatureGroup {
+  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   id: Id;
   kind: "road" | "wall" | "plank";
   name: string;
@@ -154,11 +155,14 @@ export interface EdgeFeatureGroup {
   locked: boolean;
   /** Set on roads that leave an outer-wall gate for the map exterior. */
   beyond?: ApproachBeyond;
+  /** Source FMG land-road leg; distinguishes external approaches from local streets. */
+  sourceRoad?: { index: number; routeId: number; terminal?: "riverLanding" };
   /** River-through-wall passages; distinct from gates that require road access. */
   riverPassages?: Id[];
 }
 
 export interface RiverGroup {
+  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   id: Id;
   kind: "river";
   name: string;
@@ -174,6 +178,8 @@ export type FeatureGroup = EdgeFeatureGroup | RiverGroup;
 
 export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree" | "ship";
 
+export type TempleType = "basilica" | "chapel" | "shrine" | "megalith";
+
 export interface CityElement {
   id: Id;
   kind: ElementKind;
@@ -184,7 +190,8 @@ export interface CityElement {
   /** Long-axis angle in radians, CCW from +X. Temples and ships use this. */
   rotation?: number;
   locked: boolean;
-  shipType?: "small" | "medium" | "large";
+  shipType?: "small" | "medium" | "large" | "barge";
+  templeType?: TempleType;
 }
 
 export interface LandmarkPolygon {
@@ -342,19 +349,55 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  fixedCrossingApproaches?: import("./fixedApproachAdoption").SavedFixedApproach[];
+  /** Source physical crossings; not inferred from editable mesh roads. */
+  importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;
+  waterAccess?: import("../../types/burgWater").BurgWaterAccess;
   format: "fmg-city-editor";
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
+  /** Regional biome information derived from FMG world cell. */
+  biome?: import("./gen/site/burgSiteDescriptor").BurgSiteBiome;
+  sceneRegions?: import("./sceneRegions").CitySceneRegions;
   landmarks?: LandmarkInstance[];
   landmarkAssets?: LandmarkAsset[];
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
+  /** Number of source FMG land-road legs; absent for standalone/legacy documents. */
+  importedRoadCount?: number;
+  /** Continuous imported water, independent of the editable street-block mesh. */
+  waterAreas?: { kind: "river"; polygon: Point[] }[];
+  /** Land roads continued from the town mesh to the display frame, including perpendicular river decks. */
+  frameRoads?: {
+    sourceIndex: number;
+    routeId: number;
+    branchIndex?: number;
+    pieces: {
+      kind: "road" | "bridge";
+      points: Point[];
+      bridgeKind?: "fixedBridge" | "movableBridge";
+    }[];
+  }[];
+  /** Exact imported road legs across physical water, outside the block mesh. */
+  riverConnections?: {
+    sourceIndex: number;
+    farRoad: Point[];
+    townRoad: Point[];
+    banks: [Point, Point];
+    crossing: import("../../utils/riverCrossing").RiverCrossingPlan;
+  }[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;
-  frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
+  frame: {
+    extentMeters: number;
+    cityRadiusMeters: number;
+    blockSizeMeters: number;
+    /** Town-sizing window when `extentMeters` was widened to show a distant bank. */
+    settlementExtentMeters?: number;
+  };
   /** Completed cities open in the building/ink view; editing uses the same mesh. */
   appearance?: "town";
   /** Historical backdrop / technological era. Defaults to "ageOfExploration". */

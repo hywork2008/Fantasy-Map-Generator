@@ -1,9 +1,11 @@
 import { boundaryEdges, insideRing } from "../fortifications";
 import { clone, faceNeighbors, facePoints, insertEdgeVertex, mergeFaces, splitFace } from "../mesh";
 import type { CastleSettings, CityDocument, Id, Mesh, Point } from "../types";
+import { polygonHitsDocumentWater } from "../waterGeometry";
 import { layoutCastle } from "./castleLayout";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { makeRng } from "./prng";
+import { townExtentMeters } from "./settlementExtent";
 import type { BurgSiteTerrain } from "./site/burgSiteDescriptor";
 
 export const DEFAULT_CASTLE_SETTINGS: CastleSettings = {
@@ -26,7 +28,8 @@ function cutFace(
   document: CityDocument,
   id: Id,
   normal: Point,
-  offset: number
+  offset: number,
+  snap: boolean
 ): { document: CityDocument; faceId: Id } | null {
   let next = document;
   const value = (p: Point) => p[0] * normal[0] + p[1] * normal[1] - offset;
@@ -41,9 +44,16 @@ function cutFace(
     const va = value(a),
       vb = value(b);
     if (Math.abs(va) < 0.01) hits.push(edge.a);
+    if (snap && Math.abs(vb) <= 0.01) hits.push(edge.b);
     if (va * vb >= 0) continue;
     const t = va / (va - vb);
-    if (t < 0.02 || t > 0.98) return null;
+    // A cut that merely grazes a corner uses that vertex. The strict pass keeps
+    // the old rejection so towns that already placed a castle stay put.
+    if (t < 0.02 || t > 0.98) {
+      if (!snap) return null;
+      hits.push(t < 0.02 ? edge.a : edge.b);
+      continue;
+    }
     const inserted = insertEdgeVertex(next, edge.id, t);
     if (!inserted) return null;
     next = inserted.document;
@@ -57,6 +67,29 @@ function cutFace(
   const child = Object.keys(split.mesh.faces).find(fid => !before.has(fid))!;
   const kept = [id, child].find(fid => value(polygonCentroid(facePoints(split.mesh, split.mesh.faces[fid]))) <= 0);
   return kept ? { document: split, faceId: kept } : null;
+}
+
+/** Axis-aligned or rotated square kept inside one face. `span` is the half-side. */
+function reserveBox(
+  document: CityDocument,
+  faceId: Id,
+  center: Point,
+  span: number,
+  angle: number,
+  snap: boolean
+): { document: CityDocument; faceId: Id } | null {
+  const u: Point = [Math.cos(angle), Math.sin(angle)];
+  const v: Point = [-u[1], u[0]];
+  let working = document;
+  let id = faceId;
+  for (const normal of [u, [-u[0], -u[1]] as Point, v, [-v[0], -v[1]] as Point]) {
+    const offset = center[0] * normal[0] + center[1] * normal[1] + span;
+    const cut = cutFace(working, id, normal, offset, snap);
+    if (!cut) return null;
+    working = cut.document;
+    id = cut.faceId;
+  }
+  return { document: working, faceId: id };
 }
 
 export function terrainHeight(terrain: BurgSiteTerrain | undefined, p: Point): number | null {
@@ -76,6 +109,106 @@ export function terrainHeight(terrain: BurgSiteTerrain | undefined, p: Point): n
   );
 }
 
+function acceptReservedCastle(
+  working: CityDocument,
+  id: Id,
+  args: {
+    position: "edge" | "central";
+    relationship: "integrated" | "detached";
+    water: Set<Id>;
+    urban: Set<Id>;
+    rivers: Array<{ points: Point[]; width: number }>;
+    boundary: ReturnType<typeof boundaryEdges>;
+    minArea: number;
+    seed: string;
+    form: CastleSettings["form"];
+    edgeClearance?: number;
+    layoutMin?: number;
+  }
+): CastleSite | null {
+  const { position, relationship, water, urban, rivers, boundary, minArea, seed } = args;
+  const edgeClearance = args.edgeClearance ?? 5;
+  const points = facePoints(working.mesh, working.mesh.faces[id]);
+  const area = Math.abs(polygonArea(points));
+  if (
+    area < minArea ||
+    area > 30000 ||
+    polygonHitsDocumentWater(working, points) ||
+    rivers.some(
+      r =>
+        points.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 5) ||
+        r.points.some(p => insideRing(p, points)) ||
+        r.points
+          .slice(1)
+          .some((p, i) => points.some((q, j) => segmentSegmentHit(r.points[i], p, q, points[(j + 1) % points.length])))
+    )
+  )
+    return null;
+  if (
+    relationship === "detached" &&
+    points.some(p =>
+      boundary.some(ref => {
+        const edge = working.mesh.edges[ref.edgeId];
+        if (!edge) return false;
+        return (
+          nearestOnPolyline(p, [working.mesh.vertices[edge.a].point, working.mesh.vertices[edge.b].point]).dist <
+          edgeClearance
+        );
+      })
+    )
+  )
+    return null;
+  if (!insideRing(polygonCentroid(points), points)) return null;
+  const form =
+    args.form === "auto" ? (makeRng(`${seed}:castle:shape`)() < 0.6 ? "keep-bailey" : "courtyard") : args.form;
+  const trial = clone(working);
+  trial.defenseCircuits = [
+    {
+      id: "trial-circuit",
+      scope: "castle",
+      ownerCastleId: "trial",
+      areaFaceIds: [id],
+      wallGroupIds: [],
+      naturalBarriers: [],
+      locked: false
+    }
+  ];
+  const capable = trial.mesh.faces[id].boundary.some(ref => {
+    const e = trial.mesh.edges[ref.edgeId];
+    const other = e.leftFace === id ? e.rightFace : e.leftFace;
+    if (!other || water.has(other) || (relationship === "integrated" && !urban.has(other))) return false;
+    const a = trial.mesh.vertices[e.a].point,
+      b = trial.mesh.vertices[e.b].point;
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 14) return false;
+    trial.mesh.vertices["trial-gate"] = {
+      id: "trial-gate",
+      point: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+      locked: false
+    };
+    trial.gates = [{ id: "trial-gate", vertexId: "trial-gate", ownerCastleId: "trial", locked: false }];
+    return !!layoutCastle(
+      trial,
+      {
+        id: "trial",
+        version: 1,
+        seed,
+        position,
+        relationship,
+        form,
+        circuitId: "trial-circuit",
+        parts: [],
+        courtyards: [],
+        accesses: [],
+        provenance: "generated",
+        locked: false
+      },
+      args.layoutMin ?? 13
+    );
+  });
+  if (!capable) return null;
+  return { seed, mesh: working.mesh, faceId: id, position, relationship, form };
+}
+
 /** Reserve one compact, metrically bounded precinct before street routing. */
 export function placeCastleRegion(
   document: CityDocument,
@@ -85,7 +218,9 @@ export function placeCastleRegion(
   rivers: Array<{ points: Point[]; width: number }>,
   seed: string,
   options: Partial<CastleSettings> = {},
-  terrain?: BurgSiteTerrain
+  terrain?: BurgSiteTerrain,
+  relaxed = false,
+  allowRetry = true
 ): CastleSite | null {
   const settings = { ...DEFAULT_CASTLE_SETTINGS, ...options };
   if (settings.position === "central" && settings.relationship === "integrated") return null;
@@ -105,7 +240,7 @@ export function placeCastleRegion(
   );
   const size =
     settings.size === "auto"
-      ? document.frame.extentMeters <= 600 || document.frame.cityRadiusMeters <= 120
+      ? townExtentMeters(document.frame) <= 600 || document.frame.cityRadiusMeters <= 120
         ? "small"
         : "standard"
       : settings.size;
@@ -114,6 +249,9 @@ export function placeCastleRegion(
   for (const position of positions) {
     const relationship =
       position === "edge" && hasWalls && settings.relationship !== "detached" ? "integrated" : "detached";
+    const interiorUrban = Object.values(document.mesh.faces).some(
+      face => urban.has(face.id) && !border.has(face.id) && !water.has(face.id)
+    );
     const candidates = Object.values(document.mesh.faces).filter(face => {
       if (
         water.has(face.id) ||
@@ -124,7 +262,11 @@ export function placeCastleRegion(
         return false;
       if (Math.abs(polygonArea(facePoints(document.mesh, face))) < minArea * 0.15) return false;
       if (relationship === "integrated") return !urban.has(face.id) && border.has(face.id);
-      return urban.has(face.id) && (position === "central" ? !border.has(face.id) : true);
+      // A tiny evolution town can be all edge cells. The strict pass keeps the
+      // old interior-only central rule; the retry may cut a box out of the
+      // cell nearest the middle.
+      if (position === "central" && (!relaxed || interiorUrban)) return urban.has(face.id) && !border.has(face.id);
+      return urban.has(face.id);
     });
     candidates.sort((a, b) => {
       const rate = (id: Id) => {
@@ -173,22 +315,44 @@ export function placeCastleRegion(
 
       const center = polygonCentroid(points);
       // Detach within a large cell; four shared-edge cuts reserve a real polygon.
+      // On a small unwalled town the first box sits on the urban rim. A later
+      // pass slides it toward the burg and tries a slightly smaller square.
       if (relationship === "detached") {
-        const span = Math.sqrt(target) / 2;
-        for (const [normal, offset] of [
-          [[1, 0], center[0] + span],
-          [[-1, 0], -center[0] + span],
-          [[0, 1], center[1] + span],
-          [[0, -1], -center[1] + span]
-        ] as [Point, number][]) {
-          const cut = cutFace(working, id, normal, offset);
-          if (!cut) {
-            id = "";
-            break;
+        const span0 = Math.sqrt(target) / 2;
+        const dx = cityCenter[0] - center[0];
+        const dy = cityCenter[1] - center[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const shifts = relaxed ? [0, 12, 28, 48] : [0];
+        const scales = relaxed ? [1, 0.82, 0.68] : [1];
+        const angles = relaxed ? [0, Math.PI / 6] : [0];
+        const fitMin = relaxed ? Math.min(minArea, 1800) : minArea;
+        const edgeClearance = relaxed ? 1 : 5;
+        let placed: CastleSite | null = null;
+        for (const shift of shifts) {
+          const at: Point = [center[0] + (dx / len) * shift, center[1] + (dy / len) * shift];
+          if (shift > 0 && !insideRing(at, points)) continue;
+          for (const scale of scales) {
+            for (const angle of angles) {
+              const box = reserveBox(working, id, at, span0 * scale, angle, relaxed);
+              if (!box) continue;
+              placed = acceptReservedCastle(box.document, box.faceId, {
+                position,
+                relationship,
+                water,
+                urban,
+                rivers,
+                boundary,
+                minArea: fitMin,
+                seed,
+                form: settings.form,
+                edgeClearance,
+                layoutMin: relaxed ? 8 : 13
+              });
+              if (placed) return placed;
+            }
           }
-          working = cut.document;
-          id = cut.faceId;
         }
+        continue;
       } else if (Math.abs(polygonArea(points)) > target * 1.5) {
         const interfaceRef = working.mesh.faces[id].boundary.find(ref => {
           const e = working.mesh.edges[ref.edgeId];
@@ -209,7 +373,7 @@ export function placeCastleRegion(
           [tangent, middle + span],
           [[-tangent[0], -tangent[1]], -middle + span]
         ] as [Point, number][]) {
-          const cut = cutFace(working, id, normal, offset);
+          const cut = cutFace(working, id, normal, offset, false);
           if (!cut) {
             id = "";
             break;
@@ -219,89 +383,22 @@ export function placeCastleRegion(
         }
       }
       if (!id) continue;
-      points = facePoints(working.mesh, working.mesh.faces[id]);
-      const area = Math.abs(polygonArea(points));
-      if (
-        area < minArea ||
-        area > 30000 ||
-        rivers.some(
-          r =>
-            points.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 5) ||
-            r.points.some(p => insideRing(p, points)) ||
-            r.points
-              .slice(1)
-              .some((p, i) =>
-                points.some((q, j) => segmentSegmentHit(r.points[i], p, q, points[(j + 1) % points.length]))
-              )
-        )
-      )
-        continue;
-      if (
-        relationship === "detached" &&
-        points.some(p =>
-          boundary.some(ref => {
-            const edge = working.mesh.edges[ref.edgeId];
-            if (!edge) return false;
-            return (
-              nearestOnPolyline(p, [working.mesh.vertices[edge.a].point, working.mesh.vertices[edge.b].point]).dist < 5
-            );
-          })
-        )
-      )
-        continue;
-      if (!insideRing(polygonCentroid(points), points)) continue;
-      const form =
-        settings.form === "auto"
-          ? makeRng(`${seed}:castle:shape`)() < 0.6
-            ? "keep-bailey"
-            : "courtyard"
-          : settings.form;
-      const trial = clone(working);
-      trial.defenseCircuits = [
-        {
-          id: "trial-circuit",
-          scope: "castle",
-          ownerCastleId: "trial",
-          areaFaceIds: [id],
-          wallGroupIds: [],
-          naturalBarriers: [],
-          locked: false
-        }
-      ];
-      const capable = trial.mesh.faces[id].boundary.some(ref => {
-        const e = trial.mesh.edges[ref.edgeId];
-        const other = e.leftFace === id ? e.rightFace : e.leftFace;
-        if (!other || water.has(other) || (relationship === "integrated" && !urban.has(other))) return false;
-        const a = trial.mesh.vertices[e.a].point,
-          b = trial.mesh.vertices[e.b].point;
-        if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 14) return false;
-        trial.mesh.vertices["trial-gate"] = {
-          id: "trial-gate",
-          point: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
-          locked: false
-        };
-        trial.gates = [{ id: "trial-gate", vertexId: "trial-gate", ownerCastleId: "trial", locked: false }];
-        return !!layoutCastle(trial, {
-          id: "trial",
-          version: 1,
-          seed,
-          position,
-          relationship,
-          form,
-          circuitId: "trial-circuit",
-          parts: [],
-          courtyards: [],
-          accesses: [],
-          provenance: "generated",
-          locked: false
-        });
+      const site = acceptReservedCastle(working, id, {
+        position,
+        relationship,
+        water,
+        urban,
+        rivers,
+        boundary,
+        minArea,
+        seed,
+        form: settings.form
       });
-      if (!capable) continue;
-      return { seed, mesh: working.mesh, faceId: id, position, relationship, form };
+      if (site) return site;
     }
   }
   if (settings.relationship === "auto" && hasWalls) {
-    return placeCastleRegion(
+    const detached = placeCastleRegion(
       document,
       urban,
       water,
@@ -309,8 +406,14 @@ export function placeCastleRegion(
       rivers,
       seed,
       { ...options, relationship: "detached" },
-      terrain
+      terrain,
+      relaxed,
+      false
     );
+    if (detached) return detached;
+  }
+  if (allowRetry && !relaxed) {
+    return placeCastleRegion(document, urban, water, reserved, rivers, seed, options, terrain, true, false);
   }
   return null;
 }

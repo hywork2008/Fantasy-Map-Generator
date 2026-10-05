@@ -331,6 +331,25 @@ export interface BurgDemographics {
 }
 
 export interface Burg {
+  /** Local FMG river site; the source cell remains the logical political owner. */
+  riverPlacement?: {
+    riverId: number;
+    bank: "left" | "right";
+    widthMeters: number;
+    physicalCellId?: number;
+    bankDistanceMeters?: number;
+    geometryVersion?: number;
+    arcLengthMeters?: number;
+    sourceSegmentId?: number;
+    sourceParameter?: number;
+    footprintMeters?: [number, number][];
+    accessMeters?: [number, number][];
+    accessWidthMeters?: number;
+    accessFootprintMeters?: [number, number][];
+  };
+  riverSiteStatus?: { riverId: number; status: "placed" | "unresolved"; reason?: string };
+  /** Water contact and usable port frontages, refreshed from FMG cell topology. */
+  waterAccess?: import("./burgWater").BurgWaterAccess;
   cell: number;
   x: number;
   y: number;
@@ -825,6 +844,12 @@ export interface RiverCellHydrology {
 }
 
 export interface Route {
+  /** Unsmooth shared bridge geometry. Original points allow fresh revalidation after water edits/load. */
+  riverRoadConvergence?: { originalPoints: [number, number, number][]; pointsKey: string; burgIds: number[] };
+  /** Exact physical shape is resolved through the current world registry. */
+  registeredConnectionId?: number;
+  /** Actual road/channel intersections resolved after candidate water routes. */
+  riverCrossings?: import("../utils/riverCrossing").RiverRouteCrossing[];
   i: number;
   group: string;
   feature: number;
