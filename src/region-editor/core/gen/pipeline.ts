@@ -1,5 +1,6 @@
 import { normalizeSettlementType } from "../../render/styles/settlementIcons";
 import { createEmptyRegionDocument } from "../document";
+import { pointInPolygon, segmentIntersection } from "../geometry";
 import type {
   Point,
   RegionDocument,
@@ -406,15 +407,63 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     doc.terrain.showContours = true;
   }
 
-  // 河川
-  doc.rivers = descriptor.rivers.map(r => ({
-    id: `river-${r.id}`,
-    sourceRiverId: r.sourceRiverId,
-    name: r.name,
-    points: r.points.map(toLocal),
-    widths: r.widthsMeters && r.widthsMeters.length === r.points.length ? r.widthsMeters : [r.widthMeters],
-    dischargeM3s: r.dischargeM3s
-  }));
+  // 河川（海セルには描かず、陸セル部分だけを残す）
+  const waterPolys = (descriptor.cells ?? [])
+    .filter(c => c.isWater && c.polygon && c.polygon.length >= 3)
+    .map(c => c.polygon!.map(toLocal));
+  const inWater = (pt: Point) => waterPolys.some(poly => pointInPolygon(pt, poly));
+  // 陸点→水点の線分と水セル境界の最初の交点（なければ水点側を使わず陸点を返す）
+  const waterEdgeCrossing = (land: Point, water: Point): Point => {
+    let best: Point = land;
+    let bestT = Infinity;
+    for (const poly of waterPolys) {
+      for (let k = 0; k < poly.length; k++) {
+        const hit = segmentIntersection(land, water, poly[k], poly[(k + 1) % poly.length]);
+        if (hit.intersects && hit.point && hit.t! < bestT) {
+          bestT = hit.t!;
+          best = hit.point;
+        }
+      }
+    }
+    return best;
+  };
+  doc.rivers = descriptor.rivers.flatMap(r => {
+    const pts = r.points.map(toLocal);
+    const widths = r.widthsMeters && r.widthsMeters.length === r.points.length ? r.widthsMeters : undefined;
+    const widthAt = (i: number) => (widths ? widths[i] : r.widthMeters);
+    const runs: Array<{ points: Point[]; widths: number[] }> = [];
+    let cur: { points: Point[]; widths: number[] } | null = null;
+    pts.forEach((pt, i) => {
+      if (inWater(pt)) {
+        if (cur) {
+          cur.points.push(waterEdgeCrossing(pts[i - 1], pt));
+          cur.widths.push(widthAt(i - 1));
+          runs.push(cur);
+          cur = null;
+        }
+        return;
+      }
+      if (!cur) {
+        cur = { points: [], widths: [] };
+        if (i > 0) {
+          cur.points.push(waterEdgeCrossing(pt, pts[i - 1]));
+          cur.widths.push(widthAt(i));
+        }
+      }
+      cur.points.push(pt);
+      cur.widths.push(widthAt(i));
+    });
+    if (cur) runs.push(cur);
+    const valid = runs.filter(run => run.points.length >= 2);
+    return valid.map((run, n) => ({
+      id: valid.length > 1 ? `river-${r.id}-${n}` : `river-${r.id}`,
+      sourceRiverId: r.sourceRiverId,
+      name: r.name,
+      points: run.points,
+      widths: widths ? run.widths : [r.widthMeters],
+      dischargeM3s: r.dischargeM3s
+    }));
+  });
 
   // 集落
   doc.settlements = descriptor.burgs.map(b => ({
