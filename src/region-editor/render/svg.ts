@@ -886,6 +886,7 @@ export function renderRegionSvg(
   const labelOffsets = resolveSettlementLabelPlacements(doc.settlements, doc.labels);
   const offsetMap = new Map(labelOffsets.map(o => [o.settlementId, o.offset]));
 
+  const iconScale = Math.max(1, Math.round(doc.decoration.settlementIconScale ?? 1));
   const settlementsLayer = doc.settlements
     .map(s => {
       const [x, y] = s.position;
@@ -902,9 +903,11 @@ export function renderRegionSvg(
 
       return `
         <g class="settlement-symbol ${isSel ? "selected" : ""}" transform="translate(${x.toFixed(2)}, ${y.toFixed(2)})" data-kind="settlement" data-id="${s.id}">
-          ${markerSvg}
-          ${isSel ? `<circle cx="0" cy="-10" r="18" fill="none" stroke="#d4a373" stroke-width="2" stroke-dasharray="3,3" />` : ""}
-          <text x="${offset[0].toFixed(2)}" y="${offset[1].toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="11" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
+          <g transform="scale(${iconScale})">
+            ${markerSvg}
+            ${isSel ? `<circle cx="0" cy="-10" r="18" fill="none" stroke="#d4a373" stroke-width="2" stroke-dasharray="3,3" />` : ""}
+          </g>
+          <text x="${(offset[0] * iconScale).toFixed(2)}" y="${(offset[1] * iconScale).toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="11" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
         </g>
       `;
     })

@@ -163,6 +163,15 @@ export function toggleContours(doc: RegionDocument, show?: boolean): RegionDocum
 }
 
 /**
+ * 都市アイコンの拡大倍率を設定する（整数、最小1）
+ */
+export function setSettlementIconScale(doc: RegionDocument, scale: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.decoration.settlementIconScale = Number.isFinite(scale) ? Math.max(1, Math.round(scale)) : 1;
+  return next;
+}
+
+/**
  * 耕作地レイヤーの表示/非表示を切り替える（デフォルトは非表示）
  */
 export function toggleCultivation(doc: RegionDocument, show?: boolean): RegionDocument {

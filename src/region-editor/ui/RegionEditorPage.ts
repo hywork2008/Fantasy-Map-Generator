@@ -7,6 +7,7 @@ import {
   removeLandmark,
   removeSettlement,
   removeSymbol,
+  setSettlementIconScale,
   toggleContours,
   toggleCultivation,
   updateContourInterval,
@@ -157,6 +158,10 @@ export function mountRegionEditor(
             <label for="check-show-cultivation" style="cursor:pointer;">耕作地を表示</label>
             <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="input-settlement-icon-scale">都市アイコン倍率</label>
+            <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? 1}" style="width:60px;" />
+          </div>
           <div class="re-form-row">
             <label>等高線間隔</label>
             <select class="re-select" id="select-contour-interval">
@@ -254,6 +259,10 @@ export function mountRegionEditor(
     const checkContours = root.querySelector<HTMLInputElement>("#check-show-contours");
     if (checkContours) {
       checkContours.checked = doc.terrain.showContours !== false;
+    }
+    const inputIconScale = root.querySelector<HTMLInputElement>("#input-settlement-icon-scale");
+    if (inputIconScale) {
+      inputIconScale.value = String(doc.decoration.settlementIconScale ?? 1);
     }
     const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
     if (checkCultivation) {
@@ -897,6 +906,15 @@ export function mountRegionEditor(
   root.querySelector("#check-show-contours")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
     history.push(toggleContours(history.current, checked));
+    renderMap();
+  });
+
+  // 都市アイコン倍率変更
+  root.querySelector("#input-settlement-icon-scale")?.addEventListener("change", e => {
+    const input = e.target as HTMLInputElement;
+    const scale = Math.max(1, Math.round(Number(input.value)) || 1);
+    input.value = String(scale);
+    history.push(setSettlementIconScale(history.current, scale));
     renderMap();
   });
 

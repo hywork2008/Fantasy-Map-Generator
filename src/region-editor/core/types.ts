@@ -179,6 +179,8 @@ export interface RegionDecoration {
   showScaleBar: boolean;
   scaleBarPosition: Point;
   showBorder: boolean;
+  /** 都市アイコンの拡大倍率（整数、最小1。未設定は1）。 */
+  settlementIconScale?: number;
   borderStyle: "ornate" | "simple" | "none";
 }
 
