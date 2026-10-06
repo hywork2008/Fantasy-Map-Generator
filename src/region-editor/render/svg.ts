@@ -17,6 +17,7 @@ import {
   wetlandPatchLevel
 } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
+import { smoothCoastlines } from "./coastline";
 import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
@@ -35,91 +36,6 @@ function polyToSvgPath(points: Point[], closed = true): string {
   if (points.length === 0) return "";
   const d = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ");
   return closed ? `${d} Z` : d;
-}
-
-/**
- * 海セルに面した頂点を必ず通る Catmull-Rom スプラインで海岸線を丸める（角切りはしない）。
- * 各区間を samples 分割した点列を返す。始点=終点なら閉じたリングとして扱う。
- */
-export function smoothCoastline(points: Point[], samples = 6): Point[] {
-  if (points.length < 3) return points;
-  const first = points[0];
-  const last = points[points.length - 1];
-  const closed = first[0] === last[0] && first[1] === last[1];
-  const v: Point[] = closed ? points.slice(0, -1) : points;
-  const n = v.length;
-  const at = (i: number): Point => {
-    if (closed) return v[((i % n) + n) % n];
-    if (i < 0) return [2 * v[0][0] - v[1][0], 2 * v[0][1] - v[1][1]];
-    if (i >= n) return [2 * v[n - 1][0] - v[n - 2][0], 2 * v[n - 1][1] - v[n - 2][1]];
-    return v[i];
-  };
-  const out: Point[] = [];
-  const segCount = closed ? n : n - 1;
-  for (let i = 0; i < segCount; i++) {
-    const p0 = at(i - 1);
-    const p1 = at(i);
-    const p2 = at(i + 1);
-    const p3 = at(i + 2);
-    for (let k = 0; k < samples; k++) {
-      const t = k / samples;
-      const t2 = t * t;
-      const t3 = t2 * t;
-      out.push([
-        0.5 *
-          (2 * p1[0] +
-            (-p0[0] + p2[0]) * t +
-            (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
-            (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
-        0.5 *
-          (2 * p1[1] +
-            (-p0[1] + p2[1]) * t +
-            (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
-            (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
-      ]);
-    }
-  }
-  out.push(closed ? out[0] : v[n - 1]);
-  return out;
-}
-
-/**
- * 直線の海岸（セル境界）と丸めた海岸線の間にできる細い隙間を、陸/海それぞれの色で塗り分ける。
- * 曲線が海側へ膨らむ区間は陸色、陸側へ膨らむ区間は海色で埋める。
- */
-function coastlineSliverPatches(
-  coast: Point[],
-  samples: number,
-  isSea: (pt: Point) => boolean,
-  landColorAt: (pt: Point) => string,
-  seaColor: string
-): string[] {
-  if (coast.length < 3) return [];
-  const closed = coast[0][0] === coast[coast.length - 1][0] && coast[0][1] === coast[coast.length - 1][1];
-  const curve = smoothCoastline(coast, samples);
-  const segCount = closed ? coast.length - 1 : coast.length - 1;
-  const patches: string[] = [];
-  for (let i = 0; i < segCount; i++) {
-    const a = coast[i];
-    const b = coast[i + 1];
-    const arc = curve.slice(i * samples, (i + 1) * samples + 1);
-    if (arc.length < 3) continue;
-    const mid = arc[Math.floor(arc.length / 2)];
-    const chordMid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const dx = mid[0] - chordMid[0];
-    const dy = mid[1] - chordMid[1];
-    if (dx * dx + dy * dy < 1e-4) continue;
-    // 膨らんだ側の点と、弦を挟んで反対側の点
-    const bulgeSide: Point = [chordMid[0] + dx * 0.5, chordMid[1] + dy * 0.5];
-    const otherSide: Point = [chordMid[0] - dx * 0.5, chordMid[1] - dy * 0.5];
-    const bulgeInSea = isSea(bulgeSide);
-    if (bulgeInSea === isSea(otherSide)) continue;
-    const color = bulgeInSea ? landColorAt(otherSide) : seaColor;
-    patches.push(
-      `<path d="${polyToSvgPath(arc)}" fill="${color}" stroke="${color}" stroke-width="0.4" stroke-linejoin="round" />`
-    );
-  }
-  return patches;
 }
 
 const FIELD_TONES = ["#d9c56b", "#cdbb5f", "#bfc266", "#d3b66b", "#b0bd63", "#c6aa62"];
@@ -219,6 +135,32 @@ export function renderRegionSvg(
   const themeName = doc.decoration.theme;
   const theme = THEMES[themeName] ?? THEMES.schley;
 
+  // 海岸線: 断片を連結し FMG と同じ B スプラインで丸める。直線のセル境界と曲線の間は辺ごとのパッチで塗り分ける
+  const coasts = smoothCoastlines(doc.terrain.coastlinePolygons);
+  const coastPatchD = coasts
+    .flatMap(c => c.patches)
+    .map(poly => polyToSvgPath(poly))
+    .join(" ");
+  const isSeaBiome = (b: RegionDocument["biomes"][number]) => Boolean(b.isWater) || b.kind === "ocean";
+  const seaClipD = doc.biomes
+    .filter(isSeaBiome)
+    .map(b => polyToSvgPath(b.polygon))
+    .join(" ");
+  const landClipD = doc.biomes
+    .filter(b => !isSeaBiome(b))
+    .map(b => polyToSvgPath(b.polygon))
+    .join(" ");
+  // 湿地は丸めた海岸線より海側へ出さない: 海セルと、曲線が陸側へ食い込んだ部分（陸セル内のパッチ）を隠す
+  const coastClipDefs = coastPatchD
+    ? `<clipPath id="re-sea-clip" clipPathUnits="userSpaceOnUse"><path d="${seaClipD}" /></clipPath>
+      <clipPath id="re-land-clip" clipPathUnits="userSpaceOnUse"><path d="${landClipD}" /></clipPath>
+      <mask id="re-wetland-coast-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="${widthUnits}" height="${heightUnits}">
+        <rect x="0" y="0" width="${widthUnits}" height="${heightUnits}" fill="#ffffff" />
+        <path d="${seaClipD}" fill="#000000" />
+        <g clip-path="url(#re-land-clip)"><path d="${coastPatchD}" fill="#000000" /></g>
+      </mask>`
+    : "";
+
   const forestBiomes = doc.biomes.filter(b => isForestBiome(b.kind));
   const hasForest = forestBiomes.length > 0;
 
@@ -283,10 +225,10 @@ export function renderRegionSvg(
     const lakesClearing = doc.terrain.lakePolygons
       .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
       .join("\n");
-    const coastlinesClearing = doc.terrain.coastlinePolygons
-      .map(poly => smoothCoastline(poly))
-      .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
-      .join("\n");
+    // 海: 海セルと、曲線が陸側へ食い込んだ部分
+    const coastlinesClearing = `${seaClipD ? `<path d="${seaClipD}" fill="#000000" />` : ""}${
+      coastPatchD ? `<path d="${coastPatchD}" fill="#000000" />` : ""
+    }`;
 
     forestDefs = `
       <!-- 森林クリアリングマスク: 街道・都市・ダンジョン・水域をくり抜き、それ以外に森を広げる -->
@@ -305,6 +247,7 @@ export function renderRegionSvg(
     // 隣接する森林セルを 1 つの森林塊にまとめ、セル頂点の角を持たない滑らかな外形で描く
     // 水辺（海・湖・湿地の開放水面）には森をはみ出させない
     const forestWater = [
+      ...coasts.flatMap(c => c.patches),
       ...doc.biomes.filter(b => b.isWater || b.kind === "ocean").map(b => b.polygon),
       ...doc.terrain.lakePolygons,
       ...doc.biomes
@@ -385,6 +328,7 @@ export function renderRegionSvg(
       </filter>`
           : wetlandMarkPattern("#4f6b3a")
       }
+      ${coastClipDefs}
       ${forestDefs}
     </defs>
   `;
@@ -440,17 +384,58 @@ export function renderRegionSvg(
       .map(part => part.svg)
       .join("\n")}\n${underlay}\n<g class="forest-ground" clip-path="url(#re-forest-outline)">${forestGround}</g>`;
   }
-  const seaPolys = doc.biomes.filter(bm => bm.isWater || bm.kind === "ocean").map(bm => bm.polygon);
+  const seaPolys = doc.biomes.filter(isSeaBiome).map(bm => bm.polygon);
   const isSeaPoint = (pt: Point) => seaPolys.some(poly => pointInPolygon(pt, poly));
   const landColorAt = (pt: Point): string => {
-    const land = doc.biomes.find(bm => !(bm.isWater || bm.kind === "ocean") && pointInPolygon(pt, bm.polygon));
+    const land = doc.biomes.find(bm => !isSeaBiome(bm) && pointInPolygon(pt, bm.polygon));
     return land?.color ?? theme.biomes[land?.kind ?? "grassland"] ?? theme.biomes.grassland;
   };
-  const seaBiome = doc.biomes.find(bm => bm.isWater || bm.kind === "ocean");
+  const seaBiome = doc.biomes.find(isSeaBiome);
   const seaColor = seaBiome?.color ?? theme.biomes.ocean ?? "#9ec3d6";
-  const coastPatches = doc.terrain.coastlinePolygons
-    .flatMap(poly => coastlineSliverPatches(poly, 6, isSeaPoint, landColorAt, seaColor))
-    .join("\n");
+  // 陸セルの辺 → 地面色（海岸の辺がどの陸セルに属するかを引く）
+  const edgeKey = (a: Point, b: Point) => {
+    const ka = `${a[0].toFixed(2)},${a[1].toFixed(2)}`;
+    const kb = `${b[0].toFixed(2)},${b[1].toFixed(2)}`;
+    return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+  };
+  const landEdgeColor = new Map<string, string>();
+  for (const bm of doc.biomes) {
+    if (isSeaBiome(bm)) continue;
+    const color = bm.color ?? theme.biomes[bm.kind] ?? theme.biomes.grassland;
+    for (let i = 0; i < bm.polygon.length; i++)
+      landEdgeColor.set(edgeKey(bm.polygon[i], bm.polygon[(i + 1) % bm.polygon.length]), color);
+  }
+  const patchLandColor = (patch: Point[]): string => {
+    const a = patch[0];
+    const b = patch[patch.length - 1];
+    const known = landEdgeColor.get(edgeKey(a, b));
+    if (known) return known;
+    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const off = Math.min(0.5, len * 0.1);
+    const nx = (-(b[1] - a[1]) / len) * off;
+    const ny = ((b[0] - a[0]) / len) * off;
+    const side: Point = isSeaPoint([mid[0] + nx, mid[1] + ny])
+      ? [mid[0] - nx, mid[1] - ny]
+      : [mid[0] + nx, mid[1] + ny];
+    return landColorAt(side);
+  };
+  // 曲線が海側へ膨らんだ所は陸色（海セルで切り抜き）、陸側へ食い込んだ所は海色
+  const landByColor = new Map<string, string[]>();
+  for (const patch of coasts.flatMap(c => c.patches)) {
+    const color = patchLandColor(patch);
+    const list = landByColor.get(color);
+    if (list) list.push(polyToSvgPath(patch));
+    else landByColor.set(color, [polyToSvgPath(patch)]);
+  }
+  // 海色は切り抜かずに先に塗る（海側はもともと海色なので変化なし）。切り抜くと弦に沿って継ぎ目の細線が出る。
+  // 縁取りは陸セルの縁取り（0.7）が海側へはみ出す分を覆う太さにする（曲線側のはみ出しは海岸線の線が隠す）
+  const coastPatches = coastPatchD
+    ? `<path class="coast-fill-sea" d="${coastPatchD}" fill="${seaColor}" stroke="${seaColor}" stroke-width="1" stroke-linejoin="round" />
+      <g class="coast-fill-land" clip-path="url(#re-sea-clip)">${[...landByColor]
+        .map(([color, ds]) => `<path d="${ds.join(" ")}" fill="${color}" />`)
+        .join("")}</g>`
+    : "";
   const biomesLayer = `${biomesLayerBase}\n${coastPatches}`;
 
   const wetlandBiomes = doc.biomes.filter(b => b.wetlandPatches !== undefined);
@@ -506,7 +491,7 @@ export function renderRegionSvg(
   }
 
   // 4. 海岸線 & 波紋ハッチング & 湖
-  const smoothCoasts = doc.terrain.coastlinePolygons.map(poly => smoothCoastline(poly, 6));
+  const smoothCoasts = coasts.map(c => c.curve);
   const ripples = generateCoastalRipples(smoothCoasts, 3, 5);
   const ripplesLayer = ripples
     .map((rip, i) => {
@@ -521,11 +506,32 @@ export function renderRegionSvg(
     })
     .join("\n");
 
+  // 海岸の辺 → その辺に対応する曲線区間（a→b 向き）
+  const coastArcs = new Map<string, Point[]>();
+  for (const patch of coasts.flatMap(c => c.patches)) {
+    coastArcs.set(edgeKey(patch[0], patch[patch.length - 1]), [
+      patch[0],
+      ...patch.slice(1, -1),
+      patch[patch.length - 1]
+    ]);
+  }
+  const arcFor = (a: Point, b: Point): Point[] | undefined => {
+    const arc = coastArcs.get(edgeKey(a, b));
+    if (!arc) return undefined;
+    const forward = Math.hypot(arc[0][0] - a[0], arc[0][1] - a[1]) <= Math.hypot(arc[0][0] - b[0], arc[0][1] - b[1]);
+    return (forward ? arc : [...arc].reverse()).slice(1, -1);
+  };
   const coastalHabitatsLayer = (doc.terrain.coastalHabitats ?? [])
     .map((segment, i) => {
       const habitat = getCoastalHabitatDefinition(segment.coastalHabitat);
       if (habitat.key === "none") return "";
-      const path = polyToSvgPath(segment.points, false);
+      const [a, b] = [segment.points[0], segment.points[segment.points.length - 1]];
+      const arc = segment.points.length === 2 ? arcFor(a, b) : undefined;
+      // 帯は丸めた海岸線に沿わせ、切り抜きも海岸の辺を曲線に置き換えた陸セルにする
+      const path = polyToSvgPath(arc ? [a, ...arc, b] : segment.points, false);
+      // 同じ陸セルの他の海岸の辺も曲線に置き換えないと、帯がセルの角から突き出る
+      const land = segment.landPolygon;
+      const clipPoly = land.flatMap((p, k) => [p, ...(arcFor(p, land[(k + 1) % land.length]) ?? [])]);
       const clipId = `re-coastal-habitat-${i}`;
       const dash =
         habitat.key === "rockyIntertidal"
@@ -535,7 +541,7 @@ export function renderRegionSvg(
             : habitat.key === "coastalDune"
               ? "6,4"
               : "1,4";
-      return `<defs><clipPath id="${clipId}"><path d="${polyToSvgPath(segment.landPolygon, true)}" /></clipPath></defs>
+      return `<defs><clipPath id="${clipId}"><path d="${polyToSvgPath(clipPoly, true)}" /></clipPath></defs>
       <g class="coastal-habitat coastal-habitat-${habitat.key}" data-coastal-habitat="${habitat.key}" clip-path="url(#${clipId})">
         <title>${escapeXml(habitat.label)}</title>
         <path d="${path}" fill="none" stroke="${habitat.color}" stroke-width="14" />
@@ -767,7 +773,7 @@ export function renderRegionSvg(
       ${defs}
       ${background}
       <g id="layer-biomes">${biomesLayer}</g>
-      <g id="layer-wetlands">${wetlandLayer}${wetlandMarks}</g>
+      <g id="layer-wetlands"${coastPatchD ? ' mask="url(#re-wetland-coast-mask)"' : ""}>${wetlandLayer}${wetlandMarks}</g>
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>

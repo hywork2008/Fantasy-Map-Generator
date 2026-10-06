@@ -246,4 +246,57 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
       expect(svg).toContain('<g id="layer-forests"></g>');
     });
   });
+
+  it("clips wetlands to the smoothed coastline so the rounding cannot push them into the sea", () => {
+    const doc = createEmptyRegionDocument(DEFAULT_REGION_SETTINGS);
+    doc.biomes = [
+      {
+        id: "land",
+        kind: "swamp",
+        polygon: [
+          [0, 0],
+          [100, 0],
+          [100, 100],
+          [0, 100]
+        ],
+        wetlandPatches: [
+          {
+            kind: "mud",
+            level: 0,
+            polygon: [
+              [10, 10],
+              [90, 10],
+              [90, 90],
+              [10, 90]
+            ]
+          }
+        ]
+      },
+      {
+        id: "sea",
+        kind: "ocean",
+        isWater: true,
+        polygon: [
+          [100, 0],
+          [200, 0],
+          [200, 100],
+          [100, 100]
+        ]
+      }
+    ];
+    expect(renderRegionSvg(doc)).not.toContain("re-wetland-coast-mask");
+    doc.terrain.coastlinePolygons = [
+      [
+        [100, 0],
+        [100, 50]
+      ],
+      [
+        [100, 50],
+        [100, 100]
+      ]
+    ];
+    const svg = renderRegionSvg(doc);
+    expect(svg).toContain('<mask id="re-wetland-coast-mask"');
+    expect(svg).toContain('<g id="layer-wetlands" mask="url(#re-wetland-coast-mask)">');
+  });
 });

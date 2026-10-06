@@ -93,11 +93,42 @@ describe("wetland mosaics", () => {
     expect(area(rainy)).toBeGreaterThan(area(dry));
     const coastal = buildWetlandPatches(
       cell,
-      [cell, { ...cell, point: [4, 2], isWater: true, height: 10 }],
+      // 近くの水の効果だけを見る（境界辺を共有する水セルでは湿地の引っ込みが別に効く）
+      [cell, { ...cell, point: [4, 2], isWater: true, height: 10, polygon: undefined }],
       "wetland-test",
       1000
     );
     expect(area(coastal)).toBeGreaterThan(area(buildWetlandPatches(cell, [cell], "wetland-test", 1000)));
+  });
+  it("pulls back from edges whose neighbour is not a wetland, but stays flush against wetland neighbours", () => {
+    const next = (isWater: boolean): RegionSiteCell => ({
+      ...cell,
+      point: [6, 2],
+      isWater,
+      height: isWater ? 10 : undefined,
+      polygon: [
+        [4, 0],
+        [8, 0],
+        [8, 4],
+        [4, 4]
+      ]
+    });
+    const maxX = (patches: ReturnType<typeof buildWetlandPatches>) =>
+      Math.max(...patches.flatMap(p => p.polygon.map(q => q[0])));
+    const open = buildWetlandPatches(cell, [cell, next(false)], "wetland-test", 1000, c => c === cell);
+    const joined = buildWetlandPatches(cell, [cell, next(false)], "wetland-test", 1000, () => true);
+    // 隣が草地: 右辺 (x=4) から内側へ引っ込む。隣も湿地: 右辺まで届く
+    expect(maxX(open)).toBeLessThan(4 - 0.1);
+    expect(maxX(joined)).toBeGreaterThan(4 - 0.1);
+    // 隣が水域: ハビタットの帯が被る幅までしか引っ込めず、帯が無ければ引っ込めない
+    const seaMaxX = (habitat: number, band?: number) => {
+      const own = { ...cell, coastalHabitat: habitat };
+      return maxX(buildWetlandPatches(own, [own, next(true)], "wetland-test", 1000, c => c === own, band));
+    };
+    const beach = getCoastalHabitatCode("sandyBeach");
+    expect(seaMaxX(beach, 0.1)).toBeGreaterThan(4 - 0.1 - 1e-6);
+    expect(seaMaxX(beach, 0.1)).toBeLessThan(4 - 0.05);
+    expect(seaMaxX(0, 0.1)).toBeGreaterThan(4 - 1e-6 - 0.3);
   });
   it("requires sandy habitat for exposed sand and keeps tidal flats muddy", () => {
     const sandy = buildWetlandPatches(

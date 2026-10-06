@@ -20,6 +20,93 @@ const LEVEL_FLOOR = 0.36;
 /** 最小で使う段階数と最大の段階数。乾燥した湿地でも 5 段階は描き分ける。 */
 const MIN_LEVELS = 5;
 
+const edgeKey = (a: Point, b: Point) => {
+  const ka = `${a[0].toFixed(3)},${a[1].toFixed(3)}`;
+  const kb = `${b[0].toFixed(3)},${b[1].toFixed(3)}`;
+  return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+};
+
+/** 辺 → その辺を持つセル群。呼び出しごとに全セルを走査しないよう cells 配列ごとに保持する */
+const edgeOwners = new WeakMap<RegionSiteCell[], Map<string, RegionSiteCell[]>>();
+function ownersOf(cells: RegionSiteCell[]): Map<string, RegionSiteCell[]> {
+  let map = edgeOwners.get(cells);
+  if (map) return map;
+  map = new Map();
+  for (const c of cells) {
+    const poly = c.polygon;
+    if (!poly || poly.length < 3) continue;
+    for (let i = 0; i < poly.length; i++) {
+      const key = edgeKey(poly[i], poly[(i + 1) % poly.length]);
+      const list = map.get(key);
+      if (list) list.push(c);
+      else map.set(key, [c]);
+    }
+  }
+  edgeOwners.set(cells, map);
+  return map;
+}
+
+/** セル境界から内側へ染み込ませる幅（セル径に対する比率）。海岸線の丸めで湿地が水面へ出ないための余白 */
+const EDGE_INSET_RATIO = 0.12;
+
+/** 多角形を半平面 (n·p >= c) で切る */
+function clipHalfPlane(poly: Point[], nx: number, ny: number, c: number): Point[] {
+  const out: Point[] = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const da = nx * a[0] + ny * a[1] - c;
+    const db = nx * b[0] + ny * b[1] - c;
+    if (da >= 0) out.push(a);
+    if (da >= 0 !== db >= 0) {
+      const t = da / (da - db);
+      out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+    }
+  }
+  return out;
+}
+
+/**
+ * 湿地が広がってよい範囲。隣が湿地セルでない辺（草地・水域・海岸）からは少し内側へ引っ込め、
+ * 隣も湿地の辺はそのまま使って隣接セルと連続した湿地にする。隣が分からない辺（収集範囲の外）も引っ込めない。
+ */
+function wetlandExtent(
+  cell: RegionSiteCell,
+  cells: RegionSiteCell[],
+  isWetland: (c: RegionSiteCell) => boolean,
+  coastBandInset: number
+): Point[] {
+  const poly = cell.polygon as Point[];
+  const owners = ownersOf(cells);
+  const landInset = Math.sqrt(polygonArea(poly)) * EDGE_INSET_RATIO;
+  // 水域に接する辺は、海岸ハビタットの帯が陸側へ被る幅までに留める（帯が無ければ引っ込めない）
+  const hasHabitat = getCoastalHabitatKey(cell.coastalHabitat ?? 0) !== "none";
+  const waterInset = hasHabitat ? Math.min(landInset, coastBandInset) : 0;
+  const isOpenWater = (c: RegionSiteCell) => c.isWater || (c.height !== undefined && c.height < 20);
+  const cx = poly.reduce((sum, p) => sum + p[0], 0) / poly.length;
+  const cy = poly.reduce((sum, p) => sum + p[1], 0) / poly.length;
+  let result = poly;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const neighbours = (owners.get(edgeKey(a, b)) ?? []).filter(c => c !== cell);
+    if (!neighbours.length || neighbours.some(isWetland)) continue;
+    const inset = neighbours.some(isOpenWater) ? waterInset : landInset;
+    if (inset <= 0) continue;
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len < 1e-9) continue;
+    let nx = -(b[1] - a[1]) / len;
+    let ny = (b[0] - a[0]) / len;
+    if (nx * (cx - a[0]) + ny * (cy - a[1]) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    const clipped = clipHalfPlane(result, nx, ny, nx * a[0] + ny * a[1] + inset);
+    if (clipped.length >= 3) result = clipped;
+  }
+  return result;
+}
+
 /**
  * 湿地の冠水段階を等高線状の入れ子の面として生成する（水文シミュレーションではなく視覚的推定）。
  *
@@ -35,10 +122,15 @@ export function buildWetlandPatches(
   cell: RegionSiteCell,
   cells: RegionSiteCell[],
   seed: string,
-  metersPerMapUnit: number
+  metersPerMapUnit: number,
+  /** 隣接セルが湿地かの判定。省略時は隣を湿地とみなさず、全周を内側へ引っ込める */
+  isWetland: (c: RegionSiteCell) => boolean = () => false,
+  /** 海岸ハビタットの帯が陸側へ被る幅（地図単位）。水域に接する辺の引っ込みはこの幅までにする */
+  coastBandInset = Number.POSITIVE_INFINITY
 ): RegionWetlandPatch[] {
   const poly = cell.polygon;
   if (!poly || poly.length < 3) return [];
+  const extent = wetlandExtent(cell, cells, isWetland, coastBandInset);
   const scale = Math.max(0.001, metersPerMapUnit);
   const xs = poly.map(p => p[0]),
     ys = poly.map(p => p[1]);
@@ -123,7 +215,7 @@ export function buildWetlandPatches(
         const values = tri.map(score);
         const peak = Math.max(...values);
         for (let level = 0; level < levelCount && thresholds[level] <= peak; level++) {
-          const clipped = clipConvex(contourAbove(tri, values, thresholds[level]), poly);
+          const clipped = clipConvex(contourAbove(tri, values, thresholds[level]), extent);
           if (polygonArea(clipped) <= 1e-8) continue;
           patches.push({
             kind: level >= 6 ? "water" : sandy ? "sand" : "mud",

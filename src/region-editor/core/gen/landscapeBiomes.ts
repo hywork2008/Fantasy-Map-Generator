@@ -275,6 +275,30 @@ export function resolveCellLandscape(
   };
 }
 
+/** 海岸ハビタットの帯（stroke-width 14）が海岸線から陸側へ被る幅（RE ローカル単位） */
+const COASTAL_BAND_INWARD_LOCAL = 7;
+
+/** 地図単位 → RE ローカル単位の倍率（セルの最初の辺で測る） */
+function localScale(poly: Point[], toLocal: (p: Point) => Point): number {
+  const [a, b] = [poly[0], poly[1]];
+  const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const la = toLocal(a);
+  const lb = toLocal(b);
+  return d > 1e-9 ? Math.hypot(lb[0] - la[0], lb[1] - la[1]) / d || 1 : 1;
+}
+
+/** バイオーム面の湿地判定（下の構築ループと同じ条件） */
+function isWetlandCell(cell: RegionSiteCell): boolean {
+  if (cell.isWater || (cell.height !== undefined && cell.height < 20)) return false;
+  const definition =
+    cell.biomeDefinition ??
+    STANDARD_BIOME_DEFINITIONS.find(d => d.label.toLowerCase() === cell.biomeName.toLowerCase());
+  const kind = definition
+    ? catalogLandscape(definition).kind
+    : resolveCellLandscape(cell.biomeName, cell.elevationMeters, false).kind;
+  return Boolean(definition?.tags.includes("wetland")) || kind === "swamp" || kind === "marsh";
+}
+
 /**
  * FMG から渡されたセル情報群から、CE 準拠のバイオーム面と風景シンボル群を構築する
  */
@@ -288,6 +312,8 @@ export function buildLandscapeFromCells(
 ): { biomes: RegionBiomeArea[]; symbols: RegionSymbol[] } {
   const biomes: RegionBiomeArea[] = [];
   const symbols: RegionSymbol[] = [];
+  // 湿地セルの判定。湿地は隣が湿地セルでない辺から内側へ引っ込める（海岸線の丸めで水面へ出ないように）
+  const wetlandCells = new Set(cells.filter(isWetlandCell));
 
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i];
@@ -333,7 +359,14 @@ export function buildLandscapeFromCells(
         wetlandPatches:
           !landscape.isWater &&
           (definition?.tags.includes("wetland") || landscape.kind === "swamp" || landscape.kind === "marsh")
-            ? buildWetlandPatches(cell, cells, seed, metersPerMapUnit).map(p => ({
+            ? buildWetlandPatches(
+                cell,
+                cells,
+                seed,
+                metersPerMapUnit,
+                c => wetlandCells.has(c),
+                COASTAL_BAND_INWARD_LOCAL / localScale(cell.polygon, toLocal)
+              ).map(p => ({
                 ...p,
                 polygon: p.polygon.map(toLocal)
               }))
