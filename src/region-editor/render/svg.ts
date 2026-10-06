@@ -17,7 +17,7 @@ import {
   wetlandPatchLevel
 } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
-import { extendRiversToCoast, smoothCoastlines } from "./coastline";
+import { extendRiversToCoast, smoothCoastlines, smoothLakeShore } from "./coastline";
 import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
@@ -158,8 +158,11 @@ export function renderRegionSvg(
   // 海向けの港を持つ集落の岸壁は、丸めで陸側へ引っ込まないよう頂点を残す
   const portPins = doc.settlements.filter(st => st.hasPort).map(st => st.position);
   const coasts = smoothCoastlines(doc.terrain.coastlinePolygons, portPins);
-  // 河口は丸めた海岸曲線まで延長する（直線のセル境界で止まると海に届かない）
-  const rivers = extendRiversToCoast(doc.rivers, coasts);
+  // 湖岸も海岸と同じ B スプラインで丸める
+  const lakeShores = doc.terrain.lakePolygons.map(smoothLakeShore);
+  const lakes = lakeShores.map(l => l.curve);
+  // 河口は丸めた海岸・湖岸曲線まで延長する（直線のセル境界で止まると水面に届かない）
+  const rivers = extendRiversToCoast(doc.rivers, [...coasts, ...lakeShores]);
   const coastPatchD = coasts
     .flatMap(c => c.patches)
     .map(poly => polyToSvgPath(poly))
@@ -248,9 +251,7 @@ export function renderRegionSvg(
           `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" stroke="#000000" stroke-width="0.3" stroke-linejoin="round" />`
       )
       .join("\n");
-    const lakesClearing = doc.terrain.lakePolygons
-      .map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`)
-      .join("\n");
+    const lakesClearing = lakes.map(poly => `<path d="${polyToSvgPath(poly, true)}" fill="#000000" />`).join("\n");
     // 海: 海セルと、曲線が陸側へ食い込んだ部分
     const coastlinesClearing = `${seaClipD ? `<path d="${seaClipD}" fill="#000000" />` : ""}${
       coastPatchD ? `<path d="${coastPatchD}" fill="#000000" />` : ""
@@ -275,7 +276,7 @@ export function renderRegionSvg(
     const forestWater = [
       ...coasts.flatMap(c => c.patches),
       ...doc.biomes.filter(b => b.isWater || b.kind === "ocean").map(b => b.polygon),
-      ...doc.terrain.lakePolygons,
+      ...lakes,
       ...doc.biomes
         .flatMap(b => b.wetlandPatches ?? [])
         .filter(p => wetlandPatchLevel(p) >= WETLAND_WATER_LEVEL)
@@ -806,7 +807,7 @@ export function renderRegionSvg(
   });
   const coastalHabitatsLayer = bandLayers.join("\n");
 
-  const lakesLayer = doc.terrain.lakePolygons
+  const lakesLayer = lakes
     .map(poly => {
       return `<path class="lake" d="${polyToSvgPath(poly, true)}" fill="${theme.riverFill}" stroke="${theme.coastlineStroke}" stroke-width="1.5" />`;
     })

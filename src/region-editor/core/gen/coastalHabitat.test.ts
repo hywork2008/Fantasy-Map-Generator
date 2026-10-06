@@ -55,7 +55,18 @@ describe("FMG coastal habitats in RE", () => {
         }
       } as any;
       const site = buildRegionSiteDescriptor(1)!;
+      // Lake shores are coastline edges (smoothed like sea coasts) but carry no habitat band
       expect(site.coastlines).toEqual([
+        [
+          [110, 100],
+          [110, 110]
+        ],
+        [
+          [110, 110],
+          [100, 110]
+        ]
+      ]);
+      expect(site.coastalHabitats!.map(h => h.points)).toEqual([
         [
           [110, 100],
           [110, 110]

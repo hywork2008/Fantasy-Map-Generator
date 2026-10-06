@@ -428,22 +428,30 @@ export function buildRegionSiteDescriptor(
     });
   }
 
-  // Preserve the actual land/ocean edges and their land-side habitat.
+  // Preserve the actual land/ocean edges and their land-side habitat. Lake shores are kept as plain
+  // coastline edges (no habitat band) so RE smooths them with the same curve as sea coasts.
   const coastalHabitats: NonNullable<RegionSiteDescriptor["coastalHabitats"]> = [];
+  const lakeShoreEdges: Point[][] = [];
   for (const cid of collectedCellSet) {
     if (cells.h[cid] < 20) continue;
     const vertices = cells.v?.[cid];
     if (!vertices || !pack.vertices?.p) continue;
-    const oceanNeighbors = (cells.c[cid] ?? []).filter(
-      nid => cells.h[nid] < 20 && pack.features?.[cells.f?.[nid]]?.type === "ocean"
-    );
+    const waterNeighbors = (cells.c[cid] ?? []).filter(nid => cells.h[nid] < 20);
     for (let i = 0; i < vertices.length; i++) {
       const a = vertices[i];
       const b = vertices[(i + 1) % vertices.length];
-      if (!oceanNeighbors.some(nid => cells.v?.[nid]?.includes(a) && cells.v[nid].includes(b))) continue;
+      const neighbor = waterNeighbors.find(nid => cells.v?.[nid]?.includes(a) && cells.v[nid].includes(b));
+      if (neighbor === undefined) continue;
       const start = pack.vertices.p[a];
       const end = pack.vertices.p[b];
       if (!start || !end) continue;
+      if (pack.features?.[cells.f?.[neighbor]]?.type !== "ocean") {
+        lakeShoreEdges.push([
+          [start[0], start[1]],
+          [end[0], end[1]]
+        ]);
+        continue;
+      }
       coastalHabitats.push({
         points: [
           [start[0], start[1]],
@@ -475,7 +483,7 @@ export function buildRegionSiteDescriptor(
       width: extentWidth * metersPerMapUnit,
       height: extentHeight * metersPerMapUnit
     },
-    coastlines: coastalHabitats.map(segment => segment.points),
+    coastlines: [...coastalHabitats.map(segment => segment.points), ...lakeShoreEdges],
     coastalHabitats,
     lakes: [],
     rivers: regionRivers,

@@ -236,3 +236,10 @@ export function extendRiversToCoast<R extends { points: Point[]; widths: number[
     return { ...r, points: pts, widths };
   });
 }
+
+/** 湖の閉じた多角形を海岸線と同じ B スプラインで丸める */
+export function smoothLakeShore(poly: Point[]): SmoothCoast {
+  const ring = poly.length > 1 && keyOf(poly[0]) === keyOf(poly[poly.length - 1]) ? poly : [...poly, poly[0]];
+  if (ring.length < 4) return { vertices: ring, closed: true, curve: ring, patches: [] };
+  return smoothCoastChain(ring, true);
+}
