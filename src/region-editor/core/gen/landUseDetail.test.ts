@@ -76,6 +76,7 @@ describe("land-use detail contract", () => {
     expect(doc.landUse!.unplacedAreaHa).toBeGreaterThan(0);
     for (const patch of doc.landUse!.patches) expect(polygonArea(clipConvex(patch.polygon, lake))).toBeLessThan(1e-8);
     const before = JSON.stringify(doc.landUse);
+    doc.terrain.showCultivation = true;
     for (const zoom of [0.3, 1, 3]) {
       const svg = renderRegionSvg(doc, undefined, { zoom });
       for (const patch of doc.landUse!.patches.filter(p => p.kind === "built" || p.kind === "cultivation")) {
@@ -200,6 +201,7 @@ describe("land-use detail contract", () => {
     const edited = JSON.stringify(patch);
     generateFarmland(doc, site, p => p);
     expect(JSON.stringify(doc.landUse!.patches.find(p => p.id === patch.id))).toBe(edited);
+    doc.terrain.showCultivation = true;
     const svg = renderRegionSvg(doc);
     const path = `${patch.polygon.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ")} Z`;
     expect(svg.split(`d="${path}"`).length).toBeGreaterThanOrEqual(3);

@@ -163,6 +163,15 @@ export function toggleContours(doc: RegionDocument, show?: boolean): RegionDocum
 }
 
 /**
+ * 耕作地レイヤーの表示/非表示を切り替える（デフォルトは非表示）
+ */
+export function toggleCultivation(doc: RegionDocument, show?: boolean): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.showCultivation = show ?? !(next.terrain.showCultivation ?? false);
+  return next;
+}
+
+/**
  * 等高線の生成間隔を変更し、等高線を再生成する
  */
 export function updateContourInterval(doc: RegionDocument, intervalMeters: number): RegionDocument {

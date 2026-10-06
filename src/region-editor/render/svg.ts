@@ -179,7 +179,7 @@ export function renderRegionSvg(
       .filter(
         p =>
           p.kind === "built" ||
-          p.kind === "cultivation" ||
+          (p.kind === "cultivation" && doc.terrain.showCultivation === true) ||
           p.kind === "pasture" ||
           p.kind === "hay_meadow" ||
           p.kind === "wood_pasture" ||
@@ -844,7 +844,9 @@ export function renderRegionSvg(
       sym =>
         !sym.type.startsWith("tree") ||
         !(doc.landUse?.patches ?? []).some(
-          p => (p.kind === "built" || p.kind === "cultivation") && pointInPolygon([sym.x, sym.y], p.polygon)
+          p =>
+            (p.kind === "built" || (p.kind === "cultivation" && doc.terrain.showCultivation === true)) &&
+            pointInPolygon([sym.x, sym.y], p.polygon)
         )
     )
     .map(sym => {
@@ -999,6 +1001,7 @@ export function renderRegionSvg(
         ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
       </defs>
       <g id="layer-land-use" data-detail-level="${detail}"${coastMaskAttr}>${(doc.landUse?.patches ?? [])
+        .filter(p => p.kind !== "cultivation" || doc.terrain.showCultivation === true)
         .map(p => {
           const path = polyToSvgPath(p.polygon);
           const variant = patchVariant(p.id);

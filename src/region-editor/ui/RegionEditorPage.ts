@@ -8,6 +8,7 @@ import {
   removeSettlement,
   removeSymbol,
   toggleContours,
+  toggleCultivation,
   updateContourInterval,
   updateLandmark,
   updateSettlement
@@ -152,6 +153,10 @@ export function mountRegionEditor(
             <label for="check-show-contours" style="cursor:pointer;">等高線を表示</label>
             <input type="checkbox" id="check-show-contours" ${history.current.terrain.showContours !== false ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="check-show-cultivation" style="cursor:pointer;">耕作地を表示</label>
+            <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
+          </div>
           <div class="re-form-row">
             <label>等高線間隔</label>
             <select class="re-select" id="select-contour-interval">
@@ -249,6 +254,10 @@ export function mountRegionEditor(
     const checkContours = root.querySelector<HTMLInputElement>("#check-show-contours");
     if (checkContours) {
       checkContours.checked = doc.terrain.showContours !== false;
+    }
+    const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
+    if (checkCultivation) {
+      checkCultivation.checked = doc.terrain.showCultivation === true;
     }
   }
 
@@ -888,6 +897,13 @@ export function mountRegionEditor(
   root.querySelector("#check-show-contours")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
     history.push(toggleContours(history.current, checked));
+    renderMap();
+  });
+
+  // 耕作地表示切り替え
+  root.querySelector("#check-show-cultivation")?.addEventListener("change", e => {
+    const checked = (e.target as HTMLInputElement).checked;
+    history.push(toggleCultivation(history.current, checked));
     renderMap();
   });
 

@@ -214,6 +214,8 @@ export interface RegionTerrain {
   contours?: RegionContourLine[];
   contourIntervalMeters?: number;
   showContours?: boolean;
+  /** 耕作地(cultivation)パッチを描画するか。未設定は非表示。 */
+  showCultivation?: boolean;
 }
 
 export interface RegionLandUsePatch extends LandUsePatchBudget {
