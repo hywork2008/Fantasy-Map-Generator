@@ -30,7 +30,9 @@ export type BiomeKind =
   | "marsh"
   | "desert"
   | "tundra"
-  | "badlands";
+  | "badlands"
+  | "volcanic_rock"
+  | "volcanic_soil";
 
 /** 湿地の冠水段階 0（湿った地面）〜 9（深い開放水面）。 */
 export const WETLAND_LEVELS = 10;

@@ -32,7 +32,10 @@ export const CE_BIOME_PALETTE: Record<BiomeKind, string> = {
   snow_mountains: "#d8e5e8",
   hills: "#cfcaa8",
   mountains: "#b5a897",
-  badlands: "#ded8aa"
+  badlands: "#ded8aa",
+  // 玄武岩・溶岩原（暗い灰褐色）と火山性黒ボク土（暗褐色）
+  volcanic_rock: "#6e6259",
+  volcanic_soil: "#8a7563"
 };
 
 // Every standard catalog key has an explicit visual family. Forest identity must
@@ -64,9 +67,9 @@ const STANDARD_VISUAL_KINDS = {
   coldSteppe: "grassland",
   tropicalDryForest: "tropical_forest",
   borealPeatland: "marsh",
-  volcanicBarrens: "badlands",
-  lavaField: "badlands",
-  volcanicSoil: "grassland"
+  volcanicBarrens: "volcanic_rock",
+  lavaField: "volcanic_rock",
+  volcanicSoil: "volcanic_soil"
 } satisfies Record<StandardBiomeKey, BiomeKind>;
 
 const RELIEF_SYMBOLS: Record<string, SymbolType> = {

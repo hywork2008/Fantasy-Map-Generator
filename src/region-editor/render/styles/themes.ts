@@ -90,7 +90,9 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
       marsh: "#adbe9e",
       desert: "#e8ddba",
       tundra: "#c9beaa",
-      badlands: "#ded8aa"
+      badlands: "#ded8aa",
+      volcanic_rock: "#6e6259",
+      volcanic_soil: "#8a7563"
     }
   },
 
@@ -144,7 +146,9 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
       marsh: "#e6e8e2",
       desert: "#fcf8ea",
       tundra: "#f0f2f0",
-      badlands: "#eeebe6"
+      badlands: "#eeebe6",
+      volcanic_rock: "#d6d1cb",
+      volcanic_soil: "#e2ddd6"
     }
   },
 
@@ -198,7 +202,9 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
       marsh: "#b4ad89",
       desert: "#dfcca3",
       tundra: "#cdc5af",
-      badlands: "#bda88a"
+      badlands: "#bda88a",
+      volcanic_rock: "#5e5249",
+      volcanic_soil: "#7a6553"
     }
   },
 
@@ -252,7 +258,9 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
       marsh: "#f4f4f4",
       desert: "#fdfdfd",
       tundra: "#f7f7f7",
-      badlands: "#ebebeb"
+      badlands: "#ebebeb",
+      volcanic_rock: "#cfcfcf",
+      volcanic_soil: "#dddddd"
     }
   }
 };
