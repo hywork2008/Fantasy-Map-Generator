@@ -32,6 +32,20 @@ import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionE
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { renderRegionSvg, textScaleForZoom } from "../render/svg";
 
+/** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
+const SETTLEMENT_TYPE_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["capital", "首都 (Capital)"],
+  ["metropolis", "大都市 (Metropolis)"],
+  ["city", "都市 (City)"],
+  ["town", "町 (Town)"],
+  ["fort", "砦 (Fort)"],
+  ["monastery", "修道院 (Monastery)"],
+  ["caravanserai", "隊商宿 (Caravanserai)"],
+  ["trading_post", "交易所 (Trading Post)"],
+  ["village", "村 (Village)"],
+  ["hamlet", "集落 (Hamlet)"]
+];
+
 export type EditorTool = "select" | "brush" | "stamp" | "settlement" | "landmark" | "erase";
 
 export function mountRegionEditor(
@@ -491,10 +505,8 @@ export function mountRegionEditor(
           <div class="re-form-row">
             <label>種別</label>
             <select class="re-select" id="sel-settlement-type">
-              <option value="metropolis" ${s.type === "metropolis" ? "selected" : ""}>大都市 (Metropolis)</option>
-              <option value="city" ${s.type === "city" ? "selected" : ""}>都市 (City)</option>
-              <option value="town" ${s.type === "town" ? "selected" : ""}>町 (Town)</option>
-              <option value="village" ${s.type === "village" ? "selected" : ""}>村 (Village)</option>
+              ${SETTLEMENT_TYPE_OPTIONS.map(([v, label]) => `<option value="${v}" ${s.type === v ? "selected" : ""}>${label}</option>`).join("")}
+              ${SETTLEMENT_TYPE_OPTIONS.some(([v]) => v === s.type) ? "" : `<option value="${escapeHtml(String(s.type))}" selected>${escapeHtml(String(s.type))}</option>`}
             </select>
           </div>
           <div>位置: [${s.position[0].toFixed(1)}, ${s.position[1].toFixed(1)}]</div>
