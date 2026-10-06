@@ -17,7 +17,7 @@ import {
   wetlandPatchLevel
 } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
-import { smoothCoastlines } from "./coastline";
+import { extendRiversToCoast, smoothCoastlines } from "./coastline";
 import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
@@ -158,6 +158,8 @@ export function renderRegionSvg(
   // 海向けの港を持つ集落の岸壁は、丸めで陸側へ引っ込まないよう頂点を残す
   const portPins = doc.settlements.filter(st => st.hasPort).map(st => st.position);
   const coasts = smoothCoastlines(doc.terrain.coastlinePolygons, portPins);
+  // 河口は丸めた海岸曲線まで延長する（直線のセル境界で止まると海に届かない）
+  const rivers = extendRiversToCoast(doc.rivers, coasts);
   const coastPatchD = coasts
     .flatMap(c => c.patches)
     .map(poly => polyToSvgPath(poly))
@@ -226,7 +228,7 @@ export function renderRegionSvg(
       })
       .join("\n");
     // 河川（川幅＋緩衝帯）の切り開き
-    const riversClearing = doc.rivers
+    const riversClearing = rivers
       .map(river => {
         if (river.points.length >= 2) {
           const bufferedWidths = river.widths.map(w => w * riverScale);
@@ -806,7 +808,7 @@ export function renderRegionSvg(
 
   // 5. 河川
   // 5. 河川（太さの変化・水理幅の反映、FMG準拠のベジェ曲線）
-  const riversLayer = doc.rivers
+  const riversLayer = rivers
     .map(river => {
       const isSel = river.id === selectedId;
       const minW = Math.round(Math.min(...river.widths));

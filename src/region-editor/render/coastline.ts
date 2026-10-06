@@ -162,3 +162,77 @@ export function smoothCoastlines(pieces: Point[][], pins: Point[] = [], pinRadiu
     smoothCoastChain(c.points, c.closed, nearestVertices(c.points, c.closed, pins, pinRadius))
   );
 }
+
+function distToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/** 端点 e から進行方向 d（正規化済み）へ伸ばした半直線と曲線の最初の交点までの距離 */
+function rayHitDistance(e: Point, d: Point, curve: Point[], maxDist: number): number | null {
+  let best: number | null = null;
+  for (let i = 0; i + 1 < curve.length; i++) {
+    const a = curve[i];
+    const sx = curve[i + 1][0] - a[0];
+    const sy = curve[i + 1][1] - a[1];
+    const denom = d[0] * sy - d[1] * sx;
+    if (Math.abs(denom) < 1e-9) continue;
+    const t = ((a[0] - e[0]) * sy - (a[1] - e[1]) * sx) / denom;
+    const u = ((a[0] - e[0]) * d[1] - (a[1] - e[1]) * d[0]) / denom;
+    if (t < 0 || t > maxDist || u < 0 || u > 1) continue;
+    if (best === null || t < best) best = t;
+  }
+  return best;
+}
+
+/**
+ * 河口が元のセル境界（直線の海岸）上で終わっている川を、丸めた海岸曲線まで延長する。
+ * 曲線が海側へ膨らむ所では川が海岸に届かなくなるため。延長しても届かない端点は変えない。
+ */
+export function extendRiversToCoast<R extends { points: Point[]; widths: number[] }>(
+  rivers: R[],
+  coasts: SmoothCoast[],
+  maxExtend = 40,
+  onCoastTolerance = 1.5
+): R[] {
+  if (coasts.length === 0) return rivers;
+  const onRawCoast = (p: Point) =>
+    coasts.some(c => {
+      for (let i = 0; i + 1 < c.vertices.length; i++)
+        if (distToSegment(p, c.vertices[i], c.vertices[i + 1]) <= onCoastTolerance) return true;
+      return false;
+    });
+  const hit = (e: Point, from: Point): Point | null => {
+    const dx = e[0] - from[0];
+    const dy = e[1] - from[1];
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9 || !onRawCoast(e)) return null;
+    const d: Point = [dx / len, dy / len];
+    let best: number | null = null;
+    for (const c of coasts) {
+      const t = rayHitDistance(e, d, c.curve, maxExtend);
+      if (t !== null && (best === null || t < best)) best = t;
+    }
+    return best !== null && best > 1e-6 ? [e[0] + d[0] * best, e[1] + d[1] * best] : null;
+  };
+  return rivers.map(r => {
+    if (r.points.length < 2) return r;
+    const pts = [...r.points];
+    const widths = [...r.widths];
+    const perPoint = widths.length === pts.length;
+    const tail = hit(pts[pts.length - 1], pts[pts.length - 2]);
+    if (tail) {
+      pts.push(tail);
+      if (perPoint) widths.push(widths[widths.length - 1]);
+    }
+    const head = hit(pts[0], pts[1]);
+    if (head) {
+      pts.unshift(head);
+      if (perPoint) widths.unshift(widths[0]);
+    }
+    return { ...r, points: pts, widths };
+  });
+}
