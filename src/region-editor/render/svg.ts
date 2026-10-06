@@ -521,7 +521,64 @@ export function renderRegionSvg(
         )
         .join("")}</g>`
     : "";
-  const biomesLayer = `${biomesLayerBase}\n${coastPatches}`;
+  // 異なる地面色のセルが接する辺には、両側の色を繋ぐ細い線形グラデーションの帯を敷く（フィルタは使わず、帯 1 本につき 1 要素）
+  const groundBlend = (() => {
+    type Side = { color: string; a: Point; b: Point; center: Point };
+    const sides = new Map<string, Side[]>();
+    for (const bm of doc.biomes) {
+      if (isSeaBiome(bm) || bm.polygon.length < 3) continue;
+      // 森林セルの地面色は森林の外形の内側にしか出ないので、外形の外は周囲の開けた陸の色として扱う
+      const color = isForestBiome(bm.kind)
+        ? openLandColorFor(bm)
+        : (bm.color ?? theme.biomes[bm.kind] ?? theme.biomes.grassland);
+      const n = bm.polygon.length;
+      const center: Point = [
+        bm.polygon.reduce((t, q) => t + q[0], 0) / n,
+        bm.polygon.reduce((t, q) => t + q[1], 0) / n
+      ];
+      for (let i = 0; i < n; i++) {
+        const a = bm.polygon[i];
+        const b = bm.polygon[(i + 1) % n];
+        const key = edgeKey(a, b);
+        const entry: Side = { color, a, b, center };
+        const list = sides.get(key);
+        if (list) list.push(entry);
+        else sides.set(key, [entry]);
+      }
+    }
+    const defs: string[] = [];
+    const strips: string[] = [];
+    for (const [, pair] of sides) {
+      if (pair.length !== 2 || pair[0].color === pair[1].color) continue;
+      const [from, to] = pair;
+      const len = Math.hypot(from.b[0] - from.a[0], from.b[1] - from.a[1]);
+      if (len < 1e-6) continue;
+      const mid: Point = [(from.a[0] + from.b[0]) / 2, (from.a[1] + from.b[1]) / 2];
+      let nx = -(from.b[1] - from.a[1]) / len;
+      let ny = (from.b[0] - from.a[0]) / len;
+      // 法線は from のセルから to のセルへ向ける
+      if ((from.center[0] - mid[0]) * nx + (from.center[1] - mid[1]) * ny > 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+      const w = len * 0.3;
+      const id = `re-ground-blend-${strips.length}`;
+      defs.push(
+        `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${(mid[0] - nx * w).toFixed(2)}" y1="${(mid[1] - ny * w).toFixed(2)}" x2="${(mid[0] + nx * w).toFixed(2)}" y2="${(mid[1] + ny * w).toFixed(2)}"><stop offset="0" stop-color="${from.color}" /><stop offset="1" stop-color="${to.color}" /></linearGradient>`
+      );
+      const q = [
+        [from.a[0] - nx * w, from.a[1] - ny * w],
+        [from.b[0] - nx * w, from.b[1] - ny * w],
+        [from.b[0] + nx * w, from.b[1] + ny * w],
+        [from.a[0] + nx * w, from.a[1] + ny * w]
+      ] as Point[];
+      strips.push(`<path d="${polyToSvgPath(q)}" fill="url(#${id})" />`);
+    }
+    return {
+      layer: strips.length ? `<g class="ground-blend"><defs>${defs.join("")}</defs>${strips.join("")}</g>` : ""
+    };
+  })();
+  const biomesLayer = `${biomesLayerBase}\n${groundBlend.layer}\n${coastPatches}`;
 
   const wetlandBiomes = doc.biomes.filter(b => b.wetlandPatches !== undefined);
   const wetlandPatches = wetlandBiomes.flatMap(b => b.wetlandPatches ?? []);
