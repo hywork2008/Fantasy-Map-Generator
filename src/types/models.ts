@@ -331,6 +331,8 @@ export interface BurgDemographics {
 }
 
 export interface Burg {
+  landUseProfile?: import("./landUse").LandUseProfile;
+  landUseSettings?: import("./landUse").LandUseSettings;
   /** Local FMG river site; the source cell remains the logical political owner. */
   riverPlacement?: {
     riverId: number;
@@ -531,6 +533,8 @@ export interface CultureRomanceNorms {
 }
 
 export interface Culture {
+  landUseProfile?: import("./landUse").LandUseProfile;
+  landUseSettings?: import("./landUse").LandUseSettings;
   romanceNorms?: CultureRomanceNorms;
   name: string;
   i: number;

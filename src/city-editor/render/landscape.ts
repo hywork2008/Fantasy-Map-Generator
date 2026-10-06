@@ -3,6 +3,7 @@ import { featureGroupVertices } from "../core/features";
 import { nearestOnPolyline, pointInPolygon } from "../core/gen/geom";
 import { makeRng } from "../core/gen/prng";
 import type { BurgSiteBiome } from "../core/gen/site/burgSiteDescriptor";
+import { facePoints } from "../core/mesh";
 import type { CityDocument, Point } from "../core/types";
 import { waterPolygons } from "../core/waterGeometry";
 import type { RenderQuality } from "./svg";
@@ -697,8 +698,26 @@ export function renderLandscapeLayer(
   // Regional settlement clearances
   const otherSettlements = document.sceneRegions?.regionalContext.settlements ?? [];
 
+  // Sea/lake/river cells and urban (core or warded) cells carry no scenery;
+  // only the suburban land beyond them does.
+  const blockedFaces: { box: [number, number, number, number]; ring: Point[] }[] = [];
+  for (const face of Object.values(document.mesh.faces)) {
+    const p = face.properties;
+    const urban = p.settlement === "core" || (p.ward != null && p.ward !== "empty");
+    if (p.water === "land" && !urban) continue;
+    const ring = facePoints(document.mesh, face);
+    if (ring.length < 3) continue;
+    const xs = ring.map(q => q[0]);
+    const ys = ring.map(q => q[1]);
+    blockedFaces.push({ box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], ring });
+  }
+
   // 2. Exclusion checker
   function isExcluded(pt: Point, buffer = 0): boolean {
+    for (const { box, ring } of blockedFaces) {
+      if (pt[0] < box[0] || pt[0] > box[2] || pt[1] < box[1] || pt[1] > box[3]) continue;
+      if (pointInPolygon(pt, ring)) return true;
+    }
     // Water exclusion
     if (waters.some(poly => pointInPolygon(pt, poly))) return true;
     if (waterAreas.some(w => pointInPolygon(pt, w.polygon))) return true;

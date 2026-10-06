@@ -100,7 +100,11 @@
     "distanceToHere": "ここまでの距離",
     "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください",
     "distanceFromBurg": "{{name}}からの距離",
-    "distanceToBurg": "{{name}}までの距離"
+    "distanceToBurg": "{{name}}までの距離",
+    "openRegionEditor": "Region Editorで開く",
+    "openRegionEditorWithProvince": "Region Editorで開く（{{name}}）",
+    "openRegionEditorDisabled": "この地点に州（Province）がありません",
+    "openCityEditor": "City Editorで開く（{{name}}）"
   },
   "directions": {
     "mode": {
@@ -1419,6 +1423,8 @@
         "Broad Beans": "ソラマメ",
         "Bronze": "青銅",
         "Buckwheat": "ソバ",
+        "Spelt": "スペルト小麦",
+        "Chestnuts": "食用クリ",
         "Bullets": "弾丸",
         "Camels": "ラクダ",
         "Candles": "ろうそく",
@@ -3549,7 +3555,9 @@
       "ideal": "最適 {{range}}",
       "viableIdealAria": "{{metric}}：適地 {{viable}}、最適 {{ideal}}",
       "selectedCell": "選択中のセル",
-      "compareHint": "各印は、選択したセル情報の気候値です。",
+      "compareHint": "気温の印は作物ごとの生育期平均、降水量の印は年降水量です。",
+      "seasonalTemperatureHint": "作物の気温は12か月の気温から成熟できる作期を求め、その生育期平均で評価します。暖かい月があるだけでは収穫は成立しません。",
+      "noMaturingSeason": "この作物が成熟するには、生育期間または積算温度が不足しています。",
       "compareMetricAria": "比較する指標",
       "viableRange": "適地範囲",
       "idealRange": "最適範囲",

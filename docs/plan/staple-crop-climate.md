@@ -1,5 +1,8 @@
 # Staple Crop Climate Profiles
 
+2026-10-05 update: Production now screens crop maturity using actual monthly temperatures and evaluates the existing temperature suitability bands against the growing-period mean. Maturity days and degree-day thresholds are provisional game coefficients, not validated cultivar requirements. Annual precipitation remains in use. See [monthly crop model](../calibration/monthly-crop-climate-v1.md) for the current implementation; earlier calendar assumptions below describe the previous design.
+
+
 ## Climate scale
 
 `grid.cells.prec` stores annual precipitation in a 0–255 proxy scale where one
@@ -38,3 +41,11 @@ upper cutoff therefore emptied `getCropMix()` on whole maps and zeroed farm labo
 Suitability now decays past `idealMax` and keeps a residual past `max` that prefers
 the crop whose documented band reaches further into the wet side, so a wet temperate
 cell grows peas rather than "no crop." Temperature min/max remain hard limits.
+
+## Spelt
+
+Spelt uses 4–24 / 10–17°C and 300–1600 / 700–1000 mm screening bands
+from the Welsh Government's [Crop requirements report, part 2, p. 28](https://www.gov.wales/sites/default/files/publications/2021-04/crop-requirements-report-part-2.pdf).
+These are broad screening values, not frost or seasonal-rainfall limits.
+The 0.85 net edible yield multiplier is a game calibration allowing for dehulling,
+not a measured medieval yield. It uses the existing cool-cereal calendar.

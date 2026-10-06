@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
+import { deliverConversionTimber } from "../../../generators/landUse";
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
@@ -45,7 +46,7 @@ import {
   recordFoodMarketIntake,
   recordFoodProcessingConsumption
 } from "./foodProcessingLedger";
-import { harvestWood } from "./forestStock";
+import { FOREST_COVER_PER_WOOD_UNIT, harvestWood } from "./forestStock";
 import type { DemandCategory, Good } from "./goods-generator";
 import {
   DEMAND_PRIORITY,
@@ -295,7 +296,7 @@ export class MarketsModule {
     marketId: number,
     goodId: number,
     amount: number,
-    category: "mineSupply" | "smelterSupply" = "mineSupply"
+    category: "mineSupply" | "smelterSupply" | "clearanceSupply" = "mineSupply"
   ): number {
     const market = this.get(marketId);
     const good = Goods.get(goodId);
@@ -744,6 +745,16 @@ export class MarketsModule {
   }
 
   collectRuralProduction(): void {
+    const wood = getGoods().find(g => g.name === "Wood");
+    if (wood)
+      deliverConversionTimber(this.worldContext, (cellId, coverage) => {
+        const marketId = getMarketCellColumn()[cellId];
+        if (!marketId) return 0;
+        return (
+          this.addMineSupply(marketId, wood.i, coverage / FOREST_COVER_PER_WOOD_UNIT, "clearanceSupply") *
+          FOREST_COVER_PER_WOOD_UNIT
+        );
+      });
     const populationSnapshotPeriod = this.getRuralPopulationSnapshotPeriod();
     const index =
       this.ruralProductionIndex?.populationSnapshotPeriod === populationSnapshotPeriod

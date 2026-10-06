@@ -31,6 +31,7 @@ describe("Lich undead realms generation", () => {
       p: Array.from({ length: cellsCount }, (_, i) => [i * 5, i * 5] as [number, number]),
       h: new Uint8Array(cellsCount).fill(25),
       t: new Int8Array(cellsCount).fill(1),
+      capacity: new Float32Array(cellsCount).fill(100),
       s: new Int16Array(cellsCount).fill(5), // low suitability by default
       pop: new Float32Array(cellsCount).fill(10),
       culture: new Uint16Array(cellsCount).fill(0),
@@ -61,6 +62,7 @@ describe("Lich undead realms generation", () => {
     worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", m: 0, b: "Anna,Bob,Carla" }];
     worldContext.pack = {
       cells,
+      vertices: { p: [], v: [], c: [] },
       features: [{ type: "land" }],
       races: createDefaultRaces(),
       cultures: [

@@ -134,3 +134,24 @@ describe("advanceSeasonalClimate", () => {
     expect(world.grid.cells.seasonalTemp).toHaveLength(4);
   });
 });
+
+it("uses canonical monthly means regardless of first update day", () => {
+  const first = buildWorld();
+  const second = buildWorld();
+  advanceSeasonalClimate({ world: first, simulation: buildSimulation({ currentDay: 1 }) });
+  advanceSeasonalClimate({ world: second, simulation: buildSimulation({ currentDay: 20 }) });
+  expect(Array.from(first.grid.cells.seasonalTemp!)).toEqual(Array.from(second.grid.cells.seasonalTemp!));
+});
+
+it("ignores a saved old-model monthly bucket and recomputes same-month edits", () => {
+  const world = buildWorld({ seasonalTemp: new Int8Array(4).fill(-100) });
+  const simulation = buildSimulation({ lastSeasonalTempBucket: 17 });
+  expect(advanceSeasonalClimate({ world, simulation }).topics).toEqual(["simulation.cells"]);
+  const before = world.grid.cells.seasonalTemp![0];
+  world.grid.cells.temp[0] += 5;
+  expect(advanceSeasonalClimate({ world, simulation }).topics).toEqual(["simulation.cells"]);
+  expect(world.grid.cells.seasonalTemp![0]).toBe(before + 5);
+  world.options.axialTilt = 0;
+  expect(advanceSeasonalClimate({ world, simulation }).topics).toEqual(["simulation.cells"]);
+  expect(Array.from(world.grid.cells.seasonalTemp!)).toEqual(Array.from(world.grid.cells.temp));
+});

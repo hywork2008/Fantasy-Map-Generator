@@ -53,6 +53,7 @@ import { ensureFuneralRemainsSeeded } from "./generators/funeralRites";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
+import { beginInitialLandUse, initializeSettlementLandUse } from "./generators/landUse";
 import { LavaFlows } from "./generators/lavaFlows";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
@@ -67,7 +68,7 @@ import { advanceSeasonalClimate } from "./generators/seasonalClimate";
 import { seedDwarfHoldOikoumene, withDwarfMountainRegion } from "./generators/seedDwarfHoldOikoumene";
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
-import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
+import { generateSubsistenceCapacity, refreshEstimatedSubsistenceCapacity } from "./generators/subsistenceCapacity";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
@@ -117,6 +118,7 @@ import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
+import { useExtensionState } from "./store/extensionState";
 import { type GenerationReviewLayerId, generationProgressStore } from "./store/generationProgressState";
 import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
@@ -426,7 +428,18 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (viewContext.renderMap) drawLayers();
   });
   document.addEventListener("fmg:map-ready-tasks-completed", () => {
+    // Economy publishes its own result; OFF uses the independently calibrated host estimate.
+    if (pendingInitialLandUse) {
+      initializeSettlementLandUse(worldContext, useOptionsState.getState().year);
+      pendingInitialLandUse = false;
+    }
+    if (!useExtensionState.getState().enabledExtensions.economy) refreshEstimatedSubsistenceCapacity(worldContext);
     if (viewContext.renderMap) drawLayers();
+  });
+  useExtensionState.subscribe((state, previous) => {
+    if (previous.enabledExtensions.economy && !state.enabledExtensions.economy) {
+      refreshEstimatedSubsistenceCapacity(worldContext);
+    }
   });
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));
@@ -1100,6 +1113,9 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   // panels (e.g. FrontierStatusPanel) able to re-render before the late
   // initSimulationClock() at the end of generation; stale cull/frontier projects
   // would then index pack.states that no longer exist.
+  delete simulationContext.landUse;
+  pendingInitialLandUse = true;
+  beginInitialLandUse(worldContext);
   simulationContext.frontier = createEmptyFrontierSimulationState();
   simulationContext.wilderness = createEmptyWildernessEcologyState();
   resetExtensionStateSlices(simulationContext);
@@ -1261,6 +1277,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
     }
   ];
 }
+
+let pendingInitialLandUse = false;
 
 const GENERATION_REVIEW_SVG_LAYER_IDS = [
   "oceanLayers",

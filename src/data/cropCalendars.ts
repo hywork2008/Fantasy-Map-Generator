@@ -53,6 +53,10 @@ export interface HarvestWindow {
 }
 
 export interface CropCalendarProfile {
+  /** Minimum viable warm-season duration, including harvest (game approximation). */
+  readonly minimumSeasonDays?: number;
+  /** Thermal time above minimumGrowingTemperatureC required within that season. */
+  readonly minimumGrowingDegreeDays?: number;
   readonly annualCycleDays: number;
   readonly turnaroundDays: number;
   /** A standing vine or tree uses an annual harvest window, not a 13-month planting cycle. */

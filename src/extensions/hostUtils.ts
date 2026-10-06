@@ -23,6 +23,11 @@ export { getColors, getRandomColor } from "../utils/colorUtils";
 export { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 export { DEBUG, ERROR, TIME } from "../utils/debug";
 export { applySorting, removeCircle } from "../utils/domUtils";
+export {
+  getDailyMeanTemperatureC,
+  getEarthlikeAmplitude,
+  getMonthlyMeanTemperaturesC
+} from "../utils/earthlikeClimate";
 export { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 export { getPackPolygon } from "../utils/graphUtils";
 export { layerIsOn } from "../utils/nodeUtils";

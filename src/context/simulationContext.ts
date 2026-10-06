@@ -362,6 +362,8 @@ export interface SimulationContext {
   rng: SimulationRngState;
   /** Dynamic cell columns. `SimulationData.cells` owns these values. */
   cells: SimulationCellColumns;
+  /** One persistent host-owned land-use ledger, independent of timber. */
+  landUse?: import("../types/landUse").LandUseSnapshot;
   /** Dynamic settlement values, keyed by stable burg id. */
   burgs: BurgSimulationStates;
   /** Dynamic political-state values, keyed by stable state id. */

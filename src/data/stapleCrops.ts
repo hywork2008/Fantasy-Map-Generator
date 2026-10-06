@@ -34,6 +34,10 @@ export interface ClimateRange {
  */
 
 const COOL_CEREAL_CALENDAR = {
+  // Spring-crop alternative to the historical 240-day autumn-to-summer calendar.
+  // Thermal requirements are provisional game coefficients, not cultivar measurements.
+  minimumSeasonDays: 120,
+  minimumGrowingDegreeDays: 500,
   annualCycleDays: 240,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 3,
@@ -44,6 +48,7 @@ const COOL_CEREAL_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 const WARM_CEREAL_CALENDAR = {
+  minimumGrowingDegreeDays: 900,
   annualCycleDays: 120,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 10,
@@ -54,6 +59,7 @@ const WARM_CEREAL_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 const LEGUME_CALENDAR = {
+  minimumGrowingDegreeDays: 550,
   annualCycleDays: 150,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 5,
@@ -64,6 +70,7 @@ const LEGUME_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 const ROOT_CALENDAR = {
+  minimumGrowingDegreeDays: 500,
   annualCycleDays: 150,
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 2,
@@ -84,6 +91,15 @@ export const STAPLE_CROP_PROFILES = {
     temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
     precipitation: { min: 3, idealMin: 7.5, idealMax: 9, max: 16 },
     soils: ["loam", "alluvial", "clay"],
+    calendar: COOL_CEREAL_CALENDAR
+  },
+  Spelt: {
+    kind: "cereal",
+    // Net edible yield includes the additional husk/dehulling loss (game calibration).
+    yieldMultiplier: 0.85,
+    temperature: { min: 4, idealMin: 10, idealMax: 17, max: 24 },
+    precipitation: { min: 3, idealMin: 7, idealMax: 10, max: 16 },
+    soils: ["loam", "clay", "sandy"],
     calendar: COOL_CEREAL_CALENDAR
   },
   Rye: {

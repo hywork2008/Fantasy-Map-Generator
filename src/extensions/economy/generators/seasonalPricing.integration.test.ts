@@ -1,10 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  classifyAgriculturalClimateZone,
-  classifySeasonRegion,
-  getCropCalendar,
-  SEASON_REGION_PROFILES
-} from "../../../data/cropCalendars";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
@@ -12,6 +6,7 @@ import { clearEconomyContext, getGoods, getMarkets, initEconomyContext, setMarke
 import { Goods } from "./goods-generator";
 import { MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
+import { getSeasonalCropPlan, readAgriculturalClimate } from "./seasonalCropClimate";
 
 /**
  * End-to-end validation of the design's core claim (docs/simulation/seasons.md §4, see the
@@ -36,6 +31,7 @@ describe("seasonal staple-crop price cycle (integration)", () => {
 
     worldContext.mapCoordinates = { latN: 90, latT: 180 };
     worldContext.graphHeight = 100;
+    worldContext.graphWidth = 100;
     // Goods.getBiomesProduction() enumerates biome codes from biomesData (it resolves
     // biomeOutputByTag as well as biomeOutput), so the cell's biome 6 must exist there or
     // no rural production is attributed at all.
@@ -47,7 +43,9 @@ describe("seasonal staple-crop price cycle (integration)", () => {
     // getCalendarForGood (production-utils.ts) classifies the cell's agricultural climate zone
     // from grid.cells.temp/prec -- 10C / 45 (x100mm scale) lands it in "temperate-rainfed-single".
     worldContext.grid = {
+      points: [[0, 25]],
       cells: {
+        i: new Uint16Array([0]),
         temp: new Int8Array([10]),
         prec: [45]
       }
@@ -92,6 +90,7 @@ describe("seasonal staple-crop price cycle (integration)", () => {
         p: [[0, 40]] // y=40 of 100 -> latitude 18 (northern hemisphere)
       }
     } as unknown as PackedGraph;
+    worldContext.options = { axialTilt: 23.5 } as never;
     Goods.sync();
 
     // Pre-seed the good's market entry: unlike the old flat "food" curve, the crop calendar
@@ -113,7 +112,7 @@ describe("seasonal staple-crop price cycle (integration)", () => {
     const priceByMonth: number[] = [];
 
     for (let month = 1; month <= 24; month++) {
-      worldContext.options = { month: ((month - 1) % 12) + 1 } as unknown as PackedGraph["options"];
+      worldContext.options = { axialTilt: 23.5, month: ((month - 1) % 12) + 1 } as unknown as PackedGraph["options"];
       marketsModule.collectRuralProduction();
 
       // Stand in for Production.produce()'s fillBurgsDemand() step (not exercised directly
@@ -135,9 +134,10 @@ describe("seasonal staple-crop price cycle (integration)", () => {
     // Derive the expected harvest month directly from the same crop-calendar module the
     // production code (getCalendarForGood, production-utils.ts) calls, instead of hardcoding a
     // month here that could silently drift out of sync with cropCalendars.ts/stapleCrops.ts.
-    const region = classifySeasonRegion(18); // matches the cell's latitude computed above
-    const zone = classifyAgriculturalClimateZone({ annualTemperatureC: 10, annualPrecipitation: 45, irrigated: false });
-    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, STAPLE_CROP_PROFILES.Wheat.calendar);
+    const calendar = getSeasonalCropPlan(
+      STAPLE_CROP_PROFILES.Wheat.calendar,
+      readAgriculturalClimate(worldContext, 0)
+    ).calendar;
     const harvestMonthIndex = calendar.harvestWeights.indexOf(Math.max(...calendar.harvestWeights));
     const leanMonthIndex = (harvestMonthIndex + 11) % 12; // the month right before harvest reopens
 

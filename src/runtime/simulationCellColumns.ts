@@ -75,6 +75,16 @@ function createEmptySimulationColumns(): SimulationCellColumns {
  * The adapter is reapplied whenever a legacy operation replaces `pack.cells`.
  */
 export function bindSimulationCellColumns(world: WorldContext, simulation: SimulationContext): void {
+  const legacyLandUse = Object.getOwnPropertyDescriptor(world.pack, "landUse");
+  if (legacyLandUse && "value" in legacyLandUse && legacyLandUse.value) simulation.landUse ??= legacyLandUse.value;
+  Object.defineProperty(world.pack, "landUse", {
+    configurable: true,
+    enumerable: true,
+    get: () => simulation.landUse,
+    set: value => {
+      simulation.landUse = value;
+    }
+  });
   const cells = world.pack.cells;
   // Narrow fixtures and pre-generation contexts do not have a pack topology
   // yet. There is no dynamic column to own until `cells.i` exists.
@@ -128,6 +138,7 @@ export function bindSimulationCellColumns(world: WorldContext, simulation: Simul
 
 /** Removes compatibility mirror values from an archive map payload. */
 export function removeSimulationCellColumnMirrors(world: WorldContext, simulation: SimulationContext): void {
+  if (simulation.landUse) delete world.pack.landUse;
   const cells = world.pack.cells;
   if (!cells) return;
   const indices = cells.i as unknown;

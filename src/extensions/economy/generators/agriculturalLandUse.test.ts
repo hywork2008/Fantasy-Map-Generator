@@ -84,16 +84,16 @@ describe("agricultural land use", () => {
     expect(profile.foodPotential[0]).toBeLessThan(profile.foodPotential[1]);
   });
 
-  it("makes newly opened forest land available to cultivation from the same forest stock", () => {
+  it("does not convert logging scars into agricultural land", () => {
     const world = createWorld();
     world.pack.cells.forestStock = new Float32Array([0.9, 0]);
     const intact = calculateAgriculturalLandProfile(world);
 
-    world.pack.cells.forestStock[0] = 0.45; // half of the potential forest cover has been opened
+    world.pack.cells.forestStock[0] = 0.45; // Timber removal alone leaves the land use unchanged
     const opened = calculateAgriculturalLandProfile(world);
 
-    expect(opened.cultivableArea[0]).toBeGreaterThan(intact.cultivableArea[0]);
-    expect(opened.cultivatedArea[0]).toBeGreaterThanOrEqual(intact.cultivatedArea[0]);
+    expect(opened.cultivableArea).toEqual(intact.cultivableArea);
+    expect(opened.cultivatedArea).toEqual(intact.cultivatedArea);
   });
 
   it("opens initial forest land from residents' grain requirement before calculating cultivated area", () => {
@@ -570,6 +570,94 @@ describe("agricultural land use", () => {
     expect(mix.find(entry => entry.good.crop?.kind === "legume")?.good.name).toBe("Lentils");
   });
 
+  it("produces dryland staples below 800 mm while retaining crop-specific water limits", () => {
+    const world = createWorld();
+    world.grid.cells.temp.fill(4);
+    world.grid.cells.prec.fill(5);
+    const crops = [
+      { ...cropGood(1, "Barley", "cereal"), crop: STAPLE_CROP_PROFILES.Barley },
+      { ...cropGood(2, "Peas", "legume"), crop: STAPLE_CROP_PROFILES.Peas }
+    ];
+    const climateByCell = () => ({ year: 2001, monthlyMeanTemperatureC: [-4, -3, 0, 4, 8, 11, 12, 11, 8, 4, 0, -3] });
+    const dryland = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      { cropGoods: crops, climateByCell }
+    );
+    expect(dryland.yieldPerArea[1]).toBeGreaterThan(0);
+    expect(dryland.ruralFoodCapacity[1]).toBeGreaterThan(0);
+
+    world.grid.cells.prec.fill(0);
+    const noWater = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      { cropGoods: crops, climateByCell }
+    );
+    expect(noWater.yieldPerArea[1]).toBe(0);
+    world.grid.cells.prec.fill(5);
+    const waterDemanding = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      { cropGoods: [cropGood(3, "Wheat", "cereal")], climateByCell }
+    );
+    expect(waterDemanding.yieldPerArea[1]).toBe(0);
+  });
+
+  it("joins the dryland yield continuously to the existing 800 mm coefficient", () => {
+    const world = createWorld();
+    world.grid.cells.prec = new Float32Array([7.999, 8]) as never;
+    const profile = calculateAgriculturalLandProfile(world);
+    expect(profile.yieldPerArea[0]).toBeGreaterThan(0);
+    expect(profile.yieldPerArea[0] / profile.yieldPerArea[1]).toBeCloseTo(1, 3);
+  });
+
+  it("limits seasonal irrigation benefits to the irrigated fraction of the field", () => {
+    const world = createWorld();
+    world.grid.cells.prec.fill(4);
+    const crops = [
+      { ...cropGood(1, "Barley", "cereal"), crop: STAPLE_CROP_PROFILES.Barley },
+      { ...cropGood(2, "Peas", "legume"), crop: STAPLE_CROP_PROFILES.Peas }
+    ];
+    const climateByCell = () => ({ year: 2001, monthlyMeanTemperatureC: [4, 5, 8, 12, 16, 19, 20, 19, 16, 12, 8, 5] });
+    const area = calculateAgriculturalLandProfile(world).cultivableArea;
+    const profile = (fraction: number) =>
+      calculateAgriculturalLandProfile(
+        world,
+        undefined,
+        undefined,
+        {},
+        {
+          cropGoods: crops,
+          climateByCell,
+          irrigation: {
+            irrigatedAreaHa: area.map(a => a * fraction),
+            irrigationSupplement: new Float32Array([5, 5]),
+            irrigationDeliveredWater: area.map(a => a * fraction * 5),
+            irrigationWaterStress: new Float32Array(2),
+            residualFlowByCell: new Float32Array(2),
+            allocation: {
+              status: "complete",
+              allocations: [],
+              residualFlowByCell: new Float32Array(2),
+              withdrawnFlowByCell: new Float32Array(2),
+              diagnostics: []
+            }
+          }
+        }
+      );
+    const dry = profile(0),
+      wet = profile(1),
+      partial = profile(0.25);
+    expect(partial.yieldPerArea[1]).toBeCloseTo(dry.yieldPerArea[1] * 0.75 + wet.yieldPerArea[1] * 0.25, 4);
+    expect(wet.yieldPerArea[1]).toBeGreaterThan(dry.yieldPerArea[1]);
+  });
+
   it("uses actual river allocation to irrigate dry cropland instead of river presence alone", () => {
     const world = createWorld();
     world.biomesData.tags = [["desert"], ["forest"]];
@@ -831,4 +919,31 @@ describe("agricultural land use", () => {
 
     expect(irrigated.yieldPerArea[0]).toBeGreaterThan(rainfed.yieldPerArea[0]);
   });
+});
+
+it("preserves legacy timber on migration and does not reapply clearing on extension reload", () => {
+  const world = createWorld();
+  world.pack.cells.forestStock = new Float32Array([0.4, 0]);
+  world.pack.cells.pop[0] = 4;
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { preserveLegacyStock: true });
+  expect(world.pack.cells.forestStock[0]).toBeCloseTo(0.4, 6);
+  expect(world.pack.landUse!.cells[0].diagnostics).toContain("legacy-timber-stock-preserved");
+  const revision = world.pack.landUse!.revision;
+  reconcileForestClearanceForAgriculture(world);
+  expect(world.pack.landUse!.revision).toBe(revision);
+  expect(world.pack.cells.forestStock[0]).toBeCloseTo(0.4, 6);
+});
+it("caps yearly field expansion and applies each year's revision once", () => {
+  const world = createWorld();
+  world.pack.cells.forestStock = new Float32Array([0.9, 0]);
+  reconcileForestClearanceForAgriculture(world);
+  const area = world.pack.landUse!.cells[0].allocatedAreaHa;
+  world.pack.cells.pop[0] = 100;
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { annual: true, year: 1 });
+  expect(world.pack.landUse!.cells[0].allocatedAreaHa).toBeLessThanOrEqual(area + 2.000001);
+  const revision = world.pack.landUse!.revision;
+  const stock = world.pack.cells.forestStock.slice();
+  reconcileForestClearanceForAgriculture(world, undefined, undefined, { annual: true, year: 1 });
+  expect(world.pack.landUse!.revision).toBe(revision);
+  expect(world.pack.cells.forestStock).toEqual(stock);
 });

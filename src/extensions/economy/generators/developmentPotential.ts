@@ -1,3 +1,5 @@
+import { isInitialLandUsePending, resolveStaticLandUseInputs } from "../../../generators/landUse";
+import type { ClearanceCellInput } from "../../../generators/settlementClearance";
 import {
   applyRiverResidualFlows,
   Burgs,
@@ -17,10 +19,14 @@ import {
   getCultivatedArea,
   getFarmLaborRequired,
   getFieldDrainage,
+  getFishingWorkers,
   getFloodProtection,
   getFloweringForageArea,
   getFoodPotential,
   getGoods,
+  getHuntingWorkers,
+  getHusbandryRequiredWorkers,
+  getHusbandryWorkers,
   getIrrigationConveyanceEfficiency,
   getIrrigationDevelopment,
   getIrrigationSalinity,
@@ -35,6 +41,7 @@ import {
   getSimulationYear,
   getSoilFertility,
   getStateAgriculturalProductivity,
+  getViticultureWorkers,
   getWorldContext,
   getYieldPerArea,
   setAnnualGateYear,
@@ -77,6 +84,7 @@ import {
   reconcileForestClearanceForAgriculture
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
+import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
 
 /**
@@ -216,7 +224,11 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
-    const demandOptions = { includeUrbanFoodDemand: !megacity, reserveLaborForUrbanExport: megacity };
+    const demandOptions = {
+      includeUrbanFoodDemand: !megacity,
+      reserveLaborForUrbanExport: megacity,
+      preserveLegacyStock: !world.pack.landUse && !isInitialLandUsePending(world)
+    };
     const conditions = this.getAgriculturalConditions(world);
     reconcileForestClearanceForAgriculture(
       world,
@@ -303,7 +315,12 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
-    const demandOptions = { includeUrbanFoodDemand: !megacity, reserveLaborForUrbanExport: megacity };
+    const demandOptions = {
+      includeUrbanFoodDemand: !megacity,
+      reserveLaborForUrbanExport: megacity,
+      year,
+      annual: true
+    };
     const conditions = this.advanceSoilConditions(world);
     reconcileForestClearanceForAgriculture(
       world,
@@ -386,7 +403,38 @@ export class DevelopmentPotentialModule {
     if (getFieldDrainage().length !== cellCount) setFieldDrainage(new Float32Array(cellCount));
     if (getFloodProtection().length !== cellCount) setFloodProtection(new Float32Array(cellCount));
     if (getClimateFoodStress().length !== cellCount) setClimateFoodStress(new Float32Array(cellCount));
+    const goods = getGoods().filter(isGoodEnabled);
+    const landUseByCell: Record<number, Partial<ClearanceCellInput>> = {};
+    const occupationDays = [getHuntingWorkers(), getFishingWorkers(), getViticultureWorkers(), getHusbandryWorkers()];
+    for (const input of resolveStaticLandUseInputs(world)) {
+      const settings =
+        world.pack.burgs?.[world.pack.cells.burg?.[input.id] ?? 0]?.landUseSettings ??
+        world.pack.cultures?.[world.pack.cells.culture?.[input.id] ?? 0]?.landUseSettings;
+      const previous = world.pack.landUse?.cells[input.id];
+      const hasGrazed = goods.some(g => isGrazedLivestockGood(g.name));
+      const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true) : 0;
+      const workersKnown = getHusbandryWorkers().length === cellCount;
+      const maintainedPasture =
+        pasture *
+        (workersKnown && (getHusbandryRequiredWorkers()[input.id] ?? 0) > 0 ? getHusbandryWorkerFactor(input.id) : 1);
+      landUseByCell[input.id] = {
+        livestock: input.livestock ?? { grazingAreaHa: maintainedPasture },
+        workforce: {
+          ...input.workforce!,
+          otherOccupationDays:
+            settings?.otherOccupationDays ??
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * (world.populationRate || 1) * 140, 0)
+        },
+        // Forestry profiles use an explicit estimated compartment area when no wood plan is supplied.
+        managedForestAreaHa:
+          settings?.managedForestAreaHa ??
+          (input.profile === "forestry"
+            ? Math.max(0, input.physicalLandAreaHa * input.forestCover - (previous?.convertedForestAreaHa ?? 0)) * 0.5
+            : undefined)
+      };
+    }
     return {
+      landUseByCell,
       cropGoods: getGoods().filter(good => Boolean(good.crop) && isGoodEnabled(good)),
       soilFertilityByCell: getSoilFertility(),
       irrigationSalinityByCell: getIrrigationSalinity(),

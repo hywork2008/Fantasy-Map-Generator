@@ -9,6 +9,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { ensureBiomeCatalogFields } from "../data/biomeCatalog";
 import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+import { assertValidLandUseSnapshot } from "../types/landUse";
 import type { BiomesData } from "../types/WorldState";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
@@ -1084,6 +1085,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   if (isTypedArray(cells.i)) {
     const cellCount = cells.i.length;
     assertAndNormalizeFrontier(simulation, cellCount);
+    assertValidLandUseSnapshot(simulation.landUse, cellCount);
     assertDenseColumnLengths(cells, cellCount, "pack.cells");
     assertEntityReferences(cells.state, pack.states.length, "pack.cells.state");
     assertEntityReferences(cells.burg, pack.burgs.length, "pack.cells.burg");

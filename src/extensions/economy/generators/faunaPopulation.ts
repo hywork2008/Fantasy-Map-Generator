@@ -241,11 +241,18 @@ export function getWildCarryingCapacity(cellId: number): number {
   const density = getWildGameDensityPerHectare(biomeCode, world.biomesData);
 
   const physicalArea = calculatePhysicalAreaHectares(world, cellId);
-  const cultivated = getCultivatedArea()[cellId] ?? 0;
+  const cultivated = world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? getCultivatedArea()[cellId] ?? 0;
   const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
   const pastureAreaUsed = getPastureAreaUsedHectares(cellId);
   const vineyardAreaUsed = getVineyardAreaUsedHectares(cellId);
-  const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea - pastureAreaUsed - vineyardAreaUsed);
+  const ancillaryArea =
+    world.pack.landUse?.cells[cellId]?.patches
+      .filter(p => p.kind === "hay_meadow" || p.kind === "agroforestry")
+      .reduce((s, p) => s + p.areaHa * (1 - (p.canopyRetention ?? 0)), 0) ?? 0;
+  const wildHabitatArea = Math.max(
+    0,
+    physicalArea - cultivated - burgArea - pastureAreaUsed - vineyardAreaUsed - ancillaryArea
+  );
   return density * wildHabitatArea;
 }
 

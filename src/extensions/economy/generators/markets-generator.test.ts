@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { planSettlementLandUse } from "../../../generators/settlementClearance";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { States, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
@@ -12,6 +13,7 @@ import {
   initEconomyContext,
   setBurgMarketLedgers,
   setGoods,
+  setMarketCellColumn,
   setMarkets,
   setMetallurgWorkOrders,
   setMintLedgers
@@ -114,6 +116,48 @@ describe("MarketsModule", () => {
         deals: [],
         states: [{ i: 0, salesTax: 0 }]
       } as unknown as PackedGraph;
+    });
+
+    it("delivers pending annual conversion timber through the market once, including reload", () => {
+      getGoods()[0].name = "Wood";
+      const market: Market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 0: { stock: 0, price: 10 } } };
+      // biome-ignore lint/complexity/useLiteralKeys: exercise existing test fixture lookup
+      marketsModule["marketById"] = [market, market];
+      setMarkets([market]);
+      worldContext.pack.cells = {
+        i: new Uint16Array([0]),
+        p: [[0, 0]],
+        burg: new Uint16Array([1]),
+        state: new Uint16Array([0])
+      } as unknown as PackedGraph["cells"];
+      worldContext.pack.burgs = [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, market: 1 }] as Burg[];
+      setMarketCellColumn(new Uint16Array([1]));
+      const snapshot = planSettlementLandUse(
+        [
+          {
+            id: 0,
+            anchor: [0, 0],
+            physicalLandAreaHa: 100,
+            forestCover: 1,
+            ruralPeople: 0,
+            urbanPeople: 0,
+            cultivableAreaHa: 80,
+            yieldKgPerSownHa: 450
+          }
+        ],
+        { seed: "receipt", year: 1 }
+      );
+      snapshot.conversionTimber = [
+        { id: "receipt:1:0", sourceCellId: 0, year: 1, coverage: 0.02, deliveredCoverage: 0 }
+      ];
+      worldContext.pack.landUse = snapshot;
+      marketsModule.collectRuralProduction();
+      expect(market.goods[0].stock).toBe(100);
+      expect(snapshot.conversionTimber[0].deliveredCoverage).toBe(0.02);
+      worldContext.pack.landUse = JSON.parse(JSON.stringify(snapshot));
+      marketsModule.collectRuralProduction();
+      expect(market.goods[0].stock).toBe(100);
+      vi.clearAllMocks();
     });
 
     it("buy() should floor units, enforce min unit, and keep cost within budget", () => {

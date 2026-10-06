@@ -155,6 +155,7 @@ const DEFAULT_PRESET_LABELS: Record<string, string> = {
   military: "Military map",
   emblems: "Emblems",
   landmass: "Pure landmass",
+  region: "Biomes map for RE",
   custom: "Custom (not saved)"
 };
 
@@ -188,7 +189,8 @@ function getDefaultPresets(): Record<string, string[]> {
       "toggleStates"
     ],
     emblems: ["toggleEmblems", "toggleRivers", "toggleStates"],
-    landmass: ["toggleScaleBar"]
+    landmass: ["toggleScaleBar"],
+    region: ["toggleBiomes", "toggleCells", "toggleBurgIcons", "toggleRivers", "toggleRoutes"]
   };
 }
 

@@ -7,9 +7,11 @@ import {
   getIrrigatedArea,
   getIrrigationDeliveredWater,
   getIrrigationWaterStress,
-  getRiverResidualFlow
+  getRiverResidualFlow,
+  getWorldContext
 } from "../../economyContext";
 import type { Good } from "../../generators/goods-generator";
+import { createAgriculturalClimateReader, getSeasonalCropPlan } from "../../generators/seasonalCropClimate";
 import "./cropClimateDialog.css";
 
 type ClimateMetric = "temperature" | "precipitation";
@@ -234,7 +236,8 @@ const CropComparison: React.FC<{
   onMetricChange: (metric: ClimateMetric) => void;
   cellTemperature: number | null;
   cellPrecipitation: number | null;
-}> = ({ crops, metric, onMetricChange, cellTemperature, cellPrecipitation }) => {
+  temperatureForCrop: (good: Good) => number | null;
+}> = ({ crops, metric, onMetricChange, cellTemperature, cellPrecipitation, temperatureForCrop }) => {
   const { t } = useTranslation();
   const cellValue = metric === "temperature" ? cellTemperature : cellPrecipitation;
   const domain = getDomain(crops, metric, cellValue);
@@ -270,7 +273,7 @@ const CropComparison: React.FC<{
               crop={getClimateProfile(good)!}
               metric={metric}
               domain={domain}
-              cellValue={cellValue}
+              cellValue={metric === "temperature" ? temperatureForCrop(good) : cellValue}
               labelledBy={`crop-${good.i}`}
             />
           </div>
@@ -358,6 +361,17 @@ export const CropClimateDialog: React.FC = () => {
   const [metric, setMetric] = React.useState<ClimateMetric>("temperature");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const selected = crops.find(good => good.i === selectedId) ?? crops[0];
+  const climate = isOpen && cellId !== null ? createAgriculturalClimateReader(getWorldContext())(cellId) : null;
+  const planForCrop = (good: Good) => {
+    const profile = getClimateProfile(good)?.calendar;
+    return climate && profile
+      ? getSeasonalCropPlan(profile, climate, cellId !== null && (getIrrigatedArea()[cellId] ?? 0) > 0)
+      : null;
+  };
+  const temperatureForCrop = (good: Good) => {
+    const plan = planForCrop(good);
+    return plan?.calendar.cropCycles ? plan.growingMeanTemperatureC : null;
+  };
 
   React.useEffect(() => {
     if (isOpen && selectedId === null && crops[0]) setSelectedId(crops[0].i);
@@ -385,6 +399,7 @@ export const CropClimateDialog: React.FC = () => {
         </strong>
       </div>
       <IrrigationSummary cellId={cellId} precipitation={precipitation} />
+      <p>{t("extensions.cropClimate.seasonalTemperatureHint")}</p>
       {!crops.length ? (
         <p className="crop-climate-dialog__empty">{t("extensions.cropClimate.empty")}</p>
       ) : (
@@ -423,10 +438,13 @@ export const CropClimateDialog: React.FC = () => {
               </label>
               <CropDetail
                 good={selected}
-                cellTemperature={temperature}
+                cellTemperature={temperatureForCrop(selected)}
                 cellPrecipitation={precipitation}
                 crops={crops}
               />
+              {climate && !planForCrop(selected)?.calendar.cropCycles && (
+                <p>{t("extensions.cropClimate.noMaturingSeason")}</p>
+              )}
             </>
           )}
           {tab === "compare" && (
@@ -436,6 +454,7 @@ export const CropClimateDialog: React.FC = () => {
               onMetricChange={setMetric}
               cellTemperature={temperature}
               cellPrecipitation={precipitation}
+              temperatureForCrop={temperatureForCrop}
             />
           )}
         </>

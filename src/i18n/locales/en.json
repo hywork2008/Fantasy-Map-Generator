@@ -100,7 +100,11 @@
     "distanceToHere": "Distance to here",
     "distanceToHereDisabled": "Set Distance from here first",
     "distanceFromBurg": "Distance from {{name}}",
-    "distanceToBurg": "Distance to {{name}}"
+    "distanceToBurg": "Distance to {{name}}",
+    "openRegionEditor": "Open in Region Editor",
+    "openRegionEditorWithProvince": "Open in Region Editor ({{name}})",
+    "openRegionEditorDisabled": "No province at this location",
+    "openCityEditor": "Open in City Editor ({{name}})"
   },
   "directions": {
     "mode": {
@@ -3549,7 +3553,9 @@
       "ideal": "ideal {{range}}",
       "viableIdealAria": "{{metric}}: viable {{viable}}, ideal {{ideal}}",
       "selectedCell": "Selected cell",
-      "compareHint": "Each marker shows the selected Cell Info climate value.",
+      "compareHint": "Temperature markers show each crop's growing-season mean; rain markers show annual precipitation.",
+      "seasonalTemperatureHint": "Crop temperature is evaluated over a season that can reach maturity, using all 12 monthly temperatures. A warm month alone does not guarantee harvest.",
+      "noMaturingSeason": "The available growing period or accumulated warmth is insufficient for this crop to mature.",
       "compareMetricAria": "Comparison metric",
       "viableRange": "Viable range",
       "idealRange": "Ideal range",

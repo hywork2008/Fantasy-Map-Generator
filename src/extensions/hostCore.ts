@@ -6,6 +6,11 @@ export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
 export { isStateInActiveConflict } from "../generators/activeConflict";
 export { Burgs } from "../generators/burgs-generator";
+export {
+  type CellClimateNormals,
+  createCellClimateNormalsReader,
+  getCellClimateNormals
+} from "../generators/cellClimateNormals";
 export { getBurgDemographics, getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
 export { applyDemographicCasualties, CHILD_COHORT_YEARS } from "../generators/demography-simulator";
 export { FAST_ADVANCE_COARSE_GATE_DAYS } from "../generators/fastAdvance/fastAdvanceMath";

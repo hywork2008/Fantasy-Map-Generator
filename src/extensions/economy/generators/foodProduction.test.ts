@@ -9,6 +9,8 @@ vi.mock("../economyContext", () => ({
   getMarkets: vi.fn(),
   getMarketCellColumn: vi.fn(),
   getGoods: vi.fn(() => []),
+  getIrrigatedArea: vi.fn(() => new Float32Array()),
+  getIrrigationDeliveredWater: vi.fn(() => new Float32Array()),
   getCultivableArea: vi.fn(() => new Float32Array()),
   getCultivatedArea: vi.fn(() => new Float32Array()),
   getFarmLaborRequired: vi.fn(() => new Float32Array()),
@@ -23,6 +25,8 @@ import {
   getFarmLaborRequired,
   getFoodPotential,
   getGoods,
+  getIrrigatedArea,
+  getIrrigationDeliveredWater,
   getMarketCellColumn,
   getMarkets,
   getRuralHouseholdFoodStock,
@@ -36,6 +40,8 @@ describe("FoodProduction", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(getIrrigatedArea).mockReturnValue(new Float32Array());
+    vi.mocked(getIrrigationDeliveredWater).mockReturnValue(new Float32Array());
     ruralHouseholdFoodStock = new Float32Array();
     vi.mocked(getRuralHouseholdFoodStock).mockImplementation(() => ruralHouseholdFoodStock);
     vi.mocked(setRuralHouseholdFoodStock).mockImplementation(value => {

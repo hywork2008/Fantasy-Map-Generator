@@ -16,6 +16,7 @@ import { getCellPrecipitation, getCellWaterAccess } from "./cellWaterAccess";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { type FrontierIncorporation, incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
+import { requestFrontierLandUse } from "./landUse";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import { allowsFrontierOutpost } from "./wildLandTags";
 
@@ -329,6 +330,8 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       topics.add("map.settlements");
     }
   }
+
+  requestFrontierLandUse(world, [...established, ...abandoned, ...settled, ...incorporated], year);
 
   return { topics: [...topics], established, abandoned, settled, incorporated, incorporations };
 }

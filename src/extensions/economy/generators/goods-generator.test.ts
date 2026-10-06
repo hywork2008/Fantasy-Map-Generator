@@ -100,6 +100,27 @@ describe("GoodsModule", () => {
     goodsModule = new GoodsModule();
   });
 
+  it("appends spelt and chestnuts to saved catalogues without changing existing ids", () => {
+    setGoods([{ i: 77, name: "Custom grain", tags: ["food"], value: 1, unit: "wain", icon: "", color: "" }]);
+    expect(migrateStapleCropGoods()).toBe(true);
+    expect(migratePerennialFruitGoods()).toBe(true);
+    const goods = getGoods();
+    expect(goods.find(g => g.name === "Custom grain")?.i).toBe(77);
+    expect(goods.find(g => g.name === "Spelt")).toMatchObject({
+      i: expect.any(Number),
+      crop: { kind: "cereal" },
+      tags: expect.arrayContaining(["stapleCrop"])
+    });
+    expect(goods.find(g => g.name === "Chestnuts")).toMatchObject({
+      perennialCrop: { kind: "orchard" },
+      tags: expect.arrayContaining(["food", "nuts"])
+    });
+    expect(goods.find(g => g.name === "Chestnuts")?.tags).not.toContain("freshFood");
+    expect(new Set(goods.map(g => g.i)).size).toBe(goods.length);
+    expect(migrateStapleCropGoods()).toBe(false);
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
   it("ships the overseas crop goods with their physical crop profiles", () => {
     const maize = GOODS_DATA.find(good => good.name === "Maize");
     const rice = GOODS_DATA.find(good => good.name === "Rice");
