@@ -54,7 +54,7 @@ describe("landscapeBiomes (CE Biome & Landscape Alignment)", () => {
     // 湿原
     const swamp = resolveCellLandscape("Swamp", 50, false);
     expect(swamp.fillColor).toBe(CE_BIOME_PALETTE.swamp);
-    expect(swamp.fillColor).toBe("#b4c5a5");
+    expect(swamp.fillColor).toBe("#bdb99c");
     expect(swamp.symbolTypes).toContain("swamp_grass");
 
     // 草原
@@ -209,7 +209,9 @@ describe("catalog biome visuals", () => {
     const drawsCanopy = definition.tags.includes("forest") || definition.key === "mediterraneanWoodlandScrub";
     expect(isForestBiome(biome.kind)).toBe(drawsCanopy);
     expect(biome.isWater).toBe(definition.key === "marine");
-    expect(biome.color).toBe(definition.key === "marine" ? CE_SEA_COLOR : definition.color);
+    expect(biome.color).toBe(CE_BIOME_PALETTE[biome.kind]);
+    if (definition.key === "marine") expect(biome.color).toBe(CE_SEA_COLOR);
+    else expect(biome.color).not.toBe(definition.color);
     const doc = createEmptyRegionDocument();
     doc.biomes = landscape.biomes;
     doc.symbols = landscape.symbols;
@@ -253,7 +255,7 @@ describe("catalog biome visuals", () => {
     expect(biomes[0].forestPolygons).toBeDefined();
     expect(biomes[1].forestPolygons).toBeUndefined();
     expect(biomes[1].wetlandPatches).toBeUndefined();
-    expect(biomes[1].color).toBe(definition?.color);
+    expect(biomes[1].color).toBe(CE_BIOME_PALETTE[biomes[1].kind]);
     expect(symbols.every(s => s.x < 50)).toBe(true);
   });
 });

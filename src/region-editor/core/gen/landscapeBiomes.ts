@@ -25,8 +25,8 @@ export const CE_BIOME_PALETTE: Record<BiomeKind, string> = {
   savanna: "#ded8aa",
   woodland_scrub: "#cfd5a4",
   desert: "#e8ddba",
-  swamp: "#b4c5a5",
-  marsh: "#adbe9e",
+  swamp: "#bdb99c",
+  marsh: "#c3bd9d",
   tundra: "#c9beaa",
   glacier: "#d8e5e8",
   snow_mountains: "#d8e5e8",
@@ -108,7 +108,7 @@ function catalogLandscape(definition: BiomeDefinition): ResolvedCellLandscape {
   );
   return {
     kind,
-    fillColor: kind === "ocean" ? CE_SEA_COLOR : definition.color,
+    fillColor: CE_BIOME_PALETTE[kind],
     isWater: kind === "ocean",
     symbolTypes
   };
@@ -329,8 +329,9 @@ export function buildLandscapeFromCells(
         ? catalogLandscape(definition)
         : resolveCellLandscape(cell.biomeName, cell.elevationMeters, false);
     const terrain = resolveCellLandscape("Grassland", cell.elevationMeters, isWater);
+    // 地面色は FMG のバイオーム色ではなく、地面の種類（草・砂・泥・土）の色で塗る。バイオームらしさは水たまりや植生で出す
+    if (!landscape.isWater) landscape.fillColor = CE_BIOME_PALETTE[landscape.kind];
     if (!cell.biomeDefinition && definition) {
-      landscape.fillColor = CE_BIOME_PALETTE[landscape.kind];
       if (definition.key === "grassland" && cell.elevationMeters >= 650) Object.assign(landscape, terrain);
     }
 
@@ -343,7 +344,7 @@ export function buildLandscapeFromCells(
           id: `bio-cell-${stableId}`,
           kind: landscape.kind,
           polygon: localPoly,
-          color: landscape.isWater ? landscape.fillColor : (definition?.color ?? landscape.fillColor),
+          color: landscape.fillColor,
           isWater: landscape.isWater,
           terrainKind: terrain.kind
         });
