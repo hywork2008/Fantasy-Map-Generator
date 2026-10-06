@@ -430,25 +430,86 @@ export function renderRegionSvg(
       : [mid[0] + nx, mid[1] + ny];
     return landColorAt(side);
   };
-  // 曲線が海側へ膨らんだ所は陸色、陸側へ食い込んだ所は海色。膨らむ側は弦と曲線の中ほどの点が海セル内かで見分ける
-  const bulgesIntoSea = (patch: Point[]) => {
-    const a = patch[0];
-    const b = patch[patch.length - 1];
-    const arcMid = patch[Math.floor(patch.length / 2)];
-    const chordMid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    return isSeaPoint([(arcMid[0] + chordMid[0]) / 2, (arcMid[1] + chordMid[1]) / 2]);
+  // 曲線が海側へ膨らんだ所は陸色、陸側へ食い込んだ所は海色。1 本の辺の中で曲線が弦を横切る（S 字）ことがあるので、
+  // パッチを弦で海側・陸側の 2 つに割り、海側を陸色、陸側を海色で塗る
+  /**
+   * パッチの輪郭（弦 a→b と曲線）のうち、弦の sign 側にある部分を、曲線が弦を横切る所で切り分けて返す。
+   * 凹んだ多角形を半平面で一括して切ると、弦に沿った面積ゼロの橋ができ、縁取りが線として出てしまう。
+   */
+  const lobesOnSide = (patch: Point[], a: Point, b: Point, sign: number): Point[][] => {
+    const side = (q: Point) => sign * ((b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]));
+    const lobes: Point[][] = [];
+    let run: Point[] | null = null;
+    const finish = () => {
+      if (run && run.length >= 3) lobes.push(run);
+      run = null;
+    };
+    for (let i = 0; i < patch.length; i++) {
+      const cur = patch[i];
+      const d = side(cur);
+      if (i > 0) {
+        const last = patch[i - 1];
+        const prev = side(last);
+        if ((prev > 0 && d < 0) || (prev < 0 && d > 0)) {
+          const t = prev / (prev - d);
+          const x: Point = [last[0] + t * (cur[0] - last[0]), last[1] + t * (cur[1] - last[1])];
+          if (d > 0) run = [x];
+          else {
+            run?.push(x);
+            finish();
+          }
+        } else if (prev === 0 && d > 0) run = [last];
+      }
+      if (d > 0) {
+        if (!run) run = [];
+        run.push(cur);
+      } else if (d === 0 && run) {
+        run.push(cur);
+        finish();
+      }
+    }
+    finish();
+    return lobes;
+  };
+  /** 弦の海側が cross の正負どちらか。判定できなければ 0 */
+  const seaSideSign = (a: Point, b: Point): number => {
+    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const off = Math.min(0.5, len * 0.1);
+    // cross > 0 の側は (-dy, dx) 方向
+    const positive: Point = [mid[0] - ((b[1] - a[1]) / len) * off, mid[1] + ((b[0] - a[0]) / len) * off];
+    const negative: Point = [mid[0] + ((b[1] - a[1]) / len) * off, mid[1] - ((b[0] - a[0]) / len) * off];
+    const pos = isSeaPoint(positive);
+    const neg = isSeaPoint(negative);
+    return pos === neg ? 0 : pos ? 1 : -1;
+  };
+  const MIN_LOBE_AREA = 0.5;
+  const lobeArea = (poly: Point[]): number => {
+    let area = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const p0 = poly[i];
+      const p1 = poly[(i + 1) % poly.length];
+      area += p0[0] * p1[1] - p1[0] * p0[1];
+    }
+    return Math.abs(area) / 2;
   };
   const landByColor = new Map<string, string[]>();
   for (const patch of coasts.flatMap(c => c.patches)) {
-    if (patch.length < 4 || !bulgesIntoSea(patch)) continue;
+    if (patch.length < 4) continue;
+    const a = patch[0];
+    const b = patch[patch.length - 1];
+    const sign = seaSideSign(a, b);
+    // 面積がほぼゼロの面は、陸色の縁取りだけが海へ細い線としてはみ出すので塗らない
+    const seaLobes = sign ? lobesOnSide(patch, a, b, sign).filter(l => lobeArea(l) > MIN_LOBE_AREA) : [];
+    if (!seaLobes.length) continue;
     const color = patchLandColor(patch);
+    const ds = seaLobes.map(l => polyToSvgPath(l));
     const list = landByColor.get(color);
-    if (list) list.push(polyToSvgPath(patch));
-    else landByColor.set(color, [polyToSvgPath(patch)]);
+    if (list) list.push(...ds);
+    else landByColor.set(color, ds);
   }
-  // 海色は切り抜かずに先に塗る（海側はもともと海色なので変化なし）。切り抜くと弦に沿って継ぎ目の細線が出る。
-  // 縁取りは陸セルの縁取り（0.7）が海側へはみ出す分を覆う太さにする（曲線側のはみ出しは海岸線の線が隠す）。
-  // 陸色のパッチの縁取りは海色の縁取りより太くして、弦に沿って海色の細線が残らないようにする
+  // まずパッチ全体を海色で塗り（弦の両側に出る陸セルの縁取りを覆う）、弦の海側（膨らんだ）の面だけを陸色で塗り直す。
+  // 陸色のほうの縁取りを太くして、弦に沿って海色の細線が残らないようにする
   const coastPatches = coastPatchD
     ? `<path class="coast-fill-sea" d="${coastPatchD}" fill="${seaColor}" stroke="${seaColor}" stroke-width="0.8" stroke-linejoin="round" />
       <g class="coast-fill-land">${[...landByColor]
