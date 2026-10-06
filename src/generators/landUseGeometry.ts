@@ -157,7 +157,7 @@ export function lineBuffer(a: Point, b: Point, width: number): Point[] {
 }
 /** Spatially correlated world noise. Adjacent cells and province windows share phases. */
 /** Cover at or above this is closed canopy (rainforest etc.): no noise gaps, so no bare cell inside a dense forest biome. */
-export const CLOSED_CANOPY_COVER = 0.9;
+export const CLOSED_CANOPY_COVER = Math.fround(0.9); // Float32-safe: pack.cells.forestCover stores 0.9 as 0.89999998…
 
 export function landscapeNoise(x: number, y: number, seed: string): number {
   // Rotated, domain-warped value-noise fBm. Sums of axis-aligned sines gave level sets shaped like
