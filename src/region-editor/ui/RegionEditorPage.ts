@@ -8,6 +8,7 @@ import {
   removeSettlement,
   removeSymbol,
   setSettlementIconScale,
+  toggleContourElevations,
   toggleContours,
   toggleCultivation,
   updateContourInterval,
@@ -28,7 +29,7 @@ import {
 } from "../core/types";
 import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionEditorFile";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
-import { renderRegionSvg } from "../render/svg";
+import { renderRegionSvg, textScaleForZoom } from "../render/svg";
 
 export type EditorTool = "select" | "brush" | "stamp" | "settlement" | "landmark" | "erase";
 
@@ -155,6 +156,10 @@ export function mountRegionEditor(
             <input type="checkbox" id="check-show-contours" ${history.current.terrain.showContours !== false ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="check-show-contour-elevations" style="cursor:pointer;">標高を表示</label>
+            <input type="checkbox" id="check-show-contour-elevations" ${history.current.terrain.showContourElevations === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
+          </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="check-show-cultivation" style="cursor:pointer;">耕作地を表示</label>
             <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
@@ -263,6 +268,10 @@ export function mountRegionEditor(
     const inputIconScale = root.querySelector<HTMLInputElement>("#input-settlement-icon-scale");
     if (inputIconScale) {
       inputIconScale.value = String(doc.decoration.settlementIconScale ?? 1);
+    }
+    const checkElevations = root.querySelector<HTMLInputElement>("#check-show-contour-elevations");
+    if (checkElevations) {
+      checkElevations.checked = doc.terrain.showContourElevations === true;
     }
     const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
     if (checkCultivation) {
@@ -773,6 +782,7 @@ export function mountRegionEditor(
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
     const beforeDetail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
+    const beforeTextScale = textScaleForZoom(zoom);
     const oldZoom = zoom;
     zoom = Math.min(Math.max(0.2, zoom * factor), 5.0);
     // カーソル直下の点を固定する（canvasは中心基準でscaleされる）
@@ -780,7 +790,8 @@ export function mountRegionEditor(
     const ratio = zoom / oldZoom;
     panX += (e.clientX - (rect.left + rect.width / 2)) * (1 - ratio);
     panY += (e.clientY - (rect.top + rect.height / 2)) * (1 - ratio);
-    if (beforeDetail !== (zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2)) renderMap();
+    if (beforeDetail !== (zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2) || beforeTextScale !== textScaleForZoom(zoom))
+      renderMap();
     updateTransform();
   });
 
@@ -915,6 +926,13 @@ export function mountRegionEditor(
     const scale = Math.max(1, Math.round(Number(input.value)) || 1);
     input.value = String(scale);
     history.push(setSettlementIconScale(history.current, scale));
+    renderMap();
+  });
+
+  // 等高線の標高注記切り替え
+  root.querySelector("#check-show-contour-elevations")?.addEventListener("change", e => {
+    const checked = (e.target as HTMLInputElement).checked;
+    history.push(toggleContourElevations(history.current, checked));
     renderMap();
   });
 

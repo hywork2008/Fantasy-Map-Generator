@@ -172,6 +172,15 @@ export function setSettlementIconScale(doc: RegionDocument, scale: number): Regi
 }
 
 /**
+ * 主等高線の標高注記の表示/非表示を切り替える（デフォルトは非表示）
+ */
+export function toggleContourElevations(doc: RegionDocument, show?: boolean): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.showContourElevations = show ?? !(next.terrain.showContourElevations ?? false);
+  return next;
+}
+
+/**
  * 耕作地レイヤーの表示/非表示を切り替える（デフォルトは非表示）
  */
 export function toggleCultivation(doc: RegionDocument, show?: boolean): RegionDocument {

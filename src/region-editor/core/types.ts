@@ -216,6 +216,8 @@ export interface RegionTerrain {
   contours?: RegionContourLine[];
   contourIntervalMeters?: number;
   showContours?: boolean;
+  /** 等高線表示時に主等高線へ標高(m)を注記するか。未設定は非表示。 */
+  showContourElevations?: boolean;
   /** 耕作地(cultivation)パッチを描画するか。未設定は非表示。 */
   showCultivation?: boolean;
 }

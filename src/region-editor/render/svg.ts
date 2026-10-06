@@ -121,6 +121,22 @@ export function createCurvedRiverPolygon(
   return `${rightPath} L ${leftPoints[0][0].toFixed(2)} ${leftPoints[0][1].toFixed(2)} ${leftSegments} Z`;
 }
 
+/** RE の初期ズーム。FMG の「全体表示=scale 1」に相当する基準。 */
+export const RE_BASE_ZOOM = 0.85;
+/** 基準ズームでの画面上の文字サイズ ÷ 描画上の素の文字サイズ。 */
+const TEXT_BASE_SCREEN_RATIO = 3;
+
+/**
+ * FMG の dampenStateLabelSize と同じ曲線で、ズームに応じた文字サイズ倍率（素のサイズに掛ける）を返す。
+ * 画面上の文字サイズ = 基準 × (s + 1) / 2（s = zoom / 基準ズーム）。
+ * キャンバスは CSS で scale(zoom) されるので、描画側のサイズは 画面サイズ / zoom になる。0.1刻みに丸める。
+ */
+export function textScaleForZoom(zoom: number): number {
+  if (!(zoom > 0)) return TEXT_BASE_SCREEN_RATIO;
+  const s = zoom / RE_BASE_ZOOM;
+  return Math.round(((TEXT_BASE_SCREEN_RATIO * (s + 1)) / (2 * zoom)) * 10) / 10;
+}
+
 export function renderRegionSvg(
   doc: RegionDocument,
   selectedId?: string | null,
@@ -129,6 +145,7 @@ export function renderRegionSvg(
   const zoom = options.zoom ?? 1;
   const highQuality = (options.quality ?? DEFAULT_RENDER_QUALITY) === "high";
   const detail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
+  const textScale = textScaleForZoom(zoom);
   const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
   const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
 
@@ -625,9 +642,28 @@ export function renderRegionSvg(
       })
       .join("\n");
 
+    // 標高注記: 主等高線の中点に、線の向きに沿って（上下反転しないよう）配置する
+    const elevationLabels =
+      doc.terrain.showContourElevations === true
+        ? doc.terrain.contours
+            .filter(c => c.isIndex && c.points.length >= 2)
+            .map(c => {
+              const mid = Math.floor(c.points.length / 2);
+              const [x, y] = c.points[mid];
+              const [x0, y0] = c.points[Math.max(0, mid - 1)];
+              const [x1, y1] = c.points[Math.min(c.points.length - 1, mid + 1)];
+              let angle = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI;
+              if (angle > 90) angle -= 180;
+              else if (angle < -90) angle += 180;
+              return `<text class="contour-elevation" x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${angle.toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel', 'Times New Roman', serif" font-size="${8 * textScale}" fill="${theme.contourIndexStroke}" filter="url(#re-halo)">${Math.round(c.elevationMeters)} m</text>`;
+            })
+            .join("\n")
+        : "";
+
     contoursLayer = `
       <g class="re-contours-layer" id="re-contours-layer">
         ${contourPaths}
+        ${elevationLabels}
       </g>
     `;
   }
@@ -907,7 +943,7 @@ export function renderRegionSvg(
             ${markerSvg}
             ${isSel ? `<circle cx="0" cy="-10" r="18" fill="none" stroke="#d4a373" stroke-width="2" stroke-dasharray="3,3" />` : ""}
           </g>
-          <text x="${(offset[0] * iconScale).toFixed(2)}" y="${(offset[1] * iconScale).toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="11" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
+          <text x="${(offset[0] * iconScale).toFixed(2)}" y="${(offset[1] * iconScale).toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="${11 * textScale}" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
         </g>
       `;
     })
@@ -923,7 +959,7 @@ export function renderRegionSvg(
           <polygon points="0,-9 8,5 -8,5" fill="${theme.landmarkFill}" stroke="#ffffff" stroke-width="1.2" />
           <circle cx="0" cy="0" r="2" fill="#ffffff" />
           ${isSel ? `<circle cx="0" cy="0" r="14" fill="none" stroke="#d4a373" stroke-width="2" />` : ""}
-          <text x="0" y="14" text-anchor="middle" font-family="'Cinzel', serif" font-size="9.5" font-style="italic" fill="${theme.textSecondary}" filter="url(#re-halo)">${escapeXml(lm.name)}</text>
+          <text x="0" y="14" text-anchor="middle" font-family="'Cinzel', serif" font-size="${9.5 * textScale}" font-style="italic" fill="${theme.textSecondary}" filter="url(#re-halo)">${escapeXml(lm.name)}</text>
         </g>
       `;
     })
@@ -937,7 +973,7 @@ export function renderRegionSvg(
       const color = l.category === "water" ? theme.textWater : theme.textPrimary;
       const tracking = l.category === "region" ? "letter-spacing: 5px;" : "";
       return `
-        <text class="map-label label-${l.category}" x="${l.position[0].toFixed(2)}" y="${l.position[1].toFixed(2)}" text-anchor="middle" font-family="${fontFam}" font-size="${l.fontSizePt}" font-style="${fontStyleAttr}" font-weight="${l.category === "region" ? "bold" : "normal"}" fill="${color}" style="${tracking}" filter="url(#re-halo)">
+        <text class="map-label label-${l.category}" x="${l.position[0].toFixed(2)}" y="${l.position[1].toFixed(2)}" text-anchor="middle" font-family="${fontFam}" font-size="${l.fontSizePt * textScale}" font-style="${fontStyleAttr}" font-weight="${l.category === "region" ? "bold" : "normal"}" fill="${color}" style="${tracking}" filter="url(#re-halo)">
           ${escapeXml(l.text)}
         </text>
       `;
