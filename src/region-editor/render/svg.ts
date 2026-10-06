@@ -1025,6 +1025,13 @@ export function renderRegionSvg(
       <g id="layer-biomes">${biomesLayer}</g>
       <g id="layer-wetlands"${coastMaskAttr}>${wetlandLayer}${wetlandMarks}</g>
       <g id="layer-contours">${contoursLayer}</g>
+      ${
+        doc.terrain.showCellBorders === true && doc.terrain.cellPolygons?.length
+          ? `<g id="layer-cell-borders" fill="none" stroke="#000" stroke-opacity="0.45" stroke-width="${(0.6 * textScale).toFixed(2)}" stroke-linejoin="round" pointer-events="none">${doc.terrain.cellPolygons
+              .map(poly => `<path d="M ${poly.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")} Z" />`)
+              .join("")}</g>`
+          : ""
+      }
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>

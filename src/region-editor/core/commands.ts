@@ -181,6 +181,15 @@ export function toggleContourElevations(doc: RegionDocument, show?: boolean): Re
 }
 
 /**
+ * セル境界線の表示/非表示を切り替える（デフォルトは非表示）
+ */
+export function toggleCellBorders(doc: RegionDocument, show?: boolean): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.showCellBorders = show ?? !(next.terrain.showCellBorders ?? false);
+  return next;
+}
+
+/**
  * 耕作地レイヤーの表示/非表示を切り替える（デフォルトは非表示）
  */
 export function toggleCultivation(doc: RegionDocument, show?: boolean): RegionDocument {

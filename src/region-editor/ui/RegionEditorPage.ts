@@ -8,6 +8,7 @@ import {
   removeSettlement,
   removeSymbol,
   setSettlementIconScale,
+  toggleCellBorders,
   toggleContourElevations,
   toggleContours,
   toggleCultivation,
@@ -160,6 +161,10 @@ export function mountRegionEditor(
             <input type="checkbox" id="check-show-contour-elevations" ${history.current.terrain.showContourElevations === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="check-show-cell-borders" style="cursor:pointer;">セル境界を表示</label>
+            <input type="checkbox" id="check-show-cell-borders" ${history.current.terrain.showCellBorders === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
+          </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="check-show-cultivation" style="cursor:pointer;">耕作地を表示</label>
             <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
@@ -272,6 +277,10 @@ export function mountRegionEditor(
     const checkElevations = root.querySelector<HTMLInputElement>("#check-show-contour-elevations");
     if (checkElevations) {
       checkElevations.checked = doc.terrain.showContourElevations === true;
+    }
+    const checkCellBorders = root.querySelector<HTMLInputElement>("#check-show-cell-borders");
+    if (checkCellBorders) {
+      checkCellBorders.checked = doc.terrain.showCellBorders === true;
     }
     const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
     if (checkCultivation) {
@@ -933,6 +942,13 @@ export function mountRegionEditor(
   root.querySelector("#check-show-contour-elevations")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
     history.push(toggleContourElevations(history.current, checked));
+    renderMap();
+  });
+
+  // セル境界表示切り替え
+  root.querySelector("#check-show-cell-borders")?.addEventListener("change", e => {
+    const checked = (e.target as HTMLInputElement).checked;
+    history.push(toggleCellBorders(history.current, checked));
     renderMap();
   });
 

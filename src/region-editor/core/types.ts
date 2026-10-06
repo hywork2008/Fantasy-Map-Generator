@@ -220,6 +220,10 @@ export interface RegionTerrain {
   showContourElevations?: boolean;
   /** 耕作地(cultivation)パッチを描画するか。未設定は非表示。 */
   showCultivation?: boolean;
+  /** FMG セル(Voronoi)境界のポリゴン（ローカル座標）。 */
+  cellPolygons?: Point[][];
+  /** セル境界線を表示するか。未設定は非表示。 */
+  showCellBorders?: boolean;
 }
 
 export interface RegionLandUsePatch extends LandUsePatchBudget {

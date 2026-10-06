@@ -406,6 +406,9 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     doc.terrain.contourIntervalMeters = contourResult.intervalMeters;
     doc.terrain.showContours = true;
   }
+  doc.terrain.cellPolygons = (descriptor.cells ?? [])
+    .filter(c => c.polygon && c.polygon.length >= 3)
+    .map(c => c.polygon!.map(toLocal));
 
   // 河川（海セルには描かず、陸セル部分だけを残す）
   const waterPolys = (descriptor.cells ?? [])
