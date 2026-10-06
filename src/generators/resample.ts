@@ -6,7 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { createDefaultRuler } from "../controllers/measurers";
+import { resetRulers } from "../controllers/measurers";
 import {
   addLakesInDeepDepressions,
   calculateMapCoordinates,
@@ -526,7 +526,7 @@ class Resampler {
       biomesData,
       notes: worldContext.notes
     });
-    createDefaultRuler();
+    resetRulers();
 
     this.restoreCellData(parentMap, inverse, scale);
     this.restoreRivers(riversData, projection, scale);

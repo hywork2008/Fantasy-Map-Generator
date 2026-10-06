@@ -265,7 +265,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     view.lakes.selectAll("path").remove();
 
     Features.markupPack();
-    emitEvent("fmg:create-default-ruler");
+    emitEvent("fmg:reset-rulers");
   }
 
   if (isOlderThan("1.11.0")) {

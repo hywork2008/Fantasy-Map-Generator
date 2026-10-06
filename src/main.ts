@@ -33,7 +33,7 @@ import {
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
-import { createDefaultRuler } from "./controllers/measurers";
+import { resetRulers } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
@@ -1141,7 +1141,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
       openNearSeaLakes();
       reGraph();
       Features.markupPack();
-      createDefaultRuler();
+      resetRulers();
     },
     async () => {
       if (viewContext.renderMap) OceanLayers();

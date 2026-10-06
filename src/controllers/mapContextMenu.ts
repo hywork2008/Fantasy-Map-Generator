@@ -266,4 +266,4 @@ function hidePendingFrom(): void {
 }
 
 document.addEventListener("map:generated", () => clearDistanceSession());
-document.addEventListener("fmg:create-default-ruler", () => clearDistanceSession());
+document.addEventListener("fmg:reset-rulers", () => clearDistanceSession());

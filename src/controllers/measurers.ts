@@ -9,7 +9,6 @@ import { rulers, setRulers } from "../store/editorState";
 import { resetDistanceSession } from "../store/mapContextMenuState";
 import { useOptionsState } from "../store/optionsState";
 import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
-import { TIME } from "../utils/debug";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 
 const lineGen = d3.line<[number, number]>();
@@ -476,34 +475,10 @@ class Planimeter extends Measurer {
 
 // ─── Factory function ─────────────────────────────────────────────────────────
 
-export function createDefaultRuler(): void {
-  TIME && console.time("createDefaultRuler");
-  const { features, vertices } = worldContext.pack;
-
-  const areas = features.map(f => (f.land ? f.area || 0 : -Infinity));
-  const largestLand = areas.indexOf(Math.max(...areas));
-  const featureVertices = features[largestLand].vertices;
-
-  const MIN_X = 100;
-  const MAX_X = worldContext.graphWidth - 100;
-  const MIN_Y = 100;
-  const MAX_Y = worldContext.graphHeight - 100;
-
-  let leftmostVertex: [number, number] = [worldContext.graphWidth - MIN_X, worldContext.graphHeight / 2];
-  let rightmostVertex: [number, number] = [MIN_X, worldContext.graphHeight / 2];
-
-  for (const vertex of featureVertices) {
-    const [x, y] = vertices.p[vertex] as [number, number];
-    if (y < MIN_Y || y > MAX_Y) continue;
-    if (x < leftmostVertex[0] && x >= MIN_X) leftmostVertex = [x, y];
-    if (x > rightmostVertex[0] && x <= MAX_X) rightmostVertex = [x, y];
-  }
-
+/** Start a map with no rulers; only rulers the user draws are ever shown. */
+export function resetRulers(): void {
   setRulers(new Rulers());
   resetDistanceSession();
-  rulers.create(Ruler, [leftmostVertex, rightmostVertex]);
-
-  TIME && console.timeEnd("createDefaultRuler");
 }
 
 /** Linear rulers keep their start and end; only added midpoints can be clicked away. */
@@ -514,4 +489,4 @@ export function canRemoveRulerPoint(pointCount: number, pointId: number): boolea
 export { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers };
 
 // CustomEvent Listeners
-document.addEventListener("fmg:create-default-ruler", () => createDefaultRuler());
+document.addEventListener("fmg:reset-rulers", () => resetRulers());
