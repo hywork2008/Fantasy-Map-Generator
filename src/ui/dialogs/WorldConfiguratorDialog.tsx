@@ -213,7 +213,27 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const stored = target.dataset.stored;
     if (!stored) return;
 
-    const val = Number(target.value);
+    applyStoredValue(stored, Number(target.value));
+  }
+
+  function handleGlobeClick(event: React.MouseEvent<SVGElement>): void {
+    if ((event.target as Element).closest("#globeWindArrows")) return;
+    const svg = globeRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return;
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+    const inverted = geoOrthographic()
+      .translate([100, 100])
+      .scale(100)
+      .rotate([-centralMeridian, 0])
+      .invert?.([point.x, point.y]);
+    if (!inverted) return; // outside the sphere
+    const [clickLon, clickLat] = inverted;
+    applyStoredValue("latitude", rn(minmax(clickLat, latitudeSlider.min, latitudeSlider.max), 1));
+    applyStoredValue("longitude", rn(wrapLongitude(clickLon), 1));
+  }
+
+  function applyStoredValue(stored: string, val: number): void {
     const formStore = useWorldConfiguratorFormStore.getState();
 
     if (stored === "temperatureEquator") {
@@ -582,7 +602,16 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </div>
             </fieldset>
             <div className="world-configurator__globe-column">
-              <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 252" aria-hidden="true">
+              <svg
+                ref={globeRef}
+                id="globe"
+                width="22em"
+                style={{ cursor: "crosshair" }}
+                data-tip="Click the globe to set the map's latitude and longitude"
+                onClick={handleGlobeClick}
+                viewBox="-20 -25 240 252"
+                aria-hidden="true"
+              >
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
                     <stop id="grad90" offset="0%" stopColor="blue" />
