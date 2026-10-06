@@ -60,4 +60,38 @@ describe("coastline smoothing", () => {
     expect(coast.curve[0]).toEqual(coast.curve[coast.curve.length - 1]);
     expect(coast.patches).toHaveLength(4);
   });
+
+  it("keeps a vertex near a pin (a port) exactly on the curve instead of cutting the corner", () => {
+    const zigzag: Point[][] = [
+      [
+        [0, 0],
+        [10, 10]
+      ],
+      [
+        [10, 10],
+        [20, 0]
+      ],
+      [
+        [20, 0],
+        [30, 10]
+      ],
+      [
+        [30, 10],
+        [40, 0]
+      ]
+    ];
+    const through = (pins: Point[]) =>
+      smoothCoastlines(zigzag, pins)[0].curve.some(p => Math.hypot(p[0] - 20, p[1] - 0) < 1e-9);
+    expect(through([])).toBe(false);
+    expect(through([[21, 1]])).toBe(true);
+    // 遠い pin は無視する
+    expect(through([[200, 200]])).toBe(false);
+    // 丸めても前後の辺ごとのパッチは頂点で連続する
+    const [coast] = smoothCoastlines(zigzag, [[20, 0]]);
+    for (let i = 0; i + 1 < coast.patches.length; i++) {
+      const a = coast.patches[i];
+      const b = coast.patches[i + 1];
+      expect(a[a.length - 2]).toEqual(b[1]);
+    }
+  });
 });

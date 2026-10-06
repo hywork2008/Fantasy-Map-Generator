@@ -136,7 +136,9 @@ export function renderRegionSvg(
   const theme = THEMES[themeName] ?? THEMES.schley;
 
   // 海岸線: 断片を連結し FMG と同じ B スプラインで丸める。直線のセル境界と曲線の間は辺ごとのパッチで塗り分ける
-  const coasts = smoothCoastlines(doc.terrain.coastlinePolygons);
+  // 海向けの港を持つ集落の岸壁は、丸めで陸側へ引っ込まないよう頂点を残す
+  const portPins = doc.settlements.filter(st => st.hasPort).map(st => st.position);
+  const coasts = smoothCoastlines(doc.terrain.coastlinePolygons, portPins);
   const coastPatchD = coasts
     .flatMap(c => c.patches)
     .map(poly => polyToSvgPath(poly))
