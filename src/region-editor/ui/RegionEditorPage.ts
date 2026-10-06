@@ -17,6 +17,7 @@ import {
   updateSettlement
 } from "../core/commands";
 import { generateStandaloneRegion } from "../core/gen/pipeline";
+import { generateVoronoiSandbox, MAX_SANDBOX_CELLS, SANDBOX_BIOMES } from "../core/gen/voronoiSandbox";
 import { RegionHistory } from "../core/history";
 import {
   type BiomeKind,
@@ -134,6 +135,25 @@ export function mountRegionEditor(
           <div id="re-tool-options-content">
             <div style="font-size:12px; color:var(--re-text-muted);">地図上の要素をクリックしてプロパティを表示・編集します。</div>
           </div>
+        </section>
+
+        <!-- Voronoi 実験地図（FMG 連携なしでバイオーム別の森林を確認） -->
+        <section class="re-panel-section">
+          <div class="re-section-title">Voronoi 実験 (Biome Sandbox)</div>
+          <div class="re-form-row">
+            <label>セル数 (1〜${MAX_SANDBOX_CELLS})</label>
+            <input type="number" class="re-input" id="vs-count" min="1" max="${MAX_SANDBOX_CELLS}" value="1" />
+          </div>
+          <div class="re-form-row">
+            <label>地図の一辺 (km)</label>
+            <input type="number" class="re-input" id="vs-extent" min="1" max="200" value="10" />
+          </div>
+          <div class="re-form-row">
+            <label>標高 (m)</label>
+            <input type="number" class="re-input" id="vs-elevation" min="0" max="5000" value="100" />
+          </div>
+          <div id="vs-biomes"></div>
+          <button type="button" class="re-btn primary" id="btn-voronoi-sandbox" style="width:100%; margin-top:6px;">🧪 Voronoi を生成</button>
         </section>
 
         <!-- 地方全体設定 -->
@@ -913,6 +933,43 @@ export function mountRegionEditor(
     };
     const newDoc = generateStandaloneRegion(currentSettings);
     history.push(newDoc);
+    selectedId = null;
+    updateSelectionPanel();
+    renderMap();
+  });
+
+  // Voronoi 実験地図: セルごとのバイオーム選択欄を、セル数に合わせて作り直す
+  const vsBiomeKeys: string[] = ["temperateDeciduousForest"];
+  const vsCount = root.querySelector<HTMLInputElement>("#vs-count")!;
+  const vsBiomes = root.querySelector<HTMLElement>("#vs-biomes")!;
+  const readVsCount = () => Math.max(1, Math.min(MAX_SANDBOX_CELLS, Math.round(Number(vsCount.value) || 1)));
+  const renderVsBiomes = () => {
+    const n = readVsCount();
+    while (vsBiomeKeys.length < n) vsBiomeKeys.push(vsBiomeKeys[vsBiomeKeys.length - 1]);
+    vsBiomes.innerHTML = Array.from({ length: n }, (_, i) => {
+      const options = SANDBOX_BIOMES.map(
+        d => `<option value="${d.key}" ${d.key === vsBiomeKeys[i] ? "selected" : ""}>${escapeHtml(d.label)}</option>`
+      ).join("");
+      return `<div class="re-form-row"><label>セル ${i + 1} のバイオーム</label><select class="re-select" data-vs-cell="${i}">${options}</select></div>`;
+    }).join("");
+  };
+  vsCount.addEventListener("change", renderVsBiomes);
+  vsBiomes.addEventListener("change", e => {
+    const el = e.target as HTMLSelectElement;
+    const i = Number(el.dataset.vsCell);
+    if (Number.isInteger(i)) vsBiomeKeys[i] = el.value;
+  });
+  renderVsBiomes();
+  root.querySelector("#btn-voronoi-sandbox")?.addEventListener("click", () => {
+    const seed = (root.querySelector("#input-seed") as HTMLInputElement).value || "voronoi-sandbox";
+    const doc = generateVoronoiSandbox({
+      seed,
+      cellCount: readVsCount(),
+      extentKm: Number((root.querySelector("#vs-extent") as HTMLInputElement).value) || 10,
+      elevationMeters: Number((root.querySelector("#vs-elevation") as HTMLInputElement).value) || 0,
+      biomeKeys: vsBiomeKeys.slice(0, readVsCount())
+    });
+    history.push(doc);
     selectedId = null;
     updateSelectionPanel();
     renderMap();

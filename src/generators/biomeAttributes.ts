@@ -28,6 +28,15 @@ function canopyForKey(biomeKey: string | undefined): CanopyKey {
   return "mixed";
 }
 
+/** Default forest cover (0-1) and condition for a forest biome key. Shared with the Region Editor's Voronoi sandbox. */
+export function forestAttributesForKey(key: string | undefined): { cover: number; condition: "mature" | "ancient" } {
+  if (key === "centralEuropeanGreatForest") return { cover: 0.9, condition: "ancient" };
+  if (key === "tropicalRainforest" || key === "cloudForest") return { cover: 0.95, condition: "mature" };
+  if (key === "tropicalDryForest") return { cover: 0.55, condition: "mature" };
+  if (key === "mangrove" || key === "floodedForest") return { cover: 0.75, condition: "mature" };
+  return { cover: 0.7, condition: "mature" };
+}
+
 /**
  * Seed attribute layers from climate biomes. Does not invent special features.
  * Great forests get higher cover and mature condition as a playable default.
@@ -54,22 +63,9 @@ export function initializeBiomeAttributes(pack: PackedGraph, biomesData: BiomesD
     const key = biomesData.keys?.[code];
     canopy[i] = canopyCode(canopyForKey(key));
     landCover[i] = natural;
-    if (key === "centralEuropeanGreatForest") {
-      forestCover[i] = 0.9;
-      forestCondition[i] = ancient;
-    } else if (key === "tropicalRainforest" || key === "cloudForest") {
-      forestCover[i] = 0.95;
-      forestCondition[i] = mature;
-    } else if (key === "tropicalDryForest") {
-      forestCover[i] = 0.55;
-      forestCondition[i] = mature;
-    } else if (key === "mangrove" || key === "floodedForest") {
-      forestCover[i] = 0.75;
-      forestCondition[i] = mature;
-    } else {
-      forestCover[i] = 0.7;
-      forestCondition[i] = mature;
-    }
+    const attr = forestAttributesForKey(key);
+    forestCover[i] = attr.cover;
+    forestCondition[i] = attr.condition === "ancient" ? ancient : mature;
   }
 
   pack.cells.forestCover = forestCover;
