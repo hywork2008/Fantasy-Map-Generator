@@ -1,6 +1,9 @@
 import { pointInPolygon } from "../core/geometry";
-import type { BiomeKind, Point, RegionBiomeArea, RegionWetlandPatch } from "../core/types";
+import type { RegionBiomeArea, RegionWetlandPatch } from "../core/types";
+import { FOREST_KINDS, type ForestKind, type ForestMass } from "./forestMass";
 import type { ForestCanopyColors } from "./styles/themes";
+
+export { forestKindOf } from "./forestMass";
 
 /**
  * 森林・湿地の手描き風描画。
@@ -11,17 +14,11 @@ import type { ForestCanopyColors } from "./styles/themes";
 
 const MAX_CROWNS = 9000;
 
-type ForestKind = "deciduous" | "coniferous" | "tropical";
-
 const CROWN_RADIUS: Record<ForestKind, number> = {
   deciduous: 3.1,
   coniferous: 2.6,
   tropical: 3.7
 };
-
-export function forestKindOf(kind: BiomeKind): ForestKind {
-  return kind === "coniferous_forest" ? "coniferous" : kind === "tropical_forest" ? "tropical" : "deciduous";
-}
 
 /** 2 整数 + salt からの決定的ハッシュ → [0,1) */
 function hash2(ix: number, iy: number, salt: number): number {
@@ -81,49 +78,34 @@ interface Crown {
   phase: number;
 }
 
-function collectCrowns(biomes: RegionBiomeArea[], spacing: number, baseR: number, salt: number, cap: number): Crown[] {
-  const seen = new Set<number>();
+/** 樹冠は森林塊（滑らかな一体輪郭）の内側、かつその地点で優勢な種類のものだけを置く */
+function collectCrowns(
+  mass: ForestMass,
+  kind: ForestKind,
+  spacing: number,
+  baseR: number,
+  salt: number,
+  cap: number
+): Crown[] {
   const crowns: Crown[] = [];
   // 行ごとに半ピッチずらして、ランダム散布より詰まりの良い千鳥配置にする
-  const pos = (ix: number, iy: number): Point => [
-    (ix + (iy & 1 ? 0.5 : 0) + (hash2(ix, iy, salt) - 0.5) * 0.7) * spacing,
-    (iy + (hash2(ix, iy, salt + 1) - 0.5) * 0.7) * spacing * 0.86
-  ];
-  for (const b of biomes) {
-    const stock =
-      b.forestCover && b.forestStock !== undefined ? Math.max(0, Math.min(1, b.forestStock / b.forestCover)) : 1;
-    const keep = 0.35 + 0.65 * stock;
-    for (const poly of b.forestPolygons ?? [b.polygon]) {
-      if (poly.length < 3) continue;
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (const [x, y] of poly) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-      const row = spacing * 0.86;
-      for (let iy = Math.floor(minY / row) - 1; iy <= Math.ceil(maxY / row) + 1; iy++) {
-        for (let ix = Math.floor(minX / spacing) - 1; ix <= Math.ceil(maxX / spacing) + 1; ix++) {
-          const key = ix * 100003 + iy;
-          if (seen.has(key)) continue;
-          const p = pos(ix, iy);
-          if (p[0] < minX || p[0] > maxX || p[1] < minY || p[1] > maxY || !pointInPolygon(p, poly)) continue;
-          seen.add(key);
-          if (hash2(ix, iy, salt + 2) > keep) continue;
-          crowns.push({
-            x: p[0],
-            y: p[1],
-            r: baseR * (0.82 + hash2(ix, iy, salt + 3) * 0.4),
-            tone: Math.floor(hash2(ix, iy, salt + 4) * 3),
-            phase: hash2(ix, iy, salt + 5) * Math.PI * 2
-          });
-          if (crowns.length >= cap) return crowns;
-        }
-      }
+  const row = spacing * 0.86;
+  const [minX, minY, maxX, maxY] = mass.bbox;
+  for (let iy = Math.floor(minY / row) - 1; iy <= Math.ceil(maxY / row) + 1; iy++) {
+    for (let ix = Math.floor(minX / spacing) - 1; ix <= Math.ceil(maxX / spacing) + 1; ix++) {
+      const x = (ix + (iy & 1 ? 0.5 : 0) + (hash2(ix, iy, salt) - 0.5) * 0.7) * spacing;
+      const y = (iy + (hash2(ix, iy, salt + 1) - 0.5) * 0.7) * row;
+      const at = mass.sample([x, y]);
+      if (!at || at.kind !== kind) continue;
+      if (hash2(ix, iy, salt + 2) > 0.35 + 0.65 * at.stock) continue;
+      crowns.push({
+        x,
+        y,
+        r: baseR * (0.82 + hash2(ix, iy, salt + 3) * 0.4),
+        tone: Math.floor(hash2(ix, iy, salt + 4) * 3),
+        phase: hash2(ix, iy, salt + 5) * Math.PI * 2
+      });
+      if (crowns.length >= cap) return crowns;
     }
   }
   return crowns;
@@ -133,20 +115,14 @@ function collectCrowns(biomes: RegionBiomeArea[], spacing: number, baseR: number
  * 森林の樹冠レイヤー。種類ごとに 影 → 樹冠(3トーン) → 陰影 → ハイライト の順で積む。
  * detail 0（引き）では間引いてパス総量を抑える。
  */
-export function renderForestCrowns(
-  forestBiomes: RegionBiomeArea[],
-  colors: ForestCanopyColors,
-  detail: number
-): string {
-  const kinds: ForestKind[] = ["deciduous", "coniferous", "tropical"];
+export function renderForestCrowns(mass: ForestMass, colors: ForestCanopyColors, detail: number): string {
   const lod = detail === 0 ? 1.7 : 1;
   const out: string[] = [];
-  kinds.forEach((kind, kindIdx) => {
-    const group = forestBiomes.filter(b => forestKindOf(b.kind) === kind);
-    if (!group.length) return;
+  FOREST_KINDS.forEach((kind, kindIdx) => {
+    if (!mass.kinds.includes(kind)) return;
     const baseR = CROWN_RADIUS[kind];
     const spacing = baseR * 1.85 * lod;
-    const crowns = collectCrowns(group, spacing, baseR, 7919 * (kindIdx + 1), MAX_CROWNS);
+    const crowns = collectCrowns(mass, kind, spacing, baseR, 7919 * (kindIdx + 1), MAX_CROWNS);
     if (!crowns.length) return;
     crowns.sort((a, b) => a.y - b.y);
     const base = colors[kind];

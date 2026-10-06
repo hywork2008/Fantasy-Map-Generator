@@ -7,7 +7,6 @@ import { type Point, type RegionDocument, WETLAND_LEVELS } from "../core/types";
 import {
   DEFAULT_RENDER_QUALITY,
   forestCrownPattern,
-  forestKindOf,
   mixHex,
   type RenderQuality,
   renderForestCrowns,
@@ -18,6 +17,7 @@ import {
   wetlandPatchLevel
 } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
+import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
 import { THEMES } from "./styles/themes";
@@ -302,32 +302,56 @@ export function renderRegionSvg(
       ${highQuality ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors)).join("\n")}
     `;
 
-    // 林床: 樹冠の隙間から見える暗い地面。継ぎ目が出ないよう同色の細い縁取りで塗り潰す
-    const forestCells = forestBiomes
-      .map(b => {
-        const color = mixHex(canopyColors[forestKindOf(b.kind)], canopyColors.shadow, 0.5);
-        const stockRatio =
-          b.forestCover && b.forestStock !== undefined ? Math.max(0, Math.min(1, b.forestStock / b.forestCover)) : 1;
-        const pathD = (b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ");
-        return `<path class="forest-canopy-cell forest-${b.kind}" data-id="${b.id}" d="${pathD}" fill="${color}" opacity="${0.5 + stockRatio * 0.5}" stroke="${color}" stroke-width="0.6" stroke-linejoin="round" />`;
+    // 隣接する森林セルを 1 つの森林塊にまとめ、セル頂点の角を持たない滑らかな外形で描く
+    // 水辺（海・湖・湿地の開放水面）には森をはみ出させない
+    const forestWater = [
+      ...doc.biomes.filter(b => b.isWater || b.kind === "ocean").map(b => b.polygon),
+      ...doc.terrain.lakePolygons,
+      ...doc.biomes
+        .flatMap(b => b.wetlandPatches ?? [])
+        .filter(p => wetlandPatchLevel(p) >= WETLAND_WATER_LEVEL)
+        .map(p => p.polygon)
+    ];
+    const mass = forestMassFor(doc.biomes, forestBiomes, forestWater);
+    const outlineD = mass ? ringsToSvgPath(mass.outline) : "";
+    if (outlineD) {
+      forestDefs += `<clipPath id="re-forest-outline" clipPathUnits="userSpaceOnUse"><path d="${outlineD}" clip-rule="evenodd" /></clipPath>`;
+    }
+    const kindRegions = mass
+      ? FOREST_KINDS.filter(k => mass.regions[k]?.length).map(k => ({
+          kind: k,
+          d: ringsToSvgPath(mass.regions[k] ?? []),
+          stock: mass.stock[k] ?? 1
+        }))
+      : [];
+
+    // 林床: 樹冠の隙間から見える暗い地面。種類ごとの支配領域を外形で切り抜き、継ぎ目は同色の細い縁取りで塗り潰す
+    const forestFloor = kindRegions
+      .map(({ kind, d, stock }) => {
+        const color = mixHex(canopyColors[kind], canopyColors.shadow, 0.5);
+        const biomeClasses = [
+          ...new Set(forestBiomes.filter(b => forestKindOf(b.kind) === kind).map(b => `forest-${b.kind}`))
+        ];
+        return `<path class="forest-canopy-cell ${biomeClasses.join(" ")}" data-kind="${kind}" d="${d}" fill="${color}" fill-rule="evenodd" opacity="${(0.5 + stock * 0.5).toFixed(2)}" stroke="${color}" stroke-width="0.6" stroke-linejoin="round" />`;
       })
       .join("\n");
+    const forestPatterns = highQuality
+      ? ""
+      : kindRegions
+          .map(
+            ({ kind, d }) =>
+              `<path class="forest-pattern-overlay" d="${d}" fill="url(#re-forest-crowns-${kind})" fill-rule="evenodd" />`
+          )
+          .join("\n");
 
-    forestLayer = `
+    forestLayer = outlineD
+      ? `
       <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)">
-        <g class="re-forest-floor">${forestCells}</g>
-        ${
-          highQuality
-            ? renderForestCrowns(forestBiomes, canopyColors, detail)
-            : forestBiomes
-                .map(
-                  b =>
-                    `<path class="forest-pattern-overlay" d="${(b.forestPolygons ?? [b.polygon]).map(poly => polyToSvgPath(poly)).join(" ")}" fill="url(#re-forest-crowns-${forestKindOf(b.kind)})" />`
-                )
-                .join("\n")
-        }
+        <g class="re-forest-floor" clip-path="url(#re-forest-outline)">${forestFloor}${forestPatterns}</g>
+        ${highQuality && mass ? renderForestCrowns(mass, canopyColors, detail) : ""}
       </g>
-    `;
+    `
+      : "";
   }
 
   // 1. Defs (パーチメント風テクスチャ、フィルター、森林マスク・シェーディング)
@@ -379,7 +403,43 @@ export function renderRegionSvg(
     };
   };
   const biomeParts = doc.biomes.map(biomePath);
-  const biomesLayerBase = biomeParts.map(part => part.svg).join("\n");
+  let biomesLayerBase = biomeParts.map(part => part.svg).join("\n");
+  if (forestLayer) {
+    // 森林セルの地面色は滑らかな森林外形の内側だけに塗る。外形が引っ込んだ所にセルの角が出ないよう、
+    // 下地は頂点を共有する非森林の隣接セルで最も多い色にする
+    const vertexKey = (p: Point) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
+    const openColorAt = new Map<string, string[]>();
+    for (const b of doc.biomes) {
+      if (isForestBiome(b.kind) || b.isWater || b.kind === "ocean") continue;
+      const color = b.color ?? theme.biomes[b.kind] ?? theme.biomes.grassland;
+      for (const p of b.polygon) {
+        const key = vertexKey(p);
+        const list = openColorAt.get(key);
+        if (list) list.push(color);
+        else openColorAt.set(key, [color]);
+      }
+    }
+    const underlay = forestBiomes
+      .map(b => {
+        const counts = new Map<string, number>();
+        for (const p of b.polygon)
+          for (const c of openColorAt.get(vertexKey(p)) ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
+        const color =
+          [...counts].sort((x, y) => y[1] - x[1])[0]?.[0] ??
+          theme.biomes[b.terrainKind && !isForestBiome(b.terrainKind) ? b.terrainKind : "grassland"] ??
+          theme.biomes.grassland;
+        return `<path class="forest-ground-underlay" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" />`;
+      })
+      .join("\n");
+    const forestGround = biomeParts
+      .filter((_, i) => isForestBiome(doc.biomes[i].kind))
+      .map(part => part.svg)
+      .join("\n");
+    biomesLayerBase = `${biomeParts
+      .filter((_, i) => !isForestBiome(doc.biomes[i].kind))
+      .map(part => part.svg)
+      .join("\n")}\n${underlay}\n<g class="forest-ground" clip-path="url(#re-forest-outline)">${forestGround}</g>`;
+  }
   const seaPolys = doc.biomes.filter(bm => bm.isWater || bm.kind === "ocean").map(bm => bm.polygon);
   const isSeaPoint = (pt: Point) => seaPolys.some(poly => pointInPolygon(pt, poly));
   const landColorAt = (pt: Point): string => {
