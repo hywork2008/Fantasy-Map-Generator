@@ -350,30 +350,37 @@ export function renderRegionSvg(
   };
   const biomeParts = doc.biomes.map(biomePath);
   let biomesLayerBase = biomeParts.map(part => part.svg).join("\n");
-  if (forestLayer) {
-    // 森林セルの地面色は滑らかな森林外形の内側だけに塗る。外形が引っ込んだ所にセルの角が出ないよう、
-    // 下地は頂点を共有する非森林の隣接セルで最も多い色にする
-    const vertexKey = (p: Point) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
-    const openColorAt = new Map<string, string[]>();
-    for (const b of doc.biomes) {
-      if (isForestBiome(b.kind) || b.isWater || b.kind === "ocean") continue;
-      const color = b.color ?? theme.biomes[b.kind] ?? theme.biomes.grassland;
-      for (const p of b.polygon) {
-        const key = vertexKey(p);
-        const list = openColorAt.get(key);
-        if (list) list.push(color);
-        else openColorAt.set(key, [color]);
-      }
+  // 森・湿地のセルは、地面色（FMG の群系色）が出ていると丸めた海岸や森の外形の隙間で浮いてしまう。
+  // そうした隙間は、頂点を共有する「開けた陸」（森・湿地・水域でないセル）で最も多い色で埋める
+  const isOpenLand = (b: RegionDocument["biomes"][number]) =>
+    !(isSeaBiome(b) || isForestBiome(b.kind) || b.wetlandPatches !== undefined);
+  const vertexKey = (p: Point) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
+  const openColorAt = new Map<string, string[]>();
+  for (const b of doc.biomes) {
+    if (!isOpenLand(b)) continue;
+    const color = b.color ?? theme.biomes[b.kind] ?? theme.biomes.grassland;
+    for (const p of b.polygon) {
+      const key = vertexKey(p);
+      const list = openColorAt.get(key);
+      if (list) list.push(color);
+      else openColorAt.set(key, [color]);
     }
+  }
+  const openLandColorFor = (b: RegionDocument["biomes"][number]): string => {
+    const counts = new Map<string, number>();
+    for (const p of b.polygon)
+      for (const c of openColorAt.get(vertexKey(p)) ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
+    return (
+      [...counts].sort((x, y) => y[1] - x[1])[0]?.[0] ??
+      theme.biomes[b.terrainKind && !isForestBiome(b.terrainKind) ? b.terrainKind : "grassland"] ??
+      theme.biomes.grassland
+    );
+  };
+  if (forestLayer) {
+    // 森林セルの地面色は滑らかな森林外形の内側だけに塗る。外形が引っ込んだ所にセルの角が出ないよう下地を敷く
     const underlay = forestBiomes
       .map(b => {
-        const counts = new Map<string, number>();
-        for (const p of b.polygon)
-          for (const c of openColorAt.get(vertexKey(p)) ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
-        const color =
-          [...counts].sort((x, y) => y[1] - x[1])[0]?.[0] ??
-          theme.biomes[b.terrainKind && !isForestBiome(b.terrainKind) ? b.terrainKind : "grassland"] ??
-          theme.biomes.grassland;
+        const color = openLandColorFor(b);
         return `<path class="forest-ground-underlay" d="${polyToSvgPath(b.polygon)}" fill="${color}" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" />`;
       })
       .join("\n");
@@ -403,7 +410,8 @@ export function renderRegionSvg(
   const landEdgeColor = new Map<string, string>();
   for (const bm of doc.biomes) {
     if (isSeaBiome(bm)) continue;
-    const color = bm.color ?? theme.biomes[bm.kind] ?? theme.biomes.grassland;
+    // 森・湿地セルの隙間は、そのセルの地面色ではなく周囲の開けた陸の色で埋める
+    const color = isOpenLand(bm) ? (bm.color ?? theme.biomes[bm.kind] ?? theme.biomes.grassland) : openLandColorFor(bm);
     for (let i = 0; i < bm.polygon.length; i++)
       landEdgeColor.set(edgeKey(bm.polygon[i], bm.polygon[(i + 1) % bm.polygon.length]), color);
   }
@@ -422,20 +430,32 @@ export function renderRegionSvg(
       : [mid[0] + nx, mid[1] + ny];
     return landColorAt(side);
   };
-  // 曲線が海側へ膨らんだ所は陸色（海セルで切り抜き）、陸側へ食い込んだ所は海色
+  // 曲線が海側へ膨らんだ所は陸色、陸側へ食い込んだ所は海色。膨らむ側は弦と曲線の中ほどの点が海セル内かで見分ける
+  const bulgesIntoSea = (patch: Point[]) => {
+    const a = patch[0];
+    const b = patch[patch.length - 1];
+    const arcMid = patch[Math.floor(patch.length / 2)];
+    const chordMid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    return isSeaPoint([(arcMid[0] + chordMid[0]) / 2, (arcMid[1] + chordMid[1]) / 2]);
+  };
   const landByColor = new Map<string, string[]>();
   for (const patch of coasts.flatMap(c => c.patches)) {
+    if (patch.length < 4 || !bulgesIntoSea(patch)) continue;
     const color = patchLandColor(patch);
     const list = landByColor.get(color);
     if (list) list.push(polyToSvgPath(patch));
     else landByColor.set(color, [polyToSvgPath(patch)]);
   }
   // 海色は切り抜かずに先に塗る（海側はもともと海色なので変化なし）。切り抜くと弦に沿って継ぎ目の細線が出る。
-  // 縁取りは陸セルの縁取り（0.7）が海側へはみ出す分を覆う太さにする（曲線側のはみ出しは海岸線の線が隠す）
+  // 縁取りは陸セルの縁取り（0.7）が海側へはみ出す分を覆う太さにする（曲線側のはみ出しは海岸線の線が隠す）。
+  // 陸色のパッチの縁取りは海色の縁取りより太くして、弦に沿って海色の細線が残らないようにする
   const coastPatches = coastPatchD
-    ? `<path class="coast-fill-sea" d="${coastPatchD}" fill="${seaColor}" stroke="${seaColor}" stroke-width="1" stroke-linejoin="round" />
-      <g class="coast-fill-land" clip-path="url(#re-sea-clip)">${[...landByColor]
-        .map(([color, ds]) => `<path d="${ds.join(" ")}" fill="${color}" />`)
+    ? `<path class="coast-fill-sea" d="${coastPatchD}" fill="${seaColor}" stroke="${seaColor}" stroke-width="0.8" stroke-linejoin="round" />
+      <g class="coast-fill-land">${[...landByColor]
+        .map(
+          ([color, ds]) =>
+            `<path d="${ds.join(" ")}" fill="${color}" stroke="${color}" stroke-width="1.2" stroke-linejoin="round" />`
+        )
         .join("")}</g>`
     : "";
   const biomesLayer = `${biomesLayerBase}\n${coastPatches}`;
@@ -523,34 +543,101 @@ export function renderRegionSvg(
     const forward = Math.hypot(arc[0][0] - a[0], arc[0][1] - a[1]) <= Math.hypot(arc[0][0] - b[0], arc[0][1] - b[1]);
     return (forward ? arc : [...arc].reverse()).slice(1, -1);
   };
-  const coastalHabitatsLayer = (doc.terrain.coastalHabitats ?? [])
-    .map((segment, i) => {
-      const habitat = getCoastalHabitatDefinition(segment.coastalHabitat);
-      if (habitat.key === "none") return "";
-      const [a, b] = [segment.points[0], segment.points[segment.points.length - 1]];
-      const arc = segment.points.length === 2 ? arcFor(a, b) : undefined;
-      // 帯は丸めた海岸線に沿わせ、切り抜きも海岸の辺を曲線に置き換えた陸セルにする
-      const path = polyToSvgPath(arc ? [a, ...arc, b] : segment.points, false);
-      // 同じ陸セルの他の海岸の辺も曲線に置き換えないと、帯がセルの角から突き出る
-      const land = segment.landPolygon;
-      const clipPoly = land.flatMap((p, k) => [p, ...(arcFor(p, land[(k + 1) % land.length]) ?? [])]);
-      const clipId = `re-coastal-habitat-${i}`;
-      const dash =
-        habitat.key === "rockyIntertidal"
-          ? "2,3"
-          : habitat.key === "tidalFlat"
-            ? "8,3,2,3"
-            : habitat.key === "coastalDune"
-              ? "6,4"
-              : "1,4";
-      return `<defs><clipPath id="${clipId}"><path d="${polyToSvgPath(clipPoly, true)}" /></clipPath></defs>
-      <g class="coastal-habitat coastal-habitat-${habitat.key}" data-coastal-habitat="${habitat.key}" clip-path="url(#${clipId})">
-        <title>${escapeXml(habitat.label)}</title>
-        <path d="${path}" fill="none" stroke="${habitat.color}" stroke-width="14" />
-        <path d="${path}" fill="none" stroke="${theme.coastlineStroke}" stroke-width="9" stroke-dasharray="${dash}" opacity="0.3" />
+  const habitatDash = (key: string) =>
+    key === "rockyIntertidal" ? "2,3" : key === "tidalFlat" ? "8,3,2,3" : key === "coastalDune" ? "6,4" : "1,4";
+  // 同じ陸セルの他の海岸の辺も曲線に置き換えないと、帯がセルの角から突き出る
+  const smoothedLandPath = (land: Point[]) =>
+    polyToSvgPath(
+      land.flatMap((p, k) => [p, ...(arcFor(p, land[(k + 1) % land.length]) ?? [])]),
+      true
+    );
+  const habitatBand = (clipId: string, clipD: string, key: string, label: string, color: string, path: string) =>
+    `<defs><clipPath id="${clipId}">${clipD}</clipPath></defs>
+      <g class="coastal-habitat coastal-habitat-${key}" data-coastal-habitat="${key}" clip-path="url(#${clipId})">
+        <title>${escapeXml(label)}</title>
+        <path d="${path}" fill="none" stroke="${color}" stroke-width="14" />
+        <path d="${path}" fill="none" stroke="${theme.coastlineStroke}" stroke-width="9" stroke-dasharray="${habitatDash(key)}" opacity="0.3" />
       </g>`;
-    })
-    .join("\n");
+  // 海岸線の鎖ごとに、同じハビタットが続く辺をひとつの帯にまとめる（辺ごとに分けると角で帯が途切れ、破線も辺ごとに仕切り直される）
+  const habitatSegments = doc.terrain.coastalHabitats ?? [];
+  const segmentByEdge = new Map<string, (typeof habitatSegments)[number]>();
+  for (const seg of habitatSegments) {
+    if (seg.points.length === 2) segmentByEdge.set(edgeKey(seg.points[0], seg.points[1]), seg);
+  }
+  const bandedSegments = new Set<(typeof habitatSegments)[number]>();
+  const bandLayers: string[] = [];
+  let bandCount = 0;
+  for (const coast of coasts) {
+    const n = coast.closed ? coast.vertices.length - 1 : coast.vertices.length;
+    const edgeCount = coast.patches.length;
+    const edgeSeg = Array.from({ length: edgeCount }, (_, i) =>
+      segmentByEdge.get(edgeKey(coast.vertices[i], coast.vertices[(i + 1) % n]))
+    );
+    const keyOf = (i: number) => {
+      const seg = edgeSeg[i];
+      return seg ? getCoastalHabitatDefinition(seg.coastalHabitat).key : "none";
+    };
+    // 閉じた鎖は、ハビタットが変わる辺から回し始める（全部同じなら 0 から 1 周）
+    let start = 0;
+    if (coast.closed) {
+      const change = Array.from({ length: edgeCount }, (_, i) => i).find(
+        i => keyOf(i) !== keyOf((i + edgeCount - 1) % edgeCount)
+      );
+      start = change ?? 0;
+    }
+    let run: number[] = [];
+    const flush = () => {
+      if (!run.length) return;
+      const seg0 = edgeSeg[run[0]];
+      const key = keyOf(run[0]);
+      if (seg0 && key !== "none") {
+        const pts: Point[] = [];
+        for (const i of run) {
+          const arc = coast.patches[i].slice(1, -1);
+          pts.push(...(pts.length ? arc.slice(1) : arc));
+        }
+        const clipD = [...new Set(run.map(i => edgeSeg[i]!))]
+          .map(seg => `<path d="${smoothedLandPath(seg.landPolygon)}" />`)
+          .join("");
+        for (const i of run) bandedSegments.add(edgeSeg[i]!);
+        const def = getCoastalHabitatDefinition(seg0.coastalHabitat);
+        bandLayers.push(
+          habitatBand(
+            `re-coastal-habitat-${bandCount++}`,
+            clipD,
+            key,
+            def.label,
+            def.color,
+            polyToSvgPath(pts, coast.closed && run.length === edgeCount)
+          )
+        );
+      }
+      run = [];
+    };
+    for (let k = 0; k < edgeCount; k++) {
+      const i = (start + k) % edgeCount;
+      if (run.length && keyOf(i) !== keyOf(run[0])) flush();
+      run.push(i);
+    }
+    flush();
+  }
+  // 曲線化できなかった（鎖に載らない）区間は従来どおり辺ごとに描く
+  habitatSegments.forEach(segment => {
+    if (bandedSegments.has(segment)) return;
+    const habitat = getCoastalHabitatDefinition(segment.coastalHabitat);
+    if (habitat.key === "none") return;
+    bandLayers.push(
+      habitatBand(
+        `re-coastal-habitat-${bandCount++}`,
+        `<path d="${polyToSvgPath(segment.landPolygon, true)}" />`,
+        habitat.key,
+        habitat.label,
+        habitat.color,
+        polyToSvgPath(segment.points, false)
+      )
+    );
+  });
+  const coastalHabitatsLayer = bandLayers.join("\n");
 
   const lakesLayer = doc.terrain.lakePolygons
     .map(poly => {
