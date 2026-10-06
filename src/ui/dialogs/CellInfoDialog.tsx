@@ -1,8 +1,11 @@
 import type React from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { toggleCells } from "../../controllers/layers";
 import { useCellInfoState } from "../../store/cellInfoState";
 import { useDialogState } from "../../store/dialogState";
 import { useExtensionState } from "../../store/extensionState";
+import { layerIsOn } from "../../utils/nodeUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -11,6 +14,15 @@ export const CellInfoDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("cellInfo"));
   const info = useCellInfoState();
   const cellInfoRows = useExtensionState(state => state.cellInfoRows);
+
+  // Show the Cells layer while the dialog is open; restore it only if the dialog enabled it.
+  useEffect(() => {
+    if (!isOpen || layerIsOn("toggleCells")) return;
+    toggleCells();
+    return () => {
+      if (layerIsOn("toggleCells")) toggleCells();
+    };
+  }, [isOpen]);
 
   return (
     <Dialog
