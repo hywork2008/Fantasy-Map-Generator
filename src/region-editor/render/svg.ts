@@ -1018,20 +1018,25 @@ export function renderRegionSvg(
     `;
   }
 
+  const cellBordersSvg =
+    doc.terrain.showCellBorders === true && doc.terrain.cellPolygons?.length
+      ? `<g id="layer-cell-borders" fill="none" stroke="#000" stroke-opacity="${doc.terrain.cellBorderOpacity ?? 0.6}" stroke-width="${(0.6 * textScale).toFixed(2)}" stroke-linejoin="round" pointer-events="none">${doc.terrain.cellPolygons
+          .map(poly => `<path d="M ${poly.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")} Z" />`)
+          .join("")}</g>`
+      : "";
+  const cellBordersLayer =
+    doc.terrain.cellBorderOrder === "bottom"
+      ? { bottom: cellBordersSvg, top: "" }
+      : { bottom: "", top: cellBordersSvg };
+
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthUnits} ${heightUnits}" width="100%" height="100%" class="region-map-svg theme-${themeName}">
       ${defs}
       ${background}
+      ${cellBordersLayer.bottom}
       <g id="layer-biomes">${biomesLayer}</g>
       <g id="layer-wetlands"${coastMaskAttr}>${wetlandLayer}${wetlandMarks}</g>
       <g id="layer-contours">${contoursLayer}</g>
-      ${
-        doc.terrain.showCellBorders === true && doc.terrain.cellPolygons?.length
-          ? `<g id="layer-cell-borders" fill="none" stroke="#000" stroke-opacity="0.45" stroke-width="${(0.6 * textScale).toFixed(2)}" stroke-linejoin="round" pointer-events="none">${doc.terrain.cellPolygons
-              .map(poly => `<path d="M ${poly.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")} Z" />`)
-              .join("")}</g>`
-          : ""
-      }
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
@@ -1085,6 +1090,7 @@ export function renderRegionSvg(
       <g id="layer-settlements">${settlementsLayer}</g>
       <g id="layer-landmarks">${landmarksLayer}</g>
       <g id="layer-labels">${labelsLayer}</g>
+      ${cellBordersLayer.top}
       <g id="layer-decorations">${decorationLayer}</g>
       <g id="layer-brush-cursor">
         <circle id="re-brush-cursor" cx="-9999" cy="-9999" r="35" fill="rgba(212, 163, 115, 0.22)" stroke="#d4a373" stroke-width="2" stroke-dasharray="5,4" pointer-events="none" />

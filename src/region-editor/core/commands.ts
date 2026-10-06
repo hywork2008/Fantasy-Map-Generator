@@ -189,6 +189,20 @@ export function toggleCellBorders(doc: RegionDocument, show?: boolean): RegionDo
   return next;
 }
 
+/** セル境界線の重なり順を設定する */
+export function setCellBorderOrder(doc: RegionDocument, order: "top" | "bottom"): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.cellBorderOrder = order;
+  return next;
+}
+
+/** セル境界線の不透明度（0〜1）を設定する */
+export function setCellBorderOpacity(doc: RegionDocument, opacity: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.cellBorderOpacity = Math.max(0, Math.min(1, opacity));
+  return next;
+}
+
 /**
  * 耕作地レイヤーの表示/非表示を切り替える（デフォルトは非表示）
  */

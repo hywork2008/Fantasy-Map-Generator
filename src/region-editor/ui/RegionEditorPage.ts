@@ -7,6 +7,8 @@ import {
   removeLandmark,
   removeSettlement,
   removeSymbol,
+  setCellBorderOpacity,
+  setCellBorderOrder,
   setSettlementIconScale,
   toggleCellBorders,
   toggleContourElevations,
@@ -201,6 +203,17 @@ export function mountRegionEditor(
             <label for="check-show-cell-borders" style="cursor:pointer;">セル境界を表示</label>
             <input type="checkbox" id="check-show-cell-borders" ${history.current.terrain.showCellBorders === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
+          <div class="re-form-row">
+            <label>セル境界の重なり順</label>
+            <select class="re-select" id="select-cell-border-order">
+              <option value="top" ${history.current.terrain.cellBorderOrder !== "bottom" ? "selected" : ""}>一番上</option>
+              <option value="bottom" ${history.current.terrain.cellBorderOrder === "bottom" ? "selected" : ""}>一番下</option>
+            </select>
+          </div>
+          <div class="re-form-row">
+            <label>セル境界の透明度 (不透明度 0〜1)</label>
+            <input type="number" class="re-input" id="input-cell-border-opacity" min="0" max="1" step="0.1" value="${history.current.terrain.cellBorderOpacity ?? 0.6}" />
+          </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="check-show-cultivation" style="cursor:pointer;">耕作地を表示</label>
             <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
@@ -319,6 +332,10 @@ export function mountRegionEditor(
     if (checkCellBorders) {
       checkCellBorders.checked = doc.terrain.showCellBorders === true;
     }
+    const selectBorderOrder = root.querySelector<HTMLSelectElement>("#select-cell-border-order");
+    if (selectBorderOrder) selectBorderOrder.value = doc.terrain.cellBorderOrder ?? "top";
+    const inputBorderOpacity = root.querySelector<HTMLInputElement>("#input-cell-border-opacity");
+    if (inputBorderOpacity) inputBorderOpacity.value = String(doc.terrain.cellBorderOpacity ?? 0.6);
     const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
     if (checkCultivation) {
       checkCultivation.checked = doc.terrain.showCultivation === true;
@@ -961,13 +978,7 @@ export function mountRegionEditor(
     if (Number.isInteger(i)) vsBiomeKeys[i] = el.value;
   });
   renderVsBiomes();
-  root.querySelector("#btn-voronoi-random")?.addEventListener("click", () => {
-    for (let i = 0; i < readVsCount(); i++) {
-      vsBiomeKeys[i] = SANDBOX_BIOMES[Math.floor(Math.random() * SANDBOX_BIOMES.length)].key;
-    }
-    renderVsBiomes();
-  });
-  root.querySelector("#btn-voronoi-sandbox")?.addEventListener("click", () => {
+  const runVoronoiSandbox = () => {
     const seed = (root.querySelector("#input-seed") as HTMLInputElement).value || "voronoi-sandbox";
     const doc = generateVoronoiSandbox({
       seed,
@@ -976,13 +987,24 @@ export function mountRegionEditor(
       elevationMeters: Number((root.querySelector("#vs-elevation") as HTMLInputElement).value) || 0,
       biomeKeys: vsBiomeKeys.slice(0, readVsCount())
     });
-    // 生成し直しても、表示オプションは現在の設定を引き継ぐ
-    doc.terrain.showCellBorders = history.current.terrain.showCellBorders;
+    // 生成し直しても、セル境界の表示設定は現在のものを引き継ぐ
+    const prev = history.current.terrain;
+    doc.terrain.showCellBorders = prev.showCellBorders;
+    doc.terrain.cellBorderOrder = prev.cellBorderOrder;
+    doc.terrain.cellBorderOpacity = prev.cellBorderOpacity;
     history.push(doc);
     selectedId = null;
     updateSelectionPanel();
     renderMap();
+  };
+  root.querySelector("#btn-voronoi-random")?.addEventListener("click", () => {
+    for (let i = 0; i < readVsCount(); i++) {
+      vsBiomeKeys[i] = SANDBOX_BIOMES[Math.floor(Math.random() * SANDBOX_BIOMES.length)].key;
+    }
+    renderVsBiomes();
+    runVoronoiSandbox();
   });
+  root.querySelector("#btn-voronoi-sandbox")?.addEventListener("click", runVoronoiSandbox);
 
   // テーマ切り替え
   root.querySelector("#select-theme")?.addEventListener("change", e => {
@@ -1022,6 +1044,18 @@ export function mountRegionEditor(
   root.querySelector("#check-show-contour-elevations")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
     history.push(toggleContourElevations(history.current, checked));
+    renderMap();
+  });
+
+  root.querySelector("#select-cell-border-order")?.addEventListener("change", e => {
+    history.push(
+      setCellBorderOrder(history.current, (e.target as HTMLSelectElement).value === "bottom" ? "bottom" : "top")
+    );
+    renderMap();
+  });
+  root.querySelector("#input-cell-border-opacity")?.addEventListener("change", e => {
+    const v = Number((e.target as HTMLInputElement).value);
+    history.push(setCellBorderOpacity(history.current, Number.isFinite(v) ? v : 0.6));
     renderMap();
   });
 

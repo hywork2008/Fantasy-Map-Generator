@@ -224,6 +224,10 @@ export interface RegionTerrain {
   cellPolygons?: Point[][];
   /** セル境界線を表示するか。未設定は非表示。 */
   showCellBorders?: boolean;
+  /** セル境界線の重なり順（既定 top = 最前面） */
+  cellBorderOrder?: "top" | "bottom";
+  /** セル境界線の不透明度 0〜1（既定 0.6） */
+  cellBorderOpacity?: number;
 }
 
 export interface RegionLandUsePatch extends LandUsePatchBudget {
