@@ -211,6 +211,13 @@ export function toggleCellBorders(doc: RegionDocument, show?: boolean): RegionDo
   return next;
 }
 
+/** セルをFMGバイオーム色の単色で塗る表示の切り替え */
+export function toggleBiomeCells(doc: RegionDocument, show?: boolean): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.showBiomeCells = show ?? !(next.terrain.showBiomeCells ?? false);
+  return next;
+}
+
 /** セル境界線の重なり順を設定する */
 export function setCellBorderOrder(doc: RegionDocument, order: "top" | "bottom"): RegionDocument {
   const next = cloneRegionDocument(doc);

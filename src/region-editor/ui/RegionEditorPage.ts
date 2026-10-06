@@ -12,6 +12,7 @@ import {
   setRiverWidthScale,
   setRouteWidthScale,
   setSettlementIconScale,
+  toggleBiomeCells,
   toggleCellBorders,
   toggleContourElevations,
   toggleContours,
@@ -205,6 +206,10 @@ export function mountRegionEditor(
             <label for="check-show-cell-borders" style="cursor:pointer;">セル境界を表示</label>
             <input type="checkbox" id="check-show-cell-borders" ${history.current.terrain.showCellBorders === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="check-show-biome-cells" style="cursor:pointer;">バイオームの編集表示（セル単色）</label>
+            <input type="checkbox" id="check-show-biome-cells" ${history.current.terrain.showBiomeCells === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
+          </div>
           <div class="re-form-row">
             <label>セル境界の重なり順</label>
             <select class="re-select" id="select-cell-border-order">
@@ -350,6 +355,8 @@ export function mountRegionEditor(
     if (checkCellBorders) {
       checkCellBorders.checked = doc.terrain.showCellBorders === true;
     }
+    const checkBiomeCells = root.querySelector<HTMLInputElement>("#check-show-biome-cells");
+    if (checkBiomeCells) checkBiomeCells.checked = doc.terrain.showBiomeCells === true;
     const selectBorderOrder = root.querySelector<HTMLSelectElement>("#select-cell-border-order");
     if (selectBorderOrder) selectBorderOrder.value = doc.terrain.cellBorderOrder ?? "top";
     const inputBorderOpacity = root.querySelector<HTMLInputElement>("#input-cell-border-opacity");
@@ -1097,6 +1104,13 @@ export function mountRegionEditor(
   root.querySelector("#check-show-cell-borders")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
     history.push(toggleCellBorders(history.current, checked));
+    renderMap();
+  });
+
+  // バイオームセル単色表示切り替え
+  root.querySelector("#check-show-biome-cells")?.addEventListener("change", e => {
+    const checked = (e.target as HTMLInputElement).checked;
+    history.push(toggleBiomeCells(history.current, checked));
     renderMap();
   });
 

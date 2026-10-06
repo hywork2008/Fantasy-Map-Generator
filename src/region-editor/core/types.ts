@@ -226,6 +226,10 @@ export interface RegionTerrain {
   showCultivation?: boolean;
   /** FMG セル(Voronoi)境界のポリゴン（ローカル座標）。 */
   cellPolygons?: Point[][];
+  /** cellPolygons と同じ並びの FMG バイオーム色。 */
+  cellBiomeColors?: string[];
+  /** セルを FMG バイオーム色の単色で塗るか。未設定は非表示。 */
+  showBiomeCells?: boolean;
   /** セル境界線を表示するか。未設定は非表示。 */
   showCellBorders?: boolean;
   /** セル境界線の重なり順（既定 top = 最前面） */
@@ -313,6 +317,8 @@ export interface RegionSiteCell {
   annualTemperatureC?: number;
   biomeId: number;
   biomeName: string;
+  /** FMG biomesData.color[biomeId]（セル単色表示用）。 */
+  biomeColor?: string;
   polygon?: Point[]; // Voronoi cell boundary polygon in FMG coordinates
   isWater?: boolean; // true if sea / ocean / water cell
 }

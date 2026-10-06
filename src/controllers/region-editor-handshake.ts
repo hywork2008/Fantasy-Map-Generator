@@ -422,6 +422,7 @@ export function buildRegionSiteDescriptor(
       biomeDefinition: biomesData.definitionsByKey?.[biomesData.keys?.[biomeId]],
       biomeId,
       biomeName,
+      biomeColor: biomesData.color?.[biomeId],
       polygon,
       isWater
     });

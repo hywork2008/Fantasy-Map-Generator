@@ -1034,6 +1034,15 @@ export function renderRegionSvg(
     `;
   }
 
+  const biomeCellsSvg =
+    doc.terrain.showBiomeCells === true && doc.terrain.cellPolygons?.length
+      ? `<g id="layer-biome-cells" stroke="none" pointer-events="none">${doc.terrain.cellPolygons
+          .map(
+            (poly, i) =>
+              `<path d="M ${poly.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")} Z" fill="${doc.terrain.cellBiomeColors?.[i] ?? "#cccccc"}" />`
+          )
+          .join("")}</g>`
+      : "";
   const cellBordersSvg =
     doc.terrain.showCellBorders === true && doc.terrain.cellPolygons?.length
       ? `<g id="layer-cell-borders" fill="none" stroke="#000" stroke-opacity="${doc.terrain.cellBorderOpacity ?? 0.6}" stroke-width="${(0.6 * textScale).toFixed(2)}" stroke-linejoin="round" pointer-events="none">${doc.terrain.cellPolygons
@@ -1098,7 +1107,7 @@ export function renderRegionSvg(
           return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}"${hedge} />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
         })
         .join("\n")}</g>
-      <g id="layer-forests">${forestLayer}</g>
+      ${biomeCellsSvg || `<g id="layer-forests">${forestLayer}</g>`}
       <g id="layer-rivers">${riversLayer}</g>
       <g id="layer-routes">${routesLayer}</g>
       <g id="layer-bridges">${bridgesLayer}</g>
