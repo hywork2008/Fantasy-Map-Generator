@@ -12,6 +12,8 @@ export interface Parcel {
   key: string;
   /** Convex pieces (world coordinates) of the parcel inside the requested boundary. */
   pieces: Point[][];
+  /** Fraction (0-1) of the whole parcel that lies inside the boundary; below 1 the parcel is cut off by it. */
+  insideFraction: number;
   center: Point;
 }
 
@@ -137,6 +139,7 @@ export function buildParcels(options: ParcelOptions): Parcel[] {
       parcels.push({
         key: `${level}:${step}:${i}:${j}`,
         pieces: [clipped],
+        insideFraction: Math.min(1, polygonArea(clipped) / Math.max(polygonArea(polygon), 1e-12)),
         center: toWorld(lattice(i, j, salt))
       });
     }

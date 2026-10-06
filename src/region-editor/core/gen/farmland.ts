@@ -19,6 +19,15 @@ import { buildParcels, insetPiece, pieceCentroid, shrinkPiecesToArea } from "./o
 const PARCEL_AREA_FACTOR = 1.15;
 const MIN_PARCEL_SPACING_M = 250;
 const MAX_PARCELS = 450;
+/**
+ * 区画のこの割合未満しか対象範囲（セル境界・作業範囲）に入らない区画は、境界で切り捨てられた断片になる。
+ * 断片は、予算を満たすのに他の区画が足りないときだけ使い、まず完全に近い区画に面積を割り当てる。
+ */
+const MIN_INSIDE_FRACTION = 0.6;
+/** これ未満しか入らない区画は断片として使わない（置けなかった面積は unplacedAreaHa に残る）。使える区画がまったく無い場合を除く */
+const DROP_INSIDE_FRACTION = 0.5;
+/** 最後の端数がこの割合を下回るなら、小さな畑をぽつんと作らず直前の区画とまとめて 1 つの畑にする */
+const MIN_OVERFLOW_FRACTION = 0.35;
 /** 海岸ハビタットの帯が海岸線から陸側へ被る幅（RE ローカル単位）。render/svg.ts の帯の太さ 14 の半分 */
 const COASTAL_BAND_INWARD = 7;
 /** 海岸線の丸めで曲線が弦から離れる分（辺の長さに対する比率の上限と絶対上限） */
@@ -342,6 +351,7 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
         const jitter = ((Math.imul(hashKey(parcel.key), 2246822519) >>> 0) / 4294967296) * 0.2;
         return {
           key: parcel.key,
+          insideFraction: parcel.insideFraction,
           pieces,
           area: pieces.reduce((s, p) => s + polygonArea(p), 0),
           samples: sampleParcel(pieces),
@@ -381,7 +391,16 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
       let remaining = wanted;
       let overflow: (typeof parcels)[number] | undefined;
       const accepted: Array<{ parcel: (typeof parcels)[number]; pieces: Point[][] }> = [];
-      for (const parcel of ranked) {
+      const usable = ranked.some(p => p.insideFraction >= DROP_INSIDE_FRACTION)
+        ? ranked.filter(p => p.insideFraction >= DROP_INSIDE_FRACTION)
+        : ranked;
+      const wholeFirst = [
+        ...usable.filter(p => p.insideFraction >= MIN_INSIDE_FRACTION),
+        ...usable
+          .filter(p => p.insideFraction < MIN_INSIDE_FRACTION)
+          .sort((a, b) => b.insideFraction - a.insideFraction)
+      ];
+      for (const parcel of wholeFirst) {
         if (remaining <= 1e-9) break;
         if (parcel.area <= remaining + 1e-9) {
           accepted.push({ parcel, pieces: parcel.pieces });
@@ -390,6 +409,16 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
         } else overflow ??= parcel;
       }
       // The parcel that does not fit is shrunk toward its centre so the budget is met exactly.
+      // 端数が小さいと、縮めた区画がぽつんと小さな畑になる。直前に採用した区画を取り下げ、その面積と端数をまとめて
+      // 溢れた区画で受ける（縮め率が小さくなり、他の畑と同じ程度の大きさになる）
+      if (remaining > 1e-9 && overflow && remaining < overflow.area * MIN_OVERFLOW_FRACTION && accepted.length) {
+        const last = accepted[accepted.length - 1];
+        if (overflow.area >= remaining + last.parcel.area) {
+          accepted.pop();
+          used.delete(last.parcel.key);
+          remaining += last.parcel.area;
+        }
+      }
       if (remaining > 1e-9 && overflow) {
         accepted.push({ parcel: overflow, pieces: shrinkPiecesToArea(overflow.pieces, remaining) });
         used.add(overflow.key);
