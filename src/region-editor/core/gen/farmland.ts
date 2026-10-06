@@ -26,6 +26,14 @@ const MAX_PARCELS = 450;
 const MIN_INSIDE_FRACTION = 0.6;
 /** これ未満しか入らない区画は断片として使わない（置けなかった面積は unplacedAreaHa に残る）。使える区画がまったく無い場合を除く */
 const DROP_INSIDE_FRACTION = 0.5;
+/** 障害物（川・道路・海岸の帯・建物）に削られた後、区画全体のこの割合未満しか残らない欠片は畑にしない */
+const MIN_PIECE_FRACTION = 0.25;
+/** 削られた後に残る面積が区画全体のこの割合未満の区画は、まるごと使わない */
+const MIN_KEPT_FRACTION = 0.4;
+/** 畑として成り立つ最小の実面積（ha）。これより小さい欠片や、縮めた結果これより小さくなる畑は置かない */
+const MIN_FIELD_HA = 12;
+/** 小さな端数を既存の畑へ吸収するときの拡大率の上限（畑どうしの隙間 1.5% の内側） */
+const MAX_GROW_FACTOR = 1.012;
 /** 最後の端数がこの割合を下回るなら、小さな畑をぽつんと作らず直前の区画とまとめて 1 つの畑にする */
 const MIN_OVERFLOW_FRACTION = 0.35;
 /** 海岸ハビタットの帯が海岸線から陸側へ被る幅（RE ローカル単位）。render/svg.ts の帯の太さ 14 の半分 */
@@ -345,7 +353,15 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
             );
             return slope === undefined || slope <= 0.35;
           });
-        if (!pieces.length) return undefined;
+        // 川・道路・海岸の帯などに削られて三角形の端だけが残った区画は、断片として畑にしない
+        const wholeArea = whole.reduce((sum, piece) => sum + polygonArea(piece), 0);
+        pieces = pieces.filter(
+          piece =>
+            polygonArea(piece) >= wholeArea * MIN_PIECE_FRACTION && polygonArea(piece) * areaScale >= MIN_FIELD_HA
+        );
+        const keptArea = pieces.reduce((sum, piece) => sum + polygonArea(piece), 0);
+        if (!pieces.length || keptArea < wholeArea * MIN_KEPT_FRACTION || keptArea * areaScale < MIN_FIELD_HA)
+          return undefined;
         const center = toLocal(parcel.center);
         const noise = cropNoise!(parcel.center[0] * worldScale, parcel.center[1] * worldScale);
         const jitter = ((Math.imul(hashKey(parcel.key), 2246822519) >>> 0) / 4294967296) * 0.2;
@@ -420,8 +436,24 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
         }
       }
       if (remaining > 1e-9 && overflow) {
-        accepted.push({ parcel: overflow, pieces: shrinkPiecesToArea(overflow.pieces, remaining) });
-        used.add(overflow.key);
+        const shrunk = shrinkPiecesToArea(overflow.pieces, remaining).filter(
+          piece => polygonArea(piece) * areaScale >= MIN_FIELD_HA
+        );
+        if (shrunk.length) {
+          accepted.push({ parcel: overflow, pieces: shrunk });
+          used.add(overflow.key);
+        } else if (accepted.length) {
+          // 端数が畑として成り立たないほど小さいときは、採用済みの畑をわずかに広げて吸収する（隣との隙間の範囲内）
+          const all = accepted.flatMap(a => a.pieces);
+          const total = all.reduce((sum, piece) => sum + polygonArea(piece), 0);
+          const factor = Math.sqrt((total + remaining) / total);
+          if (total > 0 && factor <= MAX_GROW_FACTOR)
+            for (const entry of accepted)
+              entry.pieces = entry.pieces.map(piece => {
+                const c = pieceCentroid(piece);
+                return piece.map(p => [c[0] + (p[0] - c[0]) * factor, c[1] + (p[1] - c[1]) * factor] as Point);
+              });
+        }
       }
       let placedHa = 0;
       for (const { parcel, pieces } of accepted)
