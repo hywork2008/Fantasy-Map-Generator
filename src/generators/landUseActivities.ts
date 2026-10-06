@@ -152,6 +152,8 @@ export function addActivities(
     }
   }
 }
+/** A forest cell keeps at least this share of its nominal cover as forest land, however low the local noise. */
+const MIN_FOREST_FRACTION_OF_COVER = 0.5;
 /** Coarse, bounded FMG geometry. Timber intersections are measured against the same partition RE reads. */
 export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget, seed: string): void {
   const boundary = input.polygon;
@@ -198,8 +200,27 @@ export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget
   // The threshold is shared across a biome: per-cell quotas would manufacture boundary gaps.
   // Potential timber capacity remains independent of this primary forest land geometry.
   const cover = Math.min(1, Math.max(0, input.forestCover));
-  const threshold = cover <= 0 ? 2 : cover >= CLOSED_CANOPY_COVER ? -1 : 0.5 + (0.5 - cover) * 0.55;
+  const baseThreshold = cover <= 0 ? 2 : cover >= CLOSED_CANOPY_COVER ? -1 : 0.5 + (0.5 - cover) * 0.55;
   cell.forestCapacityCoverage = cover;
+  const forestArea = (t: number) => pieces.reduce((s, poly) => s + polygonArea(contour(poly, t)), 0);
+  // The noise wavelength (~100 km) exceeds a cell, so a forest cell can fall wholly inside a low-noise basin and
+  // render bare. Lower the threshold only as far as needed to reach a floor fraction; unaffected cells keep the
+  // shared biome threshold, so neighbouring cells still continue the same clusters.
+  let threshold = baseThreshold;
+  if (cover > 0 && baseThreshold > -1) {
+    const total = pieces.reduce((s, poly) => s + polygonArea(poly), 0);
+    const floor = total * cover * MIN_FOREST_FRACTION_OF_COVER;
+    if (forestArea(threshold) < floor) {
+      let lo = 0,
+        hi = threshold; // forestArea(lo) >= floor: noise is clamped to [0, 1]
+      for (let i = 0; i < 20; i++) {
+        const mid = (lo + hi) / 2;
+        if (forestArea(mid) >= floor) lo = mid;
+        else hi = mid;
+      }
+      threshold = lo;
+    }
+  }
   const forest: Point[][] = [],
     open: Point[][] = [];
   for (const poly of pieces) {

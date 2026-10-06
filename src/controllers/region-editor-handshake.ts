@@ -15,9 +15,15 @@ import { precipitationProxyToMillimeters } from "../utils/unitUtils";
 /**
  * FMG の指定された Province（または State）から RegionSiteDescriptor を構築する
  */
-export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescriptor | null {
+export function buildRegionSiteDescriptor(
+  provinceId: number,
+  options: { freshLandUse?: boolean } = {}
+): RegionSiteDescriptor | null {
   const { pack, seed, distanceScale, biomesData } = worldContext;
-  const landUse = pack.landUse ?? estimateWorldLandUse(worldContext, useOptionsState.getState().year);
+  // freshLandUse: 保存済みの pack.landUse を使わず、現行ロジックで土地利用ジオメトリを再計算する（pack は変更しない）
+  const landUse =
+    (options.freshLandUse ? undefined : pack.landUse) ??
+    estimateWorldLandUse(worldContext, useOptionsState.getState().year);
   const province = pack.provinces[provinceId] as Province | undefined;
   if (!province || province.removed) {
     return null;
@@ -488,8 +494,8 @@ export function buildRegionSiteDescriptor(provinceId: number): RegionSiteDescrip
 /**
  * 対象の Province を Region Editor (RE) で開く
  */
-export async function openRegionEditor(provinceId: number): Promise<void> {
-  const descriptor = buildRegionSiteDescriptor(provinceId);
+export async function openRegionEditor(provinceId: number, options: { freshLandUse?: boolean } = {}): Promise<void> {
+  const descriptor = buildRegionSiteDescriptor(provinceId, options);
   if (!descriptor) {
     tip("この地域（Province）のデータを構築できませんでした", false, "error");
     return;

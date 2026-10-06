@@ -149,8 +149,8 @@ export const ProvinceEditorDialog: React.FC = () => {
               <button
                 type="button"
                 className="icon-map"
-                data-tip="Open and edit this region in Region Editor (Sword Coast / Perilous Shores style)"
-                onClick={() => openRegionEditor(provinceId)}
+                data-tip="Open and edit this region in Region Editor (Sword Coast / Perilous Shores style). Shift+click: recompute land-use geometry instead of using the saved one"
+                onClick={e => openRegionEditor(provinceId, { freshLandUse: e.shiftKey })}
               >
                 Open in Region Editor
               </button>
