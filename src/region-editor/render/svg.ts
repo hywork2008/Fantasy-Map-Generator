@@ -149,6 +149,8 @@ export function renderRegionSvg(
   const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
   const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
 
+  const routeScale = Math.max(0.5, doc.decoration.routeWidthScale ?? 1);
+  const riverScale = Math.max(0.5, doc.decoration.riverWidthScale ?? 1);
   const themeName = doc.decoration.theme;
   const theme = THEMES[themeName] ?? THEMES.schley;
 
@@ -218,7 +220,7 @@ export function renderRegionSvg(
       .join("\n");
     const routesClearing = doc.routes
       .map(r => {
-        const widthMeters = r.kind === "highway" ? 8 : r.kind === "trail" ? 2 : 5;
+        const widthMeters = (r.kind === "highway" ? 8 : r.kind === "trail" ? 2 : 5) * routeScale;
         return `<path d="${createCurvedRoutePath(r.points, 0.1)}" fill="none" stroke="#000000" stroke-width="${widthMeters / doc.bounds.metersPerUnit}" />`;
       })
       .join("\n");
@@ -226,7 +228,7 @@ export function renderRegionSvg(
     const riversClearing = doc.rivers
       .map(river => {
         if (river.points.length >= 2) {
-          const bufferedWidths = river.widths;
+          const bufferedWidths = river.widths.map(w => w * riverScale);
           const riverPoly = createCurvedRiverPolygon(river.points, bufferedWidths, doc.bounds.metersPerUnit, 0.1);
           return `<path d="${riverPoly}" fill="#000000" stroke="#000000" stroke-width="0" stroke-linejoin="round" />`;
         }
@@ -814,7 +816,12 @@ export function renderRegionSvg(
 
       if (river.points.length >= 2) {
         // ベジェ曲線（Catmull-Romスプライン）による川幅変化ポリゴン
-        const polyD = createCurvedRiverPolygon(river.points, river.widths, doc.bounds.metersPerUnit, 0.1);
+        const polyD = createCurvedRiverPolygon(
+          river.points,
+          river.widths.map(w => w * riverScale),
+          doc.bounds.metersPerUnit,
+          0.1
+        );
         const centerD = createCurvedRoutePath(river.points, 0.1);
         return `
           <g class="river-group ${isSel ? "selected" : ""}" id="${escapeXml(river.id)}" data-kind="river" data-id="${escapeXml(river.id)}">
@@ -847,23 +854,23 @@ export function renderRegionSvg(
         return `
           <g class="route-highway ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}">
             ${titleTag}
-            <path d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.highwayStroke}" stroke-width="${isSel ? "4.2" : "3.2"}" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="${pathD}" fill="none" stroke="${theme.background}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.highwayStroke}" stroke-width="${(isSel ? 4.2 : 3.2) * routeScale}" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="${pathD}" fill="none" stroke="${theme.background}" stroke-width="${1.2 * routeScale}" stroke-linecap="round" stroke-linejoin="round" />
           </g>
         `;
       }
       if (route.kind === "trail") {
-        return `<path class="route-trail ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.roadStroke}" stroke-width="${isSel ? "2.2" : "1.2"}" stroke-dasharray="3,3" stroke-linecap="round">${titleTag}</path>`;
+        return `<path class="route-trail ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.roadStroke}" stroke-width="${(isSel ? 2.2 : 1.2) * routeScale}" stroke-dasharray="3,3" stroke-linecap="round">${titleTag}</path>`;
       }
-      return `<path class="route-road ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.roadStroke}" stroke-width="${isSel ? "3.0" : "2"}" stroke-dasharray="7,2" stroke-linecap="round" stroke-linejoin="round">${titleTag}</path>`;
+      return `<path class="route-road ${isSel ? "selected" : ""}" data-kind="route" data-id="${route.id}" d="${pathD}" fill="none" stroke="${isSel ? "#d4a373" : theme.roadStroke}" stroke-width="${(isSel ? 3.0 : 2) * routeScale}" stroke-dasharray="7,2" stroke-linecap="round" stroke-linejoin="round">${titleTag}</path>`;
     })
     .join("\n");
 
   // 7. ★直角橋（Perpendicular Bridges）★: 河川接線と厳格に直角な橋梁
   const bridgesLayer = doc.bridges
     .map(b => {
-      const halfL = b.lengthMeters / doc.bounds.metersPerUnit / 2;
-      const halfW = b.widthMeters / doc.bounds.metersPerUnit / 2;
+      const halfL = (b.lengthMeters * riverScale) / doc.bounds.metersPerUnit / 2;
+      const halfW = (b.widthMeters * routeScale) / doc.bounds.metersPerUnit / 2;
       return `
         <g class="perpendicular-bridge" data-kind="bridge" data-id="${b.id}" transform="translate(${b.center[0].toFixed(2)}, ${b.center[1].toFixed(2)}) rotate(${b.angleDeg.toFixed(2)})">
           <rect x="${(-halfL).toFixed(2)}" y="${(-halfW).toFixed(2)}" width="${(halfL * 2).toFixed(2)}" height="${(halfW * 2).toFixed(2)}" fill="${theme.bridgeDeck}" stroke="${theme.bridgeRail}" stroke-width="1.3" rx="1" />

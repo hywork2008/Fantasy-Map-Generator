@@ -9,6 +9,8 @@ import {
   removeSymbol,
   setCellBorderOpacity,
   setCellBorderOrder,
+  setRiverWidthScale,
+  setRouteWidthScale,
   setSettlementIconScale,
   toggleCellBorders,
   toggleContourElevations,
@@ -222,6 +224,14 @@ export function mountRegionEditor(
             <label for="input-settlement-icon-scale">都市アイコン倍率</label>
             <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? 1}" style="width:60px;" />
           </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="input-route-width-scale">街道倍率</label>
+            <input type="number" id="input-route-width-scale" min="0.5" step="0.5" value="${history.current.decoration.routeWidthScale ?? 1}" style="width:60px;" />
+          </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="input-river-width-scale">河川倍率</label>
+            <input type="number" id="input-river-width-scale" min="0.5" step="0.5" value="${history.current.decoration.riverWidthScale ?? 1}" style="width:60px;" />
+          </div>
           <div class="re-form-row">
             <label>等高線間隔</label>
             <select class="re-select" id="select-contour-interval">
@@ -323,6 +333,14 @@ export function mountRegionEditor(
     const inputIconScale = root.querySelector<HTMLInputElement>("#input-settlement-icon-scale");
     if (inputIconScale) {
       inputIconScale.value = String(doc.decoration.settlementIconScale ?? 1);
+    }
+    const inputRouteScale = root.querySelector<HTMLInputElement>("#input-route-width-scale");
+    if (inputRouteScale) {
+      inputRouteScale.value = String(doc.decoration.routeWidthScale ?? 1);
+    }
+    const inputRiverScale = root.querySelector<HTMLInputElement>("#input-river-width-scale");
+    if (inputRiverScale) {
+      inputRiverScale.value = String(doc.decoration.riverWidthScale ?? 1);
     }
     const checkElevations = root.querySelector<HTMLInputElement>("#check-show-contour-elevations");
     if (checkElevations) {
@@ -1039,6 +1057,22 @@ export function mountRegionEditor(
     history.push(setSettlementIconScale(history.current, scale));
     renderMap();
   });
+
+  // 街道・河川の倍率変更
+  const bindWidthScale = (
+    selector: string,
+    apply: (doc: typeof history.current, scale: number) => typeof history.current
+  ) => {
+    root.querySelector(selector)?.addEventListener("change", e => {
+      const input = e.target as HTMLInputElement;
+      const scale = Math.max(0.5, Number(input.value) || 1);
+      input.value = String(scale);
+      history.push(apply(history.current, scale));
+      renderMap();
+    });
+  };
+  bindWidthScale("#input-route-width-scale", setRouteWidthScale);
+  bindWidthScale("#input-river-width-scale", setRiverWidthScale);
 
   // 等高線の標高注記切り替え
   root.querySelector("#check-show-contour-elevations")?.addEventListener("change", e => {

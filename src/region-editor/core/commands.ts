@@ -171,6 +171,28 @@ export function setSettlementIconScale(doc: RegionDocument, scale: number): Regi
   return next;
 }
 
+function sanitizeWidthScale(scale: number): number {
+  return Number.isFinite(scale) ? Math.max(0.5, scale) : 1;
+}
+
+/**
+ * 街道の線幅倍率を設定する（最小0.5）
+ */
+export function setRouteWidthScale(doc: RegionDocument, scale: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.decoration.routeWidthScale = sanitizeWidthScale(scale);
+  return next;
+}
+
+/**
+ * 河川の川幅倍率を設定する（最小0.5）
+ */
+export function setRiverWidthScale(doc: RegionDocument, scale: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.decoration.riverWidthScale = sanitizeWidthScale(scale);
+  return next;
+}
+
 /**
  * 主等高線の標高注記の表示/非表示を切り替える（デフォルトは非表示）
  */

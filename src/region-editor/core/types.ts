@@ -181,6 +181,10 @@ export interface RegionDecoration {
   showBorder: boolean;
   /** 都市アイコンの拡大倍率（整数、最小1。未設定は1）。 */
   settlementIconScale?: number;
+  /** 街道の線幅倍率（最小0.5。未設定は1）。 */
+  routeWidthScale?: number;
+  /** 河川の川幅倍率（最小0.5。未設定は1）。 */
+  riverWidthScale?: number;
   borderStyle: "ornate" | "simple" | "none";
 }
 
