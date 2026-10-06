@@ -153,6 +153,7 @@ export function mountRegionEditor(
             <input type="number" class="re-input" id="vs-elevation" min="0" max="5000" value="100" />
           </div>
           <div id="vs-biomes"></div>
+          <button type="button" class="re-btn" id="btn-voronoi-random" style="width:100%; margin-top:6px;">🎲 バイオームをランダムに置換</button>
           <button type="button" class="re-btn primary" id="btn-voronoi-sandbox" style="width:100%; margin-top:6px;">🧪 Voronoi を生成</button>
         </section>
 
@@ -960,6 +961,12 @@ export function mountRegionEditor(
     if (Number.isInteger(i)) vsBiomeKeys[i] = el.value;
   });
   renderVsBiomes();
+  root.querySelector("#btn-voronoi-random")?.addEventListener("click", () => {
+    for (let i = 0; i < readVsCount(); i++) {
+      vsBiomeKeys[i] = SANDBOX_BIOMES[Math.floor(Math.random() * SANDBOX_BIOMES.length)].key;
+    }
+    renderVsBiomes();
+  });
   root.querySelector("#btn-voronoi-sandbox")?.addEventListener("click", () => {
     const seed = (root.querySelector("#input-seed") as HTMLInputElement).value || "voronoi-sandbox";
     const doc = generateVoronoiSandbox({
@@ -969,6 +976,8 @@ export function mountRegionEditor(
       elevationMeters: Number((root.querySelector("#vs-elevation") as HTMLInputElement).value) || 0,
       biomeKeys: vsBiomeKeys.slice(0, readVsCount())
     });
+    // 生成し直しても、表示オプションは現在の設定を引き継ぐ
+    doc.terrain.showCellBorders = history.current.terrain.showCellBorders;
     history.push(doc);
     selectedId = null;
     updateSelectionPanel();
