@@ -162,7 +162,7 @@ export const CLOSED_CANOPY_COVER = 0.9;
 export function landscapeNoise(x: number, y: number, seed: string): number {
   // Rotated, domain-warped value-noise fBm. Sums of axis-aligned sines gave level sets shaped like
   // rounded rectangles (e.g. forest clearings and wetlands); this keeps the same feature size
-  // (~12 units) and spread around 0.5, so cover thresholds tuned against the old noise still hold.
+  // (~20 units) and spread around 0.5, so cover thresholds tuned against the old noise still hold.
   const salt = hashSeed(seed);
   const u = (x * 0.8 - y * 0.6) / LANDSCAPE_WAVELENGTH,
     v = (x * 0.6 + y * 0.8) / LANDSCAPE_WAVELENGTH;
@@ -174,7 +174,7 @@ export function landscapeNoise(x: number, y: number, seed: string): number {
     smoothValueNoise(wu * 4.3, wv * 4.3, salt ^ 0x7f4a7c15) * 0.12;
   return Math.max(0, Math.min(1, 0.5 + (n - 0.5) * LANDSCAPE_CONTRAST));
 }
-const LANDSCAPE_WAVELENGTH = 12;
+const LANDSCAPE_WAVELENGTH = 20;
 const LANDSCAPE_CONTRAST = 1.43;
 
 /** Coarse heightfield gradient, used as an explicitly approximate slope constraint. */
