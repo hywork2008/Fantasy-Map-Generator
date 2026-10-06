@@ -1,4 +1,4 @@
-import type { BiomeKind, RegionTheme } from "../../core/types";
+import type { BiomeKind, IllustratedPalette, RegionDecoration, RegionTheme } from "../../core/types";
 
 export interface ForestCanopyColors {
   deciduous: string;
@@ -321,3 +321,164 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
     }
   }
 };
+
+type ThemeOverride = Partial<Omit<ThemeColors, "forestCanopy" | "biomes">> & {
+  forestCanopy?: Partial<ForestCanopyColors>;
+  biomes?: Partial<Record<BiomeKind, string>>;
+};
+
+/**
+ * Illustrated テーマの配色プリセット。sepia は THEMES.illustrated そのもの、他は差分だけを持つ。
+ * 要素ごとの色相スライダーは組み合わせ次第で破綻しやすいので、調和を確認済みのプリセットに絞る。
+ */
+export const ILLUSTRATED_PALETTES: Record<IllustratedPalette, { label: string; override: ThemeOverride }> = {
+  sepia: { label: "セピア（古地図）", override: {} },
+  natural: {
+    label: "ナチュラル（自然色）",
+    override: {
+      background: "#e9e2c8",
+      ocean: "#7fa8c4",
+      oceanShallow: "#a3c3d4",
+      coastlineStroke: "#3d4f5c",
+      riverFill: "#6f9cbd",
+      riverStroke: "#34506a",
+      textWater: "#f2f6f8",
+      mountainFill: "#8d8a86",
+      mountainHighlight: "#e2ddd2",
+      mountainStroke: "#3b3632",
+      hillFill: "#c9cc98",
+      treeFill: "#4f7a3a",
+      treeStroke: "#22381a",
+      contourStroke: "#a49a74",
+      forestCanopy: {
+        deciduous: "#5a8a3c",
+        coniferous: "#3f6b45",
+        tropical: "#4f9142",
+        shadow: "#1f3a1c",
+        highlight: "#9cc46e",
+        stroke: "#1a3015"
+      },
+      biomes: {
+        ocean: "#7fa8c4",
+        grassland: "#d6dca8",
+        deciduous_forest: "#c0d29a",
+        coniferous_forest: "#b2c49a",
+        tropical_forest: "#b2cf8e",
+        savanna: "#e3d9a0",
+        woodland_scrub: "#cfd59f",
+        hills: "#d3d3a2",
+        mountains: "#cfc8b2",
+        snow_mountains: "#e6e8e6",
+        glacier: "#eef2f4",
+        swamp: "#a9bb8c",
+        marsh: "#b4c495",
+        desert: "#eadcae",
+        tundra: "#d4d4bf",
+        badlands: "#d7b98e"
+      }
+    }
+  },
+  lush: {
+    label: "ビビッド（鮮やか）",
+    override: {
+      background: "#eef0cf",
+      ocean: "#4f93c6",
+      oceanShallow: "#7fb5da",
+      coastlineStroke: "#24425e",
+      riverFill: "#4a8fc4",
+      riverStroke: "#1f4566",
+      textWater: "#ffffff",
+      mountainFill: "#8f8aa0",
+      mountainHighlight: "#ebe6dc",
+      mountainStroke: "#332f3d",
+      hillFill: "#b8d07c",
+      treeFill: "#3f8a35",
+      treeStroke: "#173b14",
+      contourStroke: "#9ba872",
+      forestCanopy: {
+        deciduous: "#4c9a34",
+        coniferous: "#2f7444",
+        tropical: "#3fa83a",
+        shadow: "#163a16",
+        highlight: "#a6d968",
+        stroke: "#123012"
+      },
+      biomes: {
+        ocean: "#4f93c6",
+        grassland: "#cfe39a",
+        deciduous_forest: "#b4d88a",
+        coniferous_forest: "#a6c98e",
+        tropical_forest: "#a2d77a",
+        savanna: "#e6dc8e",
+        woodland_scrub: "#c8dc8c",
+        hills: "#cfdc96",
+        mountains: "#cdc6b4",
+        snow_mountains: "#eef0f2",
+        glacier: "#f4f8fa",
+        swamp: "#94b87c",
+        marsh: "#a8c888",
+        desert: "#f0dea0",
+        tundra: "#d2dac2",
+        badlands: "#e0b07c"
+      }
+    }
+  },
+  nordic: {
+    label: "ノルディック（寒冷・くすみ）",
+    override: {
+      background: "#e4e3d8",
+      ocean: "#6e8c98",
+      oceanShallow: "#93aab2",
+      coastlineStroke: "#2f3e45",
+      riverFill: "#6a8996",
+      riverStroke: "#2d3f47",
+      textWater: "#eef3f4",
+      mountainFill: "#7e8590",
+      mountainHighlight: "#e4e6e6",
+      mountainStroke: "#2f3338",
+      hillFill: "#c3c6aa",
+      treeFill: "#3e5f4a",
+      treeStroke: "#1b2b21",
+      contourStroke: "#9a9c8a",
+      forestCanopy: {
+        deciduous: "#58704a",
+        coniferous: "#33584a",
+        tropical: "#4b6e47",
+        shadow: "#18281f",
+        highlight: "#8fa886",
+        stroke: "#14231b"
+      },
+      biomes: {
+        ocean: "#6e8c98",
+        grassland: "#d3d4b8",
+        deciduous_forest: "#bcc5a6",
+        coniferous_forest: "#aebba4",
+        tropical_forest: "#b4c29c",
+        savanna: "#dcd6b2",
+        woodland_scrub: "#c9cdb0",
+        hills: "#cfcfb6",
+        mountains: "#c4c3b8",
+        snow_mountains: "#eceeee",
+        glacier: "#f2f5f6",
+        swamp: "#a4ae94",
+        marsh: "#b0b89e",
+        desert: "#e2dabb",
+        tundra: "#d2d3c6",
+        badlands: "#cbb79c"
+      }
+    }
+  }
+};
+
+/** 文書の装飾設定から実際に使う配色を決める（Illustrated は配色プリセットを重ねる） */
+export function resolveThemeColors(decoration: Pick<RegionDecoration, "theme" | "illustratedPalette">): ThemeColors {
+  const base = THEMES[decoration.theme] ?? THEMES.schley;
+  if (decoration.theme !== "illustrated") return base;
+  const { override } = ILLUSTRATED_PALETTES[decoration.illustratedPalette ?? "sepia"] ?? ILLUSTRATED_PALETTES.sepia;
+  return {
+    ...base,
+    ...override,
+    forestCanopy: { ...base.forestCanopy, ...override.forestCanopy },
+    biomes: { ...base.biomes, ...override.biomes }
+  };
+}

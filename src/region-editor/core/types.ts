@@ -174,8 +174,13 @@ export interface RegionLabel {
 
 export type RegionTheme = "schley" | "perilous" | "parchment" | "monochrome" | "illustrated";
 
+/** Illustrated テーマの配色プリセット */
+export type IllustratedPalette = "sepia" | "natural" | "lush" | "nordic";
+
 export interface RegionDecoration {
   theme: RegionTheme;
+  /** Illustrated テーマの配色（未設定は sepia）。他テーマでは無視する。 */
+  illustratedPalette?: IllustratedPalette;
   showCompassRose: boolean;
   compassPosition: Point;
   showScaleBar: boolean;

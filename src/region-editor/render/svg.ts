@@ -28,7 +28,7 @@ import {
 } from "./obliqueArt";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
-import { THEMES } from "./styles/themes";
+import { resolveThemeColors } from "./styles/themes";
 
 export function escapeXml(str: string): string {
   return str
@@ -159,7 +159,7 @@ export function renderRegionSvg(
   const routeScale = Math.max(0.5, doc.decoration.routeWidthScale ?? 1);
   const riverScale = Math.max(0.5, doc.decoration.riverWidthScale ?? 1);
   const themeName = doc.decoration.theme;
-  const theme = THEMES[themeName] ?? THEMES.schley;
+  const theme = resolveThemeColors(doc.decoration);
   // 斜め見下ろしの絵地図: 森は立ち木のスプライト、山岳・丘陵バイオームには山並みを敷き詰める
   const oblique = themeName === "illustrated";
 

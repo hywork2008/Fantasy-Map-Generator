@@ -27,6 +27,7 @@ import { RegionHistory } from "../core/history";
 import {
   type BiomeKind,
   DEFAULT_REGION_SETTINGS,
+  type IllustratedPalette,
   type Point,
   type RegionDocument,
   type RegionGenerationSettings,
@@ -37,6 +38,7 @@ import {
 import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionEditorFile";
 import { clearRegionSite } from "../io/siteStore";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
+import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
 import { renderRegionSvg, textScaleForZoom } from "../render/svg";
 
 /** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
@@ -181,6 +183,17 @@ export function mountRegionEditor(
               <option value="parchment" ${history.current.decoration.theme === "parchment" ? "selected" : ""}>Antique Parchment (羊皮紙調)</option>
               <option value="monochrome" ${history.current.decoration.theme === "monochrome" ? "selected" : ""}>Monochrome (白黒)</option>
               <option value="illustrated" ${history.current.decoration.theme === "illustrated" ? "selected" : ""}>Illustrated (鳥瞰の山と森)</option>
+            </select>
+          </div>
+          <div class="re-form-row" id="row-illustrated-palette" style="${history.current.decoration.theme === "illustrated" ? "" : "display:none"}">
+            <label>配色 (Palette)</label>
+            <select class="re-select" id="select-illustrated-palette">
+              ${(Object.entries(ILLUSTRATED_PALETTES) as [IllustratedPalette, { label: string }][])
+                .map(
+                  ([key, p]) =>
+                    `<option value="${key}" ${(history.current.decoration.illustratedPalette ?? "sepia") === key ? "selected" : ""}>${p.label}</option>`
+                )
+                .join("")}
             </select>
           </div>
           <div class="re-form-row">
@@ -976,6 +989,7 @@ export function mountRegionEditor(
       theme: selectTheme
     };
     const newDoc = generateStandaloneRegion(currentSettings);
+    newDoc.decoration.illustratedPalette = history.current.decoration.illustratedPalette;
     history.push(newDoc);
     selectedId = null;
     updateSelectionPanel();
@@ -1036,6 +1050,13 @@ export function mountRegionEditor(
   root.querySelector("#select-theme")?.addEventListener("change", e => {
     const theme = (e.target as HTMLSelectElement).value as RegionTheme;
     history.current.decoration.theme = theme;
+    const paletteRow = root.querySelector("#row-illustrated-palette") as HTMLElement | null;
+    if (paletteRow) paletteRow.style.display = theme === "illustrated" ? "" : "none";
+    renderMap();
+  });
+
+  root.querySelector("#select-illustrated-palette")?.addEventListener("change", e => {
+    history.current.decoration.illustratedPalette = (e.target as HTMLSelectElement).value as IllustratedPalette;
     renderMap();
   });
 
