@@ -2,6 +2,7 @@ import { curveCatmullRom, line } from "d3";
 import { getCoastalHabitatDefinition } from "../../data/coastalHabitatCatalog";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
+import { generatePerpendicularBridges } from "../core/gen/perpendicularBridges";
 import { pointInPolygon } from "../core/geometry";
 import {
   DEFAULT_FOREST_DENSITY_THRESHOLD,
@@ -187,6 +188,15 @@ export function renderRegionSvg(
   const lakes = lakeShores.map(l => l.curve);
   // 河口は丸めた海岸・湖岸曲線まで延長する（直線のセル境界で止まると水面に届かない）
   const rivers = extendRiversToCoast(doc.rivers, [...coasts, ...lakeShores]);
+  // 直角橋は描画する川（延長・川幅倍率込み）に合わせて毎回配置し、ルートには橋前後の直線区間を差し込む
+  const bridgeLayout = generatePerpendicularBridges(
+    rivers,
+    doc.routes,
+    doc.bounds.metersPerUnit,
+    riverScale,
+    doc.settlements.map(st => st.position)
+  );
+  const routes = bridgeLayout.adjustedRoutes;
   const coastPatchD = coasts
     .flatMap(c => c.patches)
     .map(poly => polyToSvgPath(poly))
@@ -249,7 +259,7 @@ export function renderRegionSvg(
         return `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" opacity="${opacity}" />`;
       })
       .join("\n");
-    const routesClearing = doc.routes
+    const routesClearing = routes
       .map(r => {
         const widthMeters = (r.kind === "highway" ? 8 : r.kind === "trail" ? 2 : 5) * routeScale;
         return `<path d="${createCurvedRoutePath(r.points, 0.1)}" fill="none" stroke="#000000" stroke-width="${widthMeters / doc.bounds.metersPerUnit}" />`;
@@ -892,7 +902,7 @@ export function renderRegionSvg(
     .join("\n");
 
   // 6. 街道 (Routes) - 都市間接続・種別別描画（FMG準拠のベジェ曲線）
-  const routesLayer = doc.routes
+  const routesLayer = routes
     .map(route => {
       const pathD = createCurvedRoutePath(route.points, 0.1);
       const isSel = route.id === selectedId;
@@ -915,9 +925,9 @@ export function renderRegionSvg(
     .join("\n");
 
   // 7. ★直角橋（Perpendicular Bridges）★: 河川接線と厳格に直角な橋梁
-  const bridgesLayer = doc.bridges
+  const bridgesLayer = bridgeLayout.bridges
     .map(b => {
-      const halfL = (b.lengthMeters * riverScale) / doc.bounds.metersPerUnit / 2;
+      const halfL = b.lengthMeters / doc.bounds.metersPerUnit / 2;
       const halfW = (b.widthMeters * routeScale) / doc.bounds.metersPerUnit / 2;
       return `
         <g class="perpendicular-bridge" data-kind="bridge" data-id="${b.id}" transform="translate(${b.center[0].toFixed(2)}, ${b.center[1].toFixed(2)}) rotate(${b.angleDeg.toFixed(2)})">

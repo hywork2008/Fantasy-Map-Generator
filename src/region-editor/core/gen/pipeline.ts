@@ -172,9 +172,10 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
   ];
 
   // 5. 直角橋の生成（AGENTS.md 原則: 河川接線と厳格に90度交差）
-  const bridgeResult = generatePerpendicularBridges(doc.rivers, rawRoutes, doc.bounds.metersPerUnit);
-  doc.bridges = bridgeResult.bridges;
-  doc.routes = bridgeResult.adjustedRoutes;
+  // 保存するルートは素の経路のまま（橋の挿入点は描画時に置く）
+  doc.bridges = generatePerpendicularBridges(doc.rivers, rawRoutes, doc.bounds.metersPerUnit).bridges;
+  doc.routes = rawRoutes;
+  doc.bridgeLayoutVersion = 2;
 
   // 6. 地勢シンボルの散布
   const symbols: RegionSymbol[] = [];
@@ -495,9 +496,16 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
   }));
 
   // ★直角橋の生成（規約遵守）★
-  const bridgeResult = generatePerpendicularBridges(doc.rivers, routes, metersPerUnit);
-  doc.bridges = bridgeResult.bridges;
-  doc.routes = bridgeResult.adjustedRoutes;
+  // 保存するルートは素の経路のまま（橋の挿入点は描画時に置く）
+  doc.bridges = generatePerpendicularBridges(
+    doc.rivers,
+    routes,
+    metersPerUnit,
+    undefined,
+    doc.settlements.map(st => st.position)
+  ).bridges;
+  doc.routes = routes;
+  doc.bridgeLayoutVersion = 2;
 
   // ダンジョン
   if (descriptor.dungeons) {

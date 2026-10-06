@@ -1,7 +1,9 @@
 import { generateFarmland } from "./gen/farmland";
+import { generatePerpendicularBridges, stripLegacyBridgePoints } from "./gen/perpendicularBridges";
 import type { RegionSiteDescriptor } from "./types";
 import {
   DEFAULT_REGION_SETTINGS,
+  DEFAULT_RIVER_WIDTH_SCALE,
   REGION_DOCUMENT_FORMAT,
   REGION_DOCUMENT_VERSION,
   type RegionDecoration,
@@ -48,6 +50,7 @@ export function createEmptyRegionDocument(settings: Partial<RegionGenerationSett
     symbols: [],
     rivers: [],
     bridges: [],
+    bridgeLayoutVersion: 2,
     routes: [],
     settlements: [],
     landmarks: [],
@@ -134,6 +137,18 @@ export function validateRegionDocument(
     } as RegionSiteDescriptor;
     generateFarmland(document, site, p => p);
     document.landUse!.diagnostics.push("legacy-rural-population-unknown");
+  }
+  if (candidate.bridgeLayoutVersion !== 2 && Array.isArray(candidate.routes) && candidate.bounds) {
+    const document = candidate as RegionDocument;
+    stripLegacyBridgePoints(document);
+    document.bridges = generatePerpendicularBridges(
+      document.rivers,
+      document.routes,
+      document.bounds.metersPerUnit,
+      document.decoration?.riverWidthScale ?? DEFAULT_RIVER_WIDTH_SCALE,
+      (document.settlements ?? []).map(st => st.position)
+    ).bridges;
+    document.bridgeLayoutVersion = 2;
   }
   candidate.version = REGION_DOCUMENT_VERSION;
   return { ok: true, document: candidate as RegionDocument };

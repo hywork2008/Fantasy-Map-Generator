@@ -294,6 +294,8 @@ export interface RegionDocument {
   symbols: RegionSymbol[];
   rivers: RegionRiver[];
   bridges: RegionBridge[];
+  /** 2 = routes は橋の挿入点を含まない素の経路（橋は描画時に再配置）。未設定は旧形式 */
+  bridgeLayoutVersion?: number;
   routes: RegionRoute[];
   settlements: RegionSettlement[];
   landmarks: RegionLandmark[];

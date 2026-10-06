@@ -148,9 +148,14 @@ export function eraseAt(doc: RegionDocument, center: Point, radius: number): Reg
  */
 export function updateRoutesAndBridges(doc: RegionDocument): RegionDocument {
   const next = cloneRegionDocument(doc);
-  const result = generatePerpendicularBridges(next.rivers, next.routes, next.bounds.metersPerUnit);
-  next.bridges = result.bridges;
-  next.routes = result.adjustedRoutes;
+  // routes は素の経路のまま保持する（挿入点を書き戻すと再計算のたびに点が増殖する）
+  next.bridges = generatePerpendicularBridges(
+    next.rivers,
+    next.routes,
+    next.bounds.metersPerUnit,
+    next.decoration.riverWidthScale,
+    next.settlements.map(st => st.position)
+  ).bridges;
   return next;
 }
 
@@ -191,6 +196,14 @@ export function setRouteWidthScale(doc: RegionDocument, scale: number): RegionDo
 export function setRiverWidthScale(doc: RegionDocument, scale: number): RegionDocument {
   const next = cloneRegionDocument(doc);
   next.decoration.riverWidthScale = sanitizeWidthScale(scale);
+  // 橋長は描画川幅に追従する
+  next.bridges = generatePerpendicularBridges(
+    next.rivers,
+    next.routes,
+    next.bounds.metersPerUnit,
+    next.decoration.riverWidthScale,
+    next.settlements.map(st => st.position)
+  ).bridges;
   return next;
 }
 
