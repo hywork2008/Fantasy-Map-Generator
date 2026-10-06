@@ -160,11 +160,22 @@ export function lineBuffer(a: Point, b: Point, width: number): Point[] {
 export const CLOSED_CANOPY_COVER = 0.9;
 
 export function landscapeNoise(x: number, y: number, seed: string): number {
-  let hash = 2166136261;
-  for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  const phase = ((hash >>> 0) / 4294967296) * Math.PI * 2;
-  return (Math.sin(x / 3.7 + phase) + Math.cos(y / 4.3 - phase) + Math.sin((x + y) / 6.1 + phase * 2)) / 6 + 0.5;
+  // Rotated, domain-warped value-noise fBm. Sums of axis-aligned sines gave level sets shaped like
+  // rounded rectangles (e.g. forest clearings and wetlands); this keeps the same feature size
+  // (~12 units) and spread around 0.5, so cover thresholds tuned against the old noise still hold.
+  const salt = hashSeed(seed);
+  const u = (x * 0.8 - y * 0.6) / LANDSCAPE_WAVELENGTH,
+    v = (x * 0.6 + y * 0.8) / LANDSCAPE_WAVELENGTH;
+  const wu = u + 0.6 * (smoothValueNoise(u * 0.5 + 17.3, v * 0.5, salt ^ 0x51ed270b) - 0.5),
+    wv = v + 0.6 * (smoothValueNoise(u * 0.5, v * 0.5 + 31.7, salt ^ 0x2545f491) - 0.5);
+  const n =
+    smoothValueNoise(wu, wv, salt) * 0.6 +
+    smoothValueNoise(wu * 2.1, wv * 2.1, salt ^ 0x9e3779b9) * 0.28 +
+    smoothValueNoise(wu * 4.3, wv * 4.3, salt ^ 0x7f4a7c15) * 0.12;
+  return Math.max(0, Math.min(1, 0.5 + (n - 0.5) * LANDSCAPE_CONTRAST));
 }
+const LANDSCAPE_WAVELENGTH = 12;
+const LANDSCAPE_CONTRAST = 1.43;
 
 /** Coarse heightfield gradient, used as an explicitly approximate slope constraint. */
 export function approximateSlope(
