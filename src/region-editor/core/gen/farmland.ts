@@ -1,3 +1,4 @@
+import { getCoastalHabitatKey } from "../../../data/coastalHabitatCatalog";
 import { BASE_NET_YIELD_KG_PER_SOWN_HECTARE, planSettlementLandUse } from "../../../generators/settlementClearance";
 import type { CellLandUseBudget } from "../../../types/landUse";
 import { pointInPolygon, polygonOverlapsFrame } from "../geometry";
@@ -18,6 +19,25 @@ import { buildParcels, insetPiece, pieceCentroid, shrinkPiecesToArea } from "./o
 const PARCEL_AREA_FACTOR = 1.15;
 const MIN_PARCEL_SPACING_M = 250;
 const MAX_PARCELS = 450;
+/** 海岸ハビタットの帯が海岸線から陸側へ被る幅（RE ローカル単位）。render/svg.ts の帯の太さ 14 の半分 */
+const COASTAL_BAND_INWARD = 7;
+/** 海岸線の丸めで曲線が弦から離れる分（辺の長さに対する比率の上限と絶対上限） */
+const COAST_SMOOTHING_RATIO = 0.1;
+const COAST_SMOOTHING_MAX = 10;
+
+/** 海岸の辺ごとの、畑を置かない帯。ハビタットの帯と、丸めた海岸線の食い込みぶんを避ける */
+function coastalBuffers(doc: RegionDocument): Point[][] {
+  const out: Point[][] = [];
+  for (const segment of doc.terrain.coastalHabitats ?? []) {
+    if (getCoastalHabitatKey(segment.coastalHabitat) === "none") continue;
+    for (let i = 1; i < segment.points.length; i++) {
+      const [a, b] = [segment.points[i - 1], segment.points[i]];
+      const margin = Math.min(COAST_SMOOTHING_MAX, Math.hypot(b[0] - a[0], b[1] - a[1]) * COAST_SMOOTHING_RATIO);
+      out.push(lineBuffer(a, b, (COASTAL_BAND_INWARD + margin) * 2));
+    }
+  }
+  return out;
+}
 
 type Box = [number, number, number, number];
 const boxOf = (poly: Point[]): Box => {
@@ -89,6 +109,7 @@ export function generateFarmland(doc: RegionDocument, site: RegionSiteDescriptor
   const areaScale = scale ** 2 / 10000;
   const water = doc.terrain.lakePolygons.concat(
     doc.terrain.coastlinePolygons,
+    coastalBuffers(doc),
     site.cells.filter(c => c.isWater).map(c => (c.polygon ?? []).map(toLocal))
   );
   const corridors: Point[][] = [];

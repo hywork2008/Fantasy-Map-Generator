@@ -152,16 +152,18 @@ export function renderRegionSvg(
     .filter(b => !isSeaBiome(b))
     .map(b => polyToSvgPath(b.polygon))
     .join(" ");
-  // 湿地は丸めた海岸線より海側へ出さない: 海セルと、曲線が陸側へ食い込んだ部分（陸セル内のパッチ）を隠す
-  const coastClipDefs = coastPatchD
+  // 湿地・畑などの地表の模様は丸めた海岸線より海側へ出さない: 海セルと、曲線が陸側へ食い込んだ部分（陸セル内のパッチ）を隠す
+  const hasCoastMask = Boolean(seaClipD || coastPatchD);
+  const coastClipDefs = hasCoastMask
     ? `<clipPath id="re-sea-clip" clipPathUnits="userSpaceOnUse"><path d="${seaClipD}" /></clipPath>
       <clipPath id="re-land-clip" clipPathUnits="userSpaceOnUse"><path d="${landClipD}" /></clipPath>
       <mask id="re-wetland-coast-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="${widthUnits}" height="${heightUnits}">
         <rect x="0" y="0" width="${widthUnits}" height="${heightUnits}" fill="#ffffff" />
         <path d="${seaClipD}" fill="#000000" />
-        <g clip-path="url(#re-land-clip)"><path d="${coastPatchD}" fill="#000000" /></g>
+        ${coastPatchD ? `<g clip-path="url(#re-land-clip)"><path d="${coastPatchD}" fill="#000000" /></g>` : ""}
       </mask>`
     : "";
+  const coastMaskAttr = hasCoastMask ? ' mask="url(#re-wetland-coast-mask)"' : "";
 
   const forestBiomes = doc.biomes.filter(b => isForestBiome(b.kind));
   const hasForest = forestBiomes.length > 0;
@@ -923,7 +925,7 @@ export function renderRegionSvg(
       ${defs}
       ${background}
       <g id="layer-biomes">${biomesLayer}</g>
-      <g id="layer-wetlands"${coastPatchD ? ' mask="url(#re-wetland-coast-mask)"' : ""}>${wetlandLayer}${wetlandMarks}</g>
+      <g id="layer-wetlands"${coastMaskAttr}>${wetlandLayer}${wetlandMarks}</g>
       <g id="layer-contours">${contoursLayer}</g>
       <g id="layer-ripples">${ripplesLayer}</g>
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
@@ -939,7 +941,7 @@ export function renderRegionSvg(
         ).join("\n")}
         ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
       </defs>
-      <g id="layer-land-use" data-detail-level="${detail}">${(doc.landUse?.patches ?? [])
+      <g id="layer-land-use" data-detail-level="${detail}"${coastMaskAttr}>${(doc.landUse?.patches ?? [])
         .map(p => {
           const path = polyToSvgPath(p.polygon);
           const variant = patchVariant(p.id);

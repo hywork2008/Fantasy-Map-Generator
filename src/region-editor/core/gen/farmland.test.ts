@@ -42,6 +42,24 @@ describe("regional farmland", () => {
         requiredFieldAreaHectares(103, 450) * 1.1
       );
   });
+  it("keeps fields off the coastal habitat band so they never cover it", () => {
+    const { doc, site } = fixture(1000, 400);
+    // 海岸の辺（x = 0 の縁）にハビタットの帯。帯は陸側へ 7 単位被る
+    doc.terrain.coastalHabitats = [
+      {
+        points: [
+          [0, 0],
+          [0, 200]
+        ],
+        landPolygon: site.cells[0].polygon as Point[],
+        coastalHabitat: 1
+      }
+    ];
+    generateFarmland(doc, site, p => p);
+    const fields = (doc.landUse?.patches ?? []).filter(p => p.kind === "cultivation");
+    expect(fields.length).toBeGreaterThan(0);
+    for (const field of fields) for (const [x] of field.polygon) expect(x).toBeGreaterThanOrEqual(7 - 1e-6);
+  });
   it("draws no fields for cells outside the map frame", () => {
     const { doc, site } = fixture(1000, 103);
     site.cells[0].polygon = [

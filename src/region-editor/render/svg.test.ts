@@ -247,7 +247,7 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
     });
   });
 
-  it("clips wetlands to the smoothed coastline so the rounding cannot push them into the sea", () => {
+  it("clips wetlands and fields to the smoothed coastline so the rounding cannot push them into the sea", () => {
     const doc = createEmptyRegionDocument(DEFAULT_REGION_SETTINGS);
     doc.biomes = [
       {
@@ -284,7 +284,9 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
         ]
       }
     ];
-    expect(renderRegionSvg(doc)).not.toContain("re-wetland-coast-mask");
+    // 海セルがあれば、海岸線が無くても湿地と畑は海セルへ出さない
+    const noCoast = renderRegionSvg(doc);
+    expect(noCoast).toContain('<g id="layer-land-use" data-detail-level="1" mask="url(#re-wetland-coast-mask)">');
     doc.terrain.coastlinePolygons = [
       [
         [100, 0],
@@ -298,5 +300,6 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
     const svg = renderRegionSvg(doc);
     expect(svg).toContain('<mask id="re-wetland-coast-mask"');
     expect(svg).toContain('<g id="layer-wetlands" mask="url(#re-wetland-coast-mask)">');
+    expect(svg).toContain('mask="url(#re-wetland-coast-mask)">');
   });
 });
