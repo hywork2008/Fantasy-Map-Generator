@@ -29,6 +29,7 @@ import {
   type SymbolType
 } from "../core/types";
 import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionEditorFile";
+import { clearRegionSite } from "../io/siteStore";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { renderRegionSvg, textScaleForZoom } from "../render/svg";
 
@@ -104,6 +105,7 @@ export function mountRegionEditor(
         <button type="button" class="re-btn" id="btn-save-json">💾 JSON 保存</button>
         <button type="button" class="re-btn" id="btn-export-svg">🖼 SVG 出力</button>
         <button type="button" class="re-btn" id="btn-export-png">📷 PNG 出力</button>
+        <button type="button" class="re-btn" id="btn-clear-site" title="FMG から受け取った地域データの保存内容を削除します">🗑 連携データ初期化</button>
       </div>
     </header>
 
@@ -1015,6 +1017,16 @@ export function mountRegionEditor(
       URL.revokeObjectURL(url);
     };
     img.src = url;
+  });
+
+  root.querySelector("#btn-clear-site")?.addEventListener("click", async () => {
+    if (!confirm("FMG から連携された保存済みの地域データを削除し、初期状態に戻します。よろしいですか？")) return;
+    try {
+      await clearRegionSite();
+      location.reload();
+    } catch (err) {
+      alert(`初期化エラー: ${err}`);
+    }
   });
 
   const fileInput = root.querySelector<HTMLInputElement>("#re-file-input")!;

@@ -35,3 +35,8 @@ export function saveRegionSite(descriptor: RegionSiteDescriptor): Promise<void> 
 export function loadRegionSite(): Promise<RegionSiteDescriptor | undefined> {
   return run("readonly", s => s.get(REGION_SITE_KEY) as IDBRequest<RegionSiteDescriptor | undefined>);
 }
+
+/** 保存済みの FMG 連携データを削除（次回 RE 単体起動時は連携前の状態になる） */
+export function clearRegionSite(): Promise<void> {
+  return run("readwrite", s => s.delete(REGION_SITE_KEY)).then(() => undefined);
+}
