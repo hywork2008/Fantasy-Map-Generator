@@ -12,7 +12,17 @@ export { forestKindOf } from "./forestMass";
  * 同じ文書は常に同じ絵になる（描画時の乱数なし）。
  */
 
-const MAX_CROWNS = 9000;
+const MAX_CROWNS = 40_000;
+/** 基準の地図（400 x 400 km）での間引き率 1/100。面積に比例して、広い地図ほど大きく間引く */
+const THIN_BASE_AREA_KM2 = 400 * 400;
+const THIN_BASE_RATIO = 100;
+/** 樹冠数の見積もりに使う格子の粗さ（1/COUNT_STRIDE² の標本で数える） */
+const COUNT_STRIDE = 8;
+
+/** 地図の面積に応じた樹冠の間引き率（密度は 1/返値）。基準より狭い地図は 1（間引かない） */
+export function forestThinning(mapAreaKm2: number): number {
+  return Math.max(1, (THIN_BASE_RATIO * mapAreaKm2) / THIN_BASE_AREA_KM2);
+}
 
 const CROWN_RADIUS: Record<ForestKind, number> = {
   deciduous: 3.1,
@@ -85,19 +95,27 @@ function collectCrowns(
   spacing: number,
   baseR: number,
   salt: number,
-  cap: number
-): Crown[] {
+  cap: number,
+  /** 格子を stride 個おきに間引いて数えるだけにする（樹冠は作らず、通った点の数を返す） */
+  countStride = 0
+): Crown[] | number {
   const crowns: Crown[] = [];
+  let counted = 0;
+  const stride = Math.max(1, countStride);
   // 行ごとに半ピッチずらして、ランダム散布より詰まりの良い千鳥配置にする
   const row = spacing * 0.86;
   const [minX, minY, maxX, maxY] = mass.bbox;
-  for (let iy = Math.floor(minY / row) - 1; iy <= Math.ceil(maxY / row) + 1; iy++) {
-    for (let ix = Math.floor(minX / spacing) - 1; ix <= Math.ceil(maxX / spacing) + 1; ix++) {
+  for (let iy = Math.floor(minY / row) - 1; iy <= Math.ceil(maxY / row) + 1; iy += stride) {
+    for (let ix = Math.floor(minX / spacing) - 1; ix <= Math.ceil(maxX / spacing) + 1; ix += stride) {
       const x = (ix + (iy & 1 ? 0.5 : 0) + (hash2(ix, iy, salt) - 0.5) * 0.7) * spacing;
       const y = (iy + (hash2(ix, iy, salt + 1) - 0.5) * 0.7) * row;
       const at = mass.sample([x, y]);
       if (!at || at.kind !== kind) continue;
       if (hash2(ix, iy, salt + 2) > 0.35 + 0.65 * at.stock) continue;
+      if (countStride) {
+        counted++;
+        continue;
+      }
       crowns.push({
         x,
         y,
@@ -108,21 +126,33 @@ function collectCrowns(
       if (crowns.length >= cap) return crowns;
     }
   }
-  return crowns;
+  return countStride ? counted * stride * stride : crowns;
 }
 
 /**
  * 森林の樹冠レイヤー。種類ごとに 影 → 樹冠(3トーン) → 陰影 → ハイライト の順で積む。
  * detail 0（引き）では間引いてパス総量を抑える。
  */
-export function renderForestCrowns(mass: ForestMass, colors: ForestCanopyColors, detail: number): string {
+export function renderForestCrowns(
+  mass: ForestMass,
+  colors: ForestCanopyColors,
+  detail: number,
+  mapAreaKm2 = 0
+): string {
+  // 最遠景では樹冠はほぼ点なので、地図の面積に応じて密度を落とす（狭い地図は間引かない）
+  const thin = forestThinning(mapAreaKm2);
   const lod = detail === 0 ? 1.7 : 1;
   const out: string[] = [];
   FOREST_KINDS.forEach((kind, kindIdx) => {
     if (!mass.kinds.includes(kind)) return;
     const baseR = CROWN_RADIUS[kind];
     const spacing = baseR * 1.85 * lod;
-    const crowns = collectCrowns(mass, kind, spacing, baseR, 7919 * (kindIdx + 1), MAX_CROWNS);
+    const salt = 7919 * (kindIdx + 1);
+    // 森林が広いと上限で北から順に打ち切られ、南の森に樹冠が 1 本も置かれない。
+    // 総数を見積もり、面積に応じた間引き率か上限のどちらか厳しい方まで間隔を広げ、全域へ均等に配る
+    const estimate = collectCrowns(mass, kind, spacing, baseR, salt, MAX_CROWNS, COUNT_STRIDE) as number;
+    const spread = Math.max(Math.sqrt(thin), Math.sqrt(estimate / (MAX_CROWNS * 0.85)));
+    const crowns = collectCrowns(mass, kind, spacing * spread, baseR, salt, MAX_CROWNS) as Crown[];
     if (!crowns.length) return;
     crowns.sort((a, b) => a.y - b.y);
     const base = colors[kind];
@@ -284,9 +314,11 @@ export const DEFAULT_RENDER_QUALITY: RenderQuality = "low";
  * 低品質: 樹冠を 1 本ずつ描く代わりに、同じ見た目を繰り返しタイルにして塗る。
  * 要素数がセル数・ズームに依存せず、ブラウザのタイル再利用で再描画が軽い。
  */
-export function forestCrownPattern(kind: ForestKind, colors: ForestCanopyColors): string {
+export function forestCrownPattern(kind: ForestKind, colors: ForestCanopyColors, mapAreaKm2 = 0): string {
   const r = CROWN_RADIUS[kind];
-  const w = r * 3.7;
+  // 広い地図では樹冠の大きさはそのままにタイルだけ広げ、密度を 1/thin に落とす
+  const spread = Math.sqrt(forestThinning(mapAreaKm2));
+  const w = r * 3.7 * spread;
   const h = w * 0.86;
   const spots: Array<[number, number, number]> = [
     [w * 0.25, h * 0.25, 1],

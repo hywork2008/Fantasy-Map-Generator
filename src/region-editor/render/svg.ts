@@ -184,6 +184,7 @@ export function renderRegionSvg(
     : "";
   const coastMaskAttr = hasCoastMask ? ' mask="url(#re-wetland-coast-mask)"' : "";
 
+  const mapAreaKm2 = (doc.bounds.widthMeters * doc.bounds.heightMeters) / 1e6;
   const forestBiomes = doc.biomes.filter(b => isForestBiome(b.kind));
   const hasForest = forestBiomes.length > 0;
 
@@ -264,7 +265,7 @@ export function renderRegionSvg(
         ${routesClearing}
         ${landUseClearing}
       </mask>
-      ${highQuality ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors)).join("\n")}
+      ${highQuality ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors, mapAreaKm2)).join("\n")}
     `;
 
     // 隣接する森林セルを 1 つの森林塊にまとめ、セル頂点の角を持たない滑らかな外形で描く
@@ -314,7 +315,7 @@ export function renderRegionSvg(
       ? `
       <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)">
         <g class="re-forest-floor" clip-path="url(#re-forest-outline)">${forestFloor}${forestPatterns}</g>
-        ${highQuality && mass ? renderForestCrowns(mass, canopyColors, detail) : ""}
+        ${highQuality && mass ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2) : ""}
       </g>
     `
       : "";
