@@ -3,7 +3,14 @@ import { getCoastalHabitatDefinition } from "../../data/coastalHabitatCatalog";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { pointInPolygon } from "../core/geometry";
-import { type Point, type RegionDocument, WETLAND_LEVELS } from "../core/types";
+import {
+  DEFAULT_RIVER_WIDTH_SCALE,
+  DEFAULT_ROUTE_WIDTH_SCALE,
+  DEFAULT_SETTLEMENT_ICON_SCALE,
+  type Point,
+  type RegionDocument,
+  WETLAND_LEVELS
+} from "../core/types";
 import {
   DEFAULT_RENDER_QUALITY,
   forestCrownPattern,
@@ -156,8 +163,8 @@ export function renderRegionSvg(
   const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
   const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
 
-  const routeScale = Math.max(0.5, doc.decoration.routeWidthScale ?? 1);
-  const riverScale = Math.max(0.5, doc.decoration.riverWidthScale ?? 1);
+  const routeScale = Math.max(0.5, doc.decoration.routeWidthScale ?? DEFAULT_ROUTE_WIDTH_SCALE);
+  const riverScale = Math.max(0.5, doc.decoration.riverWidthScale ?? DEFAULT_RIVER_WIDTH_SCALE);
   const themeName = doc.decoration.theme;
   const theme = resolveThemeColors(doc.decoration);
   // 斜め見下ろしの絵地図: 森は立ち木のスプライト、山岳・丘陵バイオームには山並みを敷き詰める
@@ -966,7 +973,7 @@ export function renderRegionSvg(
   const labelOffsets = resolveSettlementLabelPlacements(doc.settlements, doc.labels);
   const offsetMap = new Map(labelOffsets.map(o => [o.settlementId, o.offset]));
 
-  const iconScale = Math.max(1, Math.round(doc.decoration.settlementIconScale ?? 1));
+  const iconScale = Math.max(1, Math.round(doc.decoration.settlementIconScale ?? DEFAULT_SETTLEMENT_ICON_SCALE));
   const settlementsLayer = doc.settlements
     .map(s => {
       const [x, y] = s.position;

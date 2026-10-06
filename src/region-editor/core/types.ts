@@ -186,11 +186,11 @@ export interface RegionDecoration {
   showScaleBar: boolean;
   scaleBarPosition: Point;
   showBorder: boolean;
-  /** 都市アイコンの拡大倍率（整数、最小1。未設定は1）。 */
+  /** 都市アイコンの拡大倍率（整数、最小1。未設定は6）。 */
   settlementIconScale?: number;
-  /** 街道の線幅倍率（最小0.5。未設定は1）。 */
+  /** 街道の線幅倍率（最小0.5。未設定は14）。 */
   routeWidthScale?: number;
-  /** 河川の川幅倍率（最小0.5。未設定は1）。 */
+  /** 河川の川幅倍率（最小0.5。未設定は17）。 */
   riverWidthScale?: number;
   borderStyle: "ornate" | "simple" | "none";
 }
@@ -414,3 +414,8 @@ export const DEFAULT_REGION_SETTINGS: RegionGenerationSettings = {
   treeDensity: 0.5,
   mountainDensity: 0.5
 };
+
+/** 装飾倍率の既定値。 */
+export const DEFAULT_SETTLEMENT_ICON_SCALE = 6;
+export const DEFAULT_ROUTE_WIDTH_SCALE = 14;
+export const DEFAULT_RIVER_WIDTH_SCALE = 17;

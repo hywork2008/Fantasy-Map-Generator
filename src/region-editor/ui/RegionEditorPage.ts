@@ -27,6 +27,9 @@ import { RegionHistory } from "../core/history";
 import {
   type BiomeKind,
   DEFAULT_REGION_SETTINGS,
+  DEFAULT_RIVER_WIDTH_SCALE,
+  DEFAULT_ROUTE_WIDTH_SCALE,
+  DEFAULT_SETTLEMENT_ICON_SCALE,
   type IllustratedPalette,
   type Point,
   type RegionDocument,
@@ -241,15 +244,15 @@ export function mountRegionEditor(
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="input-settlement-icon-scale">都市アイコン倍率</label>
-            <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? 1}" style="width:60px;" />
+            <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? DEFAULT_SETTLEMENT_ICON_SCALE}" style="width:60px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="input-route-width-scale">街道倍率</label>
-            <input type="number" id="input-route-width-scale" min="0.5" step="0.5" value="${history.current.decoration.routeWidthScale ?? 1}" style="width:60px;" />
+            <input type="number" id="input-route-width-scale" min="0.5" step="0.5" value="${history.current.decoration.routeWidthScale ?? DEFAULT_ROUTE_WIDTH_SCALE}" style="width:60px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="input-river-width-scale">河川倍率</label>
-            <input type="number" id="input-river-width-scale" min="0.5" step="0.5" value="${history.current.decoration.riverWidthScale ?? 1}" style="width:60px;" />
+            <input type="number" id="input-river-width-scale" min="0.5" step="0.5" value="${history.current.decoration.riverWidthScale ?? DEFAULT_RIVER_WIDTH_SCALE}" style="width:60px;" />
           </div>
           <div class="re-form-row">
             <label>等高線間隔</label>
@@ -351,15 +354,15 @@ export function mountRegionEditor(
     }
     const inputIconScale = root.querySelector<HTMLInputElement>("#input-settlement-icon-scale");
     if (inputIconScale) {
-      inputIconScale.value = String(doc.decoration.settlementIconScale ?? 1);
+      inputIconScale.value = String(doc.decoration.settlementIconScale ?? DEFAULT_SETTLEMENT_ICON_SCALE);
     }
     const inputRouteScale = root.querySelector<HTMLInputElement>("#input-route-width-scale");
     if (inputRouteScale) {
-      inputRouteScale.value = String(doc.decoration.routeWidthScale ?? 1);
+      inputRouteScale.value = String(doc.decoration.routeWidthScale ?? DEFAULT_ROUTE_WIDTH_SCALE);
     }
     const inputRiverScale = root.querySelector<HTMLInputElement>("#input-river-width-scale");
     if (inputRiverScale) {
-      inputRiverScale.value = String(doc.decoration.riverWidthScale ?? 1);
+      inputRiverScale.value = String(doc.decoration.riverWidthScale ?? DEFAULT_RIVER_WIDTH_SCALE);
     }
     const checkElevations = root.querySelector<HTMLInputElement>("#check-show-contour-elevations");
     if (checkElevations) {
