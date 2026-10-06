@@ -10,6 +10,8 @@ import { resetDistanceSession } from "../store/mapContextMenuState";
 import { useOptionsState } from "../store/optionsState";
 import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
+import { layerIsOn } from "../utils/nodeUtils";
+import { toggleRulers } from "./layers";
 
 const lineGen = d3.line<[number, number]>();
 
@@ -68,6 +70,7 @@ class Rulers {
     measurer.undraw();
     const idx = this.data.indexOf(measurer);
     this.data.splice(idx, 1);
+    if (this.data.length === 0 && layerIsOn("toggleRulers")) toggleRulers();
   }
 }
 
