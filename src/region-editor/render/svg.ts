@@ -602,11 +602,17 @@ export function renderRegionSvg(
   })();
   const biomesLayer = `${biomesLayerBase}\n${groundBlend.layer}\n${coastPatches}`;
 
+  /** 沼地セルがこの数を超えたら軽量描画にする */
+  const LIGHT_WETLAND_MIN_CELLS = 20;
   const wetlandBiomes = doc.biomes.filter(b => b.wetlandPatches !== undefined);
   const wetlandPatches = wetlandBiomes.flatMap(b => b.wetlandPatches ?? []);
   const sandyWetland = wetlandPatches.some(p => p.kind === "sand");
   // 冠水段階の昇順に重ねる。各段階は「その段階以上」の入れ子の面なので、外側が湿った地面、内側ほど水深が増す。
+  // 沼地のセルが多いと重いので軽量化する: 段階を「湿地面（3）」と「開放水面」の 2 つに畳み、岸縁フィルタと葦の記号を省く
+  const lightWetland = wetlandBiomes.length > LIGHT_WETLAND_MIN_CELLS;
+  const LIGHT_WETLAND_LEVELS = new Set([3, WETLAND_WATER_LEVEL]);
   const wetlandLayer = Array.from({ length: WETLAND_LEVELS }, (_, level) => {
+    if (lightWetland && !LIGHT_WETLAND_LEVELS.has(level)) return "";
     const d = wetlandPatches
       .filter(p => wetlandPatchLevel(p) === level)
       .map(p => polyToSvgPath(p.polygon))
@@ -618,11 +624,11 @@ export function renderRegionSvg(
     const path = `<path class="wetland-${kind} wetland-level-${level}" d="${d}" fill="${color}" fill-opacity="${opacity}" stroke="${color}" stroke-opacity="${opacity}" stroke-width="0.3" stroke-linejoin="round" />`;
     // 開放水面の外周にだけ暗い岸縁を付ける（最初の水面段階）
     const layered =
-      highQuality && level === WETLAND_WATER_LEVEL
+      highQuality && !lightWetland && level === WETLAND_WATER_LEVEL
         ? `<g class="wetland-bank" filter="url(#re-wetland-bank)">${path}</g>`
         : path;
     // 低品質: 葦のタイルは湿地面（段階 2 以上）の上、開放水面の下に敷く
-    if (!highQuality && level === WETLAND_WATER_LEVEL - 1) {
+    if (!highQuality && !lightWetland && level === WETLAND_WATER_LEVEL - 1) {
       const marshD = wetlandPatches
         .filter(p => wetlandPatchLevel(p) === 2)
         .map(p => polyToSvgPath(p.polygon))
@@ -631,7 +637,7 @@ export function renderRegionSvg(
     }
     return layered;
   }).join("\n");
-  const wetlandMarks = highQuality ? renderWetlandMarks(wetlandBiomes, "#4f6b3a") : "";
+  const wetlandMarks = highQuality && !lightWetland ? renderWetlandMarks(wetlandBiomes, "#4f6b3a") : "";
 
   // 3.5. 等高線レイヤー（Elevation Contours）
   let contoursLayer = "";
