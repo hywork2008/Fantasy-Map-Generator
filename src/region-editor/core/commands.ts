@@ -218,6 +218,13 @@ export function toggleBiomeCells(doc: RegionDocument, show?: boolean): RegionDoc
   return next;
 }
 
+/** 高山の真上視点表現（陰影・高度帯）の切り替え */
+export function toggleRelief(doc: RegionDocument, show?: boolean): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.showRelief = show ?? !(next.terrain.showRelief ?? false);
+  return next;
+}
+
 /** セル境界線の重なり順を設定する */
 export function setCellBorderOrder(doc: RegionDocument, order: "top" | "bottom"): RegionDocument {
   const next = cloneRegionDocument(doc);

@@ -19,6 +19,8 @@ import {
 import { generateCoastalRipples } from "./coastalRipples";
 import { extendRiversToCoast, smoothCoastlines } from "./coastline";
 import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
+import { DEFAULT_RELIEF_SETTINGS } from "./relief";
+import { reliefImageUri } from "./reliefImage";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
 import { THEMES } from "./styles/themes";
@@ -153,6 +155,17 @@ export function renderRegionSvg(
   const riverScale = Math.max(0.5, doc.decoration.riverWidthScale ?? 1);
   const themeName = doc.decoration.theme;
   const theme = THEMES[themeName] ?? THEMES.schley;
+  const showRelief = doc.terrain.showRelief === true && Boolean(doc.terrain.heightfield);
+  const hideMountainSymbols =
+    showRelief && (doc.terrain.relief?.hideMountainSymbols ?? DEFAULT_RELIEF_SETTINGS.hideMountainSymbols);
+  if (showRelief) {
+    // 雪は Relief ラスタが標高・気温から描くので、セル形の白い雪原は岩色の地肌に落とす
+    const rock = theme.biomes.mountains;
+    doc = {
+      ...doc,
+      biomes: doc.biomes.map(b => (b.kind === "snow_mountains" ? { ...b, color: rock } : b))
+    };
+  }
 
   // 海岸線: 断片を連結し FMG と同じ B スプラインで丸める。直線のセル境界と曲線の間は辺ごとのパッチで塗り分ける
   // 海向けの港を持つ集落の岸壁は、丸めで陸側へ引っ込まないよう頂点を残す
@@ -892,6 +905,7 @@ export function renderRegionSvg(
 
   // 8. 地勢シンボル（山岳、丘陵、樹木、湿地等）
   const symbolsLayer = doc.symbols
+    .filter(sym => !(hideMountainSymbols && sym.type.startsWith("mountain")))
     .filter(
       sym =>
         !sym.type.startsWith("tree") ||
@@ -1049,6 +1063,11 @@ export function renderRegionSvg(
           .map(poly => `<path d="M ${poly.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")} Z" />`)
           .join("")}</g>`
       : "";
+  // 高山の真上視点表現: 高度帯（低木・岩・雪）と陰影を合成したラスタを森の上・河川の下に重ねる
+  const reliefUri = showRelief && !biomeCellsSvg ? reliefImageUri(doc) : null;
+  const reliefLayer = reliefUri
+    ? `<g id="layer-relief" pointer-events="none"${coastMaskAttr}><image href="${reliefUri}" x="0" y="0" width="${widthUnits}" height="${heightUnits}" preserveAspectRatio="none" /></g>`
+    : "";
   const cellBordersLayer =
     doc.terrain.cellBorderOrder === "bottom"
       ? { bottom: cellBordersSvg, top: "" }
@@ -1108,6 +1127,7 @@ export function renderRegionSvg(
         })
         .join("\n")}</g>
       ${biomeCellsSvg || `<g id="layer-forests">${forestLayer}</g>`}
+      ${reliefLayer}
       <g id="layer-rivers">${riversLayer}</g>
       <g id="layer-routes">${routesLayer}</g>
       <g id="layer-bridges">${bridgesLayer}</g>

@@ -17,6 +17,7 @@ import {
   toggleContourElevations,
   toggleContours,
   toggleCultivation,
+  toggleRelief,
   updateContourInterval,
   updateLandmark,
   updateSettlement
@@ -207,6 +208,10 @@ export function mountRegionEditor(
             <input type="checkbox" id="check-show-cell-borders" ${history.current.terrain.showCellBorders === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="check-show-relief" style="cursor:pointer;">山岳の陰影・雪線（真上視点）</label>
+            <input type="checkbox" id="check-show-relief" ${history.current.terrain.showRelief === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
+          </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="check-show-biome-cells" style="cursor:pointer;">バイオームの編集表示（セル単色）</label>
             <input type="checkbox" id="check-show-biome-cells" ${history.current.terrain.showBiomeCells === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
@@ -357,6 +362,8 @@ export function mountRegionEditor(
     }
     const checkBiomeCells = root.querySelector<HTMLInputElement>("#check-show-biome-cells");
     if (checkBiomeCells) checkBiomeCells.checked = doc.terrain.showBiomeCells === true;
+    const checkRelief = root.querySelector<HTMLInputElement>("#check-show-relief");
+    if (checkRelief) checkRelief.checked = doc.terrain.showRelief === true;
     const selectBorderOrder = root.querySelector<HTMLSelectElement>("#select-cell-border-order");
     if (selectBorderOrder) selectBorderOrder.value = doc.terrain.cellBorderOrder ?? "top";
     const inputBorderOpacity = root.querySelector<HTMLInputElement>("#input-cell-border-opacity");
@@ -1104,6 +1111,13 @@ export function mountRegionEditor(
   root.querySelector("#check-show-cell-borders")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
     history.push(toggleCellBorders(history.current, checked));
+    renderMap();
+  });
+
+  // 山岳の陰影・雪線表示切り替え
+  root.querySelector("#check-show-relief")?.addEventListener("change", e => {
+    const checked = (e.target as HTMLInputElement).checked;
+    history.push(toggleRelief(history.current, checked));
     renderMap();
   });
 

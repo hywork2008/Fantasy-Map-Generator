@@ -405,6 +405,12 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     doc.terrain.contours = contourResult.contours;
     doc.terrain.contourIntervalMeters = contourResult.intervalMeters;
     doc.terrain.showContours = true;
+    doc.terrain.climateSamples = descriptor.cells
+      .filter(c => !c.isWater && Number.isFinite(c.annualTemperatureC))
+      .map(c => {
+        const [x, y] = toLocal(c.point);
+        return [x, y, c.elevationMeters, c.annualTemperatureC!] as [number, number, number, number];
+      });
   }
   const polyCells = (descriptor.cells ?? []).filter(c => c.polygon && c.polygon.length >= 3);
   doc.terrain.cellPolygons = polyCells.map(c => c.polygon!.map(toLocal));

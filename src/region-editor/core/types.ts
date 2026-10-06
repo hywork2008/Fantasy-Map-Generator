@@ -236,6 +236,22 @@ export interface RegionTerrain {
   cellBorderOrder?: "top" | "bottom";
   /** セル境界線の不透明度 0〜1（既定 0.6） */
   cellBorderOpacity?: number;
+  /** 高山の真上視点表現（陰影・落ち影・高度帯）を描くか。未設定は非表示。 */
+  showRelief?: boolean;
+  relief?: RegionReliefSettings;
+  /** FMG セルの気候サンプル [x, y, 標高 m, 年平均気温 °C]（ローカル座標）。高度帯の判定に使う。 */
+  climateSamples?: Array<[number, number, number, number]>;
+}
+
+export interface RegionReliefSettings {
+  /** 光源の方位（北から時計回り、既定 315 = 北西） */
+  sunAzimuthDeg?: number;
+  /** 光源の高度（既定 35°） */
+  sunAltitudeDeg?: number;
+  /** 陰影の垂直誇張（既定 3） */
+  verticalExaggeration?: number;
+  /** 斜め描きの峰シンボルを隠すか（既定 true） */
+  hideMountainSymbols?: boolean;
 }
 
 export interface RegionLandUsePatch extends LandUsePatchBudget {
