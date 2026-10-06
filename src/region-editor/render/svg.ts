@@ -4,6 +4,7 @@ import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { pointInPolygon } from "../core/geometry";
 import {
+  DEFAULT_FOREST_DENSITY_THRESHOLD,
   DEFAULT_RIVER_WIDTH_SCALE,
   DEFAULT_ROUTE_WIDTH_SCALE,
   DEFAULT_SETTLEMENT_ICON_SCALE,
@@ -25,7 +26,14 @@ import {
 } from "./biomeArt";
 import { generateCoastalRipples } from "./coastalRipples";
 import { extendRiversToCoast, smoothCoastlines, smoothLakeShore } from "./coastline";
-import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
+import { FOREST_KINDS, type ForestMass, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
+
+/** 直近の描画で作った森林塊（セル情報パネルが同じ密度を参照する）。森林が無い文書は null */
+const renderedForestMass = new WeakMap<RegionDocument, ForestMass | null>();
+export function forestMassOfRenderedDoc(doc: RegionDocument): ForestMass | null | undefined {
+  return renderedForestMass.get(doc);
+}
+
 import {
   isReliefBiome,
   obliqueSymbolSvg,
@@ -209,6 +217,7 @@ export function renderRegionSvg(
   const forestBiomes = doc.biomes.filter(b => isForestBiome(b.kind));
   const hasForest = forestBiomes.length > 0;
 
+  if (!hasForest) renderedForestMass.set(doc, null);
   let forestDefs = "";
   let forestLayer = "";
 
@@ -298,7 +307,13 @@ export function renderRegionSvg(
         .filter(p => wetlandPatchLevel(p) >= WETLAND_WATER_LEVEL)
         .map(p => p.polygon)
     ];
-    const mass = forestMassFor(doc.biomes, forestBiomes, forestWater);
+    const mass = forestMassFor(
+      doc.biomes,
+      forestBiomes,
+      forestWater,
+      doc.terrain.forestDensityThreshold ?? DEFAULT_FOREST_DENSITY_THRESHOLD
+    );
+    renderedForestMass.set(doc, mass);
     const outlineD = mass ? ringsToSvgPath(mass.outline) : "";
     if (outlineD) {
       forestDefs += `<clipPath id="re-forest-outline" clipPathUnits="userSpaceOnUse"><path d="${outlineD}" clip-rule="evenodd" /></clipPath>`;
@@ -1154,6 +1169,12 @@ export function renderRegionSvg(
       <g id="layer-labels">${labelsLayer}</g>
       ${cellBordersLayer.top}
       <g id="layer-decorations">${decorationLayer}</g>
+      ${(() => {
+        const cell = selectedId ? doc.biomes.find(b => b.id === selectedId) : undefined;
+        return cell
+          ? `<path id="re-selected-cell" d="${polyToSvgPath(cell.polygon)}" fill="rgba(212, 163, 115, 0.12)" stroke="#d4a373" stroke-width="2" vector-effect="non-scaling-stroke" stroke-dasharray="6,4" pointer-events="none" />`
+          : "";
+      })()}
       <g id="layer-brush-cursor">
         <circle id="re-brush-cursor" cx="-9999" cy="-9999" r="35" fill="rgba(212, 163, 115, 0.22)" stroke="#d4a373" stroke-width="2" stroke-dasharray="5,4" pointer-events="none" />
       </g>

@@ -12,6 +12,7 @@ import type {
   RegionSymbol,
   SymbolType
 } from "./types";
+import { DEFAULT_FOREST_DENSITY_THRESHOLD } from "./types";
 
 /**
  * シンボルを追加し、Y 座標順（北から南）で再ソートする
@@ -229,6 +230,15 @@ export function setCellBorderOrder(doc: RegionDocument, order: "top" | "bottom")
 export function setCellBorderOpacity(doc: RegionDocument, opacity: number): RegionDocument {
   const next = cloneRegionDocument(doc);
   next.terrain.cellBorderOpacity = Math.max(0, Math.min(1, opacity));
+  return next;
+}
+
+/** 森林塊として描く密度のしきい値（0.05〜0.95）を設定する */
+export function setForestDensityThreshold(doc: RegionDocument, threshold: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.forestDensityThreshold = Number.isFinite(threshold)
+    ? Math.max(0.05, Math.min(0.95, threshold))
+    : DEFAULT_FOREST_DENSITY_THRESHOLD;
   return next;
 }
 

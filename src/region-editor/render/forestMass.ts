@@ -1,5 +1,5 @@
 import { contours } from "d3";
-import type { Point, RegionBiomeArea } from "../core/types";
+import { DEFAULT_FOREST_DENSITY_THRESHOLD, type Point, type RegionBiomeArea } from "../core/types";
 
 /**
  * 森林塊（フォレストマス）。
@@ -21,6 +21,10 @@ export interface ForestMass {
   stock: Partial<Record<ForestKind, number>>;
   kinds: ForestKind[];
   bbox: [number, number, number, number];
+  /** この森林塊を切り出したしきい値 */
+  threshold: number;
+  /** 点でのぼかし後の森林密度（0〜1。範囲外は 0）。しきい値以上が森林塊 */
+  density(p: Point): number;
   /** 点が森林塊の内側ならその種類と蓄積率、外なら null */
   sample(p: Point): { kind: ForestKind; stock: number } | null;
 }
@@ -180,7 +184,11 @@ function dilate(src: Uint8Array, nx: number, ny: number, radius: number): Uint8A
  * water: 海・湖・開放水面のポリゴン。ぼかした森林がここへ広がらないよう、水域（＋格子 1 目の余白）で密度を 0 に切る。
  * 水辺の輪郭は丸めずに水際に沿わせ、内陸側の輪郭だけが滑らかに膨らむ。
  */
-export function buildForestMass(forestBiomes: RegionBiomeArea[], water: Point[][] = []): ForestMass | null {
+export function buildForestMass(
+  forestBiomes: RegionBiomeArea[],
+  water: Point[][] = [],
+  threshold = DEFAULT_FOREST_DENSITY_THRESHOLD
+): ForestMass | null {
   const sources = forestBiomes
     .map(b => ({
       kind: forestKindOf(b.kind),
@@ -258,7 +266,7 @@ export function buildForestMass(forestBiomes: RegionBiomeArea[], water: Point[][
   const stockField = blur(stockRaw, nx, ny, r);
 
   const minArea = step * step * 2;
-  const outline = traceContours(total, nx, ny, 0.5, x0, y0, step, minArea);
+  const outline = traceContours(total, nx, ny, threshold, x0, y0, step, minArea);
   const regions: ForestMass["regions"] = {};
   if (kinds.length === 1) regions[kinds[0]] = outline;
   else {
@@ -299,13 +307,20 @@ export function buildForestMass(forestBiomes: RegionBiomeArea[], water: Point[][
     regions,
     stock,
     kinds,
+    threshold,
     bbox: [x0, y0, x0 + nx * step, y0 + ny * step],
+    density(p) {
+      const gx = (p[0] - x0) / step - 0.5;
+      const gy = (p[1] - y0) / step - 0.5;
+      if (gx < 0 || gy < 0 || gx > nx - 1 || gy > ny - 1) return 0;
+      return at(total, gx, gy);
+    },
     sample(p) {
       const gx = (p[0] - x0) / step - 0.5;
       const gy = (p[1] - y0) / step - 0.5;
       if (gx < 0 || gy < 0 || gx > nx - 1 || gy > ny - 1) return null;
       const t = at(total, gx, gy);
-      if (t < 0.5) return null;
+      if (t < threshold) return null;
       const ni = Math.min(nx - 1, Math.round(gx));
       const nj = Math.min(ny - 1, Math.round(gy));
       if (waterNear[nj * nx + ni]) return null;
@@ -325,27 +340,29 @@ export function buildForestMass(forestBiomes: RegionBiomeArea[], water: Point[][
 
 const massCache = new WeakMap<
   RegionBiomeArea[],
-  { refs: RegionBiomeArea[]; polys: unknown[]; mass: ForestMass | null }
+  { refs: RegionBiomeArea[]; polys: unknown[]; threshold: number; mass: ForestMass | null }
 >();
 
 /** 同じ森林セル群なら前回の結果を再利用する（ズームごとの再描画で再計算しない） */
 export function forestMassFor(
   biomes: RegionBiomeArea[],
   forestBiomes: RegionBiomeArea[],
-  water: Point[][] = []
+  water: Point[][] = [],
+  threshold = DEFAULT_FOREST_DENSITY_THRESHOLD
 ): ForestMass | null {
   const polys = [...forestBiomes.map(b => b.forestPolygons ?? b.polygon), ...water];
   const hit = massCache.get(biomes);
   if (
     hit &&
+    hit.threshold === threshold &&
     hit.refs.length === forestBiomes.length &&
     hit.polys.length === polys.length &&
     hit.refs.every(b => forestBiomes.includes(b)) &&
     hit.polys.every((p, i) => p === polys[i])
   )
     return hit.mass;
-  const mass = buildForestMass(forestBiomes, water);
-  massCache.set(biomes, { refs: forestBiomes, polys, mass });
+  const mass = buildForestMass(forestBiomes, water, threshold);
+  massCache.set(biomes, { refs: forestBiomes, polys, threshold, mass });
   return mass;
 }
 

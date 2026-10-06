@@ -177,6 +177,9 @@ export type RegionTheme = "schley" | "perilous" | "parchment" | "monochrome" | "
 /** Illustrated テーマの配色プリセット */
 export type IllustratedPalette = "sepia" | "natural" | "lush" | "nordic";
 
+/** 森林塊とみなすぼかし後密度の既定しきい値 */
+export const DEFAULT_FOREST_DENSITY_THRESHOLD = 0.5;
+
 export interface RegionDecoration {
   theme: RegionTheme;
   /** Illustrated テーマの配色（未設定は sepia）。他テーマでは無視する。 */
@@ -243,6 +246,8 @@ export interface RegionTerrain {
   cellBorderOrder?: "top" | "bottom";
   /** セル境界線の不透明度 0〜1（既定 0.6） */
   cellBorderOpacity?: number;
+  /** 森林塊として描く密度のしきい値 0〜1（既定 0.5）。小さいほど疎な森も描かれる。マップ全体に適用 */
+  forestDensityThreshold?: number;
 }
 
 export interface RegionLandUsePatch extends LandUsePatchBudget {

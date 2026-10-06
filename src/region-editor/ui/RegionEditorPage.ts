@@ -9,6 +9,7 @@ import {
   removeSymbol,
   setCellBorderOpacity,
   setCellBorderOrder,
+  setForestDensityThreshold,
   setRiverWidthScale,
   setRouteWidthScale,
   setSettlementIconScale,
@@ -23,6 +24,7 @@ import {
 } from "../core/commands";
 import { generateStandaloneRegion } from "../core/gen/pipeline";
 import { generateVoronoiSandbox, MAX_SANDBOX_CELLS, SANDBOX_BIOMES } from "../core/gen/voronoiSandbox";
+import { pointInPolygon } from "../core/geometry";
 import { RegionHistory } from "../core/history";
 import {
   type BiomeKind,
@@ -41,8 +43,9 @@ import {
 import { exportRegionJson, exportRegionSvg, readRegionFile } from "../io/regionEditorFile";
 import { clearRegionSite } from "../io/siteStore";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
+import { describeCell } from "../render/cellInfo";
 import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
-import { renderRegionSvg, textScaleForZoom } from "../render/svg";
+import { forestMassOfRenderedDoc, renderRegionSvg, textScaleForZoom } from "../render/svg";
 
 /** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
 const SETTLEMENT_TYPE_OPTIONS: ReadonlyArray<readonly [string, string]> = [
@@ -81,7 +84,7 @@ export function mountRegionEditor(
   let stampType: SymbolType = "mountain_peak_major";
 
   let selectedId: string | null = null;
-  let selectedKind: "settlement" | "landmark" | "symbol" | "route" | "river" | null = null;
+  let selectedKind: "settlement" | "landmark" | "symbol" | "route" | "river" | "cell" | null = null;
 
   // 描画品質（表示のみの設定。文書には保存しない）
   const QUALITY_KEY = "re.renderQuality";
@@ -98,6 +101,8 @@ export function mountRegionEditor(
   let panY = 0;
   let isPanning = false;
   let isDraggingTool = false;
+  let downClientX = 0;
+  let downClientY = 0;
   let startX = 0;
   let startY = 0;
 
@@ -243,6 +248,10 @@ export function mountRegionEditor(
             <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="input-forest-threshold" title="ぼかし後の森林密度がこの値以上の所を森として描く。小さいほど疎な森も描かれる">森の密度しきい値</label>
+            <input type="number" id="input-forest-threshold" min="0.05" max="0.95" step="0.05" value="${history.current.terrain.forestDensityThreshold ?? 0.5}" style="width:60px;" />
+          </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="input-settlement-icon-scale">都市アイコン倍率</label>
             <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? DEFAULT_SETTLEMENT_ICON_SCALE}" style="width:60px;" />
           </div>
@@ -378,6 +387,8 @@ export function mountRegionEditor(
     if (selectBorderOrder) selectBorderOrder.value = doc.terrain.cellBorderOrder ?? "top";
     const inputBorderOpacity = root.querySelector<HTMLInputElement>("#input-cell-border-opacity");
     if (inputBorderOpacity) inputBorderOpacity.value = String(doc.terrain.cellBorderOpacity ?? 0.6);
+    const inputForestThreshold = root.querySelector<HTMLInputElement>("#input-forest-threshold");
+    if (inputForestThreshold) inputForestThreshold.value = String(doc.terrain.forestDensityThreshold ?? 0.5);
     const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
     if (checkCultivation) {
       checkCultivation.checked = doc.terrain.showCultivation === true;
@@ -571,7 +582,8 @@ export function mountRegionEditor(
   function updateSelectionPanel(): void {
     const doc = history.current;
     if (!selectedId) {
-      selectionContent.innerHTML = "地図上の集落、ダンジョン、シンボル、街道、河川をクリックして選択します。";
+      selectionContent.innerHTML =
+        "地図上の集落、ダンジョン、シンボル、街道、河川、またはセル（何もない所）をクリックして選択します。";
       return;
     }
 
@@ -728,6 +740,44 @@ export function mountRegionEditor(
       });
     }
 
+    if (selectedKind === "cell") {
+      const info = describeCell(doc, selectedId, forestMassOfRenderedDoc(doc));
+      if (!info) return;
+      const pct = (v: number | null | undefined): string =>
+        v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`;
+      const dens = (v: number | null): string => (v === null ? "—" : v.toFixed(2));
+      const landUseRows = info.landUse.length
+        ? info.landUse
+            .map(u => `<div>　${escapeHtml(u.kind)}: ${Math.round(u.areaHa).toLocaleString()} ha</div>`)
+            .join("")
+        : "<div>　なし</div>";
+      const forestRows = info.isForest
+        ? `
+          <div>森林被覆率 (forestCover): <strong>${info.forestCover ?? "—"}</strong> / 蓄積 (forestStock): ${info.forestStock !== undefined ? info.forestStock.toFixed(2) : "—"}</div>
+          <div>森林ポリゴン: ${info.forestPolygonCount} 個、実被覆 <strong>${pct(info.forestPolygonRatio)}</strong></div>
+          <div>ぼかし後の森林密度: 平均 <strong>${dens(info.meanDensity)}</strong> / 最大 ${dens(info.maxDensity)}</div>
+          <div>森として描かれる面積: <strong>${pct(info.drawnRatio)}</strong>（しきい値 ${info.threshold}）</div>
+          ${info.vanishes ? '<div style="color:#b5651d;">⚠ 森林ポリゴンがあるのに密度がしきい値に届かず、木が描かれません。しきい値を下げてください。</div>' : ""}`
+        : "<div>森林バイオームではありません（森林塊の判定対象外）。</div>";
+      selectionContent.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+          <div>セル: <strong>${info.cellId ?? escapeHtml(info.id)}</strong>（${escapeHtml(info.id)}）</div>
+          <div>バイオーム: <span class="re-badge">${escapeHtml(info.kind)}</span>${info.terrainKind ? ` / 地面: ${escapeHtml(info.terrainKind)}` : ""}</div>
+          <div>面積: ${Math.round(info.areaHa).toLocaleString()} ha</div>
+          ${forestRows}
+          <div>土地利用:</div>${landUseRows}
+          <div>集落: ${info.settlements.length ? info.settlements.map(escapeHtml).join("、") : "なし"}</div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
+            <label for="sel-forest-threshold" title="マップ全体に適用されます">森の密度しきい値（全体）</label>
+            <input type="number" id="sel-forest-threshold" min="0.05" max="0.95" step="0.05" value="${info.threshold}" style="width:60px;" />
+          </div>
+        </div>
+      `;
+      selectionContent.querySelector("#sel-forest-threshold")?.addEventListener("change", e => {
+        applyForestThreshold(Number((e.target as HTMLInputElement).value));
+      });
+    }
+
     if (selectedKind === "route") {
       const rt = doc.routes.find(item => item.id === selectedId);
       if (!rt) return;
@@ -768,6 +818,13 @@ export function mountRegionEditor(
         </div>
       `;
     }
+  }
+
+  /** 森の密度しきい値をマップ全体へ適用し、再描画してセル情報も更新する */
+  function applyForestThreshold(value: number): void {
+    history.push(setForestDensityThreshold(history.current, value));
+    renderMap();
+    updateSelectionPanel();
   }
 
   function getCanvasCoords(clientX: number, clientY: number): Point {
@@ -899,6 +956,8 @@ export function mountRegionEditor(
   });
 
   viewport.addEventListener("mousedown", e => {
+    downClientX = e.clientX;
+    downClientY = e.clientY;
     if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
       // 中クリック or Shift+クリックでパン
       isPanning = true;
@@ -1105,6 +1164,23 @@ export function mountRegionEditor(
   };
   bindWidthScale("#input-route-width-scale", setRouteWidthScale);
   bindWidthScale("#input-river-width-scale", setRiverWidthScale);
+
+  // 森の密度しきい値
+  root.querySelector("#input-forest-threshold")?.addEventListener("change", e => {
+    applyForestThreshold(Number((e.target as HTMLInputElement).value));
+  });
+
+  // 選択ツールで何もない所をクリックしたらセルを選択（ドラッグでパンした後は無視）
+  viewport.addEventListener("click", e => {
+    if (activeTool !== "select" || e.button !== 0 || e.shiftKey) return;
+    if (Math.hypot(e.clientX - downClientX, e.clientY - downClientY) > 4) return;
+    const pt = getCanvasCoords(e.clientX, e.clientY);
+    const hit = history.current.biomes.find(b => pointInPolygon(pt, b.polygon));
+    selectedId = hit?.id ?? null;
+    selectedKind = hit ? "cell" : null;
+    renderMap();
+    updateSelectionPanel();
+  });
 
   // 等高線の標高注記切り替え
   root.querySelector("#check-show-contour-elevations")?.addEventListener("change", e => {
