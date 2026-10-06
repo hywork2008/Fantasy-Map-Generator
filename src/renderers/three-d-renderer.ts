@@ -473,8 +473,16 @@ class ThreeDModule {
 
   setSun(x: number, y: number, z: number): void {
     this.options.sun = { x, y, z };
-    this.spotLight!.position.set(x, y, z);
+    this.spotLight!.position.set(x, y, this.getHemisphereSunZ(z));
     this.render();
+  }
+
+  // Scene +z is south. The sun's stored z is the northern-hemisphere (south-side) value;
+  // on a southern-hemisphere map the sun stands to the north, so mirror it.
+  private getHemisphereSunZ(z: number): number {
+    const { latN, latS } = worldContext.mapCoordinates;
+    const isSouthern = latN !== undefined && latS !== undefined && (latN + latS) / 2 < 0;
+    return isSouthern ? -Math.abs(z) : z;
   }
 
   setRotation(speed: number): void {
@@ -703,7 +711,7 @@ class ThreeDModule {
     this.ambientLight = new THREE.AmbientLight(0xcccccc, this.options.lightness * Math.PI);
     this.scene.add(this.ambientLight);
     this.spotLight = new THREE.SpotLight(this.options.sunColor, 0.8 * Math.PI, 2000, 0.8, 0, 0);
-    this.spotLight.position.set(this.options.sun.x, this.options.sun.y, this.options.sun.z);
+    this.spotLight.position.set(this.options.sun.x, this.options.sun.y, this.getHemisphereSunZ(this.options.sun.z));
     this.spotLight.castShadow = true;
     this.spotLight.shadow.mapSize.width = 2048;
     this.spotLight.shadow.mapSize.height = 2048;
