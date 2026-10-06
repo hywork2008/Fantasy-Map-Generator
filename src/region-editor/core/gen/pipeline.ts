@@ -354,7 +354,7 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     widthMeters: descriptor.extentMeters.width,
     heightMeters: descriptor.extentMeters.height,
     metersPerUnit: 100,
-    theme: "schley",
+    theme: "illustrated",
     treeDensity: 0.5,
     mountainDensity: 0.5
   };

@@ -332,7 +332,6 @@ type ThemeOverride = Partial<Omit<ThemeColors, "forestCanopy" | "biomes">> & {
  * 要素ごとの色相スライダーは組み合わせ次第で破綻しやすいので、調和を確認済みのプリセットに絞る。
  */
 export const ILLUSTRATED_PALETTES: Record<IllustratedPalette, { label: string; override: ThemeOverride }> = {
-  sepia: { label: "セピア（古地図）", override: {} },
   natural: {
     label: "ナチュラル（自然色）",
     override: {
@@ -378,6 +377,7 @@ export const ILLUSTRATED_PALETTES: Record<IllustratedPalette, { label: string; o
       }
     }
   },
+  sepia: { label: "セピア（古地図）", override: {} },
   lush: {
     label: "ビビッド（鮮やか）",
     override: {

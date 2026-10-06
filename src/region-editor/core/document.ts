@@ -20,6 +20,7 @@ export function createEmptyRegionDocument(settings: Partial<RegionGenerationSett
 
   const defaultDecoration: RegionDecoration = {
     theme: merged.theme,
+    ...(merged.theme === "illustrated" ? { illustratedPalette: "natural" as const } : {}),
     showCompassRose: true,
     compassPosition: [widthUnits - 80, 80],
     showScaleBar: true,

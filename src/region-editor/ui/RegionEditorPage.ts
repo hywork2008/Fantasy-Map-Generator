@@ -181,11 +181,11 @@ export function mountRegionEditor(
           <div class="re-form-row">
             <label>テーマ・様式 (Theme)</label>
             <select class="re-select" id="select-theme">
+              <option value="illustrated" ${history.current.decoration.theme === "illustrated" ? "selected" : ""}>Illustrated (鳥瞰の山と森)</option>
               <option value="schley" ${history.current.decoration.theme === "schley" ? "selected" : ""}>D&amp;D Sword Coast (Mike Schley)</option>
               <option value="perilous" ${history.current.decoration.theme === "perilous" ? "selected" : ""}>Perilous Shores (Watabou ペン画)</option>
               <option value="parchment" ${history.current.decoration.theme === "parchment" ? "selected" : ""}>Antique Parchment (羊皮紙調)</option>
               <option value="monochrome" ${history.current.decoration.theme === "monochrome" ? "selected" : ""}>Monochrome (白黒)</option>
-              <option value="illustrated" ${history.current.decoration.theme === "illustrated" ? "selected" : ""}>Illustrated (鳥瞰の山と森)</option>
             </select>
           </div>
           <div class="re-form-row" id="row-illustrated-palette" style="${history.current.decoration.theme === "illustrated" ? "" : "display:none"}">

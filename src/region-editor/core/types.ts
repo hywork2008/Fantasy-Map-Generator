@@ -410,7 +410,7 @@ export const DEFAULT_REGION_SETTINGS: RegionGenerationSettings = {
   widthMeters: 120_000, // 120km
   heightMeters: 80_000, // 80km
   metersPerUnit: 100, // 1 unit = 100m -> 1200 x 800 units
-  theme: "schley",
+  theme: "illustrated",
   treeDensity: 0.5,
   mountainDensity: 0.5
 };
