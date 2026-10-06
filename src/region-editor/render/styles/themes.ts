@@ -262,5 +262,62 @@ export const THEMES: Record<RegionTheme, ThemeColors> = {
       volcanic_rock: "#cfcfcf",
       volcanic_soil: "#dddddd"
     }
+  },
+
+  /** 斜め上から見た山・森を描く絵地図（Schley の Sword Coast / Watabou Perilous Shores 風） */
+  illustrated: {
+    background: "#e7d6ad",
+    ocean: "#9fb3b0",
+    oceanShallow: "#b6c5bd",
+    coastlineStroke: "#4b3f2e",
+    riverFill: "#8ea6a6",
+    riverStroke: "#3e4a46",
+    roadStroke: "#8a6440",
+    highwayStroke: "#5b3c20",
+    bridgeDeck: "#e4d6b6",
+    bridgeRail: "#4a3525",
+    borderStroke: "#3a2a1a",
+    textPrimary: "#2e2014",
+    textSecondary: "#4c3b2a",
+    textWater: "#f1ede2",
+    mountainFill: "#8b8794",
+    mountainHighlight: "#dcd6cc",
+    mountainStroke: "#3a3230",
+    hillFill: "#d4c193",
+    treeFill: "#6b7440",
+    treeStroke: "#2f3418",
+    settlementFill: "#8a3324",
+    settlementStroke: "#2b140f",
+    landmarkFill: "#59365c",
+    contourStroke: "#a8916a",
+    contourIndexStroke: "#6e5838",
+    forestCanopy: {
+      deciduous: "#6f7a3f",
+      coniferous: "#4f5f37",
+      tropical: "#5f7a38",
+      shadow: "#2c3317",
+      highlight: "#a3ad68",
+      stroke: "#262b12"
+    },
+    biomes: {
+      ocean: "#9fb3b0",
+      grassland: "#e2d1a2",
+      deciduous_forest: "#c9c08c",
+      coniferous_forest: "#bdb88a",
+      tropical_forest: "#b9b67e",
+      savanna: "#e6d29c",
+      woodland_scrub: "#d6cb96",
+      hills: "#ddc999",
+      mountains: "#d2c5a6",
+      snow_mountains: "#e2dfd6",
+      glacier: "#eceae4",
+      swamp: "#b5b483",
+      marsh: "#bdbb8c",
+      desert: "#ecdcae",
+      tundra: "#d8cfb6",
+      badlands: "#d6b98c",
+      volcanic_rock: "#6a5d55",
+      volcanic_soil: "#8a7563"
+    }
   }
 };

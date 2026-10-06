@@ -20,6 +20,7 @@
   - Perilous Shores (Watabou 様式: ミニマルなペン画・木版画調)
   - Antique Parchment (古文書風セピア調)
   - Monochrome (白黒ペン画)
+  - Illustrated (斜め上から見た山並み・立ち木を敷き詰める絵地図。山岳・丘陵バイオームに標高連動の山を自動配置)
 - **集落の選択と都市エディタ（CE）連携**:
   - 地図上の都市・町・村をクリックすると、詳細情報が表示され、「City Editor (CE) で開く」ボタンからシームレスに都市内部の街路・街区マップを開くことができる。
 - **直角橋（Perpendicular Bridge）原則の遵守**:

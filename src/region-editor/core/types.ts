@@ -172,7 +172,7 @@ export interface RegionLabel {
   curvaturePoints?: Point[];
 }
 
-export type RegionTheme = "schley" | "perilous" | "parchment" | "monochrome";
+export type RegionTheme = "schley" | "perilous" | "parchment" | "monochrome" | "illustrated";
 
 export interface RegionDecoration {
   theme: RegionTheme;

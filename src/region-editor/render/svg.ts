@@ -19,6 +19,13 @@ import {
 import { generateCoastalRipples } from "./coastalRipples";
 import { extendRiversToCoast, smoothCoastlines, smoothLakeShore } from "./coastline";
 import { FOREST_KINDS, forestKindOf, forestMassFor, ringsToSvgPath } from "./forestMass";
+import {
+  isReliefBiome,
+  obliqueSymbolSvg,
+  obliqueTreeDefs,
+  renderObliqueForest,
+  renderObliqueRelief
+} from "./obliqueArt";
 import { renderSettlementIcon } from "./styles/settlementIcons";
 import { SYMBOL_DEFINITIONS } from "./styles/symbols";
 import { THEMES } from "./styles/themes";
@@ -153,6 +160,8 @@ export function renderRegionSvg(
   const riverScale = Math.max(0.5, doc.decoration.riverWidthScale ?? 1);
   const themeName = doc.decoration.theme;
   const theme = THEMES[themeName] ?? THEMES.schley;
+  // 斜め見下ろしの絵地図: 森は立ち木のスプライト、山岳・丘陵バイオームには山並みを敷き詰める
+  const oblique = themeName === "illustrated";
 
   // 海岸線: 断片を連結し FMG と同じ B スプラインで丸める。直線のセル境界と曲線の間は辺ごとのパッチで塗り分ける
   // 海向けの港を持つ集落の岸壁は、丸めで陸側へ引っ込まないよう頂点を残す
@@ -268,7 +277,7 @@ export function renderRegionSvg(
         ${routesClearing}
         ${landUseClearing}
       </mask>
-      ${highQuality ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors, mapAreaKm2)).join("\n")}
+      ${highQuality || oblique ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors, mapAreaKm2)).join("\n")}
     `;
 
     // 隣接する森林セルを 1 つの森林塊にまとめ、セル頂点の角を持たない滑らかな外形で描く
@@ -305,20 +314,27 @@ export function renderRegionSvg(
         return `<path class="forest-canopy-cell ${biomeClasses.join(" ")}" data-kind="${kind}" d="${d}" fill="${color}" fill-rule="evenodd" opacity="${(0.5 + stock * 0.5).toFixed(2)}" stroke="${color}" stroke-width="0.6" stroke-linejoin="round" />`;
       })
       .join("\n");
-    const forestPatterns = highQuality
-      ? ""
-      : kindRegions
-          .map(
-            ({ kind, d }) =>
-              `<path class="forest-pattern-overlay" d="${d}" fill="url(#re-forest-crowns-${kind})" fill-rule="evenodd" />`
-          )
-          .join("\n");
+    const forestPatterns =
+      highQuality || oblique
+        ? ""
+        : kindRegions
+            .map(
+              ({ kind, d }) =>
+                `<path class="forest-pattern-overlay" d="${d}" fill="url(#re-forest-crowns-${kind})" fill-rule="evenodd" />`
+            )
+            .join("\n");
 
     forestLayer = outlineD
       ? `
       <g class="re-forest-layer" id="re-forest-layer" mask="url(#re-forest-clearing-mask)">
         <g class="re-forest-floor" clip-path="url(#re-forest-outline)">${forestFloor}${forestPatterns}</g>
-        ${highQuality && mass ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2) : ""}
+        ${
+          mass && oblique
+            ? renderObliqueForest(mass, detail, mapAreaKm2)
+            : highQuality && mass
+              ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2)
+              : ""
+        }
       </g>
     `
       : "";
@@ -891,8 +907,19 @@ export function renderRegionSvg(
     })
     .join("\n");
 
+  const reliefLayer = oblique
+    ? renderObliqueRelief(doc.biomes, doc.terrain.heightfield, widthUnits, heightUnits, theme, detail, mapAreaKm2)
+    : "";
+
   // 8. 地勢シンボル（山岳、丘陵、樹木、湿地等）
+  const reliefBiomes = oblique ? doc.biomes.filter(isReliefBiome) : [];
   const symbolsLayer = doc.symbols
+    .filter(
+      sym =>
+        !reliefBiomes.length ||
+        !(sym.type.startsWith("mountain") || sym.type.startsWith("hill")) ||
+        !reliefBiomes.some(b => pointInPolygon([sym.x, sym.y], b.polygon))
+    )
     .filter(
       sym =>
         !sym.type.startsWith("tree") ||
@@ -925,7 +952,7 @@ export function renderRegionSvg(
           : theme.mountainStroke;
       const isSel = sym.id === selectedId;
 
-      const innerSvg = def.renderSvg(fill, stroke, highlight);
+      const innerSvg = (oblique && obliqueSymbolSvg(sym.type, theme)) || def.renderSvg(fill, stroke, highlight);
       return `
         <g class="map-symbol ${isSel ? "selected" : ""}" transform="translate(${sym.x.toFixed(2)}, ${sym.y.toFixed(2)}) scale(${sym.scale.toFixed(2)})" data-kind="symbol" data-id="${sym.id}">
           ${innerSvg}
@@ -1067,6 +1094,7 @@ export function renderRegionSvg(
       <g id="layer-coastal-habitats">${coastalHabitatsLayer}</g>
       <g id="layer-coastlines">${coastlinesLayer}${lakesLayer}</g>
       <defs>
+        ${oblique ? obliqueTreeDefs(theme.forestCanopy) : ""}
         ${FIELD_ANGLES.map(
           (
             angle,
@@ -1109,6 +1137,7 @@ export function renderRegionSvg(
         })
         .join("\n")}</g>
       ${biomeCellsSvg || `<g id="layer-forests">${forestLayer}</g>`}
+      ${reliefLayer ? `<g id="layer-relief">${reliefLayer}</g>` : ""}
       <g id="layer-rivers">${riversLayer}</g>
       <g id="layer-routes">${routesLayer}</g>
       <g id="layer-bridges">${bridgesLayer}</g>

@@ -180,6 +180,7 @@ export function mountRegionEditor(
               <option value="perilous" ${history.current.decoration.theme === "perilous" ? "selected" : ""}>Perilous Shores (Watabou ペン画)</option>
               <option value="parchment" ${history.current.decoration.theme === "parchment" ? "selected" : ""}>Antique Parchment (羊皮紙調)</option>
               <option value="monochrome" ${history.current.decoration.theme === "monochrome" ? "selected" : ""}>Monochrome (白黒)</option>
+              <option value="illustrated" ${history.current.decoration.theme === "illustrated" ? "selected" : ""}>Illustrated (鳥瞰の山と森)</option>
             </select>
           </div>
           <div class="re-form-row">
