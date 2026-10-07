@@ -284,6 +284,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       ...(hasRegisteredLandArchive && worldContext.options.registeredLandConnectionUnit
         ? { distanceUnit: worldContext.options.registeredLandConnectionUnit }
         : {}),
+      ...(worldContext.options.mapName ? { mapName: worldContext.options.mapName } : {}),
       seed: worldContext.seed,
       year: validated.document.simulation.currentYear,
       era: validated.document.simulation.era,

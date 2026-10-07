@@ -92,6 +92,8 @@ export interface WorldOptions {
    */
   axialTilt: number;
   stateLabelsMode: "auto" | "short" | "full";
+  /** Copy of the Options → Map name, stored for `.fmg` archives. */
+  mapName?: string;
   showBurgPreview: boolean;
   burgs: { groups: BurgGroup[] };
   /** Set by military generator on first use; undefined before first map generation */
