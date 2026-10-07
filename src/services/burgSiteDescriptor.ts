@@ -2,6 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
+import { Routes } from "../generators/routes-generator";
 import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import { drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import { useOptionsState } from "../store/optionsState";
@@ -1106,15 +1107,18 @@ function collectRouteLegs(burg: Burg): { route: Route; leg: [number, number, num
       continue;
     }
     if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
-    const index = route.points.findIndex(
+    // Follow the route as FMG draws it (cell-anchor snapped), not its raw stored points:
+    // a raw point can sit tens of degrees off the drawn bearing (Chateia burg 11).
+    const points = Routes.getRenderPoints(route, pack) as [number, number, number][];
+    const index = points.findIndex(
       point =>
         point[2] === burg.cell &&
         (!route.riverRoadConvergence || Math.hypot(point[0] - burg.x, point[1] - burg.y) < 1e-7)
     );
     if (index === -1) continue;
 
-    const forward = route.points.slice(index);
-    const backward = route.points.slice(0, index + 1).reverse();
+    const forward = points.slice(index);
+    const backward = points.slice(0, index + 1).reverse();
     if (forward.length >= 2) legs.push({ route, leg: forward });
     if (backward.length >= 2) legs.push({ route, leg: backward });
   }

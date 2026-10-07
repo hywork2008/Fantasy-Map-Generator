@@ -104,7 +104,9 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
   const seaTypes = allowedShipTypesForPeriod(period);
   const typesForWater = (faceId: Id): ShipType[] => {
     if (!document.waterAccess) return seaTypes; // Legacy/standalone documents.
-    return document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(faceId) ? seaTypes : ["small"];
+    if (document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(faceId)) return seaTypes;
+    // Inland water: sloops only where the town also has a sea port; river-only ports get barges.
+    return document.waterAccess.port?.sea ? ["small"] : ["barge"];
   };
 
   const rng = makeRng(`${document.generationSeed ?? "fmg"}:${seed}:ships`);
@@ -346,7 +348,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     }
 
     // 桟橋の長さ・水深・クリアランスに応じた船型ダウンサイジング
-    if (chosenType === "large" && (berth.pier.length < 24 || berth.pier.depth < 3.2 || berth.clearanceScore < 10)) {
+    if (chosenType === "large" && (berth.pier.length < 24 || berth.pier.depth < 3 || berth.clearanceScore < 10)) {
       chosenType = "medium";
     }
     if (chosenType === "medium" && (berth.pier.length < 14 || berth.clearanceScore < 7)) {
@@ -477,7 +479,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
       if (!allowedTypes.includes(chosenType)) {
         chosenType = allowedTypes[0];
       }
-      if (chosenType === "large" && depth < 3.5) {
+      if (chosenType === "large" && depth < 3) {
         chosenType = "medium";
       }
       if (chosenType === "medium" && depth < 3.0) {
