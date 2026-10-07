@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32" width="500" height="500">
+  <style>
+    .ce-stupa-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-stupa-ground { fill: #c7beab; stroke: #423928; stroke-width: 0.6px; }
+    .ce-stupa-railing { fill: #ab9f8a; stroke: #423928; stroke-width: 0.5px; }
+    .ce-stupa-torana { fill: #d68744; stroke: #542d0a; stroke-width: 0.55px; }
+    .ce-stupa-terrace { fill: #dfd7c7; stroke: #423928; stroke-width: 0.6px; }
+    .ce-stupa-anda { fill: #f2eee4; stroke: #423928; stroke-width: 0.7px; }
+    .ce-stupa-anda-highlight { fill: #ffffff; }
+    .ce-stupa-anda-shade { fill: #d6cebf; }
+    .ce-stupa-harmika { fill: #dfa83d; stroke: #523b0d; stroke-width: 0.5px; }
+    .ce-stupa-chhatra { fill: #c28827; stroke: #472f07; stroke-width: 0.45px; }
+    .ce-stupa-chhatra-finial { fill: #e6b747; stroke: #472f07; stroke-width: 0.4px; }
+    .ce-bodhi-tree { fill: #2c592b; stroke: #122912; stroke-width: 0.45px; }
+    .ce-bodhi-shadow { fill: rgba(18, 22, 25, 0.36); }
+  </style>
+  <g class="ce-landmark ce-landmark--buddhist-stupa" transform="translate(0 0) rotate(0)">
+    <!-- 落ち影 (Ground Shadow) -->
+    <g class="ce-stupa-shadow" transform="translate(1.1 1.3)">
+      <circle cx="0" cy="0" r="12.2"></circle>
+      <rect x="-14.5" y="-1.5" width="29" height="3"></rect>
+      <rect x="-1.5" y="-14.5" width="3" height="29"></rect>
+    </g>
+
+    <!-- 石造外周玉垣（Vedika / Stone Railing）と右繞回廊 -->
+    <g class="ce-stupa-ground">
+      <circle cx="0" cy="0" r="12.2"></circle>
+    </g>
+
+    <!-- 菩提樹の聖樹（北西角に配置） -->
+    <g>
+      <ellipse cx="-11" cy="-10.5" rx="2" ry="1.5" class="ce-bodhi-shadow" transform="translate(0.6 0.7)"></ellipse>
+      <circle cx="-11" cy="-10.5" r="2.4" class="ce-bodhi-tree"></circle>
+      <circle cx="-11.4" cy="-10.8" r="1.3" fill="#468045"></circle>
+      <circle cx="-10.8" cy="-10.3" r="0.8" fill="#67a665"></circle>
+    </g>
+
+    <!-- 玉垣の石柱列 (Vedika Pillars) 半径 12m -->
+    <g class="ce-stupa-railing">
+      <circle cx="0" cy="0" r="12.2" fill="none" stroke="#423928" stroke-width="0.7"></circle>
+      <circle cx="0" cy="0" r="11.4" fill="none" stroke="#423928" stroke-width="0.5"></circle>
+      <!-- 周回歩道（右繞道 / Pradaksina-patha）床面 -->
+      <circle cx="0" cy="0" r="11.3" fill="#ded7c5" stroke="none"></circle>
+    </g>
+
+    <!-- 四方のトラーナ門（Torana Ceremonial Gateways）東・南・西・北 -->
+    <g class="ce-stupa-torana">
+      <!-- 南門（South Torana - 主入口） -->
+      <rect x="-2.6" y="11" width="5.2" height="1.6" rx="0.3"></rect>
+      <circle cx="-2" cy="11.8" r="0.4" fill="#6e3507"></circle>
+      <circle cx="2" cy="11.8" r="0.4" fill="#6e3507"></circle>
+      <line x1="-3.2" y1="12.6" x2="3.2" y2="12.6" stroke="#542d0a" stroke-width="0.6" stroke-linecap="round"></line>
+
+      <!-- 北門（North Torana） -->
+      <rect x="-2.6" y="-12.6" width="5.2" height="1.6" rx="0.3"></rect>
+      <circle cx="-2" cy="-11.8" r="0.4" fill="#6e3507"></circle>
+      <circle cx="2" cy="-11.8" r="0.4" fill="#6e3507"></circle>
+      <line x1="-3.2" y1="-12.6" x2="3.2" y2="-12.6" stroke="#542d0a" stroke-width="0.6" stroke-linecap="round"></line>
+
+      <!-- 東門（East Torana） -->
+      <rect x="11" y="-2.6" width="1.6" height="5.2" rx="0.3"></rect>
+      <circle cx="11.8" cy="-2" r="0.4" fill="#6e3507"></circle>
+      <circle cx="11.8" cy="2" r="0.4" fill="#6e3507"></circle>
+      <line x1="12.6" y1="-3.2" x2="12.6" y2="3.2" stroke="#542d0a" stroke-width="0.6" stroke-linecap="round"></line>
+
+      <!-- 西門（West Torana） -->
+      <rect x="-12.6" y="-2.6" width="1.6" height="5.2" rx="0.3"></rect>
+      <circle cx="-11.8" cy="-2" r="0.4" fill="#6e3507"></circle>
+      <circle cx="-11.8" cy="2" r="0.4" fill="#6e3507"></circle>
+      <line x1="-12.6" y1="-3.2" x2="-12.6" y2="3.2" stroke="#542d0a" stroke-width="0.6" stroke-linecap="round"></line>
+    </g>
+
+    <!-- 一段高い円形基壇（Medhi / Drum Terrace）半径 9m -->
+    <g class="ce-stupa-terrace">
+      <circle cx="0" cy="0" r="9.2"></circle>
+      <circle cx="0" cy="0" r="8.7" fill="#ece6d8" stroke="#423928" stroke-width="0.5"></circle>
+      <!-- 南側テラスへの登り階段 -->
+      <rect x="-1.2" y="8.6" width="2.4" height="1.8" fill="#bfae95" stroke="#423928" stroke-width="0.4"></rect>
+      <line x1="-1.2" y1="9.2" x2="1.2" y2="9.2" stroke="#423928" stroke-width="0.3"></line>
+      <line x1="-1.2" y1="9.8" x2="1.2" y2="9.8" stroke="#423928" stroke-width="0.3"></line>
+    </g>
+
+    <!-- 白漆喰の半球形大ドーム（Anda / 卵）半径 7.5m -->
+    <g class="ce-stupa-anda">
+      <circle cx="0" cy="0" r="7.6"></circle>
+      <!-- ドームの陰影（北西からの光芒） -->
+      <path d="M -5.37 -5.37 A 7.6 7.6 0 0 1 5.37 -5.37 L 0 0 Z" class="ce-stupa-anda-highlight"></path>
+      <path d="M 5.37 -5.37 A 7.6 7.6 0 0 1 7.6 0 L 0 0 Z" fill="#eae4d5"></path>
+      <path d="M 7.6 0 A 7.6 7.6 0 0 1 5.37 5.37 L 0 0 Z" class="ce-stupa-anda-shade"></path>
+      <path d="M 5.37 5.37 A 7.6 7.6 0 0 1 -5.37 5.37 L 0 0 Z" fill="#c4bcab"></path>
+      <path d="M -5.37 5.37 A 7.6 7.6 0 0 1 -7.6 0 L 0 0 Z" fill="#d8d1c2"></path>
+      <path d="M -7.6 0 A 7.6 7.6 0 0 1 -5.37 -5.37 L 0 0 Z" fill="#fcf9f2"></path>
+      <circle cx="0" cy="0" r="7.6" fill="none" stroke="#423928" stroke-width="0.7"></circle>
+      <!-- 外周の花輪装飾レリーフ -->
+      <circle cx="0" cy="0" r="6.8" fill="none" stroke="#c9bfac" stroke-width="0.5" stroke-dasharray="1.2 0.8"></circle>
+    </g>
+
+    <!-- ドーム頂部の方形平頭壇（Harmika / 聖なる箱） -->
+    <g class="ce-stupa-harmika">
+      <rect x="-1.8" y="-1.8" width="3.6" height="3.6" rx="0.25"></rect>
+      <!-- 平頭の木製柵欄装飾 -->
+      <rect x="-1.5" y="-1.5" width="3" height="3" fill="#f0be4d" stroke="#523b0d" stroke-width="0.4"></rect>
+      <line x1="-1.5" y1="0" x2="1.5" y2="0" stroke="#523b0d" stroke-width="0.3"></line>
+      <line x1="0" y1="-1.5" x2="0" y2="1.5" stroke="#523b0d" stroke-width="0.3"></line>
+    </g>
+
+    <!-- 三層の傘蓋・天蓋（Chhatravali）と中心心柱（Yasti） -->
+    <g class="ce-stupa-chhatra">
+      <!-- 下層傘蓋（大）直径 2.4m -->
+      <circle cx="0" cy="0" r="1.3"></circle>
+      <!-- 中層傘蓋（中）直径 1.8m -->
+      <circle cx="0" cy="0" r="0.95" fill="#d9992c"></circle>
+      <!-- 上層傘蓋（小）直径 1.2m -->
+      <circle cx="0" cy="0" r="0.6" fill="#f0b643"></circle>
+      <!-- 中心尖塔フィニアル（珠 / Jewel） -->
+      <circle cx="0" cy="0" r="0.3" class="ce-stupa-chhatra-finial"></circle>
+      <circle cx="-0.08" cy="-0.08" r="0.12" fill="#fff5cc"></circle>
+    </g>
+  </g>
+</svg>

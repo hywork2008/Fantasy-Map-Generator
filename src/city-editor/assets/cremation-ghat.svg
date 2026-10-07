@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -12 30 24" width="500" height="400">
+  <style>
+    .ce-ghat-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-ghat-terrace { fill: #c9bea9; stroke: #423825; stroke-width: 0.6px; }
+    .ce-ghat-step { fill: #bab09b; stroke: #423825; stroke-width: 0.4px; }
+    .ce-ghat-water-edge { fill: #204359; stroke: #142d3d; stroke-width: 0.7px; }
+    .ce-ghat-pyre-pit { fill: #332b20; stroke: #1a1610; stroke-width: 0.5px; }
+    .ce-ghat-wood { fill: #8a572a; stroke: #42250d; stroke-width: 0.35px; }
+    .ce-ghat-fire { fill: #ff4d15; }
+    .ce-ghat-fire-core { fill: #ffca28; }
+    .ce-ghat-shrine { fill: #ba6f38; stroke: #52290d; stroke-width: 0.55px; }
+    .ce-ghat-shrine-roof { fill: #8c4718; stroke: #421e06; stroke-width: 0.45px; }
+    .ce-ghat-umbrella { fill: #dfc88a; stroke: #54441b; stroke-width: 0.4px; }
+    .ce-ghat-woodyard { fill: #6e441f; stroke: #38200b; stroke-width: 0.4px; }
+  </style>
+  <g class="ce-landmark ce-landmark--cremation-ghat" transform="translate(0 0) rotate(0)">
+    <!-- 落ち影 (Ground Shadow) -->
+    <g class="ce-ghat-shadow" transform="translate(0.8 1.1)">
+      <rect x="-13" y="-10" width="26" height="15" rx="0.5"></rect>
+    </g>
+
+    <!-- 最上段テラス敷石（陸側・ストリートレベル） y = -10 to -5 -->
+    <g class="ce-ghat-terrace">
+      <rect x="-13" y="-10" width="26" height="5.5" rx="0.4"></rect>
+      <!-- 石畳ライン -->
+      <line x1="-13" y1="-7.5" x2="13" y2="-7.5" stroke="#aba08a" stroke-width="0.3"></line>
+    </g>
+
+    <!-- 薪の集積土場 (Woodyard Storage) 西側 -->
+    <g class="ce-ghat-woodyard">
+      <rect x="-12.2" y="-9.4" width="5.8" height="3.8" rx="0.3"></rect>
+      <!-- 積み上げられた丸太・薪束の表現 -->
+      <line x1="-12" y1="-8.8" x2="-6.6" y2="-8.8" stroke="#4a2c13" stroke-width="0.45"></line>
+      <line x1="-12" y1="-8.1" x2="-6.6" y2="-8.1" stroke="#4a2c13" stroke-width="0.45"></line>
+      <line x1="-12" y1="-7.4" x2="-6.6" y2="-7.4" stroke="#4a2c13" stroke-width="0.45"></line>
+      <line x1="-12" y1="-6.7" x2="-6.6" y2="-6.7" stroke="#4a2c13" stroke-width="0.45"></line>
+      <line x1="-12" y1="-6.0" x2="-6.6" y2="-6.0" stroke="#4a2c13" stroke-width="0.45"></line>
+    </g>
+
+    <!-- 聖なる火種を祀る石造小祠堂 (Sacred Flame Temple Shrine) 東側 -->
+    <g class="ce-ghat-shrine">
+      <rect x="7" y="-9.2" width="3.8" height="3.8" rx="0.3"></rect>
+      <!-- シカラ型屋根スライス（ピラミッド段状） -->
+      <polygon points="7,-9.2 10.8,-9.2 8.9,-7.3" class="ce-ghat-shrine-roof"></polygon>
+      <polygon points="7,-9.2 7,-5.4 8.9,-7.3" fill="#a15622"></polygon>
+      <polygon points="10.8,-9.2 10.8,-5.4 8.9,-7.3" fill="#6e350f"></polygon>
+      <polygon points="7,-5.4 10.8,-5.4 8.9,-7.3" fill="#8c4718"></polygon>
+      <circle cx="8.9" cy="-7.3" r="0.4" fill="#dfa83d" stroke="#523b0d" stroke-width="0.3"></circle>
+      <!-- 祠堂の聖なる火 -->
+      <circle cx="8.9" cy="-5" r="0.35" fill="#ff5722"></circle>
+      <circle cx="8.9" cy="-5" r="0.18" fill="#ffeb3b"></circle>
+    </g>
+
+    <!-- 司祭・遺族の日除け布傘 (Chattri / Ceremonial Umbrellas) -->
+    <g>
+      <circle cx="2" cy="-7.5" r="1.3" class="ce-ghat-umbrella"></circle>
+      <line x1="2" y1="-8.8" x2="2" y2="-6.2" stroke="#54441b" stroke-width="0.35"></line>
+      <line x1="0.7" y1="-7.5" x2="3.3" y2="-7.5" stroke="#54441b" stroke-width="0.35"></line>
+      <circle cx="2" cy="-7.5" r="0.25" fill="#54441b"></circle>
+
+      <circle cx="-2.5" cy="-7.5" r="1.3" class="ce-ghat-umbrella"></circle>
+      <line x1="-2.5" y1="-8.8" x2="-2.5" y2="-6.2" stroke="#54441b" stroke-width="0.35"></line>
+      <line x1="-3.8" y1="-7.5" x2="-1.2" y2="-7.5" stroke="#54441b" stroke-width="0.35"></line>
+      <circle cx="-2.5" cy="-7.5" r="0.25" fill="#54441b"></circle>
+    </g>
+
+    <!-- 中段石造階段（広大な階段状ステップ） y = -4.5 to 5 -->
+    <g class="ce-ghat-step">
+      <rect x="-13" y="-4.5" width="26" height="1.5"></rect>
+      <rect x="-13" y="-3.0" width="26" height="1.5"></rect>
+      <rect x="-13" y="-1.5" width="26" height="1.5"></rect>
+      <rect x="-13" y="0.0" width="26" height="1.5"></rect>
+      <rect x="-13" y="1.5" width="26" height="1.5"></rect>
+      <rect x="-13" y="3.0" width="26" height="1.5"></rect>
+      <rect x="-13" y="4.5" width="26" height="1.5"></rect>
+    </g>
+
+    <!-- 4基の火葬壇プラットフォーム (Active Cremation Pyres) -->
+    <!-- 火葬壇 1: 西側上段 -->
+    <g transform="translate(-7, -0.5)">
+      <rect x="-2" y="-1.5" width="4" height="3" class="ce-ghat-pyre-pit" rx="0.2"></rect>
+      <!-- 組まれた薪 -->
+      <rect x="-1.7" y="-1.2" width="3.4" height="2.4" class="ce-ghat-wood"></rect>
+      <line x1="-1.7" y1="-0.6" x2="1.7" y2="-0.6" stroke="#42250d" stroke-width="0.35"></line>
+      <line x1="-1.7" y1="0.0" x2="1.7" y2="0.0" stroke="#42250d" stroke-width="0.35"></line>
+      <line x1="-1.7" y1="0.6" x2="1.7" y2="0.6" stroke="#42250d" stroke-width="0.35"></line>
+      <!-- 炎のハイライト -->
+      <ellipse cx="0" cy="0" rx="1.1" ry="0.8" class="ce-ghat-fire"></ellipse>
+      <ellipse cx="0" cy="0" rx="0.6" ry="0.4" class="ce-ghat-fire-core"></ellipse>
+    </g>
+
+    <!-- 火葬壇 2: 中央西寄り -->
+    <g transform="translate(-2, 1.5)">
+      <rect x="-2" y="-1.5" width="4" height="3" class="ce-ghat-pyre-pit" rx="0.2"></rect>
+      <rect x="-1.7" y="-1.2" width="3.4" height="2.4" class="ce-ghat-wood"></rect>
+      <line x1="-1.7" y1="-0.6" x2="1.7" y2="-0.6" stroke="#42250d" stroke-width="0.35"></line>
+      <line x1="-1.7" y1="0.0" x2="1.7" y2="0.0" stroke="#42250d" stroke-width="0.35"></line>
+      <line x1="-1.7" y1="0.6" x2="1.7" y2="0.6" stroke="#42250d" stroke-width="0.35"></line>
+      <!-- 激しい炎 -->
+      <polygon points="0,-1.2 0.8,-0.2 1.3,0.5 0.5,0.9 -0.6,0.8 -1.2,0.2 -0.7,-0.6" class="ce-ghat-fire"></polygon>
+      <ellipse cx="0" cy="0" rx="0.7" ry="0.5" class="ce-ghat-fire-core"></ellipse>
+    </g>
+
+    <!-- 火葬壇 3: 中央東寄り -->
+    <g transform="translate(3, -0.5)">
+      <rect x="-2" y="-1.5" width="4" height="3" class="ce-ghat-pyre-pit" rx="0.2"></rect>
+      <rect x="-1.7" y="-1.2" width="3.4" height="2.4" class="ce-ghat-wood"></rect>
+      <line x1="-1.7" y1="-0.6" x2="1.7" y2="-0.6" stroke="#42250d" stroke-width="0.35"></line>
+      <line x1="-1.7" y1="0.0" x2="1.7" y2="0.0" stroke="#42250d" stroke-width="0.35"></line>
+      <line x1="-1.7" y1="0.6" x2="1.7" y2="0.6" stroke="#42250d" stroke-width="0.35"></line>
+      <!-- 準備された白布で包まれた遺体（白布シュラウド） -->
+      <rect x="-1.2" y="-0.4" width="2.4" height="0.8" rx="0.3" fill="#f5f0e4" stroke="#8a7c65" stroke-width="0.3"></rect>
+      <circle cx="-1" cy="0" r="0.25" fill="#f5f0e4"></circle>
+    </g>
+
+    <!-- 火葬壇 4: 東側下段（燃え尽きた灰と残り火） -->
+    <g transform="translate(8, 2)">
+      <rect x="-2" y="-1.5" width="4" height="3" class="ce-ghat-pyre-pit" rx="0.2"></rect>
+      <!-- 黒い灰と残り火 -->
+      <rect x="-1.7" y="-1.2" width="3.4" height="2.4" fill="#24201c" stroke="#12100e" stroke-width="0.3"></rect>
+      <ellipse cx="0" cy="0" rx="0.5" ry="0.3" fill="#ff5722" opacity="0.7"></ellipse>
+    </g>
+
+    <!-- 水辺に没する最下段ステップ群 y = 6 to 9 -->
+    <g class="ce-ghat-step">
+      <rect x="-13" y="6.0" width="26" height="1.2" fill="#9e9482"></rect>
+      <rect x="-13" y="7.2" width="26" height="1.2" fill="#807869"></rect>
+      <rect x="-13" y="8.4" width="26" height="1.2" fill="#615a4e"></rect>
+    </g>
+
+    <!-- 聖なる大河の水面（ガンジス川 / 聖水） y = 9.6 to 12 -->
+    <g class="ce-ghat-water-edge">
+      <rect x="-13" y="9.6" width="26" height="2.4"></rect>
+      <!-- 水面の反射・波紋 -->
+      <line x1="-12" y1="10.2" x2="-4" y2="10.2" stroke="#356685" stroke-width="0.4" stroke-linecap="round"></line>
+      <line x1="-2" y1="10.6" x2="6" y2="10.6" stroke="#356685" stroke-width="0.4" stroke-linecap="round"></line>
+      <line x1="8" y1="10.2" x2="12" y2="10.2" stroke="#356685" stroke-width="0.4" stroke-linecap="round"></line>
+      <!-- 流される聖なる花輪（マリーゴールド） -->
+      <circle cx="-5" cy="10.8" r="0.25" fill="#ff9800"></circle>
+      <circle cx="1" cy="11.2" r="0.25" fill="#ff9800"></circle>
+      <circle cx="9" cy="10.7" r="0.25" fill="#ff9800"></circle>
+    </g>
+  </g>
+</svg>
