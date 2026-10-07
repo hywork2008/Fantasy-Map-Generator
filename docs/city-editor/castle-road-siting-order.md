@@ -1,6 +1,6 @@
 # City Editor — 城と街道の配置順序の再設計
 
-作成日: 2026-10-07。状態: **設計案（未実装）**。
+作成日: 2026-10-07。状態: **実装済み（2026-10-07）**。地形採点・中央型の H5 経路加点は未実装。
 
 叩き台: [FMG連携の地形・バイオーム要素調査](temp/survey/factors.md) §2、[地形防御を活用した城郭配置設計](topography-driven-citadel-placement.md)。
 関連: [城と城壁の設計](castles-and-fortifications.md)、[城郭実装記録](castles-implementation.md)、[生成処理の対応](generation-process.md)。

@@ -245,8 +245,10 @@ describe("FMG harbour-site regression — Shiqsh", () => {
     });
     // One source road enters an unbridgeable channel. The previous successful
     // roll silently replaced it with a radial exit on another side of town.
+    // With the castle on the shore side (castle-road-siting-order.md H4),
+    // that road's gate is rejected at gate routing, before the road check.
     expect(city).toBeNull();
-    expect(failures).toContain("fmg-road-mismatch");
+    expect(failures.some(r => r === "fmg-road-mismatch" || r === "unconnected-gates")).toBe(true);
   });
 });
 

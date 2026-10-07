@@ -4,6 +4,7 @@
 // enclose, how to draw the line, whether to wall the sea front) is a separate
 // layer — see docs/city-generator/wall-patterns.md.
 
+import type { GateSector } from "./approachCorridors";
 import { placePlazaCluster } from "./civicPlacement";
 import {
   azimuthDelta,
@@ -214,7 +215,10 @@ export function placeGates(
   borders: BorderLoop[],
   geo: CityGeography,
   maxGates?: number,
-  eligiblePoint: (point: Point) => boolean = () => true
+  eligiblePoint: (point: Point) => boolean = () => true,
+  /** Outline arcs planned before the castle (approachCorridors.ts): a road's
+   * gate snaps inside its arc, at the point the road meets the outline. */
+  sectors?: GateSector[]
 ): Gate[] {
   if (!borders.length) return [];
 
@@ -274,7 +278,11 @@ export function placeGates(
       const bd = azimuthDelta(vecToAzimuth(b.point[0], b.point[1]), bearing);
       return ad - bd || Math.hypot(a.point[0], a.point[1]) - Math.hypot(b.point[0], b.point[1]);
     };
-    const choice = pool.slice().sort(byBearingMatch)[0];
+    const sector = sectors?.find(s => s.index === i);
+    const fromArrival = (c: Candidate) =>
+      sector ? Math.hypot(c.point[0] - sector.arrival[0], c.point[1] - sector.arrival[1]) : Infinity;
+    const inSector = sector ? pool.filter(c => fromArrival(c) <= sector.radiusMeters) : [];
+    const choice = (inSector.length ? inSector : pool).slice().sort(byBearingMatch)[0];
     gates.push({
       point: choice.point,
       borderIndex: choice.borderIndex,

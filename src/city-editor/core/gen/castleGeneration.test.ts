@@ -110,7 +110,10 @@ describe("Castle generation", () => {
       expect(doc).not.toBeNull();
       expect(validate(doc!)).toEqual([]);
       const area = Math.abs(polygonArea(circuitRing(doc!, doc!.defenseCircuits!.find(c => c.scope === "castle")!)));
-      expect(area).toBeGreaterThanOrEqual(5000);
+      // Micro: every standard edge site sits on one of its four road corridors
+      // (castle-road-siting-order.md C1/C2), so it falls back to the relaxed
+      // detached compound rather than blocking a road.
+      expect(area).toBeGreaterThanOrEqual(size === "micro" ? 1800 : 5000);
       expect(area).toBeLessThanOrEqual(30000);
     }
   );

@@ -5,6 +5,12 @@ import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications"
 import { alignFrameRoadEndpoints } from "./frameRoadConnection";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
+import {
+  buildApproachCorridors,
+  type CastleSitingConstraints,
+  emptySitingReport,
+  planGateSectors
+} from "./gen/approachCorridors";
 import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
 import {
   orientedRectPolylineDistance,
@@ -504,7 +510,9 @@ export function generateStageOnDocument(
       1,
       "castle",
       plan.castleFailure,
-      "指定した城の配置条件を満たす場所がありません"
+      "指定した城の配置条件を満たす場所がありません",
+      undefined,
+      plan.castleFailureDetails
     );
     onRejected?.(captureGenerationDebugPreview(planningDebugDocument(document, faceIdOf, plan, program), sample, seed));
     return null;
@@ -676,7 +684,14 @@ export function generateCityAttempt(
   );
   mark("plan-total");
   debugDocument = () => planningDebugDocument(document, faceIdOf, plan, program);
-  if (plan.castleFailure) return reject("castle", plan.castleFailure, "指定した城の配置条件を満たす場所がありません");
+  if (plan.castleFailure)
+    return reject(
+      "castle",
+      plan.castleFailure,
+      "指定した城の配置条件を満たす場所がありません",
+      undefined,
+      plan.castleFailureDetails
+    );
   // Do not save a nominally successful town when imported water has consumed
   // its centre. Measure the flood-fill settlement, not the walled core — wall
   // capacity (Medium 45% / Large 20%) is a later split of the same fill.
@@ -1401,6 +1416,7 @@ interface Plan {
   citadelOutline: Point[] | null;
   castleSite?: CastleSite | null;
   castleFailure?: string;
+  castleFailureDetails?: string[];
   moats?: GenerationSettings["moats"];
   legacyCastles?: boolean;
   roads: Point[][];
@@ -1979,6 +1995,10 @@ export function runPlan(
 
   let castleSite: CastleSite | null = null;
   let castleFailure: string | undefined;
+  let castleFailureDetails: string[] | undefined;
+  // castle-road-siting-order.md §3.1 ③④: roads and their gate arcs come
+  // first; the castle is placed beside them.
+  const corridors = buildApproachCorridors(geo, genBorders, half, cellSize);
   const preservedOwners = new Set(
     (sourceDocument?.castles ?? []).filter(c => c.locked || c.provenance !== "generated").map(c => c.id)
   );
@@ -2029,6 +2049,12 @@ export function runPlan(
         cityRadiusMeters: params.cityRadiusMeters
       })
     ).terrain;
+    const siting: CastleSitingConstraints = {
+      corridors,
+      sectors: planGateSectors(corridors, genBorders, cellSize),
+      clearanceMeters: (defaultRoadWidthMeters(params.extentMeters) + 3) / 2 + 0.5,
+      report: emptySitingReport()
+    };
     castleSite = placeCastleRegion(
       temp,
       urbanFaces,
@@ -2038,9 +2064,7 @@ export function runPlan(
       seed,
       settings.castle,
       terrain,
-      false,
-      true,
-      attempt - 1
+      siting
     );
     if (castleSite) {
       currentMesh = castleSite.mesh;
@@ -2080,7 +2104,14 @@ export function runPlan(
       borderLoops = componentBorderLoops(currentMesh, currentFaceIdOf, currentUrban);
       genBorders = borderLoops.map(toGeneratorBorder);
       meshModified = true;
-    } else castleFailure = "castle-no-site";
+    } else {
+      castleFailure = "castle-no-site";
+      const { rejected, corridors: blocked } = siting.report!;
+      castleFailureDetails = [
+        `rejected C1=${rejected.C1} C2=${rejected.C2} C3=${rejected.C3} C4=${rejected.C4}`,
+        ...(blocked.size ? [`corridors=${[...blocked].sort((a, b) => a - b).join(",")}`] : [])
+      ];
+    }
   }
   // Reserved/manual castles remain part of the planning obstacles.
   if (preservedCastleIds.size) {
@@ -2090,6 +2121,7 @@ export function runPlan(
   }
   empty.castleSite = castleSite;
   empty.castleFailure = castleFailure;
+  empty.castleFailureDetails = castleFailureDetails;
 
   const castleGateRegions = [...preservedCastleIds, ...(castleSite ? [castleSite.faceId] : [])].flatMap(id =>
     currentMesh.faces[id] ? [facePoints(currentMesh, currentMesh.faces[id])] : []
@@ -2147,7 +2179,9 @@ export function runPlan(
         }))
       },
       maxWallGatesForExtent(params.extentMeters),
-      canPlaceTownGate
+      canPlaceTownGate,
+      // §3.3 ⑥: redraw the arcs on the outline the castle may have changed.
+      planGateSectors(corridors, genBorders, cellSize)
     ),
     genBorders,
     coast?.shoreline ?? null,
@@ -2367,6 +2401,7 @@ export function runPlan(
     layout: effectiveLayout,
     castleSite,
     castleFailure,
+    castleFailureDetails,
     moats: settings.moats,
     legacyCastles: settings.legacyCastles,
     sea,

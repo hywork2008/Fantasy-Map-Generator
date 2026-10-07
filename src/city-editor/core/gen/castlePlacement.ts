@@ -2,8 +2,9 @@ import { boundaryEdges, insideRing } from "../fortifications";
 import { clone, faceNeighbors, facePoints, insertEdgeVertex, mergeFaces, splitFace } from "../mesh";
 import type { CastleSettings, CityDocument, Id, Mesh, Point } from "../types";
 import { polygonHitsDocumentWater } from "../waterGeometry";
+import { type CastleSitingConstraints, emptySitingReport, makeCastleJudge } from "./approachCorridors";
 import { layoutCastle } from "./castleLayout";
-import { nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
+import { azimuthToVec, nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { makeRng } from "./prng";
 import { townExtentMeters } from "./settlementExtent";
 import type { BurgSiteTerrain } from "./site/burgSiteDescriptor";
@@ -209,7 +210,17 @@ function acceptReservedCastle(
   return { seed, mesh: working.mesh, faceId: id, position, relationship, form };
 }
 
-/** Reserve one compact, metrically bounded precinct before street routing. */
+type CastleSize = "small" | "standard" | "large";
+type CastleJudge = ReturnType<typeof makeCastleJudge>;
+
+/**
+ * Reserve one compact, metrically bounded precinct before street routing.
+ *
+ * With `constraints`, every candidate must leave the road corridors, gate
+ * sectors, outside reach and gate-to-gate links intact (C1–C4 in
+ * castle-road-siting-order.md §3.4); those are hard filters, not penalties.
+ * Fallback order: smaller size, then detached, then no castle.
+ */
 export function placeCastleRegion(
   document: CityDocument,
   urban: Set<Id>,
@@ -219,16 +230,64 @@ export function placeCastleRegion(
   seed: string,
   options: Partial<CastleSettings> = {},
   terrain?: BurgSiteTerrain,
-  relaxed = false,
-  allowRetry = true,
-  /** Whole-city retries start at a later ranked site, so a castle that seals
-   * a gate approach (e.g. against the shore) is not chosen on every attempt. */
-  candidateOffset = 0
+  constraints?: CastleSitingConstraints
 ): CastleSite | null {
   const settings = { ...DEFAULT_CASTLE_SETTINGS, ...options };
   if (settings.position === "central" && settings.relationship === "integrated") return null;
   const hasWalls = document.featureGroups.some(g => g.kind === "wall");
   if (settings.relationship === "integrated" && !hasWalls) return null;
+  const size: CastleSize =
+    settings.size === "auto"
+      ? townExtentMeters(document.frame) <= 600 || document.frame.cityRadiusMeters <= 120
+        ? "small"
+        : "standard"
+      : settings.size;
+  // Step down one size only for an auto size under road constraints; an
+  // explicit size is the user's choice and falls through to detached instead.
+  const sizes: CastleSize[] = settings.size !== "auto" ? [size] : size === "standard" ? ["standard", "small"] : [size];
+  const relationships: CastleSettings["relationship"][] =
+    settings.relationship === "auto" && hasWalls ? ["auto", "detached"] : [settings.relationship];
+  if (constraints && !constraints.report) constraints.report = emptySitingReport();
+  const judge = constraints?.corridors.length ? makeCastleJudge(document, urban, water, constraints) : undefined;
+  for (const relationship of relationships)
+    for (const [i, sz] of sizes.entries()) {
+      if (i > 0 && !judge) break;
+      for (const relaxed of [false, true]) {
+        const site = placeCastlePass(
+          document,
+          urban,
+          water,
+          reserved,
+          rivers,
+          seed,
+          { ...settings, relationship },
+          sz,
+          terrain,
+          relaxed,
+          constraints,
+          judge
+        );
+        if (site) return site;
+      }
+    }
+  return null;
+}
+
+function placeCastlePass(
+  document: CityDocument,
+  urban: Set<Id>,
+  water: Set<Id>,
+  reserved: Set<Id>,
+  rivers: Array<{ points: Point[]; width: number }>,
+  seed: string,
+  settings: CastleSettings,
+  size: CastleSize,
+  terrain: BurgSiteTerrain | undefined,
+  relaxed: boolean,
+  constraints: CastleSitingConstraints | undefined,
+  judge: CastleJudge | undefined
+): CastleSite | null {
+  const hasWalls = document.featureGroups.some(g => g.kind === "wall");
   const rng = makeRng(`${seed}:castle:placement`);
   const preferred = settings.position === "auto" ? (rng() < 0.85 ? "edge" : "central") : settings.position;
   const positions =
@@ -241,14 +300,55 @@ export function placeCastleRegion(
       return [e.leftFace, e.rightFace].filter((id): id is Id => !!id);
     })
   );
-  const size =
-    settings.size === "auto"
-      ? townExtentMeters(document.frame) <= 600 || document.frame.cityRadiusMeters <= 120
-        ? "small"
-        : "standard"
-      : settings.size;
   const minArea = size === "small" ? 2500 : size === "large" ? 10000 : 5000;
   const target = size === "small" ? 4000 : size === "large" ? 18000 : 9000;
+  const block = document.frame.blockSizeMeters;
+  const corridors = constraints?.corridors ?? [];
+  // H2/H4: the land front is where the roads come from; the castle backs away
+  // from it (toward water when there is any).
+  const roadMean = corridors.reduce<Point>(
+    (sum, c) => {
+      const v = azimuthToVec(c.bearingDeg);
+      return [sum[0] + v[0], sum[1] + v[1]];
+    },
+    [0, 0]
+  );
+  const roadMeanLen = Math.hypot(...roadMean);
+  // Convex corners of the town outline (H4): turning angle at each boundary vertex.
+  const cornerTurn = new Map<Id, number>();
+  {
+    const around = new Map<Id, Id[]>();
+    for (const ref of boundary) {
+      const e = document.mesh.edges[ref.edgeId];
+      around.set(e.a, [...(around.get(e.a) ?? []), e.b]);
+      around.set(e.b, [...(around.get(e.b) ?? []), e.a]);
+    }
+    const urbanRings = [...urban].map(id => facePoints(document.mesh, document.mesh.faces[id]));
+    for (const [v, nbrs] of around) {
+      if (nbrs.length !== 2) continue;
+      const p = document.mesh.vertices[v].point,
+        a = document.mesh.vertices[nbrs[0]].point,
+        b = document.mesh.vertices[nbrs[1]].point;
+      const u: Point = [a[0] - p[0], a[1] - p[1]],
+        w: Point = [b[0] - p[0], b[1] - p[1]];
+      const interior = Math.acos(
+        Math.max(-1, Math.min(1, (u[0] * w[0] + u[1] * w[1]) / (Math.hypot(...u) * Math.hypot(...w) || 1)))
+      );
+      const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (urbanRings.some(r => insideRing(mid, r))) cornerTurn.set(v, Math.PI - interior);
+    }
+  }
+  const touchesWater = (id: Id) => faceNeighbors(document.mesh, id).some(fid => water.has(fid));
+  const accept = (working: CityDocument, id: Id, args: Parameters<typeof acceptReservedCastle>[2]) => {
+    const site = acceptReservedCastle(working, id, args);
+    if (!site || !judge) return site;
+    const verdict = judge(working, id, facePoints(working.mesh, working.mesh.faces[id]));
+    if (!verdict) return site;
+    const report = constraints!.report!;
+    report.rejected[verdict.condition]++;
+    report.corridors.add(verdict.corridor);
+    return null;
+  };
   for (const position of positions) {
     const relationship =
       position === "edge" && hasWalls && settings.relationship !== "detached" ? "integrated" : "detached";
@@ -277,17 +377,35 @@ export function placeCastleRegion(
           center = polygonCentroid(pts);
         const d = Math.hypot(center[0] - cityCenter[0], center[1] - cityCenter[1]);
         const height = terrainHeight(terrain, center) ?? 0;
-        return (
-          height * 2 +
-          (position === "edge" ? d * 0.05 : -d * 0.2) -
-          Math.abs(Math.abs(polygonArea(pts)) - target) * 0.001
-        );
+        const areaFit = -Math.abs(Math.abs(polygonArea(pts)) - target) * 0.001;
+        if (position === "central") return height * 2 - d * 0.2 + areaFit;
+        if (!corridors.length) return height * 2 + d * 0.05 + areaFit;
+        // S_landFront replaces the old "farther is better" term, which pulled
+        // the castle toward wherever the roads arrive.
+        const dir: Point = [(center[0] - cityCenter[0]) / (d || 1), (center[1] - cityCenter[1]) / (d || 1)];
+        const landFront =
+          (roadMeanLen > 0.2 ? -((dir[0] * roadMean[0] + dir[1] * roadMean[1]) / roadMeanLen) * 10 : 0) +
+          (touchesWater(id) ? 6 : 0);
+        const corner =
+          Math.max(
+            0,
+            ...document.mesh.faces[id].boundary.map(ref => {
+              const e = document.mesh.edges[ref.edgeId];
+              return Math.max(cornerTurn.get(e.a) ?? 0, cornerTurn.get(e.b) ?? 0);
+            })
+          ) * 4;
+        const reach = Math.min(...corridors.map(c => nearestOnPolyline(center, c.centerline).dist));
+        const command =
+          reach < block
+            ? (6 * reach) / block
+            : reach <= 3 * block
+              ? 6
+              : 6 * Math.max(0, 1 - (reach - 3 * block) / (3 * block));
+        return height * 2 + landFront + corner + command + areaFit;
       };
       return rate(b.id) - rate(a.id) || a.id.localeCompare(b.id);
     });
-    const pool = candidates.slice(0, 40);
-    const shift = pool.length ? candidateOffset % pool.length : 0;
-    for (const candidate of [...pool.slice(shift), ...pool.slice(0, shift)]) {
+    for (const candidate of candidates.slice(0, 40)) {
       let working = clone(document),
         id = candidate.id;
       let points = facePoints(working.mesh, working.mesh.faces[id]);
@@ -340,7 +458,7 @@ export function placeCastleRegion(
             for (const angle of angles) {
               const box = reserveBox(working, id, at, span0 * scale, angle, relaxed);
               if (!box) continue;
-              placed = acceptReservedCastle(box.document, box.faceId, {
+              placed = accept(box.document, box.faceId, {
                 position,
                 relationship,
                 water,
@@ -388,7 +506,7 @@ export function placeCastleRegion(
         }
       }
       if (!id) continue;
-      const site = acceptReservedCastle(working, id, {
+      const site = accept(working, id, {
         position,
         relationship,
         water,
@@ -401,37 +519,6 @@ export function placeCastleRegion(
       });
       if (site) return site;
     }
-  }
-  if (settings.relationship === "auto" && hasWalls) {
-    const detached = placeCastleRegion(
-      document,
-      urban,
-      water,
-      reserved,
-      rivers,
-      seed,
-      { ...options, relationship: "detached" },
-      terrain,
-      relaxed,
-      false,
-      candidateOffset
-    );
-    if (detached) return detached;
-  }
-  if (allowRetry && !relaxed) {
-    return placeCastleRegion(
-      document,
-      urban,
-      water,
-      reserved,
-      rivers,
-      seed,
-      options,
-      terrain,
-      true,
-      false,
-      candidateOffset
-    );
   }
   return null;
 }
