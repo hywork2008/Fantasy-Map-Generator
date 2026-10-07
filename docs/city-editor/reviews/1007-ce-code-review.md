@@ -83,6 +83,15 @@ Tiny グリッドで、中心付近の20頂点をそれぞれ30〜80m、6方向�
 - 角度の上限を検証に入れ、違反した案は採用しない。
 - 斜めのデッキは描かず、診断として出す。
 
+**対応（2026-10-07）**
+
+原則そのものを「直角が基本で、許容斜角つき」に改めた（AGENTS.md、docs/plan/bridge-skew-policy.md）。
+
+- `bridgeDecks` はデッキごとに `skewDegrees` を持つ。
+- 上限を超えたデッキは、`svg.ts` で描かない。
+- 上限を超えたデッキは、`validGeneratedCrossings` と `explainGeneratedCrossingFailures` で不正とする。
+- 上限は、FMG が渡す都市の所属国家の値（`transport.maxBridgeSkewDegrees`）を使う。その値がなければ、`historicalPeriod` から求める。
+
 ### 4. テストスイートが大量に失敗している（実測）
 
 `npx vitest run city-editor` を実行した。完了した分だけで、**25ファイル・約48件が失敗**した。失敗には次の橋関連テストも含まれる。

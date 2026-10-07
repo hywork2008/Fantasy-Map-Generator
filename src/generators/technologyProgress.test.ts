@@ -15,6 +15,7 @@ import {
   getMechanizedTextilesOutputMultiplier,
   getMilitarySignalRocketsEffect,
   getStagingAndOrbitalInsertionEffect,
+  getStateBridgeSkewLimit,
   getStateMaritimeAptitude,
   getTechnologyProgressEntries,
   getTechnologyStage,
@@ -161,6 +162,30 @@ describe("technologyProgress", () => {
     for (const id of gunpowderIds) {
       expect(simulationContext.technology.progress.some(p => p.technologyId === id && p.ownerId === 1)).toBe(false);
     }
+  });
+
+  it("raises the bridge skew allowance from the starting period as surveying and precision masonry are adopted", () => {
+    installMinimalWorld({ historicalPeriod: "earlyMedieval" });
+    expect(getStateBridgeSkewLimit(1)).toBe(15);
+    expect(getStateBridgeSkewLimit(1, "timber")).toBe(20);
+    const adopted = (technologyId: string): TechnologyProgress => ({
+      technologyId,
+      scope: "state",
+      ownerId: 1,
+      stage: "adopted",
+      diffusion: 0.5
+    });
+    setTechnologyProgressForTests([adopted("mathAstronomyGeography")]);
+    expect(getStateBridgeSkewLimit(1)).toBe(25);
+    expect(getStateBridgeSkewLimit(2)).toBe(15);
+    expect(getStateBridgeSkewLimit(0)).toBe(15);
+    setTechnologyProgressForTests([adopted("mathAstronomyGeography"), adopted("precisionBoringAndMeasurement")]);
+    expect(getStateBridgeSkewLimit(1)).toBe(30);
+
+    // The starting period is a floor; technology never lowers it.
+    resetTechnologyProgress();
+    installMinimalWorld({ historicalPeriod: "preIndustrialEra" });
+    expect(getStateBridgeSkewLimit(1)).toBe(30);
   });
 
   it("seeds gunpowder-chain technologies at a period-appropriate starting stage instead of always locked", () => {

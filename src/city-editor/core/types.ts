@@ -402,6 +402,9 @@ export interface CityDocument {
   appearance?: "town";
   /** Historical backdrop / technological era. Defaults to "ageOfExploration". */
   historicalPeriod?: HistoricalPeriod;
+  /** Bridge skew allowance exported by FMG for the burg's state (src/utils/bridgeSkewPolicy.ts).
+   * Absent: derived from `historicalPeriod`. */
+  maxBridgeSkewDegrees?: number;
   /** Missing on old maps: retain their original housing generator. */
   buildingPattern?: BuildingPattern;
   /** A non-editable source image, for example an imported MFCG SVG. */

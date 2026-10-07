@@ -3,10 +3,12 @@ import {
   BRIDGE_BANK_SEAT,
   bridgeDecks,
   clipPolylineOutsideRivers,
+  overSkewedBridgeDecks,
   type RiverRibbon,
   roadRunsOutsideRivers
 } from "./bridgeDeck";
 import { nearestOnPolyline } from "./gen/geom";
+import { explainGeneratedCrossingFailures } from "./passages";
 import type { CityDocument, Point } from "./types";
 
 const RIVER: RiverRibbon[] = [
@@ -217,6 +219,43 @@ describe("bridgeDecks", () => {
     const span = (10 + BRIDGE_BANK_SEAT) / 2;
     expect(Math.min(left[0], right[0])).toBeCloseTo(-span);
     expect(Math.max(left[0], right[0])).toBeCloseTo(span);
+  });
+});
+
+describe("bridge skew allowance", () => {
+  /** A road that crosses between river vertices gets a deck along its own direction. */
+  function obliqueDocument(rise: number): CityDocument {
+    const doc = crossingDocument();
+    doc.mesh.vertices.a.point = [-40, -rise];
+    doc.mesh.vertices.b.point = [40, rise];
+    doc.mesh.edges = {
+      r1: { id: "r1", a: "s", b: "n", leftFace: null, rightFace: null, locked: false },
+      e1: { id: "e1", a: "a", b: "b", leftFace: null, rightFace: null, locked: false }
+    };
+    delete doc.mesh.vertices.m;
+    doc.featureGroups = doc.featureGroups.slice(0, 2);
+    const [river, road] = doc.featureGroups;
+    if (river.kind !== "river" || road.kind !== "road") throw new Error("fixture");
+    river.vertices = ["s", "n"];
+    road.segments = [{ edgeId: "e1", forward: true }];
+    return doc;
+  }
+
+  it("measures a road-direction deck against the river normal", () => {
+    const decks = bridgeDecks(obliqueDocument(20));
+    expect(decks).toHaveLength(1);
+    expect(decks[0].skewDegrees).toBeCloseTo((Math.atan(0.5) * 180) / Math.PI);
+    expect(bridgeDecks(crossingDocument())[0].skewDegrees).toBe(0);
+  });
+
+  it("rejects a deck beyond the era allowance and accepts it once the allowance is raised", () => {
+    const medieval = { ...obliqueDocument(20), historicalPeriod: "highMedieval" as const };
+    expect(overSkewedBridgeDecks(medieval)).toHaveLength(1);
+    expect(explainGeneratedCrossingFailures(medieval).some(line => line.includes("傾いている"))).toBe(true);
+    expect(overSkewedBridgeDecks({ ...medieval, maxBridgeSkewDegrees: 30 })).toHaveLength(0);
+    expect(overSkewedBridgeDecks({ ...medieval, historicalPeriod: "preIndustrialEra" })).toHaveLength(0);
+    // A slight skew is fine in every era.
+    expect(overSkewedBridgeDecks({ ...obliqueDocument(5), historicalPeriod: "earlyMedieval" })).toHaveLength(0);
   });
 });
 

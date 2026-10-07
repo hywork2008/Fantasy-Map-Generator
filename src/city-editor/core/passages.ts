@@ -1,3 +1,4 @@
+import { documentBridgeSkewLimit, overSkewedBridgeDecks } from "./bridgeDeck";
 import { townGates } from "./fortifications";
 import {
   isSimplePolygon,
@@ -1189,7 +1190,11 @@ export function straightenBridges(document: CityDocument): CityDocument {
 
 /** Completed generation must never publish a decorative gate or a disconnected
  * wall/river crossing. Kept separate from legacy-file structural validation. */
-export function validGeneratedCrossings(document: CityDocument): boolean {
+export function validGeneratedCrossings(
+  document: CityDocument,
+  skewLimit = documentBridgeSkewLimit(document)
+): boolean {
+  if (overSkewedBridgeDecks(document, skewLimit).length) return false;
   for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road")) return false;
   }
@@ -1223,8 +1228,15 @@ export function validGeneratedCrossings(document: CityDocument): boolean {
 
 /** Human-readable "how" for a rejected complete city: every broken gate, shared
  * edge, or unbridged town-dividing river. Empty when crossings are valid. */
-export function explainGeneratedCrossingFailures(document: CityDocument): string[] {
+export function explainGeneratedCrossingFailures(
+  document: CityDocument,
+  skewLimit = documentBridgeSkewLimit(document)
+): string[] {
   const details: string[] = [];
+  for (const deck of overSkewedBridgeDecks(document, skewLimit))
+    details.push(
+      `橋 ${deck.groupId} が河川の法線から ${deck.skewDegrees.toFixed(1)}° 傾いている（上限 ${skewLimit.toFixed(0)}°）`
+    );
   for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road"))
       details.push(`門 ${gate.id}（頂点 ${gate.vertexId}）に城壁と道路の十字交差がない`);

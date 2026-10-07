@@ -1,4 +1,4 @@
-import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
+import { bridgeDecks, overSkewedBridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import { currentFixedCrossingApproaches } from "../core/fixedApproachAdoption";
@@ -886,7 +886,11 @@ export function renderEditorSvg(
   if (!document.sceneRegions) appendFrameRoads(features, document, town);
   features.appendChild(renderApproachLabels(document, zoom));
   if (town && !fixedMode) {
-    for (const deck of bridgeDecks(document)) {
+    const decks = bridgeDecks(document);
+    const overSkewed = new Set(overSkewedBridgeDecks(document, undefined, decks));
+    for (const deck of decks) {
+      // AGENTS.md: a bridge beyond the skew allowance is never drawn.
+      if (overSkewed.has(deck)) continue;
       const crossing = document.featureGroups.find(g => g.id === deck.groupId)?.crossing;
       const pickInfo: SvgPickInfo = {
         layer: "features",

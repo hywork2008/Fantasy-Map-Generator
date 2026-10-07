@@ -1,3 +1,4 @@
+import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
@@ -568,6 +569,8 @@ export function generateCityOnDocument(
         settings.descriptor?.historicalPeriod ??
         document.historicalPeriod ??
         "ageOfExploration";
+      const skewLimit = settings.descriptor?.transport?.maxBridgeSkewDegrees ?? document.maxBridgeSkewDegrees;
+      if (skewLimit !== undefined) result.maxBridgeSkewDegrees = skewLimit;
       result.generationSeed = attemptSeed;
       if (result.fabric) {
         const input = clone(document);
@@ -876,7 +879,16 @@ export function generateCityAttempt(
       );
   }
   const roadsAfterFinish = countExternalApproachRoads(settled);
-  const crossingDetails = explainGeneratedCrossingFailures(settled);
+  const crossingDetails = explainGeneratedCrossingFailures(
+    settled,
+    resolveBridgeSkewLimit(
+      settings.historicalPeriod ??
+        settings.descriptor?.historicalPeriod ??
+        document.historicalPeriod ??
+        "ageOfExploration",
+      settings.descriptor?.transport ?? { maxBridgeSkewDegrees: document.maxBridgeSkewDegrees }
+    )
+  );
   const tangled = coarse
     ? Object.values(settled.mesh.faces)
         .filter(f => !isSimplePolygon(facePoints(settled.mesh, f)))

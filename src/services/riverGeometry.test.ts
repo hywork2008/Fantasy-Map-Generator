@@ -85,6 +85,9 @@ describe("fixed pre-implementation crossing fixtures", () => {
     const report = diagnosePolylineRiverCrossings(rivers, routes);
     expect(report.crossings.map(c => c.status)).toEqual(["perpendicular", "oblique"]);
     expect(report.crossings[0].riverArcLength).toBe(10);
+    expect(report.crossings[0].withinSkewLimit).toBe(true);
+    expect(report.crossings[1].skewDegrees).toBeGreaterThan(15);
+    expect(report.crossings[1].withinSkewLimit).toBe(false);
     expect({ rivers, routes }).toEqual(before);
     expect(diagnosePolylineRiverCrossings(rivers, routes)).toEqual(report);
   });

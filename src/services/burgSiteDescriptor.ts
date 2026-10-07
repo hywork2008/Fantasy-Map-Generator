@@ -2,6 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
+import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import { useOptionsState } from "../store/optionsState";
 import type { RegionalContext } from "../types/cityRegional";
 import { regionalRevision } from "../types/cityRegional";
@@ -554,7 +555,10 @@ export function getBurgSiteDescriptor(
     terrain,
     transport: {
       riverBridgeTechnology: worldContext.options.riverBridgeTechnology,
-      maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(worldContext.options.historicalPeriod ?? "ageOfExploration")
+      maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(
+        worldContext.options.historicalPeriod ?? "ageOfExploration"
+      ),
+      maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0)
     },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
     rivers,

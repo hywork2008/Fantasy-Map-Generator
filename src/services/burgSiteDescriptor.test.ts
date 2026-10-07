@@ -294,12 +294,12 @@ describe("getBurgSiteDescriptor", () => {
     // 10 000 people at 150/ha → ~66.7 ha → r = sqrt(A/π) ≈ 461 m
     expect(frame.cityRadiusMeters).toBe(461);
     expect(frame.extentMeters).toBe(2766);
-    expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000 });
+    expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000, maxBridgeSkewDegrees: 15 });
   });
 
   it("exports the steam-era supported crossing allowance", () => {
     worldContext.options.historicalPeriod = "steamEra";
-    expect(getBurgSiteDescriptor(1)?.transport).toEqual({ maxBridgeCrossingMeters: 2500 });
+    expect(getBurgSiteDescriptor(1)?.transport).toEqual({ maxBridgeCrossingMeters: 2500, maxBridgeSkewDegrees: 30 });
   });
 
   it("describes the river chord position, flow azimuth and bank side", () => {
