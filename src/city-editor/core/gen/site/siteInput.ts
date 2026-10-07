@@ -304,8 +304,10 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
       const hit = nearestOnPolyline([0, 0], corridor);
       const radius = site.frame.cityRadiusMeters;
       if (radius > 0 && hit.dist > radius) {
-        const factor = 1 - (radius * 0.6) / hit.dist;
-        corridor = corridor.map(p => [p[0] - hit.point[0] * factor, p[1] - hit.point[1] * factor]);
+        const shift = coastPullMeters(site, corridor, hit.point, hit.dist - radius * 0.6);
+        const ux = hit.point[0] / hit.dist,
+          uy = hit.point[1] / hit.dist;
+        corridor = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
       }
     }
     return { corridor, waterAzimuthDeg };
@@ -324,6 +326,56 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     corridor: syntheticShoreCorridor(waterAzimuthDeg, site.frame.extentMeters, site.frame.cityRadiusMeters),
     waterAzimuthDeg
   };
+}
+
+/** Imported features the pulled-in coast must leave on dry land, with this margin. */
+const PULLED_COAST_CLEARANCE_METERS = 60;
+const PULLED_COAST_SAMPLE_METERS = 20;
+
+/**
+ * How far the coast may be pulled toward the town (up to `wanted`). FMG's bridges
+ * and roads are fixed: a pulled coast that ran over them would put the bridge on
+ * the sea (Ventiarisio), so stop short of every fixed crossing and imported road.
+ */
+function coastPullMeters(site: BurgSiteDescriptor, corridor: Point[], toCoast: Point, wanted: number): number {
+  const half = site.frame.extentMeters / 2;
+  const length = Math.hypot(toCoast[0], toCoast[1]);
+  const ux = toCoast[0] / length,
+    uy = toCoast[1] / length;
+  const protectedPoints: Point[] = [];
+  const addSegment = (a: Point, b: Point) => {
+    const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / PULLED_COAST_SAMPLE_METERS));
+    for (let i = 0; i <= steps; i++) {
+      const p: Point = [a[0] + ((b[0] - a[0]) * i) / steps, a[1] + ((b[1] - a[1]) * i) / steps];
+      if (Math.abs(p[0]) <= half && Math.abs(p[1]) <= half) protectedPoints.push(p);
+    }
+  };
+  for (const c of site.fixedCrossings?.crossings ?? []) {
+    addSegment(c.approachA as Point, c.deckA as Point);
+    addSegment(c.deckA as Point, c.deckB as Point);
+    addSegment(c.deckB as Point, c.approachB as Point);
+  }
+  for (const road of site.regionalContext?.roads ?? [])
+    for (let i = 1; i < road.points.length; i++) addSegment(road.points[i - 1] as Point, road.points[i] as Point);
+  if (!protectedPoints.length) return wanted;
+  const dry = (shift: number) => {
+    const shifted = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift] as Point);
+    return protectedPoints.every(p => {
+      const near = nearestOnPolyline(p, shifted);
+      const landward = (p[0] - near.point[0]) * ux + (p[1] - near.point[1]) * uy < 0;
+      return landward && near.dist >= PULLED_COAST_CLEARANCE_METERS;
+    });
+  };
+  if (dry(wanted)) return wanted;
+  if (!dry(0)) return 0;
+  let lo = 0,
+    hi = wanted;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    if (dry(mid)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
 }
 
 function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number, cityRadiusMeters: number): Point[] {

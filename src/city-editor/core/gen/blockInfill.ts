@@ -48,6 +48,9 @@ function getDefaultCache(): FabricCache {
   return defaultCache;
 }
 
+/** Road half-width plus a verge between a field and a road outside the mesh. */
+const FARM_ROAD_CLEARANCE_METERS = 4;
+
 function distToSegment(p: Point, a: Point, b: Point): number {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
@@ -75,6 +78,31 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
               })
             )
       )
+    };
+  }
+  // Roads continued outside the block mesh (bridge approaches, frame legs) are
+  // not mesh edges, so the farm layout cannot see them: a field must not cover
+  // the road into a bridge (Ventiarisio).
+  const outsideRoads = [
+    ...(document.frameRoads ?? []).flatMap(r => r.pieces.map(piece => piece.points)),
+    ...(document.riverConnections ?? []).flatMap(c => [c.townRoad, c.farRoad])
+  ].filter(points => points.length >= 2);
+  if (outsideRoads.length) {
+    const blocks = (polygon: Point[]) =>
+      outsideRoads.some(road =>
+        road.slice(1).some((b, i) => {
+          const a = road[i];
+          return (
+            pointInPolygon(a, polygon) ||
+            pointInPolygon(b, polygon) ||
+            segmentInteriorInPolygon(a, b, polygon) ||
+            polygon.some(p => distToSegment(p, a, b) < FARM_ROAD_CLEARANCE_METERS)
+          );
+        })
+      );
+    fabric = {
+      ...fabric,
+      farms: fabric.farms.filter(farm => document.mesh.faces[farm.faceId]?.properties.locked || !blocks(farm.polygon))
     };
   }
   const reserved = (document.defenseCircuits ?? [])

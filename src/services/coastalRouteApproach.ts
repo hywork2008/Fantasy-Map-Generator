@@ -37,7 +37,8 @@ function coastNear(world: Readonly<WorldContext>, burgId: number, radius: number
   }
   if (perPack.has(burgId)) return perPack.get(burgId)!;
   const burg = pack.burgs[burgId];
-  const feature = pack.features[pack.cells.f[burg.cell]];
+  const featureId = pack.cells.f?.[burg.cell];
+  const feature = featureId === undefined ? undefined : pack.features?.[featureId];
   let coast: Coast | null = null;
   if (feature && typeof feature === "object" && feature.vertices?.length) {
     const shape = drawnFeatureShape(world, feature);
@@ -152,4 +153,106 @@ export function bendRouteAwayFromCoast(world: Readonly<WorldContext>, points: nu
     }
   }
   return out ?? points;
+}
+
+/** Smallest rotation of the neighbour point about the town that keeps the leg on drawn land, inside its own cell. */
+function relocatedNeighbour(
+  coast: Coast,
+  origin: Pt,
+  neighbour: Pt,
+  after: Pt | undefined,
+  cellRing: Pt[],
+  mpu: number
+): Pt | null {
+  const dx = neighbour[0] - origin[0],
+    dy = neighbour[1] - origin[1];
+  const distance = Math.hypot(dx, dy);
+  if (!distance) return null;
+  const clear = (p: Pt) =>
+    insideRing(cellRing, p[0], p[1]) &&
+    segmentClear(coast, origin, p, SAMPLE_METERS, origin, mpu) &&
+    (!after || segmentClear(coast, p, after, 0, origin, mpu));
+  if (segmentClear(coast, origin, neighbour, SAMPLE_METERS, origin, mpu)) return null;
+  const bearing = Math.atan2(dy, dx);
+  for (let turn = ANGLE_STEP_DEG; turn <= MAX_TURN_DEG; turn += ANGLE_STEP_DEG)
+    for (const sign of [1, -1])
+      for (const scale of [1, 0.75, 0.5]) {
+        const a = bearing + (sign * turn * Math.PI) / 180;
+        const p: Pt = [origin[0] + Math.cos(a) * distance * scale, origin[1] + Math.sin(a) * distance * scale];
+        if (clear(p)) return p;
+      }
+  return null;
+}
+
+/**
+ * Move the stored point that follows a coastal burg on a land route to where
+ * the straight leg from the town stays on the drawn land (Ventiarisio: the leg
+ * toward the next cell clipped the drawn bay, and CE pushed the far bank out to
+ * carry the road). Unlike the render-time bend this changes the route data, so
+ * the river-crossing convergence and the CE site descriptor see the same road.
+ * The point stays in its cell, so the cell graph is unchanged.
+ */
+export function relocateCoastalRouteNeighbours(world: Readonly<WorldContext>, unit: string): boolean {
+  const { pack } = world;
+  if (!pack?.burgs?.length || !pack.features?.length || !pack.vertices?.p || !pack.cells.v?.length) return false;
+  const mpu = mapUnitMeters(world.distanceScale, unit);
+  if (!(mpu > 0)) return false;
+  let changed = false;
+  for (const route of pack.routes ?? []) {
+    if (route.lock || route.group === "searoutes" || route.registeredConnectionId !== undefined) continue;
+    const points = route.points;
+    for (let i = 0; i < points.length; i++) {
+      const cell = points[i][2];
+      const burgId = pack.cells.burg?.[cell];
+      const burg = burgId ? pack.burgs[burgId] : undefined;
+      if (!burg || burg.removed || (pack.cells.t?.[cell] !== 1 && !burg.port)) continue;
+      if (Math.hypot(points[i][0] - burg.x, points[i][1] - burg.y) > 1e-7) continue;
+      const coast = coastNear(world, burgId, PROBE_METERS / mpu);
+      if (!coast) continue;
+      const origin: Pt = [burg.x, burg.y];
+      for (const step of [1, -1]) {
+        const j = i + step;
+        const neighbour = points[j];
+        if (!neighbour || neighbour[2] === cell || pack.cells.burg?.[neighbour[2]]) continue;
+        const cellRing = (pack.cells.v[neighbour[2]] ?? []).map(v => pack.vertices.p[v] as Pt);
+        if (cellRing.length < 3) continue;
+        const after = points[j + step];
+        const p = relocatedNeighbour(
+          coast,
+          origin,
+          [neighbour[0], neighbour[1]],
+          after && [after[0], after[1]],
+          cellRing,
+          mpu
+        );
+        if (!p) continue;
+        points[j] = [p[0], p[1], neighbour[2]];
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
+/**
+ * Smallest distance in metres from the given map-unit points to the drawn sea
+ * around a coastal burg; 0 when a point already stands on the drawn sea.
+ * Infinity for a burg with no drawn coast nearby.
+ */
+export function drawnSeaClearanceMeters(
+  world: Readonly<WorldContext>,
+  burgId: number,
+  unit: string,
+  points: readonly (readonly [number, number])[]
+): number {
+  const mpu = mapUnitMeters(world.distanceScale, unit);
+  if (!(mpu > 0)) return Infinity;
+  const coast = coastNear(world, burgId, PROBE_METERS / mpu);
+  if (!coast) return Infinity;
+  let best = Infinity;
+  for (const [x, y] of points) {
+    if (!insideRing(coast.ring, x, y)) return 0;
+    best = Math.min(best, distanceToCoast(coast.near, x, y) * mpu);
+  }
+  return best;
 }

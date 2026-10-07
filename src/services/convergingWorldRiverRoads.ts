@@ -17,6 +17,7 @@ import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { bridgePassageFootprint } from "./bridgePassageGeometry";
+import { drawnSeaClearanceMeters, relocateCoastalRouteNeighbours } from "./coastalRouteApproach";
 import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "./physicalWaterIndex";
 import { evaluateRiverAxis } from "./riverAxisSampling";
 import type { RiverPoint } from "./riverGeometry";
@@ -41,6 +42,9 @@ interface Prepared {
 }
 const cache = new WeakMap<object, Prepared>();
 const session = new SettlementGeometrySession();
+
+/** Floor on a coastal bridge's distance from the drawn sea (see seaClear). */
+const SEA_CLEARANCE_MIN_METERS = 200;
 
 function polygonBounds(rings: readonly (readonly RiverPoint[])[]) {
   let minX = Infinity,
@@ -164,6 +168,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
     }
     delete r.riverRoadConvergence;
   }
+  relocateCoastalRouteNeighbours(world, unit);
   session.prepare(world, unit);
   const centers = world.pack.cells.p.map((p, id) => ({ p, id }));
   const tree = quadtree<(typeof centers)[number]>()
@@ -312,6 +317,22 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
         const offsetArcs = nearest
           .slice(0, 4)
           .flatMap(a => [-160, -80, -40, -20, 20, 40, 80, 160].map(offset => a.arc + offset));
+        // A coastal town's bridge stays back from the river mouth: at least its
+        // own span (and SEA_CLEARANCE_MIN_METERS) from the drawn sea. Search
+        // farther along the axis for such a site before settling for one nearer.
+        const burgId = burg.i;
+        const seaClear = (crossing: ProvisionalRiverCrossing) =>
+          drawnSeaClearanceMeters(
+            world,
+            burgId,
+            unit,
+            [crossing.approachA, crossing.approachB, crossing.deckA, crossing.deckB, crossing.q].map(
+              p => [p[0] / scale, p[1] / scale] as const
+            )
+          ) >= Math.max(SEA_CLEARANCE_MIN_METERS, crossing.deckLengthMeters);
+        const seaBackoffArcs = nearest
+          .slice(0, 2)
+          .flatMap(a => [-640, -480, -320, -240, 240, 320, 480, 640].map(offset => a.arc + offset));
         const offsetBatches = chunks(offsetArcs, 8);
         const candidateCache = new Map<
           string,
@@ -326,7 +347,8 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
           // already pulls the bridge to the preferred skew (keeps generation cheap).
           const evaluateBatch = (
             batch: number[],
-            skewSet = skews.slice(0, 3)
+            skewSet = skews.slice(0, 3),
+            requireSeaClearance = false
           ): ReturnType<typeof convergeRiverRoadLegs> => {
             const candidates: { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput }[] = [];
             for (const arc of batch)
@@ -360,6 +382,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
                   item = "candidate" in created ? { crossing: created.candidate, input } : null;
                   candidateCache.set(cacheKey, item);
                 }
+                if (item && requireSeaClearance && !seaClear(item.crossing)) continue;
                 if (item) {
                   if (item.input.id !== facilityId) {
                     item = {
@@ -373,19 +396,19 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
             if (!candidates.length) return null;
             const found = convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half);
             if (found && skewSet.length < skews.length && Math.abs(found.crossing.skewDegrees) === Math.abs(skews[1]))
-              return evaluateBatch(batch, skews) ?? found;
+              return evaluateBatch(batch, skews, requireSeaClearance) ?? found;
             return found;
           };
 
-          for (const batch of nearestBatches) {
-            merged = evaluateBatch(batch);
-            if (merged) break;
-          }
-          if (!merged) {
-            for (const batch of offsetBatches) {
-              merged = evaluateBatch(batch);
+          for (const requireSeaClearance of [true, false]) {
+            const batches = requireSeaClearance
+              ? [...nearestBatches, ...offsetBatches, ...chunks(seaBackoffArcs, 8)]
+              : [...nearestBatches, ...offsetBatches];
+            for (const batch of batches) {
+              merged = evaluateBatch(batch, undefined, requireSeaClearance);
               if (merged) break;
             }
+            if (merged) break;
           }
           if (!merged) break;
           const facility: Facility = {
