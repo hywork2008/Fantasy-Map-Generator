@@ -403,13 +403,16 @@ export function cleanRing(poly: Point[], eps = 1e-4): Point[] {
   return out.length >= 3 ? out : [];
 }
 
-/** Unit inward normal of edge `a → b` (the side that contains the centroid). */
+/** Unit inward normal of edge `a → b` of `poly`, decided by the ring's winding so
+ * it stays correct on concave rings. Degenerate rings fall back to the centroid side. */
 export function inwardNormal(a: Point, b: Point, poly: Point[]): Point {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const len = Math.hypot(dx, dy) || 1;
   const left: Point = [-dy / len, dx / len];
   const right: Point = [dy / len, -dx / len];
+  const area = polygonArea(poly);
+  if (Math.abs(area) > 1e-9) return area > 0 ? right : left;
   const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const c = polygonCentroid(poly);
   const vx = c[0] - mid[0];
