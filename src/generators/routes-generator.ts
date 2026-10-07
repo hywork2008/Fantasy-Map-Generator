@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
+import { bendRouteAwayFromCoast } from "../services/coastalRouteApproach";
 import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
 import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
@@ -2114,8 +2115,12 @@ class RoutesModule {
     route: { group: string; points: number[][]; riverRoadConvergence?: Route["riverRoadConvergence"] },
     pack?: PackedGraph
   ): number[][] {
-    if (route.group === "searoutes" || route.riverRoadConvergence) return route.points;
-    return this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
+    if (route.group === "searoutes") return route.points;
+    const world = pack && pack !== this.worldContext.pack ? { ...this.worldContext, pack } : this.worldContext;
+    const points = route.riverRoadConvergence
+      ? route.points
+      : this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
+    return bendRouteAwayFromCoast(world, points);
   }
 
   getPath(
@@ -2133,7 +2138,10 @@ class RoutesModule {
     pack?: PackedGraph
   ): string {
     if (registeredConnectionId !== undefined) return "";
-    if (riverRoadConvergence) return points.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join("");
+    if (riverRoadConvergence)
+      return this.getRenderPoints({ group, points, riverRoadConvergence }, pack)
+        .map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`)
+        .join("");
     const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);
     const renderPoints = this.getRenderPoints({ group, points }, pack);
     const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);
