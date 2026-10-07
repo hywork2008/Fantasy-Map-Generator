@@ -59,6 +59,27 @@ function rectangle(id: number, lo: number, hi: number, bottom = -10, top = 10): 
   };
 }
 
+describe("skewed provisional crossings (bridgeSkewPolicy.ts)", () => {
+  it("turns the deck axis by the requested skew and lengthens it by 1/cos", () => {
+    const input = { ...fixture(), skewDegrees: 20 };
+    const c = getCandidate(input);
+    const along = Math.abs(c.nCrossing[0] * c.tRiver[0] + c.nCrossing[1] * c.tRiver[1]);
+    expect((Math.asin(along) * 180) / Math.PI).toBeCloseTo(20);
+    expect(c.skewDegrees).toBe(20);
+    expect(c.waterDistanceMeters).toBeCloseTo(10 / Math.cos((20 * Math.PI) / 180));
+    // Every endpoint stays on the one straight bridge axis through q.
+    for (const p of [c.waterA, c.waterB, c.deckA, c.deckB, c.approachA, c.approachB])
+      expect(Math.abs((p[0] - c.q[0]) * c.nCrossing[1] - (p[1] - c.q[1]) * c.nCrossing[0])).toBeLessThan(1e-9);
+    expect(validateProvisionalRiverCrossing(c, input)).toBe(true);
+    expect(validateProvisionalRiverCrossing(c, fixture())).toBe(false);
+  });
+
+  it("never builds beyond the largest allowance of any era", () => {
+    expect(createProvisionalRiverCrossing({ ...fixture(), skewDegrees: 31 })).toEqual({ reason: "invalid-input" });
+    expect(getCandidate({ ...fixture(), skewDegrees: -30 }).skewDegrees).toBe(-30);
+  });
+});
+
 describe("provisional physical perpendicular crossings", () => {
   it("separates water, deck and approach endpoints on q's normal, using actual banks", () => {
     const input = fixture(),

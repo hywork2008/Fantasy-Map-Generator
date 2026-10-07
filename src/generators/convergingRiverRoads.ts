@@ -2,6 +2,7 @@ import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
 import { indexedPhysicalWater } from "../services/indexedPhysicalWater";
 import type { RiverPoint } from "../services/riverGeometry";
 import { footprintTouchesWater } from "../services/riverPhysicalGeometry";
+import { bridgeSkewPenaltyMeters } from "../utils/bridgeSkewPolicy";
 import type { CrossingCandidateInput, ProvisionalRiverCrossing } from "./riverCrossingCandidates";
 import { validateProvisionalRiverCrossing } from "./riverCrossingCandidates";
 
@@ -53,7 +54,7 @@ export function convergeRiverRoadLegs(
     const direction = nearA ? 1 : -1;
     const farSide = direction * side(far, c) + input.dimensions.roadWidthMeters * 2;
     const adopted: ConvergingRiverRoads["legs"][number][] = [];
-    let cost = distance(origin, near) + distance(near, far);
+    let cost = distance(origin, near) + distance(near, far) + bridgeSkewPenaltyMeters(c.skewDegrees);
     for (const leg of legs) {
       if (leg.points.length < 2 || distance(leg.points[0], origin) > 1e-7) continue;
       for (let i = 1; i < leg.points.length; i++) {

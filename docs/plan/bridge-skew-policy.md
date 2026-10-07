@@ -63,11 +63,31 @@ Historical period（地図生成オプション）は**ゲーム開始時の下�
 
 ### FMG
 
-`getBurgSiteDescriptor` が、都市の所属国家の上限を `transport.maxBridgeSkewDegrees` に入れて CE に渡す。
+都市ごとの橋の生成（`ensureConvergingWorldRiverRoads`）は、川沿いの各候補地点について、次の斜角の橋を試す。
 
-`diagnosePolylineRiverCrossings` は、交差ごとに `skewDegrees` と `withinSkewLimit` を記録する。
+1. 0°、±10°（推奨値）を先に試す。
+2. ±10° の案が最良だった場合に限り、その国家の上限（`getStateBridgeSkewLimit`）の ±上限も試す。生成時間を抑えるためである。
 
-FMG の渡河候補（`createProvisionalRiverCrossing`）は、引き続き河川法線上に橋を作る（0°）。
+候補の選び方は従来どおりで、迂回距離が最も短い案を採る。ただし、10° を超えた 1° ごとに 5 m を経路コストに上乗せする（`bridgeSkewPenaltyMeters`）。このため、直角に近い橋が優先され、大きな斜角の橋は迂回が大きく減る場合にしか選ばれない。
+
+候補の形（`createProvisionalRiverCrossing` の `skewDegrees`）は次のとおり。
+
+- 橋軸 `nCrossing` を、河川法線から `skewDegrees` だけ回す。
+- デッキの幅方向も、橋軸に直角になるよう同じ角度だけ回す。
+- 斜めのデッキは端が岸に斜めに当たるので、岸側の受け（seat）を「道路幅の半分 × tan(斜角)」だけ延ばす。こうしないと、デッキの角が水に入る。
+- `BRIDGE_SKEW_MAX_DEGREES`（30°）を超える指定は、不正な入力として扱う。
+
+CE への受け渡し（`FixedBurgCrossings`）では、`normal` が橋軸を表す。検証（`validFixedBurgCrossings`）では、`normal` と河川接線 `tangent` のなす角が法線から 30° 以内であることを確かめる。デッキ幅の方向は、`normal` に直角な方向で判定する。
+
+`getBurgSiteDescriptor` は、都市の所属国家の上限を `transport.maxBridgeSkewDegrees` に入れて CE に渡す。`diagnosePolylineRiverCrossings` は、交差ごとに `skewDegrees` と `withinSkewLimit` を記録する。
+
+実地の確認（2026-10-07、ageOfExploration、seed 424242 / 1001 / 777）：
+
+- 橋は 28 / 46 / 13 本。そのうち 13 / 22 / 8 本が ±10° で、残りは 0° だった。上限の 25° はどの地図でも選ばれなかった。
+- 橋が架かる道の数は、変更前とすべての都市で同じだった。
+- 生成時間は 0.41 / 0.40 / 0.17 秒から 0.77 / 0.77 / 0.30 秒に増えた（約 1.9 倍）。
+
+なお、セル単位の陸路網の生成（`landConnectionGeneration`、`worldRiverCrossingCandidates`）は、今も 0° の橋しか作らない。
 
 ### CE
 
@@ -97,5 +117,5 @@ FMG の渡河候補（`createProvisionalRiverCrossing`）は、引き続き河�
 
 ## 今後の課題
 
-- 今のところ、FMG と RE の生成器は 0° の橋しか作らない。許容の範囲内で道路の向きに寄せた斜めの橋（取り付け道路の迂回を減らす）を作るのは、別の作業として行う。
+- RE の生成器と、FMG のセル単位の陸路網の生成は、今も 0° の橋しか作らない。
 - 構造（石造か木造か）の属性は、まだどのエディタにもない。

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  bridgeSkewCandidates,
   bridgeSkewDegrees,
   bridgeSkewLimitForPeriod,
+  bridgeSkewPenaltyMeters,
   resolveBridgeSkewLimit,
   withinBridgeSkewLimit
 } from "./bridgeSkewPolicy";
@@ -32,5 +34,14 @@ describe("bridge skew policy", () => {
     expect(bridgeSkewDegrees([Math.sin(thirty), Math.cos(thirty)], [1, 0])).toBeCloseTo(30);
     expect(withinBridgeSkewLimit(15, 15)).toBe(true);
     expect(withinBridgeSkewLimit(15.1, 15)).toBe(false);
+  });
+
+  it("tries square first, then the preferred and the full allowance, with a cost penalty beyond 10°", () => {
+    expect(bridgeSkewCandidates(15)).toEqual([0, 10, -10, 15, -15]);
+    expect(bridgeSkewCandidates(10)).toEqual([0, 10, -10]);
+    expect(bridgeSkewCandidates(0)).toEqual([0]);
+    expect(bridgeSkewCandidates(45)).toEqual([0, 10, -10, 30, -30]);
+    expect(bridgeSkewPenaltyMeters(-10)).toBe(0);
+    expect(bridgeSkewPenaltyMeters(25)).toBe(75);
   });
 });

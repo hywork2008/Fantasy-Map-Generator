@@ -133,6 +133,33 @@ describe("committed FMG shared bridge geometry", () => {
     expect(ensureConvergingWorldRiverRoads(restored, "km").facilities).toHaveLength(1);
     expect(restored.pack.routes).toEqual(snapshot);
   });
+  it("follows an oblique road with a skewed bridge only within the period's allowance", () => {
+    const skewOf = (period: string) => {
+      vi.restoreAllMocks();
+      const world = fixture();
+      world.options.historicalPeriod = period as never;
+      // A single road meeting the river 20° off square.
+      world.pack.routes = [
+        {
+          i: 0,
+          group: "roads",
+          points: [
+            [-50, 0, 0],
+            [50, Math.tan((20 * Math.PI) / 180) * 100, 1]
+          ]
+        } as never
+      ];
+      const prepared = ensureConvergingWorldRiverRoads(world, "km");
+      expect(prepared.facilities).toHaveLength(1);
+      const payload = convergedBurgCrossings(world, "km", world.pack.burgs[1])!;
+      expect(validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS)).toBe(true);
+      return prepared.facilities[0].crossing.skewDegrees;
+    };
+    const exploration = skewOf("ageOfExploration");
+    expect(Math.abs(exploration)).toBeGreaterThan(0);
+    expect(Math.abs(exploration)).toBeLessThanOrEqual(25);
+    expect(Math.abs(skewOf("earlyMedieval"))).toBeLessThanOrEqual(15);
+  });
   it("does not alter locked roads and restores original cells when bridges become unavailable", () => {
     const world = fixture();
     world.pack.routes[2].lock = true;
@@ -169,11 +196,12 @@ describe("committed FMG shared bridge geometry", () => {
       },
       {
         id: 1,
+        // Close to the far bank: no dry gap for a shared far arm, even behind a skewed bridge.
         ring: [
-          [20, -20],
+          [12, -20],
           [35, -20],
           [35, 20],
-          [20, 20]
+          [12, 20]
         ]
       }
     ]);

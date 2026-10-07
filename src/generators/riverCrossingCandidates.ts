@@ -9,6 +9,7 @@ import {
   type PhysicalWaterPolygon,
   validWaterPolygon
 } from "../services/riverPhysicalGeometry";
+import { BRIDGE_SKEW_MAX_DEGREES } from "../utils/bridgeSkewPolicy";
 import { planRiverCrossing, type RiverCrossingPlan } from "../utils/riverCrossing";
 
 /** Design values are explicit until seed-based calibration supplies central defaults. */
@@ -24,8 +25,12 @@ export interface ProvisionalRiverCrossing {
   geometryVersion: number;
   arcLengthMeters: number;
   q: RiverPoint;
+  /** River tangent at q. */
   tRiver: RiverPoint;
+  /** Bridge axis (unit, bank A → bank B): the river normal turned by `skewDegrees`. */
   nCrossing: RiverPoint;
+  /** Signed deviation of the bridge axis from the river normal (bridgeSkewPolicy.ts). */
+  skewDegrees: number;
   waterA: RiverPoint;
   waterB: RiverPoint;
   deckA: RiverPoint;
@@ -43,6 +48,9 @@ export interface CrossingCandidateInput {
   id: number;
   geometry: PhysicalRiverGeometry;
   arcLengthMeters: number;
+  /** Signed turn of the bridge axis away from the river normal; 0 = square crossing.
+   * Callers keep |skewDegrees| within the state's allowance (bridgeSkewPolicy.ts). */
+  skewDegrees?: number;
   dimensions: CrossingCandidateDimensions;
   /** Complete water obstacles in the local corridor, including lakes and other rivers. */
   otherWater: readonly PhysicalWaterPolygon[];
@@ -116,9 +124,22 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
     (!input.waterIndex && (!validWaterPolygon(targetWater) || !input.otherWater.every(validWaterPolygon)))
   )
     return { reason: "invalid-input" };
+  const skewDegrees = input.skewDegrees ?? 0;
+  if (!Number.isFinite(skewDegrees) || Math.abs(skewDegrees) > BRIDGE_SKEW_MAX_DEGREES)
+    return { reason: "invalid-input" };
   const sample = sampleRiverAxis(geometry.axis, input.arcLengthMeters, d.localWindowMeters);
   if (!sample) return { reason: "unstable-axis" };
-  const { point: q, tangent: tRiver, normal: nCrossing } = sample;
+  const { point: q, tangent: tRiver } = sample;
+  // Turn the river frame as one: the deck runs along nCrossing, its width along `lateral`.
+  const turn = (v: RiverPoint): RiverPoint => {
+    if (!skewDegrees) return v;
+    const angle = (skewDegrees * Math.PI) / 180,
+      cos = Math.cos(angle),
+      sin = Math.sin(angle);
+    return [v[0] * cos - v[1] * sin, v[0] * sin + v[1] * cos];
+  };
+  const nCrossing = turn(sample.normal),
+    lateral = turn(tRiver);
   const section = normalWaterSection(q, nCrossing, targetWater);
   if (!section) return { reason: "unresolved-section" };
   const { negative: a, positive: b } = section;
@@ -136,8 +157,11 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
   )
     return { reason: "nonlocal-banks" };
   const point = (distance: number): RiverPoint => [q[0] + distance * nCrossing[0], q[1] + distance * nCrossing[1]];
-  const deckLo = a.distance - d.bankSeatMeters,
-    deckHi = b.distance + d.bankSeatMeters;
+  // A skewed deck's square end meets the bank obliquely: its trailing corner
+  // needs half the road width × tan(skew) more seat to stay on dry land.
+  const seat = d.bankSeatMeters + (d.roadWidthMeters / 2) * Math.abs(Math.tan((skewDegrees * Math.PI) / 180));
+  const deckLo = a.distance - seat,
+    deckHi = b.distance + seat;
   const approachLo = deckLo - d.straightApproachMeters,
     approachHi = deckHi + d.straightApproachMeters;
   const halfWidth = d.roadWidthMeters / 2;
@@ -147,7 +171,7 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
       [hi, -halfWidth],
       [hi, halfWidth],
       [lo, halfWidth]
-    ].map(([n, t]) => [q[0] + n * nCrossing[0] + t * tRiver[0], q[1] + n * nCrossing[1] + t * tRiver[1]]);
+    ].map(([n, t]) => [q[0] + n * nCrossing[0] + t * lateral[0], q[1] + n * nCrossing[1] + t * lateral[1]]);
   const deck = rectangle(deckLo, deckHi);
   // Include the full deck-end cross section and a dry support strip behind it.
   const dryA = rectangle(approachLo, deckLo + Math.min(d.bankSeatMeters / 2, d.straightApproachMeters));
@@ -169,7 +193,7 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
         ring[i],
         ring[(i + 1) % ring.length],
         q,
-        tRiver,
+        lateral,
         nCrossing,
         deckLo,
         deckHi,
@@ -199,6 +223,7 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
       q,
       tRiver,
       nCrossing,
+      skewDegrees,
       waterA: a.point,
       waterB: b.point,
       deckA: point(deckLo),
@@ -229,6 +254,7 @@ export function validateProvisionalRiverCrossing(
     candidate.geometryVersion !== expected.geometryVersion ||
     candidate.status !== "provisional" ||
     candidate.arcLengthMeters !== expected.arcLengthMeters ||
+    candidate.skewDegrees !== expected.skewDegrees ||
     candidate.plan.kind !== expected.plan.kind
   )
     return false;

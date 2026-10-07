@@ -11,6 +11,26 @@ import type { BridgeTransport } from "./bridgeCrossingPolicy";
 /** Generators aim for this or less; it is not a hard limit. */
 export const BRIDGE_SKEW_PREFERRED_DEGREES = 10;
 
+/** The largest allowance of any era; data beyond it is never a valid bridge. */
+export const BRIDGE_SKEW_MAX_DEGREES = 30;
+
+/** Route-cost surcharge per degree beyond the preferred skew, so a square or
+ * near-square crossing wins unless a skewed one saves a real detour. */
+export const BRIDGE_SKEW_PENALTY_METERS_PER_DEGREE = 5;
+
+export function bridgeSkewPenaltyMeters(skewDegrees: number): number {
+  return Math.max(0, Math.abs(skewDegrees) - BRIDGE_SKEW_PREFERRED_DEGREES) * BRIDGE_SKEW_PENALTY_METERS_PER_DEGREE;
+}
+
+/** Candidate skews to try, square first: 0, ±preferred, ±limit (deduplicated, within the limit). */
+export function bridgeSkewCandidates(limitDegrees: number): number[] {
+  const limit = Math.max(0, Math.min(BRIDGE_SKEW_MAX_DEGREES, limitDegrees));
+  const result = [0];
+  for (const step of [Math.min(BRIDGE_SKEW_PREFERRED_DEGREES, limit), limit])
+    if (step > 0 && !result.includes(step)) result.push(step, -step);
+  return result;
+}
+
 export type BridgeStructure = "stone" | "timber";
 
 /** 0 = ancient/medieval, 1 = early modern surveying, 2 = skew-arch / modern engineering. */

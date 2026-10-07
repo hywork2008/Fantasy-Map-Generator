@@ -7,8 +7,10 @@ import {
   createProvisionalRiverCrossing,
   type ProvisionalRiverCrossing
 } from "../generators/riverCrossingCandidates";
+import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import type { Burg, Route } from "../types/models";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
+import { bridgeSkewCandidates } from "../utils/bridgeSkewPolicy";
 import type { FixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
@@ -132,7 +134,9 @@ function key(world: WorldContext, unit: string) {
     p.vertices?.p,
     p.cells.v,
     p.cells.h,
-    p.burgs?.map(b => b && [b.i, b.x, b.y, b.cell, b.population, b.removed]),
+    p.burgs?.map(b => b && [b.i, b.x, b.y, b.cell, b.population, b.removed, b.state]),
+    // Skew allowance rises with each state's technology (bridgeSkewPolicy.ts).
+    p.states?.map(s => s && !s.removed && getStateBridgeSkewLimit(s.i)),
     p.routes?.map(r => [r.i, r.group, r.points, r.lock, r.registeredConnectionId])
   ]);
 }
@@ -199,6 +203,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
       }
     }
     if (!legs.length) continue;
+    const skews = bridgeSkewCandidates(getStateBridgeSkewLimit(burg.state ?? 0));
     const adoptedLegs = new Set<number>();
     for (const half of [baseHalf, baseHalf + bridgeCrossingLimitForPeriod(world.options.historicalPeriod)]) {
       if (adoptedLegs.size === legs.length) break;
@@ -305,7 +310,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
           .flatMap(a => [-160, -80, -40, -20, 20, 40, 80, 160].map(offset => a.arc + offset));
         const offsetBatches = chunks(offsetArcs, 8);
         const candidateCache = new Map<
-          number,
+          string,
           { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput } | null
         >();
         while (true) {
@@ -313,50 +318,59 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
           if (!activeLegs.length) break;
           let merged: ReturnType<typeof convergeRiverRoadLegs> = null;
 
-          const evaluateBatch = (batch: number[]) => {
+          // Square and ±preferred first; the full allowance only when the road
+          // already pulls the bridge to the preferred skew (keeps generation cheap).
+          const evaluateBatch = (
+            batch: number[],
+            skewSet = skews.slice(0, 3)
+          ): ReturnType<typeof convergeRiverRoadLegs> => {
             const candidates: { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput }[] = [];
-            for (const arc of batch) {
-              if (arc <= 0 || arc >= geometry.axis.length) continue;
-              let item = candidateCache.get(arc);
-              if (item === undefined) {
-                const input: CrossingCandidateInput = {
-                  id: facilityId,
-                  geometry: candidateGeometry,
-                  arcLengthMeters: arc,
-                  dimensions: {
-                    bankSeatMeters: 2,
-                    straightApproachMeters: 10,
-                    roadWidthMeters: 5,
-                    localWindowMeters: 20
-                  },
-                  otherWater: [],
-                  waterIndex,
-                  capability: {
-                    period: world.options.historicalPeriod,
-                    technology: world.options.riverBridgeTechnology,
-                    depthMeters: river.cellHydrology?.[cellId]?.waterDepth,
-                    vessel
-                  },
-                  supportsDryFootprint: supports
-                };
-                const created = createProvisionalRiverCrossing(input);
-                item = "candidate" in created ? { crossing: created.candidate, input } : null;
-                candidateCache.set(arc, item);
-              }
-              if (item) {
-                if (item.input.id !== facilityId) {
-                  item = {
-                    crossing: { ...item.crossing, id: facilityId },
-                    input: { ...item.input, id: facilityId }
+            for (const arc of batch)
+              for (const skewDegrees of skewSet) {
+                if (arc <= 0 || arc >= geometry.axis.length) continue;
+                const cacheKey = `${arc}:${skewDegrees}`;
+                let item = candidateCache.get(cacheKey);
+                if (item === undefined) {
+                  const input: CrossingCandidateInput = {
+                    id: facilityId,
+                    geometry: candidateGeometry,
+                    arcLengthMeters: arc,
+                    skewDegrees,
+                    dimensions: {
+                      bankSeatMeters: 2,
+                      straightApproachMeters: 10,
+                      roadWidthMeters: 5,
+                      localWindowMeters: 20
+                    },
+                    otherWater: [],
+                    waterIndex,
+                    capability: {
+                      period: world.options.historicalPeriod,
+                      technology: world.options.riverBridgeTechnology,
+                      depthMeters: river.cellHydrology?.[cellId]?.waterDepth,
+                      vessel
+                    },
+                    supportsDryFootprint: supports
                   };
+                  const created = createProvisionalRiverCrossing(input);
+                  item = "candidate" in created ? { crossing: created.candidate, input } : null;
+                  candidateCache.set(cacheKey, item);
                 }
-                candidates.push(item);
+                if (item) {
+                  if (item.input.id !== facilityId) {
+                    item = {
+                      crossing: { ...item.crossing, id: facilityId },
+                      input: { ...item.input, id: facilityId }
+                    };
+                  }
+                  candidates.push(item);
+                }
               }
-            }
-            if (candidates.length) {
-              return convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half);
-            }
-            return null;
+            if (!candidates.length) return null;
+            const found = convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half);
+            if (found && skewSet.length < skews.length && Math.abs(found.crossing.skewDegrees) === Math.abs(skews[1]))
+              return evaluateBatch(batch, skews) ?? found;
+            return found;
           };
 
           for (const batch of nearestBatches) {
@@ -497,7 +511,7 @@ function crossingsPayload(
   const half = survey.half;
   const occupied = crossings.flatMap(c =>
     [c.approachA, c.approachB, c.deckA, c.deckB].flatMap(p =>
-      [-3, 3].map(d => [p[0] + d * c.tangent[0], p[1] + d * c.tangent[1]])
+      [-3, 3].map(d => [p[0] - d * c.normal[1], p[1] + d * c.normal[0]])
     )
   );
   const payload: FixedBurgCrossings = {
