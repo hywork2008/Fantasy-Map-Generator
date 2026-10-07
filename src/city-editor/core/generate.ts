@@ -2865,7 +2865,12 @@ function applyPlan(
     plan.borderLoops.forEach(loop => {
       const runs =
         plan.avoidSea && plan.waterPolygon
-          ? splitDryWallRuns(loop.points, loop.segments, plan.waterPolygon)
+          ? // The planning coast polygon is a wandering graph walk; cells it
+            // grazed but did not classify as sea are dry town (Allagospo).
+            splitDryWallRuns(loop.points, loop.segments, plan.waterPolygon, ref => {
+              const edge = mesh.edges[ref.edgeId];
+              return [edge.leftFace, edge.rightFace].every(id => !id || mesh.faces[id].properties.water === "land");
+            })
           : [loop.segments];
       for (const ref of loop.segments) {
         const edge = mesh.edges[ref.edgeId];

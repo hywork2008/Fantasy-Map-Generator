@@ -2774,6 +2774,15 @@ function line(points: Point[]): string {
   return points.map((point, index) => `${index ? "L" : "M"}${point[0]} ${-point[1]}`).join(" ");
 }
 
+/** The shared fixed-crossing layer already draws this span (Allagospo has none, so its frame bridge must draw). */
+function fixedCrossingCovers(document: CityDocument, deck: Point[]): boolean {
+  const near = (a: Point, b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 25;
+  return (document.importedFixedCrossings?.crossings ?? []).some(
+    c =>
+      (near(deck[0], c.deckA) && near(deck.at(-1)!, c.deckB)) || (near(deck[0], c.deckB) && near(deck.at(-1)!, c.deckA))
+  );
+}
+
 /** Continue an imported road from the outermost mesh vertex when that stub stays dry. */
 function appendFrameRoads(parent: SVGElement, document: CityDocument, town: boolean): void {
   const legs = document.frameRoads;
@@ -2814,12 +2823,17 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
         })
       );
     }
+    // A leg the frame planner bridged already runs its approaches along the
+    // bank to a square crossing; grazing that bank is not a water crossing.
+    const plannedCrossing = leg.pieces.some(piece => piece.kind === "bridge");
     for (const piece of leg.pieces) {
       const points = piece.points;
       if (points.length < 2) continue;
       if (
         document.sceneRegions &&
-        (piece.kind === "bridge" || lineHitsDocumentWater(document, points, Number(width), true))
+        (piece.kind === "bridge"
+          ? fixedCrossingCovers(document, points)
+          : !plannedCrossing && lineHitsDocumentWater(document, points, Number(width), true))
       )
         continue;
       const identity = {

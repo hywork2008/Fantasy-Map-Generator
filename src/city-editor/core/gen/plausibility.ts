@@ -105,11 +105,19 @@ export function wallSegmentIsDry(a: Point, b: Point, waterPolygon: Point[] | nul
  * the edge `points[i] → points[i+1]`. Empty when every edge is wet. A fully
  * dry loop is returned as a single run (still closed).
  */
-export function splitDryWallRuns<T>(points: Point[], segments: T[], waterPolygon: Point[] | null): T[][] {
+export function splitDryWallRuns<T>(
+  points: Point[],
+  segments: T[],
+  waterPolygon: Point[] | null,
+  /** Ground truth that overrides the (planning) polygon, e.g. both faces are land. */
+  knownDry?: (segment: T) => boolean
+): T[][] {
   if (!segments.length) return [];
   if (!waterPolygon || waterPolygon.length < 3 || points.length !== segments.length) return [segments];
   const n = segments.length;
-  const dry = segments.map((_, i) => wallSegmentIsDry(points[i], points[(i + 1) % n], waterPolygon));
+  const dry = segments.map(
+    (segment, i) => knownDry?.(segment) || wallSegmentIsDry(points[i], points[(i + 1) % n], waterPolygon)
+  );
   if (dry.every(Boolean)) return [segments];
   if (!dry.some(Boolean)) return [];
   const runs: T[][] = [];

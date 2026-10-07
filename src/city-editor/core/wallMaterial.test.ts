@@ -199,12 +199,12 @@ describe("wall creation and generation with material", () => {
       }
     }
 
-    const largeDoc = createSizedDocument("large", "city-seed");
-    const largeSettings = defaultGenerationSettings();
-    largeSettings.config.features.walls = true;
-    const generatedLarge = generateCityOnDocument(largeDoc, largeSettings, "city-seed");
-    if (generatedLarge) {
-      const walls = generatedLarge.featureGroups.filter(g => g.kind === "wall") as EdgeFeatureGroup[];
+    const smallDoc = createSizedDocument("small", "city-seed");
+    const smallSettings = defaultGenerationSettings();
+    smallSettings.config.features.walls = true;
+    const generatedSmall = generateCityOnDocument(smallDoc, smallSettings, "city-seed");
+    if (generatedSmall) {
+      const walls = generatedSmall.featureGroups.filter(g => g.kind === "wall") as EdgeFeatureGroup[];
       if (walls.length > 0) {
         expect(walls[0].wallMaterial).toBe("stone");
         expect(walls[0].style.color).toBe("#41382e");
