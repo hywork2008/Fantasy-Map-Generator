@@ -295,7 +295,10 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
         worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
       ),
       frontierStartMode: normalizeFrontierStartMode(worldContext.options.frontierStartMode),
-      frontierPolitySpacing: normalizeFrontierPolitySpacing(worldContext.options.frontierPolitySpacing)
+      frontierPolitySpacing: normalizeFrontierPolitySpacing(worldContext.options.frontierPolitySpacing),
+      ...(worldContext.options.portCoastPlacement
+        ? { portCoastPlacement: worldContext.options.portCoastPlacement }
+        : {})
     });
     if (worldContext.options.landConnectionGeneration) {
       legacyMutation(() => {

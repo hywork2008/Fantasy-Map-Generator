@@ -12,7 +12,7 @@ import {
 } from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
-import type { FocusScope, ViewContext } from "../../../context/viewContext";
+import type { FocusScope } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
 import { HeightThreshold, OceanCurrentConstants } from "../../../data/constants";
@@ -34,10 +34,10 @@ import type {
 } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
-import { clipPoly, getPortAnchorPosition, isWater, lerp, minmax } from "../../../utils";
+import { getPortAnchorPosition, isWater, lerp, minmax } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
-import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
+import { drawnFeatureShape, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { dangerValueToMagmaT } from "../../dangerColorScale";
 import { buildPopulationColorMetrics, heatBucketToColorT } from "../../populationColorScale";
@@ -2457,24 +2457,8 @@ function getFeaturePolygon(
   appServices: AppServices,
   feature: PackedGraphFeature
 ): DeckPosition[] {
-  const points = feature.vertices
-    .map(vertexId => worldContext.pack.vertices.p[vertexId])
-    .filter((point): point is [number, number] => Boolean(point));
-  if (points.length < 3) return [];
-
-  const simplified = _simplify(
-    points.map(([x, y]) => ({ x, y })),
-    0.3
-  ).map(({ x, y }) => [x, y] as [number, number]);
-  const clipped = toSimplePolygon(clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1));
-  const fractalShape = fractalizeCoastline(
-    worldContext,
-    {} as Readonly<ViewContext>,
-    appServices,
-    clipped,
-    feature.i,
-    feature.type
-  );
+  const fractalShape = drawnFeatureShape(worldContext, feature, { skipMissing: true, afterClip: toSimplePolygon });
+  if (!fractalShape) return [];
   return sampleCoastlineShape(fractalShape, 0.5).map(([x, y]) => [x, y] as DeckPosition);
 }
 

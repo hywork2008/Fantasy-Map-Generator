@@ -1,21 +1,12 @@
 import { select } from "d3";
-import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../types/models";
-import { clipPoly, round } from "../utils";
+import { round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
-import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";
+import { buildCoastlinePath, drawnFeatureShape } from "./coastline-fractal";
 import type { IRenderer } from "./core/IRenderer";
-
-function simplify(points: [number, number][], tolerance: number, highestQuality?: boolean): [number, number][] {
-  return _simplify(
-    points.map(([x, y]) => ({ x, y })),
-    tolerance,
-    highestQuality
-  ).map(({ x, y }) => [x, y] as [number, number]);
-}
 
 interface FeaturesHtml {
   paths: string[];
@@ -123,16 +114,11 @@ function featurePathRenderer(
   appServices: AppServices,
   feature: PackedGraphFeature
 ): string {
-  const { pack, graphWidth, graphHeight } = worldContext;
-  const points = feature.vertices.map(vertex => pack.vertices.p[vertex]);
-  if (points.some(point => point === undefined)) {
+  const shape = drawnFeatureShape(worldContext, feature);
+  if (!shape) {
     ERROR && console.error("Undefined point in getFeaturePath");
     return "";
   }
-
-  const simplifiedPoints = simplify(points, 0.3);
-  const clippedPoints = clipPoly(simplifiedPoints, graphWidth, graphHeight, 1);
-  const shape = fractalizeCoastline(worldContext, viewContext, appServices, clippedPoints, feature.i, feature.type);
   return `${round(buildCoastlinePath(worldContext, viewContext, appServices, shape))}Z`;
 }
 

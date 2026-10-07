@@ -18,10 +18,12 @@ import {
 import { getRaceById } from "../data/races";
 import { isLichCultureId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
+import type { FractalizedShape } from "../renderers/coastline-fractal";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
+import { drawnShorePortPosition, pinnedShorePortPosition } from "../services/portShorePosition";
 import { RegionalRiverGeometry } from "../services/regionalRiverGeometry";
 import { footprintTouchesWater, pointInWater } from "../services/riverPhysicalGeometry";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
@@ -730,11 +732,34 @@ class BurgModule {
     return Math.hypot(x - edge[0], y - edge[1]);
   }
 
+  /** Drawn coast shapes per feature, built once per generation pass. */
+  private readonly shoreShapes = new Map<number, FractalizedShape | null>();
+  private shoreShapesFeatures?: unknown;
+
+  /** Sit a harbour on the coast the map draws, a fixed distance inland
+   * (Options → Generation → Harbour placement). */
+  private drawnShorePosition(cellId: number, haven: number, edge: Point): Point | null {
+    const world = this.worldContext;
+    const mode = world.options.portCoastPlacement;
+    if (!mode) return null; // maps generated before the option keep the legacy slide
+    const metersPerMapUnit = mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit);
+    if (!(metersPerMapUnit > 0)) return null;
+    if (mode === "pinned") return pinnedShorePortPosition(world.pack.cells.p[cellId] as Point, edge, metersPerMapUnit);
+    // The module is a singleton: drop shapes from a previous map or feature set.
+    if (this.shoreShapesFeatures !== world.pack.features) {
+      this.shoreShapes.clear();
+      this.shoreShapesFeatures = world.pack.features;
+    }
+    return drawnShorePortPosition(world, cellId, haven, edge, metersPerMapUnit, this.shoreShapes);
+  }
+
   private getCloseToEdgePoint(cell1: number, cell2: number): [number, number] {
     const { cells } = this.worldContext.pack;
     const [x0, y0] = cells.p[cell1];
     const edge = this.getSharedEdgeMidpoint(cell1, cell2);
     if (!edge) return [x0, y0];
+    const drawn = this.drawnShorePosition(cell1, cell2, edge);
+    if (drawn) return drawn;
     return [rn(x0 + 0.95 * (edge[0] - x0), 2), rn(y0 + 0.95 * (edge[1] - y0), 2)];
   }
 
@@ -748,6 +773,8 @@ class BurgModule {
     const [x0, y0] = cells.p[cellId];
     const edge = this.getSharedEdgeMidpoint(cellId, haven);
     if (!edge) return [x0, y0];
+    const drawn = this.drawnShorePosition(cellId, haven, edge);
+    if (drawn) return drawn;
     const dx = edge[0] - x0;
     const dy = edge[1] - y0;
     const dist = Math.hypot(dx, dy);

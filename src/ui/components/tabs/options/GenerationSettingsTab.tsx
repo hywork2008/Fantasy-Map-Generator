@@ -619,6 +619,24 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip={t("generation.portCoastPlacementTip")}>
+            <td>
+              <LockIconButton id="portCoastPlacement" />
+            </td>
+            <th>{t("generation.portCoastPlacement")}</th>
+            <td colSpan={2}>
+              <select
+                value={options.portCoastPlacement}
+                onChange={e =>
+                  updateOptionAndLock("portCoastPlacement", e.target.value as typeof options.portCoastPlacement)
+                }
+              >
+                <option value="pinned">{t("generation.portCoastPlacements.pinned")}</option>
+                <option value="drawn">{t("generation.portCoastPlacements.drawn")}</option>
+              </select>
+            </td>
+          </tr>
+
           <tr
             data-tip={t("generation.initialPolityRealmSizeTip")}
             style={{

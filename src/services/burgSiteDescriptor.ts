@@ -3,6 +3,7 @@ import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
+import { drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import { useOptionsState } from "../store/optionsState";
 import type { RegionalContext } from "../types/cityRegional";
 import { regionalRevision } from "../types/cityRegional";
@@ -435,7 +436,7 @@ export function getBurgSiteDescriptor(
     for (const river of rivers) if (river.riverId === beyondBudgetRiverId) river.frontage = "beyond-budget";
   }
   const roads = collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
-  const waterbody = collectWaterbody(burg, toLocal, half);
+  const waterbody = collectWaterbody(burg, toLocal, half, metersPerMapUnit);
   const terrain = collectTerrain(burg, half, metersPerMapUnit);
 
   const roadLegCount = roads.filter(road => road.group !== "searoutes").length;
@@ -1270,7 +1271,8 @@ function collectRoadEntries(
 function collectWaterbody(
   burg: Burg,
   toLocal: (x: number, y: number) => [number, number],
-  half: number
+  half: number,
+  metersPerMapUnit: number
 ): BurgSiteWaterbody | null {
   const { pack } = worldContext;
   const haven = pack.cells.haven[burg.cell];
@@ -1283,11 +1285,21 @@ function collectWaterbody(
   // The shoreline near the town: lakes carry their own boundary chain; for the
   // ocean the land feature's chain traces the coast.
   const chainFeature = kind === "lake" ? waterFeature : pack.features[pack.cells.f[burg.cell]];
-  const vertexChain = chainFeature?.vertices ?? [];
-  const ring: [number, number][] = vertexChain.map(v => {
-    const [x, y] = pack.vertices.p[v];
-    return toLocal(x, y);
-  });
+  // Use the coast as drawn (simplified, fractalized, curved), not the raw
+  // cell-vertex chain. A town window is far smaller than one cell (Senia:
+  // 1.5 km window, 3.4 km per map unit), so the raw chain can miss the window
+  // entirely while the drawn coast runs past the burg (Kubutsk, Mopolch).
+  const shape = chainFeature?.vertices?.length ? drawnFeatureShape(worldContext, chainFeature) : null;
+  const margin = (half * 1.5) / metersPerMapUnit;
+  const drawn = shape
+    ? sampleCoastlineShape(shape, 1 / metersPerMapUnit, {
+        minX: burg.x - margin,
+        maxX: burg.x + margin,
+        minY: burg.y - margin,
+        maxY: burg.y + margin
+      })
+    : [];
+  const ring: [number, number][] = drawn.map(([x, y]) => toLocal(x, y));
   if (ring.length > 1) ring.push(ring[0]); // close the ring
 
   const [havenX, havenY] = toLocal(...pack.cells.p[haven]);

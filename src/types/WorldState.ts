@@ -181,6 +181,12 @@ export interface WorldOptions {
    */
   frontierPolitySpacing?: FrontierPolitySpacing;
   /**
+   * Harbour placement against the drawn coast (Options → Generation). Absent
+   * on maps generated before it existed: those keep the legacy 95% slide and
+   * unpinned coast rendering, so saved maps do not change.
+   */
+  portCoastPlacement?: PortCoastPlacement;
+  /**
    * Biome regional profile: adjusts auto-assignment rates and continuous masks
    * (great forests, heath mosaics, mediterranean scrub, etc.). Default global.
    */
@@ -271,3 +277,6 @@ export interface WorldState {
   biomesData: BiomesData;
   notes: WorldNote[];
 }
+
+/** See `WorldState.options.portCoastPlacement`. */
+export type PortCoastPlacement = "pinned" | "drawn";
