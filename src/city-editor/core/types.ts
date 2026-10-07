@@ -145,6 +145,8 @@ export interface ApproachBeyondData {
  * as well as legacy short strings. */
 export type ApproachBeyond = ApproachBeyondData | "city" | "granary" | "enemy" | "ally" | "hamlet";
 
+export type WallMaterial = "stone" | "wood";
+
 export interface EdgeFeatureGroup {
   crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   id: Id;
@@ -159,6 +161,8 @@ export interface EdgeFeatureGroup {
   sourceRoad?: { index: number; routeId: number; terminal?: "riverLanding" };
   /** River-through-wall passages; distinct from gates that require road access. */
   riverPassages?: Id[];
+  /** Material of the wall: "stone" for stone curtain walls, "wood" for timber palisades. */
+  wallMaterial?: WallMaterial;
 }
 
 export interface RiverGroup {

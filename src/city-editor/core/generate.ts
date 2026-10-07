@@ -57,7 +57,7 @@ import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPo
 // are kept across presses.
 
 import { maxWallGatesForExtent, sizePresetForExtent, townMeshExtentMeters } from "./document";
-import { featureGroupVertices, orderedBoundaryLoops, shortestPath } from "./features";
+import { featureGroupVertices, orderedBoundaryLoops, resolveWallMaterial, shortestPath } from "./features";
 import { tagExternalGateRoads } from "./gen/approachBeyond";
 import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./gen/cemeteryLayout";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
@@ -150,7 +150,7 @@ import {
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
-import type { CityDocument, EdgeRef, FeatureGroup, Id, Mesh, Point } from "./types";
+import type { CityDocument, EdgeRef, FeatureGroup, Id, Mesh, Point, WallMaterial } from "./types";
 
 export type { CityFeatureSet, CityLayout, SiteConfig } from "./gen/site/siteConfig";
 export { CITY_LAYOUTS, FEATURE_KEYS } from "./gen/site/siteConfig";
@@ -1401,6 +1401,7 @@ interface Plan {
   /** Resolved `settings.streets.avoidSea` so `applyPlan` can drop wet walls
    * without taking the whole settings object. */
   avoidSea: boolean;
+  wallMaterial?: WallMaterial;
   rivers: RoutedRiver[];
   urban: Set<number>;
   outskirts: Set<number>;
@@ -1516,6 +1517,22 @@ export function runPlan(
     coastPath: [],
     waterPolygon: null,
     avoidSea: streetOpts.avoidSea,
+    wallMaterial: resolveWallMaterial(
+      sourceDocument ?? {
+        format: "fmg-city-editor",
+        version: 1,
+        frame: {
+          extentMeters: params.extentMeters,
+          cityRadiusMeters: params.cityRadiusMeters,
+          blockSizeMeters: params.cellSizeMeters
+        },
+        mesh: { vertices: {}, edges: {}, faces: {} },
+        featureGroups: [],
+        gates: [],
+        elements: []
+      },
+      { choice: settings.config?.wall?.material, descriptor: settings.descriptor }
+    ),
     importedRoads: geo.importedRoads,
     frameRoads: outerFrameRoads(settings.descriptor),
     riverPort: geo.riverPort,
@@ -2013,6 +2030,23 @@ export function runPlan(
     const urbanFaces = new Set([...currentUrban].map(id => currentFaceIdOf[id]));
     const reserve = new Set(precincts.flatMap(p => p.cellIds.map(id => currentFaceIdOf[id])));
     for (const face of Object.values(currentMesh.faces)) if (face.properties.locked) reserve.add(face.id);
+    const planningWallMaterial = resolveWallMaterial(
+      sourceDocument ?? {
+        format: "fmg-city-editor",
+        version: 1,
+        frame: {
+          extentMeters: half * 2,
+          cityRadiusMeters: params.cityRadiusMeters,
+          blockSizeMeters: cellSize
+        },
+        mesh: currentMesh,
+        featureGroups: [],
+        gates: [],
+        elements: []
+      },
+      { choice: settings.config.wall.material, descriptor: settings.descriptor }
+    );
+    const isPlanningWallWood = planningWallMaterial === "wood";
     const temp: CityDocument = {
       format: "fmg-city-editor",
       version: 1,
@@ -2032,7 +2066,11 @@ export function runPlan(
               kind: "wall",
               name: "Town wall",
               segments: [],
-              style: { widthMeters: 3, color: "#41382e" },
+              style: {
+                widthMeters: isPlanningWallWood ? 2.4 : 3,
+                color: isPlanningWallWood ? "#634327" : "#41382e"
+              },
+              wallMaterial: planningWallMaterial,
               locked: false
             }
           ]
@@ -2409,6 +2447,7 @@ export function runPlan(
     coastPath,
     waterPolygon,
     avoidSea: streetOpts.avoidSea,
+    wallMaterial: empty.wallMaterial,
     channelPolygons: empty.channelPolygons,
     fixedCrossings: empty.fixedCrossings,
     replaceFixedCrossings: empty.replaceFixedCrossings,
@@ -2479,13 +2518,19 @@ function planningDebugDocument(
       locked: false
     });
   // This is the planned wall, before passage construction and road routing.
+  const debugWallMaterial = plan.wallMaterial ?? "stone";
+  const isDebugWallWood = debugWallMaterial === "wood";
   for (const [index, loop] of (program.walls ? plan.borderLoops : []).entries())
     next.featureGroups.push({
       id: `${GEN_PREFIX}debug-wall-${index}`,
       kind: "wall",
       name: `Planned wall ${index + 1}`,
       segments: clone(loop.segments),
-      style: { widthMeters: 4, color: "#41382e" },
+      style: {
+        widthMeters: isDebugWallWood ? 2.4 : 4,
+        color: isDebugWallWood ? "#634327" : "#41382e"
+      },
+      wallMaterial: debugWallMaterial,
       locked: false
     });
   for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
@@ -2804,6 +2849,8 @@ function applyPlan(
         openEdges.add(id);
       }
     }
+    const generatedWallMaterial = plan.wallMaterial ?? "stone";
+    const isGeneratedWallWood = generatedWallMaterial === "wood";
     plan.borderLoops.forEach(loop => {
       const runs =
         plan.avoidSea && plan.waterPolygon
@@ -2831,9 +2878,10 @@ function applyPlan(
           name: `Wall ${wallIndex + 1}`,
           segments,
           style: {
-            widthMeters: Math.max(4, source.frame.blockSizeMeters * 0.14),
-            color: "#41382e"
+            widthMeters: isGeneratedWallWood ? 2.4 : Math.max(4, source.frame.blockSizeMeters * 0.14),
+            color: isGeneratedWallWood ? "#634327" : "#41382e"
           },
+          wallMaterial: generatedWallMaterial,
           locked: false
         });
         wallIndex++;

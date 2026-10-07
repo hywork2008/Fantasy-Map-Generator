@@ -128,6 +128,7 @@ export function installCastle(
         name: "Castle curtain",
         segments: run.refs,
         style: { widthMeters: 4.2, color: "#55443d" },
+        wallMaterial: "stone",
         locked: false
       });
     }

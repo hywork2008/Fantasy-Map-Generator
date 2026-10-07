@@ -52,7 +52,7 @@ export function renderRiverWallSvg(city: CityDocument): SVGGElement {
       const grate = document.createElementNS(ns, "path");
       grate.setAttribute("d", points.map((p, i) => `${i ? "L" : "M"}${p[0]},${-p[1]}`).join(""));
       grate.setAttribute("fill", "none");
-      grate.setAttribute("stroke", "#000");
+      grate.setAttribute("stroke", wall.wallMaterial === "wood" ? "#634327" : "#000");
       grate.setAttribute("stroke-width", "1.2");
       grate.setAttribute("stroke-dasharray", "1 2");
       grate.setAttribute("stroke-linecap", "butt");

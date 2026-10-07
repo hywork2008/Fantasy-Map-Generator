@@ -73,7 +73,12 @@ import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
-import { WALL_COAST_CHOICES, type WallCoastChoice } from "../core/gen/site/siteConfig";
+import {
+  WALL_COAST_CHOICES,
+  WALL_MATERIAL_CHOICES,
+  type WallCoastChoice,
+  type WallMaterialChoice
+} from "../core/gen/site/siteConfig";
 import {
   CITY_LAYOUTS,
   type CityFeatureSet,
@@ -135,6 +140,7 @@ import type {
   CastleSettings,
   CityDocument,
   CityElement,
+  EdgeFeatureGroup,
   FeatureGroup,
   Id,
   LandmarkAsset,
@@ -1016,6 +1022,25 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
     completeResult = null;
   });
+  const WALL_MATERIAL_LABELS: Record<WallMaterialChoice, string> = {
+    auto: "自動（大都市:石材 / 小村:木材）",
+    stone: "石材（石造城壁）",
+    wood: "木材（木造柵・防壁）"
+  };
+  const wallMaterialSelect = document.createElement("select");
+  wallMaterialSelect.className = "ce-generate-wall-material";
+  for (const value of WALL_MATERIAL_CHOICES) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = WALL_MATERIAL_LABELS[value];
+    wallMaterialSelect.appendChild(option);
+  }
+  wallMaterialSelect.value = generateSettings.config.wall.material ?? "auto";
+  wallMaterialSelect.title = "城壁の素材。自動では大きな都市は石造、小さな村は木造パリセードになります。";
+  wallMaterialSelect.addEventListener("change", () => {
+    generateSettings.config.wall.material = wallMaterialSelect.value as WallMaterialChoice;
+    completeResult = null;
+  });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
     generateSettings.config.rivers = riversForCount(generateSettings.config, Number(riversSelect.value));
@@ -1355,6 +1380,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     divider(),
     importedBox,
     synthControls,
+    label("城壁の素材", wallMaterialSelect),
     label("海側の城壁", seaWallSelect),
     castleControls,
     moatControls,
@@ -3242,6 +3268,33 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         )
       );
 
+    function appendWallMaterialControls(targetContainer: HTMLElement, wallGroup: EdgeFeatureGroup): void {
+      const materialSelect = document.createElement("select");
+      const optStone = document.createElement("option");
+      optStone.value = "stone";
+      optStone.textContent = "石材（石造城壁）";
+      const optWood = document.createElement("option");
+      optWood.value = "wood";
+      optWood.textContent = "木材（木造柵・防壁）";
+      materialSelect.append(optStone, optWood);
+      materialSelect.value = wallGroup.wallMaterial ?? "stone";
+      materialSelect.addEventListener("change", () => {
+        const nextMat = materialSelect.value as "stone" | "wood";
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === wallGroup.id);
+        if (target && target.kind === "wall") {
+          target.wallMaterial = nextMat;
+          target.style = {
+            ...target.style,
+            color: nextMat === "wood" ? "#7a522c" : "#342a22",
+            widthMeters: nextMat === "wood" ? 2.4 : Math.max(4, target.style.widthMeters)
+          };
+          commit(next, `Set ${wallGroup.name} material to ${nextMat === "wood" ? "木材" : "石材"}`);
+        }
+      });
+      targetContainer.append(divider(), label("壁の素材", materialSelect));
+    }
+
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
@@ -3256,6 +3309,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           })
         );
         if (group.kind === "road") appendApproachBeyondControls(container, group.id, group.beyond);
+        if (group.kind === "wall") appendWallMaterialControls(container, group as EdgeFeatureGroup);
         return;
       }
     }
@@ -3263,6 +3317,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
         if (group.kind === "road") appendApproachBeyondControls(container, group.id, group.beyond);
+        if (group.kind === "wall") appendWallMaterialControls(container, group as EdgeFeatureGroup);
         container.appendChild(
           text(
             group.kind === "road"
@@ -3663,7 +3718,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         text(
           `${group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`}${
             group.kind === "road" && approachBeyondLabel(group.beyond) ? ` · ${approachBeyondLabel(group.beyond)}` : ""
-          }`
+          }${group.kind === "wall" ? ` · ${group.wallMaterial === "wood" ? "木製" : "石造"}` : ""}`
         )
       );
       const smooth = makeIconButton("⌁", `Smooth ${group.name}`, () => {
@@ -4516,10 +4571,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
     if (!generateSettings.config.wall) {
-      generateSettings.config.wall = { envelope: "auto", coast: "auto", line: "auto" };
+      generateSettings.config.wall = { envelope: "auto", coast: "auto", line: "auto", material: "auto" };
     }
     seaWallSelect.value = WALL_COAST_CHOICES.includes(generateSettings.config.wall.coast)
       ? generateSettings.config.wall.coast
+      : "auto";
+    wallMaterialSelect.value = WALL_MATERIAL_CHOICES.includes(
+      generateSettings.config.wall.material as WallMaterialChoice
+    )
+      ? (generateSettings.config.wall.material as WallMaterialChoice)
       : "auto";
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     riverPlacementSelect.value = generateSettings.riverPlacement ?? "through";

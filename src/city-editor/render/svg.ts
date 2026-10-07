@@ -752,6 +752,8 @@ export function renderEditorSvg(
     if (fixedMode && group.kind === "road")
       runs = fixedGeometry ? runs.filter(run => fixedRoadIsDry(run, group.style.widthMeters, fixedGeometry)) : [];
     const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
+    const wallMaterial = group.kind === "wall" ? (group.wallMaterial ?? "stone") : undefined;
+    const wallStrokeColor = wallMaterial === "wood" ? "#634327" : "#292a26";
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
@@ -762,7 +764,8 @@ export function renderEditorSvg(
       widthMeters: group.style.widthMeters,
       color: group.style.color,
       segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
-      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {})
+      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {}),
+      ...(wallMaterial ? { wallMaterial } : {})
     };
     for (const run of runs) {
       if (run.length < 2) continue;
@@ -781,13 +784,13 @@ export function renderEditorSvg(
       features.appendChild(
         element("path", {
           d: line(run),
-          class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          class: `ce-feature ce-feature--${group.kind}${group.kind === "wall" ? ` ce-feature--wall-${wallMaterial}` : ""}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           stroke: town
             ? group.kind === "road"
               ? "#d5cfbf"
               : group.kind === "river"
                 ? "#527f8b"
-                : "#292a26"
+                : wallStrokeColor
             : group.style.color,
           "stroke-width": String(group.style.widthMeters),
           ...(fixedMode && group.kind === "road" ? { "stroke-linejoin": "round", "stroke-linecap": "butt" } : {}),
@@ -2283,16 +2286,28 @@ function renderTownFortifications(
         continue;
       if (cornerTowers.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 12)) continue;
       const wall = document.featureGroups.find(g => g.kind === "wall" && g.segments.some(r => r.edgeId === ref.edgeId));
-      if (!wall) continue;
+      if (!wall || wall.kind !== "wall") continue;
+      const wallMat = wall.wallMaterial ?? "stone";
+      const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
       const towerId = `castle-tower-${id}`,
-        pick = { layer: "fortifications", kind: "tower", id: towerId, label: "城の隅塔", wallId: wall.id, point: p };
+        pick = {
+          layer: "fortifications",
+          kind: "tower",
+          id: towerId,
+          label: "城の隅塔",
+          wallId: wall.id,
+          point: p,
+          wallMaterial: wallMat
+        };
       layer.appendChild(
         element("circle", {
           cx: String(p[0]),
           cy: String(-p[1]),
           r: String(wall.style.widthMeters * 1.05),
-          fill: "#292a26",
-          class: inspectedId === towerId ? "ce-is-selected cg-is-selected" : "",
+          fill: towerFill,
+          class:
+            (inspectedId === towerId ? "ce-is-selected cg-is-selected" : "") +
+            (wallMat === "wood" ? " ce-tower--wood" : " ce-tower--stone"),
           "data-pick": encodeURIComponent(JSON.stringify(pick))
         })
       );
@@ -2302,6 +2317,8 @@ function renderTownFortifications(
   }
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
+    const wallMat = group.wallMaterial ?? "stone";
+    const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
     const points = edgeGroupPoints(document, group.segments);
     const spacing = castleWallIds(document).has(group.id) ? 32 : Math.max(45, document.frame.blockSizeMeters * 1.4);
     let untilTower = spacing / 2;
@@ -2338,14 +2355,17 @@ function renderTownFortifications(
           id: towerId,
           label: `wall tower (${group.name})`,
           wallId: group.id,
-          point: position
+          point: position,
+          wallMaterial: wallMat
         };
         const towerNode = element("circle", {
           cx: String(a[0] + (b[0] - a[0]) * t),
           cy: String(-a[1] - (b[1] - a[1]) * t),
           r: String(group.style.widthMeters * 0.8),
-          fill: "#292a26",
-          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          fill: towerFill,
+          class:
+            (isPickSelected ? "ce-is-selected cg-is-selected" : "") +
+            (wallMat === "wood" ? " ce-tower--wood" : " ce-tower--stone"),
           "data-pick": encodeURIComponent(JSON.stringify(towerPickInfo))
         });
         if (tool === "select") towerNode.style.cursor = "pointer";
@@ -2376,6 +2396,8 @@ function renderTownFortifications(
     const opening = gate.passageWidthMeters ?? Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
     const plazaRadius = gatePlazaRadiusMeters(width);
     const drawbridge = gateHasMoat(document, gate);
+    const gateWallMat = wall.wallMaterial ?? "stone";
+    const gateTowerFill = gateWallMat === "wood" ? "#634327" : "#292a26";
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
       layer: "gates",
@@ -2384,7 +2406,8 @@ function renderTownFortifications(
       label: `gate #${gate.id}`,
       vertexId: gate.vertexId,
       wallId: wall.id,
-      point: frame.point
+      point: frame.point,
+      wallMaterial: gateWallMat
     };
     const [tx, ty] = frame.tangent;
     const [ix, iy] = frame.inward;
@@ -2420,8 +2443,8 @@ function renderTownFortifications(
           y: String(-side / 2),
           width: String(side),
           height: String(side),
-          class: "ce-gate-tower",
-          fill: "#292a26"
+          class: `ce-gate-tower ce-gate-tower--${gateWallMat}`,
+          fill: gateTowerFill
         })
       );
     layer.appendChild(marker);
@@ -3131,6 +3154,9 @@ export const STANDALONE_SVG_STYLE = `
   .ce-edge { fill: none; stroke: #738083; stroke-width: 1px; }
   .ce-feature { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
   .ce-feature--wall { stroke-dasharray: 2 2; }
+  .ce-svg--town .ce-feature--wall-wood { stroke-linecap: round; }
+  .ce-tower--wood { stroke: #482f18; stroke-width: 0.5px; }
+  .ce-gate-tower--wood { stroke: #482f18; stroke-width: 0.5px; }
   .ce-feature--plank { filter: drop-shadow(0 0 1px #332b22); }
   .ce-element { color: #263c42; }
   .ce-element-halo { fill: rgb(255 253 244 / 82%); stroke: #d0d6ce; stroke-width: 1px; }
