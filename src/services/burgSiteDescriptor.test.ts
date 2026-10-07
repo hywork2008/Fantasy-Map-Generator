@@ -294,7 +294,7 @@ describe("getBurgSiteDescriptor", () => {
     // 10 000 people at 150/ha → ~66.7 ha → r = sqrt(A/π) ≈ 461 m
     expect(frame.cityRadiusMeters).toBe(461);
     expect(frame.extentMeters).toBe(2766);
-    expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000, maxBridgeSkewDegrees: 15 });
+    expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000, maxBridgeSkewDegrees: 20 });
   });
 
   it("exports the steam-era supported crossing allowance", () => {

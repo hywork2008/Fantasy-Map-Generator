@@ -367,6 +367,35 @@ describe("bounded world crossing enumeration", () => {
         .status
     ).toBe("attempt-budget");
   });
+  it("adds one bridge per corridor turned toward it, within the skew allowance", () => {
+    const world = fixture(),
+      registry = new WorldRiverGeometryRegistry();
+    const settings = { ...candidateSettings, maxAttempts: 100 };
+    // An oblique corridor: rising 1 in 4 against a river that the square candidates cross.
+    const corridors = [{ start: [0, 20000] as [number, number], end: [40000, 30000] as [number, number] }];
+    const coarse = generateWorldRiverCrossingCandidates(world, "km", settings, environment, registry);
+    const skewed = generateWorldRiverCrossingCandidates(
+      world,
+      "km",
+      settings,
+      { ...environment, corridors, skewLimitAt: () => 10 },
+      registry
+    );
+    expect(skewed.status).toBe("complete");
+    expect(skewed.attempts).toBe(coarse.attempts + 1);
+    const extra = skewed.candidates.filter(c => c.skewDegrees !== 0);
+    expect(extra.length + skewed.rejected.length - coarse.rejected.length).toBe(1);
+    for (const c of extra) expect(Math.abs(c.skewDegrees)).toBeLessThanOrEqual(10);
+    // A zero allowance never adds anything; neither does omitting it.
+    const square = generateWorldRiverCrossingCandidates(
+      world,
+      "km",
+      settings,
+      { ...environment, corridors, skewLimitAt: () => 0 },
+      registry
+    );
+    expect(square.attempts).toBe(coarse.attempts);
+  });
   it("reuses water validation/index metrics and rebuilds after an obstacle edit", () => {
     const world = fixture(),
       registry = new WorldRiverGeometryRegistry();

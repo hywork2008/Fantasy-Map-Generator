@@ -10,7 +10,7 @@ import {
 import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import type { Burg, Route } from "../types/models";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
-import { bridgeSkewCandidates } from "../utils/bridgeSkewPolicy";
+import { bridgeSkewCandidates, bridgeStructureForRouteGroup } from "../utils/bridgeSkewPolicy";
 import type { FixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
@@ -203,7 +203,6 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
       }
     }
     if (!legs.length) continue;
-    const skews = bridgeSkewCandidates(getStateBridgeSkewLimit(burg.state ?? 0));
     const adoptedLegs = new Set<number>();
     for (const half of [baseHalf, baseHalf + bridgeCrossingLimitForPeriod(world.options.historicalPeriod)]) {
       if (adoptedLegs.size === legs.length) break;
@@ -244,6 +243,11 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
           legTouchesRiverWater(origin, leg, geometry.water, waterBounds, Math.SQRT2 * half, 5)
         );
         if (!crossingLegs.length) continue;
+        // One shared bridge: masonry if it carries a main road, otherwise timber.
+        const structure = crossingLegs.some(leg => bridgeStructureForRouteGroup(leg.route.group) === "stone")
+          ? "stone"
+          : "timber";
+        const skews = bridgeSkewCandidates(getStateBridgeSkewLimit(burg.state ?? 0, structure));
 
         const maxArcDist = Math.SQRT2 * half + 100;
         const arcs: { arc: number; distance: number }[] = [];

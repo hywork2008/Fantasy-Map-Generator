@@ -33,6 +33,12 @@ export function bridgeSkewCandidates(limitDegrees: number): number[] {
 
 export type BridgeStructure = "stone" | "timber";
 
+/** Main roads get masonry bridges; trails and other land routes timber ones.
+ * Region Editor uses the same split (highway → stone_arch, others → wooden). */
+export function bridgeStructureForRouteGroup(group: string | undefined): BridgeStructure {
+  return group === "roads" ? "stone" : "timber";
+}
+
 /** 0 = ancient/medieval, 1 = early modern surveying, 2 = skew-arch / modern engineering. */
 export type BridgeSkewTier = 0 | 1 | 2;
 

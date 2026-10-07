@@ -1,3 +1,4 @@
+import { BRIDGE_SKEW_MAX_DEGREES } from "../../../utils/bridgeSkewPolicy";
 import { distance, dot, normal, normalize, pointAdd, pointScale, pointSub, segmentIntersection } from "../geometry";
 import type { Point, RegionBridge, RegionDocument, RegionRiver, RegionRoute } from "../types";
 import { DEFAULT_RIVER_WIDTH_SCALE } from "../types";
@@ -145,7 +146,7 @@ function findCrossings(
 }
 
 /**
- * 街道と河川の交差点に、描画される河川曲線の接線に対して厳格に直角（90度）な橋梁を生成する。
+ * 街道と河川の交差点に、描画される河川曲線の接線に対して直角（許容斜角の範囲で道の向きへ寄せる）な橋梁を生成する。
  *
  * 規約要件（AGENTS.md）:
  * 「河川を通過する橋は河川の進行方向と直角に交差させ、最短距離で通過させる。
@@ -161,7 +162,9 @@ export function generatePerpendicularBridges(
   metersPerUnit = 100,
   riverWidthScale = DEFAULT_RIVER_WIDTH_SCALE,
   /** 集落位置。ルート上のこれらの頂点は橋のために取り除かない */
-  anchors: Point[] = []
+  anchors: Point[] = [],
+  /** 河川法線からの許容斜角（度、構造別。src/utils/bridgeSkewPolicy.ts）。未指定は直角のみ */
+  skewLimitDegrees?: { stone: number; timber: number }
 ): BridgeGenerationResult {
   const bridges: RegionBridge[] = [];
   const adjustedRoutes: RegionRoute[] = [];
@@ -246,13 +249,30 @@ export function generatePerpendicularBridges(
       if (center !== c.center) windows.push({ center, radius });
       let n = normal(tangent);
       if (dot(pointSub(after, before), n) < 0) n = pointScale(n, -1);
+      // 許容斜角の範囲で、橋軸を道の進む向きへ寄せる（取り付け道路の折れを減らす）。
+      // 町や端点を橋軸に載せる場合は、その垂線を崩さないよう直角のまま
+      const style: RegionBridge["style"] = route.kind === "highway" ? "stone_arch" : "wooden";
+      const limit = Math.min(
+        BRIDGE_SKEW_MAX_DEGREES,
+        Math.max(0, skewLimitDegrees?.[style === "stone_arch" ? "stone" : "timber"] ?? 0)
+      );
+      let skewDegrees = 0;
+      if (!pinned && limit > 0) {
+        const road = normalize(pointSub(after, before));
+        const desired = (Math.atan2(n[0] * road[1] - n[1] * road[0], dot(n, road)) * 180) / Math.PI;
+        skewDegrees = Math.max(-limit, Math.min(limit, desired));
+        const turn = (skewDegrees * Math.PI) / 180;
+        n = [n[0] * Math.cos(turn) - n[1] * Math.sin(turn), n[0] * Math.sin(turn) + n[1] * Math.cos(turn)];
+      }
+      // 斜めの橋は川幅を斜めに渡るぶん長い（1/cos）
+      const span = visual / 2 / Math.cos((skewDegrees * Math.PI) / 180) + Math.max(1, visual * 0.2);
       const along = (d: number): Point => pointAdd(center, pointScale(n, d));
       const offsetOf = (p: Point) => dot(pointSub(p, center), n);
       // 窓に掛かる端点は橋軸上の位置で判定し、橋の手前・橋上・橋の先のどこから道が始まるかを決める
       const startOffset = near(before) ? offsetOf(before) : -Infinity;
       const endOffset = near(after) ? offsetOf(after) : Infinity;
-      const margin = halfLen * 0.25;
-      const spans = startOffset < -margin && endOffset > margin && (startOffset <= -halfLen || endOffset >= halfLen);
+      const margin = span * 0.25;
+      const spans = startOffset < -margin && endOffset > margin && (startOffset <= -span || endOffset >= span);
       if (!spans) {
         // 道の端が川の上にある（川に面した集落で終わる）: 対岸へ渡らないので橋は架けない
         points = [...points.slice(0, lo), ...towns, ...points.slice(hi + 1)];
@@ -262,9 +282,9 @@ export function generatePerpendicularBridges(
 
       // 橋軸上の点列: 進入点・橋端・（軸上の町）・橋端・退出点。軸上の頂点の両脇に軸上の点を添え、
       // 隣の頂点が軸から外れていても Catmull-Rom の膨らみを橋の外に追い出す
-      const eps = Math.min(0.5, halfLen * 0.1);
+      const eps = Math.min(0.5, span * 0.1);
       const pinOffset = pinned && pinned !== before && pinned !== after ? offsetOf(pinned) : null;
-      const offsets = [-radius, -halfLen, halfLen, radius];
+      const offsets = [-radius, -span, span, radius];
       if (Number.isFinite(startOffset)) offsets.push(startOffset + eps);
       if (Number.isFinite(endOffset)) offsets.push(endOffset - eps);
       if (pinOffset !== null) offsets.push(pinOffset - eps, pinOffset + eps);
@@ -284,10 +304,11 @@ export function generatePerpendicularBridges(
         riverId: c.river.id,
         routeId: route.id,
         center,
-        lengthMeters: halfLen * 2 * metersPerUnit,
+        lengthMeters: span * 2 * metersPerUnit,
         widthMeters: route.kind === "highway" ? 12 : 8,
         angleDeg,
-        style: route.kind === "highway" ? "stone_arch" : "wooden"
+        skewDegrees,
+        style
       });
     }
 

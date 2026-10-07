@@ -558,7 +558,8 @@ export function getBurgSiteDescriptor(
       maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(
         worldContext.options.historicalPeriod ?? "ageOfExploration"
       ),
-      maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0)
+      // CE does not know a bridge's structure: the ceiling is the larger (timber) allowance.
+      maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0, "timber")
     },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
     rivers,

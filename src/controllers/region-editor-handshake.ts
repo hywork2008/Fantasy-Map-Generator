@@ -2,6 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { estimateWorldLandUse, usesFantasyForestDefaults } from "../generators/landUse";
 import { Rivers } from "../generators/river-generator";
 import { calculateBuiltAreaHa, resolveLandUseProfile } from "../generators/settlementClearance";
+import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import type { Point, RegionSiteCell, RegionSiteDescriptor } from "../region-editor/core/types";
 import { REGION_SITE_VERSION } from "../region-editor/core/types";
 import { saveRegionSite } from "../region-editor/io/siteStore";
@@ -477,6 +478,10 @@ export function buildRegionSiteDescriptor(
     provinceName: province.name,
     stateId: state?.i,
     stateName: state?.name,
+    bridgeSkewLimitDegrees: {
+      stone: getStateBridgeSkewLimit(state?.i ?? 0, "stone"),
+      timber: getStateBridgeSkewLimit(state?.i ?? 0, "timber")
+    },
     boundsMapUnits: [minX, minY, maxX, maxY],
     metersPerMapUnit,
     extentMeters: {

@@ -194,7 +194,8 @@ export function renderRegionSvg(
     doc.routes,
     doc.bounds.metersPerUnit,
     riverScale,
-    doc.settlements.map(st => st.position)
+    doc.settlements.map(st => st.position),
+    doc.bridgeSkewLimitDegrees
   );
   const routes = bridgeLayout.adjustedRoutes;
   const coastPatchD = coasts

@@ -71,7 +71,9 @@ describe("skewed provisional crossings (bridgeSkewPolicy.ts)", () => {
     for (const p of [c.waterA, c.waterB, c.deckA, c.deckB, c.approachA, c.approachB])
       expect(Math.abs((p[0] - c.q[0]) * c.nCrossing[1] - (p[1] - c.q[1]) * c.nCrossing[0])).toBeLessThan(1e-9);
     expect(validateProvisionalRiverCrossing(c, input)).toBe(true);
-    expect(validateProvisionalRiverCrossing(c, fixture())).toBe(false);
+    // The input may omit the skew (re-derived from the river); an explicit square input is a different bridge.
+    expect(validateProvisionalRiverCrossing(c, fixture())).toBe(true);
+    expect(validateProvisionalRiverCrossing(c, { ...fixture(), skewDegrees: 0 })).toBe(false);
   });
 
   it("never builds beyond the largest allowance of any era", () => {

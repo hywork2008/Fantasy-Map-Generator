@@ -245,7 +245,10 @@ export function validateProvisionalRiverCrossing(
   candidate: ProvisionalRiverCrossing,
   input: CrossingCandidateInput
 ): boolean {
-  const result = createProvisionalRiverCrossing(input);
+  // Callers re-derive inputs from the river; the candidate carries its own skew.
+  // Archived candidates from before skewed bridges have none and were square.
+  const skewDegrees = input.skewDegrees ?? candidate.skewDegrees ?? 0;
+  const result = createProvisionalRiverCrossing({ ...input, skewDegrees });
   if (!("candidate" in result)) return false;
   const expected = result.candidate;
   if (
@@ -254,7 +257,7 @@ export function validateProvisionalRiverCrossing(
     candidate.geometryVersion !== expected.geometryVersion ||
     candidate.status !== "provisional" ||
     candidate.arcLengthMeters !== expected.arcLengthMeters ||
-    candidate.skewDegrees !== expected.skewDegrees ||
+    (candidate.skewDegrees ?? 0) !== expected.skewDegrees ||
     candidate.plan.kind !== expected.plan.kind
   )
     return false;

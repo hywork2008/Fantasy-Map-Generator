@@ -146,7 +146,8 @@ export function validateRegionDocument(
       document.routes,
       document.bounds.metersPerUnit,
       document.decoration?.riverWidthScale ?? DEFAULT_RIVER_WIDTH_SCALE,
-      (document.settlements ?? []).map(st => st.position)
+      (document.settlements ?? []).map(st => st.position),
+      document.bridgeSkewLimitDegrees
     ).bridges;
     document.bridgeLayoutVersion = 2;
   }

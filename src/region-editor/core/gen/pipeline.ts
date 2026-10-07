@@ -171,7 +171,7 @@ export function generateStandaloneRegion(settings: RegionGenerationSettings): Re
     { id: "route-east-trail", kind: "road", name: "Daggerford Road", points: branchRoad }
   ];
 
-  // 5. 直角橋の生成（AGENTS.md 原則: 河川接線と厳格に90度交差）
+  // 5. 直角橋の生成（AGENTS.md 原則。州の無い単独生成では直角のみ）
   // 保存するルートは素の経路のまま（橋の挿入点は描画時に置く）
   doc.bridges = generatePerpendicularBridges(doc.rivers, rawRoutes, doc.bounds.metersPerUnit).bridges;
   doc.routes = rawRoutes;
@@ -369,6 +369,7 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     stateName: descriptor.stateName,
     fmgBBox: descriptor.boundsMapUnits
   };
+  if (descriptor.bridgeSkewLimitDegrees) doc.bridgeSkewLimitDegrees = { ...descriptor.bridgeSkewLimitDegrees };
 
   const [minX, minY] = descriptor.boundsMapUnits;
   const metersPerMapUnit = descriptor.metersPerMapUnit;
@@ -502,7 +503,8 @@ export function generateFromFmgDescriptor(descriptor: RegionSiteDescriptor): Reg
     routes,
     metersPerUnit,
     undefined,
-    doc.settlements.map(st => st.position)
+    doc.settlements.map(st => st.position),
+    doc.bridgeSkewLimitDegrees
   ).bridges;
   doc.routes = routes;
   doc.bridgeLayoutVersion = 2;

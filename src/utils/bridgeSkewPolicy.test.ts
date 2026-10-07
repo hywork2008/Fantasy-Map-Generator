@@ -4,6 +4,7 @@ import {
   bridgeSkewDegrees,
   bridgeSkewLimitForPeriod,
   bridgeSkewPenaltyMeters,
+  bridgeStructureForRouteGroup,
   resolveBridgeSkewLimit,
   withinBridgeSkewLimit
 } from "./bridgeSkewPolicy";
@@ -43,5 +44,11 @@ describe("bridge skew policy", () => {
     expect(bridgeSkewCandidates(45)).toEqual([0, 10, -10, 30, -30]);
     expect(bridgeSkewPenaltyMeters(-10)).toBe(0);
     expect(bridgeSkewPenaltyMeters(25)).toBe(75);
+  });
+
+  it("builds main roads in masonry and other land routes in timber", () => {
+    expect(bridgeStructureForRouteGroup("roads")).toBe("stone");
+    expect(bridgeStructureForRouteGroup("trails")).toBe("timber");
+    expect(bridgeStructureForRouteGroup(undefined)).toBe("timber");
   });
 });
