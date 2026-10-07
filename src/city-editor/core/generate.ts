@@ -2874,6 +2874,17 @@ function applyPlan(
           : [loop.segments];
       for (const ref of loop.segments) {
         const edge = mesh.edges[ref.edgeId];
+        const ends: [Point, Point] = [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point];
+        // A land/land edge whose corner grazes the imported FMG bank stays a
+        // riverside wall; only one that runs into the water opens (Myosiasos
+        // lost its river front to a corner 4 m inside the drawn bank).
+        if (
+          next.importedFixedCrossings &&
+          [edge.leftFace, edge.rightFace].every(id => !id || mesh.faces[id].properties.water === "land")
+        ) {
+          if (edgeRunsIntoWater(ends, waterPolygons(next))) openEdges.add(edge.id);
+          continue;
+        }
         if (
           next.importedFixedCrossings
             ? lineHitsDocumentWater(
@@ -4258,6 +4269,12 @@ export function completeRoadRouter(
       nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
       if (!nodes) useCurrentCurtain = false;
     }
+    // An imported road that lands on a fixed bridge head inside the map ends
+    // there; the frame road carries it over the river (Myosiasos lost its
+    // bridge road to a detour along the bank to the frame).
+    const landsInside =
+      !!document.importedFixedCrossings &&
+      polyline[0].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01);
     // Keep successful planned routes unchanged. Only retry a failed exterior
     // approach against the repaired closed curtain.
     for (let pass = 0; outside && pass < (curtainInterior ? 2 : 1); pass++) {
@@ -4275,7 +4292,9 @@ export function completeRoadRouter(
       }
       if (
         outside &&
-        (!nodes || graph.points[nodes[0]].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01))
+        (!nodes ||
+          (!landsInside &&
+            graph.points[nodes[0]].every(value => Math.abs(value) < document.frame.extentMeters / 2 - 0.01)))
       ) {
         // The bearing can snap to an unusable river mouth. Search dry frame
         // exits in bearing order before giving up the already placed gate.
@@ -4922,6 +4941,18 @@ function seaOpeningEdgeIds(
     length += byId.get(next)!.length;
   }
   return open;
+}
+
+/** Longest wet stub at one end of a wall edge still read as a corner grazing the bank. */
+const GRAZING_WALL_STUB_METERS = 10;
+
+/** True when `a → b` crosses water (a wet gap between dry parts) or ends in
+ * more than a grazing stub of it. */
+function edgeRunsIntoWater(edge: [Point, Point], polygons: readonly Point[][]): boolean {
+  const length = (line: Point[]) =>
+    line.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - line[i][0], p[1] - line[i][1]), 0);
+  const runs = dryRuns(edge, polygons);
+  return runs.length !== 1 || length(edge) - length(runs[0]) > GRAZING_WALL_STUB_METERS;
 }
 
 function unbannedRuns(segments: EdgeRef[], banned: Set<Id>): EdgeRef[][] {

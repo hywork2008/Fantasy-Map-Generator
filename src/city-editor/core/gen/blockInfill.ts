@@ -109,7 +109,12 @@ export function buildBlockFabric(document: CityDocument, cache = getDefaultCache
     );
   }
   const base = buildLegacyBlockFabric(source, cache);
-  if (!document.waterAccess?.port.river) return finishCoastalBuildings(document, base);
+  // Sea ports need quays and loading yards around their piers too, not only
+  // river ports (Myosiasos had bare piers).
+  const port =
+    document.waterAccess?.port.river ||
+    Object.values(document.mesh.faces).some(f => f.properties.ward === "harbor" && f.properties.water === "land");
+  if (!port) return finishCoastalBuildings(document, base);
   const streets = base.lanes.flatMap(l =>
     l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
   );
