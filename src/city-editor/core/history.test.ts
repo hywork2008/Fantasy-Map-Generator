@@ -201,6 +201,27 @@ describe("DocumentHistory timeline", () => {
 });
 
 describe("DocumentHistory delta reconstruction", () => {
+  it("records every top-level field across undo/redo, including ones it was never told about", () => {
+    const base = createDocument("history-fields", 700, 90);
+    const history = new DocumentHistory(base, "Initial state", 50);
+    const generated = structuredClone(base) as CityDocument & Record<string, unknown>;
+    generated.generationSeed = 0;
+    generated.importedRoadCount = 3;
+    generated.waterAreas = [{ id: "w1" }];
+    generated.waterAccess = "river";
+    generated.biome = 5;
+    generated.futureField = { nested: [1, 2] };
+    history.commit(generated, "Generate");
+    const removed = structuredClone(generated) as CityDocument & Record<string, unknown>;
+    delete removed.waterAreas;
+    history.commit(removed, "Drop water");
+
+    expect(history.undo(removed)).toEqual(generated);
+    expect(history.undo(generated)).toEqual(base);
+    expect(history.redo(base)).toEqual(generated);
+    expect(history.redo(generated)).toEqual(removed);
+  });
+
   it("rebuilds every committed state exactly, key order included, across checkpoints", () => {
     const base = createDocument("history-fuzz", 700, 90);
     const history = new DocumentHistory(base, "Initial state", 7); // frequent checkpoints

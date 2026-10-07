@@ -1,6 +1,6 @@
 import { type FixedApproachProvider, restoreFixedCrossingApproaches } from "./fixedApproachAdoption";
 import { clone } from "./mesh";
-import type { CityDocument, CityElement, CityGate, Edge, Face, Id, Vertex } from "./types";
+import type { CityDocument, Edge, Face, Id, Vertex } from "./types";
 
 export interface HistoryEntry {
   /** Human-readable name of the edit that produced this state. */
@@ -198,37 +198,18 @@ type RecordPatch<T> = Record<Id, T | null>;
 
 /**
  * The forward-only change from one recorded state to the next. Only the touched
- * keys of the three mesh maps are stored; the small top-level sections are kept
- * whole when they differ.
+ * keys of the three mesh maps are stored; every other top-level key of the
+ * document is diffed generically and kept whole when it differs, so a new
+ * CityDocument field is recorded without touching this file.
  */
 interface DocPatch {
-  sceneRegions?: CityDocument["sceneRegions"] | null;
-  importedFixedCrossings?: CityDocument["importedFixedCrossings"] | null;
-  fixedCrossingApproaches?: CityDocument["fixedCrossingApproaches"] | null;
-  version?: CityDocument["version"];
-  castles?: CityDocument["castles"] | null;
-  cemeteries?: CityDocument["cemeteries"] | null;
-  frameRoads?: CityDocument["frameRoads"] | null;
-  riverConnections?: CityDocument["riverConnections"] | null;
-  defenseCircuits?: CityDocument["defenseCircuits"] | null;
-  frame?: CityDocument["frame"];
-  appearance?: CityDocument["appearance"] | null;
-  coastalOceanFaceIds?: CityDocument["coastalOceanFaceIds"] | null;
-  historicalPeriod?: CityDocument["historicalPeriod"] | null;
-  buildingPattern?: CityDocument["buildingPattern"] | null;
-  fabric?: CityDocument["fabric"] | null;
-  gridKind?: CityDocument["gridKind"] | null;
-  layout?: CityDocument["layout"] | null;
-  referenceImage?: CityDocument["referenceImage"] | null;
-  generationSeed?: CityDocument["generationSeed"] | null;
+  /** Top-level keys (other than `mesh`) added or changed, stored whole. */
+  set?: Record<string, unknown>;
+  /** Top-level keys (other than `mesh`) removed. */
+  removed?: string[];
   vertices?: RecordPatch<Vertex>;
   edges?: RecordPatch<Edge>;
   faces?: RecordPatch<Face>;
-  featureGroups?: CityDocument["featureGroups"];
-  gates?: CityGate[];
-  elements?: CityElement[];
-  landmarks?: CityDocument["landmarks"] | null;
-  landmarkAssets?: CityDocument["landmarkAssets"] | null;
 }
 
 function equal(a: unknown, b: unknown): boolean {
@@ -260,48 +241,27 @@ function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatc
 
 function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
   const patch: DocPatch = {};
-  if (!equal(previous.sceneRegions, next.sceneRegions))
-    patch.sceneRegions = next.sceneRegions ? clone(next.sceneRegions) : null;
-  if (!equal(previous.importedFixedCrossings, next.importedFixedCrossings))
-    patch.importedFixedCrossings = next.importedFixedCrossings ? clone(next.importedFixedCrossings) : null;
-  if (!equal(previous.fixedCrossingApproaches, next.fixedCrossingApproaches))
-    patch.fixedCrossingApproaches = next.fixedCrossingApproaches ? clone(next.fixedCrossingApproaches) : null;
-  if (previous.version !== next.version) patch.version = next.version;
-  if (!equal(previous.castles, next.castles)) patch.castles = next.castles ? clone(next.castles) : null;
-  if (!equal(previous.frameRoads, next.frameRoads)) patch.frameRoads = next.frameRoads ? clone(next.frameRoads) : null;
-  if (!equal(previous.riverConnections, next.riverConnections))
-    patch.riverConnections = next.riverConnections ? clone(next.riverConnections) : null;
-  if (!equal(previous.cemeteries, next.cemeteries)) patch.cemeteries = next.cemeteries ? clone(next.cemeteries) : null;
-  if (!equal(previous.defenseCircuits, next.defenseCircuits))
-    patch.defenseCircuits = next.defenseCircuits ? clone(next.defenseCircuits) : null;
-  if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
-  if (previous.buildingPattern !== next.buildingPattern) patch.buildingPattern = next.buildingPattern ?? null;
-  if (previous.appearance !== next.appearance) patch.appearance = next.appearance ?? null;
-  if (!equal(previous.coastalOceanFaceIds, next.coastalOceanFaceIds))
-    patch.coastalOceanFaceIds = next.coastalOceanFaceIds ? clone(next.coastalOceanFaceIds) : null;
-  if (previous.historicalPeriod !== next.historicalPeriod) patch.historicalPeriod = next.historicalPeriod ?? null;
-  if (!equal(previous.fabric, next.fabric)) patch.fabric = next.fabric ? clone(next.fabric) : null;
-  if (previous.gridKind !== next.gridKind) patch.gridKind = next.gridKind ?? null;
-  if (previous.layout !== next.layout) patch.layout = next.layout ?? null;
-  if (previous.generationSeed !== next.generationSeed) patch.generationSeed = next.generationSeed ?? null;
-  if (!equal(previous.referenceImage, next.referenceImage))
-    patch.referenceImage = next.referenceImage ? clone(next.referenceImage) : null;
+  const prev = previous as unknown as Record<string, unknown>;
+  const curr = next as unknown as Record<string, unknown>;
+  for (const key of Object.keys(curr)) {
+    if (key === "mesh" || curr[key] === undefined) continue;
+    if (!(key in prev) || prev[key] === undefined || !equal(prev[key], curr[key])) {
+      patch.set ??= {};
+      patch.set[key] = clone(curr[key]);
+    }
+  }
+  for (const key of Object.keys(prev)) {
+    if (key === "mesh" || prev[key] === undefined) continue;
+    if (curr[key] !== undefined) continue;
+    patch.removed ??= [];
+    patch.removed.push(key);
+  }
   const vertices = diffRecord(previous.mesh.vertices, next.mesh.vertices);
   if (vertices) patch.vertices = vertices;
   const edges = diffRecord(previous.mesh.edges, next.mesh.edges);
   if (edges) patch.edges = edges;
   const faces = diffRecord(previous.mesh.faces, next.mesh.faces);
   if (faces) patch.faces = faces;
-  if (!equal(previous.featureGroups, next.featureGroups)) patch.featureGroups = clone(next.featureGroups);
-  const previousGates = previous.gates ?? [];
-  const nextGates = next.gates ?? [];
-  if (!equal(previousGates, nextGates)) patch.gates = clone(nextGates);
-  const previousElements = previous.elements ?? [];
-  const nextElements = next.elements ?? [];
-  if (!equal(previousElements, nextElements)) patch.elements = clone(nextElements);
-  if (!equal(previous.landmarks, next.landmarks)) patch.landmarks = next.landmarks ? clone(next.landmarks) : null;
-  if (!equal(previous.landmarkAssets, next.landmarkAssets))
-    patch.landmarkAssets = next.landmarkAssets ? clone(next.landmarkAssets) : null;
   return patch;
 }
 
@@ -315,50 +275,10 @@ function applyRecord<T>(map: Record<Id, T>, patch: RecordPatch<T> | undefined): 
 }
 
 function applyPatch(document: CityDocument, patch: DocPatch): void {
-  if (patch.sceneRegions === null) delete document.sceneRegions;
-  else if (patch.sceneRegions) document.sceneRegions = clone(patch.sceneRegions);
-  if (patch.importedFixedCrossings === null) delete document.importedFixedCrossings;
-  else if (patch.importedFixedCrossings) document.importedFixedCrossings = clone(patch.importedFixedCrossings);
-  if (patch.fixedCrossingApproaches === null) delete document.fixedCrossingApproaches;
-  else if (patch.fixedCrossingApproaches) document.fixedCrossingApproaches = clone(patch.fixedCrossingApproaches);
-  if (patch.version) document.version = patch.version;
-  if (patch.castles === null) delete document.castles;
-  else if (patch.castles) document.castles = clone(patch.castles);
-  if (patch.frameRoads === null) delete document.frameRoads;
-  else if (patch.frameRoads) document.frameRoads = clone(patch.frameRoads);
-  if (patch.riverConnections === null) delete document.riverConnections;
-  else if (patch.riverConnections) document.riverConnections = clone(patch.riverConnections);
-  if (patch.cemeteries === null) delete document.cemeteries;
-  else if (patch.cemeteries) document.cemeteries = clone(patch.cemeteries);
-  if (patch.defenseCircuits === null) delete document.defenseCircuits;
-  else if (patch.defenseCircuits) document.defenseCircuits = clone(patch.defenseCircuits);
-  if (patch.frame) document.frame = clone(patch.frame);
-  if (patch.buildingPattern === null) delete document.buildingPattern;
-  else if (patch.buildingPattern) document.buildingPattern = patch.buildingPattern;
-  if (patch.appearance === null) delete document.appearance;
-  else if (patch.appearance) document.appearance = patch.appearance;
-  if (patch.coastalOceanFaceIds === null) delete document.coastalOceanFaceIds;
-  else if (patch.coastalOceanFaceIds) document.coastalOceanFaceIds = clone(patch.coastalOceanFaceIds);
-  if (patch.historicalPeriod === null) delete document.historicalPeriod;
-  else if (patch.historicalPeriod) document.historicalPeriod = patch.historicalPeriod;
-  if (patch.fabric === null) delete document.fabric;
-  else if (patch.fabric) document.fabric = clone(patch.fabric);
-  if (patch.gridKind === null) delete document.gridKind;
-  else if (patch.gridKind) document.gridKind = patch.gridKind;
-  if (patch.layout === null) delete document.layout;
-  else if (patch.layout) document.layout = patch.layout;
-  if (patch.generationSeed === null) delete document.generationSeed;
-  else if (patch.generationSeed) document.generationSeed = patch.generationSeed;
-  if (patch.referenceImage === null) delete document.referenceImage;
-  else if (patch.referenceImage) document.referenceImage = clone(patch.referenceImage);
+  const target = document as unknown as Record<string, unknown>;
+  if (patch.removed) for (const key of patch.removed) delete target[key];
+  if (patch.set) for (const key of Object.keys(patch.set)) target[key] = clone(patch.set[key]);
   applyRecord(document.mesh.vertices, patch.vertices);
   applyRecord(document.mesh.edges, patch.edges);
   applyRecord(document.mesh.faces, patch.faces);
-  if (patch.featureGroups) document.featureGroups = clone(patch.featureGroups);
-  if (patch.gates) document.gates = clone(patch.gates);
-  if (patch.elements) document.elements = clone(patch.elements);
-  if (patch.landmarks === null) delete document.landmarks;
-  else if (patch.landmarks) document.landmarks = clone(patch.landmarks);
-  if (patch.landmarkAssets === null) delete document.landmarkAssets;
-  else if (patch.landmarkAssets) document.landmarkAssets = clone(patch.landmarkAssets);
 }
