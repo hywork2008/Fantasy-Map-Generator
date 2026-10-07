@@ -1,3 +1,4 @@
+import { installCastle } from "../castles";
 import { boundaryEdges, insideRing } from "../fortifications";
 import { clone, faceNeighbors, facePoints, insertEdgeVertex, mergeFaces, splitFace } from "../mesh";
 import type { CastleSettings, CityDocument, Id, Mesh, Point } from "../types";
@@ -341,7 +342,11 @@ function placeCastlePass(
   const touchesWater = (id: Id) => faceNeighbors(document.mesh, id).some(fid => water.has(fid));
   const accept = (working: CityDocument, id: Id, args: Parameters<typeof acceptReservedCastle>[2]) => {
     const site = acceptReservedCastle(working, id, args);
-    if (!site || !judge) return site;
+    if (!site) return null;
+    // The trial layout ignores the gate's exterior access arm, which
+    // installCastle needs later; a site without one fails after streets.
+    if (!installCastle(working, site, id, seed)) return null;
+    if (!judge) return site;
     const verdict = judge(working, id, facePoints(working.mesh, working.mesh.faces[id]));
     if (!verdict) return site;
     const report = constraints!.report!;

@@ -9,7 +9,14 @@
 import { insideRing } from "../fortifications";
 import { facePoints } from "../mesh";
 import type { CityDocument, Id, Mesh, Point } from "../types";
-import { azimuthToVec, nearestOnPolyline, polygonCentroid, segmentSegmentHit, vecToAzimuth } from "./geom";
+import {
+  azimuthToVec,
+  nearestOnPolyline,
+  polygonCentroid,
+  polylineLength,
+  segmentSegmentHit,
+  vecToAzimuth
+} from "./geom";
 import type { BorderLoop, CityGeography } from "./types";
 
 export interface ApproachCorridor {
@@ -175,9 +182,18 @@ function arcSamples(points: Point[], from: Point, radius: number, step = 4): Poi
 export function planGateSectors(
   corridors: ApproachCorridor[],
   borders: BorderLoop[],
-  blockSizeMeters: number
+  blockSizeMeters: number,
+  /** Leave outline for an edge castle. Calibrated on Senia/Dmitlitsk (571 m
+   * outline, four roads): the nominal ±1.5 blocks covered 67% of the outline
+   * and left no edge castle site, so all arcs together are capped at half of
+   * the outline, keeping a gate-sized minimum. */
+  roomForCastle = false
 ): GateSector[] {
-  const radiusMeters = Math.max(1.5 * blockSizeMeters, 25);
+  const nominal = Math.max(1.5 * blockSizeMeters, 25);
+  const perimeter = borders.reduce((sum, b) => sum + polylineLength([...b.points, b.points[0]]), 0);
+  const radiusMeters = roomForCastle
+    ? Math.max(15, Math.min(nominal, perimeter / (4 * Math.max(1, corridors.length))))
+    : nominal;
   return corridors.map(corridor => {
     let borderIndex = 0,
       best = Infinity;

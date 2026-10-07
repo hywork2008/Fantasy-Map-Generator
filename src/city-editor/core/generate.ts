@@ -2051,7 +2051,7 @@ export function runPlan(
     ).terrain;
     const siting: CastleSitingConstraints = {
       corridors,
-      sectors: planGateSectors(corridors, genBorders, cellSize),
+      sectors: planGateSectors(corridors, genBorders, cellSize, true),
       clearanceMeters: (defaultRoadWidthMeters(params.extentMeters) + 3) / 2 + 0.5,
       report: emptySitingReport()
     };
@@ -2181,7 +2181,7 @@ export function runPlan(
       maxWallGatesForExtent(params.extentMeters),
       canPlaceTownGate,
       // §3.3 ⑥: redraw the arcs on the outline the castle may have changed.
-      planGateSectors(corridors, genBorders, cellSize)
+      planGateSectors(corridors, genBorders, cellSize, !!castleSite)
     ),
     genBorders,
     coast?.shoreline ?? null,
