@@ -284,6 +284,7 @@ export function assignWards(input: WardInputs): WardResult {
   // 3.5. Cemetery: every medieval or modern city requires a churchyard or municipal cemetery.
   const cemeteryRng = makeRng(`${params.seed}:cemetery`);
   const cemeteryId = placeCemetery(
+    Math.max(QUANTUM * 2, cellSize * 0.08),
     cells,
     urban,
     outskirts,
@@ -711,6 +712,7 @@ function isCellPenetratedByStreet(cellPolygon: Point[], cellCentroid: Point, str
 }
 
 function placeCemetery(
+  gateEps: number,
   cells: Cell[],
   urban: Set<number>,
   outskirts: Set<number>,
@@ -726,6 +728,14 @@ function placeCemetery(
 ): number | null {
   const byId = new Map(cells.map(c => [c.id, c]));
   const isModern = !!historicalPeriod && MODERN_BURIAL_PERIODS.has(historicalPeriod);
+  // A cemetery never takes a cell at a gate. Wards are assigned before roads
+  // are routed on the final mesh, so the planned streets do not yet show the
+  // approach through the gate; the rim cell farthest from the plaza is often
+  // the gate cell (Senia/Gozelsk: the gate moved 95 m and its road was cut).
+  const atGate = (id: number) => {
+    const cell = byId.get(id);
+    return !!cell && gates.some(g => cellTouchesPoint(cell, g.point, gateEps));
+  };
 
   // Modern Extramural Placement: Outside walls / in outskirts along approach roads
   if (isModern && outskirts.size > 0) {
@@ -733,7 +743,7 @@ function placeCemetery(
     const plazaCenter = plaza?.anchor ?? [0, 0];
 
     for (const id of outskirts) {
-      if (occupied.has(id) || sea.has(id) || urban.has(id)) continue;
+      if (occupied.has(id) || sea.has(id) || urban.has(id) || atGate(id)) continue;
       const cell = byId.get(id);
       if (!cell || cell.polygon.length < 3) continue;
 
@@ -802,7 +812,7 @@ function placeCemetery(
       const tCell = byId.get(tid);
       if (!tCell) continue;
       for (const nid of tCell.neighbors) {
-        if (!urban.has(nid) || occupied.has(nid) || sea.has(nid)) continue;
+        if (!urban.has(nid) || occupied.has(nid) || sea.has(nid) || atGate(nid)) continue;
         const nCell = byId.get(nid);
         if (!nCell) continue;
 
@@ -828,7 +838,7 @@ function placeCemetery(
   const urbanCandidates: Array<{ id: number; score: number }> = [];
   const plazaCenter = plaza?.anchor ?? [0, 0];
   for (const id of urban) {
-    if (occupied.has(id) || sea.has(id)) continue;
+    if (occupied.has(id) || sea.has(id) || atGate(id)) continue;
     const cell = byId.get(id);
     if (!cell) continue;
 
@@ -847,7 +857,13 @@ function placeCemetery(
   // Fallback: any available outskirts cell if urban was exhausted
   for (const id of outskirts) {
     const cell = byId.get(id);
-    if (cell && !occupied.has(id) && !sea.has(id) && !isCellPenetratedByStreet(cell.polygon, cell.centroid, streets))
+    if (
+      cell &&
+      !occupied.has(id) &&
+      !sea.has(id) &&
+      !atGate(id) &&
+      !isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)
+    )
       return id;
   }
 

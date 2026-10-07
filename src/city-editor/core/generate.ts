@@ -73,7 +73,8 @@ import {
   polygonArea,
   polygonCentroid,
   polygonTouchesRectEdge,
-  polylineCrossesSegment
+  polylineCrossesSegment,
+  segmentSegmentHit
 } from "./gen/geom";
 import { spawnHarborShips } from "./gen/harborShips";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
@@ -135,7 +136,17 @@ import {
   logGenerationFailures,
   reportGenerationFailure
 } from "./generationDiagnostics";
-import { clone, edgeBetween, edgeEnd, faceNeighbors, facePoints, faceVertices, validate } from "./mesh";
+import {
+  clone,
+  edgeBetween,
+  edgeEnd,
+  faceNeighbors,
+  facePoints,
+  faceVertices,
+  insertEdgeVertex,
+  splitFace,
+  validate
+} from "./mesh";
 import {
   addBridge,
   addWideRiverBridge,
@@ -3033,8 +3044,66 @@ function applyPlan(
     });
     const tooCloseToGate = (point: Point): boolean =>
       placedPoints.some(placed => Math.hypot(placed[0] - point[0], placed[1] - point[1]) < minGateSpacing);
+    // A gate whose road ends at a fixed bridge head stands square in front of
+    // the bridge. On a riverside wall the existing outward arms all touch the
+    // water, so the gate used to slide along the wall (Senia/Gozelsk: 95 m)
+    // and the road could not reach it along the narrow bank.
+    const bridgeHeadFor = (gate: (typeof plan.gates)[number]): Point | null => {
+      const end = gate.roadIndex !== undefined ? plan.importedRoads?.[gate.roadIndex]?.path.at(-1) : undefined;
+      if (!end || !next.importedFixedCrossings) return null;
+      for (const crossing of next.importedFixedCrossings.crossings ?? [])
+        for (const head of [crossing.approachA, crossing.approachB])
+          if (head && Math.hypot(head[0] - end[0], head[1] - end[1]) < 1) return [head[0], head[1]];
+      return null;
+    };
+    const roadWidth = defaultRoadWidthMeters(townExtentMeters(next.frame));
+    // Cut the exterior face from the gate vertex toward the bridge head and put
+    // a vertex on the head, so the gate's outward arm runs straight to it.
+    const armToBridgeHead = (document: CityDocument, vertexId: Id, head: Point): CityDocument | null => {
+      const origin = document.mesh.vertices[vertexId].point;
+      const dir: Point = [head[0] - origin[0], head[1] - origin[1]];
+      const reach = Math.hypot(dir[0], dir[1]);
+      if (reach < 1) return null;
+      const far: Point = [origin[0] + dir[0] * 50, origin[1] + dir[1] * 50];
+      for (const ref of Object.values(document.mesh.edges).filter(e => e.a === vertexId || e.b === vertexId)) {
+        for (const faceId of [ref.leftFace, ref.rightFace]) {
+          if (!faceId) continue;
+          const face = document.mesh.faces[faceId];
+          const center = polygonCentroid(facePoints(document.mesh, face));
+          if (face.properties.water !== "land" || urbanRegions.some(region => pointInPolygon(center, region))) continue;
+          let best: { edgeId: Id; t: number; dist: number } | null = null;
+          for (const b of face.boundary) {
+            const edge = document.mesh.edges[b.edgeId];
+            if (edge.a === vertexId || edge.b === vertexId) continue;
+            const pa = document.mesh.vertices[edge.a].point,
+              pb = document.mesh.vertices[edge.b].point;
+            const hit = segmentSegmentHit(origin, far, pa, pb);
+            if (!hit) continue;
+            const dist = Math.hypot(hit.point[0] - origin[0], hit.point[1] - origin[1]);
+            const t = Math.hypot(hit.point[0] - pa[0], hit.point[1] - pa[1]) / Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+            if (!best || dist < best.dist) best = { edgeId: b.edgeId, t, dist };
+          }
+          if (!best) continue;
+          const edge = document.mesh.edges[best.edgeId];
+          const endVertex = best.t < 0.02 ? edge.a : best.t > 0.98 ? edge.b : null;
+          const inserted = endVertex
+            ? { document, vertexId: endVertex }
+            : insertEdgeVertex(document, best.edgeId, best.t);
+          if (!inserted) continue;
+          const split = splitFace(inserted.document, faceId, vertexId, inserted.vertexId);
+          if (!split) continue;
+          if (best.dist <= reach + 1) return split;
+          const arm = edgeBetween(split.mesh, vertexId, inserted.vertexId);
+          if (!arm) return split;
+          const fraction = arm.a === vertexId ? reach / best.dist : 1 - reach / best.dist;
+          return insertEdgeVertex(split, arm.id, fraction)?.document ?? split;
+        }
+      }
+      return null;
+    };
     plan.gates.forEach((gate, i) => {
       if (isInteriorRiverLanding(gate.roadIndex)) return;
+      const bridgeHead = bridgeHeadFor(gate);
 
       if (townGates(next).length >= gateBudget) return;
       if (townGates(next).some(g => g.id === `${GEN_PREFIX}gate-${i}` && g.locked)) return;
@@ -3057,13 +3126,30 @@ function applyPlan(
           Math.hypot(q[0] - gate.point[0], q[1] - gate.point[1])
         );
       });
+      if (bridgeHead) {
+        // Square in front of the bridge: nearest the head with a dry line to it.
+        const dryTo = (id: Id) => !lineHitsDocumentWater(next, [mesh.vertices[id].point, bridgeHead], roadWidth, true);
+        const facing = candidates.filter(dryTo).sort((a, b) => {
+          const p = mesh.vertices[a].point,
+            q = mesh.vertices[b].point;
+          return (
+            Math.hypot(p[0] - bridgeHead[0], p[1] - bridgeHead[1]) -
+            Math.hypot(q[0] - bridgeHead[0], q[1] - bridgeHead[1])
+          );
+        });
+        candidates.splice(0, candidates.length, ...facing, ...candidates.filter(id => !facing.includes(id)));
+      }
       for (const vertexId of candidates) {
         const point = mesh.vertices[vertexId]?.point;
         if (!point || tooCloseToGate(point)) continue;
         // Gate preparation must not collapse a neighbouring reserved castle corner.
         const lockedBefore = new Map([...castleVertices].map(id => [id, mesh.vertices[id].locked]));
         for (const id of castleVertices) mesh.vertices[id].locked = true;
-        const opened = openBarrierPassage(next, vertexId, "wall");
+        const armed =
+          bridgeHead && !lineHitsDocumentWater(next, [point, bridgeHead], roadWidth, true)
+            ? armToBridgeHead(next, vertexId, bridgeHead)
+            : null;
+        const opened = openBarrierPassage(armed ?? next, vertexId, "wall");
         for (const [id, locked] of lockedBefore) {
           if (mesh.vertices[id]) mesh.vertices[id].locked = locked;
           if (opened?.mesh.vertices[id]) opened.mesh.vertices[id].locked = locked;
