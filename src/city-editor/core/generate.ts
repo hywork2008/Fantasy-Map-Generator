@@ -3921,11 +3921,17 @@ export function completeRoadRouter(
       if (placed) return placed.vertexId;
     }
     const gate = nearest(p, gateIds);
+    const dryTo = (q: Point) =>
+      !document.importedFixedCrossings ||
+      !lineHitsDocumentWater(document, [p, q], defaultRoadWidthMeters(townExtentMeters(document.frame)), true);
     if (gate) {
       const q = mesh.vertices[gate].point;
-      if (Math.hypot(p[0] - q[0], p[1] - q[1]) < document.frame.blockSizeMeters * 0.8) return gate;
+      if (Math.hypot(p[0] - q[0], p[1] - q[1]) < document.frame.blockSizeMeters * 0.8 && dryTo(q)) return gate;
     }
-    return nearest(p);
+    // A road can start at a bridge head ~12 m from the bank, closer than one
+    // block, so the plain nearest vertex may be on the far bank (Senia/
+    // Kalerythra: a 0.6 m stream stranded the road's start across it).
+    return nearestDryApproach(p) ?? nearest(p);
   };
   return (polyline, outside, acrossBanks = false, onTrace) => {
     const searches: RoadRoutingTrace["searches"] = [];
