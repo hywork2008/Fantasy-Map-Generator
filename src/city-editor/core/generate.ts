@@ -3022,14 +3022,16 @@ function applyPlan(
     // same short land neck. Inland towns (little or no sea front) are unchanged.
     let seaFront = 0;
     let landFront = 0;
+    // Measure the town's own rim (core faces against the rest), not ward
+    // buildability: an unbuildable cemetery or field beside the town used to
+    // count as extra land front, so moving the cemetery flipped the budget
+    // (Senia/Antiatuate: land front 2009 → 1474 m, gates 2 → 1).
     for (const edge of Object.values(mesh.edges)) {
       const left = edge.leftFace ? mesh.faces[edge.leftFace] : null;
       const right = edge.rightFace ? mesh.faces[edge.rightFace] : null;
       if (!left || !right) continue;
-      if (!left.properties.buildable && !right.properties.buildable) continue;
+      if (coreIds.has(left.id) === coreIds.has(right.id)) continue;
       const sea = left.properties.water === "sea" || right.properties.water === "sea";
-      const outer = sea || !left.properties.buildable || !right.properties.buildable;
-      if (!outer) continue;
       const a = mesh.vertices[edge.a]?.point;
       const b = mesh.vertices[edge.b]?.point;
       if (!a || !b) continue;
@@ -3039,8 +3041,12 @@ function applyPlan(
     }
     const frontTotal = seaFront + landFront;
     const seaShare = frontTotal > 0 ? seaFront / frontTotal : 0;
+    // Only a land front too short for the planned gates is a shared neck; a
+    // long one keeps every gate even when the town is ~30% sea (Antiatuate:
+    // 1138 m of land rim, 30.8% sea, its second FMG road lost its gate).
+    const shortLandFront = landFront < plan.gates.length * minGateSpacing * 4;
     const gateBudget =
-      !(plan.riverPort && plan.importedRoads !== undefined) && seaShare >= 0.3
+      !(plan.riverPort && plan.importedRoads !== undefined) && seaShare >= 0.3 && shortLandFront
         ? Math.max(1, Math.min(plan.gates.length, Math.round(plan.gates.length * (1 - seaShare))))
         : plan.gates.length;
     const placedPoints: Point[] = next.gates.flatMap(gate => {
