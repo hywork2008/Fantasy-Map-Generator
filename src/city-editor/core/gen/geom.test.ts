@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inwardNormal } from "./geom";
+import { inwardNormal, simplifyPolyline } from "./geom";
 import type { Point } from "./types";
 
 describe("inwardNormal", () => {
@@ -23,5 +23,23 @@ describe("inwardNormal", () => {
     const n = inwardNormal(a as Point, b as Point, poly as Point[]);
     expect(n[1]).toBeLessThan(0);
     expect(Math.abs(n[0])).toBeLessThan(1e-9);
+  });
+});
+
+describe("simplifyPolyline closed", () => {
+  it("keeps a significant last vertex of the ring", () => {
+    const ring: Point[] = [
+      [0, 0],
+      [10, 0],
+      [20, 0],
+      [20, 10],
+      [10, 10],
+      [0, 10],
+      [-5, 5]
+    ];
+    const out = simplifyPolyline(ring, 0.25, true);
+    expect(out).toContainEqual([-5, 5]);
+    expect(out).not.toContainEqual([10, 0]);
+    expect(out).toHaveLength(5);
   });
 });

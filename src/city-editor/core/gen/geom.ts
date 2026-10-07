@@ -328,7 +328,9 @@ export function simplifyPolyline(points: Point[], tolerance: number, closed = fa
     }
   }
   const a = douglasPeucker(points.slice(0, far + 1), tolerance);
-  const b = douglasPeucker(points.slice(far), tolerance);
+  // The second arc runs back to the start vertex so the closing edge is
+  // simplified too; otherwise the last vertex is always dropped.
+  const b = douglasPeucker(points.slice(far).concat([points[0]]), tolerance);
   const ring = a.slice(0, -1).concat(b.slice(0, -1));
   return ring.length >= 3 ? ring : points.map(p => [p[0], p[1]] as Point);
 }
