@@ -6,6 +6,7 @@
 - [城と城壁の設計](castles-and-fortifications.md)
 - [城郭実装記録](castles-implementation.md)
 - [FMG連携の地形・バイオーム要素調査](temp/survey/factors.md)
+- [城と街道の配置順序の再設計](castle-road-siting-order.md)（§4.2 の主要街道遮断ペナルティを必須条件に置き換え）
 - [FMGの都市配置・直交渡河・街道網の生成設計](../plan/fmg-settlements-and-perpendicular-crossings.md)
 
 ---

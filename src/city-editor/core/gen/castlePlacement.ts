@@ -220,7 +220,10 @@ export function placeCastleRegion(
   options: Partial<CastleSettings> = {},
   terrain?: BurgSiteTerrain,
   relaxed = false,
-  allowRetry = true
+  allowRetry = true,
+  /** Whole-city retries start at a later ranked site, so a castle that seals
+   * a gate approach (e.g. against the shore) is not chosen on every attempt. */
+  candidateOffset = 0
 ): CastleSite | null {
   const settings = { ...DEFAULT_CASTLE_SETTINGS, ...options };
   if (settings.position === "central" && settings.relationship === "integrated") return null;
@@ -282,7 +285,9 @@ export function placeCastleRegion(
       };
       return rate(b.id) - rate(a.id) || a.id.localeCompare(b.id);
     });
-    for (const candidate of candidates.slice(0, 40)) {
+    const pool = candidates.slice(0, 40);
+    const shift = pool.length ? candidateOffset % pool.length : 0;
+    for (const candidate of [...pool.slice(shift), ...pool.slice(0, shift)]) {
       let working = clone(document),
         id = candidate.id;
       let points = facePoints(working.mesh, working.mesh.faces[id]);
@@ -408,12 +413,25 @@ export function placeCastleRegion(
       { ...options, relationship: "detached" },
       terrain,
       relaxed,
-      false
+      false,
+      candidateOffset
     );
     if (detached) return detached;
   }
   if (allowRetry && !relaxed) {
-    return placeCastleRegion(document, urban, water, reserved, rivers, seed, options, terrain, true, false);
+    return placeCastleRegion(
+      document,
+      urban,
+      water,
+      reserved,
+      rivers,
+      seed,
+      options,
+      terrain,
+      true,
+      false,
+      candidateOffset
+    );
   }
   return null;
 }

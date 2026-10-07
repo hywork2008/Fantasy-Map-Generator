@@ -2037,7 +2037,10 @@ export function runPlan(
       rivers.map(r => ({ points: r.edgePoints, width: Math.max(...r.widths, 6) })),
       seed,
       settings.castle,
-      terrain
+      terrain,
+      false,
+      true,
+      attempt - 1
     );
     if (castleSite) {
       currentMesh = castleSite.mesh;
