@@ -55,7 +55,8 @@ it("moves several shared corners to keep brxqw6 f57 and its neighboring cells si
   const { document, vertexId, target, reference, river } = input();
   const before = structuredClone(document);
   expect(tangled(document)).toEqual([]);
-  expect(tangled(moveVertex(document, vertexId, target)!)).toEqual(["f57"]);
+  // Moving the corner alone would fold f57, so a plain move is rejected.
+  expect(moveVertex(document, vertexId, target)).toBeNull();
   const fixed = new Set([river[0], river.at(-1)!]);
   const moved = moveVertexWithNeighbors(document, vertexId, target, fixed, reference, 20)!;
   expect(moved).not.toBeNull();

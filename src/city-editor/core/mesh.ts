@@ -1,5 +1,6 @@
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { refreshCastleLayouts } from "./gen/castleLayout";
+import { isSimplePolygon, segmentsIntersect } from "./gen/geom";
 import type { Cell } from "./gen/types";
 import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
 
@@ -200,6 +201,20 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
   for (const circuit of next.defenseCircuits ?? [])
     if (circuit.areaFaceIds.includes(faceId)) circuit.areaFaceIds.push(newFaceId);
   rebuildFaceSides(next.mesh);
+  // A diagonal of a concave cell can run outside it. The two halves must then
+  // be simple, keep the parent's orientation and exactly tile its area.
+  const parent = facePoints(document.mesh, document.mesh.faces[faceId]);
+  if (isSimplePolygon(parent)) {
+    const parentArea = area(parent);
+    const halves = [face, next.mesh.faces[newFaceId]].map(f => facePoints(next.mesh, f));
+    const halfAreas = halves.map(area);
+    if (
+      halves.some(points => !isSimplePolygon(points)) ||
+      halfAreas.some(a => Math.sign(a) !== Math.sign(parentArea)) ||
+      Math.abs(halfAreas[0] + halfAreas[1] - parentArea) > Math.abs(parentArea) * 1e-6 + 1e-6
+    )
+      return null;
+  }
   return validate(next).length ? null : next;
 }
 
@@ -359,6 +374,9 @@ export function moveVertices(
     vertex.point = [point[0], point[1]];
   }
   if (!refreshCastleLayouts(next)) return null;
+  // Moved-geometry errors are new by construction, so they are never excused
+  // by allowExistingErrors.
+  if (movedGeometryErrors(document, next, points.keys()).length) return null;
   const errors = validate(next);
   if (!errors.length) return next;
   if (!allowExistingErrors) return null;
@@ -685,6 +703,60 @@ export function validate(document: CityDocument): string[] {
   }
   errors.push(...validateFortifications(document));
   return errors;
+}
+
+/**
+ * Planarity checks for an edit that moved existing vertices (design.md §5):
+ * every cell touching a moved vertex stays simple and keeps its orientation,
+ * and no edge at a moved vertex crosses or touches a non-adjacent edge. A cell
+ * or edge pair that was already broken in `before` is not held to the rule, so
+ * legacy documents remain editable.
+ */
+export function movedGeometryErrors(before: CityDocument, after: CityDocument, vertexIds: Iterable<Id>): string[] {
+  const moved = new Set(vertexIds);
+  if (!moved.size) return [];
+  const errors: string[] = [];
+  for (const face of Object.values(after.mesh.faces)) {
+    const ids = faceVertices(after.mesh, face);
+    if (!ids.some(id => moved.has(id))) continue;
+    const previous = before.mesh.faces[face.id];
+    if (!previous) continue;
+    const old = facePoints(before.mesh, previous);
+    if (!isSimplePolygon(old)) continue;
+    const points = ids.map(id => after.mesh.vertices[id].point);
+    if (!isSimplePolygon(points)) errors.push(`Face ${face.id} self-intersects`);
+    else if (Math.sign(area(points)) !== Math.sign(area(old))) errors.push(`Face ${face.id} is inverted`);
+  }
+  const edges = Object.values(after.mesh.edges);
+  const boxes = edges.map(edge => segmentBox(after.mesh.vertices[edge.a].point, after.mesh.vertices[edge.b].point));
+  edges.forEach((edge, i) => {
+    if (!moved.has(edge.a) && !moved.has(edge.b)) return;
+    const p = after.mesh.vertices[edge.a].point;
+    const q = after.mesh.vertices[edge.b].point;
+    edges.forEach((other, j) => {
+      if (i === j || (j < i && (moved.has(other.a) || moved.has(other.b)))) return;
+      if ([other.a, other.b].some(id => id === edge.a || id === edge.b)) return;
+      const box = boxes[i];
+      const otherBox = boxes[j];
+      if (box[0] > otherBox[2] || otherBox[0] > box[2] || box[1] > otherBox[3] || otherBox[1] > box[3]) return;
+      if (!segmentsIntersect(p, q, after.mesh.vertices[other.a].point, after.mesh.vertices[other.b].point)) return;
+      const wasCrossing =
+        before.mesh.edges[edge.id] &&
+        before.mesh.edges[other.id] &&
+        segmentsIntersect(
+          before.mesh.vertices[edge.a].point,
+          before.mesh.vertices[edge.b].point,
+          before.mesh.vertices[other.a].point,
+          before.mesh.vertices[other.b].point
+        );
+      if (!wasCrossing) errors.push(`Edge ${edge.id} crosses ${other.id}`);
+    });
+  });
+  return errors;
+}
+
+function segmentBox(a: Point, b: Point): [number, number, number, number] {
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
 }
 
 export function clone<T>(value: T): T {

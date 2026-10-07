@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createDocument, createSizedDocument } from "./document";
+import { createDocument, createGridDocument, createSizedDocument } from "./document";
 import { appendEdge, createGroup } from "./features";
+import { isSimplePolygon, polygonArea } from "./gen/geom";
 import {
   faceNeighbors,
+  facePoints,
   faceVertices,
+  incidentFaces,
   insertEdgeVertex,
   mergeFaces,
   mergeVertices,
@@ -284,3 +287,77 @@ it("allows debug vertex movement with existing errors, without introducing new e
   expect(moveVertex(source, vertex.id, [neighbor[0] + 0.1, neighbor[1] + 0.1], true)).toBeNull();
   expect(source).toEqual(before);
 });
+
+describe("planar vertex edits (design.md §5)", () => {
+  it.each(["voronoi", "hex", "evolution"] as const)(
+    "never commits a self-intersecting or inverted cell when dragging a %s vertex",
+    grid => {
+      const document = createGridDocument({ size: "tiny", seed: "planar-drag", grid });
+      const vertices = Object.values(document.mesh.vertices)
+        .sort((a, b) => Math.hypot(...a.point) - Math.hypot(...b.point))
+        .slice(0, 12);
+      let accepted = 0;
+      for (const vertex of vertices)
+        for (const distance of [10, 30, 60])
+          for (const [dx, dy] of [
+            [1, 0],
+            [0, 1],
+            [-1, 0],
+            [0, -1],
+            [0.7, 0.7],
+            [-0.7, -0.7]
+          ]) {
+            const target: [number, number] = [vertex.point[0] + dx * distance, vertex.point[1] + dy * distance];
+            const moved = moveVertex(document, vertex.id, target);
+            if (!moved) continue;
+            accepted++;
+            for (const face of incidentFaces(moved.mesh, vertex.id)) {
+              const points = facePoints(moved.mesh, face);
+              expect(isSimplePolygon(points)).toBe(true);
+              expect(Math.sign(polygonArea(points))).toBe(
+                Math.sign(polygonArea(facePoints(document.mesh, document.mesh.faces[face.id])))
+              );
+            }
+          }
+      // Small nudges must stay editable.
+      expect(accepted).toBeGreaterThan(0);
+    }
+  );
+
+  it("rejects a vertex jumping into a cell it does not belong to", () => {
+    const document = createGridDocument({ size: "tiny", seed: "planar-jump", grid: "voronoi" });
+    const vertex = Object.values(document.mesh.vertices).sort(
+      (a, b) => Math.hypot(...a.point) - Math.hypot(...b.point)
+    )[0];
+    const own = new Set(incidentFaces(document.mesh, vertex.id).map(face => face.id));
+    const far = Object.values(document.mesh.faces)
+      .filter(face => !own.has(face.id))
+      .map(face => facePoints(document.mesh, face))
+      .sort((a, b) => Math.hypot(...centroid(a)) - Math.hypot(...centroid(b)))[2];
+    expect(moveVertex(document, vertex.id, centroid(far))).toBeNull();
+  });
+
+  it("rejects a split along a diagonal that leaves a concave cell", () => {
+    const document = createDocument("concave-split", 900, 110);
+    const face = Object.values(document.mesh.faces).find(candidate => {
+      const points = facePoints(document.mesh, candidate);
+      return candidate.boundary.length >= 5 && points.every(p => Math.hypot(...p) < 250);
+    })!;
+    const ids = faceVertices(document.mesh, face);
+    // Pull one corner inward past the opposite diagonal to make the cell concave.
+    const [a, reflex, b] = [ids[0], ids[1], ids[2]];
+    const pa = document.mesh.vertices[a].point;
+    const pb = document.mesh.vertices[b].point;
+    const inner = centroid(facePoints(document.mesh, face));
+    const mid: [number, number] = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
+    const concave = structuredClone(document);
+    concave.mesh.vertices[reflex].point = [mid[0] + (inner[0] - mid[0]) * 0.4, mid[1] + (inner[1] - mid[1]) * 0.4];
+    if (!isSimplePolygon(facePoints(concave.mesh, concave.mesh.faces[face.id]))) return;
+    expect(splitFace(concave, face.id, a, b)).toBeNull();
+  });
+});
+
+function centroid(points: [number, number][]): [number, number] {
+  const sum = points.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
+  return [sum[0] / points.length, sum[1] / points.length];
+}
