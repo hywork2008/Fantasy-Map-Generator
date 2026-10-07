@@ -186,3 +186,69 @@ export function alignFrameRoadEndpoints(document: CityDocument): void {
     }
   }
 }
+
+/** After `alignFrameRoadEndpoints`: a street whose terminal still stops short of
+ * the exterior road's start (a mesh corner, or a perimeter step longer than one
+ * block) gets that terminal moved onto the start itself. Otherwise the renderer
+ * links them with a short sideways stub and the road turns into an N
+ * (Brarovelum v250). Same guards as the alignment: dry, unlocked, not a gate. */
+export function snapFrameRoadTerminals(document: CityDocument): void {
+  const epsilon = 1e-5;
+  const boundaryVertices = new Set(
+    Object.values(document.mesh.edges)
+      .filter(e => e.leftFace === null || e.rightFace === null)
+      .flatMap(e => [e.a, e.b])
+  );
+  const touched = new Set<string>();
+  for (const leg of document.frameRoads ?? []) {
+    const piece = leg.pieces[0];
+    if (piece?.kind !== "road" || piece.points.length < 2) continue;
+    const target = piece.points[0],
+      outward = piece.points[1];
+    for (const group of document.featureGroups) {
+      if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) continue;
+      if (group.locked || group.sourceRoad?.terminal === "riverLanding") continue;
+      const ids = featureGroupVertices(document, group);
+      if (ids.length < 2) continue;
+      const atStart =
+        distance(document.mesh.vertices[ids[0]].point, target) <
+        distance(document.mesh.vertices[ids.at(-1)!].point, target);
+      const id = atStart ? ids[0] : ids.at(-1)!;
+      const inner = document.mesh.vertices[atStart ? ids[1] : ids.at(-2)!].point;
+      const vertex = document.mesh.vertices[id];
+      const gap = distance(vertex.point, target);
+      if (gap < epsilon) break;
+      if (gap > document.frame.blockSizeMeters || vertex.locked || touched.has(id) || !boundaryVertices.has(id))
+        continue;
+      if (
+        (document.gates ?? []).some(g => g.vertexId === id) ||
+        document.featureGroups.some(g => g.id !== group.id && featureGroupVertices(document, g).includes(id)) ||
+        Object.values(document.mesh.edges).some(e => e.locked && (e.a === id || e.b === id))
+      )
+        continue;
+      const width = Math.max(group.style.widthMeters, defaultRoadWidthMeters(townExtentMeters(document.frame)));
+      if (lineHitsDocumentWater(document, [inner, target, outward], width, true)) continue;
+      const incident = Object.values(document.mesh.faces).filter(face =>
+        face.boundary.some(ref => {
+          const edge = document.mesh.edges[ref.edgeId];
+          return edge.a === id || edge.b === id;
+        })
+      );
+      if (incident.some(face => face.properties.locked || face.properties.water !== "land")) continue;
+      const oldAreas = incident.map(face => polygonArea(facePoints(document.mesh, face)));
+      const previous = vertex.point;
+      vertex.point = [target[0], target[1]];
+      const valid = incident.every((face, index) => {
+        const polygon = facePoints(document.mesh, face);
+        return isSimplePolygon(polygon) && polygonArea(polygon) * oldAreas[index] > 0;
+      });
+      if (!valid) {
+        vertex.point = previous;
+        continue;
+      }
+      piece.points[0] = vertex.point;
+      touched.add(id);
+      break;
+    }
+  }
+}

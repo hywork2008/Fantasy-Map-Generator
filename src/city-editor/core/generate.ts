@@ -2,7 +2,7 @@ import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
-import { alignFrameRoadEndpoints } from "./frameRoadConnection";
+import { alignFrameRoadEndpoints, snapFrameRoadTerminals } from "./frameRoadConnection";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import {
@@ -982,6 +982,7 @@ export function generateCityAttempt(
   }
   tagExternalGateRoads(settled, seed, settings.descriptor);
   alignFrameRoadEndpoints(settled);
+  snapFrameRoadTerminals(settled);
   cultivateRoadside(settled);
   syncDocumentCemeteries(settled);
   refreshCemeteryLayouts(settled);
