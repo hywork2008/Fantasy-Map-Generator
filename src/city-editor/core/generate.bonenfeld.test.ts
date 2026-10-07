@@ -21,6 +21,9 @@ const sources = existsSync(fmgPath) ? ["fixture", "archive"] : ["fixture"];
 describe("Bonenfeld wide-river generation", () => {
   it.each(sources)("connects both far-bank FMG roads through a short perpendicular bridge (%s)", async source => {
     let descriptor = structuredClone(bonenfeldSite) as BurgSiteDescriptor;
+    // The fixture predates historicalPeriod; its 402 m river needs a period whose
+    // routine crossing allowance (bridgeCrossingPolicy) reaches it to stay bridged.
+    descriptor.historicalPeriod = "highMedieval";
     if (source === "archive") {
       const buffer = readFileSync(fmgPath);
       const blob = new Blob([buffer]);

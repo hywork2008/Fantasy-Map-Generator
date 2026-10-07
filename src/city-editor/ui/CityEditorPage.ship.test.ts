@@ -40,10 +40,10 @@ describe("City Editor Ship Tool", () => {
     shipBtn?.click();
     expect(shipControls?.hidden).toBe(false);
 
-    // Ship type select exists and contains small, medium, and large
+    // Ship type select lists every SHIP_SPECS entry (small, medium, large, barge)
     const select = shipControls?.querySelector("select");
     expect(select).toBeDefined();
-    expect(select?.options.length).toBe(3);
+    expect([...(select?.options ?? [])].map(o => o.value)).toEqual(["small", "medium", "large", "barge"]);
     expect(select?.value).toBe("small");
 
     // Length input exists

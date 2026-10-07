@@ -25,6 +25,7 @@ import {
   faceVertices,
   incidentEdges,
   incidentFaces,
+  indexMeshEdges,
   insertEdgeVertex,
   mergeVertices,
   moveVertex,
@@ -61,11 +62,13 @@ export function edgesAreOpposite(ordered: Edge[], a: Id, b: Id): boolean {
 
 export function kindEdgeIds(document: CityDocument, kind: FeatureGroup["kind"]): Set<Id> {
   const ids = new Set<Id>();
+  // Rivers store vertices; one index per call avoids a full edge scan per river step.
+  const index = kind === "river" ? indexMeshEdges(document.mesh) : null;
   for (const group of document.featureGroups) {
     if (group.kind !== kind) continue;
     if (group.kind === "river") {
       for (let i = 1; i < group.vertices.length; i++) {
-        const edge = edgeBetween(document.mesh, group.vertices[i - 1], group.vertices[i]);
+        const edge = index!.between(group.vertices[i - 1], group.vertices[i]);
         if (edge) ids.add(edge.id);
       }
     } else {

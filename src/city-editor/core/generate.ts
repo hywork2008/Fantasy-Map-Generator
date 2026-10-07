@@ -4072,11 +4072,17 @@ export function completeRoadRouter(
     // Keep successful planned routes unchanged. Only retry a failed exterior
     // approach against the repaired closed curtain.
     for (let pass = 0; outside && pass < (curtainInterior ? 2 : 1); pass++) {
+      // The current-curtain pass covers the dry-exit search below as well; it
+      // falls back to the planned classification only when it found nothing.
+      const planned = nodes;
+      let foundThisPass = false;
       if (pass > 0) {
         useCurrentCurtain = true;
         const retried = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
-        if (retried) nodes = retried;
-        else useCurrentCurtain = false;
+        if (retried) {
+          nodes = retried;
+          foundThisPass = true;
+        }
       }
       if (
         outside &&
@@ -4096,9 +4102,14 @@ export function completeRoadRouter(
           const extended = stitch([exit, hopEndOf]);
           if (extended) {
             nodes = extended;
+            foundThisPass = true;
             break;
           }
         }
+      }
+      if (pass > 0 && !foundThisPass) {
+        useCurrentCurtain = false;
+        nodes = planned;
       }
       if (nodes && graph.points[nodes[0]].some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01))
         break;

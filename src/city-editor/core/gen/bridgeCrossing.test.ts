@@ -21,7 +21,7 @@ function offPerpendicular(origin: Point, arm: Point, tangent: Point): number {
 }
 
 describe("river crossings", () => {
-  it("keeps gc:road-2 square to the river and off the next river vertex", () => {
+  it("keeps the generated bridge square to the river and off the next river vertex", () => {
     const document = createGridDocument({
       size: "tiny",
       grid: "evolution",
@@ -55,7 +55,8 @@ describe("river crossings", () => {
         ).toBe(false);
       }
     }
-    const road = city.featureGroups.find(group => group.id === "gc:road-2");
+    // The crossing is its own bank-to-bank group; approach roads stop at the banks.
+    const road = city.featureGroups.find(group => group.id === "gc:bridge-0");
     const river = city.featureGroups.find(group => group.id === "gc:river-0");
     expect(road?.kind).toBe("road");
     expect(river?.kind).toBe("river");

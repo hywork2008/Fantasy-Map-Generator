@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createGridDocument } from "./document";
 import {
   defaultGenerationSettings,
@@ -7,6 +7,20 @@ import {
   generateStageOnDocument
 } from "./generate";
 import { captureGenerationDebugPreview, type GenerationDebugPreview } from "./generationDebug";
+
+// Post-finish rejections have become rare on real seeds. One test injects a
+// final crossing-validation issue to exercise the capture after finishing.
+const injected = vi.hoisted(() => ({ lateCrossingIssue: false }));
+vi.mock("./passages", async importOriginal => {
+  const actual = await importOriginal<typeof import("./passages")>();
+  return {
+    ...actual,
+    explainGeneratedCrossingFailures: (...args: Parameters<typeof actual.explainGeneratedCrossingFailures>) =>
+      injected.lateCrossingIssue
+        ? [`injected issue at ${Object.keys(args[0].mesh.faces)[0]}`]
+        : actual.explainGeneratedCrossingFailures(...args)
+  };
+});
 
 const input = () => createGridDocument({ size: "tiny", grid: "evolution", seed: "ce-audit-20261002-mesh" });
 describe("rejected generation checkpoints", () => {
@@ -18,9 +32,10 @@ describe("rejected generation checkpoints", () => {
       generateCityAttempt(
         source,
         defaultGenerationSettings(),
-        "ce-audit-20261002:0",
+        // Still rejected at gate routing after generator fixes (attempt 2 seed).
+        "ce-audit-20261002:37:junction-retry:1",
         () => {},
-        1,
+        2,
         p => {
           preview = p;
         }
@@ -74,19 +89,25 @@ describe("rejected generation checkpoints", () => {
   });
   it("captures a failure after geometry finishing", () => {
     let preview: GenerationDebugPreview | undefined;
-    expect(
-      generateCityAttempt(
-        input(),
-        defaultGenerationSettings(),
-        "ce-audit-20261002:7:junction-retry:1",
-        () => {},
-        2,
-        p => {
-          preview = p;
-        }
-      )
-    ).toBeNull();
-    expect(preview?.sample.failure?.reason).toBe("self-intersecting-faces");
+    injected.lateCrossingIssue = true;
+    try {
+      expect(
+        generateCityAttempt(
+          input(),
+          defaultGenerationSettings(),
+          "ce-audit-20261002:0",
+          () => {},
+          1,
+          p => {
+            preview = p;
+          }
+        )
+      ).toBeNull();
+    } finally {
+      injected.lateCrossingIssue = false;
+    }
+    expect(preview?.sample.phase).toBe("crossing-validation");
+    expect(preview?.sample.failure?.reason).toBe("invalid-crossings");
     expect(preview!.document.appearance).toBe("town");
     expect(preview!.highlights.faces.length).toBeGreaterThan(0);
     expect(preview!.highlights.contextual).toBe(false);

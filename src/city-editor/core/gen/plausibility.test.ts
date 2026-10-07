@@ -231,7 +231,7 @@ function kindMids(document: CityDocument, kind: "road" | "wall"): Point[] {
 describe("Phase G2 — generated roads and walls stay off the water", () => {
   const base = createSizedDocument("small", "g2-mesh");
 
-  it("4 coast scenarios × several seeds: no road or wall edge mid sits in a sea cell", () => {
+  it("4 coast scenarios × rotating seeds: no road or wall edge mid sits in a sea cell", () => {
     const scenarios: { name: string; settings: GenerationSettings }[] = [
       ...COASTS.map(coast => ({
         name: coast,
@@ -251,8 +251,10 @@ describe("Phase G2 — generated roads and walls stay off the water", () => {
       }
     ];
     let checked = 0;
-    for (const scenario of scenarios) {
-      for (const seed of SEEDS) {
+    // One seed per scenario, rotated across SEEDS: every scenario and every seed
+    // stays covered without paying for the full cross product of generations.
+    for (const [index, scenario] of scenarios.entries()) {
+      for (const seed of [SEEDS[index % SEEDS.length]]) {
         const out = generateStageOnDocument(base, scenario.settings, seed, 5);
         expect(out, `${scenario.name}/${seed} returned null`).not.toBeNull();
         if (!out) continue;

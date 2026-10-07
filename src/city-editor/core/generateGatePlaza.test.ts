@@ -28,9 +28,13 @@ it("connects a gate to another polygonal plaza corner when the nearest corner is
   };
   const before = structuredClone(source);
   const failures: GenerationDebugPreview[] = [];
+  // Written when the default layout was "auto" (seed l1nr46 rolls the polygonal
+  // circulade plaza, which reserves no faces); pin it.
+  const settings = defaultGenerationSettings();
+  settings.layout = "circulade";
   const city = generateCityAttempt(
     source,
-    defaultGenerationSettings(),
+    settings,
     "l1nr46",
     () => {},
     1,

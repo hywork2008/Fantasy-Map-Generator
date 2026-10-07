@@ -4,7 +4,6 @@ import { featureGroupVertices } from "./features";
 import { shortcutExteriorRoads } from "./gateApproaches";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import { faceVertices, validate } from "./mesh";
-import { kindEdgeIds } from "./passages";
 
 function fixture() {
   const document = createDocument("shortcut", 900, 110);
@@ -80,6 +79,9 @@ it("routes the reported evolution town with valid exterior chords", () => {
   const city = generateCityOnDocument(input, settings, "1y9mu1o");
   expect(city).not.toBeNull();
   expect(validate(city!)).toEqual([]);
-  const roadEdges = [...kindEdgeIds(city!, "road")].map(id => city!.mesh.edges[id]);
-  expect(roadEdges.some(e => [e.a, e.b].includes("v70") && [e.a, e.b].includes("v105"))).toBe(true);
+  // The reported detour hugged an empty exterior cell. Mesh ids drift with the
+  // generator, so assert the property: no generated road is left to shorten.
+  const roads = (doc: typeof city) =>
+    doc!.featureGroups.flatMap(group => (group.kind === "road" ? [[group.id, group.segments]] : []));
+  expect(roads(shortcutExteriorRoads(city!))).toEqual(roads(city));
 });

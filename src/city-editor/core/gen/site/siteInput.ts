@@ -479,7 +479,7 @@ function buildChannels(
     });
   }
   return river.segments.flatMap(segment => {
-    const centerline = extendPastFrame(segment.points, halfExtent);
+    const centerline = extendPastFrame(withoutRepeats(segment.points), halfExtent);
     if (centerline.length < 2 || widthMeters <= 0) return [];
     const side = sideOfPolyline([0, 0], centerline);
     const sign = Math.abs(side) < 1e-3 ? (river.cityBank === "left" ? 1 : -1) : Math.sign(side);
@@ -533,8 +533,16 @@ function extendPastFrame(poly: Point[], half: number): Point[] {
   return [outward(poly[0], poly[1]), ...poly.slice(1, -1), outward(poly[poly.length - 1], poly[poly.length - 2])];
 }
 
+/** Consecutive repeats (FMG segment joins) have no tangent; offsetting them
+ * would pin both banks to the centreline and pinch the channel shut. */
+function withoutRepeats(poly: Point[]): Point[] {
+  return poly.filter((p, i) => i === 0 || Math.hypot(p[0] - poly[i - 1][0], p[1] - poly[i - 1][1]) > 1e-6);
+}
+
 /** Signed offset along the left normal. Positive `distance` is left of the flow. */
-function offsetPolyline(poly: Point[], distance: number): Point[] {
+function offsetPolyline(line: Point[], distance: number): Point[] {
+  const poly = withoutRepeats(line);
+  if (poly.length < 2) return poly;
   return poly.map((p, i) => {
     const t = polylineTangent(poly, Math.min(i, poly.length - 2));
     return [p[0] - t[1] * distance, p[1] + t[0] * distance] as Point;
@@ -564,7 +572,11 @@ function extractRivers(site: BurgSiteDescriptor, wideChannelIds: Set<number>): C
         const widths: number[] = [];
         for (const seg of r.segments) {
           for (let i = 0; i < seg.points.length; i++) {
-            pts.push(seg.points[i] as Point);
+            const p = seg.points[i] as Point,
+              prev = pts.at(-1);
+            // FMG repeats the join point between segments; a zero-length step has no direction.
+            if (prev && Math.hypot(p[0] - prev[0], p[1] - prev[1]) <= 1e-6) continue;
+            pts.push(p);
             widths.push(seg.widthsMeters[i] ?? r.widthMeters);
           }
         }

@@ -199,11 +199,11 @@ export function repairRiverWalls(
       [...riverVertices].map(id => {
         // Keep an already consumed, valid crossing even when a straighter
         // unused pair exists at the same junction.
-        const arms = vertexHasCrossing(document, id, "wall", "river")
+        const arms = vertexHasCrossing(document, id, "wall", "river", wallEdges, riverEdges)
           ? incidentEdges(mesh, id)
               .filter(edge => wallEdges.has(edge.id))
               .map(edge => edge.id)
-          : throughEdgesAt(document, id, "river", true).map(edge => edge.id);
+          : throughEdgesAt(document, id, "river", true, riverEdges).map(edge => edge.id);
         return [id, new Set(trialPassage?.vertex === id ? trialPassage.arms : arms)];
       })
     );
@@ -422,12 +422,21 @@ export function repairRiverWalls(
   const conflicts = () => {
     const walls = kindEdgeIds(document, "wall"),
       rivers = kindEdgeIds(document, "river");
+    // The document is unchanged during one scan; reuse the edge sets and per-vertex answers.
+    const crossings = new Map<Id, boolean>();
+    const crossingAt = (id: Id): boolean => {
+      let value = crossings.get(id);
+      if (value === undefined) {
+        value = vertexHasCrossing(document, id, "wall", "river", walls, rivers);
+        crossings.set(id, value);
+      }
+      return value;
+    };
     const vertices = new Set([...rivers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
     const result: string[] = [];
     for (const id of walls) if (rivers.has(id)) result.push(`城壁と河川が辺 ${id} を共有している`);
     for (const id of new Set([...walls].flatMap(edge => [document.mesh.edges[edge].a, document.mesh.edges[edge].b])))
-      if (vertices.has(id) && !vertexHasCrossing(document, id, "wall", "river"))
-        result.push(`頂点 ${id} に河川通過口を確保できない`);
+      if (vertices.has(id) && !crossingAt(id)) result.push(`頂点 ${id} に河川通過口を確保できない`);
     for (const group of document.featureGroups) {
       if (group.kind !== "wall" || group.locked || !group.id.startsWith("gc:") || castleWallIds(document).has(group.id))
         continue;
@@ -435,7 +444,7 @@ export function repairRiverWalls(
       const groupEdges = new Set(group.segments.map(ref => ref.edgeId));
       const approaches = new Set(
         featureGroupVertices(document, group).flatMap(id =>
-          vertices.has(id) && vertexHasCrossing(document, id, "wall", "river")
+          vertices.has(id) && crossingAt(id)
             ? [
                 ...bankApproachEdges(
                   document,
@@ -454,14 +463,9 @@ export function repairRiverWalls(
         const edge = document.mesh.edges[ref.edgeId];
         if (rivers.has(edge.id) || approaches.has(edge.id)) continue;
         const crossing =
-          [edge.a, edge.b].find(
-            id =>
-              vertices.has(id) &&
-              vertexHasCrossing(document, id, "wall", "river") &&
-              transverseArm(document, edge.id, id)
-          ) ??
+          [edge.a, edge.b].find(id => vertices.has(id) && crossingAt(id) && transverseArm(document, edge.id, id)) ??
           featureGroupVertices(document, group).find(id => {
-            if (!vertices.has(id) || !vertexHasCrossing(document, id, "wall", "river")) return false;
+            if (!vertices.has(id) || !crossingAt(id)) return false;
             const origin = document.mesh.vertices[id].point;
             const a = document.mesh.vertices[edge.a].point,
               b = document.mesh.vertices[edge.b].point;
