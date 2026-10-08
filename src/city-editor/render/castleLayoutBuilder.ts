@@ -1,3 +1,24 @@
+/**
+ * @file castleLayoutBuilder.ts
+ * @description
+ * 史実・文化に基づく8大城郭様式の縄張幾何学プラン（FortressPlan）を構築するジェネレーター。
+ *
+ * 【設計思想・全体アーキテクチャ】
+ * 従来の単純な箱型・単一パーツ配置から脱却し、各城郭様式の史実に基づく軍事・生活幾何学を生成します。
+ * 構成要素（ramparts, towers, buildings, defensiveGates, courtyards, props）は
+ * 地形・立体構造の整合性を保つため、castleSvg.ts にて厳密な地層順序でレンダリングされます。
+ *
+ * 【各要素の企図】
+ * - ramparts: 高石垣（算木積み）、円形モット盛土（等高線・法面ケバ線）、傾斜スカルプ、木柵、内郭防壁
+ * - courtyards: 曲輪のベースグラウンド（白砂利、石畳、土間、練兵広場、パティオ）
+ * - defensiveGates: 枡形虎口、半月堡（デミルーン）、フライング木橋、カストラ大門などの防衛門構え
+ * - buildings: 連立天守群、多聞櫓、本丸御殿、大広間、兵舎、礼拝堂などの主要建築
+ * - towers: 星形稜堡、隅櫓、円形ドラムタワー、角塔、木造物見櫓
+ * - props: 井戸、松の植込、大砲砲台、水盤などの生活・軍事ディテール
+ *
+ * 詳細仕様・拡張ガイドライン: docs/city-editor/castle-architecture-guide.md を参照。
+ */
+
 import { circuitRing } from "../core/fortifications";
 import { polygonCentroid } from "../core/gen/geom";
 import type { CastlePart, CastlePlan, CityDocument, Point } from "../core/types";
