@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-26 -28 52 56" width="520" height="560">
+  <style>
+    .ce-chinacastle-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-chinacastle-wall { fill: #8a7e6d; stroke: #383024; stroke-width: 0.7px; stroke-linejoin: round; }
+    .ce-chinacastle-court { fill: #ded5c1; stroke: #383024; stroke-width: 0.5px; }
+    .ce-chinacastle-roof-gate { fill: #a83824; stroke: #4a140a; stroke-width: 0.45px; }
+    .ce-chinacastle-roof-yamen { fill: #48545e; stroke: #1f252b; stroke-width: 0.45px; }
+    .ce-chinacastle-ridge { stroke: #ffd54f; stroke-width: 0.5px; stroke-linecap: round; }
+    .ce-chinacastle-arch { fill: #1c1712; }
+  </style>
+  <g class="ce-landmark ce-landmark--chinese-citadel-yamen">
+    <!-- 影 -->
+    <g class="ce-chinacastle-shadow" transform="translate(1.4 1.6)">
+      <rect x="-18" y="-22" width="36" height="34" rx="0.8"></rect>
+      <path d="M -8 12 A 8 8 0 0 0 8 12 Z"></path>
+    </g>
+    <!-- 主城壁（版築切石厚壁・方形城郭） -->
+    <g class="ce-chinacastle-wall">
+      <rect x="-18" y="-22" width="36" height="34" rx="0.6"></rect>
+      <!-- 四隅の角楼（角望楼基壇） -->
+      <rect x="-19.5" y="-23.5" width="4.5" height="4.5"></rect>
+      <rect x="15" y="-23.5" width="4.5" height="4.5"></rect>
+      <rect x="-19.5" y="9" width="4.5" height="4.5"></rect>
+      <rect x="15" y="9" width="4.5" height="4.5"></rect>
+    </g>
+    <!-- 1. 甕城（Wengcheng / 外門で囲う半円形出枡形門）南壁正面 -->
+    <g transform="translate(0, 12)">
+      <!-- 半円形の甕城城壁 -->
+      <path d="M -9 0 A 9 9 0 0 0 9 0 L 6 0 A 6 6 0 0 1 -6 0 Z" class="ce-chinacastle-wall"></path>
+      <!-- 甕城内の中庭空間 -->
+      <path d="M -6 0 A 6 6 0 0 0 6 0 Z" fill="#cfc4ad"></path>
+      <!-- 甕城外門（側面に屈曲して開く外門楼）東側に開口して直進を阻止 -->
+      <rect x="5.5" y="2" width="3.5" height="4" fill="#a83824" stroke="#4a140a" stroke-width="0.35"></rect>
+      <rect x="6.5" y="3" width="2.5" height="2" class="ce-chinacastle-arch"></rect>
+    </g>
+    <!-- 城郭内広場（衙門中庭） -->
+    <g class="ce-chinacastle-court">
+      <rect x="-14" y="-18" width="28" height="26" rx="0.4"></rect>
+      <!-- 中軸線の石畳御道 -->
+      <rect x="-2" y="-16" width="4" height="27" fill="#beb39d"></rect>
+    </g>
+    <!-- 2. 主城壁南門楼（箭楼・重層瓦屋根） -->
+    <g transform="translate(0, 12)">
+      <!-- 門楼基壇 -->
+      <rect x="-7" y="-2" width="14" height="4" rx="0.3" fill="#695d4d" stroke="#383024" stroke-width="0.4"></rect>
+      <!-- 主城門トンネル -->
+      <rect x="-1.8" y="-2" width="3.6" height="4" class="ce-chinacastle-arch"></rect>
+      <!-- 門楼大屋根（朱塗り入母屋屋根） -->
+      <rect x="-6" y="-3.5" width="12" height="4" rx="0.3" class="ce-chinacastle-roof-gate"></rect>
+      <line x1="-5.5" y1="-1.5" x2="5.5" y2="-1.5" class="ce-chinacastle-ridge"></line>
+    </g>
+    <!-- 3. 役所・衙門（Yamen Compound - 厳格な中軸線上の殿舎群） -->
+    <!-- 衙門大門（中門・儀門） -->
+    <g transform="translate(0, 2)">
+      <rect x="-6.5" y="-2" width="13" height="4" rx="0.3" class="ce-chinacastle-roof-yamen"></rect>
+      <line x1="-6" y1="0" x2="6" y2="0" stroke="#d4cebe" stroke-width="0.4"></line>
+    </g>
+    <!-- 正堂（大堂 - 地方長官知府の執務審判大殿）中央最重要殿舎 -->
+    <g transform="translate(0, -6)">
+      <!-- 月台テラス -->
+      <rect x="-8.5" y="-4" width="17" height="8" rx="0.4" fill="#a89d89" stroke="#383024" stroke-width="0.4"></rect>
+      <!-- 重厚な灰色瓦大屋根 -->
+      <rect x="-7.5" y="-3.5" width="15" height="7" rx="0.3" class="ce-chinacastle-roof-yamen"></rect>
+      <line x1="-6.8" y1="0" x2="6.8" y2="0" stroke="#f0ebe1" stroke-width="0.6" stroke-linecap="round"></line>
+      <circle cx="-6.8" cy="0" r="0.4" fill="#c43b27"></circle>
+      <circle cx="6.8" cy="0" r="0.4" fill="#c43b27"></circle>
+    </g>
+    <!-- 二堂・内宅（後方執務私邸殿舎）北端 -->
+    <g transform="translate(0, -14)">
+      <rect x="-6.5" y="-2.5" width="13" height="5" rx="0.3" class="ce-chinacastle-roof-yamen"></rect>
+      <line x1="-5.8" y1="0" x2="5.8" y2="0" stroke="#d4cebe" stroke-width="0.4"></line>
+    </g>
+    <!-- 東西の役所六房（吏・戸・礼・兵・刑・工房）左右翼舎 -->
+    <g>
+      <!-- 東六房 -->
+      <rect x="9.5" y="-12" width="3.5" height="15" rx="0.2" class="ce-chinacastle-roof-yamen"></rect>
+      <!-- 西六房 -->
+      <rect x="-13" y="-12" width="3.5" height="15" rx="0.2" class="ce-chinacastle-roof-yamen"></rect>
+    </g>
+    <!-- 四隅の角楼望楼屋根 -->
+    <g class="ce-chinacastle-roof-gate">
+      <rect x="-19" y="-23" width="3.5" height="3.5" rx="0.2"></rect>
+      <rect x="15.5" y="-23" width="3.5" height="3.5" rx="0.2"></rect>
+      <rect x="-19" y="9.5" width="3.5" height="3.5" rx="0.2"></rect>
+      <rect x="15.5" y="9.5" width="3.5" height="3.5" rx="0.2"></rect>
+    </g>
+  </g>
+</svg>

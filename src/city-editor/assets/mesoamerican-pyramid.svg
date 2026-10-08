@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="500" height="500">
+  <style>
+    .ce-meso-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-meso-plaza { fill: #ded5c1; stroke: #423825; stroke-width: 0.5px; }
+    .ce-meso-tier-1 { fill: #a3957b; stroke: #383020; stroke-width: 0.5px; }
+    .ce-meso-tier-2 { fill: #b8aa8d; stroke: #383020; stroke-width: 0.45px; }
+    .ce-meso-tier-3 { fill: #c9bea3; stroke: #383020; stroke-width: 0.4px; }
+    .ce-meso-tier-4 { fill: #ded4bc; stroke: #383020; stroke-width: 0.4px; }
+    .ce-meso-temple { fill: #9e3223; stroke: #47110a; stroke-width: 0.5px; }
+    .ce-meso-stair { fill: #8f8166; stroke: #383020; stroke-width: 0.35px; }
+    .ce-meso-ballcourt { fill: #bfae91; stroke: #383020; stroke-width: 0.45px; }
+    .ce-meso-tzompantli { fill: #dedad2; stroke: #2b2721; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--mesoamerican-pyramid">
+    <!-- 影 -->
+    <g class="ce-meso-shadow" transform="translate(1.4 1.6)">
+      <rect x="-8" y="-18" width="24" height="24" rx="0.5"></rect>
+      <rect x="-21" y="-5" width="10" height="22"></rect>
+    </g>
+    <!-- 聖域石畳広場（Plaza） -->
+    <g class="ce-meso-plaza">
+      <rect x="-22" y="-22" width="44" height="44" rx="0.8"></rect>
+    </g>
+    <!-- 1. 階段ピラミッド神殿（Step Pyramid - 北東区画） -->
+    <g transform="translate(4, -6)">
+      <!-- 4層の段丘基壇（タルード・タブレロ様式） -->
+      <rect x="-12" y="-12" width="24" height="24" class="ce-meso-tier-1"></rect>
+      <rect x="-9.8" y="-9.8" width="19.6" height="19.6" class="ce-meso-tier-2"></rect>
+      <rect x="-7.6" y="-7.6" width="15.2" height="15.2" class="ce-meso-tier-3"></rect>
+      <rect x="-5.4" y="-5.4" width="10.8" height="10.8" class="ce-meso-tier-4"></rect>
+      <!-- 四方の大階段（Stairways） -->
+      <!-- 南大階段（主正面） -->
+      <rect x="-2.2" y="5.4" width="4.4" height="6.6" class="ce-meso-stair"></rect>
+      <!-- 蛇頭（階段手すりの羽毛ある蛇の頭部） -->
+      <circle cx="-2.2" cy="12" r="0.6" fill="#4a7337"></circle>
+      <circle cx="2.2" cy="12" r="0.6" fill="#4a7337"></circle>
+      <!-- 北大階段 -->
+      <rect x="-2.2" y="-12" width="4.4" height="6.6" class="ce-meso-stair"></rect>
+      <!-- 西大階段 -->
+      <rect x="-12" y="-2.2" width="6.6" height="4.4" class="ce-meso-stair"></rect>
+      <!-- 東大階段 -->
+      <rect x="5.4" y="-2.2" width="6.6" height="4.4" class="ce-meso-stair"></rect>
+      <!-- 頂上神殿（Temple Sanctuary - 朱塗りの神殿） -->
+      <rect x="-3.6" y="-3.6" width="7.2" height="7.2" rx="0.3" class="ce-meso-temple"></rect>
+      <rect x="-2.4" y="-2.4" width="4.8" height="4.8" fill="#bd3c2a"></rect>
+      <!-- 神殿入口と生贄祭壇石（チャックモール） -->
+      <rect x="-1.2" y="2.8" width="2.4" height="0.8" fill="#1b120c"></rect>
+      <ellipse cx="0" cy="0" rx="0.7" ry="0.5" fill="#e8d5aa" stroke="#3d2a17" stroke-width="0.25"></ellipse>
+    </g>
+    <!-- 2. I字型球技場（Tlachtli / Ballcourt - 西側区画） -->
+    <g transform="translate(-16, 6)">
+      <!-- I字型競技場ベース -->
+      <polygon points="-5,-11 5,-11 5,-8 2.5,-8 2.5,8 5,8 5,11 -5,11 -5,8 -2.5,8 -2.5,-8 -5,-8" class="ce-meso-ballcourt"></polygon>
+      <!-- 両側の傾斜観覧石壁（Sloping Walls） -->
+      <rect x="-4.5" y="-7.5" width="2" height="15" fill="#998970" stroke="#383020" stroke-width="0.35"></rect>
+      <rect x="2.5" y="-7.5" width="2" height="15" fill="#998970" stroke="#383020" stroke-width="0.35"></rect>
+      <!-- 垂直壁中央の石の環（Stone Goal Rings - 球を通す穴） -->
+      <circle cx="-2.5" cy="0" r="0.6" fill="#dedad2" stroke="#2b2721" stroke-width="0.3"></circle>
+      <circle cx="-2.5" cy="0" r="0.2" fill="#1b1712"></circle>
+      <circle cx="2.5" cy="0" r="0.6" fill="#dedad2" stroke="#2b2721" stroke-width="0.3"></circle>
+      <circle cx="2.5" cy="0" r="0.2" fill="#1b1712"></circle>
+    </g>
+    <!-- 3. 頭蓋骨棚（ツォンパントリ / Tzompantli - 南東区画） -->
+    <g transform="translate(10, 14)">
+      <!-- 石造基壇 -->
+      <rect x="-6" y="-3.5" width="12" height="7" rx="0.3" fill="#a89a80" stroke="#383020" stroke-width="0.4"></rect>
+      <!-- 木枠横木と頭蓋骨の列（3段） -->
+      <line x1="-5.2" y1="-2" x2="5.2" y2="-2" stroke="#52391e" stroke-width="0.3"></line>
+      <line x1="-5.2" y1="0" x2="5.2" y2="0" stroke="#52391e" stroke-width="0.3"></line>
+      <line x1="-5.2" y1="2" x2="5.2" y2="2" stroke="#52391e" stroke-width="0.3"></line>
+      <!-- 頭蓋骨ドット群 -->
+      <circle cx="-4" cy="-2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="-2" cy="-2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="0" cy="-2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="2" cy="-2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="4" cy="-2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="-4" cy="0" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="-2" cy="0" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="0" cy="0" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="2" cy="0" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="4" cy="0" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="-4" cy="2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="-2" cy="2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="0" cy="2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="2" cy="2" r="0.35" class="ce-meso-tzompantli"></circle>
+      <circle cx="4" cy="2" r="0.35" class="ce-meso-tzompantli"></circle>
+    </g>
+  </g>
+</svg>

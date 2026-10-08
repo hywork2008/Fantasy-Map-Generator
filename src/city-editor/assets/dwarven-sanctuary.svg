@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -22 44 44" width="500" height="500">
+  <style>
+    .ce-dwarf-shadow { fill: rgba(18, 22, 25, 0.4); }
+    .ce-dwarf-rock { fill: #615a4f; stroke: #2b261f; stroke-width: 0.65px; stroke-linejoin: round; }
+    .ce-dwarf-portal { fill: #877f72; stroke: #2b261f; stroke-width: 0.55px; }
+    .ce-dwarf-stairs { fill: #9c9384; stroke: #2b261f; stroke-width: 0.35px; }
+    .ce-dwarf-abyss { fill: #120f0c; stroke: #000000; stroke-width: 0.5px; }
+    .ce-dwarf-rune { stroke: #54b2d6; stroke-width: 0.4px; fill: none; }
+    .ce-dwarf-gold { fill: #dfa83d; stroke: #4a340b; stroke-width: 0.35px; }
+    .ce-dwarf-fire { fill: #ff5722; }
+    .ce-dwarf-fire-core { fill: #ffeb3b; }
+  </style>
+  <g class="ce-landmark ce-landmark--dwarven-sanctuary">
+    <!-- 影 -->
+    <g class="ce-dwarf-shadow" transform="translate(1.4 1.6)">
+      <polygon points="-16,-17 16,-17 18,-6 14,16 -14,16 -18,-6"></polygon>
+    </g>
+    <!-- 山腹・岩盤の切り欠き崖面（Rock Face） -->
+    <g class="ce-dwarf-rock">
+      <polygon points="-16,-17 16,-17 18,-6 14,16 -14,16 -18,-6"></polygon>
+    </g>
+    <!-- 前庭テラス（切石敷きの頑丈なドワーフ広場） -->
+    <g class="ce-dwarf-stairs">
+      <rect x="-12" y="2" width="24" height="12" rx="0.4"></rect>
+      <!-- 幾何学模様の幾何学タイリングライン -->
+      <line x1="-12" y1="8" x2="12" y2="8" stroke="#524a3e" stroke-width="0.3"></line>
+      <line x1="0" y1="2" x2="0" y2="14" stroke="#524a3e" stroke-width="0.3"></line>
+    </g>
+    <!-- 祖霊の門（Great Rune Gate）山肌に穿たれた巨大石門 -->
+    <g transform="translate(0, -6)">
+      <!-- 巨大な台形切石パイロン（門柱・巨石壁） -->
+      <polygon points="-10,-9 10,-9 12,5 -12,5" class="ce-dwarf-portal"></polygon>
+      <!-- 門上部に刻まれた青く光るルーン文字・幾何学帯 -->
+      <line x1="-8" y1="-6.5" x2="8" y2="-6.5" class="ce-dwarf-rune"></line>
+      <polyline points="-6,-5 -4,-8 -2,-5 0,-8 2,-5 4,-8 6,-5" class="ce-dwarf-rune"></polyline>
+      <!-- 地下深奥へ通じる大門口（深淵のアビス・トンネル） -->
+      <rect x="-5" y="-3" width="10" height="8" rx="0.5" class="ce-dwarf-abyss"></rect>
+      <!-- 地下大階段（下へ下る段差） -->
+      <line x1="-4.5" y1="-1" x2="4.5" y2="-1" stroke="#3d3326" stroke-width="0.45"></line>
+      <line x1="-4.5" y1="0.5" x2="4.5" y2="0.5" stroke="#30281e" stroke-width="0.45"></line>
+      <line x1="-4.5" y1="2" x2="4.5" y2="2" stroke="#241e16" stroke-width="0.45"></line>
+      <line x1="-4.5" y1="3.5" x2="4.5" y2="3.5" stroke="#17130e" stroke-width="0.45"></line>
+    </g>
+    <!-- 左右の鍛冶守護祖霊巨像・金床モニュメント（Anvil Altars） -->
+    <!-- 西側金床壇 -->
+    <g transform="translate(-8, 5)">
+      <rect x="-2" y="-2" width="4" height="4" rx="0.3" fill="#4f483d" stroke="#26221c" stroke-width="0.4"></rect>
+      <!-- 金床（Anvil） -->
+      <polygon points="-1.5,-0.6 1.5,-0.6 1,0.6 -1,0.6" class="ce-dwarf-gold"></polygon>
+      <!-- 鍛冶の不滅の炎（かがり火） -->
+      <circle cx="0" cy="-2.5" r="0.8" class="ce-dwarf-fire"></circle>
+      <circle cx="0" cy="-2.5" r="0.4" class="ce-dwarf-fire-core"></circle>
+    </g>
+    <!-- 東側金床壇 -->
+    <g transform="translate(8, 5)">
+      <rect x="-2" y="-2" width="4" height="4" rx="0.3" fill="#4f483d" stroke="#26221c" stroke-width="0.4"></rect>
+      <polygon points="-1.5,-0.6 1.5,-0.6 1,0.6 -1,0.6" class="ce-dwarf-gold"></polygon>
+      <circle cx="0" cy="-2.5" r="0.8" class="ce-dwarf-fire"></circle>
+      <circle cx="0" cy="-2.5" r="0.4" class="ce-dwarf-fire-core"></circle>
+    </g>
+  </g>
+</svg>

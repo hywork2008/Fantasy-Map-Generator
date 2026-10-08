@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -15 44 30" width="550" height="380">
+  <style>
+    .ce-boom-shadow { fill: rgba(18, 22, 25, 0.38); }
+    .ce-boom-bank { fill: #ab9f8c; stroke: #383021; stroke-width: 0.5px; }
+    .ce-boom-water { fill: #204b66; stroke: #102736; stroke-width: 0.5px; }
+    .ce-boom-tower { fill: #c7beab; stroke: #383021; stroke-width: 0.6px; }
+    .ce-boom-conical { fill: #48545e; stroke: #1f252b; stroke-width: 0.45px; }
+    .ce-boom-chain { stroke: #26221c; stroke-width: 0.8px; stroke-dasharray: 1.2 0.8; stroke-linecap: round; }
+    .ce-boom-winch { fill: #614427; stroke: #261608; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--river-boom-tower">
+    <!-- 影 -->
+    <g class="ce-boom-shadow" transform="translate(1.4 1.6)">
+      <circle cx="-14" cy="0" r="5"></circle>
+      <circle cx="14" cy="0" r="5"></circle>
+      <rect x="-17" y="-12" width="6" height="24"></rect>
+      <rect x="11" y="-12" width="6" height="24"></rect>
+    </g>
+    <!-- 河川水面（中央を流れる大河） -->
+    <g class="ce-boom-water">
+      <rect x="-22" y="-12" width="44" height="24"></rect>
+      <!-- 水流ライン -->
+      <line x1="-8" y1="-8" x2="8" y2="-8" stroke="#326a8f" stroke-width="0.4" stroke-linecap="round"></line>
+      <line x1="-6" y1="0" x2="6" y2="0" stroke="#326a8f" stroke-width="0.4" stroke-linecap="round"></line>
+      <line x1="-8" y1="8" x2="8" y2="8" stroke="#326a8f" stroke-width="0.4" stroke-linecap="round"></line>
+    </g>
+    <!-- 両岸の河岸・護岸切石壁（Embankment / City Wall Connectors） -->
+    <!-- 西岸 -->
+    <g class="ce-boom-bank">
+      <polygon points="-22,-12 -11,-12 -11,12 -22,12"></polygon>
+    </g>
+    <!-- 東岸 -->
+    <g class="ce-boom-bank">
+      <polygon points="11,-12 22,-12 22,12 11,12"></polygon>
+    </g>
+    <!-- 水面を遮断する太い防鎖（Boom Chain / 鉄鎖と浮木） -->
+    <g>
+      <!-- 弛みのある重厚な鉄鎖ライン -->
+      <path d="M -12 0 Q 0 4 12 0" fill="none" class="ce-boom-chain"></path>
+      <!-- 鎖を浮かす木製フロート樽（3個） -->
+      <rect x="-6.5" y="0.5" width="2" height="1.2" rx="0.3" fill="#8f6336" stroke="#38210d" stroke-width="0.25"></rect>
+      <rect x="-1" y="1.5" width="2" height="1.2" rx="0.3" fill="#8f6336" stroke="#38210d" stroke-width="0.25"></rect>
+      <rect x="4.5" y="0.5" width="2" height="1.2" rx="0.3" fill="#8f6336" stroke="#38210d" stroke-width="0.25"></rect>
+    </g>
+    <!-- 1. 西岸防鎖塔（West Boom Tower / 巻き上げウィンチ室） -->
+    <g transform="translate(-14, 0)">
+      <!-- 円形巨石塔身 -->
+      <circle cx="0" cy="0" r="4.8" class="ce-boom-tower"></circle>
+      <!-- 狭間胸壁リング -->
+      <circle cx="0" cy="0" r="4.2" fill="#ded5c1" stroke="#383021" stroke-width="0.35"></circle>
+      <!-- 錐形スレート屋根 -->
+      <circle cx="0" cy="0" r="2.8" class="ce-boom-conical"></circle>
+      <!-- 鎖の巻き上げキャプスタン・ウィンチ室 -->
+      <circle cx="0" cy="0" r="1.1" class="ce-boom-winch"></circle>
+      <!-- 放射状木製スポーク -->
+      <line x1="-1.4" y1="0" x2="1.4" y2="0" stroke="#dfa83d" stroke-width="0.3"></line>
+      <line x1="0" y1="-1.4" x2="0" y2="1.4" stroke="#dfa83d" stroke-width="0.3"></line>
+    </g>
+    <!-- 2. 東岸防鎖塔（East Boom Tower / 鎖固定塔） -->
+    <g transform="translate(14, 0)">
+      <!-- 円形巨石塔身 -->
+      <circle cx="0" cy="0" r="4.8" class="ce-boom-tower"></circle>
+      <circle cx="0" cy="0" r="4.2" fill="#ded5c1" stroke="#383021" stroke-width="0.35"></circle>
+      <circle cx="0" cy="0" r="2.8" class="ce-boom-conical"></circle>
+      <!-- 頂部望楼フィニアル -->
+      <circle cx="0" cy="0" r="0.8" fill="#a89d87" stroke="#383021" stroke-width="0.3"></circle>
+      <circle cx="0" cy="0" r="0.35" fill="#dfa83d"></circle>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 24 24" width="400" height="400">
+  <style>
+    .ce-lantern-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-lantern-base { fill: #c7bea9; stroke: #383020; stroke-width: 0.5px; stroke-linejoin: round; }
+    .ce-lantern-drum { fill: #ded5c1; stroke: #383020; stroke-width: 0.55px; }
+    .ce-lantern-conical { fill: #48545e; stroke: #1f252b; stroke-width: 0.45px; }
+    .ce-lantern-light { fill: #ffeb3b; }
+    .ce-lantern-glow { fill: rgba(255, 215, 64, 0.3); }
+    .ce-lantern-burner { fill: #423223; stroke: #1a130b; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--lantern-of-the-dead">
+    <!-- 影 -->
+    <g class="ce-lantern-shadow" transform="translate(1 1.2)">
+      <circle cx="0" cy="0" r="5"></circle>
+    </g>
+    <!-- 多角形基壇（三段ステップ） -->
+    <g class="ce-lantern-base">
+      <polygon points="0,-5 3.5,-3.5 5,0 3.5,3.5 0,5 -3.5,3.5 -5,0 -3.5,-3.5"></polygon>
+      <polygon points="0,-4 2.8,-2.8 4,0 2.8,2.8 0,4 -2.8,2.8 -4,0 -2.8,-2.8" fill="#ded5c1"></polygon>
+      <polygon points="0,-3 2.1,-2.1 3,0 2.1,2.1 0,3 -2.1,2.1 -3,0 -2.1,-2.1" fill="#ede5d2"></polygon>
+    </g>
+    <!-- 円筒・八角塔身（Tower Shaft） -->
+    <circle cx="0" cy="0" r="2.2" class="ce-lantern-drum"></circle>
+    <!-- 頂部円錐石屋根（Conical Cap） -->
+    <circle cx="0" cy="0" r="1.6" class="ce-lantern-conical"></circle>
+    <!-- 聖なる光の拡散（夜間に死者の魂を導く光輪） -->
+    <circle cx="0" cy="0" r="3.2" class="ce-lantern-glow"></circle>
+    <!-- 頂部灯明オクルス（光の窓） -->
+    <circle cx="0" cy="0" r="0.8" class="ce-lantern-light"></circle>
+    <circle cx="0" cy="0" r="0.3" fill="#ffffff"></circle>
+    <!-- 根元の青銅三脚献香炉（南側） -->
+    <g transform="translate(0, 3.8)">
+      <circle cx="0" cy="0" r="0.8" class="ce-lantern-burner"></circle>
+      <circle cx="0" cy="0" r="0.45" fill="#ff5722"></circle>
+    </g>
+  </g>
+</svg>

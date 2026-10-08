@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -14 48 28" width="560" height="320">
+  <style>
+    .ce-belfry-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-belfry-hall-roof { fill: #8a3f24; stroke: #3d1407; stroke-width: 0.5px; }
+    .ce-belfry-wall { fill: #c9bea9; stroke: #3a3224; stroke-width: 0.5px; }
+    .ce-belfry-tower { fill: #b8ad96; stroke: #3a3224; stroke-width: 0.6px; }
+    .ce-belfry-spire { fill: #3e5246; stroke: #19261f; stroke-width: 0.5px; }
+    .ce-belfry-ridge { stroke: #e8a88e; stroke-width: 0.6px; stroke-linecap: round; }
+    .ce-belfry-gold { fill: #dfa83d; stroke: #543f11; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--belfry-cloth-hall">
+    <!-- 影 -->
+    <g class="ce-belfry-shadow" transform="translate(1.4 1.6)">
+      <rect x="-21" y="-5" width="42" height="11" rx="0.5"></rect>
+      <rect x="-4.5" y="-6.5" width="9" height="13" rx="0.4"></rect>
+    </g>
+    <!-- 布地会館（Lakenhal / Cloth Hall - 長大な二階建て大屋根建築）左右両翼 -->
+    <g>
+      <!-- 基壇石壁 -->
+      <rect x="-21" y="-5" width="42" height="11" rx="0.4" class="ce-belfry-wall"></rect>
+      <!-- 北斜面瓦屋根（光側） -->
+      <polygon points="-21,-5 21,-5 21,0 -21,0" fill="#a85233" stroke="#3d1407" stroke-width="0.45"></polygon>
+      <!-- 南斜面瓦屋根（影側） -->
+      <polygon points="-21,0 21,0 21,6 -21,6" class="ce-belfry-hall-roof"></polygon>
+      <!-- 会館の大棟線 -->
+      <line x1="-21" y1="0" x2="21" y2="0" class="ce-belfry-ridge"></line>
+      <!-- 屋根窓（ドーマー窓・採光ルーバー列 左右に並ぶ小切妻） -->
+      <g>
+        <polygon points="-17,-2 -15,-2 -16,-3.5" fill="#f0d5c3"></polygon>
+        <polygon points="-13,-2 -11,-2 -12,-3.5" fill="#f0d5c3"></polygon>
+        <polygon points="-9,-2 -7,-2 -8,-3.5" fill="#f0d5c3"></polygon>
+        <polygon points="7,-2 9,-2 8,-3.5" fill="#f0d5c3"></polygon>
+        <polygon points="11,-2 13,-2 12,-3.5" fill="#f0d5c3"></polygon>
+        <polygon points="15,-2 17,-2 16,-3.5" fill="#f0d5c3"></polygon>
+      </g>
+    </g>
+    <!-- 中央独立鐘楼（Belfry of the City - 都市自治の超高層角塔）中央突出塔 -->
+    <g transform="translate(0, 0.5)">
+      <!-- 塔の重厚な切石基壇 -->
+      <rect x="-5" y="-5.5" width="10" height="11" rx="0.4" class="ce-belfry-tower"></rect>
+      <!-- 四隅のタレット（小円塔望楼） -->
+      <circle cx="-4.8" cy="-5.2" r="1" fill="#9e947d" stroke="#3a3224" stroke-width="0.3"></circle>
+      <circle cx="4.8" cy="-5.2" r="1" fill="#9e947d" stroke="#3a3224" stroke-width="0.3"></circle>
+      <circle cx="-4.8" cy="5.2" r="1" fill="#9e947d" stroke="#3a3224" stroke-width="0.3"></circle>
+      <circle cx="4.8" cy="5.2" r="1" fill="#9e947d" stroke="#3a3224" stroke-width="0.3"></circle>
+      <!-- 鐘楼上層デッキ（回廊） -->
+      <rect x="-4.2" y="-4.6" width="8.4" height="9.2" fill="#ded5c1" stroke="#3a3224" stroke-width="0.35"></rect>
+      <!-- 八角形銅葺き尖塔（Spire / カリヨン鐘楼） -->
+      <polygon points="0,-3.8 2.8,-2.6 3.8,0 2.8,2.6 0,3.8 -2.8,2.6 -3.8,0 -2.8,-2.6" class="ce-belfry-spire"></polygon>
+      <!-- 尖塔のハイライト面 -->
+      <polygon points="0,-3.8 2.8,-2.6 0,0 -2.8,-2.6" fill="#4d6958"></polygon>
+      <!-- 頂部黄金の竜・ドラゴン風向計（市旗の象徴） -->
+      <circle cx="0" cy="0" r="0.75" class="ce-belfry-gold"></circle>
+      <polygon points="0,-1.4 0.6,-0.5 -0.6,-0.5" fill="#dfa83d"></polygon>
+      <!-- 正面大時計盤（南面） -->
+      <circle cx="0" cy="4.8" r="0.8" fill="#ffffff" stroke="#120e0a" stroke-width="0.25"></circle>
+      <line x1="0" y1="4.8" x2="0.4" y2="4.4" stroke="#120e0a" stroke-width="0.2"></line>
+    </g>
+  </g>
+</svg>

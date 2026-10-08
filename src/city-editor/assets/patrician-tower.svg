@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -22 36 44" width="450" height="550">
+  <style>
+    .ce-patrician-shadow-tower { fill: rgba(18, 22, 25, 0.45); }
+    .ce-patrician-shadow-house { fill: rgba(18, 22, 25, 0.3); }
+    .ce-patrician-wall { fill: #c7bea9; stroke: #3a3224; stroke-width: 0.5px; }
+    .ce-patrician-roof { fill: #a34e2f; stroke: #3d170a; stroke-width: 0.45px; }
+    .ce-patrician-tower-top { fill: #ded5bf; stroke: #3a3224; stroke-width: 0.55px; }
+    .ce-patrician-machicolation { fill: #8a7c68; stroke: #3a3224; stroke-width: 0.35px; }
+    .ce-patrician-court { fill: #beb29e; stroke: #3a3224; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--patrician-tower">
+    <!-- 影：高層塔の落ちる極めて長大な斜め影（超高層建築の象徴） -->
+    <g class="ce-patrician-shadow-house" transform="translate(1 1.2)">
+      <rect x="-12" y="-12" width="24" height="24" rx="0.5"></rect>
+    </g>
+    <g class="ce-patrician-shadow-tower">
+      <!-- 塔の落ちる長い影（北東方向から南東へ伸びる長大な影） -->
+      <polygon points="-4,-4 4,-4 14,18 6,18"></polygon>
+    </g>
+    <!-- 貴族邸宅パラッツォ（Palazzo Mansion） -->
+    <g class="ce-patrician-wall">
+      <rect x="-12" y="-12" width="24" height="24" rx="0.4"></rect>
+    </g>
+    <!-- パラッツォ中庭（Cortile - 列柱中庭）東南区画 -->
+    <g class="ce-patrician-court">
+      <rect x="1" y="1" width="9" height="9" rx="0.3"></rect>
+      <!-- 中庭の井戸 -->
+      <circle cx="5.5" cy="5.5" r="1.1" fill="#8f816b" stroke="#3a3224" stroke-width="0.3"></circle>
+      <circle cx="5.5" cy="5.5" r="0.6" fill="#1c3d52"></circle>
+    </g>
+    <!-- パラッツォ屋根（L字型瓦屋根） -->
+    <g class="ce-patrician-roof">
+      <!-- 北翼屋根 -->
+      <polygon points="-12,-12 12,-12 12,-4 -12,-4"></polygon>
+      <line x1="-12" y1="-8" x2="12" y2="-8" stroke="#f0cfbe" stroke-width="0.4"></line>
+      <!-- 西翼屋根 -->
+      <polygon points="-12,-4 -4,-4 -4,12 -12,12"></polygon>
+      <line x1="-8" y1="-4" x2="-8" y2="12" stroke="#f0cfbe" stroke-width="0.4"></line>
+    </g>
+    <!-- 超高層貴族塔（Patrician Tower / Torre - 北西角にそびえ立つ四角い高塔） -->
+    <g transform="translate(-4, -4)">
+      <!-- 塔の張り出し狭間（マッキコレーション / Machicolations） -->
+      <rect x="-4.6" y="-4.6" width="9.2" height="9.2" rx="0.3" class="ce-patrician-machicolation"></rect>
+      <!-- 塔頂部プラットフォーム壁 -->
+      <rect x="-4" y="-4" width="8" height="8" rx="0.2" class="ce-patrician-tower-top"></rect>
+      <!-- 狭間胸壁（Crenellations - 四隅の角銃眼） -->
+      <rect x="-3.8" y="-3.8" width="1.4" height="1.4" fill="#695f50"></rect>
+      <rect x="2.4" y="-3.8" width="1.4" height="1.4" fill="#695f50"></rect>
+      <rect x="-3.8" y="2.4" width="1.4" height="1.4" fill="#695f50"></rect>
+      <rect x="2.4" y="2.4" width="1.4" height="1.4" fill="#695f50"></rect>
+      <!-- 屋上監視デッキと階段出口小屋（Turret） -->
+      <rect x="-2.8" y="-2.8" width="5.6" height="5.6" fill="#b0a48e"></rect>
+      <rect x="-1.8" y="-1.8" width="2.2" height="2.2" fill="#8f432b" stroke="#3d170a" stroke-width="0.25"></rect>
+      <!-- 貴族家門の誇る市旗・バナー竿 -->
+      <circle cx="1.5" cy="-1.5" r="0.35" fill="#dfa83d"></circle>
+    </g>
+  </g>
+</svg>

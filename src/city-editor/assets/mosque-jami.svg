@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="500" height="500">
+  <style>
+    .ce-mosque-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-mosque-wall { fill: #ded7c8; stroke: #3a352a; stroke-width: 0.7px; stroke-linejoin: round; }
+    .ce-mosque-courtyard { fill: #eae4d5; stroke: #3a352a; stroke-width: 0.5px; }
+    .ce-mosque-dome-main { fill: #387b7b; stroke: #1e4545; stroke-width: 0.6px; }
+    .ce-mosque-dome-sub { fill: #488b8b; stroke: #1e4545; stroke-width: 0.4px; }
+    .ce-mosque-minaret { fill: #cfc7b6; stroke: #3a352a; stroke-width: 0.5px; }
+    .ce-mosque-fountain { fill: #3f799e; stroke: #264a61; stroke-width: 0.4px; }
+    .ce-mosque-roof { fill: #bfa37e; stroke: #423221; stroke-width: 0.4px; }
+    .ce-mosque-finial { fill: #d4a73b; stroke: #543f11; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--mosque-jami">
+    <!-- 影 -->
+    <g class="ce-mosque-shadow" transform="translate(1.4 1.6)">
+      <rect x="-18" y="-20" width="36" height="40" rx="1"></rect>
+      <circle cx="-16" cy="-18" r="3.2"></circle>
+      <circle cx="16" cy="-18" r="3.2"></circle>
+      <circle cx="0" cy="8" r="9"></circle>
+    </g>
+    <!-- 外郭壁・回廊基壇 -->
+    <g class="ce-mosque-wall">
+      <rect x="-18" y="-20" width="36" height="40" rx="0.8"></rect>
+    </g>
+    <!-- 中庭（サフン） -->
+    <g class="ce-mosque-courtyard">
+      <rect x="-14" y="-17" width="28" height="20" rx="0.5"></rect>
+      <!-- 回廊列柱アーケード屋根 -->
+      <path d="M -17 -19 L 17 -19 L 17 2 L 14 2 L 14 -16 L -14 -16 L -14 2 L -17 2 Z" fill="#cfc5b2" stroke="#3a352a" stroke-width="0.4"></path>
+    </g>
+    <!-- 清めの泉（シャドゥルヴァーン） -->
+    <g transform="translate(0, -7)">
+      <!-- 八角泉亭基壇 -->
+      <polygon points="0,-4.5 3.2,-3.2 4.5,0 3.2,3.2 0,4.5 -3.2,3.2 -4.5,0 -3.2,-3.2" fill="#c4beaf" stroke="#3a352a" stroke-width="0.4"></polygon>
+      <circle cx="0" cy="0" r="3" class="ce-mosque-fountain"></circle>
+      <polygon points="0,-2 1.4,-1.4 2,0 1.4,1.4 0,2 -1.4,1.4 -2,0 -1.4,-1.4" fill="#5fa1ca"></polygon>
+      <!-- 泉亭小ドーム屋根 -->
+      <circle cx="0" cy="0" r="1.6" fill="#387b7b" stroke="#1e4545" stroke-width="0.3"></circle>
+      <circle cx="0" cy="0" r="0.3" class="ce-mosque-finial"></circle>
+    </g>
+    <!-- 大礼拝堂（ハラム）キブラ側基壇 -->
+    <g class="ce-mosque-roof">
+      <rect x="-17" y="2" width="34" height="17" rx="0.5" fill="#cfbfa8"></rect>
+      <!-- 小ドーム群（周囲9基） -->
+      <circle cx="-11" cy="5" r="2.8" class="ce-mosque-dome-sub"></circle>
+      <circle cx="-11" cy="11" r="2.8" class="ce-mosque-dome-sub"></circle>
+      <circle cx="-11" cy="16" r="2.2" class="ce-mosque-dome-sub"></circle>
+      <circle cx="11" cy="5" r="2.8" class="ce-mosque-dome-sub"></circle>
+      <circle cx="11" cy="11" r="2.8" class="ce-mosque-dome-sub"></circle>
+      <circle cx="11" cy="16" r="2.2" class="ce-mosque-dome-sub"></circle>
+      <circle cx="-5.5" cy="16" r="2.4" class="ce-mosque-dome-sub"></circle>
+      <circle cx="5.5" cy="16" r="2.4" class="ce-mosque-dome-sub"></circle>
+      <circle cx="0" cy="16.5" r="2" class="ce-mosque-dome-sub"></circle>
+      <!-- 半ドーム（大ドームの裾野） -->
+      <ellipse cx="0" cy="8" rx="8" ry="7.5" fill="#2d6464" stroke="#1e4545" stroke-width="0.5"></ellipse>
+      <!-- 中央大ドーム（大モスクの主ドーム） -->
+      <circle cx="0" cy="8" r="6.8" class="ce-mosque-dome-main"></circle>
+      <!-- ドームハイライトと陰影 -->
+      <path d="M -4.8 3.2 A 6.8 6.8 0 0 1 4.8 3.2 L 0 8 Z" fill="#529999"></path>
+      <path d="M 4.8 12.8 A 6.8 6.8 0 0 1 -4.8 12.8 L 0 8 Z" fill="#245252"></path>
+      <circle cx="0" cy="8" r="6.8" fill="none" stroke="#1e4545" stroke-width="0.6"></circle>
+      <!-- 頂部黄金アレム（三日月） -->
+      <circle cx="0" cy="8" r="0.8" class="ce-mosque-finial"></circle>
+      <line x1="0" y1="6.8" x2="0" y2="9.2" stroke="#543f11" stroke-width="0.3"></line>
+    </g>
+    <!-- ミナレット塔2基（北西・北東隅） -->
+    <g class="ce-mosque-minaret" transform="translate(-16, -18)">
+      <rect x="-2.2" y="-2.2" width="4.4" height="4.4" rx="0.4" fill="#ab9f8b"></rect>
+      <circle cx="0" cy="0" r="1.9"></circle>
+      <circle cx="0" cy="0" r="1.5" fill="#ded7c8"></circle>
+      <circle cx="0" cy="0" r="0.8" class="ce-mosque-dome-sub"></circle>
+      <circle cx="0" cy="0" r="0.3" class="ce-mosque-finial"></circle>
+    </g>
+    <g class="ce-mosque-minaret" transform="translate(16, -18)">
+      <rect x="-2.2" y="-2.2" width="4.4" height="4.4" rx="0.4" fill="#ab9f8b"></rect>
+      <circle cx="0" cy="0" r="1.9"></circle>
+      <circle cx="0" cy="0" r="1.5" fill="#ded7c8"></circle>
+      <circle cx="0" cy="0" r="0.8" class="ce-mosque-dome-sub"></circle>
+      <circle cx="0" cy="0" r="0.3" class="ce-mosque-finial"></circle>
+    </g>
+    <!-- 正面大門（北側入口ポータル・大イーワーン） -->
+    <rect x="-4" y="-20.8" width="8" height="2.2" rx="0.3" fill="#b09f87" stroke="#3a352a" stroke-width="0.5"></rect>
+    <rect x="-2" y="-20.8" width="4" height="1" fill="#1b1712"></rect>
+  </g>
+</svg>

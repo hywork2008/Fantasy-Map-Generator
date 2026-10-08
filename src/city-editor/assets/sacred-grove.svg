@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -22 44 44" width="500" height="500">
+  <style>
+    .ce-grove-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-grove-rampart { fill: #526338; stroke: #2a3818; stroke-width: 0.6px; }
+    .ce-grove-clearing { fill: #41592c; stroke: #233614; stroke-width: 0.45px; }
+    .ce-grove-tree { fill: #1c4222; stroke: #0a1f0f; stroke-width: 0.4px; }
+    .ce-grove-great-oak { fill: #173d1c; stroke: #081a0c; stroke-width: 0.5px; }
+    .ce-grove-altar { fill: #9e9684; stroke: #3d3627; stroke-width: 0.45px; stroke-linejoin: round; }
+    .ce-grove-spring { fill: #387b9e; stroke: #19465e; stroke-width: 0.35px; }
+    .ce-grove-stone { fill: #7d7565; stroke: #332d20; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--sacred-grove">
+    <!-- 影 -->
+    <g class="ce-grove-shadow" transform="translate(1.4 1.6)">
+      <circle cx="0" cy="0" r="16"></circle>
+    </g>
+    <!-- 外周の円形土塁・環状生垣（ネメトン境界） -->
+    <g class="ce-grove-rampart">
+      <circle cx="0" cy="0" r="16"></circle>
+    </g>
+    <!-- 内部の聖なる草地（森の開けた空地） -->
+    <g class="ce-grove-clearing">
+      <circle cx="0" cy="0" r="14.2"></circle>
+    </g>
+    <!-- 環状木立（外周を取り囲む鬱蒼としたオーク・イチイ・トネリコ群） -->
+    <g class="ce-grove-tree">
+      <circle cx="-10" cy="-10" r="3.8"></circle>
+      <circle cx="0" cy="-12" r="3.6"></circle>
+      <circle cx="10" cy="-10" r="3.8"></circle>
+      <circle cx="-12" cy="0" r="3.6"></circle>
+      <circle cx="12" cy="0" r="3.6"></circle>
+      <circle cx="-10" cy="10" r="3.8"></circle>
+      <circle cx="10" cy="10" r="3.8"></circle>
+      <circle cx="-6" cy="12" r="3.2"></circle>
+      <circle cx="6" cy="12" r="3.2"></circle>
+    </g>
+    <!-- 聖なる湧水池（Sacred Spring / 奉納池）南西側 -->
+    <g transform="translate(-5, 4)">
+      <ellipse cx="0" cy="0" rx="3.2" ry="2.4" class="ce-grove-spring"></ellipse>
+      <!-- 池の周囲の自然石配置 -->
+      <circle cx="-2.8" cy="-1" r="0.45" class="ce-grove-stone"></circle>
+      <circle cx="2.6" cy="1" r="0.45" class="ce-grove-stone"></circle>
+      <circle cx="0" cy="2.2" r="0.45" class="ce-grove-stone"></circle>
+    </g>
+    <!-- 中央の巨大な神木（The Great Sacred Oak / イグドラシル・天を支える巨樹） -->
+    <g transform="translate(0, -2)">
+      <circle cx="0" cy="0" r="5.2" class="ce-grove-great-oak"></circle>
+      <circle cx="-0.8" cy="-0.8" r="2.8" fill="#2d5e34"></circle>
+      <!-- 幹の中心木部 -->
+      <circle cx="0" cy="0" r="1.1" fill="#4d351e" stroke="#1f140a" stroke-width="0.3"></circle>
+    </g>
+    <!-- ドルメン祭壇石（巨石の供物台）神木の南側 -->
+    <g transform="translate(2, 4)">
+      <!-- 支石2個 -->
+      <rect x="-2" y="-1.5" width="1.2" height="3" class="ce-grove-stone"></rect>
+      <rect x="0.8" y="-1.5" width="1.2" height="3" class="ce-grove-stone"></rect>
+      <!-- 上に乗る平らな巨石板（Cap stone） -->
+      <polygon points="-2.8,-1.8 2.8,-1.6 2.5,1.8 -2.6,1.6" class="ce-grove-altar"></polygon>
+      <circle cx="0" cy="0" r="0.5" fill="#524738"></circle>
+    </g>
+    <!-- 南側参道入口（土塁の切れ目） -->
+    <rect x="-1.8" y="13.5" width="3.6" height="3" fill="#6e5c3e"></rect>
+  </g>
+</svg>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -14 30 28" width="450" height="420">
+  <style>
+    .ce-charnel-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-charnel-wall { fill: #c4beaf; stroke: #3d3527; stroke-width: 0.6px; stroke-linejoin: round; }
+    .ce-charnel-roof { fill: #48545e; stroke: #1f252b; stroke-width: 0.5px; }
+    .ce-charnel-bone { fill: #ebe5d8; stroke: #423b2c; stroke-width: 0.25px; }
+    .ce-charnel-cross { stroke: #dfa83d; stroke-width: 0.45px; stroke-linecap: round; }
+  </style>
+  <g class="ce-landmark ce-landmark--charnel-house">
+    <!-- 影 -->
+    <g class="ce-charnel-shadow" transform="translate(1.2 1.4)">
+      <rect x="-10" y="-8" width="20" height="16" rx="0.5"></rect>
+    </g>
+    <!-- 切石基壇と控え壁（Buttresses） -->
+    <g class="ce-charnel-wall">
+      <rect x="-10" y="-8" width="20" height="16" rx="0.4"></rect>
+      <!-- 四隅の控え壁 -->
+      <rect x="-11.2" y="-8" width="1.2" height="1.8"></rect>
+      <rect x="-11.2" y="6.2" width="1.2" height="1.8"></rect>
+      <rect x="10" y="-8" width="1.2" height="1.8"></rect>
+      <rect x="10" y="6.2" width="1.2" height="1.8"></rect>
+    </g>
+    <!-- 急勾配スレート瓦屋根 -->
+    <g class="ce-charnel-roof">
+      <polygon points="-10,-8 10,-8 10,0 -10,0" fill="#54636e"></polygon>
+      <polygon points="-10,0 10,0 10,8 -10,8" fill="#3c464f"></polygon>
+      <!-- 大棟線 -->
+      <line x1="-10" y1="0" x2="10" y2="0" stroke="#f0ebe1" stroke-width="0.65" stroke-linecap="round"></line>
+      <!-- 棟両端の十字架 -->
+      <line x1="-9.5" y1="-0.8" x2="-9.5" y2="0.8" class="ce-charnel-cross"></line>
+      <line x1="-10.2" y1="-0.2" x2="-8.8" y2="-0.2" class="ce-charnel-cross"></line>
+      <line x1="9.5" y1="-0.8" x2="9.5" y2="0.8" class="ce-charnel-cross"></line>
+      <line x1="8.8" y1="-0.2" x2="10.2" y2="-0.2" class="ce-charnel-cross"></line>
+    </g>
+    <!-- 半地下納骨窓（Ossuary Windows - 格子窓から覗く頭蓋骨群）左右 -->
+    <g transform="translate(-5, 8.5)">
+      <rect x="-2" y="-1" width="4" height="1.8" fill="#1b1712"></rect>
+      <circle cx="-1" cy="0" r="0.35" class="ce-charnel-bone"></circle>
+      <circle cx="0" cy="0" r="0.35" class="ce-charnel-bone"></circle>
+      <circle cx="1" cy="0" r="0.35" class="ce-charnel-bone"></circle>
+    </g>
+    <g transform="translate(5, 8.5)">
+      <rect x="-2" y="-1" width="4" height="1.8" fill="#1b1712"></rect>
+      <circle cx="-1" cy="0" r="0.35" class="ce-charnel-bone"></circle>
+      <circle cx="0" cy="0" r="0.35" class="ce-charnel-bone"></circle>
+      <circle cx="1" cy="0" r="0.35" class="ce-charnel-bone"></circle>
+    </g>
+    <!-- 正面入口（南壁中央） -->
+    <rect x="-1.8" y="7.5" width="3.6" height="1.5" fill="#2d2217"></rect>
+  </g>
+</svg>
