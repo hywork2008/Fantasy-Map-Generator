@@ -2793,7 +2793,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           ".ce-generation-debug-highlight, [data-debug-restriction]"
         )
       );
-      svg.append(highlights);
+      svg.querySelector(".ce-map-scene")!.append(highlights);
     }
     map.replaceChildren(svg);
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
@@ -2869,7 +2869,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       className: "ce-ship-preview"
     });
     preview.style.pointerEvents = "none";
-    svg.appendChild(preview);
+    svg.querySelector(".ce-map-scene")!.appendChild(preview);
   }
 
   function updateLandmarkPreview(): void {
@@ -2929,7 +2929,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     message.setAttribute("font-size", "11");
     message.setAttribute("fill", preview.document ? "#165a34" : "#8b1d1d");
     layer.appendChild(message);
-    svg.appendChild(layer);
+    svg.querySelector(".ce-map-scene")!.appendChild(layer);
   }
 
   /**
@@ -3987,7 +3987,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       node.setAttribute("vector-effect", "non-scaling-stroke");
       layer.append(node);
     }
-    svg.append(layer);
+    svg.querySelector(".ce-map-scene")!.append(layer);
   }
 
   function renderHistory(): void {

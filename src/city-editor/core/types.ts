@@ -389,6 +389,8 @@ export interface CityDocument {
   sceneRegions?: import("./sceneRegions").CitySceneRegions;
   landmarks?: LandmarkInstance[];
   landmarkAssets?: LandmarkAsset[];
+  /** Sea beyond the town mesh: FMG's drawn shore closed against the display frame. Subtracted from the mesh at use. */
+  regionalWaterAreas?: Point[][];
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
   /** Number of source FMG land-road legs; absent for standalone/legacy documents. */

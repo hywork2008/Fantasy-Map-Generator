@@ -295,6 +295,7 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     .sort((a, b) => polylineLength(b) - polylineLength(a))[0];
   if (longest) {
     let corridor = downsample(longest, CORRIDOR_POINTS);
+    let regionalShore: Point[] = longest.map(p => [p[0], p[1]]);
     // FMG's kilometre-scale coast can sit beyond a port's entire city disk.
     // Bring that shore to the town while retaining its shape and bearing;
     // an inland burg must keep its real distance from the water.
@@ -308,9 +309,10 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
         const ux = hit.point[0] / hit.dist,
           uy = hit.point[1] / hit.dist;
         corridor = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
+        regionalShore = regionalShore.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
       }
     }
-    return { corridor, waterAzimuthDeg };
+    return { corridor, waterAzimuthDeg, regionalShore };
   }
   // A river/estuary port can have a sea haven on the coarse FMG cell while
   // the actual sea shore is outside this city window. Its local river bank is

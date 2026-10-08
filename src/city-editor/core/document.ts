@@ -383,6 +383,14 @@ function isDocument(value: unknown): value is CityDocument {
     (doc.buildingPattern === undefined || ["legacy", "medieval"].includes(doc.buildingPattern)) &&
     (doc.coastalOceanFaceIds === undefined ||
       (Array.isArray(doc.coastalOceanFaceIds) && doc.coastalOceanFaceIds.every(id => typeof id === "string"))) &&
+    (doc.regionalWaterAreas === undefined ||
+      (Array.isArray(doc.regionalWaterAreas) &&
+        doc.regionalWaterAreas.every(
+          ring =>
+            Array.isArray(ring) &&
+            ring.length >= 3 &&
+            ring.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
+        ))) &&
     (doc.waterAreas === undefined ||
       (Array.isArray(doc.waterAreas) &&
         doc.waterAreas.every(

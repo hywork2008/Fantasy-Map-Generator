@@ -10,7 +10,7 @@ import { drawFixedBurgCrossings } from "./fixedBurgCrossings";
 
 export function fixedDocumentGeometry(doc: CityDocument): FixedBurgCrossings | null {
   const payload = doc.importedFixedCrossings;
-  if (payload?.schemaVersion === 4) {
+  if (payload?.schemaVersion === 3 || payload?.schemaVersion === 4) {
     const b = payload.coverageBounds,
       half = doc.frame.extentMeters / 2;
     if (!b || b.minX > -half || b.minY > -half || b.maxX < half || b.maxY < half) return null;

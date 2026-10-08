@@ -1,5 +1,6 @@
 import { polygonOverlaps } from "../fortifications";
 import { facePoints } from "../mesh";
+import { regionalCoastalWaterPolygons } from "../regionalCoast";
 import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
@@ -255,7 +256,8 @@ function isLandPoint(document: CityDocument, pt: Point): boolean {
       if (poly.length >= 3 && pointInPolygon(pt, poly)) return false;
     }
   }
-  return true;
+  // Sea beyond the town mesh is not a mesh face.
+  return !regionalCoastalWaterPolygons(document).some(poly => pointInPolygon(pt, poly));
 }
 
 /**

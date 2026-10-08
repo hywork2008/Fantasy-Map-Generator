@@ -34,6 +34,7 @@ import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { MoatReservation } from "../core/moats";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
+import { regionalCoastalWaterPolygons } from "../core/regionalCoast";
 import type {
   CityDocument,
   CityElement,
@@ -164,11 +165,10 @@ export function renderEditorSvg(
   const groundColor = getLandscapeGroundColor(document);
   const suburbColor = getLandscapeSuburbFaceColor(document);
   if (town) {
-    svg.style.backgroundColor = groundColor;
     const biomeStyle = element(
       "style",
       { type: "text/css" },
-      `.ce-svg--town { background: ${groundColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+      `.ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
     );
     svg.appendChild(biomeStyle);
   }
@@ -233,6 +233,27 @@ export function renderEditorSvg(
   }
   svg.appendChild(continuousWater);
   if (fixedLayers) svg.appendChild(fixedLayers.water);
+  // The town mesh's sea ends at its small rectangular boundary. Continue its
+  // actual coast across the regional frame, over any coarse FMG water overlay.
+  const regionalSea = regionalCoastalWaterPolygons(document);
+  if (regionalSea.length) {
+    const layer = element("g", { class: "ce-regional-coastal-water", "pointer-events": "none" });
+    layer.appendChild(
+      element("path", {
+        d: [
+          ...regionalSea,
+          ...(document.coastalOceanFaceIds ?? []).flatMap(id => {
+            const face = document.mesh.faces[id];
+            return face?.properties.water === "sea" ? [facePoints(document.mesh, face)] : [];
+          })
+        ]
+          .map(polygon)
+          .join(" "),
+        class: "ce-face ce-face--sea"
+      })
+    );
+    svg.appendChild(layer);
+  }
 
   if (town && document.coastalOceanFaceIds?.length) {
     const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
@@ -1353,7 +1374,8 @@ export function renderEditorSvg(
       "ce-continuous-water",
       "ce-fixed-river-water",
       "ce-fixed-crossings",
-      "ce-regional-water-cells"
+      "ce-regional-water-cells",
+      "ce-regional-coastal-water"
     ]);
     const crossings = element("g", { class: "ce-regional-crossings" });
     for (const node of Array.from(
@@ -1373,6 +1395,33 @@ export function renderEditorSvg(
       if (!(regional ? sceneVisibility.regional : sceneVisibility.core)) child.setAttribute("display", "none");
     }
   }
+  // The camera may leave the surveyed frame. Keep every map layer (including
+  // source water extending beyond the mesh) inside a stable world-space frame.
+  // Preserve the source geometry; only the final presentation is clipped.
+  const extent = document.frame.extentMeters;
+  const frameAttrs = {
+    x: String(-extent / 2),
+    y: String(-extent / 2),
+    width: String(extent),
+    height: String(extent)
+  };
+  const defs = element("defs", {});
+  const clip = element("clipPath", { id: "ce-map-frame", clipPathUnits: "userSpaceOnUse" });
+  clip.appendChild(element("rect", frameAttrs));
+  defs.appendChild(clip);
+  const scene = element("g", { class: "ce-map-scene", "clip-path": "url(#ce-map-frame)" });
+  scene.appendChild(
+    element("rect", {
+      ...frameAttrs,
+      fill: document.appearance === "town" ? groundColor : "#e1dfd4",
+      class: "ce-background",
+      "pointer-events": "none"
+    })
+  );
+  for (const child of Array.from(svg.children)) {
+    if (child.localName !== "style" && child.localName !== "defs") scene.appendChild(child);
+  }
+  svg.append(defs, scene);
   mark("svg-details");
   return svg;
 }
@@ -3151,7 +3200,6 @@ function tree(point: Point, radius: number, id: Id): SVGElement {
 export const STANDALONE_SVG_STYLE = `
   .ce-svg { background: transparent; }
   .ce-reference-image { opacity: 0.82; }
-  .ce-svg--town { background: #d5cfbf; }
   .ce-svg.ce-svg--town .ce-face--land { fill: #d5cfbf; }
   .ce-features { z-index: 2; }
   .ce-park-trees, .ce-park-tree { z-index: 5; }
@@ -3301,28 +3349,17 @@ export function renderStandaloneCitySvg(
   const style = element("style", { type: "text/css" }, STANDALONE_SVG_STYLE);
   defs.appendChild(style);
 
-  const bgColor = document.appearance === "town" ? getLandscapeGroundColor(document) : "#e1dfd4";
-  const bgRect = element("rect", {
-    x: String(-extent / 2),
-    y: String(-extent / 2),
-    width: String(extent),
-    height: String(extent),
-    fill: bgColor,
-    class: "ce-background"
-  });
+  // Append biome overrides after the standalone defaults. The ground itself
+  // is the same clipped rectangle used by the editor, never the SVG viewport.
   if (document.appearance === "town") {
     const suburbColor = getLandscapeSuburbFaceColor(document);
-    const biomeStyle = element(
-      "style",
-      { type: "text/css" },
-      `.ce-svg--town { background: ${bgColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+    defs.appendChild(
+      element(
+        "style",
+        { type: "text/css" },
+        `.ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+      )
     );
-    defs.appendChild(biomeStyle);
-  }
-  if (defs.nextSibling) {
-    svg.insertBefore(bgRect, defs.nextSibling);
-  } else {
-    svg.appendChild(bgRect);
   }
 
   for (const img of svg.querySelectorAll("image")) {

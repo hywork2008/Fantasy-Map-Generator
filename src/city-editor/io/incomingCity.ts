@@ -25,7 +25,8 @@ import {
   fitUndersizedTownFrame,
   type GridKind,
   isCitySizePreset,
-  sizePresetForExtent
+  sizePresetForExtent,
+  townMeshExtentMeters
 } from "../core/document";
 import { DEFAULT_PATCH_PARAMS } from "../core/gen/patches";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
@@ -86,6 +87,31 @@ export function parseIncomingPayload(json: string): CityEditorShare | null {
   return descriptor ? shareFromDescriptor(descriptor) : null;
 }
 
+/** Margin kept around the town mesh so roads, rivers and bridges visibly meet it. */
+const REGIONAL_MARGIN_RATIO = 1.3;
+const REGIONAL_REQUIRED_MARGIN_METERS = 80;
+
+/**
+ * A regional hand-off describes a wide window, but only the town mesh and the
+ * way roads, water and bridges join it matter. The display frame is therefore
+ * the mesh plus a margin (and any required bridge/frontage bounds), not the
+ * full FMG window. Returns null when the window is already that tight.
+ */
+export function regionalDisplayExtent(descriptor: BurgSiteDescriptor): number | null {
+  if (!descriptor.regionalContext) return null;
+  const frame = { ...descriptor.frame, regionalMode: true };
+  const mesh = townMeshExtentMeters(
+    frame,
+    descriptor.burg.waterAccess?.port.river === true,
+    descriptor.burg.riverPlacement?.bankDistanceMeters
+  );
+  const required = descriptor.frame.requiredBounds
+    ? requiredSiteExtent(descriptor.frame.requiredBounds) + 2 * REGIONAL_REQUIRED_MARGIN_METERS
+    : 0;
+  const extent = Math.ceil(Math.max(mesh * REGIONAL_MARGIN_RATIO, required) / 10) * 10;
+  return extent < descriptor.frame.extentMeters - 0.5 ? extent : null;
+}
+
 export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
   const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
   const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
@@ -98,7 +124,14 @@ export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorS
   const fitted = fit
     ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } }
     : descriptor.regionalContext
-      ? { ...descriptor, frame: { ...descriptor.frame, regionalMode: true } }
+      ? {
+          ...descriptor,
+          frame: {
+            ...descriptor.frame,
+            regionalMode: true,
+            extentMeters: regionalDisplayExtent(descriptor) ?? descriptor.frame.extentMeters
+          }
+        }
       : descriptor;
   const blockedByWater = !fit && proposedFit != null && minimumExtent > proposedFit.extentMeters;
   const townGrid =

@@ -30,6 +30,7 @@ import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./g
 import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { applyImportedFixedCrossings } from "./importedFixedCrossings";
 import { MoatReservation } from "./moats";
+import { meshShoreChain, regionalSeaPolygon, regionalShoreline } from "./regionalCoast";
 import { riverFlowsFromDescriptor } from "./riverFlow";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 import { attachSceneRegions } from "./sceneRegions";
@@ -1473,6 +1474,8 @@ interface Plan {
    * plausibility filter in `applyPlan` (wet wall edges) and tests. */
   waterPolygon: Point[] | null;
   channelPolygons?: Point[][];
+  /** Sea beyond the town mesh, closed against the display frame. */
+  regionalWater?: Point[][];
   /** Resolved `settings.streets.avoidSea` so `applyPlan` can drop wet walls
    * without taking the whole settings object. */
   avoidSea: boolean;
@@ -1657,7 +1660,8 @@ export function runPlan(
       cellSize,
       makeRng(`${seed}:water:${i}`)
     );
-    if (!wetsOrigin(coast)) return { kind: water.kind, coast };
+    const regionalShore = water.regionalShore;
+    if (!wetsOrigin(coast)) return { kind: water.kind, coast, regionalShore };
     // The closure picked the side that contains the burg. Take the other side
     // when that leaves the map origin dry; otherwise drop the surface.
     const flipped = classifyCoast(
@@ -1669,7 +1673,7 @@ export function runPlan(
       cellSize,
       makeRng(`${seed}:water:${i}:flip`)
     );
-    return { kind: water.kind, coast: flipped && !wetsOrigin(flipped) ? flipped : null };
+    return { kind: water.kind, coast: flipped && !wetsOrigin(flipped) ? flipped : null, regionalShore };
   });
   const coasts = classified.flatMap(item => (item.coast ? [item.coast] : []));
   let coast: CoastResult | null = coasts[0] ?? null;
@@ -1691,6 +1695,20 @@ export function runPlan(
     waterPolygon = appliedChannels[0].polygon;
   }
   empty.channelPolygons = appliedChannels.map(channel => channel.polygon);
+  // The town mesh stops short of the display frame; FMG's drawn ocean shore does not.
+  const frameHalf = (settings.descriptor?.regionalContext && settings.descriptor.frame.extentMeters / 2) || 0;
+  if (frameHalf > half + 1)
+    empty.regionalWater = classified.flatMap(item => {
+      if (item.kind !== "ocean" || !item.coast || !item.regionalShore) return [];
+      const wet = [...item.coast.sea].map(id => cells[id].centroid);
+      const shore = regionalShoreline(
+        item.regionalShore,
+        meshShoreChain(cells, item.coast.sea) ?? item.coast.shoreline,
+        makeRng(`${seed}:regional-shore`)
+      );
+      const ring = regionalSeaPolygon(shore, frameHalf, wet);
+      return ring ? [ring] : [];
+    });
   mark("coast");
   if (stageStep < 2) return { ...empty, sea, ocean, coastPath, waterPolygon };
 
@@ -2542,6 +2560,7 @@ export function runPlan(
     avoidSea: streetOpts.avoidSea,
     wallMaterial: empty.wallMaterial,
     channelPolygons: empty.channelPolygons,
+    regionalWater: empty.regionalWater,
     fixedCrossings: empty.fixedCrossings,
     replaceFixedCrossings: empty.replaceFixedCrossings,
     rivers,
@@ -2584,6 +2603,7 @@ function planningDebugDocument(
   next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
   assignFrameRoads(next, plan);
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
+  next.regionalWaterAreas = plan.regionalWater?.length ? plan.regionalWater.map(ring => clone(ring)) : undefined;
   delete next.appearance;
   delete next.fabric;
   next.featureGroups = next.featureGroups.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
@@ -2754,6 +2774,7 @@ function applyPlan(
   next.riverConnections = plan.importedRoads?.flatMap(r => (r.riverConnection ? [clone(r.riverConnection)] : []));
   assignFrameRoads(next, plan);
   next.waterAreas = plan.channelPolygons?.map(polygon => ({ kind: "river", polygon: clone(polygon) }));
+  next.regionalWaterAreas = plan.regionalWater?.length ? plan.regionalWater.map(ring => clone(ring)) : undefined;
   delete next.appearance;
   // Keep the active morphology even when routing rejects before town finish.
   next.layout = plan.layout ?? source.layout;

@@ -240,7 +240,9 @@ export interface Snapshot {
 export interface CityGeography {
   /** Explicit FMG river-port topology, independent of clipped shore geometry. */
   riverPort?: boolean;
-  coast: { corridor: Point[]; waterAzimuthDeg: number } | null;
+  /** `regionalShore` is the full-resolution FMG shore across the whole frame, translated
+   * like `corridor`; the corridor itself is a coarse walk guide for the town mesh only. */
+  coast: { corridor: Point[]; waterAzimuthDeg: number; regionalShore?: Point[] } | null;
   rivers: {
     corridor: Point[];
     widths: number[];
@@ -256,7 +258,12 @@ export interface CityGeography {
   /** Additional water boundaries. A major river is represented by its town-side
    * bank here instead of an impossibly wide river stroke. `coast` remains for
    * backwards-compatible standalone and exported inputs. */
-  waterAreas?: { corridor: Point[]; waterAzimuthDeg: number; kind: "ocean" | "lake" | "river" }[];
+  waterAreas?: {
+    corridor: Point[];
+    waterAzimuthDeg: number;
+    regionalShore?: Point[];
+    kind: "ocean" | "lake" | "river";
+  }[];
   /** On-site rivers wider than the era can bridge. Each polygon is the channel
    * itself (near bank to far bank), not a half-plane: the burg stays on the
    * near bank at the map origin, and the opposite bank stays land outside the

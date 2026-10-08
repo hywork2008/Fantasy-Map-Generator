@@ -99,11 +99,19 @@ function closeToWaterPolygon(shoreline: Point[], half: number, waterAzimuthDeg: 
   const probeScale = (half * 0.999) / Math.max(Math.abs(wd[0]), Math.abs(wd[1]), 1e-9);
   const probe: Point = [wd[0] * probeScale, wd[1] * probeScale];
 
+  return closeShorelineToFrame(shore, half, probe) ?? [...shore, ...perimeterPath(endB, startB, 1, half)];
+}
+
+/** Close an edge-to-edge shore around a known wet point, preserving its water side. */
+export function closeShorelineToFrame(shore: Point[], half: number, wetPoint: Point): Point[] | null {
+  if (shore.length < 2) return null;
+  const start = shore[0],
+    end = shore[shore.length - 1];
   for (const dir of [1, -1] as const) {
-    const poly = [...shore, ...perimeterPath(endB, startB, dir, half)];
-    if (pointInPolygon(probe, poly)) return poly;
+    const poly = [...shore, ...perimeterPath(end, start, dir, half)];
+    if (pointInPolygon(wetPoint, poly)) return poly;
   }
-  return [...shore, ...perimeterPath(endB, startB, 1, half)];
+  return null;
 }
 
 /** Flip a cell when >= 75% of its (>= 3) neighbours disagree. */

@@ -8,6 +8,7 @@ import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
 import { convexInfillParts, triangularInfillParts } from "./gen/lotGeometry";
 import { bounds, boundsOverlap, intersectConvex, plotArea, subtractConvex } from "./gen/parcelGeometry";
+import { regionalCoastalWaterPolygons } from "./regionalCoast";
 import type { CityDocument, Point } from "./types";
 
 const importedWaterParts = new WeakMap<FixedBurgCrossings, Point[][]>();
@@ -50,6 +51,7 @@ export function fixedWaterPolygons(fixed: FixedBurgCrossings): Point[][] {
 /** The imported water boundary is independent of editing-cell resolution. */
 export function waterPolygons(document: CityDocument): Point[][] {
   return [
+    ...regionalCoastalWaterPolygons(document),
     ...(document.waterAreas ?? []).map(area => area.polygon),
     ...(document.importedFixedCrossings ? fixedWaterPolygons(document.importedFixedCrossings) : [])
   ];
@@ -183,10 +185,10 @@ export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[
       return true;
   }
   return (
-    polygonHitsWater(
-      polygon,
-      (document.waterAreas ?? []).map(area => area.polygon)
-    ) || [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water))
+    polygonHitsWater(polygon, [
+      ...regionalCoastalWaterPolygons(document),
+      ...(document.waterAreas ?? []).map(area => area.polygon)
+    ]) || [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water))
   );
 }
 
