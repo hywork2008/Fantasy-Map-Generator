@@ -21,6 +21,9 @@ import { lineHitsDocumentWater } from "./waterGeometry";
 const SLIDE_FRACTIONS = [1, 0.9, 0.8, 0.7, 0.6, 0.45, 0.3, 0];
 /** How many street vertices back from the perimeter may be re-routed. */
 const REROUTE_DEPTH = 4;
+/** How far back along the street a free exterior start may be reattached, in blocks. */
+const REATTACH_BLOCKS = 1.5;
+const REATTACH_DEGREES_PER_BLOCK = 10;
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const sub = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1]];
 
@@ -70,7 +73,7 @@ function streetFor(document: CityDocument, leg: NonNullable<CityDocument["frameR
   for (const group of document.featureGroups) {
     if (group.kind !== "road" || group.locked || group.sourceRoad?.index !== leg.sourceIndex) continue;
     const ids = featureGroupVertices(document, group);
-    if (ids.length < 3) continue;
+    if (ids.length < 2) continue;
     const first = distance(document.mesh.vertices[ids[0]].point, target);
     const last = distance(document.mesh.vertices[ids.at(-1)!].point, target);
     const reversed = first < last;
@@ -145,15 +148,69 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
   // cell and each attempt cuts through that cell to it.
   const goal = goalVertexAt(document, target, best.id, ids.at(-1)!);
   const work = goal?.document ?? document;
-  const goalPoint = goal ? work.mesh.vertices[goal.vertexId].point : target;
 
-  // Candidates: the last few street vertices, best straight line first.
+  const found: { best: { document: CityDocument; score: number } | null } = { best: null };
+  let penalty = 0;
+  const consider = (tried: CityDocument) => {
+    const score = frameRoadApproachBend(tried, tried.frameRoads![legIndex], descriptor) + penalty;
+    if (!found.best || score < found.best.score) found.best = { document: tried, score };
+    return score <= CLEAN_JUNCTION_DEGREES;
+  };
+  const free = leg.pieces[0].kind === "road" && leg.pieces[0].points.length >= 2 && !fixedStart(document, target);
+  if (rerouteTo(work, legIndex, best.id, ids, reversed, goal?.vertexId ?? target, outward, consider, free))
+    return found.best!.document;
+
+  // A free exterior start (not a bridge or landing) may instead be reattached
+  // to one of the street's last vertices: the shift is a few metres at FMG
+  // scale, and dropping a sideways last edge removes an N (Karllisvik v122/v123).
+  for (let k = 1; free && k < REROUTE_DEPTH && ids.length - k >= 2; k++) {
+    const id = ids[ids.length - 1 - k];
+    if (distance(document.mesh.vertices[id].point, target) > document.frame.blockSizeMeters * REATTACH_BLOCKS) break;
+    if (document.gates.some(g => g.vertexId === id)) break;
+    const moved = structuredClone(document);
+    const keep = ids.slice(0, ids.length - k);
+    if (!setStreetPath(moved, best.id, reversed ? [...keep].reverse() : keep)) continue;
+    moved.frameRoads![legIndex].pieces[0].points[0] = moved.mesh.vertices[id].point;
+    // Moving the start is the last resort: each block of shift costs as much as 10° of bend.
+    penalty =
+      (distance(document.mesh.vertices[id].point, target) / document.frame.blockSizeMeters) *
+      REATTACH_DEGREES_PER_BLOCK;
+    const axis = exteriorDirection(moved.frameRoads![legIndex], descriptor);
+    if (!axis) continue;
+    if (rerouteTo(moved, legIndex, best.id, keep, reversed, id, axis, consider, true)) return found.best!.document;
+  }
+  return found.best && found.best.score < before - 2 ? found.best.document : null;
+}
+
+/** Whether `target` is a registered bridge or landing approach, which never moves. */
+function fixedStart(document: CityDocument, target: Point): boolean {
+  return (document.importedFixedCrossings?.crossings ?? []).some(
+    c =>
+      distance([c.approachA[0], c.approachA[1]], target) < 1 || distance([c.approachB[0], c.approachB[1]], target) < 1
+  );
+}
+
+/** Try the street's last few vertices as the point the straight run starts
+ * from, each with the slide fractions. Reports every result to `consider`;
+ * true as soon as one is clean. */
+function rerouteTo(
+  work: CityDocument,
+  legIndex: number,
+  groupId: Id,
+  ids: Id[],
+  reversed: boolean,
+  goal: Id | Point,
+  outward: Point,
+  consider: (tried: CityDocument) => boolean,
+  freeStart = false
+): boolean {
   const point = (id: Id) => work.mesh.vertices[id].point;
+  const goalPoint = typeof goal === "string" ? point(goal) : goal;
   const candidates: { index: number; score: number }[] = [];
   for (let k = 0; k < REROUTE_DEPTH; k++) {
     const index = ids.length - 1 - k;
     if (index < 1) break;
-    if (goal && ids[index] === goal.vertexId) {
+    if (ids[index] === goal) {
       // Already ends on the goal: its present approach is one candidate, deeper anchors are alternatives.
       candidates.push({ index, score: angleBetween(sub(goalPoint, point(ids[index - 1])), outward) });
       continue;
@@ -166,29 +223,42 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
     candidates.push({ index, score: Math.max(arrive, leave) });
   }
   candidates.sort((a, b) => a.score - b.score);
-
-  let best2: { document: CityDocument; score: number } | null = null;
   for (const { index } of candidates) {
     for (const slide of SLIDE_FRACTIONS) {
-      const done = connectAndStraighten(
-        work,
-        best.id,
-        ids.slice(0, index + 1),
-        reversed,
-        goal?.vertexId ?? target,
-        outward,
-        slide
-      );
+      const done = connectAndStraighten(work, groupId, ids.slice(0, index + 1), reversed, goal, outward, slide);
       if (!done) continue;
       const tried = done.document;
       const piece = tried.frameRoads![legIndex].pieces[0];
       if (piece.points.length) piece.points[0] = tried.mesh.vertices[done.goalId].point; // shared, like the other alignment passes
-      const score = frameRoadApproachBend(tried, tried.frameRoads![legIndex], descriptor);
-      if (score <= CLEAN_JUNCTION_DEGREES) return tried;
-      if (!best2 || score < best2.score) best2 = { document: tried, score };
+      if (consider(tried)) return true;
     }
   }
-  return best2 && best2.score < before - 2 ? best2.document : null;
+  // A free start can itself move: onto the line from the street's previous
+  // vertex to the exterior road's next point, so neither of them turns (Ikageid v204).
+  const next = work.frameRoads![legIndex].pieces[0].points[1];
+  if (freeStart && typeof goal === "string" && ids.at(-1) === goal && ids.length >= 2 && next) {
+    const from = point(ids.at(-2)!);
+    const at = point(goal);
+    const span = distance(from, next);
+    if (span > 1e-6) {
+      const u: Point = [(next[0] - from[0]) / span, (next[1] - from[1]) / span];
+      const t = (at[0] - from[0]) * u[0] + (at[1] - from[1]) * u[1];
+      if (t > 1 && t < span - 1) {
+        const onLine: Point = [from[0] + u[0] * t, from[1] + u[1] * t];
+        for (const fraction of SLIDE_FRACTIONS) {
+          if (!fraction) continue;
+          const moved = moveVertices(
+            work,
+            new Map([[goal, [at[0] + (onLine[0] - at[0]) * fraction, at[1] + (onLine[1] - at[1]) * fraction] as Point]])
+          );
+          if (!moved || work.gates.some(g => g.vertexId === goal)) continue;
+          moved.frameRoads![legIndex].pieces[0].points[0] = moved.mesh.vertices[goal].point;
+          if (consider(moved)) return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 /** An exterior road start this close to the outline / shore is reached by a perimeter vertex. */
@@ -339,13 +409,16 @@ function connectAndStraighten(
   const anchor = keep.at(-1)!;
   let work = document;
   const goalPoint = typeof goal === "string" ? work.mesh.vertices[goal].point : goal;
-  if (slide > 0 && anchor !== goal && keep.length > 1 && !work.gates.some(g => g.vertexId === anchor)) {
-    const p = work.mesh.vertices[anchor].point;
+  // The vertex that is slid onto the axis: the anchor, or, when the street
+  // already ends on the goal, the vertex before it (Bouvillesnoy v99, v108).
+  const slideId = anchor !== goal ? anchor : keep.at(-2);
+  if (slide > 0 && slideId && keep.length > 1 && !work.gates.some(g => g.vertexId === slideId)) {
+    const p = work.mesh.vertices[slideId].point;
     const back = (goalPoint[0] - p[0]) * outward[0] + (goalPoint[1] - p[1]) * outward[1];
     if (back > 1) {
       const onAxis: Point = [goalPoint[0] - outward[0] * back, goalPoint[1] - outward[1] * back];
       const axis: Point = [p[0] + (onAxis[0] - p[0]) * slide, p[1] + (onAxis[1] - p[1]) * slide];
-      const slid = moveVertices(work, new Map([[anchor, axis]]));
+      const slid = moveVertices(work, new Map([[slideId, axis]]));
       if (!slid) return null;
       work = slid;
     }
