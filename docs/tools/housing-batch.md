@@ -75,3 +75,11 @@ Vilealandでの修正前後の全都市検査と未解決ケースは [2026-10-0
 FMG側の道路生成・河川横断・都市配置を変更した場合は、保存されたFMGから `housing:export` を新しいCSVへ再実行する。現在のexportは、実測水面と乾いた両岸アプローチを検証できる複数の街道をFMG側で共通橋へ収束させてから、CEの入口・固定橋・対岸分岐を出力する。以前のCSVの再検査だけではFMG側の修正を検証できない。CSVが変わるため、旧結果からの `--failed-from` は使わず、全都市か `--burg` で対象を指定する。
 
 共通橋では `descriptor.roads` の入口数が元の街道数より少なくなる。`sharedRouteIds` と `sharedBranches`、`nextBurgs` を併せて確認し、道路や行き先の欠落と混同しない。また、`status: generated` と `completeFixedApproaches: true` は別の検査結果である。[Vilealandの共通橋の検証](../diagnostics/fmg-shared-river-roads-vilealand-2026-10-04.md)を参照。
+
+## 同じ入力から生成時間を計測する
+
+[CE性能計測CLI](ce-performance.md) の `ce:perf` は、このツールで出力した入力CSVと保存済みFMGに対応する。都市指定・順次実行・反復計測・工程別時間・タイムアウトを利用できる。
+
+```sh
+npm run ce:perf -- temp/housing-inputs.csv temp/ce-performance.jsonl --burg 13,26 --repeat 3
+```

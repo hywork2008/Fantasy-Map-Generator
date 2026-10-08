@@ -51,7 +51,8 @@
     "test:race-bundles": "node --import tsx scripts/check-race-bundles.ts",
     "housing:export": "node scripts/housingBatch.mjs export",
     "housing:batch": "node scripts/housingBatch.mjs compare",
-    "ce:audit": "node --import tsx scripts/auditCityGeneration.mjs"
+    "ce:audit": "node --import tsx scripts/auditCityGeneration.mjs",
+    "ce:perf": "node --import tsx scripts/benchmarkFmgCities.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"
