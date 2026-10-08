@@ -4,6 +4,7 @@
 // permanent gallows on an approach road outside town. Watermills and harbour cranes live in
 // watermillFabric.ts / harborFabric.ts. Everything here is derived from the finished document
 // and the final building fabric; it never edits the mesh.
+import { type ReligiousHouse, religiousHousesFor } from "../../../data/civilizationTraditions";
 import { featureGroupVertices } from "../features";
 import { circuitRing, polygonOverlaps, townGates } from "../fortifications";
 import { landmarkReservationHits } from "../landmarks";
@@ -19,7 +20,7 @@ import { makeRng, type Rng } from "./prng";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { fixedBankOffset, hitsSurveyedWater } from "./watermillFabric";
 
-export type MonasteryKind = "friary" | "abbey";
+export type MonasteryKind = ReligiousHouse;
 
 export interface Monastery {
   id: Id;
@@ -467,6 +468,20 @@ class Site {
 // ---------------------------------------------------------------------------
 // 1. Monastery: cloister quadrangle, church, herb garden, orchard
 
+const MONASTERY_NAMES: Record<MonasteryKind, string> = {
+  abbey: "Abbey",
+  friary: "Friary",
+  orthodoxMonastery: "Monastery"
+};
+
+/** Houses in founding order. Without FMG civilization the town is taken as Latin Catholic. */
+function monasteryKinds(document: CityDocument, walled: boolean): MonasteryKind[] {
+  const houses = religiousHousesFor(document.civilization?.faith ?? "latinCatholic", document.historicalPeriod);
+  if (houses.includes("friary")) return walled ? ["friary", "abbey", "friary"] : ["abbey", "friary", "friary"];
+  if (houses.includes("orthodoxMonastery")) return ["orthodoxMonastery", "orthodoxMonastery"];
+  return houses.includes("abbey") ? ["abbey"] : [];
+}
+
 function monasteryCount(buildings: number, document: CityDocument): number {
   if (!periodAtLeast(document, "earlyMedieval")) return 0;
   if (buildings < 250) return 0;
@@ -559,7 +574,7 @@ function layoutMonastery(
   return {
     id,
     kind,
-    name: kind === "friary" ? "Friary" : "Abbey",
+    name: MONASTERY_NAMES[kind],
     precinct,
     gate: at(west, 0),
     church: { nave, transept, apse, ridge },
@@ -574,7 +589,8 @@ function layoutMonastery(
 
 function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Monastery[] {
   const document = site.document;
-  const count = monasteryCount(input.buildings.length, document);
+  const kinds = monasteryKinds(document, site.walled);
+  const count = Math.min(monasteryCount(input.buildings.length, document), kinds.length);
   if (!count || site.town.length < 3) return [];
   const scale = Math.max(0.72, Math.min(1.15, Math.sqrt(input.buildings.length / 3000)));
   const gates = townGates(document)
@@ -582,7 +598,6 @@ function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Mon
     .filter((p): p is Point => !!p);
   const box = boxOf(site.town);
   const out: Monastery[] = [];
-  const kinds: MonasteryKind[] = site.walled ? ["friary", "abbey", "friary"] : ["abbey", "friary", "friary"];
   const forbidden = new Set(["market", "castle", "cemetery", "park", "harbor", "none"]);
   for (let index = 0; index < count; index++) {
     const kind = kinds[index];
@@ -626,7 +641,7 @@ function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Mon
       const ring = [...plan.precinct, plan.precinct[0]];
       plan.gate = nearestOnPolyline(road.point, ring).point;
     }
-    plan.name = `${kind === "friary" ? "Friary" : "Abbey"} #${index + 1}`;
+    plan.name = `${MONASTERY_NAMES[kind]} #${index + 1}`;
     site.claim(plan.precinct);
     out.push(plan);
   }

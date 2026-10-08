@@ -132,7 +132,8 @@ export interface BurialCultureProfile {
 }
 
 /**
- * 16 Historic Archetype Presets modeled after major world traditions.
+ * Historic archetype presets modeled after major world traditions
+ * (selected per civilization and faith in civilizationTraditions.ts).
  */
 export const BURIAL_CULTURE_PRESETS: Record<string, BurialCultureProfile> = {
   roman_via_appia: {
@@ -452,6 +453,279 @@ export const BURIAL_CULTURE_PRESETS: Record<string, BurialCultureProfile> = {
       resourceCostPerCapita: { stone: 0.02 },
       sanitationRisk: 0.05,
       pilgrimageAppeal: 0.75
+    }
+  },
+  orthodox_churchyard: {
+    id: "orthodox_churchyard",
+    name: "Orthodox Monastic Churchyard",
+    description:
+      "Walled churchyard around a domed church with cross-topped graves, an ossuary for exhumed bones, and cypress or birch.",
+    zoning: "intramural_core",
+    boundary: "high_stone_wall",
+    sanctuary: "ossuary_charnel_house",
+    bodyFate: "inhumation_coffined",
+    monuments: "crowded_jumble",
+    vegetation: "mediterranean_cypress",
+    ritualFacilities: ["incense_candle_stand", "caretaker_cottage"],
+    mechanics: {
+      remainFraction: 0.75,
+      zombieRatio: 0.35,
+      resourceCostPerCapita: { wood: 0.03, stone: 0.01 },
+      sanitationRisk: 0.5,
+      pilgrimageAppeal: 0.3
+    }
+  },
+  protestant_gottesacker: {
+    id: "protestant_gottesacker",
+    name: "Protestant Gottesacker",
+    description:
+      "Reformation burial field moved outside the walls, with plain headstones in rows and a small preaching chapel.",
+    zoning: "extramural_sanitary",
+    boundary: "low_curb_or_hedge",
+    sanctuary: "chapel_basilica",
+    bodyFate: "inhumation_coffined",
+    monuments: "headstone_grid",
+    vegetation: "sacred_yew",
+    ritualFacilities: ["caretaker_cottage"],
+    mechanics: {
+      remainFraction: 0.8,
+      zombieRatio: 0.4,
+      resourceCostPerCapita: { wood: 0.03, stone: 0.01 },
+      sanitationRisk: 0.3,
+      pilgrimageAppeal: 0.1
+    }
+  },
+  norse_ship_barrow: {
+    id: "norse_ship_barrow",
+    name: "Norse Ship-Setting Barrow Field",
+    description:
+      "Mounds and boat-shaped stone settings on a ridge outside the settlement, with runestones along the road.",
+    zoning: "extramural_highway",
+    boundary: "open_desert_field",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "cremation_ritual",
+    monuments: "cairns_and_steles",
+    vegetation: "sacred_yew",
+    ritualFacilities: ["cremation_woodyard"],
+    mechanics: {
+      remainFraction: 0.3,
+      zombieRatio: 0.1,
+      resourceCostPerCapita: { wood: 0.12, stone: 0.02 },
+      sanitationRisk: 0.1,
+      pilgrimageAppeal: 0.2
+    }
+  },
+  pagan_barrow: {
+    id: "pagan_barrow",
+    name: "Pagan Barrow Cemetery",
+    description: "Round barrows inside an earthen ditch beside the approach road, linked to a sacred grove.",
+    zoning: "extramural_highway",
+    boundary: "ditch_and_rampart",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "inhumation_shrouded",
+    monuments: "stepped_tumuli_mounds",
+    vegetation: "sacred_yew",
+    ritualFacilities: ["cremation_woodyard"],
+    mechanics: {
+      remainFraction: 0.6,
+      zombieRatio: 0.3,
+      resourceCostPerCapita: { wood: 0.04, linen: 0.01 },
+      sanitationRisk: 0.15,
+      pilgrimageAppeal: 0.15
+    }
+  },
+  mesopotamian_household: {
+    id: "mesopotamian_household",
+    name: "Mesopotamian House-Floor Burial",
+    description:
+      "The dead lie in vaults under the courtyard floors of family houses; royal tombs cluster by the temple.",
+    zoning: "household_intramural",
+    boundary: "high_stone_wall",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "inhumation_shrouded",
+    monuments: "crowded_jumble",
+    vegetation: "barren_gravel",
+    ritualFacilities: ["ablution_fountain"],
+    mechanics: {
+      remainFraction: 0.7,
+      zombieRatio: 0.4,
+      resourceCostPerCapita: { linen: 0.02, stone: 0.01 },
+      sanitationRisk: 0.55,
+      pilgrimageAppeal: 0.1
+    }
+  },
+  mesoamerican_temple: {
+    id: "mesoamerican_temple",
+    name: "Mesoamerican Temple Precinct Burial",
+    description:
+      "Elite burials in the temple pyramid platform at the heart of the city, with a skull rack in the sacred precinct.",
+    zoning: "intramural_core",
+    boundary: "monumental_gate_pylon",
+    sanctuary: "cremation_pyre_platform",
+    bodyFate: "cremation_ritual",
+    monuments: "stepped_tumuli_mounds",
+    vegetation: "barren_gravel",
+    ritualFacilities: ["skull_shelf", "incense_candle_stand"],
+    mechanics: {
+      remainFraction: 0.4,
+      zombieRatio: 0.2,
+      resourceCostPerCapita: { wood: 0.06, incense: 0.02, stone: 0.01 },
+      sanitationRisk: 0.3,
+      pilgrimageAppeal: 0.5
+    }
+  },
+  andean_chullpa: {
+    id: "andean_chullpa",
+    name: "Andean Chullpa Towers",
+    description: "Stone burial towers on the hillside above the town holding mummy bundles visited at ancestor feasts.",
+    zoning: "topographic_hill",
+    boundary: "open_desert_field",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "mummification_embalmed",
+    monuments: "cairns_and_steles",
+    vegetation: "barren_gravel",
+    ritualFacilities: ["incense_candle_stand"],
+    mechanics: {
+      remainFraction: 0.95,
+      zombieRatio: 0.85,
+      resourceCostPerCapita: { linen: 0.04, stone: 0.03 },
+      sanitationRisk: 0.1,
+      pilgrimageAppeal: 0.35
+    }
+  },
+  polynesian_sea: {
+    id: "polynesian_sea",
+    name: "Polynesian Marae and Sea Burial",
+    description: "Chiefs lie under a stone marae platform by the shore; commoners are given to the sea.",
+    zoning: "extramural_highway",
+    boundary: "stepped_water_terrace",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "submersion_water",
+    monuments: "cairns_and_steles",
+    vegetation: "sacred_bodhi_and_fig",
+    ritualFacilities: ["ablution_fountain"],
+    mechanics: {
+      remainFraction: 0.2,
+      zombieRatio: 0.1,
+      resourceCostPerCapita: { stone: 0.01 },
+      sanitationRisk: 0.05,
+      pilgrimageAppeal: 0.2
+    }
+  },
+  african_compound: {
+    id: "african_compound",
+    name: "West African Compound Burial",
+    description:
+      "Elders are buried in the family compound under the floor of the ancestral room, kings in a sacred grove.",
+    zoning: "household_intramural",
+    boundary: "low_curb_or_hedge",
+    sanctuary: "ancestral_hall",
+    bodyFate: "inhumation_shrouded",
+    monuments: "crowded_jumble",
+    vegetation: "sacred_bodhi_and_fig",
+    ritualFacilities: ["ablution_fountain"],
+    mechanics: {
+      remainFraction: 0.65,
+      zombieRatio: 0.35,
+      resourceCostPerCapita: { linen: 0.02, wood: 0.01 },
+      sanitationRisk: 0.4,
+      pilgrimageAppeal: 0.15
+    }
+  },
+  arctic_cairn: {
+    id: "arctic_cairn",
+    name: "Arctic Stone Cairn Graves",
+    description:
+      "Bodies wrapped in skins lie under stone cairns on bare ground above the shore, with grave goods beside them.",
+    zoning: "isolated_highland",
+    boundary: "open_desert_field",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "exposure_surface",
+    monuments: "cairns_and_steles",
+    vegetation: "barren_gravel",
+    ritualFacilities: ["incense_candle_stand"],
+    mechanics: {
+      remainFraction: 0.7,
+      zombieRatio: 0.6,
+      resourceCostPerCapita: { stone: 0.02 },
+      sanitationRisk: 0.05,
+      pilgrimageAppeal: 0.05
+    }
+  },
+  hindu_shmashana: {
+    id: "hindu_shmashana",
+    name: "Hindu Shmashana Cremation Ground",
+    description: "Walled cremation ground outside the town on the downwind side, with pyre platforms and a woodyard.",
+    zoning: "extramural_sanitary",
+    boundary: "high_stone_wall",
+    sanctuary: "cremation_pyre_platform",
+    bodyFate: "cremation_ritual",
+    monuments: "flat_ground_markers",
+    vegetation: "sacred_bodhi_and_fig",
+    ritualFacilities: ["cremation_woodyard", "ablution_fountain"],
+    mechanics: {
+      remainFraction: 0.05,
+      zombieRatio: 0.0,
+      resourceCostPerCapita: { wood: 0.2 },
+      sanitationRisk: 0.2,
+      pilgrimageAppeal: 0.2
+    }
+  },
+  megalithic_dolmen: {
+    id: "megalithic_dolmen",
+    name: "Megalithic Dolmen Field",
+    description: "Great stone chamber tombs and passage graves under earth mounds on the ridge above the settlement.",
+    zoning: "topographic_hill",
+    boundary: "ditch_and_rampart",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "inhumation_shrouded",
+    monuments: "stepped_tumuli_mounds",
+    vegetation: "barren_gravel",
+    ritualFacilities: ["cremation_woodyard"],
+    mechanics: {
+      remainFraction: 0.7,
+      zombieRatio: 0.3,
+      resourceCostPerCapita: { stone: 0.08 },
+      sanitationRisk: 0.1,
+      pilgrimageAppeal: 0.4
+    }
+  },
+  dwarven_hall: {
+    id: "dwarven_hall",
+    name: "Dwarven Ancestor Halls",
+    description: "Rock-cut burial halls under the mountain town, each clan's dead sealed in carved niches.",
+    zoning: "subterranean_network",
+    boundary: "high_stone_wall",
+    sanctuary: "ancestral_hall",
+    bodyFate: "inhumation_coffined",
+    monuments: "columbarium_walls",
+    vegetation: "barren_gravel",
+    ritualFacilities: ["mourning_cloister", "incense_candle_stand"],
+    mechanics: {
+      remainFraction: 0.85,
+      zombieRatio: 0.4,
+      resourceCostPerCapita: { stone: 0.06 },
+      sanitationRisk: 0.05,
+      pilgrimageAppeal: 0.3
+    }
+  },
+  elven_grove: {
+    id: "elven_grove",
+    name: "Elven Memorial Grove",
+    description: "An unwalled grove on the hill beyond the town where the dead return to the roots of planted trees.",
+    zoning: "topographic_hill",
+    boundary: "low_curb_or_hedge",
+    sanctuary: "none_flat_memorial",
+    bodyFate: "inhumation_shrouded",
+    monuments: "flat_ground_markers",
+    vegetation: "garden_parkland",
+    ritualFacilities: ["ablution_fountain"],
+    mechanics: {
+      remainFraction: 0.4,
+      zombieRatio: 0.2,
+      resourceCostPerCapita: { linen: 0.01 },
+      sanitationRisk: 0.05,
+      pilgrimageAppeal: 0.3
     }
   }
 };

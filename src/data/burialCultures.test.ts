@@ -8,9 +8,9 @@ import {
 } from "./burialCultures";
 
 describe("burialCultures data & presets", () => {
-  it("defines all 16 historic archetype presets with complete orthogonal dimensions", () => {
+  it("defines all 30 historic archetype presets with complete orthogonal dimensions", () => {
     const presetIds = Object.keys(BURIAL_CULTURE_PRESETS);
-    expect(presetIds.length).toBe(16);
+    expect(presetIds.length).toBe(30);
 
     const requiredKeys = [
       "roman_via_appia",

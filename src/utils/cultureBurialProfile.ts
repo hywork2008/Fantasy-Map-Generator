@@ -13,10 +13,12 @@ import {
   getBurialCulturePreset,
   isBurialCultureProfile
 } from "../data/burialCultures";
+import { SYNTHESIS_FAITHS, traditionEra, traditionForNameBase } from "../data/civilizationTraditions";
 import { FUNERAL_RITE_DEFINITIONS, type FuneralRite, funeralMaterialsFor, isFuneralRite } from "../data/funeralRites";
 import { type SynthesisGeographyOptions, synthesizeBurialCulture } from "../generators/burialCultureSynthesis";
 import type { Culture, CultureType, RaceKey } from "../types/models";
 import { defaultFuneralRiteForType, getCultureFuneralRite } from "./cultureFuneralRite";
+import { faithBurialPresets } from "./cultureTradition";
 
 /**
  * Maps a FuneralRite and CultureType to the most historically characteristic preset.
@@ -98,9 +100,20 @@ export function rollCultureBurialProfile(
   type: CultureType | undefined,
   rng: () => number = Math.random,
   raceKey?: RaceKey | string,
-  geography: SynthesisGeographyOptions = {}
+  geography: SynthesisGeographyOptions = {},
+  civilization?: { base: number; period?: string }
 ): BurialCultureProfile {
-  const isProcedural = rng() < 0.3;
+  if (civilization) {
+    // Historical civilizations bury their dead the way their faith did in the
+    // period; only fantasy faiths may roll a synthesized tradition.
+    const tradition = traditionForNameBase(civilization.base);
+    const faith = traditionEra(tradition, civilization.period).faith;
+    if (!SYNTHESIS_FAITHS.has(faith) || rng() >= 0.3) {
+      const presets = faithBurialPresets(faith, civilization.period, tradition, geography.hasRiver !== false);
+      return getBurialCulturePreset(presets[Math.floor(rng() * presets.length)]);
+    }
+  }
+  const isProcedural = !!civilization || rng() < 0.3;
 
   if (isProcedural) {
     return synthesizeBurialCulture(

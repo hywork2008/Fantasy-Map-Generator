@@ -26,6 +26,7 @@ import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw 
 import { getCultureBurialProfile, rollCultureBurialProfile } from "../utils/cultureBurialProfile";
 import { rollCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 import { rollCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
+import { worldTraditionPeriod } from "../utils/cultureTradition";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
@@ -1483,7 +1484,8 @@ class CulturesModule {
         c.type,
         Math.random,
         c.raceKey ?? pack.races?.[c.race ?? 0]?.key,
-        this.burialGeography(pack, center)
+        this.burialGeography(pack, center),
+        { base: c.base, period: worldTraditionPeriod(useOptionsState.getState()) }
       );
       c.burialProfile = generatedBurial;
       c.funeralRite = corpseTreatmentToFuneralRite(generatedBurial.bodyFate);
@@ -1566,7 +1568,8 @@ class CulturesModule {
       "Generic",
       Math.random,
       pack.races?.[resolvedRace]?.key,
-      this.burialGeography(pack, center)
+      this.burialGeography(pack, center),
+      { base, period: worldTraditionPeriod(useOptionsState.getState()) }
     );
     pack.cultures.push({
       name,

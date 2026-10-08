@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { getBurialCulturePreset } from "../../data/burialCultures";
+import type { BurgCivilization } from "../../data/civilizationTraditions";
 import type { CastlePart, CastlePlan, CityDocument, DefenseCircuit, Point } from "../core/types";
 import { buildFortressPlan } from "./castleLayoutBuilder";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "./castlePatterns";
@@ -137,6 +139,36 @@ function mockCastle(overrides?: Partial<CastlePlan>): CastlePlan {
 }
 
 describe("resolveCastleStyle", () => {
+  const civilization = (fortification: BurgCivilization["fortification"]): BurgCivilization => ({
+    tradition: "test",
+    period: "highMedieval",
+    faith: "latinCatholic",
+    cultureFaith: "latinCatholic",
+    fortification,
+    culture: { id: 1, name: "Test", nameBase: 0 }
+  });
+
+  it("follows the FMG culture's fortification lineage before the burial profile", () => {
+    const islamicBurial = getBurialCulturePreset("ottoman_turbe");
+    const european = mockDocument({
+      historicalPeriod: "lateMedieval",
+      burialProfile: islamicBurial,
+      civilization: civilization("european")
+    });
+    expect(resolveCastleStyle(european).style).toBe("concentric");
+    const islamic = mockDocument({ historicalPeriod: "highMedieval", civilization: civilization("islamic") });
+    expect(resolveCastleStyle(islamic).style).toBe("islamic-qalat");
+    expect(resolveCastleStyle({ ...islamic, historicalPeriod: "steamEra" }).style).toBe("bastion-citadel");
+  });
+
+  it("does not read a Roman roadside necropolis as an Islamic town", () => {
+    const doc = mockDocument({
+      historicalPeriod: "highMedieval",
+      burialProfile: getBurialCulturePreset("roman_via_appia")
+    });
+    expect(resolveCastleStyle(doc).style).toBe("norman-keep");
+  });
+
   it("resolves styles correctly based on historical periods", () => {
     expect(resolveCastleStyle(mockDocument({ historicalPeriod: "classicalAntiquity" })).style).toBe("ancient-castra");
     expect(resolveCastleStyle(mockDocument({ historicalPeriod: "earlyMedieval" })).style).toBe("motte-bailey");

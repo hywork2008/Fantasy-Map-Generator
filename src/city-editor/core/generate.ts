@@ -1011,6 +1011,8 @@ export function generateCityAttempt(
   settled.burialProfile = structuredClone(
     settings.burialProfile ?? settings.descriptor?.burialProfile ?? document.burialProfile
   );
+  const civilization = settings.descriptor?.civilization ?? document.civilization;
+  if (civilization) settled.civilization = structuredClone(civilization);
   settled.layout = effectiveLayout;
   settled.buildingPattern = buildingPattern;
   settled.historicalPeriod =

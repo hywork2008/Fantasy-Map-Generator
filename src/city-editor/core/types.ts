@@ -421,6 +421,8 @@ export interface CityDocument {
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
+  /** FMG culture and local faith; absent documents keep the period-only castle and monasteries. */
+  civilization?: import("../../data/civilizationTraditions").BurgCivilization;
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;

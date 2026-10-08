@@ -1,4 +1,5 @@
 import { isBurialCultureProfile } from "../../data/burialCultures";
+import { isCivilizationContext } from "../../data/civilizationTraditions";
 import { validRegionalContext } from "../../types/cityRegional";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -279,6 +280,8 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
       return warnShape("regional coverage / target burg");
   }
   if (raw.burialProfile !== undefined && !isBurialCultureProfile(raw.burialProfile)) return warnShape("burialProfile");
+  // An unreadable civilization block only loses the culture-aware landmarks.
+  if (raw.civilization !== undefined && !isCivilizationContext(raw.civilization)) delete raw.civilization;
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;

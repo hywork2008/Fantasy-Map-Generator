@@ -413,37 +413,32 @@ export function resolveCastleStyle(document: CityDocument, castle?: CastlePlan |
     return CASTLE_STYLE_PROFILES[explicit];
   }
 
-  // Check culture traits via burialProfile or metadata
-  const profileId = document.burialProfile?.id?.toLowerCase() ?? "";
-  const sanctuary = document.burialProfile?.sanctuary;
-  const vegetation = document.burialProfile?.vegetation;
-
-  // 1. Japanese / East Asian indicators
-  if (
-    profileId.includes("shinto") ||
-    profileId.includes("torii") ||
-    profileId.includes("edo") ||
-    sanctuary === "ancestral_hall" ||
-    vegetation === "oriental_evergreen"
-  ) {
-    return CASTLE_STYLE_PROFILES["japanese-shiro"];
-  }
-
-  // 2. Middle Eastern / Islamic indicators
-  if (
-    profileId.includes("sunni") ||
-    profileId.includes("islam") ||
-    profileId.includes("moorish") ||
-    profileId.includes("turbe") ||
-    sanctuary === "mausoleum_dome" ||
-    vegetation === "mediterranean_cypress"
-  ) {
-    return CASTLE_STYLE_PROFILES["islamic-qalat"];
-  }
-
-  // 3. Historical period mapping
   const period: HistoricalPeriod = document.historicalPeriod ?? "highMedieval";
+  // FMG culture's fortification lineage (civilizationTraditions.ts).
+  const fortification = document.civilization?.fortification;
+  if (fortification === "japanese") return CASTLE_STYLE_PROFILES["japanese-shiro"];
+  if (fortification === "classical") return CASTLE_STYLE_PROFILES["ancient-castra"];
+  // No walled-yamen style yet; the plain castle is closer than a European keep.
+  if (fortification === "sinitic") return CASTLE_STYLE_PROFILES.classic;
+  if (fortification === "earthwork") return CASTLE_STYLE_PROFILES["motte-bailey"];
+  if (fortification === "islamic")
+    return CASTLE_STYLE_PROFILES[
+      ["preIndustrialEra", "steamEra", "industrialChemistryEra", "petroleumEra", "rocketryEra"].includes(period)
+        ? "bastion-citadel"
+        : "islamic-qalat"
+    ];
 
+  // Documents without FMG civilization: only burial presets that name a
+  // tradition imply one. Shared traits (domed mausoleums, cypress) do not —
+  // a Roman roadside necropolis has both.
+  if (!fortification) {
+    const profileId = document.burialProfile?.id?.toLowerCase() ?? "";
+    if (["shinto", "torii", "edo"].some(key => profileId.includes(key))) return CASTLE_STYLE_PROFILES["japanese-shiro"];
+    if (["sunni", "islam", "moorish", "turbe", "wadi_us_salaam"].some(key => profileId.includes(key)))
+      return CASTLE_STYLE_PROFILES["islamic-qalat"];
+  }
+
+  // European lineage (and fantasy folk): follow the period.
   switch (period) {
     case "classicalAntiquity":
       return CASTLE_STYLE_PROFILES["ancient-castra"];

@@ -14,6 +14,14 @@ import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import { getCultureBurialProfile } from "../utils/cultureBurialProfile";
 import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
+import {
+  burgBurialProfile,
+  getCultureFaith,
+  getCultureFortification,
+  getCultureTradition,
+  getReligionFaith,
+  worldTraditionPeriod
+} from "../utils/cultureTradition";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -202,8 +210,11 @@ export interface BurgSiteBiome {
   tags?: readonly string[];
 }
 
+export type { BurgCivilization } from "../data/civilizationTraditions";
+
 export interface BurgSiteDescriptor {
   burialProfile?: import("../data/burialCultures").BurialCultureProfile;
+  civilization?: import("../data/civilizationTraditions").BurgCivilization;
   regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;
@@ -599,13 +610,38 @@ export function getBurgSiteDescriptor(
       maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0, "timber")
     },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
-    burialProfile: getCultureBurialProfile(pack.cultures?.[burg.culture ?? pack.cells.culture?.[burg.cell] ?? 0]),
+    ...burgCivilization(burg, rivers.length > 0),
     rivers,
     waterbody,
     roads,
     suggestedGates: roadLegCount,
     suggestedArchetype
   }));
+}
+
+function burgCivilization(burg: Burg, hasRiver: boolean): Pick<BurgSiteDescriptor, "burialProfile" | "civilization"> {
+  const { pack } = worldContext;
+  const culture = pack.cultures?.[burg.culture ?? pack.cells.culture?.[burg.cell] ?? 0];
+  const profile = getCultureBurialProfile(culture);
+  if (!culture?.i) return { burialProfile: profile };
+  const period = worldTraditionPeriod(worldContext.options);
+  const religion = pack.religions?.[pack.cells.religion?.[burg.cell] ?? 0];
+  const tradition = getCultureTradition(culture);
+  const faith = getReligionFaith(religion, pack.cultures, period, culture);
+  return {
+    burialProfile: burgBurialProfile(profile, faith, period, tradition, burg.i ?? 0, hasRiver),
+    civilization: {
+      tradition: tradition.id,
+      period,
+      faith,
+      cultureFaith: getCultureFaith(culture, period),
+      fortification: getCultureFortification(culture, period),
+      culture: { id: culture.i, name: culture.name, nameBase: culture.base },
+      ...(religion?.i
+        ? { religion: { id: religion.i, name: religion.name, type: religion.type, form: religion.form } }
+        : {})
+    }
+  };
 }
 
 /** Number of land route legs radiating from the burg — used as the watabou `gates` hint. */

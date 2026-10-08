@@ -79,13 +79,19 @@ function gabled(g: SVGElement, polygonPoints: Point[], ridge: [Point, Point], fi
   );
 }
 
+const MONASTERY_LABELS: Record<Monastery["kind"], string> = {
+  abbey: "修道院",
+  friary: "托鉢修道会修道院",
+  orthodoxMonastery: "正教修道院"
+};
+
 function renderMonastery(m: Monastery, options: PickOptions, minimal: boolean): SVGElement {
   const g = pickGroup(
     `ce-monastery ce-monastery--${m.kind}`,
     {
       kind: "monastery",
       id: m.id,
-      label: `${m.name}（${m.kind === "friary" ? "托鉢修道会修道院" : "修道院"}）`,
+      label: `${m.name}（${MONASTERY_LABELS[m.kind]}）`,
       monasteryKind: m.kind
     },
     options
