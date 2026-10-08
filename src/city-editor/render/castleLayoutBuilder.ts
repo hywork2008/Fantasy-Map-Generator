@@ -69,6 +69,42 @@ export interface FortressPlan {
   defensiveGates: DefensiveGateGeometry[];
   courtyards: Array<{ polygon: Point[]; texture: string }>;
   props: Array<{ kind: "stone_well" | "reflecting_pool" | "garden_pines" | "cannon_battery"; point: Point }>;
+  /** 城壁の実厚(m)。市壁より薄く見えないよう、城・市街の石壁のうち最も厚いものに合わせる。 */
+  wallWidthMeters?: number;
+}
+
+const BASE_CASTLE_WALL_METERS = 4.2;
+
+/**
+ * 城の防壁が市壁より弱く見えないよう、城郭回路と市街回路の壁群のうち最大の厚みを返す。
+ */
+function castleWallWidthMeters(document: CityDocument, castle: CastlePlan): number {
+  const circuitIds = new Set<unknown>([castle.circuitId]);
+  for (const c of document.defenseCircuits ?? []) if (c.scope === "town") circuitIds.add(c.id);
+  const wallIds = new Set(
+    (document.defenseCircuits ?? []).filter(c => circuitIds.has(c.id)).flatMap(c => c.wallGroupIds)
+  );
+  let width = BASE_CASTLE_WALL_METERS;
+  for (const g of document.featureGroups)
+    if (g.kind === "wall" && wallIds.has(g.id) && Number.isFinite(g.style.widthMeters))
+      width = Math.max(width, g.style.widthMeters);
+  return width;
+}
+
+/**
+ * 壁厚に合わせて城壁の線幅と塔の大きさを引き上げる（市壁の塔 = 壁厚×1.05 と同等以上）。
+ */
+function scaleToWallWidth(plan: FortressPlan, wallWidth: number): FortressPlan {
+  plan.wallWidthMeters = wallWidth;
+  const k = wallWidth / BASE_CASTLE_WALL_METERS;
+  for (const r of plan.ramparts) if (r.kind === "outer_wall" || r.kind === "inner_wall") r.strokeWidth = wallWidth;
+  if (k <= 1) return plan;
+  for (const t of plan.towers) {
+    if (t.radius !== undefined) t.radius = Math.max(t.radius * k, wallWidth * 1.05);
+    if (t.polygon)
+      t.polygon = t.polygon.map(([x, y]) => [t.point[0] + (x - t.point[0]) * k, t.point[1] + (y - t.point[1]) * k]);
+  }
+  return plan;
 }
 
 /**
@@ -962,5 +998,5 @@ export function buildFortressPlan(
       plan = buildNormanKeep(ring, center, gatePoint, castle.parts);
       break;
   }
-  return applySavedBuildings(plan, castle.parts, profile);
+  return scaleToWallWidth(applySavedBuildings(plan, castle.parts, profile), castleWallWidthMeters(document, castle));
 }

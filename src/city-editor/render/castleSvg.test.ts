@@ -371,3 +371,35 @@ describe("saved castle building geometry", () => {
     }
   );
 });
+
+describe("castle wall thickness vs town wall", () => {
+  it.each(Object.values(CASTLE_STYLE_PROFILES).filter(profile => profile.style !== "classic"))(
+    "$style curtain and towers are at least as thick as a 7.2 m stone town wall",
+    profile => {
+      const doc = mockDocument();
+      doc.defenseCircuits!.push({
+        id: "town",
+        scope: "town",
+        areaFaceIds: [1],
+        wallGroupIds: ["town-wall"],
+        naturalBarriers: [],
+        locked: false
+      } as DefenseCircuit);
+      doc.featureGroups.push({
+        id: "town-wall",
+        kind: "wall",
+        name: "Town wall",
+        segments: [],
+        style: { widthMeters: 7.2, color: "#333" },
+        wallMaterial: "stone",
+        locked: false
+      } as CityDocument["featureGroups"][number]);
+      const plan = buildFortressPlan(doc, mockCastle({ castleStyle: profile.style }), profile);
+      expect(plan.wallWidthMeters).toBe(7.2);
+      for (const r of plan.ramparts.filter(r => r.kind === "outer_wall" || r.kind === "inner_wall"))
+        expect(r.strokeWidth).toBe(7.2);
+      for (const t of plan.towers.filter(t => t.radius !== undefined))
+        expect(t.radius!).toBeGreaterThanOrEqual(7.2 * 1.05);
+    }
+  );
+});

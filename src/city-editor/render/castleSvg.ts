@@ -40,6 +40,27 @@ function footprintBox(points: Point[]) {
 }
 
 /**
+ * Draws a closed wall as a thick masonry band: dark outline underneath, stone fill on top.
+ */
+function appendMasonryBand(
+  parent: SVGElement,
+  pts: Point[],
+  width: number,
+  fill: string,
+  outline: string,
+  className: string
+): void {
+  const d = polygon(pts);
+  const common = { d, fill: "none", "stroke-linejoin": "miter" };
+  parent.appendChild(
+    element("path", { ...common, stroke: outline, "stroke-width": String(width + 1.2), class: className })
+  );
+  parent.appendChild(
+    element("path", { ...common, stroke: fill, "stroke-width": String(width), class: `${className}-core` })
+  );
+}
+
+/**
  * Renders multiple ramparts, slopes, stone revetments, and palisades.
  */
 function renderRamparts(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
@@ -146,14 +167,13 @@ function renderRamparts(parent: SVGElement, plan: FortressPlan, profile: CastleS
       );
     } else if (rampart.kind === "inner_wall") {
       // 5. Heavy inner curtain wall
-      parent.appendChild(
-        element("path", {
-          d: polygon(pts),
-          fill: "none",
-          stroke: palette.keepStroke,
-          "stroke-width": "2.8",
-          class: "ce-inner-curtain-wall"
-        })
+      appendMasonryBand(
+        parent,
+        pts,
+        rampart.strokeWidth ?? 2.8,
+        palette.keepWall,
+        palette.keepStroke,
+        "ce-inner-curtain-wall"
       );
     } else {
       // 6. Outer curtain wall
@@ -164,8 +184,17 @@ function renderRamparts(parent: SVGElement, plan: FortressPlan, profile: CastleS
           "fill-opacity": "0.35",
           stroke: palette.groundStroke,
           "stroke-width": "1.2",
-          class: "ce-outer-curtain-wall"
+          class: "ce-outer-curtain-ground"
         })
+      );
+      // 市壁と同等以上の厚みを持つ石造カーテンウォール
+      appendMasonryBand(
+        parent,
+        pts,
+        rampart.strokeWidth ?? 1.2,
+        palette.rampartFill,
+        palette.rampartStroke,
+        "ce-outer-curtain-wall"
       );
     }
   }
