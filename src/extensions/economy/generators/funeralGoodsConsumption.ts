@@ -10,6 +10,7 @@ import type { Market } from "./marketTypes";
 const WOOD_NAMES = ["Wood"];
 const STONE_NAMES = ["Stone"];
 const LINEN_NAMES = ["Linen", "Cloth"];
+const INCENSE_NAMES = ["Spices", "Resin"];
 
 function goodIdByNames(names: readonly string[]): number | undefined {
   const goods = getGoods();
@@ -38,6 +39,7 @@ export function consumeFuneralMaterialsFromPending(
   const woodId = goodIdByNames(WOOD_NAMES);
   const stoneId = goodIdByNames(STONE_NAMES);
   const linenId = goodIdByNames(LINEN_NAMES);
+  const incenseId = goodIdByNames(INCENSE_NAMES);
   let consumed = 0;
 
   for (const [rawCellId, need] of Object.entries(pending)) {
@@ -50,6 +52,7 @@ export function consumeFuneralMaterialsFromPending(
     consumed += debitStock(market, woodId, need.wood);
     consumed += debitStock(market, stoneId, need.stone);
     consumed += debitStock(market, linenId, need.linen);
+    consumed += debitStock(market, incenseId, need.incense ?? 0);
   }
   return consumed;
 }

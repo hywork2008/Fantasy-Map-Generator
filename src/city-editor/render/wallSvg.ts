@@ -66,7 +66,7 @@ export function resolveWallGeometry(
 /**
  * Check if the closed polygon is oriented clockwise.
  */
-function _isClockwise(points: Point[]): boolean {
+export function _isClockwise(points: Point[]): boolean {
   let sum = 0;
   for (let i = 0; i < points.length; i++) {
     const a = points[i];

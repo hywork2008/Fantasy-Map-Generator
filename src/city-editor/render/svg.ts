@@ -48,6 +48,7 @@ import type {
   Tool
 } from "../core/types";
 import { dryRuns, lineHitsDocumentWater, waterPolygons } from "../core/waterGeometry";
+import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
 import { getLandscapeGroundColor, getLandscapeSuburbFaceColor, renderLandscapeLayer } from "./landscape";
 import { openSpaceBoundary } from "./openSpaceBoundary";
@@ -3418,6 +3419,7 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
           parts: [],
           accesses: [],
           trees: [],
+          burialProfile: document.burialProfile,
           provenance: "generated",
           locked: false
         };
@@ -3440,6 +3442,12 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
       class: inspectedId === cemetery.id ? "ce-is-selected cg-is-selected" : "",
       style: "cursor:pointer"
     });
+
+    if (cemetery.burialProfile) {
+      group.appendChild(renderCultureCemetery(cemetery));
+      layer.appendChild(group);
+      continue;
+    }
 
     // 1. Outer precinct stone wall
     if (cemetery.boundary.length >= 3) {

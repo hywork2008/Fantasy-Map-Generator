@@ -11,7 +11,7 @@ import {
   emptySitingReport,
   planGateSectors
 } from "./gen/approachCorridors";
-import { type CastleSite, placeCastleRegion } from "./gen/castlePlacement";
+import { type CastleSite, placeCastleRegion, terrainHeight } from "./gen/castlePlacement";
 import {
   orientedRectPolylineDistance,
   orientTempleHybrid,
@@ -311,6 +311,7 @@ export interface GenerationSettings {
   /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
   riverPlacement?: "through" | "outside" | "outsideNear";
   historicalPeriod?: import("./types").HistoricalPeriod;
+  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   buildingPattern?: import("./types").BuildingPattern;
   castle?: Partial<import("./types").CastleSettings>;
   /** Only used when replaying a pre-castle-city recipe. */
@@ -952,6 +953,9 @@ export function generateCityAttempt(
       { faces: tangled.length },
       tangled.slice(0, 12)
     );
+  settled.burialProfile = structuredClone(
+    settings.burialProfile ?? settings.descriptor?.burialProfile ?? document.burialProfile
+  );
   settled.layout = effectiveLayout;
   settled.buildingPattern = buildingPattern;
   settled.historicalPeriod =
@@ -1397,6 +1401,7 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   fixedCrossings?: CityDocument["importedFixedCrossings"];
   replaceFixedCrossings?: boolean;
   urbanCoreMode?: "legacy" | "compact";
@@ -1518,6 +1523,7 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    burialProfile: settings.burialProfile ?? settings.descriptor?.burialProfile ?? sourceDocument?.burialProfile,
     fixedCrossings: settings.descriptor?.fixedCrossings,
     replaceFixedCrossings: !!settings.descriptor,
     urbanCoreMode: settings.urbanCoreMode,
@@ -2422,6 +2428,13 @@ export function runPlan(
   const historicalPeriod =
     settings.historicalPeriod ?? settings.descriptor?.historicalPeriod ?? sourceDocument?.historicalPeriod;
 
+  const cemeteryTerrain = (
+    settings.descriptor ??
+    synthSite(NOMINAL_PRESET, settings.config, seed, {
+      extentMeters: half * 2,
+      cityRadiusMeters: params.cityRadiusMeters
+    })
+  ).terrain;
   const warded = assignWards({
     cells: currentCells,
     urban: currentUrban,
@@ -2443,10 +2456,20 @@ export function runPlan(
       settings.descriptor?.fixedCrossings?.rivers.flatMap(river =>
         river.rings.map(ring => [...ring.map(p => [p[0], p[1]] as Point), [ring[0][0], ring[0][1]] as Point])
       ) ?? geo.channels?.map(channel => [...channel.polygon, channel.polygon[0]]),
-    historicalPeriod
+    historicalPeriod,
+    burialProfile: settings.burialProfile ?? settings.descriptor?.burialProfile ?? sourceDocument?.burialProfile,
+    elevations: new Map(
+      currentCells.map(cell => [
+        cell.id,
+        terrainHeight(cemeteryTerrain, cell.centroid) ??
+          sourceDocument?.mesh.faces[currentFaceIdOf[cell.id]]?.properties.elevation ??
+          0
+      ])
+    )
   });
   mark("wards");
   return {
+    burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,
     layout: effectiveLayout,
     castleSite,
@@ -2648,6 +2671,7 @@ function applyPlan(
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
+  next.burialProfile = structuredClone(plan.burialProfile ?? source.burialProfile);
   const gateRouting = new Map<Id, RoadRoutingTrace[]>();
   const reject = (
     phase: string,

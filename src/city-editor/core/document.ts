@@ -1,3 +1,4 @@
+import { isBurialCultureProfile } from "../../data/burialCultures";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { populationWindowMeters, type RequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import {
@@ -319,6 +320,9 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
   try {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
+    if (value.burialProfile !== undefined && !isBurialCultureProfile(value.burialProfile)) return null;
+    if (value.cemeteries?.some(c => c.burialProfile !== undefined && !isBurialCultureProfile(c.burialProfile)))
+      return null;
     if (value.fabric !== undefined && !validFabricPlan(value.fabric)) return null;
     if (value.fabric && value.fabric.version < 4) value.fabric = upgradeFabricPlan(value);
     const recipe = value.fabric?.generation;

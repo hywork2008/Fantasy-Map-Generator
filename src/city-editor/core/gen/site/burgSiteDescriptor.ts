@@ -135,6 +135,7 @@ export interface BurgSiteBiome {
 }
 
 export interface BurgSiteDescriptor {
+  burialProfile?: import("../../../../data/burialCultures").BurialCultureProfile;
   regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;

@@ -1,3 +1,4 @@
+import { isBurialCultureProfile } from "../../data/burialCultures";
 import { validRegionalContext } from "../../types/cityRegional";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -277,6 +278,7 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
     )
       return warnShape("regional coverage / target burg");
   }
+  if (raw.burialProfile !== undefined && !isBurialCultureProfile(raw.burialProfile)) return warnShape("burialProfile");
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;
@@ -343,6 +345,10 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.urbanCoreMode === "legacy" || raw.urbanCoreMode === "compact") settings.urbanCoreMode = raw.urbanCoreMode;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];
   if (isHistoricalPeriod(raw.historicalPeriod)) settings.historicalPeriod = raw.historicalPeriod;
+  if (raw.burialProfile !== undefined) {
+    if (!isBurialCultureProfile(raw.burialProfile)) return null;
+    settings.burialProfile = structuredClone(raw.burialProfile);
+  }
   return settings;
 }
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptyFuneralSimulationState, simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import { getBurialCulturePreset } from "../data/burialCultures";
 import { createDefaultRaces, raceIdByKey } from "../data/races";
 import type { PackedGraph } from "../types/PackedGraph";
 import {
@@ -90,5 +91,64 @@ describe("funeralRites", () => {
     stubPack({ funeralRite: "cremation" });
     ensureFuneralRemainsSeeded();
     expect(getFuneralRemainsAtCell(1)).toBe(0);
+  });
+});
+
+describe("burial profile funeral mechanics", () => {
+  it("uses culture-specific remains and aromatic material demand for live and historical deaths", () => {
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.pack = {
+      cultures: [
+        { i: 0 },
+        {
+          i: 1,
+          name: "Catacombs",
+          burialProfile: "catacomb_paris",
+          funeralRite: "inhumation",
+          race: 0,
+          type: "Generic"
+        }
+      ],
+      races: [],
+      burgs: [{}],
+      states: [{}],
+      cells: {
+        i: [0],
+        h: new Uint8Array([25]),
+        pop: new Float32Array([100]),
+        culture: new Uint16Array([1]),
+        burg: new Uint16Array(1),
+        state: new Uint16Array(1),
+        c: [[]],
+        p: [[0, 0]],
+        forestStock: new Float32Array([1]),
+        forestCover: new Float32Array([1])
+      }
+    } as unknown as PackedGraph;
+    resetFuneralState();
+    processFuneralDeaths(0, 100);
+    expect(getFuneralRemainsAtCell(0)).toBeCloseTo(60);
+    expect(takePendingFuneralMaterials()[0]).toEqual({ wood: 0, stone: 2, linen: 0 });
+    resetFuneralState();
+    ensureFuneralRemainsSeeded();
+    expect(getFuneralRemainsAtCell(0)).toBeCloseTo(120);
+    worldContext.pack.cultures[1].burialProfile = {
+      ...getBurialCulturePreset("roman_via_appia"),
+      bodyFate: "mummification_embalmed",
+      mechanics: {
+        remainFraction: 0.9,
+        zombieRatio: 0.7,
+        sanitationRisk: 0.1,
+        pilgrimageAppeal: 0.2,
+        resourceCostPerCapita: { linen: 0.04, incense: 0.02 }
+      }
+    };
+    worldContext.pack.cultures[1].funeralRite = "mummification";
+    resetFuneralState();
+    processFuneralDeaths(0, 100);
+    expect(getFuneralRemainsAtCell(0)).toBeCloseTo(90);
+    expect(takePendingFuneralMaterials()[0]).toEqual({ wood: 0, stone: 0, linen: 4, incense: 2 });
+    resetFuneralState();
   });
 });

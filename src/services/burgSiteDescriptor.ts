@@ -12,6 +12,7 @@ import type { Burg, River, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
+import { getCultureBurialProfile } from "../utils/cultureBurialProfile";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -201,6 +202,7 @@ export interface BurgSiteBiome {
 }
 
 export interface BurgSiteDescriptor {
+  burialProfile?: import("../data/burialCultures").BurialCultureProfile;
   regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;
@@ -564,6 +566,7 @@ export function getBurgSiteDescriptor(
       maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0, "timber")
     },
     historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
+    burialProfile: getCultureBurialProfile(pack.cultures?.[burg.culture ?? pack.cells.culture?.[burg.cell] ?? 0]),
     rivers,
     waterbody,
     roads,

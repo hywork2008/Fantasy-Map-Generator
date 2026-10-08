@@ -93,6 +93,18 @@ function setupRiverCrossingWorld() {
 
 describe("getBurgSiteDescriptor", () => {
   beforeEach(setupRiverCrossingWorld);
+  it("exports the burg culture's burial profile through the CE share contract", () => {
+    worldContext.pack.cultures = [
+      { i: 0, name: "Wildlands", base: 0, shield: "" },
+      { i: 1, name: "Catacombs", base: 0, shield: "", burialProfile: "catacomb_paris" }
+    ];
+    worldContext.pack.burgs[1].culture = 1;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    expect(descriptor.burialProfile?.id).toBe("catacomb_paris");
+    const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor as unknown as CESite)));
+    expect(shared?.descriptor?.burialProfile).toEqual(descriptor.burialProfile);
+  });
+
   it("exports the canonical physical water without inventing a bridge and retains it through CE save/render", () => {
     const site = getBurgSiteDescriptor(1)!;
     const payload = site.fixedCrossings!;

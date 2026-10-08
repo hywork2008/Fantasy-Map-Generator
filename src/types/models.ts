@@ -607,6 +607,12 @@ export interface Culture {
    * legacy saves without the field fall back to the type's modal rite. Wildlands omit it.
    */
   funeralRite?: FuneralRite;
+  /**
+   * Detailed burial tradition and cemetery profile (docs/plan/cultures/).
+   * Either a preset ID string (e.g. 'roman_via_appia') or a full BurialCultureProfile object.
+   * Read via `getCultureBurialProfile()` in src/utils/cultureBurialProfile.ts.
+   */
+  burialProfile?: import("../data/burialCultures").BurialCultureProfile | string;
 }
 
 export interface PackedGraphFeature {

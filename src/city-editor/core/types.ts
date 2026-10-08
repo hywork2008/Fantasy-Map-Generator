@@ -293,9 +293,25 @@ export interface CastleSettings {
 
 export type CemeteryForm = "churchyard" | "cloister" | "field";
 
-export type CemeteryPartRole = "chapel" | "ossuary" | "rectory" | "calvary" | "graves";
+export type CemeteryPartRole =
+  | "chapel"
+  | "ossuary"
+  | "rectory"
+  | "calvary"
+  | "graves"
+  | "sanctuary"
+  | "monument"
+  | "ritual"
+  | "boundary";
 
 export interface CemeteryPart {
+  kind?:
+    | import("../../data/burialCultures").CentralSanctuary
+    | import("../../data/burialCultures").MonumentLayout
+    | import("../../data/burialCultures").RitualFacility
+    | import("../../data/burialCultures").CemeteryBoundary;
+  /** Courtyard openings and the central well of a roofless tower. */
+  holes?: Point[][];
   id: Id;
   role: CemeteryPartRole;
   footprint: Point[];
@@ -315,6 +331,7 @@ export interface CemeteryPlan {
   accesses: Array<{ points: Point[]; widthMeters: number }>;
   trees: Point[];
   gatePoint?: Point;
+  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   provenance: "generated" | "manual" | "legacy";
   locked: boolean;
 }
@@ -395,6 +412,7 @@ export interface CityDocument {
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];
+  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;

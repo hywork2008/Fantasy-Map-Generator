@@ -2,6 +2,7 @@ import { insideRing, polygonOverlaps, polylineInsideRing } from "../fortificatio
 import { facePoints, indexMeshEdges } from "../mesh";
 import type { CemeteryPart, CemeteryPlan, CityDocument, Face, Id, Point } from "../types";
 import { waterPolygons } from "../waterGeometry";
+import { layoutCultureCemetery } from "./cultureCemeteryLayout";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
 import { plotArea, subtractConvex } from "./parcelGeometry";
@@ -103,6 +104,8 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
     world(u + w / 2, v + h / 2),
     world(u - w / 2, v + h / 2)
   ];
+
+  if (cemetery.burialProfile) return layoutCultureCemetery(document, cemetery, safe, at, center, x, y);
 
   const extentRadius = Math.sqrt(safeArea / Math.PI);
 
@@ -255,7 +258,7 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
     }
   }
 
-  // Decorative Yew trees (2 to 4 trees along the south border or near entrance)
+  // Legacy churchyard trees; profiled cemeteries use the culture layout above.
   const trees: Point[] = [
     world(-w * 0.7, -h * 0.7),
     world(w * 0.7, -h * 0.7),
@@ -346,13 +349,16 @@ function layoutBurialField(
   });
 
   // 4. Trees: planted along perimeter borders
-  const treeCandidates: Point[] = [
-    world(-extentRadius * 0.65, -extentRadius * 0.65),
-    world(extentRadius * 0.65, -extentRadius * 0.65),
-    world(-extentRadius * 0.65, extentRadius * 0.65),
-    world(extentRadius * 0.65, extentRadius * 0.65)
-  ];
-  const trees = treeCandidates.filter(p => insideRing(p, safe));
+  let trees: Point[] = [];
+  if (cemetery.burialProfile?.vegetation !== "barren_gravel") {
+    const treeCandidates: Point[] = [
+      world(-extentRadius * 0.65, -extentRadius * 0.65),
+      world(extentRadius * 0.65, -extentRadius * 0.65),
+      world(-extentRadius * 0.65, extentRadius * 0.65),
+      world(extentRadius * 0.65, extentRadius * 0.65)
+    ];
+    trees = treeCandidates.filter(p => insideRing(p, safe));
+  }
 
   return {
     ...cemetery,
@@ -474,7 +480,11 @@ export function refreshCemeteryLayouts(document: CityDocument): boolean {
     if (cemetery.locked) continue;
     const face = document.mesh.faces[cemetery.faceId];
     const boundary = face ? computeCemeteryBoundary(document, face) : cemetery.boundary;
-    const updated = layoutCemetery(document, { ...cemetery, boundary });
+    const updated = layoutCemetery(document, {
+      ...cemetery,
+      boundary,
+      burialProfile: cemetery.burialProfile ?? document.burialProfile
+    });
     document.cemeteries![i] = updated ?? {
       ...cemetery,
       boundary,
@@ -515,6 +525,7 @@ export function syncDocumentCemeteries(document: CityDocument, faceIds?: Iterabl
           parts: [],
           accesses: [],
           trees: [],
+          burialProfile: document.burialProfile,
           provenance: "generated",
           locked: false
         };

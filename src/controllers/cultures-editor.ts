@@ -19,6 +19,7 @@ import type { Burg, Culture, CultureType, FuneralRite, NameBase, Province, Race,
 import { CULTURE_TYPES, FUNERAL_RITES } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
+import { setCultureFuneralRite } from "../utils/cultureBurialProfile";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
@@ -297,7 +298,7 @@ export const culturesEditorActions = {
     const culture = worldContext.pack.cultures[i] as Culture;
     if (!culture || culture.i === 0) return;
     if (!(FUNERAL_RITES as readonly string[]).includes(rite)) return;
-    culture.funeralRite = rite as FuneralRite;
+    setCultureFuneralRite(culture, rite as FuneralRite);
     culturesEditorActions.refresh();
   },
 
@@ -581,7 +582,7 @@ export const culturesEditorActions = {
         if (cultureTypes.includes(culture.type!)) current.type = culture.type as CultureType;
         else current.type = "Generic" as CultureType;
         if (culture.funeralRite && (FUNERAL_RITES as readonly string[]).includes(culture.funeralRite)) {
-          current.funeralRite = culture.funeralRite as FuneralRite;
+          setCultureFuneralRite(current, culture.funeralRite as FuneralRite);
         }
       }
 

@@ -135,6 +135,8 @@ export interface WardInputs {
   /** River centerlines, used to keep the temple off the water. */
   rivers?: Point[][];
   historicalPeriod?: HistoricalPeriod;
+  burialProfile?: import("../../../data/burialCultures").BurialCultureProfile;
+  elevations?: Map<number, number>;
 }
 
 export interface WardResult {
@@ -296,7 +298,10 @@ export function assignWards(input: WardInputs): WardResult {
     gates,
     input.streets ?? [],
     input.historicalPeriod,
-    cemeteryRng
+    cemeteryRng,
+    input.burialProfile,
+    input.riverBanks?.length ? input.riverBanks : input.rivers,
+    input.elevations
   );
   if (cemeteryId !== null) {
     take(cemeteryId, "cemetery");
@@ -724,10 +729,14 @@ function placeCemetery(
   gates: Gate[],
   streets: Point[][],
   historicalPeriod: HistoricalPeriod | undefined,
-  rng: Rng
+  rng: Rng,
+  burialProfile?: import("../../../data/burialCultures").BurialCultureProfile,
+  rivers?: Point[][],
+  elevations?: Map<number, number>
 ): number | null {
   const byId = new Map(cells.map(c => [c.id, c]));
   const isModern = !!historicalPeriod && MODERN_BURIAL_PERIODS.has(historicalPeriod);
+  const zoning = burialProfile?.zoning ?? (isModern ? "extramural_sanitary" : "intramural_core");
   // A cemetery never takes a cell at a gate. Wards are assigned before roads
   // are routed on the final mesh, so the planned streets do not yet show the
   // approach through the gate; the rim cell farthest from the plaza is often
@@ -737,8 +746,40 @@ function placeCemetery(
     return !!cell && gates.some(g => cellTouchesPoint(cell, g.point, gateEps));
   };
 
-  // Modern Extramural Placement: Outside walls / in outskirts along approach roads
-  if (isModern && outskirts.size > 0) {
+  // 1. Riverfront Ghat Placement (Hindu / Holy river cremation ghats)
+  if (zoning === "riverfront_ghat" && rivers && rivers.length > 0) {
+    const riverCandidates: Array<{ id: number; score: number }> = [];
+    for (const [id, cell] of byId.entries()) {
+      if (occupied.has(id) || sea.has(id) || atGate(id)) continue;
+      let minRiverDist = Infinity;
+      for (const r of rivers) {
+        if (r.length < 2) continue;
+        const hit = nearestOnPolyline(cell.centroid, r);
+        if (hit.dist < minRiverDist) minRiverDist = hit.dist;
+      }
+      if (minRiverDist <= 30) {
+        const score = 150 - minRiverDist * 3 + rng() * 10;
+        if (!isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) {
+          riverCandidates.push({ id, score });
+        }
+      }
+    }
+    if (riverCandidates.length > 0) {
+      riverCandidates.sort((a, b) => b.score - a.score);
+      return riverCandidates[0].id;
+    }
+    return null;
+  }
+  if (zoning === "riverfront_ghat") return null;
+
+  const isExtramural =
+    zoning === "extramural_highway" ||
+    zoning === "extramural_sanitary" ||
+    zoning === "topographic_hill" ||
+    zoning === "isolated_highland";
+
+  // 2. Extramural Placement: Outside walls / in outskirts along approach roads or scenic ridges
+  if (isExtramural && outskirts.size > 0) {
     const outskirtsCandidates: Array<{ id: number; score: number }> = [];
     const plazaCenter = plaza?.anchor ?? [0, 0];
 
@@ -766,20 +807,31 @@ function placeCemetery(
       }
 
       const distToPlaza = Math.hypot(cell.centroid[0] - plazaCenter[0], cell.centroid[1] - plazaCenter[1]);
+      if (burialProfile && zoning === "extramural_highway" && (minStreetDist < 10 || minStreetDist > 50)) continue;
+      if (burialProfile && zoning === "extramural_sanitary" && distToPlaza < 100) continue;
 
       // Ideal suburban gate distance: ~60m to 250m (not blocking the immediate gate arch, but nearby)
       const gateScore = minGateDist < Infinity ? 30 / (1 + Math.abs(minGateDist - 120) / 60) : 10;
 
       // Proximity to approach road: cemetery should be alongside road (~15m to 45m), not bisected by it
-      const roadScore = minStreetDist < Infinity ? 25 / (1 + Math.abs(minStreetDist - 25) / 25) : 5;
+      const roadMultiplier = zoning === "extramural_highway" ? 2.5 : 1.0;
+      const roadScore = (minStreetDist < Infinity ? 25 / (1 + Math.abs(minStreetDist - 25) / 25) : 5) * roadMultiplier;
 
       // Suburban cemeteries benefited from well-proportioned land parcels for garden pathways
       const shapeScore = compactness * 20;
 
-      // Slight penalty for map perimeter boundary cells if interior suburban options exist
-      const borderPenalty = cell.onBorder ? -15 : 0;
+      // Border penalty/bonus: isolated highlands prefer outer borders, urban suburbs prefer interior
+      const borderScore = cell.onBorder
+        ? zoning === "isolated_highland" || zoning === "topographic_hill"
+          ? 15
+          : -15
+        : 0;
+      const distPlazaWeight = zoning === "isolated_highland" || zoning === "topographic_hill" ? 0.2 : 0.05;
 
-      const score = gateScore + roadScore + shapeScore + borderPenalty + distToPlaza * 0.05 + rng() * 10;
+      const elevationScore =
+        zoning === "topographic_hill" || zoning === "isolated_highland" ? (elevations?.get(id) ?? 0) * 10 : 0;
+      const score =
+        gateScore + roadScore + shapeScore + borderScore + elevationScore + distToPlaza * distPlazaWeight + rng() * 10;
       // Reject cells that have a major road or highway cutting straight through them
       if (isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) continue;
 
@@ -792,9 +844,17 @@ function placeCemetery(
     }
   }
 
-  // Traditional Intramural Placement (Medieval / Churchyard)
+  if (burialProfile && isExtramural) return null;
+
+  // Traditional Intramural Placement (Medieval / Churchyard / Core)
+  const isIntramural =
+    zoning === "intramural_core" ||
+    zoning === "household_intramural" ||
+    zoning === "subterranean_network" ||
+    !isExtramural;
+
   // Priority 1: Adjacent to temple (Churchyard).
-  if (!isModern && templeIds.size > 0) {
+  if (isIntramural && templeIds.size > 0) {
     const candidates: Array<{ id: number; score: number }> = [];
     const templeCenters = [...templeIds]
       .map(id => byId.get(id))
@@ -853,6 +913,12 @@ function placeCemetery(
     urbanCandidates.sort((a, b) => b.score - a.score);
     return urbanCandidates[0].id;
   }
+
+  if (
+    burialProfile &&
+    (zoning === "intramural_core" || zoning === "household_intramural" || zoning === "subterranean_network")
+  )
+    return null;
 
   // Fallback: any available outskirts cell if urban was exhausted
   for (const id of outskirts) {
