@@ -21,8 +21,10 @@ function intersection(a: number[], b: number[], c: number[], d: number[]) {
 }
 
 /** Resolve crossings AFTER candidate land/water routes exist; never consumes world RNG. */
-export function resolveRiverRouteCrossings(world: WorldContext): void {
-  const converged = ensureConvergingWorldRiverRoads(world, useOptionsState.getState().distanceUnit);
+export function resolveRiverRouteCrossings(
+  world: WorldContext,
+  converged = ensureConvergingWorldRiverRoads(world, useOptionsState.getState().distanceUnit)
+): void {
   const { pack } = world;
   const landRoutes = (pack.routes ?? []).filter(r => r.group !== "searoutes" && !r.lock);
   for (const route of landRoutes) route.riverCrossings = [];

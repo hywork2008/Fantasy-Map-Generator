@@ -18,13 +18,18 @@ import { measureProcessing, type ProcessingProfiler } from "../utils/processingP
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { bridgePassageFootprint } from "./bridgePassageGeometry";
-import { drawnSeaClearanceMeters, relocateCoastalRouteNeighbours } from "./coastalRouteApproach";
+import {
+  clearCoastalRouteGeometry,
+  coastalRouteGeometryKey,
+  drawnSeaClearanceMeters,
+  relocateCoastalRouteNeighbours
+} from "./coastalRouteApproach";
 import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "./physicalWaterIndex";
 import { evaluateRiverAxis } from "./riverAxisSampling";
 import type { RiverPoint } from "./riverGeometry";
 import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
-import { SettlementGeometrySession } from "./settlementGeometrySession";
+import { settlementGeometrySession } from "./settlementGeometrySession";
 import { coveredByTerrainCells, settlementRadiusMeters } from "./settlementRiverSite";
 
 interface Facility {
@@ -36,13 +41,13 @@ interface Facility {
   half: number;
   water: PhysicalWaterPolygon[];
 }
-interface Prepared {
+export interface PreparedWorldRiverRoads {
   key: string;
+  coastKey: string;
   facilities: Facility[];
   changedRoutes: number[];
 }
-const cache = new WeakMap<object, Prepared>();
-const session = new SettlementGeometrySession();
+const cache = new WeakMap<object, PreparedWorldRiverRoads>();
 
 /** Floor on a coastal bridge's distance from the drawn sea (see seaClear). */
 const SEA_CLEARANCE_MIN_METERS = 200;
@@ -134,15 +139,20 @@ function key(world: WorldContext, unit: string) {
     world.options.riverBridgeTechnology,
     world.options.landConnectionGeneration,
     p.cells.p,
-    p.cells.fl,
-    p.rivers,
-    p.vertices?.p,
-    p.cells.v,
+    // Only shape + crossing depth; Rivers.specify() metadata must preserve preparation.
+    p.rivers?.map(r => [
+      r.i,
+      r.cells,
+      r.points,
+      r.widthFactor,
+      r.sourceWidth,
+      r.cells.map(c => [p.cells.fl[c], r.cellHydrology?.[c]?.waterDepth])
+    ]),
     p.cells.h,
     p.burgs?.map(b => b && [b.i, b.x, b.y, b.cell, b.population, b.removed, b.state]),
     // Skew allowance rises with each state's technology (bridgeSkewPolicy.ts).
-    p.states?.map(s => s && !s.removed && getStateBridgeSkewLimit(s.i)),
-    p.routes?.map(r => [r.i, r.group, r.points, r.lock, r.registeredConnectionId])
+    p.states?.map(s => s && !s.removed && [getStateBridgeSkewLimit(s.i), getStateBridgeSkewLimit(s.i, "timber")]),
+    p.routes?.map(r => [r.i, r.group, r.points, r.lock, r.registeredConnectionId, r.navigation, r.cells])
   ]);
 }
 
@@ -152,17 +162,21 @@ export function ensureConvergingWorldRiverRoads(
   world: WorldContext,
   unit: string,
   profiler?: ProcessingProfiler
-): Prepared {
+): PreparedWorldRiverRoads {
+  const coastKey = measureProcessing(profiler, "coast-key", () =>
+    JSON.stringify([unit, coastalRouteGeometryKey(world)])
+  );
   const initialKey = measureProcessing(profiler, "cache-key", () => key(world, unit)),
     old = cache.get(world.pack);
-  if (old?.key === initialKey) return old;
-  const result: Prepared = { key: initialKey, facilities: [], changedRoutes: [] };
+  if (old?.key === initialKey && old.coastKey === coastKey) return old;
+  const result: PreparedWorldRiverRoads = { key: initialKey, coastKey, facilities: [], changedRoutes: [] };
   if (!world.pack.vertices?.p || !world.pack.cells.v?.length || world.options.landConnectionGeneration) {
     cache.set(world.pack, result);
     return result;
   }
   const scale = mapUnitMeters(world.distanceScale, unit);
   if (!(scale > 0)) return result;
+  if (old?.coastKey !== coastKey) clearCoastalRouteGeometry(world);
   let restored = false;
   for (const r of world.pack.routes) {
     if (!r.riverRoadConvergence || r.lock) continue;
@@ -174,6 +188,7 @@ export function ensureConvergingWorldRiverRoads(
     delete r.riverRoadConvergence;
   }
   measureProcessing(profiler, "coastal-route-neighbours", () => relocateCoastalRouteNeighbours(world, unit));
+  const session = settlementGeometrySession(world);
   measureProcessing(profiler, "geometry-session", () => session.prepare(world, unit));
   const centers = world.pack.cells.p.map((p, id) => ({ p, id }));
   const tree = quadtree<(typeof centers)[number]>()
@@ -493,13 +508,24 @@ export function ensureConvergingWorldRiverRoads(
   return result;
 }
 
-export function convergedBurgFacilities(world: WorldContext, unit: string, burgId: number) {
-  return ensureConvergingWorldRiverRoads(world, unit).facilities.filter(f => f.burgId === burgId);
+/** A prepared snapshot may be reused within one synchronous, non-mutating export. */
+export function convergedBurgFacilities(
+  world: WorldContext,
+  unit: string,
+  burgId: number,
+  prepared = ensureConvergingWorldRiverRoads(world, unit)
+) {
+  return prepared.facilities.filter(f => f.burgId === burgId);
 }
 
 /** The regional water and derivative witness used by FMG become CE's v4 source. */
-export function convergedBurgCrossings(world: WorldContext, unit: string, burg: Burg): FixedBurgCrossings | null {
-  return crossingsPayload(world, unit, burg, convergedBurgFacilities(world, unit, burg.i!));
+export function convergedBurgCrossings(
+  world: WorldContext,
+  unit: string,
+  burg: Burg,
+  prepared = ensureConvergingWorldRiverRoads(world, unit)
+): FixedBurgCrossings | null {
+  return crossingsPayload(world, unit, burg, convergedBurgFacilities(world, unit, burg.i!, prepared));
 }
 function crossingsPayload(
   world: WorldContext,

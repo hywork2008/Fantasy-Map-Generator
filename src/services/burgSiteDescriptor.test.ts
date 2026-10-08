@@ -108,6 +108,23 @@ describe("getBurgSiteDescriptor", () => {
     );
   });
 
+  it("shapes only roads connected to the exported burg, retaining the same road entries", () => {
+    const baseline = getBurgSiteDescriptor(1)!;
+    worldContext.pack.routes.push({
+      ...worldContext.pack.routes[0],
+      i: 2,
+      points: [
+        [80, 100, 7],
+        [120, 100, 8]
+      ]
+    });
+    const profiler = new ProcessingProfiler();
+    const descriptor = profiler.measure("descriptor", () => getBurgSiteDescriptor(1, undefined, profiler))!;
+    expect(descriptor.roads).toEqual(baseline.roads);
+    const render = profiler.snapshot().find(t => t.path === "descriptor/roads/route-legs/route-render-points");
+    expect(render?.calls).toBe(1);
+  });
+
   it("exports the burg culture's burial profile through the CE share contract", () => {
     worldContext.pack.cultures = [
       { i: 0, name: "Wildlands", base: 0, shield: "" },

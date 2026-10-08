@@ -1614,9 +1614,9 @@ class RoutesModule {
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
     pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
-    ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
+    const converged = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
     pack.cells.routes = this.buildLinks(pack.routes);
-    resolveRiverRouteCrossings(worldContext);
+    resolveRiverRouteCrossings(worldContext, converged);
     const finalRiverGraph = buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL });
     const finalSeaShipRiverGraph = buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL });
     const preservesSeaShipPassage = (route: Route): boolean => {

@@ -11,7 +11,9 @@ import {
 import { getEarthRegion } from "./data/earthRegions";
 import { isFantasyCulturesSet } from "./data/raceCivicStance";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
-import { SettlementGeometrySession } from "./services/settlementGeometrySession";
+import { ensureConvergingWorldRiverRoads } from "./services/convergingWorldRiverRoads";
+import { resolveRiverRouteCrossings } from "./services/riverRouteCrossings";
+import { settlementGeometrySession } from "./services/settlementGeometrySession";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
@@ -1128,7 +1130,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
 }
 
 function getGenerationStages(): Array<() => Promise<void>> {
-  const geometrySession = new SettlementGeometrySession();
+  const geometrySession = settlementGeometrySession(worldContext);
   return [
     async () => {
       worldContext.grid.cells.h = await HeightmapGenerator.generate(
@@ -1273,6 +1275,10 @@ function getGenerationStages(): Array<() => Promise<void>> {
       bindExtensionStateSlices(worldContext, simulationContext);
       applyHistoricalWarScars();
       Threats.appendCasualtyNotes(worldContext);
+      // Finish CE preparation after route pruning, burg details and seasonal hydrology.
+      // The hand-off can reuse this snapshot, including after Rivers.specify().
+      const preparedRoads = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
+      if (preparedRoads.changedRoutes.length) resolveRiverRouteCrossings(worldContext, preparedRoads);
       Names.getMapName(false);
       if (!worldContext.mapId) worldContext.mapId = Date.now();
     }

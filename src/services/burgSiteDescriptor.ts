@@ -35,12 +35,13 @@ import { updateBurgWaterAccess } from "./burgWaterAccess";
 import {
   convergedBurgCrossings,
   convergedBurgFacilities,
-  ensureConvergingWorldRiverRoads
+  ensureConvergingWorldRiverRoads,
+  type PreparedWorldRiverRoads
 } from "./convergingWorldRiverRoads";
 import { exportFixedBurgCrossings } from "./fixedBurgCrossings";
 import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
-import { SettlementGeometrySession } from "./settlementGeometrySession";
+import { settlementGeometrySession } from "./settlementGeometrySession";
 import {
   nearestSettlementBank,
   SETTLEMENT_RIVER_SETTINGS,
@@ -298,7 +299,7 @@ export function getBurgSiteDescriptor(
   const burg = pack.burgs?.[burgId];
   if (!burg?.i || burg.removed) return null;
 
-  measureProcessing(profiler, "world-road-convergence", () =>
+  const preparedRoads = measureProcessing(profiler, "world-road-convergence", () =>
     ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit, profiler)
   );
   const metersPerMapUnit = getMetersPerMapUnit();
@@ -351,7 +352,7 @@ export function getBurgSiteDescriptor(
   let fixedCrossings =
     frameRequirements?.fixedCrossings ??
     measureProcessing(profiler, "fixed-crossings", () =>
-      convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg)
+      convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg, preparedRoads)
     );
   if (fixedCrossings && !frameRequirements) {
     const b = fixedCrossings.requiredBounds;
@@ -457,7 +458,7 @@ export function getBurgSiteDescriptor(
     for (const river of rivers) if (river.riverId === beyondBudgetRiverId) river.frontage = "beyond-budget";
   }
   const roads = measureProcessing(profiler, "roads", () =>
-    collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit, profiler)
+    collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit, preparedRoads, profiler)
   );
   const waterbody = measureProcessing(profiler, "coastline", () =>
     collectWaterbody(burg, toLocal, half, metersPerMapUnit)
@@ -851,7 +852,7 @@ function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBou
     [origin[0] + half, origin[1] + half],
     [origin[0] - half, origin[1] + half]
   ];
-  const session = new SettlementGeometrySession();
+  const session = settlementGeometrySession(worldContext);
   session.prepare(worldContext, useOptionsState.getState().distanceUnit);
   const coverage = { minX: origin[0] - half, maxX: origin[0] + half, minY: origin[1] - half, maxY: origin[1] + half };
   for (const riverId of session.rivers(coverage)) {
@@ -1139,6 +1140,9 @@ function collectRouteLegs(
       continue;
     }
     if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
+    // Rendering only copies existing cell IDs (including added bend/midpoint IDs).
+    // A route with no burg cell cannot contribute a leg: avoid shaping every world route.
+    if (!route.points.some(point => point[2] === burg.cell)) continue;
     // Follow the route as FMG draws it (cell-anchor snapped), not its raw stored points:
     // a raw point can sit tens of degrees off the drawn bearing (Chateia burg 11).
     const points = measureProcessing(profiler, "route-render-points", () => Routes.getRenderPoints(route, pack)) as [
@@ -1167,13 +1171,14 @@ function collectRoadEntries(
   half: number,
   cityRadiusMeters: number,
   metersPerMapUnit: number,
+  preparedRoads: PreparedWorldRiverRoads,
   profiler?: ProcessingProfiler
 ): BurgSiteRoadEntry[] {
   const { pack } = worldContext;
   if (!pack.routes?.length) return [];
 
   const facilities = measureProcessing(profiler, "converged-facilities", () =>
-    convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!)
+    convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!, preparedRoads)
   );
   const entries: BurgSiteRoadEntry[] = [];
   for (const { route, leg } of measureProcessing(profiler, "route-legs", () => collectRouteLegs(burg, profiler))) {

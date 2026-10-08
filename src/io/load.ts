@@ -318,7 +318,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       const converged = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
       if (converged.changedRoutes.length) {
         worldContext.pack.cells.routes = Routes.buildLinks(worldContext.pack.routes);
-        resolveRiverRouteCrossings(worldContext);
+        resolveRiverRouteCrossings(worldContext, converged);
       }
       return { result: undefined, topics: ["map.networks"] };
     });

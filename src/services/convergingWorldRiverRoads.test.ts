@@ -133,6 +133,73 @@ describe("committed FMG shared bridge geometry", () => {
     expect(ensureConvergingWorldRiverRoads(restored, "km").facilities).toHaveLength(1);
     expect(restored.pack.routes).toEqual(snapshot);
   });
+  it("retains committed crossings after river metadata changes without touching roads", () => {
+    const world = fixture();
+    const prepared = ensureConvergingWorldRiverRoads(world, "km");
+    const roads = structuredClone(world.pack.routes);
+    Object.assign(world.pack.rivers[0], { name: "Renamed", type: "Creek", parent: 2, basin: 2 });
+    expect(ensureConvergingWorldRiverRoads(world, "km")).toBe(prepared);
+    expect(world.pack.routes).toEqual(roads);
+    expect(SettlementGeometrySession.prototype.prepare).toHaveBeenCalledTimes(1);
+    // Flux outside the river cannot change its crossing capability.
+    world.pack.cells.fl[0] = 999;
+    expect(ensureConvergingWorldRiverRoads(world, "km")).toBe(prepared);
+  });
+  it.each([
+    [
+      "depth",
+      (w: WorldContext) => {
+        w.pack.rivers[0].cellHydrology![4].waterDepth = 20;
+      }
+    ],
+    [
+      "width",
+      (w: WorldContext) => {
+        w.pack.rivers[0].sourceWidth = 2;
+      }
+    ],
+    [
+      "river flux",
+      (w: WorldContext) => {
+        w.pack.cells.fl[4] = 999;
+      }
+    ],
+    [
+      "terrain",
+      (w: WorldContext) => {
+        w.pack.cells.h[0] = 19;
+      }
+    ],
+    [
+      "route",
+      (w: WorldContext) => {
+        w.pack.routes[0].points.at(-1)![1] += 1;
+      }
+    ],
+    [
+      "population",
+      (w: WorldContext) => {
+        w.pack.burgs[1].population += 1;
+      }
+    ],
+    [
+      "period",
+      (w: WorldContext) => {
+        w.options.historicalPeriod = "earlyMedieval";
+      }
+    ],
+    [
+      "coast",
+      (w: WorldContext) => {
+        w.seed = "changed-coast";
+      }
+    ]
+  ])("revalidates crossings after a %s change", (_label, edit) => {
+    const world = fixture();
+    const prepared = ensureConvergingWorldRiverRoads(world, "km");
+    edit(world);
+    expect(ensureConvergingWorldRiverRoads(world, "km")).not.toBe(prepared);
+  });
   it("follows an oblique road with a skewed bridge only within the period's allowance", () => {
     const skewOf = (period: string) => {
       vi.restoreAllMocks();

@@ -1,5 +1,5 @@
 import type { WorldContext } from "../context/worldContext";
-import { drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
+import { defaultCoastSettings, drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import { useOptionsState } from "../store/optionsState";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 
@@ -27,6 +27,32 @@ interface Coast {
 }
 
 const cache = new WeakMap<object, Map<number, Coast | null>>();
+
+/** Dependencies shared by route preparation and its sampled coast cache. */
+export function coastalRouteGeometryKey(world: Readonly<WorldContext>): string {
+  const { pack } = world;
+  return JSON.stringify([
+    world.seed,
+    world.graphWidth,
+    world.graphHeight,
+    world.distanceScale,
+    world.options.portCoastPlacement,
+    defaultCoastSettings,
+    pack.features?.map(f => f && [f.i, f.type, f.vertices]),
+    pack.vertices?.p,
+    pack.vertices?.c,
+    pack.cells.v,
+    pack.cells.f,
+    pack.cells.t,
+    pack.cells.burg,
+    pack.cells.haven,
+    pack.burgs?.map(b => b && [b.i, b.x, b.y, b.cell, b.port, b.removed])
+  ]);
+}
+
+export function clearCoastalRouteGeometry(world: Readonly<WorldContext>): void {
+  cache.delete(world.pack);
+}
 
 function coastNear(world: Readonly<WorldContext>, burgId: number, radius: number): Coast | null {
   const { pack } = world;

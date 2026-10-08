@@ -1,7 +1,7 @@
 # 地図初期化プロセス
 
 > `src/app.ts` の `initApp()` を起点とする、現在の地図生成・表示・保存地図ロードの流れ。
-> 最終確認: 2026-08-03（`src/app.ts`, `src/main.ts`, `src/initViewLayers.ts`, `src/runtime/worldRuntime.ts`, `src/runtime/mapReadyTaskCoordinator.ts`, `src/extensions/economy/index.tsx`, `src/extensions/nobility/index.tsx`）
+> 最終確認: 2026-10-08（`src/app.ts`, `src/main.ts`, `src/initViewLayers.ts`, `src/runtime/worldRuntime.ts`, `src/runtime/mapReadyTaskCoordinator.ts`, `src/extensions/economy/index.tsx`, `src/extensions/nobility/index.tsx`、道路・河川サービス、CE 連携・計測 CLI）
 
 この文書の「順序」は、特記がない限り同一の同期処理内での呼び出し順である。`initMain()`、スタイル読込、生成、動的拡張の読込には `await` があるため、起動全体は完全な直列処理ではない。
 
@@ -40,7 +40,7 @@ initApp({ container?, drawMap = true, drawUI = true })
   ├─ initRenderCoordinator()
   │   └─ WorldRuntime の commit を描画・投影・WebGL 更新に接続
   │
-  ├─ window.fmg を一度だけ Object.freeze() して公開
+  ├─ window.fmg を Object.freeze() して公開
   │   └─ world / view / simulation / actions / extensionAPI
   │
   └─ await initExtensions()
@@ -77,12 +77,13 @@ checkLoadParameters(drawMap)
 
 generateMapOnLoad(drawMap)
   ├─ await applyStyleOnLoad()
-  ├─ await generate()                 → §3
+  ├─ await runGeneration()            → §3（失敗ならここで終了）
   └─ [drawMap]
        ├─ applyLayersPreset()
        ├─ drawLayers()
        ├─ fitMapToScreen()
-       └─ focusOn()                   // URL の scale/cell/burg/x/y を反映
+       ├─ focusOn()                   // URL の scale/cell/burg/x/y を反映
+       └─ void startMapReadyTasks()   → §3.2
 ```
 
 `applyLayersPreset()` は `localStorage["preset"]`、なければ Zustand の active preset を使う。対象のプリセットが存在しない場合は `political` に戻す。
@@ -95,17 +96,18 @@ generateMapOnLoad(drawMap)
 
 ```
 generate(opts?)
-  ├─ await dispatchWorldGenerate(opts)
-  │    └─ WorldRuntime.executeGenerate()
-  │         ├─ 現在の WorldDocument を rollback 用にスナップショット
-  │         ├─ await runGeneratePipeline({ seed, graph })
-  │         ├─ 出力を検証
-  │         └─ FULL_REPLACE_TOPICS を含む 1 回の fullReplace commit を publish
-  │              └─ RenderCoordinator が次フレームで全体描画を予約 → §5
-  ├─ [debug snapshot 有効時] 初期スナップショットを保存
-  ├─ drawScaleBar()
-  ├─ drawCalendar()
-  └─ showStatistics()
+  ├─ await runGeneration(opts)
+  │    ├─ await dispatchWorldGenerate(opts)
+  │    │    └─ WorldRuntime.executeGenerate()
+  │    │         ├─ 現在の WorldDocument を rollback 用にスナップショット
+  │    │         ├─ await runGeneratePipeline({ seed, graph })
+  │    │         ├─ 出力を検証
+  │    │         └─ FULL_REPLACE_TOPICS を含む 1 回の fullReplace commit を publish
+  │    │              └─ RenderCoordinator が次フレームで全体描画を予約 → §5
+  │    ├─ [debug snapshot 有効時] 初期スナップショットを保存
+  │    ├─ drawScaleBar() / drawCalendar() / showStatistics()
+  │    └─ 成功・失敗を返す（失敗時はエラーダイアログ等を処理）
+  └─ [生成成功] void startMapReadyTasks()
 ```
 
 生成中の `pack` / `grid` は既存オブジェクトを in-place で空にして再利用する。生成失敗または検証失敗時は `WorldRuntime` が生成前のスナップショットを戻し、commit は公開しない。
@@ -113,61 +115,65 @@ generate(opts?)
 ### `runGeneratePipeline()` の順序
 
 ```
- 1. setSeed()                         シードを決定し Alea と appServices.rng を初期化
- 2. applyGraphSize()
- 3. randomizeOptions()
-    └─ gunpowderEraEnabled / conflictAutonomy も options へ同期
+prepareGenerationStage()
+  ├─ setSeed() / applyGraphSize() / randomizeOptions() / options 同期
+  ├─ grid を再生成、または既存 grid.cells.h を破棄
+  ├─ pack を空にする（Heightmap 生成より前）
+  ├─ 初期 landUse / frontier / wilderness、拡張・simulation 状態を reset
+  └─ [renderMap] undraw()
 
- 4. grid を再生成、または既存 grid.cells.h を破棄
-    └─ precreatedGraph または generateGrid()
- 5. await HeightmapGenerator.generate() → grid.cells.h
- 6. pack を空にする
- 7. extension state slices と simulation の burg/state/military 状態を reset
+getGenerationStages()（同じ SettlementGeometrySession を 2 回の shift で共有）
+  1. Landscape outline
+     await HeightmapGenerator.generate() → grid.cells.h
+     → Features.markupGrid() → addLakesInDeepDepressions() → openNearSeaLakes()
+     → reGraph() → Features.markupPack() → resetRulers()
 
- 8. Features.markupGrid()
- 9. addLakesInDeepDepressions()
-10. openNearSeaLakes()
-11. [renderMap] OceanLayers()
-12. defineMapSize()
-13. calculateMapCoordinates()
-14. calculateTemperatures()
-15. generatePrecipitation()
+  2. Climate and waterways
+     [renderMap] OceanLayers() → defineMapSize() → calculateMapCoordinates()
+     → calculateTemperatures() → generatePrecipitation()
+     → OceanCurrents.generate() → Features.applyOceanCurrentEnclosure()
+     → Rivers.generate() → LavaFlows.generate() → Biomes.define()
+     → Features.defineGroups() → Ice.generate()
 
-16. reGraph()
-17. Features.markupPack()
-18. createDefaultRuler()
-19. Rivers.generate()
-20. Biomes.define()
-21. Features.defineGroups()
-22. Ice.generate()
-23. Threats.generate()
-24. rankCells()
-25. Cultures.generate() / Cultures.expand()
-26. Burgs.generate()
-27. States.generate()
-28. Routes.generate()
-29. Religions.generate()
-30. Burgs.specify()
-31. States.collectStatistics() / States.defineStateForms()
-32. Provinces.generate() / Provinces.getPoles()
-33. Rivers.specify() / Lakes.defineNames()
-34. Military.generate()
-35. establishVassalage()
-36. FrontierForts.generate()
-37. Markers.generate()
-38. Zones.generate()
+  3. Cultures and settlements
+     Threats.generate() → rankCells() → generateSubsistenceCapacity()
+     → [Fantasy] generateCaveSystems() → Deep Worms・danger 更新
+     → Cultures.generate() / expand() → seedDwarfHoldOikoumene()
+     → [条件付き] preferredFrontierStarts 算出
+     → applyInitialSettlementPattern() / settlementFoundation 設定
+     → Burgs.generate({ deferShift: true })
+     → await Burgs.shiftAsync({ geometrySession })
 
-39. initSimulationClock()
-40. simulation の burg/state/military 状態と extension state slices を bind
-41. applyHistoricalWarScars()
-42. Threats.appendCasualtyNotes()
-43. Names.getMapName(false)
-44. mapId が未設定なら Date.now() を設定
+  4. Realms and routes
+     [standard]
+       States.generate()
+       → await Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession })
+       → Routes.generate()
+     [standard 以外]
+       Routes.generate() → States.generate()
+       → await Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession })
+       → Routes.generate()
+     → Religions.generate() → Burgs.specify()
+     → States.collectStatistics() / defineStateForms() → assignWildLandTags()
+     → Provinces.generate() / getPoles() → Rivers.specify() / Lakes.defineNames()
+
+  5. Finish the world
+     Military.generate() → establishVassalage() → FrontierForts.generate()
+     → Markers.generate() → Dungeons.generate() → Zones.generate()
+     → initializeForestStock() → initSimulationClock() → ensureFuneralRemainsSeeded()
+     → advanceSeasonalClimate()
+     → simulation burg/state/military と extension state slices を bind
+     → applyHistoricalWarScars() → Threats.appendCasualtyNotes()
+     → ensureConvergingWorldRiverRoads()（最終入力で CE 用の準備を確定）
+     → [changedRoutes がある] resolveRiverRouteCrossings(preparedRoads)
+     → Names.getMapName(false) → mapId が未設定なら Date.now() を設定
 ```
+
+通常起動は `src/main.ts` の上記非同期 pipeline を使う。`src/generators/index.ts` の同期ヘルパー `generateWorld()` は別経路であり、その呼び出し順を通常の地図生成順として扱わない。
 
 ### 3.1 生成工程の確認ダイアログ
 
-通常の新規生成は、画面中央の `Build map` ダイアログで以下の 5 工程ごとに停止する。最初の `Landscape outline` では高さマップを SVG にプレビューするため、国家や都市を生成する前に海岸線を確認できる。
+`renderMap` が有効で React UI コンテナがある通常の新規生成は、画面中央の `Build map` ダイアログで以下の 5 工程ごとに停止する。最初の `Landscape outline` では高さマップを SVG にプレビューするため、国家や都市を生成する前に海岸線を確認できる。
 
 1. `Landscape outline` — grid / 高さマップ / 湖 / pack graph / feature
 2. `Climate and waterways` — 気候、降水、河川、バイオーム、氷
@@ -185,7 +191,7 @@ generate(opts?)
 
 ### 3.2 コア生成後: Map Ready task と初期資産の配布
 
-`generate()`、`regenerateMap()`、通常の `generateMapOnLoad()` は、コア world の commit と初回描画後に `startMapReadyTasks()` を起動する。コーディネータは double `requestAnimationFrame` の後に `fmg:generate-post-core` を一度 dispatch し、登録済み task を依存関係順（依存のない task 同士は登録順）に `await` する。組込み拡張の現在の順序は Economy → Nobility → Shipbuilding であり、Shipbuilding は明示的に Economy に依存する。
+`generate()`、`regenerateMap()`、`drawMap: true` の `generateMapOnLoad()` は、コア world の commit と初回描画後に `startMapReadyTasks()` を起動する。コーディネータは double `requestAnimationFrame` の後に `fmg:generate-post-core` を一度 dispatch し、登録済み task を依存関係順（依存のない task 同士は登録順）に `await` する。組込み拡張の現在の順序は Economy → Nobility → Shipbuilding であり、Shipbuilding は明示的に Economy に依存する。
 
 ```
 core world fullReplace / 初回描画
@@ -293,6 +299,44 @@ Worker
 - Economy commit 前に Nobility / Shipbuilding が開始されず、commit 後には現在と同じ初期 wealth・Market 在庫・shipyard warm-up が得られること。
 - 大規模地図でも Map Ready の progress UI、pan/zoom、キャンセル操作が応答し続けること。E2E では render mode を明示的に固定する。
 
+### 3.4 道路・河川準備の回数と内容（2026-10-08 改修後）
+
+以下は工程確認で戻る・再試行する操作のない **pipeline 1 周**の呼び出し回数である。途中から戻る場合は pipeline を先頭から再実行するため、既に通った工程の回数は増える。描画、拡張、プレビューによる追加の問い合わせは含まない。
+
+| 処理 | standard | standard 以外 | 内容 |
+| :-- | --: | --: | :-- |
+| `Rivers.generate()` | 1 | 1 | 気候・地形から世界の河川を生成する。 |
+| `Burgs.shiftAsync()` | 2 | 2 | 河岸・海岸への都市位置調整、water access 更新。 |
+| `Routes.generate()` | 1 | 2 | 陸路・航路生成、横断調整、通航検証。非 standard の初回は国家生成前、2 回目は国家・都市位置確定後。 |
+| `ensureConvergingWorldRiverRoads()` | 2 | 3 | 各道路生成内で 1 回、Finish the world の最後で 1 回。横断判定へ準備結果を渡すため、内部での再確認は省く。 |
+| `resolveRiverRouteCrossings()` | 1〜2 | 2〜3 | 各道路生成内で 1 回、最後の準備結果に changedRoutes があれば 1 回追加。 |
+| `Rivers.specify()` | 1 | 1 | parent / basin / name / type を設定。これらだけの変更は収束キャッシュを無効化しない。 |
+
+都市配置、道路収束、CE の canonical water 抽出は `settlementGeometrySession(world)` を通して **pack ごとに同じ session** を使う。各境界で入力を確認するが、地形索引と河川索引は別々に更新し、変更のない河川の幾何・断面キャッシュを保持する。人口・橋技術の変更は横断の再評価を必要とするが、それだけでは河川形状を再構築しない。
+
+```
+Routes.generate():
+  sync() → createRoutesData()
+  → prepared = ensureConvergingWorldRiverRoads()
+  → buildLinks() → resolveRiverRouteCrossings(world, prepared)
+  → 河川貨物船・外洋船の navigation graph 構築
+  → 横断不能・通航不能 route を除去 → buildLinks()
+  → [landConnectionGeneration] 登録陸路を生成・置換 → buildLinks()
+
+Finish the world の末尾:
+  prepared = ensureConvergingWorldRiverRoads()（上記の除去・都市詳細・季節更新後）
+  → [prepared.changedRoutes がある] resolveRiverRouteCrossings(world, prepared)
+  → 世界を commit
+```
+
+収束準備は、入力不一致時に元の道路点列を復元し、沿岸道路を調整、地形・河川索引と都市近傍の道路脚を準備して、橋候補・渡し・迂回を検証し、道路点列・リンク・都市別横断施設を確定する。橋の角度判定は `bridgeSkewPolicy.ts` の時代・国家技術の制約を使う。
+
+**生成完了時点で、最終入力に対する CE 用準備が存在する。** 改修前は `pack.rivers` 全体を比較していたため `Rivers.specify()` の名称等で無効化していたが、現在は形状・横断水深等の依存値だけを比較する。道路除去、`Burgs.specify()` の人口確定、季節による水深更新などの必要な再評価は、最後の準備で完了させる。生成後の編集・拡張・シミュレーションが依存値を変えた場合は改めて準備する。
+
+`landConnectionGeneration` 有効時、通常の収束サービスはキー確認後に空の準備結果を返す。登録陸路は `generateWorldLandConnections()` が担うため、通常経路の全体再構築回数をこのモードに適用しない。
+
+上表は **呼び出し回数**であり、再構築回数ではない。入力が変わらなければ、最後の ensure も既存結果を返す。
+
 ---
 
 ## 4. ホスト SVG レイヤーと DOM 順
@@ -312,14 +356,16 @@ SVG は後に追加された兄弟要素ほど前面になる。以下は `#view
   │    ├─ #enclosure                 display:none
   │    ├─ #landmass
   │    ├─ #texture
-  │    ├─ #terrs
-  │    │    ├─ #oceanHeights
-  │    │    └─ #landHeights
-  │    ├─ #lakes
+  │    ├─ #lakes                     display:none
   │    │    ├─ #freshwater / #salt / #sinkhole
   │    │    └─ #frozen / #lava / #dry
   │    ├─ #biomes
+  │    ├─ #coastalHabitats           display:none
+  │    ├─ #terrs
+  │    │    ├─ #oceanHeights
+  │    │    └─ #landHeights
   │    ├─ #danger                    display:none
+  │    ├─ #underground               display:none
   │    ├─ #population
   │    │    ├─ #rural
   │    │    └─ #urban
@@ -339,12 +385,12 @@ SVG は後に追加された兄弟要素ほど前面になる。以下は `#view
   │    ├─ #borders
   │    │    ├─ #stateBorders
   │    │    └─ #provinceBorders
-  │    ├─ #routes
-  │    │    ├─ #roads / #trails / #searoutes
   │    ├─ #temperature
   │    ├─ #coastline
   │    │    ├─ #sea_island
   │    │    └─ #lake_island
+  │    ├─ #routes
+  │    │    └─ #roads / #trails / #searoutes / #railways
   │    ├─ #ice
   │    ├─ #prec                     display:none
   │    ├─ #emblems                  display:none
@@ -395,12 +441,12 @@ drawLayers()
        └─ paintSvgMapLayers()
 ```
 
-SVG 経路の `paintSvgMapLayers()` は以下の順に renderer を呼ぶ。個々の項目は対応する layer toggle が ON の場合だけ描画する（Features / lakes 同期を除く）。視覚的な前後関係は呼び出し順ではなく §4 の DOM 順で決まる。
+SVG 経路の `paintSvgMapLayers()` は以下の順に renderer を呼ぶ。個々の項目は対応する layer toggle が ON の場合だけ描画する（Features / LavaFlows / lakes 同期を除く）。視覚的な前後関係は呼び出し順ではなく §4 の DOM 順で決まる。
 
 ```
-Features → Texture → Heightmap → Biomes → Cells → Grid → Coordinates → Compass
+Features → LavaFlows → Texture → Heightmap → Biomes → CoastalHabitats → Cells → Grid → Coordinates → Compass
 → Rivers → Relief → Religions → Cultures → States → Provinces → Zones → Borders
-→ Routes → Temperature → Population → Ice → Precipitation → Danger → CombatDeaths
+→ Routes → Temperature → Population → Ice → Precipitation → Danger → Underground → CombatDeaths
 → Enclosure → Labels → Burg icons → Military → Markers → Frontier forts
 → extension draw hooks → Rulers
 ```
@@ -437,7 +483,32 @@ Features → Texture → Heightmap → Biomes → Cells → Grid → Coordinates
 
 ## 7. 保存地図のロードとレイヤー再取得
 
-保存地図では世界データを `world.replace` として検証・commit した後に、`applyLegacyMapView()` が view 専用の復元を行う。
+### 7.1 `.fmg` アーカイブのデータ準備
+
+`uploadMap()` はヘッダーで形式を判別する。chunked `.fmg` の `loadChunkedWorldArchive()` は以下を行う。旧形式の SVG 復元経路とは区別する。
+
+```
+decodeAndValidateWorldArchive() → 進行中の生成の終了を待つ
+→ world.replace（検証済み world / simulation / presentation を適用）
+→ OceanLayers()
+→ refreshAllRiverHydrology() → updateAllBurgWaterAccess()
+→ [seaRouteGenerationMode が保存され、登録陸路アーカイブではない]
+    regenerateLoadedRoutes() → Routes.generate()（locked route は保持）
+→ UI options 同期
+→ [landConnectionGeneration] 登録陸路の現状確認・リンク再構築
+→ ensureConvergingWorldRiverRoads()
+→ [changedRoutes がある] buildLinks() → resolveRiverRouteCrossings(world, converged)（準備結果を再利用）
+→ character race 移行 → callback / Map Ready task を利用可能にする
+→ world-loaded / render-mode-changed / refresh-editors イベント
+```
+
+道路再生成の条件を満たす通常経路では `Routes.generate()` が 1 回、ensure はその内部 1 回と最後の 1 回で **2 回**。道路を保存時のまま維持する経路では最後の ensure が **1 回**。横断判定には準備結果を渡すので追加の ensure は行わない。最後の ensure は道路生成後の route 除去による変更も検出する。これらの回数はキャッシュ確認を含み、全体再構築回数とは異なる。
+
+収束結果・河川索引の `WeakMap` キャッシュはランタイム内のもので、ファイルに保存されない。route に保存された `riverRoadConvergence` の元点列等と、メモリー上の都市別施設・索引キャッシュは別物である。したがって、ファイルを読み込む別セッションでは準備が必要になる。
+
+### 7.2 旧形式の SVG 復元
+
+旧形式では世界データを `world.replace` として検証・commit した後に、`applyLegacyMapView()` が view 専用の復元を行う。
 
 ```
 applyLegacyMapView()
@@ -463,24 +534,119 @@ applyLegacyMapView()
 
 ---
 
-## 8. デフォルトの Political preset
+## 8. FMG → CE 連携: 1 回目と 2 回目
 
-`political` プリセットは以下を ON にする。拡張レイヤーは含まれない。
+ここでの「2 回目」は、**同じ FMG タブ・同じ世界で、連携の間に地図や設定を変更せず**、同じ都市または別の都市を新しい CE タブへ開く場合である。FMG の再ロード、別タブ、新しい CLI 実行には、このキャッシュ再利用条件を適用しない。都市プレビューや RE 連携も descriptor を取得するため、CE を初めて開く前に既にキャッシュが準備されている場合がある。
 
-- Borders
-- Burg icons
-- Ice
-- Labels
-- Lakes
-- Rivers
-- Routes
-- Scale bar
-- States
-- Vignette
+### 8.1 FMG 側の処理工程
+
+右クリックからの `openCityEditorForBurg()` は次を同期実行してから CE を開く。
+
+```
+stashCitySite(burgId)
+  → getBurgSiteDescriptor(burgId)
+      → prepared = ensureConvergingWorldRiverRoads()   全体確認は 1 回
+      → 人口・局所座標・water access・river frontage・frame 算出
+      → convergedBurgCrossings(..., prepared)          準備済み施設から抽出
+      → [横断データがない] canonicalSiteWater()        共有 session で局所水面を抽出
+      → 河川・海岸・地形・地域コンテキスト等の切り出し
+      → collectRoadEntries(..., prepared)
+          → convergedBurgFacilities(..., prepared)     同じ準備結果から抽出
+          → 都市セルを含む route を選別
+          → 対象 route のみ getRenderPoints()・frame との交差抽出
+      → BurgSiteDescriptor を組み立てる
+  → JSON.stringify() → sessionStorage["fmg.citySite"]
+→ openURL("city-editor/")（同一 origin の新タブへ sessionStorage をコピー）
+```
+
+通常の有効な都市では ensure は **descriptor 1 回につき 1 回**。その結果を同じ同期処理内の横断・道路抽出へ渡す。以前の 3 回の全体確認を 1 回にした。準備結果の受け渡しは、その間に依存値を書き換えない同期処理内に限定する。
+
+| 工程 | 1 回目の CE 連携 | 2 回目の CE 連携 |
+| :-- | :-- | :-- |
+| 全体の道路・河川収束準備 | 生成末尾または通常ロード末尾の準備結果を再利用。以後の変更・CLI cold では必要に応じて準備する。 | 前回以降依存値が変わらなければ再利用。河川名等の変更でも維持。 |
+| 全体キー確認 | 1 回。現行の in-place 編集も検出する。 | 同じく 1 回。 |
+| 河川 source・地形索引 | 共有 session を利用。source の照合は河川ごとの実際の形状入力で行う。 | 変更のない河川・地形の計算結果を維持。 |
+| 都市別 descriptor | 局所データを新規抽出。道路の描画点生成は都市に接続する route のみ。 | 同じ都市でも再抽出。完成 descriptor のキャッシュは設けていない。 |
+| JSON 保存・CE 起動 | 毎回実行。 | 毎回実行。 |
+
+収束準備は `pack` ごとのキャッシュで、依存キーを海岸と道路・河川横断に分ける。海岸は seed・描画設定・港の固定辺・地形頂点・都市位置等、横断は距離単位・縮尺・人口係数・都市化・時代・橋技術・河川形状/流量/水深・陸地高さ・都市位置/人口/所属・国家の石造/木造の角度上限・route 点列/種別/航行区分/セル等を確認する。必要な変更を検出する一方、河川名・parent・basin・type はこの横断準備の依存値に含めない。descriptor の名称や下流情報は現在の world から毎回取得する。
+
+`regionalRiverGeometry()` は meander・曲線生成 **より前**に、当該河川が参照する座標・流量・高さ・幅・縮尺・精度のキーを照合する。ヒットなら source 再生成も省略する。1 本の河川変更ではその河川の source を作り直し、共有空間索引を更新するが、他の河川の断面・局所水面キャッシュは保持する。地形の索引は別のキーを持つ。
+
+### 8.2 CE 側の処理工程（初回・2 回目とも）
+
+新規 CE タブは `incomingCity.ts` で受け取った descriptor を検証し、`shareFromDescriptor()` で seed・grid・size・生成設定を決める。`CityEditorPage.ts` が frame に合う grid document を作り、Complete City 生成を開始する。Worker が利用できる場合は `generationWorkerClient` 経由、利用できない場合はメインスレッドで同じ `generateCityOnDocument()` を使う。
+
+```
+受信 payload 検証・設定復元 → grid document 作成
+→ Worker へ入力・設定・seed を送信（または同期 fallback）
+→ generateCityOnDocument()
+    → prepare → plan → apply-plan
+    → 道路・区画の幾何調整 → 橋・門・城・寺院・横断検証
+    → fabric・都市外道路・道路端・畑・墓地・water access
+    → fitImportedHousing()（実際の住宅数を数え、occupancy を調整）
+    → spawnHarborShips() → 固定横断の進入路調整
+    → 成功時に再現 recipe・scene regions を設定
+    → 失敗時は元入力から別の決定的 seed で再試行（上限あり）
+→ 結果を CE の document に適用 → 描画・編集用索引等を更新
+```
+
+CE は渡された局所 descriptor を使い、FMG の全世界の道路・河川準備を呼ばない。FMG タブのメモリーキャッシュは新しい CE タブと共有されない。新規 CE タブを開く2回目も都市生成・住宅数調整・船配置・描画を行うため、FMG のキャッシュヒットは CE 自体の生成を省略しない。
+
+### 8.3 計測 CLI とブラウザの違い
+
+[CE パフォーマンス CLI](tools/ce-performance.md) の `.fmg` 準備は `housingReport.ts` の `loadArchiveWorld()` で decode/validate した world を取得し、simulation の burg 状態を bind する。**`uploadMap()` の hydrology 更新・道路再生成・最後の収束準備を経由しない。** そのため最初の descriptor の計測に全体準備が含まれ得る。ブラウザの保存地図読み込み完了後の CE 初回と同一の条件ではない。
+
+1 回の CLI 実行では選択都市の descriptor を同じ準備プロセスで順次作る。`--repeat` は CE の生成入力を別プロセスで繰り返し生成する指定であり、同じ都市の FMG descriptor を再取得して「連携2回目」を測る指定ではない。別の CLI 実行は新しいキャッシュから始まる。
+
+先の Feltashbrid（ID 27）の内訳計測で得た全体収束準備約 2.71 秒、descriptor 全体約 3.18 秒は、この CLI の cold な取得条件の値である。生成段階・通常ロード段階で何秒かかったか、ブラウザ2回目で何秒短縮するかをこの結果からは判断しない。
+
+### 8.4 キャッシュ設計と再計算範囲
+
+| 変更 | 河川幾何 | 地形索引 | 道路・横断準備 |
+| :-- | :-- | :-- | :-- |
+| 河川名・parent・basin・type | 維持 | 維持 | 維持（descriptor 表示・下流情報は更新） |
+| 河川 1 本の座標・幅・参照セルの流量/高さ | 当該河川を再構築、他の河川を維持 | 頂点が同じなら維持 | 再評価 |
+| 河川の横断水深のみ | 維持 | 維持 | 渡し・橋・通航条件を再評価 |
+| 都市人口・国家の橋技術・道路点列 | 維持 | 維持 | 再評価 |
+| 地形頂点・縮尺・単位 | 影響する形状入力を再評価 | 再構築 | 再評価 |
+| pack の差し替え | 新しいキャッシュ | 新しい session | 新しいキャッシュ |
+
+道路収束は道路点列を更新し、複数都市が同じ route を共有する。そのため現段階では、実際に道路・横断依存値が変わった場合の**都市ごとの収束計算は全体を再評価**する。河川幾何と断面は再利用するが、影響都市だけに絞る増分収束は未実装。孤立した都市単位で無条件に再利用すると、隣の都市で更新した同じ道路の点列と矛盾するためである。
+
+更新番号だけによる定数時間の確認も未導入。現行の編集経路は配列・オブジェクトを直接変更するため、変更通知を通らない更新を見落とさないよう値を照合する。将来導入する場合は全 writer の通知と、共有 route を通じた影響範囲の伝播を先に整備する。
+
+検証は名称変更後のキャッシュ維持、幅/流量/水深/道路/人口/時代等の変更検出、1 本変更時の他河川キャッシュ維持、幾何 source のヒット時の meander 省略、無関係な道路の描画点生成省略、橋・CE descriptor の既存テストを対象とする。
+
+実ファイルによる比較は `temp/000.savdata/Conland 2026-10-08-06-04.fmg` の Feltashbrid（ID 27）を同一プロセスで cold → warm → 全河川の名称変更後の順に取得する。通常の生成・ロード完了後のブラウザ時間とは区別する。
+
+2026-10-08 の単回比較（FMG descriptor の時間。CE 本体の生成は含まない）:
+
+| 条件 | 改修前 | 改修後 |
+| :-- | --: | --: |
+| cold（CLI 相当の未準備 world） | 3,033.5 ms | 2,862.1 ms |
+| warm（同じ都市の再取得） | 454.6 ms | 29.1 ms |
+| 全河川の名称変更後 | 2,576.1 ms | 25.9 ms |
+
+道路描画点生成は 426 本から 4 本になった。全条件で改修前後の descriptor JSON を比較し一致した。単回のため絶対時間には実行環境の揺らぎがある。cold の全体準備そのものは残り、通常の新規地図では生成末尾に実行する。測定結果は `temp/cache-audit-before.json` / `temp/cache-audit-final.json`、確認用スクリプトは `temp/audit-ce-cache.mjs`（いずれもローカル診断用）に保存。
+
 
 ---
 
-## 9. 関連ファイル
+## 9. デフォルトの Political preset
+
+`political` プリセットは以下を ON にする。拡張レイヤーは含まれない。以下は組込みの既定値であり、保存されたカスタムプリセット・presentation は別途復元される。
+
+- Borders
+- Burg icons
+- Labels
+- Rivers
+- Routes
+- States
+
+---
+
+## 10. 関連ファイル
 
 | ファイル | 役割 |
 | :-- | :-- |
@@ -497,3 +663,16 @@ applyLegacyMapView()
 | [src/extensions/economy/generators/foodProduction.ts](../src/extensions/economy/generators/foodProduction.ts) | Burg/Market の初期資本と食料備蓄の seed |
 | [src/extensions/economy/generators/characterStipends.ts](../src/extensions/economy/generators/characterStipends.ts) | 有給キャラクターの初期 wealth と継続 stipend |
 | [src/extensions/nobility/index.tsx](../src/extensions/nobility/index.tsx) | Nobility の Map Ready task と政治キャラクター生成 |
+| [src/generators/routes-generator.ts](../src/generators/routes-generator.ts) | 道路生成・収束・横断・通航検証の順序 |
+| [src/services/convergingWorldRiverRoads.ts](../src/services/convergingWorldRiverRoads.ts) | 世界の道路・河川収束準備とキャッシュキー |
+| [src/services/riverRouteCrossings.ts](../src/services/riverRouteCrossings.ts) | 道路・河川交差の計画 |
+| [src/services/settlementGeometrySession.ts](../src/services/settlementGeometrySession.ts) | 都市配置と水面・地形の索引 session |
+| [src/services/regionalRiverGeometry.ts](../src/services/regionalRiverGeometry.ts) | 河川別の幾何キャッシュと局所 query |
+| [src/services/burgSiteDescriptor.ts](../src/services/burgSiteDescriptor.ts) | CE/RE 用の都市局所データ抽出 |
+| [src/controllers/city-editor-handshake.ts](../src/controllers/city-editor-handshake.ts) | descriptor 保存と CE タブ起動 |
+| [src/io/load.ts](../src/io/load.ts) | ブラウザ保存地図ロードと道路・河川の再準備 |
+| [src/city-editor/io/incomingCity.ts](../src/city-editor/io/incomingCity.ts) | CE の受信・検証・生成設定変換 |
+| [src/city-editor/ui/CityEditorPage.ts](../src/city-editor/ui/CityEditorPage.ts) | CE の grid・Worker・描画の制御 |
+| [src/city-editor/core/generate.ts](../src/city-editor/core/generate.ts) | CE の都市生成と再試行 |
+| [src/city-editor/core/housingReport.ts](../src/city-editor/core/housingReport.ts) | CLI のアーカイブ読み込み |
+| [src/city-editor/core/cityGenerationPerformance.ts](../src/city-editor/core/cityGenerationPerformance.ts) | CLI の FMG 連携準備と CE 計測 |
