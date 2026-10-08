@@ -131,4 +131,11 @@ describe("culture cemetery production path", () => {
     };
     expect(assignWards(hills).wards.find(w => w.kind === "cemetery")?.cellId).toBe(2);
   });
+
+  it("still gives a roadside-necropolis culture an outskirts cemetery when no cell sits at the ideal road distance", () => {
+    // No streets at all, so every outskirts cell misses the 10-50 m roadside band
+    // (Combreche burg 799 Jaszsolmasza lost its cemetery this way).
+    const cemetery = assignWards(wardInput("extramural_highway")).wards.find(w => w.kind === "cemetery");
+    expect(cemetery && [2, 3].includes(cemetery.cellId)).toBe(true);
+  });
 });

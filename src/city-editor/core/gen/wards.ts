@@ -786,6 +786,9 @@ function placeCemetery(
   // 2. Extramural Placement: Outside walls / in outskirts along approach roads or scenic ridges
   if (isExtramural && outskirts.size > 0) {
     const outskirtsCandidates: Array<{ id: number; score: number }> = [];
+    // Cells that only miss the culture's ideal road/plaza distance. Every
+    // town buried its dead somewhere, so these beat having no cemetery.
+    const relaxedCandidates: Array<{ id: number; score: number }> = [];
     const plazaCenter = plaza?.anchor ?? [0, 0];
 
     for (const id of outskirts) {
@@ -812,8 +815,9 @@ function placeCemetery(
       }
 
       const distToPlaza = Math.hypot(cell.centroid[0] - plazaCenter[0], cell.centroid[1] - plazaCenter[1]);
-      if (burialProfile && zoning === "extramural_highway" && (minStreetDist < 10 || minStreetDist > 50)) continue;
-      if (burialProfile && zoning === "extramural_sanitary" && distToPlaza < 100) continue;
+      const missesIdeal =
+        (!!burialProfile && zoning === "extramural_highway" && (minStreetDist < 10 || minStreetDist > 50)) ||
+        (!!burialProfile && zoning === "extramural_sanitary" && distToPlaza < 100);
 
       // Ideal suburban gate distance: ~60m to 250m (not blocking the immediate gate arch, but nearby)
       const gateScore = minGateDist < Infinity ? 30 / (1 + Math.abs(minGateDist - 120) / 60) : 10;
@@ -840,15 +844,17 @@ function placeCemetery(
       // Reject cells that have a major road or highway cutting straight through them
       if (isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) continue;
 
-      outskirtsCandidates.push({ id, score });
+      (missesIdeal ? relaxedCandidates : outskirtsCandidates).push({ id, score });
     }
 
-    if (outskirtsCandidates.length > 0) {
-      outskirtsCandidates.sort((a, b) => b.score - a.score);
-      return outskirtsCandidates[0].id;
+    for (const list of [outskirtsCandidates, relaxedCandidates]) {
+      if (list.length === 0) continue;
+      list.sort((a, b) => b.score - a.score);
+      return list[0].id;
     }
   }
 
+  // Cultures that bury outside the town never move the cemetery inside it.
   if (burialProfile && isExtramural) return null;
 
   // Traditional Intramural Placement (Medieval / Churchyard / Core)
