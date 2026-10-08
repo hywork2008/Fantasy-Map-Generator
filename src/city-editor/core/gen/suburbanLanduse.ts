@@ -3,7 +3,7 @@ import type { CityDocument, Point } from "../types";
 import { evaluateApproachBeyond, externalGateRoads, normalizeApproachBeyond } from "./approachBeyond";
 import type { DistrictFabric } from "./blockInfill";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
-import { chord } from "./localInfill";
+import { chord, isSuburb } from "./localInfill";
 
 type Profile = "trade" | "granary" | "frontier" | "rural";
 interface Approach {
@@ -65,10 +65,24 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
       }))
       .sort((a, b) => a.distance - b.distance)[0];
   const outskirts = (id: string) => document.mesh.faces[id]?.properties.settlement === "outskirts";
+  // A residential suburb (faubourg, gate suburb, harbour) is a built-up
+  // district, not roadside ribbon. It keeps its blocks and only clears the
+  // glacis outside the wall.
+  const districtOf = new Map(
+    (document.fabric?.districts ?? []).flatMap(d => d.faceIds.map(id => [id, d.parameters] as const))
+  );
+  const suburb = (id: string) => {
+    const face = document.mesh.faces[id];
+    return !!face && isSuburb(face, districtOf.get(id));
+  };
   const buildings = fabric.buildings.filter(building => {
     if (!outskirts(building.faceId)) return true;
     const center = polygonCentroid(building.polygon);
     const near = nearest(center);
+    if (suburb(building.faceId)) {
+      const glacis = near?.road.clearance ?? 25;
+      return !building.polygon.some(p => wallDistance(p) < glacis);
+    }
     if (
       !near ||
       near.road.profile === "frontier" ||

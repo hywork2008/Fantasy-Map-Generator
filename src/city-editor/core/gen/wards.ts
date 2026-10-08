@@ -325,7 +325,12 @@ export function assignWards(input: WardInputs): WardResult {
   for (const cell of cells) {
     if (urban.has(cell.id) || sea.has(cell.id) || occupied.has(cell.id)) continue;
     if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
-    if (rng() < OUTER_GATE_CHANCE) take(cell.id, "gate");
+    if (rng() < OUTER_GATE_CHANCE) {
+      take(cell.id, "gate");
+      // A gate suburb is built-up land; outside the outskirts it would keep
+      // its ward but never be buildable, so it drew no houses.
+      outskirts.add(cell.id);
+    }
   }
 
   // 7. Remaining outskirts: compact + 20% → Farm, else empty Ward.

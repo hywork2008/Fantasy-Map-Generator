@@ -104,8 +104,12 @@ function occupancyColumns(survey: HousingOccupancySurvey | null): Record<string,
     fit_initial_houses: fit?.initialHouses ?? "",
     fit_final_houses: fit?.finalHouses ?? "",
     fit_factor: round(fit?.factor, 4),
+    fit_outskirts_factor: round(fit?.outskirtsFactor, 4),
+    fit_suburbs: fit?.suburbs ?? "",
     fit_rebuilds: fit?.samples.length ?? "",
-    fit_samples: fit ? fit.samples.map(([factor, houses]) => `${round(factor, 4)}:${houses}`).join(" ") : "",
+    fit_samples: fit
+      ? fit.samples.map(([core, outskirts, houses]) => `${round(core, 4)}/${round(outskirts, 4)}:${houses}`).join(" ")
+      : "",
     fit_ms: round(survey.fitMs, 0),
     ...zone("core", survey.core),
     ...zone("outskirts", survey.outskirts),

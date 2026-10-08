@@ -348,6 +348,9 @@ export interface DistrictParameters {
   harborPreset?: HarborPreset;
   /** Fraction of eligible lots retained, not a guaranteed area coverage. */
   occupancy: number;
+  /** Outskirts only: build in blocks like the core instead of roadside ribbon.
+   * Set by the FMG housing fit when the full core cannot house the dwellings. */
+  suburb?: boolean;
   /** Core: footprint fraction of each street block; outskirts: fraction of each lot. */
   coverage: number;
   lotArea: number;

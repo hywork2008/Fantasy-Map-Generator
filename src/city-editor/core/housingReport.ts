@@ -131,7 +131,9 @@ function occupancyZone(
     cells,
     areaM2,
     occupancy,
-    initialOccupancy: occupancy === null || !(factor > 0) ? null : (occupancy / factor) * firstFactor,
+    // An emptied zone (factor 0) falls back to its default district occupancy.
+    initialOccupancy:
+      occupancy === null ? null : (factor > 0 ? occupancy / factor : settlement === "core" ? 1 : 0.82) * firstFactor,
     coverage: mean(weighted.coverage),
     lotAreaM2: mean(weighted.lotArea),
     houses: zoneHouses.length,
@@ -146,11 +148,10 @@ export function surveyOccupancy(
   fitSample: GenerationSample | undefined
 ): HousingOccupancySurvey {
   const fit = fitSample?.housingFit ?? null;
-  const factor = fit?.factor ?? 1;
   // The first count ran at the guide, clamped so no district exceeded 100%.
   const firstFactor = fit ? fit.targetOccupancy : 1;
-  const core = occupancyZone(document, houses, "core", factor, firstFactor);
-  const outskirts = occupancyZone(document, houses, "outskirts", factor, firstFactor);
+  const core = occupancyZone(document, houses, "core", fit?.factor ?? 1, firstFactor);
+  const outskirts = occupancyZone(document, houses, "outskirts", fit?.outskirtsFactor ?? 1, firstFactor);
   const area = core.areaM2 + outskirts.areaM2;
   const initialOccupancy =
     area > 0

@@ -225,9 +225,42 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
       unreached = unreachedUrban();
     }
   }
+  // Outskirts land cut off by farms (a harbour, a gate suburb) still has a
+  // track to the field roads. Open it on the dry edge nearest the hub.
+  if (queue.length > 0) {
+    for (const id of land) {
+      if (reached.has(id) || mesh.faces[id].properties.settlement !== "outskirts") continue;
+      const face = mesh.faces[id];
+      if (face.properties.locked) continue;
+      let best: Id | null = null;
+      let bestDistance = Infinity;
+      for (const ref of face.boundary) {
+        const edge = mesh.edges[ref.edgeId];
+        if (barriers.has(edge.id) || edge.locked) continue;
+        const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
+        if (!other || other.properties.water !== "land") continue;
+        const d = distance(edgeMid(edge.id), organicContext.hub);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = edge.id;
+        }
+      }
+      if (!best) continue;
+      add(id, edgeMid(best));
+      reached.add(id);
+      const startCursor = queue.length;
+      queue.push(id);
+      expandReachability(startCursor);
+    }
+  }
   const grouped = new Set<Id>();
   for (const ids of outskirtsComponents(
-    queue.filter(id => mesh.faces[id].properties.settlement === "outskirts"),
+    queue.filter(
+      id =>
+        mesh.faces[id].properties.settlement === "outskirts" &&
+        // Residential suburbs are built in blocks by paintFace.
+        !isSuburb(mesh.faces[id], options?.parameters.get(id))
+    ),
     mesh,
     barriers,
     !document.fabric && options?.layout !== "classic"
@@ -404,6 +437,16 @@ function paintOutskirtsUnion(document: CityDocument, ids: Id[], fabric: CityFabr
   return true;
 }
 
+/** Outskirts wards that stay as sparse road-side ribbons rather than blocks. */
+export const OUTSKIRTS_RIBBON_WARDS = new Set(["empty", "farm", "park", "cemetery", "castle"]);
+
+/** A residential suburb (faubourg, gate suburb, harbour) the housing fit opened
+ * for blocks. Roadside ribbon infill draws ~2 houses/ha against ~130 in the
+ * core (Kormat survey, 2026-10-08), so a town that outgrows its core needs it. */
+export function isSuburb(face: Face, parameters: DistrictParameters | undefined): boolean {
+  return parameters?.suburb === true && !OUTSKIRTS_RIBBON_WARDS.has(face.properties.ward ?? "empty");
+}
+
 function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: PaintContext): void {
   const { mesh } = document;
   const face = mesh.faces[id];
@@ -441,11 +484,12 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   });
   const isCirculade = ctx.options?.layout === "circulade";
   const isClassic = ctx.options?.layout === "classic";
+  const suburb = outskirts && isSuburb(face, parameters);
   const key = ctx.options
     ? JSON.stringify([
         isClassic
           ? "district-infill-classic-v3"
-          : outskirts
+          : outskirts && !suburb
             ? "outskirts-face-v3"
             : ["district-organic-network-v4", ORGANIC_LANE_FACADE_CLEARANCE],
         ctx.options.seed,
@@ -458,7 +502,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
         boundaries,
         nearbyRivers,
         reserved,
-        !isClassic && !outskirts ? ctx.organicContext : null
+        !isClassic && (!outskirts || suburb) ? ctx.organicContext : null
       ])
     : "";
   if (reserved) {
@@ -473,7 +517,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
     return;
   }
   const local: CityFabric =
-    isClassic || (!outskirts && face.properties.ward !== "castle")
+    isClassic || ((!outskirts || suburb) && face.properties.ward !== "castle")
       ? isCirculade
         ? buildCirculadeBlocks(
             face,
@@ -495,7 +539,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
             ctx.organicContext
           )
       : { buildings: [], lanes: [], entrances: new Map() };
-  if (!isClassic && (outskirts || face.properties.ward === "castle"))
+  if (!isClassic && ((outskirts && !suburb) || face.properties.ward === "castle"))
     fillPolygon(
       face,
       polygon,
