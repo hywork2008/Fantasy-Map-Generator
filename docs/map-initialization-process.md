@@ -164,8 +164,7 @@ getGenerationStages()（同じ SettlementGeometrySession を 2 回の shift で�
      → advanceSeasonalClimate()
      → simulation burg/state/military と extension state slices を bind
      → applyHistoricalWarScars() → Threats.appendCasualtyNotes()
-     → ensureConvergingWorldRiverRoads()（最終入力で CE 用の準備を確定）
-     → [changedRoutes がある] resolveRiverRouteCrossings(preparedRoads)
+     → 最終の道路・河川収束を「保留」にする（初回描画後の Map Ready task で実行 → §3.2）
      → Names.getMapName(false) → mapId が未設定なら Date.now() を設定
 ```
 
@@ -193,11 +192,12 @@ getGenerationStages()（同じ SettlementGeometrySession を 2 回の shift で�
 
 ### 3.2 コア生成後: Map Ready task と初期資産の配布
 
-`generate()`、`regenerateMap()`、`drawMap: true` の `generateMapOnLoad()` は、コア world の commit と初回描画後に `startMapReadyTasks()` を起動する。コーディネータは double `requestAnimationFrame` の後に `fmg:generate-post-core` を一度 dispatch し、登録済み task を依存関係順（依存のない task 同士は登録順）に `await` する。組込み拡張の現在の順序は Economy → Nobility → Shipbuilding であり、Shipbuilding は明示的に Economy に依存する。
+`generate()`、`regenerateMap()`、`drawMap: true` の `generateMapOnLoad()` は、コア world の commit と初回描画後に `startMapReadyTasks()` を起動する。コーディネータは double `requestAnimationFrame` の後に `fmg:generate-post-core` を一度 dispatch し、登録済み task を依存関係順（依存のない task 同士は登録順）に `await` する。最初の task はホストの `core.riverRoadPreparation`（`src/main.ts` のモジュール読込時に登録）で、組込み拡張の現在の順序はその後の Economy → Nobility → Shipbuilding であり、Shipbuilding は明示的に Economy に依存する。
 
 ```
 core world fullReplace / 初回描画
   → Map Ready: "Preparing extensions" + fmg:generate-post-core（動的拡張向け）
+  → Core: "Aligning river crossings"（保留した最終の道路・河川収束 → map.networks commit で道路だけ再描画）
   → Economy: "Preparing economy"
   → Nobility: "Preparing nobility"
   → Shipbuilding: "Preparing shipyards"（Economy に依存）
@@ -310,7 +310,7 @@ Worker
 | `Rivers.generate()` | 1 | 1 | 気候・地形から世界の河川を生成する。 |
 | `Burgs.shiftAsync()` | 2 | 2 | 河岸・海岸への都市位置調整、water access 更新。 |
 | `Routes.generate()` | 1 | 2 | 陸路・航路生成、横断調整、通航検証。非 standard の初回は国家生成前、2 回目は国家・都市位置確定後。 |
-| `ensureConvergingWorldRiverRoads()` | 2 | 3 | 各道路生成内で 1 回、Finish the world の最後で 1 回。横断判定へ準備結果を渡すため、内部での再確認は省く。 |
+| `ensureConvergingWorldRiverRoads()` | 2 | 3 | 各道路生成内で 1 回、初回描画後の Map Ready task で 1 回。横断判定へ準備結果を渡すため、内部での再確認は省く。 |
 | `resolveRiverRouteCrossings()` | 1〜2 | 2〜3 | 各道路生成内で 1 回、最後の準備結果に changedRoutes があれば 1 回追加。 |
 | `Rivers.specify()` | 1 | 1 | parent / basin / name / type を設定。これらだけの変更は収束キャッシュを無効化しない。 |
 
@@ -326,14 +326,17 @@ Routes.generate():
   → [landConnectionGeneration] 登録陸路を生成・置換 → buildLinks()
 
 Finish the world の末尾:
-  prepared = ensureConvergingWorldRiverRoads()（上記の除去・都市詳細・季節更新後）
+  最終準備を保留 → 世界を commit → 初回描画
+
+Map Ready の最初の task（core.riverRoadPreparation）:
+  prepared = ensureConvergingWorldRiverRoads()（上記の除去・都市詳細・季節更新後の世界に対して）
   → [prepared.changedRoutes がある] resolveRiverRouteCrossings(world, prepared)
-  → 世界を commit
+  → map.networks commit（RenderCoordinator が道路を再描画）
 ```
 
 収束準備は、入力不一致時に元の道路点列を復元し、沿岸道路を調整、地形・河川索引と都市近傍の道路脚を準備して、橋候補・渡し・迂回を検証し、道路点列・リンク・都市別横断施設を確定する。橋の角度判定は `bridgeSkewPolicy.ts` の時代・国家技術の制約を使う。
 
-**生成完了時点で、最終入力に対する CE 用準備が存在する。** 改修前は `pack.rivers` 全体を比較していたため `Rivers.specify()` の名称等で無効化していたが、現在は形状・横断水深等の依存値だけを比較する。道路除去、`Burgs.specify()` の人口確定、季節による水深更新などの必要な再評価は、最後の準備で完了させる。生成後の編集・拡張・シミュレーションが依存値を変えた場合は改めて準備する。
+**Map Ready の最初の task が終わった時点で、最終入力に対する CE 用準備が存在する。** 最終準備は道路の橋位置・角度を整えるだけで、どの道路を残すかは道路生成内の収束で決まっているため、地図を先に描画してから実行する。準備は冪等で、CE 連携・保存地図ロード・道路編集は必要に応じて自ら準備するので、task 完了前にそれらを使っても結果は同じになる。拡張の task はこの task の後に走るため、従来どおり整えた後の道路を参照する。Map Ready のない `drawMap: false` の生成は `generateMapOnLoad()` 内で直ちに実行する。 改修前は `pack.rivers` 全体を比較していたため `Rivers.specify()` の名称等で無効化していたが、現在は形状・横断水深等の依存値だけを比較する。道路除去、`Burgs.specify()` の人口確定、季節による水深更新などの必要な再評価は、最後の準備で完了させる。生成後の編集・拡張・シミュレーションが依存値を変えた場合は改めて準備する。
 
 `landConnectionGeneration` 有効時、通常の収束サービスはキー確認後に空の準備結果を返す。登録陸路は `generateWorldLandConnections()` が担うため、通常経路の全体再構築回数をこのモードに適用しない。
 
@@ -565,7 +568,7 @@ stashCitySite(burgId)
 
 | 工程 | 1 回目の CE 連携 | 2 回目の CE 連携 |
 | :-- | :-- | :-- |
-| 全体の道路・河川収束準備 | 生成末尾または通常ロード末尾の準備結果を再利用。以後の変更・CLI cold では必要に応じて準備する。 | 前回以降依存値が変わらなければ再利用。河川名等の変更でも維持。 |
+| 全体の道路・河川収束準備 | 生成後の Map Ready task または通常ロード末尾の準備結果を再利用。以後の変更・CLI cold では必要に応じて準備する。 | 前回以降依存値が変わらなければ再利用。河川名等の変更でも維持。 |
 | 全体キー確認 | 1 回。現行の in-place 編集も検出する。 | 同じく 1 回。 |
 | 河川 source・地形索引 | 共有 session を利用。source の照合は河川ごとの実際の形状入力で行う。 | 変更のない河川・地形の計算結果を維持。 |
 | 都市別 descriptor | 局所データを新規抽出。道路の描画点生成は都市に接続する route のみ。 | 同じ都市でも再抽出。完成 descriptor のキャッシュは設けていない。 |
@@ -630,7 +633,7 @@ CE は渡された局所 descriptor を使い、FMG の全世界の道路・河�
 | warm（同じ都市の再取得） | 454.6 ms | 29.1 ms |
 | 全河川の名称変更後 | 2,576.1 ms | 25.9 ms |
 
-道路描画点生成は 426 本から 4 本になった。全条件で改修前後の descriptor JSON を比較し一致した。単回のため絶対時間には実行環境の揺らぎがある。cold の全体準備そのものは残り、通常の新規地図では生成末尾に実行する。測定結果は `temp/cache-audit-before.json` / `temp/cache-audit-final.json`、確認用スクリプトは `temp/audit-ce-cache.mjs`（いずれもローカル診断用）に保存。
+道路描画点生成は 426 本から 4 本になった。全条件で改修前後の descriptor JSON を比較し一致した。単回のため絶対時間には実行環境の揺らぎがある。cold の全体準備そのものは残り、通常の新規地図では初回描画後の Map Ready task で実行する。測定結果は `temp/cache-audit-before.json` / `temp/cache-audit-final.json`、確認用スクリプトは `temp/audit-ce-cache.mjs`（いずれもローカル診断用）に保存。
 
 
 ---

@@ -2,6 +2,7 @@ import type { WorldContext } from "../context/worldContext";
 import { defaultCoastSettings, drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import { useOptionsState } from "../store/optionsState";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 
 /**
  * A coastal burg can sit on the vertex where several coast cells meet (Chateia
@@ -24,9 +25,22 @@ type Pt = [number, number];
 interface Coast {
   ring: Pt[];
   near: [Pt, Pt][];
+  /** Ring edges by horizontal band, for point-in-ring tests on a refined continent coast. */
+  bands: RingBands;
+  /** Relocation results; inputs are fixed while this coast stays cached. */
+  searches: Map<string, Pt | null>;
+}
+interface RingBands {
+  minY: number;
+  maxY: number;
+  height: number;
+  /** Indices i of the edges (i - 1, i) whose y-span reaches each band. */
+  edges: number[][];
 }
 
 const cache = new WeakMap<object, Map<number, Coast | null>>();
+/** Drawn landmass coast per feature; every town on it samples its own window from one shape. */
+const shapes = new WeakMap<object, Map<number, ReturnType<typeof drawnFeatureShape>>>();
 
 /** Dependencies shared by route preparation and its sampled coast cache. */
 export function coastalRouteGeometryKey(world: Readonly<WorldContext>): string {
@@ -52,6 +66,20 @@ export function coastalRouteGeometryKey(world: Readonly<WorldContext>): string {
 
 export function clearCoastalRouteGeometry(world: Readonly<WorldContext>): void {
   cache.delete(world.pack);
+  shapes.delete(world.pack);
+}
+
+function featureShape(
+  world: Readonly<WorldContext>,
+  feature: { i: number; type: string; vertices: number[] }
+): ReturnType<typeof drawnFeatureShape> {
+  let perPack = shapes.get(world.pack);
+  if (!perPack) {
+    perPack = new Map();
+    shapes.set(world.pack, perPack);
+  }
+  if (!perPack.has(feature.i)) perPack.set(feature.i, drawnFeatureShape(world, feature));
+  return perPack.get(feature.i)!;
 }
 
 function coastNear(world: Readonly<WorldContext>, burgId: number, radius: number): Coast | null {
@@ -67,7 +95,7 @@ function coastNear(world: Readonly<WorldContext>, burgId: number, radius: number
   const feature = featureId === undefined ? undefined : pack.features?.[featureId];
   let coast: Coast | null = null;
   if (feature && typeof feature === "object" && feature.vertices?.length) {
-    const shape = drawnFeatureShape(world, feature);
+    const shape = featureShape(world, feature);
     if (shape) {
       const r = radius * 1.5;
       const tolerance = radius / PROBE_METERS; // ≈ 1 m
@@ -85,11 +113,48 @@ function coastNear(world: Readonly<WorldContext>, burgId: number, radius: number
         if (Math.max(a[1], b[1]) < burg.y - r || Math.min(a[1], b[1]) > burg.y + r) continue;
         near.push([a, b]);
       }
-      if (near.length) coast = { ring, near };
+      if (near.length) coast = { ring, near, bands: ringBands(ring), searches: new Map() };
     }
   }
   perPack.set(burgId, coast);
   return coast;
+}
+
+function ringBands(ring: Pt[]): RingBands {
+  let minY = Infinity,
+    maxY = -Infinity;
+  for (const p of ring) {
+    if (p[1] < minY) minY = p[1];
+    if (p[1] > maxY) maxY = p[1];
+  }
+  const count = Math.max(1, Math.min(4096, Math.ceil(ring.length / 8)));
+  const height = (maxY - minY) / count || 1;
+  const band = (y: number) => Math.min(count - 1, Math.max(0, Math.floor((y - minY) / height)));
+  const edges: number[][] = Array.from({ length: count }, () => []);
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const from = band(Math.min(ring[i][1], ring[j][1])),
+      to = band(Math.max(ring[i][1], ring[j][1]));
+    for (let b = from; b <= to; b++) edges[b].push(i);
+  }
+  return { minY, maxY, height, edges };
+}
+
+/**
+ * Same crossing test as insideRing over only the edges whose y-span can contain y.
+ * Parity does not depend on edge order, so the result is identical.
+ */
+function insideCoast(coast: Coast, x: number, y: number): boolean {
+  const { ring, bands } = coast;
+  if (!(y >= bands.minY && y < bands.maxY)) return false;
+  const count = bands.edges.length;
+  const edges = bands.edges[Math.min(count - 1, Math.max(0, Math.floor((y - bands.minY) / bands.height)))];
+  let inside = false;
+  for (const i of edges) {
+    const [xi, yi] = ring[i],
+      [xj, yj] = ring[i === 0 ? ring.length - 1 : i - 1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 function insideRing(ring: Pt[], x: number, y: number): boolean {
@@ -124,7 +189,7 @@ function segmentClear(coast: Coast, from: Pt, to: Pt, startAt: number, origin: P
     const fromTown = Math.hypot(x - origin[0], y - origin[1]) * mpu;
     if (fromTown < startAt) continue;
     if (fromTown > PROBE_METERS * 1.5) break; // the drawn coast is only refined this far
-    if (!insideRing(coast.ring, x, y)) return false;
+    if (!insideCoast(coast, x, y)) return false;
     if (fromTown > SHORE_TOWN_METERS && distanceToCoast(coast.near, x, y) * mpu < CLEARANCE_METERS) return false;
   }
   return true;
@@ -218,7 +283,11 @@ function relocatedNeighbour(
  * the river-crossing convergence and the CE site descriptor see the same road.
  * The point stays in its cell, so the cell graph is unchanged.
  */
-export function relocateCoastalRouteNeighbours(world: Readonly<WorldContext>, unit: string): boolean {
+export function relocateCoastalRouteNeighbours(
+  world: Readonly<WorldContext>,
+  unit: string,
+  profiler?: ProcessingProfiler
+): boolean {
   const { pack } = world;
   if (!pack?.burgs?.length || !pack.features?.length || !pack.vertices?.p || !pack.cells.v?.length) return false;
   const mpu = mapUnitMeters(world.distanceScale, unit);
@@ -233,7 +302,7 @@ export function relocateCoastalRouteNeighbours(world: Readonly<WorldContext>, un
       const burg = burgId ? pack.burgs[burgId] : undefined;
       if (!burg || burg.removed || (pack.cells.t?.[cell] !== 1 && !burg.port)) continue;
       if (Math.hypot(points[i][0] - burg.x, points[i][1] - burg.y) > 1e-7) continue;
-      const coast = coastNear(world, burgId, PROBE_METERS / mpu);
+      const coast = measureProcessing(profiler, "coast-shape", () => coastNear(world, burgId, PROBE_METERS / mpu));
       if (!coast) continue;
       const origin: Pt = [burg.x, burg.y];
       for (const step of [1, -1]) {
@@ -243,14 +312,21 @@ export function relocateCoastalRouteNeighbours(world: Readonly<WorldContext>, un
         const cellRing = (pack.cells.v[neighbour[2]] ?? []).map(v => pack.vertices.p[v] as Pt);
         if (cellRing.length < 3) continue;
         const after = points[j + step];
-        const p = relocatedNeighbour(
-          coast,
-          origin,
-          [neighbour[0], neighbour[1]],
-          after && [after[0], after[1]],
-          cellRing,
-          mpu
-        );
+        const searchKey = JSON.stringify([mpu, neighbour, after, origin]);
+        let p = coast.searches.get(searchKey);
+        if (p === undefined) {
+          p = measureProcessing(profiler, "relocate-search", () =>
+            relocatedNeighbour(
+              coast,
+              origin,
+              [neighbour[0], neighbour[1]],
+              after && [after[0], after[1]],
+              cellRing,
+              mpu
+            )
+          );
+          coast.searches.set(searchKey, p);
+        }
         if (!p) continue;
         points[j] = [p[0], p[1], neighbour[2]];
         changed = true;
@@ -277,7 +353,7 @@ export function drawnSeaClearanceMeters(
   if (!coast) return Infinity;
   let best = Infinity;
   for (const [x, y] of points) {
-    if (!insideRing(coast.ring, x, y)) return 0;
+    if (!insideCoast(coast, x, y)) return 0;
     best = Math.min(best, distanceToCoast(coast.near, x, y) * mpu);
   }
   return best;

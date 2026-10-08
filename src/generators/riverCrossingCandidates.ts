@@ -7,6 +7,7 @@ import {
   normalWaterSection,
   type PhysicalRiverGeometry,
   type PhysicalWaterPolygon,
+  validTransientWaterPolygon,
   validWaterPolygon
 } from "../services/riverPhysicalGeometry";
 import { BRIDGE_SKEW_MAX_DEGREES } from "../utils/bridgeSkewPolicy";
@@ -176,7 +177,8 @@ export function createProvisionalRiverCrossing(input: CrossingCandidateInput): C
   // Include the full deck-end cross section and a dry support strip behind it.
   const dryA = rectangle(approachLo, deckLo + Math.min(d.bankSeatMeters / 2, d.straightApproachMeters));
   const dryB = rectangle(deckHi - Math.min(d.bankSeatMeters / 2, d.straightApproachMeters), approachHi);
-  if ([deck, dryA, dryB].some(p => !validWaterPolygon({ id: -1, rings: [p] }))) return { reason: "invalid-input" };
+  if ([deck, dryA, dryB].some(p => !validTransientWaterPolygon({ id: -1, rings: [p] })))
+    return { reason: "invalid-input" };
   const waterObstacles = [targetWater, ...input.otherWater];
   const touchesWater = (footprint: readonly RiverPoint[], excludeTarget = false) =>
     input.waterIndex

@@ -188,7 +188,7 @@ export function ensureConvergingWorldRiverRoads(
     }
     delete r.riverRoadConvergence;
   }
-  measureProcessing(profiler, "coastal-route-neighbours", () => relocateCoastalRouteNeighbours(world, unit));
+  measureProcessing(profiler, "coastal-route-neighbours", () => relocateCoastalRouteNeighbours(world, unit, profiler));
   const session = settlementGeometrySession(world);
   measureProcessing(profiler, "geometry-session", () => session.prepare(world, unit));
   const centers = world.pack.cells.p.map((p, id) => ({ p, id }));
@@ -198,6 +198,27 @@ export function ensureConvergingWorldRiverRoads(
     .addAll(centers);
   let facilityId = 0;
   const waterValidation = new PhysicalWaterValidationCache();
+  // Point indices per cell, rebuilt when an adopted leg replaces a route's points.
+  const routeCells = new Map<Route, { points: Route["points"]; byCell: Map<number, number[]> }>();
+  const burgPointIndex = (route: Route, burg: Burg) => {
+    let entry = routeCells.get(route);
+    if (entry?.points !== route.points) {
+      const byCell = new Map<number, number[]>();
+      route.points.forEach((p, i) => {
+        const list = byCell.get(p[2]);
+        if (list) list.push(i);
+        else byCell.set(p[2], [i]);
+      });
+      entry = { points: route.points, byCell };
+      routeCells.set(route, entry);
+    }
+    // Same first match as findIndex over all points.
+    for (const i of entry.byCell.get(burg.cell) ?? []) {
+      const p = route.points[i];
+      if (Math.hypot(p[0] - burg.x, p[1] - burg.y) < 1e-7) return i;
+    }
+    return -1;
+  };
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
     const origin: RiverPoint = [burg.x * scale, burg.y * scale];
@@ -217,7 +238,7 @@ export function ensureConvergingWorldRiverRoads(
     })[] = [];
     for (const route of world.pack.routes) {
       if (route.lock || route.group === "searoutes" || route.registeredConnectionId !== undefined) continue;
-      const index = route.points.findIndex(p => p[2] === burg.cell && Math.hypot(p[0] - burg.x, p[1] - burg.y) < 1e-7);
+      const index = burgPointIndex(route, burg);
       if (index < 0) continue;
       for (const reverse of [false, true]) {
         const path = reverse ? route.points.slice(0, index + 1).reverse() : route.points.slice(index);
@@ -426,7 +447,11 @@ export function ensureConvergingWorldRiverRoads(
               }
             if (!candidates.length) return null;
             const found = measureProcessing(profiler, "converge-road-legs", () =>
-              convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half)
+              convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half, {
+                // Each candidate below comes from createProvisionalRiverCrossing(input) in this pass.
+                prevalidated: true,
+                profiler
+              })
             );
             if (found && skewSet.length < skews.length && Math.abs(found.crossing.skewDegrees) === Math.abs(skews[1]))
               return evaluateBatch(batch, skews, requireSeaClearance) ?? found;

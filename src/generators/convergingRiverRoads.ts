@@ -3,6 +3,7 @@ import { indexedPhysicalWater } from "../services/indexedPhysicalWater";
 import type { RiverPoint } from "../services/riverGeometry";
 import { footprintTouchesWater } from "../services/riverPhysicalGeometry";
 import { bridgeSkewPenaltyMeters } from "../utils/bridgeSkewPolicy";
+import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 import type { CrossingCandidateInput, ProvisionalRiverCrossing } from "./riverCrossingCandidates";
 import { validateProvisionalRiverCrossing } from "./riverCrossingCandidates";
 
@@ -27,14 +28,23 @@ export function convergeRiverRoadLegs(
   origin: RiverPoint,
   legs: readonly ConvergingRoadLeg[],
   candidates: readonly { crossing: ProvisionalRiverCrossing; input: CrossingCandidateInput }[],
-  maximumRejoinDistanceMeters: number
+  maximumRejoinDistanceMeters: number,
+  options: {
+    /** Candidates were just created from these exact inputs, so re-validation would repeat that work. */
+    prevalidated?: boolean;
+    profiler?: ProcessingProfiler;
+  } = {}
 ): ConvergingRiverRoads | null {
+  const { prevalidated = false, profiler } = options;
   if (!Number.isFinite(maximumRejoinDistanceMeters) || maximumRejoinDistanceMeters <= 0) return null;
   let best: { value: ConvergingRiverRoads; cost: number } | null = null;
   for (const { crossing: c, input } of candidates) {
-    if (!validateProvisionalRiverCrossing(c, input)) continue;
+    if (!prevalidated && !measureProcessing(profiler, "validate", () => validateProvisionalRiverCrossing(c, input)))
+      continue;
     const target = input.waterIndex?.getSnapshot(input.geometry.water);
-    const targetIndex = target ? indexedPhysicalWater(target) : undefined;
+    const targetIndex = measureProcessing(profiler, "target-index", () =>
+      target ? indexedPhysicalWater(target) : undefined
+    );
     const water = [input.geometry.water, ...input.otherWater];
     const dry = (a: RiverPoint, b: RiverPoint) => {
       if (distance(a, b) < 1e-8) return true;
