@@ -3,6 +3,7 @@ import { featureGroupVertices } from "./features";
 import { wallRunsOutsideGates } from "./fortifications";
 import { isSimplePolygon, polygonArea, segmentSegmentHit } from "./gen/geom";
 import { defaultRoadWidthMeters, townExtentMeters } from "./gen/settlementExtent";
+import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { facePoints } from "./mesh";
 import type { CityDocument, Point } from "./types";
 import { lineHitsDocumentWater } from "./waterGeometry";
@@ -71,6 +72,155 @@ export function frameRoadConnectedToTown(document: CityDocument, leg: Leg): bool
   }
   const end = leg.pieces.at(-1)?.points.at(-1);
   return !!end && reached.some(p => distance(p, end) < 1e-5);
+}
+
+/** A town street meets its exterior road within this many degrees of straight. */
+export const CLEAN_JUNCTION_DEGREES = 8;
+
+export type FrameRoadJunctionIssue = "straight" | "bent" | "stub" | "water-between" | "unlinked";
+
+/** Why a leg's junction is or is not clean. `water-between` is not a mesh
+ * defect: the street ends on the other side of water from the road, which only
+ * a registered crossing (or ferry) can serve. */
+export function frameRoadJunctionIssue(
+  document: CityDocument,
+  leg: Leg,
+  descriptor?: BurgSiteDescriptor
+): FrameRoadJunctionIssue {
+  const junction = frameRoadJunction(document, leg, descriptor);
+  if (junction) {
+    if (junction.stubLength > 0.5) return "stub";
+    return frameRoadApproachBend(document, leg, descriptor) > CLEAN_JUNCTION_DEGREES ? "bent" : "straight";
+  }
+  const target = leg.pieces[0]?.points[0];
+  if (!target) return "unlinked";
+  const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
+  let nearest: Point | null = null;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) continue;
+    for (const id of featureGroupVertices(document, group)) {
+      const p = document.mesh.vertices[id].point;
+      if (!nearest || distance(p, target) < distance(nearest, target)) nearest = p;
+    }
+  }
+  if (!nearest) return "unlinked";
+  return lineHitsDocumentWater(document, [nearest, target], width, true) ? "water-between" : "unlinked";
+}
+
+/** Unit direction in which the exterior road leaves its start. A leg that is
+ * only its start point takes the heading from the FMG road it was cut from. */
+export function exteriorDirection(leg: Leg, descriptor?: BurgSiteDescriptor): Point | null {
+  const flat = leg.pieces
+    .flatMap(piece => piece.points)
+    .filter((p, i, all) => i === 0 || distance(p, all[i - 1]) > 1e-6);
+  const start = flat[0];
+  if (!start) return null;
+  let toward: Point | undefined = flat[1];
+  if (!toward && descriptor) {
+    const road = descriptor.roads[leg.sourceIndex];
+    const path = (road?.sharedBranches?.[leg.branchIndex ?? 0]?.path ?? road?.path) as Point[] | undefined;
+    if (path?.length) {
+      let at = 0;
+      path.forEach((p, i) => {
+        if (distance(p, start) < distance(path[at], start)) at = i;
+      });
+      toward = path.slice(at + 1).find(p => distance(p, start) >= 30);
+    }
+  }
+  if (!toward) return null;
+  const length = distance(toward, start);
+  return length < 1e-6 ? null : [(toward[0] - start[0]) / length, (toward[1] - start[1]) / length];
+}
+
+/** Sharpest turn along a street polyline, in degrees. */
+export function streetTurn(document: CityDocument, ids: readonly string[]): number {
+  let worst = 0;
+  for (let i = 2; i < ids.length; i++) {
+    const [a, b, c] = [ids[i - 2], ids[i - 1], ids[i]].map(id => document.mesh.vertices[id].point);
+    worst = Math.max(worst, angleBetween([b[0] - a[0], b[1] - a[1]], [c[0] - b[0], c[1] - b[1]]));
+  }
+  return worst;
+}
+
+/** The one number for "does this read as a straight road": the larger of the
+ * last street edge's turn into the exterior road (a sideways link counts as
+ * 90° or worse) and the heading of the street's last block-length against the
+ * exterior road, which is what makes an L, N or V visible. */
+export function frameRoadApproachBend(document: CityDocument, leg: Leg, descriptor?: BurgSiteDescriptor): number {
+  const junction = frameRoadJunction(document, leg, descriptor);
+  const outward = exteriorDirection(leg, descriptor);
+  if (!junction || !outward) return Infinity;
+  const bend = junction.stubLength > 0.5 ? Math.max(junction.bendDegrees, 90) : junction.bendDegrees;
+  const target = leg.pieces[0]?.points[0];
+  if (!target) return bend;
+  let nearest = Infinity;
+  let heading = 0;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) continue;
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 2) continue;
+    const first = distance(document.mesh.vertices[ids[0]].point, target);
+    const last = distance(document.mesh.vertices[ids.at(-1)!].point, target);
+    if (Math.min(first, last) >= nearest) continue;
+    nearest = Math.min(first, last);
+    const path = (first < last ? [...ids].reverse() : ids).map(id => document.mesh.vertices[id].point);
+    const end = path.at(-1)!;
+    let back = path[0];
+    let walked = 0;
+    for (let i = path.length - 1; i > 0; i--) {
+      walked += distance(path[i], path[i - 1]);
+      back = path[i - 1];
+      if (walked >= document.frame.blockSizeMeters) break;
+    }
+    heading = angleBetween([end[0] - back[0], end[1] - back[1]], outward);
+  }
+  return Math.max(bend, heading);
+}
+
+export interface FrameRoadJunction {
+  /** Length of the sideways link between the street's last vertex and the exterior road start. */
+  stubLength: number;
+  /** Largest turn (degrees) along street → link → exterior road. 0 is dead straight. */
+  bendDegrees: number;
+}
+
+export const angleBetween = (a: Point, b: Point) => {
+  const la = Math.hypot(a[0], a[1]),
+    lb = Math.hypot(b[0], b[1]);
+  if (la < 1e-9 || lb < 1e-9) return 0;
+  const c = Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / (la * lb)));
+  return (Math.acos(c) * 180) / Math.PI;
+};
+
+/** How cleanly the town street meets the exterior road: link length and the
+ * worst turn on the way out. A bend over a few degrees reads as an L, N or V. */
+export function frameRoadJunction(
+  document: CityDocument,
+  leg: Leg,
+  descriptor?: BurgSiteDescriptor
+): FrameRoadJunction | null {
+  const connection = frameRoadTownConnection(document, leg);
+  const outward = exteriorDirection(leg, descriptor);
+  if (!connection || !outward) return null;
+  const [end, target] = connection;
+  let inner: Point | null = null;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) continue;
+    const path = featureGroupVertices(document, group).map(id => document.mesh.vertices[id].point);
+    const at = path.findIndex(p => distance(p, end) < 1e-6);
+    if (at < 0) continue;
+    inner = path[at === 0 ? 1 : at - 1] ?? null;
+    if (inner) break;
+  }
+  const stubLength = distance(end, target);
+  if (!inner) return { stubLength, bendDegrees: 0 };
+  const street: Point = [end[0] - inner[0], end[1] - inner[1]];
+  const turns = [] as number[];
+  if (stubLength > 1e-4) {
+    const stub: Point = [target[0] - end[0], target[1] - end[1]];
+    turns.push(angleBetween(street, stub), angleBetween(stub, outward));
+  } else turns.push(angleBetween(street, outward));
+  return { stubLength, bendDegrees: Math.max(...turns) };
 }
 
 /** Align the generated street's last mesh edge and the first exterior road leg.

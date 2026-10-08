@@ -248,7 +248,13 @@ const reach = records.flatMap(result => (Array.isArray(result.roadReach) ? resul
 const roadReach = {
   roads: reach.length,
   reachesTarget: reach.filter(road => road.reachesTarget).length,
-  stopsShort: reach.filter(road => road.reachesTarget === false).length
+  stopsShort: reach.filter(road => road.reachesTarget === false).length,
+  junctions: Object.fromEntries(
+    [...new Set(reach.map(road => road.junction).filter(Boolean))].map(issue => [
+      issue,
+      reach.filter(road => road.junction === issue).length
+    ])
+  )
 };
 writeFileSync(
   `${output}.summary.json`,

@@ -4,6 +4,7 @@ import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
 import { alignFrameRoadEndpoints, snapFrameRoadTerminals } from "./frameRoadConnection";
+import { straightenFrameRoadJunctions } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import {
@@ -1045,6 +1046,7 @@ export function generateCityAttempt(
   measureProcessing(profiler, "external-gate-roads", () => tagExternalGateRoads(settled, seed, settings.descriptor));
   measureProcessing(profiler, "frame-road-alignment", () => alignFrameRoadEndpoints(settled));
   measureProcessing(profiler, "frame-road-terminals", () => snapFrameRoadTerminals(settled));
+  measureProcessing(profiler, "frame-road-junctions", () => straightenFrameRoadJunctions(settled, settings.descriptor));
   measureProcessing(profiler, "roadside-fields", () => cultivateRoadside(settled));
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
