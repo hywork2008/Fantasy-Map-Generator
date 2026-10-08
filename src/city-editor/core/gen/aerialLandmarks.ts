@@ -4,7 +4,7 @@
 // permanent gallows on an approach road outside town. Watermills and harbour cranes live in
 // watermillFabric.ts / harborFabric.ts. Everything here is derived from the finished document
 // and the final building fabric; it never edits the mesh.
-import { type ReligiousHouse, religiousHousesFor } from "../../../data/civilizationTraditions";
+import { religiousHousesFor } from "../../../data/civilizationTraditions";
 import { featureGroupVertices } from "../features";
 import { circuitRing, polygonOverlaps, townGates } from "../fortifications";
 import { landmarkReservationHits } from "../landmarks";
@@ -14,36 +14,22 @@ import { flowingRivers } from "../riverFlow";
 import type { CityDocument, HistoricalPeriod, Id, Point } from "../types";
 import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
-import { convexHull, nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
+import {
+  bufferPolygon,
+  cleanRing,
+  convexHull,
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonArea,
+  segmentsIntersect
+} from "./geom";
 import { civicYardMeters } from "./housing";
+import { fitMonastery, type Monastery, type MonasteryKind } from "./monasteryLayout";
 import { makeRng, type Rng } from "./prng";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { fixedBankOffset, hitsSurveyedWater } from "./watermillFabric";
 
-export type MonasteryKind = ReligiousHouse;
-
-export interface Monastery {
-  id: Id;
-  kind: MonasteryKind;
-  name: string;
-  /** Precinct wall enclosing church, cloister, gardens and orchard. */
-  precinct: Point[];
-  gate: Point;
-  church: {
-    nave: Point[];
-    transept: Point[];
-    apse: Point[];
-    ridge: [Point, Point];
-  };
-  /** The four claustral ranges (east, south, west and the church's cloister side is the walk). */
-  ranges: Array<{ polygon: Point[]; ridge: [Point, Point] }>;
-  /** Roofed arcade walk around the garth. */
-  walk: Point[];
-  garth: Point[];
-  well: Point;
-  herbGarden: { bounds: Point[]; beds: Point[][] };
-  orchard: Point[];
-}
+export type { Monastery, MonasteryKind, PrecinctBuilding, PrecinctCourt } from "./monasteryLayout";
 
 export interface Windmill {
   id: Id;
@@ -267,6 +253,8 @@ class Site {
   readonly roads: Point[][] = [];
   readonly faceIndex = new BoxIndex<{ id: Id; polygon: Point[] }>(60);
   readonly lanes = new BoxIndex<{ points: Point[]; radius: number }>(40);
+  /** Half-width of the road or wall running along each mesh edge. */
+  readonly edgeRadius = new Map<Id, number>();
   private readonly placed: Point[][] = [];
   private readonly temples: OrientedRect[] = [];
   private readonly templeYard: number;
@@ -303,6 +291,7 @@ class Site {
           b = edge && v(edge.b);
         if (!edge || !a || !b) continue;
         const radius = group.style.widthMeters / 2;
+        this.edgeRadius.set(ref.edgeId, Math.max(this.edgeRadius.get(ref.edgeId) ?? 0, radius));
         this.capsules.add(grow(boxOf([a, b]), radius), {
           a,
           b,
@@ -490,101 +479,52 @@ function monasteryCount(buildings: number, document: CityDocument): number {
   return 3;
 }
 
-function layoutMonastery(
-  center: Point,
-  angle: number,
-  scale: number,
-  mirror: boolean,
-  id: Id,
-  kind: MonasteryKind
-): Monastery {
-  const s = scale;
-  // Mirror flips the garden to the west of the cloister.
-  const base = frame(center, angle);
-  const at = (u: number, v: number) => base(mirror ? -u : u, v);
-  const garth = 20 * s;
-  const walk = 3.4 * s;
-  const range = 8 * s;
-  const cloister = garth / 2 + walk + range; // half-size of the claustral block
-  const churchW = 12 * s;
-  const gardenW = 22 * s;
-  // Cloister block centred on the origin; church on its north side, garden east.
-  const west = -cloister - 5 * s;
-  const east = cloister + gardenW + 6 * s;
-  const south = -cloister - 12 * s;
-  const north = cloister + churchW + 6 * s;
-  const ccw = (pts: Point[]) => (mirror ? [...pts].reverse() : pts);
-  const precinct = ccw(rect(at, west, south, east, north));
+/** A block (Voronoi face) a precinct can fill, outlined clear of its streets. */
+interface MonasteryBlock {
+  faceId: Id;
+  ring: Point[];
+  centre: Point;
+  settlement: string;
+}
 
-  const g = garth / 2;
-  const w = g + walk;
-  const ranges = [
-    // East range (chapter house, dormitory above), south range (refectory), west range (cellarer).
-    {
-      polygon: rect(at, w, -cloister, cloister, w),
-      ridge: [at(w + range / 2, -cloister), at(w + range / 2, w)]
-    },
-    {
-      polygon: rect(at, -cloister, -cloister, w, -w),
-      ridge: [at(-cloister, -w - range / 2), at(w, -w - range / 2)]
-    },
-    {
-      polygon: rect(at, -cloister, -w, -w, w),
-      ridge: [at(-w - range / 2, -w), at(-w - range / 2, w)]
-    }
-  ].map(r => ({ polygon: ccw(r.polygon), ridge: r.ridge as [Point, Point] }));
-  const walkRing = ccw(rect(at, -w, -w, w, w));
-  const garthPoly = ccw(rect(at, -g, -g, g, g));
+// Wards a precinct may replace; markets, parks, harbours and the castle keep their cells.
+const MONASTERY_WARDS = new Set(["merchant", "craftsmen", "patriciate", "farm", "empty"]);
+/** Pulled back from a street (beyond its half-width) and from a plain block edge. */
+const STREET_VERGE = 1.8;
+const WALL_VERGE = 3.5;
+const PLAIN_EDGE_VERGE = 0.9;
+const MIN_BLOCK_AREA = 3600;
 
-  // Church: nave west→east over the full cloister plus a choir, transept over the crossing.
-  const n0 = cloister;
-  const n1 = cloister + churchW;
-  const choirEnd = cloister + 14 * s;
-  const nave = ccw(rect(at, -cloister, n0, choirEnd, n1));
-  const crossing = cloister - 2 * s;
-  const transept = ccw(rect(at, crossing - 6 * s, n0 - 3.5 * s, crossing + 3 * s, n1 + 3.5 * s));
-  const apseR = churchW * 0.42;
-  const apse = ccw(
-    Array.from({ length: 9 }, (_, i) => {
-      const t = -Math.PI / 2 + (i / 8) * Math.PI;
-      return at(choirEnd + Math.cos(t) * apseR, (n0 + n1) / 2 + Math.sin(t) * apseR);
-    })
-  );
-  const ridge: [Point, Point] = [at(-cloister, (n0 + n1) / 2), at(choirEnd, (n0 + n1) / 2)];
-
-  // Physic garden: a grid of raised beds east of the cloister.
-  const gx0 = cloister + 3 * s,
-    gx1 = cloister + gardenW,
-    gy0 = -cloister + 2 * s,
-    gy1 = cloister - 3 * s;
-  const cols = 3,
-    rows = Math.max(3, Math.round((gy1 - gy0) / (6 * s)));
-  const path = 1.4 * s;
-  const bw = (gx1 - gx0 - path * (cols + 1)) / cols;
-  const bh = (gy1 - gy0 - path * (rows + 1)) / rows;
-  const beds: Point[][] = [];
-  for (let c = 0; c < cols; c++)
-    for (let r = 0; r < rows; r++) {
-      const u0 = gx0 + path + c * (bw + path),
-        v0 = gy0 + path + r * (bh + path);
-      beds.push(ccw(rect(at, u0, v0, u0 + bw, v0 + bh)));
-    }
-  const herbGarden = { bounds: ccw(rect(at, gx0, gy0, gx1, gy1)), beds };
-  const orchard = ccw(rect(at, west + 2 * s, south + 2 * s, east - 2 * s, -cloister - 2 * s));
-  return {
-    id,
-    kind,
-    name: MONASTERY_NAMES[kind],
-    precinct,
-    gate: at(west, 0),
-    church: { nave, transept, apse, ridge },
-    ranges,
-    walk: walkRing,
-    garth: garthPoly,
-    well: at(0, 0),
-    herbGarden,
-    orchard
-  };
+function monasteryBlocks(site: Site): MonasteryBlock[] {
+  const { mesh } = site.document;
+  const walls = new Set<Id>();
+  for (const group of site.document.featureGroups)
+    if (group.kind === "wall") for (const ref of group.segments) walls.add(ref.edgeId);
+  const blocks: MonasteryBlock[] = [];
+  for (const face of Object.values(mesh.faces)) {
+    const properties = face.properties;
+    if (properties.water !== "land" || !MONASTERY_WARDS.has(properties.ward ?? "none")) continue;
+    const polygon = facePoints(mesh, face);
+    if (polygon.length < 3) continue;
+    // A block beside open water or a river would put its wall in the channel.
+    const wet = face.boundary.some(ref => {
+      const edge = mesh.edges[ref.edgeId];
+      return [edge.leftFace, edge.rightFace].some(id => id && mesh.faces[id]?.properties.water !== "land");
+    });
+    if (wet || Math.abs(polygonArea(polygon)) < MIN_BLOCK_AREA * 1.2) continue;
+    const hull = convexHull(polygon);
+    // Very ragged blocks leave no clean frontage to build against.
+    if (Math.abs(polygonArea(polygon)) < 0.82 * Math.abs(polygonArea(hull))) continue;
+    const dists = face.boundary.map(ref => {
+      const radius = site.edgeRadius.get(ref.edgeId);
+      if (radius === undefined) return PLAIN_EDGE_VERGE;
+      return radius + (walls.has(ref.edgeId) ? WALL_VERGE : STREET_VERGE);
+    });
+    const ring = cleanRing(bufferPolygon(polygon, dists));
+    if (ring.length < 3 || Math.abs(polygonArea(ring)) < MIN_BLOCK_AREA) continue;
+    blocks.push({ faceId: face.id, ring, centre: centroid(ring), settlement: properties.settlement ?? "none" });
+  }
+  return blocks;
 }
 
 function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Monastery[] {
@@ -592,58 +532,63 @@ function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Mon
   const kinds = monasteryKinds(document, site.walled);
   const count = Math.min(monasteryCount(input.buildings.length, document), kinds.length);
   if (!count || site.town.length < 3) return [];
-  const scale = Math.max(0.72, Math.min(1.15, Math.sqrt(input.buildings.length / 3000)));
   const gates = townGates(document)
     .map(g => document.mesh.vertices[g.vertexId]?.point)
     .filter((p): p is Point => !!p);
-  const box = boxOf(site.town);
+  const blocks = monasteryBlocks(site);
   const out: Monastery[] = [];
-  const forbidden = new Set(["market", "castle", "cemetery", "park", "harbor", "none"]);
   for (let index = 0; index < count; index++) {
     const kind = kinds[index];
     const outside = kind === "abbey" && site.walled;
-    const reach = outside ? 240 : 0;
-    const span = grow(box, reach);
-    let best: { score: number; plan: Monastery; cleared: number } | null = null;
-    for (let attempt = 0; attempt < 260; attempt++) {
-      const p: Point = [rng.range(span[0], span[2]), rng.range(span[1], span[3])];
-      const inside = site.insideTown(p);
-      const edge = site.townDistance(p);
-      if (outside ? inside || edge < 50 || edge > reach : !inside || edge < 45) continue;
-      const nearGate = gates.length ? Math.min(...gates.map(g => Math.hypot(g[0] - p[0], g[1] - p[1]))) : 0;
-      if (kind === "friary" && gates.length && (nearGate < 70 || nearGate > 260)) continue;
-      const angle = rng.range(-0.2, 0.2);
-      const plan = layoutMonastery(p, angle, scale, rng() < 0.5, `monastery-${index}`, kind);
-      const precinct = plan.precinct;
+    let best: { score: number; monastery: Monastery } | null = null;
+    for (const block of blocks) {
+      const inside = site.insideTown(block.centre);
+      const edge = site.townDistance(block.centre);
+      if (outside ? inside || edge < 40 || edge > 280 : !inside || edge < 25) continue;
+      if (out.some(m => Math.hypot(...sub(m.gate, block.centre)) < 140)) continue;
+      const nearGate = gates.length
+        ? Math.min(...gates.map(g => Math.hypot(g[0] - block.centre[0], g[1] - block.centre[1])))
+        : 0;
+      if (kind === "friary" && gates.length && (nearGate < 50 || nearGate > 340)) continue;
+      // Fronting the nearest street keeps the church on a road, as every precinct was.
+      const roadAt = (i: number): number => {
+        const a = block.ring[i];
+        const b = block.ring[(i + 1) % block.ring.length];
+        return site.nearestRoad([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])?.dist ?? Infinity;
+      };
+      const distances = block.ring.map((_, i) => roadAt(i));
+      const nearest = Math.min(...distances);
+      const frontEdges = distances.flatMap((d, i) => (d <= nearest + 8 ? [i] : []));
+      const fit = fitMonastery({
+        kind,
+        id: `monastery-${index}`,
+        faceId: block.faceId,
+        ring: block.ring,
+        rng: makeRng(`${block.faceId}:${kind}:${index}`),
+        frontEdges,
+        margin: outside ? 22 : 8
+      });
+      if (!fit) continue;
+      const precinct = fit.monastery.precinct;
       if (!site.inFrame(precinct, 10)) continue;
-      if (out.some(m => Math.hypot(...sub(centroid(m.precinct), p)) < 220)) continue;
-      const wards = site.wardsUnder(precinct);
-      if ([...wards].some(w => forbidden.has(w))) continue;
-      if (site.hitsWater(precinct, 3) || site.hitsRoutes(precinct, 2) || site.hitsBlocked(precinct)) continue;
+      if (site.hitsWater(precinct, 3) || site.hitsRoutes(precinct, 0.4) || site.hitsBlocked(precinct)) continue;
       const cleared = site.buildingsIn(precinct).length;
       const farms = site.farmsIn(precinct).length;
-      const road = site.nearestRoad(p);
-      // A precinct sits on a street; in town it replaces whole blocks, outside it takes common land.
-      const access = road ? Math.min(road.dist, 160) : 160;
       const score =
-        (kind === "friary" ? -nearGate * 0.02 : -Math.abs(edge - 110) * 0.01) -
-        cleared * (outside ? 0.08 : 0.004) -
-        farms * 0.3 -
-        access * 0.02 +
-        rng() * 0.5;
-      if (!best || score > best.score) best = { score, plan, cleared };
+        fit.scale * 8 -
+        Math.abs(fit.looseness - 1.9) * 0.7 -
+        (outside ? cleared * 0.08 : cleared * 0.004) -
+        farms * 0.25 -
+        Math.min(nearest, 60) * 0.03 -
+        (kind === "friary" && gates.length ? Math.abs(nearGate - 150) * 0.008 : 0) -
+        (outside ? Math.abs(edge - 110) * 0.01 : 0) +
+        rng() * 0.4;
+      if (!best || score > best.score) best = { score, monastery: fit.monastery };
     }
     if (!best) continue;
-    // Turn the gate toward the nearest street.
-    const plan = best.plan;
-    const road = site.nearestRoad(centroid(plan.precinct));
-    if (road) {
-      const ring = [...plan.precinct, plan.precinct[0]];
-      plan.gate = nearestOnPolyline(road.point, ring).point;
-    }
-    plan.name = `${MONASTERY_NAMES[kind]} #${index + 1}`;
-    site.claim(plan.precinct);
-    out.push(plan);
+    best.monastery.name = `${MONASTERY_NAMES[kind]} #${index + 1}`;
+    site.claim(best.monastery.precinct);
+    out.push(best.monastery);
   }
   return out;
 }

@@ -7,7 +7,7 @@ import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
 import type { CityDocument, Point } from "../types";
 import { aerialLandmarkFootprints, buildAerialLandmarkPlan } from "./aerialLandmarks";
 import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
-import { nearestOnPolyline, pointInPolygon } from "./geom";
+import { nearestOnPolyline, pointInPolygon, shrinkPolygon } from "./geom";
 
 function walledRiverTown(): CityDocument {
   const grid = createGridDocument({
@@ -76,8 +76,10 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
       expect(fabric.buildings.some(b => polygonOverlaps(b.polygon, f))).toBe(false);
       expect(fabric.farms.some(farm => polygonOverlaps(farm.polygon, f))).toBe(false);
     }
+    // An alley may end on the precinct wall itself, but never inside it.
     for (const m of fabric.aerialLandmarks!.monasteries) {
-      const inner = m.walk;
+      const inner = shrinkPolygon(m.precinct, [0.6]);
+      expect(inner.length).toBeGreaterThan(2);
       expect(fabric.lanes.some(l => l.points.some(p => pointInPolygon(p, inner)))).toBe(false);
     }
   });

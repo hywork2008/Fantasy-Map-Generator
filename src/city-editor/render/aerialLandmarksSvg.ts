@@ -1,4 +1,12 @@
-import type { AerialLandmarkPlan, Barbican, Gallows, Monastery, Tannery, Windmill } from "../core/gen/aerialLandmarks";
+import type {
+  AerialLandmarkPlan,
+  Barbican,
+  Gallows,
+  Monastery,
+  PrecinctBuilding,
+  Tannery,
+  Windmill
+} from "../core/gen/aerialLandmarks";
 import type { Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -20,10 +28,6 @@ function polygon(points: Point[]): string {
 const STROKE = "#49483f";
 const ROOF = "#b2afa2";
 const ROOF_SHADE = "#9d9a8d";
-const CHURCH_ROOF = "#9a5b42";
-const CHURCH_SHADE = "#7f4834";
-const GREEN = "#7ea867";
-const GREEN_DARK = "#4d733b";
 const EARTH = "#c5b99d";
 const STONE = "#292a26";
 const PIT_TONES = ["#ecebe2", "#d6d0b6", "#b98a4b", "#7d5a33", "#57442c"];
@@ -85,6 +89,58 @@ const MONASTERY_LABELS: Record<Monastery["kind"], string> = {
   orthodoxMonastery: "正教修道院"
 };
 
+// Ground tones shared with the town's own yards and kitchen gardens (svg.ts), so a
+// precinct reads as part of the same block rather than as a pasted illustration.
+const COURTYARD = "#ddd6c5";
+const GARDEN_GROUND = "#c4c6aa";
+const BED_TONES = ["#bccd9c", "#aec392"];
+const BED_STROKE = "#617b4d";
+const CROWN = "#697d64";
+const CROWN_STROKE = "#394b40";
+const WALL = "#5d5a50";
+const CHURCH_ROOF = "#8f8b7e";
+
+/** A footprint drawn exactly like a house; only the roof's shaded half hints at the ridge. */
+function roof(g: SVGElement, building: PrecinctBuilding): void {
+  // The church is the one darker roof (lead or slate); the class still gives it the house outline.
+  const church = building.role === "church" || building.role === "apse";
+  g.appendChild(
+    el("path", {
+      d: polygon(building.polygon),
+      class: "ce-building",
+      ...(church ? { style: `fill:${CHURCH_ROOF}` } : {})
+    })
+  );
+  if (building.role === "crossing-tower" || building.role === "bell-tower")
+    g.appendChild(el("path", { d: polygon(building.polygon), fill: ROOF_SHADE, opacity: "0.75" }));
+  if (building.role === "dome") {
+    const c = building.polygon.reduce<Point>((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
+    const n = building.polygon.length;
+    g.appendChild(
+      el("circle", {
+        cx: (c[0] / n).toFixed(2),
+        cy: (-c[1] / n).toFixed(2),
+        r: (Math.hypot(building.polygon[0][0] - c[0] / n, building.polygon[0][1] - c[1] / n) * 0.55).toFixed(2),
+        fill: ROOF_SHADE,
+        stroke: STROKE,
+        "stroke-width": "0.3"
+      })
+    );
+  }
+  if (!building.ridge) return;
+  const [a, b] = building.ridge;
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const side = (p: Point) => dx * (p[1] - a[1]) - dy * (p[0] - a[0]);
+  const shaded = building.polygon.filter(p => side(p) < -1e-6);
+  if (shaded.length === 2) {
+    const along = (p: Point) => (p[0] - a[0]) * dx + (p[1] - a[1]) * dy;
+    const [s0, s1] = along(shaded[0]) < along(shaded[1]) ? [shaded[0], shaded[1]] : [shaded[1], shaded[0]];
+    g.appendChild(el("path", { d: polygon([a, b, s1, s0]), fill: church ? "#6f6b61" : ROOF_SHADE, opacity: "0.55" }));
+  }
+  g.appendChild(el("path", { d: line(building.ridge), stroke: STROKE, "stroke-width": "0.3", fill: "none" }));
+}
+
 function renderMonastery(m: Monastery, options: PickOptions, minimal: boolean): SVGElement {
   const g = pickGroup(
     `ce-monastery ce-monastery--${m.kind}`,
@@ -96,173 +152,74 @@ function renderMonastery(m: Monastery, options: PickOptions, minimal: boolean): 
     },
     options
   );
-  // Precinct ground and wall.
-  g.appendChild(
-    el("path", {
-      d: polygon(m.precinct),
-      class: "ce-monastery-precinct",
-      fill: "#d9d3c1"
-    })
-  );
-  // Orchard: rows of round crowns.
-  g.appendChild(el("path", { d: polygon(m.orchard), fill: "#b9bc9d", opacity: "0.8" }));
-  if (!minimal) {
-    const [o0, o1, , o3] = m.orchard;
-    const lenU = Math.hypot(o1[0] - o0[0], o1[1] - o0[1]);
-    const lenV = Math.hypot(o3[0] - o0[0], o3[1] - o0[1]);
-    const cols = Math.max(1, Math.floor(lenU / 6));
-    const rows = Math.max(1, Math.floor(lenV / 5.5));
-    for (let i = 0; i < cols; i++)
-      for (let j = 0; j < rows; j++) {
-        const fu = (i + 0.5) / cols,
-          fv = (j + 0.5) / rows;
-        const x = o0[0] + (o1[0] - o0[0]) * fu + (o3[0] - o0[0]) * fv;
-        const y = o0[1] + (o1[1] - o0[1]) * fu + (o3[1] - o0[1]) * fv;
-        g.appendChild(
-          el("circle", {
-            cx: x.toFixed(2),
-            cy: (-y).toFixed(2),
-            r: "1.9",
-            fill: "#688e5b",
-            stroke: "#385230",
-            "stroke-width": "0.3"
-          })
-        );
-      }
+  // Courts first: the ground the buildings stand on. The precinct itself has no fill,
+  // so the block's own ground shows through between them.
+  for (const court of m.courts) {
+    const fill = court.kind === "garden" ? GARDEN_GROUND : court.kind === "garth" ? BED_TONES[0] : COURTYARD;
+    g.appendChild(
+      el("path", {
+        d: polygon(court.polygon),
+        class: `ce-monastery-court ce-monastery-court--${court.kind}`,
+        fill,
+        stroke: court.kind === "garth" ? "#a0a58a" : "none",
+        "stroke-width": "0.3"
+      })
+    );
   }
-  // Physic garden: raised beds on a gravel ground.
-  g.appendChild(el("path", { d: polygon(m.herbGarden.bounds), fill: "#d7c9a6" }));
-  for (const [i, bed] of m.herbGarden.beds.entries())
+  if (m.walk) {
+    // Cloister walk: a roofed ring around the garth, drawn as a house roof with a hole.
+    g.appendChild(
+      el("path", {
+        d: `${polygon(m.walk.outer)} ${polygon(m.walk.garth)}`,
+        class: "ce-building ce-cloister-walk",
+        "fill-rule": "evenodd"
+      })
+    );
+  }
+  for (const [i, bed] of m.beds.entries())
     g.appendChild(
       el("path", {
         d: polygon(bed),
         class: "ce-herb-bed",
-        fill: ["#8fae6c", "#a2b877", "#7f9f63", "#b0b884"][i % 4],
-        stroke: "#5d6e43",
+        fill: BED_TONES[i % 2],
+        stroke: BED_STROKE,
         "stroke-width": "0.3"
       })
     );
-  // Cloister: green garth with cross paths and a well, then the roofed walk.
-  g.appendChild(
-    el("path", {
-      d: polygon(m.walk),
-      class: "ce-cloister-walk",
-      fill: "#a8a496",
-      stroke: STROKE,
-      "stroke-width": "0.4"
-    })
-  );
-  g.appendChild(
-    el("path", {
-      d: polygon(m.garth),
-      class: "ce-cloister-garth",
-      fill: GREEN,
-      stroke: GREEN_DARK,
-      "stroke-width": "0.35"
-    })
-  );
-  const [g0, g1, g2, g3] = m.garth;
-  const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  g.appendChild(
-    el("path", {
-      d: `${line([mid(g0, g1), mid(g2, g3)])} ${line([mid(g1, g2), mid(g3, g0)])}`,
-      stroke: "#d7c9a6",
-      "stroke-width": "1.1",
-      fill: "none"
-    })
-  );
-  g.appendChild(
-    el("circle", {
-      cx: String(m.well[0]),
-      cy: String(-m.well[1]),
-      r: "1.3",
-      fill: "#8c877b",
-      stroke: STONE,
-      "stroke-width": "0.3"
-    })
-  );
-  // Arcade columns along the inner edge of the walk.
   if (!minimal)
-    for (let k = 0; k < 4; k++) {
-      const a = m.garth[k],
-        b = m.garth[(k + 1) % 4];
-      const n = Math.max(3, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2.4));
-      for (let i = 0; i <= n; i++) {
-        const x = a[0] + ((b[0] - a[0]) * i) / n,
-          y = a[1] + ((b[1] - a[1]) * i) / n;
-        g.appendChild(
-          el("circle", {
-            cx: x.toFixed(2),
-            cy: (-y).toFixed(2),
-            r: "0.32",
-            fill: STONE
-          })
-        );
-      }
-    }
-  for (const range of m.ranges) gabled(g, range.polygon, range.ridge, ROOF, ROOF_SHADE);
-  // Church: transept under the nave roof, apse at the east end.
+    for (const tree of m.trees)
+      g.appendChild(
+        el("circle", {
+          cx: tree.at[0].toFixed(2),
+          cy: (-tree.at[1]).toFixed(2),
+          r: tree.radius.toFixed(2),
+          fill: CROWN,
+          stroke: CROWN_STROKE,
+          "stroke-width": "0.4"
+        })
+      );
+  if (m.well)
+    g.appendChild(
+      el("circle", {
+        cx: m.well[0].toFixed(2),
+        cy: (-m.well[1]).toFixed(2),
+        r: "1.1",
+        fill: "#8c877b",
+        stroke: STROKE,
+        "stroke-width": "0.3"
+      })
+    );
+  // Churches and ranges are the same footprints as houses; the apse and towers follow the church.
+  for (const building of m.buildings) roof(g, building);
   g.appendChild(
     el("path", {
-      d: polygon(m.church.apse),
-      fill: CHURCH_SHADE,
-      stroke: STROKE,
-      "stroke-width": "0.4"
-    })
-  );
-  gabled(g, m.church.nave, m.church.ridge, CHURCH_ROOF, CHURCH_SHADE);
-  g.appendChild(
-    el("path", {
-      d: polygon(m.church.transept),
-      fill: CHURCH_ROOF,
-      stroke: STROKE,
-      "stroke-width": "0.4"
-    })
-  );
-  const t = m.church.transept;
-  g.appendChild(
-    el("path", {
-      d: line([mid(t[0], t[1]), mid(t[2], t[3])]),
-      stroke: STROKE,
-      "stroke-width": "0.35",
-      fill: "none"
-    })
-  );
-  // Crossing tower.
-  const nave = m.church.nave;
-  const ridgeMid = mid(...m.church.ridge);
-  const crossing = mid(mid(t[0], t[2]), ridgeMid);
-  const tw = Math.hypot(nave[3][0] - nave[0][0], nave[3][1] - nave[0][1]) * 0.28;
-  g.appendChild(
-    el("rect", {
-      x: (crossing[0] - tw).toFixed(2),
-      y: (-crossing[1] - tw).toFixed(2),
-      width: (tw * 2).toFixed(2),
-      height: (tw * 2).toFixed(2),
-      fill: "#6e6a5e",
-      stroke: STROKE,
-      "stroke-width": "0.4"
-    })
-  );
-  // Precinct wall with its gatehouse.
-  g.appendChild(
-    el("path", {
-      d: polygon(m.precinct),
+      d: line(m.wall),
       class: "ce-monastery-wall",
       fill: "none",
-      stroke: "#5d5a50",
-      "stroke-width": "0.9",
-      "stroke-linejoin": "miter"
-    })
-  );
-  g.appendChild(
-    el("circle", {
-      cx: String(m.gate[0]),
-      cy: String(-m.gate[1]),
-      r: "1.6",
-      fill: "#d9d3c1",
-      stroke: "#5d5a50",
-      "stroke-width": "0.6"
+      stroke: WALL,
+      "stroke-width": "0.8",
+      "stroke-linejoin": "miter",
+      "stroke-linecap": "butt"
     })
   );
   return g;
