@@ -185,3 +185,31 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     }
   }, 60000);
 });
+
+describe("FMG-linked rivers (riverFlows)", () => {
+  it("places watermills and a town-side tanners' yard on the surveyed bank", async () => {
+    const { parseIncomingPayload } = await import("../../io/incomingCity");
+    const { cityEditorDocument, cityEditorSettings } = await import("../housingReport");
+    const { hitsSurveyedWater } = await import("./watermillFabric");
+    const inputs = (await import("../fixtures/vilealand-fmg-handoff-20261004.json")).default as Record<
+      string,
+      { share_json: string }
+    >;
+    const share = parseIncomingPayload(inputs["224"].share_json)!;
+    const city = generateCityOnDocument(cityEditorDocument(share), cityEditorSettings(share), share.seed, () => {})!;
+    expect(city.featureGroups.some(g => g.kind === "river")).toBe(false);
+    expect(city.riverFlows?.length).toBeGreaterThan(0);
+    const fabric = buildBlockFabric(city);
+    const mills = fabric.watermills!.mills;
+    expect(mills.length).toBeGreaterThan(0);
+    for (const mill of mills) expect(hitsSurveyedWater(city, mill.millhousePolygon)).toBe(false);
+    const [yard] = fabric.aerialLandmarks!.tanneries;
+    expect(yard).toBeDefined();
+    expect(hitsSurveyedWater(city, yard.yard)).toBe(false);
+    // Same bank as the town: the straight line from the yard to the town centre stays dry.
+    const c = centre(yard.yard);
+    const steps = 20;
+    const line = Array.from({ length: steps + 1 }, (_, i): Point => [c[0] * (1 - i / steps), c[1] * (1 - i / steps)]);
+    expect(line.some(p => hitsSurveyedWater(city, [p, [p[0] + 0.5, p[1]], [p[0] + 0.5, p[1] + 0.5]]))).toBe(false);
+  }, 120000);
+});

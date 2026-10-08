@@ -201,6 +201,10 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
         document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
         !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
   );
+  const harborFootprints = [
+    ...(fabric.harbor?.spaces.map(space => space.polygon) ?? []),
+    ...(fabric.harbor?.piers.map(pier => pier.polygon) ?? [])
+  ];
   const candidateWatermills =
     fabric.watermills ??
     buildWatermillPlan(
@@ -213,7 +217,11 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   const watermills = {
     ...candidateWatermills,
     mills: candidateWatermills.mills.filter(
-      m => !moat.hitsPolygon(m.millhousePolygon) && !fixedRoads.hitsPolygon(m.millhousePolygon)
+      m =>
+        !moat.hitsPolygon(m.millhousePolygon) &&
+        !fixedRoads.hitsPolygon(m.millhousePolygon) &&
+        // Quays, loading yards and piers belong to the harbour.
+        !harborFootprints.some(h => polygonOverlaps(m.millhousePolygon, h))
     )
   };
   const millPolygons = watermills.mills.map(m => m.millhousePolygon);

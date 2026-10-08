@@ -2,7 +2,6 @@ import { polygonOverlaps } from "../fortifications";
 import { facePoints } from "../mesh";
 import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
-import { polygonHitsWater, waterPolygons } from "../waterGeometry";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { makeRng } from "./prng";
 
@@ -154,52 +153,92 @@ function collectObstacles(document: CityDocument): {
 }
 
 type Box = [number, number, number, number];
-const surveyedWaterCache = new WeakMap<CityDocument, Array<{ polygon: Point[]; box: Box }>>();
+type SurveyedWater = { rings: Point[][]; box: Box };
+const surveyedWaterCache = new WeakMap<CityDocument, SurveyedWater[]>();
 
-/** Surveyed water (fixed FMG banks, wide channels) with bounding boxes. Reads the cached
- * decomposition; unlike polygonHitsDocumentWater it does not re-key the fixed payload per call. */
-function surveyedWater(document: CityDocument) {
+function ringsBox(rings: Point[][]): Box {
+  const pts = rings.flat();
+  const xs = pts.map(p => p[0]),
+    ys = pts.map(p => p[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+/** Surveyed water as the source rings (outer bank plus island holes), with bounding boxes.
+ * The decomposed parts from waterPolygons have internal seams that a river centreline can
+ * run along; the source rings have none. Cached per document, so the fixed payload is never
+ * re-keyed per call as in polygonHitsDocumentWater. */
+function surveyedWater(document: CityDocument): SurveyedWater[] {
   let water = surveyedWaterCache.get(document);
   if (!water) {
-    water = waterPolygons(document).map(polygon => {
-      const xs = polygon.map(p => p[0]),
-        ys = polygon.map(p => p[1]);
-      return { polygon, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as Box };
-    });
+    const fixed = document.importedFixedCrossings;
+    const sources: Point[][][] = [
+      ...(document.waterAreas ?? []).map(area => [area.polygon]),
+      ...(fixed ? [...fixed.rivers, ...(fixed.obstacles ?? [])] : []).map(w =>
+        w.rings.map(ring => ring.map((p): Point => [p[0], p[1]]))
+      )
+    ].filter(rings => rings.some(ring => ring.length >= 3));
+    water = sources.map(rings => ({ rings, box: ringsBox(rings) }));
     surveyedWaterCache.set(document, water);
   }
   return water;
 }
 
+/** Even-odd over a water body's rings, so islands stay dry. */
+function inWater(p: Point, water: SurveyedWater): boolean {
+  const [x0, y0, x1, y1] = water.box;
+  if (p[0] < x0 || p[0] > x1 || p[1] < y0 || p[1] > y1) return false;
+  return water.rings.filter(ring => pointInPolygon(p, ring)).length % 2 === 1;
+}
+
 function dryAt(document: CityDocument, p: Point): boolean {
-  return !surveyedWater(document).some(
-    ({ polygon, box }) =>
-      p[0] >= box[0] && p[0] <= box[2] && p[1] >= box[1] && p[1] <= box[3] && pointInPolygon(p, polygon)
-  );
+  return !surveyedWater(document).some(water => inWater(p, water));
 }
 
-/** Whether a footprint touches surveyed water. */
+/** Whether a footprint touches surveyed water: a corner in the water or an edge crossing a bank. */
 export function hitsSurveyedWater(document: CityDocument, polygon: Point[]): boolean {
-  const xs = polygon.map(p => p[0]),
-    ys = polygon.map(p => p[1]);
-  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-  const near = surveyedWater(document)
-    .filter(({ box }) => box[0] <= x1 && box[2] >= x0 && box[1] <= y1 && box[3] >= y0)
-    .map(w => w.polygon);
-  return near.length > 0 && polygonHitsWater(polygon, near);
+  const box = ringsBox([polygon]);
+  for (const water of surveyedWater(document)) {
+    const w = water.box;
+    if (w[0] > box[2] || w[2] < box[0] || w[1] > box[3] || w[3] < box[1]) continue;
+    if (polygon.some(p => inWater(p, water))) return true;
+    for (const ring of water.rings)
+      for (let i = 0; i < ring.length; i++)
+        for (let j = 0; j < polygon.length; j++)
+          if (segmentsIntersect(ring[i], ring[(i + 1) % ring.length], polygon[j], polygon[(j + 1) % polygon.length]))
+            return true;
+  }
+  return false;
 }
 
-/** Distance from the centreline to the surveyed bank along `normal`, or null when none is near. */
+/**
+ * Distance from the centreline to the surveyed bank along `normal`, or null when no water is
+ * near. FMG centrelines need not lie inside the surveyed water, so the search starts from the
+ * wet point nearest the centre. The bank must be dry over a frontage of ±`halfFrontage` along
+ * `tangent`, so a building set on it stays out of the water on a bend.
+ */
 export function fixedBankOffset(
   document: CityDocument,
   centre: Point,
   normal: Point,
-  halfWidth: number
+  halfWidth: number,
+  tangent: Point = [-normal[1], normal[0]],
+  halfFrontage = 0
 ): number | null {
-  const at = (d: number): Point => [centre[0] + normal[0] * d, centre[1] + normal[1] * d];
-  // The centreline must lie in the channel, otherwise this is not a bank crossing.
-  if (dryAt(document, centre)) return null;
-  for (let d = 0.5; d <= halfWidth * 2 + 10; d += 0.5) if (dryAt(document, at(d))) return d + 0.3;
+  const reach = halfWidth * 2 + 10;
+  const at = (d: number, u = 0): Point => [
+    centre[0] + normal[0] * d + tangent[0] * u,
+    centre[1] + normal[1] * d + tangent[1] * u
+  ];
+  let wet: number | null = null;
+  for (let k = 0; k <= reach * 2 && wet === null; k++)
+    for (const d of k ? [k * 0.5, -k * 0.5] : [0])
+      if (!dryAt(document, at(d))) {
+        wet = d;
+        break;
+      }
+  if (wet === null) return null;
+  const front = halfFrontage > 0 ? [-halfFrontage, 0, halfFrontage] : [0];
+  for (let d = wet + 0.5; d <= wet + reach; d += 0.5) if (front.every(u => dryAt(document, at(d, u)))) return d + 0.3;
   return null;
 }
 
@@ -346,7 +385,7 @@ export function buildWatermillPlan(
     const py = seg.a[1] + tangent[1] * (seg.length * fraction);
     // Bank contact point. FMG water is the surveyed bank polygon, whose edge need not sit
     // at half the descriptor width: walk out from the centreline to the first dry ground.
-    const bankOffset = seg.surveyed ? fixedBankOffset(document, [px, py], normal, halfWidth) : halfWidth;
+    const bankOffset = seg.surveyed ? fixedBankOffset(document, [px, py], normal, halfWidth, tangent, 6.5) : halfWidth;
     if (bankOffset === null) continue;
     const bankPt: Point = [px + normal[0] * bankOffset, py + normal[1] * bankOffset];
 

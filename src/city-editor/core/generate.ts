@@ -157,6 +157,7 @@ import {
   minGateSpacingMeters,
   openBarrierPassage,
   openGeneratedPassages,
+  retractProtrudingGates,
   straightenBridges,
   straightenGateCrossings,
   throughEdgesAt,
@@ -906,7 +907,7 @@ export function generateCityAttempt(
       )
     : shaped;
   const settled = measureProcessing(profiler, "gate-and-bridge-crossings", () =>
-    straightenGateCrossings(straightenBridges(connected))
+    straightenGateCrossings(retractProtrudingGates(straightenBridges(connected)))
   );
   debugDocument = () => settled;
   measureProcessing(profiler, "temple", () => settleTempleOnDocument(settled));

@@ -903,6 +903,44 @@ function straightenExteriorGateApproaches(document: CityDocument): CityDocument 
  * angle, the more oblique arm swings onto the wall normal so the gatehouse
  * does not cover the street.
  */
+/** Outward spikes shallower than this are left as drawn. */
+const GATE_SPIKE_MIN_METERS = 1.5;
+
+/**
+ * Pull a town gate that spikes out of the curtain back onto the chord of its two wall
+ * neighbours. A gate on a sharp outward corner leaves its gatehouse and any barbican
+ * standing off the wall on both sides. Runs once when the geometry is finished, before
+ * the gate roads are squared to the (now straight) curtain.
+ */
+export function retractProtrudingGates(document: CityDocument): CityDocument {
+  let next = document;
+  for (const gate of townGates(next)) {
+    if (gate.locked) continue;
+    const vertex = next.mesh.vertices[gate.vertexId];
+    const neighbours = wallNeighbourIds(next, gate.vertexId);
+    const frame = gateCrossingFrame(next, gate.vertexId);
+    if (!vertex || vertex.locked || !neighbours || !frame) continue;
+    const a = next.mesh.vertices[neighbours[0]]?.point;
+    const b = next.mesh.vertices[neighbours[1]]?.point;
+    if (!a || !b) continue;
+    const cx = b[0] - a[0],
+      cy = b[1] - a[1];
+    const len2 = cx * cx + cy * cy;
+    if (len2 < 64) continue;
+    const t = Math.max(0.2, Math.min(0.8, ((vertex.point[0] - a[0]) * cx + (vertex.point[1] - a[1]) * cy) / len2));
+    const target: Point = [a[0] + cx * t, a[1] + cy * t];
+    // Only an outward spike: the chord lies on the town side of the gate.
+    const inward = (target[0] - vertex.point[0]) * frame.inward[0] + (target[1] - vertex.point[1]) * frame.inward[1];
+    if (inward < GATE_SPIKE_MIN_METERS) continue;
+    const moved = tryMoveVertex(next, gate.vertexId, target);
+    if (moved === next) continue;
+    for (const face of incidentFaces(moved.mesh, gate.vertexId))
+      if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+    next = moved;
+  }
+  return next;
+}
+
 export function straightenGateCrossings(document: CityDocument): CityDocument {
   let next = document;
   const riverVertices = new Set<Id>();

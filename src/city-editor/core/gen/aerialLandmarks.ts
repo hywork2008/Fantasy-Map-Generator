@@ -802,6 +802,14 @@ function placeBarbicans(site: Site, rng: Rng): Barbican[] {
       ];
       turrets.push(at(depth, -halfWidth), at(depth, halfWidth));
     }
+    // Both arms must spring from the curtain itself; a gap shows a barbican floating off the wall.
+    if (moat <= 0) {
+      const wallSegments = site.capsules
+        .query(grow(boxOf(court), wallWidth * 2 + 4))
+        .filter(c => c.kind === "wall" && c.groupId === wall.id);
+      const reaches = (p: Point) => wallSegments.some(c => pointSegmentDistance(p, c.a, c.b) <= c.radius + 0.5);
+      if (!reaches(court[0]) || !reaches(court[court.length - 1])) continue;
+    }
     const frontTowers = [
       rect(at, depth - tower / 2, -gap - tower, depth + tower / 2, -gap),
       rect(at, depth - tower / 2, gap, depth + tower / 2, gap + tower)
@@ -853,8 +861,21 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
     // Last river point that is still in town; the tanners sit just downstream of it.
     let last = -1;
     for (let i = 0; i < pts.length; i++) if (site.insideTown(pts[i]) || site.townDistance(pts[i]) < 25) last = i;
+    if (last < 0) {
+      // A river skirting the town: start at its nearest point. Wide FMG rivers have their
+      // centreline far out in the water, so measure to the bank.
+      let best = Infinity;
+      for (let i = 0; i < pts.length; i++) {
+        const d = site.townDistance(pts[i]) - river.widthMeters / 2;
+        if (d < best && d < 200) {
+          best = d;
+          last = i;
+        }
+      }
+    }
     if (last < 0) continue;
     const half = river.widthMeters / 2;
+    const townCentre = centroid(site.town);
     // Walk downstream from the town edge and try both banks.
     const along: Array<{ p: Point; t: Point; d: number }> = [];
     let walked = 0;
@@ -876,9 +897,9 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
         const n: Point = [-t[1] * side, t[0] * side];
         const length = 44 + rng.range(-6, 10);
         const depth = 22;
-        const offset = river.surveyed ? fixedBankOffset(document, p, n, half) : half;
+        const offset = river.surveyed ? fixedBankOffset(document, p, n, half, t, length / 2) : half;
         if (offset === null) continue;
-        const bank = offset + 1.5;
+        const bank = offset + (river.surveyed ? 0.3 : 1.5);
         const angle = Math.atan2(t[1], t[0]);
         // `v` measured inland from the bank.
         const base = frame([p[0] + n[0] * bank, p[1] + n[1] * bank], angle);
@@ -890,7 +911,10 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
         if (wards.has("market") || wards.has("castle") || wards.has("park")) continue;
         const outsideWall = site.walled && !site.insideTown(centroid(yard));
         const cleared = site.buildingsIn(yard).length;
+        // The tanners worked on the town's own bank; the far bank means a crossing for every hide.
+        const townSide = n[0] * (townCentre[0] - p[0]) + n[1] * (townCentre[1] - p[1]) > 0;
         const score =
+          (townSide ? 3 : 0) +
           (site.walled ? (outsideWall ? 2 : 0) : 0) -
           Math.abs(d - (site.walled ? 45 : 20)) * 0.02 -
           cleared * 0.02 -

@@ -291,6 +291,35 @@ export function planHarborShips(
     if (pier.riverId && !pier.water) pier.water = physicalWater.find(w => pointInPolygon(pier.end, w));
   }
 
+  // 水上を渡る橋・道路（FMG固定橋、枠外へ続く道路と橋、対岸連絡路、道路グループ）。船を重ねない。
+  const crossingLines: Array<{ a: Point; b: Point; halfWidth: number }> = [];
+  const addLine = (points: readonly (readonly number[])[], width: number) => {
+    for (let i = 1; i < points.length; i++)
+      crossingLines.push({
+        a: [points[i - 1][0], points[i - 1][1]],
+        b: [points[i][0], points[i][1]],
+        halfWidth: width / 2
+      });
+  };
+  const fixed = document.importedFixedCrossings;
+  for (const c of fixed?.crossings ?? []) addLine([c.approachA, c.deckA, c.deckB, c.approachB], fixed!.roadWidthMeters);
+  const roadWidth = fixed?.roadWidthMeters ?? 6;
+  for (const road of document.frameRoads ?? []) for (const piece of road.pieces) addLine(piece.points, roadWidth);
+  for (const c of document.riverConnections ?? []) {
+    addLine(c.townRoad, roadWidth);
+    addLine(c.farRoad, roadWidth);
+  }
+  for (const group of document.featureGroups)
+    if (group.kind === "road")
+      for (const ref of group.segments) {
+        const edge = document.mesh.edges[ref.edgeId];
+        if (edge)
+          addLine(
+            [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point],
+            group.style.widthMeters
+          );
+      }
+
   // 桟橋の左右（side = 1 または -1）について、他桟橋や陸地との離隔を計測し候補バースを作成
   const berths: PierBerth[] = [];
   for (const pier of knownPiers) {
@@ -435,7 +464,10 @@ export function planHarborShips(
       continue;
     }
 
-    // (4) 他の船との衝突判定
+    // (4) 橋・道路との干渉判定
+    if (crossingLines.some(l => distSegmentToSegment(stern, bow, l.a, l.b) < beam / 2 + l.halfWidth + 1.5)) continue;
+
+    // (5) 他の船との衝突判定
     const shipCollision = placedShips.some(other => {
       const d = distance(shipCenter, other.point ?? [0, 0]);
       const otherSpec = SHIP_SPECS[other.shipType ?? "small"];
@@ -528,6 +560,7 @@ export function planHarborShips(
 
       // 水域ポリゴン内に船体が収まっていること
       if (!pointInPolygon(bow, waterPoly) || !pointInPolygon(stern, waterPoly)) continue;
+      if (crossingLines.some(l => distSegmentToSegment(stern, bow, l.a, l.b) < beam / 2 + l.halfWidth + 1.5)) continue;
 
       if (knownPiers.some(p => distPointToSegment(anchorPt, p.start, p.end) < 20)) continue;
 
