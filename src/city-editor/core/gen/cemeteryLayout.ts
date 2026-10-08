@@ -12,7 +12,11 @@ import { plotArea, subtractConvex } from "./parcelGeometry";
  * Modeled closely after `layoutCastle` to ensure architectural symmetry,
  * high maintainability, and consistent coordinate space mapping.
  */
-export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): CemeteryPlan | null {
+export function layoutCemetery(
+  document: CityDocument,
+  cemetery: CemeteryPlan,
+  options: CemeteryLayoutOptions = {}
+): CemeteryPlan | null {
   const ring = cemetery.boundary;
   if (!ring || ring.length < 3) return null;
 
@@ -93,6 +97,9 @@ export function layoutCemetery(document: CityDocument, cemetery: CemeteryPlan): 
   // Local coordinate system:
   // y axis points from gate towards the center/depth of the precinct
   // x axis is perpendicular (width)
+  // Keep the validity verdict and the gate a full layout would reach; parts follow later.
+  if (options.deferParts) return { ...cemetery, courtyards: [], parts: [], accesses: [], trees: [], gatePoint: at };
+
   const y: Point = [dy[0] / length, dy[1] / length];
   const x: Point = [y[1], -y[0]];
 
@@ -471,20 +478,29 @@ export function computeCemeteryBoundary(document: CityDocument, face: Face): Poi
   return boundary.length >= 3 ? boundary : raw;
 }
 
+export interface CemeteryLayoutOptions {
+  /**
+   * Validate and choose the gate only, leaving parts empty. For meshes whose
+   * cemeteries are laid out again before anything reads their parts: a full
+   * layout of a large tumulus precinct takes seconds.
+   */
+  deferParts?: boolean;
+}
+
 /**
  * Recomputes layout for all unlocked cemeteries in the document.
  */
-export function refreshCemeteryLayouts(document: CityDocument): boolean {
+export function refreshCemeteryLayouts(document: CityDocument, options: CemeteryLayoutOptions = {}): boolean {
   for (let i = 0; i < (document.cemeteries?.length ?? 0); i++) {
     const cemetery = document.cemeteries![i];
     if (cemetery.locked) continue;
     const face = document.mesh.faces[cemetery.faceId];
     const boundary = face ? computeCemeteryBoundary(document, face) : cemetery.boundary;
-    const updated = layoutCemetery(document, {
-      ...cemetery,
-      boundary,
-      burialProfile: cemetery.burialProfile ?? document.burialProfile
-    });
+    const updated = layoutCemetery(
+      document,
+      { ...cemetery, boundary, burialProfile: cemetery.burialProfile ?? document.burialProfile },
+      options
+    );
     document.cemeteries![i] = updated ?? {
       ...cemetery,
       boundary,
@@ -501,7 +517,11 @@ export function refreshCemeteryLayouts(document: CityDocument): boolean {
 /**
  * Synchronizes cemetery plans with faces marked as ward === "cemetery".
  */
-export function syncDocumentCemeteries(document: CityDocument, faceIds?: Iterable<Id>): void {
+export function syncDocumentCemeteries(
+  document: CityDocument,
+  faceIds?: Iterable<Id>,
+  options: CemeteryLayoutOptions = {}
+): void {
   document.cemeteries ??= [];
   const ids = faceIds ?? Object.keys(document.mesh.faces);
   for (const id of ids) {
@@ -529,7 +549,7 @@ export function syncDocumentCemeteries(document: CityDocument, faceIds?: Iterabl
           provenance: "generated",
           locked: false
         };
-        const layout = layoutCemetery(document, plan);
+        const layout = layoutCemetery(document, plan, options);
         if (layout) {
           document.cemeteries.push(layout);
         }

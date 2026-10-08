@@ -387,7 +387,9 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
     if (face) element.point = polygonCentroid(facePoints(alignedMesh, face));
   }
   const finished = phase === "boundaries" ? aligned : straightenBridges(aligned);
-  syncDocumentCemeteries(finished);
-  refreshCemeteryLayouts(finished);
+  // The refresh lays every cemetery out again, so new plans only need their
+  // validity and gate. Boundary meshes are laid out again after finishing.
+  syncDocumentCemeteries(finished, undefined, { deferParts: true });
+  refreshCemeteryLayouts(finished, { deferParts: phase === "boundaries" });
   return finished;
 }

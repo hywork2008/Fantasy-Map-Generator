@@ -41,16 +41,23 @@ export function layoutCultureCemetery(
     Array.from({ length: n }, (_, i) =>
       world(u + Math.cos((i * 2 * Math.PI) / n) * radius, v + Math.sin((i * 2 * Math.PI) / n) * radius)
     );
+  // Disjoint boxes cannot overlap; a tumulus field holds hundreds of 24-gon parts (Odeck).
+  const partBoxes: Box[] = [];
+  const overlapsPart = (footprint: Point[]) => {
+    const box = boxOf(footprint);
+    return parts.some((part, i) => boxesTouch(partBoxes[i], box) && polygonOverlaps(part.footprint, footprint));
+  };
   const add = (role: CemeteryPart["role"], kind: CemeteryPart["kind"], footprint: Point[], holes?: Point[][]) => {
     if (
       !fits(footprint) ||
-      parts.some(part => polygonOverlaps(part.footprint, footprint)) ||
+      overlapsPart(footprint) ||
       trees.some(t => {
         const [u, v] = local(t);
         return polygonOverlaps(rectangle(u, v, 3, 3), footprint);
       })
     )
       return false;
+    partBoxes.push(boxOf(footprint));
     parts.push({
       id: `${cemetery.id}:${role}:${parts.length}`,
       role,
@@ -213,7 +220,7 @@ export function layoutCultureCemetery(
       const canopy = rectangle(u, v, 3, 3);
       if (
         fits(canopy) &&
-        !parts.some(part => polygonOverlaps(part.footprint, canopy)) &&
+        !overlapsPart(canopy) &&
         !accesses.some(a => nearestOnPolyline(p, a.points).dist < a.widthMeters / 2 + 1.5)
       )
         trees.push(p);
@@ -283,6 +290,29 @@ export function layoutCultureCemetery(
       }
     }
   return { ...cemetery, parts, courtyards: [safe], accesses, trees, gatePoint: gate };
+}
+
+type Box = [number, number, number, number];
+const BOX_MARGIN = 1e-6;
+
+function boxOf(points: Point[]): Box {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of points) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return [minX, minY, maxX, maxY];
+}
+
+function boxesTouch(a: Box, b: Box): boolean {
+  return (
+    a[0] <= b[2] + BOX_MARGIN && b[0] <= a[2] + BOX_MARGIN && a[1] <= b[3] + BOX_MARGIN && b[1] <= a[3] + BOX_MARGIN
+  );
 }
 
 export function cemeteryGroundColor(profile: BurialCultureProfile): string {
