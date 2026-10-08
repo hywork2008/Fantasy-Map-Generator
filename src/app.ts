@@ -30,6 +30,7 @@ import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
+import { getGenerationProfile } from "./generators/generationProfiler";
 import { initModules } from "./generators/index";
 import { getTickProfile, resetTickProfile } from "./generators/tickProfiler";
 import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./generators/timeEngine";
@@ -325,7 +326,8 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       advanceTime,
       getBurgSiteDescriptor,
       getTickProfile,
-      resetTickProfile
+      resetTickProfile,
+      getGenerationProfile
     }),
     extensionAPI: buildExtensionAPI()
   });

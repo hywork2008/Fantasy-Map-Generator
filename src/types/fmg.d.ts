@@ -1,6 +1,7 @@
 import type { SimulationContext } from "../context/simulationContext";
 import type { RenderMode, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { GenerationProfile } from "../generators/generationProfiler";
 import type { BurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import type { UITourModule } from "../services/ui-tour";
 import type { Grid } from "../utils/graphUtils";
@@ -56,6 +57,11 @@ export interface FMGActionsAPI {
   }>;
   /** Clears the tick profiler before a measurement run. */
   resetTickProfile(): void;
+  /**
+   * Nested timings of the latest map generation, or null unless localStorage `debug`
+   * enabled `generationProfile` before page load. Used by `npm run fmg:perf`.
+   */
+  getGenerationProfile(): GenerationProfile | null;
 }
 
 export interface FMGNamespace {

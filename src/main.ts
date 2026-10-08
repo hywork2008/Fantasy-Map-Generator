@@ -10,6 +10,13 @@ import {
 } from "./data/earthConfig";
 import { getEarthRegion } from "./data/earthRegions";
 import { isFantasyCulturesSet } from "./data/raceCivicStance";
+import {
+  activeGenerationProfiler,
+  beginGenerationProfile,
+  markGenerationProfile,
+  measureGenerationStep,
+  measureGenerationStepAsync
+} from "./generators/generationProfiler";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { ensureConvergingWorldRiverRoads } from "./services/convergingWorldRiverRoads";
 import { resolveRiverRouteCrossings } from "./services/riverRouteCrossings";
@@ -429,15 +436,22 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
   document.addEventListener("fmg:render-mode-changed", () => {
     if (viewContext.renderMap) drawLayers();
   });
-  document.addEventListener("fmg:map-ready-tasks-completed", () => {
-    // Economy publishes its own result; OFF uses the independently calibrated host estimate.
-    if (pendingInitialLandUse) {
-      initializeSettlementLandUse(worldContext, useOptionsState.getState().year);
-      pendingInitialLandUse = false;
-    }
-    if (!useExtensionState.getState().enabledExtensions.economy) refreshEstimatedSubsistenceCapacity(worldContext);
-    if (viewContext.renderMap) drawLayers();
-  });
+  document.addEventListener("fmg:map-ready-tasks-completed", () =>
+    measureGenerationStep("map-ready-completed", () => {
+      // Economy publishes its own result; OFF uses the independently calibrated host estimate.
+      if (pendingInitialLandUse) {
+        measureGenerationStep("initializeSettlementLandUse", () =>
+          initializeSettlementLandUse(worldContext, useOptionsState.getState().year)
+        );
+        pendingInitialLandUse = false;
+      }
+      if (!useExtensionState.getState().enabledExtensions.economy)
+        measureGenerationStep("refreshEstimatedSubsistenceCapacity", () =>
+          refreshEstimatedSubsistenceCapacity(worldContext)
+        );
+      if (viewContext.renderMap) measureGenerationStep("drawLayers", drawLayers);
+    })
+  );
   useExtensionState.subscribe((state, previous) => {
     if (previous.enabledExtensions.economy && !state.enabledExtensions.economy) {
       refreshEstimatedSubsistenceCapacity(worldContext);
@@ -573,15 +587,19 @@ async function checkLoadParameters(drawMap: boolean) {
 }
 
 export async function generateMapOnLoad(drawMap: boolean = true) {
-  await applyStyleOnLoad();
-  if (!(await runGeneration())) return;
-  if (drawMap) {
-    applyLayersPreset();
-    drawLayers();
-    fitMapToScreen();
-    focusOn();
-    void startMapReadyTasks();
-  }
+  beginGenerationProfile("load");
+  await measureGenerationStepAsync("load", async () => {
+    await measureGenerationStepAsync("applyStyleOnLoad", applyStyleOnLoad);
+    if (!(await runGenerationProfiled())) return;
+    if (drawMap) {
+      measureGenerationStep("applyLayersPreset", applyLayersPreset);
+      measureGenerationStep("drawLayers", drawLayers);
+      measureGenerationStep("fitMapToScreen", fitMapToScreen);
+      measureGenerationStep("focusOn", focusOn);
+      markGenerationProfile("drawn");
+      void startMapReadyTasks();
+    }
+  });
 }
 
 export function focusOn() {
@@ -1033,18 +1051,24 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   INFO && console.group("Generated Map");
 
   while (true) {
-    activeRequest = prepareGenerationStage(activeRequest);
+    const preparedRequest = activeRequest;
+    activeRequest = measureGenerationStep("prepare", () => prepareGenerationStage(preparedRequest));
     const stages = getGenerationStages();
     let shouldRestart = false;
 
     for (let stageIndex = 0; stageIndex < stages.length; stageIndex++) {
       if (canReviewStages) generationProgressStore.getState().beginStage(stageIndex, isInitialGeneration);
-      await stages[stageIndex]();
+      await measureGenerationStepAsync(GENERATION_STAGE_PROFILE_NAMES[stageIndex], stages[stageIndex]);
       if (!canReviewStages || stageIndex < restartAt) continue;
       if (!generationProgressStore.getState().autoRun) {
-        renderGenerationReviewPreview(stageIndex, generationProgressStore.getState().reviewLayers);
+        measureGenerationStep("review-preview", () =>
+          renderGenerationReviewPreview(stageIndex, generationProgressStore.getState().reviewLayers)
+        );
       }
-      const action = await generationProgressStore.getState().waitForAction(stageIndex);
+      // fmg:perf subtracts this user wait from the active generation time.
+      const action = await measureGenerationStepAsync("review-wait", () =>
+        generationProgressStore.getState().waitForAction(stageIndex)
+      );
       if (action === "loadMap") throw new MapLoadRequestedError();
       if (action === "next") continue;
 
@@ -1129,157 +1153,189 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   return { ...request, seed: worldContext.seed };
 }
 
+const GENERATION_STAGE_PROFILE_NAMES = [
+  "landscape-outline",
+  "climate-and-waterways",
+  "cultures-and-settlements",
+  "realms-and-routes",
+  "finish-the-world"
+] as const;
+
 function getGenerationStages(): Array<() => Promise<void>> {
   const geometrySession = settlementGeometrySession(worldContext);
+  const step = measureGenerationStep;
   return [
     async () => {
-      worldContext.grid.cells.h = await HeightmapGenerator.generate(
-        worldContext,
-        viewContext,
-        appServices,
-        worldContext.grid
+      worldContext.grid.cells.h = await measureGenerationStepAsync("HeightmapGenerator.generate", () =>
+        HeightmapGenerator.generate(worldContext, viewContext, appServices, worldContext.grid)
       );
-      Features.markupGrid();
-      addLakesInDeepDepressions();
-      openNearSeaLakes();
-      reGraph();
-      Features.markupPack();
-      resetRulers();
+      step("Features.markupGrid", () => Features.markupGrid());
+      step("addLakesInDeepDepressions", addLakesInDeepDepressions);
+      step("openNearSeaLakes", openNearSeaLakes);
+      step("reGraph", reGraph);
+      step("Features.markupPack", () => Features.markupPack());
+      step("resetRulers", resetRulers);
     },
     async () => {
-      if (viewContext.renderMap) OceanLayers();
-      defineMapSize();
-      calculateMapCoordinates();
-      calculateTemperatures();
-      generatePrecipitation();
+      if (viewContext.renderMap) step("OceanLayers", () => OceanLayers());
+      step("defineMapSize", defineMapSize);
+      step("calculateMapCoordinates", calculateMapCoordinates);
+      step("calculateTemperatures", calculateTemperatures);
+      step("generatePrecipitation", generatePrecipitation);
       const state = getWorldState();
-      OceanCurrents.generate(worldContext, viewContext, appServices, state);
+      step("OceanCurrents.generate", () => OceanCurrents.generate(worldContext, viewContext, appServices, state));
       // Options → Generation "Enclosure calculation" may prefer the current-speed-based score
       // over the fixed-radius heuristic markupPack() already assigned; Rivers/Biomes/Features
       // below read pack.cells.enclosure, so this must run before them.
-      Features.applyOceanCurrentEnclosure();
-      Rivers.generate(worldContext, viewContext, appServices, state);
-      LavaFlows.generate(worldContext, viewContext, appServices, state);
-      Biomes.define(state);
-      Features.defineGroups();
-      Ice.generate(worldContext, viewContext, appServices, state);
+      step("Features.applyOceanCurrentEnclosure", () => Features.applyOceanCurrentEnclosure());
+      step("Rivers.generate", () => Rivers.generate(worldContext, viewContext, appServices, state));
+      step("LavaFlows.generate", () => LavaFlows.generate(worldContext, viewContext, appServices, state));
+      step("Biomes.define", () => Biomes.define(state));
+      step("Features.defineGroups", () => Features.defineGroups());
+      step("Ice.generate", () => Ice.generate(worldContext, viewContext, appServices, state));
     },
     async () => {
       const state = getWorldState();
-      Threats.generate(worldContext, viewContext, appServices, state);
-      rankCells();
-      generateSubsistenceCapacity(worldContext);
+      step("Threats.generate", () => Threats.generate(worldContext, viewContext, appServices, state));
+      step("rankCells", rankCells);
+      step("generateSubsistenceCapacity", () => generateSubsistenceCapacity(worldContext));
       // Underground realm Phase 1 (docs/plan/underground-realm-and-supernatural-areas.md §3.1,
       // §3.3): cave systems must exist before Cultures.generate/expand so a Dwarf culture's
       // territory can be moved into one below, and non-Fantasy maps skip it entirely (empty
       // domains ⇒ every downstream reader treats it like a legacy save).
-      worldContext.pack.subterraneanDomains = isFantasyCulturesSet(useOptionsState.getState().culturesSet)
-        ? generateCaveSystems(worldContext.seed, worldContext.pack.cells, worldContext.biomesData)
+      const subterraneanDomains = isFantasyCulturesSet(useOptionsState.getState().culturesSet)
+        ? step("generateCaveSystems", () =>
+            generateCaveSystems(worldContext.seed, worldContext.pack.cells, worldContext.biomesData)
+          )
         : [];
+      worldContext.pack.subterraneanDomains = subterraneanDomains;
       // Phase 4 (docs §4.3a): Deep Worms are ordinary Monsters confined to underground domain
       // cells, so the generic danger field + player/threat-cull-job pipeline picks them up with
       // no further wiring. Spawned right after cave systems exist, before anything (Cultures'
       // expansion cost, Settlement Foundation's danger suitability) reads `cells.danger`.
-      Threats.appendMonstersAndRebuildDanger(
-        worldContext,
-        spawnDeepWorms(worldContext.pack.subterraneanDomains, (worldContext.pack.monsters?.length ?? 0) + 1)
+      step("Threats.appendMonstersAndRebuildDanger", () =>
+        Threats.appendMonstersAndRebuildDanger(
+          worldContext,
+          spawnDeepWorms(subterraneanDomains, (worldContext.pack.monsters?.length ?? 0) + 1)
+        )
       );
-      Cultures.generate(worldContext, viewContext, appServices, state);
-      Cultures.expand(state);
+      step("Cultures.generate", () => Cultures.generate(worldContext, viewContext, appServices, state));
+      step("Cultures.expand", () => Cultures.expand(state));
       const optionsSnap = useOptionsState.getState();
       // Phase 2 (docs §3.4): claims the best cave system for the Dwarf culture and computes its
       // underground food-web capacity, before Settlement Foundation runs below. `dwarfHold` is
       // spliced into the Foundation plan after it is built (§7.3 — must not wait until
       // Burgs.generate the way the Giant precedent does, or frontier/marches get a one-cell
       // Dwarf enclave with no capital).
-      const dwarfHold = seedDwarfHoldOikoumene(
-        worldContext,
-        optionsSnap.culturesSet,
-        optionsSnap.initialPopulationSaturation / 100
+      const dwarfHold = step("seedDwarfHoldOikoumene", () =>
+        seedDwarfHoldOikoumene(worldContext, optionsSnap.culturesSet, optionsSnap.initialPopulationSaturation / 100)
       );
       const preferredFrontierStarts =
         optionsSnap.initialSettlementPattern === "frontier" && optionsSnap.frontierPolitySpacing === "dispersed"
-          ? getPreferredDispersedFrontierStarts({
-              pack: worldContext.pack,
-              realmSize: optionsSnap.initialPolityRealmSize,
-              polityCount: optionsSnap.statesNumber,
-              startMode: optionsSnap.frontierStartMode,
-              climate: { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec }
-            })
+          ? step("getPreferredDispersedFrontierStarts", () =>
+              getPreferredDispersedFrontierStarts({
+                pack: worldContext.pack,
+                realmSize: optionsSnap.initialPolityRealmSize,
+                polityCount: optionsSnap.statesNumber,
+                startMode: optionsSnap.frontierStartMode,
+                climate: { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec }
+              })
+            )
           : undefined;
-      const settlementPattern = applyInitialSettlementPattern(
-        worldContext.pack.cells,
-        worldContext.options.initialSettlementPattern,
-        optionsSnap.initialPopulationSaturation / 100,
-        Math.random,
-        {
-          temperature: worldContext.grid.cells.temp,
-          precipitation: worldContext.grid.cells.prec,
-          features: worldContext.pack.features
-        },
-        optionsSnap.statesNumber,
-        optionsSnap.oikoumeneLandShare,
-        optionsSnap.frontierPolitySpacing,
-        optionsSnap.frontierStartMode,
-        preferredFrontierStarts?.cells,
-        preferredFrontierStarts?.landmassOrder
+      const settlementPattern = step("applyInitialSettlementPattern", () =>
+        applyInitialSettlementPattern(
+          worldContext.pack.cells,
+          worldContext.options.initialSettlementPattern,
+          optionsSnap.initialPopulationSaturation / 100,
+          Math.random,
+          {
+            temperature: worldContext.grid.cells.temp,
+            precipitation: worldContext.grid.cells.prec,
+            features: worldContext.pack.features
+          },
+          optionsSnap.statesNumber,
+          optionsSnap.oikoumeneLandShare,
+          optionsSnap.frontierPolitySpacing,
+          optionsSnap.frontierStartMode,
+          preferredFrontierStarts?.cells,
+          preferredFrontierStarts?.landmassOrder
+        )
       );
       if (settlementPattern.plan)
         worldContext.pack.settlementFoundation = withDwarfMountainRegion(settlementPattern.plan, dwarfHold);
       else delete worldContext.pack.settlementFoundation;
-      Burgs.generate(worldContext, viewContext, appServices, state, { deferShift: true });
-      await Burgs.shiftAsync({ geometrySession });
+      step("Burgs.generate", () => Burgs.generate(worldContext, viewContext, appServices, state, { deferShift: true }));
+      await measureGenerationStepAsync("Burgs.shiftAsync", () => Burgs.shiftAsync({ geometrySession }));
     },
     async () => {
       const state = getWorldState();
+      const generateRoutes = () =>
+        step("Routes.generate", () => Routes.generate(worldContext, viewContext, appServices, state));
+      const generateStates = () =>
+        step("States.generate", () => States.generate(worldContext, viewContext, appServices, state));
+      const shiftConnected = () =>
+        measureGenerationStepAsync("Burgs.shiftAsync(connected)", () =>
+          Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession })
+        );
       if (worldContext.options.initialSettlementPattern !== "standard") {
-        Routes.generate(worldContext, viewContext, appServices, state);
-        States.generate(worldContext, viewContext, appServices, state);
-        await Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession });
-        Routes.generate(worldContext, viewContext, appServices, state);
+        generateRoutes();
+        generateStates();
+        await shiftConnected();
+        generateRoutes();
       } else {
-        States.generate(worldContext, viewContext, appServices, state);
-        await Burgs.shiftAsync({ connectStateLandmasses: true, geometrySession });
-        Routes.generate(worldContext, viewContext, appServices, state);
+        generateStates();
+        await shiftConnected();
+        generateRoutes();
       }
-      Religions.generate(worldContext, viewContext, appServices, state);
-      Burgs.specify(worldContext, viewContext, appServices, state);
-      States.collectStatistics(state);
-      States.defineStateForms(state);
+      step("Religions.generate", () => Religions.generate(worldContext, viewContext, appServices, state));
+      step("Burgs.specify", () => Burgs.specify(worldContext, viewContext, appServices, state));
+      step("States.collectStatistics", () => States.collectStatistics(state));
+      step("States.defineStateForms", () => States.defineStateForms(state));
       // Phase 3: classify unclaimed land after politics are painted.
-      assignWildLandTags(worldContext.pack.cells);
-      Provinces.generate(worldContext, viewContext, appServices, state);
-      Provinces.getPoles(state);
-      Rivers.specify(worldContext, viewContext, appServices, state);
-      Lakes.defineNames(state);
+      step("assignWildLandTags", () => assignWildLandTags(worldContext.pack.cells));
+      step("Provinces.generate", () => Provinces.generate(worldContext, viewContext, appServices, state));
+      step("Provinces.getPoles", () => Provinces.getPoles(state));
+      step("Rivers.specify", () => Rivers.specify(worldContext, viewContext, appServices, state));
+      step("Lakes.defineNames", () => Lakes.defineNames(state));
     },
     async () => {
       const state = getWorldState();
-      Military.generate(worldContext, viewContext, appServices, state);
-      establishVassalage(worldContext.pack, worldContext.populationRate);
-      FrontierForts.generate(worldContext, viewContext, appServices, state);
-      Markers.generate(worldContext, viewContext, appServices, state);
+      step("Military.generate", () => Military.generate(worldContext, viewContext, appServices, state));
+      step("establishVassalage", () => establishVassalage(worldContext.pack, worldContext.populationRate));
+      step("FrontierForts.generate", () => FrontierForts.generate(worldContext, viewContext, appServices, state));
+      step("Markers.generate", () => Markers.generate(worldContext, viewContext, appServices, state));
       // High Fantasy dungeon sites (boss + treasure); after markers so icons share the layer.
-      Dungeons.generate(worldContext, { year: useOptionsState.getState().year });
-      Zones.generate(worldContext, viewContext, appServices, state);
+      step("Dungeons.generate", () => Dungeons.generate(worldContext, { year: useOptionsState.getState().year }));
+      step("Zones.generate", () => Zones.generate(worldContext, viewContext, appServices, state));
       // The graph's compatibility adapters are already installed by reGraph().
       // Seed the simulation-owned timber stock only after Biomes has assigned
       // each cell's static forest capacity and settlement generation has finished.
-      initializeForestStock(worldContext.pack.cells);
-      initSimulationClock();
-      ensureFuneralRemainsSeeded();
-      advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
-      bindSimulationBurgState(worldContext, simulationContext);
-      bindSimulationStateState(worldContext, simulationContext);
-      bindSimulationMilitaryState(worldContext, simulationContext);
-      bindExtensionStateSlices(worldContext, simulationContext);
-      applyHistoricalWarScars();
-      Threats.appendCasualtyNotes(worldContext);
+      step("initializeForestStock", () => initializeForestStock(worldContext.pack.cells));
+      step("initSimulationClock", initSimulationClock);
+      step("ensureFuneralRemainsSeeded", ensureFuneralRemainsSeeded);
+      step("advanceSeasonalClimate", () =>
+        advanceSeasonalClimate({ world: worldContext, simulation: simulationContext })
+      );
+      step("bindSimulationState", () => {
+        bindSimulationBurgState(worldContext, simulationContext);
+        bindSimulationStateState(worldContext, simulationContext);
+        bindSimulationMilitaryState(worldContext, simulationContext);
+        bindExtensionStateSlices(worldContext, simulationContext);
+      });
+      step("applyHistoricalWarScars", applyHistoricalWarScars);
+      step("Threats.appendCasualtyNotes", () => Threats.appendCasualtyNotes(worldContext));
       // Finish CE preparation after route pruning, burg details and seasonal hydrology.
       // The hand-off can reuse this snapshot, including after Rivers.specify().
-      const preparedRoads = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
-      if (preparedRoads.changedRoutes.length) resolveRiverRouteCrossings(worldContext, preparedRoads);
-      Names.getMapName(false);
+      const preparedRoads = step("ensureConvergingWorldRiverRoads", () =>
+        ensureConvergingWorldRiverRoads(
+          worldContext,
+          useOptionsState.getState().distanceUnit,
+          activeGenerationProfiler()
+        )
+      );
+      if (preparedRoads.changedRoutes.length)
+        step("resolveRiverRouteCrossings", () => resolveRiverRouteCrossings(worldContext, preparedRoads));
+      step("Names.getMapName", () => Names.getMapName(false));
       if (!worldContext.mapId) worldContext.mapId = Date.now();
     }
   ];
@@ -1368,7 +1424,7 @@ async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Pro
   cancelMapReadyTasks();
   const timeStart = performance.now();
   try {
-    const commit = await dispatchWorldGenerate(opts ?? {});
+    const commit = await measureGenerationStepAsync("world-runtime", () => dispatchWorldGenerate(opts ?? {}));
     if (!commit) throw new Error("world.generate did not produce a commit");
 
     if (debugSnapshotsEnabled()) {
@@ -1381,11 +1437,13 @@ async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Pro
       });
     }
 
-    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
-    drawCalendar(worldContext, viewContext);
+    measureGenerationStep("drawScaleBar", () =>
+      drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale)
+    );
+    measureGenerationStep("drawCalendar", () => drawCalendar(worldContext, viewContext));
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
-    showStatistics();
+    measureGenerationStep("showStatistics", showStatistics);
     INFO && console.groupEnd();
     document.body.classList.remove("fmg-generation-review-preview");
     generationProgressStore.getState().finish();
@@ -1417,7 +1475,15 @@ async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Pro
 
 /** Public generation entry point. It intentionally preserves the void public API. */
 export async function generate(opts?: { seed?: string; graph?: Grid | null }): Promise<void> {
-  if (await runGeneration(opts)) void startMapReadyTasks();
+  beginGenerationProfile("generate");
+  const generated = await measureGenerationStepAsync("generate", () => runGenerationProfiled(opts));
+  if (generated) void startMapReadyTasks();
+}
+
+async function runGenerationProfiled(opts?: { seed?: string; graph?: Grid | null }): Promise<boolean> {
+  const generated = await measureGenerationStepAsync("generation", () => runGeneration(opts));
+  markGenerationProfile(generated ? "generated" : "failed");
+  return generated;
 }
 
 export { getWorldState } from "./actions";
@@ -1864,20 +1930,24 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
   closeDialogs("#worldConfigurator, #options3d");
   viewContext.customization = 0;
 
-  resetZoom(1000);
-  undraw();
-  if (!(await runGeneration(typeof opts === "string" ? { seed: opts } : opts))) {
-    shouldShowLoading && hideLoading();
-    return;
-  }
-  drawLayers();
-  void startMapReadyTasks();
-  if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
-  if (dialogStore.getState().openDialogs.has("worldConfigurator")) EditorBus.editWorld();
+  beginGenerationProfile("regenerate");
+  await measureGenerationStepAsync("regenerate", async () => {
+    resetZoom(1000);
+    measureGenerationStep("undraw", undraw);
+    if (!(await runGenerationProfiled(typeof opts === "string" ? { seed: opts } : opts))) {
+      shouldShowLoading && hideLoading();
+      return;
+    }
+    measureGenerationStep("drawLayers", drawLayers);
+    void startMapReadyTasks();
+    if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
+    if (dialogStore.getState().openDialogs.has("worldConfigurator")) EditorBus.editWorld();
 
-  fitMapToScreen();
-  shouldShowLoading && hideLoading();
-  clearMainTip();
+    measureGenerationStep("fitMapToScreen", fitMapToScreen);
+    markGenerationProfile("drawn");
+    shouldShowLoading && hideLoading();
+    clearMainTip();
+  });
 }, 250);
 
 export function undraw() {

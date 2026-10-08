@@ -41,6 +41,7 @@ import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
 import { isTrueOceanPortBurg } from "../utils/oceanPort";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
+import { activeGenerationProfiler, measureGenerationStep } from "./generationProfiler";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import { getSettlementBaseSize } from "./settlementSuitability";
@@ -1609,16 +1610,22 @@ class RoutesModule {
     );
     // Both land and water pathfinders need current river adjacency: water uses
     // it to sail navigable channels, while land uses it to avoid following one.
-    this.sync();
+    measureGenerationStep("sync", () => this.sync());
     worldContext.options.seaRouteGenerationMode = resolvedSeaRouteGenerationMode;
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
-    pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
-    const converged = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
-    pack.cells.routes = this.buildLinks(pack.routes);
-    resolveRiverRouteCrossings(worldContext, converged);
-    const finalRiverGraph = buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL });
-    const finalSeaShipRiverGraph = buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL });
+    pack.routes = measureGenerationStep("createRoutesData", () =>
+      this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode)
+    );
+    const converged = measureGenerationStep("ensureConvergingWorldRiverRoads", () =>
+      ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit, activeGenerationProfiler())
+    );
+    pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
+    measureGenerationStep("resolveRiverRouteCrossings", () => resolveRiverRouteCrossings(worldContext, converged));
+    const { finalRiverGraph, finalSeaShipRiverGraph } = measureGenerationStep("river-navigation-graphs", () => ({
+      finalRiverGraph: buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }),
+      finalSeaShipRiverGraph: buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL })
+    }));
     const preservesSeaShipPassage = (route: Route): boolean => {
       if (route.group !== "searoutes" || route.navigation === "river") return true;
       const cells = route.cells ?? route.points.map(p => p[2]);
@@ -1637,21 +1644,25 @@ class RoutesModule {
         );
       });
     };
-    pack.routes = pack.routes.filter(
-      route =>
-        route.lock ||
-        ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
-          preservesSeaShipPassage(route) &&
-          (route.navigation !== "river" ||
-            (route.cells ?? [])
-              .slice(1)
-              .every((cell, index) =>
-                finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
-              )))
+    pack.routes = measureGenerationStep("prune-impassable-routes", () =>
+      pack.routes.filter(
+        route =>
+          route.lock ||
+          ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
+            preservesSeaShipPassage(route) &&
+            (route.navigation !== "river" ||
+              (route.cells ?? [])
+                .slice(1)
+                .every((cell, index) =>
+                  finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
+                )))
+      )
     );
-    pack.cells.routes = this.buildLinks(pack.routes);
+    pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
     if (worldContext.options.landConnectionGeneration) {
-      const physical = generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit);
+      const physical = measureGenerationStep("generateWorldLandConnections", () =>
+        generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit)
+      );
       if ("routes" in physical) {
         pack.routes = [...pack.routes.filter(route => route.group === "searoutes" || route.lock), ...physical.routes];
         pack.cells.routes = this.buildLinks(pack.routes);

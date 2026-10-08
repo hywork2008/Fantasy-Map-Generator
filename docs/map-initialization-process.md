@@ -169,6 +169,8 @@ getGenerationStages()（同じ SettlementGeometrySession を 2 回の shift で�
      → Names.getMapName(false) → mapId が未設定なら Date.now() を設定
 ```
 
+各工程・generator・描画の所要時間は [FMG 生成計測 CLI](tools/fmg-performance.md)（`npm run fmg:perf`）で計測する。
+
 通常起動は `src/main.ts` の上記非同期 pipeline を使う。`src/generators/index.ts` の同期ヘルパー `generateWorld()` は別経路であり、その呼び出し順を通常の地図生成順として扱わない。
 
 ### 3.1 生成工程の確認ダイアログ
@@ -676,3 +678,4 @@ CE は渡された局所 descriptor を使い、FMG の全世界の道路・河�
 | [src/city-editor/core/generate.ts](../src/city-editor/core/generate.ts) | CE の都市生成と再試行 |
 | [src/city-editor/core/housingReport.ts](../src/city-editor/core/housingReport.ts) | CLI のアーカイブ読み込み |
 | [src/city-editor/core/cityGenerationPerformance.ts](../src/city-editor/core/cityGenerationPerformance.ts) | CLI の FMG 連携準備と CE 計測 |
+| [src/generators/generationProfiler.ts](../src/generators/generationProfiler.ts) | 地図生成の階層計測（`fmg:perf` 用、debug フラグで有効） |

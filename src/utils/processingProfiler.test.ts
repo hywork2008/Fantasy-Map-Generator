@@ -42,4 +42,27 @@ describe("processing profiler", () => {
     expect(profiler.snapshot().find(t => t.path === "next")).toMatchObject({ parent: null, elapsedMs: 2 });
     expect(measureProcessing(undefined, "disabled", () => 17)).toBe(17);
   });
+  it("nests awaited work and reports first-entry order", async () => {
+    let time = 0;
+    const profiler = new ProcessingProfiler(() => time);
+    await profiler.measureAsync("root", async () => {
+      profiler.measure("b", () => {
+        time += 1;
+      });
+      await profiler.measureAsync("a", async () => {
+        await Promise.resolve();
+        time += 5;
+      });
+    });
+    await expect(
+      profiler.measureAsync("failing", async () => {
+        time += 2;
+        throw new Error("async failure");
+      })
+    ).rejects.toThrow("async failure");
+    expect(profiler.snapshot().find(t => t.path === "root")).toMatchObject({ elapsedMs: 6, selfMs: 0 });
+    expect(profiler.snapshot().find(t => t.path === "root/a")).toMatchObject({ depth: 1, elapsedMs: 5 });
+    expect(profiler.snapshot().find(t => t.path === "failing")).toMatchObject({ parent: null, elapsedMs: 2 });
+    expect(profiler.startOrder()).toEqual(["root", "root/b", "root/a", "failing"]);
+  });
 });
