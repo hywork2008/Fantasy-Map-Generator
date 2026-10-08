@@ -1,6 +1,7 @@
 import type { CastlePlan, CityDocument, HistoricalPeriod } from "../core/types";
 
 export type CastleStyle =
+  | "classic" // Traditional original single-style castle (simple keep & halls with access roads)
   | "norman-keep" // High medieval Norman/Romanesque square keep & hall
   | "motte-bailey" // Early medieval timber/stone motte with earthen slopes & palisade
   | "concentric" // Late medieval concentric fortress with round drum towers & double wards
@@ -56,6 +57,49 @@ export interface CastleStyleProfile {
 }
 
 export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
+  classic: {
+    style: "classic",
+    label: "従来の標準城郭 (クラシック)",
+    palette: {
+      groundFill: "#d5cfbf",
+      groundStroke: "#a7977f",
+      courtFill: "#d8cdb6",
+      courtStroke: "#a7977f",
+      pathStroke: "#b7a78e",
+      keepWall: "#827364",
+      keepStroke: "#4f463c",
+      keepRoof: "#4f463c",
+      keepAccent: "#e2d5be",
+      rangeWall: "#a49380",
+      rangeStroke: "#4f463c",
+      rangeRoof: "#4f463c",
+      serviceWall: "#a49380",
+      serviceStroke: "#4f463c",
+      chapelWall: "#a49380",
+      chapelStroke: "#4f463c",
+      rampartFill: "#d5cfbf",
+      rampartStroke: "#a7977f"
+    },
+    keepFeatures: {
+      turretType: "none",
+      hasButtresses: false,
+      hasRampartBase: false,
+      roofStyle: "crenellated_open",
+      hasArrowSlits: false
+    },
+    rangeFeatures: {
+      roofStyle: "gable",
+      hasChimneys: false,
+      hasArcade: false
+    },
+    courtFeatures: {
+      texture: "packed_dirt",
+      hasWell: false,
+      hasFountainPool: false,
+      hasGardenTrees: false,
+      hasMotteHatching: false
+    }
+  },
   "norman-keep": {
     style: "norman-keep",
     label: "ノルマン方形主塔城郭 (High Medieval)",
@@ -105,7 +149,7 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
     palette: {
       groundFill: "#c9be9f",
       groundStroke: "#8a7c5c",
-      courtFill: "#bfae8c",
+      courtFill: "#c8baa0",
       courtStroke: "#9e8b6b",
       pathStroke: "#a89674",
       keepWall: "#59432d",
@@ -119,8 +163,8 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
       serviceStroke: "#4e3d2c",
       chapelWall: "#6d5843",
       chapelStroke: "#3d2f21",
-      rampartFill: "#9c8b67",
-      rampartStroke: "#5e5239"
+      rampartFill: "#8a7550",
+      rampartStroke: "#524328"
     },
     keepFeatures: {
       turretType: "none",

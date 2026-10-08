@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { CastlePlan, CityDocument, DefenseCircuit, Point } from "../core/types";
-import { resolveCastleStyle } from "./castlePatterns";
+import type { CastlePart, CastlePlan, CityDocument, DefenseCircuit, Point } from "../core/types";
+import { buildFortressPlan } from "./castleLayoutBuilder";
+import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "./castlePatterns";
 import { renderCastle } from "./castleSvg";
 
 function mockDocument(overrides?: Partial<CityDocument>): CityDocument {
@@ -15,9 +16,9 @@ function mockDocument(overrides?: Partial<CityDocument>): CityDocument {
 
   const ringPoints: Point[] = [
     [0, 0],
-    [40, 0],
-    [40, 40],
-    [0, 40]
+    [60, 0],
+    [60, 60],
+    [0, 60]
   ];
 
   const doc: CityDocument = {
@@ -49,6 +50,12 @@ function mockDocument(overrides?: Partial<CityDocument>): CityDocument {
           id: 1,
           edgeIds: [0, 1, 2, 3],
           vertexIds: [0, 1, 2, 3],
+          boundary: [
+            { edgeId: 0, forward: true },
+            { edgeId: 1, forward: true },
+            { edgeId: 2, forward: true },
+            { edgeId: 3, forward: true }
+          ],
           properties: {
             elevation: 10,
             water: "land",
@@ -80,9 +87,9 @@ function mockCastle(overrides?: Partial<CastlePlan>): CastlePlan {
     courtyards: [
       [
         [5, 5],
-        [35, 5],
-        [35, 35],
-        [5, 35]
+        [55, 5],
+        [55, 55],
+        [5, 55]
       ]
     ],
     parts: [
@@ -90,34 +97,35 @@ function mockCastle(overrides?: Partial<CastlePlan>): CastlePlan {
         id: "gc:castle-0:keep",
         role: "keep",
         footprint: [
-          [20, 20],
-          [32, 20],
-          [32, 32],
-          [20, 32]
+          [25, 25],
+          [45, 25],
+          [45, 45],
+          [25, 45]
         ],
-        entrances: [[20, 26]],
+        entrances: [[25, 35]],
         locked: false
       },
-      {
-        id: "gc:castle-0:hall",
-        role: "hall",
-        footprint: [
-          [8, 8],
-          [22, 8],
-          [22, 14],
-          [8, 14]
-        ],
-        entrances: [[15, 14]],
-        locked: false
-      }
+      ...(["hall", "range", "service", "chapel"] as const).map(
+        (role, i): CastlePart => ({
+          id: `gc:castle-0:${role}`,
+          role,
+          footprint: [
+            [6 + i * 10, 6],
+            [14 + i * 10, 6],
+            [14 + i * 10, 14],
+            [6 + i * 10, 14]
+          ],
+          entrances: [[10 + i * 10, 6]],
+          locked: false
+        })
+      )
     ],
     accesses: [
       {
         gateId: "gate-0",
         points: [
-          [0, 20],
-          [10, 20],
-          [20, 26]
+          [0, 30],
+          [25, 35]
         ],
         widthMeters: 3.5
       }
@@ -146,11 +154,19 @@ describe("resolveCastleStyle", () => {
         zoning: "topographic_hill",
         boundary: "monumental_gate_pylon",
         sanctuary: "ancestral_hall",
-        treatment: "cremation_ritual",
+        bodyFate: "cremation_ritual",
         monuments: "cairns_and_steles",
-        flora: "oriental_evergreen",
-        facility: "caretaker_cottage",
-        mechanics: { remainFraction: 0, zombieRatio: 0 }
+        vegetation: "oriental_evergreen",
+        ritualFacilities: ["caretaker_cottage"],
+        mechanics: {
+          remainFraction: 0,
+          zombieRatio: 0,
+          resourceCostPerCapita: {},
+          sanitationRisk: 0,
+          pilgrimageAppeal: 0
+        },
+        name: "Shinto",
+        description: ""
       }
     });
     expect(resolveCastleStyle(doc).style).toBe("japanese-shiro");
@@ -164,101 +180,194 @@ describe("resolveCastleStyle", () => {
         zoning: "extramural_sanitary",
         boundary: "low_curb_or_hedge",
         sanctuary: "mausoleum_dome",
-        treatment: "inhumation_shrouded",
+        bodyFate: "inhumation_shrouded",
         monuments: "flat_ground_markers",
-        flora: "mediterranean_cypress",
-        facility: "ablution_fountain",
-        mechanics: { remainFraction: 1, zombieRatio: 0.1 }
+        vegetation: "mediterranean_cypress",
+        ritualFacilities: ["ablution_fountain"],
+        mechanics: {
+          remainFraction: 1,
+          zombieRatio: 0.1,
+          resourceCostPerCapita: {},
+          sanitationRisk: 0,
+          pilgrimageAppeal: 0
+        },
+        name: "Sunni",
+        description: ""
       }
     });
     expect(resolveCastleStyle(doc).style).toBe("islamic-qalat");
   });
-
-  it("honors explicit castleStyle override", () => {
-    const doc = mockDocument({ historicalPeriod: "highMedieval" });
-    const castle = mockCastle();
-    (castle as unknown as { castleStyle: string }).castleStyle = "bastion-citadel";
-    expect(resolveCastleStyle(doc, castle).style).toBe("bastion-citadel");
-  });
 });
 
-describe("renderCastle", () => {
-  it("renders Norman keep castle with turrets, buttresses, and hall", () => {
-    const doc = mockDocument({ historicalPeriod: "highMedieval" });
-    const castle = mockCastle();
-    const g = renderCastle(doc, castle);
-
-    expect(g.tagName.toLowerCase()).toBe("g");
-    expect(g.getAttribute("class")).toContain("ce-castle--norman-keep");
-    expect(g.querySelector(".ce-keep-body")).toBeTruthy();
-    expect(g.querySelector(".ce-keep-turret")).toBeTruthy();
-    expect(g.querySelector(".ce-castle-hall")).toBeTruthy();
-    expect(g.querySelector(".ce-castle-roof-ridge")).toBeTruthy();
-    expect(g.querySelector(".ce-castle-well")).toBeTruthy();
-  });
-
-  it("renders Japanese shiro castle with rampart base, yagura corners, and shoin hall", () => {
-    const doc = mockDocument({
-      historicalPeriod: "highMedieval",
-      burialProfile: {
-        id: "shinto_reien",
-        zoning: "topographic_hill",
-        boundary: "monumental_gate_pylon",
-        sanctuary: "ancestral_hall",
-        treatment: "cremation_ritual",
-        monuments: "cairns_and_steles",
-        flora: "oriental_evergreen",
-        facility: "caretaker_cottage",
-        mechanics: { remainFraction: 0, zombieRatio: 0 }
-      }
-    });
-    const castle = mockCastle();
+describe("renderCastle (authentic fortress ground plans)", () => {
+  it("renders Japanese Shiro with multiple ramparts, tenshu complex, tamon yagura, and masugata gate", () => {
+    const doc = mockDocument();
+    const castle = mockCastle({ castleStyle: "japanese-shiro" });
     const g = renderCastle(doc, castle);
 
     expect(g.getAttribute("class")).toContain("ce-castle--japanese-shiro");
-    expect(g.querySelector(".ce-keep-rampart-base")).toBeTruthy();
-    expect(g.querySelector(".ce-keep-tenshu-yagura")).toBeTruthy();
+    // 1. Honmaru and ramparts
+    expect(g.querySelector(".ce-stone-rampart-slope")).toBeTruthy();
+    expect(g.querySelector(".ce-inner-curtain-wall")).toBeTruthy();
+    // 2. Tenshu complex (Main, Small, Watari gallery)
+    expect(g.querySelector(".ce-building--main_keep")).toBeTruthy();
+    expect(g.querySelector(".ce-building--small_keep")).toBeTruthy();
+    expect(g.querySelector(".ce-building--watari_yagura")).toBeTruthy();
+    // 3. Tamon-yagura and Honmaru Palace
+    expect(g.querySelector(".ce-building--tamon_yagura")).toBeTruthy();
+    expect(g.querySelector(".ce-building--palace_wing")).toBeTruthy();
+    // 4. Masugata gate
+    expect(g.querySelector(".ce-masugata-gate")).toBeTruthy();
   });
 
-  it("renders Motte-and-bailey with rampart base and motte slope hatching", () => {
-    const doc = mockDocument({ historicalPeriod: "earlyMedieval" });
-    const castle = mockCastle();
+  it("renders Concentric Fortress with inner/outer curtains, drum towers, and barbican", () => {
+    const doc = mockDocument();
+    const castle = mockCastle({ castleStyle: "concentric" });
+    const g = renderCastle(doc, castle);
+
+    expect(g.getAttribute("class")).toContain("ce-castle--concentric");
+    expect(g.querySelector(".ce-inner-curtain-wall")).toBeTruthy();
+    expect(g.querySelector(".ce-outer-curtain-wall")).toBeTruthy();
+    expect(g.querySelector(".ce-drum-tower")).toBeTruthy();
+    expect(g.querySelector(".ce-barbican")).toBeTruthy();
+    expect(g.querySelector(".ce-building--great_hall")).toBeTruthy();
+  });
+
+  it("renders Bastion Citadel with star bastions, glacis slope, and parade ground", () => {
+    const doc = mockDocument();
+    const castle = mockCastle({ castleStyle: "bastion-citadel" });
+    const g = renderCastle(doc, castle);
+
+    expect(g.getAttribute("class")).toContain("ce-castle--bastion-citadel");
+    expect(g.querySelector(".ce-star-bastion")).toBeTruthy();
+    expect(g.querySelector(".ce-bastion-glacis")).toBeTruthy();
+    expect(g.querySelector(".ce-court--parade_ground")).toBeTruthy();
+    expect(g.querySelector(".ce-building--barracks")).toBeTruthy();
+  });
+
+  it("renders Motte-and-Bailey with motte mound slope, timber keep, and palisade", () => {
+    const doc = mockDocument();
+    const castle = mockCastle({ castleStyle: "motte-bailey" });
     const g = renderCastle(doc, castle);
 
     expect(g.getAttribute("class")).toContain("ce-castle--motte-bailey");
-    expect(g.querySelector(".ce-keep-rampart-base")).toBeTruthy();
-    // Multiple concentric circles for motte terrace hatching
-    const circles = g.querySelectorAll("circle");
-    expect(circles.length).toBeGreaterThan(2);
+    expect(g.querySelector(".ce-motte-mound-slope")).toBeTruthy();
+    expect(g.querySelector(".ce-timber-palisade")).toBeTruthy();
+    expect(g.querySelector(".ce-motte-timber-ramp")).toBeTruthy();
+    expect(g.querySelector(".ce-building--main_keep")).toBeTruthy();
   });
 
-  it("renders Islamic qalat with pool and flat dome", () => {
-    const doc = mockDocument({
-      historicalPeriod: "lateMedieval",
-      burialProfile: {
-        id: "sunni_wahhabi",
-        zoning: "extramural_sanitary",
-        boundary: "low_curb_or_hedge",
-        sanctuary: "mausoleum_dome",
-        treatment: "inhumation_shrouded",
-        monuments: "flat_ground_markers",
-        flora: "mediterranean_cypress",
-        facility: "ablution_fountain",
-        mechanics: { remainFraction: 1, zombieRatio: 0.1 }
-      }
-    });
-    const castle = mockCastle();
+  it("renders Norman Keep with square towers, forebuilding, and great hall", () => {
+    const doc = mockDocument();
+    const castle = mockCastle({ castleStyle: "norman-keep" });
     const g = renderCastle(doc, castle);
 
-    expect(g.getAttribute("class")).toContain("ce-castle--islamic-qalat");
-    expect(g.querySelector(".ce-castle-pool")).toBeTruthy();
+    expect(g.getAttribute("class")).toContain("ce-castle--norman-keep");
+    expect(g.querySelector(".ce-square-tower")).toBeTruthy();
+    expect(g.querySelector(".ce-building--main_keep")).toBeTruthy();
+    expect(g.querySelector(".ce-building--great_hall")).toBeTruthy();
+    expect(g.querySelector(".ce-building--chapel")).toBeTruthy();
   });
 
-  it("adds ce-is-selected class when inspectedId matches castle id", () => {
-    const doc = mockDocument({ historicalPeriod: "highMedieval" });
-    const castle = mockCastle();
-    const g = renderCastle(doc, castle, castle.id);
+  it("renders classic style with legacy access paths between parts (種類がひとつだけだった時の描画)", () => {
+    const doc = mockDocument();
+    const castle = mockCastle({ castleStyle: "classic" });
+    const g = renderCastle(doc, castle);
 
-    expect(g.getAttribute("class")).toContain("ce-is-selected");
+    expect(g.getAttribute("class")).toContain("ce-castle--classic");
+    const path = g.querySelector(".ce-castle-access-path");
+    const keep = g.querySelector(".ce-castle-keep");
+    expect(path).toBeTruthy();
+    expect(keep).toBeTruthy();
   });
+
+  it("does not render legacy access paths over newly added castle styles", () => {
+    const doc = mockDocument();
+    // Default or newly added style (japanese-shiro, concentric, etc.)
+    const shiroCastle = mockCastle({ castleStyle: "japanese-shiro" });
+    const shiroG = renderCastle(doc, shiroCastle);
+    expect(shiroG.querySelector(".ce-castle-access-path")).toBeNull();
+
+    const normanCastle = mockCastle({ castleStyle: "norman-keep" });
+    const normanG = renderCastle(doc, normanCastle);
+    expect(normanG.querySelector(".ce-castle-access-path")).toBeNull();
+
+    const concentricCastle = mockCastle({ castleStyle: "concentric" });
+    const concentricG = renderCastle(doc, concentricCastle);
+    expect(concentricG.querySelector(".ce-castle-access-path")).toBeNull();
+  });
+
+  it("identifies new style castle walls and circuits vs classic style", async () => {
+    const { isNewStyleCastleWall, isNewStyleCastleCircuit } = await import("./svg");
+    const doc = mockDocument();
+    doc.castles = [mockCastle({ id: "c1", circuitId: "circ1", castleStyle: "japanese-shiro" })];
+    doc.defenseCircuits = [
+      {
+        id: "circ1",
+        scope: "castle",
+        areaFaceIds: ["f1"],
+        wallGroupIds: ["w1"],
+        ownerCastleId: "c1",
+        locked: false
+      }
+    ];
+
+    expect(isNewStyleCastleCircuit(doc, "circ1")).toBe(true);
+    expect(isNewStyleCastleWall(doc, "w1")).toBe(true);
+
+    // Classic style castle
+    doc.castles[0].castleStyle = "classic";
+    expect(isNewStyleCastleCircuit(doc, "circ1")).toBe(false);
+    expect(isNewStyleCastleWall(doc, "w1")).toBe(false);
+  });
+
+  it("identifies new style castle gates and prevents legacy gatehouse rendering", async () => {
+    const { isNewStyleCastleGate } = await import("./svg");
+    const doc = mockDocument();
+    doc.castles = [mockCastle({ id: "c1", circuitId: "gc:defense-castle-0", castleStyle: "bastion-citadel" })];
+
+    // Case 1: Direct ownerCastleId
+    expect(isNewStyleCastleGate(doc, { id: "g1", vertexId: 99, locked: false, ownerCastleId: "c1" })).toBe(true);
+
+    // Case 2: Gate ID prefix
+    expect(isNewStyleCastleGate(doc, { id: "c1:gate", vertexId: 99, locked: false })).toBe(true);
+
+    // Case 3: Gate on defense circuit boundary vertex (even without ownerCastleId)
+    expect(isNewStyleCastleGate(doc, { id: "town-gate-1", vertexId: 1, locked: false })).toBe(true);
+
+    // Case 4: Gate geographically close to castle precinct (point [0, 2] is 2m from [0, 0])
+    doc.mesh.vertices[99] = { id: 99, point: [0, 2] };
+    expect(isNewStyleCastleGate(doc, { id: "random-gate", vertexId: 99, locked: false })).toBe(true);
+
+    // Case 5: Gate far away from castle
+    doc.mesh.vertices[100] = { id: 100, point: [300, 300] };
+    expect(isNewStyleCastleGate(doc, { id: "far-gate", vertexId: 100, locked: false })).toBe(false);
+
+    // Case 6: Classic castle style should not suppress legacy gatehouse
+    doc.castles[0].castleStyle = "classic";
+    expect(isNewStyleCastleGate(doc, { id: "g1", vertexId: 99, locked: false, ownerCastleId: "c1" })).toBe(false);
+    expect(isNewStyleCastleGate(doc, { id: "town-gate-1", vertexId: 1, locked: false })).toBe(false);
+  });
+});
+
+describe("saved castle building geometry", () => {
+  it.each(Object.values(CASTLE_STYLE_PROFILES).filter(profile => profile.style !== "classic"))(
+    "renders saved and locked footprints for $style without changing the document",
+    profile => {
+      const doc = mockDocument();
+      const castle = mockCastle({ castleStyle: profile.style });
+      castle.parts[0].locked = true;
+      const before = structuredClone(castle);
+      const plan = buildFortressPlan(doc, castle, profile);
+      const svg = renderCastle(doc, castle);
+      for (const part of castle.parts) {
+        expect(plan.buildings.find(building => building.id === part.id)?.polygon).toEqual(part.footprint);
+        const path = `${part.footprint.map(([x, y], i) => `${i ? "L" : "M"}${x},${-y}`).join(" ")} Z`;
+        expect([...svg.querySelectorAll(".ce-fortress-building")].some(node => node.getAttribute("d") === path)).toBe(
+          true
+        );
+      }
+      expect(castle).toEqual(before);
+    }
+  );
 });

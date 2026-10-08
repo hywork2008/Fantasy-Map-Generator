@@ -1,6 +1,7 @@
 import { circuitRing } from "../core/fortifications";
 import { polygonCentroid } from "../core/gen/geom";
-import type { CastlePart, CastlePlan, CityDocument, Point } from "../core/types";
+import type { CastlePlan, CityDocument, Point } from "../core/types";
+import { buildFortressPlan, type FortressPlan } from "./castleLayoutBuilder";
 import { type CastleStyleProfile, resolveCastleStyle } from "./castlePatterns";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -39,278 +40,315 @@ function footprintBox(points: Point[]) {
 }
 
 /**
- * Scales polygon outward from its centroid by a factor or absolute margin.
+ * Renders multiple ramparts, slopes, stone revetments, and palisades.
  */
-function expandPolygon(points: Point[], marginMeters: number): Point[] {
-  const c = polygonCentroid(points);
-  return points.map(([x, y]) => {
-    const dx = x - c[0];
-    const dy = y - c[1];
-    const dist = Math.hypot(dx, dy);
-    if (dist < 1e-4) return [x, y];
-    const factor = (dist + marginMeters) / dist;
-    return [c[0] + dx * factor, c[1] + dy * factor];
-  });
-}
+function renderRamparts(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
+  const { palette } = profile;
 
-/**
- * Renders decorative ground details (flagstones, gravel, motte hatching, well, etc.)
- */
-function renderCourtDetails(parent: SVGElement, castle: CastlePlan, profile: CastleStyleProfile): void {
-  const { courtFeatures, palette } = profile;
+  for (const rampart of plan.ramparts) {
+    const pts = rampart.polygon;
+    if (pts.length < 3) continue;
 
-  // 1. Motte hatching for motte-bailey
-  if (courtFeatures.hasMotteHatching && castle.courtyards.length > 0) {
-    const mainCourt = castle.courtyards[0];
-    const c = polygonCentroid(mainCourt);
-    // Draw concentric terrace rings around keep or center
-    for (const radius of [8, 14, 20]) {
+    if (rampart.kind === "stone_slope") {
+      // 1. Japanese stone rampart (高石垣・武者返し) or revetment
       parent.appendChild(
-        element("circle", {
-          cx: String(c[0]),
-          cy: String(-c[1]),
-          r: String(radius),
-          fill: "none",
-          stroke: palette.groundStroke,
-          "stroke-width": "0.6",
-          "stroke-dasharray": "2.5 1.5",
-          opacity: "0.6"
+        element("path", {
+          d: polygon(pts),
+          fill: palette.rampartFill,
+          stroke: palette.rampartStroke,
+          "stroke-width": "1.2",
+          class: "ce-stone-rampart-slope"
         })
       );
-    }
-  }
 
-  // 2. Court interior elements (Well, Fountain/Pool, Trees)
-  for (const court of castle.courtyards) {
-    if (court.length < 3) continue;
-    const center = polygonCentroid(court);
-
-    if (courtFeatures.hasWell) {
-      // Draw stone well / cistern
-      const wellG = element("g", { class: "ce-castle-well" });
-      wellG.appendChild(
-        element("circle", {
-          cx: String(center[0]),
-          cy: String(-center[1]),
-          r: "1.8",
-          fill: palette.keepStroke,
-          stroke: palette.keepAccent,
-          "stroke-width": "0.5"
-        })
-      );
-      wellG.appendChild(
-        element("circle", {
-          cx: String(center[0]),
-          cy: String(-center[1]),
-          r: "1.0",
-          fill: "#2b404d" // water
-        })
-      );
-      // Well crossbeam
-      wellG.appendChild(
-        element("line", {
-          x1: String(center[0] - 1.5),
-          y1: String(-center[1]),
-          x2: String(center[0] + 1.5),
-          y2: String(-center[1]),
-          stroke: palette.keepAccent,
-          "stroke-width": "0.4"
-        })
-      );
-      parent.appendChild(wellG);
-    }
-
-    if (courtFeatures.hasFountainPool) {
-      // Islamic riad pool or Renaissance fountain
-      const poolG = element("g", { class: "ce-castle-pool" });
-      const poolW = profile.style === "islamic-qalat" ? 4.5 : 3.5;
-      poolG.appendChild(
-        element("rect", {
-          x: String(center[0] - poolW),
-          y: String(-center[1] - poolW * 0.6),
-          width: String(poolW * 2),
-          height: String(poolW * 1.2),
-          fill: "#25536b",
-          stroke: palette.keepAccent,
-          "stroke-width": "0.6",
-          rx: profile.style === "islamic-qalat" ? "0.5" : "1.8"
-        })
-      );
-      poolG.appendChild(
-        element("circle", {
-          cx: String(center[0]),
-          cy: String(-center[1]),
-          r: "0.8",
-          fill: palette.keepAccent
-        })
-      );
-      parent.appendChild(poolG);
-    }
-
-    if (courtFeatures.hasGardenTrees) {
-      // Garden / courtyard trees (pine for Japanese shiro, cypress for Islamic/Renaissance)
-      const treeColor = profile.style === "japanese-shiro" ? "#314f3b" : "#3e5c38";
-      for (const [dx, dy] of [
-        [-5, -4],
-        [6, 5],
-        [-6, 4]
-      ]) {
-        const tx = center[0] + dx;
-        const ty = center[1] + dy;
-        parent.appendChild(
-          element("circle", {
-            cx: String(tx),
-            cy: String(-ty),
-            r: "2.2",
-            fill: treeColor,
-            stroke: "#203024",
-            "stroke-width": "0.4",
-            opacity: "0.85"
-          })
-        );
-      }
-    }
-  }
-}
-
-/**
- * Renders keep (主塔 / 天守 / ドンジョン) with historical architectural details.
- */
-function renderKeep(parent: SVGElement, part: CastlePart, profile: CastleStyleProfile): void {
-  const { keepFeatures, palette } = profile;
-  const fp = part.footprint;
-  const box = footprintBox(fp);
-  const center = box.center;
-
-  // 1. Rampart Base / 石垣天守台 / モット基壇
-  if (keepFeatures.hasRampartBase) {
-    const baseMargin = profile.style === "japanese-shiro" ? 2.8 : 2.0;
-    const baseFp = expandPolygon(fp, baseMargin);
-    parent.appendChild(
-      element("path", {
-        d: polygon(baseFp),
-        fill: palette.rampartFill,
-        stroke: palette.rampartStroke,
-        "stroke-width": "1.0",
-        class: "ce-keep-rampart-base"
-      })
-    );
-
-    // Stone rampart corner / fan slope hatch lines for Japanese shiro
-    if (profile.style === "japanese-shiro") {
-      for (let i = 0; i < baseFp.length; i++) {
-        const p1 = baseFp[i];
-        const p2 = fp[i % fp.length];
+      // Hatching lines showing the fan slope / batter (扇の勾配・目地)
+      const c = polygonCentroid(pts);
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        // Corner stone line (算木積み)
         parent.appendChild(
           element("line", {
-            x1: String(p1[0]),
-            y1: String(-p1[1]),
-            x2: String(p2[0]),
-            y2: String(-p2[1]),
+            x1: String(p[0]),
+            y1: String(-p[1]),
+            x2: String(p[0] + (c[0] - p[0]) * 0.35),
+            y2: String(-(p[1] + (c[1] - p[1]) * 0.35)),
             stroke: palette.rampartStroke,
-            "stroke-width": "0.6",
-            opacity: "0.75"
+            "stroke-width": "0.8",
+            opacity: "0.8"
           })
         );
       }
+    } else if (rampart.kind === "motte_slope") {
+      // 2. Motte earthen mound slope (モットの盛土段差)
+      parent.appendChild(
+        element("path", {
+          d: polygon(pts),
+          fill: palette.rampartFill,
+          stroke: palette.rampartStroke,
+          "stroke-width": "1.2",
+          class: "ce-motte-mound-slope"
+        })
+      );
+      // Concentric slope terrace rings
+      const c = polygonCentroid(pts);
+      for (const scale of [0.8, 0.6, 0.4]) {
+        const inner = pts.map(([x, y]) => [c[0] + (x - c[0]) * scale, c[1] + (y - c[1]) * scale] as Point);
+        parent.appendChild(
+          element("path", {
+            d: polygon(inner),
+            fill: "none",
+            stroke: palette.rampartStroke,
+            "stroke-width": "0.6",
+            "stroke-dasharray": "3 1.5",
+            opacity: "0.7"
+          })
+        );
+      }
+      // Radial hachure slope lines (法面の放射状ケバ線・立体段差)
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        const next = pts[(i + 1) % pts.length];
+        const mid: Point = [(p[0] + next[0]) / 2, (p[1] + next[1]) / 2];
+        parent.appendChild(
+          element("line", {
+            x1: String(mid[0]),
+            y1: String(-mid[1]),
+            x2: String(mid[0] + (c[0] - mid[0]) * 0.48),
+            y2: String(-(mid[1] + (c[1] - mid[1]) * 0.48)),
+            stroke: palette.rampartStroke,
+            "stroke-width": "0.8",
+            opacity: "0.65"
+          })
+        );
+      }
+    } else if (rampart.kind === "bastion_glacis") {
+      // 3. Glacis slope around star bastions
+      parent.appendChild(
+        element("path", {
+          d: polygon(pts),
+          fill: palette.rampartFill,
+          stroke: palette.rampartStroke,
+          "stroke-width": "0.8",
+          class: "ce-bastion-glacis"
+        })
+      );
+    } else if (rampart.kind === "palisade") {
+      // 4. Timber palisade line
+      parent.appendChild(
+        element("path", {
+          d: polygon(pts),
+          fill: "none",
+          stroke: palette.keepStroke,
+          "stroke-width": "1.8",
+          "stroke-dasharray": "1.2 0.8",
+          class: "ce-timber-palisade"
+        })
+      );
+    } else if (rampart.kind === "inner_wall") {
+      // 5. Heavy inner curtain wall
+      parent.appendChild(
+        element("path", {
+          d: polygon(pts),
+          fill: "none",
+          stroke: palette.keepStroke,
+          "stroke-width": "2.8",
+          class: "ce-inner-curtain-wall"
+        })
+      );
+    } else {
+      // 6. Outer curtain wall
+      parent.appendChild(
+        element("path", {
+          d: polygon(pts),
+          fill: palette.groundFill,
+          "fill-opacity": "0.35",
+          stroke: palette.groundStroke,
+          "stroke-width": "1.2",
+          class: "ce-outer-curtain-wall"
+        })
+      );
     }
   }
+}
 
-  // 2. Keep main body
-  parent.appendChild(
-    element("path", {
-      d: polygon(fp),
-      fill: palette.keepWall,
-      stroke: palette.keepStroke,
-      "stroke-width": "1.6",
-      class: "ce-keep-body"
-    })
-  );
+/**
+ * Renders towers, corner yaguras, star bastions, and watchtowers.
+ */
+function renderTowersAndBastions(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
+  const { palette } = profile;
 
-  // 3. Buttresses (控え壁) for Norman keep / Castra
-  if (keepFeatures.hasButtresses && fp.length >= 4) {
-    for (let i = 0; i < fp.length; i++) {
-      const a = fp[i];
-      const b = fp[(i + 1) % fp.length];
-      const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      const dx = b[0] - a[0];
-      const dy = b[1] - a[1];
-      const len = Math.hypot(dx, dy);
-      if (len < 6) continue;
-      const normal: Point = [-dy / len, dx / len];
-      // Buttress projection
-      const buttressW = 1.2;
-      const buttressD = 0.9;
+  for (const tower of plan.towers) {
+    if (tower.kind === "star_bastion" && tower.polygon) {
+      // Five-sided star bastion
       parent.appendChild(
-        element("rect", {
-          x: String(mid[0] + normal[0] * buttressD * 0.5 - buttressW / 2),
-          y: String(-mid[1] - normal[1] * buttressD * 0.5 - buttressW / 2),
-          width: String(buttressW),
-          height: String(buttressW),
-          fill: palette.keepAccent,
+        element("path", {
+          d: polygon(tower.polygon),
+          fill: palette.rampartFill,
+          stroke: palette.rampartStroke,
+          "stroke-width": "1.4",
+          class: "ce-star-bastion"
+        })
+      );
+      // Parapet and cannon embrasures
+      const inner = tower.polygon.map(([x, y]) => {
+        const dx = x - tower.point[0];
+        const dy = y - tower.point[1];
+        return [tower.point[0] + dx * 0.7, tower.point[1] + dy * 0.7] as Point;
+      });
+      parent.appendChild(
+        element("path", {
+          d: polygon(inner),
+          fill: palette.courtFill,
           stroke: palette.keepStroke,
+          "stroke-width": "0.8"
+        })
+      );
+    } else if (tower.kind === "drum_tower") {
+      // Round drum tower
+      const r = tower.radius ?? 4.0;
+      parent.appendChild(
+        element("circle", {
+          cx: String(tower.point[0]),
+          cy: String(-tower.point[1]),
+          r: String(r),
+          fill: palette.keepWall,
+          stroke: palette.keepStroke,
+          "stroke-width": "1.4",
+          class: "ce-drum-tower"
+        })
+      );
+      // Conical cap / crenellations
+      parent.appendChild(
+        element("circle", {
+          cx: String(tower.point[0]),
+          cy: String(-tower.point[1]),
+          r: String(r * 0.65),
+          fill: palette.keepRoof,
+          stroke: palette.keepAccent,
           "stroke-width": "0.6"
         })
       );
-    }
-  }
-
-  // 4. Corner turrets (Bartizans / 角塔 / 隅櫓)
-  if (keepFeatures.turretType === "square") {
-    const turretSize = 2.4;
-    for (const [x, y] of fp) {
+    } else if (tower.kind === "square_tower") {
+      // Square corner / flank tower
+      const s = (tower.radius ?? 3.5) * 2;
       parent.appendChild(
         element("rect", {
-          x: String(x - turretSize / 2),
-          y: String(-y - turretSize / 2),
-          width: String(turretSize),
-          height: String(turretSize),
-          fill: palette.keepAccent,
+          x: String(tower.point[0] - s / 2),
+          y: String(-tower.point[1] - s / 2),
+          width: String(s),
+          height: String(s),
+          fill: palette.keepWall,
           stroke: palette.keepStroke,
-          "stroke-width": "0.8",
-          class: "ce-keep-turret"
+          "stroke-width": "1.2",
+          class: "ce-square-tower"
         })
       );
-    }
-  } else if (keepFeatures.turretType === "round") {
-    const turretRadius = 1.8;
-    for (const [x, y] of fp) {
-      parent.appendChild(
-        element("circle", {
-          cx: String(x),
-          cy: String(-y),
-          r: String(turretRadius),
-          fill: palette.keepAccent,
-          stroke: palette.keepStroke,
-          "stroke-width": "0.8",
-          class: "ce-keep-turret-round"
-        })
-      );
-    }
-  } else if (keepFeatures.turretType === "tenshu_corner") {
-    // Japanese shiro corner hip/gable roof accent
-    const cornerSize = 2.2;
-    for (const [x, y] of fp) {
       parent.appendChild(
         element("rect", {
-          x: String(x - cornerSize / 2),
-          y: String(-y - cornerSize / 2),
-          width: String(cornerSize),
-          height: String(cornerSize),
+          x: String(tower.point[0] - s * 0.35),
+          y: String(-tower.point[1] - s * 0.35),
+          width: String(s * 0.7),
+          height: String(s * 0.7),
           fill: palette.keepRoof,
           stroke: palette.keepAccent,
-          "stroke-width": "0.6",
-          class: "ce-keep-tenshu-yagura"
+          "stroke-width": "0.6"
+        })
+      );
+    } else if (tower.kind === "yagura_corner") {
+      // Japanese corner yagura (隅櫓)
+      const s = (tower.radius ?? 3.2) * 2;
+      parent.appendChild(
+        element("rect", {
+          x: String(tower.point[0] - s / 2),
+          y: String(-tower.point[1] - s / 2),
+          width: String(s),
+          height: String(s),
+          fill: palette.keepWall,
+          stroke: palette.keepStroke,
+          "stroke-width": "1.0",
+          class: "ce-yagura-corner"
+        })
+      );
+      // Multi-tier roof (入母屋屋根)
+      parent.appendChild(
+        element("rect", {
+          x: String(tower.point[0] - s * 0.38),
+          y: String(-tower.point[1] - s * 0.38),
+          width: String(s * 0.76),
+          height: String(s * 0.76),
+          fill: palette.keepRoof,
+          stroke: palette.keepAccent,
+          "stroke-width": "0.6"
+        })
+      );
+    } else if (tower.kind === "wood_watchtower") {
+      // Motte timber watchtower
+      const r = tower.radius ?? 2.8;
+      parent.appendChild(
+        element("rect", {
+          x: String(tower.point[0] - r),
+          y: String(-tower.point[1] - r),
+          width: String(r * 2),
+          height: String(r * 2),
+          fill: palette.keepRoof,
+          stroke: palette.keepStroke,
+          "stroke-width": "1.0",
+          class: "ce-wood-watchtower"
+        })
+      );
+      // Timber cross braces
+      parent.appendChild(
+        element("line", {
+          x1: String(tower.point[0] - r),
+          y1: String(-tower.point[1] - r),
+          x2: String(tower.point[0] + r),
+          y2: String(-tower.point[1] + r),
+          stroke: palette.keepStroke,
+          "stroke-width": "0.5"
         })
       );
     }
   }
+}
 
-  // 5. Roof / Upper terrace
-  if (keepFeatures.roofStyle === "tenshu_gables") {
-    // Tiered roofs (重なり合う屋根)
-    const tier1 = expandPolygon(fp, -1.8);
-    if (tier1.length >= 3) {
+/**
+ * Renders complex building footprints, tiered roofs, tamon galleries, and palaces.
+ */
+function renderComplexBuildings(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
+  const { palette } = profile;
+
+  for (const b of plan.buildings) {
+    const pts = b.polygon;
+    if (pts.length < 3) continue;
+    const box = footprintBox(pts);
+
+    // Wall base
+    const wallColor =
+      b.kind === "main_keep" || b.kind === "small_keep"
+        ? palette.keepWall
+        : b.kind === "chapel"
+          ? palette.chapelWall
+          : palette.rangeWall;
+    const strokeColor = b.kind === "main_keep" || b.kind === "small_keep" ? palette.keepStroke : palette.rangeStroke;
+
+    parent.appendChild(
+      element("path", {
+        d: polygon(pts),
+        fill: wallColor,
+        stroke: strokeColor,
+        "stroke-width": b.kind === "main_keep" ? "1.8" : "1.2",
+        class: `ce-fortress-building ce-building--${b.kind}`
+      })
+    );
+
+    // Roof rendering based on roofStyle
+    if (b.roofStyle === "tenshu_gables") {
+      // 1. Japanese Tenshu Multi-tiered Roofs (大天守・小天守の破風屋根)
+      const tier1 = pts.map(([x, y]) => {
+        const dx = x - box.center[0];
+        const dy = y - box.center[1];
+        return [box.center[0] + dx * 0.78, box.center[1] + dy * 0.78] as Point;
+      });
       parent.appendChild(
         element("path", {
           d: polygon(tier1),
@@ -319,9 +357,12 @@ function renderKeep(parent: SVGElement, part: CastlePart, profile: CastleStylePr
           "stroke-width": "0.8"
         })
       );
-    }
-    const tier2 = expandPolygon(fp, -3.6);
-    if (tier2.length >= 3) {
+
+      const tier2 = pts.map(([x, y]) => {
+        const dx = x - box.center[0];
+        const dy = y - box.center[1];
+        return [box.center[0] + dx * 0.52, box.center[1] + dy * 0.52] as Point;
+      });
       parent.appendChild(
         element("path", {
           d: polygon(tier2),
@@ -330,89 +371,84 @@ function renderKeep(parent: SVGElement, part: CastlePart, profile: CastleStylePr
           "stroke-width": "0.8"
         })
       );
-      // Ridge line / 棟瓦
-      const tBox = footprintBox(tier2);
+
+      // Shachihoko / Ridge crest (棟瓦と鯱鉾)
       parent.appendChild(
         element("line", {
-          x1: String(tBox.center[0] - tBox.width * 0.35),
-          y1: String(-tBox.center[1]),
-          x2: String(tBox.center[0] + tBox.width * 0.35),
-          y2: String(-tBox.center[1]),
+          x1: String(box.center[0] - box.width * 0.22),
+          y1: String(-box.center[1]),
+          x2: String(box.center[0] + box.width * 0.22),
+          y2: String(-box.center[1]),
           stroke: palette.keepRoof,
-          "stroke-width": "1.0",
+          "stroke-width": "1.4",
           "stroke-linecap": "round"
         })
       );
-    }
-  } else if (keepFeatures.roofStyle === "crenellated_open") {
-    // Open parapet walkway & inner roof
-    const inner = expandPolygon(fp, -1.4);
-    if (inner.length >= 3) {
+      parent.appendChild(
+        element("circle", {
+          cx: String(box.center[0] - box.width * 0.22),
+          cy: String(-box.center[1]),
+          r: "0.8",
+          fill: "#c4a35a" // golden shachihoko
+        })
+      );
+      parent.appendChild(
+        element("circle", {
+          cx: String(box.center[0] + box.width * 0.22),
+          cy: String(-box.center[1]),
+          r: "0.8",
+          fill: "#c4a35a"
+        })
+      );
+    } else if (b.roofStyle === "tenshu_shoin" || b.kind === "tamon_yagura" || b.kind === "watari_yagura") {
+      // 2. Tamon-yagura and Shoin Palace roofs (多聞櫓・書院御殿の入母屋屋根)
+      const inner = pts.map(([x, y]) => {
+        const dx = x - box.center[0];
+        const dy = y - box.center[1];
+        return [box.center[0] + dx * 0.75, box.center[1] + dy * 0.75] as Point;
+      });
+      parent.appendChild(
+        element("path", {
+          d: polygon(inner),
+          fill: palette.rangeRoof,
+          stroke: palette.keepAccent,
+          "stroke-width": "0.6"
+        })
+      );
+    } else if (b.roofStyle === "crenellated_open") {
+      // 3. Norman Keep crenellated parapet walkway
+      const inner = pts.map(([x, y]) => {
+        const dx = x - box.center[0];
+        const dy = y - box.center[1];
+        return [box.center[0] + dx * 0.75, box.center[1] + dy * 0.75] as Point;
+      });
       parent.appendChild(
         element("path", {
           d: polygon(inner),
           fill: palette.keepRoof,
           stroke: palette.keepAccent,
-          "stroke-width": "0.6"
+          "stroke-width": "0.8"
         })
       );
-    }
-  } else if (keepFeatures.roofStyle === "round_conical") {
-    // Conical roof cap with center finial
-    parent.appendChild(
-      element("circle", {
-        cx: String(center[0]),
-        cy: String(-center[1]),
-        r: String(Math.min(box.width, box.height) * 0.35),
-        fill: palette.keepRoof,
-        stroke: palette.keepStroke,
-        "stroke-width": "0.8"
-      })
-    );
-    parent.appendChild(
-      element("circle", {
-        cx: String(center[0]),
-        cy: String(-center[1]),
-        r: "0.8",
-        fill: palette.keepAccent
-      })
-    );
-  } else if (keepFeatures.roofStyle === "timber_deck") {
-    // Wood plank deck texture
-    const inner = expandPolygon(fp, -0.8);
-    parent.appendChild(
-      element("path", {
-        d: polygon(inner),
-        fill: palette.keepRoof,
-        stroke: palette.keepStroke,
-        "stroke-width": "0.6"
-      })
-    );
-  } else if (keepFeatures.roofStyle === "flat_dome") {
-    // Central dome (Qubba) or bastion deck
-    parent.appendChild(
-      element("circle", {
-        cx: String(center[0]),
-        cy: String(-center[1]),
-        r: String(Math.min(box.width, box.height) * 0.28),
-        fill: palette.keepRoof,
-        stroke: palette.keepStroke,
-        "stroke-width": "0.6"
-      })
-    );
-  }
+    } else if (b.roofStyle === "gable" || b.roofStyle === "hip") {
+      // 4. Pitched roof with ridge line
+      const isH = box.width >= box.height;
+      const r1: Point = isH
+        ? [box.center[0] - box.width * 0.4, box.center[1]]
+        : [box.center[0], box.center[1] - box.height * 0.4];
+      const r2: Point = isH
+        ? [box.center[0] + box.width * 0.4, box.center[1]]
+        : [box.center[0], box.center[1] + box.height * 0.4];
 
-  // 6. Arrow slits (狭間)
-  if (keepFeatures.hasArrowSlits) {
-    for (const [x, y] of fp) {
-      const sx = x + (center[0] - x) * 0.2;
-      const sy = y + (center[1] - y) * 0.2;
       parent.appendChild(
-        element("circle", {
-          cx: String(sx),
-          cy: String(-sy),
-          r: "0.4",
-          fill: palette.keepStroke
+        element("line", {
+          x1: String(r1[0]),
+          y1: String(-r1[1]),
+          x2: String(r2[0]),
+          y2: String(-r2[1]),
+          stroke: palette.rangeRoof,
+          "stroke-width": "1.0",
+          "stroke-linecap": "round"
         })
       );
     }
@@ -420,83 +456,288 @@ function renderKeep(parent: SVGElement, part: CastlePart, profile: CastleStylePr
 }
 
 /**
- * Renders ranges, halls, chapels, and service wings with pitched roofs, chimneys, or arcades.
+ * Renders gates, masugata enclosures, barbicans, and ramps.
  */
-function renderRangeOrWing(parent: SVGElement, part: CastlePart, profile: CastleStyleProfile): void {
-  const { rangeFeatures, palette } = profile;
-  const isHall = part.role === "hall";
-  const isChapel = part.role === "chapel";
-  const isService = part.role === "service";
+function renderDefensiveGates(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
+  const { palette } = profile;
 
-  const wallFill = isChapel ? palette.chapelWall : isService ? palette.serviceWall : palette.rangeWall;
-  const strokeColor = isChapel ? palette.chapelStroke : isService ? palette.serviceStroke : palette.rangeStroke;
-
-  const fp = part.footprint;
-  const box = footprintBox(fp);
-
-  // Main building footprint
-  parent.appendChild(
-    element("path", {
-      d: polygon(fp),
-      fill: wallFill,
-      stroke: strokeColor,
-      "stroke-width": isHall ? "1.2" : "0.9",
-      class: `ce-castle-${part.role}`
-    })
-  );
-
-  // Roof ridge line (棟線)
-  if (box.width > 2 && box.height > 2) {
-    const isHorizontal = box.width >= box.height;
-    const ridgeStart: Point = isHorizontal
-      ? [box.center[0] - box.width * 0.4, box.center[1]]
-      : [box.center[0], box.center[1] - box.height * 0.4];
-    const ridgeEnd: Point = isHorizontal
-      ? [box.center[0] + box.width * 0.4, box.center[1]]
-      : [box.center[0], box.center[1] + box.height * 0.4];
-
-    parent.appendChild(
-      element("line", {
-        x1: String(ridgeStart[0]),
-        y1: String(-ridgeStart[1]),
-        x2: String(ridgeEnd[0]),
-        y2: String(-ridgeEnd[1]),
-        stroke: palette.rangeRoof,
-        "stroke-width": "0.8",
-        "stroke-linecap": "round",
-        class: "ce-castle-roof-ridge"
-      })
-    );
-
-    // Chimneys for residential ranges / great hall
-    if (rangeFeatures.hasChimneys && (isHall || part.role === "range")) {
+  for (const gate of plan.defensiveGates) {
+    if (gate.kind === "masugata" && gate.polygon) {
+      // Japanese Masugata Gate (枡形虎口)
+      // Stone revetment box
       parent.appendChild(
-        element("rect", {
-          x: String(ridgeStart[0] - 0.5),
-          y: String(-ridgeStart[1] - 0.5),
-          width: "1.0",
-          height: "1.0",
-          fill: palette.keepStroke,
-          stroke: palette.rangeRoof,
-          "stroke-width": "0.3"
+        element("path", {
+          d: polygon(gate.polygon),
+          fill: palette.rampartFill,
+          stroke: palette.rampartStroke,
+          "stroke-width": "1.4",
+          class: "ce-masugata-gate"
+        })
+      );
+      // Gravel court inside the masugata
+      const inner = gate.polygon.map(([x, y]) => {
+        const c = polygonCentroid(gate.polygon!);
+        return [c[0] + (x - c[0]) * 0.65, c[1] + (y - c[1]) * 0.65] as Point;
+      });
+      parent.appendChild(
+        element("path", {
+          d: polygon(inner),
+          fill: palette.courtFill,
+          stroke: palette.rampartStroke,
+          "stroke-width": "0.6"
+        })
+      );
+
+      // Gate portals (Outer gate / Inner yagura gate)
+      if (gate.outerGate) {
+        parent.appendChild(
+          element("circle", {
+            cx: String(gate.outerGate[0]),
+            cy: String(-gate.outerGate[1]),
+            r: "1.6",
+            fill: palette.keepStroke,
+            stroke: palette.keepAccent,
+            "stroke-width": "0.5"
+          })
+        );
+      }
+      if (gate.innerGate) {
+        parent.appendChild(
+          element("rect", {
+            x: String(gate.innerGate[0] - 2),
+            y: String(-gate.innerGate[1] - 1),
+            width: "4",
+            height: "2",
+            fill: palette.keepRoof,
+            stroke: palette.keepStroke,
+            "stroke-width": "0.6"
+          })
+        );
+      }
+    } else if (gate.kind === "barbican" && gate.polygon) {
+      // European Barbican / Demi-lune gate
+      parent.appendChild(
+        element("path", {
+          d: polygon(gate.polygon),
+          fill: palette.rampartFill,
+          stroke: palette.keepStroke,
+          "stroke-width": "1.4",
+          class: "ce-barbican"
+        })
+      );
+      if (gate.outerGate) {
+        parent.appendChild(
+          element("circle", {
+            cx: String(gate.outerGate[0]),
+            cy: String(-gate.outerGate[1]),
+            r: "1.6",
+            fill: palette.keepStroke,
+            stroke: palette.keepAccent,
+            "stroke-width": "0.5"
+          })
+        );
+      }
+    } else if (gate.kind === "timber_ramp" && gate.approachPoints) {
+      // Motte timber bridge / ramp
+      parent.appendChild(
+        element("path", {
+          d: line(gate.approachPoints),
+          fill: "none",
+          stroke: palette.keepRoof,
+          "stroke-width": "3.5",
+          "stroke-linecap": "round",
+          class: "ce-motte-timber-ramp"
+        })
+      );
+      parent.appendChild(
+        element("path", {
+          d: line(gate.approachPoints),
+          fill: "none",
+          stroke: palette.keepStroke,
+          "stroke-width": "1.0",
+          "stroke-dasharray": "1.5 1.5"
         })
       );
     }
   }
+}
 
-  // Chapel Apse (半円形後陣)
-  if (isChapel) {
-    const apseRadius = Math.min(2.5, Math.min(box.width, box.height) * 0.35);
+/**
+ * Renders castle courtyards.
+ */
+function renderCourtyards(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
+  const { palette } = profile;
+  for (const court of plan.courtyards) {
     parent.appendChild(
-      element("circle", {
-        cx: String(box.center[0] + (box.width >= box.height ? box.width * 0.5 : 0)),
-        cy: String(-(box.center[1] + (box.width < box.height ? box.height * 0.5 : 0))),
-        r: String(apseRadius),
-        fill: palette.chapelWall,
-        stroke: palette.chapelStroke,
-        "stroke-width": "0.8"
+      element("path", {
+        d: polygon(court.polygon),
+        fill: palette.courtFill,
+        stroke: palette.courtStroke,
+        "stroke-width": "0.8",
+        class: `ce-court--${court.texture}`
       })
     );
+  }
+}
+
+/**
+ * Renders the original single-style classic castle (城の種類がひとつだけだった時の描画):
+ * base precinct ground, courtyards, ground access corridors between parts, and keep/wing footprints.
+ */
+function renderClassicCastle(
+  parent: SVGElement,
+  document: CityDocument,
+  castle: CastlePlan,
+  profile: CastleStyleProfile
+): void {
+  const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
+  if (circuit) {
+    const ring = circuitRing(document, circuit);
+    if (ring.length >= 3) {
+      parent.appendChild(
+        element("path", {
+          d: polygon(ring),
+          fill: profile.palette.groundFill,
+          "fill-opacity": "0.25",
+          stroke: "none"
+        })
+      );
+    }
+  }
+  for (const court of castle.courtyards) {
+    parent.appendChild(
+      element("path", {
+        d: polygon(court),
+        fill: profile.palette.courtFill,
+        stroke: profile.palette.courtStroke,
+        "stroke-width": "0.6"
+      })
+    );
+  }
+  // 種類がひとつだけだった時の、施設間を結ぶ道
+  for (const access of castle.accesses) {
+    if (!access.points || access.points.length < 2) continue;
+    parent.appendChild(
+      element("path", {
+        d: line(access.points),
+        fill: "none",
+        stroke: profile.palette.pathStroke,
+        "stroke-width": String(access.widthMeters),
+        "stroke-linejoin": "round",
+        class: "ce-castle-access-path"
+      })
+    );
+  }
+  for (const part of castle.parts) {
+    parent.appendChild(
+      element("path", {
+        d: polygon(part.footprint),
+        fill: part.role === "keep" ? profile.palette.keepWall : profile.palette.rangeWall,
+        stroke: part.role === "keep" ? profile.palette.keepStroke : profile.palette.rangeStroke,
+        "stroke-width": part.role === "keep" ? "2" : "1",
+        class: `ce-castle-${part.role}`
+      })
+    );
+    for (const entrance of part.entrances) {
+      parent.appendChild(
+        element("circle", {
+          cx: String(entrance[0]),
+          cy: String(-entrance[1]),
+          r: "1.4",
+          fill: profile.palette.keepAccent
+        })
+      );
+    }
+  }
+}
+
+/**
+ * Renders architectural props (wells, reflecting pools, pines, etc.)
+ */
+function renderProps(parent: SVGElement, plan: FortressPlan, profile: CastleStyleProfile): void {
+  const { palette } = profile;
+  for (const prop of plan.props) {
+    if (prop.kind === "reflecting_pool") {
+      // Large rectangular or octagonal reflecting pool / fountain
+      parent.appendChild(
+        element("rect", {
+          x: String(prop.point[0] - 6),
+          y: String(-prop.point[1] - 3.5),
+          width: "12",
+          height: "7",
+          fill: "#1f4a61",
+          stroke: palette.keepAccent,
+          "stroke-width": "0.8",
+          rx: "1"
+        })
+      );
+      parent.appendChild(
+        element("circle", {
+          cx: String(prop.point[0]),
+          cy: String(-prop.point[1]),
+          r: "1.2",
+          fill: palette.keepAccent
+        })
+      );
+    } else if (prop.kind === "stone_well") {
+      // Well with rim and cross beam
+      parent.appendChild(
+        element("circle", {
+          cx: String(prop.point[0]),
+          cy: String(-prop.point[1]),
+          r: "2.2",
+          fill: palette.keepStroke,
+          stroke: palette.keepAccent,
+          "stroke-width": "0.6"
+        })
+      );
+      parent.appendChild(
+        element("circle", {
+          cx: String(prop.point[0]),
+          cy: String(-prop.point[1]),
+          r: "1.2",
+          fill: "#273f4d"
+        })
+      );
+    } else if (prop.kind === "garden_pines") {
+      // Pine tree cluster
+      const colors = ["#2d4a36", "#233d2c", "#385c44"];
+      for (let i = 0; i < 3; i++) {
+        const ox = (i - 1) * 2.5;
+        const oy = ((i % 2) - 0.5) * 2;
+        parent.appendChild(
+          element("circle", {
+            cx: String(prop.point[0] + ox),
+            cy: String(-prop.point[1] + oy),
+            r: "2.6",
+            fill: colors[i],
+            stroke: "#182c1f",
+            "stroke-width": "0.4"
+          })
+        );
+      }
+    } else if (prop.kind === "cannon_battery") {
+      // Cannon on bastion flank
+      parent.appendChild(
+        element("circle", {
+          cx: String(prop.point[0]),
+          cy: String(-prop.point[1]),
+          r: "0.9",
+          fill: "#292724"
+        })
+      );
+      parent.appendChild(
+        element("line", {
+          x1: String(prop.point[0]),
+          y1: String(-prop.point[1]),
+          x2: String(prop.point[0] + 1.8),
+          y2: String(-prop.point[1]),
+          stroke: "#1c1b19",
+          "stroke-width": "0.7",
+          "stroke-linecap": "round"
+        })
+      );
+    }
   }
 }
 
@@ -509,10 +750,9 @@ export function renderCastle(
   inspectedId?: string | number | null
 ): SVGElement {
   const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
-  if (!circuit) return element("g", {});
+  if (!circuit && castle.courtyards.length === 0) return element("g", {});
 
   const profile = resolveCastleStyle(document, castle);
-  const { palette } = profile;
 
   const pick = {
     layer: "fortifications",
@@ -529,72 +769,37 @@ export function renderCastle(
     style: "cursor:pointer"
   });
 
-  // 1. Castle Precinct Base Ground (内郭・城域地盤)
-  const ring = circuitRing(document, circuit);
-  if (ring.length >= 3) {
-    group.appendChild(
-      element("path", {
-        d: polygon(ring),
-        fill: palette.groundFill,
-        "fill-opacity": "0.45",
-        stroke: palette.groundStroke,
-        "stroke-width": "0.4"
-      })
-    );
+  // 1. 従来のクラシックスタイル（城の種類が1種類だけだった時）：
+  // 旧パーツと旧来の施設間連絡路（castle.accesses）を描画する
+  if (profile.style === "classic") {
+    renderClassicCastle(group, document, castle, profile);
+    return group;
   }
 
-  // 2. Courtyards (中庭・曲輪)
-  for (const court of castle.courtyards) {
-    group.appendChild(
-      element("path", {
-        d: polygon(court),
-        fill: palette.courtFill,
-        stroke: palette.courtStroke,
-        "stroke-width": "0.6"
-      })
-    );
-  }
+  // 2. 新しく追加された城郭様式（日本式城郭、西洋同心円城、星形要塞、モット＆ベイリー等）：
+  // 様式固有の縄張・立体幾何学を構築して描画する。
+  // ★重要：城の種類がひとつだけだった時の「施設間を結ぶ道（castle.accesses）」は、
+  // 追加された城郭の建物や石垣と整合しない旧パーツ位置に向かって城を横切ってしまうため、
+  // 追加された城郭の上には描画しない。
+  const plan = buildFortressPlan(document, castle, profile);
 
-  // 3. Courtyard details (Well, Pool, Trees, Motte)
-  renderCourtDetails(group, castle, profile);
+  // Layer 1: Courtyards (曲輪内庭・白砂利・石畳・練兵広場・ベイリー土間)
+  renderCourtyards(group, plan, profile);
 
-  // 4. Access ways & corridors (城内動線・登城路)
-  for (const access of castle.accesses) {
-    group.appendChild(
-      element("path", {
-        d: line(access.points),
-        fill: "none",
-        stroke: palette.pathStroke,
-        "stroke-width": String(access.widthMeters),
-        "stroke-linejoin": "round",
-        "stroke-linecap": "round",
-        opacity: "0.9"
-      })
-    );
-  }
+  // Layer 2: Ramparts, Stone Slopes, Motte Mounds, and Curtains (縄張・多重囲壁・石垣・盛土)
+  renderRamparts(group, plan, profile);
 
-  // 5. Buildings (Keep, Hall, Range, Service, Chapel)
-  for (const part of castle.parts) {
-    if (part.role === "keep") {
-      renderKeep(group, part, profile);
-    } else {
-      renderRangeOrWing(group, part, profile);
-    }
+  // Layer 3: Gates, Masugata Enclosures, Barbicans, and Timber Ramps (枡形虎口・大双塔門・出構え・登城木橋)
+  renderDefensiveGates(group, plan, profile);
 
-    // Entrances
-    for (const entrance of part.entrances) {
-      group.appendChild(
-        element("circle", {
-          cx: String(entrance[0]),
-          cy: String(-entrance[1]),
-          r: "1.4",
-          fill: palette.keepAccent,
-          stroke: palette.keepStroke,
-          "stroke-width": "0.4"
-        })
-      );
-    }
-  }
+  // Layer 4: Complex Buildings (連立式天守群・多聞櫓・大広間・書院御殿・礼拝堂・兵舎)
+  renderComplexBuildings(group, plan, profile);
+
+  // Layer 5: Towers, Star Bastions, and Corner Yaguras (塔・星形稜堡・隅櫓)
+  renderTowersAndBastions(group, plan, profile);
+
+  // Layer 6: Architectural Props (井戸・水盤・庭木・大砲など)
+  renderProps(group, plan, profile);
 
   return group;
 }
