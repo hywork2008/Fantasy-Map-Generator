@@ -1023,10 +1023,13 @@ export function generateCityAttempt(
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
   measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
-  if (settings.descriptor)
-    measureProcessing(profiler, "fit-housing", () =>
+  if (settings.descriptor) {
+    const fitStarted = performance.now();
+    const housingFit = measureProcessing(profiler, "fit-housing", () =>
       fitImportedHousing(settled, settings.descriptor!.burg.dwellings, profiler)
     );
+    observer?.({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt, housingFit });
+  }
   measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
   const fixedApproachStarted = performance.now();
   const fixedApproaches = measureProcessing(profiler, "fixed-crossing-approaches", () =>

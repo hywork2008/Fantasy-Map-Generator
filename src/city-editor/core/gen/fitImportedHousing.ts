@@ -22,13 +22,42 @@ function houseCount(document: CityDocument, profiler?: ProcessingProfiler): numb
   );
 }
 
+/** How the occupancy fit went; used by the housing batch survey. */
+export interface HousingFitStats {
+  dwellings: number;
+  /** Why the fit did not run; absent when it ran. */
+  skipped?: string;
+  /** Districts whose occupancy the fit may scale. */
+  districts: number;
+  /** Houses drawn with the initial (unscaled) occupancy. */
+  initialHouses: number | null;
+  finalHouses: number | null;
+  /** Multiplier applied to every district's initial occupancy. */
+  factor: number;
+  /** Rebuilds after the initial count, each `[factor, houses]`. */
+  samples: Array<[number, number]>;
+}
+
 /** Fit FMG households by reducing occupancy, preserving metre-scale houses
  * and streets. A sparsely populated town must not enlarge its houses to fill
  * the same editing cells. */
-export function fitImportedHousing(document: CityDocument, dwellings: number, profiler?: ProcessingProfiler): void {
-  if (!document.fabric || !(dwellings > 0) || !Number.isFinite(dwellings)) return;
-  if (document.buildingPattern === "medieval" || document.fabric.version === 5) return;
-  if (document.layout === "bram" || document.layout === "circulade") return;
+export function fitImportedHousing(
+  document: CityDocument,
+  dwellings: number,
+  profiler?: ProcessingProfiler
+): HousingFitStats {
+  const stats: HousingFitStats = {
+    dwellings,
+    districts: 0,
+    initialHouses: null,
+    finalHouses: null,
+    factor: 1,
+    samples: []
+  };
+  if (!document.fabric || !(dwellings > 0) || !Number.isFinite(dwellings)) return { ...stats, skipped: "no-fabric" };
+  if (document.buildingPattern === "medieval" || document.fabric.version === 5)
+    return { ...stats, skipped: "medieval" };
+  if (document.layout === "bram" || document.layout === "circulade") return { ...stats, skipped: document.layout };
   const districts = document.fabric.districts.filter(
     district =>
       !district.faceIds.some(id => document.mesh.faces[id]?.properties.locked) &&
@@ -41,13 +70,15 @@ export function fitImportedHousing(document: CityDocument, dwellings: number, pr
         );
       })
   );
-  if (!districts.length) return;
+  stats.districts = districts.length;
+  if (!districts.length) return { ...stats, skipped: "no-districts" };
   const occupancies = districts.map(district => district.parameters.occupancy);
   // Discrete plots need modest headroom; aim halfway into the 0–5% allowance.
   const maximum = Math.ceil(dwellings * 1.05);
   const target = (dwellings + maximum) / 2;
   const originalCount = measureProcessing(profiler, "initial-house-count", () => houseCount(document, profiler));
-  if (originalCount <= maximum) return;
+  stats.initialHouses = stats.finalHouses = originalCount;
+  if (originalCount <= maximum) return stats;
   const apply = (factor: number) => {
     for (const [index, district] of districts.entries()) district.parameters.occupancy = occupancies[index] * factor;
   };
@@ -57,9 +88,11 @@ export function fitImportedHousing(document: CityDocument, dwellings: number, pr
     apply(factor);
     const count = measureProcessing(profiler, "sample-house-count", () => houseCount(document, profiler));
     const error = Math.abs(count - target);
+    stats.samples.push([factor, count]);
     if (error < bestError) {
       bestError = error;
       bestFactor = factor;
+      stats.finalHouses = count;
     }
     return count;
   };
@@ -78,4 +111,6 @@ export function fitImportedHousing(document: CityDocument, dwellings: number, pr
     else low = middle;
   }
   apply(bestFactor);
+  stats.factor = bestFactor;
+  return stats;
 }

@@ -33,6 +33,16 @@ CSVはUTF-8 BOM付きで、Excelでも日本語を読みやすくしている。
 | generated / generation_seed / error | 生成成功、生成seed、失敗理由 |
 | failure_reasons | 各通常試行の具体的な不採用理由。セミコロン区切り |
 | generation_diagnostics_json | 不採用試行と固定橋アプローチの構造化診断 |
+| fit_skipped | 住宅数調整を行わなかった理由（medieval・bram等）。空欄なら実行 |
+| fit_districts | 調整対象の地区数 |
+| fit_initial_houses / fit_final_houses | 調整前（初期occupancy）と採用後の住宅数 |
+| fit_factor | 各地区の初期occupancyに掛けた倍率 |
+| fit_rebuilds / fit_samples | 初回計数後の再構築回数と、各回の `倍率:住宅数` |
+| fit_ms | 採用試行の住宅数調整にかかった時間（初回計数を含む） |
+| core_* / outskirts_* | 中心部・郊外の住宅セル（建設可能かつcastle・farm・park・cemetery・empty以外の区）。`cells`、`area_m2`、面積加重の `occupancy_pct`（CEの「Lot occupancy (%)」）と `initial_occupancy_pct`、`coverage`、`lot_area_m2`、住宅の `house_footprint_m2` と `footprint_ratio`（住宅床面積 / セル面積） |
+| capacity_at_full_occupancy | occupancy 100%で建つ住宅数の推定（初期住宅数 / 初期occupancy） |
+| required_occupancy_pct | dwellings / capacity。1回で合わせる場合に選ぶoccupancy |
+| dwellings_per_ha / capacity_per_ha | 住宅セル1haあたりのdwellingsと、occupancy 100%での住宅数 |
 
 dwellingsが0なら比率は空欄。生成失敗や不正な入力の都市はerrorに理由を残して処理を続け、差は空欄として末尾に並べる。CSV全体の形式不正やFMG読み込み失敗はコマンドを失敗させる。住宅不足の優先度はhouses_minus_dwellingsの昇順、規模に対する差はrelative_gapの絶対値で表計算ソフトから確認できる。
 

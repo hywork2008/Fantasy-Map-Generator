@@ -5,7 +5,7 @@ import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 import { parseIncomingPayload } from "../io/incomingCity";
 import { readCsv, writeCsv } from "./batchCsv";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
-import { burgIdsForTokens, compareShareHousing, loadArchiveWorld } from "./housingReport";
+import { burgIdsForTokens, compareShareHousing, type HousingOccupancySurvey, loadArchiveWorld } from "./housingReport";
 
 export { readCsv, writeCsv } from "./batchCsv";
 
@@ -71,6 +71,41 @@ export async function exportHousingInputs(archive: string, tokens: string[]): Pr
   });
 }
 
+const round = (value: number | null | undefined, digits = 3) =>
+  value == null || !Number.isFinite(value) ? "" : Math.round(value * 10 ** digits) / 10 ** digits;
+
+/** Lot occupancy survey columns; percentages match the CE panel's 「Lot occupancy (%)」. */
+function occupancyColumns(survey: HousingOccupancySurvey | null): Record<string, unknown> {
+  if (!survey) return {};
+  const fit = survey.fit;
+  const zone = (prefix: string, z: HousingOccupancySurvey["core"]) => ({
+    [`${prefix}_cells`]: z.cells,
+    [`${prefix}_area_m2`]: Math.round(z.areaM2),
+    [`${prefix}_occupancy_pct`]: round(z.occupancy === null ? null : z.occupancy * 100, 1),
+    [`${prefix}_initial_occupancy_pct`]: round(z.initialOccupancy === null ? null : z.initialOccupancy * 100, 1),
+    [`${prefix}_coverage`]: round(z.coverage),
+    [`${prefix}_lot_area_m2`]: round(z.lotAreaM2, 1),
+    [`${prefix}_house_footprint_m2`]: Math.round(z.houseFootprintM2),
+    [`${prefix}_footprint_ratio`]: round(z.areaM2 > 0 ? z.houseFootprintM2 / z.areaM2 : null)
+  });
+  return {
+    fit_skipped: fit?.skipped ?? "",
+    fit_districts: fit?.districts ?? "",
+    fit_initial_houses: fit?.initialHouses ?? "",
+    fit_final_houses: fit?.finalHouses ?? "",
+    fit_factor: round(fit?.factor, 4),
+    fit_rebuilds: fit?.samples.length ?? "",
+    fit_samples: fit ? fit.samples.map(([factor, houses]) => `${round(factor, 4)}:${houses}`).join(" ") : "",
+    fit_ms: round(survey.fitMs, 0),
+    ...zone("core", survey.core),
+    ...zone("outskirts", survey.outskirts),
+    capacity_at_full_occupancy: round(survey.capacityAtFullOccupancy, 0),
+    required_occupancy_pct: round(survey.requiredOccupancy === null ? null : survey.requiredOccupancy * 100, 1),
+    dwellings_per_ha: round(survey.dwellingsPerHectare, 1),
+    capacity_per_ha: round(survey.capacityPerHectare, 1)
+  };
+}
+
 export function compareHousingInputs(
   rows: Record<string, string>[],
   progress?: (index: number, total: number) => void
@@ -108,6 +143,7 @@ export function compareHousingInputs(
         relative_gap: delta !== null && report.input!.dwellings > 0 ? delta / report.input!.dwellings : null,
         error: output.generated ? "" : (output.failure ?? "City generation failed"),
         failure_reasons: output.failureReasons.join(";"),
+        ...occupancyColumns(output.occupancy),
         generation_diagnostics_json: JSON.stringify(output.diagnostics)
       };
     } catch (error) {
