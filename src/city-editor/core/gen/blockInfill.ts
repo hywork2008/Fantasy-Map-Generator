@@ -6,6 +6,7 @@ import { edgeBetween, facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Id, Point } from "../types";
 import { dryRuns, lineHitsDocumentWater, polygonHitsDocumentWater, waterPolygons } from "../waterGeometry";
+import { type AerialLandmarkPlan, aerialLandmarkFootprints, buildAerialLandmarkPlan } from "./aerialLandmarks";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import {
@@ -40,6 +41,8 @@ export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
   parks?: ParkLawn[];
   watermills?: WatermillPlan;
+  /** Monasteries, windmills, barbicans, tanneries and gallows (aerialLandmarks.ts). */
+  aerialLandmarks?: AerialLandmarkPlan;
 }
 let defaultCache: FabricCache | null = null;
 function getDefaultCache(): FabricCache {
@@ -47,6 +50,20 @@ function getDefaultCache(): FabricCache {
     defaultCache = new FabricCache();
   }
   return defaultCache;
+}
+
+function pointsBox(points: Point[]): [number, number, number, number] {
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
+  for (const [x, y] of points) {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  }
+  return [x0, y0, x1, y1];
 }
 
 /** Road half-width plus a verge between a field and a road outside the mesh. */
@@ -200,11 +217,33 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     )
   };
   const millPolygons = watermills.mills.map(m => m.millhousePolygon);
-  const nonMillBuildings = millPolygons.length
+  const millFree = millPolygons.length
     ? buildings.filter(b => !millPolygons.some(mPoly => polygonOverlaps(b.polygon, mPoly)))
     : buildings;
+  const aerialLandmarks =
+    fabric.aerialLandmarks ??
+    buildAerialLandmarkPlan(document, {
+      buildings: millFree,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(farm => farm.polygon),
+      reserved: [
+        ...millPolygons,
+        ...(fabric.harbor?.spaces.map(space => space.polygon) ?? []),
+        ...(fabric.parks?.flatMap(park => park.lawnPolygons) ?? [])
+      ]
+    });
+  // Precincts, tanners' yards and gate outworks replace the houses, alleys and fields under them.
+  const footprints = aerialLandmarkFootprints(aerialLandmarks);
+  const footprintBoxes = footprints.map(pointsBox);
+  const nearFootprint = (points: Point[]) => {
+    const box = pointsBox(points);
+    return footprintBoxes.some(f => f[0] <= box[2] && f[2] >= box[0] && f[1] <= box[3] && f[3] >= box[1]);
+  };
+  const displaced = (polygon: Point[]) => nearFootprint(polygon) && footprints.some(f => polygonOverlaps(polygon, f));
+  const nonMillBuildings = footprints.length ? millFree.filter(b => !displaced(b.polygon)) : millFree;
   const openSpaces = fabric.openSpaces?.filter(
-    space => !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon)
+    space =>
+      !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon) && !displaced(space.polygon)
   );
   const parcelBuildings = new Map<string, typeof nonMillBuildings>();
   for (const building of nonMillBuildings) {
@@ -226,6 +265,8 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
         moat
           .dryRuns(lane.points)
           .flatMap(run => (document.importedFixedCrossings ? [run] : dryRuns(run, waterPolygons(document))))
+          // Alleys end at a precinct or yard wall.
+          .flatMap(run => (nearFootprint(run) ? dryRuns(run, footprints) : [run]))
           .map(points => ({ ...lane, points }))
       ),
     entrances: new Map(
@@ -235,12 +276,18 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       farm =>
         !landmarkReservationHits(document, farm.polygon) &&
         !moat.hitsPolygon(farm.polygon) &&
-        !polygonHitsDocumentWater(document, farm.polygon)
+        !polygonHitsDocumentWater(document, farm.polygon) &&
+        !displaced(farm.polygon)
     ),
     openSpaces,
     watermills,
+    aerialLandmarks,
     parcels:
-      document.landmarks?.length || moat.parts.length || document.waterAreas?.length || document.importedFixedCrossings
+      document.landmarks?.length ||
+      moat.parts.length ||
+      document.waterAreas?.length ||
+      document.importedFixedCrossings ||
+      footprints.length
         ? fabric.parcels?.map(parcel => ({
             ...parcel,
             buildings: parcelBuildings.get(parcel.id) ?? [],
@@ -257,7 +304,10 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
                   .map(points => ({ ...access, points }))
               ),
             openSpaces: parcel.openSpaces.filter(
-              space => !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon)
+              space =>
+                !landmarkReservationHits(document, space.polygon) &&
+                !moat.hitsPolygon(space.polygon) &&
+                !displaced(space.polygon)
             )
           }))
         : fabric.parcels

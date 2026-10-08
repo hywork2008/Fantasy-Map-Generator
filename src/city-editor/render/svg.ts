@@ -47,6 +47,7 @@ import type {
   Tool
 } from "../core/types";
 import { dryRuns, lineHitsDocumentWater, waterPolygons } from "../core/waterGeometry";
+import { renderAerialLandmarks, renderBarbicans } from "./aerialLandmarksSvg";
 import { resolveCastleStyle } from "./castlePatterns";
 import { renderCastle } from "./castleSvg";
 import { renderCultureCemetery } from "./cultureCemeterySvg";
@@ -322,6 +323,7 @@ export function renderEditorSvg(
   let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   let townParkLawns: import("../core/gen/parkFabric").ParkLawn[] = [];
   let townWatermills: import("../core/gen/watermillFabric").WatermillPlan | undefined;
+  let townAerial: import("../core/gen/aerialLandmarks").AerialLandmarkPlan | undefined;
   if (town && !preview) {
     const buildings = element("g", {
       class: "ce-buildings",
@@ -340,6 +342,7 @@ export function renderEditorSvg(
     townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     townWatermills = fabric?.watermills ?? buildWatermillPlan(document, lots.length);
+    townAerial = fabric?.aerialLandmarks;
     for (const settlement of ["core", "outskirts"] as const) {
       svg.setAttribute(
         `data-${settlement}-buildings`,
@@ -1005,8 +1008,10 @@ export function renderEditorSvg(
     if (!preview) {
       svg.appendChild(renderTownQuays(document, townHarbor));
       svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
+      svg.appendChild(renderAerialLandmarks(townAerial, tool, selection.inspectedId, minimal));
     }
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
+    if (!preview) svg.appendChild(renderBarbicans(townAerial, tool, selection.inspectedId));
     if (townParkLawns.length) {
       const parkTreesLayer = element("g", {
         class: "ce-park-trees",

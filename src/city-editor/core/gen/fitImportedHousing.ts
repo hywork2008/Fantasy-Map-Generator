@@ -3,6 +3,9 @@ import { measureProcessing, type ProcessingProfiler } from "../../../utils/proce
 import type { CityDocument } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
 
+/** Accepted |houses − dwellings| / dwellings for the fast default fit. */
+export const HOUSING_FIT_TOLERANCE = 0.1;
+
 type Zone = "core" | "outskirts";
 type ZoneCounts = Record<Zone, number>;
 
@@ -96,10 +99,11 @@ export function fitImportedHousing(
   const ceiling: ZoneCounts = { core: Infinity, outskirts: Infinity };
   for (const [index, zone] of zoneOf.entries())
     ceiling[zone] = Math.min(ceiling[zone], 1 / Math.max(occupancies[index], 1e-6));
-  // Discrete plots need modest headroom; aim halfway into the 0–5% allowance.
-  const maximum = Math.ceil(dwellings * 1.05);
-  const target = (dwellings + maximum) / 2;
-  const fits = (count: number) => count >= dwellings && count <= maximum;
+  // Aim just above the dwellings, but accept the fast default's ±10%: a
+  // seeded plot stream moves small towns by 5–10% between close occupancies,
+  // so a tighter window only bounces. A high-precision mode may refine this.
+  const target = dwellings * 1.025;
+  const fits = (count: number) => Math.abs(count - dwellings) <= dwellings * HOUSING_FIT_TOLERANCE;
   let suburbs = false;
   let bestSuburbs = false;
   const apply = (factors: ZoneCounts, withSuburbs: boolean) => {

@@ -43,7 +43,7 @@ describe("city performance measurement", () => {
       breakdown.reduce((total, t) => total + t.selfMs, 0),
       5
     );
-    expect(breakdown.some(t => t.path === "generation/attempt-1/fit-housing")).toBe(true);
+    expect(breakdown.some(t => t.path === "generation/fit-housing")).toBe(true);
   });
   it("keeps generated geometry identical with profiling enabled", () => {
     const share = parseIncomingPayload(input().share_json)!;

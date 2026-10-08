@@ -624,6 +624,21 @@ export function generateCityOnDocument(
               color: settings.descriptor.climate.biomeColor ?? "#d5cfbf"
             }
           : document.biome);
+      // Count houses on the finished town: harbour ships, bridge approaches,
+      // the historical period and scene regions all change which lots are
+      // built, so an earlier count overstated the houses by up to ~20%.
+      if (settings.descriptor) {
+        const fitStarted = performance.now();
+        const housingFit = measureProcessing(profiler, "fit-housing", () =>
+          fitImportedHousing(
+            result,
+            settings.descriptor!.burg.dwellings,
+            settings.descriptor!.burg.lotOccupancy,
+            profiler
+          )
+        );
+        observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
+      }
       return result;
     }
     if (onRejected) return null;
@@ -1023,13 +1038,6 @@ export function generateCityAttempt(
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
   measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
-  if (settings.descriptor) {
-    const fitStarted = performance.now();
-    const housingFit = measureProcessing(profiler, "fit-housing", () =>
-      fitImportedHousing(settled, settings.descriptor!.burg.dwellings, settings.descriptor!.burg.lotOccupancy, profiler)
-    );
-    observer?.({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt, housingFit });
-  }
   measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
   const fixedApproachStarted = performance.now();
   const fixedApproaches = measureProcessing(profiler, "fixed-crossing-approaches", () =>
