@@ -3251,6 +3251,54 @@ function applyPlan(
       }
       return null;
     };
+    // The matching inward arm: continue the bridge-head line through the gate
+    // into the town cell, so the passage is one straight line from the bridge
+    // (Odeck: the shortest town-side split bent the road and drowned the gate).
+    const armIntoTown = (document: CityDocument, vertexId: Id, head: Point): CityDocument | null => {
+      const origin = document.mesh.vertices[vertexId].point;
+      const length = Math.hypot(origin[0] - head[0], origin[1] - head[1]);
+      if (length < 1) return null;
+      const dir: Point = [(origin[0] - head[0]) / length, (origin[1] - head[1]) / length];
+      const far: Point = [
+        origin[0] + dir[0] * document.frame.extentMeters,
+        origin[1] + dir[1] * document.frame.extentMeters
+      ];
+      const probe: Point = [origin[0] + dir[0] * 0.5, origin[1] + dir[1] * 0.5];
+      for (const face of Object.values(document.mesh.faces)) {
+        if (face.properties.water !== "land" || face.properties.locked) continue;
+        const ids = faceVertices(document.mesh, face);
+        if (!ids.includes(vertexId)) continue;
+        const polygon = facePoints(document.mesh, face);
+        if (!pointInPolygon(probe, polygon)) continue;
+        if (!urbanRegions.some(region => pointInPolygon(polygonCentroid(polygon), region))) return null;
+        let best: { edgeId: Id; t: number; dist: number } | null = null;
+        for (const b of face.boundary) {
+          const edge = document.mesh.edges[b.edgeId];
+          if (edge.a === vertexId || edge.b === vertexId) continue;
+          const pa = document.mesh.vertices[edge.a].point,
+            pb = document.mesh.vertices[edge.b].point;
+          const hit = segmentSegmentHit(origin, far, pa, pb);
+          if (!hit) continue;
+          const dist = Math.hypot(hit.point[0] - origin[0], hit.point[1] - origin[1]);
+          const t = Math.hypot(hit.point[0] - pa[0], hit.point[1] - pa[1]) / Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+          if (!best || dist < best.dist) best = { edgeId: b.edgeId, t, dist };
+        }
+        if (!best) return null;
+        const edge = document.mesh.edges[best.edgeId];
+        // Snap to an existing corner within a couple of metres rather than make a sliver.
+        const span = Math.hypot(
+          document.mesh.vertices[edge.b].point[0] - document.mesh.vertices[edge.a].point[0],
+          document.mesh.vertices[edge.b].point[1] - document.mesh.vertices[edge.a].point[1]
+        );
+        const endVertex = best.t * span < 2 ? edge.a : (1 - best.t) * span < 2 ? edge.b : null;
+        const inserted = endVertex
+          ? { document, vertexId: endVertex }
+          : insertEdgeVertex(document, best.edgeId, best.t);
+        if (!inserted || edgeBetween(inserted.document.mesh, vertexId, inserted.vertexId)) return null;
+        return splitFace(inserted.document, face.id, vertexId, inserted.vertexId);
+      }
+      return null;
+    };
     plan.gates.forEach((gate, i) => {
       if (isInteriorRiverLanding(gate.roadIndex)) return;
       const bridgeHead = bridgeHeadFor(gate);
@@ -3295,10 +3343,11 @@ function applyPlan(
         // Gate preparation must not collapse a neighbouring reserved castle corner.
         const lockedBefore = new Map([...castleVertices].map(id => [id, mesh.vertices[id].locked]));
         for (const id of castleVertices) mesh.vertices[id].locked = true;
-        const armed =
+        const outward =
           bridgeHead && !lineHitsDocumentWater(next, [point, bridgeHead], roadWidth, true)
             ? armToBridgeHead(next, vertexId, bridgeHead)
             : null;
+        const armed = outward && bridgeHead ? (armIntoTown(outward, vertexId, bridgeHead) ?? outward) : outward;
         const opened = openBarrierPassage(armed ?? next, vertexId, "wall");
         for (const [id, locked] of lockedBefore) {
           if (mesh.vertices[id]) mesh.vertices[id].locked = locked;
