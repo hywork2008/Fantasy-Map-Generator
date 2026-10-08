@@ -42,6 +42,7 @@ import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { yieldToEventLoop } from "../utils/yieldToEventLoop";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -148,7 +149,7 @@ class BurgModule {
         const step = steps.next();
         if (step.done) return;
         if (performance.now() - start < 8) continue;
-        await new Promise<void>(resolve => setTimeout(resolve, 0));
+        await yieldToEventLoop();
         start = performance.now();
       }
     } finally {
