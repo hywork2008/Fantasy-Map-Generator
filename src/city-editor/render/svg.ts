@@ -2644,7 +2644,7 @@ export function renderMeasureOverlay(
 }
 
 /** Show the IDs used by the face-editing controls while a cell is selected. */
-function appendFaceSelectionLabels(svg: SVGSVGElement, document: CityDocument, faceId: Id, zoom: number): void {
+export function appendFaceSelectionLabels(svg: SVGSVGElement, document: CityDocument, faceId: Id, zoom: number): void {
   const selectedFace = document.mesh.faces[faceId];
   if (!selectedFace) return;
   const labels = element("g", { class: "ce-selection-labels", "pointer-events": "none" });

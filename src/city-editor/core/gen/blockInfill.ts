@@ -143,41 +143,101 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
   };
 }
 
+const fabricByDocument = new WeakMap<CityDocument, { fingerprint: string; fabric: DistrictFabric }>();
+
+function documentFabricFingerprint(doc: CityDocument): string {
+  const faces = Object.values(doc.mesh.faces);
+  const facePart = faces
+    .map(
+      f =>
+        `${f.id}:${f.properties.settlement}:${f.properties.ward ?? ""}:${f.properties.water}:${f.properties.locked ?? ""}`
+    )
+    .join(",");
+  const groupPart = doc.featureGroups
+    .map(g => `${g.id}:${g.kind}:${g.vertices?.length ?? 0}:${g.segments?.length ?? 0}:${g.style?.widthMeters ?? 0}`)
+    .join(";");
+  const circuitsPart = (doc.defenseCircuits ?? [])
+    .map(c => `${c.scope}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.wallGroupId ?? ""}`)
+    .join(";");
+  const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
+  return [
+    doc.generationSeed ?? "",
+    doc.fabric?.seed ?? "",
+    doc.fabric?.version ?? "",
+    doc.buildingPattern ?? "",
+    doc.historicalPeriod ?? "",
+    doc.layout ?? "",
+    doc.gridKind ?? "",
+    faces.length,
+    Object.keys(doc.mesh.edges).length,
+    Object.keys(doc.mesh.vertices).length,
+    doc.waterAccess?.port.river ?? "",
+    doc.waterAccess?.port.sea ?? "",
+    doc.cemeteries?.length ?? 0,
+    doc.castles?.length ?? 0,
+    doc.waterAreas?.length ?? 0,
+    doc.fixedCrossingApproaches?.length ?? 0,
+    facePart,
+    groupPart,
+    circuitsPart,
+    landmarksPart
+  ].join("|");
+}
+
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(
   document: CityDocument,
   cache = getDefaultCache(),
   profiler?: ProcessingProfiler
 ): DistrictFabric {
+  const isDefaultCache = cache === getDefaultCache();
+  if (!profiler && isDefaultCache) {
+    const cached = fabricByDocument.get(document);
+    if (cached) {
+      const fp = documentFabricFingerprint(document);
+      if (cached.fingerprint === fp) return cached.fabric;
+    }
+  }
   // Generate the established street/parcel network from the same stable seed,
   // then fit affected buildings to the landmark reservation in one final pass.
   const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
+  let fabricResult: DistrictFabric;
   if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
     const medieval = measureProcessing(profiler, "medieval-fabric", () =>
       buildMedievalFabric(source, buildLegacyBlockFabric(medievalStreetDocument(source), cache, profiler))
     );
-    return measureProcessing(profiler, "coastal-reservations", () => finishCoastalBuildings(document, medieval));
+    fabricResult = measureProcessing(profiler, "coastal-reservations", () =>
+      finishCoastalBuildings(document, medieval)
+    );
+  } else {
+    const base = measureProcessing(profiler, "legacy-fabric", () => buildLegacyBlockFabric(source, cache, profiler));
+    // Sea ports need quays and loading yards around their piers too, not only
+    // river ports (Myosiasos had bare piers).
+    const port =
+      document.waterAccess?.port.river ||
+      Object.values(document.mesh.faces).some(f => f.properties.ward === "harbor" && f.properties.water === "land");
+    if (!port) {
+      fabricResult = measureProcessing(profiler, "coastal-reservations", () => finishCoastalBuildings(document, base));
+    } else {
+      const streets = base.lanes.flatMap(l =>
+        l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
+      );
+      const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
+      const harbor = measureProcessing(profiler, "harbor-fabric", () => planHarbor(document, streets, barriers));
+      fabricResult = measureProcessing(profiler, "coastal-reservations", () =>
+        finishCoastalBuildings(document, {
+          ...base,
+          buildings: base.buildings.filter(b => !harbor.spaces.some(s => polygonOverlaps(b.polygon, s.polygon))),
+          openSpaces: [...(base.openSpaces ?? []), ...harbor.spaces],
+          harbor
+        })
+      );
+    }
   }
-  const base = measureProcessing(profiler, "legacy-fabric", () => buildLegacyBlockFabric(source, cache, profiler));
-  // Sea ports need quays and loading yards around their piers too, not only
-  // river ports (Myosiasos had bare piers).
-  const port =
-    document.waterAccess?.port.river ||
-    Object.values(document.mesh.faces).some(f => f.properties.ward === "harbor" && f.properties.water === "land");
-  if (!port) return measureProcessing(profiler, "coastal-reservations", () => finishCoastalBuildings(document, base));
-  const streets = base.lanes.flatMap(l =>
-    l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
-  );
-  const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
-  const harbor = measureProcessing(profiler, "harbor-fabric", () => planHarbor(document, streets, barriers));
-  return measureProcessing(profiler, "coastal-reservations", () =>
-    finishCoastalBuildings(document, {
-      ...base,
-      buildings: base.buildings.filter(b => !harbor.spaces.some(s => polygonOverlaps(b.polygon, s.polygon))),
-      openSpaces: [...(base.openSpaces ?? []), ...harbor.spaces],
-      harbor
-    })
-  );
+  if (!profiler) {
+    fabricByDocument.set(document, { fingerprint: documentFabricFingerprint(document), fabric: fabricResult });
+  }
+  return fabricResult;
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {

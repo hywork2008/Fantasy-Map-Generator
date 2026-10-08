@@ -1024,6 +1024,8 @@ function placeGallows(site: Site, input: AerialLandmarkInput, rng: Rng): Gallows
 
 // ---------------------------------------------------------------------------
 
+const aerialPlanCache = new WeakMap<CityDocument, { fingerprint: string; plan: AerialLandmarkPlan }>();
+
 /** Deterministic for a document and its finished fabric. */
 export function buildAerialLandmarkPlan(
   document: CityDocument,
@@ -1033,6 +1035,10 @@ export function buildAerialLandmarkPlan(
   // A completed generation recipe marks a generated town. Hand-built or upgraded maps keep
   // their district-local edits: these town-wide works would shift with every edit.
   if (!input.buildings.length || !document.fabric?.generation) return EMPTY_PLAN;
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}`;
+  const cached = aerialPlanCache.get(document);
+  if (cached && cached.fingerprint === fp) return cached.plan;
+
   const site = new Site(document, input);
   const root = `${document.fabric?.seed ?? document.generationSeed ?? "aerial"}:${seed}`;
   // Large fixed works first (the gate outworks and river trades), then free-standing pieces.
@@ -1041,7 +1047,9 @@ export function buildAerialLandmarkPlan(
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
-  return { monasteries, windmills, barbicans, tanneries, gallows };
+  const plan = { monasteries, windmills, barbicans, tanneries, gallows };
+  aerialPlanCache.set(document, { fingerprint: fp, plan });
+  return plan;
 }
 
 /** Footprints that displace ordinary houses, lanes and fields. */

@@ -173,6 +173,7 @@ import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
+  appendFaceSelectionLabels,
   faceClassName,
   type GridOverlay,
   parsePickInfo,
@@ -261,11 +262,22 @@ export interface CityEditorOptions {
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
   const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
+  let lastOutputDocInput: CityDocument | null = null;
+  let lastOutputDocProvider: FixedApproachProvider | null = null;
+  let lastOutputDocResult: CityDocument | null = null;
+
   function documentForOutput(current: CityDocument): CityDocument {
     if (!fixedApproachProvider || current.fixedCrossingApproaches === undefined) return current;
+    if (current === lastOutputDocInput && fixedApproachProvider === lastOutputDocProvider && lastOutputDocResult) {
+      return lastOutputDocResult;
+    }
     const checked = restoreFixedCrossingApproaches(current, fixedApproachProvider);
     // Discard any previous object authorization when the current contract fails.
-    return "document" in checked ? checked.document : clone(current);
+    const result = "document" in checked ? checked.document : clone(current);
+    lastOutputDocInput = current;
+    lastOutputDocProvider = fixedApproachProvider;
+    lastOutputDocResult = result;
+    return result;
   }
   let gridSeed = randomSeed();
   let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND, seed: gridSeed });
@@ -1965,13 +1977,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         const routeGroup = documentState.featureGroups.find(g => g.id === route.groupId);
         if (routeGroup) {
           activeGroupId = routeGroup.id;
-          selection = {
-            faceId: null,
-            vertexId: null,
-            groupId: routeGroup.id,
-            edgeId: route.edgeId,
-            inspectedId: routeGroup.id
-          };
           inspectedInfo = {
             layer: "features",
             kind: routeGroup.kind,
@@ -1984,7 +1989,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             color: routeGroup.style.color,
             segmentCount: routeGroup.kind === "river" ? routeGroup.vertices.length : routeGroup.segments.length
           };
-          refresh();
+          applySelection({
+            faceId: null,
+            vertexId: null,
+            groupId: routeGroup.id,
+            edgeId: route.edgeId,
+            inspectedId: routeGroup.id
+          });
           return;
         }
       }
@@ -1996,69 +2007,81 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           inspectedInfo = info;
           const infoId = (info.id ?? null) as Id | null;
           if (info.layer === "cells" || info.kind === "cell") {
-            selection = {
+            activeGroupId = null;
+            applySelection({
               ...selection,
               faceId: infoId,
               edgeId: null,
               vertexId: null,
               groupId: null,
               inspectedId: infoId
-            };
-            activeGroupId = null;
+            });
+            return;
           } else if (info.layer === "buildings" || info.kind === "building") {
             const faceId = (info.faceId as Id) ?? null;
-            selection = { ...selection, faceId, edgeId: null, vertexId: null, groupId: null, inspectedId: infoId };
             activeGroupId = null;
+            applySelection({ ...selection, faceId, edgeId: null, vertexId: null, groupId: null, inspectedId: infoId });
+            return;
           } else if (info.layer === "features") {
-            selection = {
+            activeGroupId = infoId;
+            applySelection({
               ...selection,
               groupId: infoId,
               faceId: null,
               edgeId: null,
               vertexId: null,
               inspectedId: infoId
-            };
-            activeGroupId = infoId;
+            });
+            return;
           } else if (info.layer === "edges" || info.kind === "edge") {
-            selection = { ...selection, edgeId: infoId, faceId: null, vertexId: null, inspectedId: infoId };
+            applySelection({ ...selection, edgeId: infoId, faceId: null, vertexId: null, inspectedId: infoId });
+            return;
           } else if (info.layer === "vertices" || info.kind === "vertex") {
-            selection = {
+            activeGroupId = null;
+            applySelection({
               ...selection,
               vertexId: infoId,
               faceId: null,
               edgeId: null,
               groupId: null,
               inspectedId: infoId
-            };
-            activeGroupId = null;
+            });
+            return;
           } else if (info.layer === "gates" || info.kind === "gate") {
             const vertexId = (info.vertexId as Id) ?? null;
             const wallId = (info.wallId as Id) ?? null;
-            selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: wallId, inspectedId: infoId };
             activeGroupId = wallId;
+            applySelection({
+              ...selection,
+              vertexId,
+              faceId: null,
+              edgeId: null,
+              groupId: wallId,
+              inspectedId: infoId
+            });
+            return;
           } else if (info.layer === "fortifications" || info.kind === "tower") {
             const wallId = (info.wallId as Id) ?? null;
-            selection = {
+            activeGroupId = wallId;
+            applySelection({
               ...selection,
               faceId: null,
               edgeId: null,
               vertexId: null,
               groupId: wallId,
               inspectedId: infoId
-            };
-            activeGroupId = wallId;
+            });
+            return;
           } else {
-            selection = { ...selection, inspectedId: infoId };
+            applySelection({ ...selection, inspectedId: infoId });
+            return;
           }
-          refresh();
-          return;
         }
       }
 
       inspectedInfo = null;
-      selection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
       activeGroupId = null;
-      refresh();
+      applySelection({ faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null });
       return;
     }
 
@@ -2946,6 +2969,76 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     updateGenerationLogHover();
   }
 
+  /**
+   * Fast path: update selection highlight CSS classes, selection labels and hover
+   * overlay in place without rebuilding the entire SVG (which contains thousands of nodes).
+   */
+  function patchSelectionRender(): boolean {
+    const svg = map.querySelector<SVGSVGElement>("svg");
+    if (!svg || tool !== "select") return false;
+
+    // Use the same classes and encoded pick metadata as renderEditorSvg().
+    svg.querySelectorAll(".ce-selected, .ce-is-selected, .cg-is-selected, .ce-active-group").forEach(el => {
+      el.classList.remove("ce-selected", "ce-is-selected", "cg-is-selected", "ce-active-group");
+    });
+
+    if (selection.faceId) {
+      const faceEl =
+        faceElementsById.get(selection.faceId) ?? svg.querySelector<SVGElement>(`[data-face="${selection.faceId}"]`);
+      faceEl?.classList.add("ce-selected");
+    }
+    if (selection.edgeId) {
+      svg.querySelector<SVGElement>(`[data-edge="${selection.edgeId}"]`)?.classList.add("ce-selected");
+    }
+    if (selection.vertexId) {
+      svg.querySelector<SVGElement>(`[data-vertex="${selection.vertexId}"]`)?.classList.add("ce-selected");
+    }
+
+    if (selection.inspectedId) {
+      const id = selection.inspectedId;
+      const prefixes: Record<string, string> = {
+        cells: "cell",
+        edges: "edge",
+        vertices: "vertex",
+        features: "feature"
+      };
+      for (const el of svg.querySelectorAll<SVGElement>("[data-pick]")) {
+        const info = parsePickInfo(el.getAttribute("data-pick"));
+        if (!info) continue;
+        const prefix = prefixes[info.layer];
+        const selected =
+          info.id === id ||
+          (prefix && `${prefix}-${info.id}` === id) ||
+          (info.layer === "buildings" && info.faceId === id);
+        if (selected) el.classList.add("ce-is-selected", "cg-is-selected");
+      }
+    }
+
+    if (selection.groupId) {
+      svg.querySelectorAll<SVGElement>(`[data-group="${selection.groupId}"]`).forEach(el => {
+        el.classList.add("ce-active-group");
+      });
+    }
+
+    // Labels
+    svg.querySelector(".ce-selection-labels")?.remove();
+    if (showSelectionLabels && selection.faceId) {
+      appendFaceSelectionLabels(svg, documentState, selection.faceId, zoomFactor());
+    }
+
+    updateRoutePreview();
+    updateHoverOverlay();
+    return true;
+  }
+
+  function applySelection(nextSelection: RenderSelection): void {
+    selection = nextSelection;
+    if (!patchSelectionRender()) {
+      redrawMap();
+    }
+    refreshUiOnly();
+  }
+
   function refreshScaleBar(): void {
     const width = map.getBoundingClientRect().width;
     if (width <= 0) return;
@@ -3653,15 +3746,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
       const clearButton = makeButton("Clear selection", () => {
         inspectedInfo = null;
-        selection = {
+        activeGroupId = null;
+        applySelection({
           faceId: null,
           edgeId: null,
           vertexId: null,
           groupId: null,
           inspectedId: null
-        };
-        activeGroupId = null;
-        refresh();
+        });
       });
 
       inspector.content.append(kind, content, clearButton);

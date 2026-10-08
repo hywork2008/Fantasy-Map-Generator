@@ -38,6 +38,64 @@ describe("City Editor Inspector (Select and move mode)", () => {
     ]);
   });
 
+  it("patches cell selection and clears highlights left by a full render", () => {
+    const cells = [...root.querySelectorAll<SVGElement>(".ce-cells path[data-pick]")];
+    const svg = cells[0].ownerSVGElement;
+    cells[0].classList.add("ce-selected", "ce-is-selected", "cg-is-selected");
+    cells[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(cells[1].ownerSVGElement).toBe(svg);
+    expect(cells[1].classList.contains("ce-selected")).toBe(true);
+    expect(cells[1].classList.contains("ce-is-selected")).toBe(true);
+    expect(cells[0].classList.contains("ce-selected")).toBe(false);
+    expect(cells[0].classList.contains("ce-is-selected")).toBe(false);
+
+    const clear = [...root.querySelectorAll<HTMLButtonElement>(".ce-inspector button")].find(
+      button => button.textContent === "Clear selection"
+    )!;
+    clear.click();
+    expect(svg?.querySelector(".ce-selected, .ce-is-selected, .cg-is-selected")).toBeNull();
+  });
+
+  it("patches the selected edge with both renderer highlight classes", () => {
+    const edge = root.querySelector<SVGElement>(".ce-edges path[data-pick]")!;
+    const svg = edge.ownerSVGElement;
+    edge.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(edge.ownerSVGElement).toBe(svg);
+    expect(edge.classList.contains("ce-selected")).toBe(true);
+    expect(edge.classList.contains("ce-is-selected")).toBe(true);
+    expect(edge.classList.contains("cg-is-selected")).toBe(true);
+  });
+
+  it.each([
+    ["buildings", "building"],
+    ["gates", "gate"],
+    ["fortifications", "tower"]
+  ])("matches encoded %s pick metadata when patching selection", (layer, kind) => {
+    const svg = root.querySelector<SVGSVGElement>(".ce-map svg")!;
+    const target = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    target.setAttribute(
+      "data-pick",
+      encodeURIComponent(
+        JSON.stringify({
+          layer,
+          kind,
+          id: `${kind}-review`,
+          label: `Review ${kind}`
+        })
+      )
+    );
+    svg.append(target);
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(target.ownerSVGElement).toBe(svg);
+    expect(target.classList.contains("ce-is-selected")).toBe(true);
+    expect(target.classList.contains("cg-is-selected")).toBe(true);
+
+    const cell = svg.querySelector<SVGElement>(".ce-cells path[data-pick]")!;
+    cell.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(target.classList.contains("ce-is-selected")).toBe(false);
+    expect(target.classList.contains("cg-is-selected")).toBe(false);
+  });
+
   it("shows clicked cell details in Inspector panel and keeps edit controls", () => {
     const target = root.querySelector<SVGElement>(".ce-cells path[data-pick]");
     expect(target).not.toBeNull();
