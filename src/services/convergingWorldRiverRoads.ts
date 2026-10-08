@@ -499,8 +499,8 @@ export function ensureConvergingWorldRiverRoads(
               p[1] / scale,
               i === 0
                 ? burg.cell
-                : i >= 6
-                  ? leg.sourcePoints[changed.rejoinSegment + i - 6][2]
+                : i >= changed.sourceStart
+                  ? leg.sourcePoints[changed.rejoinSegment + i - changed.sourceStart][2]
                   : tree.find(p[0] / scale, p[1] / scale)!.id
             ]);
             route.points = leg.reverse

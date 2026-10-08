@@ -3,7 +3,7 @@ import { measureProcessing, type ProcessingProfiler } from "../../utils/processi
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
-import { alignFrameRoadEndpoints, snapFrameRoadTerminals } from "./frameRoadConnection";
+import { alignFrameRoadEndpoints, exteriorDirection, snapFrameRoadTerminals } from "./frameRoadConnection";
 import { straightenFrameRoadJunctions } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
@@ -1066,7 +1066,12 @@ export function generateCityAttempt(
     },
     fixedApproaches: fixedApproaches.diagnostics
   });
-  return fixedApproaches.document;
+  // Streets to a fixed crossing exist only now; straighten their junctions too.
+  const withApproaches = fixedApproaches.document;
+  measureProcessing(profiler, "frame-road-junctions-fixed", () =>
+    straightenFrameRoadJunctions(withApproaches, settings.descriptor)
+  );
+  return withApproaches;
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
@@ -2529,6 +2534,23 @@ export function runPlan(
     oceanShorelines: classified.flatMap(item => (item.kind === "ocean" && item.coast ? [item.coast.shoreline] : [])),
     waterPolygon,
     streets: [...streetResult.streets, ...roads],
+    exteriorRoads: (outerFrameRoads(settings.descriptor) ?? []).flatMap(leg => {
+      const drawn = leg.pieces.flatMap(piece => (piece.points.length >= 2 ? [piece.points] : []));
+      // The town side of a bridge is entered straight along its axis (see
+      // straightenFrameRoadJunctions): keep that corridor clear as well.
+      const start = leg.pieces[0]?.points[0];
+      const out = exteriorDirection(leg, settings.descriptor);
+      if (!start || !out) return drawn;
+      const reach = Math.hypot(start[0], start[1]) * 0.75;
+      const abutment = params.cellSizeMeters * 1.5;
+      return [
+        ...drawn,
+        [
+          [start[0] + out[0] * abutment, start[1] + out[1] * abutment] as Point,
+          [start[0] - out[0] * reach, start[1] - out[1] * reach] as Point
+        ]
+      ];
+    }),
     rivers: rivers.map(band => band.edgePoints),
     riverBanks:
       settings.descriptor?.fixedCrossings?.rivers.flatMap(river =>

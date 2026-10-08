@@ -132,6 +132,9 @@ export interface WardInputs {
   waterPolygon: Point[] | null;
   /** Intramural streets and approach roads, used to site and orient the temple. */
   streets?: Point[][];
+  /** FMG roads drawn across the map outside the town streets (frame legs, far-bank
+   * bridge arms). Only used to keep the cemetery off cells they run through. */
+  exteriorRoads?: Point[][];
   /** River centerlines, used to keep the temple off the water. */
   rivers?: Point[][];
   historicalPeriod?: HistoricalPeriod;
@@ -296,7 +299,7 @@ export function assignWards(input: WardInputs): WardResult {
     plaza,
     citadelIds,
     gates,
-    input.streets ?? [],
+    [...(input.streets ?? []), ...(input.exteriorRoads ?? [])],
     input.historicalPeriod,
     cemeteryRng,
     input.burialProfile,

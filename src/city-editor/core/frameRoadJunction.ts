@@ -18,7 +18,7 @@ import type { CityDocument, EdgeRef, Id, Point } from "./types";
 import { lineHitsDocumentWater } from "./waterGeometry";
 
 /** How far the anchor is slid toward the exterior road's axis, tried in order (0 = not at all). */
-const SLIDE_FRACTIONS = [1, 0.6, 0.3, 0];
+const SLIDE_FRACTIONS = [1, 0.9, 0.8, 0.7, 0.6, 0.45, 0.3, 0];
 /** How many street vertices back from the perimeter may be re-routed. */
 const REROUTE_DEPTH = 4;
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -38,11 +38,91 @@ export function straightenFrameRoadJunctions(document: CityDocument, descriptor?
   const legs = document.frameRoads;
   if (!legs?.length) return;
   let work = document;
+  const leaders: { target: Point; groupId: Id }[] = [];
   for (let i = 0; i < legs.length; i++) {
-    const next = straightenLeg(work, i, descriptor);
+    const target = work.frameRoads![i].pieces[0]?.points[0];
+    if (!target) continue;
+    // A second FMG route leaving through the same start (two roads over one
+    // bridge) joins the first one's straightened tail instead of cutting a
+    // parallel street of its own.
+    const leader = leaders.find(l => distance(l.target, target) < 1);
+    const next = leader ? followLeader(work, i, leader.groupId) : straightenLeg(work, i, descriptor);
     if (next) work = next;
+    const street = streetFor(work, work.frameRoads![i]);
+    if (!leader && street) leaders.push({ target, groupId: street.id });
   }
   if (work !== document) Object.assign(document, work);
+}
+
+interface Street {
+  id: Id;
+  /** Vertices ordered so the end nearest the exterior start is last. */
+  ids: Id[];
+  reversed: boolean;
+  gap: number;
+}
+
+/** The leg's imported street whose end is nearest the exterior road start. */
+function streetFor(document: CityDocument, leg: NonNullable<CityDocument["frameRoads"]>[number]): Street | null {
+  const target = leg.pieces[0]?.points[0];
+  if (!target) return null;
+  let best: Street | null = null;
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.locked || group.sourceRoad?.index !== leg.sourceIndex) continue;
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 3) continue;
+    const first = distance(document.mesh.vertices[ids[0]].point, target);
+    const last = distance(document.mesh.vertices[ids.at(-1)!].point, target);
+    const reversed = first < last;
+    const gap = Math.min(first, last);
+    if (!best || gap < best.gap) best = { id: group.id, ids: reversed ? [...ids].reverse() : ids, reversed, gap };
+  }
+  return best;
+}
+
+/** Re-route the leg's street onto the leader street from their last shared vertex on. */
+function followLeader(document: CityDocument, legIndex: number, leaderId: Id): CityDocument | null {
+  const leg = document.frameRoads![legIndex];
+  const street = streetFor(document, leg);
+  const leaderGroup = document.featureGroups.find(g => g.id === leaderId);
+  if (!street || street.id === leaderId || !leaderGroup) return null;
+  const target = leg.pieces[0].points[0];
+  let leader = featureGroupVertices(document, leaderGroup);
+  if (
+    distance(document.mesh.vertices[leader[0]].point, target) <
+    distance(document.mesh.vertices[leader.at(-1)!].point, target)
+  )
+    leader = [...leader].reverse();
+  if (distance(document.mesh.vertices[leader.at(-1)!].point, target) > 1e-6) return null;
+  const onLeader = new Set(leader);
+  let join = -1;
+  for (let i = street.ids.length - 2; i >= 1; i--)
+    if (onLeader.has(street.ids[i])) {
+      join = i;
+      break;
+    }
+  if (join < 1) return null;
+  const path = [...street.ids.slice(0, join), ...leader.slice(leader.indexOf(street.ids[join]))];
+  if (new Set(path).size !== path.length) return null;
+  const next = structuredClone(document);
+  if (!setStreetPath(next, street.id, street.reversed ? [...path].reverse() : path)) return null;
+  next.frameRoads![legIndex].pieces[0].points[0] = next.mesh.vertices[leader.at(-1)!].point;
+  return next;
+}
+
+/** Replace a road group's segments with the edges along `ordered`. */
+function setStreetPath(document: CityDocument, groupId: Id, ordered: Id[]): boolean {
+  const group = document.featureGroups.find(g => g.id === groupId);
+  if (!group || group.kind === "river") return false;
+  const segments: EdgeRef[] = [];
+  for (let i = 1; i < ordered.length; i++) {
+    const edge = edgeBetween(document.mesh, ordered[i - 1], ordered[i]);
+    const ref = edge && edgeRefFor(document.mesh, edge.id, ordered[i - 1]);
+    if (!ref) return false;
+    segments.push(ref);
+  }
+  group.segments = segments;
+  return true;
 }
 
 function straightenLeg(document: CityDocument, legIndex: number, descriptor?: BurgSiteDescriptor): CityDocument | null {
@@ -53,25 +133,7 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
   const outward = exteriorDirection(leg, descriptor);
   if (!target || !outward) return null;
 
-  // The street whose end is nearest the exterior road start.
-  let best: { id: Id; ids: Id[]; reversed: boolean; gap: number } | null = null;
-  for (const group of document.featureGroups) {
-    if (group.kind !== "road" || group.locked || group.sourceRoad?.index !== leg.sourceIndex) continue;
-    if (group.sourceRoad.terminal === "riverLanding") continue;
-    const ids = featureGroupVertices(document, group);
-    if (ids.length < 3) continue;
-    const first = distance(document.mesh.vertices[ids[0]].point, target);
-    const last = distance(document.mesh.vertices[ids.at(-1)!].point, target);
-    const reversed = first < last;
-    const gap = Math.min(first, last);
-    if (!best || gap < best.gap)
-      best = {
-        id: group.id,
-        ids: reversed ? [...ids].reverse() : ids,
-        reversed,
-        gap
-      };
-  }
+  const best = streetFor(document, leg);
   if (!best || best.gap > document.frame.blockSizeMeters * 3) return null;
   const { ids, reversed } = best;
   // Only the tail is re-routed; the first vertex (often the town gate) stays.
@@ -79,10 +141,11 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
   if (document.gates.some(g => tail.includes(g.vertexId)) || tail.some(id => document.mesh.vertices[id].locked))
     return null;
 
+  // A vertex on the start when one can be had; otherwise the start lies inside a
+  // cell and each attempt cuts through that cell to it.
   const goal = goalVertexAt(document, target, best.id, ids.at(-1)!);
-  if (!goal) return null;
-  const work = goal.document;
-  const goalPoint = work.mesh.vertices[goal.vertexId].point;
+  const work = goal?.document ?? document;
+  const goalPoint = goal ? work.mesh.vertices[goal.vertexId].point : target;
 
   // Candidates: the last few street vertices, best straight line first.
   const point = (id: Id) => work.mesh.vertices[id].point;
@@ -90,7 +153,7 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
   for (let k = 0; k < REROUTE_DEPTH; k++) {
     const index = ids.length - 1 - k;
     if (index < 1) break;
-    if (ids[index] === goal.vertexId) {
+    if (goal && ids[index] === goal.vertexId) {
       // Already ends on the goal: its present approach is one candidate, deeper anchors are alternatives.
       candidates.push({ index, score: angleBetween(sub(goalPoint, point(ids[index - 1])), outward) });
       continue;
@@ -107,18 +170,19 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
   let best2: { document: CityDocument; score: number } | null = null;
   for (const { index } of candidates) {
     for (const slide of SLIDE_FRACTIONS) {
-      const tried = connectAndStraighten(
+      const done = connectAndStraighten(
         work,
         best.id,
         ids.slice(0, index + 1),
         reversed,
-        goal.vertexId,
+        goal?.vertexId ?? target,
         outward,
         slide
       );
-      if (!tried) continue;
+      if (!done) continue;
+      const tried = done.document;
       const piece = tried.frameRoads![legIndex].pieces[0];
-      if (piece.points.length) piece.points[0] = tried.mesh.vertices[goal.vertexId].point; // shared, like the other alignment passes
+      if (piece.points.length) piece.points[0] = tried.mesh.vertices[done.goalId].point; // shared, like the other alignment passes
       const score = frameRoadApproachBend(tried, tried.frameRoads![legIndex], descriptor);
       if (score <= CLEAN_JUNCTION_DEGREES) return tried;
       if (!best2 || score < best2.score) best2 = { document: tried, score };
@@ -144,13 +208,17 @@ function goalVertexAt(
     if (end.locked || document.gates.some(g => g.vertexId === endId)) return null;
     if (
       document.featureGroups.some(
-        g => g.id !== groupId && g.kind !== "river" && featureGroupVertices(document, g).includes(endId)
+        g =>
+          g.id !== groupId &&
+          g.kind !== "river" &&
+          featureGroupVertices(document, g).includes(endId) &&
+          !sharesExteriorStart(document, g, endId, target)
       )
     )
       return null;
     if (distance(end.point, target) < 1e-6) return { document, vertexId: endId };
     const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
-    if (lineHitsDocumentWater(document, [end.point, target], width, true)) return null;
+    if (wetLink(document, end.point, target, width)) return null;
     const moved = moveVertices(document, new Map([[endId, [target[0], target[1]] as Point]]));
     return moved ? { document: moved, vertexId: endId } : null;
   };
@@ -159,6 +227,40 @@ function goalVertexAt(
     if (slid) return slid;
   }
   return perimeterVertexAt(document, target) ?? slide();
+}
+
+/** Another imported road that ends on the same vertex and leaves for the same
+ * exterior start (two FMG routes sharing one bridge): moving their common end
+ * serves both, so it does not block the move. */
+function sharesExteriorStart(
+  document: CityDocument,
+  group: CityDocument["featureGroups"][number],
+  endId: Id,
+  target: Point
+): boolean {
+  if (group.kind !== "road" || !group.sourceRoad || group.locked) return false;
+  const ids = featureGroupVertices(document, group);
+  if (ids[0] !== endId && ids.at(-1) !== endId) return false;
+  return (document.frameRoads ?? []).some(
+    leg =>
+      leg.sourceIndex === group.sourceRoad!.index &&
+      distance(leg.pieces[0]?.points[0] ?? [Infinity, Infinity], target) < 1
+  );
+}
+
+/** Whether a link to an exterior start crosses water. The start itself often
+ * sits on the bank (a bridge or landing approach), so the stroke is stopped one
+ * road width short of it: touching the water there is the point of it. */
+function wetLink(document: CityDocument, from: Point, to: Point, width: number): boolean {
+  const length = distance(from, to);
+  if (length <= width) return false;
+  const k = (length - width) / length;
+  return lineHitsDocumentWater(
+    document,
+    [from, [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k]],
+    width,
+    true
+  );
 }
 
 /** Mesh outline, or the line where land meets water inside it: the places an exterior road can start. */
@@ -205,7 +307,7 @@ function perimeterVertexAt(document: CityDocument, target: Point): { document: C
   }
   const at = work.mesh.vertices[vertexId].point;
   if (distance(at, target) > 1e-6) {
-    if (lineHitsDocumentWater(work, [at, target], width, true)) return null;
+    if (wetLink(work, at, target, width)) return null;
     // A vertex shared with another feature (road, wall, gate) must not move.
     if (
       work.gates.some(g => g.vertexId === vertexId) ||
@@ -230,18 +332,18 @@ function connectAndStraighten(
   groupId: Id,
   keep: Id[],
   reversed: boolean,
-  goalId: Id,
+  goal: Id | Point,
   outward: Point,
   slide: number
-): CityDocument | null {
+): { document: CityDocument; goalId: Id } | null {
   const anchor = keep.at(-1)!;
   let work = document;
-  if (slide > 0 && anchor !== goalId && keep.length > 1 && !work.gates.some(g => g.vertexId === anchor)) {
-    const goal = work.mesh.vertices[goalId].point;
+  const goalPoint = typeof goal === "string" ? work.mesh.vertices[goal].point : goal;
+  if (slide > 0 && anchor !== goal && keep.length > 1 && !work.gates.some(g => g.vertexId === anchor)) {
     const p = work.mesh.vertices[anchor].point;
-    const back = (goal[0] - p[0]) * outward[0] + (goal[1] - p[1]) * outward[1];
+    const back = (goalPoint[0] - p[0]) * outward[0] + (goalPoint[1] - p[1]) * outward[1];
     if (back > 1) {
-      const onAxis: Point = [goal[0] - outward[0] * back, goal[1] - outward[1] * back];
+      const onAxis: Point = [goalPoint[0] - outward[0] * back, goalPoint[1] - outward[1] * back];
       const axis: Point = [p[0] + (onAxis[0] - p[0]) * slide, p[1] + (onAxis[1] - p[1]) * slide];
       const slid = moveVertices(work, new Map([[anchor, axis]]));
       if (!slid) return null;
@@ -249,24 +351,84 @@ function connectAndStraighten(
     }
   }
   let path = keep;
-  if (anchor !== goalId) {
-    const cut = cutAlong(work, anchor, goalId);
-    if (!cut) return null;
-    work = cut.document;
-    path = [...keep.slice(0, -1), ...cut.path];
+  let goalId: Id;
+  if (typeof goal === "string") {
+    goalId = goal;
+    if (anchor !== goal) {
+      const cut = cutAlong(work, anchor, goal);
+      if (!cut) return null;
+      work = cut.document;
+      path = [...keep.slice(0, -1), ...cut.path];
+    }
+  } else {
+    const through = cutThrough(work, anchor, goal);
+    if (!through) return null;
+    work = through.document;
+    goalId = through.path.at(-1)!;
+    path = [...keep.slice(0, -1), ...through.path];
   }
-  const group = work.featureGroups.find(g => g.id === groupId);
-  if (!group || group.kind === "river") return null;
-  const ordered = reversed ? [...path].reverse() : path;
-  const segments: EdgeRef[] = [];
-  for (let i = 1; i < ordered.length; i++) {
-    const edge = edgeBetween(work.mesh, ordered[i - 1], ordered[i]);
-    const ref = edge && edgeRefFor(work.mesh, edge.id, ordered[i - 1]);
-    if (!ref) return null;
-    segments.push(ref);
+  if (!setStreetPath(work, groupId, reversed ? [...path].reverse() : path)) return null;
+  return { document: work, goalId };
+}
+
+/** A straight street from vertex `from` to `target`, a point inside a cell: the
+ * line is cut on through that cell to its far side, and a vertex is placed on
+ * the new edge at `target`. The rest of the cut stays a plain cell edge. */
+function cutThrough(document: CityDocument, from: Id, target: Point): { document: CityDocument; path: Id[] } | null {
+  const a = document.mesh.vertices[from].point;
+  const length = distance(a, target);
+  if (length < 1) return null;
+  const dir: Point = [(target[0] - a[0]) / length, (target[1] - a[1]) / length];
+  const face = Object.values(document.mesh.faces).find(
+    f => !f.properties.locked && f.properties.water === "land" && pointInPolygon(target, facePoints(document.mesh, f))
+  );
+  if (!face) return null;
+  const reach = document.frame.blockSizeMeters * 2;
+  const far: Point = [target[0] + dir[0] * reach, target[1] + dir[1] * reach];
+  let hit: { edgeId: Id; point: Point; t: number } | null = null;
+  for (const ref of face.boundary) {
+    const edge = document.mesh.edges[ref.edgeId];
+    const found = segmentSegmentHit(
+      target,
+      far,
+      document.mesh.vertices[edge.a].point,
+      document.mesh.vertices[edge.b].point
+    );
+    if (found && (!hit || found.t < hit.t)) hit = { edgeId: edge.id, point: found.point, t: found.t };
   }
-  group.segments = segments;
-  return work;
+  if (!hit) return null;
+  const { edgeId } = hit;
+  if (document.featureGroups.some(g => g.kind === "wall" && g.segments.some(s => s.edgeId === edgeId))) return null;
+  let work = document;
+  const edge = work.mesh.edges[edgeId];
+  let exitId = [edge.a, edge.b].find(v => distance(work.mesh.vertices[v].point, hit!.point) < CUT_SNAP_METERS);
+  if (exitId === undefined) {
+    const pa = work.mesh.vertices[edge.a].point;
+    const inserted = insertEdgeVertex(
+      work,
+      edgeId,
+      distance(pa, hit.point) / distance(pa, work.mesh.vertices[edge.b].point)
+    );
+    if (!inserted) return null;
+    work = inserted.document;
+    exitId = inserted.vertexId;
+  }
+  const cut = cutAlong(work, from, exitId);
+  if (!cut) return null;
+  work = cut.document;
+  const before = cut.path.at(-2)!;
+  const p = work.mesh.vertices[before].point;
+  const q = work.mesh.vertices[exitId].point;
+  const span = distance(p, q);
+  const along = ((target[0] - p[0]) * (q[0] - p[0]) + (target[1] - p[1]) * (q[1] - p[1])) / (span * span);
+  const onEdge: Point = [p[0] + (q[0] - p[0]) * along, p[1] + (q[1] - p[1]) * along];
+  if (along <= 0 || distance(onEdge, target) > CUT_SNAP_METERS) return null;
+  if (span * (1 - along) < 1) return { document: work, path: cut.path };
+  const last = edgeBetween(work.mesh, before, exitId)!;
+  const fraction = work.mesh.vertices[last.a].point === p ? along : 1 - along;
+  const inserted = insertEdgeVertex(work, last.id, fraction);
+  if (!inserted) return null;
+  return { document: inserted.document, path: [...cut.path.slice(0, -1), inserted.vertexId] };
 }
 
 const CUT_SNAP_METERS = 1.5;

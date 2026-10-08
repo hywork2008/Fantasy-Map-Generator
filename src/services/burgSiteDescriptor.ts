@@ -1216,11 +1216,18 @@ function collectRouteLegs(
       number,
       number
     ][];
-    const index = points.findIndex(
-      point =>
-        point[2] === burg.cell &&
-        (!route.riverRoadConvergence || Math.hypot(point[0] - burg.x, point[1] - burg.y) < 1e-7)
-    );
+    // The drawn route can carry an added bend point inside the burg cell before
+    // the burg itself (Bilvenesvi burg 279): split at the burg, not at the
+    // first point in its cell, or one leg runs through the town and the other
+    // is lost.
+    let index = -1;
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      if (point[2] !== burg.cell) continue;
+      const d = Math.hypot(point[0] - burg.x, point[1] - burg.y);
+      if (route.riverRoadConvergence && d >= 1e-7) continue;
+      if (index === -1 || d < Math.hypot(points[index][0] - burg.x, points[index][1] - burg.y)) index = i;
+    }
     if (index === -1) continue;
 
     const forward = points.slice(index);
