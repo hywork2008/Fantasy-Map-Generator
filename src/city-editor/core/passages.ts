@@ -670,7 +670,7 @@ function roadDeviationDegrees(gate: Point, roads: Point[], tangent: Point): numb
   return worst;
 }
 
-function townCenter(document: CityDocument): Point {
+export function townCenter(document: CityDocument): Point {
   const plaza = document.elements.find(element => element.kind === "plaza" && element.point);
   if (plaza?.point) return plaza.point;
   let x = 0;

@@ -56,6 +56,7 @@ import { renderRegionalSettlements } from "./regionalSvg";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 import { renderTempleSvg } from "./templeSvg";
+import { renderGateDecoration, renderTowerDecoration, renderWallStructure } from "./wallSvg";
 
 export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
@@ -799,6 +800,9 @@ export function renderEditorSvg(
           "pointer-events": "stroke"
         })
       );
+      if (town && group.kind === "wall") {
+        features.appendChild(renderWallStructure(document, group, run, element));
+      }
     }
   }
   for (const deck of fixedMode ? [] : moatDecks) {
@@ -2299,11 +2303,12 @@ function renderTownFortifications(
           point: p,
           wallMaterial: wallMat
         };
+      const towerRadius = wall.style.widthMeters * 1.05;
       layer.appendChild(
         element("circle", {
           cx: String(p[0]),
           cy: String(-p[1]),
-          r: String(wall.style.widthMeters * 1.05),
+          r: String(towerRadius),
           fill: towerFill,
           class:
             (inspectedId === towerId ? "ce-is-selected cg-is-selected" : "") +
@@ -2311,6 +2316,7 @@ function renderTownFortifications(
           "data-pick": encodeURIComponent(JSON.stringify(pick))
         })
       );
+      layer.appendChild(renderTowerDecoration(p, towerRadius, wallMat, element));
       cornerIds.add(id);
       cornerTowers.push(p);
     }
@@ -2358,10 +2364,11 @@ function renderTownFortifications(
           point: position,
           wallMaterial: wallMat
         };
+        const towerRadius = group.style.widthMeters * 0.8;
         const towerNode = element("circle", {
           cx: String(a[0] + (b[0] - a[0]) * t),
           cy: String(-a[1] - (b[1] - a[1]) * t),
-          r: String(group.style.widthMeters * 0.8),
+          r: String(towerRadius),
           fill: towerFill,
           class:
             (isPickSelected ? "ce-is-selected cg-is-selected" : "") +
@@ -2370,6 +2377,7 @@ function renderTownFortifications(
         });
         if (tool === "select") towerNode.style.cursor = "pointer";
         layer.appendChild(towerNode);
+        layer.appendChild(renderTowerDecoration(position, towerRadius, wallMat, element));
         untilTower += spacing;
       }
       untilTower -= length;
@@ -2447,6 +2455,7 @@ function renderTownFortifications(
           fill: gateTowerFill
         })
       );
+    marker.appendChild(renderGateDecoration(side, opening, width, gateWallMat, drawbridge, element));
     layer.appendChild(marker);
   }
   return layer;
@@ -3169,6 +3178,17 @@ export const STANDALONE_SVG_STYLE = `
   .ce-feature { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
   .ce-feature--wall { stroke-dasharray: 2 2; }
   .ce-svg--town .ce-feature--wall-wood { stroke-linecap: round; }
+  .ce-wall-structure { pointer-events: none; }
+  .ce-wall-wood-logs { stroke-linecap: round; }
+  .ce-wall-wood-cores { stroke-linecap: round; }
+  .ce-wall-stone-merlons { stroke-linecap: butt; }
+  .ce-tower-decoration { pointer-events: none; }
+  .ce-tower-wood-logs { stroke-linecap: round; }
+  .ce-tower-wood-cores { stroke-linecap: round; }
+  .ce-tower-stone-merlons { stroke-linecap: butt; }
+  .ce-gate-decoration { pointer-events: none; }
+  .ce-gate-wood-post { stroke-linecap: round; }
+  .ce-gate-stone-merlons { stroke-linecap: butt; }
   .ce-tower--wood { stroke: #482f18; stroke-width: 0.5px; }
   .ce-gate-tower--wood { stroke: #482f18; stroke-width: 0.5px; }
   .ce-feature--plank { filter: drop-shadow(0 0 1px #332b22); }

@@ -146,6 +146,7 @@ export interface ApproachBeyondData {
 export type ApproachBeyond = ApproachBeyondData | "city" | "granary" | "enemy" | "ally" | "hamlet";
 
 export type WallMaterial = "stone" | "wood";
+export type WallWalkway = "auto" | "none" | "walkway";
 
 export interface EdgeFeatureGroup {
   crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
@@ -163,6 +164,8 @@ export interface EdgeFeatureGroup {
   riverPassages?: Id[];
   /** Material of the wall: "stone" for stone curtain walls, "wood" for timber palisades. */
   wallMaterial?: WallMaterial;
+  /** Upper walkway / catwalk mode: "auto" deduces from width, "none" for plain palisade/wall, "walkway" forces walkway. */
+  walkway?: WallWalkway;
 }
 
 export interface RiverGroup {

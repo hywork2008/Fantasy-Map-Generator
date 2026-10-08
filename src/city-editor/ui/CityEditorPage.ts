@@ -3292,7 +3292,61 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           commit(next, `Set ${wallGroup.name} material to ${nextMat === "wood" ? "木材" : "石材"}`);
         }
       });
-      targetContainer.append(divider(), label("壁の素材", materialSelect));
+
+      const walkwaySelect = document.createElement("select");
+      const optAuto = document.createElement("option");
+      optAuto.value = "auto";
+      optAuto.textContent = "自動（幅に応じて判定）";
+      const optWalkway = document.createElement("option");
+      optWalkway.value = "walkway";
+      optWalkway.textContent = "あり（上面に通路・歩廊）";
+      const optNone = document.createElement("option");
+      optNone.value = "none";
+      optNone.textContent = "なし（丸太柵・単石壁）";
+      walkwaySelect.append(optAuto, optWalkway, optNone);
+      walkwaySelect.value = wallGroup.walkway ?? "auto";
+      walkwaySelect.addEventListener("change", () => {
+        const nextWalkway = walkwaySelect.value as "auto" | "none" | "walkway";
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === wallGroup.id);
+        if (target && target.kind === "wall") {
+          target.walkway = nextWalkway;
+          commit(next, `Set ${wallGroup.name} walkway to ${nextWalkway}`);
+        }
+      });
+
+      const currentWidth = wallGroup.style.widthMeters;
+      const widthSlider = rangeInput(String(currentWidth), "1.0", "8.0", "0.2");
+      const widthValue = document.createElement("span");
+      widthValue.style.marginLeft = "6px";
+      widthValue.style.fontSize = "11px";
+      widthValue.textContent = `${currentWidth.toFixed(1)}m`;
+
+      widthSlider.addEventListener("input", () => {
+        widthValue.textContent = `${parseFloat(widthSlider.value).toFixed(1)}m`;
+      });
+      widthSlider.addEventListener("change", () => {
+        const nextWidth = parseFloat(widthSlider.value);
+        if (!isFinite(nextWidth) || nextWidth <= 0) return;
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === wallGroup.id);
+        if (target && target.kind === "wall") {
+          target.style = { ...target.style, widthMeters: nextWidth };
+          commit(next, `Set ${wallGroup.name} width to ${nextWidth.toFixed(1)}m`);
+        }
+      });
+
+      const widthRow = document.createElement("div");
+      widthRow.style.display = "flex";
+      widthRow.style.alignItems = "center";
+      widthRow.append(widthSlider, widthValue);
+
+      targetContainer.append(
+        divider(),
+        label("壁の素材", materialSelect),
+        label("上面通路（歩廊）", walkwaySelect),
+        label("壁の厚み（幅）", widthRow)
+      );
     }
 
     if (selection.edgeId && activeGroupId) {
