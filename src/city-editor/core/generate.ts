@@ -30,6 +30,7 @@ import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./g
 import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { applyImportedFixedCrossings } from "./importedFixedCrossings";
 import { MoatReservation } from "./moats";
+import { riverFlowsFromDescriptor } from "./riverFlow";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 import { attachSceneRegions } from "./sceneRegions";
 import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPolygons } from "./waterGeometry";
@@ -609,6 +610,12 @@ export function generateCityOnDocument(
           },
           input
         };
+      }
+      // Once per finished city: the fabric and renderer only read the stored flows.
+      // Imported rivers drawn only as surveyed water (fixed banks or wide channels).
+      if (settings.descriptor?.rivers?.length && !result.featureGroups.some(g => g.kind === "river")) {
+        const flows = riverFlowsFromDescriptor(settings.descriptor);
+        if (flows.length) result.riverFlows = flows;
       }
       if (settings.descriptor?.regionalContext)
         measureProcessing(profiler, "scene-regions", () =>

@@ -390,6 +390,15 @@ function isDocument(value: unknown): value is CityDocument {
             area.polygon.length >= 3 &&
             area.polygon.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
         ))) &&
+    (doc.riverFlows === undefined ||
+      (Array.isArray(doc.riverFlows) &&
+        doc.riverFlows.every(
+          flow =>
+            typeof flow?.riverId === "number" &&
+            Number.isFinite(flow.widthMeters) &&
+            Array.isArray(flow.points) &&
+            flow.points.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
+        ))) &&
     (doc.importedRoadCount === undefined || (Number.isInteger(doc.importedRoadCount) && doc.importedRoadCount >= 0)) &&
     (doc.importedFixedCrossings === undefined ||
       (validFixedBurgCrossings(doc.importedFixedCrossings, FIXED_SITE_CROSSING_BUDGETS) &&

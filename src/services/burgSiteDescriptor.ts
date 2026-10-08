@@ -111,6 +111,9 @@ export interface BurgSiteRiver {
   /** Physical water edges, clipped to the extent box, local meters. */
   leftBankSegments: [number, number][][];
   rightBankSegments: [number, number][][];
+  /** FMG cell elevations a few cells up and down the river from the burg, in `segments` order.
+   * The local heightfield is one cell wide, so City Editor orients its centreline from this. */
+  flowElevation?: { upstreamMeters: number; downstreamMeters: number };
   /** Regional downstream context; it never expands the urban drawing window. */
   downstream: {
     terminal: "ocean" | "lake" | "mapEdge" | "confluence" | "unknown";
@@ -1064,13 +1067,36 @@ function collectRivers(
       parentRiverId: river.parent && river.parent !== river.i ? river.parent : null,
       leftBankSegments,
       rightBankSegments,
-      downstream: getDownstreamContext(river, burg, metersPerMapUnit)
+      downstream: getDownstreamContext(river, burg, metersPerMapUnit),
+      ...flowElevation(river.cells, nearestCell)
     });
   }
 
   // Closest river first — the primary waterway for bridges and mills.
   results.sort((a, b) => a.offsetMeters - b.offsetMeters);
   return results;
+}
+
+/** Cells sampled on each side of the burg's river cell when comparing elevations. */
+const FLOW_ELEVATION_REACH_CELLS = 4;
+
+/** Read-only: FMG cell heights upstream and downstream of `anchor` along the river's cell chain. */
+function flowElevation(cells: number[], anchor: number): Pick<BurgSiteRiver, "flowElevation"> {
+  const { pack } = worldContext;
+  const at = cells.indexOf(anchor);
+  if (at < 0) return {};
+  const pick = (from: number, to: number) => cells.slice(Math.max(0, from), Math.max(0, to)).filter(c => c >= 0);
+  const up = pick(at - FLOW_ELEVATION_REACH_CELLS, at + 1);
+  const down = pick(at, at + FLOW_ELEVATION_REACH_CELLS + 1);
+  if (up.length < 2 && down.length < 2) return {};
+  const exponent = getHeightExponent();
+  const meters = (cell: number) => heightToMetersRaw(pack.cells.h[cell], exponent);
+  return {
+    flowElevation: {
+      upstreamMeters: rn(meters(up[0]), 1),
+      downstreamMeters: rn(meters(down.at(-1)!), 1)
+    }
+  };
 }
 
 /** Compact downstream fact for the city page's regional context. The urban

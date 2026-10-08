@@ -1,6 +1,8 @@
 import { polygonOverlaps } from "../fortifications";
 import { facePoints } from "../mesh";
+import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
+import { polygonHitsWater, waterPolygons } from "../waterGeometry";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { makeRng } from "./prng";
 
@@ -88,6 +90,7 @@ export function calculateWatermillCount(buildingCount: number): number {
 }
 
 interface RiverSegmentData {
+  surveyed: boolean;
   riverId: Id;
   riverPoints: Point[];
   widthMeters: number;
@@ -135,12 +138,69 @@ function collectObstacles(document: CityDocument): {
     }
   }
 
+  // FMG bridges are fixed crossings, not road groups.
+  for (const crossing of document.importedFixedCrossings?.crossings ?? [])
+    bridges.push({
+      point: [crossing.q[0], crossing.q[1]],
+      radius: Math.hypot(crossing.deckA[0] - crossing.deckB[0], crossing.deckA[1] - crossing.deckB[1]) / 2 + 10
+    });
+
   for (const gate of document.gates ?? []) {
     const pt = document.mesh.vertices[gate.vertexId]?.point;
     if (pt) gates.push(pt);
   }
 
   return { bridges, walls, gates, piers };
+}
+
+type Box = [number, number, number, number];
+const surveyedWaterCache = new WeakMap<CityDocument, Array<{ polygon: Point[]; box: Box }>>();
+
+/** Surveyed water (fixed FMG banks, wide channels) with bounding boxes. Reads the cached
+ * decomposition; unlike polygonHitsDocumentWater it does not re-key the fixed payload per call. */
+function surveyedWater(document: CityDocument) {
+  let water = surveyedWaterCache.get(document);
+  if (!water) {
+    water = waterPolygons(document).map(polygon => {
+      const xs = polygon.map(p => p[0]),
+        ys = polygon.map(p => p[1]);
+      return { polygon, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as Box };
+    });
+    surveyedWaterCache.set(document, water);
+  }
+  return water;
+}
+
+function dryAt(document: CityDocument, p: Point): boolean {
+  return !surveyedWater(document).some(
+    ({ polygon, box }) =>
+      p[0] >= box[0] && p[0] <= box[2] && p[1] >= box[1] && p[1] <= box[3] && pointInPolygon(p, polygon)
+  );
+}
+
+/** Whether a footprint touches surveyed water. */
+export function hitsSurveyedWater(document: CityDocument, polygon: Point[]): boolean {
+  const xs = polygon.map(p => p[0]),
+    ys = polygon.map(p => p[1]);
+  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const near = surveyedWater(document)
+    .filter(({ box }) => box[0] <= x1 && box[2] >= x0 && box[1] <= y1 && box[3] >= y0)
+    .map(w => w.polygon);
+  return near.length > 0 && polygonHitsWater(polygon, near);
+}
+
+/** Distance from the centreline to the surveyed bank along `normal`, or null when none is near. */
+export function fixedBankOffset(
+  document: CityDocument,
+  centre: Point,
+  normal: Point,
+  halfWidth: number
+): number | null {
+  const at = (d: number): Point => [centre[0] + normal[0] * d, centre[1] + normal[1] * d];
+  // The centreline must lie in the channel, otherwise this is not a bank crossing.
+  if (dryAt(document, centre)) return null;
+  for (let d = 0.5; d <= halfWidth * 2 + 10; d += 0.5) if (dryAt(document, at(d))) return d + 0.3;
+  return null;
 }
 
 /**
@@ -170,7 +230,7 @@ export function buildWatermillPlan(
   fields: Point[][] = []
 ): WatermillPlan {
   const derivedPopulation = Math.round(buildingCount * URBAN_DWELLING_SIZE);
-  const rivers = (document.featureGroups ?? []).filter(g => g.kind === "river");
+  const rivers = flowingRivers(document);
   if (!rivers.length || buildingCount <= 0) {
     return { mills: [], buildingCount, derivedPopulation };
   }
@@ -196,10 +256,8 @@ export function buildWatermillPlan(
   // Collect river segments
   const allSegments: RiverSegmentData[] = [];
   for (const river of rivers) {
-    const pts = (river.vertices ?? []).map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
-    if (pts.length < 2) continue;
-
-    const width = river.style.widthMeters || 12;
+    const pts = river.points;
+    const width = river.widthMeters || 12;
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i];
       const b = pts[i + 1];
@@ -209,6 +267,7 @@ export function buildWatermillPlan(
       const ty = (b[1] - a[1]) / len;
       allSegments.push({
         riverId: river.id,
+        surveyed: river.surveyed,
         riverPoints: pts,
         widthMeters: width,
         segIndex: i,
@@ -285,8 +344,11 @@ export function buildWatermillPlan(
 
     const px = seg.a[0] + tangent[0] * (seg.length * fraction);
     const py = seg.a[1] + tangent[1] * (seg.length * fraction);
-    // Bank contact point
-    const bankPt: Point = [px + normal[0] * halfWidth, py + normal[1] * halfWidth];
+    // Bank contact point. FMG water is the surveyed bank polygon, whose edge need not sit
+    // at half the descriptor width: walk out from the centreline to the first dry ground.
+    const bankOffset = seg.surveyed ? fixedBankOffset(document, [px, py], normal, halfWidth) : halfWidth;
+    if (bankOffset === null) continue;
+    const bankPt: Point = [px + normal[0] * bankOffset, py + normal[1] * bankOffset];
 
     // Spacing check against already placed mills
     if (placedLocations.some(p => Math.hypot(p[0] - bankPt[0], p[1] - bankPt[1]) < MIN_MILL_SPACING)) {
@@ -343,6 +405,7 @@ export function buildWatermillPlan(
       millCenter[1] - tangent[1] * hl2 + normal[1] * hd2
     ];
     const millhousePolygon = [p1, p2, p3, p4];
+    if (seg.surveyed && hitsSurveyedWater(document, millhousePolygon)) continue;
     if (passages.some(passage => obstructsPassage(millhousePolygon, passage))) continue;
     // Cultivated plots are already laid out by the district generator. A mill
     // needs its own bank-side parcel instead of covering a working field.

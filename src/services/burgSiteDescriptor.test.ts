@@ -6,6 +6,7 @@ import type { BurgSiteDescriptor as CESite } from "../city-editor/core/gen/site/
 import { siteToGeography } from "../city-editor/core/gen/site/siteInput";
 import { defaultGenerationSettings, generateCityOnDocument } from "../city-editor/core/generate";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
+import { riverFlowsFromDescriptor } from "../city-editor/core/riverFlow";
 import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/io/incomingCity";
 import { renderCityPreviewSvg } from "../city-editor/render/previewSvg";
@@ -269,6 +270,72 @@ describe("getBurgSiteDescriptor", () => {
     const buildings = buildBlockFabric(restored).buildings;
     expect(buildings.length).toBeGreaterThan(0);
     expect(buildings.every(lot => !polygonHitsDocumentWater(restored, lot.polygon))).toBe(true);
+  });
+
+  describe("river flow from FMG elevation", () => {
+    // River cells 1..6 run north → south in `river.cells` order.
+    const setHeights = (heights: number[]) =>
+      heights.forEach((h, i) => {
+        worldContext.pack.cells.h[i + 1] = h;
+      });
+    const flowOf = (site: ReturnType<typeof getBurgSiteDescriptor>) =>
+      riverFlowsFromDescriptor(site as unknown as CESite)[0];
+
+    it("exports cell elevations around the burg in centreline order", () => {
+      setHeights([60, 52, 44, 36, 28, 22]);
+      const river = getBurgSiteDescriptor(1)!.rivers[0];
+      expect(river.flowElevation!.upstreamMeters).toBeGreaterThan(river.flowElevation!.downstreamMeters);
+    });
+
+    it("keeps a downhill centreline and reverses an uphill one", () => {
+      setHeights([60, 52, 44, 36, 28, 22]);
+      const down = flowOf(getBurgSiteDescriptor(1));
+      expect(down.basis).toBe("fmgElevation");
+      expect(down.points[0][1]).toBeGreaterThan(down.points.at(-1)![1]);
+      setHeights([22, 28, 36, 44, 52, 60]);
+      const up = flowOf(getBurgSiteDescriptor(1));
+      expect(up.basis).toBe("fmgElevation");
+      expect(up.points[0][1]).toBeLessThan(up.points.at(-1)![1]);
+      expect(up.dropMeters).toBeGreaterThan(0);
+    });
+
+    it("falls back to the exporter's order on flat ground", () => {
+      setHeights([25, 25, 25, 25, 25, 25]);
+      const flat = flowOf(getBurgSiteDescriptor(1));
+      expect(flat.basis).toBe("descriptor");
+      expect(flat.points[0][1]).toBeGreaterThan(flat.points.at(-1)![1]);
+    });
+
+    it("stores the flow once at generation without rewriting the imported water", () => {
+      setHeights([22, 28, 36, 44, 52, 60]);
+      worldContext.pack.burgs[1].population = 0.1;
+      worldContext.pack.cells.r[0] = 1;
+      const descriptor = getBurgSiteDescriptor(1)!;
+      const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor)))!;
+      const document = createGridDocument({
+        size: shared.size,
+        grid: shared.grid,
+        seed: shared.seed,
+        patchParams: shared.patchParams,
+        measureBlockSize: shared.measureBlockSize,
+        ...descriptorFrameGridOptions(shared.descriptor!.frame)
+      });
+      const city = generateCityOnDocument(
+        document,
+        { ...defaultGenerationSettings(), descriptor: shared.descriptor },
+        shared.seed
+      )!;
+      expect(city).not.toBeNull();
+      expect(city.importedFixedCrossings).toEqual(descriptor.fixedCrossings);
+      const restored = parseDocument(JSON.stringify(city))!;
+      const flow = restored.riverFlows![0];
+      expect(flow.basis).toBe("fmgElevation");
+      // Uphill in cell order, so stored south → north.
+      expect(flow.points[0][1]).toBeLessThan(flow.points.at(-1)![1]);
+      const before = JSON.stringify(restored.importedFixedCrossings);
+      buildBlockFabric(restored);
+      expect(JSON.stringify(restored.importedFixedCrossings)).toBe(before);
+    });
   });
 
   it("keeps the actual frontage mandatory when callers also supply connection bounds", () => {

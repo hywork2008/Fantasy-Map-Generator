@@ -393,6 +393,9 @@ export interface CityDocument {
   coastalOceanFaceIds?: Id[];
   /** Number of source FMG land-road legs; absent for standalone/legacy documents. */
   importedRoadCount?: number;
+  /** Imported FMG river centrelines oriented downhill (riverFlow.ts). Set once when generation
+   * finishes, separate from `importedFixedCrossings` so its caches are never invalidated. */
+  riverFlows?: import("./riverFlow").RiverFlow[];
   /** Continuous imported water, independent of the editable street-block mesh. */
   waterAreas?: { kind: "river"; polygon: Point[] }[];
   /** Land roads continued from the town mesh to the display frame, including perpendicular river decks. */

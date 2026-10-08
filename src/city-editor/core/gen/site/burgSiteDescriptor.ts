@@ -49,6 +49,9 @@ export interface BurgSiteRiver {
   parentRiverId: number | null;
   leftBankSegments: [number, number][][];
   rightBankSegments: [number, number][][];
+  /** FMG cell elevations a few cells up and down the river from the burg, in `segments` order.
+   * The local heightfield is one cell wide, so City Editor orients its centreline from this. */
+  flowElevation?: { upstreamMeters: number; downstreamMeters: number };
   downstream: {
     terminal: "ocean" | "lake" | "mapEdge" | "confluence" | "unknown";
     distanceMeters: number;

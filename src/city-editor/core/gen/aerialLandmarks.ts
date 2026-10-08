@@ -9,6 +9,7 @@ import { circuitRing, polygonOverlaps, townGates } from "../fortifications";
 import { landmarkReservationHits } from "../landmarks";
 import { facePoints } from "../mesh";
 import { GATE_TOWER_SCALE, gateCrossingFrame } from "../passages";
+import { flowingRivers } from "../riverFlow";
 import type { CityDocument, HistoricalPeriod, Id, Point } from "../types";
 import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
@@ -16,6 +17,7 @@ import { convexHull, nearestOnPolyline, pointInPolygon, segmentsIntersect } from
 import { civicYardMeters } from "./housing";
 import { makeRng, type Rng } from "./prng";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
+import { fixedBankOffset, hitsSurveyedWater } from "./watermillFabric";
 
 export type MonasteryKind = "friary" | "abbey";
 
@@ -260,6 +262,7 @@ class Site {
   /** Town circuit, or the hull of the built-up core for open towns. */
   readonly town: Point[];
   readonly walled: boolean;
+  readonly surveyedWater: boolean;
   readonly roads: Point[][] = [];
   readonly faceIndex = new BoxIndex<{ id: Id; polygon: Point[] }>(60);
   readonly lanes = new BoxIndex<{ points: Point[]; radius: number }>(40);
@@ -272,6 +275,7 @@ class Site {
     input: AerialLandmarkInput
   ) {
     this.half = document.frame.extentMeters / 2;
+    this.surveyedWater = !!document.importedFixedCrossings || !!document.waterAreas?.length;
     const v = (id: Id) => document.mesh.vertices[id]?.point;
     for (const group of document.featureGroups) {
       if (group.kind === "river") {
@@ -395,6 +399,8 @@ class Site {
   hitsWater(polygon: Point[], clearance = 1): boolean {
     const box = grow(boxOf(polygon), clearance);
     if (this.water.query(box).some(w => polygonOverlaps(polygon, w))) return true;
+    // FMG rivers are the surveyed bank polygons.
+    if (this.surveyedWater && hitsSurveyedWater(this.document, polygon)) return true;
     return this.capsules
       .query(box)
       .some(c => c.kind === "river" && polygonNearSegment(polygon, c.a, c.b, c.radius + clearance));
@@ -841,16 +847,14 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
   if (input.buildings.length < 150 || site.town.length < 3) return [];
   const wanted = input.buildings.length > 6000 ? 2 : 1;
   const out: Tannery[] = [];
-  const rivers = document.featureGroups.filter(g => g.kind === "river");
-  for (const river of rivers) {
+  for (const river of flowingRivers(document)) {
     if (out.length >= wanted) break;
-    const pts = river.vertices.map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
-    if (pts.length < 2) continue;
+    const pts = river.points;
     // Last river point that is still in town; the tanners sit just downstream of it.
     let last = -1;
     for (let i = 0; i < pts.length; i++) if (site.insideTown(pts[i]) || site.townDistance(pts[i]) < 25) last = i;
     if (last < 0) continue;
-    const half = river.style.widthMeters / 2;
+    const half = river.widthMeters / 2;
     // Walk downstream from the town edge and try both banks.
     const along: Array<{ p: Point; t: Point; d: number }> = [];
     let walked = 0;
@@ -872,7 +876,9 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
         const n: Point = [-t[1] * side, t[0] * side];
         const length = 44 + rng.range(-6, 10);
         const depth = 22;
-        const bank = half + 1.5;
+        const offset = river.surveyed ? fixedBankOffset(document, p, n, half) : half;
+        if (offset === null) continue;
+        const bank = offset + 1.5;
         const angle = Math.atan2(t[1], t[0]);
         // `v` measured inland from the bank.
         const base = frame([p[0] + n[0] * bank, p[1] + n[1] * bank], angle);
