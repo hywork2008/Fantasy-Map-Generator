@@ -6,7 +6,6 @@ import {
   boundaryEdges,
   boundaryRings,
   castleWallIds,
-  circuitRing,
   reservedCastleFaces,
   wallRunsOutsideGates
 } from "../core/fortifications";
@@ -48,6 +47,7 @@ import type {
   Tool
 } from "../core/types";
 import { dryRuns, lineHitsDocumentWater, waterPolygons } from "../core/waterGeometry";
+import { renderCastle } from "./castleSvg";
 import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
 import { getLandscapeGroundColor, getLandscapeSuburbFaceColor, renderLandscapeLayer } from "./landscape";
@@ -3343,55 +3343,7 @@ function renderCastles(document: CityDocument, inspectedId?: string | number | n
   for (const castle of document.castles ?? []) {
     const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
     if (!circuit) continue;
-    const pick = {
-      layer: "fortifications",
-      kind: "castle",
-      id: castle.id,
-      label: `城 (${castle.form})`,
-      locked: castle.locked
-    };
-    const group = element("g", {
-      "data-pick": encodeURIComponent(JSON.stringify(pick)),
-      class: inspectedId === castle.id ? "ce-is-selected cg-is-selected" : "",
-      style: "cursor:pointer"
-    });
-    group.appendChild(
-      element("path", {
-        d: polygon(circuitRing(document, circuit)),
-        fill: "#d5cfbf",
-        "fill-opacity": "0.25",
-        stroke: "none"
-      })
-    );
-    for (const court of castle.courtyards)
-      group.appendChild(
-        element("path", { d: polygon(court), fill: "#d8cdb6", stroke: "#a7977f", "stroke-width": "0.6" })
-      );
-    for (const access of castle.accesses)
-      group.appendChild(
-        element("path", {
-          d: line(access.points),
-          fill: "none",
-          stroke: "#b7a78e",
-          "stroke-width": String(access.widthMeters),
-          "stroke-linejoin": "round"
-        })
-      );
-    for (const part of castle.parts) {
-      group.appendChild(
-        element("path", {
-          d: polygon(part.footprint),
-          fill: part.role === "keep" ? "#827364" : "#a49380",
-          stroke: "#4f463c",
-          "stroke-width": part.role === "keep" ? "2" : "1"
-        })
-      );
-      for (const entrance of part.entrances)
-        group.appendChild(
-          element("circle", { cx: String(entrance[0]), cy: String(-entrance[1]), r: "1.4", fill: "#e2d5be" })
-        );
-    }
-    layer.appendChild(group);
+    layer.appendChild(renderCastle(document, castle, inspectedId));
   }
   return layer;
 }

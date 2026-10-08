@@ -276,6 +276,7 @@ export interface CastlePlan {
   position: "edge" | "central";
   relationship: "integrated" | "detached";
   form: "keep-bailey" | "courtyard";
+  castleStyle?: import("../render/castlePatterns").CastleStyle;
   circuitId: Id;
   courtyards: Point[][];
   parts: CastlePart[];
@@ -289,6 +290,7 @@ export interface CastleSettings {
   relationship: "auto" | "integrated" | "detached";
   form: "auto" | "keep-bailey" | "courtyard";
   size: "auto" | "small" | "standard" | "large";
+  style?: "auto" | import("../render/castlePatterns").CastleStyle;
 }
 
 export type CemeteryForm = "churchyard" | "cloister" | "field";

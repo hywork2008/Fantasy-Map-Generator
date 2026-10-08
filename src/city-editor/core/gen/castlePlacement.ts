@@ -23,6 +23,7 @@ export interface CastleSite {
   position: "edge" | "central";
   relationship: "integrated" | "detached";
   form: "keep-bailey" | "courtyard";
+  style?: import("../../render/castlePatterns").CastleStyle;
 }
 
 /** A straight local cut modifies real shared mesh edges, not just an SVG outline. */
@@ -124,6 +125,7 @@ function acceptReservedCastle(
     minArea: number;
     seed: string;
     form: CastleSettings["form"];
+    style?: CastleSettings["style"];
     edgeClearance?: number;
     layoutMin?: number;
   }
@@ -208,7 +210,15 @@ function acceptReservedCastle(
     );
   });
   if (!capable) return null;
-  return { seed, mesh: working.mesh, faceId: id, position, relationship, form };
+  return {
+    seed,
+    mesh: working.mesh,
+    faceId: id,
+    position,
+    relationship,
+    form,
+    ...(args.style && args.style !== "auto" ? { style: args.style } : {})
+  };
 }
 
 type CastleSize = "small" | "standard" | "large";
@@ -473,6 +483,7 @@ function placeCastlePass(
                 minArea: fitMin,
                 seed,
                 form: settings.form,
+                style: settings.style,
                 edgeClearance,
                 layoutMin: relaxed ? 8 : 13
               });
@@ -520,7 +531,8 @@ function placeCastlePass(
         boundary,
         minArea,
         seed,
-        form: settings.form
+        form: settings.form,
+        style: settings.style
       });
       if (site) return site;
     }

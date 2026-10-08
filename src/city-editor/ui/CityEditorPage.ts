@@ -168,6 +168,7 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { CASTLE_STYLE_PROFILES, type CastleStyle, resolveCastleStyle } from "../render/castlePatterns";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
@@ -1315,12 +1316,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ["position", "城の位置", ["auto", "edge", "central"]],
     ["relationship", "城壁との関係", ["auto", "integrated", "detached"]],
     ["form", "城の形式", ["auto", "keep-bailey", "courtyard"]],
-    ["size", "城の規模", ["auto", "small", "standard", "large"]]
+    ["size", "城の規模", ["auto", "small", "standard", "large"]],
+    ["style", "城郭様式", ["auto", ...Object.keys(CASTLE_STYLE_PROFILES)]]
   ];
   for (const [key, title, choices] of castleChoices) {
-    const input = select(choices, generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key]);
+    const input = select(choices, generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto");
     const titles: Record<string, string> = {
-      auto: "自動",
+      auto: "自動（時代・文化依存）",
       edge: "都市の端",
       central: "都市の中央",
       integrated: "都市城壁と一体",
@@ -1329,7 +1331,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       courtyard: "中庭を囲む居館",
       small: "小",
       standard: "標準",
-      large: "大"
+      large: "大",
+      ...Object.fromEntries(Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label]))
     };
     for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
     castleInputs.set(key, input);
@@ -3236,8 +3239,34 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           documentState.defenseCircuits?.find(d => d.id === c.circuitId)?.areaFaceIds.includes(selection.faceId))
     );
     if (castle) {
+      const currentProfile = resolveCastleStyle(documentState, castle);
+      const styleSelect = document.createElement("select");
+      styleSelect.className = "ce-select";
+      const styleChoices: Array<[string, string]> = [
+        ["auto", "自動判定"],
+        ...Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label] as [string, string])
+      ];
+      for (const [val, lbl] of styleChoices) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = lbl;
+        if (val === (castle.castleStyle ?? "auto")) opt.selected = true;
+        styleSelect.appendChild(opt);
+      }
+      styleSelect.onchange = () => {
+        runContextAction(() => {
+          if (styleSelect.value === "auto") {
+            delete castle.castleStyle;
+          } else {
+            castle.castleStyle = styleSelect.value as CastleStyle;
+          }
+          return documentState;
+        }, "Castle style change");
+      };
+
       container.append(
         text(`城郭: ${castle.position} / ${castle.relationship} / ${castle.form}`),
+        label(`様式: ${currentProfile.label}`, styleSelect),
         makeButton(castle.locked ? "城郭のロック解除" : "城郭をロック", () =>
           runContextAction(() => setCastleLocked(documentState, castle.id, !castle.locked), "Castle lock")
         ),
@@ -4620,7 +4649,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedInput.value = generateSeed;
     for (const [scope, input] of moatInputs) input.checked = !!generateSettings.moats?.[scope];
     for (const [key, input] of castleInputs)
-      input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key];
+      input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto";
     buildingPatternSelect.value = generateSettings.buildingPattern ?? "legacy";
     layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;

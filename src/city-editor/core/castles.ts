@@ -241,7 +241,8 @@ export function installCastle(
       parts: [],
       accesses: [],
       provenance: "generated",
-      locked: false
+      locked: false,
+      ...(site.style ? { castleStyle: site.style } : {})
     };
     working.castles ??= [];
     working.castles.push(castle);
