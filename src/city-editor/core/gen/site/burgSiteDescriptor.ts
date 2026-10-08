@@ -149,6 +149,8 @@ export interface BurgSiteDescriptor {
     population: number;
     /** Required dwellings supplied as a city-generation input. */
     dwellings: number;
+    /** Culture Lot occupancy guide (0–1); absent uses the 80% default. */
+    lotOccupancy?: number;
     capital: boolean;
     port: boolean;
     riverPlacement?: import("../../../../types/models").Burg["riverPlacement"];

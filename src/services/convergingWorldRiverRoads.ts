@@ -11,6 +11,7 @@ import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import type { Burg, Route } from "../types/models";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import { bridgeSkewCandidates, bridgeStructureForRouteGroup } from "../utils/bridgeSkewPolicy";
+import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import type { FixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
@@ -30,7 +31,7 @@ import type { RiverPoint } from "./riverGeometry";
 import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
 import { settlementGeometrySession } from "./settlementGeometrySession";
-import { coveredByTerrainCells, settlementRadiusMeters } from "./settlementRiverSite";
+import { coveredByTerrainCells } from "./settlementRiverSite";
 
 interface Facility {
   burgId: number;
@@ -202,7 +203,11 @@ export function ensureConvergingWorldRiverRoads(
     const origin: RiverPoint = [burg.x * scale, burg.y * scale];
     const baseHalf =
       populationWindowMeters(
-        settlementRadiusMeters((burg.population ?? 0) * world.populationRate * world.urbanization)
+        occupancyRadiusMeters(
+          (burg.population ?? 0) * world.populationRate * world.urbanization,
+          burgLotOccupancy(world.pack, burg),
+          burg
+        )
       ) / 2;
     const legs: (ConvergingRoadLeg & {
       route: Route;

@@ -536,6 +536,8 @@ export interface Culture {
   landUseProfile?: import("./landUse").LandUseProfile;
   landUseSettings?: import("./landUse").LandUseSettings;
   romanceNorms?: CultureRomanceNorms;
+  /** City Editor Lot occupancy guide (0–1). Unset uses DEFAULT_LOT_OCCUPANCY (80%). */
+  lotOccupancy?: number;
   name: string;
   i: number;
   base: number;

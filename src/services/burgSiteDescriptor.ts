@@ -13,6 +13,7 @@ import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import { getCultureBurialProfile } from "../utils/cultureBurialProfile";
+import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import type { RelationKey } from "../utils/diplomacyRelations";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -42,12 +43,7 @@ import { exportFixedBurgCrossings } from "./fixedBurgCrossings";
 import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
 import { settlementGeometrySession } from "./settlementGeometrySession";
-import {
-  nearestSettlementBank,
-  SETTLEMENT_RIVER_SETTINGS,
-  settlementRadiusMeters,
-  settlementRiverGeometry
-} from "./settlementRiverSite";
+import { nearestSettlementBank, SETTLEMENT_RIVER_SETTINGS, settlementRiverGeometry } from "./settlementRiverSite";
 import { getWorldLandConnectionCurrent } from "./worldLandConnectionRuntime";
 import { worldRiverOccupiedBounds } from "./worldRiverGeometry";
 
@@ -220,6 +216,8 @@ export interface BurgSiteDescriptor {
     population: number;
     /** Required dwellings derived from the absolute population. */
     dwellings: number;
+    /** Culture Lot occupancy guide (0–1) City Editor fits the houses at. */
+    lotOccupancy?: number;
     capital: boolean;
     port: boolean;
     riverPlacement?: import("../types/models").Burg["riverPlacement"];
@@ -304,7 +302,8 @@ export function getBurgSiteDescriptor(
   );
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
-  const cityRadiusMeters = getCityRadiusMeters(population);
+  const lotOccupancy = burgLotOccupancy(pack, burg);
+  const cityRadiusMeters = getCityRadiusMeters(population, burg);
   const toLocal = (x: number, y: number): [number, number] => [
     (x - burg.x) * metersPerMapUnit,
     (burg.y - y) * metersPerMapUnit
@@ -483,7 +482,10 @@ export function getBurgSiteDescriptor(
             center,
             radiusMeters: Math.max(
               1,
-              getCityRadiusMeters((other.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+              getCityRadiusMeters(
+                (other.population ?? 0) * worldContext.populationRate * worldContext.urbanization,
+                other
+              )
             ),
             representation: "estimated" as const
           }
@@ -527,6 +529,7 @@ export function getBurgSiteDescriptor(
       seed: String(burg.MFCG ?? worldContext.seed + String(burg.i).padStart(4, "0")),
       population,
       dwellings: getUrbanDwellings(population),
+      lotOccupancy,
       capital: Boolean(burg.capital),
       port: Boolean(burg.port),
       waterAccess,
@@ -614,8 +617,9 @@ function getMetersPerMapUnit(): number {
   return mapUnitMeters(worldContext.distanceScale, unit);
 }
 
-function getCityRadiusMeters(population: number): number {
-  return settlementRadiusMeters(population);
+/** Sized so City Editor fills the town at the culture's Lot occupancy guide. */
+function getCityRadiusMeters(population: number, burg: Burg): number {
+  return occupancyRadiusMeters(population, burgLotOccupancy(worldContext.pack, burg), burg);
 }
 
 function getHeightExponent(): number {

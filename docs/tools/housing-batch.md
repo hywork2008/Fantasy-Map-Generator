@@ -12,6 +12,12 @@ npm run housing:export -- "temp/Bac Trang 2026-10-03-10-13.fmg" temp/housing-sel
 npm run housing:batch -- temp/housing-selected.csv temp/housing-selected-results.csv
 ```
 
+`--lot-occupancy=<1-100>` を付けると、すべての文化のLot occupancy目安をその値（%）に置き換えてから出力する。文化ごとの設定を変えずに、目安による町の大きさと密度の違いを比較できる。
+
+```sh
+npm run housing:export -- "temp/Bac Trang 2026-10-03-10-13.fmg" temp/bac-trang-occ100-inputs.csv --lot-occupancy=100
+```
+
 CSVはUTF-8 BOM付きで、Excelでも日本語を読みやすくしている。人口・dwellings・seed・規模・範囲・城壁・港・河川数などの確認用列と、CEに渡す完全な入力である `share_json` を保存する。JSONには道路や河川の形状、地形、生成設定も含む。比較時には元のFMGを必要としない。
 
 `max_bridge_crossing_meters` は時代設定と明示指定から解決した通常橋の横断総延長上限。複数径間を含み、単一支間の長さではない。旧列 `max_bridge_span_meters` は互換用に同じ値を出力する。上限を指定する場合は `share_json` 内の `descriptor.transport.maxBridgeCrossingMeters` を編集する。旧 `maxBridgeSpanMeters` の50m・1,000mは旧デフォルトとして時代別上限へ読み替える。
@@ -33,14 +39,15 @@ CSVはUTF-8 BOM付きで、Excelでも日本語を読みやすくしている。
 | generated / generation_seed / error | 生成成功、生成seed、失敗理由 |
 | failure_reasons | 各通常試行の具体的な不採用理由。セミコロン区切り |
 | generation_diagnostics_json | 不採用試行と固定橋アプローチの構造化診断 |
+| target_occupancy_pct | 住宅数調整が最初に使ったLot occupancy目安（文化の設定、未設定なら80%） |
 | fit_skipped | 住宅数調整を行わなかった理由（medieval・bram等）。空欄なら実行 |
 | fit_districts | 調整対象の地区数 |
-| fit_initial_houses / fit_final_houses | 調整前（初期occupancy）と採用後の住宅数 |
-| fit_factor | 各地区の初期occupancyに掛けた倍率 |
+| fit_initial_houses / fit_final_houses | 目安occupancyでの住宅数と採用後の住宅数 |
+| fit_factor | 各地区の既定occupancy（中心部100%、郊外82%）に掛けた倍率。最初は目安の値 |
 | fit_rebuilds / fit_samples | 初回計数後の再構築回数と、各回の `倍率:住宅数` |
 | fit_ms | 採用試行の住宅数調整にかかった時間（初回計数を含む） |
-| core_* / outskirts_* | 中心部・郊外の住宅セル（建設可能かつcastle・farm・park・cemetery・empty以外の区）。`cells`、`area_m2`、面積加重の `occupancy_pct`（CEの「Lot occupancy (%)」）と `initial_occupancy_pct`、`coverage`、`lot_area_m2`、住宅の `house_footprint_m2` と `footprint_ratio`（住宅床面積 / セル面積） |
-| capacity_at_full_occupancy | occupancy 100%で建つ住宅数の推定（初期住宅数 / 初期occupancy） |
+| core_* / outskirts_* | 中心部・郊外の住宅セル（建設可能かつcastle・farm・park・cemetery・empty以外の区）。`cells`、`area_m2`、面積加重の `occupancy_pct`（CEの「Lot occupancy (%)」）と目安で数えた時の `initial_occupancy_pct`、`coverage`、`lot_area_m2`、住宅の `house_footprint_m2` と `footprint_ratio`（住宅床面積 / セル面積） |
+| capacity_at_full_occupancy | occupancy 100%で建つ住宅数の推定（目安での住宅数 / その時のoccupancy） |
 | required_occupancy_pct | dwellings / capacity。1回で合わせる場合に選ぶoccupancy |
 | dwellings_per_ha / capacity_per_ha | 住宅セル1haあたりのdwellingsと、occupancy 100%での住宅数 |
 
@@ -49,6 +56,27 @@ dwellingsが0なら比率は空欄。生成失敗や不正な入力の都市はe
 既存の `housing:compare` は従来通りJSONを出力する。バッチツールも既存のjsdom/Vitest実行環境を使い、CEのブラウザ依存処理を再現する。ブラウザとNodeの幾何処理差により、一部の都市で住宅数がわずかに異なる場合がある。
 
 FMGの都市別descriptor出力に失敗した場合も、その都市を `export_error` 列に記録して、他の都市の出力を続ける。生成失敗では建物数の集計を行わず、住宅との差を空欄にする。
+
+入力CSVの `lot_occupancy_pct` は、export時に都市の文化から解決した目安。
+
+## Lot occupancyの目安と町の大きさ
+
+文化ごとにCEのLot occupancy目安（Cultures Editorの「Lot occ.」列、%）を持つ。空欄の文化は既定の80%を使う。初期状態ではどの文化にも設定されていない。定数と判定は `src/utils/cultureLotOccupancy.ts` にまとめている。
+
+FMGは、都市のdwellingsが目安のoccupancyでちょうど建つように町の半径（`frame.cityRadiusMeters`）を決める。CEの地図サイズ（Micro〜Large）と格子の細かさはこの半径から選ばれる。半径は、町の円の面積1haあたりにoccupancy 100%で建つ住宅数（実測値。城壁あり110、城塞のみ133、どちらもなし180）から逆算する。目安が85%を超える場合も、半径は85%として計算する。町ごとの容量には±20%程度のばらつきがあり、CEは100%を超えて区画を増やせないため。半径80m未満の小さな町は、広場・城塞・川岸がセルの大部分を占めることがあり、面積を最大60%（半径40mの時）広げる。
+
+CEは、まず目安のoccupancyで住宅を1回数える。dwellings〜105%に入ればそのまま採用する。外れた場合は、住宅数がoccupancyにほぼ比例することを使って一次補正し、それでも外れた時だけ二分探索する。全区画を使っても足りない町は、それ以上再構築しない。
+
+Bac Trang（81都市、2026-10-08）での結果:
+
+| 目安 | 生成成功 | 中心部occupancy中央値（地図サイズ別） | 再構築回数 | 住宅不足 |
+| --- | --- | --- | --- | --- |
+| 旧方式（150人/ha固定） | 72 | 25〜28% | 平均2〜4回 | 5 |
+| 80%（既定） | 79 | 67〜77% | 0回8、1回52、2回17、3回2 | 4 |
+| 100% | 79 | 72〜83% | 0回11、1回47、2回18、3回以上4 | 8 |
+| 60% | 81 | 55〜60% | 0回19、1回49、2回11、3回以上2 | 1 |
+
+住宅不足は、町の容量自体が足りない場合（Hinck、Trakenwa、Mistdave等）。100%では数戸だけ足りない町が増える。旧方式の結果は当時のexportであり、FMG側のコードが異なる。
 
 ## 都市生成の失敗を継続的に検査する
 

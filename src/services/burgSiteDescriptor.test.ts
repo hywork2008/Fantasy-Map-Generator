@@ -238,7 +238,7 @@ describe("getBurgSiteDescriptor", () => {
     worldContext.pack.cells.r[0] = 1;
     for (const cell of worldContext.pack.rivers[0].cells) worldContext.pack.cells.p[cell][0] = 101.4;
     const descriptor = getBurgSiteDescriptor(1)!;
-    expect(descriptor.frame.cityRadiusMeters).toBe(80);
+    expect(descriptor.frame.cityRadiusMeters).toBe(40);
     expect(descriptor.fixedCrossings?.schemaVersion).toBe(2);
     const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor)))!;
     expect(shared.patchParams?.nPatches).toBe(6);
@@ -257,7 +257,7 @@ describe("getBurgSiteDescriptor", () => {
     )!;
     expect(city).not.toBeNull();
     expect(city.frame.extentMeters).toBe(descriptor.frame.extentMeters);
-    expect(city.frame.cityRadiusMeters).toBe(80);
+    expect(city.frame.cityRadiusMeters).toBe(40);
     expect(city.frame.settlementExtentMeters).toBe(300);
     const restored = parseDocument(JSON.stringify(city))!;
     expect(restored.importedFixedCrossings).toEqual(descriptor.fixedCrossings);
@@ -335,9 +335,9 @@ describe("getBurgSiteDescriptor", () => {
     expect(burg.dwellings).toBe(2223);
     expect(frame.metersPerMapUnit).toBe(1000);
     expect(frame.originMapUnits).toEqual([100, 100]);
-    // 10 000 people at 150/ha → ~66.7 ha → r = sqrt(A/π) ≈ 461 m
-    expect(frame.cityRadiusMeters).toBe(461);
-    expect(frame.extentMeters).toBe(2766);
+    // 2,223 dwellings × 1.025 at 80% of 180 houses/ha (open town) → ~15.8 ha → r ≈ 224 m
+    expect(frame.cityRadiusMeters).toBe(224);
+    expect(frame.extentMeters).toBe(1500);
     expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000, maxBridgeSkewDegrees: 20 });
   });
 
@@ -356,7 +356,7 @@ describe("getBurgSiteDescriptor", () => {
     // flows north → south, 200 m east of the town center
     expect(river.axisAzimuthDeg).toBe(180);
     expect(river.offsetMeters).toBeCloseTo(200, 0);
-    expect(river.offsetRatio).toBeCloseTo(0.43, 2);
+    expect(river.offsetRatio).toBeCloseTo(0.89, 2);
     expect(river.crossesSite).toBe(true);
     // looking downstream (south), the town center lies to the right (west)
     expect(river.cityBank).toBe("right");
@@ -429,7 +429,7 @@ describe("getBurgSiteDescriptor", () => {
     burg.x = 98.2;
     const descriptor = getBurgSiteDescriptor(1)!;
     const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
-    expect(descriptor.frame.cityRadiusMeters).toBe(461);
+    expect(descriptor.frame.cityRadiusMeters).toBe(224);
     expect(descriptor.burg.population).toBe(10000);
     expect(descriptor.frame.extentMeters).toBeGreaterThan(population);
     expect(descriptor.frame.extentMeters).toBeLessThanOrEqual(4500);
@@ -475,7 +475,7 @@ describe("getBurgSiteDescriptor", () => {
     const river = descriptor.rivers[0];
     expect(river.frontage).toBeUndefined();
     expect(river.offsetMeters).toBeGreaterThan(2200);
-    expect(descriptor.frame.cityRadiusMeters).toBe(461);
+    expect(descriptor.frame.cityRadiusMeters).toBe(224);
     expect(descriptor.frame.extentMeters).toBeGreaterThan(2766);
     expect(descriptor.frame.extentMeters).toBeLessThanOrEqual(4500);
     expect(descriptor.frame.extentMeters).toBeLessThan(river.offsetMeters * 2);
@@ -543,7 +543,7 @@ describe("getBurgSiteDescriptor", () => {
     expect(river.snappedToBank).toBe(false);
     expect(river.rawOffsetMeters).toBeCloseTo(300, 0);
     expect(river.offsetMeters).toBe(river.rawOffsetMeters);
-    expect(river.crossesSite).toBe(true);
+    expect(river.crossesSite).toBe(river.offsetMeters < descriptor.frame.cityRadiusMeters);
     // town east of the southward-flowing river → left bank, flow azimuth unchanged
     expect(river.cityBank).toBe("left");
     expect(river.axisAzimuthDeg).toBe(180);
@@ -577,6 +577,8 @@ describe("getBurgSiteDescriptor", () => {
   });
 
   it("uses the same map scale for river widths, centreline and physical banks", () => {
+    // A window wide enough to keep the ×4 banks (800 m out) inside it.
+    worldContext.pack.burgs[1].population = 40;
     const baseline = getBurgSiteDescriptor(1)!.rivers[0];
     worldContext.distanceScale = 4;
     const scaled = getBurgSiteDescriptor(1)!.rivers[0];

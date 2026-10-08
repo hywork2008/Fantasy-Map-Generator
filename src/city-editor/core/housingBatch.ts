@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { worldContext } from "../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
+import { DEFAULT_LOT_OCCUPANCY } from "../../utils/cultureLotOccupancy";
 import { parseIncomingPayload } from "../io/incomingCity";
 import { readCsv, writeCsv } from "./batchCsv";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
@@ -9,8 +10,18 @@ import { burgIdsForTokens, compareShareHousing, type HousingOccupancySurvey, loa
 
 export { readCsv, writeCsv } from "./batchCsv";
 
-export async function exportHousingInputs(archive: string, tokens: string[]): Promise<Record<string, unknown>[]> {
+const round = (value: number | null | undefined, digits = 3) =>
+  value == null || !Number.isFinite(value) ? "" : Math.round(value * 10 ** digits) / 10 ** digits;
+
+/** `lotOccupancy` (0–1) overrides every culture's guide, to compare sizings on one map. */
+export async function exportHousingInputs(
+  archive: string,
+  tokens: string[],
+  lotOccupancy?: number
+): Promise<Record<string, unknown>[]> {
   await loadArchiveWorld(archive);
+  if (lotOccupancy !== undefined)
+    for (const culture of worldContext.pack.cultures ?? []) if (culture) culture.lotOccupancy = lotOccupancy;
   const selected = tokens.length
     ? burgIdsForTokens(tokens)
     : (worldContext.pack.burgs ?? []).flatMap((burg, i) =>
@@ -34,6 +45,7 @@ export async function exportHousingInputs(archive: string, tokens: string[]): Pr
           name: descriptor.burg.name,
           population: descriptor.burg.population,
           dwellings: descriptor.burg.dwellings,
+          lot_occupancy_pct: round((descriptor.burg.lotOccupancy ?? DEFAULT_LOT_OCCUPANCY) * 100, 1),
           seed: share.seed,
           grid: share.grid,
           size: share.size,
@@ -71,9 +83,6 @@ export async function exportHousingInputs(archive: string, tokens: string[]): Pr
   });
 }
 
-const round = (value: number | null | undefined, digits = 3) =>
-  value == null || !Number.isFinite(value) ? "" : Math.round(value * 10 ** digits) / 10 ** digits;
-
 /** Lot occupancy survey columns; percentages match the CE panel's 「Lot occupancy (%)」. */
 function occupancyColumns(survey: HousingOccupancySurvey | null): Record<string, unknown> {
   if (!survey) return {};
@@ -90,6 +99,7 @@ function occupancyColumns(survey: HousingOccupancySurvey | null): Record<string,
   });
   return {
     fit_skipped: fit?.skipped ?? "",
+    target_occupancy_pct: fit ? round(fit.targetOccupancy * 100, 1) : "",
     fit_districts: fit?.districts ?? "",
     fit_initial_houses: fit?.initialHouses ?? "",
     fit_final_houses: fit?.finalHouses ?? "",
@@ -175,10 +185,11 @@ export async function runHousingBatch(options: {
   input: string;
   output: string;
   tokens: string[];
+  lotOccupancy?: number;
 }): Promise<void> {
   const rows =
     options.mode === "export"
-      ? await exportHousingInputs(options.input, options.tokens)
+      ? await exportHousingInputs(options.input, options.tokens, options.lotOccupancy)
       : compareHousingInputs(readCsv(readFileSync(options.input, "utf8")), (index, total) =>
           process.stderr.write(`[housing] ${index}/${total}\n`)
         );

@@ -21,6 +21,7 @@ import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogServ
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { setCultureFuneralRite } from "../utils/cultureBurialProfile";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
+import { isLotOccupancy } from "../utils/cultureLotOccupancy";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -138,6 +139,7 @@ export const culturesEditorActions = {
           base: c.base,
           cells: c.cells ?? 0,
           expansionism: c.expansionism ?? 0,
+          lotOccupancy: isLotOccupancy(c.lotOccupancy) ? c.lotOccupancy : null,
           area,
           population,
           rural,
@@ -310,6 +312,15 @@ export const culturesEditorActions = {
   changeExpansionism(i: number, expansionism: number): void {
     (worldContext.pack.cultures[i] as Culture).expansionism = expansionism;
     recalculateCultures();
+  },
+
+  /** NaN or an out-of-range value clears the guide back to the default. */
+  changeLotOccupancy(i: number, lotOccupancy: number): void {
+    const culture = worldContext.pack.cultures[i] as Culture;
+    if (!culture) return;
+    if (isLotOccupancy(lotOccupancy)) culture.lotOccupancy = lotOccupancy;
+    else delete culture.lotOccupancy;
+    culturesEditorActions.refresh();
   },
 
   changeEmblemsShape(i: number, shape: string): void {

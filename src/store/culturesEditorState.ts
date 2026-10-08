@@ -17,6 +17,8 @@ export interface CultureRowData {
   base: number;
   cells: number;
   expansionism: number;
+  /** City Editor Lot occupancy guide (0–1); null uses the default. */
+  lotOccupancy: number | null;
   area: number;
   population: number;
   rural: number;

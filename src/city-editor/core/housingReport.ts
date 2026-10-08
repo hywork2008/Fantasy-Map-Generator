@@ -73,7 +73,7 @@ export interface HousingOccupancyZone {
   areaM2: number;
   /** Area-weighted Lot occupancy after the fit (0–1), as the CE panel shows. */
   occupancy: number | null;
-  /** Area-weighted occupancy before the fit. */
+  /** Area-weighted occupancy of the first count (default × guide). */
   initialOccupancy: number | null;
   coverage: number | null;
   lotAreaM2: number | null;
@@ -99,7 +99,13 @@ export interface HousingOccupancySurvey {
 
 const NON_RESIDENTIAL_WARDS = ["castle", "farm", "park", "cemetery", "empty"];
 
-function occupancyZone(document: CityDocument, houses: BuildingLot[], settlement: string, factor: number) {
+function occupancyZone(
+  document: CityDocument,
+  houses: BuildingLot[],
+  settlement: string,
+  factor: number,
+  firstFactor: number
+) {
   let cells = 0;
   let areaM2 = 0;
   const weighted = { occupancy: 0, coverage: 0, lotArea: 0, area: 0 };
@@ -125,7 +131,7 @@ function occupancyZone(document: CityDocument, houses: BuildingLot[], settlement
     cells,
     areaM2,
     occupancy,
-    initialOccupancy: occupancy === null || !(factor > 0) ? null : occupancy / factor,
+    initialOccupancy: occupancy === null || !(factor > 0) ? null : (occupancy / factor) * firstFactor,
     coverage: mean(weighted.coverage),
     lotAreaM2: mean(weighted.lotArea),
     houses: zoneHouses.length,
@@ -141,8 +147,10 @@ export function surveyOccupancy(
 ): HousingOccupancySurvey {
   const fit = fitSample?.housingFit ?? null;
   const factor = fit?.factor ?? 1;
-  const core = occupancyZone(document, houses, "core", factor);
-  const outskirts = occupancyZone(document, houses, "outskirts", factor);
+  // The first count ran at the guide, clamped so no district exceeded 100%.
+  const firstFactor = fit ? fit.targetOccupancy : 1;
+  const core = occupancyZone(document, houses, "core", factor, firstFactor);
+  const outskirts = occupancyZone(document, houses, "outskirts", factor, firstFactor);
   const area = core.areaM2 + outskirts.areaM2;
   const initialOccupancy =
     area > 0

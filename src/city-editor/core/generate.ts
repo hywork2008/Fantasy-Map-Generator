@@ -1026,7 +1026,7 @@ export function generateCityAttempt(
   if (settings.descriptor) {
     const fitStarted = performance.now();
     const housingFit = measureProcessing(profiler, "fit-housing", () =>
-      fitImportedHousing(settled, settings.descriptor!.burg.dwellings, profiler)
+      fitImportedHousing(settled, settings.descriptor!.burg.dwellings, settings.descriptor!.burg.lotOccupancy, profiler)
     );
     observer?.({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt, housingFit });
   }
