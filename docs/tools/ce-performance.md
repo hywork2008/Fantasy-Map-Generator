@@ -87,3 +87,73 @@ CSV計測は正規化済み共有入力から開始する。実際のFMG→CEで
 Ctrl-Cは実行中の都市を `interrupted` として保存し、終了コード130で停止する。完了済みJSONLは残る。再開の自動機能はないため、未完了都市を `--burg` で選択して別の出力へ実行する。都市単位の失敗は結果を保存して継続し、コマンドは終了コード0。CLI引数・一覧形式・FMG読込などの全体エラーは終了コード1。
 
 比較は同じCSV・反復数・描画指定・Nodeバージョン・マシンで行い、他の高負荷処理と同時実行しない。Node/jsdomの幾何処理やDOM費用は実ブラウザと異なる可能性がある。このツールはタブ起動、sessionStorage、新規Workerへの都市ドキュメント転送、CE UI・履歴・索引構築、画面レイアウトやGPU描画を測定しない。`processMs` はCLI実行環境の費用であり、CEタブの起動時間ではない。ブラウザの起動計測と、生成コードの性能比較に使う本ツールの時間を混同しない。
+
+## FMGデータ作成とCE生成の内部時間
+
+内部の計測結果は通常実行でもJSONLに保存する。`--details` を付けると、FMGとCEそれぞれの階層表を標準エラーにも表示する。
+
+```sh
+npm run ce:perf -- "temp/000.savdata/Conland 2026-10-08-06-04.fmg" temp/ce-feltashbrid-detail.jsonl --burg 27 --details
+
+# 一覧作成時のFMG側の内訳だけを確認する
+npm run ce:perf -- "temp/world.fmg" temp/ce-detail-inputs.csv --list --burg 13 --details
+
+# 同じ入力でCE内部の各工程を3回計測する
+npm run ce:perf -- temp/ce-detail-inputs.csv temp/ce-detail-results.jsonl --repeat 3 --details
+```
+
+JSONLの `fmgBreakdown` はdescriptor作成、`generationBreakdown` はCE完全生成処理の内訳。FMG入力一覧には `fmg_breakdown_json` として保存し、CSVからの計測でも引き継ぐ。古いCSVにこの列がなければ `fmgBreakdown` は `null`。FMG側の内訳を新たに測る場合は `.fmg` から一覧を再取得する。
+
+各行は次の形式を持つ。
+
+```json
+{
+  "path": "generation/attempt-1/fit-housing/sample-house-count/block-fabric",
+  "parent": "generation/attempt-1/fit-housing/sample-house-count",
+  "depth": 4,
+  "calls": 2,
+  "elapsedMs": 900,
+  "selfMs": 5
+}
+```
+
+`elapsedMs` は子工程を含む総時間、`selfMs` は計測した直接の子工程を差し引いた時間。`calls` は同じ親の下での呼出し回数。繰り返しの建物生成・橋候補検証などは、同じ `path` に所要時間と回数を集約する。1回平均は `elapsedMs / calls` で計算できる。`selfMs` はその関数全体の純粋なCPU時間ではなく、まだ個別計測していない処理、呼出し準備、計測器の管理費用なども含む。
+
+親の `elapsedMs` と子の時間は足し合わせない。一つの木の全行の `selfMs` 合計は、根の `elapsedMs` に一致する（浮動小数点の丸め差を除く）。CLIの表は `inclusive(ms) / self(ms) / calls` の順。所要時間はms、小数点以下3桁で表示する。名前は階層に従って字下げする。
+
+FMGの主な工程：
+
+| path末尾 | 対象 |
+| --- | --- |
+| world-road-convergence | 世界全体の街道と共通河川横断の準備 |
+| coastal-route-neighbours | 海岸付近の道路隣接点の再配置 |
+| crossing-candidates / converge-road-legs | 橋候補の作成・検証、複数の街道の共通橋への収束 |
+| river-geometry / water-index / terrain-query | 実測河川形状、水面索引、支持地盤 |
+| canonical-frontage / display-frontage / canonical-water | 河岸、表示枠、固定水面の取得 |
+| roads / route-legs / route-render-points | 都市に接続する街道、経路の描画形状 |
+| rivers / coastline / terrain | 河川、海岸線、標高・傾斜・高さサンプル |
+| nearby-settlements / regional-context / assemble-descriptor | 周辺集落、地域情報、連携データの組立て |
+
+世界全体の準備は都市の局所処理と異なり、同じ一覧作成プロセスでキャッシュを共有する。最初の都市が初期費用を負担し、後続都市はキャッシュが使える場合がある。都市ごとの `world-road-convergence` とその子工程を確認して比較する。
+
+CEの主な工程：
+
+| path末尾 | 対象 |
+| --- | --- |
+| attempt-N | 通常の第N案。失敗した案も別々に保存 |
+| prepare / plan / apply-plan | 準備、都市計画、メッシュへの適用 |
+| finish-geometry / rectify-hex / rectify-voronoi | 道路・街区の幾何形状の仕上げ |
+| fabric-plan | 道路で区切った地区計画 |
+| fit-housing | FMGのdwellingsに合わせる住宅数調整 |
+| initial-house-count / sample-house-count | 調整前と占有率候補ごとの住宅数算出 |
+| block-fabric / legacy-fabric / local-fabric | 街区の建物・路地・区画の再構築 |
+| districts / district-mesh / finish-fabric | 地区分割・統合メッシュ・土地利用の仕上げ |
+| coastal-reservations / harbor-fabric | 海岸・水面・固定道路・堀などとの建物干渉判定、港湾空間 |
+| harbor-ships / ship-plan | 港湾船の計画・配置。その中で必要になる建物再構築も子工程で区別 |
+| cemetery-sync / cemetery-layouts / roadside-fields | 墓地と沿道の農地 |
+| fixed-crossing-approaches / scene-regions | 固定橋への接続、周辺地域との連携 |
+| recipe-input-clone / recipe-settings-clone | 再現用の入力・設定のコピー |
+
+既存の `phases` も引き続き保存する。そちらのタイマーは区間計測と親工程の総時間が混在するため、内部時間の比較は新しい階層付きの内訳を使う。`.summary.json` の都市別 `generationBreakdown` に各pathの総時間・self時間・呼出し回数の統計を追加する。未実行の工程は0msの測定として扱わず、統計の件数は実際にその工程を通った成功回数になる。都市別の `fmgBreakdown` は一覧作成時の一回分を保持し、CEの反復回数だけFMGを再測定したものとは扱わない。
+
+計測器はCLIが明示的に渡したときだけ内部タイマーを動かす。時間計測には追加費用があるため、以前の計測値との差だけで性能の改善・悪化を判断しない。同じ計測コード・入力・環境で反復比較する。エラー終了時も、終了した同期呼出しの内訳を記録する。強制終了・タイムアウトでは新しい内訳を回収できない場合があり、その場合は従来の `phases` / `lastSample` を参照する。

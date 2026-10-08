@@ -1,22 +1,31 @@
+import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
 import type { CityDocument } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
 
-function houseCount(document: CityDocument): number {
-  return buildBlockFabric(document, new FabricCache()).buildings.filter(lot => {
-    const settlement = document.mesh.faces[lot.faceId]?.properties.settlement;
-    return (
-      (settlement === "core" || settlement === "outskirts") &&
-      !lot.landmark &&
-      (!lot.role || lot.role === "main") &&
-      (!lot.uses || lot.uses.includes("residential"))
-    );
-  }).length;
+function houseCount(document: CityDocument, profiler?: ProcessingProfiler): number {
+  const buildings = measureProcessing(profiler, "block-fabric", () =>
+    buildBlockFabric(document, new FabricCache(), profiler)
+  ).buildings;
+  return measureProcessing(
+    profiler,
+    "residential-count",
+    () =>
+      buildings.filter(lot => {
+        const settlement = document.mesh.faces[lot.faceId]?.properties.settlement;
+        return (
+          (settlement === "core" || settlement === "outskirts") &&
+          !lot.landmark &&
+          (!lot.role || lot.role === "main") &&
+          (!lot.uses || lot.uses.includes("residential"))
+        );
+      }).length
+  );
 }
 
 /** Fit FMG households by reducing occupancy, preserving metre-scale houses
  * and streets. A sparsely populated town must not enlarge its houses to fill
  * the same editing cells. */
-export function fitImportedHousing(document: CityDocument, dwellings: number): void {
+export function fitImportedHousing(document: CityDocument, dwellings: number, profiler?: ProcessingProfiler): void {
   if (!document.fabric || !(dwellings > 0) || !Number.isFinite(dwellings)) return;
   if (document.buildingPattern === "medieval" || document.fabric.version === 5) return;
   if (document.layout === "bram" || document.layout === "circulade") return;
@@ -37,7 +46,7 @@ export function fitImportedHousing(document: CityDocument, dwellings: number): v
   // Discrete plots need modest headroom; aim halfway into the 0–5% allowance.
   const maximum = Math.ceil(dwellings * 1.05);
   const target = (dwellings + maximum) / 2;
-  const originalCount = houseCount(document);
+  const originalCount = measureProcessing(profiler, "initial-house-count", () => houseCount(document, profiler));
   if (originalCount <= maximum) return;
   const apply = (factor: number) => {
     for (const [index, district] of districts.entries()) district.parameters.occupancy = occupancies[index] * factor;
@@ -46,7 +55,7 @@ export function fitImportedHousing(document: CityDocument, dwellings: number): v
   let bestError = Math.abs(originalCount - target);
   const sample = (factor: number): number => {
     apply(factor);
-    const count = houseCount(document);
+    const count = measureProcessing(profiler, "sample-house-count", () => houseCount(document, profiler));
     const error = Math.abs(count - target);
     if (error < bestError) {
       bestError = error;

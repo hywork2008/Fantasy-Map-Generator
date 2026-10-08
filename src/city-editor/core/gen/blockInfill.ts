@@ -1,3 +1,4 @@
+import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
 import { FixedRoadReservation } from "../fixedRoadReservation";
 import { circuitRing, polygonOverlaps } from "../fortifications";
 import { landmarkReservationHits } from "../landmarks";
@@ -126,34 +127,40 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
 }
 
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
-export function buildBlockFabric(document: CityDocument, cache = getDefaultCache()): DistrictFabric {
+export function buildBlockFabric(
+  document: CityDocument,
+  cache = getDefaultCache(),
+  profiler?: ProcessingProfiler
+): DistrictFabric {
   // Generate the established street/parcel network from the same stable seed,
   // then fit affected buildings to the landmark reservation in one final pass.
   const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
   if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
-    return finishCoastalBuildings(
-      document,
-      buildMedievalFabric(source, buildLegacyBlockFabric(medievalStreetDocument(source), cache))
+    const medieval = measureProcessing(profiler, "medieval-fabric", () =>
+      buildMedievalFabric(source, buildLegacyBlockFabric(medievalStreetDocument(source), cache, profiler))
     );
+    return measureProcessing(profiler, "coastal-reservations", () => finishCoastalBuildings(document, medieval));
   }
-  const base = buildLegacyBlockFabric(source, cache);
+  const base = measureProcessing(profiler, "legacy-fabric", () => buildLegacyBlockFabric(source, cache, profiler));
   // Sea ports need quays and loading yards around their piers too, not only
   // river ports (Myosiasos had bare piers).
   const port =
     document.waterAccess?.port.river ||
     Object.values(document.mesh.faces).some(f => f.properties.ward === "harbor" && f.properties.water === "land");
-  if (!port) return finishCoastalBuildings(document, base);
+  if (!port) return measureProcessing(profiler, "coastal-reservations", () => finishCoastalBuildings(document, base));
   const streets = base.lanes.flatMap(l =>
     l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
   );
   const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
-  const harbor = planHarbor(document, streets, barriers);
-  return finishCoastalBuildings(document, {
-    ...base,
-    buildings: base.buildings.filter(b => !harbor.spaces.some(s => polygonOverlaps(b.polygon, s.polygon))),
-    openSpaces: [...(base.openSpaces ?? []), ...harbor.spaces],
-    harbor
-  });
+  const harbor = measureProcessing(profiler, "harbor-fabric", () => planHarbor(document, streets, barriers));
+  return measureProcessing(profiler, "coastal-reservations", () =>
+    finishCoastalBuildings(document, {
+      ...base,
+      buildings: base.buildings.filter(b => !harbor.spaces.some(s => polygonOverlaps(b.polygon, s.polygon))),
+      openSpaces: [...(base.openSpaces ?? []), ...harbor.spaces],
+      harbor
+    })
+  );
 }
 
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
@@ -257,7 +264,11 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   };
 }
 
-function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): DistrictFabric {
+function buildLegacyBlockFabric(
+  document: CityDocument,
+  cache: FabricCache,
+  profiler?: ProcessingProfiler
+): DistrictFabric {
   const layout =
     document.layout ??
     document.fabric?.generation?.settings?.layout ??
@@ -417,18 +428,20 @@ function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): Dis
     return finishFabric(document, { ...local, lanes, farms: [] });
   }
 
-  const plan = upgradeFabricPlan(document)!;
-  const districts = resolveDistricts(document, plan);
-  const merged = districtDocument(document, districts);
+  const plan = measureProcessing(profiler, "upgrade-fabric", () => upgradeFabricPlan(document))!;
+  const districts = measureProcessing(profiler, "districts", () => resolveDistricts(document, plan));
+  const merged = measureProcessing(profiler, "district-mesh", () => districtDocument(document, districts));
   const plazaElem = document.elements.find(e => e.kind === "plaza");
   const hub: Point = plazaElem?.point ?? [0, 0];
-  const local = buildLocalFabric(merged, {
-    seed: plan.seed,
-    parameters: new Map(districts.map(d => [d.id, d.parameters])),
-    cache,
-    layout: effectiveSubLayout,
-    hub
-  });
+  const local = measureProcessing(profiler, "local-fabric", () =>
+    buildLocalFabric(merged, {
+      seed: plan.seed,
+      parameters: new Map(districts.map(d => [d.id, d.parameters])),
+      cache,
+      layout: effectiveSubLayout,
+      hub
+    })
+  );
   const members = new Map(districts.map(d => [d.id, d.faceIds]));
   const polygons = new Map(Object.values(document.mesh.faces).map(f => [f.id, facePoints(document.mesh, f)]));
   const owner = (id: Id, p: Point) => {
@@ -526,6 +539,8 @@ function buildLegacyBlockFabric(document: CityDocument, cache: FabricCache): Dis
     cache.set(key, { buildings: [], lanes: [], entrances: new Map(), farms: plots });
     farms.push(...plots);
   }
-  const parks = buildParkLawns(merged);
-  return finishFabric(document, { buildings, lanes, entrances, farms, parks });
+  const parks = measureProcessing(profiler, "parks", () => buildParkLawns(merged));
+  return measureProcessing(profiler, "finish-fabric", () =>
+    finishFabric(document, { buildings, lanes, entrances, farms, parks })
+  );
 }

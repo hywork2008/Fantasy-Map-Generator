@@ -1,3 +1,4 @@
+import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
 import { SHIP_SPECS, type ShipType } from "../../render/shipSvg";
 import { faceNeighbors, facePoints } from "../mesh";
 import type { CityDocument, CityElement, Id, Point } from "../types";
@@ -85,7 +86,11 @@ interface PierBerth {
  * 桟橋に対して船が重なったり刺さったりしないよう、他桟橋・陸地との衝突判定を行い、
  * 桟橋の左右のうち十分な水域と離隔がある位置に停泊させる。
  */
-export function planHarborShips(document: CityDocument, seed = "harbor-ships"): CityElement[] {
+export function planHarborShips(
+  document: CityDocument,
+  seed = "harbor-ships",
+  profiler?: ProcessingProfiler
+): CityElement[] {
   const harborFaces = Object.values(document.mesh.faces).filter(
     f => f.properties.ward === "harbor" && f.properties.water === "land"
   );
@@ -115,7 +120,9 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
   // (1) fabric.harbor が存在する場合はその piers を利用
   const docFabric = document.fabric as import("./blockInfill").DistrictFabric | undefined;
-  const fabric = docFabric?.harbor ? docFabric : buildBlockFabric(document);
+  const fabric = docFabric?.harbor
+    ? docFabric
+    : measureProcessing(profiler, "block-fabric", () => buildBlockFabric(document, undefined, profiler));
   const fabricHarbor = fabric?.harbor;
 
   if (fabricHarbor && fabricHarbor.piers?.length) {
@@ -548,11 +555,11 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
  * 都市ドキュメントに港湾船を生成・配置する。
  * 既存の未ロックかつ自動生成（gc:ship-...）の船を再生成する。
  */
-export function spawnHarborShips(document: CityDocument, seed = "harbor-ships"): void {
+export function spawnHarborShips(document: CityDocument, seed = "harbor-ships", profiler?: ProcessingProfiler): void {
   // 自動生成された未ロックの船要素をクリア
   document.elements = document.elements.filter(e => e.locked || e.kind !== "ship" || !e.id.startsWith(GEN_PREFIX));
 
-  const ships = planHarborShips(document, seed);
+  const ships = measureProcessing(profiler, "ship-plan", () => planHarborShips(document, seed, profiler));
   if (ships.length > 0) {
     document.elements.push(...ships);
   }

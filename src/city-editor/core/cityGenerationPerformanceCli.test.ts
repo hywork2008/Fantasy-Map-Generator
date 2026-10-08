@@ -21,13 +21,23 @@ it("filters cities, repeats sequentially, checkpoints failures and refuses overw
       input,
       writeCsv([
         { schema_version: "1", burg_id: "1", name: "skip", share_json: "{}" },
-        { schema_version: "1", burg_id: "2", name: "export error", share_json: "", export_error: "failed" },
+        {
+          schema_version: "1",
+          burg_id: "2",
+          name: "export error",
+          share_json: "",
+          export_error: "failed",
+          fmg_breakdown_json: JSON.stringify([
+            { path: "descriptor", parent: null, depth: 0, calls: 1, elapsedMs: 12, selfMs: 12 }
+          ])
+        },
         { schema_version: "1", burg_id: "3", name: "invalid input", share_json: "{}" }
       ])
     );
     await expect(run("--burg", "99")).rejects.toThrow("Unknown burg");
     await expect(run("--timeout-ms", "NaN")).rejects.toThrow("Invalid timeoutMs");
-    await run("--burg", "2,3", "--repeat", "2");
+    const execution = await run("--burg", "2,3", "--repeat", "2", "--details");
+    expect(execution.stderr).toContain("inclusive(ms) / self(ms) / calls");
     const records = readFileSync(output, "utf8")
       .trim()
       .split("\n")
@@ -42,6 +52,9 @@ it("filters cities, repeats sequentially, checkpoints failures and refuses overw
     const summary = JSON.parse(readFileSync(`${output}.summary.json`, "utf8"));
     expect(summary).toMatchObject({ totalRuns: 4, statuses: { error: 4 } });
     expect(summary.cities[0].timings.generationMs).toBeNull();
+    expect(summary.cities[0].fmgBreakdown).toEqual(records[0].fmgBreakdown);
+    expect(records[0].fmgBreakdown[0]).toMatchObject({ path: "descriptor", elapsedMs: 12 });
+    expect(records[0].generationBreakdown).toEqual([]);
     const meta = JSON.parse(readFileSync(`${output}.meta.json`, "utf8"));
     expect(meta).toMatchObject({ repeat: 2, execution: "sequential-fresh-process-per-run" });
     expect(meta.codeHash).toMatch(/^[a-f0-9]{64}$/);

@@ -1,5 +1,6 @@
 import { worldContext } from "../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
+import { ProcessingProfiler } from "../../utils/processingProfiler";
 import { parseIncomingPayload } from "../io/incomingCity";
 import { generateCityOnDocument } from "./generate";
 import type { GenerationSample } from "./generationDiagnostics";
@@ -24,6 +25,7 @@ export async function prepareCityPerformanceInputs(
   const rows = ids.map(burgId => {
     progress?.(burgId);
     const timings: Record<string, number> = {};
+    const profiler = new ProcessingProfiler();
     const measure = <T>(phase: string, action: () => T): T => {
       const start = performance.now();
       try {
@@ -39,7 +41,9 @@ export async function prepareCityPerformanceInputs(
       name: worldContext.pack.burgs[burgId]?.name ?? ""
     };
     try {
-      const descriptor = measure("fmg_descriptor_ms", () => getBurgSiteDescriptor(burgId));
+      const descriptor = measure("fmg_descriptor_ms", () =>
+        profiler.measure("descriptor", () => getBurgSiteDescriptor(burgId, undefined, profiler))
+      );
       if (!descriptor) throw new Error("No site descriptor");
       const json = measure("fmg_serialize_ms", () => JSON.stringify(descriptor));
       const share = measure("export_share_parse_ms", () => parseIncomingPayload(json));
@@ -55,6 +59,7 @@ export async function prepareCityPerformanceInputs(
         size: share.size,
         payload_characters: String(json.length),
         share_json: shareJson,
+        fmg_breakdown_json: JSON.stringify(profiler.snapshot()),
         ...timings
       };
     } catch (error) {
@@ -62,6 +67,7 @@ export async function prepareCityPerformanceInputs(
         ...base,
         share_json: "",
         export_error: error instanceof Error ? error.message : String(error),
+        fmg_breakdown_json: JSON.stringify(profiler.snapshot()),
         ...timings
       };
     }
@@ -77,6 +83,7 @@ export async function measureCityPerformance(
 ) {
   const started = performance.now();
   const timings: Record<string, number> = {};
+  const profiler = new ProcessingProfiler();
   const phases: Array<{
     phase: string;
     elapsedMs: number;
@@ -103,17 +110,26 @@ export async function measureCityPerformance(
     const document = measure("gridMs", () => cityEditorDocument(share));
     const settings = measure("settingsMs", () => cityEditorSettings(share));
     const city = measure("generationMs", () =>
-      generateCityOnDocument(document, settings, share.seed, sample => {
-        const { phase, elapsedMs, attempt, counts } = sample;
-        phases.push({
-          phase,
-          elapsedMs,
-          attempt,
-          counts,
-          ...(sample.failure ? { failure: { reason: sample.failure.reason, message: sample.failure.message } } : {})
-        });
-        progress?.(sample);
-      })
+      profiler.measure("generation", () =>
+        generateCityOnDocument(
+          document,
+          settings,
+          share.seed,
+          sample => {
+            const { phase, elapsedMs, attempt, counts } = sample;
+            phases.push({
+              phase,
+              elapsedMs,
+              attempt,
+              counts,
+              ...(sample.failure ? { failure: { reason: sample.failure.reason, message: sample.failure.message } } : {})
+            });
+            progress?.(sample);
+          },
+          undefined,
+          profiler
+        )
+      )
     );
     generated = city !== null;
     let svgNodes: number | null = null;
@@ -167,6 +183,7 @@ export async function measureCityPerformance(
       timings,
       totalMs: performance.now() - started,
       svgNodes,
+      generationBreakdown: profiler.snapshot(),
       phases
     };
   } catch (error) {
@@ -177,6 +194,7 @@ export async function measureCityPerformance(
       timings,
       totalMs: performance.now() - started,
       error: error instanceof Error ? error.message : String(error),
+      generationBreakdown: profiler.snapshot(),
       phases
     };
   }

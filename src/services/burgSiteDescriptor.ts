@@ -21,6 +21,7 @@ import {
 } from "../utils/fixedBurgCrossings";
 import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 import {
   isRequiredSiteBounds,
   POPULATION_WINDOW_MAX_M,
@@ -290,13 +291,16 @@ export function getBurgSiteDescriptor(
     requiredBounds: RequiredSiteBounds;
     maxExtentMeters: number;
     fixedCrossings?: FixedBurgCrossings;
-  }
+  },
+  profiler?: ProcessingProfiler
 ): BurgSiteDescriptor | null {
   const { pack } = worldContext;
   const burg = pack.burgs?.[burgId];
   if (!burg?.i || burg.removed) return null;
 
-  ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
+  measureProcessing(profiler, "world-road-convergence", () =>
+    ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit, profiler)
+  );
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const cityRadiusMeters = getCityRadiusMeters(population);
@@ -304,7 +308,7 @@ export function getBurgSiteDescriptor(
     (x - burg.x) * metersPerMapUnit,
     (burg.y - y) * metersPerMapUnit
   ];
-  const waterAccess = updateBurgWaterAccess(burg, pack);
+  const waterAccess = measureProcessing(profiler, "water-access", () => updateBurgWaterAccess(burg, pack));
   let extentMeters = populationWindowMeters(cityRadiusMeters);
   let autoBounds: RequiredSiteBounds | undefined;
   let beyondBudgetRiverId: number | null = null;
@@ -323,8 +327,12 @@ export function getBurgSiteDescriptor(
   if (waterAccess.river && waterAccess.riverId != null) {
     const portRiver = Boolean(burg.port) && waterAccess.port.river;
     const frontage =
-      canonicalFrontageBounds(burg, waterAccess.riverId, toLocal) ??
-      frontageDisplayBounds(waterAccess.riverId, toLocal, metersPerMapUnit, cityRadiusMeters, portRiver);
+      measureProcessing(profiler, "canonical-frontage", () =>
+        canonicalFrontageBounds(burg, waterAccess.riverId!, toLocal)
+      ) ??
+      measureProcessing(profiler, "display-frontage", () =>
+        frontageDisplayBounds(waterAccess.riverId!, toLocal, metersPerMapUnit, cityRadiusMeters, portRiver)
+      );
     if (frontage?.bounds) {
       const extra = frameRequirements?.requiredBounds;
       autoBounds = extra
@@ -342,7 +350,9 @@ export function getBurgSiteDescriptor(
   }
   let fixedCrossings =
     frameRequirements?.fixedCrossings ??
-    convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg);
+    measureProcessing(profiler, "fixed-crossings", () =>
+      convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg)
+    );
   if (fixedCrossings && !frameRequirements) {
     const b = fixedCrossings.requiredBounds;
     autoBounds = autoBounds
@@ -356,7 +366,9 @@ export function getBurgSiteDescriptor(
     extentMeters = Math.max(extentMeters, requiredSiteExtent(autoBounds));
   }
   if (!fixedCrossings && worldContext.options.landConnectionGeneration) {
-    const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+    const physical = measureProcessing(profiler, "land-connections", () =>
+      getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit)
+    );
     if (physical) {
       const facilities = new Set(
         physical.snapshot.network.edges
@@ -365,7 +377,9 @@ export function getBurgSiteDescriptor(
       );
       const halfBudget =
         Math.min(POPULATION_WINDOW_MAX_M, frameRequirements?.maxExtentMeters ?? POPULATION_WINDOW_MAX_M) / 2;
-      const resolved = getConstrainedNetworkConnections(physical.snapshot.network, physical.current.environment);
+      const resolved = measureProcessing(profiler, "resolve-land-connections", () =>
+        getConstrainedNetworkConnections(physical.snapshot.network, physical.current.environment)
+      );
       if (!("connections" in resolved)) throw new RangeError("Cannot resolve current fixed crossings");
       const localFacilities = [...facilities].filter(id => {
         const source = resolved.connections.find(c => c.kind === "bridge" && c.crossing.id === id);
@@ -425,7 +439,9 @@ export function getBurgSiteDescriptor(
       throw new RangeError("Fixed crossing preview origin or bounds mismatch");
   }
   if (!fixedCrossings) {
-    const waterSource = canonicalSiteWater(burg, extentMeters / 2, autoBounds);
+    const waterSource = measureProcessing(profiler, "canonical-water", () =>
+      canonicalSiteWater(burg, extentMeters / 2, autoBounds)
+    );
     if (!waterSource && burg.riverPlacement?.geometryVersion !== undefined && beyondBudgetRiverId === null)
       throw new RangeError("Cannot export canonical settlement water: unresolved geometry or water budget");
     if (waterSource) {
@@ -434,36 +450,46 @@ export function getBurgSiteDescriptor(
     }
   }
   const half = extentMeters / 2;
-  const rivers = collectRivers(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
+  const rivers = measureProcessing(profiler, "rivers", () =>
+    collectRivers(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit)
+  );
   if (beyondBudgetRiverId != null) {
     for (const river of rivers) if (river.riverId === beyondBudgetRiverId) river.frontage = "beyond-budget";
   }
-  const roads = collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
-  const waterbody = collectWaterbody(burg, toLocal, half, metersPerMapUnit);
-  const terrain = collectTerrain(burg, half, metersPerMapUnit);
+  const roads = measureProcessing(profiler, "roads", () =>
+    collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit, profiler)
+  );
+  const waterbody = measureProcessing(profiler, "coastline", () =>
+    collectWaterbody(burg, toLocal, half, metersPerMapUnit)
+  );
+  const terrain = measureProcessing(profiler, "terrain", () => collectTerrain(burg, half, metersPerMapUnit));
 
   const roadLegCount = roads.filter(road => road.group !== "searoutes").length;
-  const suggestedArchetype = inferArchetype({ burg, waterbody, rivers, roadLegCount, terrain });
+  const suggestedArchetype = measureProcessing(profiler, "archetype", () =>
+    inferArchetype({ burg, waterbody, rivers, roadLegCount, terrain })
+  );
 
-  const settlements: RegionalContext["settlements"] = pack.burgs
-    .filter(other => other?.i && other.i !== burgId && !other.removed)
-    .flatMap(other => {
-      const center = toLocal(other.x, other.y);
-      if (Math.abs(center[0]) > half || Math.abs(center[1]) > half) return [];
-      return [
-        {
-          burgId: other.i!,
-          name: other.name ?? "",
-          center,
-          radiusMeters: Math.max(
-            1,
-            getCityRadiusMeters((other.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
-          ),
-          representation: "estimated" as const
-        }
-      ];
-    });
-  const regionalContext: RegionalContext = {
+  const settlements: RegionalContext["settlements"] = measureProcessing(profiler, "nearby-settlements", () =>
+    pack.burgs
+      .filter(other => other?.i && other.i !== burgId && !other.removed)
+      .flatMap(other => {
+        const center = toLocal(other.x, other.y);
+        if (Math.abs(center[0]) > half || Math.abs(center[1]) > half) return [];
+        return [
+          {
+            burgId: other.i!,
+            name: other.name ?? "",
+            center,
+            radiusMeters: Math.max(
+              1,
+              getCityRadiusMeters((other.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+            ),
+            representation: "estimated" as const
+          }
+        ];
+      })
+  );
+  const regionalContext: RegionalContext = measureProcessing(profiler, "regional-context", () => ({
     version: 1,
     sourceRevision: regionalRevision({ burgId, population, roads, rivers, fixedCrossings, settlements, extentMeters }),
     coverageBounds: { minX: -half, minY: -half, maxX: half, maxY: half },
@@ -487,8 +513,8 @@ export function getBurgSiteDescriptor(
         }))
       ])
       .filter(road => road.points.length >= 2)
-  };
-  return {
+  }));
+  return measureProcessing(profiler, "assemble-descriptor", () => ({
     version: DESCRIPTOR_VERSION,
     regionalContext,
     ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
@@ -572,7 +598,7 @@ export function getBurgSiteDescriptor(
     roads,
     suggestedGates: roadLegCount,
     suggestedArchetype
-  };
+  }));
 }
 
 /** Number of land route legs radiating from the burg — used as the watabou `gates` hint. */
@@ -1084,7 +1110,10 @@ function getDownstreamContext(
  * contributes two legs (in/out); a route terminating there contributes one.
  * Route points at burg cells are exactly the burg position (routes-generator).
  */
-function collectRouteLegs(burg: Burg): { route: Route; leg: [number, number, number][] }[] {
+function collectRouteLegs(
+  burg: Burg,
+  profiler?: ProcessingProfiler
+): { route: Route; leg: [number, number, number][] }[] {
   const { pack } = worldContext;
   const legs: { route: Route; leg: [number, number, number][] }[] = [];
 
@@ -1112,7 +1141,11 @@ function collectRouteLegs(burg: Burg): { route: Route; leg: [number, number, num
     if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
     // Follow the route as FMG draws it (cell-anchor snapped), not its raw stored points:
     // a raw point can sit tens of degrees off the drawn bearing (Chateia burg 11).
-    const points = Routes.getRenderPoints(route, pack) as [number, number, number][];
+    const points = measureProcessing(profiler, "route-render-points", () => Routes.getRenderPoints(route, pack)) as [
+      number,
+      number,
+      number
+    ][];
     const index = points.findIndex(
       point =>
         point[2] === burg.cell &&
@@ -1133,14 +1166,17 @@ function collectRoadEntries(
   toLocal: (x: number, y: number) => [number, number],
   half: number,
   cityRadiusMeters: number,
-  metersPerMapUnit: number
+  metersPerMapUnit: number,
+  profiler?: ProcessingProfiler
 ): BurgSiteRoadEntry[] {
   const { pack } = worldContext;
   if (!pack.routes?.length) return [];
 
-  const facilities = convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!);
+  const facilities = measureProcessing(profiler, "converged-facilities", () =>
+    convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!)
+  );
   const entries: BurgSiteRoadEntry[] = [];
-  for (const { route, leg } of collectRouteLegs(burg)) {
+  for (const { route, leg } of measureProcessing(profiler, "route-legs", () => collectRouteLegs(burg, profiler))) {
     const facility = facilities.find(
       f =>
         f.routeIds.includes(route.i) &&

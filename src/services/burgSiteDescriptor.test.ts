@@ -14,6 +14,7 @@ import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
+import { ProcessingProfiler } from "../utils/processingProfiler";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { countBurgRoadLegs, getBurgSiteDescriptor } from "./burgSiteDescriptor";
 
@@ -93,6 +94,20 @@ function setupRiverCrossingWorld() {
 
 describe("getBurgSiteDescriptor", () => {
   beforeEach(setupRiverCrossingWorld);
+  it("keeps the handoff identical and accounts for descriptor children", () => {
+    const baseline = getBurgSiteDescriptor(1);
+    const profiler = new ProcessingProfiler();
+    const profiled = profiler.measure("descriptor", () => getBurgSiteDescriptor(1, undefined, profiler));
+    expect(profiled).toEqual(baseline);
+    const breakdown = profiler.snapshot();
+    expect(breakdown.some(t => t.path === "descriptor/roads/route-legs")).toBe(true);
+    const root = breakdown.find(t => t.path === "descriptor")!;
+    expect(root.elapsedMs).toBeCloseTo(
+      breakdown.reduce((sum, t) => sum + t.selfMs, 0),
+      5
+    );
+  });
+
   it("exports the burg culture's burial profile through the CE share contract", () => {
     worldContext.pack.cultures = [
       { i: 0, name: "Wildlands", base: 0, shield: "" },

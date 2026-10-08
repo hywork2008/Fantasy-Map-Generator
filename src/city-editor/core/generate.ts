@@ -1,4 +1,5 @@
 import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
+import { measureProcessing, type ProcessingProfiler } from "../../utils/processingProfiler";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
@@ -568,7 +569,8 @@ export function generateCityOnDocument(
   settings: GenerationSettings,
   seed: string,
   observer?: GenerationObserver,
-  onRejected?: GenerationDebugObserver
+  onRejected?: GenerationDebugObserver,
+  profiler?: ProcessingProfiler
 ): CityDocument | null {
   // Some coast/river layouts cannot form valid crossings, or enough external
   // approach roads, on this grid. Try another deterministic layout with the
@@ -582,7 +584,9 @@ export function generateCityOnDocument(
   // Debug previews stop at the first rejection, keeping the requested seed.
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
-    const result = generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1, onRejected);
+    const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
+      generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1, onRejected, profiler)
+    );
     if (result) {
       result.historicalPeriod =
         settings.historicalPeriod ??
@@ -593,20 +597,23 @@ export function generateCityOnDocument(
       if (skewLimit !== undefined) result.maxBridgeSkewDegrees = skewLimit;
       result.generationSeed = attemptSeed;
       if (result.fabric) {
-        const input = clone(document);
+        const input = measureProcessing(profiler, "recipe-input-clone", () => clone(document));
         delete input.fabric;
         result.fabric.generation = {
           algorithm: settings.legacyCastles ? "evolution-city-v3" : "castle-city-v1",
           seed: attemptSeed,
           settings: {
-            ...structuredClone(settings),
+            ...measureProcessing(profiler, "recipe-settings-clone", () => structuredClone(settings)),
             layout: result.layout,
             walledAreaShare: resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
           },
           input
         };
       }
-      if (settings.descriptor?.regionalContext) attachSceneRegions(result, settings.descriptor.regionalContext);
+      if (settings.descriptor?.regionalContext)
+        measureProcessing(profiler, "scene-regions", () =>
+          attachSceneRegions(result, settings.descriptor!.regionalContext!)
+        );
       result.biome =
         settings.descriptor?.biome ??
         (settings.descriptor?.climate
@@ -653,7 +660,8 @@ export function generateCityAttempt(
   seed: string,
   observer?: GenerationObserver,
   attempt = 1,
-  onRejected?: GenerationDebugObserver
+  onRejected?: GenerationDebugObserver,
+  profiler?: ProcessingProfiler
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let debugDocument = () => document;
@@ -673,26 +681,30 @@ export function generateCityAttempt(
   };
   const faceCount = Object.keys(document.mesh.faces).length;
   if (faceCount < 3) return reject("prepare", "too-few-faces", `格子の面が3未満 (${faceCount})`, { faces: faceCount });
-  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = measureProcessing(profiler, "prepare", () =>
+    prepareRun(document, settings, seed)
+  );
   mark("prepare", { faces: cells.length, edges: Object.keys(document.mesh.edges).length });
-  const plan = runPlan(
-    document.mesh,
-    faceIdOf,
-    cells,
-    geo,
-    program,
-    params,
-    seed,
-    half,
-    cellSize,
-    settings,
-    6,
-    true,
-    observer,
-    attempt,
-    true,
-    document.gridKind,
-    document
+  const plan = measureProcessing(profiler, "plan", () =>
+    runPlan(
+      document.mesh,
+      faceIdOf,
+      cells,
+      geo,
+      program,
+      params,
+      seed,
+      half,
+      cellSize,
+      settings,
+      6,
+      true,
+      observer,
+      attempt,
+      true,
+      document.gridKind,
+      document
+    )
   );
   mark("plan-total");
   debugDocument = () => planningDebugDocument(document, faceIdOf, plan, program);
@@ -815,17 +827,19 @@ export function generateCityAttempt(
     if (coveredRoadIndexes.has(index) || road.path.length < 2) continue;
     roads.push([[0, 0], [...road.path.at(-1)!]]);
   }
-  const next = applyPlan(
-    document,
-    activeCells,
-    activeFaceIdOf,
-    { ...plan, layout: effectiveLayout, wards, streets, roads: [...roads, ...streets] },
-    program,
-    6,
-    true,
-    observer,
-    attempt,
-    onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined
+  const next = measureProcessing(profiler, "apply-plan", () =>
+    applyPlan(
+      document,
+      activeCells,
+      activeFaceIdOf,
+      { ...plan, layout: effectiveLayout, wards, streets, roads: [...roads, ...streets] },
+      program,
+      6,
+      true,
+      observer,
+      attempt,
+      onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined
+    )
   );
   mark("apply-total");
   if (!next) return null;
@@ -842,26 +856,42 @@ export function generateCityAttempt(
   next.appearance = "town";
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
-  const routed = coarse ? shortcutMajorRoads(next) : next;
+  const routed = coarse ? measureProcessing(profiler, "road-shortcuts", () => shortcutMajorRoads(next)) : next;
   mark("major-road-shortcuts");
-  const rectified = hexagonal ? rectifyHexBlocks(routed, seed) : routed;
+  const rectified = hexagonal
+    ? measureProcessing(profiler, "rectify-hex", () => rectifyHexBlocks(routed, seed))
+    : routed;
   mark("rectify-hex");
-  const finished = resolveStreetSettings(settings).foldSmoothing ? finishCityGeometry(rectified) : rectified;
+  const finished = resolveStreetSettings(settings).foldSmoothing
+    ? measureProcessing(profiler, "finish-geometry", () => finishCityGeometry(rectified))
+    : rectified;
   mark("finish-geometry");
   // Square each bridge immediately after smoothing, before block rectification
   // pins the road vertices. The crossing stays on the river; its two road
   // neighbours slide onto the normal so the span is the short perpendicular.
-  const squared = straightenBridges(finished);
-  const shaped = hexagonal || coarse ? squared : rectifyVoronoiBlocks(squared, seed, rectified);
+  const squared = measureProcessing(profiler, "straighten-bridges", () => straightenBridges(finished));
+  const shaped =
+    hexagonal || coarse
+      ? squared
+      : measureProcessing(profiler, "rectify-voronoi", () => rectifyVoronoiBlocks(squared, seed, rectified));
   mark("rectify-voronoi");
   const allowedRiverIds = new Set(
     plan.rivers.flatMap((river, index) => (river.bridgeAllowed ? [`${GEN_PREFIX}river-${index}`] : []))
   );
-  const connected = coarse ? connectUrbanRiverDistricts(shaped, allowedRiverIds) : shaped;
-  const settled = straightenGateCrossings(straightenBridges(connected));
+  const connected = coarse
+    ? measureProcessing(profiler, "river-district-connections", () =>
+        connectUrbanRiverDistricts(shaped, allowedRiverIds)
+      )
+    : shaped;
+  const settled = measureProcessing(profiler, "gate-and-bridge-crossings", () =>
+    straightenGateCrossings(straightenBridges(connected))
+  );
   debugDocument = () => settled;
-  settleTempleOnDocument(settled);
-  if (settled.castles?.length && !finalizeCastles(settled, false))
+  measureProcessing(profiler, "temple", () => settleTempleOnDocument(settled));
+  if (
+    settled.castles?.length &&
+    !measureProcessing(profiler, "castle-finalization", () => finalizeCastles(settled, false))
+  )
     return reject("castle", "castle-layout-too-small", "仕上げ後の城郭形状が成立しません");
   if (settled.defenseCircuits?.some(c => c.moat?.enabled)) {
     const reservations = new Map<number, MoatReservation>();
@@ -906,14 +936,16 @@ export function generateCityAttempt(
       );
   }
   const roadsAfterFinish = countExternalApproachRoads(settled);
-  const crossingDetails = explainGeneratedCrossingFailures(
-    settled,
-    resolveBridgeSkewLimit(
-      settings.historicalPeriod ??
-        settings.descriptor?.historicalPeriod ??
-        document.historicalPeriod ??
-        "ageOfExploration",
-      settings.descriptor?.transport ?? { maxBridgeSkewDegrees: document.maxBridgeSkewDegrees }
+  const crossingDetails = measureProcessing(profiler, "crossing-validation", () =>
+    explainGeneratedCrossingFailures(
+      settled,
+      resolveBridgeSkewLimit(
+        settings.historicalPeriod ??
+          settings.descriptor?.historicalPeriod ??
+          document.historicalPeriod ??
+          "ageOfExploration",
+        settings.descriptor?.transport ?? { maxBridgeSkewDegrees: document.maxBridgeSkewDegrees }
+      )
     )
   );
   const tangled = coarse
@@ -963,7 +995,7 @@ export function generateCityAttempt(
     settings.descriptor?.historicalPeriod ??
     document.historicalPeriod ??
     "ageOfExploration";
-  if (coarse) settled.fabric = createFabricPlan(settled, seed);
+  if (coarse) settled.fabric = measureProcessing(profiler, "fabric-plan", () => createFabricPlan(settled, seed));
   // Housing style is applied only after roads, crossings and castle geometry
   // have passed the same validation as the legacy generator.
   if (buildingPattern === "medieval") {
@@ -984,17 +1016,22 @@ export function generateCityAttempt(
       }
     }
   }
-  tagExternalGateRoads(settled, seed, settings.descriptor);
-  alignFrameRoadEndpoints(settled);
-  snapFrameRoadTerminals(settled);
-  cultivateRoadside(settled);
-  syncDocumentCemeteries(settled);
-  refreshCemeteryLayouts(settled);
-  applyImportedWaterAccess(settled, settings);
-  if (settings.descriptor) fitImportedHousing(settled, settings.descriptor.burg.dwellings);
-  spawnHarborShips(settled, seed);
+  measureProcessing(profiler, "external-gate-roads", () => tagExternalGateRoads(settled, seed, settings.descriptor));
+  measureProcessing(profiler, "frame-road-alignment", () => alignFrameRoadEndpoints(settled));
+  measureProcessing(profiler, "frame-road-terminals", () => snapFrameRoadTerminals(settled));
+  measureProcessing(profiler, "roadside-fields", () => cultivateRoadside(settled));
+  measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
+  measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
+  measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
+  if (settings.descriptor)
+    measureProcessing(profiler, "fit-housing", () =>
+      fitImportedHousing(settled, settings.descriptor!.burg.dwellings, profiler)
+    );
+  measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
   const fixedApproachStarted = performance.now();
-  const fixedApproaches = connectAutomaticFixedApproaches(settled);
+  const fixedApproaches = measureProcessing(profiler, "fixed-crossing-approaches", () =>
+    connectAutomaticFixedApproaches(settled)
+  );
   observer?.({
     phase: "fixed-crossing-approaches",
     elapsedMs: performance.now() - fixedApproachStarted,

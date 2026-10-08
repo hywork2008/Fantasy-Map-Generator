@@ -14,6 +14,7 @@ import { bridgeSkewCandidates, bridgeStructureForRouteGroup } from "../utils/bri
 import type { FixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { bridgePassageFootprint } from "./bridgePassageGeometry";
@@ -147,8 +148,12 @@ function key(world: WorldContext, unit: string) {
 
 /** Normal road generation and CE export use the same committed FMG geometry.
  * No RNG, no modification of locked/registered roads, no unmeasured dry arms. */
-export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: string): Prepared {
-  const initialKey = key(world, unit),
+export function ensureConvergingWorldRiverRoads(
+  world: WorldContext,
+  unit: string,
+  profiler?: ProcessingProfiler
+): Prepared {
+  const initialKey = measureProcessing(profiler, "cache-key", () => key(world, unit)),
     old = cache.get(world.pack);
   if (old?.key === initialKey) return old;
   const result: Prepared = { key: initialKey, facilities: [], changedRoutes: [] };
@@ -168,8 +173,8 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
     }
     delete r.riverRoadConvergence;
   }
-  relocateCoastalRouteNeighbours(world, unit);
-  session.prepare(world, unit);
+  measureProcessing(profiler, "coastal-route-neighbours", () => relocateCoastalRouteNeighbours(world, unit));
+  measureProcessing(profiler, "geometry-session", () => session.prepare(world, unit));
   const centers = world.pack.cells.p.map((p, id) => ({ p, id }));
   const tree = quadtree<(typeof centers)[number]>()
     .x(c => c.p[0])
@@ -217,7 +222,9 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
       let complete = true;
       for (const riverId of session.rivers(bounds)) {
         const river = world.pack.rivers.find(r => r.i === riverId)!;
-        const resolved = session.resolve(world, river, unit, bounds);
+        const resolved = measureProcessing(profiler, "river-geometry", () =>
+          session.resolve(world, river, unit, bounds)
+        );
         if (!("geometry" in resolved)) {
           if (resolved.reason !== "no-local-water") complete = false;
           continue;
@@ -226,13 +233,15 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
         geometries.push(resolved.geometry);
       }
       if (!complete || !geometries.length) continue;
-      const terrain = session.terrain(world, bounds);
+      const terrain = measureProcessing(profiler, "terrain-query", () => session.terrain(world, bounds));
       const supported = terrain.filter(t => world.pack.cells.h[t.id] >= 20);
       const supportedRings = supported.map(t => t.ring);
       water.push(
         ...terrain.filter(t => world.pack.cells.h[t.id] < 20).map(t => ({ id: 1000000000 + t.id, rings: [t.ring] }))
       );
-      const waterIndex = PhysicalWaterIndex.build(water, waterValidation);
+      const waterIndex = measureProcessing(profiler, "water-index", () =>
+        PhysicalWaterIndex.build(water, waterValidation)
+      );
       if (!waterIndex) continue;
       const supports = (polygon: readonly RiverPoint[]) =>
         polygon.every(p => p[0] >= bounds.minX && p[0] <= bounds.maxX && p[1] >= bounds.minY && p[1] <= bounds.maxY) &&
@@ -378,7 +387,9 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
                     },
                     supportsDryFootprint: supports
                   };
-                  const created = createProvisionalRiverCrossing(input);
+                  const created = measureProcessing(profiler, "crossing-candidates", () =>
+                    createProvisionalRiverCrossing(input)
+                  );
                   item = "candidate" in created ? { crossing: created.candidate, input } : null;
                   candidateCache.set(cacheKey, item);
                 }
@@ -394,7 +405,9 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
                 }
               }
             if (!candidates.length) return null;
-            const found = convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half);
+            const found = measureProcessing(profiler, "converge-road-legs", () =>
+              convergeRiverRoadLegs(origin, activeLegs, candidates, Math.SQRT2 * half)
+            );
             if (found && skewSet.length < skews.length && Math.abs(found.crossing.skewDegrees) === Math.abs(skews[1]))
               return evaluateBatch(batch, skews, requireSeaClearance) ?? found;
             return found;
@@ -420,10 +433,9 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
             half,
             water
           };
-          const valid = crossingsPayload(world, unit, burg, [
-            ...result.facilities.filter(f => f.burgId === burg.i),
-            facility
-          ]);
+          const valid = measureProcessing(profiler, "crossing-payload-validation", () =>
+            crossingsPayload(world, unit, burg, [...result.facilities.filter(f => f.burgId === burg.i), facility])
+          );
           if (!valid) break;
           for (const changed of merged.legs) {
             adoptedLegs.add(changed.id);
@@ -476,7 +488,7 @@ export function ensureConvergingWorldRiverRoads(world: WorldContext, unit: strin
     }
     world.pack.cells.routes = links;
   }
-  result.key = key(world, unit);
+  result.key = measureProcessing(profiler, "cache-key", () => key(world, unit));
   cache.set(world.pack, result);
   return result;
 }
