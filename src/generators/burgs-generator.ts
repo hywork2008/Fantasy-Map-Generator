@@ -53,6 +53,7 @@ import {
   normalizeHabitability
 } from "./frontierAnalysis";
 import { selectFrontierStartCapitals } from "./frontierStartPlacement";
+import { measureGenerationStep } from "./generationProfiler";
 import { type GiantHighlandOikoumene, seedGiantHighlandOikoumene } from "./giantHighlandOikoumene";
 import {
   chooseLowerGiantWaterworksSite,
@@ -130,6 +131,8 @@ class BurgModule {
   /** Burgs founded as overseas harbours: keep the town on the cell centre; the anchor sits at sea. */
   private landmassPortBurgIds = new Set<number>();
   private geometrySession?: SettlementGeometrySession;
+  /** Part of shiftSteps now running; fmg:perf attributes each async step to it. */
+  private shiftPhase = "prepare";
 
   // Assign port feature ids to burgs and position them appropriately
   shift(options: BurgShiftOptions = {}) {
@@ -146,7 +149,7 @@ class BurgModule {
       while (true) {
         if (options.signal?.aborted || this.worldContext.pack !== pack)
           throw new DOMException("Settlement placement cancelled", "AbortError");
-        const step = steps.next();
+        const step = measureGenerationStep(this.shiftPhase, () => steps.next());
         if (step.done) return;
         if (performance.now() - start < 8) continue;
         await yieldToEventLoop();
@@ -158,6 +161,7 @@ class BurgModule {
   }
 
   private *shiftSteps(options: BurgShiftOptions): Generator<void> {
+    this.shiftPhase = "prepare";
     if (options.connectStateLandmasses) this.ensureStateLandmassPorts();
 
     // States are known on the second shift during generation. Giant settlements retain their
@@ -174,6 +178,7 @@ class BurgModule {
         if (burg.i && !burg.lock) delete burg.port;
       }
 
+      this.shiftPhase = "ports";
       const candidatesByWater = this.collectPortCandidates(burgs);
       for (const candidates of candidatesByWater.values()) {
         if (!candidates.length) continue;
@@ -195,6 +200,7 @@ class BurgModule {
         yield;
       }
 
+      this.shiftPhase = "water-access";
       updateAllBurgWaterAccess(this.worldContext.pack);
       this.landmassPortBurgIds.clear();
     } finally {
@@ -794,6 +800,21 @@ class BurgModule {
   }
 
   private *shiftTowardsRiverBankSteps(
+    cellId: number,
+    riversById: Map<number, { i: number; cells: number[] }>,
+    origin?: Point
+  ): Generator<void, Point> {
+    // Also reached from port promotion; timed as bank positioning either way.
+    const previous = this.shiftPhase;
+    this.shiftPhase = "river-bank";
+    try {
+      return yield* this.riverBankSteps(cellId, riversById, origin);
+    } finally {
+      this.shiftPhase = previous;
+    }
+  }
+
+  private *riverBankSteps(
     cellId: number,
     _riversById: Map<number, { i: number; cells: number[] }>,
     origin?: Point
