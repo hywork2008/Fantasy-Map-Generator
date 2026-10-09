@@ -4,7 +4,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Route } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
-import { ensureConvergingWorldRiverRoads } from "./convergingWorldRiverRoads";
+import type { PreparedWorldRiverRoads } from "./convergingWorldRiverRoads";
 
 function intersection(a: number[], b: number[], c: number[], d: number[]) {
   const rx = b[0] - a[0],
@@ -20,10 +20,14 @@ function intersection(a: number[], b: number[], c: number[], d: number[]) {
   return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { point: [a[0] + t * rx, a[1] + t * ry] as [number, number], u } : null;
 }
 
+/** Map generation plans crossings on the routes as drawn. River-road convergence
+ * (CE bridge sites) runs only on demand; its facilities then replace the nearby raw crossings. */
+export const NO_RIVER_ROAD_CONVERGENCE: Pick<PreparedWorldRiverRoads, "facilities"> = { facilities: [] };
+
 /** Resolve crossings AFTER candidate land/water routes exist; never consumes world RNG. */
 export function resolveRiverRouteCrossings(
   world: WorldContext,
-  converged = ensureConvergingWorldRiverRoads(world, useOptionsState.getState().distanceUnit)
+  converged: Pick<PreparedWorldRiverRoads, "facilities">
 ): void {
   const { pack } = world;
   const landRoutes = (pack.routes ?? []).filter(r => r.group !== "searoutes" && !r.lock);

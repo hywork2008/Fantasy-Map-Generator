@@ -115,7 +115,7 @@ describe("committed FMG shared bridge geometry", () => {
       expect(Routes.getRenderPoints(r, world.pack)).toBe(r.points);
       expect(Routes.getPath(r, world.pack)).not.toContain("C");
     }
-    resolveRiverRouteCrossings(world);
+    resolveRiverRouteCrossings(world, prepared);
     for (const route of world.pack.routes) {
       expect(route.riverCrossings).toHaveLength(1);
       expect(route.riverCrossings![0].plan).toEqual(prepared.facilities[0].crossing.plan);

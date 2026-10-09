@@ -8,8 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
 import { bendRouteAwayFromCoast } from "../services/coastalRouteApproach";
-import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
-import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
+import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
@@ -41,7 +40,7 @@ import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
 import { isTrueOceanPortBurg } from "../utils/oceanPort";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
-import { activeGenerationProfiler, measureGenerationStep } from "./generationProfiler";
+import { measureGenerationStep } from "./generationProfiler";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import { getSettlementBaseSize } from "./settlementSuitability";
@@ -1617,11 +1616,13 @@ class RoutesModule {
     pack.routes = measureGenerationStep("createRoutesData", () =>
       this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode)
     );
-    const converged = measureGenerationStep("ensureConvergingWorldRiverRoads", () =>
-      ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit, activeGenerationProfiler())
-    );
+    // River-road convergence (shared bridge sites for CE) never decides which routes
+    // survive pruning (0 of 10 seeds, 2026-10-09) and moves FMG roads by < 0.3 px at
+    // zoom 1; it runs on demand when CE needs a burg site (getBurgSiteDescriptor).
     pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
-    measureGenerationStep("resolveRiverRouteCrossings", () => resolveRiverRouteCrossings(worldContext, converged));
+    measureGenerationStep("resolveRiverRouteCrossings", () =>
+      resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE)
+    );
     const { finalRiverGraph, finalSeaShipRiverGraph } = measureGenerationStep("river-navigation-graphs", () => ({
       finalRiverGraph: buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }),
       finalSeaShipRiverGraph: buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL })

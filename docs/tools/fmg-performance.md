@@ -86,10 +86,9 @@ npm run fmg:perf -- --compare temp/fmg-perf/before.jsonl temp/fmg-perf/after.jso
 | `load` / `regenerate` | 入口処理。`generation/world-runtime/<工程名>/<generator>` が生成本体 |
 | `coordinator-render` | fullReplace commit を受けた次フレームの全面描画 |
 | `generateExtensionEvent` | Map Ready 開始時の互換イベント |
-| `river-road-preparation` | 初回描画後の Map Ready task で行う道路・河川の最終調整（橋の位置・角度、横断計画）と道路の再描画 commit |
 | `map-ready-completed` | `fmg:map-ready-tasks-completed` の処理（初期土地利用、最後の全面描画） |
 
-`Routes.generate` と `ensureConvergingWorldRiverRoads` は内部工程も記録する（`coastal-route-neighbours`、`crossing-candidates` など。意味は [CE計測](ce-performance.md) の FMG工程表と同じ）。`drawLayers` の下は SVG renderer 単位。計測点を増やすときは、同期処理を `measureGenerationStep(label, fn)`、awaitする工程を `measureGenerationStepAsync(label, fn)` で包み、`ProcessingProfiler` を受け取るサービスには `activeGenerationProfiler()` を渡す（`src/generators/generationProfiler.ts`）。非同期工程は同時に一つだけ進む前提で、await 中に開始した無関係な計測はその工程の子として記録される。
+`Routes.generate` は内部工程も記録する。`ensureConvergingWorldRiverRoads` は地図生成では呼ばれなくなったが（CE 連携時のみ、2026-10-09）、呼ばれた場合は内部工程を記録する（`coastal-route-neighbours`、`crossing-candidates` など。意味は [CE計測](ce-performance.md) の FMG工程表と同じ）。`drawLayers` の下は SVG renderer 単位。計測点を増やすときは、同期処理を `measureGenerationStep(label, fn)`、awaitする工程を `measureGenerationStepAsync(label, fn)` で包み、`ProcessingProfiler` を受け取るサービスには `activeGenerationProfiler()` を渡す（`src/generators/generationProfiler.ts`）。非同期工程は同時に一つだけ進む前提で、await 中に開始した無関係な計測はその工程の子として記録される。
 
 ## 比較とリファクタリングの確認
 
@@ -116,3 +115,17 @@ npm run fmg:perf -- --compare temp/fmg-perf/before.jsonl temp/fmg-perf/after.jso
 3. 生成末尾の最終収束（橋を確定人口の都市窓で揃え直す処理）を、初回描画後の Map Ready task `core.riverRoadPreparation` へ移動。道路の残す/除くはそれより前の道路生成内で決まり、最終収束は橋の位置・角度と横断計画だけを整える
 
 残りの主な費用（seed 200000002、ms）: `Burgs.shiftAsync` 611、`OceanCurrents.generate` 564、道路生成内の収束 434、`drawLabelPath`（国名ラベル）約200。表示後では `initializeSettlementLandUse` 1,078、最終収束 333。
+
+## 道路・河川収束の移動（2026-10-09）
+
+道路・河川収束（`ensureConvergingWorldRiverRoads`、CE 用の共有橋位置）を、地図生成・初回描画後の Map Ready task・保存地図ロードのいずれからも外した。CE 連携（`getBurgSiteDescriptor`）で初めて必要になった時に行う。理由と CE 側の費用は [地図初期化プロセス](../map-initialization-process.md) の §3.2。
+
+条件: 上の基準値と同じ（各2回の中央値）。
+
+| 指標 | 変更前 | 変更後 | 差 |
+| --- | ---: | ---: | ---: |
+| mapShownMs | 1,984 | 1,544 | −439（−22%） |
+| totalMs | 3,638 | 2,834 | −804（−22%） |
+| `Routes.generate` | 455 | 約 29 | −426 |
+
+seed 200000002 の地図表示は 2.24 秒から 1.78 秒になり、2 秒目標の内側に入った。指紋は3 seed とも変わる。道路点列の違いが後続工程へ波及するためである。ただし道路の本数は同じだった。

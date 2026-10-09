@@ -538,6 +538,11 @@ export function ensureConvergingWorldRiverRoads(
   return result;
 }
 
+/** The cached preparation, without computing one. */
+export function peekConvergedWorldRiverRoads(world: WorldContext): PreparedWorldRiverRoads | undefined {
+  return cache.get(world.pack);
+}
+
 /** A prepared snapshot may be reused within one synchronous, non-mutating export. */
 export function convergedBurgFacilities(
   world: WorldContext,

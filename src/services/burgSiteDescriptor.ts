@@ -45,11 +45,13 @@ import {
   convergedBurgCrossings,
   convergedBurgFacilities,
   ensureConvergingWorldRiverRoads,
-  type PreparedWorldRiverRoads
+  type PreparedWorldRiverRoads,
+  peekConvergedWorldRiverRoads
 } from "./convergingWorldRiverRoads";
 import { exportFixedBurgCrossings } from "./fixedBurgCrossings";
 import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { footprintTouchesWater } from "./riverPhysicalGeometry";
+import { resolveRiverRouteCrossings } from "./riverRouteCrossings";
 import { settlementGeometrySession } from "./settlementGeometrySession";
 import { nearestSettlementBank, SETTLEMENT_RIVER_SETTINGS, settlementRiverGeometry } from "./settlementRiverSite";
 import { getWorldLandConnectionCurrent } from "./worldLandConnectionRuntime";
@@ -298,6 +300,22 @@ const HILLTOP_RELIEF_M = 30;
 
 type WeightedPoint = { x: number; y: number; w: number };
 
+/**
+ * Convergence runs on demand (first CE hand-off), not during map generation. It
+ * rewrote route points and links; refresh their crossing plans and redraw the
+ * roads in a separate commit after the current call, never nested inside one.
+ */
+function commitConvergedRoads(prepared: PreparedWorldRiverRoads): void {
+  queueMicrotask(() => {
+    void import("../runtime/worldRuntime").then(({ legacyMutation }) =>
+      legacyMutation(() => {
+        if (peekConvergedWorldRiverRoads(worldContext) === prepared) resolveRiverRouteCrossings(worldContext, prepared);
+        return { result: undefined, topics: ["map.networks"] };
+      })
+    );
+  });
+}
+
 export function getBurgSiteDescriptor(
   burgId: number,
   frameRequirements?: {
@@ -311,9 +329,11 @@ export function getBurgSiteDescriptor(
   const burg = pack.burgs?.[burgId];
   if (!burg?.i || burg.removed) return null;
 
+  const previousRoads = peekConvergedWorldRiverRoads(worldContext);
   const preparedRoads = measureProcessing(profiler, "world-road-convergence", () =>
     ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit, profiler)
   );
+  if (preparedRoads !== previousRoads && preparedRoads.changedRoutes.length) commitConvergedRoads(preparedRoads);
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const lotOccupancy = burgLotOccupancy(pack, burg);

@@ -11,15 +11,12 @@ import {
 import { getEarthRegion } from "./data/earthRegions";
 import { isFantasyCulturesSet } from "./data/raceCivicStance";
 import {
-  activeGenerationProfiler,
   beginGenerationProfile,
   markGenerationProfile,
   measureGenerationStep,
   measureGenerationStepAsync
 } from "./generators/generationProfiler";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
-import { ensureConvergingWorldRiverRoads } from "./services/convergingWorldRiverRoads";
-import { resolveRiverRouteCrossings } from "./services/riverRouteCrossings";
 import { settlementGeometrySession } from "./services/settlementGeometrySession";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
@@ -112,7 +109,7 @@ import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
 import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
-import { cancelMapReadyTasks, registerMapReadyTask, startMapReadyTasks } from "./runtime/mapReadyTaskCoordinator";
+import { cancelMapReadyTasks, startMapReadyTasks } from "./runtime/mapReadyTaskCoordinator";
 import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "./runtime/simulationMilitaryState";
@@ -591,8 +588,6 @@ export async function generateMapOnLoad(drawMap: boolean = true) {
   await measureGenerationStepAsync("load", async () => {
     await measureGenerationStepAsync("applyStyleOnLoad", applyStyleOnLoad);
     if (!(await runGenerationProfiled())) return;
-    // Headless generation has no Map Ready pass to finish the deferred preparation.
-    if (!drawMap) finishRiverRoadPreparation();
     if (drawMap) {
       measureGenerationStep("applyLayersPreset", applyLayersPreset);
       measureGenerationStep("drawLayers", drawLayers);
@@ -1145,7 +1140,6 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   // would then index pack.states that no longer exist.
   delete simulationContext.landUse;
   pendingInitialLandUse = true;
-  pendingRiverRoadPreparation = false;
   beginInitialLandUse(worldContext);
   simulationContext.frontier = createEmptyFrontierSimulationState();
   simulationContext.wilderness = createEmptyWildernessEcologyState();
@@ -1328,8 +1322,6 @@ function getGenerationStages(): Array<() => Promise<void>> {
       });
       step("applyHistoricalWarScars", applyHistoricalWarScars);
       step("Threats.appendCasualtyNotes", () => Threats.appendCasualtyNotes(worldContext));
-      // Final river-crossing alignment runs after the first paint (finishRiverRoadPreparation).
-      pendingRiverRoadPreparation = true;
       step("Names.getMapName", () => Names.getMapName(false));
       if (!worldContext.mapId) worldContext.mapId = Date.now();
     }
@@ -1337,41 +1329,6 @@ function getGenerationStages(): Array<() => Promise<void>> {
 }
 
 let pendingInitialLandUse = false;
-let pendingRiverRoadPreparation = false;
-
-/**
- * Finish CE preparation after route pruning, burg details and seasonal hydrology:
- * bridges re-aligned to the final burg populations, and their crossing plans.
- * Deferred from the pipeline so the map is drawn first; the routes are redrawn
- * by the map.networks commit. It is idempotent, and every consumer (CE hand-off,
- * load, route editing) still prepares on demand, so running it late is safe.
- */
-function finishRiverRoadPreparation(): void {
-  if (!pendingRiverRoadPreparation) return;
-  pendingRiverRoadPreparation = false;
-  measureGenerationStep("river-road-preparation", () =>
-    legacyMutation(() => {
-      const prepared = measureGenerationStep("ensureConvergingWorldRiverRoads", () =>
-        ensureConvergingWorldRiverRoads(
-          worldContext,
-          useOptionsState.getState().distanceUnit,
-          activeGenerationProfiler()
-        )
-      );
-      if (prepared.changedRoutes.length)
-        measureGenerationStep("resolveRiverRouteCrossings", () => resolveRiverRouteCrossings(worldContext, prepared));
-      return { result: undefined, topics: ["map.networks"] };
-    })
-  );
-}
-
-// Registered at module load, before any extension task, so extensions keep
-// seeing the aligned routes exactly as when this ran inside the pipeline.
-registerMapReadyTask({
-  id: "core.riverRoadPreparation",
-  label: "Aligning river crossings",
-  run: finishRiverRoadPreparation
-});
 
 const GENERATION_REVIEW_SVG_LAYER_IDS = [
   "oceanLayers",

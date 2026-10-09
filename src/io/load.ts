@@ -42,9 +42,7 @@ import {
 } from "../runtime/worldArchive";
 import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
 import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
-import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
 import { declareFont, fonts } from "../services/fonts";
-import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
@@ -319,14 +317,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
         return { result: undefined, topics: ["map.networks"] };
       });
     }
-    legacyMutation(() => {
-      const converged = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
-      if (converged.changedRoutes.length) {
-        worldContext.pack.cells.routes = Routes.buildLinks(worldContext.pack.routes);
-        resolveRiverRouteCrossings(worldContext, converged);
-      }
-      return { result: undefined, topics: ["map.networks"] };
-    });
+    // Saved routes keep their converged bridge approaches; CE re-prepares on demand.
     // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
     legacyMutation(() => {
       migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
