@@ -154,7 +154,9 @@ function collectObstacles(document: CityDocument): {
 }
 
 type Box = [number, number, number, number];
-type SurveyedWater = { rings: Point[][]; box: Box };
+/** A ring with its edges bucketed by y band: a ray cast only meets edges spanning its y. */
+type BandedRing = { ring: Point[]; minY: number; maxY: number; bandHeight: number; bands: number[][] };
+type SurveyedWater = { rings: Point[][]; banded: BandedRing[]; box: Box };
 const surveyedWaterCache = new WeakMap<CityDocument, SurveyedWater[]>();
 
 function ringsBox(rings: Point[][]): Box {
@@ -178,17 +180,48 @@ function surveyedWater(document: CityDocument): SurveyedWater[] {
         w.rings.map(ring => ring.map((p): Point => [p[0], p[1]]))
       )
     ].filter(rings => rings.some(ring => ring.length >= 3));
-    water = sources.map(rings => ({ rings, box: ringsBox(rings) }));
+    water = sources.map(rings => ({ rings, banded: rings.map(bandRing), box: ringsBox(rings) }));
     surveyedWaterCache.set(document, water);
   }
   return water;
+}
+
+function bandRing(ring: Point[]): BandedRing {
+  const ys = ring.map(p => p[1]);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const count = Math.max(1, ring.length);
+  const bandHeight = (maxY - minY) / count;
+  const bands: number[][] = Array.from({ length: count }, () => []);
+  const band = (y: number) => (bandHeight > 0 ? Math.min(count - 1, Math.floor((y - minY) / bandHeight)) : 0);
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const lo = Math.min(ring[i][1], ring[j][1]);
+    const hi = Math.max(ring[i][1], ring[j][1]);
+    for (let b = band(lo); b <= band(hi); b++) bands[b].push(i);
+  }
+  return { ring, minY, maxY, bandHeight, bands };
+}
+
+/** `pointInPolygon` over the band's edges only. Same per-edge test, so the same parity. */
+function inBandedRing(p: Point, banded: BandedRing): boolean {
+  const { ring, minY, maxY, bandHeight, bands } = banded;
+  // No edge straddles a ray outside the ring's y range.
+  if (p[1] < minY || p[1] >= maxY) return false;
+  const band = bands[bandHeight > 0 ? Math.min(bands.length - 1, Math.floor((p[1] - minY) / bandHeight)) : 0];
+  let inside = false;
+  for (const i of band) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[i === 0 ? ring.length - 1 : i - 1];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 /** Even-odd over a water body's rings, so islands stay dry. */
 function inWater(p: Point, water: SurveyedWater): boolean {
   const [x0, y0, x1, y1] = water.box;
   if (p[0] < x0 || p[0] > x1 || p[1] < y0 || p[1] > y1) return false;
-  return water.rings.filter(ring => pointInPolygon(p, ring)).length % 2 === 1;
+  return water.banded.filter(ring => inBandedRing(p, ring)).length % 2 === 1;
 }
 
 function dryAt(document: CityDocument, p: Point): boolean {

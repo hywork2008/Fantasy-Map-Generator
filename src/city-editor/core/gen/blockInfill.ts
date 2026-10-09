@@ -5,7 +5,7 @@ import { landmarkReservationHits } from "../landmarks";
 import { edgeBetween, facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Id, Point } from "../types";
-import { dryRuns, lineHitsDocumentWater, polygonHitsDocumentWater, waterPolygons } from "../waterGeometry";
+import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "../waterGeometry";
 import { type AerialLandmarkPlan, aerialLandmarkFootprints, buildAerialLandmarkPlan } from "./aerialLandmarks";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
@@ -244,6 +244,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   const fixedRoads = new FixedRoadReservation(document);
   const moat = new MoatReservation(document, 2);
   const shore = oceanShoreSegments(document);
+  const lotHitsWater = documentWaterTest(document);
   const buildings = rebuildLandmarkHousing(document, fabric.buildings, [
     ...fabric.lanes,
     ...(fabric.parcels ?? []).flatMap(parcel =>
@@ -256,7 +257,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     lot =>
       !moat.hitsPolygon(lot.polygon) &&
       !fixedRoads.hitsPolygon(lot.polygon) &&
-      !polygonHitsDocumentWater(document, lot.polygon) &&
+      !lotHitsWater(lot.polygon) &&
       (document.mesh.faces[lot.faceId]?.properties.locked ||
         document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
         !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
@@ -320,6 +321,8 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     members.push(building);
     parcelBuildings.set(building.parcelId, members);
   }
+  // Nothing below edits the document, so one validated water test serves every filter.
+  const hitsWater = documentWaterTest(document);
   return {
     ...fabric,
     buildings: nonMillBuildings,
@@ -327,7 +330,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       .filter(
         lane =>
           !document.importedFixedCrossings ||
-          !lineHitsDocumentWater(document, lane.points, Math.max(lane.widthMeters, 0.35))
+          !lineHitsDocumentWater(document, lane.points, Math.max(lane.widthMeters, 0.35), false, hitsWater)
       )
       .flatMap(lane =>
         moat
@@ -344,7 +347,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       farm =>
         !landmarkReservationHits(document, farm.polygon) &&
         !moat.hitsPolygon(farm.polygon) &&
-        !polygonHitsDocumentWater(document, farm.polygon) &&
+        !hitsWater(farm.polygon) &&
         !displaced(farm.polygon)
     ),
     openSpaces,
@@ -363,7 +366,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
               .filter(
                 access =>
                   !document.importedFixedCrossings ||
-                  !lineHitsDocumentWater(document, access.points, access.widthMeters)
+                  !lineHitsDocumentWater(document, access.points, access.widthMeters, false, hitsWater)
               )
               .flatMap(access =>
                 moat
