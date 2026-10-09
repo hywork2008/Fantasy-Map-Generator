@@ -244,7 +244,13 @@ export interface CityGeography {
   seaPort?: boolean;
   /** `regionalShore` is the full-resolution FMG shore across the whole frame, translated
    * like `corridor`; the corridor itself is a coarse walk guide for the town mesh only. */
-  coast: { corridor: Point[]; waterAzimuthDeg: number; regionalShore?: Point[] } | null;
+  coast: {
+    corridor: Point[];
+    waterAzimuthDeg: number;
+    regionalShore?: Point[];
+    /** Other runs of the same FMG coast in the frame, each with a point on its water side. */
+    regionalExtraShores?: { line: Point[]; wet: Point }[];
+  } | null;
   rivers: {
     corridor: Point[];
     widths: number[];
@@ -264,6 +270,7 @@ export interface CityGeography {
     corridor: Point[];
     waterAzimuthDeg: number;
     regionalShore?: Point[];
+    regionalExtraShores?: { line: Point[]; wet: Point }[];
     kind: "ocean" | "lake" | "river";
   }[];
   /** On-site rivers wider than the era can bridge. Each polygon is the channel

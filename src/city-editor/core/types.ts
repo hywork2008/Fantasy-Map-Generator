@@ -391,6 +391,8 @@ export interface CityDocument {
   landmarkAssets?: LandmarkAsset[];
   /** Sea beyond the town mesh: FMG's drawn shore closed against the display frame. Subtracted from the mesh at use. */
   regionalWaterAreas?: Point[][];
+  /** FMG islands, lakes and off-map area across the display frame; drawn only outside the mesh. */
+  regionalSurface?: import("./gen/site/burgSiteDescriptor").BurgSiteRegionalSurface;
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
   /** Number of source FMG land-road legs; absent for standalone/legacy documents. */

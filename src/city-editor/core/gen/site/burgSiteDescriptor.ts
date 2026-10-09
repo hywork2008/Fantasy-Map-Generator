@@ -115,6 +115,16 @@ export interface BurgSiteWaterbody {
   shoreAzimuthDeg: number;
   /** Shoreline polylines clipped to the window, local meters. Water on the haven side. */
   shoreline: [number, number][][];
+  /** Per `shoreline` run, the side of its travel direction that is water. */
+  shorelineWaterSide?: ("left" | "right")[];
+}
+
+/** FMG surface knowledge for the display frame beyond the burg's own coast. */
+export interface BurgSiteRegionalSurface {
+  /** Other FMG islands and lakes clipped to the frame, largest first. */
+  features: { kind: "land" | "water"; ring: [number, number][] }[];
+  /** Frame area beyond the FMG map edge: FMG has no terrain there. */
+  unknown: [number, number][][];
 }
 
 export interface BurgSiteTerrain {
@@ -191,6 +201,7 @@ export interface BurgSiteDescriptor {
   historicalPeriod?: import("../../types").HistoricalPeriod;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
+  regionalSurface?: BurgSiteRegionalSurface;
   roads: BurgSiteRoadEntry[];
   suggestedGates: number;
   suggestedArchetype: BurgSiteArchetype;

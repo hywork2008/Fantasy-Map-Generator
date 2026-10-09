@@ -179,6 +179,19 @@ export interface BurgSiteWaterbody {
   shoreAzimuthDeg: number;
   /** Shoreline polylines clipped to the extent box, local meters. Water lies on the haven side. */
   shoreline: [number, number][][];
+  /** Per `shoreline` run, the side of its direction of travel that is water.
+   * Lets the City Editor close secondary coast runs (a cape across a corner)
+   * that never meet the town mesh. Absent in older descriptors. */
+  shorelineWaterSide?: ("left" | "right")[];
+}
+
+/** FMG surface knowledge for the display frame beyond the burg's own coast. */
+export interface BurgSiteRegionalSurface {
+  /** Other drawn FMG features in the frame (islands, lakes), clipped to the
+   * frame, largest first so nested features paint over their parents. */
+  features: { kind: "land" | "water"; ring: [number, number][] }[];
+  /** Frame area beyond the FMG map edge: FMG has no terrain there. */
+  unknown: [number, number][][];
 }
 
 export interface BurgSiteTerrain {
@@ -280,6 +293,8 @@ export interface BurgSiteDescriptor {
   historicalPeriod?: string;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
+  /** Absent in older descriptors, which then know nothing beyond the haven coast. */
+  regionalSurface?: BurgSiteRegionalSurface;
   roads: BurgSiteRoadEntry[];
   /** Count of land route legs — the natural number of town gates. */
   suggestedGates: number;
@@ -497,6 +512,9 @@ export function getBurgSiteDescriptor(
     collectWaterbody(burg, toLocal, half, metersPerMapUnit)
   );
   const terrain = measureProcessing(profiler, "terrain", () => collectTerrain(burg, half, metersPerMapUnit));
+  const regionalSurface = measureProcessing(profiler, "regional-surface", () =>
+    collectRegionalSurface(burg, toLocal, half, metersPerMapUnit)
+  );
 
   const roadLegCount = roads.filter(road => road.group !== "searoutes").length;
   const suggestedArchetype = measureProcessing(profiler, "archetype", () =>
@@ -633,6 +651,7 @@ export function getBurgSiteDescriptor(
     ...burgCivilization(burg, rivers.length > 0),
     rivers,
     waterbody,
+    regionalSurface,
     roads,
     suggestedGates: roadLegCount,
     suggestedArchetype
@@ -1440,7 +1459,16 @@ function collectWaterbody(
         maxY: burg.y + margin
       })
     : [];
-  const ring: [number, number][] = drawn.map(([x, y]) => toLocal(x, y));
+  let ring: [number, number][] = drawn.map(([x, y]) => toLocal(x, y));
+  // Start the closed ring outside the window, so one coast crossing the
+  // window is not split in two at the ring's arbitrary start vertex.
+  const outside = ring.findIndex(([x, y]) => Math.abs(x) > half || Math.abs(y) > half);
+  if (outside > 0) ring = [...ring.slice(outside), ...ring.slice(0, outside)];
+  // Local frame is Y-up: a positive shoelace area is counter-clockwise, with
+  // the feature's interior on the left of travel. The interior is land for an
+  // ocean coast (land feature chain) and water for a lake.
+  const interiorLeft = signedArea(ring) > 0;
+  const waterSide: "left" | "right" = interiorLeft === (kind === "lake") ? "left" : "right";
   if (ring.length > 1) ring.push(ring[0]); // close the ring
 
   const [havenX, havenY] = toLocal(...pack.cells.p[haven]);
@@ -1457,8 +1485,121 @@ function collectWaterbody(
     ...(waterFeature.group ? { group: waterFeature.group } : {}),
     isPort: Boolean(burg.port),
     shoreAzimuthDeg: azimuthDeg(havenX, havenY),
-    shoreline
+    shoreline,
+    shorelineWaterSide: shoreline.map(() => waterSide)
   };
+}
+
+function signedArea(ring: [number, number][]): number {
+  let area = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [ax, ay] = ring[i];
+    const [bx, by] = ring[(i + 1) % ring.length];
+    area += ax * by - bx * ay;
+  }
+  return area / 2;
+}
+
+/** Sutherland–Hodgman clip of a closed ring to the centred square window. */
+function clipRingToBox(ring: [number, number][], half: number): [number, number][] {
+  let out = ring;
+  const edges: [0 | 1, 1 | -1][] = [
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [1, -1]
+  ];
+  for (const [axis, sign] of edges) {
+    const input = out;
+    out = [];
+    const inside = (p: [number, number]) => sign * p[axis] <= half;
+    for (let i = 0; i < input.length; i++) {
+      const a = input[i];
+      const b = input[(i + 1) % input.length];
+      if (inside(a)) out.push(a);
+      if (inside(a) !== inside(b)) {
+        const t = (sign * half - a[axis]) / (b[axis] - a[axis]);
+        out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      }
+    }
+    if (out.length < 3) return [];
+  }
+  return out.map(([x, y]) => [rn(x, 1), rn(y, 1)]);
+}
+
+/** Islands and lakes in the window other than the burg's own landmass and
+ * haven water, plus the part of the window beyond the map edge. Without them
+ * the City Editor can only fill everything outside its mesh with the burg's
+ * own biome — inventing land over open sea or hiding a real lake. */
+function collectRegionalSurface(
+  burg: Burg,
+  toLocal: (x: number, y: number) => [number, number],
+  half: number,
+  metersPerMapUnit: number
+): BurgSiteRegionalSurface {
+  const { pack, graphWidth, graphHeight } = worldContext;
+  const own = pack.cells.f[burg.cell];
+  const haven = pack.cells.haven[burg.cell] ? pack.cells.f[pack.cells.haven[burg.cell]] : -1;
+  const reach = half / metersPerMapUnit;
+  const margin = reach * 1.5;
+  const bounds = { minX: burg.x - margin, maxX: burg.x + margin, minY: burg.y - margin, maxY: burg.y + margin };
+  const features: (BurgSiteRegionalSurface["features"][number] & { area: number })[] = [];
+  for (const feature of pack.features) {
+    if (!feature || feature.i === own || feature.i === haven || !feature.vertices?.length) continue;
+    const kind = feature.land ? "land" : feature.type === "lake" ? "water" : null;
+    if (!kind) continue; // the ocean is the complement of the land features
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+    for (const v of feature.vertices) {
+      const p = pack.vertices.p[v];
+      if (!p) continue;
+      minX = Math.min(minX, p[0]);
+      maxX = Math.max(maxX, p[0]);
+      minY = Math.min(minY, p[1]);
+      maxY = Math.max(maxY, p[1]);
+    }
+    // Drawn coasts are smoothed and fractalized around the raw vertices; keep
+    // a one-cell slack so a feature whose drawn edge enters the window counts.
+    const slack = 2 * Math.sqrt((graphWidth * graphHeight) / Math.max(1, pack.cells.i.length));
+    if (
+      maxX < bounds.minX - slack ||
+      minX > bounds.maxX + slack ||
+      maxY < bounds.minY - slack ||
+      minY > bounds.maxY + slack
+    )
+      continue;
+    const shape = drawnFeatureShape(worldContext, feature);
+    if (!shape) continue;
+    const ring = clipRingToBox(
+      sampleCoastlineShape(shape, 1 / metersPerMapUnit, bounds).map(([x, y]) => toLocal(x, y)),
+      half
+    );
+    const area = Math.abs(signedArea(ring));
+    if (ring.length >= 3 && area > 1) features.push({ kind, ring, area });
+  }
+  features.sort((a, b) => b.area - a.area);
+  // Window parts beyond the map rectangle, as up to four non-overlapping strips.
+  const [left, top] = toLocal(0, 0);
+  const [right, bottom] = toLocal(graphWidth, graphHeight);
+  const unknown: [number, number][][] = [];
+  const box = (x0: number, y0: number, x1: number, y1: number) => {
+    if (x1 - x0 > 0.5 && y1 - y0 > 0.5)
+      unknown.push([
+        [rn(x0, 1), rn(y0, 1)],
+        [rn(x1, 1), rn(y0, 1)],
+        [rn(x1, 1), rn(y1, 1)],
+        [rn(x0, 1), rn(y1, 1)]
+      ]);
+  };
+  box(-half, -half, Math.min(left, half), half);
+  box(Math.max(right, -half), -half, half, half);
+  const x0 = Math.max(left, -half),
+    x1 = Math.min(right, half);
+  box(x0, Math.max(top, -half), x1, half);
+  box(x0, -half, x1, Math.min(bottom, half));
+  return { features: features.map(({ kind, ring }) => ({ kind, ring })), unknown };
 }
 
 function collectTerrain(burg: Burg, half: number, metersPerMapUnit: number): BurgSiteTerrain {

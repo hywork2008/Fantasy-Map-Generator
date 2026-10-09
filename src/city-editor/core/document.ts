@@ -391,6 +391,7 @@ function isDocument(value: unknown): value is CityDocument {
             ring.length >= 3 &&
             ring.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
         ))) &&
+    (doc.regionalSurface === undefined || validRegionalSurface(doc.regionalSurface)) &&
     (doc.waterAreas === undefined ||
       (Array.isArray(doc.waterAreas) &&
         doc.waterAreas.every(
@@ -434,4 +435,24 @@ function isDocument(value: unknown): value is CityDocument {
 
 function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
+}
+
+function validRegionalSurface(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const surface = value as { features?: unknown; unknown?: unknown };
+  const ring = (r: unknown) =>
+    Array.isArray(r) &&
+    r.length >= 3 &&
+    r.length <= 20000 &&
+    r.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite));
+  return (
+    Array.isArray(surface.features) &&
+    surface.features.length <= 1000 &&
+    surface.features.every(
+      f => f && (f.kind === "land" || f.kind === "water") && ring((f as { ring: unknown }).ring)
+    ) &&
+    Array.isArray(surface.unknown) &&
+    surface.unknown.length <= 4 &&
+    surface.unknown.every(ring)
+  );
 }

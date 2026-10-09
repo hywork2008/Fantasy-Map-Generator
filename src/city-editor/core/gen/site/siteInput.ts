@@ -386,11 +386,20 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
   const wb = site.waterbody;
   if (!wb) return null;
   const waterAzimuthDeg = wb.shoreAzimuthDeg;
-  const longest = wb.shoreline
-    .map(line => line as Point[])
-    .filter(line => line.length >= 2)
-    .sort((a, b) => polylineLength(b) - polylineLength(a))[0];
+  const runs = wb.shoreline
+    .map((line, index) => ({ line: line as Point[], side: wb.shorelineWaterSide?.[index] }))
+    .filter(run => run.line.length >= 2)
+    .sort((a, b) => polylineLength(b.line) - polylineLength(a.line));
+  const longest = runs[0]?.line;
   if (longest) {
+    // Further runs of the same coast cross the frame away from the town (a
+    // cape over a corner). Only their FMG water side places them; a run with
+    // no recorded side stays unknown rather than guessed.
+    let extraShores = runs.slice(1).flatMap(({ line, side }) => {
+      if (!side) return [];
+      const wet = waterSideWitness(line, side);
+      return wet ? [{ line: line.map(p => [p[0], p[1]] as Point), wet }] : [];
+    });
     const shore = keepImportedLandDry(site, longest, azimuthToVec(waterAzimuthDeg));
     let corridor = downsample(shore, CORRIDOR_POINTS);
     let regionalShore: Point[] = shore.map(p => [p[0], p[1]]);
@@ -408,9 +417,16 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
           uy = hit.point[1] / hit.dist;
         corridor = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
         regionalShore = regionalShore.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
+        const move = (p: Point): Point => [p[0] - ux * shift, p[1] - uy * shift];
+        extraShores = extraShores.map(extra => ({ line: extra.line.map(move), wet: move(extra.wet) }));
       }
     }
-    return { corridor, waterAzimuthDeg, regionalShore };
+    return {
+      corridor,
+      waterAzimuthDeg,
+      regionalShore,
+      ...(extraShores.length ? { regionalExtraShores: extraShores } : {})
+    };
   }
   // A river/estuary port can have a sea haven on the coarse FMG cell while
   // the actual sea shore is outside this city window. Its local river bank is
@@ -426,6 +442,23 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     corridor: syntheticShoreCorridor(waterAzimuthDeg, site.frame.extentMeters, site.frame.cityRadiusMeters),
     waterAzimuthDeg
   };
+}
+
+/** A point just off the longest segment of `line`, on its `side` of travel. */
+function waterSideWitness(line: Point[], side: "left" | "right"): Point | null {
+  let best = -1,
+    bestLength = 0;
+  for (let i = 1; i < line.length; i++) {
+    const length = Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+    if (length > bestLength) [best, bestLength] = [i, length];
+  }
+  if (best < 0 || bestLength < 1e-6) return null;
+  const [a, b] = [line[best - 1], line[best]];
+  const [tx, ty] = [(b[0] - a[0]) / bestLength, (b[1] - a[1]) / bestLength];
+  // Y-up local frame: the left normal of travel (tx, ty) is (-ty, tx).
+  const sign = side === "left" ? 1 : -1;
+  const offset = Math.min(2, bestLength / 4);
+  return [(a[0] + b[0]) / 2 - ty * sign * offset, (a[1] + b[1]) / 2 + tx * sign * offset];
 }
 
 /** Imported features the pulled-in coast must leave on dry land, with this margin. */

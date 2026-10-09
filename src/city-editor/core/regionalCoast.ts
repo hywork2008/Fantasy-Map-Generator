@@ -27,17 +27,47 @@ export function regionalCoastalWaterPolygons(doc: CityDocument): Point[][] {
     .join(";")}`;
   const previous = cache.get(doc);
   if (previous?.key === key) return previous.polygons;
+  const polygons = outsideMesh(doc, areas);
+  cache.set(doc, { key, polygons });
+  return polygons;
+}
+
+/** Convex pieces of `rings` that lie outside the town mesh's outer boundary. */
+function outsideMesh(doc: CityDocument, rings: Point[][]): Point[][] {
   const core = boundaryRings(doc.mesh, boundaryEdges(doc.mesh, Object.keys(doc.mesh.faces)))
     .map(refs => refPoints(doc.mesh, refs))
     .sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)))[0];
   const coreParts = core?.length ? convexInfillParts(core) : [];
-  const polygons = areas.flatMap(ring => {
+  return rings.flatMap(ring => {
     let parts = triangularInfillParts(ring);
     for (const corePart of coreParts) parts = parts.flatMap(part => subtractConvex(part, corePart, 0.001));
     return parts;
   });
-  cache.set(doc, { key, polygons });
-  return polygons;
+}
+
+export interface RegionalSurfaceLayer {
+  kind: "land" | "water" | "unknown";
+  parts: Point[][];
+}
+
+const surfaceCache = new WeakMap<CityDocument, RegionalSurfaceLayer[]>();
+
+/** FMG islands and lakes beyond the town mesh, in paint order (largest first,
+ * so a lake on an island paints over it), followed by the frame area beyond
+ * the FMG map edge, which FMG knows nothing about and must not show terrain. */
+export function regionalSurfaceLayers(doc: CityDocument): RegionalSurfaceLayer[] {
+  const surface = doc.regionalSurface;
+  if (!surface || !Object.keys(doc.mesh.vertices).length) return [];
+  const cached = surfaceCache.get(doc);
+  if (cached) return cached;
+  const layers: RegionalSurfaceLayer[] = [
+    ...surface.features.map(feature => ({ kind: feature.kind, parts: outsideMesh(doc, [feature.ring as Point[]]) })),
+    ...(surface.unknown.length
+      ? [{ kind: "unknown" as const, parts: outsideMesh(doc, surface.unknown as Point[][]) }]
+      : [])
+  ].filter(layer => layer.parts.length);
+  surfaceCache.set(doc, layers);
+  return layers;
 }
 
 /** Longest run of the polyline inside the frame, cut exactly at the frame edge.

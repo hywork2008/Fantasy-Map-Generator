@@ -35,7 +35,7 @@ import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { MoatReservation } from "../core/moats";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
-import { regionalCoastalWaterPolygons } from "../core/regionalCoast";
+import { regionalCoastalWaterPolygons, regionalSurfaceLayers } from "../core/regionalCoast";
 import type {
   CityDocument,
   CityElement,
@@ -253,6 +253,29 @@ export function renderEditorSvg(
         class: "ce-face ce-face--sea"
       })
     );
+    svg.appendChild(layer);
+  }
+
+  // Beyond the mesh, paint only what FMG knows: its islands and lakes over
+  // the regional sea, and a neutral "no data" fill past the FMG map edge
+  // instead of the burg's biome continuing into nowhere.
+  const surfaceLayers = regionalSurfaceLayers(document);
+  if (surfaceLayers.length) {
+    const layer = element("g", { class: "ce-regional-surface", "pointer-events": "none" });
+    for (const surface of surfaceLayers) {
+      const d = surface.parts.map(polygon).join(" ");
+      layer.appendChild(
+        surface.kind === "water"
+          ? element("path", { d, class: "ce-face ce-face--sea", "data-regional-surface": "water" })
+          : element("path", {
+              d,
+              fill: surface.kind === "land" ? (document.appearance === "town" ? groundColor : "#e1dfd4") : "#cfcdc6",
+              stroke: surface.kind === "land" ? "none" : "#cfcdc6",
+              "stroke-width": "0.5",
+              "data-regional-surface": surface.kind
+            })
+      );
+    }
     svg.appendChild(layer);
   }
 

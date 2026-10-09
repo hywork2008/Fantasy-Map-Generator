@@ -4,6 +4,7 @@ import { nearestOnPolyline, pointInPolygon } from "../core/gen/geom";
 import { makeRng } from "../core/gen/prng";
 import type { BurgSiteBiome } from "../core/gen/site/burgSiteDescriptor";
 import { facePoints } from "../core/mesh";
+import { regionalSurfaceLayers } from "../core/regionalCoast";
 import type { CityDocument, Point } from "../core/types";
 import { waterPolygons } from "../core/waterGeometry";
 import type { RenderQuality } from "./svg";
@@ -665,6 +666,7 @@ export function renderLandscapeLayer(
 
   // 1. Collect exclusion geometry
   const waters = waterPolygons(document);
+  const surfaceLayers = regionalSurfaceLayers(document);
   const waterAreas = document.waterAreas ?? [];
   const wallRing = outerWallRing(document);
 
@@ -718,8 +720,12 @@ export function renderLandscapeLayer(
       if (pt[0] < box[0] || pt[0] > box[2] || pt[1] < box[1] || pt[1] > box[3]) continue;
       if (pointInPolygon(pt, ring)) return true;
     }
-    // Water exclusion
-    if (waters.some(poly => pointInPolygon(pt, poly))) return true;
+    // FMG surface beyond the mesh: the topmost feature decides (island land
+    // inside the regional sea keeps its vegetation; lakes and no-data do not).
+    const surface = surfaceLayers.findLast(layer => layer.parts.some(part => pointInPolygon(pt, part)));
+    if (surface) {
+      if (surface.kind !== "land") return true;
+    } else if (waters.some(poly => pointInPolygon(pt, poly))) return true;
     if (waterAreas.some(w => pointInPolygon(pt, w.polygon))) return true;
     for (const group of document.featureGroups) {
       if (group.kind === "river") {
