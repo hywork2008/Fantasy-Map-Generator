@@ -1,4 +1,5 @@
 import { type PhysicalWaterPolygon, pointInWater } from "../../../../services/riverPhysicalGeometry";
+import { resolveBridgeCrossingLimit } from "../../../../utils/bridgeCrossingPolicy";
 import { townMeshExtentMeters } from "../../document";
 import type { CityGeography, Point } from "../types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
@@ -38,9 +39,21 @@ export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<City
       path.push(...landed);
     }
     const terminal = path.at(-1)!;
+    // A road that FMG runs into the river with no surveyed bridge is a ferry:
+    // it ends at a landing on the town bank (Toyora's 2.5 km river).
     const landing =
-      road.sharedCrossingId !== undefined && Math.max(Math.abs(terminal[0]), Math.abs(terminal[1])) < half - 1e-7;
+      (road.sharedCrossingId !== undefined || (landed !== null && ferryRiver(site, road.path.at(-1)!))) &&
+      Math.max(Math.abs(terminal[0]), Math.abs(terminal[1])) < half - 1e-7;
     return [{ sourceIndex, routeId: road.routeId, path, ...(landing ? { riverLanding: true } : {}) }];
+  });
+}
+
+/** True when the road's end lies in a surveyed river no era's bridge spans. */
+function ferryRiver(site: BurgSiteDescriptor, end: readonly [number, number]): boolean {
+  const limit = resolveBridgeCrossingLimit(site.historicalPeriod, site.transport);
+  return (site.fixedCrossings?.rivers ?? []).some(river => {
+    const width = site.rivers.find(item => item.riverId === river.id)?.widthMeters ?? 0;
+    return width > limit && pointInWater([end[0], end[1]], { id: river.id, rings: river.rings });
   });
 }
 

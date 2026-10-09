@@ -1,4 +1,5 @@
 import { normalWaterSection, type PhysicalWaterPolygon, pointInWater } from "../../services/riverPhysicalGeometry";
+import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 import { planRiverCrossing } from "../../utils/riverCrossing";
 import { BRIDGE_BANK_SEAT } from "./bridgeDeck";
 import { townMeshExtentMeters } from "./document";
@@ -193,9 +194,17 @@ function piecesFor(
     absorb(slicePath(path, consumed, interval.start));
     const bridge = planBridge(interval, path, site, decks);
     if (!bridge) {
-      const around = skirtInterval(path, interval);
+      // FMG runs the road into a river no era's bridge spans and ends it
+      // there: that is a ferry. Stop at the landing instead of running along
+      // the bank to the frame (Toyora's 2.5 km river).
+      const river = interval.body.river;
+      const ferry =
+        total - interval.end < 1e-3 &&
+        !!river &&
+        river.widthMeters > resolveBridgeCrossingLimit(site.historicalPeriod, site.transport);
+      const around = ferry ? null : skirtInterval(path, interval);
       if (!around) {
-        landOnFrame(dry, path, bodies, half);
+        if (!ferry) landOnFrame(dry, path, bodies, half);
         flush();
         return finish(pieces, half);
       }

@@ -78,6 +78,7 @@ import {
   polygonCentroid,
   polygonTouchesRectEdge,
   polylineCrossesSegment,
+  polylineLength,
   segmentSegmentHit
 } from "./gen/geom";
 import { spawnHarborShips } from "./gen/harborShips";
@@ -4625,6 +4626,29 @@ export function completeRoadRouter(
       }
       if (nodes && graph.points[nodes[0]].some(value => Math.abs(value) >= document.frame.extentMeters / 2 - 0.01))
         break;
+    }
+    // A ferry landing just outside the gate leaves no room for an approach
+    // between the curtain and the bank (Toyora: ~15 m). The gate is the
+    // landing; its outward arm is the whole approach road.
+    if (
+      outside &&
+      !nodes &&
+      gateIds.has(ids[hopEndOf]) &&
+      polylineLength(polyline) < document.frame.blockSizeMeters * 1.5
+    ) {
+      const start = polyline[0];
+      let best: number | undefined;
+      let bestDist = Infinity;
+      for (const { to, w } of graph.adjacency[hopEndOf]) {
+        if (!Number.isFinite(weight(to, hopEndOf, w, hopEndOf))) continue;
+        const at = graph.points[to];
+        const dist = Math.hypot(at[0] - start[0], at[1] - start[1]);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = to;
+        }
+      }
+      if (best !== undefined) nodes = [best, hopEndOf];
     }
     if (!nodes && !outside && gateIds.has(ids[waypoints[0]])) {
       // A coastal plaza corner may itself touch water or a wall. Connect to

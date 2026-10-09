@@ -18,6 +18,7 @@ import {
   pointInPolygon,
   polylineTangent,
   sideOfPolyline,
+  simplifyPolyline,
   vecToAzimuth
 } from "../geom";
 import type { CityGeography, CityParams, CityProgram, Point, WallPlan } from "../types";
@@ -390,8 +391,9 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     .filter(line => line.length >= 2)
     .sort((a, b) => polylineLength(b) - polylineLength(a))[0];
   if (longest) {
-    let corridor = downsample(longest, CORRIDOR_POINTS);
-    let regionalShore: Point[] = longest.map(p => [p[0], p[1]]);
+    const shore = keepImportedLandDry(site, longest, azimuthToVec(waterAzimuthDeg));
+    let corridor = downsample(shore, CORRIDOR_POINTS);
+    let regionalShore: Point[] = shore.map(p => [p[0], p[1]]);
     // FMG's kilometre-scale coast can sit beyond a port's entire city disk.
     // Bring that shore to the town while retaining its shape and bearing;
     // an inland burg must keep its real distance from the water.
@@ -430,22 +432,15 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
 const PULLED_COAST_CLEARANCE_METERS = 60;
 const PULLED_COAST_SAMPLE_METERS = 20;
 
-/**
- * How far the coast may be pulled toward the town (up to `wanted`). FMG's bridges
- * and roads are fixed: a pulled coast that ran over them would put the bridge on
- * the sea (Ventiarisio), so stop short of every fixed crossing and imported road.
- */
-function coastPullMeters(site: BurgSiteDescriptor, corridor: Point[], toCoast: Point, wanted: number): number {
+/** Points of FMG's fixed bridges and land roads in the window, every few metres. */
+function importedLandPoints(site: BurgSiteDescriptor): Point[] {
   const half = site.frame.extentMeters / 2;
-  const length = Math.hypot(toCoast[0], toCoast[1]);
-  const ux = toCoast[0] / length,
-    uy = toCoast[1] / length;
-  const protectedPoints: Point[] = [];
+  const points: Point[] = [];
   const addSegment = (a: Point, b: Point) => {
     const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / PULLED_COAST_SAMPLE_METERS));
     for (let i = 0; i <= steps; i++) {
       const p: Point = [a[0] + ((b[0] - a[0]) * i) / steps, a[1] + ((b[1] - a[1]) * i) / steps];
-      if (Math.abs(p[0]) <= half && Math.abs(p[1]) <= half) protectedPoints.push(p);
+      if (Math.abs(p[0]) <= half && Math.abs(p[1]) <= half) points.push(p);
     }
   };
   for (const c of site.fixedCrossings?.crossings ?? []) {
@@ -455,6 +450,68 @@ function coastPullMeters(site: BurgSiteDescriptor, corridor: Point[], toCoast: P
   }
   for (const road of site.regionalContext?.roads ?? [])
     for (let i = 1; i < road.points.length; i++) addSegment(road.points[i - 1] as Point, road.points[i] as Point);
+  return points;
+}
+
+/**
+ * FMG draws its coast at kilometre scale, so inside a town window it can run
+ * across land FMG itself routes over (Matra: the drawn coast crossed the town
+ * and put the eastern road, its bridge and the far bank in the sea). Those
+ * roads and bridges are surveyed; bend the shore seaward around them, with a
+ * smooth falloff, until each lies on land with the pulled-coast clearance.
+ */
+function keepImportedLandDry(site: BurgSiteDescriptor, line: Point[], toWater: Point): Point[] {
+  const points = importedLandPoints(site);
+  const deficit = (shore: Point[]) =>
+    points.flatMap(p => {
+      const near = nearestOnPolyline(p, shore);
+      const seaward = (p[0] - near.point[0]) * toWater[0] + (p[1] - near.point[1]) * toWater[1];
+      const need = seaward >= 0 ? seaward + PULLED_COAST_CLEARANCE_METERS : PULLED_COAST_CLEARANCE_METERS - near.dist;
+      return need > 0 ? [{ p, need }] : [];
+    });
+  if (!points.length || !deficit(line).length) return line;
+  const shore: Point[] = [];
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1], line[i]];
+    const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / PULLED_COAST_SAMPLE_METERS));
+    for (let k = 0; k < steps; k++)
+      shore.push([a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps]);
+  }
+  shore.push([line.at(-1)![0], line.at(-1)![1]]);
+  const reach = site.frame.extentMeters * 0.45;
+  let moved = 0;
+  for (let round = 0; round < 40; round++) {
+    const wet = deficit(shore);
+    if (!wet.length) break;
+    for (const v of shore) {
+      let move = 0;
+      for (const { p, need } of wet) {
+        const d = Math.hypot(v[0] - p[0], v[1] - p[1]);
+        if (d < reach) move = Math.max(move, need * (0.5 + 0.5 * Math.cos((Math.PI * d) / reach)));
+      }
+      v[0] += toWater[0] * move * 1.05;
+      v[1] += toWater[1] * move * 1.05;
+    }
+    moved += Math.max(0, ...wet.map(item => item.need));
+  }
+  // A shore already within a few metres of the clearance keeps FMG's points.
+  if (moved < PULLED_COAST_SAMPLE_METERS) return line;
+  // Hand back a few control points, as FMG gave them. The sea walk clamps
+  // corridor points beyond the town mesh onto its edge, and a dense line put
+  // most of them there and flipped the sea (Valsaz).
+  return simplifyPolyline(shore, 2);
+}
+
+/**
+ * How far the coast may be pulled toward the town (up to `wanted`). FMG's bridges
+ * and roads are fixed: a pulled coast that ran over them would put the bridge on
+ * the sea (Ventiarisio), so stop short of every fixed crossing and imported road.
+ */
+function coastPullMeters(site: BurgSiteDescriptor, corridor: Point[], toCoast: Point, wanted: number): number {
+  const length = Math.hypot(toCoast[0], toCoast[1]);
+  const ux = toCoast[0] / length,
+    uy = toCoast[1] / length;
+  const protectedPoints = importedLandPoints(site);
   if (!protectedPoints.length) return wanted;
   const dry = (shift: number) => {
     const shifted = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift] as Point);
