@@ -147,6 +147,7 @@ import {
   faceNeighbors,
   facePoints,
   faceVertices,
+  incidentEdges,
   insertEdgeVertex,
   splitFace,
   validate
@@ -4170,11 +4171,24 @@ export function completeRoadRouter(
     }
   }
   const restricted = new Map<Id, Set<Id>>();
+  const gateVertices = new Set(townGates(document).map(g => g.vertexId));
   for (const kind of ["wall", "river"] as const) {
     const edges = kindEdgeIds(document, kind);
     const vertices = new Set([...edges].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
     for (const id of vertices) {
-      const allowed = new Set(throughEdgesAt(document, id, kind, kind === "river").map(e => e.id));
+      const through = throughEdgesAt(document, id, kind, kind === "river");
+      // A gate with more than one arm on a side keeps every arm open: the
+      // straightest pair can point the outer arm away from the road that
+      // actually arrives (Chalbianos v63: a bridge-head road met the gate on
+      // its second outer arm). The gate check still requires the road edges
+      // to alternate with the wall around the gate.
+      const allowed = new Set(
+        kind === "wall" && gateVertices.has(id) && through.length === 2
+          ? incidentEdges(mesh, id)
+              .filter(e => !edges.has(e.id))
+              .map(e => e.id)
+          : through.map(e => e.id)
+      );
       const previous = restricted.get(id);
       restricted.set(id, previous ? new Set([...allowed].filter(e => previous.has(e))) : allowed);
     }

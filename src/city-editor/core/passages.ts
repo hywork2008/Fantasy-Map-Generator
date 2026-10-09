@@ -1090,10 +1090,21 @@ function riverCrossingFrame(document: CityDocument, midId: Id): { tangent: Point
   return null;
 }
 
-/** A bridge arm may slide. The river vertex, gates, and wall vertices stay put. */
+/** Where an FMG crossing's deck lands. A road snapped there carries the
+ * bridge into town, so moving it would strand the deck or push the road
+ * into the water. */
+export function onFixedCrossingApproach(document: CityDocument, point: Point): boolean {
+  return (document.importedFixedCrossings?.crossings ?? []).some(crossing =>
+    [crossing.approachA, crossing.approachB].some(end => Math.hypot(point[0] - end[0], point[1] - end[1]) < 0.5)
+  );
+}
+
+/** A bridge arm may slide. The river vertex, gates, wall vertices and an FMG
+ * crossing's approach stay put. */
 function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
   const vertex = document.mesh.vertices[id];
   if (!vertex || vertex.locked) return true;
+  if (onFixedCrossingApproach(document, vertex.point)) return true;
   if (townGates(document).some(gate => gate.vertexId === id)) return true;
   for (const group of document.featureGroups) {
     if (group.kind === "river") {
