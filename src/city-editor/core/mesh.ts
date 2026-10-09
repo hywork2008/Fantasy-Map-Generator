@@ -38,6 +38,9 @@ export function meshFromCells(cells: Cell[]): Mesh {
   for (const cell of cells) {
     const ids = removeConsecutiveDuplicates(cell.polygon.map(getVertex));
     if (ids.length < 3 || new Set(ids).size < 3) continue;
+    // Vertex merging can shrink a clipped rim sliver below the area that
+    // validate() accepts (Biarom: 0.97 m² at the frame), failing every attempt.
+    if (Math.abs(area(ids.map(id => vertices[id].point))) < 1) continue;
     const faceId = `f${cell.id}`;
     const boundary: EdgeRef[] = [];
     for (let i = 0; i < ids.length; i++) {
@@ -71,6 +74,8 @@ export function meshFromCells(cells: Cell[]): Mesh {
       properties: { elevation: 1, water: "land", ward: null, buildable: true, locked: false }
     };
   }
+  const used = new Set(Object.values(edges).flatMap(edge => [edge.a, edge.b]));
+  for (const id of Object.keys(vertices)) if (!used.has(id)) delete vertices[id];
   return { vertices, edges, faces };
 }
 

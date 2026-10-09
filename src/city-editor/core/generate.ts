@@ -659,9 +659,11 @@ export function generateCityOnDocument(
     }
     if (onRejected) return null;
     // A castle can leave the gate streets no way past it while the face
-    // graph still links them (Breistattlin). Every attempt would site it
-    // again, so later attempts judge castle sites on street edges.
-    if (failures.slice(failed).some(sample => sample.failure?.reason === "unconnected-gates"))
+    // graph still links them (Breistattlin), or cut an FMG road off from the
+    // town (Dossiepoy, Courvilliers). Every attempt would site it again, so
+    // later attempts judge castle sites on street edges.
+    const retryReasons = new Set(["unconnected-gates", "fmg-road-mismatch"]);
+    if (failures.slice(failed).some(sample => retryReasons.has(sample.failure?.reason ?? "")))
       attemptSettings = { ...settings, castleStreetLinks: true };
   }
   observe({
@@ -3639,17 +3641,34 @@ function applyPlan(
         }
       }
     }
+    // A road leaving a surveyed bridge head starts on the bank, so its own
+    // width always reaches the water there. Judge edges from a head without
+    // that first half-width (Gondre's only landing vertex sat on the bank).
+    const roadWidth = defaultRoadWidthMeters(townExtentMeters(next.frame));
+    const heads = next.importedFixedCrossings
+      ? plan.roads.flatMap((line, i) =>
+          i < plan.roads.length - plan.streets.length &&
+          (!plan.gates[i] || plan.importedRoads?.[plan.gates[i].roadIndex ?? -1]?.riverLanding)
+            ? [line[0]]
+            : []
+        )
+      : [];
+    const nearHead = (p: Point) => heads.some(h => Math.hypot(p[0] - h[0], p[1] - h[1]) < source.frame.blockSizeMeters);
+    const leavesHead = (a: Point, b: Point) => {
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const trim = roadWidth / 2 + 0.5;
+      if (length <= trim * 2) return false;
+      const start: Point = [a[0] + ((b[0] - a[0]) * trim) / length, a[1] + ((b[1] - a[1]) * trim) / length];
+      return !lineHitsDocumentWater(next, [start, b], roadWidth, true);
+    };
     const channelEdges = Object.values(mesh.edges)
-      .filter(edge =>
-        next.importedFixedCrossings
-          ? lineHitsDocumentWater(
-              next,
-              [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
-              defaultRoadWidthMeters(townExtentMeters(next.frame)),
-              true
-            )
-          : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next))
-      )
+      .filter(edge => {
+        const a = mesh.vertices[edge.a].point,
+          b = mesh.vertices[edge.b].point;
+        if (!next.importedFixedCrossings) return lineHitsWater([a, b], waterPolygons(next));
+        if (!lineHitsDocumentWater(next, [a, b], roadWidth, true)) return false;
+        return !((nearHead(a) && leavesHead(a, b)) || (nearHead(b) && leavesHead(b, a)));
+      })
       .map(edge => edge.id);
     const banned = new Set<Id>([
       ...channelEdges,
@@ -3697,9 +3716,12 @@ function applyPlan(
       banReasons
     );
     // Landing endpoints must snap to a usable dry vertex rather than a
-    // closer submerged vertex of the coarse editing mesh.
+    // closer submerged vertex of the coarse editing mesh. A gateless FMG road
+    // starts at its surveyed bridge head too: Gondre's head vertex lay on the
+    // bank, where every edge's road width reached the water.
+    const gatelessRoads = plan.roads.some((_, i) => i < plan.roads.length - plan.streets.length && !plan.gates[i]);
     let routeLanding = routeComplete;
-    if (plan.importedRoads?.some(road => road.riverLanding)) {
+    if (plan.importedRoads?.some(road => road.riverLanding) || (gatelessRoads && next.importedFixedCrossings)) {
       const landingVertices = new Set<Id>();
       for (const edge of Object.values(mesh.edges)) {
         if (
@@ -3761,12 +3783,18 @@ function applyPlan(
       // A gateless bank street stays inside the town. A real gate approach stays outside.
       const routeOutside = isApproach && !riverLanding && !!plannedGate;
       const traceRoute = (line: Point[]) =>
-        (hasRiverLanding ? routeLanding : routeComplete)(line, routeOutside, !!riverLanding, trace => {
-          trace.routeId = `${GEN_PREFIX}road-${i}`;
-          if (trace.status === "failed") observer?.({ phase: "road-routing", elapsedMs: 0, attempt, routing: [trace] });
-          const id = `${GEN_PREFIX}gate-${gateIndex}`;
-          gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
-        });
+        (hasRiverLanding || (isApproach && !plannedGate) ? routeLanding : routeComplete)(
+          line,
+          routeOutside,
+          !!riverLanding,
+          trace => {
+            trace.routeId = `${GEN_PREFIX}road-${i}`;
+            if (trace.status === "failed")
+              observer?.({ phase: "road-routing", elapsedMs: 0, attempt, routing: [trace] });
+            const id = `${GEN_PREFIX}gate-${gateIndex}`;
+            gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
+          }
+        );
       let segments = traceRoute(routeLine);
       // The mesh route stops on the town-side bank. The frame road carries the perpendicular crossing onward.
       if (segments.length < 1 && routeOutside && next.importedFixedCrossings) {

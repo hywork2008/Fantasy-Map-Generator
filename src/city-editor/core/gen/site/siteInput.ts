@@ -251,10 +251,16 @@ function withWideRiverOffCore(site: BurgSiteDescriptor): BurgSiteDescriptor {
     const unresolved = (status?.status === "unresolved" && status.riverId === river.riverId) || !!parent;
     if (
       unbridgeableOnSite(site, river) ||
-      (site.burg.waterAccess?.port.river && site.burg.waterAccess.riverId === river.riverId) ||
-      (!unresolved && hasSurveyedBanks(river))
-    )
+      (site.burg.waterAccess?.port.river && site.burg.waterAccess.riverId === river.riverId)
+    ) {
+      // buildChannels lays an unresolved channel along its chord, so its
+      // tributaries lose the confluence at the burg point as well.
+      const course = centerlineOf(river);
+      if (unresolved && !parent && course.length >= 2)
+        moved.set(river.riverId, nearestOnPolyline([0, 0], [course[0], course.at(-1)!]).point);
       return river;
+    }
+    if (!unresolved && hasSurveyedBanks(river)) return river;
     const width = drawnWidthMeters(river);
     const course = centerlineOf(river);
     if (width < radius || course.length < 2) return river;
@@ -564,7 +570,9 @@ function extractWideChannels(site: BurgSiteDescriptor): {
     // bridge technology could span the river. The stroke/wall pipeline cannot
     // model that frontage or berth piers on it.
     consumed.add(river.riverId);
-    channels.push(...buildChannels(river, drawnWidthMeters(river), margin, half));
+    const status = site.burg.riverSiteStatus;
+    const unresolved = status?.status === "unresolved" && status.riverId === river.riverId;
+    channels.push(...buildChannels(river, drawnWidthMeters(river), margin, half, unresolved));
   }
   return { channels, consumed };
 }
@@ -576,7 +584,9 @@ function buildChannels(
   river: SiteRiver,
   widthMeters: number,
   margin: number,
-  halfExtent: number
+  halfExtent: number,
+  /** FMG could not place the burg on this course (e.g. `invalid-curve`). */
+  unresolved = false
 ): NonNullable<CityGeography["channels"]> {
   // FMG's surveyed physical banks are authoritative; do not push the near
   // bank into the channel to make room for the generated town. Legacy snapped
@@ -591,7 +601,8 @@ function buildChannels(
       waterAzimuthDeg: vecToAzimuth(hit.point[0], hit.point[1])
     };
   };
-  if (!river.snappedToBank && left.length && right.length) {
+  // Banks of an unresolved course only offset the same bent polyline.
+  if (!unresolved && !river.snappedToBank && left.length && right.length) {
     // Clipping each bank independently can produce different fragment counts.
     // Pair only mutually closest fragments, never concatenate across a gap or
     // assume that the same array index identifies the same stretch of river.
@@ -630,13 +641,19 @@ function buildChannels(
   }
   // A kilometre-scale river can have only its town-side bank in the local
   // frame. Keep that water boundary even when its centreline is off-screen.
-  if (!river.snappedToBank && (left.length || right.length)) {
+  if (!unresolved && !river.snappedToBank && (left.length || right.length)) {
     return [...left, ...right].map(near => {
       const sign = Math.sign(sideOfPolyline([0, 0], near)) || (river.cityBank === "left" ? 1 : -1);
       return channel(near, offsetPolyline(near, -sign * widthMeters));
     });
   }
-  return river.segments.flatMap(segment => {
+  // An unresolved course is only a coarse polyline bent through the burg
+  // point. Offsetting a band hundreds of metres wide around that bend folds
+  // it over itself and over the origin (Berbafudovar: a 605 m port river
+  // left no urban land). Lay the band along the course's chord instead.
+  const course = centerlineOf(river);
+  const segments = unresolved && course.length > 2 ? [{ points: [course[0], course.at(-1)!] }] : river.segments;
+  return segments.flatMap(segment => {
     const centerline = extendPastFrame(withoutRepeats(segment.points), halfExtent);
     if (centerline.length < 2 || widthMeters <= 0) return [];
     const side = sideOfPolyline([0, 0], centerline);
