@@ -1760,7 +1760,9 @@ export function runPlan(
   const frameHalf = (settings.descriptor?.regionalContext && settings.descriptor.frame.extentMeters / 2) || 0;
   if (frameHalf > 0)
     empty.regionalWater = classified.flatMap(item => {
-      if (item.kind !== "ocean" || !item.coast || !item.regionalShore) return [];
+      // A lake crossing the whole frame is open water there too (Lerona). A
+      // shore that does not reach the frame on both ends closes to nothing.
+      if (item.kind === "river" || !item.coast || !item.regionalShore) return [];
       const wet = [...item.coast.sea].map(id => cells[id].centroid);
       const shore = regionalShoreline(
         item.regionalShore,
