@@ -18,7 +18,14 @@ import {
 } from "./coastalSuitability";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
+import {
+  convexHull,
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonArea,
+  polygonCentroid,
+  segmentInteriorInPolygon
+} from "./geom";
 import { planHarbor } from "./harborFabric";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
@@ -298,6 +305,22 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       buildings: millFree,
       lanes: fabric.lanes,
       farms: fabric.farms.map(farm => farm.polygon),
+      waterUsers: [
+        ...watermills.mills.map(m => ({
+          riverId: m.riverId,
+          polygon: convexHull([
+            ...m.millhousePolygon,
+            ...(m.weir?.points ?? []),
+            ...[-1, 1].flatMap(x =>
+              [-1, 1].map(
+                (y): Point => [m.wheel.center[0] + x * m.wheel.radius, m.wheel.center[1] + y * m.wheel.radius]
+              )
+            )
+          ])
+        })),
+        ...(fabric.harbor?.spaces.map(space => ({ polygon: space.polygon })) ?? []),
+        ...(fabric.harbor?.piers.map(pier => ({ polygon: pier.polygon })) ?? [])
+      ],
       reserved: [
         ...millPolygons,
         ...(fabric.harbor?.spaces.map(space => space.polygon) ?? []),

@@ -5,11 +5,17 @@ import { featureGroupVertices } from "../features";
 import { FixedRoadReservation } from "../fixedRoadReservation";
 import { circuitRing, polygonOverlaps } from "../fortifications";
 import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
+import { facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
+import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Point } from "../types";
-import { aerialLandmarkFootprints, buildAerialLandmarkPlan } from "./aerialLandmarks";
+import {
+  aerialLandmarkFootprints,
+  buildAerialLandmarkPlan,
+  TANNERY_WATER_USER_CLEARANCE_METERS
+} from "./aerialLandmarks";
 import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
-import { nearestOnPolyline, pointInPolygon, shrinkPolygon } from "./geom";
+import { convexHull, nearestOnPolyline, pointInPolygon, shrinkPolygon } from "./geom";
 
 function walledRiverTown(): CityDocument {
   const grid = createGridDocument({
@@ -38,6 +44,51 @@ function centre(points: Point[]): Point {
   return [points.reduce((s, p) => s + p[0], 0) / points.length, points.reduce((s, p) => s + p[1], 0) / points.length];
 }
 
+/** Independent, one-metre audit of the town's last contact with the river bank. */
+function downstreamTownExit(points: Point[], width: number, town: Point[]): number {
+  let walked = 0;
+  let exit = -1;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i];
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (!length) continue;
+    const count = Math.ceil(length);
+    for (let j = 0; j <= count; j++) {
+      const p: Point = [a[0] + ((b[0] - a[0]) * j) / count, a[1] + ((b[1] - a[1]) * j) / count];
+      if (pointInPolygon(p, town) || nearestOnPolyline(p, [...town, town[0]]).dist <= width / 2 + 25)
+        exit = walked + (length * j) / count;
+    }
+    walked += length;
+  }
+  return exit;
+}
+
+function riverStation(p: Point, points: Point[]): number {
+  let best = Infinity,
+    station = 0,
+    walked = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i];
+    const hit = nearestOnPolyline(p, [a, b]);
+    if (hit.dist < best) {
+      best = hit.dist;
+      station = walked + Math.hypot(hit.point[0] - a[0], hit.point[1] - a[1]);
+    }
+    walked += Math.hypot(b[0] - a[0], b[1] - a[1]);
+  }
+  return station;
+}
+
+function polygonGap(a: Point[], b: Point[]): number {
+  if (polygonOverlaps(a, b)) return 0;
+  return Math.min(
+    ...a.map(p => nearestOnPolyline(p, [...b, b[0]]).dist),
+    ...b.map(p => nearestOnPolyline(p, [...a, a[0]]).dist)
+  );
+}
+
 function roadPolylines(city: CityDocument): Array<{ points: Point[]; width: number }> {
   return city.featureGroups
     .filter(g => g.kind === "road")
@@ -57,14 +108,14 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     ring = circuitRing(city, city.defenseCircuits!.find(c => c.scope === "town")!);
   }, 120000);
 
-  it("places every landmark kind in a walled river town", () => {
+  it("places landmarks but omits a tannery when downstream watermills leave no room", () => {
     const plan = fabric.aerialLandmarks!;
     expect(plan.monasteries.length).toBeGreaterThanOrEqual(2);
     expect(plan.monasteries.some(m => m.kind === "friary")).toBe(true);
     expect(plan.monasteries.some(m => m.kind === "abbey")).toBe(true);
     expect(plan.windmills.length).toBeGreaterThan(0);
     expect(plan.barbicans.length).toBeGreaterThan(0);
-    expect(plan.tanneries).toHaveLength(1);
+    expect(plan.tanneries).toHaveLength(0);
     expect(plan.gallows).toHaveLength(1);
   });
 
@@ -152,27 +203,82 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     }
   });
 
-  it("puts the tanners' yard on the bank downstream of the town", () => {
+  it("puts the tanners' yard downstream of town when there are no downstream water users", () => {
     const river = city.featureGroups.find(g => g.kind === "river");
     if (river?.kind !== "river") throw new Error("no river");
     const points = river.vertices.map(id => city.mesh.vertices[id].point);
-    const along = (p: Point) => {
-      let best = { d: Infinity, s: 0 };
-      let walked = 0;
-      for (let i = 1; i < points.length; i++) {
-        const hit = nearestOnPolyline(p, [points[i - 1], points[i]]);
-        const s = walked + Math.hypot(hit.point[0] - points[i - 1][0], hit.point[1] - points[i - 1][1]);
-        if (hit.dist < best.d) best = { d: hit.dist, s };
-        walked += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
-      }
-      return best;
-    };
-    const lastInTown = Math.max(...points.filter(p => pointInPolygon(p, ring)).map(p => along(p).s));
-    const yard = fabric.aerialLandmarks!.tanneries[0];
-    const at = along(centre(yard.yard));
-    expect(at.s).toBeGreaterThan(lastInTown - 30);
-    expect(at.d).toBeLessThan(river.style.widthMeters / 2 + 25);
+    const exit = downstreamTownExit(points, river.style.widthMeters, ring);
+    const plan = buildAerialLandmarkPlan(
+      city,
+      {
+        buildings: fabric.buildings,
+        lanes: fabric.lanes,
+        farms: fabric.farms.map(f => f.polygon),
+        reserved: []
+      },
+      "no-water-users"
+    );
+    const yard = plan.tanneries[0];
+    expect(yard).toBeDefined();
+    for (const p of yard.yard) expect(riverStation(p, points)).toBeGreaterThan(exit);
+    expect(polygonOverlaps(yard.yard, ring)).toBe(false);
+    expect(nearestOnPolyline(centre(yard.yard), points).dist).toBeLessThan(river.style.widthMeters / 2 + 25);
     expect(yard.pits.length).toBeGreaterThan(20);
+  });
+
+  it("places a downstream yard when the river is separated from the town boundary", () => {
+    const seed = "tannery-audit-1";
+    const grid = createGridDocument({ size: "medium", grid: "evolution", seed });
+    const settings = defaultGenerationSettings();
+    settings.config.coast = "none";
+    settings.config.rivers = ["meander"];
+    const city = generateCityOnDocument(grid, settings, seed)!;
+    const fabric = buildBlockFabric(city);
+    const circuit = city.defenseCircuits?.find(c => c.scope === "town");
+    const town = circuit
+      ? circuitRing(city, circuit)
+      : convexHull(
+          Object.values(city.mesh.faces)
+            .filter(f => f.properties.water === "land" && f.properties.settlement === "core")
+            .flatMap(f => facePoints(city.mesh, f))
+        );
+    const [yard] = fabric.aerialLandmarks!.tanneries;
+    expect(yard).toBeDefined();
+    const river = flowingRivers(city).find(r => r.id === yard.riverId)!;
+    // The former contact-only rule finds no exit and silently omits this yard.
+    expect(downstreamTownExit(river.points, river.widthMeters, town)).toBe(-1);
+    const townEnd = Math.max(...town.map(p => riverStation(p, river.points)));
+    expect(polygonOverlaps(yard.yard, town)).toBe(false);
+    for (const p of yard.yard) expect(riverStation(p, river.points)).toBeGreaterThan(townEnd);
+  }, 60000);
+
+  it("moves a tannery downstream and away from a mill or a pier at its former site", () => {
+    const input = {
+      buildings: fabric.buildings,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(f => f.polygon),
+      reserved: []
+    };
+    const initial = buildAerialLandmarkPlan(city, input, "water-user-clearance");
+    const old = initial.tanneries[0];
+    expect(old).toBeDefined();
+    const river = flowingRivers(city).find(r => r.id === old.riverId)!;
+    for (const riverId of [old.riverId, undefined]) {
+      const revised = buildAerialLandmarkPlan(
+        city,
+        {
+          ...input,
+          waterUsers: [{ riverId, polygon: old.yard }]
+        },
+        "water-user-clearance"
+      );
+      const yard = revised.tanneries[0];
+      expect(yard).toBeDefined();
+      expect(polygonGap(yard.yard, old.yard)).toBeGreaterThanOrEqual(TANNERY_WATER_USER_CLEARANCE_METERS);
+      const end = Math.max(...old.yard.map(p => riverStation(p, river.points)));
+      for (const p of yard.yard)
+        expect(riverStation(p, river.points) - end).toBeGreaterThanOrEqual(TANNERY_WATER_USER_CLEARANCE_METERS);
+    }
   });
 
   it("follows the technology of the historical period", () => {
@@ -204,7 +310,8 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(svg.querySelectorAll(".ce-domestic-water[data-pick]")).toHaveLength(
       fabric.aerialLandmarks!.domesticWater.length
     );
-    for (const kind of ["monastery", "windmill", "barbican", "tannery", "gallows"]) {
+    expect(svg.querySelectorAll(".ce-tannery[data-pick]")).toHaveLength(fabric.aerialLandmarks!.tanneries.length);
+    for (const kind of ["monastery", "windmill", "barbican", "gallows"]) {
       const node = svg.querySelector(`.ce-${kind}[data-pick]`);
       expect(node, kind).not.toBeNull();
       expect(JSON.parse(decodeURIComponent(node!.getAttribute("data-pick")!)).kind).toBe(kind);
@@ -235,6 +342,48 @@ describe("FMG-linked rivers (riverFlows)", () => {
     const [yard] = fabric.aerialLandmarks!.tanneries;
     expect(yard).toBeDefined();
     expect(hitsSurveyedWater(city, yard.yard)).toBe(false);
+    const users = [
+      ...mills.map(m => ({ riverId: m.riverId, polygon: m.millhousePolygon })),
+      ...(fabric.harbor?.spaces.map(s => ({ riverId: undefined, polygon: s.polygon })) ?? []),
+      ...(fabric.harbor?.piers.map(p => ({ riverId: undefined, polygon: p.polygon })) ?? [])
+    ];
+    for (const user of users) {
+      expect(polygonGap(yard.yard, user.polygon)).toBeGreaterThanOrEqual(TANNERY_WATER_USER_CLEARANCE_METERS);
+      if (user.riverId === yard.riverId) {
+        const river = flowingRivers(city).find(r => r.id === yard.riverId)!;
+        const end = Math.max(...user.polygon.map(p => riverStation(p, river.points)));
+        for (const p of yard.yard)
+          expect(riverStation(p, river.points) - end).toBeGreaterThanOrEqual(TANNERY_WATER_USER_CLEARANCE_METERS);
+      }
+    }
+    const circuit = city.defenseCircuits?.find(c => c.scope === "town");
+    const ring = circuit
+      ? circuitRing(city, circuit)
+      : convexHull(
+          Object.values(city.mesh.faces)
+            .filter(f => f.properties.water === "land" && f.properties.settlement === "core")
+            .flatMap(f => facePoints(city.mesh, f))
+        );
+    const river = flowingRivers(city).find(r => r.id === yard.riverId)!;
+    // Regression: this sparse FMG centreline used to put the yard inside the built-up core,
+    // roughly 148 metres upstream of its downstream bank exit.
+    const exit = downstreamTownExit(river.points, river.widthMeters, ring);
+    expect(exit).toBeGreaterThan(0);
+    expect(polygonOverlaps(yard.yard, ring)).toBe(false);
+    for (const p of yard.yard) expect(riverStation(p, river.points)).toBeGreaterThan(exit);
+
+    // No downstream room: omit the yard rather than falling back upstream.
+    const clipped = {
+      ...city,
+      riverFlows: city.riverFlows!.map(flow => ({ ...flow, points: flow.points.slice(0, 2) }))
+    };
+    const plan = buildAerialLandmarkPlan(clipped, {
+      buildings: fabric.buildings,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(f => f.polygon),
+      reserved: []
+    });
+    expect(plan.tanneries).toHaveLength(0);
     // Same bank as the town: the straight line from the yard to the town centre stays dry.
     const c = centre(yard.yard);
     const steps = 20;

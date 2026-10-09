@@ -101,6 +101,8 @@ export interface AerialLandmarkInput {
   farms: Point[][];
   /** Mills, harbour spaces and other already-reserved footprints. */
   reserved: Point[][];
+  /** Water-dependent works: tanneries must be separated and downstream on the same river. */
+  waterUsers?: Array<{ riverId?: Id; polygon: Point[] }>;
 }
 
 const EMPTY_PLAN: AerialLandmarkPlan = {
@@ -813,6 +815,17 @@ function dist(a: Point, b: Point): number {
 // ---------------------------------------------------------------------------
 // 4. Tanneries at the downstream end of the river
 
+/** Map-layout clearance, not a historical regulation or a water-quality safety threshold. */
+export const TANNERY_WATER_USER_CLEARANCE_METERS = 60;
+
+function polygonsDistance(a: Point[], b: Point[]): number {
+  if (polygonOverlaps(a, b)) return 0;
+  return Math.min(
+    ...a.map(p => nearestOnPolyline(p, [...b, b[0]]).dist),
+    ...b.map(p => nearestOnPolyline(p, [...a, a[0]]).dist)
+  );
+}
+
 function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tannery[] {
   const document = site.document;
   if (input.buildings.length < 150 || site.town.length < 3) return [];
@@ -821,45 +834,89 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
   for (const river of flowingRivers(document)) {
     if (out.length >= wanted) break;
     const pts = river.points;
-    // Last river point that is still in town; the tanners sit just downstream of it.
-    let last = -1;
-    for (let i = 0; i < pts.length; i++) if (site.insideTown(pts[i]) || site.townDistance(pts[i]) < 25) last = i;
-    if (last < 0) {
-      // A river skirting the town: start at its nearest point. Wide FMG rivers have their
-      // centreline far out in the water, so measure to the bank.
-      let best = Infinity;
-      for (let i = 0; i < pts.length; i++) {
-        const d = site.townDistance(pts[i]) - river.widthMeters / 2;
-        if (d < best && d < 200) {
-          best = d;
-          last = i;
-        }
-      }
-    }
-    if (last < 0) continue;
     const half = river.widthMeters / 2;
     const townCentre = centroid(site.town);
-    // Walk downstream from the town edge and try both banks.
-    const along: Array<{ p: Point; t: Point; d: number }> = [];
+    // Measure continuously along every segment, including sparse imported centrelines.
+    // Include the river half-width so a wide river skirting town uses its bank, not
+    // the centreline's nearest vertex. The small sampling margin is conservative:
+    // distance to the town boundary is 1-Lipschitz, so no intervening contact is missed.
+    const step = 2;
+    let exit = -1;
     let walked = 0;
-    for (let i = Math.max(1, last - 2); i < pts.length && walked < 260; i++) {
+    const segments: Array<{ a: Point; t: Point; length: number; start: number }> = [];
+    for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1],
         b = pts[i];
-      const len = dist(a, b);
+      const length = dist(a, b);
       const t = unit(b[0] - a[0], b[1] - a[1]);
-      if (!t || len < 1) continue;
-      for (let s = 0; s < len; s += 6) {
+      if (!t || length < 1e-6) continue;
+      segments.push({ a, t, length, start: walked });
+      const count = Math.ceil(length / step);
+      const spacing = length / count;
+      for (let j = 0; j <= count; j++) {
+        const s = j * spacing;
         const p: Point = [a[0] + t[0] * s, a[1] + t[1] * s];
-        if (i - 1 >= last) walked += 6;
-        along.push({ p, t, d: walked });
+        if (site.insideTown(p) || site.townDistance(p) <= half + 25 + spacing / 2)
+          exit = Math.max(exit, walked + s + spacing / 2);
+      }
+      walked += length;
+    }
+    const station = (p: Point): number => {
+      let nearest = Infinity,
+        at = 0;
+      for (const { a, t, length, start } of segments) {
+        const s = Math.max(0, Math.min(length, (p[0] - a[0]) * t[0] + (p[1] - a[1]) * t[1]));
+        const distance = Math.hypot(p[0] - a[0] - t[0] * s, p[1] - a[1] - t[1] * s);
+        if (distance < nearest) {
+          nearest = distance;
+          at = start + s;
+        }
+      }
+      return at;
+    };
+    if (exit < 0) {
+      // A nearby river need not touch the wall/core hull: suburbs and an access
+      // road can separate town from its bank. Preserve these rivers, but use
+      // the downstream extent of the town's projection, never its nearest point.
+      let bankDistance = Infinity;
+      let projectedEnd = -1;
+      for (let i = 0; i < site.town.length; i++) {
+        const a = site.town[i],
+          b = site.town[(i + 1) % site.town.length];
+        const count = Math.max(1, Math.ceil(dist(a, b) / step));
+        for (let j = 0; j <= count; j++) {
+          const p: Point = [a[0] + ((b[0] - a[0]) * j) / count, a[1] + ((b[1] - a[1]) * j) / count];
+          bankDistance = Math.min(bankDistance, nearestOnPolyline(p, pts).dist - half);
+          projectedEnd = Math.max(projectedEnd, station(p));
+        }
+      }
+      if (bankDistance > 200 || projectedEnd < 0) continue;
+      exit = projectedEnd + step;
+    }
+    // Waterfront uses also determine the downstream limit. Harbour piers may
+    // lack a river id (surveyed ports); associate only those on this river's bank.
+    const waterUsers = (input.waterUsers ?? []).filter(user => user.polygon.length >= 3);
+    for (const user of waterUsers) {
+      const sameRiver =
+        user.riverId === river.id ||
+        (user.riverId === undefined && user.polygon.some(p => nearestOnPolyline(p, pts).dist <= half + 60));
+      if (sameRiver) exit = Math.max(exit, ...user.polygon.map(p => station(p) + TANNERY_WATER_USER_CLEARANCE_METERS));
+    }
+    // Candidates begin strictly downstream of the last town contact. Never fall
+    // back to the centre of town when the downstream bank has no suitable space.
+    const along: Array<{ p: Point; t: Point; d: number; s: number }> = [];
+    for (const { a, t, length, start } of segments) {
+      for (let s = Math.max(0, exit - start); s < length && start + s <= exit + 260; s += 6) {
+        along.push({ p: [a[0] + t[0] * s, a[1] + t[1] * s], t, d: start + s - exit, s: start + s });
       }
     }
     let best: { score: number; plan: Tannery } | null = null;
-    for (const { p, t, d } of along) {
+    for (const { p, t, d, s } of along) {
       for (const side of [1, -1]) {
         const n: Point = [-t[1] * side, t[0] * side];
         const length = 44 + rng.range(-6, 10);
         const depth = 22;
+        if (s - length / 2 <= exit) continue;
         const offset = river.surveyed ? fixedBankOffset(document, p, n, half, t, length / 2) : half;
         if (offset === null) continue;
         const bank = offset + (river.surveyed ? 0.3 : 1.5);
@@ -869,16 +926,17 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tanne
         const at = (u: number, v: number) => base(u, side * v);
         const yard = orient(rect(at, -length / 2, 0, length / 2, depth));
         if (!site.inFrame(yard, 8)) continue;
+        if (waterUsers.some(user => polygonsDistance(yard, user.polygon) < TANNERY_WATER_USER_CLEARANCE_METERS))
+          continue;
+        if (polygonOverlaps(yard, site.town) || yard.some(p => station(p) <= exit)) continue;
         if (site.hitsWater(yard, 0.6) || site.hitsRoutes(yard, 2.5) || site.hitsBlocked(yard)) continue;
         const wards = site.wardsUnder(yard);
         if (wards.has("market") || wards.has("castle") || wards.has("park")) continue;
-        const outsideWall = site.walled && !site.insideTown(centroid(yard));
         const cleared = site.buildingsIn(yard).length;
         // The tanners worked on the town's own bank; the far bank means a crossing for every hide.
         const townSide = n[0] * (townCentre[0] - p[0]) + n[1] * (townCentre[1] - p[1]) > 0;
         const score =
-          (townSide ? 3 : 0) +
-          (site.walled ? (outsideWall ? 2 : 0) : 0) -
+          (townSide ? 3 : 0) -
           Math.abs(d - (site.walled ? 45 : 20)) * 0.02 -
           cleared * 0.02 -
           site.farmsIn(yard).length * 0.4 +
@@ -1038,7 +1096,7 @@ export function buildAerialLandmarkPlan(
   // A completed generation recipe marks a generated town. Hand-built or upgraded maps keep
   // their district-local edits: these town-wide works would shift with every edit.
   if (!input.buildings.length || !document.fabric?.generation) return EMPTY_PLAN;
-  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}`;
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${JSON.stringify(input.waterUsers ?? [])}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
 
