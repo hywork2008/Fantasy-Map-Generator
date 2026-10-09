@@ -227,7 +227,7 @@ function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
  * (`fixedCrossings`) or usable banks its course is only a coarse polyline through
  * the burg point, and walking it as a stroke paints round, brush-like banks.
  * Lay it straight along that course's chord, on the side the chord passes,
- * with the town-side bank beyond the city radius. */
+ * with the town-side bank toward the frame edge. */
 const offCoreRivers = new WeakSet<SiteRiver>();
 
 function hasSurveyedBanks(river: SiteRiver): boolean {
@@ -238,14 +238,17 @@ function withWideRiverOffCore(site: BurgSiteDescriptor): BurgSiteDescriptor {
   if (site.fixedCrossings) return site;
   const radius = site.frame.cityRadiusMeters;
   const reach = site.frame.extentMeters * 2;
-  let changed = false;
-  const rivers = site.rivers.map(river => {
-    if (river.frontage === "beyond-budget") return river;
+  const status = site.burg.riverSiteStatus;
+  // Band centre of each relaid river, so a tributary can bend to meet it.
+  const moved = new Map<number, Point>();
+  const relay = (river: SiteRiver): SiteRiver => {
+    if (river.frontage === "beyond-budget" || moved.has(river.riverId)) return river;
     // Channels (unbridgeable or river-port water) already keep their own bank
     // clearance, and surveyed banks are authoritative unless FMG itself could
-    // not place the burg on them (e.g. `folded-banks`).
-    const unresolved =
-      site.burg.riverSiteStatus?.status === "unresolved" && site.burg.riverSiteStatus.riverId === river.riverId;
+    // not place the burg on them (e.g. `folded-banks`). A tributary whose
+    // parent was relaid has lost the confluence its banks led to.
+    const parent = river.parentRiverId == null ? undefined : moved.get(river.parentRiverId);
+    const unresolved = (status?.status === "unresolved" && status.riverId === river.riverId) || !!parent;
     if (
       unbridgeableOnSite(site, river) ||
       (site.burg.waterAccess?.port.river && site.burg.waterAccess.riverId === river.riverId) ||
@@ -260,17 +263,29 @@ function withWideRiverOffCore(site: BurgSiteDescriptor): BurgSiteDescriptor {
     const length = Math.hypot(chord[1][0] - chord[0][0], chord[1][1] - chord[0][1]);
     if (length < 1) return river;
     const tangent: Point = [(chord[1][0] - chord[0][0]) / length, (chord[1][1] - chord[0][1]) / length];
-    // Positive side = left of the flow, matching `offsetPolyline`.
+    // Positive side = left of the flow, matching `offsetPolyline`. A course
+    // through the burg point has no side; a tributary then leans towards its
+    // parent's band, so the confluence stays out of town.
     const side = sideOfPolyline([0, 0], chord);
-    const water = Math.abs(side) > 1 ? -Math.sign(side) : river.cityBank === "left" ? -1 : 1;
-    const offset = width / 2 + radius * 1.1;
+    const toward = parent ? -tangent[1] * parent[0] + tangent[0] * parent[1] : 0;
+    const water =
+      Math.abs(side) > 1
+        ? -Math.sign(side)
+        : Math.abs(toward) > 1
+          ? Math.sign(toward)
+          : river.cityBank === "left"
+            ? -1
+            : 1;
+    // Toward the frame edge: the town-side bank lies halfway between the core
+    // and the frame, leaving the town its outskirts and castle ground.
+    const offset = width / 2 + Math.max(radius * 1.1, (radius + site.frame.extentMeters / 2) / 2);
     const center: Point = [-tangent[1] * water * offset, tangent[0] * water * offset];
     const points: Point[] = [
       [center[0] - tangent[0] * reach, center[1] - tangent[1] * reach],
       [center[0] + tangent[0] * reach, center[1] + tangent[1] * reach]
     ];
-    changed = true;
-    const moved: SiteRiver = {
+    moved.set(river.riverId, center);
+    const relaid: SiteRiver = {
       ...river,
       widthMeters: width,
       axisAzimuthDeg: vecToAzimuth(tangent[0], tangent[1]),
@@ -283,10 +298,17 @@ function withWideRiverOffCore(site: BurgSiteDescriptor): BurgSiteDescriptor {
       leftBankSegments: [],
       rightBankSegments: []
     };
-    offCoreRivers.add(moved);
-    return moved;
-  });
-  return changed ? { ...site, rivers } : site;
+    offCoreRivers.add(relaid);
+    return relaid;
+  };
+  // Parents first: each pass can release the tributaries of the last.
+  let rivers = site.rivers;
+  for (let pass = 0; pass < site.rivers.length; pass++) {
+    const before = moved.size;
+    rivers = rivers.map(relay);
+    if (moved.size === before) break;
+  }
+  return moved.size ? { ...site, rivers } : site;
 }
 
 /** The built programme: the descriptor's Feature flags pass straight through;
