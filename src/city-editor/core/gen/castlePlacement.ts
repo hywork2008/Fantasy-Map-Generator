@@ -221,7 +221,9 @@ function acceptReservedCastle(
   };
 }
 
-type CastleSize = "small" | "standard" | "large";
+/** `tiny` is never chosen up front: it is the last auto step for a hamlet or
+ * fort town whose whole urban area is only a few times a small castle. */
+type CastleSize = "tiny" | "small" | "standard" | "large";
 type CastleJudge = ReturnType<typeof makeCastleJudge>;
 
 /**
@@ -255,7 +257,8 @@ export function placeCastleRegion(
       : settings.size;
   // Step down one size only for an auto size under road constraints; an
   // explicit size is the user's choice and falls through to detached instead.
-  const sizes: CastleSize[] = settings.size !== "auto" ? [size] : size === "standard" ? ["standard", "small"] : [size];
+  const sizes: CastleSize[] =
+    settings.size !== "auto" ? [size] : size === "standard" ? ["standard", "small", "tiny"] : [size, "tiny"];
   const relationships: CastleSettings["relationship"][] =
     settings.relationship === "auto" && hasWalls ? ["auto", "detached"] : [settings.relationship];
   if (constraints && !constraints.report) constraints.report = emptySitingReport();
@@ -311,8 +314,8 @@ function placeCastlePass(
       return [e.leftFace, e.rightFace].filter((id): id is Id => !!id);
     })
   );
-  const minArea = size === "small" ? 2500 : size === "large" ? 10000 : 5000;
-  const target = size === "small" ? 4000 : size === "large" ? 18000 : 9000;
+  const minArea = size === "tiny" ? 1200 : size === "small" ? 2500 : size === "large" ? 10000 : 5000;
+  const target = size === "tiny" ? 1800 : size === "small" ? 4000 : size === "large" ? 18000 : 9000;
   const block = document.frame.blockSizeMeters;
   const corridors = constraints?.corridors ?? [];
   // H2/H4: the land front is where the roads come from; the castle backs away
@@ -424,8 +427,11 @@ function placeCastlePass(
       let working = clone(document),
         id = candidate.id;
       let points = facePoints(working.mesh, working.mesh.faces[id]);
-      // Grow a compact connected compound across small macro cells.
-      while (Math.abs(polygonArea(points)) < minArea) {
+      // Grow a compact connected compound across small macro cells. A tiny
+      // town's cells are smaller than the castle box itself, so that step
+      // grows until the box (and its clearance) can be cut from the compound.
+      const grow = size === "tiny" ? target * 1.6 : minArea;
+      while (Math.abs(polygonArea(points)) < grow) {
         const neighbors = faceNeighbors(working.mesh, id).filter(
           fid =>
             !water.has(fid) &&
