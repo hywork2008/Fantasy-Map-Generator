@@ -91,17 +91,28 @@ function castleWallWidthMeters(document: CityDocument, castle: CastlePlan): numb
   return width;
 }
 
+/** Match ordinary castle corner towers to the castle circuit's own wall thickness. */
+function castleTowerRadiusMeters(document: CityDocument, castle: CastlePlan): number {
+  const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
+  const wallIds = new Set(circuit?.wallGroupIds ?? []);
+  const widths = document.featureGroups.flatMap(g =>
+    g.kind === "wall" && wallIds.has(g.id) && Number.isFinite(g.style.widthMeters) && g.style.widthMeters > 0
+      ? [g.style.widthMeters]
+      : []
+  );
+  return (widths.length ? Math.max(...widths) : BASE_CASTLE_WALL_METERS) * 1.05;
+}
+
 /**
- * 壁厚に合わせて城壁の線幅と塔の大きさを引き上げる（市壁の塔 = 壁厚×1.05 と同等以上）。
+ * 城壁の線幅と稜堡は市壁に合わせ、塔は従来の城郭と同じ城壁厚×1.05に揃える。
  */
-function scaleToWallWidth(plan: FortressPlan, wallWidth: number): FortressPlan {
+function scaleToWallWidth(plan: FortressPlan, wallWidth: number, towerRadius: number): FortressPlan {
   plan.wallWidthMeters = wallWidth;
   const k = wallWidth / BASE_CASTLE_WALL_METERS;
   for (const r of plan.ramparts) if (r.kind === "outer_wall" || r.kind === "inner_wall") r.strokeWidth = wallWidth;
-  if (k <= 1) return plan;
   for (const t of plan.towers) {
-    if (t.radius !== undefined) t.radius = Math.max(t.radius * k, wallWidth * 1.05);
-    if (t.polygon)
+    if (t.radius !== undefined) t.radius = towerRadius;
+    if (t.polygon && k > 1)
       t.polygon = t.polygon.map(([x, y]) => [t.point[0] + (x - t.point[0]) * k, t.point[1] + (y - t.point[1]) * k]);
   }
   return plan;
@@ -998,5 +1009,9 @@ export function buildFortressPlan(
       plan = buildNormanKeep(ring, center, gatePoint, castle.parts);
       break;
   }
-  return scaleToWallWidth(applySavedBuildings(plan, castle.parts, profile), castleWallWidthMeters(document, castle));
+  return scaleToWallWidth(
+    applySavedBuildings(plan, castle.parts, profile),
+    castleWallWidthMeters(document, castle),
+    castleTowerRadiusMeters(document, castle)
+  );
 }

@@ -406,9 +406,19 @@ describe("saved castle building geometry", () => {
 
 describe("castle wall thickness vs town wall", () => {
   it.each(Object.values(CASTLE_STYLE_PROFILES).filter(profile => profile.style !== "classic"))(
-    "$style curtain and towers are at least as thick as a 7.2 m stone town wall",
+    "$style curtain matches the town wall while towers use the castle wall thickness",
     profile => {
       const doc = mockDocument();
+      doc.defenseCircuits![0].wallGroupIds = ["castle-wall"];
+      doc.featureGroups.push({
+        id: "castle-wall",
+        kind: "wall",
+        name: "Castle palisade",
+        segments: [],
+        style: { widthMeters: 2.4, color: "#634327" },
+        wallMaterial: "wood",
+        locked: false
+      });
       doc.defenseCircuits!.push({
         id: "town",
         scope: "town",
@@ -430,8 +440,7 @@ describe("castle wall thickness vs town wall", () => {
       expect(plan.wallWidthMeters).toBe(7.2);
       for (const r of plan.ramparts.filter(r => r.kind === "outer_wall" || r.kind === "inner_wall"))
         expect(r.strokeWidth).toBe(7.2);
-      for (const t of plan.towers.filter(t => t.radius !== undefined))
-        expect(t.radius!).toBeGreaterThanOrEqual(7.2 * 1.05);
+      for (const t of plan.towers.filter(t => t.radius !== undefined)) expect(t.radius!).toBe(2.4 * 1.05);
     }
   );
 });
