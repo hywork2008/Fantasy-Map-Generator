@@ -616,8 +616,27 @@ function dryTrace(path: Point[], from: number, to: number, water: PhysicalWaterP
     points.push(next);
     previous = next;
   }
+  const ahead = pointAt(path, from + Math.min(length, 1));
+  const start = pointAt(path, from);
+  dropBackwardStart(points, prefer, [ahead[0] - start[0], ahead[1] - start[1]], water);
   const cleaned = dedupe(points);
   return cleaned.length >= 2 ? cleaned : null;
+}
+
+/** The first bank points can lead backwards: the road arrives, turns back
+ * along the water and only then runs on (a J hook, Mamium). Keep the turn off
+ * the arrival to at most a right angle (an L) by skipping the points that
+ * still lie behind the arrival point. */
+function dropBackwardStart(points: Point[], from: Point, arrival: Point, water: PhysicalWaterPolygon): void {
+  const body: WaterBody[] = [{ water, river: null }];
+  const behind = (p: Point) => (p[0] - from[0]) * arrival[0] + (p[1] - from[1]) * arrival[1] < 0;
+  while (points.length > 2) {
+    const first = dist(points[0], from) < 0.05 ? 1 : 0;
+    if (!behind(points[first]) || points.length <= first + 1) return;
+    const keep = points.findIndex((p, i) => i > first && !behind(p));
+    if (keep < 0 || !segmentClears(from, points[keep], body)) return;
+    points.splice(0, keep);
+  }
 }
 
 /** Shorter ring arc between two banks, when it stays near the road and out of the channel. */
@@ -642,6 +661,7 @@ function alongBank(water: PhysicalWaterPolygon, from: Point, to: Point, limit: n
   }
   if (!best) return null;
   const body: WaterBody[] = [{ water, river: null }];
+  dropBackwardStart(best, from, [to[0] - from[0], to[1] - from[1]], water);
   const joined = segmentClears(from, best[0], body) ? dedupe([from, ...best]) : best;
   return joined.length >= 2 ? joined : null;
 }

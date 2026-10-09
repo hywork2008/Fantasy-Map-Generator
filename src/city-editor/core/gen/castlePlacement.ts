@@ -303,6 +303,9 @@ function placeCastlePass(
 ): CastleSite | null {
   const hasWalls = document.featureGroups.some(g => g.kind === "wall");
   const rng = makeRng(`${seed}:castle:placement`);
+  // A detached castle on a tiny town's own cells can cover the middle and cut
+  // an FMG road off (Kesztvarvarke); the retry pushes it onto the rim instead.
+  const outward = !!constraints?.outward;
   const preferred = settings.position === "auto" ? (rng() < 0.85 ? "edge" : "central") : settings.position;
   const positions =
     settings.position === "auto" ? ([preferred, preferred === "edge" ? "central" : "edge"] as const) : [preferred];
@@ -383,7 +386,7 @@ function placeCastlePass(
       )
         return false;
       if (Math.abs(polygonArea(facePoints(document.mesh, face))) < minArea * 0.15) return false;
-      if (relationship === "integrated") return !urban.has(face.id) && border.has(face.id);
+      if (relationship === "integrated" || outward) return !urban.has(face.id) && border.has(face.id);
       // A tiny evolution town can be all edge cells. The strict pass keeps the
       // old interior-only central rule; the retry may cut a box out of the
       // cell nearest the middle.
@@ -438,7 +441,7 @@ function placeCastlePass(
             !water.has(fid) &&
             !reserved.has(fid) &&
             !working.mesh.faces[fid].properties.locked &&
-            (relationship === "integrated" ? !urban.has(fid) : urban.has(fid))
+            (relationship === "integrated" || outward ? !urban.has(fid) : urban.has(fid))
         );
         neighbors.sort((a, b) => {
           const c = polygonCentroid(points);

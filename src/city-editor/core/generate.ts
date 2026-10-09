@@ -323,6 +323,7 @@ export interface GenerationSettings {
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;
+  castleOutward?: boolean;
   /** Only used when replaying a pre-castle-city recipe. */
   legacyCastles?: boolean;
   config: SiteConfig;
@@ -663,8 +664,13 @@ export function generateCityOnDocument(
     // town (Dossiepoy, Courvilliers). Every attempt would site it again, so
     // later attempts judge castle sites on street edges.
     const retryReasons = new Set(["unconnected-gates", "fmg-road-mismatch"]);
-    if (failures.slice(failed).some(sample => retryReasons.has(sample.failure?.reason ?? "")))
-      attemptSettings = { ...settings, castleStreetLinks: true };
+    const reasons = failures.slice(failed).map(sample => sample.failure?.reason ?? "");
+    if (reasons.some(reason => retryReasons.has(reason)))
+      attemptSettings = {
+        ...settings,
+        castleStreetLinks: true,
+        ...(reasons.includes("fmg-road-mismatch") ? { castleOutward: true } : {})
+      };
   }
   observe({
     phase: "complete",
@@ -2210,7 +2216,8 @@ export function runPlan(
       sectors: planGateSectors(corridors, genBorders, cellSize, true),
       clearanceMeters: (defaultRoadWidthMeters(params.extentMeters) + 3) / 2 + 0.5,
       report: emptySitingReport(),
-      streetLinks: settings.castleStreetLinks
+      streetLinks: settings.castleStreetLinks,
+      outward: settings.castleOutward
     };
     castleSite = placeCastleRegion(
       temp,

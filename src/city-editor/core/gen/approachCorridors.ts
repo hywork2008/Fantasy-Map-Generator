@@ -54,6 +54,9 @@ export interface CastleSitingConstraints {
    * than the outcome: later passages and curtain repair can open streets the
    * planning mesh lacks (Menykutadi), so it is a retry after unconnected gates. */
   streetLinks?: boolean;
+  /** Site a detached castle on the cells just outside the town, not on its
+   * own cells. A retry after an FMG road found no way into the town. */
+  outward?: boolean;
 }
 
 export interface CastleSitingReport {
