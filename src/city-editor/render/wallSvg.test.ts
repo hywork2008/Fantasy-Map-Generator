@@ -298,3 +298,72 @@ describe("renderEditorSvg towers and gates integration", () => {
     expect(gateWood).not.toBeNull();
   });
 });
+
+describe("closed wall offsets", () => {
+  it.each([3, -3])("keeps the closing point aligned for offset %s", offset => {
+    const run: Point[] = [
+      [10, 10],
+      [20, 10],
+      [20, 20],
+      [10, 20],
+      [10, 10]
+    ];
+    const shifted = offsetPolyline(run, offset, [0, 0]);
+    expect(shifted.at(-1)).toEqual(shifted[0]);
+    expect(Math.hypot(shifted[0][0] - run[0][0], shifted[0][1] - run[0][1])).toBeLessThanOrEqual(
+      Math.abs(offset) * 1.8
+    );
+  });
+});
+
+describe("wall offset direction", () => {
+  it("uses the requested distance for inward rails", () => {
+    expect(
+      offsetPolyline(
+        [
+          [10, 0],
+          [10, 20]
+        ],
+        -2,
+        [0, 10]
+      )
+    ).toEqual([
+      [8, 0],
+      [8, 20]
+    ]);
+  });
+
+  it.each([false, true])("offsets tower outlines toward their own interior (reversed=%s)", reversed => {
+    const square: Point[] = [
+      [10, 10],
+      [20, 10],
+      [20, 20],
+      [10, 20],
+      [10, 10]
+    ];
+    const run = reversed ? [...square].reverse() : square;
+    const inset = offsetPolyline(run, -2, [0, 0]);
+    for (const [x, y] of inset) {
+      expect(x).toBeGreaterThan(10);
+      expect(x).toBeLessThan(20);
+      expect(y).toBeGreaterThan(10);
+      expect(y).toBeLessThan(20);
+    }
+    expect(inset.at(-1)).toEqual(inset[0]);
+  });
+});
+
+describe("outwork wall interior", () => {
+  it("uses the court interior for the inner rail instead of the town center", () => {
+    const wall = makeWallGroup({ wallMaterial: "stone" });
+    const run: Point[] = [
+      [10, 0],
+      [10, 20]
+    ];
+    const structure = renderWallStructure(makeDoc(wall), wall, run, createDomElement, [20, 10]);
+    const rail = structure.querySelector(".ce-wall-stone-inner-rail");
+    const geom = resolveWallGeometry(4, "stone");
+    const x = 10 + (4 - geom.innerWallWidth) / 2;
+    expect(rail?.getAttribute("d")).toBe(`M ${x} 0 L ${x} -20`);
+  });
+});

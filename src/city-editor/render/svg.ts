@@ -1033,7 +1033,7 @@ export function renderEditorSvg(
       svg.appendChild(renderAerialLandmarks(townAerial, tool, selection.inspectedId, minimal));
     }
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
-    if (!preview) svg.appendChild(renderBarbicans(townAerial, tool, selection.inspectedId));
+    if (!preview) svg.appendChild(renderBarbicans(document, townAerial, tool, selection.inspectedId));
     if (townParkLawns.length) {
       const parkTreesLayer = element("g", {
         class: "ce-park-trees",

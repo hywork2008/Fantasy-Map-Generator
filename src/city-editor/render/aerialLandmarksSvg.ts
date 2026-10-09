@@ -1,3 +1,4 @@
+import { featureGroupVertices } from "../core/features";
 import type {
   AerialLandmarkPlan,
   Barbican,
@@ -7,7 +8,8 @@ import type {
   Tannery,
   Windmill
 } from "../core/gen/aerialLandmarks";
-import type { Point, Tool } from "../core/types";
+import type { CityDocument, EdgeFeatureGroup, Point, Tool } from "../core/types";
+import { renderTowerDecoration, renderWallStructure } from "./wallSvg";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -467,7 +469,25 @@ export function renderAerialLandmarks(
   return layer;
 }
 
-function renderBarbican(b: Barbican, options: PickOptions): SVGElement {
+function renderBarbican(b: Barbican, options: PickOptions, document: CityDocument): SVGElement {
+  const gate = document.gates.find(g => g.id === b.gateId);
+  const wall = gate
+    ? document.featureGroups.find(
+        (g): g is EdgeFeatureGroup => g.kind === "wall" && featureGroupVertices(document, g).includes(gate.vertexId)
+      )
+    : undefined;
+  const material = wall?.wallMaterial ?? "stone";
+  const color = material === "wood" ? "#634327" : STONE;
+  const barbicanWall: EdgeFeatureGroup = {
+    ...wall,
+    id: b.id,
+    kind: "wall",
+    name: b.name,
+    segments: [],
+    locked: false,
+    wallMaterial: material,
+    style: { color, widthMeters: b.wallWidth }
+  };
   const g = pickGroup(
     `ce-barbican ce-barbican--${b.form}`,
     {
@@ -487,50 +507,56 @@ function renderBarbican(b: Barbican, options: PickOptions): SVGElement {
         "stroke-width": "0.35"
       })
     );
+  // Outwork walls enclose the barbican court, not the city center.
+  const interiorPoint: Point = b.court.length
+    ? [
+        b.court.reduce((sum, p) => sum + p[0], 0) / b.court.length,
+        b.court.reduce((sum, p) => sum + p[1], 0) / b.court.length
+      ]
+    : b.curtain[0][0];
   for (const run of b.curtain) {
     g.appendChild(
       el("path", {
         d: line(run),
         fill: "none",
-        stroke: STONE,
+        stroke: color,
         "stroke-width": String(b.wallWidth),
         "stroke-linejoin": "round",
         "stroke-linecap": "butt"
       })
     );
-    g.appendChild(
-      el("path", {
-        d: line(run),
-        fill: "none",
-        stroke: "#4a4b44",
-        "stroke-width": String(Math.max(0.2, b.wallWidth * 0.35)),
-        opacity: "0.6"
-      })
-    );
+    g.appendChild(renderWallStructure(document, barbicanWall, run, el, interiorPoint));
   }
-  for (const tower of b.frontTowers)
+  for (const tower of b.frontTowers) {
     g.appendChild(
       el("path", {
         d: polygon(tower),
-        fill: STONE,
-        stroke: "#181916",
+        // The enclosed tower top is a floor, not the dark wall foundation.
+        fill: material === "wood" ? "#9e774f" : "#beb9ab",
+        stroke: material === "wood" ? "#38200b" : "#181916",
         "stroke-width": "0.3"
       })
     );
-  for (const [x, y] of b.turrets)
+    g.appendChild(renderWallStructure(document, barbicanWall, [...tower, tower[0]], el));
+  }
+  for (const point of b.turrets) {
+    const radius = b.wallWidth * 0.75;
     g.appendChild(
       el("circle", {
-        cx: x.toFixed(2),
-        cy: (-y).toFixed(2),
-        r: String(b.wallWidth * 0.75),
-        fill: STONE
+        cx: point[0].toFixed(2),
+        cy: (-point[1]).toFixed(2),
+        r: String(radius),
+        fill: color
       })
     );
+    g.appendChild(renderTowerDecoration(point, radius, material, el));
+  }
   return g;
 }
 
 /** Gate outworks; drawn above the curtain wall, moat and approach road. */
 export function renderBarbicans(
+  document: CityDocument,
   plan: AerialLandmarkPlan | undefined,
   tool: Tool = "select",
   inspectedId: number | string | null = null
@@ -539,6 +565,6 @@ export function renderBarbicans(
     class: "ce-barbicans",
     "pointer-events": tool === "select" ? "all" : "none"
   }) as SVGGElement;
-  for (const b of plan?.barbicans ?? []) layer.appendChild(renderBarbican(b, { tool, inspectedId }));
+  for (const b of plan?.barbicans ?? []) layer.appendChild(renderBarbican(b, { tool, inspectedId }, document));
   return layer;
 }

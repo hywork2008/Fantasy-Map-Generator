@@ -87,6 +87,9 @@ export function offsetPolyline(run: Point[], offsetMeters: number, center: Point
   const n = run.length;
   const isClosed = Math.hypot(run[0][0] - run[n - 1][0], run[0][1] - run[n - 1][1]) < 0.01;
 
+  // Closed outlines use their own interior, rather than the town center.
+  const closedSign = isClosed ? (_isClockwise(run) ? 1 : -1) : null;
+
   // Compute segment normals oriented outward
   const segmentNormals: Point[] = [];
   for (let i = 0; i < n - 1; i++) {
@@ -111,13 +114,12 @@ export function offsetPolyline(run: Point[], offsetMeters: number, center: Point
     const dot = nx * toCenterX + ny * toCenterY;
 
     // Outward points away from center (dot with toCenter should be negative)
-    const sign = dot > 0 ? -1 : 1;
+    const sign = closedSign ?? (dot > 0 ? -1 : 1);
     segmentNormals.push([nx * sign, ny * sign]);
   }
 
   // Calculate vertex normals
   const result: Point[] = [];
-  const maxMiter = 1.8; // clamp sharp corners to avoid runaway offsets
 
   for (let i = 0; i < n; i++) {
     let norm: Point;
@@ -131,9 +133,9 @@ export function offsetPolyline(run: Point[], offsetMeters: number, center: Point
       }
     } else if (i === n - 1) {
       if (isClosed) {
-        norm = result[0]
-          ? [result[0][0] - run[0][0], result[0][1] - run[0][1]]
-          : segmentNormals[segmentNormals.length - 1];
+        const nPrev = segmentNormals[segmentNormals.length - 1];
+        const nNext = segmentNormals[0];
+        norm = normalize([nPrev[0] + nNext[0], nPrev[1] + nNext[1]]) ?? nNext;
       } else {
         norm = segmentNormals[segmentNormals.length - 1];
       }
@@ -144,8 +146,7 @@ export function offsetPolyline(run: Point[], offsetMeters: number, center: Point
       norm = normalize(sum as Point) ?? nNext;
     }
 
-    const dist = Math.min(Math.max(offsetMeters, -offsetMeters * maxMiter), offsetMeters * maxMiter);
-    result.push([run[i][0] + norm[0] * dist, run[i][1] + norm[1] * dist]);
+    result.push([run[i][0] + norm[0] * offsetMeters, run[i][1] + norm[1] * offsetMeters]);
   }
 
   return result;
@@ -174,7 +175,8 @@ export function renderWallStructure(
   document: CityDocument,
   wall: EdgeFeatureGroup,
   run: Point[],
-  createElement: (name: string, attrs: Record<string, string>) => SVGElement
+  createElement: (name: string, attrs: Record<string, string>) => SVGElement,
+  interiorPoint?: Point
 ): SVGElement {
   const container = createElement("g", {
     class: `ce-wall-structure ce-wall-structure--${wall.wallMaterial ?? "stone"}`,
@@ -186,7 +188,7 @@ export function renderWallStructure(
   const material = wall.wallMaterial ?? "stone";
   const width = wall.style.widthMeters;
   const geom = resolveWallGeometry(width, material, wall.walkway);
-  const center = townCenter(document);
+  const center = interiorPoint ?? townCenter(document);
 
   if (material === "wood") {
     renderTimberWall(container, run, geom, center, createElement);
