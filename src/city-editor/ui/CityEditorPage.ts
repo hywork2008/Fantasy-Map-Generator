@@ -3348,12 +3348,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       }
       styleSelect.onchange = () => {
         runContextAction(() => {
+          const next = clone(documentState);
+          const target = next.castles?.find(c => c.id === castle.id);
+          if (!target) return null;
           if (styleSelect.value === "auto") {
-            delete castle.castleStyle;
+            delete target.castleStyle;
           } else {
-            castle.castleStyle = styleSelect.value as CastleStyle;
+            target.castleStyle = styleSelect.value as CastleStyle;
           }
-          return documentState;
+          return next;
         }, "Castle style change");
       };
 

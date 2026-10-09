@@ -154,10 +154,13 @@ function documentFabricFingerprint(doc: CityDocument): string {
     )
     .join(",");
   const groupPart = doc.featureGroups
-    .map(g => `${g.id}:${g.kind}:${g.vertices?.length ?? 0}:${g.segments?.length ?? 0}:${g.style?.widthMeters ?? 0}`)
+    .map(
+      g =>
+        `${g.id}:${g.kind}:${g.kind === "river" ? g.vertices.length : 0}:${g.kind === "river" ? 0 : g.segments.length}:${g.style.widthMeters}`
+    )
     .join(";");
   const circuitsPart = (doc.defenseCircuits ?? [])
-    .map(c => `${c.scope}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.wallGroupId ?? ""}`)
+    .map(c => `${c.scope}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.wallGroupIds.join(",")}`)
     .join(";");
   const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
   return [
