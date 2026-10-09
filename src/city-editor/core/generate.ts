@@ -4371,6 +4371,9 @@ export function completeRoadRouter(
     // Kalerythra: a 0.6 m stream stranded the road's start across it).
     return nearestDryApproach(p) ?? nearest(p);
   };
+  const interiorVertices = new Set(
+    [...(curtainInterior ?? [])].flatMap(fid => (mesh.faces[fid] ? faceVertices(mesh, mesh.faces[fid]) : []))
+  );
   return (polyline, outside, acrossBanks = false, onTrace) => {
     const searches: RoadRoutingTrace["searches"] = [];
     if (polyline.length < 2) {
@@ -4434,6 +4437,25 @@ export function completeRoadRouter(
           }
         }
         if (best) id = best;
+      }
+      // An approach waypoint can snap onto a curtain corner that bulges past
+      // it; every hop from there is wall (Yelen v69). Use the nearest vertex
+      // off the curtain instead, outside it when the interior is known.
+      if (outside && !gateEnd && id && barrierVertices.has(id) && !gateIds.has(id)) {
+        const point = sampled[i];
+        let best: Id | undefined;
+        let bestDist = Infinity;
+        for (const vertexId of ids) {
+          if (barrierVertices.has(vertexId)) continue;
+          if (interiorVertices.has(vertexId)) continue;
+          const at = mesh.vertices[vertexId].point;
+          const dist = Math.hypot(at[0] - point[0], at[1] - point[1]);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = vertexId;
+          }
+        }
+        if (best && bestDist < document.frame.blockSizeMeters * 2) id = best;
       }
       const idx = id ? indexOf.get(id) : undefined;
       if (idx === undefined || waypoints.at(-1) === idx) continue;
