@@ -1727,8 +1727,12 @@ export function runPlan(
   }
   empty.channelPolygons = appliedChannels.map(channel => channel.polygon);
   // The town mesh stops short of the display frame; FMG's drawn ocean shore does not.
+  // Even a mesh whose farthest vertex touches the frame is a rounded patch, so
+  // its corners are not covered. Always carry the sea out to the frame — the
+  // mesh area is subtracted at render time — or the uncovered corners fall
+  // back to the burg's biome and invent land across open water.
   const frameHalf = (settings.descriptor?.regionalContext && settings.descriptor.frame.extentMeters / 2) || 0;
-  if (frameHalf > half + 1)
+  if (frameHalf > 0)
     empty.regionalWater = classified.flatMap(item => {
       if (item.kind !== "ocean" || !item.coast || !item.regionalShore) return [];
       const wet = [...item.coast.sea].map(id => cells[id].centroid);
