@@ -22,6 +22,7 @@ import { computeCemeteryBoundary, layoutCemetery } from "../core/gen/cemeteryLay
 import { farmSheds } from "../core/gen/farmSheds";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
+import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "../core/gen/harborNavigation";
 import { templeFootprintMeters } from "../core/gen/housing";
 import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
@@ -1661,7 +1662,10 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
     }
   }
   // One shoreline per sea cell; a manually assigned ward needs no landmark.
-  const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point }>();
+  const shores = new Map<
+    Id,
+    { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point; river: boolean }
+  >();
   for (const edge of Object.values(document.mesh.edges)) {
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
@@ -1683,10 +1687,12 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
       ring: physical?.water ?? facePoints(document.mesh, water),
       length,
       depth,
-      inward: physical?.inward
+      inward: physical?.inward,
+      river: !!physical
     });
   }
-  for (const [waterId, { a, b, ring, length, depth, inward }] of shores) {
+  let field: HarborWaterField | undefined;
+  for (const [waterId, { a, b, ring, length, depth, inward, river }] of shores) {
     const center = polygonCentroid(ring);
     const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
     let normal: Point = inward ? [-inward[0], -inward[1]] : [-tangent[1], tangent[0]];
@@ -1727,6 +1733,11 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
         reach = d;
       }
       if (reach < 3) continue;
+      // Same rule as the planned piers: no sea berth boxed into a cove.
+      if (!river) {
+        field ??= harborWaterField(document);
+        if (!seaBerthIsNavigable(field, [start[0] + normal[0] * reach, start[1] + normal[1] * reach])) continue;
+      }
       const deck = (along: number, side: number): Point => [
         start[0] + normal[0] * along + (tangent[0] * width * side) / 2,
         start[1] + normal[1] * along + (tangent[1] * width * side) / 2

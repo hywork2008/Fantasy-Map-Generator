@@ -5,6 +5,7 @@ import type { CityDocument, CityElement, Id, Point } from "../types";
 import { waterPolygons as documentWaterPolygons } from "../waterGeometry";
 import { buildBlockFabric } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
+import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
 import { riverPortShore } from "./riverPortShore";
@@ -258,6 +259,14 @@ export function planHarborShips(
     }
   }
 
+  // A ship must be able to leave: drop sea piers whose head is boxed in (this
+  // also covers the mesh-shore fallback above) and keep hulls on open water.
+  const field = harborWaterField(document);
+  const seaBerth = (pier: KnownPier) => !pier.riverId && !pier.id.startsWith("pier:bank:");
+  for (let i = knownPiers.length - 1; i >= 0; i--)
+    if (seaBerth(knownPiers[i]) && !seaBerthIsNavigable(field, knownPiers[i].end)) knownPiers.splice(i, 1);
+  const onOpenWater = (p: Point) => field.navigable(p, SEA_CHANNEL_HALF_WIDTH);
+
   const waterPolygons = new Map<Id, Point[]>();
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "land") {
@@ -467,6 +476,9 @@ export function planHarborShips(
     // (4) 橋・道路との干渉判定
     if (crossingLines.some(l => distSegmentToSegment(stern, bow, l.a, l.b) < beam / 2 + l.halfWidth + 1.5)) continue;
 
+    // (4b) 出航できる水域か（入江の奥・狭い水路に押し込まない）
+    if (seaBerth(berth.pier) && !onOpenWater(shipCenter)) continue;
+
     // (5) 他の船との衝突判定
     const shipCollision = placedShips.some(other => {
       const d = distance(shipCenter, other.point ?? [0, 0]);
@@ -563,6 +575,7 @@ export function planHarborShips(
       if (crossingLines.some(l => distSegmentToSegment(stern, bow, l.a, l.b) < beam / 2 + l.halfWidth + 1.5)) continue;
 
       if (knownPiers.some(p => distPointToSegment(anchorPt, p.start, p.end) < 20)) continue;
+      if (!onOpenWater(anchorPt) || field.clearance(anchorPt) < halfLen) continue;
 
       const collides = placedShips.some(s => distance(anchorPt, s.point ?? [0, 0]) < 25);
       if (collides) continue;

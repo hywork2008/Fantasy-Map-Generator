@@ -8,6 +8,7 @@ import {
   segmentInteriorInPolygon,
   segmentSegmentHit
 } from "./geom";
+import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "./harborNavigation";
 import { convexInfillParts } from "./lotGeometry";
 import { corridor, distance, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
 import type { OpenSpace, ParcelFrontage } from "./parcelTypes";
@@ -237,6 +238,7 @@ export function planHarbor(
       }
     }
   const berthByWater = new Map<Id, Shore>();
+  const berthCandidates = new Map<Id, Shore[]>();
   const usableShores: { shore: Shore; midpoint: Point; stripWidth: number; qA: Point; qB: Point }[] = [];
   const period = document.historicalPeriod ?? "ageOfExploration";
   const isExplorationOrLater = [
@@ -257,6 +259,10 @@ export function planHarbor(
       shore.length > (berthByWater.get(shore.waterId || shore.id)?.length ?? 0)
     )
       berthByWater.set(shore.waterId || shore.id, shore);
+    if ((shore.waterId || shore.riverId) && (shore.depth >= 3 || !!shore.riverId)) {
+      const key = shore.waterId || shore.id;
+      berthCandidates.set(key, [...(berthCandidates.get(key) ?? []), shore]);
+    }
 
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
     const preset = params?.harborPreset ?? "dense";
@@ -468,7 +474,23 @@ export function planHarbor(
       }
     }
   }
-  for (const shore of berthByWater.values()) {
+  let field: HarborWaterField | undefined;
+  const waterField = () => {
+    field ??= harborWaterField(document);
+    return field;
+  };
+  // The longest shore of each water body is preferred; when its pier head
+  // would be boxed in (a cove, a narrow inlet), the next shore is tried.
+  for (const candidates of berthCandidates.values())
+    for (const shore of candidates.sort((a, b) => b.length - a.length)) {
+      const before = plan.piers.length;
+      addPiers(shore);
+      if (plan.piers.length > before) break;
+    }
+  plan.sharedArea = plan.spaces.reduce((a, s) => a + plotArea(s.polygon), 0);
+  return plan;
+
+  function addPiers(shore: Shore): void {
     const count = shore.length >= 50 ? 2 : 1;
     const width = Math.min(
       isExplorationOrLater ? 6.2 : 5.2,
@@ -506,22 +528,24 @@ export function planHarbor(
         }
         reach = d;
       }
-      if (reach >= 3)
-        plan.piers.push({
-          id: `pier:${shore.id}:${i}`,
-          waterFaceId: shore.waterId,
-          ...(shore.riverId ? { riverId: shore.riverId } : {}),
-          depth: shore.depth,
-          polygon: corridor(start, end(reach), width),
-          start,
-          end: end(reach),
-          width,
-          reach
-        });
+      if (reach < 3) continue;
+      // River berths (ribbon or physical `bank:`) keep their own fairway rule;
+      // sea berths need a basin to swing in and a channel out to open water.
+      const riverBerth = !!shore.riverId || shore.id.startsWith("bank:");
+      if (!riverBerth && !seaBerthIsNavigable(waterField(), end(reach))) continue;
+      plan.piers.push({
+        id: `pier:${shore.id}:${i}`,
+        waterFaceId: shore.waterId,
+        ...(shore.riverId ? { riverId: shore.riverId } : {}),
+        depth: shore.depth,
+        polygon: corridor(start, end(reach), width),
+        start,
+        end: end(reach),
+        width,
+        reach
+      });
     }
   }
-  plan.sharedArea = plan.spaces.reduce((a, s) => a + plotArea(s.polygon), 0);
-  return plan;
 }
 
 /** Split at every apron boundary, including an off-centre crossing whose
