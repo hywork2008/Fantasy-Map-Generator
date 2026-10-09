@@ -6,7 +6,12 @@ import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications"
 import { alignFrameRoadEndpoints, exteriorDirection, snapFrameRoadTerminals } from "./frameRoadConnection";
 import { straightenBridgeGateLinks, straightenFrameRoadJunctions, straightenThroughStreets } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
-import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
+import {
+  connectDryCellInteriors,
+  joinShoreStrandedGates,
+  openWallRiverMouths,
+  shortcutExteriorRoads
+} from "./gateApproaches";
 import {
   buildApproachCorridors,
   type CastleSitingConstraints,
@@ -3662,6 +3667,31 @@ function applyPlan(
       const opened = openBarrierPassage(next, gate.vertexId, "wall");
       if (opened) next = opened;
     }
+    // A road leaving a surveyed bridge head starts on the bank, so its own
+    // width always reaches the water there. Judge edges from a head without
+    // that first half-width (Gondre's only landing vertex sat on the bank).
+    const roadWidth = defaultRoadWidthMeters(townExtentMeters(next.frame));
+    const heads = next.importedFixedCrossings
+      ? plan.roads.flatMap((line, i) =>
+          i < plan.roads.length - plan.streets.length &&
+          (!plan.gates[i] || plan.importedRoads?.[plan.gates[i].roadIndex ?? -1]?.riverLanding)
+            ? [line[0]]
+            : []
+        )
+      : [];
+    const nearHead = (p: Point) => heads.some(h => Math.hypot(p[0] - h[0], p[1] - h[1]) < source.frame.blockSizeMeters);
+    const leavesHead = (a: Point, b: Point) => {
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const trim = roadWidth / 2 + 0.5;
+      if (length <= trim * 2) return false;
+      const start: Point = [a[0] + ((b[0] - a[0]) * trim) / length, a[1] + ((b[1] - a[1]) * trim) / length];
+      return !lineHitsDocumentWater(next, [start, b], roadWidth, true);
+    };
+    const edgeHitsWater = (a: Point, b: Point) => {
+      if (!next.importedFixedCrossings) return lineHitsWater([a, b], waterPolygons(next));
+      if (!lineHitsDocumentWater(next, [a, b], roadWidth, true)) return false;
+      return !((nearHead(a) && leavesHead(a, b)) || (nearHead(b) && leavesHead(b, a)));
+    };
     {
       const preliminaryBans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
       const probe = completeRoadRouter(
@@ -3677,6 +3707,29 @@ function applyPlan(
       if (plan.roads.some((line, i) => i < plan.gates.length * 2 && !probe(line, i < approaches).length)) {
         next = connectDryCellInteriors(next);
       }
+    }
+    {
+      // The router also bans edges whose road width reaches the water. A gate
+      // whose only outer arm runs along the bank needs a chord into its cell
+      // (Odutum). Probe with those bans before adding one.
+      const shoreEdges = new Set(
+        Object.values(next.mesh.edges)
+          .filter(edge => edgeHitsWater(next.mesh.vertices[edge.a].point, next.mesh.vertices[edge.b].point))
+          .map(edge => edge.id)
+      );
+      const bans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...shoreEdges]);
+      const probe = completeRoadRouter(
+        next,
+        routingPlan,
+        faceIdOf,
+        nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters)),
+        bans,
+        !program.walls,
+        urbanRegions
+      );
+      const approaches = plan.roads.length - plan.streets.length;
+      if (plan.roads.some((line, i) => i < approaches && plan.gates[i] && !probe(line, true).length))
+        next = joinShoreStrandedGates(next, shoreEdges);
     }
     mesh = next.mesh;
     const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
@@ -3703,34 +3756,8 @@ function applyPlan(
         }
       }
     }
-    // A road leaving a surveyed bridge head starts on the bank, so its own
-    // width always reaches the water there. Judge edges from a head without
-    // that first half-width (Gondre's only landing vertex sat on the bank).
-    const roadWidth = defaultRoadWidthMeters(townExtentMeters(next.frame));
-    const heads = next.importedFixedCrossings
-      ? plan.roads.flatMap((line, i) =>
-          i < plan.roads.length - plan.streets.length &&
-          (!plan.gates[i] || plan.importedRoads?.[plan.gates[i].roadIndex ?? -1]?.riverLanding)
-            ? [line[0]]
-            : []
-        )
-      : [];
-    const nearHead = (p: Point) => heads.some(h => Math.hypot(p[0] - h[0], p[1] - h[1]) < source.frame.blockSizeMeters);
-    const leavesHead = (a: Point, b: Point) => {
-      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const trim = roadWidth / 2 + 0.5;
-      if (length <= trim * 2) return false;
-      const start: Point = [a[0] + ((b[0] - a[0]) * trim) / length, a[1] + ((b[1] - a[1]) * trim) / length];
-      return !lineHitsDocumentWater(next, [start, b], roadWidth, true);
-    };
     const channelEdges = Object.values(mesh.edges)
-      .filter(edge => {
-        const a = mesh.vertices[edge.a].point,
-          b = mesh.vertices[edge.b].point;
-        if (!next.importedFixedCrossings) return lineHitsWater([a, b], waterPolygons(next));
-        if (!lineHitsDocumentWater(next, [a, b], roadWidth, true)) return false;
-        return !((nearHead(a) && leavesHead(a, b)) || (nearHead(b) && leavesHead(b, a)));
-      })
+      .filter(edge => edgeHitsWater(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point))
       .map(edge => edge.id);
     const banned = new Set<Id>([
       ...channelEdges,
@@ -3858,6 +3885,18 @@ function applyPlan(
           }
         );
       let segments = traceRoute(routeLine);
+      // Odutum: a ferry landing on the market's bank snaps to the same vertex
+      // as its town end. Lead it on to the nearest town end of another road.
+      if (segments.length < 1 && isApproach && (riverLanding || !plannedGate)) {
+        const start = routeLine[0];
+        const ends = plan.roads
+          .flatMap((line, j) => (j === i || !line.length ? [] : [line.at(-1)!]))
+          .sort((p, q) => Math.hypot(p[0] - start[0], p[1] - start[1]) - Math.hypot(q[0] - start[0], q[1] - start[1]));
+        for (const end of ends) {
+          segments = traceRoute([start, end]);
+          if (segments.length) break;
+        }
+      }
       // The mesh route stops on the town-side bank. The frame road carries the perpendicular crossing onward.
       if (segments.length < 1 && routeOutside && next.importedFixedCrossings) {
         const shortened = dryTownApproach(next, routeLine);

@@ -33,7 +33,7 @@ describe("rejected generation checkpoints", () => {
         source,
         defaultGenerationSettings(),
         // Still rejected at gate routing after generator fixes (attempt 2 seed).
-        "ce-audit-20261002:37:junction-retry:1",
+        "ce-audit-20261002:121:junction-retry:1",
         () => {},
         2,
         p => {

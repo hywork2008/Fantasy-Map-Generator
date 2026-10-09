@@ -90,6 +90,57 @@ export function connectDryCellInteriors(document: CityDocument): CityDocument {
   return next;
 }
 
+/** Join a gate to the dry edges of its own cell that the shore cuts off
+ * from it. The router bans edges whose road width reaches the water, so a gate
+ * arm running along the bank can strand the gate (Odutum). The chord ends at
+ * the nearest vertex of such a run. */
+export function joinShoreStrandedGates(document: CityDocument, shoreEdges: ReadonlySet<Id>): CityDocument {
+  let next = document;
+  const fixed = new Set([...kindEdgeIds(document, "river"), ...kindEdgeIds(document, "wall")]);
+  const fixedVertices = new Set([...fixed].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
+  for (const gate of townGates(document)) {
+    if (gate.locked) continue;
+    for (const face of incidentFaces(next.mesh, gate.vertexId)) {
+      if (face.properties.locked || face.properties.water !== "land") continue;
+      const dry = face.boundary
+        .map(ref => next.mesh.edges[ref.edgeId])
+        .filter(edge => !fixed.has(edge.id) && !shoreEdges.has(edge.id));
+      // Runs join at ordinary corners, never through the gate or a wall.
+      const reached = new Set<Id>([gate.vertexId]);
+      const queue = [gate.vertexId];
+      for (const vertex of queue)
+        for (const edge of dry) {
+          if (edge.a !== vertex && edge.b !== vertex) continue;
+          const other = edge.a === vertex ? edge.b : edge.a;
+          if (reached.has(other)) continue;
+          reached.add(other);
+          if (!fixedVertices.has(other)) queue.push(other);
+        }
+      const origin = next.mesh.vertices[gate.vertexId].point;
+      const distance = (id: Id) => {
+        const point = next.mesh.vertices[id].point;
+        return Math.hypot(point[0] - origin[0], point[1] - origin[1]);
+      };
+      const target = dry
+        .flatMap(edge => [edge.a, edge.b])
+        .filter(id => !reached.has(id) && !fixedVertices.has(id))
+        .sort((a, b) => distance(a) - distance(b))[0];
+      if (!target || edgeBetween(next.mesh, gate.vertexId, target)) continue;
+      const split = splitFace(next, face.id, gate.vertexId, target);
+      if (!split) continue;
+      const pieces = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);
+      for (const element of split.elements) {
+        if (!element.faceIds.includes(face.id)) continue;
+        for (const piece of pieces) if (!element.faceIds.includes(piece.id)) element.faceIds.push(piece.id);
+      }
+      for (const piece of pieces) piece.site = polygonCentroid(facePoints(split.mesh, piece));
+      next = split;
+      break;
+    }
+  }
+  return next;
+}
+
 /** At the frame, a river has only one visible arm and cannot form a four-way
  * wall crossing. End the two curtain runs just before that mouth instead. */
 export function openWallRiverMouths(document: CityDocument): CityDocument {

@@ -104,7 +104,7 @@ it("includes paired routing traces in a real rejected gate-generation sample", (
   generateCityAttempt(
     createGridDocument({ size: "tiny", grid: "evolution", seed: "ce-audit-20261002-mesh" }),
     defaultGenerationSettings(),
-    "ce-audit-20261002:37:junction-retry:1",
+    "ce-audit-20261002:121:junction-retry:1",
     sample => samples.push(sample),
     2
   );
