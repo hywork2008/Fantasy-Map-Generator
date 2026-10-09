@@ -350,11 +350,20 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
       .flatMap(e => [e.a, e.b])
   );
   const touched = new Set<string>();
+  const meshHalf = Math.max(
+    0,
+    ...Object.values(document.mesh.vertices).map(v => Math.max(Math.abs(v.point[0]), Math.abs(v.point[1])))
+  );
   for (const leg of document.frameRoads ?? []) {
     const piece = leg.pieces[0];
     if (piece?.kind !== "road" || piece.points.length < 2) continue;
     const target = piece.points[0],
       outward = piece.points[1];
+    // A leg that starts at a river bank inside the mesh (the town square cut
+    // through the channel) has no perimeter vertex to meet; the street's last
+    // dry vertex is interior and can sit a whole outskirts cell short of it.
+    const bankStart = Math.max(Math.abs(target[0]), Math.abs(target[1])) < meshHalf - 1;
+    const reach = bankStart ? Math.max(40, document.frame.blockSizeMeters * 3) : document.frame.blockSizeMeters;
     for (const group of document.featureGroups) {
       if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) continue;
       if (group.locked || group.sourceRoad?.terminal === "riverLanding") continue;
@@ -368,8 +377,7 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
       const vertex = document.mesh.vertices[id];
       const gap = distance(vertex.point, target);
       if (gap < epsilon) break;
-      if (gap > document.frame.blockSizeMeters || vertex.locked || touched.has(id) || !boundaryVertices.has(id))
-        continue;
+      if (gap > reach || vertex.locked || touched.has(id) || (!bankStart && !boundaryVertices.has(id))) continue;
       if (
         (document.gates ?? []).some(g => g.vertexId === id) ||
         document.featureGroups.some(g => g.id !== group.id && featureGroupVertices(document, g).includes(id)) ||
@@ -377,7 +385,22 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
       )
         continue;
       const width = Math.max(group.style.widthMeters, defaultRoadWidthMeters(townExtentMeters(document.frame)));
-      if (lineHitsDocumentWater(document, [inner, target, outward], width, true)) continue;
+      // A bank start sits on the shore itself. Aim the street straight at the
+      // bridge foot when the leg only walks the bank to it, else at the bank
+      // start; stop one road width short so the stroke cap stays dry.
+      const shortOf = (aim: Point): Point | null => {
+        const edge = distance(inner, aim);
+        if (edge <= width) return null;
+        const goal: Point = [
+          aim[0] + ((inner[0] - aim[0]) * width) / edge,
+          aim[1] + ((inner[1] - aim[1]) * width) / edge
+        ];
+        return lineHitsDocumentWater(document, [inner, goal], width, true) ? null : goal;
+      };
+      const foot = leg.pieces[1]?.kind === "bridge" ? piece.points.at(-1)! : null;
+      const footGoal = bankStart && foot ? shortOf(foot) : null;
+      const goal = !bankStart ? ([target[0], target[1]] as Point) : (footGoal ?? shortOf(target));
+      if (!goal || (!bankStart && lineHitsDocumentWater(document, [inner, target, outward], width, true))) continue;
       const incident = Object.values(document.mesh.faces).filter(face =>
         face.boundary.some(ref => {
           const edge = document.mesh.edges[ref.edgeId];
@@ -387,7 +410,7 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
       if (incident.some(face => face.properties.locked || face.properties.water !== "land")) continue;
       const oldAreas = incident.map(face => polygonArea(facePoints(document.mesh, face)));
       const previous = vertex.point;
-      vertex.point = [target[0], target[1]];
+      vertex.point = goal;
       const valid = incident.every((face, index) => {
         const polygon = facePoints(document.mesh, face);
         return isSimplePolygon(polygon) && polygonArea(polygon) * oldAreas[index] > 0;
@@ -396,7 +419,9 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
         vertex.point = previous;
         continue;
       }
-      piece.points[0] = vertex.point;
+      if (footGoal && foot) piece.points = [vertex.point, foot];
+      else if (bankStart) piece.points.unshift(vertex.point);
+      else piece.points[0] = vertex.point;
       touched.add(id);
       break;
     }

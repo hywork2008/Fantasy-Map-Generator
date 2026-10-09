@@ -242,7 +242,10 @@ function piecesFor(
             nearest = index;
           }
         });
-        dry = dedupe([...dry, ...traced.slice(nearest)]);
+        // A wide river whose descriptor path ends mid-channel projects every
+        // sample onto the near bank; that trace is not a far-bank road.
+        if (segmentClears(bridge.farApproach, traced[nearest], [{ water: interval.body.water, river: null }]))
+          dry = dedupe([...dry, ...traced.slice(nearest)]);
       }
     }
     consumed = interval.end;
