@@ -2,8 +2,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { renderEditorSvg } from "../../render/svg";
 import { createGridDocument } from "../document";
 import { featureGroupVertices } from "../features";
+import { FixedRoadReservation } from "../fixedRoadReservation";
 import { circuitRing, polygonOverlaps } from "../fortifications";
 import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
+import { MoatReservation } from "../moats";
 import type { CityDocument, Point } from "../types";
 import { aerialLandmarkFootprints, buildAerialLandmarkPlan } from "./aerialLandmarks";
 import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
@@ -64,6 +66,25 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(plan.barbicans.length).toBeGreaterThan(0);
     expect(plan.tanneries).toHaveLength(1);
     expect(plan.gallows).toHaveLength(1);
+  });
+
+  it("fits accessible domestic water into vacant ground without displacing housing", () => {
+    const points = fabric.aerialLandmarks!.domesticWater;
+    expect(points.length).toBeGreaterThan(0);
+    expect(points.some(p => p.placement === "plaza")).toBe(true);
+    const moat = new MoatReservation(city);
+    const fixed = new FixedRoadReservation(city);
+    const roads = [...roadPolylines(city), ...fabric.lanes.map(l => ({ points: l.points, width: l.widthMeters }))];
+    for (const water of points) {
+      expect(fabric.buildings.some(b => polygonOverlaps(b.polygon, water.footprint))).toBe(false);
+      expect(fabric.farms.some(f => polygonOverlaps(f.polygon, water.footprint))).toBe(false);
+      expect(moat.hitsPolygon(water.footprint)).toBe(false);
+      expect(fixed.hitsPolygon(water.footprint)).toBe(false);
+      expect(roads.some(r => nearestOnPolyline(water.access.at(-1)!, r.points).dist < 0.01)).toBe(true);
+      for (const r of roads)
+        expect(nearestOnPolyline(water.center, r.points).dist).toBeGreaterThan(water.radius + r.width / 2);
+      expect(water.use).toBe(water.kind === "pond" ? "service" : "domestic");
+    }
   });
 
   it("is deterministic for the same document and fabric", () => {
@@ -180,6 +201,9 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
       `${-half} ${-half} ${half * 2} ${half * 2}`,
       1
     );
+    expect(svg.querySelectorAll(".ce-domestic-water[data-pick]")).toHaveLength(
+      fabric.aerialLandmarks!.domesticWater.length
+    );
     for (const kind of ["monastery", "windmill", "barbican", "tannery", "gallows"]) {
       const node = svg.querySelector(`.ce-${kind}[data-pick]`);
       expect(node, kind).not.toBeNull();
@@ -205,6 +229,9 @@ describe("FMG-linked rivers (riverFlows)", () => {
     const mills = fabric.watermills!.mills;
     expect(mills.length).toBeGreaterThan(0);
     for (const mill of mills) expect(hitsSurveyedWater(city, mill.millhousePolygon)).toBe(false);
+    const waterPoints = fabric.aerialLandmarks!.domesticWater;
+    expect(waterPoints.length).toBeGreaterThan(0);
+    for (const water of waterPoints) expect(hitsSurveyedWater(city, water.footprint)).toBe(false);
     const [yard] = fabric.aerialLandmarks!.tanneries;
     expect(yard).toBeDefined();
     expect(hitsSurveyedWater(city, yard.yard)).toBe(false);

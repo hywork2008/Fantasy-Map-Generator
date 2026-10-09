@@ -14,6 +14,7 @@ import { flowingRivers } from "../riverFlow";
 import type { CityDocument, HistoricalPeriod, Id, Point } from "../types";
 import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
+import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
 import {
   bufferPolygon,
   cleanRing,
@@ -86,6 +87,7 @@ export interface Gallows {
 }
 
 export interface AerialLandmarkPlan {
+  domesticWater: DomesticWaterPoint[];
   monasteries: Monastery[];
   windmills: Windmill[];
   barbicans: Barbican[];
@@ -102,6 +104,7 @@ export interface AerialLandmarkInput {
 }
 
 const EMPTY_PLAN: AerialLandmarkPlan = {
+  domesticWater: [],
   monasteries: [],
   windmills: [],
   barbicans: [],
@@ -1047,7 +1050,15 @@ export function buildAerialLandmarkPlan(
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
-  const plan = { monasteries, windmills, barbicans, tanneries, gallows };
+  const domesticWater = placeDomesticWater(
+    site,
+    [
+      ...site.roads.map(points => ({ points, widthMeters: defaultRoadWidthMeters(townExtentMeters(document.frame)) })),
+      ...input.lanes
+    ],
+    input.buildings.length
+  );
+  const plan = { monasteries, windmills, barbicans, tanneries, gallows, domesticWater };
   aerialPlanCache.set(document, { fingerprint: fp, plan });
   return plan;
 }

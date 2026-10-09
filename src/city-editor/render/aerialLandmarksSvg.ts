@@ -462,6 +462,71 @@ export function renderAerialLandmarks(
   }) as SVGGElement;
   if (!plan) return layer;
   const options = { tool, inspectedId };
+  for (const water of plan.domesticWater ?? []) {
+    const g = pickGroup(
+      `ce-domestic-water ce-domestic-water--${water.kind}`,
+      {
+        kind: "domesticWater",
+        id: water.id,
+        label: water.name,
+        waterKind: water.kind,
+        use: water.use,
+        placement: water.placement
+      },
+      options
+    );
+    const title = el("title", {});
+    title.textContent = water.name;
+    g.appendChild(title);
+    g.appendChild(el("path", { d: line(water.access), fill: "none", stroke: EARTH, "stroke-width": "1" }));
+    const [x, y] = water.center;
+    g.appendChild(
+      el("circle", {
+        cx: `${x}`,
+        cy: `${-y}`,
+        r: `${water.radius}`,
+        fill: water.kind === "pond" ? "#88a5a0" : "#d0c8b7",
+        stroke: STROKE,
+        "stroke-width": "0.4"
+      })
+    );
+    if (water.kind !== "pond")
+      g.appendChild(
+        el("circle", {
+          cx: `${x}`,
+          cy: `${-y}`,
+          r: `${water.radius * 0.65}`,
+          fill: "#719ca8",
+          stroke: STROKE,
+          "stroke-width": "0.2"
+        })
+      );
+    if (water.kind === "well")
+      g.appendChild(
+        el("path", {
+          d: line([
+            [x - water.radius, y],
+            [x + water.radius, y]
+          ]),
+          fill: "none",
+          stroke: "#74583d",
+          "stroke-width": "0.45"
+        })
+      );
+    if (water.kind === "cistern")
+      g.appendChild(
+        el("path", {
+          d: line([
+            [x, y - water.radius * 0.5],
+            [x, y + water.radius * 0.5]
+          ]),
+          fill: "none",
+          stroke: "#d0c8b7",
+          "stroke-width": "0.7"
+        })
+      );
+    layer.appendChild(g);
+  }
   for (const m of plan.monasteries) layer.appendChild(renderMonastery(m, options, minimal));
   for (const t of plan.tanneries) layer.appendChild(renderTannery(t, options, minimal));
   for (const gw of plan.gallows) layer.appendChild(renderGallows(gw, options));

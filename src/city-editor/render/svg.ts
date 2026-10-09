@@ -1223,18 +1223,43 @@ export function renderEditorSvg(
     }
     if (town && (cityElement.id.startsWith("gc:") || cityElement.kind === "temple" || cityElement.kind === "plaza")) {
       if (cityElement.kind === "plaza") {
-        const plazaCircle = element("circle", {
-          cx: String(p[0]),
-          cy: String(-p[1]),
-          r: "2.5",
-          fill: "#292a26",
-          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+        const plazaWell = element("g", {
+          transform: `translate(${p[0]} ${-p[1]})`,
+          class: `ce-plaza-well${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           "data-element": cityElement.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
           "pointer-events": tool === "select" ? "all" : "none"
         });
-        if (tool === "select") plazaCircle.style.cursor = "pointer";
-        elements.appendChild(plazaCircle);
+        plazaWell.appendChild(
+          element("circle", {
+            cx: "0",
+            cy: "0",
+            r: "2.5",
+            fill: "#d0c8b7",
+            stroke: "#49483f",
+            "stroke-width": "0.4"
+          })
+        );
+        plazaWell.appendChild(
+          element("circle", {
+            cx: "0",
+            cy: "0",
+            r: "1.65",
+            fill: "#719ca8",
+            stroke: "#49483f",
+            "stroke-width": "0.2"
+          })
+        );
+        plazaWell.appendChild(
+          element("path", {
+            d: "M -2.5 0 L 2.5 0",
+            fill: "none",
+            stroke: "#74583d",
+            "stroke-width": "0.55"
+          })
+        );
+        if (tool === "select") plazaWell.style.cursor = "pointer";
+        elements.appendChild(plazaWell);
       }
       if (cityElement.kind === "temple") {
         const footprint = templeFootprintMeters(townExtentMeters(document.frame));
