@@ -1032,8 +1032,15 @@ export function renderEditorSvg(
       svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
       svg.appendChild(renderAerialLandmarks(townAerial, tool, selection.inspectedId, minimal));
     }
+    if (!preview) {
+      svg.appendChild(renderBarbicans(document, townAerial, tool, selection.inspectedId));
+      // SVG paint order places the curtain and its towers above attached outworks.
+      const walls = element("g", { class: "ce-walls" });
+      for (const node of Array.from(features.children))
+        if (node.matches(".ce-feature--wall, .ce-wall-structure")) walls.appendChild(node);
+      svg.appendChild(walls);
+    }
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
-    if (!preview) svg.appendChild(renderBarbicans(document, townAerial, tool, selection.inspectedId));
     if (townParkLawns.length) {
       const parkTreesLayer = element("g", {
         class: "ce-park-trees",
