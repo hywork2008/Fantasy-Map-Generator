@@ -192,7 +192,14 @@ export function assignWards(input: WardInputs): WardResult {
 
   // 2. Harbour (coast-bound) before temple so the two cannot collide.
   if (program.port) {
-    if ((geo.riverPort && input.riverBanks?.length) || !shoreline || shoreline.length < 2 || !waterPolygon) {
+    const riverHarbour =
+      (geo.riverPort && input.riverBanks?.length) || !shoreline || shoreline.length < 2 || !waterPolygon;
+    // A river port with its own sea haven (an estuary town) gets both harbours.
+    // It needs real open water near the town, not a sliver at the window edge (Yalkan).
+    const seaHarbour =
+      !riverHarbour ||
+      (!!geo.seaPort && !!shoreline && shoreline.length >= 2 && !!waterPolygon && sea.size >= ESTUARY_SEA_MIN_CELLS);
+    if (riverHarbour) {
       // Navigable river frontage can exist without a sea/lake water polygon.
       const lines = input.riverBanks?.length ? input.riverBanks : (input.rivers ?? []);
       const candidates = cells.filter(
@@ -234,8 +241,13 @@ export function assignWards(input: WardInputs): WardResult {
         take(anchor.id, "harbor");
         if (!urban.has(anchor.id)) outskirts.add(anchor.id);
       }
-    } else {
-      const harbor = placeHarbor(cells, urban, sea, occupied, shoreline, R);
+    }
+    if (seaHarbour && shoreline) {
+      const placed = placeHarbor(cells, urban, sea, occupied, shoreline, R);
+      const harbor =
+        placed && riverHarbour && Math.hypot(placed.anchor[0], placed.anchor[1]) > R * ESTUARY_SEA_MAX_RADII
+          ? null
+          : placed;
       if (harbor) {
         extraPrecincts.push(harbor);
         for (const id of harbor.cellIds) take(id, "harbor");
@@ -499,6 +511,11 @@ function rateLocation(
       return null;
   }
 }
+
+/** An estuary town's second (sea) harbour needs this much open water ... */
+const ESTUARY_SEA_MIN_CELLS = 6;
+/** ... within this many town radii of the centre. */
+const ESTUARY_SEA_MAX_RADII = 3;
 
 function placeHarbor(
   cells: Cell[],

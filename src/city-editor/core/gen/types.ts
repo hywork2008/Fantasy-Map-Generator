@@ -240,6 +240,8 @@ export interface Snapshot {
 export interface CityGeography {
   /** Explicit FMG river-port topology, independent of clipped shore geometry. */
   riverPort?: boolean;
+  /** FMG also gives this burg a sea (or lake) haven: draw that harbour too, not only the river one. */
+  seaPort?: boolean;
   /** `regionalShore` is the full-resolution FMG shore across the whole frame, translated
    * like `corridor`; the corridor itself is a coarse walk guide for the town mesh only. */
   coast: { corridor: Point[]; waterAzimuthDeg: number; regionalShore?: Point[] } | null;

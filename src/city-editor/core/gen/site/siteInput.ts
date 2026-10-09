@@ -59,6 +59,7 @@ export function siteToGeography(site: BurgSiteDescriptor, imported = false): Cit
   const waterAreas = coast ? [{ ...coast, kind: site.waterbody?.kind ?? "ocean" } as const] : [];
   return {
     ...(site.burg.waterAccess?.port.river ? { riverPort: true } : {}),
+    ...(site.burg.waterAccess?.port.sea ? { seaPort: true } : {}),
     coast,
     waterAreas,
     channels,
@@ -301,7 +302,7 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     // an inland burg must keep its real distance from the water.
     // A wide navigable channel already supplies the waterfront. Moving the
     // ocean across that channel would flood the river port's remaining land.
-    if (site.burg.port && wb.isPort && !site.rivers.some(r => unbridgeableOnSite(site, r))) {
+    if (pullsCoastToTown(site)) {
       const hit = nearestOnPolyline([0, 0], corridor);
       const radius = site.frame.cityRadiusMeters;
       if (radius > 0 && hit.dist > radius) {
@@ -410,6 +411,12 @@ function drawnWidthMeters(river: SiteRiver): number {
 }
 
 /** A channel the town's era cannot span, passing through the burg or the city disk. */
+/** A sea port whose FMG shore lies beyond the town has that shore brought to it;
+ * a wide navigable channel blocks this (the ocean would flood the river port). */
+export function pullsCoastToTown(site: BurgSiteDescriptor): boolean {
+  return !!site.burg.port && !!site.waterbody?.isPort && !site.rivers.some(r => unbridgeableOnSite(site, r));
+}
+
 function unbridgeableOnSite(site: BurgSiteDescriptor, river: SiteRiver): boolean {
   return drawnWidthMeters(river) > bridgeCrossingMeters(site) && (river.throughBurgCell || river.crossesSite);
 }

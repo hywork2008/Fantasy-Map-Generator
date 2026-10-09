@@ -14,6 +14,7 @@ import {
   moveVertices,
   splitFace
 } from "./mesh";
+import { explainGeneratedCrossingFailures } from "./passages";
 import type { CityDocument, EdgeRef, Id, Point } from "./types";
 import { lineHitsDocumentWater } from "./waterGeometry";
 
@@ -563,4 +564,83 @@ function cutAlong(document: CityDocument, from: Id, to: Id): { document: CityDoc
     current = nextId;
   }
   return null;
+}
+
+/** Two opposite turns in a row sharper than this read as an N (or Z). */
+const ZIGZAG_DEGREES = 25;
+
+/** Straighten Ns on the streets that carry the FMG roads through the town: a
+ * gate street or an imported road turning sharply one way and then straight
+ * back (Ikageid v113/v114). The two middle vertices are moved onto the line
+ * between their outer neighbours, as far as the cells stay valid. Gates and
+ * locked vertices never move. */
+export function straightenThroughStreets(document: CityDocument, descriptor?: BurgSiteDescriptor): void {
+  const gates = new Set(document.gates.map(g => g.vertexId));
+  let work = document;
+  // Never at the cost of a junction already made straight into an exterior road.
+  const junctions = (doc: CityDocument) =>
+    (doc.frameRoads ?? []).map(leg => frameRoadApproachBend(doc, leg, descriptor));
+  let held = junctions(work);
+  for (const groupId of document.featureGroups.map(g => g.id)) {
+    for (let pass = 0; pass < 3; pass++) {
+      const group = work.featureGroups.find(g => g.id === groupId);
+      if (!group || group.kind !== "road" || group.locked) break;
+      const ids = featureGroupVertices(work, group);
+      if (!group.sourceRoad && !ids.some(id => gates.has(id))) break;
+      let changed = false;
+      for (let i = 1; i + 2 < ids.length; i++) {
+        const [a, b, c, d] = [ids[i - 1], ids[i], ids[i + 1], ids[i + 2]].map(id => work.mesh.vertices[id].point);
+        const t1 = signedTurn(a, b, c),
+          t2 = signedTurn(b, c, d);
+        if (Math.sign(t1) === Math.sign(t2) || Math.abs(t1) < ZIGZAG_DEGREES || Math.abs(t2) < ZIGZAG_DEGREES) continue;
+        const movable = [ids[i], ids[i + 1]].filter(id => !gates.has(id) && !work.mesh.vertices[id].locked);
+        if (movable.length < 2) continue;
+        const before = Math.max(Math.abs(t1), Math.abs(t2));
+        for (const fraction of SLIDE_FRACTIONS) {
+          if (!fraction) continue;
+          const target = (p: Point): Point => {
+            const ad = sub(d, a);
+            const len2 = ad[0] * ad[0] + ad[1] * ad[1];
+            const t = len2 > 1e-9 ? ((p[0] - a[0]) * ad[0] + (p[1] - a[1]) * ad[1]) / len2 : 0;
+            const on: Point = [a[0] + ad[0] * t, a[1] + ad[1] * t];
+            return [p[0] + (on[0] - p[0]) * fraction, p[1] + (on[1] - p[1]) * fraction];
+          };
+          const moved = moveVertices(
+            work,
+            new Map([
+              [ids[i], target(b)],
+              [ids[i + 1], target(c)]
+            ])
+          );
+          if (!moved) continue;
+          const [nb, nc] = [ids[i], ids[i + 1]].map(id => moved.mesh.vertices[id].point);
+          const after = Math.max(Math.abs(signedTurn(a, nb, nc)), Math.abs(signedTurn(nb, nc, d)));
+          const outer = Math.max(
+            i >= 2 ? Math.abs(signedTurn(moved.mesh.vertices[ids[i - 2]].point, a, nb)) : 0,
+            i + 3 < ids.length ? Math.abs(signedTurn(nc, d, moved.mesh.vertices[ids[i + 3]].point)) : 0
+          );
+          if (after < before - 5 && outer < before) {
+            const kept = junctions(moved);
+            if (kept.some((bend, k) => bend > held[k] + 0.5)) continue;
+            // Nor at the cost of a bridge: its arms must stay square to the river.
+            if (explainGeneratedCrossingFailures(moved).length > explainGeneratedCrossingFailures(work).length)
+              continue;
+            held = kept;
+            work = moved;
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (!changed) break;
+    }
+  }
+  if (work !== document) Object.assign(document, work);
+}
+
+/** Signed turn at b along a→b→c, in degrees (left positive). */
+function signedTurn(a: Point, b: Point, c: Point): number {
+  const u = sub(b, a),
+    v = sub(c, b);
+  return (Math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1]) * 180) / Math.PI;
 }

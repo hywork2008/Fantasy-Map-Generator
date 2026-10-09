@@ -4,7 +4,7 @@ import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
 import { alignFrameRoadEndpoints, exteriorDirection, snapFrameRoadTerminals } from "./frameRoadConnection";
-import { straightenFrameRoadJunctions } from "./frameRoadJunction";
+import { straightenFrameRoadJunctions, straightenThroughStreets } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import {
@@ -1071,6 +1071,7 @@ export function generateCityAttempt(
   measureProcessing(profiler, "frame-road-junctions-fixed", () =>
     straightenFrameRoadJunctions(withApproaches, settings.descriptor)
   );
+  measureProcessing(profiler, "through-streets", () => straightenThroughStreets(withApproaches, settings.descriptor));
   return withApproaches;
 }
 
@@ -3405,7 +3406,14 @@ function applyPlan(
     // Reserved precinct landmarks as point-anchored elements.
     for (const precinct of [...plan.precincts, ...plan.templeHarbor]) {
       if (!["plaza", "citadel", "temple", "harbor"].includes(precinct.kind)) continue;
-      if (next.elements.some(e => e.id === `${GEN_PREFIX}${precinct.kind}`)) continue;
+      // An estuary town has a river and a sea harbour: number the second one.
+      const elementId =
+        precinct.kind === "harbor" &&
+        precinct.label === "Harbour" &&
+        next.elements.some(e => e.id === `${GEN_PREFIX}harbor`)
+          ? `${GEN_PREFIX}harbor-sea`
+          : `${GEN_PREFIX}${precinct.kind}`;
+      if (next.elements.some(e => e.id === elementId)) continue;
       if (precinct.kind === "harbor") {
         const harborFaceIds = precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean);
         const hasCoastalFace = harborFaceIds.some(fid =>
@@ -3414,7 +3422,7 @@ function applyPlan(
         if (!hasCoastalFace && precinct.label !== "River Harbour") continue;
       }
       next.elements.push({
-        id: `${GEN_PREFIX}${precinct.kind}`,
+        id: elementId,
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
         faceIds: precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean),
         point: [precinct.anchor[0], precinct.anchor[1]],
