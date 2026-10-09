@@ -135,6 +135,11 @@ export function applyGraphSize(): void {
     : { width: canvasSize.mapWidth, height: canvasSize.mapHeight };
   worldContext.graphWidth = graphSize.width;
   worldContext.graphHeight = graphSize.height;
+  resizeGraphRects();
+}
+
+/** Resizes the graph-sized background rects and masks to worldContext.graphWidth / graphHeight. */
+export function resizeGraphRects(): void {
   const { graphWidth, graphHeight } = worldContext;
 
   if (!viewContext?.renderMap || !viewContext.viewbox) return;

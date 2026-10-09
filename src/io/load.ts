@@ -3,6 +3,7 @@ import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { fitMapToScreen, resizeGraphRects } from "../controllers/options";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
@@ -300,6 +301,10 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
         ? { portCoastPlacement: worldContext.options.portCoastPlacement }
         : {})
     });
+    // The archive carries its own canvas size; resize graph-sized rects/masks and
+    // the zoom extent, otherwise areas outside the pre-load viewport stay unpainted.
+    resizeGraphRects();
+    fitMapToScreen();
     if (worldContext.options.landConnectionGeneration) {
       legacyMutation(() => {
         const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
