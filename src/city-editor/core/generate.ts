@@ -4,7 +4,7 @@ import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
 import { alignFrameRoadEndpoints, exteriorDirection, snapFrameRoadTerminals } from "./frameRoadConnection";
-import { straightenFrameRoadJunctions, straightenThroughStreets } from "./frameRoadJunction";
+import { straightenBridgeGateLinks, straightenFrameRoadJunctions, straightenThroughStreets } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
 import { connectDryCellInteriors, openWallRiverMouths, shortcutExteriorRoads } from "./gateApproaches";
 import {
@@ -1073,6 +1073,9 @@ export function generateCityAttempt(
     straightenFrameRoadJunctions(withApproaches, settings.descriptor)
   );
   measureProcessing(profiler, "through-streets", () => straightenThroughStreets(withApproaches, settings.descriptor));
+  measureProcessing(profiler, "bridge-gate-links", () =>
+    straightenBridgeGateLinks(withApproaches, settings.descriptor)
+  );
   return withApproaches;
 }
 

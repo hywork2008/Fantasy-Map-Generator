@@ -14,7 +14,7 @@ import {
   moveVertices,
   splitFace
 } from "./mesh";
-import { explainGeneratedCrossingFailures } from "./passages";
+import { explainGeneratedCrossingFailures, onFixedCrossingApproach } from "./passages";
 import type { CityDocument, EdgeRef, Id, Point } from "./types";
 import { lineHitsDocumentWater } from "./waterGeometry";
 
@@ -633,6 +633,84 @@ export function straightenThroughStreets(document: CityDocument, descriptor?: Bu
         }
       }
       if (!changed) break;
+    }
+  }
+  if (work !== document) Object.assign(document, work);
+}
+
+/** Make the road from an FMG bridge landing to a town gate one straight run
+ * (Chalbianos v261→v266→v63: the road left the deck straight on for 120 m,
+ * then turned 100° back to the gate). The vertices between the landing and
+ * the gate are spaced evenly on the line between them (one vertex: the
+ * midpoint), or slid part way when the cells or the water do not allow it.
+ * Only vertices carrying nothing but this road move; the deck landing and
+ * the gate stay put, so the bridge stays square to the river. The road may
+ * then bend at the landing, on the bank: the move must lower the sharpest
+ * turn from the deck to the gate, that bend included. */
+export function straightenBridgeGateLinks(document: CityDocument, descriptor?: BurgSiteDescriptor): void {
+  const gates = new Set(document.gates.map(g => g.vertexId));
+  let work = document;
+  const junctions = (doc: CityDocument) =>
+    (doc.frameRoads ?? []).map(leg => frameRoadApproachBend(doc, leg, descriptor));
+  let held = junctions(work);
+  for (const groupId of document.featureGroups.map(g => g.id)) {
+    const group = work.featureGroups.find(g => g.id === groupId);
+    if (!group || group.kind !== "road" || group.locked) continue;
+    const ids = featureGroupVertices(work, group);
+    const others = new Set(
+      work.featureGroups.filter(g => g.id !== groupId).flatMap(g => featureGroupVertices(work, g))
+    );
+    for (let from = 0; from < ids.length; from++) {
+      if (!onFixedCrossingApproach(work, work.mesh.vertices[ids[from]].point)) continue;
+      for (const step of [1, -1]) {
+        // The nearest gate along the road, with only free road vertices between.
+        let to = from + step;
+        while (to >= 0 && to < ids.length && !gates.has(ids[to])) {
+          const vertex = work.mesh.vertices[ids[to]];
+          if (vertex.locked || others.has(ids[to]) || onFixedCrossingApproach(work, vertex.point)) break;
+          to += step;
+        }
+        if (to < 0 || to >= ids.length || !gates.has(ids[to]) || Math.abs(to - from) < 2) continue;
+        const run = Array.from({ length: Math.abs(to - from) + 1 }, (_, k) => ids[from + k * step]);
+        const points = (doc: CityDocument) => run.map(id => doc.mesh.vertices[id].point);
+        const sharpest = (pts: Point[]) =>
+          Math.max(...pts.slice(1, -1).map((p, k) => Math.abs(signedTurn(pts[k], p, pts[k + 2]))));
+        const start = points(work);
+        const [landing, gate] = [start[0], start.at(-1)!];
+        // Legs whose exterior road comes over this deck: their bend is this run's first turn.
+        const own = (work.frameRoads ?? []).map(leg => {
+          const target = leg.pieces[0]?.points[0];
+          return !!target && distance(target, landing) < 1;
+        });
+        const turns = (pts: Point[], bends: number[]) => Math.max(sharpest(pts), ...bends.filter((_, k) => own[k]));
+        if (sharpest(start) < ZIGZAG_DEGREES) continue;
+        const before = turns(start, held);
+        const width = group.style.widthMeters;
+        for (const fraction of SLIDE_FRACTIONS) {
+          if (!fraction) continue;
+          const targets = new Map(
+            run.slice(1, -1).map((id, k): [Id, Point] => {
+              const t = (k + 1) / (run.length - 1);
+              const on: Point = [landing[0] + (gate[0] - landing[0]) * t, landing[1] + (gate[1] - landing[1]) * t];
+              const p = start[k + 1];
+              return [id, [p[0] + (on[0] - p[0]) * fraction, p[1] + (on[1] - p[1]) * fraction]];
+            })
+          );
+          const moved = moveVertices(work, targets);
+          if (!moved) continue;
+          const after = points(moved);
+          const kept = junctions(moved);
+          if (turns(after, kept) > before - 5) continue;
+          if (kept.some((bend, k) => !own[k] && bend > held[k] + 0.5)) continue;
+          // A dry road stays dry.
+          if (!lineHitsDocumentWater(work, start, width, true) && lineHitsDocumentWater(moved, after, width, true))
+            continue;
+          if (explainGeneratedCrossingFailures(moved).length > explainGeneratedCrossingFailures(work).length) continue;
+          held = kept;
+          work = moved;
+          break;
+        }
+      }
     }
   }
   if (work !== document) Object.assign(document, work);

@@ -37,4 +37,25 @@ describe("Chalbianos (bridge landing beside a river gate)", () => {
       expect(lineHitsDocumentWater(city!, line, road.style.widthMeters, true)).toBe(false);
     }
   });
+
+  // The road ran straight on from the deck (v261) for 120 m, then turned 100°
+  // back to the gate (v63) at v266. The bend vertex now sits midway.
+  it("runs straight from the crossing 83 landing to the river gate", () => {
+    const crossing = city!.importedFixedCrossings!.crossings.find(c => c.id === 83)!;
+    const gates = new Set(city!.gates.map(g => g.vertexId));
+    const road = city!.featureGroups.find(g => g.id === "gc:road-3")!;
+    const ids = featureGroupVertices(city!, road);
+    const points = ids.map(id => city!.mesh.vertices[id].point);
+    const from = points.findIndex(p => Math.hypot(p[0] - crossing.approachB[0], p[1] - crossing.approachB[1]) < 0.5);
+    const to = ids.findIndex(id => gates.has(id));
+    expect(from).toBeGreaterThanOrEqual(0);
+    expect(to).toBeGreaterThan(from + 1);
+    const [landing, gate] = [points[from], points[to]];
+    const run = points.slice(from + 1, to);
+    run.forEach((p, k) => {
+      const t = (k + 1) / (to - from);
+      const on = [landing[0] + (gate[0] - landing[0]) * t, landing[1] + (gate[1] - landing[1]) * t];
+      expect(Math.hypot(p[0] - on[0], p[1] - on[1])).toBeLessThan(0.5);
+    });
+  });
 });
