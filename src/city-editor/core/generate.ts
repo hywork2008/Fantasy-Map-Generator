@@ -320,6 +320,9 @@ export interface GenerationSettings {
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   buildingPattern?: import("./types").BuildingPattern;
   castle?: Partial<import("./types").CastleSettings>;
+  /** Castle siting also checks C4 on street edges. Set by the attempt loop
+   * after a castle town failed with unconnected gates. */
+  castleStreetLinks?: boolean;
   /** Only used when replaying a pre-castle-city recipe. */
   legacyCastles?: boolean;
   config: SiteConfig;
@@ -587,10 +590,12 @@ export function generateCityOnDocument(
     observer?.(sample);
   };
   // Debug previews stop at the first rejection, keeping the requested seed.
+  let attemptSettings = settings;
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
+    const failed = failures.length;
     const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
-      generateCityAttempt(document, settings, attemptSeed, observe, attempt + 1, onRejected, profiler)
+      generateCityAttempt(document, attemptSettings, attemptSeed, observe, attempt + 1, onRejected, profiler)
     );
     if (result) {
       result.historicalPeriod =
@@ -608,7 +613,7 @@ export function generateCityOnDocument(
           algorithm: settings.legacyCastles ? "evolution-city-v3" : "castle-city-v1",
           seed: attemptSeed,
           settings: {
-            ...measureProcessing(profiler, "recipe-settings-clone", () => structuredClone(settings)),
+            ...measureProcessing(profiler, "recipe-settings-clone", () => structuredClone(attemptSettings)),
             layout: result.layout,
             walledAreaShare: resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
           },
@@ -653,6 +658,11 @@ export function generateCityOnDocument(
       return result;
     }
     if (onRejected) return null;
+    // A castle can leave the gate streets no way past it while the face
+    // graph still links them (Breistattlin). Every attempt would site it
+    // again, so later attempts judge castle sites on street edges.
+    if (failures.slice(failed).some(sample => sample.failure?.reason === "unconnected-gates"))
+      attemptSettings = { ...settings, castleStreetLinks: true };
   }
   observe({
     phase: "complete",
@@ -2197,7 +2207,8 @@ export function runPlan(
       corridors,
       sectors: planGateSectors(corridors, genBorders, cellSize, true),
       clearanceMeters: (defaultRoadWidthMeters(params.extentMeters) + 3) / 2 + 0.5,
-      report: emptySitingReport()
+      report: emptySitingReport(),
+      streetLinks: settings.castleStreetLinks
     };
     castleSite = placeCastleRegion(
       temp,
@@ -2282,6 +2293,40 @@ export function runPlan(
           waterAreas: channelPolygons.map(polygon => ({ kind: "river" as const, polygon }))
         }
       : undefined;
+  // Without a square every gate street meets in the middle, but a central
+  // castle can stand there. Meet at the nearest street corner clear of it
+  // instead, so the streets end before the castle (castle-road-siting-order.md H5).
+  const castleClearance = (defaultRoadWidthMeters(params.extentMeters) + 3) / 2 + 0.5;
+  const nearCastle = (p: Point) =>
+    castleGateRegions.some(r => pointInPolygon(p, r) || nearestOnPolyline(p, [...r, r[0]]).dist < castleClearance);
+  const streetHub = (): Point => {
+    if (!nearCastle([0, 0])) return [0, 0];
+    const castleFaces = new Set([...preservedCastleIds, ...(castleSite ? [castleSite.faceId] : [])]);
+    const open = new Set([...currentUrban].map(id => currentFaceIdOf[id]).filter(id => !castleFaces.has(id)));
+    // Streets pass a wall vertex only at its own gate.
+    const rim = new Set<Id>();
+    for (const edge of Object.values(currentMesh.edges))
+      if (urbanFaces.has(edge.leftFace ?? "") !== urbanFaces.has(edge.rightFace ?? "")) {
+        rim.add(edge.a);
+        rim.add(edge.b);
+      }
+    let best: Point = [0, 0],
+      bestDistance = Infinity;
+    for (const edge of Object.values(currentMesh.edges)) {
+      if (!edge.leftFace || !edge.rightFace || !open.has(edge.leftFace) || !open.has(edge.rightFace)) continue;
+      const a = currentMesh.vertices[edge.a].point,
+        b = currentMesh.vertices[edge.b].point;
+      if ([0, 0.25, 0.5, 0.75, 1].some(t => nearCastle([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]))) continue;
+      for (const id of [edge.a, edge.b]) {
+        const p = currentMesh.vertices[id].point;
+        if (!rim.has(id) && Math.hypot(p[0], p[1]) < bestDistance) {
+          best = p;
+          bestDistance = Math.hypot(p[0], p[1]);
+        }
+      }
+    }
+    return best;
+  };
   const canPlaceTownGate = (p: Point) => {
     if (castleGateRegions.some(r => pointInPolygon(p, r) || nearestOnPolyline(p, [...r, r[0]]).dist < 10)) return false;
     if (!channelPolygons.length && !gateWaterDocument) return true;
@@ -2484,7 +2529,7 @@ export function runPlan(
       currentCells,
       precincts.find(p => p.kind === "plaza"),
       gate.point
-    ) ?? ([0, 0] as Point)
+    ) ?? streetHub()
   ]);
 
   mark("street-plan");

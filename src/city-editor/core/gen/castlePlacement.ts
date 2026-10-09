@@ -358,9 +358,10 @@ function placeCastlePass(
     if (!site) return null;
     // The trial layout ignores the gate's exterior access arm, which
     // installCastle needs later; a site without one fails after streets.
-    if (!installCastle(working, site, id, seed)) return null;
+    const installed = installCastle(working, site, id, seed);
+    if (!installed) return null;
     if (!judge) return site;
-    const verdict = judge(working, id, facePoints(working.mesh, working.mesh.faces[id]));
+    const verdict = judge(working, id, facePoints(working.mesh, working.mesh.faces[id]), installed);
     if (!verdict) return site;
     const report = constraints!.report!;
     report.rejected[verdict.condition]++;

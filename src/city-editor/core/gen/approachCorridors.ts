@@ -6,6 +6,7 @@
  * arc of the outline where its gate will stand. The castle is placed beside
  * these, never on them.
  */
+import { castleRoadEdgeAllowed } from "../castles";
 import { insideRing } from "../fortifications";
 import { facePoints } from "../mesh";
 import type { CityDocument, Id, Mesh, Point } from "../types";
@@ -49,6 +50,10 @@ export interface CastleSitingConstraints {
   clearanceMeters: number;
   /** Rejection tally, filled by placeCastleRegion for diagnostics. */
   report?: CastleSitingReport;
+  /** Also require C4 on mesh edges with the street router's bans. Stricter
+   * than the outcome: later passages and curtain repair can open streets the
+   * planning mesh lacks (Menykutadi), so it is a retry after unconnected gates. */
+  streetLinks?: boolean;
 }
 
 export interface CastleSitingReport {
@@ -271,8 +276,13 @@ export function makeCastleJudge(
   urban: Set<Id>,
   water: Set<Id>,
   constraints: CastleSitingConstraints
-): (working: CityDocument, castleId: Id, castle: Point[]) => { condition: CastleCondition; corridor: number } | null {
-  const { corridors, sectors, clearanceMeters } = constraints;
+): (
+  working: CityDocument,
+  castleId: Id,
+  castle: Point[],
+  installed?: CityDocument
+) => { condition: CastleCondition; corridor: number } | null {
+  const { corridors, sectors, clearanceMeters, streetLinks: checkStreets } = constraints;
   const urbanRings = [...urban].flatMap(id =>
     document.mesh.faces[id] ? [facePoints(document.mesh, document.mesh.faces[id])] : []
   );
@@ -337,10 +347,67 @@ export function makeCastleJudge(
       }
     return links;
   };
+  // The face graph above lets two urban cells "connect" through a corner no
+  // street can use: the router keeps streets off the town rim (except at a
+  // gate) and off the castle walls (castleRoadEdgeAllowed). Breistattlin, a
+  // walled village of ten cells, kept face links around a central keep while
+  // no gate street could get past it. Repeat the check on mesh edges.
+  // clearanceMeters is (road width + 3 m wall) / 2 + 0.5 m.
+  const roadWidth = (clearanceMeters - 0.5) * 2 - 3;
+  const streetLinks = (mesh: Mesh, castleId: Id | null, castle: Point[] | null, installed?: CityDocument) => {
+    const kind = classify(mesh);
+    const open = (id: Id | null | undefined) => !!id && id !== castleId && kind(id) === "urban";
+    const adjacent = new Map<Id, Id[]>();
+    const rim = new Set<Id>();
+    for (const e of Object.values(mesh.edges)) {
+      const left = open(e.leftFace),
+        right = open(e.rightFace);
+      if (left !== right) {
+        rim.add(e.a);
+        rim.add(e.b);
+      }
+      if (!left || !right) continue;
+      if (installed) {
+        if (!castleRoadEdgeAllowed(installed, e.id, roadWidth)) continue;
+      } else if (castle) {
+        const a = mesh.vertices[e.a].point,
+          b = mesh.vertices[e.b].point;
+        const near = [0, 0.25, 0.5, 0.75, 1].some(
+          t => ringDistance([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], castle) < clearanceMeters
+        );
+        if (near) continue;
+      }
+      adjacent.set(e.a, [...(adjacent.get(e.a) ?? []), e.b]);
+      adjacent.set(e.b, [...(adjacent.get(e.b) ?? []), e.a]);
+    }
+    const anchors = sectors.map(
+      s =>
+        new Set(
+          [...rim].filter(id => {
+            const p = mesh.vertices[id].point;
+            return s.samples.some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < 2.5);
+          })
+        )
+    );
+    const links: boolean[][] = sectors.map(() => []);
+    for (let i = 0; i < sectors.length; i++) {
+      const seen = new Set(anchors[i]);
+      const queue = [...anchors[i]];
+      while (queue.length)
+        for (const next of adjacent.get(queue.shift()!) ?? [])
+          if (!seen.has(next)) {
+            seen.add(next);
+            if (!rim.has(next)) queue.push(next);
+          }
+      for (let j = i + 1; j < sectors.length; j++) links[i][j] = [...anchors[j]].some(id => seen.has(id));
+    }
+    return links;
+  };
   const baseReach = outsideReach(document.mesh, null, null);
   const baseLinks = innerLinks(document.mesh, null);
+  const baseStreets = checkStreets ? streetLinks(document.mesh, null, null) : [];
 
-  return (working, castleId, castle) => {
+  return (working, castleId, castle, installed) => {
     for (const corridor of corridors) {
       if (polylineRingDistance(corridor.centerline, castle) < Math.max(corridor.halfWidthMeters, clearanceMeters))
         return { condition: "C1", corridor: corridor.index };
@@ -356,6 +423,13 @@ export function makeCastleJudge(
     for (let i = 0; i < sectors.length; i++)
       for (let j = i + 1; j < sectors.length; j++)
         if (baseLinks[i][j] && !links[i][j]) return { condition: "C4", corridor: sectors[i].index };
+    if (!checkStreets) return null;
+    const streets = installed
+      ? streetLinks(installed.mesh, castleId, castle, installed)
+      : streetLinks(working.mesh, castleId, castle);
+    for (let i = 0; i < sectors.length; i++)
+      for (let j = i + 1; j < sectors.length; j++)
+        if (baseStreets[i][j] && !streets[i][j]) return { condition: "C4", corridor: sectors[i].index };
     return null;
   };
 }
