@@ -243,9 +243,9 @@ describe("bounded world crossing enumeration", () => {
         id: 100,
         riverId: 7,
         status: "provisional",
-        tRiver: [0, 1],
-        waterDistanceMeters: 90
+        tRiver: [0, 1]
       });
+      expect(report.candidates[0].waterDistanceMeters).toBeCloseTo(90, 8);
       expect(report.nextCandidateId).toBe(105);
       expect(world).toEqual(before);
       expect(enumerateFixture(world, "km", candidateSettings, environment)).toEqual(report);
