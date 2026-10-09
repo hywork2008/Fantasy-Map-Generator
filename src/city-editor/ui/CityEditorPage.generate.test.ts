@@ -779,15 +779,16 @@ describe("shareable link and FMG site", () => {
 
   it("slider scrubbing back and forth maintains deterministic river geometry without swapping", () => {
     const share = buildShare({
-      seed: "omega",
+      seed: "river-slider",
       grid: "hex",
       size: "small",
       hexSizeMeters: 50,
-      gridSeed: "omega-grid",
+      gridSeed: "river-slider-grid",
       settings: {
         config: {
           ...DEFAULT_SITE_CONFIG,
           coast: "straight",
+          features: { ...DEFAULT_SITE_CONFIG.features, walls: false, citadel: false },
           rivers: [{ kind: "toCoast", widthMeters: 14 }]
         }
       }

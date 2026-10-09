@@ -41,7 +41,10 @@ describe("Myosiasos (FMG harbour capital on a river mouth)", () => {
     expect(cemeteries).toHaveLength(1);
     const area = Math.abs(polygonArea(facePoints(city.mesh, cemeteries[0])));
     expect(area).toBeGreaterThan(3000);
-    expect(area).toBeLessThan(20000);
+    const coreArea = Object.values(city.mesh.faces)
+      .filter(face => face.properties.settlement === "core")
+      .reduce((sum, face) => sum + Math.abs(polygonArea(facePoints(city.mesh, face))), 0);
+    expect(area / coreArea).toBeLessThan(0.1);
   });
 });
 

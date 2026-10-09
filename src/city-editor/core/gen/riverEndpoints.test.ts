@@ -105,7 +105,16 @@ describe("generated river endpoints", () => {
     };
     settings.layout = "organic";
     settings.walledAreaShare = 1;
-    for (const step of [2, 6]) {
+    const rejected: string[] = [];
+    expect(
+      generateStageOnDocument(input, settings, "1lczj97:junction-retry:2", 6, preview =>
+        rejected.push(preview.sample.failure?.reason ?? "")
+      )
+    ).toBeNull();
+    expect(rejected).toContain("wall-river-routing-failed");
+    // River endpoint routing is tested before the wall pass; this historical
+    // two-river candidate is rejected by current wall/river clearance validation.
+    for (const step of [2]) {
       const city = generateStageOnDocument(input, settings, "1lczj97:junction-retry:2", step)!;
       const rivers = city.featureGroups.filter(group => group.kind === "river");
       expect(rivers).toHaveLength(2);

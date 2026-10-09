@@ -171,7 +171,13 @@ import {
 import { CASTLE_STYLE_PROFILES, type CastleStyle, resolveCastleStyle } from "../render/castlePatterns";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
-import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
+import {
+  getShipAngleFromPoint,
+  renderShipRotationHandle,
+  renderShipSvg,
+  SHIP_SPECS,
+  type ShipType
+} from "../render/shipSvg";
 import {
   appendFaceSelectionLabels,
   faceClassName,
@@ -3018,6 +3024,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       svg.querySelectorAll<SVGElement>(`[data-group="${selection.groupId}"]`).forEach(el => {
         el.classList.add("ce-active-group");
       });
+    }
+
+    svg.querySelectorAll(".ce-ship-handle-group").forEach(handle => {
+      handle.remove();
+    });
+    const selectedShip = documentState.elements.find(e => e.kind === "ship" && e.id === selection.inspectedId);
+    if (selectedShip?.point) {
+      svg.querySelector(".ce-elements")?.appendChild(
+        renderShipRotationHandle({
+          id: selectedShip.id,
+          point: selectedShip.point,
+          sizeMeters: selectedShip.sizeMeters,
+          rotation: selectedShip.rotation
+        })
+      );
     }
 
     // Labels

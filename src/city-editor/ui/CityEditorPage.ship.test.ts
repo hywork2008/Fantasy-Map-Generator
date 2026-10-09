@@ -283,5 +283,9 @@ describe("City Editor Ship Tool", () => {
     const transform = shipAfter.getAttribute("transform");
     // Should have a non-zero rotation angle
     expect(transform).not.toContain("rotate(0)");
+
+    // Selecting a different tool must remove the ship's rotation handle.
+    shipBtn?.click();
+    expect(root.querySelector(".ce-ship-handle-group")).toBeNull();
   });
 });

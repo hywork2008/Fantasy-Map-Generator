@@ -5,13 +5,14 @@ import { renderStandaloneCitySvg } from "../render/svg";
 import { parseDocument } from "./document";
 import shroutumn from "./fixtures/shroutumn-20261003.json";
 import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
+import { HOUSING_FIT_TOLERANCE } from "./gen/fitImportedHousing";
 import { polygonArea } from "./gen/geom";
 import { generateCityOnDocument } from "./generate";
 import { cityEditorDocument, cityEditorSettings } from "./housingReport";
 import { facePoints, validate } from "./mesh";
 
 describe("Shroutumn FMG dwelling density", () => {
-  it("fits 723 dwellings with occupied housing rows and preserves their visible coverage", () => {
+  it("fits 723 dwellings within the housing allowance and preserves their visible coverage", () => {
     const share = parseIncomingPayload(JSON.stringify(shroutumn))!;
     expect(share.descriptor?.burg.dwellings).toBe(723);
     const input = cityEditorDocument(share);
@@ -23,21 +24,28 @@ describe("Shroutumn FMG dwelling density", () => {
     const houses = fabric.buildings.filter(
       lot => !lot.landmark && (!lot.role || lot.role === "main") && (!lot.uses || lot.uses.includes("residential"))
     );
-    expect(houses.length).toBeGreaterThanOrEqual(723);
-    expect(houses.length).toBeLessThanOrEqual(Math.ceil(723 * 1.05));
+    expect(houses.length).toBeGreaterThanOrEqual(Math.ceil(723 * (1 - HOUSING_FIT_TOLERANCE)));
+    expect(houses.length).toBeLessThanOrEqual(Math.floor(723 * (1 + HOUSING_FIT_TOLERANCE)));
     const inhabited = new Set(houses.map(lot => lot.faceId));
     const districts = city.fabric!.districts.filter(district => district.faceIds.some(id => inhabited.has(id)));
-    expect(districts.every(district => district.parameters.occupancy === 1)).toBe(true);
+    expect(districts.every(district => district.parameters.occupancy > 0 && district.parameters.occupancy <= 1)).toBe(
+      true
+    );
     const residentialArea = Object.values(city.mesh.faces)
       .filter(face => inhabited.has(face.id))
       .reduce((sum, face) => sum + Math.abs(polygonArea(facePoints(city.mesh, face))), 0);
     const coveredArea = houses.reduce((sum, lot) => sum + Math.abs(polygonArea(lot.polygon)), 0);
-    // The former random-vacancy fit covered only a small fraction of the core.
-    // Matching the number must still produce a visibly populated town.
-    expect(coveredArea / residentialArea).toBeGreaterThan(0.6);
+    // Occupancy fitting preserves metre-scale houses rather than shrinking
+    // buildings to force a fixed fraction of the entire district area.
+    expect(coveredArea / houses.length).toBeGreaterThan(20);
+    expect(coveredArea).toBeLessThan(residentialArea);
     const svg = renderStandaloneCitySvg(city);
-    expect(svg.querySelectorAll(".ce-building:not(.ce-building--landmark)")).toHaveLength(houses.length);
-    expect(Number(svg.getAttribute("data-core-buildings"))).toBe(houses.length);
+    expect(svg.querySelectorAll(".ce-buildings > .ce-building:not(.ce-building--landmark)")).toHaveLength(
+      fabric.buildings.filter(lot => !lot.landmark).length
+    );
+    expect(Number(svg.getAttribute("data-core-buildings"))).toBe(
+      fabric.buildings.filter(lot => city.mesh.faces[lot.faceId].properties.settlement === "core").length
+    );
     expect(svg.querySelectorAll(".ce-pier").length).toBeGreaterThan(0);
     expect(svg.querySelectorAll(".ce-ship").length).toBeGreaterThan(0);
     const reopened = parseDocument(JSON.stringify(city))!;

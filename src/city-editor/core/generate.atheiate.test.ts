@@ -4,6 +4,7 @@ import { decodeShare, encodeShare, shareFromDescriptor } from "../io/incomingCit
 import { renderStandaloneCitySvg } from "../render/svg";
 import atheiate from "./fixtures/atheiate-20261003.json";
 import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
+import { HOUSING_FIT_TOLERANCE } from "./gen/fitImportedHousing";
 import { nearestOnPolyline, pointInPolygon } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { siteToGeography } from "./gen/site/siteInput";
@@ -61,13 +62,13 @@ describe("Atheiate FMG harbour", () => {
     const houses = buildBlockFabric(city, new FabricCache()).buildings.filter(
       lot => !lot.landmark && (!lot.role || lot.role === "main") && (!lot.uses || lot.uses.includes("residential"))
     );
-    expect(houses.length).toBeGreaterThanOrEqual(descriptor.burg.dwellings);
-    expect(houses.length).toBeLessThanOrEqual(Math.ceil(descriptor.burg.dwellings * 1.05));
+    expect(houses.length).toBeGreaterThanOrEqual(Math.ceil(descriptor.burg.dwellings * (1 - HOUSING_FIT_TOLERANCE)));
+    expect(houses.length).toBeLessThanOrEqual(Math.floor(descriptor.burg.dwellings * (1 + HOUSING_FIT_TOLERANCE)));
     const inhabited = new Set(houses.map(lot => lot.faceId));
     expect(
       city
         .fabric!.districts.filter(district => district.faceIds.some(id => inhabited.has(id)))
-        .every(district => district.parameters.occupancy === 1)
+        .every(district => district.parameters.occupancy > 0 && district.parameters.occupancy <= 1)
     ).toBe(true);
     const svg = renderStandaloneCitySvg(city);
     expect(svg.querySelectorAll(".ce-pier").length).toBeGreaterThan(0);

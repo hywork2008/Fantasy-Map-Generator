@@ -95,8 +95,9 @@ describe("culture cemetery production path", () => {
     expect(renderCemeteries(saved).querySelector('[data-burial-profile="prague_ghetto"]')).not.toBeNull();
   }, 30000);
 
-  it("generates each preset's sanctuary and distinct marker shapes inside its parcel", () => {
-    for (const preset of Object.values(BURIAL_CULTURE_PRESETS)) {
+  it.each(Object.values(BURIAL_CULTURE_PRESETS))(
+    "generates $id sanctuary and marker shapes inside its parcel",
+    preset => {
       const layout = layoutCemetery(emptyDocument(), plan(preset.id))!;
       expect(layout).not.toBeNull();
       const sanctuaries = layout.parts.filter(p => p.role === "sanctuary");
@@ -111,6 +112,9 @@ describe("culture cemetery production path", () => {
       expect(rendered.querySelector(`[data-burial-profile="${preset.id}"]`)).not.toBeNull();
       if (preset.vegetation === "barren_gravel") expect(rendered.querySelectorAll(".ce-cemetery-tree")).toHaveLength(0);
     }
+  );
+
+  it("retains ghat and tower monument geometry", () => {
     expect(layoutCemetery(emptyDocument(), plan("varanasi_ghat"))!.parts.some(p => p.role === "monument")).toBe(false);
     expect(
       layoutCemetery(emptyDocument(), plan("zoroastrian_tower"))!.parts.find(p => p.kind === "tower_of_silence")?.holes

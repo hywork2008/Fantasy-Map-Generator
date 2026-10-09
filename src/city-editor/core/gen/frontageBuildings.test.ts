@@ -269,7 +269,8 @@ describe("plain frontage buildings", () => {
       const relevant = houses.filter(b => intersectionArea(b.polygon, block) > 1);
       expect(relevant.length).toBeGreaterThan(6);
       const used = relevant.reduce((sum, b) => sum + intersectionArea(b.polygon, block), 0);
-      expect(used / area(block)).toBeGreaterThan(0.6);
+      // The culture occupancy guide leaves vacant lots; both blocks remain majority built.
+      expect(used / area(block)).toBeGreaterThan(0.5);
       for (let i = 0; i < relevant.length; i++) {
         expect(relevant[i].polygon.length).toBeGreaterThanOrEqual(4);
         for (let j = i + 1; j < relevant.length; j++)

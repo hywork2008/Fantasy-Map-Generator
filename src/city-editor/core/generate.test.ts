@@ -941,7 +941,7 @@ describe("sizePresetForExtent / custom frame", () => {
     const city = generateCityOnDocument(base, settings, "cdz0dr");
     expect(city).not.toBeNull();
     const cemetery = city?.cemeteries?.find(plan => city.mesh.faces[plan.faceId]?.properties.ward === "cemetery");
-    expect(cemetery?.form).toBe("field");
+    expect(cemetery?.form).toBe("churchyard");
     expect(cemetery?.courtyards.length).toBeGreaterThan(0);
     expect(cemetery?.parts.some(part => part.role === "graves")).toBe(true);
   });

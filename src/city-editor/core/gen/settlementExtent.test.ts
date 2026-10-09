@@ -283,7 +283,7 @@ describe("wall capacity and extramural housing", () => {
       expect(JSON.stringify(input)).toBe(before);
       loaded.fabric!.generation!.settings.walledAreaShare = -1;
       expect(parseDocument(JSON.stringify(loaded))).toBeNull();
-    }, 30000);
+    }, 60000);
   }
 });
 

@@ -218,7 +218,7 @@ describe("moat reservations", () => {
       ).toBeCloseTo(0, 8);
   });
 
-  it("keeps aj6sr9 e111 on the perimeter and only draws an exterior bridge at v79", () => {
+  it("keeps the retried aj6sr9 moat outside its perimeter and gate bridges outside", () => {
     const settings = defaultGenerationSettings();
     settings.config = {
       coast: "none",
@@ -244,24 +244,33 @@ describe("moat reservations", () => {
     });
     const city = generateCityOnDocument(source, settings, "aj6sr9")!;
     expect(city).not.toBeNull();
-    expect(city.generationSeed).toBe("aj6sr9");
+    expect(city.generationSeed).toBe("aj6sr9:junction-retry:1");
     expect(validate(city)).toEqual([]);
     const circuit = city.defenseCircuits!.find(c => c.scope === "town")!;
-    const edge = city.mesh.edges.e111;
-    expect(circuit.areaFaceIds).toContain("f32");
-    expect(circuit.areaFaceIds).not.toContain("f33");
+    const boundary = boundaryEdges(city.mesh, circuit.areaFaceIds);
+    const edge = boundary
+      .map(ref => city.mesh.edges[ref.edgeId])
+      .find(
+        edge =>
+          edge.leftFace &&
+          edge.rightFace &&
+          [edge.leftFace, edge.rightFace].every(id => city.mesh.faces[id].properties.water === "land")
+      )!;
+    expect(edge).toBeDefined();
     expect(boundaryEdges(city.mesh, circuit.areaFaceIds).some(ref => ref.edgeId === edge.id)).toBe(true);
     const a = city.mesh.vertices[edge.a].point,
       b = city.mesh.vertices[edge.b].point;
     const midpoint: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const normal: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
-    const outside = city.mesh.faces.f33.site!;
+    const outsideId = [edge.leftFace!, edge.rightFace!].find(id => !circuit.areaFaceIds.includes(id))!;
+    const outside = city.mesh.faces[outsideId].site!;
     const sign = (outside[0] - midpoint[0]) * normal[0] + (outside[1] - midpoint[1]) * normal[1] > 0 ? 1 : -1;
     const moat = new MoatReservation(city);
     expect(moat.hitsPoint([midpoint[0] + normal[0] * sign * 8, midpoint[1] + normal[1] * sign * 8])).toBe(true);
     expect(moat.hitsPoint([midpoint[0] - normal[0] * sign * 8, midpoint[1] - normal[1] * sign * 8])).toBe(false);
-    const frame = gateCrossingFrame(city, "v79")!;
+    const gate = city.gates.find(gate => gate.defenseCircuitId === circuit.id) ?? city.gates[0];
+    const frame = gateCrossingFrame(city, gate.vertexId)!;
     const insideRoad = frame.roads.find(
       point => (point[0] - frame.point[0]) * frame.inward[0] + (point[1] - frame.point[1]) * frame.inward[1] > 0
     )!;
@@ -273,7 +282,7 @@ describe("moat reservations", () => {
       "-300 -300 600 600",
       1
     );
-    const gateId = city.gates.find(gate => gate.vertexId === "v79")!.id;
+    const gateId = gate.id;
     expect(svg.querySelectorAll(`.ce-drawbridge[data-gate-id="${gateId}"]`)).toHaveLength(1);
   });
 
