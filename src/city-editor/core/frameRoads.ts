@@ -106,8 +106,8 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
       }
       const scoped =
         scope === "beyond-mesh" ? pathOutsideMesh(item.path, half, decks, site.frame.extentMeters / 2) : item.path;
-      const outer = finitePath(scoped);
       const full = finitePath(item.path.map(point));
+      const outer = finitePath(scoped) ?? (scope === "beyond-mesh" && full ? bankedTail(full, half, bodies) : null);
       const path = outer && scope === "beyond-mesh" && full ? shoreStart(full, outer, bodies) : outer;
       if (!path || polylineLength(path) < MIN_PIECE_METERS) continue;
       const pieces = piecesFor(path, bodies, site, decks);
@@ -548,6 +548,20 @@ function pathOutsideMesh(
   if (tail && Math.abs(meshHalf - frameHalf) <= 0.5) return tail;
   if (outer) return outer;
   return tail;
+}
+
+/** The town mesh can cover the whole frame (Yayaropuz). A road that runs into
+ * a river and is still in it at the frame edge stops at the town bank inside
+ * the mesh, so nothing is left outside the square. Start the frame road at
+ * that bank: the crossing is planned on the river normal like any other. */
+function bankedTail(full: Point[], meshHalf: number, bodies: WaterBody[]): Point[] | null {
+  const end = full.at(-1);
+  if (!end || !reachesFrame(end, meshHalf)) return null;
+  const last = wetIntervals(full, bodies).at(-1);
+  const total = polylineLength(full);
+  if (!last?.body.river || total - last.end > 1e-3 || last.start < APPROACH_METERS) return null;
+  const tail = slicePath(full, last.start - APPROACH_METERS, total);
+  return tail.length >= 2 ? tail : null;
 }
 
 /** When the town square cuts through a channel, start at the bank on the town side of that water. */

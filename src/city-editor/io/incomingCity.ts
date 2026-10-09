@@ -7,6 +7,7 @@ import {
   validFixedBurgCrossings
 } from "../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { joinStrandedRoadsToCrossings } from "../core/gen/site/strandedRoads";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
 // The Burg editor writes a BurgSiteDescriptor JSON to sessionStorage and opens
@@ -112,7 +113,8 @@ export function regionalDisplayExtent(descriptor: BurgSiteDescriptor): number | 
   return extent < descriptor.frame.extentMeters - 0.5 ? extent : null;
 }
 
-export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
+export function shareFromDescriptor(source: BurgSiteDescriptor): CityEditorShare {
+  const descriptor = joinStrandedRoadsToCrossings(source);
   const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
   const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
   const proposedFit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
