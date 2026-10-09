@@ -871,6 +871,19 @@ describe("FMG descriptor geography", () => {
     expect(out?.featureGroups.some(group => group.kind === "river")).toBe(true);
   });
 
+  it("carries the FMG heightfield elevation onto land faces", () => {
+    const source = structuredClone(descriptor);
+    source.terrain.heightfield.elevationsMeters = source.terrain.heightfield.elevationsMeters.map(() => 237);
+    const settings = defaultGenerationSettings();
+    settings.descriptor = source;
+    for (const stage of [1, 2, 99]) {
+      const out = generateStageOnDocument(grid, settings, "fmg-elevation", stage)!;
+      const land = Object.values(out.mesh.faces).filter(face => face.properties.water === "land");
+      expect(land.length).toBeGreaterThan(0);
+      expect(new Set(land.map(face => face.properties.elevation))).toEqual(new Set([237]));
+    }
+  });
+
   it("is deterministic in (document, descriptor, seed)", () => {
     const settings = defaultGenerationSettings();
     settings.descriptor = descriptor;

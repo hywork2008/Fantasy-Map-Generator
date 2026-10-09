@@ -1537,6 +1537,9 @@ interface Plan {
   riverPort?: boolean;
   streets: Point[][];
   wards: Map<number, WardKind>;
+  /** FMG land elevation (metres) per cell id, sampled from the linked burg's
+   * heightfield. Absent for standalone cities. */
+  fmgElevations?: Map<number, number>;
   /** `wards`' source data, in decision order rather than sorted by cell id. Empty
    * before S6 runs. See `generateWardStep`. */
   wardOrder: WardAssignment[];
@@ -1591,6 +1594,16 @@ function keepCitySide(lines: Point[][], polygon: Point[]): Point[][] {
     if (best.length >= 2) out.push(best);
   }
   return out;
+}
+
+function fmgCellElevations(cells: Cell[], site: BurgSiteDescriptor | undefined): Map<number, number> | undefined {
+  if (!site) return undefined;
+  return new Map(
+    cells.flatMap(cell => {
+      const height = terrainHeight(site.terrain, cell.centroid);
+      return height === null ? [] : [[cell.id, height] as [number, number]];
+    })
+  );
 }
 
 export function runPlan(
@@ -1660,7 +1673,8 @@ export function runPlan(
     streets: [],
     wards: new Map(),
     wardOrder: [],
-    templeHarbor: []
+    templeHarbor: [],
+    fmgElevations: fmgCellElevations(cells, settings.descriptor)
   };
   if (!cells.length) return empty;
   const graph = buildEdgeGraph(cells);
@@ -2598,6 +2612,7 @@ export function runPlan(
       cityRadiusMeters: params.cityRadiusMeters
     })
   ).terrain;
+  const fmgElevations = fmgCellElevations(currentCells, settings.descriptor);
   const warded = assignWards({
     cells: currentCells,
     urban: currentUrban,
@@ -2649,6 +2664,7 @@ export function runPlan(
   });
   mark("wards");
   return {
+    fmgElevations,
     burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,
     layout: effectiveLayout,
@@ -2719,6 +2735,7 @@ function planningDebugDocument(
     const face = next.mesh.faces[id];
     if (!face || face.properties.locked) continue;
     face.properties.water = plan.sea.has(index) ? "sea" : "land";
+    if (!plan.sea.has(index)) face.properties.elevation = landElevation(plan, index, face.properties.elevation);
     face.properties.buildable = !plan.sea.has(index) && (plan.urban.has(index) || plan.outskirts.has(index));
     face.properties.settlement = plan.urban.has(index) ? "core" : "outskirts";
     face.properties.ward = editorWard(plan.wards.get(index) ?? "empty");
@@ -2840,6 +2857,14 @@ function settingsLegacy(plan: Plan): boolean {
 
 // --- write the plan onto a document clone (mesh untouched) -------------------
 
+/** Land face elevation: the FMG heightfield when linked, else the current value
+ * kept above sea level. Rounded to 0.1 m; never below 1 m (land is > 0). */
+function landElevation(plan: Plan, cellId: number, current: number): number {
+  const fmg = plan.fmgElevations?.get(cellId);
+  if (fmg !== undefined) return Math.max(1, Math.round(fmg * 10) / 10);
+  return current <= 0 ? 1 : current;
+}
+
 function applyPlan(
   source: CityDocument,
   cells: Cell[],
@@ -2916,6 +2941,12 @@ function applyPlan(
     face.properties.ward = null;
     delete face.properties.settlement;
   }
+  if (plan.fmgElevations)
+    for (const [cellId, faceId] of faceIdOf.entries()) {
+      const face = mesh.faces[faceId];
+      if (!face || face.properties.locked || reservedCastleFaces(next).has(face.id)) continue;
+      face.properties.elevation = landElevation(plan, cellId, face.properties.elevation);
+    }
 
   const appendGeneratedGroup = (group: FeatureGroup) => {
     if (next.featureGroups.some(existing => existing.id === group.id && existing.locked)) return;
