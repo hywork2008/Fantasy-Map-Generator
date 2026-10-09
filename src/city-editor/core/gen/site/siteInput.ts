@@ -46,7 +46,7 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
 
 export function siteToGeography(site: BurgSiteDescriptor, imported = false): CityGeography {
   assertRegionalCoverage(site);
-  site = withRiverPortFallback(site);
+  site = withWideRiverOffCore(withRiverPortFallback(site));
   const coast = extractCoast(site);
   // A wide river is not a second ocean. Promoting it to a coast half-plane
   // floods the far countryside and, at an estuary, can swallow the burg.
@@ -222,6 +222,73 @@ function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
   return { ...site, rivers: [...site.rivers.filter(r => r.riverId !== id), river] };
 }
 
+/** A river at least as wide as the town radius cannot run through the core:
+ * the town would sit in the channel. Without surveyed physical banks
+ * (`fixedCrossings`) or usable banks its course is only a coarse polyline through
+ * the burg point, and walking it as a stroke paints round, brush-like banks.
+ * Lay it straight along that course's chord, on the side the chord passes,
+ * with the town-side bank beyond the city radius. */
+const offCoreRivers = new WeakSet<SiteRiver>();
+
+function hasSurveyedBanks(river: SiteRiver): boolean {
+  return [...river.leftBankSegments, ...river.rightBankSegments].some(line => line.length >= 2);
+}
+
+function withWideRiverOffCore(site: BurgSiteDescriptor): BurgSiteDescriptor {
+  if (site.fixedCrossings) return site;
+  const radius = site.frame.cityRadiusMeters;
+  const reach = site.frame.extentMeters * 2;
+  let changed = false;
+  const rivers = site.rivers.map(river => {
+    if (river.frontage === "beyond-budget") return river;
+    // Channels (unbridgeable or river-port water) already keep their own bank
+    // clearance, and surveyed banks are authoritative unless FMG itself could
+    // not place the burg on them (e.g. `folded-banks`).
+    const unresolved =
+      site.burg.riverSiteStatus?.status === "unresolved" && site.burg.riverSiteStatus.riverId === river.riverId;
+    if (
+      unbridgeableOnSite(site, river) ||
+      (site.burg.waterAccess?.port.river && site.burg.waterAccess.riverId === river.riverId) ||
+      (!unresolved && hasSurveyedBanks(river))
+    )
+      return river;
+    const width = drawnWidthMeters(river);
+    const course = centerlineOf(river);
+    if (width < radius || course.length < 2) return river;
+    if (nearestOnPolyline([0, 0], course).dist - width / 2 >= radius) return river;
+    const chord: Point[] = [course[0], course.at(-1)!];
+    const length = Math.hypot(chord[1][0] - chord[0][0], chord[1][1] - chord[0][1]);
+    if (length < 1) return river;
+    const tangent: Point = [(chord[1][0] - chord[0][0]) / length, (chord[1][1] - chord[0][1]) / length];
+    // Positive side = left of the flow, matching `offsetPolyline`.
+    const side = sideOfPolyline([0, 0], chord);
+    const water = Math.abs(side) > 1 ? -Math.sign(side) : river.cityBank === "left" ? -1 : 1;
+    const offset = width / 2 + radius * 1.1;
+    const center: Point = [-tangent[1] * water * offset, tangent[0] * water * offset];
+    const points: Point[] = [
+      [center[0] - tangent[0] * reach, center[1] - tangent[1] * reach],
+      [center[0] + tangent[0] * reach, center[1] + tangent[1] * reach]
+    ];
+    changed = true;
+    const moved: SiteRiver = {
+      ...river,
+      widthMeters: width,
+      axisAzimuthDeg: vecToAzimuth(tangent[0], tangent[1]),
+      offsetMeters: offset,
+      offsetRatio: offset / radius,
+      rawOffsetMeters: offset,
+      crossesSite: false,
+      snappedToBank: false,
+      segments: [{ points, widthsMeters: points.map(() => width) }],
+      leftBankSegments: [],
+      rightBankSegments: []
+    };
+    offCoreRivers.add(moved);
+    return moved;
+  });
+  return changed ? { ...site, rivers } : site;
+}
+
 /** The built programme: the descriptor's Feature flags pass straight through;
  * `wallPlan` is derived from them + the site by the wall-patterns.md §8 matrix.
  * Same shape for a real FMG descriptor and a synthetic one. */
@@ -245,7 +312,7 @@ export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
  */
 export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgram, "wallPlan">): WallPlan {
   assertRegionalCoverage(site);
-  site = withRiverPortFallback(site);
+  site = withWideRiverOffCore(withRiverPortFallback(site));
   const plan: WallPlan = { ...DEFAULT_WALL_PLAN, extent: program.walls ? "full" : "none" };
   const hasCoast = site.waterbody !== null || site.rivers.some(r => unbridgeableOnSite(site, r));
   const hasRiver = site.rivers.some(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
@@ -462,7 +529,15 @@ function extractWideChannels(site: BurgSiteDescriptor): {
       site.burg.waterAccess.riverId === river.riverId &&
       drawnWidthMeters(river) > site.frame.cityRadiusMeters * 0.4;
     // A course outside the town mesh is drawn from its banks, not walked as a stroke.
-    if (!unbridgeableOnSite(site, river) && !portChannel && !surveyedOutsideTownWindow(site, river)) continue;
+    // A river moved off the core is a straight band; walking a stroke that
+    // wide over the mesh paints round, brush-like banks.
+    if (
+      !unbridgeableOnSite(site, river) &&
+      !portChannel &&
+      !surveyedOutsideTownWindow(site, river) &&
+      !offCoreRivers.has(river)
+    )
+      continue;
     // Broad river ports need a real water surface and shoreline even when
     // bridge technology could span the river. The stroke/wall pipeline cannot
     // model that frontage or berth piers on it.
