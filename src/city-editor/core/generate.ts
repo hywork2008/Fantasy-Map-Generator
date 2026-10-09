@@ -663,13 +663,13 @@ export function generateCityOnDocument(
     // graph still links them (Breistattlin), or cut an FMG road off from the
     // town (Dossiepoy, Courvilliers). Every attempt would site it again, so
     // later attempts judge castle sites on street edges.
-    const retryReasons = new Set(["unconnected-gates", "fmg-road-mismatch"]);
+    const retryReasons = new Set(["unconnected-gates", "fmg-road-mismatch", "castle-no-site"]);
     const reasons = failures.slice(failed).map(sample => sample.failure?.reason ?? "");
     if (reasons.some(reason => retryReasons.has(reason)))
       attemptSettings = {
         ...settings,
         castleStreetLinks: true,
-        ...(reasons.includes("fmg-road-mismatch") ? { castleOutward: true } : {})
+        ...(reasons.some(reason => reason !== "unconnected-gates") || attempt >= 1 ? { castleOutward: true } : {})
       };
   }
   observe({
