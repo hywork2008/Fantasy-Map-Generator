@@ -12,6 +12,7 @@ import { facePoints } from "../mesh";
 import { GATE_TOWER_SCALE, gateCrossingFrame } from "../passages";
 import { flowingRivers } from "../riverFlow";
 import type { CityDocument, HistoricalPeriod, Id, Point } from "../types";
+import { type DocumentWaterTest, documentWaterTest } from "../waterGeometry";
 import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
@@ -28,7 +29,7 @@ import { civicYardMeters } from "./housing";
 import { fitMonastery, type Monastery, type MonasteryKind } from "./monasteryLayout";
 import { makeRng, type Rng } from "./prng";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
-import { fixedBankOffset, hitsSurveyedWater } from "./watermillFabric";
+import { fixedBankOffset } from "./watermillFabric";
 
 export type { Monastery, MonasteryKind, PrecinctBuilding, PrecinctCourt } from "./monasteryLayout";
 
@@ -254,7 +255,7 @@ class Site {
   /** Town circuit, or the hull of the built-up core for open towns. */
   readonly town: Point[];
   readonly walled: boolean;
-  readonly surveyedWater: boolean;
+  readonly testDocumentWater: DocumentWaterTest;
   readonly roads: Point[][] = [];
   readonly faceIndex = new BoxIndex<{ id: Id; polygon: Point[] }>(60);
   readonly lanes = new BoxIndex<{ points: Point[]; radius: number }>(40);
@@ -269,7 +270,7 @@ class Site {
     input: AerialLandmarkInput
   ) {
     this.half = document.frame.extentMeters / 2;
-    this.surveyedWater = !!document.importedFixedCrossings || !!document.waterAreas?.length;
+    this.testDocumentWater = documentWaterTest(document);
     const v = (id: Id) => document.mesh.vertices[id]?.point;
     for (const group of document.featureGroups) {
       if (group.kind === "river") {
@@ -394,8 +395,8 @@ class Site {
   hitsWater(polygon: Point[], clearance = 1): boolean {
     const box = grow(boxOf(polygon), clearance);
     if (this.water.query(box).some(w => polygonOverlaps(polygon, w))) return true;
-    // FMG rivers are the surveyed bank polygons.
-    if (this.surveyedWater && hitsSurveyedWater(this.document, polygon)) return true;
+    // Include the sea outside the editable mesh as well as surveyed rivers.
+    if (this.testDocumentWater(polygon)) return true;
     return this.capsules
       .query(box)
       .some(c => c.kind === "river" && polygonNearSegment(polygon, c.a, c.b, c.radius + clearance));
