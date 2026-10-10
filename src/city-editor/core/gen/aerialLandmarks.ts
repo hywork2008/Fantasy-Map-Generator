@@ -18,6 +18,7 @@ import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
 import { ferryLandingReserves } from "./ferryLanding";
+import { type GateInn, placeGateInns } from "./gateInnPlacement";
 import {
   bufferPolygon,
   cleanRing,
@@ -32,6 +33,7 @@ import { type GuildHall, type GuildYard, placeGuildWorks } from "./guildFacility
 import { civicYardMeters } from "./housing";
 import { fitMonastery, type Monastery, type MonasteryKind } from "./monasteryLayout";
 import { makeRng, type Rng } from "./prng";
+import { roadTrafficKey } from "./roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { placeStorageYards, type StorageYard } from "./storageYardPlacement";
 import { fixedBankOffset } from "./watermillFabric";
@@ -105,9 +107,11 @@ export interface AerialLandmarkPlan {
   guildYards: GuildYard[];
   /** Inventory yards. A cellar has no plot. */
   storageYards: StorageYard[];
+  /** Wayside inns and caravanserais outside the busiest gate. */
+  gateInns: GateInn[];
 }
 
-export type { GuildHall, GuildYard, StorageYard };
+export type { GateInn, GuildHall, GuildYard, StorageYard };
 
 export interface AerialLandmarkInput {
   buildings: BuildingLot[];
@@ -128,7 +132,8 @@ const EMPTY_PLAN: AerialLandmarkPlan = {
   gallows: [],
   guildHalls: [],
   guildYards: [],
-  storageYards: []
+  storageYards: [],
+  gateInns: []
 };
 
 const PERIOD_ORDER: HistoricalPeriod[] = [
@@ -1116,7 +1121,7 @@ export function buildAerialLandmarkPlan(
   if (!input.buildings.length || !document.fabric?.generation) return EMPTY_PLAN;
   const economy = economyOnDocument(document);
   const guildPlan = planGuildFacilities(economy, document.historicalPeriod ?? "ageOfExploration");
-  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${JSON.stringify(input.waterUsers ?? [])}`;
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${roadTrafficKey(document)}:${JSON.stringify(input.waterUsers ?? [])}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
 
@@ -1128,6 +1133,7 @@ export function buildAerialLandmarkPlan(
   const guildWorks = placeGuildWorks(site, guildPlan, economy?.year ?? 0);
   const tanneries = placeTanneries(site, input, makeRng(`${root}:tannery`), wantsTannery(economy, guildPlan));
   const storageYards = placeStorageYards(site, economy?.storage ?? [], guildWorks.yards, economy?.year ?? 0);
+  const gateInns = placeGateInns(site, economy?.facilities ?? [], economy?.year ?? 0);
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
@@ -1148,7 +1154,8 @@ export function buildAerialLandmarkPlan(
     domesticWater,
     guildHalls: guildWorks.halls,
     guildYards: guildWorks.yards,
-    storageYards
+    storageYards,
+    gateInns
   };
   aerialPlanCache.set(document, { fingerprint: fp, plan });
   return plan;
@@ -1164,6 +1171,7 @@ export function aerialLandmarkFootprints(plan: AerialLandmarkPlan): Point[][] {
     ...plan.gallows.map(g => circle(g.center, g.moundRadius + 1, 12)),
     ...plan.guildHalls.flatMap(hall => (hall.tower ? [hall.footprint, hall.tower] : [hall.footprint])),
     ...plan.guildYards.map(yard => yard.polygon),
-    ...plan.storageYards.map(yard => yard.polygon)
+    ...plan.storageYards.map(yard => yard.polygon),
+    ...plan.gateInns.map(inn => inn.footprint)
   ];
 }

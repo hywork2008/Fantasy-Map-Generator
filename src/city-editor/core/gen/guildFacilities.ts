@@ -103,5 +103,6 @@ export function siteEconomyKey(economy: BurgSiteEconomy | undefined): string {
       yard => `${yard.form}:${Math.round(yard.areaM2)}:${yard.waterborne ? "w" : "l"}:${yard.inflowAzimuthDeg ?? "-"}`
     )
     .join(",");
-  return `${economy.year}|${guilds}|${storage}`;
+  const lodging = economy.facilities.map(item => `${item.kind}:${item.count}:${item.stableSpaces}`).join(",");
+  return `${economy.year}|${guilds}|${storage}|${lodging}`;
 }

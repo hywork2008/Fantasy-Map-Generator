@@ -1,16 +1,50 @@
 import { featureGroupVertices } from "../features";
-import type { CityDocument, Point } from "../types";
+import type { ApproachBeyond, CityDocument, Point } from "../types";
 import { evaluateApproachBeyond, externalGateRoads, normalizeApproachBeyond } from "./approachBeyond";
 import type { DistrictFabric } from "./blockInfill";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { chord, isSuburb } from "./localInfill";
+import { type RoadUse, roadUse, TRADE_RANK, tradeRibbonMeters } from "./roadTraffic";
 
-type Profile = "trade" | "granary" | "frontier" | "rural";
+export type SuburbanProfile = "trade" | "granary" | "frontier" | "rural";
 interface Approach {
   points: Point[];
-  profile: Profile;
+  profile: SuburbanProfile;
   clearance: number;
   length: number;
+}
+
+/**
+ * A recorded traffic rank replaces the neighbour's usefulness as the trade test.
+ * Defence still keeps a glacis, and a quiet road can stay a food village.
+ * Without traffic the neighbour's role decides, as before.
+ */
+export function suburbanProfile(
+  beyond: ApproachBeyond | undefined,
+  extentMeters: number,
+  hasWalls: boolean,
+  use: RoadUse | null
+): { profile: SuburbanProfile; clearance: number; length: number } {
+  const norm = normalizeApproachBeyond(beyond);
+  const assessment = evaluateApproachBeyond(beyond, { extentMeters, hasWalls });
+  const frontier = assessment?.defenseLevel === "high" || assessment?.defenseLevel === "critical";
+  const granary = norm?.settlement.role === "granary" || norm?.settlement.scale === "village";
+  const profile: SuburbanProfile = frontier
+    ? "frontier"
+    : use
+      ? use.trafficRank >= TRADE_RANK
+        ? "trade"
+        : granary
+          ? "granary"
+          : "rural"
+      : granary
+        ? "granary"
+        : assessment?.utilityLevel === "high" || assessment?.utilityLevel === "critical"
+          ? "trade"
+          : "rural";
+  const clearance = profile === "frontier" ? 70 : profile === "rural" ? 30 : 25;
+  const length = profile === "trade" ? (use ? tradeRibbonMeters(use.traffic) : 200) : profile === "granary" ? 50 : 60;
+  return { profile, clearance, length };
 }
 
 /** Apply the land-use bands to existing mesh-owned lots. No new street or
@@ -28,30 +62,16 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
     const vertices = featureGroupVertices(document, group);
     const points = vertices.map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
     if (points.length < 2) return [];
-    const norm = normalizeApproachBeyond(group.beyond);
-    const assessment = evaluateApproachBeyond(group.beyond, {
-      extentMeters: document.frame.extentMeters,
-      hasWalls: walls.length > 0
-    });
-    const profile: Profile =
-      assessment?.defenseLevel === "high" || assessment?.defenseLevel === "critical"
-        ? "frontier"
-        : norm?.settlement.role === "granary" || norm?.settlement.scale === "village"
-          ? "granary"
-          : assessment?.utilityLevel === "high" || assessment?.utilityLevel === "critical"
-            ? "trade"
-            : "rural";
+    const band = suburbanProfile(
+      group.beyond,
+      document.frame.extentMeters,
+      walls.length > 0,
+      roadUse(document, group.sourceRoad?.index, group.sourceRoad?.routeId)
+    );
     // The gate endpoint is the one farther from the map boundary.
     const boundaryDistance = (p: Point) => document.frame.extentMeters / 2 - Math.max(Math.abs(p[0]), Math.abs(p[1]));
     if (boundaryDistance(points[0]) < boundaryDistance(points.at(-1)!)) points.reverse();
-    return [
-      {
-        points,
-        profile,
-        clearance: profile === "frontier" ? 70 : profile === "rural" ? 30 : 25,
-        length: profile === "trade" ? 200 : profile === "granary" ? 50 : 60
-      }
-    ];
+    return [{ points, ...band }];
   });
   if (!approaches.length) return fabric;
   const wallDistance = (p: Point) =>

@@ -1,9 +1,10 @@
-import type { BurgSiteEconomy, GuildDomain, SiteGuild } from "../../../services/burgSiteEconomy";
+import type { BurgSiteEconomy, GuildDomain, SiteGuild, SiteLodging } from "../../../services/burgSiteEconomy";
 import { GUILD_DOMAINS } from "../../../services/burgSiteEconomy";
 import {
   getGoods,
   getGuildChapters,
   getGuildKnowledgeStocks,
+  getInnFacilities,
   getMarkets,
   getMerchantOrganizations,
   getMintLedgers,
@@ -97,6 +98,28 @@ export function projectBurgGuilds(input: GuildProjectionInput): SiteGuild[] {
   return guilds;
 }
 
+type LodgingSource = {
+  burgId: number;
+  innClass: string;
+  buildingCount: number;
+  stableSpaces: number;
+  condition: number;
+};
+
+/** Wayside inns and caravanserais only. One record is one class, already summed across its buildings. */
+export function projectLodging(facilities: readonly LodgingSource[], burgId: number): SiteLodging[] {
+  const lodging: SiteLodging[] = [];
+  for (const facility of facilities) {
+    if (facility.burgId !== burgId || facility.buildingCount < 1) continue;
+    const kind = facility.innClass === "wayside" ? "inn" : facility.innClass === "caravanserai" ? "caravanserai" : null;
+    if (!kind) continue;
+    const stables = Number.isFinite(facility.stableSpaces) ? Math.max(0, Math.round(facility.stableSpaces)) : 0;
+    const scale = Number.isFinite(facility.condition) ? Math.min(1, Math.max(0, facility.condition)) : 0;
+    lodging.push({ kind, count: Math.round(facility.buildingCount), scale, stableSpaces: stables });
+  }
+  return lodging;
+}
+
 function arrivalRank(burgId: number): { marketCenter: boolean; rank: number } {
   const markets = getMarkets();
   const volumes = markets.map(market => market.caravanArrivalVolume ?? 0);
@@ -145,7 +168,7 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     },
     guilds,
     storage: storageYardsForBurg(burgId, arrival.marketCenter, tradePartners),
-    facilities: [],
+    facilities: projectLodging(getInnFacilities(), burgId),
     tradePartners
   };
 }

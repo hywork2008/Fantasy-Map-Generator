@@ -47,10 +47,23 @@ export interface BurgSiteEconomy {
   guilds: SiteGuild[];
   /** Lot→m² yards, already capped to the town disc. */
   storage: SiteStorageYard[];
-  /** Inns, shipyards and other non-guild works. Empty until that slice lands. */
-  facilities: unknown[];
+  /**
+   * Wayside inns and caravanserais. Market, waterside and grand lodging stay in town
+   * and are not projected. Shipyards and other works are still absent.
+   */
+  facilities: SiteLodging[];
   /** Up to eight partners from the corridor ledger, busiest first. */
   tradePartners: SiteTradePartner[];
+}
+
+/** Gate lodging. `inn` is a wayside inn. The courtyard is sized from `stableSpaces`. */
+export interface SiteLodging {
+  kind: "inn" | "caravanserai";
+  /** Buildings of this class in the burg. */
+  count: number;
+  /** Condition 0..1. */
+  scale: number;
+  stableSpaces: number;
 }
 
 export const STORAGE_FORMS = [

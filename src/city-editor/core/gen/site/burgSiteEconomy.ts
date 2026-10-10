@@ -57,8 +57,18 @@ export interface BurgSiteEconomy {
   };
   guilds: SiteGuild[];
   storage: SiteStorageYard[];
-  facilities: unknown[];
+  /** Wayside inns (`inn`) and caravanserais. Other lodging classes are not listed. */
+  facilities: SiteLodging[];
   tradePartners: SiteTradePartner[];
+}
+
+/** Gate lodging. Courtyard area follows `stableSpaces`. */
+export interface SiteLodging {
+  kind: "inn" | "caravanserai";
+  count: number;
+  /** Condition 0..1. */
+  scale: number;
+  stableSpaces: number;
 }
 
 export interface SiteTradePartner {
@@ -72,6 +82,7 @@ export interface SiteTradePartner {
 
 const DOMAINS = new Set<string>(GUILD_DOMAINS);
 const FORMS = new Set<string>(STORAGE_FORMS);
+const LODGING = new Set<string>(["inn", "caravanserai"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -118,7 +129,7 @@ export function sanitizeBurgSiteEconomy(raw: unknown): BurgSiteEconomy | null {
       return guild ? [guild] : [];
     }),
     storage: yardsFrom(raw.storage),
-    facilities: [],
+    facilities: lodgingFrom(raw.facilities),
     tradePartners: partnersFrom(raw.tradePartners)
   };
 }
@@ -146,6 +157,27 @@ function yardsFrom(raw: unknown): SiteStorageYard[] {
     });
   }
   return yards;
+}
+
+function lodgingFrom(raw: unknown): SiteLodging[] {
+  if (!Array.isArray(raw)) return [];
+  const lodging: SiteLodging[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry) || typeof entry.kind !== "string" || !LODGING.has(entry.kind)) continue;
+    const count = typeof entry.count === "number" && Number.isFinite(entry.count) ? Math.round(entry.count) : 0;
+    if (count < 1) continue;
+    const stables =
+      typeof entry.stableSpaces === "number" && Number.isFinite(entry.stableSpaces)
+        ? Math.round(entry.stableSpaces)
+        : 0;
+    lodging.push({
+      kind: entry.kind as SiteLodging["kind"],
+      count,
+      scale: clamp01(entry.scale),
+      stableSpaces: Math.max(0, stables)
+    });
+  }
+  return lodging;
 }
 
 function partnersFrom(raw: unknown): SiteTradePartner[] {

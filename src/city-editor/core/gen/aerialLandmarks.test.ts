@@ -14,8 +14,12 @@ import {
   buildAerialLandmarkPlan,
   TANNERY_WATER_USER_CLEARANCE_METERS
 } from "./aerialLandmarks";
+import { externalGateRoads } from "./approachBeyond";
 import { buildBlockFabric, type DistrictFabric, FabricCache } from "./blockInfill";
-import { convexHull, nearestOnPolyline, pointInPolygon, shrinkPolygon } from "./geom";
+import { courtAreaM2, innClearsRoad } from "./gateInnPlacement";
+import { convexHull, nearestOnPolyline, pointInPolygon, polygonArea, shrinkPolygon } from "./geom";
+import { COBBLE_WIDTH_SCALE } from "./roadTraffic";
+import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 
 function walledRiverTown(): CityDocument {
   const grid = createGridDocument({
@@ -433,6 +437,121 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(
       decodeURIComponent(svg.querySelector(".ce-storage-yard--granary[data-pick]")!.getAttribute("data-pick")!)
     ).toContain("穀倉");
+  }, 60000);
+
+  it("puts the wayside inn and caravanserai outside the busiest gate and cobbles that road", () => {
+    const exits = externalGateRoads(city);
+    expect(exits.length).toBeGreaterThan(1);
+    const busy = exits[0];
+    const quiet = exits[1];
+    const withInns: CityDocument = {
+      ...city,
+      featureGroups: city.featureGroups.map(group => {
+        if (group.kind !== "road") return group;
+        if (group.id === busy.group.id) return { ...group, sourceRoad: { index: 0, routeId: 10 } };
+        if (group.id === quiet.group.id) return { ...group, sourceRoad: { index: 1, routeId: 11 } };
+        return group;
+      }),
+      fabric: city.fabric && {
+        ...city.fabric,
+        generation: city.fabric.generation && {
+          ...city.fabric.generation,
+          settings: {
+            ...city.fabric.generation.settings,
+            descriptor: {
+              roads: [
+                {
+                  routeId: 10,
+                  group: "roads",
+                  entryAzimuthDeg: 0,
+                  reachesEdge: true,
+                  path: [
+                    [0, 0],
+                    [1, 0]
+                  ],
+                  nextBurg: null,
+                  traffic: 18,
+                  trafficRank: 0.91
+                },
+                {
+                  routeId: 11,
+                  group: "trails",
+                  entryAzimuthDeg: 90,
+                  reachesEdge: true,
+                  path: [
+                    [0, 0],
+                    [0, 1]
+                  ],
+                  nextBurg: null,
+                  traffic: 2,
+                  trafficRank: 0.1
+                }
+              ]
+            } as BurgSiteDescriptor
+          }
+        }
+      },
+      siteEconomy: {
+        version: 1,
+        year: 1350,
+        commerce: { rank: 0.4, marketCenter: false, merchantHouse: null, mint: false, caravanArrivalRank: 0.4 },
+        guilds: [],
+        storage: [],
+        facilities: [
+          { kind: "inn", count: 1, scale: 0.8, stableSpaces: 4 },
+          { kind: "caravanserai", count: 1, scale: 0.7, stableSpaces: 36 }
+        ],
+        tradePartners: []
+      }
+    };
+    const built = buildBlockFabric(withInns, new FabricCache());
+    const inns = built.aerialLandmarks?.gateInns ?? [];
+    const caravan = inns.find(inn => inn.kind === "caravanserai");
+    const wayside = inns.find(inn => inn.kind === "inn");
+    expect(caravan).toBeDefined();
+    expect(wayside).toBeDefined();
+    expect(Math.abs(polygonArea(caravan!.court))).toBeCloseTo(courtAreaM2(36), 0);
+    expect(Math.abs(polygonArea(wayside!.court))).toBeCloseTo(courtAreaM2(4), 0);
+    for (const inn of inns) expect(pointInPolygon(centre(inn.footprint), ring)).toBe(false);
+    const pointsOf = (id: string) => {
+      const group = withInns.featureGroups.find(group => group.id === id);
+      return group && group.kind === "road"
+        ? featureGroupVertices(withInns, group).map(vertex => withInns.mesh.vertices[vertex].point)
+        : [];
+    };
+    const busyPoints = pointsOf(busy.group.id);
+    const quietPoints = pointsOf(quiet.group.id);
+    expect(nearestOnPolyline(centre(caravan!.footprint), busyPoints).dist).toBeLessThan(
+      nearestOnPolyline(centre(caravan!.footprint), quietPoints).dist
+    );
+    expect(innClearsRoad(caravan!, busyPoints, 1)).toBe(true);
+    const half = withInns.frame.extentMeters / 2;
+    const svg = renderEditorSvg(
+      { ...withInns, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(svg.querySelectorAll(".ce-gate-inn[data-pick]")).toHaveLength(inns.length);
+    expect(decodeURIComponent(svg.querySelector(".ce-gate-inn--inn")!.getAttribute("data-pick")!)).toContain("街道宿");
+    expect(decodeURIComponent(svg.querySelector(".ce-gate-inn--caravanserai")!.getAttribute("data-pick")!)).toContain(
+      "隊商宿"
+    );
+    const cobble = svg.querySelector(".ce-road--cobble");
+    const busyWidth = withInns.featureGroups.find(group => group.kind === "road" && group.id === busy.group.id);
+    expect(cobble?.getAttribute("stroke-width")).toBe(
+      String((busyWidth?.kind === "road" ? busyWidth.style.widthMeters : 0) * COBBLE_WIDTH_SCALE)
+    );
+    const plain = renderEditorSvg(
+      { ...city, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(plain.querySelector(".ce-road--cobble")).toBeNull();
+    expect(plain.querySelector(".ce-gate-inn")).toBeNull();
   }, 60000);
 });
 

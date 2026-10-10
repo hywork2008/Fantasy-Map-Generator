@@ -3,6 +3,7 @@ import type {
   AerialLandmarkPlan,
   Barbican,
   Gallows,
+  GateInn,
   GuildHall,
   GuildYard,
   Monastery,
@@ -535,6 +536,7 @@ export function renderAerialLandmarks(
   for (const hall of plan.guildHalls ?? []) layer.appendChild(renderGuildHall(hall, options));
   for (const yard of plan.guildYards ?? []) layer.appendChild(renderGuildYard(yard, options, minimal));
   for (const yard of plan.storageYards ?? []) layer.appendChild(renderStorageYard(yard, options));
+  for (const inn of plan.gateInns ?? []) layer.appendChild(renderGateInn(inn, options));
   for (const gw of plan.gallows) layer.appendChild(renderGallows(gw, options));
   for (const w of plan.windmills) layer.appendChild(renderWindmill(w, options));
   return layer;
@@ -584,6 +586,59 @@ const STORAGE_FILL: Record<StorageYard["form"], string> = {
   cellar: "#8d7b66",
   warehouse: "#a89880"
 };
+
+const INN_LABEL: Record<GateInn["kind"], string> = { inn: "街道宿", caravanserai: "隊商宿" };
+const INN_FILL: Record<GateInn["kind"], string> = { inn: "#c4b49a", caravanserai: "#b7aa96" };
+
+function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
+  const dated = inn.year > 0 ? `${inn.year}年・` : "";
+  const g = pickGroup(
+    `ce-gate-inn ce-gate-inn--${inn.kind}`,
+    {
+      kind: "gateInn",
+      id: inn.id,
+      label: `${inn.name}（${INN_LABEL[inn.kind]}・${dated}棟${inn.count}・厩舎${inn.stableSpaces}）`,
+      innKind: inn.kind,
+      stableSpaces: inn.stableSpaces,
+      count: inn.count
+    },
+    options
+  );
+  g.appendChild(
+    el("path", {
+      d: polygon(inn.footprint),
+      fill: INN_FILL[inn.kind],
+      stroke: "#6e5c48",
+      "stroke-width": "0.5"
+    })
+  );
+  g.appendChild(
+    el("path", {
+      d: polygon(inn.court),
+      fill: "#e4d7be",
+      stroke: "#8a7560",
+      "stroke-width": "0.35"
+    })
+  );
+  g.appendChild(
+    el("path", {
+      d: line(inn.entrance),
+      fill: "none",
+      stroke: "#8a7560",
+      "stroke-width": "1.1"
+    })
+  );
+  for (const stall of inn.stalls)
+    g.appendChild(
+      el("path", {
+        d: line(stall),
+        fill: "none",
+        stroke: "#6e5c48",
+        "stroke-width": "0.35"
+      })
+    );
+  return g;
+}
 
 function renderStorageYard(yard: StorageYard, options: PickOptions): SVGElement {
   const goods = yard.mainGoods.length ? yard.mainGoods.join("・") : STORAGE_LABEL[yard.form];

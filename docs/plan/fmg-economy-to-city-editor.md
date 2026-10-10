@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳と `roads[].traffic` を実装。置き場は Paia 1350 で較正し、`storage[]` の面積を城壁内（穀倉・倉庫）と城壁外（家畜市・材木置場・石置場・燃料置場）に描く。樽倉は敷地を取らない。区画重みは職人比・`commerce.rank`・市場中心で置き換える。郊外の交通と門前の宿は未実装 |
+| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳と `roads[].traffic` を実装。置き場は Paia 1350 で較正し、`storage[]` の面積を城壁内（穀倉・倉庫）と城壁外（家畜市・材木置場・石置場・燃料置場）に描く。樽倉は敷地を取らない。区画重みは職人比・`commerce.rank`・市場中心で置き換える。交通のある道は郊外のリボンと門前の宿と門外の石畳を決める。交通が無い道は従来の郊外のまま |
 | **Date** | 2026-10-10 |
 | **Owner** | Economy 拡張（プロファイル生成）+ host（descriptor）+ CE（都市生成） |
 | **検証データ** | `temp/000.savdata/Paia 2026-10-10-09-54.fmg`（1年進行、1348年）。回廊の確認は `temp/000.savdata/Paia 2026-10-10-10-54.fmg`（1350年1月1日。台帳導入前に進めたので、残っている配送と航行中キャラバンを台帳に再生して見る） |
@@ -144,7 +144,8 @@ export interface BurgSiteEconomy {
   };
   guilds: SiteGuild[];
   storage: SiteStorageYard[];
-  facilities: SiteFacility[];
+  /** 門前の宿。造船所などは未投影。 */
+  facilities: SiteLodging[];
   /** 主要な交易相手（§6 の台帳から、上位8件）。 */
   tradePartners: SiteTradePartner[];
 }
@@ -192,6 +193,15 @@ export type FacilityKind =
   | "quarryWorks" | "limeKiln" | "smithy" | "smelter" | "mineHead"
   | "saltPan" | "levee" | "dam"
   | "waterworks" | "publicGranary" | "harborWorks";
+
+/** 門前に置く宿。wayside は `inn`。市場・水辺・大宿は町内なのでここには入れない。 */
+export interface SiteLodging {
+  kind: "inn" | "caravanserai";
+  count: number;
+  /** 維持状態 0..1。 */
+  scale: number;
+  stableSpaces: number;
+}
 
 export interface SiteFacility {
   kind: FacilityKind;
@@ -304,9 +314,9 @@ export interface TradeCorridor {
 
 `descriptor.economy.tradePartners` と `roads[].traffic` から：
 
-- **道幅と舗装**：`trafficRank` 上位の道は門外の道幅を広げ、石畳表現にする（`group: roads` と整合）。
-- **門前の宿**：`innFacilities` の wayside / caravanserai を、`traffic` 最大の道の門外に置く。厩舎数（`stableSpaces`）で中庭の大きさを決める。
-- **街道沿いの郊外**：`suburbanLanduse.ts` の `trade` プロファイル（いまは隣接都市の役割で決まる）を `trafficRank` で決める。リボン長を traffic に比例させる。
+- **道幅と舗装**：`group: roads` かつ `trafficRank ≥ 0.66` の道は、城壁の外だけ道幅を 1.6 倍にし、石畳で描く。トレイルは土のまま。橋の床は広げない。交通が無ければ道幅は従来どおり。
+- **門前の宿**：`innFacilities` の wayside（`kind: inn`）と caravanserai を、`traffic` 最大の門外の道の脇に置く。市場・水辺・大宿は町内のまま投影しない。中庭は厩舎 1 につき 12 m²、64〜1400 m²。部屋は中庭を囲む。交通のある道が無ければ置かない。
+- **街道沿いの郊外**：交通が記録された道は、`trafficRank ≥ 0.5` なら trade リボンにする（隣接都市の有用性より優先。食料を送る村でも同じ）。長さは `clamp(200 × traffic / 24, 60, 480)` m。防備が high / critical の道は従来どおり前線。交通が無い道は隣接都市の役割のまま。
 - **置き場の向き**：`SiteStorageYard.inflowAzimuthDeg` を、その品目の主な交易相手が通る道の入口方位から決める。
 
 ---
@@ -333,7 +343,7 @@ export interface TradeCorridor {
 - `craftsmen` 21枠を、`practitioners > 0` の職種比で最大剰余法により分ける。同じ職種は人数を合算する。0人のギルドは枠を取らない。全員0人なら21枠は職種なしの craftsmen のまま。分けた面には `craftDomain` を付ける。建物の形はまだ職種で変えない。
 - `merchant` 枠は `commerce.rank`（0〜1）から `min(4, max(1, ceil(rank × 4)))`。rank 0 は 1枠。
 - `market` 枠は 2。`marketCenter` なら 3。
-- 郊外の traffic 駆動と門前の宿は未実装。
+- 交通が記録された道の郊外は `trafficRank` で trade リボンになり、長さは traffic に比例する。wayside と caravanserai は traffic 最大の門の外に置き、中庭は厩舎数で決まる。`trafficRank ≥ 0.66` の舗装路は門外だけ幅 1.6 倍の石畳。交通が無いときの郊外は従来どおり。
 - 置き場（§5.3）は ward ではなく、城壁外は `aerialLandmarks`、城壁内は完成した街から敷地を切り出す（皮革なめし場と同じ方式）。`placeStorageYards` がギルド付属施設となめし場の後に置く。流入方位へ寄せ、水運の材木・石は川へ寄せ、家畜市は川の下流側へ寄せる。門・森林側・採石場側への固定は未実装。置けない余りは捨て、置いた多角形の面積をその区画の `areaM2` とする。
 
 **時代**：会館・鐘楼は `highMedieval` 以降。印刷は `ageOfExploration` 以降（FMG側の技術で印刷が無ければ `printing` 自体が来ない）。
@@ -376,9 +386,9 @@ CEへ渡す前に直しておかないと、CEに「中身の無い施設」が�
 | **E0** | セーブ集計スクリプトを `scripts/` に置き、§3 の数値を再現できるようにする | `scripts/` | Paia で §3 の表と同じ値が出る |
 | **E1** | `roads[].traffic/trafficRank`、`climate.prevailingWindDeg` を descriptor に追加（core のみ） | `services/burgSiteDescriptor.ts`、CE 型コピー | `traffic` / `trafficRank` は交通のある陸路だけに付く。風向は未実装。値が無いときは従来どおり |
 | **E2** | `BurgSiteEconomy` 型、`buildBurgSiteEconomy()`、`siteEconomyFootprint.ts`、`burgEconomyExtensions.getBurgSiteEconomy` 登録 | `extensions/economy/`、`services/burgEconomyExtensions.ts` | ギルド投影と置き場面積まで実装済み（職人0の会館を含む）。面積は `storage[]` に入り、CE が城壁内外に描く |
-| **E3** | CE `economicWards.ts`。ward の重み・craftDomain、`suburbanLanduse` の traffic 駆動、門前の宿 | `city-editor/core/gen/` | プロファイルがあるとき、職人街は実践者比、商人街は rank で 1〜4、市場は市場中心で +1。`craftDomain` を面に書く。プロファイルが無い場合の出力は現行どおり。郊外の traffic 駆動と門前の宿は未実装 |
+| **E3** | CE `economicWards.ts`。ward の重み・craftDomain、`suburbanLanduse` の traffic 駆動、門前の宿 | `city-editor/core/gen/` | プロファイルがあるとき、職人街は実践者比、商人街は rank で 1〜4、市場は市場中心で +1。`craftDomain` を面に書く。交通のある道は trade リボン・門前の宿・門外の石畳になる。交通が無いときの郊外と、プロファイルが無い区画は現行どおり |
 | **E4** | 置き場・家畜囲い・材木置場・石置場・漂白場・石灰窯・布地会館の配置と描画 | `aerialLandmarks.ts`、`storageYardPlacement.ts`、`render/` | 会館・職種別の付属施設は実装済み（職人0でも置く）。在庫の置き場は完成した街から切り出す。穀倉と倉庫は城壁内、家畜市・燃料・材木・石は城壁外。材木と石はギルド付属置場の面積を差し引く。1区画は 1600 m² まで、最大 6 区画。樽倉は描かない。公共穀倉、門や採石場への寄せ、樽倉ぶんの建物拡大は未実装 |
-| **E5** | `TradeCorridorLedger` と整備判定、`publicWorks` の優先順の置き換え | `extensions/economy/generators/` | 台帳・減衰・整備表・道路の並べ替え・`tradePartners` を実装。1350年 Paia の残存配送を再生すると上位10組に港町ペアが入る。道幅・宿・郊外の描画は未実装 |
+| **E5** | `TradeCorridorLedger` と整備判定、`publicWorks` の優先順の置き換え | `extensions/economy/generators/` | 台帳・減衰・整備表・道路の並べ替え・`tradePartners` を実装。1350年 Paia の残存配送を再生すると上位10組に港町ペアが入る。道幅・宿・郊外は CE 側で描く |
 | **E6** | §8.2 の不整合修正（会館の昇格規則、Public Works 較正） | `guildChapters.ts`、`publicWorks.ts` | 会館の空き率が半分以下 |
 | **v2** | 製粉・屠畜の追加（§8.1）、橋の新設を Public Works に追加（`bridgeSkewPolicy.ts` 準拠）、CE→FMG の書き戻し | | |
 

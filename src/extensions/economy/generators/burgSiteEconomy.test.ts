@@ -10,11 +10,12 @@ import {
   setGoods,
   setGuildChapters,
   setGuildKnowledgeStocks,
+  setInnFacilities,
   setMarkets,
   setTradeCorridors
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
-import { buildBurgSiteEconomy, projectBurgGuilds } from "./burgSiteEconomy";
+import { buildBurgSiteEconomy, projectBurgGuilds, projectLodging } from "./burgSiteEconomy";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Market } from "./marketTypes";
 import type { TradeCorridor } from "./tradeCorridorLedger";
@@ -61,6 +62,49 @@ describe("projectBurgGuilds", () => {
   });
 });
 
+describe("projectLodging", () => {
+  it("sends wayside inns and caravanserais to the gate and leaves town lodging out", () => {
+    expect(
+      projectLodging(
+        [
+          {
+            burgId: 1,
+            innClass: "wayside",
+            buildingCount: 1,
+            stableSpaces: 4,
+            condition: 0.8
+          },
+          {
+            burgId: 1,
+            innClass: "market",
+            buildingCount: 2,
+            stableSpaces: 8,
+            condition: 0.9
+          },
+          {
+            burgId: 1,
+            innClass: "caravanserai",
+            buildingCount: 1,
+            stableSpaces: 36,
+            condition: 0.7
+          },
+          {
+            burgId: 2,
+            innClass: "wayside",
+            buildingCount: 1,
+            stableSpaces: 3,
+            condition: 1
+          }
+        ],
+        1
+      )
+    ).toEqual([
+      { kind: "inn", count: 1, scale: 0.8, stableSpaces: 4 },
+      { kind: "caravanserai", count: 1, scale: 0.7, stableSpaces: 36 }
+    ]);
+  });
+});
+
 describe("buildBurgSiteEconomy", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext, simulationContext: { currentYear: 1348 } } as unknown as ExtensionAPI);
@@ -86,6 +130,35 @@ describe("buildBurgSiteEconomy", () => {
       { domain: "textiles", status: "chapter", practitioners: 0, prestige: 0, foundedYear: 1288 }
     ]);
     expect(profile?.tradePartners).toEqual([]);
+    expect(profile?.facilities).toEqual([]);
+  });
+
+  it("projects the burg's wayside inn onto the profile", () => {
+    setInnFacilities([
+      {
+        burgId: 1,
+        innClass: "wayside",
+        buildingCount: 1,
+        privateRooms: 1,
+        sharedBeds: 6,
+        privateBeds: 1,
+        commonSeats: 12,
+        stableSpaces: 4,
+        condition: 0.8
+      },
+      {
+        burgId: 1,
+        innClass: "waterside",
+        buildingCount: 1,
+        privateRooms: 3,
+        sharedBeds: 10,
+        privateBeds: 3,
+        commonSeats: 26,
+        stableSpaces: 4,
+        condition: 0.9
+      }
+    ]);
+    expect(buildBurgSiteEconomy(1)?.facilities).toEqual([{ kind: "inn", count: 1, scale: 0.8, stableSpaces: 4 }]);
   });
 
   it("names the busiest corridor partner", () => {

@@ -29,6 +29,7 @@ import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { riverPortShore } from "../core/gen/riverPortShore";
+import { cobbledApproach, cobbledWidthMeters, roadUse } from "../core/gen/roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "../core/gen/settlementExtent";
 import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
@@ -763,6 +764,7 @@ export function renderEditorSvg(
     : document.featureGroups;
   // One ring for the whole pass. Roads inside it are the centre-to-wall streets.
   const concealWall = town && hideStreetLines ? outerWallRing(document) : null;
+  const approachWall = town ? (concealWall ?? outerWallRing(document)) : null;
   const ribbons = town ? riverRibbons(document) : [];
   const moatReservations = new Map<number, MoatReservation>();
   const moatDecks: Array<{ points: Point[]; width: number }> = [];
@@ -853,6 +855,15 @@ export function renderEditorSvg(
           "pointer-events": "stroke"
         })
       );
+      if (town && group.kind === "road" && approachWall) {
+        const use = roadUse(document, group.sourceRoad?.index, group.sourceRoad?.routeId);
+        if (cobbledApproach(use))
+          appendCobble(
+            features,
+            clipPolylineToExterior(run, approachWall),
+            cobbledWidthMeters(group.style.widthMeters)
+          );
+      }
       if (town && group.kind === "wall") {
         features.appendChild(renderWallStructure(document, group, run, element));
       }
@@ -2968,12 +2979,57 @@ function fixedCrossingCovers(document: CityDocument, deck: Point[]): boolean {
   );
 }
 
+function appendCobble(parent: SVGElement, runs: Point[][], width: number, surface: Record<string, string> = {}): void {
+  const { class: surfaceClass, ...surfaceAttrs } = surface;
+  for (const run of runs) {
+    if (run.length < 2) continue;
+    const path = line(run);
+    parent.appendChild(
+      element("path", {
+        d: path,
+        class: "ce-road-cobble-casing",
+        fill: "none",
+        stroke: "#6e685c",
+        "stroke-width": String(width + 1.4),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round",
+        "pointer-events": "none"
+      })
+    );
+    parent.appendChild(
+      element("path", {
+        d: path,
+        fill: "none",
+        stroke: "#c8c2b4",
+        "stroke-width": String(width),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round",
+        "pointer-events": "none",
+        ...surfaceAttrs,
+        class: surfaceClass ? `ce-road--cobble ${surfaceClass}` : "ce-road--cobble"
+      })
+    );
+    parent.appendChild(
+      element("path", {
+        d: path,
+        class: "ce-road-cobble-joints",
+        fill: "none",
+        stroke: "#7d786c",
+        "stroke-width": String(Math.max(0.6, width * 0.18)),
+        "stroke-dasharray": "0.7 2.1",
+        "stroke-linecap": "butt",
+        "pointer-events": "none"
+      })
+    );
+  }
+}
+
 /** Continue an imported road from the outermost mesh vertex when that stub stays dry. */
 function appendFrameRoads(parent: SVGElement, document: CityDocument, town: boolean): void {
   const legs = document.frameRoads;
   if (!legs?.length) return;
-  const width = String(defaultRoadWidthMeters(townExtentMeters(document.frame)));
-  const casing = (points: Point[]) => {
+  const baseWidth = defaultRoadWidthMeters(townExtentMeters(document.frame));
+  const casing = (points: Point[], width: number) => {
     if (!town) return;
     parent.appendChild(
       element("path", {
@@ -2981,7 +3037,7 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
         class: "ce-frame-road-casing",
         fill: "none",
         stroke: "#57534b",
-        "stroke-width": String(Number(width) + 1.4),
+        "stroke-width": String(width + 1.4),
         "stroke-linecap": "butt",
         "stroke-linejoin": "round",
         "pointer-events": "none"
@@ -2989,24 +3045,37 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
     );
   };
   for (const leg of legs) {
+    const cobble = town && cobbledApproach(roadUse(document, leg.sourceIndex, leg.routeId));
+    const roadWidth = cobble ? cobbledWidthMeters(baseWidth) : baseWidth;
+    const width = String(roadWidth);
     const connection = frameRoadTownConnection(document, leg);
     if (connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5) {
-      casing(connection);
-      parent.appendChild(
-        element("path", {
-          d: line(connection),
-          class: "ce-frame-road",
+      if (cobble)
+        appendCobble(parent, [connection], roadWidth, {
+          class: "ce-frame-road ce-frame-road--cobble",
           "data-frame-road": String(leg.routeId),
           "data-source-index": String(leg.sourceIndex),
           "data-route-id": String(leg.routeId),
-          "data-frame-connection": "true",
-          fill: "none",
-          stroke: town ? "#d5cfbf" : "#735238",
-          "stroke-width": width,
-          "stroke-linecap": "butt",
-          "pointer-events": "none"
-        })
-      );
+          "data-frame-connection": "true"
+        });
+      else {
+        casing(connection, roadWidth);
+        parent.appendChild(
+          element("path", {
+            d: line(connection),
+            class: "ce-frame-road",
+            "data-frame-road": String(leg.routeId),
+            "data-source-index": String(leg.sourceIndex),
+            "data-route-id": String(leg.routeId),
+            "data-frame-connection": "true",
+            fill: "none",
+            stroke: town ? "#d5cfbf" : "#735238",
+            "stroke-width": width,
+            "stroke-linecap": "butt",
+            "pointer-events": "none"
+          })
+        );
+      }
     }
     // A leg the frame planner bridged already runs its approaches along the
     // bank to a square crossing; grazing that bank is not a water crossing.
@@ -3018,7 +3087,7 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
         document.sceneRegions &&
         (piece.kind === "bridge"
           ? fixedCrossingCovers(document, points)
-          : !plannedCrossing && lineHitsDocumentWater(document, points, Number(width), true))
+          : !plannedCrossing && lineHitsDocumentWater(document, points, baseWidth, true))
       )
         continue;
       const identity = {
@@ -3032,7 +3101,7 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
                   layer: "regional",
                   kind: "road-reference",
                   id: `regional-road-${leg.routeId}-${leg.branchIndex ?? 0}`,
-                  label: `街道 #${leg.routeId}`,
+                  label: cobble ? `街道 #${leg.routeId}（石畳）` : `街道 #${leg.routeId}`,
                   routeId: leg.routeId,
                   branchId: leg.branchIndex ?? 0
                 })
@@ -3041,13 +3110,14 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
           : {})
       };
       if (piece.kind === "bridge") {
+        const deck = String(baseWidth);
         parent.appendChild(
           element("path", {
             d: line(points),
             class: "ce-bridge-outline",
             fill: "none",
             stroke: "#1A1917",
-            "stroke-width": String(Number(width) + 1.4),
+            "stroke-width": String(baseWidth + 1.4),
             "stroke-linecap": "butt",
             ...identity
           })
@@ -3059,14 +3129,22 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
             "data-frame-bridge": piece.bridgeKind ?? "fixedBridge",
             fill: "none",
             stroke: "#d5cfbf",
-            "stroke-width": width,
+            "stroke-width": deck,
             "stroke-linecap": "butt",
             ...identity
           })
         );
         continue;
       }
-      casing(points);
+      if (cobble) {
+        appendCobble(parent, [points], roadWidth, {
+          class: "ce-frame-road ce-frame-road--cobble",
+          "data-frame-road": String(leg.routeId),
+          ...identity
+        });
+        continue;
+      }
+      casing(points, roadWidth);
       parent.appendChild(
         element("path", {
           d: line(points),
@@ -3333,7 +3411,8 @@ export const STANDALONE_SVG_STYLE = `
   .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
   .ce-building { fill: #b2afa2; stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
   .ce-building--landmark { fill: #373831; }
-  .ce-road-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-road-casing, .ce-road--cobble, .ce-road-cobble-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-road-cobble-joints { stroke-linecap: butt; }
   .ce-bridge-outline, .ce-bridge-deck { fill: none; stroke-linecap: butt; }
   .ce-face { stroke: none; fill: #e1dfd4; }
   .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill: #91c8d3; }

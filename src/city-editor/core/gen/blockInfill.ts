@@ -40,6 +40,7 @@ import {
   bramPeripheryBufferMeters,
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
+import { roadTrafficKey } from "./roadTraffic";
 import { shapeSuburbanFabric } from "./suburbanLanduse";
 import { buildWatermillPlan, type WatermillPlan } from "./watermillFabric";
 
@@ -189,6 +190,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.waterAreas?.length ?? 0,
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
+    roadTrafficKey(doc),
     facePart,
     groupPart,
     circuitsPart,
