@@ -310,6 +310,11 @@ export function footprintTouchesWater(footprint: readonly RiverPoint[], water: P
   }
 
   if (footprint.some(p => pointInWater(p, water))) return true;
+  const grid = waterEdgeGrid(water);
+  if (grid) {
+    const indexed = indexedFootprintTouches(footprint, water, grid, fMinX, fMinY, fMaxX, fMaxY);
+    if (indexed !== null) return indexed;
+  }
   const polygon: PhysicalWaterPolygon = { id: -1, rings: [footprint] };
   for (const ring of water.rings) {
     const b = getRingBounds(ring);
@@ -340,6 +345,44 @@ export function footprintTouchesWater(footprint: readonly RiverPoint[], water: P
       for (let j = 0; j < footprint.length; j++) {
         if (segmentsTouch(a, c, footprint[j], footprint[(j + 1) % footprint.length])) return true;
       }
+    }
+  }
+  return false;
+}
+
+/** Edge-index equivalent of the ring scan. Null when the footprint spans too many cells. */
+function indexedFootprintTouches(
+  footprint: readonly RiverPoint[],
+  water: PhysicalWaterPolygon,
+  grid: WaterEdgeGrid,
+  fMinX: number,
+  fMinY: number,
+  fMaxX: number,
+  fMaxY: number
+): boolean | null {
+  const edges = grid.query(fMinX - epsilon, fMinY - epsilon, fMaxX + epsilon, fMaxY + epsilon);
+  if (!edges) return null;
+  const polygon: PhysicalWaterPolygon = { id: -1, rings: [footprint] };
+  for (const k of edges) {
+    const ring = water.rings[grid.edgeRing[k]];
+    const a = ring[grid.edgeIndex[k]],
+      c = ring[(grid.edgeIndex[k] + 1) % ring.length];
+    if (
+      a[0] >= fMinX - epsilon &&
+      a[0] <= fMaxX + epsilon &&
+      a[1] >= fMinY - epsilon &&
+      a[1] <= fMaxY + epsilon &&
+      pointInWater(a, polygon)
+    )
+      return true;
+    const eMinX = Math.min(a[0], c[0]),
+      eMaxX = Math.max(a[0], c[0]),
+      eMinY = Math.min(a[1], c[1]),
+      eMaxY = Math.max(a[1], c[1]);
+    if (fMaxX < eMinX - epsilon || fMinX > eMaxX + epsilon || fMaxY < eMinY - epsilon || fMinY > eMaxY + epsilon)
+      continue;
+    for (let j = 0; j < footprint.length; j++) {
+      if (segmentsTouch(a, c, footprint[j], footprint[(j + 1) % footprint.length])) return true;
     }
   }
   return false;

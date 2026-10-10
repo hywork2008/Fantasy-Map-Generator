@@ -6,7 +6,105 @@ import { subtractConvex } from "./gen/parcelGeometry";
 import type { Cell } from "./gen/types";
 import type { CityDocument, Point } from "./types";
 
-const cache = new WeakMap<CityDocument, { key: string; polygons: Point[][] }>();
+interface CoastSnapshot {
+  extent: number;
+  areaLengths: number[];
+  areaCoords: Float64Array;
+  vertexIds: string[];
+  vertexCoords: Float64Array;
+  edgeIds: string[];
+  edgeA: string[];
+  edgeB: string[];
+  edgeLeft: Array<string | null>;
+  edgeRight: Array<string | null>;
+  polygons: Point[][];
+}
+
+const cache = new WeakMap<CityDocument, CoastSnapshot>();
+
+function flattenRings(rings: readonly Point[][]): { lengths: number[]; coords: Float64Array } {
+  let count = 0;
+  for (const ring of rings) count += ring.length;
+  const coords = new Float64Array(count * 2);
+  const lengths: number[] = [];
+  let cursor = 0;
+  for (const ring of rings) {
+    lengths.push(ring.length);
+    for (const point of ring) {
+      coords[cursor++] = point[0];
+      coords[cursor++] = point[1];
+    }
+  }
+  return { lengths, coords };
+}
+
+function sameRings(lengths: readonly number[], coords: Float64Array, rings: readonly Point[][]): boolean {
+  if (rings.length !== lengths.length) return false;
+  let cursor = 0;
+  for (let ringIndex = 0; ringIndex < rings.length; ringIndex++) {
+    const ring = rings[ringIndex];
+    if (ring.length !== lengths[ringIndex]) return false;
+    for (const point of ring) {
+      if (coords[cursor++] !== point[0] || coords[cursor++] !== point[1]) return false;
+    }
+  }
+  return true;
+}
+
+/** History replaces documents. The snapshot also matches in-place vertex edits. */
+function sameCoast(doc: CityDocument, areas: Point[][], previous: CoastSnapshot): boolean {
+  if (previous.extent !== doc.frame.extentMeters || !sameRings(previous.areaLengths, previous.areaCoords, areas))
+    return false;
+  const vertices = Object.values(doc.mesh.vertices);
+  if (vertices.length !== previous.vertexIds.length) return false;
+  for (let i = 0; i < vertices.length; i++) {
+    const vertex = vertices[i];
+    if (
+      vertex.id !== previous.vertexIds[i] ||
+      vertex.point[0] !== previous.vertexCoords[i * 2] ||
+      vertex.point[1] !== previous.vertexCoords[i * 2 + 1]
+    )
+      return false;
+  }
+  const edges = Object.values(doc.mesh.edges);
+  if (edges.length !== previous.edgeIds.length) return false;
+  for (let i = 0; i < edges.length; i++) {
+    const edge = edges[i];
+    if (
+      edge.id !== previous.edgeIds[i] ||
+      edge.a !== previous.edgeA[i] ||
+      edge.b !== previous.edgeB[i] ||
+      (edge.leftFace ?? null) !== previous.edgeLeft[i] ||
+      (edge.rightFace ?? null) !== previous.edgeRight[i]
+    )
+      return false;
+  }
+  return true;
+}
+
+function takeCoastSnapshot(doc: CityDocument, areas: Point[][], polygons: Point[][]): CoastSnapshot {
+  const vertices = Object.values(doc.mesh.vertices);
+  const edges = Object.values(doc.mesh.edges);
+  const flat = flattenRings(areas);
+  const vertexCoords = new Float64Array(vertices.length * 2);
+  vertices.forEach((vertex, index) => {
+    vertexCoords[index * 2] = vertex.point[0];
+    vertexCoords[index * 2 + 1] = vertex.point[1];
+  });
+  return {
+    extent: doc.frame.extentMeters,
+    areaLengths: flat.lengths,
+    areaCoords: flat.coords,
+    vertexIds: vertices.map(vertex => vertex.id),
+    vertexCoords,
+    edgeIds: edges.map(edge => edge.id),
+    edgeA: edges.map(edge => edge.a),
+    edgeB: edges.map(edge => edge.b),
+    edgeLeft: edges.map(edge => edge.leftFace ?? null),
+    edgeRight: edges.map(edge => edge.rightFace ?? null),
+    polygons
+  };
+}
 
 /** Sea beyond the editable town mesh. FMG supplies the drawn shore across the
  * whole display frame; generation closes it into `regionalWaterAreas`. The mesh
@@ -15,20 +113,11 @@ const cache = new WeakMap<CityDocument, { key: string; polygons: Point[][] }>();
  * their own geometry. Documents without the field have no regional sea. */
 export function regionalCoastalWaterPolygons(doc: CityDocument): Point[][] {
   const areas = doc.regionalWaterAreas;
-  if (!areas?.length) return [];
-  const vertices = Object.values(doc.mesh.vertices).map(v => v.point);
-  if (!vertices.length) return [];
-  // History normally replaces documents; the signature also covers in-place
-  // vertex movement used by editing and debug tools.
-  const key = `${doc.frame.extentMeters}:${areas.map(ring => ring.map(p => p.join(",")).join(";")).join("|")}:${vertices
-    .map(p => p.join(","))
-    .join(";")}:${Object.values(doc.mesh.edges)
-    .map(e => `${e.a},${e.b},${e.leftFace},${e.rightFace}`)
-    .join(";")}`;
+  if (!areas?.length || !Object.keys(doc.mesh.vertices).length) return [];
   const previous = cache.get(doc);
-  if (previous?.key === key) return previous.polygons;
+  if (previous && sameCoast(doc, areas, previous)) return previous.polygons;
   const polygons = outsideMesh(doc, areas);
-  cache.set(doc, { key, polygons });
+  cache.set(doc, takeCoastSnapshot(doc, areas, polygons));
   return polygons;
 }
 

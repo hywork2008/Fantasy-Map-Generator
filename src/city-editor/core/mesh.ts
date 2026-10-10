@@ -2,7 +2,7 @@ import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { refreshCastleLayouts } from "./gen/castleLayout";
 import { isSimplePolygon, segmentsIntersect } from "./gen/geom";
 import type { Cell } from "./gen/types";
-import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
+import type { CityDocument, Edge, EdgeRef, Face, Id, Mesh, Point, WaterKind } from "./types";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -764,8 +764,68 @@ function segmentBox(a: Point, b: Point): [number, number, number, number] {
   return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
 }
 
+/** Descriptor payloads are copy-on-write. Mesh edits replace the property;
+ * they do not mutate the surveyed rivers, so clones share that object. */
+const SHARED_CITY_FIELDS = [
+  "importedFixedCrossings",
+  "regionalSurface",
+  "regionalWaterAreas",
+  "sceneRegions",
+  "siteEconomy",
+  "civilization",
+  "burialProfile",
+  "landmarkAssets",
+  "riverFlows",
+  "waterAccess",
+  "biome"
+] as const;
+
+function cloneMesh(mesh: Mesh): Mesh {
+  const vertices: Mesh["vertices"] = {};
+  for (const vertex of Object.values(mesh.vertices))
+    vertices[vertex.id] = { id: vertex.id, point: [vertex.point[0], vertex.point[1]], locked: vertex.locked };
+  const edges: Mesh["edges"] = {};
+  for (const edge of Object.values(mesh.edges))
+    edges[edge.id] = {
+      id: edge.id,
+      a: edge.a,
+      b: edge.b,
+      leftFace: edge.leftFace,
+      rightFace: edge.rightFace,
+      locked: edge.locked
+    };
+  const faces: Mesh["faces"] = {};
+  for (const face of Object.values(mesh.faces))
+    faces[face.id] = {
+      id: face.id,
+      boundary: face.boundary.map(ref => ({ edgeId: ref.edgeId, forward: ref.forward })),
+      ...(face.site ? { site: [face.site[0], face.site[1]] } : {}),
+      properties: { ...face.properties }
+    };
+  return { vertices, edges, faces };
+}
+
 export function clone<T>(value: T): T {
-  return structuredClone(value);
+  if (!value || typeof value !== "object" || (value as { format?: unknown }).format !== "fmg-city-editor")
+    return structuredClone(value);
+  const source = value as CityDocument;
+  const shared = new Set<string>(SHARED_CITY_FIELDS);
+  const rest: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (shared.has(key) || key === "mesh" || key === "featureGroups") continue;
+    rest[key] = source[key as keyof CityDocument];
+  }
+  const clonedRest = structuredClone(rest) as Record<string, unknown>;
+  const mesh = cloneMesh(source.mesh);
+  const groups = structuredClone(source.featureGroups);
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (key === "mesh") copy.mesh = mesh;
+    else if (key === "featureGroups") copy.featureGroups = groups;
+    else if (shared.has(key)) copy[key] = source[key as keyof CityDocument];
+    else copy[key] = clonedRest[key];
+  }
+  return copy as T;
 }
 
 function edgeKey(a: Id, b: Id): string {

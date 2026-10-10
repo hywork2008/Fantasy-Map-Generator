@@ -266,25 +266,27 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   const moat = new MoatReservation(document, 2);
   const shore = oceanShoreSegments(document);
   const lotHitsWater = documentWaterTest(document);
+  const prepared = rebuildLandmarkHousing(document, fabric.buildings, [
+    ...fabric.lanes,
+    ...(fabric.parcels ?? []).flatMap(parcel =>
+      parcel.access.map(access => ({
+        points: access.points,
+        widthMeters: access.widthMeters
+      }))
+    )
+  ]);
   const buildings = absorbCellars(
     document,
-    rebuildLandmarkHousing(document, fabric.buildings, [
-      ...fabric.lanes,
-      ...(fabric.parcels ?? []).flatMap(parcel =>
-        parcel.access.map(access => ({
-          points: access.points,
-          widthMeters: access.widthMeters
-        }))
+    prepared.filter(lot => {
+      if (moat.hitsPolygon(lot.polygon) || fixedRoads.hitsPolygon(lot.polygon) || lotHitsWater(lot.polygon))
+        return false;
+      if (
+        document.mesh.faces[lot.faceId]?.properties.locked ||
+        document.mesh.faces[lot.faceId]?.properties.ward === "harbor"
       )
-    ]).filter(
-      lot =>
-        !moat.hitsPolygon(lot.polygon) &&
-        !fixedRoads.hitsPolygon(lot.polygon) &&
-        !lotHitsWater(lot.polygon) &&
-        (document.mesh.faces[lot.faceId]?.properties.locked ||
-          document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
-          !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
-    ),
+        return true;
+      return !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS);
+    }),
     fabric.lanes
   );
   const harborFootprints = [
@@ -364,6 +366,8 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   }
   // Nothing below edits the document, so one validated water test serves every filter.
   const hitsWater = documentWaterTest(document);
+  // Towns without a surveyed channel clip alleys against the same sea for every lane.
+  const openWater = document.importedFixedCrossings ? undefined : waterPolygons(document);
   return {
     ...fabric,
     buildings: nonMillBuildings,
@@ -376,7 +380,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
       .flatMap(lane =>
         moat
           .dryRuns(lane.points)
-          .flatMap(run => (document.importedFixedCrossings ? [run] : dryRuns(run, waterPolygons(document))))
+          .flatMap(run => (openWater ? dryRuns(run, openWater) : [run]))
           // Alleys end at a precinct or yard wall.
           .flatMap(run => (nearFootprint(run) ? dryRuns(run, footprints) : [run]))
           .map(points => ({ ...lane, points }))
@@ -412,7 +416,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
               .flatMap(access =>
                 moat
                   .dryRuns(access.points)
-                  .flatMap(run => (document.importedFixedCrossings ? [run] : dryRuns(run, waterPolygons(document))))
+                  .flatMap(run => (openWater ? dryRuns(run, openWater) : [run]))
                   .map(points => ({ ...access, points }))
               ),
             openSpaces: parcel.openSpaces.filter(

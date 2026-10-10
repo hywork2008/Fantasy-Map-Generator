@@ -154,15 +154,15 @@ export function cellInsideWater(polygon: Point[], water: Point[]): boolean {
   return wetArea >= area - 0.001;
 }
 
-const fixedWaterChecks = new WeakMap<FixedBurgCrossings, { key: string; valid: boolean }>();
+const fixedWaterChecks = new WeakMap<FixedBurgCrossings, { valid: boolean }>();
 
-/** Throws unless the fixed payload is valid and covers the city frame. */
+/** Throws unless the fixed payload is valid and covers the city frame.
+ * The payload is copy-on-write, so the same object is validated once. */
 function validateFixedWater(document: CityDocument, fixed: FixedBurgCrossings): void {
   if (!fixed || typeof fixed !== "object") throw new RangeError("Invalid fixed water geometry or city frame");
-  const key = JSON.stringify(fixed);
   let checked = fixedWaterChecks.get(fixed);
-  if (!checked || checked.key !== key) {
-    checked = { key, valid: validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS) };
+  if (!checked) {
+    checked = { valid: validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS) };
     fixedWaterChecks.set(fixed, checked);
   }
   if (
@@ -182,26 +182,87 @@ function validateFixedWater(document: CityDocument, fixed: FixedBurgCrossings): 
 
 export type DocumentWaterTest = (polygon: Point[]) => boolean;
 
+type MovingWater = Parameters<typeof footprintTouchesWater>[1];
+
+interface FrozenMovingWater {
+  lengths: number[];
+  coords: Float64Array;
+  frozen: MovingWater;
+}
+
+const frozenMovingWater = new WeakMap<object, FrozenMovingWater>();
+
+function sameMovingRings(cached: FrozenMovingWater, body: MovingWater): boolean {
+  if (body.rings.length !== cached.lengths.length) return false;
+  let cursor = 0;
+  for (let ringIndex = 0; ringIndex < body.rings.length; ringIndex++) {
+    const ring = body.rings[ringIndex];
+    if (ring.length !== cached.lengths[ringIndex]) return false;
+    for (const point of ring) {
+      if (cached.coords[cursor++] !== point[0] || cached.coords[cursor++] !== point[1]) return false;
+    }
+  }
+  return true;
+}
+
+/** A frozen ring copy so the water edge index can be built without freezing the caller's survey.
+ * The copy is reused while the source coordinates stay put, including across separate tests. */
+function freezeMovingWater(body: MovingWater): MovingWater {
+  if (
+    Object.isFrozen(body) &&
+    Object.isFrozen(body.rings) &&
+    body.rings.every(ring => Object.isFrozen(ring) && ring.every(point => Object.isFrozen(point)))
+  )
+    return body;
+  const cached = frozenMovingWater.get(body);
+  if (cached && sameMovingRings(cached, body)) return cached.frozen;
+  let count = 0;
+  for (const ring of body.rings) count += ring.length;
+  const coords = new Float64Array(count * 2);
+  const lengths: number[] = [];
+  let cursor = 0;
+  for (const ring of body.rings) {
+    lengths.push(ring.length);
+    for (const point of ring) {
+      coords[cursor++] = point[0];
+      coords[cursor++] = point[1];
+    }
+  }
+  const frozen = Object.freeze({
+    ...body,
+    rings: Object.freeze(
+      body.rings.map(ring => Object.freeze(ring.map(point => Object.freeze([point[0], point[1]] as [number, number]))))
+    )
+  });
+  frozenMovingWater.set(body, { lengths, coords, frozen });
+  return frozen;
+}
+
 /** `polygonHitsDocumentWater` for a run of footprints over a document that does not change
- * meanwhile: the fixed payload is validated (a JSON key of every river ring) and the still
- * water gathered once, on first use, instead of once per footprint (Chalbianos). */
+ * meanwhile. The fixed payload is validated once, and still water — regional sea included —
+ * is gathered once on first use, instead of once per footprint (Chalbianos). */
 export function documentWaterTest(document: CityDocument): DocumentWaterTest {
   let prepared: {
     fixed: FixedBurgCrossings;
     still: Point[][];
     moving: Parameters<typeof footprintTouchesWater>[1][];
   } | null = null;
+  let plain: Point[][] | undefined;
   return polygon => {
     if (polygon.length < 3 || polygon.some(p => p.length !== 2 || p.some(v => !Number.isFinite(v)))) return true;
     const fixed = document.importedFixedCrossings;
-    if (fixed === undefined) return polygonHitsWater(polygon, waterPolygons(document));
+    if (fixed === undefined) {
+      plain ??= waterPolygons(document);
+      return polygonHitsWater(polygon, plain);
+    }
     let water = prepared;
     if (water?.fixed !== fixed) {
       validateFixedWater(document, fixed);
       water = prepared = {
         fixed,
         still: [...regionalCoastalWaterPolygons(document), ...(document.waterAreas ?? []).map(area => area.polygon)],
-        moving: [...fixed.rivers, ...(fixed.obstacles ?? [])]
+        // Frozen copies keep the caller's rings editable and let the edge index serve every lot.
+        moving: [...fixed.rivers, ...(fixed.obstacles ?? [])].map(freezeMovingWater)
       };
     }
     if (fixed.schemaVersion === 3 || fixed.schemaVersion === 4) {

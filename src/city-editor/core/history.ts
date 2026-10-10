@@ -43,13 +43,14 @@ export class DocumentHistory {
     private readonly fixedApproachProvider?: FixedApproachProvider
   ) {
     this.checkpointInterval = Math.max(2, Math.round(checkpointInterval ?? defaultCheckpointInterval(initial)));
-    // `clone(initial)` gives this history its own object graph, independent of
-    // whatever the caller does with `initial` afterwards. From here on every
-    // mutator in mesh.ts/features.ts (and CityEditorPage's own ward-paint
-    // copy-on-write) treats a CityDocument as immutable — clone-then-return,
-    // never mutate-in-place — so `seed` can safely be *shared* (not
-    // re-cloned) across checkpoints/live/base below: nothing will ever touch
-    // it again in place. See commit()/amendTop() for why this matters.
+    // `clone(initial)` copies the editable mesh and features. Surveyed rivers
+    // and the other descriptor payloads stay shared; an edit replaces that
+    // property instead of mutating it. From here on every mutator in
+    // mesh.ts/features.ts (and CityEditorPage's own ward-paint copy-on-write)
+    // treats a CityDocument as immutable — clone-then-return, never
+    // mutate-in-place — so `seed` can safely be *shared* (not re-cloned)
+    // across checkpoints/live/base below: nothing will ever touch it again
+    // in place. See commit()/amendTop() for why this matters.
     const seed = clone(initial);
     this.checkpoints.set(0, seed);
     this.entryList = [{ label, time: Date.now() }];

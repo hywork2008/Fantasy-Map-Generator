@@ -88,6 +88,15 @@ describe("regional sea beyond the town mesh", () => {
     expect(regionalCoastalWaterPolygons(doc)).toBe(polygons);
   });
 
+  it("rebuilds the sea after an in-place shore move", () => {
+    const { doc } = town();
+    const first = regionalCoastalWaterPolygons(doc);
+    const shore = doc.mesh.vertices[doc.mesh.edges[Object.keys(doc.mesh.edges)[0]].a];
+    shore.point = [shore.point[0] + 40, shore.point[1] - 15];
+    const second = regionalCoastalWaterPolygons(doc);
+    expect(second).not.toBe(first);
+  });
+
   it("reserves the extended sea for roads even when imported rivers are authoritative", () => {
     const { doc } = town();
     doc.importedFixedCrossings = {

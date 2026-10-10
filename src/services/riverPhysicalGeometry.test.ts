@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RIVER_GEOMETRY_TOLERANCE as epsilon } from "./riverGeometry";
-import { normalWaterSection, pointInWater } from "./riverPhysicalGeometry";
+import { footprintTouchesWater, normalWaterSection, pointInWater } from "./riverPhysicalGeometry";
 
 describe("physical bank contact", () => {
   const diamond = {
@@ -87,6 +87,32 @@ describe("normal water section on indexed snapshots", () => {
       if (expected) resolved++;
     }
     expect(resolved).toBeGreaterThan(300);
+  });
+
+  it("reports the same footprint contact for frozen and mutable water", () => {
+    const mutable = meanderingRiver();
+    const frozen = deepFreeze(meanderingRiver());
+    let seed = 99;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    let hits = 0;
+    for (let n = 0; n < 400; n++) {
+      const x = 50 + random() * 29900;
+      const y = 900 * Math.sin(x / 700) + 300 * Math.sin(x / 113) + (random() - 0.5) * 80;
+      const size = 2 + random() * 40;
+      const footprint: [number, number][] = [
+        [x, y],
+        [x + size, y],
+        [x + size, y + size * (0.4 + random())],
+        [x, y + size * 0.5]
+      ];
+      const expected = footprintTouchesWater(footprint, mutable);
+      expect(footprintTouchesWater(footprint, frozen)).toBe(expected);
+      if (expected) hits++;
+    }
+    expect(hits).toBeGreaterThan(20);
   });
 
   it("classifies points exactly like the full scan, including bank contact", () => {

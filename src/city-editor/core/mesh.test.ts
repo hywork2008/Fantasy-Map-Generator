@@ -3,6 +3,7 @@ import { createDocument, createGridDocument, createSizedDocument } from "./docum
 import { appendEdge, createGroup } from "./features";
 import { isSimplePolygon, polygonArea } from "./gen/geom";
 import {
+  clone,
   faceNeighbors,
   facePoints,
   faceVertices,
@@ -18,6 +19,7 @@ import {
   splitFace,
   validate
 } from "./mesh";
+import type { CityDocument } from "./types";
 
 describe("manual city mesh", () => {
   it("keeps the Small preset near its 24 × 24 macro-block target", () => {
@@ -45,6 +47,43 @@ describe("manual city mesh", () => {
     const merged = mergeFaces(split, face.id, createdId);
     expect(merged).not.toBeNull();
     expect(Object.keys(merged?.mesh.faces ?? {})).toHaveLength(Object.keys(document.mesh.faces).length);
+  });
+
+  it("shares surveyed rivers across clones and keeps the mesh independent", () => {
+    const document = createDocument("mesh-clone-share", 900, 110);
+    const rivers = [
+      {
+        id: 1,
+        rings: [
+          [
+            [0, 0],
+            [10, 0],
+            [10, 4]
+          ]
+        ]
+      }
+    ];
+    document.importedFixedCrossings = {
+      schemaVersion: 4,
+      revision: 1,
+      originMeters: [0, 0],
+      roadWidthMeters: 4,
+      requiredBounds: { minX: -10, minY: -10, maxX: 10, maxY: 10 },
+      rivers
+    } as CityDocument["importedFixedCrossings"];
+    const copy = clone(document);
+    expect(copy.importedFixedCrossings).toBe(document.importedFixedCrossings);
+    expect(copy.mesh).not.toBe(document.mesh);
+    expect(copy.mesh.vertices).not.toBe(document.mesh.vertices);
+    const face = Object.values(copy.mesh.faces).find(candidate => candidate.boundary.length >= 4)!;
+    const vertices = faceVertices(copy.mesh, face);
+    const split = splitFace(copy, face.id, vertices[0], vertices[2]);
+    expect(split?.importedFixedCrossings).toBe(rivers && document.importedFixedCrossings);
+    expect(Object.keys(document.mesh.faces)).not.toContain(
+      Object.keys(split!.mesh.faces).find(id => !copy.mesh.faces[id])
+    );
+    copy.importedFixedCrossings = undefined;
+    expect(document.importedFixedCrossings?.rivers).toBe(rivers);
   });
 
   it("merges a previously merged cell with a neighbor sharing multiple edges", () => {
