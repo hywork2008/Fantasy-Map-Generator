@@ -117,7 +117,15 @@ function summarize(results) {
     const timings = {};
     for (const key of ["incomingParseMs", "gridMs", "settingsMs", "generationMs", "svgBuildMs"])
       timings[key] = stats(success.map(r => r.timings?.[key]));
+    timings.spatialMetricsMs = stats(success.map(r => r.timings?.spatialMetricsMs));
+    const spatialKeys = new Set(success.flatMap(r => Object.keys(r.spatialMetrics ?? {})));
+    const spatialMetrics = Object.fromEntries([...spatialKeys].map(key =>
+      [key, stats(success.map(r => r.spatialMetrics?.[key]))]));
     return { burgId: city.burgId, name: city.name, runs: city.results.length, generated: success.length,
+      size: city.results.find(r => r.size)?.size ?? null,
+      population: city.results.find(r => r.population !== undefined)?.population ?? null,
+      dwellings: city.results.find(r => r.dwellings !== undefined)?.dwellings ?? null,
+      spatialMetrics,
       timings, totalMs: stats(success.map(r => r.totalMs)),
       fmgBreakdown: city.results[0].fmgBreakdown,
       generationBreakdown: summarizeBreakdown(success) };

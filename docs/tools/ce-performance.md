@@ -55,6 +55,37 @@ FMGデータ作成コードを変更したときは、新しいFMG入力一覧�
 
 JSONLの時間はすべてms。
 
+### 地図サイズ・市街地面積・背景の割合
+
+JSONLの `size` は入力で選択された地図サイズ、`population` は人口、`dwellings` は目標住宅数。
+`faces` は初期メッシュの面数、`generatedFaces` は生成後の面数。成功した生成結果には
+`spatialMetrics` を記録する（生成結果がない場合は `null`）。`--render` なしでも計測する。
+
+| spatialMetricsの項目 | 意味 |
+| --- | --- |
+| frameExtentMeters | 表示枠の一辺（m） |
+| frameAreaMeters2 | 表示枠全体の面積（m²） |
+| meshAreaMeters2 | 生成後の編集メッシュの面積（m²、水面・郊外を含む） |
+| coreAreaMeters2 | 陸地の `core` 区画の面積（m²） |
+| outskirtsAreaMeters2 | 陸地の `outskirts` 区画の面積（m²） |
+| urbanAreaMeters2 | 市街地面積：core＋outskirts（m²） |
+| backgroundAreaMeters2 | 表示枠面積－市街地面積（m²） |
+| urbanFrameRatio / backgroundFrameRatio | 表示枠に対する市街地／背景の割合（0〜1） |
+| urbanMeshRatio / backgroundMeshRatio | 編集メッシュに対する市街地／非市街地の割合（0〜1、メッシュ面積0の場合はnull） |
+| meshFrameRatio | 表示枠に対する編集メッシュの割合（0〜1） |
+
+面積は表示枠内に切り取った生成後の区画から算出する。市街地は住宅の建物面積ではなく、
+広場・公園等も含む陸地のcore/outskirts区画の面積。背景は「何も描かれない面積」ではなく、
+水面・農地等の非市街地とメッシュ外の周辺描画を含む。
+サイズ調整では `size`・`dwellings` と `urbanMeshRatio` を比較すると、編集メッシュ内の余白を判断できる。
+`backgroundFrameRatio` は表示枠全体の余白の目安。人口＝建物数ではない点に注意する。
+
+`.summary.json` の都市別にも `size`・`population`・`dwellings` と、成功回の
+`spatialMetrics` 各項目の最小・中央値・平均・p95・最大を保存する。
+面積計測時間は `timings.spatialMetricsMs` に分離し、`generationMs` には含めない。
+入力一覧CSVには生成前の情報しかないため、面積・割合は記録しない。
+既存のJSONLには遡って追加されないので、新しい出力名で再計測する。
+
 | 項目 | 意味 |
 | --- | --- |
 | fmgTimings.fmg_descriptor_ms | FMG側の都市・地形・周辺地域descriptorの作成 |

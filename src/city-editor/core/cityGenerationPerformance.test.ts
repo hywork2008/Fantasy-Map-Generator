@@ -36,6 +36,10 @@ describe("city performance measurement", () => {
     expect(result.phases.some(sample => sample.phase.startsWith("render."))).toBe(true);
     expect(samples.length).toBeGreaterThan(0);
     expect(result.svgNodes).toBeGreaterThan(0);
+    expect(result.spatialMetrics!.urbanAreaMeters2).toBeGreaterThan(0);
+    expect(result.spatialMetrics!.urbanFrameRatio! + result.spatialMetrics!.backgroundFrameRatio!).toBeCloseTo(1);
+    expect(result.generatedFaces).toBeGreaterThan(0);
+    expect(result.timings.spatialMetricsMs).toBeGreaterThanOrEqual(0);
     const breakdown = result.generationBreakdown;
     const root = breakdown.find(t => t.path === "generation")!;
     expect(root.elapsedMs).toBeLessThanOrEqual(result.timings.generationMs);
@@ -61,6 +65,7 @@ describe("city performance measurement", () => {
     const result = await measureCityPerformance({ ...input(), burg_id: "18" });
     expect(result).toMatchObject({ status: "error", generated: false });
     expect(result.timings.gridMs).toBeUndefined();
+    expect(result.spatialMetrics).toBeNull();
     expect(result.error).toContain("mismatched burg_id");
     const exported = await measureCityPerformance({ ...input(), export_error: "failed export" });
     expect(exported.error).toContain("Descriptor export: failed export");

@@ -2,6 +2,7 @@ import { worldContext } from "../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { ProcessingProfiler } from "../../utils/processingProfiler";
 import { parseIncomingPayload } from "../io/incomingCity";
+import { citySpatialMetrics } from "./citySpatialMetrics";
 import { generateCityOnDocument } from "./generate";
 import type { GenerationSample } from "./generationDiagnostics";
 import { burgIdsForTokens, cityEditorDocument, cityEditorSettings, loadArchiveWorld } from "./housingReport";
@@ -101,6 +102,7 @@ export async function measureCityPerformance(
   };
   const base = { burgId: Number(row.burg_id), name: row.name };
   let generated = false;
+  let spatialMetrics: ReturnType<typeof citySpatialMetrics> | null = null;
   try {
     if (row.schema_version !== "1") throw new Error("Unsupported CSV schema_version");
     if (row.export_error) throw new Error(`Descriptor export: ${row.export_error}`);
@@ -132,6 +134,7 @@ export async function measureCityPerformance(
       )
     );
     generated = city !== null;
+    if (city) spatialMetrics = measure("spatialMetricsMs", () => citySpatialMetrics(city));
     let svgNodes: number | null = null;
     if (city && render) {
       // Load the renderer outside the SVG construction timer; module startup is reported separately.
@@ -179,6 +182,8 @@ export async function measureCityPerformance(
       population: share.descriptor.burg.population,
       dwellings: share.descriptor.burg.dwellings,
       faces: Object.keys(document.mesh.faces).length,
+      generatedFaces: city ? Object.keys(city.mesh.faces).length : null,
+      spatialMetrics,
       attempts: Math.max(0, ...phases.filter(s => !s.phase.startsWith("render.")).map(s => s.attempt)),
       timings,
       totalMs: performance.now() - started,
@@ -191,6 +196,7 @@ export async function measureCityPerformance(
       ...base,
       status: generated ? "render-error" : "error",
       generated,
+      spatialMetrics,
       timings,
       totalMs: performance.now() - started,
       error: error instanceof Error ? error.message : String(error),
