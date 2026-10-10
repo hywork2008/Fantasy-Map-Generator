@@ -2,7 +2,7 @@
 // A plain gate measures the approach profile from the wall. A barbican gate measures
 // the same profile from the outer face of the outwork. The barbican is the defense.
 import type { CityDocument, HistoricalPeriod, Id, Point } from "../types";
-import { nearestOnPolyline, segmentsIntersect } from "./geom";
+import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 
 /** Trade and granary approaches. Rural is 30 m and a frontier road is 70 m. */
 export const STANDARD_GLACIS_METERS = 25;
@@ -95,6 +95,9 @@ export function gapToLines(polygon: Point[], lines: readonly Point[][]): number 
     for (let i = 1; i < line.length; i++) {
       const c = line[i - 1];
       const d = line[i];
+      // Boundary distance alone misses a defense segment wholly enclosed by
+      // a large lot: its boundary can be farther away than the clearance.
+      if (pointInPolygon(c, polygon) || pointInPolygon(d, polygon)) return 0;
       for (let j = 0; j < polygon.length; j++) {
         const next = segmentGap(polygon[j], polygon[(j + 1) % polygon.length], c, d);
         if (next < gap) gap = next;

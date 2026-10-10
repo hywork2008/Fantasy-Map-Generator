@@ -77,6 +77,12 @@ describe("defense clearance", () => {
     expect(gapToLines(square(40, 50, 4), wall.walls)).toBeCloseTo(36);
   });
 
+  it("rejects a lot that completely encloses a defense line", () => {
+    const enclosingLot = square(0, 50, 80);
+    expect(gapToLines(enclosingLot, wall.walls)).toBe(0);
+    expect(polygonClearsGlacis(enclosingLot, wall)).toBe(false);
+  });
+
   it("measures a barbican gate from the outer face", () => {
     const field: GlacisField = { ...wall, outworks: [barbican] };
     // 40 m from the curtain is still inside 25 m of the front towers.
