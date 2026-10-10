@@ -2378,11 +2378,70 @@ export function runPlan(
     }
     return best;
   };
+  // A narrow surveyed headwater can cut an exterior cell without turning
+  // its centroid into a water face. Do not move an entrance behind it when
+  // the castle removes nearby wall candidates (Archiagu).
+  const exteriorGateReach = new Set<Id>();
+  if (gateWaterDocument) {
+    const adjacent = new Map<Id, Id[]>();
+    const rim = new Set<Id>();
+    const queue: Id[] = [];
+    for (const edge of Object.values(currentMesh.edges)) {
+      const leftUrban = urbanFaces.has(edge.leftFace ?? "");
+      const rightUrban = urbanFaces.has(edge.rightFace ?? "");
+      if (leftUrban !== rightUrban) {
+        rim.add(edge.a);
+        rim.add(edge.b);
+      }
+      if (leftUrban || rightUrban) continue;
+      const line = [currentMesh.vertices[edge.a].point, currentMesh.vertices[edge.b].point];
+      if (lineHitsDocumentWater(gateWaterDocument, line, defaultRoadWidthMeters(params.extentMeters), true)) continue;
+      if (castleGateRegions.some(region => lineHitsWater(line, [region]))) continue;
+      adjacent.set(edge.a, [...(adjacent.get(edge.a) ?? []), edge.b]);
+      adjacent.set(edge.b, [...(adjacent.get(edge.b) ?? []), edge.a]);
+      if (!edge.leftFace || !edge.rightFace)
+        for (const id of [edge.a, edge.b]) {
+          if (!exteriorGateReach.has(id)) {
+            exteriorGateReach.add(id);
+            queue.push(id);
+          }
+        }
+    }
+    for (const id of queue) {
+      if (rim.has(id)) continue;
+      for (const next of adjacent.get(id) ?? [])
+        if (!exteriorGateReach.has(next)) {
+          exteriorGateReach.add(next);
+          queue.push(next);
+        }
+    }
+  }
   const canPlaceTownGate = (p: Point) => {
     if (castleGateRegions.some(r => pointInPolygon(p, r) || nearestOnPolyline(p, [...r, r[0]]).dist < 10)) return false;
     if (!channelPolygons.length && !gateWaterDocument) return true;
     const vertex = gateNearest(p);
     if (!vertex || channelPolygons.some(polygon => pointInPolygon(p, polygon))) return false;
+    if (gateWaterDocument && !exteriorGateReach.has(vertex)) {
+      // Ordinary degree-three wall corners gain their exterior arm by a
+      // later cell split. Accept a dry chord to that cell's reachable side.
+      const exteriorFaces = Object.values(currentMesh.faces).filter(
+        face => !urbanFaces.has(face.id) && faceVertices(currentMesh, face).includes(vertex)
+      );
+      const canSplit = exteriorFaces.some(face =>
+        faceVertices(currentMesh, face).some(id => {
+          if (!exteriorGateReach.has(id)) return false;
+          const line = [p, currentMesh.vertices[id].point];
+          // The future split must stay inside this exterior cell; a chord
+          // across a concave corner is not a usable gate approach.
+          if (dryRuns(line, [facePoints(currentMesh, face)]).length) return false;
+          return (
+            !lineHitsDocumentWater(gateWaterDocument, line, defaultRoadWidthMeters(params.extentMeters), true) &&
+            !castleGateRegions.some(region => lineHitsWater(line, [region]))
+          );
+        })
+      );
+      if (!canSplit) return false;
+    }
     // A wall corner needs a dry inward edge. Otherwise a narrow surveyed
     // channel can isolate its gate even though both incident faces are land.
     return Object.values(currentMesh.edges).some(edge => {

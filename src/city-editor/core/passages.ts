@@ -849,7 +849,9 @@ function swingObliqueGateArm(
 function straightenExteriorGateApproaches(document: CityDocument): CityDocument {
   let next = document;
   const riverIds = riverVertexSet(document);
-  for (const gate of document.gates) {
+  // Castle accesses are one-sided, already clearance-checked at installation.
+  // Treating them as exterior town approaches can swing them into the curtain.
+  for (const gate of townGates(document)) {
     if (gate.locked || next.mesh.vertices[gate.vertexId]?.locked || riverIds.has(gate.vertexId)) continue;
     const frame = gateCrossingFrame(next, gate.vertexId);
     if (!frame) continue;
