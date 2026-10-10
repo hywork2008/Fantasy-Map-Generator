@@ -166,12 +166,7 @@ export function fitMapToScreen(): void {
   view.svg.attr("width", String(svgWidth)).attr("height", String(svgHeight));
 
   const { graphWidth, graphHeight } = worldContext;
-  const earthRegion = getEarthRegion(useOptionsState.getState().template);
-  const zoomMin = earthRegion
-    ? rn(Math.min(svgWidth / graphWidth, svgHeight / graphHeight), 3)
-    : rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
-  useOptionsState.getState().setOption("zoomExtentMin", zoomMin);
-  const zoomMax = useOptionsState.getState().zoomExtentMax;
+  const { zoomExtentMin: zoomMin, zoomExtentMax: zoomMax } = useOptionsState.getState();
 
   view.zoom
     .translateExtent([

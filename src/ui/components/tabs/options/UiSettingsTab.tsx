@@ -334,7 +334,7 @@ export const UiSettingsTab: React.FC = () => {
                 type="number"
                 min="0.2"
                 step="0.1"
-                max="20"
+                max="200"
                 value={options.zoomExtentMin}
                 onChange={e => {
                   options.setOption("zoomExtentMin", Number(e.target.value));
@@ -350,7 +350,7 @@ export const UiSettingsTab: React.FC = () => {
                 className="paired"
                 type="number"
                 min="1"
-                max="50"
+                max="200"
                 value={options.zoomExtentMax}
                 onChange={e => {
                   options.setOption("zoomExtentMax", Number(e.target.value));

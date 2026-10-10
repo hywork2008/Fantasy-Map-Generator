@@ -399,8 +399,8 @@ export const DEFAULT_UI_OPTIONS = {
   showZoomLevel: import.meta.env.DEV,
   speakerVoice: "",
   emblemShape: "culture",
-  zoomExtentMin: 1,
-  zoomExtentMax: 20
+  zoomExtentMin: 0.5,
+  zoomExtentMax: 200
 };
 
 /** Default units, including values reset by the Units Editor. */

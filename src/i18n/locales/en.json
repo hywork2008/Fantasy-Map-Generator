@@ -57,7 +57,7 @@
     },
     "zoomExtent": "Zoom extent",
     "zoomExtentTip": "Set minimum and maximum possible zoom level.",
-    "restoreZoomExtent": "Restore default zoom extent: [1, 20].",
+    "restoreZoomExtent": "Restore default zoom extent: [0.5, 200].",
     "minZoom": "Minimum possible zoom level (must be greater than 0).",
     "maxZoom": "Maximum possible zoom level (must be greater than 1).",
     "min": "min",
