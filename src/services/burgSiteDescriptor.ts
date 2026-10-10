@@ -40,6 +40,7 @@ import {
 } from "../utils/requiredSiteBounds";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
+import { burgEconomyExtensions } from "./burgEconomyExtensions";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
 import {
   convergedBurgCrossings,
@@ -299,6 +300,8 @@ export interface BurgSiteDescriptor {
   /** Count of land route legs — the natural number of town gates. */
   suggestedGates: number;
   suggestedArchetype: BurgSiteArchetype;
+  /** Present when the Economy extension has registered a profile builder. */
+  economy?: import("./burgSiteEconomy").BurgSiteEconomy;
 }
 
 const DESCRIPTOR_VERSION = 3;
@@ -569,93 +572,97 @@ export function getBurgSiteDescriptor(
       ])
       .filter(road => road.points.length >= 2)
   }));
-  return measureProcessing(profiler, "assemble-descriptor", () => ({
-    version: DESCRIPTOR_VERSION,
-    regionalContext,
-    ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
-    burg: {
-      id: burgId,
-      name: burg.name ?? "",
-      group: burg.group ?? "",
-      type: burg.type ?? "Generic",
-      seed: String(burg.MFCG ?? worldContext.seed + String(burg.i).padStart(4, "0")),
-      population,
-      dwellings: getUrbanDwellings(population),
-      lotOccupancy,
-      capital: Boolean(burg.capital),
-      port: Boolean(burg.port),
-      waterAccess,
-      riverPlacement: burg.riverPlacement ? structuredClone(burg.riverPlacement) : undefined,
-      riverSiteStatus: burg.riverSiteStatus ? { ...burg.riverSiteStatus } : undefined,
-      citadel: Boolean(burg.citadel),
-      plaza: Boolean(burg.plaza),
-      walls: Boolean(burg.walls),
-      temple: Boolean(burg.temple),
-      shanty: Boolean(burg.shanty),
-      settlementSite: burg.settlementSite ?? "surface"
-    },
-    frame: {
-      regionalMode: true,
-      ...(autoBounds
-        ? { requiredBounds: { ...autoBounds } }
-        : frameRequirements
-          ? { requiredBounds: { ...frameRequirements.requiredBounds } }
-          : {}),
-      originMapUnits: [burg.x, burg.y],
-      metersPerMapUnit: fixedCrossings ? metersPerMapUnit : rn(metersPerMapUnit, 2),
-      extentMeters,
-      cityRadiusMeters
-    },
-    climate: (() => {
-      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
-      const bData = worldContext.biomesData;
-      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
-      const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
-      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
-      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
-      return {
-        temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
-        biomeId: bId,
-        biomeKey: bKey,
-        biomeName: bName,
-        biomeColor: bColor
-      };
-    })(),
-    biome: (() => {
-      const bId = pack.cells.biomeCode[burg.cell] ?? 0;
-      const bData = worldContext.biomesData;
-      const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
-      const rawKey = bData?.keys ? bData.keys[bId] : undefined;
-      const bKey = rawKey ?? stdDef?.key;
-      const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
-      const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
-      const bTags = (bData && rawKey ? bData.definitionsByKey?.[rawKey]?.tags : undefined) ?? stdDef?.tags;
-      return {
-        id: bId,
-        key: bKey,
-        name: bName,
-        color: bColor,
-        tags: bTags
-      };
-    })(),
-    terrain,
-    transport: {
-      riverBridgeTechnology: worldContext.options.riverBridgeTechnology,
-      maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(
-        worldContext.options.historicalPeriod ?? "ageOfExploration"
-      ),
-      // CE does not know a bridge's structure: the ceiling is the larger (timber) allowance.
-      maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0, "timber")
-    },
-    historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
-    ...burgCivilization(burg, rivers.length > 0),
-    rivers,
-    waterbody,
-    regionalSurface,
-    roads,
-    suggestedGates: roadLegCount,
-    suggestedArchetype
-  }));
+  return measureProcessing(profiler, "assemble-descriptor", () => {
+    const economy = burgEconomyExtensions.getBurgSiteEconomy?.(burgId) ?? undefined;
+    return {
+      version: DESCRIPTOR_VERSION,
+      regionalContext,
+      ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
+      burg: {
+        id: burgId,
+        name: burg.name ?? "",
+        group: burg.group ?? "",
+        type: burg.type ?? "Generic",
+        seed: String(burg.MFCG ?? worldContext.seed + String(burg.i).padStart(4, "0")),
+        population,
+        dwellings: getUrbanDwellings(population),
+        lotOccupancy,
+        capital: Boolean(burg.capital),
+        port: Boolean(burg.port),
+        waterAccess,
+        riverPlacement: burg.riverPlacement ? structuredClone(burg.riverPlacement) : undefined,
+        riverSiteStatus: burg.riverSiteStatus ? { ...burg.riverSiteStatus } : undefined,
+        citadel: Boolean(burg.citadel),
+        plaza: Boolean(burg.plaza),
+        walls: Boolean(burg.walls),
+        temple: Boolean(burg.temple),
+        shanty: Boolean(burg.shanty),
+        settlementSite: burg.settlementSite ?? "surface"
+      },
+      frame: {
+        regionalMode: true,
+        ...(autoBounds
+          ? { requiredBounds: { ...autoBounds } }
+          : frameRequirements
+            ? { requiredBounds: { ...frameRequirements.requiredBounds } }
+            : {}),
+        originMapUnits: [burg.x, burg.y],
+        metersPerMapUnit: fixedCrossings ? metersPerMapUnit : rn(metersPerMapUnit, 2),
+        extentMeters,
+        cityRadiusMeters
+      },
+      climate: (() => {
+        const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+        const bData = worldContext.biomesData;
+        const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+        const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
+        const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+        const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+        return {
+          temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
+          biomeId: bId,
+          biomeKey: bKey,
+          biomeName: bName,
+          biomeColor: bColor
+        };
+      })(),
+      biome: (() => {
+        const bId = pack.cells.biomeCode[burg.cell] ?? 0;
+        const bData = worldContext.biomesData;
+        const stdDef = STANDARD_BIOME_DEFINITIONS[bId];
+        const rawKey = bData?.keys ? bData.keys[bId] : undefined;
+        const bKey = rawKey ?? stdDef?.key;
+        const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
+        const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+        const bTags = (bData && rawKey ? bData.definitionsByKey?.[rawKey]?.tags : undefined) ?? stdDef?.tags;
+        return {
+          id: bId,
+          key: bKey,
+          name: bName,
+          color: bColor,
+          tags: bTags
+        };
+      })(),
+      terrain,
+      transport: {
+        riverBridgeTechnology: worldContext.options.riverBridgeTechnology,
+        maxBridgeCrossingMeters: bridgeCrossingLimitForPeriod(
+          worldContext.options.historicalPeriod ?? "ageOfExploration"
+        ),
+        // CE does not know a bridge's structure: the ceiling is the larger (timber) allowance.
+        maxBridgeSkewDegrees: getStateBridgeSkewLimit(burg.state ?? 0, "timber")
+      },
+      historicalPeriod: worldContext.options.historicalPeriod ?? "ageOfExploration",
+      ...burgCivilization(burg, rivers.length > 0),
+      rivers,
+      waterbody,
+      regionalSurface,
+      roads,
+      suggestedGates: roadLegCount,
+      suggestedArchetype,
+      ...(economy ? { economy } : {})
+    };
+  });
 }
 
 function burgCivilization(burg: Burg, hasRiver: boolean): Pick<BurgSiteDescriptor, "burialProfile" | "civilization"> {

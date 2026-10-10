@@ -31,6 +31,7 @@ import {
 } from "../core/document";
 import { DEFAULT_PATCH_PARAMS } from "../core/gen/patches";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
+import { sanitizeBurgSiteEconomy } from "../core/gen/site/burgSiteEconomy";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
 import type { HistoricalPeriod } from "../core/types";
@@ -318,6 +319,11 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
   // An unreadable civilization block only loses the culture-aware landmarks.
   if (raw.civilization !== undefined && !isCivilizationContext(raw.civilization)) delete raw.civilization;
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
+  if (raw.economy !== undefined) {
+    const economy = sanitizeBurgSiteEconomy(raw.economy);
+    if (economy) raw.economy = economy;
+    else delete raw.economy;
+  }
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;
   else delete raw.frame.regionalMode;

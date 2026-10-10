@@ -205,4 +205,6 @@ export interface BurgSiteDescriptor {
   roads: BurgSiteRoadEntry[];
   suggestedGates: number;
   suggestedArchetype: BurgSiteArchetype;
+  /** Absent when Economy is off or the hand-off predates the profile. Generation then stays as it was. */
+  economy?: import("./burgSiteEconomy").BurgSiteEconomy;
 }

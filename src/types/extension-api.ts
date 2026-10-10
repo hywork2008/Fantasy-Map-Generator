@@ -30,6 +30,7 @@ import type {
   WorldCommit
 } from "../runtime/worldRuntime";
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
+import type { BurgSiteEconomy } from "../services/burgSiteEconomy";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
   BurgOverviewColumn,
@@ -60,6 +61,8 @@ export interface TooltipExtensionHooks {
 
 export interface BurgEconomyExtensionHooks {
   getBurgEconomySummary?: (burgId: number) => BurgEconomySummary | null;
+  /** City Editor site profile. A guild with zero craftsmen is still included. */
+  getBurgSiteEconomy?: (burgId: number) => BurgSiteEconomy | null;
 }
 
 export interface ExtensionStateSnapshot {

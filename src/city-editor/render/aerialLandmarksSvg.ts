@@ -3,6 +3,8 @@ import type {
   AerialLandmarkPlan,
   Barbican,
   Gallows,
+  GuildHall,
+  GuildYard,
   Monastery,
   PrecinctBuilding,
   Tannery,
@@ -529,9 +531,135 @@ export function renderAerialLandmarks(
   }
   for (const m of plan.monasteries) layer.appendChild(renderMonastery(m, options, minimal));
   for (const t of plan.tanneries) layer.appendChild(renderTannery(t, options, minimal));
+  for (const hall of plan.guildHalls ?? []) layer.appendChild(renderGuildHall(hall, options));
+  for (const yard of plan.guildYards ?? []) layer.appendChild(renderGuildYard(yard, options, minimal));
   for (const gw of plan.gallows) layer.appendChild(renderGallows(gw, options));
   for (const w of plan.windmills) layer.appendChild(renderWindmill(w, options));
   return layer;
+}
+
+const HALL_LABEL: Record<string, string> = {
+  textiles: "布地会館",
+  leather: "皮革会館",
+  woodworking: "木工会館",
+  masonry: "石工会館",
+  metallurgy: "鍛冶会館",
+  glassware: "ガラス会館",
+  instruments: "楽器会館",
+  printing: "印刷会館"
+};
+
+const YARD_LABEL: Record<GuildYard["kind"], string> = {
+  bleachingField: "漂白場",
+  timberYard: "材木置場",
+  stoneYard: "石置場",
+  limeKiln: "石灰窯",
+  smithyYard: "鍛冶場",
+  sandYard: "砂置場"
+};
+
+function staffLabel(practitioners: number, year: number): string {
+  const staff = practitioners > 0 ? `職人${practitioners}人` : "職人なし";
+  return year > 0 ? `${year}年・${staff}` : staff;
+}
+
+function renderGuildHall(hall: GuildHall, options: PickOptions): SVGElement {
+  const label = HALL_LABEL[hall.domain] ?? "ギルド会館";
+  const g = pickGroup(
+    "ce-guild-hall",
+    {
+      kind: "guildHall",
+      id: hall.id,
+      label: `${hall.name}（${label}・${staffLabel(hall.practitioners, hall.year)}）`,
+      domain: hall.domain,
+      practitioners: hall.practitioners
+    },
+    options
+  );
+  const roof = hall.domain === "textiles" ? "#8d4d3c" : ROOF;
+  gabled(g, hall.footprint, hall.ridge, roof, hall.domain === "textiles" ? "#6e3b2e" : ROOF_SHADE);
+  if (hall.tower) {
+    g.appendChild(
+      el("path", {
+        d: polygon(hall.tower),
+        fill: "#6e5b48",
+        stroke: STROKE,
+        "stroke-width": "0.45"
+      })
+    );
+    const [x, y] = hall.tower.reduce<Point>((sum, point) => [sum[0] + point[0], sum[1] + point[1]], [0, 0]);
+    const n = hall.tower.length || 1;
+    g.appendChild(
+      el("circle", {
+        cx: (x / n).toFixed(2),
+        cy: (-y / n).toFixed(2),
+        r: "1.3",
+        fill: "#d7c7a2",
+        stroke: STROKE,
+        "stroke-width": "0.25"
+      })
+    );
+  }
+  return g;
+}
+
+function renderGuildYard(yard: GuildYard, options: PickOptions, minimal: boolean): SVGElement {
+  const label = YARD_LABEL[yard.kind];
+  const g = pickGroup(
+    `ce-guild-yard ce-guild-yard--${yard.kind}`,
+    {
+      kind: "guildYard",
+      id: yard.id,
+      label: `${yard.name}（${label}・${staffLabel(yard.practitioners, yard.year)}）`,
+      domain: yard.domain,
+      yardKind: yard.kind,
+      practitioners: yard.practitioners
+    },
+    options
+  );
+  const fill =
+    yard.kind === "bleachingField"
+      ? "#e7e2d4"
+      : yard.kind === "timberYard"
+        ? "#b08968"
+        : yard.kind === "sandYard"
+          ? "#e6d7a8"
+          : yard.kind === "smithyYard"
+            ? "#8a8175"
+            : "#c5c1b6";
+  g.appendChild(
+    el("path", {
+      d: polygon(yard.polygon),
+      fill,
+      stroke: "#796b55",
+      "stroke-width": "0.45"
+    })
+  );
+  if (!minimal && yard.frames)
+    for (const [a, b] of yard.frames)
+      g.appendChild(
+        el("path", {
+          d: line([a, b]),
+          stroke: "#f4f1e8",
+          "stroke-width": "1.05",
+          fill: "none"
+        })
+      );
+  if (yard.kind === "limeKiln" || yard.kind === "smithyYard") {
+    const [x, y] = yard.polygon.reduce<Point>((sum, point) => [sum[0] + point[0], sum[1] + point[1]], [0, 0]);
+    const n = yard.polygon.length || 1;
+    g.appendChild(
+      el("circle", {
+        cx: (x / n).toFixed(2),
+        cy: (-y / n).toFixed(2),
+        r: yard.kind === "limeKiln" ? "3.2" : "2.4",
+        fill: yard.kind === "limeKiln" ? "#d8d2c4" : "#5c5348",
+        stroke: STROKE,
+        "stroke-width": "0.35"
+      })
+    );
+  }
+  return g;
 }
 
 function renderBarbican(b: Barbican, options: PickOptions, document: CityDocument): SVGElement {

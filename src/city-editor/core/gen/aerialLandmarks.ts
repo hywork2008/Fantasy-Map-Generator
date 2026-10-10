@@ -25,6 +25,8 @@ import {
   polygonArea,
   segmentsIntersect
 } from "./geom";
+import { economyOnDocument, planGuildFacilities, siteEconomyKey, wantsTannery } from "./guildFacilities";
+import { type GuildHall, type GuildYard, placeGuildWorks } from "./guildFacilityPlacement";
 import { civicYardMeters } from "./housing";
 import { fitMonastery, type Monastery, type MonasteryKind } from "./monasteryLayout";
 import { makeRng, type Rng } from "./prng";
@@ -94,7 +96,13 @@ export interface AerialLandmarkPlan {
   barbicans: Barbican[];
   tanneries: Tannery[];
   gallows: Gallows[];
+  /** Formal guild halls, including chapters whose craftsman count is zero. */
+  guildHalls: GuildHall[];
+  /** Yards and kilns that belong to a guild even when it has no craftsmen. */
+  guildYards: GuildYard[];
 }
+
+export type { GuildHall, GuildYard };
 
 export interface AerialLandmarkInput {
   buildings: BuildingLot[];
@@ -112,7 +120,9 @@ const EMPTY_PLAN: AerialLandmarkPlan = {
   windmills: [],
   barbicans: [],
   tanneries: [],
-  gallows: []
+  gallows: [],
+  guildHalls: [],
+  guildYards: []
 };
 
 const PERIOD_ORDER: HistoricalPeriod[] = [
@@ -827,9 +837,9 @@ function polygonsDistance(a: Point[], b: Point[]): number {
   );
 }
 
-function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng): Tannery[] {
+function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng, enabled = true): Tannery[] {
   const document = site.document;
-  if (input.buildings.length < 150 || site.town.length < 3) return [];
+  if (!enabled || input.buildings.length < 150 || site.town.length < 3) return [];
   const wanted = input.buildings.length > 6000 ? 2 : 1;
   const out: Tannery[] = [];
   for (const river of flowingRivers(document)) {
@@ -1097,15 +1107,19 @@ export function buildAerialLandmarkPlan(
   // A completed generation recipe marks a generated town. Hand-built or upgraded maps keep
   // their district-local edits: these town-wide works would shift with every edit.
   if (!input.buildings.length || !document.fabric?.generation) return EMPTY_PLAN;
-  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${JSON.stringify(input.waterUsers ?? [])}`;
+  const economy = economyOnDocument(document);
+  const guildPlan = planGuildFacilities(economy, document.historicalPeriod ?? "ageOfExploration");
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${JSON.stringify(input.waterUsers ?? [])}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
 
   const site = new Site(document, input);
   const root = `${document.fabric?.seed ?? document.generationSeed ?? "aerial"}:${seed}`;
   // Large fixed works first (the gate outworks and river trades), then free-standing pieces.
+  // Guild yards claim land before the tannery, so a bleaching field stays upstream of it.
   const barbicans = placeBarbicans(site, makeRng(`${root}:barbican`));
-  const tanneries = placeTanneries(site, input, makeRng(`${root}:tannery`));
+  const guildWorks = placeGuildWorks(site, guildPlan, economy?.year ?? 0);
+  const tanneries = placeTanneries(site, input, makeRng(`${root}:tannery`), wantsTannery(economy, guildPlan));
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
@@ -1117,7 +1131,16 @@ export function buildAerialLandmarkPlan(
     ],
     input.buildings.length
   );
-  const plan = { monasteries, windmills, barbicans, tanneries, gallows, domesticWater };
+  const plan = {
+    monasteries,
+    windmills,
+    barbicans,
+    tanneries,
+    gallows,
+    domesticWater,
+    guildHalls: guildWorks.halls,
+    guildYards: guildWorks.yards
+  };
   aerialPlanCache.set(document, { fingerprint: fp, plan });
   return plan;
 }
@@ -1129,6 +1152,8 @@ export function aerialLandmarkFootprints(plan: AerialLandmarkPlan): Point[][] {
     ...plan.tanneries.map(t => t.yard),
     ...plan.barbicans.map(b => convexHull([...b.court, ...b.frontTowers.flat()])),
     ...plan.windmills.map(w => circle(w.center, w.baseRadius + 1, 10)),
-    ...plan.gallows.map(g => circle(g.center, g.moundRadius + 1, 12))
+    ...plan.gallows.map(g => circle(g.center, g.moundRadius + 1, 12)),
+    ...plan.guildHalls.flatMap(hall => (hall.tower ? [hall.footprint, hall.tower] : [hall.footprint])),
+    ...plan.guildYards.map(yard => yard.polygon)
   ];
 }

@@ -441,6 +441,11 @@ export interface CityDocument {
   appearance?: "town";
   /** Historical backdrop / technological era. Defaults to "ageOfExploration". */
   historicalPeriod?: HistoricalPeriod;
+  /**
+   * Economy profile from FMG. Absent documents keep the period-only landmarks.
+   * A guild chapter in this profile is drawn even when its craftsman count is zero.
+   */
+  siteEconomy?: import("./gen/site/burgSiteEconomy").BurgSiteEconomy;
   /** Bridge skew allowance exported by FMG for the burg's state (src/utils/bridgeSkewPolicy.ts).
    * Absent: derived from `historicalPeriod`. */
   maxBridgeSkewDegrees?: number;

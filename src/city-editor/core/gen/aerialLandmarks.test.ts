@@ -14,7 +14,7 @@ import {
   buildAerialLandmarkPlan,
   TANNERY_WATER_USER_CLEARANCE_METERS
 } from "./aerialLandmarks";
-import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
+import { buildBlockFabric, type DistrictFabric, FabricCache } from "./blockInfill";
 import { convexHull, nearestOnPolyline, pointInPolygon, shrinkPolygon } from "./geom";
 
 function walledRiverTown(): CityDocument {
@@ -316,6 +316,55 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
       expect(node, kind).not.toBeNull();
       expect(JSON.parse(decodeURIComponent(node!.getAttribute("data-pick")!)).kind).toBe(kind);
     }
+  }, 60000);
+
+  it("draws guild halls and yards for chapters with no craftsmen", () => {
+    const withGuilds = {
+      ...city,
+      siteEconomy: {
+        version: 1 as const,
+        year: 1348,
+        commerce: {
+          rank: 0,
+          marketCenter: false,
+          merchantHouse: null,
+          mint: false,
+          caravanArrivalRank: 0
+        },
+        guilds: [
+          {
+            domain: "textiles" as const,
+            status: "chapter" as const,
+            practitioners: 0,
+            prestige: 0.91,
+            foundedYear: 1240
+          },
+          { domain: "masonry" as const, status: "chapter" as const, practitioners: 0, prestige: 0.2, foundedYear: 1244 }
+        ],
+        storage: [],
+        facilities: [],
+        tradePartners: []
+      }
+    };
+    const built = buildBlockFabric(withGuilds, new FabricCache());
+    const halls = built.aerialLandmarks?.guildHalls ?? [];
+    const yards = built.aerialLandmarks?.guildYards ?? [];
+    expect(halls.some(hall => hall.domain === "textiles" && hall.practitioners === 0)).toBe(true);
+    expect(halls.some(hall => hall.domain === "masonry" && hall.practitioners === 0)).toBe(true);
+    expect(yards.some(yard => yard.kind === "bleachingField" && yard.practitioners === 0)).toBe(true);
+    expect(yards.some(yard => yard.kind === "stoneYard" || yard.kind === "limeKiln")).toBe(true);
+    const half = withGuilds.frame.extentMeters / 2;
+    const svg = renderEditorSvg(
+      { ...withGuilds, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(svg.querySelectorAll(".ce-guild-hall[data-pick]")).toHaveLength(halls.length);
+    expect(decodeURIComponent(svg.querySelector(".ce-guild-hall[data-pick]")!.getAttribute("data-pick")!)).toContain(
+      "職人なし"
+    );
   }, 60000);
 });
 

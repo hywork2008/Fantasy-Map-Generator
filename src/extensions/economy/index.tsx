@@ -70,6 +70,7 @@ import { ApothecaryWorkshops } from "./generators/apothecaryWorkshops";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposition";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
+import { buildBurgSiteEconomy } from "./generators/burgSiteEconomy";
 import { Caravans } from "./generators/caravans";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
@@ -2449,6 +2450,7 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
+      api.burgEconomyExtensions.getBurgSiteEconomy = buildBurgSiteEconomy;
       registerOverviewColumns(api);
       // Demography birth floor: pregnancy due sets a lower bound on urban births (PR-P2).
       registerUrbanPregnancyBirthFloor();
@@ -2502,6 +2504,7 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
+      api.burgEconomyExtensions.getBurgSiteEconomy = undefined;
       unregisterOverviewColumns(api);
     }
   });
@@ -2518,6 +2521,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
+    api.burgEconomyExtensions.getBurgSiteEconomy = buildBurgSiteEconomy;
     registerOverviewColumns(api);
     registerUrbanPregnancyBirthFloor();
     // A persisted preference is restored before the first map has generated.
@@ -3940,6 +3944,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
   api.burgEconomyExtensions.getBurgEconomySummary = undefined;
+  api.burgEconomyExtensions.getBurgSiteEconomy = undefined;
   unregisterOverviewColumns(api);
   clearUrbanPregnancyBirthFloorRegistration();
 

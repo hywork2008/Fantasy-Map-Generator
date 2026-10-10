@@ -51,6 +51,34 @@ describe("parseDescriptor", () => {
     const { frame: _drop, ...rest } = sample;
     expect(parseDescriptor(JSON.stringify(rest))).toBeNull();
   });
+
+  it("keeps a guild chapter that has no craftsmen", () => {
+    const guild = {
+      domain: "textiles",
+      status: "chapter",
+      practitioners: 0,
+      prestige: 0.25,
+      foundedYear: 1190
+    };
+    const parsed = parseDescriptor(
+      JSON.stringify({
+        ...sample,
+        economy: {
+          version: 1,
+          year: 1348,
+          commerce: { rank: 0.2, marketCenter: true, merchantHouse: null, mint: false, caravanArrivalRank: 0.2 },
+          guilds: [guild]
+        }
+      })
+    );
+    expect(parsed?.economy?.guilds).toEqual([guild]);
+    expect(parsed?.economy?.year).toBe(1348);
+  });
+
+  it("drops an economy block that is not a profile", () => {
+    const parsed = parseDescriptor(JSON.stringify({ ...sample, economy: { guilds: "none" } }));
+    expect(parsed?.economy).toBeUndefined();
+  });
 });
 
 describe("share codec", () => {

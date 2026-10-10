@@ -26,6 +26,7 @@ import {
   polygonCentroid,
   segmentInteriorInPolygon
 } from "./geom";
+import { economyOnDocument, siteEconomyKey } from "./guildFacilities";
 import { planHarbor } from "./harborFabric";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { buildLocalFabric, type CityFabric, convexInfillParts, FabricCache, type FarmPlot } from "./localInfill";
@@ -187,6 +188,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.castles?.length ?? 0,
     doc.waterAreas?.length ?? 0,
     doc.fixedCrossingApproaches?.length ?? 0,
+    siteEconomyKey(economyOnDocument(doc)),
     facePart,
     groupPart,
     circuitsPart,
