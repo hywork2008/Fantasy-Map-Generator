@@ -112,6 +112,8 @@ function resolveSource(
       flux.push(fl[river.cells[i - 1]]);
       heights.push(h[river.cells[i - 1]]);
     } else {
+      // Older saves repeat a lake cell (inlet == outlet); a zero-length reach has no tangent.
+      if (i && cell === river.cells[i - 1]) continue;
       if (
         !Number.isSafeInteger(cell) ||
         cell < 0 ||
@@ -121,7 +123,7 @@ function resolveSource(
       )
         return { reason: "invalid-source" };
       point = source === "points" ? river.points![i] : p[cell];
-      cells.push(i);
+      cells.push(cells.length);
       flux.push(fl[cell]);
       heights.push(h[cell]);
     }

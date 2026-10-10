@@ -66,8 +66,10 @@ class RiverModule {
     const riverParents: { [key: number]: number } = {};
 
     const addCellToRiver = (cellId: number, riverId: number) => {
-      if (!riversData[riverId]) riversData[riverId] = [cellId];
-      else riversData[riverId].push(cellId);
+      const riverCells = riversData[riverId];
+      if (!riverCells) riversData[riverId] = [cellId];
+      // A lake inlet cell can be re-added as the outlet cell; a repeated cell is a zero-length reach.
+      else if (riverCells.at(-1) !== cellId) riverCells.push(cellId);
     };
 
     const drainWater = () => {

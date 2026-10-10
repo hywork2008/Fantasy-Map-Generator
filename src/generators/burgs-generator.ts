@@ -141,6 +141,23 @@ class BurgModule {
     }
   }
 
+  /** Re-run river-bank placement for loaded burgs whose river geometry was repaired. Returns moved burg ids. */
+  resiteRiverBurgs(burgIds: Iterable<number>): number[] {
+    const { pack } = this.worldContext;
+    const moved: number[] = [];
+    for (const id of burgIds) {
+      const burg = pack.burgs[id];
+      if (!burg?.i || burg.removed || burg.lock || !pack.cells.r[burg.cell]) continue;
+      const steps = this.shiftTowardsRiverBankSteps(burg.cell, new Map(), [burg.x, burg.y]);
+      let step = steps.next();
+      while (!step.done) step = steps.next();
+      if (burg.riverSiteStatus?.status !== "placed") continue;
+      [burg.x, burg.y] = step.value;
+      moved.push(id);
+    }
+    return moved;
+  }
+
   async shiftAsync(options: BurgShiftOptions = {}): Promise<void> {
     const pack = this.worldContext.pack;
     const steps = this.shiftSteps(options);

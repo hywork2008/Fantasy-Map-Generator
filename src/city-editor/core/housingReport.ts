@@ -347,6 +347,13 @@ export async function loadArchiveWorld(archivePath: string): Promise<void> {
   Object.assign(worldContext, validated.document.world);
   const { bindSimulationBurgState } = await import("../../runtime/simulationBurgState");
   bindSimulationBurgState(worldContext, validated.document.simulation);
+  // Same post-load repair as the browser loader, so CLI reports match the app.
+  const { burgsUnplacedOnRivers, removeRepeatedRiverCells } = await import("../../services/repairRiverCells");
+  const repairedRivers = removeRepeatedRiverCells(worldContext);
+  if (repairedRivers.size) {
+    const { Burgs } = await import("../../generators/burgs-generator");
+    Burgs.resiteRiverBurgs(burgsUnplacedOnRivers(worldContext, repairedRivers));
+  }
 }
 
 /** Numeric tokens are burg indexes. Any other token is an exact burg name, and every match is returned. */

@@ -43,6 +43,7 @@ import {
 import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
 import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
 import { declareFont, fonts } from "../services/fonts";
+import { burgsUnplacedOnRivers, removeRepeatedRiverCells } from "../services/repairRiverCells";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
@@ -261,6 +262,16 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       updateAllBurgWaterAccess(worldContext.pack);
       return { result: undefined, topics: ["map.networks"] };
     });
+
+    // Archives whose rivers repeat a lake cell could not place their river burgs; repair and re-site them.
+    const repairedRivers = removeRepeatedRiverCells(worldContext);
+    if (repairedRivers.size)
+      legacyMutation(() => {
+        const moved = Burgs.resiteRiverBurgs(burgsUnplacedOnRivers(worldContext, repairedRivers));
+        WARN &&
+          console.warn("[Data integrity] Repeated river cells removed", [...repairedRivers], "re-sited burgs", moved);
+        return { result: undefined, topics: ["map.networks", "map.settlements"] };
+      });
 
     // Archives created before the generation-mode field was introduced have no
     // reliable indication of which algorithm produced their routes. Preserve
