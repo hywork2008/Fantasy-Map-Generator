@@ -31,6 +31,7 @@ import { civicYardMeters } from "./housing";
 import { fitMonastery, type Monastery, type MonasteryKind } from "./monasteryLayout";
 import { makeRng, type Rng } from "./prng";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
+import { placeStorageYards, type StorageYard } from "./storageYardPlacement";
 import { fixedBankOffset } from "./watermillFabric";
 
 export type { Monastery, MonasteryKind, PrecinctBuilding, PrecinctCourt } from "./monasteryLayout";
@@ -100,9 +101,11 @@ export interface AerialLandmarkPlan {
   guildHalls: GuildHall[];
   /** Yards and kilns that belong to a guild even when it has no craftsmen. */
   guildYards: GuildYard[];
+  /** Inventory yards. A cellar has no plot. */
+  storageYards: StorageYard[];
 }
 
-export type { GuildHall, GuildYard };
+export type { GuildHall, GuildYard, StorageYard };
 
 export interface AerialLandmarkInput {
   buildings: BuildingLot[];
@@ -122,7 +125,8 @@ const EMPTY_PLAN: AerialLandmarkPlan = {
   tanneries: [],
   gallows: [],
   guildHalls: [],
-  guildYards: []
+  guildYards: [],
+  storageYards: []
 };
 
 const PERIOD_ORDER: HistoricalPeriod[] = [
@@ -1120,6 +1124,7 @@ export function buildAerialLandmarkPlan(
   const barbicans = placeBarbicans(site, makeRng(`${root}:barbican`));
   const guildWorks = placeGuildWorks(site, guildPlan, economy?.year ?? 0);
   const tanneries = placeTanneries(site, input, makeRng(`${root}:tannery`), wantsTannery(economy, guildPlan));
+  const storageYards = placeStorageYards(site, economy?.storage ?? [], guildWorks.yards, economy?.year ?? 0);
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
@@ -1139,7 +1144,8 @@ export function buildAerialLandmarkPlan(
     gallows,
     domesticWater,
     guildHalls: guildWorks.halls,
-    guildYards: guildWorks.yards
+    guildYards: guildWorks.yards,
+    storageYards
   };
   aerialPlanCache.set(document, { fingerprint: fp, plan });
   return plan;
@@ -1154,6 +1160,7 @@ export function aerialLandmarkFootprints(plan: AerialLandmarkPlan): Point[][] {
     ...plan.windmills.map(w => circle(w.center, w.baseRadius + 1, 10)),
     ...plan.gallows.map(g => circle(g.center, g.moundRadius + 1, 12)),
     ...plan.guildHalls.flatMap(hall => (hall.tower ? [hall.footprint, hall.tower] : [hall.footprint])),
-    ...plan.guildYards.map(yard => yard.polygon)
+    ...plan.guildYards.map(yard => yard.polygon),
+    ...plan.storageYards.map(yard => yard.polygon)
   ];
 }

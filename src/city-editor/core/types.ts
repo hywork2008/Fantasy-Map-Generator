@@ -13,6 +13,17 @@ export type WardKind =
   | "farm"
   | "cemetery"
   | "empty";
+
+/** Craftsman street taken from a burg's guild practitioners. Same list as GuildDomain. */
+export type CraftDomain =
+  | "metallurgy"
+  | "woodworking"
+  | "masonry"
+  | "textiles"
+  | "leather"
+  | "glassware"
+  | "instruments"
+  | "printing";
 export type BuildingPattern = "legacy" | "medieval";
 export type BuildingComposition = "standard" | "commercial" | "warehouses" | "estates";
 export type HarborPreset = "small" | "dense" | "warehouse";
@@ -39,6 +50,8 @@ export interface FaceProperties {
   depth?: number;
   water: WaterKind;
   ward: WardKind | null;
+  /** Set on a craftsman face when the economy profile splits that street by trade. */
+  craftDomain?: CraftDomain;
   buildable: boolean;
   locked: boolean;
 }

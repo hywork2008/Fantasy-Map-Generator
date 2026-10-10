@@ -7,6 +7,7 @@ import type {
   GuildYard,
   Monastery,
   PrecinctBuilding,
+  StorageYard,
   Tannery,
   Windmill
 } from "../core/gen/aerialLandmarks";
@@ -533,6 +534,7 @@ export function renderAerialLandmarks(
   for (const t of plan.tanneries) layer.appendChild(renderTannery(t, options, minimal));
   for (const hall of plan.guildHalls ?? []) layer.appendChild(renderGuildHall(hall, options));
   for (const yard of plan.guildYards ?? []) layer.appendChild(renderGuildYard(yard, options, minimal));
+  for (const yard of plan.storageYards ?? []) layer.appendChild(renderStorageYard(yard, options));
   for (const gw of plan.gallows) layer.appendChild(renderGallows(gw, options));
   for (const w of plan.windmills) layer.appendChild(renderWindmill(w, options));
   return layer;
@@ -561,6 +563,52 @@ const YARD_LABEL: Record<GuildYard["kind"], string> = {
 function staffLabel(practitioners: number, year: number): string {
   const staff = practitioners > 0 ? `職人${practitioners}人` : "職人なし";
   return year > 0 ? `${year}年・${staff}` : staff;
+}
+
+const STORAGE_LABEL: Record<StorageYard["form"], string> = {
+  livestockPen: "家畜市",
+  timberYard: "材木置場",
+  stoneYard: "石置場",
+  fuelStack: "燃料置場",
+  granary: "穀倉",
+  cellar: "樽倉",
+  warehouse: "倉庫"
+};
+
+const STORAGE_FILL: Record<StorageYard["form"], string> = {
+  livestockPen: "#c4b08a",
+  timberYard: "#b08968",
+  stoneYard: "#c5c1b6",
+  fuelStack: "#6e6256",
+  granary: "#d9c48a",
+  cellar: "#8d7b66",
+  warehouse: "#a89880"
+};
+
+function renderStorageYard(yard: StorageYard, options: PickOptions): SVGElement {
+  const goods = yard.mainGoods.length ? yard.mainGoods.join("・") : STORAGE_LABEL[yard.form];
+  const dated = yard.year > 0 ? `${yard.year}年・` : "";
+  const g = pickGroup(
+    `ce-storage-yard ce-storage-yard--${yard.form}`,
+    {
+      kind: "storageYard",
+      id: yard.id,
+      label: `${yard.name}（${STORAGE_LABEL[yard.form]}・${dated}${goods}・${yard.areaM2} m²）`,
+      form: yard.form,
+      areaM2: yard.areaM2,
+      waterborne: yard.waterborne
+    },
+    options
+  );
+  g.appendChild(
+    el("path", {
+      d: polygon(yard.polygon),
+      fill: STORAGE_FILL[yard.form],
+      stroke: "#796b55",
+      "stroke-width": "0.45"
+    })
+  );
+  return g;
 }
 
 function renderGuildHall(hall: GuildHall, options: PickOptions): SVGElement {

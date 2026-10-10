@@ -95,7 +95,13 @@ export function economyOnDocument(document: CityDocument): BurgSiteEconomy | und
 
 export function siteEconomyKey(economy: BurgSiteEconomy | undefined): string {
   if (!economy) return "";
-  return `${economy.year}|${economy.guilds
+  const guilds = economy.guilds
     .map(guild => `${guild.domain}:${guild.status}:${guild.practitioners}:${guild.prestige.toFixed(3)}`)
-    .join(",")}`;
+    .join(",");
+  const storage = economy.storage
+    .map(
+      yard => `${yard.form}:${Math.round(yard.areaM2)}:${yard.waterborne ? "w" : "l"}:${yard.inflowAzimuthDeg ?? "-"}`
+    )
+    .join(",");
+  return `${economy.year}|${guilds}|${storage}`;
 }

@@ -1,5 +1,7 @@
 // Shared types for the City Generator pipeline. See docs/city-generator/design.md §4.
 
+import type { GuildDomain } from "./site/burgSiteEconomy";
+
 export type Point = [number, number];
 
 /**
@@ -132,6 +134,8 @@ export type WardKind =
 export interface WardAssignment {
   cellId: number;
   kind: WardKind;
+  /** Present when this cell is a craftsman street of one guild trade. */
+  craftDomain?: GuildDomain;
 }
 
 /** One building (or tree, statue, farmhouse) emitted by S7. */

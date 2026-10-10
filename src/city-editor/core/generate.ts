@@ -2727,7 +2727,8 @@ export function runPlan(
           sourceDocument?.mesh.faces[currentFaceIdOf[cell.id]]?.properties.elevation ??
           0
       ])
-    )
+    ),
+    economy: settings.descriptor?.economy
   });
   mark("wards");
   return {
@@ -2806,6 +2807,9 @@ function planningDebugDocument(
     face.properties.buildable = !plan.sea.has(index) && (plan.urban.has(index) || plan.outskirts.has(index));
     face.properties.settlement = plan.urban.has(index) ? "core" : "outskirts";
     face.properties.ward = editorWard(plan.wards.get(index) ?? "empty");
+    const domain = plan.wardOrder.find(row => row.cellId === index)?.craftDomain;
+    if (face.properties.ward === "craftsmen" && domain) face.properties.craftDomain = domain;
+    else delete face.properties.craftDomain;
   }
   const nearest = nearestVertexLookup(next.mesh, Math.max(1, source.frame.blockSizeMeters));
   for (const [index, river] of plan.rivers.entries())
@@ -3112,6 +3116,9 @@ function applyPlan(
 
   // Assign stage-six wards before passage splits so every child inherits its district.
   if (stageStep >= 6) {
+    const craftDomainOf = new Map(
+      plan.wardOrder.flatMap(row => (row.craftDomain ? [[row.cellId, row.craftDomain] as const] : []))
+    );
     for (const [cellId, kind] of plan.wards) {
       const face = faceFor(cellId);
       let editor = editorWard(kind);
@@ -3128,6 +3135,9 @@ function applyPlan(
           }
         }
         face.properties.ward = editor;
+        if (editor === "craftsmen" && craftDomainOf.get(cellId))
+          face.properties.craftDomain = craftDomainOf.get(cellId);
+        else delete face.properties.craftDomain;
         // A reserved harbour may be on the first dry cell beyond the compact
         // residential core. It still needs a working quay and port buildings.
         if (editor === "harbor" && face.properties.water === "land") face.properties.buildable = true;

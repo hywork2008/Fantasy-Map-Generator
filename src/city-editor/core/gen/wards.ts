@@ -23,6 +23,7 @@
 import type { HistoricalPeriod } from "../types";
 import { placeTempleFootprint } from "./civicPlacement";
 import { cultivableParts } from "./coastalSuitability";
+import { economyWardMix, type WardMixSlot } from "./economicWards";
 import {
   azimuthDelta,
   nearestOnPolyline,
@@ -35,6 +36,7 @@ import {
   vecToAzimuth
 } from "./geom";
 import { makeRng, type Rng } from "./prng";
+import type { BurgSiteEconomy } from "./site/burgSiteEconomy";
 import type {
   BorderLoop,
   Cell,
@@ -137,6 +139,8 @@ export interface WardInputs {
   exteriorRoads?: Point[][];
   /** River centerlines, used to keep the temple off the water. */
   rivers?: Point[][];
+  /** When set, the inner mix follows guild practitioners, commerce.rank, and marketCenter. */
+  economy?: BurgSiteEconomy;
   historicalPeriod?: HistoricalPeriod;
   burialProfile?: import("../../../data/burialCultures").BurialCultureProfile;
   elevations?: Map<number, number>;
@@ -168,6 +172,7 @@ export function assignWards(input: WardInputs): WardResult {
 
   const byId = new Map(cells.map(c => [c.id, c]));
   const assigned = new Map<number, WardKind>();
+  const craftDomains = new Map<number, NonNullable<WardMixSlot["craftDomain"]>>();
   const occupied = new Set<number>();
   const extraPrecincts: Precinct[] = [];
   const overlays: Overlay[] = [];
@@ -334,7 +339,19 @@ export function assignWards(input: WardInputs): WardResult {
 
   // 5. Remaining inner cells: shuffled, possibly-repeated mix + rateLocation.
   const inner = cells.filter(c => urban.has(c.id) && !occupied.has(c.id)).map(c => c.id);
-  fillInner(inner, assigned, occupied, byId, citadelIds, plaza, borders, program.walls, rng);
+  fillInner(
+    inner,
+    assigned,
+    craftDomains,
+    occupied,
+    byId,
+    citadelIds,
+    plaza,
+    borders,
+    program.walls,
+    rng,
+    input.economy
+  );
 
   // 6. Outer cells touching a gate → GateWard (high probability).
   for (const cell of cells) {
@@ -374,7 +391,10 @@ export function assignWards(input: WardInputs): WardResult {
 
   // `assigned` is a Map, so its iteration order is insertion order — exactly the
   // decision order phases 1-8 ran in (Map/Set iteration order is a JS guarantee).
-  const assignmentOrder: WardAssignment[] = [...assigned.entries()].map(([cellId, kind]) => ({ cellId, kind }));
+  const assignmentOrder: WardAssignment[] = [...assigned.entries()].map(([cellId, kind]) => {
+    const craftDomain = craftDomains.get(cellId);
+    return craftDomain ? { cellId, kind, craftDomain } : { cellId, kind };
+  });
   const wards = assignmentOrder.slice().sort((a, b) => a.cellId - b.cellId);
   return { wards, assignmentOrder, precincts: extraPrecincts, overlays, shanty };
 }
@@ -382,20 +402,23 @@ export function assignWards(input: WardInputs): WardResult {
 function fillInner(
   unassigned: number[],
   assigned: Map<number, WardKind>,
+  craftDomains: Map<number, NonNullable<WardMixSlot["craftDomain"]>>,
   occupied: Set<number>,
   byId: Map<number, Cell>,
   citadelIds: Set<number>,
   plaza: Precinct | null,
   borders: BorderLoop[],
   walled: boolean,
-  rng: Rng
+  rng: Rng,
+  economy?: BurgSiteEconomy
 ): void {
   const remaining = unassigned.slice();
-  const queue = scaleMix(remaining.length, rng);
+  const queue = scaleMix(remaining.length, rng, economy);
   const origin: Point = plaza?.anchor ?? [0, 0];
 
   while (remaining.length) {
-    const kind: WardKind = queue.shift() ?? "slum";
+    const slot: WardMixSlot = queue.shift() ?? { kind: "slum" };
+    const kind = slot.kind;
     const pick = pickFor(kind, remaining, byId, assigned, citadelIds, plaza, origin, borders, walled, rng);
     if (pick === null) {
       // This kind cannot sit anywhere left (e.g. MilitaryWard with no wall). Skip
@@ -409,16 +432,18 @@ function fillInner(
       continue;
     }
     assigned.set(pick, kind);
+    if (kind === "craftsmen" && slot.craftDomain) craftDomains.set(pick, slot.craftDomain);
     occupied.add(pick);
     remaining.splice(remaining.indexOf(pick), 1);
   }
 }
 
-function scaleMix(n: number, rng: Rng): WardKind[] {
+function scaleMix(n: number, rng: Rng, economy?: BurgSiteEconomy): WardMixSlot[] {
   if (n <= 0) return [];
-  const copies = Math.max(1, Math.ceil(n / WARD_MIX.length));
-  const queue: WardKind[] = [];
-  for (let i = 0; i < copies; i++) queue.push(...WARD_MIX);
+  const mix = economy ? economyWardMix(economy) : WARD_MIX.map(kind => ({ kind }));
+  const copies = Math.max(1, Math.ceil(n / mix.length));
+  const queue: WardMixSlot[] = [];
+  for (let i = 0; i < copies; i++) queue.push(...mix);
   // Full Fisher–Yates shuffle: on the coarse ward-scale grid there may be fewer
   // cells than WARD_MIX is long, so the front of the list must not be all one
   // kind — every district type has to get a proportional shot.

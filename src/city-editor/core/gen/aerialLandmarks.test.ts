@@ -366,6 +366,74 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
       "職人なし"
     );
   }, 60000);
+
+  it("draws a granary inside the town and a livestock market outside it", () => {
+    const withStorage = {
+      ...city,
+      siteEconomy: {
+        version: 1 as const,
+        year: 1350,
+        commerce: {
+          rank: 0.4,
+          marketCenter: true,
+          merchantHouse: null,
+          mint: false,
+          caravanArrivalRank: 0.4
+        },
+        guilds: [],
+        storage: [
+          {
+            form: "granary" as const,
+            areaM2: 500,
+            mainGoods: ["Maize"],
+            inflowAzimuthDeg: null,
+            waterborne: false
+          },
+          {
+            form: "livestockPen" as const,
+            areaM2: 280,
+            mainGoods: ["Cattle"],
+            inflowAzimuthDeg: 180,
+            waterborne: false
+          },
+          {
+            form: "cellar" as const,
+            areaM2: 400,
+            mainGoods: ["Wine"],
+            inflowAzimuthDeg: null,
+            waterborne: false
+          }
+        ],
+        facilities: [],
+        tradePartners: []
+      }
+    };
+    const built = buildBlockFabric(withStorage, new FabricCache());
+    const yards = built.aerialLandmarks?.storageYards ?? [];
+    const granary = yards.find(yard => yard.form === "granary");
+    const livestock = yards.find(yard => yard.form === "livestockPen");
+    expect(granary?.outside).toBe(false);
+    expect(granary?.mainGoods).toEqual(["Maize"]);
+    expect(livestock?.outside).toBe(true);
+    expect(yards.some(yard => yard.form === "cellar")).toBe(false);
+    const circuit = withStorage.defenseCircuits?.find(item => item.scope === "town");
+    const ring = circuit ? circuitRing(withStorage, circuit) : [];
+    expect(ring.length).toBeGreaterThanOrEqual(3);
+    if (granary) expect(pointInPolygon(centre(granary.polygon), ring)).toBe(true);
+    if (livestock) expect(pointInPolygon(centre(livestock.polygon), ring)).toBe(false);
+    const half = withStorage.frame.extentMeters / 2;
+    const svg = renderEditorSvg(
+      { ...withStorage, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(svg.querySelectorAll(".ce-storage-yard[data-pick]")).toHaveLength(yards.length);
+    expect(
+      decodeURIComponent(svg.querySelector(".ce-storage-yard--granary[data-pick]")!.getAttribute("data-pick")!)
+    ).toContain("穀倉");
+  }, 60000);
 });
 
 describe("FMG-linked rivers (riverFlows)", () => {
