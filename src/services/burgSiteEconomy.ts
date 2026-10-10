@@ -86,6 +86,14 @@ export interface SiteStorageYard {
   mainGoods: string[];
   /** Compass bearing of the partner that sends these goods. 0 is north. */
   inflowAzimuthDeg: number | null;
+  /**
+   * Compass bearing of the local supply. Forest for a land timber yard, quarry
+   * rock for a land stone yard. 0 is north, clockwise. Absent when that side
+   * cannot be read. Waterborne yards leave it off and sit on the bank.
+   */
+  supplyAzimuthDeg?: number;
+  /** Public-works granary. Stock yards omit this. */
+  origin?: "publicWorks";
   /** Timber rafts and stone barges sit on the bank. */
   waterborne: boolean;
 }

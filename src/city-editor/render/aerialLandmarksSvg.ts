@@ -641,14 +641,15 @@ function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
 }
 
 function renderStorageYard(yard: StorageYard, options: PickOptions): SVGElement {
-  const goods = yard.mainGoods.length ? yard.mainGoods.join("・") : STORAGE_LABEL[yard.form];
+  const kindLabel = yard.origin === "publicWorks" ? "公共穀倉" : STORAGE_LABEL[yard.form];
+  const goods = yard.mainGoods.length ? yard.mainGoods.join("・") : kindLabel;
   const dated = yard.year > 0 ? `${yard.year}年・` : "";
   const g = pickGroup(
-    `ce-storage-yard ce-storage-yard--${yard.form}`,
+    `ce-storage-yard ce-storage-yard--${yard.form}${yard.origin === "publicWorks" ? " ce-storage-yard--public" : ""}`,
     {
       kind: "storageYard",
       id: yard.id,
-      label: `${yard.name}（${STORAGE_LABEL[yard.form]}・${dated}${goods}・${yard.areaM2} m²）`,
+      label: `${yard.name}（${kindLabel}・${dated}${goods}・${yard.areaM2} m²）`,
       form: yard.form,
       areaM2: yard.areaM2,
       waterborne: yard.waterborne

@@ -100,7 +100,8 @@ export function siteEconomyKey(economy: BurgSiteEconomy | undefined): string {
     .join(",");
   const storage = economy.storage
     .map(
-      yard => `${yard.form}:${Math.round(yard.areaM2)}:${yard.waterborne ? "w" : "l"}:${yard.inflowAzimuthDeg ?? "-"}`
+      yard =>
+        `${yard.form}:${Math.round(yard.areaM2)}:${yard.waterborne ? "w" : "l"}:${yard.inflowAzimuthDeg ?? "-"}:${yard.supplyAzimuthDeg ?? "-"}:${yard.origin ?? "-"}`
     )
     .join(",");
   const lodging = economy.facilities.map(item => `${item.kind}:${item.count}:${item.stableSpaces}`).join(",");

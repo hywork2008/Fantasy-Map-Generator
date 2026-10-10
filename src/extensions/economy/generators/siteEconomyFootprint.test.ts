@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { storageFormOf, storageYardsFromStock } from "./siteEconomyFootprint";
+import {
+  publicGranaryAreaM2,
+  storageFormOf,
+  storageYardsFromStock,
+  weightedSupplyAzimuth
+} from "./siteEconomyFootprint";
 
 describe("storage yards", () => {
   it("prices livestock by the animal and keeps timber out of the fuel stack", () => {
@@ -65,5 +70,19 @@ describe("storage yards", () => {
     ]);
     const share = yards.reduce((sum, yard) => sum + yard.areaM2, 0) / 315_696;
     expect(share).toBeLessThan(0.15);
+  });
+});
+
+describe("public granary and supply bearing", () => {
+  it("sizes the state granary from the extra reserve days", () => {
+    const burg = { population: 10, publicWorks: { granary: 1 } };
+    expect(publicGranaryAreaM2(burg, 1000, 1)).toBe(141);
+    expect(publicGranaryAreaM2({ population: 10, publicWorks: { granary: 0.5 } }, 1000, 1)).toBe(71);
+    expect(publicGranaryAreaM2({ population: 10 }, 1000, 1)).toBe(0);
+  });
+
+  it("reads a cloud to the east as bearing 90", () => {
+    expect(weightedSupplyAzimuth({ x: 0, y: 0 }, [{ x: 10, y: 0, weight: 2 }])).toBe(90);
+    expect(weightedSupplyAzimuth({ x: 0, y: 0 }, [])).toBeNull();
   });
 });

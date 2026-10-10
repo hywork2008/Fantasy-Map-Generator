@@ -21,9 +21,13 @@ import {
   getBurgWholesaleInventories,
   getGoods,
   getMarkets,
+  getQuarryOperations,
   getWorldContext
 } from "../economyContext";
+import { GROSS_FOOD_NEED } from "./foodConstants";
+import { BURG_TARGET_RESERVE_DAYS } from "./foodProduction";
 import type { Good } from "./goodsGeneratorTypes";
+import { getGranaryReserveMultiplier } from "./publicWorks";
 
 /** Square metres of ground per lot. Livestock is per head; the rest follow the good's unit. */
 export const STORAGE_AREA_M2 = {
@@ -40,6 +44,12 @@ export const STORAGE_AREA_M2 = {
 
 /** Share of the town disc (π·radius²) that yards may cover. */
 export const STORAGE_URBAN_SHARE = { town: 0.15, marketCenter: 0.25 } as const;
+
+/** Same year length as foodLedgerConsumption. */
+const DAYS_PER_YEAR = 365.2425;
+/** Same height gate as quarryOperations `STONE_QUARRY_MIN_HEIGHT`. */
+const QUARRY_ROCK_HEIGHT = 40;
+const SUPPLY_RINGS = 2;
 
 const LARGE_LIVESTOCK = new Set(["Cattle", "Horses", "Elephants", "Camels"]);
 const BIRD_LIVESTOCK = new Set(["Chicken", "Cats"]);
@@ -238,12 +248,156 @@ export function storageYardsForBurg(
       world.pack.burgs?.find(entry => entry?.i === partner.burgId)
     )
   }));
-  return storageYardsFromStock({
+  const rate = world.populationRate ?? 1000;
+  const urbanization = world.urbanization ?? 1;
+  const yards = storageYardsFromStock({
     lines,
-    urbanAreaM2: burgUrbanAreaM2(burg, world.pack, world.populationRate ?? 1000, world.urbanization ?? 1),
+    urbanAreaM2: burgUrbanAreaM2(burg, world.pack, rate, urbanization),
     marketCenter,
     partners: located
-  });
+  }).map(yard => withLocalSupply(yard, burg, pack));
+  const publicGranary = publicGranaryYard(burg, rate, urbanization);
+  if (publicGranary) yards.push(publicGranary);
+  return yards;
+}
+
+/**
+ * Ground area of the state granary. A full works level doubles the 10-day
+ * reserve, and that extra grain uses the same 1.2 m²/wain as a stock granary.
+ */
+export function publicGranaryAreaM2(
+  burg: Pick<Burg, "population" | "publicWorks">,
+  populationRate: number,
+  urbanization: number
+): number {
+  const level = burg.publicWorks?.granary ?? 0;
+  if (!(level > 0)) return 0;
+  const people = Math.max(0, burg.population ?? 0) * Math.max(0, populationRate) * Math.max(0, urbanization);
+  const extraDays = BURG_TARGET_RESERVE_DAYS * (getGranaryReserveMultiplier(burg) - 1);
+  if (!(people > 0) || !(extraDays > 0)) return 0;
+  return Math.round(((people * GROSS_FOOD_NEED) / DAYS_PER_YEAR) * extraDays * STORAGE_AREA_M2.granary);
+}
+
+function publicGranaryYard(burg: Burg, populationRate: number, urbanization: number): SiteStorageYard | null {
+  const area = publicGranaryAreaM2(burg, populationRate, urbanization);
+  if (area < 1) return null;
+  return {
+    form: "granary",
+    areaM2: area,
+    mainGoods: [],
+    inflowAzimuthDeg: null,
+    waterborne: false,
+    origin: "publicWorks"
+  };
+}
+
+function withLocalSupply(yard: SiteStorageYard, burg: Burg, pack: PackedGraph): SiteStorageYard {
+  if (yard.waterborne || (yard.form !== "timberYard" && yard.form !== "stoneYard")) return yard;
+  const azimuth = yard.form === "timberYard" ? forestAzimuth(burg, pack) : quarryAzimuth(burg, pack);
+  if (azimuth == null) return yard;
+  return { ...yard, supplyAzimuthDeg: azimuth };
+}
+
+/** Compass bearing of a weighted cloud. Map y grows south. 0 is north. */
+export function weightedSupplyAzimuth(
+  origin: { x: number; y: number },
+  samples: readonly { x: number; y: number; weight: number }[]
+): number | null {
+  let east = 0;
+  let north = 0;
+  for (const sample of samples) {
+    if (!(sample.weight > 0)) continue;
+    east += (sample.x - origin.x) * sample.weight;
+    north += (origin.y - sample.y) * sample.weight;
+  }
+  if (east * east + north * north < 1e-8) return null;
+  return rn((Math.atan2(east, north) * 180) / Math.PI + 360, 1) % 360;
+}
+
+function cellCentroid(pack: PackedGraph, cellId: number): { x: number; y: number } | null {
+  const verts = pack.cells?.v?.[cellId];
+  const xs = pack.vertices?.x;
+  const ys = pack.vertices?.y;
+  if (!verts?.length || !xs || !ys) return null;
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const vertex of verts) {
+    const px = xs[vertex];
+    const py = ys[vertex];
+    if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+    x += px;
+    y += py;
+    count += 1;
+  }
+  return count > 0 ? { x: x / count, y: y / count } : null;
+}
+
+function nearbyCells(pack: PackedGraph, start: number): number[] {
+  const neighbors = pack.cells?.c;
+  if (!neighbors || !Number.isInteger(start) || start < 0) return [];
+  const seen = new Set<number>([start]);
+  let frontier = [start];
+  const found: number[] = [];
+  for (let ring = 0; ring < SUPPLY_RINGS; ring++) {
+    const next: number[] = [];
+    for (const id of frontier) {
+      for (const neighbor of neighbors[id] ?? []) {
+        if (seen.has(neighbor)) continue;
+        seen.add(neighbor);
+        next.push(neighbor);
+        found.push(neighbor);
+      }
+    }
+    frontier = next;
+  }
+  return found;
+}
+
+function supplySamples(
+  burg: Burg,
+  pack: PackedGraph,
+  weightOf: (cellId: number) => number
+): { x: number; y: number; weight: number }[] {
+  if (!Number.isFinite(burg.x) || !Number.isFinite(burg.y) || burg.cell == null) return [];
+  const samples: { x: number; y: number; weight: number }[] = [];
+  for (const cellId of nearbyCells(pack, burg.cell)) {
+    const weight = weightOf(cellId);
+    const centre = cellCentroid(pack, cellId);
+    if (!(weight > 0) || !centre) continue;
+    samples.push({ x: centre.x, y: centre.y, weight });
+  }
+  return samples;
+}
+
+function forestAzimuth(burg: Burg, pack: PackedGraph): number | null {
+  const tags = getWorldContext().biomesData?.tags;
+  const cells = pack.cells;
+  if (!cells) return null;
+  return weightedSupplyAzimuth(
+    { x: burg.x, y: burg.y },
+    supplySamples(burg, pack, cellId => {
+      const stock = cells.forestStock?.[cellId];
+      if (typeof stock === "number" && stock > 0) return stock;
+      const cover = cells.forestCover?.[cellId];
+      if (typeof cover === "number" && cover > 0) return cover;
+      const code = cells.biomeCode?.[cellId] ?? 0;
+      return tags?.[code]?.includes("forest") ? 1 : 0;
+    })
+  );
+}
+
+function quarryAzimuth(burg: Burg, pack: PackedGraph): number | null {
+  if (!getQuarryOperations().some(operation => operation.burgId === burg.i && operation.active !== false)) return null;
+  const heights = pack.cells?.h;
+  if (!heights) return null;
+  return weightedSupplyAzimuth(
+    { x: burg.x, y: burg.y },
+    supplySamples(burg, pack, cellId => {
+      const height = heights[cellId] ?? 0;
+      return height >= QUARRY_ROCK_HEIGHT ? height - (QUARRY_ROCK_HEIGHT - 1) : 0;
+    })
+  );
 }
 
 /** Compass azimuth from one burg to another. Map y grows south, so north is decreasing y. */

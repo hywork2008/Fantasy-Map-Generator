@@ -33,6 +33,10 @@ export interface SiteStorageYard {
   areaM2: number;
   mainGoods: string[];
   inflowAzimuthDeg: number | null;
+  /** Forest or quarry bearing. 0 is north, clockwise. Land timber and stone only. */
+  supplyAzimuthDeg?: number;
+  /** Public-works granary. Stock yards omit this. */
+  origin?: "publicWorks";
   waterborne: boolean;
 }
 
@@ -145,6 +149,10 @@ function yardsFrom(raw: unknown): SiteStorageYard[] {
       typeof entry.inflowAzimuthDeg === "number" && Number.isFinite(entry.inflowAzimuthDeg)
         ? ((Math.round(entry.inflowAzimuthDeg) % 360) + 360) % 360
         : null;
+    const supply =
+      typeof entry.supplyAzimuthDeg === "number" && Number.isFinite(entry.supplyAzimuthDeg)
+        ? ((Math.round(entry.supplyAzimuthDeg) % 360) + 360) % 360
+        : undefined;
     const mainGoods = Array.isArray(entry.mainGoods)
       ? entry.mainGoods.filter((good): good is string => typeof good === "string").slice(0, 3)
       : [];
@@ -153,6 +161,8 @@ function yardsFrom(raw: unknown): SiteStorageYard[] {
       areaM2: Math.round(area),
       mainGoods,
       inflowAzimuthDeg: azimuth,
+      ...(supply !== undefined ? { supplyAzimuthDeg: supply } : {}),
+      ...(entry.origin === "publicWorks" ? { origin: "publicWorks" as const } : {}),
       waterborne: entry.waterborne === true
     });
   }

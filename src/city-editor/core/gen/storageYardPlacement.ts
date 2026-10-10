@@ -1,7 +1,8 @@
 import { facePoints } from "../mesh";
 import { flowingRivers } from "../riverFlow";
 import type { Id, Point } from "../types";
-import { nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
+import { externalGateRoads } from "./approachBeyond";
+import { azimuthDelta, nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
 import type { GuildSiteView, GuildYard } from "./guildFacilityPlacement";
 import type { SiteStorageYard, StorageForm } from "./site/burgSiteEconomy";
 
@@ -22,6 +23,8 @@ export interface StorageYard {
   year: number;
   /** False for a granary or warehouse inside the town. */
   outside: boolean;
+  /** State granary. Stock yards omit this. */
+  origin?: "publicWorks";
   polygon: Point[];
 }
 
@@ -40,7 +43,55 @@ const BLOCKED_WARDS = new Set(["castle", "market", "cemetery", "harbor", "park"]
 const ASPECT = 1.7;
 const MAX_PIECE_M2 = 1600;
 const MIN_PIECE_M2 = 36;
+/** A first works step can be smaller than a stock piece and still be a building. */
+const MIN_PUBLIC_M2 = 12;
 const MAX_PIECES = 6;
+const PINNED_AIM_WEIGHT = 0.35;
+const LOOSE_AIM_WEIGHT = 0.04;
+
+export interface GateAim {
+  bearing: number;
+  /** Station along the town river. 0 when the gate has no river beside it. */
+  along: number;
+}
+
+/**
+ * Bearing a yard should face. A land timber or stone yard uses the external
+ * gate nearest its forest or quarry. A livestock market uses the downstream gate.
+ */
+export function gateAimBearing(
+  form: StorageForm,
+  waterborne: boolean,
+  supplyAzimuthDeg: number | null | undefined,
+  inflowAzimuthDeg: number | null,
+  gates: readonly GateAim[]
+): { bearing: number; pinned: boolean } | null {
+  const supply = typeof supplyAzimuthDeg === "number" && Number.isFinite(supplyAzimuthDeg) ? supplyAzimuthDeg : null;
+  if ((form === "timberYard" || form === "stoneYard") && !waterborne && supply != null) {
+    if (!gates.length) return { bearing: supply, pinned: true };
+    return { bearing: nearestBearing(gates, supply), pinned: true };
+  }
+  if (form === "livestockPen" && gates.some(gate => gate.along > 0)) {
+    let best = gates[0];
+    for (const gate of gates) if (gate.along > best.along) best = gate;
+    return { bearing: best.bearing, pinned: true };
+  }
+  if (inflowAzimuthDeg != null) return { bearing: inflowAzimuthDeg, pinned: false };
+  return null;
+}
+
+function nearestBearing(gates: readonly GateAim[], azimuth: number): number {
+  let best = gates[0].bearing;
+  let delta = azimuthDelta(best, azimuth);
+  for (const gate of gates) {
+    const next = azimuthDelta(gate.bearing, azimuth);
+    if (next < delta) {
+      best = gate.bearing;
+      delta = next;
+    }
+  }
+  return best;
+}
 
 function frame(origin: Point, angle: number) {
   const ux = Math.cos(angle);
@@ -117,11 +168,6 @@ function bearingDeg(point: Point): number {
   return (Math.atan2(point[0], point[1]) * 180) / Math.PI;
 }
 
-function angleDelta(a: number, b: number): number {
-  const delta = Math.abs((((a - b) % 360) + 360) % 360);
-  return Math.min(delta, 360 - delta);
-}
-
 function guildCover(form: StorageForm, guildYards: readonly GuildYard[]): number {
   if (!SHARED_WITH_GUILD.has(form)) return 0;
   let area = 0;
@@ -154,11 +200,14 @@ function placePiece(
   yard: SiteStorageYard,
   area: number,
   outside: boolean,
-  rivers: readonly Point[][]
+  rivers: readonly Point[][],
+  gates: readonly GateAim[]
 ): Point[] | null {
+  const aim = gateAimBearing(yard.form, yard.waterborne, yard.supplyAzimuthDeg, yard.inflowAzimuthDeg, gates);
+  const publicWorks = yard.origin === "publicWorks";
   for (const scale of [1, 0.7, 0.45]) {
     const [length, depth] = dims(area * scale);
-    if (length < 6 || depth < 5) continue;
+    if (publicWorks ? length < 3.2 || depth < 3 : length < 6 || depth < 5) continue;
     let best: { score: number; polygon: Point[] } | null = null;
     for (const spot of faces(site, outside)) {
       const away = site.townDistance(spot.centre);
@@ -170,10 +219,12 @@ function placePiece(
         if (!plotFits(site, spot, polygon, outside)) continue;
         const river = riverAt(spot.centre, rivers);
         let score = scale * 4 - site.buildingsIn(polygon).length * 0.35;
-        if (yard.inflowAzimuthDeg != null) score -= angleDelta(bearingDeg(spot.centre), yard.inflowAzimuthDeg) * 0.04;
+        if (aim)
+          score -=
+            azimuthDelta(bearingDeg(spot.centre), aim.bearing) * (aim.pinned ? PINNED_AIM_WEIGHT : LOOSE_AIM_WEIGHT);
         if (outside) {
           score -= Math.abs(away - (yard.form === "fuelStack" ? 70 : 36)) * 0.03;
-          if (yard.form === "livestockPen") score += river.along * 0.15;
+          if (yard.form === "livestockPen" && !aim?.pinned) score += river.along * 0.15;
         } else score -= Math.hypot(spot.centre[0], spot.centre[1]) * 0.012;
         if (yard.waterborne) score -= Math.min(river.dist, 400) * 0.02;
         if (!best || score > best.score) best = { score, polygon };
@@ -195,27 +246,33 @@ export function placeStorageYards(
   const rivers = flowingRivers(site.document)
     .map(river => river.points)
     .filter(points => points.length >= 2);
+  const gates: GateAim[] = externalGateRoads(site.document).map(gate => {
+    const river = riverAt(gate.outward, rivers);
+    return { bearing: gate.bearing, along: river.dist < 400 ? river.along : 0 };
+  });
   const placed: StorageYard[] = [];
   for (const yard of yards) {
-    if (yard.form === "cellar" || !(yard.areaM2 >= MIN_PIECE_M2)) continue;
+    const floor = yard.origin === "publicWorks" ? MIN_PUBLIC_M2 : MIN_PIECE_M2;
+    if (yard.form === "cellar" || !(yard.areaM2 >= floor)) continue;
     if (!OUTSIDE.has(yard.form) && yard.form !== "granary" && yard.form !== "warehouse") continue;
     const outside = OUTSIDE.has(yard.form);
     let left = yard.areaM2 - guildCover(yard.form, guildYards);
     let index = 0;
-    while (left >= MIN_PIECE_M2 && index < MAX_PIECES) {
-      const polygon = placePiece(site, yard, Math.min(left, MAX_PIECE_M2), outside, rivers);
+    while (left >= floor && index < MAX_PIECES) {
+      const polygon = placePiece(site, yard, Math.min(left, MAX_PIECE_M2), outside, rivers, gates);
       if (!polygon) break;
       const area = Math.abs(polygonArea(polygon));
       site.claim(polygon);
       placed.push({
-        id: `storage-${yard.form}-${index}`,
+        id: yard.origin === "publicWorks" ? `storage-public-granary-${index}` : `storage-${yard.form}-${index}`,
         form: yard.form,
-        name: NAMES[yard.form],
+        name: yard.origin === "publicWorks" ? "Public Granary" : NAMES[yard.form],
         areaM2: Math.round(area),
         mainGoods: yard.mainGoods.slice(0, 3),
         waterborne: yard.waterborne,
         year,
         outside,
+        ...(yard.origin === "publicWorks" ? { origin: "publicWorks" as const } : {}),
         polygon
       });
       left -= area;

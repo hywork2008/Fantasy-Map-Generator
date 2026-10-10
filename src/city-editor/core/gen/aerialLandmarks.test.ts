@@ -20,7 +20,15 @@ import {
 import { externalGateRoads } from "./approachBeyond";
 import { buildBlockFabric, type DistrictFabric, FabricCache } from "./blockInfill";
 import { courtAreaM2, innClearsRoad } from "./gateInnPlacement";
-import { convexHull, nearestOnPolyline, pointInPolygon, polygonArea, shrinkPolygon } from "./geom";
+import {
+  azimuthDelta,
+  convexHull,
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonArea,
+  shrinkPolygon,
+  vecToAzimuth
+} from "./geom";
 import { COBBLE_WIDTH_SCALE } from "./roadTraffic";
 import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 
@@ -503,6 +511,73 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(
       decodeURIComponent(svg.querySelector(".ce-storage-yard--granary[data-pick]")!.getAttribute("data-pick")!)
     ).toContain("穀倉");
+  }, 60000);
+
+  it("pins land timber to the forest gate, draws a public granary, and lengthens houses for the cellar", () => {
+    const exits = externalGateRoads(city);
+    expect(exits.length).toBeGreaterThan(0);
+    const supply = exits[0].bearing;
+    const economy = {
+      version: 1 as const,
+      year: 1350,
+      commerce: { rank: 0, marketCenter: false, merchantHouse: null, mint: false, caravanArrivalRank: 0 },
+      guilds: [],
+      facilities: [],
+      tradePartners: [],
+      storage: [
+        {
+          form: "timberYard" as const,
+          areaM2: 240,
+          mainGoods: ["Wood"],
+          inflowAzimuthDeg: null,
+          supplyAzimuthDeg: supply,
+          waterborne: false
+        },
+        {
+          form: "granary" as const,
+          areaM2: 180,
+          mainGoods: [],
+          inflowAzimuthDeg: null,
+          waterborne: false,
+          origin: "publicWorks" as const
+        },
+        {
+          form: "cellar" as const,
+          areaM2: 6000,
+          mainGoods: ["Wine"],
+          inflowAzimuthDeg: null,
+          waterborne: false
+        }
+      ]
+    };
+    const covered = (fabric: DistrictFabric) =>
+      fabric.buildings.reduce((sum, building) => sum + Math.abs(polygonArea(building.polygon)), 0);
+    const withYards = { ...city, siteEconomy: economy };
+    const plain = buildBlockFabric({ ...city }, new FabricCache());
+    const built = buildBlockFabric(withYards, new FabricCache());
+    const yards = built.aerialLandmarks?.storageYards ?? [];
+    const timber = yards.find(yard => yard.form === "timberYard");
+    const granary = yards.find(yard => yard.origin === "publicWorks");
+    expect(timber?.outside).toBe(true);
+    expect(granary?.outside).toBe(false);
+    expect(yards.some(yard => yard.form === "cellar")).toBe(false);
+    expect(timber).toBeTruthy();
+    const bearing = vecToAzimuth(...centre(timber!.polygon));
+    expect(azimuthDelta(bearing, supply)).toBeLessThan(70);
+    expect(covered(built)).toBeGreaterThan(covered(plain));
+    const half = city.frame.extentMeters / 2;
+    const svg = renderEditorSvg(
+      { ...withYards, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(svg.querySelector(".ce-storage-yard--public")).toBeTruthy();
+    expect(
+      decodeURIComponent(svg.querySelector(".ce-storage-yard--public[data-pick]")!.getAttribute("data-pick")!)
+    ).toContain("公共穀倉");
+    expect(svg.querySelector(".ce-storage-yard--cellar")).toBeNull();
   }, 60000);
 
   it("puts the wayside inn and caravanserai outside the busiest gate and cobbles that road", () => {

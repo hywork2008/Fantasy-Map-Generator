@@ -12,6 +12,7 @@ import {
   setGuildKnowledgeStocks,
   setInnFacilities,
   setMarkets,
+  setQuarryOperations,
   setTradeCorridors
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
@@ -233,6 +234,56 @@ describe("buildBurgSiteEconomy", () => {
       { form: "timberYard", areaM2: 12, mainGoods: ["Wood"], inflowAzimuthDeg: 0, waterborne: true },
       { form: "granary", areaM2: 12, mainGoods: ["Maize"], inflowAzimuthDeg: null, waterborne: false }
     ]);
+  });
+
+  it("adds the public granary and points land yards at the forest and the quarry", () => {
+    const biomes = worldContext.biomesData;
+    worldContext.biomesData = { tags: [[], ["forest"]] } as typeof biomes;
+    worldContext.pack = {
+      burgs: [{}, { i: 1, cell: 0, name: "Quarry", x: 0, y: 0, population: 10, publicWorks: { granary: 1 } }],
+      cells: {
+        c: [[1], [0]],
+        v: [
+          [0, 1, 2],
+          [3, 4, 5]
+        ],
+        biomeCode: [0, 1],
+        h: [10, 55]
+      },
+      vertices: {
+        x: [0, 1, 0, 10, 12, 11],
+        y: [0, 0, 1, 0, 1, -1]
+      }
+    } as unknown as PackedGraph;
+    setGoods([
+      { i: 1, name: "Wood", tags: ["construction"], unit: "pile", value: 1 },
+      { i: 2, name: "Stone", tags: ["construction", "mineral"], unit: "lot", value: 1 }
+    ] as Good[]);
+    setBurgWholesaleInventories([{ burgId: 1, marketId: 1, goods: { 1: 2, 2: 2 } }]);
+    setQuarryOperations([
+      {
+        i: 1,
+        burgId: 1,
+        marketId: 1,
+        quarryWorkers: 3,
+        stoneRatio: 0.4,
+        marbleRatio: 0,
+        annualOutputTons: {},
+        active: true
+      }
+    ]);
+    try {
+      const storage = buildBurgSiteEconomy(1)?.storage ?? [];
+      const timber = storage.find(yard => yard.form === "timberYard");
+      const stone = storage.find(yard => yard.form === "stoneYard");
+      const granary = storage.find(yard => yard.origin === "publicWorks");
+      expect(timber).toMatchObject({ areaM2: 12, waterborne: false, supplyAzimuthDeg: 90 });
+      expect(stone).toMatchObject({ areaM2: 8, waterborne: false, supplyAzimuthDeg: 90 });
+      expect(granary).toMatchObject({ form: "granary", areaM2: 141, origin: "publicWorks" });
+    } finally {
+      worldContext.biomesData = biomes;
+      setQuarryOperations([]);
+    }
   });
 
   it("returns null before the economy context exists", () => {

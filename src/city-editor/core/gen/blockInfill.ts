@@ -13,6 +13,7 @@ import {
   prevailingWindKey
 } from "./aerialLandmarks";
 import { laneHitsCivicLandmark } from "./buildingLots";
+import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import {
   COASTAL_BUILDING_SETBACK_METERS,
@@ -265,22 +266,26 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   const moat = new MoatReservation(document, 2);
   const shore = oceanShoreSegments(document);
   const lotHitsWater = documentWaterTest(document);
-  const buildings = rebuildLandmarkHousing(document, fabric.buildings, [
-    ...fabric.lanes,
-    ...(fabric.parcels ?? []).flatMap(parcel =>
-      parcel.access.map(access => ({
-        points: access.points,
-        widthMeters: access.widthMeters
-      }))
-    )
-  ]).filter(
-    lot =>
-      !moat.hitsPolygon(lot.polygon) &&
-      !fixedRoads.hitsPolygon(lot.polygon) &&
-      !lotHitsWater(lot.polygon) &&
-      (document.mesh.faces[lot.faceId]?.properties.locked ||
-        document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
-        !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
+  const buildings = absorbCellars(
+    document,
+    rebuildLandmarkHousing(document, fabric.buildings, [
+      ...fabric.lanes,
+      ...(fabric.parcels ?? []).flatMap(parcel =>
+        parcel.access.map(access => ({
+          points: access.points,
+          widthMeters: access.widthMeters
+        }))
+      )
+    ]).filter(
+      lot =>
+        !moat.hitsPolygon(lot.polygon) &&
+        !fixedRoads.hitsPolygon(lot.polygon) &&
+        !lotHitsWater(lot.polygon) &&
+        (document.mesh.faces[lot.faceId]?.properties.locked ||
+          document.mesh.faces[lot.faceId]?.properties.ward === "harbor" ||
+          !coastalBandOverlap(lot.polygon, shore, COASTAL_BUILDING_SETBACK_METERS))
+    ),
+    fabric.lanes
   );
   const harborFootprints = [
     ...(fabric.harbor?.spaces.map(space => space.polygon) ?? []),
