@@ -298,7 +298,14 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
     cells = buildHexGrid(meshExtent, hexSizeMeters);
     blockSizeMeters = hexSizeMeters;
   } else if (grid === "evolution") {
-    cells = buildPatchCells({ extentMeters: meshExtent, ...patchParams }, makeRng(seed));
+    // A regional water window must not enlarge the town's blocks. Spiral
+    // spacing scales with extent / patch count, so preserve the population
+    // window's spacing while adding sites for the surrounding geography.
+    const densityScale = settlement ? meshExtent / settlement : 1;
+    cells = buildPatchCells(
+      { ...patchParams, extentMeters: meshExtent, nPatches: Math.ceil(patchParams.nPatches * densityScale) },
+      makeRng(seed)
+    );
     if (options.measureBlockSize) blockSizeMeters = medianTownCellMeters(cells, cityRadiusMeters);
     else if (options.blockSizeMeters && options.blockSizeMeters > 0) blockSizeMeters = options.blockSizeMeters;
   } else {
