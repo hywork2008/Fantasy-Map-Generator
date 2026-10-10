@@ -38,7 +38,16 @@ export interface BurgSiteEconomy {
   guilds: SiteGuild[];
   storage: unknown[];
   facilities: unknown[];
-  tradePartners: unknown[];
+  tradePartners: SiteTradePartner[];
+}
+
+export interface SiteTradePartner {
+  burgId: number;
+  name: string;
+  annualSlots: number;
+  mode: "land" | "river" | "sea";
+  routeId: number | null;
+  mainGoods: string[];
 }
 
 const DOMAINS = new Set<string>(GUILD_DOMAINS);
@@ -89,6 +98,31 @@ export function sanitizeBurgSiteEconomy(raw: unknown): BurgSiteEconomy | null {
     }),
     storage: [],
     facilities: [],
-    tradePartners: []
+    tradePartners: partnersFrom(raw.tradePartners)
   };
+}
+
+function partnersFrom(raw: unknown): SiteTradePartner[] {
+  if (!Array.isArray(raw)) return [];
+  const partners: SiteTradePartner[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry) || !Number.isInteger(entry.burgId) || (entry.burgId as number) <= 0) continue;
+    if (typeof entry.name !== "string") continue;
+    const slots = typeof entry.annualSlots === "number" && Number.isFinite(entry.annualSlots) ? entry.annualSlots : 0;
+    const mode = entry.mode === "river" || entry.mode === "sea" ? entry.mode : entry.mode === "land" ? "land" : null;
+    if (!mode) continue;
+    const routeId = Number.isInteger(entry.routeId) ? (entry.routeId as number) : null;
+    const mainGoods = Array.isArray(entry.mainGoods)
+      ? entry.mainGoods.filter((good): good is string => typeof good === "string")
+      : [];
+    partners.push({
+      burgId: entry.burgId as number,
+      name: entry.name,
+      annualSlots: Math.max(0, slots),
+      mode,
+      routeId,
+      mainGoods
+    });
+  }
+  return partners;
 }

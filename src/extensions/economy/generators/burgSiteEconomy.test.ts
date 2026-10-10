@@ -8,10 +8,12 @@ import {
   setCraftDomainEmploymentRecords,
   setGuildChapters,
   setGuildKnowledgeStocks,
-  setMarkets
+  setMarkets,
+  setTradeCorridors
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { buildBurgSiteEconomy, projectBurgGuilds } from "./burgSiteEconomy";
+import type { TradeCorridor } from "./tradeCorridorLedger";
 
 describe("projectBurgGuilds", () => {
   it("keeps a formal hall when the burg has no craftsmen", () => {
@@ -76,6 +78,34 @@ describe("buildBurgSiteEconomy", () => {
     expect(profile?.year).toBe(1348);
     expect(profile?.guilds).toEqual([
       { domain: "textiles", status: "chapter", practitioners: 0, prestige: 0, foundedYear: 1288 }
+    ]);
+    expect(profile?.tradePartners).toEqual([]);
+  });
+
+  it("names the busiest corridor partner", () => {
+    worldContext.pack.burgs = [
+      {},
+      { i: 1, cell: 0, name: "Paris" },
+      { i: 4, cell: 1, name: "Tegrad" }
+    ] as unknown as PackedGraph["burgs"];
+    const corridor: TradeCorridor = {
+      burgA: 1,
+      burgB: 4,
+      departures: 3,
+      cargoSlots: 18,
+      value: 6,
+      byMode: { land: 0, river: 0, sea: 18 },
+      meanTravelDays: 9,
+      idealTravelDays: 9,
+      threat: 0,
+      routeIds: [],
+      ferryCrossings: 0,
+      routeHits: {},
+      goodsSlots: {}
+    };
+    setTradeCorridors([corridor]);
+    expect(buildBurgSiteEconomy(1)?.tradePartners).toEqual([
+      { burgId: 4, name: "Tegrad", annualSlots: 18, mode: "sea", routeId: null, mainGoods: [] }
     ]);
   });
 

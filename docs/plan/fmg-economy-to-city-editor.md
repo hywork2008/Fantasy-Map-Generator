@@ -2,10 +2,10 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **Status** | 一部実装。ギルド会館と付属施設は職人0人でも置く（2026-10-10決定）。置き場換算・交易台帳・区画重みは未実装 |
+| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳（出発・配送・年0.7減衰・整備指標・道路の優先順）と `roads[].traffic` を実装。置き場換算と区画重みは未実装 |
 | **Date** | 2026-10-10 |
 | **Owner** | Economy 拡張（プロファイル生成）+ host（descriptor）+ CE（都市生成） |
-| **検証データ** | `temp/000.savdata/Paia 2026-10-10-09-54.fmg`（全拡張有効・1年進行、1348年、631 Burg、21 State、27 Market） |
+| **検証データ** | `temp/000.savdata/Paia 2026-10-10-09-54.fmg`（1年進行、1348年）。回廊の確認は `temp/000.savdata/Paia 2026-10-10-10-54.fmg`（1350年1月1日。台帳導入前に進めたので、残っている配送と航行中キャラバンを台帳に再生して見る） |
 | **関連** | [guild-city-bases.md](./guild-city-bases.md)（GuildChapter）、[goods-unit-scale.md](./goods-unit-scale.md)（1 unit＝ロット）、[urban-inn-system.md](./urban-inn-system.md)、[economy-coupling-audit.md](./economy-coupling-audit.md) L8（Public Works）、[docs/city-editor/plan/1008-wards-and-features.md](../city-editor/plan/1008-wards-and-features.md)、[docs/city-editor/plan/1005-fmg-integration-design.md](../city-editor/plan/1005-fmg-integration-design.md) |
 
 ---
@@ -373,11 +373,11 @@ CEへ渡す前に直しておかないと、CEに「中身の無い施設」が�
 | PR | 内容 | 主な場所 | 完了条件 |
 | :--- | :--- | :--- | :--- |
 | **E0** | セーブ集計スクリプトを `scripts/` に置き、§3 の数値を再現できるようにする | `scripts/` | Paia で §3 の表と同じ値が出る |
-| **E1** | `roads[].traffic/trafficRank`、`climate.prevailingWindDeg` を descriptor に追加（core のみ） | `services/burgSiteDescriptor.ts`、CE 型コピー | 既存の CE テストが通る。値が無いときは従来どおり |
+| **E1** | `roads[].traffic/trafficRank`、`climate.prevailingWindDeg` を descriptor に追加（core のみ） | `services/burgSiteDescriptor.ts`、CE 型コピー | `traffic` / `trafficRank` は交通のある陸路だけに付く。風向は未実装。値が無いときは従来どおり |
 | **E2** | `BurgSiteEconomy` 型、`buildBurgSiteEconomy()`、`siteEconomyFootprint.ts`、`burgEconomyExtensions.getBurgSiteEconomy` 登録 | `extensions/economy/`、`services/burgEconomyExtensions.ts` | ギルド投影まで実装済み（職人0の会館を含む）。置き場面積の較正は未了 |
 | **E3** | CE `economicProgram.ts`。ward の重み・craftDomain、`suburbanLanduse` の traffic 駆動、門前の宿 | `city-editor/core/gen/` | ギルド施設の有無はプロファイルで分岐済み。区画重みと街道の traffic 駆動は未実装。プロファイルが無い場合の出力は現行どおり |
 | **E4** | 置き場・家畜囲い・材木置場・石置場・漂白場・石灰窯・布地会館の配置と描画 | `aerialLandmarks.ts`、`render/` | 会館・職種別の付属施設は実装済み（職人0でも置く）。在庫由来の家畜囲い・材木置場の面積は未了 |
-| **E5** | `TradeCorridorLedger` と整備判定、`publicWorks` の優先順の置き換え | `extensions/economy/generators/` | 2年進めた Paia で回廊上位が港町ペアを含む |
+| **E5** | `TradeCorridorLedger` と整備判定、`publicWorks` の優先順の置き換え | `extensions/economy/generators/` | 台帳・減衰・整備表・道路の並べ替え・`tradePartners` を実装。1350年 Paia の残存配送を再生すると上位10組に港町ペアが入る。道幅・宿・郊外の描画は未実装 |
 | **E6** | §8.2 の不整合修正（会館の昇格規則、Public Works 較正） | `guildChapters.ts`、`publicWorks.ts` | 会館の空き率が半分以下 |
 | **v2** | 製粉・屠畜の追加（§8.1）、橋の新設を Public Works に追加（`bridgeSkewPolicy.ts` 準拠）、CE→FMG の書き戻し | | |
 

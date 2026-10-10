@@ -104,6 +104,10 @@ export interface BurgSiteRoadEntry {
   /** Leg polyline from the town center outward, clipped to the window, local meters. */
   path: [number, number][];
   nextBurg: BurgSiteRoadNextBurg | null;
+  /** Route.traffic. Absent when the world route has no recorded departures. */
+  traffic?: number;
+  /** 0..1 among land routes that have traffic. */
+  trafficRank?: number;
 }
 
 export interface BurgSiteWaterbody {

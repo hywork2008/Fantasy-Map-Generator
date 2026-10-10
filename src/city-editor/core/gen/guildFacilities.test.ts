@@ -83,4 +83,19 @@ describe("sanitizeBurgSiteEconomy", () => {
   it("rejects a profile that is not version 1", () => {
     expect(sanitizeBurgSiteEconomy({ version: 2, guilds: [] })).toBeNull();
   });
+
+  it("keeps a trade partner and drops a partner with no town", () => {
+    const cleaned = sanitizeBurgSiteEconomy({
+      version: 1,
+      year: 1350,
+      guilds: [],
+      tradePartners: [
+        { burgId: 4, name: "Tegrad", annualSlots: 12, mode: "sea", routeId: null, mainGoods: ["Grain"] },
+        { burgId: 0, name: "Nowhere", annualSlots: 9, mode: "land", routeId: 1, mainGoods: [] }
+      ]
+    });
+    expect(cleaned?.tradePartners).toEqual([
+      { burgId: 4, name: "Tegrad", annualSlots: 12, mode: "sea", routeId: null, mainGoods: ["Grain"] }
+    ]);
+  });
 });

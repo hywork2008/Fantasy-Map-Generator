@@ -36,7 +36,7 @@ export interface BurgSiteEconomy {
   /** Simulation year. City Editor shows this as the profile's date. */
   year: number;
   commerce: {
-    /** 0..1 stand-in from caravan arrivals until the corridor ledger exists. */
+    /** 0..1 stand-in from caravan arrivals. Pair volume lives on tradePartners. */
     rank: number;
     marketCenter: boolean;
     merchantHouse: "major" | "minor" | null;
@@ -49,5 +49,17 @@ export interface BurgSiteEconomy {
   storage: unknown[];
   /** Inns, shipyards and other non-guild works. Empty until that slice lands. */
   facilities: unknown[];
-  tradePartners: unknown[];
+  /** Up to eight partners from the corridor ledger, busiest first. */
+  tradePartners: SiteTradePartner[];
+}
+
+export interface SiteTradePartner {
+  burgId: number;
+  name: string;
+  /** Decayed cargo slots on the pair. Partners of one burg compare on this number. */
+  annualSlots: number;
+  mode: "land" | "river" | "sea";
+  /** Busiest land route on the pair. Null when the pair has no land route. */
+  routeId: number | null;
+  mainGoods: string[];
 }

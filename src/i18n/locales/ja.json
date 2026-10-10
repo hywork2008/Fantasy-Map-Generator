@@ -3751,6 +3751,8 @@
       "percentageTip": "百分率／実数の表示を切り替え",
       "compareTip": "市場間の産物在庫を比較",
       "opportunitiesTip": "安く買って高く売る経路を探す",
+      "corridors": "回廊",
+      "corridorsTip": "都市間の交易回廊。需要、遅れ、渡し、港湾不足",
       "exportTip": "市場データを CSV で保存",
       "manualTip": "市場領域を手で割り当て直す",
       "brushSize": "ブラシサイズ",
@@ -4334,6 +4336,22 @@
       "treasuryTip": "全国家の公庫合計",
       "initialGeneration": "初回生成",
       "advanceTime": "時間進行"
+    },
+    "tradeCorridors": {
+      "title": "交易回廊",
+      "empty": "まだ記録された回廊がありません。交易が動くと、ここに都市の組が並びます。",
+      "towns": "都市",
+      "mode": "経路",
+      "slots": "積荷",
+      "demand": "需要",
+      "delay": "遅れ",
+      "threat": "危険",
+      "ferry": "渡し",
+      "harbor": "港湾",
+      "harborShort": "不足",
+      "modeLand": "陸",
+      "modeRiver": "川",
+      "modeSea": "海"
     },
     "tradeDetails": {
       "seller": "売り手",

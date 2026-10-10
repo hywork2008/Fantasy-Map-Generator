@@ -3751,6 +3751,8 @@
       "percentageTip": "Toggle percentage / absolute values views",
       "compareTip": "Compare good stock across markets",
       "opportunitiesTip": "Find buy-low / sell-high routes across markets",
+      "corridors": "Corridors",
+      "corridorsTip": "Trade corridors between towns: demand, delay, ferries, and thin harbours",
       "exportTip": "Save markets data as a CSV file",
       "manualTip": "Manually re-assign market territories",
       "brushSize": "Brush size",
@@ -4334,6 +4336,22 @@
       "treasuryTip": "Sum of every State's public treasury",
       "initialGeneration": "Initial Generation",
       "advanceTime": "Advance Time"
+    },
+    "tradeCorridors": {
+      "title": "Trade corridors",
+      "empty": "No corridor has been recorded yet. Pairs appear here as trade moves.",
+      "towns": "Towns",
+      "mode": "Way",
+      "slots": "Cargo",
+      "demand": "Demand",
+      "delay": "Delay",
+      "threat": "Threat",
+      "ferry": "Ferry",
+      "harbor": "Harbour",
+      "harborShort": "Short",
+      "modeLand": "Land",
+      "modeRiver": "River",
+      "modeSea": "Sea"
     },
     "tradeDetails": {
       "seller": "Seller",

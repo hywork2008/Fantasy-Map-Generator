@@ -60,6 +60,7 @@ import {
   getManifestCapacitySlots,
   getTransportAllocations
 } from "./tradeCargo";
+import { recordCaravanCorridor } from "./tradeCorridorLedger";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
   getCaravanMaintenanceCost,
@@ -463,6 +464,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   // A departing shipment is what wears a road in; recorded at departure rather than arrival so a
   // corridor whose caravans keep getting robbed still counts as used traffic (L8 stage 2).
   recordRouteTraffic(caravan.routeSegments);
+  recordCaravanCorridor(caravan);
   caravan.loading = undefined;
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
   return "departed";
@@ -848,6 +850,7 @@ export class CaravansModule {
 
     getCaravans().push(caravan);
     recordRouteTraffic(routeSegments);
+    recordCaravanCorridor(caravan);
     if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
     setNextCaravanId(caravan.i + 1);
     deal.remainingUnits = 0;

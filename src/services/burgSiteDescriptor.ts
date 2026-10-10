@@ -169,6 +169,10 @@ export interface BurgSiteRoadEntry {
   path: [number, number][];
   /** First other burg encountered along this leg (signpost destination), if any. */
   nextBurg: BurgSiteRoadNextBurg | null;
+  /** Route.traffic. Absent when the route has never carried a recorded departure. */
+  traffic?: number;
+  /** 0..1 among land routes that have traffic. */
+  trafficRank?: number;
 }
 
 export interface BurgSiteWaterbody {
@@ -1284,6 +1288,21 @@ function collectRouteLegs(
   return legs;
 }
 
+/** 0..1 rank of Route.traffic among land routes that have any. Sea lanes are not in the ranking. */
+function landTrafficRanks(routes: { i: number; group: string; traffic?: number }[]): Map<number, number> {
+  const carrying = routes.filter(route => route && route.group !== "searoutes" && (route.traffic ?? 0) > 0);
+  const ranks = new Map<number, number>();
+  if (!carrying.length) return ranks;
+  const values = carrying.map(route => route.traffic ?? 0).sort((a, b) => a - b);
+  for (const route of carrying) {
+    const traffic = route.traffic ?? 0;
+    let atMost = 0;
+    for (const value of values) if (value <= traffic) atMost++;
+    ranks.set(route.i, Math.round((atMost / values.length) * 10000) / 10000);
+  }
+  return ranks;
+}
+
 function collectRoadEntries(
   burg: Burg,
   toLocal: (x: number, y: number) => [number, number],
@@ -1300,6 +1319,7 @@ function collectRoadEntries(
     convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!, preparedRoads)
   );
   const entries: BurgSiteRoadEntry[] = [];
+  const trafficRanks = landTrafficRanks(pack.routes);
   for (const { route, leg } of measureProcessing(profiler, "route-legs", () => collectRouteLegs(burg, profiler))) {
     const facility = facilities.find(
       f =>
@@ -1424,6 +1444,9 @@ function collectRoadEntries(
       routeId: route.i,
       group: route.group,
       ...(route.name ? { name: route.name } : {}),
+      ...(route.traffic && route.traffic > 0
+        ? { traffic: route.traffic, trafficRank: trafficRanks.get(route.i) ?? 0 }
+        : {}),
       entryAzimuthDeg: entryAzimuth,
       reachesEdge,
       path: clipped[0] ?? [],

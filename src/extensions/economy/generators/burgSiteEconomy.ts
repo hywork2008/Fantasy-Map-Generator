@@ -1,18 +1,21 @@
 import type { BurgSiteEconomy, GuildDomain, SiteGuild } from "../../../services/burgSiteEconomy";
 import { GUILD_DOMAINS } from "../../../services/burgSiteEconomy";
 import {
+  getGoods,
   getGuildChapters,
   getGuildKnowledgeStocks,
   getMarkets,
   getMerchantOrganizations,
   getMintLedgers,
   getSimulationYear,
+  getTradeCorridors,
   getWorldContext,
   isEconomyContextReady
 } from "../economyContext";
 import type { GuildChapter } from "./guildChapterTypes";
 import { collectGuildPractitioners } from "./guildKnowledge";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
+import { tradePartnersForBurg } from "./tradeCorridorLedger";
 
 /**
  * Burg profile handed to City Editor (docs/plan/fmg-economy-to-city-editor.md §5).
@@ -138,6 +141,17 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     guilds,
     storage: [],
     facilities: [],
-    tradePartners: []
+    tradePartners: tradePartnersForBurg(burgId, getTradeCorridors(), {
+      name: burgName,
+      goodName
+    })
   };
+}
+
+function burgName(burgId: number): string {
+  return getWorldContext().pack.burgs?.find(burg => burg?.i === burgId)?.name ?? "";
+}
+
+function goodName(goodId: number): string {
+  return getGoods().find(good => good.i === goodId)?.name ?? "";
 }

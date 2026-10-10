@@ -25,8 +25,15 @@
 
 import type { Burg, Route, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { ANNUAL_GATE, getSimulationYear, getWorldContext, settleAnnualOnce } from "../economyContext";
+import {
+  ANNUAL_GATE,
+  getSimulationYear,
+  getTradeCorridors,
+  getWorldContext,
+  settleAnnualOnce
+} from "../economyContext";
 import type { TradeRouteSegment } from "./marketTypes";
+import { corridorRouteScores, decayTradeCorridors } from "./tradeCorridorLedger";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { ensureDepartmentBalances } from "./treasuryAllocation";
 
@@ -180,7 +187,13 @@ function findRoadCandidates(stateId: number): RoadCandidate[] {
 
     candidates.push({ route, cost: rn(cells.length * ROAD_PROMOTION_COST_PER_CELL, 2), traffic });
   }
-  candidates.sort((a, b) => b.traffic - a.traffic);
+  // Busy late corridors first. A route with no ledger row keeps the old traffic order.
+  const priority = corridorRouteScores(getTradeCorridors());
+  candidates.sort((a, b) => {
+    const score = (priority.get(b.route.i) ?? 0) - (priority.get(a.route.i) ?? 0);
+    if (score !== 0) return score;
+    return b.traffic - a.traffic;
+  });
   return candidates;
 }
 
@@ -324,6 +337,7 @@ export class PublicWorksModule {
       // Traffic decays only after the paving decision, so the threshold is measured against the
       // traffic a corridor actually carried since the last settlement, not a pre-discounted one.
       decayRouteTraffic();
+      decayTradeCorridors();
 
       if (result.networkChanged) {
         // A promoted route keeps its geometry but changes cost and connectivity class, so every

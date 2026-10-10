@@ -23,6 +23,7 @@ import type {
   RetailGoodStock,
   RetailInventoryInvariantIssue
 } from "./retailInventoryTypes";
+import { recordMarketShipment } from "./tradeCorridorLedger";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 
@@ -578,6 +579,7 @@ export function tickRetailInventory(tick = currentTick()): boolean {
   if (!due.length) return false;
 
   for (const shipment of due) {
+    recordMarketShipment(shipment);
     const retail = retailGood(retailRecord(shipment.destinationBurgId, shipment.marketId)!, shipment.goodId, tick);
     const shelfUnits = Math.min(shipment.units, Math.max(0, retail.target - retail.onHand));
     addRetailStock(retail, shelfUnits, shipment.travelDays ?? 0, tick);

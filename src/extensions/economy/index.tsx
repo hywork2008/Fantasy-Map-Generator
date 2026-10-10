@@ -309,6 +309,7 @@ import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { StateEmploymentOverviewDialog } from "./ui/dialogs/StateEmploymentOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
+import { TradeCorridorsDialog } from "./ui/dialogs/TradeCorridorsDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 import { TreasuryOverviewDialog } from "./ui/dialogs/TreasuryOverviewDialog";
 
@@ -1993,6 +1994,11 @@ export function init(api: ExtensionAPI): void {
   });
   api.registerDialog({ id: "TradeDetailsDialog", extensionId: ECONOMY_EXTENSION_ID, component: TradeDetailsDialog });
   api.registerDialog({
+    id: "TradeCorridorsDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: TradeCorridorsDialog
+  });
+  api.registerDialog({
     id: "ProductionChainsDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: ProductionChainsDialog
@@ -2481,6 +2487,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("marketTradeOpportunities");
       api.closeDialog("marketsGoodCompare");
       api.closeDialog("tradeDetails");
+      api.closeDialog("tradeCorridors");
       api.closeDialog("productionChains");
       api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
