@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40" width="500" height="500">
+  <style>
+    .ce-hammam-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-hammam-wall { fill: #ded6c8; stroke: #3d3527; stroke-width: 0.65px; stroke-linejoin: round; }
+    .ce-hammam-dome-large { fill: #bf5f3b; stroke: #3d1c0e; stroke-width: 0.5px; }
+    .ce-hammam-dome-mid { fill: #c96d47; stroke: #3d1c0e; stroke-width: 0.45px; }
+    .ce-hammam-dome-small { fill: #d47e59; stroke: #3d1c0e; stroke-width: 0.4px; }
+    .ce-hammam-oculus { fill: #bce3e6; stroke: #2d4f52; stroke-width: 0.25px; }
+    .ce-hammam-furnace { fill: #524738; stroke: #262017; stroke-width: 0.4px; }
+    .ce-hammam-smoke { fill: rgba(180, 175, 165, 0.55); }
+  </style>
+  <g class="ce-landmark ce-landmark--hammam">
+    <!-- 影 -->
+    <g class="ce-hammam-shadow" transform="translate(1.2 1.4)">
+      <rect x="-14" y="-16" width="28" height="32" rx="0.8"></rect>
+      <circle cx="0" cy="7" r="7"></circle>
+      <circle cx="0" cy="-6" r="5.5"></circle>
+    </g>
+    <!-- 外郭壁・石造基壇 -->
+    <g class="ce-hammam-wall">
+      <rect x="-14" y="-16" width="28" height="32" rx="0.6"></rect>
+    </g>
+    <!-- 1. 冷室・脱衣更衣大広間（ジャメカール - 南側）最大ドームまたは瓦屋根＋ランタン -->
+    <g transform="translate(0, 7)">
+      <rect x="-12.5" y="-6.5" width="25" height="13" fill="#cfc2ab" stroke="#3d3527" stroke-width="0.4"></rect>
+      <!-- 大ドーム -->
+      <circle cx="0" cy="0" r="6.2" class="ce-hammam-dome-large"></circle>
+      <path d="M -4.4 -4.4 A 6.2 6.2 0 0 1 4.4 -4.4 L 0 0 Z" fill="#d97650"></path>
+      <!-- 頂部採光ランタン塔 -->
+      <circle cx="0" cy="0" r="1.8" fill="#eae1cd" stroke="#3d3527" stroke-width="0.35"></circle>
+      <circle cx="0" cy="0" r="1.1" class="ce-hammam-oculus"></circle>
+    </g>
+    <!-- 2. 温室（ソウクルック - 中央中継室）中ドーム群 -->
+    <g transform="translate(0, -3)">
+      <circle cx="-6" cy="0" r="3.2" class="ce-hammam-dome-mid"></circle>
+      <circle cx="6" cy="0" r="3.2" class="ce-hammam-dome-mid"></circle>
+      <!-- 天窓ガラス目穴（Oculi） -->
+      <circle cx="-6" cy="-1.5" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="-6" cy="1.5" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="-7.5" cy="0" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="-4.5" cy="0" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="6" cy="-1.5" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="6" cy="1.5" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="4.5" cy="0" r="0.4" class="ce-hammam-oculus"></circle>
+      <circle cx="7.5" cy="0" r="0.4" class="ce-hammam-oculus"></circle>
+    </g>
+    <!-- 3. 熱室（ハララト - 北側蒸気浴場・中央マッサージ石台ゴベクタシュ） -->
+    <g transform="translate(0, -9)">
+      <!-- 十字形プランの中央大ドーム -->
+      <circle cx="0" cy="0" r="4.8" class="ce-hammam-dome-large"></circle>
+      <!-- 周囲の個別浴室小ドーム4基（ハルウェト） -->
+      <circle cx="-7.5" cy="-3.5" r="2.2" class="ce-hammam-dome-small"></circle>
+      <circle cx="7.5" cy="-3.5" r="2.2" class="ce-hammam-dome-small"></circle>
+      <circle cx="-7.5" cy="3.5" r="2.2" class="ce-hammam-dome-small"></circle>
+      <circle cx="7.5" cy="3.5" r="2.2" class="ce-hammam-dome-small"></circle>
+      <!-- 天窓目穴群（無数の星形採光オクルス） -->
+      <circle cx="0" cy="0" r="0.6" class="ce-hammam-oculus"></circle>
+      <circle cx="-2" cy="-2" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="2" cy="-2" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="-2" cy="2" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="2" cy="2" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="0" cy="-3.2" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="0" cy="3.2" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="-3.2" cy="0" r="0.45" class="ce-hammam-oculus"></circle>
+      <circle cx="3.2" cy="0" r="0.45" class="ce-hammam-oculus"></circle>
+    </g>
+    <!-- 4. ボイラー室・薪置き場・煙突（クルハン - 最北端裏手） -->
+    <g transform="translate(0, -15)">
+      <rect x="-12" y="-1.5" width="24" height="3" class="ce-hammam-furnace"></rect>
+      <!-- 高い煙突（Chimney） -->
+      <circle cx="-8" cy="0" r="1.1" fill="#2d2217" stroke="#120d09" stroke-width="0.3"></circle>
+      <!-- 薪の山 -->
+      <rect x="2" y="-1" width="5" height="2" fill="#694527" stroke="#331e0d" stroke-width="0.25"></rect>
+    </g>
+    <!-- 正面入口（南側ポータル） -->
+    <rect x="-2.5" y="14.8" width="5" height="1.8" fill="#a89578" stroke="#3d3527" stroke-width="0.4"></rect>
+    <rect x="-1.2" y="15.2" width="2.4" height="1.2" fill="#1b1712"></rect>
+  </g>
+</svg>

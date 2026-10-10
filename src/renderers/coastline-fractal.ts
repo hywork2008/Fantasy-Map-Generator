@@ -1,7 +1,9 @@
 import Alea from "alea";
+import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { clipPoly } from "../utils";
 
 export interface CoastlineSettings {
   enabled: boolean; // master toggle — false bypasses all fractalization
@@ -112,6 +114,105 @@ function subdivideEdge(
   subdivideEdge(mx, my, x1, y1, tm, t1, depth - 1, nextAmp, profile, rand, resultPts, settings);
 }
 
+export interface SampleBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+const pointKey = ([x, y]: [number, number]) => `${x},${y}`;
+
+/**
+ * Shore edges of harbour cells under `portCoastPlacement: "pinned"`: the two
+ * vertices each port cell shares with its haven. Maps without the option keep
+ * the legacy unpinned coast.
+ */
+function pinnedPortEdges(worldContext: Readonly<WorldContext>): Set<string> | null {
+  if (worldContext.options?.portCoastPlacement !== "pinned") return null;
+  const { pack } = worldContext;
+  const edges = new Set<string>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.port) continue;
+    const haven = pack.cells.haven?.[burg.cell];
+    if (!haven) continue;
+    const shared = (pack.cells.v[burg.cell] ?? []).filter((v: number) =>
+      pack.vertices.c[v]?.some((c: number) => c === haven)
+    );
+    if (shared.length < 2) continue;
+    const [a, b] = [pack.vertices.p[shared[0]], pack.vertices.p[shared[1]]] as [number, number][];
+    if (!a || !b) continue;
+    edges.add(`${pointKey(a)}|${pointKey(b)}`);
+    edges.add(`${pointKey(b)}|${pointKey(a)}`);
+  }
+  return edges.size ? edges : null;
+}
+
+function simplifyRun(points: [number, number][]): [number, number][] {
+  return _simplify(
+    points.map(([x, y]) => ({ x, y })),
+    0.3
+  ).map(({ x, y }) => [x, y] as [number, number]);
+}
+
+/** The outline exactly as the map draws a feature (simplify → clip → fractal),
+ * before curve sampling. Shared by SVG, WebGL and the City Editor descriptor
+ * so a burg's coast in CE is the coast the user sees. With pinned port edges,
+ * those edges survive simplification and are not fractalized, so the drawn
+ * B-spline passes through each port edge's midpoint. */
+export function drawnFeatureShape(
+  worldContext: Readonly<WorldContext>,
+  feature: { i: number; type: string; vertices: number[] },
+  /** WebGL drops missing vertices and repairs the clipped ring; SVG rejects. */
+  options: { skipMissing?: boolean; afterClip?: (points: [number, number][]) => [number, number][] } = {}
+): FractalizedShape | null {
+  const { pack, graphWidth, graphHeight } = worldContext;
+  let points = feature.vertices.map(vertex => pack.vertices.p[vertex]) as [number, number][];
+  if (points.some(point => point === undefined)) {
+    if (!options.skipMissing) return null;
+    points = points.filter(Boolean);
+  }
+  if (options.skipMissing && points.length < 3) return null;
+  const pinned = pinnedPortEdges(worldContext);
+  const isPinnedEdge = (a: [number, number], b: [number, number]) => !!pinned?.has(`${pointKey(a)}|${pointKey(b)}`);
+  const anchors = pinned
+    ? points.flatMap((p, i) =>
+        isPinnedEdge(p, points[(i + 1) % points.length]) ||
+        isPinnedEdge(points[(i - 1 + points.length) % points.length], p)
+          ? [i]
+          : []
+      )
+    : [];
+  let simplified: [number, number][];
+  if (!anchors.length) simplified = simplifyRun(points);
+  else {
+    // Simplify each run between pinned vertices on its own so they survive.
+    simplified = [];
+    for (let k = 0; k < anchors.length; k++) {
+      const from = anchors[k];
+      const to = anchors[(k + 1) % anchors.length];
+      const run: [number, number][] = [];
+      for (let i = from; ; i = (i + 1) % points.length) {
+        run.push(points[i]);
+        if (i === to && run.length > 1) break;
+        if (run.length > points.length) break;
+      }
+      simplified.push(...simplifyRun(run).slice(0, -1));
+    }
+  }
+  const clipped = clipPoly(simplified, graphWidth, graphHeight, 1);
+  const ring = options.afterClip ? options.afterClip(clipped) : clipped;
+  return fractalizeCoastline(
+    worldContext,
+    {} as Readonly<ViewContext>,
+    {} as AppServices,
+    ring,
+    feature.i,
+    feature.type as "ocean" | "lake" | "island",
+    pinned ? isPinnedEdge : undefined
+  );
+}
+
 export interface FractalizedShape {
   points: [number, number][];
   origIndices: number[]; // index in points[] where original vertex i lives
@@ -123,7 +224,8 @@ export function fractalizeCoastline(
   _appServices: AppServices,
   points: [number, number][],
   _featureIndex: number,
-  _featureType: "ocean" | "lake" | "island" = "island"
+  _featureType: "ocean" | "lake" | "island" = "island",
+  fixedEdge?: (a: [number, number], b: [number, number]) => boolean
 ): FractalizedShape {
   if (points.length < 3) return { points, origIndices: points.map((_, i) => i) };
   if (!defaultCoastSettings.enabled) return { points, origIndices: points.map((_, i) => i) };
@@ -135,7 +237,7 @@ export function fractalizeCoastline(
           smoothThreshold: Math.min(1, defaultCoastSettings.smoothThreshold * defaultCoastSettings.lakeSmoothThreshMult)
         }
       : defaultCoastSettings;
-  return fractalize(worldContext, _viewContext, _appServices, points, rand, settings);
+  return fractalize(worldContext, _viewContext, _appServices, points, rand, settings, fixedEdge);
 }
 
 export function fractalize(
@@ -144,7 +246,10 @@ export function fractalize(
   _appServices: AppServices,
   points: [number, number][],
   rand: () => number,
-  settings: CoastlineSettings
+  settings: CoastlineSettings,
+  /** Edges kept straight. Their displacement is still drawn from `rand` so the
+   * rest of the coast is identical with or without them. */
+  fixedEdge?: (a: [number, number], b: [number, number]) => boolean
 ): FractalizedShape {
   const profile = makeRoughnessProfile(
     worldContext,
@@ -186,6 +291,7 @@ export function fractalize(
 
     const [x0, y0] = points[i];
     const [x1, y1] = points[(i + 1) % n];
+    const fixed = fixedEdge?.(points[i], points[(i + 1) % n]);
     subdivideEdge(
       x0,
       y0,
@@ -197,7 +303,7 @@ export function fractalize(
       settings.baseAmplitude,
       profile,
       rand,
-      resultPts,
+      fixed ? [] : resultPts,
       settings
     );
   }
@@ -356,8 +462,29 @@ function sampleCubicBezier(
  * Sample the geometry evaluated in buildCoastlinePath as a dense polyline.
  * This ensures WebGL Mask and Path layers use the exact equivalent of the SVG Q/C curves.
  */
-export function sampleCoastlineShape(shape: FractalizedShape, tolerance: number = 0.5): [number, number][] {
+export function sampleCoastlineShape(
+  shape: FractalizedShape,
+  tolerance: number = 0.5,
+  /** Only spans whose control points touch these bounds are refined; others
+   * keep their end point. Lets a town-scale window sample its piece of a
+   * continent's coast at metre tolerance. */
+  bounds?: SampleBounds
+): [number, number][] {
   const { points, origIndices } = shape;
+  const misses = (...xy: number[]) => {
+    if (!bounds) return false;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (let k = 0; k < xy.length; k += 2) {
+      minX = Math.min(minX, xy[k]);
+      maxX = Math.max(maxX, xy[k]);
+      minY = Math.min(minY, xy[k + 1]);
+      maxY = Math.max(maxY, xy[k + 1]);
+    }
+    return maxX < bounds.minX || minX > bounds.maxX || maxY < bounds.minY || minY > bounds.maxY;
+  };
   const N = points.length;
   const M = origIndices.length;
   if (N < 3 || M < 3) return points;
@@ -393,7 +520,8 @@ export function sampleCoastlineShape(shape: FractalizedShape, tolerance: number 
       const my = (cpy + npy) / 2;
 
       if (atMid) {
-        sampleQuadraticBezier(cx, cy, cpx, cpy, mx, my, toleranceSq, out);
+        if (misses(cx, cy, cpx, cpy, mx, my)) out.push([mx, my]);
+        else sampleQuadraticBezier(cx, cy, cpx, cpy, mx, my, toleranceSq, out);
       } else {
         out.push([mx, my]);
       }
@@ -419,7 +547,8 @@ export function sampleCoastlineShape(shape: FractalizedShape, tolerance: number 
         const cp2x = b[0] - (nnext[0] - a[0]) / 8;
         const cp2y = b[1] - (nnext[1] - a[1]) / 8;
 
-        sampleCubicBezier(cx, cy, cp1x, cp1y, cp2x, cp2y, b[0], b[1], toleranceSq, out);
+        if (misses(cx, cy, cp1x, cp1y, cp2x, cp2y, b[0], b[1])) out.push([b[0], b[1]]);
+        else sampleCubicBezier(cx, cy, cp1x, cp1y, cp2x, cp2y, b[0], b[1], toleranceSq, out);
         cx = b[0];
         cy = b[1];
       }

@@ -154,7 +154,8 @@ export function updateRoutesAndBridges(doc: RegionDocument): RegionDocument {
     next.routes,
     next.bounds.metersPerUnit,
     next.decoration.riverWidthScale,
-    next.settlements.map(st => st.position)
+    next.settlements.map(st => st.position),
+    next.bridgeSkewLimitDegrees
   ).bridges;
   return next;
 }
@@ -202,7 +203,8 @@ export function setRiverWidthScale(doc: RegionDocument, scale: number): RegionDo
     next.routes,
     next.bounds.metersPerUnit,
     next.decoration.riverWidthScale,
-    next.settlements.map(st => st.position)
+    next.settlements.map(st => st.position),
+    next.bridgeSkewLimitDegrees
   ).bridges;
   return next;
 }

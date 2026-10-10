@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Region Editor - テーマ & スタイル プレビューギャラリー</title>
+  <style>
+    :root {
+      --bg: #141b22;
+      --card-bg: #1e2630;
+      --card-header: #25303d;
+      --border: #2e3a48;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-purple: #bc8cff;
+      --accent-red: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    p.lead {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 6px 0 0 0;
+    }
+
+    /* テーマ選択ツールバー */
+    .toolbar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .theme-selector-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toolbar label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .theme-pill-list {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .theme-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .theme-pill:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+    .theme-pill.active {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: var(--accent);
+      color: #79c0ff;
+      font-weight: 600;
+      box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+    }
+    .theme-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid rgba(0,0,0,0.4);
+    }
+    .toolbar-options {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .toggle-label {
+      font-size: 12.5px;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .toggle-label input {
+      cursor: pointer;
+    }
+
+    /* ナビゲーションタブ */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(0,0,0,0.25);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+    }
+    .tab-btn.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* グリッドとカードレイアウト */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .card h2 {
+      margin: 0 0 10px 0;
+      font-size: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      font-weight: 500;
+    }
+    .badge.green {
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.3);
+    }
+    .badge.orange {
+      background: rgba(210, 153, 34, 0.15);
+      color: #e3b341;
+      border-color: rgba(210, 153, 34, 0.3);
+    }
+    .badge.purple {
+      background: rgba(188, 140, 255, 0.15);
+      color: #d2a8ff;
+      border-color: rgba(188, 140, 255, 0.3);
+    }
+
+    .canvas-container {
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 16px;
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      background: #e7d6ad;
+      transition: background-color 0.25s ease;
+    }
+    .canvas-container.large {
+      height: 380px;
+    }
+    .canvas-container.medium {
+      height: 240px;
+    }
+    .canvas-container svg {
+      max-width: 90%;
+      max-height: 90%;
+      position: relative;
+      z-index: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+      transition: transform 0.2s ease;
+    }
+    .canvas-container:hover svg {
+      transform: scale(1.06);
+    }
+    .canvas-container.large:hover svg {
+      transform: none;
+    }
+
+    .desc {
+      margin-top: 12px;
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .desc strong.title {
+      display: block;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    /* スウォッチ */
+    .swatch-group {
+      margin-bottom: 24px;
+    }
+    .swatch-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+    }
+    .swatch-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .swatch-preview {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.3);
+      flex-shrink: 0;
+      box-shadow: inset 0 0 2px rgba(0,0,0,0.2);
+    }
+    .swatch-info {
+      overflow: hidden;
+    }
+    .swatch-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .swatch-hex {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+
+    /* マトリックス比較テーブル */
+    .compare-table-wrapper {
+      overflow-x: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 24px;
+    }
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .compare-table th, .compare-table td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .compare-table th {
+      background: var(--card-header);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .compare-table td.label-col {
+      text-align: left;
+      font-weight: 600;
+      background: rgba(255,255,255,0.02);
+      white-space: nowrap;
+      width: 140px;
+    }
+    .compare-cell-preview {
+      width: 100px;
+      height: 80px;
+      margin: 0 auto;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+    .compare-cell-preview svg {
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    /* ガイド・コード領域 */
+    .guide-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .guide-box h3 {
+      margin-top: 0;
+      color: var(--accent);
+      font-size: 16px;
+    }
+    pre.code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      color: #c9d1d9;
+      line-height: 1.45;
+    }
+    .btn-copy {
+      background: rgba(88, 166, 255, 0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-top: 8px;
+    }
+    .btn-copy:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>🗺️ Region Editor テーマ & スタイル ギャラリー</h1>
+      <p class="lead">RE（Region Editor）のテーマ別配色、都市アイコン、山岳・丘陵、森林・植生、バイオームパレットの検証プレビュー</p>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">🗺️ 統合ミニマップ＆概要</button>
+      <button class="tab-btn" data-tab="settlements" onclick="switchTab('settlements')">🏰 都市アイコン</button>
+      <button class="tab-btn" data-tab="relief" onclick="switchTab('relief')">⛰️ 山岳・丘陵・地勢</button>
+      <button class="tab-btn" data-tab="forests" onclick="switchTab('forests')">🌲 樹木＆森林</button>
+      <button class="tab-btn" data-tab="palettes" onclick="switchTab('palettes')">🎨 配色＆バイオーム</button>
+      <button class="tab-btn" data-tab="compare" onclick="switchTab('compare')">📊 全テーマ横断比較</button>
+      <button class="tab-btn" data-tab="guide" onclick="switchTab('guide')">➕ 新テーマ作成ガイド</button>
+    </div>
+  </header>
+
+  <!-- テーマ選択ツールバー -->
+  <div class="toolbar">
+    <div class="theme-selector-group">
+      <label>適用テーマ:</label>
+      <div class="theme-pill-list" id="theme-pill-container">
+        <!-- 動的生成 -->
+      </div>
+    </div>
+    <div class="toolbar-options">
+      <label class="toggle-label">
+        <input type="checkbox" id="chk-has-port" onchange="toggleOption('hasPort', this.checked)">
+        <span>港（錨マーク）を付加</span>
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" id="chk-dark-bg" onchange="toggleOption('darkBg', this.checked)">
+        <span>背景を透過/ダーク化</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 1: 統合ミニマップ＆概要 -->
+  <!-- ================================================================= -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="grid">
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2>
+          <span>🗺️ 選択中テーマの統合ミニマッププレビュー (<span id="txt-current-theme-name"></span>)</span>
+          <span class="badge" id="badge-theme-type">Theme Demo</span>
+        </h2>
+        <div class="canvas-container large" id="minimap-container">
+          <!-- ミニマップ SVG は JS で描画 -->
+        </div>
+        <div class="desc">
+          <strong class="title">ミニマップ構成要素:</strong>
+          海洋・沿岸波紋（Shallow / Deep）、草地・森林・丘陵・山岳バイオーム、河川ポリゴン・最短直角交差の橋梁、幹線道路・街道、主要首都・大都市・城塞・村落・港、および山脈連峰・森林群。
+        </div>
+      </div>
+    </div>
+
+    <!-- 主要テーマカラークイックサマリー -->
+    <div class="card">
+      <h2>主要基本カラー</h2>
+      <div class="swatch-grid" id="quick-swatches"></div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 2: 都市アイコン -->
+  <!-- ================================================================= -->
+  <div id="tab-settlements" class="tab-content">
+    <div class="grid" id="settlements-grid">
+      <!-- JSで動的生成 -->
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 3: 山岳・丘陵・地勢 -->
+  <!-- ================================================================= -->
+  <div id="tab-relief" class="tab-content">
+    <div class="swatch-title">1. 手描きシンボル（Stylized Symbols）</div>
+    <div class="grid" id="relief-symbols-grid"></div>
+
+    <div class="swatch-title" style="margin-top: 24px;">2. 鳥瞰・絵地図スプライト（Oblique Illustrated Relief）</div>
+    <div class="grid" id="relief-oblique-grid"></div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 4: 樹木＆森林 -->
+  <!-- ================================================================= -->
+  <div id="tab-forests" class="tab-content">
+    <div class="swatch-title">1. 手描き上面図シンボル（Stylized Flora Symbols）</div>
+    <div class="grid" id="tree-symbols-grid"></div>
+
+    <div class="swatch-title" style="margin-top: 24px;">2. 鳥瞰・絵地図 樹木スプライト（Oblique Forest Sprites）</div>
+    <div class="grid" id="tree-oblique-grid"></div>
+
+    <div class="swatch-title" style="margin-top: 24px;">3. 森林樹冠カラーパレット（Forest Canopy Palette）</div>
+    <div class="swatch-grid" id="canopy-swatches"></div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 5: 配色＆バイオーム -->
+  <!-- ================================================================= -->
+  <div id="tab-palettes" class="tab-content">
+    <div class="swatch-group">
+      <div class="swatch-title">🗺️ マップ要素カラー (Map Feature Colors)</div>
+      <div class="swatch-grid" id="map-feature-swatches"></div>
+    </div>
+
+    <div class="swatch-group">
+      <div class="swatch-title">🌿 17バイオームカラー (Biome Colors)</div>
+      <div class="swatch-grid" id="biome-swatches"></div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 6: 全テーマ横断比較 -->
+  <!-- ================================================================= -->
+  <div id="tab-compare" class="tab-content">
+    <div class="compare-table-wrapper">
+      <table class="compare-table" id="compare-table">
+        <!-- JSで動的生成 -->
+      </table>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- タブ 7: 新テーマ作成ガイド -->
+  <!-- ================================================================= -->
+  <div id="tab-guide" class="tab-content">
+    <div class="guide-box">
+      <h3>🚀 新しいテーマの追加手順</h3>
+      <p style="font-size: 13.5px; color: var(--muted); line-height: 1.6;">
+        RE（Region Editor）のテーマは <code>src/region-editor/render/styles/themes.ts</code> に定義されています。<br>
+        基本テーマ（<code>RegionTheme</code>: schley, perilous, parchment, monochrome, illustrated）または、絵地図用パレット（<code>IllustratedPalette</code>: natural, sepia, lush, nordic）として拡張が可能です。
+      </p>
+      
+      <h4>TypeScript 型定義 (ThemeColors)</h4>
+      <pre class="code-block">export interface ThemeColors {
+  background: string;       // 背景色
+  ocean: string;            // 深海色
+  oceanShallow: string;     // 沿岸浅瀬色
+  coastlineStroke: string;  // 海岸線輪郭色
+  riverFill: string;        // 河川塗り色
+  riverStroke: string;      // 河川境界線色
+  roadStroke: string;       // 街道線色
+  highwayStroke: string;    // 幹線街道線色
+  bridgeDeck: string;       // 橋梁路面色
+  bridgeRail: string;       // 橋梁高欄色
+  borderStroke: string;     // 国境線色
+  textPrimary: string;      // 主地名テキスト色
+  textSecondary: string;    // 補足テキスト色
+  textWater: string;        // 水域名称テキスト色
+  mountainFill: string;     // 山岳シャドウ・塗り色
+  mountainHighlight: string;// 山岳光面・城壁塗り色
+  mountainStroke: string;   // 山岳・地勢輪郭線色
+  hillFill: string;         // 丘陵塗り色
+  treeFill: string;         // 樹木シンボル塗り色
+  treeStroke: string;       // 樹木輪郭線色
+  settlementFill: string;   // 都市屋根・アクセント色
+  settlementStroke: string; // 都市輪郭・窓扉色
+  landmarkFill: string;     // ランドマーク色
+  contourStroke: string;    // 等高線色
+  contourIndexStroke: string;// 主等高線（計曲線）色
+  forestCanopy: {
+    deciduous: string; coniferous: string; tropical: string;
+    shadow: string; highlight: string; stroke: string;
+  };
+  biomes: Record&lt;BiomeKind, string&gt;;
+}</pre>
+
+      <h4>現在選択中テーマの設定コード (JSON/TS)</h4>
+      <pre class="code-block" id="current-theme-code"></pre>
+      <button class="btn-copy" onclick="copyThemeCode()">📋 このテーマの定義コードをコピー</button>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // テーマデータ定義（src/region-editor/render/styles/themes.ts 準拠）
+    // -------------------------------------------------------------
+    const BASE_THEMES = {
+      schley: {
+        id: "schley",
+        name: "Schley",
+        label: "マイク・シュレイ風（ファンタジー標準）",
+        colors: {
+          background: "#d5cfbf",
+          ocean: "#456d7f",
+          oceanShallow: "#527f8b",
+          coastlineStroke: "#2b4652",
+          riverFill: "#456d7f",
+          riverStroke: "#233943",
+          roadStroke: "#8a5836",
+          highwayStroke: "#5d351b",
+          bridgeDeck: "#dcd4c7",
+          bridgeRail: "#4a3525",
+          borderStroke: "#3a2818",
+          textPrimary: "#2b1a0d",
+          textSecondary: "#4a3b30",
+          textWater: "#e6f0f5",
+          mountainFill: "#8a7d6e",
+          mountainHighlight: "#e5ded4",
+          mountainStroke: "#3d3228",
+          hillFill: "#b4a68c",
+          treeFill: "#3a633f",
+          treeStroke: "#1f3822",
+          settlementFill: "#b3382c",
+          settlementStroke: "#301511",
+          landmarkFill: "#6d3278",
+          contourStroke: "#8c7255",
+          contourIndexStroke: "#5a4430",
+          forestCanopy: {
+            deciduous: "#3b6832",
+            coniferous: "#264f3a",
+            tropical: "#2e6f36",
+            shadow: "#162e14",
+            highlight: "#5f9450",
+            stroke: "#1a3617"
+          },
+          biomes: {
+            ocean: "#456d7f",
+            grassland: "#d2dab2",
+            deciduous_forest: "#c2d4ac",
+            coniferous_forest: "#b5c4a7",
+            tropical_forest: "#b9cca0",
+            savanna: "#ded8aa",
+            woodland_scrub: "#cfd5a4",
+            hills: "#cfcaa8",
+            mountains: "#b5a897",
+            snow_mountains: "#d8e5e8",
+            glacier: "#d8e5e8",
+            swamp: "#b4c5a5",
+            marsh: "#adbe9e",
+            desert: "#e8ddba",
+            tundra: "#c9beaa",
+            badlands: "#ded8aa",
+            volcanic_rock: "#6e6259",
+            volcanic_soil: "#8a7563"
+          }
+        }
+      },
+      perilous: {
+        id: "perilous",
+        name: "Perilous",
+        label: "ペリラス風（白黒ハイコントラスト）",
+        colors: {
+          background: "#fdfbf7",
+          ocean: "#eef2f5",
+          oceanShallow: "#eef2f5",
+          coastlineStroke: "#1a1a1a",
+          riverFill: "#eef2f5",
+          riverStroke: "#1a1a1a",
+          roadStroke: "#444444",
+          highwayStroke: "#111111",
+          bridgeDeck: "#ffffff",
+          bridgeRail: "#000000",
+          borderStroke: "#111111",
+          textPrimary: "#111111",
+          textSecondary: "#333333",
+          textWater: "#555555",
+          mountainFill: "#ffffff",
+          mountainHighlight: "#ffffff",
+          mountainStroke: "#111111",
+          hillFill: "#ffffff",
+          treeFill: "#ffffff",
+          treeStroke: "#111111",
+          settlementFill: "#111111",
+          settlementStroke: "#111111",
+          landmarkFill: "#333333",
+          contourStroke: "#888888",
+          contourIndexStroke: "#333333",
+          forestCanopy: {
+            deciduous: "#c6d3be",
+            coniferous: "#b3c4ac",
+            tropical: "#bdd0b6",
+            shadow: "#748a6d",
+            highlight: "#dbe8d3",
+            stroke: "#4a5944"
+          },
+          biomes: {
+            ocean: "#eef2f5",
+            grassland: "#fdfbf7",
+            deciduous_forest: "#e8ede4",
+            coniferous_forest: "#e2e8dd",
+            tropical_forest: "#dce3d5",
+            savanna: "#faf8f2",
+            woodland_scrub: "#f2f2ea",
+            hills: "#f5f3ec",
+            mountains: "#ebe7df",
+            snow_mountains: "#f7f7f7",
+            glacier: "#ffffff",
+            swamp: "#e6e8e2",
+            marsh: "#e6e8e2",
+            desert: "#fcf8ea",
+            tundra: "#f0f2f0",
+            badlands: "#eeebe6",
+            volcanic_rock: "#d6d1cb",
+            volcanic_soil: "#e2ddd6"
+          }
+        }
+      },
+      parchment: {
+        id: "parchment",
+        name: "Parchment",
+        label: "羊皮紙風（アンティーク・古地図）",
+        colors: {
+          background: "#e8d8b8",
+          ocean: "#d2c09c",
+          oceanShallow: "#d8c7a6",
+          coastlineStroke: "#523f29",
+          riverFill: "#cfbd99",
+          riverStroke: "#5c4832",
+          roadStroke: "#6e4a2e",
+          highwayStroke: "#4d301b",
+          bridgeDeck: "#ded0b3",
+          bridgeRail: "#422e1b",
+          borderStroke: "#3b2614",
+          textPrimary: "#2d1b0d",
+          textSecondary: "#453223",
+          textWater: "#423b32",
+          mountainFill: "#a89478",
+          mountainHighlight: "#ded0b6",
+          mountainStroke: "#3d2a1a",
+          hillFill: "#c4b397",
+          treeFill: "#736b48",
+          treeStroke: "#38311a",
+          settlementFill: "#8a3324",
+          settlementStroke: "#2b140f",
+          landmarkFill: "#59365c",
+          contourStroke: "#9c8160",
+          contourIndexStroke: "#624930",
+          forestCanopy: {
+            deciduous: "#686e42",
+            coniferous: "#515c3c",
+            tropical: "#596c3d",
+            shadow: "#363a1e",
+            highlight: "#8b945c",
+            stroke: "#33381a"
+          },
+          biomes: {
+            ocean: "#d2c09c",
+            grassland: "#ded2ad",
+            deciduous_forest: "#beb88d",
+            coniferous_forest: "#b3ae83",
+            tropical_forest: "#9f996d",
+            savanna: "#d8cca0",
+            woodland_scrub: "#cbc796",
+            hills: "#cfbf9e",
+            mountains: "#bcae90",
+            snow_mountains: "#d6cfbc",
+            glacier: "#ddd5c5",
+            swamp: "#a8a17d",
+            marsh: "#b4ad89",
+            desert: "#dfcca3",
+            tundra: "#cdc5af",
+            badlands: "#bda88a",
+            volcanic_rock: "#5e5249",
+            volcanic_soil: "#7a6553"
+          }
+        }
+      },
+      monochrome: {
+        id: "monochrome",
+        name: "Monochrome",
+        label: "モノクロ（印刷・白黒製図）",
+        colors: {
+          background: "#ffffff",
+          ocean: "#f2f2f2",
+          oceanShallow: "#f2f2f2",
+          coastlineStroke: "#000000",
+          riverFill: "#f2f2f2",
+          riverStroke: "#000000",
+          roadStroke: "#333333",
+          highwayStroke: "#000000",
+          bridgeDeck: "#ffffff",
+          bridgeRail: "#000000",
+          borderStroke: "#000000",
+          textPrimary: "#000000",
+          textSecondary: "#333333",
+          textWater: "#444444",
+          mountainFill: "#ffffff",
+          mountainHighlight: "#ffffff",
+          mountainStroke: "#000000",
+          hillFill: "#ffffff",
+          treeFill: "#ffffff",
+          treeStroke: "#000000",
+          settlementFill: "#000000",
+          settlementStroke: "#000000",
+          landmarkFill: "#000000",
+          contourStroke: "#888888",
+          contourIndexStroke: "#333333",
+          forestCanopy: {
+            deciduous: "#cccccc",
+            coniferous: "#bbbbbb",
+            tropical: "#c4c4c4",
+            shadow: "#666666",
+            highlight: "#e5e5e5",
+            stroke: "#555555"
+          },
+          biomes: {
+            ocean: "#f4f4f4",
+            grassland: "#ffffff",
+            deciduous_forest: "#f8f8f8",
+            coniferous_forest: "#f5f5f5",
+            tropical_forest: "#f0f0f0",
+            savanna: "#fafafa",
+            woodland_scrub: "#f4f4f4",
+            hills: "#fafafa",
+            mountains: "#eeeeee",
+            snow_mountains: "#ffffff",
+            glacier: "#ffffff",
+            swamp: "#f4f4f4",
+            marsh: "#f4f4f4",
+            desert: "#fdfdfd",
+            tundra: "#f7f7f7",
+            badlands: "#ebebeb",
+            volcanic_rock: "#cfcfcf",
+            volcanic_soil: "#dddddd"
+          }
+        }
+      },
+      "illustrated-natural": {
+        id: "illustrated-natural",
+        name: "Illustrated (Natural)",
+        label: "絵地図・ナチュラル（自然色）",
+        colors: {
+          background: "#e9e2c8",
+          ocean: "#7fa8c4",
+          oceanShallow: "#a3c3d4",
+          coastlineStroke: "#3d4f5c",
+          riverFill: "#6f9cbd",
+          riverStroke: "#34506a",
+          roadStroke: "#8a6440",
+          highwayStroke: "#5b3c20",
+          bridgeDeck: "#e4d6b6",
+          bridgeRail: "#4a3525",
+          borderStroke: "#3a2a1a",
+          textPrimary: "#2e2014",
+          textSecondary: "#4c3b2a",
+          textWater: "#f2f6f8",
+          mountainFill: "#8d8a86",
+          mountainHighlight: "#e2ddd2",
+          mountainStroke: "#3b3632",
+          hillFill: "#c9cc98",
+          treeFill: "#4f7a3a",
+          treeStroke: "#22381a",
+          settlementFill: "#8a3324",
+          settlementStroke: "#2b140f",
+          landmarkFill: "#59365c",
+          contourStroke: "#a49a74",
+          contourIndexStroke: "#6e5838",
+          forestCanopy: {
+            deciduous: "#5a8a3c",
+            coniferous: "#3f6b45",
+            tropical: "#4f9142",
+            shadow: "#1f3a1c",
+            highlight: "#9cc46e",
+            stroke: "#1a3015"
+          },
+          biomes: {
+            ocean: "#7fa8c4",
+            grassland: "#d6dca8",
+            deciduous_forest: "#c0d29a",
+            coniferous_forest: "#b2c49a",
+            tropical_forest: "#b2cf8e",
+            savanna: "#e3d9a0",
+            woodland_scrub: "#cfd59f",
+            hills: "#d3d3a2",
+            mountains: "#cfc8b2",
+            snow_mountains: "#e6e8e6",
+            glacier: "#eef2f4",
+            swamp: "#a9bb8c",
+            marsh: "#b4c495",
+            desert: "#eadcae",
+            tundra: "#d4d4bf",
+            badlands: "#d7b98e",
+            volcanic_rock: "#6a5d55",
+            volcanic_soil: "#8a7563"
+          }
+        }
+      },
+      "illustrated-sepia": {
+        id: "illustrated-sepia",
+        name: "Illustrated (Sepia)",
+        label: "絵地図・セピア（古地図調）",
+        colors: {
+          background: "#e7d6ad",
+          ocean: "#9fb3b0",
+          oceanShallow: "#b6c5bd",
+          coastlineStroke: "#4b3f2e",
+          riverFill: "#8ea6a6",
+          riverStroke: "#3e4a46",
+          roadStroke: "#8a6440",
+          highwayStroke: "#5b3c20",
+          bridgeDeck: "#e4d6b6",
+          bridgeRail: "#4a3525",
+          borderStroke: "#3a2a1a",
+          textPrimary: "#2e2014",
+          textSecondary: "#4c3b2a",
+          textWater: "#f1ede2",
+          mountainFill: "#8b8794",
+          mountainHighlight: "#dcd6cc",
+          mountainStroke: "#3a3230",
+          hillFill: "#d4c193",
+          treeFill: "#6b7440",
+          treeStroke: "#2f3418",
+          settlementFill: "#8a3324",
+          settlementStroke: "#2b140f",
+          landmarkFill: "#59365c",
+          contourStroke: "#a8916a",
+          contourIndexStroke: "#6e5838",
+          forestCanopy: {
+            deciduous: "#6f7a3f",
+            coniferous: "#4f5f37",
+            tropical: "#5f7a38",
+            shadow: "#2c3317",
+            highlight: "#a3ad68",
+            stroke: "#262b12"
+          },
+          biomes: {
+            ocean: "#9fb3b0",
+            grassland: "#e2d1a2",
+            deciduous_forest: "#c9c08c",
+            coniferous_forest: "#bdb88a",
+            tropical_forest: "#b9b67e",
+            savanna: "#e6d29c",
+            woodland_scrub: "#d6cb96",
+            hills: "#ddc999",
+            mountains: "#d2c5a6",
+            snow_mountains: "#e2dfd6",
+            glacier: "#eceae4",
+            swamp: "#b5b483",
+            marsh: "#bdbb8c",
+            desert: "#ecdcae",
+            tundra: "#d8cfb6",
+            badlands: "#d6b98c",
+            volcanic_rock: "#6a5d55",
+            volcanic_soil: "#8a7563"
+          }
+        }
+      },
+      "illustrated-lush": {
+        id: "illustrated-lush",
+        name: "Illustrated (Lush)",
+        label: "絵地図・ビビッド（鮮やか）",
+        colors: {
+          background: "#eef0cf",
+          ocean: "#4f93c6",
+          oceanShallow: "#7fb5da",
+          coastlineStroke: "#24425e",
+          riverFill: "#4a8fc4",
+          riverStroke: "#1f4566",
+          roadStroke: "#8a6440",
+          highwayStroke: "#5b3c20",
+          bridgeDeck: "#e4d6b6",
+          bridgeRail: "#4a3525",
+          borderStroke: "#3a2a1a",
+          textPrimary: "#2e2014",
+          textSecondary: "#4c3b2a",
+          textWater: "#ffffff",
+          mountainFill: "#8f8aa0",
+          mountainHighlight: "#ebe6dc",
+          mountainStroke: "#332f3d",
+          hillFill: "#b8d07c",
+          treeFill: "#3f8a35",
+          treeStroke: "#173b14",
+          settlementFill: "#8a3324",
+          settlementStroke: "#2b140f",
+          landmarkFill: "#59365c",
+          contourStroke: "#9ba872",
+          contourIndexStroke: "#6e5838",
+          forestCanopy: {
+            deciduous: "#4c9a34",
+            coniferous: "#2f7444",
+            tropical: "#3fa83a",
+            shadow: "#163a16",
+            highlight: "#a6d968",
+            stroke: "#123012"
+          },
+          biomes: {
+            ocean: "#4f93c6",
+            grassland: "#cfe39a",
+            deciduous_forest: "#b4d88a",
+            coniferous_forest: "#a6c98e",
+            tropical_forest: "#a2d77a",
+            savanna: "#e6dc8e",
+            woodland_scrub: "#c8dc8c",
+            hills: "#cfdc96",
+            mountains: "#cdc6b4",
+            snow_mountains: "#eef0f2",
+            glacier: "#f4f8fa",
+            swamp: "#94b87c",
+            marsh: "#a8c888",
+            desert: "#f0dea0",
+            tundra: "#d2dac2",
+            badlands: "#e0b07c",
+            volcanic_rock: "#6a5d55",
+            volcanic_soil: "#8a7563"
+          }
+        }
+      },
+      "illustrated-nordic": {
+        id: "illustrated-nordic",
+        name: "Illustrated (Nordic)",
+        label: "絵地図・ノルディック（寒冷・くすみ）",
+        colors: {
+          background: "#e4e3d8",
+          ocean: "#6e8c98",
+          oceanShallow: "#93aab2",
+          coastlineStroke: "#2f3e45",
+          riverFill: "#6a8996",
+          riverStroke: "#2d3f47",
+          roadStroke: "#8a6440",
+          highwayStroke: "#5b3c20",
+          bridgeDeck: "#e4d6b6",
+          bridgeRail: "#4a3525",
+          borderStroke: "#3a2a1a",
+          textPrimary: "#2e2014",
+          textSecondary: "#4c3b2a",
+          textWater: "#eef3f4",
+          mountainFill: "#7e8590",
+          mountainHighlight: "#e4e6e6",
+          mountainStroke: "#2f3338",
+          hillFill: "#c3c6aa",
+          treeFill: "#3e5f4a",
+          treeStroke: "#1b2b21",
+          settlementFill: "#8a3324",
+          settlementStroke: "#2b140f",
+          landmarkFill: "#59365c",
+          contourStroke: "#9a9c8a",
+          contourIndexStroke: "#6e5838",
+          forestCanopy: {
+            deciduous: "#58704a",
+            coniferous: "#33584a",
+            tropical: "#4b6e47",
+            shadow: "#18281f",
+            highlight: "#8fa886",
+            stroke: "#14231b"
+          },
+          biomes: {
+            ocean: "#6e8c98",
+            grassland: "#d3d4b8",
+            deciduous_forest: "#bcc5a6",
+            coniferous_forest: "#aebba4",
+            tropical_forest: "#b4c29c",
+            savanna: "#dcd6b2",
+            woodland_scrub: "#c9cdb0",
+            hills: "#cfcfb6",
+            mountains: "#c4c3b8",
+            snow_mountains: "#eceeee",
+            glacier: "#f2f5f6",
+            swamp: "#a4ae94",
+            marsh: "#b0b89e",
+            desert: "#e2dabb",
+            tundra: "#d2d3c6",
+            badlands: "#cbb79c",
+            volcanic_rock: "#6a5d55",
+            volcanic_soil: "#8a7563"
+          }
+        }
+      }
+    };
+
+    // 状態管理
+    let currentThemeKey = "schley";
+    let state = {
+      hasPort: false,
+      darkBg: false
+    };
+
+    function getCurrentTheme() {
+      return BASE_THEMES[currentThemeKey] || BASE_THEMES.schley;
+    }
+
+    // -------------------------------------------------------------
+    // SVG 生成関数群
+    // -------------------------------------------------------------
+
+    // 1. 都市アイコン生成（settlementIcons.ts 準拠）
+    function createSettlementSvg(type, themeColors, hasPort) {
+      const fill = themeColors.settlementFill;
+      const stroke = themeColors.settlementStroke;
+      const wallFill = themeColors.mountainHighlight || "#f7f5f0";
+
+      let bodySvg = "";
+      switch (type) {
+        case "capital":
+          bodySvg = `
+            <rect x="-13" y="-12" width="26" height="12" fill="${wallFill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <rect x="-14" y="-18" width="6.5" height="18" fill="${wallFill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <polygon points="-15.5,-18 -10.75,-24 -6,-18" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <rect x="7.5" y="-18" width="6.5" height="18" fill="${wallFill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <polygon points="6,-18 10.75,-24 15.5,-18" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <rect x="-5" y="-23" width="10" height="23" fill="${wallFill}" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round" />
+            <polygon points="-6.5,-23 0,-30 6.5,-23" fill="${fill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <path d="M 0,-30 L 0,-35 L 7,-32.5 L 0,-30.5" fill="${fill}" stroke="${stroke}" stroke-width="0.8" />
+            <path d="M -3,0 L -3,-5.5 A 3 3 0 0 1 3,-5.5 L 3,0 Z" fill="${stroke}" />
+            <rect x="-2" y="-18" width="4" height="4.5" rx="1" fill="${stroke}" />
+            <line x1="-10.75" y1="-14" x2="-10.75" y2="-10" stroke="${stroke}" stroke-width="1" />
+            <line x1="10.75" y1="-14" x2="10.75" y2="-10" stroke="${stroke}" stroke-width="1" />
+          `;
+          break;
+        case "city":
+          bodySvg = `
+            <rect x="-11" y="-9" width="22" height="9" fill="${wallFill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <line x1="-11" y1="-9" x2="-11" y2="-11.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="-5" y1="-9" x2="-5" y2="-11.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="5" y1="-9" x2="5" y2="-11.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="11" y1="-9" x2="11" y2="-11.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <rect x="-9.5" y="-20" width="6.5" height="20" fill="${wallFill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <polygon points="-11,-20 -6.25,-26.5 -1.5,-20" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <polygon points="-3,-9 1,-16 5,-9" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <polygon points="3,-9 7.5,-14.5 11.5,-9" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <path d="M -2,0 L -2,-4.5 A 2 2 0 0 1 2,-4.5 L 2,0 Z" fill="${stroke}" />
+            <rect x="-7.5" y="-16" width="2.5" height="3.5" rx="0.5" fill="${stroke}" />
+          `;
+          break;
+        case "town":
+          bodySvg = `
+            <rect x="-8.5" y="-7.5" width="8" height="7.5" fill="${wallFill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <polygon points="-9.5,-7.5 -4.5,-13 0.5,-7.5" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <rect x="0.5" y="-8.5" width="8" height="8.5" fill="${wallFill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <polygon points="-0.5,-8.5 4.5,-14.5 9.5,-8.5" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <rect x="-2.5" y="-16" width="5" height="8.5" fill="${wallFill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <polygon points="-3.5,-16 0,-20 3.5,-16" fill="${fill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <rect x="-5.5" y="-4" width="2" height="4" fill="${stroke}" />
+            <rect x="3.5" y="-4" width="2" height="4" fill="${stroke}" />
+          `;
+          break;
+        case "village":
+          bodySvg = `
+            <rect x="-7" y="-6" width="6.5" height="6" fill="${wallFill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+            <polygon points="-8,-6 -3.75,-11 0.5,-6" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+            <rect x="0.5" y="-7" width="7" height="7" fill="${wallFill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+            <polygon points="-0.5,-7 4,-12 8.5,-7" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+            <line x1="5.5" y1="-12" x2="5.5" y2="-14.5" stroke="${stroke}" stroke-width="1" stroke-linecap="round" />
+            <path d="M 5.5,-14.5 Q 7.5,-16.5 6,-18.5" fill="none" stroke="${stroke}" stroke-width="0.8" opacity="0.6" />
+            <rect x="2.5" y="-3.5" width="2" height="3.5" fill="${stroke}" />
+          `;
+          break;
+        case "hamlet":
+          bodySvg = `
+            <rect x="-4" y="-5.5" width="6.5" height="5.5" fill="${wallFill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <polygon points="-5,-5.5 -0.75,-10.5 3.5,-5.5" fill="${fill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <rect x="3.5" y="-4" width="4" height="4" fill="${wallFill}" stroke="${stroke}" stroke-width="0.9" stroke-linejoin="round" />
+            <polygon points="3,-4 5.5,-6.5 8,-4" fill="${fill}" stroke="${stroke}" stroke-width="0.9" stroke-linejoin="round" />
+            <rect x="-1.5" y="-3" width="1.5" height="3" fill="${stroke}" />
+          `;
+          break;
+        case "fort":
+          bodySvg = `
+            <rect x="-9" y="-15" width="18" height="15" fill="${wallFill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <polygon points="-9.5,-15 -9.5,-19 -5.5,-19 -5.5,-16 -2,-16 -2,-19 2,-19 2,-16 5.5,-16 5.5,-19 9.5,-19 9.5,-15" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+            <line x1="-4" y1="-11" x2="-4" y2="-6.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="4" y1="-11" x2="4" y2="-6.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <rect x="-3" y="-6" width="6" height="6" fill="${stroke}" />
+            <line x1="0" y1="-6" x2="0" y2="0" stroke="${wallFill}" stroke-width="0.8" />
+            <line x1="-3" y1="-3" x2="3" y2="-3" stroke="${wallFill}" stroke-width="0.8" />
+          `;
+          break;
+        case "monastery":
+          bodySvg = `
+            <polygon points="-7.5,0 -7.5,-9.5 0,-16.5 7.5,-9.5 7.5,0" fill="${wallFill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <line x1="0" y1="-16.5" x2="0" y2="-23.5" stroke="${stroke}" stroke-width="1.4" stroke-linecap="round" />
+            <line x1="-2.5" y1="-20.5" x2="2.5" y2="-20.5" stroke="${stroke}" stroke-width="1.4" stroke-linecap="round" />
+            <circle cx="0" cy="-9.5" r="2.5" fill="${fill}" stroke="${stroke}" stroke-width="0.9" />
+            <path d="M -2.5,0 L -2.5,-4.5 A 2.5 2.5 0 0 1 2.5,-4.5 L 2.5,0 Z" fill="${stroke}" />
+            <rect x="-11.5" y="-6" width="4" height="6" fill="${wallFill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <polygon points="-12,-6 -9.5,-8.5 -7,-6" fill="${fill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+          `;
+          break;
+        case "caravanserai":
+          bodySvg = `
+            <rect x="-10.5" y="-9" width="21" height="9" fill="${wallFill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round" />
+            <rect x="-12.5" y="-12" width="4" height="12" rx="1" fill="${wallFill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <rect x="8.5" y="-12" width="4" height="12" rx="1" fill="${wallFill}" stroke="${stroke}" stroke-width="1" stroke-linejoin="round" />
+            <rect x="-4.5" y="-14" width="9" height="14" fill="${wallFill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <path d="M -4,-14 C -4,-18.5 0,-20.5 0,-20.5 C 0,-20.5 4,-18.5 4,-14 Z" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+            <path d="M -2,0 L -2,-4 C -2,-5.5 2,-5.5 2,-4 L 2,0 Z" fill="${stroke}" />
+          `;
+          break;
+        case "trading_post":
+          bodySvg = `
+            <rect x="-8.5" y="-9" width="17" height="9" fill="${wallFill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <polygon points="-10,-9 0,-16 10,-9" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+            <line x1="0" y1="-16" x2="0" y2="-18.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="0" y1="-18.5" x2="3.5" y2="-18.5" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="3.5" y1="-18.5" x2="3.5" y2="-14" stroke="${stroke}" stroke-width="0.8" />
+            <rect x="2" y="-14" width="3" height="3" fill="${fill}" stroke="${stroke}" stroke-width="0.7" />
+            <line x1="-7" y1="-9" x2="-2" y2="0" stroke="${stroke}" stroke-width="0.7" opacity="0.5" />
+            <line x1="-2" y1="-9" x2="-7" y2="0" stroke="${stroke}" stroke-width="0.7" opacity="0.5" />
+            <rect x="-1" y="-5.5" width="4" height="5.5" fill="${stroke}" />
+          `;
+          break;
+      }
+
+      let portSvg = "";
+      if (hasPort) {
+        portSvg = `
+          <g class="settlement-port-anchor" transform="translate(11, -3)">
+            <circle cx="0" cy="-6" r="1.5" fill="none" stroke="${stroke}" stroke-width="0.9" />
+            <line x1="0" y1="-4.5" x2="0" y2="3" stroke="${stroke}" stroke-width="1.1" stroke-linecap="round" />
+            <line x1="-3" y1="-2" x2="3" y2="-2" stroke="${stroke}" stroke-width="1" stroke-linecap="round" />
+            <path d="M -4,0.5 C -3,3.5 3,3.5 4,0.5" fill="none" stroke="${stroke}" stroke-width="1.1" stroke-linecap="round" />
+          </g>
+        `;
+      }
+
+      return `
+        <svg viewBox="-22 -38 44 44" width="100%" height="100%">
+          <g transform="translate(0, 2)">
+            ${bodySvg}
+            ${portSvg}
+          </g>
+        </svg>
+      `;
+    }
+
+    // 2. 手描き地勢・植生シンボル（symbols.ts 準拠）
+    function createSymbolSvg(type, themeColors) {
+      const fill = themeColors.mountainFill;
+      const stroke = themeColors.mountainStroke;
+      const highlight = themeColors.mountainHighlight || "#ffffff";
+      const treeFill = themeColors.treeFill;
+      const treeStroke = themeColors.treeStroke;
+
+      switch (type) {
+        case "mountain_peak_major":
+          return `
+            <svg viewBox="-30 -50 60 55" width="100%" height="100%">
+              <g>
+                <polygon points="0,-48 -28,0 0,0" fill="${highlight}" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round" />
+                <polygon points="0,-48 0,0 28,0" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round" />
+                <line x1="0" y1="-48" x2="0" y2="0" stroke="${stroke}" stroke-width="2" stroke-linecap="round" />
+                <line x1="4" y1="-28" x2="16" y2="-12" stroke="${stroke}" stroke-width="1" opacity="0.6" />
+                <line x1="8" y1="-18" x2="22" y2="-4" stroke="${stroke}" stroke-width="1" opacity="0.6" />
+              </g>
+            </svg>
+          `;
+        case "mountain_peak_minor":
+          return `
+            <svg viewBox="-20 -35 40 40" width="100%" height="100%">
+              <g>
+                <polygon points="0,-32 -18,0 0,0" fill="${highlight}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+                <polygon points="0,-32 0,0 18,0" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" />
+                <line x1="0" y1="-32" x2="0" y2="0" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" />
+                <line x1="3" y1="-18" x2="11" y2="-8" stroke="${stroke}" stroke-width="0.8" opacity="0.6" />
+              </g>
+            </svg>
+          `;
+        case "mountain_snow":
+          return `
+            <svg viewBox="-32 -54 64 60" width="100%" height="100%">
+              <g>
+                <polygon points="0,-50 -30,0 0,0" fill="#e8edf2" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round" />
+                <polygon points="0,-50 0,0 30,0" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round" />
+                <polygon points="0,-50 -12,-28 -4,-32 6,-30 12,-26 0,-50" fill="#ffffff" stroke="${stroke}" stroke-width="1.2" />
+                <line x1="0" y1="-50" x2="0" y2="0" stroke="${stroke}" stroke-width="2" stroke-linecap="round" />
+              </g>
+            </svg>
+          `;
+        case "hill_single":
+          return `
+            <svg viewBox="-20 -18 40 22" width="100%" height="100%">
+              <g>
+                <path d="M -18 0 C -12 -16, 12 -16, 18 0 Z" fill="${themeColors.hillFill}" stroke="${stroke}" stroke-width="1.2" />
+                <path d="M -6 -12 C 0 -14, 6 -12, 10 -4" fill="none" stroke="${stroke}" stroke-width="0.8" opacity="0.5" />
+              </g>
+            </svg>
+          `;
+        case "hill_cluster":
+          return `
+            <svg viewBox="-30 -22 60 26" width="100%" height="100%">
+              <g>
+                <path d="M -26 0 C -20 -14, -2 -14, 4 0 Z" fill="${themeColors.hillFill}" stroke="${stroke}" stroke-width="1.1" />
+                <path d="M -6 0 C 2 -18, 22 -18, 28 0 Z" fill="${themeColors.hillFill}" stroke="${stroke}" stroke-width="1.2" />
+              </g>
+            </svg>
+          `;
+        case "rock_cluster":
+          return `
+            <svg viewBox="-18 -16 36 20" width="100%" height="100%">
+              <g>
+                <polygon points="-12,0 -8,-9 -2,-8 4,0" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+                <polygon points="0,0 4,-12 12,-11 16,0" fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round" />
+                <line x1="-5" y1="-8" x2="-2" y2="0" stroke="${stroke}" stroke-width="0.8" opacity="0.6" />
+                <line x1="8" y1="-11" x2="10" y2="0" stroke="${stroke}" stroke-width="0.8" opacity="0.6" />
+              </g>
+            </svg>
+          `;
+        case "sand_dune":
+          return `
+            <svg viewBox="-24 -12 48 16" width="100%" height="100%">
+              <g>
+                <path d="M -20 0 C -10 -8, 8 -8, 20 0" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" />
+                <path d="M -12 2 C -4 -4, 12 -4, 16 2" fill="none" stroke="${themeColors.biomes.desert || fill}" stroke-width="1" opacity="0.6" />
+              </g>
+            </svg>
+          `;
+        case "tree_deciduous":
+          return `
+            <svg viewBox="-14 -26 28 30" width="100%" height="100%">
+              <g>
+                <line x1="0" y1="0" x2="0" y2="-10" stroke="#5a3d28" stroke-width="2" stroke-linecap="round" />
+                <circle cx="0" cy="-15" r="9" fill="${treeFill}" stroke="${treeStroke}" stroke-width="1.1" />
+                <path d="M -4 -17 C -3 -21, 3 -21, 4 -17" fill="none" stroke="${treeStroke}" stroke-width="0.7" opacity="0.6" />
+              </g>
+            </svg>
+          `;
+        case "tree_pine":
+          return `
+            <svg viewBox="-12 -30 24 34" width="100%" height="100%">
+              <g>
+                <line x1="0" y1="0" x2="0" y2="-6" stroke="#4a3320" stroke-width="1.8" stroke-linecap="round" />
+                <polygon points="0,-28 -8,-16 -4,-16 -10,-6 10,-6 4,-16 8,-16" fill="${treeFill}" stroke="${treeStroke}" stroke-width="1.1" stroke-linejoin="round" />
+              </g>
+            </svg>
+          `;
+        case "tree_jungle":
+          return `
+            <svg viewBox="-16 -28 32 32" width="100%" height="100%">
+              <g>
+                <line x1="0" y1="0" x2="0" y2="-8" stroke="#3b2d1d" stroke-width="2" />
+                <ellipse cx="0" cy="-16" rx="12" ry="9" fill="${treeFill}" stroke="${treeStroke}" stroke-width="1.2" />
+              </g>
+            </svg>
+          `;
+        case "tree_dead":
+          return `
+            <svg viewBox="-12 -25 24 28" width="100%" height="100%">
+              <g>
+                <path d="M 0 0 L 0 -18 M 0 -14 L -6 -20 M 0 -10 L 6 -16" stroke="${treeStroke}" stroke-width="1.5" stroke-linecap="round" />
+              </g>
+            </svg>
+          `;
+        case "tree_palm":
+          return `
+            <svg viewBox="-18 -32 36 36" width="100%" height="100%">
+              <g>
+                <path d="M 0 0 Q -4 -12 -1 -24" stroke="#5a3d28" stroke-width="2" stroke-linecap="round" fill="none" />
+                <path d="M -1 -24 Q -12 -28 -16 -20" fill="none" stroke="${treeStroke}" stroke-width="1.5" stroke-linecap="round" />
+                <path d="M -1 -24 Q -8 -34 -2 -34" fill="none" stroke="${treeStroke}" stroke-width="1.5" stroke-linecap="round" />
+                <path d="M -1 -24 Q 8 -32 14 -24" fill="none" stroke="${treeStroke}" stroke-width="1.5" stroke-linecap="round" />
+                <path d="M -1 -24 Q 10 -22 16 -16" fill="none" stroke="${treeStroke}" stroke-width="1.5" stroke-linecap="round" />
+                <path d="M -1 -24 Q -6 -20 -12 -14" fill="none" stroke="${treeStroke}" stroke-width="1.5" stroke-linecap="round" />
+                <circle cx="-1" cy="-24" r="2.5" fill="${treeFill}" />
+              </g>
+            </svg>
+          `;
+        case "tree_acacia":
+          return `
+            <svg viewBox="-22 -26 44 30" width="100%" height="100%">
+              <g>
+                <path d="M 0 0 L 0 -8 L -6 -16 M 0 -8 L 6 -14" stroke="#4a3525" stroke-width="1.8" stroke-linecap="round" fill="none" />
+                <ellipse cx="-6" cy="-18" rx="10" ry="3.5" fill="${treeFill}" stroke="${treeStroke}" stroke-width="1" />
+                <ellipse cx="6" cy="-16" rx="9" ry="3" fill="${treeFill}" stroke="${treeStroke}" stroke-width="1" />
+              </g>
+            </svg>
+          `;
+      }
+      return "";
+    }
+
+    // 3. 鳥瞰・絵地図スプライト（obliqueArt.ts 準拠）
+    function createObliqueMountainSvg(themeColors, snowy, volcano) {
+      const col = {
+        light: themeColors.mountainHighlight,
+        dark: themeColors.mountainFill,
+        stroke: themeColors.mountainStroke,
+        snow: "#f6f4ef"
+      };
+      const w = 22;
+      const h = 34;
+      const px = 0;
+      const py = -h;
+      const lx = -w;
+      const rx = w;
+      const fx = 4;
+      const fy = 2;
+      const ls = [-11, -16];
+      const rs = [12, -15];
+
+      const tip = volcano ? `L${-w * 0.12} ${py}L${w * 0.12} ${py}` : `L${px} ${py}`;
+      const outline = `M${lx} 0 L${ls[0]} ${ls[1]} ${tip} L${rs[0]} ${rs[1]} L${rx} 0 Q0 3 ${lx} 0 Z`;
+      const shadow = `M${volcano ? w * 0.12 : px} ${py} L${rs[0]} ${rs[1]} L${rx} 0 Q${(rx + fx) / 2} 2 ${fx} ${fy} Z`;
+      const ridge = `M${px} ${py} Q${px + (fx - px) * 0.3} ${py + h * 0.55} ${fx} ${fy}`;
+
+      let cap = "";
+      if (snowy && !volcano) {
+        cap = `<path d="M 0,-34 L 8,-22 L 3,-24 L 1,-18 L -3,-23 L -7,-21 Z" fill="${col.snow}" stroke="${col.stroke}" stroke-width="0.5" stroke-linejoin="round" />`;
+      }
+      const smoke = volcano
+        ? `<path d="M 0,-35 Q -6,-44 3,-52" fill="none" stroke="${col.stroke}" stroke-width="0.8" opacity="0.6" stroke-dasharray="1.5 1" />`
+        : "";
+
+      return `
+        <svg viewBox="-30 -44 60 52" width="100%" height="100%">
+          <g transform="translate(0, 4)">
+            <path d="${outline}" fill="${col.light}" stroke="${col.stroke}" stroke-width="0.9" stroke-linejoin="round" />
+            <path d="${shadow}" fill="${col.dark}" opacity="0.75" />
+            <line x1="3" y1="-22" x2="14" y2="-6" stroke="${col.stroke}" stroke-width="0.6" opacity="0.6" />
+            <line x1="6" y1="-14" x2="18" y2="-2" stroke="${col.stroke}" stroke-width="0.6" opacity="0.6" />
+            <path d="${ridge}" fill="none" stroke="${col.stroke}" stroke-width="0.9" />
+            ${cap}
+            ${smoke}
+          </g>
+        </svg>
+      `;
+    }
+
+    function createObliqueHillSvg(themeColors) {
+      const col = {
+        hill: themeColors.hillFill,
+        dark: themeColors.mountainFill,
+        stroke: themeColors.mountainStroke
+      };
+      return `
+        <svg viewBox="-26 -22 52 30" width="100%" height="100%">
+          <g transform="translate(0, 4)">
+            <path d="M -20 0 C -14 -16, 14 -16, 20 0 Z" fill="${col.hill}" />
+            <path d="M 3 -12 C 10 -10, 18 -4, 20 0 L 6 0 Q 6 -5, 3 -12 Z" fill="${col.dark}" opacity="0.35" />
+            <path d="M -20 0 C -14 -16, 14 -16, 20 0" fill="none" stroke="${col.stroke}" stroke-width="0.9" stroke-linecap="round" />
+          </g>
+        </svg>
+      `;
+    }
+
+    function createObliqueTreeSvg(kind, themeColors) {
+      const c = themeColors.forestCanopy;
+      if (kind === "coniferous") {
+        return `
+          <svg viewBox="-14 -32 28 36" width="100%" height="100%">
+            <g transform="translate(0, 2)">
+              <ellipse cx="2" cy="0" rx="6" ry="2" fill="${c.shadow}" opacity="0.4" />
+              <rect x="-1" y="-6" width="2" height="6" fill="#4a3522" />
+              <polygon points="0,-28 -3.5,-19 -2,-19 -5.5,-10 -3,-10 -7.5,-2 7.5,-2 3,-10 5.5,-10 2,-19 3.5,-19" fill="${c.coniferous}" stroke="${c.stroke}" stroke-width="0.8" stroke-linejoin="round" />
+              <polygon points="0,-28 7.5,-2 0,-2" fill="${c.shadow}" opacity="0.35" />
+            </g>
+          </svg>
+        `;
+      } else if (kind === "tropical") {
+        return `
+          <svg viewBox="-18 -34 36 38" width="100%" height="100%">
+            <g transform="translate(0, 2)">
+              <ellipse cx="2" cy="0" rx="7" ry="2.2" fill="${c.shadow}" opacity="0.4" />
+              <path d="M -1 0 Q -3 -12 0 -24 L 2 -24 Q 0 -12 1 0 Z" fill="#5a4128" />
+              <circle cx="1" cy="-24" r="5" fill="${c.tropical}" stroke="${c.stroke}" stroke-width="0.8" />
+              <path d="M 1,-24 Q -8,-30 -12,-22 M 1,-24 Q -4,-33 2,-32 M 1,-24 Q 10,-31 14,-22 M 1,-24 Q 9,-20 12,-15 M 1,-24 Q -7,-18 -11,-12" fill="none" stroke="${c.stroke}" stroke-width="1.2" stroke-linecap="round" />
+            </g>
+          </svg>
+        `;
+      } else {
+        // deciduous
+        return `
+          <svg viewBox="-16 -30 32 34" width="100%" height="100%">
+            <g transform="translate(0, 2)">
+              <ellipse cx="2" cy="0" rx="8" ry="2.5" fill="${c.shadow}" opacity="0.4" />
+              <rect x="-1.5" y="-8" width="3" height="8" fill="#4a3522" />
+              <circle cx="0" cy="-16" r="9.5" fill="${c.deciduous}" stroke="${c.stroke}" stroke-width="0.9" />
+              <path d="M 0,-6.5 A 9.5 9.5 0 0 0 9.5,-16 Q 3,-11 0,-6.5 Z" fill="${c.shadow}" opacity="0.35" />
+              <circle cx="-3" cy="-19" r="3.5" fill="${c.highlight}" opacity="0.55" />
+            </g>
+          </svg>
+        `;
+      }
+    }
+
+    // 4. 統合ミニマップ生成
+    function createMiniMapSvg(themeColors) {
+      const tc = themeColors;
+      const b = tc.biomes;
+      const isPerilousOrMono = currentThemeKey.includes("perilous") || currentThemeKey.includes("monochrome");
+
+      return `
+        <svg viewBox="0 0 640 320" width="100%" height="100%" style="border-radius: 6px;">
+          <!-- 陸地背景 -->
+          <rect x="0" y="0" width="640" height="320" fill="${tc.background}" />
+
+          <!-- 海洋・沿岸ポリゴン -->
+          <path d="M 0,0 L 220,0 Q 240,80 180,150 Q 130,210 190,270 Q 210,290 200,320 L 0,320 Z" fill="${tc.oceanShallow}" />
+          <path d="M 0,0 L 170,0 Q 190,80 130,150 Q 80,210 140,270 Q 150,290 140,320 L 0,320 Z" fill="${tc.ocean}" />
+          <!-- 海岸線 -->
+          <path d="M 220,0 Q 240,80 180,150 Q 130,210 190,270 Q 210,290 200,320" fill="none" stroke="${tc.coastlineStroke}" stroke-width="1.8" />
+          <!-- 沿岸波紋 -->
+          <path d="M 228,0 Q 248,80 188,150 Q 138,210 198,270 Q 218,290 208,320" fill="none" stroke="${tc.coastlineStroke}" stroke-width="0.6" stroke-dasharray="3 3" opacity="0.4" />
+
+          <!-- バイオーム領域（草地・丘陵・森林・山岳） -->
+          <path d="M 240,40 Q 320,60 380,30 L 410,120 Q 320,130 260,110 Z" fill="${b.grassland}" opacity="0.8" />
+          <path d="M 390,50 Q 480,40 560,70 L 580,160 Q 480,180 400,140 Z" fill="${b.hills}" opacity="0.75" />
+          <path d="M 260,150 Q 340,160 380,220 L 310,290 Q 240,270 230,210 Z" fill="${b.deciduous_forest}" opacity="0.7" />
+          <path d="M 430,170 Q 550,150 630,200 L 640,320 L 380,320 Q 400,240 430,170 Z" fill="${b.mountains}" opacity="0.65" />
+
+          <!-- 等高線 -->
+          <path d="M 380,70 Q 460,70 530,90" fill="none" stroke="${tc.contourStroke}" stroke-width="0.8" opacity="0.6" />
+          <path d="M 400,100 Q 470,100 550,120" fill="none" stroke="${tc.contourIndexStroke}" stroke-width="1.2" opacity="0.7" />
+
+          <!-- 河川ポリゴン（山脈から海へ流れる） -->
+          <path d="M 640,60 Q 510,100 420,120 Q 340,135 290,160 Q 240,185 180,175 L 180,165 Q 240,175 290,150 Q 340,125 420,110 Q 510,90 640,50 Z" fill="${tc.riverFill}" stroke="${tc.riverStroke}" stroke-width="1" />
+
+          <!-- 街道（幹線道路 & 街道） -->
+          <!-- 橋梁: 原則に基づき河川法線と直角に最短距離で交差 -->
+          <path d="M 290,260 Q 300,200 310,170 L 315,135 Q 330,80 370,40" fill="none" stroke="${tc.highwayStroke}" stroke-width="2.6" stroke-linecap="round" />
+          <path d="M 205,190 Q 240,200 290,260" fill="none" stroke="${tc.roadStroke}" stroke-width="1.5" stroke-dasharray="4 2" />
+
+          <!-- 橋梁本体（Deck & Rails） -->
+          <g transform="translate(312, 153) rotate(-22)">
+            <rect x="-4" y="-10" width="8" height="20" rx="1" fill="${tc.bridgeDeck}" stroke="${tc.bridgeRail}" stroke-width="1.2" />
+            <line x1="-3.5" y1="-10" x2="-3.5" y2="10" stroke="${tc.bridgeRail}" stroke-width="1" />
+            <line x1="3.5" y1="-10" x2="3.5" y2="10" stroke="${tc.bridgeRail}" stroke-width="1" />
+          </g>
+
+          <!-- 山並み・連峰（奥から手前へ） -->
+          <g transform="translate(560, 240) scale(1.1)">${createObliqueMountainSvg(tc, true, false)}</g>
+          <g transform="translate(500, 220) scale(1.3)">${createObliqueMountainSvg(tc, false, false)}</g>
+          <g transform="translate(450, 250) scale(1.0)">${createObliqueMountainSvg(tc, false, false)}</g>
+          <g transform="translate(590, 270) scale(0.9)">${createObliqueMountainSvg(tc, false, false)}</g>
+          <g transform="translate(470, 110) scale(0.9)">${createObliqueHillSvg(tc)}</g>
+          <g transform="translate(520, 120) scale(1.1)">${createObliqueHillSvg(tc)}</g>
+
+          <!-- 森林（樹木の集まり） -->
+          <g transform="translate(280, 240) scale(0.8)">${createObliqueTreeSvg('deciduous', tc)}</g>
+          <g transform="translate(295, 235) scale(0.85)">${createObliqueTreeSvg('deciduous', tc)}</g>
+          <g transform="translate(310, 245) scale(0.75)">${createObliqueTreeSvg('deciduous', tc)}</g>
+          <g transform="translate(330, 230) scale(0.8)">${createObliqueTreeSvg('deciduous', tc)}</g>
+          <g transform="translate(345, 250) scale(0.85)">${createObliqueTreeSvg('coniferous', tc)}</g>
+          <g transform="translate(360, 240) scale(0.8)">${createObliqueTreeSvg('coniferous', tc)}</g>
+
+          <!-- 都市アイコン配置 -->
+          <!-- 1. 首都 (Capital) -->
+          <g transform="translate(370, 40) scale(0.95)">
+            ${createSettlementSvg('capital', tc, false)}
+            <text x="0" y="14" font-size="11" font-weight="bold" fill="${tc.textPrimary}" text-anchor="middle" font-family="sans-serif">王都 ベルガルド</text>
+          </g>
+
+          <!-- 2. 大都市・港町 (City with Port) -->
+          <g transform="translate(205, 185) scale(0.9)">
+            ${createSettlementSvg('city', tc, true)}
+            <text x="0" y="12" font-size="9.5" font-weight="600" fill="${tc.textPrimary}" text-anchor="middle" font-family="sans-serif">港湾都市 オーシャンポート</text>
+          </g>
+
+          <!-- 3. 城砦 (Fort) -->
+          <g transform="translate(490, 180) scale(0.85)">
+            ${createSettlementSvg('fort', tc, false)}
+            <text x="0" y="10" font-size="8.5" fill="${tc.textSecondary}" text-anchor="middle" font-family="sans-serif">鉄槌砦</text>
+          </g>
+
+          <!-- 4. 町 (Town) -->
+          <g transform="translate(290, 260) scale(0.85)">
+            ${createSettlementSvg('town', tc, false)}
+            <text x="0" y="10" font-size="8.5" fill="${tc.textSecondary}" text-anchor="middle" font-family="sans-serif">リバーベンド</text>
+          </g>
+
+          <!-- 5. 村 (Village) -->
+          <g transform="translate(330, 100) scale(0.8)">
+            ${createSettlementSvg('village', tc, false)}
+            <text x="0" y="9" font-size="8" fill="${tc.textSecondary}" text-anchor="middle" font-family="sans-serif">オークリー村</text>
+          </g>
+
+          <!-- 海域テキスト -->
+          <text x="90" y="160" font-size="12" font-style="italic" letter-spacing="2" fill="${tc.textWater}" text-anchor="middle" font-family="serif">西部大海原</text>
+        </svg>
+      `;
+    }
+
+    // -------------------------------------------------------------
+    // UI レンダリング・更新
+    // -------------------------------------------------------------
+
+    // 都市カタログ
+    const SETTLEMENT_TYPES = [
+      { id: "capital", name: "首都 (Capital / Metropolis)", badge: "最重要拠点", desc: "二重塔、中央主キープ、翻る旗、アーチ門。国家の中枢を象徴する最大級のシンボル。" },
+      { id: "city", name: "大都市 (City)", badge: "城壁都市", desc: "堅牢な銃眼付き市壁、左の時計塔/鐘楼、密集した切妻屋根。防衛と経済の要衝。" },
+      { id: "town", name: "町 (Town)", badge: "一般都市", desc: "2連の三角屋根、中央の小さな望楼、煙突。街道沿いや地方の中心となる一般的な町。" },
+      { id: "village", name: "村 (Village)", badge: "農村・集落", desc: "2軒の素朴な切妻屋根民家と煙突から立ち上る煙。のどかな農村地域。" },
+      { id: "hamlet", name: "集落・小村 (Hamlet)", badge: "小規模", desc: "1軒の素朴な小屋と小さな納屋。辺境や山間の孤立した小集落。" },
+      { id: "fort", name: "砦・城塞 (Fort / Castle)", badge: "軍事拠点", desc: "重厚な石造キープ、銃眼付き胸壁、矢狭間、落とし格子門。防衛線や国境の砦。" },
+      { id: "monastery", name: "修道院・寺院 (Monastery)", badge: "宗教聖地", desc: "聖堂ファサード、十字架、丸型バラ窓、アーチ扉、側廊。巡礼地や信仰の拠点。" },
+      { id: "caravanserai", name: "隊商宿 (Caravanserai)", badge: "交易路宿駅", desc: "方形囲壁、四隅の丸塔、馬蹄形アーチ大門、中央クーポラドーム。砂漠や街道のオアシス。" },
+      { id: "trading_post", name: "交易拠点 (Trading Post)", badge: "商業倉庫", desc: "木骨造り倉庫、荷揚げ滑車梁と木箱、筋交いクロスビーム。水運や辺境の物資集散所。" }
+    ];
+
+    // 手描き地勢シンボルカタログ
+    const RELIEF_SYMBOLS = [
+      { id: "mountain_peak_major", name: "山岳（主峰）", badge: "大山脈", desc: "左面のハイライト、右面のシャドウと尾根線ハッチングによる重厚な主峰。" },
+      { id: "mountain_peak_minor", name: "山岳（小峰）", badge: "支峰", desc: "主峰の周囲や前衛に配置される引き締まった小峰。" },
+      { id: "mountain_snow", name: "雪冠峰 (Snow Peak)", badge: "高山・氷河", desc: "万年雪を冠した険しい高山。雪冠ハイライトとコントラスト。" },
+      { id: "hill_single", name: "丘陵（単体）", badge: "なだらかな丘", desc: "緩やかな丸みを持つ丘。山麓や平原の起伏を表現。" },
+      { id: "hill_cluster", name: "連丘 (Hill Cluster)", badge: "丘陵地帯", desc: "複数の丘が重なり合ったクラスタ。" },
+      { id: "rock_cluster", name: "岩礁・奇岩 (Rocks)", badge: "岩場", desc: "荒々しい岩肌と切り立った角を持つ岩群。" },
+      { id: "sand_dune", name: "砂丘 (Sand Dune)", badge: "砂漠", desc: "風が描く風紋としなやかな稜線。" }
+    ];
+
+    // 手描き植生シンボルカタログ
+    const TREE_SYMBOLS = [
+      { id: "tree_deciduous", name: "広葉樹 (Deciduous Tree)", badge: "温帯林", desc: "丸い樹冠と幹。標準的な落葉樹林シンボル。" },
+      { id: "tree_pine", name: "針葉樹・松 (Pine / Conifer)", badge: "北方林", desc: "ギザギザの三角層を持つ針葉樹・タイガシンボル。" },
+      { id: "tree_jungle", name: "ジャングル (Jungle)", badge: "熱帯雨林", desc: "横に広がる巨大な傘型樹冠。" },
+      { id: "tree_dead", name: "枯木 (Dead Tree)", badge: "荒地・沼沢", desc: "葉の落ちた枯れ枝。魔境や不毛の地を演出。" },
+      { id: "tree_palm", name: "ヤシの木 (Palm)", badge: "沿岸・オアシス", desc: "しなる幹と放射状に垂れるヤシの葉。" },
+      { id: "tree_acacia", name: "アカシア (Acacia)", badge: "サバンナ", desc: "平たいアンブレラ型樹冠と枝分かれした幹。" }
+    ];
+
+    // テーマ選択ピルの初期化
+    function initThemePills() {
+      const container = document.getElementById("theme-pill-container");
+      container.innerHTML = "";
+      Object.keys(BASE_THEMES).forEach(key => {
+        const t = BASE_THEMES[key];
+        const pill = document.createElement("button");
+        pill.className = `theme-pill ${key === currentThemeKey ? "active" : ""}`;
+        pill.onclick = () => selectTheme(key);
+        pill.innerHTML = `
+          <span class="theme-dot" style="background-color: ${t.colors.settlementFill};"></span>
+          <span>${t.name}</span>
+        `;
+        container.appendChild(pill);
+      });
+    }
+
+    function selectTheme(key) {
+      currentThemeKey = key;
+      initThemePills();
+      updateAll();
+    }
+
+    function toggleOption(key, val) {
+      state[key] = val;
+      updateAll();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
+      });
+      document.querySelectorAll(".tab-content").forEach(content => {
+        content.classList.toggle("active", content.id === `tab-${tabId}`);
+      });
+    }
+
+    function getContainerBg(tc) {
+      return state.darkBg ? "transparent" : tc.background;
+    }
+
+    // 全表示更新
+    function updateAll() {
+      const current = getCurrentTheme();
+      const tc = current.colors;
+      const bg = getContainerBg(tc);
+
+      // 概要タブ更新
+      document.getElementById("txt-current-theme-name").textContent = current.name + " - " + current.label;
+      document.getElementById("badge-theme-type").textContent = current.id.toUpperCase();
+      const minimap = document.getElementById("minimap-container");
+      minimap.style.backgroundColor = bg;
+      minimap.innerHTML = createMiniMapSvg(tc);
+
+      // クイックサマリー
+      const quick = document.getElementById("quick-swatches");
+      const quickList = [
+        { name: "背景 (Background)", hex: tc.background },
+        { name: "海洋 (Ocean)", hex: tc.ocean },
+        { name: "河川 (River)", hex: tc.riverFill },
+        { name: "街道 (Highway)", hex: tc.highwayStroke },
+        { name: "都市屋根 (Settlement)", hex: tc.settlementFill },
+        { name: "輪郭・線 (Stroke)", hex: tc.settlementStroke },
+        { name: "山岳影 (Mountain)", hex: tc.mountainFill },
+        { name: "山岳光/城壁 (Wall)", hex: tc.mountainHighlight }
+      ];
+      quick.innerHTML = quickList.map(s => renderSwatchCard(s.name, s.hex)).join("");
+
+      // 都市アイコンタブ更新
+      const setGrid = document.getElementById("settlements-grid");
+      setGrid.innerHTML = SETTLEMENT_TYPES.map(st => `
+        <div class="card">
+          <h2>
+            <span>${st.name}</span>
+            <span class="badge ${st.id === 'capital' ? 'orange' : st.id === 'fort' ? 'purple' : 'green'}">${st.badge}</span>
+          </h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createSettlementSvg(st.id, tc, state.hasPort)}
+          </div>
+          <div class="desc">
+            <strong class="title">特徴・用途:</strong>
+            ${st.desc}
+          </div>
+        </div>
+      `).join("");
+
+      // 山岳・丘陵タブ更新
+      const relSymGrid = document.getElementById("relief-symbols-grid");
+      relSymGrid.innerHTML = RELIEF_SYMBOLS.map(rs => `
+        <div class="card">
+          <h2>
+            <span>${rs.name}</span>
+            <span class="badge">${rs.badge}</span>
+          </h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createSymbolSvg(rs.id, tc)}
+          </div>
+          <div class="desc">${rs.desc}</div>
+        </div>
+      `).join("");
+
+      const relObGrid = document.getElementById("relief-oblique-grid");
+      relObGrid.innerHTML = `
+        <div class="card">
+          <h2>山岳（通常峰） <span class="badge orange">Bird's-Eye</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueMountainSvg(tc, false, false)}
+          </div>
+          <div class="desc">非対称な稜線、左面ハイライト、右面ハッチング影。</div>
+        </div>
+        <div class="card">
+          <h2>山岳（雪冠峰） <span class="badge green">Snow Cap</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueMountainSvg(tc, true, false)}
+          </div>
+          <div class="desc">山頂にギザギザの雪冠を戴く寒冷・高山峰。</div>
+        </div>
+        <div class="card">
+          <h2>火山 (Volcano) <span class="badge purple">Volcanic</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueMountainSvg(tc, false, true)}
+          </div>
+          <div class="desc">カルデラ火口と立ち上る噴煙。</div>
+        </div>
+        <div class="card">
+          <h2>なだらかな丘陵 (Hill) <span class="badge">Relief</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueHillSvg(tc)}
+          </div>
+          <div class="desc">丸みのある丘と右下の柔らかな三日月影。</div>
+        </div>
+      `;
+
+      // 樹木・森林タブ更新
+      const treeSymGrid = document.getElementById("tree-symbols-grid");
+      treeSymGrid.innerHTML = TREE_SYMBOLS.map(ts => `
+        <div class="card">
+          <h2>
+            <span>${ts.name}</span>
+            <span class="badge">${ts.badge}</span>
+          </h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createSymbolSvg(ts.id, tc)}
+          </div>
+          <div class="desc">${ts.desc}</div>
+        </div>
+      `).join("");
+
+      const treeObGrid = document.getElementById("tree-oblique-grid");
+      treeObGrid.innerHTML = `
+        <div class="card">
+          <h2>広葉樹スプライト (Deciduous) <span class="badge green">Canopy</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueTreeSvg('deciduous', tc)}
+          </div>
+          <div class="desc">丸いこぶ状の樹冠、幹、根元シャドウ、上部ハイライト。</div>
+        </div>
+        <div class="card">
+          <h2>針葉樹スプライト (Coniferous) <span class="badge">Taiga</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueTreeSvg('coniferous', tc)}
+          </div>
+          <div class="desc">段々になった細い円錐形の枝葉と幹。</div>
+        </div>
+        <div class="card">
+          <h2>熱帯樹スプライト (Tropical) <span class="badge orange">Jungle</span></h2>
+          <div class="canvas-container" style="background-color: ${bg};">
+            ${createObliqueTreeSvg('tropical', tc)}
+          </div>
+          <div class="desc">背の高い幹と放射状に垂れる大葉。</div>
+        </div>
+      `;
+
+      const canopySwatches = document.getElementById("canopy-swatches");
+      const c = tc.forestCanopy;
+      canopySwatches.innerHTML = [
+        { name: "広葉樹 (Deciduous)", hex: c.deciduous },
+        { name: "針葉樹 (Coniferous)", hex: c.coniferous },
+        { name: "熱帯樹 (Tropical)", hex: c.tropical },
+        { name: "樹冠シャドウ (Shadow)", hex: c.shadow },
+        { name: "樹冠ハイライト (Highlight)", hex: c.highlight },
+        { name: "樹冠輪郭 (Stroke)", hex: c.stroke }
+      ].map(s => renderSwatchCard(s.name, s.hex)).join("");
+
+      // 配色＆バイオームタブ更新
+      const featSwatches = document.getElementById("map-feature-swatches");
+      const featList = [
+        { name: "背景 (Background)", hex: tc.background },
+        { name: "海洋 (Ocean)", hex: tc.ocean },
+        { name: "浅瀬 (Ocean Shallow)", hex: tc.oceanShallow },
+        { name: "海岸線 (Coastline)", hex: tc.coastlineStroke },
+        { name: "河川塗り (River Fill)", hex: tc.riverFill },
+        { name: "河川境界 (River Stroke)", hex: tc.riverStroke },
+        { name: "街道 (Road)", hex: tc.roadStroke },
+        { name: "幹線道路 (Highway)", hex: tc.highwayStroke },
+        { name: "橋梁路面 (Bridge Deck)", hex: tc.bridgeDeck },
+        { name: "橋梁高欄 (Bridge Rail)", hex: tc.bridgeRail },
+        { name: "国境線 (Border)", hex: tc.borderStroke },
+        { name: "テキスト主 (Text Primary)", hex: tc.textPrimary },
+        { name: "テキスト副 (Text Secondary)", hex: tc.textSecondary },
+        { name: "水域テキスト (Text Water)", hex: tc.textWater },
+        { name: "等高線 (Contour)", hex: tc.contourStroke },
+        { name: "計曲線 (Contour Index)", hex: tc.contourIndexStroke },
+        { name: "都市屋根 (Settlement Fill)", hex: tc.settlementFill },
+        { name: "都市輪郭 (Settlement Stroke)", hex: tc.settlementStroke },
+        { name: "城壁/光面 (Wall/Highlight)", hex: tc.mountainHighlight },
+        { name: "ランドマーク (Landmark)", hex: tc.landmarkFill }
+      ];
+      featSwatches.innerHTML = featList.map(s => renderSwatchCard(s.name, s.hex)).join("");
+
+      const biomeSwatches = document.getElementById("biome-swatches");
+      const bKeys = Object.keys(tc.biomes);
+      biomeSwatches.innerHTML = bKeys.map(bk => renderSwatchCard(bk, tc.biomes[bk])).join("");
+
+      // ガイドタブのコード更新
+      document.getElementById("current-theme-code").textContent = JSON.stringify(current, null, 2);
+
+      // 横断比較テーブル更新
+      renderCompareTable();
+    }
+
+    function renderSwatchCard(name, hex) {
+      return `
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background-color: ${hex};"></div>
+          <div class="swatch-info">
+            <div class="swatch-name" title="${name}">${name}</div>
+            <div class="swatch-hex">${hex}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 横断比較テーブルの生成
+    function renderCompareTable() {
+      const table = document.getElementById("compare-table");
+      const themeKeys = Object.keys(BASE_THEMES);
+
+      let thead = `
+        <thead>
+          <tr>
+            <th style="width: 130px;">要素 / テーマ</th>
+            ${themeKeys.map(k => `<th>${BASE_THEMES[k].name}</th>`).join("")}
+          </tr>
+        </thead>
+      `;
+
+      const rows = [
+        {
+          label: "首都 (Capital)",
+          render: (t) => `<div class="compare-cell-preview" style="background-color: ${t.colors.background};">${createSettlementSvg('capital', t.colors, false)}</div>`
+        },
+        {
+          label: "町・港 (Town + Port)",
+          render: (t) => `<div class="compare-cell-preview" style="background-color: ${t.colors.background};">${createSettlementSvg('town', t.colors, true)}</div>`
+        },
+        {
+          label: "城塞 (Fort)",
+          render: (t) => `<div class="compare-cell-preview" style="background-color: ${t.colors.background};">${createSettlementSvg('fort', t.colors, false)}</div>`
+        },
+        {
+          label: "山岳主峰 (Major Peak)",
+          render: (t) => `<div class="compare-cell-preview" style="background-color: ${t.colors.background};">${createSymbolSvg('mountain_peak_major', t.colors)}</div>`
+        },
+        {
+          label: "広葉樹 (Tree)",
+          render: (t) => `<div class="compare-cell-preview" style="background-color: ${t.colors.background};">${createSymbolSvg('tree_deciduous', t.colors)}</div>`
+        },
+        {
+          label: "海洋・河川 (Ocean/River)",
+          render: (t) => `
+            <div class="compare-cell-preview" style="background-color: ${t.colors.background}; position: relative; overflow: hidden;">
+              <svg viewBox="0 0 100 80" width="100%" height="100%">
+                <rect x="0" y="0" width="100" height="80" fill="${t.colors.oceanShallow}" />
+                <path d="M 0,20 Q 50,40 100,10 L 100,80 L 0,80 Z" fill="${t.colors.ocean}" />
+                <path d="M 0,20 Q 50,40 100,10" stroke="${t.colors.coastlineStroke}" stroke-width="1.5" fill="none" />
+                <path d="M 30,0 Q 40,50 60,80" stroke="${t.colors.riverStroke}" stroke-width="4" fill="none" />
+                <path d="M 30,0 Q 40,50 60,80" stroke="${t.colors.riverFill}" stroke-width="2.5" fill="none" />
+              </svg>
+            </div>
+          `
+        },
+        {
+          label: "草地 (Grassland)",
+          render: (t) => `
+            <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+              <div style="width:24px; height:24px; border-radius:4px; background:${t.colors.biomes.grassland}; border:1px solid #444;"></div>
+              <span style="font-family:monospace; font-size:11px;">${t.colors.biomes.grassland}</span>
+            </div>
+          `
+        }
+      ];
+
+      let tbody = `
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td class="label-col">${r.label}</td>
+              ${themeKeys.map(k => `<td>${r.render(BASE_THEMES[k])}</td>`).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      `;
+
+      table.innerHTML = thead + tbody;
+    }
+
+    function copyThemeCode() {
+      const code = document.getElementById("current-theme-code").textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        alert("テーマ定義コードをクリップボードにコピーしました！");
+      }).catch(err => {
+        console.error("コピー失敗:", err);
+      });
+    }
+
+    // グローバルアクセス用
+    window.selectTheme = selectTheme;
+    window.toggleOption = toggleOption;
+    window.switchTab = switchTab;
+    window.copyThemeCode = copyThemeCode;
+    window.BASE_THEMES = BASE_THEMES;
+
+    // 初期化実行
+    window.addEventListener("DOMContentLoaded", () => {
+      initThemePills();
+      updateAll();
+    });
+  </script>
+</body>
+</html>

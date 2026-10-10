@@ -77,6 +77,17 @@ describe("undeadRaising", () => {
     worldContext.pack.states[2].diplomacy![1] = "Enemy";
   }
 
+  it("uses the detailed culture profile's zombie ratio when raising remains", () => {
+    stubWorld("inhumation");
+    worldContext.pack.cultures[2].burialProfile = "catacomb_paris";
+    war();
+    processFuneralDeaths(2, 100);
+    const r = army(1, 2);
+    raiseUndeadOnCellEntered(r, 2);
+    expect(r.u.zombies).toBe(6);
+    expect(r.u.skeletons).toBe(54);
+  });
+
   it("raises only entered cells, merges into the marching army, and stops while stationary", () => {
     stubWorld("inhumation");
     war();

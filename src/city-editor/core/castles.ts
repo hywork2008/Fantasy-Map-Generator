@@ -128,14 +128,32 @@ export function installCastle(
         name: "Castle curtain",
         segments: run.refs,
         style: { widthMeters: 4.2, color: "#55443d" },
+        wallMaterial: "stone",
         locked: false
       });
     }
   for (const circuit of next.defenseCircuits ?? []) updateCircuitWalls(next, circuit);
   const town = next.defenseCircuits?.find(c => c.scope === "town");
-  const center = town
-    ? polygonCentroid(town.areaFaceIds.flatMap(id => facePoints(next.mesh, next.mesh.faces[id])))
-    : (next.elements.find(e => e.kind === "plaza")?.point ?? [0, 0]);
+  // An access arm ending at the curtain is not access to the city. In
+  // particular, a narrow cell between a castle and the town wall must not
+  // make the castle gate face that wall instead of an inhabited street.
+  const townCurtainVertices = new Set(
+    (town ? boundaryEdges(next.mesh, town.areaFaceIds) : []).flatMap(ref => {
+      const edge = next.mesh.edges[ref.edgeId];
+      return [edge.a, edge.b];
+    })
+  );
+  const townCenters = town?.areaFaceIds.map(id => polygonCentroid(facePoints(next.mesh, next.mesh.faces[id]))) ?? [];
+  // Concatenating unrelated face rings is not a polygon and gives a spurious
+  // centroid, sometimes beyond the curtain. Prefer the actual civic centre.
+  const center: Point =
+    next.elements.find(e => e.kind === "plaza")?.point ??
+    (townCenters.length
+      ? [
+          townCenters.reduce((sum, p) => sum + p[0], 0) / townCenters.length,
+          townCenters.reduce((sum, p) => sum + p[1], 0) / townCenters.length
+        ]
+      : [0, 0]);
   const candidates = boundary
     .filter(ref => {
       const e = next.mesh.edges[ref.edgeId],
@@ -155,7 +173,7 @@ export function installCastle(
       };
       return rate(a) - rate(b) || a.edgeId.localeCompare(b.edgeId);
     });
-  for (const ref of candidates) {
+  for (const { ref, fraction } of candidates.flatMap(ref => [0.5, 0.25, 0.75].map(fraction => ({ ref, fraction })))) {
     const edge = next.mesh.edges[ref.edgeId];
     const p = next.mesh.vertices[edge.a].point,
       q = next.mesh.vertices[edge.b].point;
@@ -163,7 +181,7 @@ export function installCastle(
       diagnostics?.push(`${edge.id}: gate edge shorter than 14m`);
       continue;
     }
-    const inserted = insertEdgeVertex(next, edge.id, 0.5);
+    const inserted = insertEdgeVertex(next, edge.id, fraction);
     if (!inserted) continue;
     let working = inserted.document;
     const vertexId = inserted.vertexId;
@@ -171,16 +189,20 @@ export function installCastle(
     if (!outside) continue;
     // A third mesh arm connects the gate to the city. Its inner arm is local access.
     const exterior = working.mesh.faces[outside];
+    const facesTown = (id: Id): boolean => {
+      const target = working.mesh.vertices[id].point;
+      const at = working.mesh.vertices[vertexId].point;
+      const dx = target[0] - at[0],
+        dy = target[1] - at[1];
+      if (dx * (center[0] - at[0]) + dy * (center[1] - at[1]) <= 0) return false;
+      if (lineHitsDocumentWater(working, [at, target], 4, true)) return false;
+      const tangent = Math.abs(dx * (q[0] - p[0]) + dy * (q[1] - p[1]));
+      return tangent <= Math.hypot(dx, dy) * Math.hypot(q[0] - p[0], q[1] - p[1]) * 0.6;
+    };
     const targets = faceVertices(working.mesh, exterior)
       .filter(id => id !== vertexId)
-      .filter(id => {
-        const target = working.mesh.vertices[id].point;
-        const at = working.mesh.vertices[vertexId].point;
-        const dx = target[0] - at[0],
-          dy = target[1] - at[1];
-        const tangent = Math.abs(dx * (q[0] - p[0]) + dy * (q[1] - p[1]));
-        return tangent <= Math.hypot(dx, dy) * Math.hypot(q[0] - p[0], q[1] - p[1]) * 0.6;
-      })
+      .filter(id => !townCurtainVertices.has(id))
+      .filter(facesTown)
       .sort((a, b) => {
         const p = working.mesh.vertices[a].point,
           q = working.mesh.vertices[b].point;
@@ -190,6 +212,49 @@ export function installCastle(
     for (const target of targets) {
       split = splitFace(working, outside, vertexId, target);
       if (split) break;
+    }
+    // Existing block corners can all point along the castle curtain or at
+    // the town wall. Add a junction on a dry, non-wall block edge instead.
+    if (!split) {
+      const wallEdges = new Set(
+        working.featureGroups.flatMap(g => (g.kind === "wall" ? g.segments.map(r => r.edgeId) : []))
+      );
+      for (const ref of boundaryEdges(working.mesh, [outside])) {
+        if (wallEdges.has(ref.edgeId)) continue;
+        const junction = insertEdgeVertex(working, ref.edgeId, 0.5);
+        if (!junction) continue;
+        const previous = working;
+        working = junction.document;
+        if (
+          facesTown(junction.vertexId) &&
+          !lineHitsDocumentWater(
+            working,
+            [working.mesh.vertices[vertexId].point, working.mesh.vertices[junction.vertexId].point],
+            4,
+            true
+          )
+        )
+          split = splitFace(working, outside, vertexId, junction.vertexId);
+        working = previous;
+        if (split) break;
+      }
+    }
+    if (!split) {
+      // A single enclosed plaza has no interior corner or non-wall edge.
+      // Subdivide it and provide an interior junction, not a curtain endpoint.
+      if (working.elements.some(e => e.kind === "plaza" && e.faceIds.includes(outside))) {
+        for (const target of faceVertices(working.mesh, exterior).filter(id => id !== vertexId && facesTown(id))) {
+          const divided = splitFace(working, outside, vertexId, target);
+          if (!divided) continue;
+          const arm = incidentEdges(divided.mesh, vertexId).find(e => e.a === target || e.b === target);
+          if (!arm) continue;
+          const junction = insertEdgeVertex(divided, arm.id, 0.5);
+          if (junction) {
+            split = junction.document;
+            break;
+          }
+        }
+      }
     }
     if (!split) {
       diagnostics?.push(`${edge.id}: no exterior access arm`);
@@ -240,7 +305,8 @@ export function installCastle(
       parts: [],
       accesses: [],
       provenance: "generated",
-      locked: false
+      locked: false,
+      ...(site.style ? { castleStyle: site.style } : {})
     };
     working.castles ??= [];
     working.castles.push(castle);

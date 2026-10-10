@@ -70,4 +70,5 @@ export interface BurgEconomySummary {
 
 export const burgEconomyExtensions: {
   getBurgEconomySummary?: (burgId: number) => BurgEconomySummary | null;
+  getBurgSiteEconomy?: (burgId: number) => import("./burgSiteEconomy").BurgSiteEconomy | null;
 } = {};

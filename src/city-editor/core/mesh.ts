@@ -1,7 +1,8 @@
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { refreshCastleLayouts } from "./gen/castleLayout";
+import { isSimplePolygon, segmentsIntersect } from "./gen/geom";
 import type { Cell } from "./gen/types";
-import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
+import type { CityDocument, Edge, EdgeRef, Face, Id, Mesh, Point, WaterKind } from "./types";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -37,6 +38,9 @@ export function meshFromCells(cells: Cell[]): Mesh {
   for (const cell of cells) {
     const ids = removeConsecutiveDuplicates(cell.polygon.map(getVertex));
     if (ids.length < 3 || new Set(ids).size < 3) continue;
+    // Vertex merging can shrink a clipped rim sliver below the area that
+    // validate() accepts (Biarom: 0.97 m² at the frame), failing every attempt.
+    if (Math.abs(area(ids.map(id => vertices[id].point))) < 1) continue;
     const faceId = `f${cell.id}`;
     const boundary: EdgeRef[] = [];
     for (let i = 0; i < ids.length; i++) {
@@ -70,6 +74,8 @@ export function meshFromCells(cells: Cell[]): Mesh {
       properties: { elevation: 1, water: "land", ward: null, buildable: true, locked: false }
     };
   }
+  const used = new Set(Object.values(edges).flatMap(edge => [edge.a, edge.b]));
+  for (const id of Object.keys(vertices)) if (!used.has(id)) delete vertices[id];
   return { vertices, edges, faces };
 }
 
@@ -200,6 +206,20 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
   for (const circuit of next.defenseCircuits ?? [])
     if (circuit.areaFaceIds.includes(faceId)) circuit.areaFaceIds.push(newFaceId);
   rebuildFaceSides(next.mesh);
+  // A diagonal of a concave cell can run outside it. The two halves must then
+  // be simple, keep the parent's orientation and exactly tile its area.
+  const parent = facePoints(document.mesh, document.mesh.faces[faceId]);
+  if (isSimplePolygon(parent)) {
+    const parentArea = area(parent);
+    const halves = [face, next.mesh.faces[newFaceId]].map(f => facePoints(next.mesh, f));
+    const halfAreas = halves.map(area);
+    if (
+      halves.some(points => !isSimplePolygon(points)) ||
+      halfAreas.some(a => Math.sign(a) !== Math.sign(parentArea)) ||
+      Math.abs(halfAreas[0] + halfAreas[1] - parentArea) > Math.abs(parentArea) * 1e-6 + 1e-6
+    )
+      return null;
+  }
   return validate(next).length ? null : next;
 }
 
@@ -359,6 +379,9 @@ export function moveVertices(
     vertex.point = [point[0], point[1]];
   }
   if (!refreshCastleLayouts(next)) return null;
+  // Moved-geometry errors are new by construction, so they are never excused
+  // by allowExistingErrors.
+  if (movedGeometryErrors(document, next, points.keys()).length) return null;
   const errors = validate(next);
   if (!errors.length) return next;
   if (!allowExistingErrors) return null;
@@ -687,8 +710,122 @@ export function validate(document: CityDocument): string[] {
   return errors;
 }
 
+/**
+ * Planarity checks for an edit that moved existing vertices (design.md §5):
+ * every cell touching a moved vertex stays simple and keeps its orientation,
+ * and no edge at a moved vertex crosses or touches a non-adjacent edge. A cell
+ * or edge pair that was already broken in `before` is not held to the rule, so
+ * legacy documents remain editable.
+ */
+export function movedGeometryErrors(before: CityDocument, after: CityDocument, vertexIds: Iterable<Id>): string[] {
+  const moved = new Set(vertexIds);
+  if (!moved.size) return [];
+  const errors: string[] = [];
+  for (const face of Object.values(after.mesh.faces)) {
+    const ids = faceVertices(after.mesh, face);
+    if (!ids.some(id => moved.has(id))) continue;
+    const previous = before.mesh.faces[face.id];
+    if (!previous) continue;
+    const old = facePoints(before.mesh, previous);
+    if (!isSimplePolygon(old)) continue;
+    const points = ids.map(id => after.mesh.vertices[id].point);
+    if (!isSimplePolygon(points)) errors.push(`Face ${face.id} self-intersects`);
+    else if (Math.sign(area(points)) !== Math.sign(area(old))) errors.push(`Face ${face.id} is inverted`);
+  }
+  const edges = Object.values(after.mesh.edges);
+  const boxes = edges.map(edge => segmentBox(after.mesh.vertices[edge.a].point, after.mesh.vertices[edge.b].point));
+  edges.forEach((edge, i) => {
+    if (!moved.has(edge.a) && !moved.has(edge.b)) return;
+    const p = after.mesh.vertices[edge.a].point;
+    const q = after.mesh.vertices[edge.b].point;
+    edges.forEach((other, j) => {
+      if (i === j || (j < i && (moved.has(other.a) || moved.has(other.b)))) return;
+      if ([other.a, other.b].some(id => id === edge.a || id === edge.b)) return;
+      const box = boxes[i];
+      const otherBox = boxes[j];
+      if (box[0] > otherBox[2] || otherBox[0] > box[2] || box[1] > otherBox[3] || otherBox[1] > box[3]) return;
+      if (!segmentsIntersect(p, q, after.mesh.vertices[other.a].point, after.mesh.vertices[other.b].point)) return;
+      const wasCrossing =
+        before.mesh.edges[edge.id] &&
+        before.mesh.edges[other.id] &&
+        segmentsIntersect(
+          before.mesh.vertices[edge.a].point,
+          before.mesh.vertices[edge.b].point,
+          before.mesh.vertices[other.a].point,
+          before.mesh.vertices[other.b].point
+        );
+      if (!wasCrossing) errors.push(`Edge ${edge.id} crosses ${other.id}`);
+    });
+  });
+  return errors;
+}
+
+function segmentBox(a: Point, b: Point): [number, number, number, number] {
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+}
+
+/** Descriptor payloads are copy-on-write. Mesh edits replace the property;
+ * they do not mutate the surveyed rivers, so clones share that object. */
+const SHARED_CITY_FIELDS = [
+  "importedFixedCrossings",
+  "regionalSurface",
+  "regionalWaterAreas",
+  "sceneRegions",
+  "siteEconomy",
+  "civilization",
+  "burialProfile",
+  "landmarkAssets",
+  "riverFlows",
+  "waterAccess",
+  "biome"
+] as const;
+
+function cloneMesh(mesh: Mesh): Mesh {
+  const vertices: Mesh["vertices"] = {};
+  for (const vertex of Object.values(mesh.vertices))
+    vertices[vertex.id] = { id: vertex.id, point: [vertex.point[0], vertex.point[1]], locked: vertex.locked };
+  const edges: Mesh["edges"] = {};
+  for (const edge of Object.values(mesh.edges))
+    edges[edge.id] = {
+      id: edge.id,
+      a: edge.a,
+      b: edge.b,
+      leftFace: edge.leftFace,
+      rightFace: edge.rightFace,
+      locked: edge.locked
+    };
+  const faces: Mesh["faces"] = {};
+  for (const face of Object.values(mesh.faces))
+    faces[face.id] = {
+      id: face.id,
+      boundary: face.boundary.map(ref => ({ edgeId: ref.edgeId, forward: ref.forward })),
+      ...(face.site ? { site: [face.site[0], face.site[1]] } : {}),
+      properties: { ...face.properties }
+    };
+  return { vertices, edges, faces };
+}
+
 export function clone<T>(value: T): T {
-  return structuredClone(value);
+  if (!value || typeof value !== "object" || (value as { format?: unknown }).format !== "fmg-city-editor")
+    return structuredClone(value);
+  const source = value as CityDocument;
+  const shared = new Set<string>(SHARED_CITY_FIELDS);
+  const rest: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (shared.has(key) || key === "mesh" || key === "featureGroups") continue;
+    rest[key] = source[key as keyof CityDocument];
+  }
+  const clonedRest = structuredClone(rest) as Record<string, unknown>;
+  const mesh = cloneMesh(source.mesh);
+  const groups = structuredClone(source.featureGroups);
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (key === "mesh") copy.mesh = mesh;
+    else if (key === "featureGroups") copy.featureGroups = groups;
+    else if (shared.has(key)) copy[key] = source[key as keyof CityDocument];
+    else copy[key] = clonedRest[key];
+  }
+  return copy as T;
 }
 
 function edgeKey(a: Id, b: Id): string {

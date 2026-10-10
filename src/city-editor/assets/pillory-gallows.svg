@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -12 30 24" width="450" height="380">
+  <style>
+    .ce-pillory-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-pillory-stone { fill: #c4bea9; stroke: #383021; stroke-width: 0.5px; stroke-linejoin: round; }
+    .ce-pillory-wood { fill: #6e4e31; stroke: #2b1c0f; stroke-width: 0.35px; }
+    .ce-pillory-beam { stroke: #452f1b; stroke-width: 0.45px; stroke-linecap: round; }
+    .ce-gallows-post { fill: #4a341f; stroke: #24170b; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--pillory-gallows">
+    <!-- 影 -->
+    <g class="ce-pillory-shadow" transform="translate(1 1.2)">
+      <polygon points="-6,-5 -2,-5 0,-1.5 -2,2 -6,2 -8,-1.5"></polygon>
+      <polygon points="4,-5 10,-5 12,0 10,5 4,5 2,0"></polygon>
+    </g>
+    <!-- 1. 晒し台・首枷壇（Pillory - 西側：広場の見せしめ壇） -->
+    <g transform="translate(-5, 0)">
+      <!-- 八角形切石基壇（三段ステップ） -->
+      <polygon points="-5,-4.5 -2.5,-5.5 0,-4.5 1,-2 0,0.5 -2.5,1.5 -5,0.5 -6,-2" class="ce-pillory-stone"></polygon>
+      <polygon points="-4.5,-4 -2.5,-4.8 -0.5,-4 0.3,-2 -0.5,0 -2.5,0.8 -4.5,0 -5.3,-2" fill="#ded5bf"></polygon>
+      <!-- 中央直立木製支柱 -->
+      <circle cx="-2.5" cy="-2" r="0.8" class="ce-pillory-wood"></circle>
+      <!-- 回転式首枷・手枷板（Carcan / Pillory Board - 穴のあいた木板） -->
+      <rect x="-4.8" y="-2.4" width="4.6" height="0.8" rx="0.15" class="ce-pillory-wood"></rect>
+      <!-- 首穴と両手穴 -->
+      <circle cx="-2.5" cy="-2" r="0.25" fill="#1b120a"></circle>
+      <circle cx="-4" cy="-2" r="0.18" fill="#1b120a"></circle>
+      <circle cx="-1" cy="-2" r="0.18" fill="#1b120a"></circle>
+      <!-- 壇上の足枷鉄輪 -->
+      <circle cx="-2.5" cy="-0.6" r="0.2" fill="#2d2924"></circle>
+    </g>
+    <!-- 2. 常設三柱絞首台（Triangular Gallows / Gibbet - 東側：城外丘陵の刑場） -->
+    <g transform="translate(7, 0)">
+      <!-- 三角形切石台座 -->
+      <polygon points="0,-4.5 4.5,3.3 -4.5,3.3" fill="#aba08a" stroke="#383021" stroke-width="0.4"></polygon>
+      <!-- 3本の頑丈な角柱ポスト（Corner Posts） -->
+      <rect x="-0.6" y="-5.1" width="1.2" height="1.2" rx="0.1" class="ce-gallows-post"></rect>
+      <rect x="3.9" y="2.7" width="1.2" height="1.2" rx="0.1" class="ce-gallows-post"></rect>
+      <rect x="-5.1" y="2.7" width="1.2" height="1.2" rx="0.1" class="ce-gallows-post"></rect>
+      <!-- 柱頭を連結する3本の太い梁木（Crossbeams） -->
+      <line x1="0" y1="-4.5" x2="4.5" y2="3.3" class="ce-pillory-beam"></line>
+      <line x1="4.5" y1="3.3" x2="-4.5" y2="3.3" class="ce-pillory-beam"></line>
+      <line x1="-4.5" y1="3.3" x2="0" y2="-4.5" class="ce-pillory-beam"></line>
+      <!-- 吊り縄の滑車と輪の象徴 -->
+      <circle cx="2.2" cy="-0.6" r="0.25" fill="#241a10"></circle>
+      <circle cx="-2.2" cy="-0.6" r="0.25" fill="#241a10"></circle>
+      <circle cx="0" cy="3.3" r="0.25" fill="#241a10"></circle>
+      <!-- 中央の落とし蓋ハッチ -->
+      <polygon points="0,-2.5 2.5,1.8 -2.5,1.8" fill="#544332" stroke="#261b11" stroke-width="0.2"></polygon>
+    </g>
+  </g>
+</svg>

@@ -56,16 +56,16 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
     async function generate() {
       const [
         { parseDescriptor, shareFromDescriptor },
-        { createGridDocument, descriptorFrameGridOptions },
+        { createGridDocument, descriptorFrameGridOptions, seaPortShoreDistanceMeters },
         { defaultGenerationSettings },
         { startCityGeneration },
-        { serializeCityPreviewSvg }
+        { serializeCitySvg }
       ] = await Promise.all([
         import("../../city-editor/io/incomingCity"),
         import("../../city-editor/core/document"),
         import("../../city-editor/core/generate"),
         import("../../city-editor/core/generationWorkerClient"),
-        import("../../city-editor/render/previewSvg")
+        import("../../city-editor/render/svg")
       ]);
       if (disposed) return;
       const inputStarted = performance.now();
@@ -84,10 +84,12 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
           ? descriptorFrameGridOptions(
               share.descriptor.frame,
               share.descriptor.burg.waterAccess?.port.river === true,
-              share.descriptor.burg.riverPlacement?.bankDistanceMeters
+              share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+              seaPortShoreDistanceMeters(share.descriptor)
             )
           : {}),
-        measureBlockSize: share.measureBlockSize === true
+        measureBlockSize: share.measureBlockSize === true,
+        biome: share.descriptor?.biome
       });
       if (disposed) return;
       timings.grid = performance.now() - gridStarted;
@@ -130,7 +132,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
           samples.filter(sample => sample.failure)
         );
       const svgStarted = performance.now();
-      const svg = serializeCityPreviewSvg(city);
+      const svg = serializeCitySvg(city);
       timings.svg = performance.now() - svgStarted;
       timings.total = performance.now() - started;
       console.debug("[City preview] timings", {
@@ -157,10 +159,10 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
   }, [snapshot]);
 
   return (
-    <div id="burgCityPreview" style={{ width: "min(640px, 75vw)" }}>
+    <div id="burgCityPreview" style={{ width: "min(560px, 42vw)" }}>
       {url ? (
         <>
-          <p>{t("dialogs.burgEditor.previewSimplified")}</p>
+          <p>{t("dialogs.burgEditor.previewCityEditor")}</p>
           <CityPreviewViewport
             url={url}
             alt={t("dialogs.burgEditor.previewAriaLabel")}

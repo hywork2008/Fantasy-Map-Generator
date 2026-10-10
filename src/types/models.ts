@@ -335,6 +335,8 @@ export interface Burg {
   landUseSettings?: import("./landUse").LandUseSettings;
   /** Local FMG river site; the source cell remains the logical political owner. */
   riverPlacement?: {
+    /** Both river access and a nearby drawn ocean shore were checked by placement. */
+    coastConstrained?: boolean;
     riverId: number;
     bank: "left" | "right";
     widthMeters: number;
@@ -536,6 +538,8 @@ export interface Culture {
   landUseProfile?: import("./landUse").LandUseProfile;
   landUseSettings?: import("./landUse").LandUseSettings;
   romanceNorms?: CultureRomanceNorms;
+  /** City Editor Lot occupancy guide (0–1). Unset uses DEFAULT_LOT_OCCUPANCY (80%). */
+  lotOccupancy?: number;
   name: string;
   i: number;
   base: number;
@@ -607,6 +611,12 @@ export interface Culture {
    * legacy saves without the field fall back to the type's modal rite. Wildlands omit it.
    */
   funeralRite?: FuneralRite;
+  /**
+   * Detailed burial tradition and cemetery profile (docs/plan/cultures/).
+   * Either a preset ID string (e.g. 'roman_via_appia') or a full BurialCultureProfile object.
+   * Read via `getCultureBurialProfile()` in src/utils/cultureBurialProfile.ts.
+   */
+  burialProfile?: import("../data/burialCultures").BurialCultureProfile | string;
 }
 
 export interface PackedGraphFeature {
@@ -848,6 +858,8 @@ export interface RiverCellHydrology {
 }
 
 export interface Route {
+  /** A surveyed dry city connection must retain all waypoints, including same-cell points. */
+  fixedSettlementApproach?: boolean;
   /** Unsmooth shared bridge geometry. Original points allow fresh revalidation after water edits/load. */
   riverRoadConvergence?: { originalPoints: [number, number, number][]; pointsKey: string; burgIds: number[] };
   /** Exact physical shape is resolved through the current world registry. */

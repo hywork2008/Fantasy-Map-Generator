@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -18 36 36" width="500" height="500">
+  <style>
+    .ce-campo-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-campo-outer { fill: #ded7c8; stroke: #3d3527; stroke-width: 0.65px; stroke-linejoin: round; }
+    .ce-campo-lawn { fill: #4a633a; stroke: #233318; stroke-width: 0.45px; }
+    .ce-campo-arcade { fill: #bfa886; stroke: #3d3120; stroke-width: 0.4px; }
+    .ce-campo-sarcophagus { fill: #eae5da; stroke: #3d3527; stroke-width: 0.3px; }
+    .ce-campo-cypress { fill: #1f3d24; stroke: #0f2113; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--campo-santo">
+    <!-- 影 -->
+    <g class="ce-campo-shadow" transform="translate(1.2 1.4)">
+      <rect x="-14" y="-14" width="28" height="28" rx="0.6"></rect>
+    </g>
+    <!-- 回廊外壁 -->
+    <g class="ce-campo-outer">
+      <rect x="-14" y="-14" width="28" height="28" rx="0.5"></rect>
+    </g>
+    <!-- 中庭の聖なる緑地（Campo Santo 芝生中庭） -->
+    <g class="ce-campo-lawn">
+      <rect x="-8.5" y="-8.5" width="17" height="17" rx="0.3"></rect>
+    </g>
+    <!-- 四方を巡る追悼アーケード回廊屋根 -->
+    <g class="ce-campo-arcade">
+      <path d="M -13.5 -13.5 L 13.5 -13.5 L 13.5 13.5 L -13.5 13.5 Z M -8.5 -8.5 L -8.5 8.5 L 8.5 8.5 L 8.5 -8.5 Z" fill-rule="evenodd"></path>
+    </g>
+    <!-- 中庭に配された追悼のイタリアイトスギ4本 -->
+    <g class="ce-campo-cypress">
+      <circle cx="-5.5" cy="-5.5" r="1.3"></circle>
+      <circle cx="5.5" cy="-5.5" r="1.3"></circle>
+      <circle cx="-5.5" cy="5.5" r="1.3"></circle>
+      <circle cx="5.5" cy="5.5" r="1.3"></circle>
+    </g>
+    <!-- 中庭中央の記念十字架（High Cross） -->
+    <g transform="translate(0, 0)">
+      <circle cx="0" cy="0" r="1.4" fill="#cfc5b0" stroke="#3d3527" stroke-width="0.3"></circle>
+      <line x1="0" y1="-1.6" x2="0" y2="1.6" stroke="#261f14" stroke-width="0.5"></line>
+      <line x1="-1.1" y1="-0.5" x2="1.1" y2="-0.5" stroke="#261f14" stroke-width="0.5"></line>
+    </g>
+    <!-- 回廊床面に並ぶ著名人の大理石石棺・銘板墓碑 -->
+    <g class="ce-campo-sarcophagus">
+      <rect x="-12.5" y="-7" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="-12.5" y="-3" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="-12.5" y="1" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="-12.5" y="5" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="10.3" y="-7" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="10.3" y="-3" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="10.3" y="1" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="10.3" y="5" width="2.2" height="1.1" rx="0.15"></rect>
+      <rect x="-5" y="-12.5" width="1.1" height="2.2" rx="0.15"></rect>
+      <rect x="0" y="-12.5" width="1.1" height="2.2" rx="0.15"></rect>
+      <rect x="5" y="-12.5" width="1.1" height="2.2" rx="0.15"></rect>
+    </g>
+  </g>
+</svg>

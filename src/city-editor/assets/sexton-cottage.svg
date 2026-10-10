@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -12 28 24" width="450" height="380">
+  <style>
+    .ce-sexton-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-sexton-ground { fill: #ded5c1; stroke: #423824; stroke-width: 0.4px; }
+    .ce-sexton-wall { fill: #ab9f8a; stroke: #383020; stroke-width: 0.45px; }
+    .ce-sexton-roof { fill: #617355; stroke: #26331f; stroke-width: 0.45px; }
+    .ce-sexton-shed { fill: #785a3a; stroke: #382412; stroke-width: 0.35px; }
+    .ce-sexton-tool { stroke: #382412; stroke-width: 0.3px; }
+    .ce-sexton-garden { fill: #4f6938; stroke: #233316; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--sexton-cottage">
+    <!-- 影 -->
+    <g class="ce-sexton-shadow" transform="translate(1 1.2)">
+      <rect x="-8" y="-7" width="16" height="14" rx="0.5"></rect>
+      <rect x="-7" y="-5" width="9" height="7" rx="0.3"></rect>
+    </g>
+    <!-- 小屋の前庭・作業土場 -->
+    <g class="ce-sexton-ground">
+      <rect x="-10" y="-8" width="20" height="16" rx="0.4"></rect>
+    </g>
+    <!-- 囲い菜園（Kitchen Garden） -->
+    <g class="ce-sexton-garden" transform="translate(5, -2)">
+      <rect x="-3" y="-4" width="6" height="8" rx="0.3"></rect>
+      <line x1="-2" y1="-2" x2="2" y2="-2" stroke="#6e8f4f" stroke-width="0.35"></line>
+      <line x1="-2" y1="0" x2="2" y2="0" stroke="#6e8f4f" stroke-width="0.35"></line>
+      <line x1="-2" y1="2" x2="2" y2="2" stroke="#6e8f4f" stroke-width="0.35"></line>
+    </g>
+    <!-- 墓守小屋本体（切石壁＋苔むした茅葺き/スレート屋根） -->
+    <g transform="translate(-3, -1)">
+      <!-- 壁基壇 -->
+      <rect x="-5" y="-4" width="10" height="8" rx="0.3" class="ce-sexton-wall"></rect>
+      <!-- 切妻屋根 -->
+      <polygon points="-5.5,-4.5 5.5,-4.5 5.5,0 -5.5,0" class="ce-sexton-roof"></polygon>
+      <polygon points="-5.5,0 5.5,0 5.5,4.5 -5.5,4.5" fill="#4d5c43" stroke="#26331f" stroke-width="0.45"></polygon>
+      <!-- 棟木 -->
+      <line x1="-5.5" y1="0" x2="5.5" y2="0" stroke="#26331f" stroke-width="0.6" stroke-linecap="round"></line>
+      <!-- 石造煙突 -->
+      <rect x="3.2" y="-3.5" width="1.4" height="1.4" fill="#695f50" stroke="#262017" stroke-width="0.3"></rect>
+      <circle cx="3.9" cy="-2.8" r="0.35" fill="#1b1712"></circle>
+    </g>
+    <!-- 掘削用具小屋・スコップと手押し車（Tool Shed）南西側 -->
+    <g transform="translate(-6.5, 4.5)">
+      <rect x="-2" y="-1.5" width="4" height="3" rx="0.2" class="ce-sexton-shed"></rect>
+      <!-- 立てかけられたスコップとツルハシ -->
+      <line x1="-1.2" y1="1.8" x2="-0.4" y2="3.2" class="ce-sexton-tool"></line>
+      <circle cx="-0.4" cy="3.2" r="0.25" fill="#a89f91"></circle>
+      <!-- 木の手押し車（Wheelbarrow） -->
+      <rect x="0.5" y="1.5" width="1.4" height="2" rx="0.2" fill="#52391e" stroke="#26170a" stroke-width="0.2"></rect>
+      <circle cx="1.2" cy="3.5" r="0.3" fill="#1b1712"></circle>
+    </g>
+  </g>
+</svg>

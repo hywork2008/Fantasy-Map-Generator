@@ -217,6 +217,25 @@ describe("MarketsModule", () => {
       expect(getDeals()).toEqual([]);
     });
 
+    it("does not buy staple Grain off the food-ledger mirror", () => {
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 1 } }
+      };
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market, market];
+      setMarkets([market]);
+      const burg: Burg = { i: 1, market: 1, treasury: 100 } as unknown as Burg;
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
+      const grain = { ...getGoods()[0], tags: ["food", "stapleFood"] };
+
+      expect(marketsModule.buy({ burg, good: grain, units: 5 })).toBeNull();
+      expect(market.goods[0].stock).toBe(100);
+      expect(getDeals()).toEqual([]);
+    });
+
     it("runGlobalTrade() should transfer excess stock to importers", () => {
       const market1: Market = {
         i: 1,

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearAnnualGateYear, clearEconomyContext, initEconomyContext } from "../economyContext";
+import { clearAnnualGateYear, clearEconomyContext, initEconomyContext, setTradeCorridors } from "../economyContext";
 import type { TradeRouteSegment } from "./marketTypes";
 import {
   GRANARY_WORKS_COST_PER_STEP,
@@ -16,6 +16,7 @@ import {
   WORKS_ANNUAL_DECAY,
   WORKS_LEVEL_STEP
 } from "./publicWorks";
+import type { TradeCorridor } from "./tradeCorridorLedger";
 
 /**
  * Four-cell chain, all owned by State 1. Route 0 is a `trails` route over cells 0-1-2-3
@@ -111,6 +112,45 @@ describe("publicWorks (docs/plan/economy-coupling-audit.md L8 stage 2)", () => {
   });
 
   describe("road promotion", () => {
+    it("paves a late, heavily used corridor ahead of a busier trail that is already on time", () => {
+      worldContext.pack.routes[0].cells = [0, 1];
+      worldContext.pack.routes[0].traffic = 40;
+      worldContext.pack.routes.push({
+        i: 1,
+        group: "trails",
+        feature: 1,
+        cells: [2, 3],
+        points: [
+          [20, 0, 2],
+          [30, 0, 3]
+        ],
+        traffic: ROAD_PROMOTION_TRAFFIC_THRESHOLD
+      });
+      const corridor = (routeId: number, cargoSlots: number, meanTravelDays: number): TradeCorridor => ({
+        burgA: 1,
+        burgB: routeId + 2,
+        departures: 4,
+        cargoSlots,
+        value: cargoSlots,
+        byMode: { land: cargoSlots, river: 0, sea: 0 },
+        meanTravelDays,
+        idealTravelDays: 10,
+        threat: 0,
+        routeIds: [routeId],
+        ferryCrossings: 0,
+        routeHits: { [String(routeId)]: 4 },
+        goodsSlots: {}
+      });
+      setTradeCorridors([corridor(0, 10, 10), corridor(1, 100, 20)]);
+      // The road envelope is half the balance, enough for exactly one 2-cell trail.
+      fundPublicWorks(2 * ROAD_PROMOTION_COST_PER_CELL * 2);
+
+      PublicWorks.settleAnnual();
+
+      expect(worldContext.pack.routes[1].group).toBe("roads");
+      expect(worldContext.pack.routes[0].group).toBe("trails");
+    });
+
     it("promotes a busy trail to roads once the works budget covers the paving cost", () => {
       worldContext.pack.routes[0].traffic = ROAD_PROMOTION_TRAFFIC_THRESHOLD;
       // The road envelope is half the balance, so fund twice the paving cost.

@@ -1,6 +1,11 @@
 import { parseIncomingPayload } from "../io/incomingCity";
 import { featureGroupVertices } from "./features";
-import { frameRoadConnectedToTown } from "./frameRoadConnection";
+import {
+  frameRoadApproachBend,
+  frameRoadConnectedToTown,
+  frameRoadJunction,
+  frameRoadJunctionIssue
+} from "./frameRoadConnection";
 import { frameRoadTarget } from "./frameRoads";
 import { defaultRoadWidthMeters, townExtentMeters } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
@@ -77,7 +82,12 @@ export function auditCityGeneration(
     roadReach: city ? roadReach(city, share.descriptor) : null,
     fixedApproaches: fixed,
     completeFixedApproaches: fixed.every(s => s.status === "adopted"),
-    phases: samples.map(({ phase, elapsedMs, attempt, counts }) => ({ phase, elapsedMs, attempt, counts })),
+    phases: samples.map(({ phase, elapsedMs, attempt, counts }) => ({
+      phase,
+      elapsedMs,
+      attempt,
+      counts
+    })),
     preview
   };
 }
@@ -91,6 +101,9 @@ function roadReach(city: CityDocument, descriptor: BurgSiteDescriptor) {
     descriptorEndDistance: number;
     renderedEndDistance: number | null;
     connectedToTown: boolean;
+    junction: string | null;
+    stubLength: number | null;
+    bendDegrees: number | null;
     reachesTarget: boolean;
   }[] = [];
   descriptor.roads.forEach((road, sourceIndex) => {
@@ -115,6 +128,7 @@ function roadReach(city: CityDocument, descriptor: BurgSiteDescriptor) {
       const meshEnd = outerMeshPoint(city, sourceIndex);
       const rendered = frameEnd ?? meshEnd;
       const gap = rendered ? Math.hypot(rendered[0] - targetEnd[0], rendered[1] - targetEnd[1]) : Infinity;
+      const junction = leg ? frameRoadJunction(city, leg, descriptor) : null;
       const connectedToTown = leg ? frameRoadConnectedToTown(city, leg) : !!meshEnd;
       rows.push({
         sourceIndex,
@@ -122,6 +136,9 @@ function roadReach(city: CityDocument, descriptor: BurgSiteDescriptor) {
         descriptorEndDistance: round(Math.hypot(targetEnd[0], targetEnd[1])),
         renderedEndDistance: rendered ? round(Math.hypot(rendered[0], rendered[1])) : null,
         connectedToTown,
+        junction: leg ? frameRoadJunctionIssue(city, leg, descriptor) : null,
+        stubLength: junction ? round(junction.stubLength) : null,
+        bendDegrees: leg && junction ? round(frameRoadApproachBend(city, leg, descriptor)) : null,
         reachesTarget: connectedToTown && gap <= 25
       });
     }

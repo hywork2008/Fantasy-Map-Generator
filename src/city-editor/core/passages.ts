@@ -1,3 +1,4 @@
+import { documentBridgeSkewLimit, overSkewedBridgeDecks } from "./bridgeDeck";
 import { townGates } from "./fortifications";
 import {
   isSimplePolygon,
@@ -24,6 +25,7 @@ import {
   faceVertices,
   incidentEdges,
   incidentFaces,
+  indexMeshEdges,
   insertEdgeVertex,
   mergeVertices,
   moveVertex,
@@ -60,11 +62,13 @@ export function edgesAreOpposite(ordered: Edge[], a: Id, b: Id): boolean {
 
 export function kindEdgeIds(document: CityDocument, kind: FeatureGroup["kind"]): Set<Id> {
   const ids = new Set<Id>();
+  // Rivers store vertices; one index per call avoids a full edge scan per river step.
+  const index = kind === "river" ? indexMeshEdges(document.mesh) : null;
   for (const group of document.featureGroups) {
     if (group.kind !== kind) continue;
     if (group.kind === "river") {
       for (let i = 1; i < group.vertices.length; i++) {
-        const edge = edgeBetween(document.mesh, group.vertices[i - 1], group.vertices[i]);
+        const edge = index!.between(group.vertices[i - 1], group.vertices[i]);
         if (edge) ids.add(edge.id);
       }
     } else {
@@ -666,7 +670,7 @@ function roadDeviationDegrees(gate: Point, roads: Point[], tangent: Point): numb
   return worst;
 }
 
-function townCenter(document: CityDocument): Point {
+export function townCenter(document: CityDocument): Point {
   const plaza = document.elements.find(element => element.kind === "plaza" && element.point);
   if (plaza?.point) return plaza.point;
   let x = 0;
@@ -845,7 +849,9 @@ function swingObliqueGateArm(
 function straightenExteriorGateApproaches(document: CityDocument): CityDocument {
   let next = document;
   const riverIds = riverVertexSet(document);
-  for (const gate of document.gates) {
+  // Castle accesses are one-sided, already clearance-checked at installation.
+  // Treating them as exterior town approaches can swing them into the curtain.
+  for (const gate of townGates(document)) {
     if (gate.locked || next.mesh.vertices[gate.vertexId]?.locked || riverIds.has(gate.vertexId)) continue;
     const frame = gateCrossingFrame(next, gate.vertexId);
     if (!frame) continue;
@@ -899,6 +905,44 @@ function straightenExteriorGateApproaches(document: CityDocument): CityDocument 
  * angle, the more oblique arm swings onto the wall normal so the gatehouse
  * does not cover the street.
  */
+/** Outward spikes shallower than this are left as drawn. */
+const GATE_SPIKE_MIN_METERS = 1.5;
+
+/**
+ * Pull a town gate that spikes out of the curtain back onto the chord of its two wall
+ * neighbours. A gate on a sharp outward corner leaves its gatehouse and any barbican
+ * standing off the wall on both sides. Runs once when the geometry is finished, before
+ * the gate roads are squared to the (now straight) curtain.
+ */
+export function retractProtrudingGates(document: CityDocument): CityDocument {
+  let next = document;
+  for (const gate of townGates(next)) {
+    if (gate.locked) continue;
+    const vertex = next.mesh.vertices[gate.vertexId];
+    const neighbours = wallNeighbourIds(next, gate.vertexId);
+    const frame = gateCrossingFrame(next, gate.vertexId);
+    if (!vertex || vertex.locked || !neighbours || !frame) continue;
+    const a = next.mesh.vertices[neighbours[0]]?.point;
+    const b = next.mesh.vertices[neighbours[1]]?.point;
+    if (!a || !b) continue;
+    const cx = b[0] - a[0],
+      cy = b[1] - a[1];
+    const len2 = cx * cx + cy * cy;
+    if (len2 < 64) continue;
+    const t = Math.max(0.2, Math.min(0.8, ((vertex.point[0] - a[0]) * cx + (vertex.point[1] - a[1]) * cy) / len2));
+    const target: Point = [a[0] + cx * t, a[1] + cy * t];
+    // Only an outward spike: the chord lies on the town side of the gate.
+    const inward = (target[0] - vertex.point[0]) * frame.inward[0] + (target[1] - vertex.point[1]) * frame.inward[1];
+    if (inward < GATE_SPIKE_MIN_METERS) continue;
+    const moved = tryMoveVertex(next, gate.vertexId, target);
+    if (moved === next) continue;
+    for (const face of incidentFaces(moved.mesh, gate.vertexId))
+      if (!face.properties.locked) face.site = polygonCentroid(facePoints(moved.mesh, face));
+    next = moved;
+  }
+  return next;
+}
+
 export function straightenGateCrossings(document: CityDocument): CityDocument {
   let next = document;
   const riverVertices = new Set<Id>();
@@ -1048,10 +1092,21 @@ function riverCrossingFrame(document: CityDocument, midId: Id): { tangent: Point
   return null;
 }
 
-/** A bridge arm may slide. The river vertex, gates, and wall vertices stay put. */
+/** Where an FMG crossing's deck lands. A road snapped there carries the
+ * bridge into town, so moving it would strand the deck or push the road
+ * into the water. */
+export function onFixedCrossingApproach(document: CityDocument, point: Point): boolean {
+  return (document.importedFixedCrossings?.crossings ?? []).some(crossing =>
+    [crossing.approachA, crossing.approachB].some(end => Math.hypot(point[0] - end[0], point[1] - end[1]) < 0.5)
+  );
+}
+
+/** A bridge arm may slide. The river vertex, gates, wall vertices and an FMG
+ * crossing's approach stay put. */
 function bridgeArmIsFixed(document: CityDocument, id: Id): boolean {
   const vertex = document.mesh.vertices[id];
   if (!vertex || vertex.locked) return true;
+  if (onFixedCrossingApproach(document, vertex.point)) return true;
   if (townGates(document).some(gate => gate.vertexId === id)) return true;
   for (const group of document.featureGroups) {
     if (group.kind === "river") {
@@ -1189,7 +1244,11 @@ export function straightenBridges(document: CityDocument): CityDocument {
 
 /** Completed generation must never publish a decorative gate or a disconnected
  * wall/river crossing. Kept separate from legacy-file structural validation. */
-export function validGeneratedCrossings(document: CityDocument): boolean {
+export function validGeneratedCrossings(
+  document: CityDocument,
+  skewLimit = documentBridgeSkewLimit(document)
+): boolean {
+  if (overSkewedBridgeDecks(document, skewLimit).length) return false;
   for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road")) return false;
   }
@@ -1223,8 +1282,15 @@ export function validGeneratedCrossings(document: CityDocument): boolean {
 
 /** Human-readable "how" for a rejected complete city: every broken gate, shared
  * edge, or unbridged town-dividing river. Empty when crossings are valid. */
-export function explainGeneratedCrossingFailures(document: CityDocument): string[] {
+export function explainGeneratedCrossingFailures(
+  document: CityDocument,
+  skewLimit = documentBridgeSkewLimit(document)
+): string[] {
   const details: string[] = [];
+  for (const deck of overSkewedBridgeDecks(document, skewLimit))
+    details.push(
+      `橋 ${deck.groupId} が河川の法線から ${deck.skewDegrees.toFixed(1)}° 傾いている（上限 ${skewLimit.toFixed(0)}°）`
+    );
   for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road"))
       details.push(`門 ${gate.id}（頂点 ${gate.vertexId}）に城壁と道路の十字交差がない`);

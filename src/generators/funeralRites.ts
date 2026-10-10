@@ -15,13 +15,12 @@ import {
   addFuneralMaterials,
   emptyFuneralMaterials,
   FUNERAL_FOREST_COVERAGE_PER_WOOD,
-  FUNERAL_RITE_DEFINITIONS,
   type FuneralMaterialNeed,
-  funeralMaterialsFor,
   hasFuneralMaterials,
   scaleFuneralMaterials
 } from "../data/funeralRites";
 import { isLichCulture, isUndeadRaceKey, raceKeyForId } from "../extensions/characters/lichPolicy";
+import { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
 import { harvestForestStock } from "./forestStock";
 
@@ -103,7 +102,9 @@ function riteForCell(cellId: number) {
   const culture = pack.cultures[cultureId];
   const rite = getCultureFuneralRite(culture);
   if (!rite) return undefined;
-  return { rite, culture };
+  const mechanics = getCultureFuneralMechanics(culture);
+  if (!mechanics) return undefined;
+  return { rite, culture, mechanics };
 }
 
 /**
@@ -122,11 +123,19 @@ export function processFuneralDeaths(cellId: number, people: number): void {
   const raceKey = raceKeyForId(pack.races, resolved.culture.race);
   if (isUndeadRaceKey(raceKey)) return;
 
-  const definition = FUNERAL_RITE_DEFINITIONS[resolved.rite];
-  const remains = people * definition.remainFraction;
+  const remains = people * resolved.mechanics.remainFraction;
   if (remains > 0) addRemains(cellId, remains);
 
-  const materials = scaleFuneralMaterials(funeralMaterialsFor(resolved.rite, resolved.culture.type), people);
+  const recipe = resolved.mechanics.resourceCostPerCapita;
+  const materials = scaleFuneralMaterials(
+    {
+      wood: recipe.wood ?? 0,
+      stone: recipe.stone ?? 0,
+      linen: recipe.linen ?? 0,
+      ...(recipe.incense !== undefined ? { incense: recipe.incense } : {})
+    },
+    people
+  );
   addPendingMaterials(cellId, materials);
   harvestFuneralWood(cellId, materials.wood);
 }
@@ -161,10 +170,7 @@ export function seedHistoricalFuneralRemains(): void {
     const living = livingPeopleAtCell(cellId);
     if (!(living > 0)) continue;
     const deaths = living * HISTORICAL_ANNUAL_DEATH_RATE * HISTORICAL_FUNERAL_YEARS;
-    const remains = Math.min(
-      deaths * FUNERAL_RITE_DEFINITIONS[resolved.rite].remainFraction,
-      living * MAX_SEEDED_REMAINS_FACTOR
-    );
+    const remains = Math.min(deaths * resolved.mechanics.remainFraction, living * MAX_SEEDED_REMAINS_FACTOR);
     if (remains > 0) addRemains(cellId, remains);
   }
   state.seeded = true;

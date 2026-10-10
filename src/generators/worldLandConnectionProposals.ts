@@ -1,3 +1,4 @@
+import { quadtree } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
@@ -31,6 +32,7 @@ import {
   type SharedConnectionAssessment,
   type SharedConnectionSettings
 } from "./sharedLandConnectionAssessment";
+import { getStateBridgeSkewLimit } from "./technologyProgress";
 import {
   connectWorldRiverCrossingApproaches,
   type WorldCrossingApproachSettings
@@ -257,10 +259,20 @@ export function evaluateWorldLandConnectionProposals(
     p.every(q => q.every(Number.isFinite) && q[0] >= 0 && q[1] >= 0 && q[0] <= width && q[1] <= height);
   const supportsDryFootprint = (p: readonly RiverPoint[]) =>
     inBounds(p) && e.supportsDryFootprint(p) && e.allowsPassageFootprint(p);
+  let cellTree: ReturnType<typeof quadtree<number>> | undefined;
   const environment = {
     nonRiverWater: e.nonRiverWater,
     supportsDryFootprint: (_riverId: number, p: readonly RiverPoint[]) => supportsDryFootprint(p),
     capabilityAt: e.capabilityAt,
+    // The owning state's allowance where the bridge would stand (bridgeSkewPolicy.ts).
+    skewLimitAt: (p: RiverPoint) => {
+      cellTree ??= quadtree<number>()
+        .x(id => world.pack.cells.p[id][0])
+        .y(id => world.pack.cells.p[id][1])
+        .addAll((world.pack.cells.p ?? []).map((_, id) => id));
+      const cell = cellTree.find(p[0] / scale, p[1] / scale) ?? 0;
+      return getStateBridgeSkewLimit(world.pack.cells.state?.[cell] ?? 0);
+    },
     corridors: pairs.map(pair => ({
       start: nodes.find(n => n.id === pair.cityAId)!.point,
       end: nodes.find(n => n.id === pair.cityBId)!.point

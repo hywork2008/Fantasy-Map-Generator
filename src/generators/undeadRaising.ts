@@ -3,10 +3,9 @@
  */
 import type { RaisedUndeadAtCell } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
-import { FUNERAL_RITE_DEFINITIONS } from "../data/funeralRites";
 import { isLichState } from "../extensions/characters/lichPolicy";
 import type { MilitaryRegiment, MilitaryUnit, State } from "../types/models";
-import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
+import { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 import { rn } from "../utils/numberUtils";
 import { ensureFuneralRemainsSeeded, getFuneralState, takeFuneralRemains } from "./funeralRites";
 
@@ -48,9 +47,7 @@ export function ensureUndeadMilitaryUnits(military: MilitaryUnit[] | undefined):
 function riteZombieShare(cellId: number): number {
   const pack = worldContext.pack;
   const cultureId = pack.cells.culture?.[cellId];
-  const rite = getCultureFuneralRite(pack.cultures?.[cultureId ?? 0]);
-  if (!rite) return 0.4;
-  return FUNERAL_RITE_DEFINITIONS[rite].zombieShare;
+  return getCultureFuneralMechanics(pack.cultures?.[cultureId ?? 0])?.zombieRatio ?? 0.4;
 }
 
 function mergeRaised(target: RaisedUndeadAtCell, skeletons: number, zombies: number): void {

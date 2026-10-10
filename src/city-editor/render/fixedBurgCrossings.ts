@@ -10,7 +10,7 @@ export function drawFixedBurgCrossings(group: SVGGElement, payload: unknown, bud
   for (const river of [...payload.rivers, ...(payload.obstacles ?? [])]) {
     const path = group.ownerDocument.createElementNS(namespace, "path");
     path.setAttribute("d", river.rings.map(ring => `M${ring.map(p => `${p[0]},${p[1]}`).join("L")}Z`).join(""));
-    path.setAttribute("fill", "#79b7d1");
+    path.setAttribute("fill", "#456d7f");
     path.setAttribute("fill-rule", "evenodd");
     path.setAttribute("data-river-id", String(river.id));
     fragment.appendChild(path);

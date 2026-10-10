@@ -12,7 +12,9 @@ import { createObjectURL, revokeObjectURL } from "./urlUtils";
 
 export function getFileName(dataType?: string): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
-  const name = useOptionsState.getState().mapName;
+  // An empty name would start the file name with a space, which browsers
+  // replace with "_" (archives saved before mapName was stored load empty).
+  const name = useOptionsState.getState().mapName.trim() || "Map";
   const type = dataType ? `${dataType} ` : "";
   const date = new Date();
   const dateString = [

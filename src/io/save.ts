@@ -85,6 +85,9 @@ function getLegacyEconomyPackFields(pack: unknown): {
 /** Captures the DOM-free canonical snapshot used by `.fmg` saves and autosaves. */
 export async function prepareWorldArchive(): Promise<Blob> {
   updateAllBurgWaterAccess(worldContext.pack);
+  // The map name lives in the options store, not the world; carry it in the
+  // world options so a loaded archive keeps naming its downloads.
+  worldContext.options.mapName = useOptionsState.getState().mapName;
   return worldArchiveCodec.encode(await worldRuntime.captureArchiveDocument());
 }
 

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="500" height="500">
+  <style>
+    .ce-andean-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-andean-plaza { fill: #ded5be; stroke: #423824; stroke-width: 0.5px; }
+    .ce-andean-stone-terrace { fill: #ab9f87; stroke: #3d3525; stroke-width: 0.5px; }
+    .ce-andean-ushnu-platform { fill: #c7bc9e; stroke: #3d3525; stroke-width: 0.5px; }
+    .ce-andean-coricancha { fill: #9e9174; stroke: #3d3525; stroke-width: 0.45px; }
+    .ce-andean-gold-sun { fill: #dfa83d; stroke: #543f11; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--andean-ushnu">
+    <!-- 影 -->
+    <g class="ce-andean-shadow" transform="translate(1.4 1.6)">
+      <polygon points="-18,-18 18,-18 18,18 -18,18"></polygon>
+      <rect x="-6" y="-6" width="12" height="12" rx="0.5"></rect>
+    </g>
+    <!-- 大儀礼広場（ワカイパタ風石畳広場） -->
+    <g class="ce-andean-plaza">
+      <rect x="-20" y="-20" width="40" height="40" rx="0.6"></rect>
+    </g>
+    <!-- 1. 中央儀礼壇（ウシュヌ / Ushnu Platform）ピラミッド型段々切石壇 -->
+    <g transform="translate(0, 0)">
+      <!-- 最下層段テラス（台形切石組み） -->
+      <polygon points="-8,-8 8,-8 9,8 -9,8" class="ce-andean-stone-terrace"></polygon>
+      <!-- 中段テラス -->
+      <polygon points="-6.5,-6.5 6.5,-6.5 7.2,6.5 -7.2,6.5" class="ce-andean-ushnu-platform"></polygon>
+      <!-- 最上段壇上（皇帝インカの玉座・祭壇） -->
+      <polygon points="-5,-5 5,-5 5.5,5 -5.5,5" fill="#ded4ba" stroke="#3d3525" stroke-width="0.4"></polygon>
+      <!-- 正面石階段（南側アプローチ） -->
+      <rect x="-1.5" y="5" width="3" height="3" fill="#8c7f66" stroke="#3d3525" stroke-width="0.3"></rect>
+      <!-- 黄金の太陽神インティの祭壇石（Intihuatana 日を繋ぐ石） -->
+      <circle cx="0" cy="0" r="1.4" class="ce-andean-gold-sun"></circle>
+      <circle cx="0" cy="0" r="0.7" fill="#fff5cc"></circle>
+      <!-- 太陽の光線紋様 -->
+      <line x1="-2" y1="0" x2="2" y2="0" stroke="#dfa83d" stroke-width="0.35"></line>
+      <line x1="0" y1="-2" x2="0" y2="2" stroke="#dfa83d" stroke-width="0.35"></line>
+    </g>
+    <!-- 2. 太陽神殿（コリカンチャ型・曲面切石外壁の殿舎 - 北側） -->
+    <g transform="translate(0, -15)">
+      <!-- 精緻なインカ石組みの半円状曲面壁 -->
+      <path d="M -10 0 C -10 -4, 10 -4, 10 0 L 8 4 L -8 4 Z" class="ce-andean-coricancha"></path>
+      <!-- 茅葺き屋根（急勾配のアンデス茅葺き） -->
+      <path d="M -9 0 C -9 -3, 9 -3, 9 0 L 7 3 L -7 3 Z" fill="#bfa369" stroke="#3d2f14" stroke-width="0.35"></path>
+      <!-- 黄金の帯（壁面に貼られた太陽神の黄金板） -->
+      <path d="M -9.5 0 C -9.5 -3.5, 9.5 -3.5, 9.5 0" fill="none" stroke="#dfa83d" stroke-width="0.6"></path>
+    </g>
+    <!-- 3. 台形小殿舎群（カランカ / Kallanka - 東側・西側の細長い多門長堂） -->
+    <g>
+      <!-- 東側長堂 -->
+      <rect x="13" y="-12" width="4.5" height="18" rx="0.3" fill="#b0a48d" stroke="#3d3525" stroke-width="0.35"></rect>
+      <line x1="15.2" y1="-11" x2="15.2" y2="5" stroke="#ded8cb" stroke-width="0.3"></line>
+      <!-- 西側長堂 -->
+      <rect x="-17.5" y="-12" width="4.5" height="18" rx="0.3" fill="#b0a48d" stroke="#3d3525" stroke-width="0.35"></rect>
+      <line x1="-15.2" y1="-11" x2="-15.2" y2="5" stroke="#ded8cb" stroke-width="0.3"></line>
+    </g>
+    <!-- 4. 聖なる水路（石造の清らかな流水溝） -->
+    <line x1="-18" y1="12" x2="18" y2="12" stroke="#386d8a" stroke-width="0.5"></line>
+    <rect x="-1" y="11" width="2" height="2" fill="#598da8"></rect>
+  </g>
+</svg>

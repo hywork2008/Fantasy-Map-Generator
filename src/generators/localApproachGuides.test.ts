@@ -272,6 +272,8 @@ describe("world city-to-E approach gate", () => {
   it("does not infer bank connectivity from the shared city cell", () => {
     const f = worldFixture();
     f.world.pack.burgs[1].x = 15;
+    // Extend water to both map edges so the guide cannot walk around a river end.
+    f.env.nonRiverWater = [box(49, 0, 2, 40), box(49, 60, 2, 40)];
     const r = f.run();
     expect(r).toHaveProperty("result.reason", "approach-unresolved");
   });

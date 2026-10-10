@@ -15,7 +15,7 @@ import {
 import type { CityDocument, Point } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
 import { createFabricPlan, districtDocument, resolveDistricts, setDistrictParameters } from "./fabricDistricts";
-import { pointInPolygon, polygonCentroid } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "./geom";
 import { buildLocalFabric } from "./localInfill";
 
 describe("bridge approach frontages", () => {
@@ -55,7 +55,19 @@ describe("bridge approach frontages", () => {
       expect(merged.mesh.edges[ref.edgeId]).toBeDefined();
     }
     const fabric = buildBlockFabric(document);
-    for (const id of bank) expect(fabric.buildings.some(b => b.faceId === id)).toBe(true);
+    // Original face IDs are not guaranteed to hold a full metre-scale lot.
+    // Check housing on the ungated river bank across the current district mesh.
+    const river = document.featureGroups.find(g => g.kind === "river")!;
+    const riverPoints = river.kind === "river" ? river.vertices.map(id => document.mesh.vertices[id].point) : [];
+    const housing = fabric.buildings.filter(building => {
+      const face = document.mesh.faces[building.faceId];
+      const vertices = faceVertices(document.mesh, face);
+      return (
+        !document.gates!.some(g => vertices.includes(g.vertexId)) &&
+        nearestOnPolyline(polygonCentroid(building.polygon), riverPoints).dist < document.frame.blockSizeMeters * 2
+      );
+    });
+    expect(housing.length).toBeGreaterThan(0);
   });
 
   it("builds housing in isolated river-bounded pockets across barriers for 1yq30d7", () => {

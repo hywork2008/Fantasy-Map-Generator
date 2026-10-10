@@ -8,6 +8,7 @@ import { requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import { nearestOnPolyline, pointInPolygon, segmentSegmentHit } from "./gen/geom";
 import { convexInfillParts, triangularInfillParts } from "./gen/lotGeometry";
 import { bounds, boundsOverlap, intersectConvex, plotArea, subtractConvex } from "./gen/parcelGeometry";
+import { regionalCoastalWaterPolygons } from "./regionalCoast";
 import type { CityDocument, Point } from "./types";
 
 const importedWaterParts = new WeakMap<FixedBurgCrossings, Point[][]>();
@@ -50,6 +51,7 @@ export function fixedWaterPolygons(fixed: FixedBurgCrossings): Point[][] {
 /** The imported water boundary is independent of editing-cell resolution. */
 export function waterPolygons(document: CityDocument): Point[][] {
   return [
+    ...regionalCoastalWaterPolygons(document),
     ...(document.waterAreas ?? []).map(area => area.polygon),
     ...(document.importedFixedCrossings ? fixedWaterPolygons(document.importedFixedCrossings) : [])
   ];
@@ -152,19 +154,15 @@ export function cellInsideWater(polygon: Point[], water: Point[]): boolean {
   return wetArea >= area - 0.001;
 }
 
-const fixedWaterChecks = new WeakMap<FixedBurgCrossings, { key: string; valid: boolean }>();
+const fixedWaterChecks = new WeakMap<FixedBurgCrossings, { valid: boolean }>();
 
-/** Whole-footprint reservation against source rivers, including holes/islands.
- * Invalid source/frame must stop placement rather than turn into empty water. */
-export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[]): boolean {
-  if (polygon.length < 3 || polygon.some(p => p.length !== 2 || p.some(v => !Number.isFinite(v)))) return true;
-  const fixed = document.importedFixedCrossings;
-  if (fixed === undefined) return polygonHitsWater(polygon, waterPolygons(document));
+/** Throws unless the fixed payload is valid and covers the city frame.
+ * The payload is copy-on-write, so the same object is validated once. */
+function validateFixedWater(document: CityDocument, fixed: FixedBurgCrossings): void {
   if (!fixed || typeof fixed !== "object") throw new RangeError("Invalid fixed water geometry or city frame");
-  const key = JSON.stringify(fixed);
   let checked = fixedWaterChecks.get(fixed);
-  if (!checked || checked.key !== key) {
-    checked = { key, valid: validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS) };
+  if (!checked) {
+    checked = { valid: validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS) };
     fixedWaterChecks.set(fixed, checked);
   }
   if (
@@ -179,15 +177,107 @@ export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[
       half = document.frame.extentMeters / 2;
     if (!coverage || coverage.minX > -half || coverage.minY > -half || coverage.maxX < half || coverage.maxY < half)
       throw new RangeError("Fixed water coverage does not contain city frame");
-    if (polygon.some(([x, y]) => x < coverage.minX || x > coverage.maxX || y < coverage.minY || y > coverage.maxY))
-      return true;
   }
-  return (
-    polygonHitsWater(
-      polygon,
-      (document.waterAreas ?? []).map(area => area.polygon)
-    ) || [...fixed.rivers, ...(fixed.obstacles ?? [])].some(water => footprintTouchesWater(polygon, water))
-  );
+}
+
+export type DocumentWaterTest = (polygon: Point[]) => boolean;
+
+type MovingWater = Parameters<typeof footprintTouchesWater>[1];
+
+interface FrozenMovingWater {
+  lengths: number[];
+  coords: Float64Array;
+  frozen: MovingWater;
+}
+
+const frozenMovingWater = new WeakMap<object, FrozenMovingWater>();
+
+function sameMovingRings(cached: FrozenMovingWater, body: MovingWater): boolean {
+  if (body.rings.length !== cached.lengths.length) return false;
+  let cursor = 0;
+  for (let ringIndex = 0; ringIndex < body.rings.length; ringIndex++) {
+    const ring = body.rings[ringIndex];
+    if (ring.length !== cached.lengths[ringIndex]) return false;
+    for (const point of ring) {
+      if (cached.coords[cursor++] !== point[0] || cached.coords[cursor++] !== point[1]) return false;
+    }
+  }
+  return true;
+}
+
+/** A frozen ring copy so the water edge index can be built without freezing the caller's survey.
+ * The copy is reused while the source coordinates stay put, including across separate tests. */
+function freezeMovingWater(body: MovingWater): MovingWater {
+  if (
+    Object.isFrozen(body) &&
+    Object.isFrozen(body.rings) &&
+    body.rings.every(ring => Object.isFrozen(ring) && ring.every(point => Object.isFrozen(point)))
+  )
+    return body;
+  const cached = frozenMovingWater.get(body);
+  if (cached && sameMovingRings(cached, body)) return cached.frozen;
+  let count = 0;
+  for (const ring of body.rings) count += ring.length;
+  const coords = new Float64Array(count * 2);
+  const lengths: number[] = [];
+  let cursor = 0;
+  for (const ring of body.rings) {
+    lengths.push(ring.length);
+    for (const point of ring) {
+      coords[cursor++] = point[0];
+      coords[cursor++] = point[1];
+    }
+  }
+  const frozen = Object.freeze({
+    ...body,
+    rings: Object.freeze(
+      body.rings.map(ring => Object.freeze(ring.map(point => Object.freeze([point[0], point[1]] as [number, number]))))
+    )
+  });
+  frozenMovingWater.set(body, { lengths, coords, frozen });
+  return frozen;
+}
+
+/** `polygonHitsDocumentWater` for a run of footprints over a document that does not change
+ * meanwhile. The fixed payload is validated once, and still water — regional sea included —
+ * is gathered once on first use, instead of once per footprint (Chalbianos). */
+export function documentWaterTest(document: CityDocument): DocumentWaterTest {
+  let prepared: {
+    fixed: FixedBurgCrossings;
+    still: Point[][];
+    moving: Parameters<typeof footprintTouchesWater>[1][];
+  } | null = null;
+  let plain: Point[][] | undefined;
+  return polygon => {
+    if (polygon.length < 3 || polygon.some(p => p.length !== 2 || p.some(v => !Number.isFinite(v)))) return true;
+    const fixed = document.importedFixedCrossings;
+    if (fixed === undefined) {
+      plain ??= waterPolygons(document);
+      return polygonHitsWater(polygon, plain);
+    }
+    let water = prepared;
+    if (water?.fixed !== fixed) {
+      validateFixedWater(document, fixed);
+      water = prepared = {
+        fixed,
+        still: [...regionalCoastalWaterPolygons(document), ...(document.waterAreas ?? []).map(area => area.polygon)],
+        // Frozen copies keep the caller's rings editable and let the edge index serve every lot.
+        moving: [...fixed.rivers, ...(fixed.obstacles ?? [])].map(freezeMovingWater)
+      };
+    }
+    if (fixed.schemaVersion === 3 || fixed.schemaVersion === 4) {
+      const coverage = fixed.coverageBounds!;
+      if (polygon.some(([x, y]) => x < coverage.minX || x > coverage.maxX || y < coverage.minY || y > coverage.maxY))
+        return true;
+    }
+    return polygonHitsWater(polygon, water.still) || water.moving.some(body => footprintTouchesWater(polygon, body));
+  };
+}
+
+/** Whole-footprint reservation against source rivers, including holes/islands.
+ * Invalid source/frame must stop placement rather than turn into empty water. */
+export function polygonHitsDocumentWater(document: CityDocument, polygon: Point[]): boolean {
+  return documentWaterTest(document)(polygon);
 }
 
 /** Reserve the whole stroke, including round joins and terminal caps.
@@ -196,7 +286,8 @@ export function lineHitsDocumentWater(
   document: CityDocument,
   points: readonly Point[],
   widthMeters: number,
-  clipAtFrame = false
+  clipAtFrame = false,
+  test: DocumentWaterTest = documentWaterTest(document)
 ): boolean {
   if (
     !Number.isFinite(widthMeters) ||
@@ -212,7 +303,7 @@ export function lineHitsDocumentWater(
   )
     return true;
   const hits = (polygon: Point[]) => {
-    if (!clipAtFrame) return polygonHitsDocumentWater(document, polygon);
+    if (!clipAtFrame) return test(polygon);
     // Viewport clipping removes the external cap, not a water crossing.
     // Centreline nodes must stay inside the measured frame above; an unknown
     // outside region can never provide a detour around an internal barrier.
@@ -236,7 +327,7 @@ export function lineHitsDocumentWater(
         }
         clipped = next;
       }
-    return clipped.length < 3 || polygonHitsDocumentWater(document, clipped);
+    return clipped.length < 3 || test(clipped);
   };
   const half = widthMeters / 2;
   for (let i = 1; i < points.length; i++) {

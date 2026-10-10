@@ -3,6 +3,7 @@ import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { fitMapToScreen, resizeGraphRects } from "../controllers/options";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
@@ -27,6 +28,7 @@ import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
+import { requestDualPortPlacementRepair } from "../runtime/dualPortPlacementTask";
 import { resetExtensionStateSlices } from "../runtime/extensionStateSlices";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
 import { cancelMapReadyTasks, markMapReadyTasksAvailable } from "../runtime/mapReadyTaskCoordinator";
@@ -41,9 +43,8 @@ import {
 } from "../runtime/worldArchive";
 import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
 import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
-import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
 import { declareFont, fonts } from "../services/fonts";
-import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
+import { burgsUnplacedOnRivers, removeRepeatedRiverCells } from "../services/repairRiverCells";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
@@ -263,6 +264,16 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       return { result: undefined, topics: ["map.networks"] };
     });
 
+    // Archives whose rivers repeat a lake cell could not place their river burgs; repair and re-site them.
+    const repairedRivers = removeRepeatedRiverCells(worldContext);
+    if (repairedRivers.size)
+      legacyMutation(() => {
+        const moved = Burgs.resiteRiverBurgs(burgsUnplacedOnRivers(worldContext, repairedRivers));
+        WARN &&
+          console.warn("[Data integrity] Repeated river cells removed", [...repairedRivers], "re-sited burgs", moved);
+        return { result: undefined, topics: ["map.networks", "map.settlements"] };
+      });
+
     // Archives created before the generation-mode field was introduced have no
     // reliable indication of which algorithm produced their routes. Preserve
     // those routes verbatim instead of forcibly replacing them with augmented.
@@ -284,6 +295,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       ...(hasRegisteredLandArchive && worldContext.options.registeredLandConnectionUnit
         ? { distanceUnit: worldContext.options.registeredLandConnectionUnit }
         : {}),
+      ...(worldContext.options.mapName ? { mapName: worldContext.options.mapName } : {}),
       seed: worldContext.seed,
       year: validated.document.simulation.currentYear,
       era: validated.document.simulation.era,
@@ -294,8 +306,15 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
         worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
       ),
       frontierStartMode: normalizeFrontierStartMode(worldContext.options.frontierStartMode),
-      frontierPolitySpacing: normalizeFrontierPolitySpacing(worldContext.options.frontierPolitySpacing)
+      frontierPolitySpacing: normalizeFrontierPolitySpacing(worldContext.options.frontierPolitySpacing),
+      ...(worldContext.options.portCoastPlacement
+        ? { portCoastPlacement: worldContext.options.portCoastPlacement }
+        : {})
     });
+    // The archive carries its own canvas size; resize graph-sized rects/masks and
+    // the zoom extent, otherwise areas outside the pre-load viewport stay unpainted.
+    resizeGraphRects();
+    fitMapToScreen();
     if (worldContext.options.landConnectionGeneration) {
       legacyMutation(() => {
         const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
@@ -310,14 +329,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
         return { result: undefined, topics: ["map.networks"] };
       });
     }
-    legacyMutation(() => {
-      const converged = ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
-      if (converged.changedRoutes.length) {
-        worldContext.pack.cells.routes = Routes.buildLinks(worldContext.pack.routes);
-        resolveRiverRouteCrossings(worldContext);
-      }
-      return { result: undefined, topics: ["map.networks"] };
-    });
+    // Saved routes keep their converged bridge approaches; CE re-prepares on demand.
     // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
     legacyMutation(() => {
       migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
@@ -329,6 +341,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // The full-replace commit has already reached RenderCoordinator. A renderer
     // failure is isolated from the accepted world by WorldRuntime listeners.
     markMapReadyTasksAvailable();
+    requestDualPortPlacementRepair();
     document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
@@ -474,6 +487,7 @@ export async function parseLoadedData(
       // Match the archive load lifecycle so extensions can migrate or rebuild
       // their current runtime state after a legacy map has been committed.
       markMapReadyTasksAvailable();
+      requestDualPortPlacementRepair();
       document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
       document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     } catch (stageError) {

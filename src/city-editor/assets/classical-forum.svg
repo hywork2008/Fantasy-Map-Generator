@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="500" height="500">
+  <style>
+    .ce-forum-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-forum-pavement { fill: #dedad2; stroke: #3a3832; stroke-width: 0.5px; }
+    .ce-forum-podium { fill: #c9c4b8; stroke: #3a3832; stroke-width: 0.6px; }
+    .ce-forum-colonnade { fill: #f0ece1; stroke: #3a3832; stroke-width: 0.35px; }
+    .ce-forum-roof { fill: #bf5f3b; stroke: #3d1b0e; stroke-width: 0.45px; }
+    .ce-forum-cella { fill: #b8b1a3; stroke: #3a3832; stroke-width: 0.45px; }
+    .ce-forum-basilica { fill: #cf7c48; stroke: #3d1b0e; stroke-width: 0.45px; }
+    .ce-forum-statue { fill: #b8973b; stroke: #47370f; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--classical-forum">
+    <!-- 影 -->
+    <g class="ce-forum-shadow" transform="translate(1.4 1.6)">
+      <rect x="-18" y="-18" width="36" height="36" rx="1"></rect>
+      <rect x="-16" y="-14" width="11" height="20" rx="0.5"></rect>
+    </g>
+    <!-- フォルム広場石畳敷き（Forum Plaza） -->
+    <g class="ce-forum-pavement">
+      <rect x="-18" y="-18" width="36" height="36" rx="0.8"></rect>
+      <!-- 東・南・北の列柱廊（ポルティクス / Porticus） -->
+      <line x1="16" y1="-16" x2="16" y2="16" stroke="#b8b2a5" stroke-width="2.5"></line>
+      <line x1="-3" y1="16" x2="16" y2="16" stroke="#b8b2a5" stroke-width="2.5"></line>
+      <line x1="-3" y1="-16" x2="16" y2="-16" stroke="#b8b2a5" stroke-width="2.5"></line>
+    </g>
+    <!-- 列柱ポルティクスの円柱ドット列 -->
+    <g class="ce-forum-colonnade">
+      <!-- 東側列柱 -->
+      <circle cx="16" cy="-14" r="0.6"></circle>
+      <circle cx="16" cy="-10" r="0.6"></circle>
+      <circle cx="16" cy="-6" r="0.6"></circle>
+      <circle cx="16" cy="-2" r="0.6"></circle>
+      <circle cx="16" cy="2" r="0.6"></circle>
+      <circle cx="16" cy="6" r="0.6"></circle>
+      <circle cx="16" cy="10" r="0.6"></circle>
+      <circle cx="16" cy="14" r="0.6"></circle>
+      <!-- 北側列柱 -->
+      <circle cx="0" cy="-16" r="0.6"></circle>
+      <circle cx="4" cy="-16" r="0.6"></circle>
+      <circle cx="8" cy="-16" r="0.6"></circle>
+      <circle cx="12" cy="-16" r="0.6"></circle>
+      <!-- 南側列柱 -->
+      <circle cx="0" cy="16" r="0.6"></circle>
+      <circle cx="4" cy="16" r="0.6"></circle>
+      <circle cx="8" cy="16" r="0.6"></circle>
+      <circle cx="12" cy="16" r="0.6"></circle>
+    </g>
+    <!-- 1. 周柱式古典神殿（Capitolium / Peripteral Temple - 西側）高台のポディウム -->
+    <g transform="translate(-10, -4)">
+      <!-- 切石ポディウム（基壇） -->
+      <rect x="-6.5" y="-12" width="13" height="24" rx="0.5" class="ce-forum-podium"></rect>
+      <!-- 正面大階段（南側） -->
+      <rect x="-5" y="10" width="10" height="3" fill="#adaba0" stroke="#3a3832" stroke-width="0.3"></rect>
+      <line x1="-5" y1="10.8" x2="5" y2="10.8" stroke="#3a3832" stroke-width="0.25"></line>
+      <line x1="-5" y1="11.6" x2="5" y2="11.6" stroke="#3a3832" stroke-width="0.25"></line>
+      <line x1="-5" y1="12.4" x2="5" y2="12.4" stroke="#3a3832" stroke-width="0.25"></line>
+      <!-- 周柱列（コリント式列柱） -->
+      <!-- セラ（内陣石室） -->
+      <rect x="-4" y="-9.5" width="8" height="15" class="ce-forum-cella"></rect>
+      <!-- 切妻テラコッタ瓦屋根 -->
+      <polygon points="-5.5,-10.5 5.5,-10.5 0,-11.5" class="ce-forum-roof"></polygon>
+      <rect x="-5" y="-10.5" width="10" height="19" class="ce-forum-roof"></rect>
+      <!-- 大棟線 -->
+      <line x1="0" y1="-10.5" x2="0" y2="8.5" stroke="#f2d5c2" stroke-width="0.6" stroke-linecap="round"></line>
+      <!-- 正面ペディメント（破風彫刻飾り） -->
+      <polygon points="-5,8.5 5,8.5 0,10.2" fill="#d9744c" stroke="#3d1b0e" stroke-width="0.35"></polygon>
+      <!-- 外周円柱（正面6柱、側面10柱） -->
+      <circle cx="-4.8" cy="8.2" r="0.6" class="ce-forum-colonnade"></circle>
+      <circle cx="-2.9" cy="8.2" r="0.6" class="ce-forum-colonnade"></circle>
+      <circle cx="-1" cy="8.2" r="0.6" class="ce-forum-colonnade"></circle>
+      <circle cx="1" cy="8.2" r="0.6" class="ce-forum-colonnade"></circle>
+      <circle cx="2.9" cy="8.2" r="0.6" class="ce-forum-colonnade"></circle>
+      <circle cx="4.8" cy="8.2" r="0.6" class="ce-forum-colonnade"></circle>
+    </g>
+    <!-- 2. バシリカ公会堂（Basilica - 東側北）身廊・側廊の大屋根 -->
+    <g transform="translate(7, -8)">
+      <rect x="-6.5" y="-4.5" width="13" height="9" rx="0.4" class="ce-forum-basilica"></rect>
+      <line x1="-5.5" y1="0" x2="5.5" y2="0" stroke="#f7d4c1" stroke-width="0.6"></line>
+    </g>
+    <!-- 3. ロストラ演壇（Rostra - 船嘴装飾の演説壇）と記念碑 -->
+    <g transform="translate(6, 6)">
+      <rect x="-4" y="-2" width="8" height="4" rx="0.3" fill="#adaba0" stroke="#3a3832" stroke-width="0.4"></rect>
+      <!-- 演壇の彫像・騎馬像 -->
+      <ellipse cx="-1.5" cy="0" rx="0.7" ry="1.2" class="ce-forum-statue"></ellipse>
+      <circle cx="2" cy="0" r="0.5" class="ce-forum-statue"></circle>
+    </g>
+    <!-- 4. 記念単身円柱（トラヤヌス型記念柱）広場中央南 -->
+    <g transform="translate(-1, 8)">
+      <rect x="-1.5" y="-1.5" width="3" height="3" fill="#adaba0" stroke="#3a3832" stroke-width="0.35"></rect>
+      <circle cx="0" cy="0" r="1.1" fill="#f0ece1" stroke="#3a3832" stroke-width="0.4"></circle>
+      <circle cx="0" cy="0" r="0.45" class="ce-forum-statue"></circle>
+    </g>
+  </g>
+</svg>

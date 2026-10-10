@@ -46,6 +46,29 @@ export function polygonBitesDisk(poly: Point[], disk: Disk, margin = BITE_METERS
   return false;
 }
 
+interface Box {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function boxOf(...polygons: Point[][]): Box {
+  const box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const polygon of polygons)
+    for (const [x, y] of polygon) {
+      box.minX = Math.min(box.minX, x);
+      box.minY = Math.min(box.minY, y);
+      box.maxX = Math.max(box.maxX, x);
+      box.maxY = Math.max(box.maxY, y);
+    }
+  return box;
+}
+
+function boxesMeet(a: Box, b: Box, gap = 0): boolean {
+  return a.minX - gap <= b.maxX && b.minX - gap <= a.maxX && a.minY - gap <= b.maxY && b.minY - gap <= a.maxY;
+}
+
 function bitesAny(poly: Point[], disks: Disk[], margin = BITE_METERS): boolean {
   return disks.some(disk => polygonBitesDisk(poly, disk, margin));
 }
@@ -134,13 +157,20 @@ export function relieveGatePlazaBuildings(document: CityDocument, buildings: Bui
   const pending = new Set(drop);
   const survivor = (index: number) => !drop.has(index);
 
+  // Bounding boxes only skip pairs that cannot touch: a party wall needs a gap of
+  // at most PARTY_GAP_METERS, and an intrusion needs a vertex inside the other lot.
+  const boxes = lots.map(lot => boxOf(lot.polygon));
   let grew = true;
   while (grew) {
     grew = false;
     for (const index of [...pending]) {
       const vacated = lots[index].polygon;
+      const vacatedBox = boxOf(vacated);
       const neighbours = lots
-        .map((lot, neighbour) => ({ neighbour, edge: nearestPartyEdge(lot.polygon, vacated) }))
+        .map((lot, neighbour) => ({
+          neighbour,
+          edge: boxesMeet(boxes[neighbour], vacatedBox, PARTY_GAP_METERS) ? nearestPartyEdge(lot.polygon, vacated) : -1
+        }))
         .filter(item => survivor(item.neighbour) && item.edge >= 0 && !lots[item.neighbour].landmark);
       if (!neighbours.length) continue;
       const center = polygonCentroid(vacated);
@@ -155,7 +185,11 @@ export function relieveGatePlazaBuildings(document: CityDocument, buildings: Bui
         const limit = neighbours.length > 1 ? dot(center) : Math.max(...vacatedDots);
         const desired = limit - edgeDot;
         if (desired < 0.15) continue;
-        const others = lots.filter((_, other) => other !== neighbour && other !== index && survivor(other));
+        // Every trial slide stays within the box of the start and the full slide.
+        const reach = boxOf(lot.polygon, slideEdge(lot.polygon, edge, normal, desired));
+        const others = lots.filter(
+          (_, other) => other !== neighbour && other !== index && survivor(other) && boxesMeet(boxes[other], reach)
+        );
         let low = 0;
         let high = desired;
         for (let step = 0; step < 14; step++) {
@@ -167,6 +201,7 @@ export function relieveGatePlazaBuildings(document: CityDocument, buildings: Bui
         }
         if (low < 0.15) continue;
         lot.polygon = slideEdge(lot.polygon, edge, normal, low);
+        boxes[neighbour] = boxOf(lot.polygon);
         absorbed = true;
       }
       if (absorbed) {

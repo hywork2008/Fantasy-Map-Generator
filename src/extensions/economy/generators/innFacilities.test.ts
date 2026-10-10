@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getBurialCulturePreset } from "../../../data/burialCultures";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -37,6 +38,17 @@ describe("generateInnFacilitiesForBurgs", () => {
     urbanization: 1,
     seed: "inn-test"
   };
+
+  it("adds lodging capacity for sacred necropolis pilgrimage", () => {
+    const burgs = [burg({ population: 5, culture: 1, market: 1 })];
+    const ordinary = generateInnFacilitiesForBurgs({ ...baseArgs, burgs });
+    const cultures = [
+      { i: 0, name: "Wildlands", base: 0, shield: "" },
+      { i: 1, name: "Sacred", base: 0, shield: "", burialProfile: getBurialCulturePreset("wadi_us_salaam") }
+    ];
+    const sacred = generateInnFacilitiesForBurgs({ ...baseArgs, burgs, cultures });
+    expect(getInnFacilityTotals(sacred).beds).toBeGreaterThan(getInnFacilityTotals(ordinary).beds);
+  });
 
   it("is deterministic and creates aggregate building-backed capacity", () => {
     const burgs = [undefined, burg({ i: 1, market: 1, population: 10 })];

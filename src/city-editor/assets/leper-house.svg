@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -16 40 32" width="500" height="400">
+  <style>
+    .ce-leper-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-leper-wall { fill: #ab9f8c; stroke: #383021; stroke-width: 0.55px; }
+    .ce-leper-court { fill: #ded5bf; stroke: #383021; stroke-width: 0.4px; }
+    .ce-leper-chapel { fill: #8c422a; stroke: #3d1408; stroke-width: 0.45px; }
+    .ce-leper-hut { fill: #634b34; stroke: #2b1d10; stroke-width: 0.35px; }
+    .ce-leper-garden { fill: #486134; stroke: #1f2e14; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--leper-house">
+    <!-- 影 -->
+    <g class="ce-leper-shadow" transform="translate(1.2 1.4)">
+      <rect x="-16" y="-12" width="32" height="24" rx="0.6"></rect>
+    </g>
+    <!-- 隔離外壁（孤立した四角い境界壁） -->
+    <g class="ce-leper-wall">
+      <rect x="-16" y="-12" width="32" height="24" rx="0.5"></rect>
+    </g>
+    <!-- 内部グラウンド -->
+    <g class="ce-leper-court">
+      <rect x="-14.5" y="-10.5" width="29" height="21" rx="0.3"></rect>
+    </g>
+    <!-- 1. 聖ラザロ小礼拝堂（Leper Chapel - 西側中央）単身廊＋鐘架 -->
+    <g transform="translate(-8.5, -2)">
+      <rect x="-4.5" y="-3.5" width="9" height="7" rx="0.3" class="ce-leper-chapel"></rect>
+      <!-- 切妻屋根棟線 -->
+      <line x1="-4.5" y1="0" x2="4.5" y2="0" stroke="#f0cfbe" stroke-width="0.55" stroke-linecap="round"></line>
+      <!-- 西端の小さな鐘架 -->
+      <rect x="-4.2" y="-1" width="1.2" height="2" fill="#ded5bf"></rect>
+      <circle cx="-3.6" cy="0" r="0.35" fill="#dfa83d"></circle>
+    </g>
+    <!-- 2. 隔離患者の小舎列（Inmate Cells - 北側・南側に並ぶ独立小舎） -->
+    <g class="ce-leper-hut">
+      <!-- 北列3棟 -->
+      <rect x="0" y="-9.5" width="3.5" height="4" rx="0.2"></rect>
+      <rect x="4.5" y="-9.5" width="3.5" height="4" rx="0.2"></rect>
+      <rect x="9" y="-9.5" width="3.5" height="4" rx="0.2"></rect>
+      <!-- 南列3棟 -->
+      <rect x="0" y="5.5" width="3.5" height="4" rx="0.2"></rect>
+      <rect x="4.5" y="5.5" width="3.5" height="4" rx="0.2"></rect>
+      <rect x="9" y="5.5" width="3.5" height="4" rx="0.2"></rect>
+    </g>
+    <!-- 3. 自給自足用隔離薬草菜園（Garden Plots - 中央東側） -->
+    <g class="ce-leper-garden" transform="translate(6, -2)">
+      <rect x="-4.5" y="-3" width="9" height="6" rx="0.2"></rect>
+      <line x1="-3.5" y1="-1" x2="3.5" y2="-1" stroke="#66874a" stroke-width="0.35"></line>
+      <line x1="-3.5" y1="1" x2="3.5" y2="1" stroke="#66874a" stroke-width="0.35"></line>
+    </g>
+    <!-- 4. 隔離共同井戸（中央広場） -->
+    <circle cx="-1" cy="-2" r="1.1" fill="#8f8370" stroke="#383021" stroke-width="0.25"></circle>
+    <circle cx="-1" cy="-2" r="0.6" fill="#1c3d52"></circle>
+    <!-- 街道側の厳重な単一門（西壁中央） -->
+    <rect x="-16.2" y="-2" width="1.8" height="4" fill="#382614"></rect>
+  </g>
+</svg>

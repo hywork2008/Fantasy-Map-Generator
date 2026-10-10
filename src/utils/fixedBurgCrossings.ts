@@ -1,4 +1,5 @@
 import { footprintTouchesWater, normalWaterSection, validWaterPolygon } from "../services/riverPhysicalGeometry";
+import { BRIDGE_SKEW_MAX_DEGREES } from "./bridgeSkewPolicy";
 import { isRequiredSiteBounds, type RequiredSiteBounds, requiredSiteExtent } from "./requiredSiteBounds";
 
 type Point = readonly [number, number];
@@ -34,7 +35,9 @@ export interface FixedBurgCrossings {
     geometryVersion: number;
     kind: "fixedBridge" | "movableBridge";
     q: Point;
+    /** River tangent at q. */
     tangent: Point;
+    /** Bridge axis; within BRIDGE_SKEW_MAX_DEGREES of the river normal. */
     normal: Point;
     waterA: Point;
     waterB: Point;
@@ -185,9 +188,15 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
       !r ||
       Math.abs(Math.hypot(...c.tangent) - 1) > 1e-9 ||
       Math.abs(Math.hypot(...c.normal) - 1) > 1e-9 ||
-      Math.abs(c.tangent[0] * c.normal[0] + c.tangent[1] * c.normal[1]) > 1e-9
+      Math.abs(c.tangent[0] * c.normal[0] + c.tangent[1] * c.normal[1]) >
+        Math.sin((BRIDGE_SKEW_MAX_DEGREES * Math.PI) / 180) + 1e-9
     )
       return false;
+    // Deck width direction: square to the bridge axis, on the river tangent's side.
+    const lateral: Point =
+      c.tangent[0] * -c.normal[1] + c.tangent[1] * c.normal[0] >= 0
+        ? [-c.normal[1], c.normal[0]]
+        : [c.normal[1], -c.normal[0]];
     const w = c.witness;
     if (
       !record(w) ||
@@ -225,10 +234,10 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
     if (a.schemaVersion === 4) {
       const half = a.roadWidthMeters / 2;
       const footprint = [
-        [c.approachA[0] - c.tangent[0] * half, c.approachA[1] - c.tangent[1] * half],
-        [c.approachB[0] - c.tangent[0] * half, c.approachB[1] - c.tangent[1] * half],
-        [c.approachB[0] + c.tangent[0] * half, c.approachB[1] + c.tangent[1] * half],
-        [c.approachA[0] + c.tangent[0] * half, c.approachA[1] + c.tangent[1] * half]
+        [c.approachA[0] - lateral[0] * half, c.approachA[1] - lateral[1] * half],
+        [c.approachB[0] - lateral[0] * half, c.approachB[1] - lateral[1] * half],
+        [c.approachB[0] + lateral[0] * half, c.approachB[1] + lateral[1] * half],
+        [c.approachA[0] + lateral[0] * half, c.approachA[1] + lateral[1] * half]
       ] as Point[];
       if (
         [...a.rivers.filter(river => river.id !== c.riverId), ...(a.obstacles ?? [])].some(water =>
@@ -243,13 +252,13 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
       if (
         !Number.isFinite(d) ||
         d <= previous ||
-        Math.abs((p[0] - c.q[0]) * c.tangent[0] + (p[1] - c.q[1]) * c.tangent[1]) > 1e-7
+        Math.abs((p[0] - c.q[0]) * lateral[0] + (p[1] - c.q[1]) * lateral[1]) > 1e-7
       )
         return false;
       previous = d;
       for (const sign of [-1, 1]) {
-        const x = p[0] + (sign * c.tangent[0] * a.roadWidthMeters) / 2,
-          y = p[1] + (sign * c.tangent[1] * a.roadWidthMeters) / 2;
+        const x = p[0] + (sign * lateral[0] * a.roadWidthMeters) / 2,
+          y = p[1] + (sign * lateral[1] * a.roadWidthMeters) / 2;
         if (
           x < a.requiredBounds.minX ||
           x > a.requiredBounds.maxX ||

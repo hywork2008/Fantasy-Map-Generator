@@ -300,6 +300,7 @@ export interface FuneralMaterialDemand {
   wood: number;
   stone: number;
   linen: number;
+  incense?: number;
 }
 
 /** Raised undead parked on a cell so Military.generate can restore them after a rebuild. */

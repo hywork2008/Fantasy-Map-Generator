@@ -22,6 +22,7 @@ import {
   rw,
   trimVowels
 } from "../utils";
+import { rollReligionForm, worldTraditionPeriod } from "../utils/cultureTradition";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
@@ -653,7 +654,9 @@ class ReligionsModule {
       .filter(c => c.i && !c.removed)
       .map(culture => ({
         type: "Folk" as const,
-        form: rw(forms.Folk),
+        form: rollReligionForm("Folk", culture, worldTraditionPeriod(this.worldContext.options), Math.random, () =>
+          rw(forms.Folk)
+        ),
         culture: culture.i,
         center: culture.center!
       }));
@@ -662,6 +665,7 @@ class ReligionsModule {
   private generateOrganizedReligions(desiredReligionNumber: number, lockedReligions: Religion[]): ReligionBase[] {
     const { pack } = this.worldContext;
     const cells = pack.cells;
+    const period = worldTraditionPeriod(this.worldContext.options);
     const lockedReligionCount = lockedReligions.filter(({ type }) => type !== "Folk").length || 0;
     const requiredReligionsNumber = desiredReligionNumber - lockedReligionCount;
     if (requiredReligionsNumber < 1) return [];
@@ -681,8 +685,13 @@ class ReligionsModule {
 
     return religionCores.map((cellId, index) => {
       const type = getType(index);
-      const form = rw(forms[type]);
       const cultureId = cells.culture[cellId];
+      // Most organized religions take a form their civilization's church had; a
+      // few stay free so reform movements and foreign creeds still appear.
+      const form =
+        type === "Organized" && Math.random() < 0.8
+          ? rollReligionForm(type, pack.cultures[cultureId], period, Math.random, () => rw(forms[type]))
+          : rw(forms[type]);
 
       return { type, form, culture: cultureId, center: cellId };
     });

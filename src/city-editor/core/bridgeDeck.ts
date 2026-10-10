@@ -3,6 +3,7 @@
 // generated gc:bridge-* and for any road, including one drawn by hand, that
 // passes through a river vertex.
 
+import { bridgeSkewDegrees, resolveBridgeSkewLimit, withinBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { featureGroupVertices } from "./features";
 import { nearestOnPolyline, segmentSegmentHit } from "./gen/geom";
 import type { CityDocument, Id, Point } from "./types";
@@ -21,6 +22,31 @@ export interface BridgeDeck {
   name: string;
   points: [Point, Point];
   widthMeters: number;
+  /** Deviation of the deck from the river normal (0° = square). */
+  skewDegrees: number;
+}
+
+/** The document's bridge skew allowance (AGENTS.md, src/utils/bridgeSkewPolicy.ts). */
+export function documentBridgeSkewLimit(document: CityDocument): number {
+  return resolveBridgeSkewLimit(document.historicalPeriod, { maxBridgeSkewDegrees: document.maxBridgeSkewDegrees });
+}
+
+/** Decks that turn further from the river normal than the allowance. Never drawn. */
+export function overSkewedBridgeDecks(
+  document: CityDocument,
+  limit = documentBridgeSkewLimit(document),
+  decks = bridgeDecks(document)
+): BridgeDeck[] {
+  return decks.filter(deck => !withinBridgeSkewLimit(deck.skewDegrees, limit));
+}
+
+/** River direction where the segment crosses a centerline; null when it does not. */
+function crossingRiverTangent(a: Point, b: Point, ribbons: readonly RiverRibbon[]): Point | null {
+  for (const ribbon of ribbons)
+    for (let j = 1; j < ribbon.points.length; j++)
+      if (segmentSegmentHit(a, b, ribbon.points[j - 1], ribbon.points[j]))
+        return [ribbon.points[j][0] - ribbon.points[j - 1][0], ribbon.points[j][1] - ribbon.points[j - 1][1]];
+  return null;
 }
 
 export function riverRibbons(document: CityDocument): RiverRibbon[] {
@@ -123,7 +149,8 @@ function crossesRiverCenterline(a: Point, b: Point, ribbons: readonly RiverRibbo
 }
 
 /** Perpendicular decks at mesh crossings, plus bank-to-bank decks for geometric
- * crossings between vertices. Mesh vertices are not moved. */
+ * crossings between vertices. The latter follow the road and may be skewed;
+ * callers drop those beyond the allowance (overSkewedBridgeDecks). Mesh vertices are not moved. */
 export function bridgeDecks(document: CityDocument): BridgeDeck[] {
   const rivers = new Map<Id, { tangent: Point; width: number }>();
   for (const group of document.featureGroups) {
@@ -190,7 +217,8 @@ export function bridgeDecks(document: CityDocument): BridgeDeck[] {
         groupId: keepBridge && previous ? previous.groupId : group.id,
         name: keepBridge && previous ? previous.name : group.name,
         points,
-        widthMeters: Math.max(previous?.widthMeters ?? 0, group.style.widthMeters)
+        widthMeters: Math.max(previous?.widthMeters ?? 0, group.style.widthMeters),
+        skewDegrees: 0
       });
     }
   }
@@ -211,10 +239,12 @@ export function bridgeDecks(document: CityDocument): BridgeDeck[] {
       const direction = unit(b[0] - a[0], b[1] - a[1]);
       if (!direction) continue;
       const seat = BRIDGE_BANK_SEAT / 2;
+      const tangent = crossingRiverTangent(a, b, ribbons);
       result.push({
         groupId: group.id,
         name: group.name,
         widthMeters: group.style.widthMeters,
+        skewDegrees: tangent ? bridgeSkewDegrees(direction, tangent) : 90,
         points: [
           [a[0] - direction[0] * seat, a[1] - direction[1] * seat],
           [b[0] + direction[0] * seat, b[1] + direction[1] * seat]

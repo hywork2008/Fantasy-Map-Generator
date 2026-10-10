@@ -2,6 +2,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { measureGenerationStep } from "../generators/generationProfiler";
 import {
   animatePopulationTurnOff,
   animatePopulationTurnOn,
@@ -346,45 +347,93 @@ export function getCurrentPreset(): void {
  * Does not touch deck.gl — used by the SVG render path and offscreen export (P2-13).
  */
 export function paintSvgMapLayers(): void {
-  FeaturesRenderer.render(worldContext, viewContext, appServices);
-  LavaFlowsRenderer.render(worldContext, viewContext, appServices);
+  measureGenerationStep("FeaturesRenderer", () => FeaturesRenderer.render(worldContext, viewContext, appServices));
+  measureGenerationStep("LavaFlowsRenderer", () => LavaFlowsRenderer.render(worldContext, viewContext, appServices));
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
-  if (layerIsOn("toggleTexture")) TextureRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleCoastalHabitats")) CoastalHabitatsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleCells")) CellsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleTexture"))
+    measureGenerationStep("TextureRenderer", () => TextureRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleHeight"))
+    measureGenerationStep("HeightmapRenderer", () => HeightmapRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleBiomes"))
+    measureGenerationStep("BiomesRenderer", () => BiomesRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleCoastalHabitats"))
+    measureGenerationStep("CoastalHabitatsRenderer", () =>
+      CoastalHabitatsRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("toggleCells"))
+    measureGenerationStep("CellsRenderer", () => CellsRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleGrid"))
+    measureGenerationStep("GridRenderer", () => GridRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleCoordinates"))
+    measureGenerationStep("CoordinatesRenderer", () =>
+      CoordinatesRenderer.render(worldContext, viewContext, appServices)
+    );
   if (layerIsOn("toggleCompass")) {
     if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
     setLayerVisibility("toggleCompass", true);
   }
-  if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleRelief")) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleReligions")) ReligionsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleCultures")) CulturesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleTemperature")) TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleDanger")) DangerRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleUnderground")) UndergroundRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleCombatDeaths")) CombatDeathsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleEnclosure")) EnclosureRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleLabels")) drawLabels();
-  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleFrontierForts")) FrontierFortsRenderer.render(worldContext, viewContext, appServices);
-  for (const hook of _drawLayerHooks) hook();
+  if (layerIsOn("toggleRivers"))
+    measureGenerationStep("RiversRenderer", () => RiversRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleRelief"))
+    measureGenerationStep("ReliefIconsRenderer", () =>
+      ReliefIconsRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("toggleReligions"))
+    measureGenerationStep("ReligionsRenderer", () => ReligionsRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleCultures"))
+    measureGenerationStep("CulturesRenderer", () => CulturesRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleStates"))
+    measureGenerationStep("StatesRenderer", () => StatesRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleProvinces"))
+    measureGenerationStep("ProvincesRenderer", () => ProvincesRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleZones"))
+    measureGenerationStep("ZonesRenderer", () => ZonesRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleBorders"))
+    measureGenerationStep("BordersRenderer", () => BordersRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleRoutes"))
+    measureGenerationStep("RoutesRenderer", () => RoutesRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleTemperature"))
+    measureGenerationStep("TemperatureLayerRenderer", () =>
+      TemperatureLayerRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("togglePopulation"))
+    measureGenerationStep("PopulationRenderer", () =>
+      PopulationRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("toggleIce"))
+    measureGenerationStep("IceRenderer", () => IceRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("togglePrecipitation"))
+    measureGenerationStep("PrecipitationRenderer", () =>
+      PrecipitationRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("toggleDanger"))
+    measureGenerationStep("DangerRenderer", () => DangerRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleUnderground"))
+    measureGenerationStep("UndergroundRenderer", () =>
+      UndergroundRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("toggleCombatDeaths"))
+    measureGenerationStep("CombatDeathsRenderer", () =>
+      CombatDeathsRenderer.render(worldContext, viewContext, appServices)
+    );
+  if (layerIsOn("toggleEnclosure"))
+    measureGenerationStep("EnclosureRenderer", () => EnclosureRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleLabels")) measureGenerationStep("drawLabels", drawLabels);
+  if (layerIsOn("toggleBurgIcons"))
+    measureGenerationStep("BurgIconsRenderer", () => BurgIconsRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleMilitary"))
+    measureGenerationStep("MilitaryRenderer", () => MilitaryRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleMarkers"))
+    measureGenerationStep("MarkersRenderer", () => MarkersRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleFrontierForts"))
+    measureGenerationStep("FrontierFortsRenderer", () =>
+      FrontierFortsRenderer.render(worldContext, viewContext, appServices)
+    );
+  measureGenerationStep("extension-draw-hooks", () => {
+    for (const hook of _drawLayerHooks) hook();
+  });
   if (layerIsOn("toggleRulers")) rulers.draw();
   syncWebglManagedSvgLayerVisibility();
 }
@@ -392,8 +441,11 @@ export function paintSvgMapLayers(): void {
 registerSvgPaintFunction(paintSvgMapLayers);
 
 export function drawLayers(): void {
-  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {
-    drawHybridSvgOverlays();
+  if (
+    viewContext.renderMode === "webglHybrid" &&
+    measureGenerationStep("DeckGlRenderer", () => DeckGlRenderer.render(worldContext, viewContext, appServices))
+  ) {
+    measureGenerationStep("drawHybridSvgOverlays", drawHybridSvgOverlays);
     return;
   }
 

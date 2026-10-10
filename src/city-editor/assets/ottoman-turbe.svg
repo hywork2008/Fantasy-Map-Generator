@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 24 24" width="500" height="500">
+  <style>
+    .ce-turbe-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-turbe-terrace { fill: #c7c0b1; stroke: #3a352a; stroke-width: 0.6px; }
+    .ce-turbe-wall { fill: #ded8cb; stroke: #3a352a; stroke-width: 0.7px; stroke-linejoin: round; }
+    .ce-turbe-dome { fill: #4a7575; stroke: #263d3d; stroke-width: 0.6px; }
+    .ce-turbe-dome-highlight { fill: #619494; }
+    .ce-turbe-dome-shade { fill: #355757; }
+    .ce-turbe-porch { fill: #d3ccbd; stroke: #3a352a; stroke-width: 0.5px; }
+    .ce-turbe-mini-dome { fill: #4a7575; stroke: #263d3d; stroke-width: 0.4px; }
+    .ce-turbe-column { fill: #f0ebe1; stroke: #3a352a; stroke-width: 0.35px; }
+    .ce-turbe-alem { fill: #d4a73b; stroke: #543f11; stroke-width: 0.35px; }
+    .ce-turbe-cypress { fill: #1f3d24; stroke: #0f2113; stroke-width: 0.4px; }
+    .ce-turbe-cypress-shadow { fill: rgba(18, 22, 25, 0.38); }
+    .ce-turbe-grave { fill: #e8e3d8; stroke: #3a352a; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--ottoman-turbe" transform="translate(0 0) rotate(0)">
+    <!-- 落ち影 (Ground Shadow) -->
+    <g class="ce-turbe-shadow" transform="translate(0.9 1.1)">
+      <polygon points="2.49,-6 6,-2.49 6,2.49 2.49,6 -2.49,6 -6,2.49 -6,-2.49 -2.49,-6"></polygon>
+      <rect x="-4.8" y="5.2" width="9.6" height="3" rx="0.4"></rect>
+      <circle cx="0" cy="0" r="5.2"></circle>
+    </g>
+
+    <!-- 石畳敷きテラス (Paved Precinct Terrace) 18m x 18m -->
+    <g class="ce-turbe-terrace">
+      <rect x="-8.5" y="-8.5" width="17" height="17" rx="0.8"></rect>
+      <!-- 石畳目地ライン -->
+      <line x1="-8.5" y1="-3" x2="8.5" y2="-3" stroke="#b0a897" stroke-width="0.3"></line>
+      <line x1="-8.5" y1="2.5" x2="8.5" y2="2.5" stroke="#b0a897" stroke-width="0.3"></line>
+      <line x1="-3" y1="-8.5" x2="-3" y2="8.5" stroke="#b0a897" stroke-width="0.3"></line>
+      <line x1="3" y1="-8.5" x2="3" y2="8.5" stroke="#b0a897" stroke-width="0.3"></line>
+    </g>
+
+    <!-- 境内の彫刻墓石群（Mezar Taşları） -->
+    <g class="ce-turbe-grave">
+      <!-- 西側の高官墓石 -->
+      <rect x="-7.2" y="-1.5" width="0.7" height="1.8" rx="0.15"></rect>
+      <circle cx="-6.85" cy="-1.5" r="0.35" fill="#f5f0e6"></circle>
+      <rect x="-7.2" y="1" width="0.7" height="1.8" rx="0.15"></rect>
+      <circle cx="-6.85" cy="1" r="0.35" fill="#f5f0e6"></circle>
+      <!-- 東側の家族墓石 -->
+      <rect x="6.5" y="-2" width="0.7" height="1.8" rx="0.15"></rect>
+      <circle cx="6.85" cy="-2" r="0.35" fill="#f5f0e6"></circle>
+      <rect x="6.5" y="0.5" width="0.7" height="1.8" rx="0.15"></rect>
+      <circle cx="6.85" cy="0.5" r="0.35" fill="#f5f0e6"></circle>
+    </g>
+
+    <!-- イトスギの木立 (Twin Cypresses) -->
+    <g>
+      <ellipse cx="-6.5" cy="-6" rx="1" ry="0.7" class="ce-turbe-cypress-shadow" transform="translate(0.4 0.5)"></ellipse>
+      <ellipse cx="6.5" cy="-6" rx="1" ry="0.7" class="ce-turbe-cypress-shadow" transform="translate(0.4 0.5)"></ellipse>
+      <circle cx="-6.5" cy="-6" r="1.2" class="ce-turbe-cypress"></circle>
+      <circle cx="6.5" cy="-6" r="1.2" class="ce-turbe-cypress"></circle>
+      <circle cx="-6.7" cy="-6.2" r="0.6" fill="#36633b"></circle>
+      <circle cx="6.3" cy="-6.2" r="0.6" fill="#36633b"></circle>
+    </g>
+
+    <!-- 八角形霊廟主屋壁 (Octagonal Stone Structure) 直径 12m (半径6m) -->
+    <g class="ce-turbe-wall">
+      <!-- 八角形ポリゴン: r=6m, angles: 22.5 + 45*k -->
+      <!-- cos(22.5)*6 = 5.54, sin(22.5)*6 = 2.30 -->
+      <polygon points="2.3,-5.54 5.54,-2.3 5.54,2.3 2.3,5.54 -2.3,5.54 -5.54,2.3 -5.54,-2.3 -2.3,-5.54"></polygon>
+      <!-- 八角形の各コーナーの控え柱ピラスター -->
+      <circle cx="2.3" cy="-5.54" r="0.4" fill="#aba393"></circle>
+      <circle cx="5.54" cy="-2.3" r="0.4" fill="#aba393"></circle>
+      <circle cx="5.54" cy="2.3" r="0.4" fill="#aba393"></circle>
+      <circle cx="2.3" cy="5.54" r="0.4" fill="#aba393"></circle>
+      <circle cx="-2.3" cy="5.54" r="0.4" fill="#aba393"></circle>
+      <circle cx="-5.54" cy="2.3" r="0.4" fill="#aba393"></circle>
+      <circle cx="-5.54" cy="-2.3" r="0.4" fill="#aba393"></circle>
+      <circle cx="-2.3" cy="-5.54" r="0.4" fill="#aba393"></circle>
+    </g>
+
+    <!-- 八角形ドラム（小コーニス） -->
+    <polygon points="1.95,-4.7 4.7,-1.95 4.7,1.95 1.95,4.7 -1.95,4.7 -4.7,1.95 -4.7,-1.95 -1.95,-4.7" fill="#c7c0b1" stroke="#3a352a" stroke-width="0.5"></polygon>
+
+    <!-- 中央大ドーム (Lead/Copper Patina Dome) 直径 9m (半径 4.5m) -->
+    <g>
+      <circle cx="0" cy="0" r="4.6" class="ce-turbe-dome"></circle>
+      <!-- ドームの陰影（北西ハイライト / 南東シャドウ） -->
+      <path d="M -3.25 -3.25 A 4.6 4.6 0 0 1 3.25 -3.25 L 0 0 Z" class="ce-turbe-dome-highlight"></path>
+      <path d="M 3.25 -3.25 A 4.6 4.6 0 0 1 4.6 0 L 0 0 Z" fill="#528282"></path>
+      <path d="M 4.6 0 A 4.6 4.6 0 0 1 3.25 3.25 L 0 0 Z" class="ce-turbe-dome-shade"></path>
+      <path d="M 3.25 3.25 A 4.6 4.6 0 0 1 -3.25 3.25 L 0 0 Z" fill="#2d4a4a"></path>
+      <path d="M -3.25 3.25 A 4.6 4.6 0 0 1 -4.6 0 L 0 0 Z" fill="#385c5c"></path>
+      <path d="M -4.6 0 A 4.6 4.6 0 0 1 -3.25 -3.25 L 0 0 Z" fill="#5b8c8c"></path>
+      <!-- リブライン（ドームの骨格骨） -->
+      <circle cx="0" cy="0" r="4.6" fill="none" stroke="#263d3d" stroke-width="0.6"></circle>
+      <line x1="0" y1="-4.6" x2="0" y2="4.6" stroke="#263d3d" stroke-width="0.4"></line>
+      <line x1="-4.6" y1="0" x2="4.6" y2="0" stroke="#263d3d" stroke-width="0.4"></line>
+      <line x1="-3.25" y1="-3.25" x2="3.25" y2="3.25" stroke="#263d3d" stroke-width="0.4"></line>
+      <line x1="-3.25" y1="3.25" x2="3.25" y2="-3.25" stroke="#263d3d" stroke-width="0.4"></line>
+      <circle cx="0" cy="0" r="1.5" fill="none" stroke="#263d3d" stroke-width="0.4"></circle>
+    </g>
+
+    <!-- ドーム頂部の金のアレム (Gilded Finial / Alem) -->
+    <g class="ce-turbe-alem">
+      <circle cx="0" cy="0" r="0.75"></circle>
+      <circle cx="-0.15" cy="-0.15" r="0.3" fill="#fae18c"></circle>
+      <!-- 三日月のシンボル -->
+      <path d="M 0.2 -0.35 A 0.4 0.4 0 1 0 0.2 0.35 A 0.3 0.3 0 1 1 0.2 -0.35 Z" fill="#543f11"></path>
+    </g>
+
+    <!-- 正面ポーチ（3連小ドーム付き列柱エントランス）南側 -->
+    <g>
+      <!-- ポーチ床 -->
+      <rect x="-4.2" y="5.2" width="8.4" height="2.6" class="ce-turbe-porch"></rect>
+      <!-- 4本の大理石列柱 -->
+      <circle cx="-3.6" cy="7.4" r="0.35" class="ce-turbe-column"></circle>
+      <circle cx="-1.2" cy="7.4" r="0.35" class="ce-turbe-column"></circle>
+      <circle cx="1.2" cy="7.4" r="0.35" class="ce-turbe-column"></circle>
+      <circle cx="3.6" cy="7.4" r="0.35" class="ce-turbe-column"></circle>
+      <!-- 3つの小ドーム屋根 -->
+      <circle cx="-2.4" cy="6.2" r="1.2" class="ce-turbe-mini-dome"></circle>
+      <circle cx="0" cy="6.2" r="1.2" class="ce-turbe-mini-dome"></circle>
+      <circle cx="2.4" cy="6.2" r="1.2" class="ce-turbe-mini-dome"></circle>
+      <!-- ポーチ入口の階段 -->
+      <rect x="-1.8" y="7.8" width="3.6" height="0.4" fill="#b0a897" stroke="#3a352a" stroke-width="0.3"></rect>
+      <!-- 内部扉（祈りの空間への入口） -->
+      <rect x="-1" y="5.1" width="2" height="0.4" fill="#211a12"></rect>
+    </g>
+  </g>
+</svg>

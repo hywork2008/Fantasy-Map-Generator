@@ -12,7 +12,8 @@ import type {
   EconomyStartMode,
   FrontierPolitySpacing,
   FrontierStartMode,
-  InitialSettlementPattern
+  InitialSettlementPattern,
+  PortCoastPlacement
 } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
@@ -169,6 +170,13 @@ export interface OptionsState {
    * `frontier`. See docs/simulation/frontier-start-modes.md.
    */
   frontierPolitySpacing: FrontierPolitySpacing;
+  /**
+   * Where harbour towns sit relative to the drawn coast. `pinned` (default)
+   * keeps each port's shore edge unsimplified/unfractalized so the drawn
+   * coast passes through it and the town sits just inland inside its cell;
+   * `drawn` follows the drawn coast even outside the town's cell.
+   */
+  portCoastPlacement: PortCoastPlacement;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   /**
@@ -464,6 +472,7 @@ export const GENERATION_OPTION_KEYS = [
   "initialPolityRealmSize",
   "frontierStartMode",
   "frontierPolitySpacing",
+  "portCoastPlacement",
   "neutralRate",
   "statesGrowthRate",
   "diplomacyHistoryAttempts",
@@ -547,6 +556,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialPolityRealmSize: 30,
   frontierStartMode: "landOrigin",
   frontierPolitySpacing: "dispersed",
+  portCoastPlacement: "pinned",
   biomeRegionProfile: "global",
   volcanismChance: 30,
   volcanoActiveChance: 25,

@@ -45,20 +45,21 @@ describe.skipIf(!existsSync(archive))("Hetelethard frontage", () => {
       .getAttribute("viewBox")!
       .split(/[\s,]+/)
       .map(Number);
-    const numbers =
-      [...svg.querySelectorAll("[data-water-area]")]
-        .map(node => node.getAttribute("d") ?? "")
-        .join(" ")
-        .match(/-?\d+(?:\.\d+)?/g)
-        ?.map(Number) ?? [];
-    expect(numbers.length).toBeGreaterThan(3);
-    let sx = 0;
-    let sy = 0;
-    for (let i = 0; i + 1 < numbers.length; i += 2) {
-      sx += numbers[i];
-      sy += numbers[i + 1];
-    }
-    const count = numbers.length / 2;
+    // Imported fixed crossings draw the river in .ce-fixed-river-water (under scale(1,-1))
+    // instead of the continuous data-water-area layer.
+    const points = [...svg.querySelectorAll("[data-water-area], .ce-fixed-river-water [data-river-id]")].flatMap(
+      node => {
+        const flip = node.closest(".ce-fixed-river-water") ? -1 : 1;
+        const values = (node.getAttribute("d") ?? "").match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+        const out: [number, number][] = [];
+        for (let i = 0; i + 1 < values.length; i += 2) out.push([values[i], values[i + 1] * flip]);
+        return out;
+      }
+    );
+    expect(points.length).toBeGreaterThan(1);
+    const sx = points.reduce((sum, p) => sum + p[0], 0);
+    const sy = points.reduce((sum, p) => sum + p[1], 0);
+    const count = points.length;
     expect(sx / count).toBeLessThan(vx + vw / 2);
     expect(sy / count).toBeLessThan(vy + vh / 2);
   });

@@ -1,6 +1,6 @@
 import type { WorldContext } from "../context/worldContext";
 import type { PhysicalWaterIndex } from "../services/physicalWaterIndex";
-import { evaluateRiverAxis } from "../services/riverAxisSampling";
+import { evaluateRiverAxis, sampleRiverAxis } from "../services/riverAxisSampling";
 import type { RiverPoint } from "../services/riverGeometry";
 import type { PhysicalWaterPolygon } from "../services/riverPhysicalGeometry";
 import type {
@@ -34,6 +34,10 @@ export interface WorldCrossingCandidateEnvironment {
   /** Collect vessel/technology requirements BEFORE candidate selection. */
   capabilityAt: (riverId: number, arcLengthMeters: number) => CrossingCandidateInput["capability"];
   corridors?: readonly { start: RiverPoint; end: RiverPoint }[];
+  /** Bridge skew allowance at a river point (bridgeSkewPolicy.ts). When given, each
+   * corridor's nearest coarse sample also gets one bridge turned toward the corridor,
+   * within the allowance. Omitted: square crossings only. */
+  skewLimitAt?: (point: RiverPoint) => number;
 }
 export interface WorldCrossingCandidateReport {
   status:
@@ -166,6 +170,73 @@ export function generateWorldRiverCrossingCandidates(
       const g = resolved[i],
         arcLengthMeters = first + sampleIndex * settings.spacingMeters;
       attempt(g, arcLengthMeters);
+    }
+  }
+  if (environment.skewLimitAt && environment.corridors?.length) {
+    const coarse = samples.slice();
+    const tried = new Set<string>();
+    for (const corridor of environment.corridors) {
+      const dx = corridor.end[0] - corridor.start[0],
+        dy = corridor.end[1] - corridor.start[1];
+      const length = Math.hypot(dx, dy);
+      if (!(length > 0)) continue;
+      let closest: (typeof samples)[number] | undefined,
+        best = Infinity;
+      for (const sample of coarse) {
+        const t = Math.max(
+          0,
+          Math.min(
+            length,
+            ((sample.point[0] - corridor.start[0]) * dx + (sample.point[1] - corridor.start[1]) * dy) / length
+          )
+        );
+        const d = Math.hypot(
+          sample.point[0] - corridor.start[0] - (dx / length) * t,
+          sample.point[1] - corridor.start[1] - (dy / length) * t
+        );
+        if (d < best) {
+          best = d;
+          closest = sample;
+        }
+      }
+      if (!closest) continue;
+      const frame = sampleRiverAxis(closest.geometry.geometry.axis, closest.arc, settings.dimensions.localWindowMeters);
+      if (!frame) continue;
+      // Signed turn from the river normal to the corridor (either direction along it).
+      const along = frame.normal[0] * dx + frame.normal[1] * dy >= 0 ? 1 : -1;
+      const desired =
+        (Math.atan2(
+          frame.normal[0] * dy * along - frame.normal[1] * dx * along,
+          frame.normal[0] * dx * along + frame.normal[1] * dy * along
+        ) *
+          180) /
+        Math.PI;
+      const limit = Math.max(0, environment.skewLimitAt(closest.point));
+      const skewDegrees = Math.round(Math.max(-limit, Math.min(limit, desired)));
+      const key = `${closest.geometry.riverId}:${closest.arc}:${skewDegrees}`;
+      if (Math.abs(skewDegrees) < 1 || tried.has(key)) continue;
+      tried.add(key);
+      if (attempts === settings.maxAttempts) return report("attempt-budget");
+      const candidateId = settings.firstCandidateId + attempts++;
+      const result = createProvisionalRiverCrossing({
+        id: candidateId,
+        geometry: closest.geometry.geometry,
+        arcLengthMeters: closest.arc,
+        skewDegrees,
+        dimensions: settings.dimensions,
+        otherWater: [],
+        waterIndex: waterIndex!,
+        capability: environment.capabilityAt(closest.geometry.riverId, closest.arc),
+        supportsDryFootprint: footprint => environment.supportsDryFootprint(closest.geometry.riverId, footprint)
+      });
+      if ("candidate" in result) candidates.push(result.candidate);
+      else
+        rejected.push({
+          candidateId,
+          riverId: closest.geometry.riverId,
+          arcLengthMeters: closest.arc,
+          reason: result.reason
+        });
     }
   }
   if (refinement) {

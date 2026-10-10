@@ -1,59 +1,102 @@
 import { featureGroupVertices } from "../features";
-import type { CityDocument, Point } from "../types";
+import { townGates } from "../fortifications";
+import type { ApproachBeyond, CityDocument, Id, Point } from "../types";
 import { evaluateApproachBeyond, externalGateRoads, normalizeApproachBeyond } from "./approachBeyond";
 import type { DistrictFabric } from "./blockInfill";
+import {
+  barbicanEra,
+  curtainSegments,
+  type GlacisBarbican,
+  glacisOutworks,
+  MAX_BARBICAN_REACH_METERS,
+  polygonClearsGlacis,
+  polygonClearsOutworks
+} from "./defenseClearance";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
-import { chord } from "./localInfill";
+import { chord, isSuburb } from "./localInfill";
+import { type RoadUse, roadUse, TRADE_RANK, tradeRibbonMeters } from "./roadTraffic";
 
-type Profile = "trade" | "granary" | "frontier" | "rural";
-interface Approach {
+export type SuburbanProfile = "trade" | "granary" | "frontier" | "rural";
+
+export interface ApproachBand {
+  groupId: Id;
+  /** Gate end first, then the road out to the map boundary. */
   points: Point[];
-  profile: Profile;
+  profile: SuburbanProfile;
   clearance: number;
   length: number;
+  gateVertexId?: Id;
+}
+
+/**
+ * A recorded traffic rank replaces the neighbour's usefulness as the trade test.
+ * Defence still keeps a glacis, and a quiet road can stay a food village.
+ * Without traffic the neighbour's role decides, as before.
+ */
+export function suburbanProfile(
+  beyond: ApproachBeyond | undefined,
+  extentMeters: number,
+  hasWalls: boolean,
+  use: RoadUse | null
+): { profile: SuburbanProfile; clearance: number; length: number } {
+  const norm = normalizeApproachBeyond(beyond);
+  const assessment = evaluateApproachBeyond(beyond, { extentMeters, hasWalls });
+  const frontier = assessment?.defenseLevel === "high" || assessment?.defenseLevel === "critical";
+  const granary = norm?.settlement.role === "granary" || norm?.settlement.scale === "village";
+  const profile: SuburbanProfile = frontier
+    ? "frontier"
+    : use
+      ? use.trafficRank >= TRADE_RANK
+        ? "trade"
+        : granary
+          ? "granary"
+          : "rural"
+      : granary
+        ? "granary"
+        : assessment?.utilityLevel === "high" || assessment?.utilityLevel === "critical"
+          ? "trade"
+          : "rural";
+  const clearance = profile === "frontier" ? 70 : profile === "rural" ? 30 : 25;
+  const length = profile === "trade" ? (use ? tradeRibbonMeters(use.traffic) : 200) : profile === "granary" ? 50 : 60;
+  return { profile, clearance, length };
+}
+
+/** Extra roadside length held until a barbican's real reach replaces it. */
+export function outworkSlackMeters(document: CityDocument): number {
+  if (!barbicanEra(document.historicalPeriod)) return 0;
+  if (!document.featureGroups.some(group => group.kind === "wall")) return 0;
+  return MAX_BARBICAN_REACH_METERS;
+}
+
+/** One band per external gate road, gate end first. */
+export function approachBands(document: CityDocument): ApproachBand[] {
+  const hasWalls = document.featureGroups.some(group => group.kind === "wall");
+  const gateVertices = new Set(townGates(document).map(gate => gate.vertexId));
+  const half = document.frame.extentMeters / 2;
+  return externalGateRoads(document).flatMap(({ group }) => {
+    const ids = featureGroupVertices(document, group);
+    const points = ids.map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
+    if (points.length < 2) return [];
+    const boundaryDistance = (p: Point) => half - Math.max(Math.abs(p[0]), Math.abs(p[1]));
+    if (boundaryDistance(points[0]) < boundaryDistance(points.at(-1)!)) points.reverse();
+    const band = suburbanProfile(
+      group.beyond,
+      document.frame.extentMeters,
+      hasWalls,
+      roadUse(document, group.sourceRoad?.index, group.sourceRoad?.routeId)
+    );
+    return [{ groupId: group.id, points, gateVertexId: ids.find(id => gateVertices.has(id)), ...band }];
+  });
 }
 
 /** Apply the land-use bands to existing mesh-owned lots. No new street or
  * rectangular field geometry is laid over the block and farm systems. */
 export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
-  const walls = document.featureGroups.flatMap(g =>
-    g.kind === "wall"
-      ? g.segments.map(ref => {
-          const edge = document.mesh.edges[ref.edgeId];
-          return [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point];
-        })
-      : []
-  );
-  const approaches: Approach[] = externalGateRoads(document).flatMap(({ group }) => {
-    const vertices = featureGroupVertices(document, group);
-    const points = vertices.map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
-    if (points.length < 2) return [];
-    const norm = normalizeApproachBeyond(group.beyond);
-    const assessment = evaluateApproachBeyond(group.beyond, {
-      extentMeters: document.frame.extentMeters,
-      hasWalls: walls.length > 0
-    });
-    const profile: Profile =
-      assessment?.defenseLevel === "high" || assessment?.defenseLevel === "critical"
-        ? "frontier"
-        : norm?.settlement.role === "granary" || norm?.settlement.scale === "village"
-          ? "granary"
-          : assessment?.utilityLevel === "high" || assessment?.utilityLevel === "critical"
-            ? "trade"
-            : "rural";
-    // The gate endpoint is the one farther from the map boundary.
-    const boundaryDistance = (p: Point) => document.frame.extentMeters / 2 - Math.max(Math.abs(p[0]), Math.abs(p[1]));
-    if (boundaryDistance(points[0]) < boundaryDistance(points.at(-1)!)) points.reverse();
-    return [
-      {
-        points,
-        profile,
-        clearance: profile === "frontier" ? 70 : profile === "rural" ? 30 : 25,
-        length: profile === "trade" ? 200 : profile === "granary" ? 50 : 60
-      }
-    ];
-  });
+  const walls = curtainSegments(document);
+  const approaches = approachBands(document);
   if (!approaches.length) return fabric;
+  // A barbican is placed later. Hold the far end of the ribbon until its reach is known.
+  const slack = outworkSlackMeters(document);
   const wallDistance = (p: Point) =>
     walls.length ? Math.min(...walls.map(segment => nearestOnPolyline(p, segment).dist)) : Infinity;
   const nearest = (p: Point) =>
@@ -65,16 +108,30 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
       }))
       .sort((a, b) => a.distance - b.distance)[0];
   const outskirts = (id: string) => document.mesh.faces[id]?.properties.settlement === "outskirts";
+  // A residential suburb (faubourg, gate suburb, harbour) is a built-up
+  // district, not roadside ribbon. It keeps its blocks and only clears the
+  // glacis outside the wall.
+  const districtOf = new Map(
+    (document.fabric?.districts ?? []).flatMap(d => d.faceIds.map(id => [id, d.parameters] as const))
+  );
+  const suburb = (id: string) => {
+    const face = document.mesh.faces[id];
+    return !!face && isSuburb(face, districtOf.get(id));
+  };
   const buildings = fabric.buildings.filter(building => {
     if (!outskirts(building.faceId)) return true;
     const center = polygonCentroid(building.polygon);
     const near = nearest(center);
+    if (suburb(building.faceId)) {
+      const glacis = near?.road.clearance ?? 25;
+      return !building.polygon.some(p => wallDistance(p) < glacis);
+    }
     if (
       !near ||
       near.road.profile === "frontier" ||
       near.distance > 20 ||
       near.gateDistance < near.road.clearance ||
-      near.gateDistance > near.road.clearance + near.road.length ||
+      near.gateDistance > near.road.clearance + near.road.length + slack ||
       wallDistance(center) < near.road.clearance
     )
       return false;
@@ -141,4 +198,66 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
       : [];
   });
   return { ...fabric, buildings, farms, lanes: fabric.lanes.filter(lane => !outskirts(lane.faceId)) };
+}
+
+/**
+ * Drop outskirts lots that sit in a barbican's glacis, and trim the roadside
+ * window to the real outwork. A plain gate keeps the profile measured from the wall.
+ */
+export function enforceDefenseClearance<T extends { faceId: string; polygon: Point[] }>(
+  document: CityDocument,
+  items: T[],
+  barbicans: readonly GlacisBarbican[],
+  kind: "building" | "farm"
+): T[] {
+  const slack = outworkSlackMeters(document);
+  if (!barbicans.length && slack === 0) return items;
+  const bands = approachBands(document);
+  if (!bands.length) return items;
+  const outworks = glacisOutworks(document, barbicans, bands);
+  if (!outworks.length && slack === 0) return items;
+  const districtOf = new Map(
+    (document.fabric?.districts ?? []).flatMap(d => d.faceIds.map(id => [id, d.parameters] as const))
+  );
+  const outskirts = (id: string) => document.mesh.faces[id]?.properties.settlement === "outskirts";
+  const suburb = (id: string) => {
+    const face = document.mesh.faces[id];
+    return !!face && isSuburb(face, districtOf.get(id));
+  };
+  const nearest = (p: Point) =>
+    bands
+      .map(road => ({
+        road,
+        distance: nearestOnPolyline(p, road.points).dist,
+        gateDistance: Math.hypot(p[0] - road.points[0][0], p[1] - road.points[0][1])
+      }))
+      .sort((a, b) => a.distance - b.distance)[0];
+  const reachOf = (gateVertexId: Id | undefined) =>
+    outworks.find(work => work.gateVertexId === gateVertexId)?.reachMeters ?? 0;
+  return items.filter(item => {
+    if (!outskirts(item.faceId)) return true;
+    if (kind === "building" && !suburb(item.faceId)) {
+      const near = nearest(polygonCentroid(item.polygon));
+      if (near && near.gateDistance > near.road.clearance + near.road.length + reachOf(near.road.gateVertexId))
+        return false;
+    }
+    return polygonClearsOutworks(item.polygon, outworks);
+  });
+}
+
+/** Wall profile plus every barbican. Open towns have no glacis. */
+export function respectsDefenseClearance(
+  document: CityDocument,
+  polygon: Point[],
+  barbicans: readonly GlacisBarbican[],
+  minClearance = 0
+): boolean {
+  const walls = curtainSegments(document);
+  if (!walls.length) return true;
+  const bands = approachBands(document);
+  return polygonClearsGlacis(
+    polygon,
+    { active: true, walls, bands, outworks: glacisOutworks(document, barbicans, bands) },
+    minClearance
+  );
 }

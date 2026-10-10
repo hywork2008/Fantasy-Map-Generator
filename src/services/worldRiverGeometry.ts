@@ -112,6 +112,8 @@ function resolveSource(
       flux.push(fl[river.cells[i - 1]]);
       heights.push(h[river.cells[i - 1]]);
     } else {
+      // Older saves repeat a lake cell (inlet == outlet); a zero-length reach has no tangent.
+      if (i && cell === river.cells[i - 1]) continue;
       if (
         !Number.isSafeInteger(cell) ||
         cell < 0 ||
@@ -121,7 +123,7 @@ function resolveSource(
       )
         return { reason: "invalid-source" };
       point = source === "points" ? river.points![i] : p[cell];
-      cells.push(i);
+      cells.push(cells.length);
       flux.push(fl[cell]);
       heights.push(h[cell]);
     }
@@ -139,6 +141,23 @@ function resolveSource(
     warnings
   };
 }
+/** Exact physical inputs, before meandering and curve construction. Metadata such as
+ * name, basin and type does not participate. Resolve only this river's cells so
+ * unrelated cell edits retain its sampled sections. Legacy in-place edits remain visible. */
+export function worldRiverGeometrySourceKey(
+  world: Readonly<WorldContext>,
+  river: Readonly<River>,
+  unit: string,
+  settings: WorldRiverGeometrySettings
+): string {
+  return JSON.stringify([
+    river.i,
+    resolveSource(world, river, settings.maxSourcePoints),
+    mapUnitMeters(world.distanceScale, unit),
+    settings
+  ]);
+}
+
 /** Cheap source preparation shared by region queries: no bank sampling or arc inversion. */
 export function prepareWorldRiverGeometry(
   world: Readonly<WorldContext>,

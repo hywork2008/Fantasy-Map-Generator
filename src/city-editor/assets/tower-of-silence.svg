@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -14 28 28" width="500" height="500">
+  <style>
+    .ce-dakhma-shadow { fill: rgba(18, 22, 25, 0.4); }
+    .ce-dakhma-rock { fill: #ab9f8c; stroke: #423829; stroke-width: 0.5px; }
+    .ce-dakhma-wall-outer { fill: #cfc6b4; stroke: #383022; stroke-width: 0.8px; }
+    .ce-dakhma-wall-inner { fill: #b8ad99; stroke: #383022; stroke-width: 0.6px; }
+    .ce-dakhma-pavi-outer { fill: #ded5c3; stroke: #423829; stroke-width: 0.4px; }
+    .ce-dakhma-pavi-mid { fill: #d4caa8; stroke: #423829; stroke-width: 0.4px; }
+    .ce-dakhma-pavi-inner { fill: #c4b997; stroke: #423829; stroke-width: 0.4px; }
+    .ce-dakhma-groove { stroke: #544734; stroke-width: 0.35px; stroke-dasharray: 0.5 0.3; }
+    .ce-dakhma-well { fill: #1c1813; stroke: #0d0b08; stroke-width: 0.7px; }
+    .ce-dakhma-drain { stroke: #383022; stroke-width: 0.4px; }
+    .ce-dakhma-gate { fill: #4a3e2c; stroke: #261f14; stroke-width: 0.5px; }
+    .ce-dakhma-stairs { fill: #baa991; stroke: #383022; stroke-width: 0.35px; }
+    .ce-dakhma-shrine { fill: #cfc6b4; stroke: #383022; stroke-width: 0.55px; }
+  </style>
+  <g class="ce-landmark ce-landmark--tower-of-silence" transform="translate(0 0) rotate(0)">
+    <!-- 落ち影 (Ground Shadow) -->
+    <g class="ce-dakhma-shadow" transform="translate(1.2 1.4)">
+      <circle cx="0" cy="0" r="10.8"></circle>
+      <rect x="-2" y="9.8" width="4" height="2.8"></rect>
+      <rect x="7" y="7" width="4.5" height="4"></rect>
+    </g>
+
+    <!-- 乾燥した岩山の岩盤ベース (Desert Rock Outcrop) -->
+    <g class="ce-dakhma-rock">
+      <polygon points="-12,-4 -10,-10 -3,-12 6,-11 12,-5 11,6 5,12 -5,12 -11,8" opacity="0.35"></polygon>
+    </g>
+
+    <!-- 円筒形高石壁（厚さ1.5m・無窓石壁 / High Blind Perimeter Wall）半径 10.5m -->
+    <g>
+      <!-- 外壁外周輪郭 -->
+      <circle cx="0" cy="0" r="10.6" class="ce-dakhma-wall-outer"></circle>
+      <!-- 外壁のコーニス陰影 -->
+      <path d="M -7.5 -7.5 A 10.6 10.6 0 0 1 7.5 -7.5 L 0 0 Z" fill="#ebe4d3" opacity="0.4"></path>
+      <path d="M 7.5 7.5 A 10.6 10.6 0 0 1 -7.5 7.5 L 0 0 Z" fill="#9e917d" opacity="0.4"></path>
+      <!-- 内壁内周ライン（石壁の内側） 半径 9.1m -->
+      <circle cx="0" cy="0" r="9.1" class="ce-dakhma-wall-inner"></circle>
+    </g>
+
+    <!-- 内部同心円状の石台（パヴィ / Pavi Platfroms） -->
+    <!-- 1. 外環：成人男性の安置スロット (Outer Ring: Men's Section) 半径 9.1m 〜 6.8m -->
+    <g class="ce-dakhma-pavi-outer">
+      <circle cx="0" cy="0" r="9.1"></circle>
+      <!-- 放射状の排水溝・仕切り線（16分割） -->
+      <circle cx="0" cy="0" r="6.8" fill="#d4caa8" stroke="#423829" stroke-width="0.5"></circle>
+      <line x1="0" y1="-9.1" x2="0" y2="-6.8" class="ce-dakhma-groove"></line>
+      <line x1="0" y1="9.1" x2="0" y2="6.8" class="ce-dakhma-groove"></line>
+      <line x1="-9.1" y1="0" x2="-6.8" y2="0" class="ce-dakhma-groove"></line>
+      <line x1="9.1" y1="0" x2="6.8" y2="0" class="ce-dakhma-groove"></line>
+      <line x1="-6.4" y1="-6.4" x2="-4.8" y2="-4.8" class="ce-dakhma-groove"></line>
+      <line x1="6.4" y1="-6.4" x2="4.8" y2="-4.8" class="ce-dakhma-groove"></line>
+      <line x1="-6.4" y1="6.4" x2="-4.8" y2="4.8" class="ce-dakhma-groove"></line>
+      <line x1="6.4" y1="6.4" x2="4.8" y2="4.8" class="ce-dakhma-groove"></line>
+      <!-- 男性の白骨化スロット（浅い凹み） -->
+      <ellipse cx="-4.2" cy="-6.5" rx="0.4" ry="0.9" fill="#c4baa2" transform="rotate(33 -4.2 -6.5)"></ellipse>
+      <ellipse cx="4.2" cy="-6.5" rx="0.4" ry="0.9" fill="#c4baa2" transform="rotate(-33 4.2 -6.5)"></ellipse>
+      <ellipse cx="-7.5" cy="-2.5" rx="0.4" ry="0.9" fill="#c4baa2" transform="rotate(72 -7.5 -2.5)"></ellipse>
+      <ellipse cx="7.5" cy="-2.5" rx="0.4" ry="0.9" fill="#c4baa2" transform="rotate(-72 7.5 -2.5)"></ellipse>
+    </g>
+
+    <!-- 2. 中環：成人女性の安置スロット (Middle Ring: Women's Section) 半径 6.8m 〜 4.5m -->
+    <g class="ce-dakhma-pavi-mid">
+      <circle cx="0" cy="0" r="4.6" fill="#c4b997" stroke="#423829" stroke-width="0.5"></circle>
+      <line x1="0" y1="-6.8" x2="0" y2="-4.6" class="ce-dakhma-groove"></line>
+      <line x1="0" y1="6.8" x2="0" y2="4.6" class="ce-dakhma-groove"></line>
+      <line x1="-6.8" y1="0" x2="-4.6" y2="0" class="ce-dakhma-groove"></line>
+      <line x1="6.8" y1="0" x2="4.6" y2="0" class="ce-dakhma-groove"></line>
+      <!-- 女性の白骨化スロット -->
+      <ellipse cx="-3.2" cy="-4.6" rx="0.35" ry="0.75" fill="#aba080" transform="rotate(35 -3.2 -4.6)"></ellipse>
+      <ellipse cx="3.2" cy="-4.6" rx="0.35" ry="0.75" fill="#aba080" transform="rotate(-35 3.2 -4.6)"></ellipse>
+    </g>
+
+    <!-- 3. 内環：子供の安置スロット (Inner Ring: Children's Section) 半径 4.5m 〜 2.5m -->
+    <g class="ce-dakhma-pavi-inner">
+      <!-- 放射状の小溝 -->
+      <line x1="-1.8" y1="-1.8" x2="-3.2" y2="-3.2" class="ce-dakhma-groove"></line>
+      <line x1="1.8" y1="-1.8" x2="3.2" y2="-3.2" class="ce-dakhma-groove"></line>
+      <line x1="-1.8" y1="1.8" x2="-3.2" y2="3.2" class="ce-dakhma-groove"></line>
+      <line x1="1.8" y1="1.8" x2="3.2" y2="3.2" class="ce-dakhma-groove"></line>
+      <!-- 子供の小スロット -->
+      <ellipse cx="-1.8" cy="-2.8" rx="0.3" ry="0.55" fill="#9e9477" transform="rotate(33 -1.8 -2.8)"></ellipse>
+      <ellipse cx="1.8" cy="-2.8" rx="0.3" ry="0.55" fill="#9e9477" transform="rotate(-33 1.8 -2.8)"></ellipse>
+    </g>
+
+    <!-- 中央の深い納骨竪穴（アストダーン / Astodan / Central Ossuary Well）半径 2.4m -->
+    <g class="ce-dakhma-well">
+      <circle cx="0" cy="0" r="2.5"></circle>
+      <circle cx="0" cy="0" r="2.1" fill="#0d0b08"></circle>
+      <!-- 底の石灰・砂・木炭フィルターの微細なテクスチャ -->
+      <circle cx="0" cy="0" r="1.5" fill="#241e17" stroke="#383022" stroke-width="0.3"></circle>
+      <!-- 四方の地下排水口フィルターライン -->
+      <line x1="0" y1="-2.1" x2="0" y2="-1.2" class="ce-dakhma-drain"></line>
+      <line x1="0" y1="2.1" x2="0" y2="1.2" class="ce-dakhma-drain"></line>
+      <line x1="-2.1" y1="0" x2="-1.2" y2="0" class="ce-dakhma-drain"></line>
+      <line x1="2.1" y1="0" x2="1.2" y2="0" class="ce-dakhma-drain"></line>
+    </g>
+
+    <!-- 南側唯一の鉄の入口門とアクセス階段 (Iron Entrance Gate) -->
+    <g>
+      <rect x="-1.4" y="9.2" width="2.8" height="2.2" class="ce-dakhma-gate"></rect>
+      <rect x="-1.2" y="9.4" width="2.4" height="0.4" fill="#1b1712"></rect>
+      <!-- 登り石段 -->
+      <rect x="-1.5" y="11.4" width="3" height="0.5" class="ce-dakhma-stairs"></rect>
+      <rect x="-1.5" y="11.9" width="3" height="0.5" class="ce-dakhma-stairs"></rect>
+      <rect x="-1.5" y="12.4" width="3" height="0.5" class="ce-dakhma-stairs"></rect>
+    </g>
+
+    <!-- 南東側のサグディード（犬の視線）儀礼石室 (Sagdid Ritual Building) -->
+    <g class="ce-dakhma-shrine">
+      <rect x="7" y="6.8" width="4.5" height="3.8" rx="0.3"></rect>
+      <polygon points="7,6.8 11.5,6.8 9.25,8.7" fill="#baa991"></polygon>
+      <polygon points="7,10.6 11.5,10.6 9.25,8.7" fill="#8c7e69"></polygon>
+      <line x1="7" y1="6.8" x2="11.5" y2="10.6" stroke="#383022" stroke-width="0.35"></line>
+      <line x1="11.5" y1="6.8" x2="7" y2="10.6" stroke="#383022" stroke-width="0.35"></line>
+      <rect x="8.5" y="10.4" width="1.5" height="0.4" fill="#241e17"></rect>
+    </g>
+  </g>
+</svg>

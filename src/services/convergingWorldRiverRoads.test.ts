@@ -115,7 +115,7 @@ describe("committed FMG shared bridge geometry", () => {
       expect(Routes.getRenderPoints(r, world.pack)).toBe(r.points);
       expect(Routes.getPath(r, world.pack)).not.toContain("C");
     }
-    resolveRiverRouteCrossings(world);
+    resolveRiverRouteCrossings(world, prepared);
     for (const route of world.pack.routes) {
       expect(route.riverCrossings).toHaveLength(1);
       expect(route.riverCrossings![0].plan).toEqual(prepared.facilities[0].crossing.plan);
@@ -132,6 +132,100 @@ describe("committed FMG shared bridge geometry", () => {
     const restored = structuredClone(world);
     expect(ensureConvergingWorldRiverRoads(restored, "km").facilities).toHaveLength(1);
     expect(restored.pack.routes).toEqual(snapshot);
+  });
+  it("retains committed crossings after river metadata changes without touching roads", () => {
+    const world = fixture();
+    const prepared = ensureConvergingWorldRiverRoads(world, "km");
+    const roads = structuredClone(world.pack.routes);
+    Object.assign(world.pack.rivers[0], { name: "Renamed", type: "Creek", parent: 2, basin: 2 });
+    expect(ensureConvergingWorldRiverRoads(world, "km")).toBe(prepared);
+    expect(world.pack.routes).toEqual(roads);
+    expect(SettlementGeometrySession.prototype.prepare).toHaveBeenCalledTimes(1);
+    // Flux outside the river cannot change its crossing capability.
+    world.pack.cells.fl[0] = 999;
+    expect(ensureConvergingWorldRiverRoads(world, "km")).toBe(prepared);
+  });
+  it.each([
+    [
+      "depth",
+      (w: WorldContext) => {
+        w.pack.rivers[0].cellHydrology![4].waterDepth = 20;
+      }
+    ],
+    [
+      "width",
+      (w: WorldContext) => {
+        w.pack.rivers[0].sourceWidth = 2;
+      }
+    ],
+    [
+      "river flux",
+      (w: WorldContext) => {
+        w.pack.cells.fl[4] = 999;
+      }
+    ],
+    [
+      "terrain",
+      (w: WorldContext) => {
+        w.pack.cells.h[0] = 19;
+      }
+    ],
+    [
+      "route",
+      (w: WorldContext) => {
+        w.pack.routes[0].points.at(-1)![1] += 1;
+      }
+    ],
+    [
+      "population",
+      (w: WorldContext) => {
+        w.pack.burgs[1].population += 1;
+      }
+    ],
+    [
+      "period",
+      (w: WorldContext) => {
+        w.options.historicalPeriod = "earlyMedieval";
+      }
+    ],
+    [
+      "coast",
+      (w: WorldContext) => {
+        w.seed = "changed-coast";
+      }
+    ]
+  ])("revalidates crossings after a %s change", (_label, edit) => {
+    const world = fixture();
+    const prepared = ensureConvergingWorldRiverRoads(world, "km");
+    edit(world);
+    expect(ensureConvergingWorldRiverRoads(world, "km")).not.toBe(prepared);
+  });
+  it("follows an oblique road with a skewed bridge only within the period's allowance", () => {
+    const skewOf = (period: string) => {
+      vi.restoreAllMocks();
+      const world = fixture();
+      world.options.historicalPeriod = period as never;
+      // A single road meeting the river 20° off square.
+      world.pack.routes = [
+        {
+          i: 0,
+          group: "roads",
+          points: [
+            [-50, 0, 0],
+            [50, Math.tan((20 * Math.PI) / 180) * 100, 1]
+          ]
+        } as never
+      ];
+      const prepared = ensureConvergingWorldRiverRoads(world, "km");
+      expect(prepared.facilities).toHaveLength(1);
+      const payload = convergedBurgCrossings(world, "km", world.pack.burgs[1])!;
+      expect(validFixedBurgCrossings(payload, FIXED_SITE_CROSSING_BUDGETS)).toBe(true);
+      return prepared.facilities[0].crossing.skewDegrees;
+    };
+    const exploration = skewOf("ageOfExploration");
+    expect(Math.abs(exploration)).toBeGreaterThan(0);
+    expect(Math.abs(exploration)).toBeLessThanOrEqual(25);
+    expect(Math.abs(skewOf("earlyMedieval"))).toBeLessThanOrEqual(15);
   });
   it("does not alter locked roads and restores original cells when bridges become unavailable", () => {
     const world = fixture();
@@ -169,11 +263,12 @@ describe("committed FMG shared bridge geometry", () => {
       },
       {
         id: 1,
+        // Close to the far bank: no dry gap for a shared far arm, even behind a skewed bridge.
         ring: [
-          [20, -20],
+          [12, -20],
           [35, -20],
           [35, 20],
-          [20, 20]
+          [12, 20]
         ]
       }
     ]);

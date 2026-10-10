@@ -7,8 +7,8 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
-import { ensureConvergingWorldRiverRoads } from "../services/convergingWorldRiverRoads";
-import { resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
+import { bendRouteAwayFromCoast } from "../services/coastalRouteApproach";
+import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
@@ -40,6 +40,7 @@ import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
 import { isTrueOceanPortBurg } from "../utils/oceanPort";
 import { RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
+import { measureGenerationStep } from "./generationProfiler";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import { getSettlementBaseSize } from "./settlementSuitability";
@@ -1608,16 +1609,24 @@ class RoutesModule {
     );
     // Both land and water pathfinders need current river adjacency: water uses
     // it to sail navigable channels, while land uses it to avoid following one.
-    this.sync();
+    measureGenerationStep("sync", () => this.sync());
     worldContext.options.seaRouteGenerationMode = resolvedSeaRouteGenerationMode;
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
-    pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
-    ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit);
-    pack.cells.routes = this.buildLinks(pack.routes);
-    resolveRiverRouteCrossings(worldContext);
-    const finalRiverGraph = buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL });
-    const finalSeaShipRiverGraph = buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL });
+    pack.routes = measureGenerationStep("createRoutesData", () =>
+      this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode)
+    );
+    // River-road convergence (shared bridge sites for CE) never decides which routes
+    // survive pruning (0 of 10 seeds, 2026-10-09) and moves FMG roads by < 0.3 px at
+    // zoom 1; it runs on demand when CE needs a burg site (getBurgSiteDescriptor).
+    pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
+    measureGenerationStep("resolveRiverRouteCrossings", () =>
+      resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE)
+    );
+    const { finalRiverGraph, finalSeaShipRiverGraph } = measureGenerationStep("river-navigation-graphs", () => ({
+      finalRiverGraph: buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL }),
+      finalSeaShipRiverGraph: buildRiverNavigationGraph(pack, { vessel: SEA_SAILING_VESSEL })
+    }));
     const preservesSeaShipPassage = (route: Route): boolean => {
       if (route.group !== "searoutes" || route.navigation === "river") return true;
       const cells = route.cells ?? route.points.map(p => p[2]);
@@ -1636,21 +1645,25 @@ class RoutesModule {
         );
       });
     };
-    pack.routes = pack.routes.filter(
-      route =>
-        route.lock ||
-        ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
-          preservesSeaShipPassage(route) &&
-          (route.navigation !== "river" ||
-            (route.cells ?? [])
-              .slice(1)
-              .every((cell, index) =>
-                finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
-              )))
+    pack.routes = measureGenerationStep("prune-impassable-routes", () =>
+      pack.routes.filter(
+        route =>
+          route.lock ||
+          ((route.riverCrossings ?? []).every(c => c.plan.kind !== "none") &&
+            preservesSeaShipPassage(route) &&
+            (route.navigation !== "river" ||
+              (route.cells ?? [])
+                .slice(1)
+                .every((cell, index) =>
+                  finalRiverGraph.getOutgoing(route.cells![index]).some(edge => edge.toCellId === cell)
+                )))
+      )
     );
-    pack.cells.routes = this.buildLinks(pack.routes);
+    pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
     if (worldContext.options.landConnectionGeneration) {
-      const physical = generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit);
+      const physical = measureGenerationStep("generateWorldLandConnections", () =>
+        generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit)
+      );
       if ("routes" in physical) {
         pack.routes = [...pack.routes.filter(route => route.group === "searoutes" || route.lock), ...physical.routes];
         pack.cells.routes = this.buildLinks(pack.routes);
@@ -2111,11 +2124,21 @@ class RoutesModule {
    * and has to read cell geometry out of that one.
    */
   getRenderPoints(
-    route: { group: string; points: number[][]; riverRoadConvergence?: Route["riverRoadConvergence"] },
+    route: {
+      group: string;
+      points: number[][];
+      riverRoadConvergence?: Route["riverRoadConvergence"];
+      fixedSettlementApproach?: boolean;
+    },
     pack?: PackedGraph
   ): number[][] {
-    if (route.group === "searoutes" || route.riverRoadConvergence) return route.points;
-    return this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
+    if (route.group === "searoutes") return route.points;
+    const world = pack && pack !== this.worldContext.pack ? { ...this.worldContext, pack } : this.worldContext;
+    const points =
+      route.riverRoadConvergence || route.fixedSettlementApproach
+        ? route.points
+        : this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
+    return bendRouteAwayFromCoast(world, points);
   }
 
   getPath(
@@ -2123,17 +2146,22 @@ class RoutesModule {
       group,
       points,
       registeredConnectionId,
-      riverRoadConvergence
+      riverRoadConvergence,
+      fixedSettlementApproach
     }: {
       group: string;
       points: number[][];
       registeredConnectionId?: number;
       riverRoadConvergence?: Route["riverRoadConvergence"];
+      fixedSettlementApproach?: boolean;
     },
     pack?: PackedGraph
   ): string {
     if (registeredConnectionId !== undefined) return "";
-    if (riverRoadConvergence) return points.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join("");
+    if (riverRoadConvergence || fixedSettlementApproach)
+      return this.getRenderPoints({ group, points, riverRoadConvergence, fixedSettlementApproach }, pack)
+        .map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`)
+        .join("");
     const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);
     const renderPoints = this.getRenderPoints({ group, points }, pack);
     const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);

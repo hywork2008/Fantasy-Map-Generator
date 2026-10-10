@@ -285,11 +285,13 @@ export function buildStreets(input: StreetInputs): StreetResult {
     if (!(urbanNodes.has(a) && urbanNodes.has(b))) return Number.POSITIVE_INFINITY;
     return borderNodes.has(a) || borderNodes.has(b) ? 1.6 : 1;
   };
+  // Ring prefers border edges. Multipliers stay >= 1 (aStar's straight-line
+  // heuristic must not over-estimate); ratios are the old 0.45 : 0.75 : 2.2.
   const ringWeight = (a: number, b: number): number => {
     if (!(urbanNodes.has(a) && urbanNodes.has(b))) return Number.POSITIVE_INFINITY;
-    if (borderNodes.has(a) && borderNodes.has(b)) return 0.45;
-    if (borderNodes.has(a) || borderNodes.has(b)) return 0.75;
-    return 2.2;
+    if (borderNodes.has(a) && borderNodes.has(b)) return 1;
+    if (borderNodes.has(a) || borderNodes.has(b)) return 0.75 / 0.45;
+    return 2.2 / 0.45;
   };
   const crossesCitadel = (a: number, b: number): boolean => !clearOfCitadel(a, b);
   const onInternalPlaza = (a: number, b: number): boolean => internalPlazaEdges.has(undirectedKey(a, b));

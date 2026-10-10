@@ -1,9 +1,11 @@
+import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
 import { SHIP_SPECS, type ShipType } from "../../render/shipSvg";
 import { faceNeighbors, facePoints } from "../mesh";
 import type { CityDocument, CityElement, Id, Point } from "../types";
 import { waterPolygons as documentWaterPolygons } from "../waterGeometry";
 import { buildBlockFabric } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
+import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
 import { riverPortShore } from "./riverPortShore";
@@ -85,7 +87,11 @@ interface PierBerth {
  * 桟橋に対して船が重なったり刺さったりしないよう、他桟橋・陸地との衝突判定を行い、
  * 桟橋の左右のうち十分な水域と離隔がある位置に停泊させる。
  */
-export function planHarborShips(document: CityDocument, seed = "harbor-ships"): CityElement[] {
+export function planHarborShips(
+  document: CityDocument,
+  seed = "harbor-ships",
+  profiler?: ProcessingProfiler
+): CityElement[] {
   const harborFaces = Object.values(document.mesh.faces).filter(
     f => f.properties.ward === "harbor" && f.properties.water === "land"
   );
@@ -104,7 +110,9 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
   const seaTypes = allowedShipTypesForPeriod(period);
   const typesForWater = (faceId: Id): ShipType[] => {
     if (!document.waterAccess) return seaTypes; // Legacy/standalone documents.
-    return document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(faceId) ? seaTypes : ["small"];
+    if (document.waterAccess.port?.sea && document.coastalOceanFaceIds?.includes(faceId)) return seaTypes;
+    // Inland water: sloops only where the town also has a sea port; river-only ports get barges.
+    return document.waterAccess.port?.sea ? ["small"] : ["barge"];
   };
 
   const rng = makeRng(`${document.generationSeed ?? "fmg"}:${seed}:ships`);
@@ -113,7 +121,9 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
   // (1) fabric.harbor が存在する場合はその piers を利用
   const docFabric = document.fabric as import("./blockInfill").DistrictFabric | undefined;
-  const fabric = docFabric?.harbor ? docFabric : buildBlockFabric(document);
+  const fabric = docFabric?.harbor
+    ? docFabric
+    : measureProcessing(profiler, "block-fabric", () => buildBlockFabric(document, undefined, profiler));
   const fabricHarbor = fabric?.harbor;
 
   if (fabricHarbor && fabricHarbor.piers?.length) {
@@ -249,6 +259,14 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     }
   }
 
+  // A ship must be able to leave: drop sea piers whose head is boxed in (this
+  // also covers the mesh-shore fallback above) and keep hulls on open water.
+  const field = harborWaterField(document);
+  const seaBerth = (pier: KnownPier) => !pier.riverId && !pier.id.startsWith("pier:bank:");
+  for (let i = knownPiers.length - 1; i >= 0; i--)
+    if (seaBerth(knownPiers[i]) && !seaBerthIsNavigable(field, knownPiers[i].end)) knownPiers.splice(i, 1);
+  const onOpenWater = (p: Point) => field.navigable(p, SEA_CHANNEL_HALF_WIDTH);
+
   const waterPolygons = new Map<Id, Point[]>();
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "land") {
@@ -281,6 +299,35 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
   for (const pier of knownPiers) {
     if (pier.riverId && !pier.water) pier.water = physicalWater.find(w => pointInPolygon(pier.end, w));
   }
+
+  // 水上を渡る橋・道路（FMG固定橋、枠外へ続く道路と橋、対岸連絡路、道路グループ）。船を重ねない。
+  const crossingLines: Array<{ a: Point; b: Point; halfWidth: number }> = [];
+  const addLine = (points: readonly (readonly number[])[], width: number) => {
+    for (let i = 1; i < points.length; i++)
+      crossingLines.push({
+        a: [points[i - 1][0], points[i - 1][1]],
+        b: [points[i][0], points[i][1]],
+        halfWidth: width / 2
+      });
+  };
+  const fixed = document.importedFixedCrossings;
+  for (const c of fixed?.crossings ?? []) addLine([c.approachA, c.deckA, c.deckB, c.approachB], fixed!.roadWidthMeters);
+  const roadWidth = fixed?.roadWidthMeters ?? 6;
+  for (const road of document.frameRoads ?? []) for (const piece of road.pieces) addLine(piece.points, roadWidth);
+  for (const c of document.riverConnections ?? []) {
+    addLine(c.townRoad, roadWidth);
+    addLine(c.farRoad, roadWidth);
+  }
+  for (const group of document.featureGroups)
+    if (group.kind === "road")
+      for (const ref of group.segments) {
+        const edge = document.mesh.edges[ref.edgeId];
+        if (edge)
+          addLine(
+            [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point],
+            group.style.widthMeters
+          );
+      }
 
   // 桟橋の左右（side = 1 または -1）について、他桟橋や陸地との離隔を計測し候補バースを作成
   const berths: PierBerth[] = [];
@@ -346,7 +393,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
     }
 
     // 桟橋の長さ・水深・クリアランスに応じた船型ダウンサイジング
-    if (chosenType === "large" && (berth.pier.length < 24 || berth.pier.depth < 3.2 || berth.clearanceScore < 10)) {
+    if (chosenType === "large" && (berth.pier.length < 24 || berth.pier.depth < 3 || berth.clearanceScore < 10)) {
       chosenType = "medium";
     }
     if (chosenType === "medium" && (berth.pier.length < 14 || berth.clearanceScore < 7)) {
@@ -426,7 +473,13 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
       continue;
     }
 
-    // (4) 他の船との衝突判定
+    // (4) 橋・道路との干渉判定
+    if (crossingLines.some(l => distSegmentToSegment(stern, bow, l.a, l.b) < beam / 2 + l.halfWidth + 1.5)) continue;
+
+    // (4b) 出航できる水域か（入江の奥・狭い水路に押し込まない）
+    if (seaBerth(berth.pier) && !onOpenWater(shipCenter)) continue;
+
+    // (5) 他の船との衝突判定
     const shipCollision = placedShips.some(other => {
       const d = distance(shipCenter, other.point ?? [0, 0]);
       const otherSpec = SHIP_SPECS[other.shipType ?? "small"];
@@ -477,7 +530,7 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
       if (!allowedTypes.includes(chosenType)) {
         chosenType = allowedTypes[0];
       }
-      if (chosenType === "large" && depth < 3.5) {
+      if (chosenType === "large" && depth < 3) {
         chosenType = "medium";
       }
       if (chosenType === "medium" && depth < 3.0) {
@@ -519,8 +572,10 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
 
       // 水域ポリゴン内に船体が収まっていること
       if (!pointInPolygon(bow, waterPoly) || !pointInPolygon(stern, waterPoly)) continue;
+      if (crossingLines.some(l => distSegmentToSegment(stern, bow, l.a, l.b) < beam / 2 + l.halfWidth + 1.5)) continue;
 
       if (knownPiers.some(p => distPointToSegment(anchorPt, p.start, p.end) < 20)) continue;
+      if (!onOpenWater(anchorPt) || field.clearance(anchorPt) < halfLen) continue;
 
       const collides = placedShips.some(s => distance(anchorPt, s.point ?? [0, 0]) < 25);
       if (collides) continue;
@@ -546,11 +601,11 @@ export function planHarborShips(document: CityDocument, seed = "harbor-ships"): 
  * 都市ドキュメントに港湾船を生成・配置する。
  * 既存の未ロックかつ自動生成（gc:ship-...）の船を再生成する。
  */
-export function spawnHarborShips(document: CityDocument, seed = "harbor-ships"): void {
+export function spawnHarborShips(document: CityDocument, seed = "harbor-ships", profiler?: ProcessingProfiler): void {
   // 自動生成された未ロックの船要素をクリア
   document.elements = document.elements.filter(e => e.locked || e.kind !== "ship" || !e.id.startsWith(GEN_PREFIX));
 
-  const ships = planHarborShips(document, seed);
+  const ships = measureProcessing(profiler, "ship-plan", () => planHarborShips(document, seed, profiler));
   if (ships.length > 0) {
     document.elements.push(...ships);
   }

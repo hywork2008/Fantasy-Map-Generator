@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-25 -25 50 50" width="500" height="500">
+  <style>
+    .ce-hindu-shadow { fill: rgba(18, 22, 25, 0.34); }
+    .ce-hindu-wall { fill: #c7beab; stroke: #423825; stroke-width: 0.6px; }
+    .ce-hindu-prakara { fill: #ded6c3; stroke: #423825; stroke-width: 0.5px; }
+    .ce-hindu-gopuram { fill: #bf6a3b; stroke: #4f2510; stroke-width: 0.45px; }
+    .ce-hindu-gopuram-ridge { stroke: #ffd54f; stroke-width: 0.45px; stroke-linecap: round; }
+    .ce-hindu-shikhara { fill: #ba5e29; stroke: #4a210c; stroke-width: 0.5px; }
+    .ce-hindu-mandapa { fill: #cf7c48; stroke: #4a210c; stroke-width: 0.45px; }
+    .ce-hindu-kunda-edge { fill: #a89e87; stroke: #3d3524; stroke-width: 0.4px; }
+    .ce-hindu-water { fill: #225a75; stroke: #123342; stroke-width: 0.4px; }
+    .ce-hindu-gold { fill: #dfa83d; stroke: #543f11; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--hindu-temple">
+    <!-- 影 -->
+    <g class="ce-hindu-shadow" transform="translate(1.4 1.6)">
+      <rect x="-20" y="-20" width="40" height="40" rx="1"></rect>
+      <rect x="-14" y="-8" width="16" height="16" rx="0.5"></rect>
+      <circle cx="-6" cy="0" r="5.5"></circle>
+    </g>
+    <!-- 外郭壁・周回路（プラカーラ） -->
+    <g class="ce-hindu-wall">
+      <rect x="-20" y="-20" width="40" height="40" rx="0.8"></rect>
+    </g>
+    <!-- 境内石畳敷き -->
+    <g class="ce-hindu-prakara">
+      <rect x="-18" y="-18" width="36" height="36" rx="0.5"></rect>
+      <!-- 回廊列柱アーケード -->
+      <path d="M -18 -18 L 18 -18 L 18 18 L -18 18 Z M -16 -16 L -16 16 L 16 16 L 16 -16 Z" fill="#cfc4ad" stroke="#423825" stroke-width="0.35"></path>
+    </g>
+    <!-- 聖なる階段状沐浴池（クンダ / タンク - 北東区画） -->
+    <g transform="translate(9, -9)">
+      <rect x="-6" y="-6" width="12" height="12" class="ce-hindu-kunda-edge"></rect>
+      <!-- 階段ステップ -->
+      <rect x="-5.2" y="-5.2" width="10.4" height="10.4" fill="#9e947d"></rect>
+      <rect x="-4.4" y="-4.4" width="8.8" height="8.8" fill="#8f856f"></rect>
+      <rect x="-3.6" y="-3.6" width="7.2" height="7.2" fill="#7d745e"></rect>
+      <!-- 澄んだ水面 -->
+      <rect x="-2.8" y="-2.8" width="5.6" height="5.6" class="ce-hindu-water"></rect>
+      <!-- 中央小祠堂（水上マンダパ） -->
+      <circle cx="0" cy="0" r="0.8" class="ce-hindu-gold"></circle>
+    </g>
+    <!-- 東門大塔（メイン・ゴープラム - 右側正面） -->
+    <g transform="translate(19, 0)">
+      <rect x="-2" y="-5" width="4" height="10" rx="0.4" class="ce-hindu-gopuram"></rect>
+      <rect x="-1.4" y="-4.2" width="2.8" height="8.4" fill="#d97e4c"></rect>
+      <rect x="-0.8" y="-3.4" width="1.6" height="6.8" fill="#e89461"></rect>
+      <line x1="0" y1="-3.4" x2="0" y2="3.4" class="ce-hindu-gopuram-ridge"></line>
+      <!-- カラシャ（金色の壺型頂部飾り5基） -->
+      <circle cx="0" cy="-2.5" r="0.3" class="ce-hindu-gold"></circle>
+      <circle cx="0" cy="-1.2" r="0.3" class="ce-hindu-gold"></circle>
+      <circle cx="0" cy="0" r="0.35" class="ce-hindu-gold"></circle>
+      <circle cx="0" cy="1.2" r="0.3" class="ce-hindu-gold"></circle>
+      <circle cx="0" cy="2.5" r="0.3" class="ce-hindu-gold"></circle>
+    </g>
+    <!-- 西門ゴープラム -->
+    <g transform="translate(-19, 0)">
+      <rect x="-1.8" y="-3.8" width="3.6" height="7.6" rx="0.3" class="ce-hindu-gopuram"></rect>
+      <line x1="0" y1="-2.6" x2="0" y2="2.6" class="ce-hindu-gopuram-ridge"></line>
+    </g>
+    <!-- 南門ゴープラム -->
+    <g transform="translate(0, 19)">
+      <rect x="-3.8" y="-1.8" width="7.6" height="3.6" rx="0.3" class="ce-hindu-gopuram"></rect>
+      <line x1="-2.6" y1="0" x2="2.6" y2="0" class="ce-hindu-gopuram-ridge"></line>
+    </g>
+    <!-- 北門ゴープラム -->
+    <g transform="translate(0, -19)">
+      <rect x="-3.8" y="-1.8" width="7.6" height="3.6" rx="0.3" class="ce-hindu-gopuram"></rect>
+      <line x1="-2.6" y1="0" x2="2.6" y2="0" class="ce-hindu-gopuram-ridge"></line>
+    </g>
+    <!-- 中央複合神殿（本殿ガルバグリハ ＋ アルダーマーンダパ ＋ マハ・マーンダパ） -->
+    <g transform="translate(-4, 0)">
+      <!-- 前殿（マハ・マーンダパ - 柱間大広間） -->
+      <rect x="2" y="-5.5" width="9" height="11" rx="0.5" class="ce-hindu-mandapa"></rect>
+      <!-- ピラミッド型屋根の段層 -->
+      <polygon points="3,-4.5 10,-4.5 9,-3 4,-3" fill="#df8c58"></polygon>
+      <polygon points="3,4.5 10,4.5 9,3 4,3" fill="#a85223"></polygon>
+      <rect x="4" y="-3" width="5" height="6" fill="#e39564"></rect>
+      <circle cx="6.5" cy="0" r="0.7" class="ce-hindu-gold"></circle>
+      <!-- ナンディ堂（聖牛ナンディ座像の小パビリオン - 前殿の東） -->
+      <rect x="12" y="-1.8" width="3.6" height="3.6" rx="0.3" fill="#ba6a3b" stroke="#4a210c" stroke-width="0.35"></rect>
+      <ellipse cx="13.8" cy="0" rx="1" ry="0.6" fill="#e8ded1" stroke="#3d3324" stroke-width="0.3"></ellipse>
+      <!-- 主神殿・内陣塔（シカラ / ヴィマーナ）段々の多重放射状輪郭 -->
+      <g transform="translate(-4.5, 0)">
+        <!-- 基礎ポディウム（プラスタラ） -->
+        <polygon points="-7,-7 -7,7 2,7 2,-7" fill="#8f431b" stroke="#4a210c" stroke-width="0.5"></polygon>
+        <!-- 段々のシカラ（星形・十文字張り出しの多角塔） -->
+        <rect x="-6.2" y="-6.2" width="7.4" height="12.4" class="ce-hindu-shikhara"></rect>
+        <rect x="-8.7" y="-3.7" width="12.4" height="7.4" class="ce-hindu-shikhara"></rect>
+        <rect x="-5.2" y="-5.2" width="5.4" height="10.4" fill="#c96d36"></rect>
+        <rect x="-7.7" y="-2.7" width="10.4" height="5.4" fill="#c96d36"></rect>
+        <rect x="-4.2" y="-4.2" width="3.4" height="8.4" fill="#d97d46"></rect>
+        <rect x="-6.7" y="-1.7" width="8.4" height="3.4" fill="#d97d46"></rect>
+        <!-- 頂部アマラカ（巨大な歯車状円盤石） -->
+        <circle cx="-2.5" cy="0" r="2.8" fill="#e69255" stroke="#4a210c" stroke-width="0.4"></circle>
+        <circle cx="-2.5" cy="0" r="2.2" fill="#ba5e29"></circle>
+        <!-- 頂部黄金カラシャ（聖水壺） -->
+        <circle cx="-2.5" cy="0" r="1.1" class="ce-hindu-gold"></circle>
+        <circle cx="-2.5" cy="0" r="0.4" fill="#ffeb3b"></circle>
+      </g>
+    </g>
+    <!-- 旗竿塔（ドヴァジャスタンバ - 前庭正面） -->
+    <circle cx="10" cy="0" r="0.6" class="ce-hindu-gold"></circle>
+    <line x1="10" y1="-0.6" x2="10" y2="0.6" stroke="#4a210c" stroke-width="0.3"></line>
+  </g>
+</svg>

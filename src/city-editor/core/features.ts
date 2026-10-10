@@ -1,4 +1,5 @@
 import { castleWallIds, refreshTownWallReferences } from "./fortifications";
+import type { WallMaterialChoice } from "./gen/site/siteConfig";
 import {
   clone,
   edgeBetween,
@@ -10,11 +11,23 @@ import {
   validate,
   vertexTouchesWater
 } from "./mesh";
-import type { CityDocument, EdgeFeatureGroup, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, RiverGroup } from "./types";
+import type {
+  CityDocument,
+  EdgeFeatureGroup,
+  EdgeRef,
+  Face,
+  FeatureGroup,
+  Id,
+  Mesh,
+  Point,
+  RiverGroup,
+  WallMaterial
+} from "./types";
 
-export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]): CityDocument {
+export function createGroup(document: CityDocument, kind: FeatureGroup["kind"], material?: WallMaterial): CityDocument {
   const next = clone(document);
   const number = next.featureGroups.filter(group => group.kind === kind).length + 1;
+  const resolvedMaterial = kind === "wall" ? (material ?? resolveWallMaterial(document)) : undefined;
   const group =
     kind === "river"
       ? ({
@@ -32,8 +45,9 @@ export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]):
           kind,
           name: `${edgeGroupLabel(kind)} #${number}`,
           segments: [],
-          style: edgeGroupStyle(kind),
-          locked: false
+          style: edgeGroupStyle(kind, resolvedMaterial),
+          locked: false,
+          ...(resolvedMaterial ? { wallMaterial: resolvedMaterial } : {})
         } satisfies EdgeFeatureGroup);
   next.featureGroups.push(group);
   return next;
@@ -63,6 +77,7 @@ export function encloseWardComponentWithWalls(document: CityDocument, faceId: Id
   if (!loops?.length) return null;
 
   const next = clone(document);
+  const material = resolveWallMaterial(document);
   const firstNumber = next.featureGroups.filter(group => group.kind === "wall").length + 1;
   for (const [index, segments] of loops.entries()) {
     next.featureGroups.push({
@@ -70,7 +85,8 @@ export function encloseWardComponentWithWalls(document: CityDocument, faceId: Id
       kind: "wall",
       name: `Wall #${firstNumber + index}`,
       segments,
-      style: edgeGroupStyle("wall"),
+      style: edgeGroupStyle("wall", material),
+      wallMaterial: material,
       locked: false
     });
   }
@@ -132,6 +148,7 @@ export function encloseCircleWithWalls(
   if (!loops?.length) return null;
 
   const next = clone(document);
+  const material = resolveWallMaterial(document);
   const firstNumber = next.featureGroups.filter(group => group.kind === "wall").length + 1;
   for (const [index, segments] of loops.entries()) {
     next.featureGroups.push({
@@ -139,7 +156,8 @@ export function encloseCircleWithWalls(
       kind: "wall",
       name: `Wall #${firstNumber + index}`,
       segments,
-      style: edgeGroupStyle("wall"),
+      style: edgeGroupStyle("wall", material),
+      wallMaterial: material,
       locked: false
     });
   }
@@ -718,14 +736,49 @@ function nextId(document: CityDocument, prefix: string): Id {
   return `${prefix}-${n}`;
 }
 
+/**
+ * Resolves wall material ("stone" or "wood").
+ * In large cities, defaults to "stone". In small villages / hamlets, defaults to "wood".
+ */
+export function resolveWallMaterial(
+  document: CityDocument,
+  options?: {
+    choice?: WallMaterialChoice;
+    descriptor?: import("./gen/site/burgSiteDescriptor").BurgSiteDescriptor;
+  }
+): WallMaterial {
+  if (options?.choice === "stone") return "stone";
+  if (options?.choice === "wood") return "wood";
+
+  // Capital / urban groups take precedence over population. Otherwise use the
+  // absolute population supplied by FMG; 1,500 inhabitants is the stone threshold.
+  const burg = options?.descriptor?.burg;
+  if (burg) {
+    if (burg.capital || burg.group === "city" || burg.group === "town") return "stone";
+    if (Number.isFinite(burg.population)) return burg.population >= 1500 ? "stone" : "wood";
+    if (burg.group === "hamlet" || burg.group === "village") return "wood";
+  }
+
+  // Check document frame and extent
+  const effectiveExtent = document.frame.settlementExtentMeters ?? document.frame.extentMeters;
+  if (effectiveExtent <= 700) return "wood";
+  if (document.frame.cityRadiusMeters <= 140) return "wood";
+
+  // Default for large settlements
+  return "stone";
+}
+
 function edgeGroupLabel(kind: EdgeFeatureGroup["kind"]): string {
   return { road: "Road", wall: "Wall", plank: "Pier" }[kind];
 }
 
-function edgeGroupStyle(kind: EdgeFeatureGroup["kind"]): EdgeFeatureGroup["style"] {
+export function edgeGroupStyle(
+  kind: EdgeFeatureGroup["kind"],
+  material: WallMaterial = "stone"
+): EdgeFeatureGroup["style"] {
   return {
     road: { widthMeters: 4.5, color: "#6b5137" },
-    wall: { widthMeters: 7, color: "#342a22" },
+    wall: material === "wood" ? { widthMeters: 2.4, color: "#7a522c" } : { widthMeters: 4.5, color: "#342a22" },
     plank: { widthMeters: 4, color: "#d8d0c0" }
   }[kind];
 }

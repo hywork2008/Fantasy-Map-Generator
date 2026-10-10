@@ -9,7 +9,9 @@ import {
   createGridDocument,
   descriptorFrameGridOptions,
   fitUndersizedTownFrame,
-  nPatchesForTownCells
+  nPatchesForTownCells,
+  seaPortShoreDistanceMeters,
+  townMeshExtentMeters
 } from "./document";
 import { buildBlockFabric } from "./gen/blockInfill";
 import { pointInPolygon } from "./gen/geom";
@@ -37,6 +39,58 @@ describe("fitUndersizedTownFrame", () => {
     expect(fitUndersizedTownFrame(396, 1200)).toBeNull();
     expect(fitUndersizedTownFrame(1500, 4500)).toBeNull();
     expect(fitUndersizedTownFrame(80, 300)).toBeNull();
+  });
+});
+
+describe("townMeshExtentMeters", () => {
+  const frame = { extentMeters: 1500, cityRadiusMeters: 128, regionalMode: true };
+  const shore = [
+    [-227.7, -750],
+    [-750, -53.6]
+  ] as [number, number][];
+
+  it("keeps a river-only mesh on the near bank", () => {
+    expect(townMeshExtentMeters(frame, true, 492)).toBe(1032);
+    expect(townMeshExtentMeters(frame, true, 492, 0)).toBe(1032);
+  });
+
+  it("keeps the whole frame when a sea-port shore already lies inside it", () => {
+    expect(townMeshExtentMeters(frame, true, 492, 632)).toBe(1500);
+    const grid = descriptorFrameGridOptions(frame, true, 492, 632);
+    expect(grid.extentMeters).toBe(1500);
+    expect(grid.meshExtentMeters).toBeUndefined();
+    expect(grid.settlementExtentMeters).toBe(600);
+  });
+
+  it("keeps a coast inside a corner of the square frame", () => {
+    const site = {
+      burg: { waterAccess: { port: { sea: true, lake: false } } },
+      waterbody: {
+        shoreline: [
+          [
+            [-750, -600],
+            [-600, -750]
+          ]
+        ] as [number, number][][]
+      }
+    };
+    const distance = seaPortShoreDistanceMeters(site);
+    expect(distance).toBe(675);
+    expect(townMeshExtentMeters(frame, true, 492, distance)).toBe(1500);
+  });
+
+  it("measures a sea-port shore and ignores a shoreline that is not a sea or lake port", () => {
+    const site = {
+      burg: { waterAccess: { port: { sea: true, lake: false, river: true } } },
+      waterbody: { shoreline: [shore] }
+    };
+    expect(seaPortShoreDistanceMeters(site)).toBeCloseTo(451.4, 0);
+    expect(
+      seaPortShoreDistanceMeters({
+        burg: { waterAccess: { port: { sea: false, lake: false, river: true } } },
+        waterbody: { shoreline: [shore] }
+      })
+    ).toBe(0);
   });
 });
 

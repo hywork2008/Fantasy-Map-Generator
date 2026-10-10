@@ -6,7 +6,11 @@ import type { RiverPoint } from "./riverGeometry";
 import { type PhysicalRiverGeometry, type RiverBankReference, validWaterPolygon } from "./riverPhysicalGeometry";
 import { buildPhysicalRiverGeometry } from "./riverPhysicalGeometryBuilder";
 import { type SpatialBounds, SpatialBoundsIndex } from "./spatialBoundsIndex";
-import { prepareWorldRiverGeometry, type WorldRiverGeometrySettings } from "./worldRiverGeometry";
+import {
+  prepareWorldRiverGeometry,
+  type WorldRiverGeometrySettings,
+  worldRiverGeometrySourceKey
+} from "./worldRiverGeometry";
 
 type Prepared = Extract<ReturnType<typeof prepareWorldRiverGeometry>, { curves: unknown }>;
 interface Section {
@@ -267,8 +271,7 @@ export function regionalRiverGeometry(
   unit: string,
   settings: WorldRiverGeometrySettings
 ) {
-  const source = prepareWorldRiverGeometry(world, river, unit, settings);
-  const key = JSON.stringify([source, settings]);
+  const key = worldRiverGeometrySourceKey(world, river, unit, settings);
   let entries = registry.get(world.pack);
   if (!entries) {
     entries = new Map();
@@ -276,6 +279,7 @@ export function regionalRiverGeometry(
   }
   const cached = entries.get(river.i);
   if (cached?.key === key) return cached.value;
+  const source = prepareWorldRiverGeometry(world, river, unit, settings);
   const value: RegionalRiverGeometry | { reason: string } =
     "curves" in source && source.curves
       ? new RegionalRiverGeometry(river.i, source, settings)

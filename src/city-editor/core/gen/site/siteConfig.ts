@@ -36,13 +36,16 @@ export type WallLineChoice = "auto" | "polygonal" | "organic";
 export type CityLayout = "auto" | "organic" | "circulade" | "bram" | "classic";
 export const CITY_LAYOUTS: CityLayout[] = ["auto", "organic", "circulade", "bram", "classic"];
 
+export type WallMaterialChoice = "auto" | "stone" | "wood";
+
 export interface WallChoice {
   envelope: WallEnvelopeChoice;
   coast: WallCoastChoice;
   line: WallLineChoice;
+  material?: WallMaterialChoice;
 }
 
-export const DEFAULT_WALL_CHOICE: WallChoice = { envelope: "auto", coast: "auto", line: "auto" };
+export const DEFAULT_WALL_CHOICE: WallChoice = { envelope: "auto", coast: "auto", line: "auto", material: "auto" };
 
 export interface SiteConfig {
   coast: CoastShape;
@@ -65,6 +68,7 @@ export const FEATURE_KEYS: (keyof CityFeatureSet)[] = ["port", "walls", "citadel
 export const WALL_ENVELOPE_CHOICES: WallEnvelopeChoice[] = ["auto", "hull", "notchFilled"];
 export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall", "opening"];
 export const WALL_LINE_CHOICES: WallLineChoice[] = ["auto", "polygonal", "organic"];
+export const WALL_MATERIAL_CHOICES: WallMaterialChoice[] = ["auto", "stone", "wood"];
 
 /** Plausible initial check state from population — the user is free to change
  * every box once the panel is shown. `port` starts off; the UI raises it when a

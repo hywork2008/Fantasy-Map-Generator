@@ -33,7 +33,8 @@ export function classifyCoast(
 
   // Walk each corridor leg in turn so a deep finger / promontory is actually
   // traced rather than corner-cut.
-  const via = corridor.map(p => clampToWindow(p, halfExtentMeters));
+  const via = windowedCorridor(corridor, halfExtentMeters);
+  if (via.length < 2) return null;
   const nodes: number[] = [];
   for (let i = 0; i < via.length - 1; i++) {
     const from = i === 0 ? via[0] : graph.points[nodes[nodes.length - 1]];
@@ -58,17 +59,75 @@ export function classifyCoast(
     if (pointInPolygon(cell.centroid, waterPolygon)) sea.add(cell.id);
   }
   smoothMembership(cells, sea, 1);
-  keepBorderConnectedSea(cells, sea);
+  keepBorderConnectedSea(cells, sea, halfExtentMeters);
   return { sea, shoreline, waterPolygon };
 }
 
+/** The corridor's guide points for this window: only the stretch inside it,
+ * plus the one point just before it enters and just after it leaves, clamped
+ * to the window edge. Several outside points in a row would all clamp onto
+ * the same stretch of edge, and the walk then shuttles back and forth along it
+ * (Bama: a regional shore well beyond the town mesh made a 633-node self-
+ * crossing coast whose sea was then discarded). */
+function windowedCorridor(corridor: Point[], half: number): Point[] {
+  const inside = (p: Point) => Math.abs(p[0]) <= half && Math.abs(p[1]) <= half;
+  // Liang–Barsky: the part of segment a→b inside the window, as [t0, t1].
+  const clip = (a: Point, b: Point): [number, number] | null => {
+    let t0 = 0,
+      t1 = 1;
+    const d: Point = [b[0] - a[0], b[1] - a[1]];
+    for (const [p, q] of [
+      [-d[0], a[0] + half],
+      [d[0], half - a[0]],
+      [-d[1], a[1] + half],
+      [d[1], half - a[1]]
+    ]) {
+      if (Math.abs(p) < 1e-12) {
+        if (q < 0) return null;
+        continue;
+      }
+      const r = q / p;
+      if (p < 0) t0 = Math.max(t0, r);
+      else t1 = Math.min(t1, r);
+      if (t0 > t1) return null;
+    }
+    return [t0, t1];
+  };
+  const at = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const dedupe = (points: Point[]) =>
+    points.filter((p, i) => i === 0 || Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) > 1e-6);
+  if (corridor.some(inside)) return corridor.map(p => clampToWindow(p, half));
+  // Every guide point is outside, yet the line may cross the window: use the
+  // first crossing stretch rather than clamping them all onto one edge.
+  const out: Point[] = [];
+  for (let i = 1; i < corridor.length; i++) {
+    const a = corridor[i - 1],
+      b = corridor[i];
+    const part = clip(a, b);
+    if (!part) {
+      if (out.length) break;
+      continue;
+    }
+    if (!out.length) out.push(at(a, b, part[0]));
+    out.push(at(a, b, part[1]));
+    if (!inside(b)) break;
+  }
+  return dedupe(out.length >= 2 ? out : corridor.map(p => clampToWindow(p, half)));
+}
+
 /** A coast is open water: discard pockets cut off from the map boundary. */
-function keepBorderConnectedSea(cells: Cell[], sea: Set<number>): void {
+function keepBorderConnectedSea(cells: Cell[], sea: Set<number>, half: number): void {
   const byId = new Map(cells.map(cell => [cell.id, cell]));
   const connected = new Set<number>();
   const queue: number[] = [];
+  // The classification window is the mesh. A civic-window flag (the settlement
+  // square inside a wider mesh) is not that rim: sea beyond it would be dropped
+  // as a pocket. Use the flag only when no cell actually touches `half`.
+  const touchesWindow = (cell: Cell) => cell.polygon.some(p => Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - 1);
+  const geometric = cells.some(touchesWindow);
+  const onRim = (cell: Cell) => (geometric ? touchesWindow(cell) : cell.onBorder);
   for (const cell of cells) {
-    if (cell.onBorder && sea.has(cell.id)) {
+    if (onRim(cell) && sea.has(cell.id)) {
       connected.add(cell.id);
       queue.push(cell.id);
     }
@@ -99,11 +158,19 @@ function closeToWaterPolygon(shoreline: Point[], half: number, waterAzimuthDeg: 
   const probeScale = (half * 0.999) / Math.max(Math.abs(wd[0]), Math.abs(wd[1]), 1e-9);
   const probe: Point = [wd[0] * probeScale, wd[1] * probeScale];
 
+  return closeShorelineToFrame(shore, half, probe) ?? [...shore, ...perimeterPath(endB, startB, 1, half)];
+}
+
+/** Close an edge-to-edge shore around a known wet point, preserving its water side. */
+export function closeShorelineToFrame(shore: Point[], half: number, wetPoint: Point): Point[] | null {
+  if (shore.length < 2) return null;
+  const start = shore[0],
+    end = shore[shore.length - 1];
   for (const dir of [1, -1] as const) {
-    const poly = [...shore, ...perimeterPath(endB, startB, dir, half)];
-    if (pointInPolygon(probe, poly)) return poly;
+    const poly = [...shore, ...perimeterPath(end, start, dir, half)];
+    if (pointInPolygon(wetPoint, poly)) return poly;
   }
-  return [...shore, ...perimeterPath(endB, startB, 1, half)];
+  return null;
 }
 
 /** Flip a cell when >= 75% of its (>= 3) neighbours disagree. */

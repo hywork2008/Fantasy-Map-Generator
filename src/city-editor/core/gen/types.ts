@@ -1,5 +1,7 @@
 // Shared types for the City Generator pipeline. See docs/city-generator/design.md §4.
 
+import type { GuildDomain } from "./site/burgSiteEconomy";
+
 export type Point = [number, number];
 
 /**
@@ -132,6 +134,8 @@ export type WardKind =
 export interface WardAssignment {
   cellId: number;
   kind: WardKind;
+  /** Present when this cell is a craftsman street of one guild trade. */
+  craftDomain?: GuildDomain;
 }
 
 /** One building (or tree, statue, farmhouse) emitted by S7. */
@@ -240,7 +244,17 @@ export interface Snapshot {
 export interface CityGeography {
   /** Explicit FMG river-port topology, independent of clipped shore geometry. */
   riverPort?: boolean;
-  coast: { corridor: Point[]; waterAzimuthDeg: number } | null;
+  /** FMG also gives this burg a sea (or lake) haven: draw that harbour too, not only the river one. */
+  seaPort?: boolean;
+  /** `regionalShore` is the full-resolution FMG shore across the whole frame, translated
+   * like `corridor`; the corridor itself is a coarse walk guide for the town mesh only. */
+  coast: {
+    corridor: Point[];
+    waterAzimuthDeg: number;
+    regionalShore?: Point[];
+    /** Other runs of the same FMG coast in the frame, each with a point on its water side. */
+    regionalExtraShores?: { line: Point[]; wet: Point }[];
+  } | null;
   rivers: {
     corridor: Point[];
     widths: number[];
@@ -256,7 +270,13 @@ export interface CityGeography {
   /** Additional water boundaries. A major river is represented by its town-side
    * bank here instead of an impossibly wide river stroke. `coast` remains for
    * backwards-compatible standalone and exported inputs. */
-  waterAreas?: { corridor: Point[]; waterAzimuthDeg: number; kind: "ocean" | "lake" | "river" }[];
+  waterAreas?: {
+    corridor: Point[];
+    waterAzimuthDeg: number;
+    regionalShore?: Point[];
+    regionalExtraShores?: { line: Point[]; wet: Point }[];
+    kind: "ocean" | "lake" | "river";
+  }[];
   /** On-site rivers wider than the era can bridge. Each polygon is the channel
    * itself (near bank to far bank), not a half-plane: the burg stays on the
    * near bank at the map origin, and the opposite bank stays land outside the

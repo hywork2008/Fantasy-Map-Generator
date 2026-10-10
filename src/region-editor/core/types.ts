@@ -106,8 +106,10 @@ export interface RegionBridge {
   center: Point;
   lengthMeters: number;
   widthMeters: number;
-  /** 河川の局所接線に対して厳格に直角（90°） */
+  /** 橋軸の向き。河川法線から skewDegrees だけ回したもの */
   angleDeg: number;
+  /** 河川法線からの斜角（度、符号付き）。未設定・0 は直角 */
+  skewDegrees?: number;
   style: "stone_arch" | "wooden" | "suspension";
 }
 
@@ -294,6 +296,8 @@ export interface RegionDocument {
   symbols: RegionSymbol[];
   rivers: RegionRiver[];
   bridges: RegionBridge[];
+  /** 州の技術で決まる橋の許容斜角（FMG から受領、src/utils/bridgeSkewPolicy.ts）。未設定は直角のみ */
+  bridgeSkewLimitDegrees?: { stone: number; timber: number };
   /** 2 = routes は橋の挿入点を含まない素の経路（橋は描画時に再配置）。未設定は旧形式 */
   bridgeLayoutVersion?: number;
   routes: RegionRoute[];
@@ -345,6 +349,8 @@ export interface RegionSiteDescriptor {
   provinceName?: string;
   stateId?: number;
   stateName?: string;
+  /** Bridge skew allowance of the province's state (src/utils/bridgeSkewPolicy.ts). */
+  bridgeSkewLimitDegrees?: { stone: number; timber: number };
   /** [minX, minY, maxX, maxY] in FMG world coordinate units */
   boundsMapUnits: [number, number, number, number];
   metersPerMapUnit: number;

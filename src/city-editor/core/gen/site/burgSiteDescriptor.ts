@@ -49,6 +49,9 @@ export interface BurgSiteRiver {
   parentRiverId: number | null;
   leftBankSegments: [number, number][][];
   rightBankSegments: [number, number][][];
+  /** FMG cell elevations a few cells up and down the river from the burg, in `segments` order.
+   * The local heightfield is one cell wide, so City Editor orients its centreline from this. */
+  flowElevation?: { upstreamMeters: number; downstreamMeters: number };
   downstream: {
     terminal: "ocean" | "lake" | "mapEdge" | "confluence" | "unknown";
     distanceMeters: number;
@@ -101,6 +104,10 @@ export interface BurgSiteRoadEntry {
   /** Leg polyline from the town center outward, clipped to the window, local meters. */
   path: [number, number][];
   nextBurg: BurgSiteRoadNextBurg | null;
+  /** Route.traffic. Absent when the world route has no recorded departures. */
+  traffic?: number;
+  /** 0..1 among land routes that have traffic. */
+  trafficRank?: number;
 }
 
 export interface BurgSiteWaterbody {
@@ -112,6 +119,16 @@ export interface BurgSiteWaterbody {
   shoreAzimuthDeg: number;
   /** Shoreline polylines clipped to the window, local meters. Water on the haven side. */
   shoreline: [number, number][][];
+  /** Per `shoreline` run, the side of its travel direction that is water. */
+  shorelineWaterSide?: ("left" | "right")[];
+}
+
+/** FMG surface knowledge for the display frame beyond the burg's own coast. */
+export interface BurgSiteRegionalSurface {
+  /** Other FMG islands and lakes clipped to the frame, largest first. */
+  features: { kind: "land" | "water"; ring: [number, number][] }[];
+  /** Frame area beyond the FMG map edge: FMG has no terrain there. */
+  unknown: [number, number][][];
 }
 
 export interface BurgSiteTerrain {
@@ -135,6 +152,8 @@ export interface BurgSiteBiome {
 }
 
 export interface BurgSiteDescriptor {
+  burialProfile?: import("../../../../data/burialCultures").BurialCultureProfile;
+  civilization?: import("../../../../data/civilizationTraditions").BurgCivilization;
   regionalContext?: RegionalContext;
   /** Optional physical crossing preview; not input to legacy bridge discovery. */
   fixedCrossings?: FixedBurgCrossings;
@@ -148,6 +167,8 @@ export interface BurgSiteDescriptor {
     population: number;
     /** Required dwellings supplied as a city-generation input. */
     dwellings: number;
+    /** Culture Lot occupancy guide (0–1); absent uses the 80% default. */
+    lotOccupancy?: number;
     capital: boolean;
     port: boolean;
     riverPlacement?: import("../../../../types/models").Burg["riverPlacement"];
@@ -175,6 +196,11 @@ export interface BurgSiteDescriptor {
     biomeKey?: string;
     biomeName?: string;
     biomeColor?: string;
+    /**
+     * Compass bearing the wind blows toward: 0 = north, clockwise
+     * (same sense as road `entryAzimuthDeg`). Absent: windmills keep a seeded facing.
+     */
+    prevailingWindDeg?: number;
   };
   biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
@@ -184,7 +210,10 @@ export interface BurgSiteDescriptor {
   historicalPeriod?: import("../../types").HistoricalPeriod;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
+  regionalSurface?: BurgSiteRegionalSurface;
   roads: BurgSiteRoadEntry[];
   suggestedGates: number;
   suggestedArchetype: BurgSiteArchetype;
+  /** Absent when Economy is off or the hand-off predates the profile. Generation then stays as it was. */
+  economy?: import("./burgSiteEconomy").BurgSiteEconomy;
 }

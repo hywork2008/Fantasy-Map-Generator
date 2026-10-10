@@ -13,6 +13,17 @@ export type WardKind =
   | "farm"
   | "cemetery"
   | "empty";
+
+/** Craftsman street taken from a burg's guild practitioners. Same list as GuildDomain. */
+export type CraftDomain =
+  | "metallurgy"
+  | "woodworking"
+  | "masonry"
+  | "textiles"
+  | "leather"
+  | "glassware"
+  | "instruments"
+  | "printing";
 export type BuildingPattern = "legacy" | "medieval";
 export type BuildingComposition = "standard" | "commercial" | "warehouses" | "estates";
 export type HarborPreset = "small" | "dense" | "warehouse";
@@ -39,6 +50,8 @@ export interface FaceProperties {
   depth?: number;
   water: WaterKind;
   ward: WardKind | null;
+  /** Set on a craftsman face when the economy profile splits that street by trade. */
+  craftDomain?: CraftDomain;
   buildable: boolean;
   locked: boolean;
 }
@@ -145,6 +158,9 @@ export interface ApproachBeyondData {
  * as well as legacy short strings. */
 export type ApproachBeyond = ApproachBeyondData | "city" | "granary" | "enemy" | "ally" | "hamlet";
 
+export type WallMaterial = "stone" | "wood";
+export type WallWalkway = "auto" | "none" | "walkway";
+
 export interface EdgeFeatureGroup {
   crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
   id: Id;
@@ -159,6 +175,10 @@ export interface EdgeFeatureGroup {
   sourceRoad?: { index: number; routeId: number; terminal?: "riverLanding" };
   /** River-through-wall passages; distinct from gates that require road access. */
   riverPassages?: Id[];
+  /** Material of the wall: "stone" for stone curtain walls, "wood" for timber palisades. */
+  wallMaterial?: WallMaterial;
+  /** Upper walkway / catwalk mode: "auto" deduces from width, "none" for plain palisade/wall, "walkway" forces walkway. */
+  walkway?: WallWalkway;
 }
 
 export interface RiverGroup {
@@ -269,6 +289,7 @@ export interface CastlePlan {
   position: "edge" | "central";
   relationship: "integrated" | "detached";
   form: "keep-bailey" | "courtyard";
+  castleStyle?: import("../render/castlePatterns").CastleStyle;
   circuitId: Id;
   courtyards: Point[][];
   parts: CastlePart[];
@@ -282,13 +303,30 @@ export interface CastleSettings {
   relationship: "auto" | "integrated" | "detached";
   form: "auto" | "keep-bailey" | "courtyard";
   size: "auto" | "small" | "standard" | "large";
+  style?: "auto" | import("../render/castlePatterns").CastleStyle;
 }
 
 export type CemeteryForm = "churchyard" | "cloister" | "field";
 
-export type CemeteryPartRole = "chapel" | "ossuary" | "rectory" | "calvary" | "graves";
+export type CemeteryPartRole =
+  | "chapel"
+  | "ossuary"
+  | "rectory"
+  | "calvary"
+  | "graves"
+  | "sanctuary"
+  | "monument"
+  | "ritual"
+  | "boundary";
 
 export interface CemeteryPart {
+  kind?:
+    | import("../../data/burialCultures").CentralSanctuary
+    | import("../../data/burialCultures").MonumentLayout
+    | import("../../data/burialCultures").RitualFacility
+    | import("../../data/burialCultures").CemeteryBoundary;
+  /** Courtyard openings and the central well of a roofless tower. */
+  holes?: Point[][];
   id: Id;
   role: CemeteryPartRole;
   footprint: Point[];
@@ -308,6 +346,7 @@ export interface CemeteryPlan {
   accesses: Array<{ points: Point[]; widthMeters: number }>;
   trees: Point[];
   gatePoint?: Point;
+  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   provenance: "generated" | "manual" | "legacy";
   locked: boolean;
 }
@@ -322,6 +361,9 @@ export interface DistrictParameters {
   harborPreset?: HarborPreset;
   /** Fraction of eligible lots retained, not a guaranteed area coverage. */
   occupancy: number;
+  /** Outskirts only: build in blocks like the core instead of roadside ribbon.
+   * Set by the FMG housing fit when the full core cannot house the dwellings. */
+  suburb?: boolean;
   /** Core: footprint fraction of each street block; outskirts: fraction of each lot. */
   coverage: number;
   lotArea: number;
@@ -360,10 +402,17 @@ export interface CityDocument {
   sceneRegions?: import("./sceneRegions").CitySceneRegions;
   landmarks?: LandmarkInstance[];
   landmarkAssets?: LandmarkAsset[];
+  /** Sea beyond the town mesh: FMG's drawn shore closed against the display frame. Subtracted from the mesh at use. */
+  regionalWaterAreas?: Point[][];
+  /** FMG islands, lakes and off-map area across the display frame; drawn only outside the mesh. */
+  regionalSurface?: import("./gen/site/burgSiteDescriptor").BurgSiteRegionalSurface;
   /** Generated ocean faces; distinguishes saltwater shore from lake shores. */
   coastalOceanFaceIds?: Id[];
   /** Number of source FMG land-road legs; absent for standalone/legacy documents. */
   importedRoadCount?: number;
+  /** Imported FMG river centrelines oriented downhill (riverFlow.ts). Set once when generation
+   * finishes, separate from `importedFixedCrossings` so its caches are never invalidated. */
+  riverFlows?: import("./riverFlow").RiverFlow[];
   /** Continuous imported water, independent of the editable street-block mesh. */
   waterAreas?: { kind: "river"; polygon: Point[] }[];
   /** Land roads continued from the town mesh to the display frame, including perpendicular river decks. */
@@ -384,10 +433,15 @@ export interface CityDocument {
     townRoad: Point[];
     banks: [Point, Point];
     crossing: import("../../utils/riverCrossing").RiverCrossingPlan;
+    /** FMG surface velocity (m/s); a ferry drifts downstream by it. */
+    currentMetersPerSecond?: number;
   }[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];
+  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
+  /** FMG culture and local faith; absent documents keep the period-only castle and monasteries. */
+  civilization?: import("../../data/civilizationTraditions").BurgCivilization;
   /** Absent on legacy documents, which keep their existing generation behavior. */
   gridKind?: "hex" | "voronoi" | "evolution";
   fabric?: FabricPlan;
@@ -402,6 +456,19 @@ export interface CityDocument {
   appearance?: "town";
   /** Historical backdrop / technological era. Defaults to "ageOfExploration". */
   historicalPeriod?: HistoricalPeriod;
+  /**
+   * Economy profile from FMG. Absent documents keep the period-only landmarks.
+   * A guild chapter in this profile is drawn even when its craftsman count is zero.
+   */
+  siteEconomy?: import("./gen/site/burgSiteEconomy").BurgSiteEconomy;
+  /**
+   * Compass bearing the wind blows toward (0 = north, clockwise), copied from
+   * `climate.prevailingWindDeg`. Absent: windmills keep a seeded facing.
+   */
+  prevailingWindDeg?: number;
+  /** Bridge skew allowance exported by FMG for the burg's state (src/utils/bridgeSkewPolicy.ts).
+   * Absent: derived from `historicalPeriod`. */
+  maxBridgeSkewDegrees?: number;
   /** Missing on old maps: retain their original housing generator. */
   buildingPattern?: BuildingPattern;
   /** A non-editable source image, for example an imported MFCG SVG. */

@@ -504,6 +504,14 @@ export const MarketsOverviewDialog: React.FC = () => {
               />
               <button
                 type="button"
+                id="marketsOverviewTradeCorridors"
+                data-tip={t("extensions.marketsOverview.corridorsTip")}
+                onClick={() => openDialog("tradeCorridors")}
+              >
+                {t("extensions.marketsOverview.corridors")}
+              </button>
+              <button
+                type="button"
                 id="marketsOverviewExport"
                 data-tip={t("extensions.marketsOverview.exportTip")}
                 className="icon-download"

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -20 48 40" width="500" height="420">
+  <style>
+    .ce-sacsay-shadow { fill: rgba(18, 22, 25, 0.38); }
+    .ce-sacsay-terrace-1 { fill: #8a7e6d; stroke: #383024; stroke-width: 0.6px; stroke-linejoin: round; }
+    .ce-sacsay-terrace-2 { fill: #9e917d; stroke: #383024; stroke-width: 0.55px; stroke-linejoin: round; }
+    .ce-sacsay-terrace-3 { fill: #b5a791; stroke: #383024; stroke-width: 0.5px; stroke-linejoin: round; }
+    .ce-sacsay-tower { fill: #cfc4ad; stroke: #383024; stroke-width: 0.55px; }
+    .ce-sacsay-lawn { fill: #52663b; stroke: #263318; stroke-width: 0.4px; }
+  </style>
+  <g class="ce-landmark ce-landmark--andean-fortress">
+    <!-- 影 -->
+    <g class="ce-sacsay-shadow" transform="translate(1.4 1.6)">
+      <polygon points="-20,12 -16,4 -10,4 -7,12 -2,4 3,4 7,12 12,4 16,4 20,12 20,-14 -20,-14"></polygon>
+    </g>
+    <!-- 頂上テラス平野（Chauchilla / 儀礼台地） -->
+    <g class="ce-sacsay-lawn">
+      <rect x="-21" y="-15" width="42" height="15" rx="0.5"></rect>
+    </g>
+    <!-- 三段の鋸歯状（ジグザグ）巨石テラス城壁 -->
+    <!-- 1. 最上段（第3段テラス壁） -->
+    <polygon points="-19,-1 -15,-6 -11,-6 -8,-1 -4,-6 0,-6 4,-1 8,-6 12,-6 16,-1 19,-6 20,-3 -20,-3" class="ce-sacsay-terrace-3"></polygon>
+    <!-- 2. 中段（第2段テラス壁） -->
+    <polygon points="-20,5 -16,0 -11,0 -7,5 -3,0 1,0 6,5 10,0 15,0 18,5 20,3 -20,3" class="ce-sacsay-terrace-2"></polygon>
+    <!-- 3. 最下段（第1段主鋸歯巨石壁・数十トン級の巨石乱石ブロック） -->
+    <polygon points="-21,12 -17,6 -12,6 -8,12 -4,6 2,6 7,12 11,6 16,6 19,12 21,9 -21,9" class="ce-sacsay-terrace-1"></polygon>
+    <!-- 個別の巨大切り石の目地ライン象徴（鋸歯の角部） -->
+    <line x1="-17" y1="6" x2="-17" y2="10" stroke="#262017" stroke-width="0.45"></line>
+    <line x1="-8" y1="12" x2="-8" y2="8" stroke="#262017" stroke-width="0.45"></line>
+    <line x1="7" y1="12" x2="7" y2="8" stroke="#262017" stroke-width="0.45"></line>
+    <line x1="16" y1="6" x2="16" y2="10" stroke="#262017" stroke-width="0.45"></line>
+    <!-- 頂上円形大石塔（ムユクマルカ / Muyuqmarka）中央同心円塔基壇 -->
+    <g transform="translate(0, -8)">
+      <circle cx="0" cy="0" r="5.5" class="ce-sacsay-tower"></circle>
+      <circle cx="0" cy="0" r="4.2" fill="#bfae95" stroke="#383024" stroke-width="0.45"></circle>
+      <circle cx="0" cy="0" r="2.8" fill="#ded5c1" stroke="#383024" stroke-width="0.4"></circle>
+      <circle cx="0" cy="0" r="1.4" fill="#a89a80" stroke="#383024" stroke-width="0.35"></circle>
+    </g>
+    <!-- 左右の方形監視塔（サヤクマルカ / パウカルマルカ） -->
+    <rect x="-15" y="-12" width="4.5" height="4.5" rx="0.3" class="ce-sacsay-tower"></rect>
+    <rect x="10.5" y="-12" width="4.5" height="4.5" rx="0.3" class="ce-sacsay-tower"></rect>
+    <!-- 正面台形巨石門（プンク / Puncu Gate） -->
+    <rect x="-1.5" y="6" width="3" height="4" fill="#1b1610"></rect>
+  </g>
+</svg>

@@ -33,6 +33,8 @@
 region-editor/
   index.html                 独立ページエントリー
   main.ts                    UI 起動スクリプト
+  assets/
+    preview.html             テーマ・配色・アイコンプレビューギャラリー
   core/
     types.ts                 データ型定義（RegionDocument、シンボル、河川、直角橋等）
     document.ts              文書生成・検証・クローン

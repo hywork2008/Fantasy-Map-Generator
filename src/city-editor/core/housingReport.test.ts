@@ -19,16 +19,12 @@ describe.skipIf(!existsSync(alyatland))("archive housing comparison", () => {
     expect(report.rows.map(row => row.error)).toEqual([null, null, null, null]);
 
     const byId = Object.fromEntries(report.rows.map(row => [row.burgId, row]));
-    expect(byId[157]?.input).toMatchObject({
-      dwellings: 69,
-      population: 310,
-      size: "micro",
-      fitted: true,
-      nPatches: 6
-    });
-    expect(byId[207]?.input).toMatchObject({ dwellings: 171, population: 767, size: "tiny", fitted: true });
-    expect(byId[385]?.input).toMatchObject({ dwellings: 27, population: 118, size: "micro", fitted: true });
-    expect(byId[123]?.input).toMatchObject({ dwellings: 1129, population: 5079, size: "medium", fitted: false });
+    // Regional descriptors crop the display frame to the town mesh plus a margin
+    // (regionalDisplayExtent); only a town already as wide as its window keeps it.
+    expect(byId[157]?.input).toMatchObject({ dwellings: 69, population: 310, fitted: false, nPatches: 6 });
+    expect(byId[207]?.input).toMatchObject({ dwellings: 171, population: 767, fitted: false });
+    expect(byId[385]?.input).toMatchObject({ dwellings: 27, population: 118, fitted: true });
+    expect(byId[123]?.input).toMatchObject({ dwellings: 1129, population: 5079, fitted: false });
 
     for (const row of report.rows) {
       expect(row.output?.generated, row.name ?? "").toBe(true);

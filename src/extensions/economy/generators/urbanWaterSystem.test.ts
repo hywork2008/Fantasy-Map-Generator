@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getBurialCulturePreset } from "../../../data/burialCultures";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { useOptionsState, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
@@ -408,6 +409,37 @@ describe("computeUrbanWaterSystem", () => {
   });
 
   afterEach(() => clearEconomyContext());
+
+  it("includes the burial profile's sanitation risk without changing legacy cultures", () => {
+    const original = worldContext.pack.cultures;
+    const profile = getBurialCulturePreset("medieval_parish");
+    worldContext.pack.cultures = [
+      { i: 0, name: "Wildlands", base: 0, shield: "" },
+      {
+        i: 1,
+        name: "Parish",
+        base: 0,
+        shield: "",
+        burialProfile: { ...profile, mechanics: { ...profile.mechanics, sanitationRisk: 0 } }
+      }
+    ];
+    const input = {
+      burg: burg({ population: 5, market: 1, culture: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "Generic" as const,
+      ambientTemperature: 12
+    };
+    try {
+      const clean = computeUrbanWaterSystem(input);
+      worldContext.pack.cultures[1].burialProfile = profile;
+      const crowded = computeUrbanWaterSystem(input);
+      expect(crowded.healthPressure).toBeGreaterThan(clean.healthPressure);
+      expect(crowded.healthPressure).toBeLessThanOrEqual(1);
+    } finally {
+      worldContext.pack.cultures = original;
+    }
+  });
 
   it("returns capacities and burden in unit interval", () => {
     const system = computeUrbanWaterSystem({

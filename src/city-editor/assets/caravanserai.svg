@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="500" height="500">
+  <style>
+    .ce-caravan-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-caravan-wall { fill: #d1c7b2; stroke: #3d3525; stroke-width: 0.7px; stroke-linejoin: round; }
+    .ce-caravan-court { fill: #ded5bf; stroke: #3d3525; stroke-width: 0.5px; }
+    .ce-caravan-roof { fill: #bfae93; stroke: #3d3525; stroke-width: 0.4px; }
+    .ce-caravan-cell { fill: #9e8e75; stroke: #332b1d; stroke-width: 0.3px; }
+    .ce-caravan-kiosk { fill: #3f7b7b; stroke: #1e4242; stroke-width: 0.45px; }
+    .ce-caravan-beast { fill: #785a3c; stroke: #382717; stroke-width: 0.25px; }
+    .ce-caravan-water { fill: #3f799e; stroke: #1d3e52; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--caravanserai">
+    <!-- 影 -->
+    <g class="ce-caravan-shadow" transform="translate(1.4 1.6)">
+      <rect x="-18" y="-18" width="36" height="36" rx="1"></rect>
+      <circle cx="-18" cy="-18" r="2.8"></circle>
+      <circle cx="18" cy="-18" r="2.8"></circle>
+      <circle cx="-18" cy="18" r="2.8"></circle>
+      <circle cx="18" cy="18" r="2.8"></circle>
+      <rect x="-4.5" y="17" width="9" height="3.5"></rect>
+    </g>
+    <!-- 外郭城塞壁と隅塔 -->
+    <g class="ce-caravan-wall">
+      <rect x="-18" y="-18" width="36" height="36" rx="0.6"></rect>
+      <!-- 四隅の頑丈な円形防衛塔 -->
+      <circle cx="-18" cy="-18" r="2.8"></circle>
+      <circle cx="18" cy="-18" r="2.8"></circle>
+      <circle cx="-18" cy="18" r="2.8"></circle>
+      <circle cx="18" cy="18" r="2.8"></circle>
+      <!-- 東・西・北の中央半円塔（バットレス） -->
+      <path d="M -18 -2.5 A 2.5 2.5 0 0 0 -18 2.5 Z"></path>
+      <path d="M 18 -2.5 A 2.5 2.5 0 0 1 18 2.5 Z"></path>
+      <path d="M -2.5 -18 A 2.5 2.5 0 0 1 2.5 -18 Z"></path>
+    </g>
+    <!-- 広大な中央中庭（Courtyard） -->
+    <g class="ce-caravan-court">
+      <rect x="-11.5" y="-11.5" width="23" height="23" rx="0.4"></rect>
+      <!-- アーケード回廊天井（四方を囲む客室・倉庫・厩舎） -->
+      <path d="M -16 -16 L 16 -16 L 16 16 L -16 16 Z M -11.5 -11.5 L -11.5 11.5 L 11.5 11.5 L 11.5 -11.5 Z" class="ce-caravan-roof"></path>
+    </g>
+    <!-- 回廊屋根上の無数の小ドーム列（商人客室天井） -->
+    <g>
+      <!-- 北側ドーム列 -->
+      <circle cx="-13.8" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-9.2" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-4.6" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="0" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="4.6" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="9.2" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="13.8" cy="-13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <!-- 南側ドーム列 -->
+      <circle cx="-13.8" cy="13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-9.2" cy="13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="9.2" cy="13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="13.8" cy="13.8" r="1.3" class="ce-caravan-cell"></circle>
+      <!-- 西側ドーム列 -->
+      <circle cx="-13.8" cy="-9.2" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-13.8" cy="-4.6" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-13.8" cy="0" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-13.8" cy="4.6" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="-13.8" cy="9.2" r="1.3" class="ce-caravan-cell"></circle>
+      <!-- 東側ドーム列 -->
+      <circle cx="13.8" cy="-9.2" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="13.8" cy="-4.6" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="13.8" cy="0" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="13.8" cy="4.6" r="1.3" class="ce-caravan-cell"></circle>
+      <circle cx="13.8" cy="9.2" r="1.3" class="ce-caravan-cell"></circle>
+    </g>
+    <!-- 中庭中央のキオスク小モスク（高床式八角礼拝所・スルタン・ハン型） -->
+    <g transform="translate(0, 0)">
+      <!-- 4本アーチ支柱の基壇 -->
+      <rect x="-3.5" y="-3.5" width="7" height="7" rx="0.3" fill="#a89a80" stroke="#3d3525" stroke-width="0.35"></rect>
+      <!-- ドーム屋根 -->
+      <circle cx="0" cy="0" r="2.8" class="ce-caravan-kiosk"></circle>
+      <path d="M -2 -2 A 2.8 2.8 0 0 1 2 -2 L 0 0 Z" fill="#589e9e"></path>
+      <circle cx="0" cy="0" r="0.5" fill="#dfa83d"></circle>
+      <!-- 1階の水飲み水槽 -->
+      <circle cx="0" cy="0" r="1.2" class="ce-caravan-water"></circle>
+    </g>
+    <!-- 駄獣・ラクダ・荷車の係留エリア（中庭の東西） -->
+    <g>
+      <!-- ラクダ・馬の飼い葉桶 -->
+      <rect x="-9.5" y="-5" width="1.2" height="10" rx="0.2" fill="#8f7c63" stroke="#332b1d" stroke-width="0.25"></rect>
+      <ellipse cx="-7.5" cy="-3" rx="0.8" ry="1.2" class="ce-caravan-beast"></ellipse>
+      <ellipse cx="-7.5" cy="0" rx="0.8" ry="1.2" class="ce-caravan-beast"></ellipse>
+      <ellipse cx="-7.5" cy="3" rx="0.8" ry="1.2" class="ce-caravan-beast"></ellipse>
+      <!-- 荷車・木箱貨物スタック（東側） -->
+      <rect x="7" y="-4" width="2" height="3" fill="#755232" stroke="#332010" stroke-width="0.3"></rect>
+      <rect x="7" y="1" width="2" height="3" fill="#755232" stroke="#332010" stroke-width="0.3"></rect>
+    </g>
+    <!-- 正面大門ポータル（南側ピシュタク・要塞門楼） -->
+    <g transform="translate(0, 18)">
+      <rect x="-4.5" y="-1" width="9" height="3.5" rx="0.4" fill="#a89578" stroke="#3d3525" stroke-width="0.5"></rect>
+      <!-- 深い門道トンネル -->
+      <rect x="-2" y="-1" width="4" height="3.5" fill="#1b1712"></rect>
+      <line x1="-4.5" y1="2.2" x2="4.5" y2="2.2" stroke="#dfa83d" stroke-width="0.4"></line>
+    </g>
+  </g>
+</svg>

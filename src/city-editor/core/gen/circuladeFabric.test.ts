@@ -78,7 +78,11 @@ describe("buildCirculadeTownFabric", () => {
     // Grouping and ordering of physical wall runs must not change residential coverage.
     const joined = structuredClone(document);
     const runs = joined.featureGroups.filter(g => g.kind === "wall" && town.wallGroupIds.includes(g.id));
-    const merged = { ...runs[0], segments: runs.flatMap(g => (g.kind === "wall" ? g.segments : [])) };
+    const merged = {
+      ...runs[0],
+      style: { ...runs[0].style, widthMeters: Math.max(...runs.map(run => run.style.widthMeters)) },
+      segments: runs.flatMap(g => (g.kind === "wall" ? g.segments : []))
+    };
     joined.featureGroups = [merged, ...joined.featureGroups.filter(g => !town.wallGroupIds.includes(g.id))];
     joined.defenseCircuits!.find(c => c.scope === "town")!.wallGroupIds = [merged.id];
     expect(buildCirculadeTownFabric(joined, { seed, hub })).toEqual(split);

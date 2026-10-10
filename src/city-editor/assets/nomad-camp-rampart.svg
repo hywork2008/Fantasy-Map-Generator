@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="500" height="500">
+  <style>
+    .ce-nomad-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-nomad-steppe { fill: #6b7a44; stroke: #3a4521; stroke-width: 0.5px; }
+    .ce-nomad-rampart { fill: #829454; stroke: #3a4521; stroke-width: 0.6px; }
+    .ce-nomad-ditch { fill: #526131; stroke: #2a3315; stroke-width: 0.4px; }
+    .ce-nomad-ger-white { fill: #f0ece1; stroke: #3d3527; stroke-width: 0.35px; }
+    .ce-nomad-ger-roof { fill: #dfa83d; stroke: #543f11; stroke-width: 0.35px; }
+    .ce-nomad-cart { fill: #7d5936; stroke: #362211; stroke-width: 0.25px; }
+    .ce-nomad-flag { stroke: #2196f3; stroke-width: 0.4px; stroke-linecap: round; }
+  </style>
+  <g class="ce-landmark ce-landmark--nomad-camp-rampart">
+    <!-- 影 -->
+    <g class="ce-nomad-shadow" transform="translate(1.4 1.6)">
+      <circle cx="0" cy="0" r="19"></circle>
+    </g>
+    <!-- 草原グラウンドと環状外壕（Ditch） -->
+    <g class="ce-nomad-ditch">
+      <circle cx="0" cy="0" r="19"></circle>
+    </g>
+    <!-- 円形防護土塁（Earth Rampart / Kurien Berm） -->
+    <g class="ce-nomad-rampart">
+      <circle cx="0" cy="0" r="17.2"></circle>
+      <circle cx="0" cy="0" r="14.8" class="ce-nomad-steppe"></circle>
+    </g>
+    <!-- 外周の防護荷馬車列（Wagon Fortress / Tabor 連結した環状荷車） -->
+    <g class="ce-nomad-cart">
+      <rect x="-13" y="-6" width="1.2" height="2.5" rx="0.2" transform="rotate(-75 -13 -6)"></rect>
+      <rect x="-14" y="-1" width="1.2" height="2.5" rx="0.2" transform="rotate(-90 -14 -1)"></rect>
+      <rect x="-13" y="4" width="1.2" height="2.5" rx="0.2" transform="rotate(-105 -13 4)"></rect>
+      <rect x="-10" y="9" width="1.2" height="2.5" rx="0.2" transform="rotate(-135 -10 9)"></rect>
+      <rect x="-5" y="12.5" width="1.2" height="2.5" rx="0.2" transform="rotate(-165 -5 12.5)"></rect>
+      <rect x="5" y="12.5" width="1.2" height="2.5" rx="0.2" transform="rotate(165 5 12.5)"></rect>
+      <rect x="10" y="9" width="1.2" height="2.5" rx="0.2" transform="rotate(135 10 9)"></rect>
+      <rect x="13" y="4" width="1.2" height="2.5" rx="0.2" transform="rotate(105 13 4)"></rect>
+      <rect x="14" y="-1" width="1.2" height="2.5" rx="0.2" transform="rotate(90 14 -1)"></rect>
+      <rect x="13" y="-6" width="1.2" height="2.5" rx="0.2" transform="rotate(75 13 -6)"></rect>
+      <rect x="10" y="-11" width="1.2" height="2.5" rx="0.2" transform="rotate(45 10 -11)"></rect>
+      <rect x="5" y="-13.5" width="1.2" height="2.5" rx="0.2" transform="rotate(15 5 -13.5)"></rect>
+      <rect x="-5" y="-13.5" width="1.2" height="2.5" rx="0.2" transform="rotate(-15 -5 -13.5)"></rect>
+      <rect x="-10" y="-11" width="1.2" height="2.5" rx="0.2" transform="rotate(-45 -10 -11)"></rect>
+    </g>
+    <!-- 円環状に並ぶ戦士・親族のゲル群（10基の円形フェルト天幕） -->
+    <g>
+      <g transform="translate(-8.5, -5.5)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(-10, 0)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(-8.5, 5.5)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(-4, 9)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(4, 9)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(8.5, 5.5)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(10, 0)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(8.5, -5.5)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(4, -9)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+      <g transform="translate(-4, -9)"><circle cx="0" cy="0" r="1.8" class="ce-nomad-ger-white"></circle><circle cx="0" cy="0" r="0.4" fill="#a83220"></circle></g>
+    </g>
+    <!-- 中央：大ハーンの黄金のオルドゲル（Khan's Great Golden Yurt） -->
+    <g transform="translate(0, 0)">
+      <!-- 巨大フェルトゲル外周 -->
+      <circle cx="0" cy="0" r="4.2" class="ce-nomad-ger-white" stroke-width="0.5"></circle>
+      <!-- 金色・朱塗りの天幕装飾帯 -->
+      <circle cx="0" cy="0" r="3.2" class="ce-nomad-ger-roof"></circle>
+      <!-- 天窓トーノ（Toono / 排煙と採光の木製車輪状天窓） -->
+      <circle cx="0" cy="0" r="1.2" fill="#c43825" stroke="#4a140d" stroke-width="0.3"></circle>
+      <circle cx="0" cy="0" r="0.5" fill="#f7cd54"></circle>
+      <!-- 放射状骨組み（ウーニ） -->
+      <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="#f7cd54" stroke-width="0.25"></line>
+      <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="#f7cd54" stroke-width="0.25"></line>
+      <!-- 南側木製門（ドアー） -->
+      <rect x="-0.8" y="3.6" width="1.6" height="0.8" fill="#a83220"></rect>
+    </g>
+    <!-- 九旒の白旗（スルデ / チンギス・ハーンの九脚の聖旗竿）オルド前庭 -->
+    <g transform="translate(0, 4.8)">
+      <circle cx="0" cy="0" r="0.4" fill="#1b1712"></circle>
+      <line x1="0" y1="-0.4" x2="0" y2="-1.4" class="ce-nomad-flag"></line>
+    </g>
+    <!-- 土塁の出入口門（南端の通路） -->
+    <rect x="-2" y="14" width="4" height="4" fill="#63543d"></rect>
+  </g>
+</svg>

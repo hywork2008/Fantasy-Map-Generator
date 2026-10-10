@@ -1,3 +1,4 @@
+import { bridgeSkewDegrees, bridgeSkewLimitForPeriod, withinBridgeSkewLimit } from "../utils/bridgeSkewPolicy";
 import { buildPolylineRiverAxis, RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "./riverGeometry";
 
 export interface DiagnosticRiver {
@@ -17,13 +18,21 @@ export interface CrossingObservation {
   riverArcLength: number;
   normalizedDot: number;
   status: "perpendicular" | "oblique" | "ambiguous";
+  /** Deviation of the route from the river normal (0° = square). */
+  skewDegrees: number;
+  /** False when an oblique crossing exceeds the bridge skew limit (bridgeSkewPolicy.ts). */
+  withinSkewLimit: boolean;
 }
 const cross = (a: RiverPoint, b: RiverPoint) => a[0] * b[1] - a[1] * b[0];
 /** Read-only baseline audit. Does not certify bridge banks, approaches, or smooth renderers.
  * Every geometry pair is inspected, including routes with no shared river cell IDs.
  * Repeated crossings are observations, not proof that a same-bank detour is available.
  */
-export function diagnosePolylineRiverCrossings(rivers: readonly DiagnosticRiver[], routes: readonly DiagnosticRoute[]) {
+export function diagnosePolylineRiverCrossings(
+  rivers: readonly DiagnosticRiver[],
+  routes: readonly DiagnosticRoute[],
+  maxSkewDegrees = bridgeSkewLimitForPeriod()
+) {
   const crossings: CrossingObservation[] = [];
   const unresolved: { kind: "river" | "route"; id: number; reason: "invalid-axis" | "overlap"; otherId?: number }[] =
     [];
@@ -64,6 +73,7 @@ export function diagnosePolylineRiverCrossings(rivers: readonly DiagnosticRiver[
             road.start[1] + roadDistance * road.tangent[1]
           ];
           const dot = Math.abs(road.tangent[0] * water.tangent[0] + road.tangent[1] * water.tangent[1]);
+          const skewDegrees = bridgeSkewDegrees(road.tangent, water.tangent);
           const vertex =
             roadDistance === 0 || roadDistance === road.length || waterDistance === 0 || waterDistance === water.length;
           const previous = observations.find(
@@ -83,6 +93,8 @@ export function diagnosePolylineRiverCrossings(rivers: readonly DiagnosticRiver[
             point,
             riverArcLength: water.arcStart + waterDistance,
             normalizedDot: dot,
+            skewDegrees,
+            withinSkewLimit: withinBridgeSkewLimit(skewDegrees, maxSkewDegrees),
             status: vertex ? "ambiguous" : dot <= RIVER_GEOMETRY_TOLERANCE ? "perpendicular" : "oblique"
           });
         }

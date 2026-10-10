@@ -56,6 +56,41 @@ function fixture(): CityDocument {
 }
 
 describe("exterior moats", () => {
+  it.each([
+    "norman-keep",
+    "motte-bailey",
+    "concentric",
+    "japanese-shiro",
+    "bastion-citadel",
+    "islamic-qalat",
+    "ancient-castra"
+  ] as const)("keeps the moat bridge at a %s castle gate without a connected road", castleStyle => {
+    const doc = fixture();
+    const circuit = doc.defenseCircuits![0];
+    circuit.scope = "castle";
+    circuit.ownerCastleId = "castle";
+    doc.gates[0].ownerCastleId = "castle";
+    doc.castles = [
+      {
+        id: "castle",
+        version: 1,
+        seed: "castle",
+        position: "central",
+        relationship: "detached",
+        form: "keep-bailey",
+        castleStyle,
+        circuitId: circuit.id,
+        courtyards: [],
+        parts: [],
+        accesses: [],
+        provenance: "generated",
+        locked: false
+      }
+    ];
+    expect(renderMoats(doc).querySelectorAll(".ce-moat-bridge")).toHaveLength(1);
+    expect(renderStandaloneCitySvg(doc).querySelectorAll(".ce-moat-bridge")).toHaveLength(1);
+  });
+
   it("masks the enclosed faces, keeps the curtain continuous at gates, and adds a bridge", () => {
     const doc = fixture();
     const layer = renderMoats(doc);

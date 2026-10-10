@@ -8,6 +8,7 @@ import {
   schedule3dTerrainUpdate,
   scheduleWebglUpdate
 } from "../controllers/layers";
+import { markGenerationProfile, measureGenerationStep } from "../generators/generationProfiler";
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -204,8 +205,11 @@ export function initRenderCoordinator(): void {
       // after its presentation styles have been projected. Without this step,
       // the deck canvas can paint the previously generated map's sea over the
       // newly loaded land.
-      OceanLayers();
-      drawLayers();
+      measureGenerationStep("coordinator-render", () => {
+        measureGenerationStep("OceanLayers", () => OceanLayers());
+        measureGenerationStep("drawLayers", drawLayers);
+      });
+      markGenerationProfile("coordinator-rendered");
     },
     renderBorders: () => {
       if (!viewContext.renderMap) return;

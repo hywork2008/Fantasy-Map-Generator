@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -28 44 56" width="480" height="600">
+  <style>
+    .ce-confucian-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-confucian-wall { fill: #ded6c5; stroke: #3d3527; stroke-width: 0.65px; }
+    .ce-confucian-court { fill: #eae1ce; stroke: #3d3527; stroke-width: 0.45px; }
+    .ce-confucian-roof-yellow { fill: #d99a2b; stroke: #543809; stroke-width: 0.45px; }
+    .ce-confucian-roof-grey { fill: #48545e; stroke: #1f252b; stroke-width: 0.4px; }
+    .ce-confucian-pool { fill: #3f799e; stroke: #1d3e52; stroke-width: 0.4px; }
+    .ce-confucian-bridge { fill: #dedad2; stroke: #3d3527; stroke-width: 0.35px; }
+    .ce-confucian-ridge { stroke: #fff2bf; stroke-width: 0.5px; stroke-linecap: round; }
+    .ce-confucian-tree { fill: #2c5432; stroke: #142e18; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--confucian-temple">
+    <!-- 影 -->
+    <g class="ce-confucian-shadow" transform="translate(1.2 1.4)">
+      <rect x="-16" y="-22" width="32" height="44" rx="0.8"></rect>
+      <rect x="-11" y="-20" width="22" height="12" rx="0.5"></rect>
+    </g>
+    <!-- 外郭壁（朱塗りと白壁の境界） -->
+    <g class="ce-confucian-wall">
+      <rect x="-16" y="-22" width="32" height="44" rx="0.6"></rect>
+    </g>
+    <!-- 境内石畳敷き・中軸線 -->
+    <g class="ce-confucian-court">
+      <rect x="-14.5" y="-20.5" width="29" height="41" rx="0.4"></rect>
+      <!-- 中央御道（神道・龍陛石彫） -->
+      <rect x="-2" y="-18" width="4" height="38" fill="#d9cfbe"></rect>
+    </g>
+    <!-- 1. 泮池（Pan Chi - 南側の半円形聖池）と石造三孔橋 -->
+    <g transform="translate(0, 14)">
+      <!-- 半円池（南向きの円弧） -->
+      <path d="M -9 0 A 9 9 0 0 0 9 0 Z" class="ce-confucian-pool"></path>
+      <!-- 池の石製欄干外枠 -->
+      <path d="M -9 0 A 9 9 0 0 0 9 0 Z" fill="none" stroke="#dedad2" stroke-width="0.8"></path>
+      <!-- 中央石橋（泮橋） -->
+      <rect x="-1.5" y="-0.5" width="3" height="9.8" class="ce-confucian-bridge"></rect>
+      <line x1="-1.5" y1="4" x2="1.5" y2="4" stroke="#8a8479" stroke-width="0.3"></line>
+    </g>
+    <!-- 2. 櫺星門（Lingxing Gate - 南端正面門） -->
+    <g transform="translate(0, 19.5)">
+      <rect x="-6.5" y="-1.5" width="13" height="3" rx="0.3" class="ce-confucian-roof-grey"></rect>
+      <line x1="-6" y1="0" x2="6" y2="0" stroke="#d6cebf" stroke-width="0.4"></line>
+      <circle cx="-5" cy="0" r="0.4" fill="#a83222"></circle>
+      <circle cx="5" cy="0" r="0.4" fill="#a83222"></circle>
+    </g>
+    <!-- 3. 大成門（Dacheng Gate - 中門） -->
+    <g transform="translate(0, 5)">
+      <rect x="-8.5" y="-2.5" width="17" height="5" rx="0.4" class="ce-confucian-roof-grey"></rect>
+      <line x1="-8" y1="0" x2="8" y2="0" stroke="#d6cebf" stroke-width="0.5"></line>
+    </g>
+    <!-- 4. 東西配殿（左右翼廊 - 賢人・門弟を祀る両廡） -->
+    <g>
+      <!-- 東廡 -->
+      <rect x="9.5" y="-12" width="4" height="15" rx="0.3" class="ce-confucian-roof-grey"></rect>
+      <line x1="11.5" y1="-11" x2="11.5" y2="2" stroke="#d6cebf" stroke-width="0.35"></line>
+      <!-- 西廡 -->
+      <rect x="-13.5" y="-12" width="4" height="15" rx="0.3" class="ce-confucian-roof-grey"></rect>
+      <line x1="-11.5" y1="-11" x2="-11.5" y2="2" stroke="#d6cebf" stroke-width="0.35"></line>
+    </g>
+    <!-- 5. 大成殿（Dacheng Hall - 最重要主殿）：重檐廡殿頂・黄色瑠璃瓦屋根 -->
+    <g transform="translate(0, -14)">
+      <!-- 下層裳階屋根 -->
+      <rect x="-10.5" y="-5.5" width="21" height="11" rx="0.6" class="ce-confucian-roof-yellow"></rect>
+      <!-- 月台（丹墀・露台テラス） -->
+      <rect x="-7.5" y="4" width="15" height="4.5" fill="#cfc2ab" stroke="#3d3527" stroke-width="0.4"></rect>
+      <!-- 焚帛炉（紙焼き炉 - 左右） -->
+      <rect x="-6" y="5" width="1.2" height="1.2" fill="#8f2d22"></rect>
+      <rect x="4.8" y="5" width="1.2" height="1.2" fill="#8f2d22"></rect>
+      <!-- 上層主屋根（壮麗な重檐廡殿） -->
+      <polygon points="-8,-4 8,-4 6.5,-1.5 -6.5,-1.5" fill="#f0b443"></polygon>
+      <polygon points="-8,3.5 8,3.5 6.5,1 -6.5,1" fill="#b87a16"></polygon>
+      <rect x="-7" y="-3.5" width="14" height="7" rx="0.4" fill="#df9f2e" stroke="#543809" stroke-width="0.45"></rect>
+      <!-- 正脊（大棟）と鴟尾・宝頂 -->
+      <line x1="-5.8" y1="0" x2="5.8" y2="0" class="ce-confucian-ridge" stroke-width="0.75"></line>
+      <circle cx="-5.8" cy="0" r="0.4" fill="#e85d46"></circle>
+      <circle cx="5.8" cy="0" r="0.4" fill="#e85d46"></circle>
+      <circle cx="0" cy="0" r="0.5" fill="#ffeb3b"></circle>
+    </g>
+    <!-- 6. 祖先祠堂（崇聖祠 - 最北背面の祠） -->
+    <g transform="translate(0, -21)">
+      <rect x="-6" y="-1.5" width="12" height="3" rx="0.3" class="ce-confucian-roof-grey"></rect>
+      <line x1="-5.5" y1="0" x2="5.5" y2="0" stroke="#d6cebf" stroke-width="0.35"></line>
+    </g>
+    <!-- 柏樹・古松（孔子廟の神聖な松柏） -->
+    <g>
+      <circle cx="-6" cy="1" r="1.4" class="ce-confucian-tree"></circle>
+      <circle cx="6" cy="1" r="1.4" class="ce-confucian-tree"></circle>
+      <circle cx="-6" cy="-6" r="1.4" class="ce-confucian-tree"></circle>
+      <circle cx="6" cy="-6" r="1.4" class="ce-confucian-tree"></circle>
+      <circle cx="-12" cy="14" r="1.2" class="ce-confucian-tree"></circle>
+      <circle cx="12" cy="14" r="1.2" class="ce-confucian-tree"></circle>
+    </g>
+  </g>
+</svg>

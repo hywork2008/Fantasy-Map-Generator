@@ -1433,6 +1433,7 @@
         "Ceramics": "Ceramics",
         "Charcoal": "Charcoal",
         "Cheese": "Cheese",
+        "Chestnuts": "Chestnuts",
         "Chicken": "Chicken",
         "Chickpeas": "Chickpeas",
         "Chlorine": "Chlorine",
@@ -1557,6 +1558,7 @@
         "Sails": "Sails",
         "Salt": "Salt",
         "Soybeans": "Soybeans",
+        "Spelt": "Spelt",
         "Saltpeter": "Saltpeter",
         "Sculptures": "Sculptures",
         "Sheep": "Sheep",
@@ -1901,6 +1903,12 @@
     "frontierPolitySpacings": {
       "dispersed": "Spread apart",
       "clustered": "Clustered"
+    },
+    "portCoastPlacement": "Harbour placement",
+    "portCoastPlacementTip": "Where harbour towns sit on the drawn coast. Pinned coast (default) keeps each harbour's shore edge exactly as the cell edge so the town sits just inland inside its own cell. Follow drawn coast places the town by the smoothed coast even when that lies outside the town's cell.",
+    "portCoastPlacements": {
+      "pinned": "Pinned coast",
+      "drawn": "Follow drawn coast"
     },
     "initialPolityRealmSize": "Starting realm (cells)",
     "initialPolityRealmSizeTip": "How many land cells each state owns at generation. 1 is the capital only (one city). Higher values grow a compact core around the capital, up to 30 cells, and stay inside the oikoumene. Oikoumene land share still decides how much countryside is populated; this slider only decides how much of it starts as state land.",
@@ -3106,6 +3114,7 @@
       "previewCityEditor": "Open City Editor",
       "previewNavigation": "Scroll to zoom · Drag to pan",
       "previewReset": "Reset view",
+      "previewMfcgHeading": "Medieval Fantasy City Generator (watabou)",
 
       "tabsAria": "Burg editor sections",
       "overview": "Overview",
@@ -3743,6 +3752,8 @@
       "percentageTip": "Toggle percentage / absolute values views",
       "compareTip": "Compare good stock across markets",
       "opportunitiesTip": "Find buy-low / sell-high routes across markets",
+      "corridors": "Corridors",
+      "corridorsTip": "Trade corridors between towns: demand, delay, ferries, and thin harbours",
       "exportTip": "Save markets data as a CSV file",
       "manualTip": "Manually re-assign market territories",
       "brushSize": "Brush size",
@@ -4326,6 +4337,22 @@
       "treasuryTip": "Sum of every State's public treasury",
       "initialGeneration": "Initial Generation",
       "advanceTime": "Advance Time"
+    },
+    "tradeCorridors": {
+      "title": "Trade corridors",
+      "empty": "No corridor has been recorded yet. Pairs appear here as trade moves.",
+      "towns": "Towns",
+      "mode": "Way",
+      "slots": "Cargo",
+      "demand": "Demand",
+      "delay": "Delay",
+      "threat": "Threat",
+      "ferry": "Ferry",
+      "harbor": "Harbour",
+      "harborShort": "Short",
+      "modeLand": "Land",
+      "modeRiver": "River",
+      "modeSea": "Sea"
     },
     "tradeDetails": {
       "seller": "Seller",

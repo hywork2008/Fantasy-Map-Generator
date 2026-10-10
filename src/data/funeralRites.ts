@@ -33,6 +33,8 @@ export interface FuneralMaterialNeed {
   wood: number;
   stone: number;
   linen: number;
+  /** Optional in old saves; Economy maps aromatic burial supplies to Spices / Resin. */
+  incense?: number;
 }
 
 export interface FuneralRiteDefinition {
@@ -134,12 +136,18 @@ export function scaleFuneralMaterials(need: FuneralMaterialNeed, people: number)
   return {
     wood: need.wood * people,
     stone: need.stone * people,
-    linen: need.linen * people
+    linen: need.linen * people,
+    ...(need.incense !== undefined ? { incense: need.incense * people } : {})
   };
 }
 
 export function addFuneralMaterials(a: FuneralMaterialNeed, b: FuneralMaterialNeed): FuneralMaterialNeed {
-  return { wood: a.wood + b.wood, stone: a.stone + b.stone, linen: a.linen + b.linen };
+  return {
+    wood: a.wood + b.wood,
+    stone: a.stone + b.stone,
+    linen: a.linen + b.linen,
+    ...(a.incense !== undefined || b.incense !== undefined ? { incense: (a.incense ?? 0) + (b.incense ?? 0) } : {})
+  };
 }
 
 export function emptyFuneralMaterials(): FuneralMaterialNeed {
@@ -147,5 +155,5 @@ export function emptyFuneralMaterials(): FuneralMaterialNeed {
 }
 
 export function hasFuneralMaterials(need: FuneralMaterialNeed): boolean {
-  return need.wood > 0 || need.stone > 0 || need.linen > 0;
+  return need.wood > 0 || need.stone > 0 || need.linen > 0 || (need.incense ?? 0) > 0;
 }

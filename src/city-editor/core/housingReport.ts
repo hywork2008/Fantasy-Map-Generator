@@ -10,13 +10,16 @@ import { worldContext } from "../../context/worldContext";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
 import { type BurgSiteDescriptor, getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { type CityEditorShare, parseIncomingPayload } from "../io/incomingCity";
-import { createGridDocument, descriptorFrameGridOptions } from "./document";
+import { createGridDocument, descriptorFrameGridOptions, seaPortShoreDistanceMeters } from "./document";
 import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import type { BuildingLot } from "./gen/buildingLots";
+import type { HousingFitStats } from "./gen/fitImportedHousing";
+import { polygonArea } from "./gen/geom";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
 import { defaultGenerationSettings, type GenerationSettings, generateCityOnDocument } from "./generate";
 import type { GenerationSample } from "./generationDiagnostics";
-import type { CityDocument } from "./types";
+import { facePoints } from "./mesh";
+import type { CityDocument, DistrictParameters } from "./types";
 
 export interface HousingReportInput {
   population: number;
@@ -59,7 +62,112 @@ export interface HousingReportOutput {
   housesOutskirts: number;
   failure: string | null;
   failureReasons: string[];
+  /** Occupancy fit of the adopted attempt and the residential land it filled. */
+  occupancy: HousingOccupancySurvey | null;
   diagnostics: GenerationSample[];
+}
+
+export interface HousingOccupancyZone {
+  /** Residential cells (buildable, non-castle/farm/park/cemetery/empty ward). */
+  cells: number;
+  areaM2: number;
+  /** Area-weighted Lot occupancy after the fit (0–1), as the CE panel shows. */
+  occupancy: number | null;
+  /** Area-weighted occupancy of the first count (default × guide). */
+  initialOccupancy: number | null;
+  coverage: number | null;
+  lotAreaM2: number | null;
+  houses: number;
+  houseFootprintM2: number;
+}
+
+export interface HousingOccupancySurvey {
+  fit: HousingFitStats | null;
+  /** Wall time of the adopted attempt's fit, including every rebuild. */
+  fitMs: number | null;
+  core: HousingOccupancyZone;
+  outskirts: HousingOccupancyZone;
+  /** Houses the cells would hold at occupancy 1: initialHouses / initial occupancy. */
+  capacityAtFullOccupancy: number | null;
+  /** dwellings / capacity: the occupancy a one-shot fit would choose. */
+  requiredOccupancy: number | null;
+  /** Dwellings per residential hectare. */
+  dwellingsPerHectare: number | null;
+  /** Houses per residential hectare at occupancy 1. */
+  capacityPerHectare: number | null;
+}
+
+const NON_RESIDENTIAL_WARDS = ["castle", "farm", "park", "cemetery", "empty"];
+
+function occupancyZone(
+  document: CityDocument,
+  houses: BuildingLot[],
+  settlement: string,
+  factor: number,
+  firstFactor: number
+) {
+  let cells = 0;
+  let areaM2 = 0;
+  const weighted = { occupancy: 0, coverage: 0, lotArea: 0, area: 0 };
+  const district = new Map<string, DistrictParameters>();
+  for (const d of document.fabric?.districts ?? []) for (const id of d.faceIds) district.set(id, d.parameters);
+  for (const face of Object.values(document.mesh.faces)) {
+    if (!face.properties.buildable || face.properties.settlement !== settlement) continue;
+    if (NON_RESIDENTIAL_WARDS.includes(face.properties.ward ?? "empty")) continue;
+    const area = Math.abs(polygonArea(facePoints(document.mesh, face)));
+    cells++;
+    areaM2 += area;
+    const parameters = district.get(face.id);
+    if (!parameters) continue;
+    weighted.occupancy += parameters.occupancy * area;
+    weighted.coverage += parameters.coverage * area;
+    weighted.lotArea += parameters.lotArea * area;
+    weighted.area += area;
+  }
+  const mean = (sum: number) => (weighted.area > 0 ? sum / weighted.area : null);
+  const zoneHouses = houses.filter(lot => settlementOf(document, lot) === settlement);
+  const occupancy = mean(weighted.occupancy);
+  return {
+    cells,
+    areaM2,
+    occupancy,
+    // An emptied zone (factor 0) falls back to its default district occupancy.
+    initialOccupancy:
+      occupancy === null ? null : (factor > 0 ? occupancy / factor : settlement === "core" ? 1 : 0.82) * firstFactor,
+    coverage: mean(weighted.coverage),
+    lotAreaM2: mean(weighted.lotArea),
+    houses: zoneHouses.length,
+    houseFootprintM2: zoneHouses.reduce((sum, lot) => sum + Math.abs(polygonArea(lot.polygon)), 0)
+  } satisfies HousingOccupancyZone;
+}
+
+export function surveyOccupancy(
+  document: CityDocument,
+  houses: BuildingLot[],
+  dwellings: number,
+  fitSample: GenerationSample | undefined
+): HousingOccupancySurvey {
+  const fit = fitSample?.housingFit ?? null;
+  // The first count ran at the guide, clamped so no district exceeded 100%.
+  const firstFactor = fit ? fit.targetOccupancy : 1;
+  const core = occupancyZone(document, houses, "core", fit?.factor ?? 1, firstFactor);
+  const outskirts = occupancyZone(document, houses, "outskirts", fit?.outskirtsFactor ?? 1, firstFactor);
+  const area = core.areaM2 + outskirts.areaM2;
+  const initialOccupancy =
+    area > 0
+      ? ((core.initialOccupancy ?? 0) * core.areaM2 + (outskirts.initialOccupancy ?? 0) * outskirts.areaM2) / area
+      : 0;
+  const capacity = fit?.initialHouses != null && initialOccupancy > 0 ? fit.initialHouses / initialOccupancy : null;
+  return {
+    fit,
+    fitMs: fitSample?.elapsedMs ?? null,
+    core,
+    outskirts,
+    capacityAtFullOccupancy: capacity,
+    requiredOccupancy: capacity ? dwellings / capacity : null,
+    dwellingsPerHectare: area > 0 ? dwellings / (area / 10_000) : null,
+    capacityPerHectare: capacity && area > 0 ? capacity / (area / 10_000) : null
+  };
 }
 
 export interface HousingReportGap {
@@ -107,7 +215,8 @@ export function cityEditorDocument(share: CityEditorShare): CityDocument {
       ? descriptorFrameGridOptions(
           share.descriptor.frame,
           share.descriptor.burg.waterAccess?.port.river === true,
-          share.descriptor.burg.riverPlacement?.bankDistanceMeters
+          share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(share.descriptor)
         )
       : {}),
     measureBlockSize: share.measureBlockSize === true,
@@ -184,7 +293,16 @@ export function compareShareHousing(
         )
       )
     ],
-    diagnostics: diagnostics.filter(sample => sample.failure || sample.fixedApproaches)
+    diagnostics: diagnostics.filter(sample => sample.failure || sample.fixedApproaches),
+    occupancy: city
+      ? surveyOccupancy(
+          city,
+          houses,
+          descriptor.burg.dwellings,
+          // The adopted attempt is the last one that reached the fit.
+          diagnostics.filter(sample => sample.housingFit).at(-1)
+        )
+      : null
   };
   const roads = descriptor.roads.filter(road => road.group !== "searoutes");
   return {
@@ -230,6 +348,13 @@ export async function loadArchiveWorld(archivePath: string): Promise<void> {
   Object.assign(worldContext, validated.document.world);
   const { bindSimulationBurgState } = await import("../../runtime/simulationBurgState");
   bindSimulationBurgState(worldContext, validated.document.simulation);
+  // Same post-load repair as the browser loader, so CLI reports match the app.
+  const { burgsUnplacedOnRivers, removeRepeatedRiverCells } = await import("../../services/repairRiverCells");
+  const repairedRivers = removeRepeatedRiverCells(worldContext);
+  if (repairedRivers.size) {
+    const { Burgs } = await import("../../generators/burgs-generator");
+    Burgs.resiteRiverBurgs(burgsUnplacedOnRivers(worldContext, repairedRivers));
+  }
 }
 
 /** Numeric tokens are burg indexes. Any other token is an exact burg name, and every match is returned. */

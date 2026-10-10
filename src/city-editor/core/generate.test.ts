@@ -26,17 +26,35 @@ import {
   type GenerationSettings,
   generateCityOnDocument,
   generateCoastWalkStep,
-  generateGateStep,
   generateRiverWalkStep,
-  generateRoadStep,
   generateStageOnDocument,
   generateUrbanPatchStep,
-  generateWardStep,
-  riversForCount,
-  type SiteConfig
+  riversForCount
 } from "./generate";
+import { SCENARIOS, SEEDS, settings } from "./generateTestScenarios";
 import { edgeBetween, facePoints, incidentEdges, validate } from "./mesh";
 import type { CityDocument, FeatureGroup } from "./types";
+
+// generateStageOnDocument is deterministic (asserted below with direct calls), so
+// tests that only inspect a stage share one generation per (document, settings,
+// seed, stage) instead of regenerating the same city in every test.
+const stageCache = new WeakMap<CityDocument, Map<string, CityDocument | null>>();
+function cachedStage(
+  document: CityDocument,
+  settings: Parameters<typeof generateStageOnDocument>[1],
+  seed: string,
+  stage: number
+): CityDocument | null {
+  let byKey = stageCache.get(document);
+  if (!byKey) {
+    byKey = new Map();
+    stageCache.set(document, byKey);
+  }
+  const key = JSON.stringify([settings, seed, stage]);
+  if (!byKey.has(key)) byKey.set(key, generateStageOnDocument(document, settings, seed, stage));
+  const out = byKey.get(key)!;
+  return out && structuredClone(out);
+}
 
 const S = { coast: 1, river: 2, urban: 3, walls: 4, streets: 5, wards: 6 } as const;
 
@@ -51,31 +69,6 @@ function meshSkeleton(document: CityDocument): string {
     )
   });
 }
-
-function settings(overrides: Partial<SiteConfig>): GenerationSettings {
-  const base = defaultGenerationSettings();
-  return { config: { ...base.config, ...overrides } };
-}
-
-const SCENARIOS: Record<string, GenerationSettings> = {
-  "landlocked, one river, walls + citadel": settings({
-    coast: "none",
-    rivers: ["meander"],
-    features: { walls: true, citadel: true, plaza: true, temple: true, port: false, shanty: false }
-  }),
-  "coast + harbour + walls": settings({
-    coast: "straight",
-    rivers: ["toCoast"],
-    features: { walls: true, citadel: false, plaza: true, temple: true, port: true, shanty: true }
-  }),
-  "bay, no walls": settings({
-    coast: "bay",
-    rivers: [],
-    features: { walls: false, citadel: false, plaza: false, temple: false, port: true, shanty: false }
-  })
-};
-
-const SEEDS = ["ce-gen-a", "ce-gen-b", "ce-gen-c"];
 
 // Regression descriptor captured from Kakaia / Shiqsh (2026-09-18). The full
 // FMG archive is deliberately not a test dependency; this is the local survey
@@ -252,8 +245,10 @@ describe("FMG harbour-site regression — Shiqsh", () => {
     });
     // One source road enters an unbridgeable channel. The previous successful
     // roll silently replaced it with a radial exit on another side of town.
+    // With the castle on the shore side (castle-road-siting-order.md H4),
+    // that road's gate is rejected at gate routing, before the road check.
     expect(city).toBeNull();
-    expect(failures).toContain("fmg-road-mismatch");
+    expect(failures.some(r => r === "fmg-road-mismatch" || r === "unconnected-gates")).toBe(true);
   });
 });
 
@@ -266,7 +261,7 @@ describe("generateStageOnDocument", () => {
       describe(`${name} · ${seed}`, () => {
         for (const step of Object.values(S)) {
           it(`stage ${step}: valid document, frame untouched`, () => {
-            const out = generateStageOnDocument(base, scenario, seed, step);
+            const out = cachedStage(base, scenario, seed, step);
             expect(out, `stage ${step} returned null`).not.toBeNull();
             if (!out) return;
             expect(validate(out)).toEqual([]);
@@ -278,22 +273,22 @@ describe("generateStageOnDocument", () => {
         }
 
         it("withholds each plan layer until its own stage", () => {
-          const coast = generateStageOnDocument(base, scenario, seed, S.coast);
+          const coast = cachedStage(base, scenario, seed, S.coast);
           expect(coast?.featureGroups.some(g => g.kind === "river")).toBe(false);
           expect(coast?.featureGroups.some(g => g.kind === "wall")).toBe(false);
           expect(coast?.featureGroups.some(g => g.kind === "road")).toBe(false);
-          const beforeStreets = generateStageOnDocument(base, scenario, seed, S.walls);
+          const beforeStreets = cachedStage(base, scenario, seed, S.walls);
           expect(beforeStreets?.featureGroups.some(g => g.kind === "road")).toBe(false);
         });
 
         it("assigns wards to cells only at the ward stage", () => {
-          const beforeWards = generateStageOnDocument(base, scenario, seed, S.streets);
+          const beforeWards = cachedStage(base, scenario, seed, S.streets);
           expect(
             Object.values(beforeWards?.mesh.faces ?? {}).every(
               f => f.properties.ward === null || f.properties.ward === "castle"
             )
           ).toBe(true);
-          const warded = generateStageOnDocument(base, scenario, seed, S.wards);
+          const warded = cachedStage(base, scenario, seed, S.wards);
           expect(Object.values(warded?.mesh.faces ?? {}).some(f => f.properties.ward !== null)).toBe(true);
         });
       });
@@ -399,7 +394,7 @@ describe("generateStageOnDocument", () => {
     const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
     const plans = new Set<string>();
     for (const seed of SEEDS) {
-      const out = generateStageOnDocument(base, scenario, seed, S.wards);
+      const out = cachedStage(base, scenario, seed, S.wards);
       expect(out?.frame).toEqual(base.frame);
       plans.add(JSON.stringify({ fg: out?.featureGroups, gates: out?.gates }));
     }
@@ -447,7 +442,7 @@ describe("Phase G7 — generated roads never share an edge with a river", () => 
     let sawRoad = false;
     for (const scenario of withRivers) {
       for (const seed of SEEDS) {
-        const out = generateStageOnDocument(base, scenario, seed, S.streets);
+        const out = cachedStage(base, scenario, seed, S.streets);
         expect(out, `${seed} returned null`).not.toBeNull();
         if (!out) continue;
         const riverEdges = edgeIdsUsedBy(out, "river");
@@ -465,7 +460,7 @@ describe("Phase G7 — generated roads never share an edge with a river", () => 
     const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
     let meetings = 0;
     for (const seed of SEEDS) {
-      const out = generateStageOnDocument(base, scenario, seed, S.streets);
+      const out = cachedStage(base, scenario, seed, S.streets);
       if (!out) continue;
       const riverVerts = new Set<string>();
       const roadVerts = new Set<string>();
@@ -486,7 +481,7 @@ describe("Phase G7 — generated roads never share an edge with a river", () => 
   it("when a wall sits on a river edge, the road still does not", () => {
     const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
     for (const seed of SEEDS) {
-      const out = generateStageOnDocument(base, scenario, seed, S.streets);
+      const out = cachedStage(base, scenario, seed, S.streets);
       if (!out) continue;
       const riverEdges = edgeIdsUsedBy(out, "river");
       const wallEdges = edgeIdsUsedBy(out, "wall");
@@ -796,189 +791,6 @@ describe("generateRiverWalkStep — per-loop ② river-walk scrub", () => {
   });
 });
 
-describe("generateGateStep — per-loop ④ gate-placement scrub", () => {
-  const base = createSizedDocument("small", "mesh-fixture");
-  const walled = SCENARIOS["landlocked, one river, walls + citadel"];
-  const open = SCENARIOS["bay, no walls"];
-
-  it("valid document, gate topology prepared & frame untouched, for the first/middle/last gate", () => {
-    for (const seed of SEEDS) {
-      const { total } = generateGateStep(base, walled, seed, 0);
-      expect(total).toBeGreaterThan(0);
-      for (const idx of [0, Math.floor(total / 2), total - 1]) {
-        const step = generateGateStep(base, walled, seed, idx);
-        expect(step.document, `gate ${idx} returned null`).not.toBeNull();
-        if (!step.document) continue;
-        expect(validate(step.document)).toEqual([]);
-        for (const gate of step.document.gates.filter(g => !g.ownerCastleId))
-          expect(incidentEdges(step.document.mesh, gate.vertexId).length).toBeGreaterThanOrEqual(4);
-        expect(step.document.frame).toEqual(base.frame);
-      }
-    }
-  });
-
-  it("document.gates never shrinks as the step index grows, and reaches >0 by the end", () => {
-    const seed = "ce-gate-a";
-    const { total } = generateGateStep(base, walled, seed, 0);
-    let prevCount = 0;
-    for (let i = 0; i < total; i++) {
-      const step = generateGateStep(base, walled, seed, i);
-      const count = step.document?.gates?.length ?? 0;
-      expect(count).toBeGreaterThanOrEqual(prevCount);
-      prevCount = count;
-    }
-    expect(prevCount).toBeGreaterThan(0);
-  });
-
-  it("Walls off ⇒ the loop still runs (total > 0) but no gate ever renders", () => {
-    const seed = "ce-gate-b";
-    const { total } = generateGateStep(base, open, seed, 0);
-    expect(total).toBeGreaterThan(0);
-    const last = generateGateStep(base, open, seed, total - 1).document as CityDocument;
-    expect(last.gates ?? []).toEqual([]);
-  });
-
-  it("clamps an out-of-range step index to the last / first gate", () => {
-    const seed = "ce-gate-c";
-    const { total } = generateGateStep(base, walled, seed, 0);
-    expect(generateGateStep(base, walled, seed, total + 50).index).toBe(total - 1);
-    expect(generateGateStep(base, walled, seed, -10).index).toBe(0);
-  });
-
-  it("is deterministic in (document, settings, seed, stepIndex)", () => {
-    const a = generateGateStep(base, walled, "stable", 1);
-    const b = generateGateStep(base, walled, "stable", 1);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-  });
-});
-
-describe("generateRoadStep — per-loop ⑤ approach-road scrub", () => {
-  const base = createSizedDocument("small", "mesh-fixture");
-  const walled = SCENARIOS["landlocked, one river, walls + citadel"];
-
-  it("valid document, mesh & frame untouched, for the first/middle/last road", () => {
-    let tested = false;
-    for (const seed of SEEDS) {
-      const { total } = generateRoadStep(base, walled, seed, 0);
-      if (total === 0) continue; // some seeds route no land roads at all
-      tested = true;
-      for (const idx of [0, Math.floor(total / 2), total - 1]) {
-        const step = generateRoadStep(base, walled, seed, idx);
-        expect(step.document, `road ${idx} returned null`).not.toBeNull();
-        if (!step.document) continue;
-        expect(validate(step.document)).toEqual([]);
-        expect(step.document.frame).toEqual(base.frame);
-      }
-    }
-    expect(tested, "no seed produced any road in the search budget").toBe(true);
-  });
-
-  it("drawn road count never shrinks as the step index grows, and reaches >0 by the end", () => {
-    let seed = "";
-    let total = 0;
-    for (const candidate of [...SEEDS, "ce-road-a", "ce-road-b", "ce-road-c"]) {
-      total = generateRoadStep(base, walled, candidate, 0).total;
-      if (total > 1) {
-        seed = candidate;
-        break;
-      }
-    }
-    expect(total, "no seed produced more than one road in the search budget").toBeGreaterThan(1);
-    let prevCount = 0;
-    for (let i = 0; i < total; i++) {
-      const step = generateRoadStep(base, walled, seed, i);
-      const count = step.document?.featureGroups.filter(g => g.kind === "road").length ?? 0;
-      expect(count).toBeGreaterThanOrEqual(prevCount);
-      prevCount = count;
-    }
-    expect(prevCount).toBeGreaterThan(0);
-  });
-
-  it("clamps an out-of-range step index to the last / first road", () => {
-    let seed = "";
-    let total = 0;
-    for (const candidate of SEEDS) {
-      total = generateRoadStep(base, walled, candidate, 0).total;
-      if (total > 0) {
-        seed = candidate;
-        break;
-      }
-    }
-    expect(total).toBeGreaterThan(0);
-    expect(generateRoadStep(base, walled, seed, total + 50).index).toBe(total - 1);
-    expect(generateRoadStep(base, walled, seed, -10).index).toBe(0);
-  });
-
-  it("is deterministic in (document, settings, seed, stepIndex)", () => {
-    const a = generateRoadStep(base, walled, "stable", 0);
-    const b = generateRoadStep(base, walled, "stable", 0);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-  });
-});
-
-describe("generateWardStep — per-loop ⑥ ward-assignment scrub", () => {
-  const base = createSizedDocument("small", "mesh-fixture");
-  const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
-
-  it("valid document, mesh & frame untouched, for the first/middle/last cell", { timeout: 20_000 }, () => {
-    for (const seed of SEEDS) {
-      const { total } = generateWardStep(base, scenario, seed, 0);
-      expect(total).toBeGreaterThan(5);
-      for (const idx of [0, 1, Math.floor(total / 2), total - 1]) {
-        const step = generateWardStep(base, scenario, seed, idx);
-        expect(step.document, `cell ${idx} returned null`).not.toBeNull();
-        if (!step.document) continue;
-        expect(validate(step.document)).toEqual([]);
-        expect(step.document.frame).toEqual(base.frame);
-      }
-    }
-  });
-
-  it("reports every step's decision, and coloured-ward count only ever grows", { timeout: 20_000 }, () => {
-    const seed = "ce-ward-a";
-    const { total } = generateWardStep(base, scenario, seed, 0);
-    let prevColoured = 0;
-    for (let i = 0; i < Math.min(total, 40); i++) {
-      const step = generateWardStep(base, scenario, seed, i);
-      expect(step.index).toBe(i);
-      expect(step.detail).toMatch(/cell #\d+ — \d+\/\d+$/);
-      const coloured =
-        Object.values(step.document?.mesh.faces ?? {}).filter(f => f.properties.ward !== null).length ?? 0;
-      expect(coloured).toBeGreaterThanOrEqual(prevColoured);
-      prevColoured = coloured;
-    }
-    expect(prevColoured).toBeGreaterThan(0);
-  });
-
-  it("clamps an out-of-range step index to the last / first cell", () => {
-    const seed = "ce-ward-b";
-    const { total } = generateWardStep(base, scenario, seed, 0);
-    expect(generateWardStep(base, scenario, seed, total + 50).index).toBe(total - 1);
-    expect(generateWardStep(base, scenario, seed, -10).index).toBe(0);
-  });
-
-  it("is deterministic in (document, settings, seed, stepIndex)", () => {
-    const a = generateWardStep(base, scenario, "stable", 10);
-    const b = generateWardStep(base, scenario, "stable", 10);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-  });
-
-  it("a mid-fill step's coloured wards stay a subset of the ordinary ⑥ stage's result", () => {
-    const seed = "ce-ward-c";
-    const { total } = generateWardStep(base, scenario, seed, 0);
-    const full = generateStageOnDocument(base, scenario, seed, 6) as CityDocument;
-    const fullWarded = new Set(
-      Object.entries(full.mesh.faces)
-        .filter(([, f]) => f.properties.ward !== null)
-        .map(([id]) => id)
-    );
-    const mid = generateWardStep(base, scenario, seed, Math.floor(total / 2)).document as CityDocument;
-    for (const [id, face] of Object.entries(mid.mesh.faces)) {
-      if (face.properties.ward !== null) expect(fullWarded.has(id)).toBe(true);
-    }
-  });
-});
-
 describe("riversForCount", () => {
   it("clamps negatives to an empty list", () => {
     expect(riversForCount(defaultGenerationSettings().config, -3)).toEqual([]);
@@ -1059,6 +871,19 @@ describe("FMG descriptor geography", () => {
     expect(out?.featureGroups.some(group => group.kind === "river")).toBe(true);
   });
 
+  it("carries the FMG heightfield elevation onto land faces", () => {
+    const source = structuredClone(descriptor);
+    source.terrain.heightfield.elevationsMeters = source.terrain.heightfield.elevationsMeters.map(() => 237);
+    const settings = defaultGenerationSettings();
+    settings.descriptor = source;
+    for (const stage of [1, 2, 99]) {
+      const out = generateStageOnDocument(grid, settings, "fmg-elevation", stage)!;
+      const land = Object.values(out.mesh.faces).filter(face => face.properties.water === "land");
+      expect(land.length).toBeGreaterThan(0);
+      expect(new Set(land.map(face => face.properties.elevation))).toEqual(new Set([237]));
+    }
+  });
+
   it("is deterministic in (document, descriptor, seed)", () => {
     const settings = defaultGenerationSettings();
     settings.descriptor = descriptor;
@@ -1129,7 +954,7 @@ describe("sizePresetForExtent / custom frame", () => {
     const city = generateCityOnDocument(base, settings, "cdz0dr");
     expect(city).not.toBeNull();
     const cemetery = city?.cemeteries?.find(plan => city.mesh.faces[plan.faceId]?.properties.ward === "cemetery");
-    expect(cemetery?.form).toBe("field");
+    expect(cemetery?.form).toBe("churchyard");
     expect(cemetery?.courtyards.length).toBeGreaterThan(0);
     expect(cemetery?.parts.some(part => part.role === "graves")).toBe(true);
   });

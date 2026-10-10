@@ -228,6 +228,7 @@ export function validDistrictParameters(p: DistrictParameters): boolean {
     p.laneWidth <= 12 &&
     Number.isFinite(p.orientation) &&
     (p.composition === undefined || ["standard", "commercial", "warehouses", "estates"].includes(p.composition)) &&
+    (p.suburb === undefined || typeof p.suburb === "boolean") &&
     (p.harborPreset === undefined || ["small", "dense", "warehouse"].includes(p.harborPreset)) &&
     [p.sizeVariation, p.gardenAmount].every(v => v === undefined || (Number.isFinite(v) && v >= 0 && v <= 1)) &&
     (p.parcelCoverage === undefined ||

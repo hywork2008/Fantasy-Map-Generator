@@ -40,10 +40,10 @@ describe("City Editor Ship Tool", () => {
     shipBtn?.click();
     expect(shipControls?.hidden).toBe(false);
 
-    // Ship type select exists and contains small, medium, and large
+    // Ship type select lists every SHIP_SPECS entry (small, medium, large, barge)
     const select = shipControls?.querySelector("select");
     expect(select).toBeDefined();
-    expect(select?.options.length).toBe(3);
+    expect([...(select?.options ?? [])].map(o => o.value)).toEqual(["small", "medium", "large", "barge"]);
     expect(select?.value).toBe("small");
 
     // Length input exists
@@ -283,5 +283,9 @@ describe("City Editor Ship Tool", () => {
     const transform = shipAfter.getAttribute("transform");
     // Should have a non-zero rotation angle
     expect(transform).not.toContain("rotate(0)");
+
+    // Selecting a different tool must remove the ship's rotation handle.
+    shipBtn?.click();
+    expect(root.querySelector(".ce-ship-handle-group")).toBeNull();
   });
 });

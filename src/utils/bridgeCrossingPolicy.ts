@@ -22,6 +22,8 @@ export interface BridgeTransport {
   maxBridgeCrossingMeters?: number;
   /** Legacy name: previously compared against the entire channel width. */
   maxBridgeSpanMeters?: number;
+  /** Allowed deviation from a square crossing for this burg's state (bridgeSkewPolicy.ts). */
+  maxBridgeSkewDegrees?: number;
 }
 
 export function bridgeCrossingLimitForPeriod(period?: string): number {

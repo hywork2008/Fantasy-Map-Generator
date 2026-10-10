@@ -21,7 +21,6 @@ export interface PhysicalRiverGeometry {
   water: PhysicalWaterPolygon;
 }
 export const cross2 = (a: RiverPoint, b: RiverPoint) => a[0] * b[1] - a[1] * b[0];
-const sub = (a: RiverPoint, b: RiverPoint): RiverPoint => [a[0] - b[0], a[1] - b[1]];
 const epsilon = RIVER_GEOMETRY_TOLERANCE;
 
 /** Conservative input validation; callers should cache validated geometry by version.
@@ -36,6 +35,11 @@ export function validWaterPolygon(water: PhysicalWaterPolygon): boolean {
   const result = checkValidWaterPolygon(water);
   validRingsCache.set(water.rings, result);
   return result;
+}
+
+/** The same check without the cache, for short-lived polygons built per call (deck footprints). */
+export function validTransientWaterPolygon(water: PhysicalWaterPolygon): boolean {
+  return !!water?.rings?.length && checkValidWaterPolygon(water);
 }
 
 function checkValidWaterPolygon(water: PhysicalWaterPolygon): boolean {
@@ -193,6 +197,8 @@ export function getRingBounds(ring: readonly RiverPoint[]): Bounds {
 
 /** Boundary is included, so dry footprints touching water fail conservatively. */
 export function pointInWater(point: RiverPoint, water: PhysicalWaterPolygon): boolean {
+  const grid = waterEdgeGrid(water);
+  if (grid) return grid.pointInWater(point, water);
   let inside = false;
   for (const ring of water.rings) {
     const b = getRingBounds(ring);
@@ -234,21 +240,26 @@ export function pointInWater(point: RiverPoint, water: PhysicalWaterPolygon): bo
   return inside;
 }
 export function segmentsTouch(a: RiverPoint, b: RiverPoint, c: RiverPoint, d: RiverPoint): boolean {
-  const ab = sub(b, a),
-    cd = sub(d, c),
-    offset = sub(c, a);
-  const denominator = cross2(ab, cd);
-  const abLength = Math.hypot(...ab),
-    cdLength = Math.hypot(...cd);
+  // Scalar sub/cross2 in the same operation order; called per edge pair, so no allocation.
+  const abX = b[0] - a[0],
+    abY = b[1] - a[1],
+    cdX = d[0] - c[0],
+    cdY = d[1] - c[1],
+    offsetX = c[0] - a[0],
+    offsetY = c[1] - a[1];
+  const denominator = abX * cdY - abY * cdX;
+  const abLength = Math.hypot(abX, abY),
+    cdLength = Math.hypot(cdX, cdY);
   if (!abLength || !cdLength) return false;
+  const offsetCrossAb = offsetX * abY - offsetY * abX;
   if (Math.abs(denominator) <= epsilon * abLength * cdLength) {
-    if (Math.abs(cross2(offset, ab)) / abLength > epsilon) return false;
-    const lo = (offset[0] * ab[0] + offset[1] * ab[1]) / abLength;
-    const hi = lo + (cd[0] * ab[0] + cd[1] * ab[1]) / abLength;
+    if (Math.abs(offsetCrossAb) / abLength > epsilon) return false;
+    const lo = (offsetX * abX + offsetY * abY) / abLength;
+    const hi = lo + (cdX * abX + cdY * abY) / abLength;
     return Math.min(abLength, Math.max(lo, hi)) >= Math.max(0, Math.min(lo, hi)) - epsilon;
   }
-  const t = cross2(offset, cd) / denominator,
-    u = cross2(offset, ab) / denominator;
+  const t = (offsetX * cdY - offsetY * cdX) / denominator,
+    u = offsetCrossAb / denominator;
   return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }
 const waterBoundsCache = new WeakMap<PhysicalWaterPolygon, Bounds>();
@@ -299,6 +310,11 @@ export function footprintTouchesWater(footprint: readonly RiverPoint[], water: P
   }
 
   if (footprint.some(p => pointInWater(p, water))) return true;
+  const grid = waterEdgeGrid(water);
+  if (grid) {
+    const indexed = indexedFootprintTouches(footprint, water, grid, fMinX, fMinY, fMaxX, fMaxY);
+    if (indexed !== null) return indexed;
+  }
   const polygon: PhysicalWaterPolygon = { id: -1, rings: [footprint] };
   for (const ring of water.rings) {
     const b = getRingBounds(ring);
@@ -333,6 +349,44 @@ export function footprintTouchesWater(footprint: readonly RiverPoint[], water: P
   }
   return false;
 }
+
+/** Edge-index equivalent of the ring scan. Null when the footprint spans too many cells. */
+function indexedFootprintTouches(
+  footprint: readonly RiverPoint[],
+  water: PhysicalWaterPolygon,
+  grid: WaterEdgeGrid,
+  fMinX: number,
+  fMinY: number,
+  fMaxX: number,
+  fMaxY: number
+): boolean | null {
+  const edges = grid.query(fMinX - epsilon, fMinY - epsilon, fMaxX + epsilon, fMaxY + epsilon);
+  if (!edges) return null;
+  const polygon: PhysicalWaterPolygon = { id: -1, rings: [footprint] };
+  for (const k of edges) {
+    const ring = water.rings[grid.edgeRing[k]];
+    const a = ring[grid.edgeIndex[k]],
+      c = ring[(grid.edgeIndex[k] + 1) % ring.length];
+    if (
+      a[0] >= fMinX - epsilon &&
+      a[0] <= fMaxX + epsilon &&
+      a[1] >= fMinY - epsilon &&
+      a[1] <= fMaxY + epsilon &&
+      pointInWater(a, polygon)
+    )
+      return true;
+    const eMinX = Math.min(a[0], c[0]),
+      eMaxX = Math.max(a[0], c[0]),
+      eMinY = Math.min(a[1], c[1]),
+      eMaxY = Math.max(a[1], c[1]);
+    if (fMaxX < eMinX - epsilon || fMinX > eMaxX + epsilon || fMaxY < eMinY - epsilon || fMinY > eMaxY + epsilon)
+      continue;
+    for (let j = 0; j < footprint.length; j++) {
+      if (segmentsTouch(a, c, footprint[j], footprint[(j + 1) % footprint.length])) return true;
+    }
+  }
+  return false;
+}
 export interface NormalBankHit {
   distance: number;
   point: RiverPoint;
@@ -352,51 +406,91 @@ export function normalWaterSection(
   water: PhysicalWaterPolygon
 ): { negative: NormalBankHit; positive: NormalBankHit } | null {
   if (!pointInWater(q, water)) return null;
-  const hits: (NormalBankHit & { vertex?: boolean; transverseSign?: number })[] = [];
-  for (let r = 0; r < water.rings.length; r++) {
-    const ring = water.rings[r];
-    for (let i = 0; i < ring.length; i++) {
-      const a = ring[i],
-        b = ring[(i + 1) % ring.length];
-      const edge = sub(b, a),
-        offset = sub(a, q),
-        length = Math.hypot(...edge);
-      if (!length) continue;
-      const denominator = cross2(normal, edge);
-      if (Math.abs(denominator) <= epsilon * length) {
-        if (Math.abs(cross2(offset, normal)) <= epsilon) {
-          const distances = [a, b].map(p => (p[0] - q[0]) * normal[0] + (p[1] - q[1]) * normal[1]);
-          if (Math.min(...distances) <= epsilon && Math.max(...distances) >= -epsilon) return null;
-          for (const distance of distances)
-            hits.push({
-              distance,
-              point: [q[0] + distance * normal[0], q[1] + distance * normal[1]],
-              ringIndex: r,
-              edgeIndex: i,
-              reference: null,
-              bankArcLength: null
-            });
-        }
-        continue;
-      }
-      const u = cross2(offset, normal) / denominator;
-      if (u < 0 || u > 1) continue;
-      const distance = cross2(offset, edge) / denominator;
-      const reference = water.bankReferences?.[r]?.[i] ?? null;
-      // Ambiguity at a remote vertex is irrelevant; retain it as an unresolved hit.
-      const interior = u > epsilon && u < 1 - epsilon;
-      hits.push({
-        distance,
-        point: [q[0] + distance * normal[0], q[1] + distance * normal[1]],
-        ringIndex: r,
-        edgeIndex: i,
-        reference: reference ? { ...reference } : null,
-        vertex: !interior,
-        transverseSign: Math.sign(denominator),
-        bankArcLength: reference ? reference.arcStart + u * (reference.arcEnd - reference.arcStart) : null
-      });
+  const grid = waterEdgeGrid(water);
+  if (grid)
+    for (const radius of SECTION_WINDOW_METERS) {
+      const windowed = windowedNormalSection(q, normal, water, grid, radius);
+      if (windowed !== undefined) return windowed;
     }
-  }
+  const hits = normalSectionHits(q, normal, water, null);
+  return hits && mergeNormalSection(hits);
+}
+
+type SectionHit = NormalBankHit & { vertex?: boolean; transverseSign?: number };
+/** Window half-sizes tried before the full scan, in metres. */
+const SECTION_WINDOW_METERS = [256, 1024, 4096];
+/** Hits within this distance of a window edge could merge with hits outside it. */
+const SECTION_WINDOW_MARGIN_METERS = 2;
+
+/**
+ * Intersections of the normal line through q with the given edges (all edges when null),
+ * visited in ring/edge order. Null when an edge runs along the line through q.
+ */
+function normalSectionHits(
+  q: RiverPoint,
+  normal: RiverPoint,
+  water: PhysicalWaterPolygon,
+  edges: readonly number[] | null
+): SectionHit[] | null {
+  const hits: SectionHit[] = [];
+  const visit = (r: number, i: number): boolean => {
+    const ring = water.rings[r];
+    const a = ring[i],
+      b = ring[(i + 1) % ring.length];
+    // Scalar form of sub/cross2 with the same operation order: this loop visits
+    // every bank edge for each crossing candidate, so it must not allocate.
+    const edgeX = b[0] - a[0],
+      edgeY = b[1] - a[1],
+      offsetX = a[0] - q[0],
+      offsetY = a[1] - q[1],
+      length = Math.hypot(edgeX, edgeY);
+    if (!length) return true;
+    const denominator = normal[0] * edgeY - normal[1] * edgeX;
+    const offsetCrossNormal = offsetX * normal[1] - offsetY * normal[0];
+    if (Math.abs(denominator) <= epsilon * length) {
+      if (Math.abs(offsetCrossNormal) <= epsilon) {
+        const distances = [a, b].map(p => (p[0] - q[0]) * normal[0] + (p[1] - q[1]) * normal[1]);
+        if (Math.min(...distances) <= epsilon && Math.max(...distances) >= -epsilon) return false;
+        for (const distance of distances)
+          hits.push({
+            distance,
+            point: [q[0] + distance * normal[0], q[1] + distance * normal[1]],
+            ringIndex: r,
+            edgeIndex: i,
+            reference: null,
+            bankArcLength: null
+          });
+      }
+      return true;
+    }
+    const u = offsetCrossNormal / denominator;
+    if (u < 0 || u > 1) return true;
+    const distance = (offsetX * edgeY - offsetY * edgeX) / denominator;
+    const reference = water.bankReferences?.[r]?.[i] ?? null;
+    // Ambiguity at a remote vertex is irrelevant; retain it as an unresolved hit.
+    const interior = u > epsilon && u < 1 - epsilon;
+    hits.push({
+      distance,
+      point: [q[0] + distance * normal[0], q[1] + distance * normal[1]],
+      ringIndex: r,
+      edgeIndex: i,
+      reference: reference ? { ...reference } : null,
+      vertex: !interior,
+      transverseSign: Math.sign(denominator),
+      bankArcLength: reference ? reference.arcStart + u * (reference.arcEnd - reference.arcStart) : null
+    });
+    return true;
+  };
+  if (edges) {
+    const grid = waterEdgeGrid(water)!;
+    for (const k of edges) if (!visit(grid.edgeRing[k], grid.edgeIndex[k])) return null;
+  } else
+    for (let r = 0; r < water.rings.length; r++)
+      for (let i = 0; i < water.rings[r].length; i++) if (!visit(r, i)) return null;
+  return hits;
+}
+
+function mergeNormalSection(hits: SectionHit[]): { negative: NormalBankHit; positive: NormalBankHit } | null {
   hits.sort((a, b) => a.distance - b.distance);
   if (hits.some(h => Math.abs(h.distance) <= epsilon)) return null;
   const merged: NormalBankHit[] = [];
@@ -431,4 +525,171 @@ export function normalWaterSection(
     positive = merged.find(h => h.distance > 0);
   if (!negative || !positive) return null;
   return { negative, positive };
+}
+
+/**
+ * The full-scan result computed from the edges near q, or undefined when the window
+ * cannot prove it. An edge outside the square window can only meet the line farther
+ * than `radius` from q, so every hit within it is found. When no hit lies in the outer
+ * margin, the merge groups (each spanning at most epsilon) inside and outside never
+ * join; and the nearest group on each side lies inside, so the answer is unchanged.
+ */
+function windowedNormalSection(
+  q: RiverPoint,
+  normal: RiverPoint,
+  water: PhysicalWaterPolygon,
+  grid: WaterEdgeGrid,
+  radius: number
+): { negative: NormalBankHit; positive: NormalBankHit } | null | undefined {
+  const edges = grid.query(q[0] - radius, q[1] - radius, q[0] + radius, q[1] + radius);
+  if (!edges) return undefined;
+  const hits = normalSectionHits(q, normal, water, edges);
+  if (!hits) return null;
+  const inner = radius - SECTION_WINDOW_MARGIN_METERS;
+  const near: SectionHit[] = [];
+  let negative = false,
+    positive = false;
+  for (const hit of hits) {
+    const distance = Math.abs(hit.distance);
+    if (distance > radius) continue;
+    if (distance > inner) return undefined;
+    near.push(hit);
+    if (hit.distance < 0) negative = true;
+    else if (hit.distance > 0) positive = true;
+  }
+  if (!negative || !positive) return undefined;
+  return mergeNormalSection(near);
+}
+
+/** Edge buckets of an immutable water polygon. Edge k is (edgeRing[k], edgeIndex[k]) in ring order. */
+class WaterEdgeGrid {
+  readonly edgeRing: number[] = [];
+  readonly edgeIndex: number[] = [];
+  private cells = new Map<number, number[]>();
+  /** Edges by horizontal band, padded like pointInWater's boundary test. */
+  private bands = new Map<number, number[]>();
+  private ringBounds: Bounds[];
+  private stamp: Int32Array;
+  private generation = 0;
+  constructor(
+    water: PhysicalWaterPolygon,
+    private size: number
+  ) {
+    this.ringBounds = water.rings.map(getRingBounds);
+    for (let r = 0; r < water.rings.length; r++) {
+      const ring = water.rings[r];
+      for (let i = 0; i < ring.length; i++) {
+        const k = this.edgeRing.length;
+        this.edgeRing.push(r);
+        this.edgeIndex.push(i);
+        const a = ring[i],
+          b = ring[(i + 1) % ring.length];
+        const x0 = this.cell(Math.min(a[0], b[0])),
+          x1 = this.cell(Math.max(a[0], b[0])),
+          y0 = this.cell(Math.min(a[1], b[1])),
+          y1 = this.cell(Math.max(a[1], b[1]));
+        for (let x = x0; x <= x1; x++)
+          for (let y = y0; y <= y1; y++) {
+            const key = cellKey(x, y);
+            const bucket = this.cells.get(key);
+            if (bucket) bucket.push(k);
+            else this.cells.set(key, [k]);
+          }
+        const b0 = this.band(Math.min(a[1], b[1]) - 2 * epsilon),
+          b1 = this.band(Math.max(a[1], b[1]) + 2 * epsilon);
+        for (let band = b0; band <= b1; band++) {
+          const bucket = this.bands.get(band);
+          if (bucket) bucket.push(k);
+          else this.bands.set(band, [k]);
+        }
+      }
+    }
+    this.stamp = new Int32Array(this.edgeRing.length);
+  }
+  private cell(value: number): number {
+    return Math.floor(value / this.size);
+  }
+  private band(y: number): number {
+    return Math.floor(y / EDGE_BAND_METERS);
+  }
+  /**
+   * pointInWater over the edges whose padded y-span contains the point; others can
+   * neither touch it nor cross its ray. Boundary contact and crossing parity do not
+   * depend on edge order, so the result equals the full scan.
+   */
+  pointInWater(point: RiverPoint, water: PhysicalWaterPolygon): boolean {
+    let inside = false;
+    for (const k of this.bands.get(this.band(point[1])) ?? []) {
+      const b = this.ringBounds[this.edgeRing[k]];
+      if (
+        point[0] < b.minX - epsilon ||
+        point[0] > b.maxX + epsilon ||
+        point[1] < b.minY - epsilon ||
+        point[1] > b.maxY + epsilon
+      )
+        continue;
+      const ring = water.rings[this.edgeRing[k]];
+      const n = ring.length,
+        i = this.edgeIndex[k];
+      const a = ring[i],
+        c = ring[(i + 1) % n];
+      const dx = c[0] - a[0],
+        dy = c[1] - a[1];
+      if (!dx && !dy) continue;
+      if (
+        point[0] >= Math.min(a[0], c[0]) - 2 * epsilon &&
+        point[0] <= Math.max(a[0], c[0]) + 2 * epsilon &&
+        point[1] >= Math.min(a[1], c[1]) - 2 * epsilon &&
+        point[1] <= Math.max(a[1], c[1]) + 2 * epsilon
+      ) {
+        const x = point[0] - a[0],
+          y = point[1] - a[1];
+        const length = Math.hypot(dx, dy);
+        const projection = (x * dx + y * dy) / length;
+        if (Math.abs(dx * y - dy * x) / length <= epsilon && projection >= -epsilon && projection <= length + epsilon)
+          return true;
+      }
+      if (a[1] > point[1] !== c[1] > point[1] && point[0] < a[0] + ((point[1] - a[1]) * (c[0] - a[0])) / (c[1] - a[1]))
+        inside = !inside;
+    }
+    return inside;
+  }
+  /** Edges whose bounds may touch the box, in ring order; null when the box spans too many cells. */
+  query(minX: number, minY: number, maxX: number, maxY: number): number[] | null {
+    const x0 = this.cell(minX) - 1,
+      x1 = this.cell(maxX) + 1,
+      y0 = this.cell(minY) - 1,
+      y1 = this.cell(maxY) + 1;
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 4096) return null;
+    const generation = ++this.generation;
+    const found: number[] = [];
+    for (let x = x0; x <= x1; x++)
+      for (let y = y0; y <= y1; y++) {
+        const bucket = this.cells.get(cellKey(x, y));
+        if (!bucket) continue;
+        for (const k of bucket)
+          if (this.stamp[k] !== generation) {
+            this.stamp[k] = generation;
+            found.push(k);
+          }
+      }
+    return found.sort((a, b) => a - b);
+  }
+}
+const cellKey = (x: number, y: number) => (x + 1048576) * 2097152 + (y + 1048576);
+const EDGE_GRID_METERS = 64;
+const EDGE_BAND_METERS = 16;
+const edgeGridCache = new WeakMap<PhysicalWaterPolygon, WaterEdgeGrid | null>();
+
+/** Only frozen snapshots are indexed, so a cached index can never describe changed rings. */
+function waterEdgeGrid(water: PhysicalWaterPolygon): WaterEdgeGrid | null {
+  const cached = edgeGridCache.get(water);
+  if (cached !== undefined) return cached;
+  const frozen =
+    Object.isFrozen(water) &&
+    Object.isFrozen(water.rings) &&
+    water.rings.every(ring => Object.isFrozen(ring) && ring.every(Object.isFrozen));
+  const grid = frozen ? new WaterEdgeGrid(water, EDGE_GRID_METERS) : null;
+  if (frozen) edgeGridCache.set(water, grid);
+  return grid;
 }

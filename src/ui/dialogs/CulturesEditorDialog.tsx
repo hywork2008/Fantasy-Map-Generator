@@ -6,6 +6,7 @@ import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
 import { CULTURE_TYPES, FUNERAL_RITES } from "../../types/models";
 import { capitalize, rn, si } from "../../utils";
+import { DEFAULT_LOT_OCCUPANCY } from "../../utils/cultureLotOccupancy";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
@@ -72,6 +73,9 @@ export const CulturesEditorDialog: React.FC = () => {
       } else if (sortBy === "expansionism") {
         valA = a.expansionism;
         valB = b.expansionism;
+      } else if (sortBy === "lotOccupancy") {
+        valA = a.lotOccupancy ?? DEFAULT_LOT_OCCUPANCY;
+        valB = b.lotOccupancy ?? DEFAULT_LOT_OCCUPANCY;
       } else if (sortBy === "area") {
         valA = a.area;
         valB = b.area;
@@ -174,6 +178,14 @@ export const CulturesEditorDialog: React.FC = () => {
                   hide
                   numeric
                   width="8em"
+                />
+                <SortHeader
+                  label="Lot occ."
+                  col="lotOccupancy"
+                  tip="City Editor Lot occupancy guide (%). Empty uses the 80% default. Click to sort"
+                  hide
+                  numeric
+                  width="5em"
                 />
                 <SortHeader label="Area" col="area" tip="Click to sort by culture area" hide numeric width="6em" />
                 <SortHeader
@@ -349,6 +361,19 @@ export const CulturesEditorDialog: React.FC = () => {
                           onChange={e => culturesEditorActions.changeExpansionism(c.i, e.target.valueAsNumber)}
                         />
                       </div>
+                    </td>
+                    <td className="hide numeric">
+                      <input
+                        data-tip="Lot occupancy guide (%) for this culture's towns in City Editor. FMG sizes the town so its houses fill this share of lots. Empty uses the 80% default"
+                        className="cultureLotOccupancy"
+                        type="number"
+                        min="1"
+                        max="100"
+                        step="1"
+                        placeholder={String(DEFAULT_LOT_OCCUPANCY * 100)}
+                        value={c.lotOccupancy === null ? "" : Math.round(c.lotOccupancy * 100)}
+                        onChange={e => culturesEditorActions.changeLotOccupancy(c.i, e.target.valueAsNumber / 100)}
+                      />
                     </td>
                     <td className="hide numeric">
                       <span data-tip="Culture area" />

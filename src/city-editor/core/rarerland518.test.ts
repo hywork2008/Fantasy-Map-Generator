@@ -3,6 +3,7 @@ import { shareFromDescriptor } from "../io/incomingCity";
 import fixture from "./fixtures/rarerland518-20261004.json";
 import { externalGateRoads } from "./gen/approachBeyond";
 import { buildBlockFabric } from "./gen/blockInfill";
+import { HOUSING_FIT_TOLERANCE } from "./gen/fitImportedHousing";
 import { polygonArea } from "./gen/geom";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { generateCityOnDocument } from "./generate";
@@ -25,8 +26,10 @@ describe("Rarerland burg 518", () => {
     const houses = buildings.filter(
       b => !b.landmark && (!b.role || b.role === "main") && (!b.uses || b.uses.includes("residential"))
     );
-    expect(houses.length).toBeGreaterThanOrEqual(fixture.burg.dwellings);
-    expect(houses.length).toBeLessThanOrEqual(Math.ceil(fixture.burg.dwellings * 1.05));
+    // The fast default fit accepts ±10% of the dwellings.
+    expect(Math.abs(houses.length - fixture.burg.dwellings)).toBeLessThanOrEqual(
+      fixture.burg.dwellings * HOUSING_FIT_TOLERANCE
+    );
     expect(Math.max(...houses.map(b => Math.abs(polygonArea(b.polygon))))).toBeLessThan(200);
     const half = city.frame.extentMeters / 2;
     for (const exit of externalGateRoads(city)) {

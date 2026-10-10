@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mountCityEditor } from "./CityEditorPage";
 
 // jsdom has no layout engine; the History panel calls this after every commit.
@@ -9,12 +9,19 @@ if (typeof Element.prototype.scrollIntoView !== "function") {
 let root: HTMLElement;
 
 beforeEach(() => {
+  // New-grid seeds come from Math.random(); pin them so face statistics are reproducible.
+  let state = 0x9e3779b9;
+  vi.spyOn(Math, "random").mockImplementation(() => {
+    state = (Math.imul(state ^ (state >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0;
+    return state / 0x100000000;
+  });
   root = document.createElement("div");
   document.body.append(root);
   mountCityEditor(root);
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   root.remove();
 });
 

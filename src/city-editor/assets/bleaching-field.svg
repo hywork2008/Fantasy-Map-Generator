@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -16 44 32" width="550" height="400">
+  <style>
+    .ce-bleach-shadow { fill: rgba(18, 22, 25, 0.3); }
+    .ce-bleach-meadow { fill: #5b7342; stroke: #2d3b1e; stroke-width: 0.5px; }
+    .ce-bleach-water { fill: #386d8a; stroke: #193f54; stroke-width: 0.35px; }
+    .ce-bleach-cloth { fill: #f7f5f0; stroke: #cfcabb; stroke-width: 0.25px; }
+    .ce-bleach-frame { stroke: #543d26; stroke-width: 0.35px; }
+    .ce-bleach-hut { fill: #755536; stroke: #362414; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--bleaching-field">
+    <!-- 影 -->
+    <g class="ce-bleach-shadow" transform="translate(1 1.2)">
+      <rect x="-18" y="-12" width="36" height="24" rx="0.6"></rect>
+    </g>
+    <!-- 漂白草地（Bleach Green Meadow） -->
+    <g class="ce-bleach-meadow">
+      <rect x="-18" y="-12" width="36" height="24" rx="0.5"></rect>
+    </g>
+    <!-- 洗浄用水路（Rinsing Canal - 北端を流れる小川） -->
+    <g class="ce-bleach-water">
+      <rect x="-18" y="-11" width="36" height="2.5"></rect>
+    </g>
+    <!-- 平行に整然と並ぶ長大なテンター枠と純白の晒し布（Tenter Grounds） -->
+    <!-- 第1列 -->
+    <g transform="translate(-1, -6)">
+      <line x1="-15" y1="0" x2="13" y2="0" class="ce-bleach-frame"></line>
+      <rect x="-14.5" y="-0.6" width="27" height="1.2" class="ce-bleach-cloth"></rect>
+    </g>
+    <!-- 第2列 -->
+    <g transform="translate(-1, -2.5)">
+      <line x1="-15" y1="0" x2="13" y2="0" class="ce-bleach-frame"></line>
+      <rect x="-14.5" y="-0.6" width="27" height="1.2" class="ce-bleach-cloth"></rect>
+    </g>
+    <!-- 第3列 -->
+    <g transform="translate(-1, 1)">
+      <line x1="-15" y1="0" x2="13" y2="0" class="ce-bleach-frame"></line>
+      <rect x="-14.5" y="-0.6" width="27" height="1.2" class="ce-bleach-cloth"></rect>
+    </g>
+    <!-- 第4列 -->
+    <g transform="translate(-1, 4.5)">
+      <line x1="-15" y1="0" x2="13" y2="0" class="ce-bleach-frame"></line>
+      <rect x="-14.5" y="-0.6" width="27" height="1.2" class="ce-bleach-cloth"></rect>
+    </g>
+    <!-- 第5列 -->
+    <g transform="translate(-1, 8)">
+      <line x1="-15" y1="0" x2="13" y2="0" class="ce-bleach-frame"></line>
+      <rect x="-14.5" y="-0.6" width="27" height="1.2" class="ce-bleach-cloth"></rect>
+    </g>
+    <!-- 織物職人の管理・巻き取り作業小屋（Hut - 東南隅） -->
+    <g transform="translate(14, 5)">
+      <rect x="-2" y="-2.5" width="4" height="5" rx="0.3" class="ce-bleach-hut"></rect>
+      <!-- 切妻屋根棟線 -->
+      <line x1="0" y1="-2.5" x2="0" y2="2.5" stroke="#a37c55" stroke-width="0.4"></line>
+      <!-- 丸められた布ロール -->
+      <circle cx="-1" cy="3.5" r="0.6" fill="#f7f5f0" stroke="#8a8475" stroke-width="0.2"></circle>
+      <circle cx="1" cy="3.5" r="0.6" fill="#f7f5f0" stroke="#8a8475" stroke-width="0.2"></circle>
+    </g>
+  </g>
+</svg>

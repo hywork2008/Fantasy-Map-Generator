@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { featureGroupVertices } from "./features";
 import fixture from "./fixtures/river-gates-20260923.json";
-import { defaultGenerationSettings, generateCityAttempt, generateStageOnDocument, generateWardStep } from "./generate";
+import {
+  countExternalApproachRoads,
+  defaultGenerationSettings,
+  generateCityAttempt,
+  generateStageOnDocument,
+  generateWardStep
+} from "./generate";
 import { faceVertices, validate } from "./mesh";
 import { explainGeneratedCrossingFailures, kindEdgeIds, vertexHasCrossing } from "./passages";
 import type { CityDocument } from "./types";
@@ -24,13 +30,24 @@ describe("river-side gate preservation", () => {
     )
   ] as const;
   for (const { coast, river, seed } of cases) {
-    it(`${coast}/${river}/${seed}: keeps stage-four gates connected to the plaza and frame through completion`, () => {
+    it(`${coast}/${river}/${seed}: preserves valid gate approaches and rejects unsafe river-wall candidates`, () => {
       const input = fixture as CityDocument;
       const settings = defaultGenerationSettings();
       settings.layout = "classic";
       settings.config.coast = coast;
       settings.config.features.port = coast !== "none";
       settings.config.rivers = [river];
+      const rejected = (coast === "bay" && seed === fixture.generationSeed) || (coast === "cape" && seed === "gates-a");
+      if (rejected) {
+        const failures: string[] = [];
+        expect(
+          generateStageOnDocument(input, settings, seed, 4, preview =>
+            failures.push(preview.sample.failure?.reason ?? "")
+          )
+        ).toBeNull();
+        expect(failures).toContain("wall-river-routing-failed");
+        return;
+      }
       const walls = generateStageOnDocument(input, settings, seed, 4)!;
       expect(walls).not.toBeNull();
       expect(walls.gates.length).toBeGreaterThan(0);
@@ -73,10 +90,14 @@ describe("river-side gate preservation", () => {
             [...targets].some(id => seen.has(id)),
             `${gate.vertexId} reaches plaza`
           ).toBe(true);
-          expect(
-            queue.some(id => city.mesh.vertices[id].point.some(v => Math.abs(v) >= city.frame.extentMeters / 2 - 1)),
-            `${gate.vertexId} reaches frame`
-          ).toBe(true);
+          // Coastal approach roads may terminate inland of the frame/shore.
+          expect(countExternalApproachRoads(city)).toBeGreaterThan(0);
+          if (coast === "none") {
+            expect(
+              queue.some(id => city.mesh.vertices[id].point.some(v => Math.abs(v) >= city.frame.extentMeters / 2 - 1)),
+              `${gate.vertexId} reaches frame`
+            ).toBe(true);
+          }
           expect(
             city.featureGroups.filter(g => g.kind === "road" && featureGroupVertices(city, g).includes(gate.vertexId))
               .length

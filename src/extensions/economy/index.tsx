@@ -70,6 +70,7 @@ import { ApothecaryWorkshops } from "./generators/apothecaryWorkshops";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposition";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
+import { buildBurgSiteEconomy } from "./generators/burgSiteEconomy";
 import { Caravans } from "./generators/caravans";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
@@ -308,6 +309,7 @@ import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { StateEmploymentOverviewDialog } from "./ui/dialogs/StateEmploymentOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
+import { TradeCorridorsDialog } from "./ui/dialogs/TradeCorridorsDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 import { TreasuryOverviewDialog } from "./ui/dialogs/TreasuryOverviewDialog";
 
@@ -1992,6 +1994,11 @@ export function init(api: ExtensionAPI): void {
   });
   api.registerDialog({ id: "TradeDetailsDialog", extensionId: ECONOMY_EXTENSION_ID, component: TradeDetailsDialog });
   api.registerDialog({
+    id: "TradeCorridorsDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: TradeCorridorsDialog
+  });
+  api.registerDialog({
     id: "ProductionChainsDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: ProductionChainsDialog
@@ -2449,6 +2456,7 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
+      api.burgEconomyExtensions.getBurgSiteEconomy = buildBurgSiteEconomy;
       registerOverviewColumns(api);
       // Demography birth floor: pregnancy due sets a lower bound on urban births (PR-P2).
       registerUrbanPregnancyBirthFloor();
@@ -2479,6 +2487,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("marketTradeOpportunities");
       api.closeDialog("marketsGoodCompare");
       api.closeDialog("tradeDetails");
+      api.closeDialog("tradeCorridors");
       api.closeDialog("productionChains");
       api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
@@ -2502,6 +2511,7 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
+      api.burgEconomyExtensions.getBurgSiteEconomy = undefined;
       unregisterOverviewColumns(api);
     }
   });
@@ -2518,6 +2528,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
+    api.burgEconomyExtensions.getBurgSiteEconomy = buildBurgSiteEconomy;
     registerOverviewColumns(api);
     registerUrbanPregnancyBirthFloor();
     // A persisted preference is restored before the first map has generated.
@@ -3940,6 +3951,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
   api.burgEconomyExtensions.getBurgEconomySummary = undefined;
+  api.burgEconomyExtensions.getBurgSiteEconomy = undefined;
   unregisterOverviewColumns(api);
   clearUrbanPregnancyBirthFloorRegistration();
 

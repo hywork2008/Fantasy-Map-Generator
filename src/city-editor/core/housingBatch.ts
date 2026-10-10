@@ -2,15 +2,26 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { worldContext } from "../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
+import { DEFAULT_LOT_OCCUPANCY } from "../../utils/cultureLotOccupancy";
 import { parseIncomingPayload } from "../io/incomingCity";
 import { readCsv, writeCsv } from "./batchCsv";
 import { DEFAULT_PATCH_PARAMS } from "./gen/patches";
-import { burgIdsForTokens, compareShareHousing, loadArchiveWorld } from "./housingReport";
+import { burgIdsForTokens, compareShareHousing, type HousingOccupancySurvey, loadArchiveWorld } from "./housingReport";
 
 export { readCsv, writeCsv } from "./batchCsv";
 
-export async function exportHousingInputs(archive: string, tokens: string[]): Promise<Record<string, unknown>[]> {
+const round = (value: number | null | undefined, digits = 3) =>
+  value == null || !Number.isFinite(value) ? "" : Math.round(value * 10 ** digits) / 10 ** digits;
+
+/** `lotOccupancy` (0–1) overrides every culture's guide, to compare sizings on one map. */
+export async function exportHousingInputs(
+  archive: string,
+  tokens: string[],
+  lotOccupancy?: number
+): Promise<Record<string, unknown>[]> {
   await loadArchiveWorld(archive);
+  if (lotOccupancy !== undefined)
+    for (const culture of worldContext.pack.cultures ?? []) if (culture) culture.lotOccupancy = lotOccupancy;
   const selected = tokens.length
     ? burgIdsForTokens(tokens)
     : (worldContext.pack.burgs ?? []).flatMap((burg, i) =>
@@ -34,6 +45,7 @@ export async function exportHousingInputs(archive: string, tokens: string[]): Pr
           name: descriptor.burg.name,
           population: descriptor.burg.population,
           dwellings: descriptor.burg.dwellings,
+          lot_occupancy_pct: round((descriptor.burg.lotOccupancy ?? DEFAULT_LOT_OCCUPANCY) * 100, 1),
           seed: share.seed,
           grid: share.grid,
           size: share.size,
@@ -69,6 +81,43 @@ export async function exportHousingInputs(archive: string, tokens: string[]): Pr
       ];
     }
   });
+}
+
+/** Lot occupancy survey columns; percentages match the CE panel's 「Lot occupancy (%)」. */
+function occupancyColumns(survey: HousingOccupancySurvey | null): Record<string, unknown> {
+  if (!survey) return {};
+  const fit = survey.fit;
+  const zone = (prefix: string, z: HousingOccupancySurvey["core"]) => ({
+    [`${prefix}_cells`]: z.cells,
+    [`${prefix}_area_m2`]: Math.round(z.areaM2),
+    [`${prefix}_occupancy_pct`]: round(z.occupancy === null ? null : z.occupancy * 100, 1),
+    [`${prefix}_initial_occupancy_pct`]: round(z.initialOccupancy === null ? null : z.initialOccupancy * 100, 1),
+    [`${prefix}_coverage`]: round(z.coverage),
+    [`${prefix}_lot_area_m2`]: round(z.lotAreaM2, 1),
+    [`${prefix}_house_footprint_m2`]: Math.round(z.houseFootprintM2),
+    [`${prefix}_footprint_ratio`]: round(z.areaM2 > 0 ? z.houseFootprintM2 / z.areaM2 : null)
+  });
+  return {
+    fit_skipped: fit?.skipped ?? "",
+    target_occupancy_pct: fit ? round(fit.targetOccupancy * 100, 1) : "",
+    fit_districts: fit?.districts ?? "",
+    fit_initial_houses: fit?.initialHouses ?? "",
+    fit_final_houses: fit?.finalHouses ?? "",
+    fit_factor: round(fit?.factor, 4),
+    fit_outskirts_factor: round(fit?.outskirtsFactor, 4),
+    fit_suburbs: fit?.suburbs ?? "",
+    fit_rebuilds: fit?.samples.length ?? "",
+    fit_samples: fit
+      ? fit.samples.map(([core, outskirts, houses]) => `${round(core, 4)}/${round(outskirts, 4)}:${houses}`).join(" ")
+      : "",
+    fit_ms: round(survey.fitMs, 0),
+    ...zone("core", survey.core),
+    ...zone("outskirts", survey.outskirts),
+    capacity_at_full_occupancy: round(survey.capacityAtFullOccupancy, 0),
+    required_occupancy_pct: round(survey.requiredOccupancy === null ? null : survey.requiredOccupancy * 100, 1),
+    dwellings_per_ha: round(survey.dwellingsPerHectare, 1),
+    capacity_per_ha: round(survey.capacityPerHectare, 1)
+  };
 }
 
 export function compareHousingInputs(
@@ -108,6 +157,7 @@ export function compareHousingInputs(
         relative_gap: delta !== null && report.input!.dwellings > 0 ? delta / report.input!.dwellings : null,
         error: output.generated ? "" : (output.failure ?? "City generation failed"),
         failure_reasons: output.failureReasons.join(";"),
+        ...occupancyColumns(output.occupancy),
         generation_diagnostics_json: JSON.stringify(output.diagnostics)
       };
     } catch (error) {
@@ -139,10 +189,11 @@ export async function runHousingBatch(options: {
   input: string;
   output: string;
   tokens: string[];
+  lotOccupancy?: number;
 }): Promise<void> {
   const rows =
     options.mode === "export"
-      ? await exportHousingInputs(options.input, options.tokens)
+      ? await exportHousingInputs(options.input, options.tokens, options.lotOccupancy)
       : compareHousingInputs(readCsv(readFileSync(options.input, "utf8")), (index, total) =>
           process.stderr.write(`[housing] ${index}/${total}\n`)
         );

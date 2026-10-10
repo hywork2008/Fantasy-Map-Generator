@@ -1,7 +1,8 @@
 import { normalWaterSection, type PhysicalWaterPolygon, pointInWater } from "../../services/riverPhysicalGeometry";
+import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 import { planRiverCrossing } from "../../utils/riverCrossing";
 import { BRIDGE_BANK_SEAT } from "./bridgeDeck";
-import { townMeshExtentMeters } from "./document";
+import { seaPortShoreDistanceMeters, townMeshExtentMeters } from "./document";
 import { segmentSegmentHit } from "./gen/geom";
 import type { BurgSiteDescriptor, BurgSiteRiver } from "./gen/site/burgSiteDescriptor";
 import type { Point } from "./types";
@@ -71,7 +72,8 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
       ? townMeshExtentMeters(
           site.frame,
           site.burg.waterAccess?.port.river === true,
-          site.burg.riverPlacement?.bankDistanceMeters
+          site.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(site)
         ) / 2
       : 0;
   const legs: FrameRoadLeg[] = [];
@@ -105,8 +107,8 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
       }
       const scoped =
         scope === "beyond-mesh" ? pathOutsideMesh(item.path, half, decks, site.frame.extentMeters / 2) : item.path;
-      const outer = finitePath(scoped);
       const full = finitePath(item.path.map(point));
+      const outer = finitePath(scoped) ?? (scope === "beyond-mesh" && full ? bankedTail(full, half, bodies) : null);
       const path = outer && scope === "beyond-mesh" && full ? shoreStart(full, outer, bodies) : outer;
       if (!path || polylineLength(path) < MIN_PIECE_METERS) continue;
       const pieces = piecesFor(path, bodies, site, decks);
@@ -193,9 +195,17 @@ function piecesFor(
     absorb(slicePath(path, consumed, interval.start));
     const bridge = planBridge(interval, path, site, decks);
     if (!bridge) {
-      const around = skirtInterval(path, interval);
+      // FMG runs the road into a river no era's bridge spans and ends it
+      // there: that is a ferry. Stop at the landing instead of running along
+      // the bank to the frame (Toyora's 2.5 km river).
+      const river = interval.body.river;
+      const ferry =
+        total - interval.end < 1e-3 &&
+        !!river &&
+        river.widthMeters > resolveBridgeCrossingLimit(site.historicalPeriod, site.transport);
+      const around = ferry ? null : skirtInterval(path, interval);
       if (!around) {
-        landOnFrame(dry, path, bodies, half);
+        if (!ferry) landOnFrame(dry, path, bodies, half);
         flush();
         return finish(pieces, half);
       }
@@ -242,7 +252,10 @@ function piecesFor(
             nearest = index;
           }
         });
-        dry = dedupe([...dry, ...traced.slice(nearest)]);
+        // A wide river whose descriptor path ends mid-channel projects every
+        // sample onto the near bank; that trace is not a far-bank road.
+        if (segmentClears(bridge.farApproach, traced[nearest], [{ water: interval.body.water, river: null }]))
+          dry = dedupe([...dry, ...traced.slice(nearest)]);
       }
     }
     consumed = interval.end;
@@ -538,6 +551,20 @@ function pathOutsideMesh(
   return tail;
 }
 
+/** The town mesh can cover the whole frame (Yayaropuz). A road that runs into
+ * a river and is still in it at the frame edge stops at the town bank inside
+ * the mesh, so nothing is left outside the square. Start the frame road at
+ * that bank: the crossing is planned on the river normal like any other. */
+function bankedTail(full: Point[], meshHalf: number, bodies: WaterBody[]): Point[] | null {
+  const end = full.at(-1);
+  if (!end || !reachesFrame(end, meshHalf)) return null;
+  const last = wetIntervals(full, bodies).at(-1);
+  const total = polylineLength(full);
+  if (!last?.body.river || total - last.end > 1e-3 || last.start < APPROACH_METERS) return null;
+  const tail = slicePath(full, last.start - APPROACH_METERS, total);
+  return tail.length >= 2 ? tail : null;
+}
+
 /** When the town square cuts through a channel, start at the bank on the town side of that water. */
 function shoreStart(full: Point[], outer: Point[], bodies: WaterBody[]): Point[] {
   if (!bodies.some(body => body.river && deepInWater(outer[0], body.water))) return outer;
@@ -613,8 +640,27 @@ function dryTrace(path: Point[], from: number, to: number, water: PhysicalWaterP
     points.push(next);
     previous = next;
   }
+  const ahead = pointAt(path, from + Math.min(length, 1));
+  const start = pointAt(path, from);
+  dropBackwardStart(points, prefer, [ahead[0] - start[0], ahead[1] - start[1]], water);
   const cleaned = dedupe(points);
   return cleaned.length >= 2 ? cleaned : null;
+}
+
+/** The first bank points can lead backwards: the road arrives, turns back
+ * along the water and only then runs on (a J hook, Mamium). Keep the turn off
+ * the arrival to at most a right angle (an L) by skipping the points that
+ * still lie behind the arrival point. */
+function dropBackwardStart(points: Point[], from: Point, arrival: Point, water: PhysicalWaterPolygon): void {
+  const body: WaterBody[] = [{ water, river: null }];
+  const behind = (p: Point) => (p[0] - from[0]) * arrival[0] + (p[1] - from[1]) * arrival[1] < 0;
+  while (points.length > 2) {
+    const first = dist(points[0], from) < 0.05 ? 1 : 0;
+    if (!behind(points[first]) || points.length <= first + 1) return;
+    const keep = points.findIndex((p, i) => i > first && !behind(p));
+    if (keep < 0 || !segmentClears(from, points[keep], body)) return;
+    points.splice(0, keep);
+  }
 }
 
 /** Shorter ring arc between two banks, when it stays near the road and out of the channel. */
@@ -639,6 +685,7 @@ function alongBank(water: PhysicalWaterPolygon, from: Point, to: Point, limit: n
   }
   if (!best) return null;
   const body: WaterBody[] = [{ water, river: null }];
+  dropBackwardStart(best, from, [to[0] - from[0], to[1] - from[1]], water);
   const joined = segmentClears(from, best[0], body) ? dedupe([from, ...best]) : best;
   return joined.length >= 2 ? joined : null;
 }

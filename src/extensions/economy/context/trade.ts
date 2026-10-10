@@ -43,6 +43,7 @@ import type {
 import type { LaborMarket } from "../generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "../generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "../generators/strategicProcurementTypes";
+import type { TradeCorridor } from "../generators/tradeCorridorLedger";
 import type { MerchantVesselOwnership } from "../generators/vesselOwnershipTypes";
 import { getProductionTable, getSliceArray, getSliceNumber, setSliceArray, setSliceNumber } from "./economyApi";
 
@@ -244,6 +245,15 @@ export function getMarketShipments(): MarketShipment[] {
 
 export function setMarketShipments(shipments: readonly MarketShipment[]): void {
   setSliceArray("marketShipments", shipments);
+}
+
+/** Undirected burg-pair cargo ledger. See tradeCorridorLedger.ts. */
+export function getTradeCorridors(): TradeCorridor[] {
+  return getSliceArray<TradeCorridor>("tradeCorridors");
+}
+
+export function setTradeCorridors(corridors: readonly TradeCorridor[]): void {
+  setSliceArray("tradeCorridors", corridors);
 }
 
 export function getNextMarketShipmentId(): number {

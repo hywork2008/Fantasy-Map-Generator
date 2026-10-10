@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGridDocument, createSizedDocument } from "./document";
-import riverGateFixture from "./fixtures/river-gates-20260923.json";
 import { defaultGenerationSettings, generateCityAttempt, generateCityOnDocument } from "./generate";
 import {
   formatGenerationFailureLog,
@@ -8,7 +7,6 @@ import {
   generationPhaseLabel,
   logGenerationFailures
 } from "./generationDiagnostics";
-import type { CityDocument } from "./types";
 
 describe("generation failure diagnostics", () => {
   it("labels stages in Japanese", () => {
@@ -101,14 +99,14 @@ describe("generation failure diagnostics", () => {
 });
 
 it("includes paired routing traces in a real rejected gate-generation sample", () => {
-  const settings = defaultGenerationSettings();
-  settings.layout = "classic";
-  settings.config.coast = "none";
-  settings.config.features.port = false;
-  settings.config.rivers = ["meander"];
+  // The river-gate fixture now generates; this seed is still rejected at gate routing.
   const samples: GenerationSample[] = [];
-  generateCityAttempt(riverGateFixture as CityDocument, settings, riverGateFixture.generationSeed, sample =>
-    samples.push(sample)
+  generateCityAttempt(
+    createGridDocument({ size: "tiny", grid: "evolution", seed: "ce-audit-20261002-mesh" }),
+    defaultGenerationSettings(),
+    "ce-audit-20261002:121:junction-retry:1",
+    sample => samples.push(sample),
+    2
   );
   const failure = samples.find(sample => sample.failure?.reason === "unconnected-gates")!.failure!;
   expect(failure.routing!.length).toBeGreaterThan(0);

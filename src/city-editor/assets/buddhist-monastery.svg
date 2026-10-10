@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -26 48 52" width="500" height="540">
+  <style>
+    .ce-buddhist-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-buddhist-ground { fill: #ded6c5; stroke: #42392b; stroke-width: 0.6px; }
+    .ce-buddhist-cloister { fill: #ab6a47; stroke: #3d2416; stroke-width: 0.45px; }
+    .ce-buddhist-roof-main { fill: #48545e; stroke: #20262b; stroke-width: 0.5px; }
+    .ce-buddhist-ridge { stroke: #e3ded6; stroke-width: 0.55px; stroke-linecap: round; }
+    .ce-buddhist-pagoda-roof { fill: #3e4952; stroke: #1e2429; stroke-width: 0.4px; }
+    .ce-buddhist-sorin { fill: #dfa83d; stroke: #523b0d; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--buddhist-monastery">
+    <!-- ドロップシャドウ -->
+    <g class="ce-buddhist-shadow" transform="translate(1.4 1.6)">
+      <rect x="-18" y="-18" width="36" height="36" rx="1"></rect>
+      <rect x="-14" y="-2" width="10" height="10" rx="0.5"></rect>
+      <rect x="3" y="-3" width="12" height="12" rx="0.5"></rect>
+      <rect x="-8" y="-16" width="16" height="8" rx="0.5"></rect>
+    </g>
+    <!-- 境内基壇・白砂中庭 -->
+    <g class="ce-buddhist-ground">
+      <rect x="-18" y="-18" width="36" height="38" rx="0.8"></rect>
+      <!-- 白砂砂利敷き紋様 -->
+      <line x1="-16" y1="8" x2="16" y2="8" stroke="#cfc7b4" stroke-width="0.3"></line>
+      <line x1="-16" y1="-7" x2="16" y2="-7" stroke="#cfc7b4" stroke-width="0.3"></line>
+    </g>
+    <!-- 回廊（中庭を取り囲むコの字型回廊瓦屋根） -->
+    <g class="ce-buddhist-cloister">
+      <!-- 西回廊 -->
+      <rect x="-17.5" y="-17.5" width="2.5" height="34" rx="0.3"></rect>
+      <!-- 東回廊 -->
+      <rect x="15" y="-17.5" width="2.5" height="34" rx="0.3"></rect>
+      <!-- 北回廊（講堂と連結） -->
+      <rect x="-17.5" y="-17.5" width="35" height="2.5" rx="0.3"></rect>
+      <!-- 南回廊（中門左右） -->
+      <rect x="-17.5" y="14" width="12" height="2.5" rx="0.3"></rect>
+      <rect x="5.5" y="14" width="12" height="2.5" rx="0.3"></rect>
+    </g>
+    <!-- 中門（Chumon）南側正面入口 -->
+    <g transform="translate(0, 15.2)">
+      <rect x="-5" y="-2.2" width="10" height="4.4" rx="0.4" class="ce-buddhist-roof-main"></rect>
+      <line x1="-4.6" y1="0" x2="4.6" y2="0" class="ce-buddhist-ridge"></line>
+      <circle cx="-3.8" cy="1.6" r="0.25" fill="#dfa83d"></circle>
+      <circle cx="3.8" cy="1.6" r="0.25" fill="#dfa83d"></circle>
+    </g>
+    <!-- 南大門（山門・外郭南側） -->
+    <g transform="translate(0, 22.5)">
+      <rect x="-6" y="-2.5" width="12" height="5" rx="0.4" fill="#3a444d" stroke="#1d2226" stroke-width="0.5"></rect>
+      <line x1="-5.5" y1="0" x2="5.5" y2="0" class="ce-buddhist-ridge"></line>
+      <!-- 門扉入口 -->
+      <rect x="-1.5" y="-1" width="3" height="2" fill="#1b1712"></rect>
+    </g>
+    <!-- 五重塔（Pagoda - 西側）5段の層塔屋根と相輪 -->
+    <g transform="translate(-8.5, 3)">
+      <!-- 初層〜五層の重層瓦屋根 -->
+      <rect x="-5" y="-5" width="10" height="10" rx="0.5" class="ce-buddhist-pagoda-roof"></rect>
+      <rect x="-4.2" y="-4.2" width="8.4" height="8.4" rx="0.4" fill="#48545e" stroke="#1e2429" stroke-width="0.4"></rect>
+      <rect x="-3.4" y="-3.4" width="6.8" height="6.8" rx="0.3" class="ce-buddhist-pagoda-roof"></rect>
+      <rect x="-2.6" y="-2.6" width="5.2" height="5.2" rx="0.3" fill="#48545e" stroke="#1e2429" stroke-width="0.35"></rect>
+      <rect x="-1.8" y="-1.8" width="3.6" height="3.6" rx="0.2" class="ce-buddhist-pagoda-roof"></rect>
+      <!-- 屋根の四隅稜線 -->
+      <line x1="-5" y1="-5" x2="5" y2="5" stroke="#252c33" stroke-width="0.4"></line>
+      <line x1="-5" y1="5" x2="5" y2="-5" stroke="#252c33" stroke-width="0.4"></line>
+      <!-- 頂部相輪（九輪・竜車・宝珠） -->
+      <circle cx="0" cy="0" r="1.1" class="ce-buddhist-sorin"></circle>
+      <circle cx="0" cy="0" r="0.7" fill="#f7cd63"></circle>
+      <circle cx="0" cy="0" r="0.35" fill="#e6a422"></circle>
+    </g>
+    <!-- 金堂（Kondo / Main Hall - 東側）二重入母屋大屋根 -->
+    <g transform="translate(8.5, 3)">
+      <!-- 下層裳階瓦屋根 -->
+      <rect x="-7" y="-5.5" width="14" height="11" rx="0.6" class="ce-buddhist-roof-main"></rect>
+      <!-- 上層入母屋本屋根 -->
+      <polygon points="-5.5,-4 5.5,-4 4.5,-2 -4.5,-2" fill="#5b6975"></polygon>
+      <polygon points="-5.5,4 5.5,4 4.5,2 -4.5,2" fill="#363f47"></polygon>
+      <rect x="-5" y="-3.5" width="10" height="7" rx="0.4" fill="#444f59" stroke="#1e2429" stroke-width="0.45"></rect>
+      <!-- 大棟（Ridge）と鬼瓦・鴟尾 -->
+      <line x1="-4.6" y1="0" x2="4.6" y2="0" stroke="#f0ebe1" stroke-width="0.7" stroke-linecap="round"></line>
+      <polygon points="-4.8,-0.6 -4.8,0.6 -4.2,0" class="ce-buddhist-sorin"></polygon>
+      <polygon points="4.8,-0.6 4.8,0.6 4.2,0" class="ce-buddhist-sorin"></polygon>
+    </g>
+    <!-- 講堂（Kodo / Lecture Hall - 北側中央）横長の重厚な入母屋屋根 -->
+    <g transform="translate(0, -12)">
+      <rect x="-10" y="-4" width="20" height="8" rx="0.6" class="ce-buddhist-roof-main"></rect>
+      <!-- 切妻棟線 -->
+      <line x1="-8.8" y1="0" x2="8.8" y2="0" class="ce-buddhist-ridge" stroke-width="0.7"></line>
+      <circle cx="-8.8" cy="0" r="0.4" class="ce-buddhist-sorin"></circle>
+      <circle cx="8.8" cy="0" r="0.4" class="ce-buddhist-sorin"></circle>
+    </g>
+    <!-- 鐘楼（北西）と経蔵（北東） -->
+    <g transform="translate(-14, -8)">
+      <rect x="-2" y="-2" width="4" height="4" rx="0.3" class="ce-buddhist-roof-main"></rect>
+      <circle cx="0" cy="0" r="0.7" fill="#695844"></circle>
+    </g>
+    <g transform="translate(14, -8)">
+      <rect x="-2" y="-2" width="4" height="4" rx="0.3" class="ce-buddhist-roof-main"></rect>
+      <line x1="-1.6" y1="0" x2="1.6" y2="0" stroke="#eae4d8" stroke-width="0.4"></line>
+    </g>
+  </g>
+</svg>

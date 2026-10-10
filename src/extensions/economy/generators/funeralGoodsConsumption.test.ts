@@ -44,6 +44,13 @@ describe("consumeFuneralMaterialsFromPending", () => {
     expect(market.goods[12].stock).toBeCloseTo(1.75);
   });
 
+  it("consumes aromatic burial supplies from the spice market", () => {
+    vi.mocked(getGoods).mockReturnValue([{ i: 13, name: "Spices" }] as ReturnType<typeof getGoods>);
+    market.goods[13] = { stock: 3, price: 1 };
+    expect(consumeFuneralMaterialsFromPending({ 1: { wood: 0, stone: 0, linen: 0, incense: 2 } })).toBe(2);
+    expect(market.goods[13].stock).toBe(1);
+  });
+
   it("does not go negative when stock is short", () => {
     consumeFuneralMaterialsFromPending({
       1: { wood: 100, stone: 0, linen: 0 }

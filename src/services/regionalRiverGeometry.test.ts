@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { WorldContext } from "../context/worldContext";
+import * as riverShape from "../utils/riverShape";
 import { indexedPhysicalWater } from "./indexedPhysicalWater";
 import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeometry";
 import { evaluateRiverAxis } from "./riverAxisSampling";
@@ -70,6 +71,22 @@ describe("regional physical rivers", () => {
     expect(prepared(world)).not.toBe(a);
     const b = prepared(world);
     expect(regionalRiverGeometry(world, world.pack.rivers[0], "mi", SETTLEMENT_RIVER_SETTINGS)).not.toBe(b);
+  });
+  it("checks physical inputs before meandering and preserves geometry across metadata edits", () => {
+    const world = fixture();
+    const spy = vi.spyOn(riverShape, "meanderRiverPoints");
+    try {
+      const source = prepared(world);
+      const count = spy.mock.calls.length;
+      Object.assign(world.pack.rivers[0], { name: "Renamed", parent: 12, basin: 12 });
+      expect(prepared(world)).toBe(source);
+      expect(spy).toHaveBeenCalledTimes(count);
+      world.pack.cells.fl[1] += 20;
+      expect(prepared(world)).not.toBe(source);
+      expect(spy).toHaveBeenCalledTimes(count + 1);
+    } finally {
+      spy.mockRestore();
+    }
   });
   it("does not silently certify failed or incomplete local geometry", () => {
     const world = fixture();

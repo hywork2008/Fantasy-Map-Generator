@@ -1904,6 +1904,12 @@
       "dispersed": "離して配置",
       "clustered": "寄せて配置"
     },
+    "portCoastPlacement": "港町の配置",
+    "portCoastPlacementTip": "港町を描画される海岸線のどこに置くかです。海岸を固定（既定）は港町の海岸の辺を単純化・フラクタル化せずに描き、町を自分のセルの中、海岸のすぐ内陸に置きます。描画に従うは、滑らかにした海岸線がセルの外にあってもその近くに町を置きます。",
+    "portCoastPlacements": {
+      "pinned": "海岸を固定",
+      "drawn": "描画に従う"
+    },
     "initialPolityRealmSize": "初期領域（セル）",
     "initialPolityRealmSizeTip": "生成時に各国が領有する陸地セル数です。1 は首都のみ（1都市）。大きくすると首都の周りに最大 30 セルまでの小さな核を作り、居住圏の内側に収まります。居住圏の土地割合は定住する広さ、このスライダーは最初から国家領になる広さです。",
     "sizeVariety": "規模のばらつき",
@@ -3108,6 +3114,7 @@
       "previewCityEditor": "City Editorを開く",
       "previewNavigation": "ホイールでズーム・ドラッグで移動",
       "previewReset": "表示をリセット",
+      "previewMfcgHeading": "Medieval Fantasy City Generator（watabou）",
 
       "tabsAria": "都市エディターの節",
       "overview": "概要",
@@ -3745,6 +3752,8 @@
       "percentageTip": "百分率／実数の表示を切り替え",
       "compareTip": "市場間の産物在庫を比較",
       "opportunitiesTip": "安く買って高く売る経路を探す",
+      "corridors": "回廊",
+      "corridorsTip": "都市間の交易回廊。需要、遅れ、渡し、港湾不足",
       "exportTip": "市場データを CSV で保存",
       "manualTip": "市場領域を手で割り当て直す",
       "brushSize": "ブラシサイズ",
@@ -4328,6 +4337,22 @@
       "treasuryTip": "全国家の公庫合計",
       "initialGeneration": "初回生成",
       "advanceTime": "時間進行"
+    },
+    "tradeCorridors": {
+      "title": "交易回廊",
+      "empty": "まだ記録された回廊がありません。交易が動くと、ここに都市の組が並びます。",
+      "towns": "都市",
+      "mode": "経路",
+      "slots": "積荷",
+      "demand": "需要",
+      "delay": "遅れ",
+      "threat": "危険",
+      "ferry": "渡し",
+      "harbor": "港湾",
+      "harborShort": "不足",
+      "modeLand": "陸",
+      "modeRiver": "川",
+      "modeSea": "海"
     },
     "tradeDetails": {
       "seller": "売り手",

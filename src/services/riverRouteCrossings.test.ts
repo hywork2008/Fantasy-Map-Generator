@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import type { PackedGraph } from "../types/PackedGraph";
-import { resolveRiverRouteCrossings } from "./riverRouteCrossings";
+import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "./riverRouteCrossings";
 
 beforeEach(() => {
   worldContext.distanceScale = 1;
@@ -45,7 +45,7 @@ beforeEach(() => {
 describe("final FMG road crossings", () => {
   it("resolves local width and navigation after candidate routes without using mouth width", () => {
     worldContext.pack.rivers[0].width = 7;
-    resolveRiverRouteCrossings(worldContext);
+    resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
     const crossing = worldContext.pack.routes[0].riverCrossings![0];
     expect(crossing).toMatchObject({
       riverId: 1,
@@ -54,13 +54,13 @@ describe("final FMG road crossings", () => {
     });
     expect(crossing.plan.widthMeters).toBeLessThan(1000);
     worldContext.options.historicalPeriod = "earlyMedieval";
-    resolveRiverRouteCrossings(worldContext);
+    resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
     expect(worldContext.pack.routes[0].riverCrossings![0].plan.kind).toBe("ferry");
   });
   it("is stable on regeneration and does not duplicate an intersection", () => {
-    resolveRiverRouteCrossings(worldContext);
+    resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
     const before = structuredClone(worldContext.pack.routes[0].riverCrossings);
-    resolveRiverRouteCrossings(worldContext);
+    resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
     expect(worldContext.pack.routes[0].riverCrossings).toEqual(before);
     expect(before).toHaveLength(1);
   });
@@ -78,17 +78,17 @@ describe("final FMG road crossings", () => {
       ],
       cells: [0, 1, 2, 3, 4, 5]
     });
-    resolveRiverRouteCrossings(worldContext);
+    resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
     expect(worldContext.pack.routes[0].riverCrossings![0].plan.kind).toBe("movableBridge");
   });
 });
 
 it("preserves a locked crossing instead of silently upgrading its bridge", () => {
-  resolveRiverRouteCrossings(worldContext);
+  resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
   const route = worldContext.pack.routes[0];
   route.lock = true;
   const before = structuredClone(route.riverCrossings);
   worldContext.options.historicalPeriod = "earlyMedieval";
-  resolveRiverRouteCrossings(worldContext);
+  resolveRiverRouteCrossings(worldContext, NO_RIVER_ROAD_CONVERGENCE);
   expect(route.riverCrossings).toEqual(before);
 });

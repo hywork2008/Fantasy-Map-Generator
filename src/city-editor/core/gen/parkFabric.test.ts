@@ -133,7 +133,7 @@ describe("parkFabric", () => {
     expect(featuresLayer).not.toBeNull();
     expect(featuresLayer?.getAttribute("style")).toContain("z-index: 2");
 
-    const children = Array.from(svg.children);
+    const children = Array.from(svg.querySelector(".ce-map-scene")!.children);
     const featuresIndex = children.indexOf(featuresLayer!);
     const treesIndex = children.indexOf(treeLayer!);
     expect(featuresIndex).toBeGreaterThan(-1);

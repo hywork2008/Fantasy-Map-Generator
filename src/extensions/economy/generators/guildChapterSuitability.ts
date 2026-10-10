@@ -189,33 +189,37 @@ export function scoreGuildChapterSuitability(
   const fortified = context.citadelIds.has(burgId) || context.wallsIds.has(burgId) ? 1 : 0;
   const plaza = context.plazaIds.has(burgId) ? 1 : 0;
 
+  // Employment takes 0.15 from the largest non-labor term (docs/plan/fmg-economy-to-city-editor.md §8.2).
+  // Metallurgy keeps the smelter term and takes that 0.15 from nearby ore, so a staffed smelter still
+  // clears the founding threshold. Textiles shift only 0.10 off the market term, so a viable market
+  // capital still clears it.
   switch (domain) {
     case "metallurgy":
       return clamp01(
-        0.35 * smelter + 0.25 * mine + 0.2 * oreNear + 0.1 * craft(domain) + 0.05 * capital + 0.05 * population
+        0.35 * smelter + 0.25 * mine + 0.05 * oreNear + 0.25 * craft(domain) + 0.05 * capital + 0.05 * population
       );
     case "woodworking":
-      return clamp01(0.4 * forest + 0.2 * port + 0.2 * craft(domain) + 0.15 * market + 0.05 * population);
+      return clamp01(0.25 * forest + 0.2 * port + 0.35 * craft(domain) + 0.15 * market + 0.05 * population);
     case "masonry":
       return clamp01(
-        0.3 * quarry +
+        0.15 * quarry +
           0.2 * (context.quarryCandidateScoreByBurg.get(burgId) ?? 0) +
           0.2 * (context.constructionDemandByBurg.get(burgId) ?? 0) +
           0.15 * fortified +
-          0.1 * craft(domain) +
+          0.25 * craft(domain) +
           0.05 * population
       );
     case "textiles":
-      return clamp01(0.35 * craft(domain) + 0.25 * market + 0.15 * plaza + 0.15 * population + 0.1 * capital);
+      return clamp01(0.45 * craft(domain) + 0.15 * market + 0.15 * plaza + 0.15 * population + 0.1 * capital);
     case "leather":
-      return clamp01(0.4 * craft(domain) + 0.25 * market + 0.2 * population + 0.15 * forest);
+      return clamp01(0.55 * craft(domain) + 0.1 * market + 0.2 * population + 0.15 * forest);
     case "glassware":
-      return clamp01(0.3 * craft(domain) + 0.25 * port + 0.2 * capital + 0.15 * market + 0.1 * population);
+      return clamp01(0.45 * craft(domain) + 0.1 * port + 0.2 * capital + 0.15 * market + 0.1 * population);
     case "instruments":
-      return clamp01(0.45 * capital + 0.35 * population + 0.2 * market);
+      return clamp01(0.3 * capital + 0.35 * population + 0.2 * market + 0.15 * craft(domain));
     case "printing":
       return clamp01(
-        0.3 * (context.academyAdminByBurg.get(burgId) ?? 0) + 0.25 * capital + 0.25 * craft(domain) + 0.2 * market
+        0.15 * (context.academyAdminByBurg.get(burgId) ?? 0) + 0.25 * capital + 0.4 * craft(domain) + 0.2 * market
       );
   }
 }

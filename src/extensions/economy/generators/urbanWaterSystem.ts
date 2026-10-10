@@ -17,7 +17,7 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import i18n from "../../../i18n";
 import { isLichRaceKey } from "../../characters/lichPolicy";
-import { getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
+import { getCultureFuneralMechanics, getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -1156,15 +1156,21 @@ export function computeUrbanWaterSystem(args: {
   const coalSmokeExposure =
     getMarkets().find(market => market.i === burg.market)?.heatingLedger?.coalSmokeExposure ?? 0;
 
-  const healthPressure = healthPressureFromSanitation({
-    waterContamination,
-    sanitationBurden,
-    organicStreetLoad: organic.organicStreetLoad,
-    scavengingRisk: organic.scavengingRisk,
-    upstreamPollutionImport,
-    drinkingWaterSecurity,
-    coalSmokeExposure
-  });
+  const burialRisk =
+    getCultureFuneralMechanics(getWorldContext().pack.cultures?.[burg.culture ?? 0])?.sanitationRisk ?? 0;
+  // Burial adds at most fifteen percentage points of pressure, mitigated by treatment.
+  const healthPressure = clamp01(
+    healthPressureFromSanitation({
+      waterContamination,
+      sanitationBurden,
+      organicStreetLoad: organic.organicStreetLoad,
+      scavengingRisk: organic.scavengingRisk,
+      upstreamPollutionImport,
+      drinkingWaterSecurity,
+      coalSmokeExposure
+    }) +
+      burialRisk * 0.15 * Math.max(0.15, treatmentFactor)
+  );
 
   const signals = evaluateWaterDemandSignals({
     geography,

@@ -1,4 +1,4 @@
-import { measureGenerationStep } from "../generators/generationProfiler";
+import { markGenerationProfile, measureGenerationStep } from "../generators/generationProfiler";
 import { useMapReadyTaskState } from "../store/mapReadyTaskState";
 
 export type MapReadyTaskContext = {
@@ -160,6 +160,7 @@ export async function startMapReadyTasks(): Promise<void> {
     if (fullRunId === currentRun) fullRunId = null;
     return;
   }
+  markGenerationProfile("map-ready-start");
 
   useMapReadyTaskState.getState().start(ordered.length + 1);
   useMapReadyTaskState.getState().begin("Preparing extensions", 0);
@@ -186,6 +187,8 @@ export async function startMapReadyTasks(): Promise<void> {
   if (isCurrent()) {
     useMapReadyTaskState.getState().finish();
     document.dispatchEvent(new CustomEvent("fmg:map-ready-tasks-completed"));
+    // After the completion listeners, which include the final full redraw.
+    markGenerationProfile("map-ready");
   }
   if (fullRunId === currentRun) fullRunId = null;
   if (coreMapReady && requestedTaskIds.size) queueMicrotask(() => void runRequestedTasks());

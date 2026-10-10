@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { CASTLE_STYLE_PROFILES } from "../render/castlePatterns";
+import { renderCastle } from "../render/castleSvg";
 import { serializeCitySvg } from "../render/svg";
 import {
   createCastleOnFace,
@@ -111,6 +113,24 @@ function castle(shared = false): CityDocument {
 }
 
 describe("Castle compounds", () => {
+  it.each(Object.keys(CASTLE_STYLE_PROFILES))("reflects interior regeneration in the %s rendering", style => {
+    const doc = castle();
+    const plan = doc.castles![0];
+    plan.castleStyle = style as NonNullable<typeof plan.castleStyle>;
+    const hall = plan.parts.find(part => part.role === "hall")!;
+    hall.locked = true;
+    const savedHall = structuredClone(hall);
+    const before = renderCastle(doc, plan).outerHTML;
+    const next = regenerateCastleInterior(doc, plan.id);
+    expect(next).not.toBeNull();
+    expect(next!.castles![0].form).toBe("courtyard");
+    expect(next!.castles![0].parts.find(part => part.id === hall.id)).toEqual(savedHall);
+    const rendered = renderCastle(next!, next!.castles![0]);
+    expect(rendered.outerHTML).not.toBe(before);
+    const hallPath = `${hall.footprint.map(([x, y], i) => `${i ? "L" : "M"}${x},${-y}`).join(" ")} Z`;
+    expect([...rendered.querySelectorAll("path")].some(node => node.getAttribute("d") === hallPath)).toBe(true);
+  });
+
   it.each([false, true])("keeps a closed circuit, a city-side gate and canonical shared walls (%s)", shared => {
     const doc = castle(shared),
       plan = doc.castles![0],

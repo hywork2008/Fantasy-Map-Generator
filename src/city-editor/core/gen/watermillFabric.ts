@@ -1,7 +1,11 @@
 import { polygonOverlaps } from "../fortifications";
 import { facePoints } from "../mesh";
+import { regionalCoastalWaterPolygons } from "../regionalCoast";
+import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
+import { ferryLandingReserves } from "./ferryLanding";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
+import { economyOnDocument } from "./guildFacilities";
 import { makeRng } from "./prng";
 
 /** Average residents per dwelling used by FMG and city generation. */
@@ -88,6 +92,7 @@ export function calculateWatermillCount(buildingCount: number): number {
 }
 
 interface RiverSegmentData {
+  surveyed: boolean;
   riverId: Id;
   riverPoints: Point[];
   widthMeters: number;
@@ -107,7 +112,9 @@ function collectObstacles(document: CityDocument): {
   walls: Array<[Point, Point]>;
   gates: Point[];
   piers: Point[][];
+  landings: Point[][];
 } {
+  const landings: Point[][] = [];
   const bridges: Array<{ point: Point; radius: number }> = [];
   const walls: Array<[Point, Point]> = [];
   const gates: Point[] = [];
@@ -135,12 +142,145 @@ function collectObstacles(document: CityDocument): {
     }
   }
 
+  // FMG bridges are fixed crossings, not road groups.
+  for (const crossing of document.importedFixedCrossings?.crossings ?? [])
+    bridges.push({
+      point: [crossing.q[0], crossing.q[1]],
+      radius: Math.hypot(crossing.deckA[0] - crossing.deckB[0], crossing.deckA[1] - crossing.deckB[1]) / 2 + 10
+    });
+
+  // A ferry landing keeps its bank clear of a mill and its weir (Batonykut).
+  landings.push(...ferryLandingReserves(document));
+
   for (const gate of document.gates ?? []) {
     const pt = document.mesh.vertices[gate.vertexId]?.point;
     if (pt) gates.push(pt);
   }
 
-  return { bridges, walls, gates, piers };
+  return { bridges, walls, gates, piers, landings };
+}
+
+type Box = [number, number, number, number];
+/** A ring with its edges bucketed by y band: a ray cast only meets edges spanning its y. */
+type BandedRing = { ring: Point[]; minY: number; maxY: number; bandHeight: number; bands: number[][] };
+type SurveyedWater = { rings: Point[][]; banded: BandedRing[]; box: Box };
+const surveyedWaterCache = new WeakMap<CityDocument, SurveyedWater[]>();
+
+function ringsBox(rings: Point[][]): Box {
+  const pts = rings.flat();
+  const xs = pts.map(p => p[0]),
+    ys = pts.map(p => p[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+/** Surveyed water as the source rings (outer bank plus island holes), with bounding boxes.
+ * The decomposed parts from waterPolygons have internal seams that a river centreline can
+ * run along; the source rings have none. Cached per document, so the fixed payload is never
+ * re-keyed per call as in polygonHitsDocumentWater. */
+function surveyedWater(document: CityDocument): SurveyedWater[] {
+  let water = surveyedWaterCache.get(document);
+  if (!water) {
+    const fixed = document.importedFixedCrossings;
+    const sources: Point[][][] = [
+      ...(document.waterAreas ?? []).map(area => [area.polygon]),
+      ...(fixed ? [...fixed.rivers, ...(fixed.obstacles ?? [])] : []).map(w =>
+        w.rings.map(ring => ring.map((p): Point => [p[0], p[1]]))
+      )
+    ].filter(rings => rings.some(ring => ring.length >= 3));
+    water = sources.map(rings => ({ rings, banded: rings.map(bandRing), box: ringsBox(rings) }));
+    surveyedWaterCache.set(document, water);
+  }
+  return water;
+}
+
+function bandRing(ring: Point[]): BandedRing {
+  const ys = ring.map(p => p[1]);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const count = Math.max(1, ring.length);
+  const bandHeight = (maxY - minY) / count;
+  const bands: number[][] = Array.from({ length: count }, () => []);
+  const band = (y: number) => (bandHeight > 0 ? Math.min(count - 1, Math.floor((y - minY) / bandHeight)) : 0);
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const lo = Math.min(ring[i][1], ring[j][1]);
+    const hi = Math.max(ring[i][1], ring[j][1]);
+    for (let b = band(lo); b <= band(hi); b++) bands[b].push(i);
+  }
+  return { ring, minY, maxY, bandHeight, bands };
+}
+
+/** `pointInPolygon` over the band's edges only. Same per-edge test, so the same parity. */
+function inBandedRing(p: Point, banded: BandedRing): boolean {
+  const { ring, minY, maxY, bandHeight, bands } = banded;
+  // No edge straddles a ray outside the ring's y range.
+  if (p[1] < minY || p[1] >= maxY) return false;
+  const band = bands[bandHeight > 0 ? Math.min(bands.length - 1, Math.floor((p[1] - minY) / bandHeight)) : 0];
+  let inside = false;
+  for (const i of band) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[i === 0 ? ring.length - 1 : i - 1];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** Even-odd over a water body's rings, so islands stay dry. */
+function inWater(p: Point, water: SurveyedWater): boolean {
+  const [x0, y0, x1, y1] = water.box;
+  if (p[0] < x0 || p[0] > x1 || p[1] < y0 || p[1] > y1) return false;
+  return water.banded.filter(ring => inBandedRing(p, ring)).length % 2 === 1;
+}
+
+function dryAt(document: CityDocument, p: Point): boolean {
+  return !surveyedWater(document).some(water => inWater(p, water));
+}
+
+/** Whether a footprint touches surveyed water: a corner in the water or an edge crossing a bank. */
+export function hitsSurveyedWater(document: CityDocument, polygon: Point[]): boolean {
+  const box = ringsBox([polygon]);
+  for (const water of surveyedWater(document)) {
+    const w = water.box;
+    if (w[0] > box[2] || w[2] < box[0] || w[1] > box[3] || w[3] < box[1]) continue;
+    if (polygon.some(p => inWater(p, water))) return true;
+    for (const ring of water.rings)
+      for (let i = 0; i < ring.length; i++)
+        for (let j = 0; j < polygon.length; j++)
+          if (segmentsIntersect(ring[i], ring[(i + 1) % ring.length], polygon[j], polygon[(j + 1) % polygon.length]))
+            return true;
+  }
+  return false;
+}
+
+/**
+ * Distance from the centreline to the surveyed bank along `normal`, or null when no water is
+ * near. FMG centrelines need not lie inside the surveyed water, so the search starts from the
+ * wet point nearest the centre. The bank must be dry over a frontage of ±`halfFrontage` along
+ * `tangent`, so a building set on it stays out of the water on a bend.
+ */
+export function fixedBankOffset(
+  document: CityDocument,
+  centre: Point,
+  normal: Point,
+  halfWidth: number,
+  tangent: Point = [-normal[1], normal[0]],
+  halfFrontage = 0
+): number | null {
+  const reach = halfWidth * 2 + 10;
+  const at = (d: number, u = 0): Point => [
+    centre[0] + normal[0] * d + tangent[0] * u,
+    centre[1] + normal[1] * d + tangent[1] * u
+  ];
+  let wet: number | null = null;
+  for (let k = 0; k <= reach * 2 && wet === null; k++)
+    for (const d of k ? [k * 0.5, -k * 0.5] : [0])
+      if (!dryAt(document, at(d))) {
+        wet = d;
+        break;
+      }
+  if (wet === null) return null;
+  const front = halfFrontage > 0 ? [-halfFrontage, 0, halfFrontage] : [0];
+  for (let d = wet + 0.5; d <= wet + reach; d += 0.5) if (front.every(u => dryAt(document, at(d, u)))) return d + 0.3;
+  return null;
 }
 
 /**
@@ -156,7 +296,8 @@ function isLandPoint(document: CityDocument, pt: Point): boolean {
       if (poly.length >= 3 && pointInPolygon(pt, poly)) return false;
     }
   }
-  return true;
+  // Sea beyond the town mesh is not a mesh face.
+  return !regionalCoastalWaterPolygons(document).some(poly => pointInPolygon(pt, poly));
 }
 
 /**
@@ -170,12 +311,16 @@ export function buildWatermillPlan(
   fields: Point[][] = []
 ): WatermillPlan {
   const derivedPopulation = Math.round(buildingCount * URBAN_DWELLING_SIZE);
-  const rivers = (document.featureGroups ?? []).filter(g => g.kind === "river");
+  const rivers = flowingRivers(document);
   if (!rivers.length || buildingCount <= 0) {
     return { mills: [], buildingCount, derivedPopulation };
   }
 
-  const targetCount = calculateWatermillCount(buildingCount);
+  const fromCapacity = economyOnDocument(document)?.mills?.water;
+  const targetCount =
+    typeof fromCapacity === "number" && Number.isFinite(fromCapacity)
+      ? Math.max(0, Math.round(fromCapacity))
+      : calculateWatermillCount(buildingCount);
   if (targetCount <= 0) {
     return { mills: [], buildingCount, derivedPopulation };
   }
@@ -196,10 +341,8 @@ export function buildWatermillPlan(
   // Collect river segments
   const allSegments: RiverSegmentData[] = [];
   for (const river of rivers) {
-    const pts = (river.vertices ?? []).map(id => document.mesh.vertices[id]?.point).filter((p): p is Point => !!p);
-    if (pts.length < 2) continue;
-
-    const width = river.style.widthMeters || 12;
+    const pts = river.points;
+    const width = river.widthMeters || 12;
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i];
       const b = pts[i + 1];
@@ -209,6 +352,7 @@ export function buildWatermillPlan(
       const ty = (b[1] - a[1]) / len;
       allSegments.push({
         riverId: river.id,
+        surveyed: river.surveyed,
         riverPoints: pts,
         widthMeters: width,
         segIndex: i,
@@ -285,8 +429,11 @@ export function buildWatermillPlan(
 
     const px = seg.a[0] + tangent[0] * (seg.length * fraction);
     const py = seg.a[1] + tangent[1] * (seg.length * fraction);
-    // Bank contact point
-    const bankPt: Point = [px + normal[0] * halfWidth, py + normal[1] * halfWidth];
+    // Bank contact point. FMG water is the surveyed bank polygon, whose edge need not sit
+    // at half the descriptor width: walk out from the centreline to the first dry ground.
+    const bankOffset = seg.surveyed ? fixedBankOffset(document, [px, py], normal, halfWidth, tangent, 6.5) : halfWidth;
+    if (bankOffset === null) continue;
+    const bankPt: Point = [px + normal[0] * bankOffset, py + normal[1] * bankOffset];
 
     // Spacing check against already placed mills
     if (placedLocations.some(p => Math.hypot(p[0] - bankPt[0], p[1] - bankPt[1]) < MIN_MILL_SPACING)) {
@@ -297,6 +444,14 @@ export function buildWatermillPlan(
     if (obstacles.bridges.some(b => Math.hypot(bankPt[0] - b.point[0], bankPt[1] - b.point[1]) < 9)) {
       continue;
     }
+
+    // Clearance check: ferry landing reserve, plus room for the weir
+    if (
+      obstacles.landings.some(
+        ring => pointInPolygon(bankPt, ring) || nearestOnPolyline(bankPt, [...ring, ring[0]]).dist < 8
+      )
+    )
+      continue;
 
     // Clearance check: city walls (< 8m)
     if (obstacles.walls.some(([w1, w2]) => nearestOnPolyline(bankPt, [w1, w2]).dist < 8)) {
@@ -343,6 +498,7 @@ export function buildWatermillPlan(
       millCenter[1] - tangent[1] * hl2 + normal[1] * hd2
     ];
     const millhousePolygon = [p1, p2, p3, p4];
+    if (seg.surveyed && hitsSurveyedWater(document, millhousePolygon)) continue;
     if (passages.some(passage => obstructsPassage(millhousePolygon, passage))) continue;
     // Cultivated plots are already laid out by the district generator. A mill
     // needs its own bank-side parcel instead of covering a working field.

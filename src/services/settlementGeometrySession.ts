@@ -4,7 +4,7 @@ import { RegionalRiverGeometry, regionalRiverGeometry } from "./regionalRiverGeo
 import type { RiverPoint } from "./riverGeometry";
 import { SETTLEMENT_RIVER_SETTINGS } from "./settlementRiverSite";
 import { type SpatialBounds, SpatialBoundsIndex } from "./spatialBoundsIndex";
-import { worldRiverOccupiedBounds } from "./worldRiverGeometry";
+import { worldRiverGeometrySourceKey, worldRiverOccupiedBounds } from "./worldRiverGeometry";
 
 interface TerrainEntry {
   id: number;
@@ -58,15 +58,9 @@ export class SettlementGeometrySession {
       }
       terrainIndex = new SpatialBoundsIndex(terrain, t => t.bounds);
     }
-    const riverKey = JSON.stringify([
-      scale,
-      world.graphWidth,
-      world.graphHeight,
-      pack.rivers,
-      pack.cells.p,
-      pack.cells.h,
-      pack.cells.fl
-    ]);
+    const riverKey = JSON.stringify(
+      pack.rivers.map(river => worldRiverGeometrySourceKey(world, river, unit, SETTLEMENT_RIVER_SETTINGS))
+    );
     if (replaced || riverKey !== this.riverKey) {
       sources = new Map();
       unbounded = [];
@@ -135,4 +129,16 @@ export class SettlementGeometrySession {
       return { reason: source.reason, bounds: worldRiverOccupiedBounds(world, river, unit, SETTLEMENT_RIVER_SETTINGS) };
     return (yield* source.querySteps(bounds)) ?? { reason: "no-local-water", bounds };
   }
+}
+
+// One world-owned session shared by placement, road convergence and CE queries.
+// prepare/prepareSteps still validate mutable inputs at every public boundary.
+const sessions = new WeakMap<object, SettlementGeometrySession>();
+export function settlementGeometrySession(world: Readonly<WorldContext>): SettlementGeometrySession {
+  let session = sessions.get(world.pack);
+  if (!session) {
+    session = new SettlementGeometrySession();
+    sessions.set(world.pack, session);
+  }
+  return session;
 }

@@ -6,6 +6,7 @@ import type { BurgSiteDescriptor as CESite } from "../city-editor/core/gen/site/
 import { siteToGeography } from "../city-editor/core/gen/site/siteInput";
 import { defaultGenerationSettings, generateCityOnDocument } from "../city-editor/core/generate";
 import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
+import { riverFlowsFromDescriptor } from "../city-editor/core/riverFlow";
 import { polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
 import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/io/incomingCity";
 import { renderCityPreviewSvg } from "../city-editor/render/previewSvg";
@@ -14,6 +15,7 @@ import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
+import { ProcessingProfiler } from "../utils/processingProfiler";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { countBurgRoadLegs, getBurgSiteDescriptor } from "./burgSiteDescriptor";
 
@@ -93,6 +95,49 @@ function setupRiverCrossingWorld() {
 
 describe("getBurgSiteDescriptor", () => {
   beforeEach(setupRiverCrossingWorld);
+  it("keeps the handoff identical and accounts for descriptor children", () => {
+    const baseline = getBurgSiteDescriptor(1);
+    const profiler = new ProcessingProfiler();
+    const profiled = profiler.measure("descriptor", () => getBurgSiteDescriptor(1, undefined, profiler));
+    expect(profiled).toEqual(baseline);
+    const breakdown = profiler.snapshot();
+    expect(breakdown.some(t => t.path === "descriptor/roads/route-legs")).toBe(true);
+    const root = breakdown.find(t => t.path === "descriptor")!;
+    expect(root.elapsedMs).toBeCloseTo(
+      breakdown.reduce((sum, t) => sum + t.selfMs, 0),
+      5
+    );
+  });
+
+  it("shapes only roads connected to the exported burg, retaining the same road entries", () => {
+    const baseline = getBurgSiteDescriptor(1)!;
+    worldContext.pack.routes.push({
+      ...worldContext.pack.routes[0],
+      i: 2,
+      points: [
+        [80, 100, 7],
+        [120, 100, 8]
+      ]
+    });
+    const profiler = new ProcessingProfiler();
+    const descriptor = profiler.measure("descriptor", () => getBurgSiteDescriptor(1, undefined, profiler))!;
+    expect(descriptor.roads).toEqual(baseline.roads);
+    const render = profiler.snapshot().find(t => t.path === "descriptor/roads/route-legs/route-render-points");
+    expect(render?.calls).toBe(1);
+  });
+
+  it("exports the burg culture's burial profile through the CE share contract", () => {
+    worldContext.pack.cultures = [
+      { i: 0, name: "Wildlands", base: 0, shield: "" },
+      { i: 1, name: "Catacombs", base: 0, shield: "", burialProfile: "catacomb_paris" }
+    ];
+    worldContext.pack.burgs[1].culture = 1;
+    const descriptor = getBurgSiteDescriptor(1)!;
+    expect(descriptor.burialProfile?.id).toBe("catacomb_paris");
+    const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor as unknown as CESite)));
+    expect(shared?.descriptor?.burialProfile).toEqual(descriptor.burialProfile);
+  });
+
   it("exports the canonical physical water without inventing a bridge and retains it through CE save/render", () => {
     const site = getBurgSiteDescriptor(1)!;
     const payload = site.fixedCrossings!;
@@ -137,6 +182,36 @@ describe("getBurgSiteDescriptor", () => {
       ])
     ).toBe(true);
     expect(worldContext.pack.burgs[1].x).toBe(100);
+  });
+
+  it("omits prevailing wind when the map has no wind belts or latitude", () => {
+    const previousWinds = worldContext.options.winds;
+    const previousCoords = worldContext.mapCoordinates;
+    worldContext.options.winds = undefined as unknown as typeof previousWinds;
+    worldContext.mapCoordinates = {};
+    try {
+      expect(getBurgSiteDescriptor(1)!.climate.prevailingWindDeg).toBeUndefined();
+    } finally {
+      worldContext.options.winds = previousWinds;
+      worldContext.mapCoordinates = previousCoords;
+    }
+  });
+
+  it("exports the latitude-tier prevailing wind and keeps it through the CE share", () => {
+    const previousWinds = worldContext.options.winds;
+    const previousCoords = worldContext.mapCoordinates;
+    worldContext.options.winds = [0, 90, 180, 225, 270, 315];
+    worldContext.mapCoordinates = { latN: 50, latT: 40 };
+    try {
+      const site = getBurgSiteDescriptor(1)!;
+      // y 100 on a height-200 map: latitude 30, tier 1.
+      expect(site.climate.prevailingWindDeg).toBe(90);
+      const shared = decodeShare(encodeShare(shareFromDescriptor(site as unknown as CESite)));
+      expect(shared?.descriptor?.climate.prevailingWindDeg).toBe(90);
+    } finally {
+      worldContext.options.winds = previousWinds;
+      worldContext.mapCoordinates = previousCoords;
+    }
   });
 
   it("exports cell biome metadata in climate and biome properties", () => {
@@ -194,7 +269,7 @@ describe("getBurgSiteDescriptor", () => {
     worldContext.pack.cells.r[0] = 1;
     for (const cell of worldContext.pack.rivers[0].cells) worldContext.pack.cells.p[cell][0] = 101.4;
     const descriptor = getBurgSiteDescriptor(1)!;
-    expect(descriptor.frame.cityRadiusMeters).toBe(80);
+    expect(descriptor.frame.cityRadiusMeters).toBe(40);
     expect(descriptor.fixedCrossings?.schemaVersion).toBe(2);
     const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor)))!;
     expect(shared.patchParams?.nPatches).toBe(6);
@@ -213,7 +288,7 @@ describe("getBurgSiteDescriptor", () => {
     )!;
     expect(city).not.toBeNull();
     expect(city.frame.extentMeters).toBe(descriptor.frame.extentMeters);
-    expect(city.frame.cityRadiusMeters).toBe(80);
+    expect(city.frame.cityRadiusMeters).toBe(40);
     expect(city.frame.settlementExtentMeters).toBe(300);
     const restored = parseDocument(JSON.stringify(city))!;
     expect(restored.importedFixedCrossings).toEqual(descriptor.fixedCrossings);
@@ -225,6 +300,72 @@ describe("getBurgSiteDescriptor", () => {
     const buildings = buildBlockFabric(restored).buildings;
     expect(buildings.length).toBeGreaterThan(0);
     expect(buildings.every(lot => !polygonHitsDocumentWater(restored, lot.polygon))).toBe(true);
+  });
+
+  describe("river flow from FMG elevation", () => {
+    // River cells 1..6 run north → south in `river.cells` order.
+    const setHeights = (heights: number[]) =>
+      heights.forEach((h, i) => {
+        worldContext.pack.cells.h[i + 1] = h;
+      });
+    const flowOf = (site: ReturnType<typeof getBurgSiteDescriptor>) =>
+      riverFlowsFromDescriptor(site as unknown as CESite)[0];
+
+    it("exports cell elevations around the burg in centreline order", () => {
+      setHeights([60, 52, 44, 36, 28, 22]);
+      const river = getBurgSiteDescriptor(1)!.rivers[0];
+      expect(river.flowElevation!.upstreamMeters).toBeGreaterThan(river.flowElevation!.downstreamMeters);
+    });
+
+    it("keeps a downhill centreline and reverses an uphill one", () => {
+      setHeights([60, 52, 44, 36, 28, 22]);
+      const down = flowOf(getBurgSiteDescriptor(1));
+      expect(down.basis).toBe("fmgElevation");
+      expect(down.points[0][1]).toBeGreaterThan(down.points.at(-1)![1]);
+      setHeights([22, 28, 36, 44, 52, 60]);
+      const up = flowOf(getBurgSiteDescriptor(1));
+      expect(up.basis).toBe("fmgElevation");
+      expect(up.points[0][1]).toBeLessThan(up.points.at(-1)![1]);
+      expect(up.dropMeters).toBeGreaterThan(0);
+    });
+
+    it("falls back to the exporter's order on flat ground", () => {
+      setHeights([25, 25, 25, 25, 25, 25]);
+      const flat = flowOf(getBurgSiteDescriptor(1));
+      expect(flat.basis).toBe("descriptor");
+      expect(flat.points[0][1]).toBeGreaterThan(flat.points.at(-1)![1]);
+    });
+
+    it("stores the flow once at generation without rewriting the imported water", () => {
+      setHeights([22, 28, 36, 44, 52, 60]);
+      worldContext.pack.burgs[1].population = 0.1;
+      worldContext.pack.cells.r[0] = 1;
+      const descriptor = getBurgSiteDescriptor(1)!;
+      const shared = decodeShare(encodeShare(shareFromDescriptor(descriptor)))!;
+      const document = createGridDocument({
+        size: shared.size,
+        grid: shared.grid,
+        seed: shared.seed,
+        patchParams: shared.patchParams,
+        measureBlockSize: shared.measureBlockSize,
+        ...descriptorFrameGridOptions(shared.descriptor!.frame)
+      });
+      const city = generateCityOnDocument(
+        document,
+        { ...defaultGenerationSettings(), descriptor: shared.descriptor },
+        shared.seed
+      )!;
+      expect(city).not.toBeNull();
+      expect(city.importedFixedCrossings).toEqual(descriptor.fixedCrossings);
+      const restored = parseDocument(JSON.stringify(city))!;
+      const flow = restored.riverFlows![0];
+      expect(flow.basis).toBe("fmgElevation");
+      // Uphill in cell order, so stored south → north.
+      expect(flow.points[0][1]).toBeLessThan(flow.points.at(-1)![1]);
+      const before = JSON.stringify(restored.importedFixedCrossings);
+      buildBlockFabric(restored);
+      expect(JSON.stringify(restored.importedFixedCrossings)).toBe(before);
+    });
   });
 
   it("keeps the actual frontage mandatory when callers also supply connection bounds", () => {
@@ -291,15 +432,15 @@ describe("getBurgSiteDescriptor", () => {
     expect(burg.dwellings).toBe(2223);
     expect(frame.metersPerMapUnit).toBe(1000);
     expect(frame.originMapUnits).toEqual([100, 100]);
-    // 10 000 people at 150/ha → ~66.7 ha → r = sqrt(A/π) ≈ 461 m
-    expect(frame.cityRadiusMeters).toBe(461);
-    expect(frame.extentMeters).toBe(2766);
-    expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000 });
+    // 2,223 dwellings × 1.025 at 80% of 180 houses/ha (open town) → ~15.8 ha → r ≈ 224 m
+    expect(frame.cityRadiusMeters).toBe(224);
+    expect(frame.extentMeters).toBe(1500);
+    expect(descriptor?.transport).toEqual({ maxBridgeCrossingMeters: 1000, maxBridgeSkewDegrees: 20 });
   });
 
   it("exports the steam-era supported crossing allowance", () => {
     worldContext.options.historicalPeriod = "steamEra";
-    expect(getBurgSiteDescriptor(1)?.transport).toEqual({ maxBridgeCrossingMeters: 2500 });
+    expect(getBurgSiteDescriptor(1)?.transport).toEqual({ maxBridgeCrossingMeters: 2500, maxBridgeSkewDegrees: 30 });
   });
 
   it("describes the river chord position, flow azimuth and bank side", () => {
@@ -312,7 +453,7 @@ describe("getBurgSiteDescriptor", () => {
     // flows north → south, 200 m east of the town center
     expect(river.axisAzimuthDeg).toBe(180);
     expect(river.offsetMeters).toBeCloseTo(200, 0);
-    expect(river.offsetRatio).toBeCloseTo(0.43, 2);
+    expect(river.offsetRatio).toBeCloseTo(0.89, 2);
     expect(river.crossesSite).toBe(true);
     // looking downstream (south), the town center lies to the right (west)
     expect(river.cityBank).toBe("right");
@@ -385,7 +526,7 @@ describe("getBurgSiteDescriptor", () => {
     burg.x = 98.2;
     const descriptor = getBurgSiteDescriptor(1)!;
     const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
-    expect(descriptor.frame.cityRadiusMeters).toBe(461);
+    expect(descriptor.frame.cityRadiusMeters).toBe(224);
     expect(descriptor.burg.population).toBe(10000);
     expect(descriptor.frame.extentMeters).toBeGreaterThan(population);
     expect(descriptor.frame.extentMeters).toBeLessThanOrEqual(4500);
@@ -431,7 +572,7 @@ describe("getBurgSiteDescriptor", () => {
     const river = descriptor.rivers[0];
     expect(river.frontage).toBeUndefined();
     expect(river.offsetMeters).toBeGreaterThan(2200);
-    expect(descriptor.frame.cityRadiusMeters).toBe(461);
+    expect(descriptor.frame.cityRadiusMeters).toBe(224);
     expect(descriptor.frame.extentMeters).toBeGreaterThan(2766);
     expect(descriptor.frame.extentMeters).toBeLessThanOrEqual(4500);
     expect(descriptor.frame.extentMeters).toBeLessThan(river.offsetMeters * 2);
@@ -499,7 +640,7 @@ describe("getBurgSiteDescriptor", () => {
     expect(river.snappedToBank).toBe(false);
     expect(river.rawOffsetMeters).toBeCloseTo(300, 0);
     expect(river.offsetMeters).toBe(river.rawOffsetMeters);
-    expect(river.crossesSite).toBe(true);
+    expect(river.crossesSite).toBe(river.offsetMeters < descriptor.frame.cityRadiusMeters);
     // town east of the southward-flowing river → left bank, flow azimuth unchanged
     expect(river.cityBank).toBe("left");
     expect(river.axisAzimuthDeg).toBe(180);
@@ -533,6 +674,8 @@ describe("getBurgSiteDescriptor", () => {
   });
 
   it("uses the same map scale for river widths, centreline and physical banks", () => {
+    // A window wide enough to keep the ×4 banks (800 m out) inside it.
+    worldContext.pack.burgs[1].population = 40;
     const baseline = getBurgSiteDescriptor(1)!.rivers[0];
     worldContext.distanceScale = 4;
     const scaled = getBurgSiteDescriptor(1)!.rivers[0];

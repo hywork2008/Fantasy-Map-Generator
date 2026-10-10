@@ -1,4 +1,4 @@
-import { bridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
+import { bridgeDecks, overSkewedBridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import { currentFixedCrossingApproaches } from "../core/fixedApproachAdoption";
@@ -6,7 +6,6 @@ import {
   boundaryEdges,
   boundaryRings,
   castleWallIds,
-  circuitRing,
   reservedCastleFaces,
   wallRunsOutsideGates
 } from "../core/fortifications";
@@ -21,13 +20,16 @@ import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { computeCemeteryBoundary, layoutCemetery } from "../core/gen/cemeteryLayout";
 import { farmSheds } from "../core/gen/farmSheds";
+import { ferryPlan } from "../core/gen/ferryLanding";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
+import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "../core/gen/harborNavigation";
 import { templeFootprintMeters } from "../core/gen/housing";
 import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { riverPortShore } from "../core/gen/riverPortShore";
+import { cobbledApproach, cobbledWidthMeters, roadUse } from "../core/gen/roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "../core/gen/settlementExtent";
 import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
@@ -35,6 +37,7 @@ import { accessCorridor, transformLandmarkPolygons } from "../core/landmarks";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import { MoatReservation } from "../core/moats";
 import { GATE_TOWER_SCALE, gateCrossingFrame, gatePlazaRadiusMeters, gateRoadDeviationDegrees } from "../core/passages";
+import { regionalCoastalWaterPolygons, regionalSurfaceLayers } from "../core/regionalCoast";
 import type {
   CityDocument,
   CityElement,
@@ -48,6 +51,10 @@ import type {
   Tool
 } from "../core/types";
 import { dryRuns, lineHitsDocumentWater, waterPolygons } from "../core/waterGeometry";
+import { renderAerialLandmarks, renderBarbicans } from "./aerialLandmarksSvg";
+import { resolveCastleStyle } from "./castlePatterns";
+import { renderCastle } from "./castleSvg";
+import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
 import { getLandscapeGroundColor, getLandscapeSuburbFaceColor, renderLandscapeLayer } from "./landscape";
 import { openSpaceBoundary } from "./openSpaceBoundary";
@@ -56,6 +63,7 @@ import { renderRegionalSettlements } from "./regionalSvg";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 import { renderTempleSvg } from "./templeSvg";
+import { renderGateDecoration, renderTowerDecoration, renderWallStructure } from "./wallSvg";
 
 export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
@@ -160,11 +168,10 @@ export function renderEditorSvg(
   const groundColor = getLandscapeGroundColor(document);
   const suburbColor = getLandscapeSuburbFaceColor(document);
   if (town) {
-    svg.style.backgroundColor = groundColor;
     const biomeStyle = element(
       "style",
       { type: "text/css" },
-      `.ce-svg--town { background: ${groundColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+      `.ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
     );
     svg.appendChild(biomeStyle);
   }
@@ -229,6 +236,50 @@ export function renderEditorSvg(
   }
   svg.appendChild(continuousWater);
   if (fixedLayers) svg.appendChild(fixedLayers.water);
+  // The town mesh's sea ends at its small rectangular boundary. Continue its
+  // actual coast across the regional frame, over any coarse FMG water overlay.
+  const regionalSea = regionalCoastalWaterPolygons(document);
+  if (regionalSea.length) {
+    const layer = element("g", { class: "ce-regional-coastal-water", "pointer-events": "none" });
+    layer.appendChild(
+      element("path", {
+        d: [
+          ...regionalSea,
+          ...(document.coastalOceanFaceIds ?? []).flatMap(id => {
+            const face = document.mesh.faces[id];
+            return face?.properties.water === "sea" ? [facePoints(document.mesh, face)] : [];
+          })
+        ]
+          .map(polygon)
+          .join(" "),
+        class: "ce-face ce-face--sea"
+      })
+    );
+    svg.appendChild(layer);
+  }
+
+  // Beyond the mesh, paint only what FMG knows: its islands and lakes over
+  // the regional sea, and a neutral "no data" fill past the FMG map edge
+  // instead of the burg's biome continuing into nowhere.
+  const surfaceLayers = regionalSurfaceLayers(document);
+  if (surfaceLayers.length) {
+    const layer = element("g", { class: "ce-regional-surface", "pointer-events": "none" });
+    for (const surface of surfaceLayers) {
+      const d = surface.parts.map(polygon).join(" ");
+      layer.appendChild(
+        surface.kind === "water"
+          ? element("path", { d, class: "ce-face ce-face--sea", "data-regional-surface": "water" })
+          : element("path", {
+              d,
+              fill: surface.kind === "land" ? (document.appearance === "town" ? groundColor : "#e1dfd4") : "#cfcdc6",
+              stroke: surface.kind === "land" ? "none" : "#cfcdc6",
+              "stroke-width": "0.5",
+              "data-regional-surface": surface.kind
+            })
+      );
+    }
+    svg.appendChild(layer);
+  }
 
   if (town && document.coastalOceanFaceIds?.length) {
     const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
@@ -319,6 +370,7 @@ export function renderEditorSvg(
   let townHarbor: import("../core/gen/harborFabric").HarborPlan | undefined;
   let townParkLawns: import("../core/gen/parkFabric").ParkLawn[] = [];
   let townWatermills: import("../core/gen/watermillFabric").WatermillPlan | undefined;
+  let townAerial: import("../core/gen/aerialLandmarks").AerialLandmarkPlan | undefined;
   if (town && !preview) {
     const buildings = element("g", {
       class: "ce-buildings",
@@ -337,6 +389,7 @@ export function renderEditorSvg(
     townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
     townWatermills = fabric?.watermills ?? buildWatermillPlan(document, lots.length);
+    townAerial = fabric?.aerialLandmarks;
     for (const settlement of ["core", "outskirts"] as const) {
       svg.setAttribute(
         `data-${settlement}-buildings`,
@@ -703,7 +756,6 @@ export function renderEditorSvg(
   svg.appendChild(edges);
 
   svg.appendChild(renderMoats(document));
-  svg.appendChild(renderCastles(document, selection.inspectedId));
   svg.appendChild(renderCemeteries(document, selection.inspectedId));
   const features = element("g", { class: "ce-features", style: "z-index: 2;" });
   const order = { wall: 0, river: 1, road: 2, plank: 3 };
@@ -712,6 +764,7 @@ export function renderEditorSvg(
     : document.featureGroups;
   // One ring for the whole pass. Roads inside it are the centre-to-wall streets.
   const concealWall = town && hideStreetLines ? outerWallRing(document) : null;
+  const approachWall = town ? (concealWall ?? outerWallRing(document)) : null;
   const ribbons = town ? riverRibbons(document) : [];
   const moatReservations = new Map<number, MoatReservation>();
   const moatDecks: Array<{ points: Point[]; width: number }> = [];
@@ -752,6 +805,8 @@ export function renderEditorSvg(
     if (fixedMode && group.kind === "road")
       runs = fixedGeometry ? runs.filter(run => fixedRoadIsDry(run, group.style.widthMeters, fixedGeometry)) : [];
     const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
+    const wallMaterial = group.kind === "wall" ? (group.wallMaterial ?? "stone") : undefined;
+    const wallStrokeColor = wallMaterial === "wood" ? "#634327" : "#292a26";
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
@@ -762,7 +817,8 @@ export function renderEditorSvg(
       widthMeters: group.style.widthMeters,
       color: group.style.color,
       segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
-      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {})
+      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {}),
+      ...(wallMaterial ? { wallMaterial } : {})
     };
     for (const run of runs) {
       if (run.length < 2) continue;
@@ -778,16 +834,19 @@ export function renderEditorSvg(
           })
         );
       }
+      if (group.kind === "wall" && isNewStyleCastleWall(document, group.id)) {
+        continue;
+      }
       features.appendChild(
         element("path", {
           d: line(run),
-          class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          class: `ce-feature ce-feature--${group.kind}${group.kind === "wall" ? ` ce-feature--wall-${wallMaterial}` : ""}${active ? " ce-active-group" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           stroke: town
             ? group.kind === "road"
               ? "#d5cfbf"
               : group.kind === "river"
                 ? "#527f8b"
-                : "#292a26"
+                : wallStrokeColor
             : group.style.color,
           "stroke-width": String(group.style.widthMeters),
           ...(fixedMode && group.kind === "road" ? { "stroke-linejoin": "round", "stroke-linecap": "butt" } : {}),
@@ -796,6 +855,18 @@ export function renderEditorSvg(
           "pointer-events": "stroke"
         })
       );
+      if (town && group.kind === "road" && approachWall) {
+        const use = roadUse(document, group.sourceRoad?.index, group.sourceRoad?.routeId);
+        if (cobbledApproach(use))
+          appendCobble(
+            features,
+            clipPolylineToExterior(run, approachWall),
+            cobbledWidthMeters(group.style.widthMeters)
+          );
+      }
+      if (town && group.kind === "wall") {
+        features.appendChild(renderWallStructure(document, group, run, element));
+      }
     }
   }
   for (const deck of fixedMode ? [] : moatDecks) {
@@ -821,12 +892,20 @@ export function renderEditorSvg(
       element("path", { d: line(deck.points), fill: "none", stroke: "#d5cfbf", "stroke-width": String(deck.width) })
     );
   }
-  for (const connection of fixedMode ? [] : (document.riverConnections ?? [])) {
+  // Fixed crossings draw their own bridges; a ferry has no fixed geometry.
+  const connections = (document.riverConnections ?? []).filter(
+    connection => !fixedMode || !["fixedBridge", "movableBridge"].includes(connection.crossing.kind)
+  );
+  for (const connection of connections) {
     const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
     const group = document.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
     const vertex = group ? document.mesh.vertices[featureGroupVertices(document, group)[0]]?.point : undefined;
     const townRoad = vertex ? [vertex, ...connection.townRoad] : connection.townRoad;
-    for (const points of [connection.farRoad, ...dryRuns(townRoad, waterPolygons(document))])
+    const ferry = ferryPlan(document, connection);
+    // A ferry's far landing sits square across the river; the far road meets it there.
+    const farRoad = ferry && connection.farRoad.length ? [ferry.farLanding, ...connection.farRoad] : connection.farRoad;
+    for (const points of [farRoad, ...dryRuns(townRoad, waterPolygons(document))]) {
+      if (points.length < 2) continue;
       features.appendChild(
         element("path", {
           d: line(points),
@@ -837,6 +916,7 @@ export function renderEditorSvg(
           "stroke-width": String(width)
         })
       );
+    }
     const bridge = ["fixedBridge", "movableBridge"].includes(connection.crossing.kind);
     if (bridge) {
       features.appendChild(
@@ -859,18 +939,56 @@ export function renderEditorSvg(
         })
       );
     } else {
-      features.appendChild(
-        element("path", {
-          d: line(connection.banks),
-          class: "ce-ferry-route",
-          "data-crossing-kind": connection.crossing.kind,
-          fill: "none",
-          stroke: "#c8beaa",
-          "stroke-width": "1.5",
-          "stroke-dasharray": "5 5"
-        })
-      );
-      for (const p of connection.banks)
+      // Each crossing heads square across and drifts downstream; the boat is
+      // then hauled up the far bank to its landing (see FerryPlan).
+      const crossings = ferry ? [ferry.outbound, ferry.inbound] : [connection.banks];
+      for (const points of crossings)
+        features.appendChild(
+          element("path", {
+            d: line(points),
+            class: "ce-ferry-route",
+            "data-crossing-kind": connection.crossing.kind,
+            fill: "none",
+            stroke: "#c8beaa",
+            "stroke-width": "1.5",
+            "stroke-dasharray": "5 5"
+          })
+        );
+      for (const tow of ferry ? (ferry.farInFrame ? [ferry.townTow, ferry.farTow] : [ferry.townTow]) : [])
+        features.appendChild(
+          element("path", {
+            d: line(tow),
+            class: "ce-ferry-tow",
+            fill: "none",
+            stroke: "#c8beaa",
+            "stroke-width": "1",
+            "stroke-dasharray": "1.5 2.5"
+          })
+        );
+      // Each landing gets a short plank jetty out into the river. A route
+      // whose far landing lies beyond the frame draws only the town landing.
+      const landings: Array<[Point, Point]> = ferry
+        ? [
+            [ferry.landing, ferry.across],
+            ...(ferry.farInFrame ? [[ferry.farLanding, [-ferry.across[0], -ferry.across[1]]] as [Point, Point]] : [])
+          ]
+        : (connection.farRoad.length ? connection.banks : [connection.banks[0]]).map((p, i) => {
+            const q = connection.banks[1 - i];
+            const span = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+            return [p, [(q[0] - p[0]) / span, (q[1] - p[1]) / span]] as [Point, Point];
+          });
+      for (const [p, out] of landings)
+        features.appendChild(
+          element("path", {
+            d: line([p, [p[0] + out[0] * 12, p[1] + out[1] * 12]]),
+            class: "ce-ferry-jetty",
+            fill: "none",
+            stroke: "#8a7356",
+            "stroke-width": "4",
+            "stroke-linecap": "butt"
+          })
+        );
+      for (const [p] of landings)
         features.appendChild(
           element("circle", {
             cx: String(p[0]),
@@ -886,7 +1004,11 @@ export function renderEditorSvg(
   if (!document.sceneRegions) appendFrameRoads(features, document, town);
   features.appendChild(renderApproachLabels(document, zoom));
   if (town && !fixedMode) {
-    for (const deck of bridgeDecks(document)) {
+    const decks = bridgeDecks(document);
+    const overSkewed = new Set(overSkewedBridgeDecks(document, undefined, decks));
+    for (const deck of decks) {
+      // AGENTS.md: a bridge beyond the skew allowance is never drawn.
+      if (overSkewed.has(deck)) continue;
       const crossing = document.featureGroups.find(g => g.id === deck.groupId)?.crossing;
       const pickInfo: SvgPickInfo = {
         layer: "features",
@@ -953,6 +1075,7 @@ export function renderEditorSvg(
     }
   }
   svg.appendChild(features);
+  svg.appendChild(renderCastles(document, selection.inspectedId));
   if (fixedLayers) {
     const currentApproaches = currentFixedCrossingApproaches(document);
     const sameEpoch = fixedEpoch === JSON.stringify([document.importedFixedCrossings, document.frame]);
@@ -989,6 +1112,15 @@ export function renderEditorSvg(
     if (!preview) {
       svg.appendChild(renderTownQuays(document, townHarbor));
       svg.appendChild(renderTownWatermills(document, townWatermills, tool, selection.inspectedId));
+      svg.appendChild(renderAerialLandmarks(townAerial, tool, selection.inspectedId, minimal));
+    }
+    if (!preview) {
+      svg.appendChild(renderBarbicans(document, townAerial, tool, selection.inspectedId));
+      // SVG paint order places the curtain and its towers above attached outworks.
+      const walls = element("g", { class: "ce-walls" });
+      for (const node of Array.from(features.children))
+        if (node.matches(".ce-feature--wall, .ce-wall-structure")) walls.appendChild(node);
+      svg.appendChild(walls);
     }
     svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
     if (townParkLawns.length) {
@@ -1150,18 +1282,43 @@ export function renderEditorSvg(
     }
     if (town && (cityElement.id.startsWith("gc:") || cityElement.kind === "temple" || cityElement.kind === "plaza")) {
       if (cityElement.kind === "plaza") {
-        const plazaCircle = element("circle", {
-          cx: String(p[0]),
-          cy: String(-p[1]),
-          r: "2.5",
-          fill: "#292a26",
-          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+        const plazaWell = element("g", {
+          transform: `translate(${p[0]} ${-p[1]})`,
+          class: `ce-plaza-well${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           "data-element": cityElement.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
           "pointer-events": tool === "select" ? "all" : "none"
         });
-        if (tool === "select") plazaCircle.style.cursor = "pointer";
-        elements.appendChild(plazaCircle);
+        plazaWell.appendChild(
+          element("circle", {
+            cx: "0",
+            cy: "0",
+            r: "2.5",
+            fill: "#d0c8b7",
+            stroke: "#49483f",
+            "stroke-width": "0.4"
+          })
+        );
+        plazaWell.appendChild(
+          element("circle", {
+            cx: "0",
+            cy: "0",
+            r: "1.65",
+            fill: "#719ca8",
+            stroke: "#49483f",
+            "stroke-width": "0.2"
+          })
+        );
+        plazaWell.appendChild(
+          element("path", {
+            d: "M -2.5 0 L 2.5 0",
+            fill: "none",
+            stroke: "#74583d",
+            "stroke-width": "0.55"
+          })
+        );
+        if (tool === "select") plazaWell.style.cursor = "pointer";
+        elements.appendChild(plazaWell);
       }
       if (cityElement.kind === "temple") {
         const footprint = templeFootprintMeters(townExtentMeters(document.frame));
@@ -1332,7 +1489,8 @@ export function renderEditorSvg(
       "ce-continuous-water",
       "ce-fixed-river-water",
       "ce-fixed-crossings",
-      "ce-regional-water-cells"
+      "ce-regional-water-cells",
+      "ce-regional-coastal-water"
     ]);
     const crossings = element("g", { class: "ce-regional-crossings" });
     for (const node of Array.from(
@@ -1352,6 +1510,33 @@ export function renderEditorSvg(
       if (!(regional ? sceneVisibility.regional : sceneVisibility.core)) child.setAttribute("display", "none");
     }
   }
+  // The camera may leave the surveyed frame. Keep every map layer (including
+  // source water extending beyond the mesh) inside a stable world-space frame.
+  // Preserve the source geometry; only the final presentation is clipped.
+  const extent = document.frame.extentMeters;
+  const frameAttrs = {
+    x: String(-extent / 2),
+    y: String(-extent / 2),
+    width: String(extent),
+    height: String(extent)
+  };
+  const defs = element("defs", {});
+  const clip = element("clipPath", { id: "ce-map-frame", clipPathUnits: "userSpaceOnUse" });
+  clip.appendChild(element("rect", frameAttrs));
+  defs.appendChild(clip);
+  const scene = element("g", { class: "ce-map-scene", "clip-path": "url(#ce-map-frame)" });
+  scene.appendChild(
+    element("rect", {
+      ...frameAttrs,
+      fill: document.appearance === "town" ? groundColor : "#e1dfd4",
+      class: "ce-background",
+      "pointer-events": "none"
+    })
+  );
+  for (const child of Array.from(svg.children)) {
+    if (child.localName !== "style" && child.localName !== "defs") scene.appendChild(child);
+  }
+  svg.append(defs, scene);
   mark("svg-details");
   return svg;
 }
@@ -1591,7 +1776,10 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
     }
   }
   // One shoreline per sea cell; a manually assigned ward needs no landmark.
-  const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point }>();
+  const shores = new Map<
+    Id,
+    { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point; river: boolean }
+  >();
   for (const edge of Object.values(document.mesh.edges)) {
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
     const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
@@ -1613,10 +1801,12 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
       ring: physical?.water ?? facePoints(document.mesh, water),
       length,
       depth,
-      inward: physical?.inward
+      inward: physical?.inward,
+      river: !!physical
     });
   }
-  for (const [waterId, { a, b, ring, length, depth, inward }] of shores) {
+  let field: HarborWaterField | undefined;
+  for (const [waterId, { a, b, ring, length, depth, inward, river }] of shores) {
     const center = polygonCentroid(ring);
     const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
     let normal: Point = inward ? [-inward[0], -inward[1]] : [-tangent[1], tangent[0]];
@@ -1657,6 +1847,11 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
         reach = d;
       }
       if (reach < 3) continue;
+      // Same rule as the planned piers: no sea berth boxed into a cove.
+      if (!river) {
+        field ??= harborWaterField(document);
+        if (!seaBerthIsNavigable(field, [start[0] + normal[0] * reach, start[1] + normal[1] * reach])) continue;
+      }
       const deck = (along: number, side: number): Point => [
         start[0] + normal[0] * along + (tangent[0] * width * side) / 2,
         start[1] + normal[1] * along + (tangent[1] * width * side) / 2
@@ -2247,6 +2442,7 @@ function renderTownFortifications(
   const cornerIds = new Set<Id>();
   for (const circuit of document.defenseCircuits ?? []) {
     if (circuit.scope !== "castle") continue;
+    if (isNewStyleCastleCircuit(document, circuit.id)) continue;
     const refs = boundaryRings(document.mesh, boundaryEdges(document.mesh, circuit.areaFaceIds))[0] ?? [];
     const points = refs.map(
       ref =>
@@ -2279,25 +2475,42 @@ function renderTownFortifications(
         continue;
       if (cornerTowers.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 12)) continue;
       const wall = document.featureGroups.find(g => g.kind === "wall" && g.segments.some(r => r.edgeId === ref.edgeId));
-      if (!wall) continue;
+      if (!wall || wall.kind !== "wall") continue;
+      const wallMat = wall.wallMaterial ?? "stone";
+      const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
       const towerId = `castle-tower-${id}`,
-        pick = { layer: "fortifications", kind: "tower", id: towerId, label: "城の隅塔", wallId: wall.id, point: p };
+        pick = {
+          layer: "fortifications",
+          kind: "tower",
+          id: towerId,
+          label: "城の隅塔",
+          wallId: wall.id,
+          point: p,
+          wallMaterial: wallMat
+        };
+      const towerRadius = wall.style.widthMeters * 1.05;
       layer.appendChild(
         element("circle", {
           cx: String(p[0]),
           cy: String(-p[1]),
-          r: String(wall.style.widthMeters * 1.05),
-          fill: "#292a26",
-          class: inspectedId === towerId ? "ce-is-selected cg-is-selected" : "",
+          r: String(towerRadius),
+          fill: towerFill,
+          class:
+            (inspectedId === towerId ? "ce-is-selected cg-is-selected" : "") +
+            (wallMat === "wood" ? " ce-tower--wood" : " ce-tower--stone"),
           "data-pick": encodeURIComponent(JSON.stringify(pick))
         })
       );
+      layer.appendChild(renderTowerDecoration(p, towerRadius, wallMat, element));
       cornerIds.add(id);
       cornerTowers.push(p);
     }
   }
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
+    if (isNewStyleCastleWall(document, group.id)) continue;
+    const wallMat = group.wallMaterial ?? "stone";
+    const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
     const points = edgeGroupPoints(document, group.segments);
     const spacing = castleWallIds(document).has(group.id) ? 32 : Math.max(45, document.frame.blockSizeMeters * 1.4);
     let untilTower = spacing / 2;
@@ -2334,24 +2547,30 @@ function renderTownFortifications(
           id: towerId,
           label: `wall tower (${group.name})`,
           wallId: group.id,
-          point: position
+          point: position,
+          wallMaterial: wallMat
         };
+        const towerRadius = group.style.widthMeters * 0.8;
         const towerNode = element("circle", {
           cx: String(a[0] + (b[0] - a[0]) * t),
           cy: String(-a[1] - (b[1] - a[1]) * t),
-          r: String(group.style.widthMeters * 0.8),
-          fill: "#292a26",
-          class: isPickSelected ? "ce-is-selected cg-is-selected" : "",
+          r: String(towerRadius),
+          fill: towerFill,
+          class:
+            (isPickSelected ? "ce-is-selected cg-is-selected" : "") +
+            (wallMat === "wood" ? " ce-tower--wood" : " ce-tower--stone"),
           "data-pick": encodeURIComponent(JSON.stringify(towerPickInfo))
         });
         if (tool === "select") towerNode.style.cursor = "pointer";
         layer.appendChild(towerNode);
+        layer.appendChild(renderTowerDecoration(position, towerRadius, wallMat, element));
         untilTower += spacing;
       }
       untilTower -= length;
     }
   }
   for (const gate of document.gates) {
+    if (isNewStyleCastleGate(document, gate)) continue;
     const frame = gateCrossingFrame(document, gate.vertexId);
     if (!frame) continue;
     const wall = document.featureGroups.find(
@@ -2372,6 +2591,8 @@ function renderTownFortifications(
     const opening = gate.passageWidthMeters ?? Math.max(roadWidth + 2.2, width * 0.9) + side * slant;
     const plazaRadius = gatePlazaRadiusMeters(width);
     const drawbridge = gateHasMoat(document, gate);
+    const gateWallMat = wall.wallMaterial ?? "stone";
+    const gateTowerFill = gateWallMat === "wood" ? "#634327" : "#292a26";
     const isPickSelected = inspectedId === gate.id;
     const gatePickInfo: SvgPickInfo = {
       layer: "gates",
@@ -2380,7 +2601,8 @@ function renderTownFortifications(
       label: `gate #${gate.id}`,
       vertexId: gate.vertexId,
       wallId: wall.id,
-      point: frame.point
+      point: frame.point,
+      wallMaterial: gateWallMat
     };
     const [tx, ty] = frame.tangent;
     const [ix, iy] = frame.inward;
@@ -2416,10 +2638,11 @@ function renderTownFortifications(
           y: String(-side / 2),
           width: String(side),
           height: String(side),
-          class: "ce-gate-tower",
-          fill: "#292a26"
+          class: `ce-gate-tower ce-gate-tower--${gateWallMat}`,
+          fill: gateTowerFill
         })
       );
+    marker.appendChild(renderGateDecoration(side, opening, width, gateWallMat, drawbridge, element));
     layer.appendChild(marker);
   }
   return layer;
@@ -2595,7 +2818,7 @@ export function renderMeasureOverlay(
 }
 
 /** Show the IDs used by the face-editing controls while a cell is selected. */
-function appendFaceSelectionLabels(svg: SVGSVGElement, document: CityDocument, faceId: Id, zoom: number): void {
+export function appendFaceSelectionLabels(svg: SVGSVGElement, document: CityDocument, faceId: Id, zoom: number): void {
   const selectedFace = document.mesh.faces[faceId];
   if (!selectedFace) return;
   const labels = element("g", { class: "ce-selection-labels", "pointer-events": "none" });
@@ -2747,12 +2970,66 @@ function line(points: Point[]): string {
   return points.map((point, index) => `${index ? "L" : "M"}${point[0]} ${-point[1]}`).join(" ");
 }
 
+/** The shared fixed-crossing layer already draws this span (Allagospo has none, so its frame bridge must draw). */
+function fixedCrossingCovers(document: CityDocument, deck: Point[]): boolean {
+  const near = (a: Point, b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 25;
+  return (document.importedFixedCrossings?.crossings ?? []).some(
+    c =>
+      (near(deck[0], c.deckA) && near(deck.at(-1)!, c.deckB)) || (near(deck[0], c.deckB) && near(deck.at(-1)!, c.deckA))
+  );
+}
+
+function appendCobble(parent: SVGElement, runs: Point[][], width: number, surface: Record<string, string> = {}): void {
+  const { class: surfaceClass, ...surfaceAttrs } = surface;
+  for (const run of runs) {
+    if (run.length < 2) continue;
+    const path = line(run);
+    parent.appendChild(
+      element("path", {
+        d: path,
+        class: "ce-road-cobble-casing",
+        fill: "none",
+        stroke: "#6e685c",
+        "stroke-width": String(width + 1.4),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round",
+        "pointer-events": "none"
+      })
+    );
+    parent.appendChild(
+      element("path", {
+        d: path,
+        fill: "none",
+        stroke: "#c8c2b4",
+        "stroke-width": String(width),
+        "stroke-linecap": "butt",
+        "stroke-linejoin": "round",
+        "pointer-events": "none",
+        ...surfaceAttrs,
+        class: surfaceClass ? `ce-road--cobble ${surfaceClass}` : "ce-road--cobble"
+      })
+    );
+    parent.appendChild(
+      element("path", {
+        d: path,
+        class: "ce-road-cobble-joints",
+        fill: "none",
+        stroke: "#7d786c",
+        "stroke-width": String(Math.max(0.6, width * 0.18)),
+        "stroke-dasharray": "0.7 2.1",
+        "stroke-linecap": "butt",
+        "pointer-events": "none"
+      })
+    );
+  }
+}
+
 /** Continue an imported road from the outermost mesh vertex when that stub stays dry. */
 function appendFrameRoads(parent: SVGElement, document: CityDocument, town: boolean): void {
   const legs = document.frameRoads;
   if (!legs?.length) return;
-  const width = String(defaultRoadWidthMeters(townExtentMeters(document.frame)));
-  const casing = (points: Point[]) => {
+  const baseWidth = defaultRoadWidthMeters(townExtentMeters(document.frame));
+  const casing = (points: Point[], width: number) => {
     if (!town) return;
     parent.appendChild(
       element("path", {
@@ -2760,7 +3037,7 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
         class: "ce-frame-road-casing",
         fill: "none",
         stroke: "#57534b",
-        "stroke-width": String(Number(width) + 1.4),
+        "stroke-width": String(width + 1.4),
         "stroke-linecap": "butt",
         "stroke-linejoin": "round",
         "pointer-events": "none"
@@ -2768,31 +3045,49 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
     );
   };
   for (const leg of legs) {
+    const cobble = town && cobbledApproach(roadUse(document, leg.sourceIndex, leg.routeId));
+    const roadWidth = cobble ? cobbledWidthMeters(baseWidth) : baseWidth;
+    const width = String(roadWidth);
     const connection = frameRoadTownConnection(document, leg);
     if (connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5) {
-      casing(connection);
-      parent.appendChild(
-        element("path", {
-          d: line(connection),
-          class: "ce-frame-road",
+      if (cobble)
+        appendCobble(parent, [connection], roadWidth, {
+          class: "ce-frame-road ce-frame-road--cobble",
           "data-frame-road": String(leg.routeId),
           "data-source-index": String(leg.sourceIndex),
           "data-route-id": String(leg.routeId),
-          "data-frame-connection": "true",
-          fill: "none",
-          stroke: town ? "#d5cfbf" : "#735238",
-          "stroke-width": width,
-          "stroke-linecap": "butt",
-          "pointer-events": "none"
-        })
-      );
+          "data-frame-connection": "true"
+        });
+      else {
+        casing(connection, roadWidth);
+        parent.appendChild(
+          element("path", {
+            d: line(connection),
+            class: "ce-frame-road",
+            "data-frame-road": String(leg.routeId),
+            "data-source-index": String(leg.sourceIndex),
+            "data-route-id": String(leg.routeId),
+            "data-frame-connection": "true",
+            fill: "none",
+            stroke: town ? "#d5cfbf" : "#735238",
+            "stroke-width": width,
+            "stroke-linecap": "butt",
+            "pointer-events": "none"
+          })
+        );
+      }
     }
+    // A leg the frame planner bridged already runs its approaches along the
+    // bank to a square crossing; grazing that bank is not a water crossing.
+    const plannedCrossing = leg.pieces.some(piece => piece.kind === "bridge");
     for (const piece of leg.pieces) {
       const points = piece.points;
       if (points.length < 2) continue;
       if (
         document.sceneRegions &&
-        (piece.kind === "bridge" || lineHitsDocumentWater(document, points, Number(width), true))
+        (piece.kind === "bridge"
+          ? fixedCrossingCovers(document, points)
+          : !plannedCrossing && lineHitsDocumentWater(document, points, baseWidth, true))
       )
         continue;
       const identity = {
@@ -2806,7 +3101,7 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
                   layer: "regional",
                   kind: "road-reference",
                   id: `regional-road-${leg.routeId}-${leg.branchIndex ?? 0}`,
-                  label: `街道 #${leg.routeId}`,
+                  label: cobble ? `街道 #${leg.routeId}（石畳）` : `街道 #${leg.routeId}`,
                   routeId: leg.routeId,
                   branchId: leg.branchIndex ?? 0
                 })
@@ -2815,13 +3110,14 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
           : {})
       };
       if (piece.kind === "bridge") {
+        const deck = String(baseWidth);
         parent.appendChild(
           element("path", {
             d: line(points),
             class: "ce-bridge-outline",
             fill: "none",
             stroke: "#1A1917",
-            "stroke-width": String(Number(width) + 1.4),
+            "stroke-width": String(baseWidth + 1.4),
             "stroke-linecap": "butt",
             ...identity
           })
@@ -2833,14 +3129,22 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
             "data-frame-bridge": piece.bridgeKind ?? "fixedBridge",
             fill: "none",
             stroke: "#d5cfbf",
-            "stroke-width": width,
+            "stroke-width": deck,
             "stroke-linecap": "butt",
             ...identity
           })
         );
         continue;
       }
-      casing(points);
+      if (cobble) {
+        appendCobble(parent, [points], roadWidth, {
+          class: "ce-frame-road ce-frame-road--cobble",
+          "data-frame-road": String(leg.routeId),
+          ...identity
+        });
+        continue;
+      }
+      casing(points, roadWidth);
       parent.appendChild(
         element("path", {
           d: line(points),
@@ -3088,7 +3392,6 @@ function tree(point: Point, radius: number, id: Id): SVGElement {
 export const STANDALONE_SVG_STYLE = `
   .ce-svg { background: transparent; }
   .ce-reference-image { opacity: 0.82; }
-  .ce-svg--town { background: #d5cfbf; }
   .ce-svg.ce-svg--town .ce-face--land { fill: #d5cfbf; }
   .ce-features { z-index: 2; }
   .ce-park-trees, .ce-park-tree { z-index: 5; }
@@ -3108,7 +3411,8 @@ export const STANDALONE_SVG_STYLE = `
   .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
   .ce-building { fill: #b2afa2; stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
   .ce-building--landmark { fill: #373831; }
-  .ce-road-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-road-casing, .ce-road--cobble, .ce-road-cobble-casing { stroke-linecap: round; stroke-linejoin: round; }
+  .ce-road-cobble-joints { stroke-linecap: butt; }
   .ce-bridge-outline, .ce-bridge-deck { fill: none; stroke-linecap: butt; }
   .ce-face { stroke: none; fill: #e1dfd4; }
   .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill: #91c8d3; }
@@ -3127,6 +3431,20 @@ export const STANDALONE_SVG_STYLE = `
   .ce-edge { fill: none; stroke: #738083; stroke-width: 1px; }
   .ce-feature { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
   .ce-feature--wall { stroke-dasharray: 2 2; }
+  .ce-svg--town .ce-feature--wall-wood { stroke-linecap: round; }
+  .ce-wall-structure { pointer-events: none; }
+  .ce-wall-wood-logs { stroke-linecap: round; }
+  .ce-wall-wood-cores { stroke-linecap: round; }
+  .ce-wall-stone-merlons { stroke-linecap: butt; }
+  .ce-tower-decoration { pointer-events: none; }
+  .ce-tower-wood-logs { stroke-linecap: round; }
+  .ce-tower-wood-cores { stroke-linecap: round; }
+  .ce-tower-stone-merlons { stroke-linecap: butt; }
+  .ce-gate-decoration { pointer-events: none; }
+  .ce-gate-wood-post { stroke-linecap: round; }
+  .ce-gate-stone-merlons { stroke-linecap: butt; }
+  .ce-tower--wood { stroke: #482f18; stroke-width: 0.5px; }
+  .ce-gate-tower--wood { stroke: #482f18; stroke-width: 0.5px; }
   .ce-feature--plank { filter: drop-shadow(0 0 1px #332b22); }
   .ce-element { color: #263c42; }
   .ce-element-halo { fill: rgb(255 253 244 / 82%); stroke: #d0d6ce; stroke-width: 1px; }
@@ -3224,28 +3542,17 @@ export function renderStandaloneCitySvg(
   const style = element("style", { type: "text/css" }, STANDALONE_SVG_STYLE);
   defs.appendChild(style);
 
-  const bgColor = document.appearance === "town" ? getLandscapeGroundColor(document) : "#e1dfd4";
-  const bgRect = element("rect", {
-    x: String(-extent / 2),
-    y: String(-extent / 2),
-    width: String(extent),
-    height: String(extent),
-    fill: bgColor,
-    class: "ce-background"
-  });
+  // Append biome overrides after the standalone defaults. The ground itself
+  // is the same clipped rectangle used by the editor, never the SVG viewport.
   if (document.appearance === "town") {
     const suburbColor = getLandscapeSuburbFaceColor(document);
-    const biomeStyle = element(
-      "style",
-      { type: "text/css" },
-      `.ce-svg--town { background: ${bgColor}; } .ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+    defs.appendChild(
+      element(
+        "style",
+        { type: "text/css" },
+        `.ce-svg.ce-svg--town .ce-face--land, .ce-face--land.ce-face--ward-unassigned, .ce-face--land.ce-face--ward-empty { fill: ${suburbColor}; }`
+      )
     );
-    defs.appendChild(biomeStyle);
-  }
-  if (defs.nextSibling) {
-    svg.insertBefore(bgRect, defs.nextSibling);
-  } else {
-    svg.appendChild(bgRect);
   }
 
   for (const img of svg.querySelectorAll("image")) {
@@ -3273,60 +3580,127 @@ export function serializeCitySvg(document: CityDocument, observer?: GenerationOb
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(svg)}`;
 }
 
+export function isNewStyleCastleWall(document: CityDocument, wallGroupId: string): boolean {
+  if (!castleWallIds(document).has(wallGroupId)) return false;
+  const castle = document.castles?.find(c => {
+    const circuit = document.defenseCircuits?.find(d => d.id === c.circuitId);
+    return circuit?.wallGroupIds.includes(wallGroupId);
+  });
+  if (!castle) return false;
+  const profile = resolveCastleStyle(document, castle);
+  return profile.style !== "classic";
+}
+
+export function isNewStyleCastleCircuit(document: CityDocument, circuitId: Id): boolean {
+  const castle = document.castles?.find(c => c.circuitId === circuitId);
+  if (!castle) return false;
+  const profile = resolveCastleStyle(document, castle);
+  return profile.style !== "classic";
+}
+
+export function isNewStyleCastleGate(document: CityDocument, gate: CityGate): boolean {
+  if (!document.castles?.length) return false;
+
+  for (const castle of document.castles) {
+    const profile = resolveCastleStyle(document, castle);
+    if (profile.style === "classic") continue;
+
+    // 1. Direct owner castle ID or prefix in gate ID
+    if (gate.ownerCastleId && String(gate.ownerCastleId) === String(castle.id)) {
+      return true;
+    }
+    if (typeof gate.id === "string" && gate.id.startsWith(String(castle.id))) {
+      return true;
+    }
+
+    // 2. Defense circuit association
+    const circuit = document.defenseCircuits?.find(
+      c =>
+        String(c.id) === String(castle.circuitId) ||
+        (c.scope === "castle" && String(c.ownerCastleId ?? "") === String(castle.id))
+    );
+    if (circuit) {
+      // 2a. Boundary vertices of the castle defense circuit
+      const boundary = boundaryEdges(document.mesh, circuit.areaFaceIds);
+      const boundaryVertexIds = new Set<Id>();
+      for (const ref of boundary) {
+        const edge = document.mesh.edges[ref.edgeId];
+        if (edge) {
+          boundaryVertexIds.add(edge.a);
+          boundaryVertexIds.add(edge.b);
+        }
+      }
+      if (boundaryVertexIds.has(gate.vertexId)) {
+        return true;
+      }
+
+      // 2b. Any face vertices within the circuit's area faces
+      for (const faceId of circuit.areaFaceIds) {
+        const face = document.mesh.faces[faceId];
+        if (face && faceVertices(document.mesh, face).includes(gate.vertexId)) {
+          return true;
+        }
+      }
+
+      // 2c. Wall groups belonging to this circuit
+      const circuitWallIds = new Set(circuit.wallGroupIds);
+      const connectedWalls = document.featureGroups.filter(
+        g => g.kind === "wall" && featureGroupVertices(document, g).some(v => String(v) === String(gate.vertexId))
+      );
+      if (connectedWalls.some(w => circuitWallIds.has(w.id))) {
+        return true;
+      }
+    }
+
+    // 3. Wall connected to gate is a new-style castle wall
+    const connectedWalls = document.featureGroups.filter(
+      g => g.kind === "wall" && featureGroupVertices(document, g).some(v => String(v) === String(gate.vertexId))
+    );
+    if (connectedWalls.some(w => isNewStyleCastleWall(document, w.id))) {
+      return true;
+    }
+
+    // 4. Spatial / Geometric check: gate point is on or immediately adjacent to castle precinct
+    const gatePoint = document.mesh.vertices[gate.vertexId]?.point;
+    if (gatePoint) {
+      if (circuit && circuit.areaFaceIds.length > 0) {
+        const rings = boundaryRings(document.mesh, boundaryEdges(document.mesh, circuit.areaFaceIds));
+        for (const ringRefs of rings) {
+          const ringPts = ringRefs
+            .map(ref => {
+              const e = document.mesh.edges[ref.edgeId];
+              return document.mesh.vertices[ref.forward ? e.a : e.b]?.point;
+            })
+            .filter((p): p is Point => !!p);
+          if (ringPts.length >= 3) {
+            const hit = nearestOnPolyline(gatePoint, [...ringPts, ringPts[0]]);
+            if (hit.dist < 8.0) {
+              return true;
+            }
+          }
+        }
+      }
+      // Also check against castle courtyards
+      for (const court of castle.courtyards ?? []) {
+        if (court.length >= 3) {
+          const hit = nearestOnPolyline(gatePoint, [...court, court[0]]);
+          if (hit.dist < 8.0) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 function renderCastles(document: CityDocument, inspectedId?: string | number | null): SVGGElement {
   const layer = element("g", { class: "ce-castles" }) as SVGGElement;
   for (const castle of document.castles ?? []) {
     const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
     if (!circuit) continue;
-    const pick = {
-      layer: "fortifications",
-      kind: "castle",
-      id: castle.id,
-      label: `城 (${castle.form})`,
-      locked: castle.locked
-    };
-    const group = element("g", {
-      "data-pick": encodeURIComponent(JSON.stringify(pick)),
-      class: inspectedId === castle.id ? "ce-is-selected cg-is-selected" : "",
-      style: "cursor:pointer"
-    });
-    group.appendChild(
-      element("path", {
-        d: polygon(circuitRing(document, circuit)),
-        fill: "#d5cfbf",
-        "fill-opacity": "0.25",
-        stroke: "none"
-      })
-    );
-    for (const court of castle.courtyards)
-      group.appendChild(
-        element("path", { d: polygon(court), fill: "#d8cdb6", stroke: "#a7977f", "stroke-width": "0.6" })
-      );
-    for (const access of castle.accesses)
-      group.appendChild(
-        element("path", {
-          d: line(access.points),
-          fill: "none",
-          stroke: "#b7a78e",
-          "stroke-width": String(access.widthMeters),
-          "stroke-linejoin": "round"
-        })
-      );
-    for (const part of castle.parts) {
-      group.appendChild(
-        element("path", {
-          d: polygon(part.footprint),
-          fill: part.role === "keep" ? "#827364" : "#a49380",
-          stroke: "#4f463c",
-          "stroke-width": part.role === "keep" ? "2" : "1"
-        })
-      );
-      for (const entrance of part.entrances)
-        group.appendChild(
-          element("circle", { cx: String(entrance[0]), cy: String(-entrance[1]), r: "1.4", fill: "#e2d5be" })
-        );
-    }
-    layer.appendChild(group);
+    layer.appendChild(renderCastle(document, castle, inspectedId));
   }
   return layer;
 }
@@ -3354,6 +3728,7 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
           parts: [],
           accesses: [],
           trees: [],
+          burialProfile: document.burialProfile,
           provenance: "generated",
           locked: false
         };
@@ -3376,6 +3751,12 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
       class: inspectedId === cemetery.id ? "ce-is-selected cg-is-selected" : "",
       style: "cursor:pointer"
     });
+
+    if (cemetery.burialProfile) {
+      group.appendChild(renderCultureCemetery(cemetery));
+      layer.appendChild(group);
+      continue;
+    }
 
     // 1. Outer precinct stone wall
     if (cemetery.boundary.length >= 3) {

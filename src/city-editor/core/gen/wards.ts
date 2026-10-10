@@ -23,18 +23,21 @@
 import type { HistoricalPeriod } from "../types";
 import { placeTempleFootprint } from "./civicPlacement";
 import { cultivableParts } from "./coastalSuitability";
+import { economyWardMix, type WardMixSlot } from "./economicWards";
 import {
   azimuthDelta,
   nearestOnPolyline,
   pointInPolygon,
   polygonArea,
   polygonCompactness,
+  polylineSquareDistance,
   polylineTangent,
   segmentInteriorInPolygon,
   segmentSegmentHit,
   vecToAzimuth
 } from "./geom";
 import { makeRng, type Rng } from "./prng";
+import type { BurgSiteEconomy } from "./site/burgSiteEconomy";
 import type {
   BorderLoop,
   Cell,
@@ -127,14 +130,23 @@ export interface WardInputs {
   params: CityParams;
   program: CityProgram;
   shoreline: Point[] | null;
+  /** Mesh window the shore was classified in. Defaults to the civic town extent. */
+  frameExtentMeters?: number;
   oceanShorelines?: Point[][];
   riverBanks?: Point[][];
   waterPolygon: Point[] | null;
   /** Intramural streets and approach roads, used to site and orient the temple. */
   streets?: Point[][];
+  /** FMG roads drawn across the map outside the town streets (frame legs, far-bank
+   * bridge arms). Only used to keep the cemetery off cells they run through. */
+  exteriorRoads?: Point[][];
   /** River centerlines, used to keep the temple off the water. */
   rivers?: Point[][];
+  /** When set, the inner mix follows guild practitioners, commerce.rank, and marketCenter. */
+  economy?: BurgSiteEconomy;
   historicalPeriod?: HistoricalPeriod;
+  burialProfile?: import("../../../data/burialCultures").BurialCultureProfile;
+  elevations?: Map<number, number>;
 }
 
 export interface WardResult {
@@ -163,6 +175,7 @@ export function assignWards(input: WardInputs): WardResult {
 
   const byId = new Map(cells.map(c => [c.id, c]));
   const assigned = new Map<number, WardKind>();
+  const craftDomains = new Map<number, NonNullable<WardMixSlot["craftDomain"]>>();
   const occupied = new Set<number>();
   const extraPrecincts: Precinct[] = [];
   const overlays: Overlay[] = [];
@@ -187,7 +200,14 @@ export function assignWards(input: WardInputs): WardResult {
 
   // 2. Harbour (coast-bound) before temple so the two cannot collide.
   if (program.port) {
-    if ((geo.riverPort && input.riverBanks?.length) || !shoreline || shoreline.length < 2 || !waterPolygon) {
+    const riverHarbour =
+      (geo.riverPort && input.riverBanks?.length) || !shoreline || shoreline.length < 2 || !waterPolygon;
+    // A river port with its own sea haven (an estuary town) gets both harbours.
+    // It needs real open water near the town, not a sliver at the window edge (Yalkan).
+    const seaHarbour =
+      !riverHarbour ||
+      (!!geo.seaPort && !!shoreline && shoreline.length >= 2 && !!waterPolygon && sea.size >= ESTUARY_SEA_MIN_CELLS);
+    if (riverHarbour) {
       // Navigable river frontage can exist without a sea/lake water polygon.
       const lines = input.riverBanks?.length ? input.riverBanks : (input.rivers ?? []);
       const candidates = cells.filter(
@@ -229,8 +249,18 @@ export function assignWards(input: WardInputs): WardResult {
         take(anchor.id, "harbor");
         if (!urban.has(anchor.id)) outskirts.add(anchor.id);
       }
-    } else {
-      const harbor = placeHarbor(cells, urban, sea, occupied, shoreline, R);
+    }
+    if (seaHarbour && shoreline) {
+      const placed = placeHarbor(cells, urban, sea, occupied, shoreline, R);
+      // Far from a small town disk, but the surveyed shore still crosses this
+      // frame: that is the sea port, not a sliver clipped by the window edge.
+      const harbor =
+        placed &&
+        riverHarbour &&
+        Math.hypot(placed.anchor[0], placed.anchor[1]) > R * ESTUARY_SEA_MAX_RADII &&
+        !estuaryShoreEntersFrame(shoreline, input.frameExtentMeters ?? params.extentMeters)
+          ? null
+          : placed;
       if (harbor) {
         extraPrecincts.push(harbor);
         for (const id of harbor.cellIds) take(id, "harbor");
@@ -284,6 +314,7 @@ export function assignWards(input: WardInputs): WardResult {
   // 3.5. Cemetery: every medieval or modern city requires a churchyard or municipal cemetery.
   const cemeteryRng = makeRng(`${params.seed}:cemetery`);
   const cemeteryId = placeCemetery(
+    Math.max(QUANTUM * 2, cellSize * 0.08),
     cells,
     urban,
     outskirts,
@@ -293,9 +324,12 @@ export function assignWards(input: WardInputs): WardResult {
     plaza,
     citadelIds,
     gates,
-    input.streets ?? [],
+    [...(input.streets ?? []), ...(input.exteriorRoads ?? [])],
     input.historicalPeriod,
-    cemeteryRng
+    cemeteryRng,
+    input.burialProfile,
+    input.riverBanks?.length ? input.riverBanks : input.rivers,
+    input.elevations
   );
   if (cemeteryId !== null) {
     take(cemeteryId, "cemetery");
@@ -313,13 +347,30 @@ export function assignWards(input: WardInputs): WardResult {
 
   // 5. Remaining inner cells: shuffled, possibly-repeated mix + rateLocation.
   const inner = cells.filter(c => urban.has(c.id) && !occupied.has(c.id)).map(c => c.id);
-  fillInner(inner, assigned, occupied, byId, citadelIds, plaza, borders, program.walls, rng);
+  fillInner(
+    inner,
+    assigned,
+    craftDomains,
+    occupied,
+    byId,
+    citadelIds,
+    plaza,
+    borders,
+    program.walls,
+    rng,
+    input.economy
+  );
 
   // 6. Outer cells touching a gate → GateWard (high probability).
   for (const cell of cells) {
     if (urban.has(cell.id) || sea.has(cell.id) || occupied.has(cell.id)) continue;
     if (!gates.some(g => cellTouchesPoint(cell, g.point, gateEps))) continue;
-    if (rng() < OUTER_GATE_CHANCE) take(cell.id, "gate");
+    if (rng() < OUTER_GATE_CHANCE) {
+      take(cell.id, "gate");
+      // A gate suburb is built-up land; outside the outskirts it would keep
+      // its ward but never be buildable, so it drew no houses.
+      outskirts.add(cell.id);
+    }
   }
 
   // 7. Remaining outskirts: compact + 20% → Farm, else empty Ward.
@@ -348,7 +399,10 @@ export function assignWards(input: WardInputs): WardResult {
 
   // `assigned` is a Map, so its iteration order is insertion order — exactly the
   // decision order phases 1-8 ran in (Map/Set iteration order is a JS guarantee).
-  const assignmentOrder: WardAssignment[] = [...assigned.entries()].map(([cellId, kind]) => ({ cellId, kind }));
+  const assignmentOrder: WardAssignment[] = [...assigned.entries()].map(([cellId, kind]) => {
+    const craftDomain = craftDomains.get(cellId);
+    return craftDomain ? { cellId, kind, craftDomain } : { cellId, kind };
+  });
   const wards = assignmentOrder.slice().sort((a, b) => a.cellId - b.cellId);
   return { wards, assignmentOrder, precincts: extraPrecincts, overlays, shanty };
 }
@@ -356,20 +410,23 @@ export function assignWards(input: WardInputs): WardResult {
 function fillInner(
   unassigned: number[],
   assigned: Map<number, WardKind>,
+  craftDomains: Map<number, NonNullable<WardMixSlot["craftDomain"]>>,
   occupied: Set<number>,
   byId: Map<number, Cell>,
   citadelIds: Set<number>,
   plaza: Precinct | null,
   borders: BorderLoop[],
   walled: boolean,
-  rng: Rng
+  rng: Rng,
+  economy?: BurgSiteEconomy
 ): void {
   const remaining = unassigned.slice();
-  const queue = scaleMix(remaining.length, rng);
+  const queue = scaleMix(remaining.length, rng, economy);
   const origin: Point = plaza?.anchor ?? [0, 0];
 
   while (remaining.length) {
-    const kind: WardKind = queue.shift() ?? "slum";
+    const slot: WardMixSlot = queue.shift() ?? { kind: "slum" };
+    const kind = slot.kind;
     const pick = pickFor(kind, remaining, byId, assigned, citadelIds, plaza, origin, borders, walled, rng);
     if (pick === null) {
       // This kind cannot sit anywhere left (e.g. MilitaryWard with no wall). Skip
@@ -383,16 +440,18 @@ function fillInner(
       continue;
     }
     assigned.set(pick, kind);
+    if (kind === "craftsmen" && slot.craftDomain) craftDomains.set(pick, slot.craftDomain);
     occupied.add(pick);
     remaining.splice(remaining.indexOf(pick), 1);
   }
 }
 
-function scaleMix(n: number, rng: Rng): WardKind[] {
+function scaleMix(n: number, rng: Rng, economy?: BurgSiteEconomy): WardMixSlot[] {
   if (n <= 0) return [];
-  const copies = Math.max(1, Math.ceil(n / WARD_MIX.length));
-  const queue: WardKind[] = [];
-  for (let i = 0; i < copies; i++) queue.push(...WARD_MIX);
+  const mix = economy ? economyWardMix(economy) : WARD_MIX.map(kind => ({ kind }));
+  const copies = Math.max(1, Math.ceil(n / mix.length));
+  const queue: WardMixSlot[] = [];
+  for (let i = 0; i < copies; i++) queue.push(...mix);
   // Full Fisher–Yates shuffle: on the coarse ward-scale grid there may be fewer
   // cells than WARD_MIX is long, so the front of the list must not be all one
   // kind — every district type has to get a proportional shot.
@@ -484,6 +543,20 @@ function rateLocation(
     default:
       return null;
   }
+}
+
+/** Open-water cells an estuary sea harbour must claim before it is drawn. */
+const ESTUARY_SEA_MIN_CELLS = 6;
+/** ... within this many town radii of the centre. */
+const ESTUARY_SEA_MAX_RADII = 3;
+/** A shore this far inside the frame has room for a berth. One that only
+ * grazes the edge (Yalkan) does not. */
+const ESTUARY_SEA_MIN_INSET_METERS = 60;
+
+/** The surveyed shore crosses the frame, rather than merely touching its edge. */
+export function estuaryShoreEntersFrame(shoreline: Point[], extentMeters: number): boolean {
+  if (shoreline.length < 2 || !(extentMeters > 0)) return false;
+  return extentMeters / 2 - polylineSquareDistance(shoreline) >= ESTUARY_SEA_MIN_INSET_METERS;
 }
 
 function placeHarbor(
@@ -711,6 +784,7 @@ function isCellPenetratedByStreet(cellPolygon: Point[], cellCentroid: Point, str
 }
 
 function placeCemetery(
+  gateEps: number,
   cells: Cell[],
   urban: Set<number>,
   outskirts: Set<number>,
@@ -722,18 +796,65 @@ function placeCemetery(
   gates: Gate[],
   streets: Point[][],
   historicalPeriod: HistoricalPeriod | undefined,
-  rng: Rng
+  rng: Rng,
+  burialProfile?: import("../../../data/burialCultures").BurialCultureProfile,
+  rivers?: Point[][],
+  elevations?: Map<number, number>
 ): number | null {
   const byId = new Map(cells.map(c => [c.id, c]));
   const isModern = !!historicalPeriod && MODERN_BURIAL_PERIODS.has(historicalPeriod);
+  const zoning = burialProfile?.zoning ?? (isModern ? "extramural_sanitary" : "intramural_core");
+  // A cemetery never takes a cell at a gate. Wards are assigned before roads
+  // are routed on the final mesh, so the planned streets do not yet show the
+  // approach through the gate; the rim cell farthest from the plaza is often
+  // the gate cell (Senia/Gozelsk: the gate moved 95 m and its road was cut).
+  const atGate = (id: number) => {
+    const cell = byId.get(id);
+    return !!cell && gates.some(g => cellTouchesPoint(cell, g.point, gateEps));
+  };
 
-  // Modern Extramural Placement: Outside walls / in outskirts along approach roads
-  if (isModern && outskirts.size > 0) {
+  // 1. Riverfront Ghat Placement (Hindu / Holy river cremation ghats)
+  if (zoning === "riverfront_ghat" && rivers && rivers.length > 0) {
+    const riverCandidates: Array<{ id: number; score: number }> = [];
+    for (const [id, cell] of byId.entries()) {
+      if (occupied.has(id) || sea.has(id) || atGate(id)) continue;
+      let minRiverDist = Infinity;
+      for (const r of rivers) {
+        if (r.length < 2) continue;
+        const hit = nearestOnPolyline(cell.centroid, r);
+        if (hit.dist < minRiverDist) minRiverDist = hit.dist;
+      }
+      if (minRiverDist <= 30) {
+        const score = 150 - minRiverDist * 3 + rng() * 10;
+        if (!isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) {
+          riverCandidates.push({ id, score });
+        }
+      }
+    }
+    if (riverCandidates.length > 0) {
+      riverCandidates.sort((a, b) => b.score - a.score);
+      return riverCandidates[0].id;
+    }
+    return null;
+  }
+  if (zoning === "riverfront_ghat") return null;
+
+  const isExtramural =
+    zoning === "extramural_highway" ||
+    zoning === "extramural_sanitary" ||
+    zoning === "topographic_hill" ||
+    zoning === "isolated_highland";
+
+  // 2. Extramural Placement: Outside walls / in outskirts along approach roads or scenic ridges
+  if (isExtramural && outskirts.size > 0) {
     const outskirtsCandidates: Array<{ id: number; score: number }> = [];
+    // Cells that only miss the culture's ideal road/plaza distance. Every
+    // town buried its dead somewhere, so these beat having no cemetery.
+    const relaxedCandidates: Array<{ id: number; score: number }> = [];
     const plazaCenter = plaza?.anchor ?? [0, 0];
 
     for (const id of outskirts) {
-      if (occupied.has(id) || sea.has(id) || urban.has(id)) continue;
+      if (occupied.has(id) || sea.has(id) || urban.has(id) || atGate(id)) continue;
       const cell = byId.get(id);
       if (!cell || cell.polygon.length < 3) continue;
 
@@ -756,35 +877,57 @@ function placeCemetery(
       }
 
       const distToPlaza = Math.hypot(cell.centroid[0] - plazaCenter[0], cell.centroid[1] - plazaCenter[1]);
+      const missesIdeal =
+        (!!burialProfile && zoning === "extramural_highway" && (minStreetDist < 10 || minStreetDist > 50)) ||
+        (!!burialProfile && zoning === "extramural_sanitary" && distToPlaza < 100);
 
       // Ideal suburban gate distance: ~60m to 250m (not blocking the immediate gate arch, but nearby)
       const gateScore = minGateDist < Infinity ? 30 / (1 + Math.abs(minGateDist - 120) / 60) : 10;
 
       // Proximity to approach road: cemetery should be alongside road (~15m to 45m), not bisected by it
-      const roadScore = minStreetDist < Infinity ? 25 / (1 + Math.abs(minStreetDist - 25) / 25) : 5;
+      const roadMultiplier = zoning === "extramural_highway" ? 2.5 : 1.0;
+      const roadScore = (minStreetDist < Infinity ? 25 / (1 + Math.abs(minStreetDist - 25) / 25) : 5) * roadMultiplier;
 
       // Suburban cemeteries benefited from well-proportioned land parcels for garden pathways
       const shapeScore = compactness * 20;
 
-      // Slight penalty for map perimeter boundary cells if interior suburban options exist
-      const borderPenalty = cell.onBorder ? -15 : 0;
+      // Border penalty/bonus: isolated highlands prefer outer borders, urban suburbs prefer interior
+      const borderScore = cell.onBorder
+        ? zoning === "isolated_highland" || zoning === "topographic_hill"
+          ? 15
+          : -15
+        : 0;
+      const distPlazaWeight = zoning === "isolated_highland" || zoning === "topographic_hill" ? 0.2 : 0.05;
 
-      const score = gateScore + roadScore + shapeScore + borderPenalty + distToPlaza * 0.05 + rng() * 10;
+      const elevationScore =
+        zoning === "topographic_hill" || zoning === "isolated_highland" ? (elevations?.get(id) ?? 0) * 10 : 0;
+      const score =
+        gateScore + roadScore + shapeScore + borderScore + elevationScore + distToPlaza * distPlazaWeight + rng() * 10;
       // Reject cells that have a major road or highway cutting straight through them
       if (isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)) continue;
 
-      outskirtsCandidates.push({ id, score });
+      (missesIdeal ? relaxedCandidates : outskirtsCandidates).push({ id, score });
     }
 
-    if (outskirtsCandidates.length > 0) {
-      outskirtsCandidates.sort((a, b) => b.score - a.score);
-      return outskirtsCandidates[0].id;
+    for (const list of [outskirtsCandidates, relaxedCandidates]) {
+      if (list.length === 0) continue;
+      list.sort((a, b) => b.score - a.score);
+      return list[0].id;
     }
   }
 
-  // Traditional Intramural Placement (Medieval / Churchyard)
+  // Cultures that bury outside the town never move the cemetery inside it.
+  if (burialProfile && isExtramural) return null;
+
+  // Traditional Intramural Placement (Medieval / Churchyard / Core)
+  const isIntramural =
+    zoning === "intramural_core" ||
+    zoning === "household_intramural" ||
+    zoning === "subterranean_network" ||
+    !isExtramural;
+
   // Priority 1: Adjacent to temple (Churchyard).
-  if (!isModern && templeIds.size > 0) {
+  if (isIntramural && templeIds.size > 0) {
     const candidates: Array<{ id: number; score: number }> = [];
     const templeCenters = [...templeIds]
       .map(id => byId.get(id))
@@ -802,7 +945,7 @@ function placeCemetery(
       const tCell = byId.get(tid);
       if (!tCell) continue;
       for (const nid of tCell.neighbors) {
-        if (!urban.has(nid) || occupied.has(nid) || sea.has(nid)) continue;
+        if (!urban.has(nid) || occupied.has(nid) || sea.has(nid) || atGate(nid)) continue;
         const nCell = byId.get(nid);
         if (!nCell) continue;
 
@@ -828,7 +971,7 @@ function placeCemetery(
   const urbanCandidates: Array<{ id: number; score: number }> = [];
   const plazaCenter = plaza?.anchor ?? [0, 0];
   for (const id of urban) {
-    if (occupied.has(id) || sea.has(id)) continue;
+    if (occupied.has(id) || sea.has(id) || atGate(id)) continue;
     const cell = byId.get(id);
     if (!cell) continue;
 
@@ -844,10 +987,22 @@ function placeCemetery(
     return urbanCandidates[0].id;
   }
 
+  if (
+    burialProfile &&
+    (zoning === "intramural_core" || zoning === "household_intramural" || zoning === "subterranean_network")
+  )
+    return null;
+
   // Fallback: any available outskirts cell if urban was exhausted
   for (const id of outskirts) {
     const cell = byId.get(id);
-    if (cell && !occupied.has(id) && !sea.has(id) && !isCellPenetratedByStreet(cell.polygon, cell.centroid, streets))
+    if (
+      cell &&
+      !occupied.has(id) &&
+      !sea.has(id) &&
+      !atGate(id) &&
+      !isCellPenetratedByStreet(cell.polygon, cell.centroid, streets)
+    )
       return id;
   }
 

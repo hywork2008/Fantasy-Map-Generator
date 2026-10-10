@@ -62,6 +62,75 @@ describe("generatePerpendicularBridges", () => {
     expect(route.points).toHaveLength(2);
   });
 
+  it("許容斜角があれば、構造別の上限まで橋軸を道の向きへ寄せること", () => {
+    const river: RegionRiver = {
+      id: "river-1",
+      name: "R",
+      points: [
+        [0, 50],
+        [100, 50]
+      ],
+      widths: [200],
+      dischargeM3s: 150
+    };
+    // 45度で横切る道路: 直角からのずれ 45° は上限を超えるので上限で止まる
+    const route = (kind: RegionRoute["kind"]): RegionRoute => ({
+      id: `route-${kind}`,
+      kind,
+      name: "R",
+      points: [
+        [20, 20],
+        [80, 80]
+      ]
+    });
+    const limits = { stone: 15, timber: 20 };
+    const skewOf = (kind: RegionRoute["kind"]) => {
+      const result = generatePerpendicularBridges([river], [route(kind)], 100, undefined, [], limits);
+      expect(result.bridges).toHaveLength(1);
+      const b = result.bridges[0];
+      const axis: [number, number] = [Math.cos((b.angleDeg * Math.PI) / 180), Math.sin((b.angleDeg * Math.PI) / 180)];
+      // 実際の橋軸と河川法線 [0, 1] のなす角
+      const measured = (Math.asin(Math.abs(axis[0])) * 180) / Math.PI;
+      expect(measured).toBeCloseTo(Math.abs(b.skewDegrees ?? 0), 6);
+      return { skew: Math.abs(b.skewDegrees ?? 0), b, result };
+    };
+    const stone = skewOf("highway");
+    expect(stone.b.style).toBe("stone_arch");
+    expect(stone.skew).toBeCloseTo(15, 6);
+    const timber = skewOf("road");
+    expect(timber.b.style).toBe("wooden");
+    expect(timber.skew).toBeCloseTo(20, 6);
+    // 斜めの橋は直角の橋より長い
+    const square = generatePerpendicularBridges([river], [route("highway")], 100).bridges[0];
+    expect(square.skewDegrees ?? 0).toBe(0);
+    expect(stone.b.lengthMeters).toBeGreaterThan(square.lengthMeters);
+    // 橋上の4点は橋軸上に一直線に並ぶ（描画ルートが橋の上で曲がらない）
+    const pts = stone.result.adjustedRoutes[0].points;
+    const n = normalize(pointSub(pts[2], pts[1]));
+    for (const p of pts.slice(1, -1)) {
+      const off = pointSub(p, stone.b.center);
+      expect(Math.abs(off[0] * n[1] - off[1] * n[0])).toBeLessThan(1e-6);
+    }
+    // 上限以下のずれはそのまま道の向きに合わせる
+    const gentle = generatePerpendicularBridges(
+      [river],
+      [
+        {
+          ...route("road"),
+          points: [
+            [45, 20],
+            [55, 80]
+          ]
+        }
+      ],
+      100,
+      undefined,
+      [],
+      limits
+    ).bridges[0];
+    expect(Math.abs(gentle.skewDegrees ?? 0)).toBeCloseTo((Math.atan(10 / 60) * 180) / Math.PI, 6);
+  });
+
   it("河川の頂点上で交差しても橋は1基だけ架けること", () => {
     const river: RegionRiver = {
       id: "river-1",

@@ -9,6 +9,32 @@ export interface Rect {
   maxY: number;
 }
 
+/** Smallest centred square half-extent intersected by a polyline.
+ * Along each segment, max(|x|, |y|) can reach its minimum at an endpoint
+ * or where x = y / x = -y. This also catches crossings with both ends outside.
+ */
+export function polylineSquareDistance(line: readonly Point[]): number {
+  let best = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1],
+      b = line[i];
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    const candidates = [0, 1];
+    for (const sign of [1, -1]) {
+      const denominator = dx - sign * dy;
+      if (denominator !== 0) {
+        const t = (sign * a[1] - a[0]) / denominator;
+        if (t > 0 && t < 1) candidates.push(t);
+      }
+    }
+    for (const t of candidates) {
+      best = Math.min(best, Math.max(Math.abs(a[0] + t * dx), Math.abs(a[1] + t * dy)));
+    }
+  }
+  return best;
+}
+
 /** Signed area (positive when the ring is counter-clockwise). */
 export function polygonArea(poly: Point[]): number {
   let a = 0;
@@ -328,7 +354,9 @@ export function simplifyPolyline(points: Point[], tolerance: number, closed = fa
     }
   }
   const a = douglasPeucker(points.slice(0, far + 1), tolerance);
-  const b = douglasPeucker(points.slice(far), tolerance);
+  // The second arc runs back to the start vertex so the closing edge is
+  // simplified too; otherwise the last vertex is always dropped.
+  const b = douglasPeucker(points.slice(far).concat([points[0]]), tolerance);
   const ring = a.slice(0, -1).concat(b.slice(0, -1));
   return ring.length >= 3 ? ring : points.map(p => [p[0], p[1]] as Point);
 }
@@ -403,13 +431,16 @@ export function cleanRing(poly: Point[], eps = 1e-4): Point[] {
   return out.length >= 3 ? out : [];
 }
 
-/** Unit inward normal of edge `a → b` (the side that contains the centroid). */
+/** Unit inward normal of edge `a → b` of `poly`, decided by the ring's winding so
+ * it stays correct on concave rings. Degenerate rings fall back to the centroid side. */
 export function inwardNormal(a: Point, b: Point, poly: Point[]): Point {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const len = Math.hypot(dx, dy) || 1;
   const left: Point = [-dy / len, dx / len];
   const right: Point = [dy / len, -dx / len];
+  const area = polygonArea(poly);
+  if (Math.abs(area) > 1e-9) return area > 0 ? right : left;
   const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const c = polygonCentroid(poly);
   const vx = c[0] - mid[0];

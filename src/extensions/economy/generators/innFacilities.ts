@@ -1,4 +1,5 @@
-import type { Burg } from "../../hostTypes";
+import { getCultureFuneralMechanics } from "../../hostCore";
+import type { Burg, Culture } from "../../hostTypes";
 import {
   ANNUAL_GATE,
   getConstructionOperations,
@@ -163,6 +164,7 @@ export function generateInnFacilitiesForBurgs(args: {
   populationRate: number;
   urbanization: number;
   seed: string;
+  cultures?: readonly Culture[];
 }): InnFacility[] {
   const facilities: InnFacility[] = [];
 
@@ -174,12 +176,15 @@ export function generateInnFacilitiesForBurgs(args: {
     const hasMarket = (burg.market ?? 0) > 0 || args.marketBurgIds.has(burg.i);
     const seedKey = `${args.seed}:inn:${burg.i}`;
     const desired: Array<readonly [InnClass, number]> = [];
+    const appeal = getCultureFuneralMechanics(args.cultures?.[burg.culture ?? 0])?.pilgrimageAppeal ?? 0;
+    const pilgrimInns = people >= 500 && appeal >= 0.5 ? Math.ceil(appeal * 2) : 0;
 
     if (isCaravanserai) desired.push(["caravanserai", people >= 10000 ? 2 : 1]);
     if (hasMarket) {
       desired.push(["market", marketInnBuildings(people, `${seedKey}:market`)]);
-      desired.push(["wayside", waysideInnBuildings(people, `${seedKey}:wayside`)]);
+      desired.push(["wayside", waysideInnBuildings(people, `${seedKey}:wayside`) + pilgrimInns]);
     }
+    if (!hasMarket && pilgrimInns) desired.push(["wayside", pilgrimInns]);
     if (burg.port) desired.push(["waterside", people >= 16000 ? 3 : people >= 4000 ? 2 : 1]);
     if ((burg.capital && people >= 1500) || people >= 30000) {
       desired.push(["grand", people >= 40000 ? 2 : 1]);
@@ -382,6 +387,7 @@ class InnFacilitiesModule {
     setInnFacilities(
       generateInnFacilitiesForBurgs({
         burgs: world.pack.burgs,
+        cultures: world.pack.cultures,
         marketBurgIds,
         populationRate: world.populationRate,
         urbanization: world.urbanization,
@@ -403,6 +409,7 @@ class InnFacilitiesModule {
     const world = getWorldContext();
     const desired = generateInnFacilitiesForBurgs({
       burgs: world.pack.burgs,
+      cultures: world.pack.cultures,
       marketBurgIds: new Set(getMarkets().map(market => market.centerBurgId)),
       populationRate: world.populationRate,
       urbanization: world.urbanization,

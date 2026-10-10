@@ -19,7 +19,9 @@ import type { Burg, Culture, CultureType, FuneralRite, NameBase, Province, Race,
 import { CULTURE_TYPES, FUNERAL_RITES } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
+import { setCultureFuneralRite } from "../utils/cultureBurialProfile";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
+import { isLotOccupancy } from "../utils/cultureLotOccupancy";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -137,6 +139,7 @@ export const culturesEditorActions = {
           base: c.base,
           cells: c.cells ?? 0,
           expansionism: c.expansionism ?? 0,
+          lotOccupancy: isLotOccupancy(c.lotOccupancy) ? c.lotOccupancy : null,
           area,
           population,
           rural,
@@ -297,7 +300,7 @@ export const culturesEditorActions = {
     const culture = worldContext.pack.cultures[i] as Culture;
     if (!culture || culture.i === 0) return;
     if (!(FUNERAL_RITES as readonly string[]).includes(rite)) return;
-    culture.funeralRite = rite as FuneralRite;
+    setCultureFuneralRite(culture, rite as FuneralRite);
     culturesEditorActions.refresh();
   },
 
@@ -309,6 +312,15 @@ export const culturesEditorActions = {
   changeExpansionism(i: number, expansionism: number): void {
     (worldContext.pack.cultures[i] as Culture).expansionism = expansionism;
     recalculateCultures();
+  },
+
+  /** NaN or an out-of-range value clears the guide back to the default. */
+  changeLotOccupancy(i: number, lotOccupancy: number): void {
+    const culture = worldContext.pack.cultures[i] as Culture;
+    if (!culture) return;
+    if (isLotOccupancy(lotOccupancy)) culture.lotOccupancy = lotOccupancy;
+    else delete culture.lotOccupancy;
+    culturesEditorActions.refresh();
   },
 
   changeEmblemsShape(i: number, shape: string): void {
@@ -581,7 +593,7 @@ export const culturesEditorActions = {
         if (cultureTypes.includes(culture.type!)) current.type = culture.type as CultureType;
         else current.type = "Generic" as CultureType;
         if (culture.funeralRite && (FUNERAL_RITES as readonly string[]).includes(culture.funeralRite)) {
-          current.funeralRite = culture.funeralRite as FuneralRite;
+          setCultureFuneralRite(current, culture.funeralRite as FuneralRite);
         }
       }
 

@@ -70,6 +70,7 @@ export { MilitaryRenderer } from "../renderers/draw-military";
 export { StatesRenderer } from "../renderers/draw-states";
 export { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvanceState";
 export { useOptionsState } from "../store/optionsState";
+export { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 export { getCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 export { getCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
 export { isUndeadMilitaryUnit, livingTroops } from "../utils/regimentPopulation";

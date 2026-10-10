@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -12 28 24" width="450" height="380">
+  <style>
+    .ce-fountain-shadow { fill: rgba(18, 22, 25, 0.35); }
+    .ce-fountain-stone { fill: #c7bea9; stroke: #3a3224; stroke-width: 0.5px; stroke-linejoin: round; }
+    .ce-fountain-water { fill: #3f7e9e; stroke: #1d4357; stroke-width: 0.35px; }
+    .ce-fountain-pillar { fill: #ded5c1; stroke: #3a3224; stroke-width: 0.4px; }
+    .ce-fountain-statue { fill: #b8923a; stroke: #473510; stroke-width: 0.3px; }
+    .ce-well-roof { fill: #6e4e31; stroke: #332010; stroke-width: 0.35px; }
+    .ce-well-water { fill: #1c3547; stroke: #0a1721; stroke-width: 0.3px; }
+  </style>
+  <g class="ce-landmark ce-landmark--public-fountain-well">
+    <!-- 影 -->
+    <g class="ce-fountain-shadow" transform="translate(1 1.2)">
+      <circle cx="-4" cy="0" r="5.5"></circle>
+      <circle cx="7" cy="0" r="3.2"></circle>
+    </g>
+    <!-- 1. 公共の大装飾泉（Marktbrunnen - 西側） -->
+    <g transform="translate(-4, 0)">
+      <!-- 八角形石造大水盤（Basin） -->
+      <polygon points="0,-5.2 3.7,-3.7 5.2,0 3.7,3.7 0,5.2 -3.7,3.7 -5.2,0 -3.7,-3.7" class="ce-fountain-stone"></polygon>
+      <!-- 澄んだ水面 -->
+      <polygon points="0,-4.2 3,-3 4.2,0 3,3 0,4.2 -3,3 -4.2,0 -3,-3" class="ce-fountain-water"></polygon>
+      <!-- 中央噴水石柱（Fountain Column） -->
+      <circle cx="0" cy="0" r="1.6" class="ce-fountain-pillar"></circle>
+      <!-- 4方向に水を吐き出すライオン口水嘴 -->
+      <line x1="-1.6" y1="0" x2="-2.6" y2="0" stroke="#b0d4e3" stroke-width="0.3"></line>
+      <line x1="1.6" y1="0" x2="2.6" y2="0" stroke="#b0d4e3" stroke-width="0.3"></line>
+      <line x1="0" y1="-1.6" x2="0" y2="-2.6" stroke="#b0d4e3" stroke-width="0.3"></line>
+      <line x1="0" y1="1.6" x2="0" y2="2.6" stroke="#b0d4e3" stroke-width="0.3"></line>
+      <!-- 頂部の青銅騎士・守護聖人像（Statue Finial） -->
+      <circle cx="0" cy="0" r="0.75" class="ce-fountain-statue"></circle>
+      <line x1="-0.5" y1="0" x2="0.5" y2="0" stroke="#ffd54f" stroke-width="0.25"></line>
+    </g>
+    <!-- 2. 屋根付き共同井戸（Curb Well - 東側） -->
+    <g transform="translate(7, 0)">
+      <!-- 円形切石井戸枠（Wellhead） -->
+      <circle cx="0" cy="0" r="2.8" class="ce-fountain-stone"></circle>
+      <!-- 深い井戸の水底 -->
+      <circle cx="0" cy="0" r="2.1" class="ce-well-water"></circle>
+      <!-- 木製切妻小屋根（井戸を覆う屋根と滑車梁） -->
+      <polygon points="-2.6,-2.4 2.6,-2.4 2.6,0 -2.6,0" class="ce-well-roof"></polygon>
+      <polygon points="-2.6,0 2.6,0 2.6,2.4 -2.6,2.4" fill="#4d351f" stroke="#332010" stroke-width="0.35"></polygon>
+      <line x1="-2.6" y1="0" x2="2.6" y2="0" stroke="#d9b896" stroke-width="0.45" stroke-linecap="round"></line>
+      <!-- 木製手押し滑車・ロープ -->
+      <circle cx="0" cy="0" r="0.45" fill="#dfa83d"></circle>
+      <!-- 水汲み木桶（Bucket） -->
+      <circle cx="1.6" cy="1.6" r="0.5" fill="#694527" stroke="#2b1a0d" stroke-width="0.2"></circle>
+    </g>
+  </g>
+</svg>

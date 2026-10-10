@@ -17,7 +17,8 @@ import {
   DEFAULT_CITY_SIZE,
   DEFAULT_GRID_KIND,
   descriptorFrameGridOptions,
-  type GridKind
+  type GridKind,
+  seaPortShoreDistanceMeters
 } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
 import {
@@ -73,7 +74,12 @@ import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
-import { WALL_COAST_CHOICES, type WallCoastChoice } from "../core/gen/site/siteConfig";
+import {
+  WALL_COAST_CHOICES,
+  WALL_MATERIAL_CHOICES,
+  type WallCoastChoice,
+  type WallMaterialChoice
+} from "../core/gen/site/siteConfig";
 import {
   CITY_LAYOUTS,
   type CityFeatureSet,
@@ -135,6 +141,7 @@ import type {
   CastleSettings,
   CityDocument,
   CityElement,
+  EdgeFeatureGroup,
   FeatureGroup,
   Id,
   LandmarkAsset,
@@ -162,10 +169,18 @@ import {
   type IncomingOrigin,
   readIncomingCity
 } from "../io/incomingCity";
+import { CASTLE_STYLE_PROFILES, type CastleStyle, resolveCastleStyle } from "../render/castlePatterns";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
-import { getShipAngleFromPoint, renderShipSvg, SHIP_SPECS, type ShipType } from "../render/shipSvg";
 import {
+  getShipAngleFromPoint,
+  renderShipRotationHandle,
+  renderShipSvg,
+  SHIP_SPECS,
+  type ShipType
+} from "../render/shipSvg";
+import {
+  appendFaceSelectionLabels,
   faceClassName,
   type GridOverlay,
   parsePickInfo,
@@ -254,11 +269,22 @@ export interface CityEditorOptions {
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
   const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
+  let lastOutputDocInput: CityDocument | null = null;
+  let lastOutputDocProvider: FixedApproachProvider | null = null;
+  let lastOutputDocResult: CityDocument | null = null;
+
   function documentForOutput(current: CityDocument): CityDocument {
     if (!fixedApproachProvider || current.fixedCrossingApproaches === undefined) return current;
+    if (current === lastOutputDocInput && fixedApproachProvider === lastOutputDocProvider && lastOutputDocResult) {
+      return lastOutputDocResult;
+    }
     const checked = restoreFixedCrossingApproaches(current, fixedApproachProvider);
     // Discard any previous object authorization when the current contract fails.
-    return "document" in checked ? checked.document : clone(current);
+    const result = "document" in checked ? checked.document : clone(current);
+    lastOutputDocInput = current;
+    lastOutputDocProvider = fixedApproachProvider;
+    lastOutputDocResult = result;
+    return result;
   }
   let gridSeed = randomSeed();
   let documentState = createGridDocument({ size: DEFAULT_CITY_SIZE, grid: DEFAULT_GRID_KIND, seed: gridSeed });
@@ -1016,6 +1042,25 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
     completeResult = null;
   });
+  const WALL_MATERIAL_LABELS: Record<WallMaterialChoice, string> = {
+    auto: "自動（大都市:石材 / 小村:木材）",
+    stone: "石材（石造城壁）",
+    wood: "木材（木造柵・防壁）"
+  };
+  const wallMaterialSelect = document.createElement("select");
+  wallMaterialSelect.className = "ce-generate-wall-material";
+  for (const value of WALL_MATERIAL_CHOICES) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = WALL_MATERIAL_LABELS[value];
+    wallMaterialSelect.appendChild(option);
+  }
+  wallMaterialSelect.value = generateSettings.config.wall.material ?? "auto";
+  wallMaterialSelect.title = "城壁の素材。自動では大きな都市は石造、小さな村は木造パリセードになります。";
+  wallMaterialSelect.addEventListener("change", () => {
+    generateSettings.config.wall.material = wallMaterialSelect.value as WallMaterialChoice;
+    completeResult = null;
+  });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
     generateSettings.config.rivers = riversForCount(generateSettings.config, Number(riversSelect.value));
@@ -1290,12 +1335,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ["position", "城の位置", ["auto", "edge", "central"]],
     ["relationship", "城壁との関係", ["auto", "integrated", "detached"]],
     ["form", "城の形式", ["auto", "keep-bailey", "courtyard"]],
-    ["size", "城の規模", ["auto", "small", "standard", "large"]]
+    ["size", "城の規模", ["auto", "small", "standard", "large"]],
+    ["style", "城郭様式", ["auto", ...Object.keys(CASTLE_STYLE_PROFILES)]]
   ];
   for (const [key, title, choices] of castleChoices) {
-    const input = select(choices, generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key]);
+    const input = select(choices, generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto");
     const titles: Record<string, string> = {
-      auto: "自動",
+      auto: "自動（時代・文化依存）",
       edge: "都市の端",
       central: "都市の中央",
       integrated: "都市城壁と一体",
@@ -1304,7 +1350,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       courtyard: "中庭を囲む居館",
       small: "小",
       standard: "標準",
-      large: "大"
+      large: "大",
+      ...Object.fromEntries(Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label]))
     };
     for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
     castleInputs.set(key, input);
@@ -1355,6 +1402,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     divider(),
     importedBox,
     synthControls,
+    label("城壁の素材", wallMaterialSelect),
     label("海側の城壁", seaWallSelect),
     castleControls,
     moatControls,
@@ -1936,13 +1984,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         const routeGroup = documentState.featureGroups.find(g => g.id === route.groupId);
         if (routeGroup) {
           activeGroupId = routeGroup.id;
-          selection = {
-            faceId: null,
-            vertexId: null,
-            groupId: routeGroup.id,
-            edgeId: route.edgeId,
-            inspectedId: routeGroup.id
-          };
           inspectedInfo = {
             layer: "features",
             kind: routeGroup.kind,
@@ -1955,7 +1996,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             color: routeGroup.style.color,
             segmentCount: routeGroup.kind === "river" ? routeGroup.vertices.length : routeGroup.segments.length
           };
-          refresh();
+          applySelection({
+            faceId: null,
+            vertexId: null,
+            groupId: routeGroup.id,
+            edgeId: route.edgeId,
+            inspectedId: routeGroup.id
+          });
           return;
         }
       }
@@ -1967,69 +2014,81 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           inspectedInfo = info;
           const infoId = (info.id ?? null) as Id | null;
           if (info.layer === "cells" || info.kind === "cell") {
-            selection = {
+            activeGroupId = null;
+            applySelection({
               ...selection,
               faceId: infoId,
               edgeId: null,
               vertexId: null,
               groupId: null,
               inspectedId: infoId
-            };
-            activeGroupId = null;
+            });
+            return;
           } else if (info.layer === "buildings" || info.kind === "building") {
             const faceId = (info.faceId as Id) ?? null;
-            selection = { ...selection, faceId, edgeId: null, vertexId: null, groupId: null, inspectedId: infoId };
             activeGroupId = null;
+            applySelection({ ...selection, faceId, edgeId: null, vertexId: null, groupId: null, inspectedId: infoId });
+            return;
           } else if (info.layer === "features") {
-            selection = {
+            activeGroupId = infoId;
+            applySelection({
               ...selection,
               groupId: infoId,
               faceId: null,
               edgeId: null,
               vertexId: null,
               inspectedId: infoId
-            };
-            activeGroupId = infoId;
+            });
+            return;
           } else if (info.layer === "edges" || info.kind === "edge") {
-            selection = { ...selection, edgeId: infoId, faceId: null, vertexId: null, inspectedId: infoId };
+            applySelection({ ...selection, edgeId: infoId, faceId: null, vertexId: null, inspectedId: infoId });
+            return;
           } else if (info.layer === "vertices" || info.kind === "vertex") {
-            selection = {
+            activeGroupId = null;
+            applySelection({
               ...selection,
               vertexId: infoId,
               faceId: null,
               edgeId: null,
               groupId: null,
               inspectedId: infoId
-            };
-            activeGroupId = null;
+            });
+            return;
           } else if (info.layer === "gates" || info.kind === "gate") {
             const vertexId = (info.vertexId as Id) ?? null;
             const wallId = (info.wallId as Id) ?? null;
-            selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: wallId, inspectedId: infoId };
             activeGroupId = wallId;
+            applySelection({
+              ...selection,
+              vertexId,
+              faceId: null,
+              edgeId: null,
+              groupId: wallId,
+              inspectedId: infoId
+            });
+            return;
           } else if (info.layer === "fortifications" || info.kind === "tower") {
             const wallId = (info.wallId as Id) ?? null;
-            selection = {
+            activeGroupId = wallId;
+            applySelection({
               ...selection,
               faceId: null,
               edgeId: null,
               vertexId: null,
               groupId: wallId,
               inspectedId: infoId
-            };
-            activeGroupId = wallId;
+            });
+            return;
           } else {
-            selection = { ...selection, inspectedId: infoId };
+            applySelection({ ...selection, inspectedId: infoId });
+            return;
           }
-          refresh();
-          return;
         }
       }
 
       inspectedInfo = null;
-      selection = { faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null };
       activeGroupId = null;
-      refresh();
+      applySelection({ faceId: null, edgeId: null, vertexId: null, groupId: null, inspectedId: null });
       return;
     }
 
@@ -2741,7 +2800,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           ".ce-generation-debug-highlight, [data-debug-restriction]"
         )
       );
-      svg.append(highlights);
+      svg.querySelector(".ce-map-scene")!.append(highlights);
     }
     map.replaceChildren(svg);
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
@@ -2817,7 +2876,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       className: "ce-ship-preview"
     });
     preview.style.pointerEvents = "none";
-    svg.appendChild(preview);
+    svg.querySelector(".ce-map-scene")!.appendChild(preview);
   }
 
   function updateLandmarkPreview(): void {
@@ -2877,7 +2936,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     message.setAttribute("font-size", "11");
     message.setAttribute("fill", preview.document ? "#165a34" : "#8b1d1d");
     layer.appendChild(message);
-    svg.appendChild(layer);
+    svg.querySelector(".ce-map-scene")!.appendChild(layer);
   }
 
   /**
@@ -2915,6 +2974,91 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (!layer) return;
     layer.replaceChildren(...renderHoverOverlay(documentState, selection, zoomFactor()));
     updateGenerationLogHover();
+  }
+
+  /**
+   * Fast path: update selection highlight CSS classes, selection labels and hover
+   * overlay in place without rebuilding the entire SVG (which contains thousands of nodes).
+   */
+  function patchSelectionRender(): boolean {
+    const svg = map.querySelector<SVGSVGElement>("svg");
+    if (!svg || tool !== "select") return false;
+
+    // Use the same classes and encoded pick metadata as renderEditorSvg().
+    svg.querySelectorAll(".ce-selected, .ce-is-selected, .cg-is-selected, .ce-active-group").forEach(el => {
+      el.classList.remove("ce-selected", "ce-is-selected", "cg-is-selected", "ce-active-group");
+    });
+
+    if (selection.faceId) {
+      const faceEl =
+        faceElementsById.get(selection.faceId) ?? svg.querySelector<SVGElement>(`[data-face="${selection.faceId}"]`);
+      faceEl?.classList.add("ce-selected");
+    }
+    if (selection.edgeId) {
+      svg.querySelector<SVGElement>(`[data-edge="${selection.edgeId}"]`)?.classList.add("ce-selected");
+    }
+    if (selection.vertexId) {
+      svg.querySelector<SVGElement>(`[data-vertex="${selection.vertexId}"]`)?.classList.add("ce-selected");
+    }
+
+    if (selection.inspectedId) {
+      const id = selection.inspectedId;
+      const prefixes: Record<string, string> = {
+        cells: "cell",
+        edges: "edge",
+        vertices: "vertex",
+        features: "feature"
+      };
+      for (const el of svg.querySelectorAll<SVGElement>("[data-pick]")) {
+        const info = parsePickInfo(el.getAttribute("data-pick"));
+        if (!info) continue;
+        const prefix = prefixes[info.layer];
+        const selected =
+          info.id === id ||
+          (prefix && `${prefix}-${info.id}` === id) ||
+          (info.layer === "buildings" && info.faceId === id);
+        if (selected) el.classList.add("ce-is-selected", "cg-is-selected");
+      }
+    }
+
+    if (selection.groupId) {
+      svg.querySelectorAll<SVGElement>(`[data-group="${selection.groupId}"]`).forEach(el => {
+        el.classList.add("ce-active-group");
+      });
+    }
+
+    svg.querySelectorAll(".ce-ship-handle-group").forEach(handle => {
+      handle.remove();
+    });
+    const selectedShip = documentState.elements.find(e => e.kind === "ship" && e.id === selection.inspectedId);
+    if (selectedShip?.point) {
+      svg.querySelector(".ce-elements")?.appendChild(
+        renderShipRotationHandle({
+          id: selectedShip.id,
+          point: selectedShip.point,
+          sizeMeters: selectedShip.sizeMeters,
+          rotation: selectedShip.rotation
+        })
+      );
+    }
+
+    // Labels
+    svg.querySelector(".ce-selection-labels")?.remove();
+    if (showSelectionLabels && selection.faceId) {
+      appendFaceSelectionLabels(svg, documentState, selection.faceId, zoomFactor());
+    }
+
+    updateRoutePreview();
+    updateHoverOverlay();
+    return true;
+  }
+
+  function applySelection(nextSelection: RenderSelection): void {
+    selection = nextSelection;
+    if (!patchSelectionRender()) {
+      redrawMap();
+    }
+    refreshUiOnly();
   }
 
   function refreshScaleBar(): void {
@@ -3210,8 +3354,37 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           documentState.defenseCircuits?.find(d => d.id === c.circuitId)?.areaFaceIds.includes(selection.faceId))
     );
     if (castle) {
+      const currentProfile = resolveCastleStyle(documentState, castle);
+      const styleSelect = document.createElement("select");
+      styleSelect.className = "ce-select";
+      const styleChoices: Array<[string, string]> = [
+        ["auto", "自動判定"],
+        ...Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label] as [string, string])
+      ];
+      for (const [val, lbl] of styleChoices) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = lbl;
+        if (val === (castle.castleStyle ?? "auto")) opt.selected = true;
+        styleSelect.appendChild(opt);
+      }
+      styleSelect.onchange = () => {
+        runContextAction(() => {
+          const next = clone(documentState);
+          const target = next.castles?.find(c => c.id === castle.id);
+          if (!target) return null;
+          if (styleSelect.value === "auto") {
+            delete target.castleStyle;
+          } else {
+            target.castleStyle = styleSelect.value as CastleStyle;
+          }
+          return next;
+        }, "Castle style change");
+      };
+
       container.append(
         text(`城郭: ${castle.position} / ${castle.relationship} / ${castle.form}`),
+        label(`様式: ${currentProfile.label}`, styleSelect),
         makeButton(castle.locked ? "城郭のロック解除" : "城郭をロック", () =>
           runContextAction(() => setCastleLocked(documentState, castle.id, !castle.locked), "Castle lock")
         ),
@@ -3242,6 +3415,87 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         )
       );
 
+    function appendWallMaterialControls(targetContainer: HTMLElement, wallGroup: EdgeFeatureGroup): void {
+      const materialSelect = document.createElement("select");
+      const optStone = document.createElement("option");
+      optStone.value = "stone";
+      optStone.textContent = "石材（石造城壁）";
+      const optWood = document.createElement("option");
+      optWood.value = "wood";
+      optWood.textContent = "木材（木造柵・防壁）";
+      materialSelect.append(optStone, optWood);
+      materialSelect.value = wallGroup.wallMaterial ?? "stone";
+      materialSelect.addEventListener("change", () => {
+        const nextMat = materialSelect.value as "stone" | "wood";
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === wallGroup.id);
+        if (target && target.kind === "wall") {
+          target.wallMaterial = nextMat;
+          target.style = {
+            ...target.style,
+            color: nextMat === "wood" ? "#7a522c" : "#342a22",
+            widthMeters: nextMat === "wood" ? 2.4 : Math.max(4, target.style.widthMeters)
+          };
+          commit(next, `Set ${wallGroup.name} material to ${nextMat === "wood" ? "木材" : "石材"}`);
+        }
+      });
+
+      const walkwaySelect = document.createElement("select");
+      const optAuto = document.createElement("option");
+      optAuto.value = "auto";
+      optAuto.textContent = "自動（幅に応じて判定）";
+      const optWalkway = document.createElement("option");
+      optWalkway.value = "walkway";
+      optWalkway.textContent = "あり（上面に通路・歩廊）";
+      const optNone = document.createElement("option");
+      optNone.value = "none";
+      optNone.textContent = "なし（丸太柵・単石壁）";
+      walkwaySelect.append(optAuto, optWalkway, optNone);
+      walkwaySelect.value = wallGroup.walkway ?? "auto";
+      walkwaySelect.addEventListener("change", () => {
+        const nextWalkway = walkwaySelect.value as "auto" | "none" | "walkway";
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === wallGroup.id);
+        if (target && target.kind === "wall") {
+          target.walkway = nextWalkway;
+          commit(next, `Set ${wallGroup.name} walkway to ${nextWalkway}`);
+        }
+      });
+
+      const currentWidth = wallGroup.style.widthMeters;
+      const widthSlider = rangeInput(String(currentWidth), "1.0", "8.0", "0.2");
+      const widthValue = document.createElement("span");
+      widthValue.style.marginLeft = "6px";
+      widthValue.style.fontSize = "11px";
+      widthValue.textContent = `${currentWidth.toFixed(1)}m`;
+
+      widthSlider.addEventListener("input", () => {
+        widthValue.textContent = `${parseFloat(widthSlider.value).toFixed(1)}m`;
+      });
+      widthSlider.addEventListener("change", () => {
+        const nextWidth = parseFloat(widthSlider.value);
+        if (!isFinite(nextWidth) || nextWidth <= 0) return;
+        const next = clone(documentState);
+        const target = next.featureGroups.find(c => c.id === wallGroup.id);
+        if (target && target.kind === "wall") {
+          target.style = { ...target.style, widthMeters: nextWidth };
+          commit(next, `Set ${wallGroup.name} width to ${nextWidth.toFixed(1)}m`);
+        }
+      });
+
+      const widthRow = document.createElement("div");
+      widthRow.style.display = "flex";
+      widthRow.style.alignItems = "center";
+      widthRow.append(widthSlider, widthValue);
+
+      targetContainer.append(
+        divider(),
+        label("壁の素材", materialSelect),
+        label("上面通路（歩廊）", walkwaySelect),
+        label("壁の厚み（幅）", widthRow)
+      );
+    }
+
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
@@ -3256,6 +3510,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           })
         );
         if (group.kind === "road") appendApproachBeyondControls(container, group.id, group.beyond);
+        if (group.kind === "wall") appendWallMaterialControls(container, group as EdgeFeatureGroup);
         return;
       }
     }
@@ -3263,6 +3518,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
         if (group.kind === "road") appendApproachBeyondControls(container, group.id, group.beyond);
+        if (group.kind === "wall") appendWallMaterialControls(container, group as EdgeFeatureGroup);
         container.appendChild(
           text(
             group.kind === "road"
@@ -3515,15 +3771,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
       const clearButton = makeButton("Clear selection", () => {
         inspectedInfo = null;
-        selection = {
+        activeGroupId = null;
+        applySelection({
           faceId: null,
           edgeId: null,
           vertexId: null,
           groupId: null,
           inspectedId: null
-        };
-        activeGroupId = null;
-        refresh();
+        });
       });
 
       inspector.content.append(kind, content, clearButton);
@@ -3663,7 +3918,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         text(
           `${group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`}${
             group.kind === "road" && approachBeyondLabel(group.beyond) ? ` · ${approachBeyondLabel(group.beyond)}` : ""
-          }`
+          }${group.kind === "wall" ? ` · ${group.wallMaterial === "wood" ? "木製" : "石造"}` : ""}`
         )
       );
       const smooth = makeIconButton("⌁", `Smooth ${group.name}`, () => {
@@ -3757,7 +4012,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       node.setAttribute("vector-effect", "non-scaling-stroke");
       layer.append(node);
     }
-    svg.append(layer);
+    svg.querySelector(".ce-map-scene")!.append(layer);
   }
 
   function renderHistory(): void {
@@ -4511,15 +4766,20 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedInput.value = generateSeed;
     for (const [scope, input] of moatInputs) input.checked = !!generateSettings.moats?.[scope];
     for (const [key, input] of castleInputs)
-      input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key];
+      input.value = generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto";
     buildingPatternSelect.value = generateSettings.buildingPattern ?? "legacy";
     layoutSelect.value = generateSettings.layout ?? generateSettings.config.layout ?? "auto";
     coastSelect.value = generateSettings.config.coast;
     if (!generateSettings.config.wall) {
-      generateSettings.config.wall = { envelope: "auto", coast: "auto", line: "auto" };
+      generateSettings.config.wall = { envelope: "auto", coast: "auto", line: "auto", material: "auto" };
     }
     seaWallSelect.value = WALL_COAST_CHOICES.includes(generateSettings.config.wall.coast)
       ? generateSettings.config.wall.coast
+      : "auto";
+    wallMaterialSelect.value = WALL_MATERIAL_CHOICES.includes(
+      generateSettings.config.wall.material as WallMaterialChoice
+    )
+      ? (generateSettings.config.wall.material as WallMaterialChoice)
       : "auto";
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     riverPlacementSelect.value = generateSettings.riverPlacement ?? "through";
@@ -4550,7 +4810,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       ? descriptorFrameGridOptions(
           descriptor.frame,
           descriptor.burg.waterAccess?.port.river === true,
-          descriptor.burg.riverPlacement?.bankDistanceMeters
+          descriptor.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(descriptor)
         )
       : {};
   }
@@ -4630,7 +4891,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         ? descriptorFrameGridOptions(
             share.descriptor.frame,
             share.descriptor.burg.waterAccess?.port.river === true,
-            share.descriptor.burg.riverPlacement?.bankDistanceMeters
+            share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+            seaPortShoreDistanceMeters(share.descriptor)
           )
         : {}),
       measureBlockSize: measureTownCells,

@@ -8,6 +8,13 @@
 
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import {
+  BRIDGE_SKEW_TECHNOLOGY_GATES,
+  type BridgeSkewTier,
+  type BridgeStructure,
+  bridgeSkewLimitForTier,
+  bridgeSkewTierForPeriod
+} from "../utils/bridgeSkewPolicy";
 import { isGunpowderEraEnabled } from "../utils/gunpowderEra";
 import { getTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import {
@@ -305,6 +312,23 @@ const MECHANIZED_TEXTILES_BONUS_MAX = 0.35;
  */
 export function getMechanizedTextilesOutputMultiplier(stateId: number): number {
   return 1 + MECHANIZED_TEXTILES_BONUS_MAX * getMechanizedTextilesEffect(stateId);
+}
+
+/**
+ * Bridge skew allowance for a state (docs/plan/bridge-skew-policy.md): the map's starting
+ * historicalPeriod sets the floor, and adopting the surveying / precision-masonry technologies
+ * during play raises it. stateId 0 or unknown states use the period floor alone.
+ */
+export function getStateBridgeSkewTier(stateId: number): BridgeSkewTier {
+  let tier = bridgeSkewTierForPeriod(worldContext.options?.historicalPeriod);
+  if (stateId > 0)
+    for (const gate of BRIDGE_SKEW_TECHNOLOGY_GATES)
+      if (gate.tier > tier && isTechnologyAtLeast(gate.technologyId, stateId, "adopted")) tier = gate.tier;
+  return tier;
+}
+
+export function getStateBridgeSkewLimit(stateId: number, structure: BridgeStructure = "stone"): number {
+  return bridgeSkewLimitForTier(getStateBridgeSkewTier(stateId), structure);
 }
 
 type HistoricalPeriod = NonNullable<typeof worldContext.options.historicalPeriod>;

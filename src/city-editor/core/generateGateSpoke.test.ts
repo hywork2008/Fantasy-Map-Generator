@@ -28,6 +28,8 @@ it("connects Bram gates to nearby usable spoke endpoints without entering the re
   // Original settings are unavailable. This coherent configuration reproduces
   // two disconnected Bram gates on the supplied geometry before the repair.
   const settings = defaultGenerationSettings();
+  // Written when the default layout was "auto" (seed kz6ecv rolls Bram); pin it.
+  settings.layout = "bram";
   settings.config.coast = "straight";
   settings.config.rivers = ["through"];
   settings.config.features = { walls: true, citadel: true, plaza: false, temple: true, port: true, shanty: true };

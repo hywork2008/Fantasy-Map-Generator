@@ -61,6 +61,25 @@ describe("generation geometry sessions", () => {
     session.prepare(world, "mi");
     expect(session.terrainBuilds).toBe(3);
   });
+  it("retains indexes after metadata and unrelated-cell edits; rebuilds only the edited river source", () => {
+    const world = fixture(),
+      session = new SettlementGeometrySession();
+    world.pack.rivers.push({ ...world.pack.rivers[0], i: 8 });
+    session.prepare(world, "km");
+    const first = session.source(7),
+      second = session.source(8);
+    Object.assign(world.pack.rivers[0], { name: "New name", parent: 8, basin: 8, type: "Creek" });
+    world.pack.cells.p.push([99, 99]);
+    session.prepare(world, "km");
+    expect(session.riverIndexBuilds).toBe(1);
+    expect(session.source(7)).toBe(first);
+    world.pack.rivers[0].sourceWidth *= 2;
+    session.prepare(world, "km");
+    expect(session.riverIndexBuilds).toBe(2);
+    expect(session.terrainBuilds).toBe(1);
+    expect(session.source(7)).not.toBe(first);
+    expect(session.source(8)).toBe(second);
+  });
   it("can restart an interrupted preparation without publishing a partial cache", () => {
     const world = fixture(),
       session = new SettlementGeometrySession();

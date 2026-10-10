@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -28 44 56" width="480" height="600">
+  <style>
+    .ce-shinto-shadow { fill: rgba(18, 22, 25, 0.32); }
+    .ce-shinto-ground { fill: #d5cbba; stroke: #423827; stroke-width: 0.5px; }
+    .ce-shinto-forest { fill: #1e4526; stroke: #0f2614; stroke-width: 0.4px; }
+    .ce-shinto-forest-shadow { fill: rgba(18, 22, 25, 0.38); }
+    .ce-shinto-torii { fill: #d63820; stroke: #6e1507; stroke-width: 0.4px; }
+    .ce-shinto-roof { fill: #485c4b; stroke: #1a291d; stroke-width: 0.45px; }
+    .ce-shinto-honden { fill: #826344; stroke: #3d2b1a; stroke-width: 0.45px; }
+    .ce-shinto-ridge-wood { stroke: #d1b892; stroke-width: 0.6px; stroke-linecap: round; }
+    .ce-shinto-path { fill: #beb29e; stroke: #6e6350; stroke-width: 0.35px; }
+    .ce-shinto-water { fill: #386d8a; stroke: #1c3d4f; stroke-width: 0.35px; }
+  </style>
+  <g class="ce-landmark ce-landmark--shinto-shrine">
+    <!-- 影 -->
+    <g class="ce-shinto-shadow" transform="translate(1.2 1.4)">
+      <rect x="-10" y="-20" width="20" height="26" rx="0.6"></rect>
+      <circle cx="-13" cy="-14" r="5"></circle>
+      <circle cx="13" cy="-14" r="5"></circle>
+      <circle cx="-14" cy="5" r="4.5"></circle>
+      <circle cx="14" cy="5" r="4.5"></circle>
+    </g>
+    <!-- 鎮守の森（豊かな神木・森のシルエット） -->
+    <g>
+      <circle cx="-13" cy="-15" r="5.5" class="ce-shinto-forest"></circle>
+      <circle cx="13" cy="-15" r="5.5" class="ce-shinto-forest"></circle>
+      <circle cx="-14" cy="2" r="5" class="ce-shinto-forest"></circle>
+      <circle cx="14" cy="2" r="5" class="ce-shinto-forest"></circle>
+      <circle cx="-12" cy="16" r="4.5" class="ce-shinto-forest"></circle>
+      <circle cx="12" cy="16" r="4.5" class="ce-shinto-forest"></circle>
+      <circle cx="-6" cy="-22" r="4.5" class="ce-shinto-forest"></circle>
+      <circle cx="6" cy="-22" r="4.5" class="ce-shinto-forest"></circle>
+      <!-- 御神木（注連縄を巻いた大楠） -->
+      <circle cx="-9" cy="-7" r="3.2" fill="#2d5e37" stroke="#0f2614" stroke-width="0.4"></circle>
+      <circle cx="-9" cy="-7" r="2.2" fill="none" stroke="#fff8e7" stroke-width="0.3" stroke-dasharray="1 0.6"></circle>
+    </g>
+    <!-- 境内白砂敷き・参道 -->
+    <g class="ce-shinto-ground">
+      <path d="M -8 24 L -8 10 L -4 10 L -4 -10 L -10 -10 L -10 -22 L 10 -22 L 10 -10 L 4 -10 L 4 10 L 8 10 L 8 24 Z"></path>
+    </g>
+    <!-- 石畳参道（Sando） -->
+    <g class="ce-shinto-path">
+      <rect x="-2" y="-12" width="4" height="36"></rect>
+      <!-- 石灯籠列（左右4対） -->
+      <rect x="-3.5" y="18" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="2.6" y="18" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="-3.5" y="11" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="2.6" y="11" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="-3.5" y="4" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="2.6" y="4" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="-3.5" y="-3" width="0.9" height="0.9" fill="#9e9484"></rect>
+      <rect x="2.6" y="-3" width="0.9" height="0.9" fill="#9e9484"></rect>
+    </g>
+    <!-- 神池と神橋（太鼓橋） -->
+    <g transform="translate(6, 14)">
+      <ellipse cx="0" cy="0" rx="4.5" ry="3" class="ce-shinto-water"></ellipse>
+    </g>
+    <!-- 朱塗り一の鳥居（南端） -->
+    <g transform="translate(0, 22.5)">
+      <!-- 笠木・島木（反りのある大横木） -->
+      <path d="M -5 -0.6 L 5 -0.6 L 5.5 -1.1 L -5.5 -1.1 Z" class="ce-shinto-torii"></path>
+      <!-- 貫 -->
+      <line x1="-4" y1="0.4" x2="4" y2="0.4" stroke="#d63820" stroke-width="0.5"></line>
+      <!-- 二本柱 -->
+      <circle cx="-3.4" cy="0" r="0.6" class="ce-shinto-torii"></circle>
+      <circle cx="3.4" cy="0" r="0.6" class="ce-shinto-torii"></circle>
+      <!-- 額束 -->
+      <rect x="-0.4" y="-0.6" width="0.8" height="1" fill="#1b1712"></rect>
+    </g>
+    <!-- 手水舎（Chozuya - 参道西側） -->
+    <g transform="translate(-5.5, 9)">
+      <rect x="-2" y="-1.5" width="4" height="3" rx="0.2" fill="#5a705e" stroke="#223326" stroke-width="0.3"></rect>
+      <rect x="-1" y="-0.7" width="2" height="1.4" fill="#386d8a"></rect>
+    </g>
+    <!-- 二の鳥居 -->
+    <g transform="translate(0, 2)">
+      <path d="M -4 -0.5 L 4 -0.5 L 4.4 -0.9 L -4.4 -0.9 Z" class="ce-shinto-torii"></path>
+      <circle cx="-2.8" cy="0" r="0.5" class="ce-shinto-torii"></circle>
+      <circle cx="2.8" cy="0" r="0.5" class="ce-shinto-torii"></circle>
+    </g>
+    <!-- 拝殿（Haiden）入母屋檜皮葺き・銅板葺き大屋根 -->
+    <g transform="translate(0, -6)">
+      <!-- 拝殿屋根 -->
+      <rect x="-7.5" y="-3.5" width="15" height="7" rx="0.5" class="ce-shinto-roof"></rect>
+      <!-- 向拝（正面の突き出た庇） -->
+      <rect x="-3" y="3" width="6" height="2" rx="0.2" fill="#3f5242" stroke="#1a291d" stroke-width="0.3"></rect>
+      <!-- 棟線 -->
+      <line x1="-6.5" y1="0" x2="6.5" y2="0" stroke="#a3ba9e" stroke-width="0.6" stroke-linecap="round"></line>
+      <!-- 賽銭箱 -->
+      <rect x="-1.2" y="3.2" width="2.4" height="0.8" fill="#8f5b2e" stroke="#42240b" stroke-width="0.2"></rect>
+    </g>
+    <!-- 幣殿（Heiden - 拝殿と本殿を繋ぐ渡り廊下） -->
+    <rect x="-1.8" y="-12" width="3.6" height="3.5" fill="#523c27" stroke="#24170d" stroke-width="0.3"></rect>
+    <!-- 本殿（Honden - 最奥の神殿）：神明造・千木・鰹木 -->
+    <g transform="translate(0, -16)">
+      <!-- 玉垣（瑞垣・本殿を取り囲む木柵） -->
+      <rect x="-6" y="-5" width="12" height="9.5" fill="none" stroke="#ba3f2c" stroke-width="0.5" stroke-dasharray="1.2 0.8"></rect>
+      <!-- 本殿檜皮葺き切妻屋根 -->
+      <rect x="-5" y="-3.5" width="10" height="6.5" rx="0.3" class="ce-shinto-honden"></rect>
+      <!-- 大棟木 -->
+      <line x1="-5" y1="0" x2="5" y2="0" class="ce-shinto-ridge-wood"></line>
+      <!-- 鰹木（Katsuogi - 棟の上に並ぶ丸太5本） -->
+      <circle cx="-3.2" cy="0" r="0.45" fill="#f7e8ce" stroke="#543e24" stroke-width="0.25"></circle>
+      <circle cx="-1.6" cy="0" r="0.45" fill="#f7e8ce" stroke="#543e24" stroke-width="0.25"></circle>
+      <circle cx="0" cy="0" r="0.45" fill="#f7e8ce" stroke="#543e24" stroke-width="0.25"></circle>
+      <circle cx="1.6" cy="0" r="0.45" fill="#f7e8ce" stroke="#543e24" stroke-width="0.25"></circle>
+      <circle cx="3.2" cy="0" r="0.45" fill="#f7e8ce" stroke="#543e24" stroke-width="0.25"></circle>
+      <!-- 千木（Chigi - 棟の両端で交差する角木） -->
+      <line x1="-5.2" y1="-0.8" x2="-4.4" y2="0.8" stroke="#f7e8ce" stroke-width="0.5"></line>
+      <line x1="-5.2" y1="0.8" x2="-4.4" y2="-0.8" stroke="#f7e8ce" stroke-width="0.5"></line>
+      <line x1="4.4" y1="-0.8" x2="5.2" y2="0.8" stroke="#f7e8ce" stroke-width="0.5"></line>
+      <line x1="4.4" y1="0.8" x2="5.2" y2="-0.8" stroke="#f7e8ce" stroke-width="0.5"></line>
+    </g>
+  </g>
+</svg>

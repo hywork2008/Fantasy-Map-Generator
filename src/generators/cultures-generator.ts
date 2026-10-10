@@ -6,7 +6,14 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { isDesertBiome, isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
+import {
+  isDesertBiome,
+  isForestBiome,
+  isNomadicBiome,
+  isWetlandBiome,
+  STANDARD_BIOME_DEFINITIONS
+} from "../data/biomeCatalog";
+import { corpseTreatmentToFuneralRite } from "../data/burialCultures";
 import { defaultMonoRacialForRaceKey, isFantasyCulturesSet } from "../data/raceCivicStance";
 import { applyRacePersonNameSpheres } from "../data/racePersonNameConfig";
 import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
@@ -16,9 +23,10 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openAlert } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
-import { rollCultureFuneralRite } from "../utils/cultureFuneralRite";
+import { getCultureBurialProfile, rollCultureBurialProfile } from "../utils/cultureBurialProfile";
 import { rollCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 import { rollCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
+import { worldTraditionPeriod } from "../utils/cultureTradition";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
@@ -58,6 +66,20 @@ class CulturesModule {
   viewContext: Readonly<ViewContext> = viewContext;
   appServices: AppServices = appServices;
   cells: PackedGraph["cells"] | null = null;
+
+  private burialGeography(pack: PackedGraph, center: number) {
+    const cells = pack.cells;
+    const feature = pack.features?.[cells.f[cells.haven[center]]];
+    return {
+      hasRiver: !!cells.r[center],
+      hasElevation: cells.h[center] >= 50,
+      isCoastal: cells.t[center] === 1 && feature?.type !== "lake",
+      biome:
+        this.worldContext.biomesData.keys?.[cells.biomeCode[center]] ??
+        STANDARD_BIOME_DEFINITIONS[cells.biomeCode[center]]?.key ??
+        "temperate"
+    };
+  }
 
   getRandomShield() {
     const type = rw(COA.shields.types);
@@ -1436,9 +1458,12 @@ class CulturesModule {
         if (typeof c.modernizationAffinity !== "number" || !Number.isFinite(c.modernizationAffinity)) {
           c.modernizationAffinity = rollCultureModernizationAffinity(c.type);
         }
+        if (!c.burialProfile) {
+          c.burialProfile = getCultureBurialProfile(c);
+        }
         if (!c.funeralRite) {
-          const raceKey = pack.races?.[c.race ?? 0]?.key;
-          c.funeralRite = rollCultureFuneralRite(c.type, Math.random, raceKey);
+          const profile = getCultureBurialProfile(c);
+          if (profile) c.funeralRite = corpseTreatmentToFuneralRite(profile.bodyFate);
         }
         return;
       }
@@ -1455,7 +1480,15 @@ class CulturesModule {
       c.type = defineCultureType(center);
       c.knowledgeValue = rollCultureKnowledgeValue(c.type);
       c.modernizationAffinity = rollCultureModernizationAffinity(c.type);
-      c.funeralRite = rollCultureFuneralRite(c.type, Math.random, c.raceKey ?? pack.races?.[c.race ?? 0]?.key);
+      const generatedBurial = rollCultureBurialProfile(
+        c.type,
+        Math.random,
+        c.raceKey ?? pack.races?.[c.race ?? 0]?.key,
+        this.burialGeography(pack, center),
+        { base: c.base, period: worldTraditionPeriod(useOptionsState.getState()) }
+      );
+      c.burialProfile = generatedBurial;
+      c.funeralRite = corpseTreatmentToFuneralRite(generatedBurial.bodyFate);
       c.expansionism = defineCultureExpansionism(c.type);
       c.origins = [0];
       c.code = abbreviate(c.name, codes);
@@ -1531,6 +1564,13 @@ class CulturesModule {
     // define emblem shape
     const emblemShape = useOptionsState.getState().emblemShape;
 
+    const burialProfile = rollCultureBurialProfile(
+      "Generic",
+      Math.random,
+      pack.races?.[resolvedRace]?.key,
+      this.burialGeography(pack, center),
+      { base, period: worldTraditionPeriod(useOptionsState.getState()) }
+    );
     pack.cultures.push({
       name,
       color,
@@ -1548,7 +1588,8 @@ class CulturesModule {
       code,
       shield: emblemShape === "random" ? this.getRandomShield() : "",
       race: resolvedRace,
-      funeralRite: rollCultureFuneralRite("Generic", Math.random, raceKey)
+      burialProfile,
+      funeralRite: corpseTreatmentToFuneralRite(burialProfile.bodyFate)
     });
   }
 

@@ -87,8 +87,9 @@ export function exportFixedBurgCrossings(
   const all = crossings.flatMap(c =>
     [c.approachA, c.approachB, c.waterA, c.waterB, c.deckA, c.deckB].flatMap(p =>
       [-1, 1].map(sign => [
-        p[0] + (sign * c.tangent[0] * exported.sections.roadWidthMeters) / 2,
-        p[1] + (sign * c.tangent[1] * exported.sections.roadWidthMeters) / 2
+        // Deck width runs square to the (possibly skewed) bridge axis.
+        p[0] + (sign * -c.normal[1] * exported.sections.roadWidthMeters) / 2,
+        p[1] + (sign * c.normal[0] * exported.sections.roadWidthMeters) / 2
       ])
     )
   );

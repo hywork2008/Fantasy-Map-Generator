@@ -1,3 +1,5 @@
+import { isBurialCultureProfile } from "../../data/burialCultures";
+import { isCivilizationContext } from "../../data/civilizationTraditions";
 import { validRegionalContext } from "../../types/cityRegional";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -5,6 +7,7 @@ import {
   validFixedBurgCrossings
 } from "../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { joinStrandedRoadsToCrossings } from "../core/gen/site/strandedRoads";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
 // The Burg editor writes a BurgSiteDescriptor JSON to sessionStorage and opens
@@ -23,10 +26,13 @@ import {
   fitUndersizedTownFrame,
   type GridKind,
   isCitySizePreset,
-  sizePresetForExtent
+  seaPortShoreDistanceMeters,
+  sizePresetForExtent,
+  townMeshExtentMeters
 } from "../core/document";
 import { DEFAULT_PATCH_PARAMS } from "../core/gen/patches";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
+import { sanitizeBurgSiteEconomy } from "../core/gen/site/burgSiteEconomy";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
 import type { HistoricalPeriod } from "../core/types";
@@ -84,7 +90,34 @@ export function parseIncomingPayload(json: string): CityEditorShare | null {
   return descriptor ? shareFromDescriptor(descriptor) : null;
 }
 
-export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorShare {
+/** Margin kept around the town mesh so roads, rivers and bridges visibly meet it. */
+const REGIONAL_MARGIN_RATIO = 1.3;
+const REGIONAL_REQUIRED_MARGIN_METERS = 80;
+
+/**
+ * A regional hand-off describes a wide window, but only the town mesh and the
+ * way roads, water and bridges join it matter. The display frame is therefore
+ * the mesh plus a margin (and any required bridge/frontage bounds), not the
+ * full FMG window. Returns null when the window is already that tight.
+ */
+export function regionalDisplayExtent(descriptor: BurgSiteDescriptor): number | null {
+  if (!descriptor.regionalContext) return null;
+  const frame = { ...descriptor.frame, regionalMode: true };
+  const mesh = townMeshExtentMeters(
+    frame,
+    descriptor.burg.waterAccess?.port.river === true,
+    descriptor.burg.riverPlacement?.bankDistanceMeters,
+    seaPortShoreDistanceMeters(descriptor)
+  );
+  const required = descriptor.frame.requiredBounds
+    ? requiredSiteExtent(descriptor.frame.requiredBounds) + 2 * REGIONAL_REQUIRED_MARGIN_METERS
+    : 0;
+  const extent = Math.ceil(Math.max(mesh * REGIONAL_MARGIN_RATIO, required) / 10) * 10;
+  return extent < descriptor.frame.extentMeters - 0.5 ? extent : null;
+}
+
+export function shareFromDescriptor(source: BurgSiteDescriptor): CityEditorShare {
+  const descriptor = joinStrandedRoadsToCrossings(source);
   const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
   const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
   const proposedFit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
@@ -96,7 +129,14 @@ export function shareFromDescriptor(descriptor: BurgSiteDescriptor): CityEditorS
   const fitted = fit
     ? { ...descriptor, frame: { ...descriptor.frame, extentMeters: fit.extentMeters } }
     : descriptor.regionalContext
-      ? { ...descriptor, frame: { ...descriptor.frame, regionalMode: true } }
+      ? {
+          ...descriptor,
+          frame: {
+            ...descriptor.frame,
+            regionalMode: true,
+            extentMeters: regionalDisplayExtent(descriptor) ?? descriptor.frame.extentMeters
+          }
+        }
       : descriptor;
   const blockedByWater = !fit && proposedFit != null && minimumExtent > proposedFit.extentMeters;
   const townGrid =
@@ -277,7 +317,15 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
     )
       return warnShape("regional coverage / target burg");
   }
+  if (raw.burialProfile !== undefined && !isBurialCultureProfile(raw.burialProfile)) return warnShape("burialProfile");
+  // An unreadable civilization block only loses the culture-aware landmarks.
+  if (raw.civilization !== undefined && !isCivilizationContext(raw.civilization)) delete raw.civilization;
   if (!Array.isArray(raw.rivers) || !Array.isArray(raw.roads)) return warnShape("rivers[] / roads[]");
+  if (raw.economy !== undefined) {
+    const economy = sanitizeBurgSiteEconomy(raw.economy);
+    if (economy) raw.economy = economy;
+    else delete raw.economy;
+  }
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;
   else delete raw.frame.regionalMode;
@@ -343,6 +391,10 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.urbanCoreMode === "legacy" || raw.urbanCoreMode === "compact") settings.urbanCoreMode = raw.urbanCoreMode;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];
   if (isHistoricalPeriod(raw.historicalPeriod)) settings.historicalPeriod = raw.historicalPeriod;
+  if (raw.burialProfile !== undefined) {
+    if (!isBurialCultureProfile(raw.burialProfile)) return null;
+    settings.burialProfile = structuredClone(raw.burialProfile);
+  }
   return settings;
 }
 

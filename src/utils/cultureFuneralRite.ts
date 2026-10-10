@@ -1,3 +1,9 @@
+import {
+  corpseTreatmentToFuneralRite,
+  getBurialCulturePreset,
+  isBurialCulturePresetId,
+  isBurialCultureProfile
+} from "../data/burialCultures";
 /**
  * Per-culture funeral / corpse-disposal custom.
  *
@@ -73,9 +79,13 @@ export function rollCultureFuneralRite(
  * field fall back to the type's modal rite so behaviour is stable across reloads.
  */
 export function getCultureFuneralRite(
-  culture: Pick<Culture, "i" | "type" | "funeralRite"> | undefined | null
+  culture: Pick<Culture, "i" | "type" | "funeralRite" | "burialProfile"> | undefined | null
 ): FuneralRite | undefined {
   if (!culture || culture.i === 0) return undefined;
   if (isFuneralRite(culture.funeralRite)) return culture.funeralRite;
+  const raw = culture.burialProfile;
+  if (isBurialCultureProfile(raw)) return corpseTreatmentToFuneralRite(raw.bodyFate);
+  if (typeof raw === "string" && isBurialCulturePresetId(raw))
+    return corpseTreatmentToFuneralRite(getBurialCulturePreset(raw).bodyFate);
   return defaultFuneralRiteForType(culture.type);
 }
