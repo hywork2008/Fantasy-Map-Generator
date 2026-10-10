@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳（出発・配送・年0.7減衰・整備指標・道路の優先順）と `roads[].traffic` を実装。置き場換算と区画重みは未実装 |
+| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳と `roads[].traffic` を実装。置き場は Paia 1350 で較正し、`storage[]` に面積を入れる。区画重みと置き場の描画は未実装 |
 | **Date** | 2026-10-10 |
 | **Owner** | Economy 拡張（プロファイル生成）+ host（descriptor）+ CE（都市生成） |
 | **検証データ** | `temp/000.savdata/Paia 2026-10-10-09-54.fmg`（1年進行、1348年）。回廊の確認は `temp/000.savdata/Paia 2026-10-10-10-54.fmg`（1350年1月1日。台帳導入前に進めたので、残っている配送と航行中キャラバンを台帳に再生して見る） |
@@ -230,21 +230,21 @@ interface BurgSiteRoadEntry {
 
 ### 5.3 在庫 → 置き場の換算（FMG側 `siteEconomyFootprint.ts`）
 
-在庫量は卸（`burgWholesaleInventories`）＋小売（`burgRetailInventories.onHand`）＋市場中心なら `markets[].goods.stock`。品目タグ・名前から `StorageForm` を決め、ロットあたりの面積を掛ける。
+その Burg の卸（`burgWholesaleInventories`）と小売（`burgRetailInventories.onHand`）を足す。市場中心の `stapleCrop` は、Food Ledger の age0+age1+age2（まだ倉にある滞留）に置き換える。`storageOverflow` は置き場を失った分なので面積にしない。`markets[].goods.stock` は卸と同じ山の写しなので足さない。`stapleFood`（Grain の集計）は作物ロットと二重なので落とす。
 
-| form | 判定 | 面積の目安（仮値・要較正） | 置く場所 |
+| form | 判定 | 面積（Paia 1350 で採用） | 置く場所 |
 | :--- | :--- | :--- | :--- |
-| livestockPen | `liveAnimal` タグ | 牛・馬 4 m²/頭、羊・山羊・豚 1.5 m²/頭、鶏 0.3 m²/羽。在庫の**滞留分**（月平均）だけ | 城壁外・門前の家畜市（Viehmarkt）。屠畜場・なめし場と同じ下流側 |
-| timberYard | Wood/Timber/Mahogany | 1 pile ≈ 6 m² | 川岸（`waterborne`）か、森の方角の門の外 |
-| stoneYard | `construction` かつ鉱物系 | 1 pallet/wain ≈ 4 m² | 採石場の方角の門、または荷揚げ岸 |
-| fuelStack | `fuel`（樽物を除く） | 1 bale/sack ≈ 2 m² | 城壁外（火災） |
-| granary | 穀物・豆・`stapleFood` | 1 wain ≈ 1.2 m²（多層の床面積で割り戻し） | 市場近く・城壁内。`burg.publicWorks.granary` があれば公共穀倉を追加 |
+| livestockPen | `liveAnimal` タグ | 牛・馬・象・駱駝 4 m²/頭、羊・山羊・豚・犬 1.5 m²/頭、鶏・猫 0.3 m²。頭数は現在庫 | 城壁外・門前の家畜市（Viehmarkt）。屠畜場・なめし場と同じ下流側 |
+| timberYard | Wood/Timber/Mahogany | 1 pile = 6 m² | 川岸（`waterborne`）か、森の方角の門の外 |
+| stoneYard | Stone/Marble/Brick/Clay/Lime、または `construction` かつ `mineral` | 1 lot = 4 m² | 採石場の方角の門、または荷揚げ岸 |
+| fuelStack | `fuel`（樽物と材木を除く） | 1 lot = 2 m² | 城壁外（火災） |
+| granary | `stapleCrop` | 1 wain = 1.2 m²（多層の床面積で割り戻し） | 市場近く・城壁内。`burg.publicWorks.granary` があれば公共穀倉を追加 |
 | cellar | barreled | 地上 0.2 m²/barrel | 区画内に吸収（建物を大きくするだけ） |
-| warehouse | その他 | 1 lot ≈ 0.8 m² | 港・市場・商館の周り |
+| warehouse | その他 | 1 lot = 0.8 m² | 港・市場・商館の周り |
 
-都市規模の上限：置き場の合計は市街地面積の 15%（市場中心は 25%）まで。超える分は「都市外の農村・港に分散している」とみなして切り捨て、`areaM2` に上限後の値を入れる。
+都市規模の上限：置き場の合計は市街地円盤（`occupancyRadiusMeters` の πr²）の 15%（市場中心は 25%）まで。超える分は形の比を保って縮め、`areaM2` に上限後の値を入れる。
 
-**較正**：Paia の Paris（市場中心、家畜 573頭・食料 268,823 lot）と Marba（首都だが市場中心ではない、家畜 8頭）で、置き場が市街地の何%になるかを計測してから係数を確定する。推定値のまま入れない。
+**較正（Paia 1350、`temp/000.savdata/Paia 2026-10-10-10-54.fmg`）**：上の係数を卸＋小売に掛けると、Marba（首都、市場中心ではない、人口約 1.2 万、円盤 31.6 ha）は 0.45%。Paris（市場中心、人口約 1.0 万、円盤 25.7 ha）は 108% で、穀倉だけで 27 ha（Maize の卸 12.3 万 wain）。同じ市場の Ledger は滞留 1.78 万 wain、overflow 17.5 万 wain。滞留だけを採ると Paris の穀倉は円盤の約 8% で、上限の内側に収まる。係数はこの表のまま使う。
 
 ---
 
@@ -374,9 +374,9 @@ CEへ渡す前に直しておかないと、CEに「中身の無い施設」が�
 | :--- | :--- | :--- | :--- |
 | **E0** | セーブ集計スクリプトを `scripts/` に置き、§3 の数値を再現できるようにする | `scripts/` | Paia で §3 の表と同じ値が出る |
 | **E1** | `roads[].traffic/trafficRank`、`climate.prevailingWindDeg` を descriptor に追加（core のみ） | `services/burgSiteDescriptor.ts`、CE 型コピー | `traffic` / `trafficRank` は交通のある陸路だけに付く。風向は未実装。値が無いときは従来どおり |
-| **E2** | `BurgSiteEconomy` 型、`buildBurgSiteEconomy()`、`siteEconomyFootprint.ts`、`burgEconomyExtensions.getBurgSiteEconomy` 登録 | `extensions/economy/`、`services/burgEconomyExtensions.ts` | ギルド投影まで実装済み（職人0の会館を含む）。置き場面積の較正は未了 |
+| **E2** | `BurgSiteEconomy` 型、`buildBurgSiteEconomy()`、`siteEconomyFootprint.ts`、`burgEconomyExtensions.getBurgSiteEconomy` 登録 | `extensions/economy/`、`services/burgEconomyExtensions.ts` | ギルド投影と置き場面積まで実装済み（職人0の会館を含む）。面積はプロファイルに入り、CE の配置は未了 |
 | **E3** | CE `economicProgram.ts`。ward の重み・craftDomain、`suburbanLanduse` の traffic 駆動、門前の宿 | `city-editor/core/gen/` | ギルド施設の有無はプロファイルで分岐済み。区画重みと街道の traffic 駆動は未実装。プロファイルが無い場合の出力は現行どおり |
-| **E4** | 置き場・家畜囲い・材木置場・石置場・漂白場・石灰窯・布地会館の配置と描画 | `aerialLandmarks.ts`、`render/` | 会館・職種別の付属施設は実装済み（職人0でも置く）。在庫由来の家畜囲い・材木置場の面積は未了 |
+| **E4** | 置き場・家畜囲い・材木置場・石置場・漂白場・石灰窯・布地会館の配置と描画 | `aerialLandmarks.ts`、`render/` | 会館・職種別の付属施設は実装済み（職人0でも置く）。在庫由来の面積は `storage[]` にある。城壁内外への配置と描画は未了 |
 | **E5** | `TradeCorridorLedger` と整備判定、`publicWorks` の優先順の置き換え | `extensions/economy/generators/` | 台帳・減衰・整備表・道路の並べ替え・`tradePartners` を実装。1350年 Paia の残存配送を再生すると上位10組に港町ペアが入る。道幅・宿・郊外の描画は未実装 |
 | **E6** | §8.2 の不整合修正（会館の昇格規則、Public Works 較正） | `guildChapters.ts`、`publicWorks.ts` | 会館の空き率が半分以下 |
 | **v2** | 製粉・屠畜の追加（§8.1）、橋の新設を Public Works に追加（`bridgeSkewPolicy.ts` 準拠）、CE→FMG の書き戻し | | |
@@ -387,6 +387,6 @@ E1・E2 は独立に進められる。E3 以降は E2 に依存する。E5・E6 
 
 ## 10. 未決事項
 
-1. **置き場の換算係数**（§5.3）。E2 で Paia を計測して決める。
+1. **置き場の換算係数**（§5.3）。**決定（2026-10-10）:** Paia 1350 の計測で上表の係数を採用する。市場中心の穀物は Ledger の滞留分だけを面積にする。
 2. **会館だけの職種を CE で描くか。** **決定（2026-10-10）: 描く。** 職人のいないギルドはNPCを減らすための意図的な状態であり、データの不具合として隠さない。`practitioners = 0` でも会館と付属施設を置く。職人街の区画だけを割かない。製品流通の有無では施設を落とさない。
 3. **時点の扱い。** CE は「今年の状態」を描く。年を進めて再度開くと区画が変わる。過去の状態を残したい場合は、CE 側の保存（`cityEditorFile.ts`）にプロファイルごと保存されるので、そちらを使う。

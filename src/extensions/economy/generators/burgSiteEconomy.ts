@@ -15,6 +15,7 @@ import {
 import type { GuildChapter } from "./guildChapterTypes";
 import { collectGuildPractitioners } from "./guildKnowledge";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
+import { storageYardsForBurg } from "./siteEconomyFootprint";
 import { tradePartnersForBurg } from "./tradeCorridorLedger";
 
 /**
@@ -123,6 +124,10 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     stocks: getGuildKnowledgeStocks()
   });
   const arrival = arrivalRank(burgId);
+  const tradePartners = tradePartnersForBurg(burgId, getTradeCorridors(), {
+    name: burgName,
+    goodName
+  });
   const organization = getMerchantOrganizations().find(entry => entry.homeBurgId === burgId);
   const mintMarkets = new Set(
     getMintLedgers().flatMap(ledger => (ledger.mintMarketId == null ? [] : [ledger.mintMarketId]))
@@ -139,12 +144,9 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
       caravanArrivalRank: arrival.rank
     },
     guilds,
-    storage: [],
+    storage: storageYardsForBurg(burgId, arrival.marketCenter, tradePartners),
     facilities: [],
-    tradePartners: tradePartnersForBurg(burgId, getTradeCorridors(), {
-      name: burgName,
-      goodName
-    })
+    tradePartners
   };
 }
 

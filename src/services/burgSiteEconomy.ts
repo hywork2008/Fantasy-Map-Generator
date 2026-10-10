@@ -45,12 +45,36 @@ export interface BurgSiteEconomy {
     caravanArrivalRank: number;
   };
   guilds: SiteGuild[];
-  /** Storage yards are filled once lot→m² coefficients are calibrated. */
-  storage: unknown[];
+  /** Lot→m² yards, already capped to the town disc. */
+  storage: SiteStorageYard[];
   /** Inns, shipyards and other non-guild works. Empty until that slice lands. */
   facilities: unknown[];
   /** Up to eight partners from the corridor ledger, busiest first. */
   tradePartners: SiteTradePartner[];
+}
+
+export const STORAGE_FORMS = [
+  "livestockPen",
+  "timberYard",
+  "stoneYard",
+  "fuelStack",
+  "granary",
+  "cellar",
+  "warehouse"
+] as const;
+
+export type StorageForm = (typeof STORAGE_FORMS)[number];
+
+export interface SiteStorageYard {
+  form: StorageForm;
+  /** Ground area in square metres, after the town-disc cap. */
+  areaM2: number;
+  /** Largest goods in this yard, for labels. */
+  mainGoods: string[];
+  /** Compass bearing of the partner that sends these goods. 0 is north. */
+  inflowAzimuthDeg: number | null;
+  /** Timber rafts and stone barges sit on the bank. */
+  waterborne: boolean;
 }
 
 export interface SiteTradePartner {

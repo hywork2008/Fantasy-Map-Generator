@@ -98,4 +98,19 @@ describe("sanitizeBurgSiteEconomy", () => {
       { burgId: 4, name: "Tegrad", annualSlots: 12, mode: "sea", routeId: null, mainGoods: ["Grain"] }
     ]);
   });
+
+  it("keeps a granary and drops a yard with an unknown form", () => {
+    const cleaned = sanitizeBurgSiteEconomy({
+      version: 1,
+      year: 1350,
+      guilds: [],
+      storage: [
+        { form: "granary", areaM2: 120.4, mainGoods: ["Maize"], inflowAzimuthDeg: 12.2, waterborne: false },
+        { form: "barn", areaM2: 40, mainGoods: [], inflowAzimuthDeg: null, waterborne: true }
+      ]
+    });
+    expect(cleaned?.storage).toEqual([
+      { form: "granary", areaM2: 120, mainGoods: ["Maize"], inflowAzimuthDeg: 12, waterborne: false }
+    ]);
+  });
 });

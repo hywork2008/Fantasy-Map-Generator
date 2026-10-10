@@ -16,6 +16,26 @@ export const GUILD_DOMAINS = [
 
 export type GuildDomain = (typeof GUILD_DOMAINS)[number];
 
+export const STORAGE_FORMS = [
+  "livestockPen",
+  "timberYard",
+  "stoneYard",
+  "fuelStack",
+  "granary",
+  "cellar",
+  "warehouse"
+] as const;
+
+export type StorageForm = (typeof STORAGE_FORMS)[number];
+
+export interface SiteStorageYard {
+  form: StorageForm;
+  areaM2: number;
+  mainGoods: string[];
+  inflowAzimuthDeg: number | null;
+  waterborne: boolean;
+}
+
 export interface SiteGuild {
   domain: GuildDomain;
   status: "chapter" | "informal";
@@ -36,7 +56,7 @@ export interface BurgSiteEconomy {
     caravanArrivalRank: number;
   };
   guilds: SiteGuild[];
-  storage: unknown[];
+  storage: SiteStorageYard[];
   facilities: unknown[];
   tradePartners: SiteTradePartner[];
 }
@@ -51,6 +71,7 @@ export interface SiteTradePartner {
 }
 
 const DOMAINS = new Set<string>(GUILD_DOMAINS);
+const FORMS = new Set<string>(STORAGE_FORMS);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -96,10 +117,35 @@ export function sanitizeBurgSiteEconomy(raw: unknown): BurgSiteEconomy | null {
       const guild = guildFrom(entry);
       return guild ? [guild] : [];
     }),
-    storage: [],
+    storage: yardsFrom(raw.storage),
     facilities: [],
     tradePartners: partnersFrom(raw.tradePartners)
   };
+}
+
+function yardsFrom(raw: unknown): SiteStorageYard[] {
+  if (!Array.isArray(raw)) return [];
+  const yards: SiteStorageYard[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry) || typeof entry.form !== "string" || !FORMS.has(entry.form)) continue;
+    const area = typeof entry.areaM2 === "number" && Number.isFinite(entry.areaM2) ? entry.areaM2 : 0;
+    if (area < 1) continue;
+    const azimuth =
+      typeof entry.inflowAzimuthDeg === "number" && Number.isFinite(entry.inflowAzimuthDeg)
+        ? ((Math.round(entry.inflowAzimuthDeg) % 360) + 360) % 360
+        : null;
+    const mainGoods = Array.isArray(entry.mainGoods)
+      ? entry.mainGoods.filter((good): good is string => typeof good === "string").slice(0, 3)
+      : [];
+    yards.push({
+      form: entry.form as SiteStorageYard["form"],
+      areaM2: Math.round(area),
+      mainGoods,
+      inflowAzimuthDeg: azimuth,
+      waterborne: entry.waterborne === true
+    });
+  }
+  return yards;
 }
 
 function partnersFrom(raw: unknown): SiteTradePartner[] {

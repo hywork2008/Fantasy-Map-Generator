@@ -5,7 +5,9 @@ import {
   clearEconomyContext,
   getSimulationYear,
   initEconomyContext,
+  setBurgWholesaleInventories,
   setCraftDomainEmploymentRecords,
+  setGoods,
   setGuildChapters,
   setGuildKnowledgeStocks,
   setMarkets,
@@ -13,6 +15,8 @@ import {
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { buildBurgSiteEconomy, projectBurgGuilds } from "./burgSiteEconomy";
+import type { Good } from "./goodsGeneratorTypes";
+import type { Market } from "./marketTypes";
 import type { TradeCorridor } from "./tradeCorridorLedger";
 
 describe("projectBurgGuilds", () => {
@@ -64,6 +68,8 @@ describe("buildBurgSiteEconomy", () => {
     worldContext.pack = { burgs: [{}, { i: 1, cell: 0 }] } as unknown as PackedGraph;
     setEconomyCalibrationState({ applyCalibration: false });
     setMarkets([]);
+    setGoods([]);
+    setBurgWholesaleInventories([]);
     setGuildChapters([]);
     setGuildKnowledgeStocks([]);
     setCraftDomainEmploymentRecords([]);
@@ -106,6 +112,53 @@ describe("buildBurgSiteEconomy", () => {
     setTradeCorridors([corridor]);
     expect(buildBurgSiteEconomy(1)?.tradePartners).toEqual([
       { burgId: 4, name: "Tegrad", annualSlots: 18, mode: "sea", routeId: null, mainGoods: [] }
+    ]);
+  });
+
+  it("stores a market center's grain from the ledger ages, not the wholesale mirror", () => {
+    worldContext.pack.burgs = [
+      {},
+      { i: 1, cell: 0, name: "Paris", x: 100, y: 200, population: 10, walls: 1 },
+      { i: 4, cell: 1, name: "Tegrad", x: 100, y: 100 }
+    ] as unknown as PackedGraph["burgs"];
+    setGoods([
+      { i: 1, name: "Maize", tags: ["food", "stapleCrop"], unit: "wain", value: 1 },
+      { i: 2, name: "Wood", tags: ["construction", "fuel"], unit: "pile", value: 1 },
+      { i: 3, name: "Grain", tags: ["stapleFood"], unit: "wain", value: 1 }
+    ] as Good[]);
+    setBurgWholesaleInventories([{ burgId: 1, marketId: 1, goods: { 1: 9999, 2: 2, 3: 50_000 } }]);
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#000",
+        goods: {},
+        foodLedger: {
+          stapleCropInventories: {
+            1: { age0: 10, age1: 0, age2: 0, age0UnitCost: 0, age1UnitCost: 0, age2UnitCost: 0, overflow: 8000 }
+          }
+        }
+      } as Market
+    ]);
+    const corridor: TradeCorridor = {
+      burgA: 1,
+      burgB: 4,
+      departures: 2,
+      cargoSlots: 8,
+      value: 1,
+      byMode: { land: 0, river: 8, sea: 0 },
+      meanTravelDays: 4,
+      idealTravelDays: 4,
+      threat: 0,
+      routeIds: [],
+      ferryCrossings: 0,
+      routeHits: {},
+      goodsSlots: { 2: 8 }
+    };
+    setTradeCorridors([corridor]);
+    expect(buildBurgSiteEconomy(1)?.storage).toEqual([
+      { form: "timberYard", areaM2: 12, mainGoods: ["Wood"], inflowAzimuthDeg: 0, waterborne: true },
+      { form: "granary", areaM2: 12, mainGoods: ["Maize"], inflowAzimuthDeg: null, waterborne: false }
     ]);
   });
 
