@@ -2,7 +2,7 @@ import { normalWaterSection, type PhysicalWaterPolygon, pointInWater } from "../
 import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 import { planRiverCrossing } from "../../utils/riverCrossing";
 import { BRIDGE_BANK_SEAT } from "./bridgeDeck";
-import { townMeshExtentMeters } from "./document";
+import { seaPortShoreDistanceMeters, townMeshExtentMeters } from "./document";
 import { segmentSegmentHit } from "./gen/geom";
 import type { BurgSiteDescriptor, BurgSiteRiver } from "./gen/site/burgSiteDescriptor";
 import type { Point } from "./types";
@@ -72,7 +72,8 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
       ? townMeshExtentMeters(
           site.frame,
           site.burg.waterAccess?.port.river === true,
-          site.burg.riverPlacement?.bankDistanceMeters
+          site.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(site)
         ) / 2
       : 0;
   const legs: FrameRoadLeg[] = [];

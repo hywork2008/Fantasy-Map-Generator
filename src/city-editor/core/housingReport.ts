@@ -10,7 +10,7 @@ import { worldContext } from "../../context/worldContext";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
 import { type BurgSiteDescriptor, getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import { type CityEditorShare, parseIncomingPayload } from "../io/incomingCity";
-import { createGridDocument, descriptorFrameGridOptions } from "./document";
+import { createGridDocument, descriptorFrameGridOptions, seaPortShoreDistanceMeters } from "./document";
 import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import type { BuildingLot } from "./gen/buildingLots";
 import type { HousingFitStats } from "./gen/fitImportedHousing";
@@ -215,7 +215,8 @@ export function cityEditorDocument(share: CityEditorShare): CityDocument {
       ? descriptorFrameGridOptions(
           share.descriptor.frame,
           share.descriptor.burg.waterAccess?.port.river === true,
-          share.descriptor.burg.riverPlacement?.bankDistanceMeters
+          share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(share.descriptor)
         )
       : {}),
     measureBlockSize: share.measureBlockSize === true,

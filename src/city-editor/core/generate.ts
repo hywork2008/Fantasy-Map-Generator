@@ -2716,6 +2716,7 @@ export function runPlan(
     params,
     program,
     shoreline: coast?.shoreline ?? null,
+    frameExtentMeters: half * 2,
     oceanShorelines: classified.flatMap(item => (item.kind === "ocean" && item.coast ? [item.coast.shoreline] : [])),
     waterPolygon,
     streets: [...streetResult.streets, ...roads],

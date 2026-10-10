@@ -120,11 +120,12 @@ function keepBorderConnectedSea(cells: Cell[], sea: Set<number>, half: number): 
   const byId = new Map(cells.map(cell => [cell.id, cell]));
   const connected = new Set<number>();
   const queue: number[] = [];
-  // A town mesh inside a larger display frame may carry no border flags; its
-  // rim cells are the ones touching the mesh window.
-  const flagged = cells.some(cell => cell.onBorder);
-  const onRim = (cell: Cell) =>
-    flagged ? cell.onBorder : cell.polygon.some(p => Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - 1);
+  // The classification window is the mesh. A civic-window flag (the settlement
+  // square inside a wider mesh) is not that rim: sea beyond it would be dropped
+  // as a pocket. Use the flag only when no cell actually touches `half`.
+  const touchesWindow = (cell: Cell) => cell.polygon.some(p => Math.max(Math.abs(p[0]), Math.abs(p[1])) >= half - 1);
+  const geometric = cells.some(touchesWindow);
+  const onRim = (cell: Cell) => (geometric ? touchesWindow(cell) : cell.onBorder);
   for (const cell of cells) {
     if (onRim(cell) && sea.has(cell.id)) {
       connected.add(cell.id);

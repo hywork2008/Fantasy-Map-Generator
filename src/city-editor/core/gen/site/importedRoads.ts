@@ -1,7 +1,7 @@
 import { type PhysicalWaterPolygon, pointInWater } from "../../../../services/riverPhysicalGeometry";
 import { resolveBridgeCrossingLimit } from "../../../../utils/bridgeCrossingPolicy";
 import { planRiverCrossing, RIVER_CARGO_VESSEL } from "../../../../utils/riverCrossing";
-import { townMeshExtentMeters } from "../../document";
+import { seaPortShoreDistanceMeters, townMeshExtentMeters } from "../../document";
 import type { CityGeography, Point } from "../types";
 import type { BurgSiteDescriptor, BurgSiteRiver } from "./burgSiteDescriptor";
 
@@ -16,7 +16,8 @@ export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<City
     townMeshExtentMeters(
       site.frame,
       site.burg.waterAccess?.port.river === true,
-      site.burg.riverPlacement?.bankDistanceMeters
+      site.burg.riverPlacement?.bankDistanceMeters,
+      seaPortShoreDistanceMeters(site)
     ) / 2;
   const waters: PhysicalWaterPolygon[] = (site.fixedCrossings?.rivers ?? []).map(river => ({
     id: river.id,

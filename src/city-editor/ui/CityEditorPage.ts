@@ -17,7 +17,8 @@ import {
   DEFAULT_CITY_SIZE,
   DEFAULT_GRID_KIND,
   descriptorFrameGridOptions,
-  type GridKind
+  type GridKind,
+  seaPortShoreDistanceMeters
 } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
 import {
@@ -4809,7 +4810,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       ? descriptorFrameGridOptions(
           descriptor.frame,
           descriptor.burg.waterAccess?.port.river === true,
-          descriptor.burg.riverPlacement?.bankDistanceMeters
+          descriptor.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(descriptor)
         )
       : {};
   }
@@ -4889,7 +4891,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         ? descriptorFrameGridOptions(
             share.descriptor.frame,
             share.descriptor.burg.waterAccess?.port.river === true,
-            share.descriptor.burg.riverPlacement?.bankDistanceMeters
+            share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+            seaPortShoreDistanceMeters(share.descriptor)
           )
         : {}),
       measureBlockSize: measureTownCells,

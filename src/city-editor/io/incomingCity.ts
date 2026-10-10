@@ -26,6 +26,7 @@ import {
   fitUndersizedTownFrame,
   type GridKind,
   isCitySizePreset,
+  seaPortShoreDistanceMeters,
   sizePresetForExtent,
   townMeshExtentMeters
 } from "../core/document";
@@ -105,7 +106,8 @@ export function regionalDisplayExtent(descriptor: BurgSiteDescriptor): number | 
   const mesh = townMeshExtentMeters(
     frame,
     descriptor.burg.waterAccess?.port.river === true,
-    descriptor.burg.riverPlacement?.bankDistanceMeters
+    descriptor.burg.riverPlacement?.bankDistanceMeters,
+    seaPortShoreDistanceMeters(descriptor)
   );
   const required = descriptor.frame.requiredBounds
     ? requiredSiteExtent(descriptor.frame.requiredBounds) + 2 * REGIONAL_REQUIRED_MARGIN_METERS

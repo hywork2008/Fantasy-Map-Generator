@@ -8,12 +8,12 @@ import {
   validSavedFixedApproaches
 } from "./fixedApproachAdoption";
 import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
-import { polygonArea } from "./gen/geom";
+import { nearestOnPolyline, polygonArea } from "./gen/geom";
 import { buildGrid } from "./gen/grid";
 import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
 import { makeRng } from "./gen/prng";
-import type { Cell, CityGeography, CityParams } from "./gen/types";
+import type { Cell, CityGeography, CityParams, Point } from "./gen/types";
 import { validateLandmarks } from "./landmarks";
 import { meshFromCells, validate } from "./mesh";
 import { validRegionalFrameRoads, validSceneRegions } from "./sceneRegions";
@@ -200,12 +200,28 @@ export function createSizedDocument(size: CitySizePreset, seed = randomSeed()): 
   return createGridDocument({ size, seed, grid: "voronoi" });
 }
 
-/** New-city mesh: hexagonal tiling, Poisson Voronoi (`🆕` historically), or the
- * Grid-evolution final stage (Document-panel default; same mesh as 「この格子を採用」). */
-/**
- * Mesh side when required water kept the display larger than the town.
+/** Distance from the town origin to a sea or lake port's shoreline.
+ * Zero when this burg has no such port, or the shore was not surveyed. */
+export function seaPortShoreDistanceMeters(site: {
+  burg: { waterAccess?: { port: { sea: boolean; lake: boolean } } };
+  waterbody: { shoreline: readonly Point[][] } | null;
+}): number {
+  const port = site.burg.waterAccess?.port;
+  if (!port?.sea && !port?.lake) return 0;
+  let best = Infinity;
+  for (const line of site.waterbody?.shoreline ?? []) {
+    if (line.length < 2) continue;
+    best = Math.min(best, nearestOnPolyline([0, 0], line).dist);
+  }
+  return Number.isFinite(best) ? best : 0;
+}
+
+/** Mesh side when required water kept the display larger than the town.
  * A hamlet uses the fitted Micro/Tiny window. A town whose population window
  * already matches uses that window. Otherwise the display itself is the mesh.
+ * A sea or lake port whose shore already enters the frame keeps that whole
+ * frame: the water beyond the shore is inside the window, and a mesh stopped
+ * at the river bank leaves the coast, and its harbour, undrawn.
  */
 export function townMeshExtentMeters(
   frame: {
@@ -215,15 +231,17 @@ export function townMeshExtentMeters(
     requiredBounds?: RequiredSiteBounds;
   },
   riverPort = false,
-  bankDistanceMeters = 0
+  bankDistanceMeters = 0,
+  shoreDistanceMeters = 0
 ): number {
   const population = populationWindowMeters(frame.cityRadiusMeters);
   const town = fitUndersizedTownFrame(frame.cityRadiusMeters, population)?.extentMeters ?? population;
-  if (frame.regionalMode)
-    return Math.min(frame.extentMeters, riverPort ? Math.max(town, 2 * (bankDistanceMeters + 24)) : town);
+  const riverReach = riverPort ? Math.max(town, 2 * (bankDistanceMeters + 24)) : town;
+  const seaReach = shoreDistanceMeters > 0 && shoreDistanceMeters < frame.extentMeters / 2 - 1 ? frame.extentMeters : 0;
+  if (frame.regionalMode) return Math.min(frame.extentMeters, Math.max(riverReach, seaReach));
   const water = frame.requiredBounds ? requiredSiteExtent(frame.requiredBounds) : 0;
   if (frame.extentMeters > town + 0.5 && water > town + 0.5)
-    return riverPort ? Math.min(frame.extentMeters, Math.max(town, 2 * (bankDistanceMeters + 24))) : town;
+    return Math.min(frame.extentMeters, Math.max(riverPort ? riverReach : town, seaReach));
   return frame.extentMeters;
 }
 
@@ -236,17 +254,25 @@ export function descriptorFrameGridOptions(
     requiredBounds?: RequiredSiteBounds;
   },
   riverPort = false,
-  bankDistanceMeters = 0
+  bankDistanceMeters = 0,
+  shoreDistanceMeters = 0
 ): Pick<CreateGridOptions, "extentMeters" | "meshExtentMeters" | "settlementExtentMeters" | "cityRadiusMeters"> {
-  const mesh = townMeshExtentMeters(frame, riverPort, bankDistanceMeters);
-  const widened = mesh < frame.extentMeters - 0.5;
+  const mesh = townMeshExtentMeters(frame, riverPort, bankDistanceMeters, shoreDistanceMeters);
+  const town = townMeshExtentMeters(frame);
+  const meshWidened = mesh < frame.extentMeters - 0.5;
+  // The sea fills the display, so the mesh is not a smaller inset, but the
+  // walled town stays on the population window.
+  const seaFillsFrame = mesh >= frame.extentMeters - 0.5 && town < frame.extentMeters - 0.5 && shoreDistanceMeters > 0;
   return {
     extentMeters: frame.extentMeters,
     cityRadiusMeters: frame.cityRadiusMeters,
-    ...(widened ? { meshExtentMeters: mesh, settlementExtentMeters: townMeshExtentMeters(frame) } : {})
+    ...(meshWidened ? { meshExtentMeters: mesh } : {}),
+    ...(meshWidened || seaFillsFrame ? { settlementExtentMeters: town } : {})
   };
 }
 
+/** New-city mesh: hexagonal tiling, Poisson Voronoi (`🆕` historically), or the
+ * Grid-evolution final stage (Document-panel default; same mesh as 「この格子を採用」). */
 export function createGridDocument(options: CreateGridOptions): CityDocument {
   const seed = options.seed ?? randomSeed();
   const grid = options.grid ?? "hex";

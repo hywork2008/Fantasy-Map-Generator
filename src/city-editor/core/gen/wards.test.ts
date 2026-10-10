@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, Point } from "./types";
-import { assignWards, type WardInputs } from "./wards";
+import { assignWards, estuaryShoreEntersFrame, type WardInputs } from "./wards";
 
 function makeCell(id: number, centroid: Point, neighbors: number[]): Cell {
   const [cx, cy] = centroid;
@@ -278,5 +278,41 @@ describe("assignWards with automatic cemetery placement", () => {
     };
     const inlandResult = assignWards(inlandOnlyInput);
     expect(inlandResult.wards.some(w => w.kind === "harbor")).toBe(false);
+  });
+});
+
+describe("estuaryShoreEntersFrame", () => {
+  const tulacenShore: Point[] = [
+    [-227.7, -750],
+    [-750, -53.6]
+  ];
+
+  it("accepts a shore that crosses the original frame with room for a berth", () => {
+    expect(estuaryShoreEntersFrame(tulacenShore, 1500)).toBe(true);
+  });
+
+  it("rejects the same shore after the frame has been shrunk onto the river bank", () => {
+    expect(estuaryShoreEntersFrame(tulacenShore, 1350)).toBe(false);
+  });
+
+  it("rejects a sliver that only grazes the window edge", () => {
+    expect(
+      estuaryShoreEntersFrame(
+        [
+          [-750, -720],
+          [750, -720]
+        ],
+        1500
+      )
+    ).toBe(false);
+    expect(
+      estuaryShoreEntersFrame(
+        [
+          [-750, -600],
+          [750, -600]
+        ],
+        1500
+      )
+    ).toBe(true);
   });
 });
