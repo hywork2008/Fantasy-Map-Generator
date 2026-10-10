@@ -6,7 +6,12 @@ import { edgeBetween, facePoints } from "../mesh";
 import { MoatReservation } from "../moats";
 import type { CityDocument, Id, Point } from "../types";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "../waterGeometry";
-import { type AerialLandmarkPlan, aerialLandmarkFootprints, buildAerialLandmarkPlan } from "./aerialLandmarks";
+import {
+  type AerialLandmarkPlan,
+  aerialLandmarkFootprints,
+  buildAerialLandmarkPlan,
+  prevailingWindKey
+} from "./aerialLandmarks";
 import { laneHitsCivicLandmark } from "./buildingLots";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import {
@@ -191,6 +196,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
     roadTrafficKey(doc),
+    prevailingWindKey(doc),
     facePart,
     groupPart,
     circuitsPart,

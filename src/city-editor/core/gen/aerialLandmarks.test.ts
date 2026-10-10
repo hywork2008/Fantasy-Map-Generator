@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { renderAerialLandmarks } from "../../render/aerialLandmarksSvg";
 import { renderEditorSvg } from "../../render/svg";
 import { createGridDocument } from "../document";
 import { featureGroupVertices } from "../features";
@@ -12,7 +13,9 @@ import type { CityDocument, Point } from "../types";
 import {
   aerialLandmarkFootprints,
   buildAerialLandmarkPlan,
-  TANNERY_WATER_USER_CLEARANCE_METERS
+  prevailingWindKey,
+  TANNERY_WATER_USER_CLEARANCE_METERS,
+  windmillFacingRadians
 } from "./aerialLandmarks";
 import { externalGateRoads } from "./approachBeyond";
 import { buildBlockFabric, type DistrictFabric, FabricCache } from "./blockInfill";
@@ -102,6 +105,45 @@ function roadPolylines(city: CityDocument): Array<{ points: Point[]; width: numb
     }));
 }
 
+describe("windmill facing", () => {
+  it("faces into a wind that blows east", () => {
+    expect(windmillFacingRadians(90)).toBeCloseTo(Math.PI);
+  });
+
+  it("faces into a wind that blows north", () => {
+    expect(windmillFacingRadians(0)).toBeCloseTo((Math.PI * 3) / 2);
+  });
+
+  it("draws the sails on the windward side", () => {
+    const layer = renderAerialLandmarks({
+      domesticWater: [],
+      monasteries: [],
+      windmills: [
+        {
+          id: "windmill-0",
+          kind: "post",
+          name: "Windmill #1 (Post Mill)",
+          center: [10, 20],
+          baseRadius: 5,
+          facing: windmillFacingRadians(90),
+          sailAngle: 0,
+          sailLength: 9
+        }
+      ],
+      barbicans: [],
+      tanneries: [],
+      gallows: [],
+      guildHalls: [],
+      guildYards: [],
+      storageYards: [],
+      gateInns: []
+    });
+    const body = layer.querySelector(".ce-windmill g");
+    expect(body?.getAttribute("transform")).toContain("rotate(-180.0)");
+    expect(layer.querySelector(".ce-windmill-sails")?.getAttribute("transform")).toContain("translate(2.2 0)");
+  });
+});
+
 describe("aerial landmarks (1008-wards-and-features priority list)", () => {
   let city: CityDocument;
   let fabric: DistrictFabric;
@@ -181,6 +223,30 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
         expect(pointInPolygon(c, ring)).toBe(true);
         expect(Math.min(...gates.map(g => Math.hypot(g[0] - c[0], g[1] - c[1])))).toBeLessThan(270);
       } else expect(pointInPolygon(c, ring)).toBe(false);
+    }
+  });
+
+  it("turns every mill into the recorded wind without moving them", () => {
+    const input = {
+      buildings: fabric.buildings,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(f => f.polygon),
+      reserved: []
+    };
+    const doc = { ...city };
+    const seeded = buildAerialLandmarkPlan(doc, input, "wind-facing");
+    expect(prevailingWindKey(doc)).toBe("");
+    doc.prevailingWindDeg = 90;
+    const turned = buildAerialLandmarkPlan(doc, input, "wind-facing");
+    expect(prevailingWindKey(doc)).toBe("90");
+    expect(seeded.windmills.length).toBeGreaterThan(0);
+    expect(turned.windmills).toHaveLength(seeded.windmills.length);
+    expect(turned).not.toBe(seeded);
+    for (let i = 0; i < turned.windmills.length; i++) {
+      expect(turned.windmills[i].facing).toBeCloseTo(Math.PI);
+      expect(turned.windmills[i].center).toEqual(seeded.windmills[i].center);
+      expect(turned.windmills[i].sailAngle).toBe(seeded.windmills[i].sailAngle);
+      expect(turned.windmills[i].kind).toBe(seeded.windmills[i].kind);
     }
   });
 

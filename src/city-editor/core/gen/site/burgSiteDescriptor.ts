@@ -196,6 +196,11 @@ export interface BurgSiteDescriptor {
     biomeKey?: string;
     biomeName?: string;
     biomeColor?: string;
+    /**
+     * Compass bearing the wind blows toward: 0 = north, clockwise
+     * (same sense as road `entryAzimuthDeg`). Absent: windmills keep a seeded facing.
+     */
+    prevailingWindDeg?: number;
   };
   biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;

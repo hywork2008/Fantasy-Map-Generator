@@ -184,6 +184,36 @@ describe("getBurgSiteDescriptor", () => {
     expect(worldContext.pack.burgs[1].x).toBe(100);
   });
 
+  it("omits prevailing wind when the map has no wind belts or latitude", () => {
+    const previousWinds = worldContext.options.winds;
+    const previousCoords = worldContext.mapCoordinates;
+    worldContext.options.winds = undefined as unknown as typeof previousWinds;
+    worldContext.mapCoordinates = {};
+    try {
+      expect(getBurgSiteDescriptor(1)!.climate.prevailingWindDeg).toBeUndefined();
+    } finally {
+      worldContext.options.winds = previousWinds;
+      worldContext.mapCoordinates = previousCoords;
+    }
+  });
+
+  it("exports the latitude-tier prevailing wind and keeps it through the CE share", () => {
+    const previousWinds = worldContext.options.winds;
+    const previousCoords = worldContext.mapCoordinates;
+    worldContext.options.winds = [0, 90, 180, 225, 270, 315];
+    worldContext.mapCoordinates = { latN: 50, latT: 40 };
+    try {
+      const site = getBurgSiteDescriptor(1)!;
+      // y 100 on a height-200 map: latitude 30, tier 1.
+      expect(site.climate.prevailingWindDeg).toBe(90);
+      const shared = decodeShare(encodeShare(shareFromDescriptor(site as unknown as CESite)));
+      expect(shared?.descriptor?.climate.prevailingWindDeg).toBe(90);
+    } finally {
+      worldContext.options.winds = previousWinds;
+      worldContext.mapCoordinates = previousCoords;
+    }
+  });
+
   it("exports cell biome metadata in climate and biome properties", () => {
     const site = getBurgSiteDescriptor(1)!;
     expect(site.climate.biomeId).toBe(6);

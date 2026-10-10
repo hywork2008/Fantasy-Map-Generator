@@ -47,7 +47,7 @@ export interface Windmill {
   center: Point;
   /** Mound (post mill) or tower (tower mill) radius. */
   baseRadius: number;
-  /** Direction the sails face (radians, CCW from +X); one prevailing wind for the whole town. */
+  /** Direction the sails face (radians, CCW from +X / east); one prevailing wind for the whole town. */
   facing: number;
   /** Angle of the first sail in the sail plane. */
   sailAngle: number;
@@ -628,6 +628,32 @@ function sub(a: Point, b: Point): [number, number] {
 // ---------------------------------------------------------------------------
 // 2. Windmills along the ramparts and on rising ground outside town
 
+/** Compass degrees the wind blows toward, when a belt was recorded. The document field wins. */
+export function prevailingWindDegOnDocument(document: CityDocument): number | undefined {
+  const direct = document.prevailingWindDeg;
+  if (typeof direct === "number" && Number.isFinite(direct)) return direct;
+  const nested = document.fabric?.generation?.settings.descriptor?.climate?.prevailingWindDeg;
+  return typeof nested === "number" && Number.isFinite(nested) ? nested : undefined;
+}
+
+/** Fingerprint fragment. Empty when mills keep a seeded facing. */
+export function prevailingWindKey(document: CityDocument): string {
+  const deg = prevailingWindDegOnDocument(document);
+  return deg === undefined ? "" : String(deg);
+}
+
+/**
+ * Sail facing for a wind that blows toward `blowTowardDeg`
+ * (compass: 0 = north, clockwise). Radians, CCW from +X (east), in [0, 2π).
+ * The sails face into the wind.
+ */
+export function windmillFacingRadians(blowTowardDeg: number): number {
+  const sourceDeg = (((blowTowardDeg + 180) % 360) + 360) % 360;
+  const facing = Math.PI / 2 - (sourceDeg * Math.PI) / 180;
+  const tau = Math.PI * 2;
+  return ((facing % tau) + tau) % tau;
+}
+
 function windmillCount(buildings: number, document: CityDocument, hasRiver: boolean): number {
   // Post mills spread across Europe from the late 12th century.
   if (!periodAtLeast(document, "highMedieval")) return 0;
@@ -646,7 +672,10 @@ function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windm
     .map(g => document.mesh.vertices[g.vertexId]?.point)
     .filter((p): p is Point => !!p);
   // One prevailing wind: every mill on the plain faces the same way.
-  const facing = rng.range(0, Math.PI * 2);
+  // The seeded draw stays in the stream when a belt replaces it, so positions do not move.
+  const seededFacing = rng.range(0, Math.PI * 2);
+  const blowToward = prevailingWindDegOnDocument(document);
+  const facing = blowToward === undefined ? seededFacing : windmillFacingRadians(blowToward);
   const ring = [...site.town, site.town[0]];
   const perimeter = ring.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - ring[i][0], p[1] - ring[i][1]), 0);
   type Candidate = { center: Point; score: number };
@@ -1121,7 +1150,7 @@ export function buildAerialLandmarkPlan(
   if (!input.buildings.length || !document.fabric?.generation) return EMPTY_PLAN;
   const economy = economyOnDocument(document);
   const guildPlan = planGuildFacilities(economy, document.historicalPeriod ?? "ageOfExploration");
-  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${roadTrafficKey(document)}:${JSON.stringify(input.waterUsers ?? [])}`;
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${roadTrafficKey(document)}:${prevailingWindKey(document)}:${JSON.stringify(input.waterUsers ?? [])}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
 

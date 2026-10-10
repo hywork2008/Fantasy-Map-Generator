@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳と `roads[].traffic` を実装。置き場は Paia 1350 で較正し、`storage[]` の面積を城壁内（穀倉・倉庫）と城壁外（家畜市・材木置場・石置場・燃料置場）に描く。樽倉は敷地を取らない。区画重みは職人比・`commerce.rank`・市場中心で置き換える。交通のある道は郊外のリボンと門前の宿と門外の石畳を決める。交通が無い道は従来の郊外のまま |
+| **Status** | 一部実装。ギルド会館は職人0人でも置く。交易回廊台帳と `roads[].traffic` を実装。置き場は Paia 1350 で較正し、`storage[]` の面積を城壁内（穀倉・倉庫）と城壁外（家畜市・材木置場・石置場・燃料置場）に描く。樽倉は敷地を取らない。区画重みは職人比・`commerce.rank`・市場中心で置き換える。交通のある道は郊外のリボンと門前の宿と門外の石畳を決める。交通が無い道は従来の郊外のまま。卓越風は `climate.prevailingWindDeg` として渡り、風車は風上を向く。風帯が無いときは種からの向きのまま |
 | **Date** | 2026-10-10 |
 | **Owner** | Economy 拡張（プロファイル生成）+ host（descriptor）+ CE（都市生成） |
 | **検証データ** | `temp/000.savdata/Paia 2026-10-10-09-54.fmg`（1年進行、1348年）。回廊の確認は `temp/000.savdata/Paia 2026-10-10-10-54.fmg`（1350年1月1日。台帳導入前に進めたので、残っている配送と航行中キャラバンを台帳に再生して見る） |
@@ -256,6 +256,14 @@ interface BurgSiteRoadEntry {
 
 **較正（Paia 1350、`temp/000.savdata/Paia 2026-10-10-10-54.fmg`）**：上の係数を卸＋小売に掛けると、Marba（首都、市場中心ではない、人口約 1.2 万、円盤 31.6 ha）は 0.45%。Paris（市場中心、人口約 1.0 万、円盤 25.7 ha）は 108% で、穀倉だけで 27 ha（Maize の卸 12.3 万 wain）。同じ市場の Ledger は滞留 1.78 万 wain、overflow 17.5 万 wain。滞留だけを採ると Paris の穀倉は円盤の約 8% で、上限の内側に収まる。係数はこの表のまま使う。
 
+### 5.4 `climate.prevailingWindDeg`（host core のみ）
+
+`options.winds` は緯度帯ごとの卓越風で、風が吹いていく方位（0 = 北、時計回り）。降水の風向と同じ。海洋の力ベクトルが 0 を東と扱う計算には合わせない。
+
+都市の緯度は降水・海流と同じ `latN - (burg.y / graphHeight) * latT`。帯は `floor(|latitude - 89| / 30)` を 0..5 に収める。`winds`・`latN`・`latT`・`graphHeight` のいずれかが使えないときはフィールドを省く。`DESCRIPTOR_VERSION` は 3 のまま。
+
+CE は生成時にこの値を都市へ写し、町の風車をすべて風上へ向ける。値が無い町は種から一つ決めた向きのまま。帆の布の角度と風車の数・位置は変えない。なめし場は川の下流のまま。
+
 ---
 
 ## 6. 交易回廊台帳（FMG側・新設）
@@ -359,7 +367,7 @@ export interface TradeCorridor {
 | **風車・水車**（`aerialLandmarks.ts`、`watermillFabric.ts`） | 製粉が無い。Flour・Bread は Goods にあるが、Paia では生産・在庫・販売すべて 0。穀物は粒のまま消費される | FMGに製粉レシピ（Grain→Flour）と製粉所の容量（水力は `damSites` / 川の流量、風力は `options.winds`）を追加。CEは製粉所の数をそこから受け取る |
 | **なめし場** | Leather の生産は4 Burg だけ（leather の実践者ストックは58 Burg）。CEは川のある町なら全時代で描く | v1 は `SiteGuild(leather)` か Leather 生産がある町だけに描く |
 | **屠畜場**（未実装だが家畜の行き先として必要） | 家畜を食べる加工が無い。Pig の市場在庫 6,323頭、累計販売 6,945頭が生きたまま流通している | FMGに屠畜（liveAnimal→食肉・皮・獣脂）を追加すれば、皮がなめし場、獣脂が Candles/Soap に繋がる |
-| **風向き**（風車の向き、なめし場の風下） | FMGは `options.winds`（緯度帯ごとの卓越風）を持っている | descriptor に `climate.prevailingWindDeg` を追加（host core のみで可能）。CEの乱数の卓越風を置き換える |
+| **風向き**（風車の向き、なめし場の風下） | FMGは `options.winds`（緯度帯ごとの卓越風）を持っている | `climate.prevailingWindDeg` を追加済み。CE は風車を風上へ向ける。値が無いときは種からの向き。なめし場は川の下流のまま。製粉容量は v2 |
 | **修道院** | 宗教組織のシミュレーションは無い（academy の知識カテゴリに名前があるだけ） | 当面は文化の伝統で決める現行方式のまま。将来は宗教の所領・十分の一税と結ぶ |
 | **絞首台・晒し台** | 治安は `burg.security` の数値だけ。司法は無い | `security` と人口から絞首台の有無を決める程度で足りる |
 | **墓地の大きさ** | FMGは `funeral.remainsByCell` で累積遺骸数を持っている | 墓地面積をこの値から決める（現在は人口から推定） |
@@ -384,7 +392,7 @@ CEへ渡す前に直しておかないと、CEに「中身の無い施設」が�
 | PR | 内容 | 主な場所 | 完了条件 |
 | :--- | :--- | :--- | :--- |
 | **E0** | セーブ集計スクリプトを `scripts/` に置き、§3 の数値を再現できるようにする | `scripts/` | Paia で §3 の表と同じ値が出る |
-| **E1** | `roads[].traffic/trafficRank`、`climate.prevailingWindDeg` を descriptor に追加（core のみ） | `services/burgSiteDescriptor.ts`、CE 型コピー | `traffic` / `trafficRank` は交通のある陸路だけに付く。風向は未実装。値が無いときは従来どおり |
+| **E1** | `roads[].traffic/trafficRank`、`climate.prevailingWindDeg` を descriptor に追加（core のみ） | `services/burgSiteDescriptor.ts`、CE 型コピー | `traffic` / `trafficRank` は交通のある陸路だけに付く。`climate.prevailingWindDeg` は緯度帯の風が吹いていく方位（0=北、時計回り）。CE の風車は風上を向く。緯度か風帯が無いときはフィールドを省き、風車は種からの向きのまま。なめし場は川の下流のまま |
 | **E2** | `BurgSiteEconomy` 型、`buildBurgSiteEconomy()`、`siteEconomyFootprint.ts`、`burgEconomyExtensions.getBurgSiteEconomy` 登録 | `extensions/economy/`、`services/burgEconomyExtensions.ts` | ギルド投影と置き場面積まで実装済み（職人0の会館を含む）。面積は `storage[]` に入り、CE が城壁内外に描く |
 | **E3** | CE `economicWards.ts`。ward の重み・craftDomain、`suburbanLanduse` の traffic 駆動、門前の宿 | `city-editor/core/gen/` | プロファイルがあるとき、職人街は実践者比、商人街は rank で 1〜4、市場は市場中心で +1。`craftDomain` を面に書く。交通のある道は trade リボン・門前の宿・門外の石畳になる。交通が無いときの郊外と、プロファイルが無い区画は現行どおり |
 | **E4** | 置き場・家畜囲い・材木置場・石置場・漂白場・石灰窯・布地会館の配置と描画 | `aerialLandmarks.ts`、`storageYardPlacement.ts`、`render/` | 会館・職種別の付属施設は実装済み（職人0でも置く）。在庫の置き場は完成した街から切り出す。穀倉と倉庫は城壁内、家畜市・燃料・材木・石は城壁外。材木と石はギルド付属置場の面積を差し引く。1区画は 1600 m² まで、最大 6 区画。樽倉は描かない。公共穀倉、門や採石場への寄せ、樽倉ぶんの建物拡大は未実装 |

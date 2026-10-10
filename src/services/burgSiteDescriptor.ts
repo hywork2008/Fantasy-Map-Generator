@@ -289,6 +289,11 @@ export interface BurgSiteDescriptor {
     biomeKey?: string;
     biomeName?: string;
     biomeColor?: string;
+    /**
+     * Compass bearing the wind blows toward: 0 = north, clockwise.
+     * Absent when the map has no usable wind belts or latitude.
+     */
+    prevailingWindDeg?: number;
   };
   biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
@@ -622,12 +627,14 @@ export function getBurgSiteDescriptor(
         const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
         const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
         const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
+        const prevailingWindDeg = prevailingWindDegAt(burg.y);
         return {
           temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
           biomeId: bId,
           biomeKey: bKey,
           biomeName: bName,
-          biomeColor: bColor
+          biomeColor: bColor,
+          ...(prevailingWindDeg !== undefined ? { prevailingWindDeg } : {})
         };
       })(),
       biome: (() => {
@@ -718,6 +725,30 @@ function getHeightExponent(): number {
 /** Integer meters for site descriptors (display / export). */
 function heightToMeters(h: number, exponent: number): number {
   return rn(heightToMetersRaw(h, exponent));
+}
+
+/**
+ * Latitude-band wind from `options.winds`: the compass bearing the wind blows
+ * toward (0 = north, clockwise), the same sense as precipitation. Ocean-current
+ * forcing treats 0 as east and is not this field. Omitted when the belts or the
+ * latitude frame are missing.
+ */
+function prevailingWindDegAt(burgY: number | undefined): number | undefined {
+  const winds = worldContext.options?.winds;
+  const latN = worldContext.mapCoordinates?.latN;
+  const latT = worldContext.mapCoordinates?.latT;
+  const { graphHeight } = worldContext;
+  if (!Array.isArray(winds) || winds.length !== 6) return undefined;
+  if (typeof latN !== "number" || !Number.isFinite(latN)) return undefined;
+  if (typeof latT !== "number" || !Number.isFinite(latT)) return undefined;
+  if (!Number.isFinite(graphHeight) || graphHeight <= 0) return undefined;
+  if (typeof burgY !== "number" || !Number.isFinite(burgY)) return undefined;
+  const latitude = latN - (burgY / graphHeight) * latT;
+  if (!Number.isFinite(latitude)) return undefined;
+  const tier = Math.min(5, Math.max(0, Math.floor(Math.abs(latitude - 89) / 30)));
+  const deg = winds[tier];
+  if (typeof deg !== "number" || !Number.isFinite(deg)) return undefined;
+  return ((deg % 360) + 360) % 360;
 }
 
 /** Compass azimuth of a local-frame vector (+X east, +Y north): 0 = north, clockwise. */
