@@ -109,6 +109,7 @@ import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
 import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
+import "./runtime/dualPortPlacementTask";
 import { cancelMapReadyTasks, startMapReadyTasks } from "./runtime/mapReadyTaskCoordinator";
 import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";

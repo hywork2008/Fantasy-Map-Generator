@@ -2124,14 +2124,20 @@ class RoutesModule {
    * and has to read cell geometry out of that one.
    */
   getRenderPoints(
-    route: { group: string; points: number[][]; riverRoadConvergence?: Route["riverRoadConvergence"] },
+    route: {
+      group: string;
+      points: number[][];
+      riverRoadConvergence?: Route["riverRoadConvergence"];
+      fixedSettlementApproach?: boolean;
+    },
     pack?: PackedGraph
   ): number[][] {
     if (route.group === "searoutes") return route.points;
     const world = pack && pack !== this.worldContext.pack ? { ...this.worldContext, pack } : this.worldContext;
-    const points = route.riverRoadConvergence
-      ? route.points
-      : this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
+    const points =
+      route.riverRoadConvergence || route.fixedSettlementApproach
+        ? route.points
+        : this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
     return bendRouteAwayFromCoast(world, points);
   }
 
@@ -2140,18 +2146,20 @@ class RoutesModule {
       group,
       points,
       registeredConnectionId,
-      riverRoadConvergence
+      riverRoadConvergence,
+      fixedSettlementApproach
     }: {
       group: string;
       points: number[][];
       registeredConnectionId?: number;
       riverRoadConvergence?: Route["riverRoadConvergence"];
+      fixedSettlementApproach?: boolean;
     },
     pack?: PackedGraph
   ): string {
     if (registeredConnectionId !== undefined) return "";
-    if (riverRoadConvergence)
-      return this.getRenderPoints({ group, points, riverRoadConvergence }, pack)
+    if (riverRoadConvergence || fixedSettlementApproach)
+      return this.getRenderPoints({ group, points, riverRoadConvergence, fixedSettlementApproach }, pack)
         .map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`)
         .join("");
     const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);

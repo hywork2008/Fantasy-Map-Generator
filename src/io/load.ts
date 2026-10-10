@@ -28,6 +28,7 @@ import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
+import { requestDualPortPlacementRepair } from "../runtime/dualPortPlacementTask";
 import { resetExtensionStateSlices } from "../runtime/extensionStateSlices";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
 import { cancelMapReadyTasks, markMapReadyTasksAvailable } from "../runtime/mapReadyTaskCoordinator";
@@ -340,6 +341,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // The full-replace commit has already reached RenderCoordinator. A renderer
     // failure is isolated from the accepted world by WorldRuntime listeners.
     markMapReadyTasksAvailable();
+    requestDualPortPlacementRepair();
     document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
@@ -485,6 +487,7 @@ export async function parseLoadedData(
       // Match the archive load lifecycle so extensions can migrate or rebuild
       // their current runtime state after a legacy map has been committed.
       markMapReadyTasksAvailable();
+      requestDualPortPlacementRepair();
       document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
       document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     } catch (stageError) {

@@ -23,13 +23,16 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
+import { dualPortHaven, dualPortShore } from "../services/dualPortShore";
 import { drawnShorePortPosition, pinnedShorePortPosition } from "../services/portShorePosition";
 import { RegionalRiverGeometry } from "../services/regionalRiverGeometry";
+import type { RiverPoint } from "../services/riverGeometry";
 import { footprintTouchesWater, pointInWater } from "../services/riverPhysicalGeometry";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import {
   coveredByTerrainCells,
   findRiverSettlementSiteSteps,
+  type RiverSettlementSite,
   settlementRadiusMeters
 } from "../services/settlementRiverSite";
 import { tip } from "../services/tooltipService";
@@ -158,6 +161,20 @@ class BurgModule {
     return moved;
   }
 
+  /** Detached proposals: loading/editing can cancel a yielded search without live writes. */
+  *dualPortPlacementSteps(burg: Readonly<Burg>, session: SettlementGeometrySession): Generator<void, Burg | null> {
+    if (!burg.i || burg.removed || burg.lock || dualPortHaven(this.worldContext, burg) === null) return null;
+    const draft = { ...burg } as Burg;
+    const steps = this.riverBankSteps(burg.cell, new Map(), [burg.x, burg.y], draft, session);
+    const point = yield* steps;
+    if (!draft.riverPlacement?.coastConstrained || draft.riverSiteStatus?.status !== "placed") return null;
+    draft.x = point[0];
+    draft.y = point[1];
+    const access = updateBurgWaterAccess(draft, this.worldContext.pack);
+    if (!access.port.river || !access.port.sea) return null;
+    return draft;
+  }
+
   async shiftAsync(options: BurgShiftOptions = {}): Promise<void> {
     const pack = this.worldContext.pack;
     const steps = this.shiftSteps(options);
@@ -208,6 +225,8 @@ class BurgModule {
         }
       }
 
+      // Pinned coast shapes depend on the complete set of selected sea ports.
+      this.shoreShapes.clear();
       // Position river towns on the actual local bank, including river/estuary ports.
       for (const burg of burgs) {
         if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
@@ -834,18 +853,20 @@ class BurgModule {
   private *riverBankSteps(
     cellId: number,
     _riversById: Map<number, { i: number; cells: number[] }>,
-    origin?: Point
+    origin?: Point,
+    burgOverride?: Burg,
+    sessionOverride?: SettlementGeometrySession
   ): Generator<void, Point> {
     const world = this.worldContext;
     const { pack } = world;
     const { cells } = pack;
     const source = origin ?? cells.p[cellId];
-    const burg = pack.burgs.find(b => b?.i && b.cell === cellId);
+    const burg = burgOverride ?? pack.burgs.find(b => b?.i && b.cell === cellId);
     const river = pack.rivers.find(r => r.i === cells.r[cellId]);
     if (!river) return source;
     const unit = useOptionsState.getState().distanceUnit;
-    const session = this.geometrySession ?? new SettlementGeometrySession();
-    if (!this.geometrySession) session.prepare(world, unit);
+    const session = sessionOverride ?? this.geometrySession ?? new SettlementGeometrySession();
+    if (!sessionOverride && !this.geometrySession) session.prepare(world, unit);
     const prepared = session.source(river.i);
     const unresolved = (reason: string): Point => {
       if (burg) {
@@ -868,8 +889,15 @@ class BurgModule {
       radius * 3,
       ...polygon.map(p => Math.hypot(p[0] - source[0], p[1] - source[1]) * scale * 2)
     );
-    const originMeters: Point = [source[0] * scale, source[1] * scale];
-    const otherWater = [];
+    if (this.shoreShapesFeatures !== pack.features) {
+      this.shoreShapes.clear();
+      this.shoreShapesFeatures = pack.features;
+    }
+    const shore = burg ? dualPortShore(world, burg, scale, radius, maxMove, this.shoreShapes) : null;
+    // Search river banks near the coast, rather than overwriting coast placement
+    // with the bank nearest an unrelated cell centre. Terrain checks still apply.
+    const originMeters: Point = shore ? [shore.origin[0], shore.origin[1]] : [source[0] * scale, source[1] * scale];
+    const otherWater: import("../services/riverPhysicalGeometry").PhysicalWaterPolygon[] = [];
     const unresolvedBounds: import("../services/worldRiverGeometry").RiverGeometryBounds[] = [];
     const reach = maxMove + radius * 2 + 22;
     const bounds = {
@@ -892,7 +920,7 @@ class BurgModule {
       } else otherWater.push(resolved.geometry.water);
     }
     const terrain = session.terrain(world, bounds);
-    const result = yield* findRiverSettlementSiteSteps({
+    const search = {
       geometry: target.geometry,
       origin: originMeters,
       radiusMeters: radius,
@@ -901,7 +929,7 @@ class BurgModule {
       maxMoveMeters: maxMove,
       maxCandidates: 128,
       otherWater,
-      supports: (footprint, _access, point) => {
+      supports: (footprint: readonly RiverPoint[], _access: readonly RiverPoint[], point: RiverPoint) => {
         const b = {
           minX: Math.min(...footprint.map(p => p[0])),
           minY: Math.min(...footprint.map(p => p[1])),
@@ -953,16 +981,104 @@ class BurgModule {
           })
         );
       }
+    };
+    const existingOrigin: Point = [source[0] * scale, source[1] * scale];
+    const connectionSupported = (point: RiverPoint): boolean => {
+      if (
+        !burgOverride ||
+        !pack.routes.some(route =>
+          route.points.some(p => p[2] === cellId && Math.hypot(p[0] - source[0], p[1] - source[1]) < 1e-7)
+        )
+      )
+        return true;
+      const dx = existingOrigin[0] - point[0],
+        dy = existingOrigin[1] - point[1];
+      const length = Math.hypot(dx, dy);
+      if (length < 1e-7) return true;
+      const nx = -dy / length,
+        ny = dx / length;
+      const corridor: Point[] = [
+        [point[0] + nx, point[1] + ny],
+        [existingOrigin[0] + nx, existingOrigin[1] + ny],
+        [existingOrigin[0] - nx, existingOrigin[1] - ny],
+        [point[0] - nx, point[1] - ny]
+      ];
+      const corridorBounds = {
+        minX: Math.min(...corridor.map(p => p[0])),
+        maxX: Math.max(...corridor.map(p => p[0])),
+        minY: Math.min(...corridor.map(p => p[1])),
+        maxY: Math.max(...corridor.map(p => p[1]))
+      };
+      return (
+        !unresolvedBounds.some(
+          w =>
+            w.minX <= corridorBounds.maxX &&
+            w.maxX >= corridorBounds.minX &&
+            w.minY <= corridorBounds.maxY &&
+            w.maxY >= corridorBounds.minY
+        ) &&
+        ![target.geometry.water, ...otherWater].some(w => footprintTouchesWater(corridor, w)) &&
+        (!shore || shore.supports(corridor)) &&
+        coveredByTerrainCells(
+          corridor,
+          terrain
+            .filter(
+              t =>
+                cells.h[t.id] >= 20 &&
+                cells.f[t.id] === cells.f[cellId] &&
+                (!cells.state || cells.state[t.id] === cells.state[cellId])
+            )
+            .map(t => t.ring)
+        )
+      );
+    };
+    const result = yield* findRiverSettlementSiteSteps({
+      ...search,
+      supports: (footprint, access, point) =>
+        (!shore ||
+          (shore.accepts(point) &&
+            shore.supports(footprint) &&
+            (cells.c?.[terrain.find(t => pointInWater(point, { id: t.id, rings: [t.ring] }))?.id ?? -1] ?? []).some(
+              id => cells.h[id] < 20 && pack.features[cells.f[id]]?.type === "ocean"
+            ))) &&
+        connectionSupported(point) &&
+        search.supports(footprint, access, point)
     });
-    if (!("site" in result)) return unresolved(result.reason);
-    const site = result.site;
+    // No jointly supported site: preserve a valid existing reservation. For a
+    // new town, retain ordinary river placement rather than inventing a coast.
+    if (!("site" in result)) {
+      if (shore && burg?.riverPlacement && burg.riverSiteStatus?.status === "placed") return source;
+      if (shore) {
+        const fallback = yield* findRiverSettlementSiteSteps({
+          ...search,
+          origin: [source[0] * scale, source[1] * scale]
+        });
+        if ("site" in fallback)
+          return (
+            this.adoptRiverSite(fallback.site, terrain, burg, river.i, scale, false) ?? unresolved("missing-terrain")
+          );
+      }
+      return unresolved(result.reason);
+    }
+    return this.adoptRiverSite(result.site, terrain, burg, river.i, scale, !!shore) ?? unresolved("missing-terrain");
+  }
+
+  private adoptRiverSite(
+    site: RiverSettlementSite,
+    terrain: { id: number; ring: RiverPoint[] }[],
+    burg: Burg | undefined,
+    riverId: number,
+    scale: number,
+    coastConstrained: boolean
+  ): Point | null {
     const point: Point = [site.point[0] / scale, site.point[1] / scale];
     const physicalCellId = terrain.find(t => pointInWater(site.point, { id: t.id, rings: [t.ring] }))?.id;
-    if (physicalCellId === undefined) return unresolved("missing-terrain");
+    if (physicalCellId === undefined) return null;
     if (burg) {
       burg.riverPlacement = {
-        riverId: river.i,
+        riverId,
         bank: site.bank,
+        ...(coastConstrained ? { coastConstrained: true } : {}),
         widthMeters: site.widthMeters,
         physicalCellId,
         bankDistanceMeters: site.bankDistanceMeters,
@@ -974,7 +1090,7 @@ class BurgModule {
         accessWidthMeters: 2,
         accessFootprintMeters: site.accessFootprint.map(p => [p[0], p[1]])
       };
-      burg.riverSiteStatus = { riverId: river.i, status: "placed" };
+      burg.riverSiteStatus = { riverId, status: "placed" };
     }
     // Keep full precision: rounding a tested footprint would invalidate its dry reservation.
     return point;

@@ -335,6 +335,8 @@ export interface Burg {
   landUseSettings?: import("./landUse").LandUseSettings;
   /** Local FMG river site; the source cell remains the logical political owner. */
   riverPlacement?: {
+    /** Both river access and a nearby drawn ocean shore were checked by placement. */
+    coastConstrained?: boolean;
     riverId: number;
     bank: "left" | "right";
     widthMeters: number;
@@ -856,6 +858,8 @@ export interface RiverCellHydrology {
 }
 
 export interface Route {
+  /** A surveyed dry city connection must retain all waypoints, including same-cell points. */
+  fixedSettlementApproach?: boolean;
   /** Unsmooth shared bridge geometry. Original points allow fresh revalidation after water edits/load. */
   riverRoadConvergence?: { originalPoints: [number, number, number][]; pointsKey: string; burgIds: number[] };
   /** Exact physical shape is resolved through the current world registry. */
