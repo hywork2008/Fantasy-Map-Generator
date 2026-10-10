@@ -47,7 +47,7 @@ import {
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
 import { roadTrafficKey } from "./roadTraffic";
-import { shapeSuburbanFabric } from "./suburbanLanduse";
+import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { buildWatermillPlan, type WatermillPlan } from "./watermillFabric";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
@@ -352,7 +352,12 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     return footprintBoxes.some(f => f[0] <= box[2] && f[2] >= box[0] && f[1] <= box[3] && f[3] >= box[1]);
   };
   const displaced = (polygon: Point[]) => nearFootprint(polygon) && footprints.some(f => polygonOverlaps(polygon, f));
-  const nonMillBuildings = footprints.length ? millFree.filter(b => !displaced(b.polygon)) : millFree;
+  const nonMillBuildings = enforceDefenseClearance(
+    document,
+    footprints.length ? millFree.filter(b => !displaced(b.polygon)) : millFree,
+    aerialLandmarks.barbicans,
+    "building"
+  );
   const openSpaces = fabric.openSpaces?.filter(
     space =>
       !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon) && !displaced(space.polygon)
@@ -388,12 +393,17 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     entrances: new Map(
       [...fabric.entrances].map(([id, points]) => [id, points.filter(point => !moat.hitsPoint(point))])
     ),
-    farms: fabric.farms.filter(
-      farm =>
-        !landmarkReservationHits(document, farm.polygon) &&
-        !moat.hitsPolygon(farm.polygon) &&
-        !hitsWater(farm.polygon) &&
-        !displaced(farm.polygon)
+    farms: enforceDefenseClearance(
+      document,
+      fabric.farms.filter(
+        farm =>
+          !landmarkReservationHits(document, farm.polygon) &&
+          !moat.hitsPolygon(farm.polygon) &&
+          !hitsWater(farm.polygon) &&
+          !displaced(farm.polygon)
+      ),
+      aerialLandmarks.barbicans,
+      "farm"
     ),
     openSpaces,
     watermills,

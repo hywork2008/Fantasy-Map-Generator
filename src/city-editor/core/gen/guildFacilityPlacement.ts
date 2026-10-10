@@ -1,6 +1,7 @@
 import { facePoints } from "../mesh";
 import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
+import { MAX_BARBICAN_REACH_METERS } from "./defenseClearance";
 import { nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
 import type { PlannedGuildFacility } from "./guildFacilities";
 import { fixedBankOffset } from "./watermillFabric";
@@ -46,6 +47,10 @@ export interface GuildSiteView {
   hitsLanes(polygon: Point[]): boolean;
   buildingsIn(polygon: Point[]): readonly { polygon: Point[] }[];
   claim(polygon: Point[]): void;
+  /** Outside works stay beyond the curtain, and beyond a barbican's outer face. */
+  clearsGlacis(polygon: Point[], minClearance?: number): boolean;
+  approachClearance(groupId: string): number;
+  outworkReach(groupId: string): number;
 }
 
 const HALL_NAME: Record<string, string> = {
@@ -207,7 +212,7 @@ function yardFits(site: GuildSiteView, spot: FaceSpot, polygon: Point[]): boolea
     site.hitsLanes(polygon)
   )
     return false;
-  return site.townDistance(centroid(polygon)) >= 8;
+  return site.townDistance(centroid(polygon)) >= 8 && site.clearsGlacis(polygon);
 }
 
 function placeOpenYard(
@@ -221,7 +226,7 @@ function placeOpenYard(
   let best: { score: number; yard: GuildYard } | null = null;
   for (const spot of coreFaces(site, true)) {
     const away = site.townDistance(spot.centre);
-    if (away < 10 || away > 160) continue;
+    if (away < 10 || away > 160 + MAX_BARBICAN_REACH_METERS) continue;
     const radial = Math.atan2(spot.centre[1], spot.centre[0]);
     for (const angle of [radial + Math.PI / 2, radial]) {
       const at = frame(spot.centre, angle);
@@ -292,6 +297,7 @@ function placeBleaching(site: GuildSiteView, facility: PlannedGuildFacility, yea
           if (!site.inFrame(polygon, 6)) continue;
           if (polygon.some(point => site.insideTown(point))) continue;
           if (site.hitsWater(polygon, 0.5) || site.hitsRoutes(polygon, 1.5) || site.hitsBlocked(polygon)) continue;
+          if (!site.clearsGlacis(polygon)) continue;
           const townSide = normal[0] * (townCentre[0] - p[0]) + normal[1] * (townCentre[1] - p[1]) > 0;
           const score = (townSide ? 3 : 0) - Math.abs(entry - (segment.start + s) - 40) * 0.02;
           if (best && score <= best.score) continue;

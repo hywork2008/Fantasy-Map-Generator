@@ -16,6 +16,14 @@ import type { CityDocument, HistoricalPeriod, Id, Point } from "../types";
 import { type DocumentWaterTest, documentWaterTest } from "../waterGeometry";
 import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
+import {
+  curtainSegments,
+  type GlacisBarbican,
+  type GlacisOutwork,
+  glacisOutworks,
+  polygonClearsGlacis,
+  STANDARD_GLACIS_METERS
+} from "./defenseClearance";
 import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
 import { ferryLandingReserves } from "./ferryLanding";
 import { type GateInn, placeGateInns } from "./gateInnPlacement";
@@ -36,6 +44,7 @@ import { makeRng, type Rng } from "./prng";
 import { roadTrafficKey } from "./roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { placeStorageYards, type StorageYard } from "./storageYardPlacement";
+import { type ApproachBand, approachBands } from "./suburbanLanduse";
 import { fixedBankOffset } from "./watermillFabric";
 
 export type { Monastery, MonasteryKind, PrecinctBuilding, PrecinctCourt } from "./monasteryLayout";
@@ -282,6 +291,9 @@ class Site {
   readonly lanes = new BoxIndex<{ points: Point[]; radius: number }>(40);
   /** Half-width of the road or wall running along each mesh edge. */
   readonly edgeRadius = new Map<Id, number>();
+  private readonly curtains: Point[][];
+  private readonly bands: ApproachBand[];
+  private outworks: GlacisOutwork[] = [];
   private readonly placed: Point[][] = [];
   private readonly temples: OrientedRect[] = [];
   private readonly templeYard: number;
@@ -385,6 +397,33 @@ class Site {
       );
       this.town = convexHull(core.flatMap(f => facePoints(document.mesh, f)));
     }
+    this.curtains = curtainSegments(document);
+    this.bands = approachBands(document);
+  }
+
+  /** Barbicans are placed first. Later outside works measure the glacis from their outer face. */
+  setBarbicans(barbicans: readonly GlacisBarbican[]): void {
+    this.outworks = glacisOutworks(this.document, barbicans, this.bands);
+  }
+
+  clearsGlacis(polygon: Point[], minClearance = 0): boolean {
+    if (!this.curtains.length || polygon.length < 3) return true;
+    return polygonClearsGlacis(
+      polygon,
+      { active: true, walls: this.curtains, bands: this.bands, outworks: this.outworks },
+      minClearance
+    );
+  }
+
+  approachClearance(groupId: string): number {
+    if (!this.curtains.length) return 0;
+    return this.bands.find(band => band.groupId === groupId)?.clearance ?? STANDARD_GLACIS_METERS;
+  }
+
+  outworkReach(groupId: string): number {
+    const gate = this.bands.find(band => band.groupId === groupId)?.gateVertexId;
+    if (!gate) return 0;
+    return this.outworks.find(work => work.gateVertexId === gate)?.reachMeters ?? 0;
   }
 
   inFrame(polygon: Point[], margin = 6): boolean {
@@ -600,6 +639,7 @@ function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Mon
       const precinct = fit.monastery.precinct;
       if (!site.inFrame(precinct, 10)) continue;
       if (site.hitsWater(precinct, 3) || site.hitsRoutes(precinct, 0.4) || site.hitsBlocked(precinct)) continue;
+      if (outside && !site.clearsGlacis(precinct)) continue;
       const cleared = site.buildingsIn(precinct).length;
       const farms = site.farmsIn(precinct).length;
       const score =
@@ -700,8 +740,23 @@ function placeWindmills(site: Site, input: AerialLandmarkInput, rng: Rng): Windm
       t -= len;
     }
     const offset = site.walled ? rng.range(22, 90) : rng.range(25, 120);
-    const center: Point = [at[0] + normal[0] * offset, at[1] + normal[1] * offset];
+    let center: Point = [at[0] + normal[0] * offset, at[1] + normal[1] * offset];
     if (site.insideTown(center)) continue;
+    // The seeded offset can land inside the glacis. Step out along the same normal.
+    if (site.walled) {
+      const body = (c: Point) => circle(c, 6, 8);
+      if (!site.clearsGlacis(body(center))) {
+        let clear = false;
+        for (let step = 4; step <= 160; step += 4) {
+          const next: Point = [at[0] + normal[0] * (offset + step), at[1] + normal[1] * (offset + step)];
+          if (!site.clearsGlacis(body(next))) continue;
+          center = next;
+          clear = true;
+          break;
+        }
+        if (!clear) continue;
+      }
+    }
     candidates.push({
       center,
       score: site.elevation(center) * 0.05 - offset * 0.004 + rng()
@@ -984,6 +1039,7 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng, enable
           continue;
         if (polygonOverlaps(yard, site.town) || yard.some(p => station(p) <= exit)) continue;
         if (site.hitsWater(yard, 0.6) || site.hitsRoutes(yard, 2.5) || site.hitsBlocked(yard)) continue;
+        if (!site.clearsGlacis(yard)) continue;
         const wards = site.wardsUnder(yard);
         if (wards.has("market") || wards.has("castle") || wards.has("park")) continue;
         const cleared = site.buildingsIn(yard).length;
@@ -1161,6 +1217,7 @@ export function buildAerialLandmarkPlan(
   // Large fixed works first (the gate outworks and river trades), then free-standing pieces.
   // Guild yards claim land before the tannery, so a bleaching field stays upstream of it.
   const barbicans = placeBarbicans(site, makeRng(`${root}:barbican`));
+  site.setBarbicans(barbicans);
   const guildWorks = placeGuildWorks(site, guildPlan, economy?.year ?? 0);
   const tanneries = placeTanneries(site, input, makeRng(`${root}:tannery`), wantsTannery(economy, guildPlan));
   const storageYards = placeStorageYards(site, economy?.storage ?? [], guildWorks.yards, economy?.year ?? 0);

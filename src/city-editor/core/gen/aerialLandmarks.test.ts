@@ -19,6 +19,7 @@ import {
 } from "./aerialLandmarks";
 import { externalGateRoads } from "./approachBeyond";
 import { buildBlockFabric, type DistrictFabric, FabricCache } from "./blockInfill";
+import { glacisOutworks, polygonClearsOutworks } from "./defenseClearance";
 import { courtAreaM2, innClearsRoad } from "./gateInnPlacement";
 import {
   azimuthDelta,
@@ -32,6 +33,7 @@ import {
 import { COBBLE_WIDTH_SCALE } from "./roadTraffic";
 import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 import type { BurgSiteEconomy } from "./site/burgSiteEconomy";
+import { approachBands, respectsDefenseClearance } from "./suburbanLanduse";
 
 function walledRiverTown(): CityDocument {
   const grid = createGridDocument({
@@ -293,6 +295,51 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(nearestOnPolyline(gallows.center, [...ring, ring[0]]).dist).toBeGreaterThan(120);
   });
 
+  it("keeps outskirts lots and outside works beyond the glacis of each gate", () => {
+    const plan = fabric.aerialLandmarks!;
+    const outworks = glacisOutworks(city, plan.barbicans, approachBands(city));
+    expect(plan.barbicans.length).toBeGreaterThan(0);
+    const outskirts = (faceId: string) => city.mesh.faces[faceId]?.properties.settlement === "outskirts";
+    for (const building of fabric.buildings) {
+      if (!outskirts(building.faceId)) continue;
+      expect(polygonClearsOutworks(building.polygon, outworks)).toBe(true);
+      expect(respectsDefenseClearance(city, building.polygon, plan.barbicans)).toBe(true);
+    }
+    for (const farm of fabric.farms) {
+      if (!outskirts(farm.faceId)) continue;
+      expect(polygonClearsOutworks(farm.polygon, outworks)).toBe(true);
+      expect(respectsDefenseClearance(city, farm.polygon, plan.barbicans)).toBe(true);
+    }
+    for (const yard of plan.tanneries) expect(respectsDefenseClearance(city, yard.yard, plan.barbicans)).toBe(true);
+    for (const yard of plan.guildYards) expect(respectsDefenseClearance(city, yard.polygon, plan.barbicans)).toBe(true);
+    for (const yard of plan.storageYards) {
+      if (yard.outside) expect(respectsDefenseClearance(city, yard.polygon, plan.barbicans)).toBe(true);
+    }
+    for (const inn of plan.gateInns) expect(respectsDefenseClearance(city, inn.footprint, plan.barbicans)).toBe(true);
+    for (const house of plan.monasteries) {
+      if (pointInPolygon(centre(house.precinct), ring)) continue;
+      expect(respectsDefenseClearance(city, house.precinct, plan.barbicans)).toBe(true);
+    }
+    for (const mill of plan.windmills) {
+      const [x, y] = mill.center;
+      const r = mill.baseRadius;
+      expect(
+        respectsDefenseClearance(
+          city,
+          [
+            [x - r, y - r],
+            [x + r, y - r],
+            [x + r, y + r],
+            [x - r, y + r]
+          ],
+          plan.barbicans
+        )
+      ).toBe(true);
+    }
+    // A barbican gate's open ground starts at its outer face, not at the curtain.
+    for (const work of outworks) expect(work.reachMeters).toBeGreaterThan(8);
+  });
+
   it("builds barbicans on the outer side of an external-road gate", () => {
     for (const b of fabric.aerialLandmarks!.barbicans) {
       const gate = city.gates.find(g => g.id === b.gateId)!;
@@ -454,6 +501,8 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(halls.some(hall => hall.domain === "masonry" && hall.practitioners === 0)).toBe(true);
     expect(yards.some(yard => yard.kind === "bleachingField" && yard.practitioners === 0)).toBe(true);
     expect(yards.some(yard => yard.kind === "stoneYard" || yard.kind === "limeKiln")).toBe(true);
+    for (const yard of yards)
+      expect(respectsDefenseClearance(withGuilds, yard.polygon, built.aerialLandmarks?.barbicans ?? [])).toBe(true);
     const half = withGuilds.frame.extentMeters / 2;
     const svg = renderEditorSvg(
       { ...withGuilds, appearance: "town" },
@@ -521,7 +570,12 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     const ring = circuit ? circuitRing(withStorage, circuit) : [];
     expect(ring.length).toBeGreaterThanOrEqual(3);
     if (granary) expect(pointInPolygon(centre(granary.polygon), ring)).toBe(true);
-    if (livestock) expect(pointInPolygon(centre(livestock.polygon), ring)).toBe(false);
+    if (livestock) {
+      expect(pointInPolygon(centre(livestock.polygon), ring)).toBe(false);
+      expect(respectsDefenseClearance(withStorage, livestock.polygon, built.aerialLandmarks?.barbicans ?? [])).toBe(
+        true
+      );
+    }
     const half = withStorage.frame.extentMeters / 2;
     const svg = renderEditorSvg(
       { ...withStorage, appearance: "town" },
@@ -585,6 +639,7 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(granary?.outside).toBe(false);
     expect(yards.some(yard => yard.form === "cellar")).toBe(false);
     expect(timber).toBeTruthy();
+    expect(respectsDefenseClearance(withYards, timber!.polygon, built.aerialLandmarks?.barbicans ?? [])).toBe(true);
     const bearing = vecToAzimuth(...centre(timber!.polygon));
     expect(azimuthDelta(bearing, supply)).toBeLessThan(70);
     expect(covered(built)).toBeGreaterThan(covered(plain));
@@ -676,7 +731,10 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(wayside).toBeDefined();
     expect(Math.abs(polygonArea(caravan!.court))).toBeCloseTo(courtAreaM2(36), 0);
     expect(Math.abs(polygonArea(wayside!.court))).toBeCloseTo(courtAreaM2(4), 0);
-    for (const inn of inns) expect(pointInPolygon(centre(inn.footprint), ring)).toBe(false);
+    for (const inn of inns) {
+      expect(pointInPolygon(centre(inn.footprint), ring)).toBe(false);
+      expect(respectsDefenseClearance(withInns, inn.footprint, built.aerialLandmarks?.barbicans ?? [])).toBe(true);
+    }
     const pointsOf = (id: string) => {
       const group = withInns.featureGroups.find(group => group.id === id);
       return group && group.kind === "road"

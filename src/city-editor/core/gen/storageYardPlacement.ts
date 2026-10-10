@@ -2,6 +2,7 @@ import { facePoints } from "../mesh";
 import { flowingRivers } from "../riverFlow";
 import type { Id, Point } from "../types";
 import { externalGateRoads } from "./approachBeyond";
+import { MAX_BARBICAN_REACH_METERS } from "./defenseClearance";
 import { azimuthDelta, nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
 import type { GuildSiteView, GuildYard } from "./guildFacilityPlacement";
 import type { SiteStorageYard, StorageForm } from "./site/burgSiteEconomy";
@@ -152,6 +153,7 @@ function plotFits(site: GuildSiteView, spot: FaceSpot, polygon: Point[], outside
   if (outside) {
     if (polygon.some(point => site.insideTown(point))) return false;
     if (site.townDistance(centre) < 8) return false;
+    if (!site.clearsGlacis(polygon)) return false;
   } else if (!polygon.every(point => site.insideTown(point))) return false;
   if (!site.inFrame(polygon, outside ? 4 : 2)) return false;
   if (site.hitsWater(polygon, 0.8) || site.hitsRoutes(polygon, 1.2) || site.hitsBlocked(polygon)) return false;
@@ -211,7 +213,7 @@ function placePiece(
     let best: { score: number; polygon: Point[] } | null = null;
     for (const spot of faces(site, outside)) {
       const away = site.townDistance(spot.centre);
-      if (outside && (away < 10 || away > 180)) continue;
+      if (outside && (away < 10 || away > 180 + MAX_BARBICAN_REACH_METERS)) continue;
       const radial = Math.atan2(spot.centre[1], spot.centre[0]);
       for (const angle of [radial + Math.PI / 2, radial]) {
         const at = frame(spot.centre, angle);

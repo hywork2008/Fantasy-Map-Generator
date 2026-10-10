@@ -170,11 +170,13 @@ function exitDistance(site: GuildSiteView, points: Point[]): number {
   return site.insideTown(points[0]) ? walked : 12;
 }
 
-function fits(site: GuildSiteView, polygon: Point[]): boolean {
+function fits(site: GuildSiteView, polygon: Point[], clearance: number): boolean {
   if (polygon.some(point => site.insideTown(point) || site.townDistance(point) < 4)) return false;
   if (!site.inFrame(polygon, 4)) return false;
   if (site.hitsWater(polygon, 1) || site.hitsRoutes(polygon, 0.8) || site.hitsBlocked(polygon)) return false;
   if (site.hitsLanes(polygon)) return false;
+  // The near wall of the inn stays beyond the gate's glacis, plain or barbican.
+  if (!site.clearsGlacis(polygon, clearance)) return false;
   return true;
 }
 
@@ -196,7 +198,9 @@ function placeOne(
   start: number,
   roadHalf: number,
   year: number,
-  index: number
+  index: number,
+  clearance: number,
+  reach: number
 ): (GateInn & { station: number; span: number }) | null {
   const area = courtAreaM2(lodging.stableSpaces);
   const depth = Math.sqrt(area / 1.45);
@@ -205,7 +209,8 @@ function placeOne(
   const ring = RING[lodging.kind];
   const halfAlong = courtAlong + ring;
   const halfAcross = courtAcross + ring;
-  for (let extra = 0; extra <= 160; extra += 14) {
+  // Walk far enough to clear the curtain, or the barbican face, before the rooms start.
+  for (let extra = 0; extra <= 200 + clearance + reach; extra += 14) {
     const at = sample(points, start + halfAcross + 16 + extra);
     if (!at) break;
     for (const sign of [1, -1] as const) {
@@ -215,7 +220,7 @@ function placeOne(
         at.point[1] + away[1] * (halfAcross + roadHalf + 2.5)
       ];
       const footprint = rect(center, at.tangent, away, halfAlong, halfAcross);
-      if (!fits(site, footprint)) continue;
+      if (!fits(site, footprint, clearance)) continue;
       const court = rect(center, at.tangent, away, courtAlong, courtAcross);
       return {
         id: `gate-inn-${lodging.kind}-${index}`,
@@ -249,8 +254,10 @@ export function placeGateInns(site: GuildSiteView, lodging: readonly SiteLodging
   const ordered = [...wanted].sort((a, b) => b.stableSpaces - a.stableSpaces || a.kind.localeCompare(b.kind));
   const placed: GateInn[] = [];
   let start = exitDistance(site, points);
+  const clearance = site.approachClearance(group.id);
+  const reach = site.outworkReach(group.id);
   ordered.forEach((item, index) => {
-    const inn = placeOne(site, item, points, start, roadHalf, year, index);
+    const inn = placeOne(site, item, points, start, roadHalf, year, index, clearance, reach);
     if (!inn) return;
     site.claim(inn.footprint);
     placed.push(inn);
