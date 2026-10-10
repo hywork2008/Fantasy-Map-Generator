@@ -4501,10 +4501,23 @@ export function completeRoadRouter(
     const pool = new Set(approachVertices);
     while (pool.size) {
       const id = nearest(point, pool);
-      if (!id) return null;
+      if (!id) break;
       const at = mesh.vertices[id].point;
-      if (Math.hypot(at[0] - point[0], at[1] - point[1]) > document.frame.blockSizeMeters * 2) return null;
+      if (Math.hypot(at[0] - point[0], at[1] - point[1]) > document.frame.blockSizeMeters * 2) break;
       if (endpointWet || !lineHitsDocumentWater(document, [point, at], width, true)) return id;
+      pool.delete(id);
+    }
+    // A regional river can drown every coarse vertex near a landing on its
+    // bank (Batonykut: the nearest dry vertex lay 2.4 blocks inland). Reach
+    // one block further, but only over a connector that stays dry.
+    for (const id of pool) {
+      const at = mesh.vertices[id].point;
+      if (Math.hypot(at[0] - point[0], at[1] - point[1]) > document.frame.blockSizeMeters * 3) pool.delete(id);
+    }
+    while (pool.size) {
+      const id = nearest(point, pool);
+      if (!id) return null;
+      if (!lineHitsDocumentWater(document, [point, mesh.vertices[id].point], width, true)) return id;
       pool.delete(id);
     }
     return null;
