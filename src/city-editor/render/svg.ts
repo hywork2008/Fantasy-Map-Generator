@@ -20,6 +20,7 @@ import { buildBlockFabric } from "../core/gen/blockInfill";
 import { buildCityBuildings } from "../core/gen/buildingLots";
 import { computeCemeteryBoundary, layoutCemetery } from "../core/gen/cemeteryLayout";
 import { farmSheds } from "../core/gen/farmSheds";
+import { ferryPlan } from "../core/gen/ferryLanding";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "../core/gen/harborNavigation";
@@ -880,12 +881,20 @@ export function renderEditorSvg(
       element("path", { d: line(deck.points), fill: "none", stroke: "#d5cfbf", "stroke-width": String(deck.width) })
     );
   }
-  for (const connection of fixedMode ? [] : (document.riverConnections ?? [])) {
+  // Fixed crossings draw their own bridges; a ferry has no fixed geometry.
+  const connections = (document.riverConnections ?? []).filter(
+    connection => !fixedMode || !["fixedBridge", "movableBridge"].includes(connection.crossing.kind)
+  );
+  for (const connection of connections) {
     const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
     const group = document.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
     const vertex = group ? document.mesh.vertices[featureGroupVertices(document, group)[0]]?.point : undefined;
     const townRoad = vertex ? [vertex, ...connection.townRoad] : connection.townRoad;
-    for (const points of [connection.farRoad, ...dryRuns(townRoad, waterPolygons(document))])
+    const ferry = ferryPlan(document, connection);
+    // A ferry's far landing sits square across the river; the far road meets it there.
+    const farRoad = ferry && connection.farRoad.length ? [ferry.farLanding, ...connection.farRoad] : connection.farRoad;
+    for (const points of [farRoad, ...dryRuns(townRoad, waterPolygons(document))]) {
+      if (points.length < 2) continue;
       features.appendChild(
         element("path", {
           d: line(points),
@@ -896,6 +905,7 @@ export function renderEditorSvg(
           "stroke-width": String(width)
         })
       );
+    }
     const bridge = ["fixedBridge", "movableBridge"].includes(connection.crossing.kind);
     if (bridge) {
       features.appendChild(
@@ -918,18 +928,56 @@ export function renderEditorSvg(
         })
       );
     } else {
-      features.appendChild(
-        element("path", {
-          d: line(connection.banks),
-          class: "ce-ferry-route",
-          "data-crossing-kind": connection.crossing.kind,
-          fill: "none",
-          stroke: "#c8beaa",
-          "stroke-width": "1.5",
-          "stroke-dasharray": "5 5"
-        })
-      );
-      for (const p of connection.banks)
+      // Each crossing heads square across and drifts downstream; the boat is
+      // then hauled up the far bank to its landing (see FerryPlan).
+      const crossings = ferry ? [ferry.outbound, ferry.inbound] : [connection.banks];
+      for (const points of crossings)
+        features.appendChild(
+          element("path", {
+            d: line(points),
+            class: "ce-ferry-route",
+            "data-crossing-kind": connection.crossing.kind,
+            fill: "none",
+            stroke: "#c8beaa",
+            "stroke-width": "1.5",
+            "stroke-dasharray": "5 5"
+          })
+        );
+      for (const tow of ferry ? (ferry.farInFrame ? [ferry.townTow, ferry.farTow] : [ferry.townTow]) : [])
+        features.appendChild(
+          element("path", {
+            d: line(tow),
+            class: "ce-ferry-tow",
+            fill: "none",
+            stroke: "#c8beaa",
+            "stroke-width": "1",
+            "stroke-dasharray": "1.5 2.5"
+          })
+        );
+      // Each landing gets a short plank jetty out into the river. A route
+      // whose far landing lies beyond the frame draws only the town landing.
+      const landings: Array<[Point, Point]> = ferry
+        ? [
+            [ferry.landing, ferry.across],
+            ...(ferry.farInFrame ? [[ferry.farLanding, [-ferry.across[0], -ferry.across[1]]] as [Point, Point]] : [])
+          ]
+        : (connection.farRoad.length ? connection.banks : [connection.banks[0]]).map((p, i) => {
+            const q = connection.banks[1 - i];
+            const span = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+            return [p, [(q[0] - p[0]) / span, (q[1] - p[1]) / span]] as [Point, Point];
+          });
+      for (const [p, out] of landings)
+        features.appendChild(
+          element("path", {
+            d: line([p, [p[0] + out[0] * 12, p[1] + out[1] * 12]]),
+            class: "ce-ferry-jetty",
+            fill: "none",
+            stroke: "#8a7356",
+            "stroke-width": "4",
+            "stroke-linecap": "butt"
+          })
+        );
+      for (const [p] of landings)
         features.appendChild(
           element("circle", {
             cx: String(p[0]),

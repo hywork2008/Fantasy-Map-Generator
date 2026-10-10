@@ -4160,6 +4160,14 @@ function applyPlan(
     next = shortcutExteriorRoads(next, true);
     mesh = next.mesh;
   }
+  // A ferry landing sits on the bank, off the coarse mesh. Run its town road
+  // from the routed road's outer vertex so the road reaches the landing and
+  // lots and fields keep clear of it (Batonykut).
+  for (const connection of next.riverConnections ?? []) {
+    const group = next.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
+    const outer = group ? mesh.vertices[featureGroupVertices(next, group)[0]]?.point : undefined;
+    if (outer && connection.townRoad.length === 1) connection.townRoad = [[...outer], connection.townRoad[0]];
+  }
 
   mark("route-junctions");
   // Accepted gates are an invariant. Never make an incomplete route look

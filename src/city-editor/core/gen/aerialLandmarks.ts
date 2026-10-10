@@ -1,4 +1,5 @@
 // Medieval landmarks that read at a glance from above (docs/city-editor/plan/1008-wards-and-features.md,
+
 // "空からの視点で特に映える優先度"): monastery cloisters with herb gardens, windmills along the walls,
 // barbicans in front of the main gates, tanneries at the downstream end of the river, and the
 // permanent gallows on an approach road outside town. Watermills and harbour cranes live in
@@ -16,6 +17,7 @@ import { type DocumentWaterTest, documentWaterTest } from "../waterGeometry";
 import type { BuildingLot } from "./buildingLots";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
+import { ferryLandingReserves } from "./ferryLanding";
 import {
   bufferPolygon,
   cleanRing,
@@ -360,6 +362,7 @@ class Site {
       if (ring.length >= 3) this.blocked.add(boxOf(ring), ring);
     }
     for (const c of document.cemeteries ?? []) this.blocked.add(boxOf(c.boundary), c.boundary);
+    for (const reserve of ferryLandingReserves(document)) this.blocked.add(boxOf(reserve), reserve);
     // Same temple reservation as buildingHitsCivicLandmark, prepared once.
     const town = townExtentMeters(document.frame);
     this.templeYard = Math.max(2, civicYardMeters(town) * 0.25);

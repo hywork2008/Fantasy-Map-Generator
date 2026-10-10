@@ -1,6 +1,7 @@
 import { facePoints } from "../mesh";
 import type { CityDocument, Id, Point } from "../types";
 import { waterPolygons } from "../waterGeometry";
+import { ferryLandingReserves } from "./ferryLanding";
 import {
   nearestOnPolyline,
   pointInPolygon,
@@ -78,7 +79,7 @@ export function planHarbor(
 ): HarborPlan {
   const plan: HarborPlan = { spaces: [], frontages: [], piers: [], cranes: [], cargoPiles: [], sharedArea: 0 };
   const shores: Shore[] = [];
-  barriers = [...barriers, ...waterPolygons(document).flatMap(convexInfillParts)];
+  barriers = [...barriers, ...waterPolygons(document).flatMap(convexInfillParts), ...ferryLandingReserves(document)];
   const land = Object.values(document.mesh.faces)
     .filter(
       f =>

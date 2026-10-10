@@ -433,6 +433,8 @@ export interface CityDocument {
     townRoad: Point[];
     banks: [Point, Point];
     crossing: import("../../utils/riverCrossing").RiverCrossingPlan;
+    /** FMG surface velocity (m/s); a ferry drifts downstream by it. */
+    currentMetersPerSecond?: number;
   }[];
   defenseCircuits?: DefenseCircuit[];
   castles?: CastlePlan[];

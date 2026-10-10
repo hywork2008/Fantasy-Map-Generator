@@ -3,6 +3,7 @@ import { facePoints } from "../mesh";
 import { regionalCoastalWaterPolygons } from "../regionalCoast";
 import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
+import { ferryLandingReserves } from "./ferryLanding";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { makeRng } from "./prng";
 
@@ -110,7 +111,9 @@ function collectObstacles(document: CityDocument): {
   walls: Array<[Point, Point]>;
   gates: Point[];
   piers: Point[][];
+  landings: Point[][];
 } {
+  const landings: Point[][] = [];
   const bridges: Array<{ point: Point; radius: number }> = [];
   const walls: Array<[Point, Point]> = [];
   const gates: Point[] = [];
@@ -145,12 +148,15 @@ function collectObstacles(document: CityDocument): {
       radius: Math.hypot(crossing.deckA[0] - crossing.deckB[0], crossing.deckA[1] - crossing.deckB[1]) / 2 + 10
     });
 
+  // A ferry landing keeps its bank clear of a mill and its weir (Batonykut).
+  landings.push(...ferryLandingReserves(document));
+
   for (const gate of document.gates ?? []) {
     const pt = document.mesh.vertices[gate.vertexId]?.point;
     if (pt) gates.push(pt);
   }
 
-  return { bridges, walls, gates, piers };
+  return { bridges, walls, gates, piers, landings };
 }
 
 type Box = [number, number, number, number];
@@ -433,6 +439,14 @@ export function buildWatermillPlan(
     if (obstacles.bridges.some(b => Math.hypot(bankPt[0] - b.point[0], bankPt[1] - b.point[1]) < 9)) {
       continue;
     }
+
+    // Clearance check: ferry landing reserve, plus room for the weir
+    if (
+      obstacles.landings.some(
+        ring => pointInPolygon(bankPt, ring) || nearestOnPolyline(bankPt, [...ring, ring[0]]).dist < 8
+      )
+    )
+      continue;
 
     // Clearance check: city walls (< 8m)
     if (obstacles.walls.some(([w1, w2]) => nearestOnPolyline(bankPt, [w1, w2]).dist < 8)) {
