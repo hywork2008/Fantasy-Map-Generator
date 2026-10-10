@@ -56,7 +56,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
     async function generate() {
       const [
         { parseDescriptor, shareFromDescriptor },
-        { createGridDocument, descriptorFrameGridOptions },
+        { createGridDocument, descriptorFrameGridOptions, seaPortShoreDistanceMeters },
         { defaultGenerationSettings },
         { startCityGeneration },
         { serializeCitySvg }
@@ -84,10 +84,12 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
           ? descriptorFrameGridOptions(
               share.descriptor.frame,
               share.descriptor.burg.waterAccess?.port.river === true,
-              share.descriptor.burg.riverPlacement?.bankDistanceMeters
+              share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+              seaPortShoreDistanceMeters(share.descriptor)
             )
           : {}),
-        measureBlockSize: share.measureBlockSize === true
+        measureBlockSize: share.measureBlockSize === true,
+        biome: share.descriptor?.biome
       });
       if (disposed) return;
       timings.grid = performance.now() - gridStarted;

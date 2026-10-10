@@ -8,20 +8,34 @@ import { BurgCityPreview } from "./BurgCityPreview";
 const mocks = vi.hoisted(() => ({
   jobs: [] as Array<{ resolve: (city: CityDocument | null) => void; cancel: ReturnType<typeof vi.fn> }>,
   serialize: vi.fn(() => "<svg/>"),
+  grid: vi.fn(() => ({})),
+  frame: vi.fn(() => ({})),
+  shoreDistance: vi.fn(() => 632),
   revision: "one"
 }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock("../../controllers/burg-editor", () => ({ burgEditorActions: { openCityEditor: vi.fn() } }));
 vi.mock("../../services/burgSiteDescriptor", () => ({
-  getBurgSiteDescriptor: (id: number) => ({ burg: { id, seed: "same" }, revision: mocks.revision })
+  getBurgSiteDescriptor: (id: number) => ({
+    burg: {
+      id,
+      seed: "same",
+      waterAccess: { port: { river: true, sea: true, lake: false } },
+      riverPlacement: { bankDistanceMeters: 492 }
+    },
+    frame: { extentMeters: 1500 },
+    biome: { id: 6 },
+    revision: mocks.revision
+  })
 }));
 vi.mock("../../city-editor/io/incomingCity", () => ({
   parseDescriptor: JSON.parse,
   shareFromDescriptor: (descriptor: unknown) => ({ seed: "same", size: "small", grid: "evolution", descriptor })
 }));
 vi.mock("../../city-editor/core/document", () => ({
-  createGridDocument: () => ({}),
-  descriptorFrameGridOptions: () => ({})
+  createGridDocument: mocks.grid,
+  descriptorFrameGridOptions: mocks.frame,
+  seaPortShoreDistanceMeters: mocks.shoreDistance
 }));
 vi.mock("../../city-editor/core/generate", () => ({ defaultGenerationSettings: () => ({}) }));
 vi.mock("../../city-editor/core/generationWorkerClient", () => ({
@@ -35,7 +49,7 @@ vi.mock("../../city-editor/core/generationWorkerClient", () => ({
     return { result, cancel };
   }
 }));
-vi.mock("../../city-editor/render/previewSvg", () => ({ serializeCityPreviewSvg: mocks.serialize }));
+vi.mock("../../city-editor/render/svg", () => ({ serializeCitySvg: mocks.serialize }));
 vi.mock("./CityPreviewViewport", () => ({
   CityPreviewViewport: ({ url }: { url: string }) => <img src={url} alt="preview" />
 }));
@@ -57,6 +71,9 @@ beforeEach(() => {
   mocks.jobs.length = 0;
   mocks.revision = "one";
   mocks.serialize.mockClear();
+  mocks.grid.mockClear();
+  mocks.frame.mockClear();
+  mocks.shoreDistance.mockClear();
   createUrl = vi.fn().mockReturnValueOnce("blob:first").mockReturnValueOnce("blob:second");
   revokeUrl = vi.fn();
   vi.stubGlobal("URL", Object.assign(class extends URL {}, { createObjectURL: createUrl, revokeObjectURL: revokeUrl }));
@@ -109,4 +126,10 @@ it("retries the same failed input", async () => {
   expect(mocks.jobs).toHaveLength(2);
   await act(async () => mocks.jobs[1].resolve(city));
   expect(host.querySelector("img")).not.toBeNull();
+});
+
+it("passes the sea-port shoreline reach and biome into the same frame options as CE", async () => {
+  await render(1);
+  expect(mocks.frame).toHaveBeenCalledWith({ extentMeters: 1500 }, true, 492, 632);
+  expect(mocks.grid).toHaveBeenCalledWith(expect.objectContaining({ biome: { id: 6 } }));
 });
