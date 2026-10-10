@@ -157,7 +157,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
   }, [snapshot]);
 
   return (
-    <div id="burgCityPreview" style={{ width: "min(640px, 75vw)" }}>
+    <div id="burgCityPreview" style={{ width: "min(560px, 42vw)" }}>
       {url ? (
         <>
           <p>{t("dialogs.burgEditor.previewSimplified")}</p>

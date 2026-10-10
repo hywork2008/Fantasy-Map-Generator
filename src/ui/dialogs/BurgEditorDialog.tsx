@@ -495,7 +495,26 @@ export const BurgEditorDialog: React.FC = () => {
           </div>
         </div>
       ) : activeTab === "preview" ? (
-        <div id="burgBody">
+        <div id="burgBody" className="d-flex" style={{ gap: "1em", alignItems: "flex-start" }}>
+          {burgData.previewUrl && (
+            <div id="burgPreviewSection" data-tip={t("dialogs.burgEditor.previewSectionTip")}>
+              <p>
+                {t("dialogs.burgEditor.previewMfcgHeading")}{" "}
+                <i
+                  id="burgLinkOpen"
+                  data-tip={t("dialogs.burgEditor.previewOpenTip")}
+                  className="icon-link-ext pointer"
+                  onClick={() => burgEditorActions.openBurgLink()}
+                ></i>
+              </p>
+              <object
+                id="burgPreviewObject"
+                data={burgData.previewUrl}
+                aria-label={t("dialogs.burgEditor.previewAriaLabel")}
+                style={{ display: "block", width: "min(560px, 42vw)", height: "min(640px, 60vh)", border: 0 }}
+              />
+            </div>
+          )}
           <BurgCityPreview burgData={burgData} />
         </div>
       ) : (
