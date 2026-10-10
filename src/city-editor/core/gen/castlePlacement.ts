@@ -263,28 +263,56 @@ export function placeCastleRegion(
     settings.relationship === "auto" && hasWalls ? ["auto", "detached"] : [settings.relationship];
   if (constraints && !constraints.report) constraints.report = emptySitingReport();
   const judge = constraints?.corridors.length ? makeCastleJudge(document, urban, water, constraints) : undefined;
-  for (const relationship of relationships)
-    for (const [i, sz] of sizes.entries()) {
-      if (i > 0 && !judge) break;
-      for (const relaxed of [false, true]) {
-        const site = placeCastlePass(
-          document,
-          urban,
-          water,
-          reserved,
-          rivers,
-          seed,
-          { ...settings, relationship },
-          sz,
-          terrain,
-          relaxed,
-          constraints,
-          judge
-        );
-        if (site) return site;
+  // A small unwalled town (Akros, Pitrorinthe: ~200 people) has too little
+  // room for a castle on its own cells, and one that does fit tends to cut an
+  // FMG road off (Nyirnya). The inward search there was slow and failed into
+  // a whole retry; try the cells just outside first, inward after.
+  const outwardModes =
+    constraints &&
+    !constraints.outward &&
+    !hasWalls &&
+    urbanLandArea(document, urban, water) <= OUTWARD_FIRST_URBAN_RATIO * castleTargetArea(size)
+      ? [true, false]
+      : [!!constraints?.outward];
+  for (const outward of outwardModes)
+    for (const relationship of relationships)
+      for (const [i, sz] of sizes.entries()) {
+        if (i > 0 && !judge) break;
+        for (const relaxed of [false, true]) {
+          const site = placeCastlePass(
+            document,
+            urban,
+            water,
+            reserved,
+            rivers,
+            seed,
+            { ...settings, relationship },
+            sz,
+            terrain,
+            relaxed,
+            constraints && { ...constraints, outward },
+            judge
+          );
+          if (site) return site;
+        }
       }
-    }
   return null;
+}
+
+/** Urban land at or below this many castle footprints sites the castle outside first. */
+const OUTWARD_FIRST_URBAN_RATIO = 12;
+
+function castleTargetArea(size: CastleSize): number {
+  return size === "tiny" ? 1800 : size === "small" ? 4000 : size === "large" ? 18000 : 9000;
+}
+
+function urbanLandArea(document: CityDocument, urban: Set<Id>, water: Set<Id>): number {
+  let area = 0;
+  for (const id of urban) {
+    const face = document.mesh.faces[id];
+    if (face && !water.has(id)) area += Math.abs(polygonArea(facePoints(document.mesh, face)));
+  }
+  return area;
 }
 
 function placeCastlePass(
@@ -318,7 +346,7 @@ function placeCastlePass(
     })
   );
   const minArea = size === "tiny" ? 1200 : size === "small" ? 2500 : size === "large" ? 10000 : 5000;
-  const target = size === "tiny" ? 1800 : size === "small" ? 4000 : size === "large" ? 18000 : 9000;
+  const target = castleTargetArea(size);
   const block = document.frame.blockSizeMeters;
   const corridors = constraints?.corridors ?? [];
   // H2/H4: the land front is where the roads come from; the castle backs away

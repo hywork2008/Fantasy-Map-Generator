@@ -90,7 +90,7 @@ export async function measureCityPerformance(
     elapsedMs: number;
     attempt: number;
     counts?: Record<string, number>;
-    failure?: { reason: string; message: string };
+    failure?: { reason: string; message: string; details?: string[] };
   }> = [];
   const measure = <T>(phase: string, action: () => T): T => {
     const start = performance.now();
@@ -124,7 +124,15 @@ export async function measureCityPerformance(
               elapsedMs,
               attempt,
               counts,
-              ...(sample.failure ? { failure: { reason: sample.failure.reason, message: sample.failure.message } } : {})
+              ...(sample.failure
+                ? {
+                    failure: {
+                      reason: sample.failure.reason,
+                      message: sample.failure.message,
+                      details: sample.failure.details
+                    }
+                  }
+                : {})
             });
             progress?.(sample);
           },

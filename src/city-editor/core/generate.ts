@@ -76,6 +76,7 @@ import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph, graphEdgeKey, vertexKey } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
 import {
+  azimuthToVec,
   isSimplePolygon,
   nearestOnPolyline,
   pointInPolygon,
@@ -1718,6 +1719,25 @@ export function runPlan(
     const regionalShore = water.regionalShore;
     const extraShores = "regionalExtraShores" in water ? water.regionalExtraShores : undefined;
     if (!wetsOrigin(coast)) return { kind: water.kind, coast, regionalShore, extraShores };
+    // A shore a block or so off the burg (Allavendeda: 60 m) lets the
+    // wandering walk pass on the town's side. FMG's water side is right, so
+    // first walk the same shore set back seaward; flipping it put the sea on
+    // the landward side, and a second wet origin dropped the harbour entirely.
+    const toWater = azimuthToVec(water.waterAzimuthDeg);
+    for (const step of [0.5, 1, 1.5, 2]) {
+      const shift = step * cellSize;
+      const shifted = classifyCoast(
+        graph,
+        water.corridor.map(p => [p[0] + toWater[0] * shift, p[1] + toWater[1] * shift] as Point),
+        water.waterAzimuthDeg,
+        cells,
+        half,
+        cellSize,
+        makeRng(`${seed}:water:${i}:seaward:${step}`)
+      );
+      if (shifted?.sea.size && !wetsOrigin(shifted))
+        return { kind: water.kind, coast: shifted, regionalShore, extraShores };
+    }
     // The closure picked the side that contains the burg. Take the other side
     // when that leaves the map origin dry; otherwise drop the surface.
     const flipped = classifyCoast(

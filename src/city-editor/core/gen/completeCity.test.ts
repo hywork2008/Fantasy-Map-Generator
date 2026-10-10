@@ -62,8 +62,9 @@ it("keeps the shared small bay temple clear of finished roads and park plots", (
     expect(polygonHitsOrientedRect(facePoints(city.mesh, face), nave)).toBe(false);
   }
   const shore = oceanShoreSegments(city);
-  // A synthetic bay may lie outside this fixed frame.
-  expect(city.coastalOceanFaceIds).toEqual([]);
+  // The bay's shore passes close to the burg; it is walked set back seaward
+  // rather than dropped, so the port keeps its water.
+  expect(city.coastalOceanFaceIds?.length).toBeGreaterThan(0);
   for (const [a, b] of shore) {
     expect(orientedRectPolylineDistance(nave, [a, b])).toBeGreaterThanOrEqual(COASTAL_BUILDING_SETBACK_METERS - 0.2);
   }
