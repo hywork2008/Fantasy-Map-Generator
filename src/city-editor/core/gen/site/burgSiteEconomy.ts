@@ -64,6 +64,11 @@ export interface BurgSiteEconomy {
   /** Wayside inns (`inn`) and caravanserais. Other lodging classes are not listed. */
   facilities: SiteLodging[];
   tradePartners: SiteTradePartner[];
+  /**
+   * Grain mills. Wind is 0 or 1. Water is a count of river sites.
+   * Absent: windmill and watermill counts stay on the population bands.
+   */
+  mills?: { wind: number; water: number };
 }
 
 /** Gate lodging. Courtyard area follows `stableSpaces`. */
@@ -134,8 +139,22 @@ export function sanitizeBurgSiteEconomy(raw: unknown): BurgSiteEconomy | null {
     }),
     storage: yardsFrom(raw.storage),
     facilities: lodgingFrom(raw.facilities),
-    tradePartners: partnersFrom(raw.tradePartners)
+    tradePartners: partnersFrom(raw.tradePartners),
+    ...millsFrom(raw.mills)
   };
+}
+
+function millsFrom(raw: unknown): { mills: { wind: number; water: number } } | Record<string, never> {
+  if (!isRecord(raw)) return {};
+  const wind = countOf(raw.wind);
+  const water = countOf(raw.water);
+  if (wind === undefined || water === undefined) return {};
+  return { mills: { wind, water } };
+}
+
+function countOf(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return undefined;
+  return Math.round(value);
 }
 
 function yardsFrom(raw: unknown): SiteStorageYard[] {

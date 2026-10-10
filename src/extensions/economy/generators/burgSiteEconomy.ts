@@ -16,6 +16,7 @@ import {
 import type { GuildChapter } from "./guildChapterTypes";
 import { collectGuildPractitioners } from "./guildKnowledge";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
+import { millCountsForBurg } from "./millCapacity";
 import { storageYardsForBurg } from "./siteEconomyFootprint";
 import { tradePartnersForBurg } from "./tradeCorridorLedger";
 
@@ -169,7 +170,8 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     guilds,
     storage: storageYardsForBurg(burgId, arrival.marketCenter, tradePartners),
     facilities: projectLodging(getInnFacilities(), burgId),
-    tradePartners
+    tradePartners,
+    mills: millCountsForBurg(burgId)
   };
 }
 

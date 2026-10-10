@@ -31,6 +31,7 @@ import {
 } from "./geom";
 import { COBBLE_WIDTH_SCALE } from "./roadTraffic";
 import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
+import type { BurgSiteEconomy } from "./site/burgSiteEconomy";
 
 function walledRiverTown(): CityDocument {
   const grid = createGridDocument({
@@ -256,6 +257,28 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
       expect(turned.windmills[i].sailAngle).toBe(seeded.windmills[i].sailAngle);
       expect(turned.windmills[i].kind).toBe(seeded.windmills[i].kind);
     }
+  });
+
+  it("draws the profile's windmill count", () => {
+    const input = {
+      buildings: fabric.buildings,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(f => f.polygon),
+      reserved: []
+    };
+    const economy: BurgSiteEconomy = {
+      version: 1,
+      year: 1350,
+      commerce: { rank: 0, marketCenter: false, merchantHouse: null, mint: false, caravanArrivalRank: 0 },
+      guilds: [],
+      storage: [],
+      facilities: [],
+      tradePartners: [],
+      mills: { wind: 1, water: 0 }
+    };
+    const doc = { ...city, siteEconomy: economy };
+    const plan = buildAerialLandmarkPlan(doc, input, "mill-count");
+    expect(plan.windmills).toHaveLength(1);
   });
 
   it("sets windmills and the gallows outside the walls", () => {

@@ -105,5 +105,6 @@ export function siteEconomyKey(economy: BurgSiteEconomy | undefined): string {
     )
     .join(",");
   const lodging = economy.facilities.map(item => `${item.kind}:${item.count}:${item.stableSpaces}`).join(",");
-  return `${economy.year}|${guilds}|${storage}|${lodging}`;
+  const mills = economy.mills ? `|${economy.mills.wind}:${economy.mills.water}` : "";
+  return `${economy.year}|${guilds}|${storage}|${lodging}${mills}`;
 }

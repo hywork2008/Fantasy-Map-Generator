@@ -4,6 +4,7 @@ import { createDocument } from "../document";
 import { polygonOverlaps } from "../fortifications";
 import type { CityDocument, Id, Point, RiverGroup } from "../types";
 import { polygonArea } from "./geom";
+import type { BurgSiteEconomy } from "./site/burgSiteEconomy";
 import { buildWatermillPlan, calculateWatermillCount } from "./watermillFabric";
 
 /**
@@ -132,6 +133,25 @@ describe("watermillFabric", () => {
       expect(plan.mills.length).toBe(0);
       expect(plan.buildingCount).toBe(500);
       expect(plan.derivedPopulation).toBe(2250);
+    });
+
+    it("uses the profile water count instead of the population bands", () => {
+      const doc = createRiverDocument(800);
+      const economy: BurgSiteEconomy = {
+        version: 1,
+        year: 1350,
+        commerce: { rank: 0, marketCenter: false, merchantHouse: null, mint: false, caravanArrivalRank: 0 },
+        guilds: [],
+        storage: [],
+        facilities: [],
+        tradePartners: [],
+        mills: { wind: 0, water: 1 }
+      };
+      doc.siteEconomy = economy;
+      const plan = buildWatermillPlan(doc, 400);
+      expect(calculateWatermillCount(400)).toBe(4);
+      expect(plan.mills).toHaveLength(1);
+      expect(plan.mills[0].kind).toBe("gristmill");
     });
 
     it("places watermills along rivers with millhouses and waterwheels", () => {

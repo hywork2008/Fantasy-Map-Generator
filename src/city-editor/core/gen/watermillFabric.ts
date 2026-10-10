@@ -5,6 +5,7 @@ import { flowingRivers } from "../riverFlow";
 import type { CityDocument, Id, Point } from "../types";
 import { ferryLandingReserves } from "./ferryLanding";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
+import { economyOnDocument } from "./guildFacilities";
 import { makeRng } from "./prng";
 
 /** Average residents per dwelling used by FMG and city generation. */
@@ -315,7 +316,11 @@ export function buildWatermillPlan(
     return { mills: [], buildingCount, derivedPopulation };
   }
 
-  const targetCount = calculateWatermillCount(buildingCount);
+  const fromCapacity = economyOnDocument(document)?.mills?.water;
+  const targetCount =
+    typeof fromCapacity === "number" && Number.isFinite(fromCapacity)
+      ? Math.max(0, Math.round(fromCapacity))
+      : calculateWatermillCount(buildingCount);
   if (targetCount <= 0) {
     return { mills: [], buildingCount, derivedPopulation };
   }

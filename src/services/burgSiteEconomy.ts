@@ -54,6 +54,13 @@ export interface BurgSiteEconomy {
   facilities: SiteLodging[];
   /** Up to eight partners from the corridor ledger, busiest first. */
   tradePartners: SiteTradePartner[];
+  /**
+   * Mills that grind grain. Wind is 0 or 1: `options.winds` is a direction, and
+   * post mills begin in the high medieval period. Water is the dam sites of this
+   * town's market, or one when the town cell is a formed river and no dam was counted.
+   * Absent on an older profile: City Editor keeps its population counts.
+   */
+  mills?: { wind: number; water: number };
 }
 
 /** Gate lodging. `inn` is a wayside inn. The courtyard is sized from `stableSpaces`. */

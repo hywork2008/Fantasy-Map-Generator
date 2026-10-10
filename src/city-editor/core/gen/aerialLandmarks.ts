@@ -657,6 +657,8 @@ export function windmillFacingRadians(blowTowardDeg: number): number {
 function windmillCount(buildings: number, document: CityDocument, hasRiver: boolean): number {
   // Post mills spread across Europe from the late 12th century.
   if (!periodAtLeast(document, "highMedieval")) return 0;
+  const fromCapacity = economyOnDocument(document)?.mills?.wind;
+  if (typeof fromCapacity === "number" && Number.isFinite(fromCapacity)) return Math.max(0, Math.round(fromCapacity));
   if (buildings < 40) return 0;
   const base = Math.max(1, Math.min(8, Math.round(buildings / 1400) + 1));
   return hasRiver ? Math.max(1, Math.ceil(base * 0.6)) : base;

@@ -1480,6 +1480,9 @@ export class MarketsModule {
     };
   }): Deal | null {
     if (!isGoodEnabled(good)) return null;
+    // Grain's market row is a mirror of the Food Ledger. Milling debits the tradeable
+    // surplus itself. A purchase here would shrink the mirror and leave the reserve.
+    if (good.tags?.includes("stapleFood")) return null;
     const market = this.get(burg.market);
     if (!market) return null;
 

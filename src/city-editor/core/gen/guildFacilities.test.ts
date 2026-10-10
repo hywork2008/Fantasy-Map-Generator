@@ -113,4 +113,21 @@ describe("sanitizeBurgSiteEconomy", () => {
       { form: "granary", areaM2: 120, mainGoods: ["Maize"], inflowAzimuthDeg: 12, waterborne: false }
     ]);
   });
+
+  it("keeps a mill count and drops a count that is not a number", () => {
+    const kept = sanitizeBurgSiteEconomy({
+      version: 1,
+      year: 1350,
+      guilds: [],
+      mills: { wind: 1.2, water: 0 }
+    });
+    expect(kept?.mills).toEqual({ wind: 1, water: 0 });
+    const dropped = sanitizeBurgSiteEconomy({
+      version: 1,
+      year: 1350,
+      guilds: [],
+      mills: { wind: -1, water: 2 }
+    });
+    expect(dropped?.mills).toBeUndefined();
+  });
 });

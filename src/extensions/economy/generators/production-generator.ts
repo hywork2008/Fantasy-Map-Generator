@@ -82,6 +82,7 @@ import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { MetallurgWork } from "./metallurgWork";
 import { MilitaryResources } from "./militaryResources";
+import { settleMilling } from "./millCapacity";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
@@ -98,6 +99,7 @@ import type {
 } from "./productionRecordTypes";
 import { QuarryOperations } from "./quarryOperations";
 import { SaltLogistics } from "./saltLogistics";
+import { settleSlaughter } from "./slaughter";
 import { SmelterOperations } from "./smelterOperations";
 import {
   getSmithingProductProgram,
@@ -352,6 +354,9 @@ export class ProductionModule {
     // would still depend on whichever Burg happens to run first after a legacy load.
     measureTickStep("production:merchantPurchaseCapital", () => MerchantTradeCapital.ensureAllMarkets());
     const saleBudgetByBurg = allocateMarketProcurementBudgets(sortedBurgs, getMarkets());
+    // Flour has to exist before the burg loop bakes Bread. The draw is the tradeable
+    // surplus only, so this month's household grain reserve is still in the ledger.
+    measureTickStep("production:milling", () => settleMilling());
 
     return {
       index,
@@ -406,6 +411,9 @@ export class ProductionModule {
   }
 
   private finishProductionCycle(cycle: ProductionCycle): void {
+    // Craft has had its turn at live animals (rennet, preserved food, the old tallow legs).
+    // What is still walking is slaughtered before households buy it as a live head.
+    measureTickStep("production:slaughter", () => settleSlaughter());
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
@@ -463,6 +471,7 @@ export class ProductionModule {
     cycle: ProductionCycle,
     { isCancelled = () => false, frameBudgetMs = 8, skipGlobalTrade = false }: IncrementalProductionOptions
   ): Promise<boolean> {
+    measureTickStep("production:slaughter", () => settleSlaughter());
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
@@ -542,7 +551,18 @@ export class ProductionModule {
     const demandGoodsByCategory = this.buildDemandGoodsByCategory(goods, demandCoverageByGood);
     const recipes = this.buildRecipesArray(goods);
     const recipesByOutput = this.buildRecipesByOutput(recipes);
-    const productiveGoods = goods.filter(good => recipesByOutput[good.i]?.length);
+    // Flour's only recipe consumes ledger Grain. settleMilling owns that conversion.
+    // Leaving Flour in this list spends a small town's only craft step on a buy that cannot land.
+    const stapleIds = new Set(
+      getGoods()
+        .filter(good => good.tags.includes("stapleFood"))
+        .map(good => good.i)
+    );
+    const productiveGoods = goods.filter(good => {
+      const alternatives = recipesByOutput[good.i];
+      if (!alternatives?.length) return false;
+      return alternatives.some(recipe => recipe.ingredients.every(ingredient => !stapleIds.has(ingredient.goodId)));
+    });
     const minWorkersByGood = this.buildMinWorkersByGood(goods, recipesByOutput);
     const preservationGoods = productiveGoods.filter(
       good =>
