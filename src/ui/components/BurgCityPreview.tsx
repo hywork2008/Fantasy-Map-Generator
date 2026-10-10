@@ -59,13 +59,13 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
         { createGridDocument, descriptorFrameGridOptions },
         { defaultGenerationSettings },
         { startCityGeneration },
-        { serializeCityPreviewSvg }
+        { serializeCitySvg }
       ] = await Promise.all([
         import("../../city-editor/io/incomingCity"),
         import("../../city-editor/core/document"),
         import("../../city-editor/core/generate"),
         import("../../city-editor/core/generationWorkerClient"),
-        import("../../city-editor/render/previewSvg")
+        import("../../city-editor/render/svg")
       ]);
       if (disposed) return;
       const inputStarted = performance.now();
@@ -130,7 +130,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
           samples.filter(sample => sample.failure)
         );
       const svgStarted = performance.now();
-      const svg = serializeCityPreviewSvg(city);
+      const svg = serializeCitySvg(city);
       timings.svg = performance.now() - svgStarted;
       timings.total = performance.now() - started;
       console.debug("[City preview] timings", {
@@ -160,7 +160,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
     <div id="burgCityPreview" style={{ width: "min(560px, 42vw)" }}>
       {url ? (
         <>
-          <p>{t("dialogs.burgEditor.previewSimplified")}</p>
+          <p>{t("dialogs.burgEditor.previewCityEditor")}</p>
           <CityPreviewViewport
             url={url}
             alt={t("dialogs.burgEditor.previewAriaLabel")}
