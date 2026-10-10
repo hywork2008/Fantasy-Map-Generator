@@ -8,7 +8,7 @@ import {
   validSavedFixedApproaches
 } from "./fixedApproachAdoption";
 import { upgradeFabricPlan, validFabricPlan } from "./gen/fabricDistricts";
-import { nearestOnPolyline, polygonArea } from "./gen/geom";
+import { polygonArea, polylineSquareDistance } from "./gen/geom";
 import { buildGrid } from "./gen/grid";
 import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
@@ -200,7 +200,7 @@ export function createSizedDocument(size: CitySizePreset, seed = randomSeed()): 
   return createGridDocument({ size, seed, grid: "voronoi" });
 }
 
-/** Distance from the town origin to a sea or lake port's shoreline.
+/** Smallest centred square half-extent intersected by a sea or lake port's shoreline.
  * Zero when this burg has no such port, or the shore was not surveyed. */
 export function seaPortShoreDistanceMeters(site: {
   burg: { waterAccess?: { port: { sea: boolean; lake: boolean } } };
@@ -211,7 +211,7 @@ export function seaPortShoreDistanceMeters(site: {
   let best = Infinity;
   for (const line of site.waterbody?.shoreline ?? []) {
     if (line.length < 2) continue;
-    best = Math.min(best, nearestOnPolyline([0, 0], line).dist);
+    best = Math.min(best, polylineSquareDistance(line));
   }
   return Number.isFinite(best) ? best : 0;
 }

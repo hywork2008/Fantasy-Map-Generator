@@ -12,7 +12,7 @@ import { generateCityOnDocument } from "./generate";
 import { cityEditorDocument, cityEditorSettings } from "./housingReport";
 import { facePoints } from "./mesh";
 
-const archive = resolve(process.cwd(), "temp/000.savdata/Borteia 2026-10-10-19-11.fmg");
+const archive = resolve(import.meta.dirname, "../../../temp/000.savdata/Borteia 2026-10-10-19-11.fmg");
 
 describe.skipIf(!existsSync(archive))("Tulacen sea port", () => {
   it("draws the ocean in the frame and a sea harbour beside the river port", async () => {

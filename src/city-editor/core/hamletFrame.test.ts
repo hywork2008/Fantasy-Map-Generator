@@ -62,12 +62,29 @@ describe("townMeshExtentMeters", () => {
     expect(grid.settlementExtentMeters).toBe(600);
   });
 
+  it("keeps a coast inside a corner of the square frame", () => {
+    const site = {
+      burg: { waterAccess: { port: { sea: true, lake: false } } },
+      waterbody: {
+        shoreline: [
+          [
+            [-750, -600],
+            [-600, -750]
+          ]
+        ] as [number, number][][]
+      }
+    };
+    const distance = seaPortShoreDistanceMeters(site);
+    expect(distance).toBe(675);
+    expect(townMeshExtentMeters(frame, true, 492, distance)).toBe(1500);
+  });
+
   it("measures a sea-port shore and ignores a shoreline that is not a sea or lake port", () => {
     const site = {
       burg: { waterAccess: { port: { sea: true, lake: false, river: true } } },
       waterbody: { shoreline: [shore] }
     };
-    expect(seaPortShoreDistanceMeters(site)).toBeCloseTo(632, 0);
+    expect(seaPortShoreDistanceMeters(site)).toBeCloseTo(451.4, 0);
     expect(
       seaPortShoreDistanceMeters({
         burg: { waterAccess: { port: { sea: false, lake: false, river: true } } },

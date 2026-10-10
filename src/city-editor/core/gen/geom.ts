@@ -9,6 +9,32 @@ export interface Rect {
   maxY: number;
 }
 
+/** Smallest centred square half-extent intersected by a polyline.
+ * Along each segment, max(|x|, |y|) can reach its minimum at an endpoint
+ * or where x = y / x = -y. This also catches crossings with both ends outside.
+ */
+export function polylineSquareDistance(line: readonly Point[]): number {
+  let best = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1],
+      b = line[i];
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    const candidates = [0, 1];
+    for (const sign of [1, -1]) {
+      const denominator = dx - sign * dy;
+      if (denominator !== 0) {
+        const t = (sign * a[1] - a[0]) / denominator;
+        if (t > 0 && t < 1) candidates.push(t);
+      }
+    }
+    for (const t of candidates) {
+      best = Math.min(best, Math.max(Math.abs(a[0] + t * dx), Math.abs(a[1] + t * dy)));
+    }
+  }
+  return best;
+}
+
 /** Signed area (positive when the ring is counter-clockwise). */
 export function polygonArea(poly: Point[]): number {
   let a = 0;

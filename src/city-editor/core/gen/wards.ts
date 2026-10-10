@@ -30,6 +30,7 @@ import {
   pointInPolygon,
   polygonArea,
   polygonCompactness,
+  polylineSquareDistance,
   polylineTangent,
   segmentInteriorInPolygon,
   segmentSegmentHit,
@@ -555,7 +556,7 @@ const ESTUARY_SEA_MIN_INSET_METERS = 60;
 /** The surveyed shore crosses the frame, rather than merely touching its edge. */
 export function estuaryShoreEntersFrame(shoreline: Point[], extentMeters: number): boolean {
   if (shoreline.length < 2 || !(extentMeters > 0)) return false;
-  return extentMeters / 2 - nearestOnPolyline([0, 0], shoreline).dist >= ESTUARY_SEA_MIN_INSET_METERS;
+  return extentMeters / 2 - polylineSquareDistance(shoreline) >= ESTUARY_SEA_MIN_INSET_METERS;
 }
 
 function placeHarbor(

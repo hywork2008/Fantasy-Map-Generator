@@ -291,8 +291,50 @@ describe("estuaryShoreEntersFrame", () => {
     expect(estuaryShoreEntersFrame(tulacenShore, 1500)).toBe(true);
   });
 
-  it("rejects the same shore after the frame has been shrunk onto the river bank", () => {
-    expect(estuaryShoreEntersFrame(tulacenShore, 1350)).toBe(false);
+  it("accepts the shore when it still enters the smaller square frame", () => {
+    expect(estuaryShoreEntersFrame(tulacenShore, 1350)).toBe(true);
+  });
+
+  it("accepts a corner shore with at least 60 m of inset", () => {
+    expect(
+      estuaryShoreEntersFrame(
+        [
+          [-750, -600],
+          [-600, -750]
+        ],
+        1500
+      )
+    ).toBe(true);
+    expect(
+      estuaryShoreEntersFrame(
+        [
+          [-750, -650],
+          [-650, -750]
+        ],
+        1500
+      )
+    ).toBe(false);
+  });
+
+  it("detects a crossing even when both segment endpoints are outside", () => {
+    expect(
+      estuaryShoreEntersFrame(
+        [
+          [-900, -600],
+          [-600, -900]
+        ],
+        1500
+      )
+    ).toBe(false);
+    expect(
+      estuaryShoreEntersFrame(
+        [
+          [-900, -300],
+          [-300, -900]
+        ],
+        1500
+      )
+    ).toBe(true);
   });
 
   it("rejects a sliver that only grazes the window edge", () => {
