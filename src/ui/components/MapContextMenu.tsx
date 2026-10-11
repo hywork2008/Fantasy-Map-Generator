@@ -5,6 +5,7 @@ import {
   setDistanceFromHere,
   setDistanceToHere,
   triggerOpenCityEditor,
+  triggerOpenProvincesEditor,
   triggerOpenRegionEditor
 } from "../../controllers/mapContextMenu";
 import { closeMapContextMenu, useMapContextMenuState } from "../../store/mapContextMenuState";
@@ -75,6 +76,10 @@ export function MapContextMenu() {
     }
   }, [targetBurgId]);
 
+  const onOpenProvincesEditor = useCallback(() => {
+    if (targetProvinceId) triggerOpenProvincesEditor(targetProvinceId);
+  }, [targetProvinceId]);
+
   const onOpenRegionEditor = useCallback(() => {
     if (targetProvinceId) {
       triggerOpenRegionEditor(targetProvinceId);
@@ -116,6 +121,18 @@ export function MapContextMenu() {
           {t("mapContextMenu.openCityEditor", { name: targetBurgName })}
         </button>
       ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        className="map-context-menu__item"
+        onClick={onOpenProvincesEditor}
+        disabled={!targetProvinceId}
+        title={!targetProvinceId ? t("mapContextMenu.openRegionEditorDisabled") : undefined}
+      >
+        {targetProvinceName
+          ? t("mapContextMenu.openProvincesEditorWithProvince", { name: targetProvinceName })
+          : t("mapContextMenu.openProvincesEditor")}
+      </button>
       <button
         type="button"
         role="menuitem"

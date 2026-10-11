@@ -8,9 +8,13 @@ import {
   resolveBurgFromElement,
   resolveProvinceAtMapPoint,
   triggerOpenCityEditor,
+  triggerOpenProvincesEditor,
   triggerOpenRegionEditor
 } from "./mapContextMenu";
+import { editProvinces } from "./provinces-editor";
 import * as regionHandshake from "./region-editor-handshake";
+
+vi.mock("./provinces-editor", () => ({ editProvinces: vi.fn() }));
 
 describe("isMapContextMenuTarget", () => {
   afterEach(() => {
@@ -152,6 +156,12 @@ describe("triggerOpenCityEditor & triggerOpenRegionEditor", () => {
     expect(getMapContextMenuState().isOpen).toBe(false);
     expect(openCitySpy).toHaveBeenCalledWith(1);
     openCitySpy.mockRestore();
+  });
+
+  it("opens Provinces Editor with the target province selected and closes the menu", () => {
+    triggerOpenProvincesEditor(2);
+    expect(getMapContextMenuState().isOpen).toBe(false);
+    expect(editProvinces).toHaveBeenCalledWith(2);
   });
 
   it("triggerOpenRegionEditor closes context menu and calls openRegionEditor", () => {

@@ -20,6 +20,7 @@ import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { openCityEditorForBurg } from "./city-editor-handshake";
 import { toggleRulers } from "./layers";
 import { Ruler, Rulers } from "./measurers";
+import { editProvinces } from "./provinces-editor";
 import { openRegionEditor } from "./region-editor-handshake";
 
 const PENDING_GROUP_CLASS = "distance-from-pending";
@@ -151,6 +152,11 @@ export function handleMapContextMenu(event: MouseEvent): void {
 export function triggerOpenCityEditor(burgId: number): void {
   closeMapContextMenu();
   openCityEditorForBurg(burgId);
+}
+
+export function triggerOpenProvincesEditor(provinceId: number): void {
+  closeMapContextMenu();
+  editProvinces(provinceId);
 }
 
 export function triggerOpenRegionEditor(provinceId: number): void {

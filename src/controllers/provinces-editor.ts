@@ -55,7 +55,7 @@ import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButto
 import { openProvinceEditor } from "./province-editor";
 import { editStyle } from "./style";
 
-export function editProvinces(): void {
+export function editProvinces(selectedProvinceId: number | null = null): void {
   if (viewContext.customization) return;
   closeDialogs("#provincesEditor, .stable");
   if (!layerIsOn("toggleProvinces")) toggleProvinces();
@@ -68,7 +68,7 @@ export function editProvinces(): void {
     .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel))
     .classed("draggable", true);
 
-  setProvincesEditorState({ isOpen: true, customization: 0, filterState: -1 });
+  setProvincesEditorState({ isOpen: true, customization: 0, filterState: -1, selectedProvinceId });
   refreshProvincesEditor();
 
   if (modules.editProvinces) return;

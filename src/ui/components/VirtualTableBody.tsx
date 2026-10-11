@@ -5,6 +5,8 @@ export interface VirtualTableBodyProps<T> {
   items: T[];
   scrollElementRef: React.RefObject<Element | null>;
   estimateSize?: number;
+  /** Reveal a selected item even when its row has not been mounted yet. */
+  scrollToIndex?: number;
   renderRow: (item: T, index: number) => React.ReactNode;
 }
 
@@ -17,7 +19,8 @@ export function VirtualTableBody<T>({
   // into not-yet-measured territory, since freshly-scrolled-to rows still use
   // the stale estimate until they're individually measured.
   estimateSize = 12,
-  renderRow
+  renderRow,
+  scrollToIndex
 }: VirtualTableBodyProps<T>) {
   const rowVirtualizer = useVirtualizer({
     count: items.length,
@@ -49,10 +52,20 @@ export function VirtualTableBody<T>({
   // empty until an unrelated state update elsewhere happens to force a render.
   // Forcing one extra render right after mount reliably picks up the
   // measurement the virtualizer already computed internally.
-  const [, forceRenderAfterMount] = useState(0);
+  const [mountTick, forceRenderAfterMount] = useState(0);
   useEffect(() => {
     forceRenderAfterMount(n => n + 1);
   }, []);
+
+  useEffect(() => {
+    if (mountTick === 0) return;
+    if (scrollToIndex === undefined || scrollToIndex < 0 || scrollToIndex >= items.length) return;
+    // Wait until the dialog and virtual spacers have been laid out before scrolling.
+    const frame = requestAnimationFrame(() => {
+      rowVirtualizer.scrollToIndex(scrollToIndex, { align: "center", behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollToIndex, items.length, rowVirtualizer, mountTick]);
 
   const scrollElement = scrollElementRef.current;
   const isAtTop = (scrollElement?.scrollTop ?? 0) <= 0;

@@ -11,6 +11,8 @@ import { SortableHeader } from "./SortableHeader";
 
 export interface ProvincesTableProps {
   provinces: ProvinceRowData[];
+  selectedProvinceId?: number | null;
+  onSelectProvince?: (id: number) => void;
   sortBy: string;
   sortDirection: number;
   onSort: (field: string) => void;
@@ -40,10 +42,15 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
   totalPopulation,
   totalBurgs,
   customization = 0,
-  hideStateColumn = false
+  hideStateColumn = false,
+  selectedProvinceId: controlledSelectedProvinceId,
+  onSelectProvince
 }) => {
   const parentRef = useRef<HTMLDivElement>(null);
-  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
+  const [localSelectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
+
+  const selectedProvinceId =
+    controlledSelectedProvinceId === undefined ? localSelectedProvinceId : controlledSelectedProvinceId;
 
   const unit = getAreaUnit();
   const showExtraColumns = customization !== 11;
@@ -135,6 +142,11 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
           <VirtualTableBody
             items={provinces}
             scrollElementRef={parentRef}
+            scrollToIndex={
+              controlledSelectedProvinceId == null
+                ? undefined
+                : provinces.findIndex(province => province.i === controlledSelectedProvinceId)
+            }
             renderRow={p => {
               const populationTip = `Total population: ${si(p.population)}; Rural population: ${si(p.rural)}; Urban population: ${si(p.urban)}`;
               const areaText = isPercentageMode
@@ -153,7 +165,10 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
                   className={`states${selectedProvinceId === p.i ? " selected" : ""}`}
                   data-id={p.i}
                   aria-selected={selectedProvinceId === p.i}
-                  onClickCapture={() => setSelectedProvinceId(p.i)}
+                  onClickCapture={() => {
+                    setSelectedProvinceId(p.i);
+                    onSelectProvince?.(p.i);
+                  }}
                   onClick={() => selectProvinceOnLineClick(p.i)}
                   onMouseEnter={() => provincesEditorActions.provinceHighlightOn(p.i)}
                   onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}

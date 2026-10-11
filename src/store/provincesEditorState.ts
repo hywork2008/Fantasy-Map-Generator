@@ -47,6 +47,7 @@ export interface StateOption {
 
 export interface ProvincesEditorState {
   isOpen: boolean;
+  selectedProvinceId: number | null;
   filterState: number; // -1 for all
   isPercentageMode: boolean;
   sortBy: string;
@@ -68,6 +69,7 @@ export interface ProvincesEditorState {
 
 export const useProvincesEditorState = create<ProvincesEditorState>(() => ({
   isOpen: false,
+  selectedProvinceId: null,
   filterState: -1,
   isPercentageMode: false,
   sortBy: "name",
