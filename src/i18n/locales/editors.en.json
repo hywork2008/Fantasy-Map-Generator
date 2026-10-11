@@ -792,7 +792,13 @@
     "pageTitle": "City Editor — Fantasy Map Generator",
     "pageDescription": "City map generator and editor for Fantasy Map Generator",
     "fmgParameters": {
-      "title": "Parameters received from FMG"
+      "title": "Parameters received from FMG",
+      "coastDistance": "Coast distance",
+      "lakeShoreDistance": "Lake shore distance",
+      "riverDistance": "{{river}} distance",
+      "unnamedRiver": "River {{id}}",
+      "unknownDistance": "Unknown",
+      "distanceReference": "Distances are measured from the FMG city center to the shoreline or river centerline."
     }
   },
   "regionEditor": {

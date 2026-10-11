@@ -792,7 +792,13 @@
     "pageTitle": "都市エディター — Fantasy Map Generator",
     "pageDescription": "Fantasy Map Generatorの都市地図生成・編集エディター",
     "fmgParameters": {
-      "title": "FMGから受け取ったパラメーター"
+      "title": "FMGから受け取ったパラメーター",
+      "coastDistance": "海岸まで",
+      "lakeShoreDistance": "湖岸まで",
+      "riverDistance": "{{river}}まで",
+      "unnamedRiver": "河川 {{id}}",
+      "unknownDistance": "不明",
+      "distanceReference": "距離はFMGの都市中心から岸線または河川中心線までの最短距離です。"
     }
   },
   "regionEditor": {

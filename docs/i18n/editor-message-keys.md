@@ -56,3 +56,5 @@ HTML に埋め込む文言は `editorHtml(key, values)` を使い、差し込み
 
 `src/i18n/editorMessages.test.ts` が辞書のキー・差し込みパラメーターの一致、
 13 段階の識別、言語別の RE 表示、HTML エスケープ、日本語の直書き再混入を検証する。
+
+FMGパラメーター欄には `cityEditor.fmgParameters.coastDistance` / `lakeShoreDistance` と、河川ごとの `riverDistance` を表示します。基準はFMG都市中心で、岸線または河川中心線への最短距離です。河川は `rawOffsetMeters`、岸線は新規エクスポートの `waterbody.shoreDistanceMeters` を使用します。旧データの岸線は受信したポリラインから計算し、岸線座標が無い場合は `unknownDistance` を表示します。単位は m / km です。

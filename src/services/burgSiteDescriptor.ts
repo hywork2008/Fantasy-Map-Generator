@@ -182,6 +182,8 @@ export interface BurgSiteWaterbody {
   isPort: boolean;
   /** Azimuth from the town center toward the adjacent water (haven) cell. */
   shoreAzimuthDeg: number;
+  /** Shortest distance from the FMG burg center to the surveyed shoreline, in meters. */
+  shoreDistanceMeters?: number;
   /** Shoreline polylines clipped to the extent box, local meters. Water lies on the haven side. */
   shoreline: [number, number][][];
   /** Per `shoreline` run, the side of its direction of travel that is water.
@@ -1540,12 +1542,14 @@ function collectWaterbody(
   // into a fabricated coast inside a 1–4 km urban window.
   if (!shoreline.length && !burg.port) return null;
 
+  const shoreApproach = closestApproachToOrigin(ring.map(([x, y]) => ({ x, y })));
   return {
     kind,
     ...(waterFeature.name ? { name: waterFeature.name } : {}),
     ...(waterFeature.group ? { group: waterFeature.group } : {}),
     isPort: Boolean(burg.port),
     shoreAzimuthDeg: azimuthDeg(havenX, havenY),
+    ...(shoreApproach ? { shoreDistanceMeters: rn(shoreApproach.dist, 1) } : {}),
     shoreline,
     shorelineWaterSide: shoreline.map(() => waterSide)
   };

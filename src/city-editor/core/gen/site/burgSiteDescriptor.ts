@@ -117,6 +117,8 @@ export interface BurgSiteWaterbody {
   isPort: boolean;
   /** Azimuth from the town center toward the adjacent water. */
   shoreAzimuthDeg: number;
+  /** Shortest distance from the FMG burg center to the surveyed shoreline, in meters. */
+  shoreDistanceMeters?: number;
   /** Shoreline polylines clipped to the window, local meters. Water on the haven side. */
   shoreline: [number, number][][];
   /** Per `shoreline` run, the side of its travel direction that is water. */

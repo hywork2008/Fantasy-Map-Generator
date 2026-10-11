@@ -617,6 +617,35 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
 });
 
 describe("shareable link and FMG site", () => {
+  it("shows physical distances for the coast and every imported river", () => {
+    const descriptor = synthSite(
+      "largeTown",
+      { ...DEFAULT_SITE_CONFIG, coast: "bay", rivers: ["toCoast"] },
+      "distances"
+    );
+    descriptor.waterbody!.shoreDistanceMeters = 123.4;
+    const river = descriptor.rivers[0];
+    descriptor.rivers = [
+      { ...river, riverId: 1, name: "Alpha", rawOffsetMeters: 1500, offsetMeters: 20 },
+      { ...river, riverId: 2, name: "Beta", rawOffsetMeters: 0 }
+    ];
+    const share = buildShare({
+      seed: "distances",
+      grid: "hex",
+      size: "small",
+      hexSizeMeters: 50,
+      gridSeed: "distances",
+      settings: { config: DEFAULT_SITE_CONFIG },
+      descriptor
+    });
+    window.history.replaceState(null, "", `${location.pathname}#${encodeShare(share)}`);
+    remount();
+    const text = root.querySelector(".ce-imported-body")?.textContent;
+    expect(text).toContain("海岸まで123.4 m");
+    expect(text).toContain("Alphaまで1.5 km");
+    expect(text).toContain("Betaまで0 m");
+  });
+
   function remount(): void {
     root.remove();
     root = document.createElement("div");

@@ -75,6 +75,7 @@ import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
 import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
+import { shoreDistanceMeters } from "../core/gen/site/shoreDistance";
 import {
   WALL_COAST_CHOICES,
   WALL_MATERIAL_CHOICES,
@@ -5820,13 +5821,40 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
         : editorText("cityEditor.messages.no")
     ]
   ];
+  const distanceText = (distance: number | null | undefined): string =>
+    distance != null && Number.isFinite(distance) && distance >= 0
+      ? formatDistance(distance)
+      : editorText("cityEditor.fmgParameters.unknownDistance");
+  const waterDistances: [string, string][] = [];
+  if (descriptor.waterbody) {
+    waterDistances.push([
+      editorText(
+        descriptor.waterbody.kind === "lake"
+          ? "cityEditor.fmgParameters.lakeShoreDistance"
+          : "cityEditor.fmgParameters.coastDistance"
+      ),
+      distanceText(shoreDistanceMeters(descriptor.waterbody))
+    ]);
+  }
+  for (const river of descriptor.rivers) {
+    const riverName = river.name || editorText("cityEditor.fmgParameters.unnamedRiver", { id: river.riverId });
+    waterDistances.push([
+      editorText("cityEditor.fmgParameters.riverDistance", { river: riverName }),
+      distanceText(river.rawOffsetMeters ?? river.offsetMeters)
+    ]);
+  }
+  rows.splice(6, 0, ...waterDistances);
   const nodes: Node[] = rows.map(([key, value]) => {
     const line = document.createElement("div");
     line.className = "ce-imported-row";
+    if (waterDistances.some(([label]) => label === key)) {
+      line.title = editorText("cityEditor.fmgParameters.distanceReference");
+    }
     const labelNode = document.createElement("span");
     labelNode.textContent = key;
     const valueNode = document.createElement("strong");
     valueNode.textContent = value;
+    valueNode.title = value;
     line.append(labelNode, valueNode);
     return line;
   });
