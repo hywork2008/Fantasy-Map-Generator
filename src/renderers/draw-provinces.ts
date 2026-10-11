@@ -1,4 +1,3 @@
-import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { FocusFields, PoliticalLayers, RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -6,6 +5,10 @@ import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 import { getScopedGraph, isCellInScope, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
+
+// Match the selected cell fill (.ce-face.ce-selected) in City Editor.
+const PROVINCE_HIGHLIGHT_FILL = "#f4cf68";
+const provinceHighlightAnimations = new WeakMap<Element, Animation>();
 
 export const ProvincesRenderer = {
   id: "provinces",
@@ -54,20 +57,31 @@ export const ProvincesRenderer = {
 
   highlightProvinceOn(viewContext: Readonly<PoliticalLayers>, provinceId: number): void {
     ProvincesRenderer.highlightProvinceOff(viewContext, null);
-    const animate = transition().duration(2000).ease(easeSinIn);
-    viewContext.provs
-      .select(`#province${provinceId}`)
-      .raise()
-      .transition(animate)
-      .attr("stroke-width", 2.5)
-      .attr("stroke", "#d0240f");
+    const province = viewContext.provs.select<SVGPathElement>(`#province${provinceId}`).raise().node();
+    if (!province) return;
+    const originalFill = getComputedStyle(province).fill;
+    const animation = province.animate(
+      [
+        { fill: PROVINCE_HIGHLIGHT_FILL, offset: 0 },
+        { fill: originalFill, offset: 0.5 },
+        { fill: PROVINCE_HIGHLIGHT_FILL, offset: 1 }
+      ],
+      { duration: 1000, iterations: Infinity, easing: "steps(1, end)" }
+    );
+    provinceHighlightAnimations.set(province, animation);
   },
 
   highlightProvinceOff(viewContext: Readonly<PoliticalLayers>, provinceId: number | null): void {
     const provinces = provinceId
-      ? viewContext.provs.selectAll(`#province${provinceId}`)
-      : viewContext.provs.selectAll("#provincesBody > path[id^='province']:not([id^='province-gap'])");
+      ? viewContext.provs.selectAll<SVGPathElement, unknown>(`#province${provinceId}`)
+      : viewContext.provs.selectAll<SVGPathElement, unknown>(
+          "#provincesBody > path[id^='province']:not([id^='province-gap'])"
+        );
     provinces.interrupt().attr("stroke-width", null).attr("stroke", null);
+    provinces.each(function () {
+      provinceHighlightAnimations.get(this)?.cancel();
+      provinceHighlightAnimations.delete(this);
+    });
   },
 
   clearHighlight(viewContext: Readonly<RootLayers>): void {
