@@ -62,7 +62,7 @@ export const drawScaleBar = (
     .attr("x", (d: number) => rn((d * length) / 5, 2))
     .attr("y", 0)
     .attr("dy", "-.6em")
-    .text((d: number) => rn((((d * length) / 5) * distanceScale) / scaleLevel) + (d < 5 ? "" : ` ${unit}`));
+    .text((d: number) => rn((((d * length) / 5) * distanceScale) / scaleLevel, 1) + (d < 5 ? "" : ` ${unit}`));
 
   const label = scaleBar.attr("data-label");
   if (label) {
