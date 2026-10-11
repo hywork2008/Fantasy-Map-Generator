@@ -1,5 +1,5 @@
 import type React from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { provincesEditorActions, selectProvinceOnLineClick } from "../../../controllers/provinces-editor";
 import type { ProvinceRowData } from "../../../store/provincesEditorState";
 import { rn, si } from "../../../utils";
@@ -43,6 +43,7 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
   hideStateColumn = false
 }) => {
   const parentRef = useRef<HTMLDivElement>(null);
+  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
 
   const unit = getAreaUnit();
   const showExtraColumns = customization !== 11;
@@ -149,8 +150,10 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
               return (
                 <tr
                   key={p.i}
-                  className="states"
+                  className={`states${selectedProvinceId === p.i ? " selected" : ""}`}
                   data-id={p.i}
+                  aria-selected={selectedProvinceId === p.i}
+                  onClickCapture={() => setSelectedProvinceId(p.i)}
                   onClick={() => selectProvinceOnLineClick(p.i)}
                   onMouseEnter={() => provincesEditorActions.provinceHighlightOn(p.i)}
                   onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}
