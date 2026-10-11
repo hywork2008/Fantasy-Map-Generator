@@ -1,6 +1,6 @@
 # River-Port Lab: 河川・港湾都市を量産するデバッグ生成モードと収集API
 
-状態: 設計(未実装) 2026-10-11
+状態: L0〜L2 実装済み(2026-10-12)、L3 以降未実装
 関連: [map-scope-small-worlds.md](map-scope-small-worlds.md), [map-server.md](map-server.md), [bridge-skew-policy.md](bridge-skew-policy.md)
 
 ## 1. 目的
@@ -250,6 +250,29 @@ lab 有効時、高さマップ生成の直後(`Features.markupGrid` の前)に 
 影響の計測:世界地図4枚(seed 11/55/77/99、194都市)で、新しい規則で河川港になった都市は0件だった。湖に面した都市は11件あったが、航行可能で海へ注ぐ川の上の都市はなかった。lab 地図(6枚)では、湖の出口の都市11件のうち7件が河川港(湖港なし)になった。
 
 計測の注意(2026-10-12 訂正):当初は「同じ seed でも世界地図の生成は揺らぐ」と結論したが、誤りだった。`Math.random` の全呼び出し(seed 11 で 204,899 回)を呼び出し元つきで2回記録すると完全に一致し、`map-ready` 時点の港の割り当ても一致した。揺らいで見えた原因は計測側にある。`scripts/lib/advanceYearHarness.ts` の `waitForMap` が `world.mapId` の定義を生成完了とみなしていたが、`mapId` はコア段階の最後で設定され、港の二重配置などの map-ready タスクはその後に走る。そのため、生成途中の状態(港 2〜9 件、正しくは 14 件)を読んでいた。`waitForMap` は `fmg:map-ready-tasks-completed` も待つように直した。このハーネスを使う `perf:advance-year`・Fast-Forward 較正・`diagnose:treasury` の過去の数値も、同じ影響を受けていた可能性がある。E2E の `waitForMapGeneration`(tests/e2e/helpers/fmg-helpers.ts)にも同じ前提が残っている。
+
+### L2 実装済み(2026-10-12)
+
+`npm run map:server -- --lab [--lab-workers 2] [--lab-url URL]` で `/api/lab/generate` を有効にする。地図ファイルは省略できる(lab 専用。`/api/map`・`/api/burgs` は 404/503)。
+
+```sh
+curl -s -X POST 127.0.0.1:8787/api/lab/generate \
+  -d '{"seed":104,"cells":800,"lab":{"riverDensity":5},"filter":{"siteKind":["estuary"]},"include":["descriptor"]}'
+```
+
+- ブラウザ側: `src/debug/riverPortLab/labGenerate.ts`(`window.fmg.lab.generate`)と `labSample.ts`(`window.fmg.lab.extract`)。lab 設定は**既定値 + リクエストの `lab`** で毎回作り直す(前のリクエストを引き継がない)。`{"enabled": false}` で control。
+- サーバー側: `scripts/lib/labPool.mjs`(Chromium ページのプール、50地図ごと・エラー時に reload)。Vite の起動は `scripts/lib/viteDevServer.mjs` に切り出し、`fmg:small` と共用。
+- ページは使い回し、`regenerateMap({seed})` で生成する。seed 103 で、ページ再利用の結果が `fmg:small` の新規読み込みと都市の位置・分類・港まで完全一致した。同じページで同じ seed を2回生成しても一致。
+- 1地図 8〜19 秒(Province 500〜800 セル)。2ワーカー同時実行を確認。
+- 認証は既存の `--read-token` がそのまま POST にも掛かる。
+
+§5 からの差分:
+
+- **橋の skew**:FMG の通常生成では `landConnectionGeneration` が有効にならず、世界側の橋オブジェクトが無い。そのため、`include: ["descriptor"]` の時だけ、記述子の `fixedCrossings`(CE 用に都市ごとに収束させた橋)の床版軸と河川接線から `bridgeSkewDegrees` で測る。`map.bridgeViolations.source` が `"descriptor"`(都市ごとに数えるので、同じ橋が重複しうる)か `"landConnections"` かを示す。上限は開始時代の石造の値(`overPeriodLimit`)と `BRIDGE_SKEW_MAX_DEGREES`(`overMaxLimit`)の2つで数える。
+- `river.widthM` も記述子由来のため、`descriptor` 指定時だけ入る。
+- `distanceToMouthKm` は海へ注ぐ川だけ(河口セルで 0)。
+- `bankSide` は `left|right|both`(都市がセル中心にほぼ重なる時 both)。island は未判定。
+- 初回観察: seed 104(800 セル、riverDensity 5)では estuary を狙った6都市のうち4都市が海港にも河川港にもならなかった。L4 の集計対象。
 
 ## 9. 未決事項
 

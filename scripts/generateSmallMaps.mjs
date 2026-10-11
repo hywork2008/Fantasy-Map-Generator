@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 // Generates Province/Islet-scope maps (docs/plan/map-scope-small-worlds.md) in headless Chromium
 // and saves those that meet --require as .fmg files, e.g. a minimal set for `npm run ce:perf`.
-import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
+import { startDevServer } from "./lib/viteDevServer.mjs";
 
-const root = resolve(import.meta.dirname, "..");
 const REQUIREMENTS = ["burg", "sea-port", "river-port", "river-burg", "river", "road", "province"];
 const usage = `Usage: npm run fmg:small -- <out-dir> [--scope province|islet] [--count 1] [--seed 1,2,3 | --start-seed 1000 --tries 50]
          [--cells 500] [--islet-land 0..6] [--require ${REQUIREMENTS.join(",")}] [--max-burgs N]
@@ -19,43 +17,6 @@ if (args.includes("--help")) {
   process.exit(0);
 }
 const log = message => console.error(`[fmg:small] ${message}`);
-
-function freePort() {
-  return new Promise((resolvePort, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
-      server.close(() => resolvePort(port));
-    });
-  });
-}
-/** Serves the working tree on a private port so a developer's own dev server is untouched. */
-async function startDevServer() {
-  const port = await freePort();
-  const child = spawn(
-    join(root, "node_modules/.bin/vite"),
-    ["--port", String(port), "--strictPort", "--host", "127.0.0.1"],
-    { cwd: root, stdio: ["ignore", "ignore", "pipe"] }
-  );
-  let stderr = "";
-  child.stderr.on("data", chunk => {
-    stderr = (stderr + chunk).slice(-4000);
-  });
-  const url = `http://127.0.0.1:${port}/Fantasy-Map-Generator/`;
-  const deadline = Date.now() + 120000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`vite exited with code ${child.exitCode}\n${stderr}`);
-    try {
-      if ((await fetch(url)).ok) return { url, stop: () => child.kill("SIGTERM") };
-    } catch {
-      /* not listening yet */
-    }
-    await new Promise(r => setTimeout(r, 250));
-  }
-  child.kill("SIGKILL");
-  throw new Error(`vite did not answer ${url}\n${stderr}`);
-}
 
 /** Waits for the generation started by page load, continuing the Build-map review like a user. */
 function waitForMap(page, timeoutMs) {

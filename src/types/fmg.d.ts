@@ -80,6 +80,12 @@ export interface FMGNamespace {
     setOptions(
       update: Partial<import("../debug/riverPortLab/labOptions").RiverPortLabOptions>
     ): import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+    /** Generates one lab map in this page and returns its statistics (no .fmg is saved). */
+    generate(
+      request: import("../debug/riverPortLab/labGenerate").LabGenerateRequest
+    ): ReturnType<typeof import("../debug/riverPortLab/labGenerate").generateLabMap>;
+    /** Statistics records of the map now loaded. */
+    extract: typeof import("../debug/riverPortLab/labSample").extractLabSample;
   };
 }
 

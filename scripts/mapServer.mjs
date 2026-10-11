@@ -6,19 +6,26 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { existsSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { startLabPool } from "./lib/labPool.mjs";
 
 const root = resolve(import.meta.dirname, "..");
-const usage = "Usage: npm run map:server -- <map.fmg> [--port 8787] [--host 127.0.0.1] [--editor-token T] [--read-token T]";
+const usage =
+  "Usage: npm run map:server -- [map.fmg] [--port 8787] [--host 127.0.0.1] [--editor-token T] [--read-token T]\n" +
+  "         [--lab] [--lab-workers 1] [--lab-url http://host/Fantasy-Map-Generator/]   (a map is required without --lab)";
 const args = process.argv.slice(2);
 const flag = name => {
   const at = args.indexOf(`--${name}`);
   return at < 0 ? undefined : args[at + 1];
 };
 const mapPath = args[0] && !args[0].startsWith("--") ? resolve(args[0]) : null;
-if (!mapPath || args.includes("--help")) {
+// River-Port Lab (docs/plan/river-port-lab.md §6): /api/lab/* exists only with --lab.
+const labEnabled = args.includes("--lab");
+if ((!mapPath && !labEnabled) || args.includes("--help")) {
   console.log(usage);
-  process.exit(mapPath ? 0 : 1);
+  process.exit(args.includes("--help") ? 0 : 1);
 }
+const labWorkers = Number(flag("lab-workers") ?? 1);
+if (!Number.isSafeInteger(labWorkers) || labWorkers < 1) throw new Error("--lab-workers must be a positive integer");
 const port = Number(flag("port") ?? process.env.FMG_MAP_PORT ?? 8787);
 const host = flag("host") ?? "127.0.0.1";
 const editorToken = flag("editor-token") ?? process.env.FMG_EDITOR_TOKEN ?? "";
@@ -58,7 +65,7 @@ function startWorker(path) {
 
 async function call(method, ...callArgs) {
   const worker = current;
-  if (!worker) throw Object.assign(new Error("map is still loading"), { status: 503 });
+  if (!worker) throw Object.assign(new Error(mapPath ? "map is still loading" : "no map is served (lab-only server)"), { status: 503 });
   return new Promise((resolveCall, reject) => {
     const id = worker.nextId++;
     worker.pending.set(id, { resolve: resolveCall, reject });
@@ -87,7 +94,7 @@ async function tryReload(path, reason) {
 }
 
 let debounce;
-watch(dirname(mapPath), (_event, name) => {
+if (mapPath) watch(dirname(mapPath), (_event, name) => {
   if (name !== mapPath.split("/").pop()) return;
   clearTimeout(debounce);
   debounce = setTimeout(() => {
@@ -125,14 +132,17 @@ async function handle(request, response) {
   const path = url.pathname.replace(/\/+$/, "");
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, If-Match");
-  response.setHeader("Access-Control-Allow-Methods", "GET, PUT, OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS");
   response.setHeader("Access-Control-Expose-Headers", "ETag");
   if (request.method === "OPTIONS") return response.writeHead(204).end();
-  if (path === "/api/health") return json(response, 200, { ok: true, version, writable: Boolean(editorToken) });
+  if (path === "/api/health")
+    return json(response, 200, { ok: true, version, writable: Boolean(editorToken), lab: labEnabled ? { workers: labWorkers } : null });
   const token = bearer(request);
   const isEditor = Boolean(editorToken) && token === editorToken;
   if (readToken && token !== readToken && !isEditor) return json(response, 401, { error: "unauthorized" });
 
+  if (path.startsWith("/api/lab/") && labEnabled) return handleLab(path, request, response);
+  if (path.startsWith("/api/map") && !mapPath) return json(response, 404, { error: "no map is served (lab-only server)" });
   if (path === "/api/map" && request.method === "GET") {
     response.writeHead(200, { "Content-Type": "application/octet-stream", ETag: version });
     return response.end(readFileSync(mapPath));
@@ -178,10 +188,46 @@ async function handle(request, response) {
   json(response, 404, { error: "not found" });
 }
 
+let labPool = null;
+async function handleLab(path, request, response) {
+  if (path === "/api/lab/generate" && request.method === "POST") {
+    if (!labPool) return json(response, 503, { error: "lab pages are still starting" });
+    let body;
+    try {
+      body = JSON.parse((await readBody(request)).toString("utf8") || "{}");
+    } catch {
+      return json(response, 400, { error: "body must be JSON" });
+    }
+    const { seed, cells, lab, filter, include, timeoutMs } = body;
+    if (seed !== undefined && !/^\d+$/.test(String(seed))) return json(response, 400, { error: "seed must be numeric" });
+    if (include !== undefined && !(Array.isArray(include) && include.every(i => ["descriptor", "fmg"].includes(i))))
+      return json(response, 400, { error: 'include must list "descriptor" and/or "fmg"' });
+    const started = performance.now();
+    const result = await labPool.generate({ seed: seed === undefined ? undefined : String(seed), cells, lab, filter, include, timeoutMs });
+    log(`lab seed=${result.map.seed} burgs=${result.burgs.length}/${result.map.burgCount} ${Math.round(performance.now() - started)}ms`);
+    return json(response, 200, result);
+  }
+  return json(response, 404, { error: "not found" });
+}
+
 createServer((request, response) =>
   handle(request, response).catch(error => json(response, error.status ?? 500, { error: error.message }))
-).listen(port, host, () => log(`http://${host}:${port}  map=${mapPath}  editor=${editorToken ? "token" : "disabled"}`));
-tryReload(mapPath).then(
+).listen(port, host, () =>
+  log(`http://${host}:${port}  map=${mapPath ?? "none"}  lab=${labEnabled ? labWorkers : "off"}  editor=${editorToken ? "token" : "disabled"}`)
+);
+if (labEnabled)
+  startLabPool({ workers: labWorkers, url: flag("lab-url"), log }).then(
+    pool => {
+      labPool = pool;
+      for (const signal of ["SIGINT", "SIGTERM"])
+        process.once(signal, () => pool.close().finally(() => process.exit(0)));
+    },
+    error => {
+      log(`cannot start lab pages: ${error.message.split("\n")[0]}`);
+      process.exit(1);
+    }
+  );
+if (mapPath) tryReload(mapPath).then(
   worker => {
     version = hashFile(mapPath);
     adopt(worker, "startup");
