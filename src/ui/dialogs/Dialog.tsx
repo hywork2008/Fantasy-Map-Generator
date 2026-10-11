@@ -16,6 +16,8 @@ export interface DialogProps {
   showCloseAllDialogsButton?: boolean;
   /** Keep the titlebar at its opening position when the dialog content changes height. */
   anchorTitlebarOnOpen?: boolean;
+  /** Preserve embedded previews and component state while minimized. */
+  keepContentMountedOnMinimize?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -28,6 +30,7 @@ export const Dialog: React.FC<DialogProps> = ({
   buttons,
   showCloseAllDialogsButton = true,
   anchorTitlebarOnOpen = false,
+  keepContentMountedOnMinimize = false,
   className = "",
   style
 }) => {
@@ -134,11 +137,13 @@ export const Dialog: React.FC<DialogProps> = ({
           )}
         </div>
       </div>
-      {!minimized && (
+      {(!minimized || keepContentMountedOnMinimize) && (
         <>
-          <div className="fmg-dialog-content">{children}</div>
+          <div className="fmg-dialog-content" style={minimized ? { display: "none" } : undefined}>
+            {children}
+          </div>
           {buttons && buttons.length > 0 && (
-            <div className="fmg-dialog-buttonpane">
+            <div className="fmg-dialog-buttonpane" style={minimized ? { display: "none" } : undefined}>
               {buttons.map(btn => (
                 <button
                   type="button"
@@ -152,7 +157,12 @@ export const Dialog: React.FC<DialogProps> = ({
               ))}
             </div>
           )}
-          <div className="fmg-dialog-resize" ref={resizeHandleRef} aria-hidden="true" />
+          <div
+            className="fmg-dialog-resize"
+            ref={resizeHandleRef}
+            aria-hidden="true"
+            style={minimized ? { display: "none" } : undefined}
+          />
         </>
       )}
     </div>

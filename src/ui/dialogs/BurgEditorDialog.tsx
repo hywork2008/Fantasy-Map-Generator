@@ -112,6 +112,7 @@ export const BurgEditorDialog: React.FC = () => {
       title={t("dialogs.titles.editBurg")}
       onClose={() => closeDialog("burgEditor")}
       anchorTitlebarOnOpen
+      keepContentMountedOnMinimize
       className="fmg-dialog--burg-editor"
     >
       <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />
