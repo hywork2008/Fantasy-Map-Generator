@@ -1,9 +1,10 @@
 import type React from "react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { connectToDropbox, loadURL } from "../../controllers/options";
 import { importGenerationOptionsFromFile } from "../../io/exportGenerationOptions";
 import { createSharableDropboxLink, loadFromDropbox, quickLoad, uploadMap } from "../../io/load";
+import { fetchMapFromServer, probeMapServer } from "../../io/mapServer";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useGenerationProgressState } from "../../store/generationProgressState";
@@ -28,6 +29,11 @@ export const LoadMapDialog: React.FC = () => {
   const generationOptionsInputRef = useRef<HTMLInputElement>(null);
   const isGenerating = useGenerationProgressState(state => state.isGenerating);
 
+  const [serverAvailable, setServerAvailable] = useState(false);
+  useEffect(() => {
+    void probeMapServer().then(status => setServerAvailable(status !== null));
+  }, []);
+
   const hasDropboxFiles = dropboxFiles.length > 0;
   const showDropboxSelect = isDropboxConnected;
   const showDropboxButtons = isDropboxConnected && hasDropboxFiles;
@@ -38,6 +44,16 @@ export const LoadMapDialog: React.FC = () => {
     e.currentTarget.value = "";
     closeDialogs();
     uploadMap(fileToLoad);
+  };
+
+  const handleLoadFromServer = () => {
+    fetchMapFromServer().then(
+      blob => {
+        closeDialogs();
+        uploadMap(blob);
+      },
+      (error: Error) => tip(error.message, true, "error", 8000)
+    );
   };
 
   const handleLoadFromMachine = () => {
@@ -91,6 +107,14 @@ export const LoadMapDialog: React.FC = () => {
         <button type="button" data-tip={t("dialogs.load.storageTip")} onClick={() => quickLoad()}>
           {t("dialogs.load.storage")}
         </button>
+        {serverAvailable && (
+          <>
+            {" "}
+            <button type="button" data-tip={t("dialogs.load.serverTip")} onClick={handleLoadFromServer}>
+              {t("dialogs.load.server")}
+            </button>
+          </>
+        )}
       </div>
 
       <p>

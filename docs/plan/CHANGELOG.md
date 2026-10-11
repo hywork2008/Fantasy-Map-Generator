@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-10-11
+
+- docs/plan/map-server.md
+
 2026-09-15
 
 - docs/city-editor/random-generation.md

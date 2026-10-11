@@ -1,5 +1,7 @@
 import type React from "react";
+import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { probeMapServer } from "../../io/mapServer";
 import { saveMap } from "../../io/save";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
@@ -8,6 +10,12 @@ export const SaveMapDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("saveMapData"));
   const closeDialog = useDialogState(state => state.closeDialog);
+  const [serverWritable, setServerWritable] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void probeMapServer().then(status => setServerWritable(Boolean(status?.writable)));
+  }, [isOpen]);
 
   return (
     <Dialog
@@ -27,6 +35,11 @@ export const SaveMapDialog: React.FC = () => {
         <button type="button" data-tip={t("dialogs.save.browserTip")} onClick={() => saveMap("storage")}>
           {t("dialogs.save.browser")}
         </button>
+        {serverWritable && (
+          <button type="button" data-tip={t("dialogs.save.serverTip")} onClick={() => saveMap("server")}>
+            {t("dialogs.save.server")}
+          </button>
+        )}
       </div>
       <p>
         <Trans i18nKey="dialogs.save.note" />

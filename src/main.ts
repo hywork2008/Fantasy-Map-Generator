@@ -88,6 +88,7 @@ import { assignWildLandTags } from "./generators/wildLandTags";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
+import { probeMapServer, watchMapServer } from "./io/mapServer";
 import { initiateAutosave } from "./io/save";
 import { getBurgGroupMinZoom } from "./renderers/burgZoom";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
@@ -425,6 +426,18 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
   }
   EditorBus.restoreDefaultEvents?.();
   initiateAutosave();
+  // Shared map server (optional): tell this tab when the editor replaces the server map.
+  void probeMapServer().then(status => {
+    if (status)
+      watchMapServer(() =>
+        tip(
+          "The shared map was updated on the server. Use Load > Map server to refresh.",
+          true,
+          "warning" as never,
+          15000
+        )
+      );
+  });
   initTourPromptButton();
   document.addEventListener("fmg:regenerate-map", (e: Event) => {
     regenerateMap((e as CustomEvent<{ seed?: string } | undefined>).detail);

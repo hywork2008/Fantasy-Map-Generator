@@ -18,6 +18,7 @@ import { VERSION } from "../versioning";
 import { Cloud } from "./cloud";
 import { getUsedFonts } from "./export";
 import { ldb } from "./ldb";
+import { saveMapToServer } from "./mapServer";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
 
@@ -362,6 +363,14 @@ export function saveToMachine(archive: Blob, filename: string): void {
   revokeObjectURL(URL, 5000);
 }
 
+async function saveToMapServer(archive: Blob): Promise<void> {
+  const result = await saveMapToServer(archive);
+  if (result.ok) return tip("Map is saved to the map server", true, "success", 8000);
+  if (result.status === 409)
+    return tip("The server map was changed by someone else. Load it again before saving.", true, "error", 10000);
+  throw new Error(result.message);
+}
+
 async function saveToDropbox(archive: Blob, filename: string): Promise<void> {
   await Cloud.providers.dropbox.save(filename, archive);
   tip("Map is saved to your Dropbox", true, "success", 8000);
@@ -383,6 +392,7 @@ export async function saveMap(method: string): Promise<void> {
     if (method === "storage") await saveToStorage(archive, true);
     if (method === "machine") saveToMachine(archive, filename);
     if (method === "dropbox") await saveToDropbox(archive, filename);
+    if (method === "server") await saveToMapServer(archive);
   } catch (error) {
     ERROR && console.error(error);
     openConfirm(

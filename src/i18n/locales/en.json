@@ -2742,6 +2742,8 @@
       "dropboxTip": "Save map file to your Dropbox",
       "browser": "browser",
       "browserTip": "Save the project to browser storage only",
+      "server": "Map server",
+      "serverTip": "Save the map to the shared map server (replaces the server copy)",
       "note": "Maps are saved in <i>.map</i> format, that can be loaded back via the <i>Load</i> in menu. There is no way to restore the progress if file is lost. Please keep old save files on your machine or cloud storage as backups."
     },
     "load": {
@@ -2752,6 +2754,8 @@
       "urlTip": "Load map file (.map or .gz) file from URL. Note that the server should allow CORS",
       "storage": "storage",
       "storageTip": "Load map from browser storage (if saved before)",
+      "server": "Map server",
+      "serverTip": "Load the map currently held by the shared map server",
       "storageHint": "Click on <i>storage</i> to open the last saved map.",
       "dropboxIntro": "Or load from your Dropbox account",
       "connectTip": "Connect your Dropbox account to be able to load maps from it",
