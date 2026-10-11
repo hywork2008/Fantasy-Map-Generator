@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../i18n";
 import type { RegionalContext } from "../../types/cityRegional";
 import {
   decodeShare,
@@ -16,6 +17,10 @@ import { synthSite } from "./gen/site/synthSite";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import { DocumentHistory } from "./history";
 import { attachSceneRegions } from "./sceneRegions";
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));
 
 const region: RegionalContext = {
   version: 1,

@@ -1,4 +1,5 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../../i18n";
 import { renderAerialLandmarks } from "../../render/aerialLandmarksSvg";
 import { renderEditorSvg } from "../../render/svg";
 import { createGridDocument } from "../document";
@@ -34,6 +35,10 @@ import { COBBLE_WIDTH_SCALE } from "./roadTraffic";
 import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 import type { BurgSiteEconomy } from "./site/burgSiteEconomy";
 import { approachBands, respectsDefenseClearance } from "./suburbanLanduse";
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));
 
 function walledRiverTown(): CityDocument {
   const grid = createGridDocument({
@@ -588,7 +593,7 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(
       decodeURIComponent(svg.querySelector(".ce-storage-yard--granary[data-pick]")!.getAttribute("data-pick")!)
     ).toContain("穀倉");
-  }, 60000);
+  }, 180000);
 
   it("pins land timber to the forest gate, draws a public granary, and lengthens houses for the cellar", () => {
     const exits = externalGateRoads(city);

@@ -87,10 +87,12 @@ describe("surveyed water at the city frame", () => {
         true
       )
     ).toThrow("coverage");
-    doc.importedFixedCrossings!.roadWidthMeters = -1;
+    // The fixed payload is validated once per object (copy-on-write), so an invalid survey is a new payload.
+    const invalid = dryDocument();
+    invalid.importedFixedCrossings = { ...invalid.importedFixedCrossings!, roadWidthMeters: -1 };
     expect(() =>
       lineHitsDocumentWater(
-        doc,
+        invalid,
         [
           [0, 0],
           [90, 0]

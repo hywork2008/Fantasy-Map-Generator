@@ -14,7 +14,10 @@ import type { BurgData } from "../../store/burgEditorState";
 import { BurgCityPreview } from "./BurgCityPreview";
 
 const mocks = vi.hoisted(() => ({ requests: [] as GenerationRequest[] }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock("react-i18next", async importOriginal => ({
+  ...(await importOriginal<typeof import("react-i18next")>()),
+  useTranslation: () => ({ t: (key: string) => key })
+}));
 vi.mock("../../controllers/burg-editor", () => ({ burgEditorActions: { openCityEditor: vi.fn() } }));
 vi.mock("./CityPreviewViewport", () => ({
   CityPreviewViewport: ({ url }: { url: string }) => <img src={url} alt="preview" />

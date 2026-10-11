@@ -722,7 +722,14 @@ describe("CE fixed physical crossing handoff", () => {
         [-32, 38]
       ])
     ).toBe(false);
-    doc.importedFixedCrossings.crossings[0].geometryVersion++;
+    // The fixed payload is validated once per object (copy-on-write), so a corrupted survey is a new payload.
+    const fixed = doc.importedFixedCrossings;
+    doc.importedFixedCrossings = {
+      ...fixed,
+      crossings: fixed.crossings.map((crossing, index) =>
+        index === 0 ? { ...crossing, geometryVersion: crossing.geometryVersion + 1 } : crossing
+      )
+    };
     expect(() => polygonHitsDocumentWater(doc, touching)).toThrow("Invalid fixed water");
   });
   it("rejects whole-width roads and terminal caps without splitting a crossing into dry stubs", () => {

@@ -40,7 +40,10 @@ export interface FerryPlan {
   farTow: [Point, Point];
 }
 
-const plans = new WeakMap<RiverConnection, { document: CityDocument; plan: FerryPlan | null }>();
+const plans = new WeakMap<
+  RiverConnection,
+  { document: CityDocument; flows: CityDocument["riverFlows"]; plan: FerryPlan | null }
+>();
 
 const isBridge = (connection: RiverConnection) =>
   connection.crossing.kind === "fixedBridge" || connection.crossing.kind === "movableBridge";
@@ -49,9 +52,9 @@ const isBridge = (connection: RiverConnection) =>
  * with no known flow. */
 export function ferryPlan(document: CityDocument, connection: RiverConnection): FerryPlan | null {
   const cached = plans.get(connection);
-  if (cached?.document === document) return cached.plan;
+  if (cached?.document === document && cached.flows === document.riverFlows) return cached.plan;
   const plan = isBridge(connection) ? null : planFerry(document, connection);
-  plans.set(connection, { document, plan });
+  plans.set(connection, { document, flows: document.riverFlows, plan });
   return plan;
 }
 

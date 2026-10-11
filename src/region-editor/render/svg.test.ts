@@ -85,6 +85,7 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
       ]
     };
     doc.routes = [highway, road, trail];
+    doc.decoration.routeWidthScale = 1;
 
     const svg = renderRegionSvg(doc);
 
@@ -142,6 +143,9 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
   describe("Forest Canopy Rendering & Clearings", () => {
     it("森林バイオームが存在する場合、一体化した茂み・陰影フィルター・クリアリングマスクが描画されること", () => {
       const doc = createEmptyRegionDocument(DEFAULT_REGION_SETTINGS);
+      // 立ち木スプライトの "illustrated" ではなく、タイル/樹冠描画のテーマで検証する
+      doc.decoration.theme = "schley";
+      doc.decoration.routeWidthScale = 1;
       // 森林セルを追加
       doc.biomes = [
         {

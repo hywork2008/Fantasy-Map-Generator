@@ -710,11 +710,16 @@ export function generateCityOnDocument(
   };
   // Debug previews stop at the first rejection, keeping the requested seed.
   let attemptSettings = settings;
+  // Imported rivers drawn only as surveyed water (fixed banks or wide channels) keep FMG's flow
+  // direction. It must be on the document while the fabric is built: ferry landings, mills and
+  // yards read it, and a ferry plan made without it would be cached as "no flow".
+  const importedFlows = settings.descriptor?.rivers?.length ? riverFlowsFromDescriptor(settings.descriptor) : [];
+  const attemptDocument = importedFlows.length ? { ...document, riverFlows: importedFlows } : document;
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
     const failed = failures.length;
     const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
-      generateCityAttempt(document, attemptSettings, attemptSeed, observe, attempt + 1, onRejected, profiler)
+      generateCityAttempt(attemptDocument, attemptSettings, attemptSeed, observe, attempt + 1, onRejected, profiler)
     );
     if (result) {
       result.historicalPeriod =
@@ -743,11 +748,10 @@ export function generateCityOnDocument(
           input
         };
       }
-      // Once per finished city: the fabric and renderer only read the stored flows.
-      // Imported rivers drawn only as surveyed water (fixed banks or wide channels).
-      if (settings.descriptor?.rivers?.length && !result.featureGroups.some(g => g.kind === "river")) {
-        const flows = riverFlowsFromDescriptor(settings.descriptor);
-        if (flows.length) result.riverFlows = flows;
+      // Editable river groups carry their own direction.
+      if (importedFlows.length) {
+        if (result.featureGroups.some(g => g.kind === "river")) delete result.riverFlows;
+        else result.riverFlows = importedFlows;
       }
       if (settings.descriptor?.regionalContext)
         measureProcessing(profiler, "scene-regions", () =>

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../../i18n";
 import { renderEditorSvg } from "../../render/svg";
 import { createGridDocument, parseDocument } from "../document";
 import { defaultGenerationSettings, generateCityOnDocument } from "../generate";
@@ -12,6 +13,10 @@ import {
   tagExternalGateRoads
 } from "./approachBeyond";
 import type { BurgSiteDescriptor } from "./site/burgSiteDescriptor";
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));
 
 describe("approach beyond", () => {
   it("assigns structured realm and settlement dimensions to each outer-gate road", () => {

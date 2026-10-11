@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../../i18n";
 import { renderEditorSvg } from "../../render/svg";
 import { createDocument } from "../document";
 import { polygonOverlaps } from "../fortifications";
@@ -247,6 +248,11 @@ describe("watermillFabric", () => {
   });
 
   describe("renderEditorSvg with watermills", () => {
+    const originalLanguage = i18n.language;
+
+    beforeAll(() => i18n.changeLanguage("ja"));
+
+    afterAll(() => i18n.changeLanguage(originalLanguage));
     it("renders millhouses, waterwheels, and weirs in town SVG view", () => {
       const doc = createRiverDocument(800);
       doc.appearance = "town";

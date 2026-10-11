@@ -70,11 +70,13 @@ it("keeps the shared small bay temple clear of finished roads and park plots", (
   }
 });
 
+// The river endpoint now stops at the first shoreline contact (534f3d5de), which left the former seed
+// pair with no wall-river routing; this pair keeps the three coast variants routable.
 function capeMicroCity(coast: "auto" | "open" | "seaWall" | "opening"): CityDocument | null {
   const input = createGridDocument({
     size: "micro",
     grid: "evolution",
-    seed: "fotmhy",
+    seed: "f6",
     patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
   });
   const settings = defaultGenerationSettings();
@@ -93,7 +95,7 @@ function capeMicroCity(coast: "auto" | "open" | "seaWall" | "opening"): CityDocu
   settings.config.wall = { envelope: "auto", coast, line: "auto" };
   settings.config.layout = "auto";
   settings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
-  return generateCityOnDocument(input, settings, "1vt05rm");
+  return generateCityOnDocument(input, settings, "x1");
 }
 
 /** Length of buildable sea-front edges that are not part of a wall group. */
