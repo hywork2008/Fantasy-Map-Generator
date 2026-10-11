@@ -222,10 +222,6 @@ function provinceHighlightOn(province: number): void {
 }
 
 function provinceHighlightOff(province: number | null): void {
-  if (!layerIsOn("toggleProvinces") || !province) {
-    ProvincesRenderer.clearHighlight(viewContext);
-    return;
-  }
   ProvincesRenderer.highlightProvinceOff(viewContext, province);
   ProvincesRenderer.clearHighlight(viewContext);
 }

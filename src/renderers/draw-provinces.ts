@@ -1,3 +1,4 @@
+import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { FocusFields, PoliticalLayers, RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -52,21 +53,21 @@ export const ProvincesRenderer = {
   },
 
   highlightProvinceOn(viewContext: Readonly<PoliticalLayers>, provinceId: number): void {
-    import("d3").then(d3 => {
-      const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
-      viewContext.provs
-        .select(`#province${provinceId}`)
-        .raise()
-        .transition(animate)
-        .attr("stroke-width", 2.5)
-        .attr("stroke", "#d0240f");
-    });
+    ProvincesRenderer.highlightProvinceOff(viewContext, null);
+    const animate = transition().duration(2000).ease(easeSinIn);
+    viewContext.provs
+      .select(`#province${provinceId}`)
+      .raise()
+      .transition(animate)
+      .attr("stroke-width", 2.5)
+      .attr("stroke", "#d0240f");
   },
 
-  highlightProvinceOff(viewContext: Readonly<PoliticalLayers>, provinceId: number): void {
-    import("d3").then(_d3 => {
-      viewContext.provs.select(`#province${provinceId}`).transition().attr("stroke-width", null).attr("stroke", null);
-    });
+  highlightProvinceOff(viewContext: Readonly<PoliticalLayers>, provinceId: number | null): void {
+    const provinces = provinceId
+      ? viewContext.provs.selectAll(`#province${provinceId}`)
+      : viewContext.provs.selectAll("#provincesBody > path[id^='province']:not([id^='province-gap'])");
+    provinces.interrupt().attr("stroke-width", null).attr("stroke", null);
   },
 
   clearHighlight(viewContext: Readonly<RootLayers>): void {
