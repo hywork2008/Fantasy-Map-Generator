@@ -47,7 +47,7 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
 
 export function siteToGeography(site: BurgSiteDescriptor, imported = false): CityGeography {
   assertRegionalCoverage(site);
-  site = withWideRiverOffCore(withRiverPortFallback(site));
+  site = withWideRiverOffCore(site);
   const coast = extractCoast(site);
   // A wide river is not a second ocean. Promoting it to a coast half-plane
   // floods the far countryside and, at an estuary, can swallow the burg.
@@ -125,102 +125,12 @@ export function siteToGeography(site: BurgSiteDescriptor, imported = false): Cit
   };
 }
 
-/** Port topology survives FMG window clipping. Reconstruct only an unavailable
- * river frontage; a sea/lake anchor alone is not evidence of a river port. */
+/** Port topology survives FMG window clipping. */
 function hasSurveyedCourse(river: SiteRiver | undefined): boolean {
   if (!river) return false;
   return [...river.segments.map(segment => segment.points), ...river.leftBankSegments, ...river.rightBankSegments].some(
     line => line.length >= 2
   );
-}
-
-function withRiverPortFallback(site: BurgSiteDescriptor): BurgSiteDescriptor {
-  // Canonical source water is authoritative, including an off-centre shoreline.
-  if (site.fixedCrossings || site.burg.riverSiteStatus) return site;
-  const access = site.burg.waterAccess;
-  if (!site.burg.port || !access?.port.river) return site;
-  const id = access.riverId ?? site.burg.riverPlacement?.riverId;
-  if (id == null) return site;
-  const existing = site.rivers.find(r => r.riverId === id);
-  // A course outside the population window stays on its surveyed bank. A course
-  // inside that window still uses the old repair: origin in the channel, or no
-  // bank inside the city radius, is relocated. Metadata-only ports do too.
-  if (existing?.frontage === "beyond-budget") return site;
-  if (existing && surveyedOutsideTownWindow(site, existing)) return site;
-  const radius = site.frame.cityRadiusMeters;
-  const bankLines = [...(existing?.leftBankSegments ?? []), ...(existing?.rightBankSegments ?? [])];
-  const hasLocalBank = bankLines.some(line => line.length >= 2 && nearestOnPolyline([0, 0], line).dist < radius);
-  const hasLocalLine = existing?.segments.some(
-    segment =>
-      segment.points.length >= 2 &&
-      nearestOnPolyline([0, 0], segment.points).dist - drawnWidthMeters(existing) / 2 < radius
-  );
-  const originInChannel = existing?.segments.some(
-    segment =>
-      segment.points.length >= 2 && nearestOnPolyline([0, 0], segment.points).dist < drawnWidthMeters(existing) / 2
-  );
-  if ((hasLocalBank || hasLocalLine) && existing && !originInChannel) {
-    return { ...site, rivers: site.rivers.map(r => (r === existing ? { ...r, throughBurgCell: true } : r)) };
-  }
-  const width = Math.max(8, existing ? drawnWidthMeters(existing) : (site.burg.riverPlacement?.widthMeters ?? 30));
-  const bank = existing?.cityBank ?? site.burg.riverPlacement?.bank ?? "left";
-  // Metadata-only surveys have no local course to preserve. Retain the
-  // established fallback orientation while consuming their hydrology.
-  const axis = existing?.segments.some(s => s.points.length >= 2) ? existing.axisAzimuthDeg : 90;
-  const tangent = azimuthToVec(axis);
-  const sign = bank === "left" ? 1 : -1;
-  const offset = width / 2 + radius * (originInChannel ? 0.9 : 0.45);
-  const center: Point = [tangent[1] * sign * offset, -tangent[0] * sign * offset];
-  const reach = site.frame.extentMeters * 2;
-  const surveyed = existing ? centerlineOf(existing) : [];
-  const curved =
-    surveyed.length > 2 &&
-    surveyed.some(p => {
-      const a = surveyed[0],
-        b = surveyed.at(-1)!;
-      return Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) > 1;
-    });
-  const anchor = curved ? nearestOnPolyline([0, 0], surveyed).point : null;
-  const shift: Point = anchor ? [center[0] - anchor[0], center[1] - anchor[1]] : [0, 0];
-  // Preserve surveyed bends when relocating a clipped frontage. A sparse or
-  // missing survey needs a gentle local bend, not a ruler-straight canal.
-  // Bound curvature so kilometre-wide offset banks cannot fold over themselves.
-  const amplitude = Math.min(radius * 0.15, (site.frame.extentMeters ** 2 * 0.3) / (4 * Math.PI ** 2 * width));
-  const points: Point[] = curved
-    ? surveyed.map(p => [p[0] + shift[0], p[1] + shift[1]])
-    : Array.from({ length: 49 }, (_, i) => {
-        const d = -reach + (2 * reach * i) / 48;
-        const bend = amplitude * (1 - Math.cos((2 * Math.PI * d) / site.frame.extentMeters));
-        return [
-          center[0] + tangent[0] * d + tangent[1] * sign * bend,
-          center[1] + tangent[1] * d - tangent[0] * sign * bend
-        ];
-      });
-  const river: SiteRiver = {
-    ...existing,
-    riverId: id,
-    name: existing?.name ?? "River",
-    type: existing?.type ?? "River",
-    widthMeters: width,
-    axisAzimuthDeg: axis,
-    offsetMeters: offset,
-    offsetRatio: offset / radius,
-    rawOffsetMeters: offset,
-    cityBank: bank,
-    crossesSite: offset < radius,
-    throughBurgCell: true,
-    snappedToBank: false,
-    segments: [{ points, widthsMeters: points.map(() => width) }],
-    leftBankSegments: curved
-      ? (existing?.leftBankSegments ?? []).map(line => line.map(p => [p[0] + shift[0], p[1] + shift[1]]))
-      : [],
-    rightBankSegments: curved
-      ? (existing?.rightBankSegments ?? []).map(line => line.map(p => [p[0] + shift[0], p[1] + shift[1]]))
-      : [],
-    parentRiverId: existing?.parentRiverId ?? null,
-    downstream: existing?.downstream ?? { terminal: "unknown", distanceMeters: 0, bearingDeg: 90 }
-  };
-  return { ...site, rivers: [...site.rivers.filter(r => r.riverId !== id), river] };
 }
 
 /** A river at least as wide as the town radius cannot run through the core:
@@ -341,7 +251,7 @@ export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
  */
 export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgram, "wallPlan">): WallPlan {
   assertRegionalCoverage(site);
-  site = withWideRiverOffCore(withRiverPortFallback(site));
+  site = withWideRiverOffCore(site);
   const plan: WallPlan = { ...DEFAULT_WALL_PLAN, extent: program.walls ? "full" : "none" };
   const hasCoast = site.waterbody !== null || site.rivers.some(r => unbridgeableOnSite(site, r));
   const hasRiver = site.rivers.some(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
@@ -395,32 +305,17 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
     // Further runs of the same coast cross the frame away from the town (a
     // cape over a corner). Only their FMG water side places them; a run with
     // no recorded side stays unknown rather than guessed.
-    let extraShores = runs.slice(1).flatMap(({ line, side }) => {
+    const extraShores = runs.slice(1).flatMap(({ line, side }) => {
       if (!side) return [];
       const wet = waterSideWitness(line, side);
       return wet ? [{ line: line.map(p => [p[0], p[1]] as Point), wet }] : [];
     });
     const shore = keepImportedLandDry(site, longest, azimuthToVec(waterAzimuthDeg));
-    let corridor = downsample(shore, CORRIDOR_POINTS);
-    let regionalShore: Point[] = shore.map(p => [p[0], p[1]]);
-    // FMG's kilometre-scale coast can sit beyond a port's entire city disk.
-    // Bring that shore to the town while retaining its shape and bearing;
-    // an inland burg must keep its real distance from the water.
-    // A wide navigable channel already supplies the waterfront. Moving the
-    // ocean across that channel would flood the river port's remaining land.
-    if (pullsCoastToTown(site)) {
-      const hit = nearestOnPolyline([0, 0], corridor);
-      const radius = site.frame.cityRadiusMeters;
-      if (radius > 0 && hit.dist > radius) {
-        const shift = coastPullMeters(site, corridor, hit.point, hit.dist - radius * 0.6);
-        const ux = hit.point[0] / hit.dist,
-          uy = hit.point[1] / hit.dist;
-        corridor = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
-        regionalShore = regionalShore.map(p => [p[0] - ux * shift, p[1] - uy * shift]);
-        const move = (p: Point): Point => [p[0] - ux * shift, p[1] - uy * shift];
-        extraShores = extraShores.map(extra => ({ line: extra.line.map(move), wet: move(extra.wet) }));
-      }
-    }
+    const corridor = downsample(shore, CORRIDOR_POINTS);
+    const regionalShore: Point[] = shore.map(p => [p[0], p[1]]);
+    // FMG settles every port within its waterfront gap of this shore
+    // (waterfrontSettlement.ts); a shore beyond the town is reported there,
+    // never pulled here.
     return {
       corridor,
       waterAzimuthDeg,
@@ -428,20 +323,9 @@ function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {
       ...(extraShores.length ? { regionalExtraShores: extraShores } : {})
     };
   }
-  // A river/estuary port can have a sea haven on the coarse FMG cell while
-  // the actual sea shore is outside this city window. Its local river bank is
-  // the frontage; inventing an ocean here can submerge real imported roads.
-  if (site.burg.waterAccess?.port.river && site.rivers.some(r => r.riverId === site.burg.waterAccess?.riverId))
-    return null;
-  // A port burg whose shoreline polyline fell outside the window (real FMG
-  // descriptors do this when the coast is just past the extent): lay a straight
-  // rough coast across the window, set back toward the water off the town. The
-  // graph walk jaggedises it, same path as a synth "straight" coast — better a
-  // placed coast than a silently-landlocked harbour.
-  return {
-    corridor: syntheticShoreCorridor(waterAzimuthDeg, site.frame.extentMeters, site.frame.cityRadiusMeters),
-    waterAzimuthDeg
-  };
+  // No surveyed shore in the window: FMG's waterfront check reports the port;
+  // City Editor does not invent a coast.
+  return null;
 }
 
 /** A point just off the longest segment of `line`, on its `side` of travel. */
@@ -535,50 +419,6 @@ function keepImportedLandDry(site: BurgSiteDescriptor, line: Point[], toWater: P
   return simplifyPolyline(shore, 2);
 }
 
-/**
- * How far the coast may be pulled toward the town (up to `wanted`). FMG's bridges
- * and roads are fixed: a pulled coast that ran over them would put the bridge on
- * the sea (Ventiarisio), so stop short of every fixed crossing and imported road.
- */
-function coastPullMeters(site: BurgSiteDescriptor, corridor: Point[], toCoast: Point, wanted: number): number {
-  const length = Math.hypot(toCoast[0], toCoast[1]);
-  const ux = toCoast[0] / length,
-    uy = toCoast[1] / length;
-  const protectedPoints = importedLandPoints(site);
-  if (!protectedPoints.length) return wanted;
-  const dry = (shift: number) => {
-    const shifted = corridor.map(p => [p[0] - ux * shift, p[1] - uy * shift] as Point);
-    return protectedPoints.every(p => {
-      const near = nearestOnPolyline(p, shifted);
-      const landward = (p[0] - near.point[0]) * ux + (p[1] - near.point[1]) * uy < 0;
-      return landward && near.dist >= PULLED_COAST_CLEARANCE_METERS;
-    });
-  };
-  if (dry(wanted)) return wanted;
-  if (!dry(0)) return 0;
-  let lo = 0,
-    hi = wanted;
-  for (let i = 0; i < 20; i++) {
-    const mid = (lo + hi) / 2;
-    if (dry(mid)) lo = mid;
-    else hi = mid;
-  }
-  return lo;
-}
-
-function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number, cityRadiusMeters: number): Point[] {
-  const half = extentMeters / 2;
-  const toWater = azimuthToVec(waterAzimuthDeg);
-  const along: Point = [-toWater[1], toWater[0]];
-  const standoff = Math.min(half * 0.33, cityRadiusMeters * 0.6);
-  const mid: Point = [toWater[0] * standoff, toWater[1] * standoff];
-  const reach = half * 1.4; // overshoot the window so edge cells still project onto it
-  return [
-    [mid[0] - along[0] * reach, mid[1] - along[1] * reach],
-    [mid[0] + along[0] * reach, mid[1] + along[1] * reach]
-  ];
-}
-
 type SiteRiver = BurgSiteDescriptor["rivers"][number];
 
 function bridgeCrossingMeters(site: BurgSiteDescriptor): number {
@@ -596,12 +436,6 @@ function drawnWidthMeters(river: SiteRiver): number {
 }
 
 /** A channel the town's era cannot span, passing through the burg or the city disk. */
-/** A sea port whose FMG shore lies beyond the town has that shore brought to it;
- * a wide navigable channel blocks this (the ocean would flood the river port). */
-export function pullsCoastToTown(site: BurgSiteDescriptor): boolean {
-  return !!site.burg.port && !!site.waterbody?.isPort && !site.rivers.some(r => unbridgeableOnSite(site, r));
-}
-
 function unbridgeableOnSite(site: BurgSiteDescriptor, river: SiteRiver): boolean {
   return drawnWidthMeters(river) > bridgeCrossingMeters(site) && (river.throughBurgCell || river.crossesSite);
 }

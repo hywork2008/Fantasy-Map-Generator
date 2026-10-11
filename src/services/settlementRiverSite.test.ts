@@ -33,6 +33,23 @@ function fixture() {
 }
 
 describe("physical settlement bank reservation", () => {
+  it("slides along a bank edge to an admitted site that the nearest-point candidate misses", () => {
+    const input = fixture();
+    // Only centres at y >= 140 are admitted (e.g. within reach of a coast); the
+    // bank point nearest the origin projects to y = 0.
+    const admits = (p: readonly number[]) => p[1] >= 140;
+    const nearestOnly = findRiverSettlementSite({ ...input, maxMoveMeters: 300, admits });
+    const along = findRiverSettlementSite({ ...input, maxMoveMeters: 300, admits, alongStepMeters: 20 });
+    expect("site" in along).toBe(true);
+    if (!("site" in along)) return;
+    expect(along.site.point[1]).toBeGreaterThanOrEqual(140);
+    expect(along.site.point[0]).toBe(150);
+    expect(footprintTouchesWater(along.site.footprint, input.geometry.water)).toBe(false);
+    // Unadmitted centres never consume the candidate budget.
+    const tight = findRiverSettlementSite({ ...input, admits, alongStepMeters: 20, maxCandidates: 1 });
+    expect("site" in tight).toBe(true);
+    if ("site" in nearestOnly) expect(nearestOnly.site.point[1]).toBeGreaterThanOrEqual(140);
+  });
   it("reserves a complete dry urban footprint and dry water access on the existing bank", () => {
     const input = fixture();
     const result = findRiverSettlementSite(input);

@@ -7,6 +7,9 @@ import { pointInWater, segmentsTouch } from "./riverPhysicalGeometry";
 
 type Point = readonly [number, number];
 
+/** Spatial bucket for the river-mouth search; a mouth farther than this from the coast is not one. */
+const MOUTH_BUCKET_METERS = 500;
+
 /** Use topology, not a previously clipped CE window or a downstream ocean id. */
 export function dualPortHaven(world: Readonly<WorldContext>, burg: Readonly<Burg>): number | null {
   const { cells, features } = world.pack;
@@ -60,11 +63,48 @@ export function dualPortShore(
     maxY: center[1] + reach
   }).map(p => [p[0] * scale, p[1] * scale] as Point);
   if (ring.length < 3) return null;
-  // The town reservation must fit inland; allow a short frontage beyond it.
-  const maxDistance = radius + 2 * PORT_SHORE_INLAND_METERS;
+  // The town reservation must fit inland; allow a short quay strip beyond it,
+  // the same waterfront gap the port check accepts (waterfrontSettlement.ts).
+  const maxDistance = radius + PORT_SHORE_INLAND_METERS;
   return {
     ring,
     origin: nearest([center[0] * scale, center[1] * scale], ring).point,
+    /** Where the river meets this coast: its water vertex nearest the drawn
+     * shore. A coarse cell's nearest coast point can lie kilometres from the
+     * mouth, leaving the joint river/coast site outside the candidate budget. */
+    mouth(rings: readonly (readonly Point[])[]): Point | null {
+      const size = MOUTH_BUCKET_METERS;
+      const buckets = new Map<string, number[]>();
+      for (let i = 0; i < ring.length; i++) {
+        const a = ring[i],
+          b = ring[(i + 1) % ring.length];
+        const x0 = Math.floor(Math.min(a[0], b[0]) / size),
+          x1 = Math.floor(Math.max(a[0], b[0]) / size);
+        const y0 = Math.floor(Math.min(a[1], b[1]) / size),
+          y1 = Math.floor(Math.max(a[1], b[1]) / size);
+        for (let x = x0; x <= x1; x++)
+          for (let y = y0; y <= y1; y++) {
+            const key = `${x},${y}`;
+            const list = buckets.get(key);
+            if (list) list.push(i);
+            else buckets.set(key, [i]);
+          }
+      }
+      let best: Point | null = null,
+        bestDistance = size;
+      for (const water of rings)
+        for (const p of water) {
+          const bx = Math.floor(p[0] / size),
+            by = Math.floor(p[1] / size);
+          for (let x = bx - 1; x <= bx + 1; x++)
+            for (let y = by - 1; y <= by + 1; y++)
+              for (const i of buckets.get(`${x},${y}`) ?? []) {
+                const d = nearest(p, [ring[i], ring[(i + 1) % ring.length]]).distance;
+                if (d < bestDistance) [best, bestDistance] = [p, d];
+              }
+        }
+      return best;
+    },
     accepts(point: Point) {
       return nearest(point, ring).distance <= maxDistance;
     },

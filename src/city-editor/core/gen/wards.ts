@@ -31,7 +31,6 @@ import {
   pointInPolygon,
   polygonArea,
   polygonCompactness,
-  polylineSquareDistance,
   polylineTangent,
   segmentInteriorInPolygon,
   segmentSegmentHit,
@@ -131,8 +130,6 @@ export interface WardInputs {
   params: CityParams;
   program: CityProgram;
   shoreline: Point[] | null;
-  /** Mesh window the shore was classified in. Defaults to the civic town extent. */
-  frameExtentMeters?: number;
   oceanShorelines?: Point[][];
   riverBanks?: Point[][];
   waterPolygon: Point[] | null;
@@ -258,13 +255,10 @@ export function assignWards(input: WardInputs): WardResult {
     }
     if (seaHarbour && shoreline) {
       const placed = placeHarbor(cells, urban, sea, occupied, shoreline, R);
-      // Far from a small town disk, but the surveyed shore still crosses this
-      // frame: that is the sea port, not a sliver clipped by the window edge.
+      // FMG settles a port within its waterfront gap of the shore; a sea
+      // berth far beyond the town disk is a clipped sliver, not the port.
       const harbor =
-        placed &&
-        riverHarbour &&
-        Math.hypot(placed.anchor[0], placed.anchor[1]) > R * ESTUARY_SEA_MAX_RADII &&
-        !estuaryShoreEntersFrame(shoreline, input.frameExtentMeters ?? params.extentMeters)
+        placed && riverHarbour && Math.hypot(placed.anchor[0], placed.anchor[1]) > R * ESTUARY_SEA_MAX_RADII
           ? null
           : placed;
       if (harbor) {
@@ -555,16 +549,6 @@ function rateLocation(
 const ESTUARY_SEA_MIN_CELLS = 6;
 /** ... within this many town radii of the centre. */
 const ESTUARY_SEA_MAX_RADII = 3;
-/** A shore this far inside the frame has room for a berth. One that only
- * grazes the edge (Yalkan) does not. */
-const ESTUARY_SEA_MIN_INSET_METERS = 60;
-
-/** The surveyed shore crosses the frame, rather than merely touching its edge. */
-export function estuaryShoreEntersFrame(shoreline: Point[], extentMeters: number): boolean {
-  if (shoreline.length < 2 || !(extentMeters > 0)) return false;
-  return extentMeters / 2 - polylineSquareDistance(shoreline) >= ESTUARY_SEA_MIN_INSET_METERS;
-}
-
 function placeHarbor(
   cells: Cell[],
   urban: Set<number>,

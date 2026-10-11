@@ -798,7 +798,14 @@
       "riverDistance": "{{river}}まで",
       "unnamedRiver": "河川 {{id}}",
       "unknownDistance": "不明",
-      "distanceReference": "距離はFMGの都市中心から岸線または河川中心線までの最短距離です。"
+      "distanceReference": "距離はFMGの都市中心から岸線または河川中心線までの最短距離です。",
+      "waterfrontCheck": "水際判定",
+      "waterfrontFailed": "不合格: {{issues}}",
+      "waterfrontReview": "FMGがこの港町を水際から離れた位置に配置しています。FMGの都市・街道・河川の配置ロジックを見直してください。CEは水域を動かしません。",
+      "shoreBeyond": "海岸が町の外縁から{{meters}} m先",
+      "shoreMissing": "港の近くに描画上の岸線がない",
+      "bankBeyond": "河岸が町の外縁から{{meters}} m先",
+      "riverUnresolved": "河岸配置が未解決（{{reason}}）"
     }
   },
   "regionEditor": {

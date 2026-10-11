@@ -3117,7 +3117,6 @@
       "previewNavigation": "Scroll to zoom · Drag to pan",
       "previewReset": "Reset view",
       "previewMfcgHeading": "Medieval Fantasy City Generator (watabou)",
-
       "tabsAria": "Burg editor sections",
       "overview": "Overview",
       "name": "Name:",
@@ -3404,7 +3403,10 @@
         "label": "Domain poll",
         "tooltip": "Click to open Domain Poll Detail — per-burg levy contribution to state poll tax"
       },
-      "characters-relationship-compatibility": {"label": "Character Compatibility", "tooltip": "Inspect personality compatibility used in solidarity calculations"},
+      "characters-relationship-compatibility": {
+        "label": "Character Compatibility",
+        "tooltip": "Inspect personality compatibility used in solidarity calculations"
+      },
       "characters-view-characters": {
         "label": "Characters",
         "tooltip": "Click to view the generated character roster"
@@ -5131,5 +5133,8 @@
       "unresolved-water": "Required physical water is unresolved",
       "pair-budget": "City pair count exceeds the budget"
     }
+  },
+  "waterfrontCheck": {
+    "failed": "Waterfront check: {{count}} port town(s) are not on their shore or bank. Review FMG settlement, road and river placement (details in the console)."
   }
 }

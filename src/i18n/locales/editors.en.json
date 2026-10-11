@@ -798,7 +798,14 @@
       "riverDistance": "{{river}} distance",
       "unnamedRiver": "River {{id}}",
       "unknownDistance": "Unknown",
-      "distanceReference": "Distances are measured from the FMG city center to the shoreline or river centerline."
+      "distanceReference": "Distances are measured from the FMG city center to the shoreline or river centerline.",
+      "waterfrontCheck": "Waterfront check",
+      "waterfrontFailed": "Failed: {{issues}}",
+      "waterfrontReview": "FMG placed this port away from its water. Review FMG settlement, road and river placement; City Editor does not move the water.",
+      "shoreBeyond": "shore {{meters}} m beyond the town edge",
+      "shoreMissing": "no drawn shore near the harbour",
+      "bankBeyond": "river bank {{meters}} m beyond the town edge",
+      "riverUnresolved": "river site unresolved ({{reason}})"
     }
   },
   "regionEditor": {

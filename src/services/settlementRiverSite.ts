@@ -14,8 +14,17 @@ import {
 /** Shared, bounded survey for settlement placement and its CE export. */
 export const SETTLEMENT_RIVER_SETTINGS: WorldRiverGeometrySettings = Object.freeze({
   curveAlpha: 0.1,
-  precision: Object.freeze({ arcToleranceMeters: 0.01, maxIntegrationDepth: 20, maxEvaluations: 100000 }),
-  banks: Object.freeze({ maxStepMeters: 2000, maxChordErrorMeters: 0.5, maxSamples: 2000, allowDrySource: true }),
+  precision: Object.freeze({
+    arcToleranceMeters: 0.01,
+    maxIntegrationDepth: 20,
+    maxEvaluations: 100000
+  }),
+  banks: Object.freeze({
+    maxStepMeters: 2000,
+    maxChordErrorMeters: 0.5,
+    maxSamples: 2000,
+    allowDrySource: true
+  }),
   maxSourcePoints: 5000
 });
 const registry = new WorldRiverGeometryRegistry();
@@ -23,7 +32,10 @@ export function settlementRiverGeometry(world: Readonly<WorldContext>, river: Ri
   const result = registry.get(world, river, unit, SETTLEMENT_RIVER_SETTINGS);
   return "geometry" in result
     ? result
-    : { ...result, bounds: worldRiverOccupiedBounds(world, river, unit, SETTLEMENT_RIVER_SETTINGS) };
+    : {
+        ...result,
+        bounds: worldRiverOccupiedBounds(world, river, unit, SETTLEMENT_RIVER_SETTINGS)
+      };
 }
 export interface RiverSettlementSite {
   point: RiverPoint;
@@ -46,6 +58,8 @@ type BankEdge = {
   ref: NonNullable<NonNullable<PhysicalRiverGeometry["water"]["bankReferences"]>[number][number]>;
   outward: number;
 };
+/** Along-edge site samples per bank edge, so a kilometre edge stays bounded. */
+const MAX_ALONG_SAMPLES = 64;
 const bankIndices = new WeakMap<object, SpatialBoundsIndex<BankEdge>>();
 function settlementBankEdges(geometry: PhysicalRiverGeometry) {
   const water = geometry.water;
@@ -60,7 +74,13 @@ function settlementBankEdges(geometry: PhysicalRiverGeometry) {
     }, 0);
     for (let i = 0; i < ring.length; i++) {
       const ref = water.bankReferences?.[j]?.[i];
-      if (ref) edges.push({ a: ring[i], b: ring[(i + 1) % ring.length], ref, outward: signedArea < 0 ? 1 : -1 });
+      if (ref)
+        edges.push({
+          a: ring[i],
+          b: ring[(i + 1) % ring.length],
+          ref,
+          outward: signedArea < 0 ? 1 : -1
+        });
     }
   }
   const index = new SpatialBoundsIndex(edges, ({ a, b }) => ({
@@ -86,7 +106,15 @@ export function findRiverSettlementSite(input: {
   accessWidthMeters: number;
   maxMoveMeters: number;
   maxCandidates: number;
-  otherWater: readonly { id: number; rings: readonly (readonly RiverPoint[])[] }[];
+  otherWater: readonly {
+    id: number;
+    rings: readonly (readonly RiverPoint[])[];
+  }[];
+  /** Cheap centre test applied before a candidate counts against the budget. */
+  admits?: (point: RiverPoint) => boolean;
+  /** Also try sites every this many metres along each bank edge, not only the
+   * edge point nearest the origin (a river mouth's site lies a little upstream). */
+  alongStepMeters?: number;
   supports: (footprint: readonly RiverPoint[], access: readonly RiverPoint[], point: RiverPoint) => boolean;
 }): { site: RiverSettlementSite } | { reason: "invalid-settings" | "no-dry-site" | "candidate-budget" } {
   const steps = findRiverSettlementSiteSteps(input);
@@ -106,7 +134,11 @@ export function* findRiverSettlementSiteSteps(
   )
     return { reason: "invalid-settings" };
   const waters = [geometry.water, ...input.otherWater].map(indexedPhysicalWater);
-  const candidates: { site: RiverSettlementSite; distance: number; order: number }[] = [];
+  const candidates: {
+    site: RiverSettlementSite;
+    distance: number;
+    order: number;
+  }[] = [];
   const reach = input.maxMoveMeters + r + gap;
   const edges = settlementBankEdges(geometry).nearest(
     {
@@ -127,70 +159,78 @@ export function* findRiverSettlementSiteSteps(
       dy = b[1] - a[1],
       length = Math.hypot(dx, dy);
     if (!length) continue;
-    const t = Math.max(0, Math.min(1, ((origin[0] - a[0]) * dx + (origin[1] - a[1]) * dy) / (length * length)));
-    const bankPoint: RiverPoint = [a[0] + t * dx, a[1] + t * dy];
-    // Reject remote bank segments before analytic arc inversion and polygon tests.
-    if (Math.hypot(bankPoint[0] - origin[0], bankPoint[1] - origin[1]) > input.maxMoveMeters + r + gap) continue;
-    const arc = ref.arcStart + t * (ref.arcEnd - ref.arcStart);
-    const along: RiverPoint = [dx / length, dy / length];
-    // Ring orientation determines the outward edge normal without a full point-in-water scan.
-    const normal: RiverPoint = [-along[1] * outward, along[0] * outward];
-    const point: RiverPoint = [bankPoint[0] + normal[0] * (r + gap), bankPoint[1] + normal[1] * (r + gap)];
-    const distance = Math.hypot(point[0] - origin[0], point[1] - origin[1]);
-    if (distance > input.maxMoveMeters) continue;
-    const footprint: RiverPoint[] = [
-      [-r, -r],
-      [r, -r],
-      [r, r],
-      [-r, r]
-    ].map(([u, v]) => [point[0] + along[0] * u + normal[0] * v, point[1] + along[1] * u + normal[1] * v]);
-    const halfAccess = input.accessWidthMeters / 2;
-    const landingGap = Math.min(gap, halfAccess + 1);
-    const accessEnd: RiverPoint = [bankPoint[0] + normal[0] * landingGap, bankPoint[1] + normal[1] * landingGap];
-    const access: RiverPoint[] = [point, accessEnd];
-    const accessFootprint: RiverPoint[] = [
-      [r + gap + halfAccess, -halfAccess],
-      [r + gap + halfAccess, halfAccess],
-      [landingGap - halfAccess, halfAccess],
-      [landingGap - halfAccess, -halfAccess]
-    ].map(([distance, side]) => [
-      bankPoint[0] + normal[0] * distance + along[0] * side,
-      bankPoint[1] + normal[1] * distance + along[1] * side
-    ]);
-    const candidate = {
-      distance,
-      order,
-      site: {
-        point,
-        bankPoint,
-        bank: ref.side,
-        arcLengthMeters: arc,
-        geometryVersion: geometry.axis.geometryVersion,
-        widthMeters: 0,
-        bankDistanceMeters: r + gap,
-        footprint,
-        access,
-        accessFootprint
-      }
-    };
-    candidateCount++;
-    // Keep the original stable distance/arc ordering while retaining only the
-    // bounded prefix that can actually be tested. Never truncate coarse edges.
-    let lo = 0,
-      hi = candidates.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1,
-        other = candidates[mid];
-      const comparison =
-        candidate.distance - other.distance ||
-        candidate.site.arcLengthMeters - other.site.arcLengthMeters ||
-        candidate.order - other.order;
-      if (comparison < 0) hi = mid;
-      else lo = mid + 1;
+    const projected = Math.max(0, Math.min(1, ((origin[0] - a[0]) * dx + (origin[1] - a[1]) * dy) / (length * length)));
+    const ts = [projected];
+    if (input.alongStepMeters && input.alongStepMeters > 0) {
+      const count = Math.min(MAX_ALONG_SAMPLES, Math.floor(length / input.alongStepMeters));
+      for (let k = 1; k < count; k++) ts.push(k / count);
     }
-    if (lo < input.maxCandidates) {
-      candidates.splice(lo, 0, candidate);
-      if (candidates.length > input.maxCandidates) candidates.pop();
+    for (const t of ts) {
+      const bankPoint: RiverPoint = [a[0] + t * dx, a[1] + t * dy];
+      // Reject remote bank segments before analytic arc inversion and polygon tests.
+      if (Math.hypot(bankPoint[0] - origin[0], bankPoint[1] - origin[1]) > input.maxMoveMeters + r + gap) continue;
+      const arc = ref.arcStart + t * (ref.arcEnd - ref.arcStart);
+      const along: RiverPoint = [dx / length, dy / length];
+      // Ring orientation determines the outward edge normal without a full point-in-water scan.
+      const normal: RiverPoint = [-along[1] * outward, along[0] * outward];
+      const point: RiverPoint = [bankPoint[0] + normal[0] * (r + gap), bankPoint[1] + normal[1] * (r + gap)];
+      const distance = Math.hypot(point[0] - origin[0], point[1] - origin[1]);
+      if (distance > input.maxMoveMeters) continue;
+      if (input.admits && !input.admits(point)) continue;
+      const footprint: RiverPoint[] = [
+        [-r, -r],
+        [r, -r],
+        [r, r],
+        [-r, r]
+      ].map(([u, v]) => [point[0] + along[0] * u + normal[0] * v, point[1] + along[1] * u + normal[1] * v]);
+      const halfAccess = input.accessWidthMeters / 2;
+      const landingGap = Math.min(gap, halfAccess + 1);
+      const accessEnd: RiverPoint = [bankPoint[0] + normal[0] * landingGap, bankPoint[1] + normal[1] * landingGap];
+      const access: RiverPoint[] = [point, accessEnd];
+      const accessFootprint: RiverPoint[] = [
+        [r + gap + halfAccess, -halfAccess],
+        [r + gap + halfAccess, halfAccess],
+        [landingGap - halfAccess, halfAccess],
+        [landingGap - halfAccess, -halfAccess]
+      ].map(([distance, side]) => [
+        bankPoint[0] + normal[0] * distance + along[0] * side,
+        bankPoint[1] + normal[1] * distance + along[1] * side
+      ]);
+      const candidate = {
+        distance,
+        order,
+        site: {
+          point,
+          bankPoint,
+          bank: ref.side,
+          arcLengthMeters: arc,
+          geometryVersion: geometry.axis.geometryVersion,
+          widthMeters: 0,
+          bankDistanceMeters: r + gap,
+          footprint,
+          access,
+          accessFootprint
+        }
+      };
+      candidateCount++;
+      // Keep the original stable distance/arc ordering while retaining only the
+      // bounded prefix that can actually be tested. Never truncate coarse edges.
+      let lo = 0,
+        hi = candidates.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1,
+          other = candidates[mid];
+        const comparison =
+          candidate.distance - other.distance ||
+          candidate.site.arcLengthMeters - other.site.arcLengthMeters ||
+          candidate.order - other.order;
+        if (comparison < 0) hi = mid;
+        else lo = mid + 1;
+      }
+      if (lo < input.maxCandidates) {
+        candidates.splice(lo, 0, candidate);
+        if (candidates.length > input.maxCandidates) candidates.pop();
+      }
     }
   }
   for (const { site } of candidates.slice(0, input.maxCandidates)) {
@@ -208,7 +248,9 @@ export function* findRiverSettlementSiteSteps(
     site.widthMeters = 2 * Math.hypot(site.bankPoint[0] - sample.point[0], site.bankPoint[1] - sample.point[1]);
     return { site };
   }
-  return { reason: candidateCount > input.maxCandidates ? "candidate-budget" : "no-dry-site" };
+  return {
+    reason: candidateCount > input.maxCandidates ? "candidate-budget" : "no-dry-site"
+  };
 }
 
 export function settlementRadiusMeters(population: number): number {
@@ -217,7 +259,11 @@ export function settlementRadiusMeters(population: number): number {
 
 /** Nearest provenance-bearing shoreline, in world metres. */
 export function nearestSettlementBank(geometry: PhysicalRiverGeometry, origin: RiverPoint) {
-  let nearest: { bankPoint: RiverPoint; waterPoint: RiverPoint; distance: number } | null = null;
+  let nearest: {
+    bankPoint: RiverPoint;
+    waterPoint: RiverPoint;
+    distance: number;
+  } | null = null;
   for (let j = 0; j < geometry.water.rings.length; j++) {
     const ring = geometry.water.rings[j];
     for (let i = 0; i < ring.length; i++) {

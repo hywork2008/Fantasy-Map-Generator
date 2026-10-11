@@ -14,7 +14,10 @@ import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import { validate } from "./mesh";
 import { lineHitsWater, polygonHitsWater, waterPolygons } from "./waterGeometry";
 
-describe("Ky Cuong river ports 3, 8 and 33", () => {
+// Pre-waterfront fixture: exported before FMG settled ports on their water
+// (src/services/waterfrontSettlement.ts); City Editor no longer pulls the
+// water to the town. Re-export from FMG to re-enable.
+describe.skip("Ky Cuong river ports 3, 8 and 33", () => {
   it.each(sites as unknown as BurgSiteDescriptor[])(
     "generates $burg.id ($burg.name), retaining all imported roads and the river harbour",
     descriptor => {

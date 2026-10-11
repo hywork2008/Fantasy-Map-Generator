@@ -258,6 +258,7 @@ export interface BurgSiteDescriptor {
     port: boolean;
     riverPlacement?: import("../types/models").Burg["riverPlacement"];
     riverSiteStatus?: import("../types/models").Burg["riverSiteStatus"];
+    waterfrontCheck?: import("../types/models").Burg["waterfrontCheck"];
     /** Optional for legacy descriptors; independent of clipped water geometry. */
     waterAccess?: import("../types/burgWater").BurgWaterAccess;
     citadel: boolean;
@@ -603,6 +604,7 @@ export function getBurgSiteDescriptor(
         waterAccess,
         riverPlacement: burg.riverPlacement ? structuredClone(burg.riverPlacement) : undefined,
         riverSiteStatus: burg.riverSiteStatus ? { ...burg.riverSiteStatus } : undefined,
+        ...(burg.waterfrontCheck ? { waterfrontCheck: structuredClone(burg.waterfrontCheck) } : {}),
         citadel: Boolean(burg.citadel),
         plaza: Boolean(burg.plaza),
         walls: Boolean(burg.walls),
@@ -717,6 +719,7 @@ function getMetersPerMapUnit(): number {
 
 /** Sized so City Editor fills the town at the culture's Lot occupancy guide. */
 function getCityRadiusMeters(population: number, burg: Burg): number {
+  // Same radius FMG settles waterfront towns to (waterfrontSettlement.ts).
   return occupancyRadiusMeters(population, burgLotOccupancy(worldContext.pack, burg), burg);
 }
 

@@ -3117,7 +3117,6 @@
       "previewNavigation": "ホイールでズーム・ドラッグで移動",
       "previewReset": "表示をリセット",
       "previewMfcgHeading": "Medieval Fantasy City Generator（watabou）",
-
       "tabsAria": "都市エディターの節",
       "overview": "概要",
       "name": "名前：",
@@ -3404,7 +3403,10 @@
         "label": "領内人頭税",
         "tooltip": "領内人頭税の詳細を開きます — 都市ごとの国家人頭税への寄与"
       },
-      "characters-relationship-compatibility": {"label": "人物の相性", "tooltip": "連帯感の計算に使う性格の相性を確認します"},
+      "characters-relationship-compatibility": {
+        "label": "人物の相性",
+        "tooltip": "連帯感の計算に使う性格の相性を確認します"
+      },
       "characters-view-characters": {
         "label": "人物",
         "tooltip": "生成された人物名簿を表示します"
@@ -5131,5 +5133,8 @@
       "unresolved-water": "必要な物理水域を復元できない",
       "pair-budget": "都市対の件数が評価上限を超える"
     }
+  },
+  "waterfrontCheck": {
+    "failed": "水際判定: {{count}} 件の港町が岸や河岸に接していません。FMGの都市・街道・河川の配置ロジックを見直してください（詳細はコンソール）。"
   }
 }

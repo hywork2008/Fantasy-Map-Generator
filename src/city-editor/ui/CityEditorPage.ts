@@ -5844,11 +5844,32 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
     ]);
   }
   rows.splice(6, 0, ...waterDistances);
+  const waterfront = descriptor.burg.waterfrontCheck;
+  if (waterfront?.status === "failed") {
+    const issues = waterfront.issues.map(issue =>
+      issue.kind === "shore-distance"
+        ? editorText("cityEditor.fmgParameters.shoreBeyond", { meters: issue.excessMeters ?? 0 })
+        : issue.kind === "bank-distance"
+          ? editorText("cityEditor.fmgParameters.bankBeyond", { meters: issue.excessMeters ?? 0 })
+          : issue.kind === "river-unresolved"
+            ? editorText("cityEditor.fmgParameters.riverUnresolved", { reason: issue.reason ?? "" })
+            : editorText("cityEditor.fmgParameters.shoreMissing")
+    );
+    rows.unshift([
+      editorText("cityEditor.fmgParameters.waterfrontCheck"),
+      editorText("cityEditor.fmgParameters.waterfrontFailed", { issues: issues.join("; ") })
+    ]);
+  }
   const nodes: Node[] = rows.map(([key, value]) => {
     const line = document.createElement("div");
     line.className = "ce-imported-row";
     if (waterDistances.some(([label]) => label === key)) {
       line.title = editorText("cityEditor.fmgParameters.distanceReference");
+    }
+    if (waterfront && key === editorText("cityEditor.fmgParameters.waterfrontCheck")) {
+      line.title = editorText("cityEditor.fmgParameters.waterfrontReview");
+      line.classList.add("ce-imported-warning");
+      line.style.color = "#c62828";
     }
     const labelNode = document.createElement("span");
     labelNode.textContent = key;

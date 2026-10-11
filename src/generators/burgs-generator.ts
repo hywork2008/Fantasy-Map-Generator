@@ -32,19 +32,20 @@ import { SettlementGeometrySession } from "../services/settlementGeometrySession
 import {
   coveredByTerrainCells,
   findRiverSettlementSiteSteps,
-  type RiverSettlementSite,
-  settlementRadiusMeters
+  type RiverSettlementSite
 } from "../services/settlementRiverSite";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { yieldToEventLoop } from "../utils/yieldToEventLoop";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
@@ -72,7 +73,7 @@ import {
   selectInitialPolityCapitalNodes
 } from "./initialPolities";
 import { Names } from "./names-generator";
-import { Rivers } from "./river-generator";
+import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 import { getSettlementBaseSize } from "./settlementSuitability";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -99,6 +100,8 @@ const MIN_OVERSEAS_RURAL_POP = 1;
  * the port/searoute to a distant coastal neighbour.
  */
 const MIN_PORT_INLAND_GAP = 2;
+/** Bank sampling step for a river-mouth (sea and river) port site. */
+const DUAL_PORT_ALONG_STEP_METERS = 20;
 
 interface StrategicContext {
   frontiers: Map<number, FrontierSegment[]>;
@@ -237,6 +240,13 @@ class BurgModule {
       // Position river towns on the actual local bank, including river/estuary ports.
       for (const burg of burgs) {
         if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
+        // A harbour on an unnavigable stream keeps its shore: the stream runs
+        // through the town, it does not pull the town off the coast.
+        if (burg.port && cells.haven[burg.cell] && !(cells.fl[burg.cell] >= MIN_NAVIGABLE_FLUX)) {
+          delete burg.riverPlacement;
+          delete burg.riverSiteStatus;
+          continue;
+        }
         const [x, y] = yield* this.shiftTowardsRiverBankSteps(burg.cell, riversById, [burg.x, burg.y]);
         burg.x = x;
         burg.y = y;
@@ -261,7 +271,16 @@ class BurgModule {
     const culturesSet = useOptionsState.getState().culturesSet;
     for (const burg of burgs) {
       if (!burg.i || burg.removed || !burg.state) continue;
-      if (!isGiantWaterworksState({ stateId: burg.state, states, cultures, races, culturesSet })) continue;
+      if (
+        !isGiantWaterworksState({
+          stateId: burg.state,
+          states,
+          cultures,
+          races,
+          culturesSet
+        })
+      )
+        continue;
       const stateId = burg.state;
       const hasGravityRoute = hasGiantGravityWaterRouteToCell({
         cells,
@@ -751,7 +770,14 @@ class BurgModule {
     const portFeatureId = Rivers.resolveDrainFeature(burg.cell);
     if (!portFeatureId) return false;
     this.promoteToPort(
-      { burg, haven: null, portFeatureId, landFeature: cells.f[burg.cell], waterKind: "river", preferred: true },
+      {
+        burg,
+        haven: null,
+        portFeatureId,
+        landFeature: cells.f[burg.cell],
+        waterKind: "river",
+        preferred: true
+      },
       new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
     );
     return true;
@@ -882,7 +908,11 @@ class BurgModule {
     const unresolved = (reason: string): Point => {
       if (burg) {
         delete burg.riverPlacement;
-        burg.riverSiteStatus = { riverId: river.i, status: "unresolved", reason };
+        burg.riverSiteStatus = {
+          riverId: river.i,
+          status: "unresolved",
+          reason
+        };
       }
       return source;
     };
@@ -893,7 +923,13 @@ class BurgModule {
     const base = cells.capacity ? this.getSettlementScore(cellId, cells.s?.[cellId] ?? 0) / 5 : 0;
     const population =
       (burg?.population ?? base * (burg?.capital ? 1.5 : 1)) * world.populationRate * world.urbanization;
-    const radius = settlementRadiusMeters(Number.isFinite(population) ? population : 50);
+    // Reserve the town City Editor will draw (Lot occupancy guide), so the bank
+    // gap is not the difference between two radius models.
+    const radius = occupancyRadiusMeters(
+      Number.isFinite(population) ? population : 50,
+      burgLotOccupancy(pack, burg ?? ({ cell: cellId, culture: cells.culture?.[cellId] } as Burg)),
+      burg ?? {}
+    );
     const polygon = (cells.v?.[cellId] ?? []).map(v => pack.vertices.p[v]);
     if (polygon.length < 3) return unresolved("missing-terrain");
     const maxMove = Math.max(
@@ -907,7 +943,7 @@ class BurgModule {
     const shore = burg ? dualPortShore(world, burg, scale, radius, maxMove, this.shoreShapes) : null;
     // Search river banks near the coast, rather than overwriting coast placement
     // with the bank nearest an unrelated cell centre. Terrain checks still apply.
-    const originMeters: Point = shore ? [shore.origin[0], shore.origin[1]] : [source[0] * scale, source[1] * scale];
+    let originMeters: Point = shore ? [shore.origin[0], shore.origin[1]] : [source[0] * scale, source[1] * scale];
     const otherWater: import("../services/riverPhysicalGeometry").PhysicalWaterPolygon[] = [];
     const unresolvedBounds: import("../services/worldRiverGeometry").RiverGeometryBounds[] = [];
     const reach = maxMove + radius * 2 + 22;
@@ -919,6 +955,8 @@ class BurgModule {
     };
     const target = yield* session.resolveSteps(world, river, unit, bounds);
     if (!("geometry" in target)) return unresolved(target.reason);
+    const mouth = shore?.mouth(target.geometry.water.rings);
+    if (mouth) originMeters = [mouth[0], mouth[1]];
     const nearby = session.rivers(bounds);
     for (const otherId of nearby) {
       if (otherId === river.i) continue;
@@ -949,9 +987,29 @@ class BurgModule {
         };
         if (unresolvedBounds.some(w => w.minX <= b.maxX && w.maxX >= b.minX && w.minY <= b.maxY && w.maxY >= b.minY))
           return false;
-        const touched = session
+        // City Editor exports every river in the town window as canonical water;
+        // an unresolved one there would leave the town unopenable.
+        const window = populationWindowMeters(radius) / 2;
+        if (
+          unresolvedBounds.some(
+            w =>
+              w.minX <= point[0] + window &&
+              w.maxX >= point[0] - window &&
+              w.minY <= point[1] + window &&
+              w.maxY >= point[1] - window
+          )
+        )
+          return false;
+        const covering = session
           .terrain(world, b)
           .filter(t => footprintTouchesWater(footprint, { id: t.id, rings: [t.ring] }));
+        // A river-mouth site is held to the drawn coast CE imports (shore.supports);
+        // a coarse ocean cell under that drawn land is not water there.
+        const drawnLand = shore
+          ? covering.filter(t => !(cells.h[t.id] < 20 && pack.features[cells.f[t.id]]?.type === "ocean"))
+          : covering;
+        // Wholly on drawn land beyond the cell coast: the town's own cell stands for its terrain.
+        const touched = shore && !drawnLand.length ? [{ id: cellId, ring: [] as RiverPoint[] }] : drawnLand;
         if (
           !touched.length ||
           touched.some(
@@ -964,12 +1022,12 @@ class BurgModule {
           )
         )
           return false;
-        if (![...footprint, point].every(p => touched.some(t => pointInWater(p, { id: t.id, rings: [t.ring] }))))
+        if (![...footprint, point].every(p => covering.some(t => pointInWater(p, { id: t.id, rings: [t.ring] }))))
           return false;
         if (
           !coveredByTerrainCells(
             footprint,
-            touched.map(t => t.ring)
+            covering.map(t => t.ring)
           )
         )
           return false;
@@ -997,8 +1055,13 @@ class BurgModule {
     const connectionSupported = (point: RiverPoint): boolean => {
       if (
         !burgOverride ||
-        !pack.routes.some(route =>
-          route.points.some(p => p[2] === cellId && Math.hypot(p[0] - source[0], p[1] - source[1]) < 1e-7)
+        // Only land routes that reconnectRelocatedBurgLandRoutes links straight to
+        // the new site; sea lanes and registered connections are re-engineered.
+        !pack.routes.some(
+          route =>
+            route.group !== "searoutes" &&
+            route.registeredConnectionId === undefined &&
+            route.points.some(p => p[2] === cellId && Math.hypot(p[0] - source[0], p[1] - source[1]) < 1e-7)
         )
       )
         return true;
@@ -1045,6 +1108,12 @@ class BurgModule {
     };
     const result = yield* findRiverSettlementSiteSteps({
       ...search,
+      ...(shore
+        ? {
+            admits: (point: RiverPoint) => shore.accepts(point),
+            alongStepMeters: DUAL_PORT_ALONG_STEP_METERS
+          }
+        : {}),
       supports: (footprint, access, point) =>
         (!shore ||
           (shore.accepts(point) &&
@@ -1062,9 +1131,10 @@ class BurgModule {
       if (shore && burg?.riverPlacement && burg.riverSiteStatus?.status === "placed")
         return (burg.i && !burgOverride && this.reservedRiverSites.get(burg.i)) || source;
       if (shore) {
+        // Nearest supported bank to the coast, not to the old town position.
         const fallback = yield* findRiverSettlementSiteSteps({
           ...search,
-          origin: [source[0] * scale, source[1] * scale]
+          origin: originMeters
         });
         if ("site" in fallback)
           return (
@@ -1114,7 +1184,10 @@ class BurgModule {
     viewContext: Readonly<ViewContext>,
     appServices: AppServices,
     state: WorldState,
-    options: { deferShift?: boolean; geometrySession?: SettlementGeometrySession } = {}
+    options: {
+      deferShift?: boolean;
+      geometrySession?: SettlementGeometrySession;
+    } = {}
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
@@ -1485,7 +1558,10 @@ class BurgModule {
    * Capitals are left untouched — relocating them has much larger ripple effects (diplomacy,
    * state label anchor) than a plain town.
    */
-  regenerateInScope(cellIds: Iterable<number>): { addedBurgIds: number[]; removedBurgIds: number[] } {
+  regenerateInScope(cellIds: Iterable<number>): {
+    addedBurgIds: number[];
+    removedBurgIds: number[];
+  } {
     const { pack } = this.worldContext;
     const { cells } = pack;
     const scope = new Set(cellIds);
