@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { filterAndSortBurgs } from "../../controllers/burgs-overview";
-import { enterFocus } from "../../controllers/focus-view";
+import { enterFocus, exitFocus } from "../../controllers/focus-view";
 import { regeneratePopulationAndBurgs } from "../../controllers/population-editor";
 import { computeProvinceRows } from "../../controllers/provinces-editor";
 import { openRegionEditor } from "../../controllers/region-editor-handshake";
@@ -11,6 +11,7 @@ import { Burgs } from "../../generators/burgs-generator";
 import { legacyMutation, patchBurg } from "../../runtime/worldRuntime";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
+import { useFocusViewState } from "../../store/focusViewState";
 import {
   type ProvinceEditorTab,
   setProvinceEditorState,
@@ -32,6 +33,9 @@ export const ProvinceEditorDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("provinceEditor"));
   const { provinceId, activeTab } = useProvinceEditorState();
+  const isProvinceFocused = useFocusViewState(
+    state => state.isActive && state.kind === "province" && state.id === provinceId
+  );
   const [refreshTick, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick(t => t + 1);
 
@@ -140,9 +144,10 @@ export const ProvinceEditorDialog: React.FC = () => {
             <>
               <button
                 type="button"
-                className="icon-target"
-                data-tip="Narrow the map view to only this province"
-                onClick={() => enterFocus("province", provinceId)}
+                className={`icon-target${isProvinceFocused ? " pressed" : ""}`}
+                aria-pressed={isProvinceFocused}
+                data-tip={isProvinceFocused ? "Restore the full map view" : "Narrow the map view to only this province"}
+                onClick={() => (isProvinceFocused ? exitFocus() : enterFocus("province", provinceId))}
               >
                 Focus this province
               </button>
