@@ -790,7 +790,10 @@
       "erase": "消去"
     },
     "pageTitle": "都市エディター — Fantasy Map Generator",
-    "pageDescription": "Fantasy Map Generatorの都市地図生成・編集エディター"
+    "pageDescription": "Fantasy Map Generatorの都市地図生成・編集エディター",
+    "fmgParameters": {
+      "title": "FMGから受け取ったパラメーター"
+    }
   },
   "regionEditor": {
     "messages": {

@@ -103,6 +103,9 @@ describe("editor translation keys", () => {
     const root = document.createElement("div");
     document.body.append(root);
     mountCityEditor(root);
+    expect(root.querySelector('[data-i18n-key="cityEditor.fmgParameters.title"]')?.textContent).toBe(
+      language === "en" ? "Parameters received from FMG" : "FMGから受け取ったパラメーター"
+    );
     const buttons = [...root.querySelectorAll("button")];
     expect(buttons.some(button => button.textContent === editorText("cityEditor.messages.generateCompleteCity"))).toBe(
       true

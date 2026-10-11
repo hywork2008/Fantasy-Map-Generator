@@ -31,6 +31,12 @@ RE / CE の表示文言は `src/i18n/locales/editors.en.json` と
 `GenerationStage.labelKey` / `hintKey` がそのキーを保持し、
 `label` / `hint` は現在の言語で解決する。
 
+## FMG から受け取ったパラメーター
+
+CE の受信パラメーター群の親見出しは `cityEditor.fmgParameters.title`。
+受信データ本体は `generateSettings.descriptor`（`BurgSiteDescriptor`）。
+`cityEditor.messages.fromWorldMap` は受信元の表示であり、全体の見出しではない。
+
 ## その他の表示項目
 
 - `cityEditor.messages.*` / `regionEditor.messages.*`: パネル、設定名、説明、ボタン、

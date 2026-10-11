@@ -1367,9 +1367,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   );
 
   const importedBox = div("ce-imported");
+  const importedHeading = text(editorText("cityEditor.fmgParameters.title"));
+  importedHeading.dataset.i18nKey = "cityEditor.fmgParameters.title";
   const importedText = div("ce-imported-body");
   const standaloneButton = makeButton(editorText("cityEditor.messages.useStandaloneSite"), () => useStandaloneSite());
-  importedBox.append(importedText, standaloneButton);
+  importedBox.append(importedHeading, importedText, standaloneButton);
   importedBox.hidden = true;
 
   const seedInput = document.createElement("input");

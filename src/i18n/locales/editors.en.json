@@ -790,7 +790,10 @@
       "erase": "Erase"
     },
     "pageTitle": "City Editor — Fantasy Map Generator",
-    "pageDescription": "City map generator and editor for Fantasy Map Generator"
+    "pageDescription": "City map generator and editor for Fantasy Map Generator",
+    "fmgParameters": {
+      "title": "Parameters received from FMG"
+    }
   },
   "regionEditor": {
     "messages": {
