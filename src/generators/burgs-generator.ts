@@ -136,6 +136,8 @@ class BurgModule {
   private geometrySession?: SettlementGeometrySession;
   /** Part of shiftSteps now running; fmg:perf attributes each async step to it. */
   private shiftPhase = "prepare";
+  /** Positions of already placed river sites, taken before port promotion moves the burg to the coast. */
+  private reservedRiverSites = new Map<number, Point>();
 
   // Assign port feature ids to burgs and position them appropriately
   shift(options: BurgShiftOptions = {}) {
@@ -206,6 +208,11 @@ class BurgModule {
     const { cells, burgs } = this.worldContext.pack;
     const riversById = new Map(this.worldContext.pack.rivers.map(river => [river.i, river]));
     this.geometrySession = options.geometrySession ?? new SettlementGeometrySession();
+    this.reservedRiverSites.clear();
+    for (const burg of burgs) {
+      if (burg.i && burg.riverPlacement && burg.riverSiteStatus?.status === "placed")
+        this.reservedRiverSites.set(burg.i, [burg.x, burg.y]);
+    }
     try {
       yield* this.geometrySession.prepareSteps(this.worldContext, useOptionsState.getState().distanceUnit);
       for (const burg of burgs) {
@@ -241,6 +248,7 @@ class BurgModule {
       this.landmassPortBurgIds.clear();
     } finally {
       this.geometrySession = undefined;
+      this.reservedRiverSites.clear();
     }
   }
 
@@ -275,6 +283,9 @@ class BurgModule {
       cells.burg[burg.cell] = 0;
       burg.cell = targetCell;
       [burg.x, burg.y] = cells.p[targetCell];
+      // The old river site belongs to the abandoned cell.
+      delete burg.riverPlacement;
+      delete burg.riverSiteStatus;
       burg.feature = cells.f[targetCell];
       cells.burg[targetCell] = burg.i;
 
@@ -1047,7 +1058,9 @@ class BurgModule {
     // No jointly supported site: preserve a valid existing reservation. For a
     // new town, retain ordinary river placement rather than inventing a coast.
     if (!("site" in result)) {
-      if (shore && burg?.riverPlacement && burg.riverSiteStatus?.status === "placed") return source;
+      // Port promotion may already have moved `source` to the coast; the town stays on its reservation.
+      if (shore && burg?.riverPlacement && burg.riverSiteStatus?.status === "placed")
+        return (burg.i && !burgOverride && this.reservedRiverSites.get(burg.i)) || source;
       if (shore) {
         const fallback = yield* findRiverSettlementSiteSteps({
           ...search,
@@ -2057,6 +2070,8 @@ class BurgModule {
       (addOptions.routeStateId === undefined || addOptions.allowExternalRouteFallback
         ? Routes.connect(cellId as number)
         : undefined);
+    // A river-only port also charts its lane downstream, beside its land road.
+    if (!seaRoute && burg.port && !pack.cells.haven[cellId as number]) Routes.connectRiverPort(cellId as number);
 
     return { burgId, newRoute };
   }

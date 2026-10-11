@@ -1,5 +1,6 @@
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { reconnectRelocatedBurgLandRoutes } from "../services/relocatedBurgRoutes";
 import { Burgs } from "./burgs-generator";
 import { Routes } from "./routes-generator";
 
@@ -50,10 +51,15 @@ export function advancePortDevelopment(
       );
     for (const candidate of candidates) {
       const burgId = candidate.i;
+      const before = { ...candidate };
       if (!burgId || !Burgs.developPort(candidate)) continue;
+      // Promotion moves the town to its quay or river bank; its roads must follow.
+      reconnectRelocatedBurgLandRoutes(world.pack.routes, before, candidate);
 
       state.treasury = Math.max(0, (state.treasury ?? 0) - PORT_DEVELOPMENT_COST);
-      const routeAdded = Routes.connectPort(candidate.cell, state.i) !== undefined;
+      // Sea ports join the sea network; a river-only port charts its lane downstream.
+      const routeAdded =
+        (Routes.connectPort(candidate.cell, state.i) ?? Routes.connectRiverPort(candidate.cell)) !== undefined;
       developments.push({ stateId: state.i, burgId, routeAdded });
       break;
     }

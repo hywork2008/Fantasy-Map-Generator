@@ -1385,45 +1385,154 @@ class RoutesModule {
     const riverRoutes: Route[] = [];
 
     for (const source of riverPorts) {
-      const sourcePortFeature = source.port;
-      if (!sourcePortFeature) continue;
-      if (!riverGraph.getOutgoing(source.cell).length) continue;
-
-      let nearest: { cells: number[]; distance: number; target: Burg } | undefined;
-      for (const target of riverPorts) {
-        if (target.i === source.i) continue;
-        const path = findDownstreamRiverPath(riverGraph, source.cell, target.cell);
-        if (!path) continue;
-
-        if (
-          !nearest ||
-          path.distanceMapUnits < nearest.distance ||
-          (path.distanceMapUnits === nearest.distance && target.cell < nearest.target.cell)
-        ) {
-          nearest = { cells: path.cellIds, distance: path.distanceMapUnits, target };
-        }
-      }
-      if (!nearest) continue;
-
-      const anchors = nearest.cells.map(cellId => pack.cells.p[cellId] as [number, number]);
-      const points = this.addMeandering(nearest.cells, anchors);
-      const [firstX, firstY] = points[0];
-      if (source.x !== firstX || source.y !== firstY) points.unshift([source.x, source.y, source.cell]);
-      const [lastX, lastY] = points.at(-1)!;
-      if (nearest.target.x !== lastX || nearest.target.y !== lastY) {
-        points.push([nearest.target.x, nearest.target.y, nearest.target.cell]);
-      }
-      riverRoutes.push({
-        i: -1,
-        group: "searoutes",
-        feature: sourcePortFeature,
-        cells: nearest.cells,
-        points,
-        navigation: "river"
-      });
+      const lane = this.riverLaneFrom(source, riverPorts, riverGraph);
+      if (lane) riverRoutes.push(lane);
     }
 
     return riverRoutes;
+  }
+
+  /** The charted lane from a river port down to the nearest port downstream, if any. */
+  private riverLaneFrom(
+    source: Burg,
+    riverPorts: Burg[],
+    riverGraph: ReturnType<typeof buildRiverNavigationGraph>
+  ): Route | undefined {
+    const { pack } = this.worldContext;
+    const sourcePortFeature = source.port;
+    if (!sourcePortFeature) return;
+    if (!riverGraph.getOutgoing(source.cell).length) return;
+
+    let nearest: { cells: number[]; distance: number; target: Burg } | undefined;
+    for (const target of riverPorts) {
+      if (target.i === source.i) continue;
+      const path = findDownstreamRiverPath(riverGraph, source.cell, target.cell);
+      if (!path) continue;
+
+      if (
+        !nearest ||
+        path.distanceMapUnits < nearest.distance ||
+        (path.distanceMapUnits === nearest.distance && target.cell < nearest.target.cell)
+      ) {
+        nearest = { cells: path.cellIds, distance: path.distanceMapUnits, target };
+      }
+    }
+    if (!nearest) return;
+
+    const anchors = nearest.cells.map(cellId => pack.cells.p[cellId] as [number, number]);
+    // Leave and reach each town where the drawn river passes its bank site,
+    // not at the cell centre: a straight centre-to-town leg can cross land.
+    const points = this.alongRiverToBurg(
+      this.alongRiverToBurg(this.addMeandering(nearest.cells, anchors), source).reverse(),
+      nearest.target
+    ).reverse();
+    const [firstX, firstY] = points[0];
+    if (source.x !== firstX || source.y !== firstY) points.unshift([source.x, source.y, source.cell]);
+    const [lastX, lastY] = points.at(-1)!;
+    if (nearest.target.x !== lastX || nearest.target.y !== lastY) {
+      points.push([nearest.target.x, nearest.target.y, nearest.target.cell]);
+    }
+    return {
+      i: -1,
+      group: "searoutes",
+      feature: sourcePortFeature,
+      cells: nearest.cells,
+      points,
+      navigation: "river"
+    };
+  }
+
+  /**
+   * Charts the river lane of a town that became a river port after generation.
+   * Uses the cargo-vessel graph that generation prunes with, so the lane is passable.
+   */
+  connectRiverPort(cellId: number): Route | undefined {
+    const { pack } = this.worldContext;
+    const source = pack.burgs[pack.cells.burg[cellId]];
+    if (!this.allowsGeneratedSeaLanes() || !source?.port || !pack.cells.r[cellId]) return;
+    this.sync();
+    const riverPorts = pack.burgs.filter(burg =>
+      Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
+    );
+    const lane = this.riverLaneFrom(
+      source,
+      riverPorts,
+      buildRiverNavigationGraph(pack, { vessel: RIVER_CARGO_VESSEL })
+    );
+    if (!lane) return;
+    lane.i = this.getNextId();
+    pack.routes.push(lane);
+    pack.cells.routes = this.buildLinks(pack.routes);
+    return lane;
+  }
+
+  /**
+   * Moves the start of a meandered river lane along the drawn river polyline to
+   * the point nearest `burg`: trims the lane when the town lies ahead of the
+   * cell centre, extends it along the river otherwise. The search covers the
+   * town's own river stretch, reaching the polyline end at a mouth.
+   */
+  private alongRiverToBurg(points: [number, number, number][], burg: Burg): [number, number, number][] {
+    const cellId = points[0]?.[2];
+    const { pack } = this.worldContext;
+    // A confluence cell belongs to several rivers; follow the one the town stands on.
+    const riverId = cellId === undefined ? 0 : pack.cells.r[cellId];
+    const river = pack.rivers.find(r => r.i === riverId);
+    const polygon = this.riverPolygons.get(riverId);
+    if (!river || !polygon) return points;
+    const indexOf = (cell: number | undefined) => {
+      if (cell === undefined || cell < 0) return -1;
+      const [cx, cy] = pack.cells.p[cell];
+      return polygon.findIndex(p => p[0] === cx && p[1] === cy);
+    };
+    const idx0 = indexOf(cellId);
+    if (idx0 < 0) return points;
+    const seq = river.cells.indexOf(cellId);
+    const previous = indexOf(river.cells[seq - 1]);
+    const next = indexOf(river.cells[seq + 1]);
+    // A mouth cell's next river cell is the sea: its stretch runs to the polyline end.
+    const lo = Math.min(previous < 0 ? (seq === 0 ? 0 : idx0) : previous, idx0);
+    const hi = Math.max(next < 0 ? polygon.length - 1 : next, idx0);
+
+    // Nearest point on the drawn polyline, as fractional polyline index `at`.
+    let at = idx0;
+    let nearest: [number, number] = [polygon[idx0][0], polygon[idx0][1]];
+    let nearestDistance = Math.hypot(nearest[0] - burg.x, nearest[1] - burg.y);
+    for (let k = lo; k < hi; k++) {
+      const [ax, ay] = polygon[k];
+      const [bx, by] = polygon[k + 1];
+      const length = (bx - ax) ** 2 + (by - ay) ** 2;
+      const t = length ? Math.max(0, Math.min(1, ((burg.x - ax) * (bx - ax) + (burg.y - ay) * (by - ay)) / length)) : 0;
+      const q: [number, number] = [ax + (bx - ax) * t, ay + (by - ay) * t];
+      const d = Math.hypot(q[0] - burg.x, q[1] - burg.y);
+      if (d < nearestDistance) {
+        at = k + t;
+        nearest = q;
+        nearestDistance = d;
+      }
+    }
+    if (at === idx0) return points;
+
+    const sameAs = (point: readonly number[] | undefined, k: number) =>
+      !!point && !!polygon[k] && point[0] === polygon[k][0] && point[1] === polygon[k][1];
+    const direction = sameAs(points[1], idx0 - 1) ? -1 : 1;
+    const start: [number, number, number] = [nearest[0], nearest[1], cellId];
+    if ((at - idx0) * direction > 0) {
+      // The town lies ahead along the lane: drop the vertices it passes.
+      let skip = 0;
+      while (
+        skip < points.length - 1 &&
+        sameAs(points[skip], idx0 + skip * direction) &&
+        (idx0 + skip * direction - at) * direction <= 0
+      )
+        skip++;
+      return [start, ...points.slice(skip)];
+    }
+    // The town lies behind the lane start: extend along the river towards it.
+    const extension: [number, number, number][] = [start];
+    for (let k = direction > 0 ? Math.ceil(at) : Math.floor(at); k !== idx0; k += direction)
+      extension.push([polygon[k][0], polygon[k][1], cellId]);
+    return [...extension, ...points];
   }
 
   private preparePointsArray(): Point[] {
