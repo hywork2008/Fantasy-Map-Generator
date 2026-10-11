@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { existsSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { createLabJobs } from "./lib/labJobs.mjs";
 import { startLabPool } from "./lib/labPool.mjs";
 
 const root = resolve(import.meta.dirname, "..");
@@ -132,7 +133,7 @@ async function handle(request, response) {
   const path = url.pathname.replace(/\/+$/, "");
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, If-Match");
-  response.setHeader("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
   response.setHeader("Access-Control-Expose-Headers", "ETag");
   if (request.method === "OPTIONS") return response.writeHead(204).end();
   if (path === "/api/health")
@@ -189,15 +190,24 @@ async function handle(request, response) {
 }
 
 let labPool = null;
+let labJobs = null;
+async function readJson(request) {
+  try {
+    return JSON.parse((await readBody(request)).toString("utf8") || "{}");
+  } catch {
+    throw Object.assign(new Error("body must be JSON"), { status: 400 });
+  }
+}
 async function handleLab(path, request, response) {
+  if (!labPool) return json(response, 503, { error: "lab pages are still starting" });
+  if (path === "/api/lab/batch" && request.method === "POST")
+    return json(response, 202, labJobs.create(await readJson(request)));
+  const job = path.match(/^\/api\/lab\/jobs\/([\w-]+)(\/samples)?$/);
+  if (job && request.method === "GET" && job[2]) return labJobs.streamSamples(job[1], response, request);
+  if (job && request.method === "GET") return json(response, 200, labJobs.status(job[1]));
+  if (job && request.method === "DELETE" && !job[2]) return json(response, 200, labJobs.cancel(job[1]));
   if (path === "/api/lab/generate" && request.method === "POST") {
-    if (!labPool) return json(response, 503, { error: "lab pages are still starting" });
-    let body;
-    try {
-      body = JSON.parse((await readBody(request)).toString("utf8") || "{}");
-    } catch {
-      return json(response, 400, { error: "body must be JSON" });
-    }
+    const body = await readJson(request);
     const { seed, cells, lab, filter, include, timeoutMs } = body;
     if (seed !== undefined && !/^\d+$/.test(String(seed))) return json(response, 400, { error: "seed must be numeric" });
     if (include !== undefined && !(Array.isArray(include) && include.every(i => ["descriptor", "fmg"].includes(i))))
@@ -218,6 +228,7 @@ createServer((request, response) =>
 if (labEnabled)
   startLabPool({ workers: labWorkers, url: flag("lab-url"), log }).then(
     pool => {
+      labJobs = createLabJobs({ pool, log });
       labPool = pool;
       for (const signal of ["SIGINT", "SIGTERM"])
         process.once(signal, () => pool.close().finally(() => process.exit(0)));

@@ -1,6 +1,6 @@
 # River-Port Lab: 河川・港湾都市を量産するデバッグ生成モードと収集API
 
-状態: L0〜L2 実装済み(2026-10-12)、L3 以降未実装
+状態: L0〜L3 実装済み(2026-10-12)、L4 未実装
 関連: [map-scope-small-worlds.md](map-scope-small-worlds.md), [map-server.md](map-server.md), [bridge-skew-policy.md](bridge-skew-policy.md)
 
 ## 1. 目的
@@ -273,6 +273,22 @@ curl -s -X POST 127.0.0.1:8787/api/lab/generate \
 - `distanceToMouthKm` は海へ注ぐ川だけ(河口セルで 0)。
 - `bankSide` は `left|right|both`(都市がセル中心にほぼ重なる時 both)。island は未判定。
 - 初回観察: seed 104(800 セル、riverDensity 5)では estuary を狙った6都市のうち4都市が海港にも河川港にもならなかった。L4 の集計対象。
+
+### L3 実装済み(2026-10-12)
+
+```sh
+npm run map:server -- --lab --lab-workers 2
+npm run lab:collect -- --server http://127.0.0.1:8787 --seeds 1..500 --preset port-heavy --out .cache/lab/run.ndjson
+```
+
+- `scripts/lib/labJobs.mjs`:`POST /api/lab/batch`(`seeds` は `[..]`・`"1..500"`・`{start, count}`。ほかは `/api/lab/generate` と同じで、`cache: false` で再生成)、`GET /api/lab/jobs/:id`(`done/total/failed/cached/samples` と失敗 seed)、`GET /api/lab/jobs/:id/samples`(NDJSON。それまでの行を返した後、ジョブが終わるまで追従する)、`DELETE /api/lab/jobs/:id`(実行中の seed は完了させ、新しい seed を始めない)。
+- 1行は `{"map": {..., gitHead, pageErrors}, "burg": {...}}`。batch では `include: ["fmg"]` を受け付けない。
+- キャッシュ:`.cache/lab/<hash>.ndjson`(seed 1つ = 1ファイル、都市が0件でも空ファイルで残す)。キーは seed・リクエスト(cells/lab/filter/include)・コード版。コード版は HEAD に、未コミットの `src`/`public`/`index.html` の差分ハッシュを加えたもの。サーバー起動時に1回だけ計算するので、コードを変えたらサーバーを再起動する。`.cache/` は .gitignore に追加した。
+- `scripts/labCollect.mjs`:プリセットは `balanced`(既定値)、`port-heavy`、`confluence`、`control`(lab 無効、全都市)。`--lab`・`--filter` で上書きできる。サンプルは届いた順にファイルへ書き、15秒ごとに進捗を表示する。Ctrl-C でサーバー側のジョブも中止する。
+- 計測:6 seed で 65 秒(2ワーカー)。キャッシュからの再実行は 0.2 秒で、出力は一致した。
+
+- 完了条件の確認:`--seeds 1..500`(balanced)を2ワーカーで完走した。500 seed で失敗0、都市8610件、港のある都市を含む地図は498枚。lab の都市7782件は全件で、意図した種別と実際の種別が一致した。生成時間の中央値は21秒/地図で、全体は約50分。中止(DELETE)は、実行中の2 seed を終えてから止まることを確認した。
+- ページエラーが出た地図は4枚。seed 19/411/427 は `Land-use areas do not conserve physical land`、seed 101 は `pack.routes is not iterable`。いずれも生成は完了している。lab 由来か本体の問題かは未調査。
 
 ## 9. 未決事項
 
