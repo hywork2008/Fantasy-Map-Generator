@@ -16,6 +16,8 @@ import {
   isSnowBiome
 } from "../data/biomeCatalog";
 import { getRaceById } from "../data/races";
+import { activeLabOptions } from "../debug/riverPortLab/labOptions";
+import { selectLabSites } from "../debug/riverPortLab/selectLabSites";
 import { isLichCultureId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import type { FractalizedShape } from "../renderers/coastline-fractal";
@@ -357,7 +359,8 @@ class BurgModule {
         if (isLake && this.getLakePortCapacity(feature) === 0) continue;
 
         const portFeatureId = isLake ? this.resolveLakePortFeature(featureId) : featureId;
-        const preferred = (harbor && Boolean(burg.capital)) || harbor === 1;
+        // River-Port Lab burgs exist to be ports, so they skip the per-landmass representative pick.
+        const preferred = (harbor && Boolean(burg.capital)) || harbor === 1 || Boolean(burg.labSiteKind);
         // A lake must compete only with settlements on that lake. Grouping an
         // outlet lake under the ocean feature used to make every lake shore a
         // preferred ocean port.
@@ -1339,15 +1342,25 @@ class BurgModule {
     };
 
     const generateTowns = () => {
-      const burgsNumber = getTownsNumber();
+      const labPicks = this.placeLabSites(burgsQuadtree);
+      const lab = activeLabOptions();
+      const burgsNumber = lab
+        ? lab.fillTowns
+          ? Math.max(0, getTownsNumber() - labPicks.length)
+          : 0
+        : getTownsNumber();
       const realmCells = getStartingRealmCellSet();
-      const placedCells = plannedNodes.length
+      const labKindByCell = new Map(labPicks.map(pick => [pick.cell, pick.kind]));
+      for (const pick of labPicks) cells.burg[pick.cell] = -1; // reserve against placeTowns
+      const ordinaryCells = plannedNodes.length
         ? [...plannedNodes]
             .filter(node => !cells.burg[node.cell] && (!realmCells || realmCells.has(node.cell)))
             .sort((a, b) => b.score - a.score)
             .slice(0, burgsNumber)
             .map(node => node.cell)
         : this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
+      for (const pick of labPicks) cells.burg[pick.cell] = 0;
+      const placedCells = [...labPicks.map(pick => pick.cell), ...ordinaryCells];
 
       for (const cell of placedCells) {
         const [x, y] = cells.p[cell];
@@ -1364,7 +1377,8 @@ class BurgModule {
           culture,
           name,
           feature,
-          capital: 0
+          capital: 0,
+          ...(labKindByCell.has(cell) ? { labSiteKind: labKindByCell.get(cell) } : {})
         });
         cells.burg[cell] = burgId;
       }
@@ -1516,6 +1530,51 @@ class BurgModule {
    * `candidateCells`, spaced apart via the same shrinking-radius algorithm, without mutating
    * pack — callers are responsible for turning the returned cells into burgs.
    */
+  /** River-Port Lab (docs/plan/river-port-lab.md §4.2): forced river/sea sites, or none when off. */
+  private placeLabSites(burgsQuadtree: Quadtree<[number, number]>) {
+    const lab = activeLabOptions();
+    if (!lab) return [];
+    const { pack, graphWidth, graphHeight } = this.worldContext;
+    const { cells } = pack;
+    const cellSpacing = Math.sqrt((graphWidth * graphHeight) / Math.max(1, cells.i.length));
+    // Any land cell, not only cultured ones: a province map's cultures cover few cells, and the lab
+    // wants every river/sea relation. River sites must be navigable so the burg can be a river port.
+    const candidates = Array.from(cells.i).filter(
+      cell => cells.h[cell] >= 20 && !cells.burg[cell] && (!cells.r[cell] || cells.fl[cell] >= MIN_NAVIGABLE_FLUX)
+    );
+    if (!candidates.some(cell => cells.culture[cell])) return [];
+    const { picks, shortfall, supply } = selectLabSites(
+      { cells, features: pack.features, rivers: pack.rivers ?? [] },
+      candidates,
+      lab.siteQuota,
+      burgsQuadtree,
+      cellSpacing * 1.8,
+      Math.random
+    );
+    pack.riverPortLab = { options: structuredClone(lab), shortfall, supply };
+    for (const { cell } of picks) if (!cells.culture[cell]) cells.culture[cell] = this.nearestCulture(cell);
+    return picks;
+  }
+
+  /** Culture of the nearest cultured cell (breadth-first over neighbours). */
+  private nearestCulture(start: number): number {
+    const { cells } = this.worldContext.pack;
+    const seen = new Set([start]);
+    for (let queue = [start]; queue.length; ) {
+      const next: number[] = [];
+      for (const cell of queue) {
+        for (const neighbour of cells.c[cell]) {
+          if (seen.has(neighbour)) continue;
+          if (cells.culture[neighbour]) return cells.culture[neighbour];
+          seen.add(neighbour);
+          next.push(neighbour);
+        }
+      }
+      queue = next;
+    }
+    return 0;
+  }
+
   private placeTowns(
     candidateCells: Iterable<number>,
     count: number,

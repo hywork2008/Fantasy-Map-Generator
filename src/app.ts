@@ -28,6 +28,7 @@ import {
 import { raceService } from "./services/raceService";
 import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
+import { getLabOptions, setLabOptions } from "./debug/riverPortLab/labOptions";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { getGenerationProfile } from "./generators/generationProfiler";
@@ -331,7 +332,8 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       getGenerationProfile,
       prepareWorldArchive
     }),
-    extensionAPI: buildExtensionAPI()
+    extensionAPI: buildExtensionAPI(),
+    lab: Object.freeze({ getOptions: getLabOptions, setOptions: setLabOptions })
   });
 
   console.log("Initializing extensions...");

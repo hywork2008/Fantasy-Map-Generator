@@ -19,7 +19,11 @@ function classify(mapPath) {
     });
     worker.on("message", message => {
       if (message.type === "fatal") reject(new Error(message.error));
-      else if (message.type === "ready") worker.send({ id: 1, method: "classifyBurgSites", args: [] });
+      else if (message.type === "ready") {
+        const lab = message.info?.riverPortLab;
+        if (lab) console.error(`[lab:classify] ${mapPath} shortfall ${JSON.stringify(lab.shortfall)} supply ${JSON.stringify(lab.supply)}`);
+        worker.send({ id: 1, method: "classifyBurgSites", args: [] });
+      }
       else if (message.id === 1) {
         worker.kill();
         message.error ? reject(new Error(message.error)) : resolveRows(message.result);

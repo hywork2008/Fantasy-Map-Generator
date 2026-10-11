@@ -22,7 +22,7 @@ Province scope の小さな地図で、河川と都市の位置関係を意図�
 
 ## 3. 全体構成
 
-```
+```text
 [統計スクリプト npm run lab:collect]
         │ HTTP (JSON)
         ▼
@@ -172,6 +172,31 @@ type LabSiteKind =
 | inland | 1951 | 0 | 0 | 0 |
 
   観察: 河口の都市の過半数(217/403)は港になっていない。海港・河川港の両方を持つのは111都市だけ。合流点の都市は全体の2%で、本モードで増やす価値が大きい。deltaBranch(3セル)は短い川で広く取りすぎている可能性があるため、L1 で km 基準への変更を検討する。
+
+### L1 実装済み(2026-10-11)
+
+設計(§4)から変えた点(いずれもライブ計測で判明):
+
+- **設定の保持場所**: lab の設定は OptionsState に入れず、`src/debug/riverPortLab/labOptions.ts` のモジュール状態と localStorage `riverPortLab` に置く。保存・エクスポートには含めない。localStorage を使うのは、ページ読み込み直後に始まる生成にヘッドレスでも設定を渡すため。
+- **一様降水は河川の流量計算にだけ適用**(`labRiverPrecipitation`)。`grid.cells.prec` 自体を上書きすると、バイオームが湿地化して居住可能セルが消え、seed 109 で都市が0件になった。
+- **`riverDensity` は降水量の倍率も兼ねる**(一様降水 = 20 × riverDensity)。しきい値を下げるだけでは細い川が増えるだけで、航行可能(`MIN_NAVIGABLE_FLUX` = 100)な河口は1地図に3セル程度しかなかった。
+- **候補は陸セル全体**(川の上なら航行可能なセルに限る)。Province では文化が陸の一部にしか広がらないため。文化のないセルに置く時は、最寄りの文化を割り当てる。
+- **lab の都市は港選定で preferred 扱い**。陸塊ごとに代表1港だけを選ぶ通常の間引きを受けない。
+
+追加物: `selectLabSites.ts`、`RiverPortLabRows.tsx`(開発ビルドの Generation Settings、Province 時のみ)、`window.fmg.lab.{getOptions,setOptions}`、`fmg:small --lab default|<json>`。`pack.riverPortLab` に `{options, shortfall, supply}` を記録する。
+
+検証(12地図、`fmg:small --require sea-port --lab default`、seed 101〜114):
+
+- lab の都市139件で、意図した種別と実際の種別が100%一致。
+- 海港+河川港の都市は12地図で計75件。比較として、通常の世界地図10枚(5216都市)では111件。
+- lab 無効時は、変更前のコードと比べて seed 103/109/112 の要約・都市分類が完全一致。
+- 既存テスト 3305件が成功。
+
+既知の制約:
+
+- **合流点・湖の出口はほとんど作れない**(1地図あたり候補0〜5セル)。Province の海岸地図は、短い並行河川が直接海に注ぐ形が多いため。全陸地の地図(seed 104)では合流点60セルあるが、海が無いので港にならない。改善するには地形側の対策(内陸に広い集水域を持つテンプレート)が要る → L1.5 候補。
+- **地図の外へ流れ出る川は河川港にならない**(`Rivers.resolveDrainFeature` が排水先を見つけられない)。Province は世界の切り出しなので頻繁に起きる。統計では `outflow: "offmap"` として区別できる。
+- deltaBranch(河口から3セル以内)は航行可能な都市を多く含むが、海港にはならない。種別の定義としては妥当。
 
 ## 9. 未決事項
 

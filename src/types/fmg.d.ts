@@ -74,6 +74,13 @@ export interface FMGNamespace {
   readonly simulation: SimulationContext;
   /** Dependency-injection API for dynamically loaded extensions. */
   readonly extensionAPI: ExtensionAPI;
+  /** River-Port Lab debug generation (docs/plan/river-port-lab.md); applies to Province scope only. */
+  readonly lab: {
+    getOptions(): import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+    setOptions(
+      update: Partial<import("../debug/riverPortLab/labOptions").RiverPortLabOptions>
+    ): import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+  };
 }
 
 declare global {

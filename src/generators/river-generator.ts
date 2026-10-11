@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { HeightmapConstants, HeightThreshold, RiverConstants } from "../data/constants";
+import { activeLabOptions, labRiverPrecipitation } from "../debug/riverPortLab/labOptions";
 import { useOptionsState } from "../store/optionsState";
 import type { River } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -73,11 +74,11 @@ class RiverModule {
     };
 
     const drainWater = () => {
-      const MIN_FLUX_TO_FORM_RIVER = RiverConstants.MIN_FLUX_TO_FORM_RIVER;
+      const MIN_FLUX_TO_FORM_RIVER = RiverConstants.MIN_FLUX_TO_FORM_RIVER / (activeLabOptions()?.riverDensity ?? 1);
       const { points } = useOptionsState.getState();
       const cellsNumberModifier = ((points === 4 ? 10000 : points * 2500) / 10000) ** 0.25;
 
-      const prec = grid.cells.prec;
+      const prec = labRiverPrecipitation(grid.cells.prec, seed);
       const land = cells.i.filter((i: number) => h[i] >= 20).sort((a: number, b: number) => h[b] - h[a]);
       const lakeOutCells = Lakes.defineClimateData(h);
 

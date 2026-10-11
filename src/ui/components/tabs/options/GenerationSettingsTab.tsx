@@ -6,6 +6,7 @@ import {
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../../../../data";
 import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
+import { RiverPortLabRows } from "../../../../debug/riverPortLab/RiverPortLabRows";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
@@ -205,6 +206,8 @@ export const GenerationSettingsTab: React.FC = () => {
               </td>
             </tr>
           )}
+
+          {import.meta.env.DEV && options.mapScope === "province" && <RiverPortLabRows />}
 
           {options.mapScope === "islet" && (
             <tr data-tip={t("generation.isletLandCellsTip")}>

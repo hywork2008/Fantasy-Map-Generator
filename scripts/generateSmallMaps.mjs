@@ -12,7 +12,7 @@ const REQUIREMENTS = ["burg", "sea-port", "river-port", "river-burg", "river", "
 const usage = `Usage: npm run fmg:small -- <out-dir> [--scope province|islet] [--count 1] [--seed 1,2,3 | --start-seed 1000 --tries 50]
          [--cells 500] [--islet-land 0..6] [--require ${REQUIREMENTS.join(",")}] [--max-burgs N]
          [--local-storage settings.json] [--width 1920] [--height 1080] [--url http://host/Fantasy-Map-Generator/]
-         [--timeout-ms 120000] [--headed]`;
+         [--timeout-ms 120000] [--headed] [--lab '{"riverDensity":4}' | --lab default]`;
 const args = process.argv.slice(2);
 if (args.includes("--help")) {
   console.log(usage);
@@ -157,6 +157,7 @@ async function main() {
   let externalUrl;
   let timeoutMs = 120000;
   let headed = false;
+  let lab;
   const value = flag => {
     const val = args.shift();
     if (!val || val.startsWith("--")) throw new Error(`Missing value for ${flag}`);
@@ -179,6 +180,10 @@ async function main() {
     else if (flag === "--url") externalUrl = value(flag);
     else if (flag === "--timeout-ms") timeoutMs = Number(value(flag));
     else if (flag === "--headed") headed = true;
+    else if (flag === "--lab") {
+      const val = value(flag);
+      lab = { ...(val === "default" ? {} : JSON.parse(val)), enabled: true };
+    }
     else throw new Error(`Unknown option: ${flag}\n${usage}`);
   }
   if (!["province", "islet"].includes(scope)) throw new Error("--scope must be province or islet");
@@ -196,7 +201,9 @@ async function main() {
     ...extra,
     mapScope: scope,
     ...(cells !== undefined ? { mapScopeCells: String(cells) } : {}),
-    ...(isletLand !== undefined ? { isletLandCells: String(isletLand) } : {})
+    ...(isletLand !== undefined ? { isletLandCells: String(isletLand) } : {}),
+    // River-Port Lab (docs/plan/river-port-lab.md), read by src/debug/riverPortLab/labOptions.ts.
+    ...(lab ? { riverPortLab: JSON.stringify(lab) } : {})
   };
 
   const outDir = resolve(outArg);

@@ -12,7 +12,7 @@ const liveBurgs = () =>
 
 export async function loadMap(path: string) {
   await loadArchiveWorld(path);
-  return { seed: worldContext.seed, burgs: liveBurgs().length };
+  return { seed: worldContext.seed, burgs: liveBurgs().length, riverPortLab: worldContext.pack.riverPortLab ?? null };
 }
 
 export function listBurgs() {
@@ -48,10 +48,29 @@ export function classifyBurgSites() {
       population: burg.population,
       capital: Boolean(burg.capital),
       cell: burg.cell,
+      labSiteKind: burg.labSiteKind ?? null,
       seaPort: access.port.sea,
       riverPort: access.port.river,
       lakePort: access.port.lake,
       site: classifyRiverSite(index, burg.cell)
     };
   });
+}
+
+/** River-Port Lab: land cells per site kind, and how many are populated / navigable (candidate supply). */
+export function classifyCellSupply() {
+  const { pack } = worldContext;
+  const { cells } = pack;
+  const index = buildRiverSiteIndex({ cells, features: pack.features, rivers: pack.rivers ?? [] });
+  const supply: Record<string, { cells: number; populated: number; cultured: number; navigable: number }> = {};
+  for (let cell = 0; cell < cells.h.length; cell++) {
+    const site = classifyRiverSite(index, cell);
+    if (!site) continue;
+    const row = (supply[site.kind] ??= { cells: 0, populated: 0, cultured: 0, navigable: 0 });
+    row.cells++;
+    if (cells.pop?.[cell] > 0) row.populated++;
+    if (cells.culture?.[cell]) row.cultured++;
+    if (cells.fl[cell] >= 30) row.navigable++;
+  }
+  return supply;
 }
