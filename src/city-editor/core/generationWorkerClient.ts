@@ -1,3 +1,5 @@
+import i18n, { isSupportedLanguage, type SupportedLanguage } from "../../i18n";
+import { editorText } from "../../i18n/editorMessages";
 import type { GenerationSettings } from "./generate";
 import type { GenerationDebugPreview } from "./generationDebug";
 import type { GenerationSample } from "./generationDiagnostics";
@@ -7,6 +9,8 @@ export interface GenerationRequest {
   document: CityDocument;
   settings: GenerationSettings;
   seed: string;
+  /** Capture the UI locale because workers do not share localStorage. */
+  language?: SupportedLanguage;
   debugFailure?: boolean;
 }
 export interface GenerationTimings {
@@ -45,7 +49,7 @@ export function startCityGeneration(
       if (error) reject(error);
       else resolve(document);
     };
-    cancel = () => finish(null, new DOMException("Generation cancelled", "AbortError"));
+    cancel = () => finish(null, new DOMException(editorText("cityEditor.messages.generationCancelled"), "AbortError"));
     worker.onmessage = ({ data }: MessageEvent<GenerationReply>) => {
       if (settled) return;
       if (data.type === "progress") progress(data.sample);
@@ -59,10 +63,15 @@ export function startCityGeneration(
         finish(data.document);
       } else finish(null, new Error(data.message));
     };
-    worker.onerror = event => finish(null, new Error(event.message || "Generation worker failed"));
-    worker.onmessageerror = () => finish(null, new Error("Cannot read generation worker result"));
+    worker.onerror = event =>
+      finish(null, new Error(event.message || editorText("cityEditor.messages.generationWorkerFailed")));
+    worker.onmessageerror = () =>
+      finish(null, new Error(editorText("cityEditor.messages.cannotReadGenerationWorkerResult")));
     try {
-      worker.postMessage(request);
+      worker.postMessage({
+        ...request,
+        language: request.language ?? (isSupportedLanguage(i18n.language) ? i18n.language : "en")
+      });
     } catch (error) {
       finish(null, error instanceof Error ? error : new Error(String(error)));
     }

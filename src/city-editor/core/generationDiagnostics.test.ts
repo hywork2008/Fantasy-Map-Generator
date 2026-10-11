@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import { createGridDocument, createSizedDocument } from "./document";
 import { defaultGenerationSettings, generateCityAttempt, generateCityOnDocument } from "./generate";
 import {
@@ -115,3 +116,7 @@ it("includes paired routing traces in a real rejected gate-generation sample", (
   expect(failure.routing!.some(route => route.status === "failed" && route.searches.length > 0)).toBe(true);
   expect(formatGenerationFailureLog(samples)).toContain("始点=");
 });
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));

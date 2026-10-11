@@ -1,15 +1,16 @@
+import { editorText } from "../../i18n/editorMessages";
 import { formatGenerationFailureLog, type GenerationSample } from "../core/generationDiagnostics";
 
 /** The latest generation's diagnostics, with transient hover highlighting of referenced mesh IDs. */
 export function generationLogPanel(content: HTMLElement, hover: (ids: string[], seed: string) => void) {
   const list = document.createElement("div");
   list.className = "ce-generation-log-list";
-  list.setAttribute("aria-label", "都市生成の失敗ログ");
+  list.setAttribute("aria-label", editorText("cityEditor.messages.cityGenerationFailureLog"));
   const empty = document.createElement("span");
-  empty.textContent = "生成失敗のログはありません";
+  empty.textContent = editorText("cityEditor.messages.noGenerationFailureLogs");
   const clear = document.createElement("button");
   clear.type = "button";
-  clear.textContent = "ログを消去";
+  clear.textContent = editorText("cityEditor.messages.clearLog");
   clear.className = "ce-generation-log-clear";
   const reset = () => {
     hover([], "");
@@ -36,7 +37,7 @@ export function generationLogPanel(content: HTMLElement, hover: (ids: string[], 
       if (ids.length) {
         row.tabIndex = 0;
         row.dataset.objectIds = ids.join(" ");
-        row.title = `${ids.join(", ")} を強調表示`;
+        row.title = editorText("cityEditor.messages.highlight", { value0: ids.join(", ") });
         const enter = () => {
           row.classList.add("is-current");
           hover(ids, seed);

@@ -1,3 +1,4 @@
+import { editorHtml, editorOptionText, editorText } from "../../i18n/editorMessages";
 import {
   addLandmark,
   addSettlement,
@@ -48,18 +49,20 @@ import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
 import { forestMassOfRenderedDoc, renderRegionSvg, textScaleForZoom } from "../render/svg";
 
 /** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
-const SETTLEMENT_TYPE_OPTIONS: ReadonlyArray<readonly [string, string]> = [
-  ["capital", "首都 (Capital)"],
-  ["metropolis", "大都市 (Metropolis)"],
-  ["city", "都市 (City)"],
-  ["town", "町 (Town)"],
-  ["fort", "砦 (Fort)"],
-  ["monastery", "修道院 (Monastery)"],
-  ["caravanserai", "隊商宿 (Caravanserai)"],
-  ["trading_post", "交易所 (Trading Post)"],
-  ["village", "村 (Village)"],
-  ["hamlet", "集落 (Hamlet)"]
-];
+function settlementTypeOptions(): ReadonlyArray<readonly [string, string]> {
+  return [
+    ["capital", editorText("regionEditor.messages.capital")],
+    ["metropolis", editorText("regionEditor.messages.metropolis")],
+    ["city", editorText("regionEditor.messages.city")],
+    ["town", editorText("regionEditor.messages.town")],
+    ["fort", editorText("regionEditor.messages.fort")],
+    ["monastery", editorText("regionEditor.messages.monastery")],
+    ["caravanserai", editorText("regionEditor.messages.caravanserai")],
+    ["trading_post", editorText("regionEditor.messages.tradingPost")],
+    ["village", editorText("regionEditor.messages.village")],
+    ["hamlet", editorText("regionEditor.messages.hamlet")]
+  ];
+}
 
 export type EditorTool = "select" | "brush" | "stamp" | "settlement" | "landmark" | "erase";
 
@@ -109,32 +112,32 @@ export function mountRegionEditor(
   root.innerHTML = `
     <header class="re-header">
       <div class="re-header-left">
-        <span class="re-title">⚔ Region Editor</span>
-        <span class="re-badge" id="re-scale-badge">${(history.current.bounds.widthMeters / 1000).toFixed(0)} × ${(history.current.bounds.heightMeters / 1000).toFixed(0)} km</span>
+        <span class="re-title">${editorHtml("regionEditor.messages.regionEditor")}</span>
+        <span class="re-badge" id="re-scale-badge">${editorHtml("regionEditor.messages.mapDimensionsKilometres", { value0: (history.current.bounds.widthMeters / 1000).toFixed(0), value1: (history.current.bounds.heightMeters / 1000).toFixed(0) })}</span>
       </div>
       <div class="re-actions">
-        <button type="button" class="re-btn" id="btn-undo" title="元に戻す (Ctrl+Z)">↩ 元に戻す</button>
-        <button type="button" class="re-btn" id="btn-redo" title="やり直す (Ctrl+Y)">↪ やり直す</button>
-        <button type="button" class="re-btn primary" id="btn-regenerate">🎲 再生成</button>
-        <button type="button" class="re-btn" id="btn-load-json">📂 読込</button>
+        <button type="button" class="re-btn" id="btn-undo" title="${editorHtml("regionEditor.messages.undoCtrlZ")}">${editorHtml("regionEditor.messages.undo")}</button>
+        <button type="button" class="re-btn" id="btn-redo" title="${editorHtml("regionEditor.messages.redoCtrlY")}">${editorHtml("regionEditor.messages.redo")}</button>
+        <button type="button" class="re-btn primary" id="btn-regenerate">${editorHtml("regionEditor.messages.regenerate")}</button>
+        <button type="button" class="re-btn" id="btn-load-json">${editorHtml("regionEditor.messages.load")}</button>
         <input type="file" id="re-file-input" accept=".json" style="display:none;" />
-        <button type="button" class="re-btn" id="btn-save-json">💾 JSON 保存</button>
-        <button type="button" class="re-btn" id="btn-export-svg">🖼 SVG 出力</button>
-        <button type="button" class="re-btn" id="btn-export-png">📷 PNG 出力</button>
-        <button type="button" class="re-btn" id="btn-clear-site" title="FMG から受け取った地域データの保存内容を削除します">🗑 連携データ初期化</button>
+        <button type="button" class="re-btn" id="btn-save-json">${editorHtml("regionEditor.messages.saveJSON")}</button>
+        <button type="button" class="re-btn" id="btn-export-svg">${editorHtml("regionEditor.messages.exportSVG")}</button>
+        <button type="button" class="re-btn" id="btn-export-png">${editorHtml("regionEditor.messages.exportPNG")}</button>
+        <button type="button" class="re-btn" id="btn-clear-site" title="${editorHtml("regionEditor.messages.deleteStoredRegionDataReceivedFromFMG")}">${editorHtml("regionEditor.messages.resetLinkedData")}</button>
       </div>
     </header>
 
     <div class="re-body">
       <aside class="re-toolbar">
-        <button type="button" class="re-tool-btn active" data-tool="select" title="選択・移動 (V)">👆</button>
-        <button type="button" class="re-tool-btn" data-tool="brush" title="バイオーム筆塗り (B)">🖌</button>
-        <button type="button" class="re-tool-btn" data-tool="stamp" title="シンボルスタンプ (S)">⛰</button>
-        <button type="button" class="re-tool-btn" data-tool="settlement" title="集落の配置 (C)">🏰</button>
-        <button type="button" class="re-tool-btn" data-tool="landmark" title="ダンジョン・遺跡の配置 (D)">🗝</button>
-        <button type="button" class="re-tool-btn" data-tool="erase" title="消しゴム (E)">🧹</button>
+        <button type="button" class="re-tool-btn active" data-tool="select" title="${editorHtml("regionEditor.messages.selectAndMoveV")}">👆</button>
+        <button type="button" class="re-tool-btn" data-tool="brush" title="${editorHtml("regionEditor.messages.biomeBrushB")}">🖌</button>
+        <button type="button" class="re-tool-btn" data-tool="stamp" title="${editorHtml("regionEditor.messages.symbolStampS")}">⛰</button>
+        <button type="button" class="re-tool-btn" data-tool="settlement" title="${editorHtml("regionEditor.messages.placeSettlementsC")}">🏰</button>
+        <button type="button" class="re-tool-btn" data-tool="landmark" title="${editorHtml("regionEditor.messages.placeDungeonsAndRuinsD")}">🗝</button>
+        <button type="button" class="re-tool-btn" data-tool="erase" title="${editorHtml("regionEditor.messages.eraserE")}">🧹</button>
         <div style="height:1px; width:30px; background:var(--re-panel-border); margin:6px 0;"></div>
-        <button type="button" class="re-tool-btn" id="btn-reset-view" title="視点をリセット">🎯</button>
+        <button type="button" class="re-tool-btn" id="btn-reset-view" title="${editorHtml("regionEditor.messages.resetView")}">🎯</button>
       </aside>
 
       <main class="re-viewport" id="re-viewport">
@@ -146,55 +149,55 @@ export function mountRegionEditor(
       <aside class="re-sidebar">
         <!-- ツール固有オプション -->
         <section class="re-panel-section" id="re-tool-options">
-          <div class="re-section-title">ツール設定: <span id="re-tool-name">選択</span></div>
+          <div class="re-section-title">${editorHtml("regionEditor.messages.toolSettings")}<span id="re-tool-name">${editorHtml("regionEditor.messages.select")}</span></div>
           <div id="re-tool-options-content">
-            <div style="font-size:12px; color:var(--re-text-muted);">地図上の要素をクリックしてプロパティを表示・編集します。</div>
+            <div style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickMapElementsToViewAndEditTheirProperties")}</div>
           </div>
         </section>
 
         <!-- Voronoi 実験地図（FMG 連携なしでバイオーム別の森林を確認） -->
         <section class="re-panel-section">
-          <div class="re-section-title">Voronoi 実験 (Biome Sandbox)</div>
+          <div class="re-section-title">${editorHtml("regionEditor.messages.voronoiBiomeSandbox")}</div>
           <div class="re-form-row">
-            <label>セル数 (1〜${MAX_SANDBOX_CELLS})</label>
+            <label>${editorHtml("regionEditor.messages.cellCount1", { value0: MAX_SANDBOX_CELLS })}</label>
             <input type="number" class="re-input" id="vs-count" min="1" max="${MAX_SANDBOX_CELLS}" value="1" />
           </div>
           <div class="re-form-row">
-            <label>地図の一辺 (km)</label>
+            <label>${editorHtml("regionEditor.messages.mapSideLengthKm")}</label>
             <input type="number" class="re-input" id="vs-extent" min="1" max="200" value="10" />
           </div>
           <div class="re-form-row">
-            <label>標高 (m)</label>
+            <label>${editorHtml("regionEditor.messages.elevationM")}</label>
             <input type="number" class="re-input" id="vs-elevation" min="0" max="5000" value="100" />
           </div>
           <div id="vs-biomes"></div>
-          <button type="button" class="re-btn" id="btn-voronoi-random" style="width:100%; margin-top:6px;">🎲 バイオームをランダムに置換</button>
-          <button type="button" class="re-btn primary" id="btn-voronoi-sandbox" style="width:100%; margin-top:6px;">🧪 Voronoi を生成</button>
+          <button type="button" class="re-btn" id="btn-voronoi-random" style="width:100%; margin-top:6px;">${editorHtml("regionEditor.messages.randomiseBiomes")}</button>
+          <button type="button" class="re-btn primary" id="btn-voronoi-sandbox" style="width:100%; margin-top:6px;">${editorHtml("regionEditor.messages.generateVoronoi")}</button>
         </section>
 
         <!-- 地方全体設定 -->
         <section class="re-panel-section">
-          <div class="re-section-title">地方設定 (Region Settings)</div>
+          <div class="re-section-title">${editorHtml("regionEditor.messages.regionSettings")}</div>
           <div class="re-form-row">
-            <label>名称 (Title)</label>
+            <label>${editorHtml("regionEditor.messages.title")}</label>
             <input type="text" class="re-input" id="input-title" value="${escapeHtml(history.current.title)}" />
           </div>
           <div class="re-form-row">
-            <label>シード値 (Seed)</label>
+            <label>${editorHtml("regionEditor.messages.seed")}</label>
             <input type="text" class="re-input" id="input-seed" value="${escapeHtml(history.current.seed)}" />
           </div>
           <div class="re-form-row">
-            <label>テーマ・様式 (Theme)</label>
+            <label>${editorHtml("regionEditor.messages.theme")}</label>
             <select class="re-select" id="select-theme">
-              <option value="illustrated" ${history.current.decoration.theme === "illustrated" ? "selected" : ""}>Illustrated (鳥瞰の山と森)</option>
-              <option value="schley" ${history.current.decoration.theme === "schley" ? "selected" : ""}>D&amp;D Sword Coast (Mike Schley)</option>
-              <option value="perilous" ${history.current.decoration.theme === "perilous" ? "selected" : ""}>Perilous Shores (Watabou ペン画)</option>
-              <option value="parchment" ${history.current.decoration.theme === "parchment" ? "selected" : ""}>Antique Parchment (羊皮紙調)</option>
-              <option value="monochrome" ${history.current.decoration.theme === "monochrome" ? "selected" : ""}>Monochrome (白黒)</option>
+              <option value="illustrated" ${history.current.decoration.theme === "illustrated" ? "selected" : ""}>${editorHtml("regionEditor.messages.illustratedBirdSEyeMountainsAndForests")}</option>
+              <option value="schley" ${history.current.decoration.theme === "schley" ? "selected" : ""}>${editorHtml("regionEditor.messages.dAmpDSwordCoastMikeSchley")}</option>
+              <option value="perilous" ${history.current.decoration.theme === "perilous" ? "selected" : ""}>${editorHtml("regionEditor.messages.perilousShoresWatabouPenDrawing")}</option>
+              <option value="parchment" ${history.current.decoration.theme === "parchment" ? "selected" : ""}>${editorHtml("regionEditor.messages.antiqueParchment")}</option>
+              <option value="monochrome" ${history.current.decoration.theme === "monochrome" ? "selected" : ""}>${editorHtml("regionEditor.messages.monochrome")}</option>
             </select>
           </div>
           <div class="re-form-row" id="row-illustrated-palette" style="${history.current.decoration.theme === "illustrated" ? "" : "display:none"}">
-            <label>配色 (Palette)</label>
+            <label>${editorHtml("regionEditor.messages.palette")}</label>
             <select class="re-select" id="select-illustrated-palette">
               ${(Object.entries(ILLUSTRATED_PALETTES) as [IllustratedPalette, { label: string }][])
                 .map(
@@ -205,72 +208,72 @@ export function mountRegionEditor(
             </select>
           </div>
           <div class="re-form-row">
-            <label>描画品質 (Quality)</label>
+            <label>${editorHtml("regionEditor.messages.renderQuality")}</label>
             <select class="re-select" id="select-quality">
-              <option value="low" ${quality === "low" ? "selected" : ""}>低（高速・タイル描画）</option>
-              <option value="high" ${quality === "high" ? "selected" : ""}>高（樹冠を1本ずつ描画）</option>
+              <option value="low" ${quality === "low" ? "selected" : ""}>${editorHtml("regionEditor.messages.lowFastTiledRendering")}</option>
+              <option value="high" ${quality === "high" ? "selected" : ""}>${editorHtml("regionEditor.messages.highIndividualTreeCrowns")}</option>
             </select>
           </div>
         </section>
 
         <!-- 地形・等高線設定 -->
         <section class="re-panel-section">
-          <div class="re-section-title">地形・等高線 (Contours)</div>
+          <div class="re-section-title">${editorHtml("regionEditor.messages.terrainAndContours")}</div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="check-show-contours" style="cursor:pointer;">等高線を表示</label>
+            <label for="check-show-contours" style="cursor:pointer;">${editorHtml("regionEditor.messages.showContours")}</label>
             <input type="checkbox" id="check-show-contours" ${history.current.terrain.showContours !== false ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="check-show-contour-elevations" style="cursor:pointer;">標高を表示</label>
+            <label for="check-show-contour-elevations" style="cursor:pointer;">${editorHtml("regionEditor.messages.showElevations")}</label>
             <input type="checkbox" id="check-show-contour-elevations" ${history.current.terrain.showContourElevations === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="check-show-cell-borders" style="cursor:pointer;">セル境界を表示</label>
+            <label for="check-show-cell-borders" style="cursor:pointer;">${editorHtml("regionEditor.messages.showCellBorders")}</label>
             <input type="checkbox" id="check-show-cell-borders" ${history.current.terrain.showCellBorders === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="check-show-biome-cells" style="cursor:pointer;">バイオームの編集表示（セル単色）</label>
+            <label for="check-show-biome-cells" style="cursor:pointer;">${editorHtml("regionEditor.messages.biomeEditingViewSolidCellColours")}</label>
             <input type="checkbox" id="check-show-biome-cells" ${history.current.terrain.showBiomeCells === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row">
-            <label>セル境界の重なり順</label>
+            <label>${editorHtml("regionEditor.messages.cellBorderStackingOrder")}</label>
             <select class="re-select" id="select-cell-border-order">
-              <option value="top" ${history.current.terrain.cellBorderOrder !== "bottom" ? "selected" : ""}>一番上</option>
-              <option value="bottom" ${history.current.terrain.cellBorderOrder === "bottom" ? "selected" : ""}>一番下</option>
+              <option value="top" ${history.current.terrain.cellBorderOrder !== "bottom" ? "selected" : ""}>${editorHtml("regionEditor.messages.top")}</option>
+              <option value="bottom" ${history.current.terrain.cellBorderOrder === "bottom" ? "selected" : ""}>${editorHtml("regionEditor.messages.bottom")}</option>
             </select>
           </div>
           <div class="re-form-row">
-            <label>セル境界の透明度 (不透明度 0〜1)</label>
+            <label>${editorHtml("regionEditor.messages.cellBorderOpacity01")}</label>
             <input type="number" class="re-input" id="input-cell-border-opacity" min="0" max="1" step="0.1" value="${history.current.terrain.cellBorderOpacity ?? 0.6}" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="check-show-cultivation" style="cursor:pointer;">耕作地を表示</label>
+            <label for="check-show-cultivation" style="cursor:pointer;">${editorHtml("regionEditor.messages.showCultivatedLand")}</label>
             <input type="checkbox" id="check-show-cultivation" ${history.current.terrain.showCultivation === true ? "checked" : ""} style="cursor:pointer; width:16px; height:16px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="input-forest-threshold" title="ぼかし後の森林密度がこの値以上の所を森として描く。小さいほど疎な森も描かれる">森の密度しきい値</label>
+            <label for="input-forest-threshold" title="${editorHtml("regionEditor.messages.drawForestsWhereBlurredDensityReachesThisValueLowerValues")}">${editorHtml("regionEditor.messages.forestDensityThreshold")}</label>
             <input type="number" id="input-forest-threshold" min="0.05" max="0.95" step="0.05" value="${history.current.terrain.forestDensityThreshold ?? 0.5}" style="width:60px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="input-settlement-icon-scale">都市アイコン倍率</label>
+            <label for="input-settlement-icon-scale">${editorHtml("regionEditor.messages.settlementIconScale")}</label>
             <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? DEFAULT_SETTLEMENT_ICON_SCALE}" style="width:60px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="input-route-width-scale">街道倍率</label>
+            <label for="input-route-width-scale">${editorHtml("regionEditor.messages.roadScale")}</label>
             <input type="number" id="input-route-width-scale" min="0.5" step="0.5" value="${history.current.decoration.routeWidthScale ?? DEFAULT_ROUTE_WIDTH_SCALE}" style="width:60px;" />
           </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="input-river-width-scale">河川倍率</label>
+            <label for="input-river-width-scale">${editorHtml("regionEditor.messages.riverScale")}</label>
             <input type="number" id="input-river-width-scale" min="0.5" step="0.5" value="${history.current.decoration.riverWidthScale ?? DEFAULT_RIVER_WIDTH_SCALE}" style="width:60px;" />
           </div>
           <div class="re-form-row">
-            <label>等高線間隔</label>
+            <label>${editorHtml("regionEditor.messages.contourInterval")}</label>
             <select class="re-select" id="select-contour-interval">
-              <option value="25" ${history.current.terrain.contourIntervalMeters === 25 ? "selected" : ""}>25 m（細密）</option>
-              <option value="50" ${history.current.terrain.contourIntervalMeters === 50 ? "selected" : ""}>50 m（標準・低地）</option>
-              <option value="100" ${!history.current.terrain.contourIntervalMeters || history.current.terrain.contourIntervalMeters === 100 ? "selected" : ""}>100 m（標準・中起伏）</option>
-              <option value="200" ${history.current.terrain.contourIntervalMeters === 200 ? "selected" : ""}>200 m（山岳）</option>
-              <option value="500" ${history.current.terrain.contourIntervalMeters === 500 ? "selected" : ""}>500 m（広域高山）</option>
+              <option value="25" ${history.current.terrain.contourIntervalMeters === 25 ? "selected" : ""}>${editorHtml("regionEditor.messages.25MFine")}</option>
+              <option value="50" ${history.current.terrain.contourIntervalMeters === 50 ? "selected" : ""}>${editorHtml("regionEditor.messages.50MLowlands")}</option>
+              <option value="100" ${!history.current.terrain.contourIntervalMeters || history.current.terrain.contourIntervalMeters === 100 ? "selected" : ""}>${editorHtml("regionEditor.messages.100MRollingTerrain")}</option>
+              <option value="200" ${history.current.terrain.contourIntervalMeters === 200 ? "selected" : ""}>${editorHtml("regionEditor.messages.200MMountains")}</option>
+              <option value="500" ${history.current.terrain.contourIntervalMeters === 500 ? "selected" : ""}>${editorHtml("regionEditor.messages.500MWideAlpineRegion")}</option>
             </select>
           </div>
           <div style="font-size:11px; line-height:1.6; color:var(--re-text-muted); margin-top:4px;" id="re-elevation-info">
@@ -280,30 +283,28 @@ export function mountRegionEditor(
 
         <!-- 選択要素のプロパティ -->
         <section class="re-panel-section" id="re-selection-panel">
-          <div class="re-section-title">選択情報</div>
-          <div id="re-selection-content" style="font-size:12px; color:var(--re-text-muted);">
-            地図上の集落、ダンジョン、シンボルをクリックして選択します。
-          </div>
+          <div class="re-section-title">${editorHtml("regionEditor.messages.selectionDetails")}</div>
+          <div id="re-selection-content" style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickASettlementDungeonOrSymbolOnTheMapTo")}</div>
         </section>
 
         <!-- 規約・統計情報 -->
         <section class="re-panel-section">
-          <div class="re-section-title">地勢と規約統計</div>
+          <div class="re-section-title">${editorHtml("regionEditor.messages.terrainAndPolicyStatistics")}</div>
           <div style="font-size:12px; line-height:1.7; color:var(--re-text-muted);" id="re-stats-content">
-            <div>🌲 樹木・山岳シンボル数: <strong>${history.current.symbols.length}</strong></div>
-            <div>🌊 河川数: <strong>${history.current.rivers.length}</strong></div>
-            <div>🛣️ 街道数: <strong>${history.current.routes.length}</strong></div>
-            <div>🌉 <strong>直角交差橋数 (規約遵守): <span style="color:#d4a373;">${history.current.bridges.length}</span></strong></div>
-            <div>🏰 集落数: <strong>${history.current.settlements.length}</strong></div>
-            <div>🧭 冒険地点・遺跡数: <strong>${history.current.landmarks.length}</strong></div>
+            <div>${editorHtml("regionEditor.messages.treeAndMountainSymbols")}<strong>${history.current.symbols.length}</strong></div>
+            <div>${editorHtml("regionEditor.messages.rivers")}<strong>${history.current.rivers.length}</strong></div>
+            <div>${editorHtml("regionEditor.messages.roads")}<strong>${history.current.routes.length}</strong></div>
+            <div>🌉 <strong>${editorHtml("regionEditor.messages.perpendicularBridgesPolicyCompliant")}<span style="color:#d4a373;">${history.current.bridges.length}</span></strong></div>
+            <div>${editorHtml("regionEditor.messages.settlements")}<strong>${history.current.settlements.length}</strong></div>
+            <div>${editorHtml("regionEditor.messages.adventureSitesAndRuins")}<strong>${history.current.landmarks.length}</strong></div>
           </div>
         </section>
       </aside>
     </div>
 
     <footer class="re-footer">
-      <span>FMG Suite: Continent (FMG) ➔ <strong>Region (RE)</strong> ➔ City (CE) ➔ Dungeon (DE)</span>
-      <span>Perpendicular bridges verified: 100% (Strict 90°)</span>
+      <span>${editorHtml("regionEditor.messages.fMGSuiteContinentFMG")}<strong>${editorHtml("regionEditor.messages.regionRE")}</strong>${editorHtml("regionEditor.messages.cityCEDungeonDE")}</span>
+      <span>${editorHtml("regionEditor.messages.perpendicularBridgesVerified100Strict90")}</span>
     </footer>
   `;
 
@@ -338,22 +339,22 @@ export function mountRegionEditor(
     const interval = doc.terrain.contourIntervalMeters ?? 100;
 
     statsContent.innerHTML = `
-      <div>🌲 樹木・山岳シンボル数: <strong>${doc.symbols.length}</strong></div>
-      <div>🌊 河川数: <strong>${doc.rivers.length}</strong></div>
-      <div>🛣️ 街道数: <strong>${doc.routes.length}</strong></div>
-      <div>🌉 <strong>直角交差橋数 (規約遵守): <span style="color:#d4a373;">${doc.bridges.length}</span></strong></div>
-      <div>📐 <strong>等高線数: <span style="color:#a88350;">${contourCount}本</span></strong> (主等高線: ${indexCount}本)</div>
-      <div>⛰️ <strong>標高範囲: ${minElev}m 〜 ${maxElev}m</strong> (比高: ${maxElev - minElev}m)</div>
-      <div>🏰 集落数: <strong>${doc.settlements.length}</strong></div>
-      <div>🧭 冒険地点・遺跡数: <strong>${doc.landmarks.length}</strong></div>
+      <div>${editorHtml("regionEditor.messages.treeAndMountainSymbols")}<strong>${doc.symbols.length}</strong></div>
+      <div>${editorHtml("regionEditor.messages.rivers")}<strong>${doc.rivers.length}</strong></div>
+      <div>${editorHtml("regionEditor.messages.roads")}<strong>${doc.routes.length}</strong></div>
+      <div>🌉 <strong>${editorHtml("regionEditor.messages.perpendicularBridgesPolicyCompliant")}<span style="color:#d4a373;">${doc.bridges.length}</span></strong></div>
+      <div>📐 <strong>${editorHtml("regionEditor.messages.contours")}<span style="color:#a88350;">${editorHtml("regionEditor.messages.contoursRegionEditorPage", { value0: contourCount })}</span></strong>${editorHtml("regionEditor.messages.indexContours", { value0: indexCount })}</div>
+      <div>⛰️ <strong>${editorHtml("regionEditor.messages.elevationRangeM", { value0: minElev, value1: maxElev })}</strong>${editorHtml("regionEditor.messages.reliefM", { value0: maxElev - minElev })}</div>
+      <div>${editorHtml("regionEditor.messages.settlements")}<strong>${doc.settlements.length}</strong></div>
+      <div>${editorHtml("regionEditor.messages.adventureSitesAndRuins")}<strong>${doc.landmarks.length}</strong></div>
     `;
 
     const elevInfo = root.querySelector("#re-elevation-info");
     if (elevInfo) {
       elevInfo.innerHTML = `
-        <div>標高範囲: <strong>${minElev} m 〜 ${maxElev} m</strong></div>
-        <div>等高線数: <strong>${contourCount} 本</strong>（主等高線 ${indexCount} 本）</div>
-        <div>等高線間隔: <strong>${interval} m</strong></div>
+        <div>${editorHtml("regionEditor.messages.elevationRange")}<strong>${editorHtml("regionEditor.messages.elevationRangeMetres", { value0: minElev, value1: maxElev })}</strong></div>
+        <div>${editorHtml("regionEditor.messages.contours")}<strong>${editorHtml("regionEditor.messages.contourCountSpaced", { value0: contourCount })}</strong>${editorHtml("regionEditor.messages.indexContoursRegionEditorPage", { value0: indexCount })}</div>
+        <div>${editorHtml("regionEditor.messages.contourIntervalRegionEditorPage")}<strong>${editorHtml("regionEditor.messages.elevationMetres", { value0: interval })}</strong></div>
       `;
     }
 
@@ -410,30 +411,28 @@ export function mountRegionEditor(
   function updateToolOptions(): void {
     switch (activeTool) {
       case "select":
-        toolNameSpan.textContent = "選択・移動";
+        toolNameSpan.textContent = editorText("regionEditor.messages.selectAndMove");
         toolOptionsContent.innerHTML = `
-          <div style="font-size:12px; color:var(--re-text-muted);">
-            要素をクリックして選択・編集します。ドラッグで位置を微調整できます。
-          </div>
+          <div style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickElementsToSelectAndEditThemDragToAdjust")}</div>
         `;
         break;
       case "brush":
-        toolNameSpan.textContent = "バイオーム筆塗り";
+        toolNameSpan.textContent = editorText("regionEditor.messages.biomeBrush");
         toolOptionsContent.innerHTML = `
           <div class="re-form-row">
-            <label>バイオーム種別</label>
+            <label>${editorHtml("regionEditor.messages.biomeType")}</label>
             <select class="re-select" id="tool-brush-biome">
-              <option value="deciduous_forest" ${brushBiome === "deciduous_forest" ? "selected" : ""}>広葉樹林 (Forest)</option>
-              <option value="coniferous_forest" ${brushBiome === "coniferous_forest" ? "selected" : ""}>針葉樹林 (Taiga/Pine)</option>
-              <option value="tropical_forest" ${brushBiome === "tropical_forest" ? "selected" : ""}>密林・ジャングル (Jungle)</option>
-              <option value="mountains" ${brushBiome === "mountains" ? "selected" : ""}>山脈 (Mountains)</option>
-              <option value="hills" ${brushBiome === "hills" ? "selected" : ""}>丘陵 (Hills)</option>
-              <option value="swamp" ${brushBiome === "swamp" ? "selected" : ""}>湿地・沼沢 (Swamp)</option>
-              <option value="grassland" ${brushBiome === "grassland" ? "selected" : ""}>平原 (Grassland)</option>
+              <option value="deciduous_forest" ${brushBiome === "deciduous_forest" ? "selected" : ""}>${editorHtml("regionEditor.messages.broadleafForest")}</option>
+              <option value="coniferous_forest" ${brushBiome === "coniferous_forest" ? "selected" : ""}>${editorHtml("regionEditor.messages.coniferousForestTaigaPine")}</option>
+              <option value="tropical_forest" ${brushBiome === "tropical_forest" ? "selected" : ""}>${editorHtml("regionEditor.messages.jungle")}</option>
+              <option value="mountains" ${brushBiome === "mountains" ? "selected" : ""}>${editorHtml("regionEditor.messages.mountains")}</option>
+              <option value="hills" ${brushBiome === "hills" ? "selected" : ""}>${editorHtml("regionEditor.messages.hills")}</option>
+              <option value="swamp" ${brushBiome === "swamp" ? "selected" : ""}>${editorHtml("regionEditor.messages.wetlandAndSwamp")}</option>
+              <option value="grassland" ${brushBiome === "grassland" ? "selected" : ""}>${editorHtml("regionEditor.messages.grassland")}</option>
             </select>
           </div>
           <div class="re-form-row">
-            <label>ブラシ半径: <span id="tool-brush-size-val">${brushRadius}</span> px</label>
+            <label>${editorHtml("regionEditor.messages.brushRadius")}<span id="tool-brush-size-val">${brushRadius}</span>${editorHtml("regionEditor.messages.px")}</label>
             <input type="range" min="15" max="80" value="${brushRadius}" id="tool-brush-radius" style="width:100%;" />
           </div>
         `;
@@ -447,18 +446,18 @@ export function mountRegionEditor(
         });
         break;
       case "stamp":
-        toolNameSpan.textContent = "シンボルスタンプ";
+        toolNameSpan.textContent = editorText("regionEditor.messages.symbolStamp");
         toolOptionsContent.innerHTML = `
           <div class="re-form-row">
-            <label>シンボル種別</label>
+            <label>${editorHtml("regionEditor.messages.symbolType")}</label>
             <select class="re-select" id="tool-stamp-type">
-              <option value="mountain_peak_major" ${stampType === "mountain_peak_major" ? "selected" : ""}>山岳（主峰）</option>
-              <option value="mountain_peak_minor" ${stampType === "mountain_peak_minor" ? "selected" : ""}>山岳（小峰）</option>
-              <option value="mountain_snow" ${stampType === "mountain_snow" ? "selected" : ""}>雪山</option>
-              <option value="hill_cluster" ${stampType === "hill_cluster" ? "selected" : ""}>丘陵（連なり）</option>
-              <option value="tree_deciduous" ${stampType === "tree_deciduous" ? "selected" : ""}>樹木（広葉樹）</option>
-              <option value="tree_pine" ${stampType === "tree_pine" ? "selected" : ""}>樹木（マツ・針葉樹）</option>
-              <option value="swamp_grass" ${stampType === "swamp_grass" ? "selected" : ""}>湿原草</option>
+              <option value="mountain_peak_major" ${stampType === "mountain_peak_major" ? "selected" : ""}>${editorHtml("regionEditor.messages.mountainMajorPeak")}</option>
+              <option value="mountain_peak_minor" ${stampType === "mountain_peak_minor" ? "selected" : ""}>${editorHtml("regionEditor.messages.mountainMinorPeak")}</option>
+              <option value="mountain_snow" ${stampType === "mountain_snow" ? "selected" : ""}>${editorHtml("regionEditor.messages.snowyMountain")}</option>
+              <option value="hill_cluster" ${stampType === "hill_cluster" ? "selected" : ""}>${editorHtml("regionEditor.messages.rollingHills")}</option>
+              <option value="tree_deciduous" ${stampType === "tree_deciduous" ? "selected" : ""}>${editorHtml("regionEditor.messages.treeBroadleaf")}</option>
+              <option value="tree_pine" ${stampType === "tree_pine" ? "selected" : ""}>${editorHtml("regionEditor.messages.treePineConifer")}</option>
+              <option value="swamp_grass" ${stampType === "swamp_grass" ? "selected" : ""}>${editorHtml("regionEditor.messages.wetlandGrass")}</option>
             </select>
           </div>
         `;
@@ -467,27 +466,21 @@ export function mountRegionEditor(
         });
         break;
       case "settlement":
-        toolNameSpan.textContent = "集落の配置";
+        toolNameSpan.textContent = editorText("regionEditor.messages.placeSettlements");
         toolOptionsContent.innerHTML = `
-          <div style="font-size:12px; color:var(--re-text-muted);">
-            地図上をクリックした地点に新しい町・村を配置します。
-          </div>
+          <div style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickTheMapToPlaceANewTownOrVillage")}</div>
         `;
         break;
       case "landmark":
-        toolNameSpan.textContent = "ダンジョン・遺跡の配置";
+        toolNameSpan.textContent = editorText("regionEditor.messages.placeDungeonsAndRuins");
         toolOptionsContent.innerHTML = `
-          <div style="font-size:12px; color:var(--re-text-muted);">
-            地図上をクリックした地点に冒険の舞台（ダンジョン・遺跡）を配置します。
-          </div>
+          <div style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickTheMapToPlaceAnAdventureSiteSuchAs")}</div>
         `;
         break;
       case "erase":
-        toolNameSpan.textContent = "消しゴム";
+        toolNameSpan.textContent = editorText("regionEditor.messages.eraser");
         toolOptionsContent.innerHTML = `
-          <div style="font-size:12px; color:var(--re-text-muted);">
-            地図上をクリックまたはドラッグした範囲のシンボルを消去します。
-          </div>
+          <div style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickOrDragOnTheMapToEraseSymbols")}</div>
         `;
         break;
     }
@@ -582,8 +575,9 @@ export function mountRegionEditor(
   function updateSelectionPanel(): void {
     const doc = history.current;
     if (!selectedId) {
-      selectionContent.innerHTML =
-        "地図上の集落、ダンジョン、シンボル、街道、河川、またはセル（何もない所）をクリックして選択します。";
+      selectionContent.innerHTML = editorText(
+        "regionEditor.messages.clickASettlementDungeonSymbolRoadRiverOrEmptyCell"
+      );
       return;
     }
 
@@ -593,24 +587,22 @@ export function mountRegionEditor(
       selectionContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:8px;">
           <div class="re-form-row">
-            <label>都市・町名</label>
+            <label>${editorHtml("regionEditor.messages.townOrCityName")}</label>
             <input type="text" class="re-input" id="sel-settlement-name" value="${escapeHtml(s.name)}" />
           </div>
           <div class="re-form-row">
-            <label>種別</label>
+            <label>${editorHtml("regionEditor.messages.type")}</label>
             <select class="re-select" id="sel-settlement-type">
-              ${SETTLEMENT_TYPE_OPTIONS.map(([v, label]) => `<option value="${v}" ${s.type === v ? "selected" : ""}>${label}</option>`).join("")}
-              ${SETTLEMENT_TYPE_OPTIONS.some(([v]) => v === s.type) ? "" : `<option value="${escapeHtml(String(s.type))}" selected>${escapeHtml(String(s.type))}</option>`}
+              ${settlementTypeOptions()
+                .map(([v, label]) => `<option value="${v}" ${s.type === v ? "selected" : ""}>${label}</option>`)
+                .join("")}
+              ${settlementTypeOptions().some(([v]) => v === s.type) ? "" : `<option value="${escapeHtml(String(s.type))}" selected>${escapeHtml(String(s.type))}</option>`}
             </select>
           </div>
-          <div>位置: [${s.position[0].toFixed(1)}, ${s.position[1].toFixed(1)}]</div>
+          <div>${editorHtml("regionEditor.messages.position", { value0: s.position[0].toFixed(1), value1: s.position[1].toFixed(1) })}</div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            <button type="button" class="re-btn primary" id="btn-open-ce" style="width:100%; justify-content:center;">
-              🏙 City Editor (CE) で開く
-            </button>
-            <button type="button" class="re-btn" id="btn-delete-selected" style="width:100%; justify-content:center; color:#e06c75;">
-              🗑 この集落を削除
-            </button>
+            <button type="button" class="re-btn primary" id="btn-open-ce" style="width:100%; justify-content:center;">${editorHtml("regionEditor.messages.openInCityEditorCE")}</button>
+            <button type="button" class="re-btn" id="btn-delete-selected" style="width:100%; justify-content:center; color:#e06c75;">${editorHtml("regionEditor.messages.deleteThisSettlement")}</button>
           </div>
         </div>
       `;
@@ -671,26 +663,22 @@ export function mountRegionEditor(
       selectionContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:8px;">
           <div class="re-form-row">
-            <label>ダンジョン・遺跡名</label>
+            <label>${editorHtml("regionEditor.messages.dungeonOrRuinName")}</label>
             <input type="text" class="re-input" id="sel-lm-name" value="${escapeHtml(lm.name)}" />
           </div>
           <div class="re-form-row">
-            <label>種別</label>
+            <label>${editorHtml("regionEditor.messages.type")}</label>
             <select class="re-select" id="sel-lm-kind">
-              <option value="dungeon" ${lm.kind === "dungeon" ? "selected" : ""}>地下迷宮 (Dungeon)</option>
-              <option value="ruins" ${lm.kind === "ruins" ? "selected" : ""}>古代遺跡 (Ruins)</option>
-              <option value="tower" ${lm.kind === "tower" ? "selected" : ""}>魔術師の塔 (Tower)</option>
-              <option value="tomb" ${lm.kind === "tomb" ? "selected" : ""}>王家の墓所 (Tomb)</option>
+              <option value="dungeon" ${lm.kind === "dungeon" ? "selected" : ""}>${editorHtml("regionEditor.messages.dungeon")}</option>
+              <option value="ruins" ${lm.kind === "ruins" ? "selected" : ""}>${editorHtml("regionEditor.messages.ancientRuins")}</option>
+              <option value="tower" ${lm.kind === "tower" ? "selected" : ""}>${editorHtml("regionEditor.messages.wizardSTower")}</option>
+              <option value="tomb" ${lm.kind === "tomb" ? "selected" : ""}>${editorHtml("regionEditor.messages.royalTomb")}</option>
             </select>
           </div>
-          <div>危険度 (Danger): <strong>Lv ${lm.dangerLevel ?? 5}</strong></div>
+          <div>${editorHtml("regionEditor.messages.danger")}<strong>${editorHtml("regionEditor.messages.dangerLevel", { value0: lm.dangerLevel ?? 5 })}</strong></div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            <button type="button" class="re-btn primary" id="btn-open-de" style="width:100%; justify-content:center;">
-              🗝 Dungeon Editor (DE) で開く
-            </button>
-            <button type="button" class="re-btn" id="btn-delete-selected" style="width:100%; justify-content:center; color:#e06c75;">
-              🗑 このダンジョンを削除
-            </button>
+            <button type="button" class="re-btn primary" id="btn-open-de" style="width:100%; justify-content:center;">${editorHtml("regionEditor.messages.openInDungeonEditorDE")}</button>
+            <button type="button" class="re-btn" id="btn-delete-selected" style="width:100%; justify-content:center; color:#e06c75;">${editorHtml("regionEditor.messages.deleteThisDungeon")}</button>
           </div>
         </div>
       `;
@@ -721,13 +709,11 @@ export function mountRegionEditor(
       if (!sym) return;
       selectionContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:8px;">
-          <div>シンボル: <strong>${escapeHtml(sym.type)}</strong></div>
-          <div>位置: [${sym.x.toFixed(1)}, ${sym.y.toFixed(1)}]</div>
-          <div>スケール: ${sym.scale.toFixed(2)}</div>
+          <div>${editorHtml("regionEditor.messages.symbol")}<strong>${escapeHtml(sym.type)}</strong></div>
+          <div>${editorHtml("regionEditor.messages.position", { value0: sym.x.toFixed(1), value1: sym.y.toFixed(1) })}</div>
+          <div>${editorHtml("regionEditor.messages.scale", { value0: sym.scale.toFixed(2) })}</div>
           <div style="margin-top:8px;">
-            <button type="button" class="re-btn" id="btn-delete-selected" style="width:100%; justify-content:center; color:#e06c75;">
-              🗑 このシンボルを削除
-            </button>
+            <button type="button" class="re-btn" id="btn-delete-selected" style="width:100%; justify-content:center; color:#e06c75;">${editorHtml("regionEditor.messages.deleteThisSymbol")}</button>
           </div>
         </div>
       `;
@@ -748,27 +734,30 @@ export function mountRegionEditor(
       const dens = (v: number | null): string => (v === null ? "—" : v.toFixed(2));
       const landUseRows = info.landUse.length
         ? info.landUse
-            .map(u => `<div>　${escapeHtml(u.kind)}: ${Math.round(u.areaHa).toLocaleString()} ha</div>`)
+            .map(
+              u =>
+                `<div>${editorHtml("regionEditor.messages.landUseAreaRow", { value0: editorOptionText(u.kind, "regionEditor"), value1: Math.round(u.areaHa).toLocaleString() })}</div>`
+            )
             .join("")
-        : "<div>　なし</div>";
+        : `<div>${editorHtml("regionEditor.messages.none")}</div>`;
       const forestRows = info.isForest
         ? `
-          <div>森林被覆率 (forestCover): <strong>${info.forestCover ?? "—"}</strong> / 蓄積 (forestStock): ${info.forestStock !== undefined ? info.forestStock.toFixed(2) : "—"}</div>
-          <div>森林ポリゴン: ${info.forestPolygonCount} 個、実被覆 <strong>${pct(info.forestPolygonRatio)}</strong></div>
-          <div>ぼかし後の森林密度: 平均 <strong>${dens(info.meanDensity)}</strong> / 最大 ${dens(info.maxDensity)}</div>
-          <div>森として描かれる面積: <strong>${pct(info.drawnRatio)}</strong>（しきい値 ${info.threshold}）</div>
-          ${info.vanishes ? '<div style="color:#b5651d;">⚠ 森林ポリゴンがあるのに密度がしきい値に届かず、木が描かれません。しきい値を下げてください。</div>' : ""}`
-        : "<div>森林バイオームではありません（森林塊の判定対象外）。</div>";
+          <div>${editorHtml("regionEditor.messages.forestCover")}<strong>${info.forestCover ?? "—"}</strong>${editorHtml("regionEditor.messages.forestStock", { value0: info.forestStock !== undefined ? info.forestStock.toFixed(2) : "—" })}</div>
+          <div>${editorHtml("regionEditor.messages.forestPolygonsActualCover", { value0: info.forestPolygonCount })}<strong>${pct(info.forestPolygonRatio)}</strong></div>
+          <div>${editorHtml("regionEditor.messages.blurredForestDensityMean")}<strong>${dens(info.meanDensity)}</strong>${editorHtml("regionEditor.messages.maximum", { value0: dens(info.maxDensity) })}</div>
+          <div>${editorHtml("regionEditor.messages.areaRenderedAsForest")}<strong>${pct(info.drawnRatio)}</strong>${editorHtml("regionEditor.messages.threshold", { value0: info.threshold })}</div>
+          ${info.vanishes ? `<div style="color:#b5651d;">${editorHtml("regionEditor.messages.forestPolygonsExistButNoTreesAreDrawnBecauseDensity")}</div>` : ""}`
+        : `<div>${editorHtml("regionEditor.messages.thisIsNotAForestBiomeExcludedFromForestMass")}</div>`;
       selectionContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
-          <div>セル: <strong>${info.cellId ?? escapeHtml(info.id)}</strong>（${escapeHtml(info.id)}）</div>
-          <div>バイオーム: <span class="re-badge">${escapeHtml(info.kind)}</span>${info.terrainKind ? ` / 地面: ${escapeHtml(info.terrainKind)}` : ""}</div>
-          <div>面積: ${Math.round(info.areaHa).toLocaleString()} ha</div>
+          <div>${editorHtml("regionEditor.messages.cell")}<strong>${info.cellId ?? escapeHtml(info.id)}</strong>（${escapeHtml(info.id)}）</div>
+          <div>${editorHtml("regionEditor.messages.biome")}<span class="re-badge">${escapeHtml(editorOptionText(info.kind, "regionEditor"))}</span>${info.terrainKind ? editorText("regionEditor.messages.ground", { value0: escapeHtml(info.terrainKind) }) : ""}</div>
+          <div>${editorHtml("regionEditor.messages.areaHa", { value0: Math.round(info.areaHa).toLocaleString() })}</div>
           ${forestRows}
-          <div>土地利用:</div>${landUseRows}
-          <div>集落: ${info.settlements.length ? info.settlements.map(escapeHtml).join("、") : "なし"}</div>
+          <div>${editorHtml("regionEditor.messages.landUse")}</div>${landUseRows}
+          <div>${editorHtml("regionEditor.messages.settlement", { value0: info.settlements.length ? info.settlements.map(escapeHtml).join("、") : editorText("regionEditor.messages.noneRegionEditorPage") })}</div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
-            <label for="sel-forest-threshold" title="マップ全体に適用されます">森の密度しきい値（全体）</label>
+            <label for="sel-forest-threshold" title="${editorHtml("regionEditor.messages.appliesToTheWholeMap")}">${editorHtml("regionEditor.messages.forestDensityThresholdGlobal")}</label>
             <input type="number" id="sel-forest-threshold" min="0.05" max="0.95" step="0.05" value="${info.threshold}" style="width:60px;" />
           </div>
         </div>
@@ -782,7 +771,11 @@ export function mountRegionEditor(
       const rt = doc.routes.find(item => item.id === selectedId);
       if (!rt) return;
       const kindLabel =
-        rt.kind === "highway" ? "主要街道 (Highway)" : rt.kind === "trail" ? "小道 (Trail)" : "街道 (Road)";
+        rt.kind === "highway"
+          ? editorText("regionEditor.messages.highway")
+          : rt.kind === "trail"
+            ? editorText("regionEditor.messages.trail")
+            : editorText("regionEditor.messages.road");
       const lengthMeters = rt.points.reduce((sum, p, i) => {
         if (i === 0) return 0;
         const prev = rt.points[i - 1];
@@ -792,10 +785,10 @@ export function mountRegionEditor(
 
       selectionContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:8px;">
-          <div>街道名: <strong>${escapeHtml(rt.name || "名称なし街道")}</strong></div>
-          <div>種別: <span class="re-badge">${kindLabel}</span></div>
-          <div>総延長: ${(lengthMeters / 1000).toFixed(1)} km (${rt.points.length} 測点)</div>
-          <div>🌉 直角交差橋: <strong>${connectedBridges.length} 基</strong></div>
+          <div>${editorHtml("regionEditor.messages.roadName")}<strong>${escapeHtml(rt.name || editorText("regionEditor.messages.unnamedRoad"))}</strong></div>
+          <div>${editorHtml("regionEditor.messages.typeRegionEditorPage")}<span class="re-badge">${kindLabel}</span></div>
+          <div>${editorHtml("regionEditor.messages.totalLengthKmSamplePoints", { value0: (lengthMeters / 1000).toFixed(1), value1: rt.points.length })}</div>
+          <div>${editorHtml("regionEditor.messages.perpendicularBridges")}<strong>${editorHtml("regionEditor.messages.bridges", { value0: connectedBridges.length })}</strong></div>
         </div>
       `;
     }
@@ -810,11 +803,11 @@ export function mountRegionEditor(
 
       selectionContent.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:8px;">
-          <div>河川名: <strong>${escapeHtml(rv.name)}</strong></div>
-          <div>川幅: <strong>${widthStr}</strong></div>
-          <div>流量: ${rv.dischargeM3s} m³/s</div>
-          <div>測点数: ${rv.points.length} 点</div>
-          <div>🌉 直角交差橋: <strong>${connectedBridges.length} 基</strong></div>
+          <div>${editorHtml("regionEditor.messages.riverName")}<strong>${escapeHtml(rv.name)}</strong></div>
+          <div>${editorHtml("regionEditor.messages.riverWidth")}<strong>${widthStr}</strong></div>
+          <div>${editorHtml("regionEditor.messages.flowM3S", { value0: rv.dischargeM3s })}</div>
+          <div>${editorHtml("regionEditor.messages.samplePoints", { value0: rv.points.length })}</div>
+          <div>${editorHtml("regionEditor.messages.perpendicularBridges")}<strong>${editorHtml("regionEditor.messages.bridges", { value0: connectedBridges.length })}</strong></div>
         </div>
       `;
     }
@@ -893,7 +886,10 @@ export function mountRegionEditor(
       history.push(next);
       renderMap();
     } else if (activeTool === "settlement") {
-      const name = prompt("新しい集落の名前を入力してください:", "New Settlement");
+      const name = prompt(
+        editorText("regionEditor.messages.enterANameForTheNewSettlement"),
+        editorText("regionEditor.messages.newSettlement")
+      );
       if (name) {
         const next = addSettlement(doc, {
           id: `set-${Date.now()}`,
@@ -906,7 +902,10 @@ export function mountRegionEditor(
         renderMap();
       }
     } else if (activeTool === "landmark") {
-      const name = prompt("新しいダンジョン・遺跡の名前を入力してください:", "Ancient Tomb");
+      const name = prompt(
+        editorText("regionEditor.messages.enterANameForTheNewDungeonOrRuin"),
+        editorText("regionEditor.messages.ancientTomb")
+      );
       if (name) {
         const next = addLandmark(doc, {
           id: `lm-${Date.now()}`,
@@ -1068,9 +1067,10 @@ export function mountRegionEditor(
     while (vsBiomeKeys.length < n) vsBiomeKeys.push(vsBiomeKeys[vsBiomeKeys.length - 1]);
     vsBiomes.innerHTML = Array.from({ length: n }, (_, i) => {
       const options = SANDBOX_BIOMES.map(
-        d => `<option value="${d.key}" ${d.key === vsBiomeKeys[i] ? "selected" : ""}>${escapeHtml(d.label)}</option>`
+        d =>
+          `<option value="${d.key}" ${d.key === vsBiomeKeys[i] ? "selected" : ""}>${escapeHtml(editorOptionText(d.key, "regionEditor"))}</option>`
       ).join("");
-      return `<div class="re-form-row"><label>セル ${i + 1} のバイオーム</label><select class="re-select" data-vs-cell="${i}">${options}</select></div>`;
+      return `<div class="re-form-row"><label>${editorHtml("regionEditor.messages.biomeOfCell", { value0: i + 1 })}</label><select class="re-select" data-vs-cell="${i}">${options}</select></div>`;
     }).join("");
   };
   vsCount.addEventListener("change", renderVsBiomes);
@@ -1269,12 +1269,12 @@ export function mountRegionEditor(
   });
 
   root.querySelector("#btn-clear-site")?.addEventListener("click", async () => {
-    if (!confirm("FMG から連携された保存済みの地域データを削除し、初期状態に戻します。よろしいですか？")) return;
+    if (!confirm(editorText("regionEditor.messages.deleteStoredRegionDataLinkedFromFMGAndResetThe"))) return;
     try {
       await clearRegionSite();
       location.reload();
     } catch (err) {
-      alert(`初期化エラー: ${err}`);
+      alert(editorText("regionEditor.messages.resetError", { value0: err }));
     }
   });
 
@@ -1288,7 +1288,7 @@ export function mountRegionEditor(
       history.push(res.document);
       renderMap();
     } else {
-      alert(`読込エラー: ${res.error}`);
+      alert(editorText("regionEditor.messages.loadError", { value0: res.error }));
     }
     fileInput.value = "";
   });

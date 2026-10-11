@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 export interface RoadRoutingTrace {
   routeId?: string;
   outside: boolean;
@@ -52,17 +53,20 @@ export function generationTimer(observer?: GenerationObserver, attempt = 1) {
 
 /** Japanese stage label for progress text and console reports. */
 export function generationPhaseLabel(phase: string): string {
-  if (phase === "prepare") return "準備";
-  if (phase === "complete") return "全体";
-  if (phase === "apply-validation") return "メッシュ検証";
-  if (phase.includes("wall")) return "城壁・門";
-  if (phase.includes("coast") || phase.includes("river") || phase.includes("terrain")) return "地形";
-  if (phase === "urban") return "市街地";
-  if (phase.includes("street") || phase.includes("route") || phase.includes("road")) return "街道・橋";
-  if (phase.includes("rectify") || phase.includes("geometry")) return "形状の仕上げ";
-  if (phase.includes("crossing")) return "交差の検証";
-  if (phase.includes("validation")) return "接続の検証";
-  return "都市の構成";
+  if (phase === "prepare") return editorText("cityEditor.messages.preparation");
+  if (phase === "complete") return editorText("cityEditor.messages.overall");
+  if (phase === "apply-validation") return editorText("cityEditor.messages.meshValidation");
+  if (phase.includes("wall")) return editorText("cityEditor.messages.wallsAndGates");
+  if (phase.includes("coast") || phase.includes("river") || phase.includes("terrain"))
+    return editorText("cityEditor.messages.terrain");
+  if (phase === "urban") return editorText("cityEditor.messages.urbanArea");
+  if (phase.includes("street") || phase.includes("route") || phase.includes("road"))
+    return editorText("cityEditor.messages.roadsAndBridges");
+  if (phase.includes("rectify") || phase.includes("geometry"))
+    return editorText("cityEditor.messages.geometryFinishing");
+  if (phase.includes("crossing")) return editorText("cityEditor.messages.intersectionValidation");
+  if (phase.includes("validation")) return editorText("cityEditor.messages.connectionValidation");
+  return editorText("cityEditor.messages.cityComposition");
 }
 
 export function reportGenerationFailure(
@@ -96,44 +100,78 @@ export function formatGenerationFailureLog(
   context?: Record<string, string | number>
 ): string {
   const failures = generationFailuresOf(samples).filter(sample => sample.failure?.reason !== "all-attempts-rejected");
-  const lines = ["[City Editor] 都市の生成に失敗しました"];
+  const lines = [editorText("cityEditor.messages.cityEditorCityGenerationFailed")];
   if (context) {
     const parts = Object.entries(context).map(([key, value]) => `${key}=${value}`);
-    if (parts.length) lines.push(`条件: ${parts.join(" · ")}`);
+    if (parts.length) lines.push(editorText("cityEditor.messages.settings", { value0: parts.join(" · ") }));
   }
   if (!failures.length) {
-    lines.push("不採用理由は記録されていない");
+    lines.push(editorText("cityEditor.messages.noRejectionReasonRecorded"));
     return lines.join("\n");
   }
-  lines.push(`${failures.length}案が不採用:`);
+  lines.push(editorText("cityEditor.messages.candidatesRejected", { value0: failures.length }));
   for (const sample of failures) {
     const failure = sample.failure!;
     lines.push(
-      `  案${sample.attempt} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）· ${failure.reason}: ${failure.message}`
+      editorText("cityEditor.messages.candidateGenerationDiagnostics", {
+        value0: sample.attempt,
+        value1: generationPhaseLabel(sample.phase),
+        value2: sample.phase,
+        value3: failure.reason,
+        value4: failure.message
+      })
     );
     if (sample.counts) {
       const counts = Object.entries(sample.counts)
         .map(([key, value]) => `${key}=${value}`)
         .join(", ");
-      if (counts) lines.push(`    数値: ${counts}`);
+      if (counts) lines.push(editorText("cityEditor.messages.metrics", { value0: counts }));
     }
     for (const detail of failure.details ?? []) lines.push(`    ${detail}`);
     for (const route of failure.routing ?? []) {
       lines.push(
-        `    道路 ${route.routeId ?? "?"} (${route.outside ? "城外→門" : "門→城内"}): ${route.status}; waypoints=${route.waypoints.join(" → ")}; path=${route.path.join(" → ") || "なし"}`
+        editorText("cityEditor.messages.roadWaypointsPath", {
+          value0: route.routeId ?? "?",
+          value1: route.outside
+            ? editorText("cityEditor.messages.outsideGate")
+            : editorText("cityEditor.messages.gateInside"),
+          value2: route.status,
+          value3: route.waypoints.join(" → "),
+          value4: route.path.join(" → ") || editorText("cityEditor.messages.noneGenerate")
+        })
       );
-      lines.push(`      採用経路の辺: ${route.edges?.join(", ") || "なし"}`);
-      if (route.reason) lines.push(`      理由: ${route.reason}`);
-      lines.push(`      予定座標: ${JSON.stringify(route.plannedPoints)}`);
+      lines.push(
+        editorText("cityEditor.messages.acceptedRouteEdges", {
+          value0: route.edges?.join(", ") || editorText("cityEditor.messages.noneGenerate")
+        })
+      );
+      if (route.reason) lines.push(editorText("cityEditor.messages.reason", { value0: route.reason }));
+      lines.push(editorText("cityEditor.messages.plannedCoordinates", { value0: JSON.stringify(route.plannedPoints) }));
       route.searches.forEach((search, index) => {
         lines.push(
-          `      探索${index + 1} (${search.classification}): 始点=${search.start}, 終点=${search.end}, 到達頂点数=${search.reachedCount}`
+          editorText("cityEditor.messages.searchStartEndReachedVertices", {
+            value0: index + 1,
+            value1: search.classification,
+            value2: search.start,
+            value3: search.end,
+            value4: search.reachedCount
+          })
         );
         lines.push(
-          `        最も終点に近づいた経路: ${search.partialPath.join(" → ")}; 辺: ${search.partialEdges.join(", ") || "なし"}`
+          editorText("cityEditor.messages.closestPathToTheDestinationEdges", {
+            value0: search.partialPath.join(" → "),
+            value1: search.partialEdges.join(", ") || editorText("cityEditor.messages.noneGenerate")
+          })
         );
         for (const block of search.blocked)
-          lines.push(`        禁止: ${block.from} → ${block.to} (${block.edge}): ${block.reason}`);
+          lines.push(
+            editorText("cityEditor.messages.excluded", {
+              value0: block.from,
+              value1: block.to,
+              value2: block.edge,
+              value3: block.reason
+            })
+          );
       });
     }
   }
@@ -148,13 +186,23 @@ export function logGenerationFailures(
   const failures = generationFailuresOf(samples);
   if (!failures.length) return;
   const attempts = failures.filter(sample => sample.failure?.reason !== "all-attempts-rejected");
-  console.group(`[City Editor] 都市の生成に失敗しました（${attempts.length || failures.length}案が不採用）`);
-  if (context) console.error("条件", context);
+  console.group(
+    editorText("cityEditor.messages.cityEditorCityGenerationFailedCandidatesRejected", {
+      value0: attempts.length || failures.length
+    })
+  );
+  if (context) console.error(editorText("cityEditor.messages.settingsGenerationDiagnostics"), context);
   console.error(formatGenerationFailureLog(samples, context));
   for (const sample of attempts) {
     const failure = sample.failure!;
     console.error(
-      `案${sample.attempt} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）· ${failure.reason}: ${failure.message}`,
+      editorText("cityEditor.messages.candidateFailureSummary", {
+        value0: sample.attempt,
+        value1: generationPhaseLabel(sample.phase),
+        value2: sample.phase,
+        value3: failure.reason,
+        value4: failure.message
+      }),
       {
         attempt: sample.attempt,
         stage: generationPhaseLabel(sample.phase),

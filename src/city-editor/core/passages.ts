@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { documentBridgeSkewLimit, overSkewedBridgeDecks } from "./bridgeDeck";
 import { townGates } from "./fortifications";
 import {
@@ -1289,26 +1290,46 @@ export function explainGeneratedCrossingFailures(
   const details: string[] = [];
   for (const deck of overSkewedBridgeDecks(document, skewLimit))
     details.push(
-      `橋 ${deck.groupId} が河川の法線から ${deck.skewDegrees.toFixed(1)}° 傾いている（上限 ${skewLimit.toFixed(0)}°）`
+      editorText("cityEditor.messages.bridgeIsFromTheRiverNormalLimit", {
+        value0: deck.groupId,
+        value1: deck.skewDegrees.toFixed(1),
+        value2: skewLimit.toFixed(0)
+      })
     );
   for (const gate of townGates(document)) {
     if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road"))
-      details.push(`門 ${gate.id}（頂点 ${gate.vertexId}）に城壁と道路の十字交差がない`);
+      details.push(
+        editorText("cityEditor.messages.gateVertexHasNoWallRoadCrossIntersection", {
+          value0: gate.id,
+          value1: gate.vertexId
+        })
+      );
   }
   const walls = kindEdgeIds(document, "wall");
   const rivers = kindEdgeIds(document, "river");
-  for (const id of walls) if (rivers.has(id)) details.push(`城壁と河川が辺 ${id} を共有している`);
+  for (const id of walls)
+    if (rivers.has(id)) details.push(editorText("cityEditor.messages.wallAndRiverShareEdge", { value0: id }));
   const wallVertices = new Set([...walls].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
   const riverVertices = new Set([...rivers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
   for (const id of wallVertices)
     if (riverVertices.has(id) && !vertexHasCrossing(document, id, "wall", "river"))
-      details.push(`頂点 ${id} で城壁と河川が交わるが十字交差になっていない`);
+      details.push(editorText("cityEditor.messages.wallAndRiverMeetAtVertexWithoutACrossIntersection", { value0: id }));
   for (const bridge of document.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
     const vertices = featureGroupVertices(document, bridge);
     if (vertices.length !== 3)
-      details.push(`橋 ${bridge.id} の頂点数が ${vertices.length} で、3（道路–河川–道路）ではない`);
+      details.push(
+        editorText("cityEditor.messages.bridgeHasVerticesInsteadOfThreeRoadRiverRoad", {
+          value0: bridge.id,
+          value1: vertices.length
+        })
+      );
     else if (!vertexHasCrossing(document, vertices[1], "river", "road"))
-      details.push(`橋 ${bridge.id}（頂点 ${vertices[1]}）に河川と道路の十字交差がない`);
+      details.push(
+        editorText("cityEditor.messages.bridgeVertexHasNoRiverRoadCrossIntersection", {
+          value0: bridge.id,
+          value1: vertices[1]
+        })
+      );
   }
   for (const river of document.featureGroups) {
     if (river.kind !== "river" || !river.id.startsWith("gc:")) continue;
@@ -1323,7 +1344,7 @@ export function explainGeneratedCrossingFailures(
       );
     });
     if (dividesTown && !river.vertices.some(id => vertexHasCrossing(document, id, "river", "road")))
-      details.push(`河川 ${river.id} が市街地を分断しているが橋がない`);
+      details.push(editorText("cityEditor.messages.riverDividesTheUrbanAreaWithoutABridge", { value0: river.id }));
   }
   return details;
 }

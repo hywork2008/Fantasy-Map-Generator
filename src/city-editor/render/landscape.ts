@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
 import { nearestOnPolyline, pointInPolygon } from "../core/gen/geom";
@@ -36,7 +37,9 @@ export function resolveLandscapeTheme(biome?: BurgSiteBiome): LandscapeTheme {
       groundFill: "#d5cfbf",
       suburbFaceFill: "#d5cfbf",
       featureDensity: 0.6,
-      label: "Default"
+      get label() {
+        return editorText("cityEditor.messages.default");
+      }
     };
   }
 

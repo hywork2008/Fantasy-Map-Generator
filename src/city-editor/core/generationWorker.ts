@@ -1,3 +1,4 @@
+import i18n, { isSupportedLanguage } from "../../i18n";
 import { generateCityOnDocument } from "./generate";
 import type { GenerationDebugPreview } from "./generationDebug";
 import type { GenerationReply, GenerationRequest } from "./generationWorkerClient";
@@ -6,8 +7,9 @@ const scope = globalThis as unknown as {
   onmessage: (event: MessageEvent<GenerationRequest>) => void;
   postMessage: (reply: GenerationReply) => void;
 };
-scope.onmessage = ({ data }) => {
+scope.onmessage = async ({ data }) => {
   try {
+    await i18n.changeLanguage(isSupportedLanguage(data.language ?? null) ? data.language : "en");
     const started = performance.now();
     let failurePreview: GenerationDebugPreview | undefined;
     const document = generateCityOnDocument(

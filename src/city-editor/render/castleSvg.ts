@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { circuitRing } from "../core/fortifications";
 import { polygonCentroid } from "../core/gen/geom";
 import type { CastlePlan, CityDocument, Point } from "../core/types";
@@ -787,7 +788,7 @@ export function renderCastle(
     layer: "fortifications",
     kind: "castle",
     id: castle.id,
-    label: `城 (${profile.label})`,
+    label: editorText("cityEditor.messages.castleCastleSvg", { value0: profile.label }),
     style: profile.style,
     locked: castle.locked
   };

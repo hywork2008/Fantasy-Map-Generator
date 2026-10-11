@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import type { Point } from "../core/types";
 
 export type ShipType = "small" | "medium" | "large" | "barge";
@@ -20,7 +21,9 @@ export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
     defaultSizeMeters: 16,
     minSizeMeters: 10,
     maxSizeMeters: 22,
-    label: "小型船 (スループ)",
+    get label() {
+      return editorText("cityEditor.messages.smallShipSloop");
+    },
     historicalName: "Sloop"
   },
   medium: {
@@ -29,7 +32,9 @@ export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
     defaultSizeMeters: 25,
     minSizeMeters: 18,
     maxSizeMeters: 32,
-    label: "中型船 (キャラベル)",
+    get label() {
+      return editorText("cityEditor.messages.mediumShipCaravel");
+    },
     historicalName: "Caravel"
   },
   large: {
@@ -38,7 +43,9 @@ export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
     defaultSizeMeters: 42,
     minSizeMeters: 30,
     maxSizeMeters: 55,
-    label: "大型船 (ガレオン)",
+    get label() {
+      return editorText("cityEditor.messages.largeShipGalleon");
+    },
     historicalName: "Galleon"
   },
   barge: {
@@ -47,11 +54,14 @@ export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
     defaultSizeMeters: 18,
     minSizeMeters: 10,
     maxSizeMeters: 28,
-    label: "川荷船 (バージ)",
+    get label() {
+      return editorText("cityEditor.messages.riverCargoBoatBarge");
+    },
     historicalName: "River Barge"
   }
 };
 
+// Imported ship aliases are data tokens, independent of the display language.
 export function normalizeShipType(key: string | undefined): ShipType {
   if (!key) return "small";
   const lower = key.toLowerCase();

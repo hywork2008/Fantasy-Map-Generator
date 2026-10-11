@@ -135,3 +135,22 @@ it("does not split a protected cell for a dry river detour", () => {
   expect(repair.document.mesh.faces[face.id]).toEqual(document.mesh.faces[face.id]);
   expect(validate(repair.document)).toEqual([]);
 });
+
+it("keeps wall and river geometry identical in English and Japanese", async () => {
+  const i18n = (await import("../../i18n")).default;
+  const originalLanguage = i18n.language;
+  try {
+    await i18n.changeLanguage("en");
+    const englishInput = input();
+    const english = repairRiverWalls(englishInput.document, englishInput.urbanRegions);
+    await i18n.changeLanguage("ja");
+    const japaneseInput = input();
+    const japanese = repairRiverWalls(japaneseInput.document, japaneseInput.urbanRegions);
+    expect(japanese.document.mesh).toEqual(english.document.mesh);
+    expect(japanese.document.featureGroups).toEqual(english.document.featureGroups);
+    expect(japanese.preparedPassages).toEqual(english.preparedPassages);
+    expect(japanese.splitFaces).toBe(english.splitFaces);
+  } finally {
+    await i18n.changeLanguage(originalLanguage);
+  }
+});

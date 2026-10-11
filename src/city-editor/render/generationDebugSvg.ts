@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { castleWallIds } from "../core/fortifications";
 import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../core/gen/polygonalCirculadeLayout";
 import type { GenerationDebugPreview } from "../core/generationDebug";
@@ -18,12 +19,15 @@ export function renderGenerationDebugSvg(
   svg.setAttribute("viewBox", viewBox);
   svg.setAttribute("class", "ce-svg ce-generation-debug");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `生成失敗の途中図: ${preview.sample.failure?.message ?? ""}`);
+  svg.setAttribute(
+    "aria-label",
+    editorText("cityEditor.messages.generationFailurePreview", { value0: preview.sample.failure?.message ?? "" })
+  );
   svg.setAttribute("data-attempt", String(preview.sample.attempt));
   svg.setAttribute("data-seed", preview.seed);
   if (city.layout) svg.setAttribute("data-layout", city.layout);
   const title = document.createElementNS(NS, "title");
-  title.textContent = preview.sample.failure?.message ?? "生成失敗";
+  title.textContent = preview.sample.failure?.message ?? editorText("cityEditor.messages.generationFailed");
   svg.append(title);
   const point = (id: string): Point | undefined => {
     const p = city.mesh.vertices[id]?.point;
@@ -43,7 +47,7 @@ export function renderGenerationDebugSvg(
       node.setAttribute("class", "ce-generation-debug-highlight");
       node.setAttribute("data-location", id);
       const tip = document.createElementNS(NS, "title");
-      tip.textContent = `${highlights.contextual ? "関連領域" : "検証対象"}: ${id}`;
+      tip.textContent = `${highlights.contextual ? editorText("cityEditor.messages.relatedArea") : editorText("cityEditor.messages.validationTargets")}: ${id}`;
       node.append(tip);
     }
     svg.append(node);
@@ -68,7 +72,14 @@ export function renderGenerationDebugSvg(
       node.setAttribute("data-face", face.id);
       node.setAttribute(
         "data-pick",
-        encodeURIComponent(JSON.stringify({ layer: "cells", kind: "cell", id: face.id, label: `cell #${face.id}` }))
+        encodeURIComponent(
+          JSON.stringify({
+            layer: "cells",
+            kind: "cell",
+            id: face.id,
+            label: editorText("cityEditor.messages.cellIdentifier", { value0: face.id })
+          })
+        )
       );
     }
   }
@@ -87,7 +98,7 @@ export function renderGenerationDebugSvg(
     core.setAttribute("pointer-events", "none");
     core.setAttribute("data-debug-restriction", "bram-core");
     const tip = document.createElementNS(NS, "title");
-    tip.textContent = "Bram中心部：格子上の道路探索対象外（専用の中心部道路を使用）";
+    tip.textContent = editorText("cityEditor.messages.bramCoreExcludedFromGridRoadSearchUsesDedicatedCentral");
     core.append(tip);
     svg.append(core);
   }
@@ -200,7 +211,7 @@ export function renderGenerationDebugSvg(
             layer: "vertices",
             kind: "vertex",
             id: vertex.id,
-            label: `vertex #${vertex.id}`,
+            label: editorText("cityEditor.messages.vertexIdentifier", { value0: vertex.id }),
             point: vertex.point
           })
         )
@@ -226,7 +237,14 @@ export function serializeGenerationDebugSvg(preview: GenerationDebugPreview): st
   svg.setAttribute("height", "1200");
   svg.removeAttribute("class");
   const description = document.createElementNS(NS, "desc");
-  description.textContent = `生成失敗の途中図。${preview.highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された箇所"}。工程: ${preview.sample.phase}。理由: ${preview.sample.failure?.reason ?? ""}。Seed: ${preview.seed}`;
+  description.textContent = editorText("cityEditor.messages.generationFailurePreviewPhaseReasonSeed", {
+    value0: preview.highlights.contextual
+      ? editorText("cityEditor.messages.relatedAreaHighlightExplanation")
+      : editorText("cityEditor.messages.validationHighlightExplanation"),
+    value1: preview.sample.phase,
+    value2: preview.sample.failure?.reason ?? "",
+    value3: preview.seed
+  });
   svg.prepend(description);
   const metadata = document.createElementNS(NS, "metadata");
   metadata.textContent = JSON.stringify({ seed: preview.seed, sample: preview.sample, highlights: preview.highlights });

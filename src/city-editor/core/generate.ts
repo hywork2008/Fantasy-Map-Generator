@@ -1,3 +1,4 @@
+import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { measureProcessing, type ProcessingProfiler } from "../../utils/processingProfiler";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
@@ -235,74 +236,184 @@ export interface GenerationStage {
   /** Original planning pass; separate from the visible slider number. */
   processStep: number;
   wallCheckpoint?: "walls" | "riverPassages" | "passages";
-  label: string;
-  hint: string;
+  labelKey: EditorMessageKey;
+  hintKey: EditorMessageKey;
+  readonly label: string;
+  readonly hint: string;
 }
 
 export const GENERATION_STAGES: GenerationStage[] = [
-  { id: "coast", step: 1, processStep: 1, label: "① 海岸線と海", hint: "Tag sea cells along a coastline walk" },
-  { id: "river", step: 2, processStep: 2, label: "② 河川", hint: "Route a river along the existing cell edges" },
-  { id: "urban", step: 3, processStep: 3, label: "③ 市街地コア", hint: "Mark the built-up cells" },
+  {
+    id: "coast",
+    step: 1,
+    processStep: 1,
+    labelKey: "cityEditor.generationStages.coast.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.coast.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "river",
+    step: 2,
+    processStep: 2,
+    labelKey: "cityEditor.generationStages.river.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.river.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "urban",
+    step: 3,
+    processStep: 3,
+    labelKey: "cityEditor.generationStages.urban.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.urban.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
   {
     id: "walls",
     step: 4,
     processStep: 4,
     wallCheckpoint: "walls",
-    label: "④ 城壁",
-    hint: "市街地の外周に城壁を描く。河川横断用・門用のセル分割前の状態。"
+    labelKey: "cityEditor.generationStages.walls.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.walls.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
   {
     id: "riverPassages",
     step: 5,
     processStep: 4,
     wallCheckpoint: "riverPassages",
-    label: "⑤ 河川横断・セル分割",
-    hint: "城壁が河川を横断するためのセル分割と経路調整を行う。門の通路はまだ開かない。"
+    labelKey: "cityEditor.generationStages.riverPassages.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.riverPassages.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
   {
     id: "passages",
     step: 6,
     processStep: 4,
     wallCheckpoint: "passages",
-    label: "⑥ 門の通路・セル分割",
-    hint: "門候補で通路を開く。必要なセルを分割し、門の確定前のメッシュを表示する。"
+    labelKey: "cityEditor.generationStages.passages.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.passages.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
   {
     id: "gates",
     step: 7,
     processStep: 4,
-    label: "⑦ 門・城郭",
-    hint: "開いた通路に門を確定し、広場・寺院・城郭を配置する。"
+    labelKey: "cityEditor.generationStages.gates.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.gates.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
-  { id: "streets", step: 8, processStep: 5, label: "⑧ 街路", hint: "Approach roads to the gates" },
-  { id: "wards", step: 9, processStep: 6, label: "⑨ 地区割り当て", hint: "Assign a district type to each urban cell" },
+  {
+    id: "streets",
+    step: 8,
+    processStep: 5,
+    labelKey: "cityEditor.generationStages.streets.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.streets.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "wards",
+    step: 9,
+    processStep: 6,
+    labelKey: "cityEditor.generationStages.wards.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.wards.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
   {
     id: "geometry",
     step: 10,
     processStep: 7,
-    label: "⑩ 幾何平滑化",
-    hint: "Smooth walls and streets into rounded shapes (finishCityGeometry)"
+    labelKey: "cityEditor.generationStages.geometry.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.geometry.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
   {
     id: "blocks",
     step: 11,
     processStep: 8,
-    label: "⑪ 街区・小道",
-    hint: "Form interior blocks and secondary access lanes"
+    labelKey: "cityEditor.generationStages.blocks.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.blocks.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
   {
     id: "buildings",
     step: 12,
     processStep: 9,
-    label: "⑫ 住居・完成都市",
-    hint: "Place residential and civic buildings"
+    labelKey: "cityEditor.generationStages.buildings.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.buildings.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   },
   {
     id: "conceal",
     step: 13,
     processStep: 10,
-    label: "⑬ 道路・小道を隠す",
-    hint: "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
+    labelKey: "cityEditor.generationStages.conceal.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.conceal.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
   }
 ];
 
@@ -481,7 +592,7 @@ export function generateStageOnDocument(
       1,
       "prepare",
       "too-few-faces",
-      `格子の面が3未満 (${faces.length})`,
+      editorText("cityEditor.messages.gridHasFewerThanThreeFaces", { value0: faces.length }),
       {
         faces: faces.length,
         stageStep
@@ -539,7 +650,7 @@ export function generateStageOnDocument(
       1,
       "castle",
       plan.castleFailure,
-      "指定した城の配置条件を満たす場所がありません",
+      editorText("cityEditor.messages.noLocationSatisfiesTheRequestedCastlePlacementSettings"),
       undefined,
       plan.castleFailureDetails
     );
@@ -690,9 +801,13 @@ export function generateCityOnDocument(
     counts: { attempts: COMPLETE_CITY_ATTEMPTS, rejected: failures.length },
     failure: {
       reason: "all-attempts-rejected",
-      message: `${COMPLETE_CITY_ATTEMPTS}案すべてが不採用になった`,
-      details: failures.map(
-        sample => `案${sample.attempt}: ${sample.failure?.message ?? sample.phase}（${sample.phase}）`
+      message: editorText("cityEditor.messages.allCandidatesWereRejected", { value0: COMPLETE_CITY_ATTEMPTS }),
+      details: failures.map(sample =>
+        editorText("cityEditor.messages.candidate", {
+          value0: sample.attempt,
+          value1: sample.failure?.message ?? sample.phase,
+          value2: sample.phase
+        })
       )
     }
   });
@@ -735,7 +850,13 @@ export function generateCityAttempt(
     return null;
   };
   const faceCount = Object.keys(document.mesh.faces).length;
-  if (faceCount < 3) return reject("prepare", "too-few-faces", `格子の面が3未満 (${faceCount})`, { faces: faceCount });
+  if (faceCount < 3)
+    return reject(
+      "prepare",
+      "too-few-faces",
+      editorText("cityEditor.messages.gridHasFewerThanThreeFaces", { value0: faceCount }),
+      { faces: faceCount }
+    );
   const { cells, faceIdOf, geo, program, params, half, cellSize } = measureProcessing(profiler, "prepare", () =>
     prepareRun(document, settings, seed)
   );
@@ -767,7 +888,7 @@ export function generateCityAttempt(
     return reject(
       "castle",
       plan.castleFailure,
-      "指定した城の配置条件を満たす場所がありません",
+      editorText("cityEditor.messages.noLocationSatisfiesTheRequestedCastlePlacementSettings"),
       undefined,
       plan.castleFailureDetails
     );
@@ -795,7 +916,11 @@ export function generateCityAttempt(
     return reject(
       "urban",
       "urban-area-too-small",
-      `市街地面積 ${Math.round(settlementArea)} m² が最低 ${Math.round(minimumUrbanArea)} m²（目標πR²の${floorPercent}%）に届かない`,
+      editorText("cityEditor.messages.urbanAreaM2FallsShortOfTheMinimumM2Of", {
+        value0: Math.round(settlementArea),
+        value1: Math.round(minimumUrbanArea),
+        value2: floorPercent
+      }),
       {
         settlementArea: Math.round(settlementArea),
         walledArea: Math.round(walledArea),
@@ -809,8 +934,14 @@ export function generateCityAttempt(
       },
       [
         `R=${params.cityRadiusMeters} m, πR²=${Math.round(targetArea)} m²`,
-        `市街地下限 ${floorPercent}% は城壁シェアとは別（海に中心を食われた都市の下限）`,
-        `城壁内シェア ${sharePercent}%（Walls ${program.walls ? "on" : "off"}）→ 城壁内 ${Math.round(walledArea)} m²`
+        editorText("cityEditor.messages.minimumUrbanAreaIsIndependentOfTheWalledShareMinimum", {
+          value0: floorPercent
+        }),
+        editorText("cityEditor.messages.walledShareWallsWalledAreaM2", {
+          value0: sharePercent,
+          value1: program.walls ? "on" : "off",
+          value2: Math.round(walledArea)
+        })
       ]
     );
   }
@@ -905,7 +1036,10 @@ export function generateCityAttempt(
     return reject(
       "street-plan",
       "too-few-external-roads",
-      `仕上げ前の外縁道路が ${roadsBeforeFinish} 本で、最低 ${minRoads} 本に届かない`,
+      editorText("cityEditor.messages.onlyOuterRoadsBeforeFinishingAtLeastRequired", {
+        value0: roadsBeforeFinish,
+        value1: minRoads
+      }),
       { roads: roadsBeforeFinish, minRoads, gates: townGates(next).length }
     );
   next.appearance = "town";
@@ -947,7 +1081,11 @@ export function generateCityAttempt(
     settled.castles?.length &&
     !measureProcessing(profiler, "castle-finalization", () => finalizeCastles(settled, false))
   )
-    return reject("castle", "castle-layout-too-small", "仕上げ後の城郭形状が成立しません");
+    return reject(
+      "castle",
+      "castle-layout-too-small",
+      editorText("cityEditor.messages.castleGeometryIsInvalidAfterFinishing")
+    );
   if (settled.defenseCircuits?.some(c => c.moat?.enabled)) {
     const reservations = new Map<number, MoatReservation>();
     const blocked = settled.featureGroups.flatMap(group => {
@@ -968,7 +1106,7 @@ export function generateCityAttempt(
       return reject(
         "street-plan",
         "roads-in-moat",
-        "仕上げ後の道路が門の橋以外で外堀に重なります",
+        editorText("cityEditor.messages.finishedRoadsOverlapTheOuterMoatAwayFromGateBridges"),
         { roads: blocked.length },
         blocked
       );
@@ -985,7 +1123,7 @@ export function generateCityAttempt(
       return reject(
         "street-plan",
         "fmg-road-mismatch",
-        "FMGから与えられた街道の接続をすべて確保できません",
+        editorText("cityEditor.messages.cannotSecureEveryRoadConnectionSuppliedByFMG"),
         { expected: geo.importedRoads.length, actual: sourceRoads.length },
         missing.map(road => `source road ${road.sourceIndex}: route ${road.routeId}`)
       );
@@ -1021,7 +1159,7 @@ export function generateCityAttempt(
     return reject(
       "crossing-validation",
       "invalid-crossings",
-      `門・橋の交差が不正（${crossingDetails.length}件）`,
+      editorText("cityEditor.messages.invalidGateOrBridgeIntersections", { value0: crossingDetails.length }),
       { issues: crossingDetails.length, gates: townGates(settled).length, roads: roadsAfterFinish },
       crossingDetails.slice(0, 20)
     );
@@ -1029,14 +1167,17 @@ export function generateCityAttempt(
     return reject(
       "crossing-validation",
       "too-few-external-roads",
-      `仕上げ後の外縁道路が ${roadsAfterFinish} 本で、最低 ${minRoads} 本に届かない`,
+      editorText("cityEditor.messages.onlyOuterRoadsAfterFinishingAtLeastRequired", {
+        value0: roadsAfterFinish,
+        value1: minRoads
+      }),
       { roads: roadsAfterFinish, minRoads, gates: townGates(settled).length }
     );
   if (tangled.length)
     return reject(
       "crossing-validation",
       "self-intersecting-faces",
-      `evolution格子に自己交差する街区が ${tangled.length} 面ある`,
+      editorText("cityEditor.messages.evolutionGridHasSelfIntersectingBlocks", { value0: tangled.length }),
       { faces: tangled.length },
       tangled.slice(0, 12)
     );
@@ -2330,7 +2471,12 @@ export function runPlan(
       const castleCell = currentFaceIdOf.indexOf(castleSite.faceId);
       if (castleSite.relationship === "integrated") currentUrban.add(castleCell);
       const anchor = currentCells[castleCell].centroid;
-      precincts.push({ kind: "citadel", cellIds: [castleCell], anchor, label: "Castle" });
+      precincts.push({
+        kind: "citadel",
+        cellIds: [castleCell],
+        anchor,
+        label: editorText("cityEditor.messages.castle")
+      });
       borderLoops = componentBorderLoops(currentMesh, currentFaceIdOf, currentUrban);
       genBorders = borderLoops.map(toGeneratorBorder);
       meshModified = true;
@@ -2347,7 +2493,12 @@ export function runPlan(
   if (preservedCastleIds.size) {
     const cellIds = currentFaceIdOf.flatMap((id, i) => (preservedCastleIds.has(id) ? [i] : []));
     if (cellIds.length)
-      precincts.push({ kind: "citadel", cellIds, anchor: currentCells[cellIds[0]].centroid, label: "Castle" });
+      precincts.push({
+        kind: "citadel",
+        cellIds,
+        anchor: currentCells[cellIds[0]].centroid,
+        label: editorText("cityEditor.messages.castle")
+      });
   }
   empty.castleSite = castleSite;
   empty.castleFailure = castleFailure;
@@ -3304,7 +3455,7 @@ function applyPlan(
       return reject(
         "wall-river-routing",
         "wall-river-routing-failed",
-        "城壁・河川の離隔、迂回・河川通過口を確保できない",
+        editorText("cityEditor.messages.cannotSecureWallRiverSeparationDetoursAndRiverPassages"),
         {
           issues: riverRepair.issues.length,
           preparedRiverPassages: riverRepair.preparedPassages.length,
@@ -3312,7 +3463,9 @@ function applyPlan(
         },
         [
           ...riverRepair.adjustments,
-          ...riverRepair.preparedPassages.map(id => `河川横断口の準備完了: ${id}`),
+          ...riverRepair.preparedPassages.map(id =>
+            editorText("cityEditor.messages.riverPassagesPrepared", { value0: id })
+          ),
           ...riverRepair.issues
         ]
       );
@@ -3680,7 +3833,7 @@ function applyPlan(
         return reject(
           "castle",
           "castle-layout-too-small",
-          "城の門・庭・必須棟が区画に入りません",
+          editorText("cityEditor.messages.castleGatesCourtyardAndRequiredBuildingsDoNotFitIn"),
           undefined,
           castleDetails
         );
@@ -3866,11 +4019,11 @@ function applyPlan(
     const recordBans = (ids: Iterable<Id>, reason: string) => {
       for (const id of ids) banReasons.set(id, [...(banReasons.get(id) ?? []), reason]);
     };
-    recordBans(channelEdges, "water-area: 連続した水路内の辺");
-    recordBans(kindEdgeIds(next, "river"), "river-edge: 川の辺");
-    recordBans(kindEdgeIds(next, "wall"), "wall-edge: 城壁の辺");
-    recordBans(internalPlazaEdges, "plaza-interior: 広場の内部辺");
-    recordBans(templeBlockedEdges, "temple: 寺院の内部・身廊");
+    recordBans(channelEdges, editorText("cityEditor.messages.waterAreaEdgeInsideAContinuousWaterway"));
+    recordBans(kindEdgeIds(next, "river"), editorText("cityEditor.messages.riverEdgeRiverEdge"));
+    recordBans(kindEdgeIds(next, "wall"), editorText("cityEditor.messages.wallEdgeWallEdge"));
+    recordBans(internalPlazaEdges, editorText("cityEditor.messages.plazaInteriorInternalPlazaEdge"));
+    recordBans(templeBlockedEdges, editorText("cityEditor.messages.templeTempleInteriorOrNave"));
     const layout = plan.layout ?? source.layout;
     if (layout === "bram") {
       const plazaElem = next.elements.find(e => e.kind === "plaza");
@@ -3886,7 +4039,7 @@ function applyPlan(
             Math.hypot(pb[0] - hub[0], pb[1] - hub[1]) < banRadius)
         ) {
           banned.add(e.id);
-          recordBans([e.id], "bram-core: Bram中心部の道路禁止半径内");
+          recordBans([e.id], editorText("cityEditor.messages.bramCoreInsideTheBramCoreRoadExclusionRadius"));
         }
       }
     }
@@ -4207,32 +4360,44 @@ function applyPlan(
     return reject(
       "gate-routing",
       "unconnected-gates",
-      `門 ${disconnected.length} 箇所の道路接続を確保できない`,
+      editorText("cityEditor.messages.cannotSecureRoadConnectionsForGates", { value0: disconnected.length }),
       { gates: townGates(next).length, disconnected: disconnected.length },
       disconnected.flatMap(gate => [
         `${gate.id}: ${gate.vertexId}`,
-        `門 ${gate.vertexId}: wall-passage=${vertexHasKindPassage(next, gate.vertexId, "wall")}, wall-road-crossing=${vertexHasCrossing(next, gate.vertexId, "wall", "road")}`,
-        `門 ${gate.vertexId} の道路辺: ${
-          next.featureGroups
-            .flatMap(group =>
-              group.kind === "road"
-                ? group.segments
-                    .filter(ref => {
-                      const edge = mesh.edges[ref.edgeId];
-                      return edge.a === gate.vertexId || edge.b === gate.vertexId;
-                    })
-                    .map(ref => ref.edgeId)
-                : []
-            )
-            .join(", ") || "なし"
-        }`,
-        `門 ${gate.vertexId} の全接続辺: ${Object.values(mesh.edges)
-          .filter(e => e.a === gate.vertexId || e.b === gate.vertexId)
-          .map(e => `${e.id}(to ${e.a === gate.vertexId ? e.b : e.a}, L:${e.leftFace}, R:${e.rightFace})`)
-          .join(", ")}`,
-        `門 ${gate.vertexId} の通過可能辺: ${throughEdgesAt(next, gate.vertexId, "wall")
-          .map(e => e.id)
-          .join(", ")}`
+        editorText("cityEditor.messages.gateWallPassageWallRoadCrossing", {
+          value0: gate.vertexId,
+          value1: vertexHasKindPassage(next, gate.vertexId, "wall"),
+          value2: vertexHasCrossing(next, gate.vertexId, "wall", "road")
+        }),
+        editorText("cityEditor.messages.roadEdgesAtGate", {
+          value0: gate.vertexId,
+          value1:
+            next.featureGroups
+              .flatMap(group =>
+                group.kind === "road"
+                  ? group.segments
+                      .filter(ref => {
+                        const edge = mesh.edges[ref.edgeId];
+                        return edge.a === gate.vertexId || edge.b === gate.vertexId;
+                      })
+                      .map(ref => ref.edgeId)
+                  : []
+              )
+              .join(", ") || editorText("cityEditor.messages.noneGenerate")
+        }),
+        editorText("cityEditor.messages.allEdgesAtGate", {
+          value0: gate.vertexId,
+          value1: Object.values(mesh.edges)
+            .filter(e => e.a === gate.vertexId || e.b === gate.vertexId)
+            .map(e => `${e.id}(to ${e.a === gate.vertexId ? e.b : e.a}, L:${e.leftFace}, R:${e.rightFace})`)
+            .join(", ")
+        }),
+        editorText("cityEditor.messages.passableEdgesAtGate", {
+          value0: gate.vertexId,
+          value1: throughEdgesAt(next, gate.vertexId, "wall")
+            .map(e => e.id)
+            .join(", ")
+        })
       ]),
       disconnected.flatMap(gate => gateRouting.get(gate.id) ?? [])
     );
@@ -4344,7 +4509,11 @@ function applyPlan(
 
   if (stageStep >= 6) settleTempleOnDocument(next);
   if (stageStep >= 5 && next.castles?.length && !finalizeCastles(next, true)) {
-    return reject("castle", "castle-no-access", "城門から市街への支線を確保できません");
+    return reject(
+      "castle",
+      "castle-no-access",
+      editorText("cityEditor.messages.cannotSecureABranchRoadFromTheCastleGateTo")
+    );
   }
 
   const errors = validate(next);
@@ -4353,7 +4522,7 @@ function applyPlan(
     return reject(
       "apply-validation",
       "invalid-mesh",
-      `メッシュ検証が ${errors.length} 件のエラーで失敗`,
+      editorText("cityEditor.messages.meshValidationFailedWithErrors", { value0: errors.length }),
       { errors: errors.length },
       errors.slice(0, 20)
     );
@@ -4595,7 +4764,9 @@ export function completeRoadRouter(
         status: "failed",
         path: [],
         searches,
-        reason: "予定経路の座標が2点未満"
+        get reason() {
+          return editorText("cityEditor.messages.plannedRouteHasFewerThanTwoCoordinatePoints");
+        }
       });
       return [];
     }
@@ -4691,7 +4862,9 @@ export function completeRoadRouter(
         status: "failed",
         path: [],
         searches,
-        reason: "スナップ後の経由頂点が不足（頂点なし、または始点と終点が同一）"
+        get reason() {
+          return editorText("cityEditor.messages.notEnoughSnappedVerticesNoVerticesOrIdenticalStartAnd");
+        }
       });
       return [];
     }
@@ -4704,29 +4877,38 @@ export function completeRoadRouter(
         if (onTrace) blocked.push({ edge: edge.id, from: ids[a], to: ids[b], reason });
         return Infinity;
       };
-      if (castleBlocked.has(edge.id)) return rejectEdge("castle: 城・城壁の禁止領域");
-      if (moatBlocked.has(edge.id)) return rejectEdge("moat: 門の通路以外で堀に進入");
+      if (castleBlocked.has(edge.id))
+        return rejectEdge(editorText("cityEditor.messages.castleCastleOrWallExclusionArea"));
+      if (moatBlocked.has(edge.id))
+        return rejectEdge(editorText("cityEditor.messages.moatEntersTheMoatAwayFromAGatePassage"));
       for (const id of [edge.a, edge.b])
         if (bridgeInterior.has(id) && !gateIds.has(id) && !bridgeInterior.get(id)!.has(edge.id))
-          return rejectEdge(`bridge-interior: 橋の途中 ${id} から分岐`);
+          return rejectEdge(editorText("cityEditor.messages.bridgeInteriorBranchesFromBridgeInterior", { value0: id }));
       if (banned.has(edge.id)) {
         const canUsePlazaEdge =
           !outside &&
           internalPlazaEdges.has(edge.id) &&
           (gateIds.has(edge.a) || gateIds.has(edge.b) || a === hopEnd || b === hopEnd);
-        if (!canUsePlazaEdge) return rejectEdge(banReasons.get(edge.id)?.join("; ") ?? "banned-edge: 道路探索の禁止辺");
+        if (!canUsePlazaEdge)
+          return rejectEdge(
+            banReasons.get(edge.id)?.join("; ") ??
+              editorText("cityEditor.messages.bannedEdgeEdgeExcludedFromRoadSearch")
+          );
       }
       if (riverRouteVertices.has(edge.a) && riverRouteVertices.has(edge.b))
-        return rejectEdge("river-bank: 両端が川の頂点");
+        return rejectEdge(editorText("cityEditor.messages.riverBankBothEndpointsAreRiverVertices"));
       for (const id of [edge.a, edge.b]) {
         if (restricted.has(id) && !restricted.get(id)!.has(edge.id))
           return rejectEdge(
-            `barrier-passage: ${id} で川・壁を通り抜ける腕ではない（許可辺: ${[...restricted.get(id)!].join(", ") || "なし"}）`
+            editorText("cityEditor.messages.barrierPassageNotAPermittedRiverOrWallCrossingAt", {
+              value0: id,
+              value1: [...restricted.get(id)!].join(", ") || editorText("cityEditor.messages.noneGenerate")
+            })
           );
       }
       const faces = [edge.leftFace, edge.rightFace].filter((id): id is Id => id !== null);
       if (plan.avoidSea && faces.some(id => mesh.faces[id].properties.water !== "land"))
-        return rejectEdge("water-face: 水面に接する辺");
+        return rejectEdge(editorText("cityEditor.messages.waterFaceEdgeTouchingWater"));
       const inTown = faces.some(id => (useCurrentCurtain ? curtainInterior! : urban).has(id));
       if (!acrossBanks && outside === inTown && !bridgeEdges.has(edge.id)) {
         // An unwalled town has no curtain to separate an approach from local
@@ -4735,8 +4917,10 @@ export function completeRoadRouter(
         if (outside && openRim) return w;
         return rejectEdge(
           outside
-            ? `town-interior: 城外道路が城内セルに接する (${faces.filter(id => (useCurrentCurtain ? curtainInterior! : urban).has(id)).join(", ")})`
-            : `town-exterior: 城内道路が城外セルに接する (${faces.join(", ")})`
+            ? editorText("cityEditor.messages.townInteriorOuterRoadTouchesAnInnerCell", {
+                value0: faces.filter(id => (useCurrentCurtain ? curtainInterior! : urban).has(id)).join(", ")
+              })
+            : editorText("cityEditor.messages.townExteriorInnerRoadTouchesAnOuterCell", { value0: faces.join(", ") })
         );
       }
       return w;

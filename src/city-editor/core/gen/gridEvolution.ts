@@ -1,3 +1,4 @@
+import { editorText } from "../../../i18n/editorMessages";
 // Step-by-step capture of `buildPatchCells` (patches.ts) for the Document
 // panel's "Grid evolution" slider — one stage per scatter point and per relax
 // pass, so the cell-shaping algorithm can be inspected "one for-loop iteration
@@ -55,17 +56,24 @@ export function buildGridEvolution(params: PatchParams, rng: Rng): GridEvolution
   const stride = Math.max(1, Math.ceil(total / MAX_SCATTER_STAGES));
   for (let k = 1; k <= total; k++) {
     if (k !== total && (k - 1) % stride !== 0) continue;
-    stages.push(snapshot(`scatter ${k} / ${total}`, allSites.slice(0, k)));
+    stages.push(
+      snapshot(editorText("cityEditor.messages.scatter", { value0: k, value1: total }), allSites.slice(0, k))
+    );
   }
 
   // --- relax: one stage per pass over the centre-most `relaxCount` sites ---
   let sites = allSites;
   for (let pass = 1; pass <= relaxPasses && relaxCount > 0; pass++) {
     sites = relaxCentralSites(sites, guard, win, relaxCount);
-    stages.push(snapshot(`relax pass ${pass} / ${relaxPasses} (K=${relaxCount})`, sites));
+    stages.push(
+      snapshot(
+        editorText("cityEditor.messages.relaxPassK", { value0: pass, value1: relaxPasses, value2: relaxCount }),
+        sites
+      )
+    );
   }
 
-  stages.push(snapshot("final", sites));
+  stages.push(snapshot(editorText("cityEditor.messages.final"), sites));
   return stages;
 }
 

@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { featureGroupVertices } from "./features";
 import { boundaryRings, castleWallIds } from "./fortifications";
 import { aStar, type EdgeGraph } from "./gen/edgeGraph";
@@ -376,12 +377,18 @@ export function repairRiverWalls(
         if (!nodes) {
           failedDetours.push({ start: startId, end: endId });
           routingIssues.push(
-            `城壁の河川迂回に失敗: 始点 ${startId} → 終点 ${endId}（${
-              !clearVertex(startId) || !clearVertex(endId) ? "探索端点が河川の離隔内" : "通行可能な辺で接続できない"
-            }、元の辺: ${refs
-              .slice(i, end)
-              .map(ref => ref.edgeId)
-              .join(", ")}）`
+            editorText("cityEditor.messages.wallDetourAroundRiverFailedStartEndOriginalEdges", {
+              value0: startId,
+              value1: endId,
+              value2:
+                !clearVertex(startId) || !clearVertex(endId)
+                  ? editorText("cityEditor.messages.searchEndpointIsWithinRiverClearance")
+                  : editorText("cityEditor.messages.cannotConnectUsingPassableEdges"),
+              value3: refs
+                .slice(i, end)
+                .map(ref => ref.edgeId)
+                .join(", ")
+            })
           );
           // Keep the rejected run editable, but retain successful replacements
           // elsewhere in the same curtain instead of reverting the whole wall.
@@ -412,7 +419,11 @@ export function repairRiverWalls(
             p => originalPolygon && pointInPolygon(p, originalPolygon) && !pointInPolygon(p, points)
           ))
       ) {
-        routingIssues.push(`城壁 ${group.id} の迂回結果を採用できない: 閉路の交差または囲む領域の変化`);
+        routingIssues.push(
+          editorText("cityEditor.messages.cannotAdoptDetourForWallLoopIntersectionOrChangedEnclosed", {
+            value0: group.id
+          })
+        );
         continue;
       }
       group.segments = output;
@@ -434,9 +445,11 @@ export function repairRiverWalls(
     };
     const vertices = new Set([...rivers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
     const result: string[] = [];
-    for (const id of walls) if (rivers.has(id)) result.push(`城壁と河川が辺 ${id} を共有している`);
+    for (const id of walls)
+      if (rivers.has(id)) result.push(editorText("cityEditor.messages.wallAndRiverShareEdge", { value0: id }));
     for (const id of new Set([...walls].flatMap(edge => [document.mesh.edges[edge].a, document.mesh.edges[edge].b])))
-      if (vertices.has(id) && !crossingAt(id)) result.push(`頂点 ${id} に河川通過口を確保できない`);
+      if (vertices.has(id) && !crossingAt(id))
+        result.push(editorText("cityEditor.messages.cannotSecureARiverPassageAtVertex", { value0: id }));
     for (const group of document.featureGroups) {
       if (group.kind !== "wall" || group.locked || !group.id.startsWith("gc:") || castleWallIds(document).has(group.id))
         continue;
@@ -503,7 +516,8 @@ export function repairRiverWalls(
               );
             })
         );
-        if (tooClose) result.push(`辺 ${edge.id} の城壁と河川の間隔が不足している`);
+        if (tooClose)
+          result.push(editorText("cityEditor.messages.insufficientWallRiverClearanceAtEdge", { value0: edge.id }));
       }
     }
     return result;
@@ -536,7 +550,10 @@ export function repairRiverWalls(
       const before = document;
       const existing = new Set(conflicts());
       const edgeIds = [...existing].flatMap(message =>
-        message.includes("間隔が不足") ? (message.match(/\be\d+\b/g) ?? []) : []
+        (message.match(/\be\d+\b/g) ?? []).filter(
+          edgeId =>
+            message === editorText("cityEditor.messages.insufficientWallRiverClearanceAtEdge", { value0: edgeId })
+        )
       );
       if (!edgeIds.length) break;
       const walls = kindEdgeIds(before, "wall"),
@@ -697,7 +714,14 @@ export function repairRiverWalls(
       if (!best) break;
       document = best.doc;
       adjustments.push(
-        `${best.kind === "wall" ? "城壁" : "河川"}の離隔調整: ${best.id}（${best.distance.toFixed(2)} m、城壁全周の円形度を比較）`
+        editorText("cityEditor.messages.clearanceAdjustmentMComparingWholeWallCircularity", {
+          value0:
+            best.kind === "wall"
+              ? editorText("cityEditor.messages.townWalls")
+              : editorText("cityEditor.messages.riverRiverWallRouting"),
+          value1: best.id,
+          value2: best.distance.toFixed(2)
+        })
       );
     }
   };
@@ -836,7 +860,11 @@ export function repairRiverWalls(
         // the curtain actually consumes it. Do not publish unused cell cuts.
         document = beforeRun;
         preparationIssues.push(
-          `河川横断の城壁経路を確保できない（進入候補: ${run[0]}、退出候補: ${run.at(-1)}、候補: ${run.join(", ")}）。未使用のセル分割は不採用`
+          editorText("cityEditor.messages.cannotSecureAWallRouteAcrossTheRiverEntryCandidates", {
+            value0: run[0],
+            value1: run.at(-1),
+            value2: run.join(", ")
+          })
         );
       } else {
         for (const id of usedIds) preparedPassages.add(id);

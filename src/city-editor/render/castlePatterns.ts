@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import type { CastlePlan, CityDocument, HistoricalPeriod } from "../core/types";
 
 export type CastleStyle =
@@ -59,7 +60,9 @@ export interface CastleStyleProfile {
 export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   classic: {
     style: "classic",
-    label: "従来の標準城郭 (クラシック)",
+    get label() {
+      return editorText("cityEditor.messages.standardCastleClassic");
+    },
     palette: {
       groundFill: "#d5cfbf",
       groundStroke: "#a7977f",
@@ -102,7 +105,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   "norman-keep": {
     style: "norman-keep",
-    label: "ノルマン方形主塔城郭 (High Medieval)",
+    get label() {
+      return editorText("cityEditor.messages.normanSquareKeepHighMedieval");
+    },
     palette: {
       groundFill: "#dcd6c8",
       groundStroke: "#9f9382",
@@ -145,7 +150,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   "motte-bailey": {
     style: "motte-bailey",
-    label: "モット・アンド・ベイリー (Early Medieval)",
+    get label() {
+      return editorText("cityEditor.messages.motteAndBaileyEarlyMedieval");
+    },
     palette: {
       groundFill: "#c9be9f",
       groundStroke: "#8a7c5c",
@@ -188,7 +195,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   concentric: {
     style: "concentric",
-    label: "同心円・円塔囲郭城塞 (Late Medieval)",
+    get label() {
+      return editorText("cityEditor.messages.concentricCastleWithRoundTowersLateMedieval");
+    },
     palette: {
       groundFill: "#dbd5c5",
       groundStroke: "#9d927f",
@@ -231,7 +240,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   "bastion-citadel": {
     style: "bastion-citadel",
-    label: "近世星形要塞・城塞 (Early Modern)",
+    get label() {
+      return editorText("cityEditor.messages.starFortAndCitadelEarlyModern");
+    },
     palette: {
       groundFill: "#ded8cc",
       groundStroke: "#9c9383",
@@ -274,7 +285,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   "japanese-shiro": {
     style: "japanese-shiro",
-    label: "日本式城郭・天守曲輪 (East Asian)",
+    get label() {
+      return editorText("cityEditor.messages.japaneseCastleAndKeepCompoundEastAsian");
+    },
     palette: {
       groundFill: "#ece6d8",
       groundStroke: "#a29b8a",
@@ -317,7 +330,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   "islamic-qalat": {
     style: "islamic-qalat",
-    label: "イスラム要塞宮殿・カラート (Middle Eastern / Moorish)",
+    get label() {
+      return editorText("cityEditor.messages.fortifiedPalaceAndQalatMiddleEasternMoorish");
+    },
     palette: {
       groundFill: "#e4dac2",
       groundStroke: "#9e8e6b",
@@ -360,7 +375,9 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
   },
   "ancient-castra": {
     style: "ancient-castra",
-    label: "古代要塞・カストラ / アクロポリス (Classical Antiquity)",
+    get label() {
+      return editorText("cityEditor.messages.castraAndAcropolisClassicalAntiquity");
+    },
     palette: {
       groundFill: "#ded4be",
       groundStroke: "#9b8c6e",

@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { featureGroupVertices } from "../core/features";
 import type {
   AerialLandmarkPlan,
@@ -90,9 +91,15 @@ function gabled(g: SVGElement, polygonPoints: Point[], ridge: [Point, Point], fi
 }
 
 const MONASTERY_LABELS: Record<Monastery["kind"], string> = {
-  abbey: "修道院",
-  friary: "托鉢修道会修道院",
-  orthodoxMonastery: "正教修道院"
+  get abbey() {
+    return editorText("cityEditor.messages.monastery");
+  },
+  get friary() {
+    return editorText("cityEditor.messages.mendicantMonastery");
+  },
+  get orthodoxMonastery() {
+    return editorText("cityEditor.messages.orthodoxMonastery");
+  }
 };
 
 // Ground tones shared with the town's own yards and kitchen gardens (svg.ts), so a
@@ -237,7 +244,7 @@ function renderTannery(t: Tannery, options: PickOptions, minimal: boolean): SVGE
     {
       kind: "tannery",
       id: t.id,
-      label: `${t.name}（皮革なめし場）`,
+      label: editorText("cityEditor.messages.tannery", { value0: t.name }),
       riverId: t.riverId
     },
     options
@@ -288,7 +295,7 @@ function renderWindmill(w: Windmill, options: PickOptions): SVGElement {
     {
       kind: "windmill",
       id: w.id,
-      label: `${w.name}（${w.kind === "tower" ? "塔型風車" : "ポスト型風車"}）`,
+      label: `${w.name}（${w.kind === "tower" ? editorText("cityEditor.messages.towerWindmill") : editorText("cityEditor.messages.postWindmill")}）`,
       millKind: w.kind
     },
     options
@@ -401,7 +408,11 @@ function renderWindmill(w: Windmill, options: PickOptions): SVGElement {
 }
 
 function renderGallows(gw: Gallows, options: PickOptions): SVGElement {
-  const g = pickGroup("ce-gallows", { kind: "gallows", id: gw.id, label: `${gw.name}（常設絞首台）` }, options);
+  const g = pickGroup(
+    "ce-gallows",
+    { kind: "gallows", id: gw.id, label: editorText("cityEditor.messages.permanentGallows", { value0: gw.name }) },
+    options
+  );
   g.appendChild(
     el("path", {
       d: line(gw.path),
@@ -543,38 +554,83 @@ export function renderAerialLandmarks(
 }
 
 const HALL_LABEL: Record<string, string> = {
-  textiles: "布地会館",
-  leather: "皮革会館",
-  woodworking: "木工会館",
-  masonry: "石工会館",
-  metallurgy: "鍛冶会館",
-  glassware: "ガラス会館",
-  instruments: "楽器会館",
-  printing: "印刷会館"
+  get textiles() {
+    return editorText("cityEditor.messages.clothHall");
+  },
+  get leather() {
+    return editorText("cityEditor.messages.leatherworkersHall");
+  },
+  get woodworking() {
+    return editorText("cityEditor.messages.carpentersHall");
+  },
+  get masonry() {
+    return editorText("cityEditor.messages.masonsHall");
+  },
+  get metallurgy() {
+    return editorText("cityEditor.messages.smithsHall");
+  },
+  get glassware() {
+    return editorText("cityEditor.messages.glassworkersHall");
+  },
+  get instruments() {
+    return editorText("cityEditor.messages.instrumentMakersHall");
+  },
+  get printing() {
+    return editorText("cityEditor.messages.printersHall");
+  }
 };
 
 const YARD_LABEL: Record<GuildYard["kind"], string> = {
-  bleachingField: "漂白場",
-  timberYard: "材木置場",
-  stoneYard: "石置場",
-  limeKiln: "石灰窯",
-  smithyYard: "鍛冶場",
-  sandYard: "砂置場"
+  get bleachingField() {
+    return editorText("cityEditor.messages.bleachingField");
+  },
+  get timberYard() {
+    return editorText("cityEditor.messages.timberYard");
+  },
+  get stoneYard() {
+    return editorText("cityEditor.messages.stoneYard");
+  },
+  get limeKiln() {
+    return editorText("cityEditor.messages.limeKiln");
+  },
+  get smithyYard() {
+    return editorText("cityEditor.messages.smithy");
+  },
+  get sandYard() {
+    return editorText("cityEditor.messages.sandYard");
+  }
 };
 
 function staffLabel(practitioners: number, year: number): string {
-  const staff = practitioners > 0 ? `職人${practitioners}人` : "職人なし";
-  return year > 0 ? `${year}年・${staff}` : staff;
+  const staff =
+    practitioners > 0
+      ? editorText("cityEditor.messages.artisans", { value0: practitioners })
+      : editorText("cityEditor.messages.noArtisans");
+  return year > 0 ? editorText("cityEditor.messages.facilityYearAndOccupancy", { value0: year, value1: staff }) : staff;
 }
 
 const STORAGE_LABEL: Record<StorageYard["form"], string> = {
-  livestockPen: "家畜市",
-  timberYard: "材木置場",
-  stoneYard: "石置場",
-  fuelStack: "燃料置場",
-  granary: "穀倉",
-  cellar: "樽倉",
-  warehouse: "倉庫"
+  get livestockPen() {
+    return editorText("cityEditor.messages.livestockMarket");
+  },
+  get timberYard() {
+    return editorText("cityEditor.messages.timberYard");
+  },
+  get stoneYard() {
+    return editorText("cityEditor.messages.stoneYard");
+  },
+  get fuelStack() {
+    return editorText("cityEditor.messages.fuelYard");
+  },
+  get granary() {
+    return editorText("cityEditor.messages.granary");
+  },
+  get cellar() {
+    return editorText("cityEditor.messages.barrelStore");
+  },
+  get warehouse() {
+    return editorText("cityEditor.messages.warehouse");
+  }
 };
 
 const STORAGE_FILL: Record<StorageYard["form"], string> = {
@@ -587,17 +643,26 @@ const STORAGE_FILL: Record<StorageYard["form"], string> = {
   warehouse: "#a89880"
 };
 
-const INN_LABEL: Record<GateInn["kind"], string> = { inn: "街道宿", caravanserai: "隊商宿" };
+const INN_LABEL: Record<GateInn["kind"], string> = {
+  inn: editorText("cityEditor.messages.roadsideInn"),
+  caravanserai: editorText("cityEditor.messages.caravanserai")
+};
 const INN_FILL: Record<GateInn["kind"], string> = { inn: "#c4b49a", caravanserai: "#b7aa96" };
 
 function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
-  const dated = inn.year > 0 ? `${inn.year}年・` : "";
+  const dated = inn.year > 0 ? editorText("cityEditor.messages.facilityYearPrefix", { value0: inn.year }) : "";
   const g = pickGroup(
     `ce-gate-inn ce-gate-inn--${inn.kind}`,
     {
       kind: "gateInn",
       id: inn.id,
-      label: `${inn.name}（${INN_LABEL[inn.kind]}・${dated}棟${inn.count}・厩舎${inn.stableSpaces}）`,
+      label: editorText("cityEditor.messages.buildingsStables", {
+        value0: inn.name,
+        value1: INN_LABEL[inn.kind],
+        value2: dated,
+        value3: inn.count,
+        value4: inn.stableSpaces
+      }),
       innKind: inn.kind,
       stableSpaces: inn.stableSpaces,
       count: inn.count
@@ -641,15 +706,22 @@ function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
 }
 
 function renderStorageYard(yard: StorageYard, options: PickOptions): SVGElement {
-  const kindLabel = yard.origin === "publicWorks" ? "公共穀倉" : STORAGE_LABEL[yard.form];
-  const goods = yard.mainGoods.length ? yard.mainGoods.join("・") : kindLabel;
-  const dated = yard.year > 0 ? `${yard.year}年・` : "";
+  const kindLabel =
+    yard.origin === "publicWorks" ? editorText("cityEditor.messages.publicGranary") : STORAGE_LABEL[yard.form];
+  const goods = yard.mainGoods.length ? yard.mainGoods.join(editorText("cityEditor.messages.separator")) : kindLabel;
+  const dated = yard.year > 0 ? editorText("cityEditor.messages.facilityYearPrefix", { value0: yard.year }) : "";
   const g = pickGroup(
     `ce-storage-yard ce-storage-yard--${yard.form}${yard.origin === "publicWorks" ? " ce-storage-yard--public" : ""}`,
     {
       kind: "storageYard",
       id: yard.id,
-      label: `${yard.name}（${kindLabel}・${dated}${goods}・${yard.areaM2} m²）`,
+      label: editorText("cityEditor.messages.facilityAreaDetails", {
+        value0: yard.name,
+        value1: kindLabel,
+        value2: dated,
+        value3: goods,
+        value4: yard.areaM2
+      }),
       form: yard.form,
       areaM2: yard.areaM2,
       waterborne: yard.waterborne
@@ -668,13 +740,17 @@ function renderStorageYard(yard: StorageYard, options: PickOptions): SVGElement 
 }
 
 function renderGuildHall(hall: GuildHall, options: PickOptions): SVGElement {
-  const label = HALL_LABEL[hall.domain] ?? "ギルド会館";
+  const label = HALL_LABEL[hall.domain] ?? editorText("cityEditor.messages.guildHall");
   const g = pickGroup(
     "ce-guild-hall",
     {
       kind: "guildHall",
       id: hall.id,
-      label: `${hall.name}（${label}・${staffLabel(hall.practitioners, hall.year)}）`,
+      label: editorText("cityEditor.messages.namedFacilityDetails", {
+        value0: hall.name,
+        value1: label,
+        value2: staffLabel(hall.practitioners, hall.year)
+      }),
       domain: hall.domain,
       practitioners: hall.practitioners
     },
@@ -714,7 +790,11 @@ function renderGuildYard(yard: GuildYard, options: PickOptions, minimal: boolean
     {
       kind: "guildYard",
       id: yard.id,
-      label: `${yard.name}（${label}・${staffLabel(yard.practitioners, yard.year)}）`,
+      label: editorText("cityEditor.messages.namedFacilityDetails", {
+        value0: yard.name,
+        value1: label,
+        value2: staffLabel(yard.practitioners, yard.year)
+      }),
       domain: yard.domain,
       yardKind: yard.kind,
       practitioners: yard.practitioners
@@ -790,7 +870,7 @@ function renderBarbican(b: Barbican, options: PickOptions, document: CityDocumen
     {
       kind: "barbican",
       id: b.id,
-      label: `${b.name}（バービカン）`,
+      label: editorText("cityEditor.messages.barbican", { value0: b.name }),
       gateId: b.gateId
     },
     options

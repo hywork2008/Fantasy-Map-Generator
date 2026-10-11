@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
   fixedCrossingsMatchFrame,
@@ -25,10 +26,10 @@ export function renderFixedSitePreview(site: BurgSiteDescriptor): SVGSVGElement 
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", "180");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Imported fixed river crossings and road directions");
+  svg.setAttribute("aria-label", editorText("cityEditor.messages.importedFixedRiverCrossingsAndRoadDirections"));
   svg.setAttribute("overflow", "hidden");
   const title = document.createElementNS(ns, "title");
-  title.textContent = "Imported fixed river crossings and road directions";
+  title.textContent = editorText("cityEditor.messages.importedFixedRiverCrossingsAndRoadDirections");
   svg.appendChild(title);
   group.setAttribute("transform", "scale(1,-1)");
   const width = String(site.fixedCrossings.roadWidthMeters);

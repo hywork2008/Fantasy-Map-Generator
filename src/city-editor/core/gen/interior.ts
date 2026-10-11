@@ -1,3 +1,4 @@
+import { editorText } from "../../../i18n/editorMessages";
 // S4 — inner perimeter, gates, and the two pre-street precincts.  The border is
 // extracted from the same Voronoi polygons as every other city feature: no
 // secondary wall geometry is invented here. The wall PATTERN (which area to
@@ -568,7 +569,12 @@ export function placePrecincts(
     if (placed) {
       plazaCell = cells.find(c => c.id === placed.cellIds[0]) ?? null;
       for (const id of placed.cellIds) plazaIds.add(id);
-      precincts.push({ kind: "plaza", cellIds: placed.cellIds, anchor: placed.anchor, label: "Market square" });
+      precincts.push({
+        kind: "plaza",
+        cellIds: placed.cellIds,
+        anchor: placed.anchor,
+        label: editorText("cityEditor.messages.marketSquare")
+      });
     }
   }
   if (program.citadel) {
@@ -588,7 +594,12 @@ export function placePrecincts(
       // The keep is the cell PLUS its ring of neighbours (the enceinte): 5–9 cells
       // total, dropping any that fell in the water (design §4.2).
       const cellIds = [pick.id, ...pick.neighbors.filter(n => !sea.has(n))];
-      precincts.push({ kind: "citadel", cellIds, anchor: pick.centroid, label: "Citadel" });
+      precincts.push({
+        kind: "citadel",
+        cellIds,
+        anchor: pick.centroid,
+        label: editorText("cityEditor.messages.citadel")
+      });
     }
   }
   return precincts;

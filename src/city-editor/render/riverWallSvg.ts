@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { clipPolylineOutsideRivers, type RiverRibbon, riverRibbons } from "../core/bridgeDeck";
 import { featureGroupVertices } from "../core/features";
 import { vertexHasCrossing } from "../core/passages";
@@ -58,7 +59,7 @@ export function renderRiverWallSvg(city: CityDocument): SVGGElement {
       grate.setAttribute("stroke-linecap", "butt");
       grate.setAttribute("stroke-linejoin", "round");
       const title = document.createElementNS(ns, "title");
-      title.textContent = `河川通過口: ${id}`;
+      title.textContent = editorText("cityEditor.messages.riverPassage", { value0: id });
       marker.append(title, grate);
       layer.append(marker);
     }

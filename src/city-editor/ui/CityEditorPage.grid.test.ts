@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import { mountCityEditor } from "./CityEditorPage";
 
 // jsdom has no layout engine; the History panel calls this after every commit.
@@ -238,3 +239,7 @@ describe("Document panel — new-city grid kind", () => {
     expect(dense).toBeGreaterThan(coarse * 2);
   });
 });
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));

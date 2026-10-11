@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../i18n";
 import { createEmptyRegionDocument } from "../core/document";
 import { DEFAULT_REGION_SETTINGS, type RegionRiver, type RegionRoute } from "../core/types";
 import { renderRegionSvg } from "./svg";
@@ -303,3 +304,7 @@ describe("renderRegionSvg - River widths and Routes rendering", () => {
     expect(svg).toContain('mask="url(#re-wetland-coast-mask)">');
   });
 });
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));

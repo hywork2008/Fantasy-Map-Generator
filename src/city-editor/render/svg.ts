@@ -1,3 +1,4 @@
+import { editorText } from "../../i18n/editorMessages";
 import { bridgeDecks, overSkewedBridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
@@ -198,7 +199,7 @@ export function renderEditorSvg(
       layer: "cells",
       kind: "cell",
       id: face.id,
-      label: `cell #${face.id}`,
+      label: editorText("cityEditor.messages.cellIdentifier", { value0: face.id }),
       water: face.properties.water,
       elevation: face.properties.elevation,
       ward: face.properties.ward ?? null,
@@ -675,8 +676,15 @@ export function renderEditorSvg(
           kind: "building",
           id: bldId,
           label: lot.archetype
-            ? `${lot.archetype} · ${lot.role} · ${Math.round(Math.abs(polygonArea(lot.polygon)))} m²`
-            : `${document.mesh.faces[lot.faceId].properties.ward} building #${lot.faceId}`,
+            ? editorText("cityEditor.messages.buildingAreaDetails", {
+                value0: lot.archetype,
+                value1: lot.role,
+                value2: Math.round(Math.abs(polygonArea(lot.polygon)))
+              })
+            : editorText("cityEditor.messages.building", {
+                value0: document.mesh.faces[lot.faceId].properties.ward,
+                value1: lot.faceId
+              }),
           ...(lot.parcelId
             ? { parcelId: lot.parcelId, archetype: lot.archetype, role: lot.role, uses: lot.uses, storeys: lot.storeys }
             : {}),
@@ -708,7 +716,7 @@ export function renderEditorSvg(
                 kind: "building",
                 id: `bld-${faceId}`,
                 faceId,
-                label: `街区 #${faceId}（選択すると建物の詳細を表示）`,
+                label: editorText("cityEditor.messages.blockSelectToShowBuildingDetails", { value0: faceId }),
                 buildings: faceOrdinals.get(faceId),
                 displayedBuildings: paths.length
               })
@@ -739,7 +747,7 @@ export function renderEditorSvg(
       layer: "edges",
       kind: "edge",
       id: edge.id,
-      label: `edge #${edge.id}`,
+      label: editorText("cityEditor.messages.edgeIdentifier", { value0: edge.id }),
       a: edge.a,
       b: edge.b,
       faces: [edge.leftFace, edge.rightFace].filter((f): f is Id => f != null)
@@ -1014,7 +1022,7 @@ export function renderEditorSvg(
         layer: "features",
         kind: "road",
         id: deck.groupId,
-        label: `bridge (${deck.name})`,
+        label: editorText("cityEditor.messages.bridge", { value0: deck.name }),
         name: deck.name,
         widthMeters: deck.widthMeters,
         segmentCount: 2
@@ -1211,7 +1219,7 @@ export function renderEditorSvg(
         layer: "gates",
         kind: "gate",
         id: gate.id,
-        label: `gate #${gate.id}`,
+        label: editorText("cityEditor.messages.gateIdentifier", { value0: gate.id }),
         vertexId: gate.vertexId,
         point
       };
@@ -1238,7 +1246,7 @@ export function renderEditorSvg(
       layer: "elements",
       kind: cityElement.kind,
       id: cityElement.id,
-      label: `${cityElement.kind} element #${cityElement.id}`,
+      label: editorText("cityEditor.messages.element", { value0: cityElement.kind, value1: cityElement.id }),
       point: p,
       sizeMeters: cityElement.sizeMeters ?? 8
     };
@@ -1368,7 +1376,7 @@ export function renderEditorSvg(
           layer: "landmarks",
           kind: "landmark",
           id: instance.id,
-          label: asset?.name ?? `Missing landmark asset ${instance.assetId}`,
+          label: asset?.name ?? editorText("cityEditor.messages.missingLandmarkAsset", { value0: instance.assetId }),
           assetId: instance.assetId,
           rotation: instance.rotation,
           scale: instance.scale
@@ -1439,7 +1447,7 @@ export function renderEditorSvg(
         layer: "vertices",
         kind: "vertex",
         id: vertex.id,
-        label: `vertex #${vertex.id}`,
+        label: editorText("cityEditor.messages.vertexIdentifier", { value0: vertex.id }),
         point: vertex.point
       };
       vertices.appendChild(
@@ -1574,7 +1582,10 @@ export function renderApproachLabels(document: CityDocument, zoom: number): SVGG
       exit.destinations.length === 1 ? beyondLabel : undefined
     );
     if (exit.destinations.length > 1) {
-      const lines = ["街道の先で分岐", ...exit.destinations.map(item => approachBeyondLabel(item.group.beyond)!)];
+      const lines = [
+        editorText("cityEditor.messages.branchesBeyondTheRoad"),
+        ...exit.destinations.map(item => approachBeyondLabel(item.group.beyond)!)
+      ];
       const step = beyondFont * 1.3;
       const top = Math.max(
         -document.frame.extentMeters / 2 + step,
@@ -1960,7 +1971,7 @@ function renderTownWatermills(
       layer: "buildings",
       kind: "watermill",
       id: mill.id,
-      label: `${mill.name}（${mill.kind === "gristmill" ? "製粉水車" : mill.kind === "fulling" ? "縮絨水車" : "鍛冶水車"}）`,
+      label: `${mill.name}（${mill.kind === "gristmill" ? editorText("cityEditor.messages.gristmill") : mill.kind === "fulling" ? editorText("cityEditor.messages.fullingMill") : editorText("cityEditor.messages.forgeMill")}）`,
       millKind: mill.kind,
       bankSide: mill.bankSide,
       riverId: mill.riverId
@@ -2026,7 +2037,7 @@ function renderTownWatermills(
       layer: "features",
       kind: "waterwheel",
       id: `wheel-${mill.id}`,
-      label: `${mill.name}の水車輪`,
+      label: editorText("cityEditor.messages.waterWheel", { value0: mill.name }),
       millId: mill.id
     };
 
@@ -2483,7 +2494,9 @@ function renderTownFortifications(
           layer: "fortifications",
           kind: "tower",
           id: towerId,
-          label: "城の隅塔",
+          get label() {
+            return editorText("cityEditor.messages.castleCornerTower");
+          },
           wallId: wall.id,
           point: p,
           wallMaterial: wallMat
@@ -2545,7 +2558,7 @@ function renderTownFortifications(
           layer: "fortifications",
           kind: "tower",
           id: towerId,
-          label: `wall tower (${group.name})`,
+          label: editorText("cityEditor.messages.wallTower", { value0: group.name }),
           wallId: group.id,
           point: position,
           wallMaterial: wallMat
@@ -2598,7 +2611,7 @@ function renderTownFortifications(
       layer: "gates",
       kind: "gate",
       id: gate.id,
-      label: `gate #${gate.id}`,
+      label: editorText("cityEditor.messages.gateIdentifier", { value0: gate.id }),
       vertexId: gate.vertexId,
       wallId: wall.id,
       point: frame.point,
@@ -3101,7 +3114,9 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
                   layer: "regional",
                   kind: "road-reference",
                   id: `regional-road-${leg.routeId}-${leg.branchIndex ?? 0}`,
-                  label: cobble ? `街道 #${leg.routeId}（石畳）` : `街道 #${leg.routeId}`,
+                  label: cobble
+                    ? editorText("cityEditor.messages.roadPaved", { value0: leg.routeId })
+                    : editorText("cityEditor.messages.road", { value0: leg.routeId }),
                   routeId: leg.routeId,
                   branchId: leg.branchIndex ?? 0
                 })
@@ -3743,7 +3758,7 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
       layer: "cemetery",
       kind: "cemetery",
       id: cemetery.id,
-      label: `墓地 (${cemetery.form})`,
+      label: editorText("cityEditor.messages.cemetery", { value0: cemetery.form }),
       locked: cemetery.locked
     };
     const group = element("g", {

@@ -1,3 +1,4 @@
+import { editorText } from "../../../i18n/editorMessages";
 import { featureGroupVertices } from "../features";
 import { townGates } from "../fortifications";
 import type {
@@ -31,25 +32,53 @@ export const REALM_RELATIONS: readonly BeyondRealmRelation[] = [
 ] as const;
 
 export const REALM_RELATION_LABELS: Record<BeyondRealmRelation, string> = {
-  domestic: "自国",
-  Ally: "同盟国",
-  Friendly: "友好国",
-  Neutral: "中立国",
-  Suspicion: "警戒国",
-  Enemy: "敵国",
-  Rival: "対抗国 (ライバル)",
-  Vassal: "従属国",
-  Suzerain: "宗主国",
-  Unknown: "未知の国"
+  get domestic() {
+    return editorText("cityEditor.messages.homeRealm");
+  },
+  get Ally() {
+    return editorText("cityEditor.messages.ally");
+  },
+  get Friendly() {
+    return editorText("cityEditor.messages.friendlyRealm");
+  },
+  get Neutral() {
+    return editorText("cityEditor.messages.neutralRealm");
+  },
+  get Suspicion() {
+    return editorText("cityEditor.messages.suspiciousRealm");
+  },
+  get Enemy() {
+    return editorText("cityEditor.messages.enemyRealm");
+  },
+  get Rival() {
+    return editorText("cityEditor.messages.rivalRealm");
+  },
+  get Vassal() {
+    return editorText("cityEditor.messages.vassalRealm");
+  },
+  get Suzerain() {
+    return editorText("cityEditor.messages.suzerainRealm");
+  },
+  get Unknown() {
+    return editorText("cityEditor.messages.unknownRealm");
+  }
 };
 
 export const SETTLEMENT_SCALES: readonly SettlementScale[] = ["hamlet", "village", "town", "city"] as const;
 
 export const SETTLEMENT_SCALE_LABELS: Record<SettlementScale, string> = {
-  hamlet: "過疎の村",
-  village: "農村",
-  town: "町",
-  city: "大都市"
+  get hamlet() {
+    return editorText("cityEditor.messages.depopulatedHamlet");
+  },
+  get village() {
+    return editorText("cityEditor.messages.farmingVillage");
+  },
+  get town() {
+    return editorText("cityEditor.messages.town");
+  },
+  get city() {
+    return editorText("cityEditor.messages.city");
+  }
 };
 
 export const SETTLEMENT_ROLES: readonly SettlementRole[] = [
@@ -61,22 +90,42 @@ export const SETTLEMENT_ROLES: readonly SettlementRole[] = [
 ] as const;
 
 export const SETTLEMENT_ROLE_LABELS: Record<SettlementRole, string> = {
-  generic: "一般",
-  granary: "食料供給 (穀倉)",
-  market: "商業・交易拠点",
-  fortress: "軍事要塞",
-  capital: "首都・政庁"
+  get generic() {
+    return editorText("cityEditor.messages.general");
+  },
+  get granary() {
+    return editorText("cityEditor.messages.foodSupplyGranary");
+  },
+  get market() {
+    return editorText("cityEditor.messages.tradeAndCommerceHub");
+  },
+  get fortress() {
+    return editorText("cityEditor.messages.militaryFortress");
+  },
+  get capital() {
+    return editorText("cityEditor.messages.capitalAndAdministration");
+  }
 };
 
 /** Legacy string values kept for backwards compatibility. */
 export const APPROACH_BEYONDS = ["city", "granary", "enemy", "ally", "hamlet"] as const;
 
 export const APPROACH_BEYOND_LABELS: Record<(typeof APPROACH_BEYONDS)[number], string> = {
-  city: "大都市",
-  granary: "食料を送る農村",
-  enemy: "敵国",
-  ally: "同盟国",
-  hamlet: "過疎の村"
+  get city() {
+    return editorText("cityEditor.messages.city");
+  },
+  get granary() {
+    return editorText("cityEditor.messages.foodSupplyingVillage");
+  },
+  get enemy() {
+    return editorText("cityEditor.messages.enemyRealm");
+  },
+  get ally() {
+    return editorText("cityEditor.messages.ally");
+  },
+  get hamlet() {
+    return editorText("cityEditor.messages.depopulatedHamlet");
+  }
 };
 
 /** Normalize legacy string or structured object into ApproachBeyondData. */
@@ -131,17 +180,17 @@ export function approachBeyondLabel(value: ApproachBeyond | undefined): string |
   if (!norm) return null;
   if (norm.customLabel) return norm.customLabel;
 
-  const relLabel = REALM_RELATION_LABELS[norm.realm.relation] ?? "他国";
-  const scaleText = SETTLEMENT_SCALE_LABELS[norm.settlement.scale] ?? "集落";
+  const relLabel = REALM_RELATION_LABELS[norm.realm.relation] ?? editorText("cityEditor.messages.foreignRealm");
+  const scaleText = SETTLEMENT_SCALE_LABELS[norm.settlement.scale] ?? editorText("cityEditor.messages.settlement");
   const roleText =
     norm.settlement.role === "granary"
-      ? "食料供給"
+      ? editorText("cityEditor.messages.foodSupply")
       : norm.settlement.role === "fortress"
-        ? "要塞"
+        ? editorText("cityEditor.messages.fortress")
         : norm.settlement.role === "market"
-          ? "交易"
+          ? editorText("cityEditor.messages.trade")
           : norm.settlement.role === "capital"
-            ? "首都"
+            ? editorText("cityEditor.messages.capital")
             : "";
 
   const namePart = norm.settlement.name ? `${norm.settlement.name} ` : "";
@@ -220,23 +269,23 @@ export function evaluateApproachBeyond(
   }
 
   let roleScore = 20;
-  let roleUtilityText = "日常的な交通と往来";
+  let roleUtilityText = editorText("cityEditor.messages.everydayTrafficAndTravel");
   if (settlement.role === "granary") {
     const foodNeed = currentPop > 2000 ? 50 : 35;
     roleScore = foodNeed;
-    roleUtilityText = "都市の消費を支える食料供給地";
+    roleUtilityText = editorText("cityEditor.messages.foodSupplierSupportingTheCitySConsumption");
   } else if (settlement.role === "market") {
     roleScore = 45;
-    roleUtilityText = "高付加価値な交易・商業拠点";
+    roleUtilityText = editorText("cityEditor.messages.highValueTradeAndCommerceHub");
   } else if (settlement.role === "capital") {
     roleScore = 40;
-    roleUtilityText = "政庁・中央との重要連絡幹線";
+    roleUtilityText = editorText("cityEditor.messages.importantRouteToTheCentralAdministration");
   } else if (settlement.scale === "city") {
     roleScore = 35;
-    roleUtilityText = "巨大な消費地・需要先";
+    roleUtilityText = editorText("cityEditor.messages.majorConsumerAndDemandCentre");
   } else if (settlement.scale === "town") {
     roleScore = 25;
-    roleUtilityText = "地方都市との定期流通";
+    roleUtilityText = editorText("cityEditor.messages.regularDistributionToARegionalTown");
   }
 
   const wealthDiff = targetWealth - currentWealth;
@@ -244,23 +293,27 @@ export function evaluateApproachBeyond(
   const rawUtility = Math.min(100, Math.round((roleScore + wealthFactor + 15) * relCoeff));
 
   let utilityLevel: ApproachBeyondAssessment["utilityLevel"] = "medium";
-  let utilityLabel = "普通（適度な交流）";
+  let utilityLabel = editorText("cityEditor.messages.normalModerateExchange");
   if (rawUtility >= 70) {
     utilityLevel = "critical";
-    utilityLabel = "生命線（極めて高い）";
+    utilityLabel = editorText("cityEditor.messages.lifelineVeryHigh");
   } else if (rawUtility >= 45) {
     utilityLevel = "high";
-    utilityLabel = "高い（重要交易路）";
+    utilityLabel = editorText("cityEditor.messages.highImportantTradeRoute");
   } else if (rawUtility < 25) {
     utilityLevel = "low";
-    utilityLabel = "低い（限定的/交流途絶）";
+    utilityLabel = editorText("cityEditor.messages.lowLimitedOrInterruptedExchange");
   }
 
   let utilityReason = `${roleUtilityText}。`;
   if (realm.relation === "Enemy" || realm.relation === "Rival") {
-    utilityReason += `しかし${REALM_RELATION_LABELS[realm.relation]}であるため正規の交易は途絶・制限されています。`;
+    utilityReason += editorText("cityEditor.messages.howeverRegularTradeIsInterruptedOrRestrictedBecauseTheRealm", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
   } else if (realm.relation === "domestic" || realm.relation === "Ally") {
-    utilityReason += `${REALM_RELATION_LABELS[realm.relation]}への道であり、流通や支援が極めて安定しています。`;
+    utilityReason += editorText("cityEditor.messages.thisRoadLeadsToProvidingHighlyReliableDistributionAndSupport", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
   }
 
   // --- 2. 軍事的備えの必要性 (Defense / Military Preparedness) ---
@@ -316,32 +369,44 @@ export function evaluateApproachBeyond(
   );
 
   let defenseLevel: ApproachBeyondAssessment["defenseLevel"] = "safe";
-  let defenseLabel = "安全（備え不要）";
+  let defenseLabel = editorText("cityEditor.messages.safeNoDefencesNeeded");
   if (rawDefense >= 70) {
     defenseLevel = "critical";
-    defenseLabel = "防衛急務（最前線）";
+    defenseLabel = editorText("cityEditor.messages.urgentDefenceFrontLine");
   } else if (rawDefense >= 45) {
     defenseLevel = "high";
-    defenseLabel = "要警戒（防備強化推奨）";
+    defenseLabel = editorText("cityEditor.messages.alertStrongerDefencesRecommended");
   } else if (rawDefense >= 25) {
     defenseLevel = "medium";
-    defenseLabel = "通常警戒（関所・見張り）";
+    defenseLabel = editorText("cityEditor.messages.normalVigilanceCheckpointAndWatch");
   } else if (rawDefense >= 10) {
     defenseLevel = "low";
-    defenseLabel = "平穏（軽微な警戒）";
+    defenseLabel = editorText("cityEditor.messages.peacefulLightVigilance");
   }
 
   let defenseReason = "";
   if (defenseLevel === "critical" || defenseLevel === "high") {
-    defenseReason = `${REALM_RELATION_LABELS[realm.relation]}の${SETTLEMENT_SCALE_LABELS[settlement.scale]}に直面しており、侵攻や軍事的圧力への厳重な備えが必要です。`;
-    if (!hasWalls) defenseReason += "現在城壁が未整備であるため、防壁・門の建設が急務です。";
+    defenseReason = editorText("cityEditor.messages.facingAOfRequiresStrongPreparationsAgainstInvasionAndMilitary", {
+      value0: REALM_RELATION_LABELS[realm.relation],
+      value1: SETTLEMENT_SCALE_LABELS[settlement.scale]
+    });
+    if (!hasWalls) defenseReason += editorText("cityEditor.messages.theTownHasNoWallsSoBuildingWallsAndGates");
   } else if (defenseLevel === "medium") {
-    defenseReason = `${REALM_RELATION_LABELS[realm.relation]}との境界に位置するため、街道の関所や哨戒体制が推奨されます。`;
+    defenseReason = editorText("cityEditor.messages.atTheBorderWithRoadCheckpointsAndPatrolsAreRecommended", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
   } else {
-    defenseReason = `${REALM_RELATION_LABELS[realm.relation]}と隣接しているため直接の軍事的脅威は小さく、後方拠点として平穏です。`;
+    defenseReason = editorText("cityEditor.messages.neighbouringPresentsLittleDirectMilitaryThreatThisIsAPeaceful", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
   }
 
-  const summary = `【有用性: ${utilityLabel}】${utilityReason} 【防備: ${defenseLabel}】${defenseReason}`;
+  const summary = editorText("cityEditor.messages.utilityDefence", {
+    value0: utilityLabel,
+    value1: utilityReason,
+    value2: defenseLabel,
+    value3: defenseReason
+  });
 
   return {
     utilityScore: rawUtility,

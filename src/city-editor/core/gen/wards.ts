@@ -1,3 +1,4 @@
+import { editorText } from "../../../i18n/editorMessages";
 // S6 — district assignment (design §4.2 S6, TownGeneratorTS 2.5 `createWards`).
 //
 // Every urban cell gets a ward type. The citadel is already `Castle` and the
@@ -245,7 +246,12 @@ export function assignWards(input: WardInputs): WardResult {
       );
       const anchor = candidates[0];
       if (anchor && bankDistances.get(anchor.id)! <= cellSize * 1.5) {
-        extraPrecincts.push({ kind: "harbor", cellIds: [anchor.id], anchor: anchor.centroid, label: "River Harbour" });
+        extraPrecincts.push({
+          kind: "harbor",
+          cellIds: [anchor.id],
+          anchor: anchor.centroid,
+          label: editorText("cityEditor.messages.riverHarbour")
+        });
         take(anchor.id, "harbor");
         if (!urban.has(anchor.id)) outskirts.add(anchor.id);
       }
@@ -594,7 +600,7 @@ function placeHarbor(
     .slice(0, 3);
 
   const cellIds = [anchor.id, ...extras.map(c => c.id)];
-  return { kind: "harbor", cellIds, anchor: anchor.centroid, label: "Harbour" };
+  return { kind: "harbor", cellIds, anchor: anchor.centroid, label: editorText("cityEditor.messages.harbour") };
 }
 
 function placeTemple(
@@ -634,7 +640,9 @@ function placeTemple(
     kind: "temple",
     cellIds: placed.cellIds,
     anchor: placed.anchor,
-    label: "Cathedral",
+    get label() {
+      return editorText("cityEditor.messages.cathedral");
+    },
     rotation: placed.rotation
   };
 }

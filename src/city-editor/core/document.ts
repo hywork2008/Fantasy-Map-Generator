@@ -1,5 +1,6 @@
 import { isBurialCultureProfile } from "../../data/burialCultures";
 import { isCivilizationContext } from "../../data/civilizationTraditions";
+import { editorText } from "../../i18n/editorMessages";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { populationWindowMeters, type RequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import {
@@ -33,16 +34,29 @@ const BLOCK_SITE_SPACING_METERS = 44.8;
  * Each window is half the side of the next larger preset. */
 export const CITY_SIZE_PRESETS = {
   micro: {
-    label: "Micro",
+    get label() {
+      return editorText("cityEditor.messages.micro");
+    },
     extentMeters: 300,
     cellsAcross: 6,
     buildingTarget: 19,
     minExternalRoads: 1,
     maxWallGates: 3
   },
-  tiny: { label: "Tiny", extentMeters: 600, cellsAcross: 12, buildingTarget: 75, minExternalRoads: 1, maxWallGates: 7 },
+  tiny: {
+    get label() {
+      return editorText("cityEditor.messages.tiny");
+    },
+    extentMeters: 600,
+    cellsAcross: 12,
+    buildingTarget: 75,
+    minExternalRoads: 1,
+    maxWallGates: 7
+  },
   small: {
-    label: "Small",
+    get label() {
+      return editorText("cityEditor.messages.small");
+    },
     extentMeters: 1200,
     cellsAcross: 24,
     buildingTarget: 300,
@@ -50,7 +64,9 @@ export const CITY_SIZE_PRESETS = {
     maxWallGates: 7
   },
   medium: {
-    label: "Medium",
+    get label() {
+      return editorText("cityEditor.messages.medium");
+    },
     extentMeters: 2400,
     cellsAcross: 48,
     buildingTarget: 1600,
@@ -58,7 +74,9 @@ export const CITY_SIZE_PRESETS = {
     maxWallGates: 7
   },
   large: {
-    label: "Large",
+    get label() {
+      return editorText("cityEditor.messages.large");
+    },
     extentMeters: 4800,
     cellsAcross: 96,
     buildingTarget: 14000,

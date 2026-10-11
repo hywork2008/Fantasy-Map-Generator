@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import { generateCityOnDocument } from "../core/generate";
 import { captureGenerationDebugPreview } from "../core/generationDebug";
 import type { GenerationRequest } from "../core/generationWorkerClient";
@@ -297,3 +298,7 @@ it("replays early stages from the original grid after a split failure and histor
     }
   }
 });
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));

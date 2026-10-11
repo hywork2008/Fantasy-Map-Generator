@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import { synthSite } from "../core/gen/site/synthSite";
 import { buildShare, decodeShare, encodeShare } from "../io/incomingCity";
@@ -931,3 +932,7 @@ it("exposes wall drawing, passage preparation, and gate placement as separate sl
   selectStage(6);
   expect(meshFingerprint()).toBe(passageMesh);
 });
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));

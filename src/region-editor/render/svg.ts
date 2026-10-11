@@ -1,5 +1,6 @@
 import { curveCatmullRom, line } from "d3";
 import { getCoastalHabitatDefinition } from "../../data/coastalHabitatCatalog";
+import { editorHtml, editorText } from "../../i18n/editorMessages";
 import { resolveSettlementLabelPlacements } from "../core/gen/labelPlacement";
 import { isForestBiome } from "../core/gen/landscapeBiomes";
 import { generatePerpendicularBridges } from "../core/gen/perpendicularBridges";
@@ -716,7 +717,7 @@ export function renderRegionSvg(
               let angle = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI;
               if (angle > 90) angle -= 180;
               else if (angle < -90) angle += 180;
-              return `<text class="contour-elevation" x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${angle.toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel', 'Times New Roman', serif" font-size="${8 * textScale}" fill="${theme.contourIndexStroke}" filter="url(#re-halo)">${Math.round(c.elevationMeters)} m</text>`;
+              return `<text class="contour-elevation" x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${angle.toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel', 'Times New Roman', serif" font-size="${8 * textScale}" fill="${theme.contourIndexStroke}" filter="url(#re-halo)">${editorHtml("regionEditor.messages.elevationMetres", { value0: Math.round(c.elevationMeters) })}</text>`;
             })
             .join("\n")
         : "";
@@ -870,7 +871,11 @@ export function renderRegionSvg(
       const minW = Math.round(Math.min(...river.widths));
       const maxW = Math.round(Math.max(...river.widths));
       const widthInfo =
-        river.widths.length > 0 ? (minW === maxW ? ` (川幅: ${minW}m)` : ` (川幅: ${minW}m〜${maxW}m)`) : "";
+        river.widths.length > 0
+          ? minW === maxW
+            ? editorText("regionEditor.messages.riverWidthM", { value0: minW })
+            : editorText("regionEditor.messages.riverWidthMSvg", { value0: minW, value1: maxW })
+          : "";
       const titleTag = `<title>${escapeXml(river.name)}${widthInfo}</title>`;
 
       if (river.points.length >= 2) {
@@ -1068,7 +1073,7 @@ export function renderRegionSvg(
         <polygon points="0,38 7,11 0,0 -7,11" fill="${theme.textSecondary}" stroke="${theme.borderStroke}" stroke-width="1" />
         <polygon points="-38,0 -11,-7 0,0 -11,7" fill="${theme.textSecondary}" stroke="${theme.borderStroke}" stroke-width="1" />
         <polygon points="38,0 11,-7 0,0 11,7" fill="${theme.textSecondary}" stroke="${theme.borderStroke}" stroke-width="1" />
-        <text x="0" y="-42" text-anchor="middle" font-family="'Cinzel', serif" font-size="14" font-weight="bold" fill="${theme.textPrimary}">N</text>
+        <text x="0" y="-42" text-anchor="middle" font-family="'Cinzel', serif" font-size="14" font-weight="bold" fill="${theme.textPrimary}">${editorHtml("regionEditor.messages.compassNorth")}</text>
       </g>
     `;
   }
@@ -1083,7 +1088,7 @@ export function renderRegionSvg(
         <rect x="0" y="0" width="${scaleLenUnits / 2}" height="5" fill="#ffffff" stroke="${theme.textPrimary}" stroke-width="0.8" />
         <text x="0" y="-5" text-anchor="start" font-family="serif" font-size="9.5" fill="${theme.textPrimary}">0</text>
         <text x="${scaleLenUnits / 2}" y="-5" text-anchor="middle" font-family="serif" font-size="9.5" fill="${theme.textPrimary}">10</text>
-        <text x="${scaleLenUnits}" y="-5" text-anchor="end" font-family="serif" font-size="9.5" fill="${theme.textPrimary}">20 km</text>
+        <text x="${scaleLenUnits}" y="-5" text-anchor="end" font-family="serif" font-size="9.5" fill="${theme.textPrimary}">${editorHtml("regionEditor.messages.scaleBarDistance")}</text>
       </g>
     `;
   }

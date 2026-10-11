@@ -1,5 +1,6 @@
 import { isBurialCultureProfile } from "../../data/burialCultures";
 import { isCivilizationContext } from "../../data/civilizationTraditions";
+import { editorText } from "../../i18n/editorMessages";
 import { validRegionalContext } from "../../types/cityRegional";
 import {
   FIXED_SITE_CROSSING_BUDGETS,
@@ -227,7 +228,8 @@ export function resolveIncomingCity(lookup: IncomingLookup): IncomingCity | null
       } catch {
         raw = null;
       }
-      if (hasRegionalPayload(raw)) throw new Error("FMG地域データが不正です。FMGから再取得してください。");
+      if (hasRegionalPayload(raw))
+        throw new Error(editorText("cityEditor.messages.invalidFMGRegionDataRetrieveItAgainFromFMG"));
     }
     if (share) return { share, origin: "link" };
   }
@@ -235,7 +237,7 @@ export function resolveIncomingCity(lookup: IncomingLookup): IncomingCity | null
     const share = parseIncomingPayload(lookup.session);
     if (share) return { share, origin: "world" };
     if (hasRegionalPayload(parseJson(lookup.session)))
-      throw new Error("FMG地域データが不正です。FMGから再取得してください。");
+      throw new Error(editorText("cityEditor.messages.invalidFMGRegionDataRetrieveItAgainFromFMG"));
   }
   return null;
 }

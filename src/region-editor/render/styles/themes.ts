@@ -1,3 +1,4 @@
+import { editorText } from "../../../i18n/editorMessages";
 import type { BiomeKind, IllustratedPalette, RegionDecoration, RegionTheme } from "../../core/types";
 
 export interface ForestCanopyColors {
@@ -333,7 +334,9 @@ type ThemeOverride = Partial<Omit<ThemeColors, "forestCanopy" | "biomes">> & {
  */
 export const ILLUSTRATED_PALETTES: Record<IllustratedPalette, { label: string; override: ThemeOverride }> = {
   natural: {
-    label: "ナチュラル（自然色）",
+    get label() {
+      return editorText("regionEditor.messages.naturalColours");
+    },
     override: {
       background: "#e9e2c8",
       ocean: "#7fa8c4",
@@ -377,9 +380,16 @@ export const ILLUSTRATED_PALETTES: Record<IllustratedPalette, { label: string; o
       }
     }
   },
-  sepia: { label: "セピア（古地図）", override: {} },
+  sepia: {
+    get label() {
+      return editorText("regionEditor.messages.sepiaAntiqueMap");
+    },
+    override: {}
+  },
   lush: {
-    label: "ビビッド（鮮やか）",
+    get label() {
+      return editorText("regionEditor.messages.vividColours");
+    },
     override: {
       background: "#eef0cf",
       ocean: "#4f93c6",
@@ -424,7 +434,9 @@ export const ILLUSTRATED_PALETTES: Record<IllustratedPalette, { label: string; o
     }
   },
   nordic: {
-    label: "ノルディック（寒冷・くすみ）",
+    get label() {
+      return editorText("regionEditor.messages.nordicCoolAndMuted");
+    },
     override: {
       background: "#e4e3d8",
       ocean: "#6e8c98",

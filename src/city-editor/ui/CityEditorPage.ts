@@ -1,4 +1,5 @@
 import i18n from "../../i18n";
+import { type EditorMessageKey, editorHtml, editorOptionText, editorText } from "../../i18n/editorMessages";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { historicLandmarkPrototypes } from "../assets/catalog";
@@ -197,17 +198,17 @@ import {
 } from "../render/svg";
 import { generationLogPanel } from "./generationLogPanel";
 
-const TOOLS: Array<[Tool, string, string]> = [
-  ["select", "Select and move", "↖"],
-  ["landmark", "Place historic landmark", "⌂"],
-  ["ship", "Place ships", "⛵"],
-  ["vertex", "Edit vertices", "⌘"],
-  ["road", "Draw road", "╱"],
-  ["wall", "Draw wall", "▥"],
-  ["river", "Draw river", "〰"],
-  ["wardWall", "Draw circular ward wall", "◯"],
-  ["junction", "Clean short junctions", "⌬"],
-  ["face", "Edit cell", "⬡"]
+const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
+  ["select", "cityEditor.messages.selectAndMove", "↖"],
+  ["landmark", "cityEditor.messages.placeHistoricLandmark", "⌂"],
+  ["ship", "cityEditor.messages.placeShips", "⛵"],
+  ["vertex", "cityEditor.messages.editVertices", "⌘"],
+  ["road", "cityEditor.messages.drawRoad", "╱"],
+  ["wall", "cityEditor.messages.drawWall", "▥"],
+  ["river", "cityEditor.messages.drawRiver", "〰"],
+  ["wardWall", "cityEditor.messages.drawCircularWardWall", "◯"],
+  ["junction", "cityEditor.messages.cleanShortJunctions", "⌬"],
+  ["face", "cityEditor.messages.editCell", "⬡"]
 ];
 
 const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> = [
@@ -292,7 +293,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   /** Fitted hamlet import: the scale bar's cell length follows the mesh, not 50 m. */
   let measureTownCells = false;
   let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
-  let history = new DocumentHistory(documentState, "Initial state", undefined, fixedApproachProvider);
+  let history = new DocumentHistory(
+    documentState,
+    editorText("cityEditor.messages.initialState"),
+    undefined,
+    fixedApproachProvider
+  );
   // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
   // of `documentState` so it is never cloned into a history snapshot or an
   // undo/redo step; it is re-attached only for export and passed to the
@@ -401,17 +407,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const failureDebugInput = checkbox(false, checked => {
     if (!checked) clearFailurePreview();
   });
-  failureDebugInput.setAttribute("aria-label", "デバッグ：生成失敗の途中図を表示");
+  failureDebugInput.setAttribute("aria-label", editorText("cityEditor.messages.debugShowGenerationFailurePreview"));
   const failureDebugSummary = document.createElement("div");
   failureDebugSummary.className = "ce-generation-debug-summary";
   failureDebugSummary.setAttribute("aria-live", "polite");
   failureDebugSummary.hidden = true;
-  const closeFailurePreview = makeButton("失敗箇所の強調を閉じる", () => clearFailurePreview());
+  const closeFailurePreview = makeButton(editorText("cityEditor.messages.closeFailureHighlighting"), () =>
+    clearFailurePreview()
+  );
   closeFailurePreview.hidden = true;
   const generationProgress = document.createElement("output");
   generationProgress.className = "ce-generation-progress";
   generationProgress.setAttribute("aria-live", "polite");
-  const cancelGeneration = makeButton("生成をキャンセル", () => generationJob?.cancel());
+  const cancelGeneration = makeButton(editorText("cityEditor.messages.cancelGeneration"), () =>
+    generationJob?.cancel()
+  );
   cancelGeneration.hidden = true;
   // Keep the document and settings stable until the result is committed.
   for (const eventName of ["click", "pointerdown", "change", "input", "keydown"]) {
@@ -486,14 +496,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   canvas.appendChild(map);
   canvas.appendChild(wardBrushPreview);
   canvas.append(circularWallPreview, circularWallCenter);
-  const toolbar = floatingWindow("ce-toolbar", "Tools");
-  const documentPanel = floatingWindow("ce-document", "Document");
-  const inspector = floatingWindow("ce-inspector", "Inspector");
-  const groups = floatingWindow("ce-groups", "Objects");
-  const historyPanel = floatingWindow("ce-history", "History");
-  const logPanel = floatingWindow("ce-generation-log", "生成ログ");
+  const toolbar = floatingWindow("ce-toolbar", editorText("cityEditor.messages.tools"));
+  const documentPanel = floatingWindow("ce-document", editorText("cityEditor.messages.document"));
+  const inspector = floatingWindow("ce-inspector", editorText("cityEditor.messages.inspector"));
+  const groups = floatingWindow("ce-groups", editorText("cityEditor.messages.objects"));
+  const historyPanel = floatingWindow("ce-history", editorText("cityEditor.messages.history"));
+  const logPanel = floatingWindow("ce-generation-log", editorText("cityEditor.messages.generationLog"));
   const generationLog = generationLogPanel(logPanel.content, hoverGenerationLogObjects);
-  const generatePanel = floatingWindow("ce-generate", "Generate");
+  const generatePanel = floatingWindow("ce-generate", editorText("cityEditor.messages.generate"));
   const status = document.createElement("output");
   status.className = "ce-status";
   const scaleBar = div("ce-scale-bar");
@@ -522,8 +532,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const toolButtons = new Map<Tool, HTMLButtonElement>();
   const toolGrid = div("ce-icon-row");
-  for (const [id, label, icon] of TOOLS) {
-    const button = makeIconButton(icon, label, () => {
+  for (const [id, labelKey, icon] of TOOLS) {
+    const button = makeIconButton(icon, editorText(labelKey), () => {
       tool = id;
       if (id !== "select") {
         inspectedInfo = null;
@@ -539,7 +549,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   toolbar.content.appendChild(toolGrid);
   const landmarkControls = div("ce-landmark-controls");
   const landmarkSelect = document.createElement("select");
-  landmarkSelect.setAttribute("aria-label", "Historic landmark asset");
+  landmarkSelect.setAttribute("aria-label", editorText("cityEditor.messages.historicLandmarkAsset"));
   landmarkSelect.addEventListener("change", () => {
     landmarkAssetId = landmarkSelect.value;
     refresh();
@@ -550,7 +560,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   landmarkAngle.max = "180";
   landmarkAngle.step = "15";
   landmarkAngle.value = "0";
-  landmarkAngle.title = "Landmark rotation in degrees";
+  landmarkAngle.title = editorText("cityEditor.messages.landmarkRotationInDegrees");
   landmarkAngle.addEventListener("change", () => {
     landmarkRotationDegrees = Number(landmarkAngle.value) || 0;
     updateLandmarkPreview();
@@ -558,7 +568,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const landmarkFile = document.createElement("input");
   landmarkFile.type = "file";
   landmarkFile.accept = ".json,application/json";
-  landmarkFile.title = "Import a reviewed landmark asset JSON";
+  landmarkFile.title = editorText("cityEditor.messages.importAReviewedLandmarkAssetJSON");
   landmarkFile.addEventListener("change", () => {
     const file = landmarkFile.files?.[0];
     if (!file) return;
@@ -571,7 +581,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           landmarkAssets: [asset],
           landmarks: []
         };
-        if (validateLandmarks(trial).length) throw new Error("Invalid asset");
+        if (validateLandmarks(trial).length) throw new Error(editorText("cityEditor.messages.invalidAsset"));
         const already = (documentState.landmarkAssets ?? []).some(
           item => item.id === asset.id && item.revision === asset.revision
         );
@@ -582,13 +592,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
               version: documentState.sceneRegions ? 4 : 3,
               landmarkAssets: [...(documentState.landmarkAssets ?? []), asset]
             },
-            `Import ${asset.name}`
+            editorText("cityEditor.messages.import", { value0: asset.name })
           );
         landmarkAssetId = `${asset.id}@${asset.revision}`;
         tool = "landmark";
         refresh();
       } catch {
-        showNotice("ランドマーク素材の形式を確認してください。");
+        showNotice(editorText("cityEditor.messages.checkTheLandmarkAssetFormat"));
       }
     });
   });
@@ -597,7 +607,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const shipControls = div("ce-ship-controls");
   const shipSelect = document.createElement("select");
-  shipSelect.setAttribute("aria-label", "Ship type");
+  shipSelect.setAttribute("aria-label", editorText("cityEditor.messages.shipType"));
   for (const [key, spec] of Object.entries(SHIP_SPECS)) {
     const opt = document.createElement("option");
     opt.value = key;
@@ -612,7 +622,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   shipSizeInput.max = "80";
   shipSizeInput.step = "1";
   shipSizeInput.value = String(shipSizeMeters);
-  shipSizeInput.title = "Ship length in metres";
+  shipSizeInput.title = editorText("cityEditor.messages.shipLengthInMetres");
 
   shipSelect.addEventListener("change", () => {
     shipType = shipSelect.value as ShipType;
@@ -633,13 +643,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   shipAngle.max = "180";
   shipAngle.step = "15";
   shipAngle.value = "0";
-  shipAngle.title = "Ship rotation in degrees";
+  shipAngle.title = editorText("cityEditor.messages.shipRotationInDegrees");
   shipAngle.addEventListener("input", () => {
     shipAngleDegrees = Number(shipAngle.value) || 0;
     updateShipPreview();
   });
 
-  shipControls.append(shipSelect, label("Length (m)", shipSizeInput), label("Angle (°)", shipAngle));
+  shipControls.append(
+    shipSelect,
+    label(editorText("cityEditor.messages.lengthM"), shipSizeInput),
+    label(editorText("cityEditor.messages.angle"), shipAngle)
+  );
   toolbar.content.appendChild(shipControls);
   const paintButtons = new Map<WardKind | "sea" | "erase", HTMLButtonElement>();
   const paintGrid = div("ce-icon-row");
@@ -654,7 +668,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       }
       refresh();
     });
-    paintButton.title = kind === "erase" ? "Erase ward assignments" : `Paint ${kind.toLowerCase()} cells`;
+    paintButton.title =
+      kind === "erase"
+        ? editorText("cityEditor.messages.eraseWardAssignments")
+        : editorText("cityEditor.messages.paintCells", { value0: editorOptionText(kind) });
     paintButton.className = "ce-icon-button";
     paintButtons.set(kind, paintButton);
     paintGrid.appendChild(paintButton);
@@ -663,13 +680,20 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   size.className = "ce-map-size";
   for (const option of [...size.options]) {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
-    option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km`;
+    option.textContent = editorText("cityEditor.messages.mapSizeWithExtent", {
+      value0: preset.label,
+      value1: preset.extentMeters / 1000
+    });
   }
   const gridKindSelect = select(["hex", "voronoi", "evolution"], DEFAULT_GRID_KIND);
   gridKindSelect.className = "ce-grid-kind";
   for (const option of [...gridKindSelect.options]) {
     option.textContent =
-      option.value === "hex" ? "Hexagonal" : option.value === "voronoi" ? "Voronoi" : "Grid evolution";
+      option.value === "hex"
+        ? editorText("cityEditor.messages.hexagonal")
+        : option.value === "voronoi"
+          ? editorText("cityEditor.messages.voronoi")
+          : editorText("cityEditor.messages.gridEvolution");
   }
   const hexSizeInput = rangeInput(
     String(DEFAULT_HEX_SIZE_METERS),
@@ -678,16 +702,16 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     "1"
   );
   hexSizeInput.className = "ce-hex-size";
-  hexSizeInput.title = "Side length of each regular hexagon, metres";
+  hexSizeInput.title = editorText("cityEditor.messages.sideLengthOfEachRegularHexagonMetres");
   const hexSizeValue = text(formatDistance(DEFAULT_HEX_SIZE_METERS));
   const hexSizeControl = div("ce-brush-size-control");
   hexSizeControl.append(hexSizeInput, hexSizeValue);
-  const hexSizeLabel = label("Hex size", hexSizeControl);
+  const hexSizeLabel = label(editorText("cityEditor.messages.hexSize"), hexSizeControl);
   hexSizeInput.addEventListener("input", () => {
     hexSizeMeters = Number(hexSizeInput.value);
     hexSizeValue.textContent = formatDistance(hexSizeMeters);
   });
-  const gridKindLabel = label("Grid", gridKindSelect);
+  const gridKindLabel = label(editorText("cityEditor.messages.grid"), gridKindSelect);
   gridKindLabel.className = "ce-size-choice";
   const syncGridKindUi = (): void => {
     hexSizeLabel.hidden = gridKind !== "hex";
@@ -697,7 +721,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     syncGridKindUi();
   });
   syncGridKindUi();
-  const newButton = makeIconButton("🆕", "Generate a new grid", () => {
+  const newButton = makeIconButton("🆕", editorText("cityEditor.messages.generateANewGrid"), () => {
     gridSeed = randomSeed();
     documentState = createGridDocument({
       size: size.value as CitySizePreset,
@@ -708,7 +732,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       ...importedFrame(),
       measureBlockSize: measureTownCells
     });
-    history = new DocumentHistory(documentState, "New grid", undefined, fixedApproachProvider);
+    history = new DocumentHistory(
+      documentState,
+      editorText("cityEditor.messages.newGrid"),
+      undefined,
+      fixedApproachProvider
+    );
     generationLog.reset();
     referenceImage = null;
     selection = emptySelection();
@@ -730,24 +759,32 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     rebuildEditorIndexes();
     refresh();
   });
-  const sizeLabel = label("Map size", size);
+  const sizeLabel = label(editorText("cityEditor.messages.mapSize"), size);
   sizeLabel.className = "ce-size-choice";
-  const undoButton = makeIconButton("🔙", "Undo", () => restore(history.undo(documentState)));
-  const redoButton = makeIconButton("➜]", "Redo", () => restore(history.redo(documentState)));
-  const exportButton = makeIconButton("📥", "Export editable city map (JSON)", () => {
+  const undoButton = makeIconButton("🔙", editorText("cityEditor.messages.undo"), () =>
+    restore(history.undo(documentState))
+  );
+  const redoButton = makeIconButton("➜]", editorText("cityEditor.messages.redo"), () =>
+    restore(history.redo(documentState))
+  );
+  const exportButton = makeIconButton("📥", editorText("cityEditor.messages.exportEditableCityMapJSON"), () => {
     exportCityMap(referenceImage ? { ...documentState, referenceImage } : documentState);
-    showNotice("Map exported");
+    showNotice(editorText("cityEditor.messages.mapExported"));
   });
-  const exportSvgButton = makeIconButton("🗺️", "Export city map as SVG", () => {
+  const exportSvgButton = makeIconButton("🗺️", editorText("cityEditor.messages.exportCityMapAsSVG"), () => {
     if (failurePreview) {
       exportGenerationDebugSvg(failurePreview);
-      showNotice("失敗時点のSVGをエクスポートしました");
+      showNotice(editorText("cityEditor.messages.exportedSVGFromTheFailedGeneration"));
       return;
     }
     exportCitySvg(documentForOutput(referenceImage ? { ...documentState, referenceImage } : documentState));
-    showNotice("SVG exported");
+    showNotice(editorText("cityEditor.messages.sVGExported"));
   });
-  const importButton = makeIconButton("📤", "Import city map or SVG reference", () => void importDocument());
+  const importButton = makeIconButton(
+    "📤",
+    editorText("cityEditor.messages.importCityMapOrSVGReference"),
+    () => void importDocument()
+  );
   const scaleInput = numberInput("1", "0.1", "0.1");
   const showLabelsInput = document.createElement("input");
   showLabelsInput.type = "checkbox";
@@ -759,7 +796,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const brushSizeValue = text(brushSizeText());
   const brushSizeControl = div("ce-brush-size-control");
   brushSizeControl.append(brushSizeInput, brushSizeValue);
-  const brushSizeLabel = label("Brush size", brushSizeControl);
+  const brushSizeLabel = label(editorText("cityEditor.messages.brushSize"), brushSizeControl);
   brushSizeInput.addEventListener("input", () => {
     brushSizeCells = Number(brushSizeInput.value);
     brushSizeValue.textContent = brushSizeText();
@@ -768,9 +805,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const eraseTargetInput = select(["both", "cells", "edges"], "both");
   for (const option of [...eraseTargetInput.options]) {
     option.textContent =
-      option.value === "both" ? "Cells and edges" : `${option.value[0].toUpperCase()}${option.value.slice(1)} only`;
+      option.value === "both"
+        ? editorText("cityEditor.messages.cellsAndEdges")
+        : editorText("cityEditor.messages.eraseTargetOnly", { target: editorOptionText(option.value) });
   }
-  const eraseTargetLabel = label("Erase", eraseTargetInput);
+  const eraseTargetLabel = label(editorText("cityEditor.messages.erase"), eraseTargetInput);
   eraseTargetInput.addEventListener("change", () => {
     eraseTarget = eraseTargetInput.value as EraseTarget;
   });
@@ -784,43 +823,43 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   junctionGapScale.append(junctionGapLine, junctionGapLength);
   const junctionMaxGapControl = div("ce-junction-gap-control");
   junctionMaxGapControl.append(junctionMaxGapSliderRow, junctionGapScale);
-  const junctionMaxGapLabel = label("Max junction gap", junctionMaxGapControl);
+  const junctionMaxGapLabel = label(editorText("cityEditor.messages.maxJunctionGap"), junctionMaxGapControl);
   junctionMaxGapInput.addEventListener("input", () => {
     junctionMaxGapMeters = Number(junctionMaxGapInput.value);
     junctionMaxGapValue.textContent = formatDistance(junctionMaxGapMeters);
     refreshJunctionGapScale();
   });
-  const scaleButton = makeIconButton("⤢", "Scale all map geometry", () => {
+  const scaleButton = makeIconButton("⤢", editorText("cityEditor.messages.scaleAllMapGeometry"), () => {
     const factor = Number(scaleInput.value);
     const next = scaleDocument(documentState, factor);
     if (next) {
       halfView *= factor;
-      commit(next, `Scale geometry ×${factor}`);
+      commit(next, editorText("cityEditor.messages.scaleGeometry", { value0: factor }));
     }
   });
-  const finishButton = makeIconButton("✓", "Finish active river", () => {
+  const finishButton = makeIconButton("✓", editorText("cityEditor.messages.finishActiveRiver"), () => {
     if (!activeGroupId) return;
     const next = finishRiver(documentState, activeGroupId);
-    if (next) commit(next, "Finish river");
+    if (next) commit(next, editorText("cityEditor.messages.finishRiver"));
   });
   const smoothingModeInput = select(["safe", "include loops & shared"], "safe");
-  const smoothGroupsButton = makeIconButton("⌁", "Smooth all routes", () => {
+  const smoothGroupsButton = makeIconButton("⌁", editorText("cityEditor.messages.smoothAllRoutes"), () => {
     const mode = smoothingModeInput.value === "include loops & shared" ? "includeSharedAndLoops" : "safe";
     const next = smoothFeatureGroups(documentState, mode);
-    if (next) commit(next, "Smooth all routes");
-    else showNotice("No movable River, Road, or Wall vertices to smooth");
+    if (next) commit(next, editorText("cityEditor.messages.smoothAllRoutes"));
+    else showNotice(editorText("cityEditor.messages.noMovableRiverRoadOrWallVerticesToSmooth"));
   });
   const actions = div("ce-icon-row");
   actions.append(undoButton, redoButton, importButton, exportButton, exportSvgButton);
   toolbar.content.append(
     divider(),
     actions,
-    text("Paint cells"),
+    text(editorText("cityEditor.messages.paintCellsCityEditorPage")),
     paintGrid,
     brushSizeLabel,
     eraseTargetLabel,
     junctionMaxGapLabel,
-    label("Cell IDs", showLabelsInput)
+    label(editorText("cityEditor.messages.cellIDs"), showLabelsInput)
   );
   const documentActions = div("ce-icon-row");
   documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
@@ -834,9 +873,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     Record<"nPatches" | "relaxCount" | "relaxPasses", { slider: HTMLInputElement; readout: HTMLSpanElement }>
   > = {};
   for (const { key, caption, min, max } of [
-    { key: "nPatches", caption: "Patches (nPatches)", min: 6, max: 48 },
-    { key: "relaxCount", caption: "Relax K (centre sites)", min: 0, max: 200 },
-    { key: "relaxPasses", caption: "Relax passes", min: 0, max: 100 }
+    { key: "nPatches", caption: editorText("cityEditor.messages.patchesNPatches"), min: 6, max: 48 },
+    { key: "relaxCount", caption: editorText("cityEditor.messages.relaxKCentreSites"), min: 0, max: 200 },
+    { key: "relaxPasses", caption: editorText("cityEditor.messages.relaxPasses"), min: 0, max: 100 }
   ] as const) {
     const slider = rangeInput(String(gridEvoParams[key]), String(min), String(max), "1");
     const readout = text(String(gridEvoParams[key]));
@@ -858,17 +897,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       control.readout.textContent = control.slider.value;
     }
   };
-  const gridEvoBuildButton = makeButton("▶ Preview grid evolution", () => runGridEvo());
-  const gridEvoReseedButton = makeIconButton("🎲", "New scatter seed", () => {
+  const gridEvoBuildButton = makeButton(editorText("cityEditor.messages.previewGridEvolution"), () => runGridEvo());
+  const gridEvoReseedButton = makeIconButton("🎲", editorText("cityEditor.messages.newScatterSeed"), () => {
     gridEvoSeed = randomSeed();
     if (gridEvoStages) runGridEvo();
   });
   const gridEvoSlider = rangeInput("0", "0", "0", "1");
   gridEvoSlider.className = "ce-grid-step";
-  const gridEvoFirstButton = makeIconButton("⏮", "First stage", () => stepGridEvo(-Infinity));
-  const gridEvoPrevButton = makeIconButton("◀", "Previous stage", () => stepGridEvo(-1));
-  const gridEvoNextButton = makeIconButton("▶", "Next stage", () => stepGridEvo(1));
-  const gridEvoLastButton = makeIconButton("⏭", "Last stage", () => stepGridEvo(Infinity));
+  const gridEvoFirstButton = makeIconButton("⏮", editorText("cityEditor.messages.firstStage"), () =>
+    stepGridEvo(-Infinity)
+  );
+  const gridEvoPrevButton = makeIconButton("◀", editorText("cityEditor.messages.previousStage"), () => stepGridEvo(-1));
+  const gridEvoNextButton = makeIconButton("▶", editorText("cityEditor.messages.nextStage"), () => stepGridEvo(1));
+  const gridEvoLastButton = makeIconButton("⏭", editorText("cityEditor.messages.lastStage"), () =>
+    stepGridEvo(Infinity)
+  );
   const gridEvoLabel = document.createElement("output");
   gridEvoLabel.className = "ce-grid-evo-status";
   const gridEvoSliderRow = div("ce-brush-size-control");
@@ -881,9 +924,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const gridLayerInputs = new Map<keyof typeof gridEvoLayers, HTMLInputElement>();
   const gridLayerRow = div("ce-grid-layers");
   for (const [key, caption] of [
-    ["showCells", "Voronoi"],
-    ["showDelaunay", "Delaunay"],
-    ["showSites", "Sites"]
+    ["showCells", editorText("cityEditor.messages.voronoi")],
+    ["showDelaunay", editorText("cityEditor.messages.delaunay")],
+    ["showSites", editorText("cityEditor.messages.sites")]
   ] as const) {
     const input = checkbox(gridEvoLayers[key], checked => {
       gridEvoLayers[key] = checked;
@@ -892,7 +935,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     gridLayerInputs.set(key, input);
     gridLayerRow.append(toggleLabel(caption, input));
   }
-  const gridEvoAdoptButton = makeButton("この格子を採用", () => adoptGridEvo());
+  const gridEvoAdoptButton = makeButton(editorText("cityEditor.messages.adoptThisGrid"), () => adoptGridEvo());
   const gridEvoBuildRow = div("ce-icon-row");
   gridEvoBuildRow.append(gridEvoBuildButton, gridEvoReseedButton);
   const gridEvoControls = div("ce-grid-controls");
@@ -907,13 +950,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const currentBuildingPatternSelect = select(["legacy", "medieval"], documentState.buildingPattern ?? "legacy");
   currentBuildingPatternSelect.className = "ce-document-building-pattern";
-  currentBuildingPatternSelect.setAttribute("aria-label", "現在の建物生成");
-  currentBuildingPatternSelect.options[0].textContent = "従来の住宅";
-  currentBuildingPatternSelect.options[1].textContent = "中世の敷地（倉庫・屋敷・庭）";
+  currentBuildingPatternSelect.setAttribute("aria-label", editorText("cityEditor.messages.currentBuildingGeneration"));
+  currentBuildingPatternSelect.options[0].textContent = editorText("cityEditor.messages.legacyHousing");
+  currentBuildingPatternSelect.options[1].textContent = editorText(
+    "cityEditor.messages.medievalLotsStoresHousesAndGardens"
+  );
   currentBuildingPatternSelect.addEventListener("change", () => {
     const pattern = currentBuildingPatternSelect.value as "legacy" | "medieval";
     generateSettings.buildingPattern = pattern;
-    commit(setBuildingPattern(documentState, pattern), "Change building pattern");
+    commit(setBuildingPattern(documentState, pattern), editorText("cityEditor.messages.changeBuildingPattern"));
     if (documentState.appearance === "town") {
       completeResult = documentState;
       completeResultSettings = JSON.stringify(generateSettings);
@@ -933,16 +978,32 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   ];
   const historicalPeriodSelect = select(periodOptions, documentState.historicalPeriod ?? "ageOfExploration");
   historicalPeriodSelect.className = "ce-document-historical-period";
-  historicalPeriodSelect.setAttribute("aria-label", "時代設定");
+  historicalPeriodSelect.setAttribute("aria-label", editorText("cityEditor.messages.historicalPeriod"));
   const periodOptionLabels: Record<string, string> = {
-    ageOfExploration: "大航海時代 (c. 1450–1600 · 標準)",
-    lateMedieval: "中世後期 (c. 1300–1450)",
-    highMedieval: "中世盛期 (c. 1000–1300)",
-    earlyMedieval: "中世初期 (c. 500–1000)",
-    classicalAntiquity: "古典古代・ローマ",
-    maritimeEra: "海洋時代・近世 (c. 1600–1750)",
-    preIndustrialEra: "産業革命前夜 (c. 1750–1830)",
-    steamEra: "蒸気時代 (c. 1830–1880)"
+    get ageOfExploration() {
+      return editorText("cityEditor.messages.ageOfExplorationC14501600Default");
+    },
+    get lateMedieval() {
+      return editorText("cityEditor.messages.lateMiddleAgesC13001450");
+    },
+    get highMedieval() {
+      return editorText("cityEditor.messages.highMiddleAgesC10001300");
+    },
+    get earlyMedieval() {
+      return editorText("cityEditor.messages.earlyMiddleAgesC5001000");
+    },
+    get classicalAntiquity() {
+      return editorText("cityEditor.messages.classicalAntiquityAndRome");
+    },
+    get maritimeEra() {
+      return editorText("cityEditor.messages.maritimeEraC16001750");
+    },
+    get preIndustrialEra() {
+      return editorText("cityEditor.messages.preIndustrialEraC17501830");
+    },
+    get steamEra() {
+      return editorText("cityEditor.messages.steamEraC18301880");
+    }
   };
   for (const option of [...historicalPeriodSelect.options]) {
     if (periodOptionLabels[option.value]) option.textContent = periodOptionLabels[option.value];
@@ -957,7 +1018,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         elem.rotation = orientTempleHybrid(elem.point, elem.rotation ?? 0, plaza?.point, period);
       }
     }
-    commit(next, "Change historical period");
+    commit(next, editorText("cityEditor.messages.changeHistoricalPeriod"));
     if (documentState.appearance === "town") {
       completeResult = next;
       completeResultSettings = JSON.stringify(generateSettings);
@@ -970,17 +1031,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     gridKindLabel,
     hexSizeLabel,
     documentActions,
-    label("時代設定", historicalPeriodSelect),
-    label("現在の建物生成", currentBuildingPatternSelect),
-    label("Scale", scaleInput),
-    label("Smoothing", smoothingModeInput),
-    text(
-      "Choose a grid, then press 🆕 to start a new city. Hexagonal tiles regular flat-top hexes; Voronoi is the Poisson scatter; Grid evolution uses the spiral-scatter parameters below (the same mesh as 「この格子を採用」)."
-    ),
+    label(editorText("cityEditor.messages.historicalPeriod"), historicalPeriodSelect),
+    label(editorText("cityEditor.messages.currentBuildingGeneration"), currentBuildingPatternSelect),
+    label(editorText("cityEditor.messages.scale"), scaleInput),
+    label(editorText("cityEditor.messages.smoothing"), smoothingModeInput),
+    text(editorText("cityEditor.messages.chooseAGridThenPressToStartANewCity")),
     divider(),
-    text(
-      "Grid evolution — the TownGeneratorTS spiral scatter → incremental Voronoi → central relax, one loop iteration per step. 「採用」 replaces the mesh with the shown stage (feature groups are cleared)."
-    ),
+    text(editorText("cityEditor.messages.gridEvolutionSpiralScatterIncrementalVoronoiCentralRelaxationOneIteration")),
     gridEvoControls
   );
   syncGridEvoUi();
@@ -990,14 +1047,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   for (const option of [...layoutSelect.options]) {
     option.textContent =
       option.value === "auto"
-        ? "Auto"
+        ? editorText("cityEditor.messages.auto")
         : option.value === "organic"
-          ? "Organic"
+          ? editorText("cityEditor.messages.organic")
           : option.value === "circulade"
-            ? "Circulade"
+            ? editorText("cityEditor.messages.circulade")
             : option.value === "bram"
-              ? "Bram"
-              : "Classic";
+              ? editorText("cityEditor.messages.bram")
+              : editorText("cityEditor.messages.classic");
   }
   layoutSelect.addEventListener("change", () => {
     const val = layoutSelect.value as CityLayout;
@@ -1007,9 +1064,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const buildingPatternSelect = select(["legacy", "medieval"], generateSettings.buildingPattern ?? "legacy");
   buildingPatternSelect.className = "ce-generate-building-pattern";
-  buildingPatternSelect.setAttribute("aria-label", "建物生成");
-  buildingPatternSelect.options[0].textContent = "従来の住宅";
-  buildingPatternSelect.options[1].textContent = "中世の敷地（倉庫・屋敷・庭）";
+  buildingPatternSelect.setAttribute("aria-label", editorText("cityEditor.messages.buildingGeneration"));
+  buildingPatternSelect.options[0].textContent = editorText("cityEditor.messages.legacyHousing");
+  buildingPatternSelect.options[1].textContent = editorText("cityEditor.messages.medievalLotsStoresHousesAndGardens");
   buildingPatternSelect.addEventListener("change", () => {
     generateSettings.buildingPattern = buildingPatternSelect.value as "legacy" | "medieval";
     completeResult = null;
@@ -1021,10 +1078,18 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     generateSettings.config.rivers = riversForCount(generateSettings.config, generateSettings.config.rivers.length);
   });
   const SEA_WALL_LABELS: Record<WallCoastChoice, string> = {
-    auto: "自動",
-    seaWall: "全面あり",
-    open: "全面なし",
-    opening: "1箇所開放"
+    get auto() {
+      return editorText("cityEditor.messages.automatic");
+    },
+    get seaWall() {
+      return editorText("cityEditor.messages.fullyWalled");
+    },
+    get open() {
+      return editorText("cityEditor.messages.openCoast");
+    },
+    get opening() {
+      return editorText("cityEditor.messages.oneOpening");
+    }
   };
   const seaWallSelect = document.createElement("select");
   seaWallSelect.className = "ce-generate-seawall";
@@ -1036,16 +1101,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seaWallSelect.appendChild(option);
   }
   seaWallSelect.value = generateSettings.config.wall.coast;
-  seaWallSelect.title =
-    "首都・城塞とは独立した海側の防備。海からの襲撃に備える場合は全面あり。1箇所開放は港の前だけ壁を欠きます。";
+  seaWallSelect.title = editorText("cityEditor.messages.coastalDefencesIndependentOfCapitalOrCitadelStatusUseA");
   seaWallSelect.addEventListener("change", () => {
     generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
     completeResult = null;
   });
   const WALL_MATERIAL_LABELS: Record<WallMaterialChoice, string> = {
-    auto: "自動（大都市:石材 / 小村:木材）",
-    stone: "石材（石造城壁）",
-    wood: "木材（木造柵・防壁）"
+    get auto() {
+      return editorText("cityEditor.messages.automaticLargeCityStoneSmallVillageWood");
+    },
+    get stone() {
+      return editorText("cityEditor.messages.stoneMasonryWalls");
+    },
+    get wood() {
+      return editorText("cityEditor.messages.woodPalisadeAndDefensiveWalls");
+    }
   };
   const wallMaterialSelect = document.createElement("select");
   wallMaterialSelect.className = "ce-generate-wall-material";
@@ -1056,7 +1126,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     wallMaterialSelect.appendChild(option);
   }
   wallMaterialSelect.value = generateSettings.config.wall.material ?? "auto";
-  wallMaterialSelect.title = "城壁の素材。自動では大きな都市は石造、小さな村は木造パリセードになります。";
+  wallMaterialSelect.title = editorText("cityEditor.messages.wallMaterialAutomaticUsesStoneForLargeCitiesAndWooden");
   wallMaterialSelect.addEventListener("change", () => {
     generateSettings.config.wall.material = wallMaterialSelect.value as WallMaterialChoice;
     completeResult = null;
@@ -1070,10 +1140,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     generateSettings.riverPlacement ?? "through"
   );
   riverPlacementSelect.className = "ce-generate-river-placement";
-  riverPlacementSelect.options[0].textContent = "市内を通過（通常）";
-  riverPlacementSelect.options[1].textContent = "市壁の外側（約1〜2セル）";
-  riverPlacementSelect.options[2].textContent = "市壁の外側（約1〜3セル）";
-  riverPlacementSelect.title = "Rivers=1・市壁ありの場合に適用されます。";
+  riverPlacementSelect.options[0].textContent = editorText("cityEditor.messages.throughTheCityDefault");
+  riverPlacementSelect.options[1].textContent = editorText("cityEditor.messages.outsideCityWallsAbout12Cells");
+  riverPlacementSelect.options[2].textContent = editorText("cityEditor.messages.outsideCityWallsAbout13Cells");
+  riverPlacementSelect.title = editorText("cityEditor.messages.appliesWithOneRiverAndCityWallsEnabled");
   riverPlacementSelect.addEventListener("change", () => {
     generateSettings.riverPlacement = riverPlacementSelect.value as GenerationSettings["riverPlacement"];
     completeResult = null;
@@ -1088,7 +1158,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       generateSettings.config.features[key] = checked;
     });
     featureInputs.set(key, input);
-    featureGrid.appendChild(toggleLabel(key, input));
+    featureGrid.appendChild(toggleLabel(editorOptionText(key), input));
   }
   const stageContainer = div("ce-generate-stages");
   const stageHeader = div("ce-generate-stage-header");
@@ -1107,11 +1177,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   stageSlider.max = String(GENERATION_STAGES.length);
   stageSlider.step = "1";
   stageSlider.value = String(currentStageStep);
-  stageSlider.setAttribute("aria-label", "生成工程スライダー");
+  stageSlider.setAttribute("aria-label", editorText("cityEditor.messages.generationStageSlider"));
 
-  const stagePrevBtn = makeIconButton("◀", "前の工程", () => changeStageStep(-1));
+  const stagePrevBtn = makeIconButton("◀", editorText("cityEditor.messages.previousGenerationStage"), () =>
+    changeStageStep(-1)
+  );
   stagePrevBtn.className += " ce-stage-prev";
-  const stageNextBtn = makeIconButton("▶", "次の工程", () => changeStageStep(1));
+  const stageNextBtn = makeIconButton("▶", editorText("cityEditor.messages.nextGenerationStage"), () =>
+    changeStageStep(1)
+  );
   stageNextBtn.className += " ce-stage-next";
   const stageSliderRow = div("ce-generate-slider-row");
   stageSliderRow.append(stagePrevBtn, stageSlider, stageNextBtn);
@@ -1123,6 +1197,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const stage = GENERATION_STAGES.find(s => s.step === step);
     if (!stage) return;
     stageBadge.textContent = stage.label;
+    stageBadge.dataset.i18nKey = stage.labelKey;
+    stageHint.dataset.i18nKey = stage.hintKey;
     stageProgress.textContent = `${step}/${GENERATION_STAGES.length}`;
     stageHint.textContent = stage.hint;
     stageSlider.value = String(step);
@@ -1155,8 +1231,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   // knob among the generation processes so far; the ◀/▶ scrub below applies to all six.
   const urbanNPatchesInput = numberInput("", "1", "1");
   urbanNPatchesInput.className = "ce-generate-npatches";
-  urbanNPatchesInput.placeholder = "auto";
-  urbanNPatchesInput.title = "Cap ③'s flood-fill to the first N cells instead of the actual city-area budget";
+  urbanNPatchesInput.placeholder = editorText("cityEditor.messages.automaticPlaceholder");
+  urbanNPatchesInput.title = editorText("cityEditor.messages.cap3SFloodFillToTheFirstNCells");
   urbanNPatchesInput.addEventListener("change", () => {
     const raw = urbanNPatchesInput.value.trim();
     if (raw === "") {
@@ -1173,8 +1249,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   });
 
   const urbanCoreModeSelect = select(["legacy", "compact"], generateSettings.urbanCoreMode ?? "legacy");
-  urbanCoreModeSelect.options[0].textContent = "従来方式（郊外住宅帯を含む）";
-  urbanCoreModeSelect.options[1].textContent = "修正版（都市中心部に限定）";
+  urbanCoreModeSelect.options[0].textContent = editorText("cityEditor.messages.legacyIncludesOuterHousingBelt");
+  urbanCoreModeSelect.options[1].textContent = editorText("cityEditor.messages.compactUrbanCoreOnly");
   urbanCoreModeSelect.addEventListener("change", () => {
     generateSettings.urbanCoreMode = urbanCoreModeSelect.value as "legacy" | "compact";
     completeResult = null;
@@ -1185,8 +1261,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const walledShareInput = numberInput("", "5", "5");
   walledShareInput.max = "100";
   walledShareInput.className = "ce-generate-walled-share";
-  walledShareInput.title =
-    "住宅容量の目安として市街地面積を配分します。城壁外にも小道と住宅を生成します。空欄はサイズ別の既定値です。";
+  walledShareInput.title = editorText("cityEditor.messages.allocateUrbanAreaAsAGuideToHousingCapacityLanes");
   walledShareInput.addEventListener("change", () => {
     const raw = walledShareInput.value.trim();
     const n = Number(raw);
@@ -1197,7 +1272,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   });
   const housingSummary = document.createElement("output");
   housingSummary.className = "ce-generate-housing-summary";
-  housingSummary.title = "中心部／外縁部の地区別建物数（商業等も含む）。人口や住戸数とは異なります。";
+  housingSummary.title = editorText("cityEditor.messages.buildingCountsByDistrictInTheCoreAndOuterBelt");
 
   if (!generateSettings.streets)
     generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
@@ -1206,11 +1281,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     streets.avoidSea = checked;
   });
   avoidSeaInput.className = "ce-generate-avoidsea";
-  avoidSeaInput.title = "Keep roads, walls and buildings off the water (towngen-comparison.md §3.E)";
+  avoidSeaInput.title = editorText("cityEditor.messages.keepRoadsWallsAndBuildingsOffTheWaterTowngenComparison");
   const FAR_NODE_MODES: { value: FarNodeMode; label: string }[] = [
-    { value: "descriptorEnd", label: "Descriptor end" },
-    { value: "radial", label: "Radial" },
-    { value: "manualBearings", label: "Manual bearings" }
+    { value: "descriptorEnd", label: editorText("cityEditor.messages.descriptorEnd") },
+    { value: "radial", label: editorText("cityEditor.messages.radial") },
+    { value: "manualBearings", label: editorText("cityEditor.messages.manualBearings") }
   ];
   const farNodeSelect = document.createElement("select");
   farNodeSelect.className = "ce-generate-farnode";
@@ -1225,8 +1300,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   bearingsInput.type = "text";
   bearingsInput.className = "ce-generate-bearings";
   bearingsInput.placeholder = "90, 180, 270";
-  bearingsInput.title = "Comma-separated compass bearings (degrees) for each land gate";
-  const bearingsLabel = label("Manual bearings", bearingsInput);
+  bearingsInput.title = editorText("cityEditor.messages.commaSeparatedCompassBearingsDegreesForEachLandGate");
+  const bearingsLabel = label(editorText("cityEditor.messages.manualBearings"), bearingsInput);
   const syncBearingsRow = (): void => {
     bearingsLabel.style.display = farNodeSelect.value === "manualBearings" ? "" : "none";
   };
@@ -1249,8 +1324,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   // per-loop verification tool, generalised from ③ to the other processes.
   const stepStatus = document.createElement("output");
   stepStatus.className = "ce-generate-step-status";
-  const stepPrevButton = makeIconButton("◀", "Previous step", () => runStep(-1));
-  const stepNextButton = makeIconButton("▶", "Next step", () => runStep(1));
+  const stepPrevButton = makeIconButton("◀", editorText("cityEditor.messages.previousStep"), () => runStep(-1));
+  const stepNextButton = makeIconButton("▶", editorText("cityEditor.messages.nextStep"), () => runStep(1));
   const stepRow = div("ce-icon-row");
   stepRow.append(stepPrevButton, stepStatus, stepNextButton);
 
@@ -1271,21 +1346,29 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const regionalLayerInput = checkbox(true, () => redrawMap());
   const renderQualitySelect = select(["auto", "detailed", "light", "minimal"], "auto");
   renderQualitySelect.className = "ce-render-quality";
-  renderQualitySelect.setAttribute("aria-label", "描画品質");
-  ["自動（Largeは軽量）", "詳細", "軽量（建物をまとめる）", "最軽量（建物・樹木を間引く）"].forEach((text, i) => {
+  renderQualitySelect.setAttribute("aria-label", editorText("cityEditor.messages.renderQuality"));
+  [
+    editorText("cityEditor.messages.automaticLightweightForLarge"),
+    editorText("cityEditor.messages.detailed"),
+    editorText("cityEditor.messages.lightweightGroupBuildings"),
+    editorText("cityEditor.messages.minimalReduceBuildingsAndTrees")
+  ].forEach((text, i) => {
     renderQualitySelect.options[i].textContent = text;
   });
   renderQualitySelect.addEventListener("change", () => redrawMap());
   const renderQualityHelp = text(
-    "軽量表示では農地の畝・植栽の細部を省略。最軽量では一般建物を約1/2、公園の樹木を約1/3に間引きます。街区を選択すると建物の詳細を表示。保存データ・SVG出力・建物数は元のままです。"
+    editorText("cityEditor.messages.lightweightRenderingOmitsFieldRowsAndPlantingDetailsMinimalRendering")
   );
 
   const meshToggleRow = div("ce-icon-row");
-  meshToggleRow.append(toggleLabel("街区の編集表示", blockMeshInput), toggleLabel("グリッド線表示", gridLinesInput));
+  meshToggleRow.append(
+    toggleLabel(editorText("cityEditor.messages.blockEditingView"), blockMeshInput),
+    toggleLabel(editorText("cityEditor.messages.showGridLines"), gridLinesInput)
+  );
 
   const importedBox = div("ce-imported");
   const importedText = div("ce-imported-body");
-  const standaloneButton = makeButton("Use standalone site", () => useStandaloneSite());
+  const standaloneButton = makeButton(editorText("cityEditor.messages.useStandaloneSite"), () => useStandaloneSite());
   importedBox.append(importedText, standaloneButton);
   importedBox.hidden = true;
 
@@ -1304,8 +1387,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedInput.value = generateSeed;
     runCompleteGeneration();
   });
-  const seedLabel = label("Seed", seedInput);
-  const copyLinkButton = makeButton("Copy shareable link", () => void copyShareLink(copyLinkButton));
+  const seedLabel = label(editorText("cityEditor.messages.seed"), seedInput);
+  const copyLinkButton = makeButton(
+    editorText("cityEditor.messages.copyShareableLink"),
+    () => void copyShareLink(copyLinkButton)
+  );
 
   const moatInputs = new Map<"town" | "castle", HTMLInputElement>();
   const moatControls = div("ce-moat-settings");
@@ -1322,35 +1408,60 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             circuit.moat = { enabled: checked, widthMeters: circuit.moat?.widthMeters ?? (scope === "town" ? 12 : 8) };
         }
         return next;
-      }, "Moat");
+      }, editorOptionText("moat"));
     });
     input.className = `ce-moat-${scope}`;
     moatInputs.set(scope, input);
-    moatControls.append(toggleLabel(scope === "town" ? "市壁の外堀" : "城壁の外堀（Citadel）", input));
+    moatControls.append(
+      toggleLabel(
+        scope === "town"
+          ? editorText("cityEditor.messages.townWallOuterMoat")
+          : editorText("cityEditor.messages.citadelOuterMoat"),
+        input
+      )
+    );
   }
 
   const castleControls = div("ce-castle-settings");
   const castleInputs = new Map<keyof CastleSettings, HTMLSelectElement>();
   const castleChoices: Array<[keyof CastleSettings, string, string[]]> = [
-    ["position", "城の位置", ["auto", "edge", "central"]],
-    ["relationship", "城壁との関係", ["auto", "integrated", "detached"]],
-    ["form", "城の形式", ["auto", "keep-bailey", "courtyard"]],
-    ["size", "城の規模", ["auto", "small", "standard", "large"]],
-    ["style", "城郭様式", ["auto", ...Object.keys(CASTLE_STYLE_PROFILES)]]
+    ["position", editorText("cityEditor.messages.castlePosition"), ["auto", "edge", "central"]],
+    ["relationship", editorText("cityEditor.messages.relationshipToTownWalls"), ["auto", "integrated", "detached"]],
+    ["form", editorText("cityEditor.messages.castleForm"), ["auto", "keep-bailey", "courtyard"]],
+    ["size", editorText("cityEditor.messages.castleSize"), ["auto", "small", "standard", "large"]],
+    ["style", editorText("cityEditor.messages.castleStyle"), ["auto", ...Object.keys(CASTLE_STYLE_PROFILES)]]
   ];
   for (const [key, title, choices] of castleChoices) {
     const input = select(choices, generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto");
     const titles: Record<string, string> = {
-      auto: "自動（時代・文化依存）",
-      edge: "都市の端",
-      central: "都市の中央",
-      integrated: "都市城壁と一体",
-      detached: "独立した囲郭",
-      "keep-bailey": "主塔と中庭",
-      courtyard: "中庭を囲む居館",
-      small: "小",
-      standard: "標準",
-      large: "大",
+      get auto() {
+        return editorText("cityEditor.messages.automaticPeriodAndCulture");
+      },
+      get edge() {
+        return editorText("cityEditor.messages.edgeOfTheCity");
+      },
+      get central() {
+        return editorText("cityEditor.messages.cityCentre");
+      },
+      get integrated() {
+        return editorText("cityEditor.messages.integratedWithTownWalls");
+      },
+      get detached() {
+        return editorText("cityEditor.messages.detachedEnclosure");
+      },
+      "keep-bailey": editorText("cityEditor.messages.keepAndCourtyard"),
+      get courtyard() {
+        return editorText("cityEditor.messages.residenceAroundACourtyard");
+      },
+      get small() {
+        return editorText("cityEditor.messages.smallShipSvg");
+      },
+      get standard() {
+        return editorText("cityEditor.messages.standard");
+      },
+      get large() {
+        return editorText("cityEditor.messages.largeShipSvg");
+      },
       ...Object.fromEntries(Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label]))
     };
     for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
@@ -1366,61 +1477,60 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
   const synthControls = div("ce-generate-synth");
   synthControls.append(
-    label("都市形態", layoutSelect),
-    label("建物生成", buildingPatternSelect),
-    label("Coast", coastSelect),
-    label("Rivers", riversSelect),
-    label("河川の位置", riverPlacementSelect),
-    toggleLabel("Relief (hilltop)", reliefInput),
-    text("Features"),
+    label(editorText("cityEditor.messages.cityLayout"), layoutSelect),
+    label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect),
+    label(editorText("cityEditor.messages.coast"), coastSelect),
+    label(editorText("cityEditor.messages.rivers"), riversSelect),
+    label(editorText("cityEditor.messages.riverPlacement"), riverPlacementSelect),
+    toggleLabel(editorText("cityEditor.messages.reliefHilltop"), reliefInput),
+    text(editorText("cityEditor.messages.features")),
     featureGrid,
-    makeButton("🎲 Randomize geography", () => {
+    makeButton(editorText("cityEditor.messages.randomizeGeography"), () => {
       generateSettings.config = randomGeography();
       generateSeed = randomSeed();
       syncGenerateControls();
       stepIndex = -1;
       rerunLastStage();
-      showNotice("Geography randomized");
+      showNotice(editorText("cityEditor.messages.geographyRandomized"));
     })
   );
 
   generatePanel.content.append(
     generationProgress,
     cancelGeneration,
-    toggleLabel("デバッグ：生成失敗の途中図を表示", failureDebugInput),
+    toggleLabel(editorText("cityEditor.messages.debugShowGenerationFailurePreview"), failureDebugInput),
     failureDebugSummary,
     closeFailurePreview,
-    makeButton("🏘 都市を一括生成", () => runCompleteGeneration()),
-    makeButton("🎲 新しい都市", () => rollNewTown()),
+    makeButton(editorText("cityEditor.messages.generateCompleteCity"), () => runCompleteGeneration()),
+    makeButton(editorText("cityEditor.messages.newCity"), () => rollNewTown()),
     copyLinkButton,
     seedLabel,
     meshToggleRow,
-    label("描画品質", renderQualitySelect),
+    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
     renderQualityHelp,
-    toggleLabel("中心部を表示", coreLayerInput),
-    toggleLabel("FMG郊外を表示", regionalLayerInput),
+    toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
+    toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
     divider(),
     importedBox,
     synthControls,
-    label("城壁の素材", wallMaterialSelect),
-    label("海側の城壁", seaWallSelect),
+    label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
+    label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
     castleControls,
     moatControls,
-    label("城壁内の市街地面積（%）", walledShareInput),
-    text("空欄は Tiny/Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。"),
+    label(editorText("cityEditor.messages.urbanAreaInsideWalls"), walledShareInput),
+    text(editorText("cityEditor.messages.blankUsesTinySmall100Medium45Large20Approximate")),
     housingSummary,
     divider(),
-    text(
-      "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑬までの全工程を順番に確認できます。④はセル分割前の城壁、⑤は河川横断用のセル分割、⑥は門の通路とセル分割、⑦は門・城郭を表示します。⑬では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。"
-    ),
+    text(editorText("cityEditor.messages.completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider")),
+    text(editorText("cityEditor.generationStages.title")),
     stageContainer,
     divider(),
-    label("市街地コアの確保方式", urbanCoreModeSelect),
-    label("③ nPatches (blank = auto)", urbanNPatchesInput),
-    toggleLabel("Avoid sea", avoidSeaInput),
-    label("Street far end", farNodeSelect),
+    label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
+    label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput),
+    toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
+    label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
     bearingsLabel,
-    text("Step through the last-pressed process one loop iteration at a time"),
+    text(editorText("cityEditor.messages.stepThroughTheLastPressedProcessOneLoopIterationAt")),
     stepRow
   );
   syncGenerateControls();
@@ -1579,7 +1689,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           layer: "vertices",
           kind: "vertex",
           id: nearestVertexId,
-          label: `vertex #${nearestVertexId}`,
+          label: editorText("cityEditor.messages.vertexIdentifier", { value0: nearestVertexId }),
           point: v.point
         };
         map.setPointerCapture(event.pointerId);
@@ -1631,7 +1741,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           layer: "vertices",
           kind: "vertex",
           id: vertexId,
-          label: `vertex #${vertexId}`,
+          label: editorText("cityEditor.messages.vertexIdentifier", { value0: vertexId }),
           point: v.point
         };
       }
@@ -1758,7 +1868,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       shipDragBefore = null;
       if (map.hasPointerCapture(event.pointerId)) map.releasePointerCapture(event.pointerId);
       if (wasMoved && before) {
-        commit(documentState, dragMode === "move" ? "Move ship" : "Rotate ship");
+        commit(
+          documentState,
+          dragMode === "move"
+            ? editorText("cityEditor.messages.moveShip")
+            : editorText("cityEditor.messages.rotateShip")
+        );
       } else {
         refresh();
       }
@@ -1805,7 +1920,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (merged) documentState = merged;
     }
     if (wasVertexDragging && vertexMoved) {
-      history.commit(documentState, mergeCandidateId ? "Merge vertices" : "Move vertex");
+      history.commit(
+        documentState,
+        mergeCandidateId
+          ? editorText("cityEditor.messages.mergeVertices")
+          : editorText("cityEditor.messages.moveVertex")
+      );
       rememberFailureGenerationState();
       rebuildEditorIndexes();
     }
@@ -1816,14 +1936,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (edgePaintChanged) rebuildEditorIndexes();
     }
     if (wasJunctionPainting && junctionPaintChanged) {
-      history.commit(documentState, "Clean junctions");
+      history.commit(documentState, editorText("cityEditor.messages.cleanJunctions"));
       rememberFailureGenerationState();
       rebuildEditorIndexes();
     }
     if (circle && event.type !== "pointercancel") {
       const next = encloseCircleWithWalls(documentState, circle.center, circle.radiusMeters);
-      if (next) commit(next, "Circular ward wall");
-      else showNotice("Draw a circle over at least one city cell to create a wall");
+      if (next) commit(next, editorText("cityEditor.messages.circularWardWall"));
+      else showNotice(editorText("cityEditor.messages.drawACircleOverAtLeastOneCityCellTo"));
     }
     if (stroke) {
       if (event.type !== "pointercancel") finishRouteStroke(stroke, localPoint(event));
@@ -1839,7 +1959,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         const next = rerouteGroupAcrossFace(documentState, draggedRoute.groupId, previewFaceId, {
           edgeId: draggedRoute.edgeId
         });
-        if (next) commit(next, "Reroute across cell");
+        if (next) commit(next, editorText("cityEditor.messages.rerouteAcrossCell"));
       }
       if (draggedRoute.moved) {
         selection.vertexId = null;
@@ -1908,7 +2028,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (tool === "landmark") {
       const asset = selectedLandmarkAsset();
       if (!asset) {
-        showNotice("ランドマーク素材を読み込んでください。");
+        showNotice(editorText("cityEditor.messages.loadALandmarkAssetFirst"));
         return;
       }
       const result = placeLandmark(
@@ -1923,7 +2043,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         preservedLandmarkLanes()
       );
       if (result.document) {
-        commit(result.document, `Place ${asset.name}`);
+        commit(result.document, editorText("cityEditor.messages.placeCityEditorPage", { value0: asset.name }));
         landmarkHoverPoint = null;
       } else showNotice(result.reasons.join("; "));
       return;
@@ -1942,7 +2062,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       };
       commit(
         { ...documentState, elements: [...documentState.elements, newElement] },
-        `Place ${SHIP_SPECS[shipType].label}`
+        editorText("cityEditor.messages.placeCityEditorPage", { value0: SHIP_SPECS[shipType].label })
       );
       return;
     }
@@ -1972,7 +2092,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       ) {
         const next = appendEdge(documentState, activeGroup.id, edgeId);
         if (next) {
-          commit(next, `Extend ${activeGroup.name}`);
+          commit(next, editorText("cityEditor.messages.extend", { value0: activeGroup.name }));
           return;
         }
       }
@@ -2112,8 +2232,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       }
       if (activeGroup.kind !== "river") {
         const next = appendEdge(documentState, activeGroup.id, edgeId);
-        if (next) commit(next, `Extend ${activeGroup.name}`);
-        else showNotice("Choose an unused edge beside a route endpoint");
+        if (next) commit(next, editorText("cityEditor.messages.extend", { value0: activeGroup.name }));
+        else showNotice(editorText("cityEditor.messages.chooseAnUnusedEdgeBesideARouteEndpoint"));
         return;
       }
     }
@@ -2155,8 +2275,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (isSelectTool && vertexId && vertexHasWallPassage(documentState, vertexId)) {
       const gate = documentState.gates.find(candidate => candidate.vertexId === vertexId);
       actions.push({
-        label: gate ? "Delete gate" : "Draw gate",
-        run: () => runContextAction(() => toggleGate(documentState, vertexId), gate ? "Delete gate" : "Draw gate")
+        label: gate ? editorText("cityEditor.messages.deleteGate") : editorText("cityEditor.messages.drawGate"),
+        run: () =>
+          runContextAction(
+            () => toggleGate(documentState, vertexId),
+            gate ? editorText("cityEditor.messages.deleteGate") : editorText("cityEditor.messages.drawGate")
+          )
       });
     }
 
@@ -2176,28 +2300,31 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     if (routeEdgeId && routeGroup && !routeGroup.locked) {
       actions.push({
-        label: `Delete ${routeGroup.name} edge`,
+        label: editorText("cityEditor.messages.deleteEdge", { value0: routeGroup.name }),
         run: () =>
-          runContextAction(() => {
-            const next = removeEdgeFromGroup(documentState, routeGroup.id, routeEdgeId);
-            if (next && !next.featureGroups.some(group => group.id === routeGroup.id)) {
-              activeGroupId = null;
-              selection.groupId = null;
-            }
-            selection.edgeId = null;
-            return next;
-          }, `Delete ${routeGroup.name} edge`)
+          runContextAction(
+            () => {
+              const next = removeEdgeFromGroup(documentState, routeGroup.id, routeEdgeId);
+              if (next && !next.featureGroups.some(group => group.id === routeGroup.id)) {
+                activeGroupId = null;
+                selection.groupId = null;
+              }
+              selection.edgeId = null;
+              return next;
+            },
+            editorText("cityEditor.messages.deleteEdge", { value0: routeGroup.name })
+          )
       });
     }
 
     const wardFace = faceId ? documentState.mesh.faces[faceId] : null;
     if (wardFace?.properties.ward) {
       actions.push({
-        label: `Enclose connected ${wardFace.properties.ward} ward with walls`,
+        label: editorText("cityEditor.messages.encloseConnectedWardWithWalls", { value0: wardFace.properties.ward }),
         run: () =>
           runContextAction(
             () => encloseWardComponentWithWalls(documentState, wardFace.id),
-            `Enclose ${wardFace.properties.ward} ward`
+            editorText("cityEditor.messages.encloseWard", { value0: wardFace.properties.ward })
           )
       });
     }
@@ -2209,17 +2336,24 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       faceNeighbors(documentState.mesh, selection.faceId).includes(faceId)
     ) {
       actions.push({
-        label: `Merge ${selection.faceId} with ${faceId}`,
-        run: () => runContextAction(() => mergeFaces(documentState, selection.faceId as Id, faceId), "Merge cells")
+        label: editorText("cityEditor.messages.mergeWith", { value0: selection.faceId, value1: faceId }),
+        run: () =>
+          runContextAction(
+            () => mergeFaces(documentState, selection.faceId as Id, faceId),
+            editorText("cityEditor.messages.mergeCells")
+          )
       });
     }
 
     if (vertexId && selection.vertexId && vertexId !== selection.vertexId) {
       if (edgeBetween(documentState.mesh, selection.vertexId, vertexId)) {
         actions.push({
-          label: `Merge ${vertexId} into ${selection.vertexId}`,
+          label: editorText("cityEditor.messages.mergeInto", { value0: vertexId, value1: selection.vertexId }),
           run: () =>
-            runContextAction(() => mergeVertices(documentState, selection.vertexId as Id, vertexId), "Merge vertices"),
+            runContextAction(
+              () => mergeVertices(documentState, selection.vertexId as Id, vertexId),
+              editorText("cityEditor.messages.mergeVertices")
+            ),
           highlight: { vertexId, edgeId: edgeBetween(documentState.mesh, selection.vertexId, vertexId)?.id ?? "" }
         });
       } else {
@@ -2227,11 +2361,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           const vertices = faceVertices(documentState.mesh, face);
           if (!vertices.includes(selection.vertexId) || !vertices.includes(vertexId)) continue;
           actions.push({
-            label: `Split ${face.id} from ${selection.vertexId} to ${vertexId}`,
+            label: editorText("cityEditor.messages.splitFromTo", {
+              value0: face.id,
+              value1: selection.vertexId,
+              value2: vertexId
+            }),
             run: () =>
               runContextAction(
                 () => splitFace(documentState, face.id, selection.vertexId as Id, vertexId),
-                "Split cell"
+                editorText("cityEditor.messages.splitCell")
               )
           });
         }
@@ -2242,23 +2380,24 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const hasPriorActions = actions.length > 0;
 
     actions.push({
-      label: i18n.t("mapContextMenu.distanceFromHere") || "Distance from here",
+      label: i18n.t("mapContextMenu.distanceFromHere") || editorText("cityEditor.messages.distanceFromHere"),
       isSeparator: hasPriorActions,
       run: () => setDistanceFromHere(clickPoint)
     });
 
     actions.push({
-      label: i18n.t("mapContextMenu.distanceToHere") || "Distance to here",
+      label: i18n.t("mapContextMenu.distanceToHere") || editorText("cityEditor.messages.distanceToHere"),
       disabled: !measureFrom,
       title: !measureFrom
-        ? i18n.t("mapContextMenu.distanceToHereDisabled") || 'Set a starting point with "Distance from here" first'
+        ? i18n.t("mapContextMenu.distanceToHereDisabled") ||
+          editorText("cityEditor.messages.setAStartingPointWithDistanceFromHereFirst")
         : undefined,
       run: () => setDistanceToHere(clickPoint)
     });
 
     if (measureFrom || measureTo) {
       actions.push({
-        label: i18n.language === "ja" ? "計測をクリア" : "Clear measurement",
+        label: editorText("cityEditor.messages.clearMeasurement"),
         run: () => clearMeasurement()
       });
     }
@@ -2324,7 +2463,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     else refresh();
   } catch (error) {
     refresh();
-    showNotice(error instanceof Error ? error.message : "FMG地域データを読み込めませんでした。");
+    showNotice(error instanceof Error ? error.message : editorText("cityEditor.messages.couldNotLoadFMGRegionData"));
   }
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
@@ -2340,7 +2479,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (appended) {
       activeGroupId = groupId;
       selection.groupId = groupId;
-      commit(appended, kind === "wall" ? "Draw wall" : "Draw road");
+      commit(
+        appended,
+        kind === "wall" ? editorText("cityEditor.messages.drawWall") : editorText("cityEditor.messages.drawRoad")
+      );
     }
   }
 
@@ -2357,11 +2499,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (appended) {
       activeGroupId = groupId;
       selection = { ...selection, vertexId, groupId };
-      commit(appended, "Draw river");
+      commit(appended, editorText("cityEditor.messages.drawRiver"));
     }
   }
 
-  function commit(next: CityDocument, label = "Edit"): void {
+  function commit(next: CityDocument, label = editorText("cityEditor.messages.edit")): void {
     // A no-op edit (re-selecting the same ward, scale ×1, re-applying "sea" to a
     // sea cell) returns the document unchanged. Skip the snapshot so it does not
     // add an empty undo step or a History-panel row.
@@ -2378,7 +2520,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       !preservesExistingErrors &&
       (!refreshCastleLayouts(next) || validateFortifications(next).length)
     ) {
-      showNotice("城郭の整合性を保てない編集です。城域・城門・必須棟を確認してください。");
+      showNotice(editorText("cityEditor.messages.thisEditCannotPreserveCastleIntegrityCheckTheCastleArea"));
       return;
     }
     // Any real edit invalidates a Grid-evolution preview built against the old
@@ -2390,14 +2532,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     refresh();
   }
 
-  function runContextAction(operation: () => CityDocument | null, label = "Edit"): void {
+  function runContextAction(
+    operation: () => CityDocument | null,
+    label = editorText("cityEditor.messages.edit")
+  ): void {
     const next = operation();
     hideContextMenu();
     if (next) {
       commit(next, label);
       return;
     }
-    showNotice("This operation cannot be applied to the selected geometry");
+    showNotice(editorText("cityEditor.messages.thisOperationCannotBeAppliedToTheSelectedGeometry"));
   }
 
   function showContextMenu(event: MouseEvent, actions: ContextMenuAction[]): void {
@@ -2427,7 +2572,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         contextMenu.appendChild(button);
       }
     } else {
-      contextMenu.appendChild(text("No action available here"));
+      contextMenu.appendChild(text(editorText("cityEditor.messages.noActionAvailableHere")));
     }
     closeContextMenuOnPointerMove = actions.length === 0;
     contextMenu.hidden = false;
@@ -2462,7 +2607,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     measureTo = null;
     hideContextMenu();
     updateMeasureOverlay();
-    showNotice(i18n.language === "ja" ? "開始位置を設定しました" : "Starting point set");
+    showNotice(editorText("cityEditor.messages.startingPointSet"));
   }
 
   function setDistanceToHere(point: [number, number]): void {
@@ -2474,7 +2619,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     hideContextMenu();
     updateMeasureOverlay();
     const dist = Math.hypot(measureTo[0] - measureFrom[0], measureTo[1] - measureFrom[1]);
-    showNotice(i18n.language === "ja" ? `距離: ${formatDistance(dist)}` : `Distance: ${formatDistance(dist)}`);
+    showNotice(editorText("cityEditor.messages.distance", { value0: formatDistance(dist) }));
   }
 
   function clearMeasurement(): void {
@@ -2498,7 +2643,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (textEl) {
       textEl.style.cursor = "pointer";
       textEl.setAttribute("role", "button");
-      textEl.setAttribute("title", i18n.language === "ja" ? "クリックして計測を消去" : "Click to clear measurement");
+      textEl.setAttribute("title", editorText("cityEditor.messages.clickToClearMeasurement"));
       textEl.addEventListener("click", () => {
         clearMeasurement();
       });
@@ -2621,7 +2766,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     );
     if (!assets.length) {
       const option = document.createElement("option");
-      option.textContent = "Import reviewed asset…";
+      option.textContent = editorText("cityEditor.messages.importReviewedAsset");
       option.value = "";
       landmarkSelect.appendChild(option);
     }
@@ -2633,7 +2778,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     currentBuildingPatternSelect.value =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     historicalPeriodSelect.value = documentState.historicalPeriod ?? "ageOfExploration";
-    walledShareInput.placeholder = `auto (${defaultWalledAreaShare(documentState.frame.extentMeters) * 100}%)`;
+    walledShareInput.placeholder = editorText("cityEditor.messages.autoCityEditorPage", {
+      value0: defaultWalledAreaShare(documentState.frame.extentMeters) * 100
+    });
     map.classList.toggle("ce-map--select", tool === "select");
     map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
@@ -2664,7 +2811,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     renderGroups();
     renderHistory();
     const errors = validate(documentState);
-    status.textContent = `${Object.keys(documentState.mesh.faces).length} blocks · ${documentState.featureGroups.length} groups${errors.length ? ` · ${errors.join(", ")}` : " · valid"}${notice ? ` · ${notice}` : ""}`;
+    status.textContent = editorText("cityEditor.messages.blocksGroups", {
+      value0: Object.keys(documentState.mesh.faces).length,
+      value1: documentState.featureGroups.length,
+      value2: errors.length ? ` · ${errors.join(", ")}` : editorText("cityEditor.messages.valid"),
+      value3: notice ? ` · ${notice}` : ""
+    });
     refreshScaleBar();
   }
 
@@ -2702,7 +2854,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     failureRenderContext = preview;
     const partial = structuredClone(preview.document);
     partial.generationSeed = preview.seed;
-    documentState = history.commit(partial, "生成失敗の途中図");
+    documentState = history.commit(partial, editorText("cityEditor.messages.generationFailurePreviewCityEditorPage"));
     failurePreviewHistoryIndex = history.index;
     completeResult = null;
     completeResultSettings = null;
@@ -2718,7 +2870,20 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     clearGridEvo();
     rebuildEditorIndexes();
     const { sample, seed, highlights } = preview;
-    failureDebugSummary.textContent = `${heading} · ${generationPhaseLabel(sample.phase)}（${sample.phase}）: ${sample.failure?.message ?? ""} [${sample.failure?.reason ?? ""}] · Seed: ${seed}。${highlights.contextual ? "橙は関連領域（失敗位置は未特定）" : "赤は検証で指摘された門・辺・面"}。途中図を編集できます。強調は失敗時点の診断です。Undoで生成前に戻れます。`;
+    failureDebugSummary.textContent = editorText(
+      "cityEditor.messages.seedThePreviewIsEditableHighlightsReflectDiagnosticsAtFailure",
+      {
+        value0: heading,
+        value1: generationPhaseLabel(sample.phase),
+        value2: sample.phase,
+        value3: sample.failure?.message ?? "",
+        value4: sample.failure?.reason ?? "",
+        value5: seed,
+        value6: highlights.contextual
+          ? editorText("cityEditor.messages.relatedAreaHighlightExplanation")
+          : editorText("cityEditor.messages.failureHighlightExplanation")
+      }
+    );
     failureDebugSummary.hidden = false;
     closeFailurePreview.hidden = false;
     rememberGenerationState(preview.seed);
@@ -2808,7 +2973,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const buildingCount = coreBuildings + outerBuildings;
     housingSummary.hidden = buildingCount === 0;
     housingSummary.textContent = buildingCount
-      ? `建物：中心部 ${coreBuildings.toLocaleString()}棟 / 外縁部 ${outerBuildings.toLocaleString()}棟（${Math.round((outerBuildings / buildingCount) * 100)}%）`
+      ? editorText("cityEditor.messages.buildingsCoreOuterBelt", {
+          value0: coreBuildings.toLocaleString(),
+          value1: outerBuildings.toLocaleString(),
+          value2: Math.round((outerBuildings / buildingCount) * 100)
+        })
       : "";
     // Index the per-face nodes this pass just built so a later ward/sea paint
     // can patch just the touched faces (patchFaceRender) instead of forcing
@@ -2930,7 +3099,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       layer.appendChild(route);
     }
     const message = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    message.textContent = preview.document ? `${asset.name} — place` : preview.reasons.slice(0, 2).join("; ");
+    message.textContent = preview.document
+      ? editorText("cityEditor.messages.place", { value0: asset.name })
+      : preview.reasons.slice(0, 2).join("; ");
     message.setAttribute("x", String(landmarkHoverPoint[0]));
     message.setAttribute("y", String(-landmarkHoverPoint[1] - 14));
     message.setAttribute("font-size", "11");
@@ -3068,7 +3239,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const meters = niceScale(metersPerPixel * 120);
     scaleLine.style.width = `${meters / metersPerPixel}px`;
     const blockCount = Math.max(1, Math.round(meters / documentState.frame.blockSizeMeters));
-    scaleLabel.textContent = `×${zoomFactor().toFixed(1)} · ${formatDistance(meters)} · ≈ ${blockCount} block${blockCount === 1 ? "" : "s"} (1 cell ≈ ${formatDistance(documentState.frame.blockSizeMeters)})`;
+    scaleLabel.textContent = editorText("cityEditor.messages.block1Cell", {
+      value0: zoomFactor().toFixed(1),
+      value1: formatDistance(meters),
+      value2: blockCount,
+      value3: blockCount === 1 ? "" : "s",
+      value4: formatDistance(documentState.frame.blockSizeMeters)
+    });
     refreshJunctionGapScale();
   }
 
@@ -3078,7 +3255,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const metersPerPixel = (halfView * 2) / width;
     const pixelLength = Math.max(1, junctionMaxGapMeters / metersPerPixel);
     junctionGapLine.style.width = `${pixelLength}px`;
-    junctionGapLength.textContent = `${formatDistance(junctionMaxGapMeters)} edge threshold`;
+    junctionGapLength.textContent = editorText("cityEditor.messages.edgeThreshold", {
+      value0: formatDistance(junctionMaxGapMeters)
+    });
   }
 
   function zoomFactor(): number {
@@ -3106,7 +3285,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const PRESETS = [
       {
         id: "city_domestic",
-        label: "大都市（自国）",
+        get label() {
+          return editorText("cityEditor.messages.cityHomeRealm");
+        },
         data: {
           realm: { relation: "domestic" as const },
           settlement: { scale: "city" as const, role: "generic" as const, population: 15000, wealth: 70 }
@@ -3114,7 +3295,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       },
       {
         id: "granary_domestic",
-        label: "食料供給農村（自国）",
+        get label() {
+          return editorText("cityEditor.messages.foodSupplyingVillageHomeRealm");
+        },
         data: {
           realm: { relation: "domestic" as const },
           settlement: { scale: "village" as const, role: "granary" as const, population: 800, wealth: 45 }
@@ -3122,7 +3305,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       },
       {
         id: "fortress_enemy",
-        label: "要塞町（敵国）",
+        get label() {
+          return editorText("cityEditor.messages.fortressTownEnemyRealm");
+        },
         data: {
           realm: { relation: "Enemy" as const },
           settlement: { scale: "town" as const, role: "fortress" as const, population: 4000, wealth: 55 }
@@ -3130,7 +3315,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       },
       {
         id: "market_ally",
-        label: "交易大都市（同盟国）",
+        get label() {
+          return editorText("cityEditor.messages.tradingCityAlly");
+        },
         data: {
           realm: { relation: "Ally" as const },
           settlement: { scale: "city" as const, role: "market" as const, population: 14000, wealth: 75 }
@@ -3138,7 +3325,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       },
       {
         id: "hamlet_domestic",
-        label: "過疎の村（自国）",
+        get label() {
+          return editorText("cityEditor.messages.depopulatedHamletHomeRealm");
+        },
         data: {
           realm: { relation: "domestic" as const },
           settlement: { scale: "hamlet" as const, role: "generic" as const, population: 150, wealth: 25 }
@@ -3151,7 +3340,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     presetSelect.className = "ce-approach-beyond-select";
     const noneOption = document.createElement("option");
     noneOption.value = "";
-    noneOption.textContent = "（付けない）";
+    noneOption.textContent = editorText("cityEditor.messages.none");
     presetSelect.appendChild(noneOption);
     for (const p of PRESETS) {
       const opt = document.createElement("option");
@@ -3176,7 +3365,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       presetSelect.value = "";
     }
 
-    wrap.append(label("街道の先（プリセット）", presetSelect));
+    wrap.append(label(editorText("cityEditor.messages.beyondTheRoadPreset"), presetSelect));
 
     presetSelect.addEventListener("change", () => {
       const next = clone(documentState);
@@ -3184,13 +3373,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (target?.kind !== "road") return;
       if (!presetSelect.value) {
         delete target.beyond;
-        commit(next, "街道の先を解除");
+        commit(next, editorText("cityEditor.messages.clearRoadDestination"));
         return;
       }
       const found = PRESETS.find(p => p.id === presetSelect.value);
       if (found) {
         target.beyond = structuredClone(found.data as ApproachBeyondData);
-        commit(next, "街道の先を変更");
+        commit(next, editorText("cityEditor.messages.changeRoadDestination"));
       }
     });
 
@@ -3210,7 +3399,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const stateInput = document.createElement("input");
       stateInput.type = "text";
       stateInput.className = "ce-beyond-state-input";
-      stateInput.placeholder = "自国・または国名";
+      stateInput.placeholder = editorText("cityEditor.messages.homeRealmOrRealmName");
       stateInput.value = norm.realm.stateName ?? "";
 
       // 2. 都市規模
@@ -3239,7 +3428,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const nameInput = document.createElement("input");
       nameInput.type = "text";
       nameInput.className = "ce-beyond-name-input";
-      nameInput.placeholder = "都市名（任意）";
+      nameInput.placeholder = editorText("cityEditor.messages.cityNameOptional");
       nameInput.value = norm.settlement.name ?? "";
 
       // 人口
@@ -3276,8 +3465,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (assess) {
         assessBox.innerHTML = `
           <div style="font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
-            <span>有用性: <span style="color: #2e7d32;">${assess.utilityLabel}</span></span>
-            <span>防備必要性: <span style="color: #c62828;">${assess.defenseLabel}</span></span>
+            <span>${editorHtml("cityEditor.messages.utility")}<span style="color: #2e7d32;">${assess.utilityLabel}</span></span>
+            <span>${editorHtml("cityEditor.messages.defenceNeeded")}<span style="color: #c62828;">${assess.defenseLabel}</span></span>
           </div>
           <div style="color: #333; margin-bottom: 2px;">• ${assess.utilityReason}</div>
           <div style="color: #333;">• ${assess.defenseReason}</div>
@@ -3298,48 +3487,48 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       realmSelect.addEventListener("change", () => {
         updateData(d => {
           d.realm.relation = realmSelect.value as BeyondRealmRelation;
-        }, "国の外交関係を変更");
+        }, editorText("cityEditor.messages.changeDiplomaticRelationship"));
       });
       stateInput.addEventListener("change", () => {
         updateData(d => {
           d.realm.stateName = stateInput.value || undefined;
-        }, "相手国名を変更");
+        }, editorText("cityEditor.messages.changeDestinationRealmName"));
       });
       scaleSelect.addEventListener("change", () => {
         updateData(d => {
           d.settlement.scale = scaleSelect.value as SettlementScale;
-        }, "都市規模を変更");
+        }, editorText("cityEditor.messages.changeSettlementScale"));
       });
       roleSelect.addEventListener("change", () => {
         updateData(d => {
           d.settlement.role = roleSelect.value as SettlementRole;
-        }, "都市役割を変更");
+        }, editorText("cityEditor.messages.changeSettlementRole"));
       });
       nameInput.addEventListener("change", () => {
         updateData(d => {
           d.settlement.name = nameInput.value || undefined;
-        }, "都市名を変更");
+        }, editorText("cityEditor.messages.changeSettlementName"));
       });
       popInput.addEventListener("change", () => {
         updateData(d => {
           d.settlement.population = Number(popInput.value) || 1000;
-        }, "相手人口を変更");
+        }, editorText("cityEditor.messages.changeDestinationPopulation"));
       });
       wealthInput.addEventListener("change", () => {
         updateData(d => {
           d.settlement.wealth = Number(wealthInput.value) || 50;
-        }, "相手経済水準を変更");
+        }, editorText("cityEditor.messages.changeDestinationEconomy"));
       });
 
       wrap.append(
-        label("国・外交関係", realmSelect),
-        label("国名", stateInput),
-        label("都市規模", scaleSelect),
-        label("特化役割", roleSelect),
-        label("都市名", nameInput),
-        label("推定人口", popInput),
-        label("経済指数(富 0-100)", wealthInput),
-        label("都市評価・防備指標", assessBox)
+        label(editorText("cityEditor.messages.realmAndDiplomacy"), realmSelect),
+        label(editorText("cityEditor.messages.realmName"), stateInput),
+        label(editorText("cityEditor.messages.settlementScale"), scaleSelect),
+        label(editorText("cityEditor.messages.specialisedRole"), roleSelect),
+        label(editorText("cityEditor.messages.settlementName"), nameInput),
+        label(editorText("cityEditor.messages.estimatedPopulation"), popInput),
+        label(editorText("cityEditor.messages.economicIndexWealth0100"), wealthInput),
+        label(editorText("cityEditor.messages.settlementAndDefenceAssessment"), assessBox)
       );
     }
 
@@ -3358,7 +3547,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const styleSelect = document.createElement("select");
       styleSelect.className = "ce-select";
       const styleChoices: Array<[string, string]> = [
-        ["auto", "自動判定"],
+        ["auto", editorText("cityEditor.messages.automaticAssessment")],
         ...Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label] as [string, string])
       ];
       for (const [val, lbl] of styleChoices) {
@@ -3379,39 +3568,61 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             target.castleStyle = styleSelect.value as CastleStyle;
           }
           return next;
-        }, "Castle style change");
+        }, editorText("cityEditor.messages.castleStyleChange"));
       };
 
       container.append(
-        text(`城郭: ${castle.position} / ${castle.relationship} / ${castle.form}`),
-        label(`様式: ${currentProfile.label}`, styleSelect),
-        makeButton(castle.locked ? "城郭のロック解除" : "城郭をロック", () =>
-          runContextAction(() => setCastleLocked(documentState, castle.id, !castle.locked), "Castle lock")
+        text(
+          editorText("cityEditor.messages.castleCityEditorPage", {
+            value0: castle.position,
+            value1: castle.relationship,
+            value2: castle.form
+          })
         ),
-        makeButton("城内を再配置", () =>
-          runContextAction(() => regenerateCastleInterior(documentState, castle.id, false), "Castle layout")
+        label(editorText("cityEditor.messages.style", { value0: currentProfile.label }), styleSelect),
+        makeButton(
+          castle.locked ? editorText("cityEditor.messages.unlockCastle") : editorText("cityEditor.messages.lockCastle"),
+          () =>
+            runContextAction(
+              () => setCastleLocked(documentState, castle.id, !castle.locked),
+              editorText("cityEditor.messages.castleLock")
+            )
         ),
-        makeButton("城の形式を切り替える", () =>
-          runContextAction(() => regenerateCastleInterior(documentState, castle.id), "Castle interior")
+        makeButton(editorText("cityEditor.messages.regenerateCastleInterior"), () =>
+          runContextAction(
+            () => regenerateCastleInterior(documentState, castle.id, false),
+            editorText("cityEditor.messages.castleLayout")
+          )
         ),
-        makeButton("城郭を削除", () => runContextAction(() => deleteCastle(documentState, castle.id), "Delete castle"))
+        makeButton(editorText("cityEditor.messages.switchCastleForm"), () =>
+          runContextAction(
+            () => regenerateCastleInterior(documentState, castle.id),
+            editorText("cityEditor.messages.castleInterior")
+          )
+        ),
+        makeButton(editorText("cityEditor.messages.deleteCastle"), () =>
+          runContextAction(() => deleteCastle(documentState, castle.id), editorText("cityEditor.messages.deleteCastle"))
+        )
       );
       for (const part of castle.parts) {
         const input = checkbox(part.locked, checked =>
           runContextAction(
             () => setCastlePartLocked(documentState, castle.id, part.id, checked),
-            "Castle building lock"
+            editorText("cityEditor.messages.castleBuildingLock")
           )
         );
         input.disabled = castle.locked;
-        container.append(toggleLabel(`${part.role} を固定`, input));
+        container.append(toggleLabel(editorText("cityEditor.messages.lock", { value0: part.role }), input));
       }
       return;
     }
     if (selection.faceId && !reservedCastleFaces(documentState).size)
       container.append(
-        makeButton("選択区画を新しい城郭にする", () =>
-          runContextAction(() => createCastleOnFace(documentState, selection.faceId!), "Create castle")
+        makeButton(editorText("cityEditor.messages.createACastleInTheSelectedCell"), () =>
+          runContextAction(
+            () => createCastleOnFace(documentState, selection.faceId!),
+            editorText("cityEditor.messages.createCastle")
+          )
         )
       );
 
@@ -3419,10 +3630,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const materialSelect = document.createElement("select");
       const optStone = document.createElement("option");
       optStone.value = "stone";
-      optStone.textContent = "石材（石造城壁）";
+      optStone.textContent = editorText("cityEditor.messages.stoneMasonryWalls");
       const optWood = document.createElement("option");
       optWood.value = "wood";
-      optWood.textContent = "木材（木造柵・防壁）";
+      optWood.textContent = editorText("cityEditor.messages.woodPalisadeAndDefensiveWalls");
       materialSelect.append(optStone, optWood);
       materialSelect.value = wallGroup.wallMaterial ?? "stone";
       materialSelect.addEventListener("change", () => {
@@ -3436,20 +3647,27 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             color: nextMat === "wood" ? "#7a522c" : "#342a22",
             widthMeters: nextMat === "wood" ? 2.4 : Math.max(4, target.style.widthMeters)
           };
-          commit(next, `Set ${wallGroup.name} material to ${nextMat === "wood" ? "木材" : "石材"}`);
+          commit(
+            next,
+            editorText("cityEditor.messages.setMaterialTo", {
+              value0: wallGroup.name,
+              value1:
+                nextMat === "wood" ? editorText("cityEditor.messages.wood") : editorText("cityEditor.messages.stone")
+            })
+          );
         }
       });
 
       const walkwaySelect = document.createElement("select");
       const optAuto = document.createElement("option");
       optAuto.value = "auto";
-      optAuto.textContent = "自動（幅に応じて判定）";
+      optAuto.textContent = editorText("cityEditor.messages.automaticBasedOnWidth");
       const optWalkway = document.createElement("option");
       optWalkway.value = "walkway";
-      optWalkway.textContent = "あり（上面に通路・歩廊）";
+      optWalkway.textContent = editorText("cityEditor.messages.presentWallTopWalkway");
       const optNone = document.createElement("option");
       optNone.value = "none";
-      optNone.textContent = "なし（丸太柵・単石壁）";
+      optNone.textContent = editorText("cityEditor.messages.nonePalisadeOrSingleStoneWall");
       walkwaySelect.append(optAuto, optWalkway, optNone);
       walkwaySelect.value = wallGroup.walkway ?? "auto";
       walkwaySelect.addEventListener("change", () => {
@@ -3458,7 +3676,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         const target = next.featureGroups.find(c => c.id === wallGroup.id);
         if (target && target.kind === "wall") {
           target.walkway = nextWalkway;
-          commit(next, `Set ${wallGroup.name} walkway to ${nextWalkway}`);
+          commit(next, editorText("cityEditor.messages.setWalkwayTo", { value0: wallGroup.name, value1: nextWalkway }));
         }
       });
 
@@ -3467,10 +3685,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const widthValue = document.createElement("span");
       widthValue.style.marginLeft = "6px";
       widthValue.style.fontSize = "11px";
-      widthValue.textContent = `${currentWidth.toFixed(1)}m`;
+      widthValue.textContent = editorText("cityEditor.messages.wallWidthMetres", { value0: currentWidth.toFixed(1) });
 
       widthSlider.addEventListener("input", () => {
-        widthValue.textContent = `${parseFloat(widthSlider.value).toFixed(1)}m`;
+        widthValue.textContent = editorText("cityEditor.messages.wallWidthMetres", {
+          value0: parseFloat(widthSlider.value).toFixed(1)
+        });
       });
       widthSlider.addEventListener("change", () => {
         const nextWidth = parseFloat(widthSlider.value);
@@ -3479,7 +3699,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         const target = next.featureGroups.find(c => c.id === wallGroup.id);
         if (target && target.kind === "wall") {
           target.style = { ...target.style, widthMeters: nextWidth };
-          commit(next, `Set ${wallGroup.name} width to ${nextWidth.toFixed(1)}m`);
+          commit(
+            next,
+            editorText("cityEditor.messages.setWidthToM", { value0: wallGroup.name, value1: nextWidth.toFixed(1) })
+          );
         }
       });
 
@@ -3490,9 +3713,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
       targetContainer.append(
         divider(),
-        label("壁の素材", materialSelect),
-        label("上面通路（歩廊）", walkwaySelect),
-        label("壁の厚み（幅）", widthRow)
+        label(editorText("cityEditor.messages.wallMaterialCityEditorPage"), materialSelect),
+        label(editorText("cityEditor.messages.wallTopWalkway"), walkwaySelect),
+        label(editorText("cityEditor.messages.wallThicknessWidth"), widthRow)
       );
     }
 
@@ -3500,12 +3723,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
         container.append(
-          text(`Selected edge ${selection.edgeId} in ${group.name}`),
-          makeIconButton("×", "Delete selected edge", () => {
+          text(editorText("cityEditor.messages.selectedEdgeIn", { value0: selection.edgeId, value1: group.name })),
+          makeIconButton("×", editorText("cityEditor.messages.deleteSelectedEdge"), () => {
             const next = removeEdgeFromGroup(documentState, group.id, selection.edgeId as Id);
             if (next) {
               selection.edgeId = null;
-              commit(next, `Delete edge in ${group.name}`);
+              commit(next, editorText("cityEditor.messages.deleteEdgeIn", { value0: group.name }));
             }
           })
         );
@@ -3522,10 +3745,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         container.appendChild(
           text(
             group.kind === "road"
-              ? "外壁の門から地図の外へ出る街道に、その先の性格を付けます。沿道をどう発展させるかの指標です。"
+              ? editorText("cityEditor.messages.describeTheDestinationOfARoadFromAnOuterWall")
               : group.locked
                 ? `${group.name} is locked`
-                : "Route drawing: in River, Road, or Wall mode, left-drag from a nearby edge to lay a connected route. In Select mode, left-drag a highlighted route edge through a cell to reroute it; right-click to delete; click an unused edge at an endpoint to extend it."
+                : editorText("cityEditor.messages.routeDrawingInRiverRoadOrWallModeLeftDrag")
           )
         );
         return;
@@ -3538,34 +3761,36 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const wallVertex = vertexHasWall(documentState, vertex.id);
       const gateButton = makeIconButton(
         gate ? "⌑" : "＋",
-        gate ? "Remove gate" : "Place gate on this wall vertex",
+        gate
+          ? editorText("cityEditor.messages.removeGate")
+          : editorText("cityEditor.messages.placeGateOnThisWallVertex"),
         () => {
           if (gate) {
             const next = toggleGate(documentState, vertex.id);
-            if (next) commit(next, "Remove gate");
+            if (next) commit(next, editorText("cityEditor.messages.removeGate"));
             return;
           }
           if (vertexHasWallPassage(documentState, vertex.id)) {
             const next = toggleGate(documentState, vertex.id);
             if (next) {
-              commit(next, "Place gate");
+              commit(next, editorText("cityEditor.messages.placeGate"));
               return;
             }
           }
           const splitOpened = openGatePassage(documentState, vertex.id);
           if (splitOpened) {
-            commit(splitOpened, "Place gate");
+            commit(splitOpened, editorText("cityEditor.messages.placeGate"));
             return;
           }
           const candidates = gateOpeningCandidates(documentState, vertex.id);
           if (candidates.length === 1) {
             const next = placeGateOpening(documentState, vertex.id, candidates[0].vertexId);
-            if (next) commit(next, "Place gate");
-            else showNotice("Cannot create a through-road at this wall vertex");
+            if (next) commit(next, editorText("cityEditor.messages.placeGate"));
+            else showNotice(editorText("cityEditor.messages.cannotCreateAThroughRoadAtThisWallVertex"));
             return;
           }
           if (!candidates.length) {
-            showNotice("This wall vertex has no edge that can become a gate passage");
+            showNotice(editorText("cityEditor.messages.thisWallVertexHasNoEdgeThatCanBecomeA"));
             return;
           }
           const bounds = gateButton.getBoundingClientRect();
@@ -3573,9 +3798,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             bounds.right + 6,
             bounds.top,
             candidates.map(candidate => ({
-              label: `Open via ${candidate.edgeId} → ${candidate.vertexId}`,
+              label: editorText("cityEditor.messages.openVia", {
+                value0: candidate.edgeId,
+                value1: candidate.vertexId
+              }),
               run: () =>
-                runContextAction(() => placeGateOpening(documentState, vertex.id, candidate.vertexId), "Place gate"),
+                runContextAction(
+                  () => placeGateOpening(documentState, vertex.id, candidate.vertexId),
+                  editorText("cityEditor.messages.placeGate")
+                ),
               highlight: { vertexId: candidate.vertexId, edgeId: candidate.edgeId }
             }))
           );
@@ -3583,11 +3814,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       );
       gateButton.disabled = !wallVertex;
       container.append(
-        text(`Vertex ${vertex.id}`),
+        text(editorText("cityEditor.messages.vertexCityEditorPage", { value0: vertex.id })),
         text(
           wallVertex
-            ? "Place a gate to split adjacent cells and create a road through the wall."
-            : "Draw an outer wall through this vertex before placing a gate."
+            ? editorText("cityEditor.messages.placeAGateToSplitAdjacentCellsAndCreateA")
+            : editorText("cityEditor.messages.drawAnOuterWallThroughThisVertexBeforePlacingA")
         ),
         gateButton
       );
@@ -3598,16 +3829,25 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (!face) return;
       const water = select(["land", "sea", "lake", "openWater"], face.properties.water);
       water.addEventListener("change", () =>
-        commit(setFaceWater(documentState, face.id, water.value as WaterKind), `Set water ${water.value}`)
+        commit(
+          setFaceWater(documentState, face.id, water.value as WaterKind),
+          editorText("cityEditor.messages.setWater", { value0: water.value })
+        )
       );
       const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
       elevation.addEventListener("change", () =>
-        commit(setFaceElevation(documentState, face.id, Number(elevation.value)), "Set elevation")
+        commit(
+          setFaceElevation(documentState, face.id, Number(elevation.value)),
+          editorText("cityEditor.messages.setElevation")
+        )
       );
       const depth = numberInput(String(face.properties.depth ?? 3), "0", "0.1");
       depth.disabled = face.properties.locked || face.properties.water === "land";
       depth.addEventListener("change", () =>
-        commit(setFaceDepth(documentState, face.id, Number(depth.value)), "Set water depth")
+        commit(
+          setFaceDepth(documentState, face.id, Number(depth.value)),
+          editorText("cityEditor.messages.setWaterDepth")
+        )
       );
       const ward = select(
         [
@@ -3626,27 +3866,41 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         face.properties.ward ?? ""
       );
       const patriciateOption = [...ward.options].find(o => o.value === "patriciate");
-      if (patriciateOption) patriciateOption.textContent = "patriciate · 富裕層街";
+      if (patriciateOption) patriciateOption.textContent = editorText("cityEditor.messages.patriciateWealthyDistrict");
       const cemeteryOption = [...ward.options].find(o => o.value === "cemetery");
-      if (cemeteryOption) cemeteryOption.textContent = "cemetery · 墓地";
+      if (cemeteryOption) cemeteryOption.textContent = editorText("cityEditor.messages.cemeteryBurialGround");
       water.disabled = elevation.disabled = ward.disabled = face.properties.locked;
       ward.addEventListener("change", () => {
         if (face.properties.locked) return;
         const next = clone(documentState);
         next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
         if (face.properties.ward === "cemetery" || ward.value === "cemetery") syncDocumentCemeteries(next, [face.id]);
-        commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
+        commit(
+          next,
+          ward.value
+            ? editorText("cityEditor.messages.setWard", { value0: ward.value })
+            : editorText("cityEditor.messages.clearWard")
+        );
       });
       if (documentState.gridKind === "evolution" || documentState.buildingPattern === "medieval") {
         const district = resolveDistricts(documentState, documentState.fabric).find(d => d.faceIds.includes(face.id));
         const parameters = district?.parameters ?? defaultDistrictParameters(face, documentState);
-        container.append(text(`District · ${district?.faceIds.length ?? 1} cells`));
+        container.append(
+          text(editorText("cityEditor.messages.districtCells", { value0: district?.faceIds.length ?? 1 }))
+        );
         const fields = [
-          ["occupancy", "Lot occupancy (%)", parameters.occupancy * 100, 0, 100, 1],
-          ["coverage", "Building coverage (%)", parameters.coverage * 100, 15, 100, 1],
-          ["lotArea", "Target lot area (m²)", parameters.lotArea, 80, 3000, 10],
-          ["laneWidth", "Lane width (m)", parameters.laneWidth, 1, 12, 0.2],
-          ["orientation", "Local street direction (°)", (parameters.orientation * 180) / Math.PI, -180, 180, 1]
+          ["occupancy", editorText("cityEditor.messages.lotOccupancy"), parameters.occupancy * 100, 0, 100, 1],
+          ["coverage", editorText("cityEditor.messages.buildingCoverage"), parameters.coverage * 100, 15, 100, 1],
+          ["lotArea", editorText("cityEditor.messages.targetLotAreaM2"), parameters.lotArea, 80, 3000, 10],
+          ["laneWidth", editorText("cityEditor.messages.laneWidthM"), parameters.laneWidth, 1, 12, 0.2],
+          [
+            "orientation",
+            editorText("cityEditor.messages.localStreetDirection"),
+            (parameters.orientation * 180) / Math.PI,
+            -180,
+            180,
+            1
+          ]
         ] as const;
         for (const [key, title, value, min, max, step] of fields) {
           if (key === "coverage" && documentState.buildingPattern === "medieval") continue;
@@ -3663,8 +3917,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
                   ? (number * Math.PI) / 180
                   : number;
             const next = setDistrictParameters(documentState, face.id, { [key]: value });
-            if (next) commit(next, "Edit district density");
-            else showNotice("Enter a value within the district setting range");
+            if (next) commit(next, editorText("cityEditor.messages.editDistrictDensity"));
+            else showNotice(editorText("cityEditor.messages.enterAValueWithinTheDistrictSettingRange"));
           });
           container.append(label(title, input));
         }
@@ -3676,10 +3930,18 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           for (const option of [...composition.options])
             option.textContent = (
               {
-                standard: "地区に合わせる",
-                commercial: "商家中心",
-                warehouses: "倉庫中心",
-                estates: "屋敷中心"
+                get standard() {
+                  return editorText("cityEditor.messages.matchDistrict");
+                },
+                get commercial() {
+                  return editorText("cityEditor.messages.merchantHouses");
+                },
+                get warehouses() {
+                  return editorText("cityEditor.messages.warehouses");
+                },
+                get estates() {
+                  return editorText("cityEditor.messages.manors");
+                }
               } as Record<string, string>
             )[option.value];
           composition.disabled = face.properties.locked;
@@ -3687,13 +3949,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             const next = setDistrictParameters(documentState, face.id, {
               composition: composition.value as NonNullable<typeof parameters.composition>
             });
-            if (next) commit(next, "Change building composition");
+            if (next) commit(next, editorText("cityEditor.messages.changeBuildingComposition"));
           });
-          container.append(label("建物構成", composition));
+          container.append(label(editorText("cityEditor.messages.buildingComposition"), composition));
           for (const [key, title, initial] of [
-            ["sizeVariation", "規模のばらつき (%)", 0.7],
-            ["gardenAmount", "庭・作業庭の量 (%)", 0.55],
-            ["parcelCoverage", "建蔽率の目安 (%)", 0.55]
+            ["sizeVariation", editorText("cityEditor.messages.sizeVariation"), 0.7],
+            ["gardenAmount", editorText("cityEditor.messages.gardensAndWorkYards"), 0.55],
+            ["parcelCoverage", editorText("cityEditor.messages.targetBuildingCoverage"), 0.55]
           ] as const) {
             const value = parameters[key] ?? (key === "parcelCoverage" ? null : initial);
             const input = numberInput(
@@ -3701,31 +3963,31 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
               key === "parcelCoverage" ? "55" : "0",
               "1"
             );
-            if (key === "parcelCoverage") input.placeholder = "用途に合わせる";
+            if (key === "parcelCoverage") input.placeholder = editorText("cityEditor.messages.matchPurpose");
             input.max = key === "parcelCoverage" ? "90" : "100";
             input.disabled = face.properties.locked;
             input.addEventListener("change", () => {
               const next = setDistrictParameters(documentState, face.id, {
                 [key]: key === "parcelCoverage" && input.value === "" ? undefined : Number(input.value) / 100
               });
-              if (next) commit(next, "Edit parcel profile");
-              else showNotice("Enter a value within the district setting range");
+              if (next) commit(next, editorText("cityEditor.messages.editParcelProfile"));
+              else showNotice(editorText("cityEditor.messages.enterAValueWithinTheDistrictSettingRange"));
             });
             container.append(label(title, input));
           }
           const preset = select(["small", "dense", "warehouse"], parameters.harborPreset ?? "dense");
-          preset.options[0].textContent = "小港";
-          preset.options[1].textContent = "密集商港";
-          preset.options[2].textContent = "倉庫集積港";
+          preset.options[0].textContent = editorText("cityEditor.messages.smallHarbour");
+          preset.options[1].textContent = editorText("cityEditor.messages.denseTradingHarbour");
+          preset.options[2].textContent = editorText("cityEditor.messages.warehouseHarbour");
           preset.disabled = face.properties.locked;
           preset.addEventListener("change", () => {
             const next = setDistrictParameters(documentState, face.id, {
               harborPreset: preset.value as NonNullable<typeof parameters.harborPreset>
             });
-            if (next) commit(next, "Change harbor preset");
+            if (next) commit(next, editorText("cityEditor.messages.changeHarborPreset"));
           });
           if (face.properties.ward === "harbor" || parameters.composition === "warehouses")
-            container.append(label("港の構成", preset));
+            container.append(label(editorText("cityEditor.messages.harbourComposition"), preset));
         }
         container.append(divider());
       }
@@ -3735,23 +3997,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       const neighbors = faceNeighbors(documentState.mesh, face.id);
       const mergeWith = select(neighbors, neighbors[0] ?? "");
       container.append(
-        label("Elevation", elevation),
-        label("Water", water),
-        ...(face.properties.water !== "land" ? [label("Depth (m)", depth)] : []),
-        label("Ward", ward),
-        text("Ward automatically controls the landmark drawn in this cell."),
+        label(editorText("cityEditor.messages.elevation"), elevation),
+        label(editorText("cityEditor.messages.water"), water),
+        ...(face.properties.water !== "land" ? [label(editorText("cityEditor.messages.depthM"), depth)] : []),
+        label(editorText("cityEditor.messages.ward"), ward),
+        text(editorText("cityEditor.messages.wardAutomaticallyControlsTheLandmarkDrawnInThisCell")),
         divider(),
-        label("Split from", splitFrom),
-        label("Split to", splitTo),
-        makeIconButton("✂", "Split cell", () => {
+        label(editorText("cityEditor.messages.splitFrom"), splitFrom),
+        label(editorText("cityEditor.messages.splitTo"), splitTo),
+        makeIconButton("✂", editorText("cityEditor.messages.splitCell"), () => {
           const next = splitFace(documentState, face.id, splitFrom.value, splitTo.value);
-          if (next) commit(next, "Split cell");
+          if (next) commit(next, editorText("cityEditor.messages.splitCell"));
         }),
-        label("Merge with", mergeWith),
-        makeIconButton("⊕", "Merge cell", () => {
+        label(editorText("cityEditor.messages.mergeWithCityEditorPage"), mergeWith),
+        makeIconButton("⊕", editorText("cityEditor.messages.mergeCell"), () => {
           if (!mergeWith.value) return;
           const next = mergeFaces(documentState, face.id, mergeWith.value);
-          if (next) commit(next, "Merge cells");
+          if (next) commit(next, editorText("cityEditor.messages.mergeCells"));
         })
       );
     }
@@ -3769,7 +4031,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       content.className = "ce-inspector-content cg-inspector-content";
       content.textContent = JSON.stringify(inspectedInfo, null, 2);
 
-      const clearButton = makeButton("Clear selection", () => {
+      const clearButton = makeButton(editorText("cityEditor.messages.clearSelection"), () => {
         inspectedInfo = null;
         activeGroupId = null;
         applySelection({
@@ -3792,11 +4054,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           const scale = numberInput(String(instance.scale), "0.01", "0.01");
           inspector.content.append(
             divider(),
-            label("X (m)", x),
-            label("Y (m)", y),
-            label("Rotation (°)", angle),
-            label("Scale", scale),
-            makeButton("Update landmark", () => {
+            label(editorText("cityEditor.messages.xM"), x),
+            label(editorText("cityEditor.messages.yM"), y),
+            label(editorText("cityEditor.messages.rotation"), angle),
+            label(editorText("cityEditor.messages.scale"), scale),
+            makeButton(editorText("cityEditor.messages.updateLandmark"), () => {
               const result = transformPlacedLandmark(
                 documentState,
                 instance.id,
@@ -3807,15 +4069,19 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
                 },
                 preservedLandmarkLanes()
               );
-              if (result.document) commit(result.document, `Update ${inspectedInfo?.label ?? "landmark"}`);
+              if (result.document)
+                commit(
+                  result.document,
+                  editorText("cityEditor.messages.update", { value0: inspectedInfo?.label ?? "landmark" })
+                );
               else showNotice(result.reasons.join("; "));
             })
           );
           inspector.content.appendChild(
-            makeButton("Delete landmark", () => {
+            makeButton(editorText("cityEditor.messages.deleteLandmark"), () => {
               commit(
                 { ...documentState, landmarks: documentState.landmarks?.filter(item => item.id !== instance.id) },
-                `Delete ${inspectedInfo?.label ?? "landmark"}`
+                editorText("cityEditor.messages.delete", { value0: inspectedInfo?.label ?? "landmark" })
               );
               inspectedInfo = null;
               selection.inspectedId = null;
@@ -3834,11 +4100,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           const angle = numberInput(String(((shipElem.rotation ?? 0) * 180) / Math.PI), "-360", "1");
           inspector.content.append(
             divider(),
-            label("X (m)", x),
-            label("Y (m)", y),
-            label("Length (m)", length),
-            label("Rotation (°)", angle),
-            makeButton("Update ship", () => {
+            label(editorText("cityEditor.messages.xM"), x),
+            label(editorText("cityEditor.messages.yM"), y),
+            label(editorText("cityEditor.messages.lengthM"), length),
+            label(editorText("cityEditor.messages.rotation"), angle),
+            makeButton(editorText("cityEditor.messages.updateShip"), () => {
               const updated = documentState.elements.map(item => {
                 if (item.id !== shipElem.id) return item;
                 return {
@@ -3848,12 +4114,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
                   rotation: (Number(angle.value) * Math.PI) / 180
                 };
               });
-              commit({ ...documentState, elements: updated }, `Update ship #${shipElem.id}`);
+              commit(
+                { ...documentState, elements: updated },
+                editorText("cityEditor.messages.updateShipCityEditorPage", { value0: shipElem.id })
+              );
             }),
-            makeButton("Delete ship", () => {
+            makeButton(editorText("cityEditor.messages.deleteShip"), () => {
               commit(
                 { ...documentState, elements: documentState.elements.filter(item => item.id !== shipElem.id) },
-                `Delete ship #${shipElem.id}`
+                editorText("cityEditor.messages.deleteShipCityEditorPage", { value0: shipElem.id })
               );
               inspectedInfo = null;
               selection.inspectedId = null;
@@ -3876,7 +4145,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (editSection.hasChildNodes()) {
       inspector.content.append(editSection);
     } else {
-      inspector.content.appendChild(text("Select a cell to set water, a ward, or an urban element."));
+      inspector.content.appendChild(text(editorText("cityEditor.messages.selectACellToSetWaterAWardOrAn")));
     }
   }
 
@@ -3890,7 +4159,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (isSelected) selectedRowEl = row;
       const choose = makeIconButton(
         group.kind === "river" ? "〰" : group.kind === "road" ? "╱" : "▥",
-        `Select ${group.name}`,
+        editorText("cityEditor.messages.select", { value0: group.name }),
         () => {
           activeGroupId = group.id;
           selection.groupId = group.id;
@@ -3916,28 +4185,28 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       row.append(
         choose,
         text(
-          `${group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`}${
+          `${group.kind === "river" ? editorText("cityEditor.messages.vertexCount", { count: group.vertices.length }) : editorText("cityEditor.messages.edgeCount", { count: group.segments.length })}${
             group.kind === "road" && approachBeyondLabel(group.beyond) ? ` · ${approachBeyondLabel(group.beyond)}` : ""
-          }${group.kind === "wall" ? ` · ${group.wallMaterial === "wood" ? "木製" : "石造"}` : ""}`
+          }${group.kind === "wall" ? ` · ${group.wallMaterial === "wood" ? editorText("cityEditor.messages.woodenWall") : editorText("cityEditor.messages.masonryWall")}` : ""}`
         )
       );
-      const smooth = makeIconButton("⌁", `Smooth ${group.name}`, () => {
+      const smooth = makeIconButton("⌁", editorText("cityEditor.messages.smooth", { value0: group.name }), () => {
         const next = smoothFeatureGroup(documentState, group.id);
-        if (next) commit(next, `Smooth ${group.name}`);
-        else showNotice(`${group.name} has no movable vertices to smooth`);
+        if (next) commit(next, editorText("cityEditor.messages.smooth", { value0: group.name }));
+        else showNotice(editorText("cityEditor.messages.hasNoMovableVerticesToSmooth", { value0: group.name }));
       });
       smooth.disabled = group.locked || (group.kind !== "river" && group.kind !== "road" && group.kind !== "wall");
-      smooth.title = "Smooth this group, including its shared vertices and closed loops";
+      smooth.title = editorText("cityEditor.messages.smoothThisGroupIncludingItsSharedVerticesAndClosedLoops");
       row.appendChild(smooth);
       row.appendChild(
-        makeIconButton("×", `Delete ${group.name}`, () => {
+        makeIconButton("×", editorText("cityEditor.messages.delete", { value0: group.name }), () => {
           const name = group.name;
           if (activeGroupId === group.id) {
             activeGroupId = null;
             selection.groupId = null;
             if (inspectedInfo?.id === group.id) inspectedInfo = null;
           }
-          commit(removeGroup(documentState, group.id), `Delete ${name}`);
+          commit(removeGroup(documentState, group.id), editorText("cityEditor.messages.delete", { value0: name }));
         })
       );
       groups.content.appendChild(row);
@@ -3947,9 +4216,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     if (activeGroupId)
       groups.content.appendChild(
-        text(
-          "In Select mode, left-drag a highlighted route edge through a cell to preview and replace that boundary span."
-        )
+        text(editorText("cityEditor.messages.inSelectModeLeftDragAHighlightedRouteEdgeThrough"))
       );
   }
 
@@ -4030,11 +4297,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       historyPanel.content.replaceChildren();
       historyListEl = div("ce-history-list");
       const actions = div("ce-history-actions");
-      historyClearButton = makeButton("Clear all history", () => {
+      historyClearButton = makeButton(editorText("cityEditor.messages.clearAllHistory"), () => {
         if (!history.canUndo && !history.canRedo) return;
-        history.reset(documentState, "History cleared");
+        history.reset(documentState, editorText("cityEditor.messages.historyCleared"));
         rememberGenerationState();
-        showNotice("History cleared");
+        showNotice(editorText("cityEditor.messages.historyCleared"));
         refreshUiOnly();
       });
       historyClearButton.className = "ce-history-clear";
@@ -4062,12 +4329,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (label.textContent !== entry.label) label.textContent = entry.label;
       const clock = formatClock(entry.time);
       if (time.textContent !== clock) time.textContent = clock;
-      row.title = `Restore state ${index}: ${entry.label}`;
+      row.title = editorText("cityEditor.messages.restoreState", { value0: index, value1: entry.label });
       row.classList.toggle("is-current", index === current);
       row.classList.toggle("is-future", index > current);
     });
     historyClearButton!.disabled = entries.length <= 1;
-    historySummaryEl!.textContent = `Step ${current} of ${entries.length - 1} · click a step to restore it`;
+    historySummaryEl!.textContent = editorText("cityEditor.messages.stepOfClickAStepToRestoreIt", {
+      value0: current,
+      value1: entries.length - 1
+    });
     // Keep the active step visible as the timeline grows past the panel height.
     historyRows[current]?.scrollIntoView({ block: "nearest" });
   }
@@ -4324,9 +4594,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function paintHistoryLabel(): string {
-    if (tool === "sea") return "Paint sea";
-    if (wardBrush) return `Paint ${wardBrush} ward`;
-    return eraseTarget === "cells" ? "Erase cells" : eraseTarget === "edges" ? "Erase edges" : "Erase cells and edges";
+    if (tool === "sea") return editorText("cityEditor.messages.paintSea");
+    if (wardBrush) return editorText("cityEditor.messages.paintWard", { value0: wardBrush });
+    return eraseTarget === "cells"
+      ? editorText("cityEditor.messages.eraseCells")
+      : eraseTarget === "edges"
+        ? editorText("cityEditor.messages.eraseEdges")
+        : editorText("cityEditor.messages.eraseCellsAndEdges");
   }
 
   /**
@@ -4496,10 +4770,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     // later step rewrites that same entry so the History panel and memory only
     // ever see a single "Draw wall/road/river" per gesture.
     if (!stroke.committed) {
-      history.commit(documentState, `Draw ${stroke.kind}`);
+      history.commit(documentState, editorText("cityEditor.messages.draw", { value0: stroke.kind }));
       stroke.committed = true;
     } else {
-      history.amendTop(documentState, `Draw ${stroke.kind}`);
+      history.amendTop(documentState, editorText("cityEditor.messages.draw", { value0: stroke.kind }));
     }
     rememberFailureGenerationState();
     rebuildEditorIndexes();
@@ -4674,7 +4948,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function applyImportedMap(parsed: ImportedCityMap | null): void {
     if (!parsed) {
-      showNotice("Import failed: select a City Editor, MFCG JSON, or SVG file");
+      showNotice(editorText("cityEditor.messages.importFailedSelectACityEditorMFCGJSONOrSVG"));
       return;
     }
     // Lift the (possibly multi-MB) backdrop out of the edited document before it
@@ -4694,9 +4968,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     documentState = parsed.document;
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
-    history = new DocumentHistory(parsed.document, "Imported map", undefined, fixedApproachProvider);
+    history = new DocumentHistory(
+      parsed.document,
+      editorText("cityEditor.messages.importedMap"),
+      undefined,
+      fixedApproachProvider
+    );
     generationLog.reset();
-    if (unresolvedLandmarks.length) showNotice(`${unresolvedLandmarks.length} landmark lane access(es) need review`);
+    if (unresolvedLandmarks.length)
+      showNotice(
+        editorText("cityEditor.messages.landmarkLaneAccessEsNeedReview", { value0: unresolvedLandmarks.length })
+      );
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
@@ -4743,10 +5025,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     viewCenter = [0, 0];
     showNotice(
       parsed.source === "mfcg-svg"
-        ? "SVG imported as a reference image"
+        ? editorText("cityEditor.messages.sVGImportedAsAReferenceImage")
         : parsed.source === "mfcg-json"
-          ? "MFCG map imported"
-          : "Map imported"
+          ? editorText("cityEditor.messages.mFCGMapImported")
+          : editorText("cityEditor.messages.mapImported")
     );
   }
 
@@ -4840,14 +5122,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       await navigator.clipboard.writeText(url);
       window.history.replaceState(null, "", `${location.pathname}${location.search}#${encodeShare(share)}`);
       const label = button.textContent;
-      button.textContent = "Link copied";
+      button.textContent = editorText("cityEditor.messages.linkCopied");
       window.setTimeout(() => {
-        if (button.textContent === "Link copied") button.textContent = label;
+        if (button.textContent === editorText("cityEditor.messages.linkCopied")) button.textContent = label;
       }, 1400);
       // Copying is a UI-only operation; preserve the current SVG and selection.
-      showNotice("Shareable link copied", false);
+      showNotice(editorText("cityEditor.messages.shareableLinkCopied"), false);
     } catch {
-      showNotice("Copy failed", false);
+      showNotice(editorText("cityEditor.messages.copyFailed"), false);
     }
   }
 
@@ -4857,7 +5139,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     measureTownCells = false;
     forgetIncomingCity();
     syncGenerateControls();
-    showNotice("Standalone site — geography controls unlocked");
+    showNotice(editorText("cityEditor.messages.standaloneSiteGeographyControlsUnlocked"));
   }
 
   function applyShare(share: CityEditorShare, origin: IncomingOrigin): void {
@@ -4900,7 +5182,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     });
     history = new DocumentHistory(
       documentState,
-      share.descriptor ? "Imported site" : "Shared city",
+      share.descriptor ? editorText("cityEditor.messages.importedSite") : editorText("cityEditor.messages.sharedCity"),
       undefined,
       fixedApproachProvider
     );
@@ -4981,15 +5263,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           (sample.attempt === 1 ? generateSeed : `${generateSeed}:junction-retry:${sample.attempt - 1}`)
       );
       if (sample.failure) {
-        generationProgress.textContent = `案${sample.attempt} 不採用 — ${generationPhaseLabel(sample.phase)}: ${sample.failure.message}`;
+        generationProgress.textContent = editorText("cityEditor.messages.candidateRejected", {
+          value0: sample.attempt,
+          value1: generationPhaseLabel(sample.phase),
+          value2: sample.failure.message
+        });
         return;
       }
-      generationProgress.textContent = `生成中 — ${sample.attempt}/${failureDebugInput.checked ? 1 : COMPLETE_CITY_ATTEMPTS}案目 · ${generationPhaseLabel(sample.phase)}`;
+      generationProgress.textContent = editorText("cityEditor.messages.generatingCandidate", {
+        value0: sample.attempt,
+        value1: failureDebugInput.checked ? 1 : COMPLETE_CITY_ATTEMPTS,
+        value2: generationPhaseLabel(sample.phase)
+      });
     };
     if (typeof Worker !== "undefined") {
       const input = documentState;
       const before = JSON.stringify(input);
-      generationProgress.textContent = "都市を生成しています…";
+      generationProgress.textContent = editorText("cityEditor.messages.generatingCity");
       cancelGeneration.hidden = false;
       root.setAttribute("aria-busy", "true");
       try {
@@ -5017,11 +5307,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           .catch(error => {
             if (root.isConnected) {
               if (error instanceof Error && error.name === "AbortError")
-                generationProgress.textContent = "生成をキャンセルしました";
+                generationProgress.textContent = editorText("cityEditor.messages.generationCancelled");
               else {
                 console.error(error);
                 appendGenerationException(error, generateSeed);
-                generationProgress.textContent = "都市の生成に失敗しました";
+                generationProgress.textContent = editorText("cityEditor.messages.cityGenerationFailed");
               }
             }
           })
@@ -5036,7 +5326,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         appendGenerationException(error, generateSeed);
         cancelGeneration.hidden = true;
         root.removeAttribute("aria-busy");
-        generationProgress.textContent = "都市の生成を開始できませんでした";
+        generationProgress.textContent = editorText("cityEditor.messages.couldNotStartCityGeneration");
       }
       return;
     }
@@ -5054,12 +5344,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     } catch (error) {
       console.error(error);
       appendGenerationException(error, generateSeed);
-      generationProgress.textContent = "都市の生成に失敗しました";
+      generationProgress.textContent = editorText("cityEditor.messages.cityGenerationFailed");
     }
   }
 
   function acceptCompleteGeneration(next: CityDocument | null): void {
-    generationProgress.textContent = next ? "生成完了" : "都市の生成に失敗しました";
+    generationProgress.textContent = next
+      ? editorText("cityEditor.messages.generationComplete")
+      : editorText("cityEditor.messages.cityGenerationFailed");
     root.dispatchEvent(new CustomEvent("city-generation-diagnostics", { detail: generationSamples.slice() }));
     if (!next) {
       const source = completeSource ?? documentState;
@@ -5073,15 +5365,18 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       };
       if (generationSamples.some(sample => sample.failure)) logGenerationFailures(generationSamples, context);
       else {
-        const message = "都市の生成に失敗しました（不採用理由は記録されていない）";
+        const message = editorText("cityEditor.messages.cityGenerationFailedNoRejectionReasonRecorded");
         console.error(`[City Editor] ${message}`, { ...context, samples: generationSamples });
         appendGenerationException(message, generateSeed);
       }
       if (failureDebugInput.checked && pendingFailurePreview) {
-        showFailurePreview(pendingFailurePreview, `失敗案 ${pendingFailurePreview.sample.attempt}（再試行なし）`);
+        showFailurePreview(
+          pendingFailurePreview,
+          editorText("cityEditor.messages.failedCandidateNoRetry", { value0: pendingFailurePreview.sample.attempt })
+        );
       }
       pendingFailurePreview = null;
-      showNotice("都市の生成に失敗しました");
+      showNotice(editorText("cityEditor.messages.cityGenerationFailed"));
       return;
     }
     pendingFailurePreview = null;
@@ -5093,10 +5388,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       completeSource = clone(next.fabric.generation.input);
     }
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
-      showNotice("同じ都市を表示しています");
+      showNotice(editorText("cityEditor.messages.showingTheSameCity"));
       return;
     }
-    documentState = history.commit(documentForOutput(next), "Generate complete city");
+    documentState = history.commit(
+      documentForOutput(next),
+      editorText("cityEditor.messages.generateCompleteCityCityEditorPage")
+    );
     completeResult = documentState;
     lastGeneratedStep = null;
     activeStepStage = null;
@@ -5116,7 +5414,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     rememberGenerationState();
     rebuildEditorIndexes();
     refresh();
-    showNotice("都市を生成しました — 城壁・街路・建物");
+    showNotice(editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"));
   }
 
   function runGenerationStage(stage: GenerationStage): void {
@@ -5175,9 +5473,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     if (!next) {
       if (failureDebugInput.checked && pendingFailurePreview)
-        showFailurePreview(pendingFailurePreview, `失敗した工程 ${stage.label}`);
+        showFailurePreview(
+          pendingFailurePreview,
+          editorText("cityEditor.messages.failedStage", { value0: stage.label })
+        );
       pendingFailurePreview = null;
-      showNotice(`Generation failed at ${stage.label}`);
+      showNotice(editorText("cityEditor.messages.generationFailedAt", { value0: stage.label }));
       return;
     }
     pendingFailurePreview = null;
@@ -5203,18 +5504,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
       rememberGenerationState(next.generationSeed ?? effectiveSeed);
-      showNotice(`Already at ${stage.label}`);
+      showNotice(editorText("cityEditor.messages.alreadyAt", { value0: stage.label }));
       redrawMap();
       return;
     }
-    documentState = history.commit(next, `Generate ${stage.label}`);
+    documentState = history.commit(
+      next,
+      editorText("cityEditor.messages.generateCityEditorPage", { value0: stage.label })
+    );
     if (completeResult === next) completeResultSettings = JSON.stringify(generateSettings);
     rememberGenerationState(next.generationSeed ?? effectiveSeed);
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
     rebuildEditorIndexes();
-    showNotice(`Generated up to ${stage.label}`);
+    showNotice(editorText("cityEditor.messages.generatedUpTo", { value0: stage.label }));
   }
 
   /** ◀/▶: scrub whichever process ①…⑨ was last activated one loop iteration at
@@ -5222,7 +5526,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
    * stage buttons themselves, which still jump straight to the finished result. */
   function runStep(delta: number): void {
     if (!activeStepStage) {
-      showNotice("Press a stage button first");
+      showNotice(editorText("cityEditor.messages.pressAStageButtonFirst"));
       return;
     }
     const stage = activeStepStage;
@@ -5234,11 +5538,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       result = STEP_FNS[stage](source, generateSettings, effectiveSeed, stepIndex + delta);
     } catch (error) {
       console.error(error);
-      showNotice("Step failed");
+      showNotice(editorText("cityEditor.messages.stepFailed"));
       return;
     }
     if (!result.document || result.total === 0) {
-      showNotice(`Nothing to step through for ${label}`);
+      showNotice(editorText("cityEditor.messages.nothingToStepThroughFor", { value0: label }));
       return;
     }
     stepIndex = result.index;
@@ -5248,10 +5552,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     stepStatus.textContent = `${label}: ${result.detail ?? ""}`;
     // Stepping past either end re-shows the same document: keep the history clean.
     if (JSON.stringify(result.document) === JSON.stringify(documentState)) {
-      showNotice(`Already at step ${result.index + 1}/${result.total}`);
+      showNotice(editorText("cityEditor.messages.alreadyAtStep", { value0: result.index + 1, value1: result.total }));
       return;
     }
-    documentState = history.commit(result.document, `${label} step ${result.index + 1}/${result.total}`);
+    documentState = history.commit(
+      result.document,
+      editorText("cityEditor.messages.processIterationProgress", {
+        value0: label,
+        value1: result.index + 1,
+        value2: result.total
+      })
+    );
     rememberGenerationState(effectiveSeed);
     referenceImage = null;
     selection = emptySelection();
@@ -5275,7 +5586,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     } catch (error) {
       console.error(error);
       gridEvoStages = null;
-      showNotice("Grid evolution failed");
+      showNotice(editorText("cityEditor.messages.gridEvolutionFailed"));
     }
     gridEvoIndex = gridEvoStages ? gridEvoStages.length - 1 : 0;
     syncGridEvoUi();
@@ -5336,7 +5647,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const stage = stages[clamp(gridEvoIndex, 0, stages.length - 1)];
     const mesh = meshFromCells(stage.cells);
     if (Object.keys(mesh.faces).length < 3) {
-      showNotice("This stage has too few cells to use as a grid");
+      showNotice(editorText("cityEditor.messages.thisStageHasTooFewCellsToUseAsA"));
       return;
     }
     const next: CityDocument = {
@@ -5349,11 +5660,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     };
     delete next.appearance;
     if (validate(next).length) {
-      showNotice("The rebuilt grid failed validation");
+      showNotice(editorText("cityEditor.messages.theRebuiltGridFailedValidation"));
       return;
     }
     clearGridEvo();
-    documentState = history.commit(next, `Rebuild grid · ${stage.label}`);
+    documentState = history.commit(next, editorText("cityEditor.messages.rebuildGrid", { value0: stage.label }));
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
@@ -5368,7 +5679,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showBlockMesh = false;
     rebuildEditorIndexes();
     refresh();
-    showNotice(`Grid rebuilt · ${Object.keys(mesh.faces).length} cells`);
+    showNotice(editorText("cityEditor.messages.gridRebuiltCells", { value0: Object.keys(mesh.faces).length }));
   }
 }
 
@@ -5413,38 +5724,44 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
     document: generateStageOnDocument(doc, settings, seed, 4, undefined, "walls"),
     total: 1,
     index: 0,
-    detail: "城壁配置完了"
+    get detail() {
+      return editorText("cityEditor.messages.wallPlacementComplete");
+    }
   }),
   riverPassages: (doc, settings, seed) => ({
     document: generateStageOnDocument(doc, settings, seed, 4, undefined, "riverPassages"),
     total: 1,
     index: 0,
-    detail: "河川横断用のセル分割・城壁経路調整完了"
+    get detail() {
+      return editorText("cityEditor.messages.riverCrossingCellSplitsAndWallRoutesComplete");
+    }
   }),
   passages: (doc, settings, seed) => ({
     document: generateStageOnDocument(doc, settings, seed, 4, undefined, "passages"),
     total: 1,
     index: 0,
-    detail: "門の通路準備完了"
+    get detail() {
+      return editorText("cityEditor.messages.gatePassagesPrepared");
+    }
   }),
   gates: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
   streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
   wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx)),
   geometry: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 7);
-    return { document: d, total: 1, index: 0, detail: "幾何平滑化完了" };
+    return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.geometrySmoothingComplete") };
   },
   blocks: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 8);
-    return { document: d, total: 1, index: 0, detail: "街区・小道生成完了" };
+    return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.blocksAndLanesComplete") };
   },
   buildings: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 9);
-    return { document: d, total: 1, index: 0, detail: "住居配置完了" };
+    return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.housingPlacementComplete") };
   },
   conceal: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 10);
-    return { document: d, total: 1, index: 0, detail: "道路・小道を非表示" };
+    return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.roadsAndLanesHidden") };
   }
 };
 
@@ -5465,25 +5782,41 @@ function buildableLandFaceIds(document: CityDocument, coreMode?: "legacy" | "com
 
 function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOrigin | null): Node[] {
   const water = descriptor.waterbody
-    ? `${descriptor.waterbody.kind}${descriptor.waterbody.isPort ? " · port" : ""}`
+    ? `${editorOptionText(descriptor.waterbody.kind)}${descriptor.waterbody.isPort ? ` · ${editorOptionText("port")}` : ""}`
     : "none";
-  const yesNo = (value: boolean): string => (value ? "Yes" : "No");
-  const source = origin === "world" ? "From world map" : origin === "link" ? "From shared link" : "Imported site";
+  const yesNo = (value: boolean): string =>
+    value ? editorText("cityEditor.messages.yes") : editorText("cityEditor.messages.no");
+  const source =
+    origin === "world"
+      ? editorText("cityEditor.messages.fromWorldMap")
+      : origin === "link"
+        ? editorText("cityEditor.messages.fromSharedLink")
+        : editorText("cityEditor.messages.importedSite");
   const roads = descriptor.roads.filter(road => road.group !== "searoutes");
   const dwellings = descriptor.burg.dwellings ?? getUrbanDwellings(descriptor.burg.population);
   const rows: [string, string][] = [
     [source, descriptor.burg.name || "(unnamed burg)"],
-    ["Population", descriptor.burg.population.toLocaleString()],
-    ["Dwellings", dwellings.toLocaleString()],
-    ["Radius", `${Math.round(descriptor.frame.cityRadiusMeters)} m`],
-    ["Coast", water],
-    ["Rivers", String(descriptor.rivers.length)],
-    ["Roads", String(roads.length)],
-    ["Gates", String(descriptor.suggestedGates)],
-    ["Walls", yesNo(descriptor.burg.walls)],
-    ["Citadel", yesNo(descriptor.burg.citadel)],
-    ["Plaza / Temple", `${yesNo(descriptor.burg.plaza)} · ${yesNo(descriptor.burg.temple)}`],
-    ["Port", descriptor.burg.port ? (descriptor.waterbody ? "Yes" : "Yes (no waterbody)") : "No"]
+    [editorText("cityEditor.messages.population"), descriptor.burg.population.toLocaleString()],
+    [editorText("cityEditor.messages.dwellings"), dwellings.toLocaleString()],
+    [editorText("cityEditor.messages.radius"), `${Math.round(descriptor.frame.cityRadiusMeters)} m`],
+    [editorText("cityEditor.messages.coast"), water],
+    [editorText("cityEditor.messages.rivers"), String(descriptor.rivers.length)],
+    [editorText("cityEditor.messages.roads"), String(roads.length)],
+    [editorText("cityEditor.messages.gates"), String(descriptor.suggestedGates)],
+    [editorText("cityEditor.messages.walls"), yesNo(descriptor.burg.walls)],
+    [editorText("cityEditor.messages.citadel"), yesNo(descriptor.burg.citadel)],
+    [
+      editorText("cityEditor.messages.plazaTemple"),
+      `${yesNo(descriptor.burg.plaza)} · ${yesNo(descriptor.burg.temple)}`
+    ],
+    [
+      editorText("cityEditor.messages.port"),
+      descriptor.burg.port
+        ? descriptor.waterbody
+          ? editorText("cityEditor.messages.yes")
+          : editorText("cityEditor.messages.yesNoWaterbody")
+        : editorText("cityEditor.messages.no")
+    ]
   ];
   const nodes: Node[] = rows.map(([key, value]) => {
     const line = document.createElement("div");
@@ -5498,7 +5831,7 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
   const preview = renderFixedSitePreview(descriptor);
   if (preview) {
     const caption = document.createElement("div");
-    caption.textContent = "Imported fixed river crossings and road directions";
+    caption.textContent = editorText("cityEditor.messages.importedFixedRiverCrossingsAndRoadDirections");
     nodes.push(caption, preview);
   }
   return nodes;
@@ -5571,7 +5904,7 @@ function floatingWindow(className: string, title: string): FloatingWindow {
   const setCollapsed = (collapsed: boolean): void => {
     root.classList.toggle("ce-panel--collapsed", collapsed);
     content.hidden = collapsed;
-    const label = collapsed ? "Restore" : "Minimize";
+    const label = collapsed ? editorText("cityEditor.messages.restore") : editorText("cityEditor.messages.minimize");
     collapse.textContent = collapsed ? "▲" : "▼";
     collapse.title = label;
     collapse.setAttribute("aria-label", label);
@@ -5701,7 +6034,7 @@ function select(values: string[], selected: string): HTMLSelectElement {
   for (const value of values) {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = value || "none";
+    option.textContent = editorOptionText(value);
     option.selected = value === selected;
     node.appendChild(option);
   }

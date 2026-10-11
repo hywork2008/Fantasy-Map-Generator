@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import { createGridDocument } from "./document";
 import { defaultGenerationSettings } from "./generate";
 import { captureGenerationDebugPreview } from "./generationDebug";
@@ -74,6 +75,23 @@ describe("generation worker lifecycle", () => {
       worker.onmessage!({ data: { type: "complete", document: null, failurePreview: preview } } as MessageEvent);
       expect(await debugJob.result).toBeNull();
       expect(onPreview).toHaveBeenCalledTimes(Number(enabled));
+    }
+  });
+});
+
+describe("generation worker language", () => {
+  it("passes the selected UI language to the worker", async () => {
+    const originalLanguage = i18n.language;
+    try {
+      for (const language of ["en", "ja"] as const) {
+        await i18n.changeLanguage(language);
+        const { worker, job } = fixture();
+        expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({ language }));
+        job.cancel();
+        await job.result.catch(() => {});
+      }
+    } finally {
+      await i18n.changeLanguage(originalLanguage);
     }
   });
 });

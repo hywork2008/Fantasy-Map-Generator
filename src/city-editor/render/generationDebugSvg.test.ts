@@ -1,4 +1,5 @@
-import { expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
+import i18n from "../../i18n";
 import { createGridDocument } from "../core/document";
 import { captureGenerationDebugPreview } from "../core/generationDebug";
 import { renderGenerationDebugSvg, serializeGenerationDebugSvg } from "./generationDebugSvg";
@@ -112,3 +113,7 @@ it("records the failed layout and shows the Bram core exclusion in standalone ex
   expect(core.getAttribute("pointer-events")).toBe("none");
   expect(core.textContent).toContain("道路探索対象外");
 });
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));
