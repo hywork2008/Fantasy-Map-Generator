@@ -7,6 +7,7 @@ import type { BurgRowData } from "../../../controllers/burgs-overview";
 import { showElementLockTip } from "../../../services/tooltipService";
 import { useExtensionState } from "../../../store/extensionState";
 import { si } from "../../../utils";
+import { burgFeatures } from "../../../utils/burgFeatures";
 import { IconButton } from "../IconButton";
 import { VirtualTableBody } from "../VirtualTableBody";
 import { SortableHeader } from "./SortableHeader";
@@ -80,7 +81,19 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                 style={{ width: "4.5em", minWidth: "4.5em" }}
               />
             ))}
-            {header("features", "Feat", false, "3.5em")}
+            {burgFeatures.map(feature => (
+              <SortableHeader
+                key={feature.id}
+                field={feature.id}
+                label={feature.label.slice(0, 3)}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={onSort}
+                numeric
+                tip={`Click to sort by ${feature.label.toLowerCase()} presence`}
+                style={{ width: "1%", paddingInline: "0.25em", textAlign: "center" }}
+              />
+            ))}
             <th></th>
           </tr>
         </thead>
@@ -146,18 +159,16 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                     />
                   </td>
                 ))}
-                <td>
-                  <div style={{ display: "inline-block" }}>
+                {burgFeatures.map(feature => (
+                  <td key={feature.id} style={{ width: "1%", paddingInline: "0.25em", textAlign: "center" }}>
                     <span
-                      data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                      className={`icon-star-empty${b.capital ? "" : " inactive"}`}
+                      data-tip={`${feature.label}: ${b[feature.id] ? "Yes" : "No"}`}
+                      role="img"
+                      aria-label={`${feature.label}: ${b[feature.id] ? "Yes" : "No"}`}
+                      className={`${feature.icon}${b[feature.id] ? "" : " inactive"}`}
                     />
-                    <span
-                      data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                      className={`icon-anchor${b.port ? "" : " inactive"}`}
-                    />
-                  </div>
-                </td>
+                  </td>
+                ))}
                 <td>
                   <IconButton data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
                   <IconButton

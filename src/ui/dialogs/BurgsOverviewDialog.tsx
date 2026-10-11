@@ -21,6 +21,7 @@ import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
 import { useExtensionState } from "../../store/extensionState";
 import { si } from "../../utils";
+import { type BurgFeature, burgFeatures } from "../../utils/burgFeatures";
 import { BurgsTable } from "../components/tables/BurgsTable";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
@@ -36,6 +37,7 @@ export const BurgsOverviewDialog: React.FC = () => {
     filterCultureId,
     filterProvinceId,
     filterGroup,
+    filterFeature,
     addMode,
     refreshCounter,
     toggleSortBy,
@@ -44,6 +46,7 @@ export const BurgsOverviewDialog: React.FC = () => {
     setFilterCultureId,
     setFilterProvinceId,
     setFilterGroup,
+    setFilterFeature,
     setAddMode,
     refresh
   } = useBurgsOverviewState();
@@ -110,11 +113,22 @@ export const BurgsOverviewDialog: React.FC = () => {
       filterCultureId,
       filterProvinceId,
       filterGroup,
+      filterFeature,
       sortBy,
       sortOrder
     });
     return { filteredBurgs: rows, totalPopulation, columnTotals, validCount };
-  }, [refreshCounter, searchText, filterStateId, filterCultureId, filterProvinceId, filterGroup, sortBy, sortOrder]);
+  }, [
+    refreshCounter,
+    searchText,
+    filterStateId,
+    filterCultureId,
+    filterProvinceId,
+    filterGroup,
+    filterFeature,
+    sortBy,
+    sortOrder
+  ]);
 
   const allLocked = useMemo(() => {
     void refreshCounter;
@@ -195,7 +209,7 @@ export const BurgsOverviewDialog: React.FC = () => {
           showCultureColumn={false}
         />
 
-        <div id="burgsFilters" data-tip="Apply a filter" className="d-flex">
+        <div id="burgsFilters" data-tip="Apply a filter" className="d-flex" style={{ flexWrap: "wrap" }}>
           <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
             Search:{" "}
             <input id="burgsSearch" type="search" value={searchText} onChange={e => setSearchText(e.target.value)} />
@@ -248,6 +262,21 @@ export const BurgsOverviewDialog: React.FC = () => {
               {uniqueGroups.map(g => (
                 <option key={g} value={g}>
                   {g}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="burgsFilterFeature">
+            Feature:
+            <select
+              id="burgsFilterFeature"
+              value={filterFeature}
+              onChange={e => setFilterFeature(e.target.value as BurgFeature | "")}
+            >
+              <option value="">all</option>
+              {burgFeatures.map(feature => (
+                <option key={feature.id} value={feature.id}>
+                  {feature.label}
                 </option>
               ))}
             </select>

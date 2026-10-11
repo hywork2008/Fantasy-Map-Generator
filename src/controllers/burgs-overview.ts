@@ -17,6 +17,7 @@ import type { Burg } from "../types/models";
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
+import { type BurgFeature, burgFeatures } from "../utils/burgFeatures";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
@@ -29,6 +30,7 @@ export interface BurgFilterOptions {
   filterStateId?: number; // -1 = all
   filterCultureId?: number; // -1 = all
   filterProvinceId?: number; // -1 = all
+  filterFeature?: BurgFeature | ""; // "" = all
   filterGroup?: string; // "" = all
   sortBy?: string;
   sortOrder?: "asc" | "desc";
@@ -65,6 +67,7 @@ export function filterAndSortBurgs(
     filterCultureId = -1,
     filterProvinceId = -1,
     filterGroup = "",
+    filterFeature = "",
     sortBy = "name",
     sortOrder = "asc"
   } = options;
@@ -97,6 +100,8 @@ export function filterAndSortBurgs(
     });
   }
   if (filterGroup !== "") filtered = filtered.filter(b => b.group === filterGroup);
+
+  if (filterFeature) filtered = filtered.filter(b => Boolean(b[filterFeature]));
 
   const rows: BurgRowData[] = filtered.map(b => {
     const population = (b.population ?? 0) * worldContext.populationRate * worldContext.urbanization;
@@ -131,6 +136,9 @@ export function filterAndSortBurgs(
     } else if (sortBy === "population") {
       valA = a.population;
       valB = b.population;
+    } else if (burgFeatures.some(feature => feature.id === sortBy)) {
+      valA = Number(Boolean(a.b[sortBy as BurgFeature]));
+      valB = Number(Boolean(b.b[sortBy as BurgFeature]));
     } else if (sortBy === "features") {
       valA = a.features;
       valB = b.features;
