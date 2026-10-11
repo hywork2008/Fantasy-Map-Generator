@@ -70,6 +70,14 @@ export async function openMap(
   });
   page.on("pageerror", err => console.error("[pageerror]", err.message));
 
+  // world.mapId is set at the end of the core stages, before the map-ready tasks (dual-port
+  // placement, land use, …) finish; only their completion event marks a finished map.
+  await page.addInitScript(() => {
+    document.addEventListener("fmg:map-ready-tasks-completed", () => {
+      (window as unknown as { __fmgMapReadyTasks: number }).__fmgMapReadyTasks =
+        ((window as unknown as { __fmgMapReadyTasks?: number }).__fmgMapReadyTasks ?? 0) + 1;
+    });
+  });
   const url = `${BASE_URL}/?seed=${encodeURIComponent(seed)}&width=${width}&height=${height}`;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await waitForMap(page);
@@ -89,6 +97,10 @@ export async function waitForMap(page: Page, timeout = 120_000): Promise<void> {
   await page.waitForFunction(() => typeof window.fmg !== "undefined" && window.fmg.world.mapId !== undefined, {
     timeout
   });
+  await page.waitForFunction(
+    () => ((window as unknown as { __fmgMapReadyTasks?: number }).__fmgMapReadyTasks ?? 0) > 0,
+    { timeout }
+  );
 }
 
 export async function enableExtensions(page: Page, ids: string[]): Promise<void> {
