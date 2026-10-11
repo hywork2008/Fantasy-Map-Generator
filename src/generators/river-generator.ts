@@ -628,9 +628,14 @@ class RiverModule {
       if (lastCell < 0) return null; // off-map exit
 
       const feature = features[cells.f[lastCell]];
-      if (!feature) return null;
-      if (feature.type === "ocean") return feature.i;
-      if (feature.type !== "lake") return null;
+      if (feature && feature.type === "ocean") return feature.i;
+      if (!feature || feature.type !== "lake") {
+        // A tributary's path ends on the receiving river's land cell: continue down that river.
+        // (Upstream FMG stops here, so a tributary town never became a river port.)
+        const receiving = cells.r[lastCell] && cells.r[lastCell] !== river.i ? cells.r[lastCell] : river.parent;
+        river = receiving && receiving !== river.i ? riverById.get(receiving) : undefined;
+        continue;
+      }
       if (!feature.outlet) return feature.i; // closed lake terminus
       river = riverById.get(feature.outlet);
     }
