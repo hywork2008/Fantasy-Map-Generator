@@ -3,6 +3,7 @@
 2026-10-11
 
 - docs/plan/map-server.md
+- docs/plan/river-port-lab.md
 
 2026-09-15
 
