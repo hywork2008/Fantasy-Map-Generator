@@ -449,6 +449,13 @@ class RoutesModule {
     const links: Record<number, Record<number, number>> = {};
 
     for (const { points, i: routeId, navigation, group, registeredConnectionId } of routes) {
+      if (group === "searoutes") {
+        const flag = navigation === "river" ? "riverPort" : "seaPort";
+        for (const point of points) {
+          const burg = this.worldContext.pack.burgs?.[this.worldContext.pack.cells.burg?.[point[2]]];
+          if (burg?.i && !burg.removed && burg[flag] === undefined) burg[flag] = true;
+        }
+      }
       // Retained legacy locks are archive data, not certified physical links.
       if (
         this.worldContext.options.landConnectionGeneration &&
@@ -1380,7 +1387,7 @@ class RoutesModule {
     if (!this.allowsGeneratedSeaLanes()) return [];
     const riverGraph = buildRiverNavigationGraph(pack, { respectCrossings: false });
     const riverPorts = pack.burgs.filter(burg =>
-      Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
+      Boolean(burg?.i && !burg.removed && burg.port && burg.riverPort !== false && pack.cells.r[burg.cell])
     );
     const riverRoutes: Route[] = [];
 
@@ -1449,10 +1456,10 @@ class RoutesModule {
   connectRiverPort(cellId: number): Route | undefined {
     const { pack } = this.worldContext;
     const source = pack.burgs[pack.cells.burg[cellId]];
-    if (!this.allowsGeneratedSeaLanes() || !source?.port || !pack.cells.r[cellId]) return;
+    if (!this.allowsGeneratedSeaLanes() || !source?.port || source.riverPort === false || !pack.cells.r[cellId]) return;
     this.sync();
     const riverPorts = pack.burgs.filter(burg =>
-      Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
+      Boolean(burg?.i && !burg.removed && burg.port && burg.riverPort !== false && pack.cells.r[burg.cell])
     );
     const lane = this.riverLaneFrom(
       source,

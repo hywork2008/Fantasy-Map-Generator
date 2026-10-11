@@ -1,7 +1,8 @@
-/** Features exposed by the Burg Editor. Port values are water-body IDs, so presence uses truthiness. */
+/** Features exposed by the Burg Editor and Overview. */
 export const burgFeatures = [
   { id: "capital", label: "Capital", icon: "icon-star" },
-  { id: "port", label: "Port", icon: "icon-anchor" },
+  { id: "seaPort", label: "Sea port", icon: "icon-anchor" },
+  { id: "riverPort", label: "River port", icon: "icon-anchor" },
   { id: "citadel", label: "Citadel", icon: "icon-chess-rook" },
   { id: "walls", label: "Walls", icon: "icon-fort-awesome" },
   { id: "plaza", label: "Plaza", icon: "icon-store" },

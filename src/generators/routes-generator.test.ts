@@ -620,6 +620,8 @@ describe("RoutesModule settlement water connections", () => {
       })
     ]);
     expect(Routes.buildLinks(routes)).toEqual({});
+    expect(worldContext.pack.burgs[1].riverPort).toBe(true);
+    expect(worldContext.pack.burgs[2].riverPort).toBe(true);
   });
 
   it("extends a river route from the channel to a shifted port anchor", () => {

@@ -26,6 +26,6 @@ export function isTrueOceanHarborCell(cellId: number, pack: PackedGraph): boolea
 
 /** A burg that is actually on the open ocean, not a drain-resolved inland port. */
 export function isTrueOceanPortBurg(burg: Burg | undefined, pack: PackedGraph): boolean {
-  if (!burg?.i || burg.removed || !burg.port) return false;
+  if (!burg?.i || burg.removed || !burg.port || burg.seaPort === false) return false;
   return isTrueOceanHarborCell(burg.cell, pack);
 }

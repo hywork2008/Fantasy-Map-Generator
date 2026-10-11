@@ -85,7 +85,9 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
               <SortableHeader
                 key={feature.id}
                 field={feature.id}
-                label={feature.label.slice(0, 3)}
+                label={
+                  feature.id === "seaPort" ? "Sea" : feature.id === "riverPort" ? "Riv" : feature.label.slice(0, 3)
+                }
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={onSort}

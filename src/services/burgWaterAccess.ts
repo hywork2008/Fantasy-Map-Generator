@@ -28,8 +28,8 @@ export function updateBurgWaterAccess(burg: Burg, pack: PackedGraph): BurgWaterA
     seaFeatureIds: [...sea].sort((a, b) => a - b),
     lakeFeatureIds: [...lake].sort((a, b) => a - b),
     port: {
-      river: Boolean(burg.port && riverId && cells.fl?.[riverCell] >= MIN_NAVIGABLE_FLUX),
-      sea: Boolean(burg.port && sea.size),
+      river: Boolean(burg.port && burg.riverPort !== false && riverId && cells.fl?.[riverCell] >= MIN_NAVIGABLE_FLUX),
+      sea: Boolean(burg.port && burg.seaPort !== false && sea.size),
       lake: Boolean(burg.port && lake.size)
     }
   };

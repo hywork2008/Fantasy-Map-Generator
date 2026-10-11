@@ -18,6 +18,7 @@ import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialo
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
 import { type BurgFeature, burgFeatures } from "../utils/burgFeatures";
+import { getBurgPorts } from "../utils/burgPorts";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
@@ -72,7 +73,7 @@ export function filterAndSortBurgs(
     sortOrder = "asc"
   } = options;
 
-  const validBurgs = burgs.filter(b => b.i && !b.removed);
+  const validBurgs = burgs.filter(b => b.i && !b.removed).map(b => ({ ...b, ...getBurgPorts(b, worldContext.pack) }));
   let filtered = validBurgs;
 
   if (searchText) {
@@ -248,7 +249,8 @@ export function downloadBurgsData(delimiter: string = "\t"): void {
     "Temperature",
     "Temperature likeness",
     "Capital",
-    "Port",
+    "Sea Port",
+    "River Port",
     "Citadel",
     "Walls",
     "Plaza",
@@ -287,7 +289,8 @@ export function downloadBurgsData(delimiter: string = "\t"): void {
       `${convertTemperature(temperature)}`,
       `${getTemperatureLikeness(temperature)}`,
       b.capital ? "capital" : "",
-      b.port ? "port" : "",
+      getBurgPorts(b, worldContext.pack).seaPort ? "sea port" : "",
+      getBurgPorts(b, worldContext.pack).riverPort ? "river port" : "",
       b.citadel ? "citadel" : "",
       b.walls ? "walls" : "",
       b.plaza ? "plaza" : "",

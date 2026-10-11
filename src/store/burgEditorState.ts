@@ -55,6 +55,8 @@ export interface BurgData {
   // Features
   capital: boolean;
   port: boolean;
+  seaPort: boolean;
+  riverPort: boolean;
   citadel: boolean;
   walls: boolean;
   plaza: boolean;

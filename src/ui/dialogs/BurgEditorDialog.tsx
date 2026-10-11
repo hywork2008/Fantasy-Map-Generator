@@ -452,12 +452,18 @@ export const BurgEditorDialog: React.FC = () => {
                       className={`burgFeature icon-star pointer ${!burgData.capital ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("capital")}
                     ></IconButton>
-                    <IconButton
-                      id="burgPort"
-                      data-tip={t("dialogs.burgEditor.featurePortTip")}
-                      className={`burgFeature icon-anchor pointer ${!burgData.port ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("port")}
-                    ></IconButton>
+                    {(["seaPort", "riverPort"] as const).map(feature => (
+                      <IconButton
+                        key={feature}
+                        id={feature === "seaPort" ? "burgSeaPort" : "burgRiverPort"}
+                        data-tip={feature === "seaPort" ? "Sea port / 海港" : "River port / 河川港"}
+                        aria-label={feature === "seaPort" ? "Sea port" : "River port"}
+                        className={`burgFeature icon-anchor pointer ${!burgData[feature] ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature(feature)}
+                      >
+                        {feature === "seaPort" ? "S" : "R"}
+                      </IconButton>
+                    ))}
                     <IconButton
                       id="burgCitadel"
                       data-tip={t("dialogs.burgEditor.featureCitadelTip")}

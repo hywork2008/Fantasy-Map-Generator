@@ -18,6 +18,7 @@ import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture } from "../types/models";
 import { closeDialog, closeDialogs, openAlert, openDialog, openPrompt } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getPortAnchorPosition, openURL, parseTransform, rn } from "../utils";
+import { getBurgPorts } from "../utils/burgPorts";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { generateRandomName } from "../utils/nameGenerator";
@@ -194,6 +195,7 @@ const burgEditorInternal = {
       medicalCareScore: typeof b.medicalCare === "number" ? String(b.medicalCare) : "—",
       capital: !!b.capital,
       port: !!b.port,
+      ...getBurgPorts(b, worldContext.pack),
       citadel: !!b.citadel,
       walls: !!b.walls,
       plaza: !!b.plaza,
@@ -336,8 +338,16 @@ export const burgEditorActions = {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
 
-    if (feature === "port") {
-      if (burg.port) {
+    if (feature === "seaPort" || feature === "riverPort") {
+      const ports = getBurgPorts(burg, worldContext.pack);
+      ports[feature] = !ports[feature];
+      const hadPort = Boolean(burg.port);
+      legacyMutation(() => {
+        Object.assign(burg, ports);
+        updateBurgWaterAccess(burg, worldContext.pack);
+        return { result: undefined, topics: ["map.settlements"] };
+      });
+      if (!ports.seaPort && !ports.riverPort) {
         legacyMutation(() => {
           burg.port = 0;
           updateBurgWaterAccess(burg, worldContext.pack);
@@ -345,10 +355,11 @@ export const burgEditorActions = {
         });
         const anchor = getElementBySelector<SVGUseElement>(`#anchors [data-id='${burgId}']`);
         if (anchor) anchor.remove();
-      } else {
+      } else if (!hadPort) {
         const haven = worldContext.pack.cells.haven[burg.cell];
-        if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
-        const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
+        const riverFeature = feature === "riverPort" ? GenerationPipeline.Rivers.resolveDrainFeature(burg.cell) : 0;
+        const portFeature = riverFeature || (haven ? worldContext.pack.cells.f[haven] : -1);
+        if (portFeature === -1) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
         legacyMutation(() => {
           burg.port = portFeature;
           updateBurgWaterAccess(burg, worldContext.pack);
@@ -400,6 +411,7 @@ export const burgEditorActions = {
     getBurgEditorState().updateBurgData({
       capital: !!burg.capital,
       port: !!burg.port,
+      ...getBurgPorts(burg, worldContext.pack),
       citadel: !!burg.citadel,
       walls: !!burg.walls,
       plaza: !!burg.plaza,

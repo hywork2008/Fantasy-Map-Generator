@@ -365,6 +365,8 @@ export interface Burg {
   capital?: number;
   lock?: boolean;
   port?: number;
+  seaPort?: boolean;
+  riverPort?: boolean;
   removed?: boolean;
   population?: number;
   type?: CultureType;
