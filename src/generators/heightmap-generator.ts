@@ -14,6 +14,7 @@ import type { Grid } from "../types/Grid";
 import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
 import { buildEarthRegionHeights } from "./earthRegionHeightmap";
+import { buildIsletHeights } from "./isletHeightmap";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
@@ -77,7 +78,11 @@ class HeightmapModule {
       90000: 0.9964,
       100000: 0.9973
     };
-    return blobPowerMap[cells] || 0.98;
+    if (blobPowerMap[cells]) return blobPowerMap[cells];
+    // Scoped (Province) grids: a blob must fall off over proportionally fewer cell rings, so the
+    // per-step decay scales with 1/sqrt(cells) below the smallest calibrated size.
+    if (cells > 0 && cells < 1000) return Math.exp(Math.log(blobPowerMap[1000]) * Math.sqrt(1000 / cells));
+    return 0.98;
   }
 
   private getLinePower(cells: number): number {
@@ -97,7 +102,9 @@ class HeightmapModule {
       100000: 0.93
     };
 
-    return linePowerMap[cells] || 0.81;
+    if (linePowerMap[cells]) return linePowerMap[cells];
+    if (cells > 0 && cells < 1000) return Math.exp(Math.log(linePowerMap[1000]) * (1000 / cells) ** 0.134);
+    return 0.81;
   }
 
   private getPointInRange(range: string, length: number): number | undefined {
@@ -762,15 +769,32 @@ class HeightmapModule {
     const isTemplate = id in heightmapTemplates;
     const earthRegion = getEarthRegion(id);
 
-    const heights = isTemplate
-      ? this.fromTemplate(graph, id)
-      : earthRegion
-        ? await this.fromEarthRegion(graph, earthRegion)
-        : await this.fromPrecreated(graph, id);
+    const heights =
+      graph.scope?.kind === "islet"
+        ? this.fromIslet(graph)
+        : isTemplate
+          ? this.fromTemplate(graph, id)
+          : earthRegion
+            ? await this.fromEarthRegion(graph, earthRegion)
+            : await this.fromPrecreated(graph, id);
     TIME && console.timeEnd("defineHeightmap");
 
     this.clearData();
     return heights as Uint8Array;
+  }
+
+  /** Islet scope: one island of a few cells replaces the template (src/generators/isletHeightmap.ts). */
+  fromIslet(graph: Grid): Uint8Array {
+    this.setGraph(graph);
+    const { graphWidth, graphHeight } = this.worldContext;
+    this.heights = buildIsletHeights(
+      graph,
+      graphWidth,
+      graphHeight,
+      useOptionsState.getState().isletLandCells,
+      Math.random
+    );
+    return this.heights;
   }
 
   fromTemplate(graph: Grid, id: string): Uint8Array | null {

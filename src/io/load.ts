@@ -1,4 +1,5 @@
 import type * as d3 from "d3";
+import { fitScopedMapToView } from "../actions";
 import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
@@ -299,8 +300,9 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       seed: worldContext.seed,
       year: validated.document.simulation.currentYear,
       era: validated.document.simulation.era,
-      mapWidth: worldContext.graphWidth,
-      mapHeight: worldContext.graphHeight,
+      // A Province/Islet-scope map keeps the canvas it was cut from, so regenerating does not shrink twice.
+      mapWidth: worldContext.grid.scope?.canvasWidth ?? worldContext.graphWidth,
+      mapHeight: worldContext.grid.scope?.canvasHeight ?? worldContext.graphHeight,
       initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern),
       initialPolityRealmSize: normalizeInitialPolityRealmSize(
         worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
@@ -315,6 +317,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // the zoom extent, otherwise areas outside the pre-load viewport stay unpainted.
     resizeGraphRects();
     fitMapToScreen();
+    fitScopedMapToView();
     if (worldContext.options.landConnectionGeneration) {
       legacyMutation(() => {
         const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);

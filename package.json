@@ -53,7 +53,8 @@
     "housing:batch": "node scripts/housingBatch.mjs compare",
     "ce:audit": "node --import tsx scripts/auditCityGeneration.mjs",
     "ce:perf": "node --import tsx scripts/benchmarkFmgCities.mjs",
-    "fmg:perf": "node scripts/benchmarkFmgGeneration.mjs"
+    "fmg:perf": "node scripts/benchmarkFmgGeneration.mjs",
+    "fmg:small": "node scripts/generateSmallMaps.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

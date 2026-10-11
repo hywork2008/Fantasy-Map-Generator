@@ -44,6 +44,7 @@ import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
+import { capScopedCount, gridDensityCells, scopedStatesNumber } from "../utils/mapScope";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { yieldToEventLoop } from "../utils/yieldToEventLoop";
@@ -1227,7 +1228,7 @@ class BurgModule {
       if (plannedNodes.length) {
         const capitalsNumber = getInitialPolityCapitalCount(
           pack.settlementFoundation!,
-          useOptionsState.getState().statesNumber
+          scopedStatesNumber(grid, useOptionsState.getState().statesNumber)
         );
         // ensureMandatoryCapitals (docs/plan/underground-realm-and-supernatural-areas.md §3.4/
         // §7.3) guarantees the Dwarf hold's "mountain" region node is a capital even when it
@@ -1395,6 +1396,7 @@ class BurgModule {
 
     function getCapitalsNumber() {
       let number = useOptionsState.getState().statesNumber;
+      if (grid.scope) return capScopedCount(grid.scope, "states", number, populatedCells.length);
 
       if (populatedCells.length < number * 10) {
         number = Math.floor(populatedCells.length / 10);
@@ -1485,7 +1487,7 @@ class BurgModule {
     function getTownsNumber() {
       const manors = useOptionsState.getState().manors;
       const isAuto = manors === 1000; // 1000 is considered as auto
-      if (isAuto) return rn(populatedCells.length / 5 / (grid.points.length / 10000) ** 0.8);
+      if (isAuto) return rn(populatedCells.length / 5 / (gridDensityCells(grid) / 10000) ** 0.8);
 
       return Math.min(manors, populatedCells.length);
     }

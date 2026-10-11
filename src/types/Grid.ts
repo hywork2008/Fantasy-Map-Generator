@@ -1,3 +1,4 @@
+import type { GridMapScope } from "../utils/mapScope";
 import type { GridFeature } from "./models";
 import type { TypedArray } from "./PackedGraph";
 import type { Cells, Point, Vertices } from "./voronoi";
@@ -75,4 +76,6 @@ export interface Grid {
    * field existed, and empty when volcanismChance placed none.
    */
   volcanoes?: GridVolcano[];
+  /** Present only on Province/Islet-scope maps: a smaller canvas at full-map cell density. */
+  scope?: GridMapScope;
 }

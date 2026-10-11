@@ -68,6 +68,7 @@ import { closeDialog, closeDialogs, openDialog, openPrompt } from "../ui/dialogs
 import type { RegenerateConfirmConfig, RouteRegenerationModes } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
+import { gridDensityCells, scopedStatesNumber } from "../utils/mapScope";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
@@ -454,7 +455,7 @@ function recreateStates(): State[] | null {
   const localSeed = generateSeed();
   (Math as Record<"random", () => number>).random = Alea(localSeed);
 
-  const statesCount = useOptionsState.getState().statesNumber;
+  const statesCount = scopedStatesNumber(worldContext.grid, useOptionsState.getState().statesNumber);
   if (!statesCount) {
     tip(`<i>GenerationPipeline.States Number</i> option value is zero. No counties are generated`, false, "error");
     return null;
@@ -641,7 +642,7 @@ function regenerateSettlementPattern(): void {
         ? getPreferredDispersedFrontierStarts({
             pack,
             realmSize: optionsSnap.initialPolityRealmSize,
-            polityCount: optionsSnap.statesNumber,
+            polityCount: scopedStatesNumber(worldContext.grid, optionsSnap.statesNumber),
             startMode: optionsSnap.frontierStartMode,
             climate: { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec }
           })
@@ -669,7 +670,7 @@ function regenerateSettlementPattern(): void {
         precipitation: worldContext.grid.cells.prec,
         features: worldContext.pack.features
       },
-      optionsSnap.statesNumber,
+      scopedStatesNumber(worldContext.grid, optionsSnap.statesNumber),
       optionsSnap.oikoumeneLandShare,
       optionsSnap.frontierPolitySpacing,
       optionsSnap.frontierStartMode,
@@ -826,7 +827,7 @@ async function regenerateBurgs(): Promise<void> {
     const manorsInputEl = getElementById("manorsInput") as HTMLInputElement;
     const burgsCount =
       (manorsInputEl.value === "1000"
-        ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
+        ? rn(sorted.length / 5 / (gridDensityCells(worldContext.grid) / 10000) ** 0.8)
         : +manorsInputEl.value) + existingStatesCount;
     const burgSpacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsCount ** 0.7 / 66);
 

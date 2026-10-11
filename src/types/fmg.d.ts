@@ -62,6 +62,8 @@ export interface FMGActionsAPI {
    * enabled `generationProfile` before page load. Used by `npm run fmg:perf`.
    */
   getGenerationProfile(): GenerationProfile | null;
+  /** The `.fmg` archive of the live world, as Save writes it. Used by `npm run fmg:small`. */
+  prepareWorldArchive(): Promise<Blob>;
 }
 
 export interface FMGNamespace {

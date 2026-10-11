@@ -29,7 +29,7 @@ import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 import Alea from "alea";
 import * as d3 from "d3";
-import { getWorldState, resetZoom, zoomTo } from "./actions";
+import { fitScopedMapToView, getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices, initRng } from "./context/appServices";
 import {
   createEmptyFrontierSimulationState,
@@ -41,7 +41,13 @@ import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
 import { resetRulers } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
-import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
+import {
+  applyGraphSize,
+  applyMapScope,
+  applyStoredOptions,
+  fitMapToScreen,
+  randomizeOptions
+} from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
@@ -153,6 +159,7 @@ import { normalizeConflictAutonomy } from "./utils/conflictAutonomy";
 import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
 import { dampenBurgLabelSize, dampenStateLabelSize } from "./utils/labelZoomScale";
+import { scopedMapSize, scopedStatesNumber } from "./utils/mapScope";
 import { getElementById, layerIsOn } from "./utils/nodeUtils";
 import { cleanupData } from "./versioning";
 
@@ -1105,6 +1112,8 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
 
   applyGraphSize();
   randomizeOptions();
+  // After randomizeOptions(): an unlocked scope/density resets there before it shrinks the canvas.
+  const scopedGrid = precreatedGraph ? null : applyMapScope();
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
   worldContext.options.initialFirearmsUnstocked = useOptionsState.getState().initialFirearmsUnstocked;
   worldContext.options.historicalPeriod = useOptionsState.getState().historicalPeriod;
@@ -1121,13 +1130,21 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
   worldContext.options.ironDepositsPerState = useOptionsState.getState().ironDepositsPerState;
 
-  if (shouldRegenerateGrid(worldContext.grid, worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)) {
+  if (
+    shouldRegenerateGrid(
+      worldContext.grid,
+      worldContext.seed,
+      worldContext.graphWidth,
+      worldContext.graphHeight,
+      scopedGrid
+    )
+  ) {
     Object.keys(worldContext.grid).forEach(k => {
       delete (worldContext.grid as unknown as Record<string, unknown>)[k];
     });
     Object.assign(
       worldContext.grid,
-      precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)
+      precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight, scopedGrid)
     );
   } else delete (worldContext.grid.cells as { h?: unknown }).h;
 
@@ -1235,7 +1252,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
               getPreferredDispersedFrontierStarts({
                 pack: worldContext.pack,
                 realmSize: optionsSnap.initialPolityRealmSize,
-                polityCount: optionsSnap.statesNumber,
+                polityCount: scopedStatesNumber(worldContext.grid, optionsSnap.statesNumber),
                 startMode: optionsSnap.frontierStartMode,
                 climate: { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec }
               })
@@ -1252,7 +1269,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
             precipitation: worldContext.grid.cells.prec,
             features: worldContext.pack.features
           },
-          optionsSnap.statesNumber,
+          scopedStatesNumber(worldContext.grid, optionsSnap.statesNumber),
           optionsSnap.oikoumeneLandShare,
           optionsSnap.frontierPolitySpacing,
           optionsSnap.frontierStartMode,
@@ -1432,6 +1449,7 @@ async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Pro
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
     measureGenerationStep("showStatistics", showStatistics);
+    fitScopedMapToView();
     INFO && console.groupEnd();
     document.body.classList.remove("fmg-generation-review-preview");
     generationProgressStore.getState().finish();
@@ -1606,8 +1624,11 @@ function defineMapSize() {
   const options = useOptionsState.getState();
   const updates: Partial<OptionsState> = {};
   const earthRegion = getEarthRegion(options.template);
+  // A scoped (Province/Islet) canvas covers a matching share of the globe, keeping km per pixel.
+  const scope = worldContext.grid.scope;
   if (earthRegion) {
-    const { mapSize, latitude, longitude } = earthRegion.climateAnchor;
+    const { latitude, longitude } = earthRegion.climateAnchor;
+    const mapSize = scopedMapSize(earthRegion.climateAnchor.mapSize, scope);
     if (randomize || !locked("mapSize")) updates.mapSize = mapSize;
     if (randomize || !locked("latitude")) updates.latitude = latitude;
     if (randomize || !locked("longitude")) updates.longitude = longitude;
@@ -1620,7 +1641,7 @@ function defineMapSize() {
     if (Object.keys(updates).length > 0) useOptionsState.getState().setOptions(updates);
     return;
   }
-  if (randomize || !locked("mapSize")) updates.mapSize = EARTH_DEFAULT_MAP_SIZE;
+  if (randomize || !locked("mapSize")) updates.mapSize = scopedMapSize(EARTH_DEFAULT_MAP_SIZE, scope);
   if (randomize || !locked("latitude")) {
     const latT = getEarthMapLatitudeSpan(
       updates.mapSize ?? options.mapSize,
@@ -1641,7 +1662,9 @@ function defineMapSize() {
     // in an uninhabitably cold band.
     const hemisphereSign = P(0.5) ? 1 : -1;
     const temperateBound = getTemperateLatitudeBound(latT, maxCenterLatitude);
-    const magnitude = gauss(40, 20, 0, temperateBound);
+    // A scoped map spans only a degree or two, so its center latitude is its whole climate: keep it
+    // well inside the temperate band or a Province/Islet map is often entirely subpolar and empty.
+    const magnitude = scope ? gauss(35, 10, 5, Math.min(temperateBound, 50)) : gauss(40, 20, 0, temperateBound);
     updates.latitude = rn(hemisphereSign * magnitude, 1);
   }
   if (randomize || !locked("longitude")) updates.longitude = rn(Math.random() * 100, 1);
@@ -1843,7 +1866,9 @@ export function rankCells() {
     let score = biomesData.habitability[packCells.biomeCode[i]];
     if (!score) continue;
 
-    if (meanFlux) score += normalize(packCells.fl[i] + packCells.conf[i], meanFlux, maxFlux) * 250;
+    // maxFlux === meanFlux (a one-cell islet) would normalize to 0/0 = NaN and zero the cell.
+    if (meanFlux && maxFlux > meanFlux)
+      score += normalize(packCells.fl[i] + packCells.conf[i], meanFlux, maxFlux) * 250;
     score -= (packCells.h[i] - 50) / 5;
 
     if (packCells.t[i] === 1) {
