@@ -172,6 +172,37 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     expect(worldContext.pack.burgs[2].port).toBeUndefined();
   });
 
+  it("still makes river ports of navigable-river burgs beside a small lake when the river reaches the sea", () => {
+    // Cells 1 → 2 → ocean cell 5 carry navigable river 10; both burgs also face small lake cell 4.
+    worldContext.pack = {
+      burgs: makeBurgs(),
+      cells: { ...BASE_CELLS, i: new Uint16Array(4000), r: [0, 10, 10, 0, 0, 0], fl: [0, 150, 160, 0, 0, 0] },
+      features: [null, { i: 1, type: "lake", cells: 11 }, { i: 2, type: "ocean" }],
+      vertices: BASE_VERTICES,
+      rivers: [{ i: 10, cells: [1, 2, 5] }]
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    expect(worldContext.pack.burgs[1].port).toBe(2); // river port draining to the ocean
+    expect(worldContext.pack.burgs[2].port).toBe(2);
+  });
+
+  it("does not make river ports whose river only ends in the small lake (no lake-crossing shuttle)", () => {
+    worldContext.pack = {
+      burgs: makeBurgs(),
+      cells: { ...BASE_CELLS, i: new Uint16Array(4000), r: [0, 10, 10, 0, 0, 0], fl: [0, 150, 160, 0, 0, 0] },
+      features: [null, { i: 1, type: "lake", cells: 11 }, { i: 2, type: "ocean" }],
+      vertices: BASE_VERTICES,
+      rivers: [{ i: 10, cells: [1, 2, 4] }] // ends in the closed small lake
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    expect(worldContext.pack.burgs[1].port).toBeUndefined();
+    expect(worldContext.pack.burgs[2].port).toBeUndefined();
+  });
+
   // -------------------------------------------------------------------------
   it("keeps burg.port = lakeFeatureId when the outlet river exits the map", () => {
     // River 10's last cell is -1 (off-map), so resolveLakeDrainFeature returns null.

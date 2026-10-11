@@ -26,6 +26,7 @@ import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { dualPortHaven, dualPortShore } from "../services/dualPortShore";
+import { lakePortCapacity, MIN_LAKE_PORTS } from "../services/lakePorts";
 import { drawnShorePortPosition, pinnedShorePortPosition } from "../services/portShorePosition";
 import { RegionalRiverGeometry } from "../services/regionalRiverGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
@@ -83,12 +84,6 @@ import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import type { Point } from "./voronoi";
 
 const MAX_STRATEGIC_CITADEL_BONUS = 0.5;
-/** A formal lake port requires at least this share of the packed map. */
-const MIN_LAKE_PORT_SHARE = 0.003;
-/** Prevents a tiny map or a malformed feature from promoting puddles. */
-const MIN_LAKE_PORT_CELLS = 4;
-const MIN_LAKE_PORTS = 2;
-const MAX_LAKE_PORTS = 6;
 /**
  * Rural `cells.pop` units that make a burg-less state holding count as a
  * settled overseas landmass. Cell Info people = pop × populationRate
@@ -344,16 +339,8 @@ class BurgModule {
       if (!burg.i || burg.lock) continue;
       const haven = cells.haven[burg.cell];
       const landFeature = cells.f[burg.cell];
-      // River-Port Lab: a lake-outlet burg on a lake too small for a port is still on a navigable
-      // river. Ordinary burgs keep the legacy rule (a lake haven ends the port check).
-      const havenLake = haven ? features[cells.f[haven]] : undefined;
-      const labRiverPort =
-        Boolean(burg.labSiteKind) &&
-        havenLake?.type === "lake" &&
-        this.getLakePortCapacity(havenLake) === 0 &&
-        Rivers.isNavigable(burg.cell);
 
-      if (haven && !labRiverPort) {
+      if (haven && !this.isRiverPortBesideSmallLake(burg.cell)) {
         const harbor = cells.harbor[burg.cell];
         if (!harbor) continue;
         const featureId = cells.f[haven];
@@ -644,13 +631,27 @@ class BurgModule {
     return selected;
   }
 
+  /**
+   * A burg facing a lake too small for a lake port (no lake-crossing shuttle: unloading a wagon
+   * onto a boat for a one-cell hop is never worth it) may still sit on a navigable river. It is
+   * then a river port, judged like any river burg, as long as that river drains to the sea or
+   * to a lake big enough for ports; a river ending in the small lake itself would only connect
+   * burgs across that lake, which is exactly the shuttle the small-lake rule avoids.
+   */
+  private isRiverPortBesideSmallLake(cellId: number): boolean {
+    const { cells, features } = this.worldContext.pack;
+    const lake = features[cells.f[cells.haven[cellId]]];
+    if (lake?.type !== "lake") return false;
+    const smallLake =
+      lake.cells <= 1 || NON_NAVIGABLE_LAKE_GROUPS.has(lake.group) || this.getLakePortCapacity(lake) === 0;
+    if (!smallLake || !Rivers.isNavigable(cellId)) return false;
+    const drain = features[Rivers.resolveDrainFeature(cellId) ?? 0];
+    return drain?.type === "ocean" || (drain?.type === "lake" && this.getLakePortCapacity(drain) > 0);
+  }
+
   private getLakePortCapacity(lake: { cells: number }): number {
     const { cells } = this.worldContext.pack;
-    const totalCells = cells.i?.length ?? cells.f.length;
-    const lakeShare = lake.cells / Math.max(totalCells, 1);
-    if (lake.cells < MIN_LAKE_PORT_CELLS || lakeShare < MIN_LAKE_PORT_SHARE) return 0;
-    const growthSteps = Math.floor(Math.log2(lakeShare / MIN_LAKE_PORT_SHARE));
-    return Math.min(MAX_LAKE_PORTS, MIN_LAKE_PORTS + Math.max(0, growthSteps));
+    return lakePortCapacity(lake, cells.i?.length ?? cells.f.length);
   }
 
   private getPortState(burg: Burg): number {
@@ -754,7 +755,7 @@ class BurgModule {
     const { cells, features } = this.worldContext.pack;
     const haven = cells.haven[burg.cell];
 
-    if (haven) {
+    if (haven && !this.isRiverPortBesideSmallLake(burg.cell)) {
       const feature = features[cells.f[haven]];
       if (!cells.harbor[burg.cell] || !feature || feature.cells <= 1 || NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) {
         return false;
