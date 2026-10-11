@@ -76,6 +76,7 @@ export const BurgEditorDialog: React.FC = () => {
   const isStyleSectionOpen = useBurgEditorState(state => state.isStyleSectionOpen);
   const isRelocateMode = useBurgEditorState(state => state.isRelocateMode);
   const [activeTab, setActiveTab] = useState("overview");
+  const [previewBurgId, setPreviewBurgId] = useState<number | null>(null);
   const allEditorTabs = useExtensionState(state => state.editorTabs);
   const enabledExtensions = useExtensionState(state => state.enabledExtensions);
   const isEconomyEnabled = useExtensionState(state => Boolean(state.enabledExtensions[ECONOMY_EXTENSION_ID]));
@@ -86,7 +87,12 @@ export const BurgEditorDialog: React.FC = () => {
 
   useEffect(() => {
     if (isOpen) setActiveTab("overview");
+    else setPreviewBurgId(null);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === "preview" && burgData) setPreviewBurgId(burgData.id);
+  }, [isOpen, activeTab, burgData]);
 
   useEffect(() => {
     if (activeTab !== "overview" && activeTab !== "preview" && !editorTabs.some(tab => tab.id === activeTab))
@@ -116,417 +122,424 @@ export const BurgEditorDialog: React.FC = () => {
       className="fmg-dialog--burg-editor"
     >
       <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />
-      {activeTab === "overview" ? (
-        <div id="burgBody">
-          <div className="d-flex">
-            <svg
-              data-tip={t("dialogs.burgEditor.emblemTip")}
-              className="pointer"
-              viewBox="0 0 200 200"
-              width="13em"
-              height="13em"
-              aria-hidden="true"
-              onClick={() => burgEditorActions.openEmblemEdit()}
-            >
-              <use id="burgEmblem" href={`#${burgData.emblemId}`}></use>
-            </svg>
-            <table>
-              <tbody>
-                <tr>
-                  <td colSpan={2} id="burgProvinceAndState">
-                    {burgData.provinceAndState}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">ID:</th>
-                  <td id="burgId">{burgData.id}</td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.nameTip")}>
-                  <th scope="row">
-                    <label htmlFor="burgName">{t("dialogs.burgEditor.name")}</label>
-                  </th>
-                  <td>
-                    <input
-                      id="burgName"
-                      autoCorrect="off"
-                      spellCheck="false"
-                      value={burgData.name}
-                      onChange={e => burgEditorActions.changeName(e.target.value)}
-                    />
-                    <span data-tip={t("dialogs.burgEditor.nameSpeakTip")} className="speaker">
-                      🔊
-                    </span>
-                    <IconButton
-                      id="burgNameReRandom"
-                      data-tip={t("dialogs.burgEditor.nameRandomTip")}
-                      className="icon-globe pointer"
-                      onClick={() => burgEditorActions.generateNameRandom()}
-                    ></IconButton>
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.groupTip")}>
-                  <th scope="row">{t("dialogs.burgEditor.group")}</th>
-                  <td>
-                    <select
-                      id="burgGroup"
-                      value={burgData.group}
-                      onChange={e => burgEditorActions.changeGroup(e.target.value)}
-                    >
-                      {groups.map(g => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                    <IconButton
-                      id="burgGroupConfigure"
-                      data-tip={t("dialogs.burgEditor.groupConfigureTip")}
-                      className="icon-cog pointer"
-                      onClick={() => burgEditorActions.editBurgGroups()}
-                    ></IconButton>
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.typeTip")}>
-                  <th scope="row">{t("dialogs.burgEditor.type")}</th>
-                  <td>
-                    <select
-                      id="burgType"
-                      value={burgData.type}
-                      onChange={e => burgEditorActions.changeType(e.target.value)}
-                    >
-                      <option value="Generic">{t("dialogs.burgEditor.types.generic")}</option>
-                      <option value="River">{t("dialogs.burgEditor.types.river")}</option>
-                      <option value="Lake">{t("dialogs.burgEditor.types.lake")}</option>
-                      <option value="Naval">{t("dialogs.burgEditor.types.naval")}</option>
-                      <option value="Nomadic">{t("dialogs.burgEditor.types.nomadic")}</option>
-                      <option value="Hunting">{t("dialogs.burgEditor.types.hunting")}</option>
-                      <option value="Highland">{t("dialogs.burgEditor.types.highland")}</option>
-                      <option value="Desert">{t("dialogs.burgEditor.types.desert")}</option>
-                      <option value="Marsh">{t("dialogs.burgEditor.types.marsh")}</option>
-                      <option value="Industrial">{t("dialogs.burgEditor.types.industrial")}</option>
-                      <option value="Colonial">{t("dialogs.burgEditor.types.colonial")}</option>
-                    </select>
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.cultureTip")}>
-                  <th scope="row">{t("dialogs.burgEditor.culture")}</th>
-                  <td>
-                    <select
-                      id="burgCulture"
-                      value={burgData.culture}
-                      onChange={e => burgEditorActions.changeCulture(Number(e.target.value))}
-                    >
-                      {cultures.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    <IconButton
-                      id="burgNameReCulture"
-                      data-tip={t("dialogs.burgEditor.cultureGenerateTip")}
-                      className="icon-book pointer"
-                      onClick={() => burgEditorActions.generateNameCulture()}
-                    ></IconButton>
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.populationTip")}>
-                  <th scope="row">
-                    <label htmlFor="burgPopulation">{t("dialogs.burgEditor.population")}</label>
-                  </th>
-                  <td>
-                    <input
-                      id="burgPopulation"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={burgData.population}
-                      onChange={e => burgEditorActions.changePopulation(e.target.value)}
-                    />
-                    <PopulationPyramid
-                      childrenCount={burgData.children}
-                      maleAdults={burgData.maleAdults}
-                      femaleAdults={burgData.femaleAdults}
-                      elders={burgData.elders}
-                      ageBands={burgData.populationAgeBands}
-                    />
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.temperatureTip")}>
-                  <th scope="row">{t("dialogs.burgEditor.temperature")}</th>
-                  <td className="d-flex">
-                    <span id="burgTemperature">{burgData.temperature}</span>
-                    <div className="d-flex">
-                      <i
-                        className="icon-info-circled"
-                        id="burgTemperatureLikeIn"
-                        data-tip={burgData.temperatureLikeIn}
-                      ></i>
-                      <i
-                        id="burgTemperatureGraph"
-                        data-tip={t("dialogs.burgEditor.temperatureGraphTip")}
-                        className="icon-chart-area pointer"
-                        onClick={() => burgEditorActions.showTemperatureGraph()}
-                      ></i>
-                    </div>
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.elevationTip")}>
-                  <th scope="row">{t("dialogs.burgEditor.elevation")}</th>
-                  <td>
-                    <span id="burgElevation">{burgData.elevation}</span> {t("dialogs.burgEditor.aboveSeaLevel")}
-                  </td>
-                </tr>
-                <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
-                  <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
-                  <td>
-                    <span id="burgDwellings">{burgData.dwellings}</span>
-                  </td>
-                </tr>
-                {isEconomyEnabled && (
-                  <>
-                    <tr data-tip={t("dialogs.burgEditor.productionTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.production")}</th>
-                      <td>
-                        <span id="burgProduction" className="d-inline-flex">
-                          {burgData.production}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.wealthTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.wealth")}</th>
-                      <td>
-                        <span id="burgWealth">{burgData.wealth}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.treasuryTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.treasury")}</th>
-                      <td>
-                        <span id="burgTreasury">{burgData.treasury}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.cellGrainTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.cellGrain")}</th>
-                      <td>
-                        <span id="burgCellGrainProduction">{burgData.cellGrainProduction}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.marketGrainTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.marketGrain")}</th>
-                      <td>
-                        <span id="burgMarketGrainProduction">{burgData.marketGrainProduction}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.foodImportsTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.foodImports")}</th>
-                      <td>
-                        <span id="burgMarketFoodImports">{burgData.marketFoodImports}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.foodReserveGapTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.foodReserveGap")}</th>
-                      <td>
-                        <span id="burgMarketFoodReserveGap">{burgData.marketFoodReserveGap}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.marketFoodStockTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.marketFoodStock")}</th>
-                      <td>
-                        <span id="burgMarketFoodStock">{burgData.marketFoodStock}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.basicEmploymentTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.basicEmployment")}</th>
-                      <td>
-                        <span id="burgBasicEmploymentDemand">{burgData.basicEmploymentDemand}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.serviceEmploymentTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.serviceEmployment")}</th>
-                      <td>
-                        <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.laborResidualTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.laborResidual")}</th>
-                      <td>
-                        <span id="burgLaborResidual">{burgData.laborResidual}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.marketUnemploymentTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.marketUnemployment")}</th>
-                      <td>
-                        <span id="burgMarketUnemployment">{burgData.marketUnemployment}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.employmentFocusTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.employmentFocus")}</th>
-                      <td>
-                        <span id="burgEmploymentFocus">{burgData.employmentFocus}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.laborLedgerTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.laborLedger")}</th>
-                      <td>
-                        <span
-                          id="burgEmploymentComposition"
-                          style={{ whiteSpace: "pre-line", display: "inline-block", textAlign: "left" }}
-                        >
-                          {burgData.employmentComposition}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.housingGapTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.housingGap")}</th>
-                      <td>
-                        <span id="burgHousingGap">{burgData.housingGap}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.underConstructionTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.underConstruction")}</th>
-                      <td>
-                        <span id="burgUnderConstruction">{burgData.underConstruction}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.constructionWorkersTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.constructionWorkers")}</th>
-                      <td>
-                        <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.constructionJobsTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.constructionJobs")}</th>
-                      <td>
-                        <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.innsTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.inns")}</th>
-                      <td>
-                        <span id="burgInns">{burgData.inns}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.waterSanitationTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.waterSanitation")}</th>
-                      <td>
-                        <span id="burgWaterSanitation">{burgData.waterSanitation}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.sanitationScoreTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.sanitationScore")}</th>
-                      <td>
-                        <span id="burgSanitationScore">{burgData.sanitationScore}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.medicalCareTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.medicalCare")}</th>
-                      <td>
-                        <span id="burgMedicalCareScore">{burgData.medicalCareScore}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.pregnantTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.pregnant")}</th>
-                      <td>
-                        <span id="burgPregnant">{burgData.pregnant}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.expectedBirthsTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.expectedBirths")}</th>
-                      <td>
-                        <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
-                      </td>
-                    </tr>
-                    <tr data-tip={t("dialogs.burgEditor.settlementValueTip")}>
-                      <th scope="row">{t("dialogs.burgEditor.settlementValue")}</th>
-                      <td>
-                        <span id="burgSettlementValue">{burgData.settlementValue}</span>
-                      </td>
-                    </tr>
-                  </>
-                )}
-                <tr>
-                  <th scope="row">{t("dialogs.burgEditor.features")}</th>
-                  <td>
-                    <IconButton
-                      id="burgCapital"
-                      data-tip={t("dialogs.burgEditor.featureCapitalTip")}
-                      className={`burgFeature icon-star pointer ${!burgData.capital ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("capital")}
-                    ></IconButton>
-                    {(["seaPort", "riverPort"] as const).map(feature => (
+      <div id="burgBody">
+        {activeTab === "overview" ? (
+          <div>
+            <div className="d-flex">
+              <svg
+                data-tip={t("dialogs.burgEditor.emblemTip")}
+                className="pointer"
+                viewBox="0 0 200 200"
+                width="13em"
+                height="13em"
+                aria-hidden="true"
+                onClick={() => burgEditorActions.openEmblemEdit()}
+              >
+                <use id="burgEmblem" href={`#${burgData.emblemId}`}></use>
+              </svg>
+              <table>
+                <tbody>
+                  <tr>
+                    <td colSpan={2} id="burgProvinceAndState">
+                      {burgData.provinceAndState}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">ID:</th>
+                    <td id="burgId">{burgData.id}</td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.nameTip")}>
+                    <th scope="row">
+                      <label htmlFor="burgName">{t("dialogs.burgEditor.name")}</label>
+                    </th>
+                    <td>
+                      <input
+                        id="burgName"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        value={burgData.name}
+                        onChange={e => burgEditorActions.changeName(e.target.value)}
+                      />
+                      <span data-tip={t("dialogs.burgEditor.nameSpeakTip")} className="speaker">
+                        🔊
+                      </span>
                       <IconButton
-                        key={feature}
-                        id={feature === "seaPort" ? "burgSeaPort" : "burgRiverPort"}
-                        data-tip={feature === "seaPort" ? "Sea port / 海港" : "River port / 河川港"}
-                        aria-label={feature === "seaPort" ? "Sea port" : "River port"}
-                        className={`burgFeature icon-anchor pointer ${!burgData[feature] ? "inactive" : ""}`}
-                        onClick={() => burgEditorActions.toggleFeature(feature)}
+                        id="burgNameReRandom"
+                        data-tip={t("dialogs.burgEditor.nameRandomTip")}
+                        className="icon-globe pointer"
+                        onClick={() => burgEditorActions.generateNameRandom()}
+                      ></IconButton>
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.groupTip")}>
+                    <th scope="row">{t("dialogs.burgEditor.group")}</th>
+                    <td>
+                      <select
+                        id="burgGroup"
+                        value={burgData.group}
+                        onChange={e => burgEditorActions.changeGroup(e.target.value)}
                       >
-                        {feature === "seaPort" ? "S" : "R"}
-                      </IconButton>
-                    ))}
-                    <IconButton
-                      id="burgCitadel"
-                      data-tip={t("dialogs.burgEditor.featureCitadelTip")}
-                      className={`burgFeature icon-chess-rook pointer ${!burgData.citadel ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("citadel")}
-                    ></IconButton>
-                    <IconButton
-                      id="burgWalls"
-                      data-tip={t("dialogs.burgEditor.featureWallsTip")}
-                      className={`burgFeature icon-fort-awesome pointer ${!burgData.walls ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("walls")}
-                    ></IconButton>
-                    <IconButton
-                      id="burgPlaza"
-                      data-tip={t("dialogs.burgEditor.featurePlazaTip")}
-                      className={`burgFeature icon-store pointer ${!burgData.plaza ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("plaza")}
-                    ></IconButton>
-                    <IconButton
-                      id="burgTemple"
-                      data-tip={t("dialogs.burgEditor.featureTempleTip")}
-                      className={`burgFeature icon-chess-bishop pointer ${!burgData.temple ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("temple")}
-                    ></IconButton>
-                    <IconButton
-                      id="burgShanty"
-                      data-tip={t("dialogs.burgEditor.featureShantyTip")}
-                      className={`burgFeature icon-campground pointer ${!burgData.shanty ? "inactive" : ""}`}
-                      onClick={() => burgEditorActions.toggleFeature("shanty")}
-                    ></IconButton>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : activeTab === "preview" ? (
-        <div id="burgBody" className="d-flex" style={{ gap: "1em", alignItems: "flex-start" }}>
-          {burgData.previewUrl && (
-            <div id="burgPreviewSection" data-tip={t("dialogs.burgEditor.previewSectionTip")}>
-              <p>
-                {t("dialogs.burgEditor.previewMfcgHeading")}{" "}
-                <i
-                  id="burgLinkOpen"
-                  data-tip={t("dialogs.burgEditor.previewOpenTip")}
-                  className="icon-link-ext pointer"
-                  onClick={() => burgEditorActions.openBurgLink()}
-                ></i>
-              </p>
-              <object
-                id="burgPreviewObject"
-                data={burgData.previewUrl}
-                aria-label={t("dialogs.burgEditor.previewAriaLabel")}
-                style={{ display: "block", width: "min(560px, 42vw)", height: "min(640px, 60vh)", border: 0 }}
-              />
+                        {groups.map(g => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                      <IconButton
+                        id="burgGroupConfigure"
+                        data-tip={t("dialogs.burgEditor.groupConfigureTip")}
+                        className="icon-cog pointer"
+                        onClick={() => burgEditorActions.editBurgGroups()}
+                      ></IconButton>
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.typeTip")}>
+                    <th scope="row">{t("dialogs.burgEditor.type")}</th>
+                    <td>
+                      <select
+                        id="burgType"
+                        value={burgData.type}
+                        onChange={e => burgEditorActions.changeType(e.target.value)}
+                      >
+                        <option value="Generic">{t("dialogs.burgEditor.types.generic")}</option>
+                        <option value="River">{t("dialogs.burgEditor.types.river")}</option>
+                        <option value="Lake">{t("dialogs.burgEditor.types.lake")}</option>
+                        <option value="Naval">{t("dialogs.burgEditor.types.naval")}</option>
+                        <option value="Nomadic">{t("dialogs.burgEditor.types.nomadic")}</option>
+                        <option value="Hunting">{t("dialogs.burgEditor.types.hunting")}</option>
+                        <option value="Highland">{t("dialogs.burgEditor.types.highland")}</option>
+                        <option value="Desert">{t("dialogs.burgEditor.types.desert")}</option>
+                        <option value="Marsh">{t("dialogs.burgEditor.types.marsh")}</option>
+                        <option value="Industrial">{t("dialogs.burgEditor.types.industrial")}</option>
+                        <option value="Colonial">{t("dialogs.burgEditor.types.colonial")}</option>
+                      </select>
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.cultureTip")}>
+                    <th scope="row">{t("dialogs.burgEditor.culture")}</th>
+                    <td>
+                      <select
+                        id="burgCulture"
+                        value={burgData.culture}
+                        onChange={e => burgEditorActions.changeCulture(Number(e.target.value))}
+                      >
+                        {cultures.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <IconButton
+                        id="burgNameReCulture"
+                        data-tip={t("dialogs.burgEditor.cultureGenerateTip")}
+                        className="icon-book pointer"
+                        onClick={() => burgEditorActions.generateNameCulture()}
+                      ></IconButton>
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.populationTip")}>
+                    <th scope="row">
+                      <label htmlFor="burgPopulation">{t("dialogs.burgEditor.population")}</label>
+                    </th>
+                    <td>
+                      <input
+                        id="burgPopulation"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={burgData.population}
+                        onChange={e => burgEditorActions.changePopulation(e.target.value)}
+                      />
+                      <PopulationPyramid
+                        childrenCount={burgData.children}
+                        maleAdults={burgData.maleAdults}
+                        femaleAdults={burgData.femaleAdults}
+                        elders={burgData.elders}
+                        ageBands={burgData.populationAgeBands}
+                      />
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.temperatureTip")}>
+                    <th scope="row">{t("dialogs.burgEditor.temperature")}</th>
+                    <td className="d-flex">
+                      <span id="burgTemperature">{burgData.temperature}</span>
+                      <div className="d-flex">
+                        <i
+                          className="icon-info-circled"
+                          id="burgTemperatureLikeIn"
+                          data-tip={burgData.temperatureLikeIn}
+                        ></i>
+                        <i
+                          id="burgTemperatureGraph"
+                          data-tip={t("dialogs.burgEditor.temperatureGraphTip")}
+                          className="icon-chart-area pointer"
+                          onClick={() => burgEditorActions.showTemperatureGraph()}
+                        ></i>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.elevationTip")}>
+                    <th scope="row">{t("dialogs.burgEditor.elevation")}</th>
+                    <td>
+                      <span id="burgElevation">{burgData.elevation}</span> {t("dialogs.burgEditor.aboveSeaLevel")}
+                    </td>
+                  </tr>
+                  <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
+                    <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
+                    <td>
+                      <span id="burgDwellings">{burgData.dwellings}</span>
+                    </td>
+                  </tr>
+                  {isEconomyEnabled && (
+                    <>
+                      <tr data-tip={t("dialogs.burgEditor.productionTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.production")}</th>
+                        <td>
+                          <span id="burgProduction" className="d-inline-flex">
+                            {burgData.production}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.wealthTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.wealth")}</th>
+                        <td>
+                          <span id="burgWealth">{burgData.wealth}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.treasuryTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.treasury")}</th>
+                        <td>
+                          <span id="burgTreasury">{burgData.treasury}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.cellGrainTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.cellGrain")}</th>
+                        <td>
+                          <span id="burgCellGrainProduction">{burgData.cellGrainProduction}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.marketGrainTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.marketGrain")}</th>
+                        <td>
+                          <span id="burgMarketGrainProduction">{burgData.marketGrainProduction}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.foodImportsTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.foodImports")}</th>
+                        <td>
+                          <span id="burgMarketFoodImports">{burgData.marketFoodImports}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.foodReserveGapTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.foodReserveGap")}</th>
+                        <td>
+                          <span id="burgMarketFoodReserveGap">{burgData.marketFoodReserveGap}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.marketFoodStockTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.marketFoodStock")}</th>
+                        <td>
+                          <span id="burgMarketFoodStock">{burgData.marketFoodStock}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.basicEmploymentTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.basicEmployment")}</th>
+                        <td>
+                          <span id="burgBasicEmploymentDemand">{burgData.basicEmploymentDemand}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.serviceEmploymentTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.serviceEmployment")}</th>
+                        <td>
+                          <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.laborResidualTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.laborResidual")}</th>
+                        <td>
+                          <span id="burgLaborResidual">{burgData.laborResidual}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.marketUnemploymentTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.marketUnemployment")}</th>
+                        <td>
+                          <span id="burgMarketUnemployment">{burgData.marketUnemployment}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.employmentFocusTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.employmentFocus")}</th>
+                        <td>
+                          <span id="burgEmploymentFocus">{burgData.employmentFocus}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.laborLedgerTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.laborLedger")}</th>
+                        <td>
+                          <span
+                            id="burgEmploymentComposition"
+                            style={{ whiteSpace: "pre-line", display: "inline-block", textAlign: "left" }}
+                          >
+                            {burgData.employmentComposition}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.housingGapTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.housingGap")}</th>
+                        <td>
+                          <span id="burgHousingGap">{burgData.housingGap}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.underConstructionTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.underConstruction")}</th>
+                        <td>
+                          <span id="burgUnderConstruction">{burgData.underConstruction}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.constructionWorkersTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.constructionWorkers")}</th>
+                        <td>
+                          <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.constructionJobsTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.constructionJobs")}</th>
+                        <td>
+                          <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.innsTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.inns")}</th>
+                        <td>
+                          <span id="burgInns">{burgData.inns}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.waterSanitationTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.waterSanitation")}</th>
+                        <td>
+                          <span id="burgWaterSanitation">{burgData.waterSanitation}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.sanitationScoreTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.sanitationScore")}</th>
+                        <td>
+                          <span id="burgSanitationScore">{burgData.sanitationScore}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.medicalCareTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.medicalCare")}</th>
+                        <td>
+                          <span id="burgMedicalCareScore">{burgData.medicalCareScore}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.pregnantTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.pregnant")}</th>
+                        <td>
+                          <span id="burgPregnant">{burgData.pregnant}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.expectedBirthsTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.expectedBirths")}</th>
+                        <td>
+                          <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
+                        </td>
+                      </tr>
+                      <tr data-tip={t("dialogs.burgEditor.settlementValueTip")}>
+                        <th scope="row">{t("dialogs.burgEditor.settlementValue")}</th>
+                        <td>
+                          <span id="burgSettlementValue">{burgData.settlementValue}</span>
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                  <tr>
+                    <th scope="row">{t("dialogs.burgEditor.features")}</th>
+                    <td>
+                      <IconButton
+                        id="burgCapital"
+                        data-tip={t("dialogs.burgEditor.featureCapitalTip")}
+                        className={`burgFeature icon-star pointer ${!burgData.capital ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature("capital")}
+                      ></IconButton>
+                      {(["seaPort", "riverPort"] as const).map(feature => (
+                        <IconButton
+                          key={feature}
+                          id={feature === "seaPort" ? "burgSeaPort" : "burgRiverPort"}
+                          data-tip={feature === "seaPort" ? "Sea port / 海港" : "River port / 河川港"}
+                          aria-label={feature === "seaPort" ? "Sea port" : "River port"}
+                          className={`burgFeature icon-anchor pointer ${!burgData[feature] ? "inactive" : ""}`}
+                          onClick={() => burgEditorActions.toggleFeature(feature)}
+                        >
+                          {feature === "seaPort" ? "S" : "R"}
+                        </IconButton>
+                      ))}
+                      <IconButton
+                        id="burgCitadel"
+                        data-tip={t("dialogs.burgEditor.featureCitadelTip")}
+                        className={`burgFeature icon-chess-rook pointer ${!burgData.citadel ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature("citadel")}
+                      ></IconButton>
+                      <IconButton
+                        id="burgWalls"
+                        data-tip={t("dialogs.burgEditor.featureWallsTip")}
+                        className={`burgFeature icon-fort-awesome pointer ${!burgData.walls ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature("walls")}
+                      ></IconButton>
+                      <IconButton
+                        id="burgPlaza"
+                        data-tip={t("dialogs.burgEditor.featurePlazaTip")}
+                        className={`burgFeature icon-store pointer ${!burgData.plaza ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature("plaza")}
+                      ></IconButton>
+                      <IconButton
+                        id="burgTemple"
+                        data-tip={t("dialogs.burgEditor.featureTempleTip")}
+                        className={`burgFeature icon-chess-bishop pointer ${!burgData.temple ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature("temple")}
+                      ></IconButton>
+                      <IconButton
+                        id="burgShanty"
+                        data-tip={t("dialogs.burgEditor.featureShantyTip")}
+                        className={`burgFeature icon-campground pointer ${!burgData.shanty ? "inactive" : ""}`}
+                        onClick={() => burgEditorActions.toggleFeature("shanty")}
+                      ></IconButton>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          )}
-          <BurgCityPreview burgData={burgData} />
-        </div>
-      ) : (
-        <div id="burgBody">{ActiveExtensionComponent ? <ActiveExtensionComponent /> : null}</div>
-      )}
+          </div>
+        ) : activeTab !== "preview" ? (
+          <div>{ActiveExtensionComponent ? <ActiveExtensionComponent /> : null}</div>
+        ) : null}
+        {(activeTab === "preview" || previewBurgId === burgData.id) && (
+          <div
+            key={burgData.id}
+            className="d-flex"
+            style={{ gap: "1em", alignItems: "flex-start", display: activeTab === "preview" ? undefined : "none" }}
+          >
+            {burgData.previewUrl && (
+              <div id="burgPreviewSection" data-tip={t("dialogs.burgEditor.previewSectionTip")}>
+                <p>
+                  {t("dialogs.burgEditor.previewMfcgHeading")}{" "}
+                  <i
+                    id="burgLinkOpen"
+                    data-tip={t("dialogs.burgEditor.previewOpenTip")}
+                    className="icon-link-ext pointer"
+                    onClick={() => burgEditorActions.openBurgLink()}
+                  ></i>
+                </p>
+                <object
+                  id="burgPreviewObject"
+                  data={burgData.previewUrl}
+                  aria-label={t("dialogs.burgEditor.previewAriaLabel")}
+                  style={{ display: "block", width: "min(560px, 42vw)", height: "min(640px, 60vh)", border: 0 }}
+                />
+              </div>
+            )}
+            <BurgCityPreview burgData={burgData} />
+          </div>
+        )}
+      </div>
       <div id="burgFooter">
         {isStyleSectionOpen ? (
           <div id="burgStyleSection" className="d-inline-block">
