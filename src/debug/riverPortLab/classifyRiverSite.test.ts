@@ -71,6 +71,23 @@ describe("classifyRiverSite", () => {
     expect(classify(15)).toMatchObject({ kind: "lakeOutlet", outflow: "offmap" });
   });
 
+  it("finds a saved map's lake outlet from the lake's outlet river (outCell is not saved)", () => {
+    const w = world();
+    w.features[3] = { type: "lake", outlet: 3 };
+    w.rivers[2] = { i: 3, cells: [14, 15, 13, -1] }; // starts on the lake water cell
+    expect(classifyRiverSite(buildRiverSiteIndex(w), 15)?.kind).toBe("lakeOutlet");
+  });
+
+  it("finds the out cell when the outlet river shares its id with an inflow river", () => {
+    const w = world();
+    w.features[3] = { type: "lake", outlet: 3 };
+    w.rivers[2] = { i: 3, cells: [9, 14, 15, 13, -1] }; // inflow from 9, through the lake, out at 15
+    w.cells.r[9] = 3;
+    const index = buildRiverSiteIndex(w);
+    expect(classifyRiverSite(index, 15)?.kind).toBe("lakeOutlet");
+    expect(classifyRiverSite(index, 9)?.kind).not.toBe("lakeOutlet");
+  });
+
   it("separates riverless coast and inland cells, and skips water", () => {
     expect(classify(12)?.kind).toBe("coastNoRiver");
     expect(classify(9)?.kind).toBe("inland");

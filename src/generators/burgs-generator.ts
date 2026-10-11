@@ -344,8 +344,16 @@ class BurgModule {
       if (!burg.i || burg.lock) continue;
       const haven = cells.haven[burg.cell];
       const landFeature = cells.f[burg.cell];
+      // River-Port Lab: a lake-outlet burg on a lake too small for a port is still on a navigable
+      // river. Ordinary burgs keep the legacy rule (a lake haven ends the port check).
+      const havenLake = haven ? features[cells.f[haven]] : undefined;
+      const labRiverPort =
+        Boolean(burg.labSiteKind) &&
+        havenLake?.type === "lake" &&
+        this.getLakePortCapacity(havenLake) === 0 &&
+        Rivers.isNavigable(burg.cell);
 
-      if (haven) {
+      if (haven && !labRiverPort) {
         const harbor = cells.harbor[burg.cell];
         if (!harbor) continue;
         const featureId = cells.f[haven];
@@ -1341,14 +1349,15 @@ class BurgModule {
       burg.entranceCell = burg.cell;
     };
 
-    const generateTowns = () => {
+    const generateTowns = (labOnly = false) => {
       const labPicks = this.placeLabSites(burgsQuadtree);
       const lab = activeLabOptions();
-      const burgsNumber = lab
-        ? lab.fillTowns
-          ? Math.max(0, getTownsNumber() - labPicks.length)
-          : 0
-        : getTownsNumber();
+      const burgsNumber =
+        labOnly || (lab && !lab.fillTowns)
+          ? 0
+          : lab
+            ? Math.max(0, getTownsNumber() - labPicks.length)
+            : getTownsNumber();
       const realmCells = getStartingRealmCellSet();
       const labKindByCell = new Map(labPicks.map(pick => [pick.cell, pick.kind]));
       for (const pick of labPicks) cells.burg[pick.cell] = -1; // reserve against placeTowns
@@ -1387,9 +1396,10 @@ class BurgModule {
     generateCapitals();
     ensureGiantSourceCapital(giantHighlandOikoumene);
     ensureLichCapitals();
-    if (!isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) || preservesLegacyCandidates) {
-      generateTowns();
-    }
+    const capitalOnly =
+      isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) && !preservesLegacyCandidates;
+    // River-Port Lab sites are placed even in a capital-only realm; ordinary towns are not.
+    if (!capitalOnly || activeLabOptions()) generateTowns(capitalOnly);
 
     for (const burg of burgs) {
       if (!burg.i) continue;
@@ -1542,7 +1552,7 @@ class BurgModule {
     const candidates = Array.from(cells.i).filter(
       cell => cells.h[cell] >= 20 && !cells.burg[cell] && (!cells.r[cell] || cells.fl[cell] >= MIN_NAVIGABLE_FLUX)
     );
-    if (!candidates.some(cell => cells.culture[cell])) return [];
+    if (!Array.from(cells.culture).some(Boolean)) return []; // picks take the nearest culture
     const { picks, shortfall, supply } = selectLabSites(
       { cells, features: pack.features, rivers: pack.rivers ?? [] },
       candidates,

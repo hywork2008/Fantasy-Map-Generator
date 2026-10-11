@@ -12,7 +12,13 @@ const liveBurgs = () =>
 
 export async function loadMap(path: string) {
   await loadArchiveWorld(path);
-  return { seed: worldContext.seed, burgs: liveBurgs().length, riverPortLab: worldContext.pack.riverPortLab ?? null };
+  const lakes = (worldContext.pack.features ?? []).filter(feature => feature && feature.type === "lake");
+  return {
+    seed: worldContext.seed,
+    burgs: liveBurgs().length,
+    lakes: { total: lakes.length, withOutlet: lakes.filter(lake => lake.outlet).length },
+    riverPortLab: worldContext.pack.riverPortLab ?? null
+  };
 }
 
 export function listBurgs() {
@@ -62,15 +68,30 @@ export function classifyCellSupply() {
   const { pack } = worldContext;
   const { cells } = pack;
   const index = buildRiverSiteIndex({ cells, features: pack.features, rivers: pack.rivers ?? [] });
-  const supply: Record<string, { cells: number; populated: number; cultured: number; navigable: number }> = {};
+  const supply: Record<
+    string,
+    { cells: number; populated: number; cultured: number; navigable: number; joins: number; mouthDist: number[] }
+  > = {};
   for (let cell = 0; cell < cells.h.length; cell++) {
     const site = classifyRiverSite(index, cell);
     if (!site) continue;
-    const row = (supply[site.kind] ??= { cells: 0, populated: 0, cultured: 0, navigable: 0 });
+    const row = (supply[site.kind] ??= {
+      cells: 0,
+      populated: 0,
+      cultured: 0,
+      navigable: 0,
+      joins: 0,
+      mouthDist: []
+    });
+    if (site.confluenceOrder > 1 || cells.conf[cell]) {
+      row.joins++;
+      row.mouthDist.push(site.distanceToMouthCells ?? -1);
+    }
     row.cells++;
     if (cells.pop?.[cell] > 0) row.populated++;
     if (cells.culture?.[cell]) row.cultured++;
-    if (cells.fl[cell] >= 30) row.navigable++;
+    if (cells.fl[cell] >= 100) row.navigable++;
   }
   return supply;
 }
+

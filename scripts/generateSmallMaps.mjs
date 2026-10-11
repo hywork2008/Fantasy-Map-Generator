@@ -198,6 +198,9 @@ async function main() {
   // Locked options (a localStorage entry is a lock): the scope survives randomizeOptions().
   const storage = {
     debug: JSON.stringify({ generationProfile: true }),
+    // Lab statistics need comparable maps: Standard settlement (a randomized Frontier pattern can
+    // leave a reshaped province without planned settlement nodes, hence no burgs). --local-storage wins.
+    ...(lab ? { initialSettlementPattern: "standard" } : {}),
     ...extra,
     mapScope: scope,
     ...(cells !== undefined ? { mapScopeCells: String(cells) } : {}),

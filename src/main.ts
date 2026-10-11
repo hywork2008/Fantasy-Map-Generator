@@ -49,6 +49,7 @@ import {
   randomizeOptions
 } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
+import { applyLabTerrain } from "./debug/riverPortLab/labOptions";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { generateCaveSystems } from "./generators/caveSystems";
@@ -1198,6 +1199,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
       worldContext.grid.cells.h = await measureGenerationStepAsync("HeightmapGenerator.generate", () =>
         HeightmapGenerator.generate(worldContext, viewContext, appServices, worldContext.grid)
       );
+      // River-Port Lab (docs/plan/river-port-lab.md): sea border, drainage basin, inland lakes.
+      applyLabTerrain(worldContext.grid, worldContext.grid.cells.h as Uint8Array);
       step("Features.markupGrid", () => Features.markupGrid());
       step("addLakesInDeepDepressions", addLakesInDeepDepressions);
       step("openNearSeaLakes", openNearSeaLakes);

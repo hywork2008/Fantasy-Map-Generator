@@ -58,7 +58,7 @@ export interface RiverSiteCells {
 
 export interface RiverSiteWorld {
   cells: RiverSiteCells;
-  features: ReadonlyArray<{ type?: string; outCell?: number } | 0 | null | undefined>;
+  features: ReadonlyArray<{ type?: string; outCell?: number; outlet?: number } | 0 | null | undefined>;
   rivers: ReadonlyArray<{ i: number; cells: number[]; parent?: number }>;
 }
 
@@ -109,9 +109,21 @@ export function buildRiverSiteIndex(world: RiverSiteWorld): RiverSiteIndex {
     rivers.set(river.i, { river, position, mouthIndex, outflow });
   }
   const lakeOutCells = new Set<number>();
-  for (const feature of world.features) {
-    if (feature && feature.type === "lake" && feature.outCell != null) lakeOutCells.add(feature.outCell);
-  }
+  world.features.forEach((feature, featureId) => {
+    if (typeof feature !== "object" || feature?.type !== "lake") return;
+    // outCell exists only during generation (Lakes.cleanupLakeData drops it); saved maps keep the
+    // outlet river. It may share its id with an inflow river, so the out cell is the first land
+    // cell after this lake's last water cell on that path.
+    if (feature.outCell != null) lakeOutCells.add(feature.outCell);
+    const path = feature.outlet ? rivers.get(feature.outlet)?.river.cells : undefined;
+    if (!path) return;
+    let lastLakeCell = -1;
+    path.forEach((cell, index) => {
+      if (cell >= 0 && cells.h[cell] < 20 && cells.f[cell] === featureId) lastLakeCell = index;
+    });
+    const outCell = lastLakeCell >= 0 ? path[lastLakeCell + 1] : undefined;
+    if (outCell !== undefined && outCell >= 0 && cells.h[outCell] >= 20) lakeOutCells.add(outCell);
+  });
   return { world, rivers, riversThroughCell, lakeOutCells };
 }
 
@@ -173,10 +185,11 @@ export function classifyRiverSite(index: RiverSiteIndex, cell: number): RiverSit
   let kind: LabSiteKind;
   if (oceanMouthDistance === 0 || (seaAccess && oceanMouthDistance != null && oceanMouthDistance <= 1))
     kind = "estuary";
+  // A lake outlet often also gathers tributaries; the rarer relation wins.
+  else if (index.lakeOutCells.has(cell) || (at === 0 && isLakeAdjacentSource(index, cell))) kind = "lakeOutlet";
   else if (cells.conf[cell] || confluenceOrder > 1) kind = "confluence";
   else if (oceanMouthDistance != null && oceanMouthDistance <= DELTA_MAX_DISTANCE_CELLS) kind = "deltaBranch";
   else if (upstream >= 0 && cells.conf[upstream]) kind = "confluenceBelow";
-  else if (index.lakeOutCells.has(cell) || (at === 0 && isLakeAdjacentSource(index, cell))) kind = "lakeOutlet";
   else if (curvatureDeg != null && curvatureDeg >= MEANDER_MIN_TURN_DEG) kind = "meander";
   else kind = "riverBank";
   return { kind, ...base };

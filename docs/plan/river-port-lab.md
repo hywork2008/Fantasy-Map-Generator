@@ -156,7 +156,7 @@ type LabSiteKind =
 
 ### L0 実装済み(2026-10-11)
 
-- `src/debug/riverPortLab/classifyRiverSite.ts`(+ テスト8件)。判定の優先順は estuary > confluence > deltaBranch > confluenceBelow > lakeOutlet > meander > riverBank。川のない陸地は coastNoRiver / inland。
+- `src/debug/riverPortLab/classifyRiverSite.ts`(+ テスト8件)。判定の優先順は estuary > lakeOutlet > confluence > deltaBranch > confluenceBelow > meander > riverBank。川のない陸地は coastNoRiver / inland。
 - `npm run lab:classify -- <map.fmg>... [--ports-only] > sites.ndjson`。map server の worker を流用し、`mapServerEntry.classifyBurgSites()` を呼ぶ。都市1件を1行で出力し、種別ごとの集計を stderr に出す。
 - 既存の10地図(5216都市)での初回の集計:
 
@@ -192,11 +192,51 @@ type LabSiteKind =
 - lab 無効時は、変更前のコードと比べて seed 103/109/112 の要約・都市分類が完全一致。
 - 既存テスト 3305件が成功。
 
-既知の制約:
+既知の制約(L1.5 で解消、下記):
 
 - **合流点・湖の出口はほとんど作れない**(1地図あたり候補0〜5セル)。Province の海岸地図は、短い並行河川が直接海に注ぐ形が多いため。全陸地の地図(seed 104)では合流点60セルあるが、海が無いので港にならない。改善するには地形側の対策(内陸に広い集水域を持つテンプレート)が要る → L1.5 候補。
 - **地図の外へ流れ出る川は河川港にならない**(`Rivers.resolveDrainFeature` が排水先を見つけられない)。Province は世界の切り出しなので頻繁に起きる。統計では `outflow: "offmap"` として区別できる。
 - deltaBranch(河口から3セル以内)は航行可能な都市を多く含むが、海港にはならない。種別の定義としては妥当。
+
+### L1.5 合流点・湖の出口・地図外流出の修正(2026-10-11)
+
+lab 有効時、高さマップ生成の直後(`Features.markupGrid` の前)に `labTerrain.ts` の `shapeLabTerrain` で地形を加工する。
+
+| オプション | 既定 | 内容 |
+| --- | --- | --- |
+| `seaBorder` | true | グリッドの外周**2重**を海にする。1重では、パック側の縁フラグ(`pack.cells.b`)が内側の陸セルにも立ち、そこを通る川が地図外へ流れた(seed 107 で2本) |
+| `landShare` | 0.8 | 外周の内側で陸がこの割合に満たない時、最も浅い海を高さ20〜25の海岸平野に変える(順序は保つ)。既存の陸・気候・居住性はそのまま |
+| `lakes` | 2 | 海から3セル以上離れた内陸の最奥に窪地(高さ15)を掘り、湖から海まで最急降下で放水路を刻む。湖面+19以下の谷にして、`Lakes.detectCloseLakes` に閉じた湖と判定されないようにする |
+
+計測で判明し、採用しなかったもの:
+
+- **全体の傾斜(basinTilt)**:合流点の候補は 0/15/30 で 16/15/15 セルと変わらず、30 では内陸が寒冷化して都市0件の地図が出た。海岸セルまで持ち上げると港の標高条件を満たさず、海港+河川港が 75→33 に減った。
+- **幹となる谷(valleys)**:0/2/4 本で合流点の候補は 20/14/19 セル。側壁から幹川へ入る流れが 1〜2 セルと短く、`MIN_RIVER_CELLS`(3)未満で川として残らない。
+- 決め手は陸の量だった。500 セル地図は陸 14〜40% の海岸の切れ端で、陸 80〜88% の 1500 セル地図(4枚)では合流点 432 セル。
+
+ほかの修正:
+
+- **分類器**:保存時に `Lakes.cleanupLakeData` が `outCell` を消すため、湖の `outlet` 河川から出口を求める。流入河川と id を共有する場合があるので、「その湖の最後の水セルの次の陸セル」を出口とする。優先順は estuary > lakeOutlet > confluence > deltaBranch > confluenceBelow > meander > riverBank。
+- **湖の出口の河川港**:小さな湖に面した都市は、湖港として不適格になった時点で港の審査が終わり、川の上でも河川港にならない(FMG 既存の規則)。lab の都市に限り、航行可能な川なら河川港の審査へ進む。**通常生成でも同じことが起きているので、FMG 本体の修正候補**。
+- **首都のみの初期国家**(`initialPolityRealmSize`)では町の生成が丸ごと飛ばされていた。lab の都市だけは置く。文化の有無の判定は候補セルではなく地図全体で行う(首都のみモードでは文化が首都セルにしかないため)。
+- **`fmg:small --lab`** は Settlement pattern を Standard に固定する(`--local-storage` で上書き可)。無作為に Frontier が選ばれると、加工した地形で計画ノードが作られず都市0件になった(seed 111)。
+
+検証(12地図、`fmg:small --require sea-port --lab '{"landShare":0.8}'`、seed 101〜112):
+
+| 種別 | 都市 | 海港 | 河川港 | 両方 |
+| --- | --- | --- | --- | --- |
+| estuary | 79 | 72 | 72 | 72 |
+| confluence | 52 | 10 | 32 | 10 |
+| confluenceBelow | 8 | 0 | 5 | 0 |
+| lakeOutlet | 23 | 0 | 16 | 0 |
+| meander | 35 | 0 | 21 | 0 |
+| deltaBranch | 37 | 0 | 36 | 0 |
+| riverBank | 26 | 0 | 14 | 0 |
+
+- 地図外へ流れ出る川(`outflow: "offmap"`)は 0 本(L1 では多数)。
+- 合流点は L1 の 15 → 52、合流点の下流は 1 → 8、湖の出口は 0 → 23。
+- 都市0件の地図はなし(1地図 19〜27 都市)。
+- lab 無効時は変更前と seed 103/109/112 の要約・都市分類が完全一致。関連テスト 3302 件が成功。
 
 ## 9. 未決事項
 

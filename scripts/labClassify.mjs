@@ -21,6 +21,8 @@ function classify(mapPath) {
       if (message.type === "fatal") reject(new Error(message.error));
       else if (message.type === "ready") {
         const lab = message.info?.riverPortLab;
+        const lakes = message.info?.lakes;
+        if (lakes) console.error(`[lab:classify] ${mapPath} lakes ${lakes.total} (with outlet ${lakes.withOutlet})`);
         if (lab) console.error(`[lab:classify] ${mapPath} shortfall ${JSON.stringify(lab.shortfall)} supply ${JSON.stringify(lab.supply)}`);
         worker.send({ id: 1, method: "classifyBurgSites", args: [] });
       }

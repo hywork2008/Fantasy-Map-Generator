@@ -36,6 +36,39 @@ export const RiverPortLabRows: React.FC = () => {
               <output>{lab.riverDensity}</output>
             </td>
           </tr>
+          <tr data-tip="Outermost cells become sea; minimum land share (shallows become coastal plain)">
+            <td />
+            <th>Sea border / land share</th>
+            <td>
+              <input type="checkbox" checked={lab.seaBorder} onChange={e => update({ seaBorder: e.target.checked })} />
+              <input
+                type="range"
+                min="0"
+                max="0.9"
+                step="0.05"
+                value={lab.landShare}
+                onChange={e => update({ landShare: Number(e.target.value) })}
+              />
+            </td>
+            <td>
+              <output>{Math.round(lab.landShare * 100)}%</output>
+            </td>
+          </tr>
+          <tr data-tip="Inland lake depressions (lake outlets)">
+            <td />
+            <th>Lakes</th>
+            <td>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                style={{ width: "4em" }}
+                value={lab.lakes}
+                onChange={e => update({ lakes: Number(e.target.value) })}
+              />
+            </td>
+            <td />
+          </tr>
           <tr>
             <td />
             <th>Ignore climate / fill towns</th>
