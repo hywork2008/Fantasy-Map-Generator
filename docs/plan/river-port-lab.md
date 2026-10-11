@@ -1,6 +1,6 @@
 # River-Port Lab: 河川・港湾都市を量産するデバッグ生成モードと収集API
 
-状態: L0〜L3 実装済み(2026-10-12)、L4 未実装
+状態: L0〜L4 実装済み(2026-10-12)
 関連: [map-scope-small-worlds.md](map-scope-small-worlds.md), [map-server.md](map-server.md), [bridge-skew-policy.md](bridge-skew-policy.md)
 
 ## 1. 目的
@@ -289,6 +289,38 @@ npm run lab:collect -- --server http://127.0.0.1:8787 --seeds 1..500 --preset po
 
 - 完了条件の確認:`--seeds 1..500`(balanced)を2ワーカーで完走した。500 seed で失敗0、都市8610件、港のある都市を含む地図は498枚。lab の都市7782件は全件で、意図した種別と実際の種別が一致した。生成時間の中央値は21秒/地図で、全体は約50分。中止(DELETE)は、実行中の2 seed を終えてから止まることを確認した。
 - ページエラーが出た地図は4枚。seed 19/411/427 は `Land-use areas do not conserve physical land`、seed 101 は `pack.routes is not iterable`。いずれも生成は完了している。lab 由来か本体の問題かは未調査。
+
+### L4 実装済み(2026-10-12)
+
+`npm run lab:report -- <run.ndjson> [--control control.ndjson] [--json]` で Markdown のレポートを出す(`scripts/labReport.mjs`)。内容は次のとおり。
+
+- 意図→実際の混同行列とクォータ不足
+- 種別ごとの港の成立率(海・川・両方・湖、航行可能な川の上で河川港になった率)と waterfront-check の失敗率、警告の内訳
+- 河川の幾何(河口までの距離、流量、川幅、曲率、合流次数、流出先、岸側)
+- 橋の skew の分布と違反数(`--include descriptor` のサンプルのみ)
+- control との比較
+- 改善候補の自動検出。しきい値による目安で、判定ではない
+
+ポートのみのサンプル(既定のフィルタ)では成立率が 100% になるため、レポートが警告を出す。比率を見るには `--filter '{"all":true}'` で集める。
+
+**L4 の作業中に見つけた lab 側の不具合(修正済み)**:
+
+1. `regenerateMap` の debounce は、前の呼び出しから 250 ms 以内の呼び出しを捨てる。小さな control 地図は生成と抽出が 250 ms 未満で終わるため、次の seed が黙って捨てられ、120 秒でタイムアウトしていた(200 seed 中 7 件)。`labGenerate` は 300 ms 空けてから呼ぶようにした。
+2. ファンタジー系の文化セットが無作為に選ばれると、`options.ts` が `initialSettlementPattern` のロックを `marches` に書き換え、それが残る。そのため、同じページの後続の地図はすべて Marches になり、結果が「ページ読み込み時の無作為 seed」に依存していた(control の 184 seed 中 18 件が実行ごとに変わった)。`labGenerate` は毎回 `standard` をロックし直す。seed 94 で、`fmg:small` の新規読み込みと一致することを確認した。**L3 の 500 seed のデータ(`run-1-500.ndjson`)はこの修正の前に集めたもの**なので、取り直しが必要。
+   - FMG 本体の問題でもある。ユーザーが Standard をロックしても、ファンタジー系の文化セットが選ばれた時点で、ロックが黙って Marches に変わる。
+
+**計測(seed 1〜200、lab は既定 + `--filter all --include descriptor`、control は lab 無効)**:失敗0。lab は都市4660件、control は都市1810件(都市のある地図195枚)。生成時間の中央値は lab 20 秒、control 1.2 秒/地図。レポートは `.cache/lab/report-1-200.md`。
+
+**改善候補(優先順)**
+
+1. **支流の都市が河川港にならない(FMG 本体のバグ)**。航行可能な川の上の都市のうち、川の流出先が海の場合は 2998/3078 件、湖の場合は 155/175 件が河川港になるが、別の川へ合流する場合は 137/1228 件(11%)だけ。137件は、本流のセルにいる都市と考えられる。`Rivers.resolveDrainFeature`(`river-generator.ts:617`)は、川の最後のセルの feature を見る。支流の最後のセルは本流の陸セル(feature は陸塊)なので null を返し、`river.parent` をたどらない。meander の 60%、riverBank の 55% が港にならない主因でもある。修正すれば、lab 無効の生成結果も変わる(港が増える)。
+2. **waterfront-check の失敗が 25〜44%**。内訳は `river-unresolved:candidate-budget` 499件、`no-dry-site` 306件、`shore-missing` 121件、`folded-banks` 47件、`shore-distance` 39件。首都は 7%、町は 32% で、小さい都市ほど河岸に置けていない。最多の candidate-budget は、河岸を探す候補数の上限に達して諦めたもの。上限か探索順の見直しが候補。合流点が最悪(44%)なのは、2本の川の岸に挟まれて乾いた土地(dry site)が無いためと考えられる。
+3. **通常アルゴリズムは、合流点・湖の出口・合流点の下流をほとんど選ばない**。control での比率は合流点 2%、湖の出口 1%、合流点の下流 0%。都市スコアに合流点ボーナスを足すかどうか(§9.3)を判断する材料になる。
+4. **通常アルゴリズムの河口の都市は、海港+河川港が 45% だけ**(lab では 94%)。陸塊ごとに代表1港を選ぶ間引きが、河口の都市にもかかる。河口の都市を間引きから除外する案。
+5. **合流点の下流は、クォータの 68% が候補不足**。地形・河川の供給の問題で、L1.5 と同じく陸の面積が決め手。改善には `landShare` を上げるか、1500 セル地図での収集が要る。
+6. **橋**:1832 件で最大 25°。開始時代(大航海時代 25°)の上限を超えた橋も、絶対上限を超えた橋も 0。AGENTS.md の原則は守られている。10〜15° が 443 件ある一方、15〜20° は 0 件で、skew が段階的に選ばれていることを示す。
+
+生成中のページエラーが3枚で出た。seed 19/168 は `Land-use areas do not conserve physical land`、seed 27 は `pack.routes is not iterable`。L3 の時とは別の seed で出ており、lab の修正で地図が変わったためと考えられる。原因は未調査。
 
 ## 9. 未決事項
 

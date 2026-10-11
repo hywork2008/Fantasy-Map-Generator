@@ -57,6 +57,7 @@
     "fmg:small": "node scripts/generateSmallMaps.mjs",
     "lab:classify": "node scripts/labClassify.mjs",
     "lab:collect": "node scripts/labCollect.mjs",
+    "lab:report": "node scripts/labReport.mjs",
     "map:server": "node scripts/mapServer.mjs"
   },
   "simple-git-hooks": {

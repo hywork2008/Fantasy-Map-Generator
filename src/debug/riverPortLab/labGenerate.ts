@@ -23,6 +23,10 @@ export interface LabGenerateRequest {
   timeoutMs?: number;
 }
 
+/** regenerateMap's cooldown (250 ms) plus a margin. */
+const REGENERATE_COOLDOWN_MS = 300;
+let lastRegenerateAt = Number.NEGATIVE_INFINITY;
+
 type Regenerate = (opts?: { seed?: string }) => void;
 
 /** Resolves once a generation session newer than `afterId` reaches map-ready (or fails). */
@@ -38,7 +42,16 @@ function waitForMapReady(afterId: number, timeoutMs: number): Promise<number> {
       // A stage review left waiting (e.g. the page-load generation) is continued like "Generate entire map".
       const progress = generationProgressStore.getState();
       if (progress.resolver) progress.runAll();
-      if (performance.now() > deadline) return reject(new Error(`generation timed out after ${timeoutMs} ms`));
+      if (performance.now() > deadline) {
+        const marks = profile
+          ? `session ${profile.id} (${profile.entry}) marks ${Object.keys(profile.marks).join(",")}`
+          : "no profile";
+        return reject(
+          new Error(
+            `generation timed out after ${timeoutMs} ms: ${marks}; stage ${progress.currentStage} generating=${progress.isGenerating}`
+          )
+        );
+      }
       setTimeout(poll, 20);
     };
     poll();
@@ -69,13 +82,19 @@ export async function generateLabMap(request: LabGenerateRequest, regenerate: Re
     lock("mapScopeCells", String(cells));
     options.setOptions({ mapScopeCells: cells });
   }
-  if (localStorage.getItem("initialSettlementPattern") === null) {
-    lock("initialSettlementPattern", "standard");
-    options.setOptions({ initialSettlementPattern: "standard" });
-  }
+  // Re-locked every time: a randomized fantasy culture set rewrites this lock to "marches"
+  // (options.ts) and it would stick, making each seed depend on the page's earlier maps.
+  // A fresh page (fmg:small) starts from "standard" for every seed, and so does each lab map.
+  lock("initialSettlementPattern", "standard");
+  options.setOptions({ initialSettlementPattern: "standard" });
   setLabOptions({ ...structuredClone(DEFAULT_LAB_OPTIONS), enabled: true, ...request.lab });
   generationProgressStore.setState({ autoRun: true });
 
+  // regenerateMap drops calls within 250 ms of the previous one (commonUtils debounce), which a
+  // tiny control map reaches: the seed was silently skipped and the wait timed out.
+  const sinceLast = performance.now() - lastRegenerateAt;
+  if (sinceLast < REGENERATE_COOLDOWN_MS) await new Promise(r => setTimeout(r, REGENERATE_COOLDOWN_MS - sinceLast));
+  lastRegenerateAt = performance.now();
   const startId = getGenerationProfile()?.id ?? 0;
   regenerate(request.seed ? { seed: String(request.seed) } : undefined);
   const genMs = await waitForMapReady(startId, timeoutMs);
