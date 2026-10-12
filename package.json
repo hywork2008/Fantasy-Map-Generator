@@ -58,6 +58,7 @@
     "lab:classify": "node scripts/labClassify.mjs",
     "lab:collect": "node scripts/labCollect.mjs",
     "lab:report": "node scripts/labReport.mjs",
+    "lab:csv": "node scripts/labCsv.mjs",
     "map:server": "node scripts/mapServer.mjs"
   },
   "simple-git-hooks": {
