@@ -387,7 +387,7 @@ export async function saveMap(method: string): Promise<void> {
 
   try {
     const archive = await prepareWorldArchive();
-    const filename = `${getFileName()}.fmg`;
+    const filename = `${getFileName(undefined, "_")}.fmg`;
 
     if (method === "storage") await saveToStorage(archive, true);
     if (method === "machine") saveToMachine(archive, filename);
