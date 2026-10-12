@@ -55,6 +55,18 @@ FMGデータ作成コードを変更したときは、新しいFMG入力一覧�
 
 JSONLの時間はすべてms。
 
+## JSONLをCSVに変換する
+
+```sh
+npm run ce:perf:csv -- temp/ce-performance.jsonl temp/ce-performance.csv
+```
+
+都市・反復ごとのJSONLレコードを1行ずつCSVに変換する。`timings.generationMs`、
+`spatialMetrics.urbanAreaMeters2`、`fmgTimings.fmg_descriptor_ms` のようなオブジェクト内の値は
+ドット区切りの列名へ展開する。`phases`、`generationBreakdown`、`fmgBreakdown` のような配列は、
+可変長かつ階層構造を持つためJSON文字列のまま1セルに保存する。CSVはUTF-8 BOM付きで、
+Excelでも開ける。既存の出力ファイルは上書きしない。
+
 ### 地図サイズ・市街地面積・背景の割合
 
 JSONLの `size` は入力で選択された地図サイズ、`population` は人口、`dwellings` は目標住宅数。
