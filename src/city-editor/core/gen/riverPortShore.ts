@@ -10,20 +10,46 @@ export function riverPortShore(document: CityDocument, faceId: Id) {
   if (face?.properties.water !== "land" || face.properties.ward !== "harbor") return null;
   const owners = document.elements.filter(e => e.kind === "harbor" && e.faceIds.includes(faceId));
   if (owners.length && owners.every(e => e.harborKind === "sea")) return null;
-  const land = facePoints(document.mesh, face);
-  const center = polygonCentroid(land);
   const sources = [
-    ...(document.waterAreas ?? []).map((area, index) => ({ ...area, riverId: `river-area:${index}` })),
+    ...(document.waterAreas ?? []).flatMap((area, index) =>
+      area.kind === "river" ? [{ polygon: area.polygon, riverId: `river-area:${index}` }] : []
+    ),
     ...(document.importedFixedCrossings?.rivers ?? []).flatMap(river =>
       river.rings.map((ring, index) => ({
-        kind: "river",
         polygon: ring.map(p => [p[0], p[1]] as Point),
         riverId: `fixed-river:${river.id}:${index}`
       }))
     )
   ];
+  return physicalShore(facePoints(document.mesh, face), sources);
+}
+
+/** Imported FMG coastlines are straight survey lines that ignore the cell
+ * grid: a coastal harbour cell's shared sea edge can lie offshore, leaving
+ * its whole berth wet. The sea counterpart of `riverPortShore`. */
+export function seaPortShore(document: CityDocument, faceId: Id) {
+  if (!document.waterAccess?.port.sea) return null;
+  const face = document.mesh.faces[faceId];
+  if (face?.properties.water !== "land" || face.properties.ward !== "harbor") return null;
+  const shore = physicalShore(facePoints(document.mesh, face), seaShoreSources(document));
+  return shore && { a: shore.a, b: shore.b, inward: shore.inward, water: shore.water, length: shore.length };
+}
+
+/** The imported sea ring containing `point`, for ships berthed on a `seaPortShore`. */
+export function seaShoreWater(document: CityDocument, point: Point): Point[] | undefined {
+  return seaShoreSources(document).find(source => pointInPolygon(point, source.polygon))?.polygon;
+}
+
+function seaShoreSources(document: CityDocument) {
+  return (document.importedFixedCrossings?.obstacles ?? []).flatMap(body =>
+    body.rings.map(ring => ({ polygon: ring.map(p => [p[0], p[1]] as Point), riverId: "" }))
+  );
+}
+
+function physicalShore(land: Point[], sources: { polygon: Point[]; riverId: string }[]) {
+  const center = polygonCentroid(land);
   const candidates = sources.flatMap(area => {
-    if (area.kind !== "river" || area.polygon.length < 3) return [];
+    if (area.polygon.length < 3) return [];
     const dry = land.filter(p => !pointInPolygon(p, area.polygon));
     if (!dry.length) return [];
     const origin = pointInPolygon(center, area.polygon) ? polygonCentroid(dry) : center;

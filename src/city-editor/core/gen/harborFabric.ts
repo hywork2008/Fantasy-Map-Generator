@@ -14,7 +14,7 @@ import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "./
 import { convexInfillParts } from "./lotGeometry";
 import { corridor, distance, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
 import type { OpenSpace, ParcelFrontage } from "./parcelTypes";
-import { riverPortShore } from "./riverPortShore";
+import { riverPortShore, seaPortShore } from "./riverPortShore";
 
 export interface HarborPier {
   id: Id;
@@ -131,6 +131,20 @@ export function planHarbor(
     const center = polygonCentroid(facePoints(document.mesh, harbor));
     let inward: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
     if ((center[0] - a[0]) * inward[0] + (center[1] - a[1]) * inward[1] < 0) inward = [-inward[0], -inward[1]];
+    const root: Point = [(a[0] + b[0]) / 2 + inward[0] * 1.2, (a[1] + b[1]) / 2 + inward[1] * 1.2];
+    if (!harborRootIsDry(document, harbor.id, root)) {
+      // The mesh edge lies offshore of the imported coastline: berth on the real coast instead.
+      const coast = seaPortShore(document, harbor.id);
+      if (coast && !shores.some(s => s.landId === harbor.id))
+        shores.push({
+          id: `coast:${harbor.id}`,
+          landId: harbor.id,
+          waterId: water.id,
+          ...coast,
+          depth: water.properties.depth ?? 3
+        });
+      continue;
+    }
     shores.push({
       id: edge.id,
       landId: harbor.id,

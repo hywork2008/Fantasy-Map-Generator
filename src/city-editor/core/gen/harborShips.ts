@@ -9,7 +9,7 @@ import { harborRootIsDry, pruneInvalidHarbors } from "./harborLand";
 import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
-import { riverPortShore } from "./riverPortShore";
+import { riverPortShore, seaShoreWater } from "./riverPortShore";
 
 const GEN_PREFIX = "gc:";
 
@@ -167,7 +167,9 @@ export function planHarborShips(
               ?.rings[Number(pier.riverId.split(":")[2])]?.map(p => [p[0], p[1]] as Point)
           : pier.riverId
             ? document.waterAreas?.find((a, i) => a.kind === "river" && pier.riverId === `river-area:${i}`)?.polygon
-            : undefined,
+            : pier.id.startsWith("pier:coast:")
+              ? seaShoreWater(document, end)
+              : undefined,
         depth: pier.depth,
         start,
         end,
@@ -369,6 +371,12 @@ export function planHarborShips(
     const scoreB = b.pier.length * 2 + b.pier.depth * 5 + b.clearanceScore * 0.8;
     return scoreB - scoreA;
   });
+  // A town with both a sea and a river port shows a ship at each: the best
+  // berth of each kind goes first, so river barges cannot take every slot.
+  for (const kind of [false, true]) {
+    const index = berths.findIndex(b => seaBerth(b.pier) === kind);
+    if (index > 0) berths.unshift(...berths.splice(index, 1));
+  }
 
   const placedShips: CityElement[] = [];
   const targetCount =

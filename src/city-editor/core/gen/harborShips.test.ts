@@ -354,3 +354,47 @@ describe("actual port water", () => {
     expect(ships.every(ship => ship.shipType === "small")).toBe(true);
   });
 });
+
+describe("imported straight coastline", () => {
+  it("berths a sea port on the FMG coast when the cell's sea edge lies offshore", () => {
+    const doc = harborFixture("ageOfExploration");
+    doc.waterAccess = {
+      river: false,
+      sea: true,
+      lake: false,
+      seaFeatureIds: [1],
+      lakeFeatureIds: [],
+      port: { river: false, sea: true, lake: false }
+    };
+    // The surveyed coast cuts 30 m into the harbour cell, so the mesh edge at x = 0 is wet.
+    doc.importedFixedCrossings = {
+      schemaVersion: 4,
+      coverageBounds: { minX: -600, minY: -600, maxX: 600, maxY: 600 },
+      coordinateUnit: "metres",
+      revision: 1,
+      originMeters: [0, 0],
+      roadWidthMeters: 5,
+      requiredBounds: { minX: -200, minY: -200, maxX: 400, maxY: 400 },
+      rivers: [],
+      crossings: [],
+      obstacles: [
+        {
+          id: 1,
+          rings: [
+            [
+              [-400, -200],
+              [30, -200],
+              [30, 360],
+              [-400, 360]
+            ]
+          ]
+        }
+      ]
+    };
+    doc.fabric = createFabricPlan(doc, "harbor-test-seed");
+    const ships = planHarborShips(doc, "coast");
+    expect(ships.length).toBeGreaterThan(0);
+    const sea = Object.values(doc.mesh.faces)[0].id;
+    expect(ships.every(ship => ship.faceIds.includes(sea) && ship.point![0] < 30)).toBe(true);
+  });
+});
