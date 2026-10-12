@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-10-12
+
+- docs/plan/waterfront-town-proximity.md
+
 2026-10-11
 
 - docs/plan/map-server.md
