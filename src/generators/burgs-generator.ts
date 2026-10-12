@@ -31,7 +31,7 @@ import { drawnShorePortPosition, pinnedShorePortPosition } from "../services/por
 import { RegionalRiverGeometry } from "../services/regionalRiverGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
 import { footprintTouchesWater, pointInWater } from "../services/riverPhysicalGeometry";
-import { SettlementGeometrySession } from "../services/settlementGeometrySession";
+import { SettlementGeometrySession, settlementGeometrySession } from "../services/settlementGeometrySession";
 import {
   coveredByTerrainCells,
   findRiverSettlementSiteSteps,
@@ -175,6 +175,39 @@ class BurgModule {
     draft.y = point[1];
     const access = updateBurgWaterAccess(draft, this.worldContext.pack);
     if (!access.port.river || !access.port.sea) return null;
+    return draft;
+  }
+
+  /** A placed river town that a coast promotion moved off its surveyed
+   * footprint onto the river's own water (the estuary). A town moved onto dry
+   * coast keeps its position. */
+  isStrandedOnRiver(burg: Readonly<Burg>, session: SettlementGeometrySession, unit: string): boolean {
+    const world = this.worldContext;
+    const footprint = burg.riverPlacement?.footprintMeters;
+    const scale = mapUnitMeters(world.distanceScale, unit);
+    if (burg.riverSiteStatus?.status !== "placed" || footprint?.length !== 4 || !(scale > 0)) return false;
+    const point: RiverPoint = [burg.x * scale, burg.y * scale];
+    if (pointInWater(point, { id: -1, rings: [footprint as RiverPoint[]] })) return false;
+    const river = world.pack.rivers.find(r => r.i === burg.riverPlacement!.riverId);
+    if (!river) return false;
+    const bounds = { minX: point[0] - 1, maxX: point[0] + 1, minY: point[1] - 1, maxY: point[1] + 1 };
+    const resolved = session.resolve(world, river, unit, bounds);
+    return "geometry" in resolved && pointInWater(point, resolved.geometry.water);
+  }
+
+  /** Dry bank site nearest `origin` (map units) on the town's own river. Null keeps the town. */
+  *resiteOnRiverBankSteps(
+    burg: Readonly<Burg>,
+    origin: Point,
+    session: SettlementGeometrySession
+  ): Generator<void, Burg | null> {
+    if (!burg.i || burg.removed || burg.lock || !this.worldContext.pack.cells.r[burg.cell]) return null;
+    const draft = { ...burg } as Burg;
+    const point = yield* this.riverBankSteps(burg.cell, new Map(), origin, draft, session, true);
+    if (draft.riverSiteStatus?.status !== "placed") return null;
+    draft.x = point[0];
+    draft.y = point[1];
+    updateBurgWaterAccess(draft, this.worldContext.pack);
     return draft;
   }
 
@@ -765,6 +798,7 @@ class BurgModule {
       if (feature.type === "lake" && this.getLakePortCapacity(feature) === 0) return false;
       if (feature.type === "lake" && this.countLakePorts(feature.i) >= this.getLakePortCapacity(feature)) return false;
       const portFeatureId = feature.type === "lake" ? this.resolveLakePortFeature(feature.i) : feature.i;
+      const prior = burg.riverSiteStatus?.status === "placed" ? { ...burg } : null;
       this.promoteToPort(
         {
           burg,
@@ -776,6 +810,28 @@ class BurgModule {
         },
         new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
       );
+      // The coast edge of a river cell can be the estuary itself: a placed river
+      // town takes the dry bank nearest that edge, or stays on its bank.
+      if (prior) {
+        const river = {
+          ...burg,
+          x: prior.x,
+          y: prior.y,
+          riverPlacement: prior.riverPlacement,
+          riverSiteStatus: prior.riverSiteStatus
+        };
+        const session = settlementGeometrySession(this.worldContext);
+        session.prepare(this.worldContext, useOptionsState.getState().distanceUnit);
+        const steps = this.resiteOnRiverBankSteps(river, [burg.x, burg.y], session);
+        let step = steps.next();
+        while (!step.done) step = steps.next();
+        const site = step.value ?? river;
+        burg.x = site.x;
+        burg.y = site.y;
+        burg.riverPlacement = site.riverPlacement;
+        burg.riverSiteStatus = site.riverSiteStatus;
+        updateBurgWaterAccess(burg, this.worldContext.pack);
+      }
       return true;
     }
 
@@ -905,7 +961,9 @@ class BurgModule {
     _riversById: Map<number, { i: number; cells: number[] }>,
     origin?: Point,
     burgOverride?: Burg,
-    sessionOverride?: SettlementGeometrySession
+    sessionOverride?: SettlementGeometrySession,
+    /** Roads are relinked to the new site with dry-checked links afterwards (relocatedBurgRoutes). */
+    relinkRoutes = false
   ): Generator<void, Point> {
     const world = this.worldContext;
     const { pack } = world;
@@ -1068,6 +1126,7 @@ class BurgModule {
     const connectionSupported = (point: RiverPoint): boolean => {
       if (
         !burgOverride ||
+        relinkRoutes ||
         // Only land routes that reconnectRelocatedBurgLandRoutes links straight to
         // the new site; sea lanes and registered connections are re-engineered.
         !pack.routes.some(

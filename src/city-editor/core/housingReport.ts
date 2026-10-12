@@ -355,6 +355,38 @@ export async function loadArchiveWorld(archivePath: string): Promise<void> {
     const { Burgs } = await import("../../generators/burgs-generator");
     Burgs.resiteRiverBurgs(burgsUnplacedOnRivers(worldContext, repairedRivers));
   }
+  // Same road and river-site repairs as the browser's port task (dualPortPlacementTask).
+  const { useOptionsState } = await import("../../store/optionsState");
+  const { SettlementGeometrySession } = await import("../../services/settlementGeometrySession");
+  const { burgApproachDryLink } = await import("../../services/burgApproachDryLink");
+  const { applyStraightenedApproach, planDetouredBurgApproaches, reconnectRelocatedBurgLandRoutes } = await import(
+    "../../services/relocatedBurgRoutes"
+  );
+  const { Burgs } = await import("../../generators/burgs-generator");
+  const { Routes } = await import("../../generators/routes-generator");
+  const unit = useOptionsState.getState().distanceUnit;
+  const session = new SettlementGeometrySession();
+  session.prepare(worldContext, unit);
+  const { pack } = worldContext;
+  const dryLink = burgApproachDryLink(worldContext, unit, session);
+  for (const burg of pack.burgs) {
+    if (!burg?.i || burg.removed || burg.lock || !Burgs.isStrandedOnRiver(burg, session, unit)) continue;
+    const steps = Burgs.resiteOnRiverBankSteps({ ...burg }, [burg.x, burg.y], session);
+    let step = steps.next();
+    while (!step.done) step = steps.next();
+    const after = step.value;
+    if (!after) continue;
+    reconnectRelocatedBurgLandRoutes(pack.routes, burg, after, dryLink, true);
+    Object.assign(burg, {
+      x: after.x,
+      y: after.y,
+      riverPlacement: after.riverPlacement,
+      riverSiteStatus: after.riverSiteStatus,
+      waterAccess: after.waterAccess
+    });
+  }
+  for (const detour of planDetouredBurgApproaches(pack.routes, pack.burgs, dryLink)) applyStraightenedApproach(detour);
+  pack.cells.routes = Routes.buildLinks(pack.routes);
 }
 
 /** Numeric tokens are burg indexes. Any other token is an exact burg name, and every match is returned. */

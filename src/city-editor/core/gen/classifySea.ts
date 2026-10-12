@@ -7,7 +7,7 @@
 // See docs/city-generator/design.md §4.2.
 
 import type { EdgeGraph } from "./edgeGraph";
-import { azimuthToVec, pointInPolygon } from "./geom";
+import { azimuthToVec, nearestOnPolyline, pointInPolygon } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
 import type { Cell, Point } from "./types";
@@ -240,4 +240,39 @@ function perimeterPath(from: Point, to: Point, dir: 1 | -1, half: number): Point
   }
   out.push(boundaryPoint(b, half));
   return out;
+}
+
+/** The walked coast wanders a cell or more off FMG's shore; far from the town
+ * cells are hundreds of metres across, so the wander shows as invented bays
+ * and capes (Poilleneuzy: a 200 m recess under the FMG road). A cell clearly
+ * on one side of FMG's line (beyond `toleranceMeters`) takes that side; only
+ * cells near the line keep the walk's jagged choice. `keepDry` cells stay land. */
+export function conformSeaToShore(
+  cells: Cell[],
+  sea: Set<number>,
+  shore: Point[],
+  halfExtentMeters: number,
+  toleranceMeters: number,
+  keepDry: (cell: Cell) => boolean
+): Set<number> {
+  if (shore.length < 2 || !sea.size) return sea;
+  const signed = (p: Point) => {
+    const hit = nearestOnPolyline(p, shore);
+    const a = shore[hit.segIndex],
+      b = shore[hit.segIndex + 1];
+    return Math.sign((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) * hit.dist;
+  };
+  const offsets = new Map(cells.map(cell => [cell.id, signed(cell.centroid)]));
+  // The walk's sea mostly agrees with FMG; its deepest cell names the wet side.
+  const deepest = [...sea].sort((a, b) => Math.abs(offsets.get(b)!) - Math.abs(offsets.get(a)!))[0];
+  const wetSign = Math.sign(offsets.get(deepest)!);
+  if (!wetSign) return sea;
+  const next = new Set(sea);
+  for (const cell of cells) {
+    const d = offsets.get(cell.id)! * wetSign;
+    if (d < -toleranceMeters) next.delete(cell.id);
+    else if (d > toleranceMeters && !keepDry(cell)) next.add(cell.id);
+  }
+  keepBorderConnectedSea(cells, next, halfExtentMeters);
+  return next;
 }

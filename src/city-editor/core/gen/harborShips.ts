@@ -5,6 +5,7 @@ import type { CityDocument, CityElement, Id, Point } from "../types";
 import { waterPolygons as documentWaterPolygons } from "../waterGeometry";
 import { buildBlockFabric } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
+import { harborRootIsDry, pruneInvalidHarbors } from "./harborLand";
 import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
 import { corridor, distance } from "./parcelGeometry";
 import { makeRng } from "./prng";
@@ -63,6 +64,7 @@ function distSegmentToSegment(a: Point, b: Point, c: Point, d: Point): number {
 
 interface KnownPier {
   id: string;
+  landFaceId?: Id;
   waterFaceId: Id;
   riverId?: Id;
   water?: Point[];
@@ -150,9 +152,13 @@ export function planHarborShips(
 
       const dir: Point = [dx / length, dy / length];
       const normal: Point = [-dir[1], dir[0]];
+      const root: Point = [start[0] - dir[0] * 1.2, start[1] - dir[1] * 1.2];
+      const owner = pier.landFaceId ?? harborFaces.find(f => harborRootIsDry(document, f.id, root))?.id;
+      if (!owner || !harborRootIsDry(document, owner, root)) continue;
 
       knownPiers.push({
         id: pier.id,
+        landFaceId: owner,
         waterFaceId: pier.waterFaceId,
         riverId: pier.riverId,
         water: pier.riverId?.startsWith("fixed-river:")
@@ -176,7 +182,10 @@ export function planHarborShips(
 
   // (2) fabric.harbor に桟橋がない場合（デフォルト生成等）、svg.ts と同一のメッシュ岸辺から桟橋を抽出
   if (!knownPiers.length) {
-    const shores = new Map<Id, { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point }>();
+    const shores = new Map<
+      Id,
+      { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point; landFaceId: Id }
+    >();
     for (const edge of Object.values(document.mesh.edges)) {
       const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
       const right = edge.rightFace ? document.mesh.faces[edge.rightFace] : null;
@@ -198,11 +207,12 @@ export function planHarborShips(
         ring: physical?.water ?? facePoints(document.mesh, water),
         length,
         depth,
-        inward: physical?.inward
+        inward: physical?.inward,
+        landFaceId: land.id
       });
     }
 
-    for (const [waterId, { a, b, ring, length, depth, inward }] of shores) {
+    for (const [waterId, { a, b, ring, length, depth, inward, landFaceId }] of shores) {
       const center = polygonCentroid(ring);
       const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
       let normal: Point = inward ? [-inward[0], -inward[1]] : [-tangent[1], tangent[0]];
@@ -214,6 +224,7 @@ export function planHarborShips(
       for (let i = 0; i < count; i++) {
         const t = fractions[i];
         const start: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+        if (!harborRootIsDry(document, landFaceId, [start[0] - normal[0] * 1.2, start[1] - normal[1] * 1.2])) continue;
         let reach = 0;
         const maxReachLimit = exploration ? 42 : 28;
         const desired = Math.min(maxReachLimit, Math.max(exploration ? 32 : 22, length * (exploration ? 0.75 : 0.5)));
@@ -245,6 +256,7 @@ export function planHarborShips(
 
         knownPiers.push({
           id: `mesh-pier:${waterId}:${i}`,
+          landFaceId,
           waterFaceId: waterId,
           depth,
           start,
@@ -496,6 +508,7 @@ export function planHarborShips(
       id: `${GEN_PREFIX}ship-${placedShips.length}`,
       kind: "ship",
       faceIds: berth.pier.waterFaceId ? [berth.pier.waterFaceId] : [],
+      harborFaceId: berth.pier.landFaceId,
       point: shipCenter,
       rotation: shipRotation,
       sizeMeters,
@@ -584,6 +597,7 @@ export function planHarborShips(
         id: `${GEN_PREFIX}ship-${placedShips.length}`,
         kind: "ship",
         faceIds: [waterId],
+        harborFaceId: coastalHarborFaces[0].id,
         point: anchorPt,
         rotation,
         sizeMeters,
@@ -602,6 +616,7 @@ export function planHarborShips(
  * 既存の未ロックかつ自動生成（gc:ship-...）の船を再生成する。
  */
 export function spawnHarborShips(document: CityDocument, seed = "harbor-ships", profiler?: ProcessingProfiler): void {
+  pruneInvalidHarbors(document);
   // 自動生成された未ロックの船要素をクリア
   document.elements = document.elements.filter(e => e.locked || e.kind !== "ship" || !e.id.startsWith(GEN_PREFIX));
 

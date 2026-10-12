@@ -24,6 +24,7 @@ import {
 import type { CityGeography, CityParams, CityProgram, Point, WallPlan } from "../types";
 import { DEFAULT_WALL_PLAN } from "../types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
+import { resolvePortFrontages } from "./portFrontages";
 
 // A coast's shape comes from the graph walk, so a few control points suffice.
 // A river's bends ARE the intent and must survive down-sampling — keep more.
@@ -47,6 +48,7 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
 
 export function siteToGeography(site: BurgSiteDescriptor, imported = false): CityGeography {
   assertRegionalCoverage(site);
+  site = resolvePortFrontages(site);
   site = withWideRiverOffCore(site);
   const coast = extractCoast(site);
   // A wide river is not a second ocean. Promoting it to a coast half-plane

@@ -1,6 +1,9 @@
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { type BurgApproachDryLink, burgApproachDryLink } from "../services/burgApproachDryLink";
 import { reconnectRelocatedBurgLandRoutes } from "../services/relocatedBurgRoutes";
+import { settlementGeometrySession } from "../services/settlementGeometrySession";
+import { useOptionsState } from "../store/optionsState";
 import { Burgs } from "./burgs-generator";
 import { Routes } from "./routes-generator";
 
@@ -53,8 +56,24 @@ export function advancePortDevelopment(
       const burgId = candidate.i;
       const before = { ...candidate };
       if (!burgId || !Burgs.developPort(candidate)) continue;
-      // Promotion moves the town to its quay or river bank; its roads must follow.
-      reconnectRelocatedBurgLandRoutes(world.pack.routes, before, candidate);
+      // Promotion moves the town to its quay or river bank; its roads must follow,
+      // straight from the new site where that is dry rather than back through the old one.
+      let dryLink: BurgApproachDryLink | undefined;
+      reconnectRelocatedBurgLandRoutes(
+        world.pack.routes,
+        before,
+        candidate,
+        (a, b) => {
+          if (!dryLink) {
+            const unit = useOptionsState.getState().distanceUnit;
+            const session = settlementGeometrySession(world);
+            session.prepare(world, unit);
+            dryLink = burgApproachDryLink(world, unit, session);
+          }
+          return dryLink(a, b);
+        },
+        before.riverSiteStatus?.status === "placed"
+      );
 
       state.treasury = Math.max(0, (state.treasury ?? 0) - PORT_DEVELOPMENT_COST);
       // Sea ports join the sea network; a river-only port charts its lane downstream.

@@ -13,6 +13,7 @@ import { facePoints, validate } from "./mesh";
 import type { Point } from "./types";
 import {
   cellInsideWater,
+  cellInsideWaterPolygons,
   dryRuns,
   fixedWaterPolygons,
   lineHitsWater,
@@ -27,6 +28,39 @@ const channel: Point[] = [
   [-600, 232]
 ];
 describe("continuous water geometry", () => {
+  it("classifies the union of surveyed water pieces without swallowing a dry island", () => {
+    const cell: Point[] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100]
+    ];
+    const left: Point[] = [
+      [0, 0],
+      [50, 0],
+      [50, 100],
+      [0, 100]
+    ];
+    const right: Point[] = [
+      [50, 0],
+      [100, 0],
+      [100, 100],
+      [50, 100]
+    ];
+    expect(cellInsideWaterPolygons(cell, [left, right])).toBe(true);
+    expect(cellInsideWaterPolygons(cell, [left])).toBe(false);
+    const aroundIsland: Point[] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [60, 100],
+      [60, 40],
+      [40, 40],
+      [40, 100],
+      [0, 100]
+    ];
+    expect(cellInsideWaterPolygons(cell, [aroundIsland])).toBe(false);
+  });
   it("preserves islands and coverage bounds in imported physical water", () => {
     const fixed = structuredClone(fixedFixture.fixedCrossings) as unknown as FixedBurgCrossings;
     if (fixed.schemaVersion !== 3 && fixed.schemaVersion !== 4) throw new Error("Expected a surveyed fixture");

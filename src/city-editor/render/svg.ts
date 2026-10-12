@@ -24,6 +24,7 @@ import { farmSheds } from "../core/gen/farmSheds";
 import { ferryPlan } from "../core/gen/ferryLanding";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../core/gen/geom";
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
+import { harborLandFace, harborRootIsDry } from "../core/gen/harborLand";
 import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "../core/gen/harborNavigation";
 import { templeFootprintMeters } from "../core/gen/housing";
 import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
@@ -57,7 +58,12 @@ import { resolveCastleStyle } from "./castlePatterns";
 import { renderCastle } from "./castleSvg";
 import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { fixedDocumentGeometry, fixedDocumentLayers, fixedRoadIsDry } from "./fixedDocumentGeometry";
-import { getLandscapeGroundColor, getLandscapeSuburbFaceColor, renderLandscapeLayer } from "./landscape";
+import {
+  getLandscapeGroundColor,
+  getLandscapeSuburbFaceColor,
+  type LandscapeKeepOut,
+  renderLandscapeLayer
+} from "./landscape";
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import { renderPreviewSymbols } from "./previewSymbols";
 import { renderRegionalSettlements } from "./regionalSvg";
@@ -282,6 +288,7 @@ export function renderEditorSvg(
     svg.appendChild(layer);
   }
 
+  const landscapeKeepOut: LandscapeKeepOut = { polygons: [], discs: [] };
   if (town && document.coastalOceanFaceIds?.length) {
     const shore = element("g", { class: "ce-natural-shore", "pointer-events": "none" });
     const ocean = new Set(document.coastalOceanFaceIds);
@@ -327,6 +334,7 @@ export function renderEditorSvg(
       }
       const beachBand = corridor(a, b, 34, 8);
       const scrubBand = corridor(a, b, 70, 8);
+      landscapeKeepOut.polygons.push(beachBand);
       for (const part of dryShoreParts(facePoints(document.mesh, land))) {
         const scrub = intersectConvex(part, scrubBand);
         for (const polygonPart of scrub.length >= 3 ? subtractConvex(scrub, beachBand, 1) : []) {
@@ -355,9 +363,9 @@ export function renderEditorSvg(
     svg.appendChild(shore);
   }
 
-  if (town) {
-    svg.appendChild(renderLandscapeLayer(document, town, effectiveQuality));
-  }
+  // Scenery is drawn here but filled in once the town's facilities are known.
+  const landscapeSlot = town ? element("g", { class: "ce-landscape-slot" }) : null;
+  if (landscapeSlot) svg.appendChild(landscapeSlot);
 
   if (document.sceneRegions) {
     const regional = element("g", { class: "ce-regional-layer", "data-scene-region": "regional" });
@@ -727,6 +735,26 @@ export function renderEditorSvg(
       }
       svg.appendChild(buildings);
     }
+  }
+  if (landscapeSlot) {
+    // Facilities drawn on open ground keep it: no trees through a mill, yard or kiln.
+    const keep = landscapeKeepOut;
+    for (const cemetery of document.cemeteries ?? []) keep.polygons.push(cemetery.boundary);
+    for (const mill of townWatermills?.mills ?? []) keep.polygons.push(mill.millhousePolygon);
+    if (townAerial) {
+      for (const mill of townAerial.windmills)
+        keep.discs.push({ center: mill.center, radius: Math.max(mill.baseRadius, mill.sailLength) });
+      for (const point of townAerial.domesticWater) keep.polygons.push(point.footprint);
+      for (const monastery of townAerial.monasteries) keep.polygons.push(monastery.precinct);
+      for (const tannery of townAerial.tanneries) keep.polygons.push(tannery.yard, tannery.washStrip);
+      for (const gallows of townAerial.gallows)
+        keep.discs.push({ center: gallows.center, radius: gallows.moundRadius });
+      for (const hall of townAerial.guildHalls) keep.polygons.push(hall.footprint);
+      for (const yard of townAerial.guildYards) keep.polygons.push(yard.polygon);
+      for (const yard of townAerial.storageYards) keep.polygons.push(yard.polygon);
+      for (const inn of townAerial.gateInns) keep.polygons.push(inn.footprint, inn.court);
+    }
+    landscapeSlot.replaceWith(renderLandscapeLayer(document, town, effectiveQuality, keep));
   }
 
   const edges = element("g", { class: "ce-edges" });
@@ -1251,6 +1279,7 @@ export function renderEditorSvg(
       sizeMeters: cityElement.sizeMeters ?? 8
     };
     if (cityElement.kind === "ship") {
+      if (cityElement.harborFaceId && !harborLandFace(document, cityElement.harborFaceId)) continue;
       const shipNode = renderShipSvg({
         type: cityElement.shipType ?? "small",
         point: p,
@@ -1615,7 +1644,7 @@ export function renderApproachLabels(document: CityDocument, zoom: number): SVGG
 function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/harborFabric").HarborPlan): SVGGElement {
   const layer = element("g", { class: "ce-quays", "pointer-events": "none" }) as SVGGElement;
   if (harbor) {
-    for (const pier of harbor.piers)
+    for (const pier of harbor.piers.filter(p => !p.landFaceId || harborLandFace(document, p.landFaceId)))
       layer.appendChild(
         element("path", {
           d: polygon(pier.polygon),
@@ -1789,7 +1818,7 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
   // One shoreline per sea cell; a manually assigned ward needs no landmark.
   const shores = new Map<
     Id,
-    { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point; river: boolean }
+    { a: Point; b: Point; ring: Point[]; length: number; depth: number; inward?: Point; river: boolean; landFaceId: Id }
   >();
   for (const edge of Object.values(document.mesh.edges)) {
     const left = edge.leftFace ? document.mesh.faces[edge.leftFace] : null;
@@ -1813,11 +1842,12 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
       length,
       depth,
       inward: physical?.inward,
-      river: !!physical
+      river: !!physical,
+      landFaceId: land.id
     });
   }
   let field: HarborWaterField | undefined;
-  for (const [waterId, { a, b, ring, length, depth, inward, river }] of shores) {
+  for (const [waterId, { a, b, ring, length, depth, inward, river, landFaceId }] of shores) {
     const center = polygonCentroid(ring);
     const tangent: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
     let normal: Point = inward ? [-inward[0], -inward[1]] : [-tangent[1], tangent[0]];
@@ -1838,6 +1868,7 @@ function renderTownQuays(document: CityDocument, harbor?: import("../core/gen/ha
     for (let i = 0; i < count; i++) {
       const t = fractions[i];
       const start: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      if (!harborRootIsDry(document, landFaceId, [start[0] - normal[0] * 1.2, start[1] - normal[1] * 1.2])) continue;
       // Stop within the receiving cell, so a pier never becomes a bridge.
       let reach = 0;
       const maxReachLimit = isExploration ? 42 : 28;

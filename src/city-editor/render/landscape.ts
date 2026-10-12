@@ -649,10 +649,20 @@ function renderGrassTuft(x: number, y: number, scale: number): SVGElement {
  * Procedurally generates the landscape scenery layer for the outskirts/suburbs
  * of the city matching its FMG biome.
  */
+/** Drawn ground that scenery must leave clear: beaches, mills, yards, kilns… */
+export interface LandscapeKeepOut {
+  polygons: Point[][];
+  discs: Array<{ center: Point; radius: number }>;
+}
+
+/** A tree crown or tuft reaches this far past its sample point. */
+const KEEP_OUT_MARGIN_METERS = 6;
+
 export function renderLandscapeLayer(
   document: CityDocument,
   town: boolean,
-  quality: RenderQuality = "detailed"
+  quality: RenderQuality = "detailed",
+  keepOut: LandscapeKeepOut = { polygons: [], discs: [] }
 ): SVGGElement {
   const layer = svgElement("g", {
     class: "ce-landscape-layer",
@@ -717,8 +727,24 @@ export function renderLandscapeLayer(
     blockedFaces.push({ box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], ring });
   }
 
+  const keepOutPolygons = keepOut.polygons
+    .filter(ring => ring.length >= 3)
+    .map(ring => {
+      const xs = ring.map(q => q[0]);
+      const ys = ring.map(q => q[1]);
+      const m = KEEP_OUT_MARGIN_METERS;
+      return { box: [Math.min(...xs) - m, Math.min(...ys) - m, Math.max(...xs) + m, Math.max(...ys) + m], ring };
+    });
+
   // 2. Exclusion checker
   function isExcluded(pt: Point, buffer = 0): boolean {
+    for (const { box, ring } of keepOutPolygons) {
+      if (pt[0] < box[0] || pt[0] > box[2] || pt[1] < box[1] || pt[1] > box[3]) continue;
+      if (pointInPolygon(pt, ring) || nearestOnPolyline(pt, [...ring, ring[0]]).dist < KEEP_OUT_MARGIN_METERS + buffer)
+        return true;
+    }
+    for (const { center, radius } of keepOut.discs)
+      if (Math.hypot(pt[0] - center[0], pt[1] - center[1]) < radius + KEEP_OUT_MARGIN_METERS + buffer) return true;
     for (const { box, ring } of blockedFaces) {
       if (pt[0] < box[0] || pt[0] > box[2] || pt[1] < box[1] || pt[1] > box[3]) continue;
       if (pointInPolygon(pt, ring)) return true;

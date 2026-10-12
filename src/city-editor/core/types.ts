@@ -211,6 +211,9 @@ export interface CityElement {
   rotation?: number;
   locked: boolean;
   shipType?: "small" | "medium" | "large" | "barge";
+  /** The dry harbour ward owning an element placed in a neighbouring water cell. */
+  harborFaceId?: Id;
+  harborKind?: "river" | "sea";
   templeType?: TempleType;
 }
 

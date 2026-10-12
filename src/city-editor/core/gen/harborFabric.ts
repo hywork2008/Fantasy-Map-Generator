@@ -9,6 +9,7 @@ import {
   segmentInteriorInPolygon,
   segmentSegmentHit
 } from "./geom";
+import { harborRootIsDry } from "./harborLand";
 import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "./harborNavigation";
 import { convexInfillParts } from "./lotGeometry";
 import { corridor, distance, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
@@ -17,6 +18,7 @@ import { riverPortShore } from "./riverPortShore";
 
 export interface HarborPier {
   id: Id;
+  landFaceId?: Id;
   waterFaceId: Id;
   /** Ribbon rivers have no water mesh face. */
   riverId?: Id;
@@ -153,7 +155,13 @@ export function planHarbor(
   for (const element of document.elements.filter(e => e.kind === "harbor")) {
     for (const faceId of element.faceIds) {
       const face = document.mesh.faces[faceId];
-      if (face?.properties.ward !== "harbor" || shores.some(s => s.landId === faceId)) continue;
+      if (
+        face?.properties.ward !== "harbor" ||
+        face.properties.water !== "land" ||
+        !face.properties.buildable ||
+        shores.some(s => s.landId === faceId)
+      )
+        continue;
       const polygon = facePoints(document.mesh, face);
       const center = polygonCentroid(polygon);
       for (const river of document.featureGroups.filter(g => g.kind === "river"))
@@ -254,6 +262,11 @@ export function planHarbor(
   const isAncient = period === "classicalAntiquity";
 
   for (const shore of shores) {
+    const root: Point = [
+      (shore.a[0] + shore.b[0]) / 2 + shore.inward[0] * 1.2,
+      (shore.a[1] + shore.b[1]) / 2 + shore.inward[1] * 1.2
+    ];
+    if (!harborRootIsDry(document, shore.landId, root)) continue;
     if (
       (shore.waterId || shore.riverId) &&
       (shore.depth >= 3 || !!shore.riverId) &&
@@ -501,6 +514,8 @@ export function planHarbor(
     for (let i = 0; i < count; i++) {
       const t = fractions[i];
       const bank: Point = [shore.a[0] + (shore.b[0] - shore.a[0]) * t, shore.a[1] + (shore.b[1] - shore.a[1]) * t];
+      if (!harborRootIsDry(document, shore.landId, [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2]))
+        continue;
       const start: Point = [bank[0] + shore.inward[0] * 1.2, bank[1] + shore.inward[1] * 1.2];
       if (
         !pointInPolygon(start, facePoints(document.mesh, document.mesh.faces[shore.landId])) ||
@@ -536,6 +551,7 @@ export function planHarbor(
       if (!riverBerth && !seaBerthIsNavigable(waterField(), end(reach))) continue;
       plan.piers.push({
         id: `pier:${shore.id}:${i}`,
+        landFaceId: shore.landId,
         waterFaceId: shore.waterId,
         ...(shore.riverId ? { riverId: shore.riverId } : {}),
         depth: shore.depth,

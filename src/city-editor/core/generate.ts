@@ -47,7 +47,15 @@ import { meshShoreChain, regionalSeaPolygon, regionalShoreline } from "./regiona
 import { riverFlowsFromDescriptor } from "./riverFlow";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 import { attachSceneRegions } from "./sceneRegions";
-import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPolygons } from "./waterGeometry";
+import {
+  cellInsideWater,
+  cellInsideWaterPolygons,
+  dryRuns,
+  fixedWaterPolygons,
+  lineHitsDocumentWater,
+  lineHitsWater,
+  waterPolygons
+} from "./waterGeometry";
 // Step-by-step random city generation for the City Editor.
 //
 // This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
@@ -75,10 +83,14 @@ import { cellInsideWater, dryRuns, lineHitsDocumentWater, lineHitsWater, waterPo
 import { maxWallGatesForExtent, sizePresetForExtent, townMeshExtentMeters } from "./document";
 import { featureGroupVertices, orderedBoundaryLoops, resolveWallMaterial, shortestPath } from "./features";
 import { tagExternalGateRoads } from "./gen/approachBeyond";
-import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./gen/cemeteryLayout";
+import { refreshCemeteryLayouts, relocateUndersizedCemeteries, syncDocumentCemeteries } from "./gen/cemeteryLayout";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
 import { classifyRiver } from "./gen/classifyRiver";
-import { type CoastResult, classifyCoast } from "./gen/classifySea";
+import { type CoastResult, classifyCoast, conformSeaToShore } from "./gen/classifySea";
+
+/** How far a coast cell centre may sit on the wrong side of FMG's shore. */
+const SHORE_CONFORM_METERS = 40;
+
 import { classifyUrban } from "./gen/classifyUrban";
 import { aStar, buildEdgeGraph, type EdgeGraph, graphEdgeKey, vertexKey } from "./gen/edgeGraph";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
@@ -128,6 +140,7 @@ import {
   townExtentMeters
 } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
+import { resolvePortFrontages } from "./gen/site/portFrontages";
 import { DEFAULT_SITE_CONFIG, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
@@ -1231,6 +1244,7 @@ export function generateCityAttempt(
   measureProcessing(profiler, "roadside-fields", () => cultivateRoadside(settled));
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
+  measureProcessing(profiler, "cemetery-relocation", () => relocateUndersizedCemeteries(settled));
   measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
   measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
   const fixedApproachStarted = performance.now();
@@ -1933,16 +1947,38 @@ export function runPlan(
       extraShores
     };
   });
+  // Hold the walked coast to FMG's own shore line beyond a block's width.
+  for (const item of classified) {
+    if (!settings.descriptor?.regionalContext || !item.coast || !item.regionalShore) continue;
+    const conformed = conformSeaToShore(
+      cells,
+      item.coast.sea,
+      item.regionalShore,
+      half,
+      SHORE_CONFORM_METERS,
+      cell => cell.id === originCell.id
+    );
+    if (conformed !== item.coast.sea && !conformed.has(originCell.id)) item.coast.sea = conformed;
+  }
   const coasts = classified.flatMap(item => (item.coast ? [item.coast] : []));
   let coast: CoastResult | null = coasts[0] ?? null;
   let coastPath = coast?.shoreline ?? [];
   let waterPolygon = coast?.waterPolygon ?? null;
   const sea = new Set<number>(coasts.flatMap(c => [...c.sea]));
+  const coastalWater = new Set(sea);
   const ocean = new Set<number>(
     classified.flatMap(item => (item.kind === "ocean" && item.coast ? [...item.coast.sea] : []))
   );
   // Channel polygons remain authoritative; coarse cells only classify wholly wet land.
   const appliedChannels = applyWideChannels(cells, geo.channels ?? [], sea);
+  // Surveyed rivers are rendered independently of the coarse editing mesh.
+  // Do not plan wards, a castle or roads on cells covered by that water.
+  const surveyedWater = settings.descriptor?.fixedCrossings
+    ? fixedWaterPolygons(settings.descriptor.fixedCrossings)
+    : [];
+  for (const cell of cells) {
+    if (surveyedWater.length && cellInsideWaterPolygons(cell.polygon, surveyedWater)) sea.add(cell.id);
+  }
   if (!coast && appliedChannels[0]) {
     coast = {
       sea: new Set<number>(),
@@ -2491,8 +2527,14 @@ export function runPlan(
       currentBuiltUp = remap(currentBuiltUp);
       residentialOutskirts = remap(residentialOutskirts);
       const newSea = remap(sea);
+      const newOcean = remap(ocean);
+      const newCoastalWater = remap(coastalWater);
       sea.clear();
       for (const id of newSea) sea.add(id);
+      ocean.clear();
+      for (const id of newOcean) ocean.add(id);
+      coastalWater.clear();
+      for (const id of newCoastalWater) coastalWater.add(id);
       for (const precinct of precincts) {
         const previous = new Set(precinct.cellIds);
         precinct.cellIds = updated.cells
@@ -2896,6 +2938,7 @@ export function runPlan(
     outskirts: currentOutskirts,
     residentialOutskirts,
     sea,
+    coastalWater,
     borders: genBorders,
     gates: routedGates,
     precincts,
@@ -3333,12 +3376,16 @@ function applyPlan(
       const face = faceFor(cellId);
       let editor = editorWard(kind);
       if (face && !face.properties.locked && editor && !reservedCastleFaces(next).has(face.id)) {
+        if (face.properties.water !== "land") continue;
         if (editor === "harbor") {
           const touchesSea = faceNeighbors(mesh, face.id).some(nid => mesh.faces[nid]?.properties.water === "sea");
           if (
             !touchesSea &&
             !plan.templeHarbor.some(
-              p => p.kind === "harbor" && p.label === "River Harbour" && p.cellIds.includes(cellId)
+              p =>
+                p.kind === "harbor" &&
+                p.label === editorText("cityEditor.messages.riverHarbour") &&
+                p.cellIds.includes(cellId)
             )
           ) {
             editor = "merchant";
@@ -3811,22 +3858,34 @@ function applyPlan(
       // An estuary town has a river and a sea harbour: number the second one.
       const elementId =
         precinct.kind === "harbor" &&
-        precinct.label === "Harbour" &&
+        precinct.label === editorText("cityEditor.messages.harbour") &&
         next.elements.some(e => e.id === `${GEN_PREFIX}harbor`)
           ? `${GEN_PREFIX}harbor-sea`
           : `${GEN_PREFIX}${precinct.kind}`;
       if (next.elements.some(e => e.id === elementId)) continue;
       if (precinct.kind === "harbor") {
-        const harborFaceIds = precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean);
+        const harborFaceIds = precinct.cellIds
+          .map(id => faceIdOf[id])
+          .filter(
+            fid => fid && mesh.faces[fid]?.properties.water === "land" && mesh.faces[fid].properties.ward === "harbor"
+          );
+        if (!harborFaceIds.length) continue;
         const hasCoastalFace = harborFaceIds.some(fid =>
           faceNeighbors(mesh, fid).some(nid => mesh.faces[nid]?.properties.water === "sea")
         );
-        if (!hasCoastalFace && precinct.label !== "River Harbour") continue;
+        if (!hasCoastalFace && precinct.label !== editorText("cityEditor.messages.riverHarbour")) continue;
       }
       next.elements.push({
         id: elementId,
         kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
-        faceIds: precinct.cellIds.map(id => faceIdOf[id]).filter(Boolean),
+        faceIds: precinct.cellIds
+          .map(id => faceIdOf[id])
+          .filter(
+            fid =>
+              fid &&
+              (precinct.kind !== "harbor" ||
+                (mesh.faces[fid]?.properties.water === "land" && mesh.faces[fid].properties.ward === "harbor"))
+          ),
         point: [precinct.anchor[0], precinct.anchor[1]],
         sizeMeters:
           precinct.kind === "temple"
@@ -3843,7 +3902,15 @@ function applyPlan(
                 next.historicalPeriod
               )
             : precinct.rotation,
-        locked: false
+        locked: false,
+        ...(precinct.kind === "harbor"
+          ? {
+              harborKind:
+                precinct.label === editorText("cityEditor.messages.riverHarbour")
+                  ? ("river" as const)
+                  : ("sea" as const)
+            }
+          : {})
       });
     }
   }
@@ -5776,7 +5843,7 @@ function editorWard(
 /** Preserve the source port frontages for berth-specific vessel selection. */
 function applyImportedWaterAccess(document: CityDocument, settings: GenerationSettings): void {
   applyImportedFixedCrossings(document, settings.descriptor);
-  const access = settings.descriptor?.burg.waterAccess;
+  const access = settings.descriptor ? resolvePortFrontages(settings.descriptor).burg.waterAccess : undefined;
   if (access) document.waterAccess = structuredClone(access);
   else delete document.waterAccess;
 }

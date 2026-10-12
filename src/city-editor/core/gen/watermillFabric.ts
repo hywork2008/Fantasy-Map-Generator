@@ -151,6 +151,9 @@ function collectObstacles(document: CityDocument): {
 
   // A ferry landing keeps its bank clear of a mill and its weir (Batonykut).
   landings.push(...ferryLandingReserves(document));
+  // So does consecrated ground: no mill race through a cemetery.
+  for (const face of Object.values(document.mesh.faces))
+    if (face.properties.ward === "cemetery") landings.push(facePoints(document.mesh, face));
 
   for (const gate of document.gates ?? []) {
     const pt = document.mesh.vertices[gate.vertexId]?.point;

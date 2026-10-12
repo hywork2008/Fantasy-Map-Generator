@@ -122,6 +122,8 @@ export interface WardInputs {
   /** Former urban flood-fill cells outside the chosen wall capacity. */
   residentialOutskirts?: Set<number>;
   sea: Set<number>;
+  /** Ocean/lake coast cells, excluding surveyed river water. */
+  coastalWater?: Set<number>;
   borders: BorderLoop[];
   gates: Gate[];
   /** S4 precincts (plaza / citadel). */
@@ -204,7 +206,11 @@ export function assignWards(input: WardInputs): WardResult {
     // It needs real open water near the town, not a sliver at the window edge (Yalkan).
     const seaHarbour =
       !riverHarbour ||
-      (!!geo.seaPort && !!shoreline && shoreline.length >= 2 && !!waterPolygon && sea.size >= ESTUARY_SEA_MIN_CELLS);
+      (!!geo.seaPort &&
+        !!shoreline &&
+        shoreline.length >= 2 &&
+        !!waterPolygon &&
+        (input.coastalWater ?? sea).size >= ESTUARY_SEA_MIN_CELLS);
     if (riverHarbour) {
       // Navigable river frontage can exist without a sea/lake water polygon.
       const lines = input.riverBanks?.length ? input.riverBanks : (input.rivers ?? []);
@@ -254,7 +260,12 @@ export function assignWards(input: WardInputs): WardResult {
       }
     }
     if (seaHarbour && shoreline) {
-      const placed = placeHarbor(cells, urban, sea, occupied, shoreline, R);
+      const dryCoastCells = cells.filter(
+        c =>
+          !input.riverBanks?.length ||
+          input.riverBanks.filter(bank => pointInPolygon(c.centroid, bank)).length % 2 === 0
+      );
+      const placed = placeHarbor(dryCoastCells, urban, sea, occupied, shoreline, R, input.coastalWater);
       // FMG settles a port within its waterfront gap of the shore; a sea
       // berth far beyond the town disk is a clipped sliver, not the port.
       const harbor =
@@ -555,7 +566,8 @@ function placeHarbor(
   sea: Set<number>,
   occupied: Set<number>,
   shoreline: Point[],
-  R: number
+  R: number,
+  ocean = sea
 ): Precinct | null {
   if (!shoreline.length || !sea.size) return null;
   const hit = nearestOnPolyline([0, 0], shoreline);
@@ -563,7 +575,7 @@ function placeHarbor(
   const tangent = polylineTangent(shoreline, hit.segIndex);
 
   // 海（sea）に隣接する未占有の陸地セルのみを対象とする
-  const seaAdjacent = cells.filter(c => !sea.has(c.id) && !occupied.has(c.id) && c.neighbors.some(n => sea.has(n)));
+  const seaAdjacent = cells.filter(c => !sea.has(c.id) && !occupied.has(c.id) && c.neighbors.some(n => ocean.has(n)));
   if (!seaAdjacent.length) return null;
 
   // 都市化エリア（urban）内の海沿いセルを最優先、なければその他の海沿いセル

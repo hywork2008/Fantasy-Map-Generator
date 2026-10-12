@@ -34,6 +34,7 @@ import {
 import { DEFAULT_PATCH_PARAMS } from "../core/gen/patches";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "../core/gen/site/burgSiteDescriptor";
 import { sanitizeBurgSiteEconomy } from "../core/gen/site/burgSiteEconomy";
+import { resolvePortFrontages } from "../core/gen/site/portFrontages";
 import { DEFAULT_SITE_CONFIG } from "../core/gen/site/siteConfig";
 import type { GenerationSettings } from "../core/generate";
 import type { HistoricalPeriod } from "../core/types";
@@ -118,6 +119,7 @@ export function regionalDisplayExtent(descriptor: BurgSiteDescriptor): number | 
 }
 
 export function shareFromDescriptor(source: BurgSiteDescriptor): CityEditorShare {
+  source = resolvePortFrontages(source);
   const descriptor = joinStrandedRoadsToCrossings(source);
   const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
   const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
@@ -331,7 +333,7 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
   if (raw.waterbody !== null && !isRecord(raw.waterbody)) return warnShape("waterbody");
   if (raw.regionalContext !== undefined) raw.frame.regionalMode = true;
   else delete raw.frame.regionalMode;
-  return raw as unknown as BurgSiteDescriptor;
+  return resolvePortFrontages(raw as unknown as BurgSiteDescriptor);
 }
 
 function asShare(raw: unknown): CityEditorShare | null {

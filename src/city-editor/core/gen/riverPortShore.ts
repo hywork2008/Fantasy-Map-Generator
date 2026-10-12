@@ -8,6 +8,8 @@ export function riverPortShore(document: CityDocument, faceId: Id) {
   if (!document.waterAccess?.port.river) return null;
   const face = document.mesh.faces[faceId];
   if (face?.properties.water !== "land" || face.properties.ward !== "harbor") return null;
+  const owners = document.elements.filter(e => e.kind === "harbor" && e.faceIds.includes(faceId));
+  if (owners.length && owners.every(e => e.harborKind === "sea")) return null;
   const land = facePoints(document.mesh, face);
   const center = polygonCentroid(land);
   const sources = [

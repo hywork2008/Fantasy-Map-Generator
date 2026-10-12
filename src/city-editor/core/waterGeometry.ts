@@ -154,6 +154,17 @@ export function cellInsideWater(polygon: Point[], water: Point[]): boolean {
   return wetArea >= area - 0.001;
 }
 
+/** Union coverage, including imported rivers split around dry islands. */
+export function cellInsideWaterPolygons(polygon: Point[], water: Point[][]): boolean {
+  let dry = convexParts(polygon);
+  for (const wet of water.flatMap(convexParts)) {
+    const box = bounds(wet);
+    dry = dry.flatMap(part => (boundsOverlap(bounds(part), box) ? subtractConvex(part, wet, 0.001) : [part]));
+    if (!dry.length) return true;
+  }
+  return dry.reduce((sum, part) => sum + plotArea(part), 0) < 0.001;
+}
+
 const fixedWaterChecks = new WeakMap<FixedBurgCrossings, { valid: boolean }>();
 
 /** Throws unless the fixed payload is valid and covers the city frame.

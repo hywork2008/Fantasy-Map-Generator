@@ -1,7 +1,7 @@
 import { insideRing, polygonOverlaps, polylineInsideRing } from "../fortifications";
-import { facePoints, indexMeshEdges } from "../mesh";
+import { facePoints, faceVertices, indexMeshEdges } from "../mesh";
 import type { CemeteryPart, CemeteryPlan, CityDocument, Face, Id, Point } from "../types";
-import { waterPolygons } from "../waterGeometry";
+import { lineHitsDocumentWater, waterPolygons } from "../waterGeometry";
 import { layoutCultureCemetery } from "./cultureCemeteryLayout";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
@@ -558,4 +558,85 @@ export function syncDocumentCemeteries(
       document.cemeteries = document.cemeteries.filter(c => c.faceId !== id || c.locked);
     }
   }
+}
+
+/** Dry burial ground a cemetery needs to draw its precinct (graves, paths,
+ * monuments). Below this the face is a reservation with nothing in it. */
+export const MIN_CEMETERY_GROUND_M2 = 1200;
+
+/**
+ * A cemetery face can lose most of its ground once surveyed water, walls and
+ * roads are cut from it (Poilleneuzy: a 20,861 m² cell beside the bridge kept
+ * 470 m²). Move such a cemetery to the nearest open face that has enough dry
+ * ground, reachable from the town without crossing water; the old face is
+ * released. Returns the moved cemetery face ids (old → new).
+ */
+export function relocateUndersizedCemeteries(document: CityDocument): Map<Id, Id> {
+  const moved = new Map<Id, Id>();
+  const ground = (boundary: Point[]) => (boundary.length >= 3 ? Math.abs(polygonArea(boundary)) : 0);
+  const gateVertices = new Set((document.gates ?? []).map(gate => gate.vertexId));
+  const roadEdges = new Set(
+    (document.featureGroups ?? []).flatMap(group => (group.kind === "road" ? group.segments.map(s => s.edgeId) : []))
+  );
+  document.cemeteries ??= [];
+  // A face whose layout failed outright has no plan; give it an empty one to move.
+  const stubs = new Set<Id>();
+  for (const face of Object.values(document.mesh.faces)) {
+    if (face.properties.ward !== "cemetery" || document.cemeteries.some(c => c.faceId === face.id)) continue;
+    stubs.add(face.id);
+    document.cemeteries.push({
+      id: `cemetery:${face.id}`,
+      version: 1,
+      seed: `cemetery-${face.id}`,
+      form: "field",
+      faceId: face.id,
+      boundary: computeCemeteryBoundary(document, face),
+      courtyards: [],
+      parts: [],
+      accesses: [],
+      trees: [],
+      burialProfile: document.burialProfile,
+      provenance: "generated",
+      locked: false
+    });
+  }
+  for (let i = 0; i < document.cemeteries.length; i++) {
+    const cemetery = document.cemeteries[i];
+    const face = document.mesh.faces[cemetery.faceId];
+    if (cemetery.locked || !face || face.properties.locked) continue;
+    if (ground(cemetery.boundary) >= MIN_CEMETERY_GROUND_M2 && cemetery.parts.length) continue;
+    let best: { face: Face; boundary: Point[]; score: number } | null = null;
+    for (const candidate of Object.values(document.mesh.faces)) {
+      const props = candidate.properties;
+      if (candidate.id === face.id || props.locked || props.water !== "land") continue;
+      if (props.settlement === "core" || (props.ward && props.ward !== "empty" && props.ward !== "farm")) continue;
+      if (faceVertices(document.mesh, candidate).some(id => gateVertices.has(id))) continue;
+      const boundary = computeCemeteryBoundary(document, candidate);
+      if (ground(boundary) < MIN_CEMETERY_GROUND_M2) continue;
+      const centre = polygonCentroid(facePoints(document.mesh, candidate));
+      // Mourners walk from the town: no cemetery across the river or a bay.
+      if (lineHitsDocumentWater(document, [[0, 0], centre], 1)) continue;
+      const onRoad = candidate.boundary.some(ref => roadEdges.has(ref.edgeId));
+      const score = Math.hypot(centre[0], centre[1]) - (onRoad ? 60 : 0);
+      if (!best || score < best.score) best = { face: candidate, boundary, score };
+    }
+    if (!best) continue;
+    const plan = layoutCemetery(document, {
+      ...cemetery,
+      id: `cemetery:${best.face.id}`,
+      seed: `cemetery-${best.face.id}`,
+      faceId: best.face.id,
+      boundary: best.boundary,
+      form: ground(best.boundary) < 750 ? "field" : cemetery.form,
+      burialProfile: cemetery.burialProfile ?? document.burialProfile
+    });
+    if (!plan || !plan.parts.length) continue;
+    face.properties.ward = "empty";
+    best.face.properties.ward = "cemetery";
+    document.cemeteries[i] = plan;
+    moved.set(face.id, best.face.id);
+  }
+  // Stubs left in place keep the old behaviour: a reserved face with no plan.
+  document.cemeteries = document.cemeteries.filter(c => !stubs.has(c.faceId));
+  return moved;
 }

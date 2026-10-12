@@ -3,9 +3,15 @@ import { Burgs } from "../generators/burgs-generator";
 import { Routes } from "../generators/routes-generator";
 import i18n from "../i18n";
 import type { FractalizedShape } from "../renderers/coastline-fractal";
+import { burgApproachDryLink } from "../services/burgApproachDryLink";
 import { updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { dualPortHaven } from "../services/dualPortShore";
-import { reconnectRelocatedBurgLandRoutes, samePosition } from "../services/relocatedBurgRoutes";
+import {
+  applyStraightenedApproach,
+  planDetouredBurgApproaches,
+  reconnectRelocatedBurgLandRoutes,
+  samePosition
+} from "../services/relocatedBurgRoutes";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import { tip } from "../services/tooltipService";
 import {
@@ -83,6 +89,20 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     start = performance.now();
   }
   if (!current()) return;
+  // A coast promotion could leave a placed river town on the estuary water.
+  // Re-site it on the nearest dry bank; its roads leave the abandoned position.
+  if (!candidates.length && !(await drain(session.prepareSteps(world, unit)))) return;
+  const stale = new Set<number>();
+  for (const burg of pack.burgs) {
+    if (!burg?.i || burg.removed || burg.lock || proposals.some(p => p.after.i === burg.i)) continue;
+    if (!Burgs.isStrandedOnRiver(burg, session, unit)) continue;
+    if (pack.routes.some(route => route.lock && route.points.some(p => samePosition(p, burg)))) continue;
+    const resited = await drain(Burgs.resiteOnRiverBankSteps({ ...burg }, [burg.x, burg.y], session));
+    if (!resited || !current()) return;
+    if (!resited.value) continue;
+    proposals.push({ before: { ...burg }, after: resited.value });
+    stale.add(burg.i);
+  }
   // Settle every waterfront town to the radius City Editor draws, now that
   // population is final; then check each port against the same geometry.
   const scale = mapUnitMeters(world.distanceScale, unit);
@@ -109,7 +129,16 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     else proposals.push({ before: { ...live }, after });
   }
   if (!current()) return;
+  // Relinked roads must not double back through a town's old position.
+  const dryLink = burgApproachDryLink(world, unit, session);
   if (!proposals.length) {
+    const detours = planDetouredBurgApproaches(pack.routes, pack.burgs, dryLink);
+    if (detours.length && current())
+      legacyMutation(() => {
+        for (const detour of detours) applyStraightenedApproach(detour);
+        pack.cells.routes = Routes.buildLinks(pack.routes);
+        return { result: undefined, topics: ["map.networks"] };
+      });
     reportWaterfront(world, scale, shapes, radius);
     return;
   }
@@ -137,13 +166,16 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
   legacyMutation(() => {
     for (const { before, after } of proposals) {
       const burg = pack.burgs[before.i!];
-      reconnectRelocatedBurgLandRoutes(pack.routes, before, after);
+      reconnectRelocatedBurgLandRoutes(pack.routes, before, after, dryLink, stale.has(before.i!));
       burg.x = after.x;
       burg.y = after.y;
       burg.riverPlacement = after.riverPlacement;
       burg.riverSiteStatus = after.riverSiteStatus;
       burg.waterAccess = after.waterAccess;
     }
+    const detours = planDetouredBurgApproaches(pack.routes, pack.burgs, dryLink);
+    for (const detour of detours) applyStraightenedApproach(detour);
+    if (detours.length && !physical) pack.cells.routes = Routes.buildLinks(pack.routes);
     if (physical) {
       world.options.registeredLandConnections = staged.options.registeredLandConnections;
       world.options.registeredLandConnectionUnit = staged.options.registeredLandConnectionUnit;
