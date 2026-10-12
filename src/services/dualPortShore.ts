@@ -28,14 +28,49 @@ function nearest(point: Point, ring: readonly Point[]): { point: Point; distance
       dy = b[1] - a[1];
     const length = dx * dx + dy * dy;
     const t = length ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / length)) : 0;
-    const p: Point = [a[0] + dx * t, a[1] + dy * t];
-    const d = Math.hypot(point[0] - p[0], point[1] - p[1]);
+    const d = Math.hypot(point[0] - (a[0] + dx * t), point[1] - (a[1] + dy * t));
     if (d < distance) {
-      best = p;
+      best = [a[0] + dx * t, a[1] + dy * t];
       distance = d;
     }
   }
   return { point: best, distance };
+}
+
+const BUCKET_Y_STRIDE = 1 << 20;
+const bucketKey = (x: number, y: number) => x * BUCKET_Y_STRIDE + y;
+
+/** Ring edges bucketed by bounding box, so range queries skip the rest of a 1 m-sampled coastline. */
+function ringEdgeBuckets(ring: readonly Point[], size: number): Map<number, number[]> {
+  const buckets = new Map<number, number[]>();
+  let lastList: number[] | undefined,
+    lastX = 0,
+    lastY = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i],
+      b = ring[(i + 1) % ring.length];
+    const x0 = Math.floor(Math.min(a[0], b[0]) / size),
+      x1 = Math.floor(Math.max(a[0], b[0]) / size);
+    const y0 = Math.floor(Math.min(a[1], b[1]) / size),
+      y1 = Math.floor(Math.max(a[1], b[1]) / size);
+    // Consecutive 1 m edges almost always share a bucket; skip the map lookup.
+    if (x0 === x1 && y0 === y1 && lastList && x0 === lastX && y0 === lastY) {
+      lastList.push(i);
+      continue;
+    }
+    for (let x = x0; x <= x1; x++)
+      for (let y = y0; y <= y1; y++) {
+        const key = bucketKey(x, y);
+        let list = buckets.get(key);
+        if (list) list.push(i);
+        else {
+          list = [i];
+          buckets.set(key, list);
+        }
+        if (x0 === x1 && y0 === y1) [lastList, lastX, lastY] = [list, x, y];
+      }
+  }
+  return buckets;
 }
 
 /** A local, metre-precision survey of the same coastline FMG draws. */
@@ -66,6 +101,11 @@ export function dualPortShore(
   // The town reservation must fit inland; allow a short quay strip beyond it,
   // the same waterfront gap the port check accepts (waterfrontSettlement.ts).
   const maxDistance = radius + PORT_SHORE_INLAND_METERS;
+  const nearSize = Math.max(maxDistance, 1);
+  const nearBuckets = ringEdgeBuckets(ring, nearSize);
+  let mouthIndex: Map<number, number[]> | undefined;
+  const mouthBuckets = () => (mouthIndex ??= ringEdgeBuckets(ring, MOUTH_BUCKET_METERS));
+  const water = { id: feature.i, rings: [ring] };
   return {
     ring,
     origin: nearest([center[0] * scale, center[1] * scale], ring).point,
@@ -74,22 +114,7 @@ export function dualPortShore(
      * mouth, leaving the joint river/coast site outside the candidate budget. */
     mouth(rings: readonly (readonly Point[])[]): Point | null {
       const size = MOUTH_BUCKET_METERS;
-      const buckets = new Map<string, number[]>();
-      for (let i = 0; i < ring.length; i++) {
-        const a = ring[i],
-          b = ring[(i + 1) % ring.length];
-        const x0 = Math.floor(Math.min(a[0], b[0]) / size),
-          x1 = Math.floor(Math.max(a[0], b[0]) / size);
-        const y0 = Math.floor(Math.min(a[1], b[1]) / size),
-          y1 = Math.floor(Math.max(a[1], b[1]) / size);
-        for (let x = x0; x <= x1; x++)
-          for (let y = y0; y <= y1; y++) {
-            const key = `${x},${y}`;
-            const list = buckets.get(key);
-            if (list) list.push(i);
-            else buckets.set(key, [i]);
-          }
-      }
+      const buckets = mouthBuckets();
       let best: Point | null = null,
         bestDistance = size;
       for (const water of rings)
@@ -98,21 +123,50 @@ export function dualPortShore(
             by = Math.floor(p[1] / size);
           for (let x = bx - 1; x <= bx + 1; x++)
             for (let y = by - 1; y <= by + 1; y++)
-              for (const i of buckets.get(`${x},${y}`) ?? []) {
+              for (const i of buckets.get(bucketKey(x, y)) ?? []) {
                 const d = nearest(p, [ring[i], ring[(i + 1) % ring.length]]).distance;
                 if (d < bestDistance) [best, bestDistance] = [p, d];
               }
         }
       return best;
     },
+    /** Same as `nearest(point, ring).distance <= maxDistance`, scanning only the edges within reach. */
     accepts(point: Point) {
-      return nearest(point, ring).distance <= maxDistance;
+      const bx = Math.floor(point[0] / nearSize),
+        by = Math.floor(point[1] / nearSize);
+      const limit = maxDistance * maxDistance;
+      for (let x = bx - 1; x <= bx + 1; x++)
+        for (let y = by - 1; y <= by + 1; y++) {
+          const list = nearBuckets.get(bucketKey(x, y));
+          if (!list) continue;
+          for (const i of list) {
+            const a = ring[i],
+              b = ring[(i + 1) % ring.length];
+            const dx = b[0] - a[0],
+              dy = b[1] - a[1];
+            const length = dx * dx + dy * dy;
+            const t = length ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / length)) : 0;
+            const ex = point[0] - (a[0] + dx * t),
+              ey = point[1] - (a[1] + dy * t);
+            if (ex * ex + ey * ey <= limit) return true;
+          }
+        }
+      return false;
     },
     supports(footprint: readonly Point[]) {
-      if (!footprint.every(p => pointInWater(p, { id: feature.i, rings: [ring] }))) return false;
-      return !footprint.some((p, j) =>
-        ring.some((a, i) => segmentsTouch(p, footprint[(j + 1) % footprint.length], a, ring[(i + 1) % ring.length]))
-      );
+      if (!footprint.every(p => pointInWater(p, water))) return false;
+      return !footprint.some((p, j) => {
+        const q = footprint[(j + 1) % footprint.length];
+        const x0 = Math.floor(Math.min(p[0], q[0]) / nearSize) - 1,
+          x1 = Math.floor(Math.max(p[0], q[0]) / nearSize) + 1;
+        const y0 = Math.floor(Math.min(p[1], q[1]) / nearSize) - 1,
+          y1 = Math.floor(Math.max(p[1], q[1]) / nearSize) + 1;
+        for (let x = x0; x <= x1; x++)
+          for (let y = y0; y <= y1; y++)
+            for (const i of nearBuckets.get(bucketKey(x, y)) ?? [])
+              if (segmentsTouch(p, q, ring[i], ring[(i + 1) % ring.length])) return true;
+        return false;
+      });
     }
   };
 }
