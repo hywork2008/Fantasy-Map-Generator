@@ -325,7 +325,7 @@
       "previousStep": "Previous step",
       "nextStep": "Next step",
       "renderQuality": "Render quality",
-      "automaticLightweightForLarge": "Automatic (lightweight for Large)",
+      "automaticLightweightForLarge": "Automatic (lightweight for Large or FMG Dwellings ≥ 1000)",
       "detailed": "Detailed",
       "lightweightGroupBuildings": "Lightweight (group buildings)",
       "minimalReduceBuildingsAndTrees": "Minimal (reduce buildings and trees)",

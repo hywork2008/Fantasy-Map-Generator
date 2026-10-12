@@ -325,7 +325,7 @@
       "previousStep": "Previous step",
       "nextStep": "Next step",
       "renderQuality": "描画品質",
-      "automaticLightweightForLarge": "自動（Largeは軽量）",
+      "automaticLightweightForLarge": "自動（LargeまたはFMG連携のDwellingsが1000以上は軽量）",
       "detailed": "詳細",
       "lightweightGroupBuildings": "軽量（建物をまとめる）",
       "minimalReduceBuildingsAndTrees": "最軽量（建物・樹木を間引く）",

@@ -1,4 +1,5 @@
 import { editorText } from "../../i18n/editorMessages";
+import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { bridgeDecks, overSkewedBridgeDecks, riverRibbons, roadRunsOutsideRivers } from "../core/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../core/concealStreets";
 import { featureGroupVertices } from "../core/features";
@@ -157,8 +158,14 @@ export function renderEditorSvg(
   const mark = generationTimer(observer);
   const town =
     document.appearance === "town" && tool === "select" && !showBlockMesh && !gridOverlay && !showSelectionLabels;
+  const importedBurg = document.fabric?.generation?.settings.descriptor?.burg;
+  const importedDwellings = importedBurg ? (importedBurg.dwellings ?? getUrbanDwellings(importedBurg.population)) : 0;
   const effectiveQuality =
-    quality === "auto" ? (townExtentMeters(document.frame) >= 3600 ? "light" : "detailed") : quality;
+    quality === "auto"
+      ? townExtentMeters(document.frame) >= 3600 || importedDwellings >= 1000
+        ? "light"
+        : "detailed"
+      : quality;
   // Mesh editing always keeps individual handles and full picking metadata.
   const lightweight = town && effectiveQuality !== "detailed";
   const minimal = lightweight && effectiveQuality === "minimal";
