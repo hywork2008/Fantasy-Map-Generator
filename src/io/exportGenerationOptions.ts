@@ -19,6 +19,12 @@ import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
+import {
+  ISLET_MAX_LAND_CELLS,
+  MAP_SCOPE_KINDS,
+  PROVINCE_SCOPE_DEFAULT_CELLS,
+  scopeTargetCells
+} from "../utils/mapScope";
 import { VERSION } from "../versioning";
 
 export const GENERATION_OPTIONS_KIND = "fmg-generation-options";
@@ -75,6 +81,8 @@ const NUMBER_KEYS = [
   "mapWidth",
   "mapHeight",
   "points",
+  "mapScopeCells",
+  "isletLandCells",
   "year",
   "cultures",
   "religionsNumber",
@@ -163,6 +171,14 @@ export function sanitizeGenerationOptions(raw: unknown): Partial<GenerationOptio
       if (points >= 1 && points <= 13) updates.points = points;
       continue;
     }
+    if (key === "mapScopeCells") {
+      updates.mapScopeCells = scopeTargetCells("province", value) ?? PROVINCE_SCOPE_DEFAULT_CELLS;
+      continue;
+    }
+    if (key === "isletLandCells") {
+      updates.isletLandCells = Math.min(Math.max(Math.round(value), 0), ISLET_MAX_LAND_CELLS);
+      continue;
+    }
     if (key === "oikoumeneLandShare") {
       const share = value > 1 ? value / 100 : value;
       if (share >= 0.1 && share <= 0.95) updates.oikoumeneLandShare = share;
@@ -192,6 +208,9 @@ export function sanitizeGenerationOptions(raw: unknown): Partial<GenerationOptio
     const value = asString(raw[key]);
     if (value !== undefined) updates[key] = value;
   }
+
+  const mapScope = asAllowedString(raw.mapScope, MAP_SCOPE_KINDS);
+  if (mapScope) updates.mapScope = mapScope;
 
   const historicalPeriod = asAllowedString(raw.historicalPeriod, HISTORICAL_PERIODS);
   if (historicalPeriod) updates.historicalPeriod = historicalPeriod;

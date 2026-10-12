@@ -17,3 +17,6 @@
 temp/
 docs/temp/
 .playwright-mcp/
+
+# River-Port Lab sample cache (scripts/lib/labJobs.mjs)
+.cache/

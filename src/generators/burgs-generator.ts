@@ -16,6 +16,8 @@ import {
   isSnowBiome
 } from "../data/biomeCatalog";
 import { getRaceById } from "../data/races";
+import { activeLabOptions } from "../debug/riverPortLab/labOptions";
+import { selectLabSites } from "../debug/riverPortLab/selectLabSites";
 import { isLichCultureId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import type { FractalizedShape } from "../renderers/coastline-fractal";
@@ -24,6 +26,7 @@ import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { dualPortHaven, dualPortShore } from "../services/dualPortShore";
+import { lakePortCapacity, MIN_LAKE_PORTS } from "../services/lakePorts";
 import { drawnShorePortPosition, pinnedShorePortPosition } from "../services/portShorePosition";
 import { RegionalRiverGeometry } from "../services/regionalRiverGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
@@ -32,19 +35,21 @@ import { SettlementGeometrySession } from "../services/settlementGeometrySession
 import {
   coveredByTerrainCells,
   findRiverSettlementSiteSteps,
-  type RiverSettlementSite,
-  settlementRadiusMeters
+  type RiverSettlementSite
 } from "../services/settlementRiverSite";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
+import { capScopedCount, gridDensityCells, scopedStatesNumber } from "../utils/mapScope";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
+import { populationWindowMeters } from "../utils/requiredSiteBounds";
 import { yieldToEventLoop } from "../utils/yieldToEventLoop";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
@@ -72,19 +77,13 @@ import {
   selectInitialPolityCapitalNodes
 } from "./initialPolities";
 import { Names } from "./names-generator";
-import { Rivers } from "./river-generator";
+import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 import { getSettlementBaseSize } from "./settlementSuitability";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import type { Point } from "./voronoi";
 
 const MAX_STRATEGIC_CITADEL_BONUS = 0.5;
-/** A formal lake port requires at least this share of the packed map. */
-const MIN_LAKE_PORT_SHARE = 0.003;
-/** Prevents a tiny map or a malformed feature from promoting puddles. */
-const MIN_LAKE_PORT_CELLS = 4;
-const MIN_LAKE_PORTS = 2;
-const MAX_LAKE_PORTS = 6;
 /**
  * Rural `cells.pop` units that make a burg-less state holding count as a
  * settled overseas landmass. Cell Info people = pop × populationRate
@@ -99,6 +98,8 @@ const MIN_OVERSEAS_RURAL_POP = 1;
  * the port/searoute to a distant coastal neighbour.
  */
 const MIN_PORT_INLAND_GAP = 2;
+/** Bank sampling step for a river-mouth (sea and river) port site. */
+const DUAL_PORT_ALONG_STEP_METERS = 20;
 
 interface StrategicContext {
   frontiers: Map<number, FrontierSegment[]>;
@@ -237,6 +238,13 @@ class BurgModule {
       // Position river towns on the actual local bank, including river/estuary ports.
       for (const burg of burgs) {
         if (!burg.i || burg.lock || !cells.r[burg.cell]) continue;
+        // A harbour on an unnavigable stream keeps its shore: the stream runs
+        // through the town, it does not pull the town off the coast.
+        if (burg.port && cells.haven[burg.cell] && !(cells.fl[burg.cell] >= MIN_NAVIGABLE_FLUX)) {
+          delete burg.riverPlacement;
+          delete burg.riverSiteStatus;
+          continue;
+        }
         const [x, y] = yield* this.shiftTowardsRiverBankSteps(burg.cell, riversById, [burg.x, burg.y]);
         burg.x = x;
         burg.y = y;
@@ -261,7 +269,16 @@ class BurgModule {
     const culturesSet = useOptionsState.getState().culturesSet;
     for (const burg of burgs) {
       if (!burg.i || burg.removed || !burg.state) continue;
-      if (!isGiantWaterworksState({ stateId: burg.state, states, cultures, races, culturesSet })) continue;
+      if (
+        !isGiantWaterworksState({
+          stateId: burg.state,
+          states,
+          cultures,
+          races,
+          culturesSet
+        })
+      )
+        continue;
       const stateId = burg.state;
       const hasGravityRoute = hasGiantGravityWaterRouteToCell({
         cells,
@@ -323,7 +340,7 @@ class BurgModule {
       const haven = cells.haven[burg.cell];
       const landFeature = cells.f[burg.cell];
 
-      if (haven) {
+      if (haven && !this.isRiverPortBesideSmallLake(burg.cell)) {
         const harbor = cells.harbor[burg.cell];
         if (!harbor) continue;
         const featureId = cells.f[haven];
@@ -337,7 +354,8 @@ class BurgModule {
         if (isLake && this.getLakePortCapacity(feature) === 0) continue;
 
         const portFeatureId = isLake ? this.resolveLakePortFeature(featureId) : featureId;
-        const preferred = (harbor && Boolean(burg.capital)) || harbor === 1;
+        // River-Port Lab burgs exist to be ports, so they skip the per-landmass representative pick.
+        const preferred = (harbor && Boolean(burg.capital)) || harbor === 1 || Boolean(burg.labSiteKind);
         // A lake must compete only with settlements on that lake. Grouping an
         // outlet lake under the ocean feature used to make every lake shore a
         // preferred ocean port.
@@ -613,13 +631,27 @@ class BurgModule {
     return selected;
   }
 
+  /**
+   * A burg facing a lake too small for a lake port (no lake-crossing shuttle: unloading a wagon
+   * onto a boat for a one-cell hop is never worth it) may still sit on a navigable river. It is
+   * then a river port, judged like any river burg, as long as that river drains to the sea or
+   * to a lake big enough for ports; a river ending in the small lake itself would only connect
+   * burgs across that lake, which is exactly the shuttle the small-lake rule avoids.
+   */
+  private isRiverPortBesideSmallLake(cellId: number): boolean {
+    const { cells, features } = this.worldContext.pack;
+    const lake = features[cells.f[cells.haven[cellId]]];
+    if (lake?.type !== "lake") return false;
+    const smallLake =
+      lake.cells <= 1 || NON_NAVIGABLE_LAKE_GROUPS.has(lake.group) || this.getLakePortCapacity(lake) === 0;
+    if (!smallLake || !Rivers.isNavigable(cellId)) return false;
+    const drain = features[Rivers.resolveDrainFeature(cellId) ?? 0];
+    return drain?.type === "ocean" || (drain?.type === "lake" && this.getLakePortCapacity(drain) > 0);
+  }
+
   private getLakePortCapacity(lake: { cells: number }): number {
     const { cells } = this.worldContext.pack;
-    const totalCells = cells.i?.length ?? cells.f.length;
-    const lakeShare = lake.cells / Math.max(totalCells, 1);
-    if (lake.cells < MIN_LAKE_PORT_CELLS || lakeShare < MIN_LAKE_PORT_SHARE) return 0;
-    const growthSteps = Math.floor(Math.log2(lakeShare / MIN_LAKE_PORT_SHARE));
-    return Math.min(MAX_LAKE_PORTS, MIN_LAKE_PORTS + Math.max(0, growthSteps));
+    return lakePortCapacity(lake, cells.i?.length ?? cells.f.length);
   }
 
   private getPortState(burg: Burg): number {
@@ -723,7 +755,7 @@ class BurgModule {
     const { cells, features } = this.worldContext.pack;
     const haven = cells.haven[burg.cell];
 
-    if (haven) {
+    if (haven && !this.isRiverPortBesideSmallLake(burg.cell)) {
       const feature = features[cells.f[haven]];
       if (!cells.harbor[burg.cell] || !feature || feature.cells <= 1 || NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) {
         return false;
@@ -751,7 +783,14 @@ class BurgModule {
     const portFeatureId = Rivers.resolveDrainFeature(burg.cell);
     if (!portFeatureId) return false;
     this.promoteToPort(
-      { burg, haven: null, portFeatureId, landFeature: cells.f[burg.cell], waterKind: "river", preferred: true },
+      {
+        burg,
+        haven: null,
+        portFeatureId,
+        landFeature: cells.f[burg.cell],
+        waterKind: "river",
+        preferred: true
+      },
       new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
     );
     return true;
@@ -882,7 +921,11 @@ class BurgModule {
     const unresolved = (reason: string): Point => {
       if (burg) {
         delete burg.riverPlacement;
-        burg.riverSiteStatus = { riverId: river.i, status: "unresolved", reason };
+        burg.riverSiteStatus = {
+          riverId: river.i,
+          status: "unresolved",
+          reason
+        };
       }
       return source;
     };
@@ -893,7 +936,13 @@ class BurgModule {
     const base = cells.capacity ? this.getSettlementScore(cellId, cells.s?.[cellId] ?? 0) / 5 : 0;
     const population =
       (burg?.population ?? base * (burg?.capital ? 1.5 : 1)) * world.populationRate * world.urbanization;
-    const radius = settlementRadiusMeters(Number.isFinite(population) ? population : 50);
+    // Reserve the town City Editor will draw (Lot occupancy guide), so the bank
+    // gap is not the difference between two radius models.
+    const radius = occupancyRadiusMeters(
+      Number.isFinite(population) ? population : 50,
+      burgLotOccupancy(pack, burg ?? ({ cell: cellId, culture: cells.culture?.[cellId] } as Burg)),
+      burg ?? {}
+    );
     const polygon = (cells.v?.[cellId] ?? []).map(v => pack.vertices.p[v]);
     if (polygon.length < 3) return unresolved("missing-terrain");
     const maxMove = Math.max(
@@ -907,7 +956,7 @@ class BurgModule {
     const shore = burg ? dualPortShore(world, burg, scale, radius, maxMove, this.shoreShapes) : null;
     // Search river banks near the coast, rather than overwriting coast placement
     // with the bank nearest an unrelated cell centre. Terrain checks still apply.
-    const originMeters: Point = shore ? [shore.origin[0], shore.origin[1]] : [source[0] * scale, source[1] * scale];
+    let originMeters: Point = shore ? [shore.origin[0], shore.origin[1]] : [source[0] * scale, source[1] * scale];
     const otherWater: import("../services/riverPhysicalGeometry").PhysicalWaterPolygon[] = [];
     const unresolvedBounds: import("../services/worldRiverGeometry").RiverGeometryBounds[] = [];
     const reach = maxMove + radius * 2 + 22;
@@ -919,6 +968,8 @@ class BurgModule {
     };
     const target = yield* session.resolveSteps(world, river, unit, bounds);
     if (!("geometry" in target)) return unresolved(target.reason);
+    const mouth = shore?.mouth(target.geometry.water.rings);
+    if (mouth) originMeters = [mouth[0], mouth[1]];
     const nearby = session.rivers(bounds);
     for (const otherId of nearby) {
       if (otherId === river.i) continue;
@@ -949,9 +1000,29 @@ class BurgModule {
         };
         if (unresolvedBounds.some(w => w.minX <= b.maxX && w.maxX >= b.minX && w.minY <= b.maxY && w.maxY >= b.minY))
           return false;
-        const touched = session
+        // City Editor exports every river in the town window as canonical water;
+        // an unresolved one there would leave the town unopenable.
+        const window = populationWindowMeters(radius) / 2;
+        if (
+          unresolvedBounds.some(
+            w =>
+              w.minX <= point[0] + window &&
+              w.maxX >= point[0] - window &&
+              w.minY <= point[1] + window &&
+              w.maxY >= point[1] - window
+          )
+        )
+          return false;
+        const covering = session
           .terrain(world, b)
           .filter(t => footprintTouchesWater(footprint, { id: t.id, rings: [t.ring] }));
+        // A river-mouth site is held to the drawn coast CE imports (shore.supports);
+        // a coarse ocean cell under that drawn land is not water there.
+        const drawnLand = shore
+          ? covering.filter(t => !(cells.h[t.id] < 20 && pack.features[cells.f[t.id]]?.type === "ocean"))
+          : covering;
+        // Wholly on drawn land beyond the cell coast: the town's own cell stands for its terrain.
+        const touched = shore && !drawnLand.length ? [{ id: cellId, ring: [] as RiverPoint[] }] : drawnLand;
         if (
           !touched.length ||
           touched.some(
@@ -964,12 +1035,12 @@ class BurgModule {
           )
         )
           return false;
-        if (![...footprint, point].every(p => touched.some(t => pointInWater(p, { id: t.id, rings: [t.ring] }))))
+        if (![...footprint, point].every(p => covering.some(t => pointInWater(p, { id: t.id, rings: [t.ring] }))))
           return false;
         if (
           !coveredByTerrainCells(
             footprint,
-            touched.map(t => t.ring)
+            covering.map(t => t.ring)
           )
         )
           return false;
@@ -997,8 +1068,13 @@ class BurgModule {
     const connectionSupported = (point: RiverPoint): boolean => {
       if (
         !burgOverride ||
-        !pack.routes.some(route =>
-          route.points.some(p => p[2] === cellId && Math.hypot(p[0] - source[0], p[1] - source[1]) < 1e-7)
+        // Only land routes that reconnectRelocatedBurgLandRoutes links straight to
+        // the new site; sea lanes and registered connections are re-engineered.
+        !pack.routes.some(
+          route =>
+            route.group !== "searoutes" &&
+            route.registeredConnectionId === undefined &&
+            route.points.some(p => p[2] === cellId && Math.hypot(p[0] - source[0], p[1] - source[1]) < 1e-7)
         )
       )
         return true;
@@ -1045,6 +1121,12 @@ class BurgModule {
     };
     const result = yield* findRiverSettlementSiteSteps({
       ...search,
+      ...(shore
+        ? {
+            admits: (point: RiverPoint) => shore.accepts(point),
+            alongStepMeters: DUAL_PORT_ALONG_STEP_METERS
+          }
+        : {}),
       supports: (footprint, access, point) =>
         (!shore ||
           (shore.accepts(point) &&
@@ -1062,9 +1144,10 @@ class BurgModule {
       if (shore && burg?.riverPlacement && burg.riverSiteStatus?.status === "placed")
         return (burg.i && !burgOverride && this.reservedRiverSites.get(burg.i)) || source;
       if (shore) {
+        // Nearest supported bank to the coast, not to the old town position.
         const fallback = yield* findRiverSettlementSiteSteps({
           ...search,
-          origin: [source[0] * scale, source[1] * scale]
+          origin: originMeters
         });
         if ("site" in fallback)
           return (
@@ -1114,7 +1197,10 @@ class BurgModule {
     viewContext: Readonly<ViewContext>,
     appServices: AppServices,
     state: WorldState,
-    options: { deferShift?: boolean; geometrySession?: SettlementGeometrySession } = {}
+    options: {
+      deferShift?: boolean;
+      geometrySession?: SettlementGeometrySession;
+    } = {}
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
@@ -1154,7 +1240,7 @@ class BurgModule {
       if (plannedNodes.length) {
         const capitalsNumber = getInitialPolityCapitalCount(
           pack.settlementFoundation!,
-          useOptionsState.getState().statesNumber
+          scopedStatesNumber(grid, useOptionsState.getState().statesNumber)
         );
         // ensureMandatoryCapitals (docs/plan/underground-realm-and-supernatural-areas.md §3.4/
         // §7.3) guarantees the Dwarf hold's "mountain" region node is a capital even when it
@@ -1264,16 +1350,27 @@ class BurgModule {
       burg.entranceCell = burg.cell;
     };
 
-    const generateTowns = () => {
-      const burgsNumber = getTownsNumber();
+    const generateTowns = (labOnly = false) => {
+      const labPicks = this.placeLabSites(burgsQuadtree);
+      const lab = activeLabOptions();
+      const burgsNumber =
+        labOnly || (lab && !lab.fillTowns)
+          ? 0
+          : lab
+            ? Math.max(0, getTownsNumber() - labPicks.length)
+            : getTownsNumber();
       const realmCells = getStartingRealmCellSet();
-      const placedCells = plannedNodes.length
+      const labKindByCell = new Map(labPicks.map(pick => [pick.cell, pick.kind]));
+      for (const pick of labPicks) cells.burg[pick.cell] = -1; // reserve against placeTowns
+      const ordinaryCells = plannedNodes.length
         ? [...plannedNodes]
             .filter(node => !cells.burg[node.cell] && (!realmCells || realmCells.has(node.cell)))
             .sort((a, b) => b.score - a.score)
             .slice(0, burgsNumber)
             .map(node => node.cell)
         : this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
+      for (const pick of labPicks) cells.burg[pick.cell] = 0;
+      const placedCells = [...labPicks.map(pick => pick.cell), ...ordinaryCells];
 
       for (const cell of placedCells) {
         const [x, y] = cells.p[cell];
@@ -1290,7 +1387,8 @@ class BurgModule {
           culture,
           name,
           feature,
-          capital: 0
+          capital: 0,
+          ...(labKindByCell.has(cell) ? { labSiteKind: labKindByCell.get(cell) } : {})
         });
         cells.burg[cell] = burgId;
       }
@@ -1299,9 +1397,10 @@ class BurgModule {
     generateCapitals();
     ensureGiantSourceCapital(giantHighlandOikoumene);
     ensureLichCapitals();
-    if (!isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) || preservesLegacyCandidates) {
-      generateTowns();
-    }
+    const capitalOnly =
+      isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) && !preservesLegacyCandidates;
+    // River-Port Lab sites are placed even in a capital-only realm; ordinary towns are not.
+    if (!capitalOnly || activeLabOptions()) generateTowns(capitalOnly);
 
     for (const burg of burgs) {
       if (!burg.i) continue;
@@ -1322,6 +1421,7 @@ class BurgModule {
 
     function getCapitalsNumber() {
       let number = useOptionsState.getState().statesNumber;
+      if (grid.scope) return capScopedCount(grid.scope, "states", number, populatedCells.length);
 
       if (populatedCells.length < number * 10) {
         number = Math.floor(populatedCells.length / 10);
@@ -1412,7 +1512,7 @@ class BurgModule {
     function getTownsNumber() {
       const manors = useOptionsState.getState().manors;
       const isAuto = manors === 1000; // 1000 is considered as auto
-      if (isAuto) return rn(populatedCells.length / 5 / (grid.points.length / 10000) ** 0.8);
+      if (isAuto) return rn(populatedCells.length / 5 / (gridDensityCells(grid) / 10000) ** 0.8);
 
       return Math.min(manors, populatedCells.length);
     }
@@ -1441,6 +1541,51 @@ class BurgModule {
    * `candidateCells`, spaced apart via the same shrinking-radius algorithm, without mutating
    * pack — callers are responsible for turning the returned cells into burgs.
    */
+  /** River-Port Lab (docs/plan/river-port-lab.md §4.2): forced river/sea sites, or none when off. */
+  private placeLabSites(burgsQuadtree: Quadtree<[number, number]>) {
+    const lab = activeLabOptions();
+    if (!lab) return [];
+    const { pack, graphWidth, graphHeight } = this.worldContext;
+    const { cells } = pack;
+    const cellSpacing = Math.sqrt((graphWidth * graphHeight) / Math.max(1, cells.i.length));
+    // Any land cell, not only cultured ones: a province map's cultures cover few cells, and the lab
+    // wants every river/sea relation. River sites must be navigable so the burg can be a river port.
+    const candidates = Array.from(cells.i).filter(
+      cell => cells.h[cell] >= 20 && !cells.burg[cell] && (!cells.r[cell] || cells.fl[cell] >= MIN_NAVIGABLE_FLUX)
+    );
+    if (!Array.from(cells.culture).some(Boolean)) return []; // picks take the nearest culture
+    const { picks, shortfall, supply } = selectLabSites(
+      { cells, features: pack.features, rivers: pack.rivers ?? [] },
+      candidates,
+      lab.siteQuota,
+      burgsQuadtree,
+      cellSpacing * 1.8,
+      Math.random
+    );
+    pack.riverPortLab = { options: structuredClone(lab), shortfall, supply };
+    for (const { cell } of picks) if (!cells.culture[cell]) cells.culture[cell] = this.nearestCulture(cell);
+    return picks;
+  }
+
+  /** Culture of the nearest cultured cell (breadth-first over neighbours). */
+  private nearestCulture(start: number): number {
+    const { cells } = this.worldContext.pack;
+    const seen = new Set([start]);
+    for (let queue = [start]; queue.length; ) {
+      const next: number[] = [];
+      for (const cell of queue) {
+        for (const neighbour of cells.c[cell]) {
+          if (seen.has(neighbour)) continue;
+          if (cells.culture[neighbour]) return cells.culture[neighbour];
+          seen.add(neighbour);
+          next.push(neighbour);
+        }
+      }
+      queue = next;
+    }
+    return 0;
+  }
+
   private placeTowns(
     candidateCells: Iterable<number>,
     count: number,
@@ -1485,7 +1630,10 @@ class BurgModule {
    * Capitals are left untouched — relocating them has much larger ripple effects (diplomacy,
    * state label anchor) than a plain town.
    */
-  regenerateInScope(cellIds: Iterable<number>): { addedBurgIds: number[]; removedBurgIds: number[] } {
+  regenerateInScope(cellIds: Iterable<number>): {
+    addedBurgIds: number[];
+    removedBurgIds: number[];
+  } {
     const { pack } = this.worldContext;
     const { cells } = pack;
     const scope = new Set(cellIds);

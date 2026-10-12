@@ -1,4 +1,5 @@
-import { expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
+import i18n from "../../i18n";
 import fixture from "./fixtures/gate-curtain-20261002.json";
 import { pointInPolygon, polygonCentroid } from "./gen/geom";
 import { completeRoadRouter } from "./generate";
@@ -6,6 +7,10 @@ import { formatGenerationFailureLog, type RoadRoutingTrace } from "./generationD
 import { meshFromCells } from "./mesh";
 import { kindEdgeIds, vertexHasCrossing } from "./passages";
 import type { CityDocument, Point } from "./types";
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));
 
 it("routes a gate outside the current curtain despite stale urban membership", () => {
   const mesh = meshFromCells(

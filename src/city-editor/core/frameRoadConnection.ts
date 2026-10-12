@@ -11,18 +11,30 @@ import { lineHitsDocumentWater } from "./waterGeometry";
 type Leg = NonNullable<CityDocument["frameRoads"]>[number];
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
+function dryStreetVertices(document: CityDocument, sourceIndex: number): { id: string; point: Point }[] {
+  return document.featureGroups.flatMap(group => {
+    if (group.kind !== "road" || group.sourceRoad?.index !== sourceIndex) return [];
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 2) return [];
+    return ids.flatMap((id, index) => {
+      const point = document.mesh.vertices[id].point;
+      const dry = [ids[index - 1], ids[index + 1]].some(
+        inner =>
+          inner &&
+          !lineHitsDocumentWater(document, [point, document.mesh.vertices[inner].point], group.style.widthMeters, true)
+      );
+      return dry ? [{ id, point }] : [];
+    });
+  });
+}
+
 /** The renderer and audit use the same full-width, dry attachment to a source street. */
 export function frameRoadTownConnection(document: CityDocument, leg: Leg): [Point, Point] | null {
   const target = leg.pieces[0]?.points[0];
   if (!target) return null;
   const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
-  const points = document.featureGroups
-    .flatMap(group => {
-      if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) return [];
-      const path = featureGroupVertices(document, group).map(id => document.mesh.vertices[id].point);
-      if (path.length < 2 || lineHitsDocumentWater(document, path, group.style.widthMeters, true)) return [];
-      return path;
-    })
+  const points = dryStreetVertices(document, leg.sourceIndex)
+    .map(item => item.point)
     .sort((a, b) => distance(a, target) - distance(b, target));
   const curtains = document.featureGroups.flatMap(group =>
     group.kind === "wall"
@@ -41,14 +53,29 @@ export function frameRoadTownConnection(document: CityDocument, leg: Leg): [Poin
   return null;
 }
 
+/** Whether the rendered town street and the first dry FMG arm meet. The arm's
+ * later bridge or ferry is validated separately. */
+export function frameRoadAttachedToTown(document: CityDocument, leg: Leg): boolean {
+  const piece = leg.pieces[0];
+  return piece?.kind === "road" && !!frameRoadTownConnection(document, leg);
+}
+
 /** Check actual continuity through dry arms and certified fixed E→E spans.
  * Merely having a far-away rendered endpoint is not a connected road. */
 export function frameRoadConnectedToTown(document: CityDocument, leg: Leg): boolean {
   const connection = frameRoadTownConnection(document, leg);
-  if (!connection) return false;
   const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
   const fixed = document.importedFixedCrossings;
-  const lines: Point[][] = [connection];
+  const streets = document.featureGroups.flatMap(group => {
+    if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) return [];
+    const points = featureGroupVertices(document, group).map(id => document.mesh.vertices[id].point);
+    return points.length >= 2 && !lineHitsDocumentWater(document, points, group.style.widthMeters, true)
+      ? [points]
+      : [];
+  });
+  const terminals = dryStreetVertices(document, leg.sourceIndex).map(item => item.point);
+  if (!streets.length && !terminals.length) return false;
+  const lines: Point[][] = connection ? [connection] : [];
   for (const piece of leg.pieces) {
     if (!piece.points.length) continue;
     if (piece.kind === "bridge") return false; // An unregistered CE guess is not a certified crossing.
@@ -57,7 +84,7 @@ export function frameRoadConnectedToTown(document: CityDocument, leg: Leg): bool
   }
   if (fixed && validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS))
     for (const c of fixed.crossings) lines.push([c.approachA, c.deckA, c.deckB, c.approachB].map(p => [p[0], p[1]]));
-  const reached: Point[] = [connection[0]];
+  const reached: Point[] = [...streets.flat(), ...terminals];
   const pending = [...lines];
   let changed = true;
   while (changed) {
@@ -72,6 +99,118 @@ export function frameRoadConnectedToTown(document: CityDocument, leg: Leg): bool
   }
   const end = leg.pieces.at(-1)?.points.at(-1);
   return !!end && reached.some(p => distance(p, end) < 1e-5);
+}
+
+/** Extend a short, stranded FMG frame arm over dry mesh edges to its own town
+ * street. The existing surveyed arm and any registered bridge stay untouched. */
+export function repairFrameRoadTownConnections(document: CityDocument): number {
+  const adjacency = new Map<string, { id: string; length: number }[]>();
+  for (const edge of Object.values(document.mesh.edges)) {
+    const a = document.mesh.vertices[edge.a]?.point;
+    const b = document.mesh.vertices[edge.b]?.point;
+    if (!a || !b) continue;
+    const length = distance(a, b);
+    for (const [from, to] of [
+      [edge.a, edge.b],
+      [edge.b, edge.a]
+    ]) {
+      const links = adjacency.get(from) ?? [];
+      links.push({ id: to, length });
+      adjacency.set(from, links);
+    }
+  }
+  const curtains = document.featureGroups.flatMap(group =>
+    group.kind === "wall"
+      ? wallRunsOutsideGates(
+          document,
+          featureGroupVertices(document, group).map(id => document.mesh.vertices[id].point)
+        )
+      : []
+  );
+  const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
+  const clear = (a: Point, b: Point) =>
+    !lineHitsDocumentWater(document, [a, b], width, true) &&
+    !curtains.some(run => run.slice(1).some((end, index) => segmentSegmentHit(a, b, run[index], end)));
+  let repaired = 0;
+  for (const leg of document.frameRoads ?? []) {
+    const piece = leg.pieces[0];
+    const target = piece?.points[0];
+    if (piece?.kind !== "road" || !target || frameRoadAttachedToTown(document, leg)) continue;
+    const groups = document.featureGroups.filter(
+      group => group.kind === "road" && group.sourceRoad?.index === leg.sourceIndex && !group.locked
+    );
+    const maxDistance = Math.min(750, Math.max(40, document.frame.extentMeters));
+    const finalGap = Math.max(40, document.frame.blockSizeMeters * 3);
+    // The surveyed arm may graze a river at its town end even though a later
+    // point on the same arm is dry (Ablos route 21). Replace only that short
+    // lead-in when a full-width connector from its own street is dry.
+    const directLimit = Math.max(160, document.frame.blockSizeMeters * 5);
+    let trimmed = 0;
+    for (let index = 0; index < piece.points.length; index++) {
+      if (index > 0) trimmed += distance(piece.points[index - 1], piece.points[index]);
+      if (trimmed > directLimit) break;
+      const join = piece.points[index];
+      const street = dryStreetVertices(document, leg.sourceIndex)
+        .filter(item => distance(item.point, join) <= directLimit && clear(item.point, join))
+        .sort((a, b) => distance(a.point, join) - distance(b.point, join))[0];
+      if (!street) continue;
+      const original = piece.points;
+      piece.points = [street.point, ...original.slice(index)];
+      if (frameRoadAttachedToTown(document, leg)) {
+        repaired++;
+        break;
+      }
+      piece.points = original;
+    }
+    if (frameRoadAttachedToTown(document, leg)) continue;
+    for (const group of groups) {
+      if (group.kind !== "road" || group.sourceRoad?.terminal === "riverLanding") continue;
+      const vertices = featureGroupVertices(document, group);
+      if (vertices.length < 2) continue;
+      const starts = vertices.filter((id, index) => {
+        const point = document.mesh.vertices[id].point;
+        if (distance(point, target) > maxDistance) return false;
+        return [vertices[index - 1], vertices[index + 1]].some(
+          neighbor => neighbor && clear(point, document.mesh.vertices[neighbor].point)
+        );
+      });
+      if (!starts.length) continue;
+      const paths = new Map<string, { cost: number; ids: string[] }>();
+      const pending: string[] = [];
+      for (const id of starts) {
+        paths.set(id, { cost: 0, ids: [id] });
+        pending.push(id);
+      }
+      let best: { cost: number; ids: string[] } | null = null;
+      while (pending.length && paths.size <= 2000) {
+        pending.sort((a, b) => paths.get(a)!.cost - paths.get(b)!.cost);
+        const id = pending.shift()!;
+        const path = paths.get(id)!;
+        const point = document.mesh.vertices[id].point;
+        if (distance(point, target) <= finalGap && clear(point, target)) {
+          const cost = path.cost + distance(point, target);
+          if (cost <= maxDistance && (!best || cost < best.cost)) best = { cost, ids: path.ids };
+        }
+        if (path.cost >= maxDistance || (best && path.cost >= best.cost)) continue;
+        for (const link of adjacency.get(id) ?? []) {
+          const next = document.mesh.vertices[link.id].point;
+          const cost = path.cost + link.length;
+          if (cost > maxDistance || !clear(point, next) || cost >= (paths.get(link.id)?.cost ?? Infinity)) continue;
+          paths.set(link.id, { cost, ids: [...path.ids, link.id] });
+          pending.push(link.id);
+        }
+      }
+      if (!best) continue;
+      const original = piece.points;
+      piece.points = [...best.ids.map(id => document.mesh.vertices[id].point), ...original];
+      if (frameRoadAttachedToTown(document, leg)) {
+        repaired++;
+        break;
+      }
+      piece.points = original;
+    }
+  }
+  return repaired;
 }
 
 /** A town street meets its exterior road within this many degrees of straight. */

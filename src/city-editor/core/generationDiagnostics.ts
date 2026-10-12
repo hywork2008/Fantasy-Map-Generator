@@ -31,6 +31,8 @@ export interface GenerationFailure {
 }
 
 export interface GenerationSample {
+  /** FMG frame roads that remain unattached after safe repair. */
+  roadConnectionIssues?: { sourceIndex: number; routeId: number; branchIndex: number }[];
   routing?: RoadRoutingTrace[];
   fixedApproaches?: import("./automaticFixedApproaches").AutomaticFixedApproachResult["diagnostics"];
   housingFit?: import("./gen/fitImportedHousing").HousingFitStats;

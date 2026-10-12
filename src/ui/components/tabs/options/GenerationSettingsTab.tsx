@@ -6,10 +6,17 @@ import {
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../../../../data";
 import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
+import { RiverPortLabRows } from "../../../../debug/riverPortLab/RiverPortLabRows";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
+import {
+  ISLET_LAND_CELL_CHOICES,
+  normalizeMapScope,
+  PROVINCE_SCOPE_MAX_CELLS,
+  PROVINCE_SCOPE_MIN_CELLS
+} from "../../../../utils/mapScope";
 import { openDialog } from "../../../dialogs/dialogService";
 import { IconButton } from "../../IconButton";
 import { LockIconButton } from "../../LockIconButton";
@@ -160,6 +167,69 @@ export const GenerationSettingsTab: React.FC = () => {
               </output>
             </td>
           </tr>
+
+          <tr data-tip={t("generation.mapScopeTip")}>
+            <td>
+              <LockIconButton id="mapScope" />
+            </td>
+            <th>{t("generation.mapScope")}</th>
+            <td colSpan={2}>
+              <select
+                value={options.mapScope}
+                onChange={e => updateOptionAndLock("mapScope", normalizeMapScope(e.target.value))}
+              >
+                <option value="world">{t("generation.mapScopeWorld")}</option>
+                <option value="province">{t("generation.mapScopeProvince")}</option>
+                <option value="islet">{t("generation.mapScopeIslet")}</option>
+              </select>
+            </td>
+          </tr>
+
+          {options.mapScope === "province" && (
+            <tr data-tip={t("generation.mapScopeCellsTip")}>
+              <td>
+                <LockIconButton id="mapScopeCells" />
+              </td>
+              <th>{t("generation.mapScopeCells")}</th>
+              <td>
+                <input
+                  type="range"
+                  min={PROVINCE_SCOPE_MIN_CELLS}
+                  max={PROVINCE_SCOPE_MAX_CELLS}
+                  step="50"
+                  value={options.mapScopeCells}
+                  onChange={e => updateOptionAndLock("mapScopeCells", Number(e.target.value))}
+                />
+              </td>
+              <td>
+                <output>{options.mapScopeCells}</output>
+              </td>
+            </tr>
+          )}
+
+          {import.meta.env.DEV && options.mapScope === "province" && <RiverPortLabRows />}
+
+          {options.mapScope === "islet" && (
+            <tr data-tip={t("generation.isletLandCellsTip")}>
+              <td>
+                <LockIconButton id="isletLandCells" />
+              </td>
+              <th>{t("generation.isletLandCells")}</th>
+              <td colSpan={2}>
+                <select
+                  value={options.isletLandCells}
+                  onChange={e => updateOptionAndLock("isletLandCells", Number(e.target.value))}
+                >
+                  <option value={0}>{t("generation.isletLandCellsRandom")}</option>
+                  {ISLET_LAND_CELL_CHOICES.map(cells => (
+                    <option key={cells} value={cells}>
+                      {cells}
+                    </option>
+                  ))}
+                </select>
+              </td>
+            </tr>
+          )}
 
           <tr>
             <th colSpan={4}>{t("generation.sectionLandscape")}</th>

@@ -28,6 +28,7 @@ import { rollCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 import { rollCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
 import { worldTraditionPeriod } from "../utils/cultureTradition";
 import { ERROR, TIME, WARN } from "../utils/debug";
+import { capScopedCount } from "../utils/mapScope";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
 
@@ -1221,9 +1222,12 @@ class CulturesModule {
     const culturesInputNumber = useOptionsState.getState().cultures;
     let count = Math.min(culturesInputNumber, 100);
     const populated = this.cells!.i.filter((i: number) => this.cells!.s[i]); // populated cells
+    // Province/Islet scope: a culture or two even on a handful of livable cells.
+    const scope = worldContext.grid.scope;
+    if (scope) count = capScopedCount(scope, "cultures", count, populated.length);
 
-    if (populated.length < count * 25) {
-      count = Math.floor(populated.length / 50);
+    if (scope ? !count : populated.length < count * 25) {
+      count = scope ? 0 : Math.floor(populated.length / 50);
       if (!count) {
         WARN && console.warn(`There are no populated cells. Cannot generate cultures`);
         pack.cultures = [{ name: "Wildlands", i: 0, base: 1, shield: "round" }];
@@ -1619,6 +1623,9 @@ class CulturesModule {
 
     for (const culture of cultures) {
       if (!culture.i || culture.removed || culture.lock) continue;
+      // The center keeps its culture even when no expansion returns to it (a one-cell islet
+      // surrounded by sea). Its cost stays unset, so a cheaper path may still overwrite it as before.
+      if (cells.s[culture.center!] > 0) cells.culture[culture.center!] = culture.i;
       queue.push({ cellId: culture.center!, cultureId: culture.i, priority: 0 }, 0);
     }
 

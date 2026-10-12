@@ -1,12 +1,26 @@
 import { worldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { Routes } from "../generators/routes-generator";
+import i18n from "../i18n";
+import type { FractalizedShape } from "../renderers/coastline-fractal";
+import { updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { dualPortHaven } from "../services/dualPortShore";
 import { reconnectRelocatedBurgLandRoutes, samePosition } from "../services/relocatedBurgRoutes";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
+import { tip } from "../services/tooltipService";
+import {
+  burgCityRadiusMeters,
+  describeWaterfrontIssue,
+  drawnShoreNearBurg,
+  settledRiverSite,
+  settledShorePort,
+  type WaterfrontIssue,
+  waterfrontIssues
+} from "../services/waterfrontSettlement";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
+import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { yieldToEventLoop } from "../utils/yieldToEventLoop";
 import { type MapReadyTaskContext, registerMapReadyTask, requestMapReadyTask } from "./mapReadyTaskCoordinator";
 import { legacyMutation, worldRuntime } from "./worldRuntime";
@@ -20,9 +34,9 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
   const world = worldContext,
     pack = world.pack;
   const candidates = pack.burgs.filter(
-    b => b?.i && !b.removed && !b.lock && !b.riverPlacement?.coastConstrained && dualPortHaven(world, b) !== null
+    // Placed sites are re-searched too: generation reserved them for a provisional population.
+    b => b?.i && !b.removed && !b.lock && dualPortHaven(world, b) !== null
   );
-  if (!candidates.length) return;
   const unit = useOptionsState.getState().distanceUnit;
   const revision = worldRuntime.readTrusted().revision;
   const current = () =>
@@ -52,7 +66,7 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
   } else await yieldToEventLoop();
   if (!current()) return;
   const session = new SettlementGeometrySession();
-  if (!(await drain(session.prepareSteps(world, unit)))) return;
+  if (candidates.length && !(await drain(session.prepareSteps(world, unit)))) return;
   const proposals: { before: Burg; after: Burg }[] = [];
   for (let i = 0; i < candidates.length; i++) {
     if (!current()) return;
@@ -68,7 +82,37 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     await yieldToEventLoop();
     start = performance.now();
   }
-  if (!current() || !proposals.length) return;
+  if (!current()) return;
+  // Settle every waterfront town to the radius City Editor draws, now that
+  // population is final; then check each port against the same geometry.
+  const scale = mapUnitMeters(world.distanceScale, unit);
+  const shapes = new Map<number, FractalizedShape | null>();
+  const byId = new Map(proposals.map(p => [p.after.i!, p]));
+  const radius = (b: Burg) => burgCityRadiusMeters(pack, b, world.populationRate, world.urbanization);
+  for (const live of pack.burgs) {
+    if (!live?.i || live.removed || live.lock) continue;
+    if (pack.routes.some(route => route.lock && route.points.some(p => samePosition(p, live)))) continue;
+    const proposal = byId.get(live.i);
+    const base = proposal?.after ?? live;
+    // A river-mouth port slides along its bank toward the drawn coast.
+    const towardShore = base.waterAccess?.port.sea
+      ? (x: number, y: number) =>
+          drawnShoreNearBurg(world, { ...base, x, y }, scale, radius(base) * 6, shapes)?.distanceMeters ?? Infinity
+      : undefined;
+    const settled =
+      settledRiverSite(pack, base, radius(base), scale, towardShore) ??
+      (base.port ? settledShorePort(world, base, radius(base), scale, shapes) : null);
+    if (!settled) continue;
+    const after = { ...base, ...settled };
+    updateBurgWaterAccess(after, pack);
+    if (proposal) proposal.after = after;
+    else proposals.push({ before: { ...live }, after });
+  }
+  if (!current()) return;
+  if (!proposals.length) {
+    reportWaterfront(world, scale, shapes, radius);
+    return;
+  }
   const moved = proposals.some(({ before, after }) => Math.hypot(after.x - before.x, after.y - before.y) > 1e-7);
   let physical: { routes: Route[] } | null = null;
   let staged = world;
@@ -84,6 +128,7 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     const proposedNetwork = generateWorldLandConnections(staged, unit);
     if (!("routes" in proposedNetwork)) {
       console.warn("Dual-port placement retained existing cities:", proposedNetwork.reason);
+      reportWaterfront(world, scale, shapes, radius);
       return;
     }
     physical = proposedNetwork;
@@ -107,9 +152,43 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     }
     return { result: undefined, topics: ["map.settlements", "map.networks"] };
   });
+  reportWaterfront(world, scale, shapes, radius);
 }
 
-registerMapReadyTask({ id: TASK_ID, label: "Checking river and sea ports", run: repairDualPortPlacements });
+/** Record each port's waterfront check and alert: a failure is an FMG placement defect. */
+function reportWaterfront(
+  world: typeof worldContext,
+  scale: number,
+  shapes: Map<number, FractalizedShape | null>,
+  radius: (burg: Burg) => number
+): void {
+  const failures: { burg: Burg; issues: WaterfrontIssue[] }[] = [];
+  legacyMutation(() => {
+    for (const burg of world.pack.burgs) {
+      if (!burg?.i || burg.removed) continue;
+      const issues = burg.lock ? [] : waterfrontIssues(world, burg, radius(burg), scale, shapes);
+      if (issues.length) {
+        burg.waterfrontCheck = { status: "failed", issues };
+        failures.push({ burg, issues });
+      } else delete burg.waterfrontCheck;
+    }
+    return { result: undefined, topics: ["map.settlements"] };
+  });
+  if (!failures.length) return;
+  console.warn(
+    `Waterfront check failed for ${failures.length} port(s); review FMG settlement, road and river placement:\n` +
+      failures
+        .map(({ burg, issues }) => `  #${burg.i} ${burg.name}: ${issues.map(describeWaterfrontIssue).join("; ")}`)
+        .join("\n")
+  );
+  tip(i18n.t("waterfrontCheck.failed", { count: failures.length }), false, "warn", 15000);
+}
+
+registerMapReadyTask({
+  id: TASK_ID,
+  label: "Checking river and sea ports",
+  run: repairDualPortPlacements
+});
 
 export function requestDualPortPlacementRepair(): void {
   requestMapReadyTask(TASK_ID);

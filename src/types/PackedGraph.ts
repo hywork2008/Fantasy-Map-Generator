@@ -165,6 +165,12 @@ export interface PackedGraph {
    * adapter.
    */
   settlementFoundation?: SettlementFoundationPlan;
+  /** River-Port Lab debug generation (docs/plan/river-port-lab.md): options used and unmet quotas. */
+  riverPortLab?: {
+    options: import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+    shortfall: Partial<Record<import("../debug/riverPortLab/classifyRiverSite").LabSiteKind, number>>;
+    supply: Partial<Record<import("../debug/riverPortLab/classifyRiverSite").LabSiteKind, number>>;
+  };
   /**
    * Underground realm domains (cave systems, Dwarf holds, wild fauna reaches) projected onto
    * surface cells. Absent/empty on non-Fantasy maps and legacy saves.

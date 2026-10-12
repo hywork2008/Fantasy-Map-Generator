@@ -1,4 +1,5 @@
 import type * as d3 from "d3";
+import { fitScopedMapToView } from "../actions";
 import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
@@ -299,8 +300,9 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       seed: worldContext.seed,
       year: validated.document.simulation.currentYear,
       era: validated.document.simulation.era,
-      mapWidth: worldContext.graphWidth,
-      mapHeight: worldContext.graphHeight,
+      // A Province/Islet-scope map keeps the canvas it was cut from, so regenerating does not shrink twice.
+      mapWidth: worldContext.grid.scope?.canvasWidth ?? worldContext.graphWidth,
+      mapHeight: worldContext.grid.scope?.canvasHeight ?? worldContext.graphHeight,
       initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern),
       initialPolityRealmSize: normalizeInitialPolityRealmSize(
         worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
@@ -315,6 +317,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // the zoom extent, otherwise areas outside the pre-load viewport stay unpainted.
     resizeGraphRects();
     fitMapToScreen();
+    fitScopedMapToView();
     if (worldContext.options.landConnectionGeneration) {
       legacyMutation(() => {
         const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
@@ -340,11 +343,15 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
 
     // The full-replace commit has already reached RenderCoordinator. A renderer
     // failure is isolated from the accepted world by WorldRuntime listeners.
-    markMapReadyTasksAvailable();
+    // With "skip map-ready tasks" checked, requests raised during load are ignored
+    // (the coordinator drops them while not yet available), then it is enabled afterwards.
+    const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
+    if (!skipTasks) markMapReadyTasksAvailable();
     requestDualPortPlacementRepair();
     document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
+    if (skipTasks) markMapReadyTasksAvailable();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);
@@ -486,10 +493,12 @@ export async function parseLoadedData(
       applyLegacyMapView(data, mapVersion);
       // Match the archive load lifecycle so extensions can migrate or rebuild
       // their current runtime state after a legacy map has been committed.
-      markMapReadyTasksAvailable();
+      const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
+      if (!skipTasks) markMapReadyTasksAvailable();
       requestDualPortPlacementRepair();
       document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
       document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
+      if (skipTasks) markMapReadyTasksAvailable();
     } catch (stageError) {
       if (!dataCommitted) {
         try {

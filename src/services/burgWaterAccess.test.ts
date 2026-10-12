@@ -6,8 +6,8 @@ import { updateBurgWaterAccess } from "./burgWaterAccess";
 function fixture() {
   const burg: Burg = { i: 1, cell: 0, x: 0, y: 0, port: 1 };
   const pack = {
-    cells: { c: [[1, 2, 3]], h: [30, 10, 10, 30], f: [3, 1, 2, 1], r: [7], fl: [200] },
-    features: [null, { type: "ocean" }, { type: "lake" }, { type: "island" }]
+    cells: { i: new Uint16Array(1000), c: [[1, 2, 3]], h: [30, 10, 10, 30], f: [3, 1, 2, 1], r: [7], fl: [200] },
+    features: [null, { type: "ocean" }, { type: "lake", cells: 12 }, { type: "island" }]
   } as unknown as PackedGraph;
   return { burg, pack };
 }
@@ -24,6 +24,11 @@ describe("burg water access", () => {
       lakeFeatureIds: [2],
       port: { river: true, sea: true, lake: true }
     });
+  });
+  it("gives no lake frontage on a lake too small for lake ports", () => {
+    const { burg, pack } = fixture();
+    (pack.features[2] as { cells: number }).cells = 2;
+    expect(updateBurgWaterAccess(burg, pack).port).toEqual({ river: true, sea: true, lake: false });
   });
   it("does not classify an inland river port as sea access from its drain feature", () => {
     const { burg, pack } = fixture();

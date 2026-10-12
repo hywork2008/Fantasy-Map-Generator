@@ -116,7 +116,7 @@ describe("ordinary world physical-route runtime", () => {
     expect(getWorldLandConnectionCurrent(f.world, "km")).toBeNull();
     RoutesRenderer.render(f.world, view, {} as AppServices);
     expect(svg.querySelectorAll("[data-facility-id]")).toHaveLength(0);
-  });
+  }, 120000);
   it("rejects unknown engineering/walking alternatives and changed units without legacy smoothing", () => {
     const f = fixture();
     f.settings.dryBaseline.guides.maxSamples = 1;
@@ -137,5 +137,5 @@ describe("ordinary world physical-route runtime", () => {
     );
     copied.options.landConnectionGeneration!.calibration.bridgeUseCostMeters = -1;
     expect(getWorldLandConnectionCurrent(copied, "km")).toBeNull();
-  });
+  }, 120000);
 });

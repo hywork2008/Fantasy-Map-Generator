@@ -1814,6 +1814,16 @@
     "copySeed": "Copy map seed as URL. It will produce the same map only if options are default or the same",
     "pointsNumber": "Points number",
     "pointsNumberTip": "Set number of points to be used for graph generation. Highly affects performance. 10K is the only recommended value",
+    "mapScope": "Map scope",
+    "mapScopeTip": "World: the whole canvas is filled with cells. Province / Islet: same cell density (and km per pixel), but the canvas shrinks so the map holds only a province's or a single islet's worth of cells — fewer burgs, faster generation and tests",
+    "mapScopeWorld": "World (full canvas)",
+    "mapScopeProvince": "Province (small region)",
+    "mapScopeIslet": "Islet (one tiny island)",
+    "mapScopeCells": "Scope cells",
+    "mapScopeCellsTip": "Total grid cells (land and sea) of a Province-scope map. Cell size stays that of a full map at the current Points number",
+    "isletLandCells": "Islet land cells",
+    "isletLandCellsTip": "Number of land grid cells of the single island on an Islet-scope map",
+    "isletLandCellsRandom": "Random (1–4)",
     "sectionLandscape": "1. Landscape outline",
     "heightmap": "Heightmap",
     "heightmapTip": "Select heightmap template to be used for map generation",
@@ -2732,16 +2742,22 @@
       "dropboxTip": "Save map file to your Dropbox",
       "browser": "browser",
       "browserTip": "Save the project to browser storage only",
+      "server": "Map server",
+      "serverTip": "Save the map to the shared map server (replaces the server copy)",
       "note": "Maps are saved in <i>.map</i> format, that can be loaded back via the <i>Load</i> in menu. There is no way to restore the progress if file is lost. Please keep old save files on your machine or cloud storage as backups."
     },
     "load": {
       "loadFrom": "Load map from",
+      "skipMapReadyTasks": "Skip map-ready tasks when loading",
+      "skipMapReadyTasksTip": "Do not run extension initialization (map-ready tasks) after loading a map",
       "machine": "machine",
       "machineTip": "Load map file (.map or .gz) from your local disk",
       "url": "URL",
       "urlTip": "Load map file (.map or .gz) file from URL. Note that the server should allow CORS",
       "storage": "storage",
       "storageTip": "Load map from browser storage (if saved before)",
+      "server": "Map server",
+      "serverTip": "Load the map currently held by the shared map server",
       "storageHint": "Click on <i>storage</i> to open the last saved map.",
       "dropboxIntro": "Or load from your Dropbox account",
       "connectTip": "Connect your Dropbox account to be able to load maps from it",
@@ -3117,7 +3133,6 @@
       "previewNavigation": "Scroll to zoom · Drag to pan",
       "previewReset": "Reset view",
       "previewMfcgHeading": "Medieval Fantasy City Generator (watabou)",
-
       "tabsAria": "Burg editor sections",
       "overview": "Overview",
       "name": "Name:",
@@ -3404,7 +3419,10 @@
         "label": "Domain poll",
         "tooltip": "Click to open Domain Poll Detail — per-burg levy contribution to state poll tax"
       },
-      "characters-relationship-compatibility": {"label": "Character Compatibility", "tooltip": "Inspect personality compatibility used in solidarity calculations"},
+      "characters-relationship-compatibility": {
+        "label": "Character Compatibility",
+        "tooltip": "Inspect personality compatibility used in solidarity calculations"
+      },
       "characters-view-characters": {
         "label": "Characters",
         "tooltip": "Click to view the generated character roster"
@@ -5131,5 +5149,8 @@
       "unresolved-water": "Required physical water is unresolved",
       "pair-budget": "City pair count exceeds the budget"
     }
+  },
+  "waterfrontCheck": {
+    "failed": "Waterfront check: {{count}} port town(s) are not on their shore or bank. Review FMG settlement, road and river placement (details in the console)."
   }
 }

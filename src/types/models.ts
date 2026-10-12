@@ -334,6 +334,8 @@ export interface Burg {
   landUseProfile?: import("./landUse").LandUseProfile;
   landUseSettings?: import("./landUse").LandUseSettings;
   /** Local FMG river site; the source cell remains the logical political owner. */
+  /** River-Port Lab debug generation: the site kind this burg was forced onto. */
+  labSiteKind?: import("../debug/riverPortLab/classifyRiverSite").LabSiteKind;
   riverPlacement?: {
     /** Both river access and a nearby drawn ocean shore were checked by placement. */
     coastConstrained?: boolean;
@@ -352,6 +354,9 @@ export interface Burg {
     accessFootprintMeters?: [number, number][];
   };
   riverSiteStatus?: { riverId: number; status: "placed" | "unresolved"; reason?: string };
+  /** Set when this port fails the waterfront check (src/services/waterfrontSettlement.ts):
+   * FMG placement must be fixed; City Editor never moves the water to the town. */
+  waterfrontCheck?: { status: "failed"; issues: import("../services/waterfrontSettlement").WaterfrontIssue[] };
   /** Water contact and usable port frontages, refreshed from FMG cell topology. */
   waterAccess?: import("./burgWater").BurgWaterAccess;
   cell: number;

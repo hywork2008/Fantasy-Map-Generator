@@ -2,6 +2,7 @@ import { MIN_NAVIGABLE_FLUX } from "../generators/river-generator";
 import type { BurgWaterAccess } from "../types/burgWater";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import { lakeCanHostPorts } from "./lakePorts";
 
 export function updateBurgWaterAccess(burg: Burg, pack: PackedGraph): BurgWaterAccess {
   const { cells, features } = pack;
@@ -30,7 +31,11 @@ export function updateBurgWaterAccess(burg: Burg, pack: PackedGraph): BurgWaterA
     port: {
       river: Boolean(burg.port && burg.riverPort !== false && riverId && cells.fl?.[riverCell] >= MIN_NAVIGABLE_FLUX),
       sea: Boolean(burg.port && burg.seaPort !== false && sea.size),
-      lake: Boolean(burg.port && lake.size)
+      // Only a lake big enough for lake ports gives a lake frontage; a river port beside a small
+      // lake must not grow a lake harbour on it.
+      lake: Boolean(
+        burg.port && [...lake].some(id => lakeCanHostPorts(features[id], cells.i?.length ?? cells.h.length))
+      )
     }
   };
   burg.waterAccess = access;

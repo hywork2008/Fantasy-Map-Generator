@@ -1,4 +1,5 @@
-import { expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
+import i18n from "../../i18n";
 import fixture from "./fixtures/river-wall-deformation-20261002.json";
 import { finishCityGeometry } from "./gen/finishCityGeometry";
 import { isSimplePolygon, nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./gen/geom";
@@ -6,6 +7,10 @@ import { facePoints, faceVertices, meshFromCells, moveVertex, validate } from ".
 import { moveVertexWithNeighbors } from "./meshDeformation";
 import { repairRiverWalls } from "./riverWallRouting";
 import type { CityDocument, Point } from "./types";
+
+const originalLanguage = i18n.language;
+beforeAll(() => i18n.changeLanguage("ja"));
+afterAll(() => i18n.changeLanguage(originalLanguage));
 
 function input() {
   const mesh = meshFromCells(

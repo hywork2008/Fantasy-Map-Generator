@@ -10,7 +10,7 @@ import { createObjectURL, revokeObjectURL } from "./urlUtils";
 
 // ─── File utilities ────────────────────────────────────────────────────────
 
-export function getFileName(dataType?: string): string {
+export function getFileName(dataType?: string, nameSeparator = " "): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
   // An empty name would start the file name with a space, which browsers
   // replace with "_" (archives saved before mapName was stored load empty).
@@ -24,7 +24,7 @@ export function getFileName(dataType?: string): string {
     pad(date.getHours()),
     pad(date.getMinutes())
   ].join("-");
-  return `${name} ${type}${dateString}`;
+  return `${name}${nameSeparator}${type}${dateString}`;
 }
 
 export function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {

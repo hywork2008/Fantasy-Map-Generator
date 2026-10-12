@@ -17,6 +17,8 @@ type LoadMapDialogState = {
   sharableLinkUrl: string;
   sharableLinkLabel: string;
   isSharableLinkVisible: boolean;
+  skipMapReadyTasksOnLoad: boolean;
+  setSkipMapReadyTasksOnLoad: (skip: boolean) => void;
   setDropboxDisconnected: () => void;
   setDropboxLoading: () => void;
   setDropboxNoFiles: (status: string) => void;
@@ -35,6 +37,8 @@ export const loadMapDialogStore = createStore<LoadMapDialogState>(set => ({
   sharableLinkUrl: "",
   sharableLinkLabel: "",
   isSharableLinkVisible: false,
+  skipMapReadyTasksOnLoad: false,
+  setSkipMapReadyTasksOnLoad: skip => set({ skipMapReadyTasksOnLoad: skip }),
   setDropboxDisconnected: () =>
     set({
       isDropboxConnected: false,

@@ -17,6 +17,7 @@ import type {
 } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
+import { type MapScopeKind, PROVINCE_SCOPE_DEFAULT_CELLS } from "../utils/mapScope";
 
 export interface OptionsState {
   // Map settings
@@ -24,6 +25,15 @@ export interface OptionsState {
   mapHeight: number;
   seed: string;
   points: number;
+  /**
+   * Small-world scope (src/utils/mapScope.ts): "province"/"islet" keep the `points` density but
+   * shrink the canvas, so the map holds only a province's or one islet's worth of cells.
+   */
+  mapScope: MapScopeKind;
+  /** Total grid cells of a Province-scope map. */
+  mapScopeCells: number;
+  /** Land grid cells of an Islet-scope map; 0 = random 1–4. */
+  isletLandCells: number;
   mapName: string;
   year: number;
   era: string;
@@ -432,6 +442,9 @@ export const GENERATION_OPTION_KEYS = [
   "mapHeight",
   "seed",
   "points",
+  "mapScope",
+  "mapScopeCells",
+  "isletLandCells",
   "mapName",
   "year",
   "era",
@@ -520,6 +533,9 @@ export const useOptionsState = create<OptionsState>(set => ({
   mapHeight: 540,
   seed: "",
   points: 4, // 10K cells
+  mapScope: "world",
+  mapScopeCells: PROVINCE_SCOPE_DEFAULT_CELLS,
+  isletLandCells: 0,
   mapName: "",
   year: 100,
   era: "Era",

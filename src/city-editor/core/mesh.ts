@@ -2,7 +2,7 @@ import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { refreshCastleLayouts } from "./gen/castleLayout";
 import { isSimplePolygon, segmentsIntersect } from "./gen/geom";
 import type { Cell } from "./gen/types";
-import type { CityDocument, Edge, EdgeRef, Face, Id, Mesh, Point, WaterKind } from "./types";
+import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -808,7 +808,7 @@ function cloneMesh(mesh: Mesh): Mesh {
 export function clone<T>(value: T): T {
   if (!value || typeof value !== "object" || (value as { format?: unknown }).format !== "fmg-city-editor")
     return structuredClone(value);
-  const source = value as CityDocument;
+  const source = value as unknown as CityDocument;
   const shared = new Set<string>(SHARED_CITY_FIELDS);
   const rest: Record<string, unknown> = {};
   for (const key of Object.keys(source)) {
@@ -825,7 +825,7 @@ export function clone<T>(value: T): T {
     else if (shared.has(key)) copy[key] = source[key as keyof CityDocument];
     else copy[key] = clonedRest[key];
   }
-  return copy as T;
+  return copy as unknown as T;
 }
 
 function edgeKey(a: Id, b: Id): string {

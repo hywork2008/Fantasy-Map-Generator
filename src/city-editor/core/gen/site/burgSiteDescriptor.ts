@@ -175,6 +175,7 @@ export interface BurgSiteDescriptor {
     port: boolean;
     riverPlacement?: import("../../../../types/models").Burg["riverPlacement"];
     riverSiteStatus?: import("../../../../types/models").Burg["riverSiteStatus"];
+    waterfrontCheck?: import("../../../../types/models").Burg["waterfrontCheck"];
     /** Optional for legacy descriptors; independent of clipped water geometry. */
     waterAccess?: import("../../../../types/burgWater").BurgWaterAccess;
     citadel: boolean;

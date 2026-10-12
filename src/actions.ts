@@ -15,6 +15,15 @@ export function zoomTo(x: number, y: number, z = 8, d = 2000) {
   svg.transition().duration(d).call(zoom.transform, transform);
 }
 
+/** Province/Islet-scope maps are a fraction of the window: frame the whole graph instead of scale 1. */
+export function fitScopedMapToView(d = 0): void {
+  if (!worldContext.grid.scope) return;
+  const { graphWidth, graphHeight } = worldContext;
+  const { svgWidth, svgHeight } = viewContext;
+  const z = Math.min(svgWidth / graphWidth, svgHeight / graphHeight) * 0.9;
+  if (Number.isFinite(z) && z > 0) zoomTo(graphWidth / 2, graphHeight / 2, z, d);
+}
+
 export function zoomIntoBurg(burgId: number): void {
   const burg = worldContext.pack.burgs[burgId];
   if (!burg?.i) return;

@@ -4,7 +4,13 @@ import { measureProcessing, type ProcessingProfiler } from "../../utils/processi
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
-import { alignFrameRoadEndpoints, exteriorDirection, snapFrameRoadTerminals } from "./frameRoadConnection";
+import {
+  alignFrameRoadEndpoints,
+  exteriorDirection,
+  frameRoadAttachedToTown,
+  repairFrameRoadTownConnections,
+  snapFrameRoadTerminals
+} from "./frameRoadConnection";
 import { straightenBridgeGateLinks, straightenFrameRoadJunctions, straightenThroughStreets } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
 import {
@@ -710,11 +716,16 @@ export function generateCityOnDocument(
   };
   // Debug previews stop at the first rejection, keeping the requested seed.
   let attemptSettings = settings;
+  // Imported rivers drawn only as surveyed water (fixed banks or wide channels) keep FMG's flow
+  // direction. It must be on the document while the fabric is built: ferry landings, mills and
+  // yards read it, and a ferry plan made without it would be cached as "no flow".
+  const importedFlows = settings.descriptor?.rivers?.length ? riverFlowsFromDescriptor(settings.descriptor) : [];
+  const attemptDocument = importedFlows.length ? { ...document, riverFlows: importedFlows } : document;
   for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
     const failed = failures.length;
     const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
-      generateCityAttempt(document, attemptSettings, attemptSeed, observe, attempt + 1, onRejected, profiler)
+      generateCityAttempt(attemptDocument, attemptSettings, attemptSeed, observe, attempt + 1, onRejected, profiler)
     );
     if (result) {
       result.historicalPeriod =
@@ -743,11 +754,10 @@ export function generateCityOnDocument(
           input
         };
       }
-      // Once per finished city: the fabric and renderer only read the stored flows.
-      // Imported rivers drawn only as surveyed water (fixed banks or wide channels).
-      if (settings.descriptor?.rivers?.length && !result.featureGroups.some(g => g.kind === "river")) {
-        const flows = riverFlowsFromDescriptor(settings.descriptor);
-        if (flows.length) result.riverFlows = flows;
+      // Editable river groups carry their own direction.
+      if (importedFlows.length) {
+        if (result.featureGroups.some(g => g.kind === "river")) delete result.riverFlows;
+        else result.riverFlows = importedFlows;
       }
       if (settings.descriptor?.regionalContext)
         measureProcessing(profiler, "scene-regions", () =>
@@ -1246,6 +1256,32 @@ export function generateCityAttempt(
   measureProcessing(profiler, "bridge-gate-links", () =>
     straightenBridgeGateLinks(withApproaches, settings.descriptor)
   );
+  measureProcessing(profiler, "frame-road-repair", () => repairFrameRoadTownConnections(withApproaches));
+  // Count checks above only establish that every imported street exists. The
+  // final dry town-side attachment must also be drawable after all finishing.
+  if (geo.importedRoads !== undefined) {
+    const disconnected = (withApproaches.frameRoads ?? []).filter(leg => {
+      const source = withApproaches.featureGroups.find(
+        group => group.kind === "road" && group.sourceRoad?.index === leg.sourceIndex
+      );
+      return (
+        source?.kind === "road" &&
+        source.sourceRoad?.terminal !== "riverLanding" &&
+        !frameRoadAttachedToTown(withApproaches, leg)
+      );
+    });
+    observer?.({
+      phase: "road-connection-validation",
+      elapsedMs: 0,
+      attempt,
+      counts: { checked: geo.importedRoads.length, disconnected: disconnected.length },
+      roadConnectionIssues: disconnected.map(leg => ({
+        sourceIndex: leg.sourceIndex,
+        routeId: leg.routeId,
+        branchIndex: leg.branchIndex ?? 0
+      }))
+    });
+  }
   return withApproaches;
 }
 
@@ -2867,7 +2903,6 @@ export function runPlan(
     params,
     program,
     shoreline: coast?.shoreline ?? null,
-    frameExtentMeters: half * 2,
     oceanShorelines: classified.flatMap(item => (item.kind === "ocean" && item.coast ? [item.coast.shoreline] : [])),
     waterPolygon,
     streets: [...streetResult.streets, ...roads],

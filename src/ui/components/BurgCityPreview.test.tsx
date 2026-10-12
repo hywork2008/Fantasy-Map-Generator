@@ -13,7 +13,10 @@ const mocks = vi.hoisted(() => ({
   shoreDistance: vi.fn(() => 632),
   revision: "one"
 }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock("react-i18next", async importOriginal => ({
+  ...(await importOriginal<typeof import("react-i18next")>()),
+  useTranslation: () => ({ t: (key: string) => key })
+}));
 vi.mock("../../controllers/burg-editor", () => ({ burgEditorActions: { openCityEditor: vi.fn() } }));
 vi.mock("../../services/burgSiteDescriptor", () => ({
   getBurgSiteDescriptor: (id: number) => ({

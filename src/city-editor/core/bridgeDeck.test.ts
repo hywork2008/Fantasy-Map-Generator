@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../i18n";
 import {
   BRIDGE_BANK_SEAT,
   bridgeDecks,
@@ -223,6 +224,10 @@ describe("bridgeDecks", () => {
 });
 
 describe("bridge skew allowance", () => {
+  const originalLanguage = i18n.language;
+  beforeAll(() => i18n.changeLanguage("ja"));
+  afterAll(() => i18n.changeLanguage(originalLanguage));
+
   /** A road that crosses between river vertices gets a deck along its own direction. */
   function obliqueDocument(rise: number): CityDocument {
     const doc = crossingDocument();

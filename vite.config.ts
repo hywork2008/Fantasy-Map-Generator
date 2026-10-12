@@ -28,6 +28,11 @@ export default defineConfig({
             },
         },
     },
+    // Opt-in: FMG_MAP_SERVER=http://127.0.0.1:8787 npm run dev forwards the shared map API (npm run map:server).
+    server: process.env.FMG_MAP_SERVER ? {
+        proxy: Object.fromEntries(['/api/map', '/api/burgs', '/api/health', '/api/events']
+            .map(route => [route, { target: process.env.FMG_MAP_SERVER, changeOrigin: true }])),
+    } : undefined,
     publicDir: '../public',
     plugins: [
         {

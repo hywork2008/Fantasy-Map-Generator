@@ -62,6 +62,8 @@ export interface FMGActionsAPI {
    * enabled `generationProfile` before page load. Used by `npm run fmg:perf`.
    */
   getGenerationProfile(): GenerationProfile | null;
+  /** The `.fmg` archive of the live world, as Save writes it. Used by `npm run fmg:small`. */
+  prepareWorldArchive(): Promise<Blob>;
 }
 
 export interface FMGNamespace {
@@ -72,6 +74,19 @@ export interface FMGNamespace {
   readonly simulation: SimulationContext;
   /** Dependency-injection API for dynamically loaded extensions. */
   readonly extensionAPI: ExtensionAPI;
+  /** River-Port Lab debug generation (docs/plan/river-port-lab.md); applies to Province scope only. */
+  readonly lab: {
+    getOptions(): import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+    setOptions(
+      update: Partial<import("../debug/riverPortLab/labOptions").RiverPortLabOptions>
+    ): import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+    /** Generates one lab map in this page and returns its statistics (no .fmg is saved). */
+    generate(
+      request: import("../debug/riverPortLab/labGenerate").LabGenerateRequest
+    ): ReturnType<typeof import("../debug/riverPortLab/labGenerate").generateLabMap>;
+    /** Statistics records of the map now loaded. */
+    extract: typeof import("../debug/riverPortLab/labSample").extractLabSample;
+  };
 }
 
 declare global {

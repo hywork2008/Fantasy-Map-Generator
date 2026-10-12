@@ -77,6 +77,7 @@
       "castleGeometryIsInvalidAfterFinishing": "Castle geometry is invalid after finishing",
       "finishedRoadsOverlapTheOuterMoatAwayFromGateBridges": "Finished roads overlap the outer moat away from gate bridges",
       "cannotSecureEveryRoadConnectionSuppliedByFMG": "Cannot secure every road connection supplied by FMG",
+      "fmgRoadConnectionsNeedAttention": "Check FMG road connections (route IDs: {{value0}})",
       "invalidGateOrBridgeIntersections": "Invalid gate or bridge intersections ({{value0}})",
       "onlyOuterRoadsAfterFinishingAtLeastRequired": "Only {{value0}} outer roads after finishing; at least {{value1}} required",
       "evolutionGridHasSelfIntersectingBlocks": "Evolution grid has {{value0}} self-intersecting blocks",
@@ -798,7 +799,14 @@
       "riverDistance": "{{river}} distance",
       "unnamedRiver": "River {{id}}",
       "unknownDistance": "Unknown",
-      "distanceReference": "Distances are measured from the FMG city center to the shoreline or river centerline."
+      "distanceReference": "Distances are measured from the FMG city center to the shoreline or river centerline.",
+      "waterfrontCheck": "Waterfront check",
+      "waterfrontFailed": "Failed: {{issues}}",
+      "waterfrontReview": "FMG placed this port away from its water. Review FMG settlement, road and river placement; City Editor does not move the water.",
+      "shoreBeyond": "shore {{meters}} m beyond the town edge",
+      "shoreMissing": "no drawn shore near the harbour",
+      "bankBeyond": "river bank {{meters}} m beyond the town edge",
+      "riverUnresolved": "river site unresolved ({{reason}})"
     }
   },
   "regionEditor": {

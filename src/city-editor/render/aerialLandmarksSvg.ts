@@ -643,10 +643,9 @@ const STORAGE_FILL: Record<StorageYard["form"], string> = {
   warehouse: "#a89880"
 };
 
-const INN_LABEL: Record<GateInn["kind"], string> = {
-  inn: editorText("cityEditor.messages.roadsideInn"),
-  caravanserai: editorText("cityEditor.messages.caravanserai")
-};
+/** Read when drawn, not at import, so the label follows the active language. */
+const innLabel = (kind: GateInn["kind"]): string =>
+  editorText(kind === "inn" ? "cityEditor.messages.roadsideInn" : "cityEditor.messages.caravanserai");
 const INN_FILL: Record<GateInn["kind"], string> = { inn: "#c4b49a", caravanserai: "#b7aa96" };
 
 function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
@@ -658,7 +657,7 @@ function renderGateInn(inn: GateInn, options: PickOptions): SVGElement {
       id: inn.id,
       label: editorText("cityEditor.messages.buildingsStables", {
         value0: inn.name,
-        value1: INN_LABEL[inn.kind],
+        value1: innLabel(inn.kind),
         value2: dated,
         value3: inn.count,
         value4: inn.stableSpaces

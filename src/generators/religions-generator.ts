@@ -24,6 +24,7 @@ import {
 } from "../utils";
 import { rollReligionForm, worldTraditionPeriod } from "../utils/cultureTradition";
 import { ERROR, TIME, WARN } from "../utils/debug";
+import { capScopedCount } from "../utils/mapScope";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
@@ -631,7 +632,7 @@ class ReligionsModule {
 
     const folkReligions = this.generateFolkReligions();
     const organizedReligions = this.generateOrganizedReligions(
-      useOptionsState.getState().religionsNumber,
+      capScopedCount(worldContext.grid.scope, "religions", useOptionsState.getState().religionsNumber),
       lockedReligions
     );
 

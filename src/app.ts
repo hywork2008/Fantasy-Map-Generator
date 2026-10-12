@@ -28,6 +28,9 @@ import {
 import { raceService } from "./services/raceService";
 import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
+import { generateLabMap, type LabGenerateRequest } from "./debug/riverPortLab/labGenerate";
+import { getLabOptions, setLabOptions } from "./debug/riverPortLab/labOptions";
+import { extractLabSample } from "./debug/riverPortLab/labSample";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { getGenerationProfile } from "./generators/generationProfiler";
@@ -35,6 +38,7 @@ import { initModules } from "./generators/index";
 import { getTickProfile, resetTickProfile } from "./generators/tickProfiler";
 import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
+import { prepareWorldArchive } from "./io/save";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
 import {
@@ -327,9 +331,16 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       getBurgSiteDescriptor,
       getTickProfile,
       resetTickProfile,
-      getGenerationProfile
+      getGenerationProfile,
+      prepareWorldArchive
     }),
-    extensionAPI: buildExtensionAPI()
+    extensionAPI: buildExtensionAPI(),
+    lab: Object.freeze({
+      getOptions: getLabOptions,
+      setOptions: setLabOptions,
+      generate: (request: LabGenerateRequest) => generateLabMap(request, regenerateMap),
+      extract: extractLabSample
+    })
   });
 
   console.log("Initializing extensions...");

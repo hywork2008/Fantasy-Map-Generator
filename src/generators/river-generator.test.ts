@@ -98,6 +98,36 @@ describe("RiverModule helpers", () => {
       expect(Rivers.resolveDrainFeature(1)).toBe(4);
     });
 
+    it("follows a tributary into its receiving river down to the sea", () => {
+      // river 2 (cells 1→2) joins river 1 at land cell 2; river 1 (cells 3→2→4) reaches ocean feature 5
+      setCells({ r: [0, 2, 1, 1, 0], f: [0, 1, 1, 1, 5] });
+      worldContext.pack.features = [
+        null,
+        { i: 1, type: "island", land: true },
+        null,
+        null,
+        null,
+        { i: 5, type: "ocean" }
+      ] as unknown as PackedGraph["features"];
+      worldContext.pack.rivers = [
+        { i: 1, cells: [3, 2, 4] },
+        { i: 2, cells: [1, 2], parent: 1 }
+      ] as unknown as PackedGraph["rivers"];
+
+      expect(Rivers.resolveDrainFeature(1)).toBe(5);
+    });
+
+    it("returns null when a tributary's receiving river leaves the map", () => {
+      setCells({ r: [0, 2, 1, 1], f: [0, 1, 1, 1] });
+      worldContext.pack.features = [null, { i: 1, type: "island", land: true }] as unknown as PackedGraph["features"];
+      worldContext.pack.rivers = [
+        { i: 1, cells: [3, 2, -1] },
+        { i: 2, cells: [1, 2], parent: 1 }
+      ] as unknown as PackedGraph["rivers"];
+
+      expect(Rivers.resolveDrainFeature(1)).toBeNull();
+    });
+
     it("returns null when river leaves the map", () => {
       setCells({ r: [0, 1], f: [0, 0] });
       worldContext.pack.features = [null, null] as unknown as PackedGraph["features"];

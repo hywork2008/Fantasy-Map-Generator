@@ -11,6 +11,7 @@ import type { Grid, GridCells } from "../types/Grid";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
 import { TIME } from "../utils/debug";
 import { createTypedArray } from "./arrayUtils";
+import { densityCellsForPoints, type GridMapScope } from "./mapScope";
 import { rn } from "./numberUtils";
 
 /**
@@ -66,6 +67,12 @@ const getJitteredGrid = (width: number, height: number, spacing: number): Point[
   return points;
 };
 
+/** A Province/Islet-scope grid: fewer cells on a shrunken canvas at full-map density. */
+export interface ScopedGridRequest {
+  cellsDesired: number;
+  scope: GridMapScope;
+}
+
 /**
  * Places points on a jittered grid and calculates spacing and cell counts
  * @param {number} graphWidth - The width of the graph
@@ -74,7 +81,8 @@ const getJitteredGrid = (width: number, height: number, spacing: number): Point[
  */
 const placePoints = (
   graphWidth: number,
-  graphHeight: number
+  graphHeight: number,
+  cellsDesiredOverride?: number
 ): {
   spacing: number;
   cellsDesired: number;
@@ -85,7 +93,7 @@ const placePoints = (
 } => {
   TIME && console.time("placePoints");
   const { points: pointsOpt } = useOptionsState.getState();
-  const cellsDesired = pointsOpt === 4 ? 10000 : pointsOpt * 2500;
+  const cellsDesired = cellsDesiredOverride ?? densityCellsForPoints(pointsOpt);
   const spacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2); // spacing between points before jittering
 
   const boundary = getBoundaryPoints(graphWidth, graphHeight, spacing);
@@ -116,14 +124,16 @@ export const shouldRegenerateGrid = (
   grid: Grid | null | undefined,
   expectedSeed: string | undefined,
   graphWidth: number,
-  graphHeight: number
+  graphHeight: number,
+  scoped?: ScopedGridRequest | null
 ) => {
   if (!grid) return true;
   if (expectedSeed && expectedSeed !== grid.seed) return true;
 
   const { points: pointsOpt } = useOptionsState.getState();
-  const cellsDesired = pointsOpt === 4 ? 10000 : pointsOpt * 2500;
+  const cellsDesired = scoped?.cellsDesired ?? densityCellsForPoints(pointsOpt);
   if (cellsDesired !== grid.cellsDesired) return true;
+  if (JSON.stringify(scoped?.scope ?? null) !== JSON.stringify(grid.scope ?? null)) return true;
 
   const newSpacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2);
   const newCellsX = Math.floor((graphWidth + 0.5 * newSpacing - 1e-10) / newSpacing);
@@ -136,11 +146,21 @@ export const shouldRegenerateGrid = (
  * Generates a Voronoi grid based on jittered grid points
  * @returns {Object} - The generated grid object containing spacing, cellsDesired, boundary, points, cellsX, cellsY, cells, vertices, and seed
  */
-export const generateGrid = (seed: string, graphWidth: number, graphHeight: number): Grid => {
+export const generateGrid = (
+  seed: string,
+  graphWidth: number,
+  graphHeight: number,
+  scoped?: ScopedGridRequest | null
+): Grid => {
   Math.random = Alea(seed); // reset PRNG
-  const { spacing, cellsDesired, boundary, points, cellsX, cellsY } = placePoints(graphWidth, graphHeight);
+  const { spacing, cellsDesired, boundary, points, cellsX, cellsY } = placePoints(
+    graphWidth,
+    graphHeight,
+    scoped?.cellsDesired
+  );
   const { cells, vertices } = calculateVoronoi(points, boundary);
   return {
+    ...(scoped ? { scope: scoped.scope } : {}),
     spacing,
     cellsDesired,
     boundary,

@@ -43,8 +43,10 @@ import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
 import { applyOption, lock, locked, store, stored, unlock } from "../utils/domUtils";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
+import type { ScopedGridRequest } from "../utils/graphUtils";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
+import { densityCellsForPoints, normalizeMapScope, resolveGridMapScope } from "../utils/mapScope";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clampTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import { clampTechnologyRequirementEase } from "../utils/technologyRequirementEase";
@@ -136,6 +138,27 @@ export function applyGraphSize(): void {
   worldContext.graphWidth = graphSize.width;
   worldContext.graphHeight = graphSize.height;
   resizeGraphRects();
+}
+
+/**
+ * Shrinks the graph applyGraphSize() just set to the Province/Islet scope, keeping the cell
+ * spacing of a full map at the current density (src/utils/mapScope.ts). Returns the scoped grid
+ * request, or null on the world scope.
+ */
+export function applyMapScope(): ScopedGridRequest | null {
+  const { mapScope, mapScopeCells, points } = useOptionsState.getState();
+  const resolved = resolveGridMapScope(
+    normalizeMapScope(mapScope),
+    mapScopeCells,
+    densityCellsForPoints(points),
+    worldContext.graphWidth,
+    worldContext.graphHeight
+  );
+  if (!resolved) return null;
+  worldContext.graphWidth = resolved.width;
+  worldContext.graphHeight = resolved.height;
+  resizeGraphRects();
+  return { cellsDesired: resolved.cellsDesired, scope: resolved.scope };
 }
 
 /** Resizes the graph-sized background rects and masks to worldContext.graphWidth / graphHeight. */
@@ -511,6 +534,9 @@ export function applyStoredOptions(): void {
   const persistedOptionKeys = [
     "seed",
     "points",
+    "mapScope",
+    "mapScopeCells",
+    "isletLandCells",
     "mapName",
     "year",
     "era",
@@ -733,6 +759,7 @@ export function randomizeOptions(): void {
   const randomize = new URL(window.location.href).searchParams.get("options") === "default";
 
   if (randomize || !locked("points")) changeCellsDensity(4);
+  if (randomize || !locked("mapScope")) useOptionsState.getState().setOptions({ mapScope: "world" });
   if (randomize || !locked("template")) randomizeHeightmapTemplate();
   if (randomize || !locked("statesNumber"))
     useOptionsState.getState().setOptions({ statesNumber: Math.round(gauss(18, 5, 2, 30)) });

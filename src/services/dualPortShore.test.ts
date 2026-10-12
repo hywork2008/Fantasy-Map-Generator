@@ -51,7 +51,9 @@ describe("dual-port coast survey", () => {
   it("keeps the river reservation near the coast without admitting a footprint across the sea", () => {
     const { world, burg, shapes } = fixture();
     const shore = dualPortShore(world, burg, 1, 100, 1000, shapes)!;
-    expect(shore.accepts([500, 200])).toBe(true);
+    // Radius 100 plus the 60 m quay strip the waterfront check accepts.
+    expect(shore.accepts([500, 160])).toBe(true);
+    expect(shore.accepts([500, 200])).toBe(false);
     expect(shore.accepts([500, 500])).toBe(false);
     expect(
       shore.supports([
@@ -69,6 +71,20 @@ describe("dual-port coast survey", () => {
         [400, 100]
       ])
     ).toBe(false);
+  });
+
+  it("finds the river mouth as the water vertex nearest the drawn coast", () => {
+    const { world, burg, shapes } = fixture();
+    const shore = dualPortShore(world, burg, 1, 100, 1000, shapes)!;
+    const river: [number, number][] = [
+      [480, 900],
+      [520, 900],
+      [520, 30],
+      [480, 30]
+    ];
+    expect(shore.mouth([river])).toEqual([520, 30]);
+    // Water no nearer than the 500 m mouth bucket to any coast has no mouth here.
+    expect(shore.mouth([[[500, 500]]])).toBeNull();
   });
 
   it("rejects a footprint whose edges cross a bay even when every corner is on land", () => {
