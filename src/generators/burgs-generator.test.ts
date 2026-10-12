@@ -1108,13 +1108,13 @@ describe("BurgsModule.defineFeatures — strategic citadel bonus", () => {
 });
 
 describe("physical river-bank city placement", () => {
-  it("moves the town to the physical bank independently of the drawn width", () => {
+  it.each([false, true])("places a dry bank with a distant folded bend: %s", folded => {
     worldContext.pack = {
       burgs: [0, { i: 1, cell: 1, x: 0, y: 0 }],
       cells: {
-        h: [25, 25, 25, 25, 25, 25],
-        r: [10, 10, 10, 10, 10, 10],
-        fl: [0, 0, 0, 0, 0, 0],
+        h: new Array(14).fill(25),
+        r: new Array(14).fill(10),
+        fl: new Array(14).fill(0),
         haven: [0, 0, 0, 0, 0, 0],
         harbor: [0, 0, 0, 0, 0, 0],
         f: [0, 0, 0, 0, 0, 0],
@@ -1124,7 +1124,15 @@ describe("physical river-bank city placement", () => {
           [0, 4],
           [0, 8],
           [0, 12],
-          [0, 16]
+          [0, 16],
+          [0, 20],
+          [0, 24],
+          [0, 28],
+          [0, 32],
+          [0, 36],
+          [0, 40],
+          [1, 40],
+          [1, 36]
         ],
         v: [[], [0, 1, 2, 3]]
       },
@@ -1138,10 +1146,19 @@ describe("physical river-bank city placement", () => {
         c: []
       },
       features: [{ type: "island" }],
-      rivers: [{ i: 10, cells: [0, 1, 2, 3, 4, 5], sourceWidth: 4, widthFactor: 0, width: 7 }]
+      rivers: [
+        {
+          i: 10,
+          cells: folded ? Array.from({ length: 14 }, (_, i) => i) : [0, 1, 2, 3, 4, 5],
+          sourceWidth: 4,
+          widthFactor: 0,
+          width: 7
+        }
+      ]
     } as unknown as PackedGraph;
     Burgs.shift();
     const burg = worldContext.pack.burgs[1];
+    expect(burg.riverSiteStatus).toEqual({ riverId: 10, status: "placed" });
     expect(Math.abs(burg.x)).toBeGreaterThan(2.9);
     expect(Math.abs(burg.x)).toBeLessThan(3.1);
     expect(burg.cell).toBe(1);

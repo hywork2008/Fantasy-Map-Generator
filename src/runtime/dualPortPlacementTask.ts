@@ -90,12 +90,14 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
   }
   if (!current()) return;
   // A coast promotion could leave a placed river town on the estuary water.
+  // Older saves also retain unresolved towns vetoed by distant folded bends.
   // Re-site it on the nearest dry bank; its roads leave the abandoned position.
   if (!candidates.length && !(await drain(session.prepareSteps(world, unit)))) return;
   const stale = new Set<number>();
   for (const burg of pack.burgs) {
     if (!burg?.i || burg.removed || burg.lock || proposals.some(p => p.after.i === burg.i)) continue;
-    if (!Burgs.isStrandedOnRiver(burg, session, unit)) continue;
+    const folded = burg.riverSiteStatus?.status === "unresolved" && burg.riverSiteStatus.reason === "folded-banks";
+    if (!folded && !Burgs.isStrandedOnRiver(burg, session, unit)) continue;
     if (pack.routes.some(route => route.lock && route.points.some(p => samePosition(p, burg)))) continue;
     const resited = await drain(Burgs.resiteOnRiverBankSteps({ ...burg }, [burg.x, burg.y], session));
     if (!resited || !current()) return;
@@ -175,7 +177,7 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     }
     const detours = planDetouredBurgApproaches(pack.routes, pack.burgs, dryLink);
     for (const detour of detours) applyStraightenedApproach(detour);
-    if (detours.length && !physical) pack.cells.routes = Routes.buildLinks(pack.routes);
+    if ((moved || detours.length) && !physical) pack.cells.routes = Routes.buildLinks(pack.routes);
     if (physical) {
       world.options.registeredLandConnections = staged.options.registeredLandConnections;
       world.options.registeredLandConnectionUnit = staged.options.registeredLandConnectionUnit;

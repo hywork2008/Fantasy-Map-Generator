@@ -1003,10 +1003,7 @@ class BurgModule {
     );
     const polygon = (cells.v?.[cellId] ?? []).map(v => pack.vertices.p[v]);
     if (polygon.length < 3) return unresolved("missing-terrain");
-    const maxMove = Math.max(
-      radius * 3,
-      ...polygon.map(p => Math.hypot(p[0] - source[0], p[1] - source[1]) * scale * 2)
-    );
+    let maxMove = Math.max(radius * 3, ...polygon.map(p => Math.hypot(p[0] - source[0], p[1] - source[1]) * scale * 2));
     if (this.shoreShapesFeatures !== pack.features) {
       this.shoreShapes.clear();
       this.shoreShapesFeatures = pack.features;
@@ -1017,15 +1014,36 @@ class BurgModule {
     let originMeters: Point = shore ? [shore.origin[0], shore.origin[1]] : [source[0] * scale, source[1] * scale];
     const otherWater: import("../services/riverPhysicalGeometry").PhysicalWaterPolygon[] = [];
     const unresolvedBounds: import("../services/worldRiverGeometry").RiverGeometryBounds[] = [];
-    const reach = maxMove + radius * 2 + 22;
-    const bounds = {
+    let reach = maxMove + radius * 2 + 22;
+    let bounds = {
       minX: originMeters[0] - reach,
       maxX: originMeters[0] + reach,
       minY: originMeters[1] - reach,
       maxY: originMeters[1] + reach
     };
-    const target = yield* session.resolveSteps(world, river, unit, bounds);
+    let target = yield* session.resolveSteps(world, river, unit, bounds);
+    let narrowed = false;
+    // A distant folded bend must not veto a usable local bank. Re-query a
+    // smaller, complete domain rather than omitting invalid water from it.
+    const minimumReach = populationWindowMeters(radius) / 2 + radius * 2 + 22;
+    while ("reason" in target && target.reason === "folded-banks" && reach > minimumReach) {
+      reach = Math.max(minimumReach, reach / 2);
+      maxMove = Math.min(maxMove, reach - radius * 2 - 22);
+      bounds = {
+        minX: originMeters[0] - reach,
+        maxX: originMeters[0] + reach,
+        minY: originMeters[1] - reach,
+        maxY: originMeters[1] + reach
+      };
+      narrowed = true;
+      target = yield* session.resolveSteps(world, river, unit, bounds);
+    }
     if (!("geometry" in target)) return unresolved(target.reason);
+    const insideSurvey = (p: RiverPoint, margin = 0) =>
+      p[0] - margin >= bounds.minX &&
+      p[0] + margin <= bounds.maxX &&
+      p[1] - margin >= bounds.minY &&
+      p[1] + margin <= bounds.maxY;
     const mouth = shore?.mouth(target.geometry.water.rings);
     if (mouth) originMeters = [mouth[0], mouth[1]];
     const nearby = session.rivers(bounds);
@@ -1049,7 +1067,13 @@ class BurgModule {
       maxMoveMeters: maxMove,
       maxCandidates: 128,
       otherWater,
-      supports: (footprint: readonly RiverPoint[], _access: readonly RiverPoint[], point: RiverPoint) => {
+      supports: (footprint: readonly RiverPoint[], access: readonly RiverPoint[], point: RiverPoint) => {
+        if (
+          narrowed &&
+          (!insideSurvey(point, populationWindowMeters(radius) / 2) ||
+            ![...footprint, ...access].every(p => insideSurvey(p, 2)))
+        )
+          return false;
         const b = {
           minX: Math.min(...footprint.map(p => p[0])),
           minY: Math.min(...footprint.map(p => p[1])),
@@ -1155,6 +1179,7 @@ class BurgModule {
         minY: Math.min(...corridor.map(p => p[1])),
         maxY: Math.max(...corridor.map(p => p[1]))
       };
+      if (narrowed && !corridor.every(p => insideSurvey(p))) return false;
       return (
         !unresolvedBounds.some(
           w =>
