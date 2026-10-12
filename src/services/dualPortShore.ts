@@ -40,12 +40,23 @@ function nearest(point: Point, ring: readonly Point[]): { point: Point; distance
 const BUCKET_Y_STRIDE = 1 << 20;
 const bucketKey = (x: number, y: number) => x * BUCKET_Y_STRIDE + y;
 
-/** Ring edges bucketed by bounding box, so range queries skip the rest of a 1 m-sampled coastline. */
-function ringEdgeBuckets(ring: readonly Point[], size: number): Map<number, number[]> {
+/**
+ * Ring edges bucketed for range queries. With `reach`, buckets are 2*reach wide and a long
+ * edge is registered only where it passes (samples every `reach`), not across its whole
+ * bounding box. A query then checks its own bucket +-1: every edge point within `reach`
+ * of it lies within 1.5*reach of a sample, i.e. under one bucket away. Without `reach`
+ * the full bounding box is filled (exact for any query distance up to `size`).
+ */
+function ringEdgeBuckets(ring: readonly Point[], size: number, sampled = false): Map<number, number[]> {
   const buckets = new Map<number, number[]>();
-  let lastList: number[] | undefined,
-    lastX = 0,
-    lastY = 0;
+  const add = (x: number, y: number, i: number) => {
+    const key = bucketKey(x, y);
+    const list = buckets.get(key);
+    if (list) {
+      if (list[list.length - 1] !== i) list.push(i);
+    } else buckets.set(key, [i]);
+  };
+  const step = size / 2;
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i],
       b = ring[(i + 1) % ring.length];
@@ -53,22 +64,17 @@ function ringEdgeBuckets(ring: readonly Point[], size: number): Map<number, numb
       x1 = Math.floor(Math.max(a[0], b[0]) / size);
     const y0 = Math.floor(Math.min(a[1], b[1]) / size),
       y1 = Math.floor(Math.max(a[1], b[1]) / size);
-    // Consecutive 1 m edges almost always share a bucket; skip the map lookup.
-    if (x0 === x1 && y0 === y1 && lastList && x0 === lastX && y0 === lastY) {
-      lastList.push(i);
+    if (sampled && (x1 - x0 + 1) * (y1 - y0 + 1) > 4) {
+      const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step);
+      for (let k = 0; k <= n; k++)
+        add(
+          Math.floor((a[0] + ((b[0] - a[0]) * k) / n) / size),
+          Math.floor((a[1] + ((b[1] - a[1]) * k) / n) / size),
+          i
+        );
       continue;
     }
-    for (let x = x0; x <= x1; x++)
-      for (let y = y0; y <= y1; y++) {
-        const key = bucketKey(x, y);
-        let list = buckets.get(key);
-        if (list) list.push(i);
-        else {
-          list = [i];
-          buckets.set(key, list);
-        }
-        if (x0 === x1 && y0 === y1) [lastList, lastX, lastY] = [list, x, y];
-      }
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) add(x, y, i);
   }
   return buckets;
 }
@@ -101,8 +107,8 @@ export function dualPortShore(
   // The town reservation must fit inland; allow a short quay strip beyond it,
   // the same waterfront gap the port check accepts (waterfrontSettlement.ts).
   const maxDistance = radius + PORT_SHORE_INLAND_METERS;
-  const nearSize = Math.max(maxDistance, 1);
-  const nearBuckets = ringEdgeBuckets(ring, nearSize);
+  const nearSize = Math.max(2 * maxDistance, 1);
+  const nearBuckets = ringEdgeBuckets(ring, nearSize, true);
   let mouthIndex: Map<number, number[]> | undefined;
   const mouthBuckets = () => (mouthIndex ??= ringEdgeBuckets(ring, MOUTH_BUCKET_METERS));
   const water = { id: feature.i, rings: [ring] };
