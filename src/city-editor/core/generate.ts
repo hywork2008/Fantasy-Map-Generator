@@ -4,7 +4,13 @@ import { measureProcessing, type ProcessingProfiler } from "../../utils/processi
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
-import { alignFrameRoadEndpoints, exteriorDirection, snapFrameRoadTerminals } from "./frameRoadConnection";
+import {
+  alignFrameRoadEndpoints,
+  exteriorDirection,
+  frameRoadAttachedToTown,
+  repairFrameRoadTownConnections,
+  snapFrameRoadTerminals
+} from "./frameRoadConnection";
 import { straightenBridgeGateLinks, straightenFrameRoadJunctions, straightenThroughStreets } from "./frameRoadJunction";
 import { frameRoadLegs } from "./frameRoads";
 import {
@@ -1250,6 +1256,32 @@ export function generateCityAttempt(
   measureProcessing(profiler, "bridge-gate-links", () =>
     straightenBridgeGateLinks(withApproaches, settings.descriptor)
   );
+  measureProcessing(profiler, "frame-road-repair", () => repairFrameRoadTownConnections(withApproaches));
+  // Count checks above only establish that every imported street exists. The
+  // final dry town-side attachment must also be drawable after all finishing.
+  if (geo.importedRoads !== undefined) {
+    const disconnected = (withApproaches.frameRoads ?? []).filter(leg => {
+      const source = withApproaches.featureGroups.find(
+        group => group.kind === "road" && group.sourceRoad?.index === leg.sourceIndex
+      );
+      return (
+        source?.kind === "road" &&
+        source.sourceRoad?.terminal !== "riverLanding" &&
+        !frameRoadAttachedToTown(withApproaches, leg)
+      );
+    });
+    observer?.({
+      phase: "road-connection-validation",
+      elapsedMs: 0,
+      attempt,
+      counts: { checked: geo.importedRoads.length, disconnected: disconnected.length },
+      roadConnectionIssues: disconnected.map(leg => ({
+        sourceIndex: leg.sourceIndex,
+        routeId: leg.routeId,
+        branchIndex: leg.branchIndex ?? 0
+      }))
+    });
+  }
   return withApproaches;
 }
 

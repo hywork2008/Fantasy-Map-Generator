@@ -77,6 +77,7 @@
       "castleGeometryIsInvalidAfterFinishing": "Castle geometry is invalid after finishing",
       "finishedRoadsOverlapTheOuterMoatAwayFromGateBridges": "Finished roads overlap the outer moat away from gate bridges",
       "cannotSecureEveryRoadConnectionSuppliedByFMG": "Cannot secure every road connection supplied by FMG",
+      "fmgRoadConnectionsNeedAttention": "Check FMG road connections (route IDs: {{value0}})",
       "invalidGateOrBridgeIntersections": "Invalid gate or bridge intersections ({{value0}})",
       "onlyOuterRoadsAfterFinishingAtLeastRequired": "Only {{value0}} outer roads after finishing; at least {{value1}} required",
       "evolutionGridHasSelfIntersectingBlocks": "Evolution grid has {{value0}} self-intersecting blocks",

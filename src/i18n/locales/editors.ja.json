@@ -77,6 +77,7 @@
       "castleGeometryIsInvalidAfterFinishing": "仕上げ後の城郭形状が成立しません",
       "finishedRoadsOverlapTheOuterMoatAwayFromGateBridges": "仕上げ後の道路が門の橋以外で外堀に重なります",
       "cannotSecureEveryRoadConnectionSuppliedByFMG": "FMGから与えられた街道の接続をすべて確保できません",
+      "fmgRoadConnectionsNeedAttention": "FMG街道の接続を確認してください（経路ID: {{value0}}）",
       "invalidGateOrBridgeIntersections": "門・橋の交差が不正（{{value0}}件）",
       "onlyOuterRoadsAfterFinishingAtLeastRequired": "仕上げ後の外縁道路が {{value0}} 本で、最低 {{value1}} 本に届かない",
       "evolutionGridHasSelfIntersectingBlocks": "evolution格子に自己交差する街区が {{value0}} 面ある",

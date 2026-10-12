@@ -1,5 +1,5 @@
 import { type RegionalContext, validRegionalContext } from "../../types/cityRegional";
-import { frameRoadConnectedToTown, frameRoadTownConnection } from "./frameRoadConnection";
+import { frameRoadAttachedToTown, frameRoadTownConnection } from "./frameRoadConnection";
 import { isSimplePolygon } from "./gen/geom";
 import type { CityDocument, Point } from "./types";
 
@@ -38,7 +38,7 @@ export function attachSceneRegions(document: CityDocument, region: RegionalConte
       const boundaryPoint = leg.pieces[0]?.points[0];
       if (!boundaryPoint) return [];
       const connection = frameRoadTownConnection(document, leg);
-      const connected = connection && frameRoadConnectedToTown(document, leg);
+      const connected = connection && frameRoadAttachedToTown(document, leg);
       return [
         {
           routeId: leg.routeId,

@@ -5352,8 +5352,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function acceptCompleteGeneration(next: CityDocument | null): void {
+    const roadIssues = next
+      ? (generationSamples.filter(sample => sample.phase === "road-connection-validation").at(-1)
+          ?.roadConnectionIssues ?? [])
+      : [];
+    const roadWarning = roadIssues.length
+      ? editorText("cityEditor.messages.fmgRoadConnectionsNeedAttention", {
+          value0: roadIssues.map(issue => issue.routeId).join(", ")
+        })
+      : "";
     generationProgress.textContent = next
-      ? editorText("cityEditor.messages.generationComplete")
+      ? roadWarning || editorText("cityEditor.messages.generationComplete")
       : editorText("cityEditor.messages.cityGenerationFailed");
     root.dispatchEvent(new CustomEvent("city-generation-diagnostics", { detail: generationSamples.slice() }));
     if (!next) {
@@ -5417,7 +5426,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     rememberGenerationState();
     rebuildEditorIndexes();
     refresh();
-    showNotice(editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"));
+    showNotice(roadWarning || editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"));
   }
 
   function runGenerationStage(stage: GenerationStage): void {

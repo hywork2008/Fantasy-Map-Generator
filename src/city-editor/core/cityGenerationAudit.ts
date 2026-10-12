@@ -2,7 +2,7 @@ import { parseIncomingPayload } from "../io/incomingCity";
 import { featureGroupVertices } from "./features";
 import {
   frameRoadApproachBend,
-  frameRoadConnectedToTown,
+  frameRoadAttachedToTown,
   frameRoadJunction,
   frameRoadJunctionIssue
 } from "./frameRoadConnection";
@@ -129,7 +129,7 @@ function roadReach(city: CityDocument, descriptor: BurgSiteDescriptor) {
       const rendered = frameEnd ?? meshEnd;
       const gap = rendered ? Math.hypot(rendered[0] - targetEnd[0], rendered[1] - targetEnd[1]) : Infinity;
       const junction = leg ? frameRoadJunction(city, leg, descriptor) : null;
-      const connectedToTown = leg ? frameRoadConnectedToTown(city, leg) : !!meshEnd;
+      const connectedToTown = leg ? frameRoadAttachedToTown(city, leg) : !!meshEnd;
       rows.push({
         sourceIndex,
         routeId: target.routeId,

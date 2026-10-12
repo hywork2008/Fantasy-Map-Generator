@@ -4,7 +4,12 @@ import { createGridDocument, descriptorFrameGridOptions } from "./document";
 import { featureGroupVertices } from "./features";
 import tives from "./fixtures/tives-boundary-roads-20261005.json";
 import tob from "./fixtures/tobogobo-boundary-roads-20261005.json";
-import { frameRoadConnectedToTown, frameRoadTownConnection } from "./frameRoadConnection";
+import {
+  frameRoadAttachedToTown,
+  frameRoadConnectedToTown,
+  frameRoadTownConnection,
+  repairFrameRoadTownConnections
+} from "./frameRoadConnection";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import type { CityDocument, Point } from "./types";
 
@@ -110,6 +115,62 @@ describe("frame road continuity", () => {
         ])
       )
     ).toBe(false);
+  });
+  it("finishes a dry detour around water between the town street and an FMG road", () => {
+    const doc = city();
+    doc.mesh.vertices.c = { point: [40, 20] } as never;
+    doc.mesh.vertices.d = { point: [50, 20] } as never;
+    doc.mesh.edges.bc = { a: "b", b: "c" } as never;
+    doc.mesh.edges.cd = { a: "c", b: "d" } as never;
+    doc.waterAreas = [
+      {
+        kind: "river",
+        polygon: [
+          [44, -5],
+          [47, -5],
+          [47, 8],
+          [44, 8]
+        ]
+      }
+    ];
+    const road = leg([
+      [
+        [50, 0],
+        [500, 0]
+      ]
+    ]);
+    doc.frameRoads = [road];
+    expect(frameRoadConnectedToTown(doc, road)).toBe(false);
+    expect(repairFrameRoadTownConnections(doc)).toBe(1);
+    expect(road.pieces[0].points.slice(0, 4)).toEqual([
+      [40, 0],
+      [40, 20],
+      [50, 20],
+      [50, 0]
+    ]);
+    expect(frameRoadConnectedToTown(doc, road)).toBe(true);
+  });
+  it("accepts a town attachment before the same road reaches a bridge bank", () => {
+    const doc = city();
+    doc.waterAreas = [
+      {
+        kind: "river",
+        polygon: [
+          [80, -10],
+          [120, -10],
+          [120, 10],
+          [80, 10]
+        ]
+      }
+    ];
+    const road = leg([
+      [
+        [40, 0],
+        [50, 0],
+        [100, 0]
+      ]
+    ]);
+    expect(frameRoadAttachedToTown(doc, road)).toBe(true);
   });
 });
 
