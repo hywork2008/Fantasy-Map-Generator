@@ -25,6 +25,9 @@ export const LoadMapDialog: React.FC = () => {
   const sharableLinkLabel = useLoadMapDialogState(state => state.sharableLinkLabel);
   const isSharableLinkVisible = useLoadMapDialogState(state => state.isSharableLinkVisible);
 
+  const skipMapReadyTasks = useLoadMapDialogState(state => state.skipMapReadyTasksOnLoad);
+  const setSkipMapReadyTasks = useLoadMapDialogState(state => state.setSkipMapReadyTasksOnLoad);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generationOptionsInputRef = useRef<HTMLInputElement>(null);
   const isGenerating = useGenerationProgressState(state => state.isGenerating);
@@ -116,6 +119,16 @@ export const LoadMapDialog: React.FC = () => {
           </>
         )}
       </div>
+
+      <label data-tip={t("dialogs.load.skipMapReadyTasksTip")}>
+        <input
+          id="skipMapReadyTasksOnLoad"
+          type="checkbox"
+          checked={skipMapReadyTasks}
+          onChange={e => setSkipMapReadyTasks(e.target.checked)}
+        />{" "}
+        {t("dialogs.load.skipMapReadyTasks")}
+      </label>
 
       <p>
         <Trans i18nKey="dialogs.load.storageHint" />

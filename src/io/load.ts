@@ -343,11 +343,15 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
 
     // The full-replace commit has already reached RenderCoordinator. A renderer
     // failure is isolated from the accepted world by WorldRuntime listeners.
-    markMapReadyTasksAvailable();
+    // With "skip map-ready tasks" checked, requests raised during load are ignored
+    // (the coordinator drops them while not yet available), then it is enabled afterwards.
+    const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
+    if (!skipTasks) markMapReadyTasksAvailable();
     requestDualPortPlacementRepair();
     document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
+    if (skipTasks) markMapReadyTasksAvailable();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);
@@ -489,10 +493,12 @@ export async function parseLoadedData(
       applyLegacyMapView(data, mapVersion);
       // Match the archive load lifecycle so extensions can migrate or rebuild
       // their current runtime state after a legacy map has been committed.
-      markMapReadyTasksAvailable();
+      const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
+      if (!skipTasks) markMapReadyTasksAvailable();
       requestDualPortPlacementRepair();
       document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
       document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
+      if (skipTasks) markMapReadyTasksAvailable();
     } catch (stageError) {
       if (!dataCommitted) {
         try {

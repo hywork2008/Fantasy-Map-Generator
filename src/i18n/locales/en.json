@@ -2748,6 +2748,8 @@
     },
     "load": {
       "loadFrom": "Load map from",
+      "skipMapReadyTasks": "Skip map-ready tasks when loading",
+      "skipMapReadyTasksTip": "Do not run extension initialization (map-ready tasks) after loading a map",
       "machine": "machine",
       "machineTip": "Load map file (.map or .gz) from your local disk",
       "url": "URL",

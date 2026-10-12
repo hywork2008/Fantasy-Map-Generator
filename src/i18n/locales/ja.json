@@ -2748,6 +2748,8 @@
     },
     "load": {
       "loadFrom": "地図の読み込み元",
+      "skipMapReadyTasks": "読み込み時にmap-readyタスクをスキップ",
+      "skipMapReadyTasksTip": "地図読み込み後の拡張機能の初期化（map-readyタスク）を実行しません",
       "machine": "この端末",
       "machineTip": "この端末から地図ファイル（.map または .gz）を読み込みます",
       "url": "URL",
