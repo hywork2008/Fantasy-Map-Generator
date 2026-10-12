@@ -4,6 +4,7 @@ import { featureGroupVertices } from "../features";
 import { castleWallIds } from "../fortifications";
 import { clone, facePoints, faceVertices, indexMeshEdges } from "../mesh";
 import { onFixedCrossingApproach, straightenBridges, straightenGateCrossings } from "../passages";
+import { regionalRoadThroughGate } from "../regionalRoadGates";
 import type { CityDocument, Id, Point } from "../types";
 import { refreshCemeteryLayouts, syncDocumentCemeteries } from "./cemeteryLayout";
 import { polygonArea, polygonCentroid, segmentInteriorInPolygon, segmentSegmentHit } from "./geom";
@@ -82,7 +83,9 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       }
     }
   }
-  for (const gate of next.gates) if (gate.locked || !gate.id.startsWith("gc:")) pinned.add(gate.vertexId);
+  for (const gate of next.gates)
+    if (gate.locked || !gate.id.startsWith("gc:") || regionalRoadThroughGate(next, gate.vertexId).length)
+      pinned.add(gate.vertexId);
   // Bank smoothing must not drag an FMG deck landing into the water.
   for (const v of Object.values(mesh.vertices)) if (onFixedCrossingApproach(next, v.point)) pinned.add(v.id);
   // A gate and a river that already share a wall edge keep that spacing.

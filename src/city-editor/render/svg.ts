@@ -31,7 +31,7 @@ import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
 import { riverPortShore } from "../core/gen/riverPortShore";
-import { cobbledApproach, cobbledWidthMeters, roadUse } from "../core/gen/roadTraffic";
+import { cobbledApproach, cobbledWidthMeters, frameRoadWidthMeters, roadUse } from "../core/gen/roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "../core/gen/settlementExtent";
 import { buildWatermillPlan } from "../core/gen/watermillFabric";
 import { type GenerationObserver, generationTimer } from "../core/generationDiagnostics";
@@ -1111,7 +1111,6 @@ export function renderEditorSvg(
     }
   }
   svg.appendChild(features);
-  svg.appendChild(renderCastles(document, selection.inspectedId));
   if (fixedLayers) {
     const currentApproaches = currentFixedCrossingApproaches(document);
     const sameEpoch = fixedEpoch === JSON.stringify([document.importedFixedCrossings, document.frame]);
@@ -1225,6 +1224,9 @@ export function renderEditorSvg(
       svg.appendChild(parkTreesLayer);
     }
   }
+  // Castle curtains and towers cover town walls that meet or overlap them.
+  // SVG stacking follows paint order, including the raised town-wall layer.
+  svg.appendChild(renderCastles(document, selection.inspectedId));
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
   const castleFaces = !town ? reservedCastleFaces(document) : new Set<Id>();
@@ -3090,7 +3092,7 @@ function appendFrameRoads(parent: SVGElement, document: CityDocument, town: bool
   };
   for (const leg of legs) {
     const cobble = town && cobbledApproach(roadUse(document, leg.sourceIndex, leg.routeId));
-    const roadWidth = cobble ? cobbledWidthMeters(baseWidth) : baseWidth;
+    const roadWidth = frameRoadWidthMeters(document, leg.sourceIndex, leg.routeId, town);
     const width = String(roadWidth);
     const connection = frameRoadTownConnection(document, leg);
     if (connection && Math.hypot(connection[0][0] - connection[1][0], connection[0][1] - connection[1][1]) > 1e-5) {

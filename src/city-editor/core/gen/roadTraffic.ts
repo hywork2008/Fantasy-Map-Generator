@@ -1,4 +1,5 @@
 import type { CityDocument } from "../types";
+import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import type { BurgSiteRoadEntry } from "./site/burgSiteDescriptor";
 
 /** Upper half of land routes that carry traffic: a trade ribbon instead of fields. */
@@ -52,4 +53,15 @@ export function cobbledApproach(use: RoadUse | null): boolean {
 
 export function cobbledWidthMeters(baseMeters: number): number {
   return baseMeters * COBBLE_WIDTH_SCALE;
+}
+
+/** Physical width shared by regional road rendering and curtain openings. */
+export function frameRoadWidthMeters(
+  document: CityDocument,
+  sourceIndex: number,
+  routeId: number,
+  town = true
+): number {
+  const base = defaultRoadWidthMeters(townExtentMeters(document.frame));
+  return town && cobbledApproach(roadUse(document, sourceIndex, routeId)) ? cobbledWidthMeters(base) : base;
 }

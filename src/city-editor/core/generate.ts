@@ -44,9 +44,11 @@ import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { applyImportedFixedCrossings } from "./importedFixedCrossings";
 import { MoatReservation } from "./moats";
 import { meshShoreChain, regionalSeaPolygon, regionalShoreline } from "./regionalCoast";
+import { installRegionalRoadGates } from "./regionalRoadGates";
 import { riverFlowsFromDescriptor } from "./riverFlow";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 import { attachSceneRegions } from "./sceneRegions";
+import { clipSurveyedRiverWalls } from "./surveyedRiverWalls";
 import {
   cellInsideWater,
   cellInsideWaterPolygons,
@@ -1262,7 +1264,7 @@ export function generateCityAttempt(
     fixedApproaches: fixedApproaches.diagnostics
   });
   // Streets to a fixed crossing exist only now; straighten their junctions too.
-  const withApproaches = fixedApproaches.document;
+  let withApproaches = fixedApproaches.document;
   measureProcessing(profiler, "frame-road-junctions-fixed", () =>
     straightenFrameRoadJunctions(withApproaches, settings.descriptor)
   );
@@ -1271,6 +1273,7 @@ export function generateCityAttempt(
     straightenBridgeGateLinks(withApproaches, settings.descriptor)
   );
   measureProcessing(profiler, "frame-road-repair", () => repairFrameRoadTownConnections(withApproaches));
+  withApproaches = measureProcessing(profiler, "regional-road-gates", () => installRegionalRoadGates(withApproaches));
   // Count checks above only establish that every imported street exists. The
   // final dry town-side attachment must also be drawable after all finishing.
   if (geo.importedRoads !== undefined) {
@@ -2031,9 +2034,10 @@ export function runPlan(
     geo.rivers.length === 1 &&
     program.walls;
   const compactCore = settings.urbanCoreMode === "compact";
-  // River crossings still need the established inward curtain routing. Other
-  // FMG towns already have a population-scaled radius and retain that core.
-  const preserveImportedCore = !!settings.descriptor && geo.rivers.length === 0;
+  // Surveyed banks are independent of cell edges. Keep the population-scaled
+  // core rather than peeling it into disconnected lobes beside the channel.
+  const preserveImportedCore =
+    !!settings.descriptor && (geo.rivers.length === 0 || !!settings.descriptor.fixedCrossings);
   const openCoastalCore = program.walls && program.wallPlan?.coast === "open" && sea.size > 0;
   const coreShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
   const urbanRadius = compactCore
@@ -3450,15 +3454,12 @@ function applyPlan(
           : [loop.segments];
       for (const ref of loop.segments) {
         const edge = mesh.edges[ref.edgeId];
-        const ends: [Point, Point] = [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point];
-        // A land/land edge whose corner grazes the imported FMG bank stays a
-        // riverside wall; only one that runs into the water opens (Myosiasos
-        // lost its river front to a corner 4 m inside the drawn bank).
+        // Surveyed water cuts across coarse land cells. Retain these wall edges
+        // until their dry portions can be split at the actual bank.
         if (
           next.importedFixedCrossings &&
           [edge.leftFace, edge.rightFace].every(id => !id || mesh.faces[id].properties.water === "land")
         ) {
-          if (edgeRunsIntoWater(ends, waterPolygons(next))) openEdges.add(edge.id);
           continue;
         }
         if (
@@ -3491,7 +3492,7 @@ function applyPlan(
       }
     });
   }
-  if (stageStep === 4 && wallCheckpoint === "walls") return next;
+  if (stageStep === 4 && wallCheckpoint === "walls") return clipSurveyedRiverWalls(next);
   let actualTownFaces: Set<Id> | null = null;
   let routingPlan = plan;
   if (stageStep >= 4) {
@@ -3517,6 +3518,7 @@ function applyPlan(
     for (const id of reservedVertices) next.mesh.vertices[id].locked = true;
     next = finishCityGeometry(next, "boundaries");
     for (const [id, locked] of lockedBefore) next.mesh.vertices[id].locked = locked;
+    next = clipSurveyedRiverWalls(next);
     mesh = next.mesh;
     urbanRegions = [...plan.urban]
       .map(id => faceFor(id))
@@ -4618,6 +4620,7 @@ function applyPlan(
     );
   }
 
+  if (!complete && stageStep >= 5) next = installRegionalRoadGates(next);
   const errors = validate(next);
   mark("apply-validation", { errors: errors.length });
   if (errors.length) {
@@ -5765,18 +5768,6 @@ function seaOpeningEdgeIds(
     length += byId.get(next)!.length;
   }
   return open;
-}
-
-/** Longest wet stub at one end of a wall edge still read as a corner grazing the bank. */
-const GRAZING_WALL_STUB_METERS = 10;
-
-/** True when `a → b` crosses water (a wet gap between dry parts) or ends in
- * more than a grazing stub of it. */
-function edgeRunsIntoWater(edge: [Point, Point], polygons: readonly Point[][]): boolean {
-  const length = (line: Point[]) =>
-    line.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - line[i][0], p[1] - line[i][1]), 0);
-  const runs = dryRuns(edge, polygons);
-  return runs.length !== 1 || length(edge) - length(runs[0]) > GRAZING_WALL_STUB_METERS;
 }
 
 function unbannedRuns(segments: EdgeRef[], banned: Set<Id>): EdgeRef[][] {

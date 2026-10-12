@@ -32,6 +32,7 @@ import {
   moveVertex,
   splitFace
 } from "./mesh";
+import { regionalRoadThroughGate } from "./regionalRoadGates";
 import type { CityDocument, Edge, FeatureGroup, Id, Point } from "./types";
 
 export type BarrierKind = Extract<FeatureGroup["kind"], "wall" | "river">;
@@ -737,7 +738,7 @@ export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCro
   const gate = document.mesh.vertices[vertexId];
   if (!gate) return null;
   const neighbours = wallNeighbourIds(document, vertexId);
-  const roads = throughRoadNeighbourIds(document, vertexId)
+  const meshRoads = throughRoadNeighbourIds(document, vertexId)
     .map(id => document.mesh.vertices[id]?.point)
     .filter((point): point is Point => !!point);
   let tangent: Point | null = null;
@@ -776,7 +777,8 @@ export function gateCrossingFrame(document: CityDocument, vertexId: Id): GateCro
     : townCenter(document);
   const toward = unit(center[0] - gate.point[0], center[1] - gate.point[1]) ?? cornerBisector;
   if (toward && inward[0] * toward[0] + inward[1] * toward[1] < 0) inward = [-inward[0], -inward[1]];
-  return { point: gate.point, tangent, inward, roads };
+  const roads = regionalRoadThroughGate(document, vertexId);
+  return { point: gate.point, tangent, inward, roads: roads.length ? roads : meshRoads };
 }
 
 /** Worst through-road deviation from a right angle with the wall, in degrees. */
@@ -1251,7 +1253,12 @@ export function validGeneratedCrossings(
 ): boolean {
   if (overSkewedBridgeDecks(document, skewLimit).length) return false;
   for (const gate of townGates(document)) {
-    if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road")) return false;
+    if (
+      gate.id.startsWith("gc:") &&
+      !vertexHasCrossing(document, gate.vertexId, "wall", "road") &&
+      !regionalRoadThroughGate(document, gate.vertexId).length
+    )
+      return false;
   }
   const walls = kindEdgeIds(document, "wall");
   const rivers = kindEdgeIds(document, "river");
@@ -1297,7 +1304,11 @@ export function explainGeneratedCrossingFailures(
       })
     );
   for (const gate of townGates(document)) {
-    if (gate.id.startsWith("gc:") && !vertexHasCrossing(document, gate.vertexId, "wall", "road"))
+    if (
+      gate.id.startsWith("gc:") &&
+      !vertexHasCrossing(document, gate.vertexId, "wall", "road") &&
+      !regionalRoadThroughGate(document, gate.vertexId).length
+    )
       details.push(
         editorText("cityEditor.messages.gateVertexHasNoWallRoadCrossIntersection", {
           value0: gate.id,
