@@ -126,6 +126,51 @@ describe("watermillFabric", () => {
     });
   });
 
+  it("aligns an imported mill with the surveyed bank instead of the coarse flow line", () => {
+    const doc = createRiverDocument(800);
+    doc.featureGroups = doc.featureGroups.filter(group => group.kind !== "river");
+    doc.riverFlows = [
+      {
+        riverId: 1,
+        name: "Surveyed River",
+        points: [
+          [-100, -300],
+          [200, 300]
+        ],
+        widthMeters: 50,
+        dropMeters: 1,
+        basis: "descriptor"
+      }
+    ];
+    doc.waterAreas = [
+      {
+        kind: "river",
+        polygon: [
+          [25, -400],
+          [75, -400],
+          [75, 400],
+          [25, 400]
+        ]
+      }
+    ];
+    const mills = buildWatermillPlan(doc, 500).mills;
+    expect(mills.length).toBe(calculateWatermillCount(500));
+    for (const mill of mills) {
+      expect(Math.abs(Math.cos(mill.wheel.angleRad))).toBeLessThan(0.01);
+      expect(mill.wheel.center[0]).toBeGreaterThan(25);
+      expect(mill.wheel.center[0]).toBeLessThan(75);
+      const [ridgeA, ridgeB] = mill.millhouseRidge;
+      expect(Math.abs(ridgeB[0] - ridgeA[0])).toBeLessThan(0.1);
+      const [wakeA, wakeB] = mill.wakePolyline;
+      expect(Math.abs(wakeB[0] - wakeA[0])).toBeLessThan(0.1);
+      expect(mill.millhousePolygon.every(p => p[0] < 25 || p[0] > 75)).toBe(true);
+      // The wheel stays attached to the river-side wall.
+      const [w1, w2] = mill.millhousePolygon;
+      const wall: [number, number] = [(w1[0] + w2[0]) / 2, (w1[1] + w2[1]) / 2];
+      expect(Math.hypot(mill.wheel.center[0] - wall[0], mill.wheel.center[1] - wall[1])).toBeLessThan(3);
+    }
+  });
+
   describe("buildWatermillPlan", () => {
     it("produces 0 watermills when there are no rivers in the city", () => {
       const doc = createDocument("no-river-test", 400);

@@ -235,6 +235,49 @@ function dryAt(document: CityDocument, p: Point): boolean {
   return !surveyedWater(document).some(water => inWater(p, water));
 }
 
+const MAX_BANK_SETBACK = 2.5;
+
+/** The drawn FMG bank may turn independently of the coarse imported flow centreline. */
+function surveyedBankFrame(
+  document: CityDocument,
+  bank: Point,
+  flow: Point,
+  bankNormal: Point,
+  maxDistance: number
+): { tangent: Point; shore: Point; landNormal: Point } | null {
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let best: { tangent: Point; shore: Point; landNormal: Point } | null = null;
+  for (const water of surveyedWater(document)) {
+    const [x0, y0, x1, y1] = water.box;
+    if (
+      bank[0] < x0 - maxDistance ||
+      bank[0] > x1 + maxDistance ||
+      bank[1] < y0 - maxDistance ||
+      bank[1] > y1 + maxDistance
+    )
+      continue;
+    for (const ring of water.rings) {
+      for (let i = 0; i < ring.length; i++) {
+        const a = ring[i];
+        const b = ring[(i + 1) % ring.length];
+        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (length < 0.1) continue;
+        const hit = nearestOnPolyline(bank, [a, b]);
+        if (hit.dist >= bestDistance) continue;
+        const direction = (b[0] - a[0]) * flow[0] + (b[1] - a[1]) * flow[1] >= 0 ? 1 : -1;
+        const tangent: Point = [(direction * (b[0] - a[0])) / length, (direction * (b[1] - a[1])) / length];
+        const left: Point = [-tangent[1], tangent[0]];
+        // Side from the centreline-to-bank direction: a nearest point at a polygon vertex
+        // or a bank hugging the shore would make a position-based side unreliable.
+        const landDirection = bankNormal[0] * left[0] + bankNormal[1] * left[1] >= 0 ? 1 : -1;
+        bestDistance = hit.dist;
+        best = { tangent, shore: hit.point, landNormal: [left[0] * landDirection, left[1] * landDirection] };
+      }
+    }
+  }
+  return bestDistance <= maxDistance ? best : null;
+}
+
 /** Whether a footprint touches surveyed water: a corner in the water or an edge crossing a bank. */
 export function hitsSurveyedWater(document: CityDocument, polygon: Point[]): boolean {
   const box = ringsBox([polygon]);
@@ -424,8 +467,8 @@ export function buildWatermillPlan(
     const halfWidth = seg.widthMeters / 2;
     const nx = side === "left" ? seg.normal[0] : -seg.normal[0];
     const ny = side === "left" ? seg.normal[1] : -seg.normal[1];
-    const normal: Point = [nx, ny];
-    const tangent = seg.tangent;
+    let normal: Point = [nx, ny];
+    let tangent = seg.tangent;
 
     const px = seg.a[0] + tangent[0] * (seg.length * fraction);
     const py = seg.a[1] + tangent[1] * (seg.length * fraction);
@@ -433,7 +476,12 @@ export function buildWatermillPlan(
     // at half the descriptor width: walk out from the centreline to the first dry ground.
     const bankOffset = seg.surveyed ? fixedBankOffset(document, [px, py], normal, halfWidth, tangent, 6.5) : halfWidth;
     if (bankOffset === null) continue;
-    const bankPt: Point = [px + normal[0] * bankOffset, py + normal[1] * bankOffset];
+    let bankPt: Point = [px + normal[0] * bankOffset, py + normal[1] * bankOffset];
+    const bankFrame = seg.surveyed ? surveyedBankFrame(document, bankPt, tangent, normal, halfWidth + 10) : null;
+    if (bankFrame) {
+      tangent = bankFrame.tangent;
+      normal = bankFrame.landNormal;
+    }
 
     // Spacing check against already placed mills
     if (placedLocations.some(p => Math.hypot(p[0] - bankPt[0], p[1] - bankPt[1]) < MIN_MILL_SPACING)) {
@@ -466,6 +514,26 @@ export function buildWatermillPlan(
     // Millhouse dimensions
     const houseLength = 8.5 + rng.range(0, 2.5); // along river
     const houseDepth = 5.8 + rng.range(0, 1.4); // inland
+    const hl2 = houseLength / 2;
+    if (bankFrame) {
+      // Keep the whole millhouse dry while bringing its river wall as close to the
+      // surveyed shoreline as the bend allows. The cap keeps the wheel attached to the wall.
+      const footprint = (site: Point): Point[] => [
+        [site[0] - tangent[0] * hl2, site[1] - tangent[1] * hl2],
+        [site[0] + tangent[0] * hl2, site[1] + tangent[1] * hl2],
+        [site[0] + tangent[0] * hl2 + normal[0] * houseDepth, site[1] + tangent[1] * hl2 + normal[1] * houseDepth],
+        [site[0] - tangent[0] * hl2 + normal[0] * houseDepth, site[1] - tangent[1] * hl2 + normal[1] * houseDepth]
+      ];
+      let found = false;
+      for (let setback = 0.5; setback <= MAX_BANK_SETBACK; setback += 0.5) {
+        const site: Point = [bankFrame.shore[0] + normal[0] * setback, bankFrame.shore[1] + normal[1] * setback];
+        if (hitsSurveyedWater(document, footprint(site))) continue;
+        bankPt = site;
+        found = true;
+        break;
+      }
+      if (!found) continue;
+    }
     const millCenter: Point = [bankPt[0] + normal[0] * (houseDepth / 2), bankPt[1] + normal[1] * (houseDepth / 2)];
 
     // Must be on land
@@ -478,7 +546,6 @@ export function buildWatermillPlan(
     // P2: river-side downstream
     // P3: land-side downstream
     // P4: land-side upstream
-    const hl2 = houseLength / 2;
     const hd2 = houseDepth / 2;
 
     const p1: Point = [
@@ -522,6 +589,7 @@ export function buildWatermillPlan(
       bankPt[1] - normal[1] * (wheelWidth / 2 + 0.2)
     ];
 
+    if (bankFrame && !surveyedWater(document).some(water => inWater(wheelCenter, water))) continue;
     const angleRad = Math.atan2(tangent[1], tangent[0]);
 
     const wheel: WatermillWheel = {
