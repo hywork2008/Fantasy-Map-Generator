@@ -20,3 +20,6 @@ docs/temp/
 
 # River-Port Lab sample cache (scripts/lib/labJobs.mjs)
 .cache/
+
+# CE generated diagnostics, logs and baseline captures
+/artifacts/city-editor/
