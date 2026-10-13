@@ -678,33 +678,43 @@ describe("shareable link and FMG site", () => {
     expect(root.querySelector<HTMLSelectElement>(".ce-document-historical-period")?.value).toBe("steamEra");
   });
 
-  it("copies the displayed initial-grid town without redrawing and reproduces its geometry", async () => {
-    const writes: string[] = [];
-    Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
-    const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
-    seedInput.value = "share-initial-grid";
-    seedInput.dispatchEvent(new Event("input", { bubbles: true }));
-    panelButton("都市を一括生成").click();
-    expect(root.querySelector(".ce-svg--town")).toBeTruthy();
-    const svg = root.querySelector(".ce-svg")!;
-    const geometry = () =>
-      [...root.querySelectorAll(".ce-svg path, .ce-svg polygon, .ce-svg circle")].map(el => [
-        el.tagName,
-        el.getAttribute("d"),
-        el.getAttribute("points"),
-        el.getAttribute("cx"),
-        el.getAttribute("cy"),
-        el.getAttribute("r")
-      ]);
-    const before = geometry();
-    panelButton("Copy shareable link").click();
-    await vi.waitFor(() => expect(writes).toHaveLength(1));
-    expect(root.querySelector(".ce-svg")).toBe(svg);
-    expect(geometry()).toEqual(before);
-    window.history.replaceState(null, "", writes[0]);
-    remount();
-    expect(geometry()).toEqual(before);
-  });
+  it.each(["single", "double", "razed"])(
+    "copies a %s town without redrawing and reproduces its geometry",
+    async wallMode => {
+      const writes: string[] = [];
+      Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
+      const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+      seedInput.value = "share-initial-grid";
+      seedInput.dispatchEvent(new Event("input", { bubbles: true }));
+      const walls = root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!;
+      walls.value = wallMode;
+      walls.dispatchEvent(new Event("change", { bubbles: true }));
+      panelButton("都市を一括生成").click();
+      expect(root.querySelector(".ce-svg--town")).toBeTruthy();
+      const svg = root.querySelector(".ce-svg")!;
+      const geometry = () =>
+        [...root.querySelectorAll(".ce-svg path, .ce-svg polygon, .ce-svg circle")].map(el => [
+          el.tagName,
+          el.getAttribute("d"),
+          el.getAttribute("points"),
+          el.getAttribute("cx"),
+          el.getAttribute("cy"),
+          el.getAttribute("r")
+        ]);
+      const before = geometry();
+      panelButton("Copy shareable link").click();
+      await vi.waitFor(() => expect(writes).toHaveLength(1));
+      const share = decodeShare(writes[0].slice(writes[0].indexOf("#") + 1));
+      expect(share?.settings.townWallRings).toBe(wallMode === "single" ? undefined : "double");
+      expect(share?.settings.innerWallState).toBe(wallMode === "razed" ? "razed" : undefined);
+      expect(root.querySelector(".ce-svg")).toBe(svg);
+      expect(geometry()).toEqual(before);
+      window.history.replaceState(null, "", writes[0]);
+      remount();
+      expect(root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")?.value).toBe(wallMode);
+      expect(geometry()).toEqual(before);
+    }
+  );
 
   it("reproduces a hashed city and hides synth geography when a site is imported", () => {
     const descriptor = JSON.parse(
