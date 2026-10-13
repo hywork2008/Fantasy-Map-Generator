@@ -1,6 +1,7 @@
 import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, FeatureGroup, Id } from "../core/types";
+import type { RenderSelection } from "../types/selection";
 import { selectionLabelFontSize, vertexHandleRadius, vertexLabelPoint } from "./labelLayout";
 import { centroid, edgeGroupPoints, element, isPoint, line, polygon } from "./svgPrimitives";
 
@@ -15,16 +16,6 @@ export interface GridOverlay {
   showCells: boolean;
   showDelaunay: boolean;
   showSites: boolean;
-}
-export interface RenderSelection {
-  faceId: Id | null;
-  edgeId: Id | null;
-  vertexId: Id | null;
-  groupId: Id | null;
-  inspectedId?: number | string | null;
-  hoverGroupId?: Id | null;
-  hoverVertexId?: Id | null;
-  hoverEdgeId?: Id | null;
 }
 
 /** The translucent "Grid evolution" scrub layer: Voronoi cells, Delaunay edges
@@ -258,4 +249,5 @@ export function renderRoutePreview(document: CityDocument, group: FeatureGroup, 
   }) as SVGPathElement;
 }
 
+export type { RenderSelection } from "../types/selection";
 export { selectionLabelFontSize, vertexHandleRadius };

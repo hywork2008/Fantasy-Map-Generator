@@ -1,4 +1,5 @@
 import { clearBlockFabricCache } from "../core/gen/blockInfill";
+import type { CityDocument } from "../core/types";
 
 /**
  * Derived data the town view recomputes from a document is never saved and never
@@ -6,8 +7,8 @@ import { clearBlockFabricCache } from "../core/gen/blockInfill";
  *
  * | Cache | Owner | Key | Invalidated by | Released by |
  * | --- | --- | --- | --- | --- |
- * | block fabric (per document) | `buildBlockFabric` | document object + content fingerprint | fingerprint change (in-place edits) | GC of the document, or `clearRenderDerivedCaches` |
- * | block fabric (shared LRU, 256 entries) | `FabricCache` | district content key | LRU eviction | `clearRenderDerivedCaches` |
+ * | block fabric (per document) | `buildBlockFabric` | document object + content fingerprint | fingerprint change (in-place edits) | GC, document replacement (`clearRenderDerivedCaches(document)`), or full clear |
+ * | block fabric (shared LRU, 256 entries) | `FabricCache` | district content key | LRU eviction | full clear (`clearRenderDerivedCaches()` on mount/dispose) |
  * | ferry plan | `ferryPlan` | connection object + document + `riverFlows` identity | either identity changing | GC of the connection |
  * | town facts, bridge decks, cemetery plans | none (recomputed per render) | - | - | - |
  *
@@ -16,6 +17,6 @@ import { clearBlockFabricCache } from "../core/gen/blockInfill";
  * Add a cache only with measurements, keyed by document identity plus a cheap
  * revision, and list it in this table.
  */
-export function clearRenderDerivedCaches(): void {
-  clearBlockFabricCache();
+export function clearRenderDerivedCaches(document?: CityDocument): void {
+  clearBlockFabricCache(document);
 }

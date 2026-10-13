@@ -1,0 +1,311 @@
+import { editorText } from "../../i18n/editorMessages";
+import {
+  type CitySizePreset,
+  createGridDocument,
+  descriptorFrameGridOptions,
+  resolveMaxPatches,
+  seaPortShoreDistanceMeters
+} from "../core/document";
+import type { FixedApproachProvider } from "../core/fixedApproachAdoption";
+import { buildBlockFabric } from "../core/gen/blockInfill";
+import { DEFAULT_HEX_SIZE_METERS } from "../core/gen/hexGrid";
+import { buildLandmarkLaneNetwork, repairLandmarkLaneTargets } from "../core/gen/landmarkLaneNetwork";
+import { clearGenerationPreviewCache, defaultGenerationSettings } from "../core/generate";
+import type { GenerationSample } from "../core/generationDiagnostics";
+import { DocumentHistory } from "../core/history";
+import { clone } from "../core/mesh";
+import type { Id } from "../core/types";
+import { type ImportedCityMap, readCityMap } from "../io/cityEditorFile";
+import {
+  buildShare,
+  type CityEditorShare,
+  cityLinkFor,
+  encodeShare,
+  forgetIncomingCity,
+  type IncomingOrigin,
+  readMaxPatchesPreference
+} from "../io/incomingCity";
+import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import { formatDistance } from "./editorGeometry";
+import { emptySelection } from "./tools/toolTypes";
+
+export interface DocumentIOContext {
+  fixedApproachProvider: FixedApproachProvider;
+  scope: import("../services/editorLifetime").EditorLifetime;
+  showNotice: (value: string, redraw?: boolean) => void;
+  generationLog: { reset: () => void; append: (sample: GenerationSample, seed: string) => void };
+  rebuildEditorIndexes: () => void;
+  stepStatus: HTMLOutputElement;
+  syncGenerateControls: () => void;
+  clearGridEvo: () => void;
+  size: HTMLSelectElement;
+  syncGridParamControls: () => void;
+  gridKindSelect: HTMLSelectElement;
+  hexSizeInput: HTMLInputElement;
+  hexSizeValue: HTMLSpanElement;
+  syncGridKindUi: () => void;
+  runCompleteGeneration: () => void;
+  documents: Pick<
+    DocumentsState,
+    | "referenceImage"
+    | "documentState"
+    | "history"
+    | "importedOrigin"
+    | "gridKind"
+    | "hexSizeMeters"
+    | "gridSeed"
+    | "measureTownCells"
+  >;
+  interaction: Pick<InteractionState, "selection" | "activeGroupId">;
+  generation: Pick<
+    GenerationState,
+    | "generateSettings"
+    | "activeStepStage"
+    | "stepIndex"
+    | "urbanCoreHighlight"
+    | "stepOverlayPaths"
+    | "lastGeneratedStep"
+    | "completeSource"
+    | "completeResult"
+    | "generateSeed"
+    | "completeResultSettings"
+    | "gridEvoParams"
+  >;
+  display: Pick<DisplayState, "showBlockMesh" | "halfView" | "viewCenter">;
+}
+
+/** Live getters prevent snapshots of the current document or UI state. */
+export function createDocumentIOController(ctx: DocumentIOContext) {
+  async function importMapFile(file: File | undefined): Promise<void> {
+    const current = ctx.scope.ticket("import");
+    const parsed = await readCityMap(file, ctx.fixedApproachProvider);
+    if (current()) applyImportedMap(parsed);
+  }
+
+  function applyImportedMap(parsed: ImportedCityMap | null): void {
+    if (!ctx.scope.active) return;
+    if (!parsed) {
+      ctx.showNotice(editorText("cityEditor.messages.importFailedSelectACityEditorMFCGJSONOrSVG"));
+      return;
+    }
+    // Lift the (possibly multi-MB) backdrop out of the edited document before it
+    // seeds the history, then keep it only in the closure for render + export.
+    ctx.documents.referenceImage = parsed.document.referenceImage ?? null;
+    delete parsed.document.referenceImage;
+    let unresolvedLandmarks: Id[] = [];
+    if (parsed.document.landmarks?.some(instance => instance.accesses.some(access => access.target.kind === "lane"))) {
+      const fabric = buildBlockFabric(parsed.document);
+      const repaired = repairLandmarkLaneTargets(
+        parsed.document,
+        buildLandmarkLaneNetwork(parsed.document, fabric.lanes)
+      );
+      parsed.document = repaired.document;
+      unresolvedLandmarks = repaired.unresolved;
+    }
+    clearGenerationPreviewCache();
+    ctx.documents.documentState = parsed.document;
+    ctx.generation.generateSettings.buildingPattern =
+      ctx.documents.documentState.buildingPattern ??
+      (ctx.documents.documentState.fabric?.version === 5 ? "medieval" : "legacy");
+    ctx.documents.history = new DocumentHistory(
+      parsed.document,
+      editorText("cityEditor.messages.importedMap"),
+      undefined,
+      ctx.fixedApproachProvider
+    );
+    ctx.generationLog.reset();
+    if (unresolvedLandmarks.length)
+      ctx.showNotice(
+        editorText("cityEditor.messages.landmarkLaneAccessEsNeedReview", { value0: unresolvedLandmarks.length })
+      );
+    ctx.rebuildEditorIndexes();
+    ctx.interaction.selection = emptySelection();
+    ctx.interaction.activeGroupId = null;
+    ctx.generation.activeStepStage = null;
+    ctx.generation.stepIndex = -1;
+    ctx.generation.urbanCoreHighlight = null;
+    ctx.generation.stepOverlayPaths = null;
+    ctx.stepStatus.textContent = "";
+    ctx.generation.lastGeneratedStep = null;
+    const recipe = ctx.documents.documentState.fabric?.generation;
+    ctx.generation.completeSource = recipe ? clone(recipe.input) : null;
+    ctx.generation.completeResult = recipe ? ctx.documents.documentState : null;
+    if (recipe) {
+      ctx.generation.generateSeed = recipe.seed;
+      Object.assign(
+        ctx.generation.generateSettings,
+        {
+          walledAreaShare: undefined,
+          townWallRings: undefined,
+          innerWallState: undefined,
+          townWallBuildOrder: undefined,
+          urbanCoreMode: undefined,
+          descriptor: undefined,
+          castle: undefined,
+          moats: undefined,
+          buildingPattern: "legacy"
+        },
+        clone(recipe.settings)
+      );
+      ctx.generation.generateSettings.legacyCastles = recipe.algorithm === "evolution-city-v3";
+      ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
+      ctx.documents.importedOrigin = ctx.generation.generateSettings.descriptor
+        ? (ctx.documents.importedOrigin ?? "link")
+        : null;
+      ctx.syncGenerateControls();
+    } else {
+      delete ctx.generation.generateSettings.descriptor;
+      ctx.documents.importedOrigin = null;
+      ctx.syncGenerateControls();
+    }
+    ctx.display.showBlockMesh = false;
+    ctx.clearGridEvo();
+    ctx.generation.generateSettings.moats = {
+      town: ctx.documents.documentState.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
+      castle: ctx.documents.documentState.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
+    };
+    ctx.syncGenerateControls();
+    ctx.display.halfView = parsed.document.frame.extentMeters / 2;
+    ctx.display.viewCenter = [0, 0];
+    ctx.showNotice(
+      parsed.source === "mfcg-svg"
+        ? editorText("cityEditor.messages.sVGImportedAsAReferenceImage")
+        : parsed.source === "mfcg-json"
+          ? editorText("cityEditor.messages.mFCGMapImported")
+          : editorText("cityEditor.messages.mapImported")
+    );
+  }
+
+  function currentShare(): CityEditorShare {
+    return buildShare({
+      seed: ctx.generation.generateSeed,
+      grid: ctx.documents.gridKind,
+      size: ctx.size.value as CitySizePreset,
+      hexSizeMeters: ctx.documents.gridKind === "hex" ? ctx.documents.hexSizeMeters : undefined,
+      gridSeed: ctx.documents.gridSeed,
+      patchParams: ctx.documents.gridKind === "evolution" ? { ...ctx.generation.gridEvoParams } : undefined,
+      measureBlockSize: ctx.documents.measureTownCells,
+      settings: {
+        ...(ctx.documents.documentState.fabric?.generation?.settings ?? ctx.generation.generateSettings),
+        historicalPeriod:
+          ctx.documents.documentState.historicalPeriod ?? ctx.generation.generateSettings.historicalPeriod
+      },
+      descriptor: ctx.generation.generateSettings.descriptor
+    });
+  }
+
+  async function copyShareLink(button: HTMLButtonElement): Promise<void> {
+    const share = currentShare();
+    const url = cityLinkFor(share);
+    const current = ctx.scope.ticket("clipboard");
+    try {
+      await navigator.clipboard.writeText(url);
+      if (!current()) return;
+      window.history.replaceState(null, "", `${location.pathname}${location.search}#${encodeShare(share)}`);
+      const label = button.textContent;
+      button.textContent = editorText("cityEditor.messages.linkCopied");
+      ctx.scope.timeout(() => {
+        if (button.textContent === editorText("cityEditor.messages.linkCopied")) button.textContent = label;
+      }, 1400);
+      // Copying is a UI-only operation; preserve the current SVG and selection.
+      ctx.showNotice(editorText("cityEditor.messages.shareableLinkCopied"), false);
+    } catch {
+      if (!current()) return;
+      ctx.showNotice(editorText("cityEditor.messages.copyFailed"), false);
+    }
+  }
+
+  function useStandaloneSite(): void {
+    delete ctx.generation.generateSettings.descriptor;
+    ctx.documents.importedOrigin = null;
+    ctx.documents.measureTownCells = false;
+    forgetIncomingCity();
+    ctx.syncGenerateControls();
+    ctx.showNotice(editorText("cityEditor.messages.standaloneSiteGeographyControlsUnlocked"));
+  }
+
+  function applyShare(share: CityEditorShare, origin: IncomingOrigin): void {
+    ctx.generation.generateSeed = share.seed;
+    ctx.documents.gridSeed = share.gridSeed ?? share.seed;
+    ctx.documents.gridKind = share.grid;
+    ctx.documents.hexSizeMeters = share.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
+    if (share.patchParams) Object.assign(ctx.generation.gridEvoParams, share.patchParams);
+    // The ceiling is a viewer preference, but never below the shared count.
+    ctx.generation.gridEvoParams.maxPatches = Math.max(
+      readMaxPatchesPreference(),
+      resolveMaxPatches(ctx.generation.gridEvoParams.nPatches)
+    );
+    ctx.syncGridParamControls();
+    ctx.documents.measureTownCells = share.measureBlockSize === true;
+    ctx.size.value = share.size;
+    ctx.gridKindSelect.value = ctx.documents.gridKind;
+    ctx.hexSizeInput.value = String(ctx.documents.hexSizeMeters);
+    ctx.hexSizeValue.textContent = formatDistance(ctx.documents.hexSizeMeters);
+    ctx.syncGridKindUi();
+    Object.assign(
+      ctx.generation.generateSettings,
+      defaultGenerationSettings(),
+      { buildingPattern: "legacy", townWallRings: undefined, innerWallState: undefined, townWallBuildOrder: undefined },
+      structuredClone(share.settings)
+    );
+    ctx.generation.generateSettings.descriptor = share.descriptor;
+    ctx.documents.importedOrigin = share.descriptor ? origin : null;
+    ctx.documents.documentState = createGridDocument({
+      size: share.size,
+      grid: share.grid,
+      seed: ctx.documents.gridSeed,
+      hexSizeMeters: ctx.documents.hexSizeMeters,
+      patchParams: { ...ctx.generation.gridEvoParams },
+      ...(share.descriptor
+        ? descriptorFrameGridOptions(
+            share.descriptor.frame,
+            share.descriptor.burg.waterAccess?.port.river === true,
+            share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+            seaPortShoreDistanceMeters(share.descriptor)
+          )
+        : {}),
+      measureBlockSize: ctx.documents.measureTownCells,
+      biome: share.descriptor?.biome
+    });
+    ctx.documents.history = new DocumentHistory(
+      ctx.documents.documentState,
+      share.descriptor ? editorText("cityEditor.messages.importedSite") : editorText("cityEditor.messages.sharedCity"),
+      undefined,
+      ctx.fixedApproachProvider
+    );
+    ctx.generationLog.reset();
+    ctx.documents.referenceImage = null;
+    ctx.interaction.selection = emptySelection();
+    ctx.interaction.activeGroupId = null;
+    ctx.generation.completeSource = clone(ctx.documents.documentState);
+    ctx.generation.completeResult = null;
+    clearGenerationPreviewCache();
+    ctx.display.halfView = ctx.documents.documentState.frame.extentMeters / 2;
+    ctx.display.viewCenter = [0, 0];
+    ctx.generation.activeStepStage = null;
+    ctx.generation.stepIndex = -1;
+    ctx.generation.urbanCoreHighlight = null;
+    ctx.generation.stepOverlayPaths = null;
+    ctx.stepStatus.textContent = "";
+    ctx.generation.lastGeneratedStep = null;
+    ctx.display.showBlockMesh = false;
+    ctx.clearGridEvo();
+    ctx.syncGenerateControls();
+    ctx.rebuildEditorIndexes();
+    ctx.runCompleteGeneration();
+  }
+
+  function importedFrame() {
+    const descriptor = ctx.generation.generateSettings.descriptor;
+    return descriptor
+      ? descriptorFrameGridOptions(
+          descriptor.frame,
+          descriptor.burg.waterAccess?.port.river === true,
+          descriptor.burg.riverPlacement?.bankDistanceMeters,
+          seaPortShoreDistanceMeters(descriptor)
+        )
+      : {};
+  }
+
+  return { importMapFile, applyImportedMap, currentShare, copyShareLink, useStandaloneSite, applyShare, importedFrame };
+}

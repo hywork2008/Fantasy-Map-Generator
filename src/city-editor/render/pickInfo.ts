@@ -1,10 +1,4 @@
-export interface SvgPickInfo {
-  layer: string;
-  kind: string;
-  id?: number | string;
-  label: string;
-  [key: string]: unknown;
-}
+import type { SvgPickInfo } from "../types/selection";
 
 export function parsePickInfo(raw: string | null): SvgPickInfo | null {
   if (!raw) return null;
@@ -14,3 +8,5 @@ export function parsePickInfo(raw: string | null): SvgPickInfo | null {
     return null;
   }
 }
+
+export type { SvgPickInfo } from "../types/selection";

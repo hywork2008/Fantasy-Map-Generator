@@ -162,7 +162,11 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
 let fabricByDocument = new WeakMap<CityDocument, { fingerprint: string; fabric: DistrictFabric }>();
 
 /** Release every derived fabric. Results are re-derived on demand; nothing stored in a document changes. */
-export function clearBlockFabricCache(): void {
+export function clearBlockFabricCache(document?: CityDocument): void {
+  if (document) {
+    fabricByDocument.delete(document);
+    return;
+  }
   fabricByDocument = new WeakMap();
   defaultCache?.clear();
 }
