@@ -15,7 +15,7 @@ import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
 import { synthSite } from "./gen/site/synthSite";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import { validate } from "./mesh";
-import { kindEdgeIds } from "./passages";
+import { kindEdgeIds, vertexHasCrossing } from "./passages";
 
 describe("double town walls (P1)", () => {
   it("encloses the whole town in the outer wall and sizes the old town by the walled share", () => {
@@ -204,5 +204,34 @@ describe("double town walls (P1)", () => {
     expect(fit!.finalZones!.core).toBeGreaterThan(fit!.finalZones!.between);
     expect(fit!.betweenFactor).toBeLessThan(fit!.factor);
     expect(fit!.finalZones!.outskirts).toBe(0);
+  });
+
+  it("carries the old-town curtain up to a river and crosses it (wall, river, wall, river)", () => {
+    const seed = "d2";
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed }),
+      { ...defaultGenerationSettings(), townWallRings: "double" },
+      seed
+    )!;
+    expect(validate(city)).toEqual([]);
+    const inner = innerTownCircuit(city)!;
+    const wall = new Set(
+      city.featureGroups
+        .filter(g => g.kind === "wall" && inner.wallGroupIds.includes(g.id))
+        .flatMap(g => (g.kind === "wall" ? g.segments.map(r => r.edgeId) : []))
+    );
+    const river = kindEdgeIds(city, "river");
+    const wallVertices = new Set([...wall].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
+    const riverVertices = new Set([...river].flatMap(id => [city.mesh.edges[id].a, city.mesh.edges[id].b]));
+    const meeting = [...wallVertices].filter(v => riverVertices.has(v));
+    // The old wall reaches the river at least once, and every meeting is a real crossing.
+    expect(meeting.length).toBeGreaterThanOrEqual(1);
+    for (const v of meeting) expect(vertexHasCrossing(city, v, "wall", "river")).toBe(true);
+    // The renderer draws a water gate at each crossing listed on the wall group.
+    const passages = city.featureGroups.flatMap(g =>
+      g.kind === "wall" && inner.wallGroupIds.includes(g.id) ? (g.riverPassages ?? []) : []
+    );
+    expect(passages.length).toBeGreaterThanOrEqual(1);
+    for (const v of passages) expect(vertexHasCrossing(city, v, "wall", "river")).toBe(true);
   });
 });

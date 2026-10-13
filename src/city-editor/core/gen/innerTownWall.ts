@@ -1,7 +1,7 @@
 import { registerTownCircuit } from "../castles";
 import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces, townGates } from "../fortifications";
 import { facePoints, faceVertices, insertEdgeVertex, splitFace } from "../mesh";
-import { kindEdgeIds, townCenter } from "../passages";
+import { alternatingPairs, kindEdgeIds, orderedIncidentEdges, townCenter } from "../passages";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "../types";
 import { polygonArea, polygonCentroid } from "./geom";
 
@@ -168,7 +168,13 @@ export function addInnerTownWall(
     const keep = options.castleInOldTown
       ? hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed)
       : new Set<Id>();
-    keepStreetsOffCurtain(cut.document, inner, town.info, roads, town.seed, radius, keep);
+    // Streets and rivers both keep off the curtain line; each may cross it.
+    const offLine = new Set([...roads, ...rivers]);
+    const riverCorners = new Set(
+      cut.document.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : []))
+    );
+    for (const v of cut.riverCuts) riverCorners.delete(v);
+    keepStreetsOffCurtain(cut.document, inner, town.info, offLine, town.seed, radius, keep, riverCorners);
     // Moving the curtain off streets can cut the castle's link again; restore it
     // (a street still on the line there becomes an opening).
     if (options.castleInOldTown) hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed);
@@ -184,7 +190,18 @@ export function addInnerTownWall(
     );
     if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok)
       return fail("castle-crowds", { faces: inner.size });
-    return finish(cut.document, inner, outer.id, options, roads, rivers, town.landArea, town.info, gap, cut.cuts);
+    return finish(
+      cut.document,
+      inner,
+      outer.id,
+      options,
+      roads,
+      kindEdgeIds(cut.document, "river"),
+      town.landArea,
+      town.info,
+      gap,
+      cut.cuts
+    );
   }
   return fail("gap");
 }
@@ -328,11 +345,14 @@ function cutStreetCrossings(
   center: Point,
   radius: number,
   eligible: Map<Id, FaceInfo>
-): { document: CityDocument; cuts: number } {
+): { document: CityDocument; cuts: number; riverCuts: Set<Id> } {
   const mesh = document.mesh;
   const dist = (p: Point) => Math.hypot(p[0] - center[0], p[1] - center[1]);
-  const crossings: Array<{ edgeId: Id; t: number; faces: Id[] }> = [];
-  for (const edgeId of kindEdgeIds(document, "road")) {
+  const crossings: Array<{ edgeId: Id; t: number; faces: Id[]; river: boolean }> = [];
+  const riverEdges = kindEdgeIds(document, "river");
+  // A river crossing the circle gets the same vertex, so the curtain meets the
+  // river as a four-way crossing (wall, river, wall, river) like the outer wall.
+  for (const edgeId of [...kindEdgeIds(document, "road"), ...kindEdgeIds(document, "river")]) {
     const edge = mesh.edges[edgeId];
     if (!edge?.leftFace || !edge.rightFace || !eligible.has(edge.leftFace) || !eligible.has(edge.rightFace)) continue;
     const a = mesh.vertices[edge.a].point,
@@ -349,22 +369,30 @@ function cutStreetCrossings(
     const disc = Math.sqrt(Math.max(0, qb * qb - 4 * qa * qc));
     const t = [(-qb - disc) / (2 * qa), (-qb + disc) / (2 * qa)].find(x => x >= 0 && x <= 1);
     if (t === undefined) continue;
-    crossings.push({ edgeId, t, faces: [edge.leftFace, edge.rightFace] });
+    crossings.push({ edgeId, t, faces: [edge.leftFace, edge.rightFace], river: riverEdges.has(edgeId) });
   }
   let next = document;
   let cuts = 0;
+  const riverCuts = new Set<Id>();
   for (const crossing of crossings) {
     const edge = next.mesh.edges[crossing.edgeId];
     if (!edge) continue;
     let vertexId: Id;
-    if (crossing.t < 0.2) vertexId = edge.a;
-    else if (crossing.t > 0.8) vertexId = edge.b;
+    // A street snaps to a nearby corner; a river needs its own vertex, because a
+    // river corner already has the river's two arms and cannot take a crossing.
+    if (!crossing.river && crossing.t < 0.2) vertexId = edge.a;
+    else if (!crossing.river && crossing.t > 0.8) vertexId = edge.b;
     else {
       const inserted = insertEdgeVertex(next, crossing.edgeId, crossing.t);
-      if (!inserted) continue;
-      next = inserted.document;
-      vertexId = inserted.vertexId;
+      if (inserted) {
+        next = inserted.document;
+        vertexId = inserted.vertexId;
+      } else {
+        // Too close to a corner to split: use the corner.
+        vertexId = crossing.t < 0.5 ? edge.a : edge.b;
+      }
     }
+    if (crossing.river) riverCuts.add(vertexId);
     const at = next.mesh.vertices[vertexId].point;
     for (const faceId of crossing.faces) {
       const face = next.mesh.faces[faceId];
@@ -387,7 +415,7 @@ function cutStreetCrossings(
       }
     }
   }
-  return { document: next, cuts };
+  return { document: next, cuts, riverCuts };
 }
 
 /** Distance-ordered prefix by area, pulled round: add in-circle faces, drop protrusions, fill holes. */
@@ -466,13 +494,19 @@ function keepStreetsOffCurtain(
   roads: Set<Id>,
   seed: Id,
   radius: number,
-  keep: Set<Id> = new Set()
+  keep: Set<Id> = new Set(),
+  /** River corners the curtain may only reach at a planned crossing. */
+  avoid: Set<Id> = new Set()
 ): void {
   const mesh = document.mesh;
+  const grazes = (edgeId: Id) => {
+    const edge = mesh.edges[edgeId];
+    return !!edge && (avoid.has(edge.a) || avoid.has(edge.b));
+  };
   const toggles = new Map<Id, number>();
   const off = (id: Id) => Math.abs(info.get(id)!.dist - radius);
   for (let pass = 0; pass < 40; pass++) {
-    const onCurtain = boundaryEdges(mesh, inner).filter(ref => roads.has(ref.edgeId));
+    const onCurtain = boundaryEdges(mesh, inner).filter(ref => roads.has(ref.edgeId) || grazes(ref.edgeId));
     let changed = false;
     for (const ref of onCurtain) {
       const edge = mesh.edges[ref.edgeId];
@@ -555,12 +589,23 @@ function build(
 
   // One closed ring, or open runs where a river passes under the line.
   const ring = boundaryRings(mesh, boundaryEdges(mesh, inner)).sort((a, b) => b.length - a.length)[0] ?? [];
-  // A curtain that meets a river must cross it as a water gate (outer wall
-  // routing). The old-town curtain stops short of the bank instead.
+  // The curtain runs through a river at a four-way vertex (wall, river, wall,
+  // river), as the outer wall does. Only where a river merely touches the line
+  // (no such crossing) is the curtain left open.
   const riverVertices = new Set(next.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : [])));
+  const ringEdges = new Set(ring.map(ref => ref.edgeId));
+  const crossesRiver = (vertexId: Id): boolean => {
+    const ordered = orderedIncidentEdges(next, vertexId);
+    const wall = ordered.filter(e => ringEdges.has(e.id)).map(e => e.id);
+    const river = ordered.filter(e => rivers.has(e.id)).map(e => e.id);
+    return alternatingPairs(ordered, wall, river);
+  };
   const touchesRiver = (ref: EdgeRef) => {
     const edge = mesh.edges[ref.edgeId];
-    return rivers.has(ref.edgeId) || riverVertices.has(edge.a) || riverVertices.has(edge.b);
+    return (
+      rivers.has(ref.edgeId) ||
+      [edge.a, edge.b].some(vertexId => riverVertices.has(vertexId) && !crossesRiver(vertexId))
+    );
   };
   // Where the old town meets the castle the castle curtain is the wall (as at an
   // integrated castle on the outer wall); the town curtain must not double it.
@@ -611,11 +656,15 @@ function build(
   else
     runs.forEach((segments, k) => {
       const id = `${options.prefix}inner-wall-${k}`;
+      // The renderer draws the water gate (grate) where a wall run crosses a river.
+      const runVertices = new Set(segments.flatMap(ref => [mesh.edges[ref.edgeId].a, mesh.edges[ref.edgeId].b]));
+      const riverPassages = [...runVertices].filter(v => riverVertices.has(v) && crossesRiver(v));
       next.featureGroups.push({
         id,
         kind: "wall",
         name: `Old town wall ${k + 1}`,
         segments,
+        ...(riverPassages.length ? { riverPassages } : {}),
         style: { ...style, widthMeters: Math.max(2.4, style.widthMeters * 0.85) },
         ...(material ? { wallMaterial: material } : {}),
         locked: false
