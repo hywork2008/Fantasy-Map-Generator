@@ -4,7 +4,7 @@
 // 2. Continuous row houses (maisons mitoyennes, 3-6 lots contiguous along the circumference).
 // 3. Radial venelles (alleys) between house clusters and ring street gaps serving as roads.
 
-import { circuitRing } from "../fortifications";
+import { circuitRing, outerTownCircuit } from "../fortifications";
 import { facePoints } from "../mesh";
 import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types";
 import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
@@ -208,7 +208,7 @@ export interface CirculadeTownOptions {
 }
 
 function extractWallLoop(document: CityDocument): { poly: Point[]; edges: [Point, Point][] } {
-  const town = document.defenseCircuits?.find(c => c.scope === "town");
+  const town = outerTownCircuit(document);
   if (town) {
     // Castle installation splits the town curtain into several wall groups.
     // The circuit's area remains the complete town boundary, including natural barriers.
@@ -270,7 +270,7 @@ export function buildCirculadeTownFabric(document: CityDocument, options: Circul
   const hub = options.hub;
 
   // 1. City wall boundary and setback
-  const town = document.defenseCircuits?.find(c => c.scope === "town");
+  const town = outerTownCircuit(document);
   const walls = document.featureGroups.filter(g => g.kind === "wall" && (!town || town.wallGroupIds.includes(g.id)));
   const { poly: wallPoly, edges: wallEdges } = extractWallLoop(document);
   const wallWidth = town

@@ -43,7 +43,10 @@ export type HistoricalPeriod =
 
 export interface FaceProperties {
   /** Generated land-use extent; local infill never changes mesh topology. */
+  /** "core" is inside the outermost town wall (every ring), "outskirts" outside it. */
   settlement?: "core" | "outskirts";
+  /** Inside a core face: the innermost town circuit `ring` that encloses it. Absent = outer wall. */
+  wallRing?: number;
   /** Metres relative to sea level. `0` and below are water. */
   elevation: number;
   /** Positive water depth in metres, independent of elevation. Legacy maps default to 3 m. */
@@ -261,6 +264,8 @@ export interface CityGate {
   locked: boolean;
   role?: "town" | "castle-main" | "postern" | "water";
   ownerCastleId?: Id;
+  /** Town circuit this gate opens. Absent = the outer town wall (legacy documents). */
+  circuitId?: Id;
   wallEdgeIds?: [Id, Id];
   passageWidthMeters?: number;
 }
@@ -270,6 +275,10 @@ export interface DefenseCircuit {
   moat?: { enabled: boolean; widthMeters: number };
   id: Id;
   scope: "town" | "castle";
+  /** Town only: 0 = innermost (old town). The highest ring is the outer wall. Absent = 0. */
+  ring?: number;
+  /** Town only: a razed inner wall keeps its line as a ring road. Absent = standing. */
+  state?: "standing" | "razed";
   ownerCastleId?: Id;
   areaFaceIds: Id[];
   wallGroupIds: Id[];

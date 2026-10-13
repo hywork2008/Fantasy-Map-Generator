@@ -7,7 +7,7 @@
 // and the final building fabric; it never edits the mesh.
 import { religiousHousesFor } from "../../../data/civilizationTraditions";
 import { featureGroupVertices } from "../features";
-import { circuitRing, polygonOverlaps, townGates } from "../fortifications";
+import { circuitRing, gateTownCircuit, outerTownCircuit, polygonOverlaps, townGates } from "../fortifications";
 import { landmarkReservationHits } from "../landmarks";
 import { facePoints } from "../mesh";
 import { GATE_TOWER_SCALE, gateCrossingFrame } from "../passages";
@@ -387,7 +387,7 @@ class Site {
       if (element.kind === "temple" && element.point)
         this.temples.push(templeRectForElement(element.point, element.sizeMeters, element.rotation, town));
 
-    const circuit = (document.defenseCircuits ?? []).find(c => c.scope === "town");
+    const circuit = outerTownCircuit(document);
     const ring = circuit ? circuitRing(document, circuit) : [];
     this.walled = ring.length >= 3 && document.featureGroups.some(g => g.kind === "wall");
     if (this.walled) this.town = ring;
@@ -799,10 +799,10 @@ function placeBarbicans(site: Site, rng: Rng): Barbican[] {
   const document = site.document;
   if (!site.walled || !periodAtLeast(document, "highMedieval")) return [];
   const out: Barbican[] = [];
-  const circuit = (document.defenseCircuits ?? []).find(c => c.scope === "town");
-  const moat = circuit?.moat?.enabled ? circuit.moat.widthMeters : 0;
   for (const gate of townGates(document)) {
     if (gate.role && gate.role !== "town") continue;
+    const circuit = gateTownCircuit(document, gate);
+    const moat = circuit?.moat?.enabled ? circuit.moat.widthMeters : 0;
     const wall = document.featureGroups.find(
       g => g.kind === "wall" && featureGroupVertices(document, g).includes(gate.vertexId)
     );

@@ -1,7 +1,7 @@
 # CE 多重市壁（旧市壁＋新市壁＋城）設計
 
 - 作成日: 2026-10-13
-- 状態: 設計案。未実装。
+- 状態: P0（データモデル・補助関数・参照置換・検証）実装済み 2026-10-13。P1以降は未実装。
 - 対象: CE（`src/city-editor`）。CGは対象外。
 - 関連: [街道別交易観測](./ce-roadside-growth-observation.md)（郊外の方向重みの入力源。本設計の前提ではない）、[橋の斜交規約](./bridge-skew-policy.md)
 
@@ -223,3 +223,12 @@ micro（6セル幅）と tiny（12セル幅）では、内壁の内側に7セル
 - `PatchParams.rimGrowthPercent`（外周セルの拡大率、0〜100、既定100＝従来の配置）と `PatchParams.maxPatches`（nPatches 上限、48〜1200、既定48）を追加。上限はブラウザの設定として保存され、FMG からの取込み時の自動 nPatches にも適用される。
 - 実測（Leigh 38k、城 standard、3シード）: 拡大率50%・上限400で medium は二重・三重とも全シード合格、large は二重・三重とも2/3 合格。拡大率100%のままでは上限を上げても中心だけが細かくなり、壁間が確保できない。
 - 上限を上げると中心セルが小さくなり、`clipPatchCells` の固定面積の sliver 判定で実セルが削除されてメッシュに穴が開いていた。sliver 判定を窓端のセルに限定して修正した（既定範囲では内部セルの削除は0件だったため、既存メッシュは不変）。上限1200・拡大率100%では中心セルが数m になり、まだ穴が残る。
+
+## 11. P0 実装記録（2026-10-13）
+
+- 型: `DefenseCircuit.ring` / `state`、`CityGate.circuitId`、`FaceProperties.wallRing`（すべて optional。旧文書は単一リングとして読む）。
+- `fortifications.ts`: `townCircuits` / `outerTownCircuit` / `innerTownCircuit` / `townCircuitForFace`（城は町域から切り出されるため隣接面も見る）/ `gateTownCircuit`、`townGates(doc, circuitId?)`。
+- `registerTownCircuit(..., ring?)`: ring 省略時は従来どおり `gc:defense-town`、指定時は `gc:defense-town-<ring>`。
+- 参照置換: 外壁 = `concealStreets.outerWallRing`・circulade・aerialLandmarks の町域、門ごと = バルビカンの堀・`gateHasMoat`、城を含む最内リング = `castles.ts` の城アクセス・手動設置、全町壁 = 城撤去時の壁保持・城壁厚。UI の堀設定と `renderMoats` は全 town circuit に適用されるので変更なし。
+- 検証: リング番号の重複、内側リングの入れ子、`gate.circuitId` の参照先、`face.wallRing` の参照先。
+- テスト: `multiRingWalls.test.ts`（5件、保存往復を含む）。既存テストは無変更で全件通過。

@@ -19,7 +19,7 @@
  * 詳細仕様・拡張ガイドライン: docs/city-editor/castle-architecture-guide.md を参照。
  */
 
-import { circuitRing } from "../core/fortifications";
+import { circuitRing, townCircuits } from "../core/fortifications";
 import { polygonCentroid } from "../core/gen/geom";
 import type { CastlePart, CastlePlan, CityDocument, Point } from "../core/types";
 import type { CastleStyle, CastleStyleProfile } from "./castlePatterns";
@@ -80,7 +80,7 @@ const BASE_CASTLE_WALL_METERS = 4.2;
  */
 function castleWallWidthMeters(document: CityDocument, castle: CastlePlan): number {
   const circuitIds = new Set<unknown>([castle.circuitId]);
-  for (const c of document.defenseCircuits ?? []) if (c.scope === "town") circuitIds.add(c.id);
+  for (const c of townCircuits(document)) circuitIds.add(c.id);
   const wallIds = new Set(
     (document.defenseCircuits ?? []).filter(c => circuitIds.has(c.id)).flatMap(c => c.wallGroupIds)
   );

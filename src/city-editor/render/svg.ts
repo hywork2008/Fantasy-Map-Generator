@@ -8,6 +8,7 @@ import {
   boundaryEdges,
   boundaryRings,
   castleWallIds,
+  gateTownCircuit,
   reservedCastleFaces,
   wallRunsOutsideGates
 } from "../core/fortifications";
@@ -2183,7 +2184,7 @@ function gateHasMoat(document: CityDocument, gate: CityGate): boolean {
     circuit =>
       (gate.ownerCastleId
         ? circuit.scope === "castle" && circuit.ownerCastleId === gate.ownerCastleId
-        : circuit.scope === "town") &&
+        : circuit.id === gateTownCircuit(document, gate)?.id) &&
       circuit.moat?.enabled &&
       document.featureGroups.some(
         group =>

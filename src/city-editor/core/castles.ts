@@ -3,7 +3,10 @@ import {
   boundaryEdges,
   boundaryRings,
   castleWallIds,
+  outerTownCircuit,
   reservedCastleFaces,
+  townCircuitForFace,
+  townCircuits,
   validateFortifications
 } from "./fortifications";
 import { layoutCastle, refreshCastleLayouts } from "./gen/castleLayout";
@@ -28,7 +31,9 @@ export function registerTownCircuit(
   document: CityDocument,
   regions: Point[][],
   walled: boolean,
-  interiorFaceIds: Id[] = []
+  interiorFaceIds: Id[] = [],
+  /** Omitted for the single (outer) town wall; inner walls take their ring number. */
+  ring?: number
 ): void {
   if (!walled) return;
   document.version = 2;
@@ -42,8 +47,9 @@ export function registerTownCircuit(
     )
     .map(face => face.id);
   const circuit: DefenseCircuit = {
-    id: "gc:defense-town",
+    id: ring === undefined ? "gc:defense-town" : `gc:defense-town-${ring}`,
     scope: "town",
+    ...(ring === undefined ? {} : { ring }),
     areaFaceIds,
     wallGroupIds: [],
     naturalBarriers: [],
@@ -133,7 +139,8 @@ export function installCastle(
       });
     }
   for (const circuit of next.defenseCircuits ?? []) updateCircuitWalls(next, circuit);
-  const town = next.defenseCircuits?.find(c => c.scope === "town");
+  // The wall the castle sits on or inside: the innermost enclosing ring.
+  const town = townCircuitForFace(next, faceId);
   // An access arm ending at the curtain is not access to the city. In
   // particular, a narrow cell between a castle and the town wall must not
   // make the castle gate face that wall instead of an inhabited street.
@@ -478,7 +485,7 @@ export function deleteCastle(document: CityDocument, id: Id): CityDocument | nul
   const circuit = next.defenseCircuits?.find(c => c.id === castle.circuitId);
   if (!circuit || circuit.locked || circuit.wallGroupIds.some(id => next.featureGroups.find(g => g.id === id)?.locked))
     return null;
-  const townWalls = new Set((next.defenseCircuits ?? []).filter(c => c.scope === "town").flatMap(c => c.wallGroupIds));
+  const townWalls = new Set(townCircuits(next).flatMap(c => c.wallGroupIds));
   next.featureGroups = next.featureGroups.filter(g => !g.id.startsWith(`${id}:`) || townWalls.has(g.id));
   const ownedWalls = new Set(circuit.wallGroupIds.filter(id => !townWalls.has(id)));
   next.featureGroups = next.featureGroups.filter(g => !ownedWalls.has(g.id));
@@ -534,11 +541,11 @@ export function createCastleOnFace(document: CityDocument, faceId: Id): CityDocu
       if (!merged) return null;
       next = merged;
     }
-  if (!next.defenseCircuits?.some(c => c.scope === "town")) {
+  if (!outerTownCircuit(next)) {
     const ring = outerWallRing(next);
     if (ring) registerTownCircuit(next, [ring], true);
   }
-  const town = next.defenseCircuits?.find(c => c.scope === "town");
+  const town = townCircuitForFace(next, faceId);
   const townBoundary = new Set(town ? boundaryEdges(next.mesh, town.areaFaceIds).map(r => r.edgeId) : []);
   const integrated = boundaryEdges(next.mesh, [faceId]).some(r => townBoundary.has(r.edgeId));
   const site: CastleSite = {

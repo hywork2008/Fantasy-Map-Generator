@@ -8,8 +8,46 @@ import {
 } from "./gen/geom";
 import type { CityDocument, DefenseCircuit, EdgeRef, Id, Mesh, Point } from "./types";
 
-export function townGates(document: CityDocument) {
-  return (document.gates ?? []).filter(gate => !gate.ownerCastleId);
+/** Town circuits, innermost (ring 0) first. A single-wall document has one. */
+export function townCircuits(document: CityDocument): DefenseCircuit[] {
+  return (document.defenseCircuits ?? []).filter(c => c.scope === "town").sort((a, b) => (a.ring ?? 0) - (b.ring ?? 0));
+}
+
+/** The wall that meets the outside world: external roads, gates, suburbs. */
+export function outerTownCircuit(document: CityDocument): DefenseCircuit | null {
+  return townCircuits(document).at(-1) ?? null;
+}
+
+/** The old-town wall. Equals the outer wall in a single-wall document. */
+export function innerTownCircuit(document: CityDocument): DefenseCircuit | null {
+  return townCircuits(document)[0] ?? null;
+}
+
+/** Innermost town circuit enclosing or bordering `faceId` (a castle is often carved
+ * out of the town area), else the outer wall. */
+export function townCircuitForFace(document: CityDocument, faceId: Id): DefenseCircuit | null {
+  const near = new Set<Id>([faceId]);
+  for (const ref of document.mesh.faces[faceId]?.boundary ?? []) {
+    const edge = document.mesh.edges[ref.edgeId];
+    for (const id of [edge?.leftFace, edge?.rightFace]) if (id) near.add(id);
+  }
+  return townCircuits(document).find(c => c.areaFaceIds.some(id => near.has(id))) ?? outerTownCircuit(document);
+}
+
+/** Town gates; with `circuitId`, only that circuit's (legacy gates belong to the outer wall). */
+export function townGates(document: CityDocument, circuitId?: Id) {
+  const gates = (document.gates ?? []).filter(gate => !gate.ownerCastleId);
+  if (circuitId === undefined) return gates;
+  const outerId = outerTownCircuit(document)?.id;
+  return gates.filter(gate => (gate.circuitId ?? outerId) === circuitId);
+}
+
+/** Town circuit a town gate opens. */
+export function gateTownCircuit(document: CityDocument, gate: { circuitId?: Id }): DefenseCircuit | null {
+  return (
+    (gate.circuitId && document.defenseCircuits?.find(c => c.id === gate.circuitId && c.scope === "town")) ||
+    outerTownCircuit(document)
+  );
 }
 
 export function boundaryEdges(mesh: Mesh, ids: Iterable<Id>): EdgeRef[] {
@@ -123,6 +161,12 @@ export function validateFortifications(document: CityDocument): string[] {
       errors.push(`Invalid moat ${circuit.id}`);
     if (!["town", "castle"].includes(circuit.scope) || !unique(circuit.wallGroupIds))
       errors.push(`Invalid circuit metadata ${circuit.id}`);
+    if (
+      (circuit.ring !== undefined &&
+        (circuit.scope !== "town" || !Number.isInteger(circuit.ring) || circuit.ring < 0)) ||
+      (circuit.state !== undefined && (circuit.scope !== "town" || !["standing", "razed"].includes(circuit.state)))
+    )
+      errors.push(`Invalid circuit ring ${circuit.id}`);
 
     if (
       !circuit.areaFaceIds.length ||
@@ -157,6 +201,22 @@ export function validateFortifications(document: CityDocument): string[] {
     )
       errors.push(`Castle ${circuit.id} is on water`);
   }
+  const towns = townCircuits(document);
+  if (new Set(towns.map(c => c.ring ?? 0)).size !== towns.length) errors.push("Duplicate town circuit ring");
+  for (let i = 1; i < towns.length; i++) {
+    const outer = new Set(towns[i].areaFaceIds);
+    if (towns[i - 1].areaFaceIds.some(id => !outer.has(id)))
+      errors.push(`Town circuit ${towns[i - 1].id} is not inside ${towns[i].id}`);
+  }
+  const rings = new Set(towns.map(c => c.ring ?? 0));
+  for (const face of Object.values(document.mesh.faces)) {
+    const ring = face.properties.wallRing;
+    if (ring !== undefined && (!Number.isInteger(ring) || !rings.has(ring)))
+      errors.push(`Invalid face wall ring ${face.id}`);
+  }
+  for (const gate of document.gates ?? [])
+    if (gate.circuitId !== undefined && (gate.ownerCastleId || !towns.some(c => c.id === gate.circuitId)))
+      errors.push(`Invalid gate circuit ${gate.id}`);
   for (const castle of castles) {
     if (
       castle.version !== 1 ||

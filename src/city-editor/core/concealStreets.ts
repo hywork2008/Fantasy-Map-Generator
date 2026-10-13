@@ -1,4 +1,4 @@
-import { circuitRing } from "./fortifications";
+import { circuitRing, outerTownCircuit } from "./fortifications";
 // Stage ⑩ view geometry. The document keeps every road and lane; the town
 // drawing drops the stretches that sit inside the outer wall, and the block
 // lanes are omitted entirely by the renderer.
@@ -21,7 +21,7 @@ const SAME_POINT_METERS = 0.05;
  * bridged only when the open ends sit within `maxGapMeters`. */
 export function outerWallRing(document: CityDocument): Point[] | null {
   if (document.defenseCircuits) {
-    const town = document.defenseCircuits.find(c => c.scope === "town");
+    const town = outerTownCircuit(document);
     return town ? circuitRing(document, town) : null;
   }
   const lines: Point[][] = [];
