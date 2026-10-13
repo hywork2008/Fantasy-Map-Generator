@@ -1,5 +1,6 @@
 import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
-import { SHIP_SPECS, type ShipType } from "../../render/shipSvg";
+import { SHIP_DIMENSIONS } from "../../data/ships";
+import type { ShipType } from "../../types/ships";
 import { faceNeighbors, facePoints } from "../mesh";
 import type { CityDocument, CityElement, Id, Point } from "../types";
 import { waterPolygons as documentWaterPolygons } from "../waterGeometry";
@@ -420,7 +421,7 @@ export function planHarborShips(
       chosenType = "small";
     }
 
-    const spec = SHIP_SPECS[chosenType];
+    const spec = SHIP_DIMENSIONS[chosenType];
     const sizeVariation = (rng() - 0.5) * (chosenType === "large" ? 4 : chosenType === "medium" ? 3 : 2);
     const sizeMeters = Math.max(
       spec.minSizeMeters,
@@ -502,7 +503,7 @@ export function planHarborShips(
     // (5) 他の船との衝突判定
     const shipCollision = placedShips.some(other => {
       const d = distance(shipCenter, other.point ?? [0, 0]);
-      const otherSpec = SHIP_SPECS[other.shipType ?? "small"];
+      const otherSpec = SHIP_DIMENSIONS[other.shipType ?? "small"];
       const minDistance = (beam + otherSpec.baseBeamMeters) / 2 + 2.5;
       return d < minDistance;
     });
@@ -558,7 +559,7 @@ export function planHarborShips(
         chosenType = "small";
       }
 
-      const spec = SHIP_SPECS[chosenType];
+      const spec = SHIP_DIMENSIONS[chosenType];
       const sizeMeters = spec.defaultSizeMeters;
       const beam = (sizeMeters / spec.baseLengthMeters) * spec.baseBeamMeters;
 

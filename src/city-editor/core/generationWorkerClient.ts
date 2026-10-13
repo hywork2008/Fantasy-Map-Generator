@@ -1,6 +1,6 @@
 import i18n, { isSupportedLanguage, type SupportedLanguage } from "../../i18n";
 import { editorText } from "../../i18n/editorMessages";
-import type { GenerationSettings } from "./generate";
+import type { GenerationSettings } from "../types/generation";
 import type { GenerationDebugPreview } from "./generationDebug";
 import type { GenerationSample } from "./generationDiagnostics";
 import type { CityDocument } from "./types";

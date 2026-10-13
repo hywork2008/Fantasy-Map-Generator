@@ -1,4 +1,34 @@
-import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
+import type { Plan } from "../generators/generation/contracts";
+import { cellsFromMesh, componentBorderLoops } from "../generators/generation/meshGeometry";
+import { resolveEffectiveLayout, resolveStreetSettings } from "../generators/generation/settings";
+import type {
+  GenerationSettings,
+  GenerationStepResult,
+  MeshBorderLoop,
+  StageCheckpoint,
+  UrbanPatchStep
+} from "../types/generation";
+
+export { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
+export {
+  defaultGenerationSettings,
+  defaultStreetSettings,
+  randomGeography,
+  randomSeed,
+  resolveEffectiveLayout,
+  resolveStreetSettings,
+  riversForCount
+} from "../generators/generation/settings";
+export type {
+  GenerationSettings,
+  GenerationStage,
+  GenerationStepResult,
+  StageCheckpoint,
+  StreetSettings,
+  UrbanPatchStep
+} from "../types/generation";
+
+import { editorText } from "../../i18n/editorMessages";
 import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { measureProcessing, type ProcessingProfiler } from "../../utils/processingProfiler";
 import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
@@ -96,7 +126,7 @@ import {
 // are kept across presses.
 
 import { maxWallGatesForExtent, sizePresetForExtent, townMeshExtentMeters } from "./document";
-import { featureGroupVertices, orderedBoundaryLoops, resolveWallMaterial, shortestPath } from "./features";
+import { featureGroupVertices, resolveWallMaterial, shortestPath } from "./features";
 import { tagExternalGateRoads } from "./gen/approachBeyond";
 import { refreshCemeteryLayouts, relocateUndersizedCemeteries, syncDocumentCemeteries } from "./gen/cemeteryLayout";
 import { planCirculadeLayout } from "./gen/circuladeLayout";
@@ -116,7 +146,6 @@ import {
   pointInPolygon,
   polygonArea,
   polygonCentroid,
-  polygonTouchesRectEdge,
   polylineCrossesSegment,
   polylineLength,
   segmentSegmentHit
@@ -126,7 +155,6 @@ import {
   addFirstTownWall,
   addInnerTownWall,
   INNER_WALL_FAILURES,
-  type InnerWallFailure,
   innerTownCapacity,
   planInnerTown
 } from "./gen/innerTownWall";
@@ -167,7 +195,6 @@ import {
 } from "./gen/settlementExtent";
 import type { BurgSiteDescriptor } from "./gen/site/burgSiteDescriptor";
 import { resolvePortFrontages } from "./gen/site/portFrontages";
-import { DEFAULT_SITE_CONFIG, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
 import { buildStreets, type FarNodeMode, farNodeFor } from "./gen/streets";
@@ -178,7 +205,6 @@ import type {
   CityProgram,
   Gate,
   Precinct,
-  UrbanStage,
   WallSegmentKind,
   WardAssignment,
   WardKind
@@ -196,7 +222,6 @@ import {
 import {
   clone,
   edgeBetween,
-  edgeEnd,
   faceNeighbors,
   facePoints,
   faceVertices,
@@ -220,37 +245,11 @@ import {
   vertexHasCrossing,
   vertexHasKindPassage
 } from "./passages";
-import type { CityDocument, EdgeRef, FeatureGroup, Id, Mesh, Point, WallMaterial } from "./types";
+import type { CityDocument, EdgeRef, FeatureGroup, Id, Mesh, Point } from "./types";
 
 export type { CityFeatureSet, CityLayout, SiteConfig } from "./gen/site/siteConfig";
 export { CITY_LAYOUTS, FEATURE_KEYS } from "./gen/site/siteConfig";
 export type { FarNodeMode };
-
-/** Resolve effective morphology layout:
- * - "circulade" -> "circulade"
- * - "bram" -> "bram"
- * - "organic" -> "organic"
- * - "classic" -> "classic"
- * - "auto" -> deterministically roll Circulade, Bram, or Organic for tiny maps (<= 700m)
- */
-export function resolveEffectiveLayout(
-  layout: import("./gen/site/siteConfig").CityLayout | undefined,
-  extentMeters: number,
-  seed: string
-): "organic" | "circulade" | "bram" | "classic" {
-  if (layout === "classic") return "classic";
-  if (layout === "circulade") return "circulade";
-  if (layout === "bram") return "bram";
-  if (layout === "organic") return "organic";
-  if (extentMeters <= 700) {
-    const rng = makeRng(`${seed}:effective-layout`);
-    const roll = rng();
-    if (roll < 0.33) return "circulade";
-    if (roll < 0.66) return "bram";
-    return "organic";
-  }
-  return "organic";
-}
 
 /** All feature groups / gates / elements this module owns carry this id prefix,
  * so a re-press can clear exactly its own output and leave hand-drawn work. */
@@ -261,411 +260,6 @@ const INNER_WALL_MIN_GAP_CELLS = 2;
 /** Population is only a wall-pattern nudge here (features come from the panel), so
  * a fixed nominal preset is fine — the real scale is the document's frame. */
 const NOMINAL_PRESET = "largeTown" as const;
-
-/** One visible process, in order. `processStep` is the S-index it recomputes up to;
- * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
-/** A stage that stops part-way through its `processStep` so each sub-process is visible on its own. */
-export type StageCheckpoint =
-  | "walls"
-  | "riverPassages"
-  | "passages"
-  | "wards"
-  | "streets"
-  | "innerWall"
-  | "innerGates"
-  | "firstInnerGates";
-
-export interface GenerationStage {
-  id:
-    | "coast"
-    | "river"
-    | "urban"
-    | "walls"
-    | "riverPassages"
-    | "passages"
-    | "gates"
-    | "streets"
-    | "wards"
-    | "centerRoads"
-    | "townStreets"
-    | "innerWall"
-    | "innerGates"
-    | "geometry"
-    | "blocks"
-    | "buildings"
-    | "conceal";
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
-  /** Original planning pass; separate from the visible slider number. */
-  processStep: number;
-  wallCheckpoint?: StageCheckpoint;
-  labelKey: EditorMessageKey;
-  hintKey: EditorMessageKey;
-  readonly label: string;
-  readonly hint: string;
-}
-
-export const GENERATION_STAGES: GenerationStage[] = [
-  {
-    id: "coast",
-    step: 1,
-    processStep: 1,
-    labelKey: "cityEditor.generationStages.coast.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.coast.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "river",
-    step: 2,
-    processStep: 2,
-    labelKey: "cityEditor.generationStages.river.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.river.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "urban",
-    step: 3,
-    processStep: 3,
-    labelKey: "cityEditor.generationStages.urban.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.urban.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "walls",
-    step: 4,
-    processStep: 4,
-    wallCheckpoint: "walls",
-    labelKey: "cityEditor.generationStages.walls.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.walls.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "riverPassages",
-    step: 5,
-    processStep: 4,
-    wallCheckpoint: "riverPassages",
-    labelKey: "cityEditor.generationStages.riverPassages.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.riverPassages.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "passages",
-    step: 6,
-    processStep: 4,
-    wallCheckpoint: "passages",
-    labelKey: "cityEditor.generationStages.passages.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.passages.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "gates",
-    step: 7,
-    processStep: 4,
-    labelKey: "cityEditor.generationStages.gates.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.gates.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "streets",
-    step: 8,
-    processStep: 5,
-    labelKey: "cityEditor.generationStages.streets.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.streets.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "wards",
-    step: 9,
-    processStep: 6,
-    wallCheckpoint: "wards",
-    labelKey: "cityEditor.generationStages.wards.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.wards.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "centerRoads",
-    step: 10,
-    processStep: 6,
-    labelKey: "cityEditor.generationStages.centerRoads.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.centerRoads.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "innerWall",
-    step: 11,
-    processStep: 7,
-    wallCheckpoint: "innerWall",
-    labelKey: "cityEditor.generationStages.innerWall.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.innerWall.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "innerGates",
-    step: 12,
-    processStep: 7,
-    wallCheckpoint: "innerGates",
-    labelKey: "cityEditor.generationStages.innerGates.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.innerGates.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "townStreets",
-    step: 13,
-    processStep: 7,
-    wallCheckpoint: "streets",
-    labelKey: "cityEditor.generationStages.townStreets.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.townStreets.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "geometry",
-    step: 14,
-    processStep: 7,
-    labelKey: "cityEditor.generationStages.geometry.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.geometry.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "blocks",
-    step: 15,
-    processStep: 8,
-    labelKey: "cityEditor.generationStages.blocks.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.blocks.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "buildings",
-    step: 16,
-    processStep: 9,
-    labelKey: "cityEditor.generationStages.buildings.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.buildings.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
-    id: "conceal",
-    step: 17,
-    processStep: 10,
-    labelKey: "cityEditor.generationStages.conceal.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.conceal.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  }
-];
-
-/** Keep the original slider sequence; the experiment exposes the old curtain
- * and its passages before the outer-wall checkpoints. */
-export function generationStages(settings: GenerationSettings): GenerationStage[] {
-  const profile = settings.descriptor?.urbanMorphology;
-  const rings =
-    settings.townWallRings ??
-    (profile && supportsUrbanMorphology(profile.period)
-      ? inferredWallSettings(profile, settings.descriptor!.burg.dwellings).townWallRings
-      : undefined);
-  if (rings !== "double" || settings.townWallBuildOrder !== "inner-first") return GENERATION_STAGES;
-  const ids = [
-    "coast",
-    "river",
-    "urban",
-    "innerWall",
-    "innerGates",
-    "walls",
-    "riverPassages",
-    "passages",
-    "gates",
-    "streets",
-    "wards",
-    "centerRoads",
-    "townStreets",
-    "geometry",
-    "blocks",
-    "buildings",
-    "conceal"
-  ];
-  return ids.map((id, index) => {
-    const stage = GENERATION_STAGES.find(s => s.id === id)!;
-    return {
-      ...stage,
-      step: (index + 1) as GenerationStage["step"],
-      ...(id === "innerWall"
-        ? {
-            hintKey: "cityEditor.generationStages.firstInnerWall.hint" as const,
-            hint: editorText("cityEditor.generationStages.firstInnerWall.hint")
-          }
-        : {}),
-      ...(id === "innerGates"
-        ? {
-            wallCheckpoint: "firstInnerGates" as const,
-            labelKey: "cityEditor.generationStages.firstInnerGates.label" as const,
-            hintKey: "cityEditor.generationStages.firstInnerGates.hint" as const,
-            label: editorText("cityEditor.generationStages.firstInnerGates.label"),
-            hint: editorText("cityEditor.generationStages.firstInnerGates.hint")
-          }
-        : {})
-    };
-  });
-}
-
-/** The deliberate inputs the user picks. Neither the seed nor the map size is
- * here — the panel holds the seed, and the frame is the document's. */
-export interface StreetSettings {
-  farNode: FarNodeMode;
-  manualBearings?: number[];
-  /** When true (default), roads / walls / buildings may not sit in `waterPolygon`. */
-  avoidSea: boolean;
-  /** Phase G5: fold smoothed artery vertices back into the mesh. Default true. */
-  foldSmoothing: boolean;
-}
-
-export interface GenerationSettings {
-  /** Unset preserves the existing flood fill and outer residential belt. */
-  urbanCoreMode?: "legacy" | "compact";
-  moats?: { town?: boolean; castle?: boolean };
-  /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
-  riverPlacement?: "through" | "outside" | "outsideNear";
-  historicalPeriod?: import("./types").HistoricalPeriod;
-  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
-  buildingPattern?: import("./types").BuildingPattern;
-  castle?: Partial<import("./types").CastleSettings>;
-  /** Castle siting also checks C4 on street edges. Set by the attempt loop
-   * after a castle town failed with unconnected gates. */
-  castleStreetLinks?: boolean;
-  castleOutward?: boolean;
-  /** Only used when replaying a pre-castle-city recipe. */
-  legacyCastles?: boolean;
-  config: SiteConfig;
-  /** Urban morphology layout (Bram circulade or Organic). Unset = config.layout or "auto". */
-  layout?: import("./gen/site/siteConfig").CityLayout;
-  /** Approximate fraction of built-up area enclosed by the main wall (0.05–1).
-   * Unset: tiny/small 100%, medium 45%, large 20%. Ignored when walls are disabled.
-   * Standalone grid evolution pulls a tiny curtain in by one cell, and a small curtain
-   * in by one or two cells, so houses can sit outside that line. Bram keeps the
-   * settlement edge so its spoke roads can reach the gates. FMG imports without
-   * bridgeable rivers retain the supplied town radius without the random inset. */
-  walledAreaShare?: number;
-  /** "double" adds an old-town wall inside the outer wall (`walledAreaShare` then sizes
-   * the old town and the outer wall encloses the whole built-up area). Circulade and
-   * Bram layouts stay single. Default "single". */
-  townWallRings?: "single" | "double";
-  /** Double walls: preserve the historical outer-first algorithm, or build the old town first. */
-  townWallBuildOrder?: "outer-first" | "inner-first";
-  /** Lab-only factorial comparison. UI never sets "legacy" on inner-first towns. */
-  townWallDefensePolicy?: "legacy" | "closed";
-  /** Double walls only: "razed" turns the old-town wall into a ring road (§4.3). Default "standing". */
-  innerWallState?: "standing" | "razed";
-  /**
-   * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
-   * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
-   * nPatches") instead of the default accumulated polygon-area budget. Unset =
-   * actual area up to π R². See docs/city-generator/towngen-comparison.md §2.1.
-   */
-  urbanNPatches?: number;
-  /** Phase G2 street-extension / sea-avoidance knobs. Unset = `defaultStreetSettings()`. */
-  streets?: Partial<StreetSettings>;
-  /** Real FMG (or shared) site. When set, geography and programme come from this
-   * instead of `synthSite(config, seed)`. The document frame should match
-   * `descriptor.frame` so corridors sit on the mesh. */
-  descriptor?: BurgSiteDescriptor;
-}
-
-export function defaultStreetSettings(): StreetSettings {
-  return { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
-}
-
-export function resolveStreetSettings(settings: GenerationSettings): StreetSettings {
-  return { ...defaultStreetSettings(), ...settings.streets };
-}
-
-/** A random internal seed for one town; completed evolution maps retain it for replay. */
-export function randomSeed(): string {
-  return Math.floor(Math.random() * 0xffffffff).toString(36);
-}
-
-export function defaultGenerationSettings(): GenerationSettings {
-  return { config: structuredClone(DEFAULT_SITE_CONFIG), streets: defaultStreetSettings() };
-}
 
 /** `gc:road-*` groups that leave the built-up area. Intramural streets run
  * gate → plaza (one end near the origin) and are ignored. Cape land may never
@@ -695,19 +289,6 @@ export function countExternalApproachRoads(document: CityDocument): number {
  * already carries the world's own road count. */
 function requiredExternalRoads(settings: GenerationSettings, extentMeters: number): number {
   return settings.descriptor ? 0 : minExternalRoadsForExtent(extentMeters);
-}
-
-/** A fresh coherent random coast / rivers / relief / feature combination. */
-export function randomGeography(): SiteConfig {
-  return randomSiteConfig(makeRng(randomSeed()));
-}
-
-/** Rebuild `config.rivers` for a plain "how many rivers" control: the first one
- * reaches the coast when there is one, the rest are pronounced meanders. */
-export function riversForCount(config: SiteConfig, count: number): SiteConfig["rivers"] {
-  return Array.from({ length: Math.max(0, count) }, (_, index) =>
-    config.coast !== "none" && index === 0 ? "toCoast" : "meander"
-  );
 }
 
 // --- main ---------------------------------------------------------------------
@@ -1609,19 +1190,6 @@ export function generateCityAttempt(
 }
 
 /** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
-export interface UrbanPatchStep {
-  /** The document with only THIS step's cumulative cells marked buildable — null
-   * if the mesh is unusable or the result fails validation. */
-  document: CityDocument | null;
-  /** Total flood-fill iterations for this `(document, settings, seed)` (0 when
-   * there is no eligible land at all). */
-  total: number;
-  /** The step actually shown, clamped to `[0, total - 1]` (-1 when `total` is 0). */
-  index: number;
-  /** The cell id admitted to the urban core at this step, or null. */
-  cellId: number | null;
-}
-
 /**
  * Step through the ③ urban-core flood-fill one admitted cell at a time, directly
  * on the document's existing (Voronoi-filled) mesh — the debug tool for tuning
@@ -1688,24 +1256,6 @@ export function generateUrbanPatchStep(
  * a routed road (⑤), an assigned cell (⑥). See
  * docs/city-generator/towngen-comparison.md.
  */
-export interface GenerationStepResult {
-  /** The document with only this step's cumulative result shown — null if the
-   * mesh is unusable or the result fails validation. */
-  document: CityDocument | null;
-  /** Total iterations for this `(document, settings, seed)` (0 = nothing to
-   * step through, e.g. no coastline configured, or Walls is off for ④). */
-  total: number;
-  /** The step actually shown, clamped to `[0, total - 1]` (-1 when `total` is 0). */
-  index: number;
-  /** A short label for what this step is (e.g. "vertex 4/12", "gate 2/5"), or
-   * null when `total` is 0. */
-  detail: string | null;
-  /** Raw graph-walk polylines to draw as an overlay (① a single shoreline, ②
-   * one per configured river) — omitted for ④⑤⑥, whose partial result is
-   * already visible on `document` itself (gates / roads / ward colours). */
-  overlayPaths?: Point[][];
-}
-
 /**
  * Step through the ① coastline walk one graph vertex at a time. `shoreline` IS
  * the walk in walked order (design §4.2) — the exact mechanism behind the
@@ -2004,88 +1554,6 @@ export function generateWardStep(
 }
 
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
-
-interface Plan {
-  /** Requested order survives an unsuccessful old-town pre-plan. */
-  townWallBuildOrder?: GenerationSettings["townWallBuildOrder"];
-  /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */
-  innerWall?: {
-    planned: boolean;
-    failure?: InnerWallFailure;
-    castleRing?: "inner" | "outer";
-    /** Old-town share of the town and whether the wall is razed (set when planned). */
-    share?: number;
-    razed?: boolean;
-    buildOrder?: "outer-first" | "inner-first";
-    defensePolicy?: "legacy" | "closed";
-  };
-  /** Gate-to-centre lines; the old-town wall is built on them before the town streets. */
-  innerArteries?: Point[][];
-  burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
-  fixedCrossings?: CityDocument["importedFixedCrossings"];
-  replaceFixedCrossings?: boolean;
-  urbanCoreMode?: "legacy" | "compact";
-  layout?: "organic" | "circulade" | "bram" | "classic";
-  sea: Set<number>;
-  ocean: Set<number>;
-  /** S1's raw graph walk (upstream → downstream), before it is closed into
-   * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
-  coastPath: Point[];
-  /** Closed water polygon from S1, or null when landlocked. Used by the G2
-   * plausibility filter in `applyPlan` (wet wall edges) and tests. */
-  waterPolygon: Point[] | null;
-  channelPolygons?: Point[][];
-  /** Sea beyond the town mesh, closed against the display frame. */
-  regionalWater?: Point[][];
-  regionalSurface?: import("./gen/site/burgSiteDescriptor").BurgSiteRegionalSurface;
-  /** Resolved `settings.streets.avoidSea` so `applyPlan` can drop wet walls
-   * without taking the whole settings object. */
-  avoidSea: boolean;
-  wallMaterial?: WallMaterial;
-  rivers: RoutedRiver[];
-  urban: Set<number>;
-  outskirts: Set<number>;
-  /** S3 flood-fill before the wall-capacity split. The settlement-area floor
-   * is measured against this, not the walled core in `urban`. */
-  builtUp: Set<number>;
-  /** S3 flood-fill in fill order, one entry per cell admitted to `urban`. Empty
-   * before S3 runs. See `UrbanPatchStep`. */
-  urbanStages: UrbanStage[];
-  borderLoops: MeshBorderLoop[];
-  gates: Gate[];
-  precincts: Precinct[];
-  citadelOutline: Point[] | null;
-  castleSite?: CastleSite | null;
-  castleFailure?: string;
-  castleFailureDetails?: string[];
-  moats?: GenerationSettings["moats"];
-  legacyCastles?: boolean;
-  roads: Point[][];
-  roadPaths?: Point[][];
-  importedRoads?: CityGeography["importedRoads"];
-  frameRoads?: CityDocument["frameRoads"];
-  riverPort?: boolean;
-  streets: Point[][];
-  wards: Map<number, WardKind>;
-  /** FMG land elevation (metres) per cell id, sampled from the linked burg's
-   * heightfield. Absent for standalone cities. */
-  fmgElevations?: Map<number, number>;
-  /** `wards`' source data, in decision order rather than sorted by cell id. Empty
-   * before S6 runs. See `generateWardStep`. */
-  wardOrder: WardAssignment[];
-  templeHarbor: Precinct[];
-  mesh?: Mesh;
-  faceIdOf?: string[];
-  cells?: Cell[];
-}
-
-/** An urban-component outline: the exact mesh edges (for a Wall group) and their
- * vertex coordinates (for the generator's BorderLoop shape). */
-interface MeshBorderLoop {
-  segments: EdgeRef[];
-  points: Point[];
-  cellIds: number[];
-}
 
 /** Keep continuous water even when no coarse face is wholly wet.
  * Only wholly covered cells become water; partial cells use the exact reservation. */
@@ -5812,148 +5280,6 @@ export function completeRoadRouter(
 }
 
 // --- mesh ⇆ Cell[] & polyline snapping --------------------------------------
-
-function cellsFromMesh(mesh: Mesh, half: number): { cells: Cell[]; faceIdOf: string[] } {
-  const faces = Object.values(mesh.faces);
-  const indexOf = new Map<string, number>();
-  faces.forEach((face, i) => {
-    indexOf.set(face.id, i);
-  });
-  const rect = { minX: -half, minY: -half, maxX: half, maxY: half };
-  const cells: Cell[] = faces.map((face, i) => {
-    const polygon = facePoints(mesh, face).map(p => [p[0], p[1]] as Point);
-    const centroid = polygonCentroid(polygon);
-    return {
-      id: i,
-      site: face.site ? [face.site[0], face.site[1]] : centroid,
-      polygon,
-      centroid,
-      neighbors: faceNeighbors(mesh, face.id)
-        .map(fid => indexOf.get(fid))
-        .filter((n): n is number => n !== undefined && n !== i),
-      onBorder: polygonTouchesRectEdge(polygon, rect, Math.max(0.5, half * 1e-4))
-    };
-  });
-  return { cells, faceIdOf: faces.map(f => f.id) };
-}
-
-function borderLoopsForFaces(mesh: Mesh, urbanFaces: Set<Id>, cellIdOf?: Map<string, number>): MeshBorderLoop[] {
-  if (!urbanFaces.size) return [];
-
-  const seen = new Set<Id>();
-  const loops: MeshBorderLoop[] = [];
-  for (const start of urbanFaces) {
-    if (seen.has(start)) continue;
-    const component = new Set<Id>([start]);
-    const queue = [start];
-    seen.add(start);
-    while (queue.length) {
-      const fid = queue.pop() as Id;
-      for (const nfid of faceNeighbors(mesh, fid)) {
-        if (urbanFaces.has(nfid) && !component.has(nfid)) {
-          component.add(nfid);
-          seen.add(nfid);
-          queue.push(nfid);
-        }
-      }
-    }
-    const boundary: EdgeRef[] = [];
-    for (const fid of component) {
-      const face = mesh.faces[fid];
-      for (const ref of face.boundary) {
-        const edge = mesh.edges[ref.edgeId];
-        const other = edge.leftFace === fid ? edge.rightFace : edge.leftFace;
-        if (!other || !component.has(other)) boundary.push(ref);
-      }
-    }
-    const ordered = traceBoundaryLoops(mesh, boundary);
-    if (!ordered.length) continue;
-    const outer = ordered.reduce((a, b) => (loopArea(mesh, a) >= loopArea(mesh, b) ? a : b));
-    loops.push({
-      segments: outer,
-      points: loopPoints(mesh, outer),
-      cellIds: cellIdOf ? [...component].map(fid => cellIdOf.get(fid)).filter((n): n is number => n !== undefined) : []
-    });
-  }
-  return loops;
-}
-
-/** Component border loops on the mesh edges bounding each connected urban blob
- * (the largest loop — the outer circumference). No mesh mutation. */
-function componentBorderLoops(mesh: Mesh, faceIdOf: string[], urbanCellIds: Set<number>): MeshBorderLoop[] {
-  const cellIdOf = new Map(faceIdOf.map((fid, i) => [fid, i]));
-  const urbanFaces = new Set<Id>();
-  for (const id of urbanCellIds) if (faceIdOf[id]) urbanFaces.add(faceIdOf[id]);
-  return borderLoopsForFaces(mesh, urbanFaces, cellIdOf);
-}
-
-/** `orderedBoundaryLoops`, but tolerant of pinch vertices (a boundary vertex with
- * >2 incident boundary edges, common when a fine mesh's urban blob has a thin
- * tentacle): follow the directed edges greedily, taking the smallest left turn so
- * the urban material stays on the left, and keep whatever closed loops emerge. */
-function traceBoundaryLoops(mesh: Mesh, boundary: EdgeRef[]): EdgeRef[][] {
-  const clean = orderedBoundaryLoops(mesh, boundary);
-  if (clean?.length) return clean;
-
-  const remaining = new Set(boundary);
-  const byStart = new Map<Id, EdgeRef[]>();
-  const startOf = (ref: EdgeRef): Id => {
-    const e = mesh.edges[ref.edgeId];
-    return ref.forward ? e.a : e.b;
-  };
-  const dir = (ref: EdgeRef): number => {
-    const e = mesh.edges[ref.edgeId];
-    const a = mesh.vertices[ref.forward ? e.a : e.b].point;
-    const b = mesh.vertices[ref.forward ? e.b : e.a].point;
-    return Math.atan2(b[1] - a[1], b[0] - a[0]);
-  };
-  for (const ref of boundary) (byStart.get(startOf(ref)) ?? byStart.set(startOf(ref), []).get(startOf(ref))!).push(ref);
-
-  const loops: EdgeRef[][] = [];
-  while (remaining.size) {
-    const first = remaining.values().next().value as EdgeRef;
-    const start = startOf(first);
-    const loop = [first];
-    remaining.delete(first);
-    let end = edgeEnd(mesh, first);
-    let incoming = dir(first);
-    let guard = boundary.length + 4;
-    while (end !== start && guard-- > 0) {
-      const choices = (byStart.get(end) ?? []).filter(r => remaining.has(r));
-      if (!choices.length) break;
-      const next = choices.sort((a, b) => leftTurn(incoming, dir(a)) - leftTurn(incoming, dir(b)))[0];
-      loop.push(next);
-      remaining.delete(next);
-      incoming = dir(next);
-      end = edgeEnd(mesh, next);
-    }
-    if (loop.length >= 3 && end === start) loops.push(loop);
-  }
-  return loops;
-}
-
-function leftTurn(from: number, to: number): number {
-  return (to - from + Math.PI * 2) % (Math.PI * 2);
-}
-
-function loopPoints(mesh: Mesh, refs: EdgeRef[]): Point[] {
-  return refs.map(ref => {
-    const edge = mesh.edges[ref.edgeId];
-    const v = mesh.vertices[ref.forward ? edge.a : edge.b];
-    return [v.point[0], v.point[1]] as Point;
-  });
-}
-
-function loopArea(mesh: Mesh, refs: EdgeRef[]): number {
-  const pts = loopPoints(mesh, refs);
-  let sum = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const a = pts[i];
-    const b = pts[(i + 1) % pts.length];
-    sum += a[0] * b[1] - b[0] * a[1];
-  }
-  return Math.abs(sum) / 2;
-}
 
 type NearestVertex = (p: Point, among?: ReadonlySet<Id>) => Id | null;
 

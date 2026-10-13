@@ -1,84 +1,13 @@
-import { editorText } from "../../i18n/editorMessages";
+import { normalizeShipType } from "../generators/ships";
+import type { ShipClassKey } from "../types/ships";
+import { SHIP_SPECS } from "./shipSpecifications";
+
+export { normalizeShipType } from "../generators/ships";
+export type { ShipClassKey, ShipType } from "../types/ships";
+export type { ShipDimensions } from "./shipSpecifications";
+export { SHIP_SPECS } from "./shipSpecifications";
+
 import type { Point } from "../core/types";
-
-export type ShipType = "small" | "medium" | "large" | "barge";
-export type ShipClassKey = ShipType | "sloop" | "caravel" | "galleon" | "barge" | "river-barge";
-
-export interface ShipDimensions {
-  baseLengthMeters: number;
-  baseBeamMeters: number;
-  defaultSizeMeters: number;
-  minSizeMeters: number;
-  maxSizeMeters: number;
-  label: string;
-  historicalName: string;
-}
-
-export const SHIP_SPECS: Record<ShipType, ShipDimensions> = {
-  small: {
-    baseLengthMeters: 16,
-    baseBeamMeters: 5,
-    defaultSizeMeters: 16,
-    minSizeMeters: 10,
-    maxSizeMeters: 22,
-    get label() {
-      return editorText("cityEditor.messages.smallShipSloop");
-    },
-    historicalName: "Sloop"
-  },
-  medium: {
-    baseLengthMeters: 25,
-    baseBeamMeters: 7.5,
-    defaultSizeMeters: 25,
-    minSizeMeters: 18,
-    maxSizeMeters: 32,
-    get label() {
-      return editorText("cityEditor.messages.mediumShipCaravel");
-    },
-    historicalName: "Caravel"
-  },
-  large: {
-    baseLengthMeters: 42,
-    baseBeamMeters: 11.5,
-    defaultSizeMeters: 42,
-    minSizeMeters: 30,
-    maxSizeMeters: 55,
-    get label() {
-      return editorText("cityEditor.messages.largeShipGalleon");
-    },
-    historicalName: "Galleon"
-  },
-  barge: {
-    baseLengthMeters: 18,
-    baseBeamMeters: 4.8,
-    defaultSizeMeters: 18,
-    minSizeMeters: 10,
-    maxSizeMeters: 28,
-    get label() {
-      return editorText("cityEditor.messages.riverCargoBoatBarge");
-    },
-    historicalName: "River Barge"
-  }
-};
-
-// Imported ship aliases are data tokens, independent of the display language.
-export function normalizeShipType(key: string | undefined): ShipType {
-  if (!key) return "small";
-  const lower = key.toLowerCase();
-  if (
-    lower === "barge" ||
-    lower === "river-barge" ||
-    lower.includes("バージ") ||
-    lower.includes("川") ||
-    lower.includes("荷")
-  ) {
-    return "barge";
-  }
-  if (lower === "sloop" || lower === "small" || lower.includes("小")) return "small";
-  if (lower === "caravel" || lower === "medium" || lower.includes("中")) return "medium";
-  if (lower === "galleon" || lower === "large" || lower.includes("大")) return "large";
-  return "small";
-}
 
 export interface RenderShipOptions {
   type: ShipClassKey;
