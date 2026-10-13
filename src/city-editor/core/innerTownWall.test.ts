@@ -45,8 +45,9 @@ describe("double town walls (P1)", () => {
     expect(inner.areaFaceIds.length).toBeLessThan(outer.areaFaceIds.length);
     for (const id of inner.areaFaceIds) expect(city!.mesh.faces[id].properties.wallRing).toBe(0);
 
+    // Gate-to-centre roads that converge share one gate; at least one opens.
     const gates = townGates(city!, inner.id);
-    expect(gates.length).toBeGreaterThanOrEqual(2);
+    expect(gates.length).toBeGreaterThanOrEqual(1);
     expect(gates.every(g => g.circuitId === inner.id)).toBe(true);
     // Legacy outer gates keep no circuit id and still resolve to the outer wall.
     expect(townGates(city!, outer.id).length).toBeGreaterThanOrEqual(2);
@@ -62,24 +63,26 @@ describe("double town walls (P1)", () => {
     expect(boundaryEdges(city!.mesh, inner.areaFaceIds).length).toBeGreaterThan(0);
   });
 
-  it("draws the old-town wall before opening its gates (separate stages)", () => {
+  it("builds the old-town wall before the town streets (stage order)", () => {
     const seed = "d1";
     const doc = createGridDocument({ size: "small", grid: "voronoi", seed });
     const settings = { ...defaultGenerationSettings(), townWallRings: "double" as const };
-    const streets = generateStageOnDocument(doc, settings, seed, 7, undefined, "streets");
+    // Gate-to-centre roads → old-town wall → its gates and roads → town streets.
     const wall = generateStageOnDocument(doc, settings, seed, 7, undefined, "innerWall");
     const gates = generateStageOnDocument(doc, settings, seed, 7, undefined, "innerGates");
-    expect(streets).not.toBeNull();
+    const streets = generateStageOnDocument(doc, settings, seed, 7, undefined, "streets");
     expect(wall).not.toBeNull();
-    // The wall stage adds no street of its own: the network was laid out a stage earlier.
-    const roadGroups = (d: NonNullable<typeof wall>) => d.featureGroups.filter(g => g.kind === "road").length;
-    expect(roadGroups(wall!)).toBe(roadGroups(streets!));
-    expect(townCircuits(streets!)).toHaveLength(1);
     expect(gates).not.toBeNull();
+    expect(streets).not.toBeNull();
+    const roadEdges = (d: NonNullable<typeof wall>) => kindEdgeIds(d, "road").size;
+    // The wall goes up before any street is routed; the gate stage routes the
+    // gate-to-centre roads only, and the town streets come last.
+    expect(roadEdges(wall!)).toBeLessThan(roadEdges(gates!));
+    expect(roadEdges(gates!)).toBeLessThan(roadEdges(streets!));
     const inner = innerTownCircuit(wall!)!;
-    expect(inner).toBeDefined();
+    expect(townCircuits(wall!)).toHaveLength(2);
     expect(townGates(wall!, inner.id)).toHaveLength(0);
-    expect(townGates(gates!, innerTownCircuit(gates!)!.id).length).toBeGreaterThanOrEqual(2);
+    expect(townGates(gates!, innerTownCircuit(gates!)!.id).length).toBeGreaterThanOrEqual(1);
   });
 
   it("leaves the single-wall default unchanged", () => {
@@ -141,27 +144,31 @@ describe("double town walls (P1)", () => {
     expect(samples.at(-1)).toMatchObject({ ok: 0, planned: 0, failureCode: INNER_WALL_FAILURES.indexOf("gap") + 1 });
   });
 
-  it("keeps old-town gates on the main roads and closes the other crossings (P3)", () => {
-    const seed = "d2";
-    const samples: Record<string, number>[] = [];
-    const city = generateCityOnDocument(
-      createGridDocument({ size: "small", grid: "voronoi", seed }),
-      { ...defaultGenerationSettings(), townWallRings: "double" },
-      seed,
-      s => {
-        if (s.phase === "inner-wall" && s.counts) samples.push(s.counts);
-      }
-    );
-    expect(city).not.toBeNull();
-    expect(validate(city!)).toEqual([]);
-    const report = samples.at(-1)!;
-    expect(report.ok).toBe(1);
-    expect(report.closedCrossings).toBeGreaterThan(0);
-    const inner = innerTownCircuit(city!)!;
-    const outer = outerTownCircuit(city!)!;
-    const innerGates = townGates(city!, inner.id).length;
-    expect(innerGates).toBeGreaterThanOrEqual(2);
-    expect(innerGates).toBeLessThanOrEqual(Math.max(2, townGates(city!, outer.id).length));
+  it("lets streets into the old town only through its gates", () => {
+    for (const seed of ["d1", "d2"]) {
+      const city = generateCityOnDocument(
+        createGridDocument({ size: "small", grid: "voronoi", seed }),
+        { ...defaultGenerationSettings(), townWallRings: "double" },
+        seed
+      );
+      expect(city).not.toBeNull();
+      expect(validate(city!)).toEqual([]);
+      const inner = innerTownCircuit(city!)!;
+      const outer = outerTownCircuit(city!)!;
+      expect(inner.id).not.toBe(outer.id);
+      const gates = new Set(townGates(city!, inner.id).map(g => g.vertexId));
+      expect(gates.size).toBeGreaterThanOrEqual(1);
+      expect(gates.size).toBeLessThanOrEqual(Math.max(2, townGates(city!, outer.id).length));
+      const wallVertices = new Set(
+        city!.featureGroups
+          .filter(g => g.kind === "wall" && inner.wallGroupIds.includes(g.id))
+          .flatMap(g => (g.kind === "wall" ? g.segments : []))
+          .flatMap(ref => [city!.mesh.edges[ref.edgeId].a, city!.mesh.edges[ref.edgeId].b])
+      );
+      // Every street crossing of the old-town curtain is one of its gates.
+      const crossings = [...wallVertices].filter(v => vertexHasCrossing(city!, v, "wall", "road"));
+      expect(crossings.filter(v => !gates.has(v))).toEqual([]);
+    }
   });
 
   it("razes the old wall to a ring road with no gates (P3)", () => {

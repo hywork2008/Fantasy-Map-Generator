@@ -1,9 +1,9 @@
 import { registerTownCircuit } from "../castles";
 import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces, townGates } from "../fortifications";
 import { facePoints, faceVertices, insertEdgeVertex, splitFace } from "../mesh";
-import { alternatingPairs, kindEdgeIds, orderedIncidentEdges, townCenter } from "../passages";
+import { alternatingPairs, kindEdgeIds, minGateSpacingMeters, orderedIncidentEdges, townCenter } from "../passages";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "../types";
-import { polygonArea, polygonCentroid } from "./geom";
+import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 
 /**
  * P1 of docs/plan/ce-multi-ring-walls.md: an old-town wall inside the generated
@@ -27,6 +27,13 @@ export interface InnerWallOptions {
   razed?: boolean;
   /** Draw the curtain only: no gates are opened and no street crossing is closed (a diagnostic stage). */
   wallOnly?: boolean;
+  /**
+   * Planned gate-to-centre lines. When given, the wall is built before any town
+   * street exists: a gate opens where each line meets the curtain, and the
+   * street router later reaches the old town only through those gates (the
+   * wall edges are banned and only a gate passage gives a four-way vertex).
+   */
+  arteries?: Point[][];
 }
 
 /** Order is the diagnostic code (`failureCode` = index + 1) recorded by the generator. */
@@ -157,7 +164,7 @@ export function addInnerTownWall(
     // The radius fits. Give every street that crosses the circle a vertex on
     // it, so the curtain can pass through the street there (the future gate).
     const radius = Math.sqrt(target / Math.PI);
-    const cut = cutStreetCrossings(document, center, radius, base.info);
+    const cut = cutStreetCrossings(document, center, radius, base.info, !options.arteries);
     const cutCastle = reservedCastleFaces(cut.document);
     const town = townFaces(
       cut.document.mesh,
@@ -176,6 +183,15 @@ export function addInnerTownWall(
       cut.document.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : []))
     );
     for (const v of cut.riverCuts) riverCorners.delete(v);
+    // A bridge must not abut the curtain: a road ending on a wall vertex
+    // without a gate is trimmed later, which would cut the bridge in two.
+    for (const group of cut.document.featureGroups)
+      if (group.kind === "road" && group.id.includes("bridge"))
+        for (const ref of group.segments) {
+          const edge = cut.document.mesh.edges[ref.edgeId];
+          riverCorners.add(edge.a);
+          riverCorners.add(edge.b);
+        }
     keepStreetsOffCurtain(cut.document, inner, town.info, offLine, town.seed, radius, keep, riverCorners);
     // Moving the curtain off streets can cut the castle's link again; restore it
     // (a street still on the line there becomes an opening).
@@ -346,7 +362,9 @@ function cutStreetCrossings(
   document: CityDocument,
   center: Point,
   radius: number,
-  eligible: Map<Id, FaceInfo>
+  eligible: Map<Id, FaceInfo>,
+  /** False before the town streets exist (the wall is built on planned lines). */
+  includeStreets = true
 ): { document: CityDocument; cuts: number; riverCuts: Set<Id> } {
   const mesh = document.mesh;
   const dist = (p: Point) => Math.hypot(p[0] - center[0], p[1] - center[1]);
@@ -354,8 +372,18 @@ function cutStreetCrossings(
   const riverEdges = kindEdgeIds(document, "river");
   // A river crossing the circle gets the same vertex, so the curtain meets the
   // river as a four-way crossing (wall, river, wall, river) like the outer wall.
-  for (const edgeId of [...kindEdgeIds(document, "road"), ...kindEdgeIds(document, "river")]) {
+  // A bridge is a fixed road–river–road triple; its river edges are not cut.
+  const bridgeVertices = new Set(
+    document.featureGroups.flatMap(group =>
+      group.kind === "road" && group.id.includes("bridge")
+        ? group.segments.flatMap(ref => [mesh.edges[ref.edgeId].a, mesh.edges[ref.edgeId].b])
+        : []
+    )
+  );
+  const candidates = [...(includeStreets ? kindEdgeIds(document, "road") : []), ...kindEdgeIds(document, "river")];
+  for (const edgeId of candidates) {
     const edge = mesh.edges[edgeId];
+    if (edge && (bridgeVertices.has(edge.a) || bridgeVertices.has(edge.b))) continue;
     if (!edge?.leftFace || !edge.rightFace || !eligible.has(edge.leftFace) || !eligible.has(edge.rightFace)) continue;
     const a = mesh.vertices[edge.a].point,
       b = mesh.vertices[edge.b].point;
@@ -707,8 +735,16 @@ function build(
   // the crossings on each outer gate's shortest street route to the plaza
   // (at least two), and close the others at the curtain.
   const gateVertices =
-    options.razed || options.wallOnly ? [] : mainRoadCrossings(next, crossingVertices, roads, townCenter(next));
-  const closed = options.razed || options.wallOnly ? [] : crossingVertices.filter(v => !gateVertices.includes(v));
+    options.razed || options.wallOnly
+      ? []
+      : options.arteries
+        ? arteryGates(next, runs, runEnds, riverVertices, castleSide, options.arteries, style.widthMeters)
+        : mainRoadCrossings(next, crossingVertices, roads, townCenter(next));
+  // Before streets there is nothing to close: later streets can only use the gates.
+  const closed =
+    options.razed || options.wallOnly || options.arteries
+      ? []
+      : crossingVertices.filter(v => !gateVertices.includes(v));
   closeCrossings(next, closed, roads, side);
 
   registerTownCircuit(next, [], true, [...inner], 0);
@@ -860,4 +896,71 @@ function closeCrossings(
   }
   document.featureGroups = groups;
   for (const id of drop) roads.delete(id);
+}
+
+/**
+ * Gates for a wall built before the town streets: where each planned
+ * gate-to-centre line first meets the curtain, the nearest usable curtain
+ * vertex (not a run end, a river corner or the castle's side). Gates closer
+ * than one gate spacing share the first.
+ */
+function arteryGates(
+  document: CityDocument,
+  runs: EdgeRef[][],
+  runEnds: Set<Id>,
+  riverVertices: Set<Id>,
+  castleSide: (ref: EdgeRef) => boolean,
+  arteries: Point[][],
+  wallWidthMeters: number
+): Id[] {
+  const mesh = document.mesh;
+  const usable = new Set<Id>();
+  const castleVertices = new Set<Id>();
+  for (const run of runs)
+    for (const ref of run) {
+      const edge = mesh.edges[ref.edgeId];
+      if (castleSide(ref)) {
+        castleVertices.add(edge.a);
+        castleVertices.add(edge.b);
+      }
+      usable.add(edge.a);
+      usable.add(edge.b);
+    }
+  for (const v of [...usable]) if (runEnds.has(v) || riverVertices.has(v) || castleVertices.has(v)) usable.delete(v);
+  const segments = runs.flat().map(ref => {
+    const edge = mesh.edges[ref.edgeId];
+    return [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point] as [Point, Point];
+  });
+  const spacing = minGateSpacingMeters(wallWidthMeters);
+  const gates: Id[] = [];
+  for (const line of arteries) {
+    // Walk from the plaza outward: the first curtain hit is this road's old-town gate.
+    const inward = [...line].reverse();
+    let hit: Point | null = null;
+    for (let i = 1; i < inward.length && !hit; i++)
+      for (const [a, b] of segments) {
+        const h = segmentSegmentHit(inward[i - 1], inward[i], a, b);
+        if (h) {
+          hit = h.point;
+          break;
+        }
+      }
+    if (!hit) continue;
+    let best: Id | null = null;
+    let bestDistance = Infinity;
+    for (const v of usable) {
+      const p = mesh.vertices[v].point;
+      const d = Math.hypot(p[0] - hit[0], p[1] - hit[1]);
+      if (d < bestDistance) {
+        best = v;
+        bestDistance = d;
+      }
+    }
+    if (!best) continue;
+    const at = mesh.vertices[best].point;
+    if (gates.some(g => Math.hypot(mesh.vertices[g].point[0] - at[0], mesh.vertices[g].point[1] - at[1]) < spacing))
+      continue;
+    gates.push(best);
+  }
+  return gates;
 }

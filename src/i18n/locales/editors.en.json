@@ -740,15 +740,15 @@
       },
       "townStreets": {
         "label": "Town streets",
-        "hint": "Lay out the whole street network inside the outer wall"
+        "hint": "Lay out the whole street network inside the outer wall; streets enter the old town only through its gates"
       },
       "innerWall": {
         "label": "Inner town wall",
-        "hint": "Build the old-town wall inside the outer curtain (double walls only). Gates are not opened yet."
+        "hint": "Build the old-town wall inside the outer curtain before any town street (double walls only). Gates are not opened yet."
       },
       "innerGates": {
         "label": "Old-town gates and roads",
-        "hint": "Open gates on the main roads through the inner wall and close the other street crossings"
+        "hint": "Open old-town gates where the gate-to-centre roads meet the inner wall and route those roads through them"
       },
       "geometry": {
         "label": "Geometry smoothing",

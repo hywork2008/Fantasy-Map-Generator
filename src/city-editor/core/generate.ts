@@ -3,7 +3,7 @@ import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { measureProcessing, type ProcessingProfiler } from "../../utils/processingProfiler";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
-import { castleWallIds, reservedCastleFaces, townGates } from "./fortifications";
+import { castleWallIds, reservedCastleFaces, townCircuits, townGates } from "./fortifications";
 import {
   alignFrameRoadEndpoints,
   exteriorDirection,
@@ -138,6 +138,7 @@ import { rectifyVoronoiBlocks } from "./gen/rectifyVoronoiBlocks";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import { cultivateRoadside } from "./gen/roadsideFarms";
 import {
+  DEFAULT_INNER_WALLED_AREA_SHARE,
   defaultRoadWidthMeters,
   evolutionWallInsetRings,
   extendCoreToCoast,
@@ -417,22 +418,8 @@ export const GENERATION_STAGES: GenerationStage[] = [
     }
   },
   {
-    id: "townStreets",
-    step: 11,
-    processStep: 7,
-    wallCheckpoint: "streets",
-    labelKey: "cityEditor.generationStages.townStreets.label",
-    get label() {
-      return editorText(this.labelKey);
-    },
-    hintKey: "cityEditor.generationStages.townStreets.hint",
-    get hint() {
-      return editorText(this.hintKey);
-    }
-  },
-  {
     id: "innerWall",
-    step: 12,
+    step: 11,
     processStep: 7,
     wallCheckpoint: "innerWall",
     labelKey: "cityEditor.generationStages.innerWall.label",
@@ -446,7 +433,7 @@ export const GENERATION_STAGES: GenerationStage[] = [
   },
   {
     id: "innerGates",
-    step: 13,
+    step: 12,
     processStep: 7,
     wallCheckpoint: "innerGates",
     labelKey: "cityEditor.generationStages.innerGates.label",
@@ -454,6 +441,20 @@ export const GENERATION_STAGES: GenerationStage[] = [
       return editorText(this.labelKey);
     },
     hintKey: "cityEditor.generationStages.innerGates.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "townStreets",
+    step: 13,
+    processStep: 7,
+    wallCheckpoint: "streets",
+    labelKey: "cityEditor.generationStages.townStreets.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.townStreets.hint",
     get hint() {
       return editorText(this.hintKey);
     }
@@ -1146,27 +1147,41 @@ export function generateCityAttempt(
     if (coveredRoadIndexes.has(index) || road.path.length < 2) continue;
     roads.push([[0, 0], [...road.path.at(-1)!]]);
   }
+  // Stage order with double walls: gate-to-centre roads → old-town wall →
+  // old-town gates and their roads → town streets. The wall is built inside
+  // applyPlan before routing. The "innerGates" stage is the same routed town
+  // with the town streets hidden, so every stage shows one and the same city.
+  const routedStreets = streets;
   const applied = measureProcessing(profiler, "apply-plan", () =>
     applyPlan(
       document,
       activeCells,
       activeFaceIdOf,
-      { ...plan, layout: effectiveLayout, wards, streets, roads: [...roads, ...streets] },
+      {
+        ...plan,
+        layout: effectiveLayout,
+        wards,
+        streets: routedStreets,
+        roads: [...roads, ...routedStreets],
+        innerArteries: plan.innerWall?.planned ? star : undefined
+      },
       program,
       6,
       true,
       observer,
       attempt,
-      onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined
+      onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined,
+      stopAfter === "innerWall" ? "innerWall" : undefined
     )
   );
   mark("apply-total");
   if (!applied) return null;
-  let next: CityDocument = applied;
+  const next: CityDocument = applied;
   debugDocument = () => next;
   const minRoads = requiredExternalRoads(settings, townExtentMeters(document.frame));
   const roadsBeforeFinish = countExternalApproachRoads(next);
-  if (minRoads > 0 && roadsBeforeFinish < minRoads)
+  // The old-town wall stage stops before any road is routed.
+  if (stopAfter !== "innerWall" && minRoads > 0 && roadsBeforeFinish < minRoads)
     return reject(
       "street-plan",
       "too-few-external-roads",
@@ -1176,47 +1191,23 @@ export function generateCityAttempt(
       }),
       { roads: roadsBeforeFinish, minRoads, gates: townGates(next).length }
     );
-  if (stopAfter === "streets") {
-    next.appearance = "town";
-    return next;
-  }
+  // The old-town wall was built inside applyPlan, before the streets.
   if (plan.innerWall && !plan.innerWall.planned)
     mark("inner-wall", {
       ok: 0,
       failureCode: INNER_WALL_FAILURES.indexOf(plan.innerWall.failure ?? "gap") + 1,
       planned: 0
     });
-  else if (plan.innerWall?.planned) {
-    const inner = measureProcessing(profiler, "inner-wall", () =>
-      addInnerTownWall(next, {
-        share: innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
-        minGapCells: INNER_WALL_MIN_GAP_CELLS,
-        prefix: GEN_PREFIX,
-        castleInOldTown: plan.innerWall?.castleRing === "inner",
-        razed: settings.innerWallState === "razed",
-        wallOnly: stopAfter === "innerWall"
-      })
-    );
-    // A town that cannot hold an old-town wall keeps its single curtain.
-    const { report } = inner;
-    mark("inner-wall", {
-      ok: report.ok ? 1 : 0,
-      planned: 1,
-      castleInOldTown: plan.innerWall.castleRing === "inner" ? 1 : 0,
-      castleTouchesOldTown: report.castleTouches ? 1 : 0,
-      closedCrossings: report.closedCrossings,
-      failureCode: report.failure ? INNER_WALL_FAILURES.indexOf(report.failure) + 1 : 0,
-      faces: report.faces,
-      areaShare: report.areaShare,
-      gapCells: report.gapCells,
-      gates: report.gates,
-      riverOpenings: report.riverOpenings,
-      streetOpenings: report.streetOpenings,
-      cuts: report.cuts
-    });
-    next = inner.document;
-  }
   next.appearance = "town";
+  if (stopAfter === "innerGates") {
+    // Keep the approach roads, the gate-to-centre roads and bridges; hide the
+    // town streets (routed after them, `road-<index>` past the gate roads).
+    const gateRoads = roads.length + star.length;
+    next.featureGroups = next.featureGroups.filter(group => {
+      const index = group.kind === "road" ? /^gc:road-(\d+)/.exec(group.id)?.[1] : undefined;
+      return index === undefined || Number(index) < gateRoads;
+    });
+  }
   if (stopAfter) return next;
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
@@ -1851,7 +1842,16 @@ export function generateWardStep(
 
 interface Plan {
   /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */
-  innerWall?: { planned: boolean; failure?: InnerWallFailure; castleRing?: "inner" | "outer" };
+  innerWall?: {
+    planned: boolean;
+    failure?: InnerWallFailure;
+    castleRing?: "inner" | "outer";
+    /** Old-town share of the town and whether the wall is razed (set when planned). */
+    share?: number;
+    razed?: boolean;
+  };
+  /** Gate-to-centre lines; the old-town wall is built on them before the town streets. */
+  innerArteries?: Point[][];
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   fixedCrossings?: CityDocument["importedFixedCrossings"];
   replaceFixedCrossings?: boolean;
@@ -2606,7 +2606,13 @@ export function runPlan(
       // The final old town is centred on the plaza (`townCenter`); plan on the same centre.
       precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0]
     );
-    innerWall = planned ? { planned: true } : { planned: false, failure: "gap" };
+    innerWall = planned
+      ? {
+          planned: true,
+          share: innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
+          razed: settings.innerWallState === "razed"
+        }
+      : { planned: false, failure: "gap" };
     innerPlanFaces = planned?.faces ?? null;
   }
   if (program.citadel && !settings.legacyCastles && !preservedCastleIds.size) {
@@ -3398,7 +3404,7 @@ function applyPlan(
   observer?: GenerationObserver,
   attempt = 1,
   onRejected?: (document: CityDocument, sample: import("./generationDiagnostics").GenerationSample) => void,
-  wallCheckpoint?: "walls" | "riverPassages" | "passages"
+  wallCheckpoint?: "walls" | "riverPassages" | "passages" | "innerWall"
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
@@ -4209,6 +4215,41 @@ function applyPlan(
         }
       }
     }
+    // Double walls: the old-town wall goes up before any town street is routed.
+    // Its gates stand on the planned gate-to-centre lines; the router (which
+    // bans wall edges) can then enter the old town only through them, so no
+    // street has to be closed or moved off the curtain afterwards.
+    if (complete && plan.innerWall?.planned && plan.innerArteries) {
+      const inner = addInnerTownWall(next, {
+        share: plan.innerWall.share ?? DEFAULT_INNER_WALLED_AREA_SHARE,
+        minGapCells: INNER_WALL_MIN_GAP_CELLS,
+        prefix: GEN_PREFIX,
+        castleInOldTown: plan.innerWall.castleRing === "inner",
+        razed: plan.innerWall.razed,
+        wallOnly: wallCheckpoint === "innerWall",
+        arteries: plan.innerArteries
+      });
+      const { report } = inner;
+      mark("inner-wall", {
+        ok: report.ok ? 1 : 0,
+        planned: 1,
+        castleInOldTown: plan.innerWall.castleRing === "inner" ? 1 : 0,
+        castleTouchesOldTown: report.castleTouches ? 1 : 0,
+        failureCode: report.failure ? INNER_WALL_FAILURES.indexOf(report.failure) + 1 : 0,
+        faces: report.faces,
+        areaShare: report.areaShare,
+        gapCells: report.gapCells,
+        gates: report.gates,
+        riverOpenings: report.riverOpenings,
+        cuts: report.cuts
+      });
+      // A town that cannot hold an old-town wall keeps its single curtain.
+      if (report.ok) {
+        next = inner.document;
+        mesh = next.mesh;
+      }
+      if (wallCheckpoint === "innerWall") return next;
+    }
     for (const gate of townGates(next)) {
       if (gate.locked) continue;
       const opened = openBarrierPassage(next, gate.vertexId, "wall");
@@ -4306,12 +4347,14 @@ function applyPlan(
     const channelEdges = Object.values(mesh.edges)
       .filter(edge => edgeHitsWater(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point))
       .map(edge => edge.id);
+    const oldTownEntries = oldTownNonGateEntries(next);
     const banned = new Set<Id>([
       ...channelEdges,
       ...kindEdgeIds(next, "river"),
       ...kindEdgeIds(next, "wall"),
       ...internalPlazaEdges,
-      ...templeBlockedEdges
+      ...templeBlockedEdges,
+      ...oldTownEntries
     ]);
     const banReasons = new Map<Id, string[]>();
     const recordBans = (ids: Iterable<Id>, reason: string) => {
@@ -4320,6 +4363,7 @@ function applyPlan(
     recordBans(channelEdges, editorText("cityEditor.messages.waterAreaEdgeInsideAContinuousWaterway"));
     recordBans(kindEdgeIds(next, "river"), editorText("cityEditor.messages.riverEdgeRiverEdge"));
     recordBans(kindEdgeIds(next, "wall"), editorText("cityEditor.messages.wallEdgeWallEdge"));
+    recordBans(oldTownEntries, editorText("cityEditor.messages.wallEdgeWallEdge"));
     recordBans(internalPlazaEdges, editorText("cityEditor.messages.plazaInteriorInternalPlazaEdge"));
     recordBans(templeBlockedEdges, editorText("cityEditor.messages.templeTempleInteriorOrNave"));
     const layout = plan.layout ?? source.layout;
@@ -4645,6 +4689,13 @@ function applyPlan(
   }
 
   mark("route-junctions");
+  // An old-town gate that no routed street passes through is not a gate (two
+  // gate-to-centre roads can share one). The others are an invariant below.
+  const oldTownWall = townCircuits(next).length > 1 ? townCircuits(next)[0] : null;
+  if (oldTownWall)
+    next.gates = next.gates.filter(
+      gate => gate.circuitId !== oldTownWall.id || gate.locked || vertexHasCrossing(next, gate.vertexId, "wall", "road")
+    );
   // Accepted gates are an invariant. Never make an incomplete route look
   // successful by deleting its gate (and then deleting its paired roads).
   const disconnected = townGates(next).filter(
@@ -4708,7 +4759,15 @@ function applyPlan(
     const gateVertices = new Set(townGates(next).map(g => g.vertexId));
 
     next.featureGroups = next.featureGroups.flatMap(group => {
-      if (group.locked || group.kind !== "road" || !group.id.startsWith(GEN_PREFIX)) return [group];
+      // A bridge is a fixed road–river–road triple, not a gate road; an
+      // old-town curtain may pass its bank vertex (double walls).
+      if (
+        group.locked ||
+        group.kind !== "road" ||
+        !group.id.startsWith(GEN_PREFIX) ||
+        group.id.startsWith(`${GEN_PREFIX}bridge-`)
+      )
+        return [group];
       const segments = [...group.segments];
       const segStart = (seg: (typeof segments)[0]) => {
         const e = next.mesh.edges[seg.edgeId];
@@ -6031,4 +6090,31 @@ function applyImportedWaterAccess(document: CityDocument, settings: GenerationSe
   const access = settings.descriptor ? resolvePortFrontages(settings.descriptor).burg.waterAccess : undefined;
   if (access) document.waterAccess = structuredClone(access);
   else delete document.waterAccess;
+}
+
+/**
+ * Double walls: streets may enter the old town only through its gates. A wall
+ * vertex that already had four arms (from earlier passages or splits) would
+ * otherwise let a street cross the curtain there, so ban the arms that lead
+ * from a non-gate old-town wall vertex into the old town.
+ */
+function oldTownNonGateEntries(document: CityDocument): Set<Id> {
+  const circuits = townCircuits(document);
+  if (circuits.length < 2) return new Set();
+  const inner = circuits[0];
+  const inside = new Set(inner.areaFaceIds);
+  const wall = new Set(
+    document.featureGroups.flatMap(group =>
+      group.kind === "wall" && inner.wallGroupIds.includes(group.id) ? group.segments.map(ref => ref.edgeId) : []
+    )
+  );
+  const gates = new Set(townGates(document, inner.id).map(gate => gate.vertexId));
+  const vertices = new Set([...wall].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
+  const entries = new Set<Id>();
+  for (const vertexId of vertices) {
+    if (gates.has(vertexId)) continue;
+    for (const edge of incidentEdges(document.mesh, vertexId))
+      if (!wall.has(edge.id) && [edge.leftFace, edge.rightFace].every(id => id && inside.has(id))) entries.add(edge.id);
+  }
+  return entries;
 }
