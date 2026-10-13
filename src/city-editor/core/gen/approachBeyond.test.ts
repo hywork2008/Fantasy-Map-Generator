@@ -31,7 +31,7 @@ describe("approach beyond", () => {
     expect(
       external.every(road => {
         const norm = normalizeApproachBeyond(road.group.beyond);
-        return norm !== undefined && norm.realm.relation && norm.settlement.scale;
+        return norm?.realm.relation && norm.settlement.scale;
       })
     ).toBe(true);
 

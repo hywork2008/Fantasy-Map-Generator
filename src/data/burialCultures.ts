@@ -761,8 +761,6 @@ export function corpseTreatmentToFuneralRite(treatment: CorpseTreatment): Funera
       return "mummification";
     case "exposure_surface":
       return "exposure";
-    case "inhumation_coffined":
-    case "inhumation_shrouded":
     default:
       return "inhumation";
   }
@@ -783,7 +781,6 @@ export function funeralRiteToDefaultCorpseTreatment(rite: FuneralRite): CorpseTr
       return "mummification_embalmed";
     case "exposure":
       return "exposure_surface";
-    case "inhumation":
     default:
       return "inhumation_coffined";
   }

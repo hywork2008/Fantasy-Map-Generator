@@ -343,7 +343,7 @@ function buildJapaneseShiro(ring: Point[], center: Point, gatePoint: Point, part
 /**
  * Builds Concentric fortress geometry (二重囲壁・全周ドラムタワー・大双塔門・ゴシック大広間).
  */
-function buildConcentric(ring: Point[], center: Point, gatePoint: Point, parts: CastlePart[]): FortressPlan {
+function buildConcentric(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
   const plan: FortressPlan = {
     style: "concentric",
     ramparts: [],
@@ -440,7 +440,7 @@ function buildConcentric(ring: Point[], center: Point, gatePoint: Point, parts: 
 /**
  * Builds Bastion Citadel geometry (星形稜堡・傾斜スカルプ・対称兵舎・練兵広場).
  */
-function buildBastionCitadel(ring: Point[], center: Point, gatePoint: Point, parts: CastlePart[]): FortressPlan {
+function buildBastionCitadel(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
   const plan: FortressPlan = {
     style: "bastion-citadel",
     ramparts: [],
@@ -536,7 +536,7 @@ function buildBastionCitadel(ring: Point[], center: Point, gatePoint: Point, par
 /**
  * Builds Motte-and-Bailey geometry (円形モット盛土・独立外郭ベイリー・木造シェルキープ・木橋).
  */
-function buildMotteBailey(ring: Point[], center: Point, gatePoint: Point, parts: CastlePart[]): FortressPlan {
+function buildMotteBailey(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
   const plan: FortressPlan = {
     style: "motte-bailey",
     ramparts: [],
@@ -682,7 +682,7 @@ function buildMotteBailey(ring: Point[], center: Point, gatePoint: Point, parts:
 /**
  * Builds Norman Keep fortress geometry (前殿付き方形主塔・バットレス・大広間・アプス付き礼拝堂).
  */
-function buildNormanKeep(ring: Point[], center: Point, gatePoint: Point, parts: CastlePart[]): FortressPlan {
+function buildNormanKeep(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
   const plan: FortressPlan = {
     style: "norman-keep",
     ramparts: [],
@@ -767,7 +767,7 @@ function buildNormanKeep(ring: Point[], center: Point, gatePoint: Point, parts: 
 /**
  * Builds Islamic Qalat geometry (四角角塔・鋸歯銃眼・パティオ水盤・回廊).
  */
-function buildIslamicQalat(ring: Point[], center: Point, gatePoint: Point, parts: CastlePart[]): FortressPlan {
+function buildIslamicQalat(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
   const plan: FortressPlan = {
     style: "islamic-qalat",
     ramparts: [],
@@ -843,7 +843,7 @@ function buildIslamicQalat(ring: Point[], center: Point, gatePoint: Point, parts
 /**
  * Builds Ancient Castra / Acropolis geometry (列柱・神殿庁舎・方形物見台).
  */
-function buildAncientCastra(ring: Point[], center: Point, gatePoint: Point, parts: CastlePart[]): FortressPlan {
+function buildAncientCastra(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
   const plan: FortressPlan = {
     style: "ancient-castra",
     ramparts: [],

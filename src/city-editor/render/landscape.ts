@@ -932,7 +932,6 @@ export function renderLandscapeLayer(
           }
           break;
         }
-        case "grassland":
         default: {
           const roll = rng();
           if (roll < 0.35) {

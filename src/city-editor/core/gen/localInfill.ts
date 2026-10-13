@@ -238,7 +238,7 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
         const edge = mesh.edges[ref.edgeId];
         if (barriers.has(edge.id) || edge.locked) continue;
         const other = mesh.faces[(edge.leftFace === id ? edge.rightFace : edge.leftFace) ?? ""];
-        if (!other || other.properties.water !== "land") continue;
+        if (other?.properties.water !== "land") continue;
         const d = distance(edgeMid(edge.id), organicContext.hub);
         if (d < bestDistance) {
           bestDistance = d;

@@ -584,7 +584,7 @@ export function straightenThroughStreets(document: CityDocument, descriptor?: Bu
   for (const groupId of document.featureGroups.map(g => g.id)) {
     for (let pass = 0; pass < 3; pass++) {
       const group = work.featureGroups.find(g => g.id === groupId);
-      if (!group || group.kind !== "road" || group.locked) break;
+      if (group?.kind !== "road" || group.locked) break;
       const ids = featureGroupVertices(work, group);
       if (!group.sourceRoad && !ids.some(id => gates.has(id))) break;
       let changed = false;
@@ -655,7 +655,7 @@ export function straightenBridgeGateLinks(document: CityDocument, descriptor?: B
   let held = junctions(work);
   for (const groupId of document.featureGroups.map(g => g.id)) {
     const group = work.featureGroups.find(g => g.id === groupId);
-    if (!group || group.kind !== "road" || group.locked) continue;
+    if (group?.kind !== "road" || group.locked) continue;
     const ids = featureGroupVertices(work, group);
     const others = new Set(
       work.featureGroups.filter(g => g.id !== groupId).flatMap(g => featureGroupVertices(work, g))

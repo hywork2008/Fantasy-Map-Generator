@@ -130,7 +130,6 @@ export function renderTempleSvg(options: RenderTempleOptions): SVGGElement {
     case "shrine":
       renderTimberShrine(root, length, width, hx, hy);
       break;
-    case "basilica":
     default:
       renderBasilica(root, length, width, hx, hy);
       break;

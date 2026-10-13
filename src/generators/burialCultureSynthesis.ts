@@ -303,7 +303,6 @@ export function synthesizeBurialCulture(
       if (monuments === "headstone_grid" || monuments === "cairns_and_steles") resourceCostPerCapita.stone = 0.02;
       sanitationRisk = zoning === "intramural_core" ? 0.6 : 0.15;
       break;
-    case "inhumation_coffined":
     default:
       remainFraction = 0.8;
       zombieRatio = 0.4;

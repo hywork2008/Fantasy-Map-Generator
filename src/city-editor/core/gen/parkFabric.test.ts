@@ -212,7 +212,7 @@ describe("parkFabric", () => {
         }
       };
 
-      const outline = facePoints(doc.mesh, doc.mesh.faces["f_small_park"]);
+      const outline = facePoints(doc.mesh, doc.mesh.faces.f_small_park);
       const area = Math.abs(polygonArea(outline));
       expect(area).toBe(300); // 20m x 15m = 300 m^2 < 650 m^2
 
@@ -256,7 +256,7 @@ describe("parkFabric", () => {
       doc.mesh.edges[e2.id] = e2;
       doc.mesh.edges[e3.id] = e3;
 
-      doc.mesh.faces["f_large_park"] = {
+      doc.mesh.faces.f_large_park = {
         id: "f_large_park",
         boundary: [
           { edgeId: e0.id, forward: true },

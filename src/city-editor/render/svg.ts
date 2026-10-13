@@ -2527,7 +2527,7 @@ function renderTownFortifications(
         continue;
       if (cornerTowers.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 12)) continue;
       const wall = document.featureGroups.find(g => g.kind === "wall" && g.segments.some(r => r.edgeId === ref.edgeId));
-      if (!wall || wall.kind !== "wall") continue;
+      if (wall?.kind !== "wall") continue;
       const wallMat = wall.wallMaterial ?? "stone";
       const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
       const towerId = `castle-tower-${id}`,

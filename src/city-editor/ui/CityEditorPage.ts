@@ -1661,7 +1661,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       if (shipHandle) {
         const shipId = shipHandle.getAttribute("data-ship-id");
         const ship = documentState.elements.find(e => e.id === shipId && e.kind === "ship");
-        if (ship && ship.point && !ship.locked) {
+        if (ship?.point && !ship.locked) {
           event.preventDefault();
           shipDragBefore = clone(documentState);
           shipDrag = {
@@ -1685,7 +1685,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         if (info && info.kind === "ship") {
           const shipId = String(info.id);
           const ship = documentState.elements.find(e => e.id === shipId);
-          if (ship && ship.point) {
+          if (ship?.point) {
             selection = {
               faceId: null,
               edgeId: null,
@@ -3742,7 +3742,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       });
       widthSlider.addEventListener("change", () => {
         const nextWidth = parseFloat(widthSlider.value);
-        if (!isFinite(nextWidth) || nextWidth <= 0) return;
+        if (!Number.isFinite(nextWidth) || nextWidth <= 0) return;
         const next = clone(documentState);
         const target = next.featureGroups.find(c => c.id === wallGroup.id);
         if (target && target.kind === "wall") {

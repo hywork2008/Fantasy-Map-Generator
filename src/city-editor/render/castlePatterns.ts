@@ -464,7 +464,7 @@ export function resolveCastleStyle(document: CityDocument, castle?: CastlePlan |
     case "highMedieval":
       return CASTLE_STYLE_PROFILES["norman-keep"];
     case "lateMedieval":
-      return CASTLE_STYLE_PROFILES["concentric"];
+      return CASTLE_STYLE_PROFILES.concentric;
     case "ageOfExploration":
     case "maritimeEra":
     case "preIndustrialEra":

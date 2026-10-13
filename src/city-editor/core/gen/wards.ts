@@ -796,7 +796,7 @@ function placeCemetery(
   sea: Set<number>,
   templeIds: Set<number>,
   plaza: Precinct | null,
-  citadelIds: Set<number>,
+  _citadelIds: Set<number>,
   gates: Gate[],
   streets: Point[][],
   historicalPeriod: HistoricalPeriod | undefined,

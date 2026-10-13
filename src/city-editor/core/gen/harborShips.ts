@@ -128,7 +128,7 @@ export function planHarborShips(
     : measureProcessing(profiler, "block-fabric", () => buildBlockFabric(document, undefined, profiler));
   const fabricHarbor = fabric?.harbor;
 
-  if (fabricHarbor && fabricHarbor.piers?.length) {
+  if (fabricHarbor?.piers?.length) {
     for (const pier of fabricHarbor.piers) {
       let start: Point;
       let end: Point;
@@ -536,7 +536,7 @@ export function planHarborShips(
     for (const [waterId, waterPoly] of waterPolygons) {
       if (placedShips.length >= targetCount) break;
       const waterFace = document.mesh.faces[waterId];
-      if (!waterFace || waterFace.properties.water !== "sea") continue;
+      if (waterFace?.properties.water !== "sea") continue;
       const depth = waterFace.properties.depth ?? 3;
       if (depth < 3.0) continue;
 

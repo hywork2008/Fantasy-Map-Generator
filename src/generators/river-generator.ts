@@ -629,7 +629,7 @@ class RiverModule {
 
       const feature = features[cells.f[lastCell]];
       if (feature && feature.type === "ocean") return feature.i;
-      if (!feature || feature.type !== "lake") {
+      if (feature?.type !== "lake") {
         // A tributary's path ends on the receiving river's land cell: continue down that river.
         // (Upstream FMG stops here, so a tributary town never became a river port.)
         const receiving = cells.r[lastCell] && cells.r[lastCell] !== river.i ? cells.r[lastCell] : river.parent;

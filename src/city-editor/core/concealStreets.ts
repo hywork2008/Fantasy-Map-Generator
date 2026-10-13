@@ -33,7 +33,7 @@ export function outerWallRing(document: CityDocument): Point[] | null {
   }
   if (!lines.length) return null;
   const plaza = document.elements.find(element => element.kind === "plaza" && element.point)?.point;
-  const center = plaza ?? polygonCentroid(lines.flatMap(line => line));
+  const center = plaza ?? polygonCentroid(lines.flat());
   const maxGap = Math.max(60, document.frame.blockSizeMeters * 4);
   return outerWallRingFromPolylines(lines, center, maxGap);
 }

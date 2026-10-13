@@ -151,7 +151,6 @@ export function rollCultureBurialProfile(
     case "Colonial":
       candidates.push("victorian_garden", "catacomb_paris", "jewish_orthodox");
       break;
-    case "Generic":
     default:
       candidates.push("medieval_parish", "roman_via_appia", "edo_temple_town", "prague_ghetto");
       break;

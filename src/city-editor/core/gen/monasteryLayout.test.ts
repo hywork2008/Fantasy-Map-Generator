@@ -14,7 +14,7 @@ const BLOCK: Point[] = [
 
 const KINDS: MonasteryKind[] = ["abbey", "friary", "orthodoxMonastery"];
 
-function fit(kind: MonasteryKind, ring: Point[] = BLOCK, margin = 8) {
+function fitTestMonastery(kind: MonasteryKind, ring: Point[] = BLOCK, margin = 8) {
   return fitMonastery({ kind, id: "m", faceId: "f1", ring, rng: makeRng(`t:${kind}`), margin });
 }
 
@@ -27,7 +27,7 @@ const inside = (p: Point, ring: Point[]) =>
 
 describe("monastery layout in a Voronoi block", () => {
   it.each(KINDS)("fits a %s inside the block with every building within the precinct", kind => {
-    const result = fit(kind);
+    const result = fitTestMonastery(kind);
     expect(result).not.toBeNull();
     const m = result!.monastery;
     expect(result!.scale).toBeGreaterThanOrEqual(0.62);
@@ -37,7 +37,7 @@ describe("monastery layout in a Voronoi block", () => {
   });
 
   it.each(KINDS)("keeps %s buildings from overlapping one another", kind => {
-    const m = fit(kind)!.monastery;
+    const m = fitTestMonastery(kind)!.monastery;
     // Domes and crossing towers sit on top of the church roof by design.
     const solid = m.buildings.filter(b => b.role !== "dome" && b.role !== "crossing-tower");
     for (const [i, a] of solid.entries())
@@ -50,7 +50,7 @@ describe("monastery layout in a Voronoi block", () => {
   });
 
   it.each(KINDS)("opens the %s wall at a gate that sits on the precinct line", kind => {
-    const m = fit(kind)!.monastery;
+    const m = fitTestMonastery(kind)!.monastery;
     expect(nearestOnPolyline(m.gate, [...m.precinct, m.precinct[0]]).dist).toBeLessThan(0.05);
     const [first, last] = [m.wall[0], m.wall[m.wall.length - 1]];
     expect(Math.hypot(first[0] - last[0], first[1] - last[1])).toBeGreaterThan(2);
@@ -58,7 +58,7 @@ describe("monastery layout in a Voronoi block", () => {
   });
 
   it("puts the church on the street the block fronts", () => {
-    const result = fit("abbey", BLOCK, 8)!;
+    const result = fitTestMonastery("abbey", BLOCK, 8)!;
     const nave = result.monastery.buildings.find(b => b.role === "church")!;
     // The nave runs parallel to the front edge and sits near it, not deep inside the block.
     const edge = [BLOCK[0], BLOCK[1]];
@@ -68,7 +68,7 @@ describe("monastery layout in a Voronoi block", () => {
   });
 
   it("is deterministic", () => {
-    expect(fit("abbey")).toEqual(fit("abbey"));
+    expect(fitTestMonastery("abbey")).toEqual(fitTestMonastery("abbey"));
   });
 
   it("trims a large block to the programme plus its margin and never grows a small one", () => {
@@ -78,7 +78,7 @@ describe("monastery layout in a Voronoi block", () => {
       [400, 300],
       [0, 300]
     ];
-    const trimmed = fit("friary", huge, 8)!.monastery;
+    const trimmed = fitTestMonastery("friary", huge, 8)!.monastery;
     const area = (p: Point[]) =>
       Math.abs(p.reduce((s, q, i) => s + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0) / 2);
     expect(area(trimmed.precinct)).toBeLessThan(area(huge) / 4);
@@ -88,7 +88,7 @@ describe("monastery layout in a Voronoi block", () => {
       [75, 66],
       [0, 66]
     ];
-    const snug = fit("friary", small, 8)!.monastery;
+    const snug = fitTestMonastery("friary", small, 8)!.monastery;
     expect(area(snug.precinct)).toBeLessThanOrEqual(area(small) + 0.5);
     expect(area(snug.precinct)).toBeGreaterThan(area(small) * 0.6);
   });
@@ -100,13 +100,13 @@ describe("monastery layout in a Voronoi block", () => {
       [30, 24],
       [0, 24]
     ];
-    for (const kind of KINDS) expect(fit(kind, tiny)).toBeNull();
+    for (const kind of KINDS) expect(fitTestMonastery(kind, tiny)).toBeNull();
   });
 
   it("only draws cloister walks and beds for the cloistered houses", () => {
     const withCloister = (m: Monastery) => !!m.walk && m.beds.length > 0;
-    expect(withCloister(fit("abbey")!.monastery)).toBe(true);
-    expect(withCloister(fit("friary")!.monastery)).toBe(true);
-    expect(fit("orthodoxMonastery")!.monastery.walk).toBeUndefined();
+    expect(withCloister(fitTestMonastery("abbey")!.monastery)).toBe(true);
+    expect(withCloister(fitTestMonastery("friary")!.monastery)).toBe(true);
+    expect(fitTestMonastery("orthodoxMonastery")!.monastery.walk).toBeUndefined();
   });
 });

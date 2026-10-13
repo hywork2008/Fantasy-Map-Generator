@@ -683,7 +683,7 @@ export function renderGateDecoration(
   opening: number,
   wallWidth: number,
   material: "stone" | "wood",
-  drawbridge: boolean,
+  _drawbridge: boolean,
   element: (name: string, attrs: Record<string, string>) => SVGElement
 ): SVGElement {
   const g = element("g", {

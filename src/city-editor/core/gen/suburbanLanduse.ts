@@ -149,7 +149,7 @@ export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabr
   });
   const farms = fabric.farms.flatMap(farm => {
     const face = document.mesh.faces[farm.faceId];
-    if (!face || face.properties.settlement !== "outskirts") return [farm];
+    if (face?.properties.settlement !== "outskirts") return [farm];
     const center = polygonCentroid(farm.polygon);
     const near = nearest(center);
     if (

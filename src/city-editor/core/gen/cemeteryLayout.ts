@@ -630,7 +630,7 @@ export function relocateUndersizedCemeteries(document: CityDocument): Map<Id, Id
       form: ground(best.boundary) < 750 ? "field" : cemetery.form,
       burialProfile: cemetery.burialProfile ?? document.burialProfile
     });
-    if (!plan || !plan.parts.length) continue;
+    if (!plan?.parts.length) continue;
     face.properties.ward = "empty";
     best.face.properties.ward = "cemetery";
     document.cemeteries[i] = plan;

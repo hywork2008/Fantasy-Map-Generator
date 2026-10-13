@@ -109,7 +109,7 @@ function townFaces(document: CityDocument, outerId: Id, center: Point) {
   const info = new Map<Id, FaceInfo>();
   for (const id of outer) {
     const face = mesh.faces[id];
-    if (!face || face.properties.water !== "land" || castle.has(id)) continue;
+    if (face?.properties.water !== "land" || castle.has(id)) continue;
     const points = facePoints(mesh, face);
     const c = polygonCentroid(points);
     info.set(id, {

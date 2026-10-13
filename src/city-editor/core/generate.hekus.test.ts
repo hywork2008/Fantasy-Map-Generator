@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { featureGroupVertices } from "./features";
 import hekus from "./fixtures/hekus-ui-request-20261007.json";
-import { frameRoadConnectedToTown, frameRoadTownConnection } from "./frameRoadConnection";
 import { generateCityOnDocument } from "./generate";
 import type { GenerationSample } from "./generationDiagnostics";
-import type { CityDocument, Point } from "./types";
+import type { CityDocument } from "./types";
 
 describe("castle placement beside the road corridors", () => {
   // Hekus: the shore-corner castle used to seal the only land approach to a

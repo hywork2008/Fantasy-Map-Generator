@@ -242,7 +242,7 @@ export const SYMBOL_DEFINITIONS: Record<SymbolType, SymbolDefinition> = {
     height: 30,
     originX: 0,
     originY: 0,
-    renderSvg: (fill, stroke) => `
+    renderSvg: (_fill, stroke) => `
       <g class="symbol-cactus">
         <!-- 柱サボテン本体と腕 -->
         <path d="M 0 0 L 0 -22 M -6 -8 L -6 -16 M -6 -8 L 0 -8 M 6 -11 L 6 -18 M 6 -11 L 0 -11" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />

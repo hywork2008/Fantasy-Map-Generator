@@ -289,10 +289,10 @@ export function buildRegionSiteDescriptor(
         // "roads" または未分類街道: 首都や主要都市と接続していれば highway、それ以外は road
         const touchesCapital =
           route.points.some(p => p[2] !== undefined && capitalBurgCells.has(p[2])) ||
-          (route.cells && route.cells.some(c => capitalBurgCells.has(c)));
+          route.cells?.some(c => capitalBurgCells.has(c));
         const touchesCity =
           route.points.some(p => p[2] !== undefined && cityBurgCells.has(p[2])) ||
-          (route.cells && route.cells.some(c => cityBurgCells.has(c)));
+          route.cells?.some(c => cityBurgCells.has(c));
         type = touchesCapital || touchesCity ? "highway" : "road";
       }
 
@@ -392,7 +392,7 @@ export function buildRegionSiteDescriptor(
 
     const vIds = cells.v ? cells.v[cid] : undefined;
     let polygon: Point[] | undefined;
-    if (vIds && pack.vertices && pack.vertices.p) {
+    if (vIds && pack.vertices?.p) {
       polygon = vIds.map(vid => pack.vertices.p[vid]).filter((p): p is Point => !!p);
     }
     const isWater =

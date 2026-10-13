@@ -10,7 +10,6 @@ import {
   color as parseColor,
   polygonHull
 } from "d3";
-import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
 import type { FocusScope } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
@@ -2454,7 +2453,7 @@ function featureFeatureIntersectsScope(
 
 function getFeaturePolygon(
   worldContext: Readonly<WorldContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   feature: PackedGraphFeature
 ): DeckPosition[] {
   const fractalShape = drawnFeatureShape(worldContext, feature, { skipMissing: true, afterClip: toSimplePolygon });
