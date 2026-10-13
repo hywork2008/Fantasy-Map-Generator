@@ -32,6 +32,7 @@ import { templeFootprintMeters } from "../core/gen/housing";
 import { convexInfillParts, insetConvexKernel } from "../core/gen/lotGeometry";
 import { bounds, corridor, intersectConvex, subtractConvex } from "../core/gen/parcelGeometry";
 import { buildParkLawns } from "../core/gen/parkFabric";
+import { measureHousingCapacity } from "../core/gen/residentialCapacity";
 import { riverPortShore } from "../core/gen/riverPortShore";
 import { cobbledApproach, cobbledWidthMeters, frameRoadWidthMeters, roadUse } from "../core/gen/roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "../core/gen/settlementExtent";
@@ -395,6 +396,7 @@ export function renderEditorSvg(
     });
     mark("svg-base");
     const fabric =
+      document.urbanMorphology ||
       document.buildingPattern === "medieval" ||
       document.fabric?.version === 5 ||
       document.gridKind === "evolution" ||
@@ -405,6 +407,12 @@ export function renderEditorSvg(
         : null;
     townHarbor = fabric?.harbor;
     const lots = fabric?.buildings ?? buildCityBuildings(document);
+    if (document.urbanMorphology && document.urbanGrowth) {
+      const housing = measureHousingCapacity(document, lots, document.urbanGrowth.requiredDwellings);
+      svg.setAttribute("data-residential-capacity", String(housing.capacityInside + housing.capacityOutside));
+      svg.setAttribute("data-assigned-outside-dwellings", String(housing.assignedOutside));
+      svg.setAttribute("data-unplaced-dwellings", String(housing.unplacedDwellings));
+    }
     townWatermills = fabric?.watermills ?? buildWatermillPlan(document, lots.length);
     townAerial = fabric?.aerialLandmarks;
     for (const settlement of ["core", "outskirts"] as const) {

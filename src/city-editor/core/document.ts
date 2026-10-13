@@ -3,6 +3,7 @@ import { isCivilizationContext } from "../../data/civilizationTraditions";
 import { editorText } from "../../i18n/editorMessages";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import { populationWindowMeters, type RequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { validUrbanMorphology } from "../../utils/urbanMorphology";
 import {
   type FixedApproachProvider,
   restoreFixedCrossingApproaches,
@@ -15,6 +16,7 @@ import { buildHexGrid, DEFAULT_HEX_SIZE_METERS } from "./gen/hexGrid";
 import { buildPatchCells, DEFAULT_PATCH_PARAMS, type PatchParams } from "./gen/patches";
 import { makeRng } from "./gen/prng";
 import type { Cell, CityGeography, CityParams, Point } from "./gen/types";
+import { validUrbanGrowth } from "./gen/urbanGrowth";
 import { validateLandmarks } from "./landmarks";
 import { meshFromCells, validate } from "./mesh";
 import { validRegionalFrameRoads, validSceneRegions } from "./sceneRegions";
@@ -434,6 +436,8 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    (doc.urbanMorphology === undefined || validUrbanMorphology(doc.urbanMorphology)) &&
+    (doc.urbanGrowth === undefined || (doc.urbanMorphology !== undefined && validUrbanGrowth(doc.urbanGrowth))) &&
     (doc.fixedCrossingApproaches === undefined ||
       (!!doc.importedFixedCrossings && validSavedFixedApproaches(doc.fixedCrossingApproaches))) &&
     (doc.version === 1 || doc.version === 2 || doc.version === 3 || doc.version === 4) &&

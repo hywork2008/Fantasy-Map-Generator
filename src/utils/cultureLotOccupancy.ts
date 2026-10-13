@@ -35,9 +35,10 @@ export function burgLotOccupancy(pack: Pick<PackedGraph, "cultures" | "cells">, 
 export function occupancyRadiusMeters(
   population: number,
   lotOccupancy: number,
-  burg: { walls?: boolean | number; citadel?: boolean | number }
+  burg: { walls?: boolean | number; citadel?: boolean | number },
+  dwellingsPerBuilding = 1
 ): number {
-  const houses = getUrbanDwellings(population) * 1.025;
+  const houses = (getUrbanDwellings(population) * 1.025) / Math.max(1, dwellingsPerBuilding);
   const kind = burg.walls ? "walled" : burg.citadel ? "citadel" : "open";
   const density = HOUSES_PER_DISC_HECTARE[kind] * Math.min(lotOccupancy, MAX_SIZING_LOT_OCCUPANCY);
   const radius = Math.sqrt(((houses / density) * 10000) / Math.PI);

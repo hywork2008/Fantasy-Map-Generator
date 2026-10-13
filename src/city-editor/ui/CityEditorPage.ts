@@ -2,6 +2,7 @@ import i18n from "../../i18n";
 import { type EditorMessageKey, editorHtml, editorOptionText, editorText } from "../../i18n/editorMessages";
 import { rn } from "../../utils/numberUtils";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
+import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
 import { historicLandmarkPrototypes } from "../assets/catalog";
 import { cityFixedApproachProvider } from "../core/automaticFixedApproaches";
 import {
@@ -1310,8 +1311,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   });
   // Old town + new wall (docs/plan/ce-multi-ring-walls.md). The walled share
   // then sizes the old town; the outer wall encloses the whole built-up area.
+  const inferredHistoryWalls = () => {
+    const descriptor = generateSettings.descriptor;
+    return descriptor?.urbanMorphology && supportsUrbanMorphology(descriptor.urbanMorphology.period)
+      ? inferredWallSettings(descriptor.urbanMorphology, descriptor.burg.dwellings)
+      : null;
+  };
   const townWallRingsValue = () =>
-    generateSettings.townWallRings !== "double"
+    (generateSettings.townWallRings ?? inferredHistoryWalls()?.townWallRings) !== "double"
       ? "single"
       : generateSettings.innerWallState === "razed"
         ? "razed"
@@ -1323,7 +1330,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   townWallRingsSelect.options[2].textContent = editorText("cityEditor.messages.townWallRingsRazed");
   townWallRingsSelect.addEventListener("change", () => {
     const value = townWallRingsSelect.value;
-    generateSettings.townWallRings = value === "single" ? undefined : "double";
+    generateSettings.townWallRings = value === "single" ? (inferredHistoryWalls() ? "single" : undefined) : "double";
     generateSettings.innerWallState = value === "razed" ? "razed" : undefined;
     completeResult = null;
     completeResultSettings = null;
@@ -2840,7 +2847,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
     historicalPeriodSelect.value = documentState.historicalPeriod ?? "ageOfExploration";
     walledShareInput.placeholder = editorText("cityEditor.messages.autoCityEditorPage", {
-      value0: defaultWalledAreaShare(documentState.frame.extentMeters) * 100
+      value0: Math.round(
+        (inferredHistoryWalls()?.walledAreaShare ?? defaultWalledAreaShare(documentState.frame.extentMeters)) * 100
+      )
     });
     map.classList.toggle("ce-map--select", tool === "select");
     map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");
@@ -3048,6 +3057,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
             value1: outerBuildings.toLocaleString(),
             value2: Math.round((outerBuildings / buildingCount) * 100)
           });
+    if (documentState.urbanMorphology && svg.hasAttribute("data-residential-capacity")) {
+      housingSummary.textContent += ` · ${editorText("cityEditor.messages.residentialCapacitySummary", {
+        value0: Number(svg.getAttribute("data-residential-capacity")).toLocaleString(),
+        value1: Number(svg.getAttribute("data-assigned-outside-dwellings")).toLocaleString(),
+        value2: Number(svg.getAttribute("data-unplaced-dwellings")).toLocaleString()
+      })}`;
+    }
     // Index the per-face nodes this pass just built so a later ward/sea paint
     // can patch just the touched faces (patchFaceRender) instead of forcing
     // another full pass over the whole mesh.
@@ -5947,6 +5963,21 @@ function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOr
         : editorText("cityEditor.messages.no")
     ]
   ];
+  if (descriptor.urbanMorphology) {
+    const history = descriptor.urbanMorphology;
+    rows.push([
+      editorText(
+        history.foundedSource === "estimated"
+          ? "cityEditor.messages.estimatedUrbanFounding"
+          : "cityEditor.messages.urbanFounding"
+      ),
+      String(history.foundedYear)
+    ]);
+    rows.push([
+      editorText("cityEditor.messages.urbanWallYears"),
+      history.wallPhases.map(p => p.year).join(" → ") || "—"
+    ]);
+  }
   const distanceText = (distance: number | null | undefined): string =>
     distance != null && Number.isFinite(distance) && distance >= 0
       ? formatDistance(distance)

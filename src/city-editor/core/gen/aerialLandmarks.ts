@@ -1219,7 +1219,12 @@ export function buildAerialLandmarkPlan(
   const barbicans = placeBarbicans(site, makeRng(`${root}:barbican`));
   site.setBarbicans(barbicans);
   const guildWorks = placeGuildWorks(site, guildPlan, economy?.year ?? 0);
-  const tanneries = placeTanneries(site, input, makeRng(`${root}:tannery`), wantsTannery(economy, guildPlan));
+  const tanneries = placeTanneries(
+    site,
+    input,
+    makeRng(`${root}:tannery`),
+    document.urbanMorphology?.waterfrontResolved !== false && wantsTannery(economy, guildPlan)
+  );
   const storageYards = placeStorageYards(site, economy?.storage ?? [], guildWorks.yards, economy?.year ?? 0);
   const gateInns = placeGateInns(site, economy?.facilities ?? [], economy?.year ?? 0);
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));

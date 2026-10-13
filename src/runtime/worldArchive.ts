@@ -14,6 +14,7 @@ import type { BiomesData } from "../types/WorldState";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
+import { validUrbanMorphology } from "../utils/urbanMorphology";
 import { validateWorldLanguages } from "../utils/worldLanguages";
 import {
   CORE_ENTITY_KINDS,
@@ -1078,6 +1079,26 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   const cells = pack.cells as Record<string, unknown>;
   if (cells.i !== undefined && !isTypedArray(cells.i)) {
     throw new Error("Archive pack.cells.i must be a typed array");
+  }
+  for (const [id, state] of Object.entries(simulation.burgs ?? {})) {
+    if (isRecord(state) && state.urbanPopulationHistory !== undefined) {
+      const history = state.urbanPopulationHistory;
+      if (
+        !Array.isArray(history) ||
+        history.some(
+          (k, i) =>
+            !isRecord(k) ||
+            !isFiniteNumber(k.year) ||
+            !isFiniteNumber(k.people) ||
+            k.people < 0 ||
+            k.source !== "observed" ||
+            (i > 0 && k.year <= history[i - 1].year)
+        )
+      )
+        throw new Error(`Archive simulation.burgs.${id}.urbanPopulationHistory is invalid`);
+    }
+    if (isRecord(state) && state.urbanMorphology !== undefined && !validUrbanMorphology(state.urbanMorphology))
+      throw new Error(`Archive simulation.burgs.${id}.urbanMorphology is invalid`);
   }
   // burgs[0] is the numeric sentinel `0` in live/generated maps (1-indexed table).
   assertEntityTableArray(pack.burgs, "pack.burgs");

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { createUrbanMorphology } from "../utils/urbanMorphology";
 import { createPresentationData } from "./presentationData";
 import { assertValidWorldDocument, createWorldDocument, type ValidatedWorld } from "./worldArchive";
 import { createWorldRuntime } from "./worldRuntime";
@@ -1234,5 +1235,41 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     // Overlay patches also mirror into styles for SVG projection.
     expect(presentation.styles["#compass > use"]).toEqual({ transform: "translate(10 20) scale(0.5)" });
     expect(presentation.overlays.compassRose).toEqual({ transform: "translate(10 20) scale(0.5)" });
+  });
+});
+
+describe("burg morphology initialization", () => {
+  it("commits once, archives the profile and rejects malformed lore", async () => {
+    const world = createPositionWorld();
+    const simulation = { burgs: {} } as SimulationContext;
+    const runtime = createWorldRuntime(world, simulation);
+    const profile = createUrbanMorphology({
+      seed: "runtime",
+      burgId: 1,
+      year: 100,
+      population: 1000,
+      capital: true,
+      walls: true,
+      polityAge: 150,
+      generationYears: 30,
+      polityPower: 0.5,
+      defensePressure: 0.2,
+      period: "lateMedieval",
+      religious: false,
+      extramuralBurial: false,
+      plaza: false
+    });
+    const first = await runtime.dispatch({ type: "burg.morphology.initialize", payload: { burgId: 1, profile } });
+    expect(first?.changes.changes.map(c => c.topic)).toContain("simulation.burgs");
+    expect(simulation.burgs[1].urbanMorphology).toEqual(profile);
+    profile.foundedYear--;
+    expect(simulation.burgs[1].urbanMorphology?.foundedYear).not.toBe(profile.foundedYear);
+    expect(await runtime.dispatch({ type: "burg.morphology.initialize", payload: { burgId: 1, profile } })).toBeNull();
+    await expect(
+      runtime.dispatch({
+        type: "burg.morphology.initialize",
+        payload: { burgId: 1, profile: { ...profile, defensePressure: -1 } }
+      })
+    ).rejects.toThrow("Invalid burg urban morphology");
   });
 });

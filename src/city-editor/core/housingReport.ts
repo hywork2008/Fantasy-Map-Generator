@@ -1,4 +1,6 @@
+import { simulationContext } from "../../context/simulationContext";
 import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
+import { type HousingCapacityReport, measureHousingCapacity } from "./gen/residentialCapacity";
 // FMG burg inputs against the houses City Editor actually draws.
 // The counts are the same core/outskirts footprints the City Editor panel
 // labels 「建物」. `houses` drops landmarks and non-residential outbuildings.
@@ -50,6 +52,7 @@ export interface HousingReportInput {
 }
 
 export interface HousingReportOutput {
+  residentialCapacity?: HousingCapacityReport;
   generated: boolean;
   generationSeed: string | null;
   /** All building footprints on core and outskirts cells (the 「建物」 panel). */
@@ -277,6 +280,9 @@ export function compareShareHousing(
   const houses = lots.filter(isHouse);
   const inSettlement = (lot: BuildingLot, settlement: string) => settlementOf(counted, lot) === settlement;
   const output: HousingReportOutput = {
+    ...(city?.urbanMorphology
+      ? { residentialCapacity: measureHousingCapacity(city, lots, descriptor.burg.dwellings) }
+      : {}),
     generated: city != null,
     generationSeed: city?.generationSeed ?? null,
     buildings: lots.length,
@@ -346,6 +352,7 @@ export async function loadArchiveWorld(archivePath: string): Promise<void> {
     header: new Uint8Array(buffer.buffer, buffer.byteOffset, Math.min(4, buffer.byteLength))
   });
   Object.assign(worldContext, validated.document.world);
+  Object.assign(simulationContext, validated.document.simulation);
   const { bindSimulationBurgState } = await import("../../runtime/simulationBurgState");
   bindSimulationBurgState(worldContext, validated.document.simulation);
   // Same post-load repair as the browser loader, so CLI reports match the app.

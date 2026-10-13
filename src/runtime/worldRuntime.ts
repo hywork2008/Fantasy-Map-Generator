@@ -16,7 +16,9 @@ import {
   type State,
   type Zone
 } from "../types/models";
+import type { UrbanMorphologyProfile } from "../types/urbanMorphology";
 import type { WorldNote } from "../types/WorldState";
+import { validUrbanMorphology } from "../utils/urbanMorphology";
 import type { OpaqueExtensionChunk } from "./extensionArchiveTypes";
 import { createExtensionWorldReadView, type ExtensionWorldReadView } from "./extensionReadModel";
 import {
@@ -292,6 +294,11 @@ export interface PatchBurgRequest {
   /** `null` removes a custom preview link. */
   readonly link?: string | null;
   readonly facilities?: Partial<Record<BurgFacility, boolean>>;
+}
+
+export interface InitializeBurgMorphologyCommand {
+  readonly type: "burg.morphology.initialize";
+  readonly payload: { burgId: number; profile: UrbanMorphologyProfile };
 }
 
 export interface PatchBurgCommand {
@@ -670,6 +677,7 @@ export type PositionCommand =
   | RemoveUnlockedMarkersCommand
   | MoveBurgCommand
   | PatchBurgCommand
+  | InitializeBurgMorphologyCommand
   | RemoveBurgCommand
   | CreateZoneCommand
   | PatchZoneCommand
@@ -1165,6 +1173,17 @@ class LegacyWorldRuntime implements WorldRuntime {
       // capital, the state's label center. Both topics must invalidate their
       // dependent renderer projections.
       return { result: undefined as T, topics: ["map.settlements", "map.politics"] };
+    }
+
+    if (command.type === "burg.morphology.initialize") {
+      const { burgId, profile } = command.payload;
+      if (!this.world.pack.burgs[burgId]?.i || !validUrbanMorphology(profile))
+        throw new Error("Invalid burg urban morphology");
+      this.simulation.burgs[burgId] ??= {};
+      const state = this.simulation.burgs[burgId];
+      if (state.urbanMorphology) return { result: undefined as T, topics: [] };
+      state.urbanMorphology = structuredClone(profile);
+      return { result: undefined as T, topics: ["simulation.burgs"] };
     }
 
     if (command.type === "burg.patch") {
@@ -2617,4 +2636,12 @@ export function moveFeatureVertex(request: MoveFeatureVertexRequest): WorldCommi
 /** Phase 3 command for persisted style and layer-visibility changes. */
 export function patchPresentation(patch: PresentationPatch): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "presentation.patch", payload: patch });
+}
+
+/** Initializes lore once, through the archive/rollback-owned simulation command. */
+export function initializeBurgMorphology(burgId: number, profile: UrbanMorphologyProfile): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({
+    type: "burg.morphology.initialize",
+    payload: { burgId, profile }
+  });
 }

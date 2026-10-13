@@ -90,6 +90,7 @@ export function wantsTannery(economy: BurgSiteEconomy | undefined, plan: readonl
 }
 
 export function economyOnDocument(document: CityDocument): BurgSiteEconomy | undefined {
+  if (document.urbanMorphology) return undefined;
   return document.siteEconomy ?? document.fabric?.generation?.settings.descriptor?.economy;
 }
 

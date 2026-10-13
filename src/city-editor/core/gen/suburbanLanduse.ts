@@ -1,3 +1,4 @@
+import { relationDefense } from "../../../utils/urbanMorphology";
 import { featureGroupVertices } from "../features";
 import { townGates } from "../fortifications";
 import type { ApproachBeyond, CityDocument, Id, Point } from "../types";
@@ -14,7 +15,8 @@ import {
 } from "./defenseClearance";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { chord, isSuburb } from "./localInfill";
-import { type RoadUse, roadUse, TRADE_RANK, tradeRibbonMeters } from "./roadTraffic";
+import { descriptorRoads, type RoadUse, roadUse, TRADE_RANK, tradeRibbonMeters } from "./roadTraffic";
+import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 
 export type SuburbanProfile = "trade" | "granary" | "frontier" | "rural";
 
@@ -79,12 +81,21 @@ export function approachBands(document: CityDocument): ApproachBand[] {
     if (points.length < 2) return [];
     const boundaryDistance = (p: Point) => half - Math.max(Math.abs(p[0]), Math.abs(p[1]));
     if (boundaryDistance(points[0]) < boundaryDistance(points.at(-1)!)) points.reverse();
-    const band = suburbanProfile(
-      group.beyond,
-      document.frame.extentMeters,
-      hasWalls,
-      roadUse(document, group.sourceRoad?.index, group.sourceRoad?.routeId)
+    const sourceRoad = group.sourceRoad && descriptorRoads(document)[group.sourceRoad.index];
+    const pressure = Math.max(
+      document.urbanMorphology?.defensePressure ?? 0,
+      ...[...(sourceRoad?.nextBurgs ?? []), ...(sourceRoad?.nextBurg ? [sourceRoad.nextBurg] : [])].map(b =>
+        relationDefense(b.diplomacyRelation)
+      )
     );
+    const band = document.urbanMorphology
+      ? { profile: "rural" as const, clearance: pressure > 0.5 ? 70 : 25, length: 500 }
+      : suburbanProfile(
+          group.beyond,
+          document.frame.extentMeters,
+          hasWalls,
+          roadUse(document, group.sourceRoad?.index, group.sourceRoad?.routeId)
+        );
     return [{ groupId: group.id, points, gateVertexId: ids.find(id => gateVertices.has(id)), ...band }];
   });
 }
@@ -92,6 +103,7 @@ export function approachBands(document: CityDocument): ApproachBand[] {
 /** Apply the land-use bands to existing mesh-owned lots. No new street or
  * rectangular field geometry is laid over the block and farm systems. */
 export function shapeSuburbanFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+  if (document.urbanMorphology) return shapeUrbanGrowthFabric(document, fabric);
   const walls = curtainSegments(document);
   const approaches = approachBands(document);
   if (!approaches.length) return fabric;
@@ -236,7 +248,7 @@ export function enforceDefenseClearance<T extends { faceId: string; polygon: Poi
     outworks.find(work => work.gateVertexId === gateVertexId)?.reachMeters ?? 0;
   return items.filter(item => {
     if (!outskirts(item.faceId)) return true;
-    if (kind === "building" && !suburb(item.faceId)) {
+    if (kind === "building" && !document.urbanMorphology && !suburb(item.faceId)) {
       const near = nearest(polygonCentroid(item.polygon));
       if (near && near.gateDistance > near.road.clearance + near.road.length + reachOf(near.road.gateVertexId))
         return false;

@@ -28,12 +28,15 @@ export interface BuildingLot {
   role?: "main" | "wing" | "store" | "workshop" | "stable" | "shed";
   uses?: Array<"residential" | "retail" | "storage" | "craft">;
   storeys?: number;
+  growthRegionId?: string;
+  residentialFloorShare?: number;
 }
 
 /** Buildings are derived from the edited mesh, never a second source of street
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
 export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   if (
+    document.urbanMorphology ||
     document.buildingPattern === "medieval" ||
     document.fabric?.version === 5 ||
     document.gridKind === "evolution" ||

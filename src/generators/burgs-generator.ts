@@ -1496,6 +1496,7 @@ class BurgModule {
       // (initSimulationClock() runs after core generation); the world's declared
       // starting year is the correct "founded" date for every initial Burg.
       burg.foundedYear = worldContext.options.year ?? 0;
+      burg.foundedSource = "initial";
     }
 
     pack.burgs = burgs;
@@ -2263,6 +2264,7 @@ class BurgModule {
       // Every post-generation Burg (frontier incorporation's overseas beachheads,
       // rural settlement promotion, interactive placement) is founded at whatever
       // year the live simulation clock currently reads.
+      foundedSource: "observed",
       foundedYear: simulationContext.currentYear
     };
     this.definePopulation(burg);

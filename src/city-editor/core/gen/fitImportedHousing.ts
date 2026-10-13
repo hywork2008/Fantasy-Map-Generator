@@ -1,7 +1,11 @@
 import { DEFAULT_LOT_OCCUPANCY, isLotOccupancy } from "../../../utils/cultureLotOccupancy";
 import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
+import { residentialStoreys } from "../../../utils/urbanMorphology";
+import { facePoints } from "../mesh";
 import type { CityDocument } from "../types";
 import { buildBlockFabric, FabricCache } from "./blockInfill";
+import { nearestOnPolyline, polygonCentroid } from "./geom";
+import { measureHousingCapacity } from "./residentialCapacity";
 
 /** Accepted |houses − dwellings| / dwellings for the fast default fit. */
 export const HOUSING_FIT_TOLERANCE = 0.1;
@@ -41,6 +45,7 @@ function houseCount(document: CityDocument, profiler?: ProcessingProfiler): Zone
 /** How the occupancy fit went; used by the housing batch survey. */
 export interface HousingFitStats {
   dwellings: number;
+  capacityBased?: boolean;
   /** Culture Lot occupancy guide the fit starts from (0–1). */
   targetOccupancy: number;
   /** Why the fit did not run; absent when it ran. */
@@ -78,6 +83,7 @@ export function fitImportedHousing(
   targetOccupancy = DEFAULT_LOT_OCCUPANCY,
   profiler?: ProcessingProfiler
 ): HousingFitStats {
+  if (document.urbanMorphology && document.urbanGrowth) return fitMorphologyHousing(document, dwellings, profiler);
   const guide = isLotOccupancy(targetOccupancy) ? targetOccupancy : DEFAULT_LOT_OCCUPANCY;
   const stats: HousingFitStats = {
     dwellings,
@@ -195,5 +201,91 @@ export function fitImportedHousing(
   stats.betweenFactor = present("between") ? best.between : best.core;
   stats.outskirtsFactor = best.outskirts;
   stats.suburbs = bestSuburbs;
+  return stats;
+}
+
+/** Capacity fit for every fabric style. Eligibility is always enforced by the final region mask. */
+function fitMorphologyHousing(
+  document: CityDocument,
+  dwellings: number,
+  profiler?: ProcessingProfiler
+): HousingFitStats {
+  const plan = document.urbanGrowth!;
+  if (document.fabric)
+    for (const district of document.fabric.districts) {
+      const faces = district.faceIds.map(id => document.mesh.faces[id]).filter(Boolean);
+      if (faces.some(f => f.properties.locked)) continue;
+      if (
+        faces.some(
+          f =>
+            f.properties.settlement === "outskirts" &&
+            plan.regions.some(
+              r => nearestOnPolyline(polygonCentroid(facePoints(document.mesh, f)), r.points).dist < r.halfWidth
+            )
+        )
+      ) {
+        district.parameters.suburb = true;
+      } else delete district.parameters.suburb;
+    }
+  const count = () =>
+    measureHousingCapacity(document, buildBlockFabric(document, new FabricCache(), profiler).buildings, dwellings);
+  let report = count();
+  const stats: HousingFitStats = {
+    dwellings,
+    capacityBased: true,
+    targetOccupancy: 0.8,
+    districts: document.fabric?.districts.length ?? 0,
+    initialHouses: report.capacityInside + report.capacityOutside,
+    finalHouses: 0,
+    factor: 1,
+    betweenFactor: 1,
+    outskirtsFactor: 1,
+    suburbs: plan.regions.length > 0,
+    samples: []
+  };
+  const targetInside = Math.max(0, dwellings - Math.min(report.capacityOutside, plan.outsideBudget));
+  const original = document.fabric?.districts.map(d => d.parameters.occupancy) ?? [];
+  let multiplier = report.capacityInside > 0 ? Math.min(1, (targetInside / report.capacityInside) * 1.025) : 1;
+  const adjustable =
+    document.fabric?.districts
+      .map((d, i) => ({ d, i }))
+      .filter(
+        ({ d }) =>
+          !d.faceIds.some(id => document.mesh.faces[id]?.properties.locked) &&
+          d.faceIds.some(id => document.mesh.faces[id]?.properties.settlement === "core")
+      ) ?? [];
+  const apply = () =>
+    adjustable.forEach(({ d, i }) => {
+      d.parameters.occupancy = Math.min(1, original[i] * multiplier);
+    });
+  apply();
+  report = count();
+  const maxStoreys = residentialStoreys(document.urbanMorphology!.period).maximum;
+  // A bounded fit: use wall capacity first, then legal storeys; never enlarge the ribbon mask.
+  for (let attempt = 0; attempt < 3 && report.unplacedDwellings > 0; attempt++) {
+    if (adjustable.some(({ d }) => d.parameters.occupancy < 0.999)) {
+      adjustable.forEach(({ d, i }) => {
+        d.parameters.occupancy = 1;
+        original[i] = 1;
+      });
+      multiplier = 1;
+    } else if (plan.insideStoreys < maxStoreys) plan.insideStoreys++;
+    else break;
+    report = count();
+    const target = dwellings - Math.min(report.capacityOutside, plan.outsideBudget);
+    if (report.capacityInside > target * 1.05 && adjustable.length) {
+      adjustable.forEach(({ d, i }) => {
+        original[i] = d.parameters.occupancy;
+      });
+      multiplier = Math.min(1, (target / report.capacityInside) * 1.04);
+      apply();
+      report = count();
+    }
+    stats.samples.push([multiplier, 1, report.capacityInside + report.capacityOutside]);
+  }
+  document.housingCapacity = report;
+  stats.factor = stats.betweenFactor = multiplier;
+  stats.finalHouses = report.capacityInside + report.capacityOutside;
+  stats.finalZones = { core: report.capacityInside, between: 0, outskirts: report.capacityOutside };
   return stats;
 }

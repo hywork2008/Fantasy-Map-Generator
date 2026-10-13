@@ -403,6 +403,9 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  urbanMorphology?: import("../../types/urbanMorphology").UrbanMorphologyProfile;
+  urbanGrowth?: import("./gen/urbanGrowth").UrbanGrowthPlan;
+  housingCapacity?: import("./gen/residentialCapacity").HousingCapacityReport;
   fixedCrossingApproaches?: import("./fixedApproachAdoption").SavedFixedApproach[];
   /** Source physical crossings; not inferred from editable mesh roads. */
   importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;

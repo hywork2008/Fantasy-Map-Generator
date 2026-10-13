@@ -491,6 +491,7 @@ export interface Burg {
    * saves made before this field existed; absence means "unknown", not "founded at year 0".
    */
   foundedYear?: number;
+  foundedSource?: "initial" | "observed" | "explicit";
   /**
    * Where the settlement's living quarters actually are: on the surface, or inside a
    * SubterraneanDomain reached through `entranceCell` (docs/plan/

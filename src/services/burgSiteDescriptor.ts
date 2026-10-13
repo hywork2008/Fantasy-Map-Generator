@@ -1,3 +1,4 @@
+import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
@@ -5,10 +6,12 @@ import { Rivers } from "../generators/river-generator";
 import { Routes } from "../generators/routes-generator";
 import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
 import { drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
+import { initializeBurgMorphology } from "../runtime/worldRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type { RegionalContext } from "../types/cityRegional";
 import { regionalRevision } from "../types/cityRegional";
 import type { Burg, River, Route } from "../types/models";
+import type { UrbanMorphologyProfile } from "../types/urbanMorphology";
 import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
@@ -40,7 +43,9 @@ import {
 } from "../utils/requiredSiteBounds";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
+import { residentialStoreys, supportsUrbanMorphology } from "../utils/urbanMorphology";
 import { burgEconomyExtensions } from "./burgEconomyExtensions";
+import { burgUrbanMorphology } from "./burgUrbanMorphology";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
 import {
   convergedBurgCrossings,
@@ -152,6 +157,8 @@ export interface BurgSiteRoadNextBurg {
 }
 
 export interface BurgSiteRoadEntry {
+  /** World connection identity, independent of display clipping. */
+  approachId?: string;
   sharedCrossingId?: number;
   sharedRouteIds?: number[];
   nextBurgs?: BurgSiteRoadNextBurg[];
@@ -235,6 +242,7 @@ export interface BurgSiteBiome {
 export type { BurgCivilization } from "../data/civilizationTraditions";
 
 export interface BurgSiteDescriptor {
+  urbanMorphology?: UrbanMorphologyProfile;
   burialProfile?: import("../data/burialCultures").BurialCultureProfile;
   civilization?: import("../data/civilizationTraditions").BurgCivilization;
   regionalContext?: RegionalContext;
@@ -367,7 +375,12 @@ export function getBurgSiteDescriptor(
   const metersPerMapUnit = getMetersPerMapUnit();
   const population = rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const lotOccupancy = burgLotOccupancy(pack, burg);
-  const cityRadiusMeters = getCityRadiusMeters(population, burg);
+  const morphology =
+    pack.states?.length && pack.cultures?.length && pack.cells.state
+      ? burgUrbanMorphology(worldContext, simulationContext, burg)
+      : undefined;
+  if (morphology) morphology.period = worldContext.options.historicalPeriod ?? morphology.period;
+  const cityRadiusMeters = getCityRadiusMeters(population, burg, morphology);
   const toLocal = (x: number, y: number): [number, number] => [
     (x - burg.x) * metersPerMapUnit,
     (burg.y - y) * metersPerMapUnit
@@ -521,7 +534,16 @@ export function getBurgSiteDescriptor(
     for (const river of rivers) if (river.riverId === beyondBudgetRiverId) river.frontage = "beyond-budget";
   }
   const roads = measureProcessing(profiler, "roads", () =>
-    collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit, preparedRoads, profiler)
+    collectRoadEntries(
+      burg,
+      toLocal,
+      half,
+      cityRadiusMeters,
+      metersPerMapUnit,
+      preparedRoads,
+      profiler,
+      Boolean(morphology && supportsUrbanMorphology(morphology.period))
+    )
   );
   const waterbody = measureProcessing(profiler, "coastline", () =>
     collectWaterbody(burg, toLocal, half, metersPerMapUnit)
@@ -585,9 +607,14 @@ export function getBurgSiteDescriptor(
       .filter(road => road.points.length >= 2)
   }));
   return measureProcessing(profiler, "assemble-descriptor", () => {
-    const economy = burgEconomyExtensions.getBurgSiteEconomy?.(burgId) ?? undefined;
+    if (morphology && !simulationContext.burgs[burgId]?.urbanMorphology) initializeBurgMorphology(burgId, morphology);
+    const economy =
+      morphology && supportsUrbanMorphology(morphology.period)
+        ? undefined
+        : (burgEconomyExtensions.getBurgSiteEconomy?.(burgId) ?? undefined);
     return {
       version: DESCRIPTOR_VERSION,
+      ...(morphology ? { urbanMorphology: structuredClone(morphology) } : {}),
       regionalContext,
       ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),
       burg: {
@@ -718,9 +745,16 @@ function getMetersPerMapUnit(): number {
 }
 
 /** Sized so City Editor fills the town at the culture's Lot occupancy guide. */
-function getCityRadiusMeters(population: number, burg: Burg): number {
-  // Same radius FMG settles waterfront towns to (waterfrontSettlement.ts).
-  return occupancyRadiusMeters(population, burgLotOccupancy(worldContext.pack, burg), burg);
+function getCityRadiusMeters(population: number, burg: Burg, morphology?: UrbanMorphologyProfile): number {
+  // The physical waterfront is unchanged; CE sizes residential capacity at the effective storeys.
+  return occupancyRadiusMeters(
+    population,
+    burgLotOccupancy(worldContext.pack, burg),
+    burg,
+    morphology && supportsUrbanMorphology(morphology.period)
+      ? Math.max(1, residentialStoreys(morphology.period).standard - 1)
+      : 1
+  );
 }
 
 function getHeightExponent(): number {
@@ -1346,7 +1380,8 @@ function collectRoadEntries(
   cityRadiusMeters: number,
   metersPerMapUnit: number,
   preparedRoads: PreparedWorldRiverRoads,
-  profiler?: ProcessingProfiler
+  profiler?: ProcessingProfiler,
+  withoutEconomy = false
 ): BurgSiteRoadEntry[] {
   const { pack } = worldContext;
   if (!pack.routes?.length) return [];
@@ -1355,7 +1390,7 @@ function collectRoadEntries(
     convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!, preparedRoads)
   );
   const entries: BurgSiteRoadEntry[] = [];
-  const trafficRanks = landTrafficRanks(pack.routes);
+  const trafficRanks = withoutEconomy ? new Map<number, number>() : landTrafficRanks(pack.routes);
   for (const { route, leg } of measureProcessing(profiler, "route-legs", () => collectRouteLegs(burg, profiler))) {
     const facility = facilities.find(
       f =>
@@ -1418,7 +1453,7 @@ function collectRoadEntries(
         else if (target?.port || target?.group === "trading_post" || (scale === "city" && target?.plaza))
           role = "market";
 
-        const popRate = useOptionsState.getState().populationRate ?? 1000;
+        const popRate = worldContext.populationRate * worldContext.urbanization;
         nextBurg = {
           id: cellBurgId,
           name: target?.name ?? "",
@@ -1433,8 +1468,12 @@ function collectRoadEntries(
           capital: Boolean(target?.capital),
           walls: Boolean(target?.walls),
           citadel: Boolean(target?.citadel),
-          treasury: target?.treasury,
-          wealth: (target as { wealth?: number })?.wealth ?? Math.min(100, Math.round(pop * 10))
+          ...(withoutEconomy
+            ? {}
+            : {
+                treasury: target?.treasury,
+                wealth: (target as { wealth?: number })?.wealth ?? Math.min(100, Math.round(pop * 10))
+              })
         };
         break;
       }
@@ -1477,10 +1516,13 @@ function collectRoadEntries(
             ]
           }
         : {}),
+      approachId: facility
+        ? `burg:${burg.i}:crossing:${facility.crossing.id}`
+        : `burg:${burg.i}:route:${route.i}:edge:${leg.find(p => p[2] !== burg.cell)?.[2] ?? leg.at(-1)?.[2] ?? burg.cell}`,
       routeId: route.i,
       group: route.group,
       ...(route.name ? { name: route.name } : {}),
-      ...(route.traffic && route.traffic > 0
+      ...(!withoutEconomy && route.traffic && route.traffic > 0
         ? { traffic: route.traffic, trafficRank: trafficRanks.get(route.i) ?? 0 }
         : {}),
       entryAzimuthDeg: entryAzimuth,

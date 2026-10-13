@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { createUrbanMorphology } from "../utils/urbanMorphology";
 import { createPresentationData } from "./presentationData";
 import {
   ChunkedWorldCodecAdapter,
@@ -371,4 +372,42 @@ it("migrates saved infantry recruitment into infantry and spearmen on archive de
   expect(units.map(u => u.name)).toEqual(["infantry", "spearmen"]);
   expect(units.reduce((n, u) => n + u.rural, 0)).toBeCloseTo(0.15);
   expect(units.reduce((n, u) => n + u.urban, 0)).toBeCloseTo(0.12);
+});
+
+describe("non-economic urban history archive", () => {
+  it("round-trips lore and observed yearly populations in the host simulation", async () => {
+    const profile = createUrbanMorphology({
+      seed: "archive-seed",
+      burgId: 1,
+      year: 100,
+      population: 1000,
+      capital: false,
+      walls: true,
+      polityAge: null,
+      generationYears: 30,
+      polityPower: 0.5,
+      defensePressure: 0.2,
+      period: "lateMedieval",
+      religious: false,
+      extramuralBurial: true,
+      plaza: false
+    });
+    const simulation = {
+      ...sampleSimulation(),
+      burgs: {
+        1: {
+          urbanMorphology: profile,
+          urbanPopulationHistory: [{ year: 100, people: 1000, source: "observed" as const }]
+        }
+      }
+    };
+    const codec = new ChunkedWorldCodecAdapter();
+    const document = createWorldDocument(sampleWorld(), simulation, createPresentationData(), []);
+    const blob = await codec.encode(document);
+    const decoded = await codec.decode({ blob, header: new Uint8Array(await blob.slice(0, 4).arrayBuffer()) });
+    expect(decoded.document.simulation.burgs[1].urbanMorphology).toEqual(profile);
+    expect(decoded.document.simulation.burgs[1].urbanPopulationHistory).toEqual(
+      simulation.burgs[1].urbanPopulationHistory
+    );
+  });
 });

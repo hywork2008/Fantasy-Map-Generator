@@ -1,4 +1,5 @@
 import type { RegionalContext } from "../../../../types/cityRegional";
+import type { UrbanMorphologyProfile } from "../../../../types/urbanMorphology";
 import type { BridgeTransport } from "../../../../utils/bridgeCrossingPolicy";
 import type { FixedBurgCrossings } from "../../../../utils/fixedBurgCrossings";
 import type { RequiredSiteBounds } from "../../../../utils/requiredSiteBounds";
@@ -88,6 +89,8 @@ export interface BurgSiteRoadNextBurg {
 }
 
 export interface BurgSiteRoadEntry {
+  /** World connection identity, independent of display clipping. */
+  approachId?: string;
   sharedCrossingId?: number;
   sharedRouteIds?: number[];
   nextBurgs?: BurgSiteRoadNextBurg[];
@@ -154,6 +157,7 @@ export interface BurgSiteBiome {
 }
 
 export interface BurgSiteDescriptor {
+  urbanMorphology?: UrbanMorphologyProfile;
   burialProfile?: import("../../../../data/burialCultures").BurialCultureProfile;
   civilization?: import("../../../../data/civilizationTraditions").BurgCivilization;
   regionalContext?: RegionalContext;

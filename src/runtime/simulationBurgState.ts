@@ -2,7 +2,7 @@ import type { BurgSimulationState, BurgSimulationStates, SimulationContext } fro
 import type { WorldContext } from "../context/worldContext";
 import type { Burg, BurgDemographics } from "../types/models";
 
-type BurgSimulationField = keyof BurgSimulationState;
+type BurgSimulationField = Exclude<keyof BurgSimulationState, "urbanMorphology" | "urbanPopulationHistory">;
 type BurgSimulationValue = number | BurgDemographics | undefined;
 type MutableBurgSimulationState = Record<BurgSimulationField, BurgSimulationValue>;
 

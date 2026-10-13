@@ -8,6 +8,7 @@ import {
   validFixedBurgCrossings
 } from "../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../utils/requiredSiteBounds";
+import { validUrbanMorphology } from "../../utils/urbanMorphology";
 import { joinStrandedRoadsToCrossings } from "../core/gen/site/strandedRoads";
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
@@ -194,7 +195,13 @@ export function shareFromDescriptor(
           relaxCount: DEFAULT_PATCH_PARAMS.relaxCount,
           relaxPasses: DEFAULT_PATCH_PARAMS.relaxPasses
         }
-      : undefined,
+      : descriptor.urbanMorphology && descriptor.urbanMorphology.wallPhases.length > 1
+        ? {
+            nPatches: Math.min(48, maxPatches),
+            relaxCount: DEFAULT_PATCH_PARAMS.relaxCount,
+            relaxPasses: DEFAULT_PATCH_PARAMS.relaxPasses
+          }
+        : undefined,
     measureBlockSize: townGrid ? true : undefined,
     settings: { config: structuredClone(DEFAULT_SITE_CONFIG) },
     descriptor: fitted
@@ -355,6 +362,8 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
     )
       return warnShape("regional coverage / target burg");
   }
+  if (raw.urbanMorphology !== undefined && !validUrbanMorphology(raw.urbanMorphology))
+    return warnShape("urbanMorphology");
   if (raw.burialProfile !== undefined && !isBurialCultureProfile(raw.burialProfile)) return warnShape("burialProfile");
   // An unreadable civilization block only loses the culture-aware landmarks.
   if (raw.civilization !== undefined && !isCivilizationContext(raw.civilization)) delete raw.civilization;

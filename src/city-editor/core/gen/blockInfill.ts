@@ -48,6 +48,7 @@ import {
 } from "./polygonalCirculadeLayout";
 import { roadTrafficKey } from "./roadTraffic";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
+import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { buildWatermillPlan, type WatermillPlan } from "./watermillFabric";
 
 export type { CityFabric, FarmPlot, InfillLane } from "./localInfill";
@@ -255,6 +256,7 @@ export function buildBlockFabric(
       );
     }
   }
+  if (document.urbanMorphology) fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint: documentFabricFingerprint(document), fabric: fabricResult });
   }
@@ -294,7 +296,9 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     ...(fabric.harbor?.piers.map(pier => pier.polygon) ?? [])
   ];
   const candidateWatermills =
-    fabric.watermills ??
+    (document.urbanMorphology?.waterfrontResolved === false
+      ? { mills: [], buildingCount: 0, derivedPopulation: 0 }
+      : fabric.watermills) ??
     buildWatermillPlan(
       document,
       buildings.length,

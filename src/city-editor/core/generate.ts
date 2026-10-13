@@ -1,6 +1,7 @@
 import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 import { resolveBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { measureProcessing, type ProcessingProfiler } from "../../utils/processingProfiler";
+import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
 import { castleWallIds, reservedCastleFaces, townCircuits, townGates } from "./fortifications";
@@ -25,6 +26,7 @@ import {
   emptySitingReport,
   planGateSectors
 } from "./gen/approachCorridors";
+import { buildBlockFabric, FabricCache } from "./gen/blockInfill";
 import { type CastleSite, placeCastleRegion, terrainHeight } from "./gen/castlePlacement";
 import {
   orientedRectPolylineDistance,
@@ -39,6 +41,8 @@ import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "./gen/coast
 import { createFabricPlan } from "./gen/fabricDistricts";
 import { fitImportedHousing } from "./gen/fitImportedHousing";
 import { plazaFootprintMeters, templeFootprintMeters } from "./gen/housing";
+import { approachBands } from "./gen/suburbanLanduse";
+import { planUrbanGrowth } from "./gen/urbanGrowth";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "./generationDebug";
 import type { RoadRoutingTrace } from "./generationDiagnostics";
 import { applyImportedFixedCrossings } from "./importedFixedCrossings";
@@ -813,6 +817,33 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates"
 ): CityDocument | null {
+  const profile = settings.descriptor?.urbanMorphology;
+  if (profile && supportsUrbanMorphology(profile.period)) {
+    const inferred = inferredWallSettings(profile, settings.descriptor!.burg.dwellings);
+    const descriptor = structuredClone(settings.descriptor!);
+    delete descriptor.economy;
+    for (const road of descriptor.roads) {
+      delete road.traffic;
+      delete road.trafficRank;
+    }
+    settings = {
+      ...settings,
+      descriptor,
+      townWallRings: settings.townWallRings ?? inferred.townWallRings,
+      walledAreaShare: settings.walledAreaShare ?? inferred.walledAreaShare
+    };
+    document = { ...document, urbanMorphology: structuredClone(profile), siteEconomy: undefined };
+    delete document.urbanGrowth;
+    delete document.housingCapacity;
+  }
+  if (!profile || !supportsUrbanMorphology(profile.period)) {
+    if (document.urbanMorphology) {
+      document = { ...document };
+      delete document.urbanMorphology;
+      delete document.urbanGrowth;
+      delete document.housingCapacity;
+    }
+  }
   // Some coast/river layouts cannot form valid crossings, or enough external
   // approach roads, on this grid. Try another deterministic layout with the
   // same requested settings, always starting from the untouched input rather
@@ -900,6 +931,31 @@ export function generateCityOnDocument(
       // Count houses on the finished town: harbour ships, bridge approaches,
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
+      if (result.urbanMorphology && settings.descriptor) {
+        const initialFabric = buildBlockFabric(result, new FabricCache());
+        result.urbanGrowth = planUrbanGrowth(
+          result,
+          approachBands(result),
+          settings.descriptor.roads,
+          settings.descriptor.burg.dwellings,
+          initialFabric
+        );
+        const eligible = Object.values(result.mesh.faces).filter(
+          f => f.properties.water === "land" && ["core", "outskirts"].includes(f.properties.settlement ?? "")
+        );
+        const area = (faces: typeof eligible) =>
+          faces.reduce((sum, f) => sum + Math.abs(polygonArea(facePoints(result.mesh, f))), 0);
+        const totalArea = area(eligible);
+        const enclosed = eligible.filter(f => f.properties.settlement === "core");
+        result.urbanGrowth.outerEnclosedUrbanAreaShare = totalArea ? area(enclosed) / totalArea : null;
+        result.urbanGrowth.innerEnclosedAreaShare = area(enclosed)
+          ? area(enclosed.filter(f => (f.properties.wallRing ?? 0) === 0)) / area(enclosed)
+          : null;
+        for (const phase of result.urbanMorphology.wallPhases)
+          phase.absorbedClusterIds = result.urbanGrowth.absorbedClusters
+            .filter(c => c.wallPhaseId === phase.id)
+            .map(c => c.id);
+      }
       if (settings.descriptor) {
         const fitStarted = performance.now();
         const housingFit = measureProcessing(profiler, "fit-housing", () =>
@@ -4220,20 +4276,35 @@ function applyPlan(
     // bans wall edges) can then enter the old town only through them, so no
     // street has to be closed or moved off the curtain afterwards.
     if (complete && plan.innerWall?.planned && plan.innerArteries) {
-      const inner = addInnerTownWall(next, {
+      let castleInOldTown = plan.innerWall.castleRing === "inner";
+      let inner = addInnerTownWall(next, {
         share: plan.innerWall.share ?? DEFAULT_INNER_WALLED_AREA_SHARE,
         minGapCells: INNER_WALL_MIN_GAP_CELLS,
         prefix: GEN_PREFIX,
-        castleInOldTown: plan.innerWall.castleRing === "inner",
+        castleInOldTown,
         razed: plan.innerWall.razed,
         wallOnly: wallCheckpoint === "innerWall",
         arteries: plan.innerArteries
       });
+      if (!inner.report.ok && next.urbanMorphology && plan.innerWall.castleRing === "inner") {
+        // The present citadel can belong to the later expansion. Keep the old wall's
+        // separation and gate rules instead of stretching it to a newer castle.
+        castleInOldTown = false;
+        inner = addInnerTownWall(next, {
+          share: plan.innerWall.share ?? DEFAULT_INNER_WALLED_AREA_SHARE,
+          minGapCells: INNER_WALL_MIN_GAP_CELLS,
+          prefix: GEN_PREFIX,
+          castleInOldTown: false,
+          razed: plan.innerWall.razed,
+          wallOnly: wallCheckpoint === "innerWall",
+          arteries: plan.innerArteries
+        });
+      }
       const { report } = inner;
       mark("inner-wall", {
         ok: report.ok ? 1 : 0,
         planned: 1,
-        castleInOldTown: plan.innerWall.castleRing === "inner" ? 1 : 0,
+        castleInOldTown: castleInOldTown ? 1 : 0,
         castleTouchesOldTown: report.castleTouches ? 1 : 0,
         failureCode: report.failure ? INNER_WALL_FAILURES.indexOf(report.failure) + 1 : 0,
         faces: report.faces,

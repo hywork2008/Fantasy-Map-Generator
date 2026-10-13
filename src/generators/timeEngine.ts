@@ -67,6 +67,7 @@ import { buildStateSignals, seedTechnologyStartProfile, settleTechnologyAnnual }
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 import { advanceUndergroundEcology } from "./undergroundEcology";
+import { recordUrbanPopulationHistory } from "./urbanPopulationHistory";
 import { advanceWildernessEcology } from "./wildernessEcology";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
@@ -1106,6 +1107,9 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
       if (regimentsMoved) topics.push("simulation.military");
     });
   }
+
+  if (actualYearsAdvanced > 0 && recordUrbanPopulationHistory(worldContext, simulationContext))
+    topics.push("simulation.burgs");
 
   // Persist the live simulation PRNG so archive capture / world.replace can resume it.
   syncSimulationRngToContext(simulationContext);

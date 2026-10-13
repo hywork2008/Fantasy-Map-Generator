@@ -25,6 +25,8 @@ export interface SimulationCellColumns {
 
 /** Values that evolve for a settlement after its map definition is generated. */
 export interface BurgSimulationState {
+  urbanMorphology?: import("../types/urbanMorphology").UrbanMorphologyProfile;
+  urbanPopulationHistory?: import("../types/urbanMorphology").PopulationKnot[];
   population?: number;
   product?: number;
   treasury?: number;

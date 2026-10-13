@@ -24,7 +24,7 @@ export function descriptorRoads(document: CityDocument): BurgSiteRoadEntry[] {
 
 /** Absent when this leg has no recorded departures. Index and route must both match. */
 export function roadUse(document: CityDocument, sourceIndex: number | undefined, routeId?: number): RoadUse | null {
-  if (sourceIndex == null) return null;
+  if (document.urbanMorphology || sourceIndex == null) return null;
   const road = descriptorRoads(document)[sourceIndex];
   if (!road || (routeId != null && road.routeId !== routeId)) return null;
   if (road.traffic == null && road.trafficRank == null) return null;
@@ -36,6 +36,7 @@ export function roadUse(document: CityDocument, sourceIndex: number | undefined,
 }
 
 export function roadTrafficKey(document: CityDocument): string {
+  if (document.urbanMorphology) return JSON.stringify([document.urbanMorphology.contextRevision, document.urbanGrowth]);
   return descriptorRoads(document)
     .map(road => `${road.routeId}:${road.group}:${road.traffic ?? "-"}:${road.trafficRank ?? "-"}`)
     .join(",");

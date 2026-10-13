@@ -130,6 +130,8 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   simulation("pack.burgs.population", "simulation.burgs", "burg.id", ["burg.id"]),
   simulation("pack.burgs.product", "simulation.burgs", "burg.id", ["burg.id"]),
   simulation("pack.burgs.treasury", "simulation.burgs", "burg.id", ["burg.id"]),
+  simulation("simulation.burgs.urbanMorphology", "simulation.burgs", "burg.id", ["burg.id"]),
+  simulation("simulation.burgs.urbanPopulationHistory", "simulation.burgs", "burg.id", ["burg.id"]),
   simulation("pack.burgs.demographics", "simulation.burgs", "burg.id", ["burg.id"]),
 
   simulation("simulation.clock", "simulation.clock"),
