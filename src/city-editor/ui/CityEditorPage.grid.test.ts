@@ -163,18 +163,20 @@ describe("Document panel — new-city grid kind", () => {
       pathPointCount(el.getAttribute("d") ?? "")
     );
 
-  it("lists Micro (half of Tiny) before Tiny / Small / Medium / Large and selects Tiny", () => {
+  it("lists Micro (half of Tiny) before Tiny / Small / Medium / Large and selects Small", () => {
     const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
     expect([...sizeSelect.options].map(option => option.value)).toEqual(["micro", "tiny", "small", "medium", "large"]);
-    expect(sizeSelect.value).toBe("tiny");
+    expect(sizeSelect.value).toBe("small");
     expect([...sizeSelect.options].find(option => option.value === "micro")?.textContent).toContain("0.3 km");
-    expect(sizeSelect.selectedOptions[0]?.textContent).toContain("0.6 km");
-    expect([...sizeSelect.options].find(option => option.value === "small")?.textContent).toContain("1.2 km");
+    expect([...sizeSelect.options].find(option => option.value === "tiny")?.textContent).toContain("0.6 km");
+    expect(sizeSelect.selectedOptions[0]?.textContent).toContain("1.2 km");
   });
 
   it("🆕 at Small hex builds a window with several times Tiny hex's cells", () => {
     const sizeSelect = q<HTMLSelectElement>("select.ce-map-size");
     chooseGrid("hex");
+    sizeSelect.value = "tiny";
+    sizeSelect.dispatchEvent(new Event("change", { bubbles: true }));
     newGrid();
     const tinyFaces = faceCount();
     sizeSelect.value = "small";
@@ -185,13 +187,13 @@ describe("Document panel — new-city grid kind", () => {
     expect(smallFaces).toBeGreaterThan(tinyFaces * 2);
   });
 
-  it("defaults to Grid evolution, with the hex-size slider hidden", () => {
-    expect(gridKindSelect().value).toBe("evolution");
+  it("defaults to Voronoi, with the hex-size slider hidden", () => {
+    expect(gridKindSelect().value).toBe("voronoi");
     expect(hexSizeLabel().hidden).toBe(true);
     expect(getComputedStyle(hexSizeLabel()).display).toBe("none");
     const faces = faceCount();
     expect(faces).toBeGreaterThan(20);
-    expect(faces).toBeLessThan(200);
+    expect(faces).toBeLessThan(800);
   });
 
   it("hides the hex-size slider for Voronoi and Grid evolution", () => {

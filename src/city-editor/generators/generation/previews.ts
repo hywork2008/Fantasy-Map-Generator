@@ -125,7 +125,12 @@ export function generateStageOnDocument(
   // The district stage shows wards alone; the gate-to-centre streets are the next stage's.
   const plan: Plan =
     wallCheckpoint === "wards"
-      ? { ...fullPlan, roads: fullPlan.roads.slice(0, fullPlan.roads.length - fullPlan.streets.length), streets: [] }
+      ? {
+          ...fullPlan,
+          roads: fullPlan.roads.slice(0, fullPlan.roads.length - fullPlan.streets.length),
+          streets: [],
+          wardsOnly: true
+        }
       : fullPlan;
   const applyCheckpoint = wallCheckpoint === "wards" ? undefined : wallCheckpoint;
   if (plan.castleFailure && (onRejected || observer) && !applyCheckpoint) {
@@ -492,7 +497,8 @@ export function generateWardStep(
     const wardsOnly: Plan = {
       ...plan,
       roads: plan.roads.slice(0, plan.roads.length - plan.streets.length),
-      streets: []
+      streets: [],
+      wardsOnly: true
     };
     const result = applyPlan(document, cells, faceIdOf, wardsOnly, program, 6);
     const activeCells = plan.cells ?? cells;

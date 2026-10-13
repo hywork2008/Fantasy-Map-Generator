@@ -154,6 +154,9 @@ export interface RiverWallRepair {
  * single chord per crossing run. Failed opening trials are discarded;
  * usable openings survive later routing failures.
  * These passages belong to walls, never to the road-gate list. */
+/** Farthest a replacement curtain may stray from its original line, in blocks. */
+const MAX_DETOUR_BLOCKS = 1.75;
+
 export function repairRiverWalls(
   source: CityDocument,
   urbanRegions: Point[][],
@@ -371,7 +374,9 @@ export function repairRiverWalls(
                 // A shared river run needs a local bank detour. A route deep
                 // inside the town can be shorter but consumes whole districts;
                 // leave it unresolved so passage/cell splitting can repair it.
-                if (originalPolygon && deviation > source.frame.blockSizeMeters) return Infinity;
+                // One block left curtains open when a river bend forced the
+                // detour two cells off the old line.
+                if (originalPolygon && deviation > source.frame.blockSizeMeters * MAX_DETOUR_BLOCKS) return Infinity;
                 return w * (1 + deviation / Math.max(1, gap));
               })
             : null;

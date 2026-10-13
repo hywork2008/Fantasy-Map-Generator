@@ -5366,7 +5366,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     stepStatus.textContent = "";
     lastGeneratedStep = null;
     currentStageStep = 16;
-    syncStageUi(12);
+    syncStageUi(16);
     runCompleteGeneration();
   }
 
@@ -5568,7 +5568,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showBlockMesh = false;
     hideBuildings = false;
     hideStreetLines = false;
-    syncStageUi(12);
+    syncStageUi(16);
     completeResultSettings = JSON.stringify(generateSettings);
     rememberGenerationState();
     rebuildEditorIndexes();

@@ -23,7 +23,7 @@ export interface FinalizeAssemblyInput {
   gateRouting: Map<string, RoadRoutingTrace[]>;
   program: CityProgram;
   cells: Cell[];
-  plan: Pick<Plan, "urban">;
+  plan: Pick<Plan, "urban" | "wardsOnly">;
   faceIdOf: string[];
   mark: AssemblyMark;
 }
@@ -45,7 +45,7 @@ export function finalizeAssembly(input: FinalizeAssemblyInput) {
       !gate.locked &&
       gate.id.startsWith(GEN_PREFIX) &&
       (!vertexHasKindPassage(next, gate.vertexId, "wall") ||
-        ((complete || stageStep >= 6) && !vertexHasCrossing(next, gate.vertexId, "wall", "road")))
+        ((complete || stageStep >= 6) && !plan.wardsOnly && !vertexHasCrossing(next, gate.vertexId, "wall", "road")))
   );
   if (disconnected.length) {
     return {

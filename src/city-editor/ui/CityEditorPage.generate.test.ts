@@ -115,7 +115,7 @@ describe("Generate panel", () => {
     expect(control.options[2].textContent).toContain("1〜3セル");
   });
   it("labels each outer-gate road with what lies beyond the map", () => {
-    selectStage(12);
+    selectStage(16);
     const labels = [...root.querySelectorAll(".ce-approach-beyond")].map(node => node.textContent ?? "");
     expect(labels.length).toBeGreaterThan(0);
     for (const label of labels) {
@@ -210,9 +210,9 @@ describe("Generate panel", () => {
     expect(has(".ce-feature--road")).toBe(true);
   });
 
-  it("opens on Tiny / Grid evolution and generates a complete city from those defaults", () => {
-    expect(root.querySelector<HTMLSelectElement>("select.ce-map-size")?.value).toBe("tiny");
-    expect(root.querySelector<HTMLSelectElement>("select.ce-grid-kind")?.value).toBe("evolution");
+  it("opens on Small / Voronoi and generates a complete city from those defaults", () => {
+    expect(root.querySelector<HTMLSelectElement>("select.ce-map-size")?.value).toBe("small");
+    expect(root.querySelector<HTMLSelectElement>("select.ce-grid-kind")?.value).toBe("voronoi");
     panelButton("都市を一括生成").click();
     expect(has(".ce-buildings .ce-building")).toBe(true);
     expect(has(".ce-feature--road")).toBe(true);
@@ -254,12 +254,12 @@ describe("Generate panel", () => {
     expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
   });
 
-  it("renders a 10-stage process slider, a seed field, and no map-size control", () => {
+  it("renders a 17-stage process slider, a seed field, and no map-size control", () => {
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
     expect(slider).toBeTruthy();
     expect(slider?.min).toBe("1");
-    expect(slider?.max).toBe("13");
-    expect(slider?.value).toBe("12");
+    expect(slider?.max).toBe("17");
+    expect(slider?.value).toBe("16");
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(nPatchesInput().placeholder).toBe("auto");
     expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
@@ -809,21 +809,21 @@ describe("shareable link and FMG site", () => {
     selectStage(7);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("門・城郭");
 
-    // Stage 10: geometry smoothed
-    selectStage(10);
+    // Stage 14: geometry smoothed
+    selectStage(14);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("幾何平滑化");
     expect(has(".ce-infill-lane")).toBe(false);
     expect(has(".ce-buildings .ce-building")).toBe(false);
 
-    // Stage 11: lanes visible, buildings hidden
-    selectStage(11);
+    // Stage 15: lanes visible, buildings hidden
+    selectStage(15);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("街区・小道");
     expect(has(".ce-infill-lane")).toBe(true);
     expect(has(".ce-infill-trail")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(false);
 
-    // Stage 12: dwellings visible, roads and block lanes still drawn
-    selectStage(12);
+    // Stage 16: dwellings visible, roads and block lanes still drawn
+    selectStage(16);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(has(".ce-infill-lane")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(true);
@@ -836,9 +836,9 @@ describe("shareable link and FMG site", () => {
       expect(deck.getAttribute("stroke-linecap")).toBe("butt");
     }
 
-    // Stage 13: same town, intramural roads and block-lane lines hidden.
+    // Stage 17: same town, intramural roads and block-lane lines hidden.
     // The river-width deck stays; the gate-to-plaza road that uses the crossing does not.
-    selectStage(13);
+    selectStage(17);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("道路・小道を隠す");
     expect(count(".ce-infill-lane")).toBe(0);
     expect(count(".ce-infill-trail")).toBe(0);
@@ -849,8 +849,8 @@ describe("shareable link and FMG site", () => {
     expect(roadsAt10).toBeGreaterThan(0);
     expect(roadsAt10).toBeLessThan(roadsAt9);
 
-    // Back to stage 12 restores the roads and lanes
-    selectStage(12);
+    // Back to stage 16 restores the roads and lanes
+    selectStage(16);
     expect(count(".ce-infill-lane")).toBe(lanesAt9);
     expect(count(".ce-feature--road")).toBe(roadsAt9);
 
@@ -859,9 +859,9 @@ describe("shareable link and FMG site", () => {
     expect(has(".ce-buildings .ce-building")).toBe(false);
     panelButton("新しい都市").click();
 
-    // After "新しい都市", dwellings must be generated and slider reset to stage 12
+    // After "新しい都市", dwellings must be generated and slider reset to stage 16
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
-    expect(slider?.value).toBe("12");
+    expect(slider?.value).toBe("16");
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(has(".ce-buildings .ce-building")).toBe(true);
   });

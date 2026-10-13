@@ -66,6 +66,8 @@ export interface Plan {
   frameRoads?: CityDocument["frameRoads"];
   riverPort?: boolean;
   streets: Point[][];
+  /** The district preview omits the gate-to-centre streets, so gates have no inner road yet. */
+  wardsOnly?: true;
   wards: Map<number, WardKind>;
   /** FMG land elevation (metres) per cell id, sampled from the linked burg's
    * heightfield. Absent for standalone cities. */

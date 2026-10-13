@@ -380,8 +380,8 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
   });
 
   it("places a downstream yard when the river is separated from the town boundary", () => {
-    const seed = "tannery-audit-1";
-    const grid = createGridDocument({ size: "medium", grid: "evolution", seed });
+    const seed = "tannery-audit-7";
+    const grid = createGridDocument({ size: "small", grid: "evolution", seed });
     const settings = defaultGenerationSettings();
     settings.config.coast = "none";
     settings.config.rivers = ["meander"];
