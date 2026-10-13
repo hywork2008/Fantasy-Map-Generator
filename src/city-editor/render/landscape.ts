@@ -8,7 +8,7 @@ import { facePoints } from "../core/mesh";
 import { regionalSurfaceLayers } from "../core/regionalCoast";
 import type { CityDocument, Point } from "../core/types";
 import { waterPolygons } from "../core/waterGeometry";
-import type { RenderQuality } from "./svg";
+import type { RenderQuality } from "./editorSvg";
 
 export type LandscapeCategory =
   | "forest"

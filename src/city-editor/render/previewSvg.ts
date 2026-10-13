@@ -1,5 +1,6 @@
 import type { GenerationObserver } from "../core/generationDiagnostics";
 import type { CityDocument } from "../core/types";
+import { serializeSvgFile } from "./serializeSvg";
 import { renderStandaloneCitySvg } from "./svg";
 
 export const CITY_PREVIEW_VERSION = 1;
@@ -13,5 +14,5 @@ export function renderCityPreviewSvg(document: CityDocument, observer?: Generati
 }
 
 export function serializeCityPreviewSvg(document: CityDocument, observer?: GenerationObserver): string {
-  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${new XMLSerializer().serializeToString(renderCityPreviewSvg(document, observer))}`;
+  return serializeSvgFile(renderCityPreviewSvg(document, observer));
 }

@@ -180,6 +180,7 @@ import {
   writeMaxPatchesPreference
 } from "../io/incomingCity";
 import { CASTLE_STYLE_PROFILES, type CastleStyle, resolveCastleStyle } from "../render/castlePatterns";
+import { clearRenderDerivedCaches } from "../render/derivedCaches";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
 import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
 import {
@@ -279,6 +280,7 @@ export interface CityEditorOptions {
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
   clearGenerationPreviewCache();
+  clearRenderDerivedCaches();
   const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
   let lastOutputDocInput: CityDocument | null = null;
   let lastOutputDocProvider: FixedApproachProvider | null = null;
