@@ -540,6 +540,10 @@
       "riverCrossingCellSplitsAndWallRoutesComplete": "River crossing cell splits and wall routes complete",
       "gatePassagesPrepared": "Gate passages prepared",
       "geometrySmoothingComplete": "Geometry smoothing complete",
+      "gateToCenterRoadsComplete": "Gate-to-centre roads complete",
+      "innerGatesAndRoadsComplete": "Old-town gates and roads complete",
+      "townStreetsComplete": "Town streets complete",
+      "innerWallComplete": "Inner town wall complete",
       "blocksAndLanesComplete": "Blocks and lanes complete",
       "housingPlacementComplete": "Housing placement complete",
       "roadsAndLanesHidden": "Roads and lanes hidden",
@@ -729,6 +733,22 @@
       "wards": {
         "label": "District assignment",
         "hint": "Assign a district type to each urban cell"
+      },
+      "centerRoads": {
+        "label": "Gate-to-centre roads",
+        "hint": "Add the streets from each gate to the central plaza"
+      },
+      "townStreets": {
+        "label": "Town streets",
+        "hint": "Lay out the whole street network inside the outer wall"
+      },
+      "innerWall": {
+        "label": "Inner town wall",
+        "hint": "Build the old-town wall inside the outer curtain (double walls only). Gates are not opened yet."
+      },
+      "innerGates": {
+        "label": "Old-town gates and roads",
+        "hint": "Open gates on the main roads through the inner wall and close the other street crossings"
       },
       "geometry": {
         "label": "Geometry smoothing",

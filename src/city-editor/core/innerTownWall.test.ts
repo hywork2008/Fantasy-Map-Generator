@@ -13,7 +13,7 @@ import { INNER_WALL_FAILURES, innerTownCapacity } from "./gen/innerTownWall";
 import { innerWalledAreaShare, outerWalledAreaShare } from "./gen/settlementExtent";
 import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
 import { synthSite } from "./gen/site/synthSite";
-import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
+import { defaultGenerationSettings, generateCityOnDocument, generateStageOnDocument } from "./generate";
 import { validate } from "./mesh";
 import { kindEdgeIds, vertexHasCrossing } from "./passages";
 
@@ -60,6 +60,26 @@ describe("double town walls (P1)", () => {
     );
     expect([...curtain].filter(id => roads.has(id))).toEqual([]);
     expect(boundaryEdges(city!.mesh, inner.areaFaceIds).length).toBeGreaterThan(0);
+  });
+
+  it("draws the old-town wall before opening its gates (separate stages)", () => {
+    const seed = "d1";
+    const doc = createGridDocument({ size: "small", grid: "voronoi", seed });
+    const settings = { ...defaultGenerationSettings(), townWallRings: "double" as const };
+    const streets = generateStageOnDocument(doc, settings, seed, 7, undefined, "streets");
+    const wall = generateStageOnDocument(doc, settings, seed, 7, undefined, "innerWall");
+    const gates = generateStageOnDocument(doc, settings, seed, 7, undefined, "innerGates");
+    expect(streets).not.toBeNull();
+    expect(wall).not.toBeNull();
+    // The wall stage adds no street of its own: the network was laid out a stage earlier.
+    const roadGroups = (d: NonNullable<typeof wall>) => d.featureGroups.filter(g => g.kind === "road").length;
+    expect(roadGroups(wall!)).toBe(roadGroups(streets!));
+    expect(townCircuits(streets!)).toHaveLength(1);
+    expect(gates).not.toBeNull();
+    const inner = innerTownCircuit(wall!)!;
+    expect(inner).toBeDefined();
+    expect(townGates(wall!, inner.id)).toHaveLength(0);
+    expect(townGates(gates!, innerTownCircuit(gates!)!.id).length).toBeGreaterThanOrEqual(2);
   });
 
   it("leaves the single-wall default unchanged", () => {

@@ -249,6 +249,9 @@ const NOMINAL_PRESET = "largeTown" as const;
 
 /** One visible process, in order. `processStep` is the S-index it recomputes up to;
  * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
+/** A stage that stops part-way through its `processStep` so each sub-process is visible on its own. */
+export type StageCheckpoint = "walls" | "riverPassages" | "passages" | "wards" | "streets" | "innerWall" | "innerGates";
+
 export interface GenerationStage {
   id:
     | "coast"
@@ -260,14 +263,18 @@ export interface GenerationStage {
     | "gates"
     | "streets"
     | "wards"
+    | "centerRoads"
+    | "townStreets"
+    | "innerWall"
+    | "innerGates"
     | "geometry"
     | "blocks"
     | "buildings"
     | "conceal";
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
   /** Original planning pass; separate from the visible slider number. */
   processStep: number;
-  wallCheckpoint?: "walls" | "riverPassages" | "passages";
+  wallCheckpoint?: StageCheckpoint;
   labelKey: EditorMessageKey;
   hintKey: EditorMessageKey;
   readonly label: string;
@@ -386,6 +393,7 @@ export const GENERATION_STAGES: GenerationStage[] = [
     id: "wards",
     step: 9,
     processStep: 6,
+    wallCheckpoint: "wards",
     labelKey: "cityEditor.generationStages.wards.label",
     get label() {
       return editorText(this.labelKey);
@@ -396,8 +404,63 @@ export const GENERATION_STAGES: GenerationStage[] = [
     }
   },
   {
-    id: "geometry",
+    id: "centerRoads",
     step: 10,
+    processStep: 6,
+    labelKey: "cityEditor.generationStages.centerRoads.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.centerRoads.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "townStreets",
+    step: 11,
+    processStep: 7,
+    wallCheckpoint: "streets",
+    labelKey: "cityEditor.generationStages.townStreets.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.townStreets.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "innerWall",
+    step: 12,
+    processStep: 7,
+    wallCheckpoint: "innerWall",
+    labelKey: "cityEditor.generationStages.innerWall.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.innerWall.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "innerGates",
+    step: 13,
+    processStep: 7,
+    wallCheckpoint: "innerGates",
+    labelKey: "cityEditor.generationStages.innerGates.label",
+    get label() {
+      return editorText(this.labelKey);
+    },
+    hintKey: "cityEditor.generationStages.innerGates.hint",
+    get hint() {
+      return editorText(this.hintKey);
+    }
+  },
+  {
+    id: "geometry",
+    step: 14,
     processStep: 7,
     labelKey: "cityEditor.generationStages.geometry.label",
     get label() {
@@ -410,7 +473,7 @@ export const GENERATION_STAGES: GenerationStage[] = [
   },
   {
     id: "blocks",
-    step: 11,
+    step: 15,
     processStep: 8,
     labelKey: "cityEditor.generationStages.blocks.label",
     get label() {
@@ -423,7 +486,7 @@ export const GENERATION_STAGES: GenerationStage[] = [
   },
   {
     id: "buildings",
-    step: 12,
+    step: 16,
     processStep: 9,
     labelKey: "cityEditor.generationStages.buildings.label",
     get label() {
@@ -436,7 +499,7 @@ export const GENERATION_STAGES: GenerationStage[] = [
   },
   {
     id: "conceal",
-    step: 13,
+    step: 17,
     processStep: 10,
     labelKey: "cityEditor.generationStages.conceal.label",
     get label() {
@@ -620,7 +683,7 @@ export function generateStageOnDocument(
   seed: string,
   stageStep: number,
   onRejected?: GenerationDebugObserver,
-  wallCheckpoint?: "walls" | "riverPassages" | "passages",
+  wallCheckpoint?: StageCheckpoint,
   observer?: GenerationObserver
 ): CityDocument | null {
   const faces = Object.values(document.mesh.faces);
@@ -641,9 +704,14 @@ export function generateStageOnDocument(
   }
 
   if (stageStep >= 7) {
+    const stopAfter =
+      stageStep === 7 &&
+      (wallCheckpoint === "streets" || wallCheckpoint === "innerWall" || wallCheckpoint === "innerGates")
+        ? wallCheckpoint
+        : undefined;
     const full =
-      generateCityAttempt(document, settings, seed, observer, 1, onRejected) ??
-      (onRejected ? null : generateCityOnDocument(document, settings, seed, observer));
+      generateCityAttempt(document, settings, seed, observer, 1, onRejected, undefined, stopAfter) ??
+      (onRejected ? null : generateCityOnDocument(document, settings, seed, observer, undefined, undefined, stopAfter));
     if (!full) return null;
     if (stageStep === 7) {
       const res = clone(full);
@@ -663,7 +731,7 @@ export function generateStageOnDocument(
   }
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(
+  const fullPlan = runPlan(
     document.mesh,
     faceIdOf,
     cells,
@@ -682,7 +750,13 @@ export function generateStageOnDocument(
     document.gridKind,
     document
   );
-  if (plan.castleFailure && (onRejected || observer) && !wallCheckpoint) {
+  // The district stage shows wards alone; the gate-to-centre streets are the next stage's.
+  const plan: Plan =
+    wallCheckpoint === "wards"
+      ? { ...fullPlan, roads: fullPlan.roads.slice(0, fullPlan.roads.length - fullPlan.streets.length), streets: [] }
+      : fullPlan;
+  const applyCheckpoint = wallCheckpoint === "wards" ? undefined : wallCheckpoint;
+  if (plan.castleFailure && (onRejected || observer) && !applyCheckpoint) {
     const sample = reportGenerationFailure(
       observer,
       1,
@@ -706,7 +780,7 @@ export function generateStageOnDocument(
     observer,
     1,
     onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined,
-    wallCheckpoint
+    applyCheckpoint as "walls" | "riverPassages" | "passages" | undefined
   );
   if (res) {
     res.layout = resolveEffectiveLayout(
@@ -735,7 +809,8 @@ export function generateCityOnDocument(
   seed: string,
   observer?: GenerationObserver,
   onRejected?: GenerationDebugObserver,
-  profiler?: ProcessingProfiler
+  profiler?: ProcessingProfiler,
+  stopAfter?: "streets" | "innerWall" | "innerGates"
 ): CityDocument | null {
   // Some coast/river layouts cannot form valid crossings, or enough external
   // approach roads, on this grid. Try another deterministic layout with the
@@ -757,8 +832,21 @@ export function generateCityOnDocument(
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
     const failed = failures.length;
     const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
-      generateCityAttempt(attemptDocument, attemptSettings, attemptSeed, observe, attempt + 1, onRejected, profiler)
+      generateCityAttempt(
+        attemptDocument,
+        attemptSettings,
+        attemptSeed,
+        observe,
+        attempt + 1,
+        onRejected,
+        profiler,
+        stopAfter
+      )
     );
+    if (result && stopAfter) {
+      result.generationSeed = attemptSeed;
+      return result;
+    }
     if (result) {
       result.historicalPeriod =
         settings.historicalPeriod ??
@@ -876,7 +964,9 @@ export function generateCityAttempt(
   observer?: GenerationObserver,
   attempt = 1,
   onRejected?: GenerationDebugObserver,
-  profiler?: ProcessingProfiler
+  profiler?: ProcessingProfiler,
+  /** Return right after the old-town wall, before geometry smoothing. */
+  stopAfter?: "streets" | "innerWall" | "innerGates"
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let debugDocument = () => document;
@@ -1086,6 +1176,10 @@ export function generateCityAttempt(
       }),
       { roads: roadsBeforeFinish, minRoads, gates: townGates(next).length }
     );
+  if (stopAfter === "streets") {
+    next.appearance = "town";
+    return next;
+  }
   if (plan.innerWall && !plan.innerWall.planned)
     mark("inner-wall", {
       ok: 0,
@@ -1099,7 +1193,8 @@ export function generateCityAttempt(
         minGapCells: INNER_WALL_MIN_GAP_CELLS,
         prefix: GEN_PREFIX,
         castleInOldTown: plan.innerWall?.castleRing === "inner",
-        razed: settings.innerWallState === "razed"
+        razed: settings.innerWallState === "razed",
+        wallOnly: stopAfter === "innerWall"
       })
     );
     // A town that cannot hold an old-town wall keeps its single curtain.
@@ -1122,6 +1217,7 @@ export function generateCityAttempt(
     next = inner.document;
   }
   next.appearance = "town";
+  if (stopAfter) return next;
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
   const routed = coarse ? measureProcessing(profiler, "road-shortcuts", () => shortcutMajorRoads(next)) : next;
@@ -1711,7 +1807,12 @@ export function generateWardStep(
       document.gridKind,
       document
     );
-    const result = applyPlan(document, cells, faceIdOf, plan, program, 6);
+    const wardsOnly: Plan = {
+      ...plan,
+      roads: plan.roads.slice(0, plan.roads.length - plan.streets.length),
+      streets: []
+    };
+    const result = applyPlan(document, cells, faceIdOf, wardsOnly, program, 6);
     const activeCells = plan.cells ?? cells;
     const activeIds = plan.faceIdOf ?? faceIdOf;
     const stepOfCell = new Map(plan.wardOrder.map((ward, index) => [ward.cellId, index]));

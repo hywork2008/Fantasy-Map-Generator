@@ -25,6 +25,8 @@ export interface InnerWallOptions {
   castleInOldTown?: boolean;
   /** The old wall was pulled down: its line is a ring road, every street crosses it (§4.3). */
   razed?: boolean;
+  /** Draw the curtain only: no gates are opened and no street crossing is closed (a diagnostic stage). */
+  wallOnly?: boolean;
 }
 
 /** Order is the diagnostic code (`failureCode` = index + 1) recorded by the generator. */
@@ -542,10 +544,11 @@ function finish(
   cuts: number
 ): { document: CityDocument; report: InnerWallReport } {
   const built = build(document, inner, outerId, options, roads, rivers);
+  const wallDrawn = !!options.wallOnly && built.runs > 0;
   const area = [...inner].reduce((sum, id) => sum + (info.get(id)?.area ?? 0), 0);
   const report: InnerWallReport = {
-    ok: built.gates > 0 || built.ringRoad,
-    failure: built.gates > 0 || built.ringRoad ? undefined : "no-gate",
+    ok: built.gates > 0 || built.ringRoad || wallDrawn,
+    failure: built.gates > 0 || built.ringRoad || wallDrawn ? undefined : "no-gate",
     faces: inner.size,
     areaShare: Math.round((area / landArea) * 1000) / 1000,
     gapCells: Number.isFinite(gap) ? gap : -1,
@@ -578,6 +581,7 @@ function build(
   streetOpenings: number;
   closed: number;
   ringRoad: boolean;
+  runs: number;
 } {
   const next = structuredClone(source);
   const mesh = next.mesh;
@@ -702,8 +706,9 @@ function build(
   // An old-town wall had a few gates on the main roads, not one per lane: keep
   // the crossings on each outer gate's shortest street route to the plaza
   // (at least two), and close the others at the curtain.
-  const gateVertices = options.razed ? [] : mainRoadCrossings(next, crossingVertices, roads, townCenter(next));
-  const closed = options.razed ? [] : crossingVertices.filter(v => !gateVertices.includes(v));
+  const gateVertices =
+    options.razed || options.wallOnly ? [] : mainRoadCrossings(next, crossingVertices, roads, townCenter(next));
+  const closed = options.razed || options.wallOnly ? [] : crossingVertices.filter(v => !gateVertices.includes(v));
   closeCrossings(next, closed, roads, side);
 
   registerTownCircuit(next, [], true, [...inner], 0);
@@ -725,7 +730,8 @@ function build(
     riverOpenings,
     streetOpenings,
     closed: closed.length,
-    ringRoad: options.razed ? runs.length > 0 : false
+    ringRoad: options.razed ? runs.length > 0 : false,
+    runs: runs.length
   };
 }
 

@@ -378,7 +378,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   let hideBuildings = false;
   /** Stage ⑬. Same document as ⑫; the town drawing omits intramural roads and block lanes. */
   let hideStreetLines = false;
-  let currentStageStep = 12;
+  let currentStageStep = 16;
   let syncStageUi: (step: number) => void = () => {};
   let importedOrigin: IncomingOrigin | null = null;
   let completeSource: CityDocument | null = null;
@@ -2778,7 +2778,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         town: next.defenseCircuits?.some(c => c.scope === "town" && c.moat?.enabled) ?? false,
         castle: next.defenseCircuits?.some(c => c.scope === "castle" && c.moat?.enabled) ?? false
       };
-      syncStageUi(next.appearance === "town" ? 12 : 1);
+      syncStageUi(next.appearance === "town" ? 16 : 1);
     }
     syncGenerateControls();
     rebuildEditorIndexes();
@@ -5285,7 +5285,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     stepOverlayPaths = null;
     stepStatus.textContent = "";
     lastGeneratedStep = null;
-    currentStageStep = 12;
+    currentStageStep = 16;
     syncStageUi(12);
     runCompleteGeneration();
   }
@@ -5317,7 +5317,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     if (generationJob) return;
     if (!generationHistory.has(history.currentEntryKey))
-      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 12 : 1));
+      rememberGenerationState(generateSeed, lastGeneratedStep ?? (documentState.appearance === "town" ? 16 : 1));
     clearFailurePreview();
     generationSamples = [];
     generationLog.reset();
@@ -5514,7 +5514,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     }
     if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) completeResult = null;
     if (!generationHistory.has(history.currentEntryKey))
-      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 12 : 1));
+      rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 16 : 1));
     const source = clone(completeSource);
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
 
@@ -5840,6 +5840,38 @@ const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
   gates: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
   streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
   wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx)),
+  centerRoads: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 6),
+    total: 1,
+    index: 0,
+    get detail() {
+      return editorText("cityEditor.messages.gateToCenterRoadsComplete");
+    }
+  }),
+  townStreets: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 7, undefined, "streets"),
+    total: 1,
+    index: 0,
+    get detail() {
+      return editorText("cityEditor.messages.townStreetsComplete");
+    }
+  }),
+  innerWall: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 7, undefined, "innerWall"),
+    total: 1,
+    index: 0,
+    get detail() {
+      return editorText("cityEditor.messages.innerWallComplete");
+    }
+  }),
+  innerGates: (doc, settings, seed) => ({
+    document: generateStageOnDocument(doc, settings, seed, 7, undefined, "innerGates"),
+    total: 1,
+    index: 0,
+    get detail() {
+      return editorText("cityEditor.messages.innerGatesAndRoadsComplete");
+    }
+  }),
   geometry: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 7);
     return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.geometrySmoothingComplete") };

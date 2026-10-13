@@ -45,8 +45,8 @@ describe("editor translation keys", () => {
     }
   });
 
-  it("identifies all thirteen generation stages by meaningful keys across both languages", async () => {
-    expect(GENERATION_STAGES.map(stage => stage.step)).toEqual(Array.from({ length: 13 }, (_, i) => i + 1));
+  it("identifies all seventeen generation stages by meaningful keys across both languages", async () => {
+    expect(GENERATION_STAGES.map(stage => stage.step)).toEqual(Array.from({ length: 17 }, (_, i) => i + 1));
     for (const language of ["en", "ja"] as const) {
       await i18n.changeLanguage(language);
       for (const stage of GENERATION_STAGES) {
@@ -55,7 +55,7 @@ describe("editor translation keys", () => {
         expect(stage.label).toBe(editorText(stage.labelKey));
         expect(stage.hint).toBe(editorText(stage.hintKey));
       }
-      expect(GENERATION_STAGES[10].label).toBe(language === "en" ? "Blocks and lanes" : "街区・小道");
+      expect(GENERATION_STAGES[14].label).toBe(language === "en" ? "Blocks and lanes" : "街区・小道");
     }
   });
 

@@ -540,6 +540,10 @@
       "riverCrossingCellSplitsAndWallRoutesComplete": "河川横断用のセル分割・城壁経路調整完了",
       "gatePassagesPrepared": "門の通路準備完了",
       "geometrySmoothingComplete": "幾何平滑化完了",
+      "gateToCenterRoadsComplete": "門から中央への道完了",
+      "innerGatesAndRoadsComplete": "内側の門と道完了",
+      "townStreetsComplete": "市内の街路完了",
+      "innerWallComplete": "内側の市壁完了",
       "blocksAndLanesComplete": "街区・小道生成完了",
       "housingPlacementComplete": "住居配置完了",
       "roadsAndLanesHidden": "道路・小道を非表示",
@@ -729,6 +733,22 @@
       "wards": {
         "label": "地区割り当て",
         "hint": "Assign a district type to each urban cell"
+      },
+      "centerRoads": {
+        "label": "門から中央への道",
+        "hint": "各門から中央広場までの道を追加"
+      },
+      "townStreets": {
+        "label": "市内の街路",
+        "hint": "外壁の内側の街路網をすべて配置"
+      },
+      "innerWall": {
+        "label": "内側の市壁",
+        "hint": "外壁の内側に旧市街の壁を作成（二重城壁のみ）。門はまだ開けません"
+      },
+      "innerGates": {
+        "label": "内側の門と道",
+        "hint": "内側の市壁の主要道に門を開き、他の道の交差を閉じる"
       },
       "geometry": {
         "label": "幾何平滑化",
