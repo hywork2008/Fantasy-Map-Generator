@@ -90,9 +90,9 @@ export type CitySizePreset = keyof typeof CITY_SIZE_PRESETS;
 /** How the starting block mesh is generated when the user begins a new city. */
 export type GridKind = "hex" | "voronoi" | "evolution";
 
-/** Document-panel defaults: a Tiny Grid-evolution map. */
-export const DEFAULT_CITY_SIZE: CitySizePreset = "tiny";
-export const DEFAULT_GRID_KIND: GridKind = "evolution";
+/** Document-panel defaults: a Small Voronoi map. */
+export const DEFAULT_CITY_SIZE: CitySizePreset = "small";
+export const DEFAULT_GRID_KIND: GridKind = "voronoi";
 
 export interface CreateGridOptions {
   size: CitySizePreset;

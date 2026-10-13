@@ -669,8 +669,9 @@ describe("shareable link and FMG site", () => {
     const token = writes[0].slice(writes[0].indexOf("#") + 1);
     const share = decodeShare(token);
     expect(share?.seed).toBe("share-seed");
-    expect(share?.grid).toBe("evolution");
-    expect(share?.size).toBe("tiny");
+    expect(share?.grid).toBe("voronoi");
+    expect(share?.size).toBe("small");
+    expect(share?.settings.townWallRings).toBe("double");
     expect(share?.settings.historicalPeriod).toBe("steamEra");
     expect(share?.descriptor).toBeUndefined();
     window.history.replaceState(null, "", writes[0]);

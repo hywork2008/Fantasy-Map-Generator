@@ -370,7 +370,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   let notice = "";
   let measureFrom: [number, number] | null = null;
   let measureTo: [number, number] | null = null;
-  const generateSettings: GenerationSettings = { ...defaultGenerationSettings(), buildingPattern: "medieval" };
+  const generateSettings: GenerationSettings = {
+    ...defaultGenerationSettings(),
+    buildingPattern: "medieval",
+    townWallRings: "double"
+  };
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
   // ①→⑧ stay consistent with each other.
@@ -5228,7 +5232,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     Object.assign(
       generateSettings,
       defaultGenerationSettings(),
-      { buildingPattern: "legacy" },
+      { buildingPattern: "legacy", townWallRings: undefined, innerWallState: undefined },
       structuredClone(share.settings)
     );
     generateSettings.descriptor = share.descriptor;
