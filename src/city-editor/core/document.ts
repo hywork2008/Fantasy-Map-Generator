@@ -436,6 +436,13 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    (doc.townWallGeneration === undefined ||
+      (doc.townWallGeneration !== null &&
+        typeof doc.townWallGeneration === "object" &&
+        ["outer-first", "inner-first"].includes(doc.townWallGeneration.requestedOrder) &&
+        ["outer-first", "inner-first", "single"].includes(doc.townWallGeneration.actualOrder) &&
+        (doc.townWallGeneration.fallbackReason === undefined ||
+          typeof doc.townWallGeneration.fallbackReason === "string"))) &&
     (doc.urbanMorphology === undefined || validUrbanMorphology(doc.urbanMorphology)) &&
     (doc.urbanGrowth === undefined || (doc.urbanMorphology !== undefined && validUrbanGrowth(doc.urbanGrowth))) &&
     (doc.fixedCrossingApproaches === undefined ||

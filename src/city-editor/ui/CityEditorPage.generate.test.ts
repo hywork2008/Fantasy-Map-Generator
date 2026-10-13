@@ -679,6 +679,54 @@ describe("shareable link and FMG site", () => {
     expect(root.querySelector<HTMLSelectElement>(".ce-document-historical-period")?.value).toBe("steamEra");
   });
 
+  it("shares and restores the inner-first wall setting", async () => {
+    const writes: string[] = [];
+    Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
+    const order = root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-build-order")!;
+    const rings = root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!;
+    rings.value = "single";
+    rings.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(order.disabled).toBe(true);
+    rings.value = "double";
+    rings.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(order.disabled).toBe(false);
+    order.value = "inner-first";
+    order.dispatchEvent(new Event("change", { bubbles: true }));
+    panelButton("Copy shareable link").click();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    expect(decodeShare(writes[0].slice(writes[0].indexOf("#") + 1))?.settings.townWallBuildOrder).toBe("inner-first");
+    window.history.replaceState(null, "", writes[0]);
+    remount();
+    expect(root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-build-order")?.value).toBe("inner-first");
+  });
+
+  it("keeps the failed inner-wall-stage notice instead of replacing it with generated-up-to", () => {
+    const config = structuredClone(DEFAULT_SITE_CONFIG);
+    config.rivers = [];
+    config.features.citadel = false;
+    const share = buildShare({
+      seed: "first-micro",
+      gridSeed: "first-micro",
+      grid: "hex",
+      size: "micro",
+      settings: { config, townWallRings: "double", townWallBuildOrder: "inner-first" }
+    });
+    window.history.replaceState(null, "", `#${encodeShare(share)}`);
+    remount();
+    selectStage(4);
+    expect(root.querySelector(".ce-status")?.textContent).toContain(
+      i18n.t("cityEditor.messages.oldTownWallStageFailed")
+    );
+    expect(root.querySelectorAll(".ce-feature--road, .ce-feature--wall")).toHaveLength(0);
+    expect(root.querySelector(".ce-generate-stage-hint")?.textContent).toContain(
+      i18n.t("cityEditor.generationStages.firstInnerWall.hint")
+    );
+    selectStage(4);
+    expect(root.querySelector(".ce-status")?.textContent).toContain(
+      i18n.t("cityEditor.messages.oldTownWallStageFailed")
+    );
+  });
+
   it.each(["single", "double", "razed"])(
     "copies a %s town without redrawing and reproduces its geometry",
     async wallMode => {

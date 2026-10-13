@@ -31,6 +31,8 @@ export interface GenerationFailure {
 }
 
 export interface GenerationSample {
+  /** Nonfatal old-wall rejection details (the city may fall back to one wall). */
+  wallDefenseIssues?: string[];
   /** FMG frame roads that remain unattached after safe repair. */
   roadConnectionIssues?: { sourceIndex: number; routeId: number; branchIndex: number }[];
   routing?: RoadRoutingTrace[];

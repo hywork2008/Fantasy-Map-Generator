@@ -403,6 +403,12 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  /** Optional saved record of the wall-order experiment, including explicit single-wall fallback. */
+  townWallGeneration?: {
+    requestedOrder: "outer-first" | "inner-first";
+    actualOrder: "outer-first" | "inner-first" | "single";
+    fallbackReason?: string;
+  };
   urbanMorphology?: import("../../types/urbanMorphology").UrbanMorphologyProfile;
   urbanGrowth?: import("./gen/urbanGrowth").UrbanGrowthPlan;
   housingCapacity?: import("./gen/residentialCapacity").HousingCapacityReport;

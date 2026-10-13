@@ -61,7 +61,8 @@
     "lab:report": "node scripts/labReport.mjs",
     "lab:csv": "node scripts/labCsv.mjs",
     "map:server": "node scripts/mapServer.mjs",
-    "ce:wall-lab": "node --import tsx scripts/wallRingLab.ts"
+    "ce:wall-lab": "node --import tsx scripts/wallRingLab.ts",
+    "ce:wall-order": "node scripts/compareTownWallOrders.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

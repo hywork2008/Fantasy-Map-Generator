@@ -366,6 +366,14 @@
       "coastalWalls": "Coastal walls",
       "urbanAreaInsideWalls": "Urban area inside walls (%)",
       "townWallRings": "Town walls",
+      "townWallBuildOrder": "Wall construction order",
+      "townWallBuildOrderOuter": "Outer first (original)",
+      "townWallBuildOrderInner": "Inner first (experimental)",
+      "oldTownWallOpenDefense": "No continuous defence could be formed along the river.",
+      "oldTownWallStageFailed": "The old-town wall could not be built. This stage stops before outer walls and streets.",
+      "oldTownWallInsufficientGap": "There was insufficient space between the walls.",
+      "oldTownWallCastleCrowds": "The castle left insufficient room in the old town.",
+      "oldTownWallNoGate": "No usable old-town gate could be placed.",
       "townWallRingsSingle": "Single",
       "townWallRingsDouble": "Double (old town + new wall)",
       "townWallRingsRazed": "Double (old wall razed to a ring road)",
@@ -702,6 +710,8 @@
       "cannotReadGenerationWorkerResult": "Cannot read generation worker result"
     },
     "generationStages": {
+      "firstInnerGates": {"label": "Old-town gate passages", "hint": "Prepare the inner gates before building the outer wall."},
+      "firstInnerWall": {"hint": "Build the old-town wall before the outer wall and streets. If no safe inner wall can be built, stop here and show the reason."},
       "coast": {
         "label": "Coastline and sea",
         "hint": "Tag sea cells along a coastline walk"

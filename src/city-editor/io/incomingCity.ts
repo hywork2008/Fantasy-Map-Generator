@@ -436,6 +436,8 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (raw.townWallRings === "single" || raw.townWallRings === "double") settings.townWallRings = raw.townWallRings;
   if (raw.innerWallState === "standing" || raw.innerWallState === "razed") settings.innerWallState = raw.innerWallState;
+  if (raw.townWallBuildOrder === "outer-first" || raw.townWallBuildOrder === "inner-first")
+    settings.townWallBuildOrder = raw.townWallBuildOrder;
   if (isFiniteNumber(raw.urbanNPatches)) settings.urbanNPatches = raw.urbanNPatches;
   if (raw.urbanCoreMode === "legacy" || raw.urbanCoreMode === "compact") settings.urbanCoreMode = raw.urbanCoreMode;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];

@@ -2,8 +2,10 @@ import { registerTownCircuit } from "../castles";
 import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces, townGates } from "../fortifications";
 import { facePoints, faceVertices, insertEdgeVertex, splitFace } from "../mesh";
 import { alternatingPairs, kindEdgeIds, minGateSpacingMeters, orderedIncidentEdges, townCenter } from "../passages";
+import { enclosedTownFaces, repairRiverWalls } from "../riverWallRouting";
+import { auditTownDefenseClosure } from "../townDefenseClosure";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "../types";
-import { polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
+import { pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 
 /**
  * P1 of docs/plan/ce-multi-ring-walls.md: an old-town wall inside the generated
@@ -34,13 +36,29 @@ export interface InnerWallOptions {
    * wall edges are banned and only a gate passage gives a four-way vertex).
    */
   arteries?: Point[][];
+  /** Explicit style when no outer curtain exists yet (inner-first generation). */
+  wallStyle?: { widthMeters: number; color: string };
+  wallMaterial?: import("../types").WallMaterial;
+  /** Experimental lab override; inner-first defaults to requiring closure. */
+  requireClosure?: boolean;
+  /** Keep the trial curtain continuous so river repair can reroute it instead of inheriting gaps. */
+  retainRiverCurtain?: boolean;
 }
 
 /** Order is the diagnostic code (`failureCode` = index + 1) recorded by the generator. */
-export const INNER_WALL_FAILURES = ["no-outer-wall", "too-small", "gap", "no-gate", "castle-crowds"] as const;
+export const INNER_WALL_FAILURES = [
+  "no-outer-wall",
+  "too-small",
+  "gap",
+  "no-gate",
+  "castle-crowds",
+  "open-defense"
+] as const;
 export type InnerWallFailure = (typeof INNER_WALL_FAILURES)[number];
 
 export interface InnerWallReport {
+  /** Last rejected candidate's closure errors; transient, not document metadata. */
+  defenseIssues?: string[];
   ok: boolean;
   failure?: InnerWallFailure;
   faces: number;
@@ -208,7 +226,7 @@ export function addInnerTownWall(
     );
     if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok)
       return fail("castle-crowds", { faces: inner.size });
-    return finish(
+    const finished = finish(
       cut.document,
       inner,
       outer.id,
@@ -220,8 +238,249 @@ export function addInnerTownWall(
       gap,
       cut.cuts
     );
+    if (
+      options.requireClosure &&
+      finished.report.ok &&
+      !options.razed &&
+      !auditTownDefenseClosure(finished.document, "gc:defense-town-0").ok
+    )
+      continue;
+    return finished;
   }
   return fail("gap");
+}
+
+/** Build the old town on available land before either the outer curtain or bridges exist.
+ * The supplied town footprint determines an area budget, never an enclosing wall. */
+export function addFirstTownWall(
+  source: CityDocument,
+  footprint: Iterable<Id>,
+  center: Point,
+  options: InnerWallOptions
+): { document: CityDocument; report: InnerWallReport; outerFaces: Set<Id> } {
+  const budgetFaces = new Set(footprint);
+  const castle = reservedCastleFaces(source);
+  const budget = townFaces(source.mesh, budgetFaces, castle, center);
+  const available = () =>
+    Object.values(source.mesh.faces)
+      .filter(f => f.properties.water === "land")
+      .map(f => f.id);
+  const failure = (reason: InnerWallFailure, defenseIssues?: string[]) => ({
+    document: source,
+    outerFaces: budgetFaces,
+    report: {
+      ok: false,
+      failure: reason,
+      ...(defenseIssues?.length ? { defenseIssues } : {}),
+      faces: 0,
+      areaShare: 0,
+      gapCells: 0,
+      gates: 0,
+      riverOpenings: 0,
+      streetOpenings: 0,
+      cuts: 0,
+      castleTouches: false,
+      closedCrossings: 0
+    }
+  });
+  if (budget.ordered.length < MIN_INNER_FACES * 3) return failure("too-small");
+  const base = townFaces(source.mesh, available(), castle, center);
+  let reason: InnerWallFailure = "open-defense";
+  let defenseIssues: string[] | undefined;
+  let target = budget.landArea * options.share;
+  for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
+    // Each candidate starts from the same document: failed river cuts never leak.
+    const cut = cutStreetCrossings(structuredClone(source), center, Math.sqrt(target / Math.PI), base.info, false);
+    const candidate = cut.document;
+    const reserved = reservedCastleFaces(candidate);
+    const land = Object.values(candidate.mesh.faces)
+      .filter(f => f.properties.water === "land")
+      .map(f => f.id);
+    const town = townFaces(candidate.mesh, land, reserved, center);
+    const inner = selectRound(town.info, town.ordered, target, town.seed);
+    const radius = Math.sqrt(target / Math.PI);
+    const keep = options.castleInOldTown
+      ? hugCastle(candidate.mesh, town.info, inner, reserved, radius, town.seed)
+      : new Set<Id>();
+    const rivers = kindEdgeIds(candidate, "river");
+    const riverCorners = new Set(candidate.featureGroups.flatMap(g => (g.kind === "river" ? g.vertices : [])));
+    for (const v of cut.riverCuts) riverCorners.delete(v);
+    keepStreetsOffCurtain(candidate, inner, town.info, rivers, town.seed, radius, keep, riverCorners);
+    if (options.castleInOldTown) hugCastle(candidate.mesh, town.info, inner, reserved, radius, town.seed);
+    if (inner.size < MIN_INNER_FACES) {
+      reason = "too-small";
+      continue;
+    }
+    const beside = [...reserved].filter(id =>
+      candidate.mesh.faces[id]?.boundary.some(ref => {
+        const e = candidate.mesh.edges[ref.edgeId];
+        return [e.leftFace, e.rightFace].some(f => f && inner.has(f));
+      })
+    );
+    if (beside.length && !innerTownCapacity(candidate.mesh, inner, beside).ok) {
+      reason = "castle-crowds";
+      continue;
+    }
+    let result = finish(
+      candidate,
+      inner,
+      undefined,
+      options,
+      kindEdgeIds(candidate, "road"),
+      rivers,
+      budget.landArea,
+      town.info,
+      0,
+      cut.cuts
+    );
+    if (!result.report.ok) {
+      reason = result.report.failure ?? "no-gate";
+      continue;
+    }
+    if (options.requireClosure !== false && !options.razed) {
+      const closure = auditTownDefenseClosure(result.document, "gc:defense-town-0");
+      if (!closure.ok) {
+        // The old builder drops grazing edges. Shrinking the same circle can
+        // repeat that gap at every radius; repair a continuous trial first.
+        // Castle-owned boundaries need their own combined-circuit routing and
+        // keep the existing capacity/selection fallback for now.
+        const repaired = !reserved.size
+          ? repairFirstTownCurtain(candidate, inner, center, options, budget.landArea, town.info, cut.cuts)
+          : null;
+        if (repaired && auditTownDefenseClosure(repaired.document, "gc:defense-town-0").ok) {
+          result = repaired;
+          inner.clear();
+          for (const id of result.document.defenseCircuits!.find(c => c.id === "gc:defense-town-0")!.areaFaceIds)
+            inner.add(id);
+          // River repair can split faces after the circle cut. Carry their
+          // original-cell membership into the two-layer outer expansion.
+          for (const face of Object.values(result.document.mesh.faces)) {
+            if (cut.parentFaceIds.has(face.id)) continue;
+            const at = polygonCentroid(facePoints(result.document.mesh, face));
+            const parent = Object.values(source.mesh.faces).find(f => pointInPolygon(at, facePoints(source.mesh, f)));
+            if (parent) cut.parentFaceIds.set(face.id, parent.id);
+          }
+          if ([...inner].some(id => !cut.parentFaceIds.has(id))) {
+            reason = "gap";
+            continue;
+          }
+        } else {
+          reason = "open-defense";
+          defenseIssues = closure.issues;
+          continue;
+        }
+      }
+    }
+    // Grow outward from the fixed inner footprint. Two original face layers are
+    // reserved before combining it with the planned total-town area.
+    const outer = new Set(
+      Object.values(result.document.mesh.faces)
+        .filter(f => f.properties.settlement === "core")
+        .map(f => f.id)
+    );
+    for (const id of budgetFaces) if (result.document.mesh.faces[id]) outer.add(id);
+    const originalInner = new Set([...inner].map(id => cut.parentFaceIds.get(id) ?? id));
+    const grown = new Set(originalInner);
+    let front = [...originalInner];
+    for (let layer = 0; layer < options.minGapCells; layer++) {
+      const next: Id[] = [];
+      for (const id of front)
+        for (const ref of source.mesh.faces[id].boundary) {
+          const e = source.mesh.edges[ref.edgeId];
+          const other = e.leftFace === id ? e.rightFace : e.leftFace;
+          if (!other || source.mesh.faces[other].properties.water !== "land") continue;
+          if (!grown.has(other)) {
+            grown.add(other);
+            next.push(other);
+          }
+        }
+      front = next;
+    }
+    for (const [id, parent] of cut.parentFaceIds) if (grown.has(parent)) outer.add(id);
+    const originalOuter = new Set([...outer].map(id => cut.parentFaceIds.get(id) ?? id));
+    const gap = gapOf(source.mesh, originalOuter, originalInner, castle);
+    if (gap < options.minGapCells) {
+      reason = "gap";
+      continue;
+    }
+    const rings = boundaryRings(result.document.mesh, boundaryEdges(result.document.mesh, outer));
+    if (rings.length !== 1) {
+      reason = "gap";
+      continue;
+    }
+    for (const id of outer) {
+      const face = result.document.mesh.faces[id];
+      if (reserved.has(id)) continue;
+      face.properties.settlement = "core";
+      // Ring 1 does not exist until the outer curtain is registered. Publishing
+      // it now makes every subsequent mesh split fail document validation.
+      if (inner.has(id)) face.properties.wallRing = 0;
+      else delete face.properties.wallRing;
+      if (!face.properties.locked && !["cemetery", "park"].includes(face.properties.ward ?? ""))
+        face.properties.buildable = true;
+    }
+    return { document: result.document, report: { ...result.report, gapCells: gap }, outerFaces: outer };
+  }
+  return failure(reason, reason === "open-defense" ? defenseIssues : undefined);
+}
+
+/** A private, continuous trial on which the existing river-wall router can
+ * make bank detours and actual water gates before streets constrain the mesh. */
+function repairFirstTownCurtain(
+  source: CityDocument,
+  inner: Set<Id>,
+  center: Point,
+  options: InnerWallOptions,
+  landArea: number,
+  info: Map<Id, FaceInfo>,
+  cuts: number
+) {
+  if (source.defenseCircuits?.some(c => c.id === "gc:defense-town-0" && c.locked)) return null;
+  const trial = finish(
+    source,
+    inner,
+    undefined,
+    { ...options, retainRiverCurtain: true },
+    kindEdgeIds(source, "road"),
+    kindEdgeIds(source, "river"),
+    landArea,
+    info,
+    0,
+    cuts
+  );
+  trial.document.gates = trial.document.gates.filter(g => g.circuitId !== "gc:defense-town-0" || g.locked);
+  const repair = repairRiverWalls(
+    trial.document,
+    [...inner].map(id => facePoints(source.mesh, source.mesh.faces[id]))
+  );
+  if (repair.issues.length) return null;
+  const groups = new Set(
+    repair.document.featureGroups
+      .filter(g => g.kind === "wall" && !g.locked && g.id.startsWith(`${options.prefix}inner-wall-`))
+      .map(g => g.id)
+  );
+  const enclosed = enclosedTownFaces({
+    ...repair.document,
+    featureGroups: repair.document.featureGroups.filter(g => g.kind !== "wall" || groups.has(g.id))
+  });
+  if (!enclosed?.size) return null;
+  const doc = repair.document;
+  doc.featureGroups = doc.featureGroups.filter(g => !groups.has(g.id));
+  doc.defenseCircuits = doc.defenseCircuits!.filter(c => c.id !== "gc:defense-town-0");
+  const town = townFaces(doc.mesh, Object.keys(doc.mesh.faces), reservedCastleFaces(doc), center);
+  const faces = new Set([...enclosed].filter(id => town.info.has(id)));
+  return finish(
+    doc,
+    faces,
+    undefined,
+    options,
+    kindEdgeIds(doc, "road"),
+    kindEdgeIds(doc, "river"),
+    landArea,
+    town.info,
+    0,
+    cuts + repair.splitFaces
+  );
 }
 
 /**
@@ -365,7 +624,7 @@ function cutStreetCrossings(
   eligible: Map<Id, FaceInfo>,
   /** False before the town streets exist (the wall is built on planned lines). */
   includeStreets = true
-): { document: CityDocument; cuts: number; riverCuts: Set<Id> } {
+): { document: CityDocument; cuts: number; riverCuts: Set<Id>; parentFaceIds: Map<Id, Id> } {
   const mesh = document.mesh;
   const dist = (p: Point) => Math.hypot(p[0] - center[0], p[1] - center[1]);
   const crossings: Array<{ edgeId: Id; t: number; faces: Id[]; river: boolean }> = [];
@@ -404,6 +663,7 @@ function cutStreetCrossings(
   let next = document;
   let cuts = 0;
   const riverCuts = new Set<Id>();
+  const parentFaceIds = new Map(Object.keys(mesh.faces).map(id => [id, id]));
   for (const crossing of crossings) {
     const edge = next.mesh.edges[crossing.edgeId];
     if (!edge) continue;
@@ -439,13 +699,15 @@ function cutStreetCrossings(
         if (Math.hypot(far[0] - at[0], far[1] - at[1]) < 4) continue;
         const split = splitFace(next, faceId, vertexId, corner);
         if (!split) continue;
+        for (const id of Object.keys(split.mesh.faces))
+          if (!parentFaceIds.has(id)) parentFaceIds.set(id, parentFaceIds.get(faceId)!);
         next = split;
         cuts++;
         break;
       }
     }
   }
-  return { document: next, cuts, riverCuts };
+  return { document: next, cuts, riverCuts, parentFaceIds };
 }
 
 /** Distance-ordered prefix by area, pulled round: add in-circle faces, drop protrusions, fill holes. */
@@ -562,7 +824,7 @@ function keepStreetsOffCurtain(
 function finish(
   document: CityDocument,
   inner: Set<Id>,
-  outerId: Id,
+  outerId: Id | undefined,
   options: InnerWallOptions,
   roads: Set<Id>,
   rivers: Set<Id>,
@@ -598,7 +860,7 @@ function finish(
 function build(
   source: CityDocument,
   inner: Set<Id>,
-  outerId: Id,
+  outerId: Id | undefined,
   options: InnerWallOptions,
   roads: Set<Id>,
   rivers: Set<Id>
@@ -616,8 +878,9 @@ function build(
   const outerWall = next.featureGroups.find(
     g => g.kind === "wall" && next.defenseCircuits?.find(c => c.id === outerId)?.wallGroupIds.includes(g.id)
   );
-  const style = outerWall?.kind === "wall" ? outerWall.style : { widthMeters: 4, color: "#41382e" };
-  const material = outerWall?.kind === "wall" ? outerWall.wallMaterial : undefined;
+  const style =
+    options.wallStyle ?? (outerWall?.kind === "wall" ? outerWall.style : { widthMeters: 4, color: "#41382e" });
+  const material = options.wallMaterial ?? (outerWall?.kind === "wall" ? outerWall.wallMaterial : undefined);
 
   // One closed ring, or open runs where a river passes under the line.
   const ring = boundaryRings(mesh, boundaryEdges(mesh, inner)).sort((a, b) => b.length - a.length)[0] ?? [];
@@ -646,8 +909,9 @@ function build(
     const edge = mesh.edges[ref.edgeId];
     return [edge.leftFace, edge.rightFace].some(id => id && castle.has(id));
   };
-  const open = (ref: EdgeRef) => touchesRiver(ref) || roads.has(ref.edgeId) || castleSide(ref);
-  const riverOpenings = ring.filter(touchesRiver).length;
+  const open = (ref: EdgeRef) =>
+    (!options.retainRiverCurtain && touchesRiver(ref)) || roads.has(ref.edgeId) || castleSide(ref);
+  const riverOpenings = options.retainRiverCurtain ? 0 : ring.filter(touchesRiver).length;
   const streetOpenings = ring.filter(ref => roads.has(ref.edgeId)).length;
   const runs: EdgeRef[][] = [];
   const castleEdges = ring.filter(castleSide).length;
@@ -755,7 +1019,7 @@ function build(
     next.gates.push({ id: `${options.prefix}inner-gate-${k}`, vertexId, locked: false, role: "town", circuitId });
   });
   const outerCircuit = next.defenseCircuits!.find(c => c.id === outerId)!;
-  const outerFaces = new Set(outerCircuit.areaFaceIds);
+  const outerFaces = new Set(outerCircuit?.areaFaceIds ?? []);
   for (const face of Object.values(mesh.faces)) {
     if (inner.has(face.id)) face.properties.wallRing = 0;
     else if (outerFaces.has(face.id)) face.properties.wallRing = 1;

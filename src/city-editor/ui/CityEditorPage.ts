@@ -106,6 +106,7 @@ import {
   generateStageOnDocument,
   generateUrbanPatchStep,
   generateWardStep,
+  generationStages,
   randomGeography,
   randomSeed,
   riversForCount,
@@ -1233,7 +1234,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   syncStageUi = (step: number) => {
     currentStageStep = step;
-    const stage = GENERATION_STAGES.find(s => s.step === step);
+    const stage = generationStages(generateSettings).find(s => s.step === step);
     if (!stage) return;
     stageBadge.textContent = stage.label;
     stageBadge.dataset.i18nKey = stage.labelKey;
@@ -1253,7 +1254,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   };
 
   const setStageStep = (step: number) => {
-    const stage = GENERATION_STAGES.find(s => s.step === step);
+    const stage = generationStages(generateSettings).find(s => s.step === step);
     if (!stage) return;
     syncStageUi(step);
     runGenerationStage(stage);
@@ -1328,13 +1329,51 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   townWallRingsSelect.options[0].textContent = editorText("cityEditor.messages.townWallRingsSingle");
   townWallRingsSelect.options[1].textContent = editorText("cityEditor.messages.townWallRingsDouble");
   townWallRingsSelect.options[2].textContent = editorText("cityEditor.messages.townWallRingsRazed");
+  const townWallBuildOrderSelect = select(
+    ["outer-first", "inner-first"],
+    generateSettings.townWallBuildOrder ?? "outer-first"
+  );
+  townWallBuildOrderSelect.className = "ce-generate-town-wall-build-order";
+  townWallBuildOrderSelect.options[0].textContent = editorText("cityEditor.messages.townWallBuildOrderOuter");
+  townWallBuildOrderSelect.options[1].textContent = editorText("cityEditor.messages.townWallBuildOrderInner");
+  townWallBuildOrderSelect.disabled = townWallRingsValue() === "single";
+  townWallBuildOrderSelect.addEventListener("change", () => {
+    generateSettings.townWallBuildOrder = townWallBuildOrderSelect.value === "inner-first" ? "inner-first" : undefined;
+    delete generateSettings.townWallDefensePolicy;
+    completeResult = null;
+    completeResultSettings = null;
+    syncStageUi(currentStageStep);
+  });
   townWallRingsSelect.addEventListener("change", () => {
     const value = townWallRingsSelect.value;
     generateSettings.townWallRings = value === "single" ? (inferredHistoryWalls() ? "single" : undefined) : "double";
     generateSettings.innerWallState = value === "razed" ? "razed" : undefined;
+    townWallBuildOrderSelect.disabled = value === "single";
     completeResult = null;
     completeResultSettings = null;
+    syncStageUi(currentStageStep);
   });
+  const wallFallbackNotice = (doc: CityDocument, checkpoint = false) => {
+    const reason = doc.townWallGeneration?.fallbackReason;
+    const detail =
+      reason === "open-defense"
+        ? editorText("cityEditor.messages.oldTownWallOpenDefense")
+        : reason === "gap" || reason === "too-small"
+          ? editorText("cityEditor.messages.oldTownWallInsufficientGap")
+          : reason === "castle-crowds"
+            ? editorText("cityEditor.messages.oldTownWallCastleCrowds")
+            : reason === "no-gate"
+              ? editorText("cityEditor.messages.oldTownWallNoGate")
+              : "";
+    return [
+      editorText(
+        checkpoint ? "cityEditor.messages.oldTownWallStageFailed" : "cityEditor.messages.oldTownWallDidNotFitSingleWall"
+      ),
+      detail
+    ]
+      .filter(Boolean)
+      .join(" ");
+  };
   const housingSummary = document.createElement("output");
   housingSummary.className = "ce-generate-housing-summary";
   housingSummary.title = editorText("cityEditor.messages.buildingCountsByDistrictInTheCoreAndOuterBelt");
@@ -1585,6 +1624,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     castleControls,
     moatControls,
     label(editorText("cityEditor.messages.townWallRings"), townWallRingsSelect),
+    label(editorText("cityEditor.messages.townWallBuildOrder"), townWallBuildOrderSelect),
     label(editorText("cityEditor.messages.urbanAreaInsideWalls"), walledShareInput),
     text(editorText("cityEditor.messages.blankUsesTinySmall100Medium45Large20Approximate")),
     housingSummary,
@@ -5084,6 +5124,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
           walledAreaShare: undefined,
           townWallRings: undefined,
           innerWallState: undefined,
+          townWallBuildOrder: undefined,
           urbanCoreMode: undefined,
           descriptor: undefined,
           castle: undefined,
@@ -5159,6 +5200,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     walledShareInput.value =
       generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
     townWallRingsSelect.value = townWallRingsValue();
+    townWallBuildOrderSelect.value = generateSettings.townWallBuildOrder ?? "outer-first";
+    townWallBuildOrderSelect.disabled = townWallRingsValue() === "single";
     if (!generateSettings.streets) {
       generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
     }
@@ -5248,7 +5291,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     Object.assign(
       generateSettings,
       defaultGenerationSettings(),
-      { buildingPattern: "legacy", townWallRings: undefined, innerWallState: undefined },
+      { buildingPattern: "legacy", townWallRings: undefined, innerWallState: undefined, townWallBuildOrder: undefined },
       structuredClone(share.settings)
     );
     generateSettings.descriptor = share.descriptor;
@@ -5316,7 +5359,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       return;
     }
     if (lastGeneratedStep === null) return;
-    const stage = GENERATION_STAGES.find(s => s.step === lastGeneratedStep);
+    const stage = generationStages(generateSettings).find(s => s.step === lastGeneratedStep);
     if (stage) runGenerationStage(stage);
   }
 
@@ -5517,7 +5560,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     // town (docs/plan/ce-multi-ring-walls.md §5); say why instead of staying silent.
     const doubleFallback =
       generateSettings.townWallRings === "double" && townCircuits(documentState).length < 2
-        ? editorText("cityEditor.messages.oldTownWallDidNotFitSingleWall")
+        ? wallFallbackNotice(documentState)
         : "";
     showNotice(
       [roadWarning || editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"), doubleFallback]
@@ -5593,8 +5636,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     pendingFailurePreview = null;
     // Double walls fall back to one curtain when the town has no room for an
     // old town (docs/plan/ce-multi-ring-walls.md §5); say so rather than silently.
-    if (generateSettings.townWallRings === "double" && next.appearance === "town" && townCircuits(next).length < 2)
-      showNotice(editorText("cityEditor.messages.oldTownWallDidNotFitSingleWall"), false);
+    const innerCheckpoint = stage.wallCheckpoint === "innerWall" || stage.wallCheckpoint === "firstInnerGates";
+    const wallFallback =
+      innerCheckpoint && next.townWallGeneration?.fallbackReason
+        ? wallFallbackNotice(next, true)
+        : generateSettings.townWallRings === "double" && next.appearance === "town" && townCircuits(next).length < 2
+          ? wallFallbackNotice(next)
+          : "";
     if (["buildings", "conceal"].includes(stage.id) && !completeResult) {
       completeResult = next;
       completeResultSettings = JSON.stringify(generateSettings);
@@ -5617,7 +5665,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
       rememberGenerationState(next.generationSeed ?? effectiveSeed);
-      showNotice(editorText("cityEditor.messages.alreadyAt", { value0: stage.label }));
+      showNotice(wallFallback || editorText("cityEditor.messages.alreadyAt", { value0: stage.label }));
       redrawMap();
       return;
     }
@@ -5631,7 +5679,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     selection = emptySelection();
     activeGroupId = null;
     rebuildEditorIndexes();
-    showNotice(editorText("cityEditor.messages.generatedUpTo", { value0: stage.label }));
+    showNotice(wallFallback || editorText("cityEditor.messages.generatedUpTo", { value0: stage.label }));
   }
 
   /** ◀/▶: scrub whichever process ①…⑨ was last activated one loop iteration at
@@ -5643,7 +5691,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       return;
     }
     const stage = activeStepStage;
-    const label = GENERATION_STAGES.find(s => s.id === stage)?.label ?? "";
+    const label = generationStages(generateSettings).find(s => s.id === stage)?.label ?? "";
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
     const source = clone(completeSource ?? documentState);
     let result: UiStepResult;
@@ -5659,7 +5707,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       return;
     }
     stepIndex = result.index;
-    lastGeneratedStep = GENERATION_STAGES.find(s => s.id === stage)?.step ?? lastGeneratedStep;
+    lastGeneratedStep = generationStages(generateSettings).find(s => s.id === stage)?.step ?? lastGeneratedStep;
     urbanCoreHighlight = result.highlightFaces ?? null;
     stepOverlayPaths = result.overlayPaths ?? null;
     stepStatus.textContent = `${label}: ${result.detail ?? ""}`;

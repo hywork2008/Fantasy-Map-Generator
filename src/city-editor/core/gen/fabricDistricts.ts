@@ -274,6 +274,10 @@ export function validFabricPlan(plan: FabricPlan): boolean {
         g.settings.walledAreaShare >= 0.05 &&
         g.settings.walledAreaShare <= 1)) &&
     (g.settings?.townWallRings === undefined || ["single", "double"].includes(g.settings.townWallRings)) &&
+    (g.settings?.townWallBuildOrder === undefined ||
+      ["outer-first", "inner-first"].includes(g.settings.townWallBuildOrder)) &&
+    (g.settings?.townWallDefensePolicy === undefined ||
+      ["legacy", "closed"].includes(g.settings.townWallDefensePolicy)) &&
     (g.settings?.innerWallState === undefined || ["standing", "razed"].includes(g.settings.innerWallState)) &&
     (g.settings?.buildingPattern === undefined || ["legacy", "medieval"].includes(g.settings.buildingPattern)) &&
     typeof g.seed === "string" &&

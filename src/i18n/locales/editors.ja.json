@@ -366,6 +366,14 @@
       "coastalWalls": "海側の城壁",
       "urbanAreaInsideWalls": "城壁内の市街地面積（%）",
       "townWallRings": "市壁",
+      "townWallBuildOrder": "市壁の生成順",
+      "townWallBuildOrderOuter": "外側から（従来）",
+      "townWallBuildOrderInner": "内側から（実験）",
+      "oldTownWallOpenDefense": "河川沿いに途切れない防御線を確保できませんでした。",
+      "oldTownWallStageFailed": "内壁を作製できませんでした。この段階では外壁と街路の生成に進みません。",
+      "oldTownWallInsufficientGap": "内外の壁の間に必要な空間を確保できませんでした。",
+      "oldTownWallCastleCrowds": "城を置くと旧市街の空き地が不足しました。",
+      "oldTownWallNoGate": "通行できる内門を配置できませんでした。",
       "townWallRingsSingle": "単一",
       "townWallRingsDouble": "二重（旧市街＋新市壁）",
       "townWallRingsRazed": "二重（旧市壁を撤去し環状道路）",
@@ -702,6 +710,8 @@
       "cannotReadGenerationWorkerResult": "生成ワーカーの結果を読み込めません"
     },
     "generationStages": {
+      "firstInnerGates": {"label": "内側の門の通路", "hint": "外壁を作る前に内門の通路を開きます。"},
+      "firstInnerWall": {"hint": "外壁と街路より先に内壁を作製します。安全な内壁を作れない場合は、この段階で止めて理由を表示します。"},
       "coast": {
         "label": "海岸線と海",
         "hint": "Tag sea cells along a coastline walk"

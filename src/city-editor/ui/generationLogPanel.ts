@@ -21,12 +21,16 @@ export function generationLogPanel(content: HTMLElement, hover: (ids: string[], 
   content.append(list, clear);
   reset();
   const append = (sample: GenerationSample, seed: string) => {
-    if (!sample.failure) return;
+    if (!sample.failure && !sample.wallDefenseIssues?.length) return;
     empty.remove();
     clear.disabled = false;
     const section = document.createElement("section");
     section.className = "ce-generation-log-entry";
-    const lines = formatGenerationFailureLog([sample], { seed })
+    const lines = (
+      sample.wallDefenseIssues?.length
+        ? [editorText("cityEditor.messages.oldTownWallOpenDefense"), ...sample.wallDefenseIssues].join("\n")
+        : formatGenerationFailureLog([sample], { seed })
+    )
       .split("\n")
       .filter(line => line.trim());
     for (const line of lines) {

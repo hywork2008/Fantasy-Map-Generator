@@ -4,7 +4,15 @@ import { measureProcessing, type ProcessingProfiler } from "../../utils/processi
 import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
 import { connectAutomaticFixedApproaches } from "./automaticFixedApproaches";
 import { castleRoadEdgeAllowed, finalizeCastles, installCastle, registerTownCircuit } from "./castles";
-import { castleWallIds, reservedCastleFaces, townCircuits, townGates } from "./fortifications";
+import {
+  boundaryEdges,
+  boundaryRings,
+  castleWallIds,
+  refPoints,
+  reservedCastleFaces,
+  townCircuits,
+  townGates
+} from "./fortifications";
 import {
   alignFrameRoadEndpoints,
   exteriorDirection,
@@ -53,6 +61,7 @@ import { riverFlowsFromDescriptor } from "./riverFlow";
 import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
 import { attachSceneRegions } from "./sceneRegions";
 import { clipSurveyedRiverWalls } from "./surveyedRiverWalls";
+import { auditTownDefenseClosure } from "./townDefenseClosure";
 import {
   cellInsideWater,
   cellInsideWaterPolygons,
@@ -114,6 +123,7 @@ import {
 } from "./gen/geom";
 import { spawnHarborShips } from "./gen/harborShips";
 import {
+  addFirstTownWall,
   addInnerTownWall,
   INNER_WALL_FAILURES,
   type InnerWallFailure,
@@ -255,7 +265,15 @@ const NOMINAL_PRESET = "largeTown" as const;
 /** One visible process, in order. `processStep` is the S-index it recomputes up to;
  * the grid step (S0) is intentionally absent — the mesh is the Document panel's. */
 /** A stage that stops part-way through its `processStep` so each sub-process is visible on its own. */
-export type StageCheckpoint = "walls" | "riverPassages" | "passages" | "wards" | "streets" | "innerWall" | "innerGates";
+export type StageCheckpoint =
+  | "walls"
+  | "riverPassages"
+  | "passages"
+  | "wards"
+  | "streets"
+  | "innerWall"
+  | "innerGates"
+  | "firstInnerGates";
 
 export interface GenerationStage {
   id:
@@ -517,6 +535,59 @@ export const GENERATION_STAGES: GenerationStage[] = [
   }
 ];
 
+/** Keep the original slider sequence; the experiment exposes the old curtain
+ * and its passages before the outer-wall checkpoints. */
+export function generationStages(settings: GenerationSettings): GenerationStage[] {
+  const profile = settings.descriptor?.urbanMorphology;
+  const rings =
+    settings.townWallRings ??
+    (profile && supportsUrbanMorphology(profile.period)
+      ? inferredWallSettings(profile, settings.descriptor!.burg.dwellings).townWallRings
+      : undefined);
+  if (rings !== "double" || settings.townWallBuildOrder !== "inner-first") return GENERATION_STAGES;
+  const ids = [
+    "coast",
+    "river",
+    "urban",
+    "innerWall",
+    "innerGates",
+    "walls",
+    "riverPassages",
+    "passages",
+    "gates",
+    "streets",
+    "wards",
+    "centerRoads",
+    "townStreets",
+    "geometry",
+    "blocks",
+    "buildings",
+    "conceal"
+  ];
+  return ids.map((id, index) => {
+    const stage = GENERATION_STAGES.find(s => s.id === id)!;
+    return {
+      ...stage,
+      step: (index + 1) as GenerationStage["step"],
+      ...(id === "innerWall"
+        ? {
+            hintKey: "cityEditor.generationStages.firstInnerWall.hint" as const,
+            hint: editorText("cityEditor.generationStages.firstInnerWall.hint")
+          }
+        : {}),
+      ...(id === "innerGates"
+        ? {
+            wallCheckpoint: "firstInnerGates" as const,
+            labelKey: "cityEditor.generationStages.firstInnerGates.label" as const,
+            hintKey: "cityEditor.generationStages.firstInnerGates.hint" as const,
+            label: editorText("cityEditor.generationStages.firstInnerGates.label"),
+            hint: editorText("cityEditor.generationStages.firstInnerGates.hint")
+          }
+        : {})
+    };
+  });
+}
+
 /** The deliberate inputs the user picks. Neither the seed nor the map size is
  * here — the panel holds the seed, and the frame is the document's. */
 export interface StreetSettings {
@@ -558,6 +629,10 @@ export interface GenerationSettings {
    * the old town and the outer wall encloses the whole built-up area). Circulade and
    * Bram layouts stay single. Default "single". */
   townWallRings?: "single" | "double";
+  /** Double walls: preserve the historical outer-first algorithm, or build the old town first. */
+  townWallBuildOrder?: "outer-first" | "inner-first";
+  /** Lab-only factorial comparison. UI never sets "legacy" on inner-first towns. */
+  townWallDefensePolicy?: "legacy" | "closed";
   /** Double walls only: "razed" turns the old-town wall into a ring road (§4.3). Default "standing". */
   innerWallState?: "standing" | "razed";
   /**
@@ -711,7 +786,10 @@ export function generateStageOnDocument(
   if (stageStep >= 7) {
     const stopAfter =
       stageStep === 7 &&
-      (wallCheckpoint === "streets" || wallCheckpoint === "innerWall" || wallCheckpoint === "innerGates")
+      (wallCheckpoint === "streets" ||
+        wallCheckpoint === "innerWall" ||
+        wallCheckpoint === "innerGates" ||
+        wallCheckpoint === "firstInnerGates")
         ? wallCheckpoint
         : undefined;
     const full =
@@ -815,7 +893,7 @@ export function generateCityOnDocument(
   observer?: GenerationObserver,
   onRejected?: GenerationDebugObserver,
   profiler?: ProcessingProfiler,
-  stopAfter?: "streets" | "innerWall" | "innerGates"
+  stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
   const profile = settings.descriptor?.urbanMorphology;
   if (profile && supportsUrbanMorphology(profile.period)) {
@@ -1023,7 +1101,7 @@ export function generateCityAttempt(
   onRejected?: GenerationDebugObserver,
   profiler?: ProcessingProfiler,
   /** Return right after the old-town wall, before geometry smoothing. */
-  stopAfter?: "streets" | "innerWall" | "innerGates"
+  stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let debugDocument = () => document;
@@ -1227,7 +1305,7 @@ export function generateCityAttempt(
       observer,
       attempt,
       onRejected ? (partial, sample) => onRejected(captureGenerationDebugPreview(partial, sample, seed)) : undefined,
-      stopAfter === "innerWall" ? "innerWall" : undefined
+      stopAfter === "innerWall" ? "innerWall" : stopAfter === "firstInnerGates" ? "firstInnerGates" : undefined
     )
   );
   mark("apply-total");
@@ -1237,7 +1315,7 @@ export function generateCityAttempt(
   const minRoads = requiredExternalRoads(settings, townExtentMeters(document.frame));
   const roadsBeforeFinish = countExternalApproachRoads(next);
   // The old-town wall stage stops before any road is routed.
-  if (stopAfter !== "innerWall" && minRoads > 0 && roadsBeforeFinish < minRoads)
+  if (stopAfter !== "innerWall" && stopAfter !== "firstInnerGates" && minRoads > 0 && roadsBeforeFinish < minRoads)
     return reject(
       "street-plan",
       "too-few-external-roads",
@@ -1495,6 +1573,37 @@ export function generateCityAttempt(
         branchIndex: leg.branchIndex ?? 0
       }))
     });
+  }
+  const closureReports = program.walls
+    ? townCircuits(withApproaches).map(c => auditTownDefenseClosure(withApproaches, c.id, true))
+    : [];
+  mark("wall-defense-closure", {
+    innerFirst: settings.townWallBuildOrder === "inner-first" ? 1 : 0,
+    rings: closureReports.length,
+    unprotectedMeters: closureReports.reduce((n, r) => n + r.undefendedLengthMeters, 0),
+    riverOpeningMeters: closureReports.reduce((n, r) => n + r.riverOpeningLengthMeters, 0),
+    invasionPaths: closureReports.reduce((n, r) => n + r.invasionPaths, 0)
+  });
+  if (
+    settings.townWallRings === "double" &&
+    (settings.townWallDefensePolicy === "closed" ||
+      (settings.townWallBuildOrder === "inner-first" && settings.townWallDefensePolicy !== "legacy"))
+  ) {
+    const open = closureReports.filter(r => !r.ok);
+    if (open.length)
+      return reject(
+        "wall-defense-closure",
+        "open-town-defense",
+        editorText("cityEditor.messages.cannotSecureWallRiverSeparationDetoursAndRiverPassages"),
+        { rings: closureReports.length },
+        open.flatMap(r => r.issues.map(issue => `${r.circuitId}: ${issue}`))
+      );
+    if (settings.townWallBuildOrder === "inner-first")
+      withApproaches.townWallGeneration ??= {
+        requestedOrder: "inner-first",
+        actualOrder: "single",
+        fallbackReason: plan.innerWall?.failure ?? "unsupported-layout"
+      };
   }
   return withApproaches;
 }
@@ -1897,6 +2006,8 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  /** Requested order survives an unsuccessful old-town pre-plan. */
+  townWallBuildOrder?: GenerationSettings["townWallBuildOrder"];
   /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */
   innerWall?: {
     planned: boolean;
@@ -1905,6 +2016,8 @@ interface Plan {
     /** Old-town share of the town and whether the wall is razed (set when planned). */
     share?: number;
     razed?: boolean;
+    buildOrder?: "outer-first" | "inner-first";
+    defensePolicy?: "legacy" | "closed";
   };
   /** Gate-to-centre lines; the old-town wall is built on them before the town streets. */
   innerArteries?: Point[][];
@@ -2046,6 +2159,7 @@ export function runPlan(
   const streetOpts = resolveStreetSettings(settings);
   const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const empty: Plan = {
+    townWallBuildOrder: settings.townWallRings === "double" ? settings.townWallBuildOrder : undefined,
     burialProfile: settings.burialProfile ?? settings.descriptor?.burialProfile ?? sourceDocument?.burialProfile,
     fixedCrossings: settings.descriptor?.fixedCrossings,
     replaceFixedCrossings: !!settings.descriptor,
@@ -2658,7 +2772,7 @@ export function runPlan(
       currentMesh,
       [...currentUrban].map(id => currentFaceIdOf[id]),
       innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
-      INNER_WALL_MIN_GAP_CELLS,
+      settings.townWallBuildOrder === "inner-first" ? 0 : INNER_WALL_MIN_GAP_CELLS,
       // The final old town is centred on the plaza (`townCenter`); plan on the same centre.
       precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0]
     );
@@ -2666,7 +2780,9 @@ export function runPlan(
       ? {
           planned: true,
           share: innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
-          razed: settings.innerWallState === "razed"
+          razed: settings.innerWallState === "razed",
+          buildOrder: settings.townWallBuildOrder,
+          defensePolicy: settings.townWallDefensePolicy
         }
       : { planned: false, failure: "gap" };
     innerPlanFaces = planned?.faces ?? null;
@@ -3244,6 +3360,7 @@ export function runPlan(
   });
   mark("wards");
   return {
+    townWallBuildOrder: empty.townWallBuildOrder,
     innerWall,
     fmgElevations,
     burialProfile: empty.burialProfile,
@@ -3308,6 +3425,7 @@ function planningDebugDocument(
   next.regionalWaterAreas = plan.regionalWater?.length ? plan.regionalWater.map(ring => clone(ring)) : undefined;
   next.regionalSurface = plan.regionalSurface ? clone(plan.regionalSurface) : undefined;
   delete next.appearance;
+  delete next.townWallGeneration;
   delete next.fabric;
   next.featureGroups = next.featureGroups.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
   next.gates = next.gates.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
@@ -3460,11 +3578,12 @@ function applyPlan(
   observer?: GenerationObserver,
   attempt = 1,
   onRejected?: (document: CityDocument, sample: import("./generationDiagnostics").GenerationSample) => void,
-  wallCheckpoint?: "walls" | "riverPassages" | "passages" | "innerWall"
+  wallCheckpoint?: "walls" | "riverPassages" | "passages" | "innerWall" | "firstInnerGates"
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
   next.burialProfile = structuredClone(plan.burialProfile ?? source.burialProfile);
+  delete next.townWallGeneration;
   const gateRouting = new Map<Id, RoadRoutingTrace[]>();
   const reject = (
     phase: string,
@@ -3524,6 +3643,7 @@ function applyPlan(
     face.properties.buildable = true;
     face.properties.ward = null;
     delete face.properties.settlement;
+    delete face.properties.wallRing;
   }
   if (plan.fmgElevations)
     for (const [cellId, faceId] of faceIdOf.entries()) {
@@ -3559,7 +3679,7 @@ function applyPlan(
   };
 
   const faceFor = (cellId: number): (typeof mesh.faces)[string] | undefined => mesh.faces[faceIdOf[cellId]];
-  const nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
+  let nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
   let urbanRegions = [...plan.urban]
     .map(id => faceFor(id))
     .filter(face => !!face)
@@ -3673,6 +3793,111 @@ function applyPlan(
     }
   }
   mark("apply-terrain");
+  const innerFirst = (plan.townWallBuildOrder ?? plan.innerWall?.buildOrder) === "inner-first";
+  let firstWallId: Id | undefined;
+  let castleInstalledFirst = false;
+  if (stageStep >= 4 && innerFirst && plan.innerWall?.planned && program.walls) {
+    // No outer wall/circuit exists here. Reserve the total-town footprint only
+    // as an area budget; split children inherit its core tag.
+    for (const id of plan.urban) {
+      const face = faceFor(id);
+      if (face && !face.properties.locked) face.properties.settlement = "core";
+    }
+    if (plan.castleSite) {
+      const installed = installCastle(next, plan.castleSite, plan.castleSite.faceId, source.generationSeed ?? "");
+      if (!installed)
+        return reject(
+          "castle",
+          "castle-layout-too-small",
+          editorText("cityEditor.messages.castleGeometryIsInvalidAfterFinishing")
+        );
+      next = installed;
+      mesh = next.mesh;
+      castleInstalledFirst = true;
+    }
+    const center = plan.precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0];
+    const first = addFirstTownWall(
+      next,
+      [...plan.urban].map(id => faceIdOf[id]),
+      center,
+      {
+        share: plan.innerWall.share ?? DEFAULT_INNER_WALLED_AREA_SHARE,
+        minGapCells: INNER_WALL_MIN_GAP_CELLS,
+        prefix: GEN_PREFIX,
+        castleInOldTown: plan.innerWall.castleRing === "inner",
+        razed: plan.innerWall.razed,
+        // Select the same candidate as the complete town. The raw-wall
+        // checkpoint hides gates below, after their viability was checked.
+        wallOnly: false,
+        arteries: plan.innerArteries ?? plan.gates.map(gate => [gate.point, center]),
+        wallStyle: {
+          widthMeters: plan.wallMaterial === "wood" ? 2.4 : Math.max(4, source.frame.blockSizeMeters * 0.14),
+          color: plan.wallMaterial === "wood" ? "#634327" : "#41382e"
+        },
+        wallMaterial: plan.wallMaterial ?? "stone",
+        requireClosure: plan.innerWall.defensePolicy !== "legacy"
+      }
+    );
+    mark("inner-wall", {
+      innerFirst: 1,
+      ok: first.report.ok ? 1 : 0,
+      planned: 1,
+      failureCode: first.report.failure ? INNER_WALL_FAILURES.indexOf(first.report.failure) + 1 : 0,
+      faces: first.report.faces,
+      gates: first.report.gates,
+      areaShare: first.report.areaShare,
+      gapCells: first.report.gapCells,
+      riverOpenings: first.report.riverOpenings,
+      cuts: first.report.cuts
+    });
+    if (first.report.defenseIssues?.length)
+      observer?.({
+        phase: "inner-wall-defense",
+        elapsedMs: 0,
+        attempt,
+        wallDefenseIssues: first.report.defenseIssues,
+        counts: { issues: first.report.defenseIssues.length }
+      });
+    if (first.report.ok) {
+      next = first.document;
+      mesh = next.mesh;
+      firstWallId = "gc:defense-town-0";
+      nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
+      const loops = boundaryRings(mesh, boundaryEdges(mesh, first.outerFaces));
+      plan = {
+        ...plan,
+        borderLoops: loops.map(segments => ({ segments, points: refPoints(mesh, segments), cellIds: [] }))
+      };
+      urbanRegions = [...first.outerFaces].map(id => facePoints(mesh, mesh.faces[id]));
+      next.townWallGeneration = { requestedOrder: "inner-first", actualOrder: "inner-first" };
+      if (wallCheckpoint === "innerWall") {
+        next.gates = next.gates.filter(g => g.locked || g.circuitId !== firstWallId);
+        return next;
+      }
+      if (wallCheckpoint === "firstInnerGates") {
+        for (const gate of townGates(next, firstWallId)) {
+          const opened = openBarrierPassage(next, gate.vertexId, "wall");
+          if (opened) next = opened;
+        }
+        return next;
+      }
+    }
+    next.townWallGeneration = {
+      requestedOrder: "inner-first",
+      actualOrder: first.report.ok ? "inner-first" : "single",
+      fallbackReason: first.report.failure
+    };
+  }
+  // A rejected/unplanned inner curtain is still the end of this checkpoint.
+  // Do not fall through to the single outer wall, bridge and street pipeline.
+  if (innerFirst && (wallCheckpoint === "innerWall" || wallCheckpoint === "firstInnerGates")) {
+    next.townWallGeneration ??= {
+      requestedOrder: "inner-first",
+      actualOrder: "single",
+      fallbackReason: plan.innerWall?.failure ?? "unsupported-layout"
+    };
+    return next;
+  }
   // ④ walls + gates + plaza / citadel. When avoidSea is on, drop edges whose
   // midpoint sits in the water so the sea side is left open (§3.E.2), splitting
   // the remainder into contiguous runs (`validate` requires that).
@@ -3771,6 +3996,16 @@ function applyPlan(
         reservedVertices.add(id);
     }
     const lockedBefore = new Map([...reservedVertices].map(id => [id, next.mesh.vertices[id].locked]));
+    // Outer-wall smoothing and gate preparation must preserve the already
+    // accepted inner curtain. Passage splits below still update its circuit.
+    if (firstWallId)
+      for (const ref of boundaryEdges(next.mesh, next.defenseCircuits!.find(c => c.id === firstWallId)!.areaFaceIds)) {
+        const edge = next.mesh.edges[ref.edgeId];
+        for (const id of [edge.a, edge.b]) {
+          if (!lockedBefore.has(id)) lockedBefore.set(id, next.mesh.vertices[id].locked);
+          reservedVertices.add(id);
+        }
+      }
     for (const id of reservedVertices) next.mesh.vertices[id].locked = true;
     next = finishCityGeometry(next, "boundaries");
     for (const [id, locked] of lockedBefore) next.mesh.vertices[id].locked = locked;
@@ -3785,12 +4020,20 @@ function applyPlan(
     // coastal span before placing gates, so later junction repairs cannot
     // consume an already published gate vertex.
     next = openWallRiverMouths(next);
+    const acceptedInnerGroups = new Map(
+      next.featureGroups
+        .filter(g => firstWallId && next.defenseCircuits!.find(c => c.id === firstWallId)!.wallGroupIds.includes(g.id))
+        .map(g => [g.id, g.locked])
+    );
+    for (const group of next.featureGroups) if (acceptedInnerGroups.has(group.id)) group.locked = true;
     const riverRepair = repairRiverWalls(
       next,
       urbanRegions,
       new Set([...reservedCastleFaces(next), ...(plan.castleSite ? [plan.castleSite.faceId] : [])])
     );
     next = riverRepair.document;
+    for (const group of next.featureGroups)
+      if (acceptedInnerGroups.has(group.id)) group.locked = acceptedInnerGroups.get(group.id)!;
     if (riverRepair.issues.length)
       return reject(
         "wall-river-routing",
@@ -3809,7 +4052,12 @@ function applyPlan(
           ...riverRepair.issues
         ]
       );
-    actualTownFaces = enclosedTownFaces(next);
+    const firstWallGroups = new Set(
+      firstWallId ? next.defenseCircuits!.find(c => c.id === firstWallId)!.wallGroupIds : []
+    );
+    actualTownFaces = enclosedTownFaces(
+      firstWallId ? { ...next, featureGroups: next.featureGroups.filter(g => !firstWallGroups.has(g.id)) } : next
+    );
     if (actualTownFaces) {
       urbanRegions = [...actualTownFaces].map(id => facePoints(next.mesh, next.mesh.faces[id]));
       routingPlan = {
@@ -3830,7 +4078,7 @@ function applyPlan(
     mesh = next.mesh;
     const wallVertices = new Set<Id>();
     for (const group of next.featureGroups) {
-      if (group.kind !== "wall") continue;
+      if (group.kind !== "wall" || firstWallGroups.has(group.id)) continue;
       for (const segment of group.segments) {
         const edge = mesh.edges[segment.edgeId];
         if (edge) wallVertices.add(edge.a).add(edge.b);
@@ -3896,7 +4144,8 @@ function applyPlan(
       !(plan.riverPort && plan.importedRoads !== undefined) && seaShare >= 0.3 && shortLandFront
         ? Math.max(1, Math.min(plan.gates.length, Math.round(plan.gates.length * (1 - seaShare))))
         : plan.gates.length;
-    const placedPoints: Point[] = next.gates.flatMap(gate => {
+    const outerGates = () => townGates(next).filter(g => !firstWallId || g.circuitId !== firstWallId);
+    const placedPoints: Point[] = outerGates().flatMap(gate => {
       const point = mesh.vertices[gate.vertexId]?.point;
       return point ? [[point[0], point[1]] as Point] : [];
     });
@@ -4011,12 +4260,12 @@ function applyPlan(
       if (isInteriorRiverLanding(gate.roadIndex)) return;
       const bridgeHead = bridgeHeadFor(gate);
 
-      if (townGates(next).length >= gateBudget) return;
+      if (outerGates().length >= gateBudget) return;
       if (townGates(next).some(g => g.id === `${GEN_PREFIX}gate-${i}` && g.locked)) return;
       const riverVertices = new Set(
         [...kindEdgeIds(next, "river")].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b])
       );
-      const occupied = new Set(townGates(next).map(g => g.vertexId));
+      const occupied = new Set(outerGates().map(g => g.vertexId));
       const castleFaces = new Set([...reservedCastleFaces(next), ...(plan.castleSite ? [plan.castleSite.faceId] : [])]);
       const castleVertices = new Set(
         [...castleFaces].flatMap(id => (mesh.faces[id] ? faceVertices(mesh, mesh.faces[id]) : []))
@@ -4178,9 +4427,15 @@ function applyPlan(
       next,
       urbanRegions,
       program.walls,
-      actualTownFaces ? [...actualTownFaces] : [...plan.urban].map(id => faceIdOf[id])
+      actualTownFaces ? [...actualTownFaces] : [...plan.urban].map(id => faceIdOf[id]),
+      firstWallId ? 1 : undefined
     );
-    if (plan.castleSite) {
+    if (firstWallId) {
+      const innerFaces = new Set(next.defenseCircuits!.find(c => c.id === firstWallId)!.areaFaceIds);
+      const outer = townCircuits(next).at(-1)!;
+      for (const id of outer.areaFaceIds) next.mesh.faces[id].properties.wallRing = innerFaces.has(id) ? 0 : 1;
+    }
+    if (plan.castleSite && !castleInstalledFirst) {
       const castleDetails: string[] = [];
       const installed = installCastle(
         next,
@@ -4275,7 +4530,7 @@ function applyPlan(
     // Its gates stand on the planned gate-to-centre lines; the router (which
     // bans wall edges) can then enter the old town only through them, so no
     // street has to be closed or moved off the curtain afterwards.
-    if (complete && plan.innerWall?.planned && plan.innerArteries) {
+    if (complete && !innerFirst && plan.innerWall?.planned && plan.innerArteries) {
       let castleInOldTown = plan.innerWall.castleRing === "inner";
       let inner = addInnerTownWall(next, {
         share: plan.innerWall.share ?? DEFAULT_INNER_WALLED_AREA_SHARE,
@@ -4284,7 +4539,8 @@ function applyPlan(
         castleInOldTown,
         razed: plan.innerWall.razed,
         wallOnly: wallCheckpoint === "innerWall",
-        arteries: plan.innerArteries
+        arteries: plan.innerArteries,
+        requireClosure: plan.innerWall.defensePolicy === "closed"
       });
       if (!inner.report.ok && next.urbanMorphology && plan.innerWall.castleRing === "inner") {
         // The present citadel can belong to the later expansion. Keep the old wall's
@@ -4297,7 +4553,8 @@ function applyPlan(
           castleInOldTown: false,
           razed: plan.innerWall.razed,
           wallOnly: wallCheckpoint === "innerWall",
-          arteries: plan.innerArteries
+          arteries: plan.innerArteries,
+          requireClosure: plan.innerWall.defensePolicy === "closed"
         });
       }
       const { report } = inner;
@@ -4319,8 +4576,8 @@ function applyPlan(
         next = inner.document;
         mesh = next.mesh;
       }
-      if (wallCheckpoint === "innerWall") return next;
     }
+    if (wallCheckpoint === "innerWall") return next;
     for (const gate of townGates(next)) {
       if (gate.locked) continue;
       const opened = openBarrierPassage(next, gate.vertexId, "wall");
