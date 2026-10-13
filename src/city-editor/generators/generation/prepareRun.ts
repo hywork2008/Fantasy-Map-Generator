@@ -1,0 +1,48 @@
+import { townExtentMeters } from "../../core/gen/settlementExtent";
+import { resolveWallPlan, siteToGeography, siteToProgram } from "../../core/gen/site/siteInput";
+import { synthSite } from "../../core/gen/site/synthSite";
+import type { CityParams, CityProgram } from "../../core/gen/types";
+import { DEFAULT_WALL_PLAN } from "../../core/gen/types";
+import type { CityDocument } from "../../core/types";
+import type { GenerationSettings } from "../../types/generation";
+import { NOMINAL_PRESET } from "./constants";
+import { cellsFromMesh } from "./meshGeometry";
+
+// --- main ---------------------------------------------------------------------
+
+/** Everything `runPlan` needs, derived once from the document + the deliberate
+ * inputs. Shared by `generateStageOnDocument` and `generateUrbanPatchStep` so
+ * both read the exact same geography for a given `(document, settings, seed)`. */
+export function prepareRun(document: CityDocument, settings: GenerationSettings, seed: string) {
+  const frame = document.frame;
+  const half = settings.descriptor?.regionalContext
+    ? Math.max(...Object.values(document.mesh.vertices).map(v => Math.max(Math.abs(v.point[0]), Math.abs(v.point[1]))))
+    : frame.extentMeters / 2;
+  const cellSize = Math.max(1, frame.blockSizeMeters);
+  const descriptor =
+    settings.descriptor ??
+    synthSite(NOMINAL_PRESET, settings.config, seed, {
+      extentMeters: frame.extentMeters,
+      cityRadiusMeters: frame.cityRadiusMeters
+    });
+  const geo = siteToGeography(descriptor, !!settings.descriptor);
+  const baseProgram = siteToProgram(descriptor);
+  const program: CityProgram = {
+    ...baseProgram,
+    wallPlan: resolveWallPlan(baseProgram.wallPlan ?? DEFAULT_WALL_PLAN, settings.config.wall)
+  };
+  const params: CityParams = {
+    seed,
+    extentMeters: townExtentMeters(frame),
+    cityRadiusMeters: settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters,
+    dwellings: descriptor.burg.dwellings,
+    cellSizeMeters: cellSize,
+    lloydPasses: 1,
+    urbanNPatches: settings.urbanNPatches
+  };
+  const { cells, faceIdOf } = cellsFromMesh(
+    document.mesh,
+    settings.descriptor?.regionalContext ? townExtentMeters(frame) / 2 : half
+  );
+  return { cells, faceIdOf, geo, program, params, half, cellSize };
+}

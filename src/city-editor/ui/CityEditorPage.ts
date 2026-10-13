@@ -91,6 +91,7 @@ import {
   type CityFeatureSet,
   type CityLayout,
   COMPLETE_CITY_ATTEMPTS,
+  clearGenerationPreviewCache,
   defaultGenerationSettings,
   type FarNodeMode,
   FEATURE_KEYS,
@@ -277,6 +278,7 @@ export interface CityEditorOptions {
 }
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): void {
+  clearGenerationPreviewCache();
   const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
   let lastOutputDocInput: CityDocument | null = null;
   let lastOutputDocProvider: FixedApproachProvider | null = null;
@@ -768,6 +770,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     lastGeneratedStep = null;
     completeSource = null;
     completeResult = null;
+    clearGenerationPreviewCache();
     showBlockMesh = false;
     clearGridEvo();
     clearMeasurement();
@@ -1110,6 +1113,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   buildingPatternSelect.addEventListener("change", () => {
     generateSettings.buildingPattern = buildingPatternSelect.value as "legacy" | "medieval";
     completeResult = null;
+    clearGenerationPreviewCache();
   });
 
   const coastSelect = select(["none", "straight", "bay", "cape"], generateSettings.config.coast);
@@ -1145,6 +1149,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   seaWallSelect.addEventListener("change", () => {
     generateSettings.config.wall.coast = seaWallSelect.value as WallCoastChoice;
     completeResult = null;
+    clearGenerationPreviewCache();
   });
   const WALL_MATERIAL_LABELS: Record<WallMaterialChoice, string> = {
     get auto() {
@@ -1170,6 +1175,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   wallMaterialSelect.addEventListener("change", () => {
     generateSettings.config.wall.material = wallMaterialSelect.value as WallMaterialChoice;
     completeResult = null;
+    clearGenerationPreviewCache();
   });
   const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
   riversSelect.addEventListener("change", () => {
@@ -1187,6 +1193,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   riverPlacementSelect.addEventListener("change", () => {
     generateSettings.riverPlacement = riverPlacementSelect.value as GenerationSettings["riverPlacement"];
     completeResult = null;
+    clearGenerationPreviewCache();
   });
   const reliefInput = checkbox(generateSettings.config.relief, checked => {
     generateSettings.config.relief = checked;
@@ -1294,6 +1301,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   urbanCoreModeSelect.addEventListener("change", () => {
     generateSettings.urbanCoreMode = urbanCoreModeSelect.value as "legacy" | "compact";
     completeResult = null;
+    clearGenerationPreviewCache();
     completeResultSettings = null;
     rerunLastStage();
   });
@@ -1341,6 +1349,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     generateSettings.townWallBuildOrder = townWallBuildOrderSelect.value === "inner-first" ? "inner-first" : undefined;
     delete generateSettings.townWallDefensePolicy;
     completeResult = null;
+    clearGenerationPreviewCache();
     completeResultSettings = null;
     syncStageUi(currentStageStep);
   });
@@ -1350,6 +1359,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     generateSettings.innerWallState = value === "razed" ? "razed" : undefined;
     townWallBuildOrderSelect.disabled = value === "single";
     completeResult = null;
+    clearGenerationPreviewCache();
     completeResultSettings = null;
     syncStageUi(currentStageStep);
   });
@@ -1505,6 +1515,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const input = checkbox(!!generateSettings.moats?.[scope], checked => {
       generateSettings.moats = { ...generateSettings.moats, [scope]: checked };
       completeResult = null;
+      clearGenerationPreviewCache();
       runContextAction(() => {
         const next = structuredClone(documentState);
         if (next.fabric?.generation)
@@ -2789,6 +2800,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function restore(next: CityDocument | null): void {
     if (!next) return;
+    clearGenerationPreviewCache();
     documentState = next;
     const playback = generationHistory.get(history.currentEntryKey);
     if (playback) {
@@ -2967,6 +2979,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     documentState = history.commit(partial, editorText("cityEditor.messages.generationFailurePreviewCityEditorPage"));
     failurePreviewHistoryIndex = history.index;
     completeResult = null;
+    clearGenerationPreviewCache();
     completeResultSettings = null;
     lastGeneratedStep = null;
     activeStepStage = null;
@@ -5090,6 +5103,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       parsed.document = repaired.document;
       unresolvedLandmarks = repaired.unresolved;
     }
+    clearGenerationPreviewCache();
     documentState = parsed.document;
     generateSettings.buildingPattern =
       documentState.buildingPattern ?? (documentState.fabric?.version === 5 ? "medieval" : "legacy");
@@ -5325,6 +5339,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     activeGroupId = null;
     completeSource = clone(documentState);
     completeResult = null;
+    clearGenerationPreviewCache();
     halfView = documentState.frame.extentMeters / 2;
     viewCenter = [0, 0];
     activeStepStage = null;
@@ -5575,7 +5590,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         ? clone(documentState.fabric.generation.input)
         : clone(documentState);
     }
-    if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) completeResult = null;
+    if (completeResult && completeResultSettings !== JSON.stringify(generateSettings)) {
+      completeResult = null;
+      clearGenerationPreviewCache();
+    }
     if (!generationHistory.has(history.currentEntryKey))
       rememberGenerationState(undefined, lastGeneratedStep ?? (documentState.appearance === "town" ? 16 : 1));
     const source = clone(completeSource);
@@ -5693,7 +5711,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const stage = activeStepStage;
     const label = generationStages(generateSettings).find(s => s.id === stage)?.label ?? "";
     const effectiveSeed = completeResult?.generationSeed ?? documentState.generationSeed ?? generateSeed;
-    const source = clone(completeSource ?? documentState);
+    // Ward scrubbing is read-only and clones its output. Keep its weak cache
+    // owned by the page's stable generation source rather than a temporary copy.
+    const source = stage === "wards" ? (completeSource ?? documentState) : clone(completeSource ?? documentState);
     let result: UiStepResult;
     try {
       result = STEP_FNS[stage](source, generateSettings, effectiveSeed, stepIndex + delta);
@@ -5837,6 +5857,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     lastGeneratedStep = null;
     completeSource = null;
     completeResult = null;
+    clearGenerationPreviewCache();
     showBlockMesh = false;
     rebuildEditorIndexes();
     refresh();

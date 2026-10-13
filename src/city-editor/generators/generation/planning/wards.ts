@@ -1,4 +1,3 @@
-import { exteriorDirection } from "../../../core/frameRoadConnection";
 import { terrainHeight } from "../../../core/gen/castlePlacement";
 import type { CoastResult } from "../../../core/gen/classifySea";
 import type { RoutedRiver } from "../../../core/gen/riverPath";
@@ -15,6 +14,7 @@ import type {
 import { assignWards } from "../../../core/gen/wards";
 import type { CityDocument, Point } from "../../../core/types";
 import type { GenerationSettings } from "../../../types/generation";
+import { exteriorDirection } from "../routing/frameRoadConnection";
 import { outerFrameRoads } from "./roadGeometry";
 import { fmgCellElevations } from "./waterTerrain";
 
