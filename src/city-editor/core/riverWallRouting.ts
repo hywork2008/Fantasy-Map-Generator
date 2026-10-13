@@ -365,13 +365,14 @@ export function repairRiverWalls(
                   (mesh.vertices[edge.a].point[0] + mesh.vertices[edge.b].point[0]) / 2,
                   (mesh.vertices[edge.a].point[1] + mesh.vertices[edge.b].point[1]) / 2
                 ];
-                const outside =
-                  originalPolygon &&
-                  !pointInPolygon(midpoint, originalPolygon) &&
-                  nearestOnPolyline(midpoint, [...originalPolygon, originalPolygon[0]]).dist > 1e-5;
-                // Prefer the original town side, while permitting a short
-                // detour on existing neighbouring land edges before splitting.
-                return outside ? w * 4 : w;
+                const deviation = originalPolygon
+                  ? nearestOnPolyline(midpoint, [...originalPolygon, originalPolygon[0]]).dist
+                  : 0;
+                // A shared river run needs a local bank detour. A route deep
+                // inside the town can be shorter but consumes whole districts;
+                // leave it unresolved so passage/cell splitting can repair it.
+                if (originalPolygon && deviation > source.frame.blockSizeMeters) return Infinity;
+                return w * (1 + deviation / Math.max(1, gap));
               })
             : null;
         if (!nodes) {
