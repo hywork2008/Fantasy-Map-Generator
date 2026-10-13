@@ -5493,7 +5493,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     rememberGenerationState();
     rebuildEditorIndexes();
     refresh();
-    showNotice(roadWarning || editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"));
+    // Double walls fall back to one curtain when the mesh has no room for an old
+    // town (docs/plan/ce-multi-ring-walls.md §5); say why instead of staying silent.
+    const doubleFallback =
+      generateSettings.townWallRings === "double" && townCircuits(documentState).length < 2
+        ? editorText("cityEditor.messages.oldTownWallDidNotFitSingleWall")
+        : "";
+    showNotice(
+      [roadWarning || editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"), doubleFallback]
+        .filter(Boolean)
+        .join(" ")
+    );
   }
 
   function runGenerationStage(stage: GenerationStage): void {

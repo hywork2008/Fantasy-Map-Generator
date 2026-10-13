@@ -369,7 +369,7 @@
       "townWallRingsSingle": "単一",
       "townWallRingsDouble": "二重（旧市街＋新市壁）",
       "townWallRingsRazed": "二重（旧市壁を撤去し環状道路）",
-      "oldTownWallDidNotFitSingleWall": "旧市街を囲む余地が無いため、単一の市壁で生成しました。",
+      "oldTownWallDidNotFitSingleWall": "旧市街を囲む余地が無いため、単一の市壁で生成しました。グリッドを Voronoi／Hex にするか、Grid evolution で「外周セルの拡大率」を下げて nPatches 上限を上げ（例 50% / 400）、新規作成し直してください。",
       "blankUsesTinySmall100Medium45Large20Approximate": "空欄は Tiny/Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。",
       "completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider": "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑬までの全工程を順番に確認できます。④はセル分割前の城壁、⑤は河川横断用のセル分割、⑥は門の通路とセル分割、⑦は門・城郭を表示します。⑬では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。",
       "urbanCoreAllocationMode": "市街地コアの確保方式",
