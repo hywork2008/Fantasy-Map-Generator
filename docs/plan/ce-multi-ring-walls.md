@@ -1,0 +1,225 @@
+# CE 多重市壁（旧市壁＋新市壁＋城）設計
+
+- 作成日: 2026-10-13
+- 状態: 設計案。未実装。
+- 対象: CE（`src/city-editor`）。CGは対象外。
+- 関連: [街道別交易観測](./ce-roadside-growth-observation.md)（郊外の方向重みの入力源。本設計の前提ではない）、[橋の斜交規約](./bridge-skew-policy.md)
+
+## 1. 目的と方針
+
+大都市（例: Leigh 38k、壁内面積45%）では、現在 `splitUrbanCore` が市街地の外周を「壁外リング」として残し、住宅不足時に `fitImportedHousing` がリング全体を suburb 街区として開放する。その結果、壁外に一様な帯ができる。
+
+これを次の「外から内へ」の手順に置き換え、二重市壁を作れる構造にする。
+
+1. 外周リングを作らない。市街地の flood-fill 全体を**外側の市壁（新市壁）**で囲む。
+2. 囲まれた市街地の中心部から、円形に整えたセル群を**内側の市壁（旧市壁）**の範囲として選ぶ。
+3. 外門から中心へ延びる幹線が内側の境界を横切る点に**内門**を置き、内壁を作る。
+4. 城は内側の範囲に置く。城壁ありなら三重になる。
+
+壁と壁の間は、壁内と同じ街区・建物配置の処理で埋める。これにより壁間の建物が整列する。壁外に残るのは、既存の「道路沿い」制約（suburbでないoutskirts）だけになる。ケルン1180年の拡張のように、旧郊外を新市壁が取り込んだ状態を表す。
+
+単一市壁は「リング数1」の特殊例として扱い、既存の文書と既定の生成結果を変えない。
+
+## 2. 現行構造の前提と変更点
+
+| 現行 | 問題 | 変更 |
+| --- | --- | --- |
+| `DefenseCircuit.scope: "town" \| "castle"`。town は1つ前提 | `defenseCircuits.find(c => c.scope === "town")` が `castles.ts`・`concealStreets.ts`・`circuladeFabric.ts` 等にある | `ring` 序数を追加し、参照をヘルパーへ置換（§3） |
+| `FaceProperties.settlement: "core" \| "outskirts"` | 壁内/壁外の2値。約30ファイルが参照 | `"core"` は「最外の市壁の内側」と再定義し、値を増やさない。リングは別プロパティ `wallRing` |
+| `CityGate` は所属する壁を持たない | 内門と外門を区別できない | `circuitId?` を追加 |
+| `resolveWalledAreaShare` はフレーム幅で 100/45/20% | 全周の壁外リングの原因 | 二重モードでは**内壁の面積割合**の意味に変える |
+| `fitImportedHousing` は core を埋めた後、outskirts を suburb 化 | 全周の帯 | 二重モードでは「内側→壁間→（最後の手段で）壁外」の順に埋め、壁外 suburb 化は診断付きの例外にする |
+
+`settlement` の値を増やさない理由: 参照箇所（`suburbanLanduse`、`fitImportedHousing`、`roadsideFarms`、`approachBeyond`、`housingReport`、`citySpatialMetrics` 等）の大半が「壁の外か内か」だけを知りたい処理だからである。壁間を `"core"` に含めておけば、これらの処理は修正なしで新市壁を外壁として扱える。
+
+## 3. データモデル
+
+```ts
+// types.ts
+export interface DefenseCircuit {
+  // 既存フィールドは変更なし
+  scope: "town" | "castle";
+  /** town のみ。0 = 最も内側（旧市壁）。省略は 0。最大値のものが外壁。 */
+  ring?: number;
+  /** 旧市壁を残すか、撤去して環状道路にしたか。省略は "standing"。 */
+  state?: "standing" | "razed";
+}
+
+export interface CityGate {
+  // 既存
+  /** 所属する town/castle circuit。省略時は外壁（旧文書）。 */
+  circuitId?: Id;
+}
+
+export interface FaceProperties {
+  settlement?: "core" | "outskirts";   // core = 外壁の内側（意味を明文化）
+  /** core のうち、何番目の town circuit の内側か。0 = 旧市街。省略は外壁と同じ扱い。 */
+  wallRing?: number;
+}
+```
+
+`fortifications.ts` に次のヘルパーを追加し、`scope === "town"` の直接検索をすべて置き換える。
+
+```ts
+export function townCircuits(doc): DefenseCircuit[]          // ring 昇順
+export function outerTownCircuit(doc): DefenseCircuit | null  // 外部道路・門・壁外判定用
+export function innerTownCircuit(doc): DefenseCircuit | null  // 城の integrated 判定・旧市街用
+export function townGates(doc, circuitId?)                    // 既存 API を拡張
+```
+
+置換時の判断基準:
+
+- 外部道路・外門・concealStreets・regionalRoadGates・壁外判定 → `outerTownCircuit`
+- 城の integrated/detached 判定・城門の向き（`castles.ts:136` 付近）→ 城を含む最も内側の circuit
+- circulade 系 → 当面は単一リング限定（§8）
+
+`validateFortifications` に追加する検証:
+
+- town circuit の `areaFaceIds` が入れ子になっていること（内 ⊂ 外）
+- 内外の壁が物理edgeを共有しないこと（既存の重複壁チェックで検出できる）
+- 内側の各門に、外側へ抜ける道路があること
+
+保存形式: 文書 version 2 のまま optional フィールドとして追加する。旧文書は ring 省略のため単一リングとして読む。往復保存テストを追加する。
+
+## 4. 生成手順（`generate.ts` S3 の urban 分割以降）
+
+設定:
+
+```ts
+interface GenerateSettings {
+  /** "single" は現行。"double" は旧市壁＋新市壁。"auto" は §6 の条件で決める。既定 "single"。 */
+  townWallRings?: "single" | "double" | "auto";
+  /** double のとき内壁の面積割合（外壁内の市街地に対する比）。省略時は resolveWalledAreaShare。 */
+  walledAreaShare?: number;
+  innerWallState?: "standing" | "razed";
+}
+```
+
+### 4.1 外壁
+
+- `splitUrbanCore(..., share = 1)` として外周リングを作らない。`classification.urban` 全体が外壁の範囲になる。
+- 既存の `insetWalledCore`（evolution の内側への剥ぎ取り）、`extendCoreToCoast`、外側河川処理、壁の経路計算、外門の配置は、現行の単一壁と同じ処理を外壁に適用する。
+- `classification.outskirts`（市街地外の道路沿い）は従来どおり壁外として残る。
+
+### 4.2 内壁の範囲選択（円形化）
+
+入力: 外壁内の面集合 `U`、中心（burg セル。広場予定地）、目標面積 `A_in = area(U) × innerShare`。
+
+1. 中心からの距離でセルを並べ、面積が `A_in` に最も近くなるまで取る。`splitUrbanCore` が使う flood-fill の順序は使わない。
+2. 円形化: 内壁候補 `C` の境界について、外側セルの重心が半径 `r = sqrt(A_in/π)` の円内にあれば加え、内側セルの重心が `1.15r` を超えて突き出ていれば外す。収束するまで最大3回繰り返す。
+3. 制約を満たすまで修正する:
+   - `C` が連結で、穴がない（境界が単一の環）。
+   - 壁間の距離: `C` の境界から外壁の境界まで、どの方向でも**2セル以上**。壁間にも街区と建物列を置くための条件で、満たさなければ `r` を縮める。
+   - 河川・水域で切られる場合は、中心側の岸を優先する（既存 `retainBurg` と同様の考え方）。
+   - 既存の evolution では中心の4セル程度が小さいので、円形化は**元のセルID単位**で行う。メッシュは分割しない。
+4. `wallRing = 0` を `C` に、`wallRing = 1` を `U \ C` に付ける。
+
+### 4.3 幹線と内門
+
+内門は幹線（外門→広場の動脈）が内壁を横切る点に置く。順序は次のとおり。
+
+1. 外門と広場を決める（現行どおり）。
+2. 外門→広場の幹線を edge graph 上で経路計算する。内壁の境界を横切る経路を優先する。
+3. 各幹線が内壁の境界を最初に横切る頂点に内門を置く。同じ頂点に複数の幹線が来たら1つの門にまとめる。内門数の上限は `maxWallGatesForExtent` の半分程度。
+4. 横切る位置が河川上・橋の上・極端に短いedgeなら、隣の頂点へずらす。橋は `bridgeSkewPolicy` に従い、新設しない。
+5. 内壁 circuit を `registerTownCircuit` で登録する。`ring = 0` とし、外壁を `ring = 1` に振り直す。
+
+`innerWallState = "razed"` の場合は壁を作らず、内側の境界edgeを環状道路にする（パリのグラン・ブールヴァール、ウィーンのリングシュトラーセ型）。門は作らず、環状道路と幹線の交差点を広場にできる。
+
+### 4.4 城（三重）
+
+- 城の配置候補は内壁の範囲 `C` に限る（旧市街の端、内壁と一体 = integrated が基本）。`placeCastleRegion` に渡す `urban` を `C` に替える。
+- `townBoundary`（`castles.ts:542`）は内壁の境界を使う。
+- 外壁と一体の城（新市壁の角に置かれた要塞）は「外壁の端への退避先」として§5で使う。
+
+## 5. 城を置いても道が通る最小セル数の保証
+
+過去に micro・tiny で城を置いたとき、道を通すセル辺がなくなって生成に失敗していた。二重市壁ではこの問題が内壁の内側で起きる。そこで、内壁の範囲について次を**生成前に**検査し、満たさなければ段階的に縮退する。
+
+### 5.1 判定（`innerCapacityCheck`）
+
+内壁範囲 `C`、城の予約面 `K`（castlePlacement の結果。未配置なら目標面積から推定セル数）について:
+
+1. **セル数**: `|C \ K| ≥ N_free`。`N_free = 7`（中心セル＋その周囲1層。hex の半径1に相当）を初期値とする。
+2. **面積**: `area(C \ K) ≥ castleTargetArea(size) × 3`。城が旧市街の大半を占めないようにするため。
+3. **到達性**: 内壁の境界のうち城の壁に接していない頂点を通り、`C \ K` の edge graph で、各内門候補から広場まで経路がある。城壁の頂点と道路が共有する edge は使えない。これは `castleRoadEdgeAllowed` で判定する。
+4. **門の数**: 3 で到達できる内門候補の頂点が2つ以上。
+
+判定に使う数値は暫定値であり、§9 のバッチ計測で較正する。
+
+### 5.2 失敗時の縮退順序（都市生成そのものは失敗させない）
+
+1. 城の size を一段下げる（既存の `standard → small → tiny` 順）。
+2. 内壁範囲を外側へ1層広げる。ただし壁間2セルの制約は守る。
+3. 城を外壁の端へ移す（新市壁と一体の要塞。`outward` 制約を流用）。
+4. 内壁を `razed` にする（環状道路だけ残す）。
+5. 単一市壁に戻す。
+
+どの段階で確定したかを `generationDiagnostics` に記録し、UIに表示する。`castle-no-site` で reject するのは、単一市壁でも配置できないときだけとする（現行どおり）。
+
+### 5.3 二重市壁を許可するサイズ
+
+micro（6セル幅）と tiny（12セル幅）では、内壁の内側に7セル以上を確保すると壁間2セルを満たせない。このため `"double"` を指定しても単一に落とし、理由を表示する。プリセット名では判定せず、§5.1 と壁間の制約を実際のセル数で判定する。small 以上の見込みは次のとおり。
+
+| プリセット | 幅のセル数 | 半径のセル数 | 内壁45%時の内側半径 | 壁間 |
+| --- | ---: | ---: | ---: | ---: |
+| small | 24 | 約11 | 約7.4 | 約3.6 |
+| medium | 48 | 約22 | 約15 | 約7 |
+| large | 96 | 約44 | 約30 | 約14 |
+
+（実際の値は都市半径・evolution のセル寸法で変わる。概算値。）
+
+## 6. "auto" の決定と面積割合
+
+`"auto"` は次をすべて満たすときに二重を選ぶ。
+
+- `program.walls` が true
+- 人口または `dwellings` が閾値以上（初期値: 人口15k。Leighは該当）
+- §5 を満たす
+- 時代が `classical` 以降（初期値。ローマ帝国期にも二重の都市壁は存在した）
+
+内壁の割合 `innerShare` の既定値は、現行の `defaultWalledAreaShare` を流用する（Leighでは45%）。意味は「外壁に対する旧市街の面積比」に変わる。将来は FMG の人口履歴（歴史モード）から「壁を建てた年の人口 ÷ 現在人口」で決められるよう、`descriptor.fortification.innerShare` を optional で受け取れる口だけ用意する。
+
+## 7. 住宅配分（`fitImportedHousing`）
+
+- 二重モードの充足率の係数: `inner`（旧市街。高密度）、`between`（壁間）、`outskirts`（壁外の道路沿い）の3つにする。現行の `core`/`outskirts` の2係数を拡張する。
+- 埋める順: inner を満杯 → between → outskirts の道路沿い（suburb 化しない）。
+- それでも不足するときは、壁外を suburb 化する前に次の順で対処する。
+  1. 外壁の範囲を1層広げて再生成する。
+  2. 壁内の密度（階数・区画の細分化）を上げる。現行にない場合は不足として診断する。
+- 壁外を suburb 化した場合は診断に記録する。壁外の不足分を全周に開放するのではなく、街道の重み（`trafficRank`、将来は roadside 観測）上位の門の前に限って開放する。
+- 壁間の街区種別: 職人地区・修道院・菜園・小さな市場。旧来の放射道路沿いに古い郊外を残す。`wards.ts` の壁外用途割当を壁間へ移す。
+
+## 8. 対象外・当面単一に限定するもの
+
+- circulade（`circuladeFabric`、`polygonalCirculade*`）と Bram レイアウトは、専用の幾何を持つため単一リングに限る。
+- `"compact"` urbanCoreMode は、既に円盤状の中心を作っている。二重化の実装時は、4.2 をこのコードと共通化できるか確認する。
+- 三重以上の市壁（城を除く）は、型（`ring` 序数）では表現できるが、生成は二重までとする。
+- 手動編集UI: 内壁の追加・削除・razed 切替は P3。
+
+## 9. 実装順
+
+| 段階 | 内容 | 完了条件 |
+| --- | --- | --- |
+| P0 | 型（`ring`・`state`・`circuitId`・`wallRing`）、`townCircuits` 系ヘルパー、全 `scope === "town"` 参照の置換、検証、保存往復 | 既存の全テストが無変更で通る（単一リングの挙動が同一） |
+| P1 | 4.1 外周リング廃止＋4.2 内壁範囲選択＋4.3 内門・内壁登録（城なし）。設定 `townWallRings` | Leighで外壁1本・内壁1本・内門が生成され、壁外の建物が道路沿いだけになる |
+| P2 | §5 の判定と縮退、城を内壁内に配置（三重）。micro/tiny の自動単一化 | small〜large × 城サイズ × hex/voronoi/evolution のバッチで、城による生成失敗が単一市壁より増えない |
+| P3 | §7 住宅3係数、壁間の街区種別、`razed` 環状道路、UI（Document パネルの選択肢・診断表示） | Leigh の壁外住宅が全体の25%未満（暫定）。壁外 suburb 化した場合に理由が出る |
+
+検証: 既存の `housingBatch` / `cityGenerationAudit` の CLI に「市壁リング数」「内側の空きセル数」「縮退した段階」の列を加えて、プリセットとシードのバッチで集計する。
+
+## 10. 事前計測ツール（wall-ring lab）
+
+実装前に§5・§6の数値を較正するため、幾何だけの試験ツールを用意した。
+
+- 本体: `src/city-editor/core/wallRingLab.ts`（P1/P2の範囲選択・内門・城検査の原型）、テスト `wallRingLab.test.ts`
+- CLI: `npm run ce:wall-lab -- --out temp/wall-lab --grid hex,voronoi,evolution --size small,medium,large --rings "1;0.45,1;0.2,0.5,1" --castle none,small,standard --seeds 5`
+  - `--population 38255 --size auto` で FMG と同じ `occupancyRadiusMeters` から半径を決める
+  - 出力: `cases.csv`（1ケース1行）、`summary.csv`（組合せごとの成功率・失敗理由集計）、`svg/`、`manifest.json`
+- 近似: 実際の CE 初期メッシュ（`createGridDocument`）を使うが、市街地は水域なしの円盤、城はセル単位の予約（CEは面を切るので保守的）。門のスポークは面を横切る chord とし、`gateCuts` で数える。
+
+### 10.1 Grid evolution の調整オプション（2026-10-13 追加）
+
+- `PatchParams.rimGrowthPercent`（外周セルの拡大率、0〜100、既定100＝従来の配置）と `PatchParams.maxPatches`（nPatches 上限、48〜1200、既定48）を追加。上限はブラウザの設定として保存され、FMG からの取込み時の自動 nPatches にも適用される。
+- 実測（Leigh 38k、城 standard、3シード）: 拡大率50%・上限400で medium は二重・三重とも全シード合格、large は二重・三重とも2/3 合格。拡大率100%のままでは上限を上げても中心だけが細かくなり、壁間が確保できない。
+- 上限を上げると中心セルが小さくなり、`clipPatchCells` の固定面積の sliver 判定で実セルが削除されてメッシュに穴が開いていた。sliver 判定を窓端のセルに限定して修正した（既定範囲では内部セルの削除は0件だったため、既存メッシュは不変）。上限1200・拡大率100%では中心セルが数m になり、まだ穴が残る。

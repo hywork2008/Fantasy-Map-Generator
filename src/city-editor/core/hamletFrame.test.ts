@@ -27,6 +27,13 @@ describe("fitUndersizedTownFrame", () => {
     expect(nPatchesForTownCells(300)).toBe(6);
   });
 
+  it("caps the automatic patch count at 48 unless the viewer raises the limit", () => {
+    expect(nPatchesForTownCells(4800)).toBe(48);
+    expect(nPatchesForTownCells(4800, 400)).toBe(400);
+    expect(nPatchesForTownCells(4800, 10)).toBe(48);
+    expect(nPatchesForTownCells(4800, 99999)).toBe(1116);
+  });
+
   it("steps a 128 m village up to Tiny so the town and its river both fit", () => {
     expect(fitUndersizedTownFrame(128, 1500)).toMatchObject({
       size: "tiny",

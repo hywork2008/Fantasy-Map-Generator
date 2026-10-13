@@ -38,7 +38,7 @@ export function buildGridEvolution(params: PatchParams, rng: Rng): GridEvolution
   const guard = guardRing(win, params.extentMeters / 10);
 
   // Consume the whole rng stream once, exactly like buildPatchCells.
-  const allSites = scatterPatchSites(params.nPatches, params.extentMeters, rng);
+  const allSites = scatterPatchSites(params.nPatches, params.extentMeters, rng, params.rimGrowthPercent);
   const total = allSites.length;
   const relaxCount = Math.max(0, Math.min(Math.round(params.relaxCount), total));
   const relaxPasses = Math.max(0, Math.round(params.relaxPasses));

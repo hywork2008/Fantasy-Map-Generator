@@ -95,3 +95,38 @@ describe("buildPatchCells", () => {
     }
   });
 });
+
+describe("rim growth and raised nPatches", () => {
+  it("rimGrowthPercent 100 reproduces the reference scatter", () => {
+    const a = scatterPatchSites(24, 1200, makeRng("rim"));
+    const b = scatterPatchSites(24, 1200, makeRng("rim"), 100);
+    expect(b).toEqual(a);
+  });
+
+  it("a lower rim growth narrows the rim-to-centre radius spread", () => {
+    // r ∝ i^p: the 90th/10th percentile radius ratio is 9^p (9 at 100%, 3 at 0%).
+    const spread = (rim: number) => {
+      const r = scatterPatchSites(48, 2400, makeRng("rim"), rim)
+        .map(([x, y]) => Math.hypot(x, y))
+        .sort((a, b) => a - b);
+      return r[Math.floor(r.length * 0.9)] / r[Math.floor(r.length * 0.1)];
+    };
+    expect(spread(100)).toBeGreaterThan(6);
+    expect(spread(0)).toBeLessThan(4);
+  });
+
+  it("keeps small interior cells when nPatches is raised (no mesh holes)", () => {
+    const extentMeters = 4800;
+    const half = extentMeters / 2;
+    const cells = buildPatchCells({ ...DEFAULT_PATCH_PARAMS, extentMeters, nPatches: 400 }, makeRng("lab-0"));
+    const ids = new Set(cells.map(cell => cell.id));
+    // An interior cell whose Voronoi neighbour is missing borders a hole.
+    const holeNeighbours = cells.filter(
+      cell => !cell.onBorder && cell.neighbors.some(n => !ids.has(n)) && Math.hypot(...cell.centroid) < half * 0.8
+    );
+    expect(holeNeighbours).toEqual([]);
+    expect(
+      cells.some(cell => !cell.onBorder && Math.abs(polygonArea(cell.polygon)) < (extentMeters / 40) ** 2 * 0.02)
+    ).toBe(true);
+  });
+});

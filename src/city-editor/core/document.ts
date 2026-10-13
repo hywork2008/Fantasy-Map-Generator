@@ -147,7 +147,16 @@ const EVOLUTION_CENTER_WIDTH_FACTOR = 0.63;
 const MIN_TOWN_CELL_METERS = 32;
 /** Patch-count slider bounds in the Document panel. */
 const MIN_PATCHES = 6;
-const MAX_PATCHES = 48;
+/** Default nPatches ceiling (slider and auto count). `PatchParams.maxPatches` raises it. */
+export const DEFAULT_MAX_PATCHES = 48;
+/** Hard ceiling for the adjustable limit: a Large window at 50 m cells needs ~400. */
+export const MAX_PATCHES_CEILING = 1200;
+
+export function resolveMaxPatches(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value)
+    ? Math.max(DEFAULT_MAX_PATCHES, Math.min(MAX_PATCHES_CEILING, Math.round(value)))
+    : DEFAULT_MAX_PATCHES;
+}
 
 export interface FittedTownFrame {
   size: CitySizePreset;
@@ -164,7 +173,11 @@ export interface FittedTownFrame {
  * the centre cells wide enough for dwellings. The radius itself stays in true metres.
  * Returns null when the window already frames the town.
  */
-export function fitUndersizedTownFrame(cityRadiusMeters: number, extentMeters: number): FittedTownFrame | null {
+export function fitUndersizedTownFrame(
+  cityRadiusMeters: number,
+  extentMeters: number,
+  maxPatches = DEFAULT_MAX_PATCHES
+): FittedTownFrame | null {
   if (!(cityRadiusMeters > 0) || !(extentMeters > 0)) return null;
   const naturalExtent = cityRadiusMeters * 6;
   if (extentMeters <= naturalExtent * 1.25) return null;
@@ -177,14 +190,14 @@ export function fitUndersizedTownFrame(cityRadiusMeters: number, extentMeters: n
     size,
     extentMeters: fittedExtent,
     cityRadiusMeters,
-    nPatches: nPatchesForTownCells(fittedExtent)
+    nPatches: nPatchesForTownCells(fittedExtent, maxPatches)
   };
 }
 
 /** Largest patch count whose centre cells stay wide enough for a dwelling row. */
-export function nPatchesForTownCells(extentMeters: number): number {
+export function nPatchesForTownCells(extentMeters: number, maxPatches = DEFAULT_MAX_PATCHES): number {
   const raw = ((EVOLUTION_CENTER_WIDTH_FACTOR * extentMeters) / MIN_TOWN_CELL_METERS) ** 2 / 8;
-  return Math.max(MIN_PATCHES, Math.min(MAX_PATCHES, Math.round(raw)));
+  return Math.max(MIN_PATCHES, Math.min(resolveMaxPatches(maxPatches), Math.round(raw)));
 }
 
 function medianTownCellMeters(cells: Cell[], cityRadiusMeters: number): number {

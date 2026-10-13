@@ -34,6 +34,13 @@ export interface PatchParams {
   relaxCount: number;
   /** Relax passes over those sites (TownGeneratorTS: 3). */
   relaxPasses: number;
+  /** How fast cells grow toward the rim, 0–100. 100 (default) is TownGeneratorTS:
+   * spiral radius linear in i, cell width ∝ √r. 0 spaces the spiral at √i, so
+   * cells keep one size out to the rim. Total site count is unchanged, so a
+   * lower value coarsens the centre while refining the rim. */
+  rimGrowthPercent?: number;
+  /** User ceiling for nPatches (UI slider and automatic town count). Default 48. */
+  maxPatches?: number;
 }
 
 export const DEFAULT_PATCH_PARAMS: Omit<PatchParams, "extentMeters"> = {
@@ -42,7 +49,7 @@ export const DEFAULT_PATCH_PARAMS: Omit<PatchParams, "extentMeters"> = {
   relaxPasses: 3
 };
 
-/** Sites drop from the grid when their window-clipped cell is a sliver. */
+/** Border sites drop from the grid when their window-clipped cell is a sliver. */
 const SLIVER_AREA_FRACTION = 0.02;
 
 /**
@@ -50,15 +57,18 @@ const SLIVER_AREA_FRACTION = 0.02;
  * scaled so the farthest point sits just past the window edge. `a = sa + √i·5`,
  * `r_i ∈ [10 + 2i, 10 + 3i]` (i > 0), `r_0 = 0`. Returns `nPatches·8` sites.
  */
-export function scatterPatchSites(nPatches: number, extentMeters: number, rng: Rng): Point[] {
+export function scatterPatchSites(nPatches: number, extentMeters: number, rng: Rng, rimGrowthPercent = 100): Point[] {
   const half = extentMeters / 2;
   const count = Math.max(8, Math.round(nPatches) * 8);
   const startAngle = rng() * 2 * Math.PI;
+  // Radius ∝ i^p: p = 1 is the reference spiral, p = 0.5 gives uniform areal density.
+  const growth = Number.isFinite(rimGrowthPercent) ? Math.max(0, Math.min(100, rimGrowthPercent)) / 100 : 1;
+  const exponent = 0.5 + 0.5 * growth;
   const raw: Point[] = [];
   let maxR = 0;
   for (let i = 0; i < count; i++) {
     const a = startAngle + Math.sqrt(i) * 5;
-    const r = i === 0 ? 0 : 10 + i * (2 + rng());
+    const r = i === 0 ? 0 : 10 + i ** exponent * (2 + rng());
     raw.push([Math.cos(a) * r, Math.sin(a) * r]);
     if (r > maxR) maxR = r;
   }
@@ -79,7 +89,7 @@ export function buildPatchCells(params: PatchParams, rng: Rng): Cell[] {
   const win: Rect = { minX: -half, minY: -half, maxX: half, maxY: half };
   const guard = guardRing(win, params.extentMeters / 10);
 
-  let sites = scatterPatchSites(params.nPatches, params.extentMeters, rng);
+  let sites = scatterPatchSites(params.nPatches, params.extentMeters, rng, params.rimGrowthPercent);
   const relaxCount = Math.max(0, Math.min(Math.round(params.relaxCount), sites.length));
   for (let pass = 0; pass < Math.max(0, Math.round(params.relaxPasses)) && relaxCount > 0; pass++) {
     sites = relaxCentralSites(sites, guard, win, relaxCount);
@@ -107,14 +117,18 @@ export function clipPatchCells(sites: Point[], guard: Point[], win: Rect, extent
   const cells: Cell[] = [];
   for (let i = 0; i < sites.length; i++) {
     const polygon = clipPolygonToRect(raw[i].polygon, win);
-    if (polygon.length < 3 || Math.abs(polygonArea(polygon)) < minArea) continue;
+    if (polygon.length < 3) continue;
+    // Slivers come from the window clip. A small interior cell is a real dense
+    // centre cell (raised nPatches); dropping it would leave a hole in the mesh.
+    const onBorder = polygonTouchesRectEdge(polygon, win);
+    if (onBorder && Math.abs(polygonArea(polygon)) < minArea) continue;
     cells.push({
       id: i,
       site: sites[i],
       polygon,
       centroid: polygonCentroid(polygon),
       neighbors: raw[i].neighbors.filter(n => n < sites.length && n !== i),
-      onBorder: polygonTouchesRectEdge(polygon, win)
+      onBorder
     });
   }
   return cells;

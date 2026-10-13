@@ -568,6 +568,8 @@
       "patchesNPatches": "Patches (nPatches)",
       "relaxKCentreSites": "Relax K (centre sites)",
       "relaxPasses": "Relax passes",
+      "rimCellGrowth": "外周セルの拡大率 (%)",
+      "nPatchesLimit": "nPatches 上限",
       "delaunay": "Delaunay",
       "sites": "Sites",
       "changeBuildingPattern": "Change building pattern",

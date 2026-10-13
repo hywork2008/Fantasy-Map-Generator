@@ -27,6 +27,7 @@ import {
   fitUndersizedTownFrame,
   type GridKind,
   isCitySizePreset,
+  resolveMaxPatches,
   seaPortShoreDistanceMeters,
   sizePresetForExtent,
   townMeshExtentMeters
@@ -55,7 +56,13 @@ export interface CityEditorShare {
   size: CitySizePreset;
   hexSizeMeters?: number;
   gridSeed?: string;
-  patchParams?: { nPatches: number; relaxCount: number; relaxPasses: number };
+  patchParams?: {
+    nPatches: number;
+    relaxCount: number;
+    relaxPasses: number;
+    rimGrowthPercent?: number;
+    maxPatches?: number;
+  };
   /** Evolution import whose block width should follow the fitted town cells. */
   measureBlockSize?: boolean;
   settings: Omit<GenerationSettings, "descriptor">;
@@ -118,12 +125,39 @@ export function regionalDisplayExtent(descriptor: BurgSiteDescriptor): number | 
   return extent < descriptor.frame.extentMeters - 0.5 ? extent : null;
 }
 
-export function shareFromDescriptor(source: BurgSiteDescriptor): CityEditorShare {
+const MAX_PATCHES_KEY = "fmg-city-editor:max-patches";
+
+/** Per-viewer nPatches ceiling (Grid evolution). Default 48 when unset or unreadable. */
+export function readMaxPatchesPreference(): number {
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(MAX_PATCHES_KEY);
+    return resolveMaxPatches(raw === null ? undefined : Number(raw));
+  } catch {
+    return resolveMaxPatches(undefined);
+  }
+}
+
+export function writeMaxPatchesPreference(value: number): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(MAX_PATCHES_KEY, String(resolveMaxPatches(value)));
+  } catch {
+    // Storage blocked: the ceiling lasts for this page only.
+  }
+}
+
+export function shareFromDescriptor(
+  source: BurgSiteDescriptor,
+  maxPatches = readMaxPatchesPreference()
+): CityEditorShare {
   source = resolvePortFrontages(source);
   const descriptor = joinStrandedRoadsToCrossings(source);
   const minimumExtent = descriptor.frame.requiredBounds ? requiredSiteExtent(descriptor.frame.requiredBounds) : 0;
   const population = populationWindowMeters(descriptor.frame.cityRadiusMeters);
-  const proposedFit = fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, descriptor.frame.extentMeters);
+  const proposedFit = fitUndersizedTownFrame(
+    descriptor.frame.cityRadiusMeters,
+    descriptor.frame.extentMeters,
+    maxPatches
+  );
   // Water that does not fit the smaller frame keeps the display extent.
   // Patch count follows the population window: a hamlet still uses its Micro
   // or Tiny count, and a town whose window already matches keeps the default.
@@ -145,7 +179,7 @@ export function shareFromDescriptor(source: BurgSiteDescriptor): CityEditorShare
   const townGrid =
     fit ??
     (blockedByWater || descriptor.regionalContext
-      ? fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, population)
+      ? fitUndersizedTownFrame(descriptor.frame.cityRadiusMeters, population, maxPatches)
       : null);
   return {
     kind: CITY_EDITOR_SHARE_KIND,
@@ -426,7 +460,13 @@ function asPatchParams(raw: unknown): CityEditorShare["patchParams"] | undefined
   if (!isFiniteNumber(raw.nPatches) || !isFiniteNumber(raw.relaxCount) || !isFiniteNumber(raw.relaxPasses)) {
     return undefined;
   }
-  return { nPatches: raw.nPatches, relaxCount: raw.relaxCount, relaxPasses: raw.relaxPasses };
+  return {
+    nPatches: raw.nPatches,
+    relaxCount: raw.relaxCount,
+    relaxPasses: raw.relaxPasses,
+    ...(isFiniteNumber(raw.rimGrowthPercent) ? { rimGrowthPercent: raw.rimGrowthPercent } : {}),
+    ...(isFiniteNumber(raw.maxPatches) ? { maxPatches: raw.maxPatches } : {})
+  };
 }
 
 function isGridKind(v: unknown): v is GridKind {

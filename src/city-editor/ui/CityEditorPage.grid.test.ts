@@ -56,9 +56,9 @@ const faceCount = (): number => svgCount(".ce-cells .ce-face");
 const preview = (): void => docButton("Preview grid evolution").click();
 
 describe("Document panel — Grid evolution (Phase G1)", () => {
-  it("has three parameter sliders; the scrub slider is disabled until a preview is built", () => {
+  it("has five parameter sliders; the scrub slider is disabled until a preview is built", () => {
     expect(root.querySelector(".ce-grid-controls")).not.toBeNull();
-    expect(root.querySelectorAll(".ce-grid-slider-control input[type='range']")).toHaveLength(3);
+    expect(root.querySelectorAll(".ce-grid-slider-control input[type='range']")).toHaveLength(5);
     expect(paramSlider(0).value).toBe("15"); // DEFAULT_PATCH_PARAMS.nPatches
     expect(gridSlider().disabled).toBe(true);
     expect(docButton("この格子を採用").disabled).toBe(true);

@@ -17,8 +17,11 @@ import {
   createGridDocument,
   DEFAULT_CITY_SIZE,
   DEFAULT_GRID_KIND,
+  DEFAULT_MAX_PATCHES,
   descriptorFrameGridOptions,
   type GridKind,
+  MAX_PATCHES_CEILING,
+  resolveMaxPatches,
   seaPortShoreDistanceMeters
 } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
@@ -169,7 +172,9 @@ import {
   encodeShare,
   forgetIncomingCity,
   type IncomingOrigin,
-  readIncomingCity
+  readIncomingCity,
+  readMaxPatchesPreference,
+  writeMaxPatchesPreference
 } from "../io/incomingCity";
 import { CASTLE_STYLE_PROFILES, type CastleStyle, resolveCastleStyle } from "../render/castlePatterns";
 import { renderFixedSitePreview } from "../render/fixedSitePreview";
@@ -456,7 +461,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   // spiral-scatter → incremental-Voronoi → central-relax pipeline captured one
   // for-loop iteration at a time. `gridEvoStages` is a transient preview overlay
   // (not on the document) until "採用" adopts a stage's cells as the new mesh.
-  const gridEvoParams: Omit<PatchParams, "extentMeters"> = { ...DEFAULT_PATCH_PARAMS };
+  const gridEvoParams: Omit<PatchParams, "extentMeters"> = {
+    ...DEFAULT_PATCH_PARAMS,
+    maxPatches: readMaxPatchesPreference()
+  };
   let gridEvoSeed = randomSeed();
   let gridEvoStages: GridEvolutionStage[] | null = null;
   let gridEvoIndex = 0;
@@ -871,30 +879,55 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   //     stage — the same result as the "Preview grid evolution" button. ---
   const gridParamLabels: HTMLLabelElement[] = [];
   const gridParamControls: Partial<
-    Record<"nPatches" | "relaxCount" | "relaxPasses", { slider: HTMLInputElement; readout: HTMLSpanElement }>
+    Record<
+      "nPatches" | "relaxCount" | "relaxPasses" | "rimGrowthPercent" | "maxPatches",
+      { slider: HTMLInputElement; readout: HTMLSpanElement }
+    >
   > = {};
+  const gridParamDefault = (key: keyof typeof gridParamControls): number =>
+    gridEvoParams[key] ?? (key === "maxPatches" ? DEFAULT_MAX_PATCHES : 100);
   for (const { key, caption, min, max } of [
-    { key: "nPatches", caption: editorText("cityEditor.messages.patchesNPatches"), min: 6, max: 48 },
+    {
+      key: "nPatches",
+      caption: editorText("cityEditor.messages.patchesNPatches"),
+      min: 6,
+      max: resolveMaxPatches(gridEvoParams.maxPatches)
+    },
     { key: "relaxCount", caption: editorText("cityEditor.messages.relaxKCentreSites"), min: 0, max: 200 },
-    { key: "relaxPasses", caption: editorText("cityEditor.messages.relaxPasses"), min: 0, max: 100 }
+    { key: "relaxPasses", caption: editorText("cityEditor.messages.relaxPasses"), min: 0, max: 100 },
+    { key: "rimGrowthPercent", caption: editorText("cityEditor.messages.rimCellGrowth"), min: 0, max: 100 },
+    {
+      key: "maxPatches",
+      caption: editorText("cityEditor.messages.nPatchesLimit"),
+      min: DEFAULT_MAX_PATCHES,
+      max: MAX_PATCHES_CEILING
+    }
   ] as const) {
-    const slider = rangeInput(String(gridEvoParams[key]), String(min), String(max), "1");
-    const readout = text(String(gridEvoParams[key]));
+    const slider = rangeInput(String(gridParamDefault(key)), String(min), String(max), "1");
+    const readout = text(String(gridParamDefault(key)));
     const control = div("ce-grid-slider-control");
     control.append(slider, readout);
     slider.addEventListener("input", () => {
       gridEvoParams[key] = Number(slider.value);
       readout.textContent = slider.value;
+      if (key === "maxPatches") {
+        writeMaxPatchesPreference(gridEvoParams.maxPatches!);
+        gridEvoParams.nPatches = Math.min(gridEvoParams.nPatches, gridEvoParams.maxPatches!);
+        syncGridParamControls();
+      }
       runGridEvo(); // live — same output as the Preview button (~25 ms)
     });
     gridParamControls[key] = { slider, readout };
     gridParamLabels.push(label(caption, control));
   }
   const syncGridParamControls = (): void => {
-    for (const key of ["nPatches", "relaxCount", "relaxPasses"] as const) {
+    const nPatchesSlider = gridParamControls.nPatches?.slider;
+    // Widen the range before setting the value; a range input clamps to its max.
+    if (nPatchesSlider) nPatchesSlider.max = String(resolveMaxPatches(gridEvoParams.maxPatches));
+    for (const key of ["maxPatches", "nPatches", "relaxCount", "relaxPasses", "rimGrowthPercent"] as const) {
       const control = gridParamControls[key];
       if (!control) continue;
-      control.slider.value = String(gridEvoParams[key]);
+      control.slider.value = String(gridParamDefault(key));
       control.readout.textContent = control.slider.value;
     }
   };
@@ -5151,6 +5184,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     gridKind = share.grid;
     hexSizeMeters = share.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
     if (share.patchParams) Object.assign(gridEvoParams, share.patchParams);
+    // The ceiling is a viewer preference, but never below the shared count.
+    gridEvoParams.maxPatches = Math.max(readMaxPatchesPreference(), resolveMaxPatches(gridEvoParams.nPatches));
     syncGridParamControls();
     measureTownCells = share.measureBlockSize === true;
     size.value = share.size;
