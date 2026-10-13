@@ -2,7 +2,7 @@
 
 調査日: 2026-10-02。対象: `c47ed0e33`（同日の `feature/moat` マージ後）。現行実装の呼び出し順を確認し、2026-09-29 版を更新した。失敗理由と固定シード試行は [generation-failure-cases.md](generation-failure-cases.md)。
 
-Generate パネルの工程名（`GENERATION_STAGES`、`src/city-editor/core/generate.ts`）と、実際に呼ばれる関数の対応。格子そのものの作成は Document パネルの `createGridDocument` であり、この生成は既存メッシュの上に海岸・河川・城壁・街路・地区を書き、一般住居・路地は描画時に導出する。城郭の内部配置、墓地、船は別途文書に保存する。
+Generate パネルの工程名（`GENERATION_STAGES`、`src/city-editor/generators/generation/generateCity.ts`）と、実際に呼ばれる関数の対応。格子そのものの作成は Document パネルの `createGridDocument` であり、この生成は既存メッシュの上に海岸・河川・城壁・街路・地区を書き、一般住居・路地は描画時に導出する。城郭の内部配置、墓地、船は別途文書に保存する。
 
 関連: 操作の概要は [random-generation.md](random-generation.md)。地区キャッシュと農地は [generation-phase3.md](generation-phase3.md)。
 
@@ -313,27 +313,27 @@ Workerはリクエストの `debugFailure` が有効なときだけスナップ�
 
 | ファイル | 役割 |
 | --- | --- |
-| `src/city-editor/ui/CityEditorPage.ts` | 一括生成、工程スライダ、⑪⑬の表示フラグ |
-| `src/city-editor/core/generate.ts` | `GENERATION_STAGES`、`runPlan`、`applyPlan`、完成生成 |
-| `src/city-editor/core/generationDebug.ts`、`render/generationDebugSvg.ts` | 不採用時点のスナップショット、検証対象の強調、編集可能な途中図 |
-| `src/city-editor/core/generationWorker.ts` | 一括生成の worker。中身は `generateCityOnDocument` |
-| `src/city-editor/core/gen/site/synthSite.ts` | パネル設定から立地を作る |
-| `src/city-editor/core/gen/classifySea.ts` | ① |
-| `src/city-editor/core/gen/riverPath.ts`、`classifyRiver.ts` | ② |
-| `src/city-editor/core/gen/classifyUrban.ts`、`settlementExtent.ts`、`resolveRiverOverlaps.ts` | ③ |
-| `src/city-editor/core/gen/interior.ts`、`circuladeLayout.ts`、`polygonalCirculadeLayout.ts` | ⑦の計画 |
-| `src/city-editor/core/passages.ts`、`gateApproaches.ts` | 門・橋の開口、直角化、交差の検証 |
-| `src/city-editor/core/gen/streets.ts`、`plausibility.ts` | ⑧の計画と海避け |
-| `src/city-editor/core/gen/wards.ts`、`civicPlacement.ts` | ⑨と寺院の位置 |
-| `src/city-editor/core/gen/finishCityGeometry.ts`、`rectifyHexBlocks.ts`、`rectifyVoronoiBlocks.ts`、`majorRoadShortcuts.ts` | ⑩の幾何 |
-| `src/city-editor/core/castles.ts`、`fortifications.ts`、`gen/castlePlacement.ts`、`gen/castleLayout.ts` | ⑦の城予約、都市 / 城の防衛回路、城門・支線・内部配置 |
-| `src/city-editor/core/moats.ts`、`render/svg.ts` | 外堀の予約と描画、門の橋 |
-| `src/city-editor/core/gen/urbanBridges.ts` | 仕上げ後の城内孤立地区への追加橋 |
-| `src/city-editor/core/gen/cemeteryLayout.ts`、`harborShips.ts`、`roadsideFarms.ts` | 墓地、船、沿道農地の保存 |
-| `src/city-editor/core/gen/medievalFabric.ts`、`suburbanLanduse.ts`、`harborFabric.ts`、`parkFabric.ts`、`farmSheds.ts`、`watermillFabric.ts`、`landmarkIntegration.ts` | 建物パターン・時代別の導出物と史跡への調整 |
-| `src/city-editor/core/gen/fabricDistricts.ts` | 完成時に保存する地区計画 |
-| `src/city-editor/core/gen/blockInfill.ts`、`localInfill.ts`、`organicBlocks.ts`、`perimeterBlocks.ts`、`frontageBuildings.ts`、`streetGrowth.ts`、`buildingLots.ts`、`openField.ts` | ⑪⑫⑬の路地・住居・農地（描画時） |
-| `src/city-editor/render/svg.ts`、`concealStreets.ts`、`bridgeDeck.ts` | 町表示、⑬の道路隠し、橋面 |
+| `src/city-editor/components/CityEditorPage.ts` | 一括生成、工程スライダ、⑪⑬の表示フラグ |
+| `src/city-editor/generators/generation/generateCity.ts` | `GENERATION_STAGES`、`runPlan`、`applyPlan`、完成生成 |
+| `src/city-editor/generators/generationDebug.ts`、`render/generationDebugSvg.ts` | 不採用時点のスナップショット、検証対象の強調、編集可能な途中図 |
+| `src/city-editor/services/generationWorker.ts` | 一括生成の worker。中身は `generateCityOnDocument` |
+| `src/city-editor/generators/site/synthSite.ts` | パネル設定から立地を作る |
+| `src/city-editor/generators/classifySea.ts` | ① |
+| `src/city-editor/generators/riverPath.ts`、`classifyRiver.ts` | ② |
+| `src/city-editor/generators/classifyUrban.ts`、`settlementExtent.ts`、`resolveRiverOverlaps.ts` | ③ |
+| `src/city-editor/generators/interior.ts`、`circuladeLayout.ts`、`polygonalCirculadeLayout.ts` | ⑦の計画 |
+| `src/city-editor/generators/passages.ts`、`gateApproaches.ts` | 門・橋の開口、直角化、交差の検証 |
+| `src/city-editor/generators/streets.ts`、`plausibility.ts` | ⑧の計画と海避け |
+| `src/city-editor/generators/wards.ts`、`civicPlacement.ts` | ⑨と寺院の位置 |
+| `src/city-editor/generators/finishCityGeometry.ts`、`rectifyHexBlocks.ts`、`rectifyVoronoiBlocks.ts`、`majorRoadShortcuts.ts` | ⑩の幾何 |
+| `src/city-editor/generators/castles.ts`、`fortifications.ts`、`gen/castlePlacement.ts`、`gen/castleLayout.ts` | ⑦の城予約、都市 / 城の防衛回路、城門・支線・内部配置 |
+| `src/city-editor/generators/moats.ts`、`render/svg.ts` | 外堀の予約と描画、門の橋 |
+| `src/city-editor/generators/urbanBridges.ts` | 仕上げ後の城内孤立地区への追加橋 |
+| `src/city-editor/generators/cemeteryLayout.ts`、`harborShips.ts`、`roadsideFarms.ts` | 墓地、船、沿道農地の保存 |
+| `src/city-editor/generators/medievalFabric.ts`、`suburbanLanduse.ts`、`harborFabric.ts`、`parkFabric.ts`、`farmSheds.ts`、`watermillFabric.ts`、`landmarkIntegration.ts` | 建物パターン・時代別の導出物と史跡への調整 |
+| `src/city-editor/generators/fabricDistricts.ts` | 完成時に保存する地区計画 |
+| `src/city-editor/generators/blockInfill.ts`、`localInfill.ts`、`organicBlocks.ts`、`perimeterBlocks.ts`、`frontageBuildings.ts`、`streetGrowth.ts`、`buildingLots.ts`、`openField.ts` | ⑪⑫⑬の路地・住居・農地（描画時） |
+| `src/city-editor/renderers/editorSvg.ts`、`concealStreets.ts`、`bridgeDeck.ts` | 町表示、⑬の道路隠し、橋面 |
 
 門の未接続エラーには、対応する城外道路・城内道路の探索記録を `failure.routing` として付ける。予定座標、スナップした経由頂点、採用経路の頂点・辺、失敗した各A*の始点・終点、到達頂点数、終点に最も近い到達可能頂点までの経路、到達領域の境界で禁止された辺と理由を保存する。別の地図端・広場頂点・スポーク端への再探索と、現在の城壁を基準にした再探索も別記録として残す。コンソールの構造化エラー、コピー用の生成失敗ログ、失敗SVGのメタデータへ出力する。探索成功後に門の交差が不正だった場合にも、成功した経路と検査時点の門に接する道路辺を出力する。
 

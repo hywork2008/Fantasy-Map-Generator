@@ -1,8 +1,8 @@
-import { previewRouteAcrossFace } from "../../core/features";
-import { moveVertex } from "../../core/mesh";
-import type { Id, Point } from "../../core/types";
-import { getShipAngleFromPoint } from "../../render/shipSvg";
+import { previewRouteAcrossFace } from "../../generators/features";
+import { moveVertex } from "../../generators/mesh";
+import { getShipAngleFromPoint } from "../../renderers/shipSvg";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
+import type { Id, Point } from "../../types/document";
 import { isBrushTool } from "./toolTypes";
 export interface PointerMoveContext {
   scope: import("../../services/editorLifetime").EditorLifetime;

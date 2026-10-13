@@ -1,4 +1,4 @@
-import type { CityDocument, EdgeRef, FeatureGroup } from "../../../core/types";
+import type { CityDocument, EdgeRef, FeatureGroup } from "../../../types/document";
 export function appendGeneratedGroup(next: CityDocument, group: FeatureGroup): void {
   if (next.featureGroups.some(existing => existing.id === group.id && existing.locked)) return;
   if (group.kind === "wall" && next.castles?.length) {

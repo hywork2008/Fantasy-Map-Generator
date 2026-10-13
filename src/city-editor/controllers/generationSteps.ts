@@ -1,7 +1,5 @@
 import { editorText } from "../../i18n/editorMessages";
 import {
-  type GenerationStage,
-  type GenerationStepResult,
   generateCoastWalkStep,
   generateGateStep,
   generateRiverWalkStep,
@@ -9,9 +7,10 @@ import {
   generateStageOnDocument,
   generateUrbanPatchStep,
   generateWardStep
-} from "../core/generate";
-import type { CityDocument, Id } from "../core/types";
+} from "../generators/generation/previews";
+import type { CityDocument, Id } from "../types/document";
 import type { StepFn, UiStepResult } from "../types/editor";
+import type { GenerationStage, GenerationStepResult } from "../types/generation";
 export function asUiStep(result: GenerationStepResult): UiStepResult {
   return {
     document: result.document,

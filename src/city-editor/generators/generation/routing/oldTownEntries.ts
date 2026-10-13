@@ -1,6 +1,6 @@
-import { townCircuits, townGates } from "../../../core/fortifications";
-import { incidentEdges } from "../../../core/mesh";
-import type { CityDocument, Id } from "../../../core/types";
+import type { CityDocument, Id } from "../../../types/document";
+import { townCircuits, townGates } from "../../fortifications";
+import { incidentEdges } from "../../mesh";
 
 /**
  * Double walls: streets may enter the old town only through its gates. A wall

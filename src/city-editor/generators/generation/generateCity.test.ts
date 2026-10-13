@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createGridDocument } from "../../core/document";
-import { clone } from "../../core/mesh";
+import { createGridDocument } from "../document";
+import { clone } from "../mesh";
 import { COMPLETE_CITY_ATTEMPTS, generateCityAttempt, generateCityOnDocument } from "./generateCity";
 import * as preparation from "./prepareRun";
 import { defaultGenerationSettings } from "./settings";
 
 const injected = vi.hoisted(() => ({ rejectFinished: false, finishedAttempts: 0 }));
-vi.mock("../../core/passages", async importOriginal => {
-  const actual = await importOriginal<typeof import("../../core/passages")>();
+vi.mock("../passages", async importOriginal => {
+  const actual = await importOriginal<typeof import("../passages")>();
   return {
     ...actual,
     explainGeneratedCrossingFailures: (...args: Parameters<typeof actual.explainGeneratedCrossingFailures>) => {

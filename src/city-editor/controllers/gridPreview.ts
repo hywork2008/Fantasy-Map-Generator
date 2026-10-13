@@ -1,12 +1,12 @@
 import { editorText } from "../../i18n/editorMessages";
 import { clamp } from "../components/editorControls";
-import { buildGridEvolution } from "../core/gen/gridEvolution";
-import { makeRng } from "../core/gen/prng";
-import { clearGenerationPreviewCache } from "../core/generate";
-import { meshFromCells, validate } from "../core/mesh";
-import type { CityDocument } from "../core/types";
-import type { GridOverlay } from "../render/svg";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { buildGridEvolution } from "../generators/gridEvolution";
+import { meshFromCells, validate } from "../generators/mesh";
+import { makeRng } from "../generators/prng";
+import type { GridOverlay } from "../renderers/overlays/editorOverlays";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { CityDocument } from "../types/document";
 import { emptySelection } from "./tools/toolTypes";
 
 export interface GridPreviewContext {

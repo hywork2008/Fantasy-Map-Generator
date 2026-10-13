@@ -1,5 +1,5 @@
-import type { CityDocument } from "../../core/types";
 import type { DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
+import type { CityDocument } from "../../types/document";
 import { emptySelection } from "./toolTypes";
 export interface KeyboardContext {
   scope: import("../../services/editorLifetime").EditorLifetime;

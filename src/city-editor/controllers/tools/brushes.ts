@@ -1,11 +1,12 @@
 import { editorText } from "../../../i18n/editorMessages";
-import { removeEdgesFromGroups } from "../../core/features";
-import { syncDocumentCemeteries } from "../../core/gen/cemeteryLayout";
-import { facePoints, optimizeJunctions } from "../../core/mesh";
-import type { CityDocument, Id, Point } from "../../core/types";
-import { renderCemeteries } from "../../render/svg";
+import { syncDocumentCemeteries } from "../../generators/cemeteryLayout";
+import { removeEdgesFromGroups } from "../../generators/features";
+import { facePoints, optimizeJunctions } from "../../generators/mesh";
+import { renderCemeteries } from "../../renderers/cemeterySvg";
 import type { DisplayState, DocumentsState, InteractionState } from "../../state/editorSession";
-import { circleIntersectsPolygon, formatDistance, pointToSegmentDistance } from "../editorGeometry";
+import type { CityDocument, Id, Point } from "../../types/document";
+import { formatDistance } from "../../utils/editorUnits";
+import { circleIntersectsPolygon, pointToSegmentDistance } from "../editorGeometry";
 import { isBrushTool } from "./toolTypes";
 
 export interface BrushesContext {

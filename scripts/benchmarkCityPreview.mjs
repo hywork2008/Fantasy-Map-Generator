@@ -22,12 +22,12 @@ try {
     for (const terrain of option("terrains", "inland,river,coast").split(",")) {
       for (let run = 0; run < runs; run++) {
         const result = await page.evaluate(async ({ size, terrain, descriptor, run, capture }) => {
-          const { createGridDocument, descriptorFrameGridOptions } = await import("/Fantasy-Map-Generator/city-editor/core/document.ts");
-          const { defaultGenerationSettings } = await import("/Fantasy-Map-Generator/city-editor/core/generate.ts");
-          const { startCityGeneration } = await import("/Fantasy-Map-Generator/city-editor/core/generationWorkerClient.ts");
-          const { parseDescriptor, shareFromDescriptor } = await import("/Fantasy-Map-Generator/city-editor/io/incomingCity.ts");
-          const { serializeCitySvg } = await import("/Fantasy-Map-Generator/city-editor/render/svg.ts");
-          const { serializeCityPreviewSvg } = await import("/Fantasy-Map-Generator/city-editor/render/previewSvg.ts");
+          const { createGridDocument, descriptorFrameGridOptions } = await import("/Fantasy-Map-Generator/city-editor/generators/document.ts");
+          const { defaultGenerationSettings } = await import("/Fantasy-Map-Generator/city-editor/generators/generation/settings.ts");
+          const { startCityGeneration } = await import("/Fantasy-Map-Generator/city-editor/services/generationWorkerClient.ts");
+          const { parseDescriptor, shareFromDescriptor } = await import("/Fantasy-Map-Generator/city-editor/services/io/incomingCity.ts");
+          const { serializeCitySvg } = await import("/Fantasy-Map-Generator/city-editor/renderers/standaloneSvg.ts");
+          const { serializeCityPreviewSvg } = await import("/Fantasy-Map-Generator/city-editor/renderers/previewSvg.ts");
           const seed = "preview-benchmark-v1";
           const began = performance.now();
           const parsed = descriptor ? parseDescriptor(JSON.stringify(descriptor)) : null;

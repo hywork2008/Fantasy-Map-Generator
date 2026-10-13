@@ -159,7 +159,7 @@ City Editorのメートル単位（`extentMeters: 600〜4800m`）に整合する
 ## 6. データモデル・型定義案
 
 ```typescript
-// src/city-editor/core/types.ts の拡張案
+// src/city-editor/types/document.ts の拡張案
 
 export type WardKind =
   | "market"

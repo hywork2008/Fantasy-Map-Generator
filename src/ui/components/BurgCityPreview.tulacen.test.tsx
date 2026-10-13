@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GenerationRequest } from "../../city-editor/core/generationWorkerClient";
-import { cityEditorDocument } from "../../city-editor/core/housingReport";
-import { parseDescriptor, shareFromDescriptor } from "../../city-editor/io/incomingCity";
+import { cityEditorDocument } from "../../city-editor/services/analysis/housingReport";
+import { parseDescriptor, shareFromDescriptor } from "../../city-editor/services/io/incomingCity";
+import type { GenerationRequest } from "../../city-editor/types/worker";
 import { worldContext } from "../../context/worldContext";
 import { bindSimulationBurgState } from "../../runtime/simulationBurgState";
 import { decodeAndValidateWorldArchive } from "../../runtime/worldArchive";
@@ -22,11 +22,11 @@ vi.mock("../../controllers/burg-editor", () => ({ burgEditorActions: { openCityE
 vi.mock("./CityPreviewViewport", () => ({
   CityPreviewViewport: ({ url }: { url: string }) => <img src={url} alt="preview" />
 }));
-vi.mock("../../city-editor/core/generationWorkerClient", () => ({
+vi.mock("../../city-editor/services/generationWorkerClient", () => ({
   startCityGeneration: (request: GenerationRequest) => {
     mocks.requests.push(request);
     return {
-      result: import("../../city-editor/core/generate").then(({ generateCityOnDocument }) =>
+      result: import("../../city-editor/generators/generation/generateCity").then(({ generateCityOnDocument }) =>
         generateCityOnDocument(request.document, request.settings, request.seed)
       ),
       cancel: vi.fn()

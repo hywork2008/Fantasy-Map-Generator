@@ -1,6 +1,6 @@
-import { facePoints } from "../core/mesh";
-import type { Id } from "../core/types";
+import { facePoints } from "../generators/mesh";
 import type { DocumentsState } from "../state/editorSession";
+import type { Id } from "../types/document";
 import { vertexPairKey } from "./editorGeometry";
 export interface SpatialIndexContext {
   edgeIdsByVertex: Map<string, string[]>;

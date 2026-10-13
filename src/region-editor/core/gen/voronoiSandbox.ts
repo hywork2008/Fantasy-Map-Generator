@@ -1,6 +1,6 @@
-import { buildGrid } from "../../../city-editor/core/gen/grid";
-import { makeRng } from "../../../city-editor/core/gen/prng";
-import type { Cell, CityGeography, Point } from "../../../city-editor/core/gen/types";
+import { buildGrid } from "../../../city-editor/generators/grid";
+import { makeRng } from "../../../city-editor/generators/prng";
+import type { Cell, CityGeography, Point } from "../../../city-editor/types/geometry";
 import { STANDARD_BIOME_DEFINITIONS } from "../../../data/biomeCatalog";
 import { forestAttributesForKey } from "../../../generators/biomeAttributes";
 import type { RegionDocument, RegionSiteCell, RegionSiteDescriptor } from "../types";

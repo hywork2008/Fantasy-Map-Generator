@@ -1,7 +1,7 @@
-import { decodeShare } from "../src/city-editor/io/incomingCity";
-import { createGridDocument } from "../src/city-editor/core/document";
-import { generateCityAttempt } from "../src/city-editor/core/generate";
-import { renderCemeteries } from "../src/city-editor/render/svg";
+import { decodeShare } from "../src/city-editor/services/io/incomingCity";
+import { createGridDocument } from "../src/city-editor/generators/document";
+import { generateCityAttempt } from "../src/city-editor/generators/generation/generateCity";
+import { renderCemeteries } from "../src/city-editor/renderers/cemeterySvg";
 
 // Setup minimal DOM polyfill for SVG element creation if needed
 if (!globalThis.document) {

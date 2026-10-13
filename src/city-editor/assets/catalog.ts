@@ -1,4 +1,4 @@
-import type { LandmarkAsset } from "../core/types";
+import type { LandmarkAsset } from "../types/document";
 import chartres from "./chartres-prototype.json";
 import pantheon from "./pantheon-prototype.json";
 import sanVitale from "./san-vitale-prototype.json";

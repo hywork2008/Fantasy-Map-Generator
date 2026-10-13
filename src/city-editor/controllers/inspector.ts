@@ -2,22 +2,6 @@ import { editorHtml, editorText } from "../../i18n/editorMessages";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
 import {
-  createCastleOnFace,
-  deleteCastle,
-  regenerateCastleInterior,
-  setCastleLocked,
-  setCastlePartLocked
-} from "../core/castles";
-import {
-  gateOpeningCandidates,
-  placeGateOpening,
-  removeEdgeFromGroup,
-  toggleGate,
-  vertexHasWall,
-  vertexHasWallPassage
-} from "../core/features";
-import { reservedCastleFaces } from "../core/fortifications";
-import {
   evaluateApproachBeyond,
   normalizeApproachBeyond,
   REALM_RELATION_LABELS,
@@ -26,11 +10,26 @@ import {
   SETTLEMENT_ROLES,
   SETTLEMENT_SCALE_LABELS,
   SETTLEMENT_SCALES
-} from "../core/gen/approachBeyond";
-import type { InfillLane } from "../core/gen/blockInfill";
-import { syncDocumentCemeteries } from "../core/gen/cemeteryLayout";
-import { defaultDistrictParameters, resolveDistricts, setDistrictParameters } from "../core/gen/fabricDistricts";
-import { transformPlacedLandmark } from "../core/landmarks";
+} from "../generators/approachBeyond";
+import {
+  createCastleOnFace,
+  deleteCastle,
+  regenerateCastleInterior,
+  setCastleLocked,
+  setCastlePartLocked
+} from "../generators/castles";
+import { syncDocumentCemeteries } from "../generators/cemeteryLayout";
+import { defaultDistrictParameters, resolveDistricts, setDistrictParameters } from "../generators/fabricDistricts";
+import {
+  gateOpeningCandidates,
+  placeGateOpening,
+  removeEdgeFromGroup,
+  toggleGate,
+  vertexHasWall,
+  vertexHasWallPassage
+} from "../generators/features";
+import { reservedCastleFaces } from "../generators/fortifications";
+import { transformPlacedLandmark } from "../generators/landmarks";
 import {
   clone,
   faceNeighbors,
@@ -40,8 +39,13 @@ import {
   setFaceElevation,
   setFaceWater,
   splitFace
-} from "../core/mesh";
-import { openGatePassage } from "../core/passages";
+} from "../generators/mesh";
+import { openGatePassage } from "../generators/passages";
+import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
+import { SHIP_SPECS } from "../renderers/shipSpecifications";
+import type { DocumentsState, InteractionState } from "../state/editorSession";
+import type { CastleStyle } from "../types/contracts/castlePatterns";
+import type { InfillLane } from "../types/contracts/localInfill";
 import type {
   ApproachBeyond,
   ApproachBeyondData,
@@ -54,12 +58,9 @@ import type {
   SettlementScale,
   WardKind,
   WaterKind
-} from "../core/types";
-import { CASTLE_STYLE_PROFILES, type CastleStyle, resolveCastleStyle } from "../render/castlePatterns";
-import { SHIP_SPECS } from "../render/shipSvg";
-import type { RenderSelection } from "../render/svg";
-import type { DocumentsState, InteractionState } from "../state/editorSession";
+} from "../types/document";
 import type { ContextMenuAction } from "../types/editor";
+import type { RenderSelection } from "../types/selection";
 
 export interface InspectorContext {
   controls: ReturnType<typeof createEditorControls>;

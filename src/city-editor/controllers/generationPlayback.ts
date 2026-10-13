@@ -1,9 +1,10 @@
 import { editorText } from "../../i18n/editorMessages";
-import { clearGenerationPreviewCache } from "../core/generate";
-import type { GenerationDebugPreview } from "../core/generationDebug";
-import { type GenerationSample, generationPhaseLabel } from "../core/generationDiagnostics";
-import { clone } from "../core/mesh";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { generationPhaseLabel } from "../generators/generationDiagnostics";
+import { clone } from "../generators/mesh";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
+import type { GenerationSample } from "../types/contracts/generationDiagnostics";
 import { emptySelection } from "./tools/toolTypes";
 
 export interface GenerationPlaybackContext {

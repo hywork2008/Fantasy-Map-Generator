@@ -22,7 +22,7 @@ if (!archive || tokens.length === 0) {
 const out = join(mkdtempSync(join(tmpdir(), "housing-report-")), "report.json");
 const result = spawnSync(
   "npx",
-  ["vitest", "run", "src/city-editor/core/housingReport.cli.test.ts", "--reporter=dot"],
+  ["vitest", "run", "src/city-editor/services/analysis/housingReport.cli.test.ts", "--reporter=dot"],
   {
     cwd: resolve(import.meta.dirname, ".."),
     env: {

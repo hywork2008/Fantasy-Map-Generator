@@ -1,7 +1,13 @@
 import { editorText } from "../../../i18n/editorMessages";
-import { appendEdge, appendRiverVertex, createGroup, featureGroupVertices, groupUsesEdge } from "../../core/features";
-import type { CityDocument, FeatureGroup, Id, Point } from "../../core/types";
+import {
+  appendEdge,
+  appendRiverVertex,
+  createGroup,
+  featureGroupVertices,
+  groupUsesEdge
+} from "../../generators/features";
 import type { DisplayState, DocumentsState, InteractionState } from "../../state/editorSession";
+import type { CityDocument, FeatureGroup, Id, Point } from "../../types/document";
 import type { RoutePaintKind, RouteStroke } from "../../types/editor";
 import { pointToSegmentDistance } from "../editorGeometry";
 import { targetId } from "./toolTypes";

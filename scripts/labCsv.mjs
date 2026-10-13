@@ -15,7 +15,7 @@ if (!out || !args.length || args.includes("--help")) {
   process.exit(out && args.length ? 0 : 1);
 }
 
-// Mirrors CITY_SIZE_PRESETS (src/city-editor/core/document.ts); keep in sync.
+// Mirrors CITY_SIZE_PRESETS (src/city-editor/generators/document.ts); keep in sync.
 const PRESETS = [
   ["micro", 300],
   ["tiny", 600],

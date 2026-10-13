@@ -1,12 +1,12 @@
-import { type CoastResult, classifyCoast, conformSeaToShore } from "../../../core/gen/classifySea";
-import type { EdgeGraph } from "../../../core/gen/edgeGraph";
-import { azimuthToVec, pointInPolygon } from "../../../core/gen/geom";
-import { makeRng } from "../../../core/gen/prng";
-import type { Cell, CityGeography } from "../../../core/gen/types";
-import { meshShoreChain, regionalSeaPolygon, regionalShoreline } from "../../../core/regionalCoast";
-import type { Point } from "../../../core/types";
-import { cellInsideWaterPolygons, fixedWaterPolygons } from "../../../core/waterGeometry";
+import type { Point } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
+import type { Cell, CityGeography } from "../../../types/geometry";
+import { type CoastResult, classifyCoast, conformSeaToShore } from "../../classifySea";
+import type { EdgeGraph } from "../../edgeGraph";
+import { azimuthToVec, pointInPolygon } from "../../geom";
+import { makeRng } from "../../prng";
+import { meshShoreChain, regionalSeaPolygon, regionalShoreline } from "../../regionalCoast";
+import { cellInsideWaterPolygons, fixedWaterPolygons } from "../../waterGeometry";
 import type { Plan } from "../contracts";
 import { applyWideChannels } from "./waterTerrain";
 

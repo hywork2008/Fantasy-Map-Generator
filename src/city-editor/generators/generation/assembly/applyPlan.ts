@@ -1,8 +1,8 @@
-import type { Cell, CityProgram } from "../../../core/gen/types";
-import type { RoadRoutingTrace } from "../../../core/generationDiagnostics";
-import { type GenerationObserver, generationTimer, reportGenerationFailure } from "../../../core/generationDiagnostics";
-import { clone } from "../../../core/mesh";
-import type { CityDocument, Id } from "../../../core/types";
+import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
+import type { CityDocument, Id } from "../../../types/document";
+import type { Cell, CityProgram } from "../../../types/geometry";
+import { type GenerationObserver, generationTimer, reportGenerationFailure } from "../../generationDiagnostics";
+import { clone } from "../../mesh";
 import type { Plan } from "../contracts";
 import { applyRoads } from "../routing/assembleRoads";
 import { applyCircuits } from "./circuits";
@@ -24,7 +24,10 @@ export function applyPlan(
   complete = false,
   observer?: GenerationObserver,
   attempt = 1,
-  onRejected?: (document: CityDocument, sample: import("../../../core/generationDiagnostics").GenerationSample) => void,
+  onRejected?: (
+    document: CityDocument,
+    sample: import("../../../types/contracts/generationDiagnostics").GenerationSample
+  ) => void,
   wallCheckpoint?: AssemblyCheckpoint
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);

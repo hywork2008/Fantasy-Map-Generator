@@ -1,10 +1,12 @@
 /** node --import tsx scripts/benchmarkCityFabric.ts --out=/tmp/ce-fabric-cache.json */
 import { writeFileSync } from "node:fs";
-import { createGridDocument } from "../src/city-editor/core/document";
-import { defaultGenerationSettings, generateCityOnDocument } from "../src/city-editor/core/generate";
-import { buildBlockFabric, FabricCache } from "../src/city-editor/core/gen/blockInfill";
-import { setDistrictParameters } from "../src/city-editor/core/gen/fabricDistricts";
-import type { CityDocument } from "../src/city-editor/core/types";
+import { createGridDocument } from "../src/city-editor/generators/document";
+import { defaultGenerationSettings } from "../src/city-editor/generators/generation/settings";
+import { generateCityOnDocument } from "../src/city-editor/generators/generation/generateCity";
+import { buildBlockFabric } from "../src/city-editor/generators/blockInfill";
+import { FabricCache } from "../src/city-editor/generators/localInfill";
+import { setDistrictParameters } from "../src/city-editor/generators/fabricDistricts";
+import type { CityDocument } from "../src/city-editor/types/document";
 
 const seed = "phase2-reference";
 const samples = [];

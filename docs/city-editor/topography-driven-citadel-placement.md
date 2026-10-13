@@ -17,7 +17,7 @@
 
 中世ヨーロッパをはじめとする歴史的城郭都市において、城塞（Citadel / Castle）は単なる都市の幾何学的中心やランダムな端部に置かれるのではなく、**「地形の険しさ（高台、断崖、河川の蛇行）を利用して防衛コストを最小化し、周囲を威圧・監視できる天然の要害」**に配置された。
 
-本設計は、FMG（Fantasy Map Generator）の局所地形・水文解析と、CE（City Editor）の城郭配置エンジン（`src/city-editor/core/gen/castlePlacement.ts`）を連携させ、**地形の防御的利点を最大限に活かした城郭配置**を実現することを目的とする。
+本設計は、FMG（Fantasy Map Generator）の局所地形・水文解析と、CE（City Editor）の城郭配置エンジン（`src/city-editor/generators/castlePlacement.ts`）を連携させ、**地形の防御的利点を最大限に活かした城郭配置**を実現することを目的とする。
 
 ### 1.2 現状の課題
 
@@ -249,7 +249,7 @@ Richmond Castle の南側（スウェール川の崖側）は、当初は壁が�
 
 ### ステップ 2: FMG側の戦術地形解析とDescriptor契約（連携接続）
 
-- **対象**: `src/services/burgSiteDescriptor.ts`, `src/city-editor/core/gen/site/burgSiteDescriptor.ts`。
+- **対象**: `src/services/burgSiteDescriptor.ts`, `src/city-editor/generators/site/burgSiteDescriptor.ts`。
 
 - **内容**:
   - FMG側で都市候補決定時に、地形・河川ポリゴンから `TacticalSiteAnalysis` を算出。崖の縁・蛇行の首と先端の比高・小さな丘は、FMG のセル標高より細かい解析（または河岸の形状）で判定する。
@@ -258,7 +258,7 @@ Richmond Castle の南側（スウェール川の崖側）は、当初は壁が�
 
 ### ステップ 3: 天然障壁（Natural Barriers）と片側城壁の表現（ビジュアル・防御洗練）
 
-- **対象**: `src/city-editor/core/fortifications.ts`, `src/city-editor/render/svg.ts`。
+- **対象**: `src/city-editor/generators/fortifications.ts`, `src/city-editor/renderers/editorSvg.ts`。
 
 - **内容**:
   - 崖・水域に面する城郭辺を `naturalBarriers` として扱い、陸側正面への防御集中（主門・主塔・堀）を表現。

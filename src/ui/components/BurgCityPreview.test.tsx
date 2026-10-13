@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { CityDocument } from "../../city-editor/core/types";
+import type { CityDocument } from "../../city-editor/types/document";
 import type { BurgData } from "../../store/burgEditorState";
 import { BurgCityPreview } from "./BurgCityPreview";
 
@@ -31,17 +31,17 @@ vi.mock("../../services/burgSiteDescriptor", () => ({
     revision: mocks.revision
   })
 }));
-vi.mock("../../city-editor/io/incomingCity", () => ({
+vi.mock("../../city-editor/services/io/incomingCity", () => ({
   parseDescriptor: JSON.parse,
   shareFromDescriptor: (descriptor: unknown) => ({ seed: "same", size: "small", grid: "evolution", descriptor })
 }));
-vi.mock("../../city-editor/core/document", () => ({
+vi.mock("../../city-editor/generators/document", () => ({
   createGridDocument: mocks.grid,
   descriptorFrameGridOptions: mocks.frame,
   seaPortShoreDistanceMeters: mocks.shoreDistance
 }));
-vi.mock("../../city-editor/core/generate", () => ({ defaultGenerationSettings: () => ({}) }));
-vi.mock("../../city-editor/core/generationWorkerClient", () => ({
+vi.mock("../../city-editor/generators/generation/settings", () => ({ defaultGenerationSettings: () => ({}) }));
+vi.mock("../../city-editor/services/generationWorkerClient", () => ({
   startCityGeneration: () => {
     let resolve!: (city: CityDocument | null) => void;
     const result = new Promise<CityDocument | null>(r => {
@@ -52,7 +52,7 @@ vi.mock("../../city-editor/core/generationWorkerClient", () => ({
     return { result, cancel };
   }
 }));
-vi.mock("../../city-editor/render/svg", () => ({ serializeCitySvg: mocks.serialize }));
+vi.mock("../../city-editor/renderers/standaloneSvg", () => ({ serializeCitySvg: mocks.serialize }));
 vi.mock("./CityPreviewViewport", () => ({
   CityPreviewViewport: ({ url }: { url: string }) => <img src={url} alt="preview" />
 }));

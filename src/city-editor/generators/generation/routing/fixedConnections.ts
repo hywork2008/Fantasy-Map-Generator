@@ -1,15 +1,15 @@
 import { measureProcessing, type ProcessingProfiler } from "../../../../utils/processingProfiler";
-import { connectAutomaticFixedApproaches } from "../../../core/automaticFixedApproaches";
+import type { CityDocument } from "../../../types/document";
+import type { GenerationSettings } from "../../../types/generation";
+import type { CityGeography } from "../../../types/geometry";
+import { connectAutomaticFixedApproaches } from "../../automaticFixedApproaches";
 import {
   straightenBridgeGateLinks,
   straightenFrameRoadJunctions,
   straightenThroughStreets
-} from "../../../core/frameRoadJunction";
-import type { CityGeography } from "../../../core/gen/types";
-import type { GenerationObserver } from "../../../core/generationDiagnostics";
-import { installRegionalRoadGates } from "../../../core/regionalRoadGates";
-import type { CityDocument } from "../../../core/types";
-import type { GenerationSettings } from "../../../types/generation";
+} from "../../frameRoadJunction";
+import type { GenerationObserver } from "../../generationDiagnostics";
+import { installRegionalRoadGates } from "../../regionalRoadGates";
 import { frameRoadAttachedToTown, repairFrameRoadTownConnections } from "./frameRoadConnection";
 /** Finishes town-side fixed crossing approaches and frame attachments on the candidate, emitting the existing diagnostics after geometry finishing. */
 export function finishFixedConnections(

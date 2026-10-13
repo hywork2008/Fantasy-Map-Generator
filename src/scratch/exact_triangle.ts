@@ -1,7 +1,7 @@
-import { polygonArea } from "../../src/city-editor/core/gen/geom";
-import { clipHalfPlane } from "../../src/city-editor/core/gen/lotGeometry";
-import { makeRng } from "../../src/city-editor/core/gen/prng";
-import type { Point } from "../../src/city-editor/core/types";
+import { polygonArea } from "../city-editor/generators/geom";
+import { clipHalfPlane } from "../city-editor/generators/lotGeometry";
+import { makeRng } from "../city-editor/generators/prng";
+import type { Point } from "../city-editor/types/document";
 
 const area = (p: Point[]) => Math.abs(polygonArea(p));
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];

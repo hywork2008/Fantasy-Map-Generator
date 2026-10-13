@@ -1,9 +1,9 @@
-import { resolveWallMaterial } from "../../core/features";
-import { buildEdgeGraph } from "../../core/gen/edgeGraph";
-import type { Cell, CityGeography, CityParams, CityProgram } from "../../core/gen/types";
-import { type GenerationObserver, generationTimer } from "../../core/generationDiagnostics";
-import type { CityDocument, Mesh } from "../../core/types";
+import type { CityDocument, Mesh } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
+import type { Cell, CityGeography, CityParams, CityProgram } from "../../types/geometry";
+import { buildEdgeGraph } from "../edgeGraph";
+import { resolveWallMaterial } from "../features";
+import { type GenerationObserver, generationTimer } from "../generationDiagnostics";
 import type { Plan } from "./contracts";
 import { planCoast } from "./planning/coast";
 import { planDefenses } from "./planning/defenses";

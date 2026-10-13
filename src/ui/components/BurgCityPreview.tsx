@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { generationPhaseLabel } from "../../city-editor/core/generationDiagnostics";
+import { generationPhaseLabel } from "../../city-editor/generators/generationDiagnostics";
 import { burgEditorActions } from "../../controllers/burg-editor";
 import { getBurgSiteDescriptor } from "../../services/burgSiteDescriptor";
 import type { BurgData } from "../../store/burgEditorState";
@@ -19,7 +19,7 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
   } | null>(null);
 
   const [progress, setProgress] = useState<
-    import("../../city-editor/core/generationDiagnostics").GenerationSample | null
+    import("../../city-editor/types/contracts/generationDiagnostics").GenerationSample | null
   >(null);
   const [snapshot, setSnapshot] = useState<string | null>(null);
   useEffect(() => {
@@ -61,11 +61,11 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
         { startCityGeneration },
         { serializeCitySvg }
       ] = await Promise.all([
-        import("../../city-editor/io/incomingCity"),
-        import("../../city-editor/core/document"),
-        import("../../city-editor/core/generate"),
-        import("../../city-editor/core/generationWorkerClient"),
-        import("../../city-editor/render/svg")
+        import("../../city-editor/services/io/incomingCity"),
+        import("../../city-editor/generators/document"),
+        import("../../city-editor/generators/generation/settings"),
+        import("../../city-editor/services/generationWorkerClient"),
+        import("../../city-editor/renderers/standaloneSvg")
       ]);
       if (disposed) return;
       const inputStarted = performance.now();
@@ -94,8 +94,8 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
       if (disposed) return;
       timings.grid = performance.now() - gridStarted;
       const workerStarted = performance.now();
-      const samples: import("../../city-editor/core/generationDiagnostics").GenerationSample[] = [];
-      const { logGenerationFailures } = await import("../../city-editor/core/generationDiagnostics");
+      const samples: import("../../city-editor/types/contracts/generationDiagnostics").GenerationSample[] = [];
+      const { logGenerationFailures } = await import("../../city-editor/generators/generationDiagnostics");
       if (disposed) return;
       const job = startCityGeneration(
         {

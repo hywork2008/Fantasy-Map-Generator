@@ -1,6 +1,6 @@
-import type { WardKind } from "../../../core/gen/types";
-import { clone } from "../../../core/mesh";
-import type { CityDocument, Mesh } from "../../../core/types";
+import type { CityDocument, Mesh } from "../../../types/document";
+import type { WardKind } from "../../../types/geometry";
+import { clone } from "../../mesh";
 import type { Plan } from "../contracts";
 
 export function assignFrameRoads(next: CityDocument, plan: Pick<Plan, "frameRoads">): void {

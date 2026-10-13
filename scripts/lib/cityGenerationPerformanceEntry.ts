@@ -1,2 +1,2 @@
 await import("../../src/test-setup");
-export const { prepareCityPerformanceInputs, measureCityPerformance } = await import("../../src/city-editor/core/cityGenerationPerformance");
+export const { prepareCityPerformanceInputs, measureCityPerformance } = await import("../../src/city-editor/services/analysis/cityGenerationPerformance");

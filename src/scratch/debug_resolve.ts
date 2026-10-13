@@ -1,5 +1,6 @@
-import { createGridDocument } from "../../src/city-editor/core/document";
-import { defaultGenerationSettings, generateCityOnDocument } from "../../src/city-editor/core/generate";
+import { createGridDocument } from "../city-editor/generators/document";
+import { generateCityOnDocument } from "../city-editor/generators/generation/generateCity";
+import { defaultGenerationSettings } from "../city-editor/generators/generation/settings";
 
 // デバッグ用スクリプト
 const seed = "reference-town";

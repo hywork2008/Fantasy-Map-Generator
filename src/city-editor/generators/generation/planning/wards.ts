@@ -1,7 +1,5 @@
-import { terrainHeight } from "../../../core/gen/castlePlacement";
-import type { CoastResult } from "../../../core/gen/classifySea";
-import type { RoutedRiver } from "../../../core/gen/riverPath";
-import { synthSite } from "../../../core/gen/site/synthSite";
+import type { CityDocument, Point } from "../../../types/document";
+import type { GenerationSettings } from "../../../types/generation";
 import type {
   Cell,
   CityGeography,
@@ -10,10 +8,12 @@ import type {
   Gate,
   Precinct,
   WallSegmentKind
-} from "../../../core/gen/types";
-import { assignWards } from "../../../core/gen/wards";
-import type { CityDocument, Point } from "../../../core/types";
-import type { GenerationSettings } from "../../../types/generation";
+} from "../../../types/geometry";
+import { terrainHeight } from "../../castlePlacement";
+import type { CoastResult } from "../../classifySea";
+import type { RoutedRiver } from "../../riverPath";
+import { synthSite } from "../../site/synthSite";
+import { assignWards } from "../../wards";
 import { exteriorDirection } from "../routing/frameRoadConnection";
 import { outerFrameRoads } from "./roadGeometry";
 import { fmgCellElevations } from "./waterTerrain";
@@ -41,14 +41,14 @@ export interface PlanWardsInput {
   classified: {
     kind: "ocean" | "lake" | "river";
     coast: CoastResult | null;
-    regionalShore: import("../../../core/gen/types").Point[] | undefined;
+    regionalShore: import("../../../types/geometry").Point[] | undefined;
     extraShores:
-      | { line: import("../../../core/gen/types").Point[]; wet: import("../../../core/gen/types").Point }[]
+      | { line: import("../../../types/geometry").Point[]; wet: import("../../../types/geometry").Point }[]
       | undefined;
   }[];
   waterPolygon: Point[] | null;
-  streetResult: import("../../../core/gen/streets").StreetResult;
-  roads: import("../../../core/gen/types").Point[][];
+  streetResult: import("../../streets").StreetResult;
+  roads: import("../../../types/geometry").Point[][];
   rivers: RoutedRiver[];
   geo: CityGeography;
   currentFaceIdOf: string[];

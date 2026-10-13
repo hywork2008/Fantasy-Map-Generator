@@ -1,10 +1,10 @@
-import { frameRoadLegs } from "../../../core/frameRoads";
-import { minExternalRoadsForExtent } from "../../../core/gen/settlementExtent";
-import type { BurgSiteDescriptor } from "../../../core/gen/site/burgSiteDescriptor";
-import type { Cell, Precinct } from "../../../core/gen/types";
-import type { CityDocument, Point } from "../../../core/types";
-import { dryRuns } from "../../../core/waterGeometry";
+import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescriptor";
+import type { CityDocument, Point } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
+import type { Cell, Precinct } from "../../../types/geometry";
+import { frameRoadLegs } from "../../frameRoads";
+import { minExternalRoadsForExtent } from "../../settlementExtent";
+import { dryRuns } from "../../waterGeometry";
 export function keepCitySide(lines: Point[][], polygon: Point[]): Point[][] {
   const out: Point[][] = [];
   for (const line of lines) {

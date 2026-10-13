@@ -1,10 +1,10 @@
 import { editorText } from "../../i18n/editorMessages";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
-import { removeGroup, smoothFeatureGroup } from "../core/features";
-import { approachBeyondLabel } from "../core/gen/approachBeyond";
-import type { CityDocument } from "../core/types";
+import { approachBeyondLabel } from "../generators/approachBeyond";
+import { removeGroup, smoothFeatureGroup } from "../generators/features";
 import type { DocumentsState, InteractionState } from "../state/editorSession";
+import type { CityDocument } from "../types/document";
 
 export interface LayersContext {
   controls: ReturnType<typeof createEditorControls>;

@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
-import { REALM_RELATION_LABELS } from "../city-editor/core/gen/approachBeyond";
-import { GENERATION_STAGES } from "../city-editor/core/generate";
-import { mountCityEditor } from "../city-editor/ui/CityEditorPage";
+import { mountCityEditor } from "../city-editor/components/CityEditorPage";
+import { GENERATION_STAGES } from "../city-editor/controllers/generationStages";
+import { REALM_RELATION_LABELS } from "../city-editor/generators/approachBeyond";
 import { createEmptyRegionDocument } from "../region-editor/core/document";
 import { DEFAULT_REGION_SETTINGS } from "../region-editor/core/types";
 import { mountRegionEditor } from "../region-editor/ui/RegionEditorPage";
@@ -121,8 +121,8 @@ describe("editor translation keys", () => {
 
   it("keeps Japanese UI strings out of editor source code", () => {
     for (const relative of [
-      "../city-editor/ui/CityEditorPage.ts",
-      "../city-editor/ui/generationLogPanel.ts",
+      "../city-editor/components/CityEditorPage.ts",
+      "../city-editor/controllers/generationLogPanel.ts",
       "../region-editor/ui/RegionEditorPage.ts"
     ]) {
       const file = fileURLToPath(new URL(relative, import.meta.url));

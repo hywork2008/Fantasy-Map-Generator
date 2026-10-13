@@ -15,7 +15,7 @@ Worker の例外、結果の受信エラー、起動エラーは上記の不採�
 
 ## 不採用判定の実行順
 
-出典: [generate.ts](../../src/city-editor/core/generate.ts)、[passages.ts](../../src/city-editor/core/passages.ts)。次の順に確認するため、頻度表は問題の総数ではなく**案が停止した理由**の分布になる。
+出典: [generate.ts](../../src/city-editor/generators/generation/generateCity.ts)、[passages.ts](../../src/city-editor/generators/passages.ts)。次の順に確認するため、頻度表は問題の総数ではなく**案が停止した理由**の分布になる。
 
 | 順 | phase / reason | 判定内容 |
 | --- | --- | --- |
@@ -188,10 +188,10 @@ Generateパネルで「デバッグ：生成失敗の途中図を表示」をON�
 
 ```sh
 node --import tsx --input-type=module <<'JS'
-import { createGridDocument } from './src/city-editor/core/document.ts';
-import { defaultGenerationSettings, generateCityOnDocument } from './src/city-editor/core/generate.ts';
-import { randomSiteConfig } from './src/city-editor/core/gen/site/siteConfig.ts';
-import { makeRng } from './src/city-editor/core/gen/prng.ts';
+import { createGridDocument } from './src/city-editor/generators/document.ts';
+import { defaultGenerationSettings, generateCityOnDocument } from './src/city-editor/generators/generation/generateCity.ts';
+import { randomSiteConfig } from './src/city-editor/generators/site/siteConfig.ts';
+import { makeRng } from './src/city-editor/generators/prng.ts';
 const cases = [
   ['tiny-default', 'tiny', 'evolution'], ['tiny-random', 'tiny', 'evolution'],
   ['micro-default', 'micro', 'evolution'], ['micro-random', 'micro', 'evolution'],

@@ -1,22 +1,22 @@
-import { sizePresetForExtent } from "../../../core/document";
-import { classifyUrban } from "../../../core/gen/classifyUrban";
-import type { RoutedRiver } from "../../../core/gen/riverPath";
+import type { Mesh } from "../../../types/document";
+import type { GenerationSettings } from "../../../types/generation";
+import type { Cell, CityParams, CityProgram } from "../../../types/geometry";
+import { classifyUrban } from "../../classifyUrban";
+import { sizePresetForExtent } from "../../document";
+import type { RoutedRiver } from "../../riverPath";
 import {
   evolutionWallInsetRings,
   extendCoreToCoast,
   insetWalledCore,
   outerWalledAreaShare,
   splitUrbanCore
-} from "../../../core/gen/settlementExtent";
-import type { Cell, CityParams, CityProgram } from "../../../core/gen/types";
-import type { Mesh } from "../../../core/types";
-import type { GenerationSettings } from "../../../types/generation";
+} from "../../settlementExtent";
 
 export interface PlanUrbanInput {
-  plannedUrban: import("../../../core/gen/classifyUrban").UrbanClassification | null;
+  plannedUrban: import("../../classifyUrban").UrbanClassification | null;
   cells: Cell[];
   sea: Set<number>;
-  river: import("../../../core/gen/classifyRiver").RiverClassification;
+  river: import("../../classifyRiver").RiverClassification;
   urbanBearings: number[];
   urbanRadius: number;
   params: CityParams;

@@ -1,6 +1,6 @@
 await import("../../src/test-setup");
 const { worldContext } = await import("../../src/context/worldContext");
-const { loadArchiveWorld } = await import("../../src/city-editor/core/housingReport");
+const { loadArchiveWorld } = await import("../../src/city-editor/services/analysis/housingReport");
 const { getBurgSiteDescriptor } = await import("../../src/services/burgSiteDescriptor");
 const { updateBurgWaterAccess } = await import("../../src/services/burgWaterAccess");
 const { buildRiverSiteIndex, classifyRiverSite } = await import("../../src/debug/riverPortLab/classifyRiverSite");

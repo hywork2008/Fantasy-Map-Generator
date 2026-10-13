@@ -1,6 +1,6 @@
-import { frontageBuildings } from "../../src/city-editor/core/gen/frontageBuildings";
-import { makeRng } from "../../src/city-editor/core/gen/prng";
-import type { Point } from "../../src/city-editor/core/types";
+import { frontageBuildings } from "../city-editor/generators/frontageBuildings";
+import { makeRng } from "../city-editor/generators/prng";
+import type { Point } from "../city-editor/types/document";
 
 const block0: Point[] = [
   [216.23370698413348, 223.67050969937077],

@@ -1,7 +1,7 @@
-import { facePoints } from "../../core/mesh";
-import type { Id, Point } from "../../core/types";
-import type { RenderSelection } from "../../render/svg";
+import { facePoints } from "../../generators/mesh";
 import type { DisplayState, DocumentsState, InteractionState } from "../../state/editorSession";
+import type { Id, Point } from "../../types/document";
+import type { RenderSelection } from "../../types/selection";
 import { pointInPolygon } from "../editorGeometry";
 import { isRoutePaintTool } from "./toolTypes";
 

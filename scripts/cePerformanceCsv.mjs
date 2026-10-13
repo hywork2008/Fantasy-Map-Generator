@@ -2,7 +2,7 @@
 import { createReadStream, existsSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { resolve } from "node:path";
-import { writeCsv } from "../src/city-editor/core/batchCsv.ts";
+import { writeCsv } from "../src/city-editor/services/analysis/batchCsv.ts";
 
 const usage = "Usage: npm run ce:perf:csv -- <report.jsonl> <report.csv>";
 const args = process.argv.slice(2);

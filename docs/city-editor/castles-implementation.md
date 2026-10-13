@@ -24,12 +24,12 @@
 
 ## 主な実装箇所
 
-- [城域の候補とメッシュ予約](../../src/city-editor/core/gen/castlePlacement.ts)
-- [城内の配置](../../src/city-editor/core/gen/castleLayout.ts)
-- [城の作成・更新・削除](../../src/city-editor/core/castles.ts)
-- [防御境界と検証](../../src/city-editor/core/fortifications.ts)
-- [SVG描画](../../src/city-editor/render/svg.ts)
-- [編集画面](../../src/city-editor/ui/CityEditorPage.ts)
+- [城域の候補とメッシュ予約](../../src/city-editor/generators/castlePlacement.ts)
+- [城内の配置](../../src/city-editor/generators/castleLayout.ts)
+- [城の作成・更新・削除](../../src/city-editor/generators/castles.ts)
+- [防御境界と検証](../../src/city-editor/generators/fortifications.ts)
+- [SVG描画](../../src/city-editor/renderers/editorSvg.ts)
+- [編集画面](../../src/city-editor/components/CityEditorPage.ts)
 
 ## 検証
 

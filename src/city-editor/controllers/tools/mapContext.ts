@@ -7,10 +7,10 @@ import {
   removeEdgeFromGroup,
   toggleGate,
   vertexHasWallPassage
-} from "../../core/features";
-import { edgeBetween, faceNeighbors, faceVertices, mergeFaces, mergeVertices, splitFace } from "../../core/mesh";
-import type { CityDocument, FeatureGroup, Id, Point } from "../../core/types";
+} from "../../generators/features";
+import { edgeBetween, faceNeighbors, faceVertices, mergeFaces, mergeVertices, splitFace } from "../../generators/mesh";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
+import type { CityDocument, FeatureGroup, Id, Point } from "../../types/document";
 import type { ContextMenuAction } from "../../types/editor";
 import { pointInPolygon } from "../editorGeometry";
 import { targetId } from "./toolTypes";

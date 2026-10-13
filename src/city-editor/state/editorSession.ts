@@ -1,23 +1,23 @@
-import type { GridKind } from "../core/document";
-import type { FaceRoutePreview } from "../core/features";
-import type { FixedApproachProvider } from "../core/fixedApproachAdoption";
-import type { InfillLane } from "../core/gen/blockInfill";
-import type { GridEvolutionStage } from "../core/gen/gridEvolution";
-import type { PatchParams } from "../core/gen/patches";
-import type { GenerationDebugPreview } from "../core/generationDebug";
-import type { GenerationSample } from "../core/generationDiagnostics";
-import type { DocumentHistory } from "../core/history";
-import type { CityDocument, Id, Point, Tool, WardKind } from "../core/types";
-import type { IncomingOrigin } from "../io/incomingCity";
+import type { GridKind } from "../types/contracts/document";
+import type { FaceRoutePreview } from "../types/contracts/features";
+import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
+import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
+import type { GenerationSample } from "../types/contracts/generationDiagnostics";
+import type { GridEvolutionStage } from "../types/contracts/gridEvolution";
+import type { IncomingOrigin } from "../types/contracts/incomingCity";
+import type { InfillLane } from "../types/contracts/localInfill";
+import type { PatchParams } from "../types/contracts/patches";
+import type { CityDocument, Id, Point, Tool, WardKind } from "../types/document";
 import type { CircularWallStroke, EraseTarget, RouteStroke, ShipDragState } from "../types/editor";
 import type { GenerationSettings, GenerationStage } from "../types/generation";
+import type { DocumentHistoryState } from "../types/history";
 import type { RenderSelection, SvgPickInfo } from "../types/selection";
 import type { ShipType } from "../types/ships";
 
 /** Four owners: persisted document/history, generation requests/previews, display and transient gestures. No document copies live in the other owners. */
 export interface DocumentsState {
   documentState: CityDocument;
-  history: DocumentHistory;
+  history: DocumentHistoryState;
   referenceImage: { href: string; width: number; height: number } | null | undefined;
   lastOutputDocInput: CityDocument | null;
   lastOutputDocProvider: FixedApproachProvider | null;

@@ -1,0 +1,306 @@
+import { describe, expect, it } from "vitest";
+import type { Point } from "../types/document";
+import { buildBlockFabric } from "./blockInfill";
+import { createGridDocument } from "./document";
+import { type FrontageOptions, frontageBuildings } from "./frontageBuildings";
+import { generateCityOnDocument } from "./generation/generateCity";
+import { defaultGenerationSettings } from "./generation/settings";
+import { pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
+import { clipHalfPlane, convexInfillParts } from "./lotGeometry";
+import { makeRng } from "./prng";
+
+const options: FrontageOptions = { lotArea: 180, coverage: 0.75, occupancy: 1, outskirts: false };
+const block: Point[] = [
+  [0, 0],
+  [160, 0],
+  [160, 100],
+  [0, 100]
+];
+const area = (p: Point[]) => Math.abs(polygonArea(p));
+const generate = (polygon = block, edges = [0], changes: Partial<FrontageOptions> = {}) =>
+  frontageBuildings(polygon, edges, { ...options, ...changes }, makeRng("frontage-regression"));
+const front = (p: Point[]) => p.filter(p => Math.abs(p[1] - 0.15) < 1e-6).sort((a, b) => a[0] - b[0]);
+
+function intersectionArea(a: Point[], b: Point[]): number {
+  let result = a;
+  const sign = -Math.sign(polygonArea(b));
+  for (let i = 0; i < b.length; i++) {
+    const p = b[i],
+      q = b[(i + 1) % b.length];
+    const n: Point = [sign * (q[1] - p[1]), sign * (p[0] - q[0])];
+    result = clipHalfPlane(result, n, p[0] * n[0] + p[1] * n[1]);
+  }
+  return area(result);
+}
+
+describe("plain frontage buildings", () => {
+  it("keeps the street front aligned, with narrow side gaps and a shared rear yard", () => {
+    const buildings = generate();
+    expect(buildings.length).toBeGreaterThan(10);
+    const intervals = buildings
+      .map(p => {
+        const points = front(p);
+        expect(points).toHaveLength(2);
+        expect(Math.min(...p.map(p => p[1]))).toBeCloseTo(0.15, 6);
+        expect(Math.max(...p.map(p => p[1]))).toBeLessThan(30);
+        return [points[0][0], points[1][0]];
+      })
+      .sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < intervals.length; i++) expect(intervals[i][0] - intervals[i - 1][1]).toBeCloseTo(0.04, 6);
+    for (const p of buildings) expect(p).toHaveLength(4);
+    expect(buildings.reduce((sum, p) => sum + area(p), 0)).toBeGreaterThan(160 * 15);
+  });
+
+  it("changes coverage at the rear without moving the frontage or resampling occupied lots", () => {
+    const full = generate(),
+      sparse = generate(block, [0], { coverage: 0.5 });
+    expect(sparse.map(front)).toEqual(full.map(front));
+    expect(sparse.reduce((sum, p) => sum + area(p), 0)).toBeLessThan(full.reduce((sum, p) => sum + area(p), 0));
+    const occupied = generate(block, [0], { occupancy: 0.6 });
+    expect(occupied.length).toBeLessThan(full.length);
+    for (const p of occupied) expect(full).toContainEqual(p);
+    expect(generate()).toEqual(full);
+  });
+
+  it("follows rotated frontages in either winding", () => {
+    const theta = 0.37,
+      c = Math.cos(theta),
+      s = Math.sin(theta);
+    const rotate = ([x, y]: Point): Point => [x * c - y * s + 10, x * s + y * c - 20];
+    for (const reversed of [false, true]) {
+      const polygon = (reversed ? [...block].reverse() : block).map(rotate);
+      const buildings = generate(polygon, [reversed ? 2 : 0]);
+      expect(buildings.length).toBeGreaterThan(10);
+      for (const building of buildings) {
+        expect(building.every(p => pointInPolygon(p, polygon))).toBe(true);
+        const distances = building.map(([x, y]) => -(x - 10) * s + (y + 20) * c);
+        expect(Math.min(...distances)).toBeCloseTo(0.15, 6);
+        expect(distances.filter(d => Math.abs(d - 0.15) < 1e-6)).toHaveLength(2);
+      }
+    }
+  });
+
+  it("packs rectangular party-wall lots along a street, 5–12 m frontage", () => {
+    const buildings = generate();
+    expect(buildings.length).toBeGreaterThan(10);
+    for (const p of buildings) {
+      expect(p).toHaveLength(4);
+      const face = front(p);
+      expect(face[1][0] - face[0][0]).toBeGreaterThanOrEqual(3.5);
+      expect(face[1][0] - face[0][0]).toBeLessThanOrEqual(14);
+      const sides = [
+        Math.hypot(p[1][0] - p[2][0], p[1][1] - p[2][1]),
+        Math.hypot(p[0][0] - p[3][0], p[0][1] - p[3][1])
+      ];
+      expect(Math.abs(sides[0] - sides[1])).toBeLessThan(1e-6);
+    }
+  });
+
+  it("makes classic frontages into varied, compact rectangular houses", () => {
+    const buildings = generate(block, [0], { compact: true, coverage: 0.96 });
+    const ratios = buildings.map(p => {
+      const face = front(p);
+      const width = face[1][0] - face[0][0];
+      const depth = Math.max(...p.map(q => q[1])) - 0.15;
+      return depth / width;
+    });
+    expect(Math.max(...ratios)).toBeLessThanOrEqual(2.15 * 0.96 + 1e-4);
+    expect(Math.max(...ratios) - Math.min(...ratios)).toBeGreaterThan(0.25);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
+  });
+
+  it("fills a right-angled corner with a square that fronts both streets", () => {
+    const buildings = generate(block, [0, 1, 2, 3]);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
+    expect(
+      buildings.some(p => {
+        const xs = p.map(q => q[0]),
+          ys = p.map(q => q[1]);
+        const onSouth = Math.min(...ys) < 1 && Math.max(...xs) > 150;
+        const onEast = Math.max(...xs) > 159 && Math.min(...ys) < 20;
+        return onSouth && onEast;
+      })
+    ).toBe(true);
+  });
+
+  it("allocates angled corners as non-overlapping rectangles inside the block", () => {
+    const polygon: Point[] = [
+      [0, 0],
+      [130, 0],
+      [150, 80],
+      [20, 110]
+    ];
+    const buildings = generate(polygon, [0, 1, 2, 3], { lotArea: 320 });
+    expect(buildings.length).toBeGreaterThan(8);
+    expect(buildings.every(p => p.length === 4)).toBe(true);
+    const pieces = buildings.map(p => {
+      expect(p.every(v => pointInPolygon(v, polygon))).toBe(true);
+      for (let i = 0; i < p.length; i++)
+        for (let j = i + 2; j < p.length; j++) {
+          if (i === 0 && j === p.length - 1) continue;
+          expect(segmentSegmentHit(p[i], p[(i + 1) % p.length], p[j], p[(j + 1) % p.length])).toBeNull();
+        }
+      return convexInfillParts(p);
+    });
+    for (let i = 0; i < pieces.length; i++)
+      for (let j = i + 1; j < pieces.length; j++)
+        for (const a of pieces[i]) for (const b of pieces[j]) expect(intersectionArea(a, b)).toBeLessThan(1e-6);
+  });
+
+  it("keeps L/U wings on outskirts lots", () => {
+    const polygon: Point[] = [
+      [0, 0],
+      [130, 0],
+      [150, 80],
+      [20, 110]
+    ];
+    const buildings = generate(polygon, [0, 1, 2, 3], { lotArea: 320, outskirts: true });
+    expect(buildings.some(p => p.length >= 6)).toBe(true);
+  });
+
+  it("produces rectangular houses facing primary edges with short side facing the road and longer depth", () => {
+    // 80m x 25m block, edge 0 is on the primary road (y = 0)
+    const block: Point[] = [
+      [0, 0],
+      [80, 0],
+      [80, 25],
+      [0, 25]
+    ];
+    const buildings = generate(block, [0, 1, 2, 3], {
+      lotArea: 100,
+      perimeter: true,
+      primaryEdges: [0]
+    });
+    expect(buildings.length).toBeGreaterThan(6);
+
+    // Buildings facing edge 0 (primary road, y=0)
+    const primaryHouses = buildings.filter(b => b.some(p => Math.abs(p[1]) < 1e-4));
+    expect(primaryHouses.length).toBeGreaterThan(4);
+
+    for (const house of primaryHouses) {
+      // Must be rectangular (4 vertices)
+      expect(house.length).toBe(4);
+
+      // Road frontage span (width along x-axis) vs depth into the block (span along y-axis)
+      const xs = house.map(p => p[0]);
+      const ys = house.map(p => p[1]);
+      const width = Math.max(...xs) - Math.min(...xs);
+      const depth = Math.max(...ys) - Math.min(...ys);
+
+      // Short-side frontage: depth must be greater than width
+      expect(depth).toBeGreaterThanOrEqual(width);
+      // Width is reasonably compact (4m to 7.5m)
+      expect(width).toBeGreaterThanOrEqual(4.0);
+      expect(width).toBeLessThanOrEqual(7.5);
+    }
+  });
+
+  it("fills oblique corner rows by sharing cuts instead of discarding tapered remainders", () => {
+    const block: Point[] = [
+      [0, 0],
+      [60, 0],
+      [41.1, 40],
+      [10, 35]
+    ];
+    for (const angle of [0, 0.63]) {
+      const rotate = ([x, y]: Point): Point => [
+        x * Math.cos(angle) - y * Math.sin(angle),
+        x * Math.sin(angle) + y * Math.cos(angle)
+      ];
+      const polygon = block.map(rotate);
+      const houses = frontageBuildings(
+        polygon,
+        [0, 1, 2, 3],
+        { lotArea: 80, coverage: 0.9, occupancy: 1, outskirts: false, perimeter: true, rowDepth: 10 },
+        makeRng("probe11")
+      );
+      const corner: Point = rotate([55.4, 9]);
+      expect(houses.some(p => pointInPolygon(corner, p))).toBe(true);
+      for (let i = 0; i < houses.length; i++) {
+        expect(houses[i].length).toBeGreaterThanOrEqual(4);
+        expect(houses[i].every(p => pointInPolygon(p, polygon))).toBe(true);
+        for (let j = i + 1; j < houses.length; j++) expect(intersectionArea(houses[i], houses[j])).toBeLessThan(1e-5);
+      }
+    }
+  });
+
+  it("fills the two formerly triangular blocks in cell f12 of shared city 1m8e8ll", () => {
+    const input = createGridDocument({
+      size: "tiny",
+      grid: "evolution",
+      seed: "6wit83",
+      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
+    });
+    const settings = defaultGenerationSettings();
+    Object.assign(settings, {
+      config: {
+        coast: "none",
+        rivers: ["through"],
+        relief: false,
+        features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
+        wall: { envelope: "auto", coast: "auto", line: "auto" },
+        layout: "organic"
+      },
+      streets: { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true },
+      buildingPattern: "medieval",
+      layout: "organic",
+      walledAreaShare: 1
+    });
+    const city = generateCityOnDocument(input, settings, "1m8e8ll");
+    const houses = buildBlockFabric(city).buildings;
+    const blocks: Point[][] = [
+      [
+        [-60.30287585840822, 5.072238435451375],
+        [-61.55103759173951, -9.710141118011276],
+        [-56.58542705125478, -13.468923276290543],
+        [-44.09845373684171, -15.674829686090115],
+        [-37.60916487832663, -16.20784543946811],
+        [-42.0312307854377, 1.8342352041316197]
+      ],
+      [
+        [-46.16882720464068, 5.614221307658459],
+        [-45.19152090050067, 14.728255852138497],
+        [-48.26883784172259, 27.283744980004883],
+        [-58.33627812513603, 28.36328585814342],
+        [-60.04941431687284, 8.074064728572505]
+      ]
+    ];
+    for (const block of blocks) {
+      const relevant = houses.filter(b => intersectionArea(b.polygon, block) > 1);
+      expect(relevant.length).toBeGreaterThan(6);
+      const used = relevant.reduce((sum, b) => sum + intersectionArea(b.polygon, block), 0);
+      // The culture occupancy guide leaves vacant lots; both blocks remain majority built.
+      expect(used / area(block)).toBeGreaterThan(0.5);
+      for (let i = 0; i < relevant.length; i++) {
+        expect(relevant[i].polygon.length).toBeGreaterThanOrEqual(4);
+        for (let j = i + 1; j < relevant.length; j++)
+          expect(intersectionArea(relevant[i].polygon, relevant[j].polygon)).toBeLessThan(1e-5);
+      }
+    }
+  });
+
+  it("ensures houses in straight rectangular blocks are strictly rectangular without erratic triangles", () => {
+    // Both back-to-back blocks and courtyard blocks
+    for (const [width, height] of [
+      [70, 26],
+      [80, 36]
+    ]) {
+      const block: Point[] = [
+        [0, 0],
+        [width, 0],
+        [width, height],
+        [0, height]
+      ];
+      const buildings = generate(block, [0, 1, 2, 3], {
+        lotArea: 100,
+        perimeter: true,
+        coverage: 0.85
+      });
+      expect(buildings.length).toBeGreaterThan(6);
+      // In straight rectangular blocks, there must be NO triangular houses
+      for (const house of buildings) {
+        expect(house.length).toBe(4);
+      }
+    }
+  });
+});

@@ -27,6 +27,10 @@ const modules = files.map(file => {
       const spec = node.arguments[0].text;
       imports.push({specifier:spec,target:resolve(file,spec),dynamic:true,line:ast.getLineAndCharacterOfPosition(node.getStart()).line+1});
     }
+    if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'URL' && node.arguments?.[0] && ts.isStringLiteral(node.arguments[0]) && node.arguments[1]?.getText(ast) === 'import.meta.url') {
+      const spec = node.arguments[0].text;
+      imports.push({specifier:spec,target:resolve(file,spec),workerUrl:true,line:ast.getLineAndCharacterOfPosition(node.getStart()).line+1});
+    }
     if (node.parent === ast && node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)) exports.push(node.name?.text ?? node.getText(ast).split('\n')[0]);
     if (ts.isFunctionDeclaration(node) && node.name) functions.push({name:node.name.text,line:ast.getLineAndCharacterOfPosition(node.getStart()).line+1,lines:node.getText(ast).split('\n').length});
     ts.forEachChild(node,visit);
@@ -43,9 +47,11 @@ function visit(v) {
   if(low.get(v)===indices.get(v)){const component=[];let w;do{w=stack.pop();active.delete(w);component.push(w);}while(w!==v);if(component.length>1)cycles.push(component.sort());}
 }
 for(const v of graph.keys())if(!indices.has(v))visit(v);
-const reverseEdges = runtime.flatMap(m=>m.imports.filter(i=>i.target?.startsWith(root) && m.file.startsWith(`${root}/core/`) && /\/(ui|render|io)\//.test(i.target)).map(i=>({from:m.file,...i})));
-const output={scope:'CE TypeScript static/dynamic literal imports, reexports and import types; runtime cycles exclude type-only edges and tests. External paths not traversed; computed imports and Worker URLs are not edges.',modules,cycles,reverseEdges};
+const reverseEdges = runtime.flatMap(m=>m.imports.filter(i=>i.target?.startsWith(root) && m.file.startsWith(`${root}/generators/`) && /\/(controllers|components|renderers|services)\//.test(i.target)).map(i=>({from:m.file,...i})));
+const retiredReferences = modules.flatMap(m=>m.imports.filter(i=>i.target?.startsWith(root) && /^\/(core|ui|render|io)\//.test(i.target.slice(root.length))).map(i=>({from:m.file,...i})));
+const compatibilityEntries = runtime.filter(m=>m.file === `${root}/core/document.ts`).map(m=>({file:m.file, reason:'retired CG document consumers; remove with CG'}));
+const output={scope:'CE TypeScript static/dynamic literal imports, reexports, import types and Worker URL references; runtime cycles exclude type-only edges and tests. External paths not traversed; computed imports are not edges.',modules,cycles,reverseEdges,retiredReferences,compatibilityEntries};
 const dir=`${process.env.CE_PHASE0_OUTPUT??'artifacts/city-editor/phase0-current'}/inventory`;
 fs.mkdirSync(dir,{recursive:true});
 fs.writeFileSync(`${dir}/inventory.json`,JSON.stringify(output,null,2)+'\n');
-console.log(JSON.stringify({modules:modules.length,runtime:runtime.length,cycles,reverseEdges},null,2));
+console.log(JSON.stringify({modules:modules.length,runtime:runtime.length,cycles,reverseEdges,retiredReferences,compatibilityEntries},null,2));

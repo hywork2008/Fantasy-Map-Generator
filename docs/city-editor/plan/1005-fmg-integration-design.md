@@ -283,7 +283,7 @@ P1で「Burg Editorが詳細住宅を作らず簡略画像を返す」を達成�
 - [既存の描画品質設計](../render-quality.md)
 - [既存の郊外土地利用設計](suburban-landuse-redesign.md)
 - 実装入口: `src/ui/components/BurgCityPreview.tsx`
-- Worker契約: `src/city-editor/core/generationWorkerClient.ts` / `generationWorker.ts`
-- 描画: `src/city-editor/render/svg.ts` / `fixedSitePreview.ts` / `fixedDocumentGeometry.ts`
-- 郊外道路: `src/city-editor/core/frameRoads.ts`
+- Worker契約: `src/city-editor/services/generationWorkerClient.ts` / `generationWorker.ts`
+- 描画: `src/city-editor/renderers/editorSvg.ts` / `fixedSitePreview.ts` / `fixedDocumentGeometry.ts`
+- 郊外道路: `src/city-editor/generators/frameRoads.ts`
 - 橋検証: `src/utils/fixedBurgCrossings.ts` / `src/services/riverPhysicalGeometry.ts`

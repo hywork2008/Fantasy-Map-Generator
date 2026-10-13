@@ -1,8 +1,8 @@
 import type { EditorMessageKey } from "../../i18n/editorMessages";
-import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
-import type { SiteConfig } from "../core/gen/site/siteConfig";
-import type { FarNodeMode } from "../core/gen/streets";
-import type { CityDocument, EdgeRef, Point } from "../core/types";
+import type { BurgSiteDescriptor } from "./contracts/burgSiteDescriptor";
+import type { SiteConfig } from "./contracts/siteConfig";
+import type { FarNodeMode } from "./contracts/streets";
+import type { CityDocument, EdgeRef, Point } from "./document";
 
 /** The deliberate inputs the user picks. Neither the seed nor the map size is
  * here — the panel holds the seed, and the frame is the document's. */
@@ -21,10 +21,10 @@ export interface GenerationSettings {
   moats?: { town?: boolean; castle?: boolean };
   /** Single generated river: pass through town, or skirt the planned wall by roughly 1–3 cells. */
   riverPlacement?: "through" | "outside" | "outsideNear";
-  historicalPeriod?: import("../core/types").HistoricalPeriod;
+  historicalPeriod?: import("./document").HistoricalPeriod;
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
-  buildingPattern?: import("../core/types").BuildingPattern;
-  castle?: Partial<import("../core/types").CastleSettings>;
+  buildingPattern?: import("./document").BuildingPattern;
+  castle?: Partial<import("./document").CastleSettings>;
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;
@@ -33,7 +33,7 @@ export interface GenerationSettings {
   legacyCastles?: boolean;
   config: SiteConfig;
   /** Urban morphology layout (Bram circulade or Organic). Unset = config.layout or "auto". */
-  layout?: import("../core/gen/site/siteConfig").CityLayout;
+  layout?: import("./contracts/siteConfig").CityLayout;
   /** Approximate fraction of built-up area enclosed by the main wall (0.05–1).
    * Unset: tiny/small 100%, medium 45%, large 20%. Ignored when walls are disabled.
    * Standalone grid evolution pulls a tiny curtain in by one cell, and a small curtain

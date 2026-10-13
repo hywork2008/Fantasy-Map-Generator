@@ -1,21 +1,16 @@
-import { sizePresetForExtent } from "../../../core/document";
-import { classifyRiver } from "../../../core/gen/classifyRiver";
-import type { CoastResult } from "../../../core/gen/classifySea";
-import { classifyUrban } from "../../../core/gen/classifyUrban";
-import { type EdgeGraph, graphEdgeKey, vertexKey } from "../../../core/gen/edgeGraph";
-import { nearestOnPolyline, pointInPolygon } from "../../../core/gen/geom";
-import { urbanDiskRadiusMeters } from "../../../core/gen/polygonalCirculadeLayout";
-import { makeRng } from "../../../core/gen/prng";
-import { type RoutedRiver, walkRiver } from "../../../core/gen/riverPath";
-import {
-  evolutionWallInsetRings,
-  insetWalledCore,
-  outerWalledAreaShare,
-  splitUrbanCore
-} from "../../../core/gen/settlementExtent";
-import type { Cell, CityGeography, CityParams, CityProgram } from "../../../core/gen/types";
-import type { Mesh, Point } from "../../../core/types";
+import type { Mesh, Point } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
+import type { Cell, CityGeography, CityParams, CityProgram } from "../../../types/geometry";
+import { classifyRiver } from "../../classifyRiver";
+import type { CoastResult } from "../../classifySea";
+import { classifyUrban } from "../../classifyUrban";
+import { sizePresetForExtent } from "../../document";
+import { type EdgeGraph, graphEdgeKey, vertexKey } from "../../edgeGraph";
+import { nearestOnPolyline, pointInPolygon } from "../../geom";
+import { urbanDiskRadiusMeters } from "../../polygonalCirculadeLayout";
+import { makeRng } from "../../prng";
+import { type RoutedRiver, walkRiver } from "../../riverPath";
+import { evolutionWallInsetRings, insetWalledCore, outerWalledAreaShare, splitUrbanCore } from "../../settlementExtent";
 import { componentBorderLoops } from "../meshGeometry";
 
 export interface PlanRiversInput {

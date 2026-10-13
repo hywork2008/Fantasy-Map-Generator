@@ -5,7 +5,7 @@ import { openURL } from "../utils";
 /**
  * Stashes the burg's site descriptor for the City Generator / City Editor tab.
  * Keep the key in sync with `CITY_SITE_KEY` in city-generator/site/incomingSite.ts
- * and city-editor/io/incomingCity.ts.
+ * and city-editor/services/io/incomingCity.ts.
  */
 export function stashCitySite(burgId: number): boolean {
   const descriptor = getBurgSiteDescriptor(burgId);

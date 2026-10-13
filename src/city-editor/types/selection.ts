@@ -1,4 +1,4 @@
-import type { Id } from "../core/types";
+import type { Id } from "./document";
 export interface RenderSelection {
   faceId: Id | null;
   edgeId: Id | null;

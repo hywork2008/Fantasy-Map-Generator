@@ -1,9 +1,9 @@
-import type { CastleSite } from "../../core/gen/castlePlacement";
-import type { InnerWallFailure } from "../../core/gen/innerTownWall";
-import type { RoutedRiver } from "../../core/gen/riverPath";
-import type { Cell, CityGeography, Gate, Precinct, UrbanStage, WardAssignment, WardKind } from "../../core/gen/types";
-import type { CityDocument, Mesh, Point, WallMaterial } from "../../core/types";
+import type { CityDocument, Mesh, Point, WallMaterial } from "../../types/document";
 import type { GenerationSettings, MeshBorderLoop } from "../../types/generation";
+import type { Cell, CityGeography, Gate, Precinct, UrbanStage, WardAssignment, WardKind } from "../../types/geometry";
+import type { CastleSite } from "../castlePlacement";
+import type { InnerWallFailure } from "../innerTownWall";
+import type { RoutedRiver } from "../riverPath";
 
 export interface Plan {
   /** Requested order survives an unsuccessful old-town pre-plan. */
@@ -37,7 +37,7 @@ export interface Plan {
   channelPolygons?: Point[][];
   /** Sea beyond the town mesh, closed against the display frame. */
   regionalWater?: Point[][];
-  regionalSurface?: import("../../core/gen/site/burgSiteDescriptor").BurgSiteRegionalSurface;
+  regionalSurface?: import("../../types/contracts/burgSiteDescriptor").BurgSiteRegionalSurface;
   /** Resolved `settings.streets.avoidSea` so `applyPlan` can drop wet walls
    * without taking the whole settings object. */
   avoidSea: boolean;

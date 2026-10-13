@@ -1,6 +1,6 @@
-import type { CityProgram } from "../../core/gen/types";
-import { clone } from "../../core/mesh";
-import type { CityDocument } from "../../core/types";
+import type { CityDocument } from "../../types/document";
+import type { CityProgram } from "../../types/geometry";
+import { clone } from "../mesh";
 import { assignFrameRoads, editorWard, landElevation } from "./assembly/documentProperties";
 import { polylineToVertexPath } from "./assembly/riverPath";
 import { GEN_PREFIX } from "./constants";

@@ -3,19 +3,18 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { JSDOM } from "jsdom";
-import { createGridDocument, type CitySizePreset, type GridKind } from "../src/city-editor/core/document";
-import {
-  defaultGenerationSettings,
-  generateCityOnDocument,
-  generateStageOnDocument
-} from "../src/city-editor/core/generate";
-import type { GenerationSample } from "../src/city-editor/core/generationDiagnostics";
-import { facePoints, validate } from "../src/city-editor/core/mesh";
-import { polygonArea } from "../src/city-editor/core/gen/geom";
-import { featureGroupVertices } from "../src/city-editor/core/features";
-import { vertexHasCrossing } from "../src/city-editor/core/passages";
-import type { CityDocument } from "../src/city-editor/core/types";
-import { renderEditorSvg } from "../src/city-editor/render/svg";
+import { createGridDocument, type CitySizePreset } from "../src/city-editor/generators/document";
+import { type GridKind } from "../src/city-editor/types/contracts/document";
+import { defaultGenerationSettings } from "../src/city-editor/generators/generation/settings";
+import { generateCityOnDocument } from "../src/city-editor/generators/generation/generateCity";
+import { generateStageOnDocument } from "../src/city-editor/generators/generation/previews";
+import type { GenerationSample } from "../src/city-editor/types/contracts/generationDiagnostics";
+import { facePoints, validate } from "../src/city-editor/generators/mesh";
+import { polygonArea } from "../src/city-editor/generators/geom";
+import { featureGroupVertices } from "../src/city-editor/generators/features";
+import { vertexHasCrossing } from "../src/city-editor/generators/passages";
+import type { CityDocument } from "../src/city-editor/types/document";
+import { renderEditorSvg } from "../src/city-editor/renderers/editorSvg";
 
 const option = (name: string, fallback: string) =>
   process.argv

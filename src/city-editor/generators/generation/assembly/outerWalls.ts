@@ -1,9 +1,9 @@
-import { splitDryWallRuns } from "../../../core/gen/plausibility";
-import { defaultRoadWidthMeters, townExtentMeters } from "../../../core/gen/settlementExtent";
-import type { CityProgram } from "../../../core/gen/types";
-import { clipSurveyedRiverWalls } from "../../../core/surveyedRiverWalls";
-import type { CityDocument, Id } from "../../../core/types";
-import { lineHitsDocumentWater, lineHitsWater, waterPolygons } from "../../../core/waterGeometry";
+import type { CityDocument, Id } from "../../../types/document";
+import type { CityProgram } from "../../../types/geometry";
+import { splitDryWallRuns } from "../../plausibility";
+import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
+import { clipSurveyedRiverWalls } from "../../surveyedRiverWalls";
+import { lineHitsDocumentWater, lineHitsWater, waterPolygons } from "../../waterGeometry";
 import { GEN_PREFIX } from "../constants";
 import type { Plan } from "../contracts";
 import type { AssemblyCheckpoint } from "./contracts";
@@ -17,7 +17,7 @@ export interface ApplyOuterWallsInput {
     Plan,
     "avoidSea" | "templeHarbor" | "precincts" | "borderLoops" | "waterPolygon" | "wallMaterial" | "legacyCastles"
   >;
-  mesh: import("../../../core/types").Mesh;
+  mesh: import("../../../types/document").Mesh;
   next: CityDocument;
   source: CityDocument;
   wallCheckpoint: AssemblyCheckpoint | undefined;

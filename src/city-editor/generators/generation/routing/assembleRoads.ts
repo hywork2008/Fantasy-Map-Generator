@@ -1,22 +1,23 @@
 import { editorText } from "../../../../i18n/editorMessages";
-import { townMeshExtentMeters } from "../../../core/document";
-import { featureGroupVertices } from "../../../core/features";
-import { townGates } from "../../../core/fortifications";
-import { orientedRectPolylineDistance, templeRectForElement } from "../../../core/gen/civicPlacement";
-import { pointInPolygon, polylineCrossesSegment } from "../../../core/gen/geom";
-import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../../../core/gen/polygonalCirculadeLayout";
-import { defaultRoadWidthMeters, townExtentMeters } from "../../../core/gen/settlementExtent";
-import type { Cell, CityProgram } from "../../../core/gen/types";
-import type { GenerationObserver, RoadRoutingTrace } from "../../../core/generationDiagnostics";
+import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
+import type { CityDocument, Id, Point } from "../../../types/document";
+import type { Cell, CityProgram } from "../../../types/geometry";
+import { orientedRectPolylineDistance, templeRectForElement } from "../../civicPlacement";
+import { townMeshExtentMeters } from "../../document";
+import { featureGroupVertices } from "../../features";
+import { townGates } from "../../fortifications";
+import type { GenerationObserver } from "../../generationDiagnostics";
+import { pointInPolygon, polylineCrossesSegment } from "../../geom";
 import {
   kindEdgeIds,
   openBarrierPassage,
   openGeneratedPassages,
   straightenBridges,
   vertexHasKindPassage
-} from "../../../core/passages";
-import type { CityDocument, Id, Point } from "../../../core/types";
-import { lineHitsDocumentWater, lineHitsWater, waterPolygons } from "../../../core/waterGeometry";
+} from "../../passages";
+import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../../polygonalCirculadeLayout";
+import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
+import { lineHitsDocumentWater, lineHitsWater, waterPolygons } from "../../waterGeometry";
 import type { AssemblyCheckpoint, AssemblyMark } from "../assembly/contracts";
 import { applyCrossings } from "../assembly/crossings";
 import { appendGeneratedGroup } from "../assembly/generatedFeatures";
@@ -38,7 +39,7 @@ export interface ApplyRoadsInput {
   innerFirst: boolean;
   wallCheckpoint: AssemblyCheckpoint | undefined;
   mark: AssemblyMark;
-  mesh: import("../../../core/types").Mesh;
+  mesh: import("../../../types/document").Mesh;
   source: CityDocument;
   routingPlan: Plan;
   faceIdOf: string[];

@@ -1,9 +1,9 @@
 import { editorOptionText, editorText } from "../../i18n/editorMessages";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
-import type { BurgSiteDescriptor } from "../core/gen/site/burgSiteDescriptor";
-import { shoreDistanceMeters } from "../core/gen/site/shoreDistance";
-import type { IncomingOrigin } from "../io/incomingCity";
-import { renderFixedSitePreview } from "../render/fixedSitePreview";
+import { shoreDistanceMeters } from "../generators/site/shoreDistance";
+import { renderFixedSitePreview } from "../renderers/fixedSitePreview";
+import type { BurgSiteDescriptor } from "../types/contracts/burgSiteDescriptor";
+import type { IncomingOrigin } from "../types/contracts/incomingCity";
 import { formatDistance } from "../utils/editorUnits";
 export function describeImportedSite(descriptor: BurgSiteDescriptor, origin: IncomingOrigin | null): Node[] {
   const water = descriptor.waterbody

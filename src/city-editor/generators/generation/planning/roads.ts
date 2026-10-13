@@ -1,17 +1,13 @@
-import type { CoastResult } from "../../../core/gen/classifySea";
-import { placeGates } from "../../../core/gen/interior";
-import {
-  clipPolylinesToLand,
-  majorityLandGatesUnserved,
-  remakeUnreachableLandGates
-} from "../../../core/gen/plausibility";
-import type { RoutedRiver } from "../../../core/gen/riverPath";
-import { siteToGeography } from "../../../core/gen/site/siteInput";
-import { synthSite } from "../../../core/gen/site/synthSite";
-import { buildStreets, farNodeFor } from "../../../core/gen/streets";
-import type { Cell, CityGeography, CityParams, Gate, Precinct, WallSegmentKind } from "../../../core/gen/types";
-import type { Point } from "../../../core/types";
+import type { Point } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
+import type { Cell, CityGeography, CityParams, Gate, Precinct, WallSegmentKind } from "../../../types/geometry";
+import type { CoastResult } from "../../classifySea";
+import { placeGates } from "../../interior";
+import { clipPolylinesToLand, majorityLandGatesUnserved, remakeUnreachableLandGates } from "../../plausibility";
+import type { RoutedRiver } from "../../riverPath";
+import { siteToGeography } from "../../site/siteInput";
+import { synthSite } from "../../site/synthSite";
+import { buildStreets, farNodeFor } from "../../streets";
 import { keepCitySide, plazaApproachPoint, requiredExternalRoads } from "./roadGeometry";
 
 const NOMINAL_PRESET = "largeTown" as const;
@@ -37,8 +33,8 @@ export interface PlanRoadsInput {
   seed: string;
   coasts: CoastResult[];
   appliedChannels: {
-    polygon: import("../../../core/gen/types").Point[];
-    shoreline: import("../../../core/gen/types").Point[];
+    polygon: import("../../../types/geometry").Point[];
+    shoreline: import("../../../types/geometry").Point[];
     waterAzimuthDeg: number;
   }[];
   streetHub: () => Point;

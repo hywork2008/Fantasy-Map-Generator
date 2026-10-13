@@ -1,6 +1,7 @@
-import { makeRng } from "../../core/gen/prng";
-import { DEFAULT_SITE_CONFIG, randomSiteConfig, type SiteConfig } from "../../core/gen/site/siteConfig";
+import type { SiteConfig } from "../../types/contracts/siteConfig";
 import type { GenerationSettings, StreetSettings } from "../../types/generation";
+import { makeRng } from "../prng";
+import { DEFAULT_SITE_CONFIG, randomSiteConfig } from "../site/siteConfig";
 
 /** Resolve effective morphology layout:
  * - "circulade" -> "circulade"
@@ -10,7 +11,7 @@ import type { GenerationSettings, StreetSettings } from "../../types/generation"
  * - "auto" -> deterministically roll Circulade, Bram, or Organic for tiny maps (<= 700m)
  */
 export function resolveEffectiveLayout(
-  layout: import("../../core/gen/site/siteConfig").CityLayout | undefined,
+  layout: import("../../types/contracts/siteConfig").CityLayout | undefined,
   extentMeters: number,
   seed: string
 ): "organic" | "circulade" | "bram" | "classic" {

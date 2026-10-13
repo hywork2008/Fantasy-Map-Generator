@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { cpus, platform, arch } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
-import { readCsv, writeCsv } from "../src/city-editor/core/batchCsv.ts";
+import { readCsv, writeCsv } from "../src/city-editor/services/analysis/batchCsv.ts";
 
 const root = resolve(import.meta.dirname, "..");
 const usage = "Usage: npm run ce:perf -- <map.fmg|inputs.csv> <report.jsonl> [--burg 1,2] [--name exact-name] [--limit N] [--repeat 3] [--render] [--details] [--timeout-ms 120000]\n       npm run ce:perf -- <map.fmg> <inputs.csv> --list [--burg 1,2] [--name exact-name]";

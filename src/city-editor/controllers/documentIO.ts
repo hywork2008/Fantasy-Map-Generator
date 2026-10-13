@@ -1,32 +1,33 @@
 import { editorText } from "../../i18n/editorMessages";
+import { buildBlockFabric } from "../generators/blockInfill";
 import {
   type CitySizePreset,
   createGridDocument,
   descriptorFrameGridOptions,
   resolveMaxPatches,
   seaPortShoreDistanceMeters
-} from "../core/document";
-import type { FixedApproachProvider } from "../core/fixedApproachAdoption";
-import { buildBlockFabric } from "../core/gen/blockInfill";
-import { DEFAULT_HEX_SIZE_METERS } from "../core/gen/hexGrid";
-import { buildLandmarkLaneNetwork, repairLandmarkLaneTargets } from "../core/gen/landmarkLaneNetwork";
-import { clearGenerationPreviewCache, defaultGenerationSettings } from "../core/generate";
-import type { GenerationSample } from "../core/generationDiagnostics";
-import { DocumentHistory } from "../core/history";
-import { clone } from "../core/mesh";
-import type { Id } from "../core/types";
-import { type ImportedCityMap, readCityMap } from "../io/cityEditorFile";
+} from "../generators/document";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { defaultGenerationSettings } from "../generators/generation/settings";
+import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
+import { DocumentHistory } from "../generators/history";
+import { buildLandmarkLaneNetwork, repairLandmarkLaneTargets } from "../generators/landmarkLaneNetwork";
+import { clone } from "../generators/mesh";
+import { readMaxPatchesPreference } from "../services/browserPreferences";
+import { type ImportedCityMap, readCityMap } from "../services/io/cityEditorFile";
 import {
   buildShare,
   type CityEditorShare,
   cityLinkFor,
   encodeShare,
-  forgetIncomingCity,
-  type IncomingOrigin,
-  readMaxPatchesPreference
-} from "../io/incomingCity";
+  forgetIncomingCity
+} from "../services/io/incomingCity";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
-import { formatDistance } from "./editorGeometry";
+import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
+import type { GenerationSample } from "../types/contracts/generationDiagnostics";
+import type { IncomingOrigin } from "../types/contracts/incomingCity";
+import type { Id } from "../types/document";
+import { formatDistance } from "../utils/editorUnits";
 import { emptySelection } from "./tools/toolTypes";
 
 export interface DocumentIOContext {

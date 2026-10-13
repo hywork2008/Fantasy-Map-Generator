@@ -1,12 +1,12 @@
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../../../utils/fixedBurgCrossings";
-import { featureGroupVertices } from "../../../core/features";
-import { wallRunsOutsideGates } from "../../../core/fortifications";
-import { isSimplePolygon, polygonArea, segmentSegmentHit } from "../../../core/gen/geom";
-import { defaultRoadWidthMeters, townExtentMeters } from "../../../core/gen/settlementExtent";
-import type { BurgSiteDescriptor } from "../../../core/gen/site/burgSiteDescriptor";
-import { facePoints } from "../../../core/mesh";
-import type { CityDocument, Point } from "../../../core/types";
-import { lineHitsDocumentWater } from "../../../core/waterGeometry";
+import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescriptor";
+import type { CityDocument, Point } from "../../../types/document";
+import { featureGroupVertices } from "../../features";
+import { wallRunsOutsideGates } from "../../fortifications";
+import { isSimplePolygon, polygonArea, segmentSegmentHit } from "../../geom";
+import { facePoints } from "../../mesh";
+import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
+import { lineHitsDocumentWater } from "../../waterGeometry";
 
 type Leg = NonNullable<CityDocument["frameRoads"]>[number];
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);

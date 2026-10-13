@@ -20,11 +20,13 @@ for(const name of cases){
   await env.init();
   try{
     const load=p=>env.runner.import(resolve(p));
-    const {parseIncomingPayload,shareFromDescriptor}=await load('src/city-editor/io/incomingCity.ts');
-    const {cityEditorDocument,cityEditorSettings}=await load('src/city-editor/core/housingReport.ts');
-    const {generateCityOnDocument,defaultGenerationSettings}=await load('src/city-editor/core/generate.ts');
-    const {parseDocument,createGridDocument}=await load('src/city-editor/core/document.ts');
-    const {renderStandaloneCitySvg}=await load('src/city-editor/render/svg.ts');
+    const {parseIncomingPayload,shareFromDescriptor}=await load('src/city-editor/services/io/incomingCity.ts');
+    const {cityEditorDocument,cityEditorSettings}=await load('src/city-editor/services/analysis/housingReport.ts');
+    const {generateCityOnDocument}=await load('src/city-editor/generators/generation/generateCity.ts');
+    const {defaultGenerationSettings}=await load('src/city-editor/generators/generation/settings.ts');
+    const {parseDocument}=await load('src/city-editor/services/io/documentCodec.ts');
+    const {createGridDocument}=await load('src/city-editor/generators/document.ts');
+    const {renderStandaloneCitySvg}=await load('src/city-editor/renderers/standaloneSvg.ts');
     let inputText,input,source,settings;
     if(name.startsWith('synthetic-')) {
       const variant=name.slice('synthetic-'.length);
@@ -37,7 +39,7 @@ for(const name of cases){
       else throw Error(`Unknown synthetic case: ${variant}`);
       inputText=JSON.stringify({document:source,settings,seed:input.seed});
     } else {
-      inputText=fs.readFileSync(`src/city-editor/core/fixtures/${name}.json`,'utf8');
+      inputText=fs.readFileSync(`src/city-editor/data/fixtures/${name}.json`,'utf8');
       const raw=JSON.parse(inputText);
       if(raw.document&&raw.settings){input=raw;source=structuredClone(raw.document);settings=raw.settings;}
       else {input=raw.burg?shareFromDescriptor(raw):parseIncomingPayload(inputText);if(!input)throw Error(`Invalid share: ${name}`);source=cityEditorDocument(input);settings=cityEditorSettings(input);}

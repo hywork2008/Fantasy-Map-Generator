@@ -2,14 +2,14 @@
 
 城の生成・城郭囲壁・都市城壁との接続については、[城郭生成と都市城壁の設計](castles-and-fortifications.md)（2026-09-29、調査付き設計案）を参照。城に関する具体化・置換案はそちらで管理する。
 
-`src/city-generator/` が決定論的に都市案を**生成**するのに対し、City Editor はその案または空の格子を出発点に、セル・辺・都市要素を直接編集して保存する独立 MPA である。本書では TownGeneratorTS の操作感（セル格子を編集し、辺に道・壁・川を載せる）を目標とする。ただし TownGeneratorTS の GPL コードは参照・移植しない。既存の `docs/city-generator/` と公開アルゴリズム、FMG の MIT コードだけを利用する。
+City Editor は自身の決定論的な生成案または空の格子を出発点に、セル・辺・都市要素を直接編集して保存する独立 MPA である。本書では TownGeneratorTS の操作感（セル格子を編集し、辺に道・壁・川を載せる）を目標とする。ただし TownGeneratorTS の GPL コードは参照・移植しない。既存の `docs/city-generator/` と公開アルゴリズム、FMG の MIT コードだけを利用する。
 
 ## 1. 決定事項
 
 | 項目 | 決定 |
 | --- | --- |
 | URL / ビルド | Vite MPA の `/city-editor/`。`src/app.ts` / world-map の module graph には入れない |
-| 初期格子 | `city-generator` の最終 Voronoi 格子を変換して使える。空の新規図では同じ Voronoi builder を使う |
+| 初期格子 | CEの生成格子を変換して使う。空の新規図もCEのVoronoi builderを使う |
 | セル尺度 | 1 Voronoi cell = 1 macro block（目標辺長 50 m）。Small / Medium / Large は同じセル密度で 1.2 / 2.4 / 4.8 km の窓を作る |
 | 編集の真実源 | SVG ではなく、恒久 ID を持つ平面メッシュ + 辺のフィーチャーグループ + 都市要素 |
 | 河川 | **頂点列**を流れの真実源とし、隣接する頂点間の既存セル辺を導出する。海・湖に接する頂点で終端し、水域内の river edge は持たない |
@@ -35,35 +35,27 @@ cityEditor: path.resolve(__dirname, "src/city-editor/index.html")
 
 ```text
 src/city-editor/
-  index.html                     # #city-editor-root、editor 専用 CSS
-  main.ts                        # mountCityEditor のみ
-  core/
-    types.ts                     # CityDocument / Mesh / FeatureGroup / CityElement
-    document.ts                  # 新規文書、JSON serialize/parse、schema version
-    fromGeneration.ts            # GenerationResult / CityExport -> CityDocument
-    mesh.ts                      # adjacency、面積、edge lookup、再構築
-    validate.ts                  # 交差、ゼロ面積、feature 参照の検証
-    geometry.ts                  # nearest edge、snap、split/merge、縮尺変換
-    voronoiEdit.ts               # site ベースの再生成と移管レポート
-    featureGroups.ts             # 辺列の延長、分割、削除、競合検査
-    cityElements.ts              # ward/precinct/lot の生成・固定規則
-    commands.ts                  # reversible command と履歴
-  render/
-    svg.ts                       # document -> SVG layers、hit targets、selection overlay
-    palette.ts
-  ui/
-    CityEditorPage.ts            # DOM shell、tool state、キーボード操作
-    Toolbar.ts
-    Inspector.ts
-    LayersPanel.ts
-    FeatureGroupsPanel.ts
-    HistoryPanel.ts
-  io/
-    cityEditorFile.ts            # .fmg-city-editor.json の import/export
-    incomingCity.ts              # sessionStorage / URL hash の受け渡し（後述）
+  index.html / main.ts           # 独立MPA入口
+  components/CityEditorPage.ts    # mount、所有状態とcontrollerの配線
+  components/                    # 常設画面・control構築
+  controllers/                   # 編集・パネル・ツール・生成要求の調停
+  state/editorSession.ts         # 文書・生成要求・表示・操作状態の所有
+  types/                         # 文書・生成・Worker等の共有契約
+  types/contracts/               # 各ドメインの共有データ契約
+  generators/                    # メッシュ、編集制約、都市・建物等の計算
+  generators/generation/         # 設定、計画、反映、routing、再試行、preview
+  renderers/                     # SVG構築・描画専用形状・派生cache
+  renderers/overlays/             # 選択・ホバー・計測・操作preview
+  services/io/                   # native文書codec、ファイル出力、MFCG、FMG受渡し
+  services/                      # Worker通信・ブラウザーlifetime
+  services/analysis/             # CLIの入力読込・計測・監査の調停
+  data/                          # 静的一覧・schema値・fixture
+  assets/                        # SVG/JSON参照資産と静的catalog
+  utils/                         # 単位等の汎用処理
+  core/document.ts               # 廃止予定CG利用者だけの互換窓口
 ```
 
-`src/city-editor/` は `src/app.ts` を import しない。初期生成と City Generator 出力の取り込みに限って `src/city-generator/core/*` とその export 型を import してよい。これにより world-map bundle からの分離を保ちつつ、格子生成アルゴリズムを二重実装しない。
+配置・依存の設計基準は [アーキテクチャ規約](architecture.md)、移行の検証結果は [Phase 6記録](reviews/1014-ce-refactoring-phase6.md) を参照する。`src/city-editor/` は `src/app.ts`・廃止予定CGをimportしない。FMGからの受渡しは既存MPA境界を維持し、CE自身が生成コードを所有する。旧`core/`・`ui/`・`render/`・`io/`への新規importは禁止し、`npm run lint:architecture`で型参照を含めて確認する。
 
 ## 3. 永続データモデル
 

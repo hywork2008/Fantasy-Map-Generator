@@ -1,8 +1,8 @@
 import { editorText } from "../../../../i18n/editorMessages";
-import { installCastle, registerTownCircuit } from "../../../core/castles";
-import { townCircuits } from "../../../core/fortifications";
-import type { CityProgram } from "../../../core/gen/types";
-import type { CityDocument, Point } from "../../../core/types";
+import type { CityDocument, Point } from "../../../types/document";
+import type { CityProgram } from "../../../types/geometry";
+import { installCastle, registerTownCircuit } from "../../castles";
+import { townCircuits } from "../../fortifications";
 import type { Plan } from "../contracts";
 import type { AssemblyReject } from "./contracts";
 import { settingsLegacy } from "./documentProperties";
@@ -19,7 +19,7 @@ export interface ApplyCircuitsInput {
   castleInstalledFirst: boolean;
   source: CityDocument;
   reject: AssemblyReject;
-  mesh: import("../../../core/types").Mesh;
+  mesh: import("../../../types/document").Mesh;
 }
 
 /** Registers accepted town circuits, installs the castle and assigns moat settings before road routing. */

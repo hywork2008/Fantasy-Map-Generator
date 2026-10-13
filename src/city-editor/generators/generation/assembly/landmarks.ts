@@ -1,14 +1,14 @@
 import { editorText } from "../../../../i18n/editorMessages";
-import { orientTempleHybrid } from "../../../core/gen/civicPlacement";
-import { plazaFootprintMeters, templeFootprintMeters } from "../../../core/gen/housing";
-import { townExtentMeters } from "../../../core/gen/settlementExtent";
-import { faceNeighbors } from "../../../core/mesh";
-import type { CityDocument } from "../../../core/types";
+import type { CityDocument } from "../../../types/document";
+import { orientTempleHybrid } from "../../civicPlacement";
+import { plazaFootprintMeters, templeFootprintMeters } from "../../housing";
+import { faceNeighbors } from "../../mesh";
+import { townExtentMeters } from "../../settlementExtent";
 import { GEN_PREFIX } from "../constants";
 import type { Plan } from "../contracts";
 export function applyLandmarks(
   next: CityDocument,
-  mesh: import("../../../core/types").Mesh,
+  mesh: import("../../../types/document").Mesh,
   faceIdOf: string[],
   plan: Pick<Plan, "precincts" | "templeHarbor">
 ): void {

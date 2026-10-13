@@ -1,8 +1,8 @@
-import { terrainHeight } from "../../../core/gen/castlePlacement";
-import { pointInPolygon } from "../../../core/gen/geom";
-import type { BurgSiteDescriptor } from "../../../core/gen/site/burgSiteDescriptor";
-import type { Cell, CityGeography } from "../../../core/gen/types";
-import { cellInsideWater } from "../../../core/waterGeometry";
+import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescriptor";
+import type { Cell, CityGeography } from "../../../types/geometry";
+import { terrainHeight } from "../../castlePlacement";
+import { pointInPolygon } from "../../geom";
+import { cellInsideWater } from "../../waterGeometry";
 export function applyWideChannels(
   cells: Cell[],
   channels: NonNullable<CityGeography["channels"]>,

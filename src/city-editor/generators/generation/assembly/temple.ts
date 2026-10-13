@@ -1,4 +1,4 @@
-import { featureGroupVertices } from "../../../core/features";
+import type { CityDocument, Point } from "../../../types/document";
 import {
   orientedRectPolylineDistance,
   orientTempleHybrid,
@@ -7,12 +7,12 @@ import {
   templeFitsLand,
   templeHazards,
   templeRectForElement
-} from "../../../core/gen/civicPlacement";
-import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "../../../core/gen/coastalSuitability";
-import { pointInPolygon, polygonCentroid } from "../../../core/gen/geom";
-import { townExtentMeters } from "../../../core/gen/settlementExtent";
-import { facePoints } from "../../../core/mesh";
-import type { CityDocument, Point } from "../../../core/types";
+} from "../../civicPlacement";
+import { COASTAL_BUILDING_SETBACK_METERS, oceanShoreSegments } from "../../coastalSuitability";
+import { featureGroupVertices } from "../../features";
+import { pointInPolygon, polygonCentroid } from "../../geom";
+import { facePoints } from "../../mesh";
+import { townExtentMeters } from "../../settlementExtent";
 
 /** Push the temple nave off finished roads, rivers and walls, then re-align it. */
 export function settleTempleOnDocument(document: CityDocument): void {

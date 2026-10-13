@@ -1,5 +1,4 @@
 import { editorOptionText, editorText } from "../../i18n/editorMessages";
-import { formatDistance } from "../controllers/editorGeometry";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { emptySelection } from "../controllers/tools/toolTypes";
@@ -12,17 +11,19 @@ import {
   DEFAULT_MAX_PATCHES,
   MAX_PATCHES_CEILING,
   resolveMaxPatches
-} from "../core/document";
-import { finishRiver, smoothFeatureGroups } from "../core/features";
-import type { FixedApproachProvider } from "../core/fixedApproachAdoption";
-import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
-import { clearGenerationPreviewCache, randomSeed } from "../core/generate";
-import { DocumentHistory } from "../core/history";
-import { scaleDocument } from "../core/mesh";
-import type { CityDocument } from "../core/types";
-import { exportCityMap, exportCitySvg, exportGenerationDebugSvg } from "../io/cityEditorFile";
-import { writeMaxPatchesPreference } from "../io/incomingCity";
+} from "../generators/document";
+import { finishRiver, smoothFeatureGroups } from "../generators/features";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { randomSeed } from "../generators/generation/settings";
+import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../generators/hexGrid";
+import { DocumentHistory } from "../generators/history";
+import { scaleDocument } from "../generators/mesh";
+import { writeMaxPatchesPreference } from "../services/browserPreferences";
+import { exportCityMap, exportCitySvg, exportGenerationDebugSvg } from "../services/io/cityEditorFile";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
+import type { CityDocument } from "../types/document";
+import { formatDistance } from "../utils/editorUnits";
 import { div, text } from "./editorControls";
 export interface DocumentPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
@@ -101,13 +102,13 @@ export interface DocumentPanelContext {
   makeIconButton: (icon: string, label: string, onClick: () => void) => HTMLButtonElement;
   generation: GenerationState;
   importedFrame: () => Pick<
-    import("../core/document").CreateGridOptions,
+    import("../generators/document").CreateGridOptions,
     "extentMeters" | "meshExtentMeters" | "settlementExtentMeters" | "cityRadiusMeters"
   >;
   fixedApproachProvider: FixedApproachProvider;
   generationLog: {
     reset: () => void;
-    append: (sample: import("../core/generationDiagnostics").GenerationSample, seed: string) => void;
+    append: (sample: import("../types/contracts/generationDiagnostics").GenerationSample, seed: string) => void;
   };
   interaction: InteractionState;
   display: DisplayState;

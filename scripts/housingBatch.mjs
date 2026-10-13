@@ -13,7 +13,7 @@ if (!['export', 'compare'].includes(mode) || !input || !output || (mode === 'com
   console.error('Usage: npm run housing:export -- <map.fmg> <inputs.csv> [--lot-occupancy=<1-100>] [burgId-or-exact-name ...]\n       npm run housing:batch -- <inputs.csv> <results.csv>');
   process.exit(2);
 }
-const result = spawnSync(process.execPath, [resolve('node_modules/vitest/vitest.mjs'), 'run', 'src/city-editor/core/housingBatch.cli.test.ts', '--reporter=dot'], {
+const result = spawnSync(process.execPath, [resolve('node_modules/vitest/vitest.mjs'), 'run', 'src/city-editor/services/analysis/housingBatch.cli.test.ts', '--reporter=dot'], {
   cwd: resolve(import.meta.dirname, '..'),
   env: {...process.env, HOUSING_BATCH: JSON.stringify({mode, input: resolve(input), output: resolve(output), tokens, lotOccupancy})},
   stdio: 'inherit'

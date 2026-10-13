@@ -68,7 +68,7 @@
 
 ## 5. 生成の分割契約
 
-`generate.ts` は移行中の公開窓口として残し、最終的には実行入口・互換再exportへ縮小する。目標の内部構成は以下を基本とし、空の階層や不要なフレームワークは作らない。
+Phase 6で旧`generate.ts`の利用者を所有APIへ移行し、窓口を撤去した。完全生成の入口は`generators/generation/generateCity.ts`、段階生成は`previews.ts`、設定は`settings.ts`を直接利用する。目標の内部構成は以下を基本とし、空の階層や不要なフレームワークは作らない。
 
 ```text
 generators/generation/
@@ -121,3 +121,13 @@ SVGエクスポートはservices/ioが調停し、SVG構築はrenderersが担当
 新しい境界テストは、決定論、読み取り専用、保存の往復、破棄後の非同期反映禁止など実際の契約を検証する。単なる関数移動を写したテストは増やさない。性能は代表ケースで計測し、分割によりclone・再計算・DOM・listenerが増えていないことを確認する。
 
 完了の基準は行数ではなく、責務の単一性、依存方向、明示的な入出力、互換性、リソース解放である。
+
+## 9. Phase 6の機械検査と残る互換性
+
+`npm run lint:architecture` は `scripts/city-editor/architecture.ts` を通してCEの役割別配置、層の方向、旧パス、下位層のブラウザーglobal/DOM型、実行時循環を検査する。静的import、再export、型専用import、`import("...").Type`、文字列の遅延import、`new URL("...", import.meta.url)`を含む。計算された動的importは依存を検査できないため拒否する。CE外の現行利用者とテストにも旧パスの検査を行う。廃止予定CGは参照・編集せず、検査走査から除外する。
+
+componentsとcontrollersは画面組立て・controlの接続のため相互参照できる。servicesは明示的な入力を受け取り、IO・CLI・Workerの調停としてgenerators/renderersを利用できる。generatorsはCEのservices/UI/renderersを参照しない。既存のFMG共通幾何・橋規約・i18n契約は引き続き外部依存であり、検査はその外部graphまで再帰走査しない。
+
+型参照も層の制約を受ける。`CityDocument`と生成recipe等、同じtypes層内の再帰データ契約は許可し、実行時の循環importと区別する。SVG・JSONの参照資産と`assets/catalog.ts`は静的dataとして扱い、assets配下に新しい実行モジュールは許可しない。
+
+唯一の旧配置例外は`core/document.ts`。廃止予定CGの既存文書利用者を壊さず、CGソースへ触れないため、文書作成APIとnative parserを再exportする。CEと現行FMG利用者は新APIを使用し、この旧パスへの新規importは検査で拒否する。CG撤去時に窓口も削除する。過去のreviews・基準manifestは履歴として旧パスを維持する。

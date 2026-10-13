@@ -1,27 +1,27 @@
 import { editorText } from "../../../../i18n/editorMessages";
-import { maxWallGatesForExtent } from "../../../core/document";
-import { resolveWallMaterial } from "../../../core/features";
+import type { CityDocument, Id, Mesh, Point } from "../../../types/document";
+import type { GenerationSettings } from "../../../types/generation";
+import type { Cell, CityGeography, CityParams, CityProgram, Gate } from "../../../types/geometry";
 import {
   buildApproachCorridors,
   type CastleSitingConstraints,
   emptySitingReport,
   planGateSectors
-} from "../../../core/gen/approachCorridors";
-import { type CastleSite, placeCastleRegion } from "../../../core/gen/castlePlacement";
-import { planCirculadeLayout } from "../../../core/gen/circuladeLayout";
-import type { CoastResult } from "../../../core/gen/classifySea";
-import { nearestOnPolyline, pointInPolygon } from "../../../core/gen/geom";
-import { innerTownCapacity, planInnerTown } from "../../../core/gen/innerTownWall";
-import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "../../../core/gen/interior";
-import { bramCoreRadiusMeters, planPolygonalCirculadeLayout } from "../../../core/gen/polygonalCirculadeLayout";
-import type { RoutedRiver } from "../../../core/gen/riverPath";
-import { defaultRoadWidthMeters, innerWalledAreaShare, townExtentMeters } from "../../../core/gen/settlementExtent";
-import { synthSite } from "../../../core/gen/site/synthSite";
-import type { Cell, CityGeography, CityParams, CityProgram, Gate } from "../../../core/gen/types";
-import { facePoints, faceVertices } from "../../../core/mesh";
-import type { CityDocument, Id, Mesh, Point } from "../../../core/types";
-import { dryRuns, lineHitsDocumentWater, lineHitsWater } from "../../../core/waterGeometry";
-import type { GenerationSettings } from "../../../types/generation";
+} from "../../approachCorridors";
+import { type CastleSite, placeCastleRegion } from "../../castlePlacement";
+import { planCirculadeLayout } from "../../circuladeLayout";
+import type { CoastResult } from "../../classifySea";
+import { maxWallGatesForExtent } from "../../document";
+import { resolveWallMaterial } from "../../features";
+import { nearestOnPolyline, pointInPolygon } from "../../geom";
+import { innerTownCapacity, planInnerTown } from "../../innerTownWall";
+import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "../../interior";
+import { facePoints, faceVertices } from "../../mesh";
+import { bramCoreRadiusMeters, planPolygonalCirculadeLayout } from "../../polygonalCirculadeLayout";
+import type { RoutedRiver } from "../../riverPath";
+import { defaultRoadWidthMeters, innerWalledAreaShare, townExtentMeters } from "../../settlementExtent";
+import { synthSite } from "../../site/synthSite";
+import { dryRuns, lineHitsDocumentWater, lineHitsWater } from "../../waterGeometry";
 import type { Plan } from "../contracts";
 import { cellsFromMesh, componentBorderLoops } from "../meshGeometry";
 import { nearestVertexLookup, toGeneratorBorder } from "./meshLookup";
@@ -120,8 +120,8 @@ export function planDefenses(input: PlanDefensesInput) {
     ? (componentBorderLoops(currentMesh, currentFaceIdOf, new Set(citadel.cellIds))[0]?.points ?? null)
     : null;
 
-  let circuladePlan: import("../../../core/gen/circuladeLayout").CirculadeLayoutPlan | null = null;
-  let polygonalCirculadePlan: import("../../../core/gen/polygonalCirculadeLayout").PolygonalCirculadePlan | null = null;
+  let circuladePlan: import("../../circuladeLayout").CirculadeLayoutPlan | null = null;
+  let polygonalCirculadePlan: import("../../polygonalCirculadeLayout").PolygonalCirculadePlan | null = null;
   if (effectiveLayout === "circulade") {
     const urbanCells = currentCells.filter(c => currentUrban.has(c.id));
     const hub: Point = urbanCells.length

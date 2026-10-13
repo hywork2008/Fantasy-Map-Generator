@@ -1,38 +1,40 @@
 import { describe, expect, it, vi } from "vitest";
+import { mountCityEditor } from "../city-editor/components/CityEditorPage";
 import {
   cityFixedApproachProvider,
   connectAutomaticFixedApproaches
-} from "../city-editor/core/automaticFixedApproaches";
-import { createGridDocument, parseDocument } from "../city-editor/core/document";
+} from "../city-editor/generators/automaticFixedApproaches";
+import { buildBlockFabric } from "../city-editor/generators/blockInfill";
+import { buildCityBuildings } from "../city-editor/generators/buildingLots";
+import { createGridDocument } from "../city-editor/generators/document";
 import {
   adoptFixedCrossingApproaches,
   restoreFixedCrossingApproaches
-} from "../city-editor/core/fixedApproachAdoption";
-import { findFixedCrossingApproach } from "../city-editor/core/fixedCrossingApproach";
-import { FixedRoadReservation } from "../city-editor/core/fixedRoadReservation";
-import { buildBlockFabric } from "../city-editor/core/gen/blockInfill";
-import { buildCityBuildings } from "../city-editor/core/gen/buildingLots";
-import { DEFAULT_SITE_CONFIG } from "../city-editor/core/gen/site/siteConfig";
-import { synthSite } from "../city-editor/core/gen/site/synthSite";
-import { defaultGenerationSettings, generateStageOnDocument } from "../city-editor/core/generate";
-import { DocumentHistory } from "../city-editor/core/history";
-import { applyImportedFixedCrossings } from "../city-editor/core/importedFixedCrossings";
-import { meshFromCells } from "../city-editor/core/mesh";
-import { lineHitsDocumentWater, polygonHitsDocumentWater } from "../city-editor/core/waterGeometry";
-import * as cityEditorFiles from "../city-editor/io/cityEditorFile";
-import { readCityMap } from "../city-editor/io/cityEditorFile";
+} from "../city-editor/generators/fixedApproachAdoption";
+import { findFixedCrossingApproach } from "../city-editor/generators/fixedCrossingApproach";
+import { FixedRoadReservation } from "../city-editor/generators/fixedRoadReservation";
+import { generateStageOnDocument } from "../city-editor/generators/generation/previews";
+import { defaultGenerationSettings } from "../city-editor/generators/generation/settings";
+import { DocumentHistory } from "../city-editor/generators/history";
+import { applyImportedFixedCrossings } from "../city-editor/generators/importedFixedCrossings";
+import { meshFromCells } from "../city-editor/generators/mesh";
+import { DEFAULT_SITE_CONFIG } from "../city-editor/generators/site/siteConfig";
+import { synthSite } from "../city-editor/generators/site/synthSite";
+import { lineHitsDocumentWater, polygonHitsDocumentWater } from "../city-editor/generators/waterGeometry";
+import { drawFixedBurgCrossings } from "../city-editor/renderers/fixedBurgCrossings";
+import { fixedRoadIsDry } from "../city-editor/renderers/fixedDocumentGeometry";
+import { renderFixedSitePreview } from "../city-editor/renderers/fixedSitePreview";
+import { renderStandaloneCitySvg } from "../city-editor/renderers/standaloneSvg";
+import * as cityEditorFiles from "../city-editor/services/io/cityEditorFile";
+import { readCityMap } from "../city-editor/services/io/cityEditorFile";
+import { parseDocument } from "../city-editor/services/io/documentCodec";
 import {
   decodeShare,
   encodeShare,
   parseDescriptor,
   parseIncomingPayload,
   shareFromDescriptor
-} from "../city-editor/io/incomingCity";
-import { drawFixedBurgCrossings } from "../city-editor/render/fixedBurgCrossings";
-import { fixedRoadIsDry } from "../city-editor/render/fixedDocumentGeometry";
-import { renderFixedSitePreview } from "../city-editor/render/fixedSitePreview";
-import { renderStandaloneCitySvg } from "../city-editor/render/svg";
-import { mountCityEditor } from "../city-editor/ui/CityEditorPage";
+} from "../city-editor/services/io/incomingCity";
 import { type ApproachCorridorInput, findApproachCorridor } from "../generators/approachCorridorSearch";
 import {
   buildConstrainedLandNetwork,

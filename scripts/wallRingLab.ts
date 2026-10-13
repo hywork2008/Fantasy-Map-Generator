@@ -19,14 +19,15 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CITY_SIZE_PRESETS, type CitySizePreset, type GridKind, sizePresetForExtent } from "../src/city-editor/core/document";
+import { CITY_SIZE_PRESETS, type CitySizePreset, sizePresetForExtent } from "../src/city-editor/generators/document";
+import { type GridKind } from "../src/city-editor/types/contracts/document";
 import {
   type LabCastleSize,
   runWallRingLab,
   type WallRingLabCase,
   type WallRingLabResult,
   wallRingLabSvg
-} from "../src/city-editor/core/wallRingLab";
+} from "../src/city-editor/services/analysis/wallRingLab";
 import { occupancyRadiusMeters } from "../src/utils/cultureLotOccupancy";
 import { populationWindowMeters } from "../src/utils/requiredSiteBounds";
 

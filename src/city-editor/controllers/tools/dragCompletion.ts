@@ -1,8 +1,8 @@
 import { editorText } from "../../../i18n/editorMessages";
-import { encloseCircleWithWalls, rerouteGroupAcrossFace } from "../../core/features";
-import { mergeVertices } from "../../core/mesh";
-import type { CityDocument, Id, Point } from "../../core/types";
+import { encloseCircleWithWalls, rerouteGroupAcrossFace } from "../../generators/features";
+import { mergeVertices } from "../../generators/mesh";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
+import type { CityDocument, Id, Point } from "../../types/document";
 import type { RouteStroke } from "../../types/editor";
 export interface DragCompletionContext {
   interaction: InteractionState;

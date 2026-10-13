@@ -2,9 +2,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { JSDOM } from "jsdom";
-import { createGridDocument, type CitySizePreset, type GridKind } from "../src/city-editor/core/document";
-import { defaultGenerationSettings, generateCityOnDocument } from "../src/city-editor/core/generate";
-import { renderEditorSvg, type RenderQuality } from "../src/city-editor/render/svg";
+import { createGridDocument, type CitySizePreset } from "../src/city-editor/generators/document";
+import { type GridKind } from "../src/city-editor/types/contracts/document";
+import { defaultGenerationSettings } from "../src/city-editor/generators/generation/settings";
+import { generateCityOnDocument } from "../src/city-editor/generators/generation/generateCity";
+import { renderEditorSvg, type RenderQuality } from "../src/city-editor/renderers/editorSvg";
 
 const option = (name: string, fallback: string) =>
   process.argv

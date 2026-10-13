@@ -1,9 +1,9 @@
 import { editorText } from "../../i18n/editorMessages";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
-import type { CityDocument } from "../core/types";
 import type { DocumentsState } from "../state/editorSession";
-import { formatClock } from "./editorGeometry";
+import type { CityDocument } from "../types/document";
+import { formatClock } from "../utils/editorUnits";
 
 export interface HistoryContext {
   controls: ReturnType<typeof createEditorControls>;

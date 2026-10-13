@@ -1,24 +1,22 @@
 import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
-import { townCircuits } from "../core/fortifications";
-import { DEFAULT_CASTLE_SETTINGS } from "../core/gen/castlePlacement";
-import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES, type WallMaterialChoice } from "../core/gen/site/siteConfig";
-import {
-  COMPLETE_CITY_ATTEMPTS,
-  clearGenerationPreviewCache,
-  type GenerationStage,
-  generateCityOnDocument,
-  generateStageOnDocument,
-  generationStages,
-  randomSeed
-} from "../core/generate";
-import type { GenerationDebugPreview } from "../core/generationDebug";
-import { type GenerationSample, generationPhaseLabel, logGenerationFailures } from "../core/generationDiagnostics";
-import { startCityGeneration } from "../core/generationWorkerClient";
-import { clone } from "../core/mesh";
-import type { CastleSettings, CityDocument } from "../core/types";
+import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
+import { townCircuits } from "../generators/fortifications";
+import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
+import { clearGenerationPreviewCache, generateStageOnDocument } from "../generators/generation/previews";
+import { randomSeed } from "../generators/generation/settings";
+import { generationPhaseLabel, logGenerationFailures } from "../generators/generationDiagnostics";
+import { clone } from "../generators/mesh";
+import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
+import { startCityGeneration } from "../services/generationWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
+import type { GenerationSample } from "../types/contracts/generationDiagnostics";
+import type { WallMaterialChoice } from "../types/contracts/siteConfig";
+import type { CastleSettings, CityDocument } from "../types/document";
 import type { UiStepResult } from "../types/editor";
+import type { GenerationStage } from "../types/generation";
+import { generationStages } from "./generationStages";
 import { buildableLandFaceIds, STEP_FNS } from "./generationSteps";
 import { emptySelection } from "./tools/toolTypes";
 

@@ -1,7 +1,7 @@
-import { addInnerTownWall, INNER_WALL_FAILURES } from "../../../core/gen/innerTownWall";
-import { DEFAULT_INNER_WALLED_AREA_SHARE } from "../../../core/gen/settlementExtent";
-import { addBridge, addWideRiverBridge, openBarrierPassage } from "../../../core/passages";
-import type { CityDocument, Id } from "../../../core/types";
+import type { CityDocument, Id } from "../../../types/document";
+import { addInnerTownWall, INNER_WALL_FAILURES } from "../../innerTownWall";
+import { addBridge, addWideRiverBridge, openBarrierPassage } from "../../passages";
+import { DEFAULT_INNER_WALLED_AREA_SHARE } from "../../settlementExtent";
 import { GEN_PREFIX, INNER_WALL_MIN_GAP_CELLS } from "../constants";
 import type { Plan } from "../contracts";
 import type { AssemblyCheckpoint, AssemblyMark } from "./contracts";
@@ -13,7 +13,7 @@ export interface ApplyCrossingsInput {
   innerFirst: boolean;
   wallCheckpoint: AssemblyCheckpoint | undefined;
   mark: AssemblyMark;
-  mesh: import("../../../core/types").Mesh;
+  mesh: import("../../../types/document").Mesh;
 }
 /** Opens permitted river crossings and the outer-first inner curtain before any town streets. The inner-wall checkpoint returns before routing. */
 export function applyCrossings(input: ApplyCrossingsInput) {

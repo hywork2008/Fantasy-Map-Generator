@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createDocument, parseDocument } from "../core/document";
-import { nearestOnPolyline, pointInPolygon } from "../core/gen/geom";
-import { placeLandmark, validateLandmarks } from "../core/landmarks";
-import { meshFromCells } from "../core/mesh";
-import type { CityDocument, Point } from "../core/types";
+import { createDocument } from "../generators/document";
+import { nearestOnPolyline, pointInPolygon } from "../generators/geom";
+import { placeLandmark, validateLandmarks } from "../generators/landmarks";
+import { meshFromCells } from "../generators/mesh";
+import { parseDocument } from "../services/io/documentCodec";
+import type { CityDocument, Point } from "../types/document";
 import { historicLandmarkPrototypes } from "./catalog";
 
 describe("historic landmark prototypes", () => {

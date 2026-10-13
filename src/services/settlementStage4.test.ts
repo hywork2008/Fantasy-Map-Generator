@@ -1,10 +1,12 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createGridDocument, descriptorFrameGridOptions, parseDocument } from "../city-editor/core/document";
-import { defaultGenerationSettings, generateCityOnDocument } from "../city-editor/core/generate";
-import { shareFromDescriptor } from "../city-editor/io/incomingCity";
-import { renderStandaloneCitySvg } from "../city-editor/render/svg";
+import { createGridDocument, descriptorFrameGridOptions } from "../city-editor/generators/document";
+import { generateCityOnDocument } from "../city-editor/generators/generation/generateCity";
+import { defaultGenerationSettings } from "../city-editor/generators/generation/settings";
+import { renderStandaloneCitySvg } from "../city-editor/renderers/standaloneSvg";
+import { parseDocument } from "../city-editor/services/io/documentCodec";
+import { shareFromDescriptor } from "../city-editor/services/io/incomingCity";
 import { worldContext } from "../context/worldContext";
 import { decodeAndValidateWorldArchive } from "../runtime/worldArchive";
 import { requiredSiteExtent } from "../utils/requiredSiteBounds";

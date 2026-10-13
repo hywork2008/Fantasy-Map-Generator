@@ -1,4 +1,4 @@
-import type { Id, Point } from "../core/types";
+import type { Id, Point } from "../types/document";
 
 export function pointToSegmentDistance(point: Point, a: Point, b: Point): number {
   const dx = b[0] - a[0];
@@ -32,5 +32,3 @@ export function circleIntersectsPolygon(center: Point, radius: number, polygon: 
 export function vertexPairKey(a: Id, b: Id): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
-
-export { formatClock, formatDistance, niceScale } from "../utils/editorUnits";

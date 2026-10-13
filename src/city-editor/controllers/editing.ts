@@ -1,10 +1,11 @@
 import { editorText } from "../../i18n/editorMessages";
-import { validateFortifications } from "../core/fortifications";
-import { refreshCastleLayouts } from "../core/gen/castleLayout";
-import { clearGenerationPreviewCache, defaultGenerationSettings } from "../core/generate";
-import { clone } from "../core/mesh";
-import type { CityDocument } from "../core/types";
+import { refreshCastleLayouts } from "../generators/castleLayout";
+import { validateFortifications } from "../generators/fortifications";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { defaultGenerationSettings } from "../generators/generation/settings";
+import { clone } from "../generators/mesh";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { CityDocument } from "../types/document";
 import { emptySelection } from "./tools/toolTypes";
 export interface EditingContext {
   scope: import("../services/editorLifetime").EditorLifetime;

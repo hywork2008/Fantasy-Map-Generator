@@ -101,7 +101,7 @@
 
 ## 実装状況（2026-10-08）
 
-上記優先度リストを `src/city-editor/core/gen/aerialLandmarks.ts`（配置）と `src/city-editor/render/aerialLandmarksSvg.ts`（描画）で実装。
+上記優先度リストを `src/city-editor/generators/aerialLandmarks.ts`（配置）と `src/city-editor/renderers/aerialLandmarksSvg.ts`（描画）で実装。
 完成した建物ファブリックから導出する派生要素で、メッシュは編集しない。`blockInfill.ts` の `finishCoastalBuildings` で水車の後に計画し、敷地に掛かる住宅・路地・畑を除去する（`DistrictFabric.aerialLandmarks`）。
 
 | # | 要素 | 配置規則 | 時代 |

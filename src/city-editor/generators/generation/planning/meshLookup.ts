@@ -1,6 +1,6 @@
-import type { WallSegmentKind } from "../../../core/gen/types";
-import type { Id, Mesh, Point } from "../../../core/types";
+import type { Id, Mesh, Point } from "../../../types/document";
 import type { MeshBorderLoop } from "../../../types/generation";
+import type { WallSegmentKind } from "../../../types/geometry";
 export type NearestVertex = (p: Point, among?: ReadonlySet<Id>) => Id | null;
 export function nearestVertexLookup(mesh: Mesh, bucket: number): NearestVertex {
   const B = Math.max(1, bucket);

@@ -1,5 +1,5 @@
-import { featureGroupVertices } from "../../../core/features";
-import type { CityDocument } from "../../../core/types";
+import type { CityDocument } from "../../../types/document";
+import { featureGroupVertices } from "../../features";
 import { GEN_PREFIX } from "../constants";
 
 /** `gc:road-*` groups that leave the built-up area. Intramural streets run

@@ -1,5 +1,6 @@
-import { type BlockBoundary, buildPerimeterBlocks } from "../../src/city-editor/core/gen/perimeterBlocks";
-import type { DistrictParameters, Face, Point } from "../../src/city-editor/core/types";
+import { buildPerimeterBlocks } from "../city-editor/generators/perimeterBlocks";
+import type { BlockBoundary } from "../city-editor/generators/streetBlockGeometry";
+import type { DistrictParameters, Face, Point } from "../city-editor/types/document";
 
 const face: Face = {
   id: "f1",

@@ -1,5 +1,5 @@
-import { polygonArea } from "../../src/city-editor/core/gen/geom";
-import type { Point } from "../../src/city-editor/core/types";
+import { polygonArea } from "../city-editor/generators/geom";
+import type { Point } from "../city-editor/types/document";
 
 // 三角形建物の座標
 const t12: Point[] = [

@@ -1,8 +1,8 @@
 import { editorText } from "../../../../i18n/editorMessages";
-import { castleWallIds, reservedCastleFaces } from "../../../core/fortifications";
-import type { Cell } from "../../../core/gen/types";
-import { clone, faceNeighbors, facePoints } from "../../../core/mesh";
-import type { CityDocument } from "../../../core/types";
+import type { CityDocument } from "../../../types/document";
+import type { Cell } from "../../../types/geometry";
+import { castleWallIds, reservedCastleFaces } from "../../fortifications";
+import { clone, faceNeighbors, facePoints } from "../../mesh";
 import { GEN_PREFIX } from "../constants";
 import type { Plan } from "../contracts";
 import { nearestVertexLookup } from "../planning/meshLookup";

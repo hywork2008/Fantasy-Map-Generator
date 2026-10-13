@@ -1,8 +1,8 @@
 import { editorText } from "../../../i18n/editorMessages";
-import { clone } from "../../core/mesh";
-import type { Id, Point } from "../../core/types";
-import { parsePickInfo } from "../../render/svg";
+import { clone } from "../../generators/mesh";
+import { parsePickInfo } from "../../renderers/pickInfo";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
+import type { Id, Point } from "../../types/document";
 import type { RoutePaintKind } from "../../types/editor";
 import { pointInPolygon } from "../editorGeometry";
 import { isPaintBrushTool, isRoutePaintTool, targetId } from "./toolTypes";

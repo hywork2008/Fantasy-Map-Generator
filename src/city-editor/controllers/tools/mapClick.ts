@@ -1,11 +1,12 @@
 import { editorText } from "../../../i18n/editorMessages";
-import { appendEdge, groupUsesEdge } from "../../core/features";
-import type { InfillLane } from "../../core/gen/blockInfill";
-import { placeLandmark } from "../../core/landmarks";
-import type { CityDocument, CityElement, Id, LandmarkAsset, Point } from "../../core/types";
-import { SHIP_SPECS } from "../../render/shipSvg";
-import { parsePickInfo, type RenderSelection } from "../../render/svg";
+import { appendEdge, groupUsesEdge } from "../../generators/features";
+import { placeLandmark } from "../../generators/landmarks";
+import { parsePickInfo } from "../../renderers/pickInfo";
+import { SHIP_SPECS } from "../../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
+import type { InfillLane } from "../../types/contracts/localInfill";
+import type { CityDocument, CityElement, Id, LandmarkAsset, Point } from "../../types/document";
+import type { RenderSelection } from "../../types/selection";
 import { pointInPolygon } from "../editorGeometry";
 import { targetId } from "./toolTypes";
 export interface MapClickContext {

@@ -1,8 +1,8 @@
-import { pointInPolygon } from "../../../core/gen/geom";
-import { defaultRoadWidthMeters, townExtentMeters } from "../../../core/gen/settlementExtent";
-import type { CityProgram } from "../../../core/gen/types";
-import type { CityDocument, Point } from "../../../core/types";
-import { lineHitsDocumentWater } from "../../../core/waterGeometry";
+import type { CityDocument, Point } from "../../../types/document";
+import type { CityProgram } from "../../../types/geometry";
+import { pointInPolygon } from "../../geom";
+import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
+import { lineHitsDocumentWater } from "../../waterGeometry";
 import type { Plan } from "../contracts";
 
 /** Town-side remainder of an approach whose line enters surveyed water. The outer goal is polyline[0]. */

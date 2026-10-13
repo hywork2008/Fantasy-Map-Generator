@@ -1,0 +1,714 @@
+import { editorText } from "../../i18n/editorMessages";
+import type { BurgSiteDescriptor } from "../types/contracts/burgSiteDescriptor";
+import type {
+  ApproachBeyond,
+  ApproachBeyondAssessment,
+  ApproachBeyondData,
+  BeyondRealmRelation,
+  CityDocument,
+  EdgeFeatureGroup,
+  Point,
+  SettlementRole,
+  SettlementScale
+} from "../types/document";
+import { featureGroupVertices } from "./features";
+import { townGates } from "./fortifications";
+import { azimuthDelta, vecToAzimuth } from "./geom";
+import { makeRng } from "./prng";
+
+export type RealmRelation = BeyondRealmRelation;
+
+export const REALM_RELATIONS: readonly BeyondRealmRelation[] = [
+  "domestic",
+  "Ally",
+  "Friendly",
+  "Neutral",
+  "Suspicion",
+  "Enemy",
+  "Rival",
+  "Vassal",
+  "Suzerain",
+  "Unknown"
+] as const;
+
+export const REALM_RELATION_LABELS: Record<BeyondRealmRelation, string> = {
+  get domestic() {
+    return editorText("cityEditor.messages.homeRealm");
+  },
+  get Ally() {
+    return editorText("cityEditor.messages.ally");
+  },
+  get Friendly() {
+    return editorText("cityEditor.messages.friendlyRealm");
+  },
+  get Neutral() {
+    return editorText("cityEditor.messages.neutralRealm");
+  },
+  get Suspicion() {
+    return editorText("cityEditor.messages.suspiciousRealm");
+  },
+  get Enemy() {
+    return editorText("cityEditor.messages.enemyRealm");
+  },
+  get Rival() {
+    return editorText("cityEditor.messages.rivalRealm");
+  },
+  get Vassal() {
+    return editorText("cityEditor.messages.vassalRealm");
+  },
+  get Suzerain() {
+    return editorText("cityEditor.messages.suzerainRealm");
+  },
+  get Unknown() {
+    return editorText("cityEditor.messages.unknownRealm");
+  }
+};
+
+export const SETTLEMENT_SCALES: readonly SettlementScale[] = ["hamlet", "village", "town", "city"] as const;
+
+export const SETTLEMENT_SCALE_LABELS: Record<SettlementScale, string> = {
+  get hamlet() {
+    return editorText("cityEditor.messages.depopulatedHamlet");
+  },
+  get village() {
+    return editorText("cityEditor.messages.farmingVillage");
+  },
+  get town() {
+    return editorText("cityEditor.messages.town");
+  },
+  get city() {
+    return editorText("cityEditor.messages.city");
+  }
+};
+
+export const SETTLEMENT_ROLES: readonly SettlementRole[] = [
+  "generic",
+  "granary",
+  "market",
+  "fortress",
+  "capital"
+] as const;
+
+export const SETTLEMENT_ROLE_LABELS: Record<SettlementRole, string> = {
+  get generic() {
+    return editorText("cityEditor.messages.general");
+  },
+  get granary() {
+    return editorText("cityEditor.messages.foodSupplyGranary");
+  },
+  get market() {
+    return editorText("cityEditor.messages.tradeAndCommerceHub");
+  },
+  get fortress() {
+    return editorText("cityEditor.messages.militaryFortress");
+  },
+  get capital() {
+    return editorText("cityEditor.messages.capitalAndAdministration");
+  }
+};
+
+/** Legacy string values kept for backwards compatibility. */
+export const APPROACH_BEYONDS = ["city", "granary", "enemy", "ally", "hamlet"] as const;
+
+export const APPROACH_BEYOND_LABELS: Record<(typeof APPROACH_BEYONDS)[number], string> = {
+  get city() {
+    return editorText("cityEditor.messages.city");
+  },
+  get granary() {
+    return editorText("cityEditor.messages.foodSupplyingVillage");
+  },
+  get enemy() {
+    return editorText("cityEditor.messages.enemyRealm");
+  },
+  get ally() {
+    return editorText("cityEditor.messages.ally");
+  },
+  get hamlet() {
+    return editorText("cityEditor.messages.depopulatedHamlet");
+  }
+};
+
+/** Normalize legacy string or structured object into ApproachBeyondData. */
+export function normalizeApproachBeyond(value: unknown): ApproachBeyondData | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    switch (value) {
+      case "city":
+        return {
+          realm: { relation: "domestic" },
+          settlement: { scale: "city", role: "generic", population: 15000, wealth: 70 }
+        };
+      case "granary":
+        return {
+          realm: { relation: "domestic" },
+          settlement: { scale: "village", role: "granary", population: 800, wealth: 45 }
+        };
+      case "enemy":
+        return {
+          realm: { relation: "Enemy" },
+          settlement: { scale: "town", role: "fortress", population: 4000, wealth: 50 }
+        };
+      case "ally":
+        return {
+          realm: { relation: "Ally" },
+          settlement: { scale: "city", role: "market", population: 12000, wealth: 75 }
+        };
+      case "hamlet":
+        return {
+          realm: { relation: "domestic" },
+          settlement: { scale: "hamlet", role: "generic", population: 150, wealth: 30 }
+        };
+      default:
+        return undefined;
+    }
+  }
+  if (typeof value === "object" && value !== null && "realm" in value && "settlement" in value) {
+    const candidate = value as ApproachBeyondData;
+    if (candidate.realm && candidate.settlement) return candidate;
+  }
+  return undefined;
+}
+
+export function isApproachBeyond(value: unknown): value is ApproachBeyond {
+  if (typeof value === "string") return (APPROACH_BEYONDS as readonly string[]).includes(value);
+  return Boolean(normalizeApproachBeyond(value));
+}
+
+/** Formatted text for roadside indicator on the map SVG and inspector. */
+export function approachBeyondLabel(value: ApproachBeyond | undefined): string | null {
+  const norm = normalizeApproachBeyond(value);
+  if (!norm) return null;
+  if (norm.customLabel) return norm.customLabel;
+
+  const relLabel = REALM_RELATION_LABELS[norm.realm.relation] ?? editorText("cityEditor.messages.foreignRealm");
+  const scaleText = SETTLEMENT_SCALE_LABELS[norm.settlement.scale] ?? editorText("cityEditor.messages.settlement");
+  const roleText =
+    norm.settlement.role === "granary"
+      ? editorText("cityEditor.messages.foodSupply")
+      : norm.settlement.role === "fortress"
+        ? editorText("cityEditor.messages.fortress")
+        : norm.settlement.role === "market"
+          ? editorText("cityEditor.messages.trade")
+          : norm.settlement.role === "capital"
+            ? editorText("cityEditor.messages.capital")
+            : "";
+
+  const namePart = norm.settlement.name ? `${norm.settlement.name} ` : "";
+  const typePart = roleText ? `${roleText}${scaleText}` : scaleText;
+  return `${namePart}${typePart}（${relLabel}）`;
+}
+
+export interface CurrentCityContext {
+  extentMeters?: number;
+  population?: number;
+  wealth?: number;
+  treasury?: number;
+  hasWalls?: boolean;
+}
+
+/**
+ * Evaluates the utility and military defense requirements of the destination
+ * compared to the current city.
+ */
+export function evaluateApproachBeyond(
+  value: ApproachBeyond | undefined,
+  context?: CurrentCityContext
+): ApproachBeyondAssessment | null {
+  const norm = normalizeApproachBeyond(value);
+  if (!norm) return null;
+
+  const { realm, settlement } = norm;
+  const currentPop =
+    context?.population ?? Math.max(500, Math.round(((context?.extentMeters ?? 1000) / 100) ** 2 * 30));
+  const currentWealth = context?.wealth ?? 50;
+  const targetPop =
+    settlement.population ??
+    (settlement.scale === "city"
+      ? 15000
+      : settlement.scale === "town"
+        ? 4000
+        : settlement.scale === "village"
+          ? 800
+          : 150);
+  const targetWealth = settlement.wealth ?? 50;
+  const hasWalls = context?.hasWalls ?? true;
+
+  // --- 1. 有用性評価 (Utility) ---
+  let relCoeff = 1.0;
+  switch (realm.relation) {
+    case "domestic":
+      relCoeff = 1.0;
+      break;
+    case "Ally":
+      relCoeff = 0.95;
+      break;
+    case "Friendly":
+      relCoeff = 0.9;
+      break;
+    case "Vassal":
+      relCoeff = 0.85;
+      break;
+    case "Suzerain":
+      relCoeff = 0.8;
+      break;
+    case "Neutral":
+      relCoeff = 0.6;
+      break;
+    case "Unknown":
+      relCoeff = 0.4;
+      break;
+    case "Suspicion":
+      relCoeff = 0.25;
+      break;
+    case "Rival":
+      relCoeff = 0.2;
+      break;
+    case "Enemy":
+      relCoeff = 0.05;
+      break;
+  }
+
+  let roleScore = 20;
+  let roleUtilityText = editorText("cityEditor.messages.everydayTrafficAndTravel");
+  if (settlement.role === "granary") {
+    const foodNeed = currentPop > 2000 ? 50 : 35;
+    roleScore = foodNeed;
+    roleUtilityText = editorText("cityEditor.messages.foodSupplierSupportingTheCitySConsumption");
+  } else if (settlement.role === "market") {
+    roleScore = 45;
+    roleUtilityText = editorText("cityEditor.messages.highValueTradeAndCommerceHub");
+  } else if (settlement.role === "capital") {
+    roleScore = 40;
+    roleUtilityText = editorText("cityEditor.messages.importantRouteToTheCentralAdministration");
+  } else if (settlement.scale === "city") {
+    roleScore = 35;
+    roleUtilityText = editorText("cityEditor.messages.majorConsumerAndDemandCentre");
+  } else if (settlement.scale === "town") {
+    roleScore = 25;
+    roleUtilityText = editorText("cityEditor.messages.regularDistributionToARegionalTown");
+  }
+
+  const wealthDiff = targetWealth - currentWealth;
+  const wealthFactor = Math.min(30, Math.max(5, Math.round(targetWealth * 0.25 + wealthDiff * 0.1)));
+  const rawUtility = Math.min(100, Math.round((roleScore + wealthFactor + 15) * relCoeff));
+
+  let utilityLevel: ApproachBeyondAssessment["utilityLevel"] = "medium";
+  let utilityLabel = editorText("cityEditor.messages.normalModerateExchange");
+  if (rawUtility >= 70) {
+    utilityLevel = "critical";
+    utilityLabel = editorText("cityEditor.messages.lifelineVeryHigh");
+  } else if (rawUtility >= 45) {
+    utilityLevel = "high";
+    utilityLabel = editorText("cityEditor.messages.highImportantTradeRoute");
+  } else if (rawUtility < 25) {
+    utilityLevel = "low";
+    utilityLabel = editorText("cityEditor.messages.lowLimitedOrInterruptedExchange");
+  }
+
+  let utilityReason = `${roleUtilityText}。`;
+  if (realm.relation === "Enemy" || realm.relation === "Rival") {
+    utilityReason += editorText("cityEditor.messages.howeverRegularTradeIsInterruptedOrRestrictedBecauseTheRealm", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
+  } else if (realm.relation === "domestic" || realm.relation === "Ally") {
+    utilityReason += editorText("cityEditor.messages.thisRoadLeadsToProvidingHighlyReliableDistributionAndSupport", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
+  }
+
+  // --- 2. 軍事的備えの必要性 (Defense / Military Preparedness) ---
+  let baseThreat = 0;
+  switch (realm.relation) {
+    case "Enemy":
+      baseThreat = 65;
+      break;
+    case "Rival":
+      baseThreat = 45;
+      break;
+    case "Suspicion":
+      baseThreat = 30;
+      break;
+    case "Unknown":
+      baseThreat = 20;
+      break;
+    case "Neutral":
+      baseThreat = 10;
+      break;
+    case "Suzerain":
+      baseThreat = 15;
+      break;
+    case "Vassal":
+      baseThreat = 10;
+      break;
+    case "Friendly":
+      baseThreat = 2;
+      break;
+    case "Ally":
+      baseThreat = 0;
+      break;
+    case "domestic":
+      baseThreat = 2;
+      break;
+  }
+
+  let settlementThreat = 0;
+  if (settlement.role === "fortress") settlementThreat += 25;
+  if (settlement.scale === "city") settlementThreat += 15;
+  else if (settlement.scale === "town") settlementThreat += 8;
+
+  if (targetPop > currentPop * 2) settlementThreat += 10;
+
+  let wallVulnerability = 0;
+  if (!hasWalls && baseThreat >= 25) {
+    wallVulnerability = 15;
+  }
+
+  const rawDefense = Math.min(
+    100,
+    Math.round(baseThreat + (baseThreat > 0 ? settlementThreat : 0) + wallVulnerability)
+  );
+
+  let defenseLevel: ApproachBeyondAssessment["defenseLevel"] = "safe";
+  let defenseLabel = editorText("cityEditor.messages.safeNoDefencesNeeded");
+  if (rawDefense >= 70) {
+    defenseLevel = "critical";
+    defenseLabel = editorText("cityEditor.messages.urgentDefenceFrontLine");
+  } else if (rawDefense >= 45) {
+    defenseLevel = "high";
+    defenseLabel = editorText("cityEditor.messages.alertStrongerDefencesRecommended");
+  } else if (rawDefense >= 25) {
+    defenseLevel = "medium";
+    defenseLabel = editorText("cityEditor.messages.normalVigilanceCheckpointAndWatch");
+  } else if (rawDefense >= 10) {
+    defenseLevel = "low";
+    defenseLabel = editorText("cityEditor.messages.peacefulLightVigilance");
+  }
+
+  let defenseReason = "";
+  if (defenseLevel === "critical" || defenseLevel === "high") {
+    defenseReason = editorText("cityEditor.messages.facingAOfRequiresStrongPreparationsAgainstInvasionAndMilitary", {
+      value0: REALM_RELATION_LABELS[realm.relation],
+      value1: SETTLEMENT_SCALE_LABELS[settlement.scale]
+    });
+    if (!hasWalls) defenseReason += editorText("cityEditor.messages.theTownHasNoWallsSoBuildingWallsAndGates");
+  } else if (defenseLevel === "medium") {
+    defenseReason = editorText("cityEditor.messages.atTheBorderWithRoadCheckpointsAndPatrolsAreRecommended", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
+  } else {
+    defenseReason = editorText("cityEditor.messages.neighbouringPresentsLittleDirectMilitaryThreatThisIsAPeaceful", {
+      value0: REALM_RELATION_LABELS[realm.relation]
+    });
+  }
+
+  const summary = editorText("cityEditor.messages.utilityDefence", {
+    value0: utilityLabel,
+    value1: utilityReason,
+    value2: defenseLabel,
+    value3: defenseReason
+  });
+
+  return {
+    utilityScore: rawUtility,
+    utilityLevel,
+    utilityLabel,
+    utilityReason,
+    defenseScore: rawDefense,
+    defenseLevel,
+    defenseLabel,
+    defenseReason,
+    summary
+  };
+}
+
+const TEMPLATES: ApproachBeyondData[] = [
+  {
+    realm: { relation: "domestic" },
+    settlement: { scale: "village", role: "granary", population: 900, wealth: 45 }
+  },
+  {
+    realm: { relation: "domestic" },
+    settlement: { scale: "hamlet", role: "generic", population: 180, wealth: 25 }
+  },
+  {
+    realm: { relation: "domestic" },
+    settlement: { scale: "city", role: "market", population: 18000, wealth: 75 }
+  },
+  {
+    realm: { relation: "Ally" },
+    settlement: { scale: "city", role: "market", population: 14000, wealth: 70 }
+  },
+  {
+    realm: { relation: "Friendly" },
+    settlement: { scale: "town", role: "generic", population: 3500, wealth: 50 }
+  },
+  {
+    realm: { relation: "Neutral" },
+    settlement: { scale: "town", role: "generic", population: 4200, wealth: 48 }
+  },
+  {
+    realm: { relation: "Suspicion" },
+    settlement: { scale: "town", role: "fortress", population: 3800, wealth: 45 }
+  },
+  {
+    realm: { relation: "Enemy" },
+    settlement: { scale: "town", role: "fortress", population: 5000, wealth: 55 }
+  }
+];
+
+/** One role per external gate road. Same seed and count always return the same list. */
+export function assignApproachBeyonds(
+  seed: string,
+  count: number,
+  _context?: CurrentCityContext
+): ApproachBeyondData[] {
+  if (count <= 0) return [];
+  const rng = makeRng(`${seed}:approach-beyond`);
+  const start = rng.int(0, TEMPLATES.length);
+  const roles: ApproachBeyondData[] = [];
+  for (let i = 0; i < count; i++) {
+    const tmpl = TEMPLATES[(start + i) % TEMPLATES.length];
+    roles.push(structuredClone(tmpl));
+  }
+  for (let i = roles.length - 1; i > 0; i--) {
+    const j = rng.int(0, i + 1);
+    const swap = roles[i];
+    roles[i] = roles[j];
+    roles[j] = swap;
+  }
+  return roles;
+}
+
+export interface ExternalGateRoad {
+  group: EdgeFeatureGroup;
+  outward: Point;
+  bearing: number;
+}
+
+/** Roads joining an outer gate to the map boundary. Distance from the origin
+ * cannot distinguish an interior street from an approach in coastal towns. */
+export function externalGateRoads(document: CityDocument): ExternalGateRoad[] {
+  const gates = new Set(townGates(document).map(gate => gate.vertexId));
+  const found: ExternalGateRoad[] = [];
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || group.id.startsWith("gc:bridge-")) continue;
+    const ids = featureGroupVertices(document, group);
+    if (ids.length < 2) continue;
+    // Imported approaches are routed from the source endpoint toward town.
+    // They remain world roads without walls, and may terminate within the frame.
+    if (group.sourceRoad) {
+      const connection = document.riverConnections?.find(c => c.sourceIndex === group.sourceRoad!.index);
+      const leg = document.frameRoads?.find(
+        leg => leg.sourceIndex === group.sourceRoad!.index && leg.routeId === group.sourceRoad!.routeId
+      );
+      const half = document.frame.extentMeters / 2;
+      const outward =
+        leg?.pieces
+          .filter(piece => piece.kind === "road")
+          .flatMap(piece => piece.points)
+          .filter(p => Math.max(Math.abs(p[0]), Math.abs(p[1])) <= half + 0.05)
+          .at(-1) ??
+        connection?.farRoad.at(-1) ??
+        document.mesh.vertices[ids[0]]?.point;
+      if (outward) found.push({ group, outward, bearing: vecToAzimuth(...outward) });
+      continue;
+    }
+    const start = ids[0];
+    const end = ids[ids.length - 1];
+    const startIsGate = gates.has(start);
+    const endIsGate = gates.has(end);
+    if (startIsGate === endIsGate) continue;
+    const gateId = startIsGate ? start : end;
+    const outId = startIsGate ? end : start;
+    const gate = document.mesh.vertices[gateId]?.point;
+    const outward = document.mesh.vertices[outId]?.point;
+    if (!gate || !outward) continue;
+    if (!onMapBoundary(document, outward)) continue;
+    const bearing = vecToAzimuth(outward[0], outward[1]);
+    found.push({ group, outward, bearing });
+  }
+  found.sort((a, b) => a.bearing - b.bearing || a.group.id.localeCompare(b.group.id));
+  return found;
+}
+
+/** Group nearby exits with the same outward bearing without merging their roads. */
+export function externalRoadExits(document: CityDocument): ExternalGateRoad[][] {
+  const exits: ExternalGateRoad[][] = [];
+  const tolerance = Math.max(1, Math.min(8, document.frame.blockSizeMeters * 0.15));
+  for (const road of externalGateRoads(document)) {
+    const exit = exits.find(group =>
+      group.every(
+        other =>
+          Math.hypot(road.outward[0] - other.outward[0], road.outward[1] - other.outward[1]) <= tolerance &&
+          azimuthDelta(road.bearing, other.bearing) <= 10
+      )
+    );
+    if (exit) exit.push(road);
+    else exits.push([road]);
+  }
+  return exits;
+}
+
+/** Preserve distinct FMG destinations but display repeated destinations only once. */
+export function externalRoadLabels(
+  document: CityDocument
+): Array<{ roads: ExternalGateRoad[]; destinations: ExternalGateRoad[] }> {
+  return externalRoadExits(document)
+    .map(exit => {
+      // A landing without a far-bank road has no off-map road exit label.
+      // Complete crossings use the far road endpoint, retaining destination data.
+      const roads = exit.filter(
+        road =>
+          road.group.sourceRoad?.terminal !== "riverLanding" ||
+          document.riverConnections?.some(c => c.sourceIndex === road.group.sourceRoad?.index)
+      );
+      const seen = new Set<string>();
+      const destinations = roads.filter(road => {
+        const value = normalizeApproachBeyond(road.group.beyond);
+        if (!value) return false;
+        const key =
+          value.settlement.burgId !== undefined
+            ? `burg:${value.settlement.burgId}`
+            : approachBeyondLabel(road.group.beyond)!;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return { roads, destinations };
+    })
+    .filter(exit => exit.destinations.length);
+}
+
+function onMapBoundary(document: CityDocument, point: Point): boolean {
+  const half = document.frame.extentMeters / 2;
+  return Math.abs(Math.max(Math.abs(point[0]), Math.abs(point[1])) - half) <= 0.05;
+}
+
+function beyondFromBurg(burg: NonNullable<BurgSiteDescriptor["roads"][number]["nextBurg"]>): ApproachBeyondData {
+  const scale = (burg.scale ?? "town") as SettlementScale;
+  const role = (burg.role ?? (burg.capital ? "capital" : "generic")) as SettlementRole;
+  return {
+    realm: {
+      relation: (burg.diplomacyRelation ?? (burg.isDomestic ? "domestic" : "Neutral")) as BeyondRealmRelation,
+      stateId: burg.stateId,
+      stateName: burg.stateName
+    },
+    settlement: {
+      scale,
+      role,
+      name: burg.name,
+      burgId: burg.id,
+      population: burg.population,
+      wealth: burg.wealth,
+      treasury: burg.treasury,
+      distanceMeters: burg.distanceMeters
+    }
+  };
+}
+
+/** Write `beyond` onto external gate roads and clear it from other generated roads. */
+export function tagExternalGateRoads(document: CityDocument, seed: string, descriptor?: BurgSiteDescriptor): void {
+  const roads = externalGateRoads(document);
+  const externalIds = new Set(roads.map(road => road.group.id));
+  for (const group of document.featureGroups) {
+    if (group.kind === "road" && group.id.startsWith("gc:") && !externalIds.has(group.id)) delete group.beyond;
+  }
+
+  const descriptorRoads = descriptor?.roads ?? [];
+  const exits = externalRoadExits(document);
+  const exitIndex = new Map(exits.flatMap((exit, index) => exit.map(road => [road.group.id, index] as const)));
+  const roles = assignApproachBeyonds(seed, exits.length, {
+    extentMeters: document.frame.extentMeters,
+    hasWalls: document.featureGroups.some(g => g.kind === "wall")
+  });
+
+  const usedDestinations = new Map<number, Set<number>>();
+  roads.forEach(road => {
+    const index = exitIndex.get(road.group.id)!;
+    const used = usedDestinations.get(index) ?? new Set<number>();
+    usedDestinations.set(index, used);
+    const candidates = descriptorRoads
+      .filter(item => item.nextBurg)
+      .map(item => ({ item, diff: azimuthDelta(item.entryAzimuthDeg, road.bearing) }))
+      .filter(candidate => candidate.diff < 60)
+      .sort((a, b) => a.diff - b.diff || a.item.routeId - b.item.routeId);
+    // Multiple descriptor branches at a common exit retain their separate towns.
+    const best = candidates[0];
+    const matched =
+      best &&
+      (candidates.find(candidate => candidate.diff <= best.diff + 10 && !used.has(candidate.item.nextBurg!.id)) ??
+        best);
+    const matchedNextBurg = road.group.sourceRoad
+      ? descriptorRoads[road.group.sourceRoad.index]?.nextBurg
+      : matched?.item.nextBurg;
+    if (matchedNextBurg) used.add(matchedNextBurg.id);
+
+    if (matchedNextBurg) {
+      road.group.beyond = beyondFromBurg(matchedNextBurg);
+    } else {
+      road.group.beyond = structuredClone(roles[exitIndex.get(road.group.id)!]);
+    }
+  });
+
+  // Also tag river-crossing approach roads with their matching beyond descriptor
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || !group.id.startsWith("gc:riverRoad-")) continue;
+    const vertices = featureGroupVertices(document, group);
+    if (
+      ![vertices[0], vertices.at(-1)!].some(id => {
+        const point = document.mesh.vertices[id]?.point;
+        return point && onMapBoundary(document, point);
+      })
+    ) {
+      delete group.beyond;
+      continue;
+    }
+    const match = group.id.match(/^gc:riverRoad-\d+-(\d+)$/);
+    if (match) {
+      const pathIndex = Number.parseInt(match[1], 10);
+      const dRoad = descriptorRoads[pathIndex];
+      if (dRoad?.nextBurg) {
+        group.beyond = beyondFromBurg(dRoad.nextBurg);
+        continue;
+      }
+    }
+    if (descriptorRoads.length > 0) {
+      const ids = featureGroupVertices(document, group);
+      const pStart = document.mesh.vertices[ids[0]]?.point;
+      const pEnd = document.mesh.vertices[ids.at(-1)!]?.point;
+      if (pStart && pEnd) {
+        const outward = Math.hypot(pStart[0], pStart[1]) > Math.hypot(pEnd[0], pEnd[1]) ? pStart : pEnd;
+        const az = vecToAzimuth(outward[0], outward[1]);
+        let minDiff = 180;
+        let matched: BurgSiteDescriptor["roads"][number]["nextBurg"] | null = null;
+        for (const dRoad of descriptorRoads) {
+          if (!dRoad.nextBurg) continue;
+          const diff = azimuthDelta(dRoad.entryAzimuthDeg, az);
+          if (diff < minDiff && diff < 60) {
+            minDiff = diff;
+            matched = dRoad.nextBurg;
+          }
+        }
+        if (matched) {
+          group.beyond = beyondFromBurg(matched);
+        }
+      }
+    }
+  }
+}
+
+/** Keep a label inside the frame, on the outer end of the road. */
+export function approachBeyondAnchor(outward: Point, halfExtent: number): Point {
+  const margin = Math.max(8, halfExtent * 0.06);
+  const limit = Math.max(1, halfExtent - margin);
+  let [x, y] = outward;
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  const peak = Math.max(ax, ay);
+  if (peak > limit) {
+    const scale = limit / peak;
+    x *= scale;
+    y *= scale;
+  }
+  return [x, y];
+}

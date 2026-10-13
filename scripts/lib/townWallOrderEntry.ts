@@ -1,15 +1,16 @@
 await import("../../src/test-setup");
-const { createGridDocument } = await import("../../src/city-editor/core/document");
-const { defaultGenerationSettings, generateCityOnDocument } = await import("../../src/city-editor/core/generate");
-const { townCircuits, townGates, reservedCastleFaces } = await import("../../src/city-editor/core/fortifications");
-const { auditTownDefenseClosure } = await import("../../src/city-editor/core/townDefenseClosure");
-const { facePoints } = await import("../../src/city-editor/core/mesh");
-const { polygonArea } = await import("../../src/city-editor/core/gen/geom");
-const { serializeCitySvg } = await import("../../src/city-editor/render/svg");
-const { DEFAULT_PATCH_PARAMS } = await import("../../src/city-editor/core/gen/patches");
-import type { CreateGridOptions } from "../../src/city-editor/core/document";
-import type { GenerationSettings } from "../../src/city-editor/core/generate";
-import type { GenerationSample } from "../../src/city-editor/core/generationDiagnostics";
+const { createGridDocument } = await import("../../src/city-editor/generators/document");
+const { defaultGenerationSettings } = await import("../../src/city-editor/generators/generation/settings");
+const { generateCityOnDocument } = await import("../../src/city-editor/generators/generation/generateCity");
+const { townCircuits, townGates, reservedCastleFaces } = await import("../../src/city-editor/generators/fortifications");
+const { auditTownDefenseClosure } = await import("../../src/city-editor/generators/townDefenseClosure");
+const { facePoints } = await import("../../src/city-editor/generators/mesh");
+const { polygonArea } = await import("../../src/city-editor/generators/geom");
+const { serializeCitySvg } = await import("../../src/city-editor/renderers/standaloneSvg");
+const { DEFAULT_PATCH_PARAMS } = await import("../../src/city-editor/generators/patches");
+import type { CreateGridOptions } from "../../src/city-editor/generators/document";
+import type { GenerationSettings } from "../../src/city-editor/types/generation";
+import type { GenerationSample } from "../../src/city-editor/types/contracts/generationDiagnostics";
 
 export function runTownWallOrderCase(input: CreateGridOptions, condition: "A" | "B" | "C" | "D", river: "none" | "through" | "meander", castle: "none" | "small" | "standard", draw: boolean) {
   const document = createGridDocument({ ...input, ...(input.patchParams ? { patchParams: { ...DEFAULT_PATCH_PARAMS, ...input.patchParams } } : {}) });

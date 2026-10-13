@@ -1,5 +1,5 @@
 import { setEditorPageMetadata } from "../i18n/editorMessages";
-import { mountCityEditor } from "./ui/CityEditorPage";
+import { mountCityEditor } from "./components/CityEditorPage";
 
 setEditorPageMetadata("cityEditor");
 

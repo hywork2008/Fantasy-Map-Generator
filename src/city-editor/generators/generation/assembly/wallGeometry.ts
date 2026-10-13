@@ -1,6 +1,6 @@
-import { splitDryWallRuns } from "../../../core/gen/plausibility";
-import type { EdgeRef, Id, Mesh, Point } from "../../../core/types";
+import type { EdgeRef, Id, Mesh, Point } from "../../../types/document";
 import type { MeshBorderLoop } from "../../../types/generation";
+import { splitDryWallRuns } from "../../plausibility";
 
 /** A plaza-outline vertex, so gate→plaza streets meet the square instead of cutting through it. */
 

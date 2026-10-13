@@ -1,10 +1,10 @@
-import { townExtentMeters } from "../../core/gen/settlementExtent";
-import { resolveWallPlan, siteToGeography, siteToProgram } from "../../core/gen/site/siteInput";
-import { synthSite } from "../../core/gen/site/synthSite";
-import type { CityParams, CityProgram } from "../../core/gen/types";
-import { DEFAULT_WALL_PLAN } from "../../core/gen/types";
-import type { CityDocument } from "../../core/types";
+import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
+import type { CityParams, CityProgram } from "../../types/geometry";
+import { DEFAULT_WALL_PLAN } from "../../types/geometry";
+import { townExtentMeters } from "../settlementExtent";
+import { resolveWallPlan, siteToGeography, siteToProgram } from "../site/siteInput";
+import { synthSite } from "../site/synthSite";
 import { NOMINAL_PRESET } from "./constants";
 import { cellsFromMesh } from "./meshGeometry";
 

@@ -2,59 +2,56 @@ import { editorText } from "../../../i18n/editorMessages";
 import { resolveBridgeSkewLimit } from "../../../utils/bridgeSkewPolicy";
 import { measureProcessing, type ProcessingProfiler } from "../../../utils/processingProfiler";
 import { inferredWallSettings, supportsUrbanMorphology } from "../../../utils/urbanMorphology";
-import { finalizeCastles } from "../../core/castles";
-import { townCircuits, townGates } from "../../core/fortifications";
-import { straightenFrameRoadJunctions } from "../../core/frameRoadJunction";
-import { tagExternalGateRoads } from "../../core/gen/approachBeyond";
-import { buildBlockFabric, FabricCache } from "../../core/gen/blockInfill";
+import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
+import type { CityDocument, Point } from "../../types/document";
+import type { GenerationSettings } from "../../types/generation";
+import { tagExternalGateRoads } from "../approachBeyond";
+import { buildBlockFabric } from "../blockInfill";
+import { finalizeCastles } from "../castles";
+import { refreshCemeteryLayouts, relocateUndersizedCemeteries, syncDocumentCemeteries } from "../cemeteryLayout";
+import { createFabricPlan } from "../fabricDistricts";
+import { finishCityGeometry } from "../finishCityGeometry";
+import { fitImportedHousing } from "../fitImportedHousing";
+import { townCircuits, townGates } from "../fortifications";
+import { straightenFrameRoadJunctions } from "../frameRoadJunction";
+import { captureGenerationDebugPreview, type GenerationDebugObserver } from "../generationDebug";
 import {
-  refreshCemeteryLayouts,
-  relocateUndersizedCemeteries,
-  syncDocumentCemeteries
-} from "../../core/gen/cemeteryLayout";
-import { createFabricPlan } from "../../core/gen/fabricDistricts";
-import { finishCityGeometry } from "../../core/gen/finishCityGeometry";
-import { fitImportedHousing } from "../../core/gen/fitImportedHousing";
-import { isSimplePolygon, polygonArea } from "../../core/gen/geom";
-import { spawnHarborShips } from "../../core/gen/harborShips";
-import { INNER_WALL_FAILURES } from "../../core/gen/innerTownWall";
-import { shortcutMajorRoads } from "../../core/gen/majorRoadShortcuts";
-import { bramCoreRadiusForCity, bramSpokeRadiusMeters } from "../../core/gen/polygonalCirculadeLayout";
-import { isHexagonalDocument, rectifyHexBlocks } from "../../core/gen/rectifyHexBlocks";
-import { rectifyVoronoiBlocks } from "../../core/gen/rectifyVoronoiBlocks";
-import { cultivateRoadside } from "../../core/gen/roadsideFarms";
+  type GenerationObserver,
+  generationTimer,
+  logGenerationFailures,
+  reportGenerationFailure
+} from "../generationDiagnostics";
+import { isSimplePolygon, polygonArea } from "../geom";
+import { spawnHarborShips } from "../harborShips";
+import { INNER_WALL_FAILURES } from "../innerTownWall";
+import { FabricCache } from "../localInfill";
+import { shortcutMajorRoads } from "../majorRoadShortcuts";
+import { clone, facePoints } from "../mesh";
+import { MoatReservation } from "../moats";
+import {
+  explainGeneratedCrossingFailures,
+  retractProtrudingGates,
+  straightenBridges,
+  straightenGateCrossings
+} from "../passages";
+import { bramCoreRadiusForCity, bramSpokeRadiusMeters } from "../polygonalCirculadeLayout";
+import { isHexagonalDocument, rectifyHexBlocks } from "../rectifyHexBlocks";
+import { rectifyVoronoiBlocks } from "../rectifyVoronoiBlocks";
+import { riverFlowsFromDescriptor } from "../riverFlow";
+import { cultivateRoadside } from "../roadsideFarms";
+import { attachSceneRegions } from "../sceneRegions";
 import {
   innerWalledAreaShare,
   MIN_SETTLEMENT_AREA_SHARE,
   outerWalledAreaShare,
   resolveWalledAreaShare,
   townExtentMeters
-} from "../../core/gen/settlementExtent";
-import { farNodeFor } from "../../core/gen/streets";
-import { approachBands } from "../../core/gen/suburbanLanduse";
-import { connectUrbanRiverDistricts } from "../../core/gen/urbanBridges";
-import { planUrbanGrowth } from "../../core/gen/urbanGrowth";
-import { captureGenerationDebugPreview, type GenerationDebugObserver } from "../../core/generationDebug";
-import {
-  type GenerationObserver,
-  type GenerationSample,
-  generationTimer,
-  logGenerationFailures,
-  reportGenerationFailure
-} from "../../core/generationDiagnostics";
-import { clone, facePoints } from "../../core/mesh";
-import { MoatReservation } from "../../core/moats";
-import {
-  explainGeneratedCrossingFailures,
-  retractProtrudingGates,
-  straightenBridges,
-  straightenGateCrossings
-} from "../../core/passages";
-import { riverFlowsFromDescriptor } from "../../core/riverFlow";
-import { attachSceneRegions } from "../../core/sceneRegions";
-import { auditTownDefenseClosure } from "../../core/townDefenseClosure";
-import type { CityDocument, Point } from "../../core/types";
-import type { GenerationSettings } from "../../types/generation";
+} from "../settlementExtent";
+import { farNodeFor } from "../streets";
+import { approachBands } from "../suburbanLanduse";
+import { auditTownDefenseClosure } from "../townDefenseClosure";
+import { connectUrbanRiverDistricts } from "../urbanBridges";
+import { planUrbanGrowth } from "../urbanGrowth";
 import { applyPlan } from "./assembly/applyPlan";
 import { settleTempleOnDocument } from "./assembly/temple";
 import { GEN_PREFIX } from "./constants";

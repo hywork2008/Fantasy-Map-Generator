@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createGridDocument } from "../../core/document";
-import { resolveWallPlan, siteToGeography, siteToProgram } from "../../core/gen/site/siteInput";
-import { synthSite } from "../../core/gen/site/synthSite";
-import { type CityParams, DEFAULT_WALL_PLAN } from "../../core/gen/types";
-import type { GenerationSample } from "../../core/generationDiagnostics";
+import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
+import { type CityParams, DEFAULT_WALL_PLAN } from "../../types/geometry";
+import { createGridDocument } from "../document";
+import { resolveWallPlan, siteToGeography, siteToProgram } from "../site/siteInput";
+import { synthSite } from "../site/synthSite";
 import { cellsFromMesh } from "./meshGeometry";
 import { runPlan } from "./pipeline";
 import { defaultGenerationSettings } from "./settings";

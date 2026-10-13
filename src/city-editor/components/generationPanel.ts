@@ -1,19 +1,14 @@
 import { editorOptionText, editorText } from "../../i18n/editorMessages";
 import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urbanMorphology";
+import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
-import { WALL_MATERIAL_CHOICES, type WallCoastChoice, type WallMaterialChoice } from "../core/gen/site/siteConfig";
-import {
-  CITY_LAYOUTS,
-  type CityFeatureSet,
-  type FarNodeMode,
-  FEATURE_KEYS,
-  GENERATION_STAGES,
-  type GenerationStage,
-  generationStages
-} from "../core/generate";
-import type { CityDocument } from "../core/types";
+import { CITY_LAYOUTS, FEATURE_KEYS, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { CityFeatureSet, WallCoastChoice, WallMaterialChoice } from "../types/contracts/siteConfig";
+import type { FarNodeMode } from "../types/contracts/streets";
+import type { CityDocument } from "../types/document";
+import type { GenerationStage } from "../types/generation";
 import { div, text } from "./editorControls";
 export interface GenerationPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
@@ -190,7 +185,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   currentBuildingPatternSelect.options[1].textContent = editorText(
     "cityEditor.messages.medievalLotsStoresHousesAndGardens"
   );
-  const periodOptions: import("../core/types").HistoricalPeriod[] = [
+  const periodOptions: import("../types/document").HistoricalPeriod[] = [
     "ageOfExploration",
     "lateMedieval",
     "highMedieval",

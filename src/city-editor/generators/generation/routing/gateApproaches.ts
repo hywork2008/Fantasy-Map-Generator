@@ -1,9 +1,9 @@
-import { featureGroupVertices } from "../../../core/features";
-import { townGates } from "../../../core/fortifications";
-import { isSimplePolygon, polygonArea, polygonCentroid } from "../../../core/gen/geom";
-import { edgeBetween, facePoints, faceVertices, incidentFaces, insertEdgeVertex, splitFace } from "../../../core/mesh";
-import { kindEdgeIds } from "../../../core/passages";
-import type { CityDocument, Id } from "../../../core/types";
+import type { CityDocument, Id } from "../../../types/document";
+import { featureGroupVertices } from "../../features";
+import { townGates } from "../../fortifications";
+import { isSimplePolygon, polygonArea, polygonCentroid } from "../../geom";
+import { edgeBetween, facePoints, faceVertices, incidentFaces, insertEdgeVertex, splitFace } from "../../mesh";
+import { kindEdgeIds } from "../../passages";
 
 /** Connect the dry edges of bank-side cells through their interiors. Routing
  * along the original perimeter alone can strand an entire bank at river

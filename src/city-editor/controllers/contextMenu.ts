@@ -1,11 +1,11 @@
 import { editorText } from "../../i18n/editorMessages";
 import type { createEditorControls } from "../components/editorControls";
 import { text } from "../components/editorControls";
-import type { CityDocument, Id } from "../core/types";
-import { renderMeasureOverlay } from "../render/svg";
+import { renderMeasureOverlay } from "../renderers/overlays/editorOverlays";
 import type { DisplayState, InteractionState } from "../state/editorSession";
+import type { CityDocument, Id } from "../types/document";
 import type { ContextMenuAction } from "../types/editor";
-import { formatDistance } from "./editorGeometry";
+import { formatDistance } from "../utils/editorUnits";
 
 export interface ContextMenuContext {
   controls: ReturnType<typeof createEditorControls>;

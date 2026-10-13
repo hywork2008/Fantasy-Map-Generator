@@ -99,9 +99,9 @@ describe.skipIf(!existsSync(archive))("dual-port real-world placement", () => {
     await loadWorld();
     await repairDualPortPlacements({ isCurrent: () => true, reportProgress: () => {} });
     const { getBurgSiteDescriptor } = await import("./burgSiteDescriptor");
-    const { shareFromDescriptor } = await import("../city-editor/io/incomingCity");
-    const { cityEditorDocument, cityEditorSettings } = await import("../city-editor/core/housingReport");
-    const { generateCityOnDocument } = await import("../city-editor/core/generate");
+    const { shareFromDescriptor } = await import("../city-editor/services/io/incomingCity");
+    const { cityEditorDocument, cityEditorSettings } = await import("../city-editor/services/analysis/housingReport");
+    const { generateCityOnDocument } = await import("../city-editor/generators/generation/generateCity");
     const site = getBurgSiteDescriptor(2)!;
     const share = shareFromDescriptor(site);
     const city = generateCityOnDocument(cityEditorDocument(share), cityEditorSettings(share), share.seed)!;

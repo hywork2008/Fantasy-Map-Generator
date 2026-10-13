@@ -1,27 +1,26 @@
 import { editorText } from "../../i18n/editorMessages";
 import { historicLandmarkPrototypes } from "../assets/catalog";
-import { buildBlockFabric, type InfillLane } from "../core/gen/blockInfill";
-import { buildLandmarkLaneNetwork } from "../core/gen/landmarkLaneNetwork";
-import { defaultWalledAreaShare } from "../core/gen/settlementExtent";
-import { placeLandmark, transformLandmarkPolygons } from "../core/landmarks";
-import { facePoints, validate } from "../core/mesh";
-import type { CityDocument, Id, LandmarkAsset, Tool, WardKind } from "../core/types";
-import { renderGenerationDebugSvg } from "../render/generationDebugSvg";
-import { renderShipRotationHandle, renderShipSvg } from "../render/shipSvg";
+import { buildBlockFabric } from "../generators/blockInfill";
+import { buildLandmarkLaneNetwork } from "../generators/landmarkLaneNetwork";
+import { placeLandmark, transformLandmarkPolygons } from "../generators/landmarks";
+import { facePoints, validate } from "../generators/mesh";
+import { defaultWalledAreaShare } from "../generators/settlementExtent";
+import { renderApproachLabels } from "../renderers/approachLabelSvg";
+import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
+import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
+import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
 import {
   appendFaceSelectionLabels,
-  faceClassName,
   type GridOverlay,
-  parsePickInfo,
-  type RenderQuality,
-  renderApproachLabels,
-  renderEditorSvg,
-  renderFaceWardLandmark,
   renderHoverOverlay,
   renderRoutePreview
-} from "../render/svg";
+} from "../renderers/overlays/editorOverlays";
+import { parsePickInfo } from "../renderers/pickInfo";
+import { renderShipRotationHandle, renderShipSvg } from "../renderers/shipSvg";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
-import { formatDistance, niceScale } from "./editorGeometry";
+import type { InfillLane } from "../types/contracts/localInfill";
+import type { CityDocument, Id, LandmarkAsset, Tool, WardKind } from "../types/document";
+import { formatDistance, niceScale } from "../utils/editorUnits";
 import { isBrushTool } from "./tools/toolTypes";
 export interface MapDisplayContext {
   scope: import("../services/editorLifetime").EditorLifetime;

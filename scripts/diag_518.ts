@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 // Usage: npx tsx scripts/diag_518.ts [archive.fmg] [burgId ...]
 const [archive = "temp/000.savdata/Rarerland 2026-10-04-22-24.fmg", ...ids] = process.argv.slice(2);
 const output = resolve("temp/ce-river-fixes");
-const result = spawnSync("npx", ["vitest", "run", "src/city-editor/core/rarerlandArchive.cli.test.ts", "--maxWorkers=1"], {
+const result = spawnSync("npx", ["vitest", "run", "src/city-editor/generators/rarerlandArchive.cli.test.ts", "--maxWorkers=1"], {
   cwd: process.cwd(),
   env: { ...process.env, CE_DIAG_ARCHIVE: resolve(archive), CE_DIAG_BURGS: ids.length ? ids.join(",") : "518", CE_DIAG_OUT: output },
   encoding: "utf8"

@@ -1,5 +1,5 @@
-import type { RoadRoutingTrace } from "../../../core/generationDiagnostics";
-import type { CityDocument } from "../../../core/types";
+import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
+import type { CityDocument } from "../../../types/document";
 
 /** A requested assembly stopping point, before downstream routing/finishing. */
 export type AssemblyCheckpoint = "walls" | "riverPassages" | "passages" | "innerWall" | "firstInnerGates";

@@ -1,9 +1,9 @@
-import { orderedBoundaryLoops } from "../../core/features";
-import { polygonCentroid, polygonTouchesRectEdge } from "../../core/gen/geom";
-import type { Cell } from "../../core/gen/types";
-import { edgeEnd, faceNeighbors, facePoints } from "../../core/mesh";
-import type { EdgeRef, Id, Mesh, Point } from "../../core/types";
+import type { EdgeRef, Id, Mesh, Point } from "../../types/document";
 import type { MeshBorderLoop } from "../../types/generation";
+import type { Cell } from "../../types/geometry";
+import { orderedBoundaryLoops } from "../features";
+import { polygonCentroid, polygonTouchesRectEdge } from "../geom";
+import { edgeEnd, faceNeighbors, facePoints } from "../mesh";
 
 export function cellsFromMesh(mesh: Mesh, half: number): { cells: Cell[]; faceIdOf: string[] } {
   const faces = Object.values(mesh.faces);

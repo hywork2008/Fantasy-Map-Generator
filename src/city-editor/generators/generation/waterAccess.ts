@@ -1,7 +1,7 @@
-import { resolvePortFrontages } from "../../core/gen/site/portFrontages";
-import { applyImportedFixedCrossings } from "../../core/importedFixedCrossings";
-import type { CityDocument } from "../../core/types";
+import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
+import { applyImportedFixedCrossings } from "../importedFixedCrossings";
+import { resolvePortFrontages } from "../site/portFrontages";
 
 /** Preserve the source port frontages for berth-specific vessel selection. */
 export function applyImportedWaterAccess(document: CityDocument, settings: GenerationSettings): void {

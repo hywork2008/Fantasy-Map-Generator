@@ -1,6 +1,6 @@
-import { shortestPath } from "../../../core/features";
-import { edgeBetween } from "../../../core/mesh";
-import type { Id, Mesh, Point } from "../../../core/types";
+import type { Id, Mesh, Point } from "../../../types/document";
+import { shortestPath } from "../../features";
+import { edgeBetween } from "../../mesh";
 import type { NearestVertex } from "../planning/meshLookup";
 
 // --- mesh ⇆ Cell[] & polyline snapping --------------------------------------

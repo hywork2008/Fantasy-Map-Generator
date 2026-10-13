@@ -1,6 +1,6 @@
-import type { Id, Tool } from "../../core/types";
-import type { RenderSelection } from "../../render/svg";
+import type { Id, Tool } from "../../types/document";
 import type { RoutePaintKind } from "../../types/editor";
+import type { RenderSelection } from "../../types/selection";
 export function emptySelection(): RenderSelection {
   return {
     faceId: null,

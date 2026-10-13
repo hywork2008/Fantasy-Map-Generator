@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createGridDocument } from "../../core/document";
-import { clone } from "../../core/mesh";
+import { createGridDocument } from "../document";
+import { clone } from "../mesh";
 import * as pipeline from "./pipeline";
 import { clearGenerationPreviewCache, generateWardStep } from "./previews";
 import { defaultGenerationSettings } from "./settings";

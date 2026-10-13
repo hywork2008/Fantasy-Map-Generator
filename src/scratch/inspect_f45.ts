@@ -1,7 +1,8 @@
-import { createGridDocument } from "../../src/city-editor/core/document";
-import { buildBlockFabric } from "../../src/city-editor/core/gen/blockInfill";
-import { defaultGenerationSettings, generateCityOnDocument } from "../../src/city-editor/core/generate";
-import { facePoints } from "../../src/city-editor/core/mesh";
+import { buildBlockFabric } from "../city-editor/generators/blockInfill";
+import { createGridDocument } from "../city-editor/generators/document";
+import { generateCityOnDocument } from "../city-editor/generators/generation/generateCity";
+import { defaultGenerationSettings } from "../city-editor/generators/generation/settings";
+import { facePoints } from "../city-editor/generators/mesh";
 
 const seed = "reference-town";
 const base = createGridDocument({ size: "small", grid: "evolution", seed });

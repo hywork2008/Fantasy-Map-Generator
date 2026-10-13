@@ -1,4 +1,4 @@
-import type { CityDocument, Id, Point } from "../core/types";
+import type { CityDocument, Id, Point } from "./document";
 import type { GenerationSettings } from "./generation";
 export interface ContextMenuAction {
   label: string;

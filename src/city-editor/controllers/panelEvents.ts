@@ -1,23 +1,19 @@
 import { editorText } from "../../i18n/editorMessages";
-import type { GridKind } from "../core/document";
-import { orientTempleHybrid } from "../core/gen/civicPlacement";
-import { setBuildingPattern } from "../core/gen/fabricDistricts";
-import type { WallCoastChoice, WallMaterialChoice } from "../core/gen/site/siteConfig";
-import {
-  type CityLayout,
-  clearGenerationPreviewCache,
-  type FarNodeMode,
-  type GenerationSettings,
-  randomSeed,
-  riversForCount,
-  type SiteConfig
-} from "../core/generate";
-import { validateLandmarks } from "../core/landmarks";
-import type { CityDocument, LandmarkAsset } from "../core/types";
-import { SHIP_SPECS, type ShipType } from "../render/shipSvg";
+import { orientTempleHybrid } from "../generators/civicPlacement";
+import { setBuildingPattern } from "../generators/fabricDistricts";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { randomSeed, riversForCount } from "../generators/generation/settings";
+import { validateLandmarks } from "../generators/landmarks";
+import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
+import type { GridKind } from "../types/contracts/document";
+import type { CityLayout, SiteConfig, WallCoastChoice, WallMaterialChoice } from "../types/contracts/siteConfig";
+import type { FarNodeMode } from "../types/contracts/streets";
+import type { CityDocument, LandmarkAsset } from "../types/document";
 import type { EraseTarget } from "../types/editor";
-import { formatDistance } from "./editorGeometry";
+import type { GenerationSettings } from "../types/generation";
+import type { ShipType } from "../types/ships";
+import { formatDistance } from "../utils/editorUnits";
 export interface PanelEventsContext {
   scope: import("../services/editorLifetime").EditorLifetime;
   landmarkSelect: HTMLSelectElement;
@@ -225,7 +221,7 @@ export function bindPanelEvents(ctx: PanelEventsContext, binding: PanelBinding) 
     }
     case "historicalPeriodSelect:change": {
       ctx.scope.listen(ctx.historicalPeriodSelect, "change", () => {
-        const period = ctx.historicalPeriodSelect.value as import("../core/types").HistoricalPeriod;
+        const period = ctx.historicalPeriodSelect.value as import("../types/document").HistoricalPeriod;
         ctx.generation.generateSettings.historicalPeriod = period;
         const next = { ...ctx.documents.documentState, historicalPeriod: period };
         const plaza = next.elements.find(e => e.kind === "plaza");
