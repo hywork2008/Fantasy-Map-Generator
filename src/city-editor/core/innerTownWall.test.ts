@@ -8,8 +8,11 @@ import {
   townCircuits,
   townGates
 } from "./fortifications";
+import type { HousingFitStats } from "./gen/fitImportedHousing";
 import { INNER_WALL_FAILURES, innerTownCapacity } from "./gen/innerTownWall";
 import { innerWalledAreaShare, outerWalledAreaShare } from "./gen/settlementExtent";
+import { DEFAULT_SITE_CONFIG } from "./gen/site/siteConfig";
+import { synthSite } from "./gen/site/synthSite";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import { validate } from "./mesh";
 import { kindEdgeIds } from "./passages";
@@ -116,5 +119,90 @@ describe("double town walls (P1)", () => {
     expect(city).not.toBeNull();
     expect(townCircuits(city!)).toHaveLength(1);
     expect(samples.at(-1)).toMatchObject({ ok: 0, planned: 0, failureCode: INNER_WALL_FAILURES.indexOf("gap") + 1 });
+  });
+
+  it("keeps old-town gates on the main roads and closes the other crossings (P3)", () => {
+    const seed = "d2";
+    const samples: Record<string, number>[] = [];
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed }),
+      { ...defaultGenerationSettings(), townWallRings: "double" },
+      seed,
+      s => {
+        if (s.phase === "inner-wall" && s.counts) samples.push(s.counts);
+      }
+    );
+    expect(city).not.toBeNull();
+    expect(validate(city!)).toEqual([]);
+    const report = samples.at(-1)!;
+    expect(report.ok).toBe(1);
+    expect(report.closedCrossings).toBeGreaterThan(0);
+    const inner = innerTownCircuit(city!)!;
+    const outer = outerTownCircuit(city!)!;
+    const innerGates = townGates(city!, inner.id).length;
+    expect(innerGates).toBeGreaterThanOrEqual(2);
+    expect(innerGates).toBeLessThanOrEqual(Math.max(2, townGates(city!, outer.id).length));
+  });
+
+  it("razes the old wall to a ring road with no gates (P3)", () => {
+    const seed = "d2";
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed }),
+      { ...defaultGenerationSettings(), townWallRings: "double", innerWallState: "razed" },
+      seed
+    );
+    expect(city).not.toBeNull();
+    expect(validate(city!)).toEqual([]);
+    const inner = innerTownCircuit(city!)!;
+    expect(inner.state).toBe("razed");
+    expect(inner.wallGroupIds.filter(id => id.includes("inner-wall"))).toEqual([]);
+    expect(townGates(city!, inner.id)).toEqual([]);
+    expect(city!.featureGroups.some(g => g.kind === "road" && g.id.includes("ring-road"))).toBe(true);
+  });
+
+  it("fills the old town before the town between the walls (P3 housing)", () => {
+    const seed = "d1";
+    const site = synthSite(
+      "smallTown",
+      {
+        ...DEFAULT_SITE_CONFIG,
+        coast: "none",
+        rivers: [],
+        relief: false,
+        features: { ...DEFAULT_SITE_CONFIG.features, walls: true, citadel: false, port: false, shanty: false }
+      },
+      seed,
+      { extentMeters: 1200, cityRadiusMeters: 400 }
+    );
+    site.burg.walls = true;
+    // Few dwellings: the old town alone should hold most of them.
+    site.burg.dwellings = 400;
+    const settings = { ...defaultGenerationSettings(), townWallRings: "double" as const, descriptor: site };
+    let fit: HousingFitStats | undefined;
+    let wall: Record<string, number> | undefined;
+    const city = generateCityOnDocument(
+      createGridDocument({
+        size: "small",
+        grid: "evolution",
+        seed,
+        extentMeters: 1200,
+        cityRadiusMeters: 400,
+        // Imports use Grid evolution (the only grid with a district fabric to fit);
+        // finer centre cells leave room for an old town (wall-ring lab).
+        patchParams: { nPatches: 150, relaxCount: 4, relaxPasses: 3, rimGrowthPercent: 50 }
+      }),
+      settings,
+      seed,
+      s => {
+        if (s.phase === "inner-wall") wall = s.counts;
+        if (s.phase === "fit-housing") fit = (s as { housingFit?: HousingFitStats }).housingFit;
+      }
+    );
+    expect(city).not.toBeNull();
+    expect(wall?.ok).toBe(1);
+    expect(fit?.skipped).toBeUndefined();
+    expect(fit!.finalZones!.core).toBeGreaterThan(fit!.finalZones!.between);
+    expect(fit!.betweenFactor).toBeLessThan(fit!.factor);
+    expect(fit!.finalZones!.outskirts).toBe(0);
   });
 });

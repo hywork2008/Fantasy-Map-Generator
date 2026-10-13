@@ -490,6 +490,8 @@ export interface GenerationSettings {
    * the old town and the outer wall encloses the whole built-up area). Circulade and
    * Bram layouts stay single. Default "single". */
   townWallRings?: "single" | "double";
+  /** Double walls only: "razed" turns the old-town wall into a ring road (§4.3). Default "standing". */
+  innerWallState?: "standing" | "razed";
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
    * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
@@ -1096,7 +1098,8 @@ export function generateCityAttempt(
         share: innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
         minGapCells: INNER_WALL_MIN_GAP_CELLS,
         prefix: GEN_PREFIX,
-        castleInOldTown: plan.innerWall?.castleRing === "inner"
+        castleInOldTown: plan.innerWall?.castleRing === "inner",
+        razed: settings.innerWallState === "razed"
       })
     );
     // A town that cannot hold an old-town wall keeps its single curtain.
@@ -1106,6 +1109,7 @@ export function generateCityAttempt(
       planned: 1,
       castleInOldTown: plan.innerWall.castleRing === "inner" ? 1 : 0,
       castleTouchesOldTown: report.castleTouches ? 1 : 0,
+      closedCrossings: report.closedCrossings,
       failureCode: report.failure ? INNER_WALL_FAILURES.indexOf(report.failure) + 1 : 0,
       faces: report.faces,
       areaShare: report.areaShare,

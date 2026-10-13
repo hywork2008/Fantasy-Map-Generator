@@ -417,6 +417,18 @@ export function renderEditorSvg(
         )
       );
     }
+    // Double walls: the old-town share of the core (wallRing 0).
+    svg.setAttribute(
+      "data-old-town-buildings",
+      String(
+        hideBuildings
+          ? 0
+          : lots.filter(lot => {
+              const properties = document.mesh.faces[lot.faceId]?.properties;
+              return properties?.settlement === "core" && properties.wallRing === 0;
+            }).length
+      )
+    );
     if (fabric) {
       const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
       fabric.farms.forEach((farm, index) => {

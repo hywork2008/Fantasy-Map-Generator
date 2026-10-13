@@ -48,7 +48,7 @@ import {
   vertexHasWallPassage
 } from "../core/features";
 import { type FixedApproachProvider, restoreFixedCrossingApproaches } from "../core/fixedApproachAdoption";
-import { reservedCastleFaces, validateFortifications } from "../core/fortifications";
+import { reservedCastleFaces, townCircuits, validateFortifications } from "../core/fortifications";
 import {
   approachBeyondLabel,
   evaluateApproachBeyond,
@@ -1306,12 +1306,21 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   });
   // Old town + new wall (docs/plan/ce-multi-ring-walls.md). The walled share
   // then sizes the old town; the outer wall encloses the whole built-up area.
-  const townWallRingsSelect = select(["single", "double"], generateSettings.townWallRings ?? "single");
+  const townWallRingsValue = () =>
+    generateSettings.townWallRings !== "double"
+      ? "single"
+      : generateSettings.innerWallState === "razed"
+        ? "razed"
+        : "double";
+  const townWallRingsSelect = select(["single", "double", "razed"], townWallRingsValue());
   townWallRingsSelect.className = "ce-generate-town-wall-rings";
   townWallRingsSelect.options[0].textContent = editorText("cityEditor.messages.townWallRingsSingle");
   townWallRingsSelect.options[1].textContent = editorText("cityEditor.messages.townWallRingsDouble");
+  townWallRingsSelect.options[2].textContent = editorText("cityEditor.messages.townWallRingsRazed");
   townWallRingsSelect.addEventListener("change", () => {
-    generateSettings.townWallRings = townWallRingsSelect.value === "double" ? "double" : undefined;
+    const value = townWallRingsSelect.value;
+    generateSettings.townWallRings = value === "single" ? undefined : "double";
+    generateSettings.innerWallState = value === "razed" ? "razed" : undefined;
     completeResult = null;
     completeResultSettings = null;
   });
@@ -3018,15 +3027,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     map.replaceChildren(svg);
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
     const outerBuildings = Number(svg.getAttribute("data-outskirts-buildings") ?? 0);
+    const oldTownBuildings = Number(svg.getAttribute("data-old-town-buildings") ?? 0);
     const buildingCount = coreBuildings + outerBuildings;
     housingSummary.hidden = buildingCount === 0;
-    housingSummary.textContent = buildingCount
-      ? editorText("cityEditor.messages.buildingsCoreOuterBelt", {
-          value0: coreBuildings.toLocaleString(),
-          value1: outerBuildings.toLocaleString(),
-          value2: Math.round((outerBuildings / buildingCount) * 100)
-        })
-      : "";
+    housingSummary.textContent = !buildingCount
+      ? ""
+      : oldTownBuildings
+        ? editorText("cityEditor.messages.buildingsOldTownBetweenWallsOutside", {
+            value0: oldTownBuildings.toLocaleString(),
+            value1: (coreBuildings - oldTownBuildings).toLocaleString(),
+            value2: outerBuildings.toLocaleString(),
+            value3: Math.round((outerBuildings / buildingCount) * 100)
+          })
+        : editorText("cityEditor.messages.buildingsCoreOuterBelt", {
+            value0: coreBuildings.toLocaleString(),
+            value1: outerBuildings.toLocaleString(),
+            value2: Math.round((outerBuildings / buildingCount) * 100)
+          });
     // Index the per-face nodes this pass just built so a later ward/sea paint
     // can patch just the touched faces (patchFaceRender) instead of forcing
     // another full pass over the whole mesh.
@@ -5046,6 +5063,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         {
           walledAreaShare: undefined,
           townWallRings: undefined,
+          innerWallState: undefined,
           urbanCoreMode: undefined,
           descriptor: undefined,
           castle: undefined,
@@ -5120,7 +5138,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
     walledShareInput.value =
       generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
-    townWallRingsSelect.value = generateSettings.townWallRings ?? "single";
+    townWallRingsSelect.value = townWallRingsValue();
     if (!generateSettings.streets) {
       generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
     }
@@ -5543,6 +5561,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       return;
     }
     pendingFailurePreview = null;
+    // Double walls fall back to one curtain when the town has no room for an
+    // old town (docs/plan/ce-multi-ring-walls.md §5); say so rather than silently.
+    if (generateSettings.townWallRings === "double" && next.appearance === "town" && townCircuits(next).length < 2)
+      showNotice(editorText("cityEditor.messages.oldTownWallDidNotFitSingleWall"), false);
     if (["buildings", "conceal"].includes(stage.id) && !completeResult) {
       completeResult = next;
       completeResultSettings = JSON.stringify(generateSettings);

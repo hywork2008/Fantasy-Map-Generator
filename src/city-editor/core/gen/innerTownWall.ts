@@ -1,5 +1,5 @@
 import { registerTownCircuit } from "../castles";
-import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces } from "../fortifications";
+import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces, townGates } from "../fortifications";
 import { facePoints, faceVertices, insertEdgeVertex, splitFace } from "../mesh";
 import { kindEdgeIds, townCenter } from "../passages";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "../types";
@@ -23,6 +23,8 @@ export interface InnerWallOptions {
   prefix: string;
   /** The castle was sited in the old town (§4.4): the curtain must take it in. */
   castleInOldTown?: boolean;
+  /** The old wall was pulled down: its line is a ring road, every street crosses it (§4.3). */
+  razed?: boolean;
 }
 
 /** Order is the diagnostic code (`failureCode` = index + 1) recorded by the generator. */
@@ -44,6 +46,8 @@ export interface InnerWallReport {
   cuts: number;
   /** A castle borders the old town (it is part of the old-town defence). */
   castleTouches: boolean;
+  /** Street crossings closed at the old-town curtain (no gate). */
+  closedCrossings: number;
 }
 
 interface FaceInfo {
@@ -128,6 +132,7 @@ export function addInnerTownWall(
       streetOpenings: 0,
       cuts: 0,
       castleTouches: false,
+      closedCrossings: 0,
       ...extra
     }
   });
@@ -505,8 +510,8 @@ function finish(
   const built = build(document, inner, outerId, options, roads, rivers);
   const area = [...inner].reduce((sum, id) => sum + (info.get(id)?.area ?? 0), 0);
   const report: InnerWallReport = {
-    ok: built.gates > 0,
-    failure: built.gates > 0 ? undefined : "no-gate",
+    ok: built.gates > 0 || built.ringRoad,
+    failure: built.gates > 0 || built.ringRoad ? undefined : "no-gate",
     faces: inner.size,
     areaShare: Math.round((area / landArea) * 1000) / 1000,
     gapCells: Number.isFinite(gap) ? gap : -1,
@@ -514,6 +519,7 @@ function finish(
     riverOpenings: built.riverOpenings,
     streetOpenings: built.streetOpenings,
     cuts,
+    closedCrossings: built.closed,
     castleTouches: [...reservedCastleFaces(document)].some(id =>
       document.mesh.faces[id]?.boundary.some(ref => {
         const edge = document.mesh.edges[ref.edgeId];
@@ -531,7 +537,14 @@ function build(
   options: InnerWallOptions,
   roads: Set<Id>,
   rivers: Set<Id>
-): { document: CityDocument; gates: number; riverOpenings: number; streetOpenings: number } {
+): {
+  document: CityDocument;
+  gates: number;
+  riverOpenings: number;
+  streetOpenings: number;
+  closed: number;
+  ringRoad: boolean;
+} {
   const next = structuredClone(source);
   const mesh = next.mesh;
   const outerWall = next.featureGroups.find(
@@ -574,18 +587,40 @@ function build(
     }
     if (run.length) runs.push(run);
   }
-  runs.forEach((segments, k) => {
-    const id = `${options.prefix}inner-wall-${k}`;
-    next.featureGroups.push({
-      id,
-      kind: "wall",
-      name: `Old town wall ${k + 1}`,
-      segments,
-      style: { ...style, widthMeters: Math.max(2.4, style.widthMeters * 0.85) },
-      ...(material ? { wallMaterial: material } : {}),
-      locked: false
+  // A razed wall leaves its line as a boulevard, as wide as the main roads.
+  const mainRoad = next.featureGroups
+    .filter(g => g.kind === "road")
+    .reduce<CityDocument["featureGroups"][number] | null>(
+      (widest, g) =>
+        g.kind === "road" && (!widest || g.style.widthMeters > (widest.kind === "road" ? widest.style.widthMeters : 0))
+          ? g
+          : widest,
+      null
+    );
+  if (options.razed)
+    runs.forEach((segments, k) => {
+      next.featureGroups.push({
+        id: `${options.prefix}ring-road-${k}`,
+        kind: "road",
+        name: `Ring road ${k + 1}`,
+        segments,
+        style: mainRoad?.kind === "road" ? { ...mainRoad.style } : { widthMeters: 8, color: "#8d6e63" },
+        locked: false
+      });
     });
-  });
+  else
+    runs.forEach((segments, k) => {
+      const id = `${options.prefix}inner-wall-${k}`;
+      next.featureGroups.push({
+        id,
+        kind: "wall",
+        name: `Old town wall ${k + 1}`,
+        segments,
+        style: { ...style, widthMeters: Math.max(2.4, style.widthMeters * 0.85) },
+        ...(material ? { wallMaterial: material } : {}),
+        locked: false
+      });
+    });
 
   // Gates: curtain vertices a street passes through (one street edge inside, one outside).
   const wallVertices = new Set(runs.flat().flatMap(ref => [mesh.edges[ref.edgeId].a, mesh.edges[ref.edgeId].b]));
@@ -614,11 +649,18 @@ function build(
       ? []
       : runs.flatMap(run => [mesh.edges[run[0].edgeId], mesh.edges[run.at(-1)!.edgeId]].flatMap(e => [e.a, e.b]))
   );
-  const gateVertices = [...crossings].filter(([v, c]) => c.in && c.out && !runEnds.has(v)).map(([v]) => v);
+  const crossingVertices = [...crossings].filter(([v, c]) => c.in && c.out && !runEnds.has(v)).map(([v]) => v);
+  // An old-town wall had a few gates on the main roads, not one per lane: keep
+  // the crossings on each outer gate's shortest street route to the plaza
+  // (at least two), and close the others at the curtain.
+  const gateVertices = options.razed ? [] : mainRoadCrossings(next, crossingVertices, roads, townCenter(next));
+  const closed = options.razed ? [] : crossingVertices.filter(v => !gateVertices.includes(v));
+  closeCrossings(next, closed, roads, side);
 
   registerTownCircuit(next, [], true, [...inner], 0);
   const circuitId = `gc:defense-town-0`;
   for (const c of next.defenseCircuits!) if (c.id === outerId) c.ring = 1;
+  if (options.razed) next.defenseCircuits!.find(c => c.id === circuitId)!.state = "razed";
   gateVertices.forEach((vertexId, k) => {
     next.gates.push({ id: `${options.prefix}inner-gate-${k}`, vertexId, locked: false, role: "town", circuitId });
   });
@@ -628,5 +670,139 @@ function build(
     if (inner.has(face.id)) face.properties.wallRing = 0;
     else if (outerFaces.has(face.id)) face.properties.wallRing = 1;
   }
-  return { document: next, gates: gateVertices.length, riverOpenings, streetOpenings };
+  return {
+    document: next,
+    gates: gateVertices.length,
+    riverOpenings,
+    streetOpenings,
+    closed: closed.length,
+    ringRoad: options.razed ? runs.length > 0 : false
+  };
+}
+
+/** Shortest street route (by length) from `from` to `to`; vertex ids, or null. */
+function streetRoute(document: CityDocument, roads: Set<Id>, from: Id, to: Id): Id[] | null {
+  const mesh = document.mesh;
+  const adj = new Map<Id, Array<[Id, number]>>();
+  for (const id of roads) {
+    const edge = mesh.edges[id];
+    if (!edge) continue;
+    const a = mesh.vertices[edge.a].point,
+      b = mesh.vertices[edge.b].point;
+    const w = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    for (const [p, q] of [
+      [edge.a, edge.b],
+      [edge.b, edge.a]
+    ]) {
+      if (!adj.has(p)) adj.set(p, []);
+      adj.get(p)!.push([q, w]);
+    }
+  }
+  const dist = new Map<Id, number>([[from, 0]]);
+  const previous = new Map<Id, Id>();
+  const open = new Set<Id>([from]);
+  while (open.size) {
+    let at: Id | null = null;
+    for (const v of open) if (at === null || dist.get(v)! < dist.get(at)!) at = v;
+    open.delete(at!);
+    if (at === to) break;
+    for (const [n, w] of adj.get(at!) ?? []) {
+      const d = dist.get(at!)! + w;
+      if (d < (dist.get(n) ?? Infinity)) {
+        dist.set(n, d);
+        previous.set(n, at!);
+        open.add(n);
+      }
+    }
+  }
+  if (!dist.has(to)) return null;
+  const path = [to];
+  while (path[0] !== from) path.unshift(previous.get(path[0])!);
+  return path;
+}
+
+/** Crossings on the outer gates' street routes to the plaza; at least two, spread round the curtain. */
+function mainRoadCrossings(document: CityDocument, crossings: Id[], roads: Set<Id>, center: Point): Id[] {
+  if (crossings.length <= 2) return crossings;
+  const mesh = document.mesh;
+  const roadVertices = new Set([...roads].flatMap(id => (mesh.edges[id] ? [mesh.edges[id].a, mesh.edges[id].b] : [])));
+  let plaza: Id | null = null;
+  for (const v of roadVertices) {
+    const p = mesh.vertices[v].point;
+    if (
+      plaza === null ||
+      Math.hypot(p[0] - center[0], p[1] - center[1]) <
+        Math.hypot(mesh.vertices[plaza].point[0] - center[0], mesh.vertices[plaza].point[1] - center[1])
+    )
+      plaza = v;
+  }
+  const keep = new Set<Id>();
+  const crossingSet = new Set(crossings);
+  if (plaza)
+    for (const gate of townGates(document)) {
+      const route = streetRoute(document, roads, gate.vertexId, plaza);
+      // The first crossing on the way in is this road's old-town gate.
+      const first = route?.find(v => crossingSet.has(v));
+      if (first) keep.add(first);
+    }
+  // Too few main roads: add the crossings farthest round from those kept.
+  const angle = (v: Id) => {
+    const p = mesh.vertices[v].point;
+    return Math.atan2(p[1] - center[1], p[0] - center[0]);
+  };
+  const apart = (v: Id) =>
+    Math.min(
+      ...[...keep].map(k => {
+        const d = Math.abs(angle(v) - angle(k)) % (2 * Math.PI);
+        return d > Math.PI ? 2 * Math.PI - d : d;
+      }),
+      Math.PI
+    );
+  while (keep.size < 2) {
+    const rest = crossings.filter(v => !keep.has(v));
+    if (!rest.length) break;
+    keep.add(rest.reduce((a, b) => (apart(b) > apart(a) ? b : a)));
+  }
+  return crossings.filter(v => keep.has(v));
+}
+
+/**
+ * Close a crossing at the curtain: drop the street edges on the outer side of
+ * the vertex, so the lane ends at the wall on both sides. Groups are split
+ * where an edge leaves, keeping each run contiguous.
+ */
+function closeCrossings(
+  document: CityDocument,
+  vertices: Id[],
+  roads: Set<Id>,
+  side: (edgeId: Id) => "in" | "out" | "on"
+): void {
+  if (!vertices.length) return;
+  const mesh = document.mesh;
+  const at = new Set(vertices);
+  const drop = new Set(
+    [...roads].filter(id => {
+      const edge = mesh.edges[id];
+      return edge && side(id) === "out" && (at.has(edge.a) || at.has(edge.b));
+    })
+  );
+  const groups: CityDocument["featureGroups"] = [];
+  for (const group of document.featureGroups) {
+    if (group.kind !== "road" || !group.segments.some(ref => drop.has(ref.edgeId))) {
+      groups.push(group);
+      continue;
+    }
+    const runs: EdgeRef[][] = [[]];
+    for (const ref of group.segments) {
+      if (drop.has(ref.edgeId)) runs.push([]);
+      else runs.at(-1)!.push(ref);
+    }
+    runs
+      .filter(run => run.length)
+      .forEach((segments, k) => {
+        groups.push({ ...group, id: k ? `${group.id}:closed-${k}` : group.id, segments });
+      });
+  }
+  document.featureGroups = groups;
+  for (const id of drop) roads.delete(id);
 }

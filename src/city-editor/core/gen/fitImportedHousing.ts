@@ -6,21 +6,33 @@ import { buildBlockFabric, FabricCache } from "./blockInfill";
 /** Accepted |houses − dwellings| / dwellings for the fast default fit. */
 export const HOUSING_FIT_TOLERANCE = 0.1;
 
-type Zone = "core" | "outskirts";
+/** `core` is the old town of a double-walled town (wallRing 0) or the whole
+ * walled town otherwise; `between` lies between the two curtains. */
+type Zone = "core" | "between" | "outskirts";
 type ZoneCounts = Record<Zone, number>;
+/** Fill order: every lot of a zone before the next takes any house. */
+const FILL_ORDER: readonly Zone[] = ["core", "between", "outskirts"];
+const WALLED: readonly Zone[] = ["core", "between"];
+
+function faceZone(document: CityDocument, faceId: string): Zone | null {
+  const properties = document.mesh.faces[faceId]?.properties;
+  if (properties?.settlement === "outskirts") return "outskirts";
+  if (properties?.settlement !== "core") return null;
+  return properties.wallRing !== undefined && properties.wallRing > 0 ? "between" : "core";
+}
 
 function houseCount(document: CityDocument, profiler?: ProcessingProfiler): ZoneCounts {
   const buildings = measureProcessing(profiler, "block-fabric", () =>
     buildBlockFabric(document, new FabricCache(), profiler)
   ).buildings;
   return measureProcessing(profiler, "residential-count", () => {
-    const counts: ZoneCounts = { core: 0, outskirts: 0 };
+    const counts: ZoneCounts = { core: 0, between: 0, outskirts: 0 };
     for (const lot of buildings) {
-      const settlement = document.mesh.faces[lot.faceId]?.properties.settlement;
-      if (settlement !== "core" && settlement !== "outskirts") continue;
+      const zone = faceZone(document, lot.faceId);
+      if (!zone) continue;
       if (lot.landmark || (lot.role && lot.role !== "main") || (lot.uses && !lot.uses.includes("residential")))
         continue;
-      counts[settlement]++;
+      counts[zone]++;
     }
     return counts;
   });
@@ -40,10 +52,14 @@ export interface HousingFitStats {
   finalHouses: number | null;
   /** Multiplier applied to the core districts' default occupancy; the guide is the first. */
   factor: number;
+  /** Multiplier applied to the between-walls districts (double walls); equals `factor` otherwise. */
+  betweenFactor: number;
   /** Multiplier applied to the outskirts districts' default occupancy. */
   outskirtsFactor: number;
   /** True when the outskirts were opened for suburb blocks. */
   suburbs: boolean;
+  /** Houses per zone in the kept sample (old town, between the walls, outskirts). */
+  finalZones?: ZoneCounts;
   /** Rebuilds after the initial count, each `[core factor, outskirts factor, houses]`. */
   samples: Array<[number, number, number]>;
 }
@@ -52,8 +68,9 @@ export interface HousingFitStats {
  * and streets. FMG sizes the town for the culture's Lot occupancy guide, so
  * the guide is counted first and usually fits. Otherwise each zone's count is
  * close to proportional to its occupancy: the core fills first, up to every
- * lot, and the outskirts take the remainder. Outskirts stay roadside ribbon
- * unless the full core is short; only then are they opened as suburb blocks.
+ * lot, then (double walls) the town between the curtains, and the outskirts
+ * take the remainder. Outskirts stay roadside ribbon unless every walled lot
+ * is short; only then are they opened as suburb blocks.
  * A sparsely populated town must not enlarge its houses. */
 export function fitImportedHousing(
   document: CityDocument,
@@ -69,6 +86,7 @@ export function fitImportedHousing(
     initialHouses: null,
     finalHouses: null,
     factor: 1,
+    betweenFactor: 1,
     outskirtsFactor: 1,
     suburbs: false,
     samples: []
@@ -92,11 +110,13 @@ export function fitImportedHousing(
   stats.districts = districts.length;
   if (!districts.length) return { ...stats, skipped: "no-districts" };
   const occupancies = districts.map(district => district.parameters.occupancy);
-  const zoneOf = districts.map<Zone>(district =>
-    district.faceIds.some(id => document.mesh.faces[id]?.properties.settlement === "core") ? "core" : "outskirts"
-  );
+  const zoneOf = districts.map<Zone>(district => {
+    const zones = district.faceIds.map(id => faceZone(document, id));
+    return zones.includes("core") ? "core" : zones.includes("between") ? "between" : "outskirts";
+  });
+  const present = (zone: Zone) => zoneOf.includes(zone);
   // A district cannot retain more than every eligible lot.
-  const ceiling: ZoneCounts = { core: Infinity, outskirts: Infinity };
+  const ceiling: ZoneCounts = { core: Infinity, between: Infinity, outskirts: Infinity };
   for (const [index, zone] of zoneOf.entries())
     ceiling[zone] = Math.min(ceiling[zone], 1 / Math.max(occupancies[index], 1e-6));
   // Aim just above the dwellings, but accept the fast default's ±10%: a
@@ -113,43 +133,49 @@ export function fitImportedHousing(
       else delete district.parameters.suburb;
     }
   };
-  const total = (counts: ZoneCounts) => counts.core + counts.outskirts;
-  let factors: ZoneCounts = {
-    core: Math.min(guide, ceiling.core),
-    outskirts: Math.min(guide, ceiling.outskirts)
-  };
+  const total = (counts: ZoneCounts) => counts.core + counts.between + counts.outskirts;
+  const start = (zone: Zone) => Math.min(guide, ceiling[zone]);
+  let factors: ZoneCounts = { core: start("core"), between: start("between"), outskirts: start("outskirts") };
   let best = factors;
   apply(factors, suburbs);
   let counts = measureProcessing(profiler, "initial-house-count", () => houseCount(document, profiler));
   stats.initialHouses = stats.finalHouses = total(counts);
+  stats.finalZones = counts;
   let bestError = Math.abs(total(counts) - target);
   // Houses per unit factor in each zone, from the latest count that drew any.
-  const rate: ZoneCounts = { core: 0, outskirts: 0 };
+  const rate: ZoneCounts = { core: 0, between: 0, outskirts: 0 };
   for (let step = 0; step < 6 && !fits(total(counts)); step++) {
-    for (const zone of ["core", "outskirts"] as const)
-      if (counts[zone] > 0 && factors[zone] > 0) rate[zone] = counts[zone] / factors[zone];
-    // Core first: fill it to every lot before the suburbs take any houses.
-    const coreFull = rate.core * ceiling.core;
-    const hasOutskirts = zoneOf.includes("outskirts");
+    for (const zone of FILL_ORDER) if (counts[zone] > 0 && factors[zone] > 0) rate[zone] = counts[zone] / factors[zone];
+    const full = (zone: Zone) => (present(zone) ? rate[zone] * ceiling[zone] : 0);
+    const hasOutskirts = present("outskirts");
     let nextSuburbs: boolean = suburbs;
-    let next: ZoneCounts;
-    if (coreFull >= target || !hasOutskirts)
-      next = {
-        core: rate.core > 0 ? Math.min(ceiling.core, target / rate.core) : ceiling.core,
-        outskirts: hasOutskirts && !suburbs ? factors.outskirts : 0
-      };
-    else if (!suburbs) {
-      // Open the outskirts as suburb blocks; their rate is measured next.
-      nextSuburbs = true;
-      rate.outskirts = 0;
-      next = { core: ceiling.core, outskirts: Math.min(guide, ceiling.outskirts) };
-    } else
-      next = {
-        core: ceiling.core,
-        outskirts: rate.outskirts > 0 ? Math.min(ceiling.outskirts, (target - coreFull) / rate.outskirts) : 0
-      };
+    const next: ZoneCounts = { ...factors };
+    // Walled zones in order: every earlier zone full, this one sized to the rest.
+    let before = 0;
+    let settled = false;
+    for (const zone of WALLED) {
+      if (!present(zone)) continue;
+      const last = zone === "between" || !present("between");
+      if (before + full(zone) >= target || (last && !hasOutskirts)) {
+        next[zone] = rate[zone] > 0 ? Math.min(ceiling[zone], (target - before) / rate[zone]) : ceiling[zone];
+        for (const later of WALLED.slice(WALLED.indexOf(zone) + 1)) if (present(later)) next[later] = 0;
+        next.outskirts = hasOutskirts && !suburbs ? factors.outskirts : 0;
+        settled = true;
+        break;
+      }
+      next[zone] = ceiling[zone];
+      before += full(zone);
+    }
+    if (!settled) {
+      if (!suburbs) {
+        // Open the outskirts as suburb blocks; their rate is measured next.
+        nextSuburbs = true;
+        rate.outskirts = 0;
+        next.outskirts = Math.min(guide, ceiling.outskirts);
+      } else next.outskirts = rate.outskirts > 0 ? Math.min(ceiling.outskirts, (target - before) / rate.outskirts) : 0;
+    }
     // A short town keeps every lot it has; nothing changes, so stop.
-    if (next.core === factors.core && next.outskirts === factors.outskirts && nextSuburbs === suburbs) break;
+    if (FILL_ORDER.every(zone => next[zone] === factors[zone]) && nextSuburbs === suburbs) break;
     factors = next;
     suburbs = nextSuburbs;
     apply(factors, suburbs);
@@ -161,10 +187,12 @@ export function fitImportedHousing(
       best = factors;
       bestSuburbs = suburbs;
       stats.finalHouses = total(counts);
+      stats.finalZones = counts;
     }
   }
   apply(best, bestSuburbs);
   stats.factor = best.core;
+  stats.betweenFactor = present("between") ? best.between : best.core;
   stats.outskirtsFactor = best.outskirts;
   stats.suburbs = bestSuburbs;
   return stats;
