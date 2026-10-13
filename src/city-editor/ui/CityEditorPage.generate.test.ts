@@ -260,7 +260,7 @@ describe("Generate panel", () => {
     expect(slider?.min).toBe("1");
     expect(slider?.max).toBe("13");
     expect(slider?.value).toBe("12");
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑫ 住居・完成都市");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(nPatchesInput().placeholder).toBe("auto");
     expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
     expect(root.querySelector(".ce-generate-farnode")).toBeTruthy();
@@ -319,7 +319,7 @@ describe("Generate panel", () => {
         f => f.classList.contains("ce-face--land") && !f.classList.contains("ce-face--ward-unassigned")
       )
     ).toBe(true);
-    expect(root.querySelector(".ce-status")?.textContent).toContain("Generated up to ⑨");
+    expect(root.querySelector(".ce-status")?.textContent).toContain("Generated up to 地区割り当て");
   });
 
   it("keeps the same plan when a stage is pressed again", () => {
@@ -404,15 +404,15 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     }
     expect(total).toBeGreaterThanOrEqual(2);
     expect(count(".ce-face--urban-step")).toBe(1);
-    expect(stepStatusText()).toMatch(/^③ 市街地コア: cell #\d+ — 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^市街地コア: cell #\d+ — 1\/\d+$/);
 
     nextStep();
     expect(count(".ce-face--urban-step")).toBe(2);
-    expect(stepStatusText()).toMatch(/^③ 市街地コア: cell #\d+ — 2\/\d+$/);
+    expect(stepStatusText()).toMatch(/^市街地コア: cell #\d+ — 2\/\d+$/);
 
     prevStep();
     expect(count(".ce-face--urban-step")).toBe(1);
-    expect(stepStatusText()).toMatch(/^③ 市街地コア: cell #\d+ — 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^市街地コア: cell #\d+ — 1\/\d+$/);
   });
 
   it("① reveals the coastline walk as a growing dotted trail, not sea cells", () => {
@@ -426,7 +426,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     }
     expect(seen).toBeGreaterThan(0);
     expect(has(".ce-face--sea")).toBe(false); // scrubbing shows the walk, not the classified result
-    expect(stepStatusText()).toMatch(/^① 海岸線と海: vertex 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^海岸線と海: vertex 1\/\d+$/);
 
     nextStep();
     expect(count(".ce-step-path-point")).toBe(seen + 1);
@@ -448,14 +448,14 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     stageButton("②").click();
     nextStep();
     expect(count(".ce-step-path-point")).toBeGreaterThan(0);
-    expect(stepStatusText()).toMatch(/^② 河川: .*vertex 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^河川: .*vertex 1\/\d+$/);
 
     // ⑦ gates: scrubbing to the end must match pressing ⑦ directly (same
     // seed/mesh ⇒ deterministic), and the overlay path is unused for this stage.
     stageButton("⑦").click();
     nextStep();
     expect(count(".ce-step-path-point")).toBe(0);
-    expect(stepStatusText()).toMatch(/^⑦ 門・城郭: gate 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^門・城郭: gate 1\/\d+$/);
     advanceToLastStep();
     const scrubbedGates = root.querySelectorAll(".ce-gates > *").length;
     stageButton("⑦").click(); // the ordinary button press, for comparison
@@ -465,7 +465,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     // ⑧ roads: same "scrubbed end == direct press" check.
     stageButton("⑧").click();
     nextStep();
-    expect(stepStatusText()).toMatch(/^⑧ 街路: road 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^街路: road 1\/\d+$/);
     advanceToLastStep();
     const scrubbedRoads = count(".ce-feature--road");
     stageButton("⑧").click();
@@ -487,7 +487,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     let prevWarded = 0;
     for (let i = 0; i < 5; i++) {
       nextStep();
-      expect(stepStatusText()).toMatch(new RegExp(`^⑨ 地区割り当て: .* — ${i + 1}/\\d+$`));
+      expect(stepStatusText()).toMatch(new RegExp(`^地区割り当て: .* — ${i + 1}/\\d+$`));
       expect(wardedCount()).toBeGreaterThanOrEqual(prevWarded);
       prevWarded = wardedCount();
     }
@@ -503,7 +503,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     stageButton("③").click(); // same stage again — still resets to "not stepped"
     expect(stepStatusText()).toBe("");
     nextStep();
-    expect(stepStatusText()).toMatch(/^③ 市街地コア: .* — 1\/\d+$/);
+    expect(stepStatusText()).toMatch(/^市街地コア: .* — 1\/\d+$/);
   });
 
   it("🆕 a brand new grid drops any stale tint / overlay and deactivates the scrub", () => {
@@ -748,24 +748,24 @@ describe("shareable link and FMG site", () => {
   it("stages 7, 8, 9 step through geometry smoothing, lanes, and dwellings, and 新しい都市 generates dwellings", () => {
     // Stage 4: walls placed
     selectStage(7);
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑦ 門・城郭");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("門・城郭");
 
     // Stage 10: geometry smoothed
     selectStage(10);
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑩ 幾何平滑化");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("幾何平滑化");
     expect(has(".ce-infill-lane")).toBe(false);
     expect(has(".ce-buildings .ce-building")).toBe(false);
 
     // Stage 11: lanes visible, buildings hidden
     selectStage(11);
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑪ 街区・小道");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("街区・小道");
     expect(has(".ce-infill-lane")).toBe(true);
     expect(has(".ce-infill-trail")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(false);
 
     // Stage 12: dwellings visible, roads and block lanes still drawn
     selectStage(12);
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑫ 住居・完成都市");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(has(".ce-infill-lane")).toBe(true);
     expect(has(".ce-buildings .ce-building")).toBe(true);
     const roadsAt9 = count(".ce-feature--road");
@@ -780,7 +780,7 @@ describe("shareable link and FMG site", () => {
     // Stage 13: same town, intramural roads and block-lane lines hidden.
     // The river-width deck stays; the gate-to-plaza road that uses the crossing does not.
     selectStage(13);
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑬ 道路・小道を隠す");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("道路・小道を隠す");
     expect(count(".ce-infill-lane")).toBe(0);
     expect(count(".ce-infill-trail")).toBe(0);
     expect(has(".ce-buildings .ce-building")).toBe(true);
@@ -803,7 +803,7 @@ describe("shareable link and FMG site", () => {
     // After "新しい都市", dwellings must be generated and slider reset to stage 12
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
     expect(slider?.value).toBe("12");
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑫ 住居・完成都市");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(has(".ce-buildings .ce-building")).toBe(true);
   });
 
@@ -942,18 +942,18 @@ it("replays all twelve stages identically when alternating the slider and comple
 it("exposes wall drawing, passage preparation, and gate placement as separate slider stages", () => {
   panelButton("都市を一括生成").click();
   selectStage(4);
-  expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("④ 城壁");
+  expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("城壁");
   expect(has(".ce-feature--wall")).toBe(true);
   expect(has(".ce-gates > *")).toBe(false);
   expect(has(".ce-feature--road")).toBe(false);
   const wallMesh = meshFingerprint();
   selectStage(6);
-  expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑥ 門の通路・セル分割");
+  expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("門の通路・セル分割");
   expect(has(".ce-gates > *")).toBe(false);
   expect(has(".ce-feature--road")).toBe(false);
   const passageMesh = meshFingerprint();
   selectStage(7);
-  expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("⑦ 門・城郭");
+  expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("門・城郭");
   expect(has(".ce-gates > *")).toBe(true);
   expect(has(".ce-feature--road")).toBe(false);
   selectStage(4);

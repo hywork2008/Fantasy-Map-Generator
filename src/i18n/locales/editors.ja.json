@@ -373,7 +373,7 @@
       "blankUsesTinySmall100Medium45Large20Approximate": "空欄は Tiny/Small 100% / Medium 45% / Large 20%。区画単位のため概算です。Walls有効時に適用。",
       "completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider": "一括生成で城壁・街路を整え、建物を配置します。スライダーで①から⑬までの全工程を順番に確認できます。④はセル分割前の城壁、⑤は河川横断用のセル分割、⑥は門の通路とセル分割、⑦は門・城郭を表示します。⑬では都市中央から外壁までの道路と、街区を分ける小道の線を隠します。川に架かる橋はそのまま残します。完成図でも街区・道・壁を編集でき、編集ツールを選ぶと格子を表示します。Seed または共有リンクで同じ都市を再現できます。",
       "urbanCoreAllocationMode": "市街地コアの確保方式",
-      "3NPatchesBlankAuto": "③ nPatches (blank = auto)",
+      "3NPatchesBlankAuto": "nPatches (blank = auto)",
       "avoidSea": "Avoid sea",
       "streetFarEnd": "Street far end",
       "stepThroughTheLastPressedProcessOneLoopIterationAt": "Step through the last-pressed process one loop iteration at a time",
@@ -695,55 +695,55 @@
     },
     "generationStages": {
       "coast": {
-        "label": "① 海岸線と海",
+        "label": "海岸線と海",
         "hint": "Tag sea cells along a coastline walk"
       },
       "river": {
-        "label": "② 河川",
+        "label": "河川",
         "hint": "Route a river along the existing cell edges"
       },
       "urban": {
-        "label": "③ 市街地コア",
+        "label": "市街地コア",
         "hint": "Mark the built-up cells"
       },
       "walls": {
-        "label": "④ 城壁",
+        "label": "城壁",
         "hint": "市街地の外周に城壁を描く。河川横断用・門用のセル分割前の状態。"
       },
       "riverPassages": {
-        "label": "⑤ 河川横断・セル分割",
+        "label": "河川横断・セル分割",
         "hint": "城壁が河川を横断するためのセル分割と経路調整を行う。門の通路はまだ開かない。"
       },
       "passages": {
-        "label": "⑥ 門の通路・セル分割",
+        "label": "門の通路・セル分割",
         "hint": "門候補で通路を開く。必要なセルを分割し、門の確定前のメッシュを表示する。"
       },
       "gates": {
-        "label": "⑦ 門・城郭",
+        "label": "門・城郭",
         "hint": "開いた通路に門を確定し、広場・寺院・城郭を配置する。"
       },
       "streets": {
-        "label": "⑧ 街路",
+        "label": "街路",
         "hint": "Approach roads to the gates"
       },
       "wards": {
-        "label": "⑨ 地区割り当て",
+        "label": "地区割り当て",
         "hint": "Assign a district type to each urban cell"
       },
       "geometry": {
-        "label": "⑩ 幾何平滑化",
+        "label": "幾何平滑化",
         "hint": "Smooth walls and streets into rounded shapes (finishCityGeometry)"
       },
       "blocks": {
-        "label": "⑪ 街区・小道",
+        "label": "街区・小道",
         "hint": "Form interior blocks and secondary access lanes"
       },
       "buildings": {
-        "label": "⑫ 住居・完成都市",
+        "label": "住居・完成都市",
         "hint": "Place residential and civic buildings"
       },
       "conceal": {
-        "label": "⑬ 道路・小道を隠す",
+        "label": "道路・小道を隠す",
         "hint": "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
       },
       "title": "都市生成フェーズ"

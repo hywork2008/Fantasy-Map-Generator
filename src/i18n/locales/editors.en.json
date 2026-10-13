@@ -373,7 +373,7 @@
       "blankUsesTinySmall100Medium45Large20Approximate": "Blank uses Tiny/Small 100%, Medium 45%, Large 20%. Approximate because allocation is by cell. Applies when walls are enabled.",
       "completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider": "Complete generation builds walls, streets and buildings. Use the slider to inspect all thirteen stages. Stage 4 shows walls before cell splitting, stage 5 splits cells for river crossings, stage 6 prepares gate passages, and stage 7 shows gates and castles. Stage 13 hides roads from the city centre to the outer wall and lanes dividing blocks, while keeping river bridges. Blocks, roads and walls remain editable in the finished map; choosing a tool reveals the grid. Reproduce the same city using its seed or shared link.",
       "urbanCoreAllocationMode": "Urban core allocation mode",
-      "3NPatchesBlankAuto": "③ nPatches (blank = auto)",
+      "3NPatchesBlankAuto": "nPatches (blank = auto)",
       "avoidSea": "Avoid sea",
       "streetFarEnd": "Street far end",
       "stepThroughTheLastPressedProcessOneLoopIterationAt": "Step through the last-pressed process one loop iteration at a time",
@@ -695,55 +695,55 @@
     },
     "generationStages": {
       "coast": {
-        "label": "① Coastline and sea",
+        "label": "Coastline and sea",
         "hint": "Tag sea cells along a coastline walk"
       },
       "river": {
-        "label": "② Rivers",
+        "label": "Rivers",
         "hint": "Route a river along the existing cell edges"
       },
       "urban": {
-        "label": "③ Urban core",
+        "label": "Urban core",
         "hint": "Mark the built-up cells"
       },
       "walls": {
-        "label": "④ Town walls",
+        "label": "Town walls",
         "hint": "Draw walls around the urban perimeter before splitting cells for river crossings and gates."
       },
       "riverPassages": {
-        "label": "⑤ River crossings and cell splitting",
+        "label": "River crossings and cell splitting",
         "hint": "Split cells and adjust wall routes for river crossings. Gate passages remain closed."
       },
       "passages": {
-        "label": "⑥ Gate passages and cell splitting",
+        "label": "Gate passages and cell splitting",
         "hint": "Open passages at candidate gates. Split cells as needed and show the mesh before finalising gates."
       },
       "gates": {
-        "label": "⑦ Gates and castles",
+        "label": "Gates and castles",
         "hint": "Finalise gates in the open passages and place plazas, temples and castles."
       },
       "streets": {
-        "label": "⑧ Streets",
+        "label": "Streets",
         "hint": "Approach roads to the gates"
       },
       "wards": {
-        "label": "⑨ District assignment",
+        "label": "District assignment",
         "hint": "Assign a district type to each urban cell"
       },
       "geometry": {
-        "label": "⑩ Geometry smoothing",
+        "label": "Geometry smoothing",
         "hint": "Smooth walls and streets into rounded shapes (finishCityGeometry)"
       },
       "blocks": {
-        "label": "⑪ Blocks and lanes",
+        "label": "Blocks and lanes",
         "hint": "Form interior blocks and secondary access lanes"
       },
       "buildings": {
-        "label": "⑫ Housing and completed city",
+        "label": "Housing and completed city",
         "hint": "Place residential and civic buildings"
       },
       "conceal": {
-        "label": "⑬ Hide roads and lanes",
+        "label": "Hide roads and lanes",
         "hint": "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
       },
       "title": "City generation stages"

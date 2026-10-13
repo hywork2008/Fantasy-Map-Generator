@@ -224,7 +224,7 @@ describe("background complete generation", () => {
     vi.stubGlobal("Worker", undefined);
     root.querySelector<HTMLInputElement>('input[aria-label="デバッグ：生成失敗の途中図を表示"]')!.click();
     const patches = [...root.querySelectorAll("label")]
-      .find(l => l.textContent?.includes("③ nPatches"))!
+      .find(l => l.textContent?.includes("nPatches (blank"))!
       .querySelector("input")!;
     patches.value = "1";
     patches.dispatchEvent(new Event("change", { bubbles: true }));

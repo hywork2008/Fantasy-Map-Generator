@@ -55,7 +55,7 @@ describe("editor translation keys", () => {
         expect(stage.label).toBe(editorText(stage.labelKey));
         expect(stage.hint).toBe(editorText(stage.hintKey));
       }
-      expect(GENERATION_STAGES[10].label).toBe(language === "en" ? "⑪ Blocks and lanes" : "⑪ 街区・小道");
+      expect(GENERATION_STAGES[10].label).toBe(language === "en" ? "Blocks and lanes" : "街区・小道");
     }
   });
 
