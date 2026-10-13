@@ -1,7 +1,7 @@
 # CE 多重市壁（旧市壁＋新市壁＋城）設計
 
 - 作成日: 2026-10-13
-- 状態: P0（データモデル・補助関数・参照置換・検証）実装済み 2026-10-13。P1以降は未実装。
+- 状態: P0・P1 実装済み 2026-10-13（城の扱い・住宅配分・razed は P2/P3、未実装）。
 - 対象: CE（`src/city-editor`）。CGは対象外。
 - 関連: [街道別交易観測](./ce-roadside-growth-observation.md)（郊外の方向重みの入力源。本設計の前提ではない）、[橋の斜交規約](./bridge-skew-policy.md)
 
@@ -232,3 +232,17 @@ micro（6セル幅）と tiny（12セル幅）では、内壁の内側に7セル
 - 参照置換: 外壁 = `concealStreets.outerWallRing`・circulade・aerialLandmarks の町域、門ごと = バルビカンの堀・`gateHasMoat`、城を含む最内リング = `castles.ts` の城アクセス・手動設置、全町壁 = 城撤去時の壁保持・城壁厚。UI の堀設定と `renderMoats` は全 town circuit に適用されるので変更なし。
 - 検証: リング番号の重複、内側リングの入れ子、`gate.circuitId` の参照先、`face.wallRing` の参照先。
 - テスト: `multiRingWalls.test.ts`（5件、保存往復を含む）。既存テストは無変更で全件通過。
+
+## 12. P1 実装記録（2026-10-13）
+
+- 設定 `GenerationSettings.townWallRings: "single" | "double"`（既定 single）。UI は生成パネルの「市壁」選択。circulade・Bram は単一のまま。
+- double では外壁の面積割合を1にする（`outerWalledAreaShare`）。旧市街の割合は `innerWalledAreaShare`（未指定で既定が100%となる Small 以下は45%）。
+- 旧市壁は `gen/innerTownWall.ts` の `addInnerTownWall` で、`applyPlan` 直後（平滑化・門の直交化の前）に追加する。外壁の門・通路・直交化の後処理はすべての町門に適用されるので、内門にも同じ処理がかかる。
+- 手順: 中心からの距離で面を選んで円形に整える → 壁間2セルを満たす半径まで縮める → **街路が円を横切る各辺に頂点を入れ、両側の面を円に沿う弦で分割**（次数3のメッシュでは、面を切らないと街路が頂点で壁を横切れないため。ラボの chord と同じ）→ 分割後のメッシュで選び直す → 壁線上に残った街路辺は、外側面を加えるか内側面を外すかで目標円に近い方を選んで退ける → 街路が内外に抜ける壁上の頂点を内門にする。
+- 河川: 旧市壁は水門を作らず、河川に触れる辺で壁を切って開口にする（交差検証で「壁と川が交差なしに接する」と棄却されたため）。
+- 失敗時は単一市壁のまま生成を続ける。診断 `inner-wall`（ok, failureCode, faces, areaShare, gapCells, gates, riverOpenings, streetOpenings, cuts）。
+- 実測:
+  - Voronoi small / Hex medium: 旧市街が面積の28〜45%、壁間2セル、内門4〜12。建物は壁と交差しない。
+  - Leigh（evolution、取込み既定の nPatches）: 町全体が33面しかなく失敗（`gap`）、単一市壁に戻る。ただし外壁が全体を囲むため壁外の建物は3,954→4に減る。
+  - Leigh（拡大率50%・nPatches 400）: 旧市街45%（328面）、内門17、建物 旧市街3,755／壁間4,906／壁外0。
+- 残課題: 平行な街路が多いと内門が多すぎる（Leigh で17）。主要街路以外の横断を閉じる処理は P3。壁線の一部が街路回避でぎざぎざになることがある。

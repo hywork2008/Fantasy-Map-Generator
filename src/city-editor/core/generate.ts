@@ -109,6 +109,7 @@ import {
   segmentSegmentHit
 } from "./gen/geom";
 import { spawnHarborShips } from "./gen/harborShips";
+import { addInnerTownWall, INNER_WALL_FAILURES } from "./gen/innerTownWall";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -134,9 +135,11 @@ import {
   defaultRoadWidthMeters,
   evolutionWallInsetRings,
   extendCoreToCoast,
+  innerWalledAreaShare,
   insetWalledCore,
   MIN_SETTLEMENT_AREA_SHARE,
   minExternalRoadsForExtent,
+  outerWalledAreaShare,
   resolveWalledAreaShare,
   splitUrbanCore,
   townExtentMeters
@@ -231,6 +234,8 @@ export function resolveEffectiveLayout(
 /** All feature groups / gates / elements this module owns carry this id prefix,
  * so a re-press can clear exactly its own output and leave hand-drawn work. */
 const GEN_PREFIX = "gc:";
+/** Face layers kept between an old-town wall and the outer wall (wall-ring lab). */
+const INNER_WALL_MIN_GAP_CELLS = 2;
 
 /** Population is only a wall-pattern nudge here (features come from the panel), so
  * a fixed nominal preset is fine — the real scale is the document's frame. */
@@ -475,6 +480,10 @@ export interface GenerationSettings {
    * settlement edge so its spoke roads can reach the gates. FMG imports without
    * bridgeable rivers retain the supplied town radius without the random inset. */
   walledAreaShare?: number;
+  /** "double" adds an old-town wall inside the outer wall (`walledAreaShare` then sizes
+   * the old town and the outer wall encloses the whole built-up area). Circulade and
+   * Bram layouts stay single. Default "single". */
+  townWallRings?: "single" | "double";
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
    * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
@@ -764,7 +773,10 @@ export function generateCityOnDocument(
           settings: {
             ...measureProcessing(profiler, "recipe-settings-clone", () => structuredClone(attemptSettings)),
             layout: result.layout,
-            walledAreaShare: resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
+            walledAreaShare:
+              settings.townWallRings === "double"
+                ? innerWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
+                : resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
           },
           input
         };
@@ -924,15 +936,13 @@ export function generateCityAttempt(
   const activeFaceIdOf = plan.faceIdOf ?? faceIdOf;
   const targetArea = Math.PI * params.cityRadiusMeters ** 2;
   const areaShare =
-    settings.urbanCoreMode === "compact" && program.walls
-      ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters)
-      : 1;
+    settings.urbanCoreMode === "compact" && program.walls ? outerWalledAreaShare(settings, params.extentMeters) : 1;
   const minimumUrbanArea = targetArea * areaShare * MIN_SETTLEMENT_AREA_SHARE;
   const settlementArea = activeCells
     .filter(cell => plan.builtUp.has(cell.id))
     .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
   if (settlementArea < minimumUrbanArea) {
-    const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+    const walledShare = program.walls ? outerWalledAreaShare(settings, params.extentMeters) : 1;
     const walledArea = activeCells
       .filter(cell => plan.urban.has(cell.id))
       .reduce((sum, cell) => sum + Math.abs(polygonArea(cell.polygon)), 0);
@@ -1038,7 +1048,7 @@ export function generateCityAttempt(
     if (coveredRoadIndexes.has(index) || road.path.length < 2) continue;
     roads.push([[0, 0], [...road.path.at(-1)!]]);
   }
-  const next = measureProcessing(profiler, "apply-plan", () =>
+  const applied = measureProcessing(profiler, "apply-plan", () =>
     applyPlan(
       document,
       activeCells,
@@ -1053,7 +1063,8 @@ export function generateCityAttempt(
     )
   );
   mark("apply-total");
-  if (!next) return null;
+  if (!applied) return null;
+  let next: CityDocument = applied;
   debugDocument = () => next;
   const minRoads = requiredExternalRoads(settings, townExtentMeters(document.frame));
   const roadsBeforeFinish = countExternalApproachRoads(next);
@@ -1067,6 +1078,34 @@ export function generateCityAttempt(
       }),
       { roads: roadsBeforeFinish, minRoads, gates: townGates(next).length }
     );
+  if (
+    settings.townWallRings === "double" &&
+    program.walls &&
+    effectiveLayout !== "circulade" &&
+    effectiveLayout !== "bram"
+  ) {
+    const inner = measureProcessing(profiler, "inner-wall", () =>
+      addInnerTownWall(next, {
+        share: innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
+        minGapCells: INNER_WALL_MIN_GAP_CELLS,
+        prefix: GEN_PREFIX
+      })
+    );
+    // A town that cannot hold an old-town wall keeps its single curtain.
+    const { report } = inner;
+    mark("inner-wall", {
+      ok: report.ok ? 1 : 0,
+      failureCode: report.failure ? INNER_WALL_FAILURES.indexOf(report.failure) + 1 : 0,
+      faces: report.faces,
+      areaShare: report.areaShare,
+      gapCells: report.gapCells,
+      gates: report.gates,
+      riverOpenings: report.riverOpenings,
+      streetOpenings: report.streetOpenings,
+      cuts: report.cuts
+    });
+    next = inner.document;
+  }
   next.appearance = "town";
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
@@ -2039,7 +2078,7 @@ export function runPlan(
   const preserveImportedCore =
     !!settings.descriptor && (geo.rivers.length === 0 || !!settings.descriptor.fixedCrossings);
   const openCoastalCore = program.walls && program.wallPlan?.coast === "open" && sea.size > 0;
-  const coreShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+  const coreShare = program.walls ? outerWalledAreaShare(settings, params.extentMeters) : 1;
   const urbanRadius = compactCore
     ? params.cityRadiusMeters * Math.sqrt(coreShare)
     : urbanDiskRadiusMeters(params.cityRadiusMeters, program.walls);
@@ -2077,7 +2116,7 @@ export function runPlan(
       seed,
       gridKind,
       program.walls,
-      resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters)
+      outerWalledAreaShare(settings, params.extentMeters)
     );
     if (rings > 0) plannedCore = insetWalledCore(cells, retainBurg(plannedCore), rings, burgCell?.id).urban;
   }
@@ -2231,7 +2270,7 @@ export function runPlan(
   // City extent and wall capacity are independent. The outer residential
   // belt retains the rest of the same flood-fill, including its connectivity.
   // Grid evolution may then pull a tiny/small curtain in by one or two cells.
-  const walledShare = program.walls ? resolveWalledAreaShare(settings.walledAreaShare, params.extentMeters) : 1;
+  const walledShare = program.walls ? outerWalledAreaShare(settings, params.extentMeters) : 1;
   const split = splitUrbanCore(cells, classification.urban, compactCore ? 1 : walledShare);
   // An open curtain must meet the shore; a smaller wall capacity must not
   // leave a dry ring between the protected core and its natural boundary.

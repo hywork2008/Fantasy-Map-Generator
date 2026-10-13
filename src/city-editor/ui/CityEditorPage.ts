@@ -1304,6 +1304,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     walledShareInput.value =
       generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
   });
+  // Old town + new wall (docs/plan/ce-multi-ring-walls.md). The walled share
+  // then sizes the old town; the outer wall encloses the whole built-up area.
+  const townWallRingsSelect = select(["single", "double"], generateSettings.townWallRings ?? "single");
+  townWallRingsSelect.className = "ce-generate-town-wall-rings";
+  townWallRingsSelect.options[0].textContent = editorText("cityEditor.messages.townWallRingsSingle");
+  townWallRingsSelect.options[1].textContent = editorText("cityEditor.messages.townWallRingsDouble");
+  townWallRingsSelect.addEventListener("change", () => {
+    generateSettings.townWallRings = townWallRingsSelect.value === "double" ? "double" : undefined;
+    completeResult = null;
+    completeResultSettings = null;
+  });
   const housingSummary = document.createElement("output");
   housingSummary.className = "ce-generate-housing-summary";
   housingSummary.title = editorText("cityEditor.messages.buildingCountsByDistrictInTheCoreAndOuterBelt");
@@ -1553,6 +1564,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
     castleControls,
     moatControls,
+    label(editorText("cityEditor.messages.townWallRings"), townWallRingsSelect),
     label(editorText("cityEditor.messages.urbanAreaInsideWalls"), walledShareInput),
     text(editorText("cityEditor.messages.blankUsesTinySmall100Medium45Large20Approximate")),
     housingSummary,
@@ -5033,6 +5045,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         generateSettings,
         {
           walledAreaShare: undefined,
+          townWallRings: undefined,
           urbanCoreMode: undefined,
           descriptor: undefined,
           castle: undefined,
@@ -5107,6 +5120,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
     walledShareInput.value =
       generateSettings.walledAreaShare === undefined ? "" : String(generateSettings.walledAreaShare * 100);
+    townWallRingsSelect.value = generateSettings.townWallRings ?? "single";
     if (!generateSettings.streets) {
       generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
     }

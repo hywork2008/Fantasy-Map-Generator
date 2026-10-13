@@ -53,6 +53,25 @@ export function resolveWalledAreaShare(value: number | undefined, extentMeters: 
     : defaultWalledAreaShare(extentMeters);
 }
 
+/** Share of the built-up area inside the outer town wall. A double-walled town
+ * (docs/plan/ce-multi-ring-walls.md) encloses everything in the new wall; the
+ * walled share then sizes the old-town wall instead. */
+export function outerWalledAreaShare(
+  settings: { walledAreaShare?: number; townWallRings?: "single" | "double" },
+  extentMeters: number
+): number {
+  return settings.townWallRings === "double" ? 1 : resolveWalledAreaShare(settings.walledAreaShare, extentMeters);
+}
+
+/** Old-town share of a double-walled town. A window whose default wall holds the
+ * whole town (Small and below) has no smaller default, so it takes the Medium 45%. */
+export const DEFAULT_INNER_WALLED_AREA_SHARE = 0.45;
+
+export function innerWalledAreaShare(value: number | undefined, extentMeters: number): number {
+  const share = resolveWalledAreaShare(value, extentMeters);
+  return value === undefined && share >= 1 ? DEFAULT_INNER_WALLED_AREA_SHARE : share;
+}
+
 /** Keep a connected prefix of the urban flood-fill inside the wall. The rest
  * remains residential land, so reducing wall capacity never shrinks the town.
  * Whole-cell area quantisation is unavoidable on an editable coarse mesh. */
