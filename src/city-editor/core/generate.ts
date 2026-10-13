@@ -109,7 +109,13 @@ import {
   segmentSegmentHit
 } from "./gen/geom";
 import { spawnHarborShips } from "./gen/harborShips";
-import { addInnerTownWall, INNER_WALL_FAILURES } from "./gen/innerTownWall";
+import {
+  addInnerTownWall,
+  INNER_WALL_FAILURES,
+  type InnerWallFailure,
+  innerTownCapacity,
+  planInnerTown
+} from "./gen/innerTownWall";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
 import { shortcutMajorRoads } from "./gen/majorRoadShortcuts";
 import {
@@ -1078,23 +1084,28 @@ export function generateCityAttempt(
       }),
       { roads: roadsBeforeFinish, minRoads, gates: townGates(next).length }
     );
-  if (
-    settings.townWallRings === "double" &&
-    program.walls &&
-    effectiveLayout !== "circulade" &&
-    effectiveLayout !== "bram"
-  ) {
+  if (plan.innerWall && !plan.innerWall.planned)
+    mark("inner-wall", {
+      ok: 0,
+      failureCode: INNER_WALL_FAILURES.indexOf(plan.innerWall.failure ?? "gap") + 1,
+      planned: 0
+    });
+  else if (plan.innerWall?.planned) {
     const inner = measureProcessing(profiler, "inner-wall", () =>
       addInnerTownWall(next, {
         share: innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
         minGapCells: INNER_WALL_MIN_GAP_CELLS,
-        prefix: GEN_PREFIX
+        prefix: GEN_PREFIX,
+        castleInOldTown: plan.innerWall?.castleRing === "inner"
       })
     );
     // A town that cannot hold an old-town wall keeps its single curtain.
     const { report } = inner;
     mark("inner-wall", {
       ok: report.ok ? 1 : 0,
+      planned: 1,
+      castleInOldTown: plan.innerWall.castleRing === "inner" ? 1 : 0,
+      castleTouchesOldTown: report.castleTouches ? 1 : 0,
       failureCode: report.failure ? INNER_WALL_FAILURES.indexOf(report.failure) + 1 : 0,
       faces: report.faces,
       areaShare: report.areaShare,
@@ -1734,6 +1745,8 @@ export function generateWardStep(
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
+  /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */
+  innerWall?: { planned: boolean; failure?: InnerWallFailure; castleRing?: "inner" | "outer" };
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   fixedCrossings?: CityDocument["importedFixedCrossings"];
   replaceFixedCrossings?: boolean;
@@ -2457,6 +2470,7 @@ export function runPlan(
   }
 
   let castleSite: CastleSite | null = null;
+  let innerPlanFaces: Set<Id> | null = null;
   let castleFailure: string | undefined;
   let castleFailureDetails: string[] | undefined;
   // castle-road-siting-order.md §3.1 ③④: roads and their gate arcs come
@@ -2470,6 +2484,26 @@ export function runPlan(
       .filter(c => c.ownerCastleId && preservedOwners.has(c.ownerCastleId))
       .flatMap(c => c.areaFaceIds)
   );
+  // Double walls: plan the old town now so the castle can stand in it (§4.4),
+  // and keep a town with no room for two curtains single (§5.3).
+  let innerWall: Plan["innerWall"];
+  if (
+    settings.townWallRings === "double" &&
+    program.walls &&
+    effectiveLayout !== "circulade" &&
+    effectiveLayout !== "bram"
+  ) {
+    const planned = planInnerTown(
+      currentMesh,
+      [...currentUrban].map(id => currentFaceIdOf[id]),
+      innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
+      INNER_WALL_MIN_GAP_CELLS,
+      // The final old town is centred on the plaza (`townCenter`); plan on the same centre.
+      precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0]
+    );
+    innerWall = planned ? { planned: true } : { planned: false, failure: "gap" };
+    innerPlanFaces = planned?.faces ?? null;
+  }
   if (program.citadel && !settings.legacyCastles && !preservedCastleIds.size) {
     const originalCells = currentCells;
 
@@ -2541,17 +2575,32 @@ export function runPlan(
       streetLinks: settings.castleStreetLinks,
       outward: settings.castleOutward
     };
-    castleSite = placeCastleRegion(
-      temp,
-      urbanFaces,
-      new Set([...sea].map(id => currentFaceIdOf[id])),
-      reserve,
-      rivers.map(r => ({ points: r.edgePoints, width: Math.max(...r.widths, 6) })),
-      seed,
-      settings.castle,
-      terrain,
-      siting
-    );
+    const placeIn = (faces: Set<Id>) =>
+      placeCastleRegion(
+        temp,
+        faces,
+        new Set([...sea].map(id => currentFaceIdOf[id])),
+        reserve,
+        rivers.map(r => ({ points: r.edgePoints, width: Math.max(...r.widths, 6) })),
+        seed,
+        settings.castle,
+        terrain,
+        siting
+      );
+    castleSite = null;
+    // §4.4/§5.2: the castle stands in the old town (a third ring when walled)
+    // while the old town keeps room for its plaza and streets; otherwise it
+    // moves to the outer wall like a single-walled town's.
+    if (innerPlanFaces && innerWall?.planned) {
+      const inOldTown = placeIn(innerPlanFaces);
+      if (inOldTown) {
+        const castleFaces = new Set([inOldTown.faceId]);
+        const survivors = [...innerPlanFaces].filter(id => inOldTown.mesh.faces[id]);
+        if (innerTownCapacity(inOldTown.mesh, survivors, castleFaces).ok) castleSite = inOldTown;
+      }
+      innerWall.castleRing = castleSite ? "inner" : "outer";
+    }
+    castleSite ??= placeIn(urbanFaces);
     if (castleSite) {
       currentMesh = castleSite.mesh;
       const updated = cellsFromMesh(currentMesh, half);
@@ -3028,6 +3077,7 @@ export function runPlan(
   });
   mark("wards");
   return {
+    innerWall,
     fmgElevations,
     burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,

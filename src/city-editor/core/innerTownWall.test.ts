@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createGridDocument } from "./document";
-import { boundaryEdges, innerTownCircuit, outerTownCircuit, townCircuits, townGates } from "./fortifications";
+import {
+  boundaryEdges,
+  innerTownCircuit,
+  outerTownCircuit,
+  reservedCastleFaces,
+  townCircuits,
+  townGates
+} from "./fortifications";
+import { INNER_WALL_FAILURES, innerTownCapacity } from "./gen/innerTownWall";
 import { innerWalledAreaShare, outerWalledAreaShare } from "./gen/settlementExtent";
 import { defaultGenerationSettings, generateCityOnDocument } from "./generate";
 import { validate } from "./mesh";
@@ -61,5 +69,52 @@ describe("double town walls (P1)", () => {
     expect(townCircuits(city!)).toHaveLength(1);
     expect(townCircuits(city!)[0].ring).toBeUndefined();
     expect(Object.values(city!.mesh.faces).some(f => f.properties.wallRing !== undefined)).toBe(false);
+  });
+
+  it("stands the castle in the old town: town, old-town and castle curtains (P2)", () => {
+    const seed = "d1";
+    const settings = { ...defaultGenerationSettings(), townWallRings: "double" as const };
+    settings.config.features = { ...settings.config.features, walls: true, citadel: true };
+    const samples: Record<string, number>[] = [];
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed }),
+      settings,
+      seed,
+      s => {
+        if (s.phase === "inner-wall" && s.counts) samples.push(s.counts);
+      }
+    );
+    expect(city).not.toBeNull();
+    expect(validate(city!)).toEqual([]);
+    expect(samples.at(-1)).toMatchObject({ ok: 1, castleInOldTown: 1, castleTouchesOldTown: 1 });
+    const inner = new Set(innerTownCircuit(city!)!.areaFaceIds);
+    const castle = reservedCastleFaces(city!);
+    expect(castle.size).toBeGreaterThan(0);
+    const touches = [...castle].some(id =>
+      city!.mesh.faces[id].boundary.some(ref => {
+        const edge = city!.mesh.edges[ref.edgeId];
+        return [edge.leftFace, edge.rightFace].some(f => f && inner.has(f));
+      })
+    );
+    expect(touches).toBe(true);
+    expect(innerTownCapacity(city!.mesh, inner, castle).ok).toBe(true);
+    expect(city!.defenseCircuits!.filter(c => c.scope === "castle")).toHaveLength(1);
+    expect(townCircuits(city!)).toHaveLength(2);
+  });
+
+  it("keeps a micro town single-walled when no old town fits (§5.3)", () => {
+    const seed = "d1";
+    const samples: Record<string, number>[] = [];
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "micro", grid: "voronoi", seed }),
+      { ...defaultGenerationSettings(), townWallRings: "double" },
+      seed,
+      s => {
+        if (s.phase === "inner-wall" && s.counts) samples.push(s.counts);
+      }
+    );
+    expect(city).not.toBeNull();
+    expect(townCircuits(city!)).toHaveLength(1);
+    expect(samples.at(-1)).toMatchObject({ ok: 0, planned: 0, failureCode: INNER_WALL_FAILURES.indexOf("gap") + 1 });
   });
 });
