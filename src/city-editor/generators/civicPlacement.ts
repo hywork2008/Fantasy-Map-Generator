@@ -147,6 +147,8 @@ export function orientedRectBoundarySamples(rect: OrientedRect, perEdge = 8): Po
   return samples;
 }
 
+const BOX_EPS = 1e-6;
+
 /** Distance from the rectangle to an open polyline. Negative (signed penetration) when intersecting. */
 export function orientedRectPolylineDistance(rect: OrientedRect, line: Point[]): number {
   if (line.length < 2) return Number.POSITIVE_INFINITY;
@@ -170,9 +172,30 @@ export function orientedRectPolylineDistance(rect: OrientedRect, line: Point[]):
     return 0;
   };
 
+  let boxMinX = Number.POSITIVE_INFINITY;
+  let boxMinY = Number.POSITIVE_INFINITY;
+  let boxMaxX = Number.NEGATIVE_INFINITY;
+  let boxMaxY = Number.NEGATIVE_INFINITY;
+  for (const corner of corners) {
+    boxMinX = Math.min(boxMinX, corner[0]);
+    boxMinY = Math.min(boxMinY, corner[1]);
+    boxMaxX = Math.max(boxMaxX, corner[0]);
+    boxMaxY = Math.max(boxMaxY, corner[1]);
+  }
+
   for (let i = 0; i + 1 < line.length; i++) {
     const a = line[i];
     const b = line[i + 1];
+    // A segment clear of the rectangle's bounding box neither penetrates nor crosses it. Once an
+    // earlier segment hit with no penetration yet, later segments still feed the fallback below.
+    if (
+      !(intersects && maxPenetration === 0) &&
+      (Math.max(a[0], b[0]) < boxMinX - BOX_EPS ||
+        Math.min(a[0], b[0]) > boxMaxX + BOX_EPS ||
+        Math.max(a[1], b[1]) < boxMinY - BOX_EPS ||
+        Math.min(a[1], b[1]) > boxMaxY + BOX_EPS)
+    )
+      continue;
     const penA = getPenetration(a);
     if (penA > 0) {
       intersects = true;
@@ -198,8 +221,25 @@ export function orientedRectPolylineDistance(rect: OrientedRect, line: Point[]):
 
   if (intersects) return -Math.max(0.1, maxPenetration);
 
+  // Same per-segment arithmetic as nearestOnPolyline; segments whose bounding box is farther from the
+  // rectangle's box than the best distance so far cannot improve it.
+  const samples = orientedRectBoundarySamples(rect);
   let min = Number.POSITIVE_INFINITY;
-  for (const p of orientedRectBoundarySamples(rect)) min = Math.min(min, nearestOnPolyline(p, line).dist);
+  for (let i = 0; i + 1 < line.length; i++) {
+    const a = line[i];
+    const b = line[i + 1];
+    const gapX = Math.max(0, boxMinX - Math.max(a[0], b[0]), Math.min(a[0], b[0]) - boxMaxX);
+    const gapY = Math.max(0, boxMinY - Math.max(a[1], b[1]), Math.min(a[1], b[1]) - boxMaxY);
+    if (Math.hypot(gapX, gapY) > min + BOX_EPS) continue;
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const lenSq = dx * dx + dy * dy;
+    for (const p of samples) {
+      const t = lenSq === 0 ? 0 : Math.min(1, Math.max(0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq));
+      const dist = Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dy * t));
+      if (dist < min) min = dist;
+    }
+  }
   return min;
 }
 
@@ -479,8 +519,20 @@ export function placeTempleFootprint(
   const plazaAnchor = plaza?.anchor ?? ([0, 0] as Point);
   const yard = civicYardMeters(extentMeters);
   const margin = Math.max(yard, cellSize * 0.35);
-  const wet = (c: Cell): boolean => rivers.some(line => cellTouchesPolyline(c, line, margin));
-  const streeted = (c: Cell): boolean => streets.some(line => polylineThroughCellInterior(c, line));
+  // Cells are tested again by the sort comparator and the growth predicates, so memoize per cell.
+  const memoPerCell = (test: (c: Cell) => boolean) => {
+    const known = new Map<number, boolean>();
+    return (c: Cell): boolean => {
+      let value = known.get(c.id);
+      if (value === undefined) {
+        value = test(c);
+        known.set(c.id, value);
+      }
+      return value;
+    };
+  };
+  const wet = memoPerCell(c => rivers.some(line => cellTouchesPolyline(c, line, margin)));
+  const streeted = memoPerCell(c => streets.some(line => polylineThroughCellInterior(c, line)));
   const eligible = (c: Cell): boolean =>
     urban.has(c.id) && !sea.has(c.id) && !occupied.has(c.id) && !plazaIds.has(c.id) && !citadelIds.has(c.id);
   const R = Math.max(1, extentMeters * 0.165);
@@ -510,10 +562,11 @@ export function placeTempleFootprint(
     return s;
   };
 
+  const scores = new Map(dryPool.map(c => [c.id, score(c)]));
   const ranked = dryPool.slice().sort((a, b) => {
     const inA = inBand(a) ? 0 : 1;
     const inB = inBand(b) ? 0 : 1;
-    return inA - inB || score(a) - score(b) || a.id - b.id;
+    return inA - inB || scores.get(a.id)! - scores.get(b.id)! || a.id - b.id;
   });
   const minCells = templeCellCount(extentMeters, capital);
   const maxCells = Math.min(MAX_CIVIC_CELLS, minCells + 3);
