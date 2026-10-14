@@ -464,6 +464,33 @@ export function templeHazards(streets: Point[][], rivers: Point[][], extentMeter
   ];
 }
 
+/** Keep only the runs of hazard segments that can matter to a rectangle nudged at most `reach` from `center`. */
+function hazardsNear(hazards: PolylineHazard[], center: Point, reach: number): PolylineHazard[] {
+  const out: PolylineHazard[] = [];
+  for (const hazard of hazards) {
+    const radius = reach + hazard.clearance;
+    let run: Point[] = [];
+    const flush = () => {
+      if (run.length >= 2) out.push({ points: run, clearance: hazard.clearance });
+      run = [];
+    };
+    for (let i = 0; i + 1 < hazard.points.length; i++) {
+      const a = hazard.points[i];
+      const b = hazard.points[i + 1];
+      const gapX = Math.max(0, Math.min(a[0], b[0]) - center[0], center[0] - Math.max(a[0], b[0]));
+      const gapY = Math.max(0, Math.min(a[1], b[1]) - center[1], center[1] - Math.max(a[1], b[1]));
+      if (gapX > radius || gapY > radius) {
+        flush();
+        continue;
+      }
+      if (!run.length) run.push(a);
+      run.push(b);
+    }
+    flush();
+  }
+  return out;
+}
+
 export function placeAndClearTempleRect(
   center: Point,
   extentMeters: number,
@@ -477,9 +504,11 @@ export function placeAndClearTempleRect(
     width: footprint.width,
     rotation: civicOrientation(center, guides)
   };
-  rect = nudgeRectOffPolylines(rect, hazards);
+  // Two nudges of up to 48 m each, plus the nave's half-diagonal and the 16-sample boundary margin.
+  const near = hazardsNear(hazards, center, 96 + Math.hypot(footprint.length, footprint.width) + 16);
+  rect = nudgeRectOffPolylines(rect, near);
   rect = { ...rect, rotation: civicOrientation(rect.center, guides) };
-  return nudgeRectOffPolylines(rect, hazards);
+  return nudgeRectOffPolylines(rect, near);
 }
 
 export function fitsCluster(rect: OrientedRect, cellIds: number[], byId: Map<number, Cell>): boolean {
@@ -576,10 +605,13 @@ export function placeTempleFootprint(
   const water = cells.filter(c => sea.has(c.id)).map(c => c.polygon);
   const onLand = (rect: OrientedRect): boolean => templeFitsLand(rect, land, water);
 
+  const reach = Math.hypot(footprint.length, footprint.width);
+  const clearOfHazards = (rect: OrientedRect): boolean =>
+    hazardsNear(hazards, rect.center, reach).every(
+      h => orientedRectPolylineDistance(rect, h.points) >= h.clearance - 0.2
+    );
   const clears = (rect: OrientedRect, ids: number[]): boolean =>
-    hazards.every(h => orientedRectPolylineDistance(rect, h.points) >= h.clearance - 0.2) &&
-    fitsCluster(rect, ids, byId) &&
-    onLand(rect);
+    clearOfHazards(rect) && fitsCluster(rect, ids, byId) && onLand(rect);
 
   for (const pick of ranked.slice(0, Math.min(32, ranked.length))) {
     const growEligible = (c: Cell): boolean => eligible(c) && !wet(c) && !streeted(c);
@@ -609,7 +641,7 @@ export function placeTempleFootprint(
       maxCells
     );
     const rect = placeAndClearTempleRect(clusterCentroid(cellIds, byId), extentMeters, guides, hazards);
-    if (onLand(rect) && hazards.every(h => orientedRectPolylineDistance(rect, h.points) >= h.clearance - 0.2)) {
+    if (onLand(rect) && clearOfHazards(rect)) {
       return { cellIds, anchor: rect.center, rotation: rect.rotation };
     }
   }

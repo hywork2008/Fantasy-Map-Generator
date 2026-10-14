@@ -40,11 +40,18 @@ export function registerTownCircuit(
   // Passage construction can move a known interior cell's centroid beyond its
   // original polygon. Preserve planned membership; use geometry for newly split cells.
   const interior = new Set(interiorFaceIds);
+  const boxes = regions.map(r => {
+    const xs = r.map(p => p[0]),
+      ys = r.map(p => p[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as const;
+  });
+  const inRegions = (c: Point) =>
+    regions.some(
+      (r, i) =>
+        c[0] >= boxes[i][0] && c[0] <= boxes[i][2] && c[1] >= boxes[i][1] && c[1] <= boxes[i][3] && pointInPolygon(c, r)
+    );
   const areaFaceIds = Object.values(document.mesh.faces)
-    .filter(
-      face =>
-        interior.has(face.id) || regions.some(r => pointInPolygon(polygonCentroid(facePoints(document.mesh, face)), r))
-    )
+    .filter(face => interior.has(face.id) || inRegions(polygonCentroid(facePoints(document.mesh, face))))
     .map(face => face.id);
   const circuit: DefenseCircuit = {
     id: ring === undefined ? "gc:defense-town" : `gc:defense-town-${ring}`,

@@ -39,3 +39,31 @@ export function segmentDistance(p: Point, s: MeshSegment): number {
   const t = Math.max(0, Math.min(1, segmentParameter(p, s)));
   return Math.hypot(p[0] - s.a[0] - (s.b[0] - s.a[0]) * t, p[1] - s.a[1] - (s.b[1] - s.a[1]) * t);
 }
+
+/** Uniform grid of segments, each stored in every cell its bounding box (grown by `margin`) overlaps.
+ * `near(p)` returns a superset of the segments within `margin` of `p`. */
+export class SegmentGrid {
+  private readonly cells = new Map<string, MeshSegment[]>();
+  constructor(
+    segments: readonly MeshSegment[],
+    private readonly size: number,
+    margin: number
+  ) {
+    for (const s of segments) {
+      const x1 = Math.floor((Math.min(s.a[0], s.b[0]) - margin) / size);
+      const x2 = Math.floor((Math.max(s.a[0], s.b[0]) + margin) / size);
+      const y1 = Math.floor((Math.min(s.a[1], s.b[1]) - margin) / size);
+      const y2 = Math.floor((Math.max(s.a[1], s.b[1]) + margin) / size);
+      for (let x = x1; x <= x2; x++)
+        for (let y = y1; y <= y2; y++) {
+          const k = `${x},${y}`;
+          const list = this.cells.get(k);
+          if (list) list.push(s);
+          else this.cells.set(k, [s]);
+        }
+    }
+  }
+  near(p: Point): readonly MeshSegment[] {
+    return this.cells.get(`${Math.floor(p[0] / this.size)},${Math.floor(p[1] / this.size)}`) ?? [];
+  }
+}

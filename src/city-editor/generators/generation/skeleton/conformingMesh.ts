@@ -7,7 +7,14 @@ import { guardRing, scatterSites } from "../../grid";
 import { makeRng } from "../../prng";
 import { computeVoronoiCells } from "../../voronoi";
 import type { Skeleton, SkeletonInputs, SkeletonMeshChain, SkeletonMeshLine } from "./contracts";
-import { clipMeshSegment, type MeshSegment, meshSegments, segmentDistance, segmentParameter } from "./meshSegments";
+import {
+  clipMeshSegment,
+  type MeshSegment,
+  meshSegments,
+  SegmentGrid,
+  segmentDistance,
+  segmentParameter
+} from "./meshSegments";
 import { assembleConformingMesh } from "./meshTopology";
 import { bandRing, dist, signedArea } from "./vector";
 
@@ -101,7 +108,17 @@ export function buildConformingMesh(inputs: SkeletonInputs, skeleton: Skeleton, 
     .filter((s): s is MeshSegment => !!s && dist(s.a, s.b) > eps);
   const sites: Point[] = [];
   let mirrorPairs = 0;
-  const mirrorCenters: Point[] = [];
+  // Grid of accepted mirror centres: a centre within 0.65 cells can only sit in a neighbouring bin.
+  const mirrorRadius = cellSize * 0.65;
+  const mirrorBins = new Map<string, Point[]>();
+  const mirrorBin = (p: Point, dx = 0, dy = 0) =>
+    `${Math.floor(p[0] / mirrorRadius) + dx},${Math.floor(p[1] / mirrorRadius) + dy}`;
+  const nearMirror = (p: Point) => {
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        if (mirrorBins.get(mirrorBin(p, dx, dy))?.some(q => dist(p, q) < mirrorRadius)) return true;
+    return false;
+  };
   for (const s of segments) {
     const length = dist(s.a, s.b);
     const n = Math.max(1, Math.ceil(length / cellSize));
@@ -111,8 +128,9 @@ export function buildConformingMesh(inputs: SkeletonInputs, skeleton: Skeleton, 
       const p: Point = [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t];
       // A finely digitised coast is still one macro boundary: do not seed
       // a new pair at every short facet. Exact corners are handled locally below.
-      if (mirrorCenters.some(q => dist(p, q) < cellSize * 0.65)) continue;
-      mirrorCenters.push(p);
+      if (nearMirror(p)) continue;
+      const bin = mirrorBin(p);
+      mirrorBins.set(bin, [...(mirrorBins.get(bin) ?? []), p]);
       for (const sign of [-1, 1])
         sites.push([p[0] - (sign * d * (s.b[1] - s.a[1])) / length, p[1] + (sign * d * (s.b[0] - s.a[0])) / length]);
       mirrorPairs++;
@@ -130,7 +148,9 @@ export function buildConformingMesh(inputs: SkeletonInputs, skeleton: Skeleton, 
     { coast: null, rivers: [], roadBearings: [] },
     rng
   );
-  for (const p of scattered) if (segments.every(s => segmentDistance(p, s) >= cellSize * 0.56)) sites.push(p);
+  const clearance = cellSize * 0.56;
+  const segmentGrid = new SegmentGrid(segments, cellSize, clearance);
+  for (const p of scattered) if (segmentGrid.near(p).every(s => segmentDistance(p, s) >= clearance)) sites.push(p);
   sites.push(...guardRing(win, cellSize * 2.5));
   // Coincident constraints can produce identical sites; Delaunator omits duplicates.
   const unique = [...new Map(sites.map(p => [`${Math.round(p[0] / eps)},${Math.round(p[1] / eps)}`, p])).values()];
@@ -170,14 +190,44 @@ export function buildConformingMesh(inputs: SkeletonInputs, skeleton: Skeleton, 
     if (polygon.length >= 3 && Math.abs(polygonArea(polygon)) > eps * eps) polygons.push(polygon);
   });
   let localSplits = 0;
+  const boxOf = (poly: Point[]) => {
+    let x1 = Infinity,
+      y1 = Infinity,
+      x2 = -Infinity,
+      y2 = -Infinity;
+    for (const q of poly) {
+      if (q[0] < x1) x1 = q[0];
+      if (q[0] > x2) x2 = q[0];
+      if (q[1] < y1) y1 = q[1];
+      if (q[1] > y2) y2 = q[1];
+    }
+    return [x1, y1, x2, y2] as const;
+  };
+  let boxes = polygons.map(boxOf);
   for (const s of segments) {
+    // A polygon clear of the segment's bounding box (by more than eps) cannot be cut by it.
+    const sx1 = Math.min(s.a[0], s.b[0]) - eps * 2,
+      sx2 = Math.max(s.a[0], s.b[0]) + eps * 2,
+      sy1 = Math.min(s.a[1], s.b[1]) - eps * 2,
+      sy2 = Math.max(s.a[1], s.b[1]) + eps * 2;
     const next: Point[][] = [];
-    for (const p of polygons) {
+    const nextBoxes: (readonly [number, number, number, number])[] = [];
+    polygons.forEach((p, i) => {
+      const box = boxes[i];
+      if (box[2] < sx1 || box[0] > sx2 || box[3] < sy1 || box[1] > sy2) {
+        next.push(p);
+        nextBoxes.push(box);
+        return;
+      }
       const parts = splitAtSegment(p, s, eps);
       localSplits += parts.length - 1;
-      next.push(...parts);
-    }
+      for (const part of parts) {
+        next.push(part);
+        nextBoxes.push(parts.length === 1 ? box : boxOf(part));
+      }
+    });
     polygons = next;
+    boxes = nextBoxes;
   }
   polygons = polygons.map(p => (signedArea(p) < 0 ? p.toReversed() : p));
   const result = assembleConformingMesh(polygons, lines, half, cellSize, eps);

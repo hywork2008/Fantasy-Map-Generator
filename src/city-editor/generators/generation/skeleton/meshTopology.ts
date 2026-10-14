@@ -5,7 +5,14 @@ import type { EdgeRef, Mesh } from "../../../types/document";
 import type { Point } from "../../../types/geometry";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "../../geom";
 import type { SkeletonMeshChain, SkeletonMeshLine } from "./contracts";
-import { clipMeshSegment, meshSegments, segmentDistance, segmentParameter } from "./meshSegments";
+import {
+  clipMeshSegment,
+  type MeshSegment,
+  meshSegments,
+  SegmentGrid,
+  segmentDistance,
+  segmentParameter
+} from "./meshSegments";
 import { dist } from "./vector";
 
 export function assembleConformingMesh(
@@ -126,11 +133,12 @@ export function assembleConformingMesh(
     .flatMap(meshSegments)
     .map(s => clipMeshSegment(s, half))
     .filter(s => s !== null);
+  const constraintGrid = new SegmentGrid(constraints, cellSize, eps * 2);
   const protectedEdge = (id: string) => {
     const e = mesh.edges[id],
       a = mesh.vertices[e.a].point,
       b = mesh.vertices[e.b].point;
-    return constraints.some(s => segmentDistance(a, s) <= eps * 2 && segmentDistance(b, s) <= eps * 2);
+    return constraintGrid.near(a).some(s => segmentDistance(a, s) <= eps * 2 && segmentDistance(b, s) <= eps * 2);
   };
   const pointsOf = (refs: EdgeRef[]) =>
     refs.map(r => {
@@ -191,13 +199,68 @@ export function assembleConformingMesh(
       break;
     }
   }
-  const activeVertices = new Set(Object.values(mesh.edges).flatMap(e => [e.a, e.b]));
+  const edgeList = Object.values(mesh.edges);
+  const activeVertices = new Set(edgeList.flatMap(e => [e.a, e.b]));
+  // Spatial indexes over the final topology; `order` keeps the original scan order for tie-breaking.
+  const edgeOrder = new Map(edgeList.map((e, i) => [e.id, i]));
+  const vertexOrder = new Map([...activeVertices].map((id, i) => [id, i]));
+  const edgesAt = new Map<string, typeof edgeList>();
+  for (const e of edgeList)
+    for (const v of [e.a, e.b === e.a ? [] : e.b].flat()) edgesAt.set(v, [...(edgesAt.get(v) ?? []), e]);
+  const vertexBins = new Map<string, string[]>();
+  for (const id of activeVertices) {
+    const p = mesh.vertices[id].point;
+    const k = key(Math.floor(p[0] / cellSize), Math.floor(p[1] / cellSize));
+    vertexBins.set(k, [...(vertexBins.get(k) ?? []), id]);
+  }
+  const verticesNear = (s: MeshSegment, margin: number) => {
+    const out: string[] = [];
+    for (
+      let x = Math.floor((Math.min(s.a[0], s.b[0]) - margin) / cellSize);
+      x <= Math.floor((Math.max(s.a[0], s.b[0]) + margin) / cellSize);
+      x++
+    )
+      for (
+        let y = Math.floor((Math.min(s.a[1], s.b[1]) - margin) / cellSize);
+        y <= Math.floor((Math.max(s.a[1], s.b[1]) + margin) / cellSize);
+        y++
+      )
+        out.push(...(vertexBins.get(key(x, y)) ?? []));
+    return out;
+  };
+  const nearestVertex = (p: Point): string => {
+    const cx = Math.floor(p[0] / cellSize),
+      cy = Math.floor(p[1] / cellSize);
+    let best: string | null = null,
+      bestD = Infinity;
+    for (let ring = 0; ring < 100000; ring++) {
+      // Every vertex in ring r is at least (r - 1) cells away.
+      if (best !== null && (ring - 1) * cellSize > bestD) break;
+      if (ring > 0 && vertexBins.size === 0) break;
+      for (let x = cx - ring; x <= cx + ring; x++)
+        for (let y = cy - ring; y <= cy + ring; y++) {
+          if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== ring) continue;
+          for (const id of vertexBins.get(key(x, y)) ?? []) {
+            const d = dist(mesh.vertices[id].point, p);
+            if (d < bestD || (d === bestD && vertexOrder.get(id)! < vertexOrder.get(best!)!)) {
+              best = id;
+              bestD = d;
+            }
+          }
+        }
+      if (best === null && ring > 2000) break;
+    }
+    return best ?? [...activeVertices][0];
+  };
   const chains = lines.map(line => {
     const refs: EdgeRef[] = [];
     for (const raw of meshSegments(line)) {
       const s = clipMeshSegment(raw, half);
       if (!s || dist(s.a, s.b) <= eps) continue;
-      const candidates = Object.values(mesh.edges)
+      const near = new Map<string, (typeof edgeList)[number]>();
+      for (const v of verticesNear(s, eps * 2)) for (const e of edgesAt.get(v) ?? []) near.set(e.id, e);
+      const candidates = [...near.values()]
+        .sort((x, y) => edgeOrder.get(x.id)! - edgeOrder.get(y.id)!)
         .flatMap(e => {
           const a = mesh.vertices[e.a].point,
             b = mesh.vertices[e.b].point;
@@ -223,13 +286,8 @@ export function assembleConformingMesh(
         const id = startOf(c);
         outgoing.set(id, [...(outgoing.get(id) ?? []), c]);
       }
-      const nearest = (p: Point) =>
-        [...activeVertices].reduce(
-          (best, id) => (dist(mesh.vertices[id].point, p) < dist(mesh.vertices[best].point, p) ? id : best),
-          [...activeVertices][0]
-        );
-      const first = nearest(s.a),
-        last = nearest(s.b);
+      const first = nearestVertex(s.a),
+        last = nearestVertex(s.b);
       const visited = new Set<string>();
       const walk = (id: string): EdgeRef[] | null => {
         if (id === last) return [];
