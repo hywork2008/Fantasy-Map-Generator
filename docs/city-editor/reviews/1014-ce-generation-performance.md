@@ -63,3 +63,40 @@
 | `mesh.ts` `moveVertices` / `splitFace` | 7% | 呼ぶたびに文書全体を複製（`cloneMesh`）して検証する |
 
 `aerialLandmarks` の試験が最も重いので、その経路（`aerialLandmarks.ts`）も確認する価値がある。
+
+## 6. `planHarborShips` の調査（開始）
+
+小 voronoi の bay・cape・random と tiny evolution の同3条件の計6条件×4 seed（24都市）で、`harbor-ships` 配下のProcessingProfilerの所要を集計した（生成合計 33.6 s）。
+
+| パス | 所要 | 自己時間 | 呼び出し |
+| --- | ---: | ---: | ---: |
+| `harbor-ships` | 11.3 s（34%） | 0.005 s | 22 |
+| `…/ship-plan`（`planHarborShips` 本体） | 11.3 s | 0.24 s | 22 |
+| `…/block-fabric`（`buildBlockFabric`） | 11.1 s | 0.004 s | 21 |
+| `…/block-fabric/coastal-reservations`（`finishCoastalBuildings`） | 7.5 s | 7.5 s | 21 |
+| `…/block-fabric/legacy-fabric` | 3.3 s | 2.5 s | 21 |
+| `…/block-fabric/harbor-fabric`（`planHarbor`） | 0.4 s | 0.4 s | 21 |
+
+わかったこと:
+
+- 船の配置そのもの（衝突判定など）は 0.24 s（2%）で無視できる。`planHarborShips` の 98% は `buildBlockFabric` である。
+- §5 の `buildBlockFabric`（`finishCoastalBuildings`）の 14.5% は、この呼び出しとほぼ重複している。別の候補ではなく、同じ原因である。
+- `harborShips.ts` は桟橋の一覧（`fabric.harbor.piers`）だけを使う。その `docFabric?.harbor` は `FabricPlan` にあたり、この時点では存在しないため、22回中21回で建物区画を含む完全なファブリックを作り直している。
+- プロファイラを渡すと `buildBlockFabric` のキャッシュは使われない（`!profiler` の条件）。本番の呼び出しでキャッシュが効くかは未確認。
+
+次の候補:
+
+1. 桟橋の計算だけを取り出す。`planHarbor` が必要とするのは道路（`base.lanes`）と墓地の障害物だけで、建物区画（`finishCoastalBuildings`）は不要。ただし桟橋の位置が建物配置に依存していないことを確認する必要がある。
+2. 後段で同じ文書のファブリックを作るなら、その結果を共有する。
+3. どちらも、文書全体のJSONハッシュが変更前と一致することを確かめる。
+
+調査用の集計スクリプトは、スクラッチ領域にあり、リポジトリには入れていない。
+
+### 6.1 実施: 桟橋計画だけを作る
+
+`blockInfill.ts` に `buildHarborPlan` を追加し、`planHarborShips` はこれを使うようにした。`buildBlockFabric` と同じ `legacy-fabric` → `planHarbor` を実行し、`finishCoastalBuildings` と成長整形（どちらも `harbor` を変えない）は省く。中世パターンの文書は従来どおり `buildBlockFabric` を呼ぶ。
+
+- 12ケース相当（default・bay・cape・random × 2グリッド × 3 seed = 24都市）で、文書全体のJSONハッシュが変更前後で全件一致した。
+- 生成合計は 29.2 s から 21.4 s（約27%減）。
+- `harborShips`・`poilleneuzyHarbor` のテスト（19件）は成功、`tsc` も通った。CE全体のテストは未実行。
+- 残り: `legacy-fabric`（約3.3 s／24都市）が `planHarborShips` 内に残る。後段で同じ文書のファブリックを作るなら共有できる（候補2）。
