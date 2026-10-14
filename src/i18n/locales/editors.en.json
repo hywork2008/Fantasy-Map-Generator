@@ -715,7 +715,8 @@
       "skeletonWallSides": "Polygon sides (blank: auto)",
       "skeletonGridNotice": "Skeleton first creates its own mesh; the Document grid selection is not used.",
       "skeletonUnsupported": "Not supported by skeleton first v1: {{features}}",
-      "skeletonLater": "This setting is not supported by skeleton first v1."
+      "skeletonLater": "This setting is not supported by skeleton first v1.",
+      "skeletonBastionEra": "Bastioned walls need the age of exploration or later."
     },
     "generationStages": {
       "firstInnerGates": {
@@ -872,7 +873,7 @@
       "oval": "Oval",
       "square": "Square",
       "polygon": "Polygon",
-      "bastioned": "Bastioned (future)"
+      "bastioned": "Bastioned"
     },
     "pageTitle": "City Editor — Fantasy Map Generator",
     "pageDescription": "City map generator and editor for Fantasy Map Generator",

@@ -11,6 +11,7 @@ import { skeletonRiverCourses } from "../../site/siteInput";
 import { requiredExternalRoads } from "../planning/roadGeometry";
 import type { SkeletonInputs, SkeletonRiver, SkeletonRoad, SkeletonWater } from "./contracts";
 import { add, bandRing, closeCorridor, dist, distanceToPolyline, exitSquare, rayRingHit, sub, unit } from "./vector";
+import { bastionEra } from "./wallShapes";
 
 export interface SkeletonInputSource {
   geo: CityGeography;
@@ -250,6 +251,7 @@ export function buildSkeletonInputs(source: SkeletonInputSource): SkeletonInputs
     roads,
     fixedBridges,
     bridgeSkewLimit: resolveBridgeSkewLimit(historicalPeriod, settings.descriptor?.transport),
+    bastionEra: bastionEra(historicalPeriod),
     requiredExternalRoads: requiredExternalRoads(settings as GenerationSettings, params.extentMeters),
     wallWidth,
     minGateSpacing: minGateSpacingMeters(wallWidth)

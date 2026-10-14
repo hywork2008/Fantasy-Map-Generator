@@ -55,6 +55,7 @@ const inputs = (wet: number): SkeletonInputs => ({
   })),
   fixedBridges: [],
   bridgeSkewLimit: 15,
+  bastionEra: false,
   requiredExternalRoads: 2,
   wallWidth: 7,
   minGateSpacing: 40

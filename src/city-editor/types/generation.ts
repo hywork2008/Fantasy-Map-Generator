@@ -16,8 +16,8 @@ export interface StreetSettings {
 }
 
 export type GenerationMethod = "mesh-first" | "skeleton-first";
-/** Skeleton-first wall shape families (§4.3). `bastioned` follows in Phase S4. */
-export type WallShape = "organic" | "round" | "oval" | "square" | "polygon";
+/** Skeleton-first wall shape families (§4.3). `bastioned` needs the age of exploration or later. */
+export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "bastioned";
 export type WallShapeChoice = "auto" | WallShape;
 
 export interface GenerationSettings {

@@ -31,7 +31,7 @@ export function planSkeleton(
   let rejected: Skeleton | undefined;
   for (let attempt = 0; attempt < SKELETON_ATTEMPTS; attempt++) {
     const rng = makeRng(`${seed}:skeleton:${attempt}:wall`);
-    const shape = resolveWallShape(settings.wallShape, rng);
+    const shape = resolveWallShape(settings.wallShape, rng, inputs.bastionEra);
     const sides = settings.wallSides ?? 5 + Math.floor(rng() * 4);
     const wall = inputs.walls ? planSkeletonWall(inputs, core, shape, sides, rng) : null;
     const { routes, gates, bridges } = planSkeletonCrossings(inputs, core.core, wall);

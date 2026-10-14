@@ -407,7 +407,8 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     settings.generationMethod = raw.generationMethod as GenerationSettings["generationMethod"];
   }
   if (raw.wallShape !== undefined) {
-    if (!["auto", "organic", "round", "oval", "square", "polygon"].includes(String(raw.wallShape))) return null;
+    if (!["auto", "organic", "round", "oval", "square", "polygon", "bastioned"].includes(String(raw.wallShape)))
+      return null;
     settings.wallShape = raw.wallShape as GenerationSettings["wallShape"];
   }
   if (raw.wallSides !== undefined) {

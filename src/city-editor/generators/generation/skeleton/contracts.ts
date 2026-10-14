@@ -47,6 +47,8 @@ export interface SkeletonInputs {
   fixedBridges: { point: Point; skewDegrees: number }[];
   /** Upper bound on a bridge's skew from `resolveBridgeSkewLimit`. */
   bridgeSkewLimit: number;
+  /** `bastioned` is a candidate (age of exploration or later). */
+  bastionEra: boolean;
   requiredExternalRoads: number;
   wallWidth: number;
   minGateSpacing: number;
@@ -75,6 +77,8 @@ export interface SkeletonWall {
    * `shared` > 1 when several channels (a braid, two mouths) pass under one segment,
    * which is then square to their mean flow rather than to each channel. */
   waterGates: { riverIndex: number; edge: number; point: Point; shared: number }[];
+  /** `bastioned` only: middle of each curtain between bastions, where gates belong. */
+  curtainMidpoints?: Point[];
 }
 
 export interface SkeletonGate {

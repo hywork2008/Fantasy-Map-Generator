@@ -3,7 +3,7 @@ import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urban
 import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
-import { skeletonUnsupportedSettings } from "../generators/generation/settings";
+import { bastionEra, skeletonUnsupportedSettings } from "../generators/generation/settings";
 import { CITY_LAYOUTS, FEATURE_KEYS, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { CityFeatureSet, WallCoastChoice, WallMaterialChoice } from "../types/contracts/siteConfig";
@@ -585,10 +585,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   shapeSelect.className = "ce-wall-shape";
   for (const option of shapeSelect.options) {
     option.textContent = editorOptionText(option.value);
-    if (option.value === "bastioned") {
-      option.disabled = true;
-      option.title = editorText("cityEditor.messages.skeletonLater");
-    }
   }
   const sidesInput = ctx.numberInput(String(ctx.generation.generateSettings.wallSides ?? ""), "3", "1");
   sidesInput.max = "12";
@@ -631,7 +627,10 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
       : "";
     methodSelect.title = methodSelect.options[1].title;
     shapeLabel.hidden = !active;
-    sidesLabel.hidden = !active || shapeSelect.value !== "polygon";
+    const bastioned = shapeSelect.querySelector<HTMLOptionElement>('option[value="bastioned"]')!;
+    bastioned.disabled = !bastionEra(settings.historicalPeriod ?? settings.descriptor?.historicalPeriod);
+    bastioned.title = bastioned.disabled ? editorText("cityEditor.messages.skeletonBastionEra") : "";
+    sidesLabel.hidden = !active || !["polygon", "bastioned"].includes(shapeSelect.value);
     gridNotice.hidden = documentGridNotice.hidden = !active;
     if (active && settings.townWallRings !== "double") townWallRingsSelect.value = "single";
     if (active && settings.urbanCoreMode === undefined) urbanCoreModeSelect.value = "compact";

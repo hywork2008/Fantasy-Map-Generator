@@ -4,20 +4,52 @@
 // target area and then clamped ray by ray against hard water. Straight sides
 // survive wherever the water does not reach them.
 
+import type { HistoricalPeriod } from "../../../types/document";
 import type { WallShape, WallShapeChoice } from "../../../types/generation";
 import type { Point } from "../../../types/geometry";
 import { polygonArea, simplifyPolyline } from "../../geom";
 import { dryReach, waterClearance } from "./cityCore";
 import type { SkeletonCore, SkeletonInputs, SkeletonWall } from "./contracts";
-import { add, densifyRing, distanceToPolyline, polylineCrossings, signedArea, sub, tangentAt, unit } from "./vector";
+import {
+  add,
+  densifyRing,
+  distanceToPolyline,
+  polylineCrossings,
+  rayRingHit,
+  signedArea,
+  sub,
+  tangentAt,
+  unit
+} from "./vector";
 
 type Rng = () => number;
 
 export const AUTO_WALL_SHAPES: readonly WallShape[] = ["organic", "round", "oval", "square", "polygon"];
 
-export function resolveWallShape(choice: WallShapeChoice | undefined, rng: Rng): WallShape {
+const PERIOD_ORDER: HistoricalPeriod[] = [
+  "classicalAntiquity",
+  "earlyMedieval",
+  "highMedieval",
+  "lateMedieval",
+  "ageOfExploration",
+  "maritimeEra",
+  "preIndustrialEra",
+  "steamEra",
+  "industrialChemistryEra",
+  "petroleumEra",
+  "rocketryEra"
+];
+
+/** Bastioned traces belong to the age of exploration and later; an unset period is the document default. */
+export function bastionEra(period: HistoricalPeriod | undefined): boolean {
+  return PERIOD_ORDER.indexOf(period ?? "ageOfExploration") >= PERIOD_ORDER.indexOf("ageOfExploration");
+}
+
+/** `auto` draws `bastioned` only in its era; earlier draws keep the S1 families and RNG use. */
+export function resolveWallShape(choice: WallShapeChoice | undefined, rng: Rng, bastions = false): WallShape {
   if (choice && choice !== "auto") return choice;
-  return AUTO_WALL_SHAPES[Math.floor(rng() * AUTO_WALL_SHAPES.length)];
+  const shapes = bastions ? [...AUTO_WALL_SHAPES, "bastioned" as const] : AUTO_WALL_SHAPES;
+  return shapes[Math.floor(rng() * shapes.length)];
 }
 
 const between = (rng: Rng, lo: number, hi: number) => lo + (hi - lo) * rng();
@@ -49,6 +81,32 @@ function regularPolygon(rng: Rng, sides: number): Point[] {
   });
 }
 
+/**
+ * Regular N-gon with a bastion at every corner: shoulder on each curtain, flank
+ * out from the curtain, then two faces meeting at the salient on the corner's ray.
+ * Stays star-shaped around the origin so `placeRing` can clamp it ray by ray.
+ */
+function bastionedPolygon(rng: Rng, sides: number): Point[] {
+  const corners = regularPolygon(rng, sides);
+  const edge = Math.hypot(corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]);
+  const shoulder = between(rng, 0.18, 0.24);
+  const flank = edge * between(rng, 0.06, 0.09);
+  const salient = edge * between(rng, 0.2, 0.26);
+  const out: Point[] = [];
+  corners.forEach((v, i) => {
+    const prev = corners[(i + sides - 1) % sides];
+    const next = corners[(i + 1) % sides];
+    // A flank square to its curtain would turn back past the shoulder's ray from the
+    // core, and clamping against water could then fold the ring. Lean each flank a
+    // little toward the salient instead, so the angle round the core keeps increasing.
+    const a = add(v, sub(prev, v), shoulder);
+    const b = add(v, sub(next, v), shoulder);
+    const flankDir = (p: Point) => unit(add(unit(p), unit(sub(v, p)), 0.08));
+    out.push(a, add(a, flankDir(a), flank), add(v, unit(v), salient), add(b, flankDir(b), flank), b);
+  });
+  return out;
+}
+
 /** Unit-scale ring (counter-clockwise, around the origin) for a wall shape. */
 export function unitWallShape(shape: WallShape, rng: Rng, sides: number): Point[] {
   switch (shape) {
@@ -68,6 +126,8 @@ export function unitWallShape(shape: WallShape, rng: Rng, sides: number): Point[
       return regularPolygon(rng, 4);
     case "polygon":
       return regularPolygon(rng, sides);
+    case "bastioned":
+      return bastionedPolygon(rng, sides);
   }
 }
 
@@ -237,10 +297,26 @@ export function planSkeletonWall(
   );
   return {
     shape,
-    ...(shape === "polygon" || shape === "square" ? { sides: shape === "square" ? 4 : sides } : {}),
+    ...(shape === "polygon" || shape === "square" || shape === "bastioned"
+      ? { sides: shape === "square" ? 4 : sides }
+      : {}),
     polygon: squared.ring,
-    waterGates: squared.waterGates
+    waterGates: squared.waterGates,
+    ...(shape === "bastioned" ? { curtainMidpoints: curtainMidpoints(core.core, unitRing, squared.ring) } : {})
   };
+}
+
+/** Where each curtain's midpoint direction meets the placed ring (5 unit points per bastion). */
+function curtainMidpoints(centre: Point, unitRing: Point[], ring: Point[]): Point[] {
+  const out: Point[] = [];
+  for (let i = 4; i < unitRing.length; i += 5) {
+    const b = unitRing[i];
+    const a = unitRing[(i + 1) % unitRing.length];
+    const dir = unit([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+    const reach = rayRingHit(centre, dir, ring);
+    if (Number.isFinite(reach)) out.push(add(centre, dir, reach));
+  }
+  return out;
 }
 
 /** Outward unit normal of ring edge `edge` for a counter-clockwise ring. */

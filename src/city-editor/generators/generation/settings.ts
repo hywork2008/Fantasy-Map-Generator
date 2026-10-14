@@ -2,6 +2,7 @@ import type { SiteConfig } from "../../types/contracts/siteConfig";
 import type { GenerationSettings, StreetSettings } from "../../types/generation";
 import { makeRng } from "../prng";
 import { DEFAULT_SITE_CONFIG, randomSiteConfig } from "../site/siteConfig";
+import { bastionEra } from "./skeleton/wallShapes";
 
 /** Resolve effective morphology layout:
  * - "circulade" -> "circulade"
@@ -78,8 +79,16 @@ export function skeletonUnsupportedSettings(settings: GenerationSettings): strin
     (!Number.isInteger(settings.wallSides) || settings.wallSides < 3 || settings.wallSides > 12)
   )
     reasons.push("wall sides must be 3-12");
-  if (settings.wallShape && !["auto", "organic", "round", "oval", "square", "polygon"].includes(settings.wallShape))
+  if (
+    settings.wallShape &&
+    !["auto", "organic", "round", "oval", "square", "polygon", "bastioned"].includes(settings.wallShape)
+  )
     reasons.push("wall shape");
+  if (
+    settings.wallShape === "bastioned" &&
+    !bastionEra(settings.historicalPeriod ?? settings.descriptor?.historicalPeriod)
+  )
+    reasons.push("bastioned walls need the age of exploration or later");
   if (settings.riverPlacement && settings.riverPlacement !== "through") reasons.push("river placement");
   if (settings.urbanNPatches !== undefined) reasons.push("urban patch count");
   if (settings.urbanCoreMode === "legacy") reasons.push("legacy urban allocation");
@@ -92,4 +101,4 @@ export function skeletonUnsupportedSettings(settings: GenerationSettings): strin
 }
 
 // Wall family resolution is shared with vector-only planning.
-export { resolveWallShape } from "./skeleton/wallShapes";
+export { bastionEra, resolveWallShape } from "./skeleton/wallShapes";

@@ -281,7 +281,7 @@ export function validFabricPlan(plan: FabricPlan): boolean {
       ["mesh-first", "skeleton-first"].includes(g.settings.generationMethod)) &&
     (g.algorithm !== "skeleton-city-v1" || g.settings.generationMethod === "skeleton-first") &&
     (g.settings?.wallShape === undefined ||
-      ["auto", "organic", "round", "oval", "square", "polygon"].includes(g.settings.wallShape)) &&
+      ["auto", "organic", "round", "oval", "square", "polygon", "bastioned"].includes(g.settings.wallShape)) &&
     (g.settings?.wallSides === undefined ||
       (Number.isInteger(g.settings.wallSides) && g.settings.wallSides >= 3 && g.settings.wallSides <= 12)) &&
     (g.settings?.urbanCoreMode === undefined ||

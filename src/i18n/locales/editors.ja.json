@@ -715,7 +715,8 @@
       "skeletonWallSides": "辺の数（空欄は自動）",
       "skeletonGridNotice": "骨格先行は専用メッシュを生成します。文書パネルのグリッド選択は使いません。",
       "skeletonUnsupported": "骨格先行v1は未対応: {{features}}",
-      "skeletonLater": "この設定は骨格先行v1では未対応です。"
+      "skeletonLater": "この設定は骨格先行v1では未対応です。",
+      "skeletonBastionEra": "稜堡式の外壁は大航海時代以降でのみ選べます。"
     },
     "generationStages": {
       "firstInnerGates": {
@@ -872,7 +873,7 @@
       "oval": "楕円",
       "square": "方形",
       "polygon": "多角形",
-      "bastioned": "稜堡式（後続対応）"
+      "bastioned": "稜堡式"
     },
     "pageTitle": "都市エディター — Fantasy Map Generator",
     "pageDescription": "Fantasy Map Generatorの都市地図生成・編集エディター",

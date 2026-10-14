@@ -8,7 +8,7 @@ import { planSkeletonCrossings } from "./crossings";
 import { dryRuns } from "./inputs";
 import { planSkeleton } from "./pipeline";
 import { closeCorridor, lineAngleDegrees, sub } from "./vector";
-import { planSkeletonWall } from "./wallShapes";
+import { bastionEra, planSkeletonWall, resolveWallShape } from "./wallShapes";
 
 const HALF = 600;
 
@@ -34,6 +34,7 @@ function inputs(overrides: Partial<SkeletonInputs> = {}): SkeletonInputs {
     roads: [road([1, 0], 0), road([-1, 0], 1), road([0, 1], 2), road([0, -1], 3)],
     fixedBridges: [],
     bridgeSkewLimit: 15,
+    bastionEra: false,
     requiredExternalRoads: 2,
     wallWidth: 7,
     minGateSpacing: 40,
@@ -273,5 +274,35 @@ describe("skeleton K5 checks", () => {
       bridges: []
     });
     expect(failure?.reason).toBe("too-few-external-roads");
+  });
+});
+
+describe("bastioned walls (S4)", () => {
+  it("draws bastioned from auto only in the age of exploration or later", () => {
+    expect(bastionEra("lateMedieval")).toBe(false);
+    expect(bastionEra("ageOfExploration")).toBe(true);
+    expect(bastionEra(undefined)).toBe(true);
+    const draw = (era: boolean) =>
+      Array.from({ length: 200 }, (_, i) => {
+        const x = i / 200 + 0.0025;
+        return resolveWallShape("auto", () => x, era);
+      });
+    expect(draw(false)).not.toContain("bastioned");
+    expect(draw(true)).toContain("bastioned");
+  });
+
+  it("builds a simple star trace with gates mid-curtain", () => {
+    const result = planSkeleton(inputs({ bastionEra: true }), { wallShape: "bastioned", wallSides: 6 }, "star");
+    expect(result.skeleton).not.toBeNull();
+    const wall = result.skeleton!.wall!;
+    expect(wall.shape).toBe("bastioned");
+    expect(wall.sides).toBe(6);
+    // Five vertices per bastion survive simplification on dry land.
+    expect(wall.polygon.length).toBeGreaterThanOrEqual(30);
+    expect(wall.curtainMidpoints).toHaveLength(6);
+    for (const gate of result.skeleton!.gates)
+      expect(
+        Math.min(...wall.curtainMidpoints!.map(m => Math.hypot(m[0] - gate.point[0], m[1] - gate.point[1])))
+      ).toBeLessThan(1);
   });
 });

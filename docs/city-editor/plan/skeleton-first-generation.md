@@ -1,7 +1,7 @@
 # 骨格先行生成（Skeleton-first）設計書
 
 作成日: 2026-10-14
-状態: Phase S0完了（2026-10-14、[調査・基準記録](../reviews/1014-skeleton-first-s0.md)）。Phase S1完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s1.md)）。Phase S2完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s2.md)）。Phase S3完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s3.md)）。S4は未実装
+状態: Phase S0完了（2026-10-14、[調査・基準記録](../reviews/1014-skeleton-first-s0.md)）。Phase S1完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s1.md)）。Phase S2完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s2.md)）。Phase S3完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s3.md)）。Phase S4は稜堡式のみ完了（2026-10-14、[実装・計測記録](../reviews/1014-skeleton-first-s4-bastioned.md)）。二重城壁・城・堀・Bram/circuladeは未実装
 
 CEの都市生成に、現行方式と並ぶ新しい生成方法「骨格先行（skeleton-first）」を追加する。現行の生成オプション・生成方法・保存済みrecipeは変更しない。利用者は生成パネルで方法を選び、未指定時は現行方式のまま動く。
 
@@ -252,7 +252,7 @@ generators/generation/
 
 ### Phase S4: 形と機能の拡張
 
-- [ ] `bastioned`（稜堡式の星型）と時代規則を追加する。
+- [x] `bastioned`（稜堡式の星型）と時代規則を追加する。単独143/144、FMG v1対象86/86。側面は星形を保つため稜角側へ傾ける（[S4記録](../reviews/1014-skeleton-first-s4-bastioned.md)）。
 - [ ] 二重城壁、城の予約範囲、堀を骨格に追加する。
 - [ ] Bram / circulade との統合を検討する。
 

@@ -3,7 +3,7 @@
 
 import { BRIDGE_SKEW_PREFERRED_DEGREES, bridgeSkewDegrees } from "../../../../utils/bridgeSkewPolicy";
 import type { Point } from "../../../types/geometry";
-import { pointInPolygon } from "../../geom";
+import { nearestOnPolyline, pointInPolygon } from "../../geom";
 import { waterClearance } from "./cityCore";
 import type { SkeletonBridge, SkeletonGate, SkeletonInputs, SkeletonRoute, SkeletonWall } from "./contracts";
 import {
@@ -106,6 +106,14 @@ function gateAt(
   };
   const shared = gates.findIndex(g => dist(g.point, hit.point) < inputs.minGateSpacing);
   let site = { point: hit.point, edge: hit.bIndex };
+  if (shared < 0 && !fixed && wall.curtainMidpoints?.length) {
+    // A bastioned trace takes its gates mid-curtain, covered by the flanks either side.
+    const curtain = wall.curtainMidpoints
+      .map(point => ({ point, edge: nearestOnPolyline(point, closed(ring)).segIndex }))
+      .filter(c => usable(c.point, c.edge) && gates.every(g => dist(g.point, c.point) >= inputs.minGateSpacing))
+      .sort((x, y) => dist(x.point, hit.point) - dist(y.point, hit.point))[0];
+    if (curtain) site = curtain;
+  }
   if (shared < 0 && !fixed && !usable(site.point, site.edge)) {
     // Slide a synthetic road's gate along the curtain, away from rivers and the shore.
     const perimeter = ring.reduce((sum, p, i) => sum + dist(p, ring[(i + 1) % ring.length]), 0);

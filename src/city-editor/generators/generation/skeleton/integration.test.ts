@@ -20,7 +20,7 @@ const source = () => createGridDocument({ size: "tiny", grid: "evolution", seed:
 const settings = (): GenerationSettings => ({ ...defaultGenerationSettings(), generationMethod: "skeleton-first" });
 
 describe("skeleton-first full generation", () => {
-  it.each(["organic", "round", "oval", "square", "polygon"] as const)(
+  it.each(["organic", "round", "oval", "square", "polygon", "bastioned"] as const)(
     "generates and reloads a %s wall with valid bridges and buildings",
     wallShape => {
       const input = source(),
@@ -115,6 +115,14 @@ describe("skeleton-first full generation", () => {
     ).toBeNull();
     expect(samples[0].failure?.reason).toBe("unsupported-skeleton-settings");
     expect(samples[0].failure?.message).toContain("double walls");
+  });
+
+  it("rejects a bastioned wall before the age of exploration", () => {
+    const samples: GenerationSample[] = [];
+    const opts = { ...settings(), wallShape: "bastioned" as const, historicalPeriod: "lateMedieval" as const };
+    expect(generateCityOnDocument(source(), opts, "early", s => samples.push(s))).toBeNull();
+    expect(samples[0].failure?.reason).toBe("unsupported-skeleton-settings");
+    expect(samples[0].failure?.message).toContain("bastioned");
   });
 
   it("keeps method and shape in shared requests", () => {
