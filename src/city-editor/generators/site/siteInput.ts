@@ -46,6 +46,22 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
   };
 }
 
+/**
+ * Course centrelines of the site's rivers for skeleton-first generation
+ * (docs/city-editor/plan/skeleton-first-generation.md §4.1). Unlike
+ * `siteToGeography`, rivers drawn from surveyed banks (`fixedCrossings` v2+)
+ * are kept: the skeleton places walls and bridges on their courses. Wide
+ * channels already returned as `channels` (v1) are left out.
+ */
+export function skeletonRiverCourses(site: BurgSiteDescriptor): CityGeography["rivers"] {
+  site = withWideRiverOffCore(resolvePortFrontages(site));
+  const consumed =
+    site.fixedCrossings && site.fixedCrossings.schemaVersion !== 1
+      ? new Set<number>()
+      : extractWideChannels(site).consumed;
+  return extractRivers(site, consumed);
+}
+
 export function siteToGeography(site: BurgSiteDescriptor, imported = false): CityGeography {
   assertRegionalCoverage(site);
   site = resolvePortFrontages(site);

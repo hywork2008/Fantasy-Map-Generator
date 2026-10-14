@@ -14,9 +14,7 @@ import { decodeAndValidateWorldArchive } from "../../../runtime/worldArchive";
 import { type BurgSiteDescriptor, getBurgSiteDescriptor } from "../../../services/burgSiteDescriptor";
 import { buildBlockFabric } from "../../generators/blockInfill";
 import type { BuildingLot } from "../../generators/buildingLots";
-import { createGridDocument, descriptorFrameGridOptions, seaPortShoreDistanceMeters } from "../../generators/document";
 import { generateCityOnDocument } from "../../generators/generation/generateCity";
-import { defaultGenerationSettings } from "../../generators/generation/settings";
 import { polygonArea } from "../../generators/geom";
 import { FabricCache } from "../../generators/localInfill";
 import { facePoints } from "../../generators/mesh";
@@ -24,8 +22,10 @@ import { DEFAULT_PATCH_PARAMS } from "../../generators/patches";
 import type { HousingFitStats } from "../../types/contracts/fitImportedHousing";
 import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
 import type { CityDocument, DistrictParameters } from "../../types/document";
-import type { GenerationSettings } from "../../types/generation";
 import { type CityEditorShare, parseIncomingPayload } from "../io/incomingCity";
+import { cityEditorDocument, cityEditorSettings } from "../io/shareRequest";
+
+export { cityEditorDocument, cityEditorSettings };
 
 export interface HousingReportInput {
   population: number;
@@ -198,37 +198,6 @@ export interface HousingReport {
   schemaVersion: 1;
   archive: string;
   rows: HousingComparison[];
-}
-
-/** Settings object City Editor builds in `applyShare` before generating. */
-export function cityEditorSettings(share: CityEditorShare): GenerationSettings {
-  return {
-    ...defaultGenerationSettings(),
-    buildingPattern: "legacy",
-    ...structuredClone(share.settings),
-    descriptor: share.descriptor
-  };
-}
-
-/** Grid document City Editor builds from an incoming share, including a fitted hamlet window. */
-export function cityEditorDocument(share: CityEditorShare): CityDocument {
-  return createGridDocument({
-    size: share.size,
-    grid: share.grid,
-    seed: share.gridSeed ?? share.seed,
-    hexSizeMeters: share.hexSizeMeters,
-    patchParams: share.patchParams,
-    ...(share.descriptor
-      ? descriptorFrameGridOptions(
-          share.descriptor.frame,
-          share.descriptor.burg.waterAccess?.port.river === true,
-          share.descriptor.burg.riverPlacement?.bankDistanceMeters,
-          seaPortShoreDistanceMeters(share.descriptor)
-        )
-      : {}),
-    measureBlockSize: share.measureBlockSize === true,
-    biome: share.descriptor?.biome
-  });
 }
 
 function isHouse(lot: BuildingLot): boolean {
