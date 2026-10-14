@@ -102,10 +102,10 @@ export function indexMeshEdges(mesh: Mesh) {
   for (const edge of Object.values(mesh.edges)) {
     const key = edgeKey(edge.a, edge.b);
     if (!byEnds.has(key)) byEnds.set(key, edge);
-    for (const id of new Set([edge.a, edge.b])) {
-      const edges = byVertex.get(id) ?? [];
-      edges.push(edge);
-      byVertex.set(id, edges);
+    for (const id of edge.a === edge.b ? [edge.a] : [edge.a, edge.b]) {
+      const edges = byVertex.get(id);
+      if (edges) edges.push(edge);
+      else byVertex.set(id, [edge]);
     }
   }
   return {
@@ -670,6 +670,15 @@ export function insertEdgeVertex(
 export function validate(document: CityDocument): string[] {
   const errors: string[] = [];
   const { mesh } = document;
+  // One endpoint index per call: a river check per step must not scan every edge.
+  let ends: Map<string, Edge> | undefined;
+  const hasEdge = (a: Id, b: Id): boolean => {
+    if (!ends) {
+      ends = new Map();
+      for (const edge of Object.values(mesh.edges)) ends.set(edgeKey(edge.a, edge.b), edge);
+    }
+    return ends.has(edgeKey(a, b));
+  };
   for (const edge of Object.values(mesh.edges)) {
     if (!mesh.vertices[edge.a] || !mesh.vertices[edge.b]) errors.push(`Missing endpoint on ${edge.id}`);
     else if (distance(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point) < 1)
@@ -685,8 +694,7 @@ export function validate(document: CityDocument): string[] {
     if (group.kind === "river") {
       if (group.vertices.length >= 2) {
         for (let i = 1; i < group.vertices.length; i++)
-          if (!edgeBetween(mesh, group.vertices[i - 1], group.vertices[i]))
-            errors.push(`River ${group.name} leaves mesh`);
+          if (!hasEdge(group.vertices[i - 1], group.vertices[i])) errors.push(`River ${group.name} leaves mesh`);
       }
       if (group.mouth?.kind === "water" && !vertexTouchesWater(mesh, group.mouth.vertexId))
         errors.push(`River ${group.name} mouth is not on water`);

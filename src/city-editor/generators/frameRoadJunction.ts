@@ -20,6 +20,20 @@ import {
   splitFace
 } from "./mesh";
 import { explainGeneratedCrossingFailures, onFixedCrossingApproach } from "./passages";
+
+/** Crossing-failure count per document. A trial compares its moved copy against the working
+ * document, which stays the same object until a trial is accepted, so count that one once.
+ * Documents are never mutated in place here (`moveVertices` returns a clone). */
+const failureCounts = new WeakMap<CityDocument, number>();
+function crossingFailureCount(document: CityDocument): number {
+  let count = failureCounts.get(document);
+  if (count === undefined) {
+    count = explainGeneratedCrossingFailures(document).length;
+    failureCounts.set(document, count);
+  }
+  return count;
+}
+
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { lineHitsDocumentWater } from "./waterGeometry";
 
@@ -628,8 +642,7 @@ export function straightenThroughStreets(document: CityDocument, descriptor?: Bu
             const kept = junctions(moved);
             if (kept.some((bend, k) => bend > held[k] + 0.5)) continue;
             // Nor at the cost of a bridge: its arms must stay square to the river.
-            if (explainGeneratedCrossingFailures(moved).length > explainGeneratedCrossingFailures(work).length)
-              continue;
+            if (crossingFailureCount(moved) > crossingFailureCount(work)) continue;
             held = kept;
             work = moved;
             changed = true;
@@ -710,7 +723,7 @@ export function straightenBridgeGateLinks(document: CityDocument, descriptor?: B
           // A dry road stays dry.
           if (!lineHitsDocumentWater(work, start, width, true) && lineHitsDocumentWater(moved, after, width, true))
             continue;
-          if (explainGeneratedCrossingFailures(moved).length > explainGeneratedCrossingFailures(work).length) continue;
+          if (crossingFailureCount(moved) > crossingFailureCount(work)) continue;
           held = kept;
           work = moved;
           break;

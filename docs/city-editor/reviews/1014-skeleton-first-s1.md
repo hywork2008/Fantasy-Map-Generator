@@ -139,11 +139,17 @@ FMG の固定道路が FMG の固定橋でその川を渡る場合は、道路�
 
 ### 5.1 CE 全体テストの結果
 
-全体実行（並列4）では10件が失敗した。内訳と確認結果は次のとおり。
+最初の全体実行（`npx vitest run city-editor --maxWorkers=4`）では10件が失敗した。すべて `Test timed out in 120000ms`（`CityEditorPage.generate` 4件、`blockInfill`、`plausibility`、`prestadRegionalSea`、`rarerlandRiverPorts`、`rectifyHexBlocks`、`riverEndpoints` 各1件程度）で、アサーションの失敗ではない。この実行の間、別の作業（lint、集計など）を並行して動かしていた。
 
-- `blockInfill`、`plausibility`、`prestadRegionalSea`、`rarerlandRiverPorts`、`rectifyHexBlocks` の各ファイルの失敗は、1ファイルずつ単独で実行すると全件成功した（`blockInfill` 9件、`plausibility` 14件、`prestadRegionalSea` 4件、`rarerlandRiverPorts` 3件、`rectifyHexBlocks` 4件、`riverEndpoints` 8件）。全体実行では負荷によるタイムアウトと見られる。S0 の記録（Phase 7）にも、並列実行でのみ timeout する既存の試験が記録されている。
-- `CityEditorPage.generate.test.ts` は単独で実行しても失敗した（6件以上がタイムアウト）。変更を退避した状態（`siteInput.ts`・`housingReport.ts`・`generation.ts` を戻し、`shareRequest.ts` を外した状態）で `toggles grid lines visibility` 1件を実行したが、540秒以内に結果が出なかった。**この試験が今回の変更以前から遅いのか、今回の変更で遅くなったのかは確認できていない。** 骨格先行は生成に接続していないため、今回の変更が生成結果を変える経路は無い。変更したのは `housingReport.ts` の関数の移動（再export付き）と、追加の任意項目だけである。
-- 未解決: 上の試験の失敗原因の切り分け。次のどちらかで行う。(1) 変更前のコミットを別の作業ツリーで同じ試験を実行する。(2) 並列数を1にして全体を再実行する。
+原因の切り分け:
+
+- `CityEditorPage.generate.test.ts` を単独で実行すると、40件すべて成功した（247秒）。失敗した1件（`toggles grid lines visibility`）は単独で11秒で成功した。
+- ほかの5ファイルも単独実行ではすべて成功した。
+- ほかの作業を止めて全体を再実行すると、**186ファイル中178成功・8スキップ、1,416件中1,397成功・19スキップ、失敗0**（345秒）だった。
+
+したがって失敗は、並列実行が重なったことによる120秒のタイムアウトで、今回の変更が原因ではない。生成の試験は1件あたりの時間が長く、並行する他の処理が加わると余裕が小さくなる。
+
+訂正: この記録の初版は、`CityEditorPage.generate` が単独でも失敗する、変更を退避した状態では540秒以内に結果が出なかった、と書いていた。後者は、macOS に `timeout` コマンドが無く、試験が実行されていなかっただけである。前者も、単独の実行で失敗を再現できなかった。どちらも誤りなので取り消した。
 
 ## 6. 再現手順
 
