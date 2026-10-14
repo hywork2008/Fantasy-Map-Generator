@@ -541,7 +541,8 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(count(".ce-infill-lane")).toBeGreaterThan(100);
     expect(count(".ce-feature--road")).toBeLessThan(30);
     expect(count(".ce-face")).toBeLessThan(170);
-    expect(root.querySelector(".ce-generate-housing-summary")?.textContent).toContain("外縁部");
+    // A double-walled town reports its housing as old town / between walls / outside.
+    expect(root.querySelector(".ce-generate-housing-summary")?.textContent).toMatch(/外縁部|市壁間/);
     const finished = root.querySelector("svg.ce-svg")!.innerHTML;
     panelButton("都市を一括生成").click();
     expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);

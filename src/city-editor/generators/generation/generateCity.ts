@@ -134,12 +134,17 @@ export function generateCityOnDocument(
   // same requested settings, always starting from the untouched input rather
   // than accumulating failed merges.
   const failures: GenerationSample[] = [];
+  let oldTownBuilt = false;
   const observe: GenerationObserver = sample => {
     if (sample.failure) failures.push(sample);
+    if (sample.phase === "inner-wall" && sample.counts?.ok === 1) oldTownBuilt = true;
     observer?.(sample);
   };
   // Debug previews stop at the first rejection, keeping the requested seed.
   let attemptSettings = settings;
+  // A double-walled town whose old-town wall repeatedly cannot be completed
+  // (gates the streets cannot reach, a pinched castle) keeps its outer wall.
+  let singleWallFallback: string | undefined;
   // Imported rivers drawn only as surveyed water (fixed banks or wide channels) keep FMG's flow
   // direction. It must be on the document while the fabric is built: ferry landings, mills and
   // yards read it, and a ferry plan made without it would be cached as "no flow".
@@ -177,6 +182,12 @@ export function generateCityOnDocument(
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;
       result.generationSeed = attemptSeed;
+      if (singleWallFallback)
+        result.townWallGeneration = {
+          requestedOrder: settings.townWallBuildOrder ?? "outer-first",
+          actualOrder: "single",
+          fallbackReason: singleWallFallback
+        };
       if (result.fabric) {
         const input: CityDocument = measureProcessing(profiler, "recipe-input-clone", () =>
           clone(
@@ -200,7 +211,7 @@ export function generateCityOnDocument(
               ? { generationMethod: "skeleton-first" as const, wallShape: attemptSettings.wallShape ?? "auto" }
               : {}),
             walledAreaShare:
-              settings.townWallRings === "double"
+              attemptSettings.townWallRings === "double"
                 ? innerWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
                 : resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
           },
@@ -300,6 +311,12 @@ export function generateCityOnDocument(
         castleStreetLinks: true,
         ...(reasons.some(reason => reason !== "unconnected-gates") || attempt >= 1 ? { castleOutward: true } : {})
       };
+    // Only when an old-town wall was actually built: a town with no room for
+    // one is already single-walled by its plan.
+    if (settings.townWallRings === "double" && attempt >= 1 && reasons.length && oldTownBuilt) {
+      singleWallFallback = reasons.at(-1);
+      attemptSettings = { ...attemptSettings, townWallRings: "single", walledAreaShare: 1 };
+    }
   }
   observe({
     phase: "complete",
