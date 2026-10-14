@@ -198,8 +198,21 @@ function fitMorphologyHousing(
         district.parameters.suburb = true;
       } else delete district.parameters.suburb;
     }
-  const count = () =>
-    measureHousingCapacity(document, buildBlockFabric(document, new FabricCache(), profiler).buildings, dwellings);
+  // The fit only changes district occupancy, suburb flags and storeys, so a count
+  // repeats exactly when none changed (a multiplier that stays at 1). Each count also
+  // shares one content-keyed cache: districts whose parameters did not change keep their fabric.
+  const cache = new FabricCache(512);
+  const counted = new Map<string, ReturnType<typeof measureHousingCapacity>>();
+  const count = () => {
+    const key = `${plan.insideStoreys}|${(document.fabric?.districts ?? [])
+      .map(d => `${d.parameters.occupancy}${d.parameters.suburb ? "s" : ""}`)
+      .join(",")}`;
+    const known = counted.get(key);
+    if (known) return structuredClone(known);
+    const report = measureHousingCapacity(document, buildBlockFabric(document, cache, profiler).buildings, dwellings);
+    counted.set(key, structuredClone(report));
+    return report;
+  };
   let report = count();
   const stats: HousingFitStats = {
     dwellings,

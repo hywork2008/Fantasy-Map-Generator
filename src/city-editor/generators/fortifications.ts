@@ -104,11 +104,42 @@ export function castleWallIds(document: CityDocument): Set<Id> {
 }
 
 export function polygonOverlaps(a: Point[], b: Point[]): boolean {
-  return (
-    a.some(p => pointInPolygon(p, b)) ||
-    b.some(p => pointInPolygon(p, a)) ||
-    a.some((p, i) => b.some((q, j) => !!segmentSegmentHit(p, a[(i + 1) % a.length], q, b[(j + 1) % b.length])))
-  );
+  // Large polygons (water, regional areas) meet small ones all the time: only
+  // the part inside the other's bounding box can matter, so skip the rest.
+  const [aMinX, aMinY, aMaxX, aMaxY] = polygonBox(a);
+  const [bMinX, bMinY, bMaxX, bMaxY] = polygonBox(b);
+  if (aMaxX < bMinX || bMaxX < aMinX || aMaxY < bMinY || bMaxY < aMinY) return false;
+  const inBox = (p: Point, minX: number, minY: number, maxX: number, maxY: number) =>
+    p[0] >= minX && p[0] <= maxX && p[1] >= minY && p[1] <= maxY;
+  if (a.some(p => inBox(p, bMinX, bMinY, bMaxX, bMaxY) && pointInPolygon(p, b))) return true;
+  if (b.some(p => inBox(p, aMinX, aMinY, aMaxX, aMaxY) && pointInPolygon(p, a))) return true;
+  for (let j = 0; j < b.length; j++) {
+    const q = b[j];
+    const r = b[(j + 1) % b.length];
+    if (
+      Math.max(q[0], r[0]) < aMinX ||
+      Math.min(q[0], r[0]) > aMaxX ||
+      Math.max(q[1], r[1]) < aMinY ||
+      Math.min(q[1], r[1]) > aMaxY
+    )
+      continue;
+    for (let i = 0; i < a.length; i++) if (segmentSegmentHit(a[i], a[(i + 1) % a.length], q, r)) return true;
+  }
+  return false;
+}
+
+function polygonBox(poly: Point[]): [number, number, number, number] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of poly) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return [minX, minY, maxX, maxY];
 }
 
 export function insideRing(p: Point, ring: Point[]): boolean {

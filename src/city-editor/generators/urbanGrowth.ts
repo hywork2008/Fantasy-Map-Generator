@@ -15,7 +15,7 @@ import { aerialLandmarkFootprints } from "./aerialFootprints";
 import type { DistrictFabric } from "./blockInfill";
 import type { BuildingLot } from "./buildingLots";
 import { buildingHitsCivicLandmark } from "./civicClearance";
-import { curtainSegments, gapToLines, glacisOutworks, polygonClearsGlacis } from "./defenseClearance";
+import { curtainSegments, gapBelow, glacisOutworks, polygonClearsGlacis } from "./defenseClearance";
 import { featureGroupVertices } from "./features";
 import { FixedRoadReservation } from "./fixedRoadReservation";
 import { polygonOverlaps } from "./fortifications";
@@ -306,7 +306,7 @@ function regionForPolygon(document: CityDocument, polygon: Point[]): UrbanGrowth
   const plan = document.urbanGrowth;
   if (!plan) return undefined;
   if (plan.fairs?.some(f => polygonOverlaps(polygon, f.polygon))) return undefined;
-  if (plan.openWedges.some(w => gapToLines(polygon, [w.points]) < w.widthMeters / 2)) return undefined;
+  if (plan.openWedges.some(w => gapBelow(polygon, [w.points], w.widthMeters / 2))) return undefined;
   return plan.regions.find(region =>
     polygon.every(p => {
       const hit = polylineArc(p, region.points);
@@ -524,7 +524,7 @@ function buildGrowthRows(
             fixed.hitsPolygon(polygon) ||
             buildingHitsCivicLandmark(document, polygon) ||
             !polygonClearsGlacis(polygon, glacis) ||
-            gapToLines(polygon, allRoads) < 6 ||
+            gapBelow(polygon, allRoads, 6) ||
             obstacles.some((p, i) => boundsOverlap(box, obstacleBoxes[i]) && polygonOverlaps(polygon, p)) ||
             buildings.some((b, i) => boundsOverlap(box, buildingBoxes[i]) && polygonOverlaps(polygon, b.polygon))
           )
@@ -542,7 +542,7 @@ function buildGrowthRows(
             // A rear row is only possible if the cross-link really passes an unbuilt frontage.
             if (
               lineHitsDocumentWater(document, access, 3, false, water) ||
-              obstacles.some(p => access.slice(1).some((end, i) => gapToLines(p, [[access[i], end]]) < 2))
+              obstacles.some(p => access.slice(1).some((end, i) => gapBelow(p, [[access[i], end]], 2)))
             )
               continue;
             lanes.push({ faceId: face.id, points: access, widthMeters: 3 });
@@ -563,7 +563,7 @@ function buildGrowthRows(
   }
   // No building may occupy the lane that provides access to a rear row.
   return {
-    buildings: buildings.filter(b => lanes.every(l => gapToLines(b.polygon, [l.points]) >= l.widthMeters / 2 + 1.5)),
+    buildings: buildings.filter(b => lanes.every(l => !gapBelow(b.polygon, [l.points], l.widthMeters / 2 + 1.5))),
     lanes
   };
 }
