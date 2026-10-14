@@ -8,6 +8,7 @@
  *   node --import tsx scripts/city-editor/skeleton/skeletonLab.ts --out temp/s1/fmg.jsonl \
  *     --csv temp/s0/triviers-inputs.csv --burg 1,2,17
  *
+ *   --mesh                 also run K6 and compare face areas with evolution
  *   --out <file.jsonl>     required; refuses to overwrite. SVGs go to <out>.svg/
  *   --seeds 12             standalone seeds per case (same seeds as the S0 baseline)
  *   --cases a,b            standalone case subset
@@ -39,6 +40,7 @@ interface Job {
 function parseArgs(argv: string[]) {
   const options = {
     out: "",
+    mesh: false,
     seeds: 12,
     cases: undefined as Set<string> | undefined,
     csv: undefined as string | undefined,
@@ -53,7 +55,8 @@ function parseArgs(argv: string[]) {
       if (next === undefined) throw new Error(`Missing value for ${flag}`);
       return next;
     };
-    if (flag === "--out") options.out = value();
+    if (flag === "--mesh") options.mesh = true;
+    else if (flag === "--out") options.out = value();
     else if (flag === "--seeds") options.seeds = Number(value());
     else if (flag === "--cases") options.cases = new Set(value().split(","));
     else if (flag === "--csv") options.csv = value();
@@ -139,7 +142,7 @@ console.warn = () => {};
 
 const summary = new Map<string, { runs: number; failed: number; draws: number; ms: number; reasons: Record<string, number> }>();
 for (const job of jobs(options)) {
-  const run = runSkeletonLab(job.document, job.settings, job.seed);
+  const run = runSkeletonLab(job.document, job.settings, job.seed, options.mesh);
   const { skeleton, failures } = run.result;
   const row = {
     group: job.group,
@@ -159,6 +162,8 @@ for (const job of jobs(options)) {
     bridgeSkewLimit: run.inputs.bridgeSkewLimit,
     inputsMs: run.inputsMs,
     planMs: run.planMs,
+    ...(options.mesh ? { meshMs: run.meshMs, meshFailure: run.meshFailure, meshDiagnostics: run.mesh?.diagnostics,
+      coarseComparison: run.coarseComparison ? Object.fromEntries(Object.entries(run.coarseComparison).map(([key, areas]) => [key, { faces: areas.length, p10: areas[Math.floor(areas.length * .1)], median: areas[Math.floor(areas.length / 2)], p90: areas[Math.floor(areas.length * .9)] }])) : undefined } : {}),
     failures: failures.map(f => ({ attempt: f.attempt, reason: f.reason, shape: f.shape, details: f.details?.slice(0, 3) }))
   };
   appendFileSync(options.out, `${JSON.stringify(row)}\n`);
@@ -171,7 +176,7 @@ for (const job of jobs(options)) {
   summary.set(job.group, s);
   const draw =
     options.svg === "all" ||
-    (options.svg === "fail" && (job.first || !skeleton)) ||
+    (options.svg === "fail" && (job.first || !skeleton || !!run.meshFailure)) ||
     (options.svg === "first" && job.first);
   if (draw)
     writeFileSync(join(svgDir, `${job.label.replace(/[^\w.-]+/g, "_")}.svg`), skeletonSvg(run, job.label));

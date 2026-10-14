@@ -63,7 +63,7 @@ export function buildGrid(params: CityParams, geo: CityGeography, rng: Rng): Gri
  * size-varied convex cells with no lattice — a single Lloyd pass tidies slivers
  * without hexagonalising.
  */
-function scatterSites(params: CityParams, geo: CityGeography, rng: Rng): Point[] {
+export function scatterSites(params: CityParams, geo: CityGeography, rng: Rng): Point[] {
   const half = params.extentMeters / 2;
   const s0 = params.cellSizeMeters;
   const near0 = s0 * 0.5;
@@ -137,7 +137,7 @@ function scatterSites(params: CityParams, geo: CityGeography, rng: Rng): Point[]
 }
 
 /** Fixed sites just outside the window so every inner cell is bounded. */
-function guardRing(win: Rect, step: number): Point[] {
+export function guardRing(win: Rect, step: number): Point[] {
   const width = win.maxX - win.minX;
   const n = Math.max(2, Math.round(width / step));
   const cell = width / n;

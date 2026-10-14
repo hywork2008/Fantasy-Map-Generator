@@ -128,3 +128,16 @@ export interface SkeletonFailure {
   message: string;
   details?: string[];
 }
+
+export interface SkeletonMeshLine {
+  id: string;
+  kind: "wall" | "bank" | "water" | "road";
+  points: Point[];
+  closed: boolean;
+}
+export interface SkeletonMeshChain extends SkeletonMeshLine {
+  /** Ordered in the direction of points; closed chains return to their first vertex. */
+  edges: import("../../../types/document").EdgeRef[];
+  /** Separate connected runs when a clipped input leaves and re-enters the frame. */
+  runs: import("../../../types/document").EdgeRef[][];
+}

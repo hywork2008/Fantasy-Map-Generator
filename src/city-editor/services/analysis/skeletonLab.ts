@@ -1,9 +1,14 @@
 // Skeleton-first lab support: run K1–K5 for one request and draw the result for inspection.
 
 import { prepareRun } from "../../generators/generation/prepareRun";
+import { buildConformingMesh, type ConformingMeshResult } from "../../generators/generation/skeleton/conformingMesh";
 import type { SkeletonInputs } from "../../generators/generation/skeleton/contracts";
 import { buildSkeletonInputs } from "../../generators/generation/skeleton/inputs";
 import { planSkeleton, type SkeletonPlanResult } from "../../generators/generation/skeleton/pipeline";
+import { polygonArea } from "../../generators/geom";
+import { buildGrid } from "../../generators/grid";
+import { facePoints } from "../../generators/mesh";
+import { makeRng } from "../../generators/prng";
 import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import type { Point } from "../../types/geometry";
@@ -13,15 +18,47 @@ export interface SkeletonLabRun {
   result: SkeletonPlanResult;
   inputsMs: number;
   planMs: number;
+  mesh?: ConformingMeshResult;
+  meshMs?: number;
+  meshFailure?: string;
+  coarseComparison?: { conforming: number[]; evolution: number[] };
 }
 
-export function runSkeletonLab(document: CityDocument, settings: GenerationSettings, seed: string): SkeletonLabRun {
+export function runSkeletonLab(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  mesh = false
+): SkeletonLabRun {
   const started = performance.now();
   const { geo, program, params } = prepareRun(document, settings, seed);
   const inputs = buildSkeletonInputs({ geo, program, params, settings });
   const planned = performance.now();
   const result = planSkeleton(inputs, settings, seed);
-  return { inputs, result, inputsMs: planned - started, planMs: performance.now() - planned };
+  const run: SkeletonLabRun = { inputs, result, inputsMs: planned - started, planMs: performance.now() - planned };
+  if (mesh && result.skeleton) {
+    const meshStarted = performance.now();
+    try {
+      run.mesh = buildConformingMesh(inputs, result.skeleton, seed);
+    } catch (error) {
+      run.meshFailure = String(error);
+    }
+    run.meshMs = performance.now() - meshStarted;
+    if (run.mesh) {
+      const evolution = buildGrid(
+        { ...params, cellSizeMeters: inputs.cellSize * 0.896, lloydPasses: 1 },
+        geo,
+        makeRng(`${seed}:s2:comparison`)
+      ).at(-1)!;
+      run.coarseComparison = {
+        conforming: Object.values(run.mesh.mesh.faces)
+          .map(f => Math.abs(polygonArea(facePoints(run.mesh!.mesh, f))))
+          .sort((a, b) => a - b),
+        evolution: evolution.cells.map(c => Math.abs(polygonArea(c.polygon))).sort((a, b) => a - b)
+      };
+    }
+  }
+  return run;
 }
 
 const fmt = (p: Point) => `${p[0].toFixed(1)},${(-p[1]).toFixed(1)}`;
@@ -37,6 +74,13 @@ export function skeletonSvg(run: SkeletonLabRun, title: string): string {
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-h} ${-h} ${2 * h} ${2 * h}" width="720" height="720">`,
     `<rect x="${-h}" y="${-h}" width="${2 * h}" height="${2 * h}" fill="#f4efe4"/>`
   ];
+  if (run.mesh)
+    for (const edge of Object.values(run.mesh.mesh.edges)) {
+      const vertices = run.mesh.mesh.vertices;
+      parts.push(
+        `<path d="${line([vertices[edge.a].point, vertices[edge.b].point])}" fill="none" stroke="#b7afa0" stroke-width="0.5"/>`
+      );
+    }
   const skeleton = result.skeleton ?? result.rejected;
   if (skeleton)
     parts.push(`<path d="${ring(skeleton.core.urban)}" fill="#e6d7bd" stroke="#c8b48f" stroke-dasharray="6 4"/>`);
