@@ -13,6 +13,8 @@ export interface Plan {
   innerWall?: {
     planned: boolean;
     failure?: InnerWallFailure;
+    /** Measurement of an unsuccessful pre-plan (ce:perf); never read by generation. */
+    diagnostics?: import("../innerTownWall").InnerTownPlanDiagnostics;
     castleRing?: "inner" | "outer";
     /** Old-town share of the town and whether the wall is razed (set when planned). */
     share?: number;

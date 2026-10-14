@@ -109,18 +109,69 @@ export function planInnerTown(
   share: number,
   minGapCells: number,
   center: Point = [0, 0],
-  passable: Set<Id> = new Set()
+  passable: Set<Id> = new Set(),
+  diagnostics?: InnerTownPlanDiagnostics
 ): InnerTownPlan | null {
   const base = townFaces(mesh, urban, passable, center);
-  if (base.ordered.length < MIN_INNER_FACES * 3) return null;
+  if (diagnostics) Object.assign(diagnostics, { townFaces: base.ordered.length, trials: 0, bestGap: -1 });
+  if (base.ordered.length < MIN_INNER_FACES * 3) {
+    if (diagnostics) diagnostics.failure = "too-small";
+    return null;
+  }
   let target = base.landArea * share;
   for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
     const faces = selectRound(base.info, base.ordered, target, base.seed);
-    if (faces.size < MIN_INNER_FACES) return null;
+    if (faces.size < MIN_INNER_FACES) {
+      if (diagnostics) diagnostics.failure = "too-small";
+      return null;
+    }
     const gap = gapOf(mesh, base.outer, faces, passable);
+    if (diagnostics) {
+      diagnostics.trials = attempt + 1;
+      if (gap > (diagnostics.bestGap ?? -1)) {
+        diagnostics.bestGap = gap;
+        diagnostics.blocker = gapBlocker(mesh, base.outer, faces, passable);
+      }
+    }
     if (gap >= minGapCells) return { faces, gap };
   }
+  if (diagnostics) diagnostics.failure = "gap";
   return null;
+}
+
+/** Why `planInnerTown` found no old town: measurement only, no effect on generation. */
+export interface InnerTownPlanDiagnostics {
+  failure?: "too-small" | "gap";
+  townFaces?: number;
+  trials?: number;
+  /** Widest gap (face layers) any trial reached; -1 before the first trial. */
+  bestGap?: number;
+  /** What the shortest escape from the best trial reaches first. */
+  blocker?: GapBlocker;
+}
+
+/** Diagnostic code order: `blockerCode` = index + 1. */
+export const GAP_BLOCKERS = ["water", "outside-land", "mesh-edge"] as const;
+export type GapBlocker = (typeof GAP_BLOCKERS)[number];
+
+/** Same walk as `gapOf`, but reports the kind of face (or mesh edge) the nearest escape reaches. */
+function gapBlocker(mesh: Mesh, outer: Set<Id>, inner: Set<Id>, passable: Set<Id>): GapBlocker | undefined {
+  const seen = new Set<Id>(inner);
+  const queue: Id[] = [...inner];
+  for (let q = 0; q < queue.length; q++) {
+    const id = queue[q];
+    for (const ref of mesh.faces[id].boundary) {
+      const edge = mesh.edges[ref.edgeId];
+      const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+      if (other && passable.has(other)) continue;
+      if (!other || !mesh.faces[other]) return "mesh-edge";
+      if (!outer.has(other)) return mesh.faces[other].properties.water !== "land" ? "water" : "outside-land";
+      if (seen.has(other)) continue;
+      seen.add(other);
+      queue.push(other);
+    }
+  }
+  return undefined;
 }
 
 /** §5.1 capacity of an old town once `castle` faces are reserved in or beside it. */

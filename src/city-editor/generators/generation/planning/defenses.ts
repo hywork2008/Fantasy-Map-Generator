@@ -14,7 +14,7 @@ import type { CoastResult } from "../../classifySea";
 import { maxWallGatesForExtent } from "../../document";
 import { resolveWallMaterial } from "../../features";
 import { nearestOnPolyline, pointInPolygon } from "../../geom";
-import { innerTownCapacity, planInnerTown } from "../../innerTownWall";
+import { type InnerTownPlanDiagnostics, innerTownCapacity, planInnerTown } from "../../innerTownWall";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "../../interior";
 import { facePoints, faceVertices } from "../../mesh";
 import { bramCoreRadiusMeters, planPolygonalCirculadeLayout } from "../../polygonalCirculadeLayout";
@@ -179,13 +179,16 @@ export function planDefenses(input: PlanDefensesInput) {
     effectiveLayout !== "circulade" &&
     effectiveLayout !== "bram"
   ) {
+    const diagnostics: InnerTownPlanDiagnostics = {};
     const planned = planInnerTown(
       currentMesh,
       [...currentUrban].map(id => currentFaceIdOf[id]),
       innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
       settings.townWallBuildOrder === "inner-first" ? 0 : INNER_WALL_MIN_GAP_CELLS,
       // The final old town is centred on the plaza (`townCenter`); plan on the same centre.
-      precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0]
+      precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0],
+      undefined,
+      diagnostics
     );
     innerWall = planned
       ? {
@@ -195,7 +198,7 @@ export function planDefenses(input: PlanDefensesInput) {
           buildOrder: settings.townWallBuildOrder,
           defensePolicy: settings.townWallDefensePolicy
         }
-      : { planned: false, failure: "gap" };
+      : { planned: false, failure: diagnostics.failure ?? "gap", diagnostics };
     innerPlanFaces = planned?.faces ?? null;
   }
   if (program.citadel && !settings.legacyCastles && !preservedCastleIds.size) {

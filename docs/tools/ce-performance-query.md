@@ -24,6 +24,7 @@ npm run ce:perf:query -- <report.jsonl> <command> [arg] [options]
 | 6 | 規模に対して悪化する工程か | `scaling --self` |
 | 7 | 再試行で捨てた時間 | `retries` |
 | 8 | 修正前後の比較 | `compare <before> <after>` |
+| 9 | 市壁・城塞・門の失敗の診断 | `walls` |
 
 ### 1. overview — 方向を決める
 
@@ -118,6 +119,24 @@ npm run ce:perf:query -- before.jsonl compare after.jsonl --self
 両方に存在する都市IDだけを比べ、合計時間、工程別の差（差の絶対値順）、悪化・改善した都市を出す。
 **同じ入力CSV・同じマシン・同じ条件**で測った場合のみ意味がある（`.meta.json` の `inputHash` / `cpu` / `repeat` を確認）。
 1回測定のばらつきは数%あるので、小さな差は `--repeat 3` で測り直してから判断する。
+
+### 9. walls — 市壁・城塞・門の診断
+
+```sh
+npm run ce:perf:query -- <report> walls
+```
+
+- **二重市壁**: 要求された都市（`inner-wall` 工程がある都市）ごとに、内壁を実現したか、後退理由を出す。
+  - 後退理由は `too-small`（町の面が足りない）、`gap`（内外壁の間隔不足）など。
+  - `gap` の場合、最良の試行で取れた間隔（`bestGap`）と、間隔を詰めた相手（`water`=水面、`outside-land`=市外の陸、`mesh-edge`=メッシュ端）を出す。
+- **周回別の河川開口**: 外壁・内壁それぞれの河川開口m（`wall-defense-closure` 工程）。
+- **城塞の失敗**: 全試行の `castle-*` 理由の件数。
+- **門の失敗**（`unconnected-gates`）: 門から地図枠までの距離比（0=枠上、1=中心）、門の周囲の面の大きさ（中央値比）、門に接する道路の辺数。外縁の大セルが原因なら、距離比が小さく面比が大きくなる。
+
+2026-10-14 以前のレポートには `bestGap`・相手・周回別の値・門の診断値がない（「-」と表示）。
+
+内壁先と外壁先の比較は `ce:perf --setting townWallBuildOrder=...` で同じ入力を2回計測し、それぞれ `walls` を実行する。
+出力が同じかは `compare` ではなく JSONL の `fingerprint` で確認する。
 
 ## 共通オプション
 

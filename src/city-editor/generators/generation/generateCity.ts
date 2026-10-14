@@ -28,7 +28,7 @@ import {
 } from "../generationDiagnostics";
 import { isSimplePolygon, polygonArea } from "../geom";
 import { spawnHarborShips } from "../harborShips";
-import { INNER_WALL_FAILURES } from "../innerTownWall";
+import { GAP_BLOCKERS, INNER_WALL_FAILURES, type InnerTownPlanDiagnostics } from "../innerTownWall";
 import { FabricCache } from "../localInfill";
 import { shortcutMajorRoads } from "../majorRoadShortcuts";
 import { clone, facePoints, validate } from "../mesh";
@@ -600,7 +600,8 @@ export function generateCityAttempt(
     mark("inner-wall", {
       ok: 0,
       failureCode: INNER_WALL_FAILURES.indexOf(plan.innerWall.failure ?? "gap") + 1,
-      planned: 0
+      planned: 0,
+      ...innerPlanDiagnosticCounts(plan.innerWall.diagnostics)
     });
   next.appearance = "town";
   if (stopAfter === "innerGates") {
@@ -845,7 +846,8 @@ export function generateCityAttempt(
     rings: closureReports.length,
     unprotectedMeters: closureReports.reduce((n, r) => n + r.undefendedLengthMeters, 0),
     riverOpeningMeters: closureReports.reduce((n, r) => n + r.riverOpeningLengthMeters, 0),
-    invasionPaths: closureReports.reduce((n, r) => n + r.invasionPaths, 0)
+    invasionPaths: closureReports.reduce((n, r) => n + r.invasionPaths, 0),
+    ...ringClosureCounts(closureReports)
   });
   if (
     settings.townWallRings === "double" &&
@@ -869,4 +871,28 @@ export function generateCityAttempt(
       };
   }
   return withApproaches;
+}
+
+/** ce:perf counts for an unsuccessful old-town pre-plan (`blockerCode` = GAP_BLOCKERS index + 1). */
+function innerPlanDiagnosticCounts(d: InnerTownPlanDiagnostics | undefined): Record<string, number> {
+  if (!d) return {};
+  return {
+    townFaces: d.townFaces ?? 0,
+    trials: d.trials ?? 0,
+    bestGap: Number.isFinite(d.bestGap) ? (d.bestGap ?? -1) : 999,
+    blockerCode: d.blocker ? GAP_BLOCKERS.indexOf(d.blocker) + 1 : 0
+  };
+}
+
+/** Per-ring split of the closure audit; `townCircuits` orders the inner ring first, the outer last. */
+function ringClosureCounts(
+  reports: { undefendedLengthMeters: number; riverOpeningLengthMeters: number; invasionPaths: number }[]
+): Record<string, number> {
+  if (!reports.length) return {};
+  const ring = (prefix: string, r: (typeof reports)[number]) => ({
+    [`${prefix}UnprotectedMeters`]: r.undefendedLengthMeters,
+    [`${prefix}RiverOpeningMeters`]: r.riverOpeningLengthMeters,
+    [`${prefix}InvasionPaths`]: r.invasionPaths
+  });
+  return { ...ring("outer", reports.at(-1)!), ...(reports.length > 1 ? ring("inner", reports[0]) : {}) };
 }

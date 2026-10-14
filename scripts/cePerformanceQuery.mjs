@@ -13,6 +13,7 @@ const COMMANDS = {
   city: "1都市の工程ツリー: city <burgId|名前>",
   retries: "再試行・不採用の都市と、失敗試行で捨てた時間",
   scaling: "工程の時間が規模（dwellings等）に対してどう増えるか（超線形の工程を探す）",
+  walls: "市壁・城塞・門の診断: 二重市壁の実現/後退理由、周回別の河川開口、城塞・門の失敗",
   compare: "2つのレポートの工程別の差分: compare <before.jsonl> <after.jsonl>",
 };
 
@@ -346,6 +347,67 @@ const commands = {
         rows.map((x) => [x.stage, x.cities, f(x.sumMs / 1000, 1), f(x.exponent, 2), f(x.corr, 2)])) +
       `\n\n指数が約1=線形、1.5以上=超線形（規模が大きい都市で急に悪化）、0付近=規模に依らない固定費。` +
       `\n並び順は 指数 × log(合計時間) で、時間を食う超線形工程が上に来る。標本が5都市未満の工程は除外。`);
+  },
+
+  walls() {
+    // generateCity.ts / innerTownWall.ts の診断コード（index + 1）
+    const INNER_FAILURES = ["no-outer-wall", "too-small", "gap", "no-gate", "castle-crowds", "open-defense"];
+    const BLOCKERS = ["water", "outside-land", "mesh-edge"];
+    const finalPhase = (r, name) => {
+      const ps = (r.phases || []).filter((p) => p.phase === name);
+      return ps.filter((p) => p.attempt === r.attempts).at(-1) ?? ps.at(-1);
+    };
+    const doubles = records.filter((r) => (r.phases || []).some((p) => p.phase === "inner-wall"));
+    const rows = doubles.map((r) => {
+      const iw = finalPhase(r, "inner-wall")?.counts ?? {};
+      const wdc = finalPhase(r, "wall-defense-closure")?.counts ?? {};
+      const built = r.status === "generated" && iw.ok === 1 && (wdc.rings ?? 0) > 1;
+      return { burgId: r.burgId, name: r.name, status: r.status, attempts: r.attempts, dwellings: r.dwellings,
+        innerFirst: wdc.innerFirst ?? null, built,
+        failure: built ? null : r.status !== "generated" ? "rejected" : INNER_FAILURES[(iw.failureCode ?? 0) - 1] ?? (iw.ok === 1 ? "lost-later" : "unknown"),
+        planned: iw.planned ?? null, bestGap: iw.bestGap ?? null, blocker: BLOCKERS[(iw.blockerCode ?? 0) - 1] ?? null,
+        innerFaces: iw.faces ?? null, gapCells: iw.gapCells ?? null,
+        outerRiverOpeningMeters: wdc.outerRiverOpeningMeters ?? null, innerRiverOpeningMeters: wdc.innerRiverOpeningMeters ?? null,
+        riverOpeningMeters: wdc.riverOpeningMeters ?? null, invasionPaths: wdc.invasionPaths ?? null, unprotectedMeters: wdc.unprotectedMeters ?? null,
+        generationMs: gen(r) };
+    });
+    const count = (xs, key) => xs.reduce((m, x) => ((m[x[key] ?? "-"] = (m[x[key] ?? "-"] || 0) + 1), m), {});
+    const built = rows.filter((x) => x.built);
+    const opened = (x, k) => (x[k] ?? 0) > 0.5;
+    // 城塞・門の失敗（全都市、全試行）
+    const castle = {}, gateRows = [];
+    for (const r of records)
+      for (const p of r.phases || []) {
+        if (!p.failure) continue;
+        if (/^castle/.test(p.failure.reason)) castle[p.failure.reason] = (castle[p.failure.reason] || 0) + 1;
+        if (p.failure.reason === "unconnected-gates" && p.counts?.gateFrameRatio !== undefined)
+          gateRows.push({ burgId: r.burgId, name: r.name, attempt: p.attempt, ...p.counts });
+      }
+    const data = { doubleRequested: rows.length, built: built.length, failures: count(rows.filter((x) => !x.built), "failure"),
+      blockers: count(rows.filter((x) => x.failure === "gap"), "blocker"),
+      builtWithRiverOpening: { outer: built.filter((x) => opened(x, "outerRiverOpeningMeters")).length, inner: built.filter((x) => opened(x, "innerRiverOpeningMeters")).length },
+      castleFailures: castle, unconnectedGates: gateRows, rows };
+    const md = [
+      `二重市壁の要求 ${rows.length} 都市 / 実現 ${built.length}（${pc(built.length / Math.max(1, rows.length))}）。順序: ${JSON.stringify(count(rows, "innerFirst"))}（1=内壁先, 0=外壁先）`,
+      `後退理由: ${JSON.stringify(data.failures)} / gap の相手: ${JSON.stringify(data.blockers)}（water=水面, outside-land=市外の陸, mesh-edge=メッシュ端）`,
+      `実現した二重市壁で河川開口あり: 外壁 ${data.builtWithRiverOpening.outer} / 内壁 ${data.builtWithRiverOpening.inner}`,
+      "",
+      table(["burg", "status", "試行", "住宅", "内壁", "後退理由", "bestGap", "相手", "外壁 川開口m", "内壁 川開口m", "侵入路", "gen ms"],
+        rows.sort((a, b) => Number(a.built) - Number(b.built) || b.generationMs - a.generationMs).slice(0, Math.max(flags.top, rows.length))
+          .map((x) => [`${x.burgId} ${x.name}`, x.status, x.attempts, x.dwellings, x.built ? "あり" : "なし", x.failure ?? "-", x.bestGap ?? "-", x.blocker ?? "-",
+            f(x.outerRiverOpeningMeters), f(x.innerRiverOpeningMeters), x.invasionPaths ?? "-", ms(x.generationMs)])),
+      "",
+      `### 城塞の失敗（全試行の件数）\n${JSON.stringify(castle)}`,
+      "",
+      "### 門が道路に接続できない失敗（unconnected-gates）",
+      gateRows.length
+        ? table(["burg", "試行", "門", "未接続", "枠までの距離比", "周囲の面/中央値", "門の道路辺"],
+            gateRows.map((x) => [`${x.burgId} ${x.name}`, x.attempt, x.gates, x.disconnected, f(x.gateFrameRatio, 2), f(x.gateFaceAreaRatio, 2), x.gateRoadEdges]))
+        : "なし（または診断値のない古いレポート）",
+      "",
+      "枠までの距離比: 0=地図枠上、1=中心。周囲の面/中央値が大きいほど外縁の大セルに門がある。",
+    ].join("\n");
+    emit("walls", data, md);
   },
 
   async compare() {

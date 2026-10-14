@@ -22,7 +22,8 @@ process.on("message", async request => {
           burgId => process.send({ type: "export-progress", burgId }))
       : await measureCityPerformance(request.row, request.render, sample => process.send({ type: "progress",
           sample: { phase: sample.phase, elapsedMs: sample.elapsedMs, attempt: sample.attempt,
-            ...(sample.failure ? { failure: { reason: sample.failure.reason, message: sample.failure.message, details: sample.failure.details } } : {}) } }));
+            ...(sample.failure ? { failure: { reason: sample.failure.reason, message: sample.failure.message, details: sample.failure.details } } : {}) } }),
+          request.overrides ?? {});
     process.send({ type: "result", result });
   } catch (error) {
     process.send({ type: "fatal", error: error?.stack ?? String(error) });

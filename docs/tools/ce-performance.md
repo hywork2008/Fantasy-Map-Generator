@@ -20,6 +20,25 @@ npm run ce:perf -- "temp/world.fmg" temp/ce-first-five.jsonl --limit 5
 
 ID 0・削除済み都市を除き、重複指定は除く。不明なID・名前はコマンドを失敗させる。FMGの都市ごとのdescriptor作成に失敗した場合は、その都市のエラーを保存して他都市を続ける。都市の位置、川、道路や橋の入力を変更して成功扱いにする処理は行わない。
 
+## 生成設定を上書きして比較する
+
+同じ入力一覧で、生成設定だけを変えた計測を行う。上書き内容は `.meta.json` の `settingOverrides` に保存する。
+
+```sh
+npm run ce:perf -- temp/ce-inputs.csv temp/outer.jsonl --burg 1,2 --setting townWallBuildOrder=outer-first
+npm run ce:perf -- temp/ce-inputs.csv temp/inner.jsonl --burg 1,2 --setting townWallBuildOrder=inner-first
+```
+
+| 設定 | 値 |
+| --- | --- |
+| townWallBuildOrder | outer-first / inner-first（二重市壁の作成順。FMG入力の既定は未指定＝外壁先） |
+| townWallRings | single / double |
+| townWallDefensePolicy | legacy / closed |
+| innerWallState | standing / razed |
+| generationMethod | mesh-first / skeleton-first |
+
+`--setting` は複数指定できる。`--list` とは併用できない。
+
 ## 都市一覧を保存してから計測する
 
 ```sh
@@ -118,6 +137,7 @@ JSONLの `size` は入力で選択された地図サイズ、`population` は人
 | bootstrapMs | Worker内のjsdom・Vite実行環境・生成モジュールの初期化 |
 | taskWallMs / processMs | 親側で見た要求送信以降／プロセス起動以降の経過時間 |
 | phases | 既存CEタイマーの工程別時間・attempt・件数・不採用理由。描画工程はrender.接頭辞 |
+| fingerprint | 生成結果のSHA-256（先頭16桁）。`document` 全体と `mesh`・`features`・`defenses`・`fabric` の部分別。高速化で出力が変わらないことの確認に使う。不採用時はnull |
 
 FMG側の時間は入力一覧の作成時に一度だけ測る。各反復の `fmgTimings` / `exportTimings` はその値の参照であり、反復ごとに再取得した時間ではない。CSVから実行すると、これらは以前の出力時の時間または `null`。FMG全体の読込は `.meta.json` の `archiveReadMs` に保存し、都市ごとの時間に加算しない。
 

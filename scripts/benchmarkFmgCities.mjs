@@ -7,8 +7,16 @@ import { dirname, extname, join, resolve } from "node:path";
 import { readCsv, writeCsv } from "../src/city-editor/services/analysis/batchCsv.ts";
 
 const root = resolve(import.meta.dirname, "..");
-const usage = "Usage: npm run ce:perf -- <map.fmg|inputs.csv> <report.jsonl> [--burg 1,2] [--name exact-name] [--limit N] [--repeat 3] [--render] [--details] [--timeout-ms 120000]\n       npm run ce:perf -- <map.fmg> <inputs.csv> --list [--burg 1,2] [--name exact-name]";
+const usage = "Usage: npm run ce:perf -- <map.fmg|inputs.csv> <report.jsonl> [--burg 1,2] [--name exact-name] [--limit N] [--repeat 3] [--render] [--details] [--timeout-ms 120000] [--setting townWallBuildOrder=inner-first]\n       npm run ce:perf -- <map.fmg> <inputs.csv> --list [--burg 1,2] [--name exact-name]";
 const args = process.argv.slice(2);
+/** Generation settings that `--setting` may override for A/B runs on the same input list. */
+const SETTING_OVERRIDES = {
+  townWallBuildOrder: ["outer-first", "inner-first"],
+  townWallRings: ["single", "double"],
+  townWallDefensePolicy: ["legacy", "closed"],
+  innerWallState: ["standing", "razed"],
+  generationMethod: ["mesh-first", "skeleton-first"]
+};
 if (args.includes("--help")) { console.log(usage); process.exit(0); }
 let currentChild, interruptCurrent;
 let stopping = false;
@@ -135,6 +143,7 @@ async function main() {
   const inputArg = args.shift(), outputArg = args.shift();
   let list = false, render = false, details = false, repeat = 1, limit, timeoutMs = 120000, prepareTimeoutMs = 600000;
   const tokens = [];
+  const overrides = {};
   const value = flag => { const val = args.shift(); if (!val || val.startsWith("--")) throw new Error(`Missing value for ${flag}`); return val; };
   while (args.length) {
     const flag = args.shift();
@@ -150,6 +159,12 @@ async function main() {
     else if (flag === "--repeat") repeat = Number(value(flag));
     else if (flag === "--timeout-ms") timeoutMs = Number(value(flag));
     else if (flag === "--prepare-timeout-ms") prepareTimeoutMs = Number(value(flag));
+    else if (flag === "--setting") {
+      const [key, val] = value(flag).split("=");
+      if (!SETTING_OVERRIDES[key]?.includes(val))
+        throw new Error(`--setting supports: ${Object.entries(SETTING_OVERRIDES).map(([k, v]) => `${k}=${v.join("|")}`).join(", ")}`);
+      overrides[key] = val;
+    }
     else throw new Error(`Unknown option: ${flag}`);
   }
   if (!inputArg || !outputArg) throw new Error(usage);
@@ -158,7 +173,8 @@ async function main() {
   const input = resolve(inputArg), output = resolve(outputArg);
   const format = extname(input).toLowerCase();
   if (![".fmg", ".csv"].includes(format)) throw new Error("Input must be .fmg or housing/CE input .csv");
-  if (list && (format !== ".fmg" || render || repeat !== 1)) throw new Error("--list requires .fmg and cannot use --render or --repeat");
+  if (list && (format !== ".fmg" || render || repeat !== 1 || Object.keys(overrides).length))
+    throw new Error("--list requires .fmg and cannot use --render, --repeat or --setting");
   const paths = [output, `${output}.meta.json`, ...(!list ? [`${output}.summary.json`, ...(format === ".fmg" ? [`${output}.inputs.csv`] : [])] : [])];
   for (const path of paths) {
     if (path === input) throw new Error("Output must differ from input");
@@ -167,7 +183,7 @@ async function main() {
   const metadata = { schemaVersion: 1, createdAt: new Date().toISOString(), input, inputHash: hashFile(input),
     codeHash: codeHash(), node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0]?.model,
     mode: list ? "list" : "measure", repeat, render, details, tokens, limit: limit ?? null, timeoutMs, prepareTimeoutMs,
-    execution: "sequential-fresh-process-per-run", archiveReadMs: null, inputListHash: null };
+    settingOverrides: overrides, execution: "sequential-fresh-process-per-run", archiveReadMs: null, inputListHash: null };
   let rows;
   if (format === ".fmg") {
     const prepared = await worker({ mode: "prepare", input, tokens, limit }, prepareTimeoutMs);
@@ -205,7 +221,7 @@ async function main() {
   const results = [];
   for (const row of rows) {
     for (let run = 1; run <= repeat && !stopping; run++) {
-      const measured = await worker({ mode: "measure", row, render }, timeoutMs);
+      const measured = await worker({ mode: "measure", row, render, overrides }, timeoutMs);
       const fmgTimings = Object.fromEntries(Object.entries(row).filter(([key, val]) => key.startsWith("fmg_") && key.endsWith("_ms") && val !== "" && Number.isFinite(Number(val))).map(([key, val]) => [key, Number(val)]));
       const exportTimings = Object.fromEntries(Object.entries(row).filter(([key, val]) => key.startsWith("export_") && key.endsWith("_ms") && val !== "" && Number.isFinite(Number(val))).map(([key, val]) => [key, Number(val)]));
       const result = { schemaVersion: 1, ...measured, generationBreakdown: measured.generationBreakdown ?? null, burgId: Number(row.burg_id), name: row.name, run,
