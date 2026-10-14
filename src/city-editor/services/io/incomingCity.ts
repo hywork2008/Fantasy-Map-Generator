@@ -402,6 +402,20 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     : structuredClone(DEFAULT_SITE_CONFIG);
   if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
   const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (raw.generationMethod !== undefined) {
+    if (!["mesh-first", "skeleton-first"].includes(String(raw.generationMethod))) return null;
+    settings.generationMethod = raw.generationMethod as GenerationSettings["generationMethod"];
+  }
+  if (raw.wallShape !== undefined) {
+    if (!["auto", "organic", "round", "oval", "square", "polygon", "bastioned"].includes(String(raw.wallShape)))
+      return null;
+    settings.wallShape = raw.wallShape as GenerationSettings["wallShape"];
+  }
+  if (raw.wallSides !== undefined) {
+    if (!isFiniteNumber(raw.wallSides) || !Number.isInteger(raw.wallSides) || raw.wallSides < 3 || raw.wallSides > 12)
+      return null;
+    settings.wallSides = raw.wallSides;
+  }
   if (raw.moats !== undefined) {
     if (!isRecord(raw.moats)) return null;
     const { town, castle } = raw.moats;

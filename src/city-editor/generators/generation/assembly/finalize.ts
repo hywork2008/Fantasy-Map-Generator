@@ -5,7 +5,8 @@ import type { Cell, CityProgram } from "../../../types/geometry";
 import { finalizeCastles } from "../../castles";
 import { syncDocumentCemeteries } from "../../cemeteryLayout";
 import { reservedCastleFaces, townCircuits, townGates } from "../../fortifications";
-import { validate } from "../../mesh";
+import { polygonArea } from "../../geom";
+import { facePoints, validate } from "../../mesh";
 import { kindEdgeIds, throughEdgesAt, vertexHasCrossing, vertexHasKindPassage } from "../../passages";
 import { installRegionalRoadGates } from "../../regionalRoadGates";
 import { GEN_PREFIX } from "../constants";
@@ -55,7 +56,7 @@ export function finalizeAssembly(input: FinalizeAssemblyInput) {
         "gate-routing",
         "unconnected-gates",
         editorText("cityEditor.messages.cannotSecureRoadConnectionsForGates", { value0: disconnected.length }),
-        { gates: townGates(next).length, disconnected: disconnected.length },
+        { gates: townGates(next).length, disconnected: disconnected.length, ...gateSiteCounts(next, disconnected) },
         disconnected.flatMap(gate => [
           `${gate.id}: ${gate.vertexId}`,
           editorText("cityEditor.messages.gateWallPassageWallRoadCrossing", {
@@ -246,3 +247,37 @@ export function finalizeAssembly(input: FinalizeAssemblyInput) {
 }
 
 export type FinalizeAssemblyResult = ReturnType<typeof finalizeAssembly>;
+
+/**
+ * ce:perf measurement of where unconnected gates stand (no effect on generation):
+ * `gateFrameRatio` = nearest gate's distance to the display frame / half extent (0 = on the frame),
+ * `gateFaceAreaRatio` = largest face touching a gate / median land-face area,
+ * `gateRoadEdges` = fewest road edges meeting a gate.
+ */
+function gateSiteCounts(document: CityDocument, gates: { vertexId: Id }[]): Record<string, number> {
+  const mesh = document.mesh;
+  const half = document.frame.extentMeters / 2;
+  const area = (id: Id) => Math.abs(polygonArea(facePoints(mesh, mesh.faces[id])));
+  const land = Object.values(mesh.faces)
+    .filter(f => f.properties.water === "land")
+    .map(f => area(f.id))
+    .sort((a, b) => a - b);
+  const median = land[land.length >> 1] || 1;
+  const roadEdges = new Set(
+    document.featureGroups.flatMap(g => (g.kind === "road" ? g.segments.map(r => r.edgeId) : []))
+  );
+  let frame = Infinity,
+    faceRatio = 0,
+    roads = Infinity;
+  for (const gate of gates) {
+    const p = mesh.vertices[gate.vertexId]?.point;
+    if (!p) continue;
+    frame = Math.min(frame, (half - Math.max(Math.abs(p[0]), Math.abs(p[1]))) / half);
+    const edges = Object.values(mesh.edges).filter(e => e.a === gate.vertexId || e.b === gate.vertexId);
+    for (const e of edges)
+      for (const f of [e.leftFace, e.rightFace])
+        if (f && mesh.faces[f]) faceRatio = Math.max(faceRatio, area(f) / median);
+    roads = Math.min(roads, edges.filter(e => roadEdges.has(e.id)).length);
+  }
+  return Number.isFinite(frame) ? { gateFrameRatio: frame, gateFaceAreaRatio: faceRatio, gateRoadEdges: roads } : {};
+}

@@ -8,6 +8,7 @@ import {
   generateUrbanPatchStep,
   generateWardStep
 } from "../generators/generation/previews";
+import { generateSkeletonPreview } from "../generators/generation/skeleton/previews";
 import type { CityDocument, Id } from "../types/document";
 import type { StepFn, UiStepResult } from "../types/editor";
 import type { GenerationStage, GenerationStepResult } from "../types/generation";
@@ -34,6 +35,43 @@ export function buildableLandFaceIds(document: CityDocument, coreMode?: "legacy"
   return ids;
 }
 export const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
+  skeletonInputs: (doc, settings, seed) => ({
+    ...generateSkeletonPreview(doc, settings, seed, 1),
+    total: 1,
+    index: 0,
+    detail: null
+  }),
+  skeletonCore: (doc, settings, seed) => ({
+    ...generateSkeletonPreview(doc, settings, seed, 2),
+    total: 1,
+    index: 0,
+    detail: null
+  }),
+  skeletonWall: (doc, settings, seed) => ({
+    ...generateSkeletonPreview(doc, settings, seed, 3),
+    total: 1,
+    index: 0,
+    detail: null
+  }),
+  skeletonCrossings: (doc, settings, seed) => ({
+    ...generateSkeletonPreview(doc, settings, seed, 4),
+    total: 1,
+    index: 0,
+    detail: null
+  }),
+  skeletonCheck: (doc, settings, seed) => ({
+    ...generateSkeletonPreview(doc, settings, seed, 5),
+    total: 1,
+    index: 0,
+    detail: null
+  }),
+  conformingMesh: (doc, settings, seed) => ({
+    ...generateSkeletonPreview(doc, settings, seed, 6),
+    total: 1,
+    index: 0,
+    detail: null
+  }),
+
   coast: (doc, settings, seed, idx) => asUiStep(generateCoastWalkStep(doc, settings, seed, idx)),
   river: (doc, settings, seed, idx) => asUiStep(generateRiverWalkStep(doc, settings, seed, idx)),
   urban: (doc, settings, seed, idx) => {

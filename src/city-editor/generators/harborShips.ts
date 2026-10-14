@@ -2,7 +2,7 @@ import { measureProcessing, type ProcessingProfiler } from "../../utils/processi
 import { SHIP_DIMENSIONS } from "../data/ships";
 import type { CityDocument, CityElement, Id, Point } from "../types/document";
 import type { ShipType } from "../types/ships";
-import { buildBlockFabric } from "./blockInfill";
+import { buildHarborPlan } from "./blockInfill";
 import { pointInPolygon, polygonCentroid } from "./geom";
 import { harborRootIsDry, pruneInvalidHarbors } from "./harborLand";
 import { harborWaterField, SEA_CHANNEL_HALF_WIDTH, seaBerthIsNavigable } from "./harborNavigation";
@@ -124,10 +124,9 @@ export function planHarborShips(
 
   // (1) fabric.harbor が存在する場合はその piers を利用
   const docFabric = document.fabric as import("./blockInfill").DistrictFabric | undefined;
-  const fabric = docFabric?.harbor
-    ? docFabric
-    : measureProcessing(profiler, "block-fabric", () => buildBlockFabric(document, undefined, profiler));
-  const fabricHarbor = fabric?.harbor;
+  const fabricHarbor = docFabric?.harbor
+    ? docFabric.harbor
+    : measureProcessing(profiler, "block-fabric", () => buildHarborPlan(document, profiler));
 
   if (fabricHarbor?.piers?.length) {
     for (const pier of fabricHarbor.piers) {

@@ -9,6 +9,27 @@ import { clone, facePoints, faceVertices, indexMeshEdges } from "./mesh";
 import { onFixedCrossingApproach, straightenBridges, straightenGateCrossings } from "./passages";
 import { regionalRoadThroughGate } from "./regionalRoadGates";
 
+/** Distance from `p` to segment `u`–`v`. */
+function pointSegmentGap(p: Point, u: Point, v: Point): number {
+  const dx = v[0] - u[0];
+  const dy = v[1] - u[1];
+  const t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p[0] - u[0] - t * dx, p[1] - u[1] - t * dy);
+}
+
+/** Lower bound on the distance between two segments: the gap between their bounding boxes. */
+function boxGap(a: Point, b: Point, c: Point, d: Point): number {
+  const gx = Math.max(
+    0,
+    Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) - Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0]))
+  );
+  const gy = Math.max(
+    0,
+    Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) - Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1]))
+  );
+  return Math.hypot(gx, gy);
+}
+
 /** Smooth the actual shared vertices, so walls, streets, water and building
  * setbacks keep meeting at exactly the same coordinates after editing/export.
  * Neighbouring blocks absorb the displacement; local line searches prevent
@@ -131,14 +152,24 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
     const b = mesh.vertices[road.b].point;
     const c = mesh.vertices[obstacle.a].point;
     const d = mesh.vertices[obstacle.b].point;
-    const pointGap = (p: Point, u: Point, v: Point): number => {
-      const dx = v[0] - u[0];
-      const dy = v[1] - u[1];
-      const t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / (dx * dx + dy * dy || 1)));
-      return Math.hypot(p[0] - u[0] - t * dx, p[1] - u[1] - t * dy);
-    };
     if (segmentSegmentHit(a, b, c, d)) return 0;
-    return Math.min(pointGap(a, c, d), pointGap(b, c, d), pointGap(c, a, b), pointGap(d, a, b));
+    return Math.min(
+      pointSegmentGap(a, c, d),
+      pointSegmentGap(b, c, d),
+      pointSegmentGap(c, a, b),
+      pointSegmentGap(d, a, b)
+    );
+  };
+  /** `clearanceAt` is never below this; use it to skip pairs that are far apart. */
+  const clearanceFloor = (roadId: Id, obstacleId: Id): number => {
+    const road = mesh.edges[roadId];
+    const obstacle = mesh.edges[obstacleId];
+    return boxGap(
+      mesh.vertices[road.a].point,
+      mesh.vertices[road.b].point,
+      mesh.vertices[obstacle.a].point,
+      mesh.vertices[obstacle.b].point
+    );
   };
 
   // 1. Road vs Wall clearance
@@ -149,7 +180,8 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       // A road and curtain are meant to meet at a gate.
       if ([road.a, road.b].some(id => gateVertices.has(id) && (id === wall.a || id === wall.b))) continue;
       const visibleGap = ((roadWidths.get(roadId) ?? 0) + (wallWidths.get(wallId) ?? 0)) / 2 + 1;
-      const minimum = Math.min(visibleGap, clearanceAt(roadId, wallId));
+      const minimum =
+        clearanceFloor(roadId, wallId) >= visibleGap ? visibleGap : Math.min(visibleGap, clearanceAt(roadId, wallId));
       if (minimum > 0.01) clearancePairs.push({ road: roadId, obstacle: wallId, minimum });
     }
 
@@ -160,6 +192,7 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       const river = mesh.edges[riverId];
       // A road and river are meant to meet at a bridge crossing.
       if ([road.a, road.b].some(id => bridgeVertices.has(id) && (id === river.a || id === river.b))) continue;
+      if (clearanceFloor(roadId, riverId) > 60) continue;
       const initial = clearanceAt(roadId, riverId);
       if (initial < 0.01 || initial > 60) continue;
       const visibleGap = ((roadWidths.get(roadId) ?? 4) + (riverWidths.get(riverId) ?? 6)) / 2 + 1;
@@ -174,6 +207,7 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       const road = mesh.edges[roadId];
       const cemEdge = mesh.edges[cemEdgeId];
       if (road.a === cemEdge.a || road.a === cemEdge.b || road.b === cemEdge.a || road.b === cemEdge.b) continue;
+      if (clearanceFloor(roadId, cemEdgeId) > 50) continue;
       const initial = clearanceAt(roadId, cemEdgeId);
       if (initial < 0.01 || initial > 50) continue;
       const minimum = Math.max(0.5, Math.min((roadWidths.get(roadId) ?? 4) / 2 + 1, initial));
@@ -188,22 +222,12 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       const wall = mesh.edges[wallId],
         river = mesh.edges[riverId];
       if ([wall.a, wall.b].some(id => id === river.a || id === river.b)) continue;
-      const initial = clearanceAt(wallId, riverId);
       const visibleGap = (wallWidths.get(wallId) ?? 7) / 2 + (riverWidths.get(riverId) ?? 10) / 2 + 2;
-      const minimum = Math.min(visibleGap, initial);
+      const minimum =
+        clearanceFloor(wallId, riverId) >= visibleGap ? visibleGap : Math.min(visibleGap, clearanceAt(wallId, riverId));
       if (minimum > 0.01) clearancePairs.push({ road: wallId, obstacle: riverId, minimum });
     }
 
-  const clearanceAtVertex = new Map<Id, typeof clearancePairs>();
-  for (const pair of clearancePairs) {
-    const road = mesh.edges[pair.road];
-    const obstacle = mesh.edges[pair.obstacle];
-    for (const id of new Set([road.a, road.b, obstacle.a, obstacle.b])) {
-      const pairs = clearanceAtVertex.get(id) ?? [];
-      pairs.push(pair);
-      clearanceAtVertex.set(id, pairs);
-    }
-  }
   const gateRiverGap = new Map<Id, { anchor: Point; minDist: number }[]>();
   const rememberGap = (id: Id, anchor: Point, minDist: number) => {
     const holds = gateRiverGap.get(id) ?? [];
@@ -285,6 +309,28 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       updates.set(id, [p[0] + (dx / ns.size) * 0.96, p[1] + (dy / ns.size) * 0.96]);
     }
     for (const [id, p] of updates) desired.set(id, p);
+  }
+
+  // A vertex only ever moves along the segment from its original position to `desired`,
+  // so a pair of edges can close in by at most the sum of their ends' largest displacements.
+  // A pair that stays at least `minimum` apart even then can never fail the check below.
+  const travel = (id: Id): number => {
+    if (pinned.has(id)) return 0;
+    const from = original.get(id)!;
+    const to = desired.get(id)!;
+    return Math.hypot(to[0] - from[0], to[1] - from[1]);
+  };
+  const clearanceAtVertex = new Map<Id, typeof clearancePairs>();
+  for (const pair of clearancePairs) {
+    const road = mesh.edges[pair.road];
+    const obstacle = mesh.edges[pair.obstacle];
+    const closing = Math.max(travel(road.a), travel(road.b)) + Math.max(travel(obstacle.a), travel(obstacle.b));
+    if (clearanceFloor(pair.road, pair.obstacle) - closing >= pair.minimum) continue;
+    for (const id of new Set([road.a, road.b, obstacle.a, obstacle.b])) {
+      const pairs = clearanceAtVertex.get(id) ?? [];
+      pairs.push(pair);
+      clearanceAtVertex.set(id, pairs);
+    }
   }
 
   const minimumCorner = (points: Point[]): number =>

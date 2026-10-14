@@ -143,7 +143,11 @@ describe("double town walls (P1)", () => {
     );
     expect(city).not.toBeNull();
     expect(townCircuits(city!)).toHaveLength(1);
-    expect(samples.at(-1)).toMatchObject({ ok: 0, planned: 0, failureCode: INNER_WALL_FAILURES.indexOf("gap") + 1 });
+    expect(samples.at(-1)).toMatchObject({
+      ok: 0,
+      planned: 0,
+      failureCode: INNER_WALL_FAILURES.indexOf("too-small") + 1
+    });
   });
 
   it("lets streets into the old town only through its gates", () => {

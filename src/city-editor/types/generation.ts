@@ -15,6 +15,11 @@ export interface StreetSettings {
   foldSmoothing: boolean;
 }
 
+export type GenerationMethod = "mesh-first" | "skeleton-first";
+/** Skeleton-first wall shape families (§4.3). `bastioned` needs the age of exploration or later. */
+export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "bastioned";
+export type WallShapeChoice = "auto" | WallShape;
+
 export interface GenerationSettings {
   /** Unset preserves the existing flood fill and outer residential belt. */
   urbanCoreMode?: "legacy" | "compact";
@@ -64,6 +69,12 @@ export interface GenerationSettings {
    * instead of `synthSite(config, seed)`. The document frame should match
    * `descriptor.frame` so corridors sit on the mesh. */
   descriptor?: BurgSiteDescriptor;
+  /** Unset = "mesh-first" (the existing pipeline). See docs/city-editor/plan/skeleton-first-generation.md. */
+  generationMethod?: GenerationMethod;
+  /** skeleton-first only. Unset = "auto". */
+  wallShape?: WallShapeChoice;
+  /** skeleton-first `polygon` wall: number of sides. Unset = chosen from the seed (5–8). */
+  wallSides?: number;
 }
 
 /** One visible process, in order. `processStep` is the S-index it recomputes up to;
@@ -81,6 +92,12 @@ export type StageCheckpoint =
 
 export interface GenerationStageDefinition {
   id:
+    | "skeletonInputs"
+    | "skeletonCore"
+    | "skeletonWall"
+    | "skeletonCrossings"
+    | "skeletonCheck"
+    | "conformingMesh"
     | "coast"
     | "river"
     | "urban"

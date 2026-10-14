@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import { worldContext } from "../../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../../services/burgSiteDescriptor";
 import { ProcessingProfiler } from "../../../utils/processingProfiler";
 import { citySpatialMetrics } from "../../generators/citySpatialMetrics";
 import { generateCityOnDocument } from "../../generators/generation/generateCity";
 import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
+import type { CityDocument } from "../../types/document";
+import type { GenerationSettings } from "../../types/generation";
 import { parseIncomingPayload } from "../io/incomingCity";
 import { burgIdsForTokens, cityEditorDocument, cityEditorSettings, loadArchiveWorld } from "./housingReport";
 
@@ -80,7 +83,8 @@ export async function prepareCityPerformanceInputs(
 export async function measureCityPerformance(
   row: Record<string, string>,
   render = false,
-  progress?: (sample: GenerationSample) => void
+  progress?: (sample: GenerationSample) => void,
+  overrides: Partial<GenerationSettings> = {}
 ) {
   const started = performance.now();
   const timings: Record<string, number> = {};
@@ -110,7 +114,7 @@ export async function measureCityPerformance(
     if (!share?.descriptor || String(share.descriptor.burg.id) !== row.burg_id)
       throw new Error("Invalid CE share_json or mismatched burg_id");
     const document = measure("gridMs", () => cityEditorDocument(share));
-    const settings = measure("settingsMs", () => cityEditorSettings(share));
+    const settings = measure("settingsMs", () => ({ ...cityEditorSettings(share), ...overrides }));
     const city = measure("generationMs", () =>
       profiler.measure("generation", () =>
         generateCityOnDocument(
@@ -192,6 +196,7 @@ export async function measureCityPerformance(
       faces: Object.keys(document.mesh.faces).length,
       generatedFaces: city ? Object.keys(city.mesh.faces).length : null,
       spatialMetrics,
+      fingerprint: city ? cityFingerprint(city) : null,
       attempts: Math.max(0, ...phases.filter(s => !s.phase.startsWith("render.")).map(s => s.attempt)),
       timings,
       totalMs: performance.now() - started,
@@ -212,4 +217,20 @@ export async function measureCityPerformance(
       phases
     };
   }
+}
+
+/** SHA-256 of the generated city, whole and by part, so a speed-only change can prove identical output. */
+export function cityFingerprint(city: CityDocument) {
+  const hash = (value: unknown) =>
+    createHash("sha256")
+      .update(JSON.stringify(value) ?? "")
+      .digest("hex")
+      .slice(0, 16);
+  return {
+    document: hash(city),
+    mesh: hash(city.mesh),
+    features: hash(city.featureGroups),
+    defenses: hash([city.defenseCircuits, city.gates, city.castles]),
+    fabric: hash(city.fabric)
+  };
 }

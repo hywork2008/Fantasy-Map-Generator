@@ -133,6 +133,7 @@ export const GENERATION_STAGE_DEFINITIONS: GenerationStageDefinition[] = [
 /** Keep the original slider sequence; the experiment exposes the old curtain
  * and its passages before the outer-wall checkpoints. */
 export function generationStageDefinitions(settings: GenerationSettings): GenerationStageDefinition[] {
+  if (settings.generationMethod === "skeleton-first") return SKELETON_STAGE_DEFINITIONS;
   const profile = settings.descriptor?.urbanMorphology;
   const rings =
     settings.townWallRings ??
@@ -179,3 +180,20 @@ export function generationStageDefinitions(settings: GenerationSettings): Genera
     };
   });
 }
+
+/** Negative process steps are vector-only K previews; positive steps reuse the
+ * existing downstream preview contract without renumbering the old stages. */
+export const SKELETON_STAGE_DEFINITIONS: GenerationStageDefinition[] = [
+  ...(
+    ["skeletonInputs", "skeletonCore", "skeletonWall", "skeletonCrossings", "skeletonCheck", "conformingMesh"] as const
+  ).map((id, i) => ({
+    id,
+    step: (i + 1) as GenerationStageDefinition["step"],
+    processStep: -(i + 1),
+    labelKey: `cityEditor.generationStages.${id}.label` as GenerationStageDefinition["labelKey"],
+    hintKey: `cityEditor.generationStages.${id}.hint` as GenerationStageDefinition["hintKey"]
+  })),
+  ...GENERATION_STAGE_DEFINITIONS.filter(s =>
+    ["wards", "centerRoads", "townStreets", "geometry", "blocks", "buildings", "conceal"].includes(s.id)
+  ).map((s, i) => ({ ...s, step: (i + 7) as GenerationStageDefinition["step"] }))
+];

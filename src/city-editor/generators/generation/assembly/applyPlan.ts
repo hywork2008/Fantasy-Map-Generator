@@ -11,6 +11,7 @@ import { finalizeAssembly } from "./finalize";
 import { applyFirstWall } from "./firstWall";
 import { applyGates } from "./gates";
 import { applyOuterWalls } from "./outerWalls";
+import { applySkeletonFeatures } from "./skeleton";
 import { applyTerrain } from "./terrain";
 
 /** Owns one mutable attempt clone. Each stage returns its current references or an explicit checkpoint/rejection; the caller adopts only a returned document. */
@@ -32,6 +33,17 @@ export function applyPlan(
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
   let next = clone(source);
+  if (plan.skeleton) {
+    next.gridKind = "evolution";
+    delete next.fabric;
+    delete next.cemeteries;
+    delete next.fixedCrossingApproaches;
+    next.featureGroups = [];
+    next.gates = [];
+    next.elements = [];
+    next.defenseCircuits = [];
+    next.castles = [];
+  }
   next.burialProfile = structuredClone(plan.burialProfile ?? source.burialProfile);
   delete next.townWallGeneration;
   const gateRouting = new Map<Id, RoadRoutingTrace[]>();
@@ -54,6 +66,8 @@ export function applyPlan(
   ({ cells, faceIdOf } = terrain);
 
   mark("apply-terrain");
+  if (plan.skeleton)
+    return applySkeletonFeatures(next, { ...plan, skeleton: plan.skeleton }, faceIdOf, stageStep, observer, attempt);
   const firstWall = applyFirstWall({
     plan,
     stageStep,

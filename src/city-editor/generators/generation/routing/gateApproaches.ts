@@ -2,7 +2,15 @@ import type { CityDocument, Id } from "../../../types/document";
 import { featureGroupVertices } from "../../features";
 import { townGates } from "../../fortifications";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "../../geom";
-import { edgeBetween, facePoints, faceVertices, incidentFaces, insertEdgeVertex, splitFace } from "../../mesh";
+import {
+  edgeBetween,
+  facePoints,
+  faceVertices,
+  incidentFaces,
+  indexMeshEdges,
+  insertEdgeVertex,
+  splitFace
+} from "../../mesh";
 import { kindEdgeIds } from "../../passages";
 
 /** Connect the dry edges of bank-side cells through their interiors. Routing
@@ -217,6 +225,33 @@ export function shortcutExteriorRoads(document: CityDocument, planning = false):
   for (const [id, neighbors] of roadNeighbors) if (neighbors.size > 2) protectedVertices.add(id);
   const occupied = new Set(document.elements.flatMap(element => element.faceIds));
   const enclosed = new Set((document.defenseCircuits ?? []).flatMap(circuit => circuit.areaFaceIds));
+  // Candidate pairs along a road are tested far more often than the mesh changes:
+  // index the edge endpoints once per mesh instead of scanning every edge per pair.
+  let indexedMesh: typeof next.mesh | undefined;
+  let endpoints: ReturnType<typeof indexMeshEdges> | undefined;
+  const joined = (a: Id, b: Id): boolean => {
+    if (indexedMesh !== next.mesh) {
+      indexedMesh = next.mesh;
+      endpoints = indexMeshEdges(next.mesh);
+    }
+    return endpoints!.between(a, b) !== null;
+  };
+  // Same per-mesh index for the faces around a vertex (faces in mesh order, as incidentFaces lists them).
+  let facesMesh: typeof next.mesh | undefined;
+  let facesByVertex: Map<Id, (typeof next.mesh.faces)[Id][]> | undefined;
+  const facesAt = (vertexId: Id) => {
+    if (facesMesh !== next.mesh) {
+      facesMesh = next.mesh;
+      facesByVertex = new Map();
+      for (const face of Object.values(next.mesh.faces))
+        for (const id of new Set(faceVertices(next.mesh, face))) {
+          const list = facesByVertex.get(id);
+          if (list) list.push(face);
+          else facesByVertex.set(id, [face]);
+        }
+    }
+    return facesByVertex!.get(vertexId) ?? [];
+  };
   for (const originalGroup of document.featureGroups) {
     if (originalGroup.kind !== "road" || originalGroup.locked || !originalGroup.id.startsWith("gc:road-")) continue;
     let changed = true;
@@ -232,10 +267,10 @@ export function shortcutExteriorRoads(document: CityDocument, planning = false):
             b = vertices[j];
           if (
             [a, b].some(id => protectedVertices.has(id) && !townGates(next).some(g => g.vertexId === id)) ||
-            edgeBetween(next.mesh, a, b)
+            joined(a, b)
           )
             continue;
-          const face = incidentFaces(next.mesh, a).find(
+          const face = facesAt(a).find(
             f =>
               !f.properties.locked &&
               (!f.properties.buildable || (planning && !document.fabric && f.properties.settlement === "outskirts")) &&

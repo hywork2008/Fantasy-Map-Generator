@@ -707,11 +707,25 @@
       "wallWidthMetres": "{{value0}}m",
       "processIterationProgress": "{{value0}} step {{value1}}/{{value2}}",
       "generationWorkerFailed": "Generation worker failed",
-      "cannotReadGenerationWorkerResult": "Cannot read generation worker result"
+      "cannotReadGenerationWorkerResult": "Cannot read generation worker result",
+      "generationMethod": "Generation method",
+      "meshFirst": "Mesh first (existing)",
+      "skeletonFirst": "Skeleton first",
+      "skeletonWallShape": "Outer wall shape",
+      "skeletonWallSides": "Polygon sides (blank: auto)",
+      "skeletonGridNotice": "Skeleton first creates its own mesh; the Document grid selection is not used.",
+      "skeletonUnsupported": "Not supported by skeleton first v1: {{features}}",
+      "skeletonLater": "This setting is not supported by skeleton first v1.",
+      "skeletonBastionEra": "Bastioned walls need the age of exploration or later."
     },
     "generationStages": {
-      "firstInnerGates": {"label": "Old-town gate passages", "hint": "Prepare the inner gates before building the outer wall."},
-      "firstInnerWall": {"hint": "Build the old-town wall before the outer wall and streets. If no safe inner wall can be built, stop here and show the reason."},
+      "firstInnerGates": {
+        "label": "Old-town gate passages",
+        "hint": "Prepare the inner gates before building the outer wall."
+      },
+      "firstInnerWall": {
+        "hint": "Build the old-town wall before the outer wall and streets. If no safe inner wall can be built, stop here and show the reason."
+      },
       "coast": {
         "label": "Coastline and sea",
         "hint": "Tag sea cells along a coastline walk"
@@ -780,7 +794,31 @@
         "label": "Hide roads and lanes",
         "hint": "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
       },
-      "title": "City generation stages"
+      "title": "City generation stages",
+      "skeletonInputs": {
+        "label": "K1 Inputs",
+        "hint": "Normalise terrain and fixed routes."
+      },
+      "skeletonCore": {
+        "label": "K2 City core",
+        "hint": "Choose the dry city core and urban area."
+      },
+      "skeletonWall": {
+        "label": "K3 Wall shape",
+        "hint": "Choose the vector wall ring."
+      },
+      "skeletonCrossings": {
+        "label": "K4 Crossings",
+        "hint": "Place gates, bridges and river passages."
+      },
+      "skeletonCheck": {
+        "label": "K5 Check skeleton",
+        "hint": "Check connectivity and crossing angles."
+      },
+      "conformingMesh": {
+        "label": "K6 Conforming mesh",
+        "hint": "Build mesh edges along every skeleton line."
+      }
     },
     "options": {
       "none": "None",
@@ -830,7 +868,12 @@
       "road": "Road",
       "wall": "Wall",
       "moat": "Moat",
-      "erase": "Erase"
+      "erase": "Erase",
+      "round": "Round",
+      "oval": "Oval",
+      "square": "Square",
+      "polygon": "Polygon",
+      "bastioned": "Bastioned"
     },
     "pageTitle": "City Editor — Fantasy Map Generator",
     "pageDescription": "City map generator and editor for Fantasy Map Generator",

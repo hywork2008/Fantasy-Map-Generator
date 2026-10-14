@@ -90,17 +90,46 @@ function segmentGap(a: Point, b: Point, c: Point, d: Point): number {
 
 /** Smallest gap between a polygon's boundary and a set of polylines. */
 export function gapToLines(polygon: Point[], lines: readonly Point[][]): number {
-  let gap = Infinity;
+  return scanGap(polygon, lines, Infinity, false);
+}
+
+/** `gapToLines(polygon, lines) < limit`, stopping at the first segment nearer than `limit`. */
+export function gapBelow(polygon: Point[], lines: readonly Point[][], limit: number): boolean {
+  return scanGap(polygon, lines, limit, true) < limit;
+}
+
+function scanGap(polygon: Point[], lines: readonly Point[][], limit: number, stopEarly: boolean): number {
+  let gap = limit;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of polygon) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
   for (const line of lines) {
     for (let i = 1; i < line.length; i++) {
       const c = line[i - 1];
       const d = line[i];
+      // The polygon's bounding box is a lower bound on any segment's gap to it.
+      // A segment no nearer than the best so far cannot lower the result.
+      const dx = Math.max(minX - Math.max(c[0], d[0]), Math.min(c[0], d[0]) - maxX, 0);
+      const dy = Math.max(minY - Math.max(c[1], d[1]), Math.min(c[1], d[1]) - maxY, 0);
+      const boxGap = Math.hypot(dx, dy);
       // Boundary distance alone misses a defense segment wholly enclosed by
       // a large lot: its boundary can be farther away than the clearance.
-      if (pointInPolygon(c, polygon) || pointInPolygon(d, polygon)) return 0;
+      // A segment whose box misses the polygon's box has both ends outside it.
+      if (boxGap === 0 && (pointInPolygon(c, polygon) || pointInPolygon(d, polygon))) return 0;
+      if (boxGap >= gap) continue;
       for (let j = 0; j < polygon.length; j++) {
         const next = segmentGap(polygon[j], polygon[(j + 1) % polygon.length], c, d);
-        if (next < gap) gap = next;
+        if (next < gap) {
+          gap = next;
+          if (stopEarly) return gap;
+        }
         if (gap === 0) return 0;
       }
     }

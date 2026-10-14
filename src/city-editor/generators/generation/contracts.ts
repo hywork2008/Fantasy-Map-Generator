@@ -6,12 +6,15 @@ import type { InnerWallFailure } from "../innerTownWall";
 import type { RoutedRiver } from "../riverPath";
 
 export interface Plan {
+  skeleton?: import("./skeleton/toPlan").SkeletonPlanData;
   /** Requested order survives an unsuccessful old-town pre-plan. */
   townWallBuildOrder?: GenerationSettings["townWallBuildOrder"];
   /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */
   innerWall?: {
     planned: boolean;
     failure?: InnerWallFailure;
+    /** Measurement of an unsuccessful pre-plan (ce:perf); never read by generation. */
+    diagnostics?: import("../innerTownWall").InnerTownPlanDiagnostics;
     castleRing?: "inner" | "outer";
     /** Old-town share of the town and whether the wall is razed (set when planned). */
     share?: number;

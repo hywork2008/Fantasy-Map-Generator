@@ -37,11 +37,16 @@ import { regionalRoadThroughGate } from "./regionalRoadGates";
 
 export type BarrierKind = Extract<FeatureGroup["kind"], "wall" | "river">;
 
+/** Edges at a vertex in `Object.values(mesh.edges)` order, from one `indexMeshEdges` pass.
+ * Pass it to the queries below when a loop asks about many vertices of an unchanged document:
+ * without it each query scans every edge. */
+export type IncidentEdges = (vertexId: Id) => readonly Edge[];
+
 /** Angular order of edges around a vertex, CCW from +X. */
-export function orderedIncidentEdges(document: CityDocument, vertexId: Id): Edge[] {
+export function orderedIncidentEdges(document: CityDocument, vertexId: Id, incident?: IncidentEdges): Edge[] {
   const vertex = document.mesh.vertices[vertexId];
   if (!vertex) return [];
-  return incidentEdges(document.mesh, vertexId)
+  return (incident ? [...incident(vertexId)] : incidentEdges(document.mesh, vertexId))
     .map(edge => {
       const other = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a];
       return {
@@ -62,10 +67,14 @@ export function edgesAreOpposite(ordered: Edge[], a: Id, b: Id): boolean {
   return gap > 1 && gap < ordered.length - 1;
 }
 
-export function kindEdgeIds(document: CityDocument, kind: FeatureGroup["kind"]): Set<Id> {
+export function kindEdgeIds(
+  document: CityDocument,
+  kind: FeatureGroup["kind"],
+  meshIndex?: ReturnType<typeof indexMeshEdges>
+): Set<Id> {
   const ids = new Set<Id>();
   // Rivers store vertices; one index per call avoids a full edge scan per river step.
-  const index = kind === "river" ? indexMeshEdges(document.mesh) : null;
+  const index = kind === "river" ? (meshIndex ?? indexMeshEdges(document.mesh)) : null;
   for (const group of document.featureGroups) {
     if (group.kind !== kind) continue;
     if (group.kind === "river") {
@@ -99,9 +108,10 @@ export function vertexHasCrossing(
   first: BarrierKind,
   second: FeatureGroup["kind"],
   cachedAIds?: Set<Id>,
-  cachedBIds?: Set<Id>
+  cachedBIds?: Set<Id>,
+  incident?: IncidentEdges
 ): boolean {
-  const ordered = orderedIncidentEdges(document, vertexId);
+  const ordered = orderedIncidentEdges(document, vertexId, incident);
   const aIds = cachedAIds ?? kindEdgeIds(document, first);
   const bIds = cachedBIds ?? kindEdgeIds(document, second);
   const a = ordered.filter(e => aIds.has(e.id)).map(e => e.id);
@@ -111,6 +121,26 @@ export function vertexHasCrossing(
       if (alternatingPairs(ordered, a, [b[i], b[j]])) return true;
     }
   return false;
+}
+
+/** Crossing queries over one unchanged document: the mesh index and each feature kind's edge set are built once. */
+function crossingQueries(document: CityDocument) {
+  const index = indexMeshEdges(document.mesh);
+  const sets = new Map<FeatureGroup["kind"], Set<Id>>();
+  const ids = (kind: FeatureGroup["kind"]): Set<Id> => {
+    let set = sets.get(kind);
+    if (!set) {
+      set = kindEdgeIds(document, kind, index);
+      sets.set(kind, set);
+    }
+    return set;
+  };
+  return {
+    ids,
+    between: index.between,
+    hasCrossing: (vertexId: Id, first: BarrierKind, second: FeatureGroup["kind"]): boolean =>
+      vertexHasCrossing(document, vertexId, first, second, ids(first), ids(second), index.incident)
+  };
 }
 
 function riverVertexSet(document: CityDocument): Set<Id> {
@@ -127,9 +157,10 @@ export function throughEdgesAt(
   barrier: BarrierKind,
   landOnly = false,
   cachedBanned?: Set<Id>,
-  cachedRiverVertices?: Set<Id>
+  cachedRiverVertices?: Set<Id>,
+  incident?: IncidentEdges
 ): Edge[] {
-  const ordered = orderedIncidentEdges(document, vertexId);
+  const ordered = orderedIncidentEdges(document, vertexId, incident);
   const banned = cachedBanned ?? kindEdgeIds(document, barrier);
   const used = ordered.filter(edge => banned.has(edge.id)).map(edge => edge.id);
   const stayOnRiver = landOnly && barrier === "river" ? (cachedRiverVertices ?? riverVertexSet(document)) : null;
@@ -1252,29 +1283,29 @@ export function validGeneratedCrossings(
   skewLimit = documentBridgeSkewLimit(document)
 ): boolean {
   if (overSkewedBridgeDecks(document, skewLimit).length) return false;
+  const query = crossingQueries(document);
   for (const gate of townGates(document)) {
     if (
       gate.id.startsWith("gc:") &&
-      !vertexHasCrossing(document, gate.vertexId, "wall", "road") &&
+      !query.hasCrossing(gate.vertexId, "wall", "road") &&
       !regionalRoadThroughGate(document, gate.vertexId).length
     )
       return false;
   }
-  const walls = kindEdgeIds(document, "wall");
-  const rivers = kindEdgeIds(document, "river");
+  const walls = query.ids("wall");
+  const rivers = query.ids("river");
   if ([...walls].some(id => rivers.has(id))) return false;
   const wallVertices = new Set([...walls].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
   const riverVertices = new Set([...rivers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
-  for (const id of wallVertices)
-    if (riverVertices.has(id) && !vertexHasCrossing(document, id, "wall", "river")) return false;
+  for (const id of wallVertices) if (riverVertices.has(id) && !query.hasCrossing(id, "wall", "river")) return false;
   for (const bridge of document.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
     const vertices = featureGroupVertices(document, bridge);
-    if (vertices.length !== 3 || !vertexHasCrossing(document, vertices[1], "river", "road")) return false;
+    if (vertices.length !== 3 || !query.hasCrossing(vertices[1], "river", "road")) return false;
   }
   for (const river of document.featureGroups) {
     if (river.kind !== "river" || !river.id.startsWith("gc:")) continue;
     const dividesTown = river.vertices.slice(1).some((id, i) => {
-      const edge = edgeBetween(document.mesh, river.vertices[i], id);
+      const edge = query.between(river.vertices[i], id);
       return (
         edge &&
         [edge.leftFace, edge.rightFace].every(
@@ -1283,7 +1314,7 @@ export function validGeneratedCrossings(
         )
       );
     });
-    if (dividesTown && !river.vertices.some(id => vertexHasCrossing(document, id, "river", "road"))) return false;
+    if (dividesTown && !river.vertices.some(id => query.hasCrossing(id, "river", "road"))) return false;
   }
   return true;
 }
@@ -1303,10 +1334,11 @@ export function explainGeneratedCrossingFailures(
         value2: skewLimit.toFixed(0)
       })
     );
+  const query = crossingQueries(document);
   for (const gate of townGates(document)) {
     if (
       gate.id.startsWith("gc:") &&
-      !vertexHasCrossing(document, gate.vertexId, "wall", "road") &&
+      !query.hasCrossing(gate.vertexId, "wall", "road") &&
       !regionalRoadThroughGate(document, gate.vertexId).length
     )
       details.push(
@@ -1316,14 +1348,14 @@ export function explainGeneratedCrossingFailures(
         })
       );
   }
-  const walls = kindEdgeIds(document, "wall");
-  const rivers = kindEdgeIds(document, "river");
+  const walls = query.ids("wall");
+  const rivers = query.ids("river");
   for (const id of walls)
     if (rivers.has(id)) details.push(editorText("cityEditor.messages.wallAndRiverShareEdge", { value0: id }));
   const wallVertices = new Set([...walls].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
   const riverVertices = new Set([...rivers].flatMap(id => [document.mesh.edges[id].a, document.mesh.edges[id].b]));
   for (const id of wallVertices)
-    if (riverVertices.has(id) && !vertexHasCrossing(document, id, "wall", "river"))
+    if (riverVertices.has(id) && !query.hasCrossing(id, "wall", "river"))
       details.push(editorText("cityEditor.messages.wallAndRiverMeetAtVertexWithoutACrossIntersection", { value0: id }));
   for (const bridge of document.featureGroups.filter(g => g.id.startsWith("gc:bridge-"))) {
     const vertices = featureGroupVertices(document, bridge);
@@ -1334,7 +1366,7 @@ export function explainGeneratedCrossingFailures(
           value1: vertices.length
         })
       );
-    else if (!vertexHasCrossing(document, vertices[1], "river", "road"))
+    else if (!query.hasCrossing(vertices[1], "river", "road"))
       details.push(
         editorText("cityEditor.messages.bridgeVertexHasNoRiverRoadCrossIntersection", {
           value0: bridge.id,
@@ -1345,7 +1377,7 @@ export function explainGeneratedCrossingFailures(
   for (const river of document.featureGroups) {
     if (river.kind !== "river" || !river.id.startsWith("gc:")) continue;
     const dividesTown = river.vertices.slice(1).some((id, i) => {
-      const edge = edgeBetween(document.mesh, river.vertices[i], id);
+      const edge = query.between(river.vertices[i], id);
       return (
         edge &&
         [edge.leftFace, edge.rightFace].every(
@@ -1354,7 +1386,7 @@ export function explainGeneratedCrossingFailures(
         )
       );
     });
-    if (dividesTown && !river.vertices.some(id => vertexHasCrossing(document, id, "river", "road")))
+    if (dividesTown && !river.vertices.some(id => query.hasCrossing(id, "river", "road")))
       details.push(editorText("cityEditor.messages.riverDividesTheUrbanAreaWithoutABridge", { value0: river.id }));
   }
   return details;

@@ -96,6 +96,8 @@ export const MIN_FREE_AREA_PER_CASTLE = 3;
 export interface InnerTownPlan {
   faces: Set<Id>;
   gap: number;
+  /** Chosen from inland faces only: the area-share round reached the rim. */
+  inland?: boolean;
 }
 
 /**
@@ -109,18 +111,138 @@ export function planInnerTown(
   share: number,
   minGapCells: number,
   center: Point = [0, 0],
-  passable: Set<Id> = new Set()
+  passable: Set<Id> = new Set(),
+  diagnostics?: InnerTownPlanDiagnostics
 ): InnerTownPlan | null {
   const base = townFaces(mesh, urban, passable, center);
-  if (base.ordered.length < MIN_INNER_FACES * 3) return null;
-  let target = base.landArea * share;
-  for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
-    const faces = selectRound(base.info, base.ordered, target, base.seed);
-    if (faces.size < MIN_INNER_FACES) return null;
-    const gap = gapOf(mesh, base.outer, faces, passable);
-    if (gap >= minGapCells) return { faces, gap };
+  if (diagnostics) Object.assign(diagnostics, { townFaces: base.ordered.length, trials: 0, bestGap: -1 });
+  if (base.ordered.length < MIN_INNER_FACES * 3) {
+    if (diagnostics) diagnostics.failure = "too-small";
+    return null;
   }
+  // The area-share round first. On a coarse mesh with large rim cells it can
+  // reach the rim at every size, so a second pass selects only faces far
+  // enough inland for the wall gap.
+  let trials = 0;
+  let tooSmall = false;
+  for (const pass of ["round", "inland"] as const) {
+    const town = pass === "round" ? base : inlandTown(mesh, base, passable, minGapCells);
+    if (!town) continue;
+    let target = base.landArea * share;
+    for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
+      const faces = selectRound(town.info, town.ordered, target, town.seed);
+      if (faces.size < MIN_INNER_FACES) {
+        tooSmall = pass === "round";
+        break;
+      }
+      const gap = gapOf(mesh, base.outer, faces, passable);
+      if (diagnostics) {
+        diagnostics.trials = ++trials;
+        if (gap > (diagnostics.bestGap ?? -1)) {
+          diagnostics.bestGap = gap;
+          diagnostics.blocker = gapBlocker(mesh, base.outer, faces, passable);
+        }
+      }
+      if (gap >= minGapCells) return { faces, gap, inland: pass === "inland" };
+    }
+    if (tooSmall) break;
+  }
+  if (diagnostics) diagnostics.failure = tooSmall ? "too-small" : "gap";
   return null;
+}
+
+type TownFaces = ReturnType<typeof townFaces>;
+
+/**
+ * The town restricted to faces at least `minGap` layers inside the outer
+ * curtain, so a selection from it cannot reach the rim. Faces cut off from the
+ * rest count as rim. Null when no faces remain or no gap is required.
+ */
+function inlandTown(mesh: Mesh, base: TownFaces, passable: Set<Id>, minGap: number): TownFaces | null {
+  if (minGap <= 0) return null;
+  const depth = new Map<Id, number>();
+  const queue: Id[] = [];
+  for (const id of base.outer) {
+    const face = mesh.faces[id];
+    if (!face || passable.has(id)) continue;
+    const rim =
+      face.boundary.some(ref => {
+        const edge = mesh.edges[ref.edgeId];
+        const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+        return !!other && !passable.has(other) && !base.outer.has(other);
+      }) ||
+      face.boundary.some(ref => {
+        const edge = mesh.edges[ref.edgeId];
+        return !edge.leftFace || !edge.rightFace;
+      });
+    if (rim) {
+      depth.set(id, 0);
+      queue.push(id);
+    }
+  }
+  for (let q = 0; q < queue.length; q++) {
+    const id = queue[q];
+    for (const ref of mesh.faces[id].boundary) {
+      const edge = mesh.edges[ref.edgeId];
+      const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+      if (!other || !base.outer.has(other) || passable.has(other) || depth.has(other)) continue;
+      depth.set(other, depth.get(id)! + 1);
+      queue.push(other);
+    }
+  }
+  const inland = (id: Id) => (depth.get(id) ?? 0) >= minGap;
+  const info = new Map<Id, FaceInfo>();
+  for (const [id, face] of base.info)
+    if (inland(id))
+      info.set(id, {
+        ...face,
+        neighbors: face.neighbors.filter(inland),
+        edge: face.edge || face.neighbors.some(n => !inland(n))
+      });
+  const ordered = base.ordered.filter(f => info.has(f.id)).map(f => info.get(f.id)!);
+  if (ordered.length < MIN_INNER_FACES) return null;
+  return {
+    outer: base.outer,
+    info,
+    ordered,
+    landArea: ordered.reduce((sum, f) => sum + f.area, 0),
+    seed: ordered[0].id
+  };
+}
+
+/** Why `planInnerTown` found no old town: measurement only, no effect on generation. */
+export interface InnerTownPlanDiagnostics {
+  failure?: "too-small" | "gap";
+  townFaces?: number;
+  trials?: number;
+  /** Widest gap (face layers) any trial reached; -1 before the first trial. */
+  bestGap?: number;
+  /** What the shortest escape from the best trial reaches first. */
+  blocker?: GapBlocker;
+}
+
+/** Diagnostic code order: `blockerCode` = index + 1. */
+export const GAP_BLOCKERS = ["water", "outside-land", "mesh-edge"] as const;
+export type GapBlocker = (typeof GAP_BLOCKERS)[number];
+
+/** Same walk as `gapOf`, but reports the kind of face (or mesh edge) the nearest escape reaches. */
+function gapBlocker(mesh: Mesh, outer: Set<Id>, inner: Set<Id>, passable: Set<Id>): GapBlocker | undefined {
+  const seen = new Set<Id>(inner);
+  const queue: Id[] = [...inner];
+  for (let q = 0; q < queue.length; q++) {
+    const id = queue[q];
+    for (const ref of mesh.faces[id].boundary) {
+      const edge = mesh.edges[ref.edgeId];
+      const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+      if (other && passable.has(other)) continue;
+      if (!other || !mesh.faces[other]) return "mesh-edge";
+      if (!outer.has(other)) return mesh.faces[other].properties.water !== "land" ? "water" : "outside-land";
+      if (seen.has(other)) continue;
+      seen.add(other);
+      queue.push(other);
+    }
+  }
+  return undefined;
 }
 
 /** §5.1 capacity of an old town once `castle` faces are reserved in or beside it. */
@@ -172,80 +294,90 @@ export function addInnerTownWall(
   if (base.ordered.length < MIN_INNER_FACES * 3) return fail("too-small");
   const rivers = kindEdgeIds(document, "river");
 
-  let target = base.landArea * options.share;
-  for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
-    const trial = selectRound(base.info, base.ordered, target, base.seed);
-    if (options.castleInOldTown)
-      hugCastle(document.mesh, base.info, trial, castle, Math.sqrt(target / Math.PI), base.seed);
-    if (trial.size < MIN_INNER_FACES) return fail("too-small");
-    if (gapOf(document.mesh, base.outer, trial, castle) < options.minGapCells) continue;
-    // The radius fits. Give every street that crosses the circle a vertex on
-    // it, so the curtain can pass through the street there (the future gate).
-    const radius = Math.sqrt(target / Math.PI);
-    const cut = cutStreetCrossings(document, center, radius, base.info, !options.arteries);
-    const cutCastle = reservedCastleFaces(cut.document);
-    const town = townFaces(
-      cut.document.mesh,
-      cut.document.defenseCircuits?.find(c => c.id === outer.id)?.areaFaceIds ?? [],
-      cutCastle,
-      center
-    );
-    const roads = kindEdgeIds(cut.document, "road");
-    const inner = selectRound(town.info, town.ordered, target, town.seed);
-    const keep = options.castleInOldTown
-      ? hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed)
-      : new Set<Id>();
-    // Streets and rivers both keep off the curtain line; each may cross it.
-    const offLine = new Set([...roads, ...rivers]);
-    const riverCorners = new Set(
-      cut.document.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : []))
-    );
-    for (const v of cut.riverCuts) riverCorners.delete(v);
-    // A bridge must not abut the curtain: a road ending on a wall vertex
-    // without a gate is trimmed later, which would cut the bridge in two.
-    for (const group of cut.document.featureGroups)
-      if (group.kind === "road" && group.id.includes("bridge"))
-        for (const ref of group.segments) {
+  for (const pass of ["round", "inland"] as const) {
+    const passBase = pass === "round" ? base : inlandTown(document.mesh, base, castle, options.minGapCells);
+    if (!passBase) continue;
+    let target = base.landArea * options.share;
+    for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
+      const trial = selectRound(passBase.info, passBase.ordered, target, passBase.seed);
+      if (options.castleInOldTown)
+        hugCastle(document.mesh, passBase.info, trial, castle, Math.sqrt(target / Math.PI), passBase.seed);
+      if (trial.size < MIN_INNER_FACES) return fail("too-small");
+      if (gapOf(document.mesh, base.outer, trial, castle) < options.minGapCells) continue;
+      // The radius fits. Give every street that crosses the circle a vertex on
+      // it, so the curtain can pass through the street there (the future gate).
+      const radius = Math.sqrt(target / Math.PI);
+      const cut = cutStreetCrossings(document, center, radius, base.info, !options.arteries);
+      const cutCastle = reservedCastleFaces(cut.document);
+      const town = townFaces(
+        cut.document.mesh,
+        cut.document.defenseCircuits?.find(c => c.id === outer.id)?.areaFaceIds ?? [],
+        cutCastle,
+        center
+      );
+      const roads = kindEdgeIds(cut.document, "road");
+      const townPass =
+        pass === "round" ? town : (inlandTown(cut.document.mesh, town, cutCastle, options.minGapCells) ?? town);
+      const inner = selectRound(townPass.info, townPass.ordered, target, townPass.seed);
+      const keep = options.castleInOldTown
+        ? hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed)
+        : new Set<Id>();
+      // Streets and rivers both keep off the curtain line; each may cross it.
+      const offLine = new Set([...roads, ...rivers]);
+      const riverCorners = new Set(
+        cut.document.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : []))
+      );
+      for (const v of cut.riverCuts) riverCorners.delete(v);
+      // A bridge must not abut the curtain: a road ending on a wall vertex
+      // without a gate is trimmed later, which would cut the bridge in two.
+      for (const group of cut.document.featureGroups)
+        if (group.kind === "road" && group.id.includes("bridge"))
+          for (const ref of group.segments) {
+            const edge = cut.document.mesh.edges[ref.edgeId];
+            riverCorners.add(edge.a);
+            riverCorners.add(edge.b);
+          }
+      keepStreetsOffCurtain(cut.document, inner, town.info, offLine, town.seed, radius, keep, riverCorners);
+      // Moving the curtain off streets can cut the castle's link again; restore it
+      // (a street still on the line there becomes an opening).
+      if (options.castleInOldTown) hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed);
+      if (inner.size < MIN_INNER_FACES) continue;
+      // The curtain must not start at the castle's gate corner: the gate would
+      // keep only its two curtain arms and no way out (Wihulbo, Seriemigny).
+      if (!settleCastleGateFront(cut.document, town.info, inner, cutCastle, town.seed, !!options.castleInOldTown))
+        continue;
+      const gap = gapOf(cut.document.mesh, town.outer, inner, cutCastle);
+      if (gap < options.minGapCells) continue;
+      // §5.1: a castle in or against the old town must leave it room for streets.
+      const besideCastle = [...cutCastle].filter(id =>
+        cut.document.mesh.faces[id]?.boundary.some(ref => {
           const edge = cut.document.mesh.edges[ref.edgeId];
-          riverCorners.add(edge.a);
-          riverCorners.add(edge.b);
-        }
-    keepStreetsOffCurtain(cut.document, inner, town.info, offLine, town.seed, radius, keep, riverCorners);
-    // Moving the curtain off streets can cut the castle's link again; restore it
-    // (a street still on the line there becomes an opening).
-    if (options.castleInOldTown) hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed);
-    if (inner.size < MIN_INNER_FACES) continue;
-    const gap = gapOf(cut.document.mesh, town.outer, inner, cutCastle);
-    if (gap < options.minGapCells) continue;
-    // §5.1: a castle in or against the old town must leave it room for streets.
-    const besideCastle = [...cutCastle].filter(id =>
-      cut.document.mesh.faces[id]?.boundary.some(ref => {
-        const edge = cut.document.mesh.edges[ref.edgeId];
-        return [edge.leftFace, edge.rightFace].some(f => f && inner.has(f));
-      })
-    );
-    if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok)
-      return fail("castle-crowds", { faces: inner.size });
-    const finished = finish(
-      cut.document,
-      inner,
-      outer.id,
-      options,
-      roads,
-      kindEdgeIds(cut.document, "river"),
-      town.landArea,
-      town.info,
-      gap,
-      cut.cuts
-    );
-    if (
-      options.requireClosure &&
-      finished.report.ok &&
-      !options.razed &&
-      !auditTownDefenseClosure(finished.document, "gc:defense-town-0").ok
-    )
-      continue;
-    return finished;
+          return [edge.leftFace, edge.rightFace].some(f => f && inner.has(f));
+        })
+      );
+      if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok)
+        return fail("castle-crowds", { faces: inner.size });
+      const finished = finish(
+        cut.document,
+        inner,
+        outer.id,
+        options,
+        roads,
+        kindEdgeIds(cut.document, "river"),
+        town.landArea,
+        town.info,
+        gap,
+        cut.cuts
+      );
+      if (
+        options.requireClosure &&
+        finished.report.ok &&
+        !options.razed &&
+        !auditTownDefenseClosure(finished.document, "gc:defense-town-0").ok
+      )
+        continue;
+      return finished;
+    }
   }
   return fail("gap");
 }
@@ -481,6 +613,40 @@ function repairFirstTownCurtain(
     0,
     cuts + repair.splitFaces
   );
+}
+
+/**
+ * The faces round a castle gate's corner must lie on one side of the old-town
+ * curtain; otherwise the curtain runs into the gate. Take them all into the old
+ * town when the castle belongs to it, else leave them all out. False when that
+ * empties or splits the old town.
+ */
+function settleCastleGateFront(
+  document: CityDocument,
+  info: Map<Id, FaceInfo>,
+  inner: Set<Id>,
+  castle: Set<Id>,
+  seed: Id,
+  intoInner: boolean
+): boolean {
+  const { mesh } = document;
+  let changed = false;
+  for (const gate of document.gates) {
+    if (!gate.ownerCastleId) continue;
+    const front = new Set<Id>();
+    for (const edge of Object.values(mesh.edges))
+      if (edge.a === gate.vertexId || edge.b === gate.vertexId)
+        for (const id of [edge.leftFace, edge.rightFace]) if (id && info.has(id) && !castle.has(id)) front.add(id);
+    const members = [...front].filter(id => inner.has(id));
+    if (!members.length || members.length === front.size) continue;
+    for (const id of front) {
+      if (intoInner) inner.add(id);
+      else inner.delete(id);
+    }
+    changed = true;
+  }
+  if (!changed) return true;
+  return inner.size >= MIN_INNER_FACES && inner.has(seed) && connectedFilled(info, inner, seed).size === inner.size;
 }
 
 /**

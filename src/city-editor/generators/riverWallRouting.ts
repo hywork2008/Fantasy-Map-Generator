@@ -4,10 +4,20 @@ import { aStar, type EdgeGraph } from "./edgeGraph";
 import { featureGroupVertices } from "./features";
 import { boundaryRings, castleWallIds } from "./fortifications";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid, segmentSegmentHit } from "./geom";
-import { clone, edgeBetween, facePoints, faceVertices, incidentEdges, incidentFaces, splitFace } from "./mesh";
+import {
+  clone,
+  edgeBetween,
+  facePoints,
+  faceVertices,
+  incidentEdges,
+  incidentFaces,
+  indexMeshEdges,
+  splitFace
+} from "./mesh";
 import { moveVertexWithNeighbors } from "./meshDeformation";
 import {
   alternatingPairs,
+  type IncidentEdges,
   kindEdgeIds,
   openRiverWallPassage,
   orderedIncidentEdges,
@@ -27,15 +37,22 @@ function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
 
 /** Require an actual transverse crossing rather than a wall that grazes
  * the bank. Oblique crossings are valid; clearance is checked separately. */
-function transverseArm(document: CityDocument, edgeId: Id, vertexId: Id): boolean {
+function transverseArm(
+  document: CityDocument,
+  edgeId: Id,
+  vertexId: Id,
+  cache?: { riverEdges: Set<Id>; incident: IncidentEdges }
+): boolean {
   const edge = document.mesh.edges[edgeId];
   const origin = document.mesh.vertices[vertexId].point;
   const other = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a].point;
   const dx = other[0] - origin[0],
     dy = other[1] - origin[1];
-  const riverEdges = kindEdgeIds(document, "river");
-  return [...riverEdges].every(id => {
-    const river = document.mesh.edges[id];
+  // Only river edges at this vertex matter, so with the mesh index look at its edges alone.
+  const riverEdges = cache
+    ? cache.incident(vertexId).filter(e => cache.riverEdges.has(e.id))
+    : [...kindEdgeIds(document, "river")].map(id => document.mesh.edges[id]);
+  return riverEdges.every(river => {
     if (river.a !== vertexId && river.b !== vertexId) return true;
     const point = document.mesh.vertices[river.a === vertexId ? river.b : river.a].point;
     const rx = point[0] - origin[0],
@@ -141,6 +158,23 @@ function preservesRivers(before: CityDocument, after: CityDocument): boolean {
   });
 }
 
+type Box = [minX: number, minY: number, maxX: number, maxY: number];
+
+function boundsOf(points: Point[]): Box {
+  const box: Box = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of points) {
+    if (x < box[0]) box[0] = x;
+    if (y < box[1]) box[1] = y;
+    if (x > box[2]) box[2] = x;
+    if (y > box[3]) box[3] = y;
+  }
+  return box;
+}
+
+function insideBox(p: Point, box: Box): boolean {
+  return p[0] >= box[0] && p[0] <= box[2] && p[1] >= box[1] && p[1] <= box[3];
+}
+
 export interface RiverWallRepair {
   document: CityDocument;
   issues: string[];
@@ -175,6 +209,7 @@ export function repairRiverWalls(
     source.mesh.faces[id] ? [polygonCentroid(facePoints(source.mesh, source.mesh.faces[id]))] : []
   );
 
+  const regionBoxes = urbanRegions.map(boundsOf);
   const reroute = (allowCrossings: boolean, trialPassage?: { vertex: Id; arms: Id[] }) => {
     routingIssues = [];
     failedDetours = [];
@@ -195,25 +230,40 @@ export function repairRiverWalls(
     const channel = rivers.flatMap(g =>
       g.vertices.slice(1).map((id, i) => ({ a: g.vertices[i], b: id, radius: g.style.widthMeters / 2 }))
     );
-    const riverEdges = kindEdgeIds(document, "river"),
+    // The mesh does not change while one reroute runs (only wall groups are replaced),
+    // so one index answers every "which edges meet at this vertex" below.
+    const meshIndex = indexMeshEdges(mesh);
+    const riverEdges = kindEdgeIds(document, "river", meshIndex),
       roadEdges = kindEdgeIds(document, "road");
     const riverVertices = new Set(channel.flatMap(e => [e.a, e.b]));
-    const wallEdges = kindEdgeIds(document, "wall");
+    const everyRiverVertex = new Set(rivers.flatMap(g => g.vertices));
+    const arm = { riverEdges, incident: meshIndex.incident };
+    // The wall edge set follows the walls as they are replaced one by one.
+    let currentWalls: Set<Id> | null = null;
+    const wallsNow = (): Set<Id> => (currentWalls ??= kindEdgeIds(document, "wall"));
+    const wallEdges = wallsNow();
     const passages = new Map(
       [...riverVertices].map(id => {
         // Keep an already consumed, valid crossing even when a straighter
         // unused pair exists at the same junction.
-        const arms = vertexHasCrossing(document, id, "wall", "river", wallEdges, riverEdges)
-          ? incidentEdges(mesh, id)
+        const arms = vertexHasCrossing(document, id, "wall", "river", wallEdges, riverEdges, meshIndex.incident)
+          ? meshIndex
+              .incident(id)
               .filter(edge => wallEdges.has(edge.id))
               .map(edge => edge.id)
-          : throughEdgesAt(document, id, "river", true, riverEdges).map(edge => edge.id);
+          : throughEdgesAt(document, id, "river", true, riverEdges, everyRiverVertex, meshIndex.incident).map(
+              edge => edge.id
+            );
         return [id, new Set(trialPassage?.vertex === id ? trialPassage.arms : arms)];
       })
     );
+    // A point outside a polygon's bounding box is outside the polygon: test the box first.
     const interior = new Set(
       Object.values(mesh.faces)
-        .filter(face => urbanRegions.some(poly => pointInPolygon(polygonCentroid(facePoints(mesh, face)), poly)))
+        .filter(face => {
+          const centre = polygonCentroid(facePoints(mesh, face));
+          return urbanRegions.some((poly, i) => insideBox(centre, regionBoxes[i]) && pointInPolygon(centre, poly));
+        })
         .map(face => face.id)
     );
     const crossingCorridor = new Set(interior);
@@ -229,25 +279,44 @@ export function repairRiverWalls(
       const gap = group.style.widthMeters / 2 + 2;
       const approachEdges = new Set(
         [...passages].flatMap(([id, arms]) =>
-          arms.size === 2 && [...arms].every(edge => transverseArm(document, edge, id))
+          arms.size === 2 && [...arms].every(edge => transverseArm(document, edge, id, arm))
             ? [...bankApproachEdges(document, id, [...arms], gap)]
             : []
         )
       );
-      const clearVertex = (id: Id) =>
-        channel.every(
-          c =>
-            nearestOnPolyline(mesh.vertices[id].point, [mesh.vertices[c.a].point, mesh.vertices[c.b].point]).dist >=
-            c.radius + gap
-        );
-      const allowedEdge = (edgeId: Id, crossings: boolean) => {
+      // `gap`, the channel and the approach set are fixed for this wall, so each answer below
+      // depends only on its arguments; the search asks for the same edges again and again.
+      const clearAnswers = new Map<Id, boolean>();
+      const clearVertex = (id: Id): boolean => {
+        let answer = clearAnswers.get(id);
+        if (answer === undefined) {
+          answer = channel.every(
+            c =>
+              nearestOnPolyline(mesh.vertices[id].point, [mesh.vertices[c.a].point, mesh.vertices[c.b].point]).dist >=
+              c.radius + gap
+          );
+          clearAnswers.set(id, answer);
+        }
+        return answer;
+      };
+      const allowedAnswers = new Map<string, boolean>();
+      const allowedEdge = (edgeId: Id, crossings: boolean): boolean => {
+        const key = crossings ? `${edgeId}+` : edgeId;
+        let answer = allowedAnswers.get(key);
+        if (answer === undefined) {
+          answer = computeAllowedEdge(edgeId, crossings);
+          allowedAnswers.set(key, answer);
+        }
+        return answer;
+      };
+      const computeAllowedEdge = (edgeId: Id, crossings: boolean) => {
         const edge = mesh.edges[edgeId];
         if (riverEdges.has(edgeId)) return false;
         const touching = [edge.a, edge.b].filter(id => riverVertices.has(id));
         if (touching.length > 1) return false;
         if (
           touching.length &&
-          (!crossings || !passages.get(touching[0])?.has(edgeId) || !transverseArm(document, edgeId, touching[0]))
+          (!crossings || !passages.get(touching[0])?.has(edgeId) || !transverseArm(document, edgeId, touching[0], arm))
         )
           return false;
         const crossingOrigin =
@@ -319,7 +388,9 @@ export function repairRiverWalls(
         const bad = (at: number) =>
           !allowedEdge(refs[at].edgeId, true) ||
           [vertices[at], vertices[at + 1]].some(
-            id => riverVertices.has(id) && !vertexHasCrossing(document, id, "wall", "river")
+            id =>
+              riverVertices.has(id) &&
+              !vertexHasCrossing(document, id, "wall", "river", wallsNow(), riverEdges, meshIndex.incident)
           );
         if (!bad(i)) {
           output.push(refs[i++]);
@@ -433,6 +504,7 @@ export function repairRiverWalls(
         continue;
       }
       group.segments = output;
+      currentWalls = null;
     }
   };
 

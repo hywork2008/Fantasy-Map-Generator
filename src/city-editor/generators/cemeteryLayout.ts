@@ -378,15 +378,16 @@ function layoutBurialField(
   };
 }
 
-/**
- * Computes an inset cemetery boundary polygon that respects adjacent river widths,
- * city walls, roads, and water bodies, preventing cemetery stone walls and internal
- * geometry from clipping into river channels, walls, or road rights-of-way.
- */
-export function computeCemeteryBoundary(document: CityDocument, face: Face): Point[] {
-  const raw = facePoints(document.mesh, face);
-  if (raw.length < 3) return raw;
+/** Everything `computeCemeteryBoundary` derives from the document rather than from the face. Valid while the mesh and feature groups are unchanged. */
+export interface CemeteryBoundaryContext {
+  riverMarginByEdge: Map<Id, number>;
+  wallMarginByEdge: Map<Id, number>;
+  roadMarginByEdge: Map<Id, number>;
+  rivers: RiverMargin[];
+  waterParts: Point[][][];
+}
 
+export function cemeteryBoundaryContext(document: CityDocument): CemeteryBoundaryContext {
   const edgeIndex = indexMeshEdges(document.mesh);
   const riverMarginByEdge = new Map<Id, number>();
   const wallMarginByEdge = new Map<Id, number>();
@@ -424,6 +425,23 @@ export function computeCemeteryBoundary(document: CityDocument, face: Face): Poi
       }
     }
   }
+  const waterParts = waterPolygons(document).map(polygon => convexInfillParts(polygon));
+  return { riverMarginByEdge, wallMarginByEdge, roadMarginByEdge, rivers, waterParts };
+}
+
+/**
+ * Computes an inset cemetery boundary polygon that respects adjacent river widths,
+ * city walls, roads, and water bodies, preventing cemetery stone walls and internal
+ * geometry from clipping into river channels, walls, or road rights-of-way.
+ */
+export function computeCemeteryBoundary(
+  document: CityDocument,
+  face: Face,
+  context: CemeteryBoundaryContext = cemeteryBoundaryContext(document)
+): Point[] {
+  const raw = facePoints(document.mesh, face);
+  if (raw.length < 3) return raw;
+  const { riverMarginByEdge, wallMarginByEdge, roadMarginByEdge, rivers, waterParts } = context;
 
   // Calculate per-edge setback for each boundary segment
   const setbacks = face.boundary.map(ref => {
@@ -469,10 +487,9 @@ export function computeCemeteryBoundary(document: CityDocument, face: Face): Poi
 
   // Physical channels can cross a land-classified editing cell without a
   // river feature group or an adjacent water face.
-  if (waterPolygons(document).length) {
+  if (waterParts.length) {
     let dry = convexInfillParts(boundary.length >= 3 ? boundary : raw);
-    for (const polygon of waterPolygons(document))
-      for (const wet of convexInfillParts(polygon)) dry = dry.flatMap(part => subtractConvex(part, wet, 0.01));
+    for (const parts of waterParts) for (const wet of parts) dry = dry.flatMap(part => subtractConvex(part, wet, 0.01));
     return dry.sort((a, b) => plotArea(b) - plotArea(a))[0] ?? [];
   }
   return boundary.length >= 3 ? boundary : raw;
@@ -571,7 +588,7 @@ export const MIN_CEMETERY_GROUND_M2 = 1200;
  * ground, reachable from the town without crossing water; the old face is
  * released. Returns the moved cemetery face ids (old → new).
  */
-export function relocateUndersizedCemeteries(document: CityDocument): Map<Id, Id> {
+export function relocateUndersizedCemeteries(document: CityDocument, candidateFaceIds?: ReadonlySet<Id>): Map<Id, Id> {
   const moved = new Map<Id, Id>();
   const ground = (boundary: Point[]) => (boundary.length >= 3 ? Math.abs(polygonArea(boundary)) : 0);
   const gateVertices = new Set((document.gates ?? []).map(gate => gate.vertexId));
@@ -606,12 +623,14 @@ export function relocateUndersizedCemeteries(document: CityDocument): Map<Id, Id
     if (cemetery.locked || !face || face.properties.locked) continue;
     if (ground(cemetery.boundary) >= MIN_CEMETERY_GROUND_M2 && cemetery.parts.length) continue;
     let best: { face: Face; boundary: Point[]; score: number } | null = null;
+    const boundaryContext = cemeteryBoundaryContext(document);
     for (const candidate of Object.values(document.mesh.faces)) {
+      if (candidateFaceIds && !candidateFaceIds.has(candidate.id)) continue;
       const props = candidate.properties;
       if (candidate.id === face.id || props.locked || props.water !== "land") continue;
       if (props.settlement === "core" || (props.ward && props.ward !== "empty" && props.ward !== "farm")) continue;
       if (faceVertices(document.mesh, candidate).some(id => gateVertices.has(id))) continue;
-      const boundary = computeCemeteryBoundary(document, candidate);
+      const boundary = computeCemeteryBoundary(document, candidate, boundaryContext);
       if (ground(boundary) < MIN_CEMETERY_GROUND_M2) continue;
       const centre = polygonCentroid(facePoints(document.mesh, candidate));
       // Mourners walk from the town: no cemetery across the river or a bay.

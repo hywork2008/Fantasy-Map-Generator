@@ -4,7 +4,7 @@ import type { CityProgram } from "../../../types/geometry";
 import { finishCityGeometry } from "../../finishCityGeometry";
 import { boundaryEdges, reservedCastleFaces, townGates } from "../../fortifications";
 import { pointInPolygon, polygonCentroid, segmentSegmentHit } from "../../geom";
-import { edgeBetween, facePoints, faceVertices, insertEdgeVertex, splitFace } from "../../mesh";
+import { edgeBetween, facePoints, faceVertices, insertEdgeVertex, mergeFaces, splitFace } from "../../mesh";
 import { kindEdgeIds, minGateSpacingMeters, openBarrierPassage, throughEdgesAt } from "../../passages";
 import { enclosedTownFaces, repairRiverWalls } from "../../riverWallRouting";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
@@ -337,6 +337,32 @@ export function applyGates(input: ApplyGatesInput) {
       }
       return null;
     };
+    // The bridge-head arm adds a fifth edge at a riverside gate. An older
+    // exterior arm into the river then reads as the straighter passage and
+    // drowns the gate (Gothengsfeld v81). Merge the cells it separates.
+    const dropWetExteriorArms = (document: CityDocument, vertexId: Id): CityDocument => {
+      let result = document;
+      const walls = kindEdgeIds(result, "wall");
+      for (const edge of Object.values(result.mesh.edges).filter(e => e.a === vertexId || e.b === vertexId)) {
+        const current = result.mesh.edges[edge.id];
+        if (!current || walls.has(edge.id) || !current.leftFace || !current.rightFace) continue;
+        const sides = [current.leftFace, current.rightFace].map(id => result.mesh.faces[id]);
+        if (
+          sides.some(
+            face =>
+              face.properties.water !== "land" ||
+              face.properties.locked ||
+              urbanRegions.some(region => pointInPolygon(polygonCentroid(facePoints(result.mesh, face)), region))
+          )
+        )
+          continue;
+        const a = result.mesh.vertices[current.a].point,
+          b = result.mesh.vertices[current.b].point;
+        if (!lineHitsDocumentWater(result, [a, b], roadWidth, true)) continue;
+        result = mergeFaces(result, current.leftFace, current.rightFace) ?? result;
+      }
+      return result;
+    };
     plan.gates.forEach((gate, i) => {
       if (isInteriorRiverLanding(plan, program, urbanRegions, gate.roadIndex)) return;
       const bridgeHead = bridgeHeadFor(gate);
@@ -386,7 +412,8 @@ export function applyGates(input: ApplyGatesInput) {
             ? armToBridgeHead(next, vertexId, bridgeHead)
             : null;
         const armed = outward && bridgeHead ? (armIntoTown(outward, vertexId, bridgeHead) ?? outward) : outward;
-        const opened = openBarrierPassage(armed ?? next, vertexId, "wall");
+        const dried = armed ? dropWetExteriorArms(armed, vertexId) : armed;
+        const opened = openBarrierPassage(dried ?? next, vertexId, "wall");
         for (const [id, locked] of lockedBefore) {
           if (mesh.vertices[id]) mesh.vertices[id].locked = locked;
           if (opened?.mesh.vertices[id]) opened.mesh.vertices[id].locked = locked;

@@ -5,6 +5,7 @@ import { townCircuits } from "../generators/fortifications";
 import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
 import { clearGenerationPreviewCache, generateStageOnDocument } from "../generators/generation/previews";
 import { randomSeed } from "../generators/generation/settings";
+import { generateSkeletonPreview } from "../generators/generation/skeleton/previews";
 import { generationPhaseLabel, logGenerationFailures } from "../generators/generationDiagnostics";
 import { clone } from "../generators/mesh";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
@@ -41,6 +42,7 @@ export interface GenerationContext {
   wallFallbackNotice: (doc: CityDocument, checkpoint?: boolean) => string;
   redrawMap: () => void;
   seedInput: HTMLInputElement;
+  syncSkeletonControls?: () => void;
   moatInputs: Map<"town" | "castle", HTMLInputElement>;
   castleInputs: Map<keyof CastleSettings, HTMLSelectElement>;
   buildingPatternSelect: HTMLSelectElement;
@@ -283,6 +285,7 @@ export function createGenerationController(ctx: GenerationContext) {
         ctx.documentForOutput(next),
         editorText("cityEditor.messages.generateCompleteCityCityEditorPage")
       );
+      if (next.gridKind) ctx.documents.gridKind = next.gridKind;
       ctx.generation.completeResult = ctx.documents.documentState;
       ctx.generation.lastGeneratedStep = null;
       ctx.generation.activeStepStage = null;
@@ -297,7 +300,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.display.showBlockMesh = false;
       ctx.display.hideBuildings = false;
       ctx.display.hideStreetLines = false;
-      ctx.syncStageUi(16);
+      ctx.syncStageUi(generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")?.step ?? 16);
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
       ctx.rememberGenerationState();
       ctx.rebuildEditorIndexes();
@@ -347,6 +350,7 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.generation.pendingFailurePreview = null;
     ctx.generationLog.reset();
     let next: CityDocument | null = null;
+    let skeletonOverlay: import("../types/document").Point[][] | null = null;
     try {
       const finished =
         ctx.generation.completeResult &&
@@ -354,7 +358,17 @@ export function createGenerationController(ctx: GenerationContext) {
           ctx.generation.completeResult.generationSeed === effectiveSeed)
           ? ctx.generation.completeResult
           : null;
-      if (finished && ["blocks", "buildings", "conceal"].includes(stage.id)) {
+      if (stage.processStep < 0 && ctx.generation.generateSettings.generationMethod === "skeleton-first") {
+        const preview = generateSkeletonPreview(
+          source,
+          ctx.generation.generateSettings,
+          effectiveSeed,
+          -stage.processStep,
+          sample => ctx.generationLog.append(sample, effectiveSeed)
+        );
+        next = preview.document;
+        skeletonOverlay = preview.overlayPaths;
+      } else if (finished && ["blocks", "buildings", "conceal"].includes(stage.id)) {
         next = clone(finished);
       } else if (finished && stage.id === "geometry") {
         const s7 = clone(finished);
@@ -388,6 +402,11 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.appendGenerationException(error, effectiveSeed);
     }
     if (!next) {
+      if (stage.id !== "urban") {
+        ctx.generation.urbanCoreHighlight = null;
+        ctx.generation.stepOverlayPaths = null;
+        ctx.redrawMap();
+      }
       if (ctx.failureDebugInput.checked && ctx.generation.pendingFailurePreview)
         ctx.showFailurePreview(
           ctx.generation.pendingFailurePreview,
@@ -425,7 +444,7 @@ export function createGenerationController(ctx: GenerationContext) {
     // own visual cue (river / walls+gates / roads / ward colours) and needs none.
     ctx.generation.urbanCoreHighlight =
       stage.id === "urban" ? buildableLandFaceIds(next, ctx.generation.generateSettings.urbanCoreMode) : null;
-    ctx.generation.stepOverlayPaths = null;
+    ctx.generation.stepOverlayPaths = skeletonOverlay;
     ctx.display.hideBuildings = stage.id === "blocks";
     ctx.display.hideStreetLines = stage.id === "conceal";
     // Re-pressing the same stage on the same town is a no-op: keep the history
@@ -521,8 +540,9 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.generation.stepOverlayPaths = null;
     ctx.stepStatus.textContent = "";
     ctx.generation.lastGeneratedStep = null;
-    ctx.generation.currentStageStep = 16;
-    ctx.syncStageUi(16);
+    ctx.generation.currentStageStep =
+      generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")?.step ?? 16;
+    ctx.syncStageUi(ctx.generation.currentStageStep);
     runCompleteGeneration();
   }
 
@@ -582,6 +602,7 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.bearingsInput.value =
       ctx.generation.generateSettings.streets.manualBearings?.map(n => String(n)).join(", ") ?? "";
     ctx.bearingsLabel.style.display = ctx.farNodeSelect.value === "manualBearings" ? "" : "none";
+    ctx.syncSkeletonControls?.();
     const imported = ctx.generation.generateSettings.descriptor != null;
     ctx.importedBox.hidden = !imported;
     ctx.synthControls.hidden = imported;

@@ -13,7 +13,7 @@ import { cellsFromMesh } from "./meshGeometry";
 /** Everything `runPlan` needs, derived once from the document + the deliberate
  * inputs. Shared by `generateStageOnDocument` and `generateUrbanPatchStep` so
  * both read the exact same geography for a given `(document, settings, seed)`. */
-export function prepareRun(document: CityDocument, settings: GenerationSettings, seed: string) {
+export function prepareRun(document: CityDocument, settings: GenerationSettings, seed: string, readMesh = true) {
   const frame = document.frame;
   const half = settings.descriptor?.regionalContext
     ? Math.max(...Object.values(document.mesh.vertices).map(v => Math.max(Math.abs(v.point[0]), Math.abs(v.point[1]))))
@@ -40,9 +40,8 @@ export function prepareRun(document: CityDocument, settings: GenerationSettings,
     lloydPasses: 1,
     urbanNPatches: settings.urbanNPatches
   };
-  const { cells, faceIdOf } = cellsFromMesh(
-    document.mesh,
-    settings.descriptor?.regionalContext ? townExtentMeters(frame) / 2 : half
-  );
+  const { cells, faceIdOf } = readMesh
+    ? cellsFromMesh(document.mesh, settings.descriptor?.regionalContext ? townExtentMeters(frame) / 2 : half)
+    : { cells: [], faceIdOf: [] };
   return { cells, faceIdOf, geo, program, params, half, cellSize };
 }

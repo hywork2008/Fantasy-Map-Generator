@@ -8,7 +8,12 @@ import type { GenerationSettings } from "../../types/generation";
 import { tagExternalGateRoads } from "../approachBeyond";
 import { buildBlockFabric } from "../blockInfill";
 import { finalizeCastles } from "../castles";
-import { refreshCemeteryLayouts, relocateUndersizedCemeteries, syncDocumentCemeteries } from "../cemeteryLayout";
+import {
+  MIN_CEMETERY_GROUND_M2,
+  refreshCemeteryLayouts,
+  relocateUndersizedCemeteries,
+  syncDocumentCemeteries
+} from "../cemeteryLayout";
 import { createFabricPlan } from "../fabricDistricts";
 import { finishCityGeometry } from "../finishCityGeometry";
 import { fitImportedHousing } from "../fitImportedHousing";
@@ -23,10 +28,10 @@ import {
 } from "../generationDiagnostics";
 import { isSimplePolygon, polygonArea } from "../geom";
 import { spawnHarborShips } from "../harborShips";
-import { INNER_WALL_FAILURES } from "../innerTownWall";
+import { GAP_BLOCKERS, INNER_WALL_FAILURES, type InnerTownPlanDiagnostics } from "../innerTownWall";
 import { FabricCache } from "../localInfill";
 import { shortcutMajorRoads } from "../majorRoadShortcuts";
-import { clone, facePoints } from "../mesh";
+import { clone, facePoints, validate } from "../mesh";
 import { MoatReservation } from "../moats";
 import {
   explainGeneratedCrossingFailures,
@@ -62,7 +67,14 @@ import { prepareRun } from "./prepareRun";
 import { finishFixedConnections } from "./routing/fixedConnections";
 import { alignFrameRoadEndpoints, snapFrameRoadTerminals } from "./routing/frameRoadConnection";
 import { countExternalApproachRoads } from "./routing/roadCounts";
-import { resolveEffectiveLayout, resolveStreetSettings } from "./settings";
+import {
+  resolveEffectiveLayout,
+  resolveGenerationMethod,
+  resolveStreetSettings,
+  skeletonUnsupportedSettings
+} from "./settings";
+import { finishSkeletonGeometry } from "./skeleton/finish";
+import { planSkeletonCity } from "./skeleton/toPlan";
 import { applyImportedWaterAccess } from "./waterAccess";
 
 export const COMPLETE_CITY_ATTEMPTS = 8;
@@ -78,6 +90,18 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  const skeletonFirst = resolveGenerationMethod(settings) === "skeleton-first";
+  const unsupported = skeletonUnsupportedSettings(settings);
+  if (unsupported.length) {
+    reportGenerationFailure(
+      observer,
+      1,
+      "prepare",
+      "unsupported-skeleton-settings",
+      `Skeleton-first does not support: ${unsupported.join(", ")}`
+    );
+    return null;
+  }
   const profile = settings.descriptor?.urbanMorphology;
   if (profile && supportsUrbanMorphology(profile.period)) {
     const inferred = inferredWallSettings(profile, settings.descriptor!.burg.dwellings);
@@ -90,7 +114,7 @@ export function generateCityOnDocument(
     settings = {
       ...settings,
       descriptor,
-      townWallRings: settings.townWallRings ?? inferred.townWallRings,
+      townWallRings: settings.townWallRings ?? (skeletonFirst ? "single" : inferred.townWallRings),
       walledAreaShare: settings.walledAreaShare ?? inferred.walledAreaShare
     };
     document = { ...document, urbanMorphology: structuredClone(profile), siteEconomy: undefined };
@@ -110,12 +134,17 @@ export function generateCityOnDocument(
   // same requested settings, always starting from the untouched input rather
   // than accumulating failed merges.
   const failures: GenerationSample[] = [];
+  let oldTownBuilt = false;
   const observe: GenerationObserver = sample => {
     if (sample.failure) failures.push(sample);
+    if (sample.phase === "inner-wall" && sample.counts?.ok === 1) oldTownBuilt = true;
     observer?.(sample);
   };
   // Debug previews stop at the first rejection, keeping the requested seed.
   let attemptSettings = settings;
+  // A double-walled town whose old-town wall repeatedly cannot be completed
+  // (gates the streets cannot reach, a pinched castle) keeps its outer wall.
+  let singleWallFallback: string | undefined;
   // Imported rivers drawn only as surveyed water (fixed banks or wide channels) keep FMG's flow
   // direction. It must be on the document while the fabric is built: ferry landings, mills and
   // yards read it, and a ferry plan made without it would be cached as "no flow".
@@ -153,17 +182,36 @@ export function generateCityOnDocument(
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;
       result.generationSeed = attemptSeed;
+      if (singleWallFallback)
+        result.townWallGeneration = {
+          requestedOrder: settings.townWallBuildOrder ?? "outer-first",
+          actualOrder: "single",
+          fallbackReason: singleWallFallback
+        };
       if (result.fabric) {
-        const input = measureProcessing(profiler, "recipe-input-clone", () => clone(document));
+        const input: CityDocument = measureProcessing(profiler, "recipe-input-clone", () =>
+          clone(
+            skeletonFirst && document.fabric?.generation?.algorithm === "skeleton-city-v1"
+              ? document.fabric.generation.input
+              : document
+          )
+        );
         delete input.fabric;
         result.fabric.generation = {
-          algorithm: settings.legacyCastles ? "evolution-city-v3" : "castle-city-v1",
+          algorithm: skeletonFirst
+            ? "skeleton-city-v1"
+            : settings.legacyCastles
+              ? "evolution-city-v3"
+              : "castle-city-v1",
           seed: attemptSeed,
           settings: {
             ...measureProcessing(profiler, "recipe-settings-clone", () => structuredClone(attemptSettings)),
             layout: result.layout,
+            ...(skeletonFirst
+              ? { generationMethod: "skeleton-first" as const, wallShape: attemptSettings.wallShape ?? "auto" }
+              : {}),
             walledAreaShare:
-              settings.townWallRings === "double"
+              attemptSettings.townWallRings === "double"
                 ? innerWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
                 : resolveWalledAreaShare(settings.walledAreaShare, townExtentMeters(document.frame))
           },
@@ -229,6 +277,25 @@ export function generateCityOnDocument(
         );
         observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
       }
+      if (skeletonFirst) {
+        const errors = validate(result);
+        if (errors.length) {
+          const sample = reportGenerationFailure(
+            observe,
+            attempt + 1,
+            "complete",
+            "invalid-mesh",
+            "The completed skeleton city has invalid mesh references.",
+            undefined,
+            errors
+          );
+          if (onRejected) {
+            onRejected(captureGenerationDebugPreview(result, sample, attemptSeed));
+            return null;
+          }
+          continue;
+        }
+      }
       return result;
     }
     if (onRejected) return null;
@@ -244,6 +311,12 @@ export function generateCityOnDocument(
         castleStreetLinks: true,
         ...(reasons.some(reason => reason !== "unconnected-gates") || attempt >= 1 ? { castleOutward: true } : {})
       };
+    // Only when an old-town wall was actually built: a town with no room for
+    // one is already single-walled by its plan.
+    if (settings.townWallRings === "double" && attempt >= 1 && reasons.length && oldTownBuilt) {
+      singleWallFallback = reasons.at(-1);
+      attemptSettings = { ...attemptSettings, townWallRings: "single", walledAreaShare: 1 };
+    }
   }
   observe({
     phase: "complete",
@@ -305,39 +378,63 @@ export function generateCityAttempt(
     if (onRejected) onRejected(captureGenerationDebugPreview(debugDocument(), sample, seed));
     return null;
   };
+  const skeletonFirst = resolveGenerationMethod(settings) === "skeleton-first";
+  const unsupported = skeletonUnsupportedSettings(settings);
+  if (unsupported.length)
+    return reject(
+      "prepare",
+      "unsupported-skeleton-settings",
+      `Skeleton-first does not support: ${unsupported.join(", ")}`
+    );
   const faceCount = Object.keys(document.mesh.faces).length;
-  if (faceCount < 3)
+  if (!skeletonFirst && faceCount < 3)
     return reject(
       "prepare",
       "too-few-faces",
       editorText("cityEditor.messages.gridHasFewerThanThreeFaces", { value0: faceCount }),
       { faces: faceCount }
     );
-  const { cells, faceIdOf, geo, program, params, half, cellSize } = measureProcessing(profiler, "prepare", () =>
-    prepareRun(document, settings, seed)
+  let skeletonRun: ReturnType<typeof planSkeletonCity> = null;
+  if (skeletonFirst) {
+    try {
+      skeletonRun = measureProcessing(profiler, "skeleton-plan", () =>
+        planSkeletonCity(document, settings, seed, observer, attempt)
+      );
+    } catch (error) {
+      return reject("conformingMesh", "invalid-mesh", String(error));
+    }
+    if (!skeletonRun) return null;
+    document = { ...document, gridKind: "evolution" };
+  }
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = measureProcessing(
+    profiler,
+    "prepare",
+    () => skeletonRun?.prepared ?? prepareRun(document, settings, seed)
   );
   mark("prepare", { faces: cells.length, edges: Object.keys(document.mesh.edges).length });
-  const plan = measureProcessing(profiler, "plan", () =>
-    runPlan(
-      document.mesh,
-      faceIdOf,
-      cells,
-      geo,
-      program,
-      params,
-      seed,
-      half,
-      cellSize,
-      settings,
-      6,
-      true,
-      observer,
-      attempt,
-      true,
-      document.gridKind,
-      document
-    )
-  );
+  const plan =
+    skeletonRun?.plan ??
+    measureProcessing(profiler, "plan", () =>
+      runPlan(
+        document.mesh,
+        faceIdOf,
+        cells,
+        geo,
+        program,
+        params,
+        seed,
+        half,
+        cellSize,
+        settings,
+        6,
+        true,
+        observer,
+        attempt,
+        true,
+        document.gridKind,
+        document
+      )
+    );
   mark("plan-total");
   debugDocument = () => planningDebugDocument(document, faceIdOf, plan, program);
   if (plan.castleFailure)
@@ -407,7 +504,11 @@ export function generateCityAttempt(
   }
   const streetOptions = resolveStreetSettings(settings);
   const plaza = plan.precincts.find(p => p.kind === "plaza");
-  const effectiveLayout = resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
+  const effectiveLayout = skeletonFirst
+    ? settings.layout === "classic"
+      ? "classic"
+      : "organic"
+    : resolveEffectiveLayout(settings.layout ?? settings.config?.layout, params.extentMeters, seed);
   const hub: Point = plaza?.anchor ?? [0, 0];
   const isGate = (p: Point) => plan.gates.some(g => Math.hypot(g.point[0] - p[0], g.point[1] - p[1]) < 15);
   const isPlaza = (p: Point) => {
@@ -516,7 +617,8 @@ export function generateCityAttempt(
     mark("inner-wall", {
       ok: 0,
       failureCode: INNER_WALL_FAILURES.indexOf(plan.innerWall.failure ?? "gap") + 1,
-      planned: 0
+      planned: 0,
+      ...innerPlanDiagnosticCounts(plan.innerWall.diagnostics)
     });
   next.appearance = "town";
   if (stopAfter === "innerGates") {
@@ -531,20 +633,36 @@ export function generateCityAttempt(
   if (stopAfter) return next;
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
-  const routed = coarse ? measureProcessing(profiler, "road-shortcuts", () => shortcutMajorRoads(next)) : next;
+  const routed =
+    coarse && !skeletonFirst ? measureProcessing(profiler, "road-shortcuts", () => shortcutMajorRoads(next)) : next;
   mark("major-road-shortcuts");
   const rectified = hexagonal
     ? measureProcessing(profiler, "rectify-hex", () => rectifyHexBlocks(routed, seed))
     : routed;
   mark("rectify-hex");
   const finished = resolveStreetSettings(settings).foldSmoothing
-    ? measureProcessing(profiler, "finish-geometry", () => finishCityGeometry(rectified))
+    ? measureProcessing(profiler, "finish-geometry", () =>
+        plan.skeleton
+          ? finishSkeletonGeometry(
+              rectified,
+              plan.skeleton,
+              "finish-geometry",
+              doc => finishCityGeometry(doc),
+              observer,
+              attempt
+            )
+          : finishCityGeometry(rectified)
+      )
     : rectified;
   mark("finish-geometry");
   // Square each bridge immediately after smoothing, before block rectification
   // pins the road vertices. The crossing stays on the river; its two road
   // neighbours slide onto the normal so the span is the short perpendicular.
-  const squared = measureProcessing(profiler, "straighten-bridges", () => straightenBridges(finished));
+  const squared = measureProcessing(profiler, "straighten-bridges", () =>
+    plan.skeleton
+      ? finishSkeletonGeometry(finished, plan.skeleton, "straighten-bridges", straightenBridges, observer, attempt)
+      : straightenBridges(finished)
+  );
   const shaped =
     hexagonal || coarse
       ? squared
@@ -553,13 +671,23 @@ export function generateCityAttempt(
   const allowedRiverIds = new Set(
     plan.rivers.flatMap((river, index) => (river.bridgeAllowed ? [`${GEN_PREFIX}river-${index}`] : []))
   );
-  const connected = coarse
-    ? measureProcessing(profiler, "river-district-connections", () =>
-        connectUrbanRiverDistricts(shaped, allowedRiverIds)
-      )
-    : shaped;
+  const connected =
+    coarse && !skeletonFirst
+      ? measureProcessing(profiler, "river-district-connections", () =>
+          connectUrbanRiverDistricts(shaped, allowedRiverIds)
+        )
+      : shaped;
   const settled = measureProcessing(profiler, "gate-and-bridge-crossings", () =>
-    straightenGateCrossings(retractProtrudingGates(straightenBridges(connected)))
+    plan.skeleton
+      ? finishSkeletonGeometry(
+          connected,
+          plan.skeleton,
+          "gate-and-bridge-crossings",
+          doc => straightenGateCrossings(retractProtrudingGates(straightenBridges(doc))),
+          observer,
+          attempt
+        )
+      : straightenGateCrossings(retractProtrudingGates(straightenBridges(connected)))
   );
   debugDocument = () => settled;
   measureProcessing(profiler, "temple", () => settleTempleOnDocument(settled));
@@ -629,7 +757,7 @@ export function generateCityAttempt(
   );
   const tangled = coarse
     ? Object.values(settled.mesh.faces)
-        .filter(f => !isSimplePolygon(facePoints(settled.mesh, f)))
+        .filter(f => !isSimplePolygon(facePoints(settled.mesh, f), skeletonFirst && !f.properties.buildable ? 1e-8 : 1))
         .map(f => f.id)
     : [];
   const valid = !crossingDetails.length && (minRoads === 0 || roadsAfterFinish >= minRoads) && !tangled.length;
@@ -701,16 +829,32 @@ export function generateCityAttempt(
     }
   }
   measureProcessing(profiler, "external-gate-roads", () => tagExternalGateRoads(settled, seed, settings.descriptor));
-  measureProcessing(profiler, "frame-road-alignment", () => alignFrameRoadEndpoints(settled));
-  measureProcessing(profiler, "frame-road-terminals", () => snapFrameRoadTerminals(settled));
-  measureProcessing(profiler, "frame-road-junctions", () => straightenFrameRoadJunctions(settled, settings.descriptor));
+  if (!skeletonFirst) measureProcessing(profiler, "frame-road-alignment", () => alignFrameRoadEndpoints(settled));
+  if (!skeletonFirst) measureProcessing(profiler, "frame-road-terminals", () => snapFrameRoadTerminals(settled));
+  if (!skeletonFirst)
+    measureProcessing(profiler, "frame-road-junctions", () =>
+      straightenFrameRoadJunctions(settled, settings.descriptor)
+    );
   measureProcessing(profiler, "roadside-fields", () => cultivateRoadside(settled));
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
-  measureProcessing(profiler, "cemetery-relocation", () => relocateUndersizedCemeteries(settled));
+  measureProcessing(profiler, "cemetery-relocation", () =>
+    relocateUndersizedCemeteries(
+      settled,
+      skeletonFirst
+        ? new Set(
+            Object.values(settled.mesh.faces)
+              .filter(face => Math.abs(polygonArea(facePoints(settled.mesh, face))) >= MIN_CEMETERY_GROUND_M2)
+              .map(f => f.id)
+          )
+        : undefined
+    )
+  );
   measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
   measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
-  const withApproaches = finishFixedConnections(settled, settings, geo, attempt, observer, profiler);
+  const withApproaches = skeletonFirst
+    ? settled
+    : finishFixedConnections(settled, settings, geo, attempt, observer, profiler);
   const closureReports = program.walls
     ? townCircuits(withApproaches).map(c => auditTownDefenseClosure(withApproaches, c.id, true))
     : [];
@@ -719,7 +863,8 @@ export function generateCityAttempt(
     rings: closureReports.length,
     unprotectedMeters: closureReports.reduce((n, r) => n + r.undefendedLengthMeters, 0),
     riverOpeningMeters: closureReports.reduce((n, r) => n + r.riverOpeningLengthMeters, 0),
-    invasionPaths: closureReports.reduce((n, r) => n + r.invasionPaths, 0)
+    invasionPaths: closureReports.reduce((n, r) => n + r.invasionPaths, 0),
+    ...ringClosureCounts(closureReports)
   });
   if (
     settings.townWallRings === "double" &&
@@ -743,4 +888,28 @@ export function generateCityAttempt(
       };
   }
   return withApproaches;
+}
+
+/** ce:perf counts for an unsuccessful old-town pre-plan (`blockerCode` = GAP_BLOCKERS index + 1). */
+function innerPlanDiagnosticCounts(d: InnerTownPlanDiagnostics | undefined): Record<string, number> {
+  if (!d) return {};
+  return {
+    townFaces: d.townFaces ?? 0,
+    trials: d.trials ?? 0,
+    bestGap: Number.isFinite(d.bestGap) ? (d.bestGap ?? -1) : 999,
+    blockerCode: d.blocker ? GAP_BLOCKERS.indexOf(d.blocker) + 1 : 0
+  };
+}
+
+/** Per-ring split of the closure audit; `townCircuits` orders the inner ring first, the outer last. */
+function ringClosureCounts(
+  reports: { undefendedLengthMeters: number; riverOpeningLengthMeters: number; invasionPaths: number }[]
+): Record<string, number> {
+  if (!reports.length) return {};
+  const ring = (prefix: string, r: (typeof reports)[number]) => ({
+    [`${prefix}UnprotectedMeters`]: r.undefendedLengthMeters,
+    [`${prefix}RiverOpeningMeters`]: r.riverOpeningLengthMeters,
+    [`${prefix}InvasionPaths`]: r.invasionPaths
+  });
+  return { ...ring("outer", reports.at(-1)!), ...(reports.length > 1 ? ring("inner", reports[0]) : {}) };
 }

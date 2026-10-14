@@ -267,6 +267,28 @@ export function buildBlockFabric(
   return fabricResult;
 }
 
+/**
+ * The harbor plan `buildBlockFabric` would return, without the building passes after it
+ * (`finishCoastalBuildings` and growth shaping leave `harbor` untouched).
+ */
+export function buildHarborPlan(document: CityDocument, profiler?: ProcessingProfiler): DistrictFabric["harbor"] {
+  if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval")
+    return buildBlockFabric(document, undefined, profiler).harbor;
+  const port =
+    document.waterAccess?.port.river ||
+    Object.values(document.mesh.faces).some(f => f.properties.ward === "harbor" && f.properties.water === "land");
+  if (!port) return undefined;
+  const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
+  const base = measureProcessing(profiler, "legacy-fabric", () =>
+    buildLegacyBlockFabric(source, getDefaultCache(), profiler)
+  );
+  const streets = base.lanes.flatMap(l =>
+    l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
+  );
+  const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
+  return measureProcessing(profiler, "harbor-fabric", () => planHarbor(document, streets, barriers));
+}
+
 function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
   const fixedRoads = new FixedRoadReservation(document);
   const moat = new MoatReservation(document, 2);

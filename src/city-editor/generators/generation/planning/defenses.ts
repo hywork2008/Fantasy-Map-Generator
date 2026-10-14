@@ -14,7 +14,7 @@ import type { CoastResult } from "../../classifySea";
 import { maxWallGatesForExtent } from "../../document";
 import { resolveWallMaterial } from "../../features";
 import { nearestOnPolyline, pointInPolygon } from "../../geom";
-import { innerTownCapacity, planInnerTown } from "../../innerTownWall";
+import { type InnerTownPlanDiagnostics, innerTownCapacity, planInnerTown } from "../../innerTownWall";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "../../interior";
 import { facePoints, faceVertices } from "../../mesh";
 import { bramCoreRadiusMeters, planPolygonalCirculadeLayout } from "../../polygonalCirculadeLayout";
@@ -179,13 +179,16 @@ export function planDefenses(input: PlanDefensesInput) {
     effectiveLayout !== "circulade" &&
     effectiveLayout !== "bram"
   ) {
+    const diagnostics: InnerTownPlanDiagnostics = {};
     const planned = planInnerTown(
       currentMesh,
       [...currentUrban].map(id => currentFaceIdOf[id]),
       innerWalledAreaShare(settings.walledAreaShare, params.extentMeters),
       settings.townWallBuildOrder === "inner-first" ? 0 : INNER_WALL_MIN_GAP_CELLS,
       // The final old town is centred on the plaza (`townCenter`); plan on the same centre.
-      precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0]
+      precincts.find(p => p.kind === "plaza")?.anchor ?? [0, 0],
+      undefined,
+      diagnostics
     );
     innerWall = planned
       ? {
@@ -195,7 +198,7 @@ export function planDefenses(input: PlanDefensesInput) {
           buildOrder: settings.townWallBuildOrder,
           defensePolicy: settings.townWallDefensePolicy
         }
-      : { planned: false, failure: "gap" };
+      : { planned: false, failure: diagnostics.failure ?? "gap", diagnostics };
     innerPlanFaces = planned?.faces ?? null;
   }
   if (program.citadel && !settings.legacyCastles && !preservedCastleIds.size) {
@@ -204,6 +207,11 @@ export function planDefenses(input: PlanDefensesInput) {
     const urbanFaces = new Set([...currentUrban].map(id => currentFaceIdOf[id]));
     const reserve = new Set(precincts.flatMap(p => p.cellIds.map(id => currentFaceIdOf[id])));
     for (const face of Object.values(currentMesh.faces)) if (face.properties.locked) reserve.add(face.id);
+    // A town without a plaza still routes its streets to the centre. A castle
+    // on that hub leaves its gate no inward arm and the town gates no way in
+    // (Sinzlingen, Sanjeiradil, Ordes), on every attempt.
+    if (!precincts.some(p => p.kind === "plaza"))
+      for (const id of townHubFaces(currentMesh, urbanFaces)) reserve.add(id);
     const planningWallMaterial = resolveWallMaterial(
       sourceDocument ?? {
         format: "fmg-city-editor",
@@ -583,3 +591,23 @@ export function planDefenses(input: PlanDefensesInput) {
 
 /** Output references belong to one pipeline invocation; no cache retains them. */
 export type PlanDefensesResult = ReturnType<typeof planDefenses>;
+
+/** Urban faces around the vertex nearest the town centre, where plaza-less streets meet. */
+function townHubFaces(mesh: Mesh, urbanFaces: Set<Id>): Id[] {
+  let hub: Id | null = null;
+  let best = Infinity;
+  for (const id of urbanFaces) {
+    const face = mesh.faces[id];
+    if (!face) continue;
+    for (const v of faceVertices(mesh, face)) {
+      const [x, y] = mesh.vertices[v].point;
+      const d = Math.hypot(x, y);
+      if (d < best) {
+        best = d;
+        hub = v;
+      }
+    }
+  }
+  if (!hub) return [];
+  return [...urbanFaces].filter(id => mesh.faces[id] && faceVertices(mesh, mesh.faces[id]).includes(hub!));
+}
