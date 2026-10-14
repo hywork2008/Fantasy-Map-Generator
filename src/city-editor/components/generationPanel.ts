@@ -3,6 +3,7 @@ import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urban
 import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
+import { skeletonUnsupportedSettings } from "../generators/generation/settings";
 import { CITY_LAYOUTS, FEATURE_KEYS, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { CityFeatureSet, WallCoastChoice, WallMaterialChoice } from "../types/contracts/siteConfig";
@@ -324,6 +325,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   wallMaterialSelect.value = ctx.generation.generateSettings.config.wall.material ?? "auto";
   wallMaterialSelect.title = editorText("cityEditor.messages.wallMaterialAutomaticUsesStoneForLargeCitiesAndWooden");
   const riversSelect = ctx.select(["0", "1", "2"], String(ctx.generation.generateSettings.config.rivers.length));
+  riversSelect.className = "ce-generate-river-count";
   bindPanelEvents(events, "riversSelect:change");
   const riverPlacementSelect = ctx.select(
     ["through", "outsideNear", "outside"],
@@ -382,14 +384,19 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     stageBadge.textContent = stage.label;
     stageBadge.dataset.i18nKey = stage.labelKey;
     stageHint.dataset.i18nKey = stage.hintKey;
-    stageProgress.textContent = `${step}/${GENERATION_STAGES.length}`;
+    const total = generationStages(ctx.generation.generateSettings).length;
+    stageSlider.max = String(total);
+    stageProgress.textContent = `${step}/${total}`;
     stageHint.textContent = stage.hint;
     stageSlider.value = String(step);
     stagePrevBtn.disabled = step <= 1;
-    stageNextBtn.disabled = step >= GENERATION_STAGES.length;
+    stageNextBtn.disabled = step >= total;
   };
   const changeStageStep = (delta: number) => {
-    const target = Math.max(1, Math.min(GENERATION_STAGES.length, ctx.generation.currentStageStep + delta));
+    const target = Math.max(
+      1,
+      Math.min(generationStages(ctx.generation.generateSettings).length, ctx.generation.currentStageStep + delta)
+    );
     if (target !== ctx.generation.currentStageStep) {
       setStageStep(target);
     }
@@ -563,7 +570,132 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     editorText("cityEditor.messages.copyShareableLink"),
     () => void ctx.copyShareLink(copyLinkButton)
   );
+  const skeletonControls = div("ce-skeleton-controls");
+  const methodSelect = ctx.select(
+    ["mesh-first", "skeleton-first"],
+    ctx.generation.generateSettings.generationMethod ?? "mesh-first"
+  );
+  methodSelect.className = "ce-generation-method";
+  methodSelect.options[0].textContent = editorText("cityEditor.messages.meshFirst");
+  methodSelect.options[1].textContent = editorText("cityEditor.messages.skeletonFirst");
+  const shapeSelect = ctx.select(
+    ["auto", "organic", "round", "oval", "square", "polygon", "bastioned"],
+    ctx.generation.generateSettings.wallShape ?? "auto"
+  );
+  shapeSelect.className = "ce-wall-shape";
+  for (const option of shapeSelect.options) {
+    option.textContent = editorOptionText(option.value);
+    if (option.value === "bastioned") {
+      option.disabled = true;
+      option.title = editorText("cityEditor.messages.skeletonLater");
+    }
+  }
+  const sidesInput = ctx.numberInput(String(ctx.generation.generateSettings.wallSides ?? ""), "3", "1");
+  sidesInput.max = "12";
+  sidesInput.className = "ce-wall-sides";
+  const shapeLabel = ctx.label(editorText("cityEditor.messages.skeletonWallShape"), shapeSelect);
+  const sidesLabel = ctx.label(editorText("cityEditor.messages.skeletonWallSides"), sidesInput);
+  const gridNotice = text(editorText("cityEditor.messages.skeletonGridNotice"));
+  const documentGridNotice = text(editorText("cityEditor.messages.skeletonGridNotice"));
+  ctx.documentPanel.content.append(documentGridNotice);
+  skeletonControls.append(
+    ctx.label(editorText("cityEditor.messages.generationMethod"), methodSelect),
+    shapeLabel,
+    sidesLabel,
+    gridNotice
+  );
+  const unavailable = (control: HTMLInputElement | HTMLSelectElement, active: boolean) => {
+    if (active) {
+      if (!control.dataset.skeletonTitle) control.dataset.skeletonTitle = control.title || " ";
+      if (!control.dataset.skeletonDisabled) control.dataset.skeletonDisabled = String(control.disabled);
+      control.disabled = true;
+      control.title = editorText("cityEditor.messages.skeletonLater");
+    } else if (control.dataset.skeletonTitle) {
+      control.disabled = control.dataset.skeletonDisabled === "true";
+      delete control.dataset.skeletonDisabled;
+      control.title = control.dataset.skeletonTitle.trim();
+      delete control.dataset.skeletonTitle;
+    }
+  };
+  const skeletonParents = new WeakSet<HTMLElement>();
+  function syncSkeletonControls() {
+    const settings = ctx.generation.generateSettings;
+    const active = settings.generationMethod === "skeleton-first";
+    methodSelect.value = settings.generationMethod ?? "mesh-first";
+    shapeSelect.value = settings.wallShape ?? "auto";
+    sidesInput.value = String(settings.wallSides ?? "");
+    const unsupported = skeletonUnsupportedSettings({ ...settings, generationMethod: "skeleton-first" });
+    methodSelect.options[1].disabled = !active && unsupported.length > 0;
+    methodSelect.options[1].title = unsupported.length
+      ? editorText("cityEditor.messages.skeletonUnsupported", { features: unsupported.join(", ") })
+      : "";
+    methodSelect.title = methodSelect.options[1].title;
+    shapeLabel.hidden = !active;
+    sidesLabel.hidden = !active || shapeSelect.value !== "polygon";
+    gridNotice.hidden = documentGridNotice.hidden = !active;
+    if (active && settings.townWallRings !== "double") townWallRingsSelect.value = "single";
+    if (active && settings.urbanCoreMode === undefined) urbanCoreModeSelect.value = "compact";
+    unavailable(featureInputs.get("citadel")!, active);
+    for (const option of layoutSelect.options) {
+      option.disabled = active && ["bram", "circulade"].includes(option.value);
+      option.title = option.disabled ? editorText("cityEditor.messages.skeletonLater") : "";
+    }
+    for (const option of townWallRingsSelect.options) {
+      option.disabled = active && option.value !== "single";
+      option.title = option.disabled ? editorText("cityEditor.messages.skeletonLater") : "";
+    }
+    for (const control of [
+      townWallBuildOrderSelect,
+      riverPlacementSelect,
+      urbanCoreModeSelect,
+      urbanNPatchesInput,
+      farNodeSelect,
+      bearingsInput,
+      avoidSeaInput,
+      seaWallSelect
+    ])
+      unavailable(control, active);
+    const container = skeletonControls.parentElement;
+    const legacyHelp = container?.querySelector<HTMLElement>(".ce-generation-process-help");
+    if (legacyHelp) legacyHelp.hidden = active;
+    if (container && !skeletonParents.has(container)) {
+      skeletonParents.add(container);
+      ctx.panelEventContext().scope.listen(container, "change", syncSkeletonControls);
+    }
+    for (const control of container?.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+      ".ce-moat-settings input, .ce-castle-settings select"
+    ) ?? [])
+      unavailable(control, active);
+  }
+  const invalidateSkeletonSelection = () => {
+    ctx.generation.completeResult = null;
+    ctx.panelEventContext().syncGenerateControls();
+    ctx.syncStageUi(1);
+  };
+  ctx.panelEventContext().scope.listen(methodSelect, "change", () => {
+    if (methodSelect.selectedOptions[0]?.disabled) {
+      syncSkeletonControls();
+      return;
+    }
+    ctx.generation.generateSettings.generationMethod = methodSelect.value as "mesh-first" | "skeleton-first";
+    invalidateSkeletonSelection();
+  });
+  ctx.panelEventContext().scope.listen(shapeSelect, "change", () => {
+    ctx.generation.generateSettings.wallShape = shapeSelect.value as import("../types/generation").WallShapeChoice;
+    invalidateSkeletonSelection();
+  });
+  ctx.panelEventContext().scope.listen(sidesInput, "change", () => {
+    const value = Number(sidesInput.value);
+    if (sidesInput.value && (!Number.isInteger(value) || value < 3 || value > 12)) {
+      syncSkeletonControls();
+      return;
+    }
+    ctx.generation.generateSettings.wallSides = sidesInput.value ? value : undefined;
+    invalidateSkeletonSelection();
+  });
   return {
+    skeletonControls,
+    syncSkeletonControls,
     currentBuildingPatternSelect,
     historicalPeriodSelect,
     layoutSelect,

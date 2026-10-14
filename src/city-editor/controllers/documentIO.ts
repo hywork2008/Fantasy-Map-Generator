@@ -136,6 +136,9 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       Object.assign(
         ctx.generation.generateSettings,
         {
+          generationMethod: undefined,
+          wallShape: undefined,
+          wallSides: undefined,
           walledAreaShare: undefined,
           townWallRings: undefined,
           innerWallState: undefined,
@@ -246,7 +249,15 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     Object.assign(
       ctx.generation.generateSettings,
       defaultGenerationSettings(),
-      { buildingPattern: "legacy", townWallRings: undefined, innerWallState: undefined, townWallBuildOrder: undefined },
+      {
+        buildingPattern: "legacy",
+        generationMethod: undefined,
+        wallShape: undefined,
+        wallSides: undefined,
+        townWallRings: undefined,
+        innerWallState: undefined,
+        townWallBuildOrder: undefined
+      },
       structuredClone(share.settings)
     );
     ctx.generation.generateSettings.descriptor = share.descriptor;

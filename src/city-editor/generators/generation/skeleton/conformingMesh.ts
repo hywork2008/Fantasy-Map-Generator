@@ -30,6 +30,12 @@ export function skeletonMeshLines(inputs: SkeletonInputs, skeleton: Skeleton): S
     ...(skeleton.wall ? [{ id: "wall", kind: "wall" as const, points: skeleton.wall.polygon, closed: true }] : []),
     ...inputs.water.map((w, i) => ({ id: `water:${i}`, kind: "water" as const, points: w.polygon, closed: true })),
     ...inputs.rivers.map(r => ({
+      id: `river:${r.index}`,
+      kind: "river" as const,
+      points: r.centerline,
+      closed: false
+    })),
+    ...inputs.rivers.map(r => ({
       id: `bank:${r.index}`,
       kind: "bank" as const,
       points: bandRing(r.centerline, r.halfWidth),

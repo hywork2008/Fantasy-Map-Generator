@@ -18,6 +18,8 @@ import { generateCityAttempt, generateCityOnDocument } from "./generateCity";
 import { runPlan } from "./pipeline";
 import { prepareRun } from "./prepareRun";
 import { resolveEffectiveLayout } from "./settings";
+import { generateSkeletonPreview } from "./skeleton/previews";
+import { planSkeletonCity } from "./skeleton/toPlan";
 import { applyImportedWaterAccess } from "./waterAccess";
 
 interface WardStepCache {
@@ -55,6 +57,8 @@ export function generateStageOnDocument(
   wallCheckpoint?: StageCheckpoint,
   observer?: GenerationObserver
 ): CityDocument | null {
+  if (settings.generationMethod === "skeleton-first" && stageStep < 0)
+    return generateSkeletonPreview(document, settings, seed, -stageStep, observer).document;
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) {
     const sample = reportGenerationFailure(
@@ -102,26 +106,32 @@ export function generateStageOnDocument(
     return full;
   }
 
-  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const fullPlan = runPlan(
-    document.mesh,
-    faceIdOf,
-    cells,
-    geo,
-    program,
-    params,
-    seed,
-    half,
-    cellSize,
-    settings,
-    stageStep,
-    false,
-    observer,
-    1,
-    true,
-    document.gridKind,
-    document
-  );
+  const skeletonRun =
+    settings.generationMethod === "skeleton-first" ? planSkeletonCity(document, settings, seed, observer) : null;
+  if (settings.generationMethod === "skeleton-first" && !skeletonRun) return null;
+  const { cells, faceIdOf, geo, program, params, half, cellSize } =
+    skeletonRun?.prepared ?? prepareRun(document, settings, seed);
+  const fullPlan =
+    skeletonRun?.plan ??
+    runPlan(
+      document.mesh,
+      faceIdOf,
+      cells,
+      geo,
+      program,
+      params,
+      seed,
+      half,
+      cellSize,
+      settings,
+      stageStep,
+      false,
+      observer,
+      1,
+      true,
+      document.gridKind,
+      document
+    );
   // The district stage shows wards alone; the gate-to-centre streets are the next stage's.
   const plan: Plan =
     wallCheckpoint === "wards"
@@ -474,26 +484,33 @@ export function generateWardStep(
   let wardStepCache = previousOwner ? wardStepCaches.get(previousOwner) : undefined;
   if (wardStepCache?.key !== key) {
     clearGenerationPreviewCache();
-    const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-    const plan = runPlan(
-      document.mesh,
-      faceIdOf,
-      cells,
-      geo,
-      program,
-      params,
-      seed,
-      half,
-      cellSize,
-      settings,
-      6,
-      false,
-      undefined,
-      1,
-      true,
-      document.gridKind,
-      document
-    );
+    const skeletonRun =
+      settings.generationMethod === "skeleton-first" ? planSkeletonCity(document, settings, seed) : null;
+    if (settings.generationMethod === "skeleton-first" && !skeletonRun)
+      return { document: null, total: 0, index: -1, detail: null };
+    const { cells, faceIdOf, geo, program, params, half, cellSize } =
+      skeletonRun?.prepared ?? prepareRun(document, settings, seed);
+    const plan =
+      skeletonRun?.plan ??
+      runPlan(
+        document.mesh,
+        faceIdOf,
+        cells,
+        geo,
+        program,
+        params,
+        seed,
+        half,
+        cellSize,
+        settings,
+        6,
+        false,
+        undefined,
+        1,
+        true,
+        document.gridKind,
+        document
+      );
     const wardsOnly: Plan = {
       ...plan,
       roads: plan.roads.slice(0, plan.roads.length - plan.streets.length),

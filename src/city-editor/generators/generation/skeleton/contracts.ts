@@ -20,6 +20,8 @@ export interface SkeletonRiver {
 }
 
 export interface SkeletonRoad {
+  /** Index in geo.importedRoads, independent of filtered skeleton road IDs. */
+  sourceRoadIndex?: number;
   id: number;
   /** Core-side first, frame-side last. */
   path: Point[];
@@ -131,7 +133,7 @@ export interface SkeletonFailure {
 
 export interface SkeletonMeshLine {
   id: string;
-  kind: "wall" | "bank" | "water" | "road";
+  kind: "wall" | "bank" | "water" | "road" | "river";
   points: Point[];
   closed: boolean;
 }

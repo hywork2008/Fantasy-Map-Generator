@@ -118,8 +118,9 @@ export function dryRuns(line: Point[], water: SkeletonWater[]): Point[][] {
   return runs.filter(run => run.length >= 2);
 }
 
-function roadPaths(geo: CityGeography, half: number): { path: Point[]; fixed: boolean }[] {
-  if (geo.importedRoads !== undefined) return geo.importedRoads.map(road => ({ path: road.path, fixed: true }));
+function roadPaths(geo: CityGeography, half: number): { path: Point[]; fixed: boolean; sourceRoadIndex?: number }[] {
+  if (geo.importedRoads !== undefined)
+    return geo.importedRoads.map((road, sourceRoadIndex) => ({ path: road.path, fixed: true, sourceRoadIndex }));
   if (geo.roadPaths?.length) return geo.roadPaths.map(path => ({ path, fixed: false }));
   return geo.roadBearings.map(bearing => ({
     path: [[0, 0] as Point, add([0, 0], azimuthToVec(bearing), half * 1.5)],
@@ -188,10 +189,10 @@ export function buildSkeletonInputs(source: SkeletonInputSource): SkeletonInputs
   }));
   const seen = new Set<string>();
   const roads: SkeletonRoad[] = [];
-  for (const { path, fixed } of roadPaths(geo, half)) {
+  for (const { path, fixed, sourceRoadIndex } of roadPaths(geo, half)) {
     if (path.length < 2) continue;
     const key = path.map(p => `${Math.round(p[0])},${Math.round(p[1])}`).join(";");
-    if (seen.has(key)) continue;
+    if (seen.has(key) && !fixed) continue;
     seen.add(key);
     // A town centre a few metres into the water (synthetic capes) only loses
     // the road's wet head; the road then runs from the first dry point outward.
@@ -226,7 +227,13 @@ export function buildSkeletonInputs(source: SkeletonInputSource): SkeletonInputs
         reachesFrame = true;
       }
     }
-    roads.push({ id: roads.length, path: trimmed, fixed, reachesFrame });
+    roads.push({
+      id: roads.length,
+      path: trimmed,
+      fixed,
+      reachesFrame,
+      ...(sourceRoadIndex === undefined ? {} : { sourceRoadIndex })
+    });
   }
 
   const wallWidth = Math.max(4, cellSize * 0.14);

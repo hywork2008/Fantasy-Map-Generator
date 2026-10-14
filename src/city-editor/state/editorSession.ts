@@ -113,25 +113,7 @@ export interface GenerationState {
   gridEvoStages: GridEvolutionStage[] | null;
   gridEvoIndex: number;
   gridEvoParams: Omit<PatchParams, "extentMeters">;
-  activeStepStage:
-    | "river"
-    | "coast"
-    | "gates"
-    | "walls"
-    | "urban"
-    | "riverPassages"
-    | "passages"
-    | "streets"
-    | "wards"
-    | "centerRoads"
-    | "townStreets"
-    | "innerWall"
-    | "innerGates"
-    | "geometry"
-    | "blocks"
-    | "buildings"
-    | "conceal"
-    | null;
+  activeStepStage: GenerationStage["id"] | null;
   stepIndex: number;
   urbanCoreHighlight: Set<string> | null;
   stepOverlayPaths: Point[][] | null;

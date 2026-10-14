@@ -707,11 +707,24 @@
       "wallWidthMetres": "{{value0}}m",
       "processIterationProgress": "{{value0}} step {{value1}}/{{value2}}",
       "generationWorkerFailed": "生成ワーカーでエラーが発生しました",
-      "cannotReadGenerationWorkerResult": "生成ワーカーの結果を読み込めません"
+      "cannotReadGenerationWorkerResult": "生成ワーカーの結果を読み込めません",
+      "generationMethod": "生成方法",
+      "meshFirst": "メッシュ先行（現行）",
+      "skeletonFirst": "骨格先行",
+      "skeletonWallShape": "外壁の形",
+      "skeletonWallSides": "辺の数（空欄は自動）",
+      "skeletonGridNotice": "骨格先行は専用メッシュを生成します。文書パネルのグリッド選択は使いません。",
+      "skeletonUnsupported": "骨格先行v1は未対応: {{features}}",
+      "skeletonLater": "この設定は骨格先行v1では未対応です。"
     },
     "generationStages": {
-      "firstInnerGates": {"label": "内側の門の通路", "hint": "外壁を作る前に内門の通路を開きます。"},
-      "firstInnerWall": {"hint": "外壁と街路より先に内壁を作製します。安全な内壁を作れない場合は、この段階で止めて理由を表示します。"},
+      "firstInnerGates": {
+        "label": "内側の門の通路",
+        "hint": "外壁を作る前に内門の通路を開きます。"
+      },
+      "firstInnerWall": {
+        "hint": "外壁と街路より先に内壁を作製します。安全な内壁を作れない場合は、この段階で止めて理由を表示します。"
+      },
       "coast": {
         "label": "海岸線と海",
         "hint": "Tag sea cells along a coastline walk"
@@ -780,7 +793,31 @@
         "label": "道路・小道を隠す",
         "hint": "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."
       },
-      "title": "都市生成フェーズ"
+      "title": "都市生成フェーズ",
+      "skeletonInputs": {
+        "label": "K1 外周入力",
+        "hint": "地形と固定道路を正規化します。"
+      },
+      "skeletonCore": {
+        "label": "K2 都市核と市域",
+        "hint": "乾いた都市核と市域を決めます。"
+      },
+      "skeletonWall": {
+        "label": "K3 外壁の形",
+        "hint": "ベクトルで外壁を作ります。"
+      },
+      "skeletonCrossings": {
+        "label": "K4 門と橋",
+        "hint": "門・橋・水門を配置します。"
+      },
+      "skeletonCheck": {
+        "label": "K5 骨格検証",
+        "hint": "接続と交差角を検証します。"
+      },
+      "conformingMesh": {
+        "label": "K6 骨格に沿うメッシュ",
+        "hint": "骨格の線を辺として含むメッシュを作ります。"
+      }
     },
     "options": {
       "none": "なし",
@@ -830,7 +867,12 @@
       "road": "街道",
       "wall": "城壁",
       "moat": "堀",
-      "erase": "消去"
+      "erase": "消去",
+      "round": "円形",
+      "oval": "楕円",
+      "square": "方形",
+      "polygon": "多角形",
+      "bastioned": "稜堡式（後続対応）"
     },
     "pageTitle": "都市エディター — Fantasy Map Generator",
     "pageDescription": "Fantasy Map Generatorの都市地図生成・編集エディター",

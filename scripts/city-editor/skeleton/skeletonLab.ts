@@ -8,6 +8,7 @@
  *   node --import tsx scripts/city-editor/skeleton/skeletonLab.ts --out temp/s1/fmg.jsonl \
  *     --csv temp/s0/triviers-inputs.csv --burg 1,2,17
  *
+ *   --complete             generate complete cities and check save/reload and repair diagnostics
  *   --mesh                 also run K6 and compare face areas with evolution
  *   --out <file.jsonl>     required; refuses to overwrite. SVGs go to <out>.svg/
  *   --seeds 12             standalone seeds per case (same seeds as the S0 baseline)
@@ -26,6 +27,10 @@ import { parseIncomingPayload } from "../../../src/city-editor/services/io/incom
 import { cityEditorDocument, cityEditorSettings } from "../../../src/city-editor/services/io/shareRequest";
 import type { CityDocument } from "../../../src/city-editor/types/document";
 import type { GenerationSettings } from "../../../src/city-editor/types/generation";
+import { generateCityOnDocument } from "../../../src/city-editor/generators/generation/generateCity";
+import { validate } from "../../../src/city-editor/generators/mesh";
+import { parseDocument } from "../../../src/city-editor/services/io/documentCodec";
+import type { GenerationSample } from "../../../src/city-editor/types/contracts/generationDiagnostics";
 import { CASES, MESH_SEED, SEED_PREFIX } from "./cases";
 
 interface Job {
@@ -41,6 +46,7 @@ function parseArgs(argv: string[]) {
   const options = {
     out: "",
     mesh: false,
+    complete: false,
     seeds: 12,
     cases: undefined as Set<string> | undefined,
     csv: undefined as string | undefined,
@@ -55,7 +61,8 @@ function parseArgs(argv: string[]) {
       if (next === undefined) throw new Error(`Missing value for ${flag}`);
       return next;
     };
-    if (flag === "--mesh") options.mesh = true;
+    if (flag === "--complete") options.complete = true;
+    else if (flag === "--mesh") options.mesh = true;
     else if (flag === "--out") options.out = value();
     else if (flag === "--seeds") options.seeds = Number(value());
     else if (flag === "--cases") options.cases = new Set(value().split(","));
@@ -142,6 +149,27 @@ console.warn = () => {};
 
 const summary = new Map<string, { runs: number; failed: number; draws: number; ms: number; reasons: Record<string, number> }>();
 for (const job of jobs(options)) {
+  if (options.complete) {
+    const samples: GenerationSample[] = [];
+    let city: CityDocument | null = null, exception: string | undefined;
+    const started = performance.now();
+    try { city = generateCityOnDocument(job.document, job.settings, job.seed, sample => samples.push(sample)); }
+    catch (error) { exception = String(error); }
+    const generationMs = performance.now() - started;
+    const draws = new Map<number, number>();
+    for (const sample of samples) {
+      if (sample.phase !== "skeletonCheck") continue;
+      draws.set(sample.attempt, Math.max(draws.get(sample.attempt) ?? 0, sample.counts?.skeletonAttempt ?? sample.counts?.skeletonAttempts ?? 1));
+    }
+    const row = { group: job.group, label: job.label, seed: job.seed, success: !!city, generationMs, exception, attempts: Math.max(0, ...samples.map(s => s.attempt)), skeletonDraws: [...draws.values()].reduce((a,b) => a+b,0),
+      validation: city ? validate(city) : undefined, reload: city ? !!parseDocument(JSON.stringify(city)) : undefined,
+      faces: city ? Object.keys(city.mesh.faces).length : undefined,
+      failures: samples.filter(s => s.failure).map(s => ({ attempt: s.attempt, phase: s.phase, ...s.failure })),
+      audits: samples.filter(s => s.phase.startsWith("skeleton-audit:") || s.phase === "skeleton-surveyed-wall-check").map(s => ({ phase: s.phase, ...s.counts })) };
+    appendFileSync(options.out, `${JSON.stringify(row)}\n`);
+    console.log(JSON.stringify({ label: job.label, success: row.success, generationMs: Math.round(generationMs), failures: row.failures.length }));
+    continue;
+  }
   const run = runSkeletonLab(job.document, job.settings, job.seed, options.mesh);
   const { skeleton, failures } = run.result;
   const row = {

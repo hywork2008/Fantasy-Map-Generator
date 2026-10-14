@@ -577,8 +577,9 @@ export function perpDistanceToLine(p: Point, a: Point, b: Point): number {
 }
 
 /** A simple non-degenerate polygon, including non-convex edited blocks. */
-export function isSimplePolygon(points: Point[]): boolean {
-  if (points.length < 3 || !Number.isFinite(polygonArea(points)) || Math.abs(polygonArea(points)) < 1) return false;
+export function isSimplePolygon(points: Point[], minimumArea = 1): boolean {
+  if (points.length < 3 || !Number.isFinite(polygonArea(points)) || Math.abs(polygonArea(points)) < minimumArea)
+    return false;
   for (let i = 0; i < points.length; i++) {
     for (let j = i + 2; j < points.length; j++) {
       if (i === 0 && j === points.length - 1) continue;

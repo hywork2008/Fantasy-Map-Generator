@@ -6,6 +6,7 @@ import type { InnerWallFailure } from "../innerTownWall";
 import type { RoutedRiver } from "../riverPath";
 
 export interface Plan {
+  skeleton?: import("./skeleton/toPlan").SkeletonPlanData;
   /** Requested order survives an unsuccessful old-town pre-plan. */
   townWallBuildOrder?: GenerationSettings["townWallBuildOrder"];
   /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */

@@ -571,7 +571,7 @@ export const MIN_CEMETERY_GROUND_M2 = 1200;
  * ground, reachable from the town without crossing water; the old face is
  * released. Returns the moved cemetery face ids (old → new).
  */
-export function relocateUndersizedCemeteries(document: CityDocument): Map<Id, Id> {
+export function relocateUndersizedCemeteries(document: CityDocument, candidateFaceIds?: ReadonlySet<Id>): Map<Id, Id> {
   const moved = new Map<Id, Id>();
   const ground = (boundary: Point[]) => (boundary.length >= 3 ? Math.abs(polygonArea(boundary)) : 0);
   const gateVertices = new Set((document.gates ?? []).map(gate => gate.vertexId));
@@ -607,6 +607,7 @@ export function relocateUndersizedCemeteries(document: CityDocument): Map<Id, Id
     if (ground(cemetery.boundary) >= MIN_CEMETERY_GROUND_M2 && cemetery.parts.length) continue;
     let best: { face: Face; boundary: Point[]; score: number } | null = null;
     for (const candidate of Object.values(document.mesh.faces)) {
+      if (candidateFaceIds && !candidateFaceIds.has(candidate.id)) continue;
       const props = candidate.properties;
       if (candidate.id === face.id || props.locked || props.water !== "land") continue;
       if (props.settlement === "core" || (props.ward && props.ward !== "empty" && props.ward !== "farm")) continue;

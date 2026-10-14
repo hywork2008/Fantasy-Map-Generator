@@ -395,7 +395,7 @@ export interface FabricPlan {
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
   generation?: {
-    algorithm: "evolution-city-v3" | "castle-city-v1";
+    algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1";
     seed: string;
     settings: import("./generation").GenerationSettings;
     input: Omit<CityDocument, "fabric">;

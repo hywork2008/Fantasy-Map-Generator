@@ -766,6 +766,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get seedInput() {
           return seedInput;
         },
+        get syncSkeletonControls() {
+          return syncSkeletonControls;
+        },
         get moatInputs() {
           return moatInputs;
         },
@@ -1802,6 +1805,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const {
     currentBuildingPatternSelect,
     historicalPeriodSelect,
+    skeletonControls,
+    syncSkeletonControls,
     layoutSelect,
     buildingPatternSelect,
     coastSelect,
@@ -2034,6 +2039,11 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     featureGrid,
     makeButton(editorText("cityEditor.messages.randomizeGeography"), () => {
       generation.generateSettings.config = randomGeography();
+      if (generation.generateSettings.generationMethod === "skeleton-first") {
+        generation.generateSettings.config.features.citadel = false;
+        generation.generateSettings.config.layout = "organic";
+        generation.generateSettings.layout = "organic";
+      }
       generation.generateSeed = randomSeed();
       syncGenerateControls();
       generation.stepIndex = -1;
@@ -2059,6 +2069,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
     divider(),
     importedBox,
+    skeletonControls,
     synthControls,
     label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
     label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
@@ -2070,7 +2081,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     text(editorText("cityEditor.messages.blankUsesTinySmall100Medium45Large20Approximate")),
     housingSummary,
     divider(),
-    text(editorText("cityEditor.messages.completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider")),
+    Object.assign(
+      text(editorText("cityEditor.messages.completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider")),
+      { className: "ce-generation-process-help" }
+    ),
     text(editorText("cityEditor.generationStages.title")),
     stageContainer,
     divider(),

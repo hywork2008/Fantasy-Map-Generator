@@ -92,6 +92,12 @@ export type StageCheckpoint =
 
 export interface GenerationStageDefinition {
   id:
+    | "skeletonInputs"
+    | "skeletonCore"
+    | "skeletonWall"
+    | "skeletonCrossings"
+    | "skeletonCheck"
+    | "conformingMesh"
     | "coast"
     | "river"
     | "urban"
