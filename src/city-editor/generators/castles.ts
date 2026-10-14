@@ -148,6 +148,7 @@ export function installCastle(
   for (const circuit of next.defenseCircuits ?? []) updateCircuitWalls(next, circuit);
   // The wall the castle sits on or inside: the innermost enclosing ring.
   const town = townCircuitForFace(next, faceId);
+  const townFaceIds = new Set(townCircuits(next).flatMap(c => c.areaFaceIds));
   // An access arm ending at the curtain is not access to the city. In
   // particular, a narrow cell between a castle and the town wall must not
   // make the castle gate face that wall instead of an inhabited street.
@@ -201,6 +202,12 @@ export function installCastle(
     const vertexId = inserted.vertexId;
     const outside = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
     if (!outside) continue;
+    // A castle outside the town wall can turn its gate into a pocket closed by
+    // its own curtain and the town wall; no road reaches it (Sinzlingen).
+    if (!townFaceIds.has(outside) && !exteriorReachesWorld(working, outside, faceId)) {
+      diagnostics?.push(`${edge.id}: gate opens into an enclosed pocket`);
+      continue;
+    }
     // A third mesh arm connects the gate to the city. Its inner arm is local access.
     const exterior = working.mesh.faces[outside];
     const facesTown = (id: Id): boolean => {
@@ -631,4 +638,40 @@ export function castleRoadEdgeAllowed(document: CityDocument, edgeId: Id, width:
     }
   }
   return true;
+}
+
+/** Can a road leave the gate's exterior face along mesh edges, without crossing a wall or
+ * water, to the mesh edge or a town gate? Same passability as `connectCastleGate`. */
+function exteriorReachesWorld(document: CityDocument, start: Id, castleFaceId: Id): boolean {
+  const { mesh } = document;
+  const walls = new Set(document.featureGroups.flatMap(g => (g.kind === "wall" ? g.segments.map(r => r.edgeId) : [])));
+  const wallVertices = new Set([...walls].flatMap(id => [mesh.edges[id].a, mesh.edges[id].b]));
+  const townGateVertices = new Set(document.gates.filter(g => !g.ownerCastleId).map(g => g.vertexId));
+  const adjacent = new Map<Id, Id[]>();
+  for (const edge of Object.values(mesh.edges)) {
+    if (walls.has(edge.id)) continue;
+    const faces = [edge.leftFace, edge.rightFace];
+    if (faces.some(id => id === castleFaceId || (id && mesh.faces[id].properties.water !== "land"))) continue;
+    if (faces.some(id => !id)) {
+      // An open mesh-boundary edge leads off the map.
+      adjacent.set(edge.a, [...(adjacent.get(edge.a) ?? []), "@world"]);
+      adjacent.set(edge.b, [...(adjacent.get(edge.b) ?? []), "@world"]);
+      continue;
+    }
+    adjacent.set(edge.a, [...(adjacent.get(edge.a) ?? []), edge.b]);
+    adjacent.set(edge.b, [...(adjacent.get(edge.b) ?? []), edge.a]);
+  }
+  const queue = faceVertices(mesh, mesh.faces[start]).filter(id => !wallVertices.has(id));
+  const seen = new Set<Id>(queue);
+  for (let q = 0; q < queue.length; q++) {
+    const at = queue[q];
+    if (townGateVertices.has(at)) return true;
+    for (const next of adjacent.get(at) ?? []) {
+      if (next === "@world" || townGateVertices.has(next)) return true;
+      if (seen.has(next)) continue;
+      seen.add(next);
+      queue.push(next);
+    }
+  }
+  return false;
 }
