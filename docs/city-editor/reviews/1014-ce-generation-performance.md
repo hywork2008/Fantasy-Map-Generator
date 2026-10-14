@@ -219,3 +219,17 @@ CE全体のテスト（`npx vitest run city-editor --maxWorkers=4`）: 1,416件�
 - 試験の `buildBlockFabric` は 21.7 s から 2.0 s。生成物（`JSON.stringify` の SHA-1）は変更前後で一致した。
 - CE全体のテスト: 1,416件中 1,397件成功・19件スキップ・失敗0（209 s）。`tsc` も通った。
 - この処理は、貯蔵庫（cellar）を持つ都市（FMGの経済データがあるもの）で動く。標準の合成生成の計測（24都市）には現れないため、生成合計の短縮には含まれない。
+
+## 13. `shortcutExteriorRoads`（`gateApproaches.ts`）
+
+§8.2 では 1.3 s（7%）。内訳は、`incidentFaces` が 0.58 s、`splitFace` が 0.41 s（`clone` 0.14 s、`validate` 0.13 s）、`indexMeshEdges` が 0.08 s だった。
+
+`incidentFaces(mesh, a)` は、道路の頂点の組 (i, j) ごとに全面の全頂点を走査していた。同じ頂点 `a` に対して j を回すたびに呼ばれ、メッシュは分割が成功するまで変わらない。
+
+変更: `joined`（辺の索引）と同じ方式で、メッシュのインスタンスが変わるまで使える「頂点 → 接する面」の索引を作る。面は `Object.values(faces)` の順に並べるので、`find` が返す最初の面は従来と同じ。
+
+結果:
+
+- 36都市（12条件×3 seed）の文書全体のJSONハッシュが、変更前後で全件一致した。
+- 生成合計は 23.7 s から 22.2 s（約6%減）。
+- `splitFace`（0.41 s）は残る。§10・§11 のとおり、メッシュ複製の構造変更が要るため手を付けていない。
