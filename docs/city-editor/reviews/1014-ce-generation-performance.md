@@ -165,3 +165,57 @@ CE全体のテスト（`npx vitest run city-editor --maxWorkers=4`）: 1,416件�
 - 生成合計は 30.0 s から 23.6 s（約21%減）。そのうち、外接矩形の枝刈りが約3 s、スコアとメモ化が約3.5 s。
 - CE全体のテスト: 1,416件中 1,397件成功・19件スキップ・失敗0（217 s）。`tsc` も通った。
 - `placeTempleFootprint` は 4.1 s から約0.8 s 前後に減る見込み。再プロファイルで確認していない。
+
+## 10. `repairRiverWalls` の残りの内訳（調査）
+
+§9 の後に再プロファイルした（24都市、プロファイル 18.4 s）。`repairRiverWalls` は 2.7 s（15%）で、一つの重い箇所はなく、次のように分散している。
+
+| 内訳 | 時間 | 内容 |
+| --- | ---: | --- |
+| `splitFace` | 0.44 s | `validate` 0.15 s、`clone` 0.13 s、`rebuildFaceSides` 0.06 s |
+| `openRiverWallPassage` | 0.34 s | 中で `insertEdgeVertex` 0.11 s と `splitFace` 0.11 s |
+| `clone`（試行ごとの文書複製） | 0.30 s | ほぼ `cloneMesh` |
+| 試行本体（A\* ほか） | 約 0.7 s | `aStar` 0.13 s、辺の許可判定ほか |
+| `vertexHasCrossing` ほか | 約 0.26 s | `orderedIncidentEdges` が 0.09 s |
+| `edgeBetween` | 0.15 s | 全辺走査 |
+
+つまり約 1.3 s（半分弱）は、メッシュを複製して全体を検証するコストである。これは `moveVertices`（`clone` 0.63 s、`validate` 0.49 s、`movedGeometryErrors` 0.41 s）と同じ構造で、生成全体では `cloneMesh`・`indexMeshEdges`・`validate` などの自己時間が合計で約 4 s（20%）ある。
+
+小さく確実に削れる箇所（`edgeBetween` の索引化、`vertexHasCrossing` の索引共有）の効果は合わせて 0.3 s 程度にとどまる。大きな効果を得るには、次のどちらかの構造変更が要る。
+
+1. 文書の複製をコピーオンライトにする（試行が触る面・辺・頂点だけを複製する）。
+2. `validate` を変更箇所に限った差分検証にする。
+
+どちらも `mesh.ts` の全呼び出し元に影響するため、方針を決めてから進める。
+
+## 11. コピーオンライト複製の実現性（調査、未実施）
+
+結論: 全体の `clone` をコピーオンライトにするのは、現状のコードでは安全に行えない。実装は見送り、判断を待つ。
+
+- メッシュのレコード（頂点・辺・面）は、複製後に呼び出し側が**その場で書き換える**前提になっている。`city-editor` 配下で、`mesh.faces/vertices/edges[...]` への直接代入が14か所、`properties.x = …` が約60か所、`face/vertex/edge.boundary/point/a/b/leftFace/rightFace = …` が16か所ある。別名を介した書き換えは、この数に含まれない。
+- `clone(` の呼び出し元は104か所。レコードを複製元と共有すると、これらの書き換えが複製元の文書に漏れ、他の試行や元の文書を壊しうる。
+- 凍結（`Object.freeze`）や `Proxy` による検出も使われていない。
+
+限定的な形（`repairRiverWalls` の内部だけで共有し、返す直前に1回だけ深い複製をする）なら安全にできる。ただし `splitFace`・`insertEdgeVertex`・`moveVertices`・`openRiverWallPassage` を、書き換える前にレコードを複製する版に直す必要があり、それらは `mesh.ts` の他の呼び出し元と共有されている。見込める効果は、`repairRiverWalls` の複製分の約 0.7〜0.8 s（生成全体の約4%）にとどまる。
+
+## 12. `aerialLandmarks.test.ts` の「draws a granary…」（68 s → 数秒）
+
+単独実行で 45 s（並列実行時の 68 s は負荷の影響）。内訳は、`buildBlockFabric` が 21 s、`renderEditorSvg` が 22 s。後者は `prepareTownFacts` が同じ文書の `buildBlockFabric` を再度作るため（試験は別の `FabricCache` で作ったので既定のキャッシュに載らない）、実体は同じ処理の2回分である。
+
+`--cpu-prof` では、全体の約8割（37 s）が `finishCoastalBuildings` → `absorbCellars`（`cellarAbsorption.ts`）→ `growAll` → `growRear` で、`roadDistance`→`nearestOnPolyline` が 16 s、`growRear` 自身が 21 s だった。ワインなどの貯蔵庫（cellar）の面積を家の奥行きに足す処理で、次の無駄があった。
+
+- 家ごとに、全道路の全線分に対する最短距離を、辺の中点・頂点・移動後の頂点ごとに総当たりで計算していた。
+- 4段階の縮尺（1, 0.5, 0.25, 0.1）で同じ家の距離を毎回やり直していた（縮尺に依存しない値）。
+- 隣家との干渉判定が、全家 × 全家の `pointInPolygon` だった。
+
+変更（挙動は変えない）:
+
+- `RoadIndex`: 道路の線分を一様格子（40 m）に入れ、近い格子から順に探す。未探索の格子に今の最短より近い線分が無いと言えた時点で打ち切る。距離は `nearestOnPolyline` と同じ式で計算するので、最小値は全走査と一致する。
+- `rearPlan`: 家ごとに、縮尺に依存しない値（辺の中点の距離、後ろの辺、法線、頂点の距離、元の面積）を1回だけ計算し、4段階で共有する。移動後の距離は、動いた2頂点だけを計算し直す。
+- 隣家の判定は、外接矩形（許容 1e-6）の外にある点をポリゴン判定から外す。面の輪郭は、面ごとに1回だけ作る。
+
+結果:
+
+- 試験の `buildBlockFabric` は 21.7 s から 2.0 s。生成物（`JSON.stringify` の SHA-1）は変更前後で一致した。
+- CE全体のテスト: 1,416件中 1,397件成功・19件スキップ・失敗0（209 s）。`tsc` も通った。
+- この処理は、貯蔵庫（cellar）を持つ都市（FMGの経済データがあるもの）で動く。標準の合成生成の計測（24都市）には現れないため、生成合計の短縮には含まれない。
