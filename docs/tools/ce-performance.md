@@ -67,6 +67,10 @@ npm run ce:perf:csv -- temp/ce-performance.jsonl temp/ce-performance.csv
 可変長かつ階層構造を持つためJSON文字列のまま1セルに保存する。CSVはUTF-8 BOM付きで、
 Excelでも開ける。既存の出力ファイルは上書きしない。
 
+### 遅い都市・工程の絞り込み
+
+JSONLを直接読まず、`npm run ce:perf:query -- <report.jsonl> overview` などで要約する。手順と読み方は [ce-performance-query.md](ce-performance-query.md)。
+
 ### 地図サイズ・市街地面積・背景の割合
 
 JSONLの `size` は入力で選択された地図サイズ、`population` は人口、`dwellings` は目標住宅数。
