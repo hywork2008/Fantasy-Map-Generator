@@ -241,13 +241,17 @@ export function generateCityOnDocument(
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
       if (result.urbanMorphology && settings.descriptor) {
-        const initialFabric = buildBlockFabric(result, new FabricCache());
-        result.urbanGrowth = planUrbanGrowth(
-          result,
-          approachBands(result),
-          settings.descriptor.roads,
-          settings.descriptor.burg.dwellings,
-          initialFabric
+        const initialFabric = measureProcessing(profiler, "initial-fabric", () =>
+          buildBlockFabric(result, new FabricCache())
+        );
+        result.urbanGrowth = measureProcessing(profiler, "urban-growth-plan", () =>
+          planUrbanGrowth(
+            result,
+            approachBands(result),
+            settings.descriptor!.roads,
+            settings.descriptor!.burg.dwellings,
+            initialFabric
+          )
         );
         const eligible = Object.values(result.mesh.faces).filter(
           f => f.properties.water === "land" && ["core", "outskirts"].includes(f.properties.settlement ?? "")
@@ -278,7 +282,7 @@ export function generateCityOnDocument(
         observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
       }
       if (skeletonFirst) {
-        const errors = validate(result);
+        const errors = measureProcessing(profiler, "validate", () => validate(result));
         if (errors.length) {
           const sample = reportGenerationFailure(
             observe,

@@ -210,6 +210,12 @@ function documentFabricFingerprint(doc: CityDocument): string {
   ].join("|");
 }
 
+/** Called on every `buildBlockFabric` call; `cached` is true when the per-document cache answered. Benchmarks only. */
+let fabricBuildRecorder: ((cached: boolean) => void) | null = null;
+export function setFabricBuildRecorder(recorder: ((cached: boolean) => void) | null) {
+  fabricBuildRecorder = recorder;
+}
+
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(
   document: CityDocument,
@@ -221,9 +227,13 @@ export function buildBlockFabric(
     const cached = fabricByDocument.get(document);
     if (cached) {
       const fp = documentFabricFingerprint(document);
-      if (cached.fingerprint === fp) return cached.fabric;
+      if (cached.fingerprint === fp) {
+        fabricBuildRecorder?.(true);
+        return cached.fabric;
+      }
     }
   }
+  fabricBuildRecorder?.(false);
   // Generate the established street/parcel network from the same stable seed,
   // then fit affected buildings to the landmark reservation in one final pass.
   const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
@@ -278,6 +288,7 @@ export function buildHarborPlan(document: CityDocument, profiler?: ProcessingPro
     document.waterAccess?.port.river ||
     Object.values(document.mesh.faces).some(f => f.properties.ward === "harbor" && f.properties.water === "land");
   if (!port) return undefined;
+  fabricBuildRecorder?.(false);
   const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
   const base = measureProcessing(profiler, "legacy-fabric", () =>
     buildLegacyBlockFabric(source, getDefaultCache(), profiler)

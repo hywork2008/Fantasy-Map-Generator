@@ -190,3 +190,31 @@ A4 の失敗は、「同じ都市を2回生成した結果が一致しない」�
 - B1 の「採用順」で、現行の密度の分布に近い見た目になるか。
 - D1 の効果（GC の削減）は推定で、小さな実験で確かめてから全体に広げる。
 - アプリ内（UI表示）の区画構築の回数と時間は、`ce:perf` に含まれていない。Playwright で別に計測する。
+
+## 9. S0 の結果（2026-10-15）
+
+### 9.1 実装したもの
+
+| 項目 | 内容 |
+| --- | --- |
+| 暖機・並列計測 | `ce:perf --warm [--warmup N] [--jobs N]`。Worker を使い回し、Worker ごとに最初の都市を N 回（既定3）生成して捨てる。落ちた・時間切れの Worker は作り直して暖機し直す。`--jobs` は都市を N 個の Worker に分担する |
+| 目視用SVG | `ce:perf --svg-dir <dir>`（`--render` を含む） |
+| 未計測部分の可視化 | `generation` 直下の `initial-fabric`、`urban-growth-plan`、（骨格先行の）`validate` を計測 |
+| 区画構築の回数 | JSONL の `fabricBuilds`（呼び出し元の工程パスごとの `{ built, cached }`）。港の船の `buildHarborPlan` も数える。`ce:perf:query -- <report> fabric` で集計 |
+| 品質ガード | JSONL の `housingFit`・`quality`（建物数・延べ面積・路地数・完成後の交差違反・斜角上限超えの橋）。`ce:perf:query -- before quality after` が §3.2 の基準で判定し、不合格なら終了コード1。`--repeat 2` 以上で決定性も判定 |
+
+使い方は [ce-performance.md](../tools/ce-performance.md)、[ce-performance-query.md](../tools/ce-performance-query.md)、項目は [ce-performance-jsonl-fields.md](../tools/ce-performance-jsonl-fields.md)。計測を追加しても出力のハッシュは P3 と一致する。
+
+### 9.2 暖機後の基準（`temp/benchmarks/s0-baseline-warm.jsonl`、`--warm --warmup 3`、並列なし）
+
+- 全596都市の生成時間の合計 **187.4 s**（新プロセス計測の 271 s より 31% 短い）。中央値 160 ms、p95 1110 ms、最大 3480 ms。以後の段階はこの値と比べる。
+- 区画の構築は1都市1回の生成あたり中央値4回・最大6回（`initial-fabric` 1回、`fit-housing` 2〜4回、港町は `harbor-ships` で1回）。
+- 区画関係の自己時間: `initial-fabric` 30.5 s、`fit-housing` の `coastal-reservations` 27.0 s・`local-fabric` 21.7 s・`harbor-fabric` 10.0 s・`finish-fabric` 5.6 s、`harbor-ships` 内 約8 s。合計で約 100 s、全体の5割強で、§1.1 の見立てどおり。
+- `plan` 26.7 s、`apply-plan` 21.6 s。
+
+### 9.3 A4 の原因調査
+
+- `assembleRoads.ts` の水面判定2か所（`shoreEdges` と `channelEdges`）で、水面ポリゴンを辺ごとではなく判定の前に1回だけ取得する形に変更した。そのうえで `CityEditorPage.generate.test.ts` をファイル全体で実行すると 40/40 通った。P3 で疑った「`next` の差し替え前に取得した古いポリゴンを使う」形（意図的に古い値を使う変種）でも 40/40 通り、再現しなかった。
+- より強い検査として、全596都市を「暖まった同じプロセスで2回続けて生成」した（`temp/benchmarks/s0-a4-warm-r2.jsonl`、`--warm --jobs 8 --repeat 2`）。1192回すべての `fingerprint.document` が、新プロセスで測った P3 のハッシュと一致した。2回目は1回目が残したキャッシュの状態で生成するので、キャッシュの状態によって結果が変わる問題は、この入力では見つからなかった。
+- 水面ポリゴンのキャッシュ（`regionalCoastalWaterPolygons` の `sameCoast`）は、文書ごとにメッシュの頂点・辺を全部比べている。誤った値を返すことはないので、A4 の失敗の原因ではないと判断する（遅いだけで、A5 の対象）。
+- 結論: P3 の失敗は今の版では再現せず、A4 による非決定性も見つからなかった。A4 の変更は作業ツリーに残してあり、S1 の一部として採用できる。P3 の失敗は、当時の他の未確定の変更と重なっていた可能性がある。再発した場合に備え、S1 以降は `--warm --repeat 2` と `quality` の決定性判定を毎回行う。

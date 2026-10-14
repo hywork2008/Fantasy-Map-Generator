@@ -1,5 +1,6 @@
 import { JSDOM } from "jsdom";
 import { createRunnableDevEnvironment, resolveConfig } from "vite";
+import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 const started = performance.now();
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
@@ -23,7 +24,7 @@ process.on("message", async request => {
       : await measureCityPerformance(request.row, request.render, sample => process.send({ type: "progress",
           sample: { phase: sample.phase, elapsedMs: sample.elapsedMs, attempt: sample.attempt,
             ...(sample.failure ? { failure: { reason: sample.failure.reason, message: sample.failure.message, details: sample.failure.details } } : {}) } }),
-          request.overrides ?? {});
+          request.overrides ?? {}, request.svgPath ? svg => writeFileSync(request.svgPath, svg) : undefined);
     process.send({ type: "result", result });
   } catch (error) {
     process.send({ type: "fatal", error: error?.stack ?? String(error) });

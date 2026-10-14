@@ -15,6 +15,8 @@ const COMMANDS = {
   scaling: "工程の時間が規模（dwellings等）に対してどう増えるか（超線形の工程を探す）",
   walls: "市壁・城塞・門の診断: 二重市壁の実現/後退理由、周回別の河川開口、城塞・門の失敗",
   compare: "2つのレポートの工程別の差分: compare <before.jsonl> <after.jsonl>",
+  quality: "出力が変わる変更の品質ガード: quality <before.jsonl> <after.jsonl>（1つでも悪化なら終了コード1）",
+  fabric: "区画構築（buildBlockFabric）の呼び出し回数と呼び出し元",
 };
 
 const usage = `Usage: npm run ce:perf:query -- <report.jsonl> <command> [arg] [options]
@@ -446,6 +448,121 @@ const commands = {
       table(["stage", "before s", "after s", "差 s"], stageRowsOut.map((x) => [x.stage, f(x.beforeMs / 1000, 2), f(x.afterMs / 1000, 2), f(x.diffMs / 1000, 2)])) +
       `\n\n### 悪化した都市\n${cTable(worse)}\n\n### 改善した都市\n${cTable(better)}`);
   },
+};
+
+commands.fabric = function () {
+  const by = new Map();
+  let withData = 0;
+  for (const r of records) {
+    if (!r.fabricBuilds) continue;
+    withData++;
+    for (const [path, c] of Object.entries(r.fabricBuilds)) {
+      const e = by.get(path) ?? { caller: path, cities: 0, built: 0, cached: 0, max: 0 };
+      e.cities++; e.built += c.built; e.cached += c.cached; e.max = Math.max(e.max, c.built);
+      by.set(path, e);
+    }
+  }
+  if (!withData) fail("fabricBuilds がありません（S0 以降の ce:perf で取り直してください）");
+  const rows = [...by.values()].sort((a, b) => b.built - a.built);
+  const perCity = stats(records.filter((r) => r.fabricBuilds).map((r) => sum(Object.values(r.fabricBuilds).map((c) => c.built))));
+  emit("区画構築の回数", { cities: withData, perCity, rows },
+    `対象 ${withData} 件 / 1件（1都市1回の生成）あたりの構築回数: 中央値 ${f(perCity.median)} / p95 ${f(perCity.p95)} / 最大 ${f(perCity.max)}\n\n` +
+    table(["呼び出し元（工程パス）", "都市数", "構築", "キャッシュ命中", "1都市の最大"],
+      rows.map((x) => [x.caller, x.cities, x.built, x.cached, x.max])) +
+    `\n\n※ 生成後の品質計測（quality）とUI表示での構築は含まない。`);
+};
+
+// 品質ガード（docs/plan/ce-generation-max-speed-plan.md §3.2）。都市ごとの値（複数回あれば最初の生成成功）を比べる。
+commands.quality = async function () {
+  if (!arg) fail("quality needs <before.jsonl> as <file> and <after.jsonl> as arg");
+  const after = applyFilters(await load(arg));
+  const byCity = (rs) => {
+    const m = new Map();
+    for (const r of rs) (m.get(r.burgId) ?? m.set(r.burgId, []).get(r.burgId)).push(r);
+    return m;
+  };
+  const bMap = byCity(records), aMap = byCity(after);
+  const common = [...bMap.keys()].filter((k) => aMap.has(k));
+  const pick = (rs) => rs.find((r) => r.status === "generated") ?? rs[0];
+  const finalPhase = (r, name) => {
+    const ps = (r.phases || []).filter((p) => p.phase === name);
+    return ps.filter((p) => p.attempt === r.attempts).at(-1) ?? ps.at(-1);
+  };
+  const housingError = (r) => {
+    const h = r.housingFit;
+    return h && h.finalHouses !== null && h.finalHouses !== undefined && h.dwellings > 0 ? Math.abs(h.finalHouses - h.dwellings) / h.dwellings : null;
+  };
+  const side = (map) => {
+    const rs = common.map((k) => pick(map.get(k)));
+    const gen_ = rs.filter((r) => r.status === "generated");
+    const has = (key) => gen_.some((r) => r.quality?.[key] !== undefined);
+    const total = (fn) => sum(gen_.map((r) => fn(r) ?? 0));
+    const nondeterministic = common.filter((k) => {
+      const prints = map.get(k).filter((r) => r.status === "generated").map((r) => r.fingerprint?.document);
+      return prints.length > 1 && new Set(prints).size > 1;
+    });
+    const repeated = common.filter((k) => map.get(k).filter((r) => r.status === "generated").length > 1).length;
+    const he = stats(gen_.map(housingError));
+    return {
+      generated: gen_.length,
+      attempts: total((r) => r.attempts),
+      wastedMs: sum(rs.map(wastedMs)),
+      housingErrorMedian: he.n ? he.median : null,
+      housingErrorP95: he.n ? he.p95 : null,
+      housingOutsideTolerance: he.n ? gen_.filter((r) => (housingError(r) ?? 0) > 0.1).length : null,
+      crossingIssues: has("crossingIssues") ? total((r) => r.quality?.crossingIssues) : null,
+      overSkewedBridges: has("overSkewedBridges") ? total((r) => r.quality?.overSkewedBridges) : null,
+      disconnectedRoads: total((r) => finalPhase(r, "road-connection-validation")?.counts?.disconnected),
+      wallInvasionPaths: total((r) => finalPhase(r, "wall-defense-closure")?.counts?.invasionPaths),
+      wallUnprotectedMeters: total((r) => finalPhase(r, "wall-defense-closure")?.counts?.unprotectedMeters),
+      buildingsMedian: has("buildings") ? stats(gen_.map((r) => r.quality?.buildings)).median : null,
+      footprintMedian: has("buildingFootprintMeters2") ? stats(gen_.map((r) => r.quality?.buildingFootprintMeters2)).median : null,
+      urbanAreaMedian: stats(gen_.map((r) => r.spatialMetrics?.urbanAreaMeters2)).median,
+      repeatedCities: repeated,
+      nondeterministicCities: nondeterministic,
+    };
+  };
+  const b = side(bMap), a = side(aMap);
+  const checks = [];
+  // kind: "max" = after <= before, "zero" = after == 0, "band" = |after/before-1| <= 3%
+  const check = (label, key, kind, fmt = (v) => f(v)) => {
+    const bv = b[key], av = a[key];
+    let verdict;
+    if (av === null || av === undefined || ((kind !== "zero") && (bv === null || bv === undefined))) verdict = "N/A";
+    else if (kind === "zero") verdict = av === 0 ? "PASS" : "FAIL";
+    else if (kind === "band") verdict = bv === 0 ? (av === 0 ? "PASS" : "FAIL") : Math.abs(av / bv - 1) <= 0.03 ? "PASS" : "FAIL";
+    else verdict = av <= bv + 1e-9 ? "PASS" : "FAIL";
+    checks.push({ label, key, kind, before: bv, after: av, verdict, text: [label, fmt(bv), fmt(av), kind === "band" ? "±3%" : kind === "zero" ? "= 0" : "≤ before", verdict] });
+  };
+  check("生成成功", "generated", "max", (v) => f(v));
+  checks.at(-1).verdict = a.generated >= b.generated ? "PASS" : "FAIL";
+  checks.at(-1).text[3] = "≥ before"; checks.at(-1).text[4] = checks.at(-1).verdict;
+  check("試行回数の合計", "attempts", "max");
+  check("失敗試行で捨てた時間 s", "wastedMs", "max", (v) => f(v / 1000, 1));
+  checks.at(-1).verdict = a.wastedMs <= b.wastedMs * 1.05 + 1000 ? "PASS" : "FAIL"; // 計測ゆらぎを許す
+  checks.at(-1).text[3] = "≤ before×1.05+1s"; checks.at(-1).text[4] = checks.at(-1).verdict;
+  check("住宅数の誤差 中央値", "housingErrorMedian", "max", pc);
+  check("住宅数の誤差 p95", "housingErrorP95", "max", pc);
+  check("住宅数 ±10% 外の都市", "housingOutsideTolerance", "max");
+  check("交差の違反（完成後の再検査）", "crossingIssues", "zero");
+  check("斜角上限を超える橋", "overSkewedBridges", "zero");
+  check("FMG道路の未接続", "disconnectedRoads", "max");
+  check("市壁の侵入路", "wallInvasionPaths", "max");
+  check("市壁の無防備区間 m", "wallUnprotectedMeters", "max", (v) => f(v, 0));
+  check("建物数 中央値", "buildingsMedian", "band");
+  check("建物の延べ面積 中央値 m²", "footprintMedian", "band", (v) => f(v, 0));
+  check("市街地面積 中央値 m²", "urbanAreaMedian", "band", (v) => f(v, 0));
+  const det = { label: "決定性（同一都市の繰り返しで一致）", before: b.nondeterministicCities.length, after: a.nondeterministicCities.length,
+    verdict: a.repeatedCities ? (a.nondeterministicCities.length ? "FAIL" : "PASS") : "N/A" };
+  det.text = [det.label, `${det.before}/${b.repeatedCities}`, `${det.after}/${a.repeatedCities}`, "不一致 0", det.verdict];
+  checks.push(det);
+  const failed = checks.filter((c) => c.verdict === "FAIL");
+  emit("quality", { commonCities: common.length, before: b, after: a, checks: checks.map(({ text, ...c }) => c), failed: failed.length },
+    `共通都市 ${common.length} / 判定: ${failed.length ? `**不合格 ${failed.length} 項目**` : "合格"}（N/A は指標のない古いレポート、または --repeat なし）\n\n` +
+    table(["指標", "before", "after", "基準", "判定"], checks.map((c) => c.text)) +
+    (a.nondeterministicCities.length ? `\n\n非決定の都市: ${a.nondeterministicCities.join(", ")}` : "") +
+    `\n\n※ 目視確認は \`ce:perf -- ... --svg-dir <dir>\` で代表都市のSVGを書き出して行う。決定性は --repeat 2 以上で測る。`);
+  if (failed.length) process.exitCode = 1;
 };
 
 await commands[command]();

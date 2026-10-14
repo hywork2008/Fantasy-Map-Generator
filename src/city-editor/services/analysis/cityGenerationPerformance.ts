@@ -2,8 +2,13 @@ import { createHash } from "node:crypto";
 import { worldContext } from "../../../context/worldContext";
 import { getBurgSiteDescriptor } from "../../../services/burgSiteDescriptor";
 import { ProcessingProfiler } from "../../../utils/processingProfiler";
+import { buildBlockFabric, setFabricBuildRecorder } from "../../generators/blockInfill";
+import { documentBridgeSkewLimit, overSkewedBridgeDecks } from "../../generators/bridgeDeck";
 import { citySpatialMetrics } from "../../generators/citySpatialMetrics";
 import { generateCityOnDocument } from "../../generators/generation/generateCity";
+import { polygonArea } from "../../generators/geom";
+import { explainGeneratedCrossingFailures } from "../../generators/passages";
+import type { HousingFitStats } from "../../types/contracts/fitImportedHousing";
 import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
 import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
@@ -84,7 +89,8 @@ export async function measureCityPerformance(
   row: Record<string, string>,
   render = false,
   progress?: (sample: GenerationSample) => void,
-  overrides: Partial<GenerationSettings> = {}
+  overrides: Partial<GenerationSettings> = {},
+  svgSink?: (svg: string) => void
 ) {
   const started = performance.now();
   const timings: Record<string, number> = {};
@@ -107,6 +113,15 @@ export async function measureCityPerformance(
   const base = { burgId: Number(row.burg_id), name: row.name };
   let generated = false;
   let spatialMetrics: ReturnType<typeof citySpatialMetrics> | null = null;
+  let housingFit: HousingFitStats | null = null;
+  // `buildBlockFabric` calls during generation, by the profiler path that made them.
+  const fabricBuilds: Record<string, { built: number; cached: number }> = {};
+  setFabricBuildRecorder(cached => {
+    const path = (profiler.currentPath() ?? "(outside)").replace(/attempt-\d+/g, "attempt-*");
+    fabricBuilds[path] ??= { built: 0, cached: 0 };
+    const entry = fabricBuilds[path];
+    entry[cached ? "cached" : "built"]++;
+  });
   try {
     if (row.schema_version !== "1") throw new Error("Unsupported CSV schema_version");
     if (row.export_error) throw new Error(`Descriptor export: ${row.export_error}`);
@@ -123,6 +138,7 @@ export async function measureCityPerformance(
           share.seed,
           sample => {
             const { phase, elapsedMs, attempt, counts } = sample;
+            if (sample.housingFit) housingFit = sample.housingFit;
             phases.push({
               phase,
               elapsedMs,
@@ -145,8 +161,10 @@ export async function measureCityPerformance(
         )
       )
     );
+    setFabricBuildRecorder(null);
     generated = city !== null;
     if (city) spatialMetrics = measure("spatialMetricsMs", () => citySpatialMetrics(city));
+    const quality = city ? measure("qualityMs", () => cityQualityMetrics(city)) : null;
     let svgNodes: number | null = null;
     if (city && render) {
       // Load the renderer outside the SVG construction timer; module startup is reported separately.
@@ -182,6 +200,7 @@ export async function measureCityPerformance(
         )
       );
       svgNodes = svg.querySelectorAll("*").length;
+      svgSink?.(svg.outerHTML);
     }
     return {
       ...base,
@@ -196,6 +215,9 @@ export async function measureCityPerformance(
       faces: Object.keys(document.mesh.faces).length,
       generatedFaces: city ? Object.keys(city.mesh.faces).length : null,
       spatialMetrics,
+      housingFit,
+      quality,
+      fabricBuilds,
       fingerprint: city ? cityFingerprint(city) : null,
       attempts: Math.max(0, ...phases.filter(s => !s.phase.startsWith("render.")).map(s => s.attempt)),
       timings,
@@ -210,13 +232,35 @@ export async function measureCityPerformance(
       status: generated ? "render-error" : "error",
       generated,
       spatialMetrics,
+      housingFit,
+      fabricBuilds,
       timings,
       totalMs: performance.now() - started,
       error: error instanceof Error ? error.message : String(error),
       generationBreakdown: profiler.snapshot(),
       phases
     };
+  } finally {
+    setFabricBuildRecorder(null);
   }
+}
+
+/**
+ * Output measures for changes that may alter the city (ce-generation-max-speed-plan.md §3.2):
+ * the fabric the editor would draw, and the crossing/bridge rules re-checked on the finished town.
+ */
+export function cityQualityMetrics(city: CityDocument) {
+  const fabric = buildBlockFabric(city);
+  const footprint = fabric.buildings.reduce((sum, b) => sum + Math.abs(polygonArea(b.polygon)), 0);
+  return {
+    buildings: fabric.buildings.length,
+    buildingFootprintMeters2: footprint,
+    lanes: fabric.lanes.length,
+    crossingIssues: explainGeneratedCrossingFailures(city).length,
+    overSkewedBridges: overSkewedBridgeDecks(city, documentBridgeSkewLimit(city)).length,
+    roadGroups: city.featureGroups.filter(g => g.kind === "road").length,
+    gates: city.gates?.length ?? 0
+  };
 }
 
 /** SHA-256 of the generated city, whole and by part, so a speed-only change can prove identical output. */

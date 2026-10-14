@@ -105,8 +105,8 @@ export function applyRoads(input: ApplyRoadsInput) {
       const start: Point = [a[0] + ((b[0] - a[0]) * trim) / length, a[1] + ((b[1] - a[1]) * trim) / length];
       return !lineHitsDocumentWater(next, [start, b], roadWidth, true);
     };
-    const edgeHitsWater = (a: Point, b: Point) => {
-      if (!next.importedFixedCrossings) return lineHitsWater([a, b], waterPolygons(next));
+    const edgeHitsWater = (a: Point, b: Point, water: Point[][] = waterPolygons(next)) => {
+      if (!next.importedFixedCrossings) return lineHitsWater([a, b], water);
       if (!lineHitsDocumentWater(next, [a, b], roadWidth, true)) return false;
       return !((nearHead(a) && leavesHead(a, b)) || (nearHead(b) && leavesHead(b, a)));
     };
@@ -130,9 +130,10 @@ export function applyRoads(input: ApplyRoadsInput) {
       // The router also bans edges whose road width reaches the water. A gate
       // whose only outer arm runs along the bank needs a chord into its cell
       // (Odutum). Probe with those bans before adding one.
+      const shoreWater = waterPolygons(next);
       const shoreEdges = new Set(
         Object.values(next.mesh.edges)
-          .filter(edge => edgeHitsWater(next.mesh.vertices[edge.a].point, next.mesh.vertices[edge.b].point))
+          .filter(edge => edgeHitsWater(next.mesh.vertices[edge.a].point, next.mesh.vertices[edge.b].point, shoreWater))
           .map(edge => edge.id)
       );
       const bans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...shoreEdges]);
@@ -174,8 +175,9 @@ export function applyRoads(input: ApplyRoadsInput) {
         }
       }
     }
+    const channelWater = waterPolygons(next);
     const channelEdges = Object.values(mesh.edges)
-      .filter(edge => edgeHitsWater(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point))
+      .filter(edge => edgeHitsWater(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point, channelWater))
       .map(edge => edge.id);
     const oldTownEntries = oldTownNonGateEntries(next);
     const banned = new Set<Id>([

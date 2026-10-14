@@ -39,6 +39,30 @@ npm run ce:perf -- temp/ce-inputs.csv temp/inner.jsonl --burg 1,2 --setting town
 
 `--setting` は複数指定できる。`--list` とは併用できない。
 
+## 暖機計測・並列計測・SVG書き出し
+
+```sh
+# 暖機計測: Workerを使い回し、各Workerの最初の都市を3回生成して捨ててから測る
+npm run ce:perf -- temp/ce-inputs.csv temp/warm.jsonl --warm --warmup 3
+
+# 8プロセスで分担して測る（--warm と併用可）
+npm run ce:perf -- temp/ce-inputs.csv temp/warm8.jsonl --warm --jobs 8
+
+# 代表都市のSVGを書き出して目視する（--render を含む）
+npm run ce:perf -- temp/ce-inputs.csv temp/look.jsonl --burg 1,12,14,100 --svg-dir temp/look-svg
+```
+
+| オプション | 内容 |
+| --- | --- |
+| `--warm` | 1つのWorkerで複数の都市を続けて生成する。JITとモジュール初期化の費用を最初の数回に寄せ、アプリ内（暖まった状態）の時間に近づける。速度の判断はこれで行う |
+| `--warmup N` | `--warm` のとき、Workerごとに最初の都市を N 回（既定3）生成して捨てる。Workerが落ちた・時間切れになったときは作り直して暖機し直す |
+| `--jobs N` | N 個のWorkerで都市を分担する（既定1）。結果の行の順序は入力順にならない。時間を比べるときは並列度を揃える（並列度が高いほどCPU・メモリの競合で1都市の時間が伸びる） |
+| `--svg-dir dir` | `--render` で作ったSVGを `dir/<burgId>.svg`（反復時は `<burgId>-<run>.svg`）に保存する |
+
+既定（`--warm` なし）は従来どおり1回ごとに新しいプロセスで測る。小さい都市ほど初回が遅い（例: 中央値付近の都市で初回 435 ms、2回目以降 約 255 ms）ので、報告には暖機後と初回の両方を載せる。`--warm` では2回目以降の行に `processMs` / `bootstrapMs` が出ない（新しいWorkerでの最初の1回にだけ出る）。
+
+`--warm --repeat 2` は同じ都市を同じプロセスで続けて生成するため、キャッシュの状態に依存して結果が変わらないか（決定性）の検査になる。`ce:perf:query -- before quality after` の「決定性」行で確認する。
+
 ## 都市一覧を保存してから計測する
 
 ```sh
