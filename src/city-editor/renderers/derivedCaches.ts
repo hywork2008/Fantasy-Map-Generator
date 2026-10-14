@@ -9,7 +9,7 @@ import type { CityDocument } from "../types/document";
  * | --- | --- | --- | --- | --- |
  * | block fabric (per document) | `buildBlockFabric` | document object + content fingerprint | fingerprint change (in-place edits) | GC, document replacement (`clearRenderDerivedCaches(document)`), or full clear |
  * | block fabric (shared LRU, 256 entries) | `FabricCache` | district content key | LRU eviction | full clear (`clearRenderDerivedCaches()` on mount/dispose) |
- * | ferry plan | `ferryPlan` | connection object + document + `riverFlows` identity | either identity changing | GC of the connection |
+ * | ferry plan | `ferryPlan` | connection object + weak document + `riverFlows` identity | either identity changing | GC of document (weak owner); connection GC or reuse (plan) |
  * | town facts, bridge decks, cemetery plans | none (recomputed per render) | - | - | - |
  *
  * `prepareTownFacts` is deliberately not cached: its expensive part is the block

@@ -42,7 +42,7 @@ export interface FerryPlan {
 
 const plans = new WeakMap<
   RiverConnection,
-  { document: CityDocument; flows: CityDocument["riverFlows"]; plan: FerryPlan | null }
+  { document: WeakRef<CityDocument>; flows: CityDocument["riverFlows"]; plan: FerryPlan | null }
 >();
 
 const isBridge = (connection: RiverConnection) =>
@@ -52,9 +52,9 @@ const isBridge = (connection: RiverConnection) =>
  * with no known flow. */
 export function ferryPlan(document: CityDocument, connection: RiverConnection): FerryPlan | null {
   const cached = plans.get(connection);
-  if (cached?.document === document && cached.flows === document.riverFlows) return cached.plan;
+  if (cached?.document.deref() === document && cached.flows === document.riverFlows) return cached.plan;
   const plan = isBridge(connection) ? null : planFerry(document, connection);
-  plans.set(connection, { document, flows: document.riverFlows, plan });
+  plans.set(connection, { document: new WeakRef(document), flows: document.riverFlows, plan });
   return plan;
 }
 

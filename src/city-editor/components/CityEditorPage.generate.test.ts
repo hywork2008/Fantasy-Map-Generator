@@ -11,14 +11,23 @@ if (typeof Element.prototype.scrollIntoView !== "function") {
 }
 
 let root: HTMLElement;
+let restoreCoastRandom: (() => void) | undefined;
+const COAST_WALK_TEST = "① reveals the coastline walk as a growing dotted trail, not sea cells";
 
-beforeEach(() => {
+beforeEach(({ task }) => {
+  if (task.name === COAST_WALK_TEST) {
+    // Fix both the initial grid and generation seed before the editor mounts.
+    const random = vi.spyOn(Math, "random").mockReturnValue(Number.parseInt("phase7", 36) / 0xffffffff);
+    restoreCoastRandom = () => random.mockRestore();
+  }
   root = document.createElement("div");
   document.body.append(root);
   mountCityEditor(root);
 });
 
 afterEach(() => {
+  restoreCoastRandom?.();
+  restoreCoastRandom = undefined;
   root.remove();
   try {
     sessionStorage.removeItem("fmg.citySite");
@@ -415,15 +424,11 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(stepStatusText()).toMatch(/^市街地コア: cell #\d+ — 1\/\d+$/);
   });
 
-  it("① reveals the coastline walk as a growing dotted trail, not sea cells", () => {
+  it(COAST_WALK_TEST, () => {
     setCoastal(); // the panel starts landlocked
-    let seen = 0;
-    for (let i = 0; i < 12 && seen < 2; i++) {
-      if (i > 0) panelButton("新しい都市").click();
-      stageButton("①").click();
-      nextStep();
-      seen = count(".ce-step-path-point");
-    }
+    stageButton("①").click();
+    nextStep();
+    const seen = count(".ce-step-path-point");
     expect(seen).toBeGreaterThan(0);
     expect(has(".ce-face--sea")).toBe(false); // scrubbing shows the walk, not the classified result
     expect(stepStatusText()).toMatch(/^海岸線と海: vertex 1\/\d+$/);

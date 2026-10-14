@@ -1,0 +1,888 @@
+{
+  "date": "2026-10-14",
+  "baselineCommit": "cf32584ecfe5e2e510e8f01e536184db00791b3d",
+  "startingCommit": "38eb5c267381df5bb8272f794b2251cd45b60d90",
+  "tests": {
+    "filesPassed": 177,
+    "filesSkipped": 8,
+    "passed": 1386,
+    "skipped": 19,
+    "failed": 0,
+    "durationSeconds": 383.78
+  },
+  "stages": {
+    "compared": 136,
+    "allIdentical": true,
+    "cases": [
+      {
+        "name": "atheiate-20261003",
+        "documentSha256": "3782af393b58c39c4222bc32375c9271330e81abb61521411cf88693f3046d4d",
+        "svgSha256": "c97ffdab8401e4dc8abd2d2eca28b48961fba5a59b1e0880cc4c85267445601e",
+        "savedSha256": "88d4e281b860938d2a384cab455ee9a024a6ac36d22caced1f44017a27f67102",
+        "loadedSha256": "3782af393b58c39c4222bc32375c9271330e81abb61521411cf88693f3046d4d",
+        "loadedSvgSha256": "c97ffdab8401e4dc8abd2d2eca28b48961fba5a59b1e0880cc4c85267445601e",
+        "stageCount": 17,
+        "stageSequenceSha256": "3bbcad39cbb4fe565422ebd391dd1b217a3f3ba59490586510b1f4fc23108d32",
+        "rejected": []
+      },
+      {
+        "name": "erente-20261009",
+        "documentSha256": "5113038b948ef96baa134659bf2a2f7786b7b8106a8b068e0fcc397ada9c28b2",
+        "svgSha256": "c8b1c5a238f26bafbd83810ba6f667bec51ce2c66e4fa0855d32beb8a037829e",
+        "savedSha256": "4641eab78704e9845af0b77c1c5e4446072bb2573f86df3ab17a74c40b713cf9",
+        "loadedSha256": "5113038b948ef96baa134659bf2a2f7786b7b8106a8b068e0fcc397ada9c28b2",
+        "loadedSvgSha256": "c8b1c5a238f26bafbd83810ba6f667bec51ce2c66e4fa0855d32beb8a037829e",
+        "stageCount": 17,
+        "stageSequenceSha256": "5249e36071fa3cea11a9a0113f5204b90b1df086e939fd825affe5559511e0ff",
+        "rejected": [
+          "streets",
+          "wards"
+        ]
+      },
+      {
+        "name": "gothengsfeld-20261012",
+        "documentSha256": "54f81b7562725ae01dc68c02f56afb23c66f579c5bac0479757e50e659c3f672",
+        "svgSha256": "650507fc02effebfdca29760d325ddcda3be827e3d7000d89d14e461d5e7fe0a",
+        "savedSha256": "39f2eba3be35a0b6c3ee47238a31612f36d5ecbdb582beb6f10c15279bf3266d",
+        "loadedSha256": "54f81b7562725ae01dc68c02f56afb23c66f579c5bac0479757e50e659c3f672",
+        "loadedSvgSha256": "650507fc02effebfdca29760d325ddcda3be827e3d7000d89d14e461d5e7fe0a",
+        "stageCount": 17,
+        "stageSequenceSha256": "1ddf22f6374febbb018c453f38a3e286e86f2fcc4e695e5ed4bf97d67f598534",
+        "rejected": []
+      },
+      {
+        "name": "hekus-ui-request-20261007",
+        "documentSha256": "e548fafd6fd8eda01a511dc6a29eac38d0b4fa6d353d4e89a6d800bca35d1968",
+        "svgSha256": "644f24685cd84f32531d935093ea923a50b65390dd2ceec25409fe724c29cc32",
+        "savedSha256": "85e1a21928adffc638086ebef532b821e9024c1be6d405df77c025ca299706bc",
+        "loadedSha256": "e548fafd6fd8eda01a511dc6a29eac38d0b4fa6d353d4e89a6d800bca35d1968",
+        "loadedSvgSha256": "644f24685cd84f32531d935093ea923a50b65390dd2ceec25409fe724c29cc32",
+        "stageCount": 17,
+        "stageSequenceSha256": "aa1385dad4a1861ada9627e5dbcd3770d2de66afd858ae325a8810308d3c1bcc",
+        "rejected": []
+      },
+      {
+        "name": "synthetic-bram",
+        "documentSha256": "61fe1a320454c0ba161d396a563a41863756b39777f8cafccb3032b0f39c2cf0",
+        "svgSha256": "1fd55395a99421518057b53fdb020fdefe2c29ab0c815d6181903b3e4557d24a",
+        "savedSha256": "6020f0b9b9fca43a88e7b0579654db35d8cc5c37c9096f00a0f5b9e176c6ab99",
+        "loadedSha256": "61fe1a320454c0ba161d396a563a41863756b39777f8cafccb3032b0f39c2cf0",
+        "loadedSvgSha256": "1fd55395a99421518057b53fdb020fdefe2c29ab0c815d6181903b3e4557d24a",
+        "stageCount": 17,
+        "stageSequenceSha256": "a5db0b982e12a4fec9ed9e48e755ceb372c687e31dd38ca33ddc8f1e167c978f",
+        "rejected": []
+      },
+      {
+        "name": "synthetic-circulade",
+        "documentSha256": "e8acbb6381280834a5122d195c7269febf67d89575cb09b6f7aab6cdc1292ad8",
+        "svgSha256": "f0726c99907d9ef7a85d19e6b8ffcec085043322fc29fcb667a859ba52ad1a4e",
+        "savedSha256": "b6082f99d10645dacd3cf4ab33dea1a4bece5362824f132591f763608a17a6ad",
+        "loadedSha256": "e8acbb6381280834a5122d195c7269febf67d89575cb09b6f7aab6cdc1292ad8",
+        "loadedSvgSha256": "f0726c99907d9ef7a85d19e6b8ffcec085043322fc29fcb667a859ba52ad1a4e",
+        "stageCount": 17,
+        "stageSequenceSha256": "f9a7371bc83524732383ad5595decb574a5bfd26275ae42c82a4ca103b35392c",
+        "rejected": []
+      },
+      {
+        "name": "synthetic-double-inner",
+        "documentSha256": "d1281d58f1812127dc7818ebbbc851808abc0b84bc57a28925e47db278d60a61",
+        "svgSha256": "f52512b0a1e647fa31fe1029fa5a6c9b0f99b20217f0ee8b221aa80ee6eb99d0",
+        "savedSha256": "4376fe6c1b6c39fb73f74344aef57e90217f7efab0381a9675c14efc232298a1",
+        "loadedSha256": "d1281d58f1812127dc7818ebbbc851808abc0b84bc57a28925e47db278d60a61",
+        "loadedSvgSha256": "f52512b0a1e647fa31fe1029fa5a6c9b0f99b20217f0ee8b221aa80ee6eb99d0",
+        "stageCount": 17,
+        "stageSequenceSha256": "eb27b15c5cc6b89c76cfc9c6284e0b4b86ff219f0473fbeba52c606318bede0d",
+        "rejected": []
+      },
+      {
+        "name": "synthetic-double-outer",
+        "documentSha256": "da9d34bb7059cf26d807e91912a8b75927359cea286867a72e7018b88f52bcc2",
+        "svgSha256": "3b1e48eb672433cd6001c72af9b85cfb6041810bf3f9979d9427ab5fdde9aca4",
+        "savedSha256": "118650e63c3d0c810e30eeecf60fea298947deb66aa2dd1ac3a67ec3fe96897a",
+        "loadedSha256": "da9d34bb7059cf26d807e91912a8b75927359cea286867a72e7018b88f52bcc2",
+        "loadedSvgSha256": "3b1e48eb672433cd6001c72af9b85cfb6041810bf3f9979d9427ab5fdde9aca4",
+        "stageCount": 17,
+        "stageSequenceSha256": "e4b9e974a60da0419441767c253139306bbe0af9907cdbf383fc48a82d6f00c8",
+        "rejected": []
+      }
+    ]
+  },
+  "performance": {
+    "environment": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "warmup": 1,
+    "repeats": 3,
+    "environmentMatch": true,
+    "identityMatch": true,
+    "collected": true,
+    "dimensions": {
+      "documentSha256": "58a7d40246a405a76c77bab71aada0be3fdcff546b60a83c03427dcaa004cf0f",
+      "svgSha256": "b46e299783365dd6e465aaa4be13190bf70b40d83d3d04dfa36c59185a405d43",
+      "faces": 130,
+      "nodes": 136716,
+      "buildings": 81523
+    },
+    "before": {
+      "generationMs": 228.91866700000082,
+      "renderMs": 5250.847167,
+      "heapBefore": 127257384,
+      "heapRetained": 1349925424,
+      "heapReleased": 125906848,
+      "rssRetained": 1805746176
+    },
+    "after": {
+      "generationMs": 227.56679199999962,
+      "renderMs": 5215.851167,
+      "heapBefore": 125051272,
+      "heapRetained": 1348748416,
+      "heapReleased": 124808912,
+      "rssRetained": 1780088832
+    },
+    "changePercent": {
+      "generationMs": -0.5905481705435589,
+      "renderMs": -0.6664829290774166,
+      "heapBefore": -1.733582705110459,
+      "heapRetained": -0.08719059431537834,
+      "heapReleased": -0.8720224653705921,
+      "rssRetained": -1.4208721215090647
+    }
+  },
+  "lifetime": {
+    "before": {
+      "baselineCommit": "38eb5c267381df5bb8272f794b2251cd45b60d90",
+      "trackedDocuments": 6,
+      "retainedWithDisposers": 3,
+      "stateRetainedWithDisposers": 3,
+      "retainedAfterRelease": 0,
+      "weakFabricKeyCollected": true,
+      "ferryDocumentCollectedWithLiveConnection": false,
+      "liveConnectionKind": "fixedBridge",
+      "resourceSnapshots": [
+        {
+          "listenersBefore": 194,
+          "listenersAfter": 194
+        },
+        {
+          "listenersBefore": 194,
+          "listenersAfter": 194
+        },
+        {
+          "listenersBefore": 194,
+          "listenersAfter": 194
+        }
+      ],
+      "retiredResources": [
+        {
+          "listeners": 0,
+          "timers": 0,
+          "frames": 0,
+          "cleanups": 0
+        },
+        {
+          "listeners": 0,
+          "timers": 0,
+          "frames": 0,
+          "cleanups": 0
+        },
+        {
+          "listeners": 0,
+          "timers": 0,
+          "frames": 0,
+          "cleanups": 0
+        }
+      ],
+      "emptyRoot": true
+    },
+    "after": {
+      "baselineCommit": null,
+      "trackedDocuments": 6,
+      "retainedWithDisposers": 0,
+      "stateRetainedWithDisposers": 0,
+      "retainedAfterRelease": 0,
+      "weakFabricKeyCollected": true,
+      "ferryDocumentCollectedWithLiveConnection": true,
+      "liveConnectionKind": "fixedBridge",
+      "resourceSnapshots": [
+        {
+          "listenersBefore": 194,
+          "listenersAfter": 194
+        },
+        {
+          "listenersBefore": 194,
+          "listenersAfter": 194
+        },
+        {
+          "listenersBefore": 194,
+          "listenersAfter": 194
+        }
+      ],
+      "retiredResources": [
+        {
+          "listeners": 0,
+          "timers": 0,
+          "frames": 0,
+          "cleanups": 0
+        },
+        {
+          "listeners": 0,
+          "timers": 0,
+          "frames": 0,
+          "cleanups": 0
+        },
+        {
+          "listeners": 0,
+          "timers": 0,
+          "frames": 0,
+          "cleanups": 0
+        }
+      ],
+      "emptyRoot": true
+    }
+  },
+  "responsibilities": {
+    "thresholds": {
+      "fileLines": 1000,
+      "functionLines": 150
+    },
+    "largeFiles": [
+      {
+        "file": "src/city-editor/components/CityEditorPage.ts",
+        "lines": 2690
+      },
+      {
+        "file": "src/city-editor/controllers/inspector.ts",
+        "lines": 1015
+      },
+      {
+        "file": "src/city-editor/generators/aerialLandmarks.ts",
+        "lines": 1253
+      },
+      {
+        "file": "src/city-editor/generators/features.ts",
+        "lines": 1001
+      },
+      {
+        "file": "src/city-editor/generators/frameRoads.ts",
+        "lines": 1062
+      },
+      {
+        "file": "src/city-editor/generators/innerTownWall.ts",
+        "lines": 1230
+      },
+      {
+        "file": "src/city-editor/generators/interior.ts",
+        "lines": 1143
+      },
+      {
+        "file": "src/city-editor/generators/passages.ts",
+        "lines": 1860
+      },
+      {
+        "file": "src/city-editor/generators/wards.ts",
+        "lines": 1014
+      },
+      {
+        "file": "src/city-editor/renderers/castleLayoutBuilder.ts",
+        "lines": 1018
+      },
+      {
+        "file": "src/city-editor/renderers/shipSvg.ts",
+        "lines": 1816
+      },
+      {
+        "file": "src/city-editor/renderers/templeSvg.ts",
+        "lines": 1621
+      }
+    ],
+    "largeFunctions": [
+      {
+        "file": "src/city-editor/components/CityEditorPage.ts",
+        "name": "mountCityEditor",
+        "line": 99,
+        "lines": 2583
+      },
+      {
+        "file": "src/city-editor/components/CityEditorPage.ts",
+        "name": "panelEventContext",
+        "line": 196,
+        "lines": 208
+      },
+      {
+        "file": "src/city-editor/components/CityEditorPage.ts",
+        "name": "getMapDisplayController",
+        "line": 406,
+        "lines": 174
+      },
+      {
+        "file": "src/city-editor/components/documentPanel.ts",
+        "name": "buildDocumentPanel",
+        "line": 139,
+        "lines": 383
+      },
+      {
+        "file": "src/city-editor/components/generationPanel.ts",
+        "name": "buildGenerationPanel",
+        "line": 112,
+        "lines": 500
+      },
+      {
+        "file": "src/city-editor/controllers/documentIO.ts",
+        "name": "createDocumentIOController",
+        "line": 79,
+        "lines": 234
+      },
+      {
+        "file": "src/city-editor/controllers/generation.ts",
+        "name": "createGenerationController",
+        "line": 93,
+        "lines": 513
+      },
+      {
+        "file": "src/city-editor/controllers/inspector.ts",
+        "name": "createInspectorController",
+        "line": 81,
+        "lines": 935
+      },
+      {
+        "file": "src/city-editor/controllers/inspector.ts",
+        "name": "appendApproachBeyondControls",
+        "line": 84,
+        "lines": 270
+      },
+      {
+        "file": "src/city-editor/controllers/inspector.ts",
+        "name": "populateInspectorEditControls",
+        "line": 355,
+        "lines": 512
+      },
+      {
+        "file": "src/city-editor/controllers/mapDisplay.ts",
+        "name": "createMapDisplayController",
+        "line": 79,
+        "lines": 553
+      },
+      {
+        "file": "src/city-editor/controllers/panelEvents.ts",
+        "name": "bindPanelEvents",
+        "line": 77,
+        "lines": 341
+      },
+      {
+        "file": "src/city-editor/controllers/tools/brushes.ts",
+        "name": "createBrushesController",
+        "line": 46,
+        "lines": 236
+      },
+      {
+        "file": "src/city-editor/controllers/tools/dragCompletion.ts",
+        "name": "createDragCompletionController",
+        "line": 28,
+        "lines": 153
+      },
+      {
+        "file": "src/city-editor/controllers/tools/mapClick.ts",
+        "name": "bindMapClick",
+        "line": 33,
+        "lines": 269
+      },
+      {
+        "file": "src/city-editor/controllers/tools/mapContext.ts",
+        "name": "bindMapContext",
+        "line": 36,
+        "lines": 175
+      },
+      {
+        "file": "src/city-editor/controllers/tools/pointerDown.ts",
+        "name": "bindPointerDown",
+        "line": 34,
+        "lines": 230
+      },
+      {
+        "file": "src/city-editor/controllers/tools/routes.ts",
+        "name": "createRoutesController",
+        "line": 30,
+        "lines": 303
+      },
+      {
+        "file": "src/city-editor/generators/approachBeyond.ts",
+        "name": "evaluateApproachBeyond",
+        "line": 213,
+        "lines": 210
+      },
+      {
+        "file": "src/city-editor/generators/approachCorridors.ts",
+        "name": "makeCastleJudge",
+        "line": 277,
+        "lines": 162
+      },
+      {
+        "file": "src/city-editor/generators/blockInfill.ts",
+        "name": "finishCoastalBuildings",
+        "line": 270,
+        "lines": 180
+      },
+      {
+        "file": "src/city-editor/generators/blockInfill.ts",
+        "name": "buildLegacyBlockFabric",
+        "line": 451,
+        "lines": 280
+      },
+      {
+        "file": "src/city-editor/generators/castlePlacement.ts",
+        "name": "placeCastlePass",
+        "line": 318,
+        "lines": 262
+      },
+      {
+        "file": "src/city-editor/generators/castles.ts",
+        "name": "installCastle",
+        "line": 96,
+        "lines": 245
+      },
+      {
+        "file": "src/city-editor/generators/cemeteryLayout.ts",
+        "name": "layoutCemetery",
+        "line": 15,
+        "lines": 270
+      },
+      {
+        "file": "src/city-editor/generators/circuladeFabric.ts",
+        "name": "buildCirculadeBlocks",
+        "line": 19,
+        "lines": 184
+      },
+      {
+        "file": "src/city-editor/generators/circuladeFabric.ts",
+        "name": "buildCirculadeTownFabric",
+        "line": 268,
+        "lines": 235
+      },
+      {
+        "file": "src/city-editor/generators/cultureCemeteryLayout.ts",
+        "name": "layoutCultureCemetery",
+        "line": 9,
+        "lines": 285
+      },
+      {
+        "file": "src/city-editor/generators/finishCityGeometry.ts",
+        "name": "finishCityGeometry",
+        "line": 16,
+        "lines": 385
+      },
+      {
+        "file": "src/city-editor/generators/fortifications.ts",
+        "name": "validateFortifications",
+        "line": 137,
+        "lines": 201
+      },
+      {
+        "file": "src/city-editor/generators/frontageBuildings.ts",
+        "name": "frontageBuildings",
+        "line": 36,
+        "lines": 161
+      },
+      {
+        "file": "src/city-editor/generators/generation/assembly/finalize.ts",
+        "name": "finalizeAssembly",
+        "line": 32,
+        "lines": 215
+      },
+      {
+        "file": "src/city-editor/generators/generation/assembly/gates.ts",
+        "name": "applyGates",
+        "line": 38,
+        "lines": 411
+      },
+      {
+        "file": "src/city-editor/generators/generation/assembly/terrain.ts",
+        "name": "applyTerrain",
+        "line": 51,
+        "lines": 165
+      },
+      {
+        "file": "src/city-editor/generators/generation/generateCity.ts",
+        "name": "generateCityOnDocument",
+        "line": 72,
+        "lines": 205
+      },
+      {
+        "file": "src/city-editor/generators/generation/generateCity.ts",
+        "name": "generateCityAttempt",
+        "line": 281,
+        "lines": 466
+      },
+      {
+        "file": "src/city-editor/generators/generation/pipeline.ts",
+        "name": "runPlan",
+        "line": 18,
+        "lines": 396
+      },
+      {
+        "file": "src/city-editor/generators/generation/planning/coast.ts",
+        "name": "planCoast",
+        "line": 26,
+        "lines": 152
+      },
+      {
+        "file": "src/city-editor/generators/generation/planning/defenses.ts",
+        "name": "planDefenses",
+        "line": 75,
+        "lines": 508
+      },
+      {
+        "file": "src/city-editor/generators/generation/planning/rivers.ts",
+        "name": "planRivers",
+        "line": 40,
+        "lines": 219
+      },
+      {
+        "file": "src/city-editor/generators/generation/planning/urban.ts",
+        "name": "planUrban",
+        "line": 44,
+        "lines": 174
+      },
+      {
+        "file": "src/city-editor/generators/generation/routing/assembleRoads.ts",
+        "name": "applyRoads",
+        "line": 55,
+        "lines": 468
+      },
+      {
+        "file": "src/city-editor/generators/generation/routing/completeRoadRouter.ts",
+        "name": "completeRoadRouter",
+        "line": 21,
+        "lines": 589
+      },
+      {
+        "file": "src/city-editor/generators/harborFabric.ts",
+        "name": "planHarbor",
+        "line": 76,
+        "lines": 506
+      },
+      {
+        "file": "src/city-editor/generators/harborShips.ts",
+        "name": "planHarborShips",
+        "line": 93,
+        "lines": 529
+      },
+      {
+        "file": "src/city-editor/generators/innerTownWall.ts",
+        "name": "addFirstTownWall",
+        "line": 255,
+        "lines": 171
+      },
+      {
+        "file": "src/city-editor/generators/innerTownWall.ts",
+        "name": "build",
+        "line": 860,
+        "lines": 177
+      },
+      {
+        "file": "src/city-editor/generators/interior.ts",
+        "name": "shiftRiverCrossingGates",
+        "line": 325,
+        "lines": 201
+      },
+      {
+        "file": "src/city-editor/generators/landmarks.ts",
+        "name": "placeLandmark",
+        "line": 133,
+        "lines": 204
+      },
+      {
+        "file": "src/city-editor/generators/localInfill.ts",
+        "name": "buildLocalFabric",
+        "line": 74,
+        "lines": 219
+      },
+      {
+        "file": "src/city-editor/generators/medievalFabric.ts",
+        "name": "buildMedievalFabric",
+        "line": 36,
+        "lines": 422
+      },
+      {
+        "file": "src/city-editor/generators/organicBlocks.ts",
+        "name": "buildOrganicBlocks",
+        "line": 49,
+        "lines": 180
+      },
+      {
+        "file": "src/city-editor/generators/passages.ts",
+        "name": "splitBarrierPassageFace",
+        "line": 1521,
+        "lines": 310
+      },
+      {
+        "file": "src/city-editor/generators/perimeterBlocks.ts",
+        "name": "buildPerimeterBlocks",
+        "line": 25,
+        "lines": 199
+      },
+      {
+        "file": "src/city-editor/generators/polygonalCirculadeFabric.ts",
+        "name": "buildPolygonalCirculadeFabric",
+        "line": 24,
+        "lines": 200
+      },
+      {
+        "file": "src/city-editor/generators/rectifyHexBlocks.ts",
+        "name": "rectifyHexBlocks",
+        "line": 36,
+        "lines": 334
+      },
+      {
+        "file": "src/city-editor/generators/rectifyVoronoiBlocks.ts",
+        "name": "rectifyVoronoiBlocks",
+        "line": 49,
+        "lines": 247
+      },
+      {
+        "file": "src/city-editor/generators/resolveRiverOverlaps.ts",
+        "name": "resolveRiverBoundaryOverlaps",
+        "line": 16,
+        "lines": 236
+      },
+      {
+        "file": "src/city-editor/generators/riverWallRouting.ts",
+        "name": "repairRiverWalls",
+        "line": 160,
+        "lines": 746
+      },
+      {
+        "file": "src/city-editor/generators/streetGrowth.ts",
+        "name": "infillBlocks",
+        "line": 81,
+        "lines": 203
+      },
+      {
+        "file": "src/city-editor/generators/streets.ts",
+        "name": "buildStreets",
+        "line": 98,
+        "lines": 317
+      },
+      {
+        "file": "src/city-editor/generators/townDefenseClosure.ts",
+        "name": "auditTownDefenseClosure",
+        "line": 23,
+        "lines": 198
+      },
+      {
+        "file": "src/city-editor/generators/urbanGrowth.ts",
+        "name": "planUrbanGrowth",
+        "line": 97,
+        "lines": 207
+      },
+      {
+        "file": "src/city-editor/generators/wards.ts",
+        "name": "assignWards",
+        "line": 171,
+        "lines": 249
+      },
+      {
+        "file": "src/city-editor/generators/wards.ts",
+        "name": "placeCemetery",
+        "line": 790,
+        "lines": 225
+      },
+      {
+        "file": "src/city-editor/generators/watermillFabric.ts",
+        "name": "buildWatermillPlan",
+        "line": 352,
+        "lines": 327
+      },
+      {
+        "file": "src/city-editor/renderers/castleLayoutBuilder.ts",
+        "name": "buildJapaneseShiro",
+        "line": 187,
+        "lines": 156
+      },
+      {
+        "file": "src/city-editor/renderers/cemeterySvg.ts",
+        "name": "renderCemeteries",
+        "line": 8,
+        "lines": 272
+      },
+      {
+        "file": "src/city-editor/renderers/cityElementsSvg.ts",
+        "name": "renderCityElements",
+        "line": 15,
+        "lines": 201
+      },
+      {
+        "file": "src/city-editor/renderers/editorSvg.ts",
+        "name": "renderEditorSvg",
+        "line": 42,
+        "lines": 308
+      },
+      {
+        "file": "src/city-editor/renderers/featureLayerSvg.ts",
+        "name": "renderFeatureLayer",
+        "line": 24,
+        "lines": 299
+      },
+      {
+        "file": "src/city-editor/renderers/generationDebugSvg.ts",
+        "name": "renderGenerationDebugSvg",
+        "line": 12,
+        "lines": 219
+      },
+      {
+        "file": "src/city-editor/renderers/landscape.ts",
+        "name": "resolveLandscapeTheme",
+        "line": 33,
+        "lines": 222
+      },
+      {
+        "file": "src/city-editor/renderers/landscape.ts",
+        "name": "renderLandscapeLayer",
+        "line": 661,
+        "lines": 291
+      },
+      {
+        "file": "src/city-editor/renderers/quaySvg.ts",
+        "name": "renderTownQuays",
+        "line": 4,
+        "lines": 192
+      },
+      {
+        "file": "src/city-editor/renderers/shipSvg.ts",
+        "name": "buildSloopGeometry",
+        "line": 168,
+        "lines": 191
+      },
+      {
+        "file": "src/city-editor/renderers/shipSvg.ts",
+        "name": "buildCaravelGeometry",
+        "line": 365,
+        "lines": 301
+      },
+      {
+        "file": "src/city-editor/renderers/shipSvg.ts",
+        "name": "buildGalleonGeometry",
+        "line": 672,
+        "lines": 426
+      },
+      {
+        "file": "src/city-editor/renderers/shipSvg.ts",
+        "name": "buildRiverBargeGeometry",
+        "line": 1113,
+        "lines": 704
+      },
+      {
+        "file": "src/city-editor/renderers/templeSvg.ts",
+        "name": "renderRusticChapel",
+        "line": 145,
+        "lines": 342
+      },
+      {
+        "file": "src/city-editor/renderers/templeSvg.ts",
+        "name": "renderStoneCircle",
+        "line": 492,
+        "lines": 221
+      },
+      {
+        "file": "src/city-editor/renderers/templeSvg.ts",
+        "name": "renderTimberShrine",
+        "line": 718,
+        "lines": 191
+      },
+      {
+        "file": "src/city-editor/renderers/templeSvg.ts",
+        "name": "renderBasilica",
+        "line": 914,
+        "lines": 708
+      },
+      {
+        "file": "src/city-editor/renderers/townFabricSvg.ts",
+        "name": "renderTownFabric",
+        "line": 29,
+        "lines": 375
+      },
+      {
+        "file": "src/city-editor/renderers/townFortificationSvg.ts",
+        "name": "renderTownFortifications",
+        "line": 18,
+        "lines": 226
+      },
+      {
+        "file": "src/city-editor/renderers/wallSvg.ts",
+        "name": "renderStoneWall",
+        "line": 350,
+        "lines": 157
+      },
+      {
+        "file": "src/city-editor/renderers/wallSvg.ts",
+        "name": "renderTowerDecoration",
+        "line": 513,
+        "lines": 161
+      },
+      {
+        "file": "src/city-editor/renderers/wallSvg.ts",
+        "name": "renderGateDecoration",
+        "line": 681,
+        "lines": 201
+      },
+      {
+        "file": "src/city-editor/renderers/watermillSvg.ts",
+        "name": "renderTownWatermills",
+        "line": 4,
+        "lines": 254
+      },
+      {
+        "file": "src/city-editor/services/analysis/wallRingLab.ts",
+        "name": "runWallRingLab",
+        "line": 276,
+        "lines": 321
+      }
+    ],
+    "otherLargeFunctions": [
+      {
+        "file": "src/city-editor/controllers/tools/mapClick.ts",
+        "name": "(callback)",
+        "line": 45,
+        "lines": 256
+      },
+      {
+        "file": "src/city-editor/controllers/tools/mapContext.ts",
+        "name": "(callback)",
+        "line": 38,
+        "lines": 172
+      },
+      {
+        "file": "src/city-editor/controllers/tools/pointerDown.ts",
+        "name": "(callback)",
+        "line": 36,
+        "lines": 227
+      },
+      {
+        "file": "src/city-editor/generators/generation/routing/completeRoadRouter.ts",
+        "name": "(callback)",
+        "line": 240,
+        "lines": 369
+      },
+      {
+        "file": "src/city-editor/generators/passages.ts",
+        "name": "splitInSector",
+        "line": 1596,
+        "lines": 210
+      },
+      {
+        "file": "src/city-editor/generators/riverWallRouting.ts",
+        "name": "reroute",
+        "line": 178,
+        "lines": 260
+      },
+      {
+        "file": "src/city-editor/generators/riverWallRouting.ts",
+        "name": "separateNearBanks",
+        "line": 533,
+        "lines": 201
+      }
+    ]
+  }
+}

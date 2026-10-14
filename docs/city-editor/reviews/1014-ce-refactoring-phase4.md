@@ -1,4 +1,4 @@
-# CE リファクタリング Phase 4 実装記録（進行中）
+# CE リファクタリング Phase 4 実装記録
 
 着手日: 2026-10-14。着手時コミット: `e3b9cb176`。
 設計: [アーキテクチャ規約](../architecture.md) §6。工程: [ロードマップ](../plan/architecture-refactoring-roadmap.md)。
@@ -140,3 +140,7 @@
 
 - `landscape.ts`（951行）、`shipSvg.ts`（1,822行）、`templeSvg.ts`（1,621行）、`townFabricSvg.ts`（397行）等の大きい描画モジュールは今回対象外。Phase 7で責務として残す理由を記録する。
 - `svg.ts` 互換再exportの撤去とcacheのmount以外の解除地点はPhase 5/6。
+
+## 5. 後続フェーズでの完了確認（2026-10-14追記）
+
+上記は各実施時点の記録を維持している。互換再exportはPhase 6で撤去し、文書置換・disposeでのcache解除はPhase 5〜7で確認した。大きい描画moduleの残置理由、生成・描画不変性、大都市の同条件比較と終了後の参照回収は[Phase 7総合検証](1014-ce-refactoring-phase7.md)に記録した。Phase 4の残事項は収束済み。

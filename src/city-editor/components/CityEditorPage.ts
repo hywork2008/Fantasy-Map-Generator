@@ -2290,7 +2290,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showNotice(error instanceof Error ? error.message : editorText("cityEditor.messages.couldNotLoadFMGRegionData"));
   }
 
-  return () => scope.dispose();
+  // A native bound method retains only the lifetime, not this mount's shared
+  // closure context (document, history, controllers and previews).
+  return scope.dispose.bind(scope);
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     getRoutesController().appendSelectedEdge(edgeId, kind);
