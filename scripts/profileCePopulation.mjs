@@ -35,6 +35,7 @@ try {
         });
       }
       postMessage(data, ...args) {
+        if (window.__ceCaptureRequest) r.rawRequest = data;
         r.request = { settings: data.settings, seed: data.seed, frame: data.document.frame, faces: Object.keys(data.document.mesh.faces).length };
         r.workerPostAt = performance.now();
         return super.postMessage({ ...data, profile: true }, ...args);
@@ -54,6 +55,8 @@ try {
       }
     }).observe(document, { subtree: true, attributes: true, childList: true });
   });
+  // CE_CAPTURE_REQUEST=path saves the exact Worker input for headless replay (scripts/benchmarkCeGiant.ts).
+  if (process.env.CE_CAPTURE_REQUEST) await page.addInitScript(() => { window.__ceCaptureRequest = true; });
   await page.goto(url);
   const initialPopulation = await page.locator(".ce-population-input").inputValue();
   if (initialPopulation !== "15000") throw new Error(`Unexpected default: ${initialPopulation}`);
@@ -88,6 +91,12 @@ try {
       statusBefore: before.status,
       statusAfter: document.querySelector(".ce-status")?.textContent
     }), before);
+  }
+  if (process.env.CE_CAPTURE_REQUEST) {
+    const raw = await page.evaluate(() => window.__ceProfile.rawRequest);
+    await mkdir(dirname(process.env.CE_CAPTURE_REQUEST), { recursive: true });
+    await writeFile(process.env.CE_CAPTURE_REQUEST, JSON.stringify(raw));
+    delete result.rawRequest;
   }
   result.initialPopulation = initialPopulation;
   result.error = error;

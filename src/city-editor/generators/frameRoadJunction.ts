@@ -27,6 +27,10 @@ import { explainGeneratedCrossingFailures, onFixedCrossingApproach } from "./pas
  * Documents are never mutated in place here (`moveVertices` returns a clone). */
 const failureCounts = new WeakMap<CityDocument, number>();
 function crossingFailureCount(document: CityDocument): number {
+  return probed("crossingFailureCount", () => crossingFailureCountUnprobed(document));
+}
+
+function crossingFailureCountUnprobed(document: CityDocument): number {
   let count = failureCounts.get(document);
   if (count === undefined) {
     count = explainGeneratedCrossingFailures(document).length;
@@ -35,6 +39,7 @@ function crossingFailureCount(document: CityDocument): number {
   return count;
 }
 
+import { probed } from "./meshOpProbe";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { lineHitsDocumentWater } from "./waterGeometry";
 

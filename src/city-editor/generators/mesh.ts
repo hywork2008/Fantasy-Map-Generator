@@ -3,6 +3,7 @@ import type { Cell } from "../types/geometry";
 import { refreshCastleLayouts } from "./castleLayout";
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
+import { probed } from "./meshOpProbe";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -470,6 +471,14 @@ export function moveVertices(
   points: ReadonlyMap<Id, Point>,
   allowExistingErrors = false
 ): CityDocument | null {
+  return probed("moveVertices", () => moveVerticesUnprobed(document, points, allowExistingErrors));
+}
+
+function moveVerticesUnprobed(
+  document: CityDocument,
+  points: ReadonlyMap<Id, Point>,
+  allowExistingErrors: boolean
+): CityDocument | null {
   const half = document.frame.extentMeters / 2;
   for (const [id, point] of points) {
     if (!document.mesh.vertices[id] || protectedVertex(document, id)) return null;
@@ -477,7 +486,7 @@ export function moveVertices(
   }
   const next = clone(document);
   for (const [id, point] of points) next.mesh.vertices[id].point = [point[0], point[1]];
-  if (!refreshCastleLayouts(next)) return null;
+  if (!probed("refreshCastleLayouts", () => refreshCastleLayouts(next))) return null;
   // Moved-geometry errors are new by construction, so they are never excused
   // by allowExistingErrors.
   if (movedGeometryErrors(document, next, points.keys()).length) return null;
@@ -787,6 +796,10 @@ function insertEdgeVertexUnchecked(next: CityDocument, edgeId: Id, fraction: num
 }
 
 export function validate(document: CityDocument): string[] {
+  return probed("validate", () => validateUnprobed(document));
+}
+
+function validateUnprobed(document: CityDocument): string[] {
   const errors: string[] = [];
   const { mesh } = document;
   // One endpoint index per call: a river check per step must not scan every edge.
@@ -853,6 +866,10 @@ export function validate(document: CityDocument): string[] {
  * legacy documents remain editable.
  */
 export function movedGeometryErrors(before: CityDocument, after: CityDocument, vertexIds: Iterable<Id>): string[] {
+  return probed("movedGeometryErrors", () => movedGeometryErrorsUnprobed(before, after, vertexIds));
+}
+
+function movedGeometryErrorsUnprobed(before: CityDocument, after: CityDocument, vertexIds: Iterable<Id>): string[] {
   const moved = new Set(vertexIds);
   if (!moved.size) return [];
   const errors: string[] = [];
@@ -965,6 +982,10 @@ function frozenRefs(boundary: EdgeRef[]): EdgeRef[] {
 }
 
 export function clone<T>(value: T): T {
+  return probed("clone", () => cloneUnprobed<T>(value));
+}
+
+function cloneUnprobed<T>(value: T): T {
   if (!value || typeof value !== "object" || (value as { format?: unknown }).format !== "fmg-city-editor")
     return structuredClone(value);
   const source = value as unknown as CityDocument;
