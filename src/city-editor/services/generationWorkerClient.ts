@@ -35,6 +35,7 @@ export function startCityGeneration(
         if (data.timing)
           onTimings?.({
             structureMs: data.timing.structureMs,
+            ...(data.timing.breakdown ? { breakdown: data.timing.breakdown } : {}),
             resultTransferMs: Math.max(0, performance.timeOrigin + performance.now() - data.timing.postedAt)
           });
         if (!data.document && request.debugFailure && data.failurePreview) onFailurePreview?.(data.failurePreview);

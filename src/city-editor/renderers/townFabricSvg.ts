@@ -37,7 +37,7 @@ export function renderTownFabric(
     "pointer-events": tool === "select" ? "all" : "none"
   });
   mark("svg-base");
-  const facts = prepareTownFacts(document);
+  const facts = prepareTownFacts(document, mark);
   const { fabric, lots, housing } = facts;
   const clusterPeople = new Map(facts.populationClusters?.map(c => [c.id, c.assignedPopulation]) ?? []);
   if (document.populationPlan) {

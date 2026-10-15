@@ -1,4 +1,5 @@
 import i18n, { isSupportedLanguage } from "../../i18n/index";
+import { ProcessingProfiler } from "../../utils/processingProfiler";
 import { generateCityOnDocument } from "../generators/generation/generateCity";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
 import type { GenerationReply, GenerationRequest } from "../types/worker";
@@ -11,6 +12,7 @@ scope.onmessage = async ({ data }) => {
   try {
     await i18n.changeLanguage(isSupportedLanguage(data.language ?? null) ? data.language : "en");
     const started = performance.now();
+    const profiler = data.profile ? new ProcessingProfiler() : undefined;
     let failurePreview: GenerationDebugPreview | undefined;
     const document = generateCityOnDocument(
       data.document,
@@ -21,12 +23,17 @@ scope.onmessage = async ({ data }) => {
         ? preview => {
             failurePreview = preview;
           }
-        : undefined
+        : undefined,
+      profiler
     );
     scope.postMessage({
       type: "complete",
       document,
-      timing: { structureMs: performance.now() - started, postedAt: performance.timeOrigin + performance.now() },
+      timing: {
+        structureMs: performance.now() - started,
+        postedAt: performance.timeOrigin + performance.now(),
+        ...(profiler ? { breakdown: profiler.snapshot() } : {})
+      },
       ...(!document && failurePreview ? { failurePreview } : {})
     });
   } catch (error) {
