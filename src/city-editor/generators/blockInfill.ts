@@ -203,6 +203,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.waterAreas?.length ?? 0,
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
+    JSON.stringify(doc.facilityCounts ?? {}),
     roadTrafficKey(doc),
     prevailingWindKey(doc),
     facePart,

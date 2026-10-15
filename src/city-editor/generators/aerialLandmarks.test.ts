@@ -172,6 +172,25 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     ring = circuitRing(city, city.defenseCircuits!.find(c => c.scope === "town")!);
   }, 120000);
 
+  it("applies CE facility overrides independently of FMG and restores automatic placement", () => {
+    const edited = {
+      ...city,
+      facilityCounts: { textiles: 1, bleachingField: 1, abbey: 0, friary: 0, orthodoxMonastery: 0, gallows: 0 }
+    };
+    const plan = buildBlockFabric(edited).aerialLandmarks!;
+    expect(plan.guildHalls.some(h => h.domain === "textiles")).toBe(true);
+    expect(plan.guildYards.some(y => y.kind === "bleachingField")).toBe(true);
+    expect(plan.monasteries).toHaveLength(0);
+    expect(plan.gallows).toHaveLength(0);
+    const removed = buildBlockFabric({ ...edited, facilityCounts: { ...edited.facilityCounts, textiles: 0 } })
+      .aerialLandmarks!;
+    expect(removed.guildHalls.filter(h => h.domain === "textiles")).toHaveLength(0);
+    expect(removed.guildYards.some(y => y.kind === "bleachingField")).toBe(true);
+    const restored = buildBlockFabric({ ...city, facilityCounts: {} }).aerialLandmarks!;
+    expect(restored.monasteries.length).toBe(fabric.aerialLandmarks!.monasteries.length);
+    expect(restored.gallows.length).toBe(fabric.aerialLandmarks!.gallows.length);
+  });
+
   it("places landmarks but omits a tannery when downstream watermills leave no room", () => {
     const plan = fabric.aerialLandmarks!;
     expect(plan.monasteries.length).toBeGreaterThanOrEqual(2);

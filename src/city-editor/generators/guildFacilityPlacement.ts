@@ -337,14 +337,20 @@ export function placeGuildWorks(
   for (const facility of facilities) {
     if (!facility.hall || site.town.length < 3) continue;
     const hall = placeHall(site, facility, year, used);
-    if (hall) halls.push(hall);
+    if (hall) {
+      if (halls.some(existing => existing.id === hall.id)) hall.id += `-${halls.length}`;
+      halls.push(hall);
+    }
   }
   for (const facility of facilities) {
     for (const kind of facility.ancillary) {
       if (kind === "tannery") continue;
       const yard =
         kind === "bleachingField" ? placeBleaching(site, facility, year) : placeOpenYard(site, facility, kind, year);
-      if (yard) yards.push(yard);
+      if (yard) {
+        if (yards.some(existing => existing.id === yard.id)) yard.id += `-${yards.length}`;
+        yards.push(yard);
+      }
     }
   }
   return { halls, yards };

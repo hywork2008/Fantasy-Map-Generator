@@ -405,6 +405,8 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */
+  facilityCounts?: Partial<Record<import("./facilities").FacilityKind, number>>;
   populationPlan?: import("./contracts/population").PopulationPlan;
   populationReport?: import("./contracts/population").PopulationReport;
   residentialClusters?: import("./contracts/population").ResidentialCluster[];

@@ -6,6 +6,7 @@ import { validUrbanMorphology } from "../../../utils/urbanMorphology";
 import { buildBlockFabric } from "../../generators/blockInfill";
 import { BLOCK_SIZE_METERS } from "../../generators/document";
 import { upgradeFabricPlan, validFabricPlan } from "../../generators/fabricDistricts";
+import { validFacilityCounts } from "../../generators/facilitySettings";
 import { restoreFixedCrossingApproaches, validSavedFixedApproaches } from "../../generators/fixedApproachAdoption";
 import { validateLandmarks } from "../../generators/landmarks";
 import { validate } from "../../generators/mesh";
@@ -70,6 +71,7 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    validFacilityCounts(doc.facilityCounts) &&
     validPopulationDocument(doc) &&
     (doc.townWallGeneration === undefined ||
       (doc.townWallGeneration !== null &&

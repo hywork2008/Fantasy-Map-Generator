@@ -1,6 +1,12 @@
 {
   "cityEditor": {
     "messages": {
+      "facilityPlacedCount": "現在の配置数: {{value0}}",
+      "facilityManagement": "施設の追加・削除",
+      "facilityAutomatic": "自動設定",
+      "facilityCount": "施設の希望数",
+      "facilityApply": "配置",
+      "facilityRemove": "この種類を削除",
       "micro": "Micro",
       "tiny": "Tiny",
       "small": "Small",

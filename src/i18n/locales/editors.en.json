@@ -1,6 +1,12 @@
 {
   "cityEditor": {
     "messages": {
+      "facilityPlacedCount": "Currently placed: {{value0}}",
+      "facilityManagement": "Add / remove facilities",
+      "facilityAutomatic": "Automatic",
+      "facilityCount": "Requested facility count",
+      "facilityApply": "Place",
+      "facilityRemove": "Remove this type",
       "micro": "Micro",
       "tiny": "Tiny",
       "small": "Small",

@@ -1,0 +1,30 @@
+/** Each entry is independent: removing a hall does not remove its work yard. */
+export const FACILITY_LABELS = {
+  abbey: "monastery",
+  friary: "mendicantMonastery",
+  orthodoxMonastery: "orthodoxMonastery",
+  tannery: "tannery",
+  gallows: "permanentGallows",
+  textiles: "clothHall",
+  leather: "leatherworkersHall",
+  woodworking: "carpentersHall",
+  masonry: "masonsHall",
+  metallurgy: "smithsHall",
+  glassware: "glassworkersHall",
+  instruments: "instrumentMakersHall",
+  printing: "printersHall",
+  bleachingField: "bleachingField",
+  timberYard: "timberYard",
+  stoneYard: "stoneYard",
+  limeKiln: "limeKiln",
+  smithyYard: "smithy",
+  sandYard: "sandYard",
+  livestockPen: "livestockMarket",
+  fuelStack: "fuelYard",
+  granary: "granary",
+  warehouse: "warehouse",
+  publicGranary: "publicGranary",
+  inn: "roadsideInn",
+  caravanserai: "caravanserai"
+} as const;
+export type FacilityKind = keyof typeof FACILITY_LABELS;

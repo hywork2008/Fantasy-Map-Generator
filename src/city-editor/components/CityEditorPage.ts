@@ -61,6 +61,7 @@ import type { GenerationSettings, GenerationStage } from "../types/generation";
 import type { RenderSelection } from "../types/selection";
 import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
+import { buildFacilityPanel } from "./facilityPanel";
 import { buildGenerationPanel } from "./generationPanel";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
@@ -1589,6 +1590,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     toolGrid.appendChild(button);
   }
   toolbar.content.appendChild(toolGrid);
+  const facilityPanel = buildFacilityPanel({ scope, getDocument: () => documents.documentState, commit });
+  toolbar.content.appendChild(facilityPanel.root);
   const landmarkControls = div("ce-landmark-controls");
   const landmarkSelect = document.createElement("select");
   bindPanelEvents(panelEventContext(), "landmarkSelect:change");
@@ -2483,6 +2486,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function renderInspector(): void {
+    facilityPanel.sync();
     getInspectorController().renderInspector();
   }
 

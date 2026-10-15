@@ -18,6 +18,7 @@ import {
   STANDARD_GLACIS_METERS
 } from "./defenseClearance";
 import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
+import { facilityStorage, HALL_DOMAINS, YARD_DOMAINS } from "./facilitySettings";
 import { featureGroupVertices } from "./features";
 import { ferryLandingReserves } from "./ferryLanding";
 import { circuitRing, gateTownCircuit, outerTownCircuit, polygonOverlaps, townGates } from "./fortifications";
@@ -594,8 +595,15 @@ function monasteryBlocks(site: Site): MonasteryBlock[] {
 
 function placeMonasteries(site: Site, input: AerialLandmarkInput, rng: Rng): Monastery[] {
   const document = site.document;
-  const kinds = monasteryKinds(document, site.walled);
-  const count = Math.min(monasteryCount(input.buildings.length, document), kinds.length);
+  const defaults = monasteryKinds(document, site.walled).slice(0, monasteryCount(input.buildings.length, document));
+  let kinds = [...defaults];
+  for (const kind of ["abbey", "friary", "orthodoxMonastery"] as const) {
+    const requested = document.facilityCounts?.[kind];
+    if (requested === undefined) continue;
+    kinds = kinds.filter(k => k !== kind);
+    kinds.push(...Array.from({ length: requested }, () => kind));
+  }
+  const count = kinds.length;
   if (!count || site.town.length < 3) return [];
   const gates = townGates(document)
     .map(g => document.mesh.vertices[g.vertexId]?.point)
@@ -935,8 +943,13 @@ function polygonsDistance(a: Point[], b: Point[]): number {
 
 function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng, enabled = true): Tannery[] {
   const document = site.document;
-  if (!enabled || input.buildings.length < 150 || site.town.length < 3) return [];
-  const wanted = input.buildings.length > 6000 ? 2 : 1;
+  if (
+    !enabled ||
+    (document.facilityCounts?.tannery === undefined && input.buildings.length < 150) ||
+    site.town.length < 3
+  )
+    return [];
+  const wanted = document.facilityCounts?.tannery ?? (input.buildings.length > 6000 ? 2 : 1);
   const out: Tannery[] = [];
   for (const river of flowingRivers(document)) {
     if (out.length >= wanted) break;
@@ -1135,7 +1148,12 @@ function layoutTannery(
 // 5. Permanent gallows on an approach road outside town
 
 function placeGallows(site: Site, input: AerialLandmarkInput, rng: Rng): Gallows[] {
-  if (input.buildings.length < 400 || site.town.length < 3) return [];
+  if (
+    site.document.facilityCounts?.gallows === 0 ||
+    (site.document.facilityCounts?.gallows === undefined && input.buildings.length < 400) ||
+    site.town.length < 3
+  )
+    return [];
   const approach = site.roads.filter(r => r.some(p => !site.insideTown(p) && site.townDistance(p) > 100));
   if (!approach.length) return [];
   // Road forks outside town draw the gallows: a crossroads is a traditional site.
@@ -1206,7 +1224,41 @@ export function buildAerialLandmarkPlan(
   if (!input.buildings.length || !document.fabric?.generation) return EMPTY_PLAN;
   const economy = economyOnDocument(document);
   const guildPlan = planGuildFacilities(economy, document.historicalPeriod ?? "ageOfExploration");
-  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${roadTrafficKey(document)}:${prevailingWindKey(document)}:${JSON.stringify(input.waterUsers ?? [])}`;
+  const counts = document.facilityCounts ?? {};
+  const worksPlan = guildPlan.map(g => ({
+    ...g,
+    hall: counts[g.domain] === undefined && g.hall,
+    ancillary: g.ancillary.filter(kind => kind === "tannery" || counts[kind] === undefined)
+  }));
+  for (const domain of HALL_DOMAINS) {
+    for (let i = 0; i < (counts[domain] ?? 0); i++)
+      worksPlan.push({
+        domain,
+        status: "chapter",
+        practitioners: 0,
+        hall: true,
+        belfry: false,
+        workshopWeight: 0,
+        ancillary: []
+      });
+  }
+  for (const [kind, domain] of Object.entries(YARD_DOMAINS)) {
+    for (let i = 0; i < (counts[kind as keyof typeof YARD_DOMAINS] ?? 0); i++)
+      worksPlan.push({
+        domain,
+        status: "chapter",
+        practitioners: 0,
+        hall: false,
+        belfry: false,
+        workshopWeight: 0,
+        ancillary: [kind as keyof typeof YARD_DOMAINS]
+      });
+  }
+  const lodging = [...(economy?.facilities ?? [])].filter(item => counts[item.kind] === undefined);
+  for (const kind of ["inn", "caravanserai"] as const) {
+    for (let i = 0; i < (counts[kind] ?? 0); i++) lodging.push({ kind, count: 1, scale: 1, stableSpaces: 8 });
+  }
+  const fp = `${seed}:${input.buildings.length}:${input.lanes.length}:${document.fabric?.seed ?? document.generationSeed ?? ""}:${siteEconomyKey(economy)}:${JSON.stringify(counts)}:${roadTrafficKey(document)}:${prevailingWindKey(document)}:${JSON.stringify(input.waterUsers ?? [])}`;
   const cached = aerialPlanCache.get(document);
   if (cached && cached.fingerprint === fp) return cached.plan;
 
@@ -1216,15 +1268,21 @@ export function buildAerialLandmarkPlan(
   // Guild yards claim land before the tannery, so a bleaching field stays upstream of it.
   const barbicans = placeBarbicans(site, makeRng(`${root}:barbican`));
   site.setBarbicans(barbicans);
-  const guildWorks = placeGuildWorks(site, guildPlan, economy?.year ?? 0);
+  const guildWorks = placeGuildWorks(site, worksPlan, economy?.year ?? 0);
   const tanneries = placeTanneries(
     site,
     input,
     makeRng(`${root}:tannery`),
-    document.urbanMorphology?.waterfrontResolved !== false && wantsTannery(economy, guildPlan)
+    (counts.tannery ??
+      (document.urbanMorphology?.waterfrontResolved !== false && wantsTannery(economy, guildPlan) ? 1 : 0)) > 0
   );
-  const storageYards = placeStorageYards(site, economy?.storage ?? [], guildWorks.yards, economy?.year ?? 0);
-  const gateInns = placeGateInns(site, economy?.facilities ?? [], economy?.year ?? 0);
+  const storageYards = placeStorageYards(
+    site,
+    facilityStorage(document, economy?.storage ?? []),
+    guildWorks.yards,
+    economy?.year ?? 0
+  );
+  const gateInns = placeGateInns(site, lodging, economy?.year ?? 0);
   const monasteries = placeMonasteries(site, input, makeRng(`${root}:monastery`));
   const gallows = placeGallows(site, input, makeRng(`${root}:gallows`));
   const windmills = placeWindmills(site, input, makeRng(`${root}:windmill`));
