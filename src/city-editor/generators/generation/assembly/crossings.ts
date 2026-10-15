@@ -89,7 +89,7 @@ export function applyCrossings(input: ApplyCrossingsInput) {
       razed: plan.innerWall.razed,
       wallOnly: wallCheckpoint === "innerWall",
       arteries: plan.innerArteries,
-      requireClosure: plan.innerWall.defensePolicy === "closed"
+      requireClosure: plan.innerWall.defensePolicy !== "legacy"
     });
     if (!inner.report.ok && next.urbanMorphology && plan.innerWall.castleRing === "inner") {
       // The present citadel can belong to the later expansion. Keep the old wall's
@@ -103,7 +103,7 @@ export function applyCrossings(input: ApplyCrossingsInput) {
         razed: plan.innerWall.razed,
         wallOnly: wallCheckpoint === "innerWall",
         arteries: plan.innerArteries,
-        requireClosure: plan.innerWall.defensePolicy === "closed"
+        requireClosure: plan.innerWall.defensePolicy !== "legacy"
       });
     }
     const { report } = inner;

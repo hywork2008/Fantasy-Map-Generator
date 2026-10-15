@@ -18,8 +18,23 @@ import { kindEdgeIds, vertexHasCrossing } from "./passages";
 import { innerWalledAreaShare, outerWalledAreaShare } from "./settlementExtent";
 import { DEFAULT_SITE_CONFIG } from "./site/siteConfig";
 import { synthSite } from "./site/synthSite";
+import { auditTownDefenseClosure } from "./townDefenseClosure";
 
 describe("double town walls (P1)", () => {
+  it.each(["d1", "d2", "9u8ta1", "river-inner-1", "river-inner-2", "river-inner-3"])(
+    "keeps the river-side old-town curtain closed (%s)",
+    seed => {
+      const settings = { ...defaultGenerationSettings(), townWallRings: "double" as const };
+      settings.config.features.citadel = false;
+      const input = createGridDocument({ size: "small", grid: "voronoi", seed });
+      const city = generateStageOnDocument(input, settings, seed, 7, undefined, "innerWall")!;
+      expect(city).not.toBeNull();
+      expect(townCircuits(city).map(c => c.ring)).toEqual([0, 1]);
+      expect(validate(city)).toEqual([]);
+      expect(auditTownDefenseClosure(city, "gc:defense-town-0")).toMatchObject({ ok: true });
+    }
+  );
+
   it("encloses the whole town in the outer wall and sizes the old town by the walled share", () => {
     expect(outerWalledAreaShare({ townWallRings: "double", walledAreaShare: 0.3 }, 2400)).toBe(1);
     expect(outerWalledAreaShare({ walledAreaShare: 0.3 }, 2400)).toBe(0.3);
@@ -115,6 +130,7 @@ describe("double town walls (P1)", () => {
     expect(city).not.toBeNull();
     expect(validate(city!)).toEqual([]);
     expect(samples.at(-1)).toMatchObject({ ok: 1, castleInOldTown: 1, castleTouchesOldTown: 1 });
+    expect(auditTownDefenseClosure(city!, "gc:defense-town-0").ok).toBe(true);
     const inner = new Set(innerTownCircuit(city!)!.areaFaceIds);
     const castle = reservedCastleFaces(city!);
     expect(castle.size).toBeGreaterThan(0);

@@ -4,7 +4,7 @@ import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces, to
 import { pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { facePoints, faceVertices, insertEdgeVertex, splitFace } from "./mesh";
 import { alternatingPairs, kindEdgeIds, minGateSpacingMeters, orderedIncidentEdges, townCenter } from "./passages";
-import { enclosedTownFaces, repairRiverWalls } from "./riverWallRouting";
+import { repairRiverWalls } from "./riverWallRouting";
 import { auditTownDefenseClosure } from "./townDefenseClosure";
 
 /**
@@ -39,7 +39,7 @@ export interface InnerWallOptions {
   /** Explicit style when no outer curtain exists yet (inner-first generation). */
   wallStyle?: { widthMeters: number; color: string };
   wallMaterial?: import("../types/document").WallMaterial;
-  /** Experimental lab override; inner-first defaults to requiring closure. */
+  /** Diagnostic override; generated inner curtains require closure by default. */
   requireClosure?: boolean;
   /** Keep the trial curtain continuous so river repair can reroute it instead of inheriting gaps. */
   retainRiverCurtain?: boolean;
@@ -357,7 +357,7 @@ export function addInnerTownWall(
       );
       if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok)
         return fail("castle-crowds", { faces: inner.size });
-      const finished = finish(
+      let finished = finish(
         cut.document,
         inner,
         outer.id,
@@ -370,12 +370,35 @@ export function addInnerTownWall(
         cut.cuts
       );
       if (
-        options.requireClosure &&
-        finished.report.ok &&
+        (finished.report.ok || rivers.size > 0) &&
         !options.razed &&
+        options.requireClosure !== false &&
         !auditTownDefenseClosure(finished.document, "gc:defense-town-0").ok
-      )
-        continue;
+      ) {
+        const repaired = repairInnerTownCurtain(
+          cut.document,
+          inner,
+          center,
+          options,
+          town.landArea,
+          town.info,
+          cut.cuts,
+          outer.id
+        );
+        if (!repaired?.report.ok || !auditTownDefenseClosure(repaired.document, "gc:defense-town-0").ok) continue;
+        const repairedInner = new Set(
+          repaired.document.defenseCircuits!.find(c => c.id === "gc:defense-town-0")!.areaFaceIds
+        );
+        const repairedOuter = new Set(repaired.document.defenseCircuits!.find(c => c.id === outer.id)!.areaFaceIds);
+        const repairedGap = gapOf(
+          repaired.document.mesh,
+          repairedOuter,
+          repairedInner,
+          reservedCastleFaces(repaired.document)
+        );
+        if (repairedGap < options.minGapCells) continue;
+        finished = { ...repaired, report: { ...repaired.report, gapCells: repairedGap } };
+      }
       return finished;
     }
   }
@@ -465,7 +488,7 @@ export function addFirstTownWall(
       0,
       cut.cuts
     );
-    if (!result.report.ok) {
+    if (!result.report.ok && (!rivers.size || options.razed || options.requireClosure === false)) {
       reason = result.report.failure ?? "no-gate";
       continue;
     }
@@ -474,11 +497,15 @@ export function addFirstTownWall(
       if (!closure.ok) {
         // The old builder drops grazing edges. Shrinking the same circle can
         // repeat that gap at every radius; repair a continuous trial first.
-        // Castle-owned boundaries need their own combined-circuit routing and
-        // keep the existing capacity/selection fallback for now.
-        const repaired = !reserved.size
-          ? repairFirstTownCurtain(candidate, inner, center, options, budget.landArea, town.info, cut.cuts)
-          : null;
+        const repaired = repairInnerTownCurtain(
+          candidate,
+          inner,
+          center,
+          options,
+          budget.landArea,
+          town.info,
+          cut.cuts
+        );
         if (repaired && auditTownDefenseClosure(repaired.document, "gc:defense-town-0").ok) {
           result = repaired;
           inner.clear();
@@ -557,22 +584,23 @@ export function addFirstTownWall(
 }
 
 /** A private, continuous trial on which the existing river-wall router can
- * make bank detours and actual water gates before streets constrain the mesh. */
-function repairFirstTownCurtain(
+ * make bank detours and actual water gates while protecting existing walls. */
+function repairInnerTownCurtain(
   source: CityDocument,
   inner: Set<Id>,
   center: Point,
   options: InnerWallOptions,
   landArea: number,
   info: Map<Id, FaceInfo>,
-  cuts: number
+  cuts: number,
+  outerId?: Id
 ) {
   if (source.defenseCircuits?.some(c => c.id === "gc:defense-town-0" && c.locked)) return null;
   const trial = finish(
     source,
     inner,
-    undefined,
-    { ...options, retainRiverCurtain: true },
+    outerId,
+    { ...options, wallOnly: true, retainRiverCurtain: true },
     kindEdgeIds(source, "road"),
     kindEdgeIds(source, "river"),
     landArea,
@@ -581,21 +609,58 @@ function repairFirstTownCurtain(
     cuts
   );
   trial.document.gates = trial.document.gates.filter(g => g.circuitId !== "gc:defense-town-0" || g.locked);
+  // Only the trial inner curtain may move. Existing outer/castle walls stay
+  // fixed while mesh splits still remap their references normally.
+  const lockedWalls = new Map(trial.document.featureGroups.filter(g => g.kind === "wall").map(g => [g.id, g.locked]));
+  for (const group of trial.document.featureGroups)
+    if (group.kind === "wall" && !group.id.startsWith(`${options.prefix}inner-wall-`)) group.locked = true;
   const repair = repairRiverWalls(
     trial.document,
-    [...inner].map(id => facePoints(source.mesh, source.mesh.faces[id]))
+    [...inner].map(id => facePoints(source.mesh, source.mesh.faces[id])),
+    reservedCastleFaces(trial.document)
   );
+  for (const group of repair.document.featureGroups)
+    if (group.kind === "wall" && lockedWalls.has(group.id)) group.locked = lockedWalls.get(group.id)!;
   if (repair.issues.length) return null;
   const groups = new Set(
     repair.document.featureGroups
       .filter(g => g.kind === "wall" && !g.locked && g.id.startsWith(`${options.prefix}inner-wall-`))
       .map(g => g.id)
   );
-  const enclosed = enclosedTownFaces({
-    ...repair.document,
-    featureGroups: repair.document.featureGroups.filter(g => g.kind !== "wall" || groups.has(g.id))
-  });
-  if (!enclosed?.size) return null;
+  // Flood from the frame through uncovered edges. A castle curtain may
+  // branch off the town curtain, so a degree-two ring walk cannot recover
+  // this enclosure; the shared castle side still blocks the flood.
+  const castleGroups = new Set(
+    repair.document.defenseCircuits?.filter(c => c.scope === "castle").flatMap(c => c.wallGroupIds)
+  );
+  const barriers = new Set(
+    repair.document.featureGroups.flatMap(g =>
+      g.kind === "wall" && (groups.has(g.id) || castleGroups.has(g.id)) ? g.segments.map(ref => ref.edgeId) : []
+    )
+  );
+  const outside = new Set<Id>();
+  const queue: Id[] = [];
+  for (const face of Object.values(repair.document.mesh.faces))
+    if (
+      face.boundary.some(ref => {
+        const edge = repair.document.mesh.edges[ref.edgeId];
+        return !barriers.has(edge.id) && (!edge.leftFace || !edge.rightFace);
+      })
+    ) {
+      outside.add(face.id);
+      queue.push(face.id);
+    }
+  for (let i = 0; i < queue.length; i++)
+    for (const ref of repair.document.mesh.faces[queue[i]].boundary) {
+      const edge = repair.document.mesh.edges[ref.edgeId];
+      const other = edge.leftFace === queue[i] ? edge.rightFace : edge.leftFace;
+      if (!barriers.has(edge.id) && other && !outside.has(other)) {
+        outside.add(other);
+        queue.push(other);
+      }
+    }
+  const enclosed = new Set(Object.keys(repair.document.mesh.faces).filter(id => !outside.has(id)));
+  if (!enclosed.size) return null;
   const doc = repair.document;
   doc.featureGroups = doc.featureGroups.filter(g => !groups.has(g.id));
   doc.defenseCircuits = doc.defenseCircuits!.filter(c => c.id !== "gc:defense-town-0");
@@ -604,7 +669,7 @@ function repairFirstTownCurtain(
   return finish(
     doc,
     faces,
-    undefined,
+    outerId,
     options,
     kindEdgeIds(doc, "road"),
     kindEdgeIds(doc, "river"),
