@@ -71,6 +71,9 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const onSegment = (p: Point, a: Point, b: Point) => nearestOnPolyline(p, [a, b]).dist < 1e-5;
 
+/** Giant-city plan §10: streets between the fabric's own street blocks. */
+const FINE_STREET_WIDTH_METERS = 5;
+
 /** Reachable face portals form a forest rooted at real major-road frontages. */
 export function buildLocalFabric(document: CityDocument, options?: InfillOptions): CityFabric {
   const fabric: CityFabric = { buildings: [], lanes: [], entrances: new Map() };
@@ -84,6 +87,10 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
   const organicContext: OrganicBlockContext = {
     hub: options?.hub ?? document.elements.find(e => e.kind === "plaza")?.point ?? [0, 0],
     extentMeters: document.frame.extentMeters,
+    // A mesh coarser than its street blocks draws those blocks in the fabric.
+    ...(document.frame.streetCellMeters
+      ? { streetCellMeters: document.frame.streetCellMeters, streetWidthMeters: FINE_STREET_WIDTH_METERS }
+      : {}),
     walls: document.featureGroups.flatMap(g =>
       g.kind === "wall"
         ? g.segments.flatMap(ref => {
@@ -123,7 +130,7 @@ export function buildLocalFabric(document: CityDocument, options?: InfillOptions
       .filter(
         f =>
           f.properties.water === "land" &&
-          f.properties.buildable &&
+          (f.properties.buildable || (!!document.frame.streetCellMeters && f.properties.ward === "cemetery")) &&
           f.properties.ward !== "farm" &&
           !(document.castles?.length && f.properties.ward === "castle")
       )
@@ -449,7 +456,17 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
   const parameters = ctx.options?.parameters.get(id);
   const nearbyRivers = nearbyRiversOf(polygon, ctx.rivers);
   const entries = fabric.entrances.get(id) ?? [];
-  const reserved = document.elements.some(e => ["plaza", "temple"].includes(e.kind) && e.faceIds.includes(id));
+  // A coarse face is several street blocks: a church or cemetery takes only its own
+  // ground (civicClearance), and houses fill the rest of the face.
+  const coarse = !!document.frame.streetCellMeters;
+  const reserved = document.elements.some(
+    e => (coarse ? ["plaza"] : ["plaza", "temple"]).includes(e.kind) && e.faceIds.includes(id)
+  );
+  const buildable =
+    buildableFace(face) ||
+    (coarse &&
+      (face.properties.ward === "cemetery" ||
+        (!face.properties.ward && document.elements.some(e => e.kind === "temple" && e.faceIds.includes(id)))));
   const outskirts = face.properties.settlement === "outskirts";
   const boundaries = face.boundary.map((ref, i) => {
     const edge = mesh.edges[ref.edgeId];
@@ -520,7 +537,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
             boundaries,
             parameters,
             ctx.options?.seed ?? "circulade-infill",
-            buildableFace(face) && !reserved,
+            buildable && !reserved,
             ctx.options?.hub ?? [0, 0]
           )
         : buildPerimeterBlocks(
@@ -529,7 +546,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
             boundaries,
             parameters,
             ctx.options?.seed ?? "block-infill",
-            buildableFace(face) && !reserved,
+            buildable && !reserved,
             isClassic,
             ctx.organicContext
           )
@@ -544,7 +561,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
       local,
       parameters,
       ctx,
-      buildableFace(face) && !reserved,
+      buildable && !reserved,
       [id],
       ctx.options?.seed,
       isClassic
@@ -557,6 +574,7 @@ function paintFace(document: CityDocument, id: Id, fabric: CityFabric, ctx: Pain
         b.polygon.every(p => pointInPolygon(p, polygon)) &&
         !nearbyRivers.some(r => b.polygon.some(p => nearestOnPolyline(p, r.points).dist < r.width / 2 + 2))
     );
+  if (coarse) local.lanes = local.lanes.filter(l => !laneCrossesCemetery(document, l.points));
   ctx.options?.cache.set(key, local);
   fabric.buildings.push(...local.buildings);
   fabric.lanes.push(...local.lanes);
@@ -570,6 +588,25 @@ function cleanBuildingPolygon(polygon: Point[]): Point[] {
     }
   }
   return merged.length >= 3 ? merged : polygon;
+}
+
+/** A lane running through a cemetery precinct (sampled every 2 m). */
+function laneCrossesCemetery(document: CityDocument, points: Point[]): boolean {
+  for (const cemetery of document.cemeteries ?? []) {
+    if (cemetery.boundary.length < 3) continue;
+    for (let i = 1; i < points.length; i++) {
+      const steps = Math.max(1, Math.ceil(distance(points[i - 1], points[i]) / 2));
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps;
+        const p: Point = [
+          points[i - 1][0] + (points[i][0] - points[i - 1][0]) * t,
+          points[i - 1][1] + (points[i][1] - points[i - 1][1]) * t
+        ];
+        if (pointInPolygon(p, cemetery.boundary)) return true;
+      }
+    }
+  }
+  return false;
 }
 
 function buildableFace(face: Face): boolean {

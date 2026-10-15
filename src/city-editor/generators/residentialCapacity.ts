@@ -8,17 +8,22 @@ import { polygonArea } from "./geom";
 export function isResidentialBuilding(lot: BuildingLot): boolean {
   return !lot.landmark && (!lot.role || lot.role === "main") && (!lot.uses || lot.uses.includes("residential"));
 }
+export function dwellingCapacity(footprintM2: number, storeys: number, residentialShare = 0.85): number {
+  return Math.max(0, Math.floor((footprintM2 * storeys * residentialShare * 0.75) / 40));
+}
 export function residentialCapacity(lot: BuildingLot): number {
+  if (lot.residentialCluster) return lot.residentialCluster.capacityDwellings;
   if (!isResidentialBuilding(lot)) return 0;
   const share = lot.residentialFloorShare ?? (lot.uses?.some(u => u !== "residential") ? 0.55 : 0.85);
-  return Math.max(0, Math.floor((Math.abs(polygonArea(lot.polygon)) * (lot.storeys ?? 1) * share * 0.75) / 40));
+  return dwellingCapacity(Math.abs(polygonArea(lot.polygon)), lot.storeys ?? 1, share);
 }
 export function applyResidentialStoreys(document: CityDocument, lots: BuildingLot[]): BuildingLot[] {
   if (!document.urbanMorphology) return lots;
   const profile = residentialStoreys(document.urbanMorphology.period);
   const preferred = document.urbanGrowth?.insideStoreys ?? profile.standard;
   return lots.map(lot => {
-    if (!isResidentialBuilding(lot) || document.mesh.faces[lot.faceId]?.properties.locked) return lot;
+    if (lot.residentialCluster || !isResidentialBuilding(lot) || document.mesh.faces[lot.faceId]?.properties.locked)
+      return lot;
     const face = document.mesh.faces[lot.faceId];
     const outside = face?.properties.settlement === "outskirts";
     return {

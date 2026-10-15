@@ -41,6 +41,7 @@ import {
   bramPeripheryBufferMeters,
   planPolygonalCirculadeLayout
 } from "./polygonalCirculadeLayout";
+import { populationFabricSource, populationHousingFabric } from "./populationHousing";
 import { roadTrafficKey } from "./roadTraffic";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
@@ -184,6 +185,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     .join(";");
   const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
   return [
+    JSON.stringify(doc.populationPlan ?? null),
     doc.generationSeed ?? "",
     doc.fabric?.seed ?? "",
     doc.fabric?.version ?? "",
@@ -270,7 +272,12 @@ export function buildBlockFabric(
   // then fit affected buildings to the landmark reservation in one final pass.
   const source = document.landmarks?.length ? { ...document, landmarks: [] } : document;
   let fabricResult: DistrictFabric;
-  if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
+  if (document.populationPlan) {
+    fabricResult = populationHousingFabric(
+      document,
+      buildBlockFabric(populationFabricSource(document), cache, profiler)
+    );
+  } else if ((document.buildingPattern ?? (document.fabric?.version === 5 ? "medieval" : "legacy")) === "medieval") {
     const medieval = measureProcessing(profiler, "medieval-fabric", () =>
       buildMedievalFabric(source, buildLegacyBlockFabric(medievalStreetDocument(source), cache, profiler))
     );
@@ -304,7 +311,8 @@ export function buildBlockFabric(
       );
     }
   }
-  if (document.urbanMorphology) fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
+  if (document.urbanMorphology && !document.populationPlan)
+    fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint: documentFabricFingerprint(document), fabric: fabricResult });
   }

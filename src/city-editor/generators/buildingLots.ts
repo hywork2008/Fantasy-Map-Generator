@@ -15,6 +15,7 @@ import { makeRng } from "./prng";
 import { polygonHitsDocumentWater } from "./waterGeometry";
 
 export interface BuildingLot {
+  residentialCluster?: import("../types/contracts/population").ResidentialCluster;
   faceId: Id;
   polygon: Point[];
   landmark: boolean;
@@ -35,6 +36,7 @@ export interface BuildingLot {
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
 export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   if (
+    document.populationPlan ||
     document.urbanMorphology ||
     document.buildingPattern === "medieval" ||
     document.fabric?.version === 5 ||

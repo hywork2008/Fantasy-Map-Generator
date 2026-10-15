@@ -10,10 +10,13 @@ export interface GenerationRequest {
   /** Capture the UI locale because workers do not share localStorage. */
   language?: SupportedLanguage;
   debugFailure?: boolean;
+  /** Opt-in diagnostics for benchmarks; never persisted in city documents. */
+  profile?: boolean;
 }
 export interface GenerationTimings {
   structureMs: number;
   resultTransferMs: number;
+  breakdown?: import("../../utils/processingProfiler").ProcessingTiming[];
 }
 export type GenerationReply =
   | { type: "progress"; sample: GenerationSample }
@@ -21,6 +24,10 @@ export type GenerationReply =
       type: "complete";
       document: CityDocument | null;
       failurePreview?: GenerationDebugPreview;
-      timing?: { structureMs: number; postedAt: number };
+      timing?: {
+        structureMs: number;
+        postedAt: number;
+        breakdown?: import("../../utils/processingProfiler").ProcessingTiming[];
+      };
     }
   | { type: "error"; message: string };

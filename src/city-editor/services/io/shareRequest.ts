@@ -1,5 +1,6 @@
 import { createGridDocument, descriptorFrameGridOptions, seaPortShoreDistanceMeters } from "../../generators/document";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
+import { preparePopulationGeneration } from "../../generators/populationGeneration";
 import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import type { CityEditorShare } from "./incomingCity";
@@ -16,6 +17,22 @@ export function cityEditorSettings(share: CityEditorShare): GenerationSettings {
 
 /** Grid document City Editor builds from an incoming share, including a fitted hamlet window. */
 export function cityEditorDocument(share: CityEditorShare): CityDocument {
+  if (share.settings.population && !share.descriptor) {
+    // Plan before a large mesh: an auto-sized share must not allocate thousands of 50 m cells first.
+    const initial = createGridDocument({
+      size: share.size,
+      grid: share.grid,
+      seed: share.gridSeed ?? share.seed,
+      meshExtentMeters: 300,
+      hexSizeMeters: share.hexSizeMeters,
+      patchParams: share.patchParams
+    });
+    try {
+      return preparePopulationGeneration(initial, cityEditorSettings(share), share.seed).document;
+    } catch {
+      return initial;
+    } // The generator reports unsupported inputs without adopting a result.
+  }
   return createGridDocument({
     size: share.size,
     grid: share.grid,

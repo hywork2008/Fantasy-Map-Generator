@@ -23,6 +23,31 @@ function fixture() {
   return { worker, document, progress, job };
 }
 describe("generation worker lifecycle", () => {
+  it("forwards opt-in processing timings without storing them in the city", async () => {
+    const { worker, document, job } = fixture();
+    job.cancel();
+    await job.result.catch(() => {});
+    const onTimings = vi.fn();
+    const breakdown = [{ path: "population-prepare", parent: null, depth: 0, calls: 1, elapsedMs: 5, selfMs: 5 }];
+    const profiled = startCityGeneration(
+      { document, settings: defaultGenerationSettings(), seed: "worker", profile: true },
+      () => {},
+      () => worker,
+      undefined,
+      onTimings
+    );
+    expect(worker.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ profile: true }));
+    worker.onmessage!({
+      data: {
+        type: "complete",
+        document,
+        timing: { structureMs: 10, postedAt: performance.timeOrigin + performance.now(), breakdown }
+      }
+    } as MessageEvent);
+    expect(await profiled.result).toBe(document);
+    expect(onTimings).toHaveBeenCalledWith(expect.objectContaining({ structureMs: 10, breakdown }));
+    expect(document).not.toHaveProperty("breakdown");
+  });
   it("reports progress and commits only the completed result, then terminates", async () => {
     const { worker, document, progress, job } = fixture();
     const sample = { phase: "urban", elapsedMs: 5, attempt: 1 };

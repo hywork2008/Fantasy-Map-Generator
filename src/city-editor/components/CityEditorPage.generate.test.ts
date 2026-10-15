@@ -13,9 +13,15 @@ if (typeof Element.prototype.scrollIntoView !== "function") {
 let root: HTMLElement;
 let restoreCoastRandom: (() => void) | undefined;
 const COAST_WALK_TEST = "① reveals the coastline walk as a growing dotted trail, not sea cells";
+const STAGE_BUILDINGS_TEST =
+  "stages 7, 8, 9 step through geometry smoothing, lanes, and dwellings, and 新しい都市 generates dwellings";
 const RETRY_TEST = "rolls a town accepted on a retry again from that attempt and draws it identically";
 /** Grid and generation seeds fixed before the editor mounts. `1eaygix` is rejected twice and accepted on its third attempt. */
-const FIXED_SEEDS: Record<string, string> = { [COAST_WALK_TEST]: "phase7", [RETRY_TEST]: "1eaygix" };
+const FIXED_SEEDS: Record<string, string> = {
+  [COAST_WALK_TEST]: "phase7",
+  [RETRY_TEST]: "1eaygix",
+  [STAGE_BUILDINGS_TEST]: "phase7"
+};
 
 beforeEach(({ task }) => {
   const fixed = FIXED_SEEDS[task.name];
@@ -26,6 +32,10 @@ beforeEach(({ task }) => {
   root = document.createElement("div");
   document.body.append(root);
   mountCityEditor(root);
+  // This suite exercises legacy mesh/stage controls. Population mode has its own integration suite.
+  const population = root.querySelector<HTMLInputElement>(".ce-population-enabled")!;
+  population.checked = false;
+  population.dispatchEvent(new Event("change", { bubbles: true }));
 });
 
 afterEach(() => {
@@ -843,7 +853,9 @@ describe("shareable link and FMG site", () => {
     expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(false);
   });
 
-  it("stages 7, 8, 9 step through geometry smoothing, lanes, and dwellings, and 新しい都市 generates dwellings", () => {
+  it(STAGE_BUILDINGS_TEST, () => {
+    restoreCoastRandom?.();
+    restoreCoastRandom = undefined;
     // Stage 4: walls placed
     selectStage(7);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("門・城郭");

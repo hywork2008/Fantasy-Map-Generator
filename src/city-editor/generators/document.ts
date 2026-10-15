@@ -332,7 +332,7 @@ export function createGridDocument(options: CreateGridOptions): CityDocument {
       seed,
       extentMeters: meshExtent,
       cityRadiusMeters,
-      cellSizeMeters: BLOCK_SITE_SPACING_METERS,
+      cellSizeMeters: (BLOCK_SITE_SPACING_METERS * (options.blockSizeMeters ?? BLOCK_SIZE_METERS)) / BLOCK_SIZE_METERS,
       lloydPasses: 1
     };
     cells = buildGrid(params, EMPTY_GEO, makeRng(seed)).at(-1)?.cells ?? [];

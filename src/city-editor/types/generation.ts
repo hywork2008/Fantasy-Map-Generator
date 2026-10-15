@@ -21,6 +21,7 @@ export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "b
 export type WallShapeChoice = "auto" | WallShape;
 
 export interface GenerationSettings {
+  population?: import("./contracts/population").PopulationGenerationSettings;
   /** Unset preserves the existing flood fill and outer residential belt. */
   urbanCoreMode?: "legacy" | "compact";
   moats?: { town?: boolean; castle?: boolean };

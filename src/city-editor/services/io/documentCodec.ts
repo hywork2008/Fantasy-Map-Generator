@@ -3,11 +3,14 @@ import { isCivilizationContext } from "../../../data/civilizationTraditions";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../../utils/fixedBurgCrossings";
 import { requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import { buildBlockFabric } from "../../generators/blockInfill";
 import { BLOCK_SIZE_METERS } from "../../generators/document";
 import { upgradeFabricPlan, validFabricPlan } from "../../generators/fabricDistricts";
 import { restoreFixedCrossingApproaches, validSavedFixedApproaches } from "../../generators/fixedApproachAdoption";
 import { validateLandmarks } from "../../generators/landmarks";
 import { validate } from "../../generators/mesh";
+import { populationHousingFacts } from "../../generators/populationHousing";
+import { validPopulationDocument } from "../../generators/populationValidation";
 import { validRegionalFrameRoads, validSceneRegions } from "../../generators/sceneRegions";
 import { validUrbanGrowth } from "../../generators/urbanGrowth";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
@@ -67,6 +70,7 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    validPopulationDocument(doc) &&
     (doc.townWallGeneration === undefined ||
       (doc.townWallGeneration !== null &&
         typeof doc.townWallGeneration === "object" &&
@@ -161,6 +165,13 @@ function validRegionalSurface(value: unknown): boolean {
 
 /** Native editable-map encoding. Match the existing schema selection and spacing. */
 export function serializeDocument(document: CityDocument): string {
+  if (document.populationPlan && document.appearance === "town") {
+    const { populationReport, residentialClusters, housing } = populationHousingFacts(
+      document,
+      buildBlockFabric(document)
+    );
+    document = { ...document, populationReport, residentialClusters, housingCapacity: housing };
+  }
   return JSON.stringify(
     {
       ...document,

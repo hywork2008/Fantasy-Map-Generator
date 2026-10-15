@@ -22,6 +22,7 @@ import {
   encodeShare,
   forgetIncomingCity
 } from "../services/io/incomingCity";
+import { cityEditorDocument } from "../services/io/shareRequest";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
 import type { GenerationSample } from "../types/contracts/generationDiagnostics";
@@ -136,6 +137,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       Object.assign(
         ctx.generation.generateSettings,
         {
+          population: undefined,
           generationMethod: undefined,
           wallShape: undefined,
           wallSides: undefined,
@@ -158,6 +160,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
         : null;
       ctx.syncGenerateControls();
     } else {
+      delete ctx.generation.generateSettings.population;
       delete ctx.generation.generateSettings.descriptor;
       ctx.documents.importedOrigin = null;
       ctx.syncGenerateControls();
@@ -251,6 +254,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       defaultGenerationSettings(),
       {
         buildingPattern: "legacy",
+        population: undefined,
         generationMethod: undefined,
         wallShape: undefined,
         wallSides: undefined,
@@ -262,23 +266,26 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     );
     ctx.generation.generateSettings.descriptor = share.descriptor;
     ctx.documents.importedOrigin = share.descriptor ? origin : null;
-    ctx.documents.documentState = createGridDocument({
-      size: share.size,
-      grid: share.grid,
-      seed: ctx.documents.gridSeed,
-      hexSizeMeters: ctx.documents.hexSizeMeters,
-      patchParams: { ...ctx.generation.gridEvoParams },
-      ...(share.descriptor
-        ? descriptorFrameGridOptions(
-            share.descriptor.frame,
-            share.descriptor.burg.waterAccess?.port.river === true,
-            share.descriptor.burg.riverPlacement?.bankDistanceMeters,
-            seaPortShoreDistanceMeters(share.descriptor)
-          )
-        : {}),
-      measureBlockSize: ctx.documents.measureTownCells,
-      biome: share.descriptor?.biome
-    });
+    ctx.documents.documentState =
+      share.settings.population && !share.descriptor
+        ? cityEditorDocument(share)
+        : createGridDocument({
+            size: share.size,
+            grid: share.grid,
+            seed: ctx.documents.gridSeed,
+            hexSizeMeters: ctx.documents.hexSizeMeters,
+            patchParams: { ...ctx.generation.gridEvoParams },
+            ...(share.descriptor
+              ? descriptorFrameGridOptions(
+                  share.descriptor.frame,
+                  share.descriptor.burg.waterAccess?.port.river === true,
+                  share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+                  seaPortShoreDistanceMeters(share.descriptor)
+                )
+              : {}),
+            measureBlockSize: ctx.documents.measureTownCells,
+            biome: share.descriptor?.biome
+          });
     ctx.documents.history = new DocumentHistory(
       ctx.documents.documentState,
       share.descriptor ? editorText("cityEditor.messages.importedSite") : editorText("cityEditor.messages.sharedCity"),

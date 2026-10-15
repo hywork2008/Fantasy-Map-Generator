@@ -9,6 +9,11 @@ import {
 } from "../../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import {
+  defaultPopulationSettings,
+  MAX_CITY_POPULATION,
+  validPopulationSettings
+} from "../../generators/populationPlan";
 import { joinStrandedRoadsToCrossings } from "../../generators/site/strandedRoads";
 import type { IncomingOrigin } from "../../types/contracts/incomingCity";
 import { readMaxPatchesPreference } from "../browserPreferences";
@@ -184,7 +189,14 @@ export function shareFromDescriptor(
           }
         : undefined,
     measureBlockSize: townGrid ? true : undefined,
-    settings: { config: structuredClone(DEFAULT_SITE_CONFIG) },
+    settings: {
+      config: structuredClone(DEFAULT_SITE_CONFIG),
+      ...(descriptor.burg.population >= 1 &&
+      descriptor.burg.population <= MAX_CITY_POPULATION &&
+      descriptor.urbanMorphology
+        ? { population: { ...defaultPopulationSettings(descriptor.burg.population), source: "fmg" as const } }
+        : {})
+    },
     descriptor: fitted
   };
 }
@@ -402,6 +414,10 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     : structuredClone(DEFAULT_SITE_CONFIG);
   if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
   const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (raw.population !== undefined) {
+    if (!validPopulationSettings(raw.population)) return null;
+    settings.population = structuredClone(raw.population);
+  }
   if (raw.generationMethod !== undefined) {
     if (!["mesh-first", "skeleton-first"].includes(String(raw.generationMethod))) return null;
     settings.generationMethod = raw.generationMethod as GenerationSettings["generationMethod"];

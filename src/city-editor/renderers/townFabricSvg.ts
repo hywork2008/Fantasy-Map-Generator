@@ -37,8 +37,19 @@ export function renderTownFabric(
     "pointer-events": tool === "select" ? "all" : "none"
   });
   mark("svg-base");
-  const facts = prepareTownFacts(document);
+  const facts = prepareTownFacts(document, mark);
   const { fabric, lots, housing } = facts;
+  const clusterPeople = new Map(facts.populationClusters?.map(c => [c.id, c.assignedPopulation]) ?? []);
+  if (document.populationPlan) {
+    const metadata = element("metadata", {});
+    metadata.textContent = JSON.stringify({
+      population: document.populationPlan,
+      report: facts.populationReport,
+      representation: "population-housing-groups"
+    });
+    svg.append(metadata);
+    if (facts.populationReport) svg.setAttribute("data-population-report", JSON.stringify(facts.populationReport));
+  }
   if (housing) {
     svg.setAttribute("data-residential-capacity", String(housing.capacityInside + housing.capacityOutside));
     svg.setAttribute("data-assigned-outside-dwellings", String(housing.assignedOutside));
@@ -318,6 +329,7 @@ export function renderTownFabric(
       // Selected districts expand to individual buildings, retaining parcel inspection.
       if (
         lightweight &&
+        !lot.residentialCluster &&
         !lot.landmark &&
         selection.faceId !== lot.faceId &&
         selection.inspectedId !== lot.faceId &&
@@ -334,24 +346,44 @@ export function renderTownFabric(
         batches.set(lot.faceId, paths);
         continue;
       }
-      const bldId = lot.parcelId ?? `bld-${lot.faceId}`;
+      const bldId = lot.residentialCluster?.id ?? lot.parcelId ?? `bld-${lot.faceId}`;
       const isPickSelected = selection.inspectedId === bldId || selection.inspectedId === lot.faceId;
       const pickInfo: SvgPickInfo = {
         layer: "buildings",
         kind: "building",
         id: bldId,
-        label: lot.archetype
-          ? editorText("cityEditor.messages.buildingAreaDetails", {
-              value0: lot.archetype,
-              value1: lot.role,
-              value2: Math.round(Math.abs(polygonArea(lot.polygon)))
-            })
-          : editorText("cityEditor.messages.building", {
-              value0: document.mesh.faces[lot.faceId].properties.ward,
-              value1: lot.faceId
-            }),
+        label: lot.residentialCluster
+          ? editorText(
+              document.populationPlan?.displayDwellings === 1
+                ? "cityEditor.messages.populationBuildingTitle"
+                : "cityEditor.messages.populationClusterTitle",
+              {
+                capacity: lot.residentialCluster.capacityDwellings,
+                population: clusterPeople.get(lot.residentialCluster.id) ?? 0,
+                dwellings: lot.residentialCluster.assignedDwellings,
+                buildings: Object.values(lot.residentialCluster.templateCounts).reduce((a, b) => a + b, 0)
+              }
+            )
+          : lot.archetype
+            ? editorText("cityEditor.messages.buildingAreaDetails", {
+                value0: lot.archetype,
+                value1: lot.role,
+                value2: Math.round(Math.abs(polygonArea(lot.polygon)))
+              })
+            : editorText("cityEditor.messages.building", {
+                value0: document.mesh.faces[lot.faceId].properties.ward,
+                value1: lot.faceId
+              }),
         ...(lot.parcelId
           ? { parcelId: lot.parcelId, archetype: lot.archetype, role: lot.role, uses: lot.uses, storeys: lot.storeys }
+          : {}),
+        ...(lot.residentialCluster
+          ? {
+              residentialCapacity: lot.residentialCluster.capacityDwellings,
+              assignedDwellings: lot.residentialCluster.assignedDwellings,
+              assignedPopulation: clusterPeople.get(lot.residentialCluster.id) ?? 0,
+              representedBuildings: Object.values(lot.residentialCluster.templateCounts).reduce((a, b) => a + b, 0)
+            }
           : {}),
         ward: document.mesh.faces[lot.faceId].properties.ward,
         faceId: lot.faceId,
@@ -361,11 +393,22 @@ export function renderTownFabric(
         d: polygon(lot.polygon),
         class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
         "data-building-face": lot.faceId,
+        ...(lot.residentialCluster
+          ? {
+              "data-residential-cluster": lot.residentialCluster.id,
+              "data-dwellings": String(lot.residentialCluster.assignedDwellings)
+            }
+          : {}),
         ...(lot.parcelId
           ? { "data-parcel": lot.parcelId, "data-archetype": lot.archetype!, "data-building-role": lot.role! }
           : {}),
         "data-pick": encodeURIComponent(JSON.stringify(pickInfo))
       });
+      if (lot.residentialCluster) {
+        const title = element("title", {});
+        title.textContent = pickInfo.label;
+        bldNode.append(title);
+      }
       if (tool === "select") bldNode.style.cursor = "pointer";
       buildings.appendChild(bldNode);
     }

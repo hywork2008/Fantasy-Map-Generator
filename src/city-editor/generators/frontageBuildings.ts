@@ -12,6 +12,7 @@ const area = (p: Point[]) => Math.abs(polygonArea(p));
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 export interface FrontageOptions {
+  housingCluster?: boolean;
   lotArea: number;
   coverage: number;
   occupancy: number;

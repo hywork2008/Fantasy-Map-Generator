@@ -3,6 +3,7 @@ import type { Cell } from "../types/geometry";
 import { refreshCastleLayouts } from "./castleLayout";
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
+import { probed } from "./meshOpProbe";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -94,20 +95,52 @@ export function edgePoints(mesh: Mesh, edge: Edge): [Point, Point] {
   return [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point];
 }
 
-/** A phase-local topology snapshot. Rebuild after adding/removing/rewiring edges.
- * Never cache by Mesh identity: editor operations may mutate it in place. */
-export function indexMeshEdges(mesh: Mesh) {
+interface EdgeIndex {
+  byEnds: Map<string, Edge>;
+  byVertex: Map<Id, Edge[]>;
+}
+
+/** Endpoint indexes by `mesh.edges` object. Clones get a new edges object, so a
+ * copy never reads its source's index. In-place edits that add, delete or
+ * rewire edges call `meshEdgesChanged`; tests compare cached answers with a
+ * full scan, so a missed call fails loudly. */
+const edgeIndexes = new WeakMap<Mesh["edges"], EdgeIndex>();
+
+/** Tests check every cached answer on small meshes and a sample on large ones,
+ * whose full scans would otherwise make the check quadratic. */
+let indexChecks = 0;
+function checkEdgeIndex(mesh: Mesh): boolean {
+  if (!FREEZE_SHARED) return false;
+  return (edgeIndexes.get(mesh.edges)?.byEnds.size ?? 0) < 2000 || ++indexChecks % 64 === 0;
+}
+
+export function meshEdgesChanged(mesh: Mesh): void {
+  edgeIndexes.delete(mesh.edges);
+}
+
+function edgeIndex(mesh: Mesh): EdgeIndex {
+  let index = edgeIndexes.get(mesh.edges);
+  if (index) return index;
   const byEnds = new Map<string, Edge>();
   const byVertex = new Map<Id, Edge[]>();
-  for (const edge of Object.values(mesh.edges)) {
+  for (const id in mesh.edges) {
+    const edge = mesh.edges[id];
     const key = edgeKey(edge.a, edge.b);
     if (!byEnds.has(key)) byEnds.set(key, edge);
-    for (const id of edge.a === edge.b ? [edge.a] : [edge.a, edge.b]) {
-      const edges = byVertex.get(id);
+    for (const vertexId of edge.a === edge.b ? [edge.a] : [edge.a, edge.b]) {
+      const edges = byVertex.get(vertexId);
       if (edges) edges.push(edge);
-      else byVertex.set(id, [edge]);
+      else byVertex.set(vertexId, [edge]);
     }
   }
+  index = { byEnds, byVertex };
+  edgeIndexes.set(mesh.edges, index);
+  return index;
+}
+
+/** A topology snapshot: the maps are replaced, never edited, when the mesh changes. */
+export function indexMeshEdges(mesh: Mesh) {
+  const { byEnds, byVertex } = edgeIndex(mesh);
   return {
     between: (a: Id, b: Id): Edge | null => byEnds.get(edgeKey(a, b)) ?? null,
     incident: (id: Id): readonly Edge[] => byVertex.get(id) ?? []
@@ -115,7 +148,13 @@ export function indexMeshEdges(mesh: Mesh) {
 }
 
 export function edgeBetween(mesh: Mesh, a: Id, b: Id): Edge | null {
-  // `for…in` visits the edges in `Object.values` order without copying them.
+  const edge = edgeIndex(mesh).byEnds.get(edgeKey(a, b)) ?? null;
+  if (checkEdgeIndex(mesh) && edge !== scanEdgeBetween(mesh, a, b))
+    throw new Error(`Stale edge index: ${a}-${b}; call meshEdgesChanged after editing edges`);
+  return edge;
+}
+
+function scanEdgeBetween(mesh: Mesh, a: Id, b: Id): Edge | null {
   const edges = mesh.edges;
   for (const id in edges) {
     const edge = edges[id];
@@ -138,11 +177,11 @@ export function edgeEnd(mesh: Mesh, ref: EdgeRef): Id {
 }
 
 export function incidentEdges(mesh: Mesh, vertexId: Id): Edge[] {
-  const result: Edge[] = [];
-  const edges = mesh.edges;
-  for (const id in edges) {
-    const edge = edges[id];
-    if (edge.a === vertexId || edge.b === vertexId) result.push(edge);
+  const result = [...(edgeIndex(mesh).byVertex.get(vertexId) ?? [])];
+  if (checkEdgeIndex(mesh)) {
+    const scanned = Object.values(mesh.edges).filter(edge => edge.a === vertexId || edge.b === vertexId);
+    if (scanned.length !== result.length || scanned.some((edge, i) => edge !== result[i]))
+      throw new Error(`Stale edge index at ${vertexId}; call meshEdgesChanged after editing edges`);
   }
   return result;
 }
@@ -232,6 +271,7 @@ function splitCheckedFace(next: CityDocument, faceId: Id, a: Id, b: Id): Id | nu
     rightFace: null,
     locked: false
   };
+  meshEdgesChanged(next.mesh);
   const newFaceId = nextNumericId(next.mesh.faces, "f");
   const fromA = boundarySpan(face.boundary, ia, ib);
   const fromB = boundarySpan(face.boundary, ib, ia);
@@ -267,6 +307,113 @@ function splitCheckedFace(next: CityDocument, faceId: Id, a: Id, b: Id): Id | nu
   return newFaceId;
 }
 
+/**
+ * Many `splitFace` calls on one private copy, each applied in place (giant-city
+ * plan E2). Equivalent to chaining `splitFace`: the session exists only for a
+ * valid document without castles, where a split can break nothing but the new
+ * edge and the two halves, so those are checked before the copy is touched and
+ * a rejected split leaves it unchanged. Edge sides, the edge index and the next
+ * free ids are updated for the split alone. Returns null when that does not hold.
+ */
+export function createFaceSplitSession(source: CityDocument) {
+  if (source.castles?.length || validate(source).length) return null;
+  const document = clone(source);
+  const { mesh } = document;
+  const skeleton = document.fabric?.generation?.algorithm === "skeleton-city-v1";
+  // Only additions happen here, so every id below the last one handed out stays taken.
+  const nextIds = { e: 0, f: 0 };
+  const freshId = (records: Record<Id, unknown>, prefix: "e" | "f"): Id => {
+    let n = nextIds[prefix];
+    while (records[`${prefix}${n}`]) n++;
+    nextIds[prefix] = n + 1;
+    return `${prefix}${n}`;
+  };
+  return {
+    document,
+    /** The new face id, or null (copy unchanged) where `splitFace` would refuse. */
+    split(faceId: Id, a: Id, b: Id): Id | null {
+      if (!canSplitFace(document, faceId, a, b)) return null;
+      const face = mesh.faces[faceId];
+      const parent = facePoints(mesh, face);
+      const vertices = faceVertices(mesh, face);
+      const ia = vertices.indexOf(a);
+      const ib = vertices.indexOf(b);
+      const fromA = boundarySpan(face.boundary, ia, ib);
+      const fromB = boundarySpan(face.boundary, ib, ia);
+      const corners = (refs: EdgeRef[]) =>
+        refs.map(ref => mesh.vertices[ref.forward ? mesh.edges[ref.edgeId].a : mesh.edges[ref.edgeId].b].point);
+      // facePoints of the halves: each run, then the diagonal's start (b, then a).
+      const halves = [
+        [...corners(fromA), mesh.vertices[b].point],
+        [...corners(fromB), mesh.vertices[a].point]
+      ];
+      if (distance(mesh.vertices[a].point, mesh.vertices[b].point) < (skeleton ? 1e-5 : 1)) return null;
+      if (isSimplePolygon(parent)) {
+        const parentArea = area(parent);
+        const halfAreas = halves.map(area);
+        if (
+          halves.some(points => !isSimplePolygon(points)) ||
+          halfAreas.some(value => Math.sign(value) !== Math.sign(parentArea)) ||
+          Math.abs(halfAreas[0] + halfAreas[1] - parentArea) > Math.abs(parentArea) * 1e-6 + 1e-6
+        )
+          return null;
+      }
+      const minArea = skeleton && !face.properties.buildable ? 1e-8 : 1;
+      if (halves.some(points => points.length < 3 || Math.abs(area(points)) < minArea)) return null;
+
+      const edgeId = freshId(mesh.edges, "e");
+      const forward = a < b;
+      const edge: Edge = {
+        id: edgeId,
+        a: forward ? a : b,
+        b: forward ? b : a,
+        leftFace: null,
+        rightFace: null,
+        locked: false
+      };
+      mesh.edges[edgeId] = edge;
+      indexAddedEdge(mesh, edge);
+      const newFaceId = freshId(mesh.faces, "f");
+      const closeA: EdgeRef = { edgeId, forward: edge.a === b };
+      const closeB: EdgeRef = { edgeId, forward: edge.a === a };
+      face.boundary = [...fromA, closeA];
+      mesh.faces[newFaceId] = {
+        id: newFaceId,
+        boundary: [...fromB, closeB],
+        site: face.site ? [face.site[0], face.site[1]] : undefined,
+        properties: clone(face.properties)
+      };
+      const district = document.fabric?.districts.find(d => d.faceIds.includes(faceId));
+      if (district) district.faceIds.push(newFaceId);
+      for (const circuit of document.defenseCircuits ?? [])
+        if (circuit.areaFaceIds.includes(faceId)) circuit.areaFaceIds.push(newFaceId);
+      // What rebuildFaceSides would change: b's run now bounds the new face.
+      for (const [id, refs] of [
+        [faceId, face.boundary],
+        [newFaceId, mesh.faces[newFaceId].boundary]
+      ] as const)
+        for (const ref of refs) {
+          if (ref.forward) mesh.edges[ref.edgeId].leftFace = id;
+          else mesh.edges[ref.edgeId].rightFace = id;
+        }
+      return newFaceId;
+    }
+  };
+}
+
+/** Add an edge to the cached endpoint index, as a rebuild would place it (last). */
+function indexAddedEdge(mesh: Mesh, edge: Edge): void {
+  const index = edgeIndexes.get(mesh.edges);
+  if (!index) return;
+  const key = edgeKey(edge.a, edge.b);
+  if (!index.byEnds.has(key)) index.byEnds.set(key, edge);
+  for (const id of edge.a === edge.b ? [edge.a] : [edge.a, edge.b]) {
+    const edges = index.byVertex.get(id);
+    if (edges) edges.push(edge);
+    else index.byVertex.set(id, [edge]);
+  }
+}
+
 /** Merge two neighboring faces, unless a shared edge carries a feature. */
 export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId: Id): CityDocument | null {
   if (
@@ -299,6 +446,7 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
   if (!boundary) return null;
   keep.boundary = boundary;
   for (const edgeId of sharedEdges) delete next.mesh.edges[edgeId];
+  meshEdgesChanged(next.mesh);
   delete next.mesh.faces[removeFaceId];
   removeOrphanVertices(next);
   for (const element of next.elements) {
@@ -412,12 +560,164 @@ export function moveVertex(
   return moveVertices(document, new Map([[vertexId, point]]), allowExistingErrors);
 }
 
+/** Cheap rejection before moveVertices copies a document. Reuse only while the
+ * topology stays fixed; read coordinates and validity from the current document
+ * on every trial. A passing trial still needs the full move/validation path. */
+export function createVertexMovePreflight(document: CityDocument) {
+  const edgesByVertex = new Map<Id, Edge[]>();
+  const facesByVertex = new Map<Id, Array<{ face: Face; ids: Id[] }>>();
+  for (const edge of Object.values(document.mesh.edges)) {
+    for (const id of [edge.a, edge.b]) {
+      const edges = edgesByVertex.get(id) ?? [];
+      edges.push(edge);
+      edgesByVertex.set(id, edges);
+    }
+  }
+  for (const face of Object.values(document.mesh.faces)) {
+    const ring = { face, ids: faceVertices(document.mesh, face) };
+    for (const id of ring.ids) {
+      const faces = facesByVertex.get(id) ?? [];
+      faces.push(ring);
+      facesByVertex.set(id, faces);
+    }
+  }
+  return (current: CityDocument, targets: ReadonlyMap<Id, Point>): boolean => {
+    const half = current.frame.extentMeters / 2;
+    const point = (id: Id) => targets.get(id) ?? current.mesh.vertices[id].point;
+    const edges = new Set<Edge>();
+    const faces = new Set<{ face: Face; ids: Id[] }>();
+    for (const [id, target] of targets) {
+      if (
+        !current.mesh.vertices[id] ||
+        !target.every(Number.isFinite) ||
+        Math.abs(target[0]) > half ||
+        Math.abs(target[1]) > half
+      )
+        return false;
+      for (const edge of edgesByVertex.get(id) ?? []) edges.add(edge);
+      for (const face of facesByVertex.get(id) ?? []) faces.add(face);
+    }
+    const skeleton = current.fabric?.generation?.algorithm === "skeleton-city-v1";
+    for (const edge of edges) if (distance(point(edge.a), point(edge.b)) < (skeleton ? 1e-5 : 1)) return false;
+    for (const { face, ids } of faces) {
+      const next = ids.map(point);
+      const nextArea = area(next);
+      if (next.length < 3 || Math.abs(nextArea) < (skeleton && !face.properties.buildable ? 1e-8 : 1)) return false;
+      const previous = ids.map(id => current.mesh.vertices[id].point);
+      if (isSimplePolygon(previous) && (!isSimplePolygon(next) || Math.sign(nextArea) !== Math.sign(area(previous))))
+        return false;
+    }
+    return true;
+  };
+}
+
+/**
+ * Many vertex moves on one private copy, each applied in place and undone when
+ * rejected (giant-city plan E2). Equivalent to chaining `moveVertices`: the
+ * session exists only for a valid document without castles, where a move that
+ * keeps the topology can break nothing but the cells and edges at the moved
+ * vertices; those are checked locally (`createVertexMovePreflight` plus an edge
+ * grid for crossings). Returns null when that does not hold.
+ */
+export function createVertexMoveSession(source: CityDocument) {
+  if (source.castles?.length || validate(source).length) return null;
+  const document = clone(source);
+  const { mesh } = document;
+  const preflight = createVertexMovePreflight(document);
+  const grid = new EdgeGrid(mesh);
+  return {
+    document,
+    /** Apply `points`; keep them when `accept` (run on the moved document) agrees. */
+    tryMove(points: ReadonlyMap<Id, Point>, accept: () => boolean): boolean {
+      const half = document.frame.extentMeters / 2;
+      for (const [id, point] of points) {
+        if (!mesh.vertices[id] || protectedVertex(document, id)) return false;
+        if (!point.every(Number.isFinite) || Math.abs(point[0]) > half || Math.abs(point[1]) > half) return false;
+      }
+      if (!preflight(document, points)) return false;
+      const before = new Map<Id, Point>();
+      for (const id of points.keys()) before.set(id, mesh.vertices[id].point);
+      const moved = new Set(points.keys());
+      const edges = new Set<Edge>();
+      for (const id of moved) for (const edge of incidentEdges(mesh, id)) edges.add(edge);
+      const old = (id: Id) => before.get(id) ?? mesh.vertices[id].point;
+      const now = (id: Id) => points.get(id) ?? mesh.vertices[id].point;
+      // Same tests as movedGeometryErrors: box overlap, then a new crossing.
+      const newCrossing = (edge: Edge, other: Edge): boolean => {
+        if (other === edge || [other.a, other.b].some(id => id === edge.a || id === edge.b)) return false;
+        const box = segmentBox(now(edge.a), now(edge.b));
+        const otherBox = segmentBox(now(other.a), now(other.b));
+        if (box[0] > otherBox[2] || otherBox[0] > box[2] || box[1] > otherBox[3] || otherBox[1] > box[3]) return false;
+        if (!segmentsIntersect(now(edge.a), now(edge.b), now(other.a), now(other.b))) return false;
+        return !segmentsIntersect(old(edge.a), old(edge.b), old(other.a), old(other.b));
+      };
+      for (const edge of edges) {
+        // The grid holds unmoved edges where they are; moved pairs are tested directly.
+        for (const other of grid.near(segmentBox(now(edge.a), now(edge.b))))
+          if (!edges.has(other) && newCrossing(edge, other)) return false;
+        for (const other of edges) if (newCrossing(edge, other)) return false;
+      }
+      for (const [id, point] of points) mesh.vertices[id].point = [point[0], point[1]];
+      if (accept()) {
+        for (const edge of edges) grid.update(edge);
+        return true;
+      }
+      for (const [id, point] of before) mesh.vertices[id].point = point;
+      return false;
+    }
+  };
+}
+
+/** Uniform grid of edge boxes; a box query returns every edge whose box it may touch. */
+class EdgeGrid {
+  private cells = new Map<string, Set<Edge>>();
+  private keys = new Map<Edge, string[]>();
+  private size: number;
+  constructor(private mesh: Mesh) {
+    const edges = Object.values(mesh.edges);
+    let total = 0;
+    for (const edge of edges) total += distance(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point);
+    this.size = Math.max(1, (total / Math.max(1, edges.length)) * 2);
+    for (const edge of edges) this.update(edge);
+  }
+  private cellKeys(box: [number, number, number, number]): string[] {
+    const keys: string[] = [];
+    for (let x = Math.floor(box[0] / this.size); x <= Math.floor(box[2] / this.size); x++)
+      for (let y = Math.floor(box[1] / this.size); y <= Math.floor(box[3] / this.size); y++) keys.push(`${x},${y}`);
+    return keys;
+  }
+  update(edge: Edge): void {
+    for (const key of this.keys.get(edge) ?? []) this.cells.get(key)?.delete(edge);
+    const { vertices } = this.mesh;
+    const keys = this.cellKeys(segmentBox(vertices[edge.a].point, vertices[edge.b].point));
+    for (const key of keys) {
+      const cell = this.cells.get(key);
+      if (cell) cell.add(edge);
+      else this.cells.set(key, new Set([edge]));
+    }
+    this.keys.set(edge, keys);
+  }
+  near(box: [number, number, number, number]): Set<Edge> {
+    const result = new Set<Edge>();
+    for (const key of this.cellKeys(box)) for (const edge of this.cells.get(key) ?? []) result.add(edge);
+    return result;
+  }
+}
+
 /** Apply a coordinated displacement atomically; intermediate cell shapes
  * need not be valid while several shared corners move together. */
 export function moveVertices(
   document: CityDocument,
   points: ReadonlyMap<Id, Point>,
   allowExistingErrors = false
+): CityDocument | null {
+  return probed("moveVertices", () => moveVerticesUnprobed(document, points, allowExistingErrors));
+}
+
+function moveVerticesUnprobed(
+  document: CityDocument,
+  points: ReadonlyMap<Id, Point>,
+  allowExistingErrors: boolean
 ): CityDocument | null {
   const half = document.frame.extentMeters / 2;
   for (const [id, point] of points) {
@@ -426,7 +726,7 @@ export function moveVertices(
   }
   const next = clone(document);
   for (const [id, point] of points) next.mesh.vertices[id].point = [point[0], point[1]];
-  if (!refreshCastleLayouts(next)) return null;
+  if (!probed("refreshCastleLayouts", () => refreshCastleLayouts(next))) return null;
   // Moved-geometry errors are new by construction, so they are never excused
   // by allowExistingErrors.
   if (movedGeometryErrors(document, next, points.keys()).length) return null;
@@ -705,6 +1005,7 @@ function insertEdgeVertexUnchecked(next: CityDocument, edgeId: Id, fraction: num
   };
   next.mesh.edges[edgeId].b = vertexId;
   next.mesh.edges[newEdgeId] = { ...edge, id: newEdgeId, a: vertexId };
+  meshEdgesChanged(next.mesh);
   const expand = (ref: EdgeRef): EdgeRef[] =>
     ref.edgeId !== edgeId
       ? [ref]
@@ -736,17 +1037,13 @@ function insertEdgeVertexUnchecked(next: CityDocument, edgeId: Id, fraction: num
 }
 
 export function validate(document: CityDocument): string[] {
+  return probed("validate", () => validateUnprobed(document));
+}
+
+function validateUnprobed(document: CityDocument): string[] {
   const errors: string[] = [];
   const { mesh } = document;
-  // One endpoint index per call: a river check per step must not scan every edge.
-  let ends: Map<string, Edge> | undefined;
-  const hasEdge = (a: Id, b: Id): boolean => {
-    if (!ends) {
-      ends = new Map();
-      for (const edge of Object.values(mesh.edges)) ends.set(edgeKey(edge.a, edge.b), edge);
-    }
-    return ends.has(edgeKey(a, b));
-  };
+  const hasEdge = (a: Id, b: Id): boolean => edgeBetween(mesh, a, b) !== null;
   for (const edge of Object.values(mesh.edges)) {
     if (!mesh.vertices[edge.a] || !mesh.vertices[edge.b]) errors.push(`Missing endpoint on ${edge.id}`);
     else if (
@@ -802,6 +1099,10 @@ export function validate(document: CityDocument): string[] {
  * legacy documents remain editable.
  */
 export function movedGeometryErrors(before: CityDocument, after: CityDocument, vertexIds: Iterable<Id>): string[] {
+  return probed("movedGeometryErrors", () => movedGeometryErrorsUnprobed(before, after, vertexIds));
+}
+
+function movedGeometryErrorsUnprobed(before: CityDocument, after: CityDocument, vertexIds: Iterable<Id>): string[] {
   const moved = new Set(vertexIds);
   if (!moved.size) return [];
   const errors: string[] = [];
@@ -914,6 +1215,10 @@ function frozenRefs(boundary: EdgeRef[]): EdgeRef[] {
 }
 
 export function clone<T>(value: T): T {
+  return probed("clone", () => cloneUnprobed<T>(value));
+}
+
+function cloneUnprobed<T>(value: T): T {
   if (!value || typeof value !== "object" || (value as { format?: unknown }).format !== "fmg-city-editor")
     return structuredClone(value);
   const source = value as unknown as CityDocument;
