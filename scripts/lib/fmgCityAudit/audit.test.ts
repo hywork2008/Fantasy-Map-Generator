@@ -1,3 +1,11 @@
+import type { WorldContext } from "../../../src/context/worldContext";
+import { burgRoadInputRevision, createBurgRoadAuditReference } from "../../../src/services/burgRoadAuditReference";
+import {
+  captureBurgRoadReadSnapshot,
+  collectBurgRoadEntries,
+  type BurgRoadContext
+} from "../../../src/services/burgRoadProjection";
+import { parseCeRoadReference, compareCeRoadEntries } from "./ceRoads";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
@@ -32,6 +40,8 @@ function fixture(): FmgArchive {
     presentation: {},
     entries: new Map(),
     world: {
+      mapId: 123,
+      seed: "audit-seed",
       populationRate: 1000,
       urbanization: 1,
       distanceScale: 1,
@@ -45,6 +55,7 @@ function fixture(): FmgArchive {
             [100, 0]
           ],
           h: [25, 25, 25, 25],
+          c: [[], [], [], []],
           burg: [1, 0, 2, 3],
           province: [1, 1, 2, 3]
         },
@@ -467,3 +478,184 @@ test("CSV-only and JSON-only output publish into existing empty directories", as
       assert.ok(files.includes("summary.md"));
     }
   }));
+
+function referenceFixture() {
+  const a = fixture();
+  a.inputHash = "a".repeat(64);
+  const world = structuredClone(a.world) as unknown as WorldContext;
+  for (const b of world.pack.burgs)
+    if (b?.i) Object.assign(b, (a.simulation.burgs as Record<string, unknown>)[String(b.i)]);
+  const burg = world.pack.burgs[1];
+  const context: BurgRoadContext = {
+    pack: world.pack,
+    populationRate: 1000,
+    urbanization: 1,
+    metersPerMapUnit: 1000,
+    renderPoints: r => r.points
+  };
+  const projectionFrame = {
+    originMapUnits: [0, 0] as [number, number],
+    metersPerMapUnit: 1000,
+    cityRadiusMeters: 100,
+    halfMeters: 750
+  };
+  const roads = collectBurgRoadEntries(context, burg, {
+    toLocal: (x, y) => [x * 1000, -y * 1000],
+    half: 750,
+    cityRadiusMeters: 100
+  });
+  const ref = createBurgRoadAuditReference(
+    world,
+    a.inputHash,
+    1,
+    burgRoadInputRevision(world),
+    projectionFrame,
+    roads,
+    captureBurgRoadReadSnapshot(context, burg)
+  );
+  return { a, ref, world, context };
+}
+test("CE handoff capture matches every road field through the shared reader, without mutating saved input", () => {
+  const { a, ref } = referenceFixture();
+  const before = jsonString(a);
+  const r = buildCityAudit(a, { ...defaultOptions, ceHandoff: parseCeRoadReference(JSON.parse(JSON.stringify(ref))) });
+  assert.equal(jsonString(a), before);
+  assert.equal(r.ceDifferences.length, 0);
+  assert.ok(r.findings.some(f => f.ruleId === "CE_HANDOFF_MISMATCH" && f.status === "pass"));
+  assert.equal(r.ceRoads.filter(r => r.stage === "observed_handoff").length, 2);
+  assert.equal(r.connections[0].ceNextBurgDistanceMeters, 10000);
+  assert.equal(r.connections[0].directionsDisplayDistance, 10);
+});
+test("CE handoff rejects wrong archive, burg, unit and pre-preparation revision", () => {
+  const { a, ref } = referenceFixture();
+  for (const bad of [
+    { ...ref, inputSha256: "b".repeat(64) },
+    { ...ref, mapId: 999 },
+    { ...ref, burgId: 3 },
+    { ...ref, sourceRevision: "road-input-v1:stale" },
+    { ...ref, projectionFrame: { ...ref.projectionFrame, metersPerMapUnit: 3 } }
+  ])
+    assert.throws(() => buildCityAudit(a, { ...defaultOptions, ceHandoff: bad }), /CE handoff/);
+  assert.throws(() => parseCeRoadReference({ roads: ref.roads }), /format/);
+  assert.throws(
+    () =>
+      parseCeRoadReference({ ...ref, prepared: { ...ref.prepared, renderedRoutes: [{ routeId: 999, points: [] }] } }),
+    /rendered route reference/
+  );
+});
+test("CE differences identify destination/distance and nested shared branch fields", () => {
+  const { a, ref } = referenceFixture();
+  const bad = structuredClone(ref);
+  bad.roads[0].nextBurg!.distanceMeters = 123;
+  bad.roads[0].nextBurg!.population = 7;
+  const r = buildCityAudit(a, { ...defaultOptions, ceHandoff: bad });
+  assert.ok(r.findings.some(f => f.ruleId === "CE_HANDOFF_MISMATCH" && f.severity === "error"));
+  assert.ok(r.ceDifferences.some(d => d.field === "/nextBurg/distanceMeters" && d.observed === 123));
+  const shared = structuredClone(ref.roads);
+  shared[0].sharedBranches = [
+    {
+      routeId: 7,
+      path: [
+        [0, 0],
+        [1, 1]
+      ],
+      nextBurg: shared[0].nextBurg
+    }
+  ];
+  const observed = structuredClone(shared);
+  observed[0].sharedBranches![0].path[1][0] = 3;
+  assert.ok(compareCeRoadEntries(1, "test", shared, observed).some(d => d.field === "/sharedBranches/0/path/1/0"));
+});
+test("CE preparation changes are recorded separately; captured prepared inputs can still match", () => {
+  const { a, ref, world, context } = referenceFixture();
+  const source = ref.sourceRevision;
+  world.pack.routes[0].points.splice(1, 0, [0, 1, 1]);
+  const roads = collectBurgRoadEntries(context, world.pack.burgs[1], {
+    toLocal: (x, y) => [x * 1000, -y * 1000],
+    half: 750,
+    cityRadiusMeters: 100
+  });
+  const changed = createBurgRoadAuditReference(
+    world,
+    a.inputHash,
+    1,
+    source,
+    ref.projectionFrame,
+    roads,
+    captureBurgRoadReadSnapshot(context, world.pack.burgs[1])
+  );
+  const r = buildCityAudit(a, { ...defaultOptions, ceHandoff: changed });
+  assert.ok(r.findings.some(f => f.ruleId === "CE_PREPARATION_CHANGED_INPUT"));
+  assert.ok(r.findings.some(f => f.ruleId === "CE_HANDOFF_MISMATCH" && f.status === "pass"));
+  assert.ok(r.ceDifferences.some(d => d.comparison === "saved_inputs_vs_handoff"));
+  assert.ok(!r.ceDifferences.some(d => d.comparison === "captured_inputs_vs_handoff"));
+});
+
+test("--ce-handoff publishes CE tables, comparison status and a reference hash", async () =>
+  withTemp(async dir => {
+    const file = await zipFixture(dir);
+    const archive = await readFmgArchive(file);
+    const { ref } = referenceFixture();
+    ref.inputSha256 = archive.inputHash;
+    const referencePath = path.join(dir, "reference.json");
+    const referenceBytes = JSON.stringify(ref);
+    await writeFile(referencePath, referenceBytes);
+    const opts = parseAuditOptions([
+      file,
+      "--output",
+      path.join(dir, "compared"),
+      "--burg",
+      "1",
+      "--distance-unit",
+      "km",
+      "--ce-handoff",
+      referencePath
+    ])!;
+    assert.equal(await runAudit(opts), 0);
+    const report = JSON.parse(await readFile(path.join(opts.output, "report.json"), "utf8"));
+    const manifest = JSON.parse(await readFile(path.join(opts.output, "manifest.json"), "utf8"));
+    assert.equal(manifest.ceHandoffSha256, sha256(referenceBytes));
+    assert.ok(
+      report.findings.some(
+        (f: { ruleId: string; status: string }) => f.ruleId === "CE_HANDOFF_MISMATCH" && f.status === "pass"
+      )
+    );
+    assert.equal(report.ceDifferences.length, 0);
+    assert.equal(
+      parseCsv(await readFile(path.join(opts.output, "ceRoads.csv"), "utf8")).length,
+      report.ceRoads.length + 1
+    );
+  }));
+
+test("changed approach identity is matched only when route and destination are unambiguous", () => {
+  const { ref } = referenceFixture();
+  const observed = structuredClone(ref.roads);
+  observed[0].approachId = "burg:1:crossing:42";
+  observed[0].sharedCrossingId = 42;
+  const diff = compareCeRoadEntries(1, "saved_inputs_vs_handoff", ref.roads, observed);
+  assert.ok(diff.some(d => d.field === "/approachId"));
+  assert.ok(diff.some(d => d.field === "/sharedCrossingId"));
+  assert.ok(!diff.some(d => d.field === "/"));
+  const ambiguous = compareCeRoadEntries(1, "test", [ref.roads[0], { ...ref.roads[0] }], [{ ...observed[0] }]);
+  assert.ok(ambiguous.every(d => d.field === "/"));
+});
+
+test("rendered path distance stops at the first other city instead of the route endpoint", () => {
+  const a = fixture();
+  mutablePack(a).routes = [
+    {
+      i: 1,
+      group: "roads",
+      points: [
+        [0, 0, 0],
+        [5, 0, 1],
+        [10, 0, 2],
+        [100, 0, 3]
+      ]
+    }
+  ];
+  const r = buildCityAudit(a, defaultOptions);
+  assert.equal(r.connections[0].targetId, 2);
+  assert.equal(r.connections[0].rawPathMapUnits, 10);
+  assert.equal(r.connections[0].renderedPathMapUnits, 10);
+});

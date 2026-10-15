@@ -1,9 +1,9 @@
 # FMG都市・街道・防衛文脈の抽出／監査スクリプト設計
 
 作成日: 2026-10-15  
-状態: 初期実装済み（保存値抽出・Directions・基本整合性）。利用方法は `docs/tools/fmg-city-audit.md`。
+状態: Phase 2まで実装（保存値抽出・Directions・基本整合性・CE道路投影／引渡し照合）。利用方法は `docs/tools/fmg-city-audit.md`。
 
-実装状況: Phase 1のCLI・JSON/CSV・共通archive reader・Directions共通コアと、Phase 3の軍事／経済／河岸の事実抽出を実装した。Phase 2はscale/role分類の共用までで、完全なdescriptor照合・登録陸路復元は未実装。歴史ルール・CE形状評価・橋の斜交評価はskippedとして出力する。以下には後続実装の仕様も含む。
+実装状況: Phase 1のCLI・JSON/CSV・共通archive reader・Directions共通コアと、Phase 3の軍事／経済／河岸の事実抽出を実装した。Phase 2では描画点・道路分割・nextBurg・入口方位・共有渡河分岐・登録陸路端点の読取処理を共用化した。保存入力からの投影と、同じ入力hash・準備前revisionを持つ実CE道路参照との比較を出力する。登録陸路は既存validatorで認定された実行時の読取入力を参照から再生できるが、CLI単独でのsnapshot再認定は未実装。歴史ルール・CE形状評価・橋の斜交評価はskippedとして出力する。以下には後続実装の仕様も含む。
 
 ## 1. 目的と対象
 
@@ -109,6 +109,7 @@ npm run audit:fmg-cities -- map.fmg --output temp/all-city-audit \
 | `--height-exponent` | Directions探索に使用する高さ設定。保存値がなければUIと共通の既定値を使い、その採用根拠を記録 |
 | `--nearby-radius-km` | 指定時だけ地理的近傍表を追加。正の有限値 |
 | `--expand` | `raw/`へ元チャンクを保持して展開。指定なしでも必要チャンクはメモリで復号 |
+| `--ce-handoff <json>` | 入力hash・mapId/seed・準備前revisionが一致するCE道路引渡し参照を比較 |
 | `--rules <path>` | 監査プロファイル。未指定はデータ整合性ルールのみ |
 | `--fail-on error\|warning\|never` | 既定error。実行エラーと監査検出を区別 |
 
@@ -120,6 +121,8 @@ report.json            正規化データ、CE互換投影、根拠、監査結�
 burgs.csv              1行1都市
 connections.csv        1行1起点都市・route・方向・branch（到達先未解決も残す）
 directions.csv         1行1有向都市対・移動手段・海路設定。共用計測関数の結果
+ceRoads.csv            保存投影・準備済み読取入力の再生・実CE引渡し。1行1入口分岐
+ceDifferences.csv      保存入力／準備済み入力それぞれとCE引渡しのフィールド差分
 nearby.csv             任意。1行1起点・近傍都市。道路接続とは独立
 military.csv           軍団・兵種別の事実と都市への関連付け
 findings.csv           1行1監査結果（skippedも含む）
@@ -308,3 +311,10 @@ CEの純粋な読取処理を共用化し、実際のdescriptorとの比較テ�
 ### Phase 4: CE生成結果との結合（後続拡張）
 
 FMG側の文脈を確定した後、城位置、市街地重心、街道沿い建物数・用途・密度をCE監査結果から結合する。入力revisionが一致しない結果は比較を拒否する。これにより「FMGの属性が原因」「CEの解釈が原因」「証拠不足」を分けて改善できる。
+
+
+### Phase 2実装結果（2026-10-16）
+
+共通処理は`src/services/burgRoadProjection.ts`、描画点は`routeRenderGeometry.ts`、クリップは`sitePolylineGeometry.ts`へ分離した。CEの既存関数もこれらを呼ぶ。実引渡し参照は`getBurgRoadAuditReference`で取得し、入力hashと道路読取に影響する準備前revisionを検査する。参照に保存する準備済みroute・描画点・施設・登録端点は、入力ファイル由来の生データと別stageへ出力する。表示範囲と経済属性を省く設定も参照に含む。
+
+指定ファイルのMochaでは共有渡河施設1件を含む5道路入口を取得し、準備済み読取入力の再生は全フィールド一致した。保存入力と実引渡しでは入口の識別・共有施設化に差があり、`saved_inputs_vs_handoff`へ出力できる。Directionsの103km／91kmは都市間距離として維持し、CE nextBurgの距離は別列へ出す。登録snapshotがない保存データは引き続きskippedで、参照を与えた場合だけ準備済み入力を再生する。

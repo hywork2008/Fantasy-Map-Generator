@@ -3,7 +3,7 @@ import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { clipPoly } from "../utils";
+import { clipPoly } from "../utils/commonUtils";
 
 export interface CoastlineSettings {
   enabled: boolean; // master toggle — false bypasses all fractalization

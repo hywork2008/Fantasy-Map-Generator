@@ -1,4 +1,8 @@
+import type { WorldContext } from "../../../src/context/worldContext";
+import type { BurgRoadAuditReference } from "../../../src/services/burgRoadAuditReference";
+import { auditCeRoads } from "./ceRoads";
 import { burgDestinationTraits } from "../../../src/services/burgDestinationTraits";
+import type { Route } from "../../../src/types/models";
 import type { PackedGraph } from "../../../src/types/PackedGraph";
 import { normalizeHeightExponent } from "../../../src/utils/height";
 import { mapUnitMeters } from "../../../src/utils/mapUnitMeters";
@@ -21,11 +25,12 @@ export interface AuditOptions {
   avoidSea: boolean;
   preferSea: boolean;
   nearbyRadiusKm?: number;
+  ceHandoff?: BurgRoadAuditReference;
 }
 export interface Finding extends RecordValue {
   ruleId: string;
   severity: "error" | "warning" | "info";
-  status: "flagged" | "skipped";
+  status: "flagged" | "skipped" | "pass";
   subject: string;
   message: string;
   evidence: string[];
@@ -36,6 +41,8 @@ export interface AuditReport {
   burgs: RecordValue[];
   connections: RecordValue[];
   directions: RecordValue[];
+  ceRoads: RecordValue[];
+  ceDifferences: RecordValue[];
   nearby: RecordValue[];
   military: RecordValue[];
   findings: Finding[];
@@ -483,14 +490,6 @@ export function buildCityAudit(archive: FmgArchive, options: AuditOptions): Audi
         });
       }
     }
-    finding(
-      "CE_HANDOFF_MISMATCH",
-      "info",
-      `burg:${sourceId}`,
-      "Full CE descriptor projection is not implemented; stored-route connections and Directions are available",
-      [burgPaths.get(sourceId)!],
-      "skipped"
-    );
   }
 
   const nearby: RecordValue[] = [];
@@ -547,6 +546,50 @@ export function buildCityAudit(archive: FmgArchive, options: AuditOptions): Audi
             }
           }
       }
+    }
+  }
+
+  const ceBurgs = alignedBurgs.map((raw, burgId) => {
+    const f = facts.get(burgId);
+    if (!f) return raw;
+    return {
+      ...record(raw),
+      population: f.population.value,
+      treasury: f.treasury.value,
+      product: f.product.value,
+      demographics: f.demographics.value
+    };
+  });
+  const ceWorld = { ...world, pack: { ...pack, burgs: ceBurgs } } as unknown as WorldContext;
+  const ce = auditCeRoads({
+    world: ceWorld,
+    sourceIds,
+    inputHash: archive.inputHash,
+    metersPerMapUnit,
+    distanceUnit,
+    invalidInput: !directionsAvailable || invalidBurgs.size > 0 || popFactor === null,
+    routesByBurg: new Map([...routeIndex].map(([id, entries]) => [id, entries.map(e => e.route as unknown as Route)])),
+    reference: options.ceHandoff
+  });
+  findings.push(...ce.findings);
+  for (const road of ce.roads) {
+    if (burgs.has(Number(road.ceTargetId))) {
+      included.add(Number(road.ceTargetId));
+      Object.assign(road, directions(Number(road.sourceId), Number(road.ceTargetId)));
+    }
+  }
+  for (const connection of connections) {
+    const projected = ce.legs.get(`${connection.sourceId}:${connection.routeId}:${connection.direction}`);
+    if (projected) {
+      Object.assign(connection, projected, { ceCompatibility: "shared_reader_saved_geometry" });
+      if (projected.ceTargetId !== connection.targetId)
+        finding(
+          "CE_ROUTE_DESTINATION_DIVERGENCE",
+          "warning",
+          `burg:${connection.sourceId}`,
+          `Route ${connection.routeId} stored target ${connection.targetId} differs from CE reader target ${projected.ceTargetId}`,
+          connection.evidence as string[]
+        );
     }
   }
 
@@ -801,13 +844,18 @@ export function buildCityAudit(archive: FmgArchive, options: AuditOptions): Audi
       preferSea: options.preferSea,
       travelMode: options.travelMode,
       economyAvailable: Object.keys(economy).length > 0,
-      ceCompatibility: "stored_routes_only_full_descriptor_pending",
-      supportedScope: "archive_facts_directions_and_integrity",
+      ceCompatibility: ce.status,
+      ceReferenceBurgId: options.ceHandoff?.burgId ?? null,
+      ceReferenceSourceRevision: options.ceHandoff?.sourceRevision ?? null,
+      ceReferencePreparedRevision: options.ceHandoff?.preparedRevision ?? null,
+      supportedScope: "archive_facts_directions_ce_roads_and_integrity",
       historicalRulesEnabled: false
     },
     burgs: cityRows,
     connections,
     directions: directionRows,
+    ceRoads: ce.roads,
+    ceDifferences: ce.differences,
     nearby,
     military,
     findings

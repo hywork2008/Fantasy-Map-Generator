@@ -85,6 +85,10 @@ export const CSV_COLUMNS = {
     "connectionKind",
     "pathStatus",
     "ceCompatibility",
+    "ceTargetId",
+    "ceNextBurgDistanceMeters",
+    "renderedPathMapUnits",
+    "ceNextBurg",
     "registeredConnectionId",
     "routeDistanceKm",
     "routeDistanceMeters",
@@ -191,6 +195,40 @@ export const CSV_COLUMNS = {
     "aggregation",
     "evidence"
   ],
+  ceRoads: [
+    "sourceId",
+    "stage",
+    "entryIndex",
+    "branchId",
+    "approachId",
+    "routeId",
+    "routeGroup",
+    "sharedCrossingId",
+    "sharedRouteIds",
+    "entryAzimuthDeg",
+    "reachesEdge",
+    "ceTargetId",
+    "ceNextBurgDistanceMeters",
+    "cePopulation",
+    "ceDiplomacyRelation",
+    "ceScale",
+    "ceRole",
+    "ceCitadel",
+    "ceWalls",
+    "traffic",
+    "trafficRank",
+    "status",
+    "frameSource",
+    "nextBurg",
+    "nextBurgs",
+    "path",
+    "branchPath",
+    "routeDistanceKm",
+    "directionsMode",
+    "directionsDisplayDistance",
+    "evidence"
+  ],
+  ceDifferences: ["sourceId", "comparison", "approachKey", "field", "projected", "observed"],
   findings: ["ruleId", "ruleVersion", "severity", "status", "subject", "message", "evidence"]
 } as const;
 
@@ -244,7 +282,8 @@ export function summaryMarkdown(report: AuditReport): string {
     "",
     "保存値・生街道の接続先・Directions・基本整合性を出力。軍事量は兵種の保存単位を保持し、人員数へ未検証の換算を行わない。経済値の期間・単位も推測しない。",
     "",
-    "完全なCE descriptorとの照合、登録陸路の施設復元、史料に基づく立地判定、城位置・建物密度の判定、橋の斜交監査はskipped。findingsの理由を参照。",
+    `CE道路投影: ${report.ceRoads.length}行、引渡しとの差分: ${report.ceDifferences.length}件。${report.metadata.ceCompatibility}。`,
+    "CE道路は共有読取処理で投影。ce-handoff参照があれば、保存入力と準備済み読取入力の両方を実際の引渡しと照合する。未復元の登録陸路・共有施設はskipped。史料による立地判定、城・建物配置、橋の斜交評価は後続。",
     ""
   ].join("\n");
 }

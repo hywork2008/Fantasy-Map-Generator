@@ -10,13 +10,13 @@ import { initializeBurgMorphology } from "../runtime/worldRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type { RegionalContext } from "../types/cityRegional";
 import { regionalRevision } from "../types/cityRegional";
-import type { Burg, River, Route } from "../types/models";
+import type { Burg, River } from "../types/models";
 import type { UrbanMorphologyProfile } from "../types/urbanMorphology";
 import { findCell, minmax, rn } from "../utils";
 import type { BridgeTransport } from "../utils/bridgeCrossingPolicy";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import { getCultureBurialProfile } from "../utils/cultureBurialProfile";
-import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
+import { burgLotOccupancy } from "../utils/cultureLotOccupancy";
 import {
   burgBurialProfile,
   getCultureFaith,
@@ -43,9 +43,20 @@ import {
 } from "../utils/requiredSiteBounds";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
-import { residentialStoreys, supportsUrbanMorphology } from "../utils/urbanMorphology";
-import { burgDestinationTraits } from "./burgDestinationTraits";
+import { supportsUrbanMorphology } from "../utils/urbanMorphology";
 import { burgEconomyExtensions } from "./burgEconomyExtensions";
+import {
+  type BurgRoadAuditReference,
+  burgRoadInputRevision,
+  createBurgRoadAuditReference
+} from "./burgRoadAuditReference";
+import {
+  type BurgRoadContext,
+  burgRoadCityRadiusMeters,
+  captureBurgRoadReadSnapshot,
+  collectBurgRoadEntries,
+  collectBurgRouteLegs
+} from "./burgRoadProjection";
 import { burgUrbanMorphology } from "./burgUrbanMorphology";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
 import {
@@ -61,6 +72,7 @@ import { footprintTouchesWater } from "./riverPhysicalGeometry";
 import { resolveRiverRouteCrossings } from "./riverRouteCrossings";
 import { settlementGeometrySession } from "./settlementGeometrySession";
 import { nearestSettlementBank, SETTLEMENT_RIVER_SETTINGS, settlementRiverGeometry } from "./settlementRiverSite";
+import { clipPolylineToBox, clipWeightedPolylineToBox, type WeightedPoint } from "./sitePolylineGeometry";
 import { getWorldLandConnectionCurrent } from "./worldLandConnectionRuntime";
 import { worldRiverOccupiedBounds } from "./worldRiverGeometry";
 
@@ -337,8 +349,6 @@ const RIVER_MIN_WIDTH_M = 2;
 /** Relief (m) of the town center above its surroundings that suggests a hilltop site. */
 const HILLTOP_RELIEF_M = 30;
 
-type WeightedPoint = { x: number; y: number; w: number };
-
 /**
  * Convergence runs on demand (first CE hand-off), not during map generation. It
  * rewrote route points and links; refresh their crossing plans and redraw the
@@ -353,6 +363,33 @@ function commitConvergedRoads(prepared: PreparedWorldRiverRoads): void {
       })
     );
   });
+}
+
+/** Capture before preparation so the CLI can distinguish input edits from CE preparation.
+ * Call immediately after loading the identified save, before opening CE or editing the map. */
+export function getBurgRoadAuditReference(burgId: number, inputSha256: string): BurgRoadAuditReference | null {
+  if (!/^[a-f0-9]{64}$/.test(inputSha256)) throw new Error("A saved input SHA-256 is required");
+  const sourceRevision = burgRoadInputRevision(worldContext);
+  const descriptor = getBurgSiteDescriptor(burgId);
+  if (!descriptor) return null;
+  return createBurgRoadAuditReference(
+    worldContext,
+    inputSha256,
+    burgId,
+    sourceRevision,
+    {
+      originMapUnits: descriptor.frame.originMapUnits,
+      metersPerMapUnit: getMetersPerMapUnit(),
+      cityRadiusMeters: descriptor.frame.cityRadiusMeters,
+      halfMeters: descriptor.frame.extentMeters / 2
+    },
+    descriptor.roads,
+    captureBurgRoadReadSnapshot(
+      burgRoadContext(worldContext.pack.burgs[burgId], peekConvergedWorldRiverRoads(worldContext)),
+      worldContext.pack.burgs[burgId]
+    ),
+    !!descriptor.urbanMorphology && supportsUrbanMorphology(descriptor.urbanMorphology.period)
+  );
 }
 
 export function getBurgSiteDescriptor(
@@ -747,15 +784,7 @@ function getMetersPerMapUnit(): number {
 
 /** Sized so City Editor fills the town at the culture's Lot occupancy guide. */
 function getCityRadiusMeters(population: number, burg: Burg, morphology?: UrbanMorphologyProfile): number {
-  // The physical waterfront is unchanged; CE sizes residential capacity at the effective storeys.
-  return occupancyRadiusMeters(
-    population,
-    burgLotOccupancy(worldContext.pack, burg),
-    burg,
-    morphology && supportsUrbanMorphology(morphology.period)
-      ? Math.max(1, residentialStoreys(morphology.period).standard - 1)
-      : 1
-  );
+  return burgRoadCityRadiusMeters(worldContext.pack, burg, population, morphology?.period);
 }
 
 function getHeightExponent(): number {
@@ -795,85 +824,6 @@ function prevailingWindDegAt(burgY: number | undefined): number | undefined {
 function azimuthDeg(dx: number, dy: number): number {
   const deg = (Math.atan2(dx, dy) * 180) / Math.PI;
   return rn((deg + 360) % 360, 1) % 360;
-}
-
-/** Liang-Barsky segment/box clip. Returns [t0, t1] of the visible sub-segment, or null. */
-function clipSegmentToBox(x1: number, y1: number, x2: number, y2: number, half: number): [number, number] | null {
-  let t0 = 0;
-  let t1 = 1;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const p = [-dx, dx, -dy, dy];
-  const q = [x1 + half, half - x1, y1 + half, half - y1];
-
-  for (let i = 0; i < 4; i++) {
-    if (p[i] === 0) {
-      if (q[i] < 0) return null;
-      continue;
-    }
-    const r = q[i] / p[i];
-    if (p[i] < 0) {
-      if (r > t1) return null;
-      if (r > t0) t0 = r;
-    } else {
-      if (r < t0) return null;
-      if (r < t1) t1 = r;
-    }
-  }
-  return [t0, t1];
-}
-
-/** Clip a polyline (with per-vertex widths) to the centered box, splitting into visible runs. */
-function clipWeightedPolylineToBox(
-  points: WeightedPoint[],
-  half: number,
-  preservePrecision = false
-): { points: [number, number][]; widthsMeters: number[] }[] {
-  const runs: { points: [number, number][]; widthsMeters: number[] }[] = [];
-  let current: { points: [number, number][]; widthsMeters: number[] } | null = null;
-
-  const pushPoint = (x: number, y: number, w: number) => {
-    if (!current) current = { points: [], widthsMeters: [] };
-    const last = current.points.at(-1);
-    const tolerance = preservePrecision ? 1e-7 : 0.01;
-    if (last && Math.abs(last[0] - x) < tolerance && Math.abs(last[1] - y) < tolerance) return;
-    current.points.push(preservePrecision ? [x, y] : [rn(x, 1), rn(y, 1)]);
-    current.widthsMeters.push(w);
-  };
-
-  const closeRun = () => {
-    if (current && current.points.length >= 2) runs.push(current);
-    current = null;
-  };
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const a = points[i];
-    const b = points[i + 1];
-    const clip = clipSegmentToBox(a.x, a.y, b.x, b.y, half);
-    if (!clip) {
-      closeRun();
-      continue;
-    }
-    const [t0, t1] = clip;
-    const lerp = (t: number): WeightedPoint => ({
-      x: a.x + (b.x - a.x) * t,
-      y: a.y + (b.y - a.y) * t,
-      w: rn(a.w + (b.w - a.w) * t, 1)
-    });
-    const start = lerp(t0);
-    const end = lerp(t1);
-    if (t0 > 0) closeRun(); // segment enters the box afresh
-    pushPoint(start.x, start.y, start.w);
-    pushPoint(end.x, end.y, end.w);
-    if (t1 < 1) closeRun(); // segment leaves the box
-  }
-  closeRun();
-  return runs;
-}
-
-function clipPolylineToBox(points: [number, number][], half: number, preservePrecision = false): [number, number][][] {
-  const weighted = points.map(([x, y]) => ({ x, y, w: 0 }));
-  return clipWeightedPolylineToBox(weighted, half, preservePrecision).map(run => run.points);
 }
 
 interface PolylineApproach {
@@ -1293,87 +1243,38 @@ function getDownstreamContext(
   return { terminal: "unknown", distanceMeters: rn(distanceMapUnits * metersPerMapUnit), bearingDeg };
 }
 
-/**
- * Route legs radiating from the burg. A route passing through the burg cell
- * contributes two legs (in/out); a route terminating there contributes one.
- * Route points at burg cells are exactly the burg position (routes-generator).
- */
-function collectRouteLegs(
-  burg: Burg,
-  profiler?: ProcessingProfiler
-): { route: Route; leg: [number, number, number][] }[] {
-  const { pack } = worldContext;
-  const legs: { route: Route; leg: [number, number, number][] }[] = [];
-
-  for (const route of pack.routes) {
-    if (route.merged || !route.points?.length) continue;
-    if (route.registeredConnectionId !== undefined) {
-      const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
+function burgRoadContext(burg: Burg, preparedRoads?: PreparedWorldRiverRoads): BurgRoadContext {
+  const unit = useOptionsState.getState().distanceUnit;
+  let physical: ReturnType<typeof getWorldLandConnectionCurrent> | undefined;
+  let connections: ReturnType<typeof getConstrainedNetworkConnections> | undefined;
+  return {
+    pack: worldContext.pack,
+    populationRate: worldContext.populationRate,
+    urbanization: worldContext.urbanization,
+    metersPerMapUnit: getMetersPerMapUnit(),
+    landConnectionGeneration: !!worldContext.options.landConnectionGeneration,
+    renderPoints: route => Routes.getRenderPoints(route, worldContext.pack),
+    facilities: preparedRoads ? convergedBurgFacilities(worldContext, unit, burg.i!, preparedRoads) : [],
+    registeredConnectionAt: route => {
+      physical ??= getWorldLandConnectionCurrent(worldContext, unit);
       const edge = physical?.snapshot.network.edges.find(e => e.id === route.registeredConnectionId && !e.reverse);
-      if (!edge || (edge.from !== burg.i && edge.to !== burg.i)) continue;
-      let leg = edge.from === burg.i ? route.points.slice() : route.points.slice().reverse();
-      if (edge.crossing) {
-        const connection = getConstrainedNetworkConnections(physical!.snapshot.network, physical!.current.environment);
-        if (!("connections" in connection)) continue;
-        const source = connection.connections.find(c => c.id === edge.id);
-        if (source?.kind !== "bridge") continue;
-        const endpoint = edge.from === burg.i ? source.crossing.approachA : source.crossing.approachB;
-        const scale = getMetersPerMapUnit();
-        const terminal = leg.findIndex(p => Math.hypot(p[0] * scale - endpoint[0], p[1] * scale - endpoint[1]) <= 1e-7);
-        if (terminal < 1) continue;
-        leg = leg.slice(0, terminal + 1);
-      }
-      if (leg.length >= 2) legs.push({ route, leg });
-      continue;
+      if (!edge || !physical) return null;
+      if (!edge.crossing) return { from: edge.from, to: edge.to };
+      connections ??= getConstrainedNetworkConnections(physical.snapshot.network, physical.current.environment);
+      if (!("connections" in connections)) return null;
+      const source = connections.connections.find(c => c.id === edge.id);
+      if (source?.kind !== "bridge") return null;
+      return {
+        from: edge.from,
+        to: edge.to,
+        crossing: { approachA: source.crossing.approachA, approachB: source.crossing.approachB }
+      };
     }
-    if (worldContext.options.landConnectionGeneration && route.group !== "searoutes") continue;
-    // Rendering only copies existing cell IDs (including added bend/midpoint IDs).
-    // A route with no burg cell cannot contribute a leg: avoid shaping every world route.
-    if (!route.points.some(point => point[2] === burg.cell)) continue;
-    // Follow the route as FMG draws it (cell-anchor snapped), not its raw stored points:
-    // a raw point can sit tens of degrees off the drawn bearing (Chateia burg 11).
-    const points = measureProcessing(profiler, "route-render-points", () => Routes.getRenderPoints(route, pack)) as [
-      number,
-      number,
-      number
-    ][];
-    // The drawn route can carry an added bend point inside the burg cell before
-    // the burg itself (Bilvenesvi burg 279): split at the burg, not at the
-    // first point in its cell, or one leg runs through the town and the other
-    // is lost.
-    let index = -1;
-    for (let i = 0; i < points.length; i++) {
-      const point = points[i];
-      if (point[2] !== burg.cell) continue;
-      const d = Math.hypot(point[0] - burg.x, point[1] - burg.y);
-      if (route.riverRoadConvergence && d >= 1e-7) continue;
-      if (index === -1 || d < Math.hypot(points[index][0] - burg.x, points[index][1] - burg.y)) index = i;
-    }
-    if (index === -1) continue;
-
-    const forward = points.slice(index);
-    const backward = points.slice(0, index + 1).reverse();
-    if (forward.length >= 2) legs.push({ route, leg: forward });
-    if (backward.length >= 2) legs.push({ route, leg: backward });
-  }
-  return legs;
+  };
 }
-
-/** 0..1 rank of Route.traffic among land routes that have any. Sea lanes are not in the ranking. */
-function landTrafficRanks(routes: { i: number; group: string; traffic?: number }[]): Map<number, number> {
-  const carrying = routes.filter(route => route && route.group !== "searoutes" && (route.traffic ?? 0) > 0);
-  const ranks = new Map<number, number>();
-  if (!carrying.length) return ranks;
-  const values = carrying.map(route => route.traffic ?? 0).sort((a, b) => a - b);
-  for (const route of carrying) {
-    const traffic = route.traffic ?? 0;
-    let atMost = 0;
-    for (const value of values) if (value <= traffic) atMost++;
-    ranks.set(route.i, Math.round((atMost / values.length) * 10000) / 10000);
-  }
-  return ranks;
+function collectRouteLegs(burg: Burg, profiler?: ProcessingProfiler) {
+  return collectBurgRouteLegs(burgRoadContext(burg), burg, profiler);
 }
-
 function collectRoadEntries(
   burg: Burg,
   toLocal: (x: number, y: number) => [number, number],
@@ -1384,147 +1285,13 @@ function collectRoadEntries(
   profiler?: ProcessingProfiler,
   withoutEconomy = false
 ): BurgSiteRoadEntry[] {
-  const { pack } = worldContext;
-  if (!pack.routes?.length) return [];
-
-  const facilities = measureProcessing(profiler, "converged-facilities", () =>
-    convergedBurgFacilities(worldContext, useOptionsState.getState().distanceUnit, burg.i!, preparedRoads)
-  );
-  const entries: BurgSiteRoadEntry[] = [];
-  const trafficRanks = withoutEconomy ? new Map<number, number>() : landTrafficRanks(pack.routes);
-  for (const { route, leg } of measureProcessing(profiler, "route-legs", () => collectRouteLegs(burg, profiler))) {
-    const facility = facilities.find(
-      f =>
-        f.routeIds.includes(route.i) &&
-        leg.some(p => Math.hypot(p[0] * metersPerMapUnit - f.near[0], p[1] * metersPerMapUnit - f.near[1]) < 1e-7)
-    );
-    const terminal = facility
-      ? leg.findIndex(
-          p => Math.hypot(p[0] * metersPerMapUnit - facility.near[0], p[1] * metersPerMapUnit - facility.near[1]) < 1e-7
-        )
-      : -1;
-    const localPoints = (terminal >= 1 ? leg.slice(0, terminal + 1) : leg).map(([x, y]) => toLocal(x, y));
-
-    // Azimuth where the leg crosses the city radius (gate direction).
-    let entryAzimuth: number | null = null;
-    let _travelled = 0;
-    for (let i = 1; i < localPoints.length; i++) {
-      const [px, py] = localPoints[i];
-      const dist = Math.hypot(px, py);
-      _travelled += Math.hypot(px - localPoints[i - 1][0], py - localPoints[i - 1][1]);
-      if (dist >= cityRadiusMeters) {
-        entryAzimuth = azimuthDeg(px, py);
-        break;
-      }
-    }
-    const [lastX, lastY] = localPoints.at(-1) as [number, number];
-    const reachesEdge = entryAzimuth !== null;
-    if (entryAzimuth === null) {
-      if (Math.hypot(lastX, lastY) < 1) continue; // degenerate leg collapsed on the origin
-      entryAzimuth = azimuthDeg(lastX, lastY);
-    }
-
-    // First other burg along the leg — the signpost destination behind this gate.
-    let nextBurg: BurgSiteRoadEntry["nextBurg"] = null;
-    let lengthMapUnits = 0;
-    for (let i = 1; i < leg.length; i++) {
-      lengthMapUnits += Math.hypot(leg[i][0] - leg[i - 1][0], leg[i][1] - leg[i - 1][1]);
-      const cellBurgId = pack.cells.burg[leg[i][2]];
-      if (cellBurgId && cellBurgId !== burg.i) {
-        const target = pack.burgs[cellBurgId];
-        const isDomestic = target ? target.state === burg.state : true;
-        let diplomacyRelation: BurgSiteRoadNextBurg["diplomacyRelation"] = isDomestic ? "domestic" : "Neutral";
-        if (!isDomestic && target && burg.state && target.state) {
-          const stateRel = pack.states[burg.state]?.diplomacy?.[target.state];
-          if (typeof stateRel === "string") {
-            diplomacyRelation = stateRel as RelationKey;
-          }
-        }
-        const stateName = (target?.state && pack.states[target.state]?.name) || "";
-        const pop = target?.population ?? 0;
-        const { scale, role } = burgDestinationTraits(target);
-
-        const popRate = worldContext.populationRate * worldContext.urbanization;
-        nextBurg = {
-          id: cellBurgId,
-          name: target?.name ?? "",
-          distanceMeters: rn(lengthMapUnits * metersPerMapUnit),
-          stateId: target?.state,
-          stateName,
-          isDomestic,
-          diplomacyRelation,
-          population: Math.round(pop * popRate),
-          scale,
-          role,
-          capital: Boolean(target?.capital),
-          walls: Boolean(target?.walls),
-          citadel: Boolean(target?.citadel),
-          ...(withoutEconomy
-            ? {}
-            : {
-                treasury: target?.treasury,
-                wealth: (target as { wealth?: number })?.wealth ?? Math.min(100, Math.round(pop * 10))
-              })
-        };
-        break;
-      }
-    }
-
-    const clipped = clipPolylineToBox(localPoints, half, !!facility);
-    const shared = facility && entries.find(e => e.sharedCrossingId === facility.crossing.id);
-    if (shared) {
-      shared.sharedBranches!.push({
-        routeId: route.i,
-        path:
-          clipPolylineToBox(
-            leg.map(([x, y]) => toLocal(x, y)),
-            half,
-            true
-          )[0] ?? [],
-        nextBurg
-      });
-      if (!shared.sharedRouteIds!.includes(route.i)) shared.sharedRouteIds!.push(route.i);
-      if (nextBurg && !shared.nextBurgs!.some(b => b.id === nextBurg.id)) shared.nextBurgs!.push(nextBurg);
-      continue;
-    }
-    entries.push({
-      ...(facility
-        ? {
-            sharedCrossingId: facility.crossing.id,
-            sharedRouteIds: [route.i],
-            nextBurgs: nextBurg ? [nextBurg] : [],
-            sharedBranches: [
-              {
-                routeId: route.i,
-                path:
-                  clipPolylineToBox(
-                    leg.map(([x, y]) => toLocal(x, y)),
-                    half,
-                    true
-                  )[0] ?? [],
-                nextBurg
-              }
-            ]
-          }
-        : {}),
-      approachId: facility
-        ? `burg:${burg.i}:crossing:${facility.crossing.id}`
-        : `burg:${burg.i}:route:${route.i}:edge:${leg.find(p => p[2] !== burg.cell)?.[2] ?? leg.at(-1)?.[2] ?? burg.cell}`,
-      routeId: route.i,
-      group: route.group,
-      ...(route.name ? { name: route.name } : {}),
-      ...(!withoutEconomy && route.traffic && route.traffic > 0
-        ? { traffic: route.traffic, trafficRank: trafficRanks.get(route.i) ?? 0 }
-        : {}),
-      entryAzimuthDeg: entryAzimuth,
-      reachesEdge,
-      path: clipped[0] ?? [],
-      nextBurg
-    });
-  }
-
-  entries.sort((a, b) => a.entryAzimuthDeg - b.entryAzimuthDeg);
-  return entries;
+  return collectBurgRoadEntries({ ...burgRoadContext(burg, preparedRoads), metersPerMapUnit }, burg, {
+    toLocal,
+    half,
+    cityRadiusMeters,
+    profiler,
+    withoutEconomy
+  });
 }
 
 function collectWaterbody(

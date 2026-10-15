@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+import { parseCeRoadReference } from "./lib/fmgCityAudit/ceRoads";
 /** Read-only saved-map facts and Directions export. See docs/tools/fmg-city-audit.md. */
 import { execFileSync } from "node:child_process";
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from "node:fs/promises";
@@ -16,6 +17,7 @@ type Options = AuditOptions & {
   expand: boolean;
   failOn: string;
   maxArchiveMb: number;
+  ceHandoffPath?: string;
 };
 const usage = `Usage:
   npm run audit:fmg-cities -- <map.fmg> --output <new-or-empty-directory> (--burg <id> | --all) [options]
@@ -29,13 +31,14 @@ Options:
   --avoid-sea | --prefer-sea   Same search options as Directions
   --height-exponent <1..5>     Default: stored value or shared default 1.8
   --nearby-radius-km <number>  Also export geographic neighbors
+  --ce-handoff <json>          Compare actual CE road handoff captured from the same input
   --expand                    Preserve archive chunks under raw/
   --fail-on error|warning|never  Default: error; exit 2 for matching findings
   --max-archive-mb <number>    Compressed/expanded byte limit (default: 512)
   --help                      Show help
 
 Exit: 0 success; 1 input/output failure; 2 report written with findings matching --fail-on.
-Full CE handoff and historical rules are pending; unavailable audits are marked skipped.`;
+CE road projection is read-only; unavailable preparation and historical rules are marked skipped.`;
 
 export function parseAuditOptions(argv: string[]): Options | null {
   if (!argv.length || argv.includes("--help") || argv.includes("-h")) return null;
@@ -86,13 +89,17 @@ export function parseAuditOptions(argv: string[]): Options | null {
         "--height-exponent",
         "--nearby-radius-km",
         "--fail-on",
-        "--max-archive-mb"
+        "--max-archive-mb",
+        "--ce-handoff"
       ].includes(arg)
     )
       throw new Error(`Unknown argument: ${arg}`);
     const value = argv[++i];
     if (value === undefined || value.startsWith("--")) throw new Error(`${arg} requires a value`);
     switch (arg) {
+      case "--ce-handoff":
+        options.ceHandoffPath = path.resolve(value);
+        break;
       case "--output":
       case "-o":
         options.output = path.resolve(value);
@@ -173,7 +180,15 @@ export async function runAudit(options: Options): Promise<number> {
     ...DEFAULT_ARCHIVE_LIMITS,
     maxBytes: options.maxArchiveMb * 1024 * 1024
   });
-  const report = buildCityAudit(archive, options);
+  let handoff: ReturnType<typeof parseCeRoadReference> | undefined;
+  let handoffHash: string | null = null;
+  if (options.ceHandoffPath) {
+    const bytes = await readFile(options.ceHandoffPath);
+    if (bytes.length > 64 * 1024 * 1024) throw new Error("CE handoff reference exceeds 64 MiB");
+    handoffHash = sha256(bytes);
+    handoff = parseCeRoadReference(JSON.parse(bytes.toString("utf8")));
+  }
+  const report = buildCityAudit(archive, { ...options, ceHandoff: handoff });
   let revision: string | null = null;
   let dirty: boolean | null = null;
   try {
@@ -196,6 +211,7 @@ export async function runAudit(options: Options): Promise<number> {
     generatedAt: new Date().toISOString(),
     inputPath: archive.inputPath,
     inputSha256: archive.inputHash,
+    ceHandoffSha256: handoffHash,
     archiveManifest: archive.manifest,
     codeRevision: revision,
     workingTreeDirty: dirty,
@@ -207,6 +223,7 @@ export async function runAudit(options: Options): Promise<number> {
   report.metadata = {
     ...report.metadata,
     inputSha256: archive.inputHash,
+    ceHandoffSha256: handoffHash,
     codeRevision: revision,
     workingTreeDirty: dirty
   };
@@ -233,6 +250,8 @@ export async function runAudit(options: Options): Promise<number> {
     }
     if (sha256(await readFile(options.input)) !== archive.inputHash)
       throw new Error("Input changed during audit; output discarded");
+    if (options.ceHandoffPath && sha256(await readFile(options.ceHandoffPath)) !== handoffHash)
+      throw new Error("CE handoff reference changed during audit; output discarded");
     await assertSafeOutput(outputPath);
     await rename(staging, outputPath);
   } catch (error) {
