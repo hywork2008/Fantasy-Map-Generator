@@ -3,7 +3,7 @@ import { createUrbanMorphology, validUrbanMorphology } from "../../utils/urbanMo
 import { parseDocument, serializeDocument } from "../services/io/documentCodec";
 import { buildShare, decodeShare, encodeShare } from "../services/io/incomingCity";
 import { cityEditorDocument } from "../services/io/shareRequest";
-import { buildBlockFabric } from "./blockInfill";
+import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
 import { bridgeDecks, overSkewedBridgeDecks } from "./bridgeDeck";
 import { createGridDocument } from "./document";
 import { generateCityOnDocument } from "./generation/generateCity";
@@ -11,6 +11,7 @@ import { defaultGenerationSettings } from "./generation/settings";
 import { polygonCentroid } from "./geom";
 import { FabricCache } from "./localInfill";
 import { preparePopulationGeneration } from "./populationGeneration";
+import { finishPopulationHousing } from "./populationHousing";
 import { fitPopulationHousing } from "./populationHousingFit";
 import {
   defaultPopulationSettings,
@@ -20,6 +21,22 @@ import {
 } from "./populationPlan";
 import { measureHousingCapacity, residentialCapacity } from "./residentialCapacity";
 import { synthSite } from "./site/synthSite";
+
+// Verify completeness and stable per-parcel ordering without restoring the old quadratic scan.
+function expectParcelBuildings(fabric: DistrictFabric) {
+  const parcels = fabric.parcels ?? [];
+  const parcelIds = new Set(parcels.map(parcel => parcel.id));
+  const order = new Map(fabric.buildings.map((building, index) => [building, index]));
+  const associated = parcels.flatMap(parcel => {
+    const indices = parcel.buildings.map(building => order.get(building)!);
+    expect(parcel.buildings.every(building => building.parcelId === parcel.id)).toBe(true);
+    expect(indices).toEqual([...indices].sort((a, b) => a - b));
+    return parcel.buildings;
+  });
+  expect(associated.sort((a, b) => order.get(a)! - order.get(b)!)).toEqual(
+    fabric.buildings.filter(building => building.parcelId !== undefined && parcelIds.has(building.parcelId))
+  );
+}
 
 describe("population-driven city generation", () => {
   it("plans 150,000 people at real metre scale", () => {
@@ -81,6 +98,20 @@ describe("population-driven city generation", () => {
     expect(city).not.toBeNull();
     expect(city!.populationReport!.targetPopulation).toBe(population);
     expect(city!.populationReport!.assignedPopulation + city!.populationReport!.unplacedPopulation).toBe(population);
+    const fabric = buildBlockFabric(city!);
+    // The reused winning pass must account identically to a fresh final build.
+    const recomputed = { ...city! };
+    finishPopulationHousing(recomputed, fabric);
+    expect(recomputed.populationReport).toEqual(city!.populationReport);
+    expect(recomputed.residentialClusters).toEqual(city!.residentialClusters);
+    expect(recomputed.housingCapacity).toEqual(city!.housingCapacity);
+    expectParcelBuildings(fabric);
+    if (population === 3000) {
+      for (const displayDwellings of [1, 10] as const) {
+        const variant = { ...city!, populationPlan: { ...city!.populationPlan!, displayDwellings } };
+        expectParcelBuildings(buildBlockFabric(variant));
+      }
+    }
   });
   it.each(["hex", "evolution"] as const)("supports a Paris population on %s", grid => {
     const settings = defaultGenerationSettings();
