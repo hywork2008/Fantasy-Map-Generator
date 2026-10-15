@@ -73,6 +73,22 @@ try {
   try { await page.waitForFunction(() => window.__ceProfile.paintedAt, undefined, { timeout: 1_800_000 }); }
   catch (e) { error = String(e); }
   const result = await page.evaluate(() => ({ ...window.__ceProfile, observedAt: performance.now(), userAgent: navigator.userAgent }));
+  // Also verify that dismissing the completion notice leaves the rendered city intact.
+  if (result.success && result.paintedAt) {
+    const before = await page.evaluate(() => ({
+      svg: document.querySelector(".ce-map svg")?.outerHTML,
+      renders: window.__ceProfile.renders.length,
+      status: document.querySelector(".ce-status")?.textContent
+    }));
+    await page.waitForTimeout(2100);
+    result.noticeCheck = await page.evaluate(before => ({
+      svgPresent: !!before.svg,
+      svgUnchanged: before.svg === document.querySelector(".ce-map svg")?.outerHTML,
+      additionalRenderEvents: window.__ceProfile.renders.length - before.renders,
+      statusBefore: before.status,
+      statusAfter: document.querySelector(".ce-status")?.textContent
+    }), before);
+  }
   result.initialPopulation = initialPopulation;
   result.error = error;
   result.source = { commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), dirty: !!execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim() };

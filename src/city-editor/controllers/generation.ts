@@ -330,7 +330,8 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.showNotice(
         [roadWarning || editorText("cityEditor.messages.cityGeneratedWallsStreetsAndBuildings"), doubleFallback]
           .filter(Boolean)
-          .join(" ")
+          .join(" "),
+        false
       );
     } finally {
       ctx.generation.acceptingResult = false;

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CityDocument, Point } from "../types/document";
 import { placeDomesticWater, type WaterSite } from "./domesticWater";
 import { polygonOverlaps } from "./fortifications";
+import { NearbyPolylineIndex } from "./nearbyPolylineIndex";
 
 function scenario() {
   const points: Point[] = [
@@ -98,4 +99,20 @@ describe("domestic water source and access policy", () => {
     });
     expect(placeDomesticWater(site, routes, 80).some(p => p.kind === "spring")).toBe(true);
   });
+});
+
+// Infinite bounds reproduce the previous exhaustive route scan.
+it("preserves water placement and access with exhaustive route candidates", () => {
+  const indexed = scenario();
+  const expected = placeDomesticWater(indexed.site, indexed.routes, 500);
+  const query = NearbyPolylineIndex.prototype.query;
+  const spy = vi.spyOn(NearbyPolylineIndex.prototype, "query").mockImplementation(function (point) {
+    return query.call(this, point, Infinity);
+  });
+  try {
+    const exhaustive = scenario();
+    expect(placeDomesticWater(exhaustive.site, exhaustive.routes, 500)).toEqual(expected);
+  } finally {
+    spy.mockRestore();
+  }
 });
