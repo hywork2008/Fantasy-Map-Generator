@@ -31,22 +31,42 @@ export function cultivableParts(
   setback = COASTAL_ARABLE_SETBACK_METERS
 ): Point[][] {
   let parts = [polygon];
-  for (const [a, b] of shore) {
-    const band = corridor(a, b, setback * 2, setback);
-    if (!band.length) continue;
-    const box = bounds(band);
+  for (const { band, box } of shoreBands(shore, setback)) {
     parts = parts.flatMap(part => (boundsOverlap(bounds(part), box) ? subtractConvex(part, band, 150) : [part]));
     if (!parts.length) break;
   }
   return parts.filter(part => Math.abs(polygonArea(part)) >= 150);
 }
 
+type Band = { band: Point[]; box: ReturnType<typeof bounds> };
+const bandsByShore = new WeakMap<[Point, Point][], Map<number, Band[]>>();
+
+/** Setback bands of one shore list, built once and reused for every lot tested against it. */
+function shoreBands(shore: [Point, Point][], setback: number): Band[] {
+  let bySetback = bandsByShore.get(shore);
+  if (!bySetback) {
+    bySetback = new Map();
+    bandsByShore.set(shore, bySetback);
+  }
+  let bands = bySetback.get(setback);
+  if (!bands) {
+    bands = shore.flatMap(([a, b]) => {
+      const band = corridor(a, b, setback * 2, setback);
+      return band.length ? [{ band, box: bounds(band) }] : [];
+    });
+    bySetback.set(setback, bands);
+  }
+  return bands;
+}
+
 export function coastalBandOverlap(polygon: Point[], shore: [Point, Point][], setback: number): boolean {
-  const parts = convexInfillParts(polygon);
-  for (const [a, b] of shore) {
-    const band = corridor(a, b, setback * 2, setback);
-    if (!band.length) continue;
-    const box = bounds(band);
+  if (!shore.length) return false;
+  // Every convex part lies inside the lot's box, so a band clear of that box clears every part.
+  const lotBox = bounds(polygon);
+  let parts: Point[][] | undefined;
+  for (const { band, box } of shoreBands(shore, setback)) {
+    if (!boundsOverlap(lotBox, box)) continue;
+    parts ??= convexInfillParts(polygon);
     if (
       parts.some(part => boundsOverlap(bounds(part), box) && Math.abs(polygonArea(intersectConvex(part, band))) > 0.01)
     )

@@ -218,3 +218,53 @@ A4 の失敗は、「同じ都市を2回生成した結果が一致しない」�
 - より強い検査として、全596都市を「暖まった同じプロセスで2回続けて生成」した（`temp/benchmarks/s0-a4-warm-r2.jsonl`、`--warm --jobs 8 --repeat 2`）。1192回すべての `fingerprint.document` が、新プロセスで測った P3 のハッシュと一致した。2回目は1回目が残したキャッシュの状態で生成するので、キャッシュの状態によって結果が変わる問題は、この入力では見つからなかった。
 - 水面ポリゴンのキャッシュ（`regionalCoastalWaterPolygons` の `sameCoast`）は、文書ごとにメッシュの頂点・辺を全部比べている。誤った値を返すことはないので、A4 の失敗の原因ではないと判断する（遅いだけで、A5 の対象）。
 - 結論: P3 の失敗は今の版では再現せず、A4 による非決定性も見つからなかった。A4 の変更は作業ツリーに残してあり、S1 の一部として採用できる。P3 の失敗は、当時の他の未確定の変更と重なっていた可能性がある。再発した場合に備え、S1 以降は `--warm --repeat 2` と `quality` の決定性判定を毎回行う。
+
+## 10. S1 の結果（2026-10-15）
+
+出力は変えていない。全596都市の `fingerprint.document` が S0 の基準と一致する（`temp/benchmarks/s1-full-warm.jsonl`）。暖まった同じプロセスで各都市を2回生成した1192回（`temp/benchmarks/s1-warm-r2.jsonl`）もすべて一致し、`quality` は合格。
+
+### 10.1 実施した変更と効果
+
+効果は診断用30都市の暖機計測（`--warm --warmup 3`）で、1つ前の段との差。
+
+| # | 変更 | ファイル | 30都市 |
+| --- | --- | --- | --- |
+| A1/A2 | 生成後の最初の区画構築（`initial-fabric`）と住宅数の調整の各回で、地区単位の区画キャッシュ（`FabricCache`）を1つ共有する。初回の数え直しは、最初の構築で作った地区の区画をそのまま使う | [generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts)、[fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) | 38.4 → 36.3 s |
+| — | 海岸の後退帯（`coastalBandOverlap`・`cultivableParts`）: 海岸線ごとの帯を区画ごとではなく海岸線の一覧ごとに1回だけ作り、区画の外接矩形と重ならない帯は飛ばす。`bounds` を配列の展開から1回の走査に変更 | [coastalSuitability.ts](../../src/city-editor/generators/coastalSuitability.ts)、[parcelGeometry.ts](../../src/city-editor/generators/parcelGeometry.ts) | 36.3 → 34.7 s |
+| A3 | 港の計画（`planHarbor`）を、同じ生成の中で入力（文書、街路、障害物、地区ごとの港の型）が同じ間は使い回す。生成が渡したキャッシュのときだけで、UIの既定キャッシュでは使わない | [blockInfill.ts](../../src/city-editor/generators/blockInfill.ts) | 34.7 → 33.4 s |
+| A4/A5 | 水面判定（`lineHitsDocumentWater`）を辺ごとに呼ぶ箇所で、準備済みの水面判定を使い回す。城塞の門から町への道の探索（`castles.ts` の `search`）が全辺について毎回 `sameCoast`（メッシュ全体の比較）を行っていたのが主因で、`assembleRoads.ts` の測量済み水面の経路も同様に直した | [castles.ts](../../src/city-editor/generators/castles.ts)、[assembleRoads.ts](../../src/city-editor/generators/generation/routing/assembleRoads.ts) | 33.4 → 31.3 s |
+
+30都市の合計は 38.4 → 31.3 s（-18.5%）。
+
+### 10.2 全596都市（暖機、並列なし）
+
+S0 の基準 187.4 s → **155.1 s（-17.3%）**。見積り（271 s 基準で -15〜20%）の範囲内。
+
+| 工程（自己時間） | S0 | S1 | 差 |
+| --- | --- | --- | --- |
+| `fit-housing/legacy-fabric/local-fabric` | 21.7 s | 11.6 s | -10.0 s |
+| `attempt-*/apply-plan` | 21.6 s | 15.8 s | -5.8 s |
+| `fit-housing/coastal-reservations` | 27.0 s | 21.4 s | -5.6 s |
+| `initial-fabric` | 30.5 s | 27.5 s | -3.1 s |
+| `fit-housing/harbor-fabric` | 10.0 s | 7.4 s | -2.6 s |
+| `attempt-*/plan` | 26.7 s | 24.8 s | -1.8 s |
+
+### 10.3 見積りとの違い
+
+- **A3** は見積り（港の 11 s の約2/3）より小さく、-2.6 s。住宅数の調整で占有率が変わると路地（街路の入力）も変わるため、使い回せる回が少ない。
+- **A5**（メッシュの版番号）は実施しなかった。`sameCoast` の費用のほとんどは、準備済みの水面判定を渡さずに辺ごとに呼ぶ箇所から来ていた。それを直した後は、港の都市（14）でも1回の生成あたり約 15 ms で、版番号を全てのメッシュ編集に入れる手間に見合わない。
+- `harbor-ships` の区画構築（A1 の対象）は共有していない。船の計画は生成の途中（街路の確定前）の文書で行うため、地区の内容が後の構築と一致せず、キャッシュが当たらない。
+
+### 10.4 決定性の問題の正体（§9.3 の続き）
+
+`CityEditorPage.generate.test.ts` の「一括生成を2回押すと同じ図になる」テストが、S1 の作業中に、ファイル全体の実行で1度失敗した。同じコードで再実行すると通る。調べた結果は次のとおりで、**S1 の変更とも、キャッシュとも関係がない**。
+
+- このテストは、エディタを開くときの seed を `Math.random()` で決める。実行のたびに別の町を試している。
+- 合成の町の seed を固定して32通り試すと、2通り（seed `1eaygix`、`1n5lq5i`）で2回目の図が違った。どちらも S1 の変更を外した HEAD で同じように違う。
+- 原因は [generation.ts](../../src/city-editor/controllers/generation.ts) の `acceptCompleteGeneration`。生成に成功すると、画面の seed を結果の `generationSeed` に置き換える。最初の試行が不採用で再試行した町では、これが `<seed>:junction-retry:2` になる。2回目の一括生成は、この seed を試行1として、元の設定で生成する（1回目の試行3とは試行番号も設定も違う）。そのため別の町になる。
+- P3 で A4 を戻した原因の「ファイル全体を実行したときだけ失敗」も、同じ現象だった可能性が高い（seed がたまたま再試行の町に当たった）。
+
+直し方は仕様の判断が要るため、まだ直していない。候補は次の2つ。
+
+1. 結果の `generationSeed` を画面の seed に戻さない（共有リンクには元の seed と設定を入れる）。同じ seed で押し直せば、同じ再試行を経て同じ町になる。
+2. 再試行の seed から生成するときに、試行番号と後退した設定（単一市壁への後退など）も復元する。

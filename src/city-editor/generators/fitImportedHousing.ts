@@ -52,9 +52,11 @@ export function fitImportedHousing(
   document: CityDocument,
   dwellings: number,
   targetOccupancy = DEFAULT_LOT_OCCUPANCY,
-  profiler?: ProcessingProfiler
+  profiler?: ProcessingProfiler,
+  cache?: FabricCache
 ): HousingFitStats {
-  if (document.urbanMorphology && document.urbanGrowth) return fitMorphologyHousing(document, dwellings, profiler);
+  if (document.urbanMorphology && document.urbanGrowth)
+    return fitMorphologyHousing(document, dwellings, profiler, cache);
   const guide = isLotOccupancy(targetOccupancy) ? targetOccupancy : DEFAULT_LOT_OCCUPANCY;
   const stats: HousingFitStats = {
     dwellings,
@@ -179,7 +181,8 @@ export function fitImportedHousing(
 function fitMorphologyHousing(
   document: CityDocument,
   dwellings: number,
-  profiler?: ProcessingProfiler
+  profiler?: ProcessingProfiler,
+  sharedCache?: FabricCache
 ): HousingFitStats {
   const plan = document.urbanGrowth!;
   if (document.fabric)
@@ -201,7 +204,8 @@ function fitMorphologyHousing(
   // The fit only changes district occupancy, suburb flags and storeys, so a count
   // repeats exactly when none changed (a multiplier that stays at 1). Each count also
   // shares one content-keyed cache: districts whose parameters did not change keep their fabric.
-  const cache = new FabricCache(512);
+  // The caller may pass the cache that built the town's first fabric, so the first count reuses it.
+  const cache = sharedCache ?? new FabricCache(512);
   const counted = new Map<string, ReturnType<typeof measureHousingCapacity>>();
   const count = () => {
     const key = `${plan.insideStoreys}|${(document.fabric?.districts ?? [])

@@ -24,7 +24,7 @@ import {
   splitFace,
   validate
 } from "./mesh";
-import { lineHitsDocumentWater } from "./waterGeometry";
+import { documentWaterTest, lineHitsDocumentWater } from "./waterGeometry";
 
 /** Explicit town area is independent of standalone castle walls. */
 export function registerTownCircuit(
@@ -399,6 +399,8 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
     }
   }
   if (!targets.size) return null;
+  // The document does not change during the search: one prepared water test serves every edge.
+  const water = documentWaterTest(document);
   const search = (clearance: boolean): EdgeRef[] | null => {
     const adjacent = new Map<Id, Array<{ to: Id; edge: Id; cost: number }>>();
     for (const edge of Object.values(mesh.edges)) {
@@ -408,7 +410,7 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
         [edge.leftFace, edge.rightFace].some(
           id => id && (castleFaces.has(id) || mesh.faces[id].properties.water !== "land")
         ) ||
-        lineHitsDocumentWater(document, [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], 4, true)
+        lineHitsDocumentWater(document, [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], 4, true, water)
       )
         continue;
       const p = mesh.vertices[edge.a].point,

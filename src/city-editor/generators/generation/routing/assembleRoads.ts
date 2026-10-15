@@ -17,7 +17,13 @@ import {
 } from "../../passages";
 import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../../polygonalCirculadeLayout";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
-import { lineHitsDocumentWater, lineHitsWater, waterPolygons } from "../../waterGeometry";
+import {
+  type DocumentWaterTest,
+  documentWaterTest,
+  lineHitsDocumentWater,
+  lineHitsWater,
+  waterPolygons
+} from "../../waterGeometry";
 import type { AssemblyCheckpoint, AssemblyMark } from "../assembly/contracts";
 import { applyCrossings } from "../assembly/crossings";
 import { appendGeneratedGroup } from "../assembly/generatedFeatures";
@@ -103,11 +109,20 @@ export function applyRoads(input: ApplyRoadsInput) {
       const trim = roadWidth / 2 + 0.5;
       if (length <= trim * 2) return false;
       const start: Point = [a[0] + ((b[0] - a[0]) * trim) / length, a[1] + ((b[1] - a[1]) * trim) / length];
-      return !lineHitsDocumentWater(next, [start, b], roadWidth, true);
+      return !lineHitsDocumentWater(next, [start, b], roadWidth, true, docWater());
+    };
+    // `next` is replaced, never edited, between the sweeps below: one prepared water test per document.
+    let docWaterFor: CityDocument | undefined, docWaterTest: DocumentWaterTest | undefined;
+    const docWater = (): DocumentWaterTest => {
+      if (docWaterFor !== next || !docWaterTest) {
+        docWaterFor = next;
+        docWaterTest = documentWaterTest(next);
+      }
+      return docWaterTest;
     };
     const edgeHitsWater = (a: Point, b: Point, water: Point[][] = waterPolygons(next)) => {
       if (!next.importedFixedCrossings) return lineHitsWater([a, b], water);
-      if (!lineHitsDocumentWater(next, [a, b], roadWidth, true)) return false;
+      if (!lineHitsDocumentWater(next, [a, b], roadWidth, true, docWater())) return false;
       return !((nearHead(a) && leavesHead(a, b)) || (nearHead(b) && leavesHead(b, a)));
     };
     {
@@ -243,7 +258,8 @@ export function applyRoads(input: ApplyRoadsInput) {
                 next,
                 [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
                 defaultRoadWidthMeters(townExtentMeters(next.frame)),
-                true
+                true,
+                docWater()
               )
             : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
         )

@@ -7,12 +7,17 @@ export const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 export const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 export type Bounds = [number, number, number, number];
 export function bounds(poly: Point[]): Bounds {
-  return [
-    Math.min(...poly.map(p => p[0])),
-    Math.min(...poly.map(p => p[1])),
-    Math.max(...poly.map(p => p[0])),
-    Math.max(...poly.map(p => p[1]))
-  ];
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
+  for (const [x, y] of poly) {
+    if (x < x0) x0 = x;
+    if (y < y0) y0 = y;
+    if (x > x1) x1 = x;
+    if (y > y1) y1 = y;
+  }
+  return [x0, y0, x1, y1];
 }
 export function boundsOverlap(a: Bounds, b: Bounds): boolean {
   return a[0] < b[2] - 1e-6 && b[0] < a[2] - 1e-6 && a[1] < b[3] - 1e-6 && b[1] < a[3] - 1e-6;

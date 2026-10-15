@@ -25,7 +25,7 @@ import {
   segmentInteriorInPolygon
 } from "./geom";
 import { economyOnDocument, siteEconomyKey } from "./guildFacilities";
-import { planHarbor } from "./harborFabric";
+import { type HarborPlan, planHarbor } from "./harborFabric";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { landmarkReservationHits } from "./landmarks";
 import { buildLocalFabric, type CityFabric, FabricCache, type FarmPlot } from "./localInfill";
@@ -216,6 +216,38 @@ export function setFabricBuildRecorder(recorder: ((cached: boolean) => void) | n
   fabricBuildRecorder = recorder;
 }
 
+const harborPlans = new WeakMap<FabricCache, { document: CityDocument; plans: Map<string, HarborPlan> }>();
+
+/**
+ * Generation passes its own cache through repeated builds of one document (the first fabric
+ * and each housing count), which change district occupancy and storeys but not the harbour's
+ * inputs: the streets, barriers, mesh and each district's harbour preset.
+ */
+function memoHarbor(
+  cache: FabricCache,
+  document: CityDocument,
+  streets: Array<{ a: Point; b: Point; widthMeters: number }>,
+  barriers: Point[][]
+): HarborPlan {
+  let entry = harborPlans.get(cache);
+  if (!entry || entry.document !== document) {
+    entry = { document, plans: new Map() };
+    harborPlans.set(cache, entry);
+  }
+  const key = [
+    documentFabricFingerprint(document),
+    (document.fabric?.districts ?? []).map(d => `${d.faceIds.join(",")}=${d.parameters.harborPreset ?? ""}`).join(";"),
+    streets.map(s => `${s.a[0]},${s.a[1]},${s.b[0]},${s.b[1]},${s.widthMeters}`).join(";"),
+    barriers.map(b => b.map(p => `${p[0]},${p[1]}`).join(" ")).join(";")
+  ].join("|");
+  let plan = entry.plans.get(key);
+  if (!plan) {
+    plan = planHarbor(document, streets, barriers);
+    entry.plans.set(key, plan);
+  }
+  return plan;
+}
+
 /** Cell IDs remain editing ownership; the building polygon may span several cells in its district. */
 export function buildBlockFabric(
   document: CityDocument,
@@ -259,7 +291,9 @@ export function buildBlockFabric(
         l.points.slice(1).map((b, i) => ({ a: l.points[i], b, widthMeters: l.widthMeters }))
       );
       const barriers = (document.cemeteries ?? []).flatMap(c => convexInfillParts(c.boundary));
-      const harbor = measureProcessing(profiler, "harbor-fabric", () => planHarbor(document, streets, barriers));
+      const harbor = measureProcessing(profiler, "harbor-fabric", () =>
+        isDefaultCache ? planHarbor(document, streets, barriers) : memoHarbor(cache, document, streets, barriers)
+      );
       fabricResult = measureProcessing(profiler, "coastal-reservations", () =>
         finishCoastalBuildings(document, {
           ...base,

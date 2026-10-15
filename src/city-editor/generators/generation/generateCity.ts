@@ -240,9 +240,11 @@ export function generateCityOnDocument(
       // Count houses on the finished town: harbour ships, bridge approaches,
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
+      // One content-keyed district cache for the first fabric and every housing count.
+      const fabricCache = new FabricCache(512);
       if (result.urbanMorphology && settings.descriptor) {
         const initialFabric = measureProcessing(profiler, "initial-fabric", () =>
-          buildBlockFabric(result, new FabricCache())
+          buildBlockFabric(result, fabricCache)
         );
         result.urbanGrowth = measureProcessing(profiler, "urban-growth-plan", () =>
           planUrbanGrowth(
@@ -276,7 +278,8 @@ export function generateCityOnDocument(
             result,
             settings.descriptor!.burg.dwellings,
             settings.descriptor!.burg.lotOccupancy,
-            profiler
+            profiler,
+            fabricCache
           )
         );
         observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
