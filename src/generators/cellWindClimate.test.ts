@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
 import { windVectorToTowardDeg } from "../utils/windClimate";
-import { ensureCellWindClimate, getCellWind } from "./cellWindClimate";
+import { ensureCellWindClimate, getCellWind, getCellWindRose } from "./cellWindClimate";
 
 const W = 20;
 const H = 5;
@@ -79,5 +79,22 @@ describe("cell wind climate", () => {
     const before = Object.keys(world.grid.cells).sort();
     ensureCellWindClimate(world);
     expect(Object.keys(world.grid.cells).sort()).toEqual(before);
+  });
+});
+
+describe("wind rose (W3 CE descriptor)", () => {
+  it("puts a west wind in the W sector and points the prevailing wind east", () => {
+    const rose = getCellWindRose(fixture(WEST_WIND, false), 2 * W + 3)!;
+    expect(rose.sectors).toEqual(["N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
+    expect(rose.monthly).toHaveLength(12);
+    const total = rose.annual.frequency.reduce((a, b) => a + b, 0) + rose.annual.calmFraction;
+    expect(total).toBeCloseTo(1, 2);
+    expect(rose.annual.frequency.indexOf(Math.max(...rose.annual.frequency))).toBe(6);
+    expect(rose.prevailingTowardDeg).toBeCloseTo(90, -1);
+  });
+  it("follows a reversed setting", () => {
+    const rose = getCellWindRose(fixture(EAST_WIND, false), 2 * W + 3)!;
+    expect(rose.annual.frequency.indexOf(Math.max(...rose.annual.frequency))).toBe(2);
+    expect(rose.prevailingTowardDeg).toBeCloseTo(270, -1);
   });
 });

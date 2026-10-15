@@ -11,6 +11,7 @@ export {
   createCellClimateNormalsReader,
   getCellClimateNormals
 } from "../generators/cellClimateNormals";
+export { getCellWind, getDailyWindStats } from "../generators/cellWindClimate";
 export { getBurgDemographics, getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
 export { applyDemographicCasualties, CHILD_COHORT_YEARS } from "../generators/demography-simulator";
 export { FAST_ADVANCE_COARSE_GATE_DAYS } from "../generators/fastAdvance/fastAdvanceMath";

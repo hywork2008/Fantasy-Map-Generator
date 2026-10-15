@@ -32,12 +32,15 @@ import {
   getZonalWindVector,
   MONSOON_BLUR_RADIUS_KM,
   SEA_BREEZE_REACH_KM,
+  WIND_CALM_SPEED,
   WIND_FOEHN_OBSTACLE_M,
   WIND_LEE_FACTOR,
   WIND_LEE_OBSTACLE_M,
   WIND_LEE_SEARCH_KM,
   WIND_ROUGHNESS_COAST,
-  WIND_ROUGHNESS_LAND
+  WIND_ROUGHNESS_LAND,
+  windVectorToFromDeg,
+  windVectorToTowardDeg
 } from "../utils/windClimate";
 import { ensureClimateGeography } from "./cellClimateNormals";
 import { computeWorldTerrainAspect, HILLSIDE_LENGTH_M } from "./terrainAspect";
@@ -439,25 +442,45 @@ export interface CellWindReading {
   readonly foehnProne: boolean;
 }
 
-/** `month` is 1-based, matching SimulationContext.currentMonth. */
-export function getCellWind(world: WorldContext, gridCellId: number, month: number): CellWindReading | null {
+function isCell(world: WorldContext, gridCellId: number): boolean {
   const n = world.grid?.cells?.i?.length ?? 0;
-  if (!n || !Number.isInteger(gridCellId) || gridCellId < 0 || gridCellId >= n) return null;
-  const climate = ensureCellWindClimate(world);
-  const index = gridCellId * 12 + monthIndexOf(month);
-  const u = climate.u[index];
-  const v = climate.v[index];
-  return {
-    u,
-    v,
-    speed: Math.hypot(u, v),
-    leeSide: (climate.flags[index] & WIND_FLAG_LEE) !== 0,
-    foehnProne: (climate.flags[index] & WIND_FLAG_FOEHN) !== 0
-  };
+  return n > 0 && Number.isInteger(gridCellId) && gridCellId >= 0 && gridCellId < n;
 }
 
 function monthIndexOf(month: number): number {
   return (((Math.round(month) - 1) % 12) + 12) % 12;
+}
+
+// Readers take an already-validated climate: ensureCellWindClimate hashes the heightmap, so each
+// public entry point validates the cache once rather than once per hourly sample.
+function readMean(c: CellWindClimate, cell: number, month: number): CellWindReading {
+  const index = cell * 12 + monthIndexOf(month);
+  const u = c.u[index];
+  const v = c.v[index];
+  return {
+    u,
+    v,
+    speed: Math.hypot(u, v),
+    leeSide: (c.flags[index] & WIND_FLAG_LEE) !== 0,
+    foehnProne: (c.flags[index] & WIND_FLAG_FOEHN) !== 0
+  };
+}
+
+function readDiurnal(c: CellWindClimate, cell: number, month: number): DiurnalWindParameters {
+  const index = cell * 12 + monthIndexOf(month);
+  return {
+    mixAmp: c.mixAmp[index],
+    breezeAmp: c.breezeAmp[index],
+    breezeDirDeg: c.breezeDirDeg[cell],
+    slopeAmp: c.slopeAmp[cell],
+    upslopeDirDeg: c.upslopeDirDeg[cell],
+    slopeNightFactor: c.slopeNightFactor[index]
+  };
+}
+
+/** `month` is 1-based, matching SimulationContext.currentMonth. */
+export function getCellWind(world: WorldContext, gridCellId: number, month: number): CellWindReading | null {
+  return isCell(world, gridCellId) ? readMean(ensureCellWindClimate(world), gridCellId, month) : null;
 }
 
 /** §5.5 diurnal parameters for a cell and 1-based month. */
@@ -466,33 +489,97 @@ export function getCellDiurnalParameters(
   gridCellId: number,
   month: number
 ): DiurnalWindParameters | null {
-  const n = world.grid?.cells?.i?.length ?? 0;
-  if (!n || !Number.isInteger(gridCellId) || gridCellId < 0 || gridCellId >= n) return null;
-  const c = ensureCellWindClimate(world);
-  const index = gridCellId * 12 + monthIndexOf(month);
-  return {
-    mixAmp: c.mixAmp[index],
-    breezeAmp: c.breezeAmp[index],
-    breezeDirDeg: c.breezeDirDeg[gridCellId],
-    slopeAmp: c.slopeAmp[gridCellId],
-    upslopeDirDeg: c.upslopeDirDeg[gridCellId],
-    slopeNightFactor: c.slopeNightFactor[index]
-  };
+  return isCell(world, gridCellId) ? readDiurnal(ensureCellWindClimate(world), gridCellId, month) : null;
 }
 
 /** Wind at a local solar `hour` (0–24) of a 1-based month: display-only, the simulation has no clock. */
 export function getCellHourlyWind(world: WorldContext, gridCellId: number, month: number, hour: number) {
-  const mean = getCellWind(world, gridCellId, month);
-  const parameters = getCellDiurnalParameters(world, gridCellId, month);
-  if (!mean || !parameters) return null;
-  const w = getHourlyWindVector(mean, parameters, hour);
+  if (!isCell(world, gridCellId)) return null;
+  const c = ensureCellWindClimate(world);
+  const w = getHourlyWindVector(readMean(c, gridCellId, month), readDiurnal(c, gridCellId, month), hour);
   return { u: w.u, v: w.v, speed: Math.hypot(w.u, w.v) };
 }
 
 /** Daily mean/max, calm share and windmill working share for a cell on a day of a 1-based month. */
 export function getDailyWindStats(world: WorldContext, gridCellId: number, month: number): DailyWindStats | null {
-  const mean = getCellWind(world, gridCellId, month);
-  const parameters = getCellDiurnalParameters(world, gridCellId, month);
-  if (!mean || !parameters) return null;
-  return getDailyWindStatsFromParameters(mean, parameters);
+  if (!isCell(world, gridCellId)) return null;
+  const c = ensureCellWindClimate(world);
+  return getDailyWindStatsFromParameters(readMean(c, gridCellId, month), readDiurnal(c, gridCellId, month));
+}
+
+/** One month (or the year) of an 8-sector wind rose. Sectors are N, NE, … NW, by direction blown FROM. */
+export interface WindRoseEntry {
+  /** Share of hours (0–1) per sector, excluding calm hours; sums to 1 − calmFraction. */
+  readonly frequency: number[];
+  /** Mean hourly speed (m/s) per sector; 0 where the sector never occurs. */
+  readonly meanSpeed: number[];
+  readonly calmFraction: number;
+}
+
+export interface CellWindRose {
+  readonly sectors: readonly string[];
+  readonly monthly: WindRoseEntry[];
+  readonly annual: WindRoseEntry;
+  /**
+   * Bearing the wind blows TOWARD (0 = north, clockwise) of the year's cube-of-speed-weighted mean
+   * hourly vector: the direction carrying most wind power, which is what a mill turns to face.
+   */
+  readonly prevailingTowardDeg: number;
+}
+
+const ROSE_SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
+
+/** Monthly 8-sector rose from the 24 hourly winds of each month (§5.8 CE descriptor). */
+export function getCellWindRose(world: WorldContext, gridCellId: number): CellWindRose | null {
+  if (!isCell(world, gridCellId)) return null;
+  const c = ensureCellWindClimate(world);
+  const monthly: WindRoseEntry[] = [];
+  const yearCount = new Array(8).fill(0);
+  const yearSpeed = new Array(8).fill(0);
+  let yearCalm = 0;
+  let powerU = 0;
+  let powerV = 0;
+  for (let month = 1; month <= 12; month++) {
+    const count = new Array(8).fill(0);
+    const speedSum = new Array(8).fill(0);
+    let calm = 0;
+    const mean = readMean(c, gridCellId, month);
+    const diurnal = readDiurnal(c, gridCellId, month);
+    for (let hour = 0; hour < 24; hour++) {
+      const vector = getHourlyWindVector(mean, diurnal, hour + 0.5);
+      const wind = { ...vector, speed: Math.hypot(vector.u, vector.v) };
+      if (wind.speed < WIND_CALM_SPEED) {
+        calm++;
+        continue;
+      }
+      const from = windVectorToFromDeg(wind.u, wind.v);
+      const sector = Math.round(from / 45) % 8;
+      count[sector]++;
+      speedSum[sector] += wind.speed;
+      const weight = wind.speed * wind.speed;
+      powerU += wind.u * weight;
+      powerV += wind.v * weight;
+    }
+    for (let s = 0; s < 8; s++) {
+      yearCount[s] += count[s];
+      yearSpeed[s] += speedSum[s];
+    }
+    yearCalm += calm;
+    monthly.push(roseEntry(count, speedSum, calm, 24));
+  }
+  return {
+    sectors: ROSE_SECTORS,
+    monthly,
+    annual: roseEntry(yearCount, yearSpeed, yearCalm, 24 * 12),
+    prevailingTowardDeg: Math.round(windVectorToTowardDeg(powerU, powerV)) % 360
+  };
+}
+
+function roseEntry(count: number[], speedSum: number[], calm: number, total: number): WindRoseEntry {
+  const round = (x: number, d: number) => Math.round(x * 10 ** d) / 10 ** d;
+  return {
+    frequency: count.map(c => round(c / total, 3)),
+    meanSpeed: count.map((c, s) => (c ? round(speedSum[s] / c, 1) : 0)),
+    calmFraction: round(calm / total, 3)
+  };
 }

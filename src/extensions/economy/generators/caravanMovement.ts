@@ -19,6 +19,12 @@ export interface CaravanMovementSettings {
    */
   seaCurrentStrength: number;
   /**
+   * 0..1 weight of the per-cell monthly mean wind on sea legs (tailwind faster, headwind slower;
+   * see getSeaWindMultiplier and docs/plan/wind-aspect-climate-variability.md §5.8).
+   * 0 = no correction. Absent in stored settings from before W3, which then use the default.
+   */
+  seaWindStrength: number;
+  /**
    * 0 = ignore grade for land travel time (legacy planar-only).
    * 1 = full grade effect. Intermediate values blend.
    * Persisted as `fmg-grade-effect-strength` as well for the plan key.
@@ -36,6 +42,7 @@ const DEFAULT_MOVEMENT_SETTINGS: CaravanMovementSettings = {
   seaKmPerDay: 60,
   riverKmPerDay: 72,
   seaCurrentStrength: 0,
+  seaWindStrength: 0.5,
   gradeEffectStrength: 1,
   merchantRoutePreference: "preferSpeed"
 };
@@ -141,6 +148,9 @@ export class CaravanMovementModule {
 
   configure(opts: Partial<CaravanMovementSettings>): void {
     const next: CaravanMovementSettings = { ...this.options, ...opts };
+    if (opts.seaWindStrength !== undefined) {
+      next.seaWindStrength = minmax(opts.seaWindStrength, 0, 1);
+    }
     if (opts.gradeEffectStrength !== undefined) {
       next.gradeEffectStrength = minmax(opts.gradeEffectStrength, 0, 1);
     }
@@ -214,4 +224,36 @@ export function getSeaConditionMultiplier(
   const withCurrent = travelingEast === currentFavorsEast;
   const multiplier = withCurrent ? 1 + strength : 1 - strength;
   return minmax(multiplier, 0.1, 2);
+}
+
+/** Monthly mean surface wind at a sea leg's starting grid cell, m/s (east / north positive). */
+export interface SeaWindSample {
+  u: number;
+  v: number;
+}
+
+/** Along-track wind (m/s) that gives the full ±SEA_WIND_MAX_EFFECT at strength 1. */
+export const SEA_WIND_REFERENCE_SPEED = 8;
+/** Largest fractional speed change from wind at strength 1. Uncalibrated initial candidate. */
+export const SEA_WIND_MAX_EFFECT = 0.5;
+
+/**
+ * Speed multiplier from the wind component along a sea leg (map points: x east, y south).
+ * A tailwind speeds the ship up, a headwind (tacking) slows it, a crosswind (beam reach) leaves
+ * it unchanged. Returns 1 without a sample or at strength 0.
+ */
+export function getSeaWindMultiplier(
+  fromPoint: readonly [number, number],
+  toPoint: readonly [number, number],
+  strength: number,
+  wind?: SeaWindSample | null
+): number {
+  if (!wind || !(strength > 0)) return 1;
+  const dx = toPoint[0] - fromPoint[0];
+  const dyNorth = -(toPoint[1] - fromPoint[1]);
+  const length = Math.hypot(dx, dyNorth);
+  if (!(length > 0)) return 1;
+  const along = (wind.u * dx + wind.v * dyNorth) / length;
+  const effect = minmax(along / SEA_WIND_REFERENCE_SPEED, -1, 1) * SEA_WIND_MAX_EFFECT;
+  return minmax(1 + effect * minmax(strength, 0, 1), 0.1, 2);
 }

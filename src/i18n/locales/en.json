@@ -4935,6 +4935,8 @@
       "seaSpeedTip": "Ship base pace at sea, km per day",
       "current": "Seasonal current (%):",
       "currentTip": "Seasonal tailwind/current speed swing applied to sea legs; 0% means no correction",
+      "seaWind": "Sea wind (%):",
+      "seaWindTip": "Weight of the monthly mean wind along each sea leg: tailwinds speed ships up, headwinds slow them (up to ±50% at 100%); 0% means no correction",
       "elevation": "Elevation & Passes",
       "grade": "Grade effect (%):",
       "gradeTip": "How much slope slows land caravans. 0% = legacy flat-map travel time; 100% = full grade model",

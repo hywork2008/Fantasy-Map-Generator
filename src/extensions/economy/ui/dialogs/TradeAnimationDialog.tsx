@@ -910,6 +910,18 @@ const MovementSettingsSection: React.FC = () => {
         />
       </div>
 
+      <div data-tip={t("extensions.tradeAnimation.seaWindTip")}>
+        <label htmlFor="caravanSeaWindStrength">{t("extensions.tradeAnimation.seaWind")}</label>
+        <SliderInput
+          id="caravanSeaWindStrength"
+          min="0"
+          max="100"
+          step="5"
+          value={Math.round((movement.seaWindStrength ?? 0) * 100)}
+          onChange={value => update({ seaWindStrength: Number(value) / 100 })}
+        />
+      </div>
+
       <div style={{ fontWeight: "bold", margin: "0.75rem 0 0.25rem" }}>{t("extensions.tradeAnimation.elevation")}</div>
 
       <div data-tip={t("extensions.tradeAnimation.gradeTip")}>

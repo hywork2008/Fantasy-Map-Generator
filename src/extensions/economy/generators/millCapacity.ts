@@ -7,13 +7,16 @@
  * to grain the ledger already marks tradeable (exportable surplus and storage overflow).
  * The famine reserve stays in the age buckets.
  *
- * Wind count is 0 or 1. `options.winds` is a compass bearing per latitude belt, not a
- * speed, and post mills are a high-medieval machine. Water count is one per dam site
+ * Wind count is 0 or 1 (post mills are a high-medieval machine). Its output is scaled by
+ * `windUtilization`: the month's share of the day inside the windmill working range at the
+ * town's grid cell (docs/plan/wind-aspect-climate-variability.md §5.8), relative to a good mill
+ * site, so calm inland basins and lee sides mill less. Water count is one per dam site
  * in the town's market, plus one when the town cell itself is a formed river and no
  * dam site was counted. `RiverConstants.MIN_FLUX_TO_FORM_RIVER` (30) is that gate.
  */
 
 import { RiverConstants } from "../../../data/constants";
+import { getDailyWindStats } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -23,6 +26,7 @@ import {
   getMarkets,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
+  getSimulationMonth,
   getWorldContext
 } from "../economyContext";
 import type { DamSite } from "./damTypes";
@@ -36,6 +40,27 @@ import { drawTradeableStapleCrop } from "./stapleCropInventory";
 export interface MillCounts {
   wind: number;
   water: number;
+  /**
+   * 0–1 share of full output the windmill reaches this month (absent when there is no windmill
+   * or the wind climate cannot be read, which means full output as before).
+   */
+  windUtilization?: number;
+}
+
+/**
+ * Windmill working share (4–12 m/s) of a good mill site. A site at or above it mills a full
+ * batch a month. Initial candidate: exposed coasts and open plains in the W2 field reach ~0.5.
+ */
+export const WINDMILL_REFERENCE_WORKING_SHARE = 0.5;
+
+/** This month's windmill utilization at the burg's grid cell, or undefined when unreadable. */
+export function windmillUtilization(burg: Burg, month = getSimulationMonth()): number | undefined {
+  const world = getWorldContext();
+  const gridCell = typeof burg.cell === "number" ? world.pack?.cells?.g?.[burg.cell] : undefined;
+  if (gridCell === undefined || !world.grid?.cells?.h) return undefined;
+  const stats = getDailyWindStats(world, gridCell, month);
+  if (!stats) return undefined;
+  return rn(Math.min(1, stats.windmillFraction / WINDMILL_REFERENCE_WORKING_SHARE), 3);
 }
 
 const WINDMILL_PERIODS = new Set([
@@ -139,7 +164,8 @@ export function millCountsForBurg(burgId: number, burgs = liveBurgs(), dams = da
     windmillsAllowed(getWorldContext().options?.historicalPeriod) && prevailingWindDeg(burg.y) !== undefined ? 1 : 0;
   const damMills = dams.get(burgId) ?? 0;
   const water = damMills > 0 ? damMills : formedRiverAt(burg) ? 1 : 0;
-  return { wind, water };
+  const windUtilization = wind ? windmillUtilization(burg) : undefined;
+  return windUtilization === undefined ? { wind, water } : { wind, water, windUtilization };
 }
 
 /** Grain wains one Flour batch consumes. Zero when the catalog recipe is gone. */
@@ -233,7 +259,7 @@ export function settleMilling(): number {
       .filter(burg => burg.market === market.i)
       .reduce((sum, burg) => {
         const counts = millCountsForBurg(burg.i!, burgs, dams);
-        return sum + counts.wind + counts.water;
+        return sum + counts.wind * (counts.windUtilization ?? 1) + counts.water;
       }, 0);
     if (mills <= 0) continue;
     const drawn = drawTradeableGrain(ledger, mills * perBatch);

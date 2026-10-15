@@ -1,6 +1,7 @@
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
+import { getCellWindRose } from "../generators/cellWindClimate";
 import { getConstrainedNetworkConnections } from "../generators/constrainedLandNetwork";
 import { Rivers } from "../generators/river-generator";
 import { Routes } from "../generators/routes-generator";
@@ -314,10 +315,23 @@ export interface BurgSiteDescriptor {
     biomeName?: string;
     biomeColor?: string;
     /**
-     * Compass bearing the wind blows toward: 0 = north, clockwise.
+     * Compass bearing the wind blows toward: 0 = north, clockwise. From `windRose` (the
+     * power-weighted mean wind at the burg) when it is available, else the latitude belt.
      * Absent when the map has no usable wind belts or latitude.
      */
     prevailingWindDeg?: number;
+    /**
+     * Monthly 8-sector wind rose at the burg's grid cell (docs/plan/wind-aspect-climate-variability.md
+     * §5.8). Sectors N, NE, … NW are directions the wind blows FROM. Absent in older descriptors.
+     */
+    windRose?: {
+      sectors: string[];
+      /** 12 entries, January first. */
+      monthly: { frequency: number[]; meanSpeed: number[]; calmFraction: number }[];
+      annual: { frequency: number[]; meanSpeed: number[]; calmFraction: number };
+      /** Bearing the wind blows TOWARD carrying most wind power over the year. */
+      prevailingTowardDeg: number;
+    };
   };
   biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;
@@ -696,14 +710,25 @@ export function getBurgSiteDescriptor(
         const bKey = (bData?.keys ? bData.keys[bId] : undefined) ?? stdDef?.key;
         const bName = bData?.name?.[bId] ?? stdDef?.label ?? `Biome ${bId}`;
         const bColor = bData?.color?.[bId] ?? stdDef?.color ?? "#d5cfbf";
-        const prevailingWindDeg = prevailingWindDegAt(burg.y);
+        const windRose = getCellWindRose(worldContext, pack.cells.g[burg.cell]);
+        const prevailingWindDeg = windRose?.prevailingTowardDeg ?? prevailingWindDegAt(burg.y);
         return {
           temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
           biomeId: bId,
           biomeKey: bKey,
           biomeName: bName,
           biomeColor: bColor,
-          ...(prevailingWindDeg !== undefined ? { prevailingWindDeg } : {})
+          ...(prevailingWindDeg !== undefined ? { prevailingWindDeg } : {}),
+          ...(windRose
+            ? {
+                windRose: {
+                  sectors: [...windRose.sectors],
+                  monthly: windRose.monthly,
+                  annual: windRose.annual,
+                  prevailingTowardDeg: windRose.prevailingTowardDeg
+                }
+              }
+            : {})
         };
       })(),
       biome: (() => {

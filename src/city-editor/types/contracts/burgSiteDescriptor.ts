@@ -72,6 +72,18 @@ export interface BurgSiteDescriptor {
      * (same sense as road `entryAzimuthDeg`). Absent: windmills keep a seeded facing.
      */
     prevailingWindDeg?: number;
+    /**
+     * Monthly 8-sector wind rose at the burg's grid cell (docs/plan/wind-aspect-climate-variability.md
+     * §5.8). Sectors N, NE, … NW are directions the wind blows FROM. Absent in older descriptors.
+     */
+    windRose?: {
+      sectors: string[];
+      /** 12 entries, January first. */
+      monthly: { frequency: number[]; meanSpeed: number[]; calmFraction: number }[];
+      annual: { frequency: number[]; meanSpeed: number[]; calmFraction: number };
+      /** Bearing the wind blows TOWARD carrying most wind power over the year. */
+      prevailingTowardDeg: number;
+    };
   };
   biome?: BurgSiteBiome;
   terrain: BurgSiteTerrain;

@@ -2,7 +2,7 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { landTravelLegSpeeds } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState, type WorldContext } from "../../hostCore";
+import { getCellWind, useOptionsState, type WorldContext } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCaravans,
@@ -26,7 +26,9 @@ import {
   DEFAULT_DRAFT_ANIMAL_ID,
   getDraftAnimalType,
   getSeaConditionMultiplier,
-  type OceanCurrentSample
+  getSeaWindMultiplier,
+  type OceanCurrentSample,
+  type SeaWindSample
 } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
 import {
@@ -564,6 +566,23 @@ function resolveOceanCurrentAtPoint(
 }
 
 /**
+ * Monthly mean wind (docs/plan/wind-aspect-climate-variability.md §5.8) at a route point's grid
+ * cell. Null without a cell id or world, which leaves sea legs without a wind correction.
+ */
+function resolveWindAtPoint(
+  worldContext: WorldContext | null | undefined,
+  point: TradeRoutePoint,
+  month: number
+): SeaWindSample | null {
+  const packCellId = point[2];
+  if (packCellId === undefined || !worldContext?.grid?.cells?.h) return null;
+  const gridCellId = worldContext.pack?.cells?.g?.[packCellId];
+  if (gridCellId === undefined) return null;
+  const wind = getCellWind(worldContext, gridCellId, month);
+  return wind ? { u: wind.u, v: wind.v } : null;
+}
+
+/**
  * Bake planar legs + speeds at spawn so tick-time advance does not re-sample grade
  * (or re-read sea current). `currentDistance` remains cumulative planar km (plan A).
  * `worldContext`, if given, resolves each sea leg's real per-cell ocean current at its starting
@@ -597,8 +616,12 @@ export function bakeCaravanTravelLegs(
       const from = toXy(seg.points[0]);
       const to = toXy(seg.points[seg.points.length - 1]);
       const current = seg.type === "river" ? null : resolveOceanCurrentAtPoint(worldContext, seg.points[0]);
+      const wind = seg.type === "river" ? null : resolveWindAtPoint(worldContext, seg.points[0], month);
       const currentMultiplier =
-        seg.type === "river" ? 1 : getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength, current);
+        seg.type === "river"
+          ? 1
+          : getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength, current) *
+            getSeaWindMultiplier(from, to, movement.seaWindStrength ?? 0, wind);
       const speed = (seg.type === "river" ? movement.riverKmPerDay : movement.seaKmPerDay) * currentMultiplier;
       cursorKm += runKm;
       legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });

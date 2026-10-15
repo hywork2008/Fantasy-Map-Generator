@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSeaConditionMultiplier, type OceanCurrentSample } from "./caravanMovement";
+import { getSeaConditionMultiplier, getSeaWindMultiplier, type OceanCurrentSample } from "./caravanMovement";
 
 describe("getSeaConditionMultiplier", () => {
   it("has no effect when strength is 0, real current or not (opt-in gate)", () => {
@@ -45,5 +45,24 @@ describe("getSeaConditionMultiplier", () => {
     const julyWithCalmSample = getSeaConditionMultiplier([0, 0], [100, 0], 7, 0.3, calm);
     const julyNoSample = getSeaConditionMultiplier([0, 0], [100, 0], 7, 0.3);
     expect(julyWithCalmSample).toBe(julyNoSample);
+  });
+});
+
+describe("getSeaWindMultiplier (W3 sensitivity)", () => {
+  // Map points: x east, y south. Leg due east.
+  const from: [number, number] = [0, 0];
+  const east: [number, number] = [100, 0];
+  it("speeds tailwind legs, slows headwind legs, ignores a pure crosswind", () => {
+    expect(getSeaWindMultiplier(from, east, 1, { u: 8, v: 0 })).toBeCloseTo(1.5, 9);
+    expect(getSeaWindMultiplier(from, east, 1, { u: -8, v: 0 })).toBeCloseTo(0.5, 9);
+    expect(getSeaWindMultiplier(from, east, 1, { u: 0, v: 8 })).toBeCloseTo(1, 9);
+    expect(getSeaWindMultiplier(from, east, 0.5, { u: 4, v: 0 })).toBeCloseTo(1.125, 9);
+  });
+  it("reads northward legs against map y growing south", () => {
+    expect(getSeaWindMultiplier([0, 100], [0, 0], 1, { u: 0, v: 8 })).toBeCloseTo(1.5, 9);
+  });
+  it("has no effect without a sample or at strength 0", () => {
+    expect(getSeaWindMultiplier(from, east, 1, null)).toBe(1);
+    expect(getSeaWindMultiplier(from, east, 0, { u: 8, v: 0 })).toBe(1);
   });
 });
