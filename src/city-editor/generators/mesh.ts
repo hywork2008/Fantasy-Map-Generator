@@ -412,6 +412,57 @@ export function moveVertex(
   return moveVertices(document, new Map([[vertexId, point]]), allowExistingErrors);
 }
 
+/** Cheap rejection before moveVertices copies a document. Reuse only while the
+ * topology stays fixed; read coordinates and validity from the current document
+ * on every trial. A passing trial still needs the full move/validation path. */
+export function createVertexMovePreflight(document: CityDocument) {
+  const edgesByVertex = new Map<Id, Edge[]>();
+  const facesByVertex = new Map<Id, Array<{ face: Face; ids: Id[] }>>();
+  for (const edge of Object.values(document.mesh.edges)) {
+    for (const id of [edge.a, edge.b]) {
+      const edges = edgesByVertex.get(id) ?? [];
+      edges.push(edge);
+      edgesByVertex.set(id, edges);
+    }
+  }
+  for (const face of Object.values(document.mesh.faces)) {
+    const ring = { face, ids: faceVertices(document.mesh, face) };
+    for (const id of ring.ids) {
+      const faces = facesByVertex.get(id) ?? [];
+      faces.push(ring);
+      facesByVertex.set(id, faces);
+    }
+  }
+  return (current: CityDocument, targets: ReadonlyMap<Id, Point>): boolean => {
+    const half = current.frame.extentMeters / 2;
+    const point = (id: Id) => targets.get(id) ?? current.mesh.vertices[id].point;
+    const edges = new Set<Edge>();
+    const faces = new Set<{ face: Face; ids: Id[] }>();
+    for (const [id, target] of targets) {
+      if (
+        !current.mesh.vertices[id] ||
+        !target.every(Number.isFinite) ||
+        Math.abs(target[0]) > half ||
+        Math.abs(target[1]) > half
+      )
+        return false;
+      for (const edge of edgesByVertex.get(id) ?? []) edges.add(edge);
+      for (const face of facesByVertex.get(id) ?? []) faces.add(face);
+    }
+    const skeleton = current.fabric?.generation?.algorithm === "skeleton-city-v1";
+    for (const edge of edges) if (distance(point(edge.a), point(edge.b)) < (skeleton ? 1e-5 : 1)) return false;
+    for (const { face, ids } of faces) {
+      const next = ids.map(point);
+      const nextArea = area(next);
+      if (next.length < 3 || Math.abs(nextArea) < (skeleton && !face.properties.buildable ? 1e-8 : 1)) return false;
+      const previous = ids.map(id => current.mesh.vertices[id].point);
+      if (isSimplePolygon(previous) && (!isSimplePolygon(next) || Math.sign(nextArea) !== Math.sign(area(previous))))
+        return false;
+    }
+    return true;
+  };
+}
+
 /** Apply a coordinated displacement atomically; intermediate cell shapes
  * need not be valid while several shared corners move together. */
 export function moveVertices(

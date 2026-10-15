@@ -9,6 +9,7 @@ import {
 } from "./generation/routing/frameRoadConnection";
 import { pointInPolygon, segmentSegmentHit } from "./geom";
 import {
+  createVertexMovePreflight,
   edgeBetween,
   edgePoints,
   edgeRefFor,
@@ -595,6 +596,7 @@ const ZIGZAG_DEGREES = 25;
  * locked vertices never move. */
 export function straightenThroughStreets(document: CityDocument, descriptor?: BurgSiteDescriptor): void {
   const gates = new Set(document.gates.map(g => g.vertexId));
+  const preflight = createVertexMovePreflight(document);
   let work = document;
   // Never at the cost of a junction already made straight into an exterior road.
   const junctions = (doc: CityDocument) =>
@@ -633,13 +635,12 @@ export function straightenThroughStreets(document: CityDocument, descriptor?: Bu
             i + 3 < ids.length ? Math.abs(signedTurn(nc, d, work.mesh.vertices[ids[i + 3]].point)) : 0
           );
           if (after < before - 5 && outer < before) {
-            const moved = moveVertices(
-              work,
-              new Map([
-                [ids[i], nb],
-                [ids[i + 1], nc]
-              ])
-            );
+            const targets = new Map([
+              [ids[i], nb],
+              [ids[i + 1], nc]
+            ]);
+            if (!preflight(work, targets)) continue;
+            const moved = moveVertices(work, targets);
             if (!moved) continue;
             const kept = junctions(moved);
             if (kept.some((bend, k) => bend > held[k] + 0.5)) continue;

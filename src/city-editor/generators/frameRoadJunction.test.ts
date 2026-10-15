@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import autruyles from "../data/fixtures/autruyles-20261003.json";
 import { cityEditorDocument, cityEditorSettings } from "../services/analysis/housingReport";
 import { parseIncomingPayload } from "../services/io/incomingCity";
@@ -9,6 +9,7 @@ import {
   frameRoadJunction,
   frameRoadJunctionIssue
 } from "./generation/routing/frameRoadConnection";
+import * as meshOperations from "./mesh";
 import { validate } from "./mesh";
 
 function generate() {
@@ -43,4 +44,14 @@ describe("exterior road junction", () => {
       expect(owned).toHaveLength(1);
     }
   });
+});
+
+it("preserves the complete generated city when local move rejection is enabled", () => {
+  const indexed = generate().city;
+  const spy = vi.spyOn(meshOperations, "createVertexMovePreflight").mockReturnValue(() => true);
+  try {
+    expect(generate().city).toEqual(indexed);
+  } finally {
+    spy.mockRestore();
+  }
 });

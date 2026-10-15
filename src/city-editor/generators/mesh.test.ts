@@ -5,6 +5,7 @@ import { appendEdge, createGroup } from "./features";
 import { isSimplePolygon, polygonArea } from "./geom";
 import {
   clone,
+  createVertexMovePreflight,
   faceNeighbors,
   facePoints,
   faceVertices,
@@ -13,6 +14,7 @@ import {
   mergeFaces,
   mergeVertices,
   moveVertex,
+  moveVertices,
   optimizeJunctions,
   scaleDocument,
   setFaceDepth,
@@ -400,3 +402,37 @@ function centroid(points: [number, number][]): [number, number] {
   const sum = points.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
   return [sum[0] / points.length, sum[1] / points.length];
 }
+
+it.each(["voronoi", "hex", "evolution"] as const)("preflight never rejects a valid coordinated %s move", grid => {
+  const document = createGridDocument({ size: "tiny", seed: "preflight", grid });
+  const preflight = createVertexMovePreflight(document);
+  const before = structuredClone(document);
+  let rejected = 0;
+  let accepted = 0;
+  for (const edge of Object.values(document.mesh.edges).slice(0, 20)) {
+    for (const offset of [0.1, 20, 100]) {
+      const targets = new Map(
+        [edge.a, edge.b].map(id => {
+          const p = document.mesh.vertices[id].point;
+          return [id, [p[0] + offset, p[1] - offset] as [number, number]];
+        })
+      );
+      const moved = moveVertices(document, targets);
+      const allowed = preflight(document, targets);
+      if (!allowed) {
+        rejected++;
+        expect(moved).toBeNull();
+      }
+      if (moved) {
+        accepted++;
+        expect(allowed).toBe(true);
+        expect(preflight(moved, new Map([...targets.keys()].map(id => [id, document.mesh.vertices[id].point])))).toBe(
+          true
+        );
+      }
+    }
+  }
+  expect(rejected).toBeGreaterThan(0);
+  expect(accepted).toBeGreaterThan(0);
+  expect(document).toEqual(before);
+});
