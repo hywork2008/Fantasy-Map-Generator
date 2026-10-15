@@ -83,4 +83,50 @@ describe("cell climate normals", () => {
     expect(getCellClimateNormals(world, 0, 2024)!.monthlyMeanTemperatureC[0]).toBe(4);
     expect(getCellClimateNormals(world, 0.5, 2024)).toBeNull();
   });
+  it("adds only the seasonal deviation of the slope offset, keeping the annual mean at grid temp", () => {
+    const size = 5;
+    const points: [number, number][] = [];
+    const c: number[][] = [];
+    const h: number[] = [];
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        points.push([x * 20, y * 20]);
+        h.push(40 + y * 10); // terrain falls toward the north
+        c.push(
+          [
+            x > 0 && y * size + x - 1,
+            x < size - 1 && y * size + x + 1,
+            y > 0 && (y - 1) * size + x,
+            y < size - 1 && (y + 1) * size + x
+          ].filter((v): v is number => v !== false)
+        );
+      }
+    const n = size * size;
+    const world = {
+      mapId: 2,
+      graphWidth: 100,
+      graphHeight: 100,
+      distanceScale: 3,
+      mapCoordinates: { latN: 48, latT: 4, lonW: 0, lonT: 4 },
+      options: { axialTilt: 23.5 },
+      grid: {
+        points,
+        features: [{ type: "land" }],
+        cells: {
+          i: Uint32Array.from({ length: n }, (_, i) => i),
+          c,
+          h: Uint8Array.from(h),
+          f: new Uint8Array(n),
+          temp: new Int8Array(n).fill(5),
+          prec: new Uint8Array(n).fill(5)
+        }
+      }
+    } as unknown as WorldContext;
+    const normals = getCellClimateNormals(world, 12, 2023)!;
+    const days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const mean = normals.monthlyMeanTemperatureC.reduce((sum, t, m) => sum + t * days[m], 0) / 365;
+    expect(mean).toBeCloseTo(5, 4);
+    expect(normals.terrainOffsetC.some(v => Math.abs(v) > 0.1)).toBe(true);
+    expect(normals.terrainOffsetC.reduce((sum, t, m) => sum + t * days[m], 0) / 365).toBeCloseTo(0, 4);
+  });
 });

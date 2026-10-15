@@ -82,6 +82,7 @@ import { seedDwarfHoldOikoumene, withDwarfMountainRegion } from "./generators/se
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
 import { generateSubsistenceCapacity, refreshEstimatedSubsistenceCapacity } from "./generators/subsistenceCapacity";
+import { computeWorldTerrainAspect } from "./generators/terrainAspect";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
@@ -1722,6 +1723,10 @@ export function calculateTemperatures() {
   const rawExp = useOptionsState.getState().heightExponent;
   const exponent = Number.isFinite(rawExp) && rawExp >= 1 && rawExp <= 5 ? rawExp : 1.8;
 
+  // Annual mean of the slope-aspect offset is baked in so biomes and glaciers see shaded/sunny
+  // flanks (docs/plan/wind-aspect-climate-variability.md §3.4); monthly deviation is applied in cellClimateNormals.
+  const slopeOffset = computeWorldTerrainAspect(worldContext, exponent).annualOffsetC;
+
   for (let rowCellId = 0; rowCellId < gridCells.i.length; rowCellId += worldContext.grid.cellsX) {
     const [, y] = worldContext.grid.points[rowCellId];
     const rowLatitude = worldContext.mapCoordinates.latN! - (y / graphHeight) * worldContext.mapCoordinates.latT!;
@@ -1730,7 +1735,7 @@ export function calculateTemperatures() {
 
     for (let cellId = rowCellId; cellId < rowCellId + worldContext.grid.cellsX; cellId++) {
       const tempAltitudeDrop = getAltitudeTemperatureDrop(gridCells.h[cellId]);
-      gridCells.temp[cellId] = minmax(tempSeaLevel - tempAltitudeDrop, -128, 127);
+      gridCells.temp[cellId] = minmax(tempSeaLevel - tempAltitudeDrop + slopeOffset[cellId], -128, 127);
     }
   }
 

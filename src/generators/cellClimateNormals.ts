@@ -1,12 +1,15 @@
 import type { WorldContext } from "../context/worldContext";
 import { EARTH_EQUATORIAL_CIRCUMFERENCE_KM, getEarthCoordinatesAtMapPoint } from "../data/earthConfig";
+import { useOptionsState } from "../store/optionsState";
 import {
   CLIMATE_MODEL_VERSION,
   distributeAnnualPrecipitationMm,
   getMonthlyMeanTemperaturesC,
   type TemperatureCurve
 } from "../utils/earthlikeClimate";
+import { normalizeHeightExponent } from "../utils/height";
 import { precipitationProxyToMillimeters } from "../utils/precipitationUnits";
+import { computeWorldTerrainAspect } from "./terrainAspect";
 
 export type ContinentalitySource = "mappedCoast" | "regionalFallback";
 export interface CellClimateNormals extends TemperatureCurve {
@@ -14,6 +17,8 @@ export interface CellClimateNormals extends TemperatureCurve {
   readonly climateRevision: number;
   readonly longitudeDeg: number;
   readonly monthlyMeanTemperatureC: Float32Array;
+  /** Slope-aspect deviation from its own annual mean (that mean is already inside annual temp), °C by month. */
+  readonly terrainOffsetC: Float32Array;
   readonly annualPrecipitationMm: number;
   readonly monthlyPrecipitationMm: Float64Array;
   readonly continentalitySource: ContinentalitySource;
@@ -29,6 +34,7 @@ interface ClimateCache {
   geography: Geography;
   revision: number;
   monthly: Float32Array;
+  terrain: Float32Array;
   year: number;
 }
 const cache = new WeakMap<WorldContext, ClimateCache>();
@@ -170,12 +176,14 @@ function fallbackLatitude(world: WorldContext, cell: number): number {
 export function ensureCellClimateNormals(world: WorldContext, year: number): ClimateCache {
   const previous = cache.get(world);
   const geoKey = geographyKey(world);
-  const key = `${geoKey}:${hash(world.grid.cells.temp)}:${hash(world.grid.cells.prec)}:${world.options.axialTilt}:${year}`;
+  const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const key = `${geoKey}:${hash(world.grid.cells.temp)}:${hash(world.grid.cells.prec)}:${world.options.axialTilt}:${world.distanceScale}:${exponent}:${year}`;
   if (previous?.key === key) return previous;
   const geography = previous?.geography.key === geoKey ? previous.geography : buildGeography(world, geoKey);
   const count = world.grid.cells.i.length;
   const monthly = new Float32Array(count * 12);
-  const result: ClimateCache = { key, geography, revision: ++nextRevision, monthly, year };
+  const terrain = buildTerrainDeviation(world, exponent, count);
+  const result: ClimateCache = { key, geography, revision: ++nextRevision, monthly, terrain, year };
   for (const cell of world.grid.cells.i) {
     const coordinates = getEarthCoordinatesAtMapPoint(world, world.grid.points[cell]);
     const latitude = coordinates?.latitude ?? fallbackLatitude(world, cell);
@@ -189,9 +197,22 @@ export function ensureCellClimateNormals(world: WorldContext, year: number): Cli
       }),
       cell * 12
     );
+    for (let m = 0; m < 12; m++) monthly[cell * 12 + m] += terrain[cell * 12 + m];
   }
   cache.set(world, result);
   return result;
+}
+
+/**
+ * Monthly slope-aspect offsets minus their annual mean: calculateTemperatures() bakes that mean
+ * into grid.cells.temp, so only the seasonal deviation is added here (no double counting).
+ */
+function buildTerrainDeviation(world: WorldContext, exponent: number, count: number): Float32Array {
+  if (!world.grid.cells.c || !world.grid.cells.h || !(world.graphHeight > 0)) return new Float32Array(count * 12);
+  const { monthlyOffsetC, annualOffsetC } = computeWorldTerrainAspect(world, exponent);
+  for (let cell = 0; cell < count; cell++)
+    for (let m = 0; m < 12; m++) monthlyOffsetC[cell * 12 + m] -= annualOffsetC[cell];
+  return monthlyOffsetC;
 }
 
 /** Reads unrounded cell climate without initializing or importing any extension. */
@@ -241,6 +262,7 @@ function readCellClimateNormals(
     continentalitySource: state.geography.source[gridCellId],
     axialTiltDeg: world.options.axialTilt,
     monthlyMeanTemperatureC: state.monthly.slice(gridCellId * 12, gridCellId * 12 + 12),
+    terrainOffsetC: state.terrain.slice(gridCellId * 12, gridCellId * 12 + 12),
     annualPrecipitationMm,
     monthlyPrecipitationMm: distributeAnnualPrecipitationMm(annualPrecipitationMm, year),
     precipitationSeasonalitySource: "uniformAssumption"
