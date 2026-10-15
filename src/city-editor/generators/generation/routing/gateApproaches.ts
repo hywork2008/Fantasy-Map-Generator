@@ -3,6 +3,7 @@ import { featureGroupVertices } from "../../features";
 import { townGates } from "../../fortifications";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "../../geom";
 import {
+  createFaceSplitSession,
   edgeBetween,
   facePoints,
   faceVertices,
@@ -194,7 +195,10 @@ export function openWallRiverMouths(document: CityDocument): CityDocument {
 
 /** Replace perimeter detours through unoccupied exterior cells by real mesh chords. */
 export function shortcutExteriorRoads(document: CityDocument, planning = false): CityDocument {
+  // Splits go to one private copy in place when the document allows it (giant-city plan E2).
+  const session = createFaceSplitSession(document);
   let next = document;
+  let edited = false;
   const protectedVertices = new Set<Id>(
     Object.values(document.mesh.vertices)
       .filter(v => v.locked)
@@ -300,20 +304,33 @@ export function shortcutExteriorRoads(document: CityDocument, planning = false):
           };
           if ([run(ia, ib), run(ib, ia)].some(polygon => !isSimplePolygon(polygon) || polygonArea(polygon) * area <= 0))
             continue;
-          const split = splitFace(next, face.id, a, b);
-          if (!split) continue;
-          const pieces = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);
+          let split: CityDocument;
+          let pieces: (typeof next.mesh.faces)[Id][];
+          if (session) {
+            const newFaceId = session.split(face.id, a, b);
+            if (!newFaceId) continue;
+            split = session.document;
+            pieces = [split.mesh.faces[face.id], split.mesh.faces[newFaceId]];
+            // The copy changed in place: the per-mesh indexes above must be rebuilt.
+            indexedMesh = facesMesh = undefined;
+          } else {
+            const copy = splitFace(next, face.id, a, b);
+            if (!copy) continue;
+            split = copy;
+            pieces = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);
+          }
           const edge = edgeBetween(split.mesh, a, b)!;
           const updated = split.featureGroups.find(g => g.id === group.id)!;
           if (updated.kind !== "road") continue;
           updated.segments.splice(i, j - i, { edgeId: edge.id, forward: edge.a === a });
           for (const piece of pieces) piece.site = polygonCentroid(facePoints(split.mesh, piece));
           next = split;
+          edited = true;
           changed = true;
           break;
         }
       }
     }
   }
-  return next;
+  return edited ? next : document;
 }

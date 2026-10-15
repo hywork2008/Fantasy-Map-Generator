@@ -252,3 +252,60 @@ E2を「直線化のみ」から、次の3つの組み合わせに広げる。
 3. **差分の交差判定**: `crossingFailureCount` は、動かした頂点の近くに川・壁・門・橋が無ければ数え直さない。
 
 いずれも出力不変を目標にし、`benchmarkCeGiant` の `fingerprint.document` で 15k / 30k / 215k を比べる。
+
+## 8. E2 の結果（2026-10-15）
+
+路線A（取り消し可能なその場編集と局所検証）を、出力不変のまま4段階で入れた。全段階で `fingerprint.document` が変更前と一致する。
+
+### 8.1 実施した変更
+
+| 段 | 変更 | ファイル |
+| --- | --- | --- |
+| 1 | **辺の端点索引を `mesh.edges` ごとに保持する。** `edgeBetween`・`incidentEdges`・`indexMeshEdges`・`validate` の河川判定が、全辺の走査や毎回の索引作成をやめ、O(1) で引く。辺を足す・消す・付け替えるその場編集（`splitFaceInPlace`、`mergeFaces`、`insertEdgeVertexInPlace`、K6の `meshTopology`）は `meshEdgesChanged` で索引を捨てる。複製は新しい `edges` を持つので、元の索引を読まない。テストでは、小さいメッシュ（2,000辺未満）は毎回、大きいメッシュは64回に1回、全走査の結果と照合し、捨て忘れがあれば例外にする | [mesh.ts](../../src/city-editor/generators/mesh.ts)、[meshTopology.ts](../../src/city-editor/generators/generation/skeleton/meshTopology.ts) |
+| 2 | **頂点移動のセッション** `createVertexMoveSession`。妥当で城の無い文書に限り、1回だけ複製し、移動はその場で行って、不採用なら元の座標に戻す。城が無ければ `validateFortifications` は位相だけを見るので、移動で変わり得るのは動かした頂点に接する辺・面だけ。辺の長さ・面の面積・単純性・向きは既存の `createVertexMovePreflight`、新しい辺の交差は辺の格子索引で調べる。`straightenThroughStreets` はこれを使い、条件を満たさない文書では従来の経路（`straightenThroughStreetsByCopies`）を通る | [mesh.ts](../../src/city-editor/generators/mesh.ts)、[frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
+| 3 | **交差の失敗数の差分評価** `crossingLocality`。失敗数が読むのは、門・河川・城壁・橋の頂点での角度（その隣の頂点を含む）と、川の近くの道路区間（橋の甲板）だけで、残りは位相である。動かす頂点がどちらにも当たらないときは数え直さない。215kで155回 → 17回 | [frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
+| 4 | **面分割のセッション** `createFaceSplitSession`。同じ条件で1回だけ複製し、分割はその場で行う。新しい辺の長さ、2つの半分の面積・単純性・向き・面積の和を、変更の**前**に `splitFace`＋`validate` と同じ条件で調べるので、取り消しは要らない。辺の左右の面、端点索引、次の空きIDは、分割した部分だけ更新する。`shortcutExteriorRoads` はこれを使う | [mesh.ts](../../src/city-editor/generators/mesh.ts)、[gateApproaches.ts](../../src/city-editor/generators/generation/routing/gateApproaches.ts) |
+
+橋の斜交の判定（`bridgeSkewPolicy`）、検証の条件、生成の手順は変えていない。
+
+### 8.2 計測（Node、`benchmarkCeGiant`）
+
+seed `ppi409`、各段の累積:
+
+| 段 | 15k | 30k | 215k |
+| --- | ---: | ---: | ---: |
+| 変更前 | 0.92 s | 5.93 s | 48.50 s |
+| 1 端点索引 | 0.89 s | 5.02 s | 42.47 s |
+| 2 移動セッション | 0.87 s | 4.37 s | 36.26 s |
+| 3 交差の差分 | 0.89 s | 4.24 s | 34.96 s |
+| 4 分割セッション | 0.84 s | 2.93 s | **29.28 s（-39.6%）** |
+
+215k の `through-streets` は 12.9 s → 1.8 s。
+
+別の seed と、再試行（2〜3回）が起きる都市も含めた10件で、すべて指紋が一致した（`temp/giant/e2-seeds-*.jsonl`）。
+
+| seed | 人口 | 変更前 | 変更後 | 差 |
+| --- | ---: | ---: | ---: | ---: |
+| a1〜f6（6件） | 30k | 4.4〜11.2 s | 2.7〜7.1 s | -30〜-40% |
+| a1（3回目で成功） | 120k | 82.5 s | 36.8 s | -55.4% |
+| a1 / b2 | 215k | 45.3 / 52.7 s | 29.6 / 26.4 s | -34.8 / -49.9% |
+| b2 | 120k | 50.4 s | 31.3 s | -37.9% |
+
+### 8.3 ブラウザ（実際のUI、開発サーバー、seed `ppi409`）
+
+| 区間 | E0の基準 | E2後 |
+| --- | ---: | ---: |
+| クリックから表示完了 | 45.7 s | **30.5 s** |
+| Worker内の生成 | 35.8 s | **21.4 s** |
+
+人口報告は全項目一致した（`temp/giant/browser-e2.json`）。
+
+### 8.4 検証
+
+- 新しいテスト6件（[mesh.test.ts](../../src/city-editor/generators/mesh.test.ts)）: Voronoi・hex・evolution のそれぞれで、移動セッションと `moveVertices` の連鎖（300回、呼び出し側の不採用を含む）、分割セッションと `splitFace` の連鎖（200回）の結果のメッシュが一致し、元の文書を変えないことを確かめる。
+- CE全体: 1,456件成功、失敗3件。`CityEditorPage.skeleton` と `CityEditorPage.worker` の2件は変更前から失敗している（`git stash` で確認）。`population` の hex の1件は全体実行の負荷による120秒の時間切れで、単独では15件すべて成功した。
+- `tsc --noEmit`、Biome は成功。
+
+### 8.5 残り（215k、Node）
+
+`apply-plan` 約8 s、`rectify-voronoi` 6 s、`population-housing` 5 s、`plan` 3.5 s、`fabric-plan` 2.6 s、`finish-geometry` 2.2 s。文書全体の `validate`・`clone` はまだ `rectify-voronoi`（61回）と `finish-geometry` に残る。次の候補は、同じセッションの方式をこれらの工程の編集（`mergeFaces`・`moveVertices`）に広げること、そして E6（メインスレッドの `town-fabric` 8.7 s）。
