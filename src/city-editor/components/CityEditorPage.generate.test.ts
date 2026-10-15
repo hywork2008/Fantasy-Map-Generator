@@ -13,11 +13,14 @@ if (typeof Element.prototype.scrollIntoView !== "function") {
 let root: HTMLElement;
 let restoreCoastRandom: (() => void) | undefined;
 const COAST_WALK_TEST = "① reveals the coastline walk as a growing dotted trail, not sea cells";
+const RETRY_TEST = "rolls a town accepted on a retry again from that attempt and draws it identically";
+/** Grid and generation seeds fixed before the editor mounts. `1eaygix` is rejected twice and accepted on its third attempt. */
+const FIXED_SEEDS: Record<string, string> = { [COAST_WALK_TEST]: "phase7", [RETRY_TEST]: "1eaygix" };
 
 beforeEach(({ task }) => {
-  if (task.name === COAST_WALK_TEST) {
-    // Fix both the initial grid and generation seed before the editor mounts.
-    const random = vi.spyOn(Math, "random").mockReturnValue(Number.parseInt("phase7", 36) / 0xffffffff);
+  const fixed = FIXED_SEEDS[task.name];
+  if (fixed) {
+    const random = vi.spyOn(Math, "random").mockReturnValue(Number.parseInt(fixed, 36) / 0xffffffff);
     restoreCoastRandom = () => random.mockRestore();
   }
   root = document.createElement("div");
@@ -770,6 +773,36 @@ describe("shareable link and FMG site", () => {
       expect(geometry()).toEqual(before);
     }
   );
+
+  it(RETRY_TEST, async () => {
+    restoreCoastRandom?.();
+    restoreCoastRandom = undefined;
+    const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    expect(seedInput.value).toBe("1eaygix");
+    const rolls: Array<Array<{ attempt: number; failure?: unknown }>> = [];
+    root.addEventListener("city-generation-diagnostics", event =>
+      rolls.push((event as CustomEvent<Array<{ attempt: number; failure?: unknown }>>).detail)
+    );
+    panelButton("都市を一括生成").click();
+    const first = root.querySelector(".ce-svg")!.innerHTML;
+    expect(rolls[0].filter(sample => sample.failure).length).toBeGreaterThan(0);
+    // The requested seed stays; the retry seed is the town's own.
+    expect(seedInput.value).toBe("1eaygix");
+    panelButton("都市を一括生成").click();
+    expect(root.querySelector(".ce-svg")!.innerHTML).toBe(first);
+    expect(rolls[1].some(sample => sample.failure)).toBe(false);
+    expect(Math.min(...rolls[1].map(sample => sample.attempt))).toBe(3);
+    const writes: string[] = [];
+    Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
+    panelButton("Copy shareable link").click();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    const share = decodeShare(writes[0].slice(writes[0].indexOf("#") + 1));
+    expect(share?.seed).toBe("1eaygix");
+    expect(share?.settings.generationRetry?.attempt).toBe(2);
+    window.history.replaceState(null, "", writes[0]);
+    remount();
+    expect(root.querySelector(".ce-svg")!.innerHTML).toBe(first);
+  });
 
   it("reproduces a hashed city and hides synth geography when a site is imported", () => {
     const descriptor = JSON.parse(
