@@ -220,6 +220,7 @@ export function fitMapView(): void {
 
   // Set viewbox transform synchronously to avoid a one-frame flash at identity.
   viewContext.viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
+  viewContext.viewbox.style("--route-zoom", String(z));
 
   // Sync D3 zoom internal state so subsequent wheel/drag events compute correctly.
   viewContext.svg.call(zoom.transform, transform);
@@ -310,6 +311,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     pendingPositionChange = false;
 
     viewContext.viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
+    if (didScaleChange) viewContext.viewbox.style("--route-zoom", String(scale));
     DeckGlRenderer.syncViewState(viewContext);
 
     if (didPositionChange) {

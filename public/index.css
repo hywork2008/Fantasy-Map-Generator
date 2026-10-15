@@ -254,6 +254,23 @@ t,
   cursor: pointer;
 }
 
+/* Scale naturally when zoomed out, but cap screen widths and dash lengths.
+   Override registered routes' individual width attributes as well. */
+#roads path,
+#trails path {
+  vector-effect: non-scaling-stroke;
+}
+
+#roads path {
+  stroke-width: min(3px, calc(0.7px * var(--route-zoom, 1)));
+  stroke-dasharray: min(10px, calc(2px * var(--route-zoom, 1)));
+}
+
+#trails path {
+  stroke-width: min(2px, calc(0.25px * var(--route-zoom, 1)));
+  stroke-dasharray: min(8px, calc(0.8px * var(--route-zoom, 1))) min(8px, calc(1.6px * var(--route-zoom, 1)));
+}
+
 i.icon-lock {
   cursor: pointer;
 }
