@@ -1,7 +1,9 @@
+import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { ARCTIC_CIRCLE_LATITUDE_DEG } from "../data/earthConfig";
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
+import { getCellWind } from "../generators/cellWindClimate";
 import { evaluateCellFireSpiritStatus } from "../generators/fireSpirits";
 import { getForestClearingRate } from "../generators/forestStock";
 import { getFuneralRemainsAtCell } from "../generators/funeralRites";
@@ -21,6 +23,7 @@ import { findCell, findGridCell } from "../utils/graphUtils";
 import { depthToMeters, heightToMeters } from "../utils/height";
 import { rn } from "../utils/numberUtils";
 import { convertTemperature, formatAnnualPrecipitation, si } from "../utils/unitUtils";
+import { bearingToCompass8, getBeaufortForce, windVectorToFromDeg } from "../utils/windClimate";
 import { tooltipExtensions } from "./tooltipExtensions";
 
 /**
@@ -110,6 +113,7 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     nearshoreHabitat: getNearshoreHabitatDefinition(cells.nearshoreHabitat?.[i] ?? 0).label,
     currentDirection: isOceanCell ? `${worldContext.grid.cells.currentAngle?.[g] ?? 0}°` : "n/a",
     currentSpeed: isOceanCell ? getCurrentSpeedLabel(worldContext.grid.cells.currentSpeed?.[g] ?? 0) : "n/a",
+    wind: getFriendlyWind(g),
     waterTemp: isOceanCell ? convertTemperature(worldContext.grid.cells.waterTemp?.[g] ?? 0) : "n/a",
     enclosure: cells.h[i] < 20 && cells.enclosure ? `${cells.enclosure[i]}%` : "n/a",
     fireSpirits: (() => {
@@ -225,6 +229,18 @@ export function getPrecipitation(prec: number): string {
  * LBM fluid solve (`docs/simulation/ocean-currents.md`) — so display it as a percentage of that
  * scale rather than inventing a fake speed unit.
  */
+/** "W 6.2 m/s (Beaufort 4), lee, foehn" for the current simulation month. */
+export function getFriendlyWind(gridCellId: number): string {
+  const wind = getCellWind(worldContext, gridCellId, simulationContext.currentMonth);
+  if (!wind) return "n/a";
+  if (wind.speed < 0.5) return `calm (Beaufort 0)`;
+  const parts = [
+    `${bearingToCompass8(windVectorToFromDeg(wind.u, wind.v))} ${rn(wind.speed, 1)} m/s (Beaufort ${getBeaufortForce(wind.speed)})`
+  ];
+  if (wind.foehnProne) parts.push("foehn-prone lee");
+  else if (wind.leeSide) parts.push("lee side");
+  return parts.join(", ");
+}
 export function getCurrentSpeedLabel(speed: number): string {
   return `${rn((speed / 255) * 100)}%`;
 }

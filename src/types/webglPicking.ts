@@ -29,6 +29,7 @@ export type WebglPickKind =
   | "river"
   | "route"
   | "oceanCurrent"
+  | "wind"
   /** Pickable data contributed by a registered extension WebGL layer. */
   | "extension";
 

@@ -133,6 +133,12 @@ export const CellInfoDialog: React.FC = () => {
             <td>{t("dialogs.cellInfo.temperatureValue", { current: info.temp, annual: info.annualTemp })}</td>
           </tr>
           <tr>
+            <th scope="row" data-tip={t("dialogs.cellInfo.windTip")}>
+              {t("dialogs.cellInfo.wind")}
+            </th>
+            <td>{info.wind}</td>
+          </tr>
+          <tr>
             <th scope="row" data-tip={t("dialogs.cellInfo.waterTempTip")}>
               {t("dialogs.cellInfo.waterTemp")}
             </th>

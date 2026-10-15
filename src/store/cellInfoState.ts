@@ -44,6 +44,8 @@ export interface CellInfoData {
   currentSpeed: string;
   /** Surface water temperature, or "n/a" off open ocean. See `grid.cells.waterTemp`. */
   waterTemp: string;
+  /** Monthly mean surface wind for the current simulation month (docs/plan/wind-aspect-climate-variability.md §5.7). */
+  wind: string;
   /** How enclosed/sheltered the water is (0 = open, 100 = fully enclosed), or "n/a" on land. */
   enclosure: string;
   state: string;
@@ -101,6 +103,7 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   currentDirection: "n/a",
   currentSpeed: "n/a",
   waterTemp: "n/a",
+  wind: "n/a",
   enclosure: "n/a",
   state: "n/a",
   province: "n/a",

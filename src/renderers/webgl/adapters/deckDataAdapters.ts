@@ -15,6 +15,7 @@ import type { FocusScope } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
 import { HeightThreshold, OceanCurrentConstants } from "../../../data/constants";
+import { ensureCellWindClimate } from "../../../generators/cellWindClimate";
 import { LavaFlows } from "../../../generators/lavaFlows";
 import { Rivers } from "../../../generators/river-generator";
 import { Routes } from "../../../generators/routes-generator";
@@ -36,6 +37,7 @@ import type { WebglPickKind } from "../../../types/webglPicking";
 import { getPortAnchorPosition, isWater, lerp, minmax } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
+import { getBeaufortForce } from "../../../utils/windClimate";
 import { drawnFeatureShape, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { dangerValueToMagmaT } from "../../dangerColorScale";
@@ -674,6 +676,65 @@ export function buildOceanCurrentPaths(
     });
   }
 
+  return paths;
+}
+
+/** Roughly this many arrows on screen for a full map, independent of grid density. */
+const WIND_ARROW_TARGET = 2500;
+/** Speed (m/s) drawn at full arrow length. */
+const WIND_ARROW_FULL_SPEED = 12;
+
+/**
+ * Arrows for the monthly mean surface wind (docs/plan/wind-aspect-climate-variability.md §5.7):
+ * a decimated subset of grid cells, arrow pointing where the air goes, length from speed and
+ * colour from Beaufort force. `month` is 1-based (SimulationContext.currentMonth).
+ */
+export function buildWindPaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  month: number
+): DeckPath[] {
+  const { grid } = worldContext;
+  const n = grid.cells?.i?.length ?? 0;
+  if (!n || !grid.points?.length) return [];
+  const climate = ensureCellWindClimate(worldContext as WorldContext);
+  const monthIndex = (((Math.round(month) - 1) % 12) + 12) % 12;
+  const stride = Math.max(1, Math.round(Math.sqrt(n / WIND_ARROW_TARGET)));
+  const isRaster = grid.cellsX > 0 && grid.cellsX * grid.cellsY === n;
+  const maxLength = grid.spacing * stride * 0.85;
+
+  const paths: DeckPath[] = [];
+  for (let cellId = 0; cellId < n; cellId++) {
+    if (isRaster) {
+      if ((cellId % grid.cellsX) % stride || Math.floor(cellId / grid.cellsX) % stride) continue;
+    } else if (cellId % (stride * stride)) continue;
+    if (!isGridCellInScope(focusScope, cellId)) continue;
+    const position = grid.points[cellId];
+    if (!position) continue;
+    const u = climate.u[cellId * 12 + monthIndex];
+    const v = climate.v[cellId * 12 + monthIndex];
+    const speed = Math.hypot(u, v);
+    if (speed < 0.5) continue;
+    const length = maxLength * Math.min(1, Math.max(0.2, speed / WIND_ARROW_FULL_SPEED));
+    // Screen y grows southward.
+    const dx = (u / speed) * length;
+    const dy = (-v / speed) * length;
+    const [x, y] = position;
+    const tail: DeckPosition = [x - dx / 2, y - dy / 2];
+    const head: DeckPosition = [x + dx / 2, y + dy / 2];
+    const wing = 0.3;
+    const left: DeckPosition = [head[0] - (dx - dy * 0.6) * wing, head[1] - (dy + dx * 0.6) * wing];
+    const right: DeckPosition = [head[0] - (dx + dy * 0.6) * wing, head[1] - (dy - dx * 0.6) * wing];
+    const force = getBeaufortForce(speed);
+    paths.push({
+      id: `wind-${cellId}`,
+      path: [tail, head, left, head, right],
+      color: colorToRgba(interpolateSpectral(1 - minmax(force / 8, 0, 1)), "#999999", 0.9),
+      width: lerp(0.8, 2, minmax(speed / WIND_ARROW_FULL_SPEED, 0, 1)),
+      kind: "wind",
+      cellId
+    });
+  }
   return paths;
 }
 

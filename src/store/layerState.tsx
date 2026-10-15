@@ -217,6 +217,14 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     sortKey: "Ocean Currents"
   },
   {
+    id: "toggleWinds",
+    name: <>Winds</>,
+    shortcut: null,
+    tooltip:
+      "Winds: monthly mean surface wind for the current simulation month; arrow length is speed, colour is Beaufort force (WebGL only). Click to toggle.",
+    sortKey: "Winds"
+  },
+  {
     id: "togglePopulation",
     name: (
       <>

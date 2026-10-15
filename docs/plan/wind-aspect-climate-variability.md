@@ -1,7 +1,7 @@
 # セル別の季節風・日変化、斜面方位による気温補正、小氷期（長周期寒冷期）
 
 作成日: 2026-10-16
-状態: トラックA（斜面方位）・トラックL（小氷期）のL0〜L2実装済み（2026-10-16）。Wは未実装。係数はすべて未較正の初期候補値であり、較正済みと扱わない。§8の決定事項はユーザー回答（2026-10-16）を反映済み。
+状態: トラックA（斜面方位）・トラックL（小氷期）のL0〜L2、トラックWのW1を実装済み（2026-10-16）。W2・W3は未実装。係数はすべて未較正の初期候補値であり、較正済みと扱わない。§8の決定事項はユーザー回答（2026-10-16）を反映済み。
 
 関連: [地球型季節気候と農業](earthlike-seasonal-climate-and-agriculture.md)、[季節気温](seasonal-temperature-variation.md)、
 [干魃・熱波と災害共通基盤](climate-disaster-drought.md)、[災害モード](disaster-mode.md)、
@@ -329,7 +329,7 @@ wind(cell, m, h) = V̄[m] · (1 + mixAmp · cos(2π(h − 14)/24))
 | A1 | `slopeInsolation.ts`、`terrainAspect.ts`、`calculateTemperatures()` への年平均の反映、`cellClimateNormals` の `terrainOffsetC` | **実装済み**。単体テスト（`slopeInsolation.test.ts`、`terrainAspect.test.ts`、`cellClimateNormals.test.ts`）が通り、実地図で計測した（§3.3）。セル情報への内訳の表示は未実装 |
 | L1 | `climateVariability.ts`、`anomalyOffsetC`、設定とWorld Configuratorのグラフ、年表の表示 | **一部実装**: 計算・月別値への反映・設定とその即時反映は済み。グラフ・年表は未実装（§4.5） |
 | L2 | `coldHarvest` 災害、干魃の変動幅の拡大、本体の食料近似、早送りの人口係数、（P0の結果次第で）積算温度による収量係数 | **実装済み**。限界地から先に収量が落ちることは実地図で確認した。人口の減少は既存の飢饉経路の感度が低く、小さい（§4.5） |
-| W1 | 帯の風（補間、季節移動、強さ）、粗さ・露出・遮蔽、Windsレイヤー、セル情報 | 帯の風向の設定を変えると風の場が追従する。生成結果（temp/prec/海流）は変わらない |
+| W1 | 帯の風（補間、季節移動、強さ）、粗さ・露出・遮蔽、Windsレイヤー、セル情報 | **実装済み**（`src/utils/windClimate.ts`、`src/generators/cellWindClimate.ts`、WebGLの `toggleWinds`、セル情報の「風」）。帯の風向を変えると風の場が追従し、temp/precは変わらないことを実地図で確認した（32,472セル、セル間隔19km、初回の構築471ms・3.5MB、1月の風下判定1.6%・フェーン0%）。`windClimate` オプション（§5.6）と谷での向きの変化（`channelled`）は未実装。係数は未較正 |
 | W2 | 季節風、日変化、日単位の集計 | 大陸の東岸・南岸の亜熱帯で、夏と冬に風向が逆転する。海岸で午後の海風が出る |
 | W3 | 風車、海上移動、CE記述子 | 各利用側の既存のテストと、新しい感度テストが通る |
 

@@ -988,6 +988,16 @@ export function toggleOceanCurrents(event?: MouseEvent): void {
   else turnButtonOn("toggleOceanCurrents");
 }
 
+/**
+ * WebGL-only monthly mean surface wind field (docs/plan/wind-aspect-climate-variability.md §5.7).
+ * Runtime-derived from options.winds and terrain; no SVG counterpart.
+ */
+export function toggleWinds(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleWinds", "winds", event)) return;
+  if (layerIsOn("toggleWinds")) turnButtonOff("toggleWinds");
+  else turnButtonOn("toggleWinds");
+}
+
 export function toggleMilitary(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleMilitary", "armies", event)) return;
   if (!layerIsOn("toggleMilitary")) {
@@ -1226,6 +1236,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleRoutes,
   toggleSeaCurrents,
   toggleOceanCurrents,
+  toggleWinds,
   toggleMilitary,
   toggleMarkers,
   toggleFrontierForts,

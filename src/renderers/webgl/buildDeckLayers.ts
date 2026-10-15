@@ -17,6 +17,7 @@ import {
   TextLayer
 } from "@deck.gl/layers";
 import type { AppServices } from "../../context/appServices";
+import { simulationContext } from "../../context/simulationContext";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { getCombatDeathsByCell, getPopulationLossSimDay } from "../../generators/populationLossTracker";
@@ -68,6 +69,7 @@ import {
   buildSeaCurrentCellPolygons,
   buildStatePolygons,
   buildTemperaturePolygons,
+  buildWindPaths,
   buildZonePolygons,
   colorToRgba,
   type DeckBurgIconStyle,
@@ -334,7 +336,8 @@ export const WEBGL_LAYER_TOGGLES = new Set([
   "toggleLabels",
   "toggleEnclosure",
   "toggleSeaCurrents",
-  "toggleOceanCurrents"
+  "toggleOceanCurrents",
+  "toggleWinds"
 ]);
 
 const EMBLEM_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
@@ -854,6 +857,27 @@ export function buildDeckLayers(
         })
       );
     }
+  }
+
+  if (activeLayers.toggleWinds) {
+    layers.push(
+      new PathLayer<DeckPath>({
+        id: "fmg-webgl-winds",
+        data: getCachedDeckData("path:winds", signatures.byLayer.winds, () =>
+          buildWindPaths(worldContext, viewContext.focusScope, simulationContext.currentMonth)
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPath: datum => datum.path,
+        getColor: datum => datum.color,
+        getWidth: datum => datum.width,
+        widthUnits: "pixels",
+        widthMinPixels: 0.5,
+        widthMaxPixels: 3,
+        capRounded: true,
+        jointRounded: true,
+        pickable: false
+      })
+    );
   }
 
   for (const layer of getExtensionWebglLayers(activeLayers)) {
@@ -1811,6 +1835,15 @@ function buildLayerSignatures(
     ["map.topology", "map.physical"],
     () =>
       `${mapId}|${scope}|${gridGeometry()}|${numberListSignature(grid.cells?.currentAngle)}|${numberListSignature(grid.cells?.currentSpeed)}|${numberListSignature(grid.cells?.waterTemp)}`
+  );
+
+  // Runtime-derived from options.winds + terrain; the simulation month selects the field.
+  setIfActive(
+    "winds",
+    "toggleWinds",
+    ["map.topology", "map.physical", "simulation.cells"],
+    () => `${mapId}|${scope}|${gridGeometry()}|${numberListSignature(grid.cells?.h)}`,
+    `${JSON.stringify(worldContext.options?.winds)}|${worldContext.options?.axialTilt}|m${simulationContext.currentMonth}`
   );
 
   // The coastline layer always renders (not toggle-gated), so its signature is always needed.
