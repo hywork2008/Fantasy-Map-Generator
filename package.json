@@ -37,7 +37,7 @@
     "calibrate:fast-advance": "tsx scripts/calibrateFastAdvance.ts",
     "diagnose:treasury": "tsx scripts/diagnoseTreasuryDecline.ts",
     "diagnose:wealth": "tsx scripts/diagnoseCharacterWealth.ts",
-    "extract:fmg": "tsx scripts/extractFmgArchive.ts",
+    "extract:fmg": "node --import tsx scripts/extractFmgArchive.ts",
     "housing:compare": "node scripts/compareBurgHousing.mjs",
     "races:import": "node --import tsx scripts/races-csv.ts import",
     "races:export": "node --import tsx scripts/races-csv.ts export",
@@ -63,7 +63,9 @@
     "lab:csv": "node scripts/labCsv.mjs",
     "map:server": "node scripts/mapServer.mjs",
     "ce:wall-lab": "node --import tsx scripts/wallRingLab.ts",
-    "ce:wall-order": "node scripts/compareTownWallOrders.mjs"
+    "ce:wall-order": "node scripts/compareTownWallOrders.mjs",
+    "audit:fmg-cities": "node --import tsx scripts/auditFmgCityContext.ts",
+    "test:fmg-audit": "node --import tsx --test scripts/lib/fmgCityAudit/audit.test.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

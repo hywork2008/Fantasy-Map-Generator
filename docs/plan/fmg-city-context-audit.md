@@ -1,7 +1,9 @@
 # FMG都市・街道・防衛文脈の抽出／監査スクリプト設計
 
 作成日: 2026-10-15  
-状態: 設計。今回の成果物は本書であり、抽出・監査スクリプトの実装は後続作業とする。
+状態: 初期実装済み（保存値抽出・Directions・基本整合性）。利用方法は `docs/tools/fmg-city-audit.md`。
+
+実装状況: Phase 1のCLI・JSON/CSV・共通archive reader・Directions共通コアと、Phase 3の軍事／経済／河岸の事実抽出を実装した。Phase 2はscale/role分類の共用までで、完全なdescriptor照合・登録陸路復元は未実装。歴史ルール・CE形状評価・橋の斜交評価はskippedとして出力する。以下には後続実装の仕様も含む。
 
 ## 1. 目的と対象
 
@@ -29,7 +31,7 @@
 | `src/generators/routes-generator.ts` | `getRenderPoints`による実描画経路の整形 |
 | `src/generators/worldLandConnectionArchive.ts` | 登録陸路と河川形状の整合した復元 |
 | `src/controllers/mapContextMenu.ts` | 右クリックDistance from/toから`computeDirections`を呼ぶ入口 |
-| `src/services/travelDirections.ts` | Directionsと共用する都市間経路探索・距離計測、移動手段の既定選択 |
+| `src/services/travelDirections.ts` / `travelDirectionsCore.ts` | UIアダプターと、Directions／CLIで共用する都市間経路探索・距離計測、移動手段の既定選択 |
 | `src/ui/dialogs/DirectionsDialog.tsx` | 移動手段・海路設定、`rn(route.distanceKm)`による距離表示 |
 | `src/utils/mapUnitMeters.ts` | CE形状・補助距離の単位換算 |
 | `src/types/models.ts`、`src/context/simulationContext.ts` | 都市、軍団、simulationの型 |
@@ -73,7 +75,7 @@
 
 Mochaのセルに接する保存routeは253/360（trails）、499/506（searoutes）。生のpointsをたどった場合、253はCosonillo#287と都市#525へ、360はMiniltabla#399へ、499はCosonillo#287へ、506は都市#140へ到達する。
 
-距離単位をkmと仮定した生のpointsの累積距離は、253→Cosonilloが約101.861km、360→Miniltablaが約90.356km、499→Cosonilloが約24.586km。**Directionsの都市間距離ではない。** ユーザー例の103km／91kmは、右クリックDistance from/toで開くDirectionsダイアログの表示値である。都市間距離の正式な計測元は`computeDirections`とし、同じ移動手段・海路設定・高さ設定で得た結果と表示丸めを照合する。海路と陸路を都市対だけで統合しない。
+距離単位をkmと仮定した生のpointsの累積距離は、253→Cosonilloが約101.861km、360→Miniltablaが約90.356km、499→Cosonilloが約24.586km。**Directionsの都市間距離ではない。** ユーザー例の103km／91kmは、右クリックDistance from/toで開くDirectionsダイアログの表示値である。初期実装の共用コアで、既定設定・mounted選択時に102.53897750043281km／90.98869031693359km、UI丸め後103km／91kmを再現した。都市間距離の正式な計測元は`computeDirections`とし、同じ移動手段・海路設定・高さ設定で得た結果と表示丸めを照合する。海路と陸路を都市対だけで統合しない。
 
 このファイルのworld.optionsにはdistanceUnitがない。現行UIの既定値はkmだがlocalStorageに依存するため、保存ファイルだけから当時の表示単位を断定できない。
 
@@ -93,7 +95,7 @@ npm run audit:fmg-cities -- map.fmg --output temp/all-city-audit \
   --all --nearby-radius-km 150 --distance-unit km --format both
 ```
 
-上記は実装後の利用例で、現時点では実行できない。
+上記のCLI例は実行できる。`--rules`は後続実装とし、現行CLIでは受け付けない。
 
 | 引数 | 契約 |
 | --- | --- |

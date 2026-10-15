@@ -44,6 +44,7 @@ import {
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { residentialStoreys, supportsUrbanMorphology } from "../utils/urbanMorphology";
+import { burgDestinationTraits } from "./burgDestinationTraits";
 import { burgEconomyExtensions } from "./burgEconomyExtensions";
 import { burgUrbanMorphology } from "./burgUrbanMorphology";
 import { updateBurgWaterAccess } from "./burgWaterAccess";
@@ -1441,17 +1442,7 @@ function collectRoadEntries(
         }
         const stateName = (target?.state && pack.states[target.state]?.name) || "";
         const pop = target?.population ?? 0;
-        let scale: BurgSiteRoadNextBurg["scale"] = "town";
-        if (target?.group === "hamlet" || pop < 1) scale = "hamlet";
-        else if (target?.group === "village" || pop < 3) scale = "village";
-        else if (pop > 10 || target?.capital) scale = "city";
-
-        let role: BurgSiteRoadNextBurg["role"] = "generic";
-        if (target?.capital) role = "capital";
-        else if (target?.citadel || (target?.walls && pop < 4)) role = "fortress";
-        else if (scale === "village" || target?.group === "farm") role = "granary";
-        else if (target?.port || target?.group === "trading_post" || (scale === "city" && target?.plaza))
-          role = "market";
+        const { scale, role } = burgDestinationTraits(target);
 
         const popRate = worldContext.populationRate * worldContext.urbanization;
         nextBurg = {
