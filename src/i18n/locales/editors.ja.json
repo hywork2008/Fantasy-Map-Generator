@@ -730,7 +730,7 @@
       "populationFrame": "地図サイズ",
       "populationFrameAuto": "人口から自動",
       "populationFrameManual": "現在の地図サイズ",
-      "populationInvalid": "1〜150,000人の整数を入力して下さい。",
+      "populationInvalid": "1〜220,000人の整数を入力して下さい。",
       "populationUnsupported": "この組合せは未対応です。mesh-first・organic・対応する産業革命前の時代を選択して下さい。",
       "populationFrameSmall": "現在の地図はこの人口を収容するには小さすぎます。",
       "populationEstimate": "必要{{dwellings}}住戸 · 約{{buildings}}棟 · {{area}}km² · 地図幅{{extent}}km · セル幅{{cell}}m（コア約{{cells}}セル）",

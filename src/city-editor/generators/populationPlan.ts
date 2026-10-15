@@ -3,8 +3,9 @@ import { residentialStoreys, supportsUrbanMorphology } from "../../utils/urbanMo
 import type { PopulationGenerationSettings, PopulationPlan } from "../types/contracts/population";
 import { dwellingCapacity } from "./residentialCapacity";
 
-export const MAX_CITY_POPULATION = 150_000;
-export function defaultPopulationSettings(population = 3000): PopulationGenerationSettings {
+export const DEFAULT_CITY_POPULATION = 15_000;
+export const MAX_CITY_POPULATION = 220_000;
+export function defaultPopulationSettings(population = DEFAULT_CITY_POPULATION): PopulationGenerationSettings {
   return {
     version: 1,
     source: "manual",
@@ -36,7 +37,7 @@ export function planPopulation(
   manualExtent = 4800
 ): PopulationPlan {
   if (!validPopulationSettings(settings))
-    throw new Error("Population must be an integer from 1 to 150,000; unsupported population profile or settings.");
+    throw new Error("Population must be an integer from 1 to 220,000; unsupported population profile or settings.");
   if (!supportsUrbanMorphology(period)) throw new Error(`Population generation does not support ${period}.`);
   const requiredDwellings = getUrbanDwellings(settings.targetPopulation);
   const storeys = residentialStoreys(period).standard;

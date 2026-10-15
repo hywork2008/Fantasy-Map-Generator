@@ -14,10 +14,11 @@ function mount() {
   return root;
 }
 describe("population generation controls", () => {
-  it("defaults to 3,000 residents and previews the Paris population without regenerating", () => {
+  it("defaults to 15,000 residents and previews the Paris population without regenerating", () => {
     const root = mount();
     const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;
-    expect(input.value).toBe("3000");
+    expect(input.value).toBe("15000");
+    expect(input.max).toBe("220000");
     expect(root.querySelector<HTMLInputElement>(".ce-population-enabled")!.checked).toBe(true);
     const before = root.querySelector("svg")!.outerHTML;
     input.value = "150000";
@@ -25,6 +26,16 @@ describe("population generation controls", () => {
     expect(root.querySelector(".ce-population-estimate")!.textContent).toContain("33,334");
     expect(root.querySelector("svg")!.outerHTML).toBe(before);
     expect(root.querySelector<HTMLElement>(".ce-population-controls")!.dataset.valid).toBe("true");
+  });
+  it("accepts the maximum population of 220,000", () => {
+    const root = mount();
+    const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;
+    input.value = "220000";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(input.validity.valid).toBe(true);
+    expect(root.querySelector<HTMLElement>(".ce-population-controls")!.dataset.valid).toBe("true");
+    expect(root.querySelector(".ce-population-estimate")!.textContent).toContain("48,889");
   });
   it("fits the viewport and size control to an automatically enlarged population map", () => {
     const root = mount();
@@ -57,7 +68,7 @@ describe("population generation controls", () => {
   it("blocks empty, fractional and excessive populations without restoring a previous value", () => {
     const root = mount();
     const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;
-    for (const raw of ["", "1.5", "150001", "-5"]) {
+    for (const raw of ["", "1.5", "220001", "-5"]) {
       input.value = raw;
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));

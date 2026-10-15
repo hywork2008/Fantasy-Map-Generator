@@ -33,8 +33,16 @@ describe("population-driven city generation", () => {
     expect(validPopulationPlan({ ...p, extentMeters: 2700 })).toBe(false);
     expect(p.targetAreaM2).toBeCloseTo(3950814.815);
   });
+  it("defaults to 15,000 and supports the 220,000 population limit", () => {
+    expect(defaultPopulationSettings().targetPopulation).toBe(15000);
+    const settings = defaultPopulationSettings(220000);
+    expect(validPopulationSettings(settings)).toBe(true);
+    const plan = planPopulation(settings);
+    expect(plan.requiredDwellings).toBe(48889);
+    expect(validPopulationPlan(plan)).toBe(true);
+  });
   it("rejects malformed inputs and insufficient frames", () => {
-    for (const n of [0, -1, 1.5, NaN, Infinity, 150001])
+    for (const n of [0, -1, 1.5, NaN, Infinity, 220001])
       expect(validPopulationSettings(defaultPopulationSettings(n))).toBe(false);
     expect(() =>
       planPopulation({ ...defaultPopulationSettings(150000), frameMode: "manual" }, "lateMedieval", 1200)

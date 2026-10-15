@@ -1,6 +1,11 @@
 import { editorText } from "../../i18n/editorMessages";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
-import { defaultPopulationSettings, planPopulation } from "../generators/populationPlan";
+import {
+  DEFAULT_CITY_POPULATION,
+  defaultPopulationSettings,
+  MAX_CITY_POPULATION,
+  planPopulation
+} from "../generators/populationPlan";
 import type { PopulationGenerationSettings } from "../types/contracts/population";
 import type { GenerationPanelContext } from "./generationPanel";
 
@@ -10,8 +15,8 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
   const enabled = document.createElement("input");
   enabled.type = "checkbox";
   enabled.className = "ce-population-enabled";
-  const input = ctx.numberInput("3000", "1", "1");
-  input.max = "150000";
+  const input = ctx.numberInput(String(DEFAULT_CITY_POPULATION), "1", "1");
+  input.max = String(MAX_CITY_POPULATION);
   input.required = true;
   input.className = "ce-population-input";
   const source = ctx.select(["manual", "fmg", "ce-override"], "manual");
@@ -102,7 +107,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     input.value = String(
       p?.source === "fmg"
         ? (descriptor?.burg.population ?? p.targetPopulation)
-        : (p?.targetPopulation ?? descriptor?.burg.population ?? 3000)
+        : (p?.targetPopulation ?? descriptor?.burg.population ?? DEFAULT_CITY_POPULATION)
     );
     display.value = p?.housingDisplay ?? "auto";
     frame.value = p?.frameMode ?? "auto";
@@ -111,7 +116,8 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     preview();
     // Disabled FMG inputs still need to block unsupported populations, so the panel records validity too.
     panel.dataset.valid = String(
-      !p || (input.validity.valid && Number.isInteger(input.valueAsNumber) && input.valueAsNumber <= 150000)
+      !p ||
+        (input.validity.valid && Number.isInteger(input.valueAsNumber) && input.valueAsNumber <= MAX_CITY_POPULATION)
     );
   }
   function change() {
@@ -132,7 +138,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     ctx.generation.completeResult = null;
     ctx.generation.lastGeneratedStep = null;
     clearGenerationPreviewCache();
-    if (enabled.checked && (!Number.isInteger(target) || target < 1 || target > 150000)) {
+    if (enabled.checked && (!Number.isInteger(target) || target < 1 || target > MAX_CITY_POPULATION)) {
       preview();
       panel.dataset.valid = "false";
     } else sync();

@@ -9,7 +9,11 @@ import {
 } from "../../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
-import { defaultPopulationSettings, validPopulationSettings } from "../../generators/populationPlan";
+import {
+  defaultPopulationSettings,
+  MAX_CITY_POPULATION,
+  validPopulationSettings
+} from "../../generators/populationPlan";
 import { joinStrandedRoadsToCrossings } from "../../generators/site/strandedRoads";
 import type { IncomingOrigin } from "../../types/contracts/incomingCity";
 import { readMaxPatchesPreference } from "../browserPreferences";
@@ -187,7 +191,9 @@ export function shareFromDescriptor(
     measureBlockSize: townGrid ? true : undefined,
     settings: {
       config: structuredClone(DEFAULT_SITE_CONFIG),
-      ...(descriptor.burg.population >= 1 && descriptor.burg.population <= 150000 && descriptor.urbanMorphology
+      ...(descriptor.burg.population >= 1 &&
+      descriptor.burg.population <= MAX_CITY_POPULATION &&
+      descriptor.urbanMorphology
         ? { population: { ...defaultPopulationSettings(descriptor.burg.population), source: "fmg" as const } }
         : {})
     },

@@ -730,7 +730,7 @@
       "populationFrame": "Map size",
       "populationFrameAuto": "From population",
       "populationFrameManual": "Current map size",
-      "populationInvalid": "Enter an integer from 1 to 150,000.",
+      "populationInvalid": "Enter an integer from 1 to 220,000.",
       "populationUnsupported": "This combination is not supported. Use mesh-first, organic layout and a supported pre-industrial period.",
       "populationFrameSmall": "The current map is too small for this population.",
       "populationEstimate": "{{dwellings}} dwellings · ~{{buildings}} buildings · {{area}} km² · {{extent}} km map · {{cell}} m cells (~{{cells}} core cells)",
