@@ -23,6 +23,7 @@ import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
 import { DiplomacyRelationDialog } from "./DiplomacyRelationDialog";
 import { DirectionsDialog } from "./DirectionsDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
+import { EncyclopediaDialog } from "./EncyclopediaDialog";
 import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { EDITOR_REGISTRY } from "./editorRegistry";
@@ -131,6 +132,7 @@ export const DialogsContainer: React.FC = () => {
           <DiplomacyRelationDialog />
           <DirectionsDialog />
           <ElevationProfileDialog />
+          <EncyclopediaDialog />
           <ExportMapDialog />
           <ExportToPngTilesDialog />
           <FastAdvanceSettingsDialog />

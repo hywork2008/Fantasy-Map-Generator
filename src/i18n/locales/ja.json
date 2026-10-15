@@ -1732,7 +1732,9 @@
     "costOfLivingFamily": "4〜5人程度の一家族が一年に必要な生活費:およそ銀貨2〜4枚——家族構成員それぞれの生活費の合計です。",
     "costOfLivingHouse": "質素な住宅・農家一軒を購入する費用:およそ銀貨10〜30枚——労働者数年分の貯蓄に相当する目安です。住宅の売買は現時点でシミュレートされていないため、実際の価格ではなく世界観を語る上での目安としてお使いください。",
     "startTour": "▶ 対話ツアーを始める",
-    "startTourTip": "地図ジェネレーターの対話ツアーを開始します"
+    "startTourTip": "地図ジェネレーターの対話ツアーを開始します",
+    "openEncyclopedia": "📖 百科事典で開く",
+    "openEncyclopediaTip": "百科事典の「生活費の目安」の項目を開きます"
   },
   "common": {
     "on": "オン",
@@ -2368,7 +2370,9 @@
     "submap": "部分地図",
     "submapTip": "現在の表示範囲から部分地図を生成します",
     "transform": "変形",
-    "transformTip": "地図を変形します"
+    "transformTip": "地図を変形します",
+    "encyclopedia": "百科事典",
+    "encyclopediaTip": "百科事典を開きます:地図の機能、世界のルール、歴史"
   },
   "styleTab": {
     "preset": "スタイルプリセット：",
@@ -2615,7 +2619,8 @@
       "parsingError": "解析エラー",
       "addRegimentToBattle": "戦闘に連隊を追加",
       "battleResults": "戦闘結果",
-      "changeStateName": "国家名を変更"
+      "changeStateName": "国家名を変更",
+      "encyclopedia": "百科事典"
     },
     "editors": {
       "biomesEditor": "バイオームエディター",
@@ -5152,5 +5157,25 @@
   },
   "waterfrontCheck": {
     "failed": "水際判定: {{count}} 件の港町が岸や河岸に接していません。FMGの都市・街道・河川の配置ロジックを見直してください（詳細はコンソール）。"
+  },
+  "encyclopedia": {
+    "searchPlaceholder": "検索…",
+    "noResults": "該当する項目がありません。",
+    "back": "◀ 戻る",
+    "sources": "出典",
+    "seeAlso": "関連項目",
+    "referencedBy": "この項目を参照している項目",
+    "entryNotFound": "項目が見つかりません: {{id}}",
+    "namespaces": {
+      "feature": "機能",
+      "rule": "世界のルール",
+      "history": "史実",
+      "tech": "技術",
+      "war": "戦争",
+      "battle": "戦い",
+      "state": "国家",
+      "burg": "都市",
+      "character": "人物"
+    }
   }
 }

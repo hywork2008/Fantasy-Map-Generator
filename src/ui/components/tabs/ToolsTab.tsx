@@ -437,6 +437,14 @@ export const ToolsTab: React.FC = () => {
           {t("tools.charts")}
         </button>
         <button
+          data-tip={t("tools.encyclopediaTip")}
+          type="button"
+          className={openDialogs.has("encyclopedia") ? "pressed" : undefined}
+          onClick={() => triggerEvent("openEncyclopedia")}
+        >
+          {t("tools.encyclopedia")}
+        </button>
+        <button
           data-tip={t("tools.minimapTip")}
           type="button"
           className={openDialogs.has("minimap") ? "pressed" : undefined}

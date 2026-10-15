@@ -29,7 +29,7 @@ It is a cache of how that person scores under **their race’s beauty ideal** ap
 | Unreadable other race | “Strange”, “I can’t tell”, “uncanny” — not “ugly” in the home sense |
 | Unreadable + similar physique | “Odd, but I can tell they are broad / slight like a strong one of ours” |
 
-So: **同種族は Appearance で判断する。異種族は基本「読めない」が、一部の非対称ペアだけ観察者の美意識で部分採点する（人間→エルフが定番）。**
+So: **Same-race pairs are judged by Appearance. Cross-race pairs are mostly “unreadable”; only a few asymmetric pairs are partially scored by the observer’s own aesthetic (Human → Elf is the classic case).**
 
 ---
 

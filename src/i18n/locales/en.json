@@ -1732,7 +1732,9 @@
     "costOfLivingFamily": "One family of four or five, for a year: roughly 2–4 silver pieces — the sum of each member's living cost.",
     "costOfLivingHouse": "A modest house or homestead: roughly 10–30 silver pieces — several years of a laborer's savings. Buying property isn't a simulated transaction yet, so treat this as a storytelling rule of thumb rather than an in-game price.",
     "startTour": "▶ Take an Interactive Tour",
-    "startTourTip": "Take an interactive tour of the map generator"
+    "startTourTip": "Take an interactive tour of the map generator",
+    "openEncyclopedia": "📖 Open in Encyclopedia",
+    "openEncyclopediaTip": "Open the Encyclopedia at the Cost of Living entry"
   },
   "common": {
     "on": "On",
@@ -2368,7 +2370,9 @@
     "submap": "Submap",
     "submapTip": "Click to generate a submap from the current viewport",
     "transform": "Transform",
-    "transformTip": "Click to transform the map"
+    "transformTip": "Click to transform the map",
+    "encyclopedia": "Encyclopedia",
+    "encyclopediaTip": "Click to open the Encyclopedia: map features, world rules, and history"
   },
   "styleTab": {
     "preset": "Style preset:",
@@ -2615,7 +2619,8 @@
       "parsingError": "Parsing error",
       "addRegimentToBattle": "Add regiment to the battle",
       "battleResults": "Battle results",
-      "changeStateName": "Change state name"
+      "changeStateName": "Change state name",
+      "encyclopedia": "Encyclopedia"
     },
     "editors": {
       "biomesEditor": "Biomes Editor",
@@ -5152,5 +5157,25 @@
   },
   "waterfrontCheck": {
     "failed": "Waterfront check: {{count}} port town(s) are not on their shore or bank. Review FMG settlement, road and river placement (details in the console)."
+  },
+  "encyclopedia": {
+    "searchPlaceholder": "Search…",
+    "noResults": "No matching entries.",
+    "back": "◀ Back",
+    "sources": "Sources",
+    "seeAlso": "See also",
+    "referencedBy": "Referenced by",
+    "entryNotFound": "Entry not found: {{id}}",
+    "namespaces": {
+      "feature": "Features",
+      "rule": "World rules",
+      "history": "History",
+      "tech": "Technologies",
+      "war": "Wars",
+      "battle": "Battles",
+      "state": "States",
+      "burg": "Burgs",
+      "character": "People"
+    }
   }
 }

@@ -75,6 +75,7 @@ import { openChartsOverview } from "./charts-overview";
 import { editDiplomacy, openRelationsHistory } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
 import { editEmblem } from "./emblems-editor";
+import { openEncyclopedia } from "./encyclopedia";
 import { editHeightmap } from "./heightmapEditor";
 import { interactionManager } from "./interactionManager";
 import {
@@ -220,6 +221,7 @@ document.addEventListener("react-tool-action", e => {
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
+  else if (button === "openEncyclopedia") toggleEditor("encyclopedia", null, () => openEncyclopedia());
   else if (button === "openAdvanceTimeDialog") openDialog("advanceTime");
   else if (button === "openFrontierOperationsDialog") openDialog("frontierOperations");
   else getToolActionHandler(button)?.(detail);

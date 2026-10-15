@@ -12,7 +12,7 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 3. **Dark elf, giant, draconic, Amazones, Beastfolk** keep **distance** — not open enemy, not open melting-pot. Strong cultures, closed doors. In **High Fantasy**, Demons hold no states and pass as Humans inside mortal society; in **Dark Fantasy**, they may also rule an open Demon realm.
 4. **Goblin, orc, arachnid** live in **enemy colonies** (raids, war-clans, predatory nests). They do not staff mixed courts or peaceful markets.
 5. **Wyrmkin** are **bound servitors** of **draconic** realms only — no free kingdoms. They run markets, craft halls, and desk work dragons will not do themselves.
-6. **Half Elves** are **bound slave-folk** of **elf** realms only — no free kingdoms. They appear as named ordinary folk at the same rarity as Human 「青い血」 (0.6%). Human–Elf children are sterile (liger-like).
+6. **Half Elves** are **bound slave-folk** of **elf** realms only — no free kingdoms. They appear as named ordinary folk at the same rarity as Human “blue blood” (0.6%). Human–Elf children are sterile (liger-like).
 7. Slow-fertility long-lived folk still cannot survive endless total war — limited wars and frontiers matter — but **coexistence is usually “next door,” not “same crown.”**
 
 ---
@@ -84,7 +84,7 @@ Implementation: `src/data/raceBoundServitors.ts`, applied in `createPerson` / `s
 | :--- | :--- |
 | Host | **Elf** cultures only |
 | Map | No independent culture/state templates |
-| Named roles | `ordinary`, `merchant`, `religious`, `central_officer` may resolve to Half Elf at **0.6%** (same rate as Human infernal atavism / 「青い血」) |
+| Named roles | `ordinary`, `merchant`, `religious`, `central_officer` may resolve to Half Elf at **0.6%** (same rate as Human infernal atavism / “blue blood”) |
 | Host keeps | Rulers, commanders, province lords |
 | Origins | Heavy **slave_born / freedman** stratum weights |
 | Biology | Sterile (Human–Elf liger). Looks and ability **medians** take the lower Human/Elf parent; **caps** take the higher. |
