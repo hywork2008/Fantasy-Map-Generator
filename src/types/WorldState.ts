@@ -1,4 +1,5 @@
 import type { PackedGraph } from "../types/PackedGraph";
+import type { ClimateVariabilityOptions } from "../utils/climateVariability";
 import type { BiomeCode, BiomeDefinition, BiomeKey, BiomeTag } from "./biome";
 import type { BiomeRegionProfile } from "./biomeRegion";
 import type { Grid } from "./Grid";
@@ -91,6 +92,11 @@ export interface WorldOptions {
    * (`src/utils/seasonUtils.ts`). Defaults to `EARTH_AXIAL_TILT_DEG` (23.5°).
    */
   axialTilt: number;
+  /**
+   * Long-period cold episodes (Little Ice Age) and volcanic cold summers
+   * (`src/utils/climateVariability.ts`). Absent in older saves, which means "off".
+   */
+  climateVariability?: ClimateVariabilityOptions;
   stateLabelsMode: "auto" | "short" | "full";
   /** Copy of the Options → Map name, stored for `.fmg` archives. */
   mapName?: string;

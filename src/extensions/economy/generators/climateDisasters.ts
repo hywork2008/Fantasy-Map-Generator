@@ -10,6 +10,13 @@
 
 import type { RNGService } from "../../../context/appServices";
 import type { PackedGraphCells } from "../../../types/PackedGraph";
+import {
+  type ColdExposure,
+  getColdEpisodeDepth,
+  getColdExposure,
+  normalizeClimateVariability
+} from "../../../utils/climateVariability";
+import { createCellClimateNormalsReader, type WorldContext } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -26,7 +33,7 @@ export type DisasterStage = "calm" | "watch" | "active" | "severe" | "recovering
 
 export interface DisasterLogEntry {
   id: number;
-  kind: "drought";
+  kind: "drought" | "coldHarvest";
   stage: DisasterStage;
   year: number;
   severity: number;
@@ -72,8 +79,10 @@ export function computeStateAridity(avgPrec: number, avgTemp: number): number {
 
 /** -1..1 mean-reverting random walk. Uses gauss(), not rand() — rand(min,max) only returns
  *  integers, too coarse for a smooth year-to-year climate signal. */
-export function rollClimateAnomaly(previous: number, rng: Pick<RNGService, "gauss">): number {
-  const shock = rng.gauss(0, 28, -100, 100, 0) / 100;
+export function rollClimateAnomaly(previous: number, rng: Pick<RNGService, "gauss">, variability = 1): number {
+  // Cold episodes widen year-to-year swings (both droughts and wet summers) without changing the
+  // number of draws, so the RNG stream is identical when variability is off.
+  const shock = rng.gauss(0, 28 * variability, -100, 100, 0) / 100;
   return clampRange(previous * DROUGHT_ANOMALY_MEAN_REVERSION + shock * (1 - DROUGHT_ANOMALY_MEAN_REVERSION), -1, 1);
 }
 
@@ -126,6 +135,32 @@ export function climateFoodStressForStage(stage: DisasterStage, severity: number
   }
 }
 
+/**
+ * Saturation rate per °C of exposed growing-season cooling. 1 - exp(-0.7 x): about 0.32 for a
+ * Little-Ice-Age cooling (~0.6 °C) on marginal land (watch), 0.83 at 2.5 °C. Measured live: a
+ * linear 0.6/°C saturated every cell of a 34–60°N map at a 2 °C global depth. calibration TBD.
+ */
+export const COLD_HARVEST_SATURATION_PER_C = 0.7;
+/** Even warm lowlands feel some of it (late frosts, wet harvests); margins carry the rest. */
+const COLD_HARVEST_CORE_SHARE = 0.2;
+
+/**
+ * 0..1 cold-harvest severity. `coolingC` is the growing-season anomaly (positive = colder),
+ * `marginality` the share of a cool growing season, `shock` this year's weather draw (gauss,
+ * roughly -1..1). Irrigation does not help.
+ */
+export function computeColdHarvestSeverity(coolingC: number, marginality: number, shock: number): number {
+  if (!(coolingC > 0)) return 0;
+  const exposure = COLD_HARVEST_CORE_SHARE + (1 - COLD_HARVEST_CORE_SHARE) * clamp01(marginality);
+  const dose = coolingC * exposure * Math.max(0, 1 + 0.5 * shock);
+  return clamp01(1 - Math.exp(-COLD_HARVEST_SATURATION_PER_C * dose));
+}
+
+/** Two independent harvest losses compound rather than add. */
+export function combineFoodStress(a: number, b: number): number {
+  return clamp01(1 - (1 - clamp01(a)) * (1 - clamp01(b)));
+}
+
 function clampRange(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -141,6 +176,23 @@ function appendDisasterLog(state: State, entry: Omit<DisasterLogEntry, "id">): v
   log.push({ id: nextDisasterLogId(state), ...entry });
   while (log.length > DISASTER_LOG_MAX) log.shift();
   state.disasterLog = log;
+}
+
+function summarizeColdHarvestChange(stage: DisasterStage, severity: number, reliefSpent: number): string {
+  const pct = Math.round(severity * 100);
+  const relief = (none: string) => (reliefSpent > 0 ? ` Emergency relief funded ${rn(reliefSpent, 1)} SP.` : none);
+  switch (stage) {
+    case "watch":
+      return `Cold seasons: late frosts and short summers threaten the harvest (${pct}% severity).`;
+    case "active":
+      return `Harvest failure from cold and wet weather (${pct}% severity).${relief(" Treasury funded no relief.")}`;
+    case "severe":
+      return `Famine weather: crops fail across the realm (${pct}% severity).${relief(" Treasury could not fund relief.")}`;
+    case "recovering":
+      return `Summers warming again: harvests recovering (${pct}% residual stress).`;
+    case "calm":
+      return "Cold seasons over: harvests have returned to normal.";
+  }
 }
 
 function summarizeStageChange(stage: DisasterStage, severity: number, reliefSpent: number): string {
@@ -182,7 +234,21 @@ interface StateClimateAccumulator {
   sumPrec: number;
   sumTemp: number;
   sumIrrigation: number;
+  /** Sum over land cells of growing-season cooling (°C, ≥ 0) and of cool-season marginality. */
+  sumCooling: number;
+  sumMarginality: number;
   count: number;
+}
+
+/** Per grid cell cold exposure; zero when the host has no climate normals. */
+function readColdExposure(
+  read: ReturnType<typeof createCellClimateNormalsReader> | undefined,
+  gridCellId: number
+): ColdExposure {
+  const normals = read?.(gridCellId);
+  return normals
+    ? getColdExposure(normals.monthlyMeanTemperatureC, normals.climateAnomalyC)
+    : { cooling: 0, marginality: 0 };
 }
 
 class ClimateDisastersModule {
@@ -208,7 +274,24 @@ class ClimateDisastersModule {
 
     const irrigationByCell = getIrrigationDevelopment();
     const gridCells = world.grid?.cells;
-    const accByState = this.summarizeStates(cells, gridCells, irrigationByCell);
+    const variability = normalizeClimateVariability(world.options?.climateVariability);
+    const coldDepth = getColdEpisodeDepth(variability, world.seed ?? "", year);
+    const readNormals =
+      variability.start !== "off" && world.grid?.cells?.i?.length && world.grid.points?.length && world.graphHeight > 0
+        ? createCellClimateNormalsReader(world as WorldContext, year)
+        : undefined;
+    const coolingByCell = new Float32Array(cellCount);
+    const marginalityByCell = new Float32Array(cellCount);
+    const accByState = this.summarizeStates(
+      cells,
+      gridCells,
+      irrigationByCell,
+      readNormals,
+      coolingByCell,
+      marginalityByCell
+    );
+    /** Per-state cold-harvest stage, weather shock and relief factor, applied per cell below. */
+    const coldByState = new Map<number, { stage: DisasterStage; shock: number; relief: number }>();
 
     const stressByState = new Map<number, number>();
     for (const state of states ?? []) {
@@ -224,7 +307,7 @@ class ClimateDisastersModule {
       const avgIrrigation = acc.sumIrrigation / acc.count;
 
       const aridity = computeStateAridity(avgPrec, avgTemp);
-      const anomaly = rollClimateAnomaly(state.climateAnomaly ?? 0, rng);
+      const anomaly = rollClimateAnomaly(state.climateAnomaly ?? 0, rng, 1 + 0.5 * coldDepth);
       state.climateAnomaly = rn(anomaly, 3);
       const severity = computeDroughtSeverity(aridity, anomaly, avgIrrigation);
 
@@ -243,12 +326,46 @@ class ClimateDisastersModule {
         const coverage = reliefSpent / reliefWanted;
         stress = clamp01(stress * (1 - coverage * DROUGHT_RELIEF_MITIGATION));
       }
-      state.lastDisasterRelief = reliefSpent;
-      // Round once and reuse everywhere — state.climateFoodStress is the authoritative value
-      // shown in TreasuryOverviewDialog, and the cell broadcast below must match it exactly
-      // rather than silently carrying a few extra digits of unrounded precision.
+      // Cold harvest: only evaluated (and only draws RNG) when this year is actually cold.
+      const cooling = acc.sumCooling / acc.count;
+      const previousCold: DisasterStage = state.coldHarvestStage ?? "calm";
+      let coldStress = 0;
+      let coldRelief = 0;
+      if (cooling > 0.01 || previousCold !== "calm") {
+        const shock = cooling > 0.01 ? rng.gauss(0, 50, -100, 100, 0) / 100 : 0;
+        const coldSeverity = computeColdHarvestSeverity(cooling, acc.sumMarginality / acc.count, shock);
+        const coldYears = state.coldHarvestYears ?? 0;
+        const coldStage = advanceDisasterStage(previousCold, coldSeverity, coldYears);
+        state.coldHarvestYears = coldStage === "active" || coldStage === "severe" ? coldYears + 1 : 0;
+        state.coldHarvestStage = coldStage;
+        state.coldHarvestSeverity = rn(coldSeverity, 3);
+        coldStress = climateFoodStressForStage(coldStage, coldSeverity);
+        const coldWanted =
+          coldStage === "severe"
+            ? DROUGHT_RELIEF_BUDGET_SEVERE
+            : coldStage === "active"
+              ? DROUGHT_RELIEF_BUDGET_ACTIVE
+              : 0;
+        coldRelief = coldWanted > 0 ? spendAvailableTreasury(state, coldWanted) : 0;
+        const reliefFactor = coldWanted > 0 ? 1 - (coldRelief / coldWanted) * DROUGHT_RELIEF_MITIGATION : 1;
+        coldStress = clamp01(coldStress * reliefFactor);
+        coldByState.set(state.i, { stage: coldStage, shock, relief: reliefFactor });
+        if (coldStage !== previousCold) {
+          appendDisasterLog(state, {
+            kind: "coldHarvest",
+            stage: coldStage,
+            year,
+            severity: rn(coldSeverity, 3),
+            reliefSpent: coldRelief > 0 ? coldRelief : undefined,
+            summary: summarizeColdHarvestChange(coldStage, coldSeverity, coldRelief)
+          });
+        }
+      }
+      state.lastDisasterRelief = rn(reliefSpent + coldRelief, 2);
+      // Drought stays state-uniform; cold is distributed per cell below, and the state value
+      // shown in TreasuryOverviewDialog becomes the mean of the cells.
       const finalStress = rn(stress, 3);
-      state.climateFoodStress = finalStress;
+      state.climateFoodStress = rn(combineFoodStress(stress, coldStress), 3);
 
       if (stage !== previousStage) {
         appendDisasterLog(state, {
@@ -265,10 +382,31 @@ class ClimateDisastersModule {
     }
 
     const climateFoodStressByCell = new Float32Array(cellCount);
+    const cellStressSum = new Map<number, { sum: number; count: number }>();
     for (const cellId of cells.i) {
       if ((cells.h?.[cellId] ?? 0) < LAND_HEIGHT) continue;
       const stateId = cells.state?.[cellId] ?? 0;
-      climateFoodStressByCell[cellId] = stressByState.get(stateId) ?? 0;
+      let cellStress = stressByState.get(stateId) ?? 0;
+      const cold = coldByState.get(stateId);
+      if (cold) {
+        // Cold hits by local exposure: highland and northern margins fail, warm lowlands suffer little.
+        const cellSeverity = computeColdHarvestSeverity(coolingByCell[cellId], marginalityByCell[cellId], cold.shock);
+        cellStress = combineFoodStress(
+          cellStress,
+          clamp01(climateFoodStressForStage(cold.stage, cellSeverity) * cold.relief)
+        );
+      }
+      climateFoodStressByCell[cellId] = cellStress;
+      if (cold) {
+        const entry = cellStressSum.get(stateId) ?? { sum: 0, count: 0 };
+        entry.sum += cellStress;
+        entry.count++;
+        cellStressSum.set(stateId, entry);
+      }
+    }
+    for (const state of states ?? []) {
+      const entry = state?.i ? cellStressSum.get(state.i) : undefined;
+      if (entry?.count) state.climateFoodStress = rn(entry.sum / entry.count, 3);
     }
     setClimateFoodStress(climateFoodStressByCell);
     return true;
@@ -277,7 +415,10 @@ class ClimateDisastersModule {
   private summarizeStates(
     cells: PackedGraphCells,
     gridCells: { prec?: ArrayLike<number>; temp?: ArrayLike<number> } | undefined,
-    irrigationByCell: Float32Array
+    irrigationByCell: Float32Array,
+    readNormals?: ReturnType<typeof createCellClimateNormalsReader>,
+    coolingByCell?: Float32Array,
+    marginalityByCell?: Float32Array
   ): Map<number, StateClimateAccumulator> {
     const acc = new Map<number, StateClimateAccumulator>();
     for (const cellId of cells.i) {
@@ -285,7 +426,21 @@ class ClimateDisastersModule {
       const stateId = cells.state?.[cellId] ?? 0;
       if (!stateId) continue;
       const gridCellId = cells.g?.[cellId] ?? cellId;
-      const entry = acc.get(stateId) ?? { sumPrec: 0, sumTemp: 0, sumIrrigation: 0, count: 0 };
+      const entry = acc.get(stateId) ?? {
+        sumPrec: 0,
+        sumTemp: 0,
+        sumIrrigation: 0,
+        sumCooling: 0,
+        sumMarginality: 0,
+        count: 0
+      };
+      if (readNormals) {
+        const exposure = readColdExposure(readNormals, gridCellId);
+        entry.sumCooling += exposure.cooling;
+        entry.sumMarginality += exposure.marginality;
+        if (coolingByCell) coolingByCell[cellId] = exposure.cooling;
+        if (marginalityByCell) marginalityByCell[cellId] = exposure.marginality;
+      }
       entry.sumPrec += gridCells?.prec?.[gridCellId] ?? 45;
       entry.sumTemp += gridCells?.temp?.[gridCellId] ?? 12;
       entry.sumIrrigation += irrigationByCell[cellId] ?? 0;

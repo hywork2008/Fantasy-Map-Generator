@@ -64,6 +64,8 @@ const SETTLEMENT_PATTERNS = ["frontier", "marches", "scattered", "standard", "de
 const FRONTIER_START_MODES = ["landOrigin", "seaborne"] as const;
 const FRONTIER_SPACINGS = ["dispersed", "clustered"] as const;
 const CONFLICT_AUTONOMIES = ["playerDirected", "autonomous"] as const;
+const CLIMATE_VARIABILITY_STARTS = ["off", "fromStart", "later"] as const;
+const CLIMATE_VARIABILITY_MODES = ["periodic", "irregular"] as const;
 
 const BOOLEAN_KEYS = [
   "gunpowderEraEnabled",
@@ -96,6 +98,9 @@ const NUMBER_KEYS = [
   "volcanismChance",
   "volcanoActiveChance",
   "volcanicSoilStrength",
+  "climateVariabilityPeriodYears",
+  "climateVariabilityDepthC",
+  "climateVariabilityVolcanicPerCentury",
   "mapSize",
   "latitude",
   "longitude",
@@ -232,6 +237,11 @@ export function sanitizeGenerationOptions(raw: unknown): Partial<GenerationOptio
 
   const threatCalculation = asAllowedString(raw.threatCalculation, THREAT_CALCULATIONS);
   if (threatCalculation) updates.threatCalculation = threatCalculation;
+
+  const climateVariabilityStart = asAllowedString(raw.climateVariabilityStart, CLIMATE_VARIABILITY_STARTS);
+  if (climateVariabilityStart) updates.climateVariabilityStart = climateVariabilityStart;
+  const climateVariabilityMode = asAllowedString(raw.climateVariabilityMode, CLIMATE_VARIABILITY_MODES);
+  if (climateVariabilityMode) updates.climateVariabilityMode = climateVariabilityMode;
 
   if ("biomeRegionProfile" in raw) {
     const biomeRegionProfile = asAllowedString(raw.biomeRegionProfile, BIOME_REGION_PROFILES);

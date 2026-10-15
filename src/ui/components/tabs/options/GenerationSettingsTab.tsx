@@ -1,5 +1,7 @@
 import type React from "react";
 import { useTranslation } from "react-i18next";
+import { simulationContext } from "../../../../context/simulationContext";
+import { worldContext } from "../../../../context/worldContext";
 import {
   getInitialSettlementPatternPreset,
   heightmapLandmassThresholds,
@@ -7,9 +9,11 @@ import {
 } from "../../../../data";
 import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
 import { RiverPortLabRows } from "../../../../debug/riverPortLab/RiverPortLabRows";
+import { applyClimateVariabilityToWorld } from "../../../../generators/climateVariabilityOptions";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
+import { MAX_DEPTH_C, MAX_PERIOD_YEARS, MIN_PERIOD_YEARS } from "../../../../utils/climateVariability";
 import { lock } from "../../../../utils/domUtils";
 import {
   ISLET_LAND_CELL_CHOICES,
@@ -40,6 +44,23 @@ export const GenerationSettingsTab: React.FC = () => {
   ) => {
     updateOption(key, value);
     lock(key as string);
+  };
+  /** Climate variability also applies live to the generated map (start year stays the anchor). */
+  const updateClimateVariability = <
+    K extends
+      | "climateVariabilityStart"
+      | "climateVariabilityMode"
+      | "climateVariabilityPeriodYears"
+      | "climateVariabilityDepthC"
+      | "climateVariabilityVolcanicPerCentury"
+  >(
+    key: K,
+    value: (typeof options)[K]
+  ) => {
+    updateOptionAndLock(key, value);
+    if (!worldContext.grid?.cells?.i?.length) return;
+    applyClimateVariabilityToWorld(worldContext.options, useOptionsState.getState(), simulationContext.currentYear);
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { climate: true } }));
   };
 
   const handleMapSizeChange = () => {
@@ -378,6 +399,103 @@ export const GenerationSettingsTab: React.FC = () => {
                   // See the Biome region handler above — needed while paused for stage review.
                   document.dispatchEvent(new CustomEvent("fmg:render-generation-review"));
                 }}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("generation.climateVariabilityStartTip")}>
+            <td>
+              <LockIconButton id="climateVariabilityStart" />
+            </td>
+            <th>
+              <label htmlFor="climateVariabilityStart">{t("generation.climateVariabilityStart")}</label>
+            </th>
+            <td colSpan={2}>
+              <select
+                id="climateVariabilityStart"
+                value={options.climateVariabilityStart}
+                onChange={e =>
+                  updateClimateVariability(
+                    "climateVariabilityStart",
+                    e.target.value as typeof options.climateVariabilityStart
+                  )
+                }
+              >
+                <option value="off">{t("generation.climateVariabilityStarts.off")}</option>
+                <option value="fromStart">{t("generation.climateVariabilityStarts.fromStart")}</option>
+                <option value="later">{t("generation.climateVariabilityStarts.later")}</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip={t("generation.climateVariabilityModeTip")}>
+            <td>
+              <LockIconButton id="climateVariabilityMode" />
+            </td>
+            <th>
+              <label htmlFor="climateVariabilityMode">{t("generation.climateVariabilityMode")}</label>
+            </th>
+            <td colSpan={2}>
+              <select
+                id="climateVariabilityMode"
+                value={options.climateVariabilityMode}
+                onChange={e =>
+                  updateClimateVariability(
+                    "climateVariabilityMode",
+                    e.target.value as typeof options.climateVariabilityMode
+                  )
+                }
+              >
+                <option value="irregular">{t("generation.climateVariabilityModes.irregular")}</option>
+                <option value="periodic">{t("generation.climateVariabilityModes.periodic")}</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip={t("generation.climateVariabilityPeriodTip")}>
+            <td>
+              <LockIconButton id="climateVariabilityPeriodYears" />
+            </td>
+            <th>{t("generation.climateVariabilityPeriod")}</th>
+            <td colSpan={2}>
+              <SliderInput
+                min={MIN_PERIOD_YEARS}
+                max={MAX_PERIOD_YEARS}
+                step={10}
+                value={options.climateVariabilityPeriodYears}
+                onChange={v => updateClimateVariability("climateVariabilityPeriodYears", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("generation.climateVariabilityDepthTip")}>
+            <td>
+              <LockIconButton id="climateVariabilityDepthC" />
+            </td>
+            <th>{t("generation.climateVariabilityDepth")}</th>
+            <td colSpan={2}>
+              <SliderInput
+                min={0}
+                max={MAX_DEPTH_C}
+                step={0.1}
+                value={options.climateVariabilityDepthC}
+                onChange={v => updateClimateVariability("climateVariabilityDepthC", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("generation.climateVariabilityVolcanicTip")}>
+            <td>
+              <LockIconButton id="climateVariabilityVolcanicPerCentury" />
+            </td>
+            <th>{t("generation.climateVariabilityVolcanic")}</th>
+            <td colSpan={2}>
+              <SliderInput
+                min={0}
+                max={10}
+                step={0.1}
+                value={options.climateVariabilityVolcanicPerCentury}
+                onChange={v => updateClimateVariability("climateVariabilityVolcanicPerCentury", Number(v))}
               />
             </td>
           </tr>

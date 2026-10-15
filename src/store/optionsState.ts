@@ -15,6 +15,7 @@ import type {
   InitialSettlementPattern,
   PortCoastPlacement
 } from "../types/WorldState";
+import type { ClimateVariabilityMode, ClimateVariabilityStart } from "../utils/climateVariability";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
 import { type MapScopeKind, PROVINCE_SCOPE_DEFAULT_CELLS } from "../utils/mapScope";
@@ -213,6 +214,17 @@ export interface OptionsState {
    * a new heightmap, since it only rescales an already-tagged per-cell intensity value.
    */
   volcanicSoilStrength: number;
+  /**
+   * Long-period cold episodes (docs/plan/wind-aspect-climate-variability.md §4). The start mode is a
+   * generation option; mode/period/depth/volcanic rate are simulation options that also apply live
+   * to the loaded map (written into worldContext.options.climateVariability).
+   */
+  climateVariabilityStart: ClimateVariabilityStart;
+  climateVariabilityMode: ClimateVariabilityMode;
+  climateVariabilityPeriodYears: number;
+  /** Global-mean cooling at an episode's depth, °C. 0.5 ≈ Little Ice Age; 10–30 freezes the world. */
+  climateVariabilityDepthC: number;
+  climateVariabilityVolcanicPerCentury: number;
   /**
    * Fauna population stock model detail level (docs/plan/biome-goods-producer-ecosystem.md §11).
    * "detailed" (default) runs the annual fauna cohort/breeding/carrying-capacity model that gates
@@ -461,6 +473,11 @@ export const GENERATION_OPTION_KEYS = [
   "volcanismChance",
   "volcanoActiveChance",
   "volcanicSoilStrength",
+  "climateVariabilityStart",
+  "climateVariabilityMode",
+  "climateVariabilityPeriodYears",
+  "climateVariabilityDepthC",
+  "climateVariabilityVolcanicPerCentury",
   "mapSize",
   "latitude",
   "longitude",
@@ -577,6 +594,11 @@ export const useOptionsState = create<OptionsState>(set => ({
   volcanismChance: 30,
   volcanoActiveChance: 25,
   volcanicSoilStrength: 50,
+  climateVariabilityStart: "off",
+  climateVariabilityMode: "irregular",
+  climateVariabilityPeriodYears: 450,
+  climateVariabilityDepthC: 0.5,
+  climateVariabilityVolcanicPerCentury: 0.8,
   ruralEcosystemDetail: "detailed",
   economyStartMode: "balanced",
   ironDepositsPerState: 0.4,

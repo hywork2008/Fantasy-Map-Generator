@@ -38,6 +38,8 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
       ? createCellClimateNormalsReader(world as WorldContext, simulationContext.currentYear || 2001)
       : undefined;
   const amplitudes = new Float32Array(count);
+  /** Annual-mean long-period/volcanic anomaly (docs/plan/wind-aspect-climate-variability.md §4.4). */
+  const anomalies = new Float32Array(count);
   const demands: RiverWithdrawal[] = [];
   for (const id of cells.i) {
     const height = cells.h[id];
@@ -65,8 +67,10 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
     const area = potentialLand ? ceiling : Math.min(ceiling, established ?? physical * (1 - forest));
     cultivableAreaHa[id] = area;
     const grid = cells.g?.[id] ?? id;
-    const monthly = readClimate?.(grid)?.monthlyMeanTemperatureC;
+    const normals = readClimate?.(grid);
+    const monthly = normals?.monthlyMeanTemperatureC;
     amplitudes[id] = monthly ? (Math.max(...monthly) - Math.min(...monthly)) / 2 : 0;
+    anomalies[id] = normals ? normals.climateAnomalyC.reduce((sum, v) => sum + v, 0) / 12 : 0;
     const temp = world.grid.cells.temp?.[grid] ?? 12;
     const rain = world.grid.cells.prec?.[grid] ?? 0;
     const deficit = Math.max(
@@ -97,7 +101,7 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
     const irrigatedShare =
       area > 0 && deficit > 0 ? Math.min(IRRIGATION_COMMAND_SHARE, deliveredWater[id] / deficit / area) : 0;
     yieldKgPerHa[id] = estimateFoodClimateYield(
-      world.grid.cells.temp?.[grid] ?? 12,
+      (world.grid.cells.temp?.[grid] ?? 12) + anomalies[id],
       world.grid.cells.prec?.[grid] ?? 0,
       getEstimatedFoodSoil(world, id),
       irrigatedShare > 0 ? deficit : 0,

@@ -12,6 +12,8 @@ import { createCellClimateNormalsReader, simulationContext, type WorldContext } 
 export interface AgriculturalClimate {
   readonly year: number;
   readonly monthlyMeanTemperatureC: ArrayLike<number>;
+  /** Host long-period/volcanic anomaly by month, °C (already inside monthlyMeanTemperatureC). */
+  readonly climateAnomalyC?: ArrayLike<number>;
 }
 export type AgriculturalClimateReader = (cellId: number) => AgriculturalClimate;
 const readers = new WeakMap<
@@ -59,6 +61,32 @@ export function readAgriculturalClimate(world: Readonly<WorldContext>, cellId: n
       ? current.read
       : createAgriculturalClimateReader(world, year)
   )(cellId);
+}
+
+/** Yield lost per °C of growing-season cooling where the season is cool (docs/plan/wind-aspect-climate-variability.md §4.4). */
+export const COLD_ANOMALY_YIELD_LOSS_PER_C = 0.1;
+
+/**
+ * Continuous harvest loss from a cold anomaly during the growing months. The crop plan alone
+ * only fails at thresholds (measured: 0% loss for -1 °C in core areas, then -20%/-100% cliffs
+ * at margins); real cool-climate cereals lose yield gradually as the season shortens and
+ * cools. Warm growing seasons (>= 20 °C mean) are barely affected; cool ones (<= 10 °C) fully.
+ */
+export function getColdAnomalyYieldFactor(climate: AgriculturalClimate, plan: SeasonalCropPlan | undefined): number {
+  const anomaly = climate.climateAnomalyC;
+  if (!anomaly || !plan?.calendar.cropCycles) return 1;
+  let sum = 0;
+  let days = 0;
+  for (let m = 0; m < 12; m++) {
+    if (!plan.calendar.growableMonths[m]) continue;
+    const d = getDaysInMonth(climate.year, m + 1);
+    sum += Math.min(0, anomaly[m]) * d;
+    days += d;
+  }
+  if (!days) return 1;
+  const cooling = sum / days;
+  const coolness = Math.min(1, Math.max(0, (20 - plan.growingMeanTemperatureC) / 10));
+  return Math.max(0, 1 + COLD_ANOMALY_YIELD_LOSS_PER_C * cooling * coolness);
 }
 
 export interface SeasonalCropPlan {

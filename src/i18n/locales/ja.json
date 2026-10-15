@@ -1855,6 +1855,25 @@
     "activeVolcanoChanceTip": "実際に生成された火山のうち、溶岩火口（溶岩原バイオーム）の活火山になる割合です。残りは休火山で、山頂は火口湖（周囲は火山荒地バイオーム）になります。火山化の確率と同じく標高生成時に決まります。段階レビュー中の「気候と水路を再生成」、「別の地形を生成」、または新しい地図の生成で適用されます。",
     "volcanicSoilStrength": "火山土壌の強さ %",
     "volcanicSoilStrengthTip": "タグ済み火山の斜面で肥沃な火山土壌バイオームが、通常の気候バイオームに戻るまでどこまで広がるかです。0 は荒れた火口だけ、100 は斜面の遠くまで農地を広げます。既存のセル強度を再スケールするだけなので、上の 2 項目と違いすぐに適用され、再生成は不要です。",
+    "climateVariabilityStart": "小氷期",
+    "climateVariabilityStartTip": "小氷期のような長周期の寒冷期です。収穫を減らします。無効: 起きない。最初から: 開始時点で寒冷期の中にいる。途中から: 開始時は温暖で、数十年〜数百年後に最初の寒冷期が来る。その後は繰り返します。",
+    "climateVariabilityStarts": {
+      "off": "無効",
+      "fromStart": "最初から",
+      "later": "途中から"
+    },
+    "climateVariabilityMode": "寒冷期の起き方",
+    "climateVariabilityModeTip": "不定期: 長さと深さの異なる寒冷期が、周期の前後のばらついた間隔で起きる。定期: 一定の周期で起きる。",
+    "climateVariabilityModes": {
+      "irregular": "不定期",
+      "periodic": "定期"
+    },
+    "climateVariabilityPeriod": "寒冷期の周期（年）",
+    "climateVariabilityPeriodTip": "寒冷期どうしの平均の間隔です。現在の地図にもすぐ反映されます。",
+    "climateVariabilityDepth": "寒冷期の深さ（°C）",
+    "climateVariabilityDepthTip": "寒冷期の最も寒い時期の全球平均の気温低下です。極地や内陸の冬はさらに冷えます。0.5 が歴史上の小氷期に近い値です。10 以上では温帯まで凍りつきます。現在の地図にもすぐ反映されます。",
+    "climateVariabilityVolcanic": "火山性の冷夏（100年あたり）",
+    "climateVariabilityVolcanicTip": "大噴火で、その後1〜3年の夏が約0.5〜1.2°C冷えます（1816年の「夏のない年」のような現象）。寒冷期の間は2倍起きやすくなります。",
     "enclosureCalculation": "囲繞度の計算",
     "enclosureCalculationTip": "海洋につながる水域の港・停泊の静けさ（pack.cells.enclosure）の付け方です。海流は汀線そのものの流速を読みます。岬を回り湾や海峡から吹き出す一方、実際の遮蔽に関係なく汀線セルはほぼ 0 になり、沿岸近くは 100 に飽和しやすいです。海流（沖合）は少し沖の流速を読むので、本当に遮蔽された湾と開けた海岸を区別し、港の立地判断に向きます。湖セルはどちらも完全に囲まれたとします。半径は従来の固定 6 ホップの陸地遮断比です。すぐに適用され、再生成は不要です。",
     "enclosureOceanCurrents": "海流（既定）",

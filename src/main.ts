@@ -53,6 +53,7 @@ import { applyLabTerrain } from "./debug/riverPortLab/labOptions";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { generateCaveSystems } from "./generators/caveSystems";
+import { buildClimateVariabilityOptions } from "./generators/climateVariabilityOptions";
 import { Cultures } from "./generators/cultures-generator";
 import { dangerSuitabilityMultiplier } from "./generators/dangerExpandPolicy";
 import { spawnDeepWorms } from "./generators/deepWormEcology";
@@ -112,7 +113,8 @@ import {
   RiversRenderer,
   RoutesRenderer,
   StateLabelsRenderer,
-  StatesRenderer
+  StatesRenderer,
+  TemperatureLayerRenderer
 } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
@@ -491,11 +493,24 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
 
 function registerWorldRecalculateHandler(): void {
   document.addEventListener("fmg:world-recalculate", (e: Event) => {
-    const { coords, temps, prec, currents, biomes } = (
-      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; currents?: boolean; biomes?: boolean }>
+    const { coords, temps, prec, currents, biomes, climate } = (
+      e as CustomEvent<{
+        coords?: boolean;
+        temps?: boolean;
+        prec?: boolean;
+        currents?: boolean;
+        biomes?: boolean;
+        /** Derived monthly climate only (e.g. climate-variability option edits). */
+        climate?: boolean;
+      }>
     ).detail;
     if (coords) calculateMapCoordinates();
     if (temps) calculateTemperatures();
+    if (climate || temps) {
+      advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
+      if (viewContext.renderMap && viewContext.renderMode === "svg" && layerIsOn("toggleTemperature"))
+        TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
+    }
     if (prec) generatePrecipitation();
     if (currents) {
       // Live recompute (not a full generation): use the lower iteration tier for responsiveness
@@ -1143,6 +1158,10 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.portCoastPlacement = useOptionsState.getState().portCoastPlacement;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
   worldContext.options.volcanicSoilStrength = useOptionsState.getState().volcanicSoilStrength;
+  worldContext.options.climateVariability = buildClimateVariabilityOptions(
+    useOptionsState.getState(),
+    useOptionsState.getState().year
+  );
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
   worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
   worldContext.options.ironDepositsPerState = useOptionsState.getState().ironDepositsPerState;

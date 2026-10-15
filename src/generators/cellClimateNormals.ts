@@ -2,13 +2,20 @@ import type { WorldContext } from "../context/worldContext";
 import { EARTH_EQUATORIAL_CIRCUMFERENCE_KM, getEarthCoordinatesAtMapPoint } from "../data/earthConfig";
 import { useOptionsState } from "../store/optionsState";
 import {
+  getGlobalClimateAnomaly,
+  getMonthlyCellAnomalyC,
+  normalizeClimateVariability
+} from "../utils/climateVariability";
+import {
   CLIMATE_MODEL_VERSION,
   distributeAnnualPrecipitationMm,
   getMonthlyMeanTemperaturesC,
+  getTemperatureCurveParameters,
   type TemperatureCurve
 } from "../utils/earthlikeClimate";
 import { normalizeHeightExponent } from "../utils/height";
 import { precipitationProxyToMillimeters } from "../utils/precipitationUnits";
+import { getDaysInMonth } from "../utils/seasonUtils";
 import { computeWorldTerrainAspect } from "./terrainAspect";
 
 export type ContinentalitySource = "mappedCoast" | "regionalFallback";
@@ -19,6 +26,8 @@ export interface CellClimateNormals extends TemperatureCurve {
   readonly monthlyMeanTemperatureC: Float32Array;
   /** Slope-aspect deviation from its own annual mean (that mean is already inside annual temp), °C by month. */
   readonly terrainOffsetC: Float32Array;
+  /** Long-period / volcanic climate anomaly for this year, °C by month (already inside the monthly means). */
+  readonly climateAnomalyC: Float32Array;
   readonly annualPrecipitationMm: number;
   readonly monthlyPrecipitationMm: Float64Array;
   readonly continentalitySource: ContinentalitySource;
@@ -35,6 +44,7 @@ interface ClimateCache {
   revision: number;
   monthly: Float32Array;
   terrain: Float32Array;
+  anomaly: Float32Array;
   year: number;
 }
 const cache = new WeakMap<WorldContext, ClimateCache>();
@@ -177,27 +187,43 @@ export function ensureCellClimateNormals(world: WorldContext, year: number): Cli
   const previous = cache.get(world);
   const geoKey = geographyKey(world);
   const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
-  const key = `${geoKey}:${hash(world.grid.cells.temp)}:${hash(world.grid.cells.prec)}:${world.options.axialTilt}:${world.distanceScale}:${exponent}:${year}`;
+  const variability = normalizeClimateVariability(world.options.climateVariability);
+  const globalAnomaly = getGlobalClimateAnomaly(variability, world.seed ?? "", year);
+  const key = `${geoKey}:${hash(world.grid.cells.temp)}:${hash(world.grid.cells.prec)}:${world.options.axialTilt}:${world.distanceScale}:${exponent}:${globalAnomaly.episodeC}:${globalAnomaly.volcanicC}:${year}`;
   if (previous?.key === key) return previous;
   const geography = previous?.geography.key === geoKey ? previous.geography : buildGeography(world, geoKey);
   const count = world.grid.cells.i.length;
   const monthly = new Float32Array(count * 12);
   const terrain = buildTerrainDeviation(world, exponent, count);
-  const result: ClimateCache = { key, geography, revision: ++nextRevision, monthly, terrain, year };
+  const anomaly = new Float32Array(count * 12);
+  const result: ClimateCache = { key, geography, revision: ++nextRevision, monthly, terrain, anomaly, year };
+  const hasAnomaly = globalAnomaly.episodeC !== 0 || globalAnomaly.volcanicC !== 0;
+  const warmth = new Float64Array(12);
   for (const cell of world.grid.cells.i) {
     const coordinates = getEarthCoordinatesAtMapPoint(world, world.grid.points[cell]);
     const latitude = coordinates?.latitude ?? fallbackLatitude(world, cell);
-    monthly.set(
-      getMonthlyMeanTemperaturesC({
-        annualMeanTemperatureC: world.grid.cells.temp[cell],
-        latitudeDeg: latitude,
-        continentality: geography.continentality[cell],
-        axialTiltDeg: world.options.axialTilt,
-        year
-      }),
-      cell * 12
-    );
+    const curve: TemperatureCurve = {
+      annualMeanTemperatureC: world.grid.cells.temp[cell],
+      latitudeDeg: latitude,
+      continentality: geography.continentality[cell],
+      axialTiltDeg: world.options.axialTilt,
+      year
+    };
+    monthly.set(getMonthlyMeanTemperaturesC(curve), cell * 12);
     for (let m = 0; m < 12; m++) monthly[cell * 12 + m] += terrain[cell * 12 + m];
+    if (hasAnomaly) {
+      const { peakDay, daysInYear } = getTemperatureCurveParameters(curve);
+      for (let m = 0, start = 0; m < 12; m++) {
+        const days = getDaysInMonth(year, m + 1);
+        warmth[m] = Math.cos((2 * Math.PI * (start + days / 2 - peakDay)) / daysInYear);
+        start += days;
+      }
+      const cellAnomaly = getMonthlyCellAnomalyC(globalAnomaly, latitude, curve.continentality, warmth, year);
+      for (let m = 0; m < 12; m++) {
+        anomaly[cell * 12 + m] = cellAnomaly[m];
+        monthly[cell * 12 + m] += cellAnomaly[m];
+      }
+    }
   }
   cache.set(world, result);
   return result;
@@ -263,6 +289,7 @@ function readCellClimateNormals(
     axialTiltDeg: world.options.axialTilt,
     monthlyMeanTemperatureC: state.monthly.slice(gridCellId * 12, gridCellId * 12 + 12),
     terrainOffsetC: state.terrain.slice(gridCellId * 12, gridCellId * 12 + 12),
+    climateAnomalyC: state.anomaly.slice(gridCellId * 12, gridCellId * 12 + 12),
     annualPrecipitationMm,
     monthlyPrecipitationMm: distributeAnnualPrecipitationMm(annualPrecipitationMm, year),
     precipitationSeasonalitySource: "uniformAssumption"

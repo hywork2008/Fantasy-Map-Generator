@@ -28,6 +28,7 @@ import type { Good, SoilType } from "./goods-generator";
 import {
   type AgriculturalClimateReader,
   createAgriculturalClimateReader,
+  getColdAnomalyYieldFactor,
   getSeasonalCropPlan,
   readAgriculturalClimate
 } from "./seasonalCropClimate";
@@ -1105,7 +1106,10 @@ export function getCropSuitability(
   const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
   const soil = getCellSoilType(world, cellId);
   const irrigationSupplement = water?.supplement ?? conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
-  return getStapleCropSuitability(crop, temperature, precipitation, soil, irrigationSupplement);
+  return (
+    getStapleCropSuitability(crop, temperature, precipitation, soil, irrigationSupplement) *
+    getColdAnomalyYieldFactor(climate, plan)
+  );
 }
 
 /**

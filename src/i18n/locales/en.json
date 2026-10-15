@@ -1855,6 +1855,25 @@
     "activeVolcanoChanceTip": "Of the volcanoes actually generated, the share that are active — a molten crater (Lava field biome) — rather than dormant, whose summit is instead carved into a crater lake (Volcanic barrens biome around it). Decided alongside heightmap generation, same as Volcanism chance — press Regenerate climate and waterways during stage review, Generate another landscape, or generate a new map to apply.",
     "volcanicSoilStrength": "Volcanic soil strength %",
     "volcanicSoilStrengthTip": "How far the fertile Volcanic soil biome ring extends down an already-tagged volcano's flanks before yielding to the ordinary climate biome. 0 keeps only the barren crater; 100 spreads rich farmland far down the slope. Only rescales an existing per-cell intensity value, so — unlike the two options above — this applies immediately, no regenerate needed.",
+    "climateVariabilityStart": "Little Ice Age",
+    "climateVariabilityStartTip": "Long-period cold episodes like the Little Ice Age that cut harvests. Off: none. From start: the map begins inside a cold episode. Later: the map begins warm and the first episode arrives decades to centuries later. Episodes then recur.",
+    "climateVariabilityStarts": {
+      "off": "Off",
+      "fromStart": "From start",
+      "later": "Later"
+    },
+    "climateVariabilityMode": "Cold episode timing",
+    "climateVariabilityModeTip": "Irregular: episodes of varying length and depth at uneven intervals around the period. Periodic: a regular cycle.",
+    "climateVariabilityModes": {
+      "irregular": "Irregular",
+      "periodic": "Periodic"
+    },
+    "climateVariabilityPeriod": "Cold episode period, years",
+    "climateVariabilityPeriodTip": "Mean spacing between cold episodes. Applies to the current map immediately.",
+    "climateVariabilityDepth": "Cold episode depth, °C",
+    "climateVariabilityDepthTip": "Global-mean cooling at the depth of an episode; polar and continental winters cool more. 0.5 is close to the historical Little Ice Age. Values of 10 and above freeze even temperate lands. Applies to the current map immediately.",
+    "climateVariabilityVolcanic": "Volcanic cold summers per century",
+    "climateVariabilityVolcanicTip": "Large eruptions that cool the following 1–3 summers by about 0.5–1.2 °C (like 1816, the year without a summer). Twice as frequent during cold episodes.",
     "enclosureCalculation": "Enclosure calculation",
     "enclosureCalculationTip": "How harbor/mooring calmness (pack.cells.enclosure) is scored for ocean-connected water. Ocean Currents reads the resolved current speed at the shoreline itself — bends around headlands and funnels out of bays/straits, but almost every shore cell reads near-zero regardless of real shelter, so it saturates toward 100 close to the coast. Ocean Currents (Ambient) instead reads the current speed a short distance offshore, distinguishing a genuinely sheltered bay from an exposed open coastline — better for siting decisions like harbor placement. Both score every lake cell fully enclosed. Radius is the legacy fixed 6-hop land-blocked-ratio heuristic for all. Applies immediately, no regenerate needed.",
     "enclosureOceanCurrents": "Ocean Currents (default)",

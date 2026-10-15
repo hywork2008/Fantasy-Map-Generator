@@ -1,5 +1,12 @@
+import { simulationContext } from "../../context/simulationContext";
 import { worldContext } from "../../context/worldContext";
+import {
+  getColdExposure,
+  getColdPopulationPenaltyPct,
+  normalizeClimateVariability
+} from "../../utils/climateVariability";
 import type { RNGService } from "../../utils/probabilityUtils";
+import { createCellClimateNormalsReader } from "../cellClimateNormals";
 import {
   demographicTotal,
   getBurgDemographics,
@@ -46,11 +53,15 @@ export function applyFastForwardPopulation(
   if (!pack?.cells || !pack.burgs || !(deltaYears > 0)) return EMPTY_DEMOGRAPHICS_RESULT;
 
   const growth = annualGrowthFactor(rates.populationGrowthPctPerYear, deltaYears);
+  // The skipped economy would have turned cold-episode harvest failures into famine deaths
+  // (docs/plan/wind-aspect-climate-variability.md §4.4); stand in for that per cell.
+  const coldPenalty = createColdPenaltyReader(rates.populationGrowthPctPerYear, deltaYears);
+  const growthAt = (cellId: number) => coldPenalty?.(cellId) ?? growth;
 
   for (const i of pack.cells.i) {
     const buckets = getCellDemographics(pack.cells, i);
     if (!(demographicTotal(buckets) > 0)) continue;
-    const factor = Math.max(0, growth * jitterFactor(rng, rates.variancePct, deltaYears));
+    const factor = Math.max(0, growthAt(i) * jitterFactor(rng, rates.variancePct, deltaYears));
     setCellDemographics(pack.cells, i, {
       children: buckets.children * factor,
       maleAdults: buckets.maleAdults * factor,
@@ -61,7 +72,7 @@ export function applyFastForwardPopulation(
 
   for (const burg of pack.burgs) {
     if (!burg?.i || burg.removed || !((burg.population ?? 0) > 0)) continue;
-    const factor = Math.max(0, growth * jitterFactor(rng, rates.variancePct, deltaYears));
+    const factor = Math.max(0, growthAt(burg.cell) * jitterFactor(rng, rates.variancePct, deltaYears));
     if (burg.demographics) {
       const buckets = getBurgDemographics(burg);
       setBurgDemographics(burg, {
@@ -76,6 +87,30 @@ export function applyFastForwardPopulation(
   }
 
   return EMPTY_DEMOGRAPHICS_RESULT;
+}
+
+/** Per pack cell growth factor including the cold penalty; undefined when no cold episode is active. */
+function createColdPenaltyReader(
+  growthPctPerYear: number,
+  deltaYears: number
+): ((packCellId: number) => number) | undefined {
+  const world = worldContext;
+  if (normalizeClimateVariability(world.options?.climateVariability).start === "off") return undefined;
+  if (!world.grid?.cells?.i?.length || !world.grid.points?.length || !(world.graphHeight > 0)) return undefined;
+  const read = createCellClimateNormalsReader(world, simulationContext.currentYear || 2001);
+  const cache = new Map<number, number>();
+  return packCellId => {
+    const gridCellId = world.pack.cells.g?.[packCellId] ?? packCellId;
+    const cached = cache.get(gridCellId);
+    if (cached !== undefined) return cached;
+    const normals = read(gridCellId);
+    const penalty = normals
+      ? getColdPopulationPenaltyPct(getColdExposure(normals.monthlyMeanTemperatureC, normals.climateAnomalyC))
+      : 0;
+    const factor = annualGrowthFactor(growthPctPerYear - penalty, deltaYears);
+    cache.set(gridCellId, factor);
+    return factor;
+  };
 }
 
 export function emptyFastForwardDemographicsResult(): DemographicsSimulationResult {

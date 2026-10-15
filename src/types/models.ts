@@ -1288,6 +1288,15 @@ export interface State {
   droughtSeverity?: number;
   /** Consecutive years at droughtStage active/severe — feeds the severity escalation rule. */
   droughtYears?: number;
+  /**
+   * Cold-harvest (Little Ice Age / volcanic cold summer) stage machine, same thresholds and
+   * hysteresis as drought. docs/plan/wind-aspect-climate-variability.md §4.4.
+   */
+  coldHarvestStage?: "calm" | "watch" | "active" | "severe" | "recovering";
+  /** 0..1 this year's cold-harvest severity. */
+  coldHarvestSeverity?: number;
+  /** Consecutive years at coldHarvestStage active/severe. */
+  coldHarvestYears?: number;
   /** 0..1 this year's effective food-production drag after emergency relief mitigation, broadcast
    *  onto cells as climateFoodStressByCell. docs/plan/climate-disaster-drought.md §3.1/§3.5. */
   climateFoodStress?: number;
@@ -1301,7 +1310,7 @@ export interface State {
    */
   disasterLog?: {
     id: number;
-    kind: "drought";
+    kind: "drought" | "coldHarvest";
     stage: "calm" | "watch" | "active" | "severe" | "recovering";
     year: number;
     severity: number;
