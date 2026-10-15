@@ -11,7 +11,6 @@ const scope = globalThis as unknown as {
 scope.onmessage = async ({ data }) => {
   try {
     await i18n.changeLanguage(isSupportedLanguage(data.language ?? null) ? data.language : "en");
-    (globalThis as { __ceCellWidthOverride?: number }).__ceCellWidthOverride = data.cellWidthOverride;
     const started = performance.now();
     const profiler = data.profile ? new ProcessingProfiler() : undefined;
     let failurePreview: GenerationDebugPreview | undefined;

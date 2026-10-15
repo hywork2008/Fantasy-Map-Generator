@@ -12,8 +12,6 @@ export interface GenerationRequest {
   debugFailure?: boolean;
   /** Opt-in diagnostics for benchmarks; never persisted in city documents. */
   profile?: boolean;
-  /** PROTOTYPE (giant-city plan §10): population cell width override. Remove before merging. */
-  cellWidthOverride?: number;
 }
 export interface GenerationTimings {
   structureMs: number;

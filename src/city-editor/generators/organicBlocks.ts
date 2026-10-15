@@ -20,6 +20,10 @@ export interface OrganicBlockContext {
   extentMeters?: number;
   /** The city wall supplies local directions even to districts away from it. */
   walls: [Point, Point][];
+  /** Coarse meshes (giant-city plan §10): split each face into street blocks of
+   * about this size with `streetWidthMeters` streets, as a finer mesh would. */
+  streetCellMeters?: number;
+  streetWidthMeters?: number;
 }
 
 type Split = { parts: [Point[], Point[]]; path: Point[] };
@@ -81,8 +85,33 @@ export function buildOrganicBlocks(
     }
     if (!build) continue;
     const parcels: Point[][] = [];
-    connectDistrict(domain.ring, 0);
+    if (context?.streetCellMeters) partition(domain.ring, 0, context.streetCellMeters);
+    else connectDistrict(domain.ring, 0);
     for (const parcel of parcels) fill(parcel, domain.boundaries);
+
+    /** Street blocks of a coarse face, each then laid out like a fine-mesh face.
+     * Every cut is a street and a frontage boundary of both children. */
+    function partition(poly: Point[], depth: number, cell: number): void {
+      const frame = localFrame(poly);
+      if (depth < 12 && area(poly) > cell * cell * 1.6 && frame.hi - frame.lo > cell * 1.25) {
+        const split = chooseSplit(poly, frame.axis, rng, Math.max(pairedSpan, cell * 0.45), domain.boundaries);
+        if (split) {
+          const street = context?.streetWidthMeters ?? width;
+          addStreet(split.path, street);
+          for (let i = 1; i < split.path.length; i++)
+            domain.boundaries.push({
+              a: split.path[i - 1],
+              b: split.path[i],
+              feature: true,
+              barrier: false,
+              setback: street / 2 + ORGANIC_LANE_FACADE_CLEARANCE
+            });
+          for (const child of split.parts) partition(child, depth + 1, cell);
+          return;
+        }
+      }
+      connectDistrict(poly, 0);
+    }
 
     function connectDistrict(poly: Point[], level: number): void {
       const frame = localFrame(poly, preferredAxis);
@@ -158,9 +187,9 @@ export function buildOrganicBlocks(
   fabric.entrances.set(face.id, entries);
   return fabric;
 
-  function addStreet(points: Point[]): void {
+  function addStreet(points: Point[], widthMeters = width): void {
     if (points.length >= 2 && distance(points[0], points.at(-1)!) > 1e-5)
-      roads.push({ faceId: face.id, points, widthMeters: width });
+      roads.push({ faceId: face.id, points, widthMeters });
   }
 
   function fill(poly: Point[], perimeter: BlockBoundary[]): void {

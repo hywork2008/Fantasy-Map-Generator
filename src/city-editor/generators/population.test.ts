@@ -165,6 +165,50 @@ describe("population-driven city generation", () => {
     expect(overSkewedBridgeDecks(city!, undefined, decks)).toHaveLength(0);
     expect(city!.populationReport!.assignedPopulation + city!.populationReport!.unplacedPopulation).toBe(150000);
   });
+  it("draws 50 m street blocks in a giant city on a coarse mesh", () => {
+    const settings = defaultGenerationSettings();
+    settings.population = { ...defaultPopulationSettings(215000), meshCellMeters: 200 };
+    settings.layout = "organic";
+    settings.townWallRings = "double";
+    settings.config.coast = "none";
+    settings.config.rivers = ["through"];
+    settings.config.features = {
+      walls: true,
+      citadel: false,
+      plaza: true,
+      temple: true,
+      port: false,
+      shanty: true
+    };
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed: "coarse-giant" }),
+      settings,
+      "coarse-giant"
+    );
+    expect(city).not.toBeNull();
+    expect(city!.populationPlan!.cellWidthMeters).toBe(200);
+    expect(validPopulationPlan(city!.populationPlan)).toBe(true);
+    expect(city!.frame.streetCellMeters).toBe(50);
+    expect(city!.populationReport!.unplacedPopulation).toBe(0);
+    expect(overSkewedBridgeDecks(city!, undefined, bridgeDecks(city!))).toHaveLength(0);
+    // The fabric, not the mesh, carries the 5 m streets between street blocks.
+    expect(buildBlockFabric(city!).lanes.some(lane => lane.widthMeters === 5)).toBe(true);
+    for (const cemetery of city!.cemeteries ?? []) {
+      const area = Math.abs(
+        cemetery.boundary.reduce(
+          (sum, p, i) =>
+            sum +
+            p[0] * cemetery.boundary[(i + 1) % cemetery.boundary.length][1] -
+            cemetery.boundary[(i + 1) % cemetery.boundary.length][0] * p[1],
+          0
+        ) / 2
+      );
+      expect(area).toBeLessThanOrEqual(2 * 50 * 50 + 1);
+    }
+    const restored = parseDocument(serializeDocument(city!));
+    expect(restored?.frame.streetCellMeters).toBe(50);
+    expect(restored?.populationReport).toEqual(city!.populationReport);
+  });
   it("keeps imported population and CE overrides separate from FMG", () => {
     const settings = defaultGenerationSettings();
     settings.config.rivers = [];

@@ -361,3 +361,52 @@ seed `ppi409`、各段の累積:
 2. **教会・墓地などを街区に収める**: 現在はセル単位で置いている施設を、分割後の街区に収まる大きさ・形で置く。
 
 検証: 200 m セルで、表示完了までの時間（目標: 5 s 以下）、人口の全配置、橋の規約、そして 50 m の都市と並べた見た目の比較。
+
+## 11. E8 の結果: 粗いメッシュに 50 m の街区を描く（2026-10-15）
+
+§10 の試作を、正式な設定として実装した。
+
+### 11.1 実施した変更
+
+| 変更 | ファイル |
+| --- | --- |
+| **メッシュ解像度の設定** `PopulationGenerationSettings.meshCellMeters`（50 / 100 / 150 / 200、未指定は 50 m）。生成パネルの「メッシュ解像度」で選ぶ。既定は従来どおり 50 m。§10 の試作のグローバル変数と Worker への受け渡しは削除した | [population.ts](../../src/city-editor/types/contracts/population.ts)、[populationPlan.ts](../../src/city-editor/generators/populationPlan.ts)、[populationControls.ts](../../src/city-editor/components/populationControls.ts)、i18n（en/ja） |
+| **街区の大きさを文書に記録** `frame.streetCellMeters`。セルが 75 m より粗いとき、人口からの生成が 50 を入れる。fabric の作成時に `populationPlan` は外されるので、frame に持たせた。保存・再読込で残る | [document.ts](../../src/city-editor/types/document.ts)、[populationGeneration.ts](../../src/city-editor/generators/populationGeneration.ts) |
+| **セルの中の街路** `buildOrganicBlocks` の `partition`。粗いセルを、長い方向に横切る 5 m の街路で、約 50 m の街区に分ける（面積が 50²×1.6 を超え、長さが 62.5 m を超える間）。切った線は街路であり、両側の街区の前面の境界でもある（住宅は街路に面し、街路の幅の半分＋余白だけ下がる）。各街区は、その後は 50 m セルの面と同じ手順（周回の路地、区画の分割、住宅）で埋める | [organicBlocks.ts](../../src/city-editor/generators/organicBlocks.ts)、[localInfill.ts](../../src/city-editor/generators/localInfill.ts) |
+| **教会を街区に収める** 粗いメッシュでは、教会の面を丸ごと予約しない。面は街区・住宅で埋め、教会と境内に重なる建物・路地は既存の `buildingHitsCivicLandmark`・`laneHitsCivicLandmark` で除く。広場（plaza）は従来どおり面を予約する | [localInfill.ts](../../src/city-editor/generators/localInfill.ts) |
+| **墓地を街区に収める** 粗いメッシュでは、墓地の境界を面の一端の約2街区分（5,000 m²以下）に切り詰める（`coarseCemeteryGround`）。面の残りは街区・住宅で埋め、墓地を通る路地は除く。面の ward は `cemetery` のままにし、墓地を扱う他の処理は変えない | [cemeteryLayout.ts](../../src/city-editor/generators/cemeteryLayout.ts)、[localInfill.ts](../../src/city-editor/generators/localInfill.ts) |
+
+いずれの変更も `frame.streetCellMeters` があるときだけ働く。50 m の生成は、15k / 30k / 215k で `fingerprint.document` が E2 後と一致した（`temp/giant/e8-50.jsonl`）。
+
+### 11.2 計測
+
+Node（`benchmarkCeGiant --cell 200`、215k）:
+
+| seed | 50 m | 200 m＋E8 | 未配置 | 推定棟数（50 m → 200 m） |
+| --- | ---: | ---: | ---: | --- |
+| ppi409 | 28.8 s | 2.2 s（2回目で成功） | 0 | 47,898 → 39,087 |
+| a1 | 29.6 s | 1.9 s | 0 | 49,561 → 40,519 |
+| b2 | 26.4 s | 1.7 s | 0 | 47,448 → 40,682 |
+
+橋の斜交の上限超え・交差の不備は、全て0。路地・街路の数は 3,782（§10の200 m）→ 4,563（50 m では 5,573）。
+
+ブラウザ（実際のUIでメッシュ解像度を「最速 · 200 m」にして生成、seed `ppi409`）:
+
+| 区間 | 50 m（E2後） | 200 m＋E8 |
+| --- | ---: | ---: |
+| クリックから表示完了 | 30.5 s | **6.1 s** |
+| Worker内の生成 | 21.4 s | **1.6 s** |
+
+人口 215,000人を全員配置した。見た目は `temp/giant/z-e8c-zoom.png`（200 m、拡大）と `temp/giant/z-cell50-zoom.png`（50 m）を参照。5 m の街路で約 50 m ごとに区切られ、教会の周りと墓地の隣に住宅が並ぶ。
+
+### 11.3 検証
+
+- 新しいテスト（[population.test.ts](../../src/city-editor/generators/population.test.ts)「draws 50 m street blocks in a giant city on a coarse mesh」）: 215,000人、200 m、河川、二重城壁で、全員の配置、`validPopulationPlan`、橋の規約、5 m の街路、墓地の面積上限、保存・再読込を確かめる。
+- CE全体: 1,458件成功、失敗2件（`CityEditorPage.skeleton`・`CityEditorPage.worker`、変更前から失敗）。i18n のテスト14件成功。`tsc --noEmit`、Biome は成功。
+
+### 11.4 残りと注意
+
+- 200 m で推定棟数が約2割少ない。各棟の階数が上がり、街路の面積が増えるため。人口の配置は満たすが、50 m と同じ密度の見た目にはならない。
+- 教会の周りに空き地（境内）がやや広く残る。
+- 表示までの 6.1 s のうち約 4.5 s はメインスレッドの描画データ作成で、次は E6（Worker で作った fabric を受け取って使う）。
+- 既定は 50 m のまま。200 m を既定にするか、人口に応じて自動で選ぶかは未決定。

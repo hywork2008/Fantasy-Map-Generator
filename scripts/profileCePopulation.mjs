@@ -38,7 +38,7 @@ try {
         if (window.__ceCaptureRequest) r.rawRequest = data;
         r.request = { settings: data.settings, seed: data.seed, frame: data.document.frame, faces: Object.keys(data.document.mesh.faces).length };
         r.workerPostAt = performance.now();
-        return super.postMessage({ ...data, profile: true, ...(window.__ceCellWidth ? { cellWidthOverride: window.__ceCellWidth } : {}) }, ...args);
+        return super.postMessage({ ...data, profile: true }, ...args);
       }
     };
     document.addEventListener("click", e => {
@@ -56,7 +56,6 @@ try {
     }).observe(document, { subtree: true, attributes: true, childList: true });
   });
   // CE_CAPTURE_REQUEST=path saves the exact Worker input for headless replay (scripts/benchmarkCeGiant.ts).
-  if (process.env.CE_CELL_WIDTH) await page.addInitScript(width => { window.__ceCellWidth = Number(width); }, process.env.CE_CELL_WIDTH);
   if (process.env.CE_CAPTURE_REQUEST) await page.addInitScript(() => { window.__ceCaptureRequest = true; });
   await page.goto(url);
   const initialPopulation = await page.locator(".ce-population-input").inputValue();
@@ -65,6 +64,8 @@ try {
   await page.locator(".ce-generate-seed").dispatchEvent("change");
   await page.locator(".ce-population-input").fill("215000");
   await page.locator(".ce-population-input").dispatchEvent("change");
+  // CE_CELL_WIDTH=50|100|150|200 picks the population mesh resolution in the panel.
+  if (process.env.CE_CELL_WIDTH) await page.locator(".ce-population-cell").selectOption(process.env.CE_CELL_WIDTH);
   const cdp = process.env.CE_CPU_PROFILE ? await page.context().newCDPSession(page) : null;
   if (cdp) {
     await cdp.send("Profiler.enable");
@@ -110,5 +111,17 @@ try {
     await writeFile(output.replace(/\.json$/, ".cpuprofile"), JSON.stringify(profile));
   }
   await page.screenshot({ path: output.replace(/\.json$/, ".png") });
+  // CE_ZOOM=n: also capture the map centre after n wheel steps in (street-level look).
+  if (process.env.CE_ZOOM) {
+    const box = await page.locator(".ce-map svg").boundingBox();
+    if (box) {
+      // The floating panels cover the left; zoom on the city centre at the map's right half.
+      const x = box.x + box.width * 0.62, y = box.y + box.height * 0.5;
+      await page.mouse.move(x, y);
+      for (let i = 0; i < Number(process.env.CE_ZOOM); i++) { await page.mouse.wheel(0, -300); await page.waitForTimeout(150); }
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: output.replace(/\.json$/, "-zoom.png"), clip: { x: box.x + box.width * 0.5, y: box.y, width: box.width * 0.5, height: box.height } });
+    }
+  }
   console.log(JSON.stringify({ output, success: result.success, clickToPaintMs: result.paintedAt - result.started, structureMs: result.timing?.structureMs, report: result.report }));
 } finally { await browser.close(); }

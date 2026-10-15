@@ -8,6 +8,9 @@ export interface PopulationGenerationSettings {
   frameMode: "auto" | "manual";
   profileId: "medieval-v1";
   profileVersion: 1;
+  /** Mesh cell width. Absent = 50 m. Coarser cells route roads and walls on a smaller
+   * mesh and draw 50 m street blocks inside each cell (giant-city plan §10). */
+  meshCellMeters?: 50 | 100 | 150 | 200;
 }
 export interface PopulationPlan {
   version: 1;

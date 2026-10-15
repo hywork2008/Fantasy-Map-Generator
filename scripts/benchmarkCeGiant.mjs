@@ -47,7 +47,7 @@ function child(runs) {
 for (const seed of seeds.length ? seeds : [undefined]) {
   for (const population of populations) {
     const runs = [...Array(warmup).fill({ request, population, seed, grid, cell, probe: false, warmup: true }),
-      { request, population, seed, grid, cell, probe }];
+      { request, population, seed, grid, cell, probe, civic: !!args.civic }];
     const results = await child(runs);
     for (const result of results.filter(r => !r.warmup)) {
       appendFileSync(out, `${JSON.stringify({ ...result, source, environment: { platform: platform(), cpu: cpus()[0]?.model, node: process.version }, at: new Date().toISOString() })}\n`);

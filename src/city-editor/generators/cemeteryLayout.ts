@@ -2,9 +2,16 @@ import type { CemeteryPart, CemeteryPlan, CityDocument, Face, Id, Point } from "
 import { layoutCultureCemetery } from "./cultureCemeteryLayout";
 import { insideRing, polygonOverlaps, polylineInsideRing } from "./fortifications";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
-import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
+import {
+  clipBlockWithRivers,
+  convexInfillParts,
+  insetConvexKernel,
+  longestFrame,
+  type RiverMargin
+} from "./lotGeometry";
 import { facePoints, faceVertices, indexMeshEdges } from "./mesh";
 import { plotArea, subtractConvex } from "./parcelGeometry";
+import { clipStreetBlocks } from "./streetBlockGeometry";
 import { lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
 
 /**
@@ -490,9 +497,34 @@ export function computeCemeteryBoundary(
   if (waterParts.length) {
     let dry = convexInfillParts(boundary.length >= 3 ? boundary : raw);
     for (const parts of waterParts) for (const wet of parts) dry = dry.flatMap(part => subtractConvex(part, wet, 0.01));
-    return dry.sort((a, b) => plotArea(b) - plotArea(a))[0] ?? [];
+    return coarseCemeteryGround(document, dry.sort((a, b) => plotArea(b) - plotArea(a))[0] ?? []);
   }
-  return boundary.length >= 3 ? boundary : raw;
+  return coarseCemeteryGround(document, boundary.length >= 3 ? boundary : raw);
+}
+
+/** On a mesh coarser than its street blocks (giant-city plan §10), a cemetery is a
+ * parish ground of about two blocks at one end of its face, not the whole face. */
+function coarseCemeteryGround(document: CityDocument, boundary: Point[]): Point[] {
+  const cell = document.frame.streetCellMeters;
+  if (!cell || boundary.length < 3) return boundary;
+  const limit = 2 * cell * cell;
+  const total = Math.abs(polygonArea(boundary));
+  if (total <= limit) return boundary;
+  // Cut across the longest extent: keep the low end with about `limit` of ground.
+  const { axis } = longestFrame(boundary);
+  const values = boundary.map(p => p[0] * axis[0] + p[1] * axis[1]);
+  let lo = Math.min(...values),
+    hi = Math.max(...values);
+  const keep = (offset: number) =>
+    clipStreetBlocks(boundary, axis, offset).sort((a, b) => Math.abs(polygonArea(b)) - Math.abs(polygonArea(a)))[0] ??
+    [];
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (Math.abs(polygonArea(keep(mid))) > limit) hi = mid;
+    else lo = mid;
+  }
+  const part = keep(lo);
+  return part.length >= 3 ? part : boundary;
 }
 
 export interface CemeteryLayoutOptions {

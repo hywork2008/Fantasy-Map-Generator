@@ -97,7 +97,12 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
   next = {
     ...next,
     populationPlan: { ...plan, extentMeters: next.frame.extentMeters },
-    frame: { ...next.frame, cityRadiusMeters: plan.cityRadiusMeters }
+    frame: {
+      ...next.frame,
+      cityRadiusMeters: plan.cityRadiusMeters,
+      // Cells coarser than the 50 m street block keep that block in the fabric.
+      ...(plan.cellWidthMeters > 75 ? { streetCellMeters: 50 } : {})
+    }
   };
   delete next.populationReport;
   delete next.residentialClusters;
