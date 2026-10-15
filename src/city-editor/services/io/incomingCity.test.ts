@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DESCRIPTOR_VERSION } from "../../data/siteDescriptor";
+import { createGridDocument } from "../../generators/document";
 import { DEFAULT_SITE_CONFIG } from "../../generators/site/siteConfig";
 import { synthSite } from "../../generators/site/synthSite";
 import {
@@ -13,6 +14,7 @@ import {
   resolveIncomingCity,
   shareFromDescriptor
 } from "./incomingCity";
+import { cityEditorDocument } from "./shareRequest";
 
 const sample = JSON.parse(
   JSON.stringify(
@@ -90,6 +92,30 @@ describe("share codec", () => {
       settings: { config: DEFAULT_SITE_CONFIG, moats: { town: true, castle: false } }
     });
     expect(decodeShare(encodeShare(share))?.settings.moats).toEqual({ town: true, castle: false });
+  });
+
+  it("compresses and restores the exact input mesh and failed checkpoint", () => {
+    const input = createGridDocument({ size: "micro", grid: "voronoi", seed: "original-grid" });
+    const share = buildShare({
+      seed: "different-town",
+      gridSeed: "wrong-grid",
+      grid: "voronoi",
+      size: "micro",
+      settings: { config: DEFAULT_SITE_CONFIG, townWallRings: "double" },
+      input,
+      stage: "innerWall",
+      debugFailure: true
+    });
+    const token = encodeShare(share);
+    expect(token.startsWith("gz.")).toBe(true);
+    expect(token.length).toBeLessThan(JSON.stringify(share).length);
+    const restored = decodeShare(token)!;
+    expect(restored.stage).toBe("innerWall");
+    expect(restored.debugFailure).toBe(true);
+    expect(cityEditorDocument(restored)).toEqual(input);
+    expect(decodeShare("gz.not-gzip")).toBeNull();
+    expect(parseIncomingPayload(JSON.stringify({ ...share, input: { invalid: true } }))).toBeNull();
+    expect(parseIncomingPayload(JSON.stringify({ ...share, stage: "unknown" }))).toBeNull();
   });
 
   it("round-trips a City Editor share through a base64url token", () => {

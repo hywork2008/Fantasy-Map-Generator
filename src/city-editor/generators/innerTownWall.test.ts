@@ -15,12 +15,144 @@ import { defaultGenerationSettings } from "./generation/settings";
 import { INNER_WALL_FAILURES, innerTownCapacity } from "./innerTownWall";
 import { validate } from "./mesh";
 import { kindEdgeIds, vertexHasCrossing } from "./passages";
+import { preparePopulationGeneration } from "./populationGeneration";
+import { defaultPopulationSettings } from "./populationPlan";
 import { innerWalledAreaShare, outerWalledAreaShare } from "./settlementExtent";
 import { DEFAULT_SITE_CONFIG } from "./site/siteConfig";
 import { synthSite } from "./site/synthSite";
 import { auditTownDefenseClosure } from "./townDefenseClosure";
 
 describe("double town walls (P1)", () => {
+  it.each([
+    ["1q68ihz", "startup-3"],
+    ["1q68ihz", "startup-11"],
+    ["1q68ihz", "startup-12"],
+    ["1q68ihz", "startup-15"],
+    ["1brju8l", "startup-1"],
+    ["1brju8l", "startup-12"],
+    ["8y1sep", "startup-8"]
+  ])("keeps double walls when rolling a population town on a reused grid (%s, %s)", (seed, gridSeed) => {
+    // Startup enables population generation. Subsequent rolls reuse the
+    // population-sized grid saved by the first complete city's recipe.
+    const settings = {
+      ...defaultGenerationSettings(),
+      buildingPattern: "medieval" as const,
+      townWallRings: "double" as const,
+      historicalPeriod: "ageOfExploration" as const,
+      population: defaultPopulationSettings()
+    };
+    const input = preparePopulationGeneration(
+      createGridDocument({ size: "small", grid: "voronoi", seed: gridSeed }),
+      settings,
+      gridSeed
+    ).document;
+    const before = JSON.stringify(input);
+    for (const stageOnly of [true, false]) {
+      const samples: unknown[] = [];
+      const observe = (sample: import("../types/contracts/generationDiagnostics").GenerationSample) => {
+        if (sample.phase === "inner-wall" || sample.failure) samples.push(sample);
+      };
+      const city = stageOnly
+        ? generateStageOnDocument(input, settings, seed, 7, undefined, "innerWall", observe)
+        : generateCityOnDocument(input, settings, seed, observe);
+      expect(city, JSON.stringify(samples)).not.toBeNull();
+      expect(
+        townCircuits(city!).map(c => c.ring),
+        JSON.stringify(samples)
+      ).toEqual([0, 1]);
+      expect(validate(city!)).toEqual([]);
+      expect(auditTownDefenseClosure(city!, "gc:defense-town-0")).toMatchObject({
+        ok: true,
+        disconnectedEnds: 0,
+        undefendedLengthMeters: 0
+      });
+    }
+    expect(JSON.stringify(input)).toBe(before);
+  });
+
+  it("retains the repaired 13txn3k curtain through complete generation", () => {
+    const settings = {
+      ...defaultGenerationSettings(),
+      buildingPattern: "medieval" as const,
+      townWallRings: "double" as const
+    };
+    const city = generateCityOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed: "startup-9" }),
+      settings,
+      "13txn3k"
+    );
+    expect(city).not.toBeNull();
+    expect(townCircuits(city!).map(c => c.ring)).toEqual([0, 1]);
+    expect(validate(city!)).toEqual([]);
+    expect(auditTownDefenseClosure(city!, "gc:defense-town-0").ok).toBe(true);
+  });
+  it.each(
+    ["akv0y3", "1s88b7b", "13txn3k"].flatMap(seed =>
+      ["startup-0", "startup-9", "startup-17"].map(gridSeed => ({ seed, gridSeed }))
+    )
+  )("keeps the startup grid seed independent ($seed, grid=$gridSeed)", ({ seed, gridSeed }) => {
+    const settings = {
+      ...defaultGenerationSettings(),
+      buildingPattern: "medieval" as const,
+      townWallRings: "double" as const
+    };
+    const samples: unknown[] = [];
+    const city = generateStageOnDocument(
+      createGridDocument({ size: "small", grid: "voronoi", seed: gridSeed }),
+      settings,
+      seed,
+      7,
+      undefined,
+      "innerWall",
+      sample => {
+        if (sample.phase === "inner-wall" || sample.failure) samples.push(sample);
+      }
+    );
+    expect(city, JSON.stringify(samples)).not.toBeNull();
+    expect(
+      townCircuits(city!).map(c => c.ring),
+      JSON.stringify(samples)
+    ).toEqual([0, 1]);
+    expect(validate(city!)).toEqual([]);
+    expect(auditTownDefenseClosure(city!, "gc:defense-town-0")).toMatchObject({ ok: true });
+  });
+
+  it.each(
+    (["voronoi", "hex"] as const).flatMap(grid =>
+      ["akv0y3", "1s88b7b", "13txn3k"].flatMap(seed => [false, true].map(citadel => ({ grid, seed, citadel })))
+    )
+  )("generates the reported missing inner curtain ($grid, $seed, castle=$citadel)", ({ grid, seed, citadel }) => {
+    const settings = {
+      ...defaultGenerationSettings(),
+      buildingPattern: "medieval" as const,
+      townWallRings: "double" as const
+    };
+    settings.config.features.citadel = citadel;
+    const samples: unknown[] = [];
+    const city = generateStageOnDocument(
+      createGridDocument({ size: "small", grid, seed }),
+      settings,
+      seed,
+      7,
+      undefined,
+      "innerWall",
+      sample => {
+        if (sample.phase === "inner-wall" || sample.failure) samples.push(sample);
+      }
+    );
+    expect(city, JSON.stringify(samples)).not.toBeNull();
+    expect(
+      townCircuits(city!).map(c => c.ring),
+      JSON.stringify(samples)
+    ).toEqual([0, 1]);
+    expect(validate(city!)).toEqual([]);
+    expect(auditTownDefenseClosure(city!, "gc:defense-town-0")).toMatchObject({
+      ok: true,
+      disconnectedEnds: 0,
+      undefendedLengthMeters: 0
+    });
+  });
+
   it.each(["d1", "d2", "9u8ta1", "river-inner-1", "river-inner-2", "river-inner-3"])(
     "keeps the river-side old-town curtain closed (%s)",
     seed => {

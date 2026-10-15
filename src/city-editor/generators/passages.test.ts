@@ -288,6 +288,8 @@ describe("openBarrierPassage", () => {
       source: null,
       mouth: null
     });
+    expect(joinWallRiverCrossings(document, 0)).toBe(document);
+    expect(joinWallRiverCrossings(document, 8, 7)).toBe(document);
     const next = joinWallRiverCrossings(document);
     expect(next.mesh.vertices.a.point).toEqual([0, 0]);
     expect(next.mesh.vertices.b).toBeUndefined();

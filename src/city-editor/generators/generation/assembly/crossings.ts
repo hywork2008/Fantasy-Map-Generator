@@ -91,7 +91,7 @@ export function applyCrossings(input: ApplyCrossingsInput) {
       arteries: plan.innerArteries,
       requireClosure: plan.innerWall.defensePolicy !== "legacy"
     });
-    if (!inner.report.ok && next.urbanMorphology && plan.innerWall.castleRing === "inner") {
+    if (!inner.report.ok && plan.innerWall.castleRing === "inner") {
       // The present citadel can belong to the later expansion. Keep the old wall's
       // separation and gate rules instead of stretching it to a newer castle.
       castleInOldTown = false;

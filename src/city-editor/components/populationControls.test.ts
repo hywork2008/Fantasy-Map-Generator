@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mountCityEditor } from "./CityEditorPage";
 
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
@@ -6,6 +6,7 @@ let dispose: (() => void) | undefined;
 afterEach(() => {
   dispose?.();
   document.body.replaceChildren();
+  if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
 });
 function mount() {
   const root = document.createElement("div");
@@ -14,6 +15,44 @@ function mount() {
   return root;
 }
 describe("population generation controls", () => {
+  it("keeps and shares the reused population grid and its inner-wall checkpoint", async () => {
+    const root = mount();
+    const seed = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    for (const value of ["startup-3", "1q68ihz"]) {
+      seed.value = value;
+      seed.dispatchEvent(new Event("input", { bubbles: true }));
+      seed.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    }
+    expect(root.querySelector<HTMLInputElement>(".ce-population-enabled")!.checked).toBe(true);
+    const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider")!;
+    slider.value = "11";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    const walls = [...root.querySelectorAll(".ce-feature--wall[data-pick]")].map(
+      node => JSON.parse(decodeURIComponent(node.getAttribute("data-pick")!)).id as string
+    );
+    expect(walls.some(id => id.startsWith("gc:inner-wall-"))).toBe(true);
+    const geometry = (element: HTMLElement) =>
+      [...element.querySelectorAll(".ce-svg path, .ce-svg polygon, .ce-svg circle")].map(node => [
+        node.tagName,
+        node.getAttribute("d"),
+        node.getAttribute("points"),
+        node.getAttribute("cx"),
+        node.getAttribute("cy"),
+        node.getAttribute("r")
+      ]);
+    const before = geometry(root);
+    const writes: string[] = [];
+    Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
+    [...root.querySelectorAll("button")].find(button => button.textContent?.includes("Copy shareable link"))!.click();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    dispose?.();
+    root.remove();
+    window.history.replaceState(null, "", writes[0]);
+    const replay = mount();
+    expect(replay.querySelector<HTMLInputElement>(".ce-generate-stage-slider")!.value).toBe("11");
+    expect(geometry(replay)).toEqual(before);
+  });
+
   it("defaults to 15,000 residents and previews the Paris population without regenerating", () => {
     const root = mount();
     const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;

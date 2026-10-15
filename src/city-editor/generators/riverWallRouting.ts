@@ -194,7 +194,8 @@ const MAX_DETOUR_BLOCKS = 1.75;
 export function repairRiverWalls(
   source: CityDocument,
   urbanRegions: Point[][],
-  protectedFaces: Set<Id> = new Set()
+  protectedFaces: Set<Id> = new Set(),
+  curtainRegions?: Point[][]
 ): RiverWallRepair {
   let document = clone(source);
   const preparedPassages = new Set<Id>();
@@ -210,6 +211,7 @@ export function repairRiverWalls(
   );
 
   const regionBoxes = urbanRegions.map(boundsOf);
+  const curtainBoxes = curtainRegions?.map(boundsOf);
   const reroute = (allowCrossings: boolean, trialPassage?: { vertex: Id; arms: Id[] }) => {
     routingIssues = [];
     failedDetours = [];
@@ -273,6 +275,16 @@ export function repairRiverWalls(
         crossingCorridor.add(edge.rightFace);
       }
     }
+    const curtainFaces =
+      curtainRegions &&
+      new Set(
+        Object.values(mesh.faces)
+          .filter(face => {
+            const at = polygonCentroid(facePoints(mesh, face));
+            return curtainRegions.some((poly, i) => insideBox(at, curtainBoxes![i]) && pointInPolygon(at, poly));
+          })
+          .map(face => face.id)
+      );
     const castles = castleWallIds(document);
     for (const group of document.featureGroups) {
       if (group.kind !== "wall" || group.locked || castles.has(group.id) || !group.id.startsWith("gc:")) continue;
@@ -312,6 +324,9 @@ export function repairRiverWalls(
       const computeAllowedEdge = (edgeId: Id, crossings: boolean) => {
         const edge = mesh.edges[edgeId];
         if (riverEdges.has(edgeId)) return false;
+        // Keep inner-curtain repairs inside the outer wall's reserved buffer.
+        // Split cells inherit this corridor geometrically on each reroute.
+        if (curtainFaces && ![edge.leftFace, edge.rightFace].some(id => id && curtainFaces.has(id))) return false;
         const touching = [edge.a, edge.b].filter(id => riverVertices.has(id));
         if (touching.length > 1) return false;
         if (

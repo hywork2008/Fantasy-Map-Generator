@@ -498,9 +498,9 @@ export function addWideRiverBridge(
 
 /** Collapse the wall/river's shared boundary span into one centred crossing.
  * Both routes retain two opposite arms; their intersection is a real vertex. */
-export function joinWallRiverCrossings(document: CityDocument): CityDocument {
+export function joinWallRiverCrossings(document: CityDocument, maxMerges = 64, maxEdgeLength = Infinity): CityDocument {
   let next = document;
-  for (let pass = 0; pass < 64; pass++) {
+  for (let pass = 0; pass < maxMerges; pass++) {
     const walls = kindEdgeIds(next, "wall");
     const rivers = kindEdgeIds(next, "river");
     const shared = [...walls].filter(id => rivers.has(id));
@@ -509,6 +509,7 @@ export function joinWallRiverCrossings(document: CityDocument): CityDocument {
       const edge = next.mesh.edges[id];
       const a = next.mesh.vertices[edge.a].point;
       const b = next.mesh.vertices[edge.b].point;
+      if (Math.hypot(a[0] - b[0], a[1] - b[1]) > maxEdgeLength) continue;
       const merged = mergeVertices(next, edge.a, edge.b);
       if (!merged) continue;
       next = moveVertex(merged, edge.a, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]) ?? merged;

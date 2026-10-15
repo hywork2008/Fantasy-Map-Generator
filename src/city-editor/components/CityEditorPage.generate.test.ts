@@ -16,7 +16,7 @@ const COAST_WALK_TEST = "① reveals the coastline walk as a growing dotted trai
 const STAGE_BUILDINGS_TEST =
   "stages 7, 8, 9 step through geometry smoothing, lanes, and dwellings, and 新しい都市 generates dwellings";
 const RETRY_TEST = "rolls a town accepted on a retry again from that attempt and draws it identically";
-/** Grid and generation seeds fixed before the editor mounts. `1eaygix` is rejected twice and accepted on its third attempt. */
+/** Grid and generation seeds fixed before the editor mounts. `1eaygix` requires a retry. */
 const FIXED_SEEDS: Record<string, string> = {
   [COAST_WALK_TEST]: "phase7",
   [RETRY_TEST]: "1eaygix",
@@ -719,7 +719,7 @@ describe("shareable link and FMG site", () => {
     expect(root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-build-order")?.value).toBe("inner-first");
   });
 
-  it("keeps the failed inner-wall-stage notice instead of replacing it with generated-up-to", () => {
+  it("keeps and shares the failed inner-wall-stage notice instead of completing another city", async () => {
     const config = structuredClone(DEFAULT_SITE_CONFIG);
     config.rivers = [];
     config.features.citadel = false;
@@ -740,10 +740,27 @@ describe("shareable link and FMG site", () => {
     expect(root.querySelector(".ce-generate-stage-hint")?.textContent).toContain(
       i18n.t("cityEditor.generationStages.firstInnerWall.hint")
     );
-    selectStage(4);
+    const debugInput = () =>
+      [...root.querySelectorAll<HTMLInputElement>("input")].find(
+        input => input.getAttribute("aria-label") === i18n.t("cityEditor.messages.debugShowGenerationFailurePreview")
+      )!;
+    debugInput().checked = true;
+    const writes: string[] = [];
+    Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
+    panelButton("Copy shareable link").click();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    const replay = decodeShare(writes[0].slice(writes[0].indexOf("#") + 1))!;
+    expect(replay.stage).toBe("innerWall");
+    expect(replay.debugFailure).toBe(true);
+    expect(replay.input).toBeDefined();
+    window.history.replaceState(null, "", writes[0]);
+    remount();
+    expect(debugInput().checked).toBe(true);
+    expect(root.querySelector<HTMLInputElement>(".ce-generate-stage-slider")!.value).toBe("4");
     expect(root.querySelector(".ce-status")?.textContent).toContain(
       i18n.t("cityEditor.messages.oldTownWallStageFailed")
     );
+    expect(root.querySelectorAll(".ce-feature--road, .ce-feature--wall")).toHaveLength(0);
   });
 
   it.each(["single", "double", "razed"])(
@@ -796,19 +813,21 @@ describe("shareable link and FMG site", () => {
     panelButton("都市を一括生成").click();
     const first = root.querySelector(".ce-svg")!.innerHTML;
     expect(rolls[0].filter(sample => sample.failure).length).toBeGreaterThan(0);
+    const acceptedAttempt = Math.max(...rolls[0].map(sample => sample.attempt));
+    expect(acceptedAttempt).toBeGreaterThan(1);
     // The requested seed stays; the retry seed is the town's own.
     expect(seedInput.value).toBe("1eaygix");
     panelButton("都市を一括生成").click();
     expect(root.querySelector(".ce-svg")!.innerHTML).toBe(first);
     expect(rolls[1].some(sample => sample.failure)).toBe(false);
-    expect(Math.min(...rolls[1].map(sample => sample.attempt))).toBe(3);
+    expect(Math.min(...rolls[1].map(sample => sample.attempt))).toBe(acceptedAttempt);
     const writes: string[] = [];
     Object.assign(navigator, { clipboard: { writeText: async (value: string) => writes.push(value) } });
     panelButton("Copy shareable link").click();
     await vi.waitFor(() => expect(writes).toHaveLength(1));
     const share = decodeShare(writes[0].slice(writes[0].indexOf("#") + 1));
     expect(share?.seed).toBe("1eaygix");
-    expect(share?.settings.generationRetry?.attempt).toBe(2);
+    expect(share?.settings.generationRetry?.attempt).toBe(acceptedAttempt - 1);
     window.history.replaceState(null, "", writes[0]);
     remount();
     expect(root.querySelector(".ce-svg")!.innerHTML).toBe(first);

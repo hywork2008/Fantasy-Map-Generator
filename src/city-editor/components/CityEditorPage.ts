@@ -929,8 +929,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get syncGridKindUi() {
           return syncGridKindUi;
         },
+        get failureDebugInput() {
+          return failureDebugInput;
+        },
         get runCompleteGeneration() {
           return runCompleteGeneration;
+        },
+        get runGenerationStage() {
+          return runGenerationStage;
+        },
+        get syncStageUi() {
+          return syncStageUi;
         },
         documents,
         interaction,

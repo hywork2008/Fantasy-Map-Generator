@@ -1,3 +1,4 @@
+import { gunzipSync, gzipSync } from "fflate";
 import { isBurialCultureProfile } from "../../../data/burialCultures";
 import { isCivilizationContext } from "../../../data/civilizationTraditions";
 import { editorText } from "../../../i18n/editorMessages";
@@ -9,6 +10,7 @@ import {
 } from "../../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import { generationStageDefinitions } from "../../generators/generation/stages";
 import {
   defaultPopulationSettings,
   MAX_CITY_POPULATION,
@@ -16,7 +18,10 @@ import {
 } from "../../generators/populationPlan";
 import { joinStrandedRoadsToCrossings } from "../../generators/site/strandedRoads";
 import type { IncomingOrigin } from "../../types/contracts/incomingCity";
+import type { CityDocument } from "../../types/document";
+import type { GenerationStage } from "../../types/generation";
 import { readMaxPatchesPreference } from "../browserPreferences";
+import { parseDocument } from "./documentCodec";
 
 // FMG world map → City Editor hand-off, and shareable-link reproduction.
 //
@@ -63,6 +68,11 @@ export interface CityEditorShare {
   size: CitySizePreset;
   hexSizeMeters?: number;
   gridSeed?: string;
+  /** Exact generator input, including a reused population mesh or local edits. */
+  input?: CityDocument;
+  /** Replay this checkpoint instead of automatically completing the city. */
+  stage?: GenerationStage["id"];
+  debugFailure?: boolean;
   patchParams?: {
     nPatches: number;
     relaxCount: number;
@@ -207,6 +217,9 @@ export function buildShare(input: {
   size: CitySizePreset;
   hexSizeMeters?: number;
   gridSeed?: string;
+  input?: CityDocument;
+  stage?: GenerationStage["id"];
+  debugFailure?: boolean;
   patchParams?: CityEditorShare["patchParams"];
   measureBlockSize?: boolean;
   settings: GenerationSettings;
@@ -223,27 +236,38 @@ export function buildShare(input: {
   };
   if (input.hexSizeMeters != null) share.hexSizeMeters = input.hexSizeMeters;
   if (input.gridSeed != null) share.gridSeed = input.gridSeed;
+  if (input.input) share.input = structuredClone(input.input);
+  if (input.stage) share.stage = input.stage;
+  if (input.debugFailure) share.debugFailure = true;
   if (input.patchParams) share.patchParams = { ...input.patchParams };
   if (input.measureBlockSize) share.measureBlockSize = true;
   if (input.descriptor) share.descriptor = structuredClone(input.descriptor);
   return share;
 }
 
-/** base64url(JSON(share or descriptor)) — the payload a `city-editor/#…` link carries. */
+/** Legacy seed tokens use base64url JSON; exact-input replays use gz.<base64url gzip>. */
 export function encodeShare(share: CityEditorShare): string {
-  return toBase64Url(new TextEncoder().encode(JSON.stringify(share)));
+  const bytes = new TextEncoder().encode(JSON.stringify(share));
+  // Mesh snapshots are repetitive: gzip keeps exact failure replays practical
+  // as URL fragments while seed-only and legacy tokens retain their format.
+  return share.input ? `gz.${toBase64Url(gzipSync(bytes, { mtime: 0 }))}` : toBase64Url(bytes);
 }
 
 /** Inverse of `encodeShare`; also accepts a City Generator descriptor token. */
 export function decodeShare(token: string): CityEditorShare | null {
   let json: string;
   try {
-    json = new TextDecoder().decode(fromBase64Url(token));
+    json = shareJson(token);
   } catch {
     console.warn("City Editor: shareable-link payload is not valid base64url");
     return null;
   }
   return parseIncomingPayload(json);
+}
+
+function shareJson(token: string): string {
+  const bytes = token.startsWith("gz.") ? gunzipSync(fromBase64Url(token.slice(3))) : fromBase64Url(token);
+  return new TextDecoder().decode(bytes);
 }
 
 /** Full `origin + path + #<payload>` URL that reopens `share`. */
@@ -260,7 +284,7 @@ export function resolveIncomingCity(lookup: IncomingLookup): IncomingCity | null
     if (!share) {
       let raw: unknown;
       try {
-        raw = parseJson(new TextDecoder().decode(fromBase64Url(token)));
+        raw = parseJson(shareJson(token));
       } catch {
         raw = null;
       }
@@ -394,6 +418,17 @@ function asShare(raw: unknown): CityEditorShare | null {
     size: raw.size,
     settings
   };
+  if (raw.input !== undefined) {
+    const input = parseDocument(JSON.stringify(raw.input));
+    if (!input || input.fabric) return warnShape("share.input");
+    share.input = input;
+  }
+  if (raw.stage !== undefined) {
+    const stage = generationStageDefinitions(settings).find(s => s.id === raw.stage);
+    if (!stage) return warnShape("share.stage");
+    share.stage = stage.id;
+  }
+  if (raw.debugFailure === true) share.debugFailure = true;
   if (isFiniteNumber(raw.hexSizeMeters)) share.hexSizeMeters = raw.hexSizeMeters;
   if (typeof raw.gridSeed === "string" && raw.gridSeed) share.gridSeed = raw.gridSeed;
   const patch = asPatchParams(raw.patchParams);

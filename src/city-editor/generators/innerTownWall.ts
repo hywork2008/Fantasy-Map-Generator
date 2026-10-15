@@ -3,7 +3,14 @@ import { registerTownCircuit } from "./castles";
 import { boundaryEdges, boundaryRings, outerTownCircuit, reservedCastleFaces, townGates } from "./fortifications";
 import { pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { facePoints, faceVertices, insertEdgeVertex, splitFace } from "./mesh";
-import { alternatingPairs, kindEdgeIds, minGateSpacingMeters, orderedIncidentEdges, townCenter } from "./passages";
+import {
+  alternatingPairs,
+  joinWallRiverCrossings,
+  kindEdgeIds,
+  minGateSpacingMeters,
+  orderedIncidentEdges,
+  townCenter
+} from "./passages";
 import { repairRiverWalls } from "./riverWallRouting";
 import { auditTownDefenseClosure } from "./townDefenseClosure";
 
@@ -294,15 +301,17 @@ export function addInnerTownWall(
   if (base.ordered.length < MIN_INNER_FACES * 3) return fail("too-small");
   const rivers = kindEdgeIds(document, "river");
 
-  for (const pass of ["round", "inland"] as const) {
-    const passBase = pass === "round" ? base : inlandTown(document.mesh, base, castle, options.minGapCells);
+  for (const pass of ["round", "inland", "river-crossing"] as const) {
+    const passBase = pass !== "inland" ? base : inlandTown(document.mesh, base, castle, options.minGapCells);
     if (!passBase) continue;
     let target = base.landArea * options.share;
-    for (let attempt = 0; attempt < 6; attempt++, target *= 0.85) {
+    // Six trials left viable small footprints untried. Continue down to the
+    // minimum face count; the cap bounds pathological locked-mesh cases.
+    for (let attempt = 0; attempt < 24; attempt++, target *= 0.85) {
       const trial = selectRound(passBase.info, passBase.ordered, target, passBase.seed);
       if (options.castleInOldTown)
         hugCastle(document.mesh, passBase.info, trial, castle, Math.sqrt(target / Math.PI), passBase.seed);
-      if (trial.size < MIN_INNER_FACES) return fail("too-small");
+      if (trial.size < MIN_INNER_FACES) break;
       if (gapOf(document.mesh, base.outer, trial, castle) < options.minGapCells) continue;
       // The radius fits. Give every street that crosses the circle a vertex on
       // it, so the curtain can pass through the street there (the future gate).
@@ -317,15 +326,19 @@ export function addInnerTownWall(
       );
       const roads = kindEdgeIds(cut.document, "road");
       const townPass =
-        pass === "round" ? town : (inlandTown(cut.document.mesh, town, cutCastle, options.minGapCells) ?? town);
+        pass !== "inland" ? town : (inlandTown(cut.document.mesh, town, cutCastle, options.minGapCells) ?? town);
       const inner = selectRound(townPass.info, townPass.ordered, target, townPass.seed);
       const keep = options.castleInOldTown
         ? hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed)
         : new Set<Id>();
-      // Streets and rivers both keep off the curtain line; each may cross it.
-      const offLine = new Set([...roads, ...rivers]);
+      // Prefer avoiding river corners, but keep a final transverse-crossing
+      // trial: pushing every river contact inland can erase an otherwise
+      // viable curtain before the river router ever gets to repair it.
+      const offLine = new Set([...roads, ...(pass === "river-crossing" ? [] : rivers)]);
       const riverCorners = new Set(
-        cut.document.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : []))
+        pass === "river-crossing"
+          ? []
+          : cut.document.featureGroups.flatMap(group => (group.kind === "river" ? group.vertices : []))
       );
       for (const v of cut.riverCuts) riverCorners.delete(v);
       // A bridge must not abut the curtain: a road ending on a wall vertex
@@ -337,7 +350,21 @@ export function addInnerTownWall(
             riverCorners.add(edge.a);
             riverCorners.add(edge.b);
           }
-      keepStreetsOffCurtain(cut.document, inner, town.info, offLine, town.seed, radius, keep, riverCorners);
+      // Avoiding a road/river must never expand the curtain into the required
+      // outer-wall buffer. Unresolved contacts go to the topology repair.
+      keepStreetsOffCurtain(
+        cut.document,
+        inner,
+        town.info,
+        offLine,
+        town.seed,
+        radius,
+        keep,
+        riverCorners,
+        options.minGapCells > 0
+          ? new Set(inlandTown(cut.document.mesh, town, cutCastle, options.minGapCells)?.info.keys() ?? [])
+          : undefined
+      );
       // Moving the curtain off streets can cut the castle's link again; restore it
       // (a street still on the line there becomes an opening).
       if (options.castleInOldTown) hugCastle(cut.document.mesh, town.info, inner, cutCastle, radius, town.seed);
@@ -355,8 +382,7 @@ export function addInnerTownWall(
           return [edge.leftFace, edge.rightFace].some(f => f && inner.has(f));
         })
       );
-      if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok)
-        return fail("castle-crowds", { faces: inner.size });
+      if (besideCastle.length && !innerTownCapacity(cut.document.mesh, inner, besideCastle).ok) continue;
       let finished = finish(
         cut.document,
         inner,
@@ -614,11 +640,63 @@ function repairInnerTownCurtain(
   const lockedWalls = new Map(trial.document.featureGroups.filter(g => g.kind === "wall").map(g => [g.id, g.locked]));
   for (const group of trial.document.featureGroups)
     if (group.kind === "wall" && !group.id.startsWith(`${options.prefix}inner-wall-`)) group.locked = true;
-  const repair = repairRiverWalls(
-    trial.document,
-    [...inner].map(id => facePoints(source.mesh, source.mesh.faces[id])),
-    reservedCastleFaces(trial.document)
-  );
+  const castleFaces = reservedCastleFaces(source);
+  const outer = source.defenseCircuits?.find(c => c.id === outerId);
+  const corridor =
+    outer && options.minGapCells > 0
+      ? inlandTown(
+          source.mesh,
+          townFaces(source.mesh, outer.areaFaceIds, castleFaces, center),
+          castleFaces,
+          options.minGapCells
+        )
+      : undefined;
+  const innerRegions = [...inner].map(id => facePoints(source.mesh, source.mesh.faces[id]));
+  const corridorRegions =
+    outer && options.minGapCells > 0
+      ? [...(corridor?.info.keys() ?? [])].map(id => facePoints(source.mesh, source.mesh.faces[id]))
+      : undefined;
+  let repair = repairRiverWalls(trial.document, innerRegions, castleFaces, corridorRegions);
+  if (repair.issues.length) {
+    // A short wall/river chain can have its bank approaches at separate
+    // vertices. Collapse it into a shared crossing before trying cell cuts
+    // again. These private trials never move a bridge or an existing wall.
+    const roadLocks = new Map(trial.document.featureGroups.filter(g => g.kind === "road").map(g => [g.id, g.locked]));
+    for (const group of trial.document.featureGroups) if (group.kind === "road") group.locked = true;
+    // Keep the immediate river neighbours of a bridge fixed too: moving one
+    // would change the river tangent and therefore the bridge's skew angle.
+    const roadVertices = new Set(
+      trial.document.featureGroups.flatMap(g =>
+        g.kind === "road"
+          ? g.segments.flatMap(ref => [
+              trial.document.mesh.edges[ref.edgeId].a,
+              trial.document.mesh.edges[ref.edgeId].b
+            ])
+          : []
+      )
+    );
+    const fixedRiverVertices = new Set(
+      trial.document.featureGroups.flatMap(g =>
+        g.kind === "river"
+          ? [
+              g.vertices[0],
+              g.vertices.at(-1)!,
+              ...g.vertices.flatMap((id, i) =>
+                roadVertices.has(id) ? g.vertices.slice(Math.max(0, i - 1), i + 2) : []
+              )
+            ]
+          : []
+      )
+    );
+    const vertexLocks = new Map([...fixedRiverVertices].map(id => [id, trial.document.mesh.vertices[id].locked]));
+    for (const id of fixedRiverVertices) trial.document.mesh.vertices[id].locked = true;
+    const joined = joinWallRiverCrossings(trial.document, 8, source.frame.blockSizeMeters * 2);
+    if (joined !== trial.document) repair = repairRiverWalls(joined, innerRegions, castleFaces, corridorRegions);
+    for (const group of repair.document.featureGroups)
+      if (group.kind === "road" && roadLocks.has(group.id)) group.locked = roadLocks.get(group.id)!;
+    for (const [id, locked] of vertexLocks)
+      if (repair.document.mesh.vertices[id]) repair.document.mesh.vertices[id].locked = locked;
+  }
   for (const group of repair.document.featureGroups)
     if (group.kind === "wall" && lockedWalls.has(group.id)) group.locked = lockedWalls.get(group.id)!;
   if (repair.issues.length) return null;
@@ -1019,7 +1097,8 @@ function keepStreetsOffCurtain(
   radius: number,
   keep: Set<Id> = new Set(),
   /** River corners the curtain may only reach at a planned crossing. */
-  avoid: Set<Id> = new Set()
+  avoid: Set<Id> = new Set(),
+  allowedAdditions?: Set<Id>
 ): void {
   const mesh = document.mesh;
   const grazes = (edgeId: Id) => {
@@ -1036,7 +1115,11 @@ function keepStreetsOffCurtain(
       const inside = edge.leftFace && inner.has(edge.leftFace) ? edge.leftFace : edge.rightFace;
       const other = inside === edge.leftFace ? edge.rightFace : edge.leftFace;
       if (!inside || !inner.has(inside) || (other && inner.has(other))) continue;
-      const canAdd = !!other && info.has(other) && (toggles.get(other) ?? 0) < 2;
+      const canAdd =
+        !!other &&
+        info.has(other) &&
+        (!allowedAdditions || allowedAdditions.has(other)) &&
+        (toggles.get(other) ?? 0) < 2;
       const canDrop = inside !== seed && !keep.has(inside) && (toggles.get(inside) ?? 0) < 2;
       const face = canAdd && (!canDrop || off(other!) <= off(inside)) ? other! : canDrop ? inside : null;
       if (!face) continue;

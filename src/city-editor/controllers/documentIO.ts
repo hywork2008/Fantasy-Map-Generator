@@ -28,7 +28,9 @@ import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdop
 import type { GenerationSample } from "../types/contracts/generationDiagnostics";
 import type { IncomingOrigin } from "../types/contracts/incomingCity";
 import type { Id } from "../types/document";
+import type { GenerationStage } from "../types/generation";
 import { formatDistance } from "../utils/editorUnits";
+import { generationStages } from "./generationStages";
 import { emptySelection } from "./tools/toolTypes";
 
 export interface DocumentIOContext {
@@ -46,7 +48,10 @@ export interface DocumentIOContext {
   hexSizeInput: HTMLInputElement;
   hexSizeValue: HTMLSpanElement;
   syncGridKindUi: () => void;
+  failureDebugInput: HTMLInputElement;
   runCompleteGeneration: () => void;
+  runGenerationStage: (stage: GenerationStage) => void;
+  syncStageUi: (step: number) => void;
   documents: Pick<
     DocumentsState,
     | "referenceImage"
@@ -61,6 +66,7 @@ export interface DocumentIOContext {
   interaction: Pick<InteractionState, "selection" | "activeGroupId">;
   generation: Pick<
     GenerationState,
+    | "currentStageStep"
     | "generateSettings"
     | "activeStepStage"
     | "stepIndex"
@@ -184,7 +190,18 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
   }
 
   function currentShare(): CityEditorShare {
+    const source =
+      ctx.generation.completeSource ??
+      ctx.documents.documentState.fabric?.generation?.input ??
+      ctx.documents.documentState;
+    const { fabric: _fabric, ...input } = source as import("../types/document").CityDocument;
+    const stage = generationStages(ctx.generation.generateSettings).find(
+      s => s.step === ctx.generation.currentStageStep
+    );
     return buildShare({
+      input,
+      debugFailure: ctx.failureDebugInput.checked,
+      stage: stage && !["buildings"].includes(stage.id) ? stage.id : undefined,
       seed: ctx.generation.generateSeed,
       grid: ctx.documents.gridKind,
       size: ctx.size.value as CitySizePreset,
@@ -193,9 +210,9 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       patchParams: ctx.documents.gridKind === "evolution" ? { ...ctx.generation.gridEvoParams } : undefined,
       measureBlockSize: ctx.documents.measureTownCells,
       settings: {
-        ...(ctx.documents.documentState.fabric?.generation?.settings ?? ctx.generation.generateSettings),
+        ...ctx.generation.generateSettings,
         historicalPeriod:
-          ctx.documents.documentState.historicalPeriod ?? ctx.generation.generateSettings.historicalPeriod
+          ctx.generation.generateSettings.historicalPeriod ?? ctx.documents.documentState.historicalPeriod
       },
       descriptor: ctx.generation.generateSettings.descriptor
     });
@@ -233,6 +250,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
 
   function applyShare(share: CityEditorShare, origin: IncomingOrigin): void {
     ctx.generation.generateSeed = share.seed;
+    ctx.failureDebugInput.checked = share.debugFailure === true;
     ctx.documents.gridSeed = share.gridSeed ?? share.seed;
     ctx.documents.gridKind = share.grid;
     ctx.documents.hexSizeMeters = share.hexSizeMeters ?? DEFAULT_HEX_SIZE_METERS;
@@ -267,7 +285,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     ctx.generation.generateSettings.descriptor = share.descriptor;
     ctx.documents.importedOrigin = share.descriptor ? origin : null;
     ctx.documents.documentState =
-      share.settings.population && !share.descriptor
+      share.input || (share.settings.population && !share.descriptor)
         ? cityEditorDocument(share)
         : createGridDocument({
             size: share.size,
@@ -311,7 +329,11 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     ctx.clearGridEvo();
     ctx.syncGenerateControls();
     ctx.rebuildEditorIndexes();
-    ctx.runCompleteGeneration();
+    const stage = share.stage && generationStages(ctx.generation.generateSettings).find(s => s.id === share.stage);
+    if (stage) {
+      ctx.syncStageUi(stage.step);
+      ctx.runGenerationStage(stage);
+    } else ctx.runCompleteGeneration();
   }
 
   function importedFrame() {
