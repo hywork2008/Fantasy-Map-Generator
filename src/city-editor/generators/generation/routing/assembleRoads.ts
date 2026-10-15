@@ -126,7 +126,14 @@ export function applyRoads(input: ApplyRoadsInput) {
       return !((nearHead(a) && leavesHead(a, b)) || (nearHead(b) && leavesHead(b, a)));
     };
     {
-      const preliminaryBans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
+      // The probe must obey the same old-town gate restrictions as the final
+      // router. Otherwise a non-gate shortcut hides a disconnected dry bank
+      // and the cell-interior repair is incorrectly skipped.
+      const preliminaryBans = new Set([
+        ...kindEdgeIds(next, "river"),
+        ...kindEdgeIds(next, "wall"),
+        ...oldTownNonGateEntries(next)
+      ]);
       const probe = completeRoadRouter(
         next,
         routingPlan,
@@ -151,7 +158,12 @@ export function applyRoads(input: ApplyRoadsInput) {
           .filter(edge => edgeHitsWater(next.mesh.vertices[edge.a].point, next.mesh.vertices[edge.b].point, shoreWater))
           .map(edge => edge.id)
       );
-      const bans = new Set([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall"), ...shoreEdges]);
+      const bans = new Set([
+        ...kindEdgeIds(next, "river"),
+        ...kindEdgeIds(next, "wall"),
+        ...oldTownNonGateEntries(next),
+        ...shoreEdges
+      ]);
       const probe = completeRoadRouter(
         next,
         routingPlan,

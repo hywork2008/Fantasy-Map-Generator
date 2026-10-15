@@ -176,6 +176,9 @@ export function generateCityOnDocument(
   const attemptDocument = importedFlows.length ? { ...document, riverFlows: importedFlows } : document;
   const resume =
     retry &&
+    // A cached single-wall fallback must not permanently suppress an explicit
+    // double-wall request after gate/corridor repairs have become possible.
+    !(settings.townWallRings === "double" && retry.singleWallFallback !== undefined) &&
     !stopAfter &&
     !onRejected &&
     Number.isSafeInteger(retry.attempt) &&
