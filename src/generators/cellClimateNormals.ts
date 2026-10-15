@@ -175,6 +175,19 @@ function buildGeography(world: WorldContext, key: string): Geography {
   return { key, continentality, source };
 }
 
+const geographyCache = new WeakMap<WorldContext, Geography>();
+/** Year-independent continentality, shared with consumers (wind) that must not evict the yearly climate cache. */
+export function ensureClimateGeography(
+  world: WorldContext,
+  key = geographyKey(world)
+): { readonly continentality: Float32Array; readonly source: readonly ContinentalitySource[] } {
+  const cached = geographyCache.get(world);
+  if (cached?.key === key) return cached;
+  const geography = buildGeography(world, key);
+  geographyCache.set(world, geography);
+  return geography;
+}
+
 function fallbackLatitude(world: WorldContext, cell: number): number {
   return (
     (world.mapCoordinates.latN ?? 0) -
@@ -191,7 +204,8 @@ export function ensureCellClimateNormals(world: WorldContext, year: number): Cli
   const globalAnomaly = getGlobalClimateAnomaly(variability, world.seed ?? "", year);
   const key = `${geoKey}:${hash(world.grid.cells.temp)}:${hash(world.grid.cells.prec)}:${world.options.axialTilt}:${world.distanceScale}:${exponent}:${globalAnomaly.episodeC}:${globalAnomaly.volcanicC}:${year}`;
   if (previous?.key === key) return previous;
-  const geography = previous?.geography.key === geoKey ? previous.geography : buildGeography(world, geoKey);
+  const geography =
+    previous?.geography.key === geoKey ? previous.geography : (ensureClimateGeography(world, geoKey) as Geography);
   const count = world.grid.cells.i.length;
   const monthly = new Float32Array(count * 12);
   const terrain = buildTerrainDeviation(world, exponent, count);

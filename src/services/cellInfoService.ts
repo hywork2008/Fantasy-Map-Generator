@@ -3,7 +3,7 @@ import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { ARCTIC_CIRCLE_LATITUDE_DEG } from "../data/earthConfig";
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
-import { getCellWind } from "../generators/cellWindClimate";
+import { getCellDiurnalParameters, getCellWind, getDailyWindStats } from "../generators/cellWindClimate";
 import { evaluateCellFireSpiritStatus } from "../generators/fireSpirits";
 import { getForestClearingRate } from "../generators/forestStock";
 import { getFuneralRemainsAtCell } from "../generators/funeralRites";
@@ -229,20 +229,31 @@ export function getPrecipitation(prec: number): string {
  * LBM fluid solve (`docs/simulation/ocean-currents.md`) — so display it as a percentage of that
  * scale rather than inventing a fake speed unit.
  */
-/** "W 6.2 m/s (Beaufort 4), lee, foehn" for the current simulation month. */
+export function getCurrentSpeedLabel(speed: number): string {
+  return `${rn((speed / 255) * 100)}%`;
+}
+/**
+ * "W 6.2 m/s (Beaufort 4), lee side; afternoon sea breeze 2.1 m/s; windmill 63% of the day" for
+ * the current simulation month (docs/plan/wind-aspect-climate-variability.md §5.5, §5.7).
+ */
 export function getFriendlyWind(gridCellId: number): string {
-  const wind = getCellWind(worldContext, gridCellId, simulationContext.currentMonth);
+  const month = simulationContext.currentMonth;
+  const wind = getCellWind(worldContext, gridCellId, month);
   if (!wind) return "n/a";
-  if (wind.speed < 0.5) return `calm (Beaufort 0)`;
   const parts = [
-    `${bearingToCompass8(windVectorToFromDeg(wind.u, wind.v))} ${rn(wind.speed, 1)} m/s (Beaufort ${getBeaufortForce(wind.speed)})`
+    wind.speed < 0.5
+      ? "calm (Beaufort 0)"
+      : `${bearingToCompass8(windVectorToFromDeg(wind.u, wind.v))} ${rn(wind.speed, 1)} m/s (Beaufort ${getBeaufortForce(wind.speed)})`
   ];
   if (wind.foehnProne) parts.push("foehn-prone lee");
   else if (wind.leeSide) parts.push("lee side");
-  return parts.join(", ");
-}
-export function getCurrentSpeedLabel(speed: number): string {
-  return `${rn((speed / 255) * 100)}%`;
+  const diurnal = getCellDiurnalParameters(worldContext, gridCellId, month);
+  const notes: string[] = [];
+  if (diurnal && diurnal.breezeAmp >= 0.5) notes.push(`afternoon sea breeze ${rn(diurnal.breezeAmp, 1)} m/s`);
+  if (diurnal && diurnal.slopeAmp >= 0.5) notes.push(`valley winds ${rn(diurnal.slopeAmp, 1)} m/s`);
+  const daily = getDailyWindStats(worldContext, gridCellId, month);
+  if (daily) notes.push(`windmill ${Math.round(daily.windmillFraction * 100)}% of the day`);
+  return notes.length ? `${parts.join(", ")}; ${notes.join("; ")}` : parts.join(", ");
 }
 export function getFriendlyPrecipitation(i: number): string {
   const prec = worldContext.grid.cells.prec[worldContext.pack.cells.g[i]];

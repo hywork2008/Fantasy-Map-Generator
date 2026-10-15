@@ -6,16 +6,32 @@
  *
  * Terrain scans (land fraction, exposure) run once per geography; only the band wind and the
  * upwind lee walk depend on the month, and all 12 months are built together and cached.
+ *
+ * W2 adds the monsoon term (§5.3: flow toward the seasonally warm side of a smoothed land–sea
+ * temperature contrast, turned by Coriolis) and per-month diurnal parameters (§5.5: mixing, sea
+ * breeze, slope winds) from which any hour's wind and daily aggregates are evaluated.
  */
 
 import type { WorldContext } from "../context/worldContext";
 import { getEarthCoordinatesAtMapPoint } from "../data/earthConfig";
 import { useOptionsState } from "../store/optionsState";
+import { getMonthlyMeanTemperaturesC } from "../utils/earthlikeClimate";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
+import { precipitationProxyToMillimeters } from "../utils/precipitationUnits";
 import { getDayOfYear, getDaysInMonth } from "../utils/seasonUtils";
 import {
+  type DailyWindStats,
+  type DiurnalWindParameters,
+  getDailyWindStatsFromParameters,
   getExposureFactor,
+  getHourlyWindVector,
+  getMixingAmplitude,
+  getMonsoonVector,
+  getSeaBreezeAmplitude,
+  getSlopeWindAmplitude,
   getZonalWindVector,
+  MONSOON_BLUR_RADIUS_KM,
+  SEA_BREEZE_REACH_KM,
   WIND_FOEHN_OBSTACLE_M,
   WIND_LEE_FACTOR,
   WIND_LEE_OBSTACLE_M,
@@ -23,6 +39,8 @@ import {
   WIND_ROUGHNESS_COAST,
   WIND_ROUGHNESS_LAND
 } from "../utils/windClimate";
+import { ensureClimateGeography } from "./cellClimateNormals";
+import { computeWorldTerrainAspect, HILLSIDE_LENGTH_M } from "./terrainAspect";
 
 export const WIND_FLAG_LEE = 1;
 export const WIND_FLAG_FOEHN = 2;
@@ -43,6 +61,20 @@ export interface CellWindClimate {
   readonly flags: Uint8Array;
   readonly landFraction: Float32Array;
   readonly exposure: Float32Array;
+  /** Monsoon part of u/v (already included in them), month-major like u/v. */
+  readonly monsoonU: Float32Array;
+  readonly monsoonV: Float32Array;
+  /** 0–1 trust in the monsoon term; < 1 within MONSOON_BLUR_RADIUS_KM of an unknown map edge. */
+  readonly monsoonConfidence: Float32Array;
+  /** §5.5 diurnal parameters. Month-major arrays are indexed cell * 12 + month. */
+  readonly mixAmp: Float32Array;
+  readonly breezeAmp: Float32Array;
+  readonly slopeNightFactor: Float32Array;
+  readonly breezeDirDeg: Float32Array;
+  readonly slopeAmp: Float32Array;
+  readonly upslopeDirDeg: Float32Array;
+  /** km from the nearest open-ocean cell for land cells within reach of the sea breeze, else NaN. */
+  readonly coastDistanceKm: Float32Array;
 }
 
 const cache = new WeakMap<WorldContext, CellWindClimate>();
@@ -65,6 +97,8 @@ function cacheKey(world: WorldContext, exponent: number): string {
     grid.cellsX,
     grid.cellsY,
     hash(grid.cells.h),
+    hash(grid.cells.prec),
+    grid.features?.map(f => f?.type),
     options.winds,
     options.axialTilt,
     distanceScale,
@@ -72,39 +106,45 @@ function cacheKey(world: WorldContext, exponent: number): string {
   ]);
 }
 
-/** Box mean over a row-major raster, separable, repeated twice (≈ triangular kernel). O(n). */
+/** Box mean over a row-major raster, separable running sums, repeated twice (≈ triangular kernel). O(n). */
 function boxBlur(values: Float32Array, width: number, height: number, radius: number): Float32Array {
   if (radius < 1) return values.slice();
   let source = values;
+  const line = new Float64Array(Math.max(width, height));
   for (let pass = 0; pass < 2; pass++) {
-    const horizontal = new Float32Array(source.length);
-    for (let y = 0; y < height; y++) {
-      const row = y * width;
-      for (let x = 0; x < width; x++) {
-        let sum = 0;
-        let count = 0;
-        for (let k = Math.max(0, x - radius); k <= Math.min(width - 1, x + radius); k++) {
-          sum += source[row + k];
-          count++;
-        }
-        horizontal[row + x] = sum / count;
-      }
-    }
-    const vertical = new Float32Array(source.length);
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        let sum = 0;
-        let count = 0;
-        for (let k = Math.max(0, y - radius); k <= Math.min(height - 1, y + radius); k++) {
-          sum += horizontal[k * width + x];
-          count++;
-        }
-        vertical[y * width + x] = sum / count;
-      }
-    }
-    source = vertical;
+    const out = new Float32Array(source.length);
+    blurLines(source, out, height, width, 1, width, radius, line);
+    const out2 = new Float32Array(source.length);
+    blurLines(out, out2, width, height, width, 1, radius, line);
+    source = out2;
   }
   return source;
+}
+
+/** Blurs `count` lines of `length` samples; sample k of line j is at j * lineStride + k * step. */
+function blurLines(
+  source: Float32Array,
+  target: Float32Array,
+  count: number,
+  length: number,
+  step: number,
+  lineStride: number,
+  radius: number,
+  prefix: Float64Array
+): void {
+  for (let j = 0; j < count; j++) {
+    const base = j * lineStride;
+    let running = 0;
+    for (let k = 0; k < length; k++) {
+      running += source[base + k * step];
+      prefix[k] = running;
+    }
+    for (let k = 0; k < length; k++) {
+      const lo = Math.max(0, k - radius);
+      const hi = Math.min(length - 1, k + radius);
+      target[base + k * step] = (prefix[hi] - (lo > 0 ? prefix[lo - 1] : 0)) / (hi - lo + 1);
+    }
+  }
 }
 
 function latitudeOf(world: WorldContext, cell: number): number {
@@ -166,6 +206,31 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
   const latitudes = new Float32Array(n);
   for (let cell = 0; cell < n; cell++) latitudes[cell] = latitudeOf(world, cell);
 
+  // §5.3 seasonal temperature anomaly r[m] (monthly − annual), from the same earth-like curve the
+  // monthly normals use. Terrain and long-period anomalies are left out: neither moves pressure.
+  const { continentality } = ensureClimateGeography(world);
+  const seasonal = new Float32Array(n * 12);
+  const seasonalAmplitude = new Float32Array(n);
+  for (let cell = 0; cell < n; cell++) {
+    const curve = getMonthlyMeanTemperaturesC({
+      annualMeanTemperatureC: 0,
+      latitudeDeg: latitudes[cell],
+      continentality: continentality[cell] ?? 0.5,
+      axialTiltDeg: axialTilt,
+      year: REFERENCE_YEAR
+    });
+    let amplitude = 0;
+    for (let m = 0; m < 12; m++) {
+      seasonal[cell * 12 + m] = curve[m];
+      amplitude = Math.max(amplitude, Math.abs(curve[m]));
+    }
+    seasonalAmplitude[cell] = amplitude;
+  }
+  const monsoonU = new Float32Array(n * 12);
+  const monsoonV = new Float32Array(n * 12);
+  const monsoonConfidence = new Float32Array(n);
+  if (isRaster) buildMonsoon();
+
   const u = new Float32Array(n * 12);
   const v = new Float32Array(n * 12);
   const flags = new Uint8Array(n * 12);
@@ -173,7 +238,8 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
   for (let m = 0; m < 12; m++) {
     const day = getDayOfYear(REFERENCE_YEAR, m + 1, Math.ceil(getDaysInMonth(REFERENCE_YEAR, m + 1) / 2)) - 1;
     for (let cell = 0; cell < n; cell++) {
-      const zonal = getZonalWindVector(winds, latitudes[cell], day, daysInYear, landFraction[cell], axialTilt);
+      const band = getZonalWindVector(winds, latitudes[cell], day, daysInYear, landFraction[cell], axialTilt);
+      const zonal = { u: band.u + monsoonU[cell * 12 + m], v: band.v + monsoonV[cell * 12 + m] };
       let factor = staticFactor[cell];
       const shelter = kmPerUnit > 0 ? findUpwindObstacle(cell, zonal.u, zonal.v) : null;
       if (shelter) {
@@ -185,9 +251,140 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
     }
   }
 
-  const result: CellWindClimate = { key, u, v, flags, landFraction, exposure };
+  const diurnal = buildDiurnal();
+  const result: CellWindClimate = {
+    key,
+    u,
+    v,
+    flags,
+    landFraction,
+    exposure,
+    monsoonU,
+    monsoonV,
+    monsoonConfidence,
+    ...diurnal
+  };
   cache.set(world, result);
   return result;
+
+  function buildMonsoon(): void {
+    const width = grid.cellsX;
+    const height = grid.cellsY;
+    const radius = Math.max(1, Math.round(MONSOON_BLUR_RADIUS_KM / spacingKm / 1.5));
+    // Edges that cut through unknown territory (not a pole or a wrapped global seam).
+    const { latN = 90, latT = 180, lonT = 360 } = world.mapCoordinates;
+    const unknownTop = latN < 89.999;
+    const unknownBottom = latN - latT > -89.999;
+    const unknownSides = lonT < 359.999;
+    for (let cell = 0; cell < n; cell++) {
+      const x = cell % width;
+      const y = Math.floor(cell / width);
+      let edgeKm = Infinity;
+      if (unknownSides) edgeKm = Math.min(edgeKm, (x + 0.5) * spacingKm, (width - x - 0.5) * spacingKm);
+      if (unknownTop) edgeKm = Math.min(edgeKm, (y + 0.5) * spacingKm);
+      if (unknownBottom) edgeKm = Math.min(edgeKm, (height - y - 0.5) * spacingKm);
+      monsoonConfidence[cell] = Math.min(1, edgeKm / MONSOON_BLUR_RADIUS_KM);
+    }
+    const month = new Float32Array(n);
+    for (let m = 0; m < 12; m++) {
+      for (let cell = 0; cell < n; cell++) month[cell] = seasonal[cell * 12 + m];
+      const smooth = boxBlur(month, width, height, radius);
+      for (let cell = 0; cell < n; cell++) {
+        const x = cell % width;
+        const y = Math.floor(cell / width);
+        const xl = Math.max(0, x - 1);
+        const xr = Math.min(width - 1, x + 1);
+        const yt = Math.max(0, y - 1);
+        const yb = Math.min(height - 1, y + 1);
+        const gradEast = xr > xl ? (smooth[y * width + xr] - smooth[y * width + xl]) / ((xr - xl) * spacingKm) : 0;
+        // Screen rows grow southward, so north is the row above.
+        const gradNorth = yb > yt ? (smooth[yt * width + x] - smooth[yb * width + x]) / ((yb - yt) * spacingKm) : 0;
+        const monsoon = getMonsoonVector(gradEast, gradNorth, latitudes[cell], monsoonConfidence[cell]);
+        monsoonU[cell * 12 + m] = monsoon.u;
+        monsoonV[cell * 12 + m] = monsoon.v;
+      }
+    }
+  }
+
+  function buildDiurnal() {
+    const isOcean = (cell: number) => !land[cell] && grid.features?.[grid.cells.f?.[cell]]?.type === "ocean";
+    // Multi-source BFS from open-ocean cells inland, carrying the nearest sea cell (§5.5 sea→land direction).
+    const coastDistanceKm = new Float32Array(n).fill(Number.NaN);
+    const breezeDirDeg = new Float32Array(n);
+    if (kmPerUnit > 0 && grid.cells.f) {
+      const source = new Int32Array(n).fill(-1);
+      let frontier: number[] = [];
+      for (let cell = 0; cell < n; cell++) if (isOcean(cell)) source[cell] = cell;
+      for (let cell = 0; cell < n; cell++)
+        if (land[cell] && (neighbors[cell] ?? []).some(other => source[other] === other)) frontier.push(cell);
+      const reach = SEA_BREEZE_REACH_KM * 1.5;
+      for (const cell of frontier) source[cell] = nearestSea(cell);
+      while (frontier.length) {
+        const next: number[] = [];
+        for (const cell of frontier) {
+          const sea = source[cell];
+          const dx = (points[cell][0] - points[sea][0]) * kmPerUnit;
+          const dyNorth = -(points[cell][1] - points[sea][1]) * kmPerUnit;
+          const distance = Math.max(0, Math.hypot(dx, dyNorth) - spacingKm / 2);
+          if (distance > reach) continue;
+          coastDistanceKm[cell] = distance;
+          breezeDirDeg[cell] = ((Math.atan2(dx, dyNorth) * 180) / Math.PI + 360) % 360;
+          for (const other of neighbors[cell] ?? []) {
+            if (!land[other] || source[other] >= 0) continue;
+            source[other] = sea;
+            next.push(other);
+          }
+        }
+        frontier = next;
+      }
+      function nearestSea(cell: number): number {
+        let best = -1;
+        let bestDistance = Infinity;
+        for (const other of neighbors[cell] ?? []) {
+          if (!isOcean(other)) continue;
+          const d = Math.hypot(points[other][0] - points[cell][0], points[other][1] - points[cell][1]);
+          if (d < bestDistance) {
+            bestDistance = d;
+            best = other;
+          }
+        }
+        return best;
+      }
+    }
+
+    const slopeAmp = new Float32Array(n);
+    const upslopeDirDeg = new Float32Array(n);
+    if (kmPerUnit > 0 && grid.cells.c && world.graphHeight > 0) {
+      const aspect = computeWorldTerrainAspect(world, exponent);
+      for (let cell = 0; cell < n; cell++) {
+        if (!land[cell]) continue;
+        const relief = Math.tan((aspect.slopeDeg[cell] * Math.PI) / 180) * HILLSIDE_LENGTH_M;
+        slopeAmp[cell] = getSlopeWindAmplitude(relief, aspect.dominance[cell]);
+        upslopeDirDeg[cell] = (aspect.aspectDeg[cell] + 180) % 360;
+      }
+    }
+
+    const mixAmp = new Float32Array(n * 12);
+    const breezeAmp = new Float32Array(n * 12);
+    const slopeNightFactor = new Float32Array(n * 12);
+    for (let cell = 0; cell < n; cell++) {
+      const isLand = land[cell] === 1;
+      const mm = precipitationProxyToMillimeters(grid.cells.prec?.[cell] ?? 0);
+      const dryness = 1 - Math.min(1, Math.max(0, (Number.isFinite(mm) ? mm : 0) / 1500));
+      const amplitude = seasonalAmplitude[cell] || 1;
+      for (let m = 0; m < 12; m++) {
+        const index = cell * 12 + m;
+        const summer = 0.5 + (0.5 * seasonal[index]) / amplitude;
+        mixAmp[index] = getMixingAmplitude(isLand, summer, dryness, latitudes[cell]);
+        breezeAmp[index] = Number.isNaN(coastDistanceKm[cell])
+          ? 0
+          : getSeaBreezeAmplitude(coastDistanceKm[cell], summer, Math.hypot(u[index], v[index]));
+        // Winter-night drainage winds are stronger on high ground (§5.5).
+        slopeNightFactor[index] = 1 + 0.5 * (1 - summer) * Math.min(1, meters[cell] / 1500);
+      }
+    }
+    return { mixAmp, breezeAmp, slopeNightFactor, breezeDirDeg, slopeAmp, upslopeDirDeg, coastDistanceKm };
+  }
 
   /**
    * Walks upwind cell by cell (like the precipitation model's passWind) for up to
@@ -247,7 +444,7 @@ export function getCellWind(world: WorldContext, gridCellId: number, month: numb
   const n = world.grid?.cells?.i?.length ?? 0;
   if (!n || !Number.isInteger(gridCellId) || gridCellId < 0 || gridCellId >= n) return null;
   const climate = ensureCellWindClimate(world);
-  const index = gridCellId * 12 + ((((Math.round(month) - 1) % 12) + 12) % 12);
+  const index = gridCellId * 12 + monthIndexOf(month);
   const u = climate.u[index];
   const v = climate.v[index];
   return {
@@ -257,4 +454,45 @@ export function getCellWind(world: WorldContext, gridCellId: number, month: numb
     leeSide: (climate.flags[index] & WIND_FLAG_LEE) !== 0,
     foehnProne: (climate.flags[index] & WIND_FLAG_FOEHN) !== 0
   };
+}
+
+function monthIndexOf(month: number): number {
+  return (((Math.round(month) - 1) % 12) + 12) % 12;
+}
+
+/** §5.5 diurnal parameters for a cell and 1-based month. */
+export function getCellDiurnalParameters(
+  world: WorldContext,
+  gridCellId: number,
+  month: number
+): DiurnalWindParameters | null {
+  const n = world.grid?.cells?.i?.length ?? 0;
+  if (!n || !Number.isInteger(gridCellId) || gridCellId < 0 || gridCellId >= n) return null;
+  const c = ensureCellWindClimate(world);
+  const index = gridCellId * 12 + monthIndexOf(month);
+  return {
+    mixAmp: c.mixAmp[index],
+    breezeAmp: c.breezeAmp[index],
+    breezeDirDeg: c.breezeDirDeg[gridCellId],
+    slopeAmp: c.slopeAmp[gridCellId],
+    upslopeDirDeg: c.upslopeDirDeg[gridCellId],
+    slopeNightFactor: c.slopeNightFactor[index]
+  };
+}
+
+/** Wind at a local solar `hour` (0–24) of a 1-based month: display-only, the simulation has no clock. */
+export function getCellHourlyWind(world: WorldContext, gridCellId: number, month: number, hour: number) {
+  const mean = getCellWind(world, gridCellId, month);
+  const parameters = getCellDiurnalParameters(world, gridCellId, month);
+  if (!mean || !parameters) return null;
+  const w = getHourlyWindVector(mean, parameters, hour);
+  return { u: w.u, v: w.v, speed: Math.hypot(w.u, w.v) };
+}
+
+/** Daily mean/max, calm share and windmill working share for a cell on a day of a 1-based month. */
+export function getDailyWindStats(world: WorldContext, gridCellId: number, month: number): DailyWindStats | null {
+  const mean = getCellWind(world, gridCellId, month);
+  const parameters = getCellDiurnalParameters(world, gridCellId, month);
+  if (!mean || !parameters) return null;
+  return getDailyWindStatsFromParameters(mean, parameters);
 }
