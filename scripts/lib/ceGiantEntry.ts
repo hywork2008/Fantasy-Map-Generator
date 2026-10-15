@@ -11,16 +11,23 @@ export interface GiantRun {
   population: number;
   seed?: string;
   probe?: boolean;
+  /** Override the input document's grid (voronoi | hex | evolution). */
+  grid?: string;
+  /** PROTOTYPE: population cell width in metres (default 50). */
+  cell?: number;
 }
 
 export function runGiant(run: GiantRun) {
   const request = JSON.parse(readFileSync(run.request, "utf8")) as GenerationRequest;
+  (globalThis as { __ceCellWidthOverride?: number }).__ceCellWidthOverride = run.cell;
+  if (run.grid) request.document.gridKind = run.grid as typeof request.document.gridKind;
   const settings = structuredClone(request.settings);
   if (settings.population) settings.population = { ...settings.population, targetPopulation: run.population };
   const seed = run.seed ?? request.seed;
   const profiler = new ProcessingProfiler();
   if (run.probe) enableMeshOpProbe(() => profiler.currentPath());
   const attempts: number[] = [];
+  const failures: string[] = [];
   const started = performance.now();
   let city: ReturnType<typeof generateCityOnDocument>;
   let ops: ReturnType<typeof disableMeshOpProbe> = [];
@@ -31,6 +38,7 @@ export function runGiant(run: GiantRun) {
       seed,
       sample => {
         if (sample.attempt && !attempts.includes(sample.attempt)) attempts.push(sample.attempt);
+        if (sample.failure) failures.push(`${sample.attempt}:${sample.failure.reason}`);
       },
       undefined,
       profiler
@@ -42,9 +50,12 @@ export function runGiant(run: GiantRun) {
   return {
     population: run.population,
     seed,
+    grid: request.document.gridKind ?? "voronoi",
+    cell: run.cell ?? 50,
     success: !!city,
     totalMs,
     attempts: attempts.length,
+    failures,
     faces: city ? Object.keys(city.mesh.faces).length : 0,
     vertices: city ? Object.keys(city.mesh.vertices).length : 0,
     edges: city ? Object.keys(city.mesh.edges).length : 0,

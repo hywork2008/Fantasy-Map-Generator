@@ -68,7 +68,8 @@ export function planPopulation(
               : 20;
   // Resolution is independent of display grouping, so changing it does not reroll the city.
   // The default 50 m cell at every size: more people add cells instead of coarsening them.
-  const cellWidthMeters = 50;
+  // PROTOTYPE (giant-city plan §10): benchmarks may coarsen the cell. Remove before merging.
+  const cellWidthMeters = (globalThis as { __ceCellWidthOverride?: number }).__ceCellWidthOverride ?? 50;
   return {
     version: 1,
     settings: structuredClone(settings),

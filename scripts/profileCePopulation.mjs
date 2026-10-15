@@ -38,7 +38,7 @@ try {
         if (window.__ceCaptureRequest) r.rawRequest = data;
         r.request = { settings: data.settings, seed: data.seed, frame: data.document.frame, faces: Object.keys(data.document.mesh.faces).length };
         r.workerPostAt = performance.now();
-        return super.postMessage({ ...data, profile: true }, ...args);
+        return super.postMessage({ ...data, profile: true, ...(window.__ceCellWidth ? { cellWidthOverride: window.__ceCellWidth } : {}) }, ...args);
       }
     };
     document.addEventListener("click", e => {
@@ -56,6 +56,7 @@ try {
     }).observe(document, { subtree: true, attributes: true, childList: true });
   });
   // CE_CAPTURE_REQUEST=path saves the exact Worker input for headless replay (scripts/benchmarkCeGiant.ts).
+  if (process.env.CE_CELL_WIDTH) await page.addInitScript(width => { window.__ceCellWidth = Number(width); }, process.env.CE_CELL_WIDTH);
   if (process.env.CE_CAPTURE_REQUEST) await page.addInitScript(() => { window.__ceCaptureRequest = true; });
   await page.goto(url);
   const initialPopulation = await page.locator(".ce-population-input").inputValue();

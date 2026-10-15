@@ -19,6 +19,8 @@ const seeds = (args.seeds ?? "").split(",").filter(Boolean);
 const out = args.out ?? "temp/giant/sweep.jsonl";
 const warmup = Number(args.warmup ?? 0);
 const probe = !!args.probe;
+const grid = args.grid;
+const cell = args.cell ? Number(args.cell) : undefined;
 const source = {
   commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
   dirty: !!execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()
@@ -44,12 +46,12 @@ function child(runs) {
 
 for (const seed of seeds.length ? seeds : [undefined]) {
   for (const population of populations) {
-    const runs = [...Array(warmup).fill({ request, population, seed, probe: false, warmup: true }),
-      { request, population, seed, probe }];
+    const runs = [...Array(warmup).fill({ request, population, seed, grid, cell, probe: false, warmup: true }),
+      { request, population, seed, grid, cell, probe }];
     const results = await child(runs);
     for (const result of results.filter(r => !r.warmup)) {
       appendFileSync(out, `${JSON.stringify({ ...result, source, environment: { platform: platform(), cpu: cpus()[0]?.model, node: process.version }, at: new Date().toISOString() })}\n`);
-      console.log(`${seed ?? "(request)"} ${population}: ${result.success ? "ok" : "FAILED"} ${(result.totalMs / 1000).toFixed(2)} s, ${result.faces} faces, attempts ${result.attempts}`);
+      console.log(`${grid ?? ""}${cell ? ` cell ${cell}m` : ""} ${seed ?? "(request)"} ${population}: ${result.success ? "ok" : "FAILED"} ${(result.totalMs / 1000).toFixed(2)} s, ${result.faces} faces, attempts ${result.attempts}`);
     }
   }
 }
