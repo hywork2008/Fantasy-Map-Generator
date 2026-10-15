@@ -56,6 +56,7 @@ export interface HousingReportInput {
 }
 
 export interface HousingReportOutput {
+  populationReport?: import("../../types/contracts/population").PopulationReport;
   residentialCapacity?: HousingCapacityReport;
   generated: boolean;
   generationSeed: string | null;
@@ -253,6 +254,7 @@ export function compareShareHousing(
   const houses = lots.filter(isHouse);
   const inSettlement = (lot: BuildingLot, settlement: string) => settlementOf(counted, lot) === settlement;
   const output: HousingReportOutput = {
+    ...(city?.populationReport ? { populationReport: city.populationReport } : {}),
     ...(city?.urbanMorphology
       ? { residentialCapacity: measureHousingCapacity(city, lots, descriptor.burg.dwellings) }
       : {}),

@@ -1803,6 +1803,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   });
 
   const {
+    populationControls,
     currentBuildingPatternSelect,
     historicalPeriodSelect,
     skeletonControls,
@@ -2069,6 +2070,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
     divider(),
     importedBox,
+    populationControls,
     skeletonControls,
     synthControls,
     label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),

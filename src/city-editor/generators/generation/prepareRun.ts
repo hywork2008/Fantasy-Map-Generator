@@ -35,7 +35,7 @@ export function prepareRun(document: CityDocument, settings: GenerationSettings,
     seed,
     extentMeters: townExtentMeters(frame),
     cityRadiusMeters: settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters,
-    dwellings: descriptor.burg.dwellings,
+    dwellings: document.populationPlan?.requiredDwellings ?? descriptor.burg.dwellings,
     cellSizeMeters: cellSize,
     lloydPasses: 1,
     urbanNPatches: settings.urbanNPatches

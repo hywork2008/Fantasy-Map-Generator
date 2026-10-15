@@ -116,7 +116,10 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.currentBuildingPatternSelect.value =
       ctx.documents.documentState.buildingPattern ??
       (ctx.documents.documentState.fabric?.version === 5 ? "medieval" : "legacy");
-    ctx.historicalPeriodSelect.value = ctx.documents.documentState.historicalPeriod ?? "ageOfExploration";
+    ctx.historicalPeriodSelect.value =
+      (ctx.generation.generateSettings.population ? ctx.generation.generateSettings.historicalPeriod : undefined) ??
+      ctx.documents.documentState.historicalPeriod ??
+      "ageOfExploration";
     ctx.walledShareInput.placeholder = editorText("cityEditor.messages.autoCityEditorPage", {
       value0: Math.round(
         (ctx.inferredHistoryWalls()?.walledAreaShare ??
@@ -284,6 +287,21 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
         value1: Number(svg.getAttribute("data-assigned-outside-dwellings")).toLocaleString(),
         value2: Number(svg.getAttribute("data-unplaced-dwellings")).toLocaleString()
       })}`;
+    }
+    const population = svg.hasAttribute("data-population-report")
+      ? (JSON.parse(
+          svg.getAttribute("data-population-report")!
+        ) as import("../types/contracts/population").PopulationReport)
+      : ctx.documents.documentState.populationReport;
+    if (population) {
+      ctx.housingSummary.hidden = false;
+      ctx.housingSummary.textContent = editorText("cityEditor.messages.populationSummary", {
+        population: population.targetPopulation.toLocaleString(),
+        dwellings: ctx.documents.documentState.populationPlan?.requiredDwellings.toLocaleString(),
+        buildings: population.estimatedBuildings.toLocaleString(),
+        groups: population.displayGroups.toLocaleString(),
+        unplaced: population.unplacedPopulation.toLocaleString()
+      });
     }
     // Index the per-face nodes this pass just built so a later ward/sea paint
     // can patch just the touched faces (patchFaceRender) instead of forcing

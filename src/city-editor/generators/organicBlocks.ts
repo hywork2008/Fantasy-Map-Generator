@@ -194,6 +194,7 @@ export function buildOrganicBlocks(
       block.map((_, i) => i),
       {
         lotArea,
+        housingCluster: parameters?.housingCluster,
         coverage: parameters?.coverage ?? 0.9,
         occupancy: parameters?.occupancy ?? 1,
         outskirts: false,

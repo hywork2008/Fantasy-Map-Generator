@@ -1,6 +1,7 @@
 import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
+import { sizePresetForExtent } from "../generators/document";
 import { townCircuits } from "../generators/fortifications";
 import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
 import { clearGenerationPreviewCache, generateStageOnDocument } from "../generators/generation/previews";
@@ -88,13 +89,24 @@ export interface GenerationContext {
     | "currentStageStep"
     | "acceptingResult"
   >;
-  display: Pick<DisplayState, "showBlockMesh" | "hideBuildings" | "hideStreetLines">;
+  display: Pick<DisplayState, "showBlockMesh" | "hideBuildings" | "hideStreetLines" | "halfView" | "viewCenter">;
 }
 
 /** Live getters prevent snapshots of the current document or UI state. */
 export function createGenerationController(ctx: GenerationContext) {
+  function fitPopulationFrame(next: CityDocument) {
+    if (!next.populationPlan || next.frame.extentMeters === ctx.documents.documentState.frame.extentMeters) return;
+    ctx.display.halfView = next.frame.extentMeters / 2;
+    ctx.display.viewCenter = [0, 0];
+    ctx.size.value = sizePresetForExtent(next.frame.extentMeters);
+  }
   function runCompleteGeneration(): void {
     if (!ctx.scope.active) return;
+    const populationPanel = ctx.root.querySelector<HTMLElement>(".ce-population-controls");
+    if (populationPanel?.dataset.valid === "false") {
+      populationPanel.querySelector<HTMLInputElement>(".ce-population-input")?.reportValidity();
+      return;
+    }
     // Reuse the input grid for successive rolls, preventing accumulated shrink
     // from finishing an already finished town. A real edit becomes a new input.
     if (!ctx.generation.completeSource) {
@@ -283,6 +295,7 @@ export function createGenerationController(ctx: GenerationContext) {
         ctx.showNotice(editorText("cityEditor.messages.showingTheSameCity"));
         return;
       }
+      fitPopulationFrame(next);
       ctx.documents.documentState = ctx.documents.history.commit(
         ctx.documentForOutput(next),
         editorText("cityEditor.messages.generateCompleteCityCityEditorPage")
@@ -325,6 +338,11 @@ export function createGenerationController(ctx: GenerationContext) {
   }
 
   function runGenerationStage(stage: GenerationStage): void {
+    const populationPanel = ctx.root.querySelector<HTMLElement>(".ce-population-controls");
+    if (populationPanel?.dataset.valid === "false") {
+      populationPanel.querySelector<HTMLInputElement>(".ce-population-input")?.reportValidity();
+      return;
+    }
     if (!ctx.generation.completeSource) {
       ctx.generation.completeSource = ctx.documents.documentState.fabric?.generation?.input
         ? clone(ctx.documents.documentState.fabric.generation.input)
@@ -457,6 +475,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.redrawMap();
       return;
     }
+    fitPopulationFrame(next);
     ctx.documents.documentState = ctx.documents.history.commit(
       next,
       editorText("cityEditor.messages.generateCityEditorPage", { value0: stage.label })

@@ -9,6 +9,7 @@ import { type GenerationObserver, reportGenerationFailure } from "../generationD
 import { pointInPolygon, polygonCentroid } from "../geom";
 import { spawnHarborShips } from "../harborShips";
 import { clone, facePoints } from "../mesh";
+import { preparePopulationGeneration } from "../populationGeneration";
 import { cultivateRoadside } from "../roadsideFarms";
 import { townExtentMeters } from "../settlementExtent";
 import { applyPlan } from "./assembly/applyPlan";
@@ -57,6 +58,11 @@ export function generateStageOnDocument(
   wallCheckpoint?: StageCheckpoint,
   observer?: GenerationObserver
 ): CityDocument | null {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return null;
+  }
   if (settings.generationMethod === "skeleton-first" && stageStep < 0)
     return generateSkeletonPreview(document, settings, seed, -stageStep, observer).document;
   const faces = Object.values(document.mesh.faces);
@@ -199,6 +205,11 @@ export function generateUrbanPatchStep(
   seed: string,
   stepIndex: number
 ): UrbanPatchStep {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return { document: null, total: 0, index: -1, cellId: null };
+  }
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, cellId: null };
 
@@ -265,6 +276,11 @@ export function generateCoastWalkStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return { document: null, total: 0, index: -1, detail: null };
+  }
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
 
@@ -314,6 +330,11 @@ export function generateRiverWalkStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return { document: null, total: 0, index: -1, detail: null };
+  }
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
 
@@ -377,6 +398,11 @@ export function generateGateStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return { document: null, total: 0, index: -1, detail: null };
+  }
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
@@ -422,6 +448,11 @@ export function generateRoadStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return { document: null, total: 0, index: -1, detail: null };
+  }
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
@@ -473,6 +504,11 @@ export function generateWardStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch {
+    return { document: null, total: 0, index: -1, detail: null };
+  }
   const faces = Object.values(document.mesh.faces);
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 

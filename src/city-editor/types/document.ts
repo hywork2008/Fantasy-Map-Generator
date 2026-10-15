@@ -379,6 +379,8 @@ export interface DistrictParameters {
   /** Core: footprint fraction of each street block; outskirts: fraction of each lot. */
   coverage: number;
   lotArea: number;
+  /** Coarse population parcels; no individual house polygons are packed here. */
+  housingCluster?: boolean;
   laneWidth: number;
   /** Preferred local street axes; buildings follow their actual frontage. */
   orientation: number;
@@ -403,6 +405,9 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  populationPlan?: import("./contracts/population").PopulationPlan;
+  populationReport?: import("./contracts/population").PopulationReport;
+  residentialClusters?: import("./contracts/population").ResidentialCluster[];
   /** Optional saved record of the wall-order experiment, including explicit single-wall fallback. */
   townWallGeneration?: {
     requestedOrder: "outer-first" | "inner-first";

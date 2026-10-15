@@ -41,6 +41,8 @@ import {
   straightenGateCrossings
 } from "../passages";
 import { bramCoreRadiusForCity, bramSpokeRadiusMeters } from "../polygonalCirculadeLayout";
+import { preparePopulationGeneration } from "../populationGeneration";
+import { fitPopulationHousing } from "../populationHousingFit";
 import { isHexagonalDocument, rectifyHexBlocks } from "../rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "../rectifyVoronoiBlocks";
 import { riverFlowsFromDescriptor } from "../riverFlow";
@@ -91,6 +93,18 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  try {
+    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+  } catch (error) {
+    reportGenerationFailure(
+      observer,
+      1,
+      "prepare",
+      "population-settings",
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
   // A retry record only steers where the attempt loop starts; the recipe never stores it.
   const { generationRetry: retry, ...requested } = settings;
   settings = requested;
@@ -306,7 +320,7 @@ export function generateCityOnDocument(
             .filter(c => c.wallPhaseId === phase.id)
             .map(c => c.id);
       }
-      if (settings.descriptor) {
+      if (settings.descriptor && !settings.population) {
         const fitStarted = performance.now();
         // Occupancy and storeys do not move streets, so every fabric the fit builds has the
         // harbour the finished town draws.
@@ -326,6 +340,8 @@ export function generateCityOnDocument(
         observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
         measureProcessing(profiler, "harbor-ships", () => placeHarborShips(result, attemptSeed, profiler, harbor));
       }
+      if (result.populationPlan)
+        fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }));
       if (skeletonFirst) {
         const errors = measureProcessing(profiler, "validate", () => validate(result));
         if (errors.length) {
@@ -886,7 +902,8 @@ export function generateCityAttempt(
     settings.descriptor?.historicalPeriod ??
     document.historicalPeriod ??
     "ageOfExploration";
-  if (coarse) settled.fabric = measureProcessing(profiler, "fabric-plan", () => createFabricPlan(settled, seed));
+  if (coarse || document.populationPlan)
+    settled.fabric = measureProcessing(profiler, "fabric-plan", () => createFabricPlan(settled, seed));
   // Housing style is applied only after roads, crossings and castle geometry
   // have passed the same validation as the legacy generator.
   if (buildingPattern === "medieval") {

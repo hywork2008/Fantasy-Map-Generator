@@ -11,6 +11,7 @@ import type { FarNodeMode } from "../types/contracts/streets";
 import type { CityDocument } from "../types/document";
 import type { GenerationStage } from "../types/generation";
 import { div, text } from "./editorControls";
+import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
   documents: DocumentsState;
@@ -614,7 +615,11 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     }
   };
   const skeletonParents = new WeakSet<HTMLElement>();
+  const populationControls = buildPopulationControls(ctx);
+  if (ctx.generation.generateSettings.population)
+    historicalPeriodSelect.value = ctx.generation.generateSettings.historicalPeriod ?? "ageOfExploration";
   function syncSkeletonControls() {
+    populationControls.sync();
     const settings = ctx.generation.generateSettings;
     const active = settings.generationMethod === "skeleton-first";
     methodSelect.value = settings.generationMethod ?? "mesh-first";
@@ -693,6 +698,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     invalidateSkeletonSelection();
   });
   return {
+    populationControls: populationControls.panel,
     skeletonControls,
     syncSkeletonControls,
     currentBuildingPatternSelect,

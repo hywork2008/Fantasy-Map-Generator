@@ -4,6 +4,7 @@ import { buildCityBuildings } from "../generators/buildingLots";
 import { computeCemeteryBoundary, layoutCemetery } from "../generators/cemeteryLayout";
 import { polygonArea } from "../generators/geom";
 import { buildParkLawns, type ParkLawn } from "../generators/parkFabric";
+import { populationHousingFacts } from "../generators/populationHousing";
 import { measureHousingCapacity } from "../generators/residentialCapacity";
 import { buildWatermillPlan, type WatermillPlan } from "../generators/watermillFabric";
 import type { CemeteryPlan, CityDocument } from "../types/document";
@@ -16,6 +17,8 @@ export interface TownFacts {
   fabric: DistrictFabric | null;
   lots: Lots;
   housing: ReturnType<typeof measureHousingCapacity> | null;
+  populationReport?: import("../types/contracts/population").PopulationReport;
+  populationClusters?: import("../types/contracts/population").ResidentialCluster[];
   watermills: WatermillPlan | undefined;
   parks: ParkLawn[];
 }
@@ -26,6 +29,7 @@ export interface TownFacts {
  */
 export function prepareTownFacts(document: CityDocument): TownFacts {
   const usesFabric =
+    document.populationPlan ||
     document.urbanMorphology ||
     document.buildingPattern === "medieval" ||
     document.fabric?.version === 5 ||
@@ -35,11 +39,16 @@ export function prepareTownFacts(document: CityDocument): TownFacts {
     document.layout === "classic";
   const fabric = usesFabric ? buildBlockFabric(document) : null;
   const lots = fabric?.buildings ?? buildCityBuildings(document);
-  const housing =
-    document.urbanMorphology && document.urbanGrowth
+  const housing = document.populationPlan
+    ? measureHousingCapacity(document, lots, document.populationPlan.requiredDwellings)
+    : document.urbanMorphology && document.urbanGrowth
       ? measureHousingCapacity(document, lots, document.urbanGrowth.requiredDwellings)
       : null;
+  const population = document.populationPlan && fabric ? populationHousingFacts(document, fabric) : undefined;
   return {
+    ...(population
+      ? { populationReport: population.populationReport, populationClusters: population.residentialClusters }
+      : {}),
     fabric,
     lots,
     housing,
