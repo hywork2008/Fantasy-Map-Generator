@@ -1,6 +1,6 @@
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { DistrictParameters, Face, Point } from "../types/document";
-import { frontageBuildings } from "./frontageBuildings";
+import { frontageBuildings, occupancyDrawOf } from "./frontageBuildings";
 import { pointInPolygon, polygonArea } from "./geom";
 import { dwellingLotArea, intramuralBlockSpan } from "./housing";
 import { insetConvexKernel, longestFrame } from "./lotGeometry";
@@ -162,7 +162,9 @@ export function buildPerimeterBlocks(
       makeRng(`${seed}:houses:${face.id}:${JSON.stringify(block)}`)
     );
     const validFootprints = footprints.filter(p => p.length >= 4 && area(p) >= 10);
-    fabric.buildings.push(...validFootprints.map(polygon => ({ faceId: face.id, polygon, landmark: false })));
+    fabric.buildings.push(
+      ...validFootprints.map(polygon => ({ faceId: face.id, polygon, landmark: false, ...occupancyDrawOf(polygon) }))
+    );
   };
   const ring = clean(outline);
   const finalBlocks: Point[][] = [];

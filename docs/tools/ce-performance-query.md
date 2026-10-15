@@ -138,6 +138,33 @@ npm run ce:perf:query -- <report> walls
 内壁先と外壁先の比較は `ce:perf --setting townWallBuildOrder=...` で同じ入力を2回計測し、それぞれ `walls` を実行する。
 出力が同じかは `compare` ではなく JSONL の `fingerprint` で確認する。
 
+### 10. quality — 出力が変わる変更の品質ガード
+
+```sh
+npm run ce:perf:query -- before.jsonl quality after.jsonl
+```
+
+出力のハッシュが変わってよい変更（[ce-generation-max-speed-plan.md](../plan/ce-generation-max-speed-plan.md) §3.2）で、前後のレポートを都市ごとに比べる。1項目でも不合格なら終了コード1。
+
+| 指標 | 合格の基準 |
+| --- | --- |
+| 生成成功・試行回数の合計・失敗試行で捨てた時間 | 増えない（捨てた時間は計測ゆらぎとして5%＋1秒まで許す） |
+| 住宅数の誤差（\|最終住宅数−目標\|/目標）の中央値・p95、±10%外の都市数 | 悪化しない。最終住宅数は描く区画で数えた `quality.drawnHousing`（ない古いレポートは `housingFit.finalHouses`） |
+| 交差の違反（完成後の再検査）・斜角上限を超える橋 | 0 |
+| FMG道路の未接続・市壁の侵入路・無防備区間 | 増えない |
+| 建物数・延べ面積・市街地面積の中央値 | ±3%以内 |
+| 決定性 | 同じ都市を繰り返した生成（`--repeat 2` 以上）で `fingerprint.document` が一致 |
+
+指標のない古いレポートとの比較では N/A になる。前後とも S0 以降の `ce:perf` で測る。目視は `ce:perf --svg-dir` で代表都市のSVGを書き出して確認する。
+
+### 11. fabric — 区画構築の回数
+
+```sh
+npm run ce:perf:query -- <report> fabric
+```
+
+`buildBlockFabric`（と港の船の計画での構築）が、どの工程から何回呼ばれたかを集計する。1都市あたりの構築回数と、呼び出し元ごとの合計・キャッシュ命中数を出す。
+
 ## 共通オプション
 
 | オプション | 内容 |

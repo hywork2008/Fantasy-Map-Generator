@@ -306,12 +306,20 @@ export function planDefenses(input: PlanDefensesInput) {
     if (castleSite) {
       currentMesh = castleSite.mesh;
       const updated = cellsFromMesh(currentMesh, half);
-      const parentOf = (cell: Cell) => originalCells.find(old => pointInPolygon(cell.centroid, old.polygon));
+      // One parent lookup per new cell, shared by every remapped set below.
+      const boxes = originalCells.map(old => polygonBox(old.polygon));
+      const parents = updated.cells.map(cell => {
+        const [x, y] = cell.centroid;
+        return originalCells.find((old, i) => {
+          const b = boxes[i];
+          return x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3] && pointInPolygon(cell.centroid, old.polygon);
+        });
+      });
       const remap = (set: Set<number>) =>
         new Set(
           updated.cells
-            .filter(cell => {
-              const old = parentOf(cell);
+            .filter((_, i) => {
+              const old = parents[i];
               return old && set.has(old.id);
             })
             .map(cell => cell.id)
@@ -332,8 +340,8 @@ export function planDefenses(input: PlanDefensesInput) {
       for (const precinct of precincts) {
         const previous = new Set(precinct.cellIds);
         precinct.cellIds = updated.cells
-          .filter(cell => {
-            const old = parentOf(cell);
+          .filter((_, i) => {
+            const old = parents[i];
             return old && previous.has(old.id);
           })
           .map(cell => cell.id);
@@ -610,4 +618,18 @@ function townHubFaces(mesh: Mesh, urbanFaces: Set<Id>): Id[] {
   }
   if (!hub) return [];
   return [...urbanFaces].filter(id => mesh.faces[id] && faceVertices(mesh, mesh.faces[id]).includes(hub!));
+}
+
+function polygonBox(polygon: Point[]): [number, number, number, number] {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of polygon) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return [minX, minY, maxX, maxY];
 }

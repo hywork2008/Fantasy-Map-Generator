@@ -437,6 +437,25 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.urbanCoreMode === "legacy" || raw.urbanCoreMode === "compact") settings.urbanCoreMode = raw.urbanCoreMode;
   if (isRecord(raw.streets)) settings.streets = raw.streets as GenerationSettings["streets"];
   if (isHistoricalPeriod(raw.historicalPeriod)) settings.historicalPeriod = raw.historicalPeriod;
+  const retry = raw.generationRetry;
+  if (
+    isRecord(retry) &&
+    typeof retry.seed === "string" &&
+    typeof retry.inputKey === "string" &&
+    Number.isSafeInteger(retry.attempt) &&
+    (retry.attempt as number) > 0 &&
+    (retry.castleStreetLinks === undefined || typeof retry.castleStreetLinks === "boolean") &&
+    (retry.castleOutward === undefined || typeof retry.castleOutward === "boolean") &&
+    (retry.singleWallFallback === undefined || typeof retry.singleWallFallback === "string")
+  )
+    settings.generationRetry = {
+      seed: retry.seed,
+      attempt: retry.attempt as number,
+      inputKey: retry.inputKey,
+      ...(retry.castleStreetLinks ? { castleStreetLinks: true } : {}),
+      ...(retry.castleOutward ? { castleOutward: true } : {}),
+      ...(retry.singleWallFallback !== undefined ? { singleWallFallback: retry.singleWallFallback } : {})
+    };
   if (raw.burialProfile !== undefined) {
     if (!isBurialCultureProfile(raw.burialProfile)) return null;
     settings.burialProfile = structuredClone(raw.burialProfile);

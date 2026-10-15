@@ -2,6 +2,7 @@ import type { Point } from "../types/document";
 import type { Front, FrontageOptions } from "./frontageBuildings";
 import { polygonArea, polygonCentroid } from "./geom";
 import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
+import { occupancyDraws } from "./occupancyDraws";
 import type { Rng } from "./prng";
 
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
@@ -68,11 +69,13 @@ export function packPerimeter(block: Point[], fronts: Front[], options: Frontage
     // applied afterwards, so deliberate vacancies do not move other houses.
     unassigned = clipHalfPlane(unassigned, [-normal[0], -normal[1]], -offset);
     for (const lot of lots) {
-      const occupied = rng() < options.occupancy;
-      if (!occupied) continue;
+      const draw = rng();
+      if (draw >= options.occupancy) continue;
       const center = polygonCentroid(lot);
       // Numerical clearance only; no geometric area is intentionally removed.
-      buildings.push(lot.map(p => [p[0] + (center[0] - p[0]) * 1e-7, p[1] + (center[1] - p[1]) * 1e-7]));
+      const footprint = lot.map((p): Point => [p[0] + (center[0] - p[0]) * 1e-7, p[1] + (center[1] - p[1]) * 1e-7]);
+      occupancyDraws.set(footprint, draw);
+      buildings.push(footprint);
     }
   }
   return buildings;

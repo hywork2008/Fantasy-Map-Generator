@@ -93,7 +93,9 @@ interface PierBerth {
 export function planHarborShips(
   document: CityDocument,
   seed = "harbor-ships",
-  profiler?: ProcessingProfiler
+  profiler?: ProcessingProfiler,
+  /** The harbour plan of a fabric already built for this document; built here when absent. */
+  harbor?: import("./harborFabric").HarborPlan
 ): CityElement[] {
   const harborFaces = Object.values(document.mesh.faces).filter(
     f => f.properties.ward === "harbor" && f.properties.water === "land"
@@ -126,7 +128,7 @@ export function planHarborShips(
   const docFabric = document.fabric as import("./blockInfill").DistrictFabric | undefined;
   const fabricHarbor = docFabric?.harbor
     ? docFabric.harbor
-    : measureProcessing(profiler, "block-fabric", () => buildHarborPlan(document, profiler));
+    : (harbor ?? measureProcessing(profiler, "block-fabric", () => buildHarborPlan(document, profiler)));
 
   if (fabricHarbor?.piers?.length) {
     for (const pier of fabricHarbor.piers) {
@@ -624,11 +626,25 @@ export function planHarborShips(
  * 既存の未ロックかつ自動生成（gc:ship-...）の船を再生成する。
  */
 export function spawnHarborShips(document: CityDocument, seed = "harbor-ships", profiler?: ProcessingProfiler): void {
+  clearHarborShips(document);
+  placeHarborShips(document, seed, profiler);
+}
+
+/** First half of `spawnHarborShips`: drop invalid harbours and the generated, unlocked ships. */
+export function clearHarborShips(document: CityDocument): void {
   pruneInvalidHarbors(document);
   // 自動生成された未ロックの船要素をクリア
   document.elements = document.elements.filter(e => e.locked || e.kind !== "ship" || !e.id.startsWith(GEN_PREFIX));
+}
 
-  const ships = measureProcessing(profiler, "ship-plan", () => planHarborShips(document, seed, profiler));
+/** Second half of `spawnHarborShips`. Generation passes the harbour of a fabric it already built. */
+export function placeHarborShips(
+  document: CityDocument,
+  seed = "harbor-ships",
+  profiler?: ProcessingProfiler,
+  harbor?: import("./harborFabric").HarborPlan
+): void {
+  const ships = measureProcessing(profiler, "ship-plan", () => planHarborShips(document, seed, profiler, harbor));
   if (ships.length > 0) {
     document.elements.push(...ships);
   }

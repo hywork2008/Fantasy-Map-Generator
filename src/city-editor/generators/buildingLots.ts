@@ -26,6 +26,9 @@ export interface BuildingLot {
   storeys?: number;
   growthRegionId?: string;
   residentialFloorShare?: number;
+  /** The random draw its occupancy test used: the lot is built while its district's occupancy exceeds it.
+   * Lets the housing fit count a lower occupancy without rebuilding (absent: always built). */
+  occupancyDraw?: number;
 }
 
 /** Buildings are derived from the edited mesh, never a second source of street

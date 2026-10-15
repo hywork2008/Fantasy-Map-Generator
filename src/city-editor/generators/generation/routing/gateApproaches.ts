@@ -285,17 +285,24 @@ export function shortcutExteriorRoads(document: CityDocument, planning = false):
               group.segments.slice(i, j).every(ref => f.boundary.some(boundary => boundary.edgeId === ref.edgeId))
           );
           if (!face) continue;
+          // The two halves are the cell's corner runs a→b and b→a; reject a bad
+          // diagonal before the document-wide copy and checks of a split.
+          const area = polygonArea(facePoints(next.mesh, face));
+          const ring = faceVertices(next.mesh, face);
+          const [ia, ib] = [ring.indexOf(a), ring.indexOf(b)];
+          const run = (from: number, to: number) => {
+            const points = [next.mesh.vertices[ring[from]].point];
+            for (let k = from; k !== to; ) {
+              k = (k + 1) % ring.length;
+              points.push(next.mesh.vertices[ring[k]].point);
+            }
+            return points;
+          };
+          if ([run(ia, ib), run(ib, ia)].some(polygon => !isSimplePolygon(polygon) || polygonArea(polygon) * area <= 0))
+            continue;
           const split = splitFace(next, face.id, a, b);
           if (!split) continue;
           const pieces = Object.values(split.mesh.faces).filter(f => f.id === face.id || !next.mesh.faces[f.id]);
-          const area = polygonArea(facePoints(next.mesh, face));
-          if (
-            pieces.some(f => {
-              const polygon = facePoints(split.mesh, f);
-              return !isSimplePolygon(polygon) || polygonArea(polygon) * area <= 0;
-            })
-          )
-            continue;
           const edge = edgeBetween(split.mesh, a, b)!;
           const updated = split.featureGroups.find(g => g.id === group.id)!;
           if (updated.kind !== "road") continue;

@@ -1,6 +1,7 @@
 import type { Point } from "../types/document";
 import { polygonArea } from "./geom";
 import { clipHalfPlane } from "./lotGeometry";
+import { occupancyDraws } from "./occupancyDraws";
 import { packPerimeter } from "./perimeterHousing";
 import type { Rng } from "./prng";
 
@@ -33,6 +34,13 @@ export type Front = { a: Point; axis: Point; inward: Point; length: number; offs
  * Nearest-frontage half-planes allocate corners before placing buildings, so
  * opposing rows cannot overlap. The rear of each row opens onto shared yards.
  * Core lots are street-aligned rectangles with party walls; outskirts keep L/U wings. */
+
+/** The `occupancyDraw` field for a lot built on this footprint. */
+export function occupancyDrawOf(footprint: Point[]): { occupancyDraw?: number } {
+  const draw = occupancyDraws.get(footprint);
+  return draw === undefined ? {} : { occupancyDraw: draw };
+}
+
 export function frontageBuildings(
   block: Point[],
   accessibleEdges: number[],
@@ -87,7 +95,8 @@ export function frontageBuildings(
         hi = end - 0.08;
       start = end;
       // Keep the random stream stable across coverage/occupancy edits.
-      const occupied = rng() < options.occupancy;
+      const draw = rng();
+      const occupied = draw < options.occupancy;
       const shape = rng();
       if (!occupied || hi - lo < 3) continue;
       let lot = clipHalfPlane(band, [-1, 0], -lo);
@@ -184,12 +193,14 @@ export function frontageBuildings(
         return Math.abs(a[0] * b[1] - a[1] * b[0]) > 1e-7 || dot(a, b) < 0;
       });
       if (clean.length < 3) continue;
-      buildings.push(
-        clean.map(([x, y]) => [
+      const house = clean.map(
+        ([x, y]): Point => [
           front.a[0] + x * front.axis[0] + y * front.inward[0],
           front.a[1] + x * front.axis[1] + y * front.inward[1]
-        ])
+        ]
       );
+      occupancyDraws.set(house, draw);
+      buildings.push(house);
     }
   }
   return buildings;
@@ -239,7 +250,8 @@ function packAttachedHouses(block: Point[], fronts: Front[], options: FrontageOp
     for (let i = 0; i < cuts.length - 1; i++) {
       const lo = cuts[i],
         hi = cuts[i + 1];
-      const occupied = rng() < options.occupancy;
+      const draw = rng();
+      const occupied = draw < options.occupancy;
       // A low occupancy removes secondary-lane houses first; it must not
       // randomly punch holes into the principal commercial street wall.
       if (!front.primary && !occupied) continue;
@@ -282,7 +294,9 @@ function packAttachedHouses(block: Point[], fronts: Front[], options: FrontageOp
         [fitted.hi, depth],
         [fitted.lo, depth]
       ];
-      buildings.push(rectangle.map(([x, y]) => toWorld(front, x, y)));
+      const footprint = rectangle.map(([x, y]) => toWorld(front, x, y));
+      if (!front.primary) occupancyDraws.set(footprint, draw);
+      buildings.push(footprint);
     }
   }
   return buildings;
@@ -304,7 +318,8 @@ function packStreetWall(
       if (!corner) continue;
       const size = Math.min(rowDepth, houseWidth * 1.2, fronts[i].length * 0.4, fronts[j].length * 0.4);
       if (size < 5) continue;
-      const occupied = rng() < options.occupancy;
+      const draw = rng();
+      const occupied = draw < options.occupancy;
       rng();
       if (!occupied) continue;
       const inner = size - FRONT_Y;
@@ -316,6 +331,7 @@ function packStreetWall(
       const owned = [...rect, add(origin, add(scale(ua, 0.5), scale(ub, 0.5)))];
       if (owned.some(p => !insideConvex(p, block) || !ownedByFronts(p, fronts[i], fronts[j], fronts))) continue;
       if (buildings.some(b => overlapArea(rect, b) > 1e-4)) continue;
+      occupancyDraws.set(rect, draw);
       buildings.push(rect);
       reserved[i].push(corner.spanA(size));
       reserved[j].push(corner.spanB(size));
@@ -351,7 +367,8 @@ function packStreetWall(
         const lo = start + PARTY_GAP,
           hi = end - PARTY_GAP;
         start = end;
-        const occupied = rng() < options.occupancy;
+        const draw = rng();
+        const occupied = draw < options.occupancy;
         rng();
         if (!occupied || hi - lo < 3) continue;
         const fitted = fitRectangle(band, lo, hi, FRONT_Y);
@@ -379,6 +396,7 @@ function packStreetWall(
           toWorld(front, x0, low)
         ];
         if (buildings.some(b => overlapArea(rect, b) > 1e-4)) continue;
+        occupancyDraws.set(rect, draw);
         buildings.push(rect);
       }
     }

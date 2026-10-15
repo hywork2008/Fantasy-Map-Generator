@@ -626,12 +626,12 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
   const start = v.point;
   for (let s = 1.0; s >= 0.125; s /= 2) {
     const candidate: Point = [start[0] + (target[0] - start[0]) * s, start[1] + (target[1] - start[1]) * s];
-    const moved = moveVertex(document, vertexId, candidate);
-    if (!moved) continue;
+    // The cell test needs only the candidate point; it runs before the
+    // document-wide copy and checks of a move.
     const invalid = incidentFaces(document.mesh, vertexId).some(face => {
-      const movedFace = moved.mesh.faces[face.id];
-      if (!movedFace) return true;
-      const points = facePoints(moved.mesh, movedFace);
+      const points = faceVertices(document.mesh, face).map(id =>
+        id === vertexId ? candidate : document.mesh.vertices[id].point
+      );
       if (face.properties.locked || !isSimplePolygon(points)) return true;
       const origArea = polygonArea(facePoints(document.mesh, face));
       const newArea = polygonArea(points);
@@ -645,7 +645,9 @@ function tryMoveVertex(document: CityDocument, vertexId: Id, target: Point): Cit
       }
       return false;
     });
-    if (invalid || !keepsWallRiverGap(document, moved, vertexId)) continue;
+    if (invalid) continue;
+    const moved = moveVertex(document, vertexId, candidate);
+    if (!moved || !keepsWallRiverGap(document, moved, vertexId)) continue;
     return moved;
   }
   return document;

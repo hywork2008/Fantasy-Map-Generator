@@ -190,3 +190,178 @@ A4 の失敗は、「同じ都市を2回生成した結果が一致しない」�
 - B1 の「採用順」で、現行の密度の分布に近い見た目になるか。
 - D1 の効果（GC の削減）は推定で、小さな実験で確かめてから全体に広げる。
 - アプリ内（UI表示）の区画構築の回数と時間は、`ce:perf` に含まれていない。Playwright で別に計測する。
+
+## 9. S0 の結果（2026-10-15）
+
+### 9.1 実装したもの
+
+| 項目 | 内容 |
+| --- | --- |
+| 暖機・並列計測 | `ce:perf --warm [--warmup N] [--jobs N]`。Worker を使い回し、Worker ごとに最初の都市を N 回（既定3）生成して捨てる。落ちた・時間切れの Worker は作り直して暖機し直す。`--jobs` は都市を N 個の Worker に分担する |
+| 目視用SVG | `ce:perf --svg-dir <dir>`（`--render` を含む） |
+| 未計測部分の可視化 | `generation` 直下の `initial-fabric`、`urban-growth-plan`、（骨格先行の）`validate` を計測 |
+| 区画構築の回数 | JSONL の `fabricBuilds`（呼び出し元の工程パスごとの `{ built, cached }`）。港の船の `buildHarborPlan` も数える。`ce:perf:query -- <report> fabric` で集計 |
+| 品質ガード | JSONL の `housingFit`・`quality`（建物数・延べ面積・路地数・完成後の交差違反・斜角上限超えの橋）。`ce:perf:query -- before quality after` が §3.2 の基準で判定し、不合格なら終了コード1。`--repeat 2` 以上で決定性も判定 |
+
+使い方は [ce-performance.md](../tools/ce-performance.md)、[ce-performance-query.md](../tools/ce-performance-query.md)、項目は [ce-performance-jsonl-fields.md](../tools/ce-performance-jsonl-fields.md)。計測を追加しても出力のハッシュは P3 と一致する。
+
+### 9.2 暖機後の基準（`temp/benchmarks/s0-baseline-warm.jsonl`、`--warm --warmup 3`、並列なし）
+
+- 全596都市の生成時間の合計 **187.4 s**（新プロセス計測の 271 s より 31% 短い）。中央値 160 ms、p95 1110 ms、最大 3480 ms。以後の段階はこの値と比べる。
+- 区画の構築は1都市1回の生成あたり中央値4回・最大6回（`initial-fabric` 1回、`fit-housing` 2〜4回、港町は `harbor-ships` で1回）。
+- 区画関係の自己時間: `initial-fabric` 30.5 s、`fit-housing` の `coastal-reservations` 27.0 s・`local-fabric` 21.7 s・`harbor-fabric` 10.0 s・`finish-fabric` 5.6 s、`harbor-ships` 内 約8 s。合計で約 100 s、全体の5割強で、§1.1 の見立てどおり。
+- `plan` 26.7 s、`apply-plan` 21.6 s。
+
+### 9.3 A4 の原因調査
+
+- `assembleRoads.ts` の水面判定2か所（`shoreEdges` と `channelEdges`）で、水面ポリゴンを辺ごとではなく判定の前に1回だけ取得する形に変更した。そのうえで `CityEditorPage.generate.test.ts` をファイル全体で実行すると 40/40 通った。P3 で疑った「`next` の差し替え前に取得した古いポリゴンを使う」形（意図的に古い値を使う変種）でも 40/40 通り、再現しなかった。
+- より強い検査として、全596都市を「暖まった同じプロセスで2回続けて生成」した（`temp/benchmarks/s0-a4-warm-r2.jsonl`、`--warm --jobs 8 --repeat 2`）。1192回すべての `fingerprint.document` が、新プロセスで測った P3 のハッシュと一致した。2回目は1回目が残したキャッシュの状態で生成するので、キャッシュの状態によって結果が変わる問題は、この入力では見つからなかった。
+- 水面ポリゴンのキャッシュ（`regionalCoastalWaterPolygons` の `sameCoast`）は、文書ごとにメッシュの頂点・辺を全部比べている。誤った値を返すことはないので、A4 の失敗の原因ではないと判断する（遅いだけで、A5 の対象）。
+- 結論: P3 の失敗は今の版では再現せず、A4 による非決定性も見つからなかった。A4 の変更は作業ツリーに残してあり、S1 の一部として採用できる。P3 の失敗は、当時の他の未確定の変更と重なっていた可能性がある。再発した場合に備え、S1 以降は `--warm --repeat 2` と `quality` の決定性判定を毎回行う。
+
+## 10. S1 の結果（2026-10-15）
+
+出力は変えていない。全596都市の `fingerprint.document` が S0 の基準と一致する（`temp/benchmarks/s1-full-warm.jsonl`）。暖まった同じプロセスで各都市を2回生成した1192回（`temp/benchmarks/s1-warm-r2.jsonl`）もすべて一致し、`quality` は合格。
+
+### 10.1 実施した変更と効果
+
+効果は診断用30都市の暖機計測（`--warm --warmup 3`）で、1つ前の段との差。
+
+| # | 変更 | ファイル | 30都市 |
+| --- | --- | --- | --- |
+| A1/A2 | 生成後の最初の区画構築（`initial-fabric`）と住宅数の調整の各回で、地区単位の区画キャッシュ（`FabricCache`）を1つ共有する。初回の数え直しは、最初の構築で作った地区の区画をそのまま使う | [generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts)、[fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) | 38.4 → 36.3 s |
+| — | 海岸の後退帯（`coastalBandOverlap`・`cultivableParts`）: 海岸線ごとの帯を区画ごとではなく海岸線の一覧ごとに1回だけ作り、区画の外接矩形と重ならない帯は飛ばす。`bounds` を配列の展開から1回の走査に変更 | [coastalSuitability.ts](../../src/city-editor/generators/coastalSuitability.ts)、[parcelGeometry.ts](../../src/city-editor/generators/parcelGeometry.ts) | 36.3 → 34.7 s |
+| A3 | 港の計画（`planHarbor`）を、同じ生成の中で入力（文書、街路、障害物、地区ごとの港の型）が同じ間は使い回す。生成が渡したキャッシュのときだけで、UIの既定キャッシュでは使わない | [blockInfill.ts](../../src/city-editor/generators/blockInfill.ts) | 34.7 → 33.4 s |
+| A4/A5 | 水面判定（`lineHitsDocumentWater`）を辺ごとに呼ぶ箇所で、準備済みの水面判定を使い回す。城塞の門から町への道の探索（`castles.ts` の `search`）が全辺について毎回 `sameCoast`（メッシュ全体の比較）を行っていたのが主因で、`assembleRoads.ts` の測量済み水面の経路も同様に直した | [castles.ts](../../src/city-editor/generators/castles.ts)、[assembleRoads.ts](../../src/city-editor/generators/generation/routing/assembleRoads.ts) | 33.4 → 31.3 s |
+
+30都市の合計は 38.4 → 31.3 s（-18.5%）。
+
+### 10.2 全596都市（暖機、並列なし）
+
+S0 の基準 187.4 s → **155.1 s（-17.3%）**。見積り（271 s 基準で -15〜20%）の範囲内。
+
+| 工程（自己時間） | S0 | S1 | 差 |
+| --- | --- | --- | --- |
+| `fit-housing/legacy-fabric/local-fabric` | 21.7 s | 11.6 s | -10.0 s |
+| `attempt-*/apply-plan` | 21.6 s | 15.8 s | -5.8 s |
+| `fit-housing/coastal-reservations` | 27.0 s | 21.4 s | -5.6 s |
+| `initial-fabric` | 30.5 s | 27.5 s | -3.1 s |
+| `fit-housing/harbor-fabric` | 10.0 s | 7.4 s | -2.6 s |
+| `attempt-*/plan` | 26.7 s | 24.8 s | -1.8 s |
+
+### 10.3 見積りとの違い
+
+- **A3** は見積り（港の 11 s の約2/3）より小さく、-2.6 s。住宅数の調整で占有率が変わると路地（街路の入力）も変わるため、使い回せる回が少ない。
+- **A5**（メッシュの版番号）は実施しなかった。`sameCoast` の費用のほとんどは、準備済みの水面判定を渡さずに辺ごとに呼ぶ箇所から来ていた。それを直した後は、港の都市（14）でも1回の生成あたり約 15 ms で、版番号を全てのメッシュ編集に入れる手間に見合わない。
+- `harbor-ships` の区画構築（A1 の対象）は共有していない。船の計画は生成の途中（街路の確定前）の文書で行うため、地区の内容が後の構築と一致せず、キャッシュが当たらない。
+
+### 10.4 決定性の問題の正体（§9.3 の続き）
+
+`CityEditorPage.generate.test.ts` の「一括生成を2回押すと同じ図になる」テストが、S1 の作業中に、ファイル全体の実行で1度失敗した。同じコードで再実行すると通る。調べた結果は次のとおりで、**S1 の変更とも、キャッシュとも関係がない**。
+
+- このテストは、エディタを開くときの seed を `Math.random()` で決める。実行のたびに別の町を試している。
+- 合成の町の seed を固定して32通り試すと、2通り（seed `1eaygix`、`1n5lq5i`）で2回目の図が違った。どちらも S1 の変更を外した HEAD で同じように違う。
+- 原因は [generation.ts](../../src/city-editor/controllers/generation.ts) の `acceptCompleteGeneration`。生成に成功すると、画面の seed を結果の `generationSeed` に置き換える。最初の試行が不採用で再試行した町では、これが `<seed>:junction-retry:2` になる。2回目の一括生成は、この seed を試行1として、元の設定で生成する（1回目の試行3とは試行番号も設定も違う）。そのため別の町になる。
+- P3 で A4 を戻した原因の「ファイル全体を実行したときだけ失敗」も、同じ現象だった可能性が高い（seed がたまたま再試行の町に当たった）。
+
+### 10.5 修正: 採用した試行から生成し直す（2026-10-15）
+
+候補のうち2を採った。1（元の seed から押し直す）では、不採用だった試行が決定的に毎回また不採用になり、その時間が無駄になるため。
+
+- 生成に成功した試行が2回目以降なら、`generateCityOnDocument` が `accepted-attempt` の進捗サンプルで `GenerationRetry` を報告する。中身は、採用した試行の seed と番号、再試行で加わった設定（`castleStreetLinks`・`castleOutward`、単一市壁への後退とその理由）、入力の識別子（`generationInputKey`: 都市化の書き換え後の文書（区画計画なし）と設定のハッシュ）。
+- UI は画面の seed を元の seed のまま残し、`GenerationRetry` を生成設定の `generationRetry` に入れる。共有リンクにも入る。
+- 次の生成では、seed と入力の識別子が一致したときだけ、その試行から始める。不採用の試行は飛ばす。それでも不採用なら、続きの試行に進む。seed・設定・格子を変えると識別子が合わないため使われない。`generationRetry` は生成の最初に外すので、結果の生成レシピには残らない。
+- 生成結果の `generationSeed`（`<seed>:junction-retry:N`）はそのまま。建物・船などの乱数がこれを使うため。
+
+確認したこと:
+
+- seed を固定した合成の町32通りで、一括生成を2回押した図がすべて一致した（修正前は2通りで違った）。
+- FMGで再試行した5都市（3、10、317、452、575）で、生成レシピの入力から `generationRetry` 付きで生成し直した結果が、1回目と完全に一致した。2回目の生成時間は 1.5〜2.3 倍速い（例: 3 は 1093 → 565 ms）。3 は単一市壁への後退を含む。
+- `generationRetry` を渡さない生成（`ce:perf` など）は出力不変。全596都市のハッシュが S1 と一致した。
+- `CityEditorPage.generate.test.ts` に、再試行で採用される seed（`1eaygix`）で「seed が変わらない」「2回目は不採用の試行がなく試行3から始まる」「図が一致する」「共有リンクから同じ図になる」を確かめるテストを追加した。修正前のコードでは失敗する。
+
+## 11. S2 の結果（2026-10-15）
+
+B1 と B3 を実施した。B2（建物を作らない見積り）は、B1 が全都市で使えたため不要だった。
+
+### 11.1 B1: 住宅数の調整を、作り直さずに数える
+
+- 占有率は、区画ごとの乱数 `rng() < occupancy` で家を建てるかを決めている。乱数列は占有率を変えてもずれないように作られている（`frontageBuildings.ts`・`perimeterHousing.ts` のコメント）。そこで、家を建てたときの乱数（抽選値）を区画に `occupancyDraw` として残す（[frontageBuildings.ts](../../src/city-editor/generators/frontageBuildings.ts) の `occupancyDraws`、[organicBlocks.ts](../../src/city-editor/generators/organicBlocks.ts)・[perimeterBlocks.ts](../../src/city-editor/generators/perimeterBlocks.ts)・[localInfill.ts](../../src/city-editor/generators/localInfill.ts) で区画に付ける）。抽選値を残すだけでは出力は変わらない（30都市でハッシュ一致）。
+- 住宅数の調整（[fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) の `fitMorphologyHousing`）は、最初の1回だけ区画を作る。以後、占有率を下げる回は「抽選値が新しい占有率未満の区画だけ残す」、階数を上げる回は「残した区画に階数を付け直す」（`applyResidentialStoreys`）だけで数える。占有率を作ったときより上げる回だけ、作り直す。
+- 中心部の家がすべて抽選値を持つことを確認した。主要街路沿いの家（占有率で抜かない）は抽選値を持たず、常に残す。
+- 出力への影響: 選ぶ占有率は全596都市で同じ結果になり、**描く住宅数は全都市で変わらない**。変わるのは、文書に入る住宅調整の報告（`housingCapacity`・`housingFit`）が見積りになる点。見積りと描画の差は中央値 0・p95 0、最大は住宅数十戸の村で14%（267: 見積り37、描画43）。角の区割りや大型施設による住宅の除去が占有率に連動するためで、小さな村ほど1戸の差の比率が大きい。占有率の倍率が少し変わった都市が2つ（296、483）あるが、描く住宅は同じ。
+
+### 11.2 B3: 港の船を、住宅数の調整が作った港の計画から置く
+
+- 船は試行の途中（街路の確定前）に置いていて、そのためだけに区画を丸ごと1回作っていた。FMGの町（記述子あり）では、試行の中では無効な港の整理と古い船の除去だけを行い（`clearHarborShips`）、船の配置は住宅数の調整の後に、調整が作った区画の港の計画を渡して行う（`placeHarborShips`、[harborShips.ts](../../src/city-editor/generators/harborShips.ts)、[generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts)）。占有率と階数は街路を変えないので、この港の計画は完成した町が描く港と同じ。記述子のない合成の町は従来どおり。
+- 出力への影響: 船の位置と要素の並び順が変わる。30都市で船は 32 → 34 隻、前後とも全隻がエディタの描く桟橋から 15 m 以内（`quality.ships`・`shipsNearPier` を追加して確認）。
+
+### 11.3 全596都市（暖機、並列なし）
+
+S2 開始時の基準（`temp/benchmarks/s2-base-warm.jsonl`、S1 と同じ出力で 167.1 s。S1 の 155.1 s との差は計測日のマシンの状態による）→ **116.1 s（-30.6%）**（`temp/benchmarks/s2-full-warm.jsonl`）。
+
+- 区画の構築は、1都市1回の生成あたり4〜6回から**全都市で2回**（`initial-fabric` と住宅数の調整の最初の1回）になった。
+- `quality` は全項目合格（住宅数の誤差、建物数・延べ面積・市街地面積の中央値、交差・橋・道路・市壁の違反はすべて同じ値）。暖まった同じプロセスで2回ずつ生成した1192回も一致した（`temp/benchmarks/s2-warm-r2.jsonl`）。
+- 文書のハッシュが S1 と同じ都市は 427/596、メッシュは全都市、区画計画は 592/596 で同じ。
+
+| 工程（配下の自己時間の合計） | S2 前 | S2 |
+| --- | --- | --- |
+| `fit-housing`（区画の構築と数え直し） | 54.1 s | 18.1 s |
+| `harbor-ships`（船のための区画構築と船の計画） | 12.6 s | 2.5 s |
+
+### 11.4 残り
+
+- 区画の構築2回のうち `initial-fabric`（約 27 s）は都市化計画（`planUrbanGrowth`）の入力で、住宅数の調整の最初の1回とは文書の状態（郊外の旗）が違うため、まだ共有していない。郊外の旗を先に決められれば1回にできる。
+- 次は S3（C1〜C5、D1〜D3）。`straightenThroughStreets` の頂点ごとの文書複製（C5）が最大。
+
+## 12. S3 の結果（2026-10-15）
+
+C1・C2・C3・C5（C4 は除く）と D3、D4 の一部を実施した。いずれも**出力を変えない**形で実装でき、全596都市の `fingerprint.document` が S2 と一致する（`temp/benchmarks/s3-full-warm.jsonl`）。暖まった同じプロセスで2回ずつ生成した1192回も一致した（`temp/benchmarks/s3-warm-r2.jsonl`、`--jobs 8 --repeat 2`）。`quality` は全項目合格。
+
+### 12.1 実施した変更
+
+主因は、文書全体の複製（`clone`）と検査（`validate`）を伴う編集を、結果が決まる前に試していたこと。多くは「安い判定を先に行い、通ったものだけ編集する」に並べ替えた。
+
+| # | 変更 | ファイル |
+| --- | --- | --- |
+| C1 | 城の候補の箱（`reserveBox`）の4回の切断を、1回の複製の上で直接編集し、最後に1回だけ `validate` する。以前は切断ごとに頂点の挿入2回と面の分割1回がそれぞれ文書を複製・検査していた（1箱で最大12回）。`insertEdgeVertexInPlace`・`splitFaceInPlace` を追加 | [castlePlacement.ts](../../src/city-editor/generators/castlePlacement.ts)、[mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| C2 | 城の配置後の再割り当て（`remap`）で、新しい区画ごとの親（旧区画）を1回だけ外接矩形つきで求め、8つの集合で共有する。以前は集合ごと・区画ごとに全旧区画を `pointInPolygon` で探していた | [defenses.ts](../../src/city-editor/generators/generation/planning/defenses.ts) |
+| C3 | 城壁から道路の離隔判定（`castleRoadEdgeAllowed`）を、全辺を調べる2か所で準備済みの判定（`castleRoadEdgeTest`）にした。外接矩形の間隔が離隔以上の壁の線分は飛ばす（距離の下限なので結果は同じ） | [castles.ts](../../src/city-editor/generators/castles.ts)、[completeRoadRouter.ts](../../src/city-editor/generators/generation/routing/completeRoadRouter.ts) |
+| C3 | 河川の上陸点の探索で、水面ポリゴン（`waterPolygons`）を辺・頂点ごとではなくループの前に1回だけ作る | [assembleRoads.ts](../../src/city-editor/generators/generation/routing/assembleRoads.ts) |
+| C5 | 通り抜け道の直線化（`straightenThroughStreets`）で、曲がり角の判定を移動先の点だけで先に行い、通ったときだけ `moveVertices` を呼ぶ | [frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
+| C5 | 門の頂点の移動（`tryMoveVertex`）で、周りの区画の形の判定を移動先の点で先に行う | [passages.ts](../../src/city-editor/generators/passages.ts) |
+| C5 | 外側の道の近道（`shortcutExteriorRoads`）で、分割後の2つの区画の形を頂点の並びから先に判定する。これで、分割した後に捨てる回がなくなった | [gateApproaches.ts](../../src/city-editor/generators/generation/routing/gateApproaches.ts) |
+| — | `splitFace`・`mergeFaces`・`moveVertices` の、元の文書だけで決まる不採用の判定を、複製の前に移す | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| — | 文書の複製（`cloneMesh`）で、頂点の `point`、区画の `boundary`・`site` の配列を複製元と共有する。編集はこれらを置き換え、中を書き換えない。テスト（Vitest）では共有した配列を凍結し、中を書き換えるコードがあれば失敗する（凍結した配列は遅いので、アプリでは凍結しない） | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| D3 | `nearestOnPolyline` が線分ごとに点と結果の物を作っていたのを、最後に1回だけ作る。`insideRing` が判定のたびに閉じた輪の配列を作っていたのをやめる。`pointInPolygon` の分割代入をやめる | [geom.ts](../../src/city-editor/generators/geom.ts)、[fortifications.ts](../../src/city-editor/generators/fortifications.ts) |
+| D4 | `edgeBetween`・`incidentEdges`・`incidentFaces` で、全辺・全区画の配列を作らずに走査する（順序は同じ） | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+
+- 配列の共有に合わせて、[previews.test.ts](../../src/city-editor/generators/generation/previews.test.ts) の「返した文書が独立している」確認を、点の中を書き換える形から点を置き換える形に変えた。点の中を書き換えると、共有している別の文書も変わるため。区画・辺・道路などの記録の独立性はこれまでどおり確かめている。
+- 共有を常に凍結した版でも、診断用30都市のハッシュが一致し、全テストが通ることを確認した（書き換えるコードは見つからなかった）。
+
+### 12.2 全596都市（暖機、並列なし）
+
+同じ日に測った S2 の版（`temp/benchmarks/s3-head-warm.jsonl`）120.2 s → **93.6 s（-22.1%）**。S2 の記録（116.1 s）と比べても -19.4%。
+
+| 工程（自己時間） | S2 | S3 | 差 |
+| --- | --- | --- | --- |
+| `attempt-*/plan` | 27.3 s | 14.1 s | -13.1 s |
+| `initial-fabric` | 29.5 s | 25.5 s | -4.0 s |
+| `attempt-*/apply-plan` | 17.1 s | 13.9 s | -3.2 s |
+| `attempt-*/through-streets` | 3.7 s | 1.5 s | -2.2 s |
+| `fit-housing/count/harbor-fabric` | 3.6 s | 2.2 s | -1.4 s |
+| `fit-housing/count/coastal-reservations` | 8.5 s | 7.7 s | -0.8 s |
+
+`initial-fabric` などの区画工程は、D3（幾何関数の割り当ての削減）と配列の共有で速くなった。
+
+### 12.3 実施しなかったもの
+
+- **C4**（外側の道の遅延評価）: プロファイルで目立つ費用がなく、見送った。
+- **D1**（`Float64Array` の平坦な配列）: 幾何関数の呼び出し側をすべて変える大きな変更になる。D3 の割り当て削減で GC の一部は減ったが、GC は依然として生成時間の2割前後を占める。効果を小さな実験で確かめてから判断する。
+- **D2**（空間索引の共有）: 今回のプロファイルでは `BoxIndex` の構築は上位に出なかった。
+- `refreshCastleLayouts`（頂点の移動ごとに全ての城を配置し直す、1都市あたり約 13 ms）: 城の配置は保存済みの計画の値にも依存し、複製をまたいで正しく使い回す方法が簡単ではないため残した。
+- `sameCoast`（A5）: 1都市あたり約 10〜20 ms。S1 と同じ理由で版番号は入れていない。
+
+### 12.4 残りの費用
+
+暖機後の上位は、GC（約2割）、`cloneMesh`、`nearestOnPolyline`、`validate`、`scanGap`（都市化の区画）、`edt1d`（港の航路）。複製の残りは、城の候補の区画の併合（`mergeFaces`）、近道の分割、門の頂点の移動など、**採用される編集**の分で、回数を減らすには編集を直接行って失敗時に戻す仕組み（取り消し可能な編集）が要る。次は S4（Worker プール・暖機した Worker の使い回し）。

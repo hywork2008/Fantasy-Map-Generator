@@ -27,7 +27,8 @@ import {
   reportGenerationFailure
 } from "../generationDiagnostics";
 import { isSimplePolygon, polygonArea } from "../geom";
-import { spawnHarborShips } from "../harborShips";
+import type { HarborPlan } from "../harborFabric";
+import { clearHarborShips, placeHarborShips, spawnHarborShips } from "../harborShips";
 import { GAP_BLOCKERS, INNER_WALL_FAILURES, type InnerTownPlanDiagnostics } from "../innerTownWall";
 import { FabricCache } from "../localInfill";
 import { shortcutMajorRoads } from "../majorRoadShortcuts";
@@ -90,6 +91,13 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  // A retry record only steers where the attempt loop starts; the recipe never stores it.
+  const { generationRetry: retry, ...requested } = settings;
+  settings = requested;
+  let inputKey: string | undefined;
+  // After the morphology rewrite below, over what the recipe stores as its input
+  // (no fabric), so a roll from that recipe input gets the same key.
+  const keyOfInput = () => (inputKey ??= generationInputKey({ ...document, fabric: undefined }, settings));
   const skeletonFirst = resolveGenerationMethod(settings) === "skeleton-first";
   const unsupported = skeletonUnsupportedSettings(settings);
   if (unsupported.length) {
@@ -150,7 +158,34 @@ export function generateCityOnDocument(
   // yards read it, and a ferry plan made without it would be cached as "no flow".
   const importedFlows = settings.descriptor?.rivers?.length ? riverFlowsFromDescriptor(settings.descriptor) : [];
   const attemptDocument = importedFlows.length ? { ...document, riverFlows: importedFlows } : document;
-  for (let attempt = 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
+  const resume =
+    retry &&
+    !stopAfter &&
+    !onRejected &&
+    Number.isSafeInteger(retry.attempt) &&
+    retry.attempt > 0 &&
+    retry.attempt < COMPLETE_CITY_ATTEMPTS &&
+    retry.seed === `${seed}:junction-retry:${retry.attempt}` &&
+    retry.inputKey === keyOfInput()
+      ? retry
+      : undefined;
+  // What the loop below has changed, so an accepted retry can be replayed (`GenerationRetry`).
+  let castleRetry: { outward: boolean } | null = null;
+  let singleWallApplied = false;
+  const retrySettings = () => {
+    let next = castleRetry
+      ? { ...settings, castleStreetLinks: true, ...(castleRetry.outward ? { castleOutward: true } : {}) }
+      : settings;
+    if (singleWallApplied) next = { ...next, townWallRings: "single" as const, walledAreaShare: 1 };
+    return next;
+  };
+  if (resume) {
+    castleRetry = resume.castleStreetLinks ? { outward: !!resume.castleOutward } : null;
+    singleWallApplied = resume.singleWallFallback !== undefined;
+    singleWallFallback = resume.singleWallFallback;
+    attemptSettings = retrySettings();
+  }
+  for (let attempt = resume?.attempt ?? 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
     const failed = failures.length;
     const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
@@ -240,14 +275,20 @@ export function generateCityOnDocument(
       // Count houses on the finished town: harbour ships, bridge approaches,
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
+      // One content-keyed district cache for the first fabric and every housing count.
+      const fabricCache = new FabricCache(512);
       if (result.urbanMorphology && settings.descriptor) {
-        const initialFabric = buildBlockFabric(result, new FabricCache());
-        result.urbanGrowth = planUrbanGrowth(
-          result,
-          approachBands(result),
-          settings.descriptor.roads,
-          settings.descriptor.burg.dwellings,
-          initialFabric
+        const initialFabric = measureProcessing(profiler, "initial-fabric", () =>
+          buildBlockFabric(result, fabricCache)
+        );
+        result.urbanGrowth = measureProcessing(profiler, "urban-growth-plan", () =>
+          planUrbanGrowth(
+            result,
+            approachBands(result),
+            settings.descriptor!.roads,
+            settings.descriptor!.burg.dwellings,
+            initialFabric
+          )
         );
         const eligible = Object.values(result.mesh.faces).filter(
           f => f.properties.water === "land" && ["core", "outskirts"].includes(f.properties.settlement ?? "")
@@ -267,18 +308,26 @@ export function generateCityOnDocument(
       }
       if (settings.descriptor) {
         const fitStarted = performance.now();
+        // Occupancy and storeys do not move streets, so every fabric the fit builds has the
+        // harbour the finished town draws.
+        let harbor: HarborPlan | undefined;
         const housingFit = measureProcessing(profiler, "fit-housing", () =>
           fitImportedHousing(
             result,
             settings.descriptor!.burg.dwellings,
             settings.descriptor!.burg.lotOccupancy,
-            profiler
+            profiler,
+            fabricCache,
+            fabric => {
+              harbor = fabric.harbor;
+            }
           )
         );
         observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
+        measureProcessing(profiler, "harbor-ships", () => placeHarborShips(result, attemptSeed, profiler, harbor));
       }
       if (skeletonFirst) {
-        const errors = validate(result);
+        const errors = measureProcessing(profiler, "validate", () => validate(result));
         if (errors.length) {
           const sample = reportGenerationFailure(
             observe,
@@ -296,6 +345,21 @@ export function generateCityOnDocument(
           continue;
         }
       }
+      if (attempt > 0 && !stopAfter)
+        observe({
+          phase: "accepted-attempt",
+          elapsedMs: 0,
+          attempt: attempt + 1,
+          retry: {
+            seed: attemptSeed,
+            attempt,
+            inputKey: keyOfInput(),
+            ...(castleRetry
+              ? { castleStreetLinks: true, ...(castleRetry.outward ? { castleOutward: true } : {}) }
+              : {}),
+            ...(singleWallApplied && singleWallFallback !== undefined ? { singleWallFallback } : {})
+          }
+        });
       return result;
     }
     if (onRejected) return null;
@@ -305,17 +369,17 @@ export function generateCityOnDocument(
     // later attempts judge castle sites on street edges.
     const retryReasons = new Set(["unconnected-gates", "fmg-road-mismatch", "castle-no-site"]);
     const reasons = failures.slice(failed).map(sample => sample.failure?.reason ?? "");
-    if (reasons.some(reason => retryReasons.has(reason)))
-      attemptSettings = {
-        ...settings,
-        castleStreetLinks: true,
-        ...(reasons.some(reason => reason !== "unconnected-gates") || attempt >= 1 ? { castleOutward: true } : {})
-      };
+    if (reasons.some(reason => retryReasons.has(reason))) {
+      castleRetry = { outward: reasons.some(reason => reason !== "unconnected-gates") || attempt >= 1 };
+      singleWallApplied = false;
+      attemptSettings = retrySettings();
+    }
     // Only when an old-town wall was actually built: a town with no room for
     // one is already single-walled by its plan.
     if (settings.townWallRings === "double" && attempt >= 1 && reasons.length && oldTownBuilt) {
       singleWallFallback = reasons.at(-1);
-      attemptSettings = { ...attemptSettings, townWallRings: "single", walledAreaShare: 1 };
+      singleWallApplied = true;
+      attemptSettings = retrySettings();
     }
   }
   observe({
@@ -346,6 +410,21 @@ export function generateCityOnDocument(
   // they already collected. Direct calls still need a console report.
   if (!observer) logGenerationFailures(failures, context);
   return null;
+}
+
+/** Identifies the input of a roll: the document and the requested settings (without any retry record). */
+export function generationInputKey(document: CityDocument, settings: GenerationSettings): string {
+  const { generationRetry: _retry, ...requested } = settings;
+  const text = JSON.stringify([document, requested]);
+  // FNV-1a, 2 × 32 bits: a stale record must not match by accident, but this is no security boundary.
+  let a = 0x811c9dc5,
+    b = 0x01000193 ^ text.length;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x5bd1e995);
+  }
+  return `${(a >>> 0).toString(36)}-${(b >>> 0).toString(36)}`;
 }
 
 /** Reads the immutable input, assembles an isolated candidate and returns only
@@ -851,7 +930,9 @@ export function generateCityAttempt(
     )
   );
   measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
-  measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
+  // An FMG town places its ships after the housing fit, from the harbour that fit already built.
+  if (settings.descriptor && !stopAfter) clearHarborShips(settled);
+  else measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
   const withApproaches = skeletonFirst
     ? settled
     : finishFixedConnections(settled, settings, geo, attempt, observer, profiler);

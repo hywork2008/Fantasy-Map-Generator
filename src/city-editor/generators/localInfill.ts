@@ -6,6 +6,7 @@ import type { BuildingLot } from "./buildingLots";
 import { buildCirculadeBlocks } from "./circuladeFabric";
 import { buildingHitsCivicLandmark, laneHitsCivicLandmark } from "./civicClearance";
 import { districtBoundary } from "./fabricDistricts";
+import { occupancyDrawOf } from "./frontageBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea } from "./housing";
 import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
@@ -686,6 +687,8 @@ function fillPolygon(
     for (const points of grown.lanes)
       local.lanes.push({ faceId: face.id, points, widthMeters: parameters?.laneWidth ?? 3 });
     const landmark = face.properties.ward === "castle";
-    for (const outline of grown.buildings) local.buildings.push({ faceId: face.id, polygon: outline, landmark });
+    for (const outline of grown.buildings) {
+      local.buildings.push({ faceId: face.id, polygon: outline, landmark, ...occupancyDrawOf(outline) });
+    }
   }
 }

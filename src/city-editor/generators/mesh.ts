@@ -115,8 +115,12 @@ export function indexMeshEdges(mesh: Mesh) {
 }
 
 export function edgeBetween(mesh: Mesh, a: Id, b: Id): Edge | null {
-  for (const edge of Object.values(mesh.edges))
+  // `for…in` visits the edges in `Object.values` order without copying them.
+  const edges = mesh.edges;
+  for (const id in edges) {
+    const edge = edges[id];
     if ((edge.a === a && edge.b === b) || (edge.a === b && edge.b === a)) return edge;
+  }
   return null;
 }
 
@@ -134,11 +138,29 @@ export function edgeEnd(mesh: Mesh, ref: EdgeRef): Id {
 }
 
 export function incidentEdges(mesh: Mesh, vertexId: Id): Edge[] {
-  return Object.values(mesh.edges).filter(edge => edge.a === vertexId || edge.b === vertexId);
+  const result: Edge[] = [];
+  const edges = mesh.edges;
+  for (const id in edges) {
+    const edge = edges[id];
+    if (edge.a === vertexId || edge.b === vertexId) result.push(edge);
+  }
+  return result;
 }
 
 export function incidentFaces(mesh: Mesh, vertexId: Id): Face[] {
-  return Object.values(mesh.faces).filter(face => faceVertices(mesh, face).includes(vertexId));
+  const result: Face[] = [];
+  const { edges, faces } = mesh;
+  for (const id in faces) {
+    const face = faces[id];
+    for (const ref of face.boundary) {
+      const edge = edges[ref.edgeId];
+      if ((ref.forward ? edge.a : edge.b) === vertexId) {
+        result.push(face);
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 export function vertexTouchesWater(mesh: Mesh, vertexId: Id): boolean {
@@ -158,24 +180,47 @@ export function faceNeighbors(mesh: Mesh, faceId: Id): Id[] {
   return [...neighbors];
 }
 
-/**
- * Divide a face along a diagonal between two existing, non-adjacent vertices.
- * The original face keeps its id; the second half receives a new face id.
- */
-export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): CityDocument | null {
-  const next = clone(document);
-  const face = next.mesh.faces[faceId];
+function canSplitFace(document: CityDocument, faceId: Id, a: Id, b: Id): boolean {
+  const face = document.mesh.faces[faceId];
   if (
     !face ||
     face.properties.locked ||
     a === b ||
     document.defenseCircuits?.some(c => c.locked && c.areaFaceIds.includes(faceId))
   )
-    return null;
+    return false;
+  const vertices = faceVertices(document.mesh, face);
+  const ia = vertices.indexOf(a);
+  const ib = vertices.indexOf(b);
+  return !(ia < 0 || ib < 0 || areAdjacent(vertices.length, ia, ib) || edgeBetween(document.mesh, a, b));
+}
+
+/**
+ * Divide a face along a diagonal between two existing, non-adjacent vertices.
+ * The original face keeps its id; the second half receives a new face id.
+ */
+export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): CityDocument | null {
+  if (!canSplitFace(document, faceId, a, b)) return null;
+  const next = clone(document);
+  if (!splitCheckedFace(next, faceId, a, b)) return null;
+  return validate(next).length ? null : next;
+}
+
+/**
+ * `splitFace` on a document the caller owns, without `validate`. Returns the
+ * new face id. On null the document may be half edited and must be dropped.
+ */
+export function splitFaceInPlace(next: CityDocument, faceId: Id, a: Id, b: Id): Id | null {
+  return canSplitFace(next, faceId, a, b) ? splitCheckedFace(next, faceId, a, b) : null;
+}
+
+function splitCheckedFace(next: CityDocument, faceId: Id, a: Id, b: Id): Id | null {
+  const face = next.mesh.faces[faceId];
+  // A diagonal of a concave cell can run outside it; checked below against the parent.
+  const parent = facePoints(next.mesh, face);
   const vertices = faceVertices(next.mesh, face);
   const ia = vertices.indexOf(a);
   const ib = vertices.indexOf(b);
-  if (ia < 0 || ib < 0 || areAdjacent(vertices.length, ia, ib) || edgeBetween(next.mesh, a, b)) return null;
 
   const edgeId = nextNumericId(next.mesh.edges, "e");
   const forward = a < b;
@@ -206,9 +251,8 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
   for (const circuit of next.defenseCircuits ?? [])
     if (circuit.areaFaceIds.includes(faceId)) circuit.areaFaceIds.push(newFaceId);
   rebuildFaceSides(next.mesh);
-  // A diagonal of a concave cell can run outside it. The two halves must then
-  // be simple, keep the parent's orientation and exactly tile its area.
-  const parent = facePoints(document.mesh, document.mesh.faces[faceId]);
+  // The two halves must be simple, keep the parent's orientation and exactly
+  // tile its area.
   if (isSimplePolygon(parent)) {
     const parentArea = area(parent);
     const halves = [face, next.mesh.faces[newFaceId]].map(f => facePoints(next.mesh, f));
@@ -220,7 +264,7 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
     )
       return null;
   }
-  return validate(next).length ? null : next;
+  return newFaceId;
 }
 
 /** Merge two neighboring faces, unless a shared edge carries a feature. */
@@ -232,12 +276,17 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
     )
   )
     return null;
+  {
+    const keep = document.mesh.faces[keepFaceId];
+    const remove = document.mesh.faces[removeFaceId];
+    if (!keep || !remove || keep.properties.locked || remove.properties.locked) return null;
+    const shared = keep.boundary.map(ref => ref.edgeId).filter(id => remove.boundary.some(ref => ref.edgeId === id));
+    if (!shared.length || shared.some(edgeId => featureUsesEdge(document, edgeId))) return null;
+  }
   const next = clone(document);
   const keep = next.mesh.faces[keepFaceId];
   const remove = next.mesh.faces[removeFaceId];
-  if (!keep || !remove || keep.properties.locked || remove.properties.locked) return null;
   const shared = keep.boundary.map(ref => ref.edgeId).filter(id => remove.boundary.some(ref => ref.edgeId === id));
-  if (!shared.length || shared.some(edgeId => featureUsesEdge(next, edgeId))) return null;
 
   // A merged face can touch another face along two or more edges. Removing
   // every shared edge and re-linking the remaining directed edges gives the
@@ -370,14 +419,13 @@ export function moveVertices(
   points: ReadonlyMap<Id, Point>,
   allowExistingErrors = false
 ): CityDocument | null {
-  const next = clone(document);
-  const half = next.frame.extentMeters / 2;
+  const half = document.frame.extentMeters / 2;
   for (const [id, point] of points) {
-    const vertex = next.mesh.vertices[id];
-    if (!vertex || protectedVertex(document, id)) return null;
+    if (!document.mesh.vertices[id] || protectedVertex(document, id)) return null;
     if (!point.every(Number.isFinite) || Math.abs(point[0]) > half || Math.abs(point[1]) > half) return null;
-    vertex.point = [point[0], point[1]];
   }
+  const next = clone(document);
+  for (const [id, point] of points) next.mesh.vertices[id].point = [point[0], point[1]];
   if (!refreshCastleLayouts(next)) return null;
   // Moved-geometry errors are new by construction, so they are never excused
   // by allowExistingErrors.
@@ -613,6 +661,21 @@ export function insertEdgeVertex(
   edgeId: Id,
   fraction: number
 ): { document: CityDocument; vertexId: Id } | null {
+  if (!canInsertEdgeVertex(document, edgeId, fraction)) return null;
+  const next = clone(document);
+  const vertexId = insertEdgeVertexUnchecked(next, edgeId, fraction);
+  return validate(next).length ? null : { document: next, vertexId };
+}
+
+/**
+ * `insertEdgeVertex` on a document the caller owns, without `validate`.
+ * Returns the new vertex id, or null without editing.
+ */
+export function insertEdgeVertexInPlace(document: CityDocument, edgeId: Id, fraction: number): Id | null {
+  return canInsertEdgeVertex(document, edgeId, fraction) ? insertEdgeVertexUnchecked(document, edgeId, fraction) : null;
+}
+
+function canInsertEdgeVertex(document: CityDocument, edgeId: Id, fraction: number): boolean {
   const edge = document.mesh.edges[edgeId];
   if (
     !edge ||
@@ -623,11 +686,16 @@ export function insertEdgeVertex(
     [edge.leftFace, edge.rightFace].some(id => id && document.mesh.faces[id].properties.locked) ||
     document.featureGroups.some(group => group.locked && groupUsesEdge(document, group, edgeId))
   )
-    return null;
+    return false;
   const a = document.mesh.vertices[edge.a].point;
   const b = document.mesh.vertices[edge.b].point;
-  if (distance(a, b) * Math.min(fraction, 1 - fraction) < 1) return null;
-  const next = clone(document);
+  return distance(a, b) * Math.min(fraction, 1 - fraction) >= 1;
+}
+
+function insertEdgeVertexUnchecked(next: CityDocument, edgeId: Id, fraction: number): Id {
+  const edge = { ...next.mesh.edges[edgeId] };
+  const a = next.mesh.vertices[edge.a].point;
+  const b = next.mesh.vertices[edge.b].point;
   const vertexId = nextNumericId(next.mesh.vertices, "v");
   const newEdgeId = nextNumericId(next.mesh.edges, "e");
   next.mesh.vertices[vertexId] = {
@@ -664,7 +732,7 @@ export function insertEdgeVertex(
   for (const gate of next.gates)
     if (gate.wallEdgeIds?.includes(edgeId) && gate.vertexId === edge.b)
       gate.wallEdgeIds = gate.wallEdgeIds.map(id => (id === edgeId ? newEdgeId : id)) as [Id, Id];
-  return validate(next).length ? null : { document: next, vertexId };
+  return vertexId;
 }
 
 export function validate(document: CityDocument): string[] {
@@ -796,12 +864,21 @@ const SHARED_CITY_FIELDS = [
   "biome"
 ] as const;
 
+/**
+ * Mesh edits replace a vertex's `point`, a face's `boundary` and `site`; they
+ * never write into them. Clones therefore share those arrays and copy only the
+ * records that edits change. Tests freeze the shared arrays so a write fails
+ * loudly; frozen arrays are slower, so the app does not.
+ */
 function cloneMesh(mesh: Mesh): Mesh {
   const vertices: Mesh["vertices"] = {};
-  for (const vertex of Object.values(mesh.vertices))
-    vertices[vertex.id] = { id: vertex.id, point: [vertex.point[0], vertex.point[1]], locked: vertex.locked };
+  for (const id in mesh.vertices) {
+    const vertex = mesh.vertices[id];
+    vertices[vertex.id] = { id: vertex.id, point: frozen(vertex.point), locked: vertex.locked };
+  }
   const edges: Mesh["edges"] = {};
-  for (const edge of Object.values(mesh.edges))
+  for (const id in mesh.edges) {
+    const edge = mesh.edges[id];
     edges[edge.id] = {
       id: edge.id,
       a: edge.a,
@@ -810,15 +887,30 @@ function cloneMesh(mesh: Mesh): Mesh {
       rightFace: edge.rightFace,
       locked: edge.locked
     };
+  }
   const faces: Mesh["faces"] = {};
-  for (const face of Object.values(mesh.faces))
+  for (const id in mesh.faces) {
+    const face = mesh.faces[id];
     faces[face.id] = {
       id: face.id,
-      boundary: face.boundary.map(ref => ({ edgeId: ref.edgeId, forward: ref.forward })),
-      ...(face.site ? { site: [face.site[0], face.site[1]] } : {}),
+      boundary: frozenRefs(face.boundary),
+      ...(face.site ? { site: frozen(face.site) } : {}),
       properties: { ...face.properties }
     };
+  }
   return { vertices, edges, faces };
+}
+
+const FREEZE_SHARED = import.meta.env?.MODE === "test";
+
+function frozen<T extends object>(value: T): T {
+  return !FREEZE_SHARED || Object.isFrozen(value) ? value : Object.freeze(value);
+}
+
+function frozenRefs(boundary: EdgeRef[]): EdgeRef[] {
+  if (!FREEZE_SHARED || Object.isFrozen(boundary)) return boundary;
+  for (const ref of boundary) Object.freeze(ref);
+  return Object.freeze(boundary) as EdgeRef[];
 }
 
 export function clone<T>(value: T): T {

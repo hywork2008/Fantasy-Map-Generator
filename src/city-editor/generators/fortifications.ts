@@ -143,7 +143,24 @@ function polygonBox(poly: Point[]): [number, number, number, number] {
 }
 
 export function insideRing(p: Point, ring: Point[]): boolean {
-  return pointInPolygon(p, ring) || nearestOnPolyline(p, [...ring, ring[0]]).dist < 0.01;
+  return pointInPolygon(p, ring) || nearRing(p, ring, 0.01);
+}
+
+/** Some side of the closed ring, the closing side included, is nearer than `limit`. */
+function nearRing(p: Point, ring: Point[], limit: number): boolean {
+  const px = p[0],
+    py = p[1];
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i],
+      b = ring[i + 1 < ring.length ? i + 1 : 0];
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq === 0 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / lenSq;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    if (Math.hypot(px - (a[0] + dx * t), py - (a[1] + dy * t)) < limit) return true;
+  }
+  return false;
 }
 
 /** Test every interval between boundary crossings, including concave boundaries. */

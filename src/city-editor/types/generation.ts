@@ -34,6 +34,10 @@ export interface GenerationSettings {
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;
   castleOutward?: boolean;
+  /** The accepted retry of an earlier roll with this seed and input. Generation starts
+   * at that attempt instead of re-running the rejected ones; it is ignored when the seed
+   * or the input changed. Never stored in the result's recipe. */
+  generationRetry?: GenerationRetry;
   /** Only used when replaying a pre-castle-city recipe. */
   legacyCastles?: boolean;
   config: SiteConfig;
@@ -166,4 +170,17 @@ export interface MeshBorderLoop {
 export interface GenerationStage extends GenerationStageDefinition {
   readonly label: string;
   readonly hint: string;
+}
+
+/** What the attempt loop had changed when it accepted attempt `attempt` (0 = first). */
+export interface GenerationRetry {
+  /** The accepted attempt's seed, `<seed>:junction-retry:<attempt>`. */
+  seed: string;
+  attempt: number;
+  /** `generationInputKey` of the document and requested settings it was rolled from. */
+  inputKey: string;
+  castleStreetLinks?: boolean;
+  castleOutward?: boolean;
+  /** Set when the attempt fell back from double to single walls; the reason it records. */
+  singleWallFallback?: string;
 }

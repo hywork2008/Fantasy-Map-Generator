@@ -624,21 +624,23 @@ export function straightenThroughStreets(document: CityDocument, descriptor?: Bu
             const on: Point = [a[0] + ad[0] * t, a[1] + ad[1] * t];
             return [p[0] + (on[0] - p[0]) * fraction, p[1] + (on[1] - p[1]) * fraction];
           };
-          const moved = moveVertices(
-            work,
-            new Map([
-              [ids[i], target(b)],
-              [ids[i + 1], target(c)]
-            ])
-          );
-          if (!moved) continue;
-          const [nb, nc] = [ids[i], ids[i + 1]].map(id => moved.mesh.vertices[id].point);
+          // The turns depend only on the targets; test them before the
+          // document-wide copy and checks of a move.
+          const [nb, nc] = [target(b), target(c)];
           const after = Math.max(Math.abs(signedTurn(a, nb, nc)), Math.abs(signedTurn(nb, nc, d)));
           const outer = Math.max(
-            i >= 2 ? Math.abs(signedTurn(moved.mesh.vertices[ids[i - 2]].point, a, nb)) : 0,
-            i + 3 < ids.length ? Math.abs(signedTurn(nc, d, moved.mesh.vertices[ids[i + 3]].point)) : 0
+            i >= 2 ? Math.abs(signedTurn(work.mesh.vertices[ids[i - 2]].point, a, nb)) : 0,
+            i + 3 < ids.length ? Math.abs(signedTurn(nc, d, work.mesh.vertices[ids[i + 3]].point)) : 0
           );
           if (after < before - 5 && outer < before) {
+            const moved = moveVertices(
+              work,
+              new Map([
+                [ids[i], nb],
+                [ids[i + 1], nc]
+              ])
+            );
+            if (!moved) continue;
             const kept = junctions(moved);
             if (kept.some((bend, k) => bend > held[k] + 0.5)) continue;
             // Nor at the cost of a bridge: its arms must stay square to the river.

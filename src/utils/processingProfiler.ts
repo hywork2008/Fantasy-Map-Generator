@@ -42,6 +42,11 @@ export class ProcessingProfiler {
     }
   }
 
+  /** Path of the innermost open measurement, or null outside any. */
+  currentPath(): string | null {
+    return this.stack.at(-1)?.path ?? null;
+  }
+
   snapshot(): ProcessingTiming[] {
     return [...this.timings.values()].map(timing => ({ ...timing })).sort((a, b) => a.path.localeCompare(b.path));
   }

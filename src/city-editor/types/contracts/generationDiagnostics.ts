@@ -6,6 +6,8 @@ export interface GenerationSample {
   routing?: RoadRoutingTrace[];
   fixedApproaches?: import("./automaticFixedApproaches").AutomaticFixedApproachResult["diagnostics"];
   housingFit?: import("./fitImportedHousing").HousingFitStats;
+  /** On the `accepted-attempt` sample: how to start a later roll of the same input at this attempt. */
+  retry?: import("../generation").GenerationRetry;
   phase: string;
   elapsedMs: number;
   attempt: number;

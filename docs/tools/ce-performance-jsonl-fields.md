@@ -25,6 +25,9 @@
 | generationBreakdown | array \| null | CE生成の階層付き内訳（§6）。取れなければ `null` |
 | fmgBreakdown | array \| null | FMG側descriptor作成の階層付き内訳（§6）。古いCSV由来なら `null` |
 | fmgTimings | object \| null | FMG側の時間（§4） |
+| job | number | 計測したWorkerの番号（`--jobs N` で 1〜N） |
+| warmRun | number | `--warm` のとき、そのWorkerで何回目の生成か（暖機の回を含む） |
+| fabricBuilds | object | 生成中の `buildBlockFabric` 呼び出し回数。キーは呼び出し時の工程パス（`attempt-N` は `attempt-*`）、値は `{ built, cached }`（`cached` は文書ごとのキャッシュが答えた回）。港の船の計画（`buildHarborPlan`）での構築も含む |
 | exportTimings | object \| null | descriptor→共有入力の変換時間（§4） |
 
 ## 2. status の値
@@ -55,6 +58,21 @@
 | attempts | number | 使った試行の最大 attempt 番号（`render.` 以外の phases から算出）。最大8 |
 | svgNodes | number \| null | `--render` 時のSVG要素数。`--render` なしは `null` |
 | spatialMetrics | object \| null | 面積指標（下表）。生成結果がなければ `null`。`--render` なしでも測る |
+| housingFit | object \| null | 住宅数の調整結果（`HousingFitStats`）。`dwellings` が目標、`finalHouses` が最終の住宅数 |
+| quality | object \| null | 完成した都市の品質指標（下表）。生成時間の外で測り、`timings.qualityMs` に時間が入る |
+
+### quality
+
+| 項目 | 意味 |
+| --- | --- |
+| buildings | エディタが描く建物数（`buildBlockFabric` の結果） |
+| buildingFootprintMeters2 | 建物の延べ面積 m² |
+| lanes | 路地の本数 |
+| crossingIssues | 完成した都市で `explainGeneratedCrossingFailures` を再実行した違反数。0であるべき |
+| overSkewedBridges | 時代・技術の斜角上限（`bridgeSkewPolicy.ts`）を超える橋の数。0であるべき |
+| drawnHousing / targetDwellings | エディタが描く区画で、住宅数の調整と同じ数え方（住戸の収容数）で数えた住宅数と、目標住宅数。`housingCapacity` のある都市のみ。`housingFit.finalHouses` は調整側の値で、S2 以降は見積りのため描画と少しずれることがある |
+| ships / shipsNearPier | 生成された船の数と、そのうちエディタが描く桟橋から 15 m 以内にある数。船のない都市では出ない |
+| roadGroups / gates | 道路グループ数・門の数 |
 
 ### spatialMetrics
 

@@ -270,10 +270,12 @@ export function createGenerationController(ctx: GenerationContext) {
         return;
       }
       ctx.generation.pendingFailurePreview = null;
-      if (next.generationSeed) {
-        ctx.generation.generateSeed = next.generationSeed;
-        syncGenerateControls();
-      }
+      // Keep the requested seed. A town accepted on a retry keeps how it got there, so the
+      // next roll of this seed and input (and a shared link) starts at that attempt instead
+      // of re-running the rejected ones, and draws the same town.
+      const retry = ctx.generation.generationSamples.find(sample => sample.phase === "accepted-attempt")?.retry;
+      const { generationRetry: _previous, ...requested } = ctx.generation.generateSettings;
+      ctx.generation.generateSettings = retry ? { ...requested, generationRetry: retry } : requested;
       if (next.fabric?.generation?.input) {
         ctx.generation.completeSource = clone(next.fabric.generation.input);
       }
