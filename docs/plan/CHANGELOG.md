@@ -1,5 +1,10 @@
 # 追加したドキュメント
 
+2026-10-15
+
+- docs/plan/fmg-city-context-audit.md
+- docs/tools/fmg-city-audit.md
+
 2026-10-12
 
 - docs/plan/waterfront-town-proximity.md

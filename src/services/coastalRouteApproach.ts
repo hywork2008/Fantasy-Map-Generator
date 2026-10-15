@@ -1,6 +1,5 @@
 import type { WorldContext } from "../context/worldContext";
 import { defaultCoastSettings, drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
-import { useOptionsState } from "../store/optionsState";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 
@@ -218,10 +217,14 @@ function detour(coast: Coast, origin: Pt, next: Pt, mpu: number): Pt | null {
  * Insert a detour waypoint after/before every coastal burg on a land route whose
  * straight leg would run over the drawn sea. Points keep their [x, y, cell] shape.
  */
-export function bendRouteAwayFromCoast(world: Readonly<WorldContext>, points: number[][]): number[][] {
+export function bendRouteAwayFromCoast(
+  world: Readonly<WorldContext>,
+  points: number[][],
+  distanceUnit: string
+): number[][] {
   const { pack } = world;
   if (!pack?.burgs?.length || !pack.features?.length || points.length < 2) return points;
-  const mpu = mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit);
+  const mpu = mapUnitMeters(world.distanceScale, distanceUnit);
   if (!(mpu > 0)) return points;
   let out: number[][] | null = null;
   for (let i = points.length - 1; i >= 0; i--) {

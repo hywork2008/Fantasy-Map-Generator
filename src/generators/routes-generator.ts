@@ -7,9 +7,9 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
-import { bendRouteAwayFromCoast } from "../services/coastalRouteApproach";
 import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../services/riverRouteCrossings";
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
+import { densifyLandRoutePoints, routeRenderPoints } from "../services/routeRenderGeometry";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type {
@@ -2102,133 +2102,8 @@ class RoutesModule {
     return "Unnamed route";
   }
 
-  /**
-   * Midpoint of the shared Voronoi edge between two adjacent cells (average of the
-   * two vertices that bound the shared face). May sit off the center–center chord;
-   * only insert when that chord would clip a higher third cell (see densifyLandRoutePoints).
-   */
-  private getSharedEdgeMidpoint(cell1: number, cell2: number, pack: PackedGraph): Point | null {
-    const { cells, vertices } = pack;
-    if (!cells.v?.[cell1] || !vertices?.p || !vertices?.c) return null;
-    const common = cells.v[cell1].filter((vertex: number) =>
-      vertices.c[vertex]?.some((cellId: number) => cellId === cell2)
-    );
-    if (common.length < 2) return null;
-    const p0 = vertices.p[common[0]];
-    const p1 = vertices.p[common[1]];
-    if (!p0 || !p1) return null;
-    return [rn((p0[0] + p1[0]) / 2, 2), rn((p0[1] + p1[1]) / 2, 2)];
-  }
-
-  private distPointToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len2 = dx * dx + dy * dy;
-    if (len2 === 0) return Math.hypot(px - x1, py - y1);
-    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2));
-    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-  }
-
-  /**
-   * True when the center–center chord of cellA–cellB passes near a neighbouring cell
-   * that is meaningfully higher (peak clip risk, e.g. 5102→5272 near 5271).
-   */
-  private centerChordClipsHigherNeighbour(cellA: number, cellB: number, pack: PackedGraph): boolean {
-    const { cells } = pack;
-    const pa = cells.p[cellA];
-    const pb = cells.p[cellB];
-    if (!pa || !pb) return false;
-    const hCap = Math.max(cells.h[cellA] ?? 0, cells.h[cellB] ?? 0);
-    const neighbours = new Set<number>([...(cells.c[cellA] ?? []), ...(cells.c[cellB] ?? [])]);
-    neighbours.delete(cellA);
-    neighbours.delete(cellB);
-    // How close a third cell center must be to the chord to count as a clip (map units).
-    const near = Math.max(4, Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * 0.35);
-    for (const n of neighbours) {
-      const pn = cells.p[n];
-      if (!pn || (cells.h[n] ?? 0) < 20) continue;
-      // Only detour for clearly higher ground (local ridge/peak), not equal foothills.
-      if ((cells.h[n] ?? 0) < hCap + 8) continue;
-      if (this.distPointToSegment(pn[0], pn[1], pa[0], pa[1], pb[0], pb[1]) <= near) return true;
-    }
-    return false;
-  }
-
-  /**
-   * Collapse center/mid/center artifacts from an earlier always-on densify (same cell id
-   * twice in a row): keep the point closer to the cell generator.
-   */
-  private collapseRedundantCellPoints(points: number[][], pack: PackedGraph): number[][] {
-    const { cells } = pack;
-    const out: number[][] = [];
-    for (const p of points) {
-      const cellId = p[2];
-      if (out.length && out[out.length - 1][2] === cellId && cellId !== undefined) {
-        const center = cells.p?.[cellId];
-        if (center) {
-          const prev = out[out.length - 1];
-          const dPrev = Math.hypot(prev[0] - center[0], prev[1] - center[1]);
-          const dNew = Math.hypot(p[0] - center[0], p[1] - center[1]);
-          if (dNew < dPrev) out[out.length - 1] = p;
-          continue;
-        }
-      }
-      out.push(p);
-    }
-    return out;
-  }
-
-  /** Canonical map position for a pack cell (burg anchor if present, else cell generator). */
-  private cellAnchor(cellId: number, pack: PackedGraph): Point | null {
-    const burgId = pack.cells.burg?.[cellId];
-    if (burgId) {
-      const burg = pack.burgs[burgId];
-      if (burg && Number.isFinite(burg.x) && Number.isFinite(burg.y)) return [burg.x, burg.y];
-    }
-    const p = pack.cells.p?.[cellId];
-    if (p && Number.isFinite(p[0]) && Number.isFinite(p[1])) return [p[0], p[1]];
-    return null;
-  }
-
-  /**
-   * Snap every control point to the cell's canonical anchor so two routes that share a
-   * cell always meet. Per-route sharp-angle offsets previously left stub trails visually
-   * short of the main path (Nesia 151 @ 3652 vs 166 @ 3652 ≈ 5.4 map units apart).
-   */
-  private snapRoutePointsToCellAnchors(points: number[][], pack: PackedGraph): number[][] {
-    return points.map(p => {
-      const cellId = p[2];
-      if (cellId === undefined) return p;
-      const anchor = this.cellAnchor(cellId, pack);
-      return anchor ? [anchor[0], anchor[1], cellId] : p;
-    });
-  }
-
-  /**
-   * For land-route rendering only: between consecutive cells, insert a shared-edge
-   * midpoint **only** when the center–center chord would clip a higher neighbour.
-   * Always-on insertion caused needless zigzags (Ondrepieds route 151 through 4702/4913).
-   */
   densifyLandRoutePoints(points: number[][], pack: PackedGraph = this.worldContext.pack): number[][] {
-    if (points.length < 2) return points;
-    if (!pack?.cells?.p) return points;
-    const collapsed = this.collapseRedundantCellPoints(points, pack);
-    const snapped = this.snapRoutePointsToCellAnchors(collapsed, pack);
-    if (snapped.length < 2) return snapped;
-
-    const densified: number[][] = [];
-    for (let i = 0; i < snapped.length; i++) {
-      densified.push(snapped[i]);
-      if (i >= snapped.length - 1) continue;
-      const cellA = snapped[i][2];
-      const cellB = snapped[i + 1][2];
-      if (cellA === undefined || cellB === undefined || cellA === cellB) continue;
-      if (!this.centerChordClipsHigherNeighbour(cellA, cellB, pack)) continue;
-      const mid = this.getSharedEdgeMidpoint(cellA, cellB, pack);
-      if (!mid) continue;
-      densified.push([mid[0], mid[1], cellA]);
-    }
-    return densified;
+    return densifyLandRoutePoints(points, pack);
   }
 
   /**
@@ -2248,13 +2123,8 @@ class RoutesModule {
     },
     pack?: PackedGraph
   ): number[][] {
-    if (route.group === "searoutes") return route.points;
     const world = pack && pack !== this.worldContext.pack ? { ...this.worldContext, pack } : this.worldContext;
-    const points =
-      route.riverRoadConvergence || route.fixedSettlementApproach
-        ? route.points
-        : this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
-    return bendRouteAwayFromCoast(world, points);
+    return routeRenderPoints(world, route, useOptionsState.getState().distanceUnit);
   }
 
   getPath(
