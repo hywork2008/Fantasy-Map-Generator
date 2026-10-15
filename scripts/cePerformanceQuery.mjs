@@ -488,7 +488,10 @@ commands.quality = async function () {
     const ps = (r.phases || []).filter((p) => p.phase === name);
     return ps.filter((p) => p.attempt === r.attempts).at(-1) ?? ps.at(-1);
   };
+  // 実際に描く区画で数えた住宅数（quality.drawnHousing）を優先する。住宅調整の見積り（housingFit）は描画とずれ得る。
   const housingError = (r) => {
+    const q = r.quality;
+    if (q?.drawnHousing !== undefined && q.targetDwellings > 0) return Math.abs(q.drawnHousing - q.targetDwellings) / q.targetDwellings;
     const h = r.housingFit;
     return h && h.finalHouses !== null && h.finalHouses !== undefined && h.dwellings > 0 ? Math.abs(h.finalHouses - h.dwellings) / h.dwellings : null;
   };

@@ -3,11 +3,12 @@ import { measureProcessing, type ProcessingProfiler } from "../../utils/processi
 import { residentialStoreys } from "../../utils/urbanMorphology";
 import type { HousingFitStats, Zone, ZoneCounts } from "../types/contracts/fitImportedHousing";
 import type { CityDocument } from "../types/document";
-import { buildBlockFabric } from "./blockInfill";
+import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
+import type { BuildingLot } from "./buildingLots";
 import { nearestOnPolyline, polygonCentroid } from "./geom";
 import { FabricCache } from "./localInfill";
 import { facePoints } from "./mesh";
-import { measureHousingCapacity } from "./residentialCapacity";
+import { applyResidentialStoreys, measureHousingCapacity } from "./residentialCapacity";
 
 /** Accepted |houses − dwellings| / dwellings for the fast default fit. */
 export const HOUSING_FIT_TOLERANCE = 0.1;
@@ -23,10 +24,16 @@ function faceZone(document: CityDocument, faceId: string): Zone | null {
   return properties.wallRing !== undefined && properties.wallRing > 0 ? "between" : "core";
 }
 
-function houseCount(document: CityDocument, profiler?: ProcessingProfiler): ZoneCounts {
-  const buildings = measureProcessing(profiler, "block-fabric", () =>
+function houseCount(
+  document: CityDocument,
+  profiler?: ProcessingProfiler,
+  onFabric?: (fabric: DistrictFabric) => void
+): ZoneCounts {
+  const fabric = measureProcessing(profiler, "block-fabric", () =>
     buildBlockFabric(document, new FabricCache(), profiler)
-  ).buildings;
+  );
+  onFabric?.(fabric);
+  const buildings = fabric.buildings;
   return measureProcessing(profiler, "residential-count", () => {
     const counts: ZoneCounts = { core: 0, between: 0, outskirts: 0 };
     for (const lot of buildings) {
@@ -53,10 +60,12 @@ export function fitImportedHousing(
   dwellings: number,
   targetOccupancy = DEFAULT_LOT_OCCUPANCY,
   profiler?: ProcessingProfiler,
-  cache?: FabricCache
+  cache?: FabricCache,
+  /** Called with each fabric the fit builds (not with counts derived from one). */
+  onFabric?: (fabric: DistrictFabric) => void
 ): HousingFitStats {
   if (document.urbanMorphology && document.urbanGrowth)
-    return fitMorphologyHousing(document, dwellings, profiler, cache);
+    return fitMorphologyHousing(document, dwellings, profiler, cache, onFabric);
   const guide = isLotOccupancy(targetOccupancy) ? targetOccupancy : DEFAULT_LOT_OCCUPANCY;
   const stats: HousingFitStats = {
     dwellings,
@@ -117,7 +126,7 @@ export function fitImportedHousing(
   let factors: ZoneCounts = { core: start("core"), between: start("between"), outskirts: start("outskirts") };
   let best = factors;
   apply(factors, suburbs);
-  let counts = measureProcessing(profiler, "initial-house-count", () => houseCount(document, profiler));
+  let counts = measureProcessing(profiler, "initial-house-count", () => houseCount(document, profiler, onFabric));
   stats.initialHouses = stats.finalHouses = total(counts);
   stats.finalZones = counts;
   let bestError = Math.abs(total(counts) - target);
@@ -158,7 +167,7 @@ export function fitImportedHousing(
     factors = next;
     suburbs = nextSuburbs;
     apply(factors, suburbs);
-    counts = measureProcessing(profiler, "sample-house-count", () => houseCount(document, profiler));
+    counts = measureProcessing(profiler, "sample-house-count", () => houseCount(document, profiler, onFabric));
     stats.samples.push([factors.core, factors.outskirts, total(counts)]);
     const error = Math.abs(total(counts) - target);
     if (error < bestError) {
@@ -182,7 +191,8 @@ function fitMorphologyHousing(
   document: CityDocument,
   dwellings: number,
   profiler?: ProcessingProfiler,
-  sharedCache?: FabricCache
+  sharedCache?: FabricCache,
+  onFabric?: (fabric: DistrictFabric) => void
 ): HousingFitStats {
   const plan = document.urbanGrowth!;
   if (document.fabric)
@@ -201,22 +211,36 @@ function fitMorphologyHousing(
         district.parameters.suburb = true;
       } else delete district.parameters.suburb;
     }
-  // The fit only changes district occupancy, suburb flags and storeys, so a count
-  // repeats exactly when none changed (a multiplier that stays at 1). Each count also
-  // shares one content-keyed cache: districts whose parameters did not change keep their fabric.
-  // The caller may pass the cache that built the town's first fabric, so the first count reuses it.
+  // The fit only changes district occupancy and storeys after this point. Each lot keeps the
+  // random draw its occupancy test used (`BuildingLot.occupancyDraw`), so a lower occupancy
+  // drops exactly the lots whose draw it no longer exceeds, and storeys are only stamped on
+  // the residential lots: both are counted from one built fabric instead of a rebuild each.
+  // Only a higher occupancy than the built one needs another build.
   const cache = sharedCache ?? new FabricCache(512);
-  const counted = new Map<string, ReturnType<typeof measureHousingCapacity>>();
-  const count = () => {
-    const key = `${plan.insideStoreys}|${(document.fabric?.districts ?? [])
-      .map(d => `${d.parameters.occupancy}${d.parameters.suburb ? "s" : ""}`)
-      .join(",")}`;
-    const known = counted.get(key);
-    if (known) return structuredClone(known);
-    const report = measureHousingCapacity(document, buildBlockFabric(document, cache, profiler).buildings, dwellings);
-    counted.set(key, structuredClone(report));
-    return report;
+  const districts = document.fabric?.districts ?? [];
+  let built: { lots: BuildingLot[]; occupancy: number[] } | null = null;
+  const lotsAtCurrentParameters = (): BuildingLot[] => {
+    if (built && districts.every((d, i) => d.parameters.occupancy <= built!.occupancy[i])) {
+      const lowered = new Map<string, number>();
+      districts.forEach((d, i) => {
+        if (d.parameters.occupancy < built!.occupancy[i])
+          for (const id of d.faceIds) lowered.set(id, d.parameters.occupancy);
+      });
+      const kept = lowered.size
+        ? built.lots.filter(lot => {
+            const occupancy = lowered.get(lot.faceId);
+            return occupancy === undefined || lot.occupancyDraw === undefined || lot.occupancyDraw < occupancy;
+          })
+        : built.lots;
+      return applyResidentialStoreys(document, kept);
+    }
+    const fabric = buildBlockFabric(document, cache, profiler);
+    onFabric?.(fabric);
+    built = { lots: fabric.buildings, occupancy: districts.map(d => d.parameters.occupancy) };
+    return fabric.buildings;
   };
+  const count = () =>
+    measureProcessing(profiler, "count", () => measureHousingCapacity(document, lotsAtCurrentParameters(), dwellings));
   let report = count();
   const stats: HousingFitStats = {
     dwellings,

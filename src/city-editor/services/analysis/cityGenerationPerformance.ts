@@ -6,8 +6,9 @@ import { buildBlockFabric, setFabricBuildRecorder } from "../../generators/block
 import { documentBridgeSkewLimit, overSkewedBridgeDecks } from "../../generators/bridgeDeck";
 import { citySpatialMetrics } from "../../generators/citySpatialMetrics";
 import { generateCityOnDocument } from "../../generators/generation/generateCity";
-import { polygonArea } from "../../generators/geom";
+import { nearestOnPolyline, polygonArea } from "../../generators/geom";
 import { explainGeneratedCrossingFailures } from "../../generators/passages";
+import { measureHousingCapacity } from "../../generators/residentialCapacity";
 import type { HousingFitStats } from "../../types/contracts/fitImportedHousing";
 import type { GenerationSample } from "../../types/contracts/generationDiagnostics";
 import type { CityDocument } from "../../types/document";
@@ -245,6 +246,19 @@ export async function measureCityPerformance(
   }
 }
 
+/** Generated ships and how far each lies from the nearest pier the editor draws (berthed ships sit beside one). */
+function shipMetrics(city: CityDocument, fabric: ReturnType<typeof buildBlockFabric>) {
+  const ships = city.elements.filter(e => e.kind === "ship" && e.point);
+  if (!ships.length) return {};
+  const piers = fabric.harbor?.piers ?? [];
+  const gaps = ships.map(ship =>
+    piers.length
+      ? Math.min(...piers.map(pier => nearestOnPolyline(ship.point!, [...pier.polygon, pier.polygon[0]]).dist))
+      : Infinity
+  );
+  return { ships: ships.length, shipsNearPier: gaps.filter(gap => gap <= 15).length };
+}
+
 /**
  * Output measures for changes that may alter the city (ce-generation-max-speed-plan.md §3.2):
  * the fabric the editor would draw, and the crossing/bridge rules re-checked on the finished town.
@@ -256,8 +270,19 @@ export function cityQualityMetrics(city: CityDocument) {
     buildings: fabric.buildings.length,
     buildingFootprintMeters2: footprint,
     lanes: fabric.lanes.length,
+    // Houses the editor draws, counted like the housing fit counts them (dwelling capacity).
+    ...(city.housingCapacity
+      ? (() => {
+          const drawn = measureHousingCapacity(city, fabric.buildings, city.housingCapacity.requiredDwellings);
+          return {
+            drawnHousing: drawn.capacityInside + drawn.capacityOutside,
+            targetDwellings: drawn.requiredDwellings
+          };
+        })()
+      : {}),
     crossingIssues: explainGeneratedCrossingFailures(city).length,
     overSkewedBridges: overSkewedBridgeDecks(city, documentBridgeSkewLimit(city)).length,
+    ...shipMetrics(city, fabric),
     roadGroups: city.featureGroups.filter(g => g.kind === "road").length,
     gates: city.gates?.length ?? 0
   };

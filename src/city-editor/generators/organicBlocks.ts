@@ -1,6 +1,6 @@
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { DistrictParameters, Face, Point } from "../types/document";
-import { frontageBuildings } from "./frontageBuildings";
+import { frontageBuildings, occupancyDrawOf } from "./frontageBuildings";
 import {
   isSimplePolygon,
   lineLineIntersection,
@@ -221,7 +221,8 @@ export function buildOrganicBlocks(
         .map(polygon => ({
           faceId: face.id,
           polygon,
-          landmark: false
+          landmark: false,
+          ...occupancyDrawOf(polygon)
         }))
     );
   }

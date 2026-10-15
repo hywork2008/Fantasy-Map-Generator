@@ -70,6 +70,8 @@
 | lanes | 路地の本数 |
 | crossingIssues | 完成した都市で `explainGeneratedCrossingFailures` を再実行した違反数。0であるべき |
 | overSkewedBridges | 時代・技術の斜角上限（`bridgeSkewPolicy.ts`）を超える橋の数。0であるべき |
+| drawnHousing / targetDwellings | エディタが描く区画で、住宅数の調整と同じ数え方（住戸の収容数）で数えた住宅数と、目標住宅数。`housingCapacity` のある都市のみ。`housingFit.finalHouses` は調整側の値で、S2 以降は見積りのため描画と少しずれることがある |
+| ships / shipsNearPier | 生成された船の数と、そのうちエディタが描く桟橋から 15 m 以内にある数。船のない都市では出ない |
 | roadGroups / gates | 道路グループ数・門の数 |
 
 ### spatialMetrics

@@ -27,7 +27,8 @@ import {
   reportGenerationFailure
 } from "../generationDiagnostics";
 import { isSimplePolygon, polygonArea } from "../geom";
-import { spawnHarborShips } from "../harborShips";
+import type { HarborPlan } from "../harborFabric";
+import { clearHarborShips, placeHarborShips, spawnHarborShips } from "../harborShips";
 import { GAP_BLOCKERS, INNER_WALL_FAILURES, type InnerTownPlanDiagnostics } from "../innerTownWall";
 import { FabricCache } from "../localInfill";
 import { shortcutMajorRoads } from "../majorRoadShortcuts";
@@ -307,16 +308,23 @@ export function generateCityOnDocument(
       }
       if (settings.descriptor) {
         const fitStarted = performance.now();
+        // Occupancy and storeys do not move streets, so every fabric the fit builds has the
+        // harbour the finished town draws.
+        let harbor: HarborPlan | undefined;
         const housingFit = measureProcessing(profiler, "fit-housing", () =>
           fitImportedHousing(
             result,
             settings.descriptor!.burg.dwellings,
             settings.descriptor!.burg.lotOccupancy,
             profiler,
-            fabricCache
+            fabricCache,
+            fabric => {
+              harbor = fabric.harbor;
+            }
           )
         );
         observe({ phase: "fit-housing", elapsedMs: performance.now() - fitStarted, attempt: attempt + 1, housingFit });
+        measureProcessing(profiler, "harbor-ships", () => placeHarborShips(result, attemptSeed, profiler, harbor));
       }
       if (skeletonFirst) {
         const errors = measureProcessing(profiler, "validate", () => validate(result));
@@ -922,7 +930,9 @@ export function generateCityAttempt(
     )
   );
   measureProcessing(profiler, "water-access", () => applyImportedWaterAccess(settled, settings));
-  measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
+  // An FMG town places its ships after the housing fit, from the harbour that fit already built.
+  if (settings.descriptor && !stopAfter) clearHarborShips(settled);
+  else measureProcessing(profiler, "harbor-ships", () => spawnHarborShips(settled, seed, profiler));
   const withApproaches = skeletonFirst
     ? settled
     : finishFixedConnections(settled, settings, geo, attempt, observer, profiler);

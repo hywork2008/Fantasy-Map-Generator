@@ -279,3 +279,37 @@ S0 の基準 187.4 s → **155.1 s（-17.3%）**。見積り（271 s 基準で -
 - FMGで再試行した5都市（3、10、317、452、575）で、生成レシピの入力から `generationRetry` 付きで生成し直した結果が、1回目と完全に一致した。2回目の生成時間は 1.5〜2.3 倍速い（例: 3 は 1093 → 565 ms）。3 は単一市壁への後退を含む。
 - `generationRetry` を渡さない生成（`ce:perf` など）は出力不変。全596都市のハッシュが S1 と一致した。
 - `CityEditorPage.generate.test.ts` に、再試行で採用される seed（`1eaygix`）で「seed が変わらない」「2回目は不採用の試行がなく試行3から始まる」「図が一致する」「共有リンクから同じ図になる」を確かめるテストを追加した。修正前のコードでは失敗する。
+
+## 11. S2 の結果（2026-10-15）
+
+B1 と B3 を実施した。B2（建物を作らない見積り）は、B1 が全都市で使えたため不要だった。
+
+### 11.1 B1: 住宅数の調整を、作り直さずに数える
+
+- 占有率は、区画ごとの乱数 `rng() < occupancy` で家を建てるかを決めている。乱数列は占有率を変えてもずれないように作られている（`frontageBuildings.ts`・`perimeterHousing.ts` のコメント）。そこで、家を建てたときの乱数（抽選値）を区画に `occupancyDraw` として残す（[frontageBuildings.ts](../../src/city-editor/generators/frontageBuildings.ts) の `occupancyDraws`、[organicBlocks.ts](../../src/city-editor/generators/organicBlocks.ts)・[perimeterBlocks.ts](../../src/city-editor/generators/perimeterBlocks.ts)・[localInfill.ts](../../src/city-editor/generators/localInfill.ts) で区画に付ける）。抽選値を残すだけでは出力は変わらない（30都市でハッシュ一致）。
+- 住宅数の調整（[fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) の `fitMorphologyHousing`）は、最初の1回だけ区画を作る。以後、占有率を下げる回は「抽選値が新しい占有率未満の区画だけ残す」、階数を上げる回は「残した区画に階数を付け直す」（`applyResidentialStoreys`）だけで数える。占有率を作ったときより上げる回だけ、作り直す。
+- 中心部の家がすべて抽選値を持つことを確認した。主要街路沿いの家（占有率で抜かない）は抽選値を持たず、常に残す。
+- 出力への影響: 選ぶ占有率は全596都市で同じ結果になり、**描く住宅数は全都市で変わらない**。変わるのは、文書に入る住宅調整の報告（`housingCapacity`・`housingFit`）が見積りになる点。見積りと描画の差は中央値 0・p95 0、最大は住宅数十戸の村で14%（267: 見積り37、描画43）。角の区割りや大型施設による住宅の除去が占有率に連動するためで、小さな村ほど1戸の差の比率が大きい。占有率の倍率が少し変わった都市が2つ（296、483）あるが、描く住宅は同じ。
+
+### 11.2 B3: 港の船を、住宅数の調整が作った港の計画から置く
+
+- 船は試行の途中（街路の確定前）に置いていて、そのためだけに区画を丸ごと1回作っていた。FMGの町（記述子あり）では、試行の中では無効な港の整理と古い船の除去だけを行い（`clearHarborShips`）、船の配置は住宅数の調整の後に、調整が作った区画の港の計画を渡して行う（`placeHarborShips`、[harborShips.ts](../../src/city-editor/generators/harborShips.ts)、[generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts)）。占有率と階数は街路を変えないので、この港の計画は完成した町が描く港と同じ。記述子のない合成の町は従来どおり。
+- 出力への影響: 船の位置と要素の並び順が変わる。30都市で船は 32 → 34 隻、前後とも全隻がエディタの描く桟橋から 15 m 以内（`quality.ships`・`shipsNearPier` を追加して確認）。
+
+### 11.3 全596都市（暖機、並列なし）
+
+S2 開始時の基準（`temp/benchmarks/s2-base-warm.jsonl`、S1 と同じ出力で 167.1 s。S1 の 155.1 s との差は計測日のマシンの状態による）→ **116.1 s（-30.6%）**（`temp/benchmarks/s2-full-warm.jsonl`）。
+
+- 区画の構築は、1都市1回の生成あたり4〜6回から**全都市で2回**（`initial-fabric` と住宅数の調整の最初の1回）になった。
+- `quality` は全項目合格（住宅数の誤差、建物数・延べ面積・市街地面積の中央値、交差・橋・道路・市壁の違反はすべて同じ値）。暖まった同じプロセスで2回ずつ生成した1192回も一致した（`temp/benchmarks/s2-warm-r2.jsonl`）。
+- 文書のハッシュが S1 と同じ都市は 427/596、メッシュは全都市、区画計画は 592/596 で同じ。
+
+| 工程（配下の自己時間の合計） | S2 前 | S2 |
+| --- | --- | --- |
+| `fit-housing`（区画の構築と数え直し） | 54.1 s | 18.1 s |
+| `harbor-ships`（船のための区画構築と船の計画） | 12.6 s | 2.5 s |
+
+### 11.4 残り
+
+- 区画の構築2回のうち `initial-fabric`（約 27 s）は都市化計画（`planUrbanGrowth`）の入力で、住宅数の調整の最初の1回とは文書の状態（郊外の旗）が違うため、まだ共有していない。郊外の旗を先に決められれば1回にできる。
+- 次は S3（C1〜C5、D1〜D3）。`straightenThroughStreets` の頂点ごとの文書複製（C5）が最大。
