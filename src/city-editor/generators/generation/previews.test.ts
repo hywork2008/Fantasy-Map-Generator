@@ -36,7 +36,9 @@ describe("ward preview ownership", () => {
     );
     expect(last.document?.featureGroups).toEqual(first.document?.featureGroups);
     first.document!.featureGroups.length = 0;
-    first.document!.mesh.vertices[Object.keys(first.document!.mesh.vertices)[0]].point[0] += 100;
+    // Points are shared between clones and replaced, never written into (mesh.ts cloneMesh).
+    const moved = first.document!.mesh.vertices[Object.keys(first.document!.mesh.vertices)[0]];
+    moved.point = [moved.point[0] + 100, moved.point[1]];
     const repeated = generateWardStep(clone(document), settings, seed, last.index);
     expect(repeated).toEqual(last);
     expect(planning).toHaveBeenCalledTimes(1);

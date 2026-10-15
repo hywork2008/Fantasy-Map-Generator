@@ -313,3 +313,55 @@ S2 開始時の基準（`temp/benchmarks/s2-base-warm.jsonl`、S1 と同じ出�
 
 - 区画の構築2回のうち `initial-fabric`（約 27 s）は都市化計画（`planUrbanGrowth`）の入力で、住宅数の調整の最初の1回とは文書の状態（郊外の旗）が違うため、まだ共有していない。郊外の旗を先に決められれば1回にできる。
 - 次は S3（C1〜C5、D1〜D3）。`straightenThroughStreets` の頂点ごとの文書複製（C5）が最大。
+
+## 12. S3 の結果（2026-10-15）
+
+C1・C2・C3・C5（C4 は除く）と D3、D4 の一部を実施した。いずれも**出力を変えない**形で実装でき、全596都市の `fingerprint.document` が S2 と一致する（`temp/benchmarks/s3-full-warm.jsonl`）。暖まった同じプロセスで2回ずつ生成した1192回も一致した（`temp/benchmarks/s3-warm-r2.jsonl`、`--jobs 8 --repeat 2`）。`quality` は全項目合格。
+
+### 12.1 実施した変更
+
+主因は、文書全体の複製（`clone`）と検査（`validate`）を伴う編集を、結果が決まる前に試していたこと。多くは「安い判定を先に行い、通ったものだけ編集する」に並べ替えた。
+
+| # | 変更 | ファイル |
+| --- | --- | --- |
+| C1 | 城の候補の箱（`reserveBox`）の4回の切断を、1回の複製の上で直接編集し、最後に1回だけ `validate` する。以前は切断ごとに頂点の挿入2回と面の分割1回がそれぞれ文書を複製・検査していた（1箱で最大12回）。`insertEdgeVertexInPlace`・`splitFaceInPlace` を追加 | [castlePlacement.ts](../../src/city-editor/generators/castlePlacement.ts)、[mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| C2 | 城の配置後の再割り当て（`remap`）で、新しい区画ごとの親（旧区画）を1回だけ外接矩形つきで求め、8つの集合で共有する。以前は集合ごと・区画ごとに全旧区画を `pointInPolygon` で探していた | [defenses.ts](../../src/city-editor/generators/generation/planning/defenses.ts) |
+| C3 | 城壁から道路の離隔判定（`castleRoadEdgeAllowed`）を、全辺を調べる2か所で準備済みの判定（`castleRoadEdgeTest`）にした。外接矩形の間隔が離隔以上の壁の線分は飛ばす（距離の下限なので結果は同じ） | [castles.ts](../../src/city-editor/generators/castles.ts)、[completeRoadRouter.ts](../../src/city-editor/generators/generation/routing/completeRoadRouter.ts) |
+| C3 | 河川の上陸点の探索で、水面ポリゴン（`waterPolygons`）を辺・頂点ごとではなくループの前に1回だけ作る | [assembleRoads.ts](../../src/city-editor/generators/generation/routing/assembleRoads.ts) |
+| C5 | 通り抜け道の直線化（`straightenThroughStreets`）で、曲がり角の判定を移動先の点だけで先に行い、通ったときだけ `moveVertices` を呼ぶ | [frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
+| C5 | 門の頂点の移動（`tryMoveVertex`）で、周りの区画の形の判定を移動先の点で先に行う | [passages.ts](../../src/city-editor/generators/passages.ts) |
+| C5 | 外側の道の近道（`shortcutExteriorRoads`）で、分割後の2つの区画の形を頂点の並びから先に判定する。これで、分割した後に捨てる回がなくなった | [gateApproaches.ts](../../src/city-editor/generators/generation/routing/gateApproaches.ts) |
+| — | `splitFace`・`mergeFaces`・`moveVertices` の、元の文書だけで決まる不採用の判定を、複製の前に移す | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| — | 文書の複製（`cloneMesh`）で、頂点の `point`、区画の `boundary`・`site` の配列を複製元と共有する。編集はこれらを置き換え、中を書き換えない。テスト（Vitest）では共有した配列を凍結し、中を書き換えるコードがあれば失敗する（凍結した配列は遅いので、アプリでは凍結しない） | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| D3 | `nearestOnPolyline` が線分ごとに点と結果の物を作っていたのを、最後に1回だけ作る。`insideRing` が判定のたびに閉じた輪の配列を作っていたのをやめる。`pointInPolygon` の分割代入をやめる | [geom.ts](../../src/city-editor/generators/geom.ts)、[fortifications.ts](../../src/city-editor/generators/fortifications.ts) |
+| D4 | `edgeBetween`・`incidentEdges`・`incidentFaces` で、全辺・全区画の配列を作らずに走査する（順序は同じ） | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+
+- 配列の共有に合わせて、[previews.test.ts](../../src/city-editor/generators/generation/previews.test.ts) の「返した文書が独立している」確認を、点の中を書き換える形から点を置き換える形に変えた。点の中を書き換えると、共有している別の文書も変わるため。区画・辺・道路などの記録の独立性はこれまでどおり確かめている。
+- 共有を常に凍結した版でも、診断用30都市のハッシュが一致し、全テストが通ることを確認した（書き換えるコードは見つからなかった）。
+
+### 12.2 全596都市（暖機、並列なし）
+
+同じ日に測った S2 の版（`temp/benchmarks/s3-head-warm.jsonl`）120.2 s → **93.6 s（-22.1%）**。S2 の記録（116.1 s）と比べても -19.4%。
+
+| 工程（自己時間） | S2 | S3 | 差 |
+| --- | --- | --- | --- |
+| `attempt-*/plan` | 27.3 s | 14.1 s | -13.1 s |
+| `initial-fabric` | 29.5 s | 25.5 s | -4.0 s |
+| `attempt-*/apply-plan` | 17.1 s | 13.9 s | -3.2 s |
+| `attempt-*/through-streets` | 3.7 s | 1.5 s | -2.2 s |
+| `fit-housing/count/harbor-fabric` | 3.6 s | 2.2 s | -1.4 s |
+| `fit-housing/count/coastal-reservations` | 8.5 s | 7.7 s | -0.8 s |
+
+`initial-fabric` などの区画工程は、D3（幾何関数の割り当ての削減）と配列の共有で速くなった。
+
+### 12.3 実施しなかったもの
+
+- **C4**（外側の道の遅延評価）: プロファイルで目立つ費用がなく、見送った。
+- **D1**（`Float64Array` の平坦な配列）: 幾何関数の呼び出し側をすべて変える大きな変更になる。D3 の割り当て削減で GC の一部は減ったが、GC は依然として生成時間の2割前後を占める。効果を小さな実験で確かめてから判断する。
+- **D2**（空間索引の共有）: 今回のプロファイルでは `BoxIndex` の構築は上位に出なかった。
+- `refreshCastleLayouts`（頂点の移動ごとに全ての城を配置し直す、1都市あたり約 13 ms）: 城の配置は保存済みの計画の値にも依存し、複製をまたいで正しく使い回す方法が簡単ではないため残した。
+- `sameCoast`（A5）: 1都市あたり約 10〜20 ms。S1 と同じ理由で版番号は入れていない。
+
+### 12.4 残りの費用
+
+暖機後の上位は、GC（約2割）、`cloneMesh`、`nearestOnPolyline`、`validate`、`scanGap`（都市化の区画）、`edt1d`（港の航路）。複製の残りは、城の候補の区画の併合（`mergeFaces`）、近道の分割、門の頂点の移動など、**採用される編集**の分で、回数を減らすには編集を直接行って失敗時に戻す仕組み（取り消し可能な編集）が要る。次は S4（Worker プール・暖機した Worker の使い回し）。

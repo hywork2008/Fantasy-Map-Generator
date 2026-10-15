@@ -401,12 +401,13 @@ function connectCastleGate(document: CityDocument, vertexId: Id, castleId: Id): 
   if (!targets.size) return null;
   // The document does not change during the search: one prepared water test serves every edge.
   const water = documentWaterTest(document);
+  const clearOfCastle = castleRoadEdgeTest(document, 4);
   const search = (clearance: boolean): EdgeRef[] | null => {
     const adjacent = new Map<Id, Array<{ to: Id; edge: Id; cost: number }>>();
     for (const edge of Object.values(mesh.edges)) {
       if (
         barriers.has(edge.id) ||
-        (clearance && !castleRoadEdgeAllowed(document, edge.id, 4)) ||
+        (clearance && !clearOfCastle(edge.id)) ||
         [edge.leftFace, edge.rightFace].some(
           id => id && (castleFaces.has(id) || mesh.faces[id].properties.water !== "land")
         ) ||
@@ -608,20 +609,40 @@ export function setCastlePartLocked(
 
 /** Keep road ribbons clear of castle curtains, tapering clearance at an actual gate. */
 export function castleRoadEdgeAllowed(document: CityDocument, edgeId: Id, width: number): boolean {
-  const edge = document.mesh.edges[edgeId];
-  const a = document.mesh.vertices[edge.a].point,
-    b = document.mesh.vertices[edge.b].point;
+  return castleRoadEdgeTest(document, width)(edgeId);
+}
+
+/**
+ * `castleRoadEdgeAllowed` prepared once for an unchanging document, for
+ * callers that test every edge. A wall segment whose bounding box lies
+ * farther than the clearance from the edge's cannot reject it.
+ */
+export function castleRoadEdgeTest(document: CityDocument, width: number): (edgeId: Id) => boolean {
   const owned = castleWallIds(document);
+  const walls: Array<{ id: Id; a: Id; b: Id; c: Point; d: Point; clearance: number; box: Box }> = [];
   for (const group of document.featureGroups) {
     if (group.kind !== "wall" || !owned.has(group.id)) continue;
     const clearance = (width + group.style.widthMeters) / 2 + 0.5;
     for (const ref of group.segments) {
       const wall = document.mesh.edges[ref.edgeId];
-      if (wall.id === edgeId) return false;
       const c = document.mesh.vertices[wall.a].point,
         d = document.mesh.vertices[wall.b].point;
+      walls.push({ id: wall.id, a: wall.a, b: wall.b, c, d, clearance, box: segmentBox(c, d) });
+    }
+  }
+  return edgeId => {
+    if (!walls.length) return true;
+    const edge = document.mesh.edges[edgeId];
+    const a = document.mesh.vertices[edge.a].point,
+      b = document.mesh.vertices[edge.b].point;
+    const box = segmentBox(a, b);
+    for (const { id, a: wa, b: wb, c, d, clearance, box: wallBox } of walls) {
+      if (id === edgeId) return false;
+      const gapX = Math.max(0, wallBox[0] - box[2], box[0] - wallBox[2]);
+      const gapY = Math.max(0, wallBox[1] - box[3], box[1] - wallBox[3]);
+      if (Math.hypot(gapX, gapY) >= clearance) continue;
       const gate = document.gates.find(
-        g => g.ownerCastleId && [edge.a, edge.b].includes(g.vertexId) && [wall.a, wall.b].includes(g.vertexId)
+        g => g.ownerCastleId && [edge.a, edge.b].includes(g.vertexId) && [wa, wb].includes(g.vertexId)
       );
       const gatePoint = gate && document.mesh.vertices[gate.vertexId].point;
       for (const t of [0, 0.25, 0.5, 0.75, 1]) {
@@ -638,8 +659,14 @@ export function castleRoadEdgeAllowed(document: CityDocument, edgeId: Id, width:
           if (Math.hypot(p[0] - q[0], p[1] - q[1]) < clearance) return false;
         }
     }
-  }
-  return true;
+    return true;
+  };
+}
+
+type Box = [number, number, number, number];
+
+function segmentBox(a: Point, b: Point): Box {
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
 }
 
 /** Can a road leave the gate's exterior face along mesh edges, without crossing a wall or

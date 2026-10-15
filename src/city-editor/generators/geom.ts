@@ -154,19 +154,36 @@ export interface PolylineHit {
 
 /** Closest approach of `p` to an open polyline. */
 export function nearestOnPolyline(p: Point, poly: Point[]): PolylineHit {
-  let best: PolylineHit = { point: poly[0], segIndex: 0, t: 0, dist: Number.POSITIVE_INFINITY };
+  // Hot in fabric and routing: keep the best as scalars, allocate the hit once.
+  const px = p[0],
+    py = p[1];
+  let bestDist = Number.POSITIVE_INFINITY,
+    bestIndex = 0,
+    bestT = 0,
+    bestX = 0,
+    bestY = 0;
   for (let i = 0; i < poly.length - 1; i++) {
     const a = poly[i];
     const b = poly[i + 1];
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
+    const ax = a[0],
+      ay = a[1];
+    const dx = b[0] - ax;
+    const dy = b[1] - ay;
     const lenSq = dx * dx + dy * dy;
-    const t = lenSq === 0 ? 0 : clamp01(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq);
-    const q: Point = [a[0] + dx * t, a[1] + dy * t];
-    const dist = Math.hypot(p[0] - q[0], p[1] - q[1]);
-    if (dist < best.dist) best = { point: q, segIndex: i, t, dist };
+    const t = lenSq === 0 ? 0 : clamp01(((px - ax) * dx + (py - ay) * dy) / lenSq);
+    const qx = ax + dx * t,
+      qy = ay + dy * t;
+    const dist = Math.hypot(px - qx, py - qy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = i;
+      bestT = t;
+      bestX = qx;
+      bestY = qy;
+    }
   }
-  return best;
+  if (bestDist === Number.POSITIVE_INFINITY) return { point: poly[0], segIndex: 0, t: 0, dist: bestDist };
+  return { point: [bestX, bestY], segIndex: bestIndex, t: bestT, dist: bestDist };
 }
 
 /** Unit downstream tangent of the polyline at segment `segIndex`. */
@@ -298,10 +315,14 @@ export function polylineLength(poly: Point[]): number {
 /** Even-odd ray cast. `poly` is treated as a closed ring. */
 export function pointInPolygon(p: Point, poly: Point[]): boolean {
   let inside = false;
+  const px = p[0],
+    py = p[1];
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i];
-    const [xj, yj] = poly[j];
-    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+    const pi = poly[i],
+      pj = poly[j];
+    const yi = pi[1],
+      yj = pj[1];
+    if (yi > py !== yj > py && px < ((pj[0] - pi[0]) * (py - yi)) / (yj - yi) + pi[0]) inside = !inside;
   }
   return inside;
 }

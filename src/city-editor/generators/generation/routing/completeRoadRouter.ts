@@ -1,7 +1,7 @@
 import { editorText } from "../../../../i18n/editorMessages";
 import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
 import type { CityDocument, EdgeRef, Id, Point } from "../../../types/document";
-import { castleRoadEdgeAllowed } from "../../castles";
+import { castleRoadEdgeTest } from "../../castles";
 import { aStar, type EdgeGraph } from "../../edgeGraph";
 import { featureGroupVertices } from "../../features";
 import { townGates } from "../../fortifications";
@@ -153,11 +153,10 @@ export function completeRoadRouter(
       );
   }
   const moat = new MoatReservation(document, defaultRoadWidthMeters(townExtentMeters(document.frame)) / 2 + 1);
+  const castleClear = castleRoadEdgeTest(document, defaultRoadWidthMeters(townExtentMeters(document.frame)));
   const castleBlocked = new Set(
     Object.values(mesh.edges)
-      .filter(
-        edge => !castleRoadEdgeAllowed(document, edge.id, defaultRoadWidthMeters(townExtentMeters(document.frame)))
-      )
+      .filter(edge => !castleClear(edge.id))
       .map(edge => edge.id)
   );
   const moatBlocked = new Set(

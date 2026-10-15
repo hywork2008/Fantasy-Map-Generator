@@ -250,6 +250,7 @@ export function applyRoads(input: ApplyRoadsInput) {
     let routeLanding = routeComplete;
     if (plan.importedRoads?.some(road => road.riverLanding) || (gatelessRoads && next.importedFixedCrossings)) {
       const landingVertices = new Set<Id>();
+      const water = waterPolygons(next);
       for (const edge of Object.values(mesh.edges)) {
         if (
           banned.has(edge.id) ||
@@ -261,11 +262,11 @@ export function applyRoads(input: ApplyRoadsInput) {
                 true,
                 docWater()
               )
-            : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], waterPolygons(next)))
+            : lineHitsWater([mesh.vertices[edge.a].point, mesh.vertices[edge.b].point], water))
         )
           continue;
         for (const id of [edge.a, edge.b])
-          if (!waterPolygons(next).some(p => pointInPolygon(mesh.vertices[id].point, p))) landingVertices.add(id);
+          if (!water.some(p => pointInPolygon(mesh.vertices[id].point, p))) landingVertices.add(id);
       }
       routeLanding = completeRoadRouter(
         next,

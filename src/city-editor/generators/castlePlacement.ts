@@ -5,7 +5,15 @@ import { layoutCastle } from "./castleLayout";
 import { installCastle } from "./castles";
 import { boundaryEdges, insideRing } from "./fortifications";
 import { azimuthToVec, nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
-import { clone, faceNeighbors, facePoints, insertEdgeVertex, mergeFaces, splitFace } from "./mesh";
+import {
+  clone,
+  faceNeighbors,
+  facePoints,
+  insertEdgeVertexInPlace,
+  mergeFaces,
+  splitFaceInPlace,
+  validate
+} from "./mesh";
 import { makeRng } from "./prng";
 import { townExtentMeters } from "./settlementExtent";
 import { polygonHitsDocumentWater } from "./waterGeometry";
@@ -26,24 +34,22 @@ export interface CastleSite {
   style?: import("../types/contracts/castlePatterns").CastleStyle;
 }
 
-/** A straight local cut modifies real shared mesh edges, not just an SVG outline. */
-function cutFace(
-  document: CityDocument,
-  id: Id,
-  normal: Point,
-  offset: number,
-  snap: boolean
-): { document: CityDocument; faceId: Id } | null {
-  let next = document;
+/**
+ * A straight local cut modifies real shared mesh edges, not just an SVG outline.
+ * It edits `document` in place (the caller owns it) and skips `validate`; the
+ * caller validates once after its last cut. On null the document is dropped.
+ */
+function cutFace(document: CityDocument, id: Id, normal: Point, offset: number, snap: boolean): Id | null {
   const value = (p: Point) => p[0] * normal[0] + p[1] * normal[1] - offset;
-  const polygon = facePoints(next.mesh, next.mesh.faces[id]);
-  if (polygon.every(p => value(p) <= 0.01)) return { document: next, faceId: id };
+  const mesh = document.mesh;
+  const polygon = facePoints(mesh, mesh.faces[id]);
+  if (polygon.every(p => value(p) <= 0.01)) return id;
   if (polygon.every(p => value(p) >= -0.01)) return null;
   const hits: Id[] = [];
-  for (const ref of [...next.mesh.faces[id].boundary]) {
-    const edge = next.mesh.edges[ref.edgeId];
-    const a = next.mesh.vertices[edge.a].point,
-      b = next.mesh.vertices[edge.b].point;
+  for (const ref of [...mesh.faces[id].boundary]) {
+    const edge = mesh.edges[ref.edgeId];
+    const a = mesh.vertices[edge.a].point,
+      b = mesh.vertices[edge.b].point;
     const va = value(a),
       vb = value(b);
     if (Math.abs(va) < 0.01) hits.push(edge.a);
@@ -57,19 +63,15 @@ function cutFace(
       hits.push(t < 0.02 ? edge.a : edge.b);
       continue;
     }
-    const inserted = insertEdgeVertex(next, edge.id, t);
+    const inserted = insertEdgeVertexInPlace(document, edge.id, t);
     if (!inserted) return null;
-    next = inserted.document;
-    hits.push(inserted.vertexId);
+    hits.push(inserted);
   }
   const vertices = [...new Set(hits)];
   if (vertices.length !== 2) return null;
-  const before = new Set(Object.keys(next.mesh.faces));
-  const split = splitFace(next, id, vertices[0], vertices[1]);
-  if (!split) return null;
-  const child = Object.keys(split.mesh.faces).find(fid => !before.has(fid))!;
-  const kept = [id, child].find(fid => value(polygonCentroid(facePoints(split.mesh, split.mesh.faces[fid]))) <= 0);
-  return kept ? { document: split, faceId: kept } : null;
+  const child = splitFaceInPlace(document, id, vertices[0], vertices[1]);
+  if (!child) return null;
+  return [id, child].find(fid => value(polygonCentroid(facePoints(mesh, mesh.faces[fid]))) <= 0) ?? null;
 }
 
 /** Axis-aligned or rotated square kept inside one face. `span` is the half-side. */
@@ -83,16 +85,14 @@ function reserveBox(
 ): { document: CityDocument; faceId: Id } | null {
   const u: Point = [Math.cos(angle), Math.sin(angle)];
   const v: Point = [-u[1], u[0]];
-  let working = document;
-  let id = faceId;
+  const working = clone(document);
+  let id: Id | null = faceId;
   for (const normal of [u, [-u[0], -u[1]] as Point, v, [-v[0], -v[1]] as Point]) {
     const offset = center[0] * normal[0] + center[1] * normal[1] + span;
-    const cut = cutFace(working, id, normal, offset, snap);
-    if (!cut) return null;
-    working = cut.document;
-    id = cut.faceId;
+    id = cutFace(working, id, normal, offset, snap);
+    if (!id) return null;
   }
-  return { document: working, faceId: id };
+  return validate(working).length ? null : { document: working, faceId: id };
 }
 
 export function terrainHeight(terrain: BurgSiteTerrain | undefined, p: Point): number | null {
@@ -555,9 +555,9 @@ function placeCastlePass(
             id = "";
             break;
           }
-          working = cut.document;
-          id = cut.faceId;
+          id = cut;
         }
+        if (id && validate(working).length) id = "";
       }
       if (!id) continue;
       const site = accept(working, id, {
