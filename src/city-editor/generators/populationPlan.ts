@@ -16,6 +16,7 @@ export function defaultPopulationSettings(population = DEFAULT_CITY_POPULATION):
     profileVersion: 1
   };
 }
+export const POPULATION_MESH_CELLS = [50, 100, 150, 200] as const;
 export function validPopulationSettings(value: unknown): value is PopulationGenerationSettings {
   if (!value || typeof value !== "object") return false;
   const v = value as PopulationGenerationSettings;
@@ -28,7 +29,8 @@ export function validPopulationSettings(value: unknown): value is PopulationGene
     ["auto", "detailed", "cluster-10", "cluster-20"].includes(v.housingDisplay) &&
     ["auto", "manual"].includes(v.frameMode) &&
     v.profileId === "medieval-v1" &&
-    v.profileVersion === 1
+    v.profileVersion === 1 &&
+    (v.meshCellMeters === undefined || POPULATION_MESH_CELLS.includes(v.meshCellMeters))
   );
 }
 export function planPopulation(
@@ -68,7 +70,8 @@ export function planPopulation(
               : 20;
   // Resolution is independent of display grouping, so changing it does not reroll the city.
   // The default 50 m cell at every size: more people add cells instead of coarsening them.
-  const cellWidthMeters = 50;
+  // A coarser cell is an explicit choice; its fabric still draws 50 m street blocks.
+  const cellWidthMeters = settings.meshCellMeters ?? 50;
   return {
     version: 1,
     settings: structuredClone(settings),

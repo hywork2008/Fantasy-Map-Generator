@@ -1,5 +1,6 @@
 import type { BurgSiteDescriptor } from "../types/contracts/burgSiteDescriptor";
 import type { CityDocument, EdgeRef, Id, Point } from "../types/document";
+import { BRIDGE_BANK_SEAT, riverRibbons } from "./bridgeDeck";
 import { featureGroupVertices } from "./features";
 import {
   angleBetween,
@@ -7,13 +8,16 @@ import {
   exteriorDirection,
   frameRoadApproachBend
 } from "./generation/routing/frameRoadConnection";
-import { pointInPolygon, segmentSegmentHit } from "./geom";
+import { pointInPolygon, segmentSegmentHit, segmentsIntersect } from "./geom";
 import {
+  createVertexMovePreflight,
+  createVertexMoveSession,
   edgeBetween,
   edgePoints,
   edgeRefFor,
   facePoints,
   faceVertices,
+  incidentEdges,
   incidentFaces,
   insertEdgeVertex,
   moveVertices,
@@ -26,6 +30,10 @@ import { explainGeneratedCrossingFailures, onFixedCrossingApproach } from "./pas
  * Documents are never mutated in place here (`moveVertices` returns a clone). */
 const failureCounts = new WeakMap<CityDocument, number>();
 function crossingFailureCount(document: CityDocument): number {
+  return probed("crossingFailureCount", () => crossingFailureCountUnprobed(document));
+}
+
+function crossingFailureCountUnprobed(document: CityDocument): number {
   let count = failureCounts.get(document);
   if (count === undefined) {
     count = explainGeneratedCrossingFailures(document).length;
@@ -34,6 +42,7 @@ function crossingFailureCount(document: CityDocument): number {
   return count;
 }
 
+import { probed } from "./meshOpProbe";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { lineHitsDocumentWater } from "./waterGeometry";
 
@@ -594,7 +603,141 @@ const ZIGZAG_DEGREES = 25;
  * between their outer neighbours, as far as the cells stay valid. Gates and
  * locked vertices never move. */
 export function straightenThroughStreets(document: CityDocument, descriptor?: BurgSiteDescriptor): void {
+  const session = createVertexMoveSession(document);
+  if (!session) {
+    straightenThroughStreetsByCopies(document, descriptor);
+    return;
+  }
   const gates = new Set(document.gates.map(g => g.vertexId));
+  const work = session.document;
+  // Never at the cost of a junction already made straight into an exterior road.
+  const junctions = () => (work.frameRoads ?? []).map(leg => frameRoadApproachBend(work, leg, descriptor));
+  let held = junctions();
+  let failures = crossingFailures(work);
+  const crossingNear = crossingLocality(work);
+  let edited = false;
+  for (const groupId of document.featureGroups.map(g => g.id)) {
+    for (let pass = 0; pass < 3; pass++) {
+      const group = work.featureGroups.find(g => g.id === groupId);
+      if (group?.kind !== "road" || group.locked) break;
+      const ids = featureGroupVertices(work, group);
+      if (!group.sourceRoad && !ids.some(id => gates.has(id))) break;
+      let changed = false;
+      for (let i = 1; i + 2 < ids.length; i++) {
+        const [a, b, c, d] = [ids[i - 1], ids[i], ids[i + 1], ids[i + 2]].map(id => work.mesh.vertices[id].point);
+        const t1 = signedTurn(a, b, c),
+          t2 = signedTurn(b, c, d);
+        if (Math.sign(t1) === Math.sign(t2) || Math.abs(t1) < ZIGZAG_DEGREES || Math.abs(t2) < ZIGZAG_DEGREES) continue;
+        const movable = [ids[i], ids[i + 1]].filter(id => !gates.has(id) && !work.mesh.vertices[id].locked);
+        if (movable.length < 2) continue;
+        const before = Math.max(Math.abs(t1), Math.abs(t2));
+        for (const fraction of SLIDE_FRACTIONS) {
+          if (!fraction) continue;
+          const target = (p: Point): Point => {
+            const ad = sub(d, a);
+            const len2 = ad[0] * ad[0] + ad[1] * ad[1];
+            const t = len2 > 1e-9 ? ((p[0] - a[0]) * ad[0] + (p[1] - a[1]) * ad[1]) / len2 : 0;
+            const on: Point = [a[0] + ad[0] * t, a[1] + ad[1] * t];
+            return [p[0] + (on[0] - p[0]) * fraction, p[1] + (on[1] - p[1]) * fraction];
+          };
+          const [nb, nc] = [target(b), target(c)];
+          const after = Math.max(Math.abs(signedTurn(a, nb, nc)), Math.abs(signedTurn(nb, nc, d)));
+          const outer = Math.max(
+            i >= 2 ? Math.abs(signedTurn(work.mesh.vertices[ids[i - 2]].point, a, nb)) : 0,
+            i + 3 < ids.length ? Math.abs(signedTurn(nc, d, work.mesh.vertices[ids[i + 3]].point)) : 0
+          );
+          if (after < before - 5 && outer < before) {
+            const targets = new Map([
+              [ids[i], nb],
+              [ids[i + 1], nc]
+            ]);
+            const recount = crossingNear(targets);
+            const accepted = session.tryMove(targets, () => {
+              const kept = junctions();
+              if (kept.some((bend, k) => bend > held[k] + 0.5)) return false;
+              // Nor at the cost of a bridge: its arms must stay square to the river.
+              const count = recount ? crossingFailures(work) : failures;
+              if (count > failures) return false;
+              held = kept;
+              failures = count;
+              return true;
+            });
+            if (!accepted) continue;
+            changed = edited = true;
+            break;
+          }
+        }
+      }
+      if (!changed) break;
+    }
+  }
+  if (edited) Object.assign(document, work);
+}
+
+/**
+ * Whether moving `targets` (not yet applied) can change the crossing failures.
+ * The failures read angles at gates, river, wall and bridge vertices (so their
+ * neighbours matter too) and road segments near a river (bridge decks); the
+ * rest is topology, which a move keeps. A move outside both keeps the count.
+ */
+function crossingLocality(document: CityDocument) {
+  const { mesh } = document;
+  const sensitive = new Set<Id>((document.gates ?? []).map(gate => gate.vertexId));
+  for (const group of document.featureGroups) {
+    if (group.kind === "river") for (const id of group.vertices) sensitive.add(id);
+    else if (group.kind === "wall" || group.id.startsWith("gc:bridge-"))
+      for (const ref of group.segments) {
+        const edge = mesh.edges[ref.edgeId];
+        if (edge) sensitive.add(edge.a).add(edge.b);
+      }
+  }
+  const near = new Set(sensitive);
+  for (const id of sensitive) for (const edge of incidentEdges(mesh, id)) near.add(edge.a).add(edge.b);
+  const roadWidth = Math.max(
+    1,
+    ...document.featureGroups.filter(g => g.kind === "road").map(g => g.style.widthMeters ?? 1)
+  );
+  return (targets: ReadonlyMap<Id, Point>): boolean => {
+    for (const id of targets.keys()) if (near.has(id)) return true;
+    const ribbons = riverRibbons(document);
+    if (!ribbons.length) return false;
+    const now = (id: Id) => targets.get(id) ?? mesh.vertices[id].point;
+    for (const id of targets.keys())
+      for (const edge of incidentEdges(mesh, id))
+        for (const [p, q] of [
+          [mesh.vertices[edge.a].point, mesh.vertices[edge.b].point],
+          [now(edge.a), now(edge.b)]
+        ])
+          for (const ribbon of ribbons) {
+            const reach = ribbon.width + roadWidth + 2 * BRIDGE_BANK_SEAT + 10;
+            for (let i = 1; i < ribbon.points.length; i++)
+              if (segmentDistance(p, q, ribbon.points[i - 1], ribbon.points[i]) < reach) return true;
+          }
+    return false;
+  };
+}
+
+function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
+  if (segmentsIntersect(a, b, c, d)) return 0;
+  return Math.min(pointToSegment(a, c, d), pointToSegment(b, c, d), pointToSegment(c, a, b), pointToSegment(d, a, b));
+}
+
+function pointToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+  return Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dy * t));
+}
+
+function crossingFailures(document: CityDocument): number {
+  return probed("crossingFailureCount", () => explainGeneratedCrossingFailures(document).length);
+}
+
+/** `straightenThroughStreets` for documents a move session does not cover. */
+function straightenThroughStreetsByCopies(document: CityDocument, descriptor?: BurgSiteDescriptor): void {
+  const gates = new Set(document.gates.map(g => g.vertexId));
+  const preflight = createVertexMovePreflight(document);
   let work = document;
   // Never at the cost of a junction already made straight into an exterior road.
   const junctions = (doc: CityDocument) =>
@@ -633,13 +776,12 @@ export function straightenThroughStreets(document: CityDocument, descriptor?: Bu
             i + 3 < ids.length ? Math.abs(signedTurn(nc, d, work.mesh.vertices[ids[i + 3]].point)) : 0
           );
           if (after < before - 5 && outer < before) {
-            const moved = moveVertices(
-              work,
-              new Map([
-                [ids[i], nb],
-                [ids[i + 1], nc]
-              ])
-            );
+            const targets = new Map([
+              [ids[i], nb],
+              [ids[i + 1], nc]
+            ]);
+            if (!preflight(work, targets)) continue;
+            const moved = moveVertices(work, targets);
             if (!moved) continue;
             const kept = junctions(moved);
             if (kept.some((bend, k) => bend > held[k] + 0.5)) continue;

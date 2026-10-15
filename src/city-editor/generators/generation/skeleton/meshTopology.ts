@@ -4,6 +4,7 @@
 import type { EdgeRef, Mesh } from "../../../types/document";
 import type { Point } from "../../../types/geometry";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "../../geom";
+import { meshEdgesChanged } from "../../mesh";
 import type { SkeletonMeshChain, SkeletonMeshLine } from "./contracts";
 import {
   clipMeshSegment,
@@ -190,6 +191,7 @@ export function assembleConformingMesh(
         const e = mesh.edges[r.edgeId];
         if (shared.has(e.id)) {
           delete mesh.edges[e.id];
+          meshEdgesChanged(mesh);
           continue;
         }
         if (e.leftFace === face.id) e.leftFace = otherId;
@@ -316,5 +318,6 @@ export function assembleConformingMesh(
   });
   const used = new Set(Object.values(mesh.edges).flatMap(e => [e.a, e.b]));
   for (const id of Object.keys(mesh.vertices)) if (!used.has(id)) delete mesh.vertices[id];
+  meshEdgesChanged(mesh);
   return { mesh, lines: chains };
 }

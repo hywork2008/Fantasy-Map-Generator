@@ -4,6 +4,7 @@ import {
   DEFAULT_CITY_POPULATION,
   defaultPopulationSettings,
   MAX_CITY_POPULATION,
+  POPULATION_MESH_CELLS,
   planPopulation
 } from "../generators/populationPlan";
 import type { PopulationGenerationSettings } from "../types/contracts/population";
@@ -25,13 +26,16 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
   display.className = "ce-population-display";
   const frame = ctx.select(["auto", "manual"], "auto");
   frame.className = "ce-population-frame";
+  const cell = ctx.select(POPULATION_MESH_CELLS.map(String), "50");
+  cell.className = "ce-population-cell";
   const estimate = document.createElement("output");
   estimate.className = "ce-population-estimate";
   estimate.setAttribute("aria-live", "polite");
   for (const [select, keys] of [
     [source, ["populationManual", "populationFMG", "populationOverride"]],
     [display, ["populationAuto", "populationDetailed", "populationCluster10", "populationCluster20"]],
-    [frame, ["populationFrameAuto", "populationFrameManual"]]
+    [frame, ["populationFrameAuto", "populationFrameManual"]],
+    [cell, ["populationCell50", "populationCell100", "populationCell150", "populationCell200"]]
   ] as const)
     [...select.options].forEach((o, i) => {
       o.textContent = editorText(`cityEditor.messages.${keys[i]}`);
@@ -42,6 +46,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     ctx.label(editorText("cityEditor.messages.population"), input),
     ctx.label(editorText("cityEditor.messages.populationDisplay"), display),
     ctx.label(editorText("cityEditor.messages.populationFrame"), frame),
+    ctx.label(editorText("cityEditor.messages.populationCell"), cell),
     estimate
   );
   const settings = () => ctx.generation.generateSettings;
@@ -111,7 +116,8 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     );
     display.value = p?.housingDisplay ?? "auto";
     frame.value = p?.frameMode ?? "auto";
-    source.disabled = display.disabled = frame.disabled = !p;
+    cell.value = String(p?.meshCellMeters ?? 50);
+    source.disabled = display.disabled = frame.disabled = cell.disabled = !p;
     input.disabled = !p || p.source === "fmg";
     preview();
     // Disabled FMG inputs still need to block unsupported populations, so the panel records validity too.
@@ -124,15 +130,20 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     const previous = settings().population ?? defaultPopulationSettings();
     const target =
       source.value === "fmg" ? (settings().descriptor?.burg.population ?? input.valueAsNumber) : input.valueAsNumber;
-    if (enabled.checked)
+    if (enabled.checked) {
+      const { meshCellMeters: _previousCell, ...rest } = previous;
+      // The default 50 m cell is left absent, as in settings saved before the choice existed.
       settings().population = {
-        ...previous,
+        ...rest,
         source: source.value as PopulationGenerationSettings["source"],
         targetPopulation: target,
         housingDisplay: display.value as PopulationGenerationSettings["housingDisplay"],
-        frameMode: frame.value as PopulationGenerationSettings["frameMode"]
+        frameMode: frame.value as PopulationGenerationSettings["frameMode"],
+        ...(cell.value === "50"
+          ? {}
+          : { meshCellMeters: Number(cell.value) as PopulationGenerationSettings["meshCellMeters"] })
       };
-    else delete settings().population;
+    } else delete settings().population;
     ctx.generation.generationJob?.cancel();
     ctx.generation.completeSource = null;
     ctx.generation.completeResult = null;
@@ -144,7 +155,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     } else sync();
   }
   const scope = ctx.panelEventContext().scope;
-  for (const control of [enabled, source, display, frame]) scope.listen(control, "change", change);
+  for (const control of [enabled, source, display, frame, cell]) scope.listen(control, "change", change);
   scope.listen(input, "input", () => {
     input.setCustomValidity("");
     if (settings().population) settings().population!.targetPopulation = input.valueAsNumber;

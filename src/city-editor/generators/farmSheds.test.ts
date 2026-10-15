@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CityDocument, Point } from "../types/document";
 import { farmSheds } from "./farmSheds";
 import { pointInPolygon } from "./geom";
 import type { FarmPlot } from "./localInfill";
 import { meshFromCells } from "./mesh";
+import { NearbyPolylineIndex } from "./nearbyPolylineIndex";
 
 describe("farm sheds", () => {
   it("places a sparse shed inside a roadside field and keeps it off the road", () => {
@@ -49,6 +50,15 @@ describe("farm sheds", () => {
       rows: []
     }));
     const sheds = farmSheds(document, farms, []);
+    const query = NearbyPolylineIndex.prototype.query;
+    const spy = vi.spyOn(NearbyPolylineIndex.prototype, "query").mockImplementation(function (point) {
+      return query.call(this, point, Infinity);
+    });
+    try {
+      expect(farmSheds(document, farms, [])).toEqual(sheds);
+    } finally {
+      spy.mockRestore();
+    }
     expect(sheds).toHaveLength(1);
     expect(
       sheds[0].polygon.every(point => farms.some(farm => pointInPolygon(point, farm.polygon)) && point[1] > 5)

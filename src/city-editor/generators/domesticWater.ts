@@ -3,6 +3,7 @@ import { FixedRoadReservation } from "./fixedRoadReservation";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
+import { NearbyPolylineIndex } from "./nearbyPolylineIndex";
 
 export interface DomesticWaterPoint {
   id: string;
@@ -43,6 +44,7 @@ export function placeDomesticWater(
   routes: Array<{ points: Point[]; widthMeters: number }>,
   buildingCount: number
 ): DomesticWaterPoint[] {
+  const routeIndex = new NearbyPolylineIndex(routes);
   const document = site.document;
   const moat = new MoatReservation(document, 1);
   const fixedRoads = new FixedRoadReservation(document);
@@ -70,7 +72,7 @@ export function placeDomesticWater(
     const footprint = ring(center, radius + 1);
     if (!free(footprint)) return false;
     let access: Point[] | undefined;
-    for (const route of routes) {
+    for (const route of routeIndex.query(center, placement === "plaza" ? 45 : 12)) {
       const hit = nearestOnPolyline(center, route.points);
       if (hit.dist < radius + route.widthMeters / 2 + 1 || hit.dist > (placement === "plaza" ? 45 : 12)) continue;
       const path: Point[] = [center, hit.point];

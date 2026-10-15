@@ -5,6 +5,9 @@ import { appendEdge, createGroup } from "./features";
 import { isSimplePolygon, polygonArea } from "./geom";
 import {
   clone,
+  createFaceSplitSession,
+  createVertexMovePreflight,
+  createVertexMoveSession,
   faceNeighbors,
   facePoints,
   faceVertices,
@@ -13,6 +16,7 @@ import {
   mergeFaces,
   mergeVertices,
   moveVertex,
+  moveVertices,
   optimizeJunctions,
   scaleDocument,
   setFaceDepth,
@@ -400,3 +404,114 @@ function centroid(points: [number, number][]): [number, number] {
   const sum = points.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
   return [sum[0] / points.length, sum[1] / points.length];
 }
+
+it.each(["voronoi", "hex", "evolution"] as const)("preflight never rejects a valid coordinated %s move", grid => {
+  const document = createGridDocument({ size: "tiny", seed: "preflight", grid });
+  const preflight = createVertexMovePreflight(document);
+  const before = structuredClone(document);
+  let rejected = 0;
+  let accepted = 0;
+  for (const edge of Object.values(document.mesh.edges).slice(0, 20)) {
+    for (const offset of [0.1, 20, 100]) {
+      const targets = new Map(
+        [edge.a, edge.b].map(id => {
+          const p = document.mesh.vertices[id].point;
+          return [id, [p[0] + offset, p[1] - offset] as [number, number]];
+        })
+      );
+      const moved = moveVertices(document, targets);
+      const allowed = preflight(document, targets);
+      if (!allowed) {
+        rejected++;
+        expect(moved).toBeNull();
+      }
+      if (moved) {
+        accepted++;
+        expect(allowed).toBe(true);
+        expect(preflight(moved, new Map([...targets.keys()].map(id => [id, document.mesh.vertices[id].point])))).toBe(
+          true
+        );
+      }
+    }
+  }
+  expect(rejected).toBeGreaterThan(0);
+  expect(accepted).toBeGreaterThan(0);
+  expect(document).toEqual(before);
+});
+
+/** Deterministic pseudo-random sequence in [0, 1). */
+function lcg(seed: number) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+it.each(["voronoi", "hex", "evolution"] as const)("a vertex move session matches chained moveVertices on %s", grid => {
+  const document = createGridDocument({ size: "tiny", seed: "move-session", grid });
+  const session = createVertexMoveSession(document);
+  expect(session).not.toBeNull();
+  if (!session) return;
+  const before = structuredClone(document);
+  let chained = document;
+  const random = lcg(7);
+  const ids = Object.keys(document.mesh.vertices);
+  let accepted = 0;
+  for (let k = 0; k < 300; k++) {
+    const a = ids[Math.floor(random() * ids.length)];
+    const edge = Object.values(chained.mesh.edges).find(e => e.a === a || e.b === a)!;
+    const scale = [2, 15, 60][k % 3];
+    const targets = new Map(
+      [edge.a, edge.b].map(id => {
+        const p = chained.mesh.vertices[id].point;
+        return [id, [p[0] + (random() - 0.5) * scale, p[1] + (random() - 0.5) * scale] as [number, number]];
+      })
+    );
+    // Every third move is refused by the caller after it was applied.
+    const keep = k % 3 !== 2;
+    const moved = moveVertices(chained, targets);
+    const applied = session.tryMove(targets, () => keep);
+    expect(applied).toBe(!!moved && keep);
+    if (moved && keep) {
+      chained = moved;
+      accepted++;
+    }
+  }
+  expect(accepted).toBeGreaterThan(20);
+  expect(session.document.mesh).toEqual(chained.mesh);
+  expect(validate(session.document)).toEqual([]);
+  expect(document).toEqual(before);
+});
+
+it.each(["voronoi", "hex", "evolution"] as const)("a face split session matches chained splitFace on %s", grid => {
+  const document = createGridDocument({ size: "tiny", seed: "split-session", grid });
+  const session = createFaceSplitSession(document);
+  expect(session).not.toBeNull();
+  if (!session) return;
+  const before = structuredClone(document);
+  let chained = document;
+  const random = lcg(11);
+  let accepted = 0;
+  for (let k = 0; k < 200; k++) {
+    const faces = Object.values(chained.mesh.faces).filter(face => face.boundary.length >= 4);
+    const face = faces[Math.floor(random() * faces.length)];
+    const ring = faceVertices(chained.mesh, face);
+    const a = ring[Math.floor(random() * ring.length)];
+    const b = ring[Math.floor(random() * ring.length)];
+    const split = splitFace(chained, face.id, a, b);
+    const newFaceId = session.split(face.id, a, b);
+    expect(newFaceId !== null).toBe(!!split);
+    if (split && newFaceId) {
+      expect(split.mesh.faces[newFaceId]).toBeDefined();
+      chained = split;
+      accepted++;
+    }
+  }
+  expect(accepted).toBeGreaterThan(20);
+  expect(session.document.mesh).toEqual(chained.mesh);
+  expect(session.document.fabric).toEqual(chained.fabric);
+  expect(session.document.defenseCircuits).toEqual(chained.defenseCircuits);
+  expect(validate(session.document)).toEqual([]);
+  expect(document).toEqual(before);
+});

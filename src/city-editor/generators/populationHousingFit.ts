@@ -1,6 +1,6 @@
 import { residentialStoreys } from "../../utils/urbanMorphology";
 import type { CityDocument } from "../types/document";
-import { buildBlockFabric } from "./blockInfill";
+import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
 import type { GenerationObserver } from "./generationDiagnostics";
 import type { FabricCache } from "./localInfill";
 import { finishPopulationHousing } from "./populationHousing";
@@ -16,6 +16,7 @@ export function fitPopulationHousing(document: CityDocument, cache: FabricCache,
     { storeys: profile.maximum, parcelAreaM2: 640, pass: 2 as const },
     { storeys: profile.maximum, parcelAreaM2: 400, pass: 3 as const }
   ];
+  let bestFabric: DistrictFabric | undefined;
   let best = candidates[0],
     unplaced = Infinity;
   for (const candidate of candidates) {
@@ -34,6 +35,7 @@ export function fitPopulationHousing(document: CityDocument, cache: FabricCache,
     });
     if (housing.unplacedDwellings < unplaced) {
       best = candidate;
+      bestFabric = fabric;
       unplaced = housing.unplacedDwellings;
     }
     if (!unplaced) break;
@@ -42,5 +44,6 @@ export function fitPopulationHousing(document: CityDocument, cache: FabricCache,
     ...plan,
     housingFit: { ...best, exhausted: !!unplaced }
   };
-  finishPopulationHousing(document, buildBlockFabric(document, cache));
+  // exhausted changes reporting only; geometry is the exact fabric of the best pass.
+  finishPopulationHousing(document, bestFabric ?? buildBlockFabric(document, cache));
 }

@@ -27,7 +27,7 @@ export interface TownFacts {
  * Read-only preparation for the town view. Never mutates `document`; block-fabric
  * reuse is owned by `buildBlockFabric`'s own cache.
  */
-export function prepareTownFacts(document: CityDocument): TownFacts {
+export function prepareTownFacts(document: CityDocument, mark?: (phase: string) => void): TownFacts {
   const usesFabric =
     document.populationPlan ||
     document.urbanMorphology ||
@@ -38,13 +38,19 @@ export function prepareTownFacts(document: CityDocument): TownFacts {
     document.layout === "bram" ||
     document.layout === "classic";
   const fabric = usesFabric ? buildBlockFabric(document) : null;
+  mark?.("town-fabric");
   const lots = fabric?.buildings ?? buildCityBuildings(document);
   const housing = document.populationPlan
     ? measureHousingCapacity(document, lots, document.populationPlan.requiredDwellings)
     : document.urbanMorphology && document.urbanGrowth
       ? measureHousingCapacity(document, lots, document.urbanGrowth.requiredDwellings)
       : null;
+  mark?.("housing-capacity");
   const population = document.populationPlan && fabric ? populationHousingFacts(document, fabric) : undefined;
+  mark?.("population-facts");
+  const watermills = fabric?.watermills ?? buildWatermillPlan(document, lots.length);
+  const parks = fabric?.parks ?? buildParkLawns(document);
+  mark?.("town-landscape");
   return {
     ...(population
       ? { populationReport: population.populationReport, populationClusters: population.residentialClusters }
@@ -52,8 +58,8 @@ export function prepareTownFacts(document: CityDocument): TownFacts {
     fabric,
     lots,
     housing,
-    watermills: fabric?.watermills ?? buildWatermillPlan(document, lots.length),
-    parks: fabric?.parks ?? buildParkLawns(document)
+    watermills,
+    parks
   };
 }
 

@@ -94,7 +94,9 @@ export function generateCityOnDocument(
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
   try {
-    ({ document, settings } = preparePopulationGeneration(document, settings, seed));
+    ({ document, settings } = measureProcessing(profiler, "population-prepare", () =>
+      preparePopulationGeneration(document, settings, seed)
+    ));
   } catch (error) {
     reportGenerationFailure(
       observer,
@@ -341,7 +343,9 @@ export function generateCityOnDocument(
         measureProcessing(profiler, "harbor-ships", () => placeHarborShips(result, attemptSeed, profiler, harbor));
       }
       if (result.populationPlan)
-        fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }));
+        measureProcessing(profiler, "population-housing", () =>
+          fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }))
+        );
       if (skeletonFirst) {
         const errors = measureProcessing(profiler, "validate", () => validate(result));
         if (errors.length) {

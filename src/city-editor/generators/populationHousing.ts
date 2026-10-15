@@ -69,6 +69,23 @@ function slice(polygon: Point[], normal: Point, start: number, end: number): Poi
 
 const axis = (lot: BuildingLot) => longestFrame(lot.polygon).axis;
 
+/** Preserve building order while associating each parcel in one pass. */
+function withHousingBuildings(fabric: DistrictFabric, buildings: BuildingLot[]): DistrictFabric {
+  const byParcel = new Map<BuildingLot["parcelId"], BuildingLot[]>();
+  if (fabric.parcels) {
+    for (const building of buildings) {
+      const group = byParcel.get(building.parcelId) ?? [];
+      group.push(building);
+      byParcel.set(building.parcelId, group);
+    }
+  }
+  return {
+    ...fabric,
+    buildings,
+    parcels: fabric.parcels?.map(parcel => ({ ...parcel, buildings: byParcel.get(parcel.id) ?? [] }))
+  };
+}
+
 /** Keep every house of the ordinary fabric as it was drawn; population only sets storeys and occupancy. */
 function detailedHousingFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
   const plan = document.populationPlan!;
@@ -149,14 +166,7 @@ function detailedHousingFabric(document: CityDocument, fabric: DistrictFabric): 
       residentialCluster: cluster
     });
   }
-  return {
-    ...fabric,
-    buildings,
-    parcels: fabric.parcels?.map(p => ({
-      ...p,
-      buildings: buildings.filter(b => b.parcelId === p.id)
-    }))
-  };
+  return withHousingBuildings(fabric, buildings);
 }
 
 export function populationHousingFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
@@ -259,14 +269,7 @@ export function populationHousingFabric(document: CityDocument, fabric: District
       at = end;
     }
   }
-  return {
-    ...fabric,
-    buildings,
-    parcels: fabric.parcels?.map(p => ({
-      ...p,
-      buildings: buildings.filter(b => b.parcelId === p.id)
-    }))
-  };
+  return withHousingBuildings(fabric, buildings);
 }
 
 export function finishPopulationHousing(document: CityDocument, fabric: DistrictFabric): void {

@@ -477,6 +477,9 @@ export interface CityDocument {
     blockSizeMeters: number;
     /** Town-sizing window when `extentMeters` was widened to show a distant bank. */
     settlementExtentMeters?: number;
+    /** A mesh coarser than its street blocks (giant-city plan §10): the fabric splits
+     * each face into blocks of about this size. Absent: one face is one block. */
+    streetCellMeters?: number;
   };
   /** Completed cities open in the building/ink view; editing uses the same mesh. */
   appearance?: "town";
