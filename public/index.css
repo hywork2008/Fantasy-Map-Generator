@@ -233,6 +233,15 @@ t,
   fill: none;
 }
 
+#stateBorders path {
+  stroke-linecap: butt;
+}
+
+#provinceBorders path {
+  stroke-width: min(1px, calc(0.125px * var(--route-zoom, 1)));
+  stroke-linecap: round;
+}
+
 #rivers {
   stroke: none;
   mask: url(#land);
@@ -257,7 +266,9 @@ t,
 /* Scale naturally when zoomed out, but cap screen widths and dash lengths.
    Override registered routes' individual width attributes as well. */
 #roads path,
-#trails path {
+#trails path,
+#searoutes path,
+#borders path {
   vector-effect: non-scaling-stroke;
 }
 
@@ -266,8 +277,15 @@ t,
   stroke-dasharray: min(10px, calc(2px * var(--route-zoom, 1)));
 }
 
-#trails path {
+#trails path,
+#searoutes path,
+#stateBorders path {
   stroke-width: min(2px, calc(0.25px * var(--route-zoom, 1)));
+}
+
+#trails path,
+#searoutes path,
+#borders path {
   stroke-dasharray: min(8px, calc(0.8px * var(--route-zoom, 1))) min(8px, calc(1.6px * var(--route-zoom, 1)));
 }
 
