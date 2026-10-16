@@ -75,6 +75,7 @@ function audit() {
     seaRoutes: sea.length,
     landDeadEnd: [],
     landEndOffBurg: [],
+    junctionGap: [],
     portNoLane: [],
     seaDangling: [],
     riverLaneOverLand: [],
@@ -104,6 +105,22 @@ function audit() {
       }
     }
   }
+  // A route ending in a non-town cell must meet a point of another route there (no gap at the junction).
+  const pointsByCell = new Map();
+  for (const r of land)
+    for (const q of r.points) {
+      if (!pointsByCell.has(q[2])) pointsByCell.set(q[2], []);
+      pointsByCell.get(q[2]).push([r, q]);
+    }
+  for (const r of land)
+    for (const e of [r.points[0], r.points.at(-1)]) {
+      const b = burgs[cells.burg[e[2]]];
+      if (b && Math.hypot(e[0] - b.x, e[1] - b.y) < 1e-3) continue;
+      const others = (pointsByCell.get(e[2]) ?? []).filter(([o]) => o !== r);
+      if (!others.length) continue; // reported as landDeadEnd
+      const d = Math.min(...others.map(([, q]) => Math.hypot(q[0] - e[0], q[1] - e[1])));
+      if (d > 0.05) out.junctionGap.push({ route: r.i, cell: e[2], km: km(d) });
+    }
   for (const b of live) {
     if (b.port && !seaCells.has(b.cell) && out.pattern !== "frontier") {
       const haven = cells.haven[b.cell];

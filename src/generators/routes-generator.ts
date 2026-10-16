@@ -1714,7 +1714,37 @@ class RoutesModule {
       routes.push(riverRoute);
     }
 
+    this.snapJunctionEnds(routes);
     return routes;
+  }
+
+  /**
+   * A route that ends by joining another route stops at the raw cell centre, while the joined
+   * route may have had its point in that cell eased by the sharp-angle pass in getPoints. Move such
+   * a non-settlement end onto the joined route's point so the two meet instead of stopping short.
+   */
+  private snapJunctionEnds(routes: Route[]): void {
+    const { pack } = this.worldContext;
+    const land = routes.filter(route => route.group !== "searoutes" && route.points?.length > 1);
+    const interior = new Map<number, [number, number][]>();
+    for (const route of land)
+      for (let i = 1; i < route.points.length - 1; i++) {
+        const [x, y, cell] = route.points[i];
+        if (!interior.has(cell)) interior.set(cell, []);
+        interior.get(cell)!.push([x, y]);
+      }
+    for (const route of land)
+      for (const index of [0, route.points.length - 1]) {
+        const [x, y, cell] = route.points[index];
+        if (pack.cells.burg[cell]) continue;
+        let best: [number, number] | undefined;
+        let bestDistance = Infinity;
+        for (const point of interior.get(cell) ?? []) {
+          const distance = Math.hypot(point[0] - x, point[1] - y);
+          if (distance < bestDistance) [best, bestDistance] = [point, distance];
+        }
+        if (best && bestDistance > 1e-7) route.points[index] = [best[0], best[1], cell];
+      }
   }
 
   generate(
