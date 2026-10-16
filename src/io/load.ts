@@ -1,7 +1,7 @@
 import type * as d3 from "d3";
 import { fitScopedMapToView } from "../actions";
 import { appServices } from "../context/appServices";
-import { simulationContext } from "../context/simulationContext";
+import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { syncLoadedStylePreset } from "../controllers/style";
@@ -49,12 +49,14 @@ import { burgsUnplacedOnRivers, removeRepeatedRiverCells } from "../services/rep
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
+import { applySimulationTimeline } from "../simulation/simulationTimeline";
 import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
+import { useUiPreferencesState } from "../store/uiPreferencesState";
 import type {
   Culture,
   LandRouteGenerationMode,
@@ -240,11 +242,17 @@ export function uploadMap(file: Blob, callback?: () => void): void {
   fileReader.readAsArrayBuffer(file);
 }
 
+/** Starts a fresh timeline or keeps the saved one, per the user's preference (track R §13.3). */
+function applyLoadTimeline(simulation: SimulationContext, mapSeed: string): void {
+  applySimulationTimeline(simulation, mapSeed, { mode: useUiPreferencesState.getState().simulationTimelineOnLoad });
+}
+
 async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?: () => void): Promise<void> {
   try {
     // Decode, migrate and validate are complete before the first live mutation.
     // A malformed archive therefore leaves the active world and SVG untouched.
     const validated = await decodeAndValidateWorldArchive({ blob: file, header });
+    applyLoadTimeline(validated.document.simulation, validated.document.world.seed);
     await waitForGenerationToSettleBeforeMapLoad();
     const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
     const landRouteGenerationMode = validated.document.world.options.landRouteGenerationMode;
@@ -481,6 +489,7 @@ export async function parseLoadedData(
 
       const staged = worldRuntime.captureRollbackDocument();
       assertValidWorldDocument(staged);
+      applyLoadTimeline(staged.simulation, staged.world.seed);
       const commit = await worldRuntime.dispatch({
         type: "world.replace",
         payload: { stage: "validated", document: staged }

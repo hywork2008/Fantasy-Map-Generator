@@ -11,6 +11,7 @@ import { yearsPerRulerGeneration } from "../../generators/fastAdvance/rulerGener
 import { useDialogState } from "../../store/dialogState";
 import { useFastAdvanceState } from "../../store/fastAdvanceState";
 import { useTimeSimulationState } from "../../store/timeSimulationState";
+import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import { Dialog } from "./Dialog";
 import { closeDialog, openDialog } from "./dialogService";
 
@@ -23,6 +24,8 @@ export const AdvanceTimeDialog: React.FC = () => {
   const setFastAdvanceEnabled = useFastAdvanceState(state => state.setEnabled);
   const setFastAdvancePreset = useFastAdvanceState(state => state.setPreset);
   const historyProfile = useFastAdvanceState(state => state.historyProfile);
+  const timelineOnLoad = useUiPreferencesState(state => state.simulationTimelineOnLoad);
+  const setTimelineOnLoad = useUiPreferencesState(state => state.setSimulationTimelineOnLoad);
 
   const [simulationClock, setSimulationClock] = useState(() => ({
     currentYear: simulationContext.currentYear,
@@ -92,6 +95,7 @@ export const AdvanceTimeDialog: React.FC = () => {
               disabled={!fastAdvanceEnabled}
               onChange={e => setFastAdvancePreset(e.target.value as FastAdvancePresetId)}
               data-tip={t("dialogs.advanceTime.fastForwardPresetLabel")}
+              aria-label={t("dialogs.advanceTime.fastForwardPresetLabel")}
               style={{ flex: 1 }}
             >
               {FAST_ADVANCE_PRESET_SELECT_IDS.map(id => (
@@ -111,6 +115,20 @@ export const AdvanceTimeDialog: React.FC = () => {
             </button>
           </div>
         </div>
+        <label
+          style={{ display: "flex", alignItems: "center", gap: "5px" }}
+          data-tip={t("dialogs.advanceTime.timelineTip", { seed: simulationContext.rng?.seed ?? worldContext.seed })}
+        >
+          <span>{t("dialogs.advanceTime.timelineOnLoad")}</span>
+          <select
+            value={timelineOnLoad}
+            onChange={e => setTimelineOnLoad(e.target.value as "new" | "continue")}
+            style={{ flex: 1 }}
+          >
+            <option value="new">{t("dialogs.advanceTime.timelineNew")}</option>
+            <option value="continue">{t("dialogs.advanceTime.timelineContinue")}</option>
+          </select>
+        </label>
         {isRunning ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>

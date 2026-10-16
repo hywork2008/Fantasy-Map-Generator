@@ -25,6 +25,7 @@ import {
   stepDaySimulation
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
+import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
@@ -932,6 +933,15 @@ function stepDayMutation(days = 1): { result: SimulationStepResult; topics: read
  * which wraps it with snapshot rollback.
  */
 function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays: number) {
+  // Track R (docs/plan/simulation-core-separation.md §13): many simulation call sites still use
+  // Math.random (directly or via rand/P/ra/gauss). While time advances, route it to appServices.rng,
+  // which runWithSystemRng swaps to each system's own seed-derived stream; outside systems it is
+  // the persisted root stream. Results then depend only on simulation.rng, not on whatever state
+  // the page's last map generation left in Math.random, nor on other systems' draw counts.
+  return withSimulationAmbientRandom(() => advanceTimeMutationInSimulationRng(deltaYears, deltaMonths, deltaDays));
+}
+
+function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: number, deltaDays: number) {
   if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) {
     return { result: undefined, topics: [] as DataTopic[] };
   }

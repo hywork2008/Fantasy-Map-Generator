@@ -31,6 +31,13 @@ type UiPreferencesState = {
    */
   nobilityCharacterGenerationBias: NobilityCharacterGenerationBias;
   setNobilityCharacterGenerationBias: (value: NobilityCharacterGenerationBias) => void;
+  /**
+   * What happens to the simulation RNG when a map is loaded (src/simulation/simulationTimeline.ts):
+   * "new" starts a fresh random timeline so the same map plays out differently each time;
+   * "continue" keeps the saved RNG so the saved future replays exactly.
+   */
+  simulationTimelineOnLoad: "new" | "continue";
+  setSimulationTimelineOnLoad: (value: "new" | "continue") => void;
 };
 
 export const useUiPreferencesState = create<UiPreferencesState>()(
@@ -42,7 +49,9 @@ export const useUiPreferencesState = create<UiPreferencesState>()(
       setEconomySkipTradeOnGenerate: (value: boolean) => set({ economySkipTradeOnGenerate: value }),
       nobilityCharacterGenerationBias: "none",
       setNobilityCharacterGenerationBias: (value: NobilityCharacterGenerationBias) =>
-        set({ nobilityCharacterGenerationBias: value })
+        set({ nobilityCharacterGenerationBias: value }),
+      simulationTimelineOnLoad: "new",
+      setSimulationTimelineOnLoad: (value: "new" | "continue") => set({ simulationTimelineOnLoad: value })
     }),
     { name: "fmg-ui-preferences" }
   )

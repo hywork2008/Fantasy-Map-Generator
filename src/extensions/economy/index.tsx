@@ -7,6 +7,7 @@ import {
   FUNERAL_DEMAND_EVENT,
   isStateInActiveConflict,
   resolveFastAdvanceRates,
+  runWithSimulationRandom,
   useOptionsState
 } from "../hostCore";
 import {
@@ -2807,11 +2808,14 @@ export function init(api: ExtensionAPI): void {
       productionSettlementsFastForward = false;
       foodSettlementsAlreadyApplied -= settlementsWithFoodAlreadyApplied;
 
-      if (fastForward) {
-        runOneFastForwardSettlement(times);
-      } else {
-        for (let i = 0; i < times; i++) runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied);
-      }
+      // Runs after the advance has returned, so it gets its own reproducible stream (track R).
+      runWithSimulationRandom("economy.productionSettlement", () => {
+        if (fastForward) {
+          runOneFastForwardSettlement(times);
+        } else {
+          for (let i = 0; i < times; i++) runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied);
+        }
+      });
     });
   };
 

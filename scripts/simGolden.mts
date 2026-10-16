@@ -14,6 +14,7 @@
  *   npm run test:sim-golden -- --create-fixture    # regenerate tests/fixtures/sim-golden.fmg
  *   [--days 30,365] [--url http://127.0.0.1:5173/Fantasy-Map-Generator/] [--headed]
  *   [--dump temp/sim-golden]   # write each checkpoint's .fmg per run, to diff a mismatch
+ *   [--trace-random temp/sim-random.json]   # write the unbound Math.random call sites (must be none)
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -46,7 +47,8 @@ function parseArgs(argv: string[]) {
     days: [30, 365],
     url: undefined as string | undefined,
     headed: false,
-    dump: undefined as string | undefined
+    dump: undefined as string | undefined,
+    traceRandom: undefined as string | undefined
   };
   const args = [...argv];
   const value = (flag: string) => {
@@ -63,6 +65,7 @@ function parseArgs(argv: string[]) {
     else if (flag === "--url") options.url = value(flag);
     else if (flag === "--headed") options.headed = true;
     else if (flag === "--dump") options.dump = resolve(value(flag));
+    else if (flag === "--trace-random") options.traceRandom = resolve(value(flag));
     else throw new Error(`Unknown option: ${flag}`);
   }
   if (!Number.isSafeInteger(options.runs) || options.runs < 1) throw new Error("--runs must be a positive integer");
@@ -79,6 +82,8 @@ function storageEntries(): Record<string, string> {
     mapScope: "province",
     mapScopeCells: "1500",
     initialSettlementPattern: "standard",
+    // Keep the fixture's saved simulation RNG so every run replays the same timeline.
+    "fmg-ui-preferences": JSON.stringify({ state: { simulationTimelineOnLoad: "continue" }, version: 0 }),
     "fmg-extensions": JSON.stringify({
       state: { enabledExtensions: Object.fromEntries(EXTENSIONS.map(id => [id, true])) },
       version: 0
@@ -178,26 +183,34 @@ async function createFixture(browser: Browser, baseUrl: string): Promise<void> {
 }
 
 /**
- * Loading a map does not reseed `Math.random`: it keeps whatever state the page's own start-up
- * generation left (seeded by a random seed), and many simulation systems still draw from it
- * instead of the persisted simulation RNG. Until those call sites move to `simulationRng`
- * (simulation-core-separation.md §8.5), the golden pins the ambient generator to a fixed
- * mulberry32 stream so runs are comparable in any environment.
+ * Track R guard (simulation-core-separation.md §13): after the map has loaded, every simulation
+ * draw must go through the simulation RNG (timeEngine/runWithSimulationRandom bind `Math.random` to
+ * it). Any call that still reaches the page's ambient `Math.random` is recorded by the first stack
+ * frame outside the shared probability helpers (`rand`, `P`, `gauss`, …) and fails the run.
  */
-async function pinAmbientRandom(page: Page): Promise<void> {
+async function installRandomTrace(page: Page): Promise<void> {
   await page.evaluate(() => {
-    let state = 0x5eed1234;
+    const counts: Record<string, number> = {};
+    (window as unknown as { __simRandomTrace?: Record<string, number> }).__simRandomTrace = counts;
+    const ambient = Math.random;
+    const helper = /\/utils\/probabilityUtils\.ts|\/node_modules\//;
     Math.random = () => {
-      state = (state + 0x6d2b79f5) | 0;
-      let t = Math.imul(state ^ (state >>> 15), 1 | state);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      const frames = (new Error().stack ?? "").split("\n").slice(2);
+      const frame = frames.find(line => !helper.test(line)) ?? frames[0] ?? "unknown";
+      const via = frames[0] && helper.test(frames[0]) ? ` via ${frames[0].trim().split(" ")[1]}` : "";
+      const key = `${frame
+        .trim()
+        .replace(/^at /, "")
+        .replace(/https?:\/\/[^/]+\/Fantasy-Map-Generator\//, "src/")
+        .replace(/\?[^:)]*/, "")}${via}`;
+      counts[key] = (counts[key] ?? 0) + 1;
+      return ambient();
     };
   });
 }
 
 /** One full run: load the fixture, hash after load and at every requested day. */
-async function runOnce(browser: Browser, baseUrl: string, days: readonly number[], dumpDir?: string) {
+async function runOnce(browser: Browser, baseUrl: string, days: readonly number[], dumpDir?: string, tracePath?: string) {
   const capture = async (name: string) => {
     const bytes = await archiveBytes(page);
     if (dumpDir) writeFileSync(resolve(dumpDir, `${name}.fmg`), bytes);
@@ -209,7 +222,7 @@ async function runOnce(browser: Browser, baseUrl: string, days: readonly number[
   await page.getByRole("button", { name: "Generate entire map", exact: true }).waitFor({ state: "visible", timeout: 120_000 });
   await page.locator("#fileInputs #mapToLoad").setInputFiles(FIXTURE);
   await waitForReady(page, 1);
-  await pinAmbientRandom(page);
+  await installRandomTrace(page);
 
   const checkpoints: Record<string, WorldHashReport> = {};
   checkpoints["day-0"] = await capture("day-0");
@@ -221,8 +234,13 @@ async function runOnce(browser: Browser, baseUrl: string, days: readonly number[
     elapsed = day;
     checkpoints[`day-${day}`] = await capture(`day-${day}`);
   }
+  const counts = await page.evaluate(
+    () => (window as unknown as { __simRandomTrace: Record<string, number> }).__simRandomTrace
+  );
+  const unboundRandom = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (tracePath) writeFileSync(tracePath, `${JSON.stringify({ days, sites: Object.fromEntries(unboundRandom) }, null, 2)}\n`);
   await page.context().close();
-  return { checkpoints, errors };
+  return { checkpoints, errors, unboundRandom };
 }
 
 function compare(label: string, expected: Record<string, WorldHashReport>, actual: Record<string, WorldHashReport>) {
@@ -256,9 +274,18 @@ async function main() {
       log(`run ${i + 1}/${options.runs}`);
       const dumpDir = options.dump ? resolve(options.dump, `run-${i + 1}`) : undefined;
       if (dumpDir) mkdirSync(dumpDir, { recursive: true });
-      runs.push(await runOnce(browser, server.url, options.days, dumpDir));
+      runs.push(await runOnce(browser, server.url, options.days, dumpDir, i === 0 ? options.traceRandom : undefined));
     }
     const failures: string[] = [];
+    for (const [index, run] of runs.entries())
+      if (run.unboundRandom.length)
+        failures.push(
+          `run ${index + 1}: ${run.unboundRandom.reduce((sum, [, n]) => sum + n, 0)} Math.random call(s) outside the simulation RNG: ` +
+            run.unboundRandom
+              .slice(0, 10)
+              .map(([site, n]) => `${n}× ${site}`)
+              .join("; ")
+        );
     for (let i = 1; i < runs.length; i++)
       failures.push(...compare(`reproducibility run ${i + 1} vs 1:`, runs[0].checkpoints, runs[i].checkpoints));
     for (const [index, run] of runs.entries())
