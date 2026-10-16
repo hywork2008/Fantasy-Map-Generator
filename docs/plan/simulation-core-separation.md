@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)。S1 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -248,7 +248,7 @@ export interface SimulationExtension {
 2. 以後の各 PR は、このハッシュが一致することを CI で確認する(`npm run test:sim-golden`)。
 3. 意図して結果を変える PR(バグ修正など)は、このリファクタと**同じ PR にしない**。基準の更新は理由を書いた独立したコミットで行う。
 4. S6 以降は同じテストを (a) jsdom 環境、(b) Node 環境(DOM なし)、(c) Playwright のブラウザで実行し、3 つのハッシュの一致を確認する。
-5. 再現性を壊す要因(`Math.random` の直接使用 164 箇所、壁時計への依存)はハッシュが揺れる原因になる。S0 で 2 回連続実行してハッシュが一致するかを確認し、揺れるならその原因を先に `simulationRng` のストリームに置き換える。これは S0 の前提作業になる可能性がある。
+5. 再現性を壊す要因(`Math.random` の直接使用 164 箇所、壁時計への依存)はハッシュが揺れる原因になる。S0 で 2 回連続実行して確認した結果、**揺れた**(§12.2)。原因は、地図を読み込んでも `Math.random` が再シードされないこと。golden では暫定的に `Math.random` を固定シードの PRNG に差し替えて一致させている。恒久対策(シミュレーションの乱数を `simulationRng` のストリームへ移す)は S1〜S4 と並行する別トラック R として扱う(§12.4)。
 
 ## 9. 実装計画
 
@@ -260,7 +260,7 @@ export interface SimulationExtension {
 
 | 段階 | 内容 | 主なファイル | 完了条件 |
 | --- | --- | --- | --- |
-| **S0 計測と安全網** | `lint:sim-boundary`(到達性・最短経路・許可リスト)、golden テスト、Node 環境のスモークテスト(`test.fails`)、再現性の確認 | `scripts/lint-sim-boundary.ts`、`src/simulation/core.ts`(再エクスポートのみ)、`vitest.config.ts` | 許可リスト = §2 の 69 モジュール。golden が 2 回連続で一致する |
+| **S0 計測と安全網** | `lint:sim-boundary`(到達性・最短経路・許可リスト)、golden テスト、Node 環境のスモークテスト(`test.fails`)、再現性の確認 | `scripts/lint-sim-boundary.ts`、`src/simulation/core.ts`(再エクスポートのみ)、`scripts/simGolden.mts`、`src/simulation/nodeSmoke.test.ts` | 完了(§12)。許可リストはモジュール 73 / パッケージ 5 / ブラウザ・グローバル 121 箇所。golden は 2 回連続で一致(`Math.random` 固定時) |
 | **S1 import の断ち切り** | 経路 A(`aiDebugExporter` を `timeEngine` から外し、`day-committed` イベントで Browser 側が取得)、B(`nodeUtils.layerIsOn` の import を外す)、C(`burgs-generator` からツールチップ・トーストを外す)、D(紋章キャッシュ登録を描画側の購読に移す)、E・F(バレルの分割と一括置換)、G、H(i18n はキーだけを返し、翻訳は UI で行う) | `timeEngine.ts`、`aiDebugExporter.ts`、`burgs-generator.ts`、`hostCore.ts`、`hostUtils.ts`、拡張 generators(一括置換) | 到達集合から `renderers`・`canvas`・`ui`・`.tsx`・three・react が 0。許可リストは store と実行時依存だけになる |
 | **S2 イベントバス** | `simEvents` と `SimulationEventMap`、68 箇所の置き換え、Browser Adapter による `document` への再送 | `src/simulation/events.ts`、31 ファイル | コアの到達集合で `document.` が 0(`getElementById` 系は S1 で解消済みのはず) |
 | **S3 Ports** | `scheduler`(rAF 4 ファイル)、`settings`(`localStorage` 12 ファイル)、時計依存の整理。設定の「ワールドに保存すべきか」の一覧作成 | `incrementalBatching.ts`、`caravanMovement.ts`、`charactersContext.ts`、`tradeLogisticsSettings.ts`、`regimentMovement.ts` ほか | コアの到達集合で `localStorage`・`requestAnimationFrame` が 0 |
@@ -299,3 +299,38 @@ S1 と S2 は独立しているので、並行して進められる。S4 は S3 
 - ブラウザの Web Worker 上での Advance Time(UI が固まらない)
 - ブラウザと Node で同じ golden テストを回すことによる、シミュレーションの回帰検出
 - コアだけを対象にしたメモリ計測(描画由来の保持と、ワールドデータの蓄積を切り分けられる)
+
+## 12. S0 の結果(2026-10-16)
+
+### 12.1 追加したもの
+
+| ファイル | 内容 |
+| --- | --- |
+| `src/simulation/core.ts` | コアの入口。現時点では既存の時間進行 API の再エクスポートのみ |
+| `scripts/lint-sim-boundary.ts`、`scripts/sim-boundary-allowlist.json` | `npm run lint:sim-boundary`(`lint:legacy` に組み込み済み)。許可リストは減らす方向にしか変更できない。`--update` は増加を拒否し、増加を記録するには `--accept-new` が必要。`--why <path>` で import 経路を表示する |
+| `src/simulation/goldenHash.ts`(+ テスト) | WorldDocument の正規化ハッシュ。`world`・`simulation`・`opaqueExtensionChunks` を対象にし、`presentation` とタイムスタンプは除外する。`world.pack.*` と `simulation.extensions.*` は 1 段深く、セクションごとのハッシュを持つ。Web Crypto を使うので、ブラウザ・Node のどちらでも動く |
+| `tests/fixtures/sim-golden.fmg`(2.4 MB) | seed 424242、Province スコープ 1500 セル、国家 2・都市 95・市場 95。4 拡張すべてを有効化した状態で保存 |
+| `scripts/simGolden.mts`、`src/simulation/__golden__/browser.json` | `npm run test:sim-golden`。Chromium で fixture を読み込み、0 日・30 日・365 日の時点のハッシュを基準と比較する。所要時間は 1 回あたり約 15 秒。`--runs 2` で実行ごとの一致も検査する。`--update` は再現しない基準の書き込みを拒否する。`--dump <dir>` で各時点の .fmg を保存する |
+| `scripts/simGoldenDiff.mts` | 2 つの .fmg の差分を末端の値まで列挙する(不一致の調査用) |
+| `src/simulation/nodeSmoke.test.ts` | DOM なしの Node(`@vitest-environment node`、ブラウザ・グローバルを削除)で import → 読み込み → 30 日進行を試し、**現在最初に失敗する段階**を固定する。段階が進んだらこのテストが落ちるので、期待値を進める |
+
+### 12.2 再現性: 地図を読み込んでも `Math.random` が再シードされない
+
+- 同じ fixture を 2 回読み込んで 1 日進めただけで、`simulation.military[*].commanderId` と `characters[*].favor` が食い違った(729 値)。30 日後には 12,183 値が食い違った。
+- 原因: `Math.random = Alea(seed)` が行われるのは地図**生成**の時だけ(`main.ts`)。読み込み(`world.replace`)では再シードされない。そのため読み込み後のシミュレーションは、ページ起動時の生成が残した乱数状態(ランダムなシード)を引き継ぐ。士官の任命など、`Math.random` を直接使うシステムの結果が実行ごとに変わる。
+- これはテストだけの問題ではない。利用者が同じ .fmg を開いても毎回違う未来になり、ブラウザと Node の結果も一致しない。
+- S0 の暫定対応: golden の読み込み直後に、`Math.random` を固定シードの mulberry32 に差し替える(`pinAmbientRandom`)。これで 2 回の実行が完全に一致した(0・1・30・365 日)。
+
+### 12.3 境界の現状(許可リストの内容)
+
+- 入口 364(`core.ts` と、拡張の暫定入口として generators と characters のルートにあるモジュール)から 764 モジュールに到達する。
+- 禁止モジュールは 73。内訳は `src/renderers` 46、`src/store` 11、`src/i18n` 5(locale JSON を含む)、拡張の `store`/`ui` 4、view 系のサービス・utils 4、`canvas`・`context/viewContext`・`ui` 各 1。§2 の 69 との差は、characters のルートにあるモジュールを入口に加えたことと、locale JSON を数えたことによる。
+- 禁止パッケージは 5: `three`、`three/tsl`、`three/webgpu`、`react/jsx-runtime`、`react-i18next`。
+- ブラウザ・グローバルは 40 ファイル・121 箇所。内訳は `document.` 87、`localStorage` 25、`window.` 6、`requestAnimationFrame` 2、`navigator.` 1。
+- Node スモークテストは import の段階で失敗する。原因は `localStorage is not defined`(`store/optionsState.ts:646`、モジュール読み込み時の参照)。これは S4(ストアの分割)の対象で、§10 の「モジュール読み込み時の副作用」のリスクが実際に現れたもの。
+
+### 12.4 S0 から見えた計画の修正
+
+- **トラック R(乱数の一本化)を追加する**: `Math.random` を直接使っている 164 箇所を `simulationRng` のストリームへ移す。この作業はシミュレーション結果を変えるので、分離リファクタ(S1〜S6)の PR には混ぜず、独立した PR で golden の基準を更新する。R が終わるまでは、golden の `pinAmbientRandom` を残す。
+- **Node スモークテストの段階を早く進めるため**: `optionsState` の `localStorage` 参照(モジュール読み込み時)は、S4 を待たずに S1 で「遅延読み込み」に変えることを検討する。ブラウザの挙動は変わらない。
+- 拡張のシステムは各拡張の `init(api)` から登録されるため、Node スモークテストの「進行」段階は、S5 で拡張のシミュレーション入口ができるまで、本体のシステムだけで回すことになる。
