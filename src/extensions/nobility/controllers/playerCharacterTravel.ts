@@ -7,7 +7,10 @@ import { calculateRouteDurationDays } from "../../economy/generators/tradeRouteD
 import { clearMainTip, tip } from "../../hostServices";
 import { openConfirm } from "../../hostUi";
 import { findCell } from "../../hostUtils";
-import { getApi, getWorldContext } from "../nobilityContext";
+import { getViewApi, getWorldContext } from "../nobilityContext";
+import { applyCharacterArrival, clearPendingPlayerTravel } from "../playerTravel";
+
+export { applyCharacterArrival, tickPlayerTravel } from "../playerTravel";
 
 export interface TravelEstimate {
   sourceBurgId: number;
@@ -31,7 +34,7 @@ export function isTravelRoutingAvailable(): boolean {
 /** True when the map is in pure SVG mode (move selection uses SVG viewbox clicks). */
 export function isSvgRenderMode(): boolean {
   try {
-    return getApi().viewContext.renderMode === "svg";
+    return getViewApi().viewContext.renderMode === "svg";
   } catch {
     return false;
   }
@@ -122,7 +125,7 @@ export function enterPlayerMoveMode(): void {
     return;
   }
 
-  const view = getApi().viewContext;
+  const view = getViewApi().viewContext;
   view.viewbox.style("cursor", "crosshair").on("click", onDestinationMapClick);
   store.setMoveMode(true);
   tip("Click a burg on the map to set the travel destination. Click Move again to cancel.", true);
@@ -133,9 +136,9 @@ export function exitPlayerMoveMode(): void {
   if (!store.isMoveMode) return;
 
   try {
-    const view = getApi().viewContext;
+    const view = getViewApi().viewContext;
     view.viewbox.on("click", null);
-    getApi().restoreDefaultEvents();
+    getViewApi().restoreDefaultEvents();
   } catch {
     // Context may already be torn down during cleanup.
   }
@@ -270,42 +273,7 @@ export function beginPlayerTravel(characterId: number, destinationBurgId: number
   );
 }
 
-/**
- * Called from the nobility tick system each day. Decrements remaining travel and
- * applies the destination when the journey completes.
- */
-export function tickPlayerTravel(deltaDays: number): void {
-  if (!(deltaDays > 0)) return;
-  const store = usePlayerCharacterState.getState();
-  const pending = store.pendingTravel;
-  if (!pending) return;
-
-  const remaining = pending.remainingDays - deltaDays;
-  if (remaining > 0) {
-    store.setPendingTravel({ ...pending, remainingDays: remaining });
-    return;
-  }
-
-  store.setPendingTravel(null);
-  applyCharacterArrival(pending.characterId, pending.destinationBurgId);
-}
-
-export function applyCharacterArrival(characterId: number, destinationBurgId: number): void {
-  const { pack } = getWorldContext();
-  const character = pack.characters?.find(c => c.i === characterId);
-  if (!character || character.dead) return;
-
-  const burg = pack.burgs?.[destinationBurgId];
-  if (!burg || burg.removed) return;
-
-  character.location = destinationBurgId;
-  usePlayerCharacterState.getState().bumpRefreshToken();
-
-  const name = burg.name || `Burg ${destinationBurgId}`;
-  tip(`${character.name} arrived at ${name}`, false, "success");
-}
-
 export function clearPlayerTravel(): void {
   exitPlayerMoveMode();
-  usePlayerCharacterState.getState().setPendingTravel(null);
+  clearPendingPlayerTravel();
 }

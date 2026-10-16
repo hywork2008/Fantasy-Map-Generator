@@ -2,7 +2,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatCharacterAge } from "../../characterAge";
-import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
+import { getCharacters, getViewApi, getWorldContext } from "../../charactersContext";
 import { selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
@@ -48,7 +48,7 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const handleZoomToLocation = (): void => {
     if (!location) return;
-    getApi().zoomTo(location.x, location.y, 20, 2000);
+    getViewApi().zoomTo(location.x, location.y, 20, 2000);
   };
 
   return (

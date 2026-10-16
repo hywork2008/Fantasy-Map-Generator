@@ -32,6 +32,7 @@ import type {
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { BurgSiteEconomy } from "../services/burgSiteEconomy";
 import type { SkillModifierFn } from "../services/skillModifierService";
+import type { SimulationSettingsSource } from "../simulation/ports";
 import type {
   BurgOverviewColumn,
   CellInfoRow,
@@ -175,18 +176,137 @@ export interface ExtensionWebglLayerSpec {
   build(): readonly ExtensionWebglLayer[];
 }
 
-export interface ExtensionAPI {
+/**
+ * The part of the host API an extension's simulation entry (`extensions/<id>/simulation.ts`) may use
+ * (docs/plan/simulation-core-separation.md §7). Everything here works without a DOM, so the same
+ * registration runs in the browser, in Node and in a Worker. `ExtensionAPI` extends it with the UI
+ * members; a simulation entry only ever sees this type, so it cannot reach the UI by accident.
+ */
+export interface SimulationExtensionAPI {
   /** Read-only host species queries; supplied to built-in and dynamically loaded extensions. */
   races: RaceService;
-  // ── Core contexts ────────────────────────────────────────────────────────
   /** Readonly reference to the host app's world context — same object, shared state. */
   readonly worldContext: WorldContext;
-  /** Readonly reference to the host app's view context — same object, shared state. */
-  readonly viewContext: ViewContext;
   /** Readonly reference to the host app's shared services (RNG, storage, COA renderer). */
   readonly appServices: AppServices;
   /** Readonly reference to the host app's live simulation clock (currentYear, era, tickCount). */
   readonly simulationContext: SimulationContext;
+
+  /** Returns true if the extension with the given id is currently enabled. */
+  isExtensionEnabled(id: string): boolean;
+  /**
+   * Subscribe to extension enable/disable events.
+   * Returns an unsubscribe function — call it in cleanup().
+   */
+  subscribeExtensionState(listener: (state: ExtensionStateSnapshot, prev: ExtensionStateSnapshot) => void): () => void;
+
+  /**
+   * Register optional initialization that runs only after the newly generated map has painted.
+   * Use this for expensive extension data generation instead of blocking fmg:generate-post-core.
+   */
+  registerMapReadyTask(task: MapReadyTask): () => void;
+  /** Queue this extension's map-ready task after a live toggle on an already completed map. */
+  requestMapReadyTask(taskId: string): void;
+
+  /**
+   * @deprecated Prefer `registerSimulationSystem()`. Built-in extensions have
+   * migrated; this remains for unmigrated dynamic ZIP packages only.
+   *
+   * Compatibility wrapper: each hook becomes a politics-phase system, stays
+   * registered for the session, and preserves registration order among other
+   * legacy hooks. `label` names the tick profiler entry; `writes` is the
+   * fallback topic set when the hook returns void.
+   */
+  registerTimeTickHook(
+    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => readonly DataTopic[] | undefined,
+    label?: string,
+    writes?: readonly DataTopic[]
+  ): void;
+  /**
+   * Register a synchronous system with explicit phase, cadence, dependencies,
+   * and WorldRuntime topics. Preferred entry for any new simulation work.
+   * The system must not import host Renderer modules; return only topics that
+   * changed this tick. Call the returned function from `cleanup()`.
+   */
+  registerSimulationSystem(system: SimulationSystem): () => void;
+
+  /**
+   * Register a validated extension-owned writer. Its changes are committed as
+   * `extension.<extensionId>`; call the returned function during cleanup.
+   */
+  registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
+  /** Execute a command previously registered by an extension. */
+  dispatchExtensionCommand(request: ExtensionCommandRequest): WorldCommit<unknown> | null;
+  /**
+   * Register schema / validation / migration / core-reference collection for
+   * this extension's simulation slice. Host codec ownership stays in the
+   * archive adapter; the extension only owns the slice shape. Matching opaque
+   * archive chunks are promoted after successful migrate+validate. Call the
+   * returned function only on uninstall — disable must not unregister the slice
+   * if data should remain under host delete policy.
+   */
+  registerStateSlice(spec: ExtensionStateSliceSpec): () => void;
+
+  /**
+   * Registers a cross-extension modifier for character skill values (e.g. Nobility
+   * supplies each character's base skill; other extensions can layer further
+   * adjustments). Run in registration order. Returns an unregister function — call
+   * it in cleanup().
+   */
+  registerSkillModifier(source: string, fn: SkillModifierFn): () => void;
+  /**
+   * Effective value of a character's skill after all registered modifiers have run.
+   * Returns 0 if nothing has registered (e.g. Nobility disabled/not installed) —
+   * treat 0 as "no data", not "unskilled".
+   */
+  getEffectiveSkill(characterId: number, skill: string): number;
+
+  /**
+   * Creates a `pack.markers` entry plus its paired note in one step, same shape as the host's own
+   * `worldRuntime.createMarker()` (docs/plan/great-library.md §Marker作成経路). The caller supplies
+   * every `Marker` field except `i` — the host allocates the id and derives `note.id = "marker" +
+   * i` itself, so callers never invent or collide on marker/note ids. In the browser the map is
+   * redrawn on success. Returns null if marker creation fails (e.g. an invalid cell).
+   */
+  createMapMarker(input: {
+    marker: Omit<Marker, "i">;
+    note: { name: string; legend: string };
+  }): { markerId: number; noteId: string } | null;
+  /**
+   * Patches an existing marker's fields and/or its paired note's name/legend in place. Returns
+   * false if no marker with this id exists. In the browser the map is redrawn on success.
+   */
+  updateMapMarker(
+    markerId: number,
+    patch: Partial<Omit<Marker, "i">> & { noteName?: string; noteLegend?: string }
+  ): boolean;
+
+  /** Simulation event bus (`fmg:*` events; mirrored onto `document` in the browser). */
+  readonly events: EventTarget;
+  /** Persisted simulation settings (`localStorage` in the browser, in-memory elsewhere). */
+  readonly settings: SimulationSettingsSource;
+  /** Yields to the host during long incremental work (an animation frame in the browser). */
+  yieldToHost(): Promise<void>;
+}
+
+/** An extension's simulation entry: everything it registers that runs without a UI (§7). */
+export interface SimulationExtension {
+  readonly id: string;
+  /** Extensions this entry needs enabled to do anything (informational; checked at run time). */
+  readonly requires?: readonly string[];
+  /** Registers systems, commands, slices, map-ready tasks and event handlers; returns the unregister function. */
+  register(api: SimulationExtensionAPI): () => void;
+}
+
+export interface ExtensionAPI extends SimulationExtensionAPI {
+  /** Readonly reference to the host app's view context — same object, shared state. */
+  readonly viewContext: ViewContext;
+
+  /**
+   * Registers an extension's simulation entry with the host's SimulationHost (once per extension id).
+   * Returns the function that unregisters it; call it from cleanup().
+   */
+  registerSimulationExtension(extension: SimulationExtension): () => void;
 
   // ── Extension registry ───────────────────────────────────────────────────
   registerExtension(config: ExtensionConfig, defaultEnabled?: boolean): void;
@@ -218,21 +338,6 @@ export interface ExtensionAPI {
   unregisterExtension(id: string): void;
   /** Returns false if the toggle was blocked by an unmet dependency requirement. */
   toggleExtension(id: string, forceState?: boolean): boolean;
-  /** Returns true if the extension with the given id is currently enabled. */
-  isExtensionEnabled(id: string): boolean;
-  /**
-   * Subscribe to extension enable/disable events.
-   * Returns an unsubscribe function — call it in cleanup().
-   */
-  subscribeExtensionState(listener: (state: ExtensionStateSnapshot, prev: ExtensionStateSnapshot) => void): () => void;
-
-  /**
-   * Register optional initialization that runs only after the newly generated map has painted.
-   * Use this for expensive extension data generation instead of blocking fmg:generate-post-core.
-   */
-  registerMapReadyTask(task: MapReadyTask): () => void;
-  /** Queue this extension's map-ready task after a live toggle on an already completed map. */
-  requestMapReadyTask(taskId: string): void;
 
   // ── Layer preset management ──────────────────────────────────────────────
   /** Register a named preset with a human-readable label and a list of layer toggle ids. */
@@ -284,28 +389,6 @@ export interface ExtensionAPI {
   /** Remove a previously registered WebGL map pick handler. */
   unregisterMapPickHandler(extensionId: string): void;
 
-  // ── Map annotations (markers + notes) ───────────────────────────────────
-  /**
-   * Creates a `pack.markers` entry plus its paired note in one step, same shape as the host's own
-   * `worldRuntime.createMarker()` (docs/plan/great-library.md §Marker作成経路). The caller supplies
-   * every `Marker` field except `i` — the host allocates the id and derives `note.id = "marker" +
-   * i` itself, so callers never invent or collide on marker/note ids. Calls
-   * `requestWebglRender()` internally on success. Returns null if marker creation fails (e.g. an
-   * invalid cell).
-   */
-  createMapMarker(input: {
-    marker: Omit<Marker, "i">;
-    note: { name: string; legend: string };
-  }): { markerId: number; noteId: string } | null;
-  /**
-   * Patches an existing marker's fields and/or its paired note's name/legend in place. Returns
-   * false if no marker with this id exists. Calls `requestWebglRender()` internally on success.
-   */
-  updateMapMarker(
-    markerId: number,
-    patch: Partial<Omit<Marker, "i">> & { noteName?: string; noteLegend?: string }
-  ): boolean;
-
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;
   openDialog(id: string, config?: OpenDialogConfig): void;
@@ -331,61 +414,6 @@ export interface ExtensionAPI {
   moveCircle(x: number, y: number, r?: number): void;
   /** Remove the brush circle from the SVG. */
   removeCircle(): void;
-
-  // ── Simulation clock ─────────────────────────────────────────────────────
-  /**
-   * @deprecated Prefer `registerSimulationSystem()`. Built-in extensions have
-   * migrated; this remains for unmigrated dynamic ZIP packages only.
-   *
-   * Compatibility wrapper: each hook becomes a politics-phase system, stays
-   * registered for the session, and preserves registration order among other
-   * legacy hooks. `label` names the tick profiler entry; `writes` is the
-   * fallback topic set when the hook returns void.
-   */
-  registerTimeTickHook(
-    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => readonly DataTopic[] | undefined,
-    label?: string,
-    writes?: readonly DataTopic[]
-  ): void;
-  /**
-   * Register a synchronous system with explicit phase, cadence, dependencies,
-   * and WorldRuntime topics. Preferred entry for any new simulation work.
-   * The system must not import host Renderer modules; return only topics that
-   * changed this tick. Call the returned function from `cleanup()`.
-   */
-  registerSimulationSystem(system: SimulationSystem): () => void;
-
-  /**
-   * Register a validated extension-owned writer. Its changes are committed as
-   * `extension.<extensionId>`; call the returned function during cleanup.
-   */
-  registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
-  /** Execute a command previously registered by an extension. */
-  dispatchExtensionCommand(request: ExtensionCommandRequest): WorldCommit<unknown> | null;
-  /**
-   * Register schema / validation / migration / core-reference collection for
-   * this extension's simulation slice. Host codec ownership stays in the
-   * archive adapter; the extension only owns the slice shape. Matching opaque
-   * archive chunks are promoted after successful migrate+validate. Call the
-   * returned function only on uninstall — disable must not unregister the slice
-   * if data should remain under host delete policy.
-   */
-  registerStateSlice(spec: ExtensionStateSliceSpec): () => void;
-
-  // ── Skill modifier chain ─────────────────────────────────────────────────
-  /**
-   * Registers a cross-extension modifier for character skill values (e.g. Nobility
-   * supplies each character's base skill; other extensions can layer further
-   * adjustments). Run in registration order. Returns an unregister function — call
-   * it in cleanup().
-   */
-  registerSkillModifier(source: string, fn: SkillModifierFn): () => void;
-  /**
-   * Effective value of a character's skill after all registered modifiers have run.
-   * Returns 0 if nothing has registered (e.g. Nobility disabled/not installed) —
-   * treat 0 as "no data", not "unskilled".
-   */
-  getEffectiveSkill(characterId: number, skill: string): number;
 
   // ── Tooltip hooks ────────────────────────────────────────────────────────
   /**

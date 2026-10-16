@@ -4,9 +4,6 @@
   },
   "packages": {},
   "runtime": {
-    "src/generators/timeEngine.ts": {
-      "window": 1
-    },
     "src/utils/commonUtils.ts": {
       "navigator": 1,
       "window": 2

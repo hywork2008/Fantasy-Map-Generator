@@ -2,7 +2,13 @@ import { select } from "d3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setGoodCellColumn, setGoods } from "../economyContext";
+import {
+  bindEconomyView,
+  clearEconomyContext,
+  initEconomyContext,
+  setGoodCellColumn,
+  setGoods
+} from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { drawGoods } from "./draw-goods";
 
@@ -27,7 +33,11 @@ describe("drawGoods", () => {
 
     goodsNode = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const goodsLayer = select(goodsNode);
-    initEconomyContext({ worldContext, getSvgLayer: () => goodsLayer } as unknown as ExtensionAPI);
+    {
+      const api = { worldContext, getSvgLayer: () => goodsLayer } as unknown as ExtensionAPI;
+      initEconomyContext(api);
+      bindEconomyView(api);
+    }
 
     const iron = {
       i: 2,

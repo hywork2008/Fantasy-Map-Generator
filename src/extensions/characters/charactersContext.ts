@@ -10,7 +10,7 @@ import { bindRaceService } from "../hostRaces";
 
 import { simEvents } from "../../simulation/events";
 import { simulationSettings } from "../../simulation/ports";
-import type { ExtensionAPI } from "../../types/extension-api";
+import type { ExtensionAPI, SimulationExtensionAPI } from "../../types/extension-api";
 import type { Race } from "../../types/models";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
 import { migrateDemonAges } from "./characterAge";
@@ -25,7 +25,7 @@ import {
 } from "./loadoutSeed";
 import { isBoundServitorRaceKey } from "./raceBoundServitors";
 
-let _api: ExtensionAPI | null = null;
+let _api: SimulationExtensionAPI | null = null;
 
 /** Ability-score preset registry — module-level (not per-map state), pre-seeded with the built-ins. */
 const _presets = new Map<string, AbilityPreset>([
@@ -60,7 +60,7 @@ function resolveInitialAllowedRaceKeys(): string[] {
 
 let _fallbackAllowedCharacterRaceKeys = resolveInitialAllowedRaceKeys();
 
-export function initCharactersContext(api: ExtensionAPI): void {
+export function initCharactersContext(api: SimulationExtensionAPI): void {
   if (api.races) bindRaceService(api.races);
   _api = api;
   const slice = api.simulationContext?.extensions?.characters as Record<string, unknown> | undefined;
@@ -76,6 +76,7 @@ export function initCharactersContext(api: ExtensionAPI): void {
 }
 
 export function clearCharactersContext(): void {
+  _viewApi = null;
   _api = null;
   _fallbackAllowedCharacterRaceKeys = [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
   try {
@@ -90,7 +91,28 @@ export function hasCharactersContext(): boolean {
   return _api !== null;
 }
 
-export function getApi(): ExtensionAPI {
+/**
+ * The full browser API, bound by the UI entry (index) after the simulation entry has set the
+ * context. Only UI code (controllers, renderers, dialogs) may use it; the simulation core never
+ * does, so it runs without a view (docs/plan/simulation-core-separation.md §7).
+ */
+let _viewApi: ExtensionAPI | null = null;
+
+export function bindCharactersView(api: ExtensionAPI | null): void {
+  _viewApi = api;
+}
+
+export function getViewApi(): ExtensionAPI {
+  if (!_viewApi) throw new Error("[characters] View API not bound — the UI entry has not run");
+  return _viewApi;
+}
+
+/** The view API when a UI is attached, otherwise null (headless runs, isolated tests). */
+export function getOptionalViewApi(): ExtensionAPI | null {
+  return _viewApi;
+}
+
+export function getApi(): SimulationExtensionAPI {
   if (!_api) throw new Error("[characters] Extension context not initialized — call init(api) first");
   return _api;
 }
@@ -112,7 +134,7 @@ export function getCurrentYear(): number {
 /** Characters owns this namespaced simulation slice; pack.characters is compatibility-only. */
 export function getCharacters(): Character[] {
   const simulation = getApi().simulationContext;
-  // Isolated generator tests intentionally provide a minimal ExtensionAPI.
+  // Isolated generator tests intentionally provide a minimal SimulationExtensionAPI.
   // Production initialization always provides SimulationContext.extensions.
   if (!simulation?.extensions) {
     const pack = getWorldContext().pack;

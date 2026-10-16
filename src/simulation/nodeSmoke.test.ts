@@ -5,8 +5,9 @@
  * Removes every browser global the shared test setup stubs, then tries the three stages a headless
  * run needs: import the core, load the golden fixture, advance 30 days. The test pins the stage
  * that currently fails, so progress is visible: when a refactor step makes a stage pass, this test
- * fails and the expectation moves forward. Since S2 every stage passes for the core systems;
- * extensions are not registered yet — that needs the SimulationExtension entries from S5.
+ * fails and the expectation moves forward. Since S2 every stage passes for the core systems; since
+ * S5 the second case does the same through a SimulationHost with every built-in extension's
+ * simulation entry registered.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -58,10 +59,51 @@ async function runStages(): Promise<{ stage: Stage; error?: string }> {
   return { stage: "passed" };
 }
 
+async function runHostStages(): Promise<{ stage: Stage; error?: string }> {
+  const scope = globalThis as Record<string, unknown>;
+  for (const name of BROWSER_GLOBALS) delete scope[name];
+
+  let core: typeof import("./core");
+  let host: import("./host").SimulationHost;
+  try {
+    core = await import("./core");
+    host = core.createSimulationHost({ extensions: core.BUILTIN_SIMULATION_EXTENSIONS });
+  } catch (error) {
+    return { stage: "import", error: describeError(error) };
+  }
+
+  try {
+    const bytes = readFileSync(resolve(__dirname, "../../tests/fixtures/sim-golden.fmg"));
+    await host.loadArchive(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+  } catch (error) {
+    return { stage: "load", error: describeError(error) };
+  }
+
+  try {
+    const ticksBefore = host.simulation.tickCount;
+    host.advance({ days: 30 });
+    // Economy's monthly settlement runs in a microtask after the advance returns.
+    await new Promise(resolveTick => setTimeout(resolveTick, 0));
+    if (host.simulation.tickCount - ticksBefore !== 30) throw new Error("the clock did not advance 30 ticks");
+    if (!host.enablement.isEnabled("economy")) throw new Error("economy is not enabled");
+  } catch (error) {
+    return { stage: "advance", error: describeError(error) };
+  } finally {
+    host.dispose();
+  }
+  return { stage: "passed" };
+}
+
 describe("simulation core without DOM", () => {
   it("imports the core, loads the fixture and advances 30 days (core systems only)", async () => {
     const result = await runStages();
     if (result.error) process.stderr.write(`[node smoke] fails at ${result.stage}: ${result.error}\n`);
+    expect(result.stage).toBe("passed");
+  });
+
+  it("loads the fixture and advances 30 days through a SimulationHost with every extension", async () => {
+    const result = await runHostStages();
+    if (result.error) process.stderr.write(`[node smoke host] fails at ${result.stage}: ${result.error}\n`);
     expect(result.stage).toBe("passed");
   });
 });

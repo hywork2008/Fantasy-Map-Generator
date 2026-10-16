@@ -10,7 +10,6 @@ import { isDesertBiome, isNomadicBiome } from "../data/biomeCatalog";
 import { getPreferredDispersedFrontierStarts } from "../generators/frontierStartPlacement";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { applyInitialSettlementPattern } from "../generators/settlementPattern";
-import { runTimeSimulation } from "../generators/timeEngine";
 import { assignWildLandTags } from "../generators/wildLandTags";
 import { rankCells } from "../main";
 import {
@@ -39,6 +38,7 @@ import { GenerationPipeline } from "../services/generationPipeline";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
+import { getSimulationHost } from "../simulation/host";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules } from "../store/editorState";
@@ -272,7 +272,7 @@ document.addEventListener("react-tool-action", e => {
     const years = detail.years !== undefined ? Number(detail.years) : 0;
     const months = detail.months !== undefined ? Number(detail.months) : 0;
     const days = detail.days !== undefined ? Number(detail.days) : 0;
-    runTimeSimulation(years, months, days);
+    getSimulationHost().startAdvance({ years, months, days });
   }
 });
 

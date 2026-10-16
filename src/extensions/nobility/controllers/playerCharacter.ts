@@ -1,8 +1,16 @@
 import type { Character, TitleHolding } from "../../characters/characterTypes";
-import { usePlayerCharacterState } from "../../characters/store/playerCharacterState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../characters/utils/characterLabels";
 import type { Burg, Province, State } from "../../hostTypes";
 import { getWorldContext } from "../nobilityContext";
+import { isLiving, playerCharacterIdFromStore } from "../playerCharacterFocus";
+
+export {
+  clearPlayerCharacterSelection,
+  pickRandomPoliticalCharacterId,
+  refreshPlayerCharacterSelection,
+  selectRandomPlayerCharacter,
+  setPlayerCharacter
+} from "../playerCharacterFocus";
 
 const FIELD_COMMAND_TITLES = new Set(["Commander", "Admiral"]);
 
@@ -45,24 +53,6 @@ export interface PlayerCharacterSummary {
   organization: string;
   /** Settled burg when known; null if location is missing or invalid. */
   location: PlayerCharacterLocation | null;
-}
-
-function isLiving(character: Character): boolean {
-  return !character.dead;
-}
-
-function announcePlayerCharacterChange(characterId: number | null): void {
-  document.dispatchEvent(new CustomEvent("fmg:player-character-changed", { detail: { characterId } }));
-}
-
-/** Living characters that hold a political title — the random-pick pool. */
-function isLivingPolitician(character: Character): boolean {
-  return isLiving(character) && character.titles.length > 0;
-}
-
-function listPoliticalCandidates(characters: Character[] | undefined): Character[] {
-  if (!characters?.length) return [];
-  return characters.filter(isLivingPolitician);
 }
 
 function resolveStateName(states: State[] | undefined, stateId: number): string {
@@ -172,83 +162,10 @@ export function buildPlayerCharacterSummary(
   };
 }
 
-/**
- * Pick a living titled character at random. Uses Math.random so it follows the
- * same seeded stream used by nobility generation when called during map gen.
- * When `excludeId` is set and other candidates exist, that id is skipped so the
- * HUD "reroll" button actually changes the focus character.
- */
-export function pickRandomPoliticalCharacterId(
-  characters: Character[] | undefined,
-  excludeId?: number | null
-): number | null {
-  let candidates = listPoliticalCandidates(characters);
-  if (!candidates.length) return null;
-  if (excludeId != null && candidates.length > 1) {
-    candidates = candidates.filter(c => c.i !== excludeId);
-  }
-  const index = Math.floor(Math.random() * candidates.length);
-  return candidates[index]?.i ?? null;
-}
-
-/**
- * Assign a fresh random focus character. Call after nobility generation or when
- * the current selection is no longer a living character.
- * Pass `excludeCurrent: true` for the HUD reroll control.
- */
-export function selectRandomPlayerCharacter(options?: { excludeCurrent?: boolean }): number | null {
-  const { pack } = getWorldContext();
-  const store = usePlayerCharacterState.getState();
-  const excludeId = options?.excludeCurrent ? store.playerCharacterId : null;
-  const id = pickRandomPoliticalCharacterId(pack.characters, excludeId);
-  store.setPlayerCharacterId(id);
-  store.bumpRefreshToken();
-  announcePlayerCharacterChange(id);
-  return id;
-}
-
-/**
- * Explicitly set the player focus character (e.g. from Character Details).
- * Rejects missing or deceased characters.
- */
-export function setPlayerCharacter(characterId: number): boolean {
-  const { pack } = getWorldContext();
-  const character = pack.characters?.find(c => c.i === characterId);
-  if (!character || !isLiving(character)) return false;
-  const store = usePlayerCharacterState.getState();
-  store.setPlayerCharacterId(characterId);
-  store.bumpRefreshToken();
-  announcePlayerCharacterChange(characterId);
-  return true;
-}
-
-/**
- * Keep the HUD selection valid after succession / death ticks.
- * - Missing or dead selection → re-roll among living politicians.
- * - Still valid → just bump the refresh token so live title/age changes re-render.
- */
-export function refreshPlayerCharacterSelection(): void {
-  const { pack } = getWorldContext();
-  const store = usePlayerCharacterState.getState();
-  const currentId = store.playerCharacterId;
-  const current = currentId !== null ? pack.characters?.find(c => c.i === currentId) : undefined;
-
-  if (!current || !isLiving(current)) {
-    selectRandomPlayerCharacter();
-    return;
-  }
-
-  store.bumpRefreshToken();
-}
-
-export function clearPlayerCharacterSelection(): void {
-  usePlayerCharacterState.getState().clear();
-}
-
 /** Read the currently selected character's display summary, or null if none. */
 export function getPlayerCharacterSummary(): PlayerCharacterSummary | null {
   const { pack } = getWorldContext();
-  const id = usePlayerCharacterState.getState().playerCharacterId;
+  const id = playerCharacterIdFromStore();
   if (id === null) return null;
   const character = pack.characters?.find(c => c.i === id);
   if (!character) return null;

@@ -20,8 +20,11 @@ import { build, type Metafile } from "esbuild";
 const ROOT = path.join(import.meta.dirname, "..");
 const ALLOWLIST_PATH = path.join(ROOT, "scripts/sim-boundary-allowlist.json");
 
-/** Extensions without a `simulation.ts` entry yet (S5) contribute these files as entries. */
-const PROVISIONAL_EXTENSION_ENTRIES: Record<string, (file: string) => boolean> = {
+/**
+ * Each extension's simulation entry (`simulation.ts`, S5) plus its generator modules. The generators
+ * stay entries too, so a module the entry does not import yet is still held to the boundary.
+ */
+const EXTENSION_ENTRIES: Record<string, (file: string) => boolean> = {
   economy: file => file.startsWith("src/extensions/economy/generators/"),
   nobility: file => file.startsWith("src/extensions/nobility/generators/"),
   shipbuilding: file => file.startsWith("src/extensions/shipbuilding/generators/"),
@@ -87,10 +90,10 @@ function listSourceFiles(directory: string): string[] {
 function coreEntries(): string[] {
   const entries = ["src/simulation/core.ts"];
   const extensionFiles = listSourceFiles("src/extensions");
-  for (const [id, provisional] of Object.entries(PROVISIONAL_EXTENSION_ENTRIES)) {
+  for (const [id, provisional] of Object.entries(EXTENSION_ENTRIES)) {
     const simulationEntry = `src/extensions/${id}/simulation.ts`;
-    if (fs.existsSync(path.join(ROOT, simulationEntry))) entries.push(simulationEntry);
-    else entries.push(...extensionFiles.filter(provisional));
+    if (!fs.existsSync(path.join(ROOT, simulationEntry))) throw new Error(`Missing simulation entry ${simulationEntry}`);
+    entries.push(simulationEntry, ...extensionFiles.filter(file => file !== simulationEntry && provisional(file)));
   }
   return entries;
 }

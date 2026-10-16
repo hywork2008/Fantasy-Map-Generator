@@ -10,6 +10,7 @@ import {
   getMarketCellColumn,
   getMarkets,
   getMarketsLayer,
+  getViewApi,
   getViewContext,
   getWorldContext
 } from "../economyContext";
@@ -31,7 +32,7 @@ let marketsManualHistory: Uint16Array[] = [];
 export function open(): void {
   if (getViewContext().customization) return;
   closeDialogs("#marketsOverview, .stable");
-  if (!layerIsOn("toggleMarketsLayer")) getApi().toggleLayerById("toggleMarketsLayer");
+  if (!layerIsOn("toggleMarketsLayer")) getViewApi().toggleLayerById("toggleMarketsLayer");
 
   marketsOverviewAddLines();
 
@@ -141,7 +142,7 @@ function marketsOverviewAddLines(): void {
 }
 
 function enterMarketsManualAssignment(): void {
-  if (!layerIsOn("toggleMarketsLayer")) getApi().toggleLayerById("toggleMarketsLayer");
+  if (!layerIsOn("toggleMarketsLayer")) getViewApi().toggleLayerById("toggleMarketsLayer");
   getViewContext().customization = 15;
   marketsManualHistory = [];
 
@@ -192,7 +193,7 @@ function startMarketsBrushDrag(this: SVGGElement, event: D3DragEvent<SVGGElement
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     if (!dragEvent.dx && !dragEvent.dy) return;
     const [x, y] = pointer(dragEvent.sourceEvent, this);
-    getApi().moveCircle(x, y, r);
+    getViewApi().moveCircle(x, y, r);
 
     const found =
       r > 5
@@ -268,7 +269,7 @@ function onMarketsBrushMove(this: SVGGElement, event: MouseEvent): void {
   showMainTip();
   const [x, y] = pointer(event, this);
   const r = getMarketsOverviewState().brushSize;
-  getApi().moveCircle(x, y, r);
+  getViewApi().moveCircle(x, y, r);
 }
 
 function undoMarketsManualStep(): void {
@@ -297,7 +298,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
   document.getElementById("marketsTemp")?.remove();
   setMarketsOverviewState({ mode: "default" });
 
-  getApi().restoreDefaultEvents();
+  getViewApi().restoreDefaultEvents();
   clearMainTip();
   removeCircle();
 
@@ -319,7 +320,7 @@ function enterAddMarketMode(): void {
 function exitAddMarketMode(): void {
   getViewContext().customization = 0;
   setMarketsOverviewState({ mode: "default" });
-  getApi().restoreDefaultEvents();
+  getViewApi().restoreDefaultEvents();
   clearMainTip();
 }
 
@@ -527,7 +528,7 @@ export const marketsOverviewActions = {
   openMarketOverview(marketId: number) {
     const market = Markets.get(marketId);
     if (!market) return;
-    getApi().openDialog("marketOverview", { marketId });
+    getViewApi().openDialog("marketOverview", { marketId });
   },
   openMarketCompare() {
     openMarketsGoodCompare();

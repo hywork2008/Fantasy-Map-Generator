@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。S5 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。S6 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -265,7 +265,7 @@ export interface SimulationExtension {
 | **S2 イベントバス** | `simEvents` と `SimulationEventMap`、68 箇所の置き換え、Browser Adapter による `document` への再送 | `src/simulation/events.ts`、31 ファイル | コアの到達集合で `document.` が 0(`getElementById` 系は S1 で解消済みのはず) |
 | **S3 Ports** | `scheduler`(rAF 4 ファイル)、`settings`(`localStorage` 12 ファイル)、時計依存の整理。設定の「ワールドに保存すべきか」の一覧作成 | `incrementalBatching.ts`、`caravanMovement.ts`、`charactersContext.ts`、`tradeLogisticsSettings.ts`、`regimentMovement.ts` ほか | コアの到達集合で `localStorage`・`requestAnimationFrame` が 0 |
 | **S4 ストアの分割** | `simulationOptionsStore` などの vanilla ストアへの分離、永続化を Adapter へ移す。`timeSimulationState`・`debugSnapshotState`・`layerState` のコアからの参照を除去 | `store/optionsState.ts`、`store/fastAdvanceState.ts`、`economy/store/economyCalibrationState.ts`、`timeEngine.ts` | 到達集合から `src/store`・拡張の `store` が 0。**許可リストが空になる** |
-| **S5 拡張の分割と Host** | `SimulationExtensionAPI` / `SimulationExtension`、4 拡張の `simulation.ts`、`createSimulationHost`、`app.ts` を Host 経由に切り替え、`dispose()` 用のモジュールキャッシュ一覧 | `types/extension-api.ts`、`extensions/*/simulation.ts`、`extensions/*/index.ts(x)`、`src/simulation/host.ts`、`app.ts` | ブラウザの Advance Time が Host 経由で動く。`lint:sim-boundary` のエントリに 4 つの `simulation.ts` を追加しても違反 0 |
+| **S5 拡張の分割と Host** | `SimulationExtensionAPI` / `SimulationExtension`、4 拡張の `simulation.ts`、`createSimulationHost`、`app.ts` を Host 経由に切り替え、`dispose()` 用のモジュールキャッシュ一覧 | `types/extension-api.ts`、`extensions/*/simulation.ts`、`extensions/*/index.ts(x)`、`src/simulation/host.ts`、`app.ts` | 完了(§19)。ブラウザの Advance Time が Host 経由で動く。4 つの `simulation.ts` をエントリにして新しい違反 0。Node で全拡張を登録して 30 日進む |
 | **S6 Node で実行** | Node Adapter、`npm run sim -- <map.fmg> --days N --out world.fmg`(最小の CLI)、スモークテストを通常のテストに変更、3 環境で golden が一致 | `src/simulation/adapters/node.ts`、`scripts/sim.ts` | DOM の無い Node で、全拡張を有効にして 1 年進められる。3 環境のハッシュが一致する |
 | S7 Web Worker(任意) | ブラウザで Host を Worker 上に置く。メインスレッドとは、コミットの差分かトピック単位のスナップショットで同期する。描画の購読方式の再設計が必要になるため、別途設計する | — | 設計書を起こす |
 
@@ -554,3 +554,56 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - `src/simulation/worldSettings.test.ts`(4 件)を追加した: 古い .fmg の時だけブラウザの値を使うこと、取り込んだ後はブラウザを変えても影響しないこと、変更がワールドとブラウザの両方に書かれること、別のワールドを読み込むとキャッシュが更新されること。
 - `tsc`・`lint:legacy` は通った。vitest は 6,982 件が成功。失敗 6 件のうち 5 件は既知のもの。残る `cityGenerationPerformanceCli.test.ts` は単独で実行すると成功した。
 - e2e: load-map・fast-advance-settings は全件成功した。fast-advance-phase3 は既知の 404 のコンソールエラーで失敗する(変更前から同じ)。
+
+## 19. S5 の結果(2026-10-16)
+
+### 19.1 型と Host
+
+- `SimulationExtensionAPI`(`src/types/extension-api.ts`): §7 の一覧どおりのメンバに、`subscribeExtensionState`(有効・無効の切り替えに合わせたデータの初期化・消去に必要)と `events`(`simEvents`)・`settings`・`yieldToHost` を加えた。`ExtensionAPI extends SimulationExtensionAPI` とし、UI のメンバと `viewContext`、`registerSimulationExtension(ext): () => void` は `ExtensionAPI` 側だけに置いた。
+- `SimulationExtension { id, requires?, register(api): () => void }`。`requires` は説明用で、登録順は強制しない(下記)。
+- `src/simulation/extensionEnablement.ts`: 拡張の有効状態の Port。ブラウザは Extensions タブのストア、Node はメモリ上の集合(`createStaticEnablement`)。`timeEngine` の `window.fmg?.extensionAPI?.isExtensionEnabled("nobility")` を `isSimulationExtensionEnabled("nobility")` に置き換え、コアの `window` 参照が 0 になった。
+- `src/simulation/host.ts`: `createSimulationHost({ enablement?, mapReadyTasks?, onMapAnnotationsChanged?, extensions? })`。
+  - `api`(シミュレーション部が受け取る API。ブラウザの `ExtensionAPI` はこれを展開して UI のメンバを足す)、`registerExtension`、`loadArchive`(復号・時間軸・§18 の設定取り込み・`world.replace`・`fmg:world-loaded`)、`prepare`(Host が持つ map-ready タスクを依存順に実行)、`advance`(同期)、`startAdvance`(Tools タブの分割実行)、`saveArchive`、`dispatch`、`dispose`。
+  - map-ready タスクは、ブラウザでは従来の `mapReadyTaskCoordinator`(進捗表示つき)を Port として渡す。省略時は Host が自前で持ち、`prepare()` で実行する。
+  - マーカー作成・更新の後の WebGL 再描画は `onMapAnnotationsChanged` で受け取る。
+- `app.ts` は Host を作ってから `window.fmg` を組み立てる。`window.fmg.actions.advanceTime` は `host.advance`、Tools タブの Advance Day/Month/Year(`controllers/tools.ts`)は `host.startAdvance` を通る。`getSimulationHost()` で取得できる。
+- `src/extensions/simulation.ts` の `BUILTIN_SIMULATION_EXTENSIONS` に、ブラウザと同じ登録順(economy → characters → nobility → shipbuilding)を固定した。イベントのリスナーは登録順に呼ばれるので、どの Host でもこの順で登録する。`requires` に従って並べ替えると characters が economy より先になり、ブラウザと順序が変わるため、並べ替えはしない。
+
+### 19.2 拡張の分割
+
+各拡張に `simulation.ts` を作り、`index.ts(x)` は `api.registerExtension(...)` の直後に `api.registerSimulationExtension(xSimulation)` を呼んでから UI を登録する。シミュレーション部はイベントを `api.events`(`simEvents`)で購読・送信するので、`document` を使わない。
+
+| 拡張 | `simulation.ts` に移したもの | UI 側に残したもの / 新しい連絡方法 |
+| --- | --- | --- |
+| characters | コマンド 6 件と専門技能のコマンド、専門技能のシステム、スキル補正、無効化時の `clear` | ダイアログ・アクション。専門技能の変更は `fmg:characters-specializations-changed` で UI が再描画 |
+| nobility | `regenerate` コマンド、map-ready タスク、tick 7 段、航海諜報・紛争イベント | 人物一覧の再描画は `fmg:nobility-court-changed`。プレイヤーの焦点人物の選択(`playerCharacterFocus.ts`)と移動の日数経過(`playerTravel.ts`)は `controllers/` から出してコア側に置いた(`controllers/` からは再エクスポート)。通知は `simulationView.tip` |
+| shipbuilding | 造船所の状態、tick、Economy/Nobility との要求・応答イベントの購読 8 件、`reset`、map-ready タスク | レイヤ・一覧ダイアログ。`fmg:shipbuilding-changed`(`redrawShipyards` 付き)で再描画 |
+| economy | コマンド 32 件、tick 13 段 + 市場領域、map-ready タスク、月次決算のスケジューラ、読み込み時の移行、イベントの購読 20 件 | レイヤ・ダイアログ・ツールチップ・Balance History。商品の再描画は `fmg:economy-goods-changed`、準備完了(Balance History の初回行・WebGL 再描画・商品選択のリセット)は `fmg:economy-initialized` |
+
+- 拡張の文脈モジュール(`economyApi`・`nobilityContext`・`shipbuildingContext`・`charactersContext`)の `getApi()` は `SimulationExtensionAPI` を返すようにした。型を変えたことで、UI のメンバを `getApi()` 経由で使っていた 17 ファイル・約 60 箇所が見つかった(レンダラ・コントローラ・ダイアログ)。これらは UI 入口が束縛する `getViewApi()` を使うようにした。ジェネレータで唯一該当した `greatLibrary` の WebGL 再描画は、UI がある時だけ呼ぶ(`getOptionalViewApi()`)。
+- economy の `registerMapReinitHook` は、SVG のクリック処理の再設定(UI)と、読み込んだデータの移行(税率の補完・造幣台帳の生成など)が混ざっていた。後者は `fmg:map-layers-reinitialized` の購読としてシミュレーション部へ移した。
+
+### 19.3 境界
+
+- `lint:sim-boundary` のエントリは「各拡張の `simulation.ts` + generators(暫定エントリ)」にした。`simulation.ts` が無い拡張はエラーにする。
+- 結果: コアは 704 モジュール。禁止モジュールは `viewContext` の 1 件のまま(新しい違反 0)。ブラウザ・グローバルは 8 箇所から 7 箇所(3 ファイル)になった(`timeEngine` の `window` を解消)。残りは §16.2 のとおり、まとめ用ファイル経由で到達するだけの `utils`。
+
+### 19.4 検証
+
+- golden(0・30・365 日)は 2 回実行して 2 回とも基準と一致した。イベントの購読先を `document` から `simEvents` に移したこと、登録順の変更(`registerExtension` を先に呼ぶ)で結果は変わっていない。
+- Node スモークテストに 2 件目を追加した: DOM の無い Node で `createSimulationHost({ extensions: BUILTIN_SIMULATION_EXTENSIONS })` → `loadArchive`(fixture)→ `advance({ days: 30 })` → 月次決算のマイクロタスクまで実行。**全拡張を有効にして通る**。
+- `tsc`・`npm run lint`(`lint:legacy` を含む)は通った。
+- vitest: 失敗は既知の 5 件(city-editor 4・食料気候の較正 1)と、単独では成功する `cityGenerationPerformanceCli` だけ。拡張の文脈を直接初期化していたテスト(economy のレンダラ 6 ファイル、`fleetDiscrepancy`)は `bindEconomyView` / `shipbuildingSimulation.register` を使うように直した。
+- e2e(economy-dialog-layers・load-map・fast-advance-settings・fast-advance-phase3・startup-check・generation-progress・burg-editor-dialog-position): 失敗した 9 件は、変更前の HEAD(worktree)でも同じ 9 件が同じ理由で失敗した(Goods ダイアログのチェックボックスのタイムアウト、既知の 404、`Failed to acquire …` のコンソールエラーなど)。
+
+### 19.5 `dispose()` とモジュールキャッシュ
+
+`dispose()` は登録したシミュレーション部を逆順に解除する(コマンド・システム・購読・map-ready タスク・イベントリスナー、各拡張の文脈と `clear*` 関数)。ただし、コアにはこれ以外にもモジュールレベルの状態がある。コアの到達集合 704 モジュールを走査した結果は次のとおり(モジュールレベルの `let` と `new Map/Set`・空配列の `const`)。
+
+- 103 ファイル・238 個。拡張 economy 124、`src/generators` 41、characters 21、`src/services` 18、`src/runtime` 12、その他。
+- `clear*`/`reset*` を公開しているのは 35 ファイル。economy の 124 個の大半は `clearEconomyContext()`(`_fallbackResets`)と `clear` コマンドで消える。
+- **解除手段の無い、結果に影響しうる状態**(S6 で Node から地図を読み直す前に扱う):
+  - `generators/timeEngine.ts` の蓄積値 `manpowerDaysAccumulated`・`fastAdvancePopulationDaysAccumulated`(早送りの間引き用)と、日バッチの状態。
+  - economy の月次決算の位相(`daysSinceLastProduction`・`currentQuarterIndex`・`daysSinceLastProspecting`・`hiringDaysAccumulated`)。S5 で `register()` の中の変数になったので、登録し直せば 0 に戻る。ただしブラウザでは、セッション中に別の地図を読み込んでも引き継がれる。.fmg に保存されていないので、**同じ .fmg でも、そのセッションで以前に何日進めたかによって次の月次決算の日がずれる**。ブラウザと Node の結果を一致させるには、これらをワールドに保存するか、読み込み時に 0 に戻す必要がある(結果が変わるので、分離とは別の PR にする)。
+  - 気候・河川・陸路の計算キャッシュ(`cellClimateNormals`・`seasonalCropClimate`・`riverPhysicalGeometry`・`regionalRiverGeometry`・`worldLandConnectionRuntime` など)。入力から決まる派生値なので結果には影響しないはずだが、地図が変わった時に無効化されるかは個別に確かめる。
+

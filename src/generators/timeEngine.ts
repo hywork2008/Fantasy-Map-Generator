@@ -26,6 +26,7 @@ import {
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { simEvents } from "../simulation/events";
+import { isSimulationExtensionEnabled } from "../simulation/extensionEnablement";
 import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
 import { resetWorldSettingsFromHost } from "../simulation/worldSettings";
 import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../state/fastAdvanceStore";
@@ -1087,8 +1088,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
-  // No host API (Node, before the browser app assembles window.fmg) means no extensions (S5 replaces this).
-  const isNobilityEnabled = typeof window !== "undefined" && window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
+  const isNobilityEnabled = isSimulationExtensionEnabled("nobility");
   if (!isNobilityEnabled) {
     measureTickStep("core:militaryFallback", () => {
       if (sim.simMilitaryRecovery) {

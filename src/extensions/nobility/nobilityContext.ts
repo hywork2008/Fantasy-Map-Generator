@@ -7,20 +7,21 @@
  */
 
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
-import type { ExtensionAPI } from "../../types/extension-api";
+import type { ExtensionAPI, SimulationExtensionAPI } from "../../types/extension-api";
 import type { State } from "../../types/models";
 import type { CharacterGenerationBias } from "../characters/characterTypes";
 import type { ConflictAuthorization } from "./types";
 
-let _api: ExtensionAPI | null = null;
+let _api: SimulationExtensionAPI | null = null;
 let _talentAllocationLastSettledYearFallback: number | null = null;
 let _lastDemonReplenishmentYearFallback: number | null = null;
 
-export function initNobilityContext(api: ExtensionAPI): void {
+export function initNobilityContext(api: SimulationExtensionAPI): void {
   _api = api;
 }
 
 export function clearNobilityContext(): void {
+  _viewApi = null;
   _api = null;
   _talentAllocationLastSettledYearFallback = null;
   _lastDemonReplenishmentYearFallback = null;
@@ -31,7 +32,28 @@ export function hasNobilityContext(): boolean {
   return _api !== null;
 }
 
-export function getApi(): ExtensionAPI {
+/**
+ * The full browser API, bound by the UI entry (index) after the simulation entry has set the
+ * context. Only UI code (controllers, renderers, dialogs) may use it; the simulation core never
+ * does, so it runs without a view (docs/plan/simulation-core-separation.md §7).
+ */
+let _viewApi: ExtensionAPI | null = null;
+
+export function bindNobilityView(api: ExtensionAPI | null): void {
+  _viewApi = api;
+}
+
+export function getViewApi(): ExtensionAPI {
+  if (!_viewApi) throw new Error("[nobility] View API not bound — the UI entry has not run");
+  return _viewApi;
+}
+
+/** The view API when a UI is attached, otherwise null (headless runs, isolated tests). */
+export function getOptionalViewApi(): ExtensionAPI | null {
+  return _viewApi;
+}
+
+export function getApi(): SimulationExtensionAPI {
   if (!_api) throw new Error("[nobility] Extension context not initialized — call init(api) first");
   return _api;
 }

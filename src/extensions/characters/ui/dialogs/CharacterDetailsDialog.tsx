@@ -23,6 +23,7 @@ import {
   getCharacters,
   getCurrentYear,
   getSelectedAbilityPreset,
+  getViewApi,
   getWorldContext
 } from "../../charactersContext";
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
@@ -1431,7 +1432,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     style={{ marginRight: "6px" }}
                     onClick={() => {
                       const b = burgs[character.location!];
-                      getApi().zoomTo(b.x, b.y, 20, 2000);
+                      getViewApi().zoomTo(b.x, b.y, 20, 2000);
                     }}
                   />
                 )}

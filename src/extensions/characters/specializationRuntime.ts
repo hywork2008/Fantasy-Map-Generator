@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "../../types/extension-api";
+import type { SimulationExtensionAPI } from "../../types/extension-api";
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { assertObject, validateWorldLanguages } from "../../utils/worldLanguages";
 import { getApi, getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
@@ -59,7 +59,10 @@ export function validateLanguageWorldReferences(world: WorldLanguages): void {
  * `onChanged` lets the UI refresh after a command; the runtime itself never touches UI state
  * (docs/plan/simulation-core-separation.md S1).
  */
-export function registerSpecializationCommands(api: ExtensionAPI, onChanged: () => void = () => {}): () => void {
+export function registerSpecializationCommands(
+  api: SimulationExtensionAPI,
+  onChanged: () => void = () => {}
+): () => void {
   const unregisterProfile = api.registerExtensionCommand({
     extensionId: "characters",
     name: "setSpecializations",
@@ -157,7 +160,7 @@ export function profileForEditing(character: Character) {
 }
 
 /** Characters owns education even on maps without political/court simulation. */
-export function registerSpecializationSimulation(api: ExtensionAPI): () => void {
+export function registerSpecializationSimulation(api: SimulationExtensionAPI): () => void {
   return api.registerSimulationSystem({
     id: "characters.expertise",
     phase: "finalize",

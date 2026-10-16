@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
+  bindEconomyView,
   clearEconomyContext,
   initEconomyContext,
   setRegionalWaterSchemes,
@@ -28,7 +29,11 @@ describe("drawWaterSupply", () => {
   beforeEach(() => {
     node = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const layer = select(node);
-    initEconomyContext({ worldContext, getSvgLayer: () => layer } as unknown as ExtensionAPI);
+    {
+      const api = { worldContext, getSvgLayer: () => layer } as unknown as ExtensionAPI;
+      initEconomyContext(api);
+      bindEconomyView(api);
+    }
 
     // No river cells -> buildInheritedWaterSupplyRoutes()/buildInheritedSewerRoutes() both
     // short-circuit to [] immediately (urbanWaterSupply.ts: `if (!riverCells.length) return [];`),

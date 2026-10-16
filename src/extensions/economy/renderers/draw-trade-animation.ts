@@ -1,7 +1,7 @@
 import { curveCatmullRom, easeLinear, line, select } from "d3";
 import type { Point } from "../../hostCore";
 import { minmax } from "../../hostUtils";
-import { getApi, getCaravans, getTradeAnimLayer, getViewContext, getWorldContext } from "../economyContext";
+import { getCaravans, getTradeAnimLayer, getViewApi, getViewContext, getWorldContext } from "../economyContext";
 import type { Caravan } from "../generators/marketTypes";
 import { TradeAnimation } from "../generators/trade-animation";
 
@@ -86,7 +86,7 @@ export function getCaravanPosition(caravan: Caravan): {
 
 export async function draw(): Promise<void> {
   if (getViewContext().renderMode === "webglHybrid") {
-    getApi().requestWebglRender();
+    getViewApi().requestWebglRender();
     return;
   }
 
@@ -158,7 +158,7 @@ export async function draw(): Promise<void> {
 
 export function clear(): void {
   if (getViewContext().renderMode === "webglHybrid") {
-    getApi().requestWebglRender();
+    getViewApi().requestWebglRender();
     return;
   }
   getTradeAnimLayer()?.selectAll("g.caravan").interrupt().remove();
@@ -220,7 +220,7 @@ export function getCaravanHighlightPoints(caravan: Caravan): Point[] {
 export function highlight(points: Point[]): void {
   highlightedPoints = points;
   if (getViewContext().renderMode === "webglHybrid") {
-    getApi().requestWebglRender();
+    getViewApi().requestWebglRender();
     return;
   }
   const anim = getTradeAnimLayer();
@@ -242,7 +242,7 @@ export function highlight(points: Point[]): void {
 export function clearHighlight(): void {
   highlightedPoints = null;
   if (getViewContext().renderMode === "webglHybrid") {
-    getApi().requestWebglRender();
+    getViewApi().requestWebglRender();
     return;
   }
   getTradeAnimLayer()?.selectAll("path.highlight").remove();

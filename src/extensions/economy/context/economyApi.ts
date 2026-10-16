@@ -18,7 +18,7 @@ load path would otherwise hand sub-modules their own copy of it.
  * module instances when the extension is loaded via a blob URL.
  */
 
-import type { ExtensionAPI } from "../../../types/extension-api";
+import type { ExtensionAPI, SimulationExtensionAPI } from "../../../types/extension-api";
 import { addFrontierApplicants as addFrontierApplicantsToPool } from "../../hostCore";
 import type { ProductionRecord } from "../generators/productionRecordTypes";
 
@@ -34,9 +34,9 @@ export function registerContextFallbackReset(reset: () => void): void {
   _fallbackResets.push(reset);
 }
 
-let _api: ExtensionAPI | null = null;
+let _api: SimulationExtensionAPI | null = null;
 
-export function initEconomyContext(api: ExtensionAPI): void {
+export function initEconomyContext(api: SimulationExtensionAPI): void {
   if (api.races) bindRaceService(api.races);
   _api = api;
 }
@@ -48,11 +48,33 @@ export function initEconomyContext(api: ExtensionAPI): void {
  * added and then silently left out of the teardown.
  */
 export function clearEconomyContext(): void {
+  _viewApi = null;
   _api = null;
   for (const reset of _fallbackResets) reset();
 }
 
-export function getApi(): ExtensionAPI {
+/**
+ * The full browser API, bound by the UI entry (index) after the simulation entry has set the
+ * context. Only UI code (controllers, renderers, dialogs) may use it; the simulation core never
+ * does, so it runs without a view (docs/plan/simulation-core-separation.md §7).
+ */
+let _viewApi: ExtensionAPI | null = null;
+
+export function bindEconomyView(api: ExtensionAPI | null): void {
+  _viewApi = api;
+}
+
+export function getViewApi(): ExtensionAPI {
+  if (!_viewApi) throw new Error("[economy] View API not bound — the UI entry has not run");
+  return _viewApi;
+}
+
+/** The view API when a UI is attached, otherwise null (headless runs, isolated tests). */
+export function getOptionalViewApi(): ExtensionAPI | null {
+  return _viewApi;
+}
+
+export function getApi(): SimulationExtensionAPI {
   if (!_api) throw new Error("[economy] Extension context not initialized — call init(api) first");
   return _api;
 }
@@ -118,7 +140,7 @@ export type EconomySlice = Record<string, unknown>;
 
 /**
  * The economy extension's namespaced simulation slice, created on first access.
- * Returns null when `simulationContext` isn't provided (e.g. minimal `ExtensionAPI` test
+ * Returns null when `simulationContext` isn't provided (e.g. minimal `SimulationExtensionAPI` test
  * doubles) — callers fall back to `pack`/`pack.cells` directly, mirroring
  * `getProductionTable()`'s fallback above.
  */
@@ -227,7 +249,7 @@ export function writeYearToSlice(field: string, year: number, assignFallback: (v
 }
 
 export function getViewContext() {
-  return getApi().viewContext;
+  return getViewApi().viewContext;
 }
 
 export function getAppServices() {
@@ -235,43 +257,43 @@ export function getAppServices() {
 }
 
 export function getGoodsLayer() {
-  return getApi().getSvgLayer("goods");
+  return getViewApi().getSvgLayer("goods");
 }
 
 export function getMarketsLayer() {
-  return getApi().getSvgLayer("marketsLayer");
+  return getViewApi().getSvgLayer("marketsLayer");
 }
 
 export function getMarketsFillLayer() {
-  return getApi().getSvgLayer("marketsLayerFill");
+  return getViewApi().getSvgLayer("marketsLayerFill");
 }
 
 export function getTradeAnimLayer() {
-  return getApi().getSvgLayer("tradeAnimation");
+  return getViewApi().getSvgLayer("tradeAnimation");
 }
 
 export function getMineralDepositsLayer() {
-  return getApi().getSvgLayer("mineralDeposits");
+  return getViewApi().getSvgLayer("mineralDeposits");
 }
 
 export function getDamsLayer() {
-  return getApi().getSvgLayer("dams");
+  return getViewApi().getSvgLayer("dams");
 }
 
 export function getLeveesLayer() {
-  return getApi().getSvgLayer("levees");
+  return getViewApi().getSvgLayer("levees");
 }
 
 export function getWaterSupplyLayer() {
-  return getApi().getSvgLayer("waterSupply");
+  return getViewApi().getSvgLayer("waterSupply");
 }
 
 export function getSewerageLayer() {
-  return getApi().getSvgLayer("sewerage");
+  return getViewApi().getSvgLayer("sewerage");
 }
 
 export function getPowerGridLayer() {
-  return getApi().getSvgLayer("powerGrid");
+  return getViewApi().getSvgLayer("powerGrid");
 }
 
 /**
