@@ -11,7 +11,11 @@
 
 import type { TechnologyDefinition } from "./technologyTypes";
 
-/** Stage 0: mature medieval baseline — seeded adopted/diffused at map init. */
+/**
+ * Stage 0: mature medieval baseline — seeded diffused at map init from highMedieval onward.
+ * Earlier periods seed some of these lower (technologyProgress.ts EARLY_PERIOD_START_STAGE);
+ * the thresholds below only matter for those maps (classical-antiquity-historical-period.md §5.1).
+ */
 const START_PROFILE: readonly TechnologyDefinition[] = [
   {
     id: "threeFieldAgriculture",
@@ -20,9 +24,10 @@ const START_PROFILE: readonly TechnologyDefinition[] = [
     scope: "state",
     prerequisites: [],
     startStage: "diffused",
-    known: {},
-    demonstrated: {},
-    adopted: {}
+    known: { min: { urbanPopulation: 3 } },
+    demonstrated: { min: { urbanPopulation: 6, treasury: 10 } },
+    adopted: { min: { urbanPopulation: 10, treasury: 20, administration: 0.08 } },
+    minimumYearsAtPreviousStage: { demonstrated: 20, adopted: 40 }
   },
   {
     id: "ironToolsAndDraftAnimals",
@@ -44,7 +49,8 @@ const START_PROFILE: readonly TechnologyDefinition[] = [
     startStage: "diffused",
     known: {},
     demonstrated: {},
-    adopted: {}
+    adopted: { min: { woodworking: 0.1, urbanPopulation: 5 } },
+    minimumYearsAtPreviousStage: { adopted: 20 }
   },
   {
     id: "basicMetallurgy",
@@ -86,9 +92,10 @@ const START_PROFILE: readonly TechnologyDefinition[] = [
     scope: "state",
     prerequisites: [],
     startStage: "diffused",
-    known: {},
-    demonstrated: {},
-    adopted: {}
+    known: { min: { metallurgy: 0.08 } },
+    demonstrated: { min: { metallurgy: 0.15, treasury: 15 } },
+    adopted: { min: { metallurgy: 0.25, treasury: 30, administration: 0.08 } },
+    minimumYearsAtPreviousStage: { demonstrated: 20, adopted: 40 }
   },
   {
     id: "literacyAndMarkets",
@@ -99,7 +106,8 @@ const START_PROFILE: readonly TechnologyDefinition[] = [
     startStage: "diffused",
     known: {},
     demonstrated: {},
-    adopted: {}
+    adopted: { min: { administration: 0.1, urbanPopulation: 8 } },
+    minimumYearsAtPreviousStage: { adopted: 30 }
   }
 ];
 

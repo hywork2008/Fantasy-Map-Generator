@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { TECHNOLOGY_DEFINITIONS } from "./technologyDefinitions";
 import {
   explainTechnologyGate,
@@ -29,22 +30,7 @@ import {
 } from "./technologyProgress";
 import { createEmptyTechnologySimulationState, type TechnologyProgress } from "./technologyTypes";
 
-function installMinimalWorld(
-  opts: {
-    gunpowder?: boolean;
-    historicalPeriod?:
-      | "earlyMedieval"
-      | "highMedieval"
-      | "lateMedieval"
-      | "ageOfExploration"
-      | "maritimeEra"
-      | "preIndustrialEra"
-      | "steamEra"
-      | "industrialChemistryEra"
-      | "petroleumEra"
-      | "rocketryEra";
-  } = {}
-): void {
+function installMinimalWorld(opts: { gunpowder?: boolean; historicalPeriod?: HistoricalPeriod } = {}): void {
   worldContext.options = {
     ...(worldContext.options ?? {}),
     gunpowderEraEnabled: opts.gunpowder ?? false,
@@ -247,6 +233,49 @@ describe("technologyProgress", () => {
     installMinimalWorld({ gunpowder: true, historicalPeriod: "lateMedieval" });
     seedTechnologyStartProfile(1200);
     expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
+  });
+
+  it("seeds periods before the mature-medieval profile below it, and Roman head starts on era 1", () => {
+    installMinimalWorld({ historicalPeriod: "classicalAntiquity" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("locked");
+    expect(getTechnologyStage("knightlyWarfare", 1)).toBe("locked");
+    expect(getTechnologyStage("waterAndWindMills", 1)).toBe("demonstrated");
+    expect(getTechnologyStage("ironToolsAndDraftAnimals", 1)).toBe("adopted");
+    expect(getTechnologyStage("stoneBuildingAndRoads", 1)).toBe("diffused");
+    expect(getTechnologyStage("urbanCoveredDrainage", 1)).toBe("demonstrated");
+    expect(getTechnologyStage("commercialFinance", 1)).toBe("known");
+    expect(getTechnologyStage("hospitalMedicine", 1)).toBe("locked");
+
+    resetTechnologyProgress();
+    installMinimalWorld({ historicalPeriod: "earlyMedieval" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("demonstrated");
+    expect(getTechnologyStage("knightlyWarfare", 1)).toBe("demonstrated");
+    expect(getTechnologyStage("literacyAndMarkets", 1)).toBe("demonstrated");
+    expect(getTechnologyStage("urbanCoveredDrainage", 1)).toBe("locked");
+
+    // From highMedieval on, the era 0 profile is unchanged.
+    resetTechnologyProgress();
+    installMinimalWorld({ historicalPeriod: "highMedieval" });
+    seedTechnologyStartProfile(1200);
+    for (const def of TECHNOLOGY_DEFINITIONS.filter(d => d.era === 0)) {
+      expect(getTechnologyStage(def.id, 1)).toBe("diffused");
+    }
+  });
+
+  it("lets era 0 nodes seeded low by an early period climb through their own thresholds", () => {
+    installMinimalWorld({ historicalPeriod: "classicalAntiquity" });
+    seedTechnologyStartProfile(1200);
+    settleTechnologyAnnual(1200);
+    // Population alone makes three-field rotation known, but demonstration waits for time.
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("known");
+    for (let year = 1201; year <= 1260; year++) settleTechnologyAnnual(year);
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("demonstrated");
+    // Adoption needs administration, which this minimal world never accumulates.
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).not.toBe("adopted");
+    // An adopted start keeps diffusing instead of being frozen by the start-profile skip.
+    expect(getTechnologyStage("ironToolsAndDraftAnimals", 1)).toBe("diffused");
   });
 
   it("gives naval states priority, then compact states, in the seeded maritime profile", () => {

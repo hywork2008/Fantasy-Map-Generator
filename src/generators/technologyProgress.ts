@@ -389,6 +389,49 @@ const HISTORICAL_PERIOD_FRONTIER_ERA: Readonly<Partial<Record<HistoricalPeriod, 
   rocketryEra: 8
 };
 
+/**
+ * Start stages for periods before the mature-medieval start profile
+ * (docs/plan/classical-antiquity-historical-period.md §5.1–5.3). Era 0 nodes that did not yet
+ * exist (three-field rotation, knights) start low and climb through their own thresholds in
+ * technologyDefinitions.ts; Roman achievements the Middle Ages lost are expressed as head starts
+ * on the existing era 1 nodes that later rebuild them (§5.2), never as new nodes.
+ * hospitalMedicine is deliberately absent: at "known" it makes every state fund a trial
+ * hospital, which a Roman legionary valetudinarium does not justify.
+ */
+const EARLY_PERIOD_START_STAGE: Readonly<Partial<Record<HistoricalPeriod, Readonly<Record<string, TechnologyStage>>>>> =
+  {
+    classicalAntiquity: {
+      threeFieldAgriculture: "locked",
+      ironToolsAndDraftAnimals: "adopted",
+      waterAndWindMills: "demonstrated",
+      knightlyWarfare: "locked",
+      urbanCoveredDrainage: "demonstrated",
+      commercialFinance: "known",
+      mathAstronomyGeography: "known",
+      recordReplication: "known",
+      surgicalAnatomy: "known"
+    },
+    lateAntiquity: {
+      threeFieldAgriculture: "known",
+      ironToolsAndDraftAnimals: "adopted",
+      waterAndWindMills: "adopted",
+      knightlyWarfare: "known",
+      literacyAndMarkets: "adopted",
+      urbanCoveredDrainage: "known",
+      mathAstronomyGeography: "known",
+      recordReplication: "known",
+      surgicalAnatomy: "known"
+    },
+    earlyMedieval: {
+      threeFieldAgriculture: "demonstrated",
+      ironToolsAndDraftAnimals: "adopted",
+      waterAndWindMills: "adopted",
+      stoneBuildingAndRoads: "adopted",
+      knightlyWarfare: "demonstrated",
+      literacyAndMarkets: "demonstrated"
+    }
+  };
+
 const MARITIME_START_TECHNOLOGIES = new Set([
   "oceanNavigation",
   "oceanGoingHulls",
@@ -448,6 +491,8 @@ function resolveStartStage(
     const override = period && GUNPOWDER_ERA2_START_STAGE_BY_PERIOD[period];
     if (override) return override;
   }
+  const early = period && EARLY_PERIOD_START_STAGE[period];
+  if (early && Object.hasOwn(early, def.id)) return early[def.id];
   const frontierEra = period && HISTORICAL_PERIOD_FRONTIER_ERA[period];
   if (frontierEra !== undefined) {
     if (def.era < frontierEra) return "diffused";
@@ -542,12 +587,17 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
 
     for (const def of active) {
       if (def.scope !== "state") continue;
-      if (def.startStage && technologyStageRank(def.startStage) >= technologyStageRank("adopted")) {
-        continue; // start profile does not re-evaluate downward
-      }
-
       const key = progressKey(def.id, "state", stateId);
       let entry = byKey.get(key);
+      // A start-profile node already at its profile stage never re-evaluates. Earlier periods seed
+      // some of them lower (EARLY_PERIOD_START_STAGE), and those climb like any other node.
+      if (
+        def.startStage &&
+        technologyStageRank(def.startStage) >= technologyStageRank("adopted") &&
+        (!entry || technologyStageRank(entry.stage) >= technologyStageRank(def.startStage))
+      ) {
+        continue;
+      }
       if (!entry) {
         entry = {
           technologyId: def.id,
