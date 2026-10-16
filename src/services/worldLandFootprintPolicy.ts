@@ -5,18 +5,14 @@ import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "./riverGeometry";
 import { footprintTouchesWater, validWaterPolygon } from "./riverPhysicalGeometry";
 import { SpatialBoundsIndex } from "./spatialBoundsIndex";
 import { worldCellConvexPieces } from "./worldCellGeometry";
+import type { WorldFootprintPolicySettings } from "./worldLandFootprintPolicy.types";
 
 export interface WorldLandCellPolicy {
   cellId: number;
   stateId: number;
   height: number;
 }
-export interface WorldFootprintPolicySettings {
-  maxCells: number;
-  maxVertices: number;
-  maxClipOperations: number;
-  maxRemainingPieces: number;
-}
+
 export type WorldFootprintAssessment =
   | { status: "allowed" }
   | { status: "blocked"; reason: "outside-world" | "forbidden-cell" | "unsupported-cell" | "uncovered-region" }
@@ -220,3 +216,5 @@ export function buildPolygonLandFootprintPolicy(
     }
   });
 }
+
+export type { WorldFootprintPolicySettings } from "./worldLandFootprintPolicy.types";

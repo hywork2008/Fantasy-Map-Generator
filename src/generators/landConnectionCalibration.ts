@@ -1,34 +1,9 @@
 import type { WorldContext } from "../context/worldContext";
 import type { LandConnectionAssessmentSettings } from "./landConnectionAssessment";
+import type { ConnectionCityImportance, LandConnectionCalibration } from "./landConnectionCalibration.types";
 import type { ProvisionalRiverCrossing } from "./riverCrossingCandidates";
 import { getSettlementBaseSize } from "./settlementSuitability";
-import type { WorldConnectionPair } from "./worldLandConnectionProposals";
-
-/** Explicit game coefficients. These scores are not travel time or currency.
- * Geometry precision and engineering capability are deliberately separate. */
-export interface LandConnectionCalibration {
-  baseSizeReference: number;
-  maximumImportance: number;
-  capitalBonus: number;
-  portBonus: number;
-  allowanceMeters: number;
-  maximumAllowanceMeters: number;
-  constructionAllowanceMeters: number;
-  maximumConstructionMeters: number;
-  bridgeFixedCostMeters: number;
-  bridgeCostPerSquareMeter: number;
-  bridgeLongSpanCostPerCubicMeter: number;
-  bridgeUseCostMeters: number;
-  bridgeUseCostPerMeter: number;
-  approachCostPerSquareMeter: number;
-}
-export interface ConnectionCityImportance {
-  id: number;
-  /** Shared food/climate base size, available before population is finalized. */
-  baseSize: number;
-  capital: boolean;
-  port: boolean;
-}
+import type { WorldConnectionPair } from "./worldConnectionPair";
 
 export function validateLandConnectionCalibration(settings: LandConnectionCalibration): void {
   if (
@@ -170,3 +145,5 @@ export function calibrateWorldLandConnectionPair(
   };
   return calibrateLandConnectionPair(id, readCity(cityAId), readCity(cityBId), settings, assessment);
 }
+
+export type { ConnectionCityImportance, LandConnectionCalibration } from "./landConnectionCalibration.types";

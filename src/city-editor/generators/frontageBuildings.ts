@@ -1,4 +1,5 @@
-import type { Point } from "../types/document";
+import type { Point } from "../types/primitives";
+import type { Front, FrontageOptions } from "./frontageBuildings.types";
 import { polygonArea } from "./geom";
 import { clipHalfPlane } from "./lotGeometry";
 import { occupancyDraws } from "./occupancyDraws";
@@ -10,26 +11,6 @@ const add = (a: Point, b: Point): Point => [a[0] + b[0], a[1] + b[1]];
 const scale = (a: Point, s: number): Point => [a[0] * s, a[1] * s];
 const area = (p: Point[]) => Math.abs(polygonArea(p));
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-
-export interface FrontageOptions {
-  housingCluster?: boolean;
-  lotArea: number;
-  coverage: number;
-  occupancy: number;
-  outskirts: boolean;
-  /** Coverage applies to the complete block, leaving one compact courtyard. */
-  perimeter?: boolean;
-  /** Compact town houses: vary shallow rectangular footprints along a street wall. */
-  compact?: boolean;
-  /** Short attached houses; shallow opposing rows share their rear boundary. */
-  attached?: boolean;
-  /** Main-road fronts are occupied before secondary lanes. */
-  primaryEdges?: number[];
-  /** Organic streets and houses use the same dwelling-depth scale. */
-  rowDepth?: number;
-}
-
-export type Front = { a: Point; axis: Point; inward: Point; length: number; offset: number; primary: boolean };
 
 /** Pack a convex block from its accessible edges. Lot cuts never become roads.
  * Nearest-frontage half-planes allocate corners before placing buildings, so
@@ -536,3 +517,5 @@ function insideConvex(p: Point, poly: Point[]): boolean {
   }
   return true;
 }
+
+export type { Front, FrontageOptions } from "./frontageBuildings.types";

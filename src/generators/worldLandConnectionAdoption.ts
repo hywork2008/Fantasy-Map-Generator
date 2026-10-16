@@ -6,18 +6,12 @@ import {
 } from "./landConnectionAdoption";
 import { exportRegisteredLandRouteSections } from "./registeredLandRouteSections";
 import type { WorldCellLandProposalResult } from "./worldCellLandConnectionProposals";
-import {
-  getWorldLandProposalContext,
-  type WorldLandProposalContext,
-  type WorldLandProposalResult
-} from "./worldLandConnectionProposals";
+import type { PrioritizedLandAdoptionSettings } from "./worldLandConnectionAdoption.types";
+import { getWorldLandProposalContext } from "./worldLandConnectionProposals";
+import type { WorldLandProposalContext, WorldLandProposalResult } from "./worldLandConnectionProposals.types";
 
 export type WorldLandAdoptionSelection = { kind: "individual"; pairId: number } | { kind: "shared"; groupId?: number };
-export interface PrioritizedLandAdoptionSettings {
-  maxSelections: number;
-  maxCurrentEvaluations: number;
-  maxRelatedReevaluations: number;
-}
+
 export interface PrioritizedLandAdoptionReport {
   status: "completed" | "budget" | "unresolved";
   reason?: string;
@@ -296,3 +290,5 @@ class WorldLandConnectionSession {
     return committed;
   }
 }
+
+export type { PrioritizedLandAdoptionSettings } from "./worldLandConnectionAdoption.types";

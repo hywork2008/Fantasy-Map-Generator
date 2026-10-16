@@ -1,6 +1,6 @@
-import type { Point } from "../types/document";
+import type { Point } from "../types/primitives";
 import { pointInPolygon, polygonArea } from "./geom";
-import type { CityFabric } from "./localInfill";
+import type { CityFabric } from "./localInfill.types";
 
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const area = (p: Point[]) => Math.abs(polygonArea(p));

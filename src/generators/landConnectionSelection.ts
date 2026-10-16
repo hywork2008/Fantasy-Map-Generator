@@ -2,30 +2,16 @@ import type { WorldContext } from "../context/worldContext";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import type { ConstrainedLandNetwork } from "./constrainedLandNetwork";
 import type { LandConnectionAssessmentSettings } from "./landConnectionAssessment";
-import {
-  calibrateWorldLandConnectionPair,
-  type LandConnectionCalibration,
-  validateLandConnectionCalibration
-} from "./landConnectionCalibration";
-import type { WorldConnectionPair } from "./worldLandConnectionProposals";
-
-export interface NearbyConnectionSettings {
-  maxCities: number;
-  maxNeighbourChecks: number;
-  maxNeighboursPerCity: number;
-  maxPairs: number;
-  radiusMeters: number;
-  firstPairId: number;
-}
-export type NearbyConnectionResult =
-  | {
-      status: "selected";
-      pairs: readonly WorldConnectionPair[];
-      checks: number;
-      candidates: number;
-      truncated: boolean;
-    }
-  | { status: "unresolved"; reason: "invalid-input" | "city-budget" | "neighbour-budget"; checks: number };
+import { calibrateWorldLandConnectionPair, validateLandConnectionCalibration } from "./landConnectionCalibration";
+import type { LandConnectionCalibration } from "./landConnectionCalibration.types";
+import type {
+  NearbyConnectionResult,
+  NearbyConnectionSettings,
+  SharedFacilityGroup,
+  SharedFacilitySelectionResult,
+  SharedFacilitySelectionSettings
+} from "./landConnectionSelection.types";
+import type { WorldConnectionPair } from "./worldConnectionPair";
 
 /** Spatial buckets bound checks independently of the map's total pair count.
  * Keep each city's nearest neighbours, then prioritize by finite importance /
@@ -132,22 +118,6 @@ export function selectNearbyWorldConnectionPairs(
     return fail("invalid-input");
   }
 }
-
-export interface SharedFacilitySelectionSettings {
-  maxGroups: number;
-  maxPairsPerGroup: number;
-  maxFacilitiesPerGroup: number;
-  maxChecks: number;
-}
-export interface SharedFacilityGroup {
-  id: number;
-  pairIds: readonly number[];
-  facilityIds: readonly number[];
-  connectionIds: readonly number[];
-}
-export type SharedFacilitySelectionResult =
-  | { status: "selected"; groups: readonly SharedFacilityGroup[]; checks: number; truncated: boolean }
-  | { status: "unresolved"; reason: "invalid-input" | "group-budget"; checks: number };
 
 /** Evaluate single shared facilities and whole facility bundles observed on
  * candidate routes. No powerset enumeration. A group cannot borrow a new bridge
@@ -262,3 +232,11 @@ export function selectSharedFacilityGroups(
     groups: groups.slice(0, settings.maxGroups).map((group, id) => ({ ...group, id }))
   };
 }
+
+export type {
+  NearbyConnectionResult,
+  NearbyConnectionSettings,
+  SharedFacilityGroup,
+  SharedFacilitySelectionResult,
+  SharedFacilitySelectionSettings
+} from "./landConnectionSelection.types";

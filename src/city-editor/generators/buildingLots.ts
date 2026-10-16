@@ -1,6 +1,8 @@
 // MIT, independently implemented from the reference city's output geometry.
-import type { CityDocument, Face, Id, Point } from "../types/document";
+import type { CityDocument, Face } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { buildBlockFabric } from "./blockInfill";
+import type { BuildingLot } from "./buildingLots.types";
 import { buildingHitsCivicLandmark } from "./civicClearance";
 import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
 import { FixedRoadReservation } from "./fixedRoadReservation";
@@ -13,24 +15,6 @@ import { facePoints, indexMeshEdges } from "./mesh";
 import { MoatReservation } from "./moats";
 import { makeRng } from "./prng";
 import { polygonHitsDocumentWater } from "./waterGeometry";
-
-export interface BuildingLot {
-  residentialCluster?: import("../types/contracts/population").ResidentialCluster;
-  faceId: Id;
-  polygon: Point[];
-  landmark: boolean;
-  id?: Id;
-  parcelId?: Id;
-  archetype?: import("./parcelTypes").ParcelArchetype;
-  role?: "main" | "wing" | "store" | "workshop" | "stable" | "shed";
-  uses?: Array<"residential" | "retail" | "storage" | "craft">;
-  storeys?: number;
-  growthRegionId?: string;
-  residentialFloorShare?: number;
-  /** The random draw its occupancy test used: the lot is built while its district's occupancy exceeds it.
-   * Lets the housing fit count a lower occupancy without rebuilding (absent: always built). */
-  occupancyDraw?: number;
-}
 
 /** Buildings are derived from the edited mesh, never a second source of street
  * geometry. Per-face random streams keep unrelated edits from shuffling lots. */
@@ -166,3 +150,5 @@ function buildFaceLots(
       )
     : result;
 }
+
+export type { BuildingLot } from "./buildingLots.types";

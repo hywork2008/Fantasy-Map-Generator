@@ -6,8 +6,9 @@
  * arc of the outline where its gate will stand. The castle is placed beside
  * these, never on them.
  */
-import type { CityDocument, Id, Mesh, Point } from "../types/document";
+import type { CityDocument, Mesh } from "../types/document";
 import type { BorderLoop, CityGeography } from "../types/geometry";
+import type { Id, Point } from "../types/primitives";
 import { castleRoadEdgeAllowed } from "./castles";
 import { insideRing } from "./fortifications";
 import {

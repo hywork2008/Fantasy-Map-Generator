@@ -1,7 +1,8 @@
 import type { WorldContext } from "../context/worldContext";
 import type { LandConnectionAssessment } from "../generators/landConnectionAssessment";
 import type { SharedConnectionAssessment } from "../generators/sharedLandConnectionAssessment";
-import type { WorldConnectionPair, WorldLandProposalResult } from "../generators/worldLandConnectionProposals";
+import type { WorldConnectionPair } from "../generators/worldConnectionPair";
+import type { WorldLandProposalResult } from "../generators/worldLandConnectionProposals.types";
 
 export interface LandProposalExplanation {
   key: string;

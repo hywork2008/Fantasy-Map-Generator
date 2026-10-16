@@ -7,7 +7,8 @@ import { faceNeighbors, facePoints, faceVertices } from "../generators/mesh";
 import { regionalCoastalWaterPolygons, regionalSurfaceLayers } from "../generators/regionalCoast";
 import { townExtentMeters } from "../generators/settlementExtent";
 import { waterPolygons } from "../generators/waterGeometry";
-import type { CityDocument, Id, Point, Tool } from "../types/document";
+import type { CityDocument, Tool } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import type { RenderSelection, SvgPickInfo } from "../types/selection";
 import { renderCastles } from "./castleLayerSvg";
 import { renderCemeteries } from "./cemeterySvg";
@@ -31,13 +32,12 @@ import { appendFaceSelectionLabels, type GridOverlay, renderGridOverlay } from "
 import { renderPreviewSymbols } from "./previewSymbols";
 import { renderRegionalSettlements } from "./regionalSvg";
 import type { RenderContext } from "./renderContext";
+import type { RenderQuality } from "./renderQuality";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { frameScene } from "./sceneFrameSvg";
 import { element, line, polygon } from "./svgPrimitives";
 import { renderTownFabric, type TownLayerPlans } from "./townFabricSvg";
 import { renderTownStructures } from "./townStructuresSvg";
-
-export type RenderQuality = "auto" | "detailed" | "light" | "minimal";
 
 export function renderEditorSvg(
   document: CityDocument,
@@ -347,3 +347,5 @@ export function renderEditorSvg(
   mark("svg-details");
   return svg;
 }
+
+export type { RenderQuality } from "./renderQuality";

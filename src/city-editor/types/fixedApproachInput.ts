@@ -1,7 +1,8 @@
 import type { ApproachCorridorSettings } from "../../generators/approachCorridorSearch";
 import type { RiverPoint } from "../../services/riverGeometry";
 import type { PhysicalWaterPolygon } from "../../services/riverPhysicalGeometry";
-import type { Id } from "./document";
+import type { Id } from "./primitives";
+
 export interface FixedApproachInput {
   facilityId: number;
   side: "A" | "B";

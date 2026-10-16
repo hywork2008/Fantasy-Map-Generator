@@ -9,18 +9,11 @@
  * Methods are historically attested disposal practices, simplified to six mechanically
  * distinct rites. Labels are English identifiers; UI translates them.
  */
+
+import { FUNERAL_RITES, type FuneralRite } from "../types/funeralRites";
 import type { CultureType } from "../types/models";
 
-export const FUNERAL_RITES = [
-  "inhumation",
-  "cremation",
-  "skyBurial",
-  "waterBurial",
-  "mummification",
-  "exposure"
-] as const;
-
-export type FuneralRite = (typeof FUNERAL_RITES)[number];
+export { FUNERAL_RITES, type FuneralRite } from "../types/funeralRites";
 
 export const DEFAULT_FUNERAL_RITE: FuneralRite = "inhumation";
 

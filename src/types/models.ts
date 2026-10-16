@@ -356,7 +356,7 @@ export interface Burg {
   riverSiteStatus?: { riverId: number; status: "placed" | "unresolved"; reason?: string };
   /** Set when this port fails the waterfront check (src/services/waterfrontSettlement.ts):
    * FMG placement must be fixed; City Editor never moves the water to the town. */
-  waterfrontCheck?: { status: "failed"; issues: import("../services/waterfrontSettlement").WaterfrontIssue[] };
+  waterfrontCheck?: { status: "failed"; issues: import("./waterfrontSettlement").WaterfrontIssue[] };
   /** Water contact and usable port frontages, refreshed from FMG cell topology. */
   waterAccess?: import("./burgWater").BurgWaterAccess;
   cell: number;
@@ -873,7 +873,7 @@ export interface Route {
   /** Exact physical shape is resolved through the current world registry. */
   registeredConnectionId?: number;
   /** Actual road/channel intersections resolved after candidate water routes. */
-  riverCrossings?: import("../utils/riverCrossing").RiverRouteCrossing[];
+  riverCrossings?: import("../utils/riverCrossing.types").RiverRouteCrossing[];
   i: number;
   group: string;
   feature: number;

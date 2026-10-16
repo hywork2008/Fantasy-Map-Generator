@@ -2,133 +2,34 @@ import { quadtree } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import { bridgePassageFootprint } from "../services/bridgePassageGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
-import type { PhysicalWaterPolygon } from "../services/riverPhysicalGeometry";
 import { publishWorldLandProposalReport, recordWorldLandProposalAdoption } from "../services/worldLandProposalReport";
 import type { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import {
   buildConstrainedLandNetwork,
-  type ConstrainedLandNetwork,
   findConstrainedLandRoute,
   type NetworkConnection,
   type NetworkEnvironment,
-  type NetworkNode,
-  type NetworkRouteResult,
-  type NetworkSearchSettings
+  type NetworkNode
 } from "./constrainedLandNetwork";
-import {
-  assessLandConnection,
-  type LandConnectionAssessment,
-  type LandConnectionAssessmentSettings
-} from "./landConnectionAssessment";
-import {
-  type SharedFacilityGroup,
-  type SharedFacilitySelectionSettings,
-  selectSharedFacilityGroups
-} from "./landConnectionSelection";
-import type { CrossingCandidateInput, ProvisionalRiverCrossing } from "./riverCrossingCandidates";
-import {
-  assessSharedLandConnections,
-  type SharedConnectionAssessment,
-  type SharedConnectionSettings
-} from "./sharedLandConnectionAssessment";
+import { assessLandConnection } from "./landConnectionAssessment";
+import { selectSharedFacilityGroups } from "./landConnectionSelection";
+import type { SharedFacilityGroup } from "./landConnectionSelection.types";
+import type { CrossingCandidateInput } from "./riverCrossingCandidates";
+import { assessSharedLandConnections } from "./sharedLandConnectionAssessment";
 import { getStateBridgeSkewLimit } from "./technologyProgress";
-import {
-  connectWorldRiverCrossingApproaches,
-  type WorldCrossingApproachSettings
-} from "./worldRiverCrossingApproaches";
-import {
-  generateWorldRiverCrossingCandidates,
-  type WorldCrossingCandidateReport,
-  type WorldCrossingCandidateSettings
-} from "./worldRiverCrossingCandidates";
+import type { WorldConnectionPair } from "./worldConnectionPair";
+import type {
+  WorldLandProposalContext,
+  WorldLandProposalResult,
+  WorldProposalDiagnostics,
+  WorldProposalEnvironment,
+  WorldProposalSettings
+} from "./worldLandConnectionProposals.types";
+import { connectWorldRiverCrossingApproaches } from "./worldRiverCrossingApproaches";
+import type { WorldCrossingApproachSettings } from "./worldRiverCrossingApproaches.types";
+import { generateWorldRiverCrossingCandidates } from "./worldRiverCrossingCandidates";
 
-export interface WorldConnectionPair {
-  id: number;
-  cityAId: number;
-  cityBId: number;
-  weight: number;
-  assessmentSettings?: Pick<LandConnectionAssessmentSettings, "maxConstructionCostMeters" | "maxRouteCostMeters">;
-  unconnectedAllowanceMeters: number;
-  startTangent?: RiverPoint;
-  goalTangent?: RiverPoint;
-}
-export interface WorldProposalEnvironment {
-  nonRiverWater: readonly PhysicalWaterPolygon[];
-  supportsDryFootprint: (footprint: readonly RiverPoint[]) => boolean;
-  /** Whole occupied regions in metres, including bridge water: politics/diplomacy/allowed regions. */
-  allowsPassageFootprint: (footprint: readonly RiverPoint[]) => boolean;
-  capabilityAt: (riverId: number, arcLengthMeters: number) => CrossingCandidateInput["capability"];
-  facilityCostsAt: (crossing: ProvisionalRiverCrossing) => { constructionCostMeters: number; useCostMeters: number };
-  approachConstructionCostAt: (
-    crossing: ProvisionalRiverCrossing,
-    cityAId: number,
-    cityBId: number,
-    corridorLengthsMeters: readonly [number, number]
-  ) => number;
-}
-export interface WorldProposalSettings {
-  crossings: WorldCrossingCandidateSettings;
-  approaches: Pick<WorldCrossingApproachSettings, "guides" | "corridor">;
-  network: Pick<
-    Parameters<typeof buildConstrainedLandNetwork>[0],
-    "maxNodes" | "maxEdges" | "maxCorridorPieces" | "maxGuideNodes" | "maxGuideEdges"
-  >;
-  maxPairs: number;
-  maxApproachAttempts: number;
-  maxAssessmentSearches: number;
-  firstConnectionId: number;
-  search: NetworkSearchSettings;
-  individual: LandConnectionAssessmentSettings;
-  shared: SharedConnectionSettings;
-  sharedSelection?: SharedFacilitySelectionSettings;
-}
-export interface WorldProposalDiagnostics {
-  enumeration: WorldCrossingCandidateReport | null;
-  approachAttempts: number;
-  assessmentSearches: number;
-  approachSearchPeak?: { labels: number; expansions: number };
-  rejected: readonly {
-    facilityId: number;
-    connectionId?: number;
-    cityAId?: number;
-    cityBId?: number;
-    reason: string;
-  }[];
-  individuals: readonly { pairId: number; assessment: LandConnectionAssessment }[];
-  shared?: SharedConnectionAssessment;
-  sharedGroups?: readonly { group: SharedFacilityGroup; assessment: SharedConnectionAssessment }[];
-  groupSelection?: { checks: number; truncated: boolean };
-  sharedBundleSearches?: readonly { pairId: number; result: NetworkRouteResult }[];
-}
-export type WorldLandProposalResult = (
-  | { status: "evaluated"; network: ConstrainedLandNetwork }
-  | {
-      status: "unresolved";
-      reason:
-        | "invalid-input"
-        | "pair-budget"
-        | "candidate-enumeration"
-        | "approach-budget"
-        | "assessment-budget"
-        | "unresolved-water"
-        | "invalid-cost"
-        | "invalid-network"
-        | "assessment-unresolved";
-    }
-) & { diagnostics: WorldProposalDiagnostics };
-export interface WorldLandProposalContext {
-  network: ConstrainedLandNetwork;
-  assessmentSearches: number;
-  environment: NetworkEnvironment;
-  baselineConnectionIds: readonly number[];
-  pairs: readonly WorldConnectionPair[];
-  settings: WorldProposalSettings;
-  worldIdentity: string;
-  sharedGroups: readonly SharedFacilityGroup[];
-  reportAdoption: (kind: "individual" | "shared", id: number | undefined, facilityIds: readonly number[]) => void;
-  nodePointAt: (id: number) => RiverPoint | null;
-}
 const proposalContexts = new WeakMap<WorldLandProposalResult, WorldLandProposalContext>();
 /** Session provenance for the adoption adapter. JSON copies have no current-world contract. */
 export function getWorldLandProposalContext(result: WorldLandProposalResult): WorldLandProposalContext | null {
@@ -604,3 +505,12 @@ export function evaluateWorldLandConnectionProposals(
   publishWorldLandProposalReport(world, result, pairs);
   return result;
 }
+
+export type {
+  WorldConnectionPair,
+  WorldLandProposalContext,
+  WorldLandProposalResult,
+  WorldProposalDiagnostics,
+  WorldProposalEnvironment,
+  WorldProposalSettings
+} from "./worldLandConnectionProposals.types";

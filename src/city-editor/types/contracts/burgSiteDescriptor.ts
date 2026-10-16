@@ -90,7 +90,7 @@ export interface BurgSiteDescriptor {
   /** Total supported crossing allowance; old span-named values are migrated by the shared policy. */
   transport?: BridgeTransport;
   /** Historical period / era from FMG (e.g. "ageOfExploration"). */
-  historicalPeriod?: import("../document").HistoricalPeriod;
+  historicalPeriod?: import("../primitives").HistoricalPeriod;
   rivers: BurgSiteRiver[];
   waterbody: BurgSiteWaterbody | null;
   regionalSurface?: BurgSiteRegionalSurface;
@@ -108,8 +108,8 @@ export interface BurgSiteRiver {
   depthMeters?: number | null;
   /** FMG estimate at the burg cell, or nearest sampled river cell. */
   hydrology?: import("../../../types/models").RiverCellHydrology & { cellId: number };
-  navigationVessel?: import("../../../utils/riverCrossing").NavigationVessel;
-  crossing?: import("../../../utils/riverCrossing").RiverCrossingPlan;
+  navigationVessel?: import("../../../utils/riverCrossing.types").NavigationVessel;
+  crossing?: import("../../../utils/riverCrossing.types").RiverCrossingPlan;
   riverId: number;
   name: string;
   type: string;

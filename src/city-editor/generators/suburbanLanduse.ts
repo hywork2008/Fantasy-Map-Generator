@@ -1,7 +1,8 @@
 import { relationDefense } from "../../utils/urbanMorphology";
-import type { ApproachBeyond, CityDocument, Id, Point } from "../types/document";
+import type { ApproachBeyond, CityDocument } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { evaluateApproachBeyond, externalGateRoads, normalizeApproachBeyond } from "./approachBeyond";
-import type { DistrictFabric } from "./blockInfill";
+import type { DistrictFabric } from "./blockInfill.types";
 import {
   barbicanEra,
   curtainSegments,
@@ -17,19 +18,8 @@ import { townGates } from "./fortifications";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { isSuburb } from "./localInfill";
 import { descriptorRoads, type RoadUse, roadUse, TRADE_RANK, tradeRibbonMeters } from "./roadTraffic";
+import type { ApproachBand, SuburbanProfile } from "./suburbanLanduse.types";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
-
-export type SuburbanProfile = "trade" | "granary" | "frontier" | "rural";
-
-export interface ApproachBand {
-  groupId: Id;
-  /** Gate end first, then the road out to the map boundary. */
-  points: Point[];
-  profile: SuburbanProfile;
-  clearance: number;
-  length: number;
-  gateVertexId?: Id;
-}
 
 /**
  * A recorded traffic rank replaces the neighbour's usefulness as the trade test.
@@ -274,3 +264,5 @@ export function respectsDefenseClearance(
     minClearance
   );
 }
+
+export type { ApproachBand, SuburbanProfile } from "./suburbanLanduse.types";

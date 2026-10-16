@@ -1,7 +1,8 @@
 import type { OpenSpace } from "../types/contracts/parcelTypes";
-import type { CityDocument, DistrictParameters, Id, Point } from "../types/document";
-import type { DistrictFabric } from "./blockInfill";
-import type { BuildingLot } from "./buildingLots";
+import type { CityDocument, DistrictParameters } from "../types/document";
+import type { Id, Point } from "../types/primitives";
+import type { DistrictFabric } from "./blockInfill.types";
+import type { BuildingLot } from "./buildingLots.types";
 import { buildingHitsCivicLandmark } from "./civicClearance";
 import { defaultDistrictParameters, resolveDistricts } from "./fabricDistricts";
 import { circuitRing } from "./fortifications";

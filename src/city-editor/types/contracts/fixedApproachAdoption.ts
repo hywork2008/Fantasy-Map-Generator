@@ -1,6 +1,6 @@
-import type { ApproachCorridor } from "../../../generators/approachCorridorSearch";
 import type { CityDocument } from "../document";
 import type { FixedApproachInput } from "../fixedApproachInput";
+import type { FixedApproachRequest } from "./savedFixedApproach";
 
 export type FixedApproachProvider = (
   /** Resolve against this immutable current-document snapshot, never a captured previous state. */
@@ -8,11 +8,4 @@ export type FixedApproachProvider = (
   document: Readonly<CityDocument>
 ) => Pick<FixedApproachInput, "otherWater" | "supportsDryFootprint" | "allowsMeshEdge"> | null;
 
-export type FixedApproachRequest = Omit<FixedApproachInput, "otherWater" | "supportsDryFootprint" | "allowsMeshEdge">;
-
-export interface SavedFixedApproach {
-  id: string;
-  request: FixedApproachRequest;
-  corridor: ApproachCorridor;
-  geometryVersion: number;
-}
+export type { FixedApproachRequest, SavedFixedApproach } from "./savedFixedApproach";

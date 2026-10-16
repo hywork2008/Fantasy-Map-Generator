@@ -9,7 +9,7 @@ import {
   subtractConvex,
   trimToArea
 } from "./landUseGeometry";
-import type { ClearanceCellInput } from "./settlementClearance";
+import type { ClearanceCellInput } from "./settlementClearance.types";
 
 type Point = [number, number];
 /** Game calibrations, not inferred historical events. */

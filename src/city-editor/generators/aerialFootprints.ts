@@ -1,5 +1,5 @@
-import type { Point } from "../types/document";
-import type { AerialLandmarkPlan } from "./aerialLandmarks";
+import type { Point } from "../types/primitives";
+import type { AerialLandmarkPlan } from "./aerialLandmarks.types";
 import { convexHull } from "./geom";
 
 function circle(center: Point, radius: number, steps = 14): Point[] {

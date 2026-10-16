@@ -1,7 +1,9 @@
 import { measureProcessing, type ProcessingProfiler } from "../../utils/processingProfiler";
-import type { CityDocument, Id, Point } from "../types/document";
+import type { CityDocument } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
-import { type AerialLandmarkPlan, buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
+import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
+import type { DistrictFabric } from "./blockInfill.types";
 import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { laneHitsCivicLandmark } from "./civicClearance";
@@ -28,13 +30,14 @@ import { economyOnDocument, siteEconomyKey } from "./guildFacilities";
 import { type HarborPlan, planHarbor } from "./harborFabric";
 import { rebuildLandmarkHousing } from "./landmarkIntegration";
 import { landmarkReservationHits } from "./landmarks";
-import { buildLocalFabric, type CityFabric, FabricCache, type FarmPlot } from "./localInfill";
+import { buildLocalFabric, FabricCache } from "./localInfill";
+import type { CityFabric, FarmPlot } from "./localInfill.types";
 import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
 import { buildMedievalFabric, medievalStreetDocument } from "./medievalFabric";
 import { edgeBetween, facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { openFieldPlots } from "./openField";
-import { buildParkLawns, type ParkLawn } from "./parkFabric";
+import { buildParkLawns } from "./parkFabric";
 import { buildPolygonalCirculadeFabric } from "./polygonalCirculadeFabric";
 import {
   bramCoreRadiusForCity,
@@ -46,15 +49,8 @@ import { roadTrafficKey } from "./roadTraffic";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
-import { buildWatermillPlan, type WatermillPlan } from "./watermillFabric";
+import { buildWatermillPlan } from "./watermillFabric";
 
-export interface DistrictFabric extends CityFabric {
-  farms: FarmPlot[];
-  parks?: ParkLawn[];
-  watermills?: WatermillPlan;
-  /** Monasteries, windmills, barbicans, tanneries and gallows (aerialLandmarks.ts). */
-  aerialLandmarks?: AerialLandmarkPlan;
-}
 let defaultCache: FabricCache | null = null;
 function getDefaultCache(): FabricCache {
   if (!defaultCache) {
@@ -804,3 +800,5 @@ function buildLegacyBlockFabric(
     finishFabric(document, { buildings, lanes, entrances, farms, parks })
   );
 }
+
+export type { DistrictFabric } from "./blockInfill.types";

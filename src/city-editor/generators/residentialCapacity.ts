@@ -2,7 +2,7 @@ import { URBAN_DWELLING_SIZE } from "../../utils/urbanDwellings";
 import { residentialStoreys } from "../../utils/urbanMorphology";
 import type { HousingCapacityReport } from "../types/contracts/residentialCapacity";
 import type { CityDocument } from "../types/document";
-import type { BuildingLot } from "./buildingLots";
+import type { BuildingLot } from "./buildingLots.types";
 import { polygonArea } from "./geom";
 
 export function isResidentialBuilding(lot: BuildingLot): boolean {

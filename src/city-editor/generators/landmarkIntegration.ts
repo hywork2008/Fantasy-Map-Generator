@@ -1,5 +1,6 @@
-import type { CityDocument, LandmarkPolygon, Point } from "../types/document";
-import type { BuildingLot } from "./buildingLots";
+import type { CityDocument, LandmarkPolygon } from "../types/document";
+import type { Point } from "../types/primitives";
+import type { BuildingLot } from "./buildingLots.types";
 import { nearestOnPolyline, polygonArea } from "./geom";
 import { accessCorridor, landmarkReservationHits, polygonIntersectsLandmark } from "./landmarks";
 import { convexInfillParts, insetConvexKernel, longestFrame } from "./lotGeometry";

@@ -14,18 +14,8 @@ import {
   type LandSharedPortal,
   landGuideNodeId
 } from "./dryLandRouteGraph";
+import type { WorldDryGuideSettings } from "./worldDryLandRouteGraph.types";
 
-export interface WorldDryGuideSettings {
-  spacingMeters: number;
-  roadWidthMeters: number;
-  firstNodeId: number;
-  maxCells: number;
-  maxVertices: number;
-  maxSamples: number;
-  maxSourceNodes: number;
-  maxSourceEdges: number;
-  maxNeighbourChecks: number;
-}
 export type WorldDryGuideResult =
   | {
       graph: Extract<LandRouteGraphResult, { graph: unknown }>["graph"];
@@ -239,3 +229,5 @@ export function buildWorldDryLandRouteGraph(
   for (const [cityId, reference] of cityRefs) cityNodeIds.set(cityId, landGuideNodeId(built.graph, reference)!);
   return { graph: built.graph, cityNodeIds, blockedCityIds: Object.freeze(blockedCityIds), samples, neighbourChecks };
 }
+
+export type { WorldDryGuideSettings } from "./worldDryLandRouteGraph.types";

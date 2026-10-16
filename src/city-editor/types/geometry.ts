@@ -1,6 +1,8 @@
 // Shared types for the City Generator pipeline. See docs/city-generator/design.md §4.
 
+import type { CityProgram } from "./cityProgram";
 import type { GuildDomain } from "./contracts/burgSiteEconomy";
+import type { WallPlan, WallSegmentKind } from "./wallPlan";
 
 export type Point = [number, number];
 
@@ -145,29 +147,6 @@ export interface Building {
   cellId: number;
 }
 
-/** Per-edge kind on a wall ring — decides how (and whether) that run is drawn.
- * See docs/city-generator/wall-patterns.md §6. */
-export type WallSegmentKind = "land" | "coast" | "river" | "citadel";
-
-/**
- * How S4 shapes and draws the wall ring (docs/city-generator/wall-patterns.md).
- * M4b implements `envelope` hull|notchFilled, `coast` open|seaWall, `line`
- * polygonal|organic, `extent` full|none. The remaining members are typed for the
- * §8 matrix / UI and fall back until M4b.1 (sectorPolygon/denseCore/expanded →
- * notchFilled, quayWall/harborBasin/setBack → seaWall, geometric → polygonal,
- * landwardOnly → drop non-land runs, rampart → full).
- */
-export interface WallPlan {
-  envelope: "hull" | "notchFilled" | "sectorPolygon" | "denseCore" | "expanded";
-  coast: "open" | "quayWall" | "seaWall" | "harborBasin" | "setBack" | "opening";
-  line: "organic" | "polygonal" | "geometric";
-  extent: "full" | "landwardOnly" | "rampart" | "none";
-  /** Bridge any inward pocket deeper than this × cellSize (envelope step). */
-  notchDepth: number;
-  /** Outer ditch along the land runs. Carried for the matrix; drawn in M4b.1. */
-  moatOnLand: boolean;
-}
-
 export const DEFAULT_WALL_PLAN: WallPlan = {
   envelope: "notchFilled",
   coast: "open",
@@ -261,7 +240,7 @@ export interface CityGeography {
     cityBank: "left" | "right";
     /** A road may bridge only a channel the site's technology can span. */
     bridgeAllowed: boolean;
-    crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
+    crossing?: import("../../utils/riverCrossing.types").RiverCrossingPlan;
     /** The FMG tributary ends in an imported open-water parent inside this
      * urban window. A direct final leg is valid if graph walking cannot close
      * the junction exactly. */
@@ -296,36 +275,6 @@ export interface CityGeography {
   }[];
   /** FMG's desired number of land gates. Falls back to road bearings when absent. */
   suggestedGates?: number;
-}
-
-/**
- * The built programme the Burg-editor Features decide — what to place, as opposed
- * to the terrain to classify (CityGeography). Orthogonal to geography; all false
- * = an open settlement with nothing built. Sourced from a BurgSiteDescriptor's
- * `burg.*` flags (site/siteInput.ts `siteToProgram`).
- *
- * M4a wires the type and consumes only `walls` (S3 compaction). `citadel` /
- * `plaza` land in S4, `temple` / `port` / `shanty` in S6.
- */
-export interface CityProgram {
-  /** Walled town. Tightens the S3 urban core; S4 promotes the border ring to a
-   * drawn wall. */
-  walls: boolean;
-  /** Fortified inner keep. Placeable with or without a wall. */
-  citadel: boolean;
-  /** Central market square, reserved as a build-free void. */
-  plaza: boolean;
-  /** Cathedral / temple precinct. */
-  temple: boolean;
-  /** Harbour. Only meaningful when a waterbody is present. */
-  port: boolean;
-  /** Extramural shanty (the slum-grade faubourg). */
-  shanty: boolean;
-  /** Capital. A light landmark-rank modifier only. */
-  capital: boolean;
-  /** How S4 shapes and draws the wall ring. Absent ⇒ `DEFAULT_WALL_PLAN`.
-   * `site/siteInput.ts` `siteToProgram` fills it from the §8 matrix. */
-  wallPlan?: WallPlan;
 }
 
 export const DEFAULT_PROGRAM: CityProgram = {
@@ -372,3 +321,6 @@ export interface GenerationResult {
   /** S7 building footprints. Empty Ward cells contribute nothing. */
   buildings: Building[];
 }
+
+export type { CityProgram } from "./cityProgram";
+export type { WallPlan, WallSegmentKind } from "./wallPlan";

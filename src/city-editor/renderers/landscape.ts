@@ -7,8 +7,9 @@ import { makeRng } from "../generators/prng";
 import { regionalSurfaceLayers } from "../generators/regionalCoast";
 import { waterPolygons } from "../generators/waterGeometry";
 import type { BurgSiteBiome } from "../types/contracts/burgSiteDescriptor";
-import type { CityDocument, Point } from "../types/document";
-import type { RenderQuality } from "./editorSvg";
+import type { CityDocument } from "../types/document";
+import type { Point } from "../types/primitives";
+import type { RenderQuality } from "./renderQuality";
 
 export type LandscapeCategory =
   | "forest"

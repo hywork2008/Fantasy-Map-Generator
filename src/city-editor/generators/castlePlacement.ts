@@ -1,7 +1,10 @@
+import type { CastleSettings } from "../types/castle";
 import type { BurgSiteTerrain } from "../types/contracts/burgSiteDescriptor";
-import type { CastleSettings, CityDocument, Id, Mesh, Point } from "../types/document";
+import type { CityDocument } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { type CastleSitingConstraints, emptySitingReport, makeCastleJudge } from "./approachCorridors";
 import { layoutCastle } from "./castleLayout";
+import type { CastleSite } from "./castlePlacement.types";
 import { installCastle } from "./castles";
 import { boundaryEdges, insideRing } from "./fortifications";
 import { azimuthToVec, nearestOnPolyline, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
@@ -24,15 +27,6 @@ export const DEFAULT_CASTLE_SETTINGS: CastleSettings = {
   form: "auto",
   size: "auto"
 };
-export interface CastleSite {
-  seed: string;
-  mesh: Mesh;
-  faceId: Id;
-  position: "edge" | "central";
-  relationship: "integrated" | "detached";
-  form: "keep-bailey" | "courtyard";
-  style?: import("../types/contracts/castlePatterns").CastleStyle;
-}
 
 /**
  * A straight local cut modifies real shared mesh edges, not just an SVG outline.
@@ -577,3 +571,5 @@ function placeCastlePass(
   }
   return null;
 }
+
+export type { CastleSite } from "./castlePlacement.types";

@@ -13,6 +13,7 @@ import {
   isRegisteredLandConnectionSnapshot,
   type LandConnectionSnapshot
 } from "./landConnectionAdoption";
+import type { LandArchiveBudgets } from "./registeredLandConnectionArchive.types";
 import {
   type CrossingCandidateDimensions,
   createProvisionalRiverCrossing,
@@ -60,17 +61,7 @@ export interface RegisteredLandConnectionArchive {
   facilities: readonly { crossing: ProvisionalRiverCrossing; dimensions: CrossingCandidateDimensions }[];
   connections: readonly SavedLandConnection[];
 }
-export interface LandArchiveBudgets {
-  maxJsonCharacters: number;
-  maxFacilities: number;
-  maxNodes: number;
-  maxEdges: number;
-  maxCorridorPieces: number;
-  maxGuideNodes: number;
-  maxGuideEdges: number;
-  /** Caps each saved arc's validation work, independently of untrusted saved settings. */
-  maxArcSections: number;
-}
+
 export interface LandArchiveCurrent {
   /** Same world/physical coordinate identity as the current proposal adapter. */
   worldIdentity: string;
@@ -529,3 +520,5 @@ export function restoreRegisteredLandConnections(
   if (!("network" in built)) return built;
   return createLandConnectionRegistry(built.network, current.environment, budgets, a.revision);
 }
+
+export type { LandArchiveBudgets } from "./registeredLandConnectionArchive.types";

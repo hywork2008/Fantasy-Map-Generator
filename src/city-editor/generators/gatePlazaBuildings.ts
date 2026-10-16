@@ -1,5 +1,6 @@
-import type { CityDocument, Point } from "../types/document";
-import type { BuildingLot } from "./buildingLots";
+import type { CityDocument } from "../types/document";
+import type { Point } from "../types/primitives";
+import type { BuildingLot } from "./buildingLots.types";
 import { pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { gatePlazaDisks } from "./passages";
 

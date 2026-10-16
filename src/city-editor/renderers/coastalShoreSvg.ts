@@ -3,10 +3,11 @@ import { convexInfillParts } from "../generators/lotGeometry";
 import { facePoints } from "../generators/mesh";
 import { corridor, intersectConvex, subtractConvex } from "../generators/parcelGeometry";
 import { waterPolygons } from "../generators/waterGeometry";
-import type { Point } from "../types/document";
+import type { Point } from "../types/primitives";
 import type { LandscapeKeepOut } from "./landscape";
 import type { RenderContext } from "./renderContext";
 import { element, polygon } from "./svgPrimitives";
+
 /** Natural ocean shore: beach band and scrub, which also reserve ground the landscape must keep clear. */
 export function renderCoastalShore(ctx: RenderContext, svg: SVGSVGElement, landscapeKeepOut: LandscapeKeepOut) {
   const { document, town } = ctx;

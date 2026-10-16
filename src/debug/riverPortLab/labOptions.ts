@@ -5,26 +5,9 @@
  */
 import Alea from "alea";
 import { useOptionsState } from "../../store/optionsState";
-import { LAB_SITE_KINDS, type LabSiteKind } from "./classifyRiverSite";
+import { LAB_SITE_KINDS } from "./classifyRiverSite";
+import type { RiverPortLabOptions } from "./labOptions.types";
 import { type LabTerrainGrid, type LabTerrainReport, shapeLabTerrain } from "./labTerrain";
-
-export interface RiverPortLabOptions {
-  enabled: boolean;
-  /** 1 (normal) .. 10: divides the river-forming flux threshold and, with ignoreClimate, scales the rain. */
-  riverDensity: number;
-  /** Replace the climate precipitation with a uniform field (± noise). */
-  ignoreClimate: boolean;
-  /** Outermost grid cells become sea: no river drains off the map. */
-  seaBorder: boolean;
-  /** Minimum land share (0..0.9): shallows become coastal plain so rivers have room to join. */
-  landShare: number;
-  /** Inland lake depressions to carve (lake outlets). */
-  lakes: number;
-  /** Burgs forced onto each site kind, before ordinary towns. */
-  siteQuota: Partial<Record<LabSiteKind, number>>;
-  /** After the quotas, place the remaining ordinary towns as usual. */
-  fillTowns: boolean;
-}
 
 export const DEFAULT_LAB_OPTIONS: RiverPortLabOptions = {
   enabled: false,
@@ -100,3 +83,5 @@ export function applyLabTerrain(grid: LabTerrainGrid, heights: Uint8Array): LabT
   if (!lab) return null;
   return shapeLabTerrain(grid, heights, lab);
 }
+
+export type { RiverPortLabOptions } from "./labOptions.types";

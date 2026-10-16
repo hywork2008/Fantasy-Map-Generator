@@ -1,0 +1,6 @@
+{
+  "detectiveOptions": {
+    "ts": { "skipTypeImports": false },
+    "tsx": { "skipTypeImports": false }
+  }
+}

@@ -1,35 +1,9 @@
 import { type BridgeTransport, resolveBridgeCrossingLimit } from "./bridgeCrossingPolicy";
+import type { NavigationVessel, RiverBridgeTechnology, RiverCrossingPlan } from "./riverCrossing.types";
 
-/** Game capability defaults, not dates of invention or engineering design limits. */
-export interface RiverBridgeTechnology {
-  maxSupportedSpanMeters: number;
-  maxPierDepthMeters: number;
-  fixedClearanceMeters: number;
-  movableOpeningMeters: number;
-}
-export interface NavigationVessel {
-  draftMeters: number;
-  beamMeters: number;
-  airDraftMeters: number;
-}
 export const RIVER_CARGO_VESSEL: NavigationVessel = { draftMeters: 0.8, beamMeters: 4, airDraftMeters: 4 };
 export const SEA_SAILING_VESSEL: NavigationVessel = { draftMeters: 3.5, beamMeters: 10, airDraftMeters: 25 };
-export interface RiverCrossingPlan {
-  kind: "fixedBridge" | "movableBridge" | "ferry" | "none";
-  widthMeters: number;
-  depthMeters: number | null;
-  navigationRequired: boolean;
-  clearanceMeters: number;
-  openingMeters: number;
-  reason:
-    | "fixedClearance"
-    | "movableClearance"
-    | "tooWide"
-    | "deepFoundations"
-    | "navigationClearance"
-    | "unknownDepth"
-    | "shallowWater";
-}
+
 export function riverBridgeTechnology(
   period?: string,
   overrides?: Partial<RiverBridgeTechnology>
@@ -109,9 +83,9 @@ export function planRiverCrossing(input: {
   return fallback("navigationClearance");
 }
 
-export interface RiverRouteCrossing {
-  riverId: number;
-  cellId: number;
-  point: [number, number];
-  plan: RiverCrossingPlan;
-}
+export type {
+  NavigationVessel,
+  RiverBridgeTechnology,
+  RiverCrossingPlan,
+  RiverRouteCrossing
+} from "./riverCrossing.types";

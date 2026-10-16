@@ -1,45 +1,14 @@
-export type Id = string;
-export type Point = [number, number];
-
-export type WaterKind = "land" | "sea" | "lake" | "openWater";
-export type WardKind =
-  | "market"
-  | "castle"
-  | "merchant"
-  | "craftsmen"
-  | "patriciate"
-  | "harbor"
-  | "park"
-  | "farm"
-  | "cemetery"
-  | "empty";
-
-/** Craftsman street taken from a burg's guild practitioners. Same list as GuildDomain. */
-export type CraftDomain =
-  | "metallurgy"
-  | "woodworking"
-  | "masonry"
-  | "textiles"
-  | "leather"
-  | "glassware"
-  | "instruments"
-  | "printing";
-export type BuildingPattern = "legacy" | "medieval";
-export type BuildingComposition = "standard" | "commercial" | "warehouses" | "estates";
-export type HarborPreset = "small" | "dense" | "warehouse";
-
-export type HistoricalPeriod =
-  | "classicalAntiquity"
-  | "earlyMedieval"
-  | "highMedieval"
-  | "lateMedieval"
-  | "ageOfExploration"
-  | "maritimeEra"
-  | "preIndustrialEra"
-  | "steamEra"
-  | "industrialChemistryEra"
-  | "petroleumEra"
-  | "rocketryEra";
+import type {
+  BuildingComposition,
+  BuildingPattern,
+  CraftDomain,
+  HarborPreset,
+  HistoricalPeriod,
+  Id,
+  Point,
+  WardKind,
+  WaterKind
+} from "./primitives";
 
 export interface FaceProperties {
   /** Generated land-use extent; local infill never changes mesh topology. */
@@ -165,7 +134,7 @@ export type WallMaterial = "stone" | "wood";
 export type WallWalkway = "auto" | "none" | "walkway";
 
 export interface EdgeFeatureGroup {
-  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
+  crossing?: import("../../utils/riverCrossing.types").RiverCrossingPlan;
   id: Id;
   kind: "road" | "wall" | "plank";
   name: string;
@@ -185,7 +154,7 @@ export interface EdgeFeatureGroup {
 }
 
 export interface RiverGroup {
-  crossing?: import("../../utils/riverCrossing").RiverCrossingPlan;
+  crossing?: import("../../utils/riverCrossing.types").RiverCrossingPlan;
   id: Id;
   kind: "river";
   name: string;
@@ -310,14 +279,6 @@ export interface CastlePlan {
   locked: boolean;
 }
 
-export interface CastleSettings {
-  position: "auto" | "edge" | "central";
-  relationship: "auto" | "integrated" | "detached";
-  form: "auto" | "keep-bailey" | "courtyard";
-  size: "auto" | "small" | "standard" | "large";
-  style?: "auto" | import("./contracts/castlePatterns").CastleStyle;
-}
-
 export type CemeteryForm = "churchyard" | "cloister" | "field";
 
 export type CemeteryPartRole =
@@ -399,7 +360,7 @@ export interface FabricPlan {
   generation?: {
     algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1";
     seed: string;
-    settings: import("./generation").GenerationSettings;
+    settings: import("./generationSettings").GenerationSettings;
     input: Omit<CityDocument, "fabric">;
   };
 }
@@ -419,7 +380,7 @@ export interface CityDocument {
   urbanMorphology?: import("../../types/urbanMorphology").UrbanMorphologyProfile;
   urbanGrowth?: import("./contracts/urbanGrowth").UrbanGrowthPlan;
   housingCapacity?: import("./contracts/residentialCapacity").HousingCapacityReport;
-  fixedCrossingApproaches?: import("./contracts/fixedApproachAdoption").SavedFixedApproach[];
+  fixedCrossingApproaches?: import("./contracts/savedFixedApproach").SavedFixedApproach[];
   /** Source physical crossings; not inferred from editable mesh roads. */
   importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;
   waterAccess?: import("../../types/burgWater").BurgWaterAccess;
@@ -460,7 +421,7 @@ export interface CityDocument {
     farRoad: Point[];
     townRoad: Point[];
     banks: [Point, Point];
-    crossing: import("../../utils/riverCrossing").RiverCrossingPlan;
+    crossing: import("../../utils/riverCrossing.types").RiverCrossingPlan;
     /** FMG surface velocity (m/s); a ferry drifts downstream by it. */
     currentMetersPerSecond?: number;
   }[];
@@ -528,3 +489,16 @@ export type Tool =
   | "face"
   | "landmark"
   | "ship";
+
+export type { CastleSettings } from "./castle";
+export type {
+  BuildingComposition,
+  BuildingPattern,
+  CraftDomain,
+  HarborPreset,
+  HistoricalPeriod,
+  Id,
+  Point,
+  WardKind,
+  WaterKind
+} from "./primitives";

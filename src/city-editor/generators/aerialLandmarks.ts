@@ -6,8 +6,18 @@
 // watermillFabric.ts / harborFabric.ts. Everything here is derived from the finished document
 // and the final building fabric; it never edits the mesh.
 import { religiousHousesFor } from "../../data/civilizationTraditions";
-import type { CityDocument, HistoricalPeriod, Id, Point } from "../types/document";
-import type { BuildingLot } from "./buildingLots";
+import type { CityDocument } from "../types/document";
+import type { HistoricalPeriod, Id, Point } from "../types/primitives";
+import type {
+  AerialLandmarkInput,
+  AerialLandmarkPlan,
+  Barbican,
+  Gallows,
+  Tannery,
+  TanneryPit,
+  Windmill
+} from "./aerialLandmarks.types";
+import type { BuildingLot } from "./buildingLots.types";
 import { type OrientedRect, polygonHitsTempleYard, templeRectForElement } from "./civicPlacement";
 import {
   curtainSegments,
@@ -17,7 +27,7 @@ import {
   polygonClearsGlacis,
   STANDARD_GLACIS_METERS
 } from "./defenseClearance";
-import { type DomesticWaterPoint, placeDomesticWater } from "./domesticWater";
+import { placeDomesticWater } from "./domesticWater";
 import { facilityStorage, HALL_DOMAINS, YARD_DOMAINS } from "./facilitySettings";
 import { featureGroupVertices } from "./features";
 import { ferryLandingReserves } from "./ferryLanding";
@@ -44,92 +54,12 @@ import { flowingRivers } from "./riverFlow";
 import { roadTrafficKey } from "./roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { placeStorageYards, type StorageYard } from "./storageYardPlacement";
-import { type ApproachBand, approachBands } from "./suburbanLanduse";
+import { approachBands } from "./suburbanLanduse";
+import type { ApproachBand } from "./suburbanLanduse.types";
 import { type DocumentWaterTest, documentWaterTest } from "./waterGeometry";
 import { fixedBankOffset } from "./watermillFabric";
 
-export interface Windmill {
-  id: Id;
-  kind: "post" | "tower";
-  name: string;
-  center: Point;
-  /** Mound (post mill) or tower (tower mill) radius. */
-  baseRadius: number;
-  /** Direction the sails face (radians, CCW from +X / east); one prevailing wind for the whole town. */
-  facing: number;
-  /** Angle of the first sail in the sail plane. */
-  sailAngle: number;
-  sailLength: number;
-}
-
-export interface Barbican {
-  id: Id;
-  gateId: Id;
-  form: "round" | "square";
-  name: string;
-  /** Outer curtain of the barbican, split at the front passage. */
-  curtain: [Point[], Point[]];
-  court: Point[];
-  frontTowers: Point[][];
-  turrets: Point[];
-  /** Causeway or bridge across the moat between gate and barbican. */
-  causeway?: Point[];
-  wallWidth: number;
-}
-
-export interface TanneryPit {
-  polygon: Point[];
-  tone: number;
-}
-
-export interface Tannery {
-  id: Id;
-  name: string;
-  riverId: Id;
-  yard: Point[];
-  washStrip: Point[];
-  pits: TanneryPit[];
-  sheds: Array<{ polygon: Point[]; ridge: [Point, Point] }>;
-  racks: Array<[Point, Point]>;
-}
-
-export interface Gallows {
-  id: Id;
-  name: string;
-  center: Point;
-  moundRadius: number;
-  pillars: Point[];
-  path: Point[];
-}
-
-export interface AerialLandmarkPlan {
-  domesticWater: DomesticWaterPoint[];
-  monasteries: Monastery[];
-  windmills: Windmill[];
-  barbicans: Barbican[];
-  tanneries: Tannery[];
-  gallows: Gallows[];
-  /** Formal guild halls, including chapters whose craftsman count is zero. */
-  guildHalls: GuildHall[];
-  /** Yards and kilns that belong to a guild even when it has no craftsmen. */
-  guildYards: GuildYard[];
-  /** Inventory yards. A cellar has no plot. */
-  storageYards: StorageYard[];
-  /** Wayside inns and caravanserais outside the busiest gate. */
-  gateInns: GateInn[];
-}
-
 export type { GateInn, GuildHall, GuildYard, StorageYard };
-
-export interface AerialLandmarkInput {
-  buildings: BuildingLot[];
-  lanes: Array<{ points: Point[]; widthMeters: number }>;
-  farms: Point[][];
-  /** Mills, harbour spaces and other already-reserved footprints. */
-  reserved: Point[][];
-  /** Water-dependent works: tanneries must be separated and downstream on the same river. */
-  waterUsers?: Array<{ riverId?: Id; polygon: Point[] }>;
-}
 
 const EMPTY_PLAN: AerialLandmarkPlan = {
   domesticWater: [],
@@ -1309,3 +1239,13 @@ export function buildAerialLandmarkPlan(
   aerialPlanCache.set(document, { fingerprint: fp, plan });
   return plan;
 }
+
+export type {
+  AerialLandmarkInput,
+  AerialLandmarkPlan,
+  Barbican,
+  Gallows,
+  Tannery,
+  TanneryPit,
+  Windmill
+} from "./aerialLandmarks.types";

@@ -4,7 +4,8 @@
 // 2. Continuous row houses (maisons mitoyennes, 3-6 lots contiguous along the circumference).
 // 3. Radial venelles (alleys) between house clusters and ring street gaps serving as roads.
 
-import type { CityDocument, DistrictParameters, Face, Id, Point } from "../types/document";
+import type { CityDocument, DistrictParameters, Face } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { circuitRing, outerTownCircuit } from "./fortifications";
 import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";

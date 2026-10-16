@@ -1,5 +1,5 @@
 import type { RegionalContext } from "../../../types/cityRegional";
-import type { Point } from "../document";
+import type { Point } from "../primitives";
 
 export interface CitySceneRegions {
   version: 1;

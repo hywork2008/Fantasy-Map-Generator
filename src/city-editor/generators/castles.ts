@@ -1,6 +1,7 @@
-import type { CastlePlan, CityDocument, DefenseCircuit, EdgeRef, Id, Point } from "../types/document";
+import type { CastlePlan, CityDocument, DefenseCircuit, EdgeRef } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { layoutCastle, refreshCastleLayouts } from "./castleLayout";
-import type { CastleSite } from "./castlePlacement";
+import type { CastleSite } from "./castlePlacement.types";
 import { outerWallRing } from "./concealStreets";
 import {
   boundaryEdges,

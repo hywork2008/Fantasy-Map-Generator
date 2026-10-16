@@ -1,18 +1,10 @@
 import type { OpenSpace } from "../types/contracts/parcelTypes";
-import type { Id, Point, WardKind } from "../types/document";
-import type { BuildingLot } from "./buildingLots";
+import type { Id, Point, WardKind } from "../types/primitives";
+import type { BuildingLot } from "./buildingLots.types";
 
-export const PARCEL_ARCHETYPES = [
-  "small-house",
-  "shop-house",
-  "workshop-house",
-  "merchant-house",
-  "warehouse-compound",
-  "patrician-house",
-  "elite-compound",
-  "port-workyard"
-] as const;
-export type ParcelArchetype = (typeof PARCEL_ARCHETYPES)[number];
+import type { ParcelArchetype } from "./parcelArchetypes";
+
+export { PARCEL_ARCHETYPES, type ParcelArchetype } from "./parcelArchetypes";
 
 export interface ParcelAccess {
   kind: "street" | "cargo";

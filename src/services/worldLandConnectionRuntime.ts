@@ -5,42 +5,22 @@ import { getConstrainedNetworkConnections, type NetworkConnection } from "../gen
 import type { LandConnectionSnapshot } from "../generators/landConnectionAdoption";
 import { exportRegisteredLandRouteSections } from "../generators/registeredLandRouteSections";
 import type { WorldCellLandProposalResult } from "../generators/worldCellLandConnectionProposals";
-import {
-  createWorldLandConnectionSession,
-  type PrioritizedLandAdoptionSettings
-} from "../generators/worldLandConnectionAdoption";
+import { createWorldLandConnectionSession } from "../generators/worldLandConnectionAdoption";
 import {
   restoreWorldLandConnections,
   saveWorldLandConnections,
-  type WorldLandArchiveBudgets,
   type WorldLandArchiveCurrent
 } from "../generators/worldLandConnectionArchive";
-import { getWorldLandProposalContext, type WorldLandProposalResult } from "../generators/worldLandConnectionProposals";
-import type { RegisteredRouteSceneSettings } from "../renderers/registeredLandRouteScene";
+import { getWorldLandProposalContext } from "../generators/worldLandConnectionProposals";
+import type { WorldLandProposalResult } from "../generators/worldLandConnectionProposals.types";
+import type { RegisteredRouteSceneSettings } from "../renderers/registeredLandRouteScene.types";
+import type { WorldLandConnectionGenerationSettings } from "../types/landConnectionGeneration";
 import type { Route } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { WorldRiverGeometryRegistry } from "./worldRiverGeometry";
 
-type CalibratedInput = Parameters<typeof evaluateCalibratedWorldCellLandConnections>[2];
-/** Explicit, serializable engineering/selection contract. Absence retains legacy
- * generation until stage-6 default acceptance; no trial calibration is inferred.
- */
-export interface WorldLandConnectionGenerationSettings {
-  calibration: CalibratedInput["calibration"];
-  nearby: CalibratedInput["nearby"];
-  measurements: CalibratedInput["measurements"];
-  budgetPolicy: CalibratedInput["budgetPolicy"];
-  settings: CalibratedInput["settings"];
-  cellPolicySettings: CalibratedInput["cellPolicySettings"];
-  dryBaseline: NonNullable<CalibratedInput["dryBaseline"]>;
-  allowedStateIds: readonly number[];
-  maximumSupportedHeight: number;
-  /** Missing engineering data forbids a bridge on that river. */
-  capabilities: Readonly<Record<number, ReturnType<CalibratedInput["environment"]["capabilityAt"]>>>;
-  adoption: PrioritizedLandAdoptionSettings;
-  archive: WorldLandArchiveBudgets;
-  scene: Omit<RegisteredRouteSceneSettings, "metresPerUnit" | "originMeters" | "connectionIds">;
-}
+export type { WorldLandConnectionGenerationSettings } from "../types/landConnectionGeneration";
+
 type Evaluation = WorldLandProposalResult | WorldCellLandProposalResult;
 type Current = Parameters<typeof exportRegisteredLandRouteSections>[1];
 interface Active {

@@ -1,4 +1,4 @@
-import type { Point } from "../document";
+import type { Point } from "../primitives";
 import type { OpenSpace } from "./parcelTypes";
 
 export interface UrbanGrowthPlan {

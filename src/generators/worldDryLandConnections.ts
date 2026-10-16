@@ -1,22 +1,12 @@
 import type { WorldContext } from "../context/worldContext";
 import { corridorDelta, corridorUnit } from "../services/approachCorridorGeometry";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
-import type { ApproachCorridorSettings } from "./approachCorridorSearch";
 import type { NetworkConnection } from "./constrainedLandNetwork";
 import { findLandRouteCorridor, type LandRouteGraphEnvironment } from "./dryLandRouteGraph";
-import {
-  buildWorldDryLandRouteGraph,
-  type WorldDryGuideResult,
-  type WorldDryGuideSettings
-} from "./worldDryLandRouteGraph";
-import type { WorldConnectionPair } from "./worldLandConnectionProposals";
+import type { WorldConnectionPair } from "./worldConnectionPair";
+import type { WorldDryConnectionSettings } from "./worldDryLandConnections.types";
+import { buildWorldDryLandRouteGraph, type WorldDryGuideResult } from "./worldDryLandRouteGraph";
 
-export interface WorldDryConnectionSettings {
-  guides: WorldDryGuideSettings;
-  corridor: ApproachCorridorSettings;
-  firstConnectionId: number;
-  maxSearches: number;
-}
 export type WorldDryConnectionResult =
   | {
       connections: readonly NetworkConnection[];
@@ -129,3 +119,5 @@ export function buildWorldDryLandConnections(
   }
   return { connections, guides, searches, unresolvedPairIds: Object.freeze(unresolvedPairIds) };
 }
+
+export type { WorldDryConnectionSettings } from "./worldDryLandConnections.types";

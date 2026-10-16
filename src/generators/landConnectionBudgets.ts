@@ -1,17 +1,6 @@
-import type { WorldProposalDiagnostics, WorldProposalSettings } from "./worldLandConnectionProposals";
+import type { LandBudgetPolicy, LandSearchMeasurements } from "./landConnectionBudgets.types";
+import type { WorldProposalDiagnostics, WorldProposalSettings } from "./worldLandConnectionProposals.types";
 
-export interface LandSearchMeasurements {
-  networkLabels: number;
-  networkExpansions: number;
-  approachLabels: number;
-  approachExpansions: number;
-}
-export interface LandBudgetPolicy {
-  headroom: number;
-  minimum: LandSearchMeasurements;
-  ceiling: LandSearchMeasurements;
-  maxAssessmentSearches: number;
-}
 /** Measured peaks with explicit headroom, bounded by caller ceilings. Counts are
  * operation budgets, not a promise of wall-clock latency. Keep precision,
  * radius, slopes and perpendicularity unchanged. Reserve one whole shared
@@ -117,3 +106,5 @@ export function measureLandProposalSearches(diagnostics: WorldProposalDiagnostic
     }
   return measurements;
 }
+
+export type { LandBudgetPolicy, LandSearchMeasurements } from "./landConnectionBudgets.types";

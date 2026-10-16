@@ -5,6 +5,7 @@ import {
   type LandUseSnapshot
 } from "../types/landUse";
 import { addActivities, clearanceLabor, placeLandUses, recoveryYears, supplyCatchments } from "./landUseActivities";
+import type { ClearanceCellInput } from "./settlementClearance.types";
 
 export const STAPLE_NEED_KG_PER_PERSON_YEAR = 200;
 export const EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK = 0.65;
@@ -38,57 +39,7 @@ export function resolveLandUseProfile(input: {
     (input.fantasy && (input.raceKey === "elf" || input.raceKey === "dark_elf") ? "embedded" : "mixed_farming")
   );
 }
-export interface ClearanceCellInput {
-  polygon?: [number, number][];
-  temperature?: number;
-  precipitation?: number;
-  tenure?: "common" | "private" | "protected";
-  ownerId?: number;
-  access?: { cellId: number; cost: number; allowed?: boolean }[];
-  maxTransportCost?: number;
-  workforce?: {
-    adultPeople: number;
-    workableDays: number;
-    maintenanceDaysPerHa: number;
-    otherOccupationDays: number;
-    clearanceShare: number;
-    clearanceDaysPerHa: number;
-  };
-  livestock?: {
-    grazingAreaHa: number;
-    hayAreaHa?: number;
-    woodPastureHa?: number;
-    grazedFallowHa?: number;
-    fodderWithinFieldsHa?: number;
-  };
-  managedForestAreaHa?: number;
-  forestRotationYears?: number;
-  agroforestryAreaHa?: number;
-  agroforestryRotationYears?: number;
-  shiftingCycleYears?: number;
-  shiftingActiveYears?: number;
-  id: number;
-  anchor: [number, number];
-  physicalLandAreaHa: number;
-  forestCover: number;
-  ruralPeople: number;
-  urbanPeople: number;
-  profile?: LandUseProfile;
-  cultivableAreaHa: number;
-  yieldKgPerSownHa: number;
-  annualSownShare?: number;
-  laborAffordableAreaHa?: number;
-  /** Preserve the existing max(subsistence reserve, labour development) policy. */
-  subsistenceReserve?: number;
-  importedStaplePeople?: number;
-  includeUrbanFoodDemand?: boolean;
-  /** Resolved food composition; omitted embedded supply remains unknown. */
-  localStapleShare?: number;
-  neighbors?: number[];
-  diagnostics?: string[];
-  /** Annual new clearance capacity, distinct from field maintenance labour. */
-  newClearanceAreaHa?: number;
-}
+
 /** Global, stable allocation. All requests share capacity proportionally rather than first-come reservation. */
 export function planSettlementLandUse(
   inputs: readonly ClearanceCellInput[],
@@ -336,3 +287,5 @@ export function planSettlementLandUse(
     cells
   };
 }
+
+export type { ClearanceCellInput } from "./settlementClearance.types";

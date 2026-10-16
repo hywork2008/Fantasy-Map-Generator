@@ -43,7 +43,7 @@ import type {
 import type { LaborMarket } from "../generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "../generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "../generators/strategicProcurementTypes";
-import type { TradeCorridor } from "../generators/tradeCorridorLedger";
+import type { TradeCorridor } from "../generators/tradeCorridorLedgerTypes";
 import type { MerchantVesselOwnership } from "../generators/vesselOwnershipTypes";
 import { getProductionTable, getSliceArray, getSliceNumber, setSliceArray, setSliceNumber } from "./economyApi";
 

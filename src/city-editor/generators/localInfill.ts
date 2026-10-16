@@ -1,14 +1,14 @@
-import type { InfillLane } from "../types/contracts/localInfill";
-// Local street/lot geometry. None of these subdivisions become mesh edges.
 import type { CityLayout } from "../types/contracts/siteConfig";
-import type { CityDocument, DistrictParameters, EdgeRef, Face, Id, Point } from "../types/document";
-import type { BuildingLot } from "./buildingLots";
+// Local street/lot geometry. None of these subdivisions become mesh edges.
+import type { CityDocument, DistrictParameters, EdgeRef, Face } from "../types/document";
+import type { Id, Point } from "../types/primitives";
 import { buildCirculadeBlocks } from "./circuladeFabric";
 import { buildingHitsCivicLandmark, laneHitsCivicLandmark } from "./civicClearance";
 import { districtBoundary } from "./fabricDistricts";
 import { occupancyDrawOf } from "./frontageBuildings";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { dwellingLotArea } from "./housing";
+import type { CityFabric } from "./localInfill.types";
 import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
 import { facePoints, indexMeshEdges } from "./mesh";
 import type { OrganicBlockContext } from "./organicBlocks";
@@ -17,24 +17,6 @@ import { buildPerimeterBlocks } from "./perimeterBlocks";
 import { makeRng } from "./prng";
 import { infillCore, infillOutskirts } from "./streetGrowth";
 
-export interface FarmPlot {
-  faceId: Id;
-  polygon: Point[];
-  rows: Point[][];
-  kind?: "open-field" | "kitchen-garden";
-}
-export interface CityFabric {
-  parcels?: import("./parcelTypes").ParcelPlan[];
-  openSpaces?: import("../types/contracts/parcelTypes").OpenSpace[];
-  harbor?: import("./harborFabric").HarborPlan;
-  farms?: FarmPlot[];
-  parks?: import("./parkFabric").ParkLawn[];
-  watermills?: import("./watermillFabric").WatermillPlan;
-  buildings: BuildingLot[];
-  lanes: InfillLane[];
-  /** Portals shared by adjacent faces, or opening onto a major road. */
-  entrances: Map<Id, Point[]>;
-}
 /** Bounded content cache: independent documents and Undo share only identical derived geometry. */
 export class FabricCache {
   private entries = new Map<string, CityFabric>();
@@ -58,13 +40,6 @@ export class FabricCache {
     this.entries.clear();
     this.hits = this.misses = 0;
   }
-}
-export interface InfillOptions {
-  seed: string;
-  parameters: Map<Id, DistrictParameters>;
-  cache: FabricCache;
-  layout?: CityLayout;
-  hub?: Point;
 }
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -728,4 +703,14 @@ function fillPolygon(
       local.buildings.push({ faceId: face.id, polygon: outline, landmark, ...occupancyDrawOf(outline) });
     }
   }
+}
+
+export type { CityFabric, FarmPlot } from "./localInfill.types";
+
+export interface InfillOptions {
+  seed: string;
+  parameters: Map<Id, DistrictParameters>;
+  cache: FabricCache;
+  layout?: CityLayout;
+  hub?: Point;
 }

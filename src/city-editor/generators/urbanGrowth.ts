@@ -10,10 +10,11 @@ import type { BurgSiteRoadEntry } from "../types/contracts/burgSiteDescriptor";
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { OpenSpace } from "../types/contracts/parcelTypes";
 import type { UrbanGrowthPlan, UrbanGrowthRegion } from "../types/contracts/urbanGrowth";
-import type { CityDocument, Point } from "../types/document";
+import type { CityDocument } from "../types/document";
+import type { Point } from "../types/primitives";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
-import type { DistrictFabric } from "./blockInfill";
-import type { BuildingLot } from "./buildingLots";
+import type { DistrictFabric } from "./blockInfill.types";
+import type { BuildingLot } from "./buildingLots.types";
 import { buildingHitsCivicLandmark } from "./civicClearance";
 import { curtainSegments, gapBelow, glacisOutworks, polygonClearsGlacis } from "./defenseClearance";
 import { featureGroupVertices } from "./features";
@@ -24,7 +25,7 @@ import { facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { bounds, boundsOverlap } from "./parcelGeometry";
 import { applyResidentialStoreys, isResidentialBuilding, residentialCapacity } from "./residentialCapacity";
-import type { ApproachBand } from "./suburbanLanduse";
+import type { ApproachBand } from "./suburbanLanduse.types";
 import { documentWaterTest, lineHitsDocumentWater } from "./waterGeometry";
 
 /** Largest remainder with stable tie breaking; no traffic / fiscal input. */

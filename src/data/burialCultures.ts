@@ -4,7 +4,7 @@
  * Designed according to docs/plan/cultures/:
  * 00_OVERVIEW_AND_TAXONOMY.md ~ 05_PROCEDURAL_SYNTHESIS_AND_CE_SPEC.md.
  */
-import type { FuneralRite } from "./funeralRites";
+import type { FuneralRite } from "../types/funeralRites";
 
 /** 1. Siting & Urban Zoning */
 export const CEMETERY_ZONINGS = [

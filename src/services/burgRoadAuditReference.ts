@@ -1,8 +1,8 @@
 /** A provenance envelope around the actual CE road handoff (not a generated city). */
 import type { WorldContext } from "../context/worldContext";
+import type { BurgSiteRoadEntry } from "../types/burgSiteDescriptor";
 import { growthHash } from "../utils/urbanMorphology";
 import type { BurgRoadReadSnapshot } from "./burgRoadProjection";
-import type { BurgSiteRoadEntry } from "./burgSiteDescriptor";
 
 export interface BurgRoadAuditReference {
   format: "fmg-ce-road-handoff";

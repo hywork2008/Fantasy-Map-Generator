@@ -1,4 +1,6 @@
 /** Read-only CE road projection. No preparation, store access, regeneration or commits. */
+
+import type { BurgSiteRoadEntry, BurgSiteRoadNextBurg } from "../types/burgSiteDescriptor";
 import type { Burg, Route } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
@@ -7,7 +9,6 @@ import { rn } from "../utils/numberUtils";
 import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 import { residentialStoreys, supportsUrbanMorphology } from "../utils/urbanMorphology";
 import { burgDestinationTraits } from "./burgDestinationTraits";
-import type { BurgSiteRoadEntry, BurgSiteRoadNextBurg } from "./burgSiteDescriptor";
 import { clipPolylineToBox } from "./sitePolylineGeometry";
 
 export interface BurgRoadFacility {

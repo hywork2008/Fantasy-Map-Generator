@@ -2,6 +2,7 @@ import type { WorldContext } from "../context/worldContext";
 import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import type { WaterfrontIssue } from "../types/waterfrontSettlement";
 import { rn } from "../utils";
 import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import { PORT_SHORE_INLAND_METERS } from "./portShorePosition";
@@ -15,13 +16,6 @@ export const WATERFRONT_SHORE_GAP_METERS = PORT_SHORE_INLAND_METERS;
 const WATERFRONT_TOLERANCE_METERS = 1;
 
 type Point = [number, number];
-
-export interface WaterfrontIssue {
-  kind: "shore-distance" | "shore-missing" | "bank-distance" | "river-unresolved";
-  /** Metres beyond the allowed distance, for the distance kinds. */
-  excessMeters?: number;
-  reason?: string;
-}
 
 /** The town radius City Editor draws (Lot occupancy guide), from the burg's current population. */
 export function burgCityRadiusMeters(
@@ -267,3 +261,5 @@ export function describeWaterfrontIssue(issue: WaterfrontIssue): string {
       return `river site unresolved (${issue.reason})`;
   }
 }
+
+export type { WaterfrontIssue } from "../types/waterfrontSettlement";

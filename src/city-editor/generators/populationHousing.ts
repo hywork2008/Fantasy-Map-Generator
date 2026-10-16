@@ -1,8 +1,9 @@
 import { residentialStoreys } from "../../utils/urbanMorphology";
 import type { ResidentialCluster } from "../types/contracts/population";
-import type { CityDocument, Point } from "../types/document";
-import type { DistrictFabric } from "./blockInfill";
-import type { BuildingLot } from "./buildingLots";
+import type { CityDocument } from "../types/document";
+import type { Point } from "../types/primitives";
+import type { DistrictFabric } from "./blockInfill.types";
+import type { BuildingLot } from "./buildingLots.types";
 import { circuitRing, outerTownCircuit } from "./fortifications";
 import { polygonArea } from "./geom";
 import { clipHalfPlane, longestFrame } from "./lotGeometry";

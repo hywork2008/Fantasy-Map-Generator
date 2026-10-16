@@ -1,5 +1,5 @@
-import type { Point } from "../types/document";
-import type { Front, FrontageOptions } from "./frontageBuildings";
+import type { Point } from "../types/primitives";
+import type { Front, FrontageOptions } from "./frontageBuildings.types";
 import { polygonArea, polygonCentroid } from "./geom";
 import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import { occupancyDraws } from "./occupancyDraws";

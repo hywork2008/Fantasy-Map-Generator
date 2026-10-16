@@ -4,19 +4,8 @@ import type { CorridorPiece } from "../services/approachCorridorGeometry";
 import { corridorDelta, corridorUnit, sameCorridorDirection } from "../services/approachCorridorGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
 import { validWaterPolygon } from "../services/riverPhysicalGeometry";
+import type { RegisteredRouteSceneSettings } from "./registeredLandRouteScene.types";
 
-export interface RegisteredRouteSceneSettings {
-  /** Presentation scope only; the entire registered network is still validated. */
-  connectionIds?: readonly number[];
-  /** Uniform physical conversion only; never stretch or rotate a bridge. */
-  metresPerUnit: number;
-  originMeters: RiverPoint;
-  maxChordErrorMeters: number;
-  maxArcSections: number;
-  maxPieces: number;
-  maxPaths: number;
-  maxPolygons: number;
-}
 export interface RegisteredRouteScenePath {
   id: number;
   part: number;
@@ -220,3 +209,5 @@ export function buildRegisteredLandRouteScene(
   const scene = freeze({ revision: source.revision, roadWidth: width, roads, bridges });
   return { scene };
 }
+
+export type { RegisteredRouteSceneSettings } from "./registeredLandRouteScene.types";

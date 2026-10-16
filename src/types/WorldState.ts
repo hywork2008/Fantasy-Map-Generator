@@ -149,7 +149,7 @@ export interface WorldOptions {
    */
   forceIndustrialCultures?: boolean;
   /** Optional local engineering override; era defaults fill absent capabilities. */
-  riverBridgeTechnology?: Partial<import("../utils/riverCrossing").RiverBridgeTechnology>;
+  riverBridgeTechnology?: Partial<import("../utils/riverCrossing.types").RiverBridgeTechnology>;
   historicalPeriod?:
     | "earlyMedieval"
     | "highMedieval"
@@ -234,7 +234,7 @@ export interface WorldOptions {
    */
   landRouteGenerationMode?: LandRouteGenerationMode;
   /** Explicit phase-1–5 physical-road contract; no implicit trial profile. */
-  landConnectionGeneration?: import("../services/worldLandConnectionRuntime").WorldLandConnectionGenerationSettings;
+  landConnectionGeneration?: import("./landConnectionGeneration").WorldLandConnectionGenerationSettings;
   /** Data only: restored against current terrain, rivers, costs and units. */
   registeredLandConnections?: string;
   registeredLandConnectionUnit?: string;

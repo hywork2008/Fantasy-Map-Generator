@@ -1,18 +1,14 @@
 import type { WorldContext } from "../context/worldContext";
-import { WorldRiverGeometryRegistry, type WorldRiverGeometrySettings } from "../services/worldRiverGeometry";
+import { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
+import type { WorldRiverGeometrySettings } from "../services/worldRiverGeometry.types";
 import { isRegisteredLandConnectionSnapshot, type LandConnectionSnapshot } from "./landConnectionAdoption";
 import {
-  type LandArchiveBudgets,
   type LandArchiveCurrent,
   restoreRegisteredLandConnections,
   saveRegisteredLandConnections
 } from "./registeredLandConnectionArchive";
+import type { WorldLandArchiveBudgets } from "./worldLandConnectionArchive.types";
 
-export interface WorldLandArchiveBudgets {
-  maxJsonCharacters: number;
-  rivers: { maxJsonCharacters: number; maxRivers: number };
-  connections: LandArchiveBudgets;
-}
 export interface WorldLandArchiveCurrent {
   world: Readonly<WorldContext>;
   worldIdentity: string;
@@ -141,3 +137,5 @@ export function restoreWorldLandConnections(
     return { reason: "changed-rivers" };
   return { rivers, registry: restored.registry };
 }
+
+export type { WorldLandArchiveBudgets } from "./worldLandConnectionArchive.types";

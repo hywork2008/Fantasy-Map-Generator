@@ -3,50 +3,13 @@ import type { River } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { meanderRiverPoints, physicalRiverWidth, riverDisplayOffset } from "../utils/riverShape";
 import { PhysicalWaterIndex, PhysicalWaterValidationCache } from "./physicalWaterIndex";
-import { buildCatmullRomRiverAxis, catmullRomRiverCubics, type RiverCurvePrecision } from "./riverCurveGeometry";
+import { buildCatmullRomRiverAxis, catmullRomRiverCubics } from "./riverCurveGeometry";
 import type { RiverPoint } from "./riverGeometry";
-import type { PhysicalRiverGeometry, PhysicalWaterPolygon } from "./riverPhysicalGeometry";
-import {
-  buildPhysicalRiverGeometry,
-  type RiverBankSampling,
-  type RiverWidthSurvey
-} from "./riverPhysicalGeometryBuilder";
+import type { RiverGeometryBounds } from "./riverGeometryBounds";
+import type { PhysicalWaterPolygon } from "./riverPhysicalGeometry";
+import { buildPhysicalRiverGeometry, type RiverWidthSurvey } from "./riverPhysicalGeometryBuilder";
+import type { WorldRiverGeometryResult, WorldRiverGeometrySettings } from "./worldRiverGeometry.types";
 
-export interface WorldRiverGeometrySettings {
-  curveAlpha: number;
-  precision: RiverCurvePrecision;
-  banks: RiverBankSampling;
-  /** Source budget is separate from adaptive bank sampling. */
-  maxSourcePoints: number;
-}
-export interface RiverGeometryBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-export type WorldRiverGeometryResult = {
-  riverId: number;
-  geometryVersion: number;
-  metersPerMapUnit: number;
-  source: "points" | "cells";
-  warnings: readonly "points-length-mismatch"[];
-} & (
-  | { geometry: PhysicalRiverGeometry; bounds: RiverGeometryBounds; sampleCount: number }
-  | {
-      reason:
-        | "invalid-source"
-        | "invalid-scale"
-        | "source-budget"
-        | "invalid-width"
-        | "invalid-curve"
-        | "integration-budget"
-        | "invalid-survey"
-        | "sampling-budget"
-        | "unstable-axis"
-        | "folded-banks";
-    }
-);
 interface WorldRiverSource {
   points: RiverPoint[];
   flux: number[];
@@ -506,3 +469,6 @@ function validVersionArchiveBudgets(budgets: { maxJsonCharacters: number; maxRiv
     budgets.maxRivers >= 0
   );
 }
+
+export type { RiverGeometryBounds } from "./riverGeometryBounds";
+export type { WorldRiverGeometryResult, WorldRiverGeometrySettings } from "./worldRiverGeometry.types";

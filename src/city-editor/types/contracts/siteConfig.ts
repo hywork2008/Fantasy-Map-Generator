@@ -1,4 +1,4 @@
-import type { CityProgram } from "../geometry";
+import type { CityProgram } from "../cityProgram";
 
 /** Urban morphological layout pattern:
  * - `auto`: resolved from size/seed (tiny maps roll Circulade, Bram or Organic)

@@ -167,7 +167,7 @@ export interface PackedGraph {
   settlementFoundation?: SettlementFoundationPlan;
   /** River-Port Lab debug generation (docs/plan/river-port-lab.md): options used and unmet quotas. */
   riverPortLab?: {
-    options: import("../debug/riverPortLab/labOptions").RiverPortLabOptions;
+    options: import("../debug/riverPortLab/labOptions.types").RiverPortLabOptions;
     shortfall: Partial<Record<import("../debug/riverPortLab/classifyRiverSite").LabSiteKind, number>>;
     supply: Partial<Record<import("../debug/riverPortLab/classifyRiverSite").LabSiteKind, number>>;
   };

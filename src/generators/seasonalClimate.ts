@@ -11,7 +11,7 @@
 
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
-import type { DataTopic } from "../runtime/worldRuntime";
+import type { DataTopic } from "../runtime/worldTopics";
 import { minmax } from "../utils/numberUtils";
 import { ensureCellClimateNormals } from "./cellClimateNormals";
 

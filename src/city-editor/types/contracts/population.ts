@@ -1,4 +1,4 @@
-import type { Point } from "../document";
+import type { Point } from "../primitives";
 
 export interface PopulationGenerationSettings {
   version: 1;

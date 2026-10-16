@@ -1,29 +1,15 @@
 import type { WorldContext } from "../context/worldContext";
 import { corridorDelta, corridorUnit } from "../services/approachCorridorGeometry";
 import type { RiverPoint } from "../services/riverGeometry";
-import type { WorldRiverGeometryRegistry, WorldRiverGeometrySettings } from "../services/worldRiverGeometry";
+import type { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
-import type { ApproachCorridorInput, ApproachCorridorSettings } from "./approachCorridorSearch";
-import {
-  buildLocalApproachGuides,
-  type LocalApproachGuideResult,
-  type LocalApproachGuideSettings
-} from "./localApproachGuides";
+import type { ApproachCorridorInput } from "./approachCorridorSearch";
+import { buildLocalApproachGuides, type LocalApproachGuideResult } from "./localApproachGuides";
 import { connectRiverCrossingApproaches, type RiverCrossingApproachResult } from "./riverCrossingApproaches";
-import {
-  type CrossingCandidateDimensions,
-  type ProvisionalRiverCrossing,
-  validateProvisionalRiverCrossing
-} from "./riverCrossingCandidates";
-import type { WorldCrossingCandidateEnvironment } from "./worldRiverCrossingCandidates";
+import { type ProvisionalRiverCrossing, validateProvisionalRiverCrossing } from "./riverCrossingCandidates";
+import type { WorldCrossingApproachSettings } from "./worldRiverCrossingApproaches.types";
+import type { WorldCrossingCandidateEnvironment } from "./worldRiverCrossingCandidates.types";
 
-export interface WorldCrossingApproachSettings {
-  geometry: WorldRiverGeometrySettings;
-  dimensions: CrossingCandidateDimensions;
-  guides: LocalApproachGuideSettings;
-  corridor: ApproachCorridorSettings;
-  maxRivers: number;
-}
 export type WorldCrossingApproachResult =
   | {
       reason:
@@ -159,3 +145,5 @@ export function connectWorldRiverCrossingApproaches(
     contracts: { crossingInput, approachA: contract(a.guides, 0), approachB: contract(b.guides, 1) }
   };
 }
+
+export type { WorldCrossingApproachSettings } from "./worldRiverCrossingApproaches.types";
