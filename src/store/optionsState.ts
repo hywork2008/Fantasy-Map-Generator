@@ -7,6 +7,7 @@ import {
   resolveRacePersonNameMapping
 } from "../data/racePersonNameConfig";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
+import type { HistoricalPeriod } from "../types/historicalPeriod";
 import type {
   ConflictAutonomy,
   EconomyStartMode,
@@ -50,17 +51,7 @@ export interface OptionsState {
    * that era itself as "demonstrated", same mechanism as the legacy 4 values already use for the
    * era-2 gunpowder chain — see technologyProgress.ts's HISTORICAL_PERIOD_FRONTIER_ERA.
    */
-  historicalPeriod:
-    | "earlyMedieval"
-    | "highMedieval"
-    | "lateMedieval"
-    | "ageOfExploration"
-    | "maritimeEra"
-    | "preIndustrialEra"
-    | "steamEra"
-    | "industrialChemistryEra"
-    | "petroleumEra"
-    | "rocketryEra";
+  historicalPeriod: HistoricalPeriod;
   /** Romance diversity options shaping character romantic compatibility */
   romanceDiversityUpbringing: boolean;
   romanceDiversityCommitment: boolean;

@@ -150,17 +150,7 @@ export interface WorldOptions {
   forceIndustrialCultures?: boolean;
   /** Optional local engineering override; era defaults fill absent capabilities. */
   riverBridgeTechnology?: Partial<import("../utils/riverCrossing.types").RiverBridgeTechnology>;
-  historicalPeriod?:
-    | "earlyMedieval"
-    | "highMedieval"
-    | "lateMedieval"
-    | "ageOfExploration"
-    | "maritimeEra"
-    | "preIndustrialEra"
-    | "steamEra"
-    | "industrialChemistryEra"
-    | "petroleumEra"
-    | "rocketryEra";
+  historicalPeriod?: import("./historicalPeriod").HistoricalPeriod;
   /**
    * Persisted generation distribution policy. Archives created before frontier
    * expansion normalize this to "standard" during archive migration.

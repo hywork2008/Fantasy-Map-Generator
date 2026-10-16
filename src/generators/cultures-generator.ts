@@ -18,6 +18,7 @@ import { defaultMonoRacialForRaceKey, isFantasyCulturesSet } from "../data/raceC
 import { applyRacePersonNameSpheres } from "../data/racePersonNameConfig";
 import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
+import { type HistoricalPeriod, historicalPeriodIndex } from "../types/historicalPeriod";
 import type { Culture, RaceKey } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
@@ -1323,27 +1324,9 @@ class CulturesModule {
 
     // historicalPeriod is ordered oldest → newest; used to era-gate "Industrial"/"Colonial" below
     // (docs/plan/modern-urban-water-treatment-and-governance.md — modernization-born cultures
-    // should never appear on an earlyMedieval map). Kept local rather than importing
-    // technologyProgress.ts's HISTORICAL_PERIOD_FRONTIER_ERA to avoid a new cross-module
-    // dependency for what is otherwise a single ordered-index check.
-    const HISTORICAL_PERIOD_ORDER = [
-      "earlyMedieval",
-      "highMedieval",
-      "lateMedieval",
-      "ageOfExploration",
-      "maritimeEra",
-      "preIndustrialEra",
-      "steamEra",
-      "industrialChemistryEra",
-      "petroleumEra",
-      "rocketryEra"
-    ] as const;
-    const isPeriodAtLeast = (period: string | undefined, threshold: (typeof HISTORICAL_PERIOD_ORDER)[number]) => {
-      const index = HISTORICAL_PERIOD_ORDER.indexOf(
-        (period ?? "earlyMedieval") as (typeof HISTORICAL_PERIOD_ORDER)[number]
-      );
-      return index >= HISTORICAL_PERIOD_ORDER.indexOf(threshold);
-    };
+    // should never appear on an earlyMedieval map). Unset periods count as earlyMedieval.
+    const isPeriodAtLeast = (period: string | undefined, threshold: HistoricalPeriod) =>
+      historicalPeriodIndex(period ?? "earlyMedieval") >= historicalPeriodIndex(threshold);
 
     // set culture type based on culture center position
     const defineCultureType = (i: number) => {

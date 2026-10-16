@@ -9,6 +9,7 @@
  * Design: urban-water-and-sanitation-system.md §6, §11 Phase 4.
  */
 
+import type { HistoricalPeriod } from "../../../types/historicalPeriod";
 import { rn } from "../../hostUtils";
 import type { UrbanWaterSystem, WaterSanitationTier, WaterTechStocks, WaterWorksProjectKind } from "./urbanWaterTypes";
 
@@ -17,17 +18,7 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export type HistoricalPeriod =
-  | "earlyMedieval"
-  | "highMedieval"
-  | "lateMedieval"
-  | "ageOfExploration"
-  | "maritimeEra"
-  | "preIndustrialEra"
-  | "steamEra"
-  | "industrialChemistryEra"
-  | "petroleumEra"
-  | "rocketryEra";
+export type { HistoricalPeriod };
 
 /** Additive raise to waterLifting/municipalSanitation only — see raceWaterTechBias.ts. */
 export type WaterTechCeilingBonus = { waterLifting: number; municipalSanitation: number };

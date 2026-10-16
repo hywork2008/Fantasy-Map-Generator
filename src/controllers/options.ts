@@ -36,6 +36,7 @@ import { viewStateStore } from "../store";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
 import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "../store/optionsState";
+import type { HistoricalPeriod } from "../types/historicalPeriod";
 import type { Burg, Culture, Province, State } from "../types/models";
 import type { InitialSettlementPattern } from "../types/WorldState";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
@@ -1027,17 +1028,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
 
   document.addEventListener("react-change-historical-period", (e: Event) => {
     lock("historicalPeriod");
-    worldContext.options.historicalPeriod = (e as CustomEvent).detail.period as
-      | "earlyMedieval"
-      | "highMedieval"
-      | "lateMedieval"
-      | "ageOfExploration"
-      | "maritimeEra"
-      | "preIndustrialEra"
-      | "steamEra"
-      | "industrialChemistryEra"
-      | "petroleumEra"
-      | "rocketryEra";
+    worldContext.options.historicalPeriod = (e as CustomEvent).detail.period as HistoricalPeriod;
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {

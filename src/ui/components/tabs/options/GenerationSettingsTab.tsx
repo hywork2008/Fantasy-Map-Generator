@@ -12,6 +12,7 @@ import { RiverPortLabRows } from "../../../../debug/riverPortLab/RiverPortLabRow
 import { applyClimateVariabilityToWorld } from "../../../../generators/climateVariabilityOptions";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
+import type { HistoricalPeriod } from "../../../../types/historicalPeriod";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { MAX_DEPTH_C, MAX_PERIOD_YEARS, MIN_PERIOD_YEARS } from "../../../../utils/climateVariability";
 import { lock } from "../../../../utils/domUtils";
@@ -1021,17 +1022,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 className="long"
                 value={options.historicalPeriod}
                 onChange={e => {
-                  const period = e.target.value as
-                    | "earlyMedieval"
-                    | "highMedieval"
-                    | "lateMedieval"
-                    | "ageOfExploration"
-                    | "maritimeEra"
-                    | "preIndustrialEra"
-                    | "steamEra"
-                    | "industrialChemistryEra"
-                    | "petroleumEra"
-                    | "rocketryEra";
+                  const period = e.target.value as HistoricalPeriod;
                   updateOptionAndLock("historicalPeriod", period);
                   document.dispatchEvent(new CustomEvent("react-change-historical-period", { detail: { period } }));
                 }}

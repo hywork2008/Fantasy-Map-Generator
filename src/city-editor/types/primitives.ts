@@ -1,3 +1,4 @@
+import type { HistoricalPeriod as FmgHistoricalPeriod } from "../../types/historicalPeriod";
 export type Id = string;
 
 export type Point = [number, number];
@@ -33,15 +34,5 @@ export type BuildingComposition = "standard" | "commercial" | "warehouses" | "es
 
 export type HarborPreset = "small" | "dense" | "warehouse";
 
-export type HistoricalPeriod =
-  | "classicalAntiquity"
-  | "earlyMedieval"
-  | "highMedieval"
-  | "lateMedieval"
-  | "ageOfExploration"
-  | "maritimeEra"
-  | "preIndustrialEra"
-  | "steamEra"
-  | "industrialChemistryEra"
-  | "petroleumEra"
-  | "rocketryEra";
+/** FMG periods plus CE-only classical antiquity. */
+export type HistoricalPeriod = "classicalAntiquity" | FmgHistoricalPeriod;

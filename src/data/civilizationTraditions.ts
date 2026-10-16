@@ -14,20 +14,10 @@
  * missionaries in Hawaii) are not applied: a fantasy world has no Spain.
  */
 
+import { HISTORICAL_PERIODS } from "../types/historicalPeriod";
+
 /** Period order shared by FMG (earlyMedieval…) and CE (which adds classicalAntiquity). */
-export const TRADITION_PERIODS = [
-  "classicalAntiquity",
-  "earlyMedieval",
-  "highMedieval",
-  "lateMedieval",
-  "ageOfExploration",
-  "maritimeEra",
-  "preIndustrialEra",
-  "steamEra",
-  "industrialChemistryEra",
-  "petroleumEra",
-  "rocketryEra"
-] as const;
+export const TRADITION_PERIODS = ["classicalAntiquity", ...HISTORICAL_PERIODS] as const;
 export type TraditionPeriod = (typeof TRADITION_PERIODS)[number];
 
 export function periodIndex(period: string | undefined): number {
@@ -100,7 +90,7 @@ interface TraditionEra {
 
 export interface CivilizationTradition {
   id: string;
-  /** Japanese label for UI and docs. */
+  /** English label for debugging and docs; not shown in the UI. */
   label: string;
   /** Pre-conversion / folk substrate used by Folk religions. */
   folkFaith: FaithFamily;
@@ -119,19 +109,19 @@ const era = (from: TraditionPeriod, faith: FaithFamily, fortification: Fortifica
 export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   latinWest: {
     id: "latinWest",
-    label: "ラテン・カトリック西欧",
+    label: "Latin Catholic West",
     folkFaith: "germanicPagan",
     eras: [era("classicalAntiquity", "germanicPagan", "earthwork"), era("earlyMedieval", "latinCatholic", "european")]
   },
   gallic: {
     id: "gallic",
-    label: "フランス（ガリア）",
+    label: "France (Gaul)",
     folkFaith: "celticPagan",
     eras: [era("classicalAntiquity", "celticPagan", "earthwork"), era("earlyMedieval", "latinCatholic", "european")]
   },
   latinMediterranean: {
     id: "latinMediterranean",
-    label: "地中海ラテン（イタリア・イベリア）",
+    label: "Mediterranean Latin (Italy, Iberia)",
     folkFaith: "classicalPolytheism",
     eras: [
       era("classicalAntiquity", "classicalPolytheism", "classical"),
@@ -141,7 +131,7 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   anglo: {
     id: "anglo",
-    label: "イングランド",
+    label: "England",
     folkFaith: "germanicPagan",
     eras: [
       era("classicalAntiquity", "celticPagan", "earthwork"),
@@ -152,7 +142,7 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   norse: {
     id: "norse",
-    label: "北欧（ノルド）",
+    label: "Scandinavia (Norse)",
     folkFaith: "germanicPagan",
     eras: [
       era("classicalAntiquity", "germanicPagan", "earthwork"),
@@ -163,7 +153,7 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   finnic: {
     id: "finnic",
-    label: "フィン・バルト",
+    label: "Finnic and Baltic",
     folkFaith: "balticFinnicPagan",
     eras: [
       era("classicalAntiquity", "balticFinnicPagan", "earthwork"),
@@ -174,7 +164,7 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   magyar: {
     id: "magyar",
-    label: "マジャル（ハンガリー）",
+    label: "Magyar (Hungary)",
     folkFaith: "tengri",
     eras: [
       era("classicalAntiquity", "tengri", "earthwork"),
@@ -184,19 +174,19 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   ruthenian: {
     id: "ruthenian",
-    label: "ルーシ（東スラヴ）",
+    label: "Rus (East Slavic)",
     folkFaith: "slavicPagan",
     eras: [era("classicalAntiquity", "slavicPagan", "earthwork"), era("earlyMedieval", "orthodox", "european")]
   },
   hellenic: {
     id: "hellenic",
-    label: "ギリシャ・ビザンツ",
+    label: "Greek and Byzantine",
     folkFaith: "classicalPolytheism",
     eras: [era("classicalAntiquity", "classicalPolytheism", "classical"), era("earlyMedieval", "orthodox", "european")]
   },
   roman: {
     id: "roman",
-    label: "ローマ（ラテン）",
+    label: "Rome (Latin)",
     folkFaith: "classicalPolytheism",
     eras: [
       era("classicalAntiquity", "classicalPolytheism", "classical"),
@@ -209,14 +199,14 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   insularCeltic: {
     id: "insularCeltic",
-    label: "島嶼ケルト（アイルランド・ウェールズ）",
+    label: "Insular Celtic (Ireland, Wales)",
     folkFaith: "celticPagan",
     // Irish Christianity from the 5th century
     eras: [era("classicalAntiquity", "celticPagan", "earthwork"), era("earlyMedieval", "latinCatholic", "european")]
   },
   basque: {
     id: "basque",
-    label: "バスク",
+    label: "Basque",
     folkFaith: "classicalPolytheism",
     eras: [
       era("classicalAntiquity", "classicalPolytheism", "earthwork"),
@@ -225,7 +215,7 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   turkic: {
     id: "turkic",
-    label: "テュルク・オスマン",
+    label: "Turkic and Ottoman",
     folkFaith: "tengri",
     eras: [
       era("classicalAntiquity", "tengri", "earthwork"),
@@ -236,19 +226,19 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   maghrebi: {
     id: "maghrebi",
-    label: "マグリブ・ベルベル（ムーア）",
+    label: "Maghreb Berber (Moorish)",
     folkFaith: "westAfrican",
     eras: [era("classicalAntiquity", "classicalPolytheism", "classical"), era("earlyMedieval", "sunni", "islamic")]
   },
   arab: {
     id: "arab",
-    label: "アラブ",
+    label: "Arab",
     folkFaith: "semiticPolytheism",
     eras: [era("classicalAntiquity", "semiticPolytheism", "classical"), era("earlyMedieval", "sunni", "islamic")]
   },
   persian: {
     id: "persian",
-    label: "ペルシア（イラン）",
+    label: "Persia (Iran)",
     folkFaith: "zoroastrian",
     eras: [
       era("classicalAntiquity", "zoroastrian", "islamic"),
@@ -259,37 +249,37 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   swahili: {
     id: "swahili",
-    label: "スワヒリ沿岸",
+    label: "Swahili Coast",
     folkFaith: "westAfrican",
     eras: [era("classicalAntiquity", "westAfrican", "earthwork"), era("highMedieval", "sunni", "islamic")]
   },
   levantine: {
     id: "levantine",
-    label: "レヴァント（ヘブライ・フェニキア）",
+    label: "Levant (Hebrew, Phoenician)",
     folkFaith: "semiticPolytheism",
     eras: [era("classicalAntiquity", "judaism", "classical"), era("earlyMedieval", "judaism", "islamic")]
   },
   mesopotamian: {
     id: "mesopotamian",
-    label: "メソポタミア",
+    label: "Mesopotamia",
     folkFaith: "semiticPolytheism",
     eras: [era("classicalAntiquity", "semiticPolytheism", "classical")]
   },
   indic: {
     id: "indic",
-    label: "インド（南インド）",
+    label: "India (South India)",
     folkFaith: "hindu",
     eras: [era("classicalAntiquity", "hindu", "islamic")]
   },
   sinitic: {
     id: "sinitic",
-    label: "中華",
+    label: "China",
     folkFaith: "sinitic",
     eras: [era("classicalAntiquity", "sinitic", "sinitic")]
   },
   korean: {
     id: "korean",
-    label: "朝鮮",
+    label: "Korea",
     folkFaith: "shamanic",
     eras: [
       era("classicalAntiquity", "mahayana", "sinitic"),
@@ -299,105 +289,105 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
   },
   vietnamese: {
     id: "vietnamese",
-    label: "ベトナム",
+    label: "Vietnam",
     folkFaith: "sinitic",
     eras: [era("classicalAntiquity", "mahayana", "sinitic")]
   },
   japanese: {
     id: "japanese",
-    label: "日本",
+    label: "Japan",
     folkFaith: "shintoBuddhist",
     eras: [era("classicalAntiquity", "shintoBuddhist", "japanese")]
   },
   mongol: {
     id: "mongol",
-    label: "モンゴル",
+    label: "Mongol",
     folkFaith: "tengri",
     // Altan Khan's conversion to Tibetan Buddhism, 1578
     eras: [era("classicalAntiquity", "tengri", "earthwork"), era("ageOfExploration", "vajrayana", "earthwork")]
   },
   nahua: {
     id: "nahua",
-    label: "メソアメリカ（ナワ）",
+    label: "Mesoamerica (Nahua)",
     folkFaith: "mesoamerican",
     eras: [era("classicalAntiquity", "mesoamerican", "classical")]
   },
   andean: {
     id: "andean",
-    label: "アンデス（ケチュア）",
+    label: "Andes (Quechua)",
     folkFaith: "andean",
     eras: [era("classicalAntiquity", "andean", "classical")]
   },
   polynesian: {
     id: "polynesian",
-    label: "ポリネシア",
+    label: "Polynesia",
     folkFaith: "polynesian",
     eras: [era("classicalAntiquity", "polynesian", "earthwork")]
   },
   westAfrican: {
     id: "westAfrican",
-    label: "西アフリカ（ヨルバ）",
+    label: "West Africa (Yoruba)",
     folkFaith: "westAfrican",
     eras: [era("classicalAntiquity", "westAfrican", "earthwork")]
   },
   arctic: {
     id: "arctic",
-    label: "極北（イヌイット）",
+    label: "Far North (Inuit)",
     folkFaith: "shamanic",
     eras: [era("classicalAntiquity", "shamanic", "earthwork")]
   },
   // Fantasy folk. Each keeps a historical analogue for its buildings.
   elven: {
     id: "elven",
-    label: "エルフ（森の民）",
+    label: "Elves (forest folk)",
     folkFaith: "sylvanElven",
     eras: [era("classicalAntiquity", "sylvanElven", "fantastic")]
   },
   darkElven: {
     id: "darkElven",
-    label: "ダークエルフ（地底）",
+    label: "Dark elves (underground)",
     folkFaith: "chthonic",
     eras: [era("classicalAntiquity", "chthonic", "fantastic")]
   },
   dwarven: {
     id: "dwarven",
-    label: "ドワーフ（山の広間）",
+    label: "Dwarves (mountain halls)",
     folkFaith: "dwarvenAncestor",
     eras: [era("classicalAntiquity", "dwarvenAncestor", "european")]
   },
   giant: {
     id: "giant",
-    label: "巨人（巨石文化）",
+    label: "Giants (megalithic)",
     folkFaith: "giantMegalithic",
     eras: [era("classicalAntiquity", "giantMegalithic", "classical")]
   },
   draconic: {
     id: "draconic",
-    label: "竜族",
+    label: "Dragonkin",
     folkFaith: "draconic",
     eras: [era("classicalAntiquity", "draconic", "sinitic")]
   },
   tribal: {
     id: "tribal",
-    label: "部族（オーク・ゴブリン・獣人）",
+    label: "Tribes (orcs, goblins, beastfolk)",
     folkFaith: "tribalSpirit",
     eras: [era("classicalAntiquity", "tribalSpirit", "earthwork")]
   },
   arachnid: {
     id: "arachnid",
-    label: "蜘蛛族（地底）",
+    label: "Spiderfolk (underground)",
     folkFaith: "chthonic",
     eras: [era("classicalAntiquity", "chthonic", "fantastic")]
   },
   serpent: {
     id: "serpent",
-    label: "蛇人（神殿都市）",
+    label: "Serpentfolk (temple cities)",
     folkFaith: "serpentCult",
     eras: [era("classicalAntiquity", "serpentCult", "classical")]
   },
   infernal: {
     id: "infernal",
-    label: "魔族",
+    label: "Demons",
     folkFaith: "infernal",
     eras: [era("classicalAntiquity", "infernal", "fantastic")]
   }
