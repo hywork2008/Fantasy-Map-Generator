@@ -625,7 +625,7 @@ export function buildTemperaturePolygons(
 }
 
 /**
- * One short line segment per open-ocean grid cell, pointing in `grid.cells.currentAngle` with
+ * One arrow per open-ocean grid cell, pointing in `grid.cells.currentAngle` with
  * length/width proportional to `grid.cells.currentSpeed` and color from `grid.cells.waterTemp`
  * (same cold-blue -> warm-red scale as `buildTemperaturePolygons`, but scoped to a
  * water-appropriate range so ocean temperature differences stay visible). Purely a visualization
@@ -661,14 +661,20 @@ export function buildOceanCurrentPaths(
     const length = lerp(minLength, maxLength, speedNorm);
     const angleRad = (currentAngle[cellId] * Math.PI) / 180;
     const [x, y] = position;
-    const end: DeckPosition = [x + Math.cos(angleRad) * length, y + Math.sin(angleRad) * length];
+    const dx = Math.cos(angleRad) * length;
+    const dy = Math.sin(angleRad) * length;
+    const end: DeckPosition = [x + dx, y + dy];
+    // Use the same arrowhead proportions as the Winds layer, pointing downstream.
+    const wing = 0.3;
+    const left: DeckPosition = [end[0] - (dx - dy * 0.6) * wing, end[1] - (dy + dx * 0.6) * wing];
+    const right: DeckPosition = [end[0] - (dx + dy * 0.6) * wing, end[1] - (dy - dx * 0.6) * wing];
 
     const tNormalized = 1 - (waterTemp[cellId] - tMin) / delta;
     const hexColor = interpolateSpectral(minmax(tNormalized, 0, 1));
 
     paths.push({
       id: `ocean-current-${cellId}`,
-      path: [[x, y], end],
+      path: [[x, y], end, left, end, right],
       color: colorToRgba(hexColor, "#999999", 0.85),
       width: lerp(0.5, 2.5, speedNorm),
       kind: "oceanCurrent",
