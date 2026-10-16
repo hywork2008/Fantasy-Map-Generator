@@ -18,10 +18,9 @@
  *   --env node      # run in this process without DOM (Node Adapter, S6) against __golden__/node.json
  *   --env all       # browser and node, each against its own golden, then report browser vs node
  *
- * The browser and Node goldens are separate files: Chromium's V8 and Node's V8 return different
- * last bits for Math.exp/sin/log/pow (simulation-core-separation.md §20.3), so the two
- * environments cannot share digests. jsdom runs on Node's V8 and must match node.json bit for bit
- * (src/simulation/goldenParity.jsdom.test.ts).
+ * Each environment keeps its own golden file, and `--env all` also requires the browser and Node
+ * checkpoints to be identical (§21: the host installs deterministic Math, so engines agree bit for
+ * bit). jsdom must match node.json too (src/simulation/goldenParity.jsdom.test.ts).
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -380,9 +379,8 @@ async function main() {
       for (const [name, report] of Object.entries(nodeRun.checkpoints)) {
         const other = browserRun.checkpoints[name];
         const sections = other ? diffWorldHashes(other, report) : ["(missing)"];
-        log(
-          `browser vs node ${name}: ${sections.length ? `${sections.length} section(s) differ (libm, §20.3): ${sections.join(", ")}` : "identical"}`
-        );
+        if (sections.length) failures.push(`browser vs node ${name}: ${sections.length} section(s) differ: ${sections.join(", ")}`);
+        else log(`browser vs node ${name}: identical`);
       }
     if (failures.length) {
       console.error(failures.join("\n"));

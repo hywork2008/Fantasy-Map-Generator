@@ -1,5 +1,5 @@
 import { randomNormal } from "d3";
-
+import { pow } from "../simulation/deterministicMath";
 import { minmax, rn } from "./numberUtils";
 
 export interface RNGService {
@@ -110,7 +110,7 @@ export const rw = (object: { [key: string]: number }): string => {
  * @return {number} biased random integer
  */
 export const biased = (min: number, max: number, ex: number): number => {
-  return Math.round(min + (max - min) * Math.random() ** ex);
+  return Math.round(min + (max - min) * pow(Math.random(), ex));
 };
 
 const ERROR = false;
@@ -186,7 +186,7 @@ export const createRNGService = (source: () => number): RNGService => {
     return array[Math.floor(source() * array.length)];
   };
 
-  const biased: RNGService["biased"] = (min, max, ex) => Math.round(min + (max - min) * source() ** ex);
+  const biased: RNGService["biased"] = (min, max, ex) => Math.round(min + (max - min) * pow(source(), ex));
 
   const getNumberInRange: RNGService["getNumberInRange"] = r => {
     if (typeof r !== "string") return 0;

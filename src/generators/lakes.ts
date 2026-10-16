@@ -6,6 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { HeightmapConstants } from "../data/constants";
+import { pow } from "../simulation/deterministicMath";
 import { optionsStore } from "../state/optionsStore";
 import type { PackedGraphFeature } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -74,7 +75,7 @@ export class LakesModule {
     };
 
     const getLakeEvaporation = (lake: PackedGraphFeature) => {
-      const height = (lake.height - 18) ** Number(optionsStore.getState().heightExponent); // height in meters
+      const height = pow(lake.height - 18, Number(optionsStore.getState().heightExponent)); // height in meters
       const evaporation = ((700 * (lake.temp + 0.006 * height)) / 50 + 75) / (80 - lake.temp); // based on Penman formula, [1-11]
       return rn(evaporation * lake.cells);
     };

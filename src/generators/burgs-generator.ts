@@ -33,6 +33,7 @@ import {
   findRiverSettlementSiteSteps,
   type RiverSettlementSite
 } from "../services/settlementRiverSite";
+import { pow } from "../simulation/deterministicMath";
 import { simulationView } from "../simulation/viewPort";
 import { optionsStore } from "../state/optionsStore";
 import type { Burg, Route } from "../types/models";
@@ -701,9 +702,9 @@ class BurgModule {
     const existingPorts = [...lockedPorts, ...selected.map(candidate => candidate.burg)];
     if (!existingPorts.length) return [...candidates].sort((a, b) => rank(a) - rank(b))[0];
 
-    const minDistanceSquared = lakeArea > 0 ? lakeArea / capacity ** 2 : 0;
+    const minDistanceSquared = lakeArea > 0 ? lakeArea / pow(capacity, 2) : 0;
     const distanceToNearestPort = (candidate: PortCandidate) =>
-      Math.min(...existingPorts.map(port => (candidate.burg.x - port.x) ** 2 + (candidate.burg.y - port.y) ** 2));
+      Math.min(...existingPorts.map(port => pow(candidate.burg.x - port.x, 2) + pow(candidate.burg.y - port.y, 2)));
     const spaced = candidates.filter(candidate => distanceToNearestPort(candidate) >= minDistanceSquared);
     if (spaced.length) return [...spaced].sort((a, b) => rank(a) - rank(b))[0];
 
@@ -1595,7 +1596,7 @@ class BurgModule {
     function getTownsNumber() {
       const manors = optionsStore.getState().manors;
       const isAuto = manors === 1000; // 1000 is considered as auto
-      if (isAuto) return rn(populatedCells.length / 5 / (gridDensityCells(grid) / 10000) ** 0.8);
+      if (isAuto) return rn(populatedCells.length / 5 / pow(gridDensityCells(grid) / 10000, 0.8));
 
       return Math.min(manors, populatedCells.length);
     }
@@ -1684,7 +1685,7 @@ class BurgModule {
     for (let i = sorted.length - 1; i >= 0; i--) if (score[sorted[i]] <= 0) sorted.splice(i, 1);
     sorted.sort((a, b) => score[b] - score[a]);
 
-    let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (count ** 0.7 / 66);
+    let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (pow(count, 0.7) / 66);
 
     for (let added = 0; added < count && spacing > 1; ) {
       for (let i = 0; added < count && i < sorted.length; i++) {
@@ -2059,7 +2060,7 @@ class BurgModule {
     const { i, name, population: burgPopulation, cell } = burg;
     const burgSeed = String(burg.MFCG ?? seed + String(burg.i).padStart(4, "0"));
 
-    const sizeRaw = 2.13 * ((burgPopulation! * populationRate) / worldContext.urbanDensity) ** 0.385;
+    const sizeRaw = 2.13 * pow((burgPopulation! * populationRate) / worldContext.urbanDensity, 0.385);
     const size = minmax(Math.ceil(sizeRaw), 6, 100);
     const population = rn(burgPopulation! * populationRate * urbanization);
 

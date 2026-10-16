@@ -4,6 +4,7 @@ import FlatQueue from "flatqueue";
 import { deliverConversionTimber } from "../../../generators/landUse";
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+import { pow } from "../../../simulation/deterministicMath";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
@@ -551,7 +552,7 @@ export class MarketsModule {
     // minSpacing scales with map size relative to burg count
     let minSpacing =
       (((this.worldContext.graphWidth + this.worldContext.graphHeight) * 2) /
-        this.worldContext.pack.burgs.length ** 0.6) |
+        pow(this.worldContext.pack.burgs.length, 0.6)) |
       0;
 
     const markets: Market[] = [];

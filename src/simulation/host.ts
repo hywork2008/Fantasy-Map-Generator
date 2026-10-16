@@ -24,6 +24,7 @@ import { raceService } from "../services/raceService";
 import { getEffectiveSkill, registerSkillModifier } from "../services/skillModifierService";
 import { optionsStore } from "../state/optionsStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../types/extension-api";
+import { installDeterministicMath } from "./deterministicMath";
 import { simEvents } from "./events";
 import {
   createStaticEnablement,
@@ -138,6 +139,8 @@ function createHostMapReadyTasks(): MapReadyTaskPort & { run(all: boolean): Prom
 }
 
 export function createSimulationHost(options: SimulationHostOptions = {}): SimulationHost {
+  // Same doubles in every engine (§21): before any extension registers or a world loads.
+  installDeterministicMath();
   const registeredIds = new Set<string>();
   const enablement = options.enablement ?? createStaticEnablement();
   const ownEnablement = options.enablement ? null : (enablement as ReturnType<typeof createStaticEnablement>);

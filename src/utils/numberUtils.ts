@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 /**
  * Rounds a number to a specified number of decimal places.
  * @param v - The number to be rounded.
@@ -5,7 +6,7 @@
  * @returns The rounded number.
  */
 export const rn = (v: number, d: number = 0) => {
-  const m = 10 ** d;
+  const m = pow(10, d);
   return Math.round(v * m) / m;
 };
 

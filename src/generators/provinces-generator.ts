@@ -7,6 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { pow } from "../simulation/deterministicMath";
 import { optionsStore } from "../state/optionsStore";
 import type { Province } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -99,7 +100,7 @@ class ProvinceModule {
     }
 
     const provincesRatio = optionsStore.getState().provincesRatio;
-    const maxGrowth = provincesRatio === 100 ? 1000 : gauss(20, 5, 5, 100) * provincesRatio ** 0.5; // max growth
+    const maxGrowth = provincesRatio === 100 ? 1000 : gauss(20, 5, 5, 100) * pow(provincesRatio, 0.5); // max growth
 
     // generate provinces for selected burgs
     states.forEach(s => {

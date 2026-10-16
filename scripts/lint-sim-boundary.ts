@@ -69,6 +69,8 @@ const RUNTIME_PATTERNS: Record<string, RegExp> = {
   navigator: /\bnavigator\./g,
   // Environment sniffing: a branch on the host makes Node and the browser simulate differently
   // (S6 found seven economy/funeral events that were silently dropped without `document`).
+  // `**` cannot be routed to the deterministic pow (§21); call `pow()` from simulation/deterministicMath.
+  powOperator: /\*\*=?/g,
   typeof: /\btypeof\s+(?:window|document|navigator|localStorage|sessionStorage|requestAnimationFrame)\b/g
 };
 

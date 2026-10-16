@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 /**
  * Regroup an array of values by multiple keys and reduce each group
  * @param {Array} values - The array of values to regroup
@@ -63,5 +64,5 @@ const nest = <T>(
  * @returns {number} - Squared distance between p1 and p2
  */
 export const distanceSquared = ([x1, y1]: [number, number], [x2, y2]: [number, number]) => {
-  return (x1 - x2) ** 2 + (y1 - y2) ** 2;
+  return pow(x1 - x2, 2) + pow(y1 - y2, 2);
 };

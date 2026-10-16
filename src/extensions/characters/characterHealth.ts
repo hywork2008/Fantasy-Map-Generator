@@ -11,6 +11,8 @@
  * only mutates `health`/`affliction`/`timesIllness`; death itself (title cleanup, deathYear,
  * reason) stays centralized in advanceCharacterAging().
  */
+
+import { pow } from "../../simulation/deterministicMath";
 import { minmax, normalize, P } from "../hostUtils";
 import { resolveCharacterRaceId } from "./appearance";
 import { getCharacters, getCurrentYear, getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -291,7 +293,7 @@ function chronicHealthTarget(sanitation: number): number {
 /** Converts a per-year probability into a per-tick roll for a possibly fractional/multi-year deltaYears. */
 function rollPerYear(probabilityPerYear: number, deltaYears: number): boolean {
   if (probabilityPerYear <= 0) return false;
-  const perTick = 1 - (1 - Math.min(0.99, probabilityPerYear)) ** deltaYears;
+  const perTick = 1 - pow(1 - Math.min(0.99, probabilityPerYear), deltaYears);
   return P(perTick);
 }
 

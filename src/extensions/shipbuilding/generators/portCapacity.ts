@@ -4,6 +4,7 @@ import {
   evaluateHarborDepth,
   evaluateHarborElevation
 } from "../../../generators/harborSiteConditions";
+import { pow } from "../../../simulation/deterministicMath";
 import { normalizeHeightExponent } from "../../../utils/height";
 import { optionsStore } from "../../hostCore";
 import type { Burg, PackedGraph } from "../../hostTypes";
@@ -62,7 +63,7 @@ function computeBurgPortCapacity(
 ): PortCapacity {
   const { cells } = pack;
   const realPopulation = (burg.population ?? 0) * populationRate * urbanization;
-  const basePortScore = POWER_LAW_COEFFICIENT * realPopulation ** POWER_LAW_EXPONENT;
+  const basePortScore = POWER_LAW_COEFFICIENT * pow(realPopulation, POWER_LAW_EXPONENT);
 
   const harborQuality = Math.min(cells.harbor[burg.cell] ?? 0, MAX_HARBOR_QUALITY);
   const harborFactor = Math.max(harborQuality, 1) / MAX_HARBOR_QUALITY;

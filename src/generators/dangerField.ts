@@ -2,6 +2,8 @@
  * Pure danger-field rebuild from monster influence radii (+ optional Phase 5
  * biome predators). Shared by Threats.generate and wilderness ecology.
  */
+
+import { pow } from "../simulation/deterministicMath";
 import type { Monster } from "../types/models";
 import type { BiomesData } from "../types/WorldState";
 import { applyBiomePredatorDanger } from "./biomePredators";
@@ -62,7 +64,7 @@ export function rebuildDangerFromMonsters(
       if (threatCalculation === "max") {
         cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, remaining * 5));
       } else if (threatCalculation === "nonlinear") {
-        const nonLinearDanger = Math.round(255 * (remaining / power) ** 2);
+        const nonLinearDanger = Math.round(255 * pow(remaining / power, 2));
         cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, nonLinearDanger));
       } else {
         cells.danger[cell] = Math.min(255, cells.danger[cell] + remaining * 4);

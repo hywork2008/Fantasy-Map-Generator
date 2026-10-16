@@ -9,7 +9,7 @@
   ],
   "checkpoints": {
     "day-0": {
-      "digest": "e53dbef7547873f04d3b7e05383e3298adc113c3e84a6384096be6503ae16920",
+      "digest": "68ee94ceaf93624193c88f3596e8c038857740c32e9e6d9a6bf1a45c5187fdaa",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -22,7 +22,7 @@
         "world.nameBases": "7be72da0dd382da71c27a92efec958a9c0d97e7093a82a54a80e1dbfc0d0fb54",
         "world.notes": "366b26a5666dcc7364f785166adb0724f03313b47b9557dc0cd9d2e6ff73b01f",
         "world.options": "f3ecc014b70970b9009b5a74b1329371565d0b61982966ee59e07b749d4d8eb7",
-        "world.pack.burgs": "1358d7b2a207068c6b74dd85287e6fb5053890782a41ae354427c40282cd2e9e",
+        "world.pack.burgs": "a79c964a7ab6136f2b50ea2b2d57d4e7fdebfa31d678a54c8f3bcdf783ff68fa",
         "world.pack.cells": "e6f189b7d15f6600063f4a5ab0e1fd7eeb69d4d401543d8071ee4b8498ecdbb9",
         "world.pack.cultures": "5cca90374e4b2ff843a9f210f829b0a62454fde93e161744d12832a7f3d71d5a",
         "world.pack.dungeons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
@@ -38,7 +38,7 @@
         "world.pack.races": "fa45c83b01e5023a4724c913a4bdd7ce8631c6789f82a26e5dd03bcab5f6c8e8",
         "world.pack.religions": "dcaf23dd4c3a6955fede77bba0d2bf68062664cbb1c117b9d068a823ac2973b7",
         "world.pack.rivers": "d7ad020fd89d0bac515ca10f06e64d65653b4f3ae8f40f0252fe3220e1578000",
-        "world.pack.routes": "ca82165388a4f1dec4d7be124b0c43c6f18d1645685b45818d98cade56254da6",
+        "world.pack.routes": "94190cf2d1ae847e2c3c95bf89644e79098fcd69d549d63b49a777182dc980ef",
         "world.pack.states": "44f75629f1d8d840b389da0222eb7e1ccdf496c0090a7b792823b64c9707c2dd",
         "world.pack.subterraneanDomains": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "world.pack.vertices": "a4b75587cbff7b75a26090dda114b10cc4ea5c7cecd9846c8c4552d17e040d1c",
@@ -77,7 +77,7 @@
       }
     },
     "day-30": {
-      "digest": "d1a7a235db42a29e38b2e967664d63b4b84b44f2ee66e879b8f4046900aab0f3",
+      "digest": "6807af8c28c7c71c979e1784a31e27fa5887df5abf05cfa16932eb5e73953fa9",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -90,7 +90,7 @@
         "world.nameBases": "7be72da0dd382da71c27a92efec958a9c0d97e7093a82a54a80e1dbfc0d0fb54",
         "world.notes": "366b26a5666dcc7364f785166adb0724f03313b47b9557dc0cd9d2e6ff73b01f",
         "world.options": "f3ecc014b70970b9009b5a74b1329371565d0b61982966ee59e07b749d4d8eb7",
-        "world.pack.burgs": "ecbb6868a4351dc74f4af1ded96c255a5962e760cf1e24b298a72076366c19f8",
+        "world.pack.burgs": "b9af3d3a56118286f4fccce8ce91085c1e1e8a0b7618fbc6787472afb02dadec",
         "world.pack.cells": "66df4753a98a22c3b68c0d213638fac84feb4c0914657b53e086d9821c2b432c",
         "world.pack.cultures": "5cca90374e4b2ff843a9f210f829b0a62454fde93e161744d12832a7f3d71d5a",
         "world.pack.dungeons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
@@ -106,7 +106,7 @@
         "world.pack.races": "fa45c83b01e5023a4724c913a4bdd7ce8631c6789f82a26e5dd03bcab5f6c8e8",
         "world.pack.religions": "dcaf23dd4c3a6955fede77bba0d2bf68062664cbb1c117b9d068a823ac2973b7",
         "world.pack.rivers": "d7ad020fd89d0bac515ca10f06e64d65653b4f3ae8f40f0252fe3220e1578000",
-        "world.pack.routes": "31c714d33b76c9a6069b43bad9137a2d59fd7b083440b19c9dac746573634fa2",
+        "world.pack.routes": "c9ecf34fd383ef8c3ee05c1dc7a5baea959c913d23a4dd10e866ec39bd445c87",
         "world.pack.states": "872f3722048ea75f35b84e0f279db985b93688396aea1129a63bf6bfb79e4c74",
         "world.pack.subterraneanDomains": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "world.pack.vertices": "a4b75587cbff7b75a26090dda114b10cc4ea5c7cecd9846c8c4552d17e040d1c",
@@ -123,7 +123,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "d5a5438e75f6a4ada2305919dc2f4129403ece70e778383c367d5e8ec36daa20",
-        "simulation.extensions.economy": "4fd686e00c77b1e3a76f93f30d5e3f94da45cc5cd009c914053ebfa103c20edb",
+        "simulation.extensions.economy": "09f9fd2ba8c421e0c25764301ef26b5c237b1555c252a1df10b106659d7ac203",
         "simulation.extensions.nobility": "fccc15dda6209b4e56f57364ea4827651db63f737bacb6c848d1bf2923726b17",
         "simulation.extensions.shipbuilding": "5d04b12a7cbf5861e512d10b82e0ea0265e0d7adddf27166852ba0e9fbe1d66b",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -146,7 +146,7 @@
       }
     },
     "day-365": {
-      "digest": "b599b12bdc01b16d100c2dda65caaec4b60798ab392cd517db4473ae82a1418f",
+      "digest": "fdec9b06935f15b1567b9b39d74a23f41d1e348398d8ca5f0dfac5ee3de5d70d",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -159,7 +159,7 @@
         "world.nameBases": "7be72da0dd382da71c27a92efec958a9c0d97e7093a82a54a80e1dbfc0d0fb54",
         "world.notes": "366b26a5666dcc7364f785166adb0724f03313b47b9557dc0cd9d2e6ff73b01f",
         "world.options": "f3ecc014b70970b9009b5a74b1329371565d0b61982966ee59e07b749d4d8eb7",
-        "world.pack.burgs": "d6263795b4f0945707ab2a520c25fb55ec9bfd40f9082c53e0ba5b21f5e2331a",
+        "world.pack.burgs": "b7c0570a0eb84594b68e5ce3543513c07fd51883483aeb903d1f0cb2571819fc",
         "world.pack.cells": "66df4753a98a22c3b68c0d213638fac84feb4c0914657b53e086d9821c2b432c",
         "world.pack.cultures": "5cca90374e4b2ff843a9f210f829b0a62454fde93e161744d12832a7f3d71d5a",
         "world.pack.dungeons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
@@ -175,7 +175,7 @@
         "world.pack.races": "fa45c83b01e5023a4724c913a4bdd7ce8631c6789f82a26e5dd03bcab5f6c8e8",
         "world.pack.religions": "dcaf23dd4c3a6955fede77bba0d2bf68062664cbb1c117b9d068a823ac2973b7",
         "world.pack.rivers": "d7ad020fd89d0bac515ca10f06e64d65653b4f3ae8f40f0252fe3220e1578000",
-        "world.pack.routes": "b801479bf60612b7bb97f1a59833753f7a8e771d50aec612a0bf6b43404b05be",
+        "world.pack.routes": "070666ed7c4482f6131fa5a62b23c2ffad43185b2e32c321c9fd3411dba25caf",
         "world.pack.states": "54857d5f0b489885dc1e61179a4047d5bbcca6e8a6dbb3b97caffbec80b686c2",
         "world.pack.subterraneanDomains": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "world.pack.vertices": "a4b75587cbff7b75a26090dda114b10cc4ea5c7cecd9846c8c4552d17e040d1c",
@@ -192,7 +192,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "14189e1d9c195bf2b4175d0dd7ada4110f55bd5719afac2048e500cef50c0357",
-        "simulation.extensions.economy": "4283fef222eb33c99af708067f6f52bbde3b88e6c539ddc15941de13dd2cd1be",
+        "simulation.extensions.economy": "4bb26b63a64a67e55b894df6b64d3422493f081a445e8b7393ea5f97bae717cc",
         "simulation.extensions.nobility": "fccc15dda6209b4e56f57364ea4827651db63f737bacb6c848d1bf2923726b17",
         "simulation.extensions.shipbuilding": "4f67a914a7683dd1f2c1e8c066d152d26ecddb1dc56fc5bfdbb271ba8030a8f9",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",

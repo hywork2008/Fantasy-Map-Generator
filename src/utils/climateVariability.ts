@@ -9,6 +9,7 @@
  * Leaf module: no imports from context/, generators/ or extensions/.
  */
 
+import { pow } from "../simulation/deterministicMath";
 import { getDaysInMonth } from "./seasonUtils";
 
 export type ClimateVariabilityStart = "off" | "fromStart" | "later";
@@ -188,7 +189,7 @@ export function getGlobalClimateAnomaly(
 }
 
 function rawAmplification(latitudeDeg: number): number {
-  return 0.5 + 1.5 * (Math.min(90, Math.abs(latitudeDeg)) / 90) ** 1.5;
+  return 0.5 + 1.5 * pow(Math.min(90, Math.abs(latitudeDeg)) / 90, 1.5);
 }
 
 /** Area-weighted (cos latitude) global mean of the raw shape, so depthC stays a global mean. */

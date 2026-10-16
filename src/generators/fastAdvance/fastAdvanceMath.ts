@@ -1,3 +1,4 @@
+import { pow } from "../../simulation/deterministicMath";
 import type { RNGService } from "../../utils/probabilityUtils";
 
 /**
@@ -17,7 +18,7 @@ import type { RNGService } from "../../utils/probabilityUtils";
 export const FAST_ADVANCE_COARSE_GATE_DAYS = 30;
 
 export function annualGrowthFactor(pctPerYear: number, years: number): number {
-  return (1 + pctPerYear / 100) ** years;
+  return pow(1 + pctPerYear / 100, years);
 }
 
 /**

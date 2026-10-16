@@ -10,6 +10,7 @@ import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../servic
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { densifyLandRoutePoints, routeRenderPoints } from "../services/routeRenderGeometry";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
+import { pow } from "../simulation/deterministicMath";
 import { optionsStore } from "../state/optionsStore";
 import type {
   Burg,
@@ -151,7 +152,7 @@ export function landRouteSlopeModifier(grade: number, sensitivity = 1, aversion 
   if (grade <= 0) return 1;
   return (
     1 +
-    LAND_ROUTE_SLOPE_S * sensitivity * aversion * (grade / DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard) ** LAND_ROUTE_SLOPE_Q
+    LAND_ROUTE_SLOPE_S * sensitivity * aversion * pow(grade / DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard, LAND_ROUTE_SLOPE_Q)
   );
 }
 
@@ -159,7 +160,7 @@ export function landRouteSlopeModifier(grade: number, sensitivity = 1, aversion 
 export function landRoutePeakMultiplier(hTo: number, sensitivity = 1, aversion = 1): number {
   const peak = Math.max(0, hTo - LAND_ROUTE_PEAK_H0);
   if (peak === 0) return 1;
-  return 1 + LAND_ROUTE_PEAK_K * sensitivity * aversion * (peak / LAND_ROUTE_PEAK_REF) ** LAND_ROUTE_PEAK_P;
+  return 1 + LAND_ROUTE_PEAK_K * sensitivity * aversion * pow(peak / LAND_ROUTE_PEAK_REF, LAND_ROUTE_PEAK_P);
 }
 
 /** Combined terrain multiplier (no low cap — high peaks may be arbitrarily expensive). */
@@ -1520,7 +1521,7 @@ class RoutesModule {
     for (let k = lo; k < hi; k++) {
       const [ax, ay] = polygon[k];
       const [bx, by] = polygon[k + 1];
-      const length = (bx - ax) ** 2 + (by - ay) ** 2;
+      const length = pow(bx - ax, 2) + pow(by - ay, 2);
       const t = length ? Math.max(0, Math.min(1, ((burg.x - ax) * (bx - ax) + (burg.y - ay) * (by - ay)) / length)) : 0;
       const q: [number, number] = [ax + (bx - ax) * t, ay + (by - ay) * t];
       const d = Math.hypot(q[0] - burg.x, q[1] - burg.y);

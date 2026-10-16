@@ -14,6 +14,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { getTroopPreferredFormation } from "../data/militaryFormations";
+import { pow } from "../simulation/deterministicMath";
 import { optionsStore } from "../state/optionsStore";
 import { historicalPeriodIndex } from "../types/historicalPeriod";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
@@ -380,7 +381,7 @@ class MilitaryModule {
           if (s.formName!.includes("Horde")) modifier *= 2;
           const plainsRatio = stateCellsCount[s.i] ? statePlainsCount[s.i] / stateCellsCount[s.i] : 0;
           // Sharp exponential curve: high plains -> massive boost, low plains -> practically zero
-          const plainsModifier = minmax(0.05 + plainsRatio ** 2 * 15, 0.05, 5);
+          const plainsModifier = minmax(0.05 + pow(plainsRatio, 2) * 15, 0.05, 5);
           modifier *= plainsModifier;
         } else if (unit.type === "melee" || unit.type === "ranged") {
           if (s.type === "Nomadic" || s.formName!.includes("Horde")) modifier *= 0.3;

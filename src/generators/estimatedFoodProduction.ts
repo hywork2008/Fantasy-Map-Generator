@@ -1,5 +1,6 @@
 import { simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { pow } from "../simulation/deterministicMath";
 import { createCellClimateNormalsReader } from "./cellClimateNormals";
 import { type EstimatedFoodSoil, estimateFoodClimateYield, estimateFoodWaterTarget } from "./foodClimateEstimate";
 import { allocateRiverWater, compileRiverWaterNetwork, type RiverWithdrawal } from "./riverWaterAllocation";
@@ -45,7 +46,7 @@ export function estimateCellFoodProduction(world: Readonly<WorldContext>, potent
     const height = cells.h[id];
     if (height < 20 || (world.biomesData.habitability?.[cells.biomeCode[id]] ?? 0) <= 0) continue;
     const tags = world.biomesData.tags?.[cells.biomeCode[id]] ?? [];
-    const physical = Math.max(0, cells.area?.[id] ?? 0) * (world.distanceScale || 1) ** 2 * 100;
+    const physical = Math.max(0, cells.area?.[id] ?? 0) * pow(world.distanceScale || 1, 2) * 100;
     const terrainShare = height <= 50 ? 0.9 : Math.max(0.2, 0.9 - (height - 50) / 90);
     const biomeShare = tags.includes("wetland")
       ? 0.35

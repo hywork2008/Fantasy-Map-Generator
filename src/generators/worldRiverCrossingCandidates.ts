@@ -4,6 +4,7 @@ import { evaluateRiverAxis, sampleRiverAxis } from "../services/riverAxisSamplin
 import type { RiverPoint } from "../services/riverGeometry";
 import type { WorldRiverGeometryRegistry } from "../services/worldRiverGeometry";
 import type { WorldRiverGeometryResult } from "../services/worldRiverGeometry.types";
+import { pow } from "../simulation/deterministicMath";
 import { createProvisionalRiverCrossing, type ProvisionalRiverCrossing } from "./riverCrossingCandidates";
 import type {
   WorldCrossingCandidateEnvironment,
@@ -250,7 +251,7 @@ export function generateWorldRiverCrossingCandidates(
     for (let level = 1; level <= refinement.levels; level++)
       for (const center of centers)
         for (const sign of [-1, 1]) {
-          const arc = center.arc + (sign * settings.spacingMeters) / 2 ** level;
+          const arc = center.arc + (sign * settings.spacingMeters) / pow(2, level);
           if (
             arc <= settings.dimensions.localWindowMeters ||
             arc >= center.geometry.geometry.axis.length - settings.dimensions.localWindowMeters ||

@@ -12,6 +12,7 @@ import {
   STAPLE_NEED_KG_PER_PERSON_YEAR,
   requiredFieldAreaHectares as sharedRequiredFieldAreaHectares
 } from "../../../generators/settlementClearance";
+import { pow } from "../../../simulation/deterministicMath";
 import {
   allocateRiverWater,
   CHILD_COHORT_YEARS,
@@ -717,7 +718,7 @@ export function calculatePhysicalAreaHectares(world: Readonly<WorldContext>, cel
   const cells = world.pack.cells;
   if ((cells.h[cellId] ?? 0) < 20) return 0;
   const rawArea = Math.max(0, cells.area?.[cellId] ?? 0);
-  return rawArea * Math.max(0, world.distanceScale || 1) ** 2 * 100;
+  return rawArea * pow(Math.max(0, world.distanceScale || 1), 2) * 100;
 }
 
 /**

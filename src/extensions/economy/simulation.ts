@@ -1732,6 +1732,13 @@ function register(api: SimulationExtensionAPI): () => void {
     reconcileRetailInventory();
   });
 
+  // Balance History's per-action row (UI, `fmg:time-advance-completed`) reconciles retail stock
+  // too; do it here first so the world after an Advance Time does not depend on that UI.
+  on("fmg:time-advance-completed", () => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    reconcileRetailInventory();
+  });
+
   // Production-affecting changes are accumulated between monthly settlements. In
   // particular, Shipbuilding can emit a logging event every simulated day; making
   // each event run the full production/trade cycle turned Advance Year into up to

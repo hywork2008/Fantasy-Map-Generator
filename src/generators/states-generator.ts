@@ -9,6 +9,7 @@ import { worldContext } from "../context/worldContext";
 import { isForestBiome } from "../data/biomeCatalog";
 import { HeightThreshold } from "../data/constants";
 import { findWarRouteCells } from "../services/warRouteFinder";
+import { pow } from "../simulation/deterministicMath";
 import { getDefaultMaxWarDisparityRatioEnabled, optionsStore } from "../state/optionsStore";
 import type {
   Campaign,
@@ -766,7 +767,7 @@ class StatesModule {
         // This makes it feel like wars typically happened 1-2 generations ago, spreading nicely up to recent times.
         const yearsAgo = Math.max(
           1,
-          Math.min(100, Math.floor(minYears + Math.random() ** 1.5 * (maxYears - minYears)))
+          Math.min(100, Math.floor(minYears + pow(Math.random(), 1.5) * (maxYears - minYears)))
         );
 
         const warId = `war-${attacker}-${defender}-${count}-${options.year! - yearsAgo}`;
@@ -1390,7 +1391,7 @@ class StatesModule {
 
     const medianState = median(pack.states.map(s => s.area))!;
     const empireMin = states.map(s => s.area).sort((a = 0, b = 0) => b - a)[
-      Math.max(Math.ceil(states.length ** 0.4) - 2, 0)
+      Math.max(Math.ceil(pow(states.length, 0.4)) - 2, 0)
     ]!;
     const expTiers = pack.states.map(s => {
       let tier = Math.min(Math.floor((s.area! / medianState) * 2.6), 4);

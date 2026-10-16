@@ -14,6 +14,7 @@
 
 import type { WorldContext } from "../context/worldContext";
 import { getEarthCoordinatesAtMapPoint } from "../data/earthConfig";
+import { pow } from "../simulation/deterministicMath";
 import { optionsStore } from "../state/optionsStore";
 import { getMonthlyMeanTemperaturesC } from "../utils/earthlikeClimate";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
@@ -576,7 +577,7 @@ export function getCellWindRose(world: WorldContext, gridCellId: number): CellWi
 }
 
 function roseEntry(count: number[], speedSum: number[], calm: number, total: number): WindRoseEntry {
-  const round = (x: number, d: number) => Math.round(x * 10 ** d) / 10 ** d;
+  const round = (x: number, d: number) => Math.round(x * pow(10, d)) / pow(10, d);
   return {
     frequency: count.map(c => round(c / total, 3)),
     meanSpeed: count.map((c, s) => (c ? round(speedSum[s] / c, 1) : 0)),

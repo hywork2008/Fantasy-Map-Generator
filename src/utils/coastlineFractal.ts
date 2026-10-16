@@ -3,6 +3,7 @@ import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { pow } from "../simulation/deterministicMath";
 import { clipPoly } from "./commonUtils";
 
 export interface CoastlineSettings {
@@ -57,7 +58,7 @@ export function makeRoughnessProfile(
   }
   const range = max - min || 1;
   for (let i = 0; i < PROFILE_SIZE; i++) {
-    profile[i] = ((profile[i] - min) / range) ** _contrast;
+    profile[i] = pow((profile[i] - min) / range, _contrast);
   }
   return profile;
 }
@@ -595,9 +596,9 @@ export function sampleCatmullRomPolyline(
     const p2 = getPoint(i + 1);
     const p3 = getPoint(i + 2);
 
-    const d01 = Math.sqrt((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** alpha;
-    const d12 = Math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2) ** alpha;
-    const d23 = Math.sqrt((p3[0] - p2[0]) ** 2 + (p3[1] - p2[1]) ** 2) ** alpha;
+    const d01 = pow(Math.sqrt(pow(p1[0] - p0[0], 2) + pow(p1[1] - p0[1], 2)), alpha);
+    const d12 = pow(Math.sqrt(pow(p2[0] - p1[0], 2) + pow(p2[1] - p1[1], 2)), alpha);
+    const d23 = pow(Math.sqrt(pow(p3[0] - p2[0], 2) + pow(p3[1] - p2[1], 2)), alpha);
 
     let cp1x = p1[0];
     let cp1y = p1[1];

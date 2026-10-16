@@ -1,6 +1,6 @@
 import FlatQueue from "flatqueue";
 import polylabel from "polylabel";
-
+import { pow } from "../simulation/deterministicMath";
 import { ERROR } from "./debug";
 import { rn } from "./numberUtils";
 
@@ -429,7 +429,7 @@ export function meander(
       break;
     }
 
-    const dist2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+    const dist2 = pow(x2 - x1, 2) + pow(y2 - y1, 2);
     if (dist2 <= 25 && cells.length >= 6) continue;
 
     const amplitude = meandering + 1 / step + Math.max(meandering - step / 100, 0);

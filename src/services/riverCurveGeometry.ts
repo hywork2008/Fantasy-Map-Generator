@@ -1,4 +1,5 @@
 import { curveCatmullRom, path } from "d3";
+import { pow } from "../simulation/deterministicMath";
 import { RIVER_GEOMETRY_TOLERANCE, type RiverPoint } from "./riverGeometry";
 
 export type RiverCubic = readonly [RiverPoint, RiverPoint, RiverPoint, RiverPoint];
@@ -56,7 +57,7 @@ export function evaluateRiverCubic(c: RiverCubic, t: number) {
       c[0][i] +
       3 * v * v * t * (c[1][i] - c[0][i]) +
       3 * v * t * t * (c[2][i] - c[0][i]) +
-      t ** 3 * (c[3][i] - c[0][i]);
+      pow(t, 3) * (c[3][i] - c[0][i]);
     derivative[i] = 3 * v * v * (c[1][i] - c[0][i]) + 6 * v * t * (c[2][i] - c[1][i]) + 3 * t * t * (c[3][i] - c[2][i]);
     second[i] = 6 * v * (c[2][i] - 2 * c[1][i] + c[0][i]) + 6 * t * (c[3][i] - 2 * c[2][i] + c[1][i]);
   }
@@ -376,7 +377,9 @@ export function evaluateCubicRiverAxis(axis: CubicRiverAxis, arcLength: number) 
   if (!tangent) return null;
   const speed = size(value.derivative);
   const curvature =
-    speed > epsilon ? (value.derivative[0] * value.second[1] - value.derivative[1] * value.second[0]) / speed ** 3 : 0;
+    speed > epsilon
+      ? (value.derivative[0] * value.second[1] - value.derivative[1] * value.second[0]) / pow(speed, 3)
+      : 0;
   return {
     segmentIndex: segment.index,
     arcLength,

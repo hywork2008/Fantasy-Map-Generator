@@ -10,6 +10,7 @@
  * piracy risk without changing the shipwreck calculation.
  */
 
+import { pow } from "../../../simulation/deterministicMath";
 import type { ClimateBand, DistanceBand, ExpeditionPurpose, PowerTier } from "./overseasRelationsTypes";
 import { CLIMATE_BANDS } from "./overseasRelationsTypes";
 
@@ -83,7 +84,7 @@ export function computeRoundTripLossRisk(params: {
   const shipwreckRisk = computeShipwreckRisk(params);
   const piracyRisk = computePiracyRisk(params);
   const legLossRisk = 1 - (1 - shipwreckRisk) * (1 - piracyRisk);
-  const roundTripLossRisk = 1 - (1 - legLossRisk) ** 2;
+  const roundTripLossRisk = 1 - pow(1 - legLossRisk, 2);
   return { legLossRisk, roundTripLossRisk, shipwreckRisk, piracyRisk };
 }
 

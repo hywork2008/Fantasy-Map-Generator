@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 import { minmax, rn } from "../utils/numberUtils";
 
 /** Earth-equivalent equatorial circumference used to calibrate generated map distances. */
@@ -250,8 +251,8 @@ export function getEarthDistanceBetweenMapPoints(
   const startLatitude = toRadians(startCoordinates.latitude);
   const endLatitude = toRadians(endCoordinates.latitude);
   const haversine =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+    pow(Math.sin(latitudeDelta / 2), 2) +
+    Math.cos(startLatitude) * Math.cos(endLatitude) * pow(Math.sin(longitudeDelta / 2), 2);
   return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 

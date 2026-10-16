@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 import { rn } from "./numberUtils";
 
 /** Existing FMG shape/width rules, shared without a mutable Rivers singleton. */
@@ -23,7 +24,7 @@ export function meanderRiverPoints(
       result.push([x2, y2, flux[cell]]);
       break;
     }
-    const distanceSquared = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+    const distanceSquared = pow(x2 - x1, 2) + pow(y2 - y1, 2);
     if (distanceSquared <= 25 && cells.length >= 6) continue;
     const meander = meandering + 1 / step + Math.max(meandering - step / 100, 0);
     const angle = Math.atan2(y2 - y1, x2 - x1);
@@ -49,11 +50,11 @@ export function riverDisplayOffset(input: {
 }): number {
   const { flux, pointIndex, widthFactor, startingWidth } = input;
   if (pointIndex === 0) return startingWidth;
-  const fluxWidth = Math.min(flux ** 0.7 / 500, 1);
+  const fluxWidth = Math.min(pow(flux, 0.7) / 500, 1);
   const lengthWidth = pointIndex * (1 / 200) + (LENGTH_PROGRESSION[pointIndex] || LENGTH_PROGRESSION.at(-1)!);
   return widthFactor * (lengthWidth + fluxWidth) + startingWidth;
 }
 /** Width in FMG distance units, retaining the existing rounding rule. */
 export function physicalRiverWidth(offset: number): number {
-  return rn((offset / 1.5) ** 1.8, 2);
+  return rn(pow(offset / 1.5, 1.8), 2);
 }

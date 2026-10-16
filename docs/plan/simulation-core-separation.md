@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。**S6 実施**(§20): Node で全拡張 1 年が動き、Node と jsdom のハッシュは一致。ブラウザ(Chromium)と Node のハッシュ一致は、V8 の数学関数の差(§20.3)で**未達**。S7 は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。**S6 完了**(§20・§21): Node で全拡張 1 年が動き、決定的な数学関数(§21)の導入でブラウザ・Node・jsdom の 3 環境のハッシュが 0・30・365 日で一致。S7 は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -643,9 +643,30 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - Chromium 151(V8 15.1)と Node 22(V8 12.4)では、`Math.exp`・`Math.sin`・`Math.log`・`Math.pow` などが最後の 1 ビットで異なる値を返す。同じ 20,000 個の入力で `exp` は 1,981 個、`sin` は 637 個、`log` は 1,181 個、`pow` は 1,505 個が違った。Node 25(V8 14.1)でも `pow` 以外は違った。V8 の版ごとに実装が変わっているので、Node の版を合わせても一致は保証されない。
 - この fixture では、読み込み時の港の修復で burg 58 の `y` が `278.9518546109381` と `278.95185461093797` に分かれる。ここから、その町を通る隊商の経路の距離、到着日、出荷の割り当てへと差が広がる。
 - 実測(`--env all`): day-0 は `world.pack.burgs` の 13 値だけ。day-30・day-365 は `world.pack.burgs` と `simulation.extensions.economy` の 2 セクションだけが違い(2,336 値・47,676 値)、乱数のストリーム・国家・人口・人物・軍事など他のセクションはすべて一致した。
-- **§9 の完了条件「3 環境のハッシュが一致する」は満たしていない**。満たすには、シミュレーションが使う超越関数を決まった実装(JS で書いた fdlibm など)に置き換える必要がある。結果が変わるので golden の基準更新が必要になり、速度にも影響する。進めるかどうかは未決定。
+- この時点では §9 の完了条件「3 環境のハッシュが一致する」を満たしていなかった。→ §21 で超越関数を置き換えて満たした。
 
 ### 20.4 同じプロセスで地図を読み直すと結果が変わる
 
 - Node の golden を同じプロセスで 2 回実行すると、2 回目の day-30 が `simulation.extensions.economy` と `simulation.rng` で異なった(雇用・討伐・護衛の日数)。§19.5 で挙げたモジュールの位相(`constructionHire.daysSinceGlobalHireRound`・`escortHire`/`threatCullHire` の `daysSinceAnonRound`・`escortJobPostings`/`threatCullJobPostings` の `daysSinceBoardRefresh`・`marketFlowDiagnostics._nextCycleIndex`)が `dispose()` で戻らないため。これらの `clear*` は保存対象のデータ(掲示板など)も消すので、読み込み時に呼べない。
 - ブラウザでも、同じタブで別の地図を読み込むと同じことが起きる。直すには、位相をワールドに保存するか、読み込み時に位相だけを 0 に戻す(ブラウザの結果が変わるので、別の PR にする)。それまでは、golden の Node 実行と CLI は 1 回ごとに新しいプロセスで行う。
+
+## 21. 決定的な数学関数(2026-10-16)
+
+### 21.1 方式
+
+- `src/simulation/deterministicMath.ts`: `@stdlib/math-base-special-*`(FreeBSD msun / fdlibm の移植。`+ - * /` と `Math.sqrt` だけで計算するので、どのエンジンでも同じ double になる)の 17 関数(`sin`・`cos`・`tan`・`asin`・`acos`・`atan`・`atan2`・`exp`・`expm1`・`log`・`log1p`・`log2`・`log10`・`pow`・`asinh`・`cbrt`・`hypot`)。バージョンは固定(`--save-exact`)。依存として @stdlib の小さなパッケージが約 180 個入る。
+- `createSimulationHost` が最初に `installDeterministicMath()` で `Math.*` を置き換える(呼び出し箇所は書き換えない。トラック R の `Math.random` と同じ考え方)。ブラウザでは Host の作成以降、描画や生成も同じ関数を使う。
+- `pow` は ECMAScript の特殊値の規則(`pow(NaN, 0) === 1`、`pow(1, Infinity)` は NaN、負の底など)を先に処理し、stdlib には有限で正の底と有限の指数だけを渡す(stdlib の pow は C の規則なので、そのままでは `Math.pow` と特殊値が違う)。`hypot` は 2 引数の kernel を可変長に広げた。
+- `**` 演算子は置き換えられないので、コアの 40 ファイル・73 か所を `pow()` の呼び出しに変えた(TypeScript の AST による機械的な置換)。`lint:sim-boundary` はコアで `**` を禁止する(`powOperator`)。
+- モジュールの読み込み時に `Math.sin` などを変数に取っておくコードは、コアには無い(d3-shape は円弧用に取っておくが、コアは円弧を使わない)。
+
+### 21.2 もう 1 つの UI 依存(修正済み)
+
+- 数学関数をそろえた後も、30 日目から `simulation.extensions.economy` の出荷(`marketShipments`)と在庫の配置だけがブラウザと Node で違った。原因は §20.2 の 3 と同じ: Advance Time の後に economy の UI 部が Balance History の行を作る時(`fmg:time-advance-completed`)、`reconcileRetailInventory()` を呼んでいた。シミュレーション部も同じイベントで先に呼ぶようにした。
+
+### 21.3 検証
+
+- 17 関数 × 5 万個の入力で、Node 22・Node 25・Chromium 151 の結果がすべて一致した。特殊値は `Math` と同じ値、通常の入力では `Math` との差が 2 ulp 以内(`deterministicMath.test.ts`)。
+- golden: `--env all --runs 2` で、ブラウザ・Node とも 2 回の実行が一致し、**ブラウザと Node の 0・30・365 日のハッシュが一致した**。`browser.json` と `node.json` を更新した(数学関数の変更で結果が変わるため。2 つの中身は同じ)。`--env all` は、ブラウザと Node が違えば失敗する。jsdom・Node の vitest(`goldenParity.*.test.ts`)も一致。
+- 速度: ブラウザの 30 日が 1.70 → 1.85 秒、残り 335 日が 2.43 → 2.47 秒。Chromium の 300 万回の呼び出しで、`sin` が 14 → 45 ms、`pow` が 29 → 119 ms、`exp` が 21 → 39 ms、`atan2`・`hypot`・`log` はほぼ同じ。
+- `tsc`・`npm run lint` は通った。vitest の失敗は既知の 2 件(city-editor の Paris、食料気候の較正)だけ。e2e(load-map・startup-check・fast-advance-settings)は 10 件すべて成功した。
