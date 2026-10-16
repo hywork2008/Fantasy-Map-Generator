@@ -13,6 +13,7 @@ import {
   useOptionsState
 } from "../store/optionsState";
 import { BIOME_REGION_PROFILES } from "../types/biomeRegion";
+import { HISTORICAL_PERIODS } from "../types/historicalPeriod";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
@@ -42,18 +43,6 @@ export type GenerationOptionsImportResult =
   | { ok: true; options: Partial<GenerationOptions> }
   | { ok: false; error: GenerationOptionsImportError };
 
-const HISTORICAL_PERIODS = [
-  "earlyMedieval",
-  "highMedieval",
-  "lateMedieval",
-  "ageOfExploration",
-  "maritimeEra",
-  "preIndustrialEra",
-  "steamEra",
-  "industrialChemistryEra",
-  "petroleumEra",
-  "rocketryEra"
-] as const;
 const TEMPLATE_RANDOMIZATIONS = ["all", "landRich", "oceanRich"] as const;
 const ENCLOSURE_MODES = ["oceanCurrents", "oceanCurrentsAmbient", "radius"] as const;
 const STATE_LABEL_MODES = ["auto", "short", "full"] as const;

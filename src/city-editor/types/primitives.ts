@@ -34,5 +34,4 @@ export type BuildingComposition = "standard" | "commercial" | "warehouses" | "es
 
 export type HarborPreset = "small" | "dense" | "warehouse";
 
-/** FMG periods plus CE-only classical antiquity. */
-export type HistoricalPeriod = "classicalAntiquity" | FmgHistoricalPeriod;
+export type HistoricalPeriod = FmgHistoricalPeriod;

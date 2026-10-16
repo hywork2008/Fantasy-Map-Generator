@@ -98,7 +98,7 @@ export function orientTempleHybrid(
   // アプス（ローカル +X）のワールドX方向成分: cos(a)
   // 古代・初期中世: アプスが西（cos(a) < 0）
   // 盛期中世以降: アプスが東（cos(a) > 0）
-  const isAncientOrEarly = period === "classicalAntiquity" || period === "earlyMedieval";
+  const isAncientOrEarly = period === "classicalAntiquity" || period === "lateAntiquity" || period === "earlyMedieval";
 
   if (isAncientOrEarly) {
     // 西向きアプス（cos(a) がより小さい / 負の方）

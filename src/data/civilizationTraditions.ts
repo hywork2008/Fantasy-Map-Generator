@@ -16,8 +16,8 @@
 
 import { HISTORICAL_PERIODS } from "../types/historicalPeriod";
 
-/** Period order shared by FMG (earlyMedieval…) and CE (which adds classicalAntiquity). */
-export const TRADITION_PERIODS = ["classicalAntiquity", ...HISTORICAL_PERIODS] as const;
+/** Period order shared by FMG and CE. */
+export const TRADITION_PERIODS = HISTORICAL_PERIODS;
 export type TraditionPeriod = (typeof TRADITION_PERIODS)[number];
 
 export function periodIndex(period: string | undefined): number {

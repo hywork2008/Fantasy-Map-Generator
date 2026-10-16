@@ -30,6 +30,9 @@ export function waterTechCeilings(
 ): WaterTechStocks {
   const base = (() => {
     switch (period) {
+      // Antiquity provisionally shares earlyMedieval until calibrated (classical-antiquity-historical-period.md §6.3, P3).
+      case "classicalAntiquity":
+      case "lateAntiquity":
       case "earlyMedieval":
         return { waterLifting: 0.35, municipalSanitation: 0.35, sanitaryEngineering: 0 };
       case "lateMedieval":

@@ -1027,6 +1027,8 @@ export const GenerationSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-historical-period", { detail: { period } }));
                 }}
               >
+                <option value="classicalAntiquity">{t("generation.periods.classicalAntiquity")}</option>
+                <option value="lateAntiquity">{t("generation.periods.lateAntiquity")}</option>
                 <option value="earlyMedieval">{t("generation.periods.earlyMedieval")}</option>
                 <option value="highMedieval">{t("generation.periods.highMedieval")}</option>
                 <option value="lateMedieval">{t("generation.periods.lateMedieval")}</option>

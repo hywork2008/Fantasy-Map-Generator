@@ -1965,6 +1965,8 @@
     "historicalPeriod": "Historical period",
     "historicalPeriodTip": "Select the historical-technology backdrop. Drives water/sanitation tech ceilings and other period-flavored generation choices; gunpowder-era Goods/military units are controlled separately in Military Options.",
     "periods": {
+      "classicalAntiquity": "Classical Antiquity (c. 200 BC-AD 250)",
+      "lateAntiquity": "Late Antiquity (c. 250-500)",
       "earlyMedieval": "Early Medieval (c. 500-1000)",
       "highMedieval": "High Medieval (c. 1000-1300)",
       "lateMedieval": "Late Medieval (c. 1300-1500)",

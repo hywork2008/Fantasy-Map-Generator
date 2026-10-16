@@ -6,6 +6,7 @@
 // watermillFabric.ts / harborFabric.ts. Everything here is derived from the finished document
 // and the final building fabric; it never edits the mesh.
 import { religiousHousesFor } from "../../data/civilizationTraditions";
+import { HISTORICAL_PERIODS } from "../../types/historicalPeriod";
 import type { CityDocument } from "../types/document";
 import type { HistoricalPeriod, Id, Point } from "../types/primitives";
 import type {
@@ -74,19 +75,7 @@ const EMPTY_PLAN: AerialLandmarkPlan = {
   gateInns: []
 };
 
-const PERIOD_ORDER: HistoricalPeriod[] = [
-  "classicalAntiquity",
-  "earlyMedieval",
-  "highMedieval",
-  "lateMedieval",
-  "ageOfExploration",
-  "maritimeEra",
-  "preIndustrialEra",
-  "steamEra",
-  "industrialChemistryEra",
-  "petroleumEra",
-  "rocketryEra"
-];
+const PERIOD_ORDER: readonly HistoricalPeriod[] = HISTORICAL_PERIODS;
 function periodAtLeast(document: CityDocument, period: HistoricalPeriod): boolean {
   return PERIOD_ORDER.indexOf(document.historicalPeriod ?? "ageOfExploration") >= PERIOD_ORDER.indexOf(period);
 }

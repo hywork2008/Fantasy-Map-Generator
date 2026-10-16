@@ -4,6 +4,8 @@
  * added at the front, so compare by index rather than by position constants.
  */
 export const HISTORICAL_PERIODS = [
+  "classicalAntiquity",
+  "lateAntiquity",
   "earlyMedieval",
   "highMedieval",
   "lateMedieval",

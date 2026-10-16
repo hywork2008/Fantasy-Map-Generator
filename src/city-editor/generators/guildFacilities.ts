@@ -1,3 +1,4 @@
+import { HISTORICAL_PERIODS } from "../../types/historicalPeriod";
 import type { BurgSiteEconomy, GuildDomain, SiteGuild } from "../types/contracts/burgSiteEconomy";
 import type { CityDocument, HistoricalPeriod } from "../types/document";
 
@@ -8,19 +9,7 @@ import type { CityDocument, HistoricalPeriod } from "../types/document";
  * docs/plan/fmg-economy-to-city-editor.md §7, decision 2026-10-10.
  */
 
-const PERIOD_ORDER: HistoricalPeriod[] = [
-  "classicalAntiquity",
-  "earlyMedieval",
-  "highMedieval",
-  "lateMedieval",
-  "ageOfExploration",
-  "maritimeEra",
-  "preIndustrialEra",
-  "steamEra",
-  "industrialChemistryEra",
-  "petroleumEra",
-  "rocketryEra"
-];
+const PERIOD_ORDER: readonly HistoricalPeriod[] = HISTORICAL_PERIODS;
 
 /** Cloth-hall belfry: upper quartile of world prestige. */
 export const GUILD_BELFRY_PRESTIGE = 0.75;

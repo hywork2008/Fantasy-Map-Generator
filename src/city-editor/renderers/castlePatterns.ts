@@ -451,6 +451,8 @@ export function resolveCastleStyle(document: CityDocument, castle?: CastlePlan |
   // European lineage (and fantasy folk): follow the period.
   switch (period) {
     case "classicalAntiquity":
+    // Until a late-Roman walled-town profile exists (§6.8 of the antiquity plan).
+    case "lateAntiquity":
       return CASTLE_STYLE_PROFILES["ancient-castra"];
     case "earlyMedieval":
       return CASTLE_STYLE_PROFILES["motte-bailey"];

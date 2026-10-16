@@ -1965,6 +1965,8 @@
     "historicalPeriod": "歴史時代",
     "historicalPeriodTip": "歴史・技術の背景を選びます。上下水道の技術上限など時代色のある生成に使います。火薬時代の財や軍事ユニットは軍事オプションで別に制御します。",
     "periods": {
+      "classicalAntiquity": "古典古代（約 前200–後250）",
+      "lateAntiquity": "古代末期（約 250–500）",
       "earlyMedieval": "初期中世（約 500–1000）",
       "highMedieval": "盛期中世（約 1000–1300）",
       "lateMedieval": "後期中世（約 1300–1500）",

@@ -4,6 +4,7 @@
 // target area and then clamped ray by ray against hard water. Straight sides
 // survive wherever the water does not reach them.
 
+import { HISTORICAL_PERIODS } from "../../../../types/historicalPeriod";
 import type { HistoricalPeriod } from "../../../types/document";
 import type { WallShape, WallShapeChoice } from "../../../types/generation";
 import type { Point } from "../../../types/geometry";
@@ -26,19 +27,7 @@ type Rng = () => number;
 
 export const AUTO_WALL_SHAPES: readonly WallShape[] = ["organic", "round", "oval", "square", "polygon"];
 
-const PERIOD_ORDER: HistoricalPeriod[] = [
-  "classicalAntiquity",
-  "earlyMedieval",
-  "highMedieval",
-  "lateMedieval",
-  "ageOfExploration",
-  "maritimeEra",
-  "preIndustrialEra",
-  "steamEra",
-  "industrialChemistryEra",
-  "petroleumEra",
-  "rocketryEra"
-];
+const PERIOD_ORDER: readonly HistoricalPeriod[] = HISTORICAL_PERIODS;
 
 /** Bastioned traces belong to the age of exploration and later; an unset period is the document default. */
 export function bastionEra(period: HistoricalPeriod | undefined): boolean {

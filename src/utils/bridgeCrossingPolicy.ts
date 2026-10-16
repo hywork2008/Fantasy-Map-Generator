@@ -3,6 +3,7 @@
  * Missing/unknown eras use the conservative early-medieval allowance. */
 export const BRIDGE_CROSSING_LIMIT_METERS = {
   classicalAntiquity: 300,
+  lateAntiquity: 300,
   earlyMedieval: 300,
   highMedieval: 500,
   lateMedieval: 750,

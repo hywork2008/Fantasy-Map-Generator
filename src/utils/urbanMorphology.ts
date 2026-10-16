@@ -13,6 +13,7 @@ export function growthRandom(seed: string): number {
 export function supportsUrbanMorphology(period: string): boolean {
   return [
     "classicalAntiquity",
+    "lateAntiquity",
     "earlyMedieval",
     "highMedieval",
     "lateMedieval",
@@ -22,7 +23,8 @@ export function supportsUrbanMorphology(period: string): boolean {
   ].includes(period);
 }
 export function residentialStoreys(period: string): { standard: number; maximum: number } {
-  if (["classicalAntiquity", "earlyMedieval", "highMedieval"].includes(period)) return { standard: 2, maximum: 3 };
+  if (["classicalAntiquity", "lateAntiquity", "earlyMedieval", "highMedieval"].includes(period))
+    return { standard: 2, maximum: 3 };
   if (period === "lateMedieval") return { standard: 3, maximum: 4 };
   return { standard: 3, maximum: 5 };
 }

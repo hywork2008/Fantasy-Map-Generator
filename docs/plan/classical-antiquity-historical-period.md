@@ -2,7 +2,7 @@
 
 ## 状態
 
-**P0 完了（2026-10-16）、P1 以降は未実装。** P0 で `src/types/historicalPeriod.ts`（`HISTORICAL_PERIODS`・`HistoricalPeriod`・`isHistoricalPeriod`・`historicalPeriodIndex`）を作り、optionsState / WorldState / options.ts / GenerationSettingsTab / urbanWaterTech / cultures-generator / `TRADITION_PERIODS` / CE の `HistoricalPeriod` の重複列挙を置き換えた（出力は同一）。艦隊表の4値型は対応表が4時代分しかないため意図的に残した。 Generation Settings の Historical period は現在 `earlyMedieval`（c. 500–1000）が最古。本書は、その手前に古代ローマを中心とする2つの時代を追加する設計である。中世から古代へ遡って同時代の知識・技術の蓄積を調べ（§2）、既存コードのどこが時代に依存しているかを棚卸しし（§3）、追加する値・技術グラフの扱い・各システムへの対応表・実装フェーズを定める（§4〜§8）。
+**P0・P1 完了（2026-10-16）、P2 以降は未実装。** P1 で `classicalAntiquity`・`lateAntiquity` を `HISTORICAL_PERIODS` の先頭に追加し、Generation Settings と CE で選べるようにした。開始段階・識字・上水上限・艦隊表は暫定で `earlyMedieval` と同じ値、火薬 Goods の価格倍率は §6.10 の値、橋は tier 0・300 m。CE の城は両時代とも `ancient-castra`（`lateAntiquity` 専用の城は未作成）。`riverCrossing.ts` の単径間上限は古代が 20 m のまま（ローマの石造アーチは 30 m 前後なので P3 で見直す）。 P0 で `src/types/historicalPeriod.ts`（`HISTORICAL_PERIODS`・`HistoricalPeriod`・`isHistoricalPeriod`・`historicalPeriodIndex`）を作り、optionsState / WorldState / options.ts / GenerationSettingsTab / urbanWaterTech / cultures-generator / `TRADITION_PERIODS` / CE の `HistoricalPeriod` の重複列挙を置き換えた（出力は同一）。艦隊表の4値型は対応表が4時代分しかないため意図的に残した。 Generation Settings の Historical period は現在 `earlyMedieval`（c. 500–1000）が最古。本書は、その手前に古代ローマを中心とする2つの時代を追加する設計である。中世から古代へ遡って同時代の知識・技術の蓄積を調べ（§2）、既存コードのどこが時代に依存しているかを棚卸しし（§3）、追加する値・技術グラフの扱い・各システムへの対応表・実装フェーズを定める（§4〜§8）。
 
 関連文書:
 

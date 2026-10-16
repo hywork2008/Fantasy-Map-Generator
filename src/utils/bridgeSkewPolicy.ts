@@ -49,6 +49,8 @@ const LIMIT_BY_TIER: Readonly<Record<BridgeSkewTier, Readonly<Record<BridgeStruc
 };
 
 const TIER_BY_PERIOD: Readonly<Record<string, BridgeSkewTier>> = {
+  classicalAntiquity: 0,
+  lateAntiquity: 0,
   earlyMedieval: 0,
   highMedieval: 0,
   lateMedieval: 0,

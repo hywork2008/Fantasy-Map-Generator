@@ -37,6 +37,8 @@ const AGE_OF_EXPLORATION_DEFAULT_GOOD_NAMES = new Set([
 /** Picks the default Goods Editor selection for the map's historicalPeriod (AGENTS.md). */
 function getDefaultDisplayedGoodNames(): ReadonlySet<string> {
   switch (getWorldContext().options.historicalPeriod) {
+    case "classicalAntiquity":
+    case "lateAntiquity":
     case "earlyMedieval":
     case "highMedieval":
     case "lateMedieval":

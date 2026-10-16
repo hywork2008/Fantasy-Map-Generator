@@ -1,6 +1,8 @@
 // Glacis in front of the curtain (docs/city-editor/plan/suburban-landuse-redesign.md).
 // A plain gate measures the approach profile from the wall. A barbican gate measures
 // the same profile from the outer face of the outwork. The barbican is the defense.
+
+import { HISTORICAL_PERIODS } from "../../types/historicalPeriod";
 import type { CityDocument, HistoricalPeriod, Id, Point } from "../types/document";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 
@@ -13,19 +15,7 @@ export const STANDARD_GLACIS_METERS = 25;
  */
 export const MAX_BARBICAN_REACH_METERS = 90;
 
-const PERIOD_ORDER: HistoricalPeriod[] = [
-  "classicalAntiquity",
-  "earlyMedieval",
-  "highMedieval",
-  "lateMedieval",
-  "ageOfExploration",
-  "maritimeEra",
-  "preIndustrialEra",
-  "steamEra",
-  "industrialChemistryEra",
-  "petroleumEra",
-  "rocketryEra"
-];
+const PERIOD_ORDER: readonly HistoricalPeriod[] = HISTORICAL_PERIODS;
 
 /** Same default as barbican placement: an unset period is the age of exploration. */
 export function barbicanEra(period: HistoricalPeriod | undefined): boolean {

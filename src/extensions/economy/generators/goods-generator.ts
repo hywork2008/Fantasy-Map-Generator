@@ -151,6 +151,9 @@ export function isGoodEnabled(good: Pick<Good, "name" | "requiredTechnology">): 
 type HistoricalPeriod = NonNullable<ReturnType<typeof getWorldContext>["options"]["historicalPeriod"]>;
 
 const GUNPOWDER_ERA_PRICE_MULTIPLIER: Readonly<Record<HistoricalPeriod, number>> = {
+  // Antiquity: a gunpowder world this early is an even rarer curiosity than in earlyMedieval.
+  classicalAntiquity: 2.6,
+  lateAntiquity: 2.4,
   earlyMedieval: 2.2,
   highMedieval: 1.8,
   lateMedieval: 1.3,

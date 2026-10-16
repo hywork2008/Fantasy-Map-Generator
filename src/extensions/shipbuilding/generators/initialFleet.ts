@@ -382,6 +382,9 @@ function ensureTechFloor(stateId: number, minTechPoints: number): void {
 }
 
 function resolveHistoricalPeriod(raw: unknown): HistoricalPeriod {
+  // Antiquity uses the earlyMedieval fleet table (no galleons) until galleys exist
+  // (docs/plan/classical-antiquity-historical-period.md §6.6, P3).
+  if (raw === "classicalAntiquity" || raw === "lateAntiquity") return "earlyMedieval";
   if (raw === "earlyMedieval" || raw === "highMedieval" || raw === "lateMedieval" || raw === "ageOfExploration") {
     return raw;
   }

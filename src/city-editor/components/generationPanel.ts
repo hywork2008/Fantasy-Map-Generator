@@ -192,6 +192,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     "lateMedieval",
     "highMedieval",
     "earlyMedieval",
+    "lateAntiquity",
     "classicalAntiquity",
     "maritimeEra",
     "preIndustrialEra",
@@ -216,6 +217,9 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     },
     get earlyMedieval() {
       return editorText("cityEditor.messages.earlyMiddleAgesC5001000");
+    },
+    get lateAntiquity() {
+      return editorText("cityEditor.messages.lateAntiquityC250500");
     },
     get classicalAntiquity() {
       return editorText("cityEditor.messages.classicalAntiquityAndRome");

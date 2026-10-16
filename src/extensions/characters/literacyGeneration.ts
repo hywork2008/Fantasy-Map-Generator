@@ -89,6 +89,24 @@ const NEUTRAL_PERIOD: PeriodLiteracyPolicy = {
 };
 
 const PERIOD_LITERACY: Record<HistoricalPeriod, PeriodLiteracyPolicy> = {
+  // Provisional: antiquity reuses earlyMedieval until calibrated
+  // (docs/plan/classical-antiquity-historical-period.md §6.4, P3).
+  classicalAntiquity: {
+    nobleReadingFloorCap: 40,
+    nobleWritingFloorCap: 22,
+    commonerReadingCeiling: 12,
+    commonerWritingCeiling: 6,
+    commonerLocalThreshold: 0.5,
+    massLiteracy: false
+  },
+  lateAntiquity: {
+    nobleReadingFloorCap: 40,
+    nobleWritingFloorCap: 22,
+    commonerReadingCeiling: 12,
+    commonerWritingCeiling: 6,
+    commonerLocalThreshold: 0.5,
+    massLiteracy: false
+  },
   earlyMedieval: {
     nobleReadingFloorCap: 40,
     nobleWritingFloorCap: 22,

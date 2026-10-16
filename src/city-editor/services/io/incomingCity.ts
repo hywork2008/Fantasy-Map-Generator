@@ -36,6 +36,7 @@ import { parseDocument } from "./documentCodec";
 // copy in types/contracts/burgSiteDescriptor (DESCRIPTOR_VERSION gates incompatible
 // payloads). Keep CITY_SITE_KEY in sync with src/controllers/burg-editor.ts.
 
+import { isHistoricalPeriod } from "../../../types/historicalPeriod";
 import { DESCRIPTOR_VERSION } from "../../data/siteDescriptor";
 import {
   type CitySizePreset,
@@ -51,7 +52,6 @@ import { resolvePortFrontages } from "../../generators/site/portFrontages";
 import { DEFAULT_SITE_CONFIG } from "../../generators/site/siteConfig";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { GridKind } from "../../types/contracts/document";
-import type { HistoricalPeriod } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 
 /** sessionStorage key the FMG Burg editor writes before `window.open`. */
@@ -512,25 +512,6 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     settings.burialProfile = structuredClone(raw.burialProfile);
   }
   return settings;
-}
-
-function isHistoricalPeriod(value: unknown): value is HistoricalPeriod {
-  return (
-    typeof value === "string" &&
-    [
-      "classicalAntiquity",
-      "earlyMedieval",
-      "highMedieval",
-      "lateMedieval",
-      "ageOfExploration",
-      "maritimeEra",
-      "preIndustrialEra",
-      "steamEra",
-      "industrialChemistryEra",
-      "petroleumEra",
-      "rocketryEra"
-    ].includes(value)
-  );
 }
 
 function asPatchParams(raw: unknown): CityEditorShare["patchParams"] | undefined {
