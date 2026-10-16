@@ -4,7 +4,9 @@
  *
  * Fee = f(travel days, route danger, bandits, beasts) × market-rate variance.
  */
+
 import { findCell, rn } from "../../hostUtils";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getEscortActiveContracts,
   getEscortHireApplications,
@@ -51,8 +53,6 @@ const MAX_DEST_CANDIDATES = 8;
 /** Prefer destinations within this many caravan-days when ranking. */
 const PREFERRED_MAX_DAYS = 28;
 
-let daysSinceBoardRefresh = 0;
-
 export function getSimulationOrdinalDay(): number {
   return getSimulationYear() * 365 + (getSimulationMonth() - 1) * 30 + getSimulationDay();
 }
@@ -62,7 +62,7 @@ export function clearEscortHireState(): void {
   setEscortHireApplications([]);
   setEscortActiveContracts([]);
   setEscortCooldowns({});
-  daysSinceBoardRefresh = 0;
+  setCadencePhase("escortBoardRefreshDays", 0);
 }
 
 function nextPostingId(posts: readonly EscortJobPosting[]): number {
@@ -342,12 +342,13 @@ export function tickEscortJobBoard(deltaDays: number): void {
     );
   }
 
-  daysSinceBoardRefresh += deltaDays;
+  let daysSinceBoardRefresh = getCadencePhase("escortBoardRefreshDays") + deltaDays;
   while (daysSinceBoardRefresh >= ESCORT_BOARD_REFRESH_DAYS) {
     daysSinceBoardRefresh -= ESCORT_BOARD_REFRESH_DAYS;
     pruneInvalidEscortPostings();
     rebuildEscortJobPostings();
   }
+  setCadencePhase("escortBoardRefreshDays", daysSinceBoardRefresh);
   pruneInvalidEscortPostings();
 }
 

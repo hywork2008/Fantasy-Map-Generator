@@ -4,6 +4,7 @@
  *
  * PR-2 ships postings + slice storage only (no apply/resolve — that is PR-3a/3b).
  */
+
 import type { SimulationContext } from "../../../context/simulationContext";
 import { collectStateBorderCells, MAX_HUNT_HOPS, minHopsBetween } from "../../../generators/huntGeometry";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../../../generators/threatCullEffects";
 import { optionsStore } from "../../hostCore";
 import { rn } from "../../hostUtils";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getCullActiveContracts,
   getCullHireApplications,
@@ -45,7 +47,6 @@ export const CULL_ALLOW_BORDER_FORTS = true;
 export const CULL_BOARD_REFRESH_DAYS = 30;
 
 /** Session accumulator for monthly board refresh (not persisted — fine for PR-2). */
-let daysSinceBoardRefresh = 0;
 
 export function getSimulationOrdinalDay(): number {
   return getSimulationYear() * 365 + (getSimulationMonth() - 1) * 30 + getSimulationDay();
@@ -78,7 +79,7 @@ export function clearCullHireState(): void {
   setCullHireApplications([]);
   setCullActiveContracts([]);
   setCullCooldowns({});
-  daysSinceBoardRefresh = 0;
+  setCadencePhase("cullBoardRefreshDays", 0);
   // Session hire counter lives in threatCullHire — reset via soft import avoidance:
   // callers (economy clear / generate) also call clearCullHiringSession().
 }
@@ -302,12 +303,13 @@ export function tickCullJobBoard(deltaDays: number): void {
     );
   }
 
-  daysSinceBoardRefresh += deltaDays;
+  let daysSinceBoardRefresh = getCadencePhase("cullBoardRefreshDays") + deltaDays;
   while (daysSinceBoardRefresh >= CULL_BOARD_REFRESH_DAYS) {
     daysSinceBoardRefresh -= CULL_BOARD_REFRESH_DAYS;
     pruneInvalidCullPostings();
     rebuildCullJobPostings();
   }
+  setCadencePhase("cullBoardRefreshDays", daysSinceBoardRefresh);
   // Also prune immediately if anything expired this tick.
   pruneInvalidCullPostings();
 }

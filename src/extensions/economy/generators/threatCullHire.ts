@@ -8,6 +8,7 @@ import type { DataTopic } from "../../../runtime/worldRuntime";
 import type { RNGService } from "../../../utils/probabilityUtils";
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getCullActiveContracts,
   getCullCooldowns,
@@ -48,10 +49,9 @@ import {
 export const CULL_RESOLVE_ENABLED = true;
 
 /** Session accumulator for anonymous hire rounds (not persisted). */
-let daysSinceAnonRound = 0;
 
 export function clearCullHiringSession(): void {
-  daysSinceAnonRound = 0;
+  setCadencePhase("cullAnonRoundDays", 0);
 }
 
 function nextApplicationId(apps: readonly CullHireApplication[]): number {
@@ -381,11 +381,12 @@ export function tickCullHiring(deltaDays: number, rng?: RNGService): { topics: D
   }
 
   // Anonymous applications (heroes get first crack — slower anon lag/round).
-  daysSinceAnonRound += deltaDays;
+  let daysSinceAnonRound = getCadencePhase("cullAnonRoundDays") + deltaDays;
   while (daysSinceAnonRound >= CULL_ANON_ROUND_DAYS) {
     daysSinceAnonRound -= CULL_ANON_ROUND_DAYS;
     runAnonymousCullRound();
   }
+  setCadencePhase("cullAnonRoundDays", daysSinceAnonRound);
 
   if (topics.size) {
     topics.add("extension.economy");

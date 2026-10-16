@@ -21,6 +21,7 @@ import {
   isShipbuildingSurplusShipRequest
 } from "../hostTypes";
 import { measureTickStep, measureTickStepAsync, TIME } from "../hostUtils";
+import { getCadencePhase, setCadencePhase } from "./context/cadencePhases";
 import {
   ANNUAL_GATE,
   clearAnnualGateYear,
@@ -1769,7 +1770,6 @@ function register(api: SimulationExtensionAPI): () => void {
   // manpower.tick and applyFastForwardPopulation use.
   // Left at 0 and unused outside Fast-Forward, where the gate below is 1 day (i.e. every tick, no
   // deferral — identical to the pre-Phase-4 behavior).
-  let hiringDaysAccumulated = 0;
 
   const markProductionDirty = () => {
     productionDirty = true;
@@ -1968,12 +1968,10 @@ function register(api: SimulationExtensionAPI): () => void {
   // whether Shipbuilding (or logging on that cell) is still active — a logged-out
   // shipyard's forest should eventually recover even if the extension is disabled
   // afterward. Harmless no-op while nothing has ever been depleted.
-  let daysSinceLastProduction = 0;
   let currentQuarterIndex = 0;
   // Annual State-led surveys replace the former global, omniscient pass. A
   // discovered unclaimed site is reported to Frontier; it is not mined until
   // ordinary expansion has incorporated it into a market area.
-  let daysSinceLastProspecting = 0;
   const PROSPECTING_INTERVAL_DAYS = 365;
   /**
    * The economy tick, as a chain of `after`-ordered simulation systems rather than one
@@ -2186,15 +2184,17 @@ function register(api: SimulationExtensionAPI): () => void {
     // every tick. Everything below is scaled by `effectiveDays`, so one batched call is the same
     // shape an Advance Month step already produces.
     const ffActive = context.fastAdvanceRates !== null;
+    let hiringDaysAccumulated = getCadencePhase("fastAdvanceHiringDays");
     if (ffActive) {
       hiringDaysAccumulated += tickDays;
+      setCadencePhase("fastAdvanceHiringDays", hiringDaysAccumulated);
       if (hiringDaysAccumulated < FAST_ADVANCE_COARSE_GATE_DAYS) return;
     }
     const effectiveDays = ffActive ? hiringDaysAccumulated : tickDays;
     const effectiveDeltaYears = ffActive
       ? hiringDaysAccumulated / MEAN_DAYS_PER_YEAR
       : deltaYears + deltaMonths / 12 + deltaDays / MEAN_DAYS_PER_YEAR;
-    if (ffActive) hiringDaysAccumulated = 0;
+    if (ffActive) setCadencePhase("fastAdvanceHiringDays", 0);
     // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
     // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
     tickUrbanPregnancy(effectiveDeltaYears);
@@ -2418,9 +2418,9 @@ function register(api: SimulationExtensionAPI): () => void {
     const forestChanged = tickForestRegrowth(effectiveDeltaYears, getForestRegrowthMultiplier);
     if (forestChanged) markProductionDirty();
 
-    daysSinceLastProspecting += effectiveDays;
+    const daysSinceLastProspecting = getCadencePhase("prospectingDays") + effectiveDays;
+    setCadencePhase("prospectingDays", daysSinceLastProspecting % PROSPECTING_INTERVAL_DAYS);
     if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
-      daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
       const discoveries = runStateProspecting(api, () => context.rng.rand());
       const reanchoredOperations = MineOperations.reanchorOperations();
       const openedOperations = MineOperations.openDiscoveredAccessibleOperations();
@@ -2431,6 +2431,7 @@ function register(api: SimulationExtensionAPI): () => void {
   registerEconomyTickSystem("economy.foodCalendar", (context, _writer) => {
     const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
     const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    let daysSinceLastProduction = getCadencePhase("productionDays");
     const monthsDue = Math.floor((daysSinceLastProduction + effectiveDays) / 30);
     const firstSettlementMonth = (((api.simulationContext.currentMonth - monthsDue) % 12) + 12) % 12;
     let elapsedDays = 0;
@@ -2462,6 +2463,7 @@ function register(api: SimulationExtensionAPI): () => void {
         }
       }
     }
+    setCadencePhase("productionDays", daysSinceLastProduction);
 
     if (settledMonths > 0) {
       productionSettlementsDue += settledMonths;

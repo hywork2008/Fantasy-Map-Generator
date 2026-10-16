@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。**S6 完了**(§20・§21): Node で全拡張 1 年が動き、決定的な数学関数(§21)の導入でブラウザ・Node・jsdom の 3 環境のハッシュが 0・30・365 日で一致。S7 は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。**S6 完了**(§20・§21): Node で全拡張 1 年が動き、決定的な数学関数(§21)の導入でブラウザ・Node・jsdom の 3 環境のハッシュが 0・30・365 日で一致。§20.4(同じプロセスでの再読み込み)は §22 で修正。S7 は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -648,7 +648,7 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 ### 20.4 同じプロセスで地図を読み直すと結果が変わる
 
 - Node の golden を同じプロセスで 2 回実行すると、2 回目の day-30 が `simulation.extensions.economy` と `simulation.rng` で異なった(雇用・討伐・護衛の日数)。§19.5 で挙げたモジュールの位相(`constructionHire.daysSinceGlobalHireRound`・`escortHire`/`threatCullHire` の `daysSinceAnonRound`・`escortJobPostings`/`threatCullJobPostings` の `daysSinceBoardRefresh`・`marketFlowDiagnostics._nextCycleIndex`)が `dispose()` で戻らないため。これらの `clear*` は保存対象のデータ(掲示板など)も消すので、読み込み時に呼べない。
-- ブラウザでも、同じタブで別の地図を読み込むと同じことが起きる。直すには、位相をワールドに保存するか、読み込み時に位相だけを 0 に戻す(ブラウザの結果が変わるので、別の PR にする)。それまでは、golden の Node 実行と CLI は 1 回ごとに新しいプロセスで行う。
+- ブラウザでも、同じタブで別の地図を読み込むと同じことが起きる。→ §22 で位相をワールドに保存して修正した。
 
 ## 21. 決定的な数学関数(2026-10-16)
 
@@ -670,3 +670,24 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - golden: `--env all --runs 2` で、ブラウザ・Node とも 2 回の実行が一致し、**ブラウザと Node の 0・30・365 日のハッシュが一致した**。`browser.json` と `node.json` を更新した(数学関数の変更で結果が変わるため。2 つの中身は同じ)。`--env all` は、ブラウザと Node が違えば失敗する。jsdom・Node の vitest(`goldenParity.*.test.ts`)も一致。
 - 速度: ブラウザの 30 日が 1.70 → 1.85 秒、残り 335 日が 2.43 → 2.47 秒。Chromium の 300 万回の呼び出しで、`sin` が 14 → 45 ms、`pow` が 29 → 119 ms、`exp` が 21 → 39 ms、`atan2`・`hypot`・`log` はほぼ同じ。
 - `tsc`・`npm run lint` は通った。vitest の失敗は既知の 2 件(city-editor の Paris、食料気候の較正)だけ。e2e(load-map・startup-check・fast-advance-settings)は 10 件すべて成功した。
+
+## 22. economy の周期の位相をワールドに保存(2026-10-16)
+
+### 22.1 方式
+
+- `src/extensions/economy/context/cadencePhases.ts`: economy のスライスに `cadencePhases`(キー → 0 以上の有限数)を持たせ、`getCadencePhase` / `setCadencePhase` で読み書きする。`annualGateYears`(年次の関門)と同じ置き方。キーが無ければ 0 として読む。これまでの保存データは、新しいセッションで読み込んだ時と同じく 0 から始まる。
+- 対象(10 個):
+  - モジュール変数だったもの: `constructionHireRoundDays`(`constructionHire`)、`cullAnonRoundDays`(`threatCullHire`)、`cullBoardRefreshDays`(`threatCullJobPostings`)、`escortAnonRoundDays`(`escortHire`)、`escortBoardRefreshDays`(`escortJobPostings`)、`flowCycleIndex`(`marketFlowDiagnostics`)。
+  - `register()` の中の変数だったもの: `productionDays`(30 日の生産・決算の月の経過日数)、`prospectingDays`(年 1 回の探査)、`fastAdvanceHiringDays`(早送り中の雇用の粗い関門)。
+  - 予約として `quarterIndex` も定義した。元の `currentQuarterIndex` は書き込むだけで、どこからも読まれていなかったので、移していない。
+- 各 `clear*` は、変数を 0 にする代わりに位相を 0 にする。読むだけではスライスに `cadencePhases` を作らない(進めていない世界は、保存しても内容が変わらない)。
+- 決算の予約(`productionDirty`・`productionSettlementsDue`・`foodSettlementsAlreadyApplied` など)は、進めた直後のマイクロタスクで必ず 0 に戻るので、保存しない。
+- アーカイブの検証: `cadencePhases` がある場合は、レコードで、値がすべて 0 以上の有限数であることを確認する。
+- 新しく生成した地図は新しいスライスから始まるので、位相は 0 になる。これまでは、同じセッションで前の地図の位相が残っていた。
+
+### 22.2 検証
+
+- 同じプロセスで fixture を 2 回読み込んで 37 日進めると、2 回の結果が一致する(`reloadReproducibility.node.test.ts`)。17 日進めて保存・再読み込みすると、位相が元の値に戻る(`productionDays` は 17)。
+- golden: 0 日目は一致。30 日目と 365 日目は、`simulation.extensions.economy.cadencePhases`(新しいフィールド)の 1 値だけが変わり、他はすべて一致した。そのうえで `browser.json`・`node.json` を更新した(`--runs 2` でも一致。ブラウザと Node も一致)。
+- 範囲外の観察: 17 日進めて保存・再読み込みしてから 30 日進めた結果は、続けて 47 日進めた結果と一致しない(`world.pack.burgs`・`world.pack.routes`・economy)。読み込むたびに道路を再生成し(`normalizeLoadedWorld`)、港の修復を行う(§20.2)という読み込みの設計によるもので、位相とは別の問題。
+- `tsc`・`npm run lint` は通った。vitest の失敗は既知の 2 件だけ。e2e の load-map・startup-check は成功。fast-advance-settings の History mode のテストは 8 回中 2 回、Advance Time ダイアログのチェックボックスを待つところでタイムアウトした(その後の 5 回は連続で成功。変更前の HEAD では 3 回とも成功)。
