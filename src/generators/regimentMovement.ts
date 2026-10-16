@@ -9,6 +9,7 @@ import {
   landEdgeEffortCost,
   landEdgeSpeedMultiplier
 } from "../services/routeGrade";
+import { simulationSettings } from "../simulation/ports";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -225,7 +226,7 @@ export function regimentGradeSensitivity(r: MilitaryRegiment): GradeSensitivity 
  */
 export function getMilitaryGradeEffectStrength(): number {
   try {
-    const raw = localStorage.getItem(GRADE_EFFECT_STRENGTH_KEY);
+    const raw = simulationSettings.getItem(GRADE_EFFECT_STRENGTH_KEY);
     if (raw === null || raw === "") return 1;
     const n = Number(raw);
     if (!Number.isFinite(n)) return 1;

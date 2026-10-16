@@ -9,6 +9,7 @@ import { bindRaceService } from "../hostRaces";
  */
 
 import { simEvents } from "../../simulation/events";
+import { simulationSettings } from "../../simulation/ports";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Race } from "../../types/models";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
@@ -38,8 +39,8 @@ const DEFAULT_ALLOWED_CHARACTER_RACE_KEYS = raceCatalog.filter(race => race.key 
 
 function resolveInitialAllowedRaceKeys(): string[] {
   try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem("allowedRaceKeys");
+    {
+      const raw = simulationSettings.getItem("allowedRaceKeys");
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -78,9 +79,7 @@ export function clearCharactersContext(): void {
   _api = null;
   _fallbackAllowedCharacterRaceKeys = [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
   try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem("allowedRaceKeys");
-    }
+    simulationSettings.removeItem("allowedRaceKeys");
   } catch {
     // Ignore
   }
@@ -220,14 +219,8 @@ export function setAllowedCharacterRaceKeys(keys: Iterable<string>, persist = tr
 
   if (persist) {
     try {
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem("allowedRaceKeys", JSON.stringify(valid));
-        if (typeof document !== "undefined") {
-          simEvents.dispatchEvent(
-            new CustomEvent("fmg:lock-changed", { detail: { id: "allowedRaceKeys", locked: true } })
-          );
-        }
-      }
+      simulationSettings.setItem("allowedRaceKeys", JSON.stringify(valid));
+      simEvents.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id: "allowedRaceKeys", locked: true } }));
     } catch {
       // Ignore storage errors in restricted environments
     }

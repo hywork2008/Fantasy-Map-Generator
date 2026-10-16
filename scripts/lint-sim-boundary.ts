@@ -65,6 +65,9 @@ const RUNTIME_PATTERNS: Record<string, RegExp> = {
   navigator: /\bnavigator\./g
 };
 
+/** The ports themselves resolve the browser globals for the core (§6); they are the sanctioned access. */
+const PORT_IMPLEMENTATIONS = new Set(["src/simulation/ports.ts", "src/simulation/events.ts"]);
+
 interface Allowlist {
   modules: Record<string, string>;
   packages: Record<string, string>;
@@ -184,7 +187,9 @@ async function main() {
   for (const [name, importer] of packages)
     if (FORBIDDEN_PACKAGES.test(name)) current.packages[name] = chain(importer);
   // Forbidden modules are violations already; only count runtime globals in would-be core files.
-  current.runtime = collectRuntimeUses(sourceFiles.filter(file => !(file in current.modules)));
+  current.runtime = collectRuntimeUses(
+    sourceFiles.filter(file => !(file in current.modules) && !PORT_IMPLEMENTATIONS.has(file))
+  );
 
   const allowlist: Allowlist = fs.existsSync(ALLOWLIST_PATH)
     ? JSON.parse(fs.readFileSync(ALLOWLIST_PATH, "utf8"))

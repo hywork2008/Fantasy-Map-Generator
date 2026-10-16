@@ -11,30 +11,6 @@
   },
   "packages": {},
   "runtime": {
-    "src/debug/riverPortLab/labOptions.ts": {
-      "localStorage": 2
-    },
-    "src/extensions/characters/charactersContext.ts": {
-      "localStorage": 6
-    },
-    "src/extensions/economy/generators/caravanMovement.ts": {
-      "localStorage": 10
-    },
-    "src/extensions/economy/generators/incrementalBatching.ts": {
-      "requestAnimationFrame": 1
-    },
-    "src/extensions/economy/generators/production-generator.ts": {
-      "requestAnimationFrame": 1
-    },
-    "src/extensions/economy/generators/trade-animation.ts": {
-      "localStorage": 2
-    },
-    "src/extensions/economy/generators/tradeLogisticsSettings.ts": {
-      "localStorage": 3
-    },
-    "src/generators/regimentMovement.ts": {
-      "localStorage": 1
-    },
     "src/generators/timeEngine.ts": {
       "window": 1
     },
@@ -42,17 +18,11 @@
       "navigator": 1,
       "window": 2
     },
-    "src/utils/debug.ts": {
-      "localStorage": 1
-    },
     "src/utils/languageUtils.ts": {
       "document": 1
     },
     "src/utils/nodeUtils.ts": {
       "document": 3
-    },
-    "src/utils/optionLocks.ts": {
-      "localStorage": 2
     }
   }
 }

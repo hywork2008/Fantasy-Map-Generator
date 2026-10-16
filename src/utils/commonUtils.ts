@@ -133,7 +133,7 @@ export const throttle = <T extends (...args: never[]) => unknown>(func: T, ms: n
  */
 export const parseError = (error: unknown): string => {
   const err = error as Error;
-  const isFirefox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
+  const isFirefox = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
   const errorString = isFirefox ? `${err.toString()} ${err.stack}` : err.stack || "";
   const regex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
   const errorNoURL = errorString.replace(regex, url => `<i>${last(url.split("/"))}</i>`);

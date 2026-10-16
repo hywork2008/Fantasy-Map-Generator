@@ -4,6 +4,7 @@ import {
   type GradeSensitivity,
   type MerchantRoutePreference
 } from "../../../services/routeGrade";
+import { simulationSettings } from "../../../simulation/ports";
 import { getCurrentDirection, minmax } from "../../hostUtils";
 
 export interface CaravanMovementSettings {
@@ -118,18 +119,18 @@ function parseStoredStrength(raw: unknown): number | undefined {
 function loadSettings(): CaravanMovementSettings {
   let options: CaravanMovementSettings = { ...DEFAULT_MOVEMENT_SETTINGS };
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = simulationSettings.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as Partial<CaravanMovementSettings>;
       options = {
         ...DEFAULT_MOVEMENT_SETTINGS,
         ...parsed,
         merchantRoutePreference: parseStoredPreference(
-          parsed.merchantRoutePreference ?? localStorage.getItem(ROUTE_PREF_KEY)
+          parsed.merchantRoutePreference ?? simulationSettings.getItem(ROUTE_PREF_KEY)
         ),
         gradeEffectStrength:
           parseStoredStrength(parsed.gradeEffectStrength) ??
-          parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY)) ??
+          parseStoredStrength(simulationSettings.getItem(GRADE_STRENGTH_KEY)) ??
           DEFAULT_MOVEMENT_SETTINGS.gradeEffectStrength,
         settingsVersion: SETTINGS_VERSION
       };
@@ -138,13 +139,13 @@ function loadSettings(): CaravanMovementSettings {
       }
     } else {
       // Plan keys may exist even when the bundled caravan-movement blob does not.
-      const strength = parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY));
-      const pref = localStorage.getItem(ROUTE_PREF_KEY);
+      const strength = parseStoredStrength(simulationSettings.getItem(GRADE_STRENGTH_KEY));
+      const pref = simulationSettings.getItem(ROUTE_PREF_KEY);
       if (strength !== undefined) options.gradeEffectStrength = strength;
       if (pref) options.merchantRoutePreference = parseStoredPreference(pref);
     }
   } catch (e) {
-    console.warn("Failed to load caravan-movement options from localStorage", e);
+    console.warn("Failed to load caravan-movement options from simulation settings", e);
   }
   return options;
 }
@@ -173,11 +174,11 @@ export class CaravanMovementModule {
     }
     this.options = next;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.options));
-      localStorage.setItem(GRADE_STRENGTH_KEY, String(this.options.gradeEffectStrength));
-      localStorage.setItem(ROUTE_PREF_KEY, this.options.merchantRoutePreference);
+      simulationSettings.setItem(STORAGE_KEY, JSON.stringify(this.options));
+      simulationSettings.setItem(GRADE_STRENGTH_KEY, String(this.options.gradeEffectStrength));
+      simulationSettings.setItem(ROUTE_PREF_KEY, this.options.merchantRoutePreference);
     } catch (e) {
-      console.warn("Failed to persist caravan-movement options to localStorage", e);
+      console.warn("Failed to persist caravan-movement options to simulation settings", e);
     }
   }
 }

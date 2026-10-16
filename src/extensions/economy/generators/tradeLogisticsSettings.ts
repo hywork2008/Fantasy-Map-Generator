@@ -1,8 +1,9 @@
 /**
  * Player-tunable commercial logistics parameters (Phase F).
- * Persisted in localStorage; pure defaults live in marketFlowBudget / tradeSailSchedule.
+ * Persisted in the simulation settings (localStorage in the browser); pure defaults live in marketFlowBudget / tradeSailSchedule.
  */
 
+import { simulationSettings } from "../../../simulation/ports";
 import { minmax } from "../../hostUtils";
 import {
   DEFAULT_MAX_WAIT_DAYS_LAND,
@@ -55,7 +56,7 @@ function normalizeSailDays(raw: unknown): number[] {
 
 function loadSettings(): TradeLogisticsSettings {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = simulationSettings.getItem(STORAGE_KEY);
     if (!stored)
       return { ...DEFAULT_TRADE_LOGISTICS_SETTINGS, sailDays: [...DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays] };
     const parsed = JSON.parse(stored) as Partial<TradeLogisticsSettings>;
@@ -97,14 +98,14 @@ function loadSettings(): TradeLogisticsSettings {
       sailDays: normalizeSailDays(parsed.sailDays)
     };
   } catch (e) {
-    console.warn("Failed to load trade logistics settings from localStorage", e);
+    console.warn("Failed to load trade logistics settings from simulation settings", e);
     return { ...DEFAULT_TRADE_LOGISTICS_SETTINGS, sailDays: [...DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays] };
   }
 }
 
 function persist(settings: TradeLogisticsSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    simulationSettings.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (e) {
     console.warn("Failed to save trade logistics settings", e);
   }

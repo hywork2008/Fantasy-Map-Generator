@@ -4,6 +4,7 @@
  * generation is untouched, so ordinary seeds stay reproducible.
  */
 import Alea from "alea";
+import { simulationSettings } from "../../simulation/ports";
 import { useOptionsState } from "../../store/optionsState";
 import { LAB_SITE_KINDS } from "./classifyRiverSite";
 import type { RiverPortLabOptions } from "./labOptions.types";
@@ -25,7 +26,7 @@ export const LAB_STORAGE_KEY = "riverPortLab";
 
 let current: RiverPortLabOptions = structuredClone(DEFAULT_LAB_OPTIONS);
 try {
-  const stored = globalThis.localStorage?.getItem(LAB_STORAGE_KEY);
+  const stored = simulationSettings.getItem(LAB_STORAGE_KEY);
   if (stored) current = normalize({ ...current, ...JSON.parse(stored) });
 } catch {
   /* no storage or bad JSON: defaults */
@@ -38,7 +39,7 @@ export function getLabOptions(): RiverPortLabOptions {
 export function setLabOptions(update: Partial<RiverPortLabOptions>): RiverPortLabOptions {
   current = normalize({ ...current, ...update });
   try {
-    globalThis.localStorage?.setItem(LAB_STORAGE_KEY, JSON.stringify(current));
+    simulationSettings.setItem(LAB_STORAGE_KEY, JSON.stringify(current));
   } catch {
     /* storage unavailable: the in-memory options still apply */
   }

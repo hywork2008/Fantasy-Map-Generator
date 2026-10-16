@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)。S3 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)。S4 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -444,3 +444,54 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - **Node スモークテストが全段階を通るようになった**。DOM・`window`・`localStorage` が無い Node で、コアを import し、fixture を読み込み、30 日進めて tick が 30 進むことまで確認する(拡張は未登録。S5 で対応)。期待値を `passed` にした。
 - `tsc`・`lint:legacy` は通った。vitest は 6,973 件が成功。失敗 6 件は、既知の 5 件と `populationControls.test.ts` 1 件。後者は単独で 2 回実行して 2 回とも成功した(負荷による揺れ)。
 - e2e(fast-advance-settings・load-map・click-edit・directions-dialog・economy-dialog-layers・startup-check)の失敗 5 件は、変更前の HEAD でも同じ 5 件だった。
+
+## 16. S3 の結果(2026-10-16)
+
+### 16.1 Ports(`src/simulation/ports.ts`)
+
+- `simulationSettings`(`getItem`・`setItem`・`removeItem`。`localStorage` と同じ契約)
+  - 既定の動作: 呼び出しの時点で `localStorage` があればそれを使い、無ければメモリ上の Map を使う。ブラウザでは何も設定しなくても従来と同じに動く。
+  - `installSimulationSettings(source)` で差し替えられる。Node ランナーで、JSON から作った `createMemorySettings({...})` を渡す用途を想定。
+- `yieldToHost()`(長い分割処理の途中で制御を返す)
+  - 既定の動作: `requestAnimationFrame` があればそれ(ブラウザでは従来どおり再描画される)、無ければ `setImmediate`、それも無ければ `setTimeout(0)`。
+  - `installSimulationScheduler()` で差し替えられる。
+- 置き換えたファイル
+  - `localStorage`: 8 ファイル(`caravanMovement`、`tradeLogisticsSettings`、`trade-animation`、`regimentMovement`、`charactersContext`、`optionLocks`、`utils/debug`、`riverPortLab/labOptions`)
+  - `requestAnimationFrame`: 2 ファイル(`incrementalBatching`、`production-generator`)
+- `lint:sim-boundary` では、`ports.ts`・`events.ts` をブラウザ・グローバルへの正規の入口として数えないようにした。
+- 注意: モジュール読み込み時に設定を読む箇所(`utils/debug` の `DEBUG`、`labOptions`)は、その時点の既定ソースから読む。Node ランナーで設定を差し替える場合は、コアを import する前に `installSimulationSettings` を呼ぶ必要がある。
+
+### 16.2 コアに残るブラウザ・グローバル(8 箇所・4 ファイル)
+
+| ファイル | 内容 | 扱い |
+| --- | --- | --- |
+| `generators/timeEngine.ts` | `window.fmg?.extensionAPI` で nobility が有効か調べる(`typeof window` で保護済み) | S5 で、拡張の有効状態を Host から受け取る形にする |
+| `utils/commonUtils.ts` | `openURL`・`wiki` の `window.open`、`parseError` の `navigator`(保護を追加) | `utils` のまとめ用ファイル経由で到達するだけで、コアからは呼ばれない |
+| `utils/nodeUtils.ts` | DOM ヘルパー 3 件 | 同上 |
+| `utils/languageUtils.ts` | `list()` の言語取得(保護済み) | そのまま |
+
+### 16.3 設定の棚卸し:ワールドと一緒に保存すべきか
+
+ここにある設定は、シミュレーション結果を変えるのに、ワールド(.fmg)ではなくブラウザごとに保存されている。そのため、同じ .fmg と同じ時間軸シードでも、別のブラウザ(や Node)では結果が変わりうる。今回は保存先を変えていない(変えると挙動が変わるので、別の判断が必要)。
+
+| キー | 内容 | 結果への影響 | 推奨 |
+| --- | --- | --- | --- |
+| `caravan-movement` | 隊商の陸・海・川の速度、海流・風・勾配の効き方 | あり(交易の所要日数) | ワールドに保存 |
+| `fmg-grade-effect-strength` | 勾配の効き方(隊商と軍の行軍で共有) | あり | ワールドに保存 |
+| `fmg-merchant-route-preference` | 商人の経路の好み(速さ / 安全) | あり | ワールドに保存 |
+| `fmg-trade-logistics-settings` | 積載率の目標、最大待機日数、出航日 | あり | ワールドに保存 |
+| `allowedRaceKeys` | 人物に許可する種族 | あり(人物生成) | ワールドに保存(生成オプションと同じ扱い) |
+| `trade-animation` | 交易アニメーションの表示 | なし | 利用者の好み(現状のまま) |
+| `debug` | デバッグ用フラグ | なし(プロファイラなど) | 現状のまま |
+| `riverPortLab` | 実験用の生成オプション | 生成のみ | 現状のまま |
+| オプションロック(`optionLocks`、`optionsState`) | 生成オプションの固定 | 生成のみ | S4 で `optionsState` と一緒に扱う |
+
+ワールドに保存する方式に変える場合: 読み込み時はワールドの値を優先し、ワールドに値が無い時(古い .fmg)だけブラウザの値を使う。golden の fixture には今のところ値が入っていないので、移行しても結果は変わらない見込み。
+
+### 16.4 検証
+
+- golden は一致した。
+- `src/simulation/ports.test.ts` を追加した(既定・差し替え・Storage が無い時のメモリ・スケジューラ)。
+- vitest は 6,979 件が成功し、失敗 5 件はすべて既知のもの。
+- `tsc`・`lint:legacy` は通った。Node スモークテストも引き続き成功。
+- e2e(fast-advance-settings・load-map・startup-check)は 10 件すべて成功した。
