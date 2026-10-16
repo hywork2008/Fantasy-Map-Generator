@@ -2,6 +2,8 @@
 
 2026-10-16
 
+- docs/plan/simulation-channel-server.md
+- docs/plan/simulation-core-separation.md
 - docs/plan/wind-aspect-climate-variability.md - セル別の季節風・日変化、斜面方位による気温補正、小氷期
 
 2026-10-15
