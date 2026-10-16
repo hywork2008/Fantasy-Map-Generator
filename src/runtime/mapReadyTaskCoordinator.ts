@@ -155,15 +155,17 @@ export async function startMapReadyTasks(): Promise<void> {
     return;
   }
 
+  // Mark the run before the paint wait: otherwise the tools (Advance Time, …) are enabled for two
+  // frames between the end of generation and the first task, and a click there is lost when they
+  // disable again under the pointer.
+  useMapReadyTaskState.getState().start(ordered.length + 1);
+  useMapReadyTaskState.getState().begin("Preparing extensions", 0);
   await nextPaint();
   if (!isCurrent()) {
     if (fullRunId === currentRun) fullRunId = null;
     return;
   }
   markGenerationProfile("map-ready-start");
-
-  useMapReadyTaskState.getState().start(ordered.length + 1);
-  useMapReadyTaskState.getState().begin("Preparing extensions", 0);
 
   // Dynamic extensions retain the documented event contract. Built-in extensions use the
   // explicit task API below so ordering and UI progress are known to the host.

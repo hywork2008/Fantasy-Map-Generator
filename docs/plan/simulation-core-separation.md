@@ -715,4 +715,11 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - **保存・再読み込みをはさんだ継続**: fixture を 17 日進めて保存し、読み込んで 30 日進めた結果が、続けて 47 日進めた結果と一致した。Node(`reloadReproducibility.node.test.ts` に追加)でもブラウザ(Playwright で 3 つの別ページ)でも一致し、ブラウザと Node の結果も互いに一致した。
 - golden: `world.options`(新しい `loadRepairs`)と `simulation.extensions.economy`(在庫の配置)が変わった。`--env all --runs 2` で 2 回の実行とブラウザ・Node が一致し、`browser.json`・`node.json` を更新した。
 - `tsc`・`npm run lint` は通った。vitest の失敗は既知の 3 件(city-editor 2・食料気候の較正 1)。e2e の load-map・startup-check は 3 回とも成功した。
-- fast-advance-settings の History mode のテストは断続的に失敗する(Advance Time ダイアログが開かず、チェックボックスを待ってタイムアウトする)。今回の変更の前のコミット(§22 の HEAD)でも 4 回中 1 回失敗したので、元から不安定なテストである。今回の作業ツリーでは 4 回中 3 回失敗したので、時間の関係で起きやすくなっている可能性がある。原因はまだ調べていない。
+- fast-advance-settings の History mode のテストは断続的に失敗していた(Advance Time ダイアログが開かず、チェックボックスを待ってタイムアウトする)。原因はアプリ側の競合で、§23.4 で修正した。
+
+### 23.4 生成直後にツールのボタンが一瞬押せる(修正済み)
+
+- `startMapReadyTasks` は、描画を待つ 2 フレーム(`nextPaint`)の**後**に map-ready の進捗状態を「実行中」にしていた。そのため、生成が終わってから最初のタスクが始まるまでの間、Sticked の Advance Time などのボタン(`disabled={生成中 || map-ready 実行中}`)が一瞬押せるようになり、すぐにまた押せなくなっていた。
+- Playwright は「押せる」ことを確かめてからクリックするが、その直後にボタンが押せなくなると、クリックは捨てられる。テストはこの瞬間に当たるとダイアログが開かず失敗していた。利用者が同じ瞬間に押しても同じことが起きる。
+- `useMapReadyTaskState.start()` を描画待ちの前に移し、生成の終わりから map-ready の完了まで、ボタンが押せない状態を途切れさせないようにした。
+- 確認: 修正を外すと 4 回中 1 回失敗し(その前の計測では 4 回中 3 回)、修正後は 12 回連続で成功した。`mapReadyTaskCoordinator.test.ts` も成功。generation-progress の失敗 2 件(World Configurator の preset、拡張の有効状態の再読み込み)は、変更前の HEAD でも同じように失敗する。もう 1 件(再読み込み後の拡張一覧)は、他の e2e と並行して実行した時に 1 回だけ失敗し、単独では 4 回とも成功した。
