@@ -299,6 +299,7 @@ S1 と S2 は独立しているので、並行して進められる。S4 は S3 
 - ブラウザの Web Worker 上での Advance Time(UI が固まらない)
 - ブラウザと Node で同じ golden テストを回すことによる、シミュレーションの回帰検出
 - コアだけを対象にしたメモリ計測(描画由来の保持と、ワールドデータの蓄積を切り分けられる)
+- Node で複数の世界(チャンネル)を持ち、ブラウザから接続して共有する → [simulation-channel-server.md](simulation-channel-server.md)
 
 ## 12. S0 の結果(2026-10-16)
 
