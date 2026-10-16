@@ -242,7 +242,6 @@ registerSimulationSystem({
  * manpower body actually executes does.
  */
 const MANPOWER_GATE_DAYS = 7;
-let manpowerDaysAccumulated = 0;
 /**
  * Fast-Forward population injection is associative in deltaYears, so it accrues days and applies
  * once per coarse gate (and flushes any remainder when the batch ends) instead of walking every
@@ -262,17 +261,22 @@ registerSimulationSystem({
     if (!sim.simManpower || !worldContext.pack?.states) {
       // Drop any partial accumulation so re-enabling later doesn't apply a surprise multi-day
       // lump built up while the ledger was off.
-      manpowerDaysAccumulated = 0;
+      simulationContext.manpowerDaysAccumulated = 0;
       return;
     }
 
+    // Kept in the simulation slice (saved with the world), so a loaded map continues the same phase.
     const { years, months, days } = context.delta;
-    manpowerDaysAccumulated += years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
+    const accumulated =
+      (simulationContext.manpowerDaysAccumulated ?? 0) + years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
     const gateDays = context.fastAdvanceRates ? FAST_ADVANCE_COARSE_GATE_DAYS : MANPOWER_GATE_DAYS;
-    if (manpowerDaysAccumulated < gateDays) return;
+    if (accumulated < gateDays) {
+      simulationContext.manpowerDaysAccumulated = accumulated;
+      return;
+    }
 
-    const dueDeltaYears = manpowerDaysAccumulated / DAYS_PER_YEAR;
-    manpowerDaysAccumulated = 0;
+    const dueDeltaYears = accumulated / DAYS_PER_YEAR;
+    simulationContext.manpowerDaysAccumulated = 0;
     tickManpower(worldContext.pack, dueDeltaYears, worldContext.populationRate);
     writer.markChanged("simulation.states", "simulation.military");
   }
@@ -563,6 +567,7 @@ export function initSimulationClock(): void {
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
   resetWorldSettingsFromHost(simulationContext);
+  simulationContext.manpowerDaysAccumulated = 0;
   simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
   simulationContext.wilderness = createEmptyWildernessEcologyState();
   simulationContext.technology = createEmptyTechnologySimulationState();

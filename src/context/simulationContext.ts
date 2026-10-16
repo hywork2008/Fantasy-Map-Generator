@@ -400,6 +400,12 @@ export interface SimulationContext {
    * the field existed, until load materializes it (src/simulation/worldSettings.ts).
    */
   worldSettings?: Record<string, string>;
+  /**
+   * Simulated days the weekly-gated manpower ledger still owes (timeEngine `manpower.tick`). Saved
+   * with the world so the gate's phase does not depend on what this session ran before; undefined
+   * means 0 (new map, or an archive saved before the field existed).
+   */
+  manpowerDaysAccumulated?: number;
   /** Unclaimed outposts and settlements; State incorporation is a later phase. */
   frontier: FrontierSimulationState;
   /**

@@ -734,6 +734,15 @@ function assertWorldSettings(simulation: Record<string, unknown>): void {
   }
 }
 
+function assertManpowerAccumulator(simulation: Record<string, unknown>): void {
+  // Optional: archives saved before the manpower gate phase was persisted omit it (treated as 0).
+  const value = simulation.manpowerDaysAccumulated;
+  if (value === undefined) return;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error("Archive simulation.manpowerDaysAccumulated must be a non-negative finite number");
+  }
+}
+
 const TECHNOLOGY_STAGES = new Set(["locked", "known", "demonstrated", "adopted", "diffused"]);
 const TECHNOLOGY_SCOPES = new Set(["burg", "state", "network"]);
 
@@ -1084,6 +1093,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   assertAndNormalizeFuneral(simulation);
   assertAndNormalizeNavalTechBonus(simulation);
   assertWorldSettings(simulation);
+  assertManpowerAccumulator(simulation);
   assertAndNormalizeTechnology(simulation);
   assertAndNormalizeWilderness(simulation);
   const cells = pack.cells as Record<string, unknown>;

@@ -603,7 +603,17 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - 103 ファイル・238 個。拡張 economy 124、`src/generators` 41、characters 21、`src/services` 18、`src/runtime` 12、その他。
 - `clear*`/`reset*` を公開しているのは 35 ファイル。economy の 124 個の大半は `clearEconomyContext()`(`_fallbackResets`)と `clear` コマンドで消える。
 - **解除手段の無い、結果に影響しうる状態**(S6 で Node から地図を読み直す前に扱う):
-  - `generators/timeEngine.ts` の蓄積値 `manpowerDaysAccumulated`・`fastAdvancePopulationDaysAccumulated`(早送りの間引き用)と、日バッチの状態。
+  - ~~`generators/timeEngine.ts` の蓄積値~~ → §19.6 で対応済み。
   - economy の月次決算の位相(`daysSinceLastProduction`・`currentQuarterIndex`・`daysSinceLastProspecting`・`hiringDaysAccumulated`)。S5 で `register()` の中の変数になったので、登録し直せば 0 に戻る。ただしブラウザでは、セッション中に別の地図を読み込んでも引き継がれる。.fmg に保存されていないので、**同じ .fmg でも、そのセッションで以前に何日進めたかによって次の月次決算の日がずれる**。ブラウザと Node の結果を一致させるには、これらをワールドに保存するか、読み込み時に 0 に戻す必要がある(結果が変わるので、分離とは別の PR にする)。
   - 気候・河川・陸路の計算キャッシュ(`cellClimateNormals`・`seasonalCropClimate`・`riverPhysicalGeometry`・`regionalRiverGeometry`・`worldLandConnectionRuntime` など)。入力から決まる派生値なので結果には影響しないはずだが、地図が変わった時に無効化されるかは個別に確かめる。
+
+### 19.6 timeEngine の積算値をワールドに保存(2026-10-16)
+
+- `manpower.tick` は 7 日ごとに実行される(早送り中は粗い間隔)。まだ実行していない日数 `manpowerDaysAccumulated` はモジュール変数だったため、.fmg に保存されず、セッション中に別の地図を読み込んでも前の値が残った。これを `simulation.manpowerDaysAccumulated`(省略可。省略時は 0)に移した。
+  - 新しい地図の生成時(`initSimulationClock`)は 0 にする。アーカイブの検証では、ある場合は 0 以上の有限数であることを確認する。
+  - 日のロールバックはシミュレーションのスナップショットに含まれるので、失敗した日の積算も一緒に戻るようになった。
+- `fastAdvancePopulationDaysAccumulated` は保存しない。早送りの日バッチの中だけで使い、バッチの終わり(成功時は残りを適用、失敗時は破棄)に必ず 0 に戻るため、保存の時点では常に 0 になる。
+- golden: day-0 は一致。day-30・day-365 では `simulation.manpowerDaysAccumulated`(新しいフィールド)だけが異なり、その他のセクションはすべて一致したことを確認してから基準を更新した(2 回の実行も一致)。
+- Node スモークテストで、30 日 + 2 日進めた後(週の途中)に保存・再読み込みして、値が戻ることを確認する。
+- economy の月次決算の位相(`daysSinceLastProduction` など)は未対応。
 

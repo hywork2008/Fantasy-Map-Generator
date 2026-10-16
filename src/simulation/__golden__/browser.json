@@ -77,7 +77,7 @@
       }
     },
     "day-30": {
-      "digest": "f485557808d3eba8e5c7b8e69b91fce106d1536b6b3e99915eaaf858e47c17e4",
+      "digest": "c7f9058e7444824a3c5504a0e79a02e6beffc074a3b6aa7b5cb2c02ab7e437c6",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -131,6 +131,7 @@
         "simulation.intelligence": "d29f8d12722ce202450db0cfe6746db8ea06b9e7aaa73ce8617b7483071010c4",
         "simulation.landUse": "2b301ed53a04ca9681afadecb7fb80286891bbae9165e552f8382aafdece6dfd",
         "simulation.lastSeasonalTempBucket": "dc270706e5a1bace70d26f36ab6db0fdeecac63eb33ed21ab6f6857a326c37ce",
+        "simulation.manpowerDaysAccumulated": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
         "simulation.military": "24bc7be04bb0d00655ebe3671717d3b056bb271b25df96860bf04fa720911034",
         "simulation.navalTechBonus": "2c9e157abd6df67e16fa28d6289b43d22bb6269834b04436dd8c24abba2f4ce4",
         "simulation.populationLoss": "7d4a33b48e672b7e15842bca2775a6fd57764605d713de95cbac59f350985812",
@@ -145,7 +146,7 @@
       }
     },
     "day-365": {
-      "digest": "92fcb41c15e29f7efe7bb6e8e059bc373b97a98b04dbca3460eec50db240adf1",
+      "digest": "24a40f673dd5169c64a6a89ea21f324dcb62ce0e8f8c13bb886fbc1e1bda76ab",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -199,6 +200,7 @@
         "simulation.intelligence": "8dcca9569ea3e2fbae1bde2bd1728da9deab66185fe4bc750524b56d52055490",
         "simulation.landUse": "2b301ed53a04ca9681afadecb7fb80286891bbae9165e552f8382aafdece6dfd",
         "simulation.lastSeasonalTempBucket": "2016c50216de46531f14140816b172ccd424f8220b452d9cb1634d613ad423de",
+        "simulation.manpowerDaysAccumulated": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
         "simulation.military": "44d213ebb39cff045ea9509d57c2d35aca21bdbc3a75a5b1578abf79cf57ee09",
         "simulation.navalTechBonus": "2c9e157abd6df67e16fa28d6289b43d22bb6269834b04436dd8c24abba2f4ce4",
         "simulation.populationLoss": "3bd339ad618f8db473b19b864a24dfc42cf2df866f869b0d73568eb672683364",

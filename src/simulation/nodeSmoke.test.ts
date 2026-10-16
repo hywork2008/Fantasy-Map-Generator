@@ -86,6 +86,14 @@ async function runHostStages(): Promise<{ stage: Stage; error?: string }> {
     await new Promise(resolveTick => setTimeout(resolveTick, 0));
     if (host.simulation.tickCount - ticksBefore !== 30) throw new Error("the clock did not advance 30 ticks");
     if (!host.enablement.isEnabled("economy")) throw new Error("economy is not enabled");
+    // Advancing 2 more days leaves the weekly manpower gate mid-phase; a save/load must keep it.
+    host.advance({ days: 2 });
+    const phase = host.simulation.manpowerDaysAccumulated;
+    if (!(phase! > 0)) throw new Error(`manpower gate phase not accumulated (${phase})`);
+    await host.loadArchive(await host.saveArchive());
+    if (host.simulation.manpowerDaysAccumulated !== phase) {
+      throw new Error(`manpower gate phase ${phase} not restored (${host.simulation.manpowerDaysAccumulated})`);
+    }
   } catch (error) {
     return { stage: "advance", error: describeError(error) };
   } finally {
