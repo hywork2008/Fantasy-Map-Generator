@@ -1,7 +1,12 @@
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { connectSimChannel, getConnectedSimChannel } from "../../io/simChannelConnection";
+import {
+  connectSimChannel,
+  disconnectSimChannel,
+  getConnectedSimChannel,
+  subscribeSimChannelConnection
+} from "../../io/simChannelConnection";
 import { type ChannelInfo, deleteSimChannel, listSimChannels } from "../../io/simServer";
 import { tip } from "../../services/tooltipService";
 import { dialogStore, useDialogState } from "../../store/dialogState";
@@ -21,6 +26,7 @@ export const SimChannelsDialog: React.FC = () => {
   const isGenerationOpen = useGenerationProgressState(state => state.isOpen);
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const offered = useRef(false);
+  const current = useSyncExternalStore(subscribeSimChannelConnection, getConnectedSimChannel);
 
   const refresh = useCallback(() => listSimChannels().then(setChannels), []);
 
@@ -46,6 +52,12 @@ export const SimChannelsDialog: React.FC = () => {
     );
   };
 
+  const disconnect = () => {
+    const id = current;
+    disconnectSimChannel();
+    if (id) tip(t("dialogs.simChannels.disconnected", { id }), true, "success", 6000);
+  };
+
   const remove = (channel: ChannelInfo) =>
     openConfirm(t("dialogs.simChannels.deleteConfirm", { name: channel.name, id: channel.id }), {
       title: t("dialogs.simChannels.delete"),
@@ -55,7 +67,6 @@ export const SimChannelsDialog: React.FC = () => {
         void deleteSimChannel(channel.id).then(refresh, (error: Error) => tip(error.message, true, "error", 8000))
     });
 
-  const current = getConnectedSimChannel();
   const formatDate = (date: ChannelInfo["date"]) => (date ? `${date.year}-${date.month}-${date.day}` : "—");
 
   return (
@@ -68,6 +79,7 @@ export const SimChannelsDialog: React.FC = () => {
         { label: t("common.close"), onClick: close }
       ]}
     >
+      {current && <p>{t("dialogs.simChannels.connectedTo", { id: current })}</p>}
       {channels.length === 0 ? (
         <p>{t("dialogs.simChannels.empty")}</p>
       ) : (
@@ -91,11 +103,15 @@ export const SimChannelsDialog: React.FC = () => {
                 <td>{channel.counts?.burgs ?? "—"}</td>
                 <td>{channel.revision}</td>
                 <td>
-                  <button type="button" onClick={() => connect(channel)} disabled={current === channel.id}>
-                    {current === channel.id
-                      ? t("dialogs.simChannels.connectedLabel")
-                      : t("dialogs.simChannels.connect")}
-                  </button>{" "}
+                  {current === channel.id ? (
+                    <button type="button" onClick={disconnect}>
+                      {t("dialogs.simChannels.disconnect")}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => connect(channel)}>
+                      {t("dialogs.simChannels.connect")}
+                    </button>
+                  )}{" "}
                   <button type="button" onClick={() => remove(channel)}>
                     {t("dialogs.simChannels.delete")}
                   </button>

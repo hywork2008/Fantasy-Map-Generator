@@ -244,3 +244,11 @@ FMG_SIM_SERVER=http://127.0.0.1:8788 npm run dev     # Vite が /api/sim を転�
 - **削除**: `DELETE /api/sim/channels/:id` は**トークン不要**(誰でも削除できる。共有の作業用ワールドとして扱う方針)。確認ダイアログのあとに実行し、接続中の全員に SSE `deleted` を送る。
 - 一覧に暦と件数を出すため、公開時に要約を `channel.json` に保存するようにした(op のたびに暦は更新される)。
 - 検証(Playwright): fixture のチャンネルがある状態でページを開く → ダイアログが自動で開く → 接続で都市 95 の世界が読み込まれる → API で 5 日進める → ブラウザが自動で 1064-1-6 に追従 → ダイアログから削除 → 一覧が空になる。ページのエラー 0。
+
+## 15. 切断(2026-10-17)
+
+- ダイアログ: 接続中のチャンネルの行は「接続」の代わりに「切断」を出し、一覧の上に接続先を表示する(`subscribeSimChannelConnection` + `useSyncExternalStore`)。切断すると SSE の購読をやめ、読み込んだ地図はローカルの複製として残る。
+- **自動切断**: 接続したまま別の地図を扱うと、次の revision でチャンネルの地図に上書きされるため、次の 2 つで自動的に切断し、ツールチップで知らせる。
+  - 別の地図の読み込み: `uploadMap` の先頭で呼ばれる `onMapUpload`(`src/io/load.ts`、新設)を購読し、チャンネル自身が取得した Blob 以外なら切断(ファイル・ブラウザ保存・URL・Dropbox・map:server のいずれも `uploadMap` を通る)。
+  - 新しい地図の生成: `generationProgressStore` の `isOpen` が false→true になったら切断(`beginStage`)。
+- 検証(Playwright): 切断ボタンの後に API で進めても暦が変わらない。接続中にファイルから読み込むと切断され、その後の API の advance で上書きされない。接続中に New Map → Generate で切断される。ページのエラー 0。

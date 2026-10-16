@@ -201,7 +201,16 @@ export function showUploadErrorMessage(error: string, maplink: string, random: n
 
 // ─── Upload & parse ───────────────────────────────────────────────────────────
 
+const mapUploadListeners = new Set<(file: Blob) => void>();
+
+/** Called at the start of every map upload (any source) with the file being loaded. */
+export function onMapUpload(listener: (file: Blob) => void): () => void {
+  mapUploadListeners.add(listener);
+  return () => mapUploadListeners.delete(listener);
+}
+
 export function uploadMap(file: Blob, callback?: () => void): void {
+  for (const listener of mapUploadListeners) listener(file);
   cancelMapReadyTasks();
   (uploadMap as { timeStart?: number }).timeStart = performance.now();
 

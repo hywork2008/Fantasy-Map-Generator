@@ -2789,14 +2789,16 @@
       "burgs": "Burgs",
       "revision": "Revision",
       "connect": "Connect",
-      "connectedLabel": "Connected",
       "delete": "Delete",
       "refresh": "Refresh",
       "deleteConfirm": "Delete channel {{name}} ({{id}}) for everyone? This cannot be undone.",
       "connected": "Connected to {{name}} ({{id}})",
       "note": "Connecting loads the channel's world and reloads it whenever the server advances it. Changes made in this browser are not sent to the server.",
       "open": "Simulation channels",
-      "openTip": "Connect to a world held by the simulation server, or delete one"
+      "openTip": "Connect to a world held by the simulation server, or delete one",
+      "disconnect": "Disconnect",
+      "disconnected": "Disconnected from {{id}}. The map stays as a local copy.",
+      "connectedTo": "Connected to {{id}}. Loading or generating another map disconnects automatically."
     },
     "load": {
       "loadFrom": "Load map from",
