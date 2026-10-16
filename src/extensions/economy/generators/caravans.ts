@@ -2,7 +2,7 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { landTravelLegSpeeds } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { getCellWind, useOptionsState, type WorldContext } from "../../hostCore";
+import { useOptionsState, type WorldContext } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCaravans,
@@ -24,11 +24,7 @@ import {
   CaravanMovement,
   type CaravanMovementSettings,
   DEFAULT_DRAFT_ANIMAL_ID,
-  getDraftAnimalType,
-  getSeaConditionMultiplier,
-  getSeaWindMultiplier,
-  type OceanCurrentSample,
-  type SeaWindSample
+  getDraftAnimalType
 } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
 import {
@@ -43,15 +39,7 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { utilizationOf } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
-import type {
-  Caravan,
-  Deal,
-  ExportStagingLot,
-  Market,
-  TradeRoutePoint,
-  TradeRouteSegment,
-  TransportAllocation
-} from "./marketTypes";
+import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment, TransportAllocation } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { recordRouteTraffic } from "./publicWorks";
@@ -71,7 +59,12 @@ import {
   isGoodTradePermittedForShipment,
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
-import { calculateRouteDurationDays, getRouteDistanceKm, getSurfaceSpeedMultiplier } from "./tradeRouteDuration";
+import {
+  calculateRouteDurationDays,
+  getRouteDistanceKm,
+  getSurfaceSpeedMultiplier,
+  getWaterSegmentSpeedKmPerDay
+} from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import {
   decideSailDeparture,
@@ -530,10 +523,6 @@ export function getCaravanTravelTime(caravan: Caravan): CaravanTravelTime | null
   return { totalDays, remainingDays: Math.ceil(totalDays * remainingRatio) };
 }
 
-function toXy(point: readonly number[]): [number, number] {
-  return [point[0], point[1]];
-}
-
 function toTradeRoutePoint(point: readonly number[]): TradeRouteSegment["points"][number] {
   return typeof point[2] === "number" ? [point[0], point[1], point[2]] : [point[0], point[1]];
 }
@@ -541,45 +530,6 @@ function toTradeRoutePoint(point: readonly number[]): TradeRouteSegment["points"
 export interface CaravanTickResult {
   arrived: Caravan[];
   lost: Caravan[];
-}
-
-/**
- * Reads the real per-cell ocean current (docs/simulation/ocean-currents.md) at a route point's
- * pack cell, via the same `pack.cells.g` -> `grid.cells.currentAngle`/`currentSpeed` lookup other
- * consumers use for `temp`/`prec`. Returns null (falls back to the seasonal bias in
- * getSeaConditionMultiplier) whenever the point carries no cell id, `worldContext` wasn't given,
- * or the map predates this field.
- */
-function resolveOceanCurrentAtPoint(
-  worldContext: WorldContext | null | undefined,
-  point: TradeRoutePoint
-): OceanCurrentSample | null {
-  const packCellId = point[2];
-  if (packCellId === undefined || !worldContext) return null;
-
-  const gridCellId = worldContext.pack?.cells?.g?.[packCellId];
-  const currentAngle = worldContext.grid?.cells?.currentAngle;
-  const currentSpeed = worldContext.grid?.cells?.currentSpeed;
-  if (gridCellId === undefined || !currentAngle || !currentSpeed) return null;
-
-  return { angleDeg: currentAngle[gridCellId], speed: currentSpeed[gridCellId] };
-}
-
-/**
- * Monthly mean wind (docs/plan/wind-aspect-climate-variability.md §5.8) at a route point's grid
- * cell. Null without a cell id or world, which leaves sea legs without a wind correction.
- */
-function resolveWindAtPoint(
-  worldContext: WorldContext | null | undefined,
-  point: TradeRoutePoint,
-  month: number
-): SeaWindSample | null {
-  const packCellId = point[2];
-  if (packCellId === undefined || !worldContext?.grid?.cells?.h) return null;
-  const gridCellId = worldContext.pack?.cells?.g?.[packCellId];
-  if (gridCellId === undefined) return null;
-  const wind = getCellWind(worldContext, gridCellId, month);
-  return wind ? { u: wind.u, v: wind.v } : null;
 }
 
 /**
@@ -613,16 +563,8 @@ export function bakeCaravanTravelLegs(
         runKm += Math.hypot(x2 - x1, y2 - y1) * distanceScale;
       }
       if (runKm <= 0) continue;
-      const from = toXy(seg.points[0]);
-      const to = toXy(seg.points[seg.points.length - 1]);
-      const current = seg.type === "river" ? null : resolveOceanCurrentAtPoint(worldContext, seg.points[0]);
-      const wind = seg.type === "river" ? null : resolveWindAtPoint(worldContext, seg.points[0], month);
-      const currentMultiplier =
-        seg.type === "river"
-          ? 1
-          : getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength, current) *
-            getSeaWindMultiplier(from, to, movement.seaWindStrength ?? 0, wind);
-      const speed = (seg.type === "river" ? movement.riverKmPerDay : movement.seaKmPerDay) * currentMultiplier;
+      // Same speed calculateRouteDurationDays quotes, so a caravan arrives when it was promised.
+      const speed = getWaterSegmentSpeedKmPerDay(seg, month, movement, worldContext);
       cursorKm += runKm;
       legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });
       continue;

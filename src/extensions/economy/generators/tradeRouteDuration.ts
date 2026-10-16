@@ -1,8 +1,16 @@
 import { calculateLandTravelDays } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState } from "../../hostCore";
-import { getMarkets, getRailwayLinks, getWorldContext } from "../economyContext";
-import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
+import { getCellWind, useOptionsState, type WorldContext } from "../../hostCore";
+import { getMarkets, getRailwayLinks, getSimulationMonth, getWorldContext } from "../economyContext";
+import {
+  CaravanMovement,
+  type CaravanMovementSettings,
+  getDraftAnimalType,
+  getSeaConditionMultiplier,
+  getSeaWindMultiplier,
+  type OceanCurrentSample,
+  type SeaWindSample
+} from "./caravanMovement";
 import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { getRailwayTravelMultiplier } from "./railwayTravel";
 
@@ -75,6 +83,82 @@ export interface RouteDurationOptions {
    * avoid multipliers are not applied. Pathfinding uses TradeAnimation's edge costs instead.
    */
   forPathfinding?: boolean;
+  /** 1-based month whose currents and winds sea legs sail in. Default: the simulation month. */
+  month?: number;
+}
+
+/**
+ * Real per-cell ocean current (docs/simulation/ocean-currents.md) at a route point's pack cell.
+ * Null (getSeaConditionMultiplier then uses the coarse seasonal bias) without a cell id, a world,
+ * or the current field.
+ */
+function resolveOceanCurrentAtPoint(
+  world: WorldContext | null | undefined,
+  point: TradeRoutePoint
+): OceanCurrentSample | null {
+  const packCellId = point[2];
+  if (packCellId === undefined || !world) return null;
+  const gridCellId = world.pack?.cells?.g?.[packCellId];
+  const currentAngle = world.grid?.cells?.currentAngle;
+  const currentSpeed = world.grid?.cells?.currentSpeed;
+  if (gridCellId === undefined || !currentAngle || !currentSpeed) return null;
+  return { angleDeg: currentAngle[gridCellId], speed: currentSpeed[gridCellId] };
+}
+
+/** Monthly mean wind (docs/plan/wind-aspect-climate-variability.md §5.8) at a route point's grid cell. */
+function resolveWindAtPoint(
+  world: WorldContext | null | undefined,
+  point: TradeRoutePoint,
+  month: number
+): SeaWindSample | null {
+  const packCellId = point[2];
+  if (packCellId === undefined || !world?.grid?.cells?.h) return null;
+  const gridCellId = world.pack?.cells?.g?.[packCellId];
+  if (gridCellId === undefined) return null;
+  const wind = getCellWind(world, gridCellId, month);
+  return wind ? { u: wind.u, v: wind.v } : null;
+}
+
+function tryWorld(): WorldContext | null {
+  try {
+    return getWorldContext();
+  } catch {
+    return null;
+  }
+}
+
+function resolveMonth(month: number | undefined): number {
+  if (month !== undefined) return month;
+  try {
+    return getSimulationMonth();
+  } catch {
+    return 1;
+  }
+}
+
+/**
+ * km/day on a river or sea segment. Sea legs are corrected by the ocean current and the monthly
+ * wind sampled at the segment's first cell, along its start→end chord. Shared by the ETA
+ * (calculateRouteDurationDays) and the caravan's baked legs so the quote and the voyage agree.
+ */
+export function getWaterSegmentSpeedKmPerDay(
+  segment: TradeRouteSegment,
+  month: number,
+  movement: Readonly<CaravanMovementSettings> = CaravanMovement.getOptions(),
+  world: WorldContext | null | undefined = tryWorld()
+): number {
+  if (segment.type === "river") return movement.riverKmPerDay;
+  const first = segment.points[0];
+  const last = segment.points[segment.points.length - 1];
+  if (!first || !last) return movement.seaKmPerDay;
+  const from: [number, number] = [first[0], first[1]];
+  const to: [number, number] = [last[0], last[1]];
+  const current = resolveOceanCurrentAtPoint(world, first);
+  const wind = resolveWindAtPoint(world, first, month);
+  const multiplier =
+    getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength, current) *
+    getSeaWindMultiplier(from, to, movement.seaWindStrength ?? 0, wind);
+  return Math.max(movement.seaKmPerDay * multiplier, 1e-6);
 }
 
 function getSegmentDistanceMapUnits(segment: TradeRouteSegment): number {
@@ -183,6 +267,8 @@ export function calculateRouteDurationDays(
   options?: RouteDurationOptions
 ): number {
   const movement = CaravanMovement.getOptions();
+  const month = resolveMonth(options?.month);
+  const world = tryWorld();
   let duration = 0;
 
   for (let index = 0; index < segments.length; index++) {
@@ -196,7 +282,8 @@ export function calculateRouteDurationDays(
       duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.riverKmPerDay;
     } else {
       if (movement.seaKmPerDay <= 0) return Infinity;
-      duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.seaKmPerDay;
+      const speed = getWaterSegmentSpeedKmPerDay(segment, month, movement, world);
+      duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / speed;
     }
     if (index > 0 && segment.type !== segments[index - 1].type) {
       duration += getPortTransferPenaltyDays(getSegmentStartCell(segment));

@@ -35,13 +35,23 @@ export interface CaravanMovementSettings {
    * `preferSpeed` minimizes travel days; `avoidHardPass` penalizes hard/extreme grades.
    */
   merchantRoutePreference: MerchantRoutePreference;
+  /** Stored-settings schema version; see SETTINGS_VERSION. */
+  settingsVersion?: number;
 }
+
+/**
+ * 2: the sea current became on by default (seaCurrentStrength 0 → 0.3). Blobs saved before that
+ * stored the old default 0 whenever any other movement setting was touched; those are lifted to
+ * the new default once, after which a deliberate 0 is kept.
+ */
+const SETTINGS_VERSION = 2;
 
 const DEFAULT_MOVEMENT_SETTINGS: CaravanMovementSettings = {
   landKmPerDay: 32,
   seaKmPerDay: 60,
   riverKmPerDay: 72,
-  seaCurrentStrength: 0,
+  seaCurrentStrength: 0.3,
+  settingsVersion: SETTINGS_VERSION,
   seaWindStrength: 0.5,
   gradeEffectStrength: 1,
   merchantRoutePreference: "preferSpeed"
@@ -120,8 +130,12 @@ function loadSettings(): CaravanMovementSettings {
         gradeEffectStrength:
           parseStoredStrength(parsed.gradeEffectStrength) ??
           parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY)) ??
-          DEFAULT_MOVEMENT_SETTINGS.gradeEffectStrength
+          DEFAULT_MOVEMENT_SETTINGS.gradeEffectStrength,
+        settingsVersion: SETTINGS_VERSION
       };
+      if ((parsed.settingsVersion ?? 1) < 2 && !(Number(parsed.seaCurrentStrength) > 0)) {
+        options.seaCurrentStrength = DEFAULT_MOVEMENT_SETTINGS.seaCurrentStrength;
+      }
     } else {
       // Plan keys may exist even when the bundled caravan-movement blob does not.
       const strength = parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY));
@@ -181,9 +195,8 @@ export interface OceanCurrentSample {
 
 /**
  * Speed multiplier for a sea leg from `fromPoint` to `toPoint`. `strength` is the
- * user-configurable `CaravanMovementSettings.seaCurrentStrength` and defaults to 0 (no effect) —
- * trade routes opt in per docs/plan discussion, they don't get an always-on penalty; that gate is
- * unchanged by which data source below actually drives the swing once opted in.
+ * user-configurable `CaravanMovementSettings.seaCurrentStrength` (default 0.3; 0 turns it off).
+ * Both the trade ETA and the caravan's baked legs apply it through getWaterSegmentSpeedKmPerDay.
  *
  * When `current` is given (a real per-cell sample resolved by the caller via
  * `pack.cells.g`/`grid.cells.currentAngle`/`currentSpeed`), the multiplier comes from projecting
