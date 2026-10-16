@@ -5,12 +5,14 @@ import { connectToDropbox, loadURL } from "../../controllers/options";
 import { importGenerationOptionsFromFile } from "../../io/exportGenerationOptions";
 import { createSharableDropboxLink, loadFromDropbox, quickLoad, uploadMap } from "../../io/load";
 import { fetchMapFromServer, probeMapServer } from "../../io/mapServer";
+import { probeSimServer } from "../../io/simServer";
 import { tip } from "../../services/tooltipService";
-import { useDialogState } from "../../store/dialogState";
+import { dialogStore, useDialogState } from "../../store/dialogState";
 import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useLoadMapDialogState } from "../../store/loadMapDialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog, closeDialogs } from "./dialogService";
+import { SIM_CHANNELS_DIALOG_ID } from "./SimChannelsDialog";
 
 export const LoadMapDialog: React.FC = () => {
   const { t } = useTranslation();
@@ -33,8 +35,10 @@ export const LoadMapDialog: React.FC = () => {
   const isGenerating = useGenerationProgressState(state => state.isGenerating);
 
   const [serverAvailable, setServerAvailable] = useState(false);
+  const [simServerAvailable, setSimServerAvailable] = useState(false);
   useEffect(() => {
     void probeMapServer().then(status => setServerAvailable(status !== null));
+    void probeSimServer().then(status => setSimServerAvailable(status !== null));
   }, []);
 
   const hasDropboxFiles = dropboxFiles.length > 0;
@@ -110,6 +114,18 @@ export const LoadMapDialog: React.FC = () => {
         <button type="button" data-tip={t("dialogs.load.storageTip")} onClick={() => quickLoad()}>
           {t("dialogs.load.storage")}
         </button>
+        {simServerAvailable && (
+          <>
+            {" "}
+            <button
+              type="button"
+              data-tip={t("dialogs.simChannels.openTip")}
+              onClick={() => dialogStore.getState().openDialog(SIM_CHANNELS_DIALOG_ID)}
+            >
+              {t("dialogs.simChannels.open")}
+            </button>
+          </>
+        )}
         {serverAvailable && (
           <>
             {" "}

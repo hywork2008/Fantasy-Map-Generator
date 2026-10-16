@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-17 設計。未実装。
+- 2026-10-17 設計。§13 の「地図の公開(AI 向け)」を先行実装した。§11 の N0–N5 は未実装。
 - 前提: [simulation-core-separation.md](simulation-core-separation.md) の S0–S6 完了(Node で全拡張が動き、ブラウザ・Node のハッシュがビット単位で一致し、保存・再読み込みをはさんだ継続も一致する)。本書は同書 §11 の「範囲外」の応用のうち、API サーバを扱う。
 - 既存の [map-server.md](map-server.md)(`npm run map:server`、.fmg 1 つを共有、編集者 1 人)を置き換えるのではなく、その上位互換として作る。
 
@@ -193,3 +193,54 @@ Burg Editor・Province 編集・heightmap 編集など、従来のエディタ�
 - **`map-ready` タスク**: 生成直後の economy 準備などは、チャンネル登録時にサーバーで `prepare({ all: true })` を走らせるか、ブラウザで済ませた .fmg を登録するかを決める(後者が単純。登録時に `loadRepairs` の版数を確認する)。
 - **拡張の有効状態**: チャンネルの有効な拡張は `channel.json` が正。ブラウザの Extensions タブの設定と食い違う場合、接続中はチャンネル側に従い、タブは読み取り専用にする。
 - **ワールドに保存しない設定**(§16.3 で「ブラウザ側」と分類したもの)は、各ブラウザで違ってよい(表示の設定など)。結果に影響するものは §18 で既にワールドにある。
+
+## 13. 先行実装: ブラウザの地図を公開して AI が API で操作する(2026-10-17)
+
+スタンドアロンのブラウザで作った地図(設定・時間経過も含む)を、ボタン 1 つでサーバーのチャンネルに複製し、AI・スクリプトが REST で同じ地図を読み・進められるようにした。ブラウザとチャンネルは**同期しない**(公開した時点の複製。以後ブラウザ側の変更は送られない)。§6 の同期は N2 以降。
+
+### 13.1 使い方
+
+```
+npm run sim:server -- [--port 8788] [--host 127.0.0.1] [--data data/channels] [--token T]
+FMG_SIM_SERVER=http://127.0.0.1:8788 npm run dev     # Vite が /api/sim を転送
+```
+
+- Save ダイアログに「Simulation server」ボタンが出る(サーバーが応答する時だけ)。押すと今の地図を `POST /api/sim/channels` し、チャンネル id(`world-1`, …)と API の URL を表示する。`--token` 指定時は最初にトークンを聞く(`fmg.simServer.token`)。
+- ビルド成果物から使う場合は `VITE_SIM_SERVER` にサーバーの URL を指定する(CORS は許可済み)。
+
+### 13.2 API(`/api/sim`。書き込みは `--token` 指定時 `Authorization: Bearer T` が必須)
+
+| メソッド | パス | 内容 |
+| --- | --- | --- |
+| GET | /health | `{ ok, channels, auth }` |
+| GET / POST | /channels | 一覧 / 作成(本文 = .fmg、`?name=`・`?id=`・`?extensions=economy,…`) |
+| GET / DELETE | /channels/:id | 情報 + 要約(暦・件数・有効な拡張) / 削除 |
+| GET | /channels/:id/archive | 現在の .fmg(ETag = revision) |
+| GET | /channels/:id/{burgs,states,provinces,cultures,religions,markers,rivers,routes}[?q=名前] | 一覧(各要素の数値・文字列・真偽のフィールドだけ) |
+| GET | /channels/:id/:collection/:i | 1 件(全フィールド) |
+| POST | /channels/:id/ops | `{"type":"advance","years":0,"months":1,"days":0}` か `{"type":"command","extensionId":…,"name":…,"payload":…}`。**完了まで待って**結果(新しい revision・暦・所要時間)を返す。`X-FMG-User` はジャーナルに残る |
+| GET | /channels/:id/journal[?since=r] | op の履歴 |
+| GET | /channels/:id/events | SSE(`revision`) |
+
+例: `curl -X POST -H 'Authorization: Bearer T' -d '{"type":"advance","months":1}' http://127.0.0.1:8788/api/sim/channels/world-1/ops`
+
+### 13.3 実装
+
+- `scripts/simServer.mts`(親: HTTP・認証・SSE)と `scripts/lib/simChannelWorker.mts`(チャンネルごとの子プロセス。`createNodeSimulationHost` + `loadWorld`、op を 1 つずつ実行)。10 分使われないチャンネルは子プロセスを止め、次の要求で `current.fmg` から起こす。
+- ストレージ(§5 の簡易版): `data/channels/<id>/{channel.json, current.fmg, snapshots/r000000.fmg, journal.ndjson}`。op ごとに `current.fmg` を一時ファイル→rename で書き換え、ジャーナルに追記する。定期スナップショットとジャーナルからの復元は N0。
+- ブラウザ: `src/io/simServer.ts`(`probeSimServer`・`publishToSimServer`)、`saveMap("simServer")`。
+- **拡張の有効状態**: .fmg には含まれない(ブラウザの Extensions タブの状態)。公開時にブラウザで有効なシミュレーション拡張を `?extensions=` で送り、`channel.json` に保存して子プロセスはその集合で Host を作る。送らないと Node は全拡張を有効にし、economy を使っていない地図では読み込み時の商品カタログの移行(`migrateIndustrialSteamGoods`)が空のカタログで `Unknown ingredient Coal` を投げて落ちた(実際に発生)。
+
+### 13.4 検証
+
+- fixture を `POST` → `advance 1 month` → `archive` を取得したハッシュが、`npm run sim -- fixture --months 1 --hash` と一致した。
+- 2 チャンネルを別々に進めて互いに影響しないこと、トークンなしの書き込みが 401 になることを確認した。
+- Playwright(実ブラウザ): 地図を生成 → 3 日進める → Save ダイアログのボタンで公開 → チャンネルの暦(1853-1-4)と都市数(63)がブラウザと一致し、API から 10 日進められた。
+
+## 14. チャンネル選択ダイアログ(2026-10-17)
+
+- `SimChannelsDialog`(`src/ui/dialogs/SimChannelsDialog.tsx`、id `simChannels`): チャンネルの一覧(名前・id・暦・都市数・revision)と「接続」「削除」。地図作成モード(Build map の進行ダイアログ)が最初に開いた時、サーバーにチャンネルがあれば 1 回だけ自動で開く。Load ダイアログの「Simulation channels」ボタンからも開ける。
+- **接続**(`src/io/simChannelConnection.ts`): チャンネルの .fmg を取得して通常の読み込み(`uploadMap`)を行い、SSE の `revision` を購読して、サーバーで op が確定するたびに読み込み直す(§6.1 方式 A の受信側のみ)。読み込み中に次の版が来たら、終わってから最新を 1 回だけ取る。ブラウザでの変更・Advance Time はサーバーに送られない(送信は N2)。チャンネルが削除されると、手元の地図はローカルの複製として残る。
+- **削除**: `DELETE /api/sim/channels/:id` は**トークン不要**(誰でも削除できる。共有の作業用ワールドとして扱う方針)。確認ダイアログのあとに実行し、接続中の全員に SSE `deleted` を送る。
+- 一覧に暦と件数を出すため、公開時に要約を `channel.json` に保存するようにした(op のたびに暦は更新される)。
+- 検証(Playwright): fixture のチャンネルがある状態でページを開く → ダイアログが自動で開く → 接続で都市 95 の世界が読み込まれる → API で 5 日進める → ブラウザが自動で 1064-1-6 に追従 → ダイアログから削除 → 一覧が空になる。ページのエラー 0。

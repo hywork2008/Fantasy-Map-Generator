@@ -23,3 +23,6 @@ docs/temp/
 
 # CE generated diagnostics, logs and baseline captures
 /artifacts/city-editor/
+
+# Simulation channel server data (npm run sim:server)
+/data/channels/
