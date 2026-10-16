@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。S5 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。S5 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -527,3 +527,30 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - golden は一致した。Node スモークテストも成功。
 - `tsc`・`lint:legacy` は通った。vitest は 6,979 件が成功し、失敗 5 件はすべて既知のもの。
 - e2e(fast-advance-settings・options-panel-interactions・load-map・startup-check・tour-prompt・generation-progress)は、並列実行で 8 件失敗した。変更前の HEAD では同じ組み合わせで 10 件失敗しており、変更後の失敗はすべて変更前にも出ていた(load-map は失敗するテストが入れ替わったが、単独で実行すると全件成功)。永続化に関わる fast-advance-settings・load-map は、単独実行で 9 件すべて成功した。
+
+## 18. 結果に影響する設定をワールド(.fmg)に保存する(2026-10-16)
+
+§16.3 で「ワールドに保存」とした 5 項目を、ブラウザではなく .fmg に保存するようにした。
+
+### 18.1 方式
+
+- **`simulation.worldSettings`**(`Record<string, string>`、`src/simulation/worldSettings.ts`)に、次の 4 キーを `localStorage` と同じ文字列形式で持つ。
+  - `caravan-movement`(隊商の移動)
+  - `fmg-grade-effect-strength`(勾配の効き方。隊商と軍の行軍で共有)
+  - `fmg-merchant-route-preference`(商人の経路の好み)
+  - `fmg-trade-logistics-settings`(交易物流)
+- **人物の許可種族**は、もともと `simulation.extensions.characters.allowedRaceKeys` として .fmg に保存されていた。ただしスライスに値が無い時(fixture を含む既存の地図)はブラウザの値を使っていたので、地図の読み込み時(`fmg:world-loaded`)・生成時(`fmg:generate-post-core`)・最初の参照時に、その時点の値をスライスへ書き込むようにした。
+- **値を読む時の優先順位**:
+  1. ワールドに `worldSettings` があれば、その値だけを使う。キーが無ければコードの既定値になり、ブラウザは参照しない。そのため同じ .fmg は、どのブラウザでも Node でも同じ設定で動く。
+  2. `worldSettings` が無いのは、この項目ができる前に保存された .fmg だけ。読み込み時(`io/load.ts`、.fmg と旧形式の .map の両方)に、ブラウザの現在値を一度だけ取り込む。
+- **新しい地図を生成する時**(`initSimulationClock`): ブラウザの現在値から `worldSettings` を作る。
+- **設定を変更した時**: ワールドに書き込み、同じ値をブラウザにも保存する。ブラウザの値は「次に新しく作る地図の既定値」という意味になる。
+- `CaravanMovement` と `TradeLogisticsSettings` は設定を解析した結果をキャッシュしている。保存されている生の文字列が変わった時(別の地図の読み込みなど)に、解析し直すようにした。
+- アーカイブの検証: `worldSettings` は省略可能(古い .fmg)。ある場合は「文字列だけを値に持つレコード」であることを検証する。
+
+### 18.2 検証
+
+- golden: 変わったのは day-0・30・365 のいずれでも `simulation.worldSettings`(`{}` が追加)と `simulation.extensions.characters`(`allowedRaceKeys` が追加)の 2 セクションだけだった。その他のセクションはすべて一致しており、シミュレーション結果は変わっていない。この内容を確認してから基準を更新した(2 回の実行も一致)。
+- `src/simulation/worldSettings.test.ts`(4 件)を追加した: 古い .fmg の時だけブラウザの値を使うこと、取り込んだ後はブラウザを変えても影響しないこと、変更がワールドとブラウザの両方に書かれること、別のワールドを読み込むとキャッシュが更新されること。
+- `tsc`・`lint:legacy` は通った。vitest は 6,982 件が成功。失敗 6 件のうち 5 件は既知のもの。残る `cityGenerationPerformanceCli.test.ts` は単独で実行すると成功した。
+- e2e: load-map・fast-advance-settings は全件成功した。fast-advance-phase3 は既知の 404 のコンソールエラーで失敗する(変更前から同じ)。

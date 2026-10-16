@@ -394,6 +394,12 @@ export interface SimulationContext {
    * Grown by Shipbuilding completion events; host-owned so military regen survives save/load.
    */
   navalTechBonus: Record<number, number>;
+  /**
+   * World-scoped settings that change results (caravan movement, grade effect, merchant route
+   * preference, trade logistics), saved with the world. Undefined only for an archive saved before
+   * the field existed, until load materializes it (src/simulation/worldSettings.ts).
+   */
+  worldSettings?: Record<string, string>;
   /** Unclaimed outposts and settlements; State incorporation is a later phase. */
   frontier: FrontierSimulationState;
   /**

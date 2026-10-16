@@ -9,7 +9,7 @@ import {
   landEdgeEffortCost,
   landEdgeSpeedMultiplier
 } from "../services/routeGrade";
-import { simulationSettings } from "../simulation/ports";
+import { worldSettings } from "../simulation/worldSettings";
 import { optionsStore } from "../state/optionsStore";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -221,12 +221,12 @@ export function regimentGradeSensitivity(r: MilitaryRegiment): GradeSensitivity 
 }
 
 /**
- * Grade effect strength for military marches. Reuses the travel-side localStorage key so
+ * Grade effect strength for military marches. Reuses the travel-side world setting so
  * `gradeEffectStrength = 0` restores planar pathfinding + advance (legacy compatibility).
  */
 export function getMilitaryGradeEffectStrength(): number {
   try {
-    const raw = simulationSettings.getItem(GRADE_EFFECT_STRENGTH_KEY);
+    const raw = worldSettings.getItem(GRADE_EFFECT_STRENGTH_KEY);
     if (raw === null || raw === "") return 1;
     const n = Number(raw);
     if (!Number.isFinite(n)) return 1;

@@ -50,6 +50,7 @@ import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
 import { applySimulationTimeline } from "../simulation/simulationTimeline";
+import { materializeWorldSettings } from "../simulation/worldSettings";
 import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
@@ -245,6 +246,8 @@ export function uploadMap(file: Blob, callback?: () => void): void {
 /** Starts a fresh timeline or keeps the saved one, per the user's preference (track R §13.3). */
 function applyLoadTimeline(simulation: SimulationContext, mapSeed: string): void {
   applySimulationTimeline(simulation, mapSeed, { mode: useUiPreferencesState.getState().simulationTimelineOnLoad });
+  // An archive saved before world-scoped settings adopts this browser's values once (§18).
+  materializeWorldSettings(simulation);
 }
 
 async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?: () => void): Promise<void> {

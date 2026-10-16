@@ -725,6 +725,15 @@ function assertAndNormalizeNavalTechBonus(simulation: Record<string, unknown>): 
   assertFiniteNonNegativeNumberRecord(simulation.navalTechBonus, "simulation.navalTechBonus");
 }
 
+function assertWorldSettings(simulation: Record<string, unknown>): void {
+  // Optional: archives saved before world-scoped settings omit it (materialized on load).
+  if (simulation.worldSettings === undefined) return;
+  if (!isRecord(simulation.worldSettings)) throw new Error("Archive simulation.worldSettings must be a record");
+  for (const [key, value] of Object.entries(simulation.worldSettings)) {
+    if (typeof value !== "string") throw new Error(`Archive simulation.worldSettings.${key} must be a string`);
+  }
+}
+
 const TECHNOLOGY_STAGES = new Set(["locked", "known", "demonstrated", "adopted", "diffused"]);
 const TECHNOLOGY_SCOPES = new Set(["burg", "state", "network"]);
 
@@ -1074,6 +1083,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   assertAndNormalizePopulationLoss(simulation);
   assertAndNormalizeFuneral(simulation);
   assertAndNormalizeNavalTechBonus(simulation);
+  assertWorldSettings(simulation);
   assertAndNormalizeTechnology(simulation);
   assertAndNormalizeWilderness(simulation);
   const cells = pack.cells as Record<string, unknown>;

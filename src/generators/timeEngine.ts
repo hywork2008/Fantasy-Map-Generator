@@ -27,6 +27,7 @@ import {
 import { telemetry } from "../services/simulationTelemetry";
 import { simEvents } from "../simulation/events";
 import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
+import { resetWorldSettingsFromHost } from "../simulation/worldSettings";
 import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../state/fastAdvanceStore";
 import { optionsStore } from "../state/optionsStore";
 import { timeSimulationStore } from "../state/timeSimulationStore";
@@ -560,6 +561,7 @@ export function initSimulationClock(): void {
   simulationContext.intelligence = {};
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
+  resetWorldSettingsFromHost(simulationContext);
   simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
   simulationContext.wilderness = createEmptyWildernessEcologyState();
   simulationContext.technology = createEmptyTechnologySimulationState();

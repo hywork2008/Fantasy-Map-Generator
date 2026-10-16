@@ -188,10 +188,29 @@ export function setSelectedAbilityPresetId(id: string): boolean {
   return true;
 }
 
+/**
+ * The allowed-race roster is world-scoped: once a world has a Characters slice, it keeps its own
+ * roster in the .fmg. A world without one (new map, archive saved before the roster was stored)
+ * adopts the current browser roster once, so later browser changes elsewhere cannot alter it
+ * (docs/plan/simulation-core-separation.md §18).
+ */
+function materializeAllowedRaceKeys(slice: Record<string, unknown> | undefined): void {
+  if (slice && !Array.isArray(slice.allowedRaceKeys)) slice.allowedRaceKeys = [..._fallbackAllowedCharacterRaceKeys];
+}
+
+function materializeLiveAllowedRaceKeys(): void {
+  if (!_api) return;
+  materializeAllowedRaceKeys(getApi().simulationContext?.extensions?.characters as Record<string, unknown> | undefined);
+}
+
+simEvents.addEventListener("fmg:world-loaded", materializeLiveAllowedRaceKeys);
+simEvents.addEventListener("fmg:generate-post-core", materializeLiveAllowedRaceKeys);
+
 /** Race keys that may be selected for new characters or generated for new NPCs. */
 export function getAllowedCharacterRaceKeys(): readonly string[] {
   if (!_api) return _fallbackAllowedCharacterRaceKeys;
   const slice = getApi().simulationContext?.extensions?.characters as Record<string, unknown> | undefined;
+  materializeAllowedRaceKeys(slice);
   const stored = slice?.allowedRaceKeys;
   if (!Array.isArray(stored)) return _fallbackAllowedCharacterRaceKeys;
 

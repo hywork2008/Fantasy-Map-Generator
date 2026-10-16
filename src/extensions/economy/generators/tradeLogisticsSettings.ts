@@ -1,9 +1,10 @@
 /**
  * Player-tunable commercial logistics parameters (Phase F).
- * Persisted in the simulation settings (localStorage in the browser); pure defaults live in marketFlowBudget / tradeSailSchedule.
+ * Saved with the world (.fmg `simulation.worldSettings`; the browser value is the default for new
+ * maps); pure defaults live in marketFlowBudget / tradeSailSchedule.
  */
 
-import { simulationSettings } from "../../../simulation/ports";
+import { worldSettings } from "../../../simulation/worldSettings";
 import { minmax } from "../../hostUtils";
 import {
   DEFAULT_MAX_WAIT_DAYS_LAND,
@@ -56,7 +57,7 @@ function normalizeSailDays(raw: unknown): number[] {
 
 function loadSettings(): TradeLogisticsSettings {
   try {
-    const stored = simulationSettings.getItem(STORAGE_KEY);
+    const stored = worldSettings.getItem(STORAGE_KEY);
     if (!stored)
       return { ...DEFAULT_TRADE_LOGISTICS_SETTINGS, sailDays: [...DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays] };
     const parsed = JSON.parse(stored) as Partial<TradeLogisticsSettings>;
@@ -105,14 +106,29 @@ function loadSettings(): TradeLogisticsSettings {
 
 function persist(settings: TradeLogisticsSettings): void {
   try {
-    simulationSettings.setItem(STORAGE_KEY, JSON.stringify(settings));
+    worldSettings.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (e) {
     console.warn("Failed to save trade logistics settings", e);
   }
 }
 
 export class TradeLogisticsSettingsModule {
-  private options: TradeLogisticsSettings = loadSettings();
+  // World-scoped (saved in the .fmg): re-read whenever the live world's stored value changes.
+  private optionsKey = worldSettings.getItem(STORAGE_KEY);
+  private cachedOptions: TradeLogisticsSettings = loadSettings();
+
+  private get options(): TradeLogisticsSettings {
+    const key = worldSettings.getItem(STORAGE_KEY);
+    if (key !== this.optionsKey) {
+      this.optionsKey = key;
+      this.cachedOptions = loadSettings();
+    }
+    return this.cachedOptions;
+  }
+
+  private set options(next: TradeLogisticsSettings) {
+    this.cachedOptions = next;
+  }
 
   getOptions(): Readonly<TradeLogisticsSettings> {
     return this.options;
@@ -144,6 +160,7 @@ export class TradeLogisticsSettingsModule {
     }
     this.options = next;
     persist(next);
+    this.optionsKey = worldSettings.getItem(STORAGE_KEY);
   }
 
   reset(): void {
@@ -152,6 +169,7 @@ export class TradeLogisticsSettingsModule {
       sailDays: [...DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays]
     };
     persist(this.options);
+    this.optionsKey = worldSettings.getItem(STORAGE_KEY);
   }
 }
 
