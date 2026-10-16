@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。S6 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。§16.3 の設定のワールド保存を実施(§18)。**S5 完了**(§19)。**S6 実施**(§20): Node で全拡張 1 年が動き、Node と jsdom のハッシュは一致。ブラウザ(Chromium)と Node のハッシュ一致は、V8 の数学関数の差(§20.3)で**未達**。S7 は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -617,3 +617,35 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - Node スモークテストで、30 日 + 2 日進めた後(週の途中)に保存・再読み込みして、値が戻ることを確認する。
 - economy の月次決算の位相(`daysSinceLastProduction` など)は未対応。
 
+
+## 20. S6 の結果(2026-10-16)
+
+### 20.1 追加したもの
+
+- **Node Adapter**(`src/simulation/adapters/node.ts`): `createNodeSimulationHost({ extensions?, settings? })` は、設定をメモリ上に置き(`settings` は localStorage と同じキーの JSON)、長い処理の譲りを `setImmediate` にして、組み込みのシミュレーション部をブラウザと同じ順で登録する。`loadWorld`(読み込み + ブラウザの読み込みと同じ map-ready タスク)、`advanceWorld`(進めた後に economy の月次決算のマイクロタスクまで待つ)、`runGoldenCheckpoints` を持つ。
+- **CLI**(`scripts/sim.mts`、`npm run sim -- <map.fmg> [--days N] [--months N] [--years N] [--out world.fmg] [--extensions …] [--timeline continue|new] [--settings settings.json] [--hash]`)。計画では `scripts/sim.ts` としていたが、トップレベルの `await` を使うため `.mts` にした(`simGolden.mts` と同じ)。fixture を 1 年(366 日)進めて約 8.5 秒。
+- **golden の環境別実行**: `npm run test:sim-golden -- --env browser|node|all`。Node は 1 回ごとに子プロセスで実行する(`scripts/lib/simGoldenNodeRun.mts`。ブラウザの 1 回ごとの新しいページに相当。理由は §20.4)。基準は `__golden__/browser.json` と `__golden__/node.json` の 2 つ。`--env all` はブラウザと Node の違うセクションを表示する。Node でも Track R のガード(シミュレーション乱数を通らない `Math.random`)を掛け、0 件だった。
+- **vitest**: `goldenParity.node.test.ts`(DOM なし)と `goldenParity.jsdom.test.ts`(jsdom の `document`・`localStorage`・`requestAnimationFrame` を入れ、イベントを `document` に橋渡しした状態)。どちらも 0・30・365 日で `node.json` と**ビット単位で一致**する。jsdom は vitest の `environment: "jsdom"` ではなく手で組み込んだ。その環境は `ArrayBuffer`・型付き配列を jsdom 側のものに差し替える一方で `structuredClone` は Node のままなので、アーカイブの型付き列の検査(`instanceof Uint16Array`)が落ちるため(ブラウザは 1 つの realm)。
+- `nodeSmoke.test.ts` は S2・S5 の時点で通常のテストになっている。
+
+### 20.2 Node とブラウザで結果が分かれていた原因(修正済み)
+
+1. **読み込み後の処理が UI 層にあった**: `io/load.ts` は `world.replace` の後に、河川の水文の補完・水場アクセスの更新・重複した河川セルの修復・道路の再生成・オプション(距離単位など)の反映・陸路リンクの再構築・人物の種族の移行を行っていた。これを `src/simulation/loadedWorld.ts` の `normalizeLoadedWorld` に移し、ブラウザの読み込みと `host.loadArchive` の両方から呼ぶ(表示の調整 `resizeGraphRects`・`fitMapToScreen`・`fitScopedMapToView` は、元と同じ位置で呼ぶコールバックとして渡す)。`Routes.generate` の `viewContext` 引数は使われていなかったので省略可能にした。
+2. **港の修復タスクがコアの外にあった**: `dualPortPlacementTask` はモジュールの読み込み時にブラウザの coordinator に直接登録され、ツールチップと i18n を使っていた。タスクを `dualPortPlacementTask` として公開し、各 Host が作成時に登録し、`loadArchive` の後に要求するようにした。通知は `fmg:waterfront-check-failed`(`{ count }`)を送り、ブラウザの `main.ts` が翻訳して表示する。`host.prepare()` は既定で「要求されたタスク」だけを実行する(ブラウザの読み込みと同じ)。`{ all: true }` で全タスク(生成後と同じ)。終わったら `fmg:map-ready-tasks-completed` を送る(frontier の予算のスナップショットが購読している)。
+3. **UI が読み込み時にワールドを書き換えていた**: economy の UI 部の `fmg:world-loaded`(Balance History の初回行)が `getAllStockData()` → `reconcileRetailInventory()` を呼び、在庫の配置をワールドに書いていた。シミュレーション部の `fmg:world-loaded` の最後でも `reconcileRetailInventory()` を呼ぶようにした(ブラウザでは 2 回目が冪等なので結果は変わらない。ブラウザの golden は一致)。
+4. **`typeof document` による分岐**: economy の 6 ファイルと `funeralRites` の計 8 か所が、`document` が無いとシミュレーションのイベント(葬儀の資材需要、戦時体制・債務不履行・クーデター・正統性戦争・同盟の緊張)を送らずに return していた(S2 で `document.dispatchEvent` を `simEvents` に置き換えた時の残り)。Node では Economy に葬儀の需要が届かず、30 日で 5,000 以上の値が jsdom とずれた。分岐を削除した。`lint:sim-boundary` に `typeof window|document|navigator|localStorage|sessionStorage|requestAnimationFrame` の検出を追加し、残る 2 件(まとめ用ファイル経由で到達するだけの `commonUtils`・`languageUtils`)を許可リストに記録した。`dualPortPlacementTask` の `requestAnimationFrame` は `yieldToHost()` 2 回にした。
+5. その他: `import.meta.env.DEV` は vite 以外では `undefined` なので `import.meta.env?.DEV` にした(4 か所。開発時の警告と不変条件の検査だけ)。`yieldToEventLoop` は Node では `setImmediate` を使う(`MessagePort` は参照を保持し、CLI のプロセスが終わらなかった)。`host.saveArchive` はブラウザの保存と同じく地図名をワールドに書く。`connectSimulationEventsToDocument` は、橋渡し先の `document` の realm の `CustomEvent` を使う(ブラウザでは同じもの)。
+
+ブラウザの golden(`browser.json`)は、以上の変更の後も 0・30・365 日で一致した。
+
+### 20.3 ブラウザと Node のハッシュは一致しない(数学関数の差)
+
+- Chromium 151(V8 15.1)と Node 22(V8 12.4)では、`Math.exp`・`Math.sin`・`Math.log`・`Math.pow` などが最後の 1 ビットで異なる値を返す。同じ 20,000 個の入力で `exp` は 1,981 個、`sin` は 637 個、`log` は 1,181 個、`pow` は 1,505 個が違った。Node 25(V8 14.1)でも `pow` 以外は違った。V8 の版ごとに実装が変わっているので、Node の版を合わせても一致は保証されない。
+- この fixture では、読み込み時の港の修復で burg 58 の `y` が `278.9518546109381` と `278.95185461093797` に分かれる。ここから、その町を通る隊商の経路の距離、到着日、出荷の割り当てへと差が広がる。
+- 実測(`--env all`): day-0 は `world.pack.burgs` の 13 値だけ。day-30・day-365 は `world.pack.burgs` と `simulation.extensions.economy` の 2 セクションだけが違い(2,336 値・47,676 値)、乱数のストリーム・国家・人口・人物・軍事など他のセクションはすべて一致した。
+- **§9 の完了条件「3 環境のハッシュが一致する」は満たしていない**。満たすには、シミュレーションが使う超越関数を決まった実装(JS で書いた fdlibm など)に置き換える必要がある。結果が変わるので golden の基準更新が必要になり、速度にも影響する。進めるかどうかは未決定。
+
+### 20.4 同じプロセスで地図を読み直すと結果が変わる
+
+- Node の golden を同じプロセスで 2 回実行すると、2 回目の day-30 が `simulation.extensions.economy` と `simulation.rng` で異なった(雇用・討伐・護衛の日数)。§19.5 で挙げたモジュールの位相(`constructionHire.daysSinceGlobalHireRound`・`escortHire`/`threatCullHire` の `daysSinceAnonRound`・`escortJobPostings`/`threatCullJobPostings` の `daysSinceBoardRefresh`・`marketFlowDiagnostics._nextCycleIndex`)が `dispose()` で戻らないため。これらの `clear*` は保存対象のデータ(掲示板など)も消すので、読み込み時に呼べない。
+- ブラウザでも、同じタブで別の地図を読み込むと同じことが起きる。直すには、位相をワールドに保存するか、読み込み時に位相だけを 0 に戻す(ブラウザの結果が変わるので、別の PR にする)。それまでは、golden の Node 実行と CLI は 1 回ごとに新しいプロセスで行う。

@@ -66,7 +66,10 @@ const RUNTIME_PATTERNS: Record<string, RegExp> = {
   window: /\bwindow\./g,
   localStorage: /\b(localStorage|sessionStorage)\b/g,
   requestAnimationFrame: /\b(requestAnimationFrame|cancelAnimationFrame)\b/g,
-  navigator: /\bnavigator\./g
+  navigator: /\bnavigator\./g,
+  // Environment sniffing: a branch on the host makes Node and the browser simulate differently
+  // (S6 found seven economy/funeral events that were silently dropped without `document`).
+  typeof: /\btypeof\s+(?:window|document|navigator|localStorage|sessionStorage|requestAnimationFrame)\b/g
 };
 
 /** The ports themselves resolve the browser globals for the core (§6); they are the sanctioned access. */

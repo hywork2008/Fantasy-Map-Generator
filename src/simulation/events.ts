@@ -61,10 +61,12 @@ export function connectSimulationEventsToDocument(target: Document = document): 
   if (connectedDocument === target) return;
   connectedDocument = target;
   const forwarded = new WeakSet<Event>();
+  // The document's own realm (same as the global one in a browser; differs under a hand-made jsdom).
+  const DocumentCustomEvent = (target.defaultView?.CustomEvent ?? CustomEvent) as typeof CustomEvent;
   const relayed = new Set<string>();
   simEvents.connect({
     forward: (type, detail) => {
-      const event = new CustomEvent(type, { detail });
+      const event = new DocumentCustomEvent(type, { detail });
       forwarded.add(event);
       target.dispatchEvent(event);
     },

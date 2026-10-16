@@ -151,7 +151,6 @@ export function tickCoupLegitimacyAndUnrest(state: State): CivilUnrestTickResult
 }
 
 function dispatchCoupCivilUnrestEvent(state: State, phase: "start" | "tick" | "clear"): void {
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(
     new CustomEvent("fmg:coup-civil-unrest", {
       detail: {

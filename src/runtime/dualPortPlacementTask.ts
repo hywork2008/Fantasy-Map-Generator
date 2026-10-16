@@ -1,7 +1,6 @@
 import { worldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { Routes } from "../generators/routes-generator";
-import i18n from "../i18n";
 import { burgApproachDryLink } from "../services/burgApproachDryLink";
 import { updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { dualPortHaven } from "../services/dualPortShore";
@@ -13,7 +12,6 @@ import {
   samePosition
 } from "../services/relocatedBurgRoutes";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
-import { tip } from "../services/tooltipService";
 import {
   burgCityRadiusMeters,
   describeWaterfrontIssue,
@@ -24,15 +22,19 @@ import {
   waterfrontIssues
 } from "../services/waterfrontSettlement";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { simEvents } from "../simulation/events";
+import { yieldToHost } from "../simulation/ports";
+import { optionsStore } from "../state/optionsStore";
 import type { Burg, Route } from "../types/models";
 import type { FractalizedShape } from "../utils/coastlineFractal";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { yieldToEventLoop } from "../utils/yieldToEventLoop";
-import { type MapReadyTaskContext, registerMapReadyTask, requestMapReadyTask } from "./mapReadyTaskCoordinator";
+import type { MapReadyTask, MapReadyTaskContext } from "./mapReadyTaskCoordinator";
 import { legacyMutation, worldRuntime } from "./worldRuntime";
 
-const TASK_ID = "dual-port-placement";
+export const DUAL_PORT_PLACEMENT_TASK_ID = "dual-port-placement";
+/** The UI shows a notice for this (detail: `{ count }`). */
+export const WATERFRONT_CHECK_FAILED_EVENT = "fmg:waterfront-check-failed";
 
 export { connectRelocatedBurg } from "../services/relocatedBurgRoutes";
 
@@ -44,12 +46,12 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     // Placed sites are re-searched too: generation reserved them for a provisional population.
     b => b?.i && !b.removed && !b.lock && dualPortHaven(world, b) !== null
   );
-  const unit = useOptionsState.getState().distanceUnit;
+  const unit = optionsStore.getState().distanceUnit;
   const revision = worldRuntime.readTrusted().revision;
   const current = () =>
     context.isCurrent() &&
     world.pack === pack &&
-    useOptionsState.getState().distanceUnit === unit &&
+    optionsStore.getState().distanceUnit === unit &&
     worldRuntime.readTrusted().revision === revision;
   let start = performance.now();
   async function drain<T>(steps: Generator<void, T>): Promise<{ value: T } | null> {
@@ -67,10 +69,9 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
       steps.return(undefined as T);
     }
   }
-  // Requested load tasks also wait for a paint before surveying the map.
-  if (typeof requestAnimationFrame === "function") {
-    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-  } else await yieldToEventLoop();
+  // Requested load tasks also wait for a paint before surveying the map (two frames in a browser).
+  await yieldToHost();
+  await yieldToHost();
   if (!current()) return;
   const session = new SettlementGeometrySession();
   if (candidates.length && !(await drain(session.prepareSteps(world, unit)))) return;
@@ -217,18 +218,12 @@ function reportWaterfront(
         .map(({ burg, issues }) => `  #${burg.i} ${burg.name}: ${issues.map(describeWaterfrontIssue).join("; ")}`)
         .join("\n")
   );
-  tip(i18n.t("waterfrontCheck.failed", { count: failures.length }), false, "warn", 15000);
+  simEvents.dispatchEvent(new CustomEvent(WATERFRONT_CHECK_FAILED_EVENT, { detail: { count: failures.length } }));
 }
 
-registerMapReadyTask({
-  id: TASK_ID,
+/** Registered by every SimulationHost and requested after an archive load (simulation/host.ts). */
+export const dualPortPlacementTask: MapReadyTask = {
+  id: DUAL_PORT_PLACEMENT_TASK_ID,
   label: "Checking river and sea ports",
   run: repairDualPortPlacements
-});
-
-export function requestDualPortPlacementRepair(): void {
-  requestMapReadyTask(TASK_ID);
-}
-
-// Also cover an already displayed map when this module is installed by hot reload.
-requestDualPortPlacementRepair();
+};

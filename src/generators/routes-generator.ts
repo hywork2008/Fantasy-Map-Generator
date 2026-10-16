@@ -1717,7 +1717,7 @@ class RoutesModule {
 
   generate(
     worldContext: WorldContext,
-    viewContext: Readonly<ViewContext>,
+    viewContext: Readonly<ViewContext> | undefined,
     appServices: AppServices,
     state: WorldState,
     lockedRoutes: Route[] = [],

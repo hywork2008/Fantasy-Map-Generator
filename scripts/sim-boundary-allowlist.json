@@ -6,10 +6,12 @@
   "runtime": {
     "src/utils/commonUtils.ts": {
       "navigator": 1,
+      "typeof": 1,
       "window": 2
     },
     "src/utils/languageUtils.ts": {
-      "document": 1
+      "document": 1,
+      "typeof": 1
     },
     "src/utils/nodeUtils.ts": {
       "document": 3

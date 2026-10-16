@@ -187,7 +187,6 @@ export function ensureFuneralRemainsSeeded(): void {
 export function flushFuneralDemand(): void {
   const pending = getFuneralState().pendingMaterialsByCell;
   if (!pending || !Object.keys(pending).length) return;
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(new CustomEvent(FUNERAL_DEMAND_EVENT));
 }
 

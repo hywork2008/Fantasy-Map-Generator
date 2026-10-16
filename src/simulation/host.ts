@@ -8,6 +8,7 @@ import {
   runTimeSimulation
 } from "../generators/timeEngine";
 import type { CalendarDuration } from "../runtime/calendarDuration";
+import { DUAL_PORT_PLACEMENT_TASK_ID, dualPortPlacementTask } from "../runtime/dualPortPlacementTask";
 import type { MapReadyTask } from "../runtime/mapReadyTaskCoordinator";
 import { ChunkedWorldCodecAdapter, decodeAndValidateWorldArchive } from "../runtime/worldArchive";
 import {
@@ -21,6 +22,7 @@ import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
 import { applyMapMarkerPatch, markerNoteId, nextMarkerId } from "../services/mapMarkerApi";
 import { raceService } from "../services/raceService";
 import { getEffectiveSkill, registerSkillModifier } from "../services/skillModifierService";
+import { optionsStore } from "../state/optionsStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../types/extension-api";
 import { simEvents } from "./events";
 import {
@@ -28,6 +30,7 @@ import {
   installExtensionEnablement,
   type SimulationExtensionEnablement
 } from "./extensionEnablement";
+import { normalizeLoadedWorld } from "./loadedWorld";
 import { simulationSettings, yieldToHost } from "./ports";
 import { applySimulationTimeline, type SimulationTimelineChoice } from "./simulationTimeline";
 import { materializeWorldSettings } from "./worldSettings";
@@ -76,8 +79,12 @@ export interface SimulationHost {
   registerExtension(extension: SimulationExtension): () => void;
   /** Decodes a .fmg, applies the timeline choice and replaces the world (no view work). */
   loadArchive(data: Uint8Array, options?: LoadArchiveOptions): Promise<void>;
-  /** Runs the map-ready tasks (economy preparation etc.) to completion. Host-run tasks only. */
-  prepare(): Promise<void>;
+  /**
+   * Runs host-owned map-ready tasks to completion: by default the ones requested since the last
+   * run (after `loadArchive`, the port repair — as a browser load does); `{ all: true }` runs every
+   * task, as after map generation (economy preparation etc.).
+   */
+  prepare(options?: { readonly all?: boolean }): Promise<void>;
   /** Advances synchronously, one calendar day per step. */
   advance(duration: CalendarDuration): void;
   /** Advances in time-budgeted chunks, reporting through the time-simulation store (Tools tab). */
@@ -89,7 +96,7 @@ export interface SimulationHost {
   dispose(): void;
 }
 
-function createHostMapReadyTasks(): MapReadyTaskPort & { run(): Promise<void>; requested: Set<string> } {
+function createHostMapReadyTasks(): MapReadyTaskPort & { run(all: boolean): Promise<void>; requested: Set<string> } {
   const tasks = new Map<string, MapReadyTask>();
   const requested = new Set<string>();
   return {
@@ -103,7 +110,8 @@ function createHostMapReadyTasks(): MapReadyTaskPort & { run(): Promise<void>; r
     request: taskId => {
       if (tasks.has(taskId)) requested.add(taskId);
     },
-    run: async () => {
+    run: async all => {
+      const wanted = new Set(requested);
       requested.clear();
       const ordered: MapReadyTask[] = [];
       const visiting = new Set<string>();
@@ -118,7 +126,12 @@ function createHostMapReadyTasks(): MapReadyTaskPort & { run(): Promise<void>; r
         visiting.delete(task.id);
         ordered.push(task);
       };
-      for (const task of tasks.values()) visit(task);
+      if (all) for (const task of tasks.values()) visit(task);
+      else
+        for (const id of wanted) {
+          const task = tasks.get(id);
+          if (task) visit(task);
+        }
       for (const task of ordered) await task.run({ isCurrent: () => true, reportProgress: () => {} });
     }
   };
@@ -133,6 +146,7 @@ export function createSimulationHost(options: SimulationHostOptions = {}): Simul
   const mapReadyTasks = options.mapReadyTasks ?? hostTasks!;
   const notifyAnnotations = options.onMapAnnotationsChanged ?? (() => {});
   const registrations: { id: string; unregister: () => void }[] = [];
+  const unregisterCoreTasks = [mapReadyTasks.register(dualPortPlacementTask)];
 
   const api: SimulationExtensionAPI = {
     races: raceService,
@@ -209,18 +223,32 @@ export function createSimulationHost(options: SimulationHostOptions = {}): Simul
         loadOptions.timeline ?? { mode: "continue" }
       );
       materializeWorldSettings(validated.document.simulation);
+      const { options: archivedOptions } = validated.document.world;
+      const facts = {
+        seaRouteGenerationMode: archivedOptions.seaRouteGenerationMode,
+        landRouteGenerationMode: archivedOptions.landRouteGenerationMode,
+        landRouteElevationAversion: archivedOptions.landRouteElevationAversion,
+        currentYear: validated.document.simulation.currentYear,
+        era: validated.document.simulation.era
+      };
       const commit = await worldRuntime.dispatch({ type: "world.replace", payload: validated });
       if (!commit) throw new Error("World archive did not produce a replacement commit");
+      normalizeLoadedWorld(facts);
+      mapReadyTasks.request(DUAL_PORT_PLACEMENT_TASK_ID);
       simEvents.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     },
-    prepare: async () => {
+    prepare: async prepareOptions => {
       if (!hostTasks) throw new Error("prepare() runs host-owned map-ready tasks only");
-      await hostTasks.run();
+      await hostTasks.run(prepareOptions?.all ?? false);
+      // Same completion signal as the browser's coordinator (frontier budgets snapshot etc.).
+      simEvents.dispatchEvent(new CustomEvent("fmg:map-ready-tasks-completed"));
     },
     advance: ({ years = 0, months = 0, days = 0 }) => advanceTime(years, months, days),
     startAdvance: ({ years = 0, months = 0, days = 0 }) => runTimeSimulation(years, months, days),
     saveArchive: async () => {
       updateAllBurgWaterAccess(worldContext.pack);
+      // Same as the browser save: the map name lives in the options store, not the world.
+      worldContext.options.mapName = optionsStore.getState().mapName;
       const blob = await new ChunkedWorldCodecAdapter().encode(await worldRuntime.captureArchiveDocument());
       return new Uint8Array(await blob.arrayBuffer());
     },
@@ -232,6 +260,7 @@ export function createSimulationHost(options: SimulationHostOptions = {}): Simul
         ownEnablement?.setEnabled(registration.id, false);
       }
       registeredIds.clear();
+      for (const unregister of unregisterCoreTasks.splice(0)) unregister();
     }
   };
 

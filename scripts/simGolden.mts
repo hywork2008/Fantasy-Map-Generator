@@ -15,7 +15,15 @@
  *   [--days 30,365] [--url http://127.0.0.1:5173/Fantasy-Map-Generator/] [--headed]
  *   [--dump temp/sim-golden]   # write each checkpoint's .fmg per run, to diff a mismatch
  *   [--trace-random temp/sim-random.json]   # write the unbound Math.random call sites (must be none)
+ *   --env node      # run in this process without DOM (Node Adapter, S6) against __golden__/node.json
+ *   --env all       # browser and node, each against its own golden, then report browser vs node
+ *
+ * The browser and Node goldens are separate files: Chromium's V8 and Node's V8 return different
+ * last bits for Math.exp/sin/log/pow (simulation-core-separation.md §20.3), so the two
+ * environments cannot share digests. jsdom runs on Node's V8 and must match node.json bit for bit
+ * (src/simulation/goldenParity.jsdom.test.ts).
  */
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { type Browser, chromium, type Page } from "playwright";
@@ -25,7 +33,11 @@ import { startDevServer } from "./lib/viteDevServer.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const FIXTURE = resolve(root, "tests/fixtures/sim-golden.fmg");
-const GOLDEN = resolve(root, "src/simulation/__golden__/browser.json");
+const GOLDENS = {
+  browser: resolve(root, "src/simulation/__golden__/browser.json"),
+  node: resolve(root, "src/simulation/__golden__/node.json")
+} as const;
+type GoldenEnv = keyof typeof GOLDENS;
 const EXTENSIONS = ["characters", "economy", "nobility", "shipbuilding"];
 const FIXTURE_SEED = "424242";
 const VIEWPORT = { width: 1280, height: 720 };
@@ -48,7 +60,8 @@ function parseArgs(argv: string[]) {
     url: undefined as string | undefined,
     headed: false,
     dump: undefined as string | undefined,
-    traceRandom: undefined as string | undefined
+    traceRandom: undefined as string | undefined,
+    envs: ["browser"] as GoldenEnv[]
   };
   const args = [...argv];
   const value = (flag: string) => {
@@ -66,6 +79,11 @@ function parseArgs(argv: string[]) {
     else if (flag === "--headed") options.headed = true;
     else if (flag === "--dump") options.dump = resolve(value(flag));
     else if (flag === "--trace-random") options.traceRandom = resolve(value(flag));
+    else if (flag === "--env") {
+      const env = value(flag);
+      if (env !== "browser" && env !== "node" && env !== "all") throw new Error("--env must be browser, node or all");
+      options.envs = env === "all" ? ["browser", "node"] : [env];
+    }
     else throw new Error(`Unknown option: ${flag}`);
   }
   if (!Number.isSafeInteger(options.runs) || options.runs < 1) throw new Error("--runs must be a positive integer");
@@ -258,65 +276,120 @@ function compare(label: string, expected: Record<string, WorldHashReport>, actua
   return failures;
 }
 
+/**
+ * Node Adapter run (S6) in a fresh child process, as each browser run uses a fresh page: module
+ * state left by one load must not leak into the next run (simulation-core-separation.md §20.4).
+ */
+async function runNodeOnce(days: readonly number[], dumpDir?: string) {
+  const args = [resolve(root, "scripts/lib/simGoldenNodeRun.mts"), FIXTURE, days.join(","), ...(dumpDir ? [dumpDir] : [])];
+  const output = await new Promise<string>((done, fail) => {
+    const child = spawn(resolve(root, "node_modules/.bin/tsx"), args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", chunk => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", chunk => {
+      const text = String(chunk);
+      stderr = (stderr + text).slice(-4000);
+      for (const line of text.split("\n")) if (line.startsWith("[sim:golden]")) console.error(line);
+    });
+    child.on("error", fail);
+    child.on("exit", code => (code === 0 ? done(stdout) : fail(new Error(`node run exited ${code}:\n${stderr}`))));
+  });
+  const result = JSON.parse(output) as { checkpoints: Record<string, WorldHashReport>; unboundRandom: [string, number][] };
+  return { ...result, errors: [] as string[] };
+}
+
+type Run = Awaited<ReturnType<typeof runOnce>>;
+
+/** Verifies (or with --update rewrites) one environment's golden; returns the failures. */
+function settle(env: GoldenEnv, runs: readonly Run[], update: boolean): string[] {
+  const failures: string[] = [];
+  for (const [index, run] of runs.entries())
+    if (run.unboundRandom.length)
+      failures.push(
+        `${env} run ${index + 1}: ${run.unboundRandom.reduce((sum, [, n]) => sum + n, 0)} Math.random call(s) outside the simulation RNG: ` +
+          run.unboundRandom
+            .slice(0, 10)
+            .map(([site, n]) => `${n}× ${site}`)
+            .join("; ")
+      );
+  for (let i = 1; i < runs.length; i++)
+    failures.push(...compare(`${env} reproducibility run ${i + 1} vs 1:`, runs[0].checkpoints, runs[i].checkpoints));
+  for (const [index, run] of runs.entries())
+    if (run.errors.length) log(`${env} run ${index + 1} page errors: ${run.errors.slice(0, 5).join(" | ")}`);
+
+  const path = GOLDENS[env];
+  if (update) {
+    if (failures.length) throw new Error(`Refusing to update a non-reproducible golden:\n${failures.join("\n")}`);
+    const golden: GoldenFile = {
+      fixture: "tests/fixtures/sim-golden.fmg",
+      fixtureBytes: readFileSync(FIXTURE).length,
+      extensions: EXTENSIONS,
+      checkpoints: runs[0].checkpoints
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, `${JSON.stringify(golden, null, 2)}\n`);
+    log(`wrote ${path}`);
+    return [];
+  }
+  if (!existsSync(path)) return [...failures, `Missing ${path}; run with --env ${env} --update`];
+  const golden = JSON.parse(readFileSync(path, "utf8")) as GoldenFile;
+  for (const [index, run] of runs.entries())
+    failures.push(...compare(`${env} run ${index + 1} vs golden:`, golden.checkpoints, run.checkpoints));
+  if (!failures.length) log(`OK [${env}]: ${Object.keys(runs[0].checkpoints).join(", ")} match the golden`);
+  return failures;
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const server = options.url ? { url: options.url, stop: () => {} } : await startDevServer();
-  const browser = await chromium.launch({ headless: !options.headed });
+  const needsBrowser = options.createFixture || options.envs.includes("browser");
+  const server = !needsBrowser
+    ? { url: "", stop: () => {} }
+    : options.url
+      ? { url: options.url, stop: () => {} }
+      : await startDevServer();
+  const browser = needsBrowser ? await chromium.launch({ headless: !options.headed }) : null;
   try {
-    if (options.createFixture) {
+    if (options.createFixture && browser) {
       await createFixture(browser, server.url);
       if (!options.update) return;
     }
     if (!existsSync(FIXTURE)) throw new Error(`Missing ${FIXTURE}; run with --create-fixture`);
 
-    const runs = [];
-    for (let i = 0; i < options.runs; i++) {
-      log(`run ${i + 1}/${options.runs}`);
-      const dumpDir = options.dump ? resolve(options.dump, `run-${i + 1}`) : undefined;
-      if (dumpDir) mkdirSync(dumpDir, { recursive: true });
-      runs.push(await runOnce(browser, server.url, options.days, dumpDir, i === 0 ? options.traceRandom : undefined));
-    }
-    const failures: string[] = [];
-    for (const [index, run] of runs.entries())
-      if (run.unboundRandom.length)
-        failures.push(
-          `run ${index + 1}: ${run.unboundRandom.reduce((sum, [, n]) => sum + n, 0)} Math.random call(s) outside the simulation RNG: ` +
-            run.unboundRandom
-              .slice(0, 10)
-              .map(([site, n]) => `${n}× ${site}`)
-              .join("; ")
+    const results = new Map<GoldenEnv, Run[]>();
+    for (const env of options.envs) {
+      const runs: Run[] = [];
+      for (let i = 0; i < options.runs; i++) {
+        log(`${env} run ${i + 1}/${options.runs}`);
+        const dumpDir = options.dump ? resolve(options.dump, options.envs.length > 1 ? env : "", `run-${i + 1}`) : undefined;
+        if (dumpDir) mkdirSync(dumpDir, { recursive: true });
+        runs.push(
+          env === "node"
+            ? await runNodeOnce(options.days, dumpDir)
+            : await runOnce(browser!, server.url, options.days, dumpDir, i === 0 ? options.traceRandom : undefined)
         );
-    for (let i = 1; i < runs.length; i++)
-      failures.push(...compare(`reproducibility run ${i + 1} vs 1:`, runs[0].checkpoints, runs[i].checkpoints));
-    for (const [index, run] of runs.entries())
-      if (run.errors.length) log(`run ${index + 1} page errors: ${run.errors.slice(0, 5).join(" | ")}`);
-
-    if (options.update) {
-      if (failures.length) throw new Error(`Refusing to update a non-reproducible golden:\n${failures.join("\n")}`);
-      const golden: GoldenFile = {
-        fixture: "tests/fixtures/sim-golden.fmg",
-        fixtureBytes: readFileSync(FIXTURE).length,
-        extensions: EXTENSIONS,
-        checkpoints: runs[0].checkpoints
-      };
-      mkdirSync(dirname(GOLDEN), { recursive: true });
-      writeFileSync(GOLDEN, `${JSON.stringify(golden, null, 2)}\n`);
-      log(`wrote ${GOLDEN}`);
-      return;
+      }
+      results.set(env, runs);
     }
-
-    if (!existsSync(GOLDEN)) throw new Error(`Missing ${GOLDEN}; run with --update`);
-    const golden = JSON.parse(readFileSync(GOLDEN, "utf8")) as GoldenFile;
-    for (const [index, run] of runs.entries())
-      failures.push(...compare(`run ${index + 1} vs golden:`, golden.checkpoints, run.checkpoints));
+    const failures = options.envs.flatMap(env => settle(env, results.get(env)!, options.update));
+    const browserRun = results.get("browser")?.[0];
+    const nodeRun = results.get("node")?.[0];
+    if (browserRun && nodeRun)
+      for (const [name, report] of Object.entries(nodeRun.checkpoints)) {
+        const other = browserRun.checkpoints[name];
+        const sections = other ? diffWorldHashes(other, report) : ["(missing)"];
+        log(
+          `browser vs node ${name}: ${sections.length ? `${sections.length} section(s) differ (libm, §20.3): ${sections.join(", ")}` : "identical"}`
+        );
+      }
     if (failures.length) {
       console.error(failures.join("\n"));
       process.exitCode = 1;
-      return;
     }
-    log(`OK: ${Object.keys(runs[0].checkpoints).join(", ")} match the golden`);
   } finally {
-    await browser.close();
+    await browser?.close();
     server.stop();
   }
 }

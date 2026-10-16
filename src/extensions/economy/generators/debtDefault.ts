@@ -91,7 +91,6 @@ export function canIssueDebtWhileNotInDefault(state: Pick<State, "debtInDefault"
 }
 
 function dispatchDebtDefaultEvent(state: State, phase: "enter" | "clear"): void {
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(
     new CustomEvent("fmg:public-debt-default", {
       detail: {

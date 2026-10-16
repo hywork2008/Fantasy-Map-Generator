@@ -110,7 +110,6 @@ export function applyDebtDefaultConsequences(
 }
 
 function dispatchDebtCoupRiskEvent(state: State, discontent: number): void {
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(
     new CustomEvent("fmg:debt-coup-risk", {
       detail: {

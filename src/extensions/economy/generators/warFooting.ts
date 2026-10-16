@@ -214,7 +214,6 @@ export function shouldAiEnableWarFooting(state: State): boolean {
  * PR-9: dispatch when AI or policy changes war footing so nobility/UI can react later.
  */
 function dispatchWarFootingChange(state: State, warFooting: boolean, reason: string): void {
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(
     new CustomEvent("fmg:war-footing-change", {
       detail: {

@@ -183,6 +183,7 @@ import {
   clearRetailInventory,
   planRetailReplenishment,
   planRetailReplenishmentIncrementally,
+  reconcileRetailInventory,
   tickRetailInventory
 } from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
@@ -1725,8 +1726,10 @@ function register(api: SimulationExtensionAPI): () => void {
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.
     rebuildCullJobPostings();
     rebuildEscortJobPostings();
-    // Balance History's first row for the just-loaded map (fresh-generation's counterpart lives
-    // at the end of the "economy.initialization" map-ready task above).
+    // Lay out the loaded stock across burg inventories here. Balance History's first row (UI,
+    // `fmg:world-loaded`) reconciles too; without this the loaded world would depend on whether
+    // a UI captured that row (a headless host has none).
+    reconcileRetailInventory();
   });
 
   // Production-affecting changes are accumulated between monthly settlements. In

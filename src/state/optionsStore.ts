@@ -416,7 +416,7 @@ export const DEFAULT_UI_OPTIONS = {
   azgaarAssistant: "show" as const,
   // Keep the indicator available while developing map interactions without
   // changing the production UI by default.
-  showZoomLevel: import.meta.env.DEV,
+  showZoomLevel: import.meta.env?.DEV,
   speakerVoice: "",
   emblemShape: "culture",
   zoomExtentMin: 0.5,

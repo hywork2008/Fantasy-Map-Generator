@@ -132,3 +132,13 @@ export function diffWorldHashes(expected: WorldHashReport, actual: WorldHashRepo
   const names = new Set([...Object.keys(expected.sections), ...Object.keys(actual.sections)]);
   return [...names].filter(name => expected.sections[name] !== actual.sections[name]).sort();
 }
+
+/** Decodes a .fmg archive and hashes it (golden runners in every environment). */
+export async function hashArchiveBytes(bytes: Uint8Array): Promise<WorldHashReport> {
+  const { decodeAndValidateWorldArchive } = await import("../runtime/worldArchive");
+  const validated = await decodeAndValidateWorldArchive({
+    blob: new Blob([bytes as BlobPart]),
+    header: bytes.subarray(0, Math.min(4, bytes.byteLength))
+  });
+  return hashWorldDocument(validated.document as unknown as Record<string, unknown>);
+}

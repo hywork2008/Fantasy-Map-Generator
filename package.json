@@ -28,6 +28,7 @@
     "lint:architecture": "tsx scripts/lint-architecture.ts",
     "lint:sim-boundary": "tsx scripts/lint-sim-boundary.ts",
     "test:sim-golden": "tsx scripts/simGolden.mts",
+    "sim": "tsx scripts/sim.mts",
     "lint:fix": "biome check --write --unsafe",
     "madge": "madge --circular --extensions ts,tsx src/app.ts",
     "prepare": "simple-git-hooks",

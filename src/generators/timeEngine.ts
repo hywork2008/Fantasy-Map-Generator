@@ -168,7 +168,7 @@ registerSimulationStepDayHandler(request => stepDayMutation(request?.days ?? 1))
  * and never unregisters (session lifetime), matching the historical hook API.
  */
 export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writes?: readonly DataTopic[]): void {
-  if (import.meta.env.DEV) {
+  if (import.meta.env?.DEV) {
     console.warn(
       `[fmg] registerTimeTickHook(${JSON.stringify(label)}) is deprecated; use registerSimulationSystem() with phase/reads/writes`
     );

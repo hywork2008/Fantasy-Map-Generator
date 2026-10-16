@@ -186,7 +186,6 @@ export function tryDebtCoup(state: State): DebtCoupResult {
 }
 
 function dispatchDebtCoupSuccessEvent(state: State, result: DebtCoupResult): void {
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(
     new CustomEvent("fmg:debt-coup-success", {
       detail: {

@@ -12,6 +12,9 @@ const TIMER_YIELD_INTERVAL_MS = 50;
  * turn is still taken every TIMER_YIELD_INTERVAL_MS so timer callbacks progress.
  */
 export function yieldToEventLoop(): Promise<void> {
+  // Node (headless simulation): a ref'd MessagePort would keep the process alive after the run.
+  const { setImmediate } = globalThis as { setImmediate?: (callback: () => void) => unknown };
+  if (typeof setImmediate === "function") return new Promise(resolve => setImmediate(resolve));
   const now = performance.now();
   if (typeof MessageChannel === "undefined" || now - lastTimerYield >= TIMER_YIELD_INTERVAL_MS) {
     lastTimerYield = now;

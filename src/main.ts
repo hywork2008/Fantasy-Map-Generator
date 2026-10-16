@@ -89,6 +89,7 @@ import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
 import { assignWildLandTags } from "./generators/wildLandTags";
 import { Zones } from "./generators/zones-generator";
+import i18n from "./i18n";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { probeMapServer, watchMapServer } from "./io/mapServer";
@@ -119,8 +120,8 @@ import {
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
+import { WATERFRONT_CHECK_FAILED_EVENT } from "./runtime/dualPortPlacementTask";
 import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
-import "./runtime/dualPortPlacementTask";
 import { cancelMapReadyTasks, startMapReadyTasks } from "./runtime/mapReadyTaskCoordinator";
 import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
@@ -458,6 +459,10 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (viewContext.renderMap) OceanLayers();
   });
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
+  document.addEventListener(WATERFRONT_CHECK_FAILED_EVENT, event => {
+    const { count } = (event as CustomEvent<{ count: number }>).detail;
+    tip(i18n.t("waterfrontCheck.failed", { count }), false, "warn", 15000);
+  });
   document.addEventListener("fmg:simulation-updated", () => drawCalendar(worldContext, viewContext));
   document.addEventListener("fmg:render-mode-changed", () => {
     if (viewContext.renderMap) drawLayers();

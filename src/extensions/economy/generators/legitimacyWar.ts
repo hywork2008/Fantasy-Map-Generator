@@ -219,7 +219,6 @@ export function tickLegitimacyWar(state: State): LegitimacyWarTickResult {
 }
 
 function dispatchLegitimacyWarEvent(state: State, phase: "open" | "regime_win" | "pretender_win"): void {
-  if (typeof document === "undefined") return;
   simEvents.dispatchEvent(
     new CustomEvent("fmg:legitimacy-war", {
       detail: {

@@ -489,7 +489,7 @@ export function tickManpower(
       fillRegimentFromManpower(pack, state, r, deltaYears, populationRate);
     }
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       assertManpowerInvariant(pack, state.i, populationRate);
     }
   }
@@ -686,7 +686,7 @@ export function assertManpowerInvariant(
   const maxUnder = (civilianPeople + underArms) * WAR_MAX_LEVY_OF_MALE_ADULTS + epsilonPeople;
 
   if (underArms > maxUnder + 1e-6) {
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       console.warn(
         `[manpower] state ${stateId} under-arms ${underArms.toFixed(0)} exceeds ` +
           `max levy of male stock ${maxUnder.toFixed(0)}`
