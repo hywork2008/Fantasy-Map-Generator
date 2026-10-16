@@ -5,8 +5,8 @@
  * Removes every browser global the shared test setup stubs, then tries the three stages a headless
  * run needs: import the core, load the golden fixture, advance 30 days. The test pins the stage
  * that currently fails, so progress is visible: when a refactor step makes a stage pass, this test
- * fails and the expectation moves forward (finally to "passed" in S6). Extensions are not
- * registered yet — that needs the SimulationExtension entries from S5.
+ * fails and the expectation moves forward. Since S2 every stage passes for the core systems;
+ * extensions are not registered yet — that needs the SimulationExtension entries from S5.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -48,8 +48,10 @@ async function runStages(): Promise<{ stage: Stage; error?: string }> {
   }
 
   try {
+    const ticksBefore = core.simulationContext.tickCount;
     const result = core.runDaily(30, { notify: true });
     if (result.daysCompleted !== 30) throw new Error(`completed ${result.daysCompleted}/30 days`);
+    if (core.simulationContext.tickCount - ticksBefore !== 30) throw new Error("the clock did not advance 30 ticks");
   } catch (error) {
     return { stage: "advance", error: describeError(error) };
   }
@@ -57,9 +59,9 @@ async function runStages(): Promise<{ stage: Stage; error?: string }> {
 }
 
 describe("simulation core without DOM", () => {
-  it("reports the first failing stage", async () => {
+  it("imports the core, loads the fixture and advances 30 days (core systems only)", async () => {
     const result = await runStages();
     if (result.error) process.stderr.write(`[node smoke] fails at ${result.stage}: ${result.error}\n`);
-    expect(result.stage).toBe("import");
+    expect(result.stage).toBe("passed");
   });
 });

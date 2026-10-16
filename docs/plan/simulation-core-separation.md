@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)。S2 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)。S3 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -411,3 +411,36 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - `tsc`・`lint:legacy` は通った。vitest は 6,974 件が成功し、失敗 5 件はすべて既知のもの(city-editor 4 件、食料気候の較正 1 件)。
 - e2e(burgs・layers・load-map・states・map-context-menu・click-edit)は、変更前の HEAD でも同じ程度(約 26 件)失敗していた。前後で失敗の一覧に差が出た分は、単独で再実行すると変更前と同じ結果になった(並列実行時の揺れ)。`click-edit` は単独で 2 回とも全件成功した。
 - Node スモークテストは、まだ import の段階で失敗する。原因は `localStorage` から `generators/navalTechBonus.ts:28` に移った。モジュール読み込み時の `document.addEventListener` で、S2(イベントバス)の対象。
+
+## 15. S2 の結果(2026-10-16)
+
+### 15.1 イベントバス `simEvents`(`src/simulation/events.ts`)
+
+- `EventTarget` を継承した 1 つのオブジェクトで、DOM と同じ形の API(`dispatchEvent(new CustomEvent(name, { detail }))`、`addEventListener`)を持つ。そのため呼び出し側は `document.` を `simEvents.` に置き換えるだけで済み、イベント名・`detail`(要求/応答型イベントで同期的に書き込まれる可変オブジェクトを含む)・同期配送の意味はすべて変わらない。§6.1 で想定していた型付きの `emit(name, detail)` は採用しなかった。機械的に置き換えられることと、意味が完全に同じであることを優先した。
+- ブラウザでは `connectSimulationEventsToDocument()`(`app.ts` の `initApp` の最初、および jsdom の `test-setup.ts`)で双方向に橋渡しする。
+  - コアが投げたイベントは、コア内のリスナーの後に `document` へ再送する。既存の UI・拡張入口のリスナーは無改修で動く。
+  - コアが購読しているイベント名については、ホスト(生成パイプライン、UI、拡張入口)が `document` に投げたものをコアへ中継する(`fmg:generate-post-core`、`fmg:map-ready-tasks-completed` など)。
+  - 中継したイベントは逆方向へは送らないので、ループも二重配送も起きない。
+- 置き換えたのは 23 ファイル(本体の generators 6、economy の generators 12、shipbuilding 3、characters 2、`optionLocks`)。
+
+### 15.2 その他の DOM 依存
+
+| 箇所 | 対処 |
+| --- | --- |
+| `marketFlowDiagnostics.downloadFlowReportCsv`(`<a>` を作ってダウンロード) | `economy/ui/marketFlowReportDownload.ts` へ移した |
+| `graphUtils.drawHeights`(canvas でプレビュー画像を作る) | `utils/heightmapImage.ts` へ移し、`utils` のまとめ用ファイルから外した |
+| `languageUtils.list`(`document.documentElement.lang`) | `typeof document` で守り、無い時は `"en"` を使う |
+| `timeEngine` の `window.fmg?.extensionAPI` と `window.setTimeout` | `typeof window` で守る(S5 で置き換える)/ グローバルの `setTimeout` を使う |
+
+- `lint:sim-boundary` の `document` 検出を DOM のメンバーだけに絞った。これまでは、アーカイブの `WorldDocument` を表すローカル変数 `document` まで数えていた(`worldArchive` 22 件など)。
+- コアの `document` は 2 ファイル・4 箇所まで減った。
+  - `languageUtils` 1 件は上記のとおり守ってある。
+  - `nodeUtils` の 3 件は DOM ヘルパー(`getElementById` など)で、`utils` のまとめ用ファイル経由で到達するだけ。コアからの呼び出しは無いことを確認した。
+  - ブラウザ・グローバル全体では、122 箇所(39 ファイル)から 37 箇所(14 ファイル)になった。
+
+### 15.3 検証
+
+- golden は 2 回実行して、2 回とも基準と一致した。イベントの配送順序の変更で結果は変わっていない。
+- **Node スモークテストが全段階を通るようになった**。DOM・`window`・`localStorage` が無い Node で、コアを import し、fixture を読み込み、30 日進めて tick が 30 進むことまで確認する(拡張は未登録。S5 で対応)。期待値を `passed` にした。
+- `tsc`・`lint:legacy` は通った。vitest は 6,973 件が成功。失敗 6 件は、既知の 5 件と `populationControls.test.ts` 1 件。後者は単独で 2 回実行して 2 回とも成功した(負荷による揺れ)。
+- e2e(fast-advance-settings・load-map・click-edit・directions-dialog・economy-dialog-layers・startup-check)の失敗 5 件は、変更前の HEAD でも同じ 5 件だった。

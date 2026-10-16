@@ -1,4 +1,5 @@
 import { getMaxShipClassTierForState } from "../../../generators/technologyProgress";
+import { simEvents } from "../../../simulation/events";
 import {
   type Burg,
   SHIPBUILDING_MATERIAL_IDS,
@@ -294,7 +295,7 @@ export function setMerchantHullMaintenance(hullId: number, maintenanceDays: numb
 }
 
 function dispatchMerchantHullChanged(hull: ShipHull): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:shipbuilding-merchant-hull-changed", {
       detail: {
         id: hull.id,
@@ -442,7 +443,7 @@ export function registerCompletedHull(args: {
   if (hull.owner === "market") dispatchMerchantHullChanged(hull);
 
   if (emitCompletedEvent) {
-    document.dispatchEvent(
+    simEvents.dispatchEvent(
       new CustomEvent("fmg:shipbuilding-ship-completed", {
         detail: { hullId: hull.id, burgId: burg.i, stateId: burg.state ?? null, owner, shipClassId }
       })

@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { stateHasEnemy } from "../../hostCore";
@@ -299,7 +300,7 @@ function updateMilitaryDiscontent(state: State, fundingRatio: number): void {
   state.militaryDiscontent = rn(next, 2);
 
   if (previous < MILITARY_DISCONTENT_EVENT_THRESHOLD && next >= MILITARY_DISCONTENT_EVENT_THRESHOLD) {
-    document.dispatchEvent(
+    simEvents.dispatchEvent(
       new CustomEvent("fmg:military-discontent-threshold", { detail: { stateId: state.i, discontent: next } })
     );
   }

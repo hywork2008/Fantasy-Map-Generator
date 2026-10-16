@@ -1,4 +1,5 @@
 import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+import { simEvents } from "../simulation/events";
 import { isUndeadMilitaryUnit, livingTroops, undeadTroops } from "../utils/regimentPopulation";
 
 export { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
@@ -1305,7 +1306,7 @@ class MilitaryModule {
       regiment.name = this.getName(regiment, state.military ?? []);
       this.generateNote(regiment, state);
     }
-    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
+    simEvents.dispatchEvent(new CustomEvent("fmg:refresh-military"));
     return true;
   }
 
@@ -1507,14 +1508,14 @@ class MilitaryModule {
 }
 export const Military = new MilitaryModule();
 
-document.addEventListener("fmg:shipbuilding-ship-completed", event => {
+simEvents.addEventListener("fmg:shipbuilding-ship-completed", event => {
   const detail = (event as CustomEvent<unknown>).detail;
   if (typeof detail !== "object" || detail === null || Array.isArray(detail)) return;
   const stateId = (detail as Record<string, unknown>).stateId;
   if (typeof stateId === "number" && stateId > 0) Military.refreshFleetCapacity(stateId);
 });
 
-document.addEventListener("fmg:time-advance-completed", () => {
+simEvents.addEventListener("fmg:time-advance-completed", () => {
   for (const state of worldContext.pack.states) {
     if (state?.i && !state.removed) Military.refreshMountedCapacity(state.i);
   }

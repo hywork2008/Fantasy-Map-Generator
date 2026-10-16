@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getShipClass } from "./shipClasses";
@@ -78,7 +79,7 @@ function dispatchVoyageIncome(hull: ShipHull, stateId: number, deltaYears: numbe
   const amount = rn(shipClass.buildPointsRequired * GOLD_PER_BUILD_POINT_PER_YEAR * deltaYears, 2);
   if (amount <= 0) return;
 
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:shipbuilding-voyage-income", {
       detail: { stateId, owner: hull.owner, amount, deltaYears }
     })
@@ -92,7 +93,7 @@ function dispatchVoyageIntel(observerStateId: number, states: readonly State[], 
   const amount = rn(INTEL_GAIN_PER_YEAR * deltaYears, 2);
   if (amount <= 0) return;
 
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:shipbuilding-voyage-intel", {
       detail: { observerStateId, targetStateId, amount, deltaYears }
     })

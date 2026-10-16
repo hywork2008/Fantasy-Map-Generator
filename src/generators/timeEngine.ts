@@ -25,6 +25,7 @@ import {
   stepDaySimulation
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
+import { simEvents } from "../simulation/events";
 import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
 import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
@@ -127,7 +128,7 @@ interface FrontierResourceDiscoveredEventDetail {
  * host records only the strategic intent; it never assumes a discovery grants
  * ownership before the normal Frontier incorporation transaction.
  */
-document.addEventListener("fmg:frontier-resource-discovered", event => {
+simEvents.addEventListener("fmg:frontier-resource-discovered", event => {
   const detail = (event as CustomEvent<unknown>).detail;
   if (!isFrontierResourceDiscoveredEventDetail(detail)) return;
   recordFrontierResourceClaim(simulationContext.frontier, detail);
@@ -347,7 +348,7 @@ registerSimulationSystem({
     });
     for (const incorporation of result.incorporations) {
       if (incorporation.origin !== "seaborne" || incorporation.burgId === undefined) continue;
-      document.dispatchEvent(
+      simEvents.dispatchEvent(
         new CustomEvent("fmg:settlement-promoted", {
           detail: {
             burgId: incorporation.burgId,
@@ -517,7 +518,7 @@ function updateWorldSeason(): void {
  * simulationContext.currentYear/era changed, regardless of the cause.
  */
 function dispatchSimulationUpdated(): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:simulation-updated", {
       detail: {
         currentYear: simulationContext.currentYear,
@@ -570,7 +571,7 @@ export function initSimulationClock(): void {
 // Economy seeds state.treasury during map-ready tasks, after initSimulationClock.
 // Capture that opening reserve so the Tools panel and the first January
 // evaluation see the same calendar-boundary budget.
-document.addEventListener("fmg:map-ready-tasks-completed", () => {
+simEvents.addEventListener("fmg:map-ready-tasks-completed", () => {
   snapshotFrontierBudgets(worldContext, simulationContext);
 });
 
@@ -579,7 +580,7 @@ document.addEventListener("fmg:map-ready-tasks-completed", () => {
  * Shared by `advanceTime`, UI day loops, and the headless runner's notify path.
  */
 export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, deltaDays: number): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:time-advanced", {
       detail: { deltaYears, deltaMonths, deltaDays, currentYear: simulationContext.currentYear }
     })
@@ -613,7 +614,7 @@ registerDayStepObserver(notifyAfterDayStep);
  * a failed/thrown batch — see call sites.
  */
 function notifyAdvanceCompleted(): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:time-advance-completed", {
       detail: {
         currentYear: simulationContext.currentYear,
@@ -1038,7 +1039,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
   if (result.newBurgsAdded) topics.push("map.settlements");
   if (result.routesAdded) topics.push("map.networks");
   for (const settlement of result.promotedSettlements) {
-    document.dispatchEvent(new CustomEvent("fmg:settlement-promoted", { detail: settlement }));
+    simEvents.dispatchEvent(new CustomEvent("fmg:settlement-promoted", { detail: settlement }));
   }
 
   const portDevelopments = advancePortDevelopment(worldContext, simulationContext);
@@ -1084,7 +1085,8 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
-  const isNobilityEnabled = window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
+  // No host API (Node, before the browser app assembles window.fmg) means no extensions (S5 replaces this).
+  const isNobilityEnabled = typeof window !== "undefined" && window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
   if (!isNobilityEnabled) {
     measureTickStep("core:militaryFallback", () => {
       if (sim.simMilitaryRecovery) {
@@ -1192,8 +1194,8 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
     if (daysThisFrame > 0) notifyAfterDayStep(0, 0, daysThisFrame);
     useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
 
-    window.setTimeout(loop, 0);
+    setTimeout(loop, 0);
   };
 
-  window.setTimeout(loop, 0);
+  setTimeout(loop, 0);
 }

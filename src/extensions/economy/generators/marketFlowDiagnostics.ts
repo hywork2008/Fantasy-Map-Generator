@@ -32,7 +32,6 @@ import {
   buildFlowReportSummary,
   type FlowCycleSnapshot,
   type FlowReportSummary,
-  formatFlowReportCsv,
   type MarketGoodCycleSample,
   trimFlowCycleHistory
 } from "./marketFlowReport";
@@ -219,29 +218,6 @@ export function recordFlowCycleEnd(options?: {
 
 export function getFlowReport(): FlowReportSummary {
   return buildFlowReportSummary(getFlowCycleHistory(), CYCLES_PER_YEAR);
-}
-
-export function downloadFlowReportCsv(filename = "market-flow-report.csv"): void {
-  const summary = getFlowReport();
-  const world = getWorldContext();
-  const markets = getMarkets();
-  const marketName = (marketId: number) => {
-    const market = markets.find(candidate => candidate.i === marketId);
-    if (!market) return `Market ${marketId}`;
-    if (market.name) return market.name;
-    const burg = world.pack.burgs[market.centerBurgId];
-    return burg?.name ?? `Market ${marketId}`;
-  };
-  const goodName = (goodId: number) => Goods.get(goodId)?.name ?? `Good ${goodId}`;
-  const csv = formatFlowReportCsv(summary.rows, { marketName, goodName });
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 export function clearFlowDiagnostics(): void {

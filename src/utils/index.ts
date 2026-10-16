@@ -24,7 +24,6 @@ import {
 import { distanceSquared, rollups } from "./functionUtils";
 import {
   calculateVoronoi,
-  drawHeights,
   findAll,
   findAllCellsInRadius,
   findAllInQuadtree,
@@ -104,7 +103,6 @@ export {
   createTypedArray,
   debounce,
   distanceSquared,
-  drawHeights,
   each,
   findAll,
   findAllCellsInRadius,

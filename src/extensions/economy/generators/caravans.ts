@@ -1,6 +1,7 @@
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { landTravelLegSpeeds } from "../../../services/routeGrade";
+import { simEvents } from "../../../simulation/events";
 import { normalizeHeightExponent } from "../../../utils/height";
 import { useOptionsState, type WorldContext } from "../../hostCore";
 import { rn } from "../../hostUtils";
@@ -371,7 +372,7 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
   }
 
   if (!updates.length) return;
-  document.dispatchEvent(new CustomEvent("fmg:economy-caravan-hull-positions", { detail: { updates } }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:economy-caravan-hull-positions", { detail: { updates } }));
 }
 
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {

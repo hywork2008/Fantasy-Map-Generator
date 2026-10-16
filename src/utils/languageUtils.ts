@@ -200,10 +200,13 @@ export const abbreviate = (name: string, restricted: string[] = []) => {
  */
 export const list = (array: string[]) => {
   if (!Intl.ListFormat) return array.join(", ");
-  const conjunction = new Intl.ListFormat(document.documentElement.lang || "en", {
-    style: "long",
-    type: "conjunction"
-  });
+  const conjunction = new Intl.ListFormat(
+    (typeof document === "undefined" ? "" : document.documentElement.lang) || "en",
+    {
+      style: "long",
+      type: "conjunction"
+    }
+  );
   return conjunction.format(array);
 };
 

@@ -8,6 +8,7 @@ import { bindRaceService } from "../hostRaces";
  * module instances when the extension is loaded via a blob URL.
  */
 
+import { simEvents } from "../../simulation/events";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Race } from "../../types/models";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
@@ -222,7 +223,7 @@ export function setAllowedCharacterRaceKeys(keys: Iterable<string>, persist = tr
       if (typeof localStorage !== "undefined") {
         localStorage.setItem("allowedRaceKeys", JSON.stringify(valid));
         if (typeof document !== "undefined") {
-          document.dispatchEvent(
+          simEvents.dispatchEvent(
             new CustomEvent("fmg:lock-changed", { detail: { id: "allowedRaceKeys", locked: true } })
           );
         }

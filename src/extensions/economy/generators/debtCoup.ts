@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character, TitleHolding } from "../../characters/characterTypes";
 import type { State } from "../../hostTypes";
@@ -186,7 +187,7 @@ export function tryDebtCoup(state: State): DebtCoupResult {
 
 function dispatchDebtCoupSuccessEvent(state: State, result: DebtCoupResult): void {
   if (typeof document === "undefined") return;
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:debt-coup-success", {
       detail: {
         stateId: state.i,

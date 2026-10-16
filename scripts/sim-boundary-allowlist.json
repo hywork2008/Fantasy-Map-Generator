@@ -15,50 +15,13 @@
       "localStorage": 2
     },
     "src/extensions/characters/charactersContext.ts": {
-      "document": 1,
       "localStorage": 6
-    },
-    "src/extensions/characters/loadoutEquip.ts": {
-      "document": 2
     },
     "src/extensions/economy/generators/caravanMovement.ts": {
       "localStorage": 10
     },
-    "src/extensions/economy/generators/caravans.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/chanceryDiplomacy.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/coupAftermath.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/debtCoup.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/debtDefault.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/debtDefaultConsequences.ts": {
-      "document": 1
-    },
     "src/extensions/economy/generators/incrementalBatching.ts": {
       "requestAnimationFrame": 1
-    },
-    "src/extensions/economy/generators/legitimacyWar.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/marketFlowDiagnostics.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/merchantTransportAssets.ts": {
-      "document": 3
-    },
-    "src/extensions/economy/generators/overseasRelations.ts": {
-      "document": 3
-    },
-    "src/extensions/economy/generators/playerCommerce.ts": {
-      "document": 2
     },
     "src/extensions/economy/generators/production-generator.ts": {
       "requestAnimationFrame": 1
@@ -69,48 +32,11 @@
     "src/extensions/economy/generators/tradeLogisticsSettings.ts": {
       "localStorage": 3
     },
-    "src/extensions/economy/generators/treasuryAllocation.ts": {
-      "document": 1
-    },
-    "src/extensions/economy/generators/warFooting.ts": {
-      "document": 1
-    },
-    "src/extensions/shipbuilding/generators/logging.ts": {
-      "document": 1
-    },
-    "src/extensions/shipbuilding/generators/shipVoyages.ts": {
-      "document": 2
-    },
-    "src/extensions/shipbuilding/generators/shipyardQueue.ts": {
-      "document": 2
-    },
-    "src/generators/funeralRites.ts": {
-      "document": 1
-    },
-    "src/generators/military-generator.ts": {
-      "document": 3
-    },
-    "src/generators/militaryAssetCapacity.ts": {
-      "document": 1
-    },
-    "src/generators/navalTechBonus.ts": {
-      "document": 2
-    },
     "src/generators/regimentMovement.ts": {
       "localStorage": 1
     },
     "src/generators/timeEngine.ts": {
-      "document": 7,
-      "window": 3
-    },
-    "src/runtime/extensionStateSliceRegistry.ts": {
-      "document": 11
-    },
-    "src/runtime/worldArchive.ts": {
-      "document": 22
-    },
-    "src/runtime/worldRuntime.ts": {
-      "document": 8
+      "window": 1
     },
     "src/utils/commonUtils.ts": {
       "navigator": 1,
@@ -119,9 +45,6 @@
     "src/utils/debug.ts": {
       "localStorage": 1
     },
-    "src/utils/graphUtils.ts": {
-      "document": 1
-    },
     "src/utils/languageUtils.ts": {
       "document": 1
     },
@@ -129,7 +52,6 @@
       "document": 3
     },
     "src/utils/optionLocks.ts": {
-      "document": 1,
       "localStorage": 2
     }
   }

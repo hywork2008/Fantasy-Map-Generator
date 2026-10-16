@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -244,7 +245,7 @@ export function migrateLegacyPlayerGrainInventory(): boolean {
       else bases[wheatBasisIndex] = nextBasis;
       bases.splice(grainBasisIndex, 1);
     }
-    document.dispatchEvent(
+    simEvents.dispatchEvent(
       new CustomEvent("fmg:character-inventory-changed", { detail: { characterId: character.i } })
     );
     changed = true;
@@ -356,7 +357,7 @@ export function executePlayerMarketTrade(args: {
   };
   getPlayerMarketTransactions().push(receipt);
   setPlayerMarketTransactions(getPlayerMarketTransactions());
-  document.dispatchEvent(new CustomEvent("fmg:character-inventory-changed", { detail: { characterId: character.i } }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:character-inventory-changed", { detail: { characterId: character.i } }));
   reconcileRetailInventory();
   return { ok: true, message: quote.direction === "buy" ? "Purchase completed." : "Sale completed.", receipt };
 }

@@ -8,7 +8,7 @@ import { getCaravans, getMarketById, getMarkets, getWorldContext } from "../../e
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { getCaravanTravelTime } from "../../generators/caravans";
 import { Goods } from "../../generators/goods-generator";
-import { downloadFlowReportCsv, getFlowReport } from "../../generators/marketFlowDiagnostics";
+import { getFlowReport } from "../../generators/marketFlowDiagnostics";
 import type { FlowReportSummary, MarketGoodFlowReportRow } from "../../generators/marketFlowReport";
 import type { Caravan } from "../../generators/marketTypes";
 import { TradeAnimation } from "../../generators/trade-animation";
@@ -19,6 +19,7 @@ import {
 } from "../../generators/tradeLogisticsSettings";
 import { routeHasWater } from "../../generators/tradeSailSchedule";
 import { getCaravanInstanceKey } from "../../renderers/draw-trade-animation";
+import { downloadFlowReportCsv } from "../marketFlowReportDownload";
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

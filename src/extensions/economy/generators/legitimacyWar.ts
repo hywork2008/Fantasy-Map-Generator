@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character, TitleHolding } from "../../characters/characterTypes";
 import type { State } from "../../hostTypes";
@@ -219,7 +220,7 @@ export function tickLegitimacyWar(state: State): LegitimacyWarTickResult {
 
 function dispatchLegitimacyWarEvent(state: State, phase: "open" | "regime_win" | "pretender_win"): void {
   if (typeof document === "undefined") return;
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:legitimacy-war", {
       detail: {
         stateId: state.i,

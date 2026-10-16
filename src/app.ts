@@ -59,6 +59,7 @@ import { applyMapMarkerPatch, markerNoteId, nextMarkerId } from "./services/mapM
 import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
 import { tip, tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
+import { connectSimulationEventsToDocument } from "./simulation/events";
 import { installSimulationViewPort } from "./simulation/viewPort";
 import { useExtensionState } from "./store/extensionState";
 import type { SvgLayerSpec } from "./store/layerState";
@@ -258,6 +259,7 @@ function installBrowserSimulationViewPort(): void {
 
 export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   console.log("initApp starting with options:", options);
+  connectSimulationEventsToDocument();
   installBrowserSimulationViewPort();
 
   const drawMap = options.drawMap ?? true;

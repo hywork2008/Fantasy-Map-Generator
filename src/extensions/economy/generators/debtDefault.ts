@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 
@@ -91,7 +92,7 @@ export function canIssueDebtWhileNotInDefault(state: Pick<State, "debtInDefault"
 
 function dispatchDebtDefaultEvent(state: State, phase: "enter" | "clear"): void {
   if (typeof document === "undefined") return;
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:public-debt-default", {
       detail: {
         stateId: state.i,

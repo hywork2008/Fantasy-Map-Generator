@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { SHIP_CLASS_DEFINITIONS, type ShipbuildingMerchantHullSnapshot } from "../../hostTypes";
 import {
   getExportStagingLots,
@@ -377,7 +378,7 @@ export class MerchantTransportAssetsModule {
 
   requestMerchantHullSnapshot(): void {
     const detail = { source: "economy" as const, handled: false };
-    document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-request", { detail }));
+    simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-request", { detail }));
     if (!detail.handled) this.waterAssetModeActive = false;
   }
 
@@ -540,7 +541,7 @@ export class MerchantTransportAssetsModule {
       destinationBurgId: itinerary?.destinationBurgId,
       result: undefined as "fulfilled" | "unavailable" | undefined
     };
-    document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-reservation-request", { detail }));
+    simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-reservation-request", { detail }));
     return detail.result === "fulfilled";
   }
 
@@ -556,7 +557,7 @@ export class MerchantTransportAssetsModule {
       destinationBurgId,
       result: undefined as "fulfilled" | "unavailable" | undefined
     };
-    document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-release-request", { detail }));
+    simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-release-request", { detail }));
   }
 
   depart(reservationId: number): void {

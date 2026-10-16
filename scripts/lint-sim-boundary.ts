@@ -56,7 +56,9 @@ const FORBIDDEN_PACKAGES = /^(three|react|react-dom|@react-|deck\.gl|@deck\.gl|@
 
 /** Browser globals the core must receive through ports instead (§6). */
 const RUNTIME_PATTERNS: Record<string, RegExp> = {
-  document: /\bdocument\./g,
+  // DOM members only, so a local `document` (an archive WorldDocument) is not counted.
+  document:
+    /\bdocument\.(?:dispatchEvent|addEventListener|removeEventListener|getElementById|getElementsBy\w+|querySelector(?:All)?|createElement\w*|body|documentElement|head|readyState|cookie|title)\b/g,
   window: /\bwindow\./g,
   localStorage: /\b(localStorage|sessionStorage)\b/g,
   requestAnimationFrame: /\b(requestAnimationFrame|cancelAnimationFrame)\b/g,

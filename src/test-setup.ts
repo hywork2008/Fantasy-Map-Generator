@@ -44,6 +44,12 @@ if (typeof localStorage === "undefined" || typeof localStorage.getItem !== "func
   };
 }
 
+// jsdom tests dispatch and observe simulation events on `document`, as the browser app does.
+if (typeof document !== "undefined" && typeof document.dispatchEvent === "function") {
+  const { connectSimulationEventsToDocument } = await import("./simulation/events");
+  connectSimulationEventsToDocument(document);
+}
+
 // Tests cross the same injection boundary as extension init; no production fallback imports.
 const { bindRaceService } = await import("./extensions/hostRaces");
 const { raceService } = await import("./services/raceService");

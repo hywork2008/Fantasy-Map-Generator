@@ -20,6 +20,7 @@ import {
   scaleFuneralMaterials
 } from "../data/funeralRites";
 import { isLichCulture, isUndeadRaceKey, raceKeyForId } from "../extensions/characters/lichPolicy";
+import { simEvents } from "../simulation/events";
 import { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
 import { harvestForestStock } from "./forestStock";
@@ -187,7 +188,7 @@ export function flushFuneralDemand(): void {
   const pending = getFuneralState().pendingMaterialsByCell;
   if (!pending || !Object.keys(pending).length) return;
   if (typeof document === "undefined") return;
-  document.dispatchEvent(new CustomEvent(FUNERAL_DEMAND_EVENT));
+  simEvents.dispatchEvent(new CustomEvent(FUNERAL_DEMAND_EVENT));
 }
 
 export { getFuneralState };
