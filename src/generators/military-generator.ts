@@ -14,6 +14,7 @@ import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { getTroopPreferredFormation } from "../data/militaryFormations";
 import { useOptionsState } from "../store/optionsState";
+import { historicalPeriodIndex } from "../types/historicalPeriod";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
@@ -118,6 +119,17 @@ export function periodUnitTypeModifier(period: string | undefined, unitType: str
   if (period === "classicalAntiquity") return unitType === "melee" ? 1.3 : unitType === "mounted" ? 0.5 : 1;
   if (period === "lateAntiquity") return unitType === "mounted" ? 0.8 : 1;
   return 1;
+}
+
+/** Siege engines are recruited up to the late Middle Ages and not once guns replace them. */
+const SIEGE_ENGINE_LAST_PERIOD = "lateMedieval";
+
+/** periodUnitTypeModifier plus per-unit period limits (siege engines retire with gunpowder). */
+export function periodUnitModifier(period: string | undefined, unit: { name: string; type: string }): number {
+  const typeModifier = periodUnitTypeModifier(period, unit.type);
+  if (unit.name !== "siegeEngines") return typeModifier;
+  const at = historicalPeriodIndex(period ?? "ageOfExploration");
+  return at >= 0 && at <= historicalPeriodIndex(SIEGE_ENGINE_LAST_PERIOD) ? typeModifier : 0;
 }
 
 class MilitaryModule {
@@ -378,7 +390,7 @@ class MilitaryModule {
         } else if (unit.type === "naval" && s.form === "Republic") {
           modifier *= 1.2;
         }
-        modifier *= periodUnitTypeModifier(this.worldContext.options?.historicalPeriod, unit.type);
+        modifier *= periodUnitModifier(this.worldContext.options?.historicalPeriod, unit);
         s.temp[unit.name] = modifier * s.alert;
         // Shipbuilding extension (if enabled) boosts naval unit strength for states
         // whose shipyards have completed state-owned hulls — defaults to 1 (no-op).
@@ -1107,6 +1119,20 @@ class MilitaryModule {
         crew: 2,
         power: 2,
         type: "mounted",
+        separate: 0
+      },
+      {
+        // Torsion and counterweight engines (ballista, onager, later trebuchet): from antiquity to
+        // the late Middle Ages, retired once guns take over (periodUnitModifier). Not a gunpowder
+        // unit, so it stays when gunpowderEraEnabled is off
+        // (docs/plan/classical-antiquity-historical-period.md §6.7).
+        icon: "🪨",
+        name: "siegeEngines",
+        rural: 0,
+        urban: 0.015,
+        crew: 6,
+        power: 6,
+        type: "machinery",
         separate: 0
       },
       {

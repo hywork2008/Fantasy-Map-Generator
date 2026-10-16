@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TRADITION_PERIODS } from "../data/civilizationTraditions";
 import { windmillsAllowed } from "../extensions/economy/generators/millCapacity";
 import { waterTechCeilings } from "../extensions/economy/generators/urbanWaterTech";
-import { periodUnitTypeModifier } from "../generators/military-generator";
+import { periodUnitModifier, periodUnitTypeModifier } from "../generators/military-generator";
 import { domesticRoadHubPolicy } from "../generators/routes-generator";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import { bridgeSkewLimitForTier, bridgeSkewTierForPeriod } from "../utils/bridgeSkewPolicy";
@@ -56,6 +56,15 @@ describe("antiquity roads, armies and bridges", () => {
       periodUnitTypeModifier("lateAntiquity", "mounted")
     );
     expect(periodUnitTypeModifier("highMedieval", "mounted")).toBe(1);
+  });
+
+  it("recruits siege engines from antiquity to the late Middle Ages, then retires them for guns", () => {
+    const siege = { name: "siegeEngines", type: "machinery" };
+    expect(periodUnitModifier("classicalAntiquity", siege)).toBe(1);
+    expect(periodUnitModifier("lateMedieval", siege)).toBe(1);
+    expect(periodUnitModifier("ageOfExploration", siege)).toBe(0);
+    expect(periodUnitModifier(undefined, siege)).toBe(0);
+    expect(periodUnitModifier("ageOfExploration", { name: "artillery", type: "machinery" })).toBe(1);
   });
 
   it("lets Roman arches span about 30 m, without drawbridges", () => {

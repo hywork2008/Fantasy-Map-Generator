@@ -196,6 +196,7 @@
       "japaneseCastleAndKeepCompoundEastAsian": "日本式城郭・天守曲輪 (East Asian)",
       "fortifiedPalaceAndQalatMiddleEasternMoorish": "イスラム要塞宮殿・カラート (Middle Eastern / Moorish)",
       "castraAndAcropolisClassicalAntiquity": "古代要塞・カストラ / アクロポリス (Classical Antiquity)",
+      "lateRomanWalledTownLateAntiquity": "古代末期の城壁都市 (Late Antiquity)",
       "castleCastleSvg": "城 ({{value0}})",
       "importedFixedRiverCrossingsAndRoadDirections": "Imported fixed river crossings and road directions",
       "generationFailurePreview": "生成失敗の途中図: {{value0}}",

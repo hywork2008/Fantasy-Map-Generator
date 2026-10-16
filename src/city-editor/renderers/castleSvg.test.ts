@@ -156,6 +156,9 @@ describe("resolveCastleStyle", () => {
       civilization: civilization("european")
     });
     expect(resolveCastleStyle(european).style).toBe("concentric");
+    const lateRoman = mockDocument({ historicalPeriod: "lateAntiquity", civilization: civilization("classical") });
+    expect(resolveCastleStyle(lateRoman).style).toBe("late-roman-walled-town");
+    expect(resolveCastleStyle({ ...lateRoman, historicalPeriod: "highMedieval" }).style).toBe("ancient-castra");
     const islamic = mockDocument({ historicalPeriod: "highMedieval", civilization: civilization("islamic") });
     expect(resolveCastleStyle(islamic).style).toBe("islamic-qalat");
     expect(resolveCastleStyle({ ...islamic, historicalPeriod: "steamEra" }).style).toBe("bastion-citadel");
@@ -171,6 +174,9 @@ describe("resolveCastleStyle", () => {
 
   it("resolves styles correctly based on historical periods", () => {
     expect(resolveCastleStyle(mockDocument({ historicalPeriod: "classicalAntiquity" })).style).toBe("ancient-castra");
+    expect(resolveCastleStyle(mockDocument({ historicalPeriod: "lateAntiquity" })).style).toBe(
+      "late-roman-walled-town"
+    );
     expect(resolveCastleStyle(mockDocument({ historicalPeriod: "earlyMedieval" })).style).toBe("motte-bailey");
     expect(resolveCastleStyle(mockDocument({ historicalPeriod: "highMedieval" })).style).toBe("norman-keep");
     expect(resolveCastleStyle(mockDocument({ historicalPeriod: "lateMedieval" })).style).toBe("concentric");
@@ -263,6 +269,17 @@ describe("renderCastle (authentic fortress ground plans)", () => {
     expect(g.querySelector(".ce-drum-tower")).toBeTruthy();
     expect(g.querySelector(".ce-barbican")).toBeTruthy();
     expect(g.querySelector(".ce-building--great_hall")).toBeTruthy();
+  });
+
+  it("renders a late Roman walled town with interval drum towers, a church and no keep-style barbican", () => {
+    const doc = mockDocument({ historicalPeriod: "lateAntiquity" });
+    const castle = mockCastle({ castleStyle: "late-roman-walled-town" });
+    const g = renderCastle(doc, castle);
+    expect(g.getAttribute("class")).toContain("ce-castle--late-roman-walled-town");
+    expect(g.querySelectorAll(".ce-drum-tower").length).toBeGreaterThan(castle.parts.length);
+    expect(g.querySelector(".ce-barbican")).toBeNull();
+    const plan = buildFortressPlan(doc, castle, CASTLE_STYLE_PROFILES["late-roman-walled-town"]);
+    expect(plan.towers.filter(t => t.kind === "drum_tower").length).toBeGreaterThanOrEqual(10);
   });
 
   it("renders Bastion Citadel with star bastions, glacis slope, and parade ground", () => {

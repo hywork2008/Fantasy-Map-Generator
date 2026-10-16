@@ -912,6 +912,68 @@ function buildAncientCastra(ring: Point[], center: Point, gatePoint: Point, _par
   return plan;
 }
 
+/**
+ * Late antique fortified town (3rd–5th c.): a thick curtain with projecting drum towers at the
+ * corners and along every side, a single gate between two drum towers, a smaller headquarters,
+ * an early church and a granary inside (docs/plan/classical-antiquity-historical-period.md §6.8).
+ */
+function buildLateRomanWalledTown(ring: Point[], center: Point, gatePoint: Point, _parts: CastlePart[]): FortressPlan {
+  const plan: FortressPlan = {
+    style: "late-roman-walled-town",
+    ramparts: [{ kind: "outer_wall", polygon: ring }],
+    towers: [],
+    buildings: [],
+    defensiveGates: [],
+    courtyards: [],
+    props: []
+  };
+
+  // Corner towers plus interval towers at mid-side: late Roman walls were densely towered.
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i];
+    const q = ring[(i + 1) % ring.length];
+    plan.towers.push({ kind: "drum_tower", point: p, radius: 4 });
+    plan.towers.push({ kind: "drum_tower", point: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], radius: 3.2 });
+  }
+
+  const court = offsetPolygon(ring, -4);
+  if (court.length >= 3) plan.courtyards.push({ polygon: court, texture: "packed_dirt" });
+
+  // The gate is the gap between two drum towers.
+  const gateAngle = Math.atan2(center[1] - gatePoint[1], center[0] - gatePoint[0]);
+  for (const side of [1, -1]) {
+    plan.towers.push({
+      kind: "drum_tower",
+      point: [
+        gatePoint[0] + Math.cos(gateAngle + (side * Math.PI) / 2) * 5,
+        gatePoint[1] + Math.sin(gateAngle + (side * Math.PI) / 2) * 5
+      ],
+      radius: 4.4
+    });
+  }
+
+  plan.buildings.push({
+    id: "late-roman-principia",
+    kind: "main_keep",
+    polygon: createRotatedRect([center[0], center[1] + 3], 14, 10, 0),
+    roofStyle: "pitched_tile"
+  });
+  plan.buildings.push({
+    id: "late-roman-church",
+    kind: "chapel",
+    polygon: createRotatedRect([center[0] + 10, center[1] - 6], 12, 6, 0),
+    roofStyle: "pitched_tile"
+  });
+  plan.buildings.push({
+    id: "late-roman-horreum",
+    kind: "barracks",
+    polygon: createRotatedRect([center[0] - 10, center[1] - 6], 12, 6, 0),
+    roofStyle: "pitched_tile"
+  });
+  plan.props.push({ kind: "stone_well", point: [center[0] - 4, center[1] + 8] });
+  return plan;
+}
+
 /** Use persisted footprints for editable buildings; style geometry supplies their appearance. */
 function applySavedBuildings(plan: FortressPlan, parts: CastlePart[], profile: CastleStyleProfile): FortressPlan {
   const kinds: Record<CastlePart["role"], BuildingGeometry["kind"]> = {
@@ -953,7 +1015,8 @@ function applySavedBuildings(plan: FortressPlan, parts: CastlePart[], profile: C
   plan.buildings = parts.map(part => ({
     id: part.id,
     kind:
-      part.role === "service" && (plan.style === "bastion-citadel" || plan.style === "ancient-castra")
+      part.role === "service" &&
+      (plan.style === "bastion-citadel" || plan.style === "ancient-castra" || plan.style === "late-roman-walled-town")
         ? "barracks"
         : kinds[part.role],
     polygon: part.footprint,
@@ -1005,6 +1068,9 @@ export function buildFortressPlan(
       break;
     case "ancient-castra":
       plan = buildAncientCastra(ring, center, gatePoint, castle.parts);
+      break;
+    case "late-roman-walled-town":
+      plan = buildLateRomanWalledTown(ring, center, gatePoint, castle.parts);
       break;
     default:
       plan = buildNormanKeep(ring, center, gatePoint, castle.parts);

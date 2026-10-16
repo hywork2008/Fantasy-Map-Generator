@@ -410,6 +410,52 @@ export const CASTLE_STYLE_PROFILES: Record<CastleStyle, CastleStyleProfile> = {
       hasGardenTrees: false,
       hasMotteHatching: false
     }
+  },
+  "late-roman-walled-town": {
+    style: "late-roman-walled-town",
+    get label() {
+      return editorText("cityEditor.messages.lateRomanWalledTownLateAntiquity");
+    },
+    // Grey rubble core with red brick lacing courses, tiled roofs.
+    palette: {
+      groundFill: "#d6d0c2",
+      groundStroke: "#958a78",
+      courtFill: "#cfc5b1",
+      courtStroke: "#a2957e",
+      pathStroke: "#b8aa92",
+      keepWall: "#7a7266",
+      keepStroke: "#3e3830",
+      keepRoof: "#9a5a3c",
+      keepAccent: "#a5583a",
+      rangeWall: "#8e8577",
+      rangeStroke: "#4a4339",
+      rangeRoof: "#a0603f",
+      serviceWall: "#9b9283",
+      serviceStroke: "#564e42",
+      chapelWall: "#857c6e",
+      chapelStroke: "#433c33",
+      rampartFill: "#7d7568",
+      rampartStroke: "#3f3931"
+    },
+    keepFeatures: {
+      turretType: "round",
+      hasButtresses: false,
+      hasRampartBase: false,
+      roofStyle: "pitched_tile",
+      hasArrowSlits: false
+    },
+    rangeFeatures: {
+      roofStyle: "pitched_tile",
+      hasChimneys: false,
+      hasArcade: false
+    },
+    courtFeatures: {
+      texture: "packed_dirt",
+      hasWell: true,
+      hasFountainPool: false,
+      hasGardenTrees: false,
+      hasMotteHatching: false
+    }
   }
 };
 
@@ -427,7 +473,10 @@ export function resolveCastleStyle(document: CityDocument, castle?: CastlePlan |
   // FMG culture's fortification lineage (civilizationTraditions.ts).
   const fortification = document.civilization?.fortification;
   if (fortification === "japanese") return CASTLE_STYLE_PROFILES["japanese-shiro"];
-  if (fortification === "classical") return CASTLE_STYLE_PROFILES["ancient-castra"];
+  if (fortification === "classical")
+    return CASTLE_STYLE_PROFILES[
+      document.historicalPeriod === "lateAntiquity" ? "late-roman-walled-town" : "ancient-castra"
+    ];
   // No walled-yamen style yet; the plain castle is closer than a European keep.
   if (fortification === "sinitic") return CASTLE_STYLE_PROFILES.classic;
   if (fortification === "earthwork") return CASTLE_STYLE_PROFILES["motte-bailey"];
@@ -451,9 +500,9 @@ export function resolveCastleStyle(document: CityDocument, castle?: CastlePlan |
   // European lineage (and fantasy folk): follow the period.
   switch (period) {
     case "classicalAntiquity":
-    // Until a late-Roman walled-town profile exists (§6.8 of the antiquity plan).
-    case "lateAntiquity":
       return CASTLE_STYLE_PROFILES["ancient-castra"];
+    case "lateAntiquity":
+      return CASTLE_STYLE_PROFILES["late-roman-walled-town"];
     case "earlyMedieval":
       return CASTLE_STYLE_PROFILES["motte-bailey"];
     case "highMedieval":

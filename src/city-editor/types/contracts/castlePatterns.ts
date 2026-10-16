@@ -6,4 +6,5 @@ export type CastleStyle =
   | "bastion-citadel" // Early modern Renaissance trace-italienne bastion & barracks
   | "japanese-shiro" // East Asian / Japanese castle with curved stone ramparts (tenshu-dai) & multi-gable roofs
   | "islamic-qalat" // Middle Eastern / Moorish fortress with sand-stone towers, patio cistern & pointed merlons
-  | "ancient-castra";
+  | "ancient-castra"
+  | "late-roman-walled-town"; // Late antique fort: thick curtain, close-set projecting drum towers, twin-tower gate

@@ -2,7 +2,7 @@
 
 ## 状態
 
-**P0〜P3 完了（2026-10-16）、P4 は未実装。** 各フェーズの実装内容は §10 を参照。
+**P0〜P3 完了、P4 は一部完了（2026-10-16）。** 各フェーズの実装内容は §10 を参照。P4 のうちヘレニズム時代と退行の評価器は別文書で設計済み・未実装（[hellenistic-age-historical-period.md](./hellenistic-age-historical-period.md)、[technology-maintenance-regression.md](./technology-maintenance-regression.md)）。
 
 関連文書:
 
@@ -374,3 +374,9 @@ CE は既に `classicalAntiquity` を扱えるので、FMG から descriptor で
 - ガレー船（§6.6・決定事項6）: `SHIP_CLASS_DEFINITIONS` に `galley`（tier 1・積載 30・乗員 200・`role: "warship"`）。warship は造船所の次の段階（`getHighestUnlockedShipClass`）にも貨物輸送（`tradeCargo.ts` は `MERCHANT_SHIP_CLASS_DEFINITIONS` を使う）にも選ばれない。古代の初期艦隊は国有分がガレー（`galleysForStateHulls`）、民間は帆船のまま。古代の国営造船所はガレーを建造する。実測で国有41隻がすべてガレー、民間108隻はスループ。
 - 火薬 Goods の価格倍率は P1 で §6.10 の値を設定済み。紙（Paper）は葦から作る Good で、古代のパピルスに当たるものとして生産可能のままにした（止めると書籍・教育の需要連鎖が切れる）。
 - 未実施: 長期の Advance Time による技術上昇速度と水道の維持の較正、`late-roman-walled-town` 城プロファイル（P4）。
+
+### P4（2026-10-16、一部）
+- CE の城の様式 `late-roman-walled-town` を追加（`castleLayoutBuilder.ts` の `buildLateRomanWalledTown`、`castlePatterns.ts`）。厚い城壁の角と各辺の中間に張り出した円塔、門は2基の円塔の間、内部に小さな司令部・初期の教会・穀倉。`lateAntiquity` の既定、および古典的築城（`fortification: "classical"`）の文化の `lateAntiquity` で使う。
+- 攻城兵器ユニット `siegeEngines`（machinery、crew 6、power 6）を既定のユニットに追加。`periodUnitModifier` で、古典古代〜後期中世だけ徴募し、大航海時代以降は徴募しない（砲兵には技術ゲートが無く、既存の `obsoletes` では置き換えられないため時代で判定）。火薬の有無とは独立。実測（seed antiq1）で古代末期 32、大航海時代 0。
+- ヘレニズム時代と、技術の維持・退行は別文書で設計した（未実装）。
+- 発見事項（未対応）: 火薬の有無（`gunpowderEraEnabled`、既定 ON）は時代と独立しているため、古代・初期中世でも既定のままだとマスケット銃兵・砲兵が大量に生成される（実測: 古代末期でマスケット銃兵 3,055・砲兵 80）。§4 の「古代で ON は珍しい新発明」という前提と合わない。
